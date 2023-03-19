@@ -59,7 +59,6 @@ Rules:
 	ra|rules/aircraft.yaml
 	ra|rules/ships.yaml
 	ra|rules/fakes.yaml
-	ww3mod|rules.yaml
 
 Sequences:
 	ra|sequences/ships.yaml
