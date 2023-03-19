@@ -1,0 +1,140 @@
+name: Deploy Documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git Tag'
+        required: true
+        default: 'release-xxxxxxxx'
+
+jobs:
+  wiki:
+    name: Update Wiki
+    if: github.repository == 'openra/openra'
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: Install .NET 6
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Prepare Environment
+        run: |
+          make all
+
+      - name: Clone Wiki
+        uses: actions/checkout@v3
+        with:
+          repository: openra/openra.wiki
+          token: ${{ secrets.DOCS_TOKEN }}
+          path: wiki
+
+      - name: Update Wiki (Playtest)
+        if: startsWith(github.event.inputs.tag, 'playtest-')
+        env:
+          GIT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          ./utility.sh all --settings-docs "${GIT_TAG}" > "wiki/Settings (playtest).md"
+
+      - name: Update Wiki (Release)
+        if: startsWith(github.event.inputs.tag, 'release-')
+        env:
+          GIT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          ./utility.sh all --settings-docs "${GIT_TAG}" > "wiki/Settings.md"
+
+      - name: Push Wiki
+        env:
+          GIT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          cd wiki
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add --all
+          git commit -m "Update auto-generated documentation for ${GIT_TAG}"
+          git push origin master
+
+  docs:
+    name: Update docs.openra.net
+    if: github.repository == 'openra/openra'
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: Install .NET 6
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Prepare Environment
+        run: |
+          make all
+
+      - name: Clone docs.openra.net (Playtest)
+        if: startsWith(github.event.inputs.tag, 'playtest-')
+        uses: actions/checkout@v3
+        with:
+          repository: openra/docs
+          token: ${{ secrets.DOCS_TOKEN }}
+          path: docs
+          ref: playtest
+
+      - name: Clone docs.openra.net (Release)
+        if: startsWith(github.event.inputs.tag, 'release-')
+        uses: actions/checkout@v3
+        with:
+          repository: openra/docs
+          token: ${{ secrets.DOCS_TOKEN }}
+          path: docs
+          ref: release
+
+      - name: Update docs.openra.net (Playtest)
+        if: startsWith(github.event.inputs.tag, 'playtest-')
+        env:
+          GIT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          ./utility.sh all --docs "${GIT_TAG}" | python3 ./packaging/format-docs.py > "docs/api/traits.md"
+          ./utility.sh all --weapon-docs "${GIT_TAG}" | python3 ./packaging/format-docs.py > "docs/api/weapons.md"
+          ./utility.sh all --sprite-sequence-docs "${GIT_TAG}" | python3 ./packaging/format-docs.py > "docs/api/sprite-sequences.md"
+          ./utility.sh all --lua-docs "${GIT_TAG}" > "docs/api/lua.md"
+
+      - name: Update docs.openra.net (Release)
+        if: startsWith(github.event.inputs.tag, 'release-')
+        env:
+          GIT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          ./utility.sh all --docs "${GIT_TAG}" | python3 ./packaging/format-docs.py > "docs/api/traits.md"
+          ./utility.sh all --weapon-docs "${GIT_TAG}" | python3 ./packaging/format-docs.py > "docs/api/weapons.md"
+          ./utility.sh all --sprite-sequence-docs "${GIT_TAG}" | python3 ./packaging/format-docs.py > "docs/api/sprite-sequences.md"
+          ./utility.sh all --lua-docs "${GIT_TAG}" > "docs/api/lua.md"
+
+      - name: Commit docs.openra.net
+        env:
+          GIT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          cd docs
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add api/*.md
+          git commit -m "Update auto-generated documentation for ${GIT_TAG}"
+
+      - name: Push docs.openra.net (Release)
+        if: startsWith(github.event.inputs.tag, 'release-')
+        run: |
+          cd docs
+          git push origin release
+
+      - name: Push docs.openra.net (Playtest)
+        if: startsWith(github.event.inputs.tag, 'playtest-')
+        run: |
+          cd docs
+          git push origin playtest
