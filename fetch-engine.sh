@@ -80,6 +80,8 @@ if [ "${AUTOMATIC_ENGINE_MANAGEMENT}" = "True" ]; then
 	exit 0
 fi
 
+chmod u=rwx,g=r,o=r ./fetch-geoip.sh
+
 echo "Compiling engine..."
 cd "${ENGINE_DIRECTORY}" || exit 1
 make version VERSION="${ENGINE_VERSION}"
