@@ -2,12 +2,12 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Launch (Example)",
+			"name": "Launch (WW3MOD)",
 			"type": "coreclr",
 			"request": "launch",
 			"program": "${workspaceRoot}/engine/bin/OpenRA.dll",
 			"args": [
-				"Game.Mod=example",
+				"Game.Mod=ww3mod",
 				"Engine.EngineDir=${workspaceRoot}/engine",
 				"Engine.ModSearchPaths=${workspaceRoot}/mods, ${workspaceRoot}/engine/mods",
 				"Debug.DisplayDeveloperSettings=true",
@@ -19,7 +19,7 @@
 			"type": "coreclr",
 			"request": "launch",
 			"program": "${workspaceRoot}/engine/bin/OpenRA.Utility.dll",
-			"args": ["example", "--docs", "{DEV_VERSION}"],
+			"args": ["ww3mod", "--docs", "{DEV_VERSION}"],
 			"env": {
 				"ENGINE_DIR": "${workspaceRoot}/engine",
 				"MOD_SEARCH_PATHS": "${workspaceRoot}/mods, ${workspaceRoot}/engine/mods"
