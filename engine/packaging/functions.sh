@@ -14,9 +14,6 @@
 #   RUNTIME: Runtime type (net6, mono)
 #   COPY_GENERIC_LAUNCHER: If set to True the OpenRA.exe will also be copied (True, False)
 #   COPY_CNC_DLL: If set to True the OpenRA.Mods.Cnc.dll will also be copied (True, False)
-
-COPY_CNC_DLL: True
-
 #   COPY_D2K_DLL: If set to True the OpenRA.Mods.D2k.dll will also be copied (True, False)
 # Used by:
 #   Makefile (install target for local installs and downstream packaging)
