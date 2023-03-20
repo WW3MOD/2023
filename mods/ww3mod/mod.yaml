@@ -13,7 +13,7 @@ Packages:
 	~^SupportDir|Content/ra/v2/cnc
 	~^SupportDir|Content/ra/v2/movies
 	^EngineDir
-	$ww3mod: ww3mod
+	$ra: ra
 	^EngineDir|mods/common: common
 	~main.mix
 	~conquer.mix
@@ -32,58 +32,57 @@ Packages:
 	~hires1.mix
 	~desert.mix
 	~general.mix
-	# ra|bits
-	# ra|bits/desert
-	# ra|scripts
+	ww3mod|bits
+	ww3mod|bits/desert
+	ww3mod|scripts
 	common|scripts
-	# ra|uibits
+	ww3mod|uibits
 
 MapFolders:
-	# ra|maps: System
+	ww3mod|maps: System
 	~^SupportDir|maps/ra/release-20230225: User
 
 Rules:
-	# ra|rules/misc.yaml
-	# ra|rules/ai.yaml
-	# ra|rules/player.yaml
-	# ra|rules/palettes.yaml
-	# ra|rules/world.yaml
-	# ra|rules/defaults.yaml
-	# ra|rules/vehicles.yaml
-	# ra|rules/husks.yaml
-	# ra|rules/structures.yaml
-	# ra|rules/infantry.yaml
-	# ra|rules/civilian.yaml
-	# ra|rules/decoration.yaml
-	# ra|rules/aircraft.yaml
-	# ra|rules/ships.yaml
-	# ra|rules/fakes.yaml
+	ww3mod|rules/misc.yaml
+	ww3mod|rules/ai.yaml
+	ww3mod|rules/player.yaml
+	ww3mod|rules/palettes.yaml
+	ww3mod|rules/world.yaml
+	ww3mod|rules/defaults.yaml
+	ww3mod|rules/vehicles.yaml
+	ww3mod|rules/husks.yaml
+	ww3mod|rules/structures.yaml
+	ww3mod|rules/infantry.yaml
+	ww3mod|rules/civilian.yaml
+	ww3mod|rules/decoration.yaml
+	ww3mod|rules/aircraft.yaml
+	ww3mod|rules/ships.yaml
+	ww3mod|rules/fakes.yaml
 
 Sequences:
-	# ra|sequences/ships.yaml
-	# ra|sequences/vehicles.yaml
-	# ra|sequences/structures.yaml
-	# ra|sequences/infantry.yaml
-	# ra|sequences/aircraft.yaml
-	# ra|sequences/misc.yaml
-	# ra|sequences/decorations.yaml
+	ww3mod|sequences/ships.yaml
+	ww3mod|sequences/vehicles.yaml
+	ww3mod|sequences/structures.yaml
+	ww3mod|sequences/infantry.yaml
+	ww3mod|sequences/aircraft.yaml
+	ww3mod|sequences/misc.yaml
+	ww3mod|sequences/decorations.yaml
 
 TileSets:
-	# ra|tilesets/snow.yaml
-	# ra|tilesets/interior.yaml
-	# ra|tilesets/temperat.yaml
-	# ra|tilesets/desert.yaml
+	ww3mod|tilesets/snow.yaml
+	ww3mod|tilesets/interior.yaml
+	ww3mod|tilesets/temperat.yaml
+	ww3mod|tilesets/desert.yaml
 
 Cursors:
-	# ra|cursors.yaml
+	ww3mod|cursors.yaml
 
 Chrome:
-	# ra|chrome.yaml
+	ww3mod|chrome.yaml
 
 Assemblies:
 	^BinDir|OpenRA.Mods.Common.dll
 	^BinDir|OpenRA.Mods.Cnc.dll
-	^BinDir|OpenRA.Mods.WW3MOD.dll
 
 ChromeLayout:
 	common|chrome/ingame.yaml
@@ -97,8 +96,8 @@ ChromeLayout:
 	common|chrome/ingame-infostats.yaml
 	common|chrome/ingame-info-lobby-options.yaml
 	common|chrome/ingame-menu.yaml
-	# ra|chrome/ingame-observer.yaml
-	# ra|chrome/ingame-player.yaml
+	ww3mod|chrome/ingame-observer.yaml
+	ww3mod|chrome/ingame-player.yaml
 	common|chrome/ingame-perf.yaml
 	common|chrome/ingame-debug.yaml
 	common|chrome/ingame-debuginfo.yaml
@@ -128,7 +127,7 @@ ChromeLayout:
 	common|chrome/connection.yaml
 	common|chrome/replaybrowser.yaml
 	common|chrome/gamesave-browser.yaml
-	# ra|chrome/gamesave-loading.yaml
+	ww3mod|chrome/gamesave-loading.yaml
 	common|chrome/dropdowns.yaml
 	common|chrome/musicplayer.yaml
 	common|chrome/tooltips.yaml
@@ -143,21 +142,21 @@ Translations:
 	common|languages/en.ftl
 
 Weapons:
-	# ra|weapons/explosions.yaml
-	# ra|weapons/ballistics.yaml
-	# ra|weapons/missiles.yaml
-	# ra|weapons/other.yaml
-	# ra|weapons/smallcaliber.yaml
-	# ra|weapons/superweapons.yaml
+	ww3mod|weapons/explosions.yaml
+	ww3mod|weapons/ballistics.yaml
+	ww3mod|weapons/missiles.yaml
+	ww3mod|weapons/other.yaml
+	ww3mod|weapons/smallcaliber.yaml
+	ww3mod|weapons/superweapons.yaml
 
 Voices:
-	# ra|audio/voices.yaml
+	ww3mod|audio/voices.yaml
 
 Notifications:
-	# ra|audio/notifications.yaml
+	ww3mod|audio/notifications.yaml
 
 Music:
-	# ra|audio/music.yaml
+	ww3mod|audio/music.yaml
 
 Hotkeys:
 	common|hotkeys/game.yaml
@@ -168,12 +167,12 @@ Hotkeys:
 	common|hotkeys/chat.yaml
 	common|hotkeys/editor.yaml
 	common|hotkeys/control-groups.yaml
-	# ra|hotkeys.yaml
+	ww3mod|hotkeys.yaml
 
 LoadScreen: LogoStripeLoadScreen
-	# Image: # ra|uibits/loadscreen.png
-	# Image2x: # ra|uibits/loadscreen-2x.png
-	# Image3x: # ra|uibits/loadscreen-3x.png
+	Image: ww3mod|uibits/loadscreen.png
+	Image2x: ww3mod|uibits/loadscreen-2x.png
+	Image3x: ww3mod|uibits/loadscreen-3x.png
 	Text: Filling Crates..., Charging Capacitors..., Reticulating Splines..., Planting Trees..., Building Bridges..., Aging Empires..., Compiling EVA..., Constructing Pylons..., Activating Skynet..., Splitting Atoms...
 
 ServerTraits:
@@ -184,7 +183,7 @@ ServerTraits:
 
 ChromeMetrics:
 	common|metrics.yaml
-	# ra|metrics.yaml
+	ww3mod|metrics.yaml
 
 Fonts:
 	Tiny:
@@ -216,12 +215,12 @@ Fonts:
 		Size: 24
 		Ascender: 18
 	Title:
-		Font: # ra|ZoodRangmah.ttf
+		Font: ww3mod|ZoodRangmah.ttf
 		Size: 48
 		Ascender: 26
 
 Missions:
-	# ra|missions.yaml
+	ww3mod|missions.yaml
 
 MapGrid:
 	TileSize: 24,24
@@ -317,15 +316,15 @@ ModContent:
 			TestFiles: ^SupportDir|Content/ra/v2/expand/await.aud, ^SupportDir|Content/ra/v2/expand/bog.aud, ^SupportDir|Content/ra/v2/expand/float_v2.aud, ^SupportDir|Content/ra/v2/expand/gloom.aud, ^SupportDir|Content/ra/v2/expand/grndwire.aud, ^SupportDir|Content/ra/v2/expand/rpt.aud, ^SupportDir|Content/ra/v2/expand/search.aud, ^SupportDir|Content/ra/v2/expand/traction.aud, ^SupportDir|Content/ra/v2/expand/wastelnd.aud
 			Sources: aftermath, aftermath-linux, ra-origin
 	Downloads:
-		# ra|installer/downloads.yaml
+		ww3mod|installer/downloads.yaml
 	Sources:
-		# ra|installer/aftermath.yaml
-		# ra|installer/allies95.yaml
-		# ra|installer/cnc95.yaml
-		# ra|installer/counterstrike.yaml
-		# ra|installer/firstdecade.yaml
-		# ra|installer/origin.yaml
-		# ra|installer/soviet95.yaml
+		ww3mod|installer/aftermath.yaml
+		ww3mod|installer/allies95.yaml
+		ww3mod|installer/cnc95.yaml
+		ww3mod|installer/counterstrike.yaml
+		ww3mod|installer/firstdecade.yaml
+		ww3mod|installer/origin.yaml
+		ww3mod|installer/soviet95.yaml
 
 DiscordService:
 	ApplicationId: 699222659766026240
