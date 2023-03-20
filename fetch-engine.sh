@@ -80,14 +80,13 @@ if [ "${AUTOMATIC_ENGINE_MANAGEMENT}" = "True" ]; then
 	exit 0
 fi
 
-chmod u=rwx,g=r,o=r ./fetch-geoip.sh
 
 echo "Compiling engine..."
 cd "${ENGINE_DIRECTORY}" || exit 1
+chmod u=rwx,g=r,o=r fetch-geoip.sh
 make version VERSION="${ENGINE_VERSION}"
 exit 0
 
 echo "Automatic engine management is disabled."
 echo "Please manually update the engine to version ${ENGINE_VERSION}."
 exit 1
-
