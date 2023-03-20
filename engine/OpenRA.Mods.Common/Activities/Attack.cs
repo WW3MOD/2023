@@ -45,6 +45,9 @@ namespace OpenRA.Mods.Common.Activities
 		WDist maxRange;
 		AttackStatus attackStatus = AttackStatus.UnableToAttack;
 
+		protected INotifyNewTarget[] notifyNewTarget;
+		Target? oldTarget = null;
+
 		public Attack(Actor self, in Target target, bool allowMovement, bool forceAttack, Color? targetLineColor = null)
 		{
 			this.target = target;
@@ -102,12 +105,12 @@ namespace OpenRA.Mods.Common.Activities
 
 			// FF
 			// Never got used in the end but seems to work
-			// if (!target.Equals(oldTarget))
-			// {
-			// 	oldTarget = target;
-			// 	foreach (var n in notifyNewTarget)
-			// 		n.Acquired(self);
-			// }
+			if (!target.Equals(oldTarget))
+			{
+				oldTarget = target;
+				foreach (var n in notifyNewTarget)
+					n.Acquired(self);
+			}
 
 			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
 			{
@@ -223,9 +226,7 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
 
-					// QueueChild(new AttackMoveActivity(self, () => move.MoveTo(move.NearestMoveableCell(self.World.Map.Clamp(self.World.Map.CellContaining(checkTarget.CenterPosition))), 8), true));
-					// self.ShowTargetLines();
-
+					// Standard should be to attackmove towards target, unless force firing?
 					return AttackStatus.NeedsToMove;
 				}
 			}

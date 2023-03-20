@@ -9,11 +9,6 @@
  */
 #endregion
 
-using System;
-using OpenRA.Mods.Common.Activities;
-using System.Collections.Generic;
-using System.Linq;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -46,18 +41,18 @@ namespace OpenRA.Mods.Common.Traits
 		public ModifySequence(ActorInitializer init, ModifySequenceInfo info)
 			: base(info)
 		{
-			this.self = init.Self;
+			self = init.Self;
 			this.info = info;
 		}
 
 		protected override void TraitDisabled(Actor self)
 		{
-			isEnabled = false; 
+			isEnabled = false;
 		}
 
 		protected override void TraitEnabled(Actor self)
 		{
-			isEnabled = true; 
+			isEnabled = true;
 		}
 	}
 }

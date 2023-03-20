@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		AmmoPool ammoPool;
 		IReloadAmmoModifier[] modifiers;
-		ReloadAmmoPoolInfo info;
+		readonly ReloadAmmoPoolInfo info;
 
 		[Sync]
 		int remainingTicks;
@@ -94,9 +94,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!ammoPool.HasFullAmmo && --remainingTicks == 0)
 			{
-				if (info.FullReloadSteps > 0) {
+				if (info.FullReloadSteps > 0)
+				{
 					double a = ammoPool.Info.Ammo / info.FullReloadSteps;
-					reloadCount = (int) Math.Ceiling(a);
+					reloadCount = (int)Math.Ceiling(a);
 				}
 
 				if (info.FullReloadTicks > 0)

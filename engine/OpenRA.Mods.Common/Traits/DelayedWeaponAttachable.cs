@@ -45,8 +45,6 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HashSet<Actor> detectors = new HashSet<Actor>();
 		readonly Stack<int> tokens = new Stack<int>();
 
-		bool IsEnabled { get { return tokens.Count > 0; } }
-
 		public DelayedWeaponAttachable(Actor self, DelayedWeaponAttachableInfo info)
 			: base(info)
 		{

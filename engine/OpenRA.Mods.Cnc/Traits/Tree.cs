@@ -53,17 +53,14 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		bool ICrushable.CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
-			return true; 
+			return true;
 
-			// if (crusher.Info.HasTraitInfo<TreeTraversableInfo>())
-			// 	return true;
-			
-			// return false;
-
-			// if (info.BlockFriendly && !crusher.Info.HasTraitInfo<TreeTraversableInfo>() && self.Owner.RelationshipWith(crusher.Owner) == PlayerRelationship.Ally)
-			// 	return false;
-
-			// return info.CrushClasses.Overlaps(crushClasses);
+			/* if (crusher.Info.HasTraitInfo<TreeTraversableInfo>())
+				return true;
+			return false;
+			if (info.BlockFriendly && !crusher.Info.HasTraitInfo<TreeTraversableInfo>() && self.Owner.RelationshipWith(crusher.Owner) == PlayerRelationship.Ally)
+				return false;
+			return info.CrushClasses.Overlaps(crushClasses); */
 		}
 
 		LongBitSet<PlayerBitMask> ICrushable.CrushableBy(Actor self, BitSet<CrushClass> crushClasses)

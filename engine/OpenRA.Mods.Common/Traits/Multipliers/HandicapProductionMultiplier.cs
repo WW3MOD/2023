@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				float div = 100F / (100 - handicap);
 
-				return (int) (100 / div);
+				return (int)(100 / div);
 			}
 
 			return 100;
@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				float div = 100F / (100 - handicap);
 
-				return (int) (100 * div);
+				return (int)(100 * div);
 			}
 
 			return 100;

@@ -90,7 +90,7 @@ namespace OpenRA
 			public readonly HashSet<int> Tokens = new HashSet<int>();
 		}
 
-		public readonly Dictionary<string, ConditionState> conditionStates = new Dictionary<string, ConditionState>();
+		public readonly Dictionary<string, ConditionState> ConditionStates = new Dictionary<string, ConditionState>();
 
 		/// <summary>Each granted condition receives a unique token that is used when revoking.</summary>
 		readonly Dictionary<int, string> conditionTokens = new Dictionary<int, string>();
@@ -103,18 +103,19 @@ namespace OpenRA
 		/// <summary>Read-only version of conditionCache that is passed to IConditionConsumers.</summary>
 		readonly IReadOnlyDictionary<string, int> readOnlyConditionCache;
 
-		internal List<DamageOverTime> damageOverTime;
+		internal List<DamageOverTime> DOT;
 
 		public class DamageOverTime
 		{
-			public int ticks;
-			public int modulus;
-			public Damage damage;
+			public int Ticks;
+			public int Modulus;
+			public Damage Damage;
 
-			public DamageOverTime(int t, int m, Damage d) {
-				ticks = t;
-				modulus = m;
-				damage = d;
+			public DamageOverTime(int t, int m, Damage d)
+			{
+				Ticks = t;
+				Modulus = m;
+				Damage = d;
 			}
 		}
 
@@ -132,7 +133,6 @@ namespace OpenRA
 		readonly INotifyIdle[] tickIdles;
 		readonly IEnumerable<WPos> enabledTargetableWorldPositions;
 		bool created;
-		int tickNumber = 0;
 
 		internal Actor(World world, string name, TypeDictionary initDict)
 		{
@@ -213,7 +213,7 @@ namespace OpenRA
 				SyncHashes = syncHashesList.ToArray();
 			}
 
-			damageOverTime = new List<DamageOverTime>();
+			DOT = new List<DamageOverTime>();
 		}
 
 		internal void Initialize(bool addToWorld = true)
@@ -232,7 +232,7 @@ namespace OpenRA
 					allObserverNotifiers.Add(variableUser.Notifier);
 					foreach (var variable in variableUser.Variables)
 					{
-						var cs = conditionStates.GetOrAdd(variable);
+						var cs = ConditionStates.GetOrAdd(variable);
 						cs.Notifiers.Add(variableUser.Notifier);
 
 						// Initialize conditions that have not yet been granted to 0
@@ -295,14 +295,17 @@ namespace OpenRA
 					tickIdle.TickIdle(this);
 
 			// Damage over time
-			for (var i = 0; i < damageOverTime.Count; i++) {
-				var dot = damageOverTime[i];
+			for (var i = 0; i < DOT.Count; i++)
+			{
+				var dot = DOT[i];
 
-				if (dot.modulus == 0 || this.World.WorldTick % dot.modulus == 0) {
-					InflictDamage(this, dot.damage);
+				if (dot.Modulus == 0 || this.World.WorldTick % dot.Modulus == 0)
+				{
+					InflictDamage(this, dot.Damage);
 
-					if (dot.ticks-- <= 0) {
-						damageOverTime.RemoveAt(i);
+					if (dot.Ticks-- <= 0)
+					{
+						DOT.RemoveAt(i);
 					}
 				}
 			}
@@ -512,12 +515,12 @@ namespace OpenRA
 			health.InflictDamage(this, attacker, damage, false);
 		}
 
-		public void InflictDamage(Actor attacker, DamageOverTime dot)
+		public void InflictDamage(Actor _, DamageOverTime dot)
 		{
 			if (Disposed || health == null)
 				return;
 
-			damageOverTime.Add(dot);
+			DOT.Add(dot);
 		}
 
 		public void Kill(Actor attacker, BitSet<DamageType> damageTypes = default)
@@ -584,7 +587,7 @@ namespace OpenRA
 
 		void UpdateConditionState(string condition, int token, bool isRevoke)
 		{
-			var conditionState = conditionStates.GetOrAdd(condition);
+			var conditionState = ConditionStates.GetOrAdd(condition);
 
 			if (isRevoke)
 				conditionState.Tokens.Remove(token);

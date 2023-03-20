@@ -53,7 +53,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Info.TimeToBeStill != 0 && conditionWhenStillToken == Actor.InvalidConditionToken)
 			{
-				if (--cooldown == 0) {
+				if (--cooldown == 0)
+				{
 					conditionWhenStillToken = self.GrantCondition(Info.ConditionWhenStill);
 				}
 			}
@@ -61,16 +62,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateCondition(Actor self, MovementType types)
 		{
-			var validMovement = !IsTraitDisabled && (Info.ValidMovementTypes.Contains(types));
-			var validStop = !IsTraitDisabled && !validMovement && (Info.ValidStopTypes.Contains(types));
+			var validMovement = !IsTraitDisabled && Info.ValidMovementTypes.Contains(types);
+			var validStop = !IsTraitDisabled && !validMovement && Info.ValidStopTypes.Contains(types);
 
-			if (validStop && conditionToken != Actor.InvalidConditionToken){
+			if (validStop && conditionToken != Actor.InvalidConditionToken)
+			{
 				conditionToken = self.RevokeCondition(conditionToken);
 				cooldown = Info.TimeToBeStill;
 			}
-			else if (validMovement && conditionToken == Actor.InvalidConditionToken) {
+			else if (validMovement && conditionToken == Actor.InvalidConditionToken)
+			{
 				conditionToken = self.GrantCondition(Info.Condition);
-				if (conditionWhenStillToken != Actor.InvalidConditionToken) {
+				if (conditionWhenStillToken != Actor.InvalidConditionToken)
+				{
 					conditionWhenStillToken = self.RevokeCondition(conditionWhenStillToken);
 				}
 			}

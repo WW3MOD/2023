@@ -203,7 +203,7 @@ namespace OpenRA.Mods.Common.Traits
 				var maxHops = 0;
 
 				queue.Enqueue(self);
-				while (queue.Count() > 0)
+				while (queue.Count > 0)
 				{
 					var node = queue.Dequeue();
 					foreach (var adjacent in GetValidNeighborSupporters(node, candidates))
@@ -218,7 +218,7 @@ namespace OpenRA.Mods.Common.Traits
 						if (maxHops < hops[adjacent])
 							maxHops = hops[adjacent];
 
-						if (isVisited.Count() > supportInfo.MaxSupportersPerAttacker)
+						if (isVisited.Count > supportInfo.MaxSupportersPerAttacker)
 						{
 							queue.Clear(); // terminate the search
 							break;

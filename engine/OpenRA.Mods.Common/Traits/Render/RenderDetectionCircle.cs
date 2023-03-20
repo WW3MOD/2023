@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public override object Create(ActorInitializer init)
 		{
-			this.Color = Color.FromArgb(this.Alpha, this.Color);
+			Color = Color.FromArgb(Alpha, Color);
 
 			return new RenderDetectionCircle(init.Self, this);
 		}

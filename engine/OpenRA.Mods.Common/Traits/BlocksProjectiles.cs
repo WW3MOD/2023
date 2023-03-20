@@ -65,7 +65,8 @@ namespace OpenRA.Mods.Common.Traits
 				var dat = world.Map.DistanceAboveTerrain(hitPos);
 
 				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
-				if (isBlocking != null && isBlocking.Bypass > 0 && totalBypassed < isBlocking.Bypass) {
+				if (isBlocking != null && isBlocking.Bypass > 0 && totalBypassed < isBlocking.Bypass)
+				{
 					totalBypassed += 1;
 					continue;
 				}

@@ -96,8 +96,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (TargetInFiringArc(self, target, Info.FacingTolerance)
 						&& target.Type != TargetType.Invalid // Make sure target is valid or there can be an error in target.CenterPosition ?
 						&& (self.TraitOrDefault<IndirectFire>() != null // Can fire over blocking actors
-							|| !BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), out var blockedPos))
-					)
+							|| !BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), out var _)))
 						return true;
 
 			return false;

@@ -175,8 +175,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (carrierSlaveEntry.Actor.TraitOrDefault<Armament>() != null)
 					carrierSlaveEntry.SpawnerSlave.Attack(carrierSlaveEntry.Actor, delayedTarget);
-				else {
-					if (delayedTarget.Type != TargetType.Invalid) {
+				else
+				{
+					if (delayedTarget.Type != TargetType.Invalid)
+					{
 						var mv = carrierSlaveEntry.Actor.Trait<IMove>();
 						var cell = self.World.Map.CellContaining(delayedTarget.CenterPosition);
 

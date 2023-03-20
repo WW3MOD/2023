@@ -156,7 +156,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			this.self = self;
-			this.AimInitialTargetPosition = new List<WPos>();
+			AimInitialTargetPosition = new List<WPos>();
 
 			Weapon = info.WeaponInfo;
 			Burst = Weapon.Burst;
@@ -180,9 +180,8 @@ namespace OpenRA.Mods.Common.Traits
 			Barrels = barrels.ToArray();
 		}
 
-		void INotifyAiming.StartedAiming(Actor self, AttackBase attack) {
-			// Game.Debug("StartedAiming -- {0} -- {1}", self.Info.Name, AimInitialTargetPosition.ToString());
-		}
+		void INotifyAiming.StartedAiming(Actor self, AttackBase attack) { }
+
 		void INotifyAiming.StoppedAiming(Actor self, AttackBase attack)
 		{
 			// Game.Debug("StoppedAiming -- {0}", self.Info.Name);
@@ -193,7 +192,6 @@ namespace OpenRA.Mods.Common.Traits
 		// {
 		// 	// Game.Debug("Acquired -- {0}", self.Info.Name);
 		// }
-
 		public virtual WDist MaxRange()
 		{
 			return new WDist(Util.ApplyPercentageModifiers(Weapon.Range.Length, rangeModifiers.ToArray()));
@@ -201,7 +199,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
-
 			Magazine = Weapon.Magazine;
 			Burst = Weapon.Burst;
 
@@ -241,7 +238,8 @@ namespace OpenRA.Mods.Common.Traits
 			// We need to disable conditions if IsTraitDisabled is true, so we have to update conditions before the return below.
 			UpdateCondition(self);
 
-			if (IsTraitDisabled) {
+			if (IsTraitDisabled)
+			{
 				delayedActions.Clear(); // Seems necessary to stop immediatelly, but will cause ammo to be drawn so needs updating for that
 				return;
 			}
@@ -336,11 +334,11 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var na in notifyAttacks)
 				na.PreparingAttack(self, target, this, barrel);
 
-			Func<WPos> muzzlePosition = () => self.CenterPosition + MuzzleOffset(self, barrel);
-			Func<WAngle> muzzleFacing = () => MuzzleOrientation(self, barrel).Yaw;
-			var muzzleOrientation = WRot.FromYaw(muzzleFacing());
+			WPos MuzzlePosition() => self.CenterPosition + MuzzleOffset(self, barrel);
+			WAngle MuzzleFacing() => MuzzleOrientation(self, barrel).Yaw;
+			var muzzleOrientation = WRot.FromYaw(MuzzleFacing());
 
-			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.PositionClosestTo(muzzlePosition());
+			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.PositionClosestTo(MuzzlePosition());
 			var initialOffset = Weapon.FirstBurstTargetOffset;
 			var targetingVector = WVec.Zero;
 
@@ -366,8 +364,8 @@ namespace OpenRA.Mods.Common.Traits
 			var args = new ProjectileArgs
 			{
 				Weapon = Weapon,
-				Facing = muzzleFacing(),
-				CurrentMuzzleFacing = muzzleFacing,
+				Facing = MuzzleFacing(),
+				CurrentMuzzleFacing = MuzzleFacing,
 
 				DamageModifiers = damageModifiers.ToArray(),
 
@@ -375,8 +373,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				RangeModifiers = rangeModifiers.ToArray(),
 
-				Source = muzzlePosition(),
-				CurrentSource = muzzlePosition,
+				Source = MuzzlePosition(),
+				CurrentSource = MuzzlePosition,
 				SourceActor = self,
 				PassiveTarget = passiveTarget,
 				TargetingVector = targetingVector,
@@ -391,13 +389,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (args.Weapon.Projectile != null)
 				{
 					// If projectile is bullet (not missile), lead (aim in front of) target
-					if (Weapon.Projectile is BulletInfo bullet && this.Target.Value.Type != TargetType.Invalid)
+					if (Weapon.Projectile is BulletInfo bullet && Target.Value.Type != TargetType.Invalid)
 					{
 						var initialPosition = AimInitialTargetPosition.FirstOrDefault();
 
 						if (!initialPosition.Equals(default))
 						{
-							var targetPosition = this.Target.Value.CenterPosition;
+							var targetPosition = Target.Value.CenterPosition;
 							var vectorDiffPerTick = WPos.PositionDiff(targetPosition, initialPosition) / Info.FireDelay;
 
 							// var targetSpeed = (vectorDiffPerTick.HorizontalLength);
@@ -450,7 +448,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void UpdateBurst(Actor self, in Target target)
 		{
-			try {
+			try
+			{
 				if (Weapon.BurstWait > 0)
 				{
 					if (--Burst < 1)

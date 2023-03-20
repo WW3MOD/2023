@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Stack<int> preparingTokens = new Stack<int>();
 		readonly Stack<int> attackingTokens = new Stack<int>();
 
-		// INotifyAttack[] notifyAttacks;
+		/* INotifyAttack[] notifyAttacks; */
 
 		int cooldown = 0;
 		int preparingCooldown = 0;
@@ -70,12 +70,12 @@ namespace OpenRA.Mods.Common.Traits
 		public GrantConditionOnPreparingAttack(ActorInitializer init, GrantConditionOnPreparingAttackInfo info)
 			: base(info) { }
 
-		// protected override void Created(Actor self)
-		// {
-		// 	notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
+		/* protected override void Created(Actor self)
+		{
+			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
 
-		// 	base.Created(self);
-		// }
+			base.Created(self);
+		} */
 
 		void ITick.Tick(Actor self)
 		{
@@ -84,19 +84,20 @@ namespace OpenRA.Mods.Common.Traits
 				cooldown = Info.RevokeDelay;
 				RevokeInstance(self, Info.RevokeAll);
 			}
-			// if (preparingTokens.Count > 0 && --preparingCooldown == 0)
-			// {
-			// 	preparingCooldown = Info.PreparingRevokeDelay;
-			// 	RevokeInstance(self, Info.RevokeAll);
-			// }
-			// if (tokens.Count > 0 && --cooldown == 0)
-			// {
-			// 	cooldown = Info.RevokeDelay;
-			// 	RevokeInstance(self, Info.RevokeAll);
-			// }
+
+			/* if (preparingTokens.Count > 0 && --preparingCooldown == 0)
+			{
+				preparingCooldown = Info.PreparingRevokeDelay;
+				RevokeInstance(self, Info.RevokeAll);
+			}
+			if (tokens.Count > 0 && --cooldown == 0)
+			{
+				cooldown = Info.RevokeDelay;
+				RevokeInstance(self, Info.RevokeAll);
+			} */
 		}
 
-		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) 
+		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel)
 		{
 			if (IsTraitDisabled || IsTraitPaused)
 				return;
@@ -118,13 +119,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ArmamentNames.Contains(a.Info.Name))
 				return;
 
-			// if (Info.RevokeOnNewTarget)
-			// {
-			// 	if (TargetChanged(lastTarget, target))
-			// 		RevokeInstance(self, Info.RevokeAll);
+			/* if (Info.RevokeOnNewTarget)
+			{
+				if (TargetChanged(lastTarget, target))
+					RevokeInstance(self, Info.RevokeAll);
 
-			// 	lastTarget = target;
-			// }
+				lastTarget = target;
+			} */
 
 			if (tokens.Count >= Info.MaximumInstances)
 				return;
@@ -135,36 +136,6 @@ namespace OpenRA.Mods.Common.Traits
 			GrantInstance(self, Info.Condition);
 		}
 
-		bool TargetChanged(in Target lastTarget, in Target target)
-		{
-			// Invalidate reveal changing the target.
-			if (lastTarget.Type == TargetType.FrozenActor && target.Type == TargetType.Actor)
-				if (lastTarget.FrozenActor.Actor == target.Actor)
-					return false;
-
-			if (lastTarget.Type == TargetType.Actor && target.Type == TargetType.FrozenActor)
-				if (target.FrozenActor.Actor == lastTarget.Actor)
-					return false;
-
-			if (lastTarget.Type != target.Type)
-				return true;
-
-			// Invalidate attacking different targets with shared target types.
-			if (lastTarget.Type == TargetType.Actor && target.Type == TargetType.Actor)
-				if (lastTarget.Actor != target.Actor)
-					return true;
-
-			if (lastTarget.Type == TargetType.FrozenActor && target.Type == TargetType.FrozenActor)
-				if (lastTarget.FrozenActor != target.FrozenActor)
-					return true;
-
-			if (lastTarget.Type == TargetType.Terrain && target.Type == TargetType.Terrain)
-				if (lastTarget.CenterPosition != target.CenterPosition)
-					return true;
-
-			return false;
-		}
- 
 		void GrantInstance(Actor self, string cond)
 		{
 			if (string.IsNullOrEmpty(cond))

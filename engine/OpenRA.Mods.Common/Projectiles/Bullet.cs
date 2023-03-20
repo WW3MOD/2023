@@ -158,7 +158,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Sync]
 		WPos pos, lastPos, target, source;
 
-		bool lastPosIsSet = false;
+		readonly bool lastPosIsSet = false;
 		int length;
 		int ticks, smokeTicks;
 		int remainingBounces;
@@ -186,17 +186,20 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (info.Inaccuracy.Length > 0)
 			{
 				var maxInaccuracyOffset = Util.GetProjectileInaccuracy(info.Inaccuracy.Length, info.InaccuracyType, args);
-				if (info.MinInaccuracy != WDist.Zero) {
+				if (info.MinInaccuracy != WDist.Zero)
+				{
 					maxInaccuracyOffset = info.MinInaccuracy.Length;
 				}
 
 				var wVecFromPDF = WVec.FromPDF(world.SharedRandom, 2);
 
-				if (info.InaccuracyPerProjectile != WVec.Zero && lastPosIsSet) {
+				if (info.InaccuracyPerProjectile != WVec.Zero && lastPosIsSet)
+				{
 					target = lastPos;
 					target += wVecFromPDF * maxInaccuracyOffset / 1024 - info.InaccuracyPerProjectile;
 				}
-				else {
+				else
+				{
 					target += wVecFromPDF * maxInaccuracyOffset / 1024;
 				}
 			}

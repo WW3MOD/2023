@@ -115,7 +115,7 @@ namespace OpenRA.Mods.Common.Traits
 				AutoRearm(self);
 		}
 
-		public void AutoRearm(Actor self)
+		public static void AutoRearm(Actor self)
 		{
 			var nearestResupplier = ChooseResupplier(self);
 

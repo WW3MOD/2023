@@ -81,6 +81,7 @@ namespace OpenRA.Mods.Common.Effects
 				return SpriteRenderable.None;
 
 			return anim.Render(pos, WVec.Zero, 0, wr.Palette(palette));
+
 			// return anim.Render(pos, wr.Palette(palette));
 		}
 	}

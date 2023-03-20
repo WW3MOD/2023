@@ -233,13 +233,10 @@ namespace OpenRA.Mods.Common.Traits
 				var targets = self?.CurrentActivity?.GetTargets(self);
 
 				if (targets != null)
-					foreach (var target in targets) {
+					foreach (var target in targets)
+					{
 						slave.QueueActivity(mv.MoveTo(self.World.Map.CellContaining(target.CenterPosition)));
 					}
-
-				// slave.QueueActivity(mv.ReturnToCell(slave));
-
-				// slave.QueueActivity(mv.MoveTo(location, 2));
 
 				w.Add(slave);
 			});

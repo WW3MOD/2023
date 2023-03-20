@@ -8,6 +8,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Traits;
@@ -37,13 +38,13 @@ namespace OpenRA.Mods.Common.Warheads
 		public readonly bool ScaleTriggerTimeWithValue = false;
 
 		[Desc("DeathType(s) that trigger the DelayedWeapon to activate. Leave empty to always trigger the DelayedWeapon on death.")]
-		public readonly BitSet<DamageType> DeathTypes = default(BitSet<DamageType>);
+		public readonly BitSet<DamageType> DeathTypes = default;
 
 		[Desc("List of sounds that can be played on attaching.")]
-		public readonly string[] AttachSounds = new string[0];
+		public readonly string[] AttachSounds = Array.Empty<string>();
 
 		[Desc("List of sounds that can be played if attaching is not possible.")]
-		public readonly string[] MissSounds = new string[0];
+		public readonly string[] MissSounds = Array.Empty<string>();
 
 		public WeaponInfo WeaponInfo;
 

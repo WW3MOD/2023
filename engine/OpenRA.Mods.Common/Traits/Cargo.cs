@@ -424,7 +424,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Unload when low health
 			if (self.Trait<Health>().HP < damageThreshold)
 			{
-				var currentActivityType = self.CurrentActivity?.GetType() ;
+				var currentActivityType = self.CurrentActivity?.GetType();
 
 				if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
 					self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
@@ -433,7 +433,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-			if (Info.EjectOnDeath) {
+			if (Info.EjectOnDeath)
+			{
 				while (!IsEmpty() && CanUnload(BlockedByActor.All))
 				{
 					var passenger = Unload(self);
@@ -447,7 +448,8 @@ namespace OpenRA.Mods.Common.Traits
 						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
 					}
 
-					if (!passenger.IsDead) {
+					if (!passenger.IsDead)
+					{
 						var cp = self.CenterPosition;
 						var inAir = self.World.Map.DistanceAboveTerrain(cp).Length != 0;
 						var positionable = passenger.Trait<IPositionable>();

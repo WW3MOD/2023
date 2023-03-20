@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Behaviour = "Dispose";
 
 		[Desc("What to do when damaged")]
-		public readonly BitSet<DamageType> DamageTypes = default(BitSet<DamageType>);
+		public readonly BitSet<DamageType> DamageTypes = default;
 
 		public override object Create(ActorInitializer init) { return new WithDamageBehaviour(init.Self, this); }
 	}
@@ -37,8 +37,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (IsTraitDisabled)
 				return;
-			
+
 			if (e.Damage.DamageTypes.Overlaps(Info.DamageTypes))
+
 				// if (Info.Behaviour == "Dispose"), if there will be more options in future otherwise just dispose
 				self.Dispose();
 		}

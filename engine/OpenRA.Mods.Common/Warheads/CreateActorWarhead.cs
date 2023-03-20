@@ -9,10 +9,7 @@
  */
 #endregion
 
-using System.Linq;
 using OpenRA.GameRules;
-using OpenRA.Mods.Common.Effects;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -24,7 +21,7 @@ namespace OpenRA.Mods.Common.Warheads
 		[FieldLoader.Require]
 		[Desc("Actor to spawn on Impact.")]
 		public readonly string Actor = null;
-		
+
 		[Desc("Offset of the spawned actor relative to the dying actor's position.",
 			"Warning: Spawning an actor outside the parent actor's footprint/influence might",
 			"lead to unexpected behaviour.")]
@@ -35,6 +32,7 @@ namespace OpenRA.Mods.Common.Warheads
 			var td = new TypeDictionary
 			{
 				new CenterPositionInit(target.CenterPosition),
+
 				// new LocationInit(new CPos(args.ImpactPosition.X, args.ImpactPosition.Y) + Offset), // seems to do nothing, either way unit goes towards (0,0) location, over any obstacle without responding to orders
 				new OwnerInit(args.SourceActor.Owner)
 			};

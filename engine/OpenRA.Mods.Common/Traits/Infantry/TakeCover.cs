@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool isPaused = false;
 
-		bool IsProne => remainingDuration == -1 || !IsTraitDisabled && remainingDuration > 0;
+		bool IsProne => remainingDuration == -1 || (!IsTraitDisabled && remainingDuration > 0);
 
 		bool IsPanicking => panicStartedTick > 0;
 
@@ -98,7 +98,7 @@ namespace OpenRA.Mods.Common.Traits
 		public TakeCover(ActorInitializer init, TakeCoverInfo info)
 			: base(init, info)
 		{
-			this.self = init.Self;
+			self = init.Self;
 			this.info = info;
 			if (info.Duration < 0 && info.DamageTriggers.IsEmpty)
 				remainingDuration = info.Duration;
@@ -136,7 +136,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (e.Damage.DamageTypes.Overlaps(info.PanicTriggerDamageTypes)) {
+			if (e.Damage.DamageTypes.Overlaps(info.PanicTriggerDamageTypes))
+			{
 				Panic();
 			}
 
@@ -146,9 +147,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (remainingDuration == -1) // is already permanently prone
 				return;
 
-			// Uncommented so that all damage makes soldiers take cover because why not?
-			// if (e.Damage.Value <= 0 || !e.Damage.DamageTypes.Overlaps(info.DamageTriggers))
-			// 	return;
+			/* // Uncommented so that all damage makes soldiers take cover because why not?
+			if (e.Damage.Value <= 0 || !e.Damage.DamageTypes.Overlaps(info.DamageTriggers))
+				return; */
 
 			if (!IsProne)
 				localOffset = info.ProneOffset;
@@ -201,7 +202,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Game.Debug("Length {0}", delta.Length);
 
-			// if (delta.Length < 1) {
+			// if (delta.Length < 1)
+			// {
 			// 	var cell = mobile.GetAdjacentCell(self.Location, avoidTerrainFilter);
 			// 	if (cell != null)
 			// 		self.QueueActivity(false, mobile.MoveTo(cell.Value, 0, null, false, Color.OrangeRed));
@@ -234,7 +236,6 @@ namespace OpenRA.Mods.Common.Traits
 			var modifierPercentages = info.DamageModifiers.Where(x => damage.DamageTypes.Contains(x.Key)).Select(x => x.Value);
 			return Util.ApplyPercentageModifiers(100, modifierPercentages);
 		}
-
 
 		int IInaccuracyModifier.GetInaccuracyModifier()
 		{
