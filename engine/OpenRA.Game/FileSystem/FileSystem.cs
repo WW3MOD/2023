@@ -94,6 +94,8 @@ namespace OpenRA.FileSystem
 				{
 					name = name.Substring(1);
 
+					name = "ww3mod";
+
 					if (!installedMods.TryGetValue(name, out var mod))
 						throw new InvalidOperationException($"Could not load mod '{name}'. Available mods: {installedMods.Keys.JoinWith(", ")}");
 
