@@ -43,10 +43,13 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<IRenderable> RenderAnnotations(WorldRenderer wr, World w, ActorInfo ai, WPos centerPosition);
 	}
 
+	public interface INotifyPrismCharging { void Charging(Actor self, in Target target); }
+
 	[RequireExplicitImplementation]
 	public interface IBlocksProjectiles
 	{
 		WDist BlockingHeight { get; }
+		int Bypass { get; }
 
 		PlayerRelationship ValidRelationships { get; }
 	}
@@ -71,6 +74,12 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyCustomLayerChanged
 	{
 		void CustomLayerChanged(Actor self, byte oldLayer, byte newLayer);
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyVisualPositionChanged
+	{
+		void VisualPositionChanged(Actor self, byte oldLayer, byte newLayer);
 	}
 
 	[RequireExplicitImplementation]
@@ -117,6 +126,12 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
+	public interface INotifyNewTarget
+	{
+		void Acquired(Actor self);
+	}
+
+	[RequireExplicitImplementation]
 	public interface INotifyAttack
 	{
 		void Attacking(Actor self, in Target target, Armament a, Barrel barrel);
@@ -158,6 +173,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public interface INotifyBuildingPlaced { void BuildingPlaced(Actor self); }
 	public interface INotifyBurstComplete { void FiredBurst(Actor self, in Target target, Armament a); }
+	public interface INotifyMagazineComplete { void FiredMagazine(Actor self, in Target target, Armament a); }
 	public interface INotifyChat { bool OnChat(string from, string message); }
 	public interface INotifyProduction { void UnitProduced(Actor self, Actor other, CPos exit); }
 	public interface INotifyOtherProduction { void UnitProducedByOther(Actor self, Actor producer, Actor produced, string productionType, TypeDictionary init); }
@@ -369,6 +385,12 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IReloadModifier { int GetReloadModifier(); }
 
 	[RequireExplicitImplementation]
+	public interface IBurstWaitModifier { int GetBurstWaitModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IBurstModifier { int GetBurstModifier(); }
+
+	[RequireExplicitImplementation]
 	public interface IReloadAmmoModifier { int GetReloadAmmoModifier(); }
 
 	[RequireExplicitImplementation]
@@ -394,6 +416,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	[RequireExplicitImplementation]
 	public interface IRevealsShroudModifier { int GetRevealsShroudModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IRevealsRadarModifier { int GetRevealsRadarModifier(); }
 
 	[RequireExplicitImplementation]
 	public interface IDetectCloakedModifier { int GetDetectCloakedModifier(); }

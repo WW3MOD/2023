@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -47,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new AmmoPool(this); }
 	}
 
-	public class AmmoPool : INotifyCreated, INotifyAttack, ISync
+	public class AmmoPool : INotifyCreated, INotifyAttack, INotifyBecomingIdle, ISync
 	{
 		public readonly AmmoPoolInfo Info;
 		readonly Stack<int> tokens = new Stack<int>();
@@ -60,6 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int CurrentAmmoCount { get; private set; }
 
 		public bool HasAmmo => CurrentAmmoCount > 0;
+		public bool HasHalfAmmo { get { return CurrentAmmoCount > Info.Ammo / 2; } }
 		public bool HasFullAmmo => CurrentAmmoCount == Info.Ammo;
 
 		public AmmoPool(AmmoPoolInfo info)
@@ -99,7 +101,43 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
 		{
 			if (a != null && Info.Armaments.Contains(a.Info.Name))
+			{
 				TakeAmmo(self, a.Info.AmmoUsage);
+
+				if (!HasAmmo && !self.Info.HasTraitInfo<AircraftInfo>())
+					AutoRearm(self);
+			}
+		}
+
+		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
+		{
+			if (!HasAmmo && !self.Info.HasTraitInfo<AircraftInfo>())
+				AutoRearm(self);
+		}
+
+		public void AutoRearm(Actor self)
+		{
+			var nearestResupplier = ChooseResupplier(self);
+
+			if (nearestResupplier != null)
+			{
+				self.QueueActivity(false, new Resupply(self, nearestResupplier, new WDist(0)));
+			}
+		}
+
+		public static Actor ChooseResupplier(Actor self)
+		{
+			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();
+
+			if (rearmInfo == null)
+				return null;
+
+			var rearmActors = self.World.ActorsHavingTrait<RepairsUnits>()
+				.Where(rearmActor => !rearmActor.IsDead
+					&& rearmActor.Owner == self.Owner
+					&& rearmInfo.RearmActors.Contains(rearmActor.Info.Name));
+
+			return rearmActors.ClosestTo(self);
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }

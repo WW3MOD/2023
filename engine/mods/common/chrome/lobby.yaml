@@ -8,7 +8,7 @@ Background@SERVER_LOBBY:
 	X: (WINDOW_RIGHT - WIDTH) / 2
 	Y: (WINDOW_BOTTOM - HEIGHT) / 2
 	Width: 900
-	Height: 600
+	Height: WINDOW_BOTTOM - 200
 	Children:
 		Label@SERVER_NAME:
 			Y: 16
@@ -23,7 +23,7 @@ Background@SERVER_LOBBY:
 			Height: 250
 		DropDownButton@SLOTS_DROPDOWNBUTTON:
 			X: 20
-			Y: 291
+			Y: WINDOW_BOTTOM - 200 - 600 + 291
 			Width: 185
 			Height: 25
 			Font: Bold
@@ -34,21 +34,21 @@ Background@SERVER_LOBBY:
 			Visible: False
 			Children:
 				Button@PLAYERS_TAB:
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 162
 					Height: 31
 					Font: Bold
 					Text: Players
 				Button@OPTIONS_TAB:
 					X: 162
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 162
 					Height: 31
 					Font: Bold
 					Text: Options
 				Button@MUSIC_TAB:
 					X: 2*162
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 162
 					Height: 31
 					Font: Bold
@@ -59,28 +59,28 @@ Background@SERVER_LOBBY:
 			Visible: False
 			Children:
 				Button@PLAYERS_TAB:
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 121
 					Height: 31
 					Font: Bold
 					Text: Players
 				Button@OPTIONS_TAB:
 					X: 121
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 122
 					Height: 31
 					Font: Bold
 					Text: Options
 				Button@MUSIC_TAB:
 					X: 243
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 121
 					Height: 31
 					Font: Bold
 					Text: Music
 				Button@SERVERS_TAB:
 					X: 364
-					Y: 285
+					Y: WINDOW_BOTTOM - 200 - 600 + 285
 					Width: 122
 					Height: 31
 					Font: Bold
@@ -89,7 +89,7 @@ Background@SERVER_LOBBY:
 			X: 20
 			Y: 67
 			Width: 675
-			Height: 219
+			Height: WINDOW_BOTTOM - 200 - 600 + 219
 		Button@CHANGEMAP_BUTTON:
 			X: PARENT_RIGHT - WIDTH - 20
 			Y: 291

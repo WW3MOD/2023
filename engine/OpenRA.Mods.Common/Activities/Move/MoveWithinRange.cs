@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -39,7 +40,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			// We are now in range. Don't move any further!
 			// HACK: This works around the pathfinder not returning the shortest path
-			return AtCorrectRange(self.CenterPosition) && Mobile.CanInteractWithGroundLayer(self) && Mobile.CanStayInCell(self.Location);
+			return AtCorrectRange(self, self.CenterPosition) && Mobile.CanInteractWithGroundLayer(self) && Mobile.CanStayInCell(self.Location);
 		}
 
 		protected override bool ShouldRepath(Actor self, CPos targetLocation)
@@ -57,6 +58,20 @@ namespace OpenRA.Mods.Common.Activities
 		bool AtCorrectRange(WPos origin)
 		{
 			return Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange);
+		}
+
+		bool AtCorrectRange(Actor self, WPos origin)
+		{
+			return Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange)
+				&& Target.Type != TargetType.Invalid
+				&& (self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
+					|| !BlocksProjectiles.AnyBlockingActorsBetween(
+						self.World,
+						self.Owner,
+						self.CenterPosition,
+						Target.CenterPosition,
+						new WDist(1),
+						out var blockedPos));
 		}
 	}
 }

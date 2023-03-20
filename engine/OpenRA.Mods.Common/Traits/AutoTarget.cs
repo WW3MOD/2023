@@ -341,6 +341,10 @@ namespace OpenRA.Mods.Common.Traits
 		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn)
 		{
 			var chosenTarget = Target.Invalid;
+
+			if (stance <= UnitStance.ReturnFire)
+				return chosenTarget;
+
 			var chosenTargetPriority = int.MinValue;
 			var chosenTargetRange = 0;
 
@@ -420,6 +424,16 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (!allowTurn && !ab.TargetInFiringArc(self, target, ab.Info.FacingTolerance))
 					continue;
+
+				if (target.Type != TargetType.Invalid)
+				{
+					if (self.TraitOrDefault<IndirectFire>() == null)
+						if (BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), out var blockedPos))
+						{
+							// Already checked in TargetInFiringArc, might be unneccesary/inefficient
+							continue;
+						}
+				}
 
 				// Evaluate whether we want to target this actor
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;

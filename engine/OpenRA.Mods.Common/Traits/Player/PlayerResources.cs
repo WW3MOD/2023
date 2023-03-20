@@ -56,25 +56,48 @@ namespace OpenRA.Mods.Common.Traits
 		[NotificationReference("Sounds")]
 		public readonly string CashTickDownNotification = null;
 
+		[Desc("Starting cash options that are available in the lobby options.")]
+		public readonly int[] SelectablePassiveIncome = { 0, 50, 100, 150, 200, 300, 400, 500, 750, 1000 };
+
+		[Desc("Default starting cash option: should be one of the SelectableCash options.")]
+		public readonly int DefaultPassiveIncome = 100;
+
+		[Desc("Number of ticks to wait between giving passive income.")]
+		public readonly int PassiveIncomeInterval = 100;
+
+		[Desc("Use resource storage for passive income.")]
+		public readonly bool PassiveIncomeUseResourceStorage = true;
+
+		[Desc("Number of ticks to wait before giving first money.")]
+		public readonly int PassiveIncomeInitialDelay = 100;
+
 		[Desc("Monetary value of each resource type.", "Dictionary of [resource type]: [value per unit].")]
 		public readonly Dictionary<string, int> ResourceValues = new Dictionary<string, int>();
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			var startingCash = SelectableCash.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
+			var passiveIncome = SelectablePassiveIncome.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
 
 			if (startingCash.Count > 0)
 				yield return new LobbyOption("startingcash", DefaultCashDropdownLabel, DefaultCashDropdownDescription, DefaultCashDropdownVisible, DefaultCashDropdownDisplayOrder,
 					startingCash, DefaultCash.ToString(), DefaultCashDropdownLocked);
+
+			yield return new LobbyOption("passiveincome", "Passive Income", "Money granted to all players periodically", DefaultCashDropdownVisible, 4,
+				passiveIncome, DefaultPassiveIncome.ToString(), DefaultCashDropdownLocked);
 		}
 
 		public override object Create(ActorInitializer init) { return new PlayerResources(init.Self, this); }
 	}
 
-	public class PlayerResources : ISync
+	public class PlayerResources : ISync, ITick
 	{
 		public readonly PlayerResourcesInfo Info;
 		readonly Player owner;
+
+		public int PassiveIncomeTicks { get; private set; }
+
+		public int PassiveIncomeAmount;
 
 		public PlayerResources(Actor self, PlayerResourcesInfo info)
 		{
@@ -86,6 +109,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!int.TryParse(startingCash, out Cash))
 				Cash = info.DefaultCash;
+
+			PassiveIncomeTicks = info.PassiveIncomeInitialDelay;
+
+			var passiveIncome = self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault("passiveincome", "0");
+
+			if (!int.TryParse(passiveIncome, out PassiveIncomeAmount))
+				PassiveIncomeAmount = 0;
 
 			lastNotificationTime = -Info.InsufficientFundsNotificationInterval;
 		}
@@ -103,6 +134,30 @@ namespace OpenRA.Mods.Common.Traits
 		public int Spent;
 
 		long lastNotificationTime;
+
+		void ITick.Tick(Actor self)
+		{
+			if (--PassiveIncomeTicks < 0)
+			{
+				PassiveIncomeTicks = Info.PassiveIncomeInterval;
+				ModifyCash(self, PassiveIncomeAmount);
+			}
+		}
+
+		void ModifyCash(Actor self, int amount)
+		{
+			if (self.Owner.Playable)
+			{
+				if (Info.PassiveIncomeUseResourceStorage)
+				{
+					var initialAmount = Resources;
+					GiveResources(amount);
+					amount = Resources - initialAmount;
+				}
+				else
+					amount = ChangeCash(amount);
+			}
+		}
 
 		public int ChangeCash(int amount)
 		{

@@ -31,19 +31,19 @@ namespace OpenRA.Mods.Common.Effects
 		// Facing is last on these overloads partially for backwards compatibility with previous main ctor revision
 		// and partially because most effects don't need it. The latter is also the reason for placement of 'delay'.
 		public SpriteEffect(WPos pos, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0)
-			: this(() => pos, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
+			: this(() => pos, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
 
 		public SpriteEffect(Actor actor, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0)
-			: this(() => actor.CenterPosition, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
+			: this(() => actor.CenterPosition, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
 
 		public SpriteEffect(WPos pos, WAngle facing, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0)
-			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
+			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
 
 		public SpriteEffect(Func<WPos> posFunc, Func<WAngle> facingFunc, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0)
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
 		{
 			this.world = world;
 			this.posFunc = posFunc;
@@ -80,7 +80,8 @@ namespace OpenRA.Mods.Common.Effects
 			if (!initialized || (!visibleThroughFog && world.FogObscures(pos)))
 				return SpriteRenderable.None;
 
-			return anim.Render(pos, wr.Palette(palette));
+			return anim.Render(pos, WVec.Zero, 0, wr.Palette(palette));
+			// return anim.Render(pos, wr.Palette(palette));
 		}
 	}
 }

@@ -36,7 +36,10 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			var target = targets.ClosestTo(self);
+			// FF TODO: Testing
+			// var target = targets.ClosestTo(self);
+			var target = targets.Random(new Support.MersenneTwister(self.World.LobbyInfo.GlobalSettings.RandomSeed));
+
 			if (target == null)
 				return false;
 

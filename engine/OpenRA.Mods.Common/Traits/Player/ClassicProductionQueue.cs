@@ -143,6 +143,7 @@ namespace OpenRA.Mods.Common.Traits
 				return 0;
 
 			var time = base.GetBuildTime(unit, bi);
+			time /= 4;
 
 			if (info.SpeedUp)
 			{

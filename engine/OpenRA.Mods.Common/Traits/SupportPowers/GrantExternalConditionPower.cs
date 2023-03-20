@@ -28,6 +28,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Duration of the condition (in ticks). Set to 0 for a permanent condition.")]
 		public readonly int Duration = 0;
 
+		[Desc("How many times the condition should be granted.")]
+		public readonly int Repeat = 1;
+
 		[FieldLoader.Require]
 		[Desc("Size of the footprint of the affected area.")]
 		public readonly CVec Dimensions = CVec.Zero;
@@ -87,10 +90,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			Game.Sound.Play(SoundType.World, info.OnFireSound, order.Target.CenterPosition);
 
+
 			foreach (var a in UnitsInRange(self.World.Map.CellContaining(order.Target.CenterPosition)))
-				a.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(t => t.Info.Condition == info.Condition && t.CanGrantCondition(self))
-					?.GrantCondition(a, self, info.Duration);
+			{
+				for (var i = 0; i < info.Repeat; i++) {
+					a.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(t => t.Info.Condition == info.Condition && t.CanGrantCondition(self))
+						?.GrantCondition(a, self, info.Duration);
+				}
+			}
 		}
 
 		public IEnumerable<Actor> UnitsInRange(CPos xy)

@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public enum RangeCircleMode { Maximum, Minimum }
 
 	[Desc("Draw a circle indicating my weapon's range.")]
-	class RenderRangeCircleInfo : TraitInfo, IPlaceBuildingDecorationInfo, IRulesetLoaded, Requires<AttackBaseInfo>
+	class RenderRangeCircleInfo : ConditionalTraitInfo, IPlaceBuildingDecorationInfo, IRulesetLoaded, Requires<AttackBaseInfo>
 	{
 		public readonly string RangeCircleType = null;
 
@@ -32,17 +32,20 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Which circle to show. Valid values are `Maximum`, and `Minimum`.")]
 		public readonly RangeCircleMode RangeCircleMode = RangeCircleMode.Maximum;
 
+		[Desc("Alpha of the circle and scanner update line.")]
+		public readonly int Alpha = 35;
+
 		[Desc("Color of the circle.")]
-		public readonly Color Color = Color.FromArgb(128, Color.Yellow);
+		public Color Color = Color.FromArgb(60, Color.Red); // FF - no longer readonly, problem?
 
 		[Desc("Range circle line width.")]
 		public readonly float Width = 1;
 
 		[Desc("Color of the border.")]
-		public readonly Color BorderColor = Color.FromArgb(96, Color.Black);
+		public readonly Color BorderColor = Color.FromArgb(50, Color.Black);
 
 		[Desc("Range circle border width.")]
-		public readonly float BorderWidth = 3;
+		public readonly float BorderWidth = 0;
 
 		// Computed range
 		Lazy<WDist> range;
@@ -68,9 +71,15 @@ namespace OpenRA.Mods.Common.Traits.Render
 			return otherRanges.Append(localRange);
 		}
 
-		public override object Create(ActorInitializer init) { return new RenderRangeCircle(init.Self, this); }
+		public override object Create(ActorInitializer init)
+		{
+			// FF
+			Color = Color.FromArgb(this.Alpha, this.Color);
 
-		public void RulesetLoaded(Ruleset rules, ActorInfo ai)
+			return new RenderRangeCircle(init.Self, this);
+		}
+
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			// ArmamentInfo.ModifiedRange is set by RulesetLoaded, and may not have been initialized yet.
 			// Defer this lookup until we really need it to ensure we get the correct value.
@@ -85,37 +94,53 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	class RenderRangeCircle : IRenderAnnotationsWhenSelected
+	class RenderRangeCircle : ConditionalTrait<RenderRangeCircleInfo>, IRenderAnnotationsWhenSelected
 	{
-		public readonly RenderRangeCircleInfo Info;
+		// public readonly RenderRangeCircleInfo Info;
 		readonly Actor self;
 		readonly AttackBase attack;
 
 		public RenderRangeCircle(Actor self, RenderRangeCircleInfo info)
+			: base(info)
 		{
-			Info = info;
-
 			this.self = self;
 			attack = self.Trait<AttackBase>();
 		}
 
+		bool Visible
+		{
+			get
+			{
+				if (IsTraitDisabled)
+					return false;
+
+				return true;
+
+				// var p = self.World.RenderPlayer;
+				// return p == null || Info.ValidRelationships.HasStance(self.Owner.RelationshipWith(p)) || (p.Spectating && !p.NonCombatant);
+			}
+		}
+
 		public IEnumerable<IRenderable> RangeCircleRenderables()
 		{
-			if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
-				yield break;
+			if (Visible)
+			{
+				if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
+					yield break;
 
-			var range = Info.RangeCircleMode == RangeCircleMode.Minimum ? attack.GetMinimumRange() : attack.GetMaximumRange();
-			if (range == WDist.Zero)
-				yield break;
+				var range = Info.RangeCircleMode == RangeCircleMode.Minimum ? attack.GetMinimumRange() : attack.GetMaximumRange();
+				if (range == WDist.Zero)
+					yield break;
 
-			yield return new RangeCircleAnnotationRenderable(
-				self.CenterPosition,
-				range,
-				0,
-				Info.Color,
-				Info.Width,
-				Info.BorderColor,
-				Info.BorderWidth);
+				yield return new RangeCircleAnnotationRenderable(
+					self.CenterPosition,
+					range,
+					0,
+					Info.Color,
+					Info.Width,
+					Info.BorderColor,
+					Info.BorderWidth);
+			}
 		}
 
 		IEnumerable<IRenderable> IRenderAnnotationsWhenSelected.RenderAnnotations(Actor self, WorldRenderer wr)

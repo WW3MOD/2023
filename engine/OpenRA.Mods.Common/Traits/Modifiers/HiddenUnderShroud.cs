@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("The actor stays invisible under the shroud.")]
-	public class HiddenUnderShroudInfo : TraitInfo, IDefaultVisibilityInfo
+	public class HiddenUnderShroudInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
 	{
 		[Desc("Players with these relationships can always see the actor.")]
 		public readonly PlayerRelationship AlwaysVisibleRelationships = PlayerRelationship.Ally;
@@ -26,17 +26,14 @@ namespace OpenRA.Mods.Common.Traits
 			"Footprint (reveal when any footprint cell is visible).")]
 		public readonly VisibilityType Type = VisibilityType.Footprint;
 
-		public override object Create(ActorInitializer init) { return new HiddenUnderShroud(this); }
+		public override object Create(ActorInitializer init) => new HiddenUnderShroud(init, this);
 	}
 
-	public class HiddenUnderShroud : IDefaultVisibility, IRenderModifier
+	public class HiddenUnderShroud : PausableConditionalTrait<HiddenUnderShroudInfo>, IDefaultVisibility, IRenderModifier
 	{
-		protected readonly HiddenUnderShroudInfo Info;
-
-		public HiddenUnderShroud(HiddenUnderShroudInfo info)
-		{
-			Info = info;
-		}
+		// protected readonly HiddenUnderShroudInfo Info;
+		public HiddenUnderShroud(ActorInitializer init, HiddenUnderShroudInfo info)
+			: base(info) { }
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{

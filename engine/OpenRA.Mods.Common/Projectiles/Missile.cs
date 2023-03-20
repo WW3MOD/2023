@@ -98,6 +98,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Run out of fuel after covering this distance. Zero for defaulting to weapon range. Negative for unlimited fuel.")]
 		public readonly WDist RangeLimit = WDist.Zero;
 
+		[Desc("Loses guidance if shooter dies.")]
+		public readonly bool ManualGuidance = false;
+
 		[Desc("Explode when running out of fuel.")]
 		public readonly bool ExplodeWhenEmpty = true;
 
@@ -861,7 +864,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			var relTarHorDist = tarDistVec.HorizontalLength;
 
 			WVec move;
-			if (state == States.Freefall)
+			if (state == States.Freefall || (info.ManualGuidance && args.SourceActor.IsDead))
 				move = FreefallTick();
 			else
 				move = HomingTick(world, tarDistVec, relTarHorDist);

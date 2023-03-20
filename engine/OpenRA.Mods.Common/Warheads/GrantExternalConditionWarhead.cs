@@ -26,6 +26,9 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Duration of the condition (in ticks). Set to 0 for a permanent condition.")]
 		public readonly int Duration = 0;
 
+		[Desc("How many times the condition should be granted.")]
+		public readonly int Repeat = 1;
+
 		public readonly WDist Range = WDist.FromCells(1);
 
 		public override void DoImpact(in Target target, WarheadArgs args)
@@ -43,9 +46,12 @@ namespace OpenRA.Mods.Common.Warheads
 				if (!IsValidAgainst(a, firedBy))
 					continue;
 
-				a.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(t => t.Info.Condition == Condition && t.CanGrantCondition(firedBy))
-					?.GrantCondition(a, firedBy, Duration);
+				for (var i = 0; i < Repeat; i++)
+				{
+					a.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(t => t.Info.Condition == Condition && t.CanGrantCondition(firedBy))
+						?.GrantCondition(a, firedBy, Duration);
+				}
 			}
 		}
 	}

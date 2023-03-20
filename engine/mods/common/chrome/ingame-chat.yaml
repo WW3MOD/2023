@@ -54,7 +54,7 @@ Container@CHAT_PANEL:
 				ScrollPanel@CHAT_SCROLLPANEL:
 					Y: PARENT_BOTTOM - HEIGHT - 30
 					Width: 550
-					Height: 164
+					Height: 350
 					TopBottomSpacing: 3
 					ItemSpacing: 4
 					Align: Bottom

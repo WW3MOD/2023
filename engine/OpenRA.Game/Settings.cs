@@ -144,7 +144,7 @@ namespace OpenRA
 		public string UUID = Guid.NewGuid().ToString();
 
 		[Desc("Enable hidden developer settings in the Advanced settings tab.")]
-		public bool DisplayDeveloperSettings = false;
+		public bool DisplayDeveloperSettings = true;
 
 		[Desc("Display bot debug messages in the game chat.")]
 		public bool BotDebug = false;

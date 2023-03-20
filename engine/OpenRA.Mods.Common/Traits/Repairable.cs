@@ -29,7 +29,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Voice = "Action";
 
 		[Desc("The amount the unit will be repaired at each step. Use -1 for fallback behavior where HpPerStep from RepairsUnits trait will be used.")]
-		public readonly int HpPerStep = -1;
+		public readonly int HpPerStep = 0;
+
+		[Desc("The amount the unit will be repaired at each step. Use -1 for fallback behavior where HpPerStep from RepairsUnits trait will be used.")]
+		public readonly int PercentageStep = 0;
 
 		[ConsumedConditionReference]
 		[Desc("Boolean expression defining the condition under which the regular (non-force) enter cursor is disabled.")]

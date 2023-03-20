@@ -19,21 +19,22 @@ namespace OpenRA.Mods.Common.Traits.Render
 {
 	public abstract class SelectionDecorationsBaseInfo : TraitInfo
 	{
-		public readonly Color SelectionBoxColor = Color.White;
+		public readonly Color SelectionBoxColor = Color.Transparent; // FromArgb(50, 50, 50, 50);
 	}
 
 	public abstract class SelectionDecorationsBase : ISelectionDecorations, IRenderAnnotations, INotifyCreated
 	{
 		IDecoration[] decorations;
 		IDecoration[] selectedDecorations;
-
+		bool ShowStatusBarAlways = false;
 		protected readonly SelectionDecorationsBaseInfo Info;
 
 		DeveloperMode developerMode;
 
-		public SelectionDecorationsBase(SelectionDecorationsBaseInfo info)
+		public SelectionDecorationsBase(SelectionDecorationsBaseInfo info, bool showStatusBarAlways = false)
 		{
 			Info = info;
+			ShowStatusBarAlways = showStatusBarAlways;
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -79,7 +80,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			//  * status bar preference is set to "always show"
 			//  * status bar preference is set to "when damaged" and actor is damaged
 			var displayHealth = selected || (regularWorld && statusBars == StatusBarsType.AlwaysShow)
-				|| (regularWorld && statusBars == StatusBarsType.DamageShow && self.GetDamageState() != DamageState.Undamaged);
+				|| (regularWorld && statusBars == StatusBarsType.DamageShow && self.GetDamageState() != DamageState.Undamaged) || (ShowStatusBarAlways && self.GetDamageState() != DamageState.Undamaged);
 
 			// Extra bars are shown when:
 			//  * actor is selected / in active drag rectangle / under the mouse

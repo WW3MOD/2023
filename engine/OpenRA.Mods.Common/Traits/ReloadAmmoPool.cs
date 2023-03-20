@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -19,6 +20,12 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[Desc("Reload ammo pool with this name.")]
 		public readonly string AmmoPool = "primary";
+
+		[Desc("Time in ticks to fully reload ammopool.")]
+		public readonly int FullReloadTicks = 0;
+
+		[Desc("How many reloads should take place before unit is fully reloaded (based on reloading from 0).")]
+		public readonly int FullReloadSteps = 0;
 
 		[Desc("Reload time in ticks per Count.")]
 		public readonly int Delay = 50;
@@ -47,12 +54,13 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		AmmoPool ammoPool;
 		IReloadAmmoModifier[] modifiers;
+		ReloadAmmoPoolInfo info;
 
 		[Sync]
 		int remainingTicks;
 
 		public ReloadAmmoPool(ReloadAmmoPoolInfo info)
-			: base(info) { }
+			: base(info) { this.info = info; }
 
 		protected override void Created(Actor self)
 		{
@@ -86,11 +94,21 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!ammoPool.HasFullAmmo && --remainingTicks == 0)
 			{
+				if (info.FullReloadSteps > 0) {
+					double a = ammoPool.Info.Ammo / info.FullReloadSteps;
+					reloadCount = (int) Math.Ceiling(a);
+				}
+
+				if (info.FullReloadTicks > 0)
+					remainingTicks = Util.ApplyPercentageModifiers(info.FullReloadTicks * reloadCount / ammoPool.Info.Ammo, modifiers.Select(m => m.GetReloadAmmoModifier()));
+				else
+					remainingTicks = Util.ApplyPercentageModifiers(reloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+
+				ammoPool.GiveAmmo(self, reloadCount);
+
 				remainingTicks = Util.ApplyPercentageModifiers(reloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
 				if (!string.IsNullOrEmpty(sound))
 					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, sound, self.CenterPosition);
-
-				ammoPool.GiveAmmo(self, reloadCount);
 			}
 		}
 	}

@@ -109,6 +109,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly IReadOnlyDictionary<string, int> Contents;
 
+		PlayerResources playerResources;
 		readonly Mobile mobile;
 		readonly IResourceLayer resourceLayer;
 		readonly ResourceClaimLayer claimLayer;
@@ -148,6 +149,8 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			UpdateCondition(self);
+
+			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 
 			// Note: This is queued in a FrameEndTask because otherwise the activity is dropped/overridden while moving out of a factory.
 			if (Info.SearchOnCreation)
@@ -304,6 +307,18 @@ namespace OpenRA.Mods.Common.Traits
 					proc => proc.Trait<IAcceptResources>().AllowDocking);
 				yield return new HarvestOrderTargeter();
 			}
+		}
+
+		public bool CellResourceMaxSeeded(Actor self, CPos cell)
+		{
+			return resourceLayer.GetResource(cell).Density == resourceLayer.GetMaxDensity(resourceLayer.GetResource(cell).Type);
+		}
+
+		public int CellResourceValue(Actor self, CPos cell)
+		{
+			playerResources.Info.ResourceValues.TryGetValue(resourceLayer.GetResource(cell).Type, out var resourceValue);
+
+			return resourceLayer.GetResource(cell).Density * resourceValue;
 		}
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)

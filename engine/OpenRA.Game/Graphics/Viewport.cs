@@ -67,11 +67,11 @@ namespace OpenRA.Graphics
 
 		float zoom = 1f;
 		float minZoom = 1f;
-		float maxZoom = 2f;
+		float maxZoom = 4f;
 
-		bool unlockMinZoom;
-		float unlockedMinZoomScale;
-		float unlockedMinZoom = 1f;
+		bool unlockMinZoom = true;
+		float unlockedMinZoomScale = 0.25f;
+		float unlockedMinZoom = 0.25f;
 
 		public float Zoom
 		{

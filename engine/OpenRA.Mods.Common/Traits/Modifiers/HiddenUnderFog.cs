@@ -14,13 +14,13 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("The actor stays invisible under fog of war.")]
 	public class HiddenUnderFogInfo : HiddenUnderShroudInfo
 	{
-		public override object Create(ActorInitializer init) { return new HiddenUnderFog(this); }
+		public override object Create(ActorInitializer init) { return new HiddenUnderFog(init, this); }
 	}
 
 	public class HiddenUnderFog : HiddenUnderShroud
 	{
-		public HiddenUnderFog(HiddenUnderFogInfo info)
-			: base(info) { }
+		public HiddenUnderFog(ActorInitializer init, HiddenUnderFogInfo info)
+			: base(init, info) { }
 
 		protected override bool IsVisibleInner(Actor self, Player byPlayer)
 		{

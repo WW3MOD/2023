@@ -161,7 +161,7 @@ namespace OpenRA.Mods.Common.Scripting
 				pbi = pqueue.BuildDurationModifier;
 			}
 
-			time = time * bi.BuildDurationModifier * pbi / 10000;
+			time = time * bi.BuildDurationModifier * pbi / 100000;
 			return time;
 		}
 

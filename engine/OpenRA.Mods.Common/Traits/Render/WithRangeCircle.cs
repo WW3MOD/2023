@@ -25,17 +25,20 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Type of range circle. used to decide which circles to draw on other structures during building placement.")]
 		public readonly string Type = null;
 
-		[Desc("Color of the circle")]
-		public readonly Color Color = Color.FromArgb(128, Color.White);
+		[Desc("Alpha of the circle and scanner update line.")]
+		public readonly int Alpha = 35;
 
-		[Desc("Border width.")]
+		[Desc("Range circle line width.")]
 		public readonly float Width = 1;
 
+		[Desc("Color of the circle")]
+		public Color Color = Color.FromArgb(60, Color.White);
+
 		[Desc("Color of the border.")]
-		public readonly Color BorderColor = Color.FromArgb(96, Color.Black);
+		public readonly Color BorderColor = Color.FromArgb(60, Color.Black);
 
 		[Desc("Range circle border width.")]
-		public readonly float BorderWidth = 3;
+		public readonly float BorderWidth = 0;
 
 		[Desc("If set, the color of the owning player will be used instead of `Color`.")]
 		public readonly bool UsePlayerColor = false;
@@ -49,6 +52,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[Desc("Range of the circle")]
 		public readonly WDist Range = WDist.Zero;
+		public readonly WVec? Offset = null;
 
 		public IEnumerable<IRenderable> RenderAnnotations(WorldRenderer wr, World w, ActorInfo ai, WPos centerPosition)
 		{
@@ -70,7 +74,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 			}
 		}
 
-		public override object Create(ActorInitializer init) { return new WithRangeCircle(init.Self, this); }
+		public override object Create(ActorInitializer init)
+		{
+			this.Color = Color.FromArgb(this.Alpha, this.Color);
+
+			return new WithRangeCircle(init.Self, this);
+		}
 	}
 
 	class WithRangeCircle : ConditionalTrait<WithRangeCircleInfo>, IRenderAnnotationsWhenSelected, IRenderAnnotations
@@ -98,14 +107,20 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public IEnumerable<IRenderable> RenderRangeCircle(Actor self, RangeCircleVisibility visibility)
 		{
 			if (Info.Visible == visibility && Visible)
+			{
+				var position = self.CenterPosition;
+				if (Info.Offset != null)
+					position += (WVec)Info.Offset;
+
 				yield return new RangeCircleAnnotationRenderable(
-					self.CenterPosition,
+					position,
 					Info.Range,
 					0,
 					Info.UsePlayerColor ? self.Owner.Color : Info.Color,
 					Info.Width,
 					Info.BorderColor,
 					Info.BorderWidth);
+			}
 		}
 
 		IEnumerable<IRenderable> IRenderAnnotationsWhenSelected.RenderAnnotations(Actor self, WorldRenderer wr)

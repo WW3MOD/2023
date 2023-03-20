@@ -323,7 +323,13 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			UpdateStateIfNecessary();
 
-			var orders = selectedDeploys
+			var undeployed = selectedDeploys
+				.Where(pair => pair.Actor.UnDeployed());
+
+			// If any units are undeployed, those should deploy. Only undeploy if all are deployed.
+			var unitsToIssueOrderTo = undeployed.Any() ? undeployed : selectedDeploys;
+
+			var orders = unitsToIssueOrderTo
 				.Where(pair => pair.Trait.CanIssueDeployOrder(pair.Actor, queued))
 				.Select(d => d.Trait.IssueDeployOrder(d.Actor, queued))
 				.Where(d => d != null)

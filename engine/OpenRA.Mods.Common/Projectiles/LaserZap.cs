@@ -55,6 +55,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value regardless of range.")]
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Maximum;
 
+		[Desc("Altitude above terrain to target. Zero effectively deactivates airburst.")]
+		public readonly WDist AirburstAltitude = WDist.Zero;
+
 		[Desc("Beam can be blocked.")]
 		public readonly bool Blockable = false;
 
@@ -158,7 +161,8 @@ namespace OpenRA.Mods.Common.Projectiles
 				target = args.Weapon.TargetActorCenter ? args.GuidedTarget.CenterPosition : args.GuidedTarget.Positions.PositionClosestTo(source);
 
 			// Check for blocking actors
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, source, target, info.Width, out var blockedPos))
+			// if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, tailPos, headPos, info.Width, out var blockedPos))
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, args.SourceActor.CenterPosition, source, info.Width, out var blockedPos))
 			{
 				target = blockedPos;
 			}
@@ -167,7 +171,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			{
 				var warheadArgs = new WarheadArgs(args)
 				{
-					ImpactOrientation = new WRot(WAngle.Zero, Util.GetVerticalAngle(source, target), args.CurrentMuzzleFacing()),
+					ImpactOrientation = new WRot(WAngle.Zero, OpenRA.Mods.Common.Util.GetVerticalAngle(source, target), args.CurrentMuzzleFacing()),
 					ImpactPosition = target,
 				};
 
@@ -195,13 +199,22 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (ticks < info.Duration)
 			{
+				var zOffset = info.ZOffset;
+				var secondaryBeamZOffset = info.SecondaryBeamZOffset;
+				var verticalDiff = target.Y - args.Source.Y;
+				if (verticalDiff > 0)
+				{
+					zOffset += verticalDiff;
+					secondaryBeamZOffset += verticalDiff;
+				}
+
 				var rc = Color.FromArgb((info.Duration - ticks) * color.A / info.Duration, color);
-				yield return new BeamRenderable(source, info.ZOffset, target - source, info.Shape, info.Width, rc);
+				yield return new BeamRenderable(source, zOffset, target - source, info.Shape, info.Width, rc);
 
 				if (info.SecondaryBeam)
 				{
 					var src = Color.FromArgb((info.Duration - ticks) * secondaryColor.A / info.Duration, secondaryColor);
-					yield return new BeamRenderable(source, info.SecondaryBeamZOffset, target - source,
+					yield return new BeamRenderable(source, secondaryBeamZOffset, target - source,
 						info.SecondaryBeamShape, info.SecondaryBeamWidth, src);
 				}
 			}

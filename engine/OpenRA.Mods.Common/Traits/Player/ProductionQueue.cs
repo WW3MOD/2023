@@ -436,6 +436,8 @@ namespace OpenRA.Mods.Common.Traits
 
 					var cost = GetProductionCost(unit);
 					var time = GetBuildTime(unit, bi);
+					time = time / 4;
+
 					var amountToBuild = Math.Min(fromLimit, order.ExtraData);
 					for (var n = 0; n < amountToBuild; n++)
 					{

@@ -36,6 +36,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition is applied permanently to this actor.")]
 		public readonly bool AffectsParent = false;
 
+		[Desc("Offset to subtract from center.")]
+		public readonly WVec Offset = new WVec(0, 0, 0);
+
 		public readonly string EnableSound = null;
 		public readonly string DisableSound = null;
 
@@ -65,7 +68,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
-			cachedPosition = self.CenterPosition;
+			var position = self.CenterPosition;
+
+			if (Info.Offset != new WVec(0, 0, 0))
+				position += Info.Offset;
+
+			cachedPosition = position;
 			proximityTrigger = self.World.ActorMap.AddProximityTrigger(cachedPosition, cachedRange, cachedVRange, ActorEntered, ActorExited);
 		}
 
@@ -92,7 +100,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (self.CenterPosition != cachedPosition || desiredRange != cachedRange || desiredVRange != cachedVRange)
 			{
-				cachedPosition = self.CenterPosition;
+				cachedPosition = self.CenterPosition + Info.Offset;
 				cachedRange = desiredRange;
 				cachedVRange = desiredVRange;
 				self.World.ActorMap.UpdateProximityTrigger(proximityTrigger, cachedPosition, cachedRange, cachedVRange);

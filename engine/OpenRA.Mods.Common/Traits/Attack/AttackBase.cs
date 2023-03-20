@@ -139,6 +139,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true;
 
+			if (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
+				&& (target.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), out _)))
+					return true;
+
 			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw, facingTolerance);
 		}
 
@@ -246,6 +250,11 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public virtual WPos GetTargetPosition(WPos pos, in Target target)
+		{
+			return HasAnyValidWeapons(target, true) ? target.CenterPosition : target.Positions.PositionClosestTo(pos);
+		}
+
+		public virtual WPos GetCurrentTarget(WPos pos, in Target target)
 		{
 			return HasAnyValidWeapons(target, true) ? target.CenterPosition : target.Positions.PositionClosestTo(pos);
 		}

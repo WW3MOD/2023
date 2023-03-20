@@ -23,6 +23,18 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How much (raw) damage to deal.")]
 		public readonly int Damage = 0;
 
+		[Desc("How much damage to deal in percent.")]
+		public readonly int DamagePercent = 0;
+
+		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage)")]
+		public readonly int RandomDamage = 0;
+
+		[Desc("Apply the damage for this many ticks after initial")]
+		public readonly int Duration = 0;
+
+		[Desc("Apply the Damage over time slower by waiting this many between each hit")]
+		public readonly int Modulus = 0;
+
 		[Desc("Types of damage that this warhead causes. Leave empty for no damage types.")]
 		public readonly BitSet<DamageType> DamageTypes = default;
 
@@ -85,8 +97,22 @@ namespace OpenRA.Mods.Common.Warheads
 
 		protected virtual void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args)
 		{
-			var damage = Util.ApplyPercentageModifiers(Damage, args.DamageModifiers.Append(DamageVersus(victim, shape, args)));
-			victim.InflictDamage(firedBy, new Damage(damage, DamageTypes));
+			var damage = Damage;
+			if (RandomDamage != 0)
+				damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
+
+			if (DamagePercent != 0)
+				damage += victim.TraitOrDefault<Health>().Info.HP * DamagePercent / 100;
+
+			var modifiedDamage = Util.ApplyPercentageModifiers(damage, args.DamageModifiers.Append(DamageVersus(victim, shape, args)));
+
+			if (Duration > 0)
+			{
+				// Game.Debug("Inflict Durational Damage {0}", Duration);
+				victim.InflictDamage(firedBy, new Actor.DamageOverTime(Duration, Modulus, new Damage(modifiedDamage, DamageTypes)));
+			}
+			else
+				victim.InflictDamage(firedBy, new Damage(modifiedDamage, DamageTypes));
 		}
 
 		protected abstract void DoImpact(WPos pos, Actor firedBy, WarheadArgs args);

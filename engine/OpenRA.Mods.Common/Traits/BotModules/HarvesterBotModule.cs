@@ -127,13 +127,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Less harvesters than refineries - build a new harvester
 			var unitBuilder = requestUnitProduction.FirstEnabledTraitOrDefault();
-			if (unitBuilder != null && Info.HarvesterTypes.Count > 0)
-			{
-				var harvInfo = AIUtils.GetInfoByCommonName(Info.HarvesterTypes, player);
-				var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player);
-				if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) == 0)
-					unitBuilder.RequestUnitProduction(bot, harvInfo.Name);
-			}
+
+			// FF TODO: look this up, lots of changes here 2023 and this was the only one from 2022
+			// if (unitBuilder != null && Info.HarvesterTypes.Count > 0)
+			// {
+			// 	var harvInfo = AIUtils.GetInfoByCommonName(Info.HarvesterTypes, player);
+			// 	var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player);
+			// 	if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) == 0)
+			// 		unitBuilder.RequestUnitProduction(bot, harvInfo.Name);
+			// }
 		}
 
 		Target FindNextResource(Actor actor, HarvesterTraitWrapper harv)

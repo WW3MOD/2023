@@ -41,15 +41,14 @@ namespace OpenRA.Mods.Common.Traits
 	public class CloakInfo : PausableConditionalTraitInfo
 	{
 		[Desc("Measured in game ticks.")]
-		public readonly int InitialDelay = 10;
+		public readonly int InitialDelay = 0;
 
 		[Desc("Measured in game ticks.")]
-		public readonly int CloakDelay = 30;
+		public readonly int CloakDelay = 50;
 
 		[Desc("Events leading to the actor getting uncloaked. Possible values are: Attack, Move, Unload, Infiltrate, Demolish, Dock, Damage, Heal and SelfHeal.",
 			"'Dock' is triggered when docking to a refinery or resupplying.")]
-		public readonly UncloakType UncloakOn = UncloakType.Attack
-			| UncloakType.Unload | UncloakType.Infiltrate | UncloakType.Demolish | UncloakType.Dock;
+		public readonly UncloakType UncloakOn = UncloakType.None;
 
 		public readonly string CloakSound = null;
 		public readonly string UncloakSound = null;
@@ -100,7 +99,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool isDocking;
 		Cloak[] otherCloaks;
 
-		CPos? lastPos;
+		WPos? lastPos;
 		bool wasCloaked = false;
 		bool firstTick = true;
 		int cloakedToken = Actor.InvalidConditionToken;
@@ -181,10 +180,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (remainingTime > 0 && !isDocking)
 					remainingTime--;
 
-				if (Info.UncloakOn.HasFlag(UncloakType.Move) && (lastPos == null || lastPos.Value != self.Location))
+				if (Info.UncloakOn.HasFlag(UncloakType.Move) && (lastPos == null || lastPos.Value != self.CenterPosition))
 				{
 					Uncloak();
-					lastPos = self.Location;
+					lastPos = self.CenterPosition;
 				}
 			}
 

@@ -18,6 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class BlocksProjectilesInfo : ConditionalTraitInfo, IBlocksProjectilesInfo
 	{
 		public readonly WDist Height = WDist.FromCells(1);
+		public readonly int Bypass = 0;
 
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
@@ -31,6 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info) { }
 
 		WDist IBlocksProjectiles.BlockingHeight => Info.Height;
+		int IBlocksProjectiles.Bypass { get { return Info.Bypass; } }
 
 		PlayerRelationship IBlocksProjectiles.ValidRelationships { get { return Info.ValidRelationships; } }
 
@@ -48,6 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var actors = world.FindBlockingActorsOnLine(start, end, width);
 			var length = (end - start).Length;
+			var totalBypassed = 0;
 
 			foreach (var a in actors)
 			{
@@ -58,12 +61,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (blockers.Count == 0)
 					continue;
 
-				var hitPos = start.MinimumPointLineProjection(end, a.CenterPosition);
+				var hitPos = WorldExtensions.MinimumPointLineProjection(start, end, a.CenterPosition);
 				var dat = world.Map.DistanceAboveTerrain(hitPos);
-				if ((hitPos - start).Length < length && blockers.Any(t => t.BlockingHeight > dat))
-				{
-					hit = hitPos;
-					return true;
+
+				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
+				if (isBlocking != null && isBlocking.Bypass > 0 && totalBypassed < isBlocking.Bypass) {
+					totalBypassed += 1;
+					continue;
 				}
 			}
 

@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BitSet<TargetableType> ValidTargets = new BitSet<TargetableType>("Ground", "Water", "Air");
 
 		[Desc("Target types that can't be AutoTargeted.", "Overrules ValidTargets.")]
-		public readonly BitSet<TargetableType> InvalidTargets;
+		public readonly BitSet<TargetableType> InvalidTargets = new BitSet<TargetableType>("NoAutoTarget");
 
 		[Desc("Relationships between actor's and target's owner needed for AutoTargeting.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;

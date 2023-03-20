@@ -30,6 +30,12 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
+		[Desc("The minimum inaccuracy regardless of distance to target.")]
+		public readonly WDist MinInaccuracy = WDist.Zero;
+
+		[Desc("The maximum inaccuracy used for each new following shot.")]
+		public readonly WVec InaccuracyPerProjectile = WVec.Zero;
+
 		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value regardless of range.")]
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Maximum;
 
@@ -152,6 +158,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Sync]
 		WPos pos, lastPos, target, source;
 
+		bool lastPosIsSet = false;
 		int length;
 		int ticks, smokeTicks;
 		int remainingBounces;
@@ -179,7 +186,19 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (info.Inaccuracy.Length > 0)
 			{
 				var maxInaccuracyOffset = Util.GetProjectileInaccuracy(info.Inaccuracy.Length, info.InaccuracyType, args);
-				target += WVec.FromPDF(world.SharedRandom, 2) * maxInaccuracyOffset / 1024;
+				if (info.MinInaccuracy != WDist.Zero) {
+					maxInaccuracyOffset = info.MinInaccuracy.Length;
+				}
+
+				var wVecFromPDF = WVec.FromPDF(world.SharedRandom, 2);
+
+				if (info.InaccuracyPerProjectile != WVec.Zero && lastPosIsSet) {
+					target = lastPos;
+					target += wVecFromPDF * maxInaccuracyOffset / 1024 - info.InaccuracyPerProjectile;
+				}
+				else {
+					target += wVecFromPDF * maxInaccuracyOffset / 1024;
+				}
 			}
 
 			if (info.AirburstAltitude > WDist.Zero)

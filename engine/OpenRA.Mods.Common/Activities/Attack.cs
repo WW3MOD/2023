@@ -100,6 +100,15 @@ namespace OpenRA.Mods.Common.Activities
 
 			target = RecalculateTarget(self, out var targetIsHiddenActor);
 
+			// FF
+			// Never got used in the end but seems to work
+			// if (!target.Equals(oldTarget))
+			// {
+			// 	oldTarget = target;
+			// 	foreach (var n in notifyNewTarget)
+			// 		n.Acquired(self);
+			// }
+
 			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
 			{
 				lastVisibleTarget = Target.FromTargetPositions(target);
@@ -196,18 +205,29 @@ namespace OpenRA.Mods.Common.Activities
 			maxRange = armaments.Min(a => a.MaxRange());
 
 			var pos = self.CenterPosition;
+			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
+
 			if (!target.IsInRange(pos, maxRange)
 				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
-				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self)))
+				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
+				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
+					&& (checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, checkTarget.CenterPosition, new WDist(1), out var blockedPos))))
 			{
 				// Try to move within range, drop the target otherwise
 				if (move == null)
 					return AttackStatus.UnableToAttack;
 
 				attackStatus |= AttackStatus.NeedsToMove;
-				var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
-				QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
-				return AttackStatus.NeedsToMove;
+
+				if (checkTarget.Type != TargetType.Invalid)
+				{
+					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
+
+					// QueueChild(new AttackMoveActivity(self, () => move.MoveTo(move.NearestMoveableCell(self.World.Map.Clamp(self.World.Map.CellContaining(checkTarget.CenterPosition))), 8), true));
+					// self.ShowTargetLines();
+
+					return AttackStatus.NeedsToMove;
+				}
 			}
 
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))

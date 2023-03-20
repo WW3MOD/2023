@@ -32,8 +32,17 @@ namespace OpenRA.Mods.Common.Traits
 
 		int IPowerModifier.GetPowerModifier()
 		{
-			// Cast to long to avoid overflow when multiplying by the health
-			return (int)(100L * health.HP / health.MaxHP);
+			if (health.HP != health.MaxHP)
+			{
+				// Cast to long to avoid overflow when multiplying by the health
+				int result = (100 - (100 - (int)(100L * health.HP / health.MaxHP)) * 2);
+
+				if (result < 0)
+					return 0;
+
+				return result;
+			}
+			return 100;
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e) { power.UpdateActor(self); }

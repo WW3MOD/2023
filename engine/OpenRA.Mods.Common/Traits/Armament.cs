@@ -13,12 +13,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
+using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	public class Barrel
 	{
+		public int Index;
 		public WVec Offset;
 		public WAngle Yaw;
 	}
@@ -36,8 +38,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Which turret (if present) should this armament be assigned to.")]
 		public readonly string Turret = "primary";
 
-		[Desc("Time (in frames) until the weapon can fire again.")]
-		public readonly int FireDelay = 0;
+		[Desc("Time to aim the weapon after each BurstDelays. Cannot be 0 for Bullet Projectiles as it is used to calculate how much to lead target.")]
+		public readonly int FireDelay = 5;
 
 		[Desc("Muzzle position relative to turret or body, (forward, right, up) triples.",
 			"If weapon Burst = 1, it cycles through all listed offsets, otherwise the offset corresponding to current burst is used.")]
@@ -101,11 +103,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstDelays.Length > 1 && (WeaponInfo.BurstDelays.Length != WeaponInfo.Burst - 1))
 				throw new YamlException($"Weapon '{weaponToLower}' has an invalid number of BurstDelays, must be single entry or Burst - 1.");
 
+			if (WeaponInfo.ReloadDelay == 0 && WeaponInfo.BurstWait == 0)
+				throw new YamlException("Weapons must define ReloadDelay and/or BurstWait: '{0}'".F(weaponToLower));
+
+			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstWait == 0)
+				throw new YamlException("Weapons with Burst must define BurstWait: '{0}'".F(weaponToLower));
+
 			base.RulesetLoaded(rules, ai);
 		}
 	}
 
-	public class Armament : PausableConditionalTrait<ArmamentInfo>, ITick
+	public class Armament : PausableConditionalTrait<ArmamentInfo>, ITick, INotifyAiming
 	{
 		public readonly WeaponInfo Weapon;
 		public readonly Barrel[] Barrels;
@@ -114,29 +122,41 @@ namespace OpenRA.Mods.Common.Traits
 		Turreted turret;
 		BodyOrientation coords;
 		INotifyBurstComplete[] notifyBurstComplete;
+		INotifyMagazineComplete[] notifyMagazineComplete;
 		INotifyAttack[] notifyAttacks;
 
 		int conditionToken = Actor.InvalidConditionToken;
 
 		IEnumerable<int> rangeModifiers;
 		IEnumerable<int> reloadModifiers;
+		IEnumerable<int> burstWaitModifiers;
+		IEnumerable<int> burstModifiers;
 		IEnumerable<int> damageModifiers;
 		IEnumerable<int> inaccuracyModifiers;
 
-		int ticksSinceLastShot;
+		// int ticksSinceLastShot; // FF ??
 		int currentBarrel;
 		readonly int barrelCount;
 
 		readonly List<(int Ticks, int Burst, Action<int> Func)> delayedActions = new List<(int, int, Action<int>)>();
 
 		public WDist Recoil;
-		public int FireDelay { get; protected set; }
+		public int Magazine { get; protected set; }
+		public int ReloadDelay { get; protected set; }
 		public int Burst { get; protected set; }
+		public int BurstWait { get; protected set; }
+		public int FireDelay { get; protected set; }
+
+		public List<WPos> AimInitialTargetPosition { get; protected set; }
+		public int AimInitialTicksBefore { get; protected set; }
+		public Target? Target { get; protected set; }
+		Target? oldTarget = null;
 
 		public Armament(Actor self, ArmamentInfo info)
 			: base(info)
 		{
 			this.self = self;
+			this.AimInitialTargetPosition = new List<WPos>();
 
 			Weapon = info.WeaponInfo;
 			Burst = Weapon.Burst;
@@ -146,6 +166,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				barrels.Add(new Barrel
 				{
+					Index = i,
 					Offset = info.LocalOffset[i],
 					Yaw = info.LocalYaw.Length > i ? info.LocalYaw[i] : WAngle.Zero
 				});
@@ -159,6 +180,20 @@ namespace OpenRA.Mods.Common.Traits
 			Barrels = barrels.ToArray();
 		}
 
+		void INotifyAiming.StartedAiming(Actor self, AttackBase attack) {
+			// Game.Debug("StartedAiming -- {0} -- {1}", self.Info.Name, AimInitialTargetPosition.ToString());
+		}
+		void INotifyAiming.StoppedAiming(Actor self, AttackBase attack)
+		{
+			// Game.Debug("StoppedAiming -- {0}", self.Info.Name);
+			AimInitialTargetPosition.Clear();
+		}
+
+		// void INotifyNewTarget.Acquired(Actor self)
+		// {
+		// 	// Game.Debug("Acquired -- {0}", self.Info.Name);
+		// }
+
 		public virtual WDist MaxRange()
 		{
 			return new WDist(Util.ApplyPercentageModifiers(Weapon.Range.Length, rangeModifiers.ToArray()));
@@ -166,15 +201,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
+
+			Magazine = Weapon.Magazine;
+			Burst = Weapon.Burst;
+
 			turret = self.TraitsImplementing<Turreted>().FirstOrDefault(t => t.Name == Info.Turret);
 			coords = self.Trait<BodyOrientation>();
 			notifyBurstComplete = self.TraitsImplementing<INotifyBurstComplete>().ToArray();
+			notifyMagazineComplete = self.TraitsImplementing<INotifyMagazineComplete>().ToArray();
 			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
 
 			rangeModifiers = self.TraitsImplementing<IRangeModifier>().ToArray().Select(m => m.GetRangeModifier());
+			burstWaitModifiers = self.TraitsImplementing<IBurstWaitModifier>().ToArray().Select(m => m.GetBurstWaitModifier());
+			burstModifiers = self.TraitsImplementing<IBurstModifier>().ToArray().Select(m => m.GetBurstModifier());
 			reloadModifiers = self.TraitsImplementing<IReloadModifier>().ToArray().Select(m => m.GetReloadModifier());
 			damageModifiers = self.TraitsImplementing<IFirepowerModifier>().ToArray().Select(m => m.GetFirepowerModifier());
 			inaccuracyModifiers = self.TraitsImplementing<IInaccuracyModifier>().ToArray().Select(m => m.GetInaccuracyModifier());
+
+			self.GrantCondition("weapon-" + Info.Name);
 
 			base.Created(self);
 		}
@@ -197,14 +241,16 @@ namespace OpenRA.Mods.Common.Traits
 			// We need to disable conditions if IsTraitDisabled is true, so we have to update conditions before the return below.
 			UpdateCondition(self);
 
-			if (IsTraitDisabled)
+			if (IsTraitDisabled) {
+				delayedActions.Clear(); // Seems necessary to stop immediatelly, but will cause ammo to be drawn so needs updating for that
 				return;
+			}
 
-			if (ticksSinceLastShot < Weapon.ReloadDelay)
-				++ticksSinceLastShot;
+			if (ReloadDelay > 0)
+				--ReloadDelay;
 
-			if (FireDelay > 0)
-				--FireDelay;
+			if (BurstWait > 0)
+				--BurstWait;
 
 			Recoil = new WDist(Math.Max(0, Recoil.Length - Info.RecoilRecovery.Length));
 
@@ -235,7 +281,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual bool CanFire(Actor self, in Target target)
 		{
-			if (IsReloading || IsTraitPaused)
+			if (IsReloading || IsWaitingBurst || IsTraitPaused)
 				return false;
 
 			if (turret != null && !turret.HasAchievedDesiredFacing)
@@ -255,13 +301,15 @@ namespace OpenRA.Mods.Common.Traits
 		// The world coordinate model uses Actor.Orientation
 		public virtual Barrel CheckFire(Actor self, IFacing facing, in Target target)
 		{
+			if (!target.Equals(oldTarget))
+			{
+				oldTarget = target;
+				delayedActions.Clear();
+				AimInitialTargetPosition.Clear();
+			}
+
 			if (!CanFire(self, target))
 				return null;
-
-			if (ticksSinceLastShot >= Weapon.ReloadDelay)
-				Burst = Weapon.Burst;
-
-			ticksSinceLastShot = 0;
 
 			// If Weapon.Burst == 1, cycle through all LocalOffsets, otherwise use the offset corresponding to current Burst
 			currentBarrel %= barrelCount;
@@ -270,6 +318,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			FireBarrel(self, facing, target, barrel);
 
+			UpdateMagazine(self, target);
 			UpdateBurst(self, target);
 
 			return barrel;
@@ -277,6 +326,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void FireBarrel(Actor self, IFacing facing, in Target target, Barrel barrel)
 		{
+			Target = target;
+
+			if (target.Type != TargetType.Invalid)
+			{
+				AimInitialTargetPosition.Add(target.CenterPosition);
+			}
+
 			foreach (var na in notifyAttacks)
 				na.PreparingAttack(self, target, this, barrel);
 
@@ -286,10 +342,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.PositionClosestTo(muzzlePosition());
 			var initialOffset = Weapon.FirstBurstTargetOffset;
+			var targetingVector = WVec.Zero;
+
 			if (initialOffset != WVec.Zero)
 			{
 				// We want this to match Armament.LocalOffset, so we need to convert it to forward, right, up
 				initialOffset = new WVec(initialOffset.Y, -initialOffset.X, initialOffset.Z);
+
+				targetingVector += initialOffset.Rotate(muzzleOrientation);
 				passiveTarget += initialOffset.Rotate(muzzleOrientation);
 			}
 
@@ -298,6 +358,8 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// We want this to match Armament.LocalOffset, so we need to convert it to forward, right, up
 				followingOffset = new WVec(followingOffset.Y, -followingOffset.X, followingOffset.Z);
+
+				targetingVector += ((Weapon.Burst - Burst) * followingOffset).Rotate(muzzleOrientation);
 				passiveTarget += ((Weapon.Burst - Burst) * followingOffset).Rotate(muzzleOrientation);
 			}
 
@@ -317,6 +379,7 @@ namespace OpenRA.Mods.Common.Traits
 				CurrentSource = muzzlePosition,
 				SourceActor = self,
 				PassiveTarget = passiveTarget,
+				TargetingVector = targetingVector,
 				GuidedTarget = target
 			};
 
@@ -324,8 +387,32 @@ namespace OpenRA.Mods.Common.Traits
 			var delayedTarget = target;
 			ScheduleDelayedAction(Info.FireDelay, Burst, (burst) =>
 			{
+				// Lead/aim in front of moving target
 				if (args.Weapon.Projectile != null)
 				{
+					// If projectile is bullet (not missile), lead (aim in front of) target
+					if (Weapon.Projectile is BulletInfo bullet && this.Target.Value.Type != TargetType.Invalid)
+					{
+						var initialPosition = AimInitialTargetPosition.FirstOrDefault();
+
+						if (!initialPosition.Equals(default))
+						{
+							var targetPosition = this.Target.Value.CenterPosition;
+							var vectorDiffPerTick = WPos.PositionDiff(targetPosition, initialPosition) / Info.FireDelay;
+
+							// var targetSpeed = (vectorDiffPerTick.HorizontalLength);
+							var distanceToTarget = WPos.PositionDiff(targetPosition, self.CenterPosition).HorizontalLength;
+							var projectileSpeed = bullet.Speed.First().Length;
+							var ticksToReachTarget = distanceToTarget / projectileSpeed;
+							var leadTarget = vectorDiffPerTick * ticksToReachTarget;
+
+							if (AimInitialTargetPosition.Count > 0)
+								AimInitialTargetPosition.RemoveAt(0);
+
+							args.PassiveTarget = targetPosition + leadTarget + args.TargetingVector;
+						}
+					}
+
 					var projectile = args.Weapon.Projectile.Create(args);
 					if (projectile != null)
 						self.World.Add(projectile);
@@ -344,30 +431,59 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
-		protected virtual void UpdateBurst(Actor self, in Target target)
+		protected virtual void UpdateMagazine(Actor self, in Target target)
 		{
-			if (--Burst > 0)
+			if (Weapon.ReloadDelay > 0)
 			{
-				if (Weapon.BurstDelays.Length == 1)
-					FireDelay = Weapon.BurstDelays[0];
-				else
-					FireDelay = Weapon.BurstDelays[Weapon.Burst - (Burst + 1)];
-			}
-			else
-			{
-				var modifiers = reloadModifiers.ToArray();
-				FireDelay = Util.ApplyPercentageModifiers(Weapon.ReloadDelay, modifiers);
-				Burst = Weapon.Burst;
+				if (--Magazine < 1)
+				{
+					var modifiers = reloadModifiers.ToArray();
+					ReloadDelay = Util.ApplyPercentageModifiers(Weapon.ReloadDelay, modifiers);
 
-				if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Length > 0)
-					ScheduleDelayedAction(Weapon.AfterFireSoundDelay, Burst, (burst) => Game.Sound.Play(SoundType.World, Weapon.AfterFireSound, self.World, self.CenterPosition));
+					Magazine = Weapon.Magazine;
 
-				foreach (var nbc in notifyBurstComplete)
-					nbc.FiredBurst(self, target, this);
+					foreach (var nbc in notifyMagazineComplete)
+						nbc.FiredMagazine(self, target, this);
+				}
 			}
 		}
 
-		public virtual bool IsReloading => FireDelay > 0 || IsTraitDisabled;
+		protected virtual void UpdateBurst(Actor self, in Target target)
+		{
+			try {
+				if (Weapon.BurstWait > 0)
+				{
+					if (--Burst < 1)
+					{
+						var burstWaitmodifiers = burstWaitModifiers.ToArray();
+						BurstWait = Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers);
+
+						var burstmodifiers = burstWaitModifiers.ToArray();
+						Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
+
+						if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Any())
+							ScheduleDelayedAction(Weapon.AfterFireSoundDelay, Burst, (burst) => Game.Sound.Play(SoundType.World, Weapon.AfterFireSound, self.World, self.CenterPosition));
+
+						foreach (var nbc in notifyBurstComplete)
+							nbc.FiredBurst(self, target, this);
+					}
+					else
+					{
+						if (Weapon.BurstDelays.Length == 1)
+							BurstWait = Weapon.BurstDelays[0];
+						else
+							BurstWait = Weapon.BurstDelays[Weapon.Burst - (Burst + 1)];
+					}
+				}
+			}
+			catch
+			{
+				throw new Exception("Error in UpdateBurst for: {0}".F(self.Info.Name));
+			}
+		}
+
+		public virtual bool IsWaitingBurst { get { return BurstWait > 0 || IsTraitDisabled; } }
+		public virtual bool IsReloading => ReloadDelay > 0 || IsTraitDisabled;
 
 		public WVec MuzzleOffset(Actor self, Barrel b)
 		{

@@ -67,7 +67,7 @@ namespace OpenRA.Traits
 
 	public class Shroud : ISync, INotifyCreated, ITick
 	{
-		public enum SourceType : byte { PassiveVisibility, Shroud, Visibility }
+		public enum SourceType : byte { PassiveVisibility, Shroud, Visibility, Radar }
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 

@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool EjectOnSell = true;
 
 		[Desc("When this actor dies should all of its passengers be unloaded?")]
-		public readonly bool EjectOnDeath = false;
+		public readonly bool EjectOnDeath = true;
 
 		[Desc("Terrain types that this actor is allowed to eject actors onto. Leave empty for all terrain types.")]
 		public readonly HashSet<string> UnloadTerrainTypes = new HashSet<string>();
@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cargo(init, this); }
 	}
 
-	public class Cargo : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated, INotifyKilled,
+	public class Cargo : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated, INotifyKilled, INotifyDamage,
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
 		ITransformActorInitModifier
 	{
@@ -403,32 +403,75 @@ namespace OpenRA.Mods.Common.Traits
 				loadedTokens.Push(self.GrantCondition(Info.LoadedCondition));
 		}
 
+		void INotifyDamage.Damaged(OpenRA.Actor self, OpenRA.Traits.AttackInfo e)
+		{
+			var damageThreshold = self.Trait<Health>().MaxHP / 4;
+
+			// Heavy hits deals damage to soldiers
+			// if (e.Damage.Value > damageThreshold)
+			// 	foreach (var passenger in Passengers)
+			// 	{
+			// 		var random = self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
+			// 		int damage = e.Damage.Value;
+			// 		if (damage > 0)
+			// 		{
+			// 			int damageToDeal = passenger.Trait<Health>().MaxHP * damage / self.Trait<Health>().MaxHP;
+			// 			damageToDeal += random;
+			// 			passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
+			// 		}
+			// 	}
+
+			// Unload when low health
+			if (self.Trait<Health>().HP < damageThreshold)
+			{
+				var currentActivityType = self.CurrentActivity?.GetType() ;
+
+				if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
+					self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
+			}
+		}
+
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-			if (Info.EjectOnDeath)
+			if (Info.EjectOnDeath) {
 				while (!IsEmpty() && CanUnload(BlockedByActor.All))
 				{
 					var passenger = Unload(self);
-					var cp = self.CenterPosition;
-					var inAir = self.World.Map.DistanceAboveTerrain(cp).Length != 0;
-					var positionable = passenger.Trait<IPositionable>();
-					positionable.SetPosition(passenger, self.Location);
+					var random = self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
+					var damage = e.Damage.Value;
 
-					if (!inAir && positionable.CanEnterCell(self.Location, self, BlockedByActor.None))
+					if (damage > 0)
 					{
-						self.World.AddFrameEndTask(w => w.Add(passenger));
-						var nbms = passenger.TraitsImplementing<INotifyBlockingMove>();
-						foreach (var nbm in nbms)
-							nbm.OnNotifyBlockingMove(passenger, passenger);
+						var damageToDeal = passenger.Trait<Health>().MaxHP * damage / self.Trait<Health>().MaxHP;
+						damageToDeal += random;
+						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
 					}
-					else
-						passenger.Kill(e.Attacker);
+
+					if (!passenger.IsDead) {
+						var cp = self.CenterPosition;
+						var inAir = self.World.Map.DistanceAboveTerrain(cp).Length != 0;
+						var positionable = passenger.Trait<IPositionable>();
+						positionable.SetPosition(passenger, self.Location);
+
+						if (!inAir && positionable.CanEnterCell(self.Location, self, BlockedByActor.None))
+						{
+							self.World.AddFrameEndTask(w => w.Add(passenger));
+							var nbms = passenger.TraitsImplementing<INotifyBlockingMove>();
+							foreach (var nbm in nbms)
+								nbm.OnNotifyBlockingMove(passenger, passenger);
+						}
+						else
+							passenger.Kill(e.Attacker);
+					}
 				}
+			}
+			else
+			{
+				foreach (var c in cargo)
+					c.Kill(e.Attacker);
 
-			foreach (var c in cargo)
-				c.Kill(e.Attacker);
-
-			cargo.Clear();
+				cargo.Clear();
+			}
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)

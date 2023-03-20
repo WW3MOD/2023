@@ -81,7 +81,7 @@ namespace OpenRA
 		/// <summary>Value used to represent an invalid token.</summary>
 		public static readonly int InvalidConditionToken = -1;
 
-		class ConditionState
+		public class ConditionState
 		{
 			/// <summary>Delegates that have registered to be notified when this condition changes.</summary>
 			public readonly List<VariableObserverNotifier> Notifiers = new List<VariableObserverNotifier>();
@@ -90,7 +90,7 @@ namespace OpenRA
 			public readonly HashSet<int> Tokens = new HashSet<int>();
 		}
 
-		readonly Dictionary<string, ConditionState> conditionStates = new Dictionary<string, ConditionState>();
+		public readonly Dictionary<string, ConditionState> conditionStates = new Dictionary<string, ConditionState>();
 
 		/// <summary>Each granted condition receives a unique token that is used when revoking.</summary>
 		readonly Dictionary<int, string> conditionTokens = new Dictionary<int, string>();
@@ -102,6 +102,21 @@ namespace OpenRA
 
 		/// <summary>Read-only version of conditionCache that is passed to IConditionConsumers.</summary>
 		readonly IReadOnlyDictionary<string, int> readOnlyConditionCache;
+
+		internal List<DamageOverTime> damageOverTime;
+
+		public class DamageOverTime
+		{
+			public int ticks;
+			public int modulus;
+			public Damage damage;
+
+			public DamageOverTime(int t, int m, Damage d) {
+				ticks = t;
+				modulus = m;
+				damage = d;
+			}
+		}
 
 		internal SyncHash[] SyncHashes { get; }
 
@@ -117,6 +132,7 @@ namespace OpenRA
 		readonly INotifyIdle[] tickIdles;
 		readonly IEnumerable<WPos> enabledTargetableWorldPositions;
 		bool created;
+		int tickNumber = 0;
 
 		internal Actor(World world, string name, TypeDictionary initDict)
 		{
@@ -196,6 +212,8 @@ namespace OpenRA
 				enabledTargetableWorldPositions = EnabledTargetablePositions.SelectMany(tp => tp.TargetablePositions(this));
 				SyncHashes = syncHashesList.ToArray();
 			}
+
+			damageOverTime = new List<DamageOverTime>();
 		}
 
 		internal void Initialize(bool addToWorld = true)
@@ -275,6 +293,19 @@ namespace OpenRA
 			else if (wasIdle)
 				foreach (var tickIdle in tickIdles)
 					tickIdle.TickIdle(this);
+
+			// Damage over time
+			for (var i = 0; i < damageOverTime.Count; i++) {
+				var dot = damageOverTime[i];
+
+				if (dot.modulus == 0 || this.World.WorldTick % dot.modulus == 0) {
+					InflictDamage(this, dot.damage);
+
+					if (dot.ticks-- <= 0) {
+						damageOverTime.RemoveAt(i);
+					}
+				}
+			}
 		}
 
 		public IEnumerable<IRenderable> Render(WorldRenderer wr)
@@ -481,6 +512,14 @@ namespace OpenRA
 			health.InflictDamage(this, attacker, damage, false);
 		}
 
+		public void InflictDamage(Actor attacker, DamageOverTime dot)
+		{
+			if (Disposed || health == null)
+				return;
+
+			damageOverTime.Add(dot);
+		}
+
 		public void Kill(Actor attacker, BitSet<DamageType> damageTypes = default)
 		{
 			if (Disposed || health == null)
@@ -526,6 +565,11 @@ namespace OpenRA
 					return true;
 
 			return false;
+		}
+
+		public bool UnDeployed()
+		{
+			return conditionCache.Any(a => a.Key == "deployed" && a.Value == 0);
 		}
 
 		public IEnumerable<WPos> GetTargetablePositions()
