@@ -595,4 +595,4 @@ Actors:
 		Location: 43,87
 		Owner: Neutral
 
-Rules: ra|rules/campaign-rules.yaml, ra|rules/campaign-tooltips.yaml, rules.yaml, ra|rules/campaign-palettes.yaml
+Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, rules.yaml, ww3mod|rules/campaign-palettes.yaml
