@@ -13,7 +13,7 @@ Packages:
 	~^SupportDir|Content/ra/v2/cnc
 	~^SupportDir|Content/ra/v2/movies
 	^EngineDir
-	$ra: ra
+	$ww3mod: ww3mod
 	^EngineDir|mods/common: common
 	~main.mix
 	~conquer.mix
