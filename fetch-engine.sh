@@ -80,7 +80,6 @@ if [ "${AUTOMATIC_ENGINE_MANAGEMENT}" = "True" ]; then
 	exit 0
 fi
 
-
 echo "Compiling engine..."
 cd "${ENGINE_DIRECTORY}" || exit 1
 chmod u=rwx,g=r,o=r fetch-geoip.sh

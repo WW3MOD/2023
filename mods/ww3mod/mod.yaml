@@ -82,8 +82,8 @@ Chrome:
 	ra|chrome.yaml
 
 Assemblies:
-	^BinDir|OpenRA.Mods.Common.dll
-	^BinDir|OpenRA.Mods.Cnc.dll
+	# ^BinDir|OpenRA.Mods.Common.dll
+	# ^BinDir|OpenRA.Mods.Cnc.dll
 	^BinDir|OpenRA.Mods.WW3MOD.dll
 
 ChromeLayout:
