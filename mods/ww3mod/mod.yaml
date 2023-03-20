@@ -13,7 +13,6 @@ Packages:
 	~^SupportDir|Content/ra/v2/cnc
 	~^SupportDir|Content/ra/v2/movies
 	^EngineDir
-	$ra: ra
 	$ww3mod: ww3mod
 	^EngineDir|mods/common: common
 	~main.mix
@@ -33,53 +32,53 @@ Packages:
 	~hires1.mix
 	~desert.mix
 	~general.mix
-	ra|bits
-	ra|bits/desert
-	ra|scripts
+	# ra|bits
+	# ra|bits/desert
+	# ra|scripts
 	common|scripts
-	ra|uibits
+	# ra|uibits
 
 MapFolders:
-	ra|maps: System
+	# ra|maps: System
 	~^SupportDir|maps/ra/release-20230225: User
 
 Rules:
-	ra|rules/misc.yaml
-	ra|rules/ai.yaml
-	ra|rules/player.yaml
-	ra|rules/palettes.yaml
-	ra|rules/world.yaml
-	ra|rules/defaults.yaml
-	ra|rules/vehicles.yaml
-	ra|rules/husks.yaml
-	ra|rules/structures.yaml
-	ra|rules/infantry.yaml
-	ra|rules/civilian.yaml
-	ra|rules/decoration.yaml
-	ra|rules/aircraft.yaml
-	ra|rules/ships.yaml
-	ra|rules/fakes.yaml
+	# ra|rules/misc.yaml
+	# ra|rules/ai.yaml
+	# ra|rules/player.yaml
+	# ra|rules/palettes.yaml
+	# ra|rules/world.yaml
+	# ra|rules/defaults.yaml
+	# ra|rules/vehicles.yaml
+	# ra|rules/husks.yaml
+	# ra|rules/structures.yaml
+	# ra|rules/infantry.yaml
+	# ra|rules/civilian.yaml
+	# ra|rules/decoration.yaml
+	# ra|rules/aircraft.yaml
+	# ra|rules/ships.yaml
+	# ra|rules/fakes.yaml
 
 Sequences:
-	ra|sequences/ships.yaml
-	ra|sequences/vehicles.yaml
-	ra|sequences/structures.yaml
-	ra|sequences/infantry.yaml
-	ra|sequences/aircraft.yaml
-	ra|sequences/misc.yaml
-	ra|sequences/decorations.yaml
+	# ra|sequences/ships.yaml
+	# ra|sequences/vehicles.yaml
+	# ra|sequences/structures.yaml
+	# ra|sequences/infantry.yaml
+	# ra|sequences/aircraft.yaml
+	# ra|sequences/misc.yaml
+	# ra|sequences/decorations.yaml
 
 TileSets:
-	ra|tilesets/snow.yaml
-	ra|tilesets/interior.yaml
-	ra|tilesets/temperat.yaml
-	ra|tilesets/desert.yaml
+	# ra|tilesets/snow.yaml
+	# ra|tilesets/interior.yaml
+	# ra|tilesets/temperat.yaml
+	# ra|tilesets/desert.yaml
 
 Cursors:
-	ra|cursors.yaml
+	# ra|cursors.yaml
 
 Chrome:
-	ra|chrome.yaml
+	# ra|chrome.yaml
 
 Assemblies:
 	^BinDir|OpenRA.Mods.Common.dll
@@ -98,8 +97,8 @@ ChromeLayout:
 	common|chrome/ingame-infostats.yaml
 	common|chrome/ingame-info-lobby-options.yaml
 	common|chrome/ingame-menu.yaml
-	ra|chrome/ingame-observer.yaml
-	ra|chrome/ingame-player.yaml
+	# ra|chrome/ingame-observer.yaml
+	# ra|chrome/ingame-player.yaml
 	common|chrome/ingame-perf.yaml
 	common|chrome/ingame-debug.yaml
 	common|chrome/ingame-debuginfo.yaml
@@ -129,7 +128,7 @@ ChromeLayout:
 	common|chrome/connection.yaml
 	common|chrome/replaybrowser.yaml
 	common|chrome/gamesave-browser.yaml
-	ra|chrome/gamesave-loading.yaml
+	# ra|chrome/gamesave-loading.yaml
 	common|chrome/dropdowns.yaml
 	common|chrome/musicplayer.yaml
 	common|chrome/tooltips.yaml
@@ -144,21 +143,21 @@ Translations:
 	common|languages/en.ftl
 
 Weapons:
-	ra|weapons/explosions.yaml
-	ra|weapons/ballistics.yaml
-	ra|weapons/missiles.yaml
-	ra|weapons/other.yaml
-	ra|weapons/smallcaliber.yaml
-	ra|weapons/superweapons.yaml
+	# ra|weapons/explosions.yaml
+	# ra|weapons/ballistics.yaml
+	# ra|weapons/missiles.yaml
+	# ra|weapons/other.yaml
+	# ra|weapons/smallcaliber.yaml
+	# ra|weapons/superweapons.yaml
 
 Voices:
-	ra|audio/voices.yaml
+	# ra|audio/voices.yaml
 
 Notifications:
-	ra|audio/notifications.yaml
+	# ra|audio/notifications.yaml
 
 Music:
-	ra|audio/music.yaml
+	# ra|audio/music.yaml
 
 Hotkeys:
 	common|hotkeys/game.yaml
@@ -169,12 +168,12 @@ Hotkeys:
 	common|hotkeys/chat.yaml
 	common|hotkeys/editor.yaml
 	common|hotkeys/control-groups.yaml
-	ra|hotkeys.yaml
+	# ra|hotkeys.yaml
 
 LoadScreen: LogoStripeLoadScreen
-	Image: ra|uibits/loadscreen.png
-	Image2x: ra|uibits/loadscreen-2x.png
-	Image3x: ra|uibits/loadscreen-3x.png
+	# Image: # ra|uibits/loadscreen.png
+	# Image2x: # ra|uibits/loadscreen-2x.png
+	# Image3x: # ra|uibits/loadscreen-3x.png
 	Text: Filling Crates..., Charging Capacitors..., Reticulating Splines..., Planting Trees..., Building Bridges..., Aging Empires..., Compiling EVA..., Constructing Pylons..., Activating Skynet..., Splitting Atoms...
 
 ServerTraits:
@@ -185,7 +184,7 @@ ServerTraits:
 
 ChromeMetrics:
 	common|metrics.yaml
-	ra|metrics.yaml
+	# ra|metrics.yaml
 
 Fonts:
 	Tiny:
@@ -217,12 +216,12 @@ Fonts:
 		Size: 24
 		Ascender: 18
 	Title:
-		Font: ra|ZoodRangmah.ttf
+		Font: # ra|ZoodRangmah.ttf
 		Size: 48
 		Ascender: 26
 
 Missions:
-	ra|missions.yaml
+	# ra|missions.yaml
 
 MapGrid:
 	TileSize: 24,24
@@ -318,15 +317,15 @@ ModContent:
 			TestFiles: ^SupportDir|Content/ra/v2/expand/await.aud, ^SupportDir|Content/ra/v2/expand/bog.aud, ^SupportDir|Content/ra/v2/expand/float_v2.aud, ^SupportDir|Content/ra/v2/expand/gloom.aud, ^SupportDir|Content/ra/v2/expand/grndwire.aud, ^SupportDir|Content/ra/v2/expand/rpt.aud, ^SupportDir|Content/ra/v2/expand/search.aud, ^SupportDir|Content/ra/v2/expand/traction.aud, ^SupportDir|Content/ra/v2/expand/wastelnd.aud
 			Sources: aftermath, aftermath-linux, ra-origin
 	Downloads:
-		ra|installer/downloads.yaml
+		# ra|installer/downloads.yaml
 	Sources:
-		ra|installer/aftermath.yaml
-		ra|installer/allies95.yaml
-		ra|installer/cnc95.yaml
-		ra|installer/counterstrike.yaml
-		ra|installer/firstdecade.yaml
-		ra|installer/origin.yaml
-		ra|installer/soviet95.yaml
+		# ra|installer/aftermath.yaml
+		# ra|installer/allies95.yaml
+		# ra|installer/cnc95.yaml
+		# ra|installer/counterstrike.yaml
+		# ra|installer/firstdecade.yaml
+		# ra|installer/origin.yaml
+		# ra|installer/soviet95.yaml
 
 DiscordService:
 	ApplicationId: 699222659766026240
