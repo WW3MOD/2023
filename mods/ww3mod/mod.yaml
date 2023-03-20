@@ -40,7 +40,8 @@ Packages:
 
 MapFolders:
 	ww3mod|maps: System
-	~^SupportDir|maps/ra/release-20230225: User
+	~^SupportDir|maps/ww3mod: User
+	# ~^SupportDir|maps/ra/release-20230225: User
 
 Rules:
 	ww3mod|rules/misc.yaml
@@ -228,7 +229,7 @@ MapGrid:
 
 DefaultOrderGenerator: UnitOrderGenerator
 
-SupportsMapsFrom: ra
+SupportsMapsFrom: ww3mod
 
 SoundFormats: Aud, Wav
 
