@@ -335,7 +335,7 @@ namespace OpenRA
 
 			// Special case handling of Game.Mod argument: if it matches a real filesystem path
 			// then we use this to override the mod search path, and replace it with the mod id
-			var modID = args.GetValue("Game.Mod", null);
+			var modID = "ww3mod"; // args.GetValue("Game.Mod", null);
 			var explicitModPaths = Array.Empty<string>();
 			if (modID != null && (File.Exists(modID) || Directory.Exists(modID)))
 			{
