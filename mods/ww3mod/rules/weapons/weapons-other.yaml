@@ -402,7 +402,7 @@ PrisLaser:
 	ReloadDelay: 60
 	Range: 28c0
 	Report: prisfire.aud
-	Projectile: LaserZapCA
+	Projectile: LaserZap
 		Width: 60
 		HitAnim: plaserfire
 		Color: 00FFFFC8
@@ -428,7 +428,7 @@ PrisLaserSupport:
 	ReloadDelay: 3
 	Range: 20c0
 	Report: bpriat1a.aud
-	Projectile: LaserZapCA
+	Projectile: LaserZap
 		Width: 35
 		Color: 00FFFFC8
 		ZOffset: 512
@@ -443,7 +443,7 @@ PrisBurst:
 	Inherits: PrisLaser
 	-Report:
 	Range: 3c0
-	Projectile: LaserZapCA
+	Projectile: LaserZap
 		-HitAnim:
 	Warhead@Damage: SpreadDamage
 		Spread: 64
@@ -466,7 +466,7 @@ PrisTLaser:
 	Report: ptnkfire.aud
 	ReloadDelay: 50
 	Range: 20c0
-	Projectile: LaserZapCA
+	Projectile: LaserZap
 		Blockable: true
 	Warhead@Damage: SpreadDamage
 		Damage: 150
@@ -483,7 +483,7 @@ PrisTBurst:
 	Inherits: PrisTLaser
 	-Report:
 	Range: 3c0
-	Projectile: LaserZapCA
+	Projectile: LaserZap
 		-HitAnim:
 	Warhead@Damage: SpreadDamage
 		Damage: 40
@@ -502,7 +502,7 @@ PrisCLaser:
 	Report: pcanfire.aud
 	ReloadDelay: 140
 	Range: 12c0
-	Projectile: LaserZapCA
+	Projectile: LaserZap
 		Width: 70
 		Duration: 15
 		Color: 00FFDDDD

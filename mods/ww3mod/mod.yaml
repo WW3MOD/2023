@@ -185,12 +185,13 @@ Translations:
 	common|languages/en.ftl
 
 Weapons:
-	ww3mod|weapons/explosions.yaml
-	ww3mod|weapons/ballistics.yaml
-	ww3mod|weapons/missiles.yaml
-	ww3mod|weapons/other.yaml
-	ww3mod|weapons/smallcaliber.yaml
-	ww3mod|weapons/superweapons.yaml
+	ww3mod|rules/weapons/weapons-defaults.yaml
+	ww3mod|rules/weapons/weapons-effects.yaml
+	ww3mod|rules/weapons/weapons-explosions.yaml
+	ww3mod|rules/weapons/weapons-ballistics.yaml
+	ww3mod|rules/weapons/weapons-missiles.yaml
+	ww3mod|rules/weapons/weapons-other.yaml
+	ww3mod|rules/weapons/weapons-superweapons.yaml
 
 Voices:
 	ww3mod|audio/voices.yaml
