@@ -22,6 +22,7 @@ Packages:
 	~local.mix
 	~sounds.mix
 	~speech.mix
+	# ~nato.mix # TODO?
 	~allies.mix
 	~russian.mix
 	~temperat.mix
@@ -32,8 +33,7 @@ Packages:
 	~hires1.mix
 	~desert.mix
 	~general.mix
-	ww3mod|bits
-	ww3mod|bits/desert
+	# ~./v2/cnc/scores.mix
 	ww3mod|scripts
 	common|scripts
 	ww3mod|bits
@@ -186,6 +186,7 @@ ChromeLayout:
 
 Translations:
 	common|languages/en.ftl
+	# ww3mod|languages/english.yaml
 
 Weapons:
 	ww3mod|rules/weapons/weapons-defaults.yaml
@@ -197,13 +198,13 @@ Weapons:
 	ww3mod|rules/weapons/weapons-superweapons.yaml
 
 Voices:
-	ww3mod|audio/voices.yaml
+    ww3mod|rules/sound/voices.yaml
 
 Notifications:
-	ww3mod|audio/notifications.yaml
+	ww3mod|rules/sound/notifications.yaml
 
 Music:
-	ww3mod|audio/music.yaml
+    ww3mod|rules/sound/music.yaml
 
 Hotkeys:
 	common|hotkeys/game.yaml
@@ -220,7 +221,7 @@ LoadScreen: LogoStripeLoadScreen
 	Image: ww3mod|uibits/loadscreen.png
 	Image2x: ww3mod|uibits/loadscreen-2x.png
 	Image3x: ww3mod|uibits/loadscreen-3x.png
-	Text: Filling Crates..., Charging Capacitors..., Reticulating Splines..., Planting Trees..., Building Bridges..., Aging Empires..., Compiling EVA..., Constructing Pylons..., Activating Skynet..., Splitting Atoms...
+	Text: World War 3, Hello
 
 ServerTraits:
 	LobbyCommands
@@ -275,7 +276,7 @@ MapGrid:
 
 DefaultOrderGenerator: UnitOrderGenerator
 
-SupportsMapsFrom: ww3mod
+SupportsMapsFrom: ww3mod #, ra?
 
 SoundFormats: Aud, Wav
 
@@ -302,30 +303,46 @@ AssetBrowser:
 GameSpeeds:
 	DefaultSpeed: default
 	Speeds:
+		strategical:
+			Name: Strategical
+			Timestep: 200
+			OrderLatency: 2
+		tactical:
+			Name: Tactical
+			Timestep: 135
+			OrderLatency: 2
 		slowest:
-			Name: slowest
-			Timestep: 80
+			Name: Slowest
+			Timestep: 100
 			OrderLatency: 2
 		slower:
-			Name: slower
-			Timestep: 50
-			OrderLatency: 3
+			Name: Slower
+			Timestep: 85
+			OrderLatency: 2
 		default:
-			Name: normal
-			Timestep: 40
-			OrderLatency: 3
+			Name: Normal
+			Timestep: 75
+			OrderLatency: 2
 		fast:
-			Name: fast
-			Timestep: 35
-			OrderLatency: 4
+			Name: Fast
+			Timestep: 70
+			OrderLatency: 2
 		faster:
-			Name: faster
-			Timestep: 30
-			OrderLatency: 4
+			Name: Faster
+			Timestep: 60
+			OrderLatency: 2
 		fastest:
-			Name: fastest
+			Name: Fastest
+			Timestep: 50
+			OrderLatency: 2
+		crazy:
+			Name: Crazy
+			Timestep: 35
+			OrderLatency: 2
+		insane:
+			Name: Insane
 			Timestep: 20
-			OrderLatency: 6
+			OrderLatency: 2
 
 ModContent:
 	InstallPromptMessage: Red Alert requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without music\nor videos) from a mirror of the 2008 Red Alert freeware release.\n\nAdvanced Install includes options for copying the music, videos, and\nother content from an original game disc or digital installation.
@@ -362,6 +379,9 @@ ModContent:
 		music-aftermath: Aftermath Music
 			TestFiles: ^SupportDir|Content/ra/v2/expand/await.aud, ^SupportDir|Content/ra/v2/expand/bog.aud, ^SupportDir|Content/ra/v2/expand/float_v2.aud, ^SupportDir|Content/ra/v2/expand/gloom.aud, ^SupportDir|Content/ra/v2/expand/grndwire.aud, ^SupportDir|Content/ra/v2/expand/rpt.aud, ^SupportDir|Content/ra/v2/expand/search.aud, ^SupportDir|Content/ra/v2/expand/traction.aud, ^SupportDir|Content/ra/v2/expand/wastelnd.aud
 			Sources: aftermath, aftermath-linux, ra-origin
+		# cncmusic: C&C Game Music
+		# 	TestFiles: ^Content/ra/v2/cnc/scores.mix
+		# 	Download: cncmusic
 	Downloads:
 		ww3mod|installer/downloads.yaml
 	Sources:
@@ -375,3 +395,7 @@ ModContent:
 
 DiscordService:
 	ApplicationId: 699222659766026240
+
+# ModCredits:
+# 	ModCreditsFile: ww3mod|credits.txt
+# 	ModTabTitle: WW3MOD
