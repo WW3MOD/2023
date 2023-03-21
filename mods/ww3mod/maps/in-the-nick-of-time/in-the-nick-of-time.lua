@@ -39,7 +39,7 @@ EvacuateFootprint = { CPos.New(93,92), CPos.New(94,92), CPos.New(95,92), CPos.Ne
 TimerTicks = DateTime.Minutes(54)
 
 AlliedReinforcements = function()
-	Reinforcements.Reinforce(Greece, StartUnits, { AlliesEntry.Location, AlliesRally.Location }, 6)
+	Reinforcements.Reinforce(Greece, StartUnits, { AmericaEntry.Location, AmericaRally.Location }, 6)
 	Trigger.AfterDelay(DateTime.Seconds(1), function()
 		UnitsArrived = true
 	end)
@@ -77,7 +77,7 @@ AlliedReinforcements = function()
 			Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoBeam1.Location })
 			Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoBeam1.Location + CVec.New(1,1) })
 
-			Reinforcements.Reinforce(USSR, MoneyTrucks, { AlliesEntry.Location, TruckStop1.Location }, 0)
+			Reinforcements.Reinforce(USSR, MoneyTrucks, { AmericaEntry.Location, TruckStop1.Location }, 0)
 			Utils.Do(StartingPlanes, function(yaks)
 				InitializeAttackAircraft(yaks, Greece)
 			end)
@@ -86,10 +86,10 @@ AlliedReinforcements = function()
 				local houseSquad = Reinforcements.Reinforce(USSR, SovietHouseSquad, { VillageSpawnUSSR.Location }, 0)
 				Utils.Do(houseSquad, IdleHunt)
 				Trigger.OnAllKilled(houseSquad, function()
-					if not AlliesHouse.IsDead then
+					if not AmericaHouse.IsDead then
 						Media.PlaySoundNotification(Greece, "AlertBleep")
 						Media.DisplayMessage("Friendlies coming out!", "Medic")
-						Reinforcements.Reinforce(Greece, AlliedHouseSquad, { VillageSpawnAllies.Location, VillageRally.Location }, 0)
+						Reinforcements.Reinforce(Greece, AlliedHouseSquad, { VillageSpawnAmerica.Location, VillageRally.Location }, 0)
 					end
 				end)
 			end
@@ -154,16 +154,16 @@ AlliedReinforcements = function()
 					if a.Type == "chan" or a.Type == "einstein" then
 						a.Owner = GoodGuy
 						a.Stop()
-						a.Move(AlliesEntry.Location)
+						a.Move(AmericaEntry.Location)
 
 						-- in case units get stuck
 						Trigger.OnIdle(a, function()
-							a.Move(AlliesEntry.Location)
+							a.Move(AmericaEntry.Location)
 						end)
 					end
 				end)
 
-				Trigger.OnEnteredFootprint({ AlliesEntry.Location }, function(a, id)
+				Trigger.OnEnteredFootprint({ AmericaEntry.Location }, function(a, id)
 					if a.Type == "chan" or a.Type == "einstein" then
 						a.Stop()
 						a.Destroy()
@@ -358,7 +358,7 @@ WorldLoaded = function()
 
 	InitObjectives(Greece)
 
-	SovietObj = USSR.AddObjective("Defeat Allies.")
+	SovietObj = USSR.AddObjective("Defeat America.")
 	RescueScientists = Greece.AddObjective("Rescue the scientists and escort them back to the\nextraction point.")
 
 	Camera.Position = DefaultCameraPosition.CenterPosition

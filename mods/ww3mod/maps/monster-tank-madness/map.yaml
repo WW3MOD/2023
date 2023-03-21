@@ -25,7 +25,7 @@ Players:
 		AllowBots: False
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
@@ -33,47 +33,47 @@ Players:
 		Enemies: BadGuy, USSR, Ukraine, Turkey, FriendlyMadTanks
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FE1100
-		Allies: USSR
+		America: USSR
 		Enemies: Greece, Turkey
 		Bot: campaign
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FE1100
-		Allies: BadGuy, Ukraine
+		America: BadGuy, Ukraine
 		Enemies: Greece, Turkey
 		Bot: campaign
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@Ukraine:
 		Name: Ukraine
-		Faction: soviet
+		Faction: russia
 		Color: FFE495
-		Allies: BadGuy, USSR
+		America: BadGuy, USSR
 		Enemies: Greece, Turkey
 		Bot: campaign
 	PlayerReference@Turkey:
 		Name: Turkey
-		Faction: soviet
+		Faction: russia
 		Color: D1987C
 		Enemies: Greece, BadGuy, USSR, Ukraine, Outpost
 		Bot: campaign
 	PlayerReference@FriendlyMadTanks:
 		Name: FriendlyMadTanks
-		Faction: soviet
+		Faction: russia
 		Color: D1987C
-		Allies: Greece
+		America: Greece
 		Enemies: BadGuy, USSR, Ukraine
 		Bot: campaign
 	PlayerReference@Outpost:
 		Name: Outpost
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 		Enemies: BadGuy, USSR, Ukraine, Turkey
 		Bot: campaign
 
@@ -2093,7 +2093,7 @@ Actors:
 		Location: 65,78
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml
 
 Weapons: weapons.yaml
 

@@ -21,55 +21,55 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@Multi0:
 		Name: Multi0
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi1:
 		Name: Multi1
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi2:
 		Name: Multi2
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi3:
 		Name: Multi3
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi4:
 		Name: Multi4
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi5:
 		Name: Multi5
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi6:
 		Name: Multi6
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 	PlayerReference@Multi7:
 		Name: Multi7
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 
 Actors:
 	Actor0: m113

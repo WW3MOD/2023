@@ -4,7 +4,7 @@ World:
 	MissionData:
 		WinVideo: cronfail.vqa
 		LossVideo: sfrozen.vqa
-		Briefing: The situation is critical! The Soviets have taken over a small research base in the north. During the conflict, a chronosphere was badly damaged. We fear it could explode.\n\nInside the base is a group of scientists that were captured during the takeover. They must be rescued before the chronosphere explodes. Fight your way back into the base and retrieve them.\n\nBe careful -- there is only one way in and out of the base, a lone bridge. It must be protected to ensure evacuation.
+		Briefing: The situation is critical! The Russia have taken over a small research base in the north. During the conflict, a chronosphere was badly damaged. We fear it could explode.\n\nInside the base is a group of scientists that were captured during the takeover. They must be rescued before the chronosphere explodes. Fight your way back into the base and retrieve them.\n\nBe careful -- there is only one way in and out of the base, a lone bridge. It must be protected to ensure evacuation.
 
 LST.Reinforcement:
 	Inherits: LST
@@ -48,11 +48,11 @@ V01:
 
 1TNK:
 	Buildable:
-		Prerequisites: ~vehicles.soviet
+		Prerequisites: ~vehicles.russia
 
 2TNK:
 	Buildable:
-		Prerequisites: ~vehicles.soviet
+		Prerequisites: ~vehicles.russia
 
 4TNK:
 	Buildable:

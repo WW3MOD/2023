@@ -104,10 +104,10 @@ HOSP:
 	Tooltip:
 		Name: Hospital
 	TooltipDescription@ally:
-		Description: 
+		Description:
 		ValidRelationships: Ally
 	TooltipDescription@other:
-		Description: 
+		Description:
 		ValidRelationships: Neutral, Enemy
 	WithBuildingBib:
 		HasMinibib: true
@@ -164,23 +164,6 @@ BIO:
 	SpawnActorOnDeath:
 		Actor: BIO.Husk
 		OwnerType: InternalName
-	GrantExternalConditionPower@Overcharge:
-		PauseOnCondition: disabled || lowpower
-		OrderName: OverchargeEnergy
-		Prerequisites: fact
-		Icon: overcharge
-		ChargeInterval: 4250
-		Dimensions: 1, 1
-		Footprint: x
-		Duration: 400
-		Description: Overcharge
-		LongDesc: Targeted Power Plant produces double the Energy output\nat the cost of suffering damage over time.
-		SelectTargetSpeechNotification: SelectTarget
-		InsufficientPowerSpeechNotification: InsufficientPower
-		Condition: overcharged
-		Cursor: nitro-target
-		Sequence: none
-		SupportPowerPaletteOrder: 10
 	GrantConditionOnPowerState@LOWPOWER:
 		Condition: lowpower
 		ValidPowerStates: Low, Critical

@@ -23,30 +23,30 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: Ukraine, Turkey, BadGuy
+		America: Ukraine, Turkey, BadGuy
 		Enemies: Greece
 		Bot: campaign
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: USSR, Ukraine, Turkey
+		America: USSR, Ukraine, Turkey
 		Enemies: Greece
 		Bot: campaign
 	PlayerReference@Ukraine:
 		Name: Ukraine
-		Faction: soviet
+		Faction: russia
 		Color: FFE695
-		Allies: USSR, Turkey, BadGuy
+		America: USSR, Turkey, BadGuy
 		Enemies: Greece
 		Bot: campaign
 	PlayerReference@Greece:
@@ -55,7 +55,7 @@ Players:
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
@@ -63,9 +63,9 @@ Players:
 		Enemies: USSR, BadGuy, Ukraine, Turkey
 	PlayerReference@Turkey:
 		Name: Turkey
-		Faction: soviet
+		Faction: russia
 		Color: D2997D
-		Allies: USSR, Ukraine, BadGuy
+		America: USSR, Ukraine, BadGuy
 		Enemies: Greece
 		Bot: campaign
 
@@ -1009,4 +1009,4 @@ Actors:
 		Owner: Neutral
 		Location: 24,58
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

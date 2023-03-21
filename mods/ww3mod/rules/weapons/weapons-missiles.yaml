@@ -5,7 +5,7 @@
 		Explosions: explosion_air_medium
 		ImpactSounds: kaboom25.aud
 
-^SmallAGMissileEffects: 
+^SmallAGMissileEffects:
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -19,7 +19,7 @@
 		ValidTargets: Water, Underwater
 		InvalidTargets: Ship, Structure, Bridge
 
-^MediumAGMissileEffects: 
+^MediumAGMissileEffects:
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -33,7 +33,7 @@
 		ValidTargets: Water, Underwater
 		InvalidTargets: Ship, Structure, Bridge
 
-^LargeAGMissileEffects: 
+^LargeAGMissileEffects:
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -407,7 +407,7 @@ CruiseMissile:
 		Arm: 3
 		Inaccuracy: 0
 		HorizontalRateOfTurn: 80
-		RangeLimit: 22c512
+		RangeLimit: 32c0
 		Speed: 420
 		CloseEnough: 149
 	Warhead@Damage: SpreadDamage

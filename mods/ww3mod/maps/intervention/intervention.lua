@@ -62,7 +62,7 @@ GroundPatrolUnits =
 }
 
 ParadropSovietUnits = function()
-	local powerproxy = Actor.Create("powerproxy.paratroopers", false, { Owner = soviets })
+	local powerproxy = Actor.Create("powerproxy.paratroopers", false, { Owner = russias })
 	local aircraft = powerproxy.TargetParatroopers(MCVDeployLocation.CenterPosition, Angle.New(812))
 	Utils.Do(aircraft, function(a)
 		Trigger.OnPassengerExited(a, function(t, p)
@@ -81,7 +81,7 @@ AirRaid = function(planeTypes, ingress, target)
 	for i = 1, #planeTypes do
 		Trigger.AfterDelay((i - 1) * DateTime.Seconds(1), function()
 			local start = Map.CenterOfCell(ingress[1]) + WVec.New(0, 0, Actor.CruiseAltitude(planeTypes[i]))
-			local plane = Actor.Create(planeTypes[i], true, { CenterPosition = start, Owner = soviets, Facing = (Map.CenterOfCell(ingress[2]) - start).Facing })
+			local plane = Actor.Create(planeTypes[i], true, { CenterPosition = start, Owner = russias, Facing = (Map.CenterOfCell(ingress[2]) - start).Facing })
 
 			Utils.Do(ingress, function(wpt) plane.Move(wpt) end)
 			plane.Attack(target)
@@ -163,7 +163,7 @@ BaseRearAttack = function(team)
 end
 
 Build = function(units, action)
-	if not soviets.Build(units, action) then
+	if not russias.Build(units, action) then
 		Trigger.AfterDelay(DateTime.Seconds(15), function()
 			Build(units, action)
 		end)
@@ -185,9 +185,9 @@ SetupWorld = function()
 	end)
 
 	Utils.Do(Map.NamedActors, function(actor)
-		if actor.Owner == soviets and actor.HasProperty("StartBuildingRepairs") then
+		if actor.Owner == russias and actor.HasProperty("StartBuildingRepairs") then
 			Trigger.OnDamaged(actor, function(building)
-				if building.Owner == soviets then
+				if building.Owner == russias then
 					building.StartBuildingRepairs()
 				end
 			end)
@@ -227,8 +227,8 @@ end
 
 Tick = function()
 	if DateTime.GameTime > 2 then
-		if soviets.Resources > soviets.ResourceCapacity * 0.75 then
-			soviets.Resources = soviets.Resources - ((soviets.ResourceCapacity * 0.01) / 25)
+		if russias.Resources > russias.ResourceCapacity * 0.75 then
+			russias.Resources = russias.Resources - ((russias.ResourceCapacity * 0.01) / 25)
 		end
 
 		if player.HasNoRequiredUnits() then
@@ -240,12 +240,12 @@ Tick = function()
 end
 
 WorldLoaded = function()
-	player	= Player.GetPlayer("Allies")
-	soviets	= Player.GetPlayer("Soviets")
+	player	= Player.GetPlayer("America")
+	russias	= Player.GetPlayer("Russia")
 
 	InitObjectives(player)
 
-	sovietObjective = soviets.AddObjective("Destroy the village.")
+	russiaObjective = russias.AddObjective("Destroy the village.")
 	villageObjective = player.AddObjective("Save the village.")
 	beachheadObjective = player.AddObjective("Get your MCV to the main island.")
 

@@ -46,7 +46,7 @@ Mig2Waypoints = { Mig21, Mig22, Mig23, Mig24 }
 
 BindActorTriggers = function(a)
 	if a.HasProperty("Hunt") then
-		if a.Owner == allies then
+		if a.Owner == america then
 			Trigger.OnIdle(a, function(a)
 				if a.IsInWorld then
 					a.Hunt()
@@ -76,7 +76,7 @@ BindActorTriggers = function(a)
 end
 
 SendSovietUnits = function(entryCell, unitTypes, interval)
-	local units = Reinforcements.Reinforce(soviets, unitTypes, { entryCell }, interval)
+	local units = Reinforcements.Reinforce(russia, unitTypes, { entryCell }, interval)
 	Utils.Do(units, function(unit)
 		BindActorTriggers(unit)
 	end)
@@ -85,7 +85,7 @@ end
 
 SendMigs = function(waypoints)
 	local migEntryPath = { waypoints[1].Location, waypoints[2].Location }
-	local migs = Reinforcements.Reinforce(soviets, { "mig" }, migEntryPath, 4)
+	local migs = Reinforcements.Reinforce(russia, { "mig" }, migEntryPath, 4)
 	Utils.Do(migs, function(mig)
 		mig.Move(waypoints[3].Location)
 		mig.Move(waypoints[4].Location)
@@ -96,7 +96,7 @@ SendMigs = function(waypoints)
 end
 
 ShipAlliedUnits = function()
-	local units = Reinforcements.ReinforceWithTransport(allies, "lst",
+	local units = Reinforcements.ReinforceWithTransport(america, "lst",
 		ShipUnitTypes, { LstEntry.Location, LstUnload.Location }, { LstEntry.Location })[2]
 
 	Utils.Do(units, function(unit)
@@ -107,7 +107,7 @@ ShipAlliedUnits = function()
 end
 
 InsertAlliedChinookReinforcements = function(entry, hpad)
-	local units = Reinforcements.ReinforceWithTransport(allies, "tran",
+	local units = Reinforcements.ReinforceWithTransport(america, "tran",
 		HelicopterUnitTypes, { entry.Location, hpad.Location + CVec.New(1, 2) }, { entry.Location })[2]
 
 	Utils.Do(units, function(unit)
@@ -142,7 +142,7 @@ end
 
 SetupAlliedUnits = function()
 	Utils.Do(Map.NamedActors, function(a)
-		if a.Owner == allies and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
+		if a.Owner == america and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
 			a.GrantCondition("unkillable")
 			a.Stance = "Defend"
 		end
@@ -159,7 +159,7 @@ ChronoshiftAlliedUnits = function()
 	local cells = Utils.ExpandFootprint({ ChronoshiftLocation.Location }, false)
 	local units = { }
 	for i = 1, #cells do
-		local unit = Actor.Create("2tnk", true, { Owner = allies, Facing = Angle.North })
+		local unit = Actor.Create("2tnk", true, { Owner = america, Facing = Angle.North })
 		BindActorTriggers(unit)
 		units[unit] = cells[i]
 	end
@@ -178,8 +178,8 @@ Tick = function()
 end
 
 WorldLoaded = function()
-	allies = Player.GetPlayer("Allies")
-	soviets = Player.GetPlayer("Soviets")
+	america = Player.GetPlayer("America")
+	russia = Player.GetPlayer("Russia")
 	viewportOrigin = Camera.Position
 
 	SetupAlliedUnits()
@@ -187,7 +187,7 @@ WorldLoaded = function()
 	ShipAlliedUnits()
 	InsertAlliedChinookReinforcements(Chinook1Entry, HeliPad1)
 	InsertAlliedChinookReinforcements(Chinook2Entry, HeliPad2)
-	powerproxy = Actor.Create(ProxyType, false, { Owner = soviets })
+	powerproxy = Actor.Create(ProxyType, false, { Owner = russia })
 	ParadropSovietUnits()
 	Trigger.AfterDelay(DateTime.Seconds(5), ChronoshiftAlliedUnits)
 	Utils.Do(ProducedUnitTypes, ProduceUnits)

@@ -85,7 +85,7 @@ ConvoysPassed = 0
 
 SendConvoys = function()
 	ConvoysSent = true
-	Media.PlaySpeechNotification(Allies, "ConvoyApproaching")
+	Media.PlaySpeechNotification(America, "ConvoyApproaching")
 	local path = Utils.Random(ConvoyPaths)
 	local units = Reinforcements.Reinforce(USSR, Utils.Random(ConvoyUnits), { path[1] })
 	local lastWaypoint = path[#path]
@@ -118,7 +118,7 @@ end
 
 FinalTrucks = function()
 	Trigger.AfterDelay(DateTime.Minutes(1), function()
-		Media.PlaySpeechNotification(Allies, "ConvoyApproaching")
+		Media.PlaySpeechNotification(America, "ConvoyApproaching")
 		local basePath = BaseConvoyPath
 		local baseWaypoint = basePath[#basePath]
 		local baseConvoy = Reinforcements.Reinforce(USSR, BaseConvoyUnits, { basePath[1] })
@@ -136,7 +136,7 @@ FinalTrucks = function()
 	end)
 
 	Trigger.AfterDelay(DateTime.Minutes(2), function()
-		Media.PlaySpeechNotification(Allies, "ConvoyApproaching")
+		Media.PlaySpeechNotification(America, "ConvoyApproaching")
 		local finalPath = FinalConvoyPath
 		local finalWaypoint = finalPath[#finalPath]
 		local finalConvoy = Reinforcements.Reinforce(USSR, FinalConvoyUnits, { finalPath[1] })
@@ -153,7 +153,7 @@ FinalTrucks = function()
 		end)
 
 		Trigger.OnAllKilled(Utils.Where(finalConvoy, function(a) return a.Type == "truk" end), function()
-			Allies.MarkCompletedObjective(StopTrucks)
+			America.MarkCompletedObjective(StopTrucks)
 		end)
 	end)
 end
@@ -163,7 +163,7 @@ ConvoyExit = function()
 		if actor.Owner == USSR and actor.Type == "truk" then
 			actor.Stop()
 			actor.Destroy()
-			Allies.MarkFailedObjective(StopTrucks)
+			America.MarkFailedObjective(StopTrucks)
 		elseif actor.Owner == USSR and actor.Type ~= "truk" then
 			actor.Stop()
 			actor.Destroy()
@@ -200,7 +200,7 @@ BridgeTriggers = function()
 	end)
 
 	Trigger.OnAllKilled(AllThreeBridges, function()
-		Allies.MarkCompletedObjective(DestroyBridges)
+		America.MarkCompletedObjective(DestroyBridges)
 	end)
 end
 
@@ -227,33 +227,33 @@ Tick = function()
 		FinishTimer()
 	end
 
-	if Allies.HasNoRequiredUnits() then
+	if America.HasNoRequiredUnits() then
 		USSR.MarkCompletedObjective(SovietObj)
 	end
 end
 
 WorldLoaded = function()
-	Allies = Player.GetPlayer("Allies")
+	America = Player.GetPlayer("America")
 	USSR = Player.GetPlayer("USSR")
 
-	SovietObj = USSR.AddObjective("Defeat the Allies.")
-	StopTrucks = Allies.AddObjective("Destroy all Soviet convoy trucks.")
-	DestroyBridges = Allies.AddObjective("Destroy the nearby bridges to slow the\nconvoys down.", "Secondary", false)
+	SovietObj = USSR.AddObjective("Defeat the America.")
+	StopTrucks = America.AddObjective("Destroy all Soviet convoy trucks.")
+	DestroyBridges = America.AddObjective("Destroy the nearby bridges to slow the\nconvoys down.", "Secondary", false)
 
-	InitObjectives(Allies)
+	InitObjectives(America)
 
 	Trigger.AfterDelay(DateTime.Minutes(3), function()
-		Media.PlaySpeechNotification(Allies, "WarningFiveMinutesRemaining")
+		Media.PlaySpeechNotification(America, "WarningFiveMinutesRemaining")
 	end)
 	Trigger.AfterDelay(DateTime.Minutes(5), function()
-		Media.PlaySpeechNotification(Allies, "WarningThreeMinutesRemaining")
+		Media.PlaySpeechNotification(America, "WarningThreeMinutesRemaining")
 	end)
 	Trigger.AfterDelay(DateTime.Minutes(7), function()
-		Media.PlaySpeechNotification(Allies, "WarningOneMinuteRemaining")
+		Media.PlaySpeechNotification(America, "WarningOneMinuteRemaining")
 	end)
 
 	Camera.Position = AlliedBase.CenterPosition
-	TimerColor = Allies.Color
+	TimerColor = America.Color
 	OpeningMoves()
 	Trigger.AfterDelay(DateTime.Seconds(30), AttackWaves)
 	ConvoyExit()

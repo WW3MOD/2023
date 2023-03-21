@@ -530,7 +530,6 @@ F16:
 		FullSequence: pip-yellow
 		RequiresSelection: true
 	Selectable:
-		Voice: F16Voice
 		Bounds: 1280,1024
 	Contrail@1:
 		Offset: -598,-683,0

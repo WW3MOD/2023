@@ -821,3 +821,40 @@ pris:
 			BARREN: TEMPERAT
 	icon: prisicon
 
+gun:
+	Inherits: emp-overlay
+	idle:
+		Facings: 32
+		UseClassicFacings: True
+	recoil:
+		Start: 32
+		Facings: 32
+		UseClassicFacings: True
+	make: gunmake
+		Length: *
+		Tick: 600
+	place: gunmake
+		Start: 19
+		Length: 1
+	damaged-idle:
+		Start: 64
+		Facings: 32
+		UseClassicFacings: True
+	damaged-recoil:
+		Start: 96
+		Facings: 32
+		UseClassicFacings: True
+	muzzle: gunfire2
+		Length: 5
+	bib: mbGUN
+		Length: *
+		Offset: -1,-1
+		UseTilesetExtension: true
+	icon: gunicon
+
+gun.husk:
+	idle: gun-dead
+	bib: mbGUN
+		Length: *
+		Offset: -1,-1
+		UseTilesetExtension: true

@@ -129,8 +129,8 @@ end
 
 SendChronos = function()
 	Trigger.AfterDelay(DateTime.Seconds(3), function()
-		local sovietWaterSquad1 = Reinforcements.ReinforceWithTransport(USSR, "lst", SovietSquad, { WaterEntry2.Location, Beach2.Location }, { WaterEntry2.Location })[2]
-		Utils.Do(sovietWaterSquad1, function(a)
+		local russiaWaterSquad1 = Reinforcements.ReinforceWithTransport(USSR, "lst", SovietSquad, { WaterEntry2.Location, Beach2.Location }, { WaterEntry2.Location })[2]
+		Utils.Do(russiaWaterSquad1, function(a)
 			Trigger.OnAddedToWorld(a, function()
 				IdleHunt(a)
 			end)
@@ -144,8 +144,8 @@ SendChronos = function()
 	end)
 
 	Trigger.AfterDelay(DateTime.Seconds(5), function()
-		local sovietWaterSquad2 = Reinforcements.ReinforceWithTransport(USSR, "lst", SovietSquad, { WaterEntry2.Location, Beach3.Location }, { WaterEntry2.Location })[2]
-		Utils.Do(sovietWaterSquad2, function(a)
+		local russiaWaterSquad2 = Reinforcements.ReinforceWithTransport(USSR, "lst", SovietSquad, { WaterEntry2.Location, Beach3.Location }, { WaterEntry2.Location })[2]
+		Utils.Do(russiaWaterSquad2, function(a)
 			Trigger.OnAddedToWorld(a, function()
 				a.AttackMove(FlameCam.Location)
 				IdleHunt(a)
@@ -154,8 +154,8 @@ SendChronos = function()
 	end)
 
 	Trigger.AfterDelay(DateTime.Seconds(13), function()
-		local sovietWaterSquad2 = Reinforcements.ReinforceWithTransport(USSR, "lst", V2Squad, { WaterEntry2.Location, Beach2.Location }, { WaterEntry2.Location })[2]
-		Utils.Do(sovietWaterSquad2, function(a)
+		local russiaWaterSquad2 = Reinforcements.ReinforceWithTransport(USSR, "lst", V2Squad, { WaterEntry2.Location, Beach2.Location }, { WaterEntry2.Location })[2]
+		Utils.Do(russiaWaterSquad2, function(a)
 			Trigger.OnAddedToWorld(a, function()
 				a.AttackMove(FlameCam.Location)
 				IdleHunt(a)

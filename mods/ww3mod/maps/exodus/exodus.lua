@@ -108,10 +108,10 @@ SovietUnits2 =
 CurrentReinforcement1 = 0
 CurrentReinforcement2 = 0
 SpawnAlliedUnit = function(units)
-	Reinforcements.Reinforce(allies1, units, { Allies1EntryPoint.Location, Allies1MovePoint.Location })
+	Reinforcements.Reinforce(america1, units, { America1EntryPoint.Location, America1MovePoint.Location })
 
-	if allies2 then
-		Reinforcements.Reinforce(allies2, units, { Allies2EntryPoint.Location, Allies2MovePoint.Location })
+	if america2 then
+		Reinforcements.Reinforce(america2, units, { America2EntryPoint.Location, America2MovePoint.Location })
 	end
 
 	Utils.Do(humans, function(player)
@@ -148,7 +148,7 @@ SpawnSovietUnits = function()
 	local unitType = Utils.Random(units)
 	local spawnPoint = Utils.Random(SovietEntryPoints)
 	local rallyPoint = Utils.Random(SovietRallyPoints)
-	local actor = Actor.Create(unitType, true, { Owner = soviets, Location = spawnPoint.Location })
+	local actor = Actor.Create(unitType, true, { Owner = russias, Location = spawnPoint.Location })
 	actor.AttackMove(rallyPoint.Location)
 	IdleHunt(actor)
 
@@ -158,9 +158,9 @@ end
 
 SovietParadrop = 0
 SendSovietParadrop = function()
-	local sovietParadrops = SovietParadrops[Difficulty]
+	local russiaParadrops = SovietParadrops[Difficulty]
 
-	if (SovietParadrop > sovietParadrops) then
+	if (SovietParadrop > russiaParadrops) then
 		return
 	end
 
@@ -176,16 +176,16 @@ SendSovietParadrop = function()
 	local randomParadropCell = CPos.New(x, y)
 	local lz = Map.CenterOfCell(randomParadropCell)
 
-	local powerproxy = Actor.Create("powerproxy.paratroopers", false, { Owner = soviets })
+	local powerproxy = Actor.Create("powerproxy.paratroopers", false, { Owner = russias })
 	powerproxy.TargetParatroopers(lz)
 	powerproxy.Destroy()
 
-	Trigger.AfterDelay(sovietParadropTicks, SendSovietParadrop)
+	Trigger.AfterDelay(russiaParadropTicks, SendSovietParadrop)
 end
 
 AircraftTargets = function(yak)
 	local targets = Utils.Where(Map.ActorsInWorld, function(a)
-		return (a.Owner == allies1 or a.Owner == allies2) and a.HasProperty("Health") and yak.CanTarget(a)
+		return (a.Owner == america1 or a.Owner == america2) and a.HasProperty("Health") and yak.CanTarget(a)
 	end)
 
 	-- Prefer mobile units
@@ -215,14 +215,14 @@ YakAttack = function(yak, target)
 end
 
 ManageSovietAircraft = function()
-	if allies1.IsObjectiveCompleted(destroyAirbases) then
+	if america1.IsObjectiveCompleted(destroyAirbases) then
 		return
 	end
 
 	local maxSovietYaks = MaxSovietYaks[Difficulty]
-	local sovietYaks = soviets.GetActorsByType('yak')
-	if #sovietYaks < maxSovietYaks then
-		soviets.Build(Yak, function(units)
+	local russiaYaks = russias.GetActorsByType('yak')
+	if #russiaYaks < maxSovietYaks then
+		russias.Build(Yak, function(units)
 			local yak = units[1]
 			YakAttack(yak)
 		end)
@@ -231,9 +231,9 @@ end
 
 UnitsEvacuated = 0
 EvacuateAlliedUnit = function(unit)
-	if (unit.Owner == allies1 or unit.Owner == allies2) and unit.HasProperty("Move") then
+	if (unit.Owner == america1 or unit.Owner == america2) and unit.HasProperty("Move") then
 		unit.Stop()
-		unit.Owner = allies
+		unit.Owner = america
 
 		if unit.Type == 'strykershorad' then
 			Utils.Do(humans, function(player)
@@ -276,7 +276,7 @@ Tick = function()
 
 		Utils.Do(humans, function(player)
 			if player and player.HasNoRequiredUnits() then
-				soviets.MarkCompletedObjective(sovietObjective)
+				russias.MarkCompletedObjective(russiaObjective)
 			end
 		end)
 	end
@@ -285,14 +285,14 @@ end
 WorldLoaded = function()
 	-- NPC
 	neutral = Player.GetPlayer("Neutral")
-	allies = Player.GetPlayer("Allies")
-	soviets = Player.GetPlayer("Soviets")
+	america = Player.GetPlayer("America")
+	russias = Player.GetPlayer("Russia")
 
 	-- Player controlled
-	allies1 = Player.GetPlayer("Allies1")
-	allies2 = Player.GetPlayer("Allies2")
+	america1 = Player.GetPlayer("America1")
+	america2 = Player.GetPlayer("America2")
 
-	humans = { allies1, allies2 }
+	humans = { america1, america2 }
 	Utils.Do(humans, function(player)
 		if player and player.IsLocalPlayer then
 			InitObjectives(player)
@@ -318,16 +318,16 @@ WorldLoaded = function()
 		end)
 	end)
 
-	sovietObjective = soviets.AddObjective("Eradicate all allied troops.")
+	russiaObjective = russias.AddObjective("Eradicate all allied troops.")
 
-	if not allies2 or allies1.IsLocalPlayer then
-		Camera.Position = Allies1EntryPoint.CenterPosition
+	if not america2 or america1.IsLocalPlayer then
+		Camera.Position = America1EntryPoint.CenterPosition
 	else
-		Camera.Position = Allies2EntryPoint.CenterPosition
+		Camera.Position = America2EntryPoint.CenterPosition
 	end
 
-	if not allies2 then
-		allies1.Cash = 10000
+	if not america2 then
+		america1.Cash = 10000
 		Media.DisplayMessage("Transferring funds.", "Co-Commander is missing")
 	end
 
@@ -337,8 +337,8 @@ WorldLoaded = function()
 	attackAtFrame = AttackAtFrame[Difficulty]
 	Trigger.AfterDelay(attackAtFrame, SpawnSovietUnits)
 
-	sovietParadropTicks = SovietParadropTicks[Difficulty]
-	Trigger.AfterDelay(sovietParadropTicks, SendSovietParadrop)
+	russiaParadropTicks = SovietParadropTicks[Difficulty]
+	Trigger.AfterDelay(russiaParadropTicks, SendSovietParadrop)
 
 	Trigger.OnEnteredFootprint(MountainEntry, EvacuateAlliedUnit)
 	Trigger.OnEnteredFootprint(BridgeEntry, EvacuateAlliedUnit)

@@ -23,31 +23,31 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
+		Faction: america
 		Enemies: Greece, GoodGuy, USSR, BadGuy
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FE1100
-		Allies: USSR
+		America: USSR
 		Enemies: Greece, GoodGuy, Creeps
 		Bot: campaign
 	PlayerReference@Greece:
 		Name: Greece
-		Faction: allies
+		Faction: america
 		Color: ABB7E4
-		Allies: GoodGuy
+		America: GoodGuy
 		Enemies: USSR, Creeps
 		Bot: campaign
 	PlayerReference@GoodGuy:
 		Name: GoodGuy
-		Faction: allies
+		Faction: america
 		Color: ABB7E4
-		Allies: Greece
+		America: Greece
 		Enemies: USSR, Creeps
 		Bot: campaign
 	PlayerReference@USSR:
@@ -56,12 +56,12 @@ Players:
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 		LockColor: True
 		Color: FE1100
 		LockSpawn: True
 		LockTeam: True
-		Allies: BadGuy
+		America: BadGuy
 		Enemies: Greece, GoodGuy, Creeps
 
 Actors:
@@ -893,6 +893,6 @@ Actors:
 		Location: 89,94
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml
 
 Weapons: weapons.yaml

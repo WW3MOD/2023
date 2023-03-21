@@ -91,7 +91,7 @@ FORTCRATE:
 		SelectionShares: 0
 		NoBaseSelectionShares: 1000
 		Units: mobiletent
-		ValidFactions: allies
+		ValidFactions: america
 
 Player:
 	ClassicProductionQueue@Infantry:
@@ -278,7 +278,7 @@ SNIPER:
 	Health:
 		HP: 20000
 
-SNIPER.soviets:
+SNIPER.russias:
 	Inherits: SNIPER
 	Buildable:
 		Prerequisites: ~disabled

@@ -112,14 +112,6 @@ Player:
 		Footprint: _x_ xxx _x_
 	Production:
 		Produces: Building
-	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
-		Enabled: True
-		Locked: True
-		Visible: False
-	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
-		Visible: False
-	LobbyPrerequisiteCheckbox@REUSABLEENGINEERS:
-		Visible: False
 
 MNLYR:
 	Inherits: ^TrackedVehicle

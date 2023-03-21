@@ -23,43 +23,43 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@England:
 		Name: England
-		Faction: allies
+		Faction: america
 		Color: A0F08C
-		Allies: GreekCivilians, Allies
+		America: GreekCivilians, America
 		Enemies: USSR, BadGuy
-	PlayerReference@Allies:
-		Name: Allies
+	PlayerReference@America:
+		Name: America
 		AllowBots: False
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
 		LockTeam: True
-		Allies: England
+		America: England
 		Enemies: USSR, BadGuy
 	PlayerReference@GreekCivilians:
 		Name: GreekCivilians
 		NonCombatant: True
-		Faction: allies
-		Allies: England
+		Faction: america
+		America: England
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: BadGuy
-		Enemies: England, GreekCivilians, Allies
+		America: BadGuy
+		Enemies: England, GreekCivilians, America
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: USSR
-		Enemies: England, GreekCivilians, Allies
+		America: USSR
+		Enemies: England, GreekCivilians, America
 
 Actors:
 	Actor0: brik
@@ -1305,6 +1305,6 @@ Actors:
 		Owner: Neutral
 		Location: 22,39
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml
 
 Weapons: weapons.yaml

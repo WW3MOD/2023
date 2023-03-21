@@ -21,39 +21,39 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
+		Faction: america
 		Enemies: Multi0, Multi1, Multi2, Multi3
 	PlayerReference@Multi0:
 		Name: Multi0
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		Enemies: Creeps
 	PlayerReference@Multi1:
 		Name: Multi1
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		Enemies: Creeps
 	PlayerReference@Multi2:
 		Name: Multi2
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		Enemies: Creeps
 	PlayerReference@Multi3:
 		Name: Multi3
 		Playable: True
 		AllowBots: False
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		Enemies: Creeps
 
 Actors:

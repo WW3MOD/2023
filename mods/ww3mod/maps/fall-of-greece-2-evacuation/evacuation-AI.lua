@@ -83,7 +83,7 @@ ProduceAircraft = function()
 			Trigger.AfterDelay(DateTime.Seconds(ProductionInterval[Difficulty] / 2), ProduceAircraft)
 		end
 
-		InitializeAttackAircraft(yak, Allies)
+		InitializeAttackAircraft(yak, America)
 	end)
 end
 

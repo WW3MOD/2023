@@ -23,118 +23,118 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
-	PlayerReference@Allies:
-		Name: Allies
+		Faction: america
+	PlayerReference@America:
+		Name: America
 		AllowBots: False
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
 		LockTeam: True
-		Allies: England
+		America: England
 		Enemies: USSR
 	PlayerReference@England:
 		Name: England
-		Faction: allies
+		Faction: america
 		Color: A0F08C
-		Allies: Allies
+		America: America
 		Enemies: USSR
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Enemies: Allies, England
+		Enemies: America, England
 
 Actors:
 	Actor0: brik
 		Location: 39,72
-		Owner: Allies
+		Owner: America
 	Actor1: brik
 		Location: 40,72
-		Owner: Allies
+		Owner: America
 	Actor2: brik
 		Location: 41,72
-		Owner: Allies
+		Owner: America
 	Actor3: brik
 		Location: 42,72
-		Owner: Allies
+		Owner: America
 	Actor4: brik
 		Location: 43,72
-		Owner: Allies
+		Owner: America
 	Actor5: brik
 		Location: 44,72
-		Owner: Allies
+		Owner: America
 	Actor6: brik
 		Location: 45,72
-		Owner: Allies
+		Owner: America
 	Actor7: brik
 		Location: 46,72
-		Owner: Allies
+		Owner: America
 	Actor8: brik
 		Location: 47,72
-		Owner: Allies
+		Owner: America
 	Actor9: brik
 		Location: 48,72
-		Owner: Allies
+		Owner: America
 	Actor10: brik
 		Location: 39,73
-		Owner: Allies
+		Owner: America
 	Actor11: brik
 		Location: 40,73
-		Owner: Allies
+		Owner: America
 	Actor12: brik
 		Location: 47,73
-		Owner: Allies
+		Owner: America
 	Actor13: brik
 		Location: 48,73
-		Owner: Allies
+		Owner: America
 	Actor14: brik
 		Location: 48,74
-		Owner: Allies
+		Owner: America
 	Actor15: brik
 		Location: 47,75
-		Owner: Allies
+		Owner: America
 	Actor16: brik
 		Location: 48,75
-		Owner: Allies
+		Owner: America
 	Actor17: brik
 		Location: 47,76
-		Owner: Allies
+		Owner: America
 	Actor18: brik
 		Location: 48,76
-		Owner: Allies
+		Owner: America
 	Actor19: brik
 		Location: 47,82
-		Owner: Allies
+		Owner: America
 	Actor20: brik
 		Location: 48,82
-		Owner: Allies
+		Owner: America
 	Actor21: brik
 		Location: 47,83
-		Owner: Allies
+		Owner: America
 	Actor22: brik
 		Location: 48,83
-		Owner: Allies
+		Owner: America
 	Actor23: brik
 		Location: 47,84
-		Owner: Allies
+		Owner: America
 	Actor24: brik
 		Location: 48,84
-		Owner: Allies
+		Owner: America
 	Actor25: brik
 		Location: 47,85
-		Owner: Allies
+		Owner: America
 	Actor26: brik
 		Location: 48,85
-		Owner: Allies
+		Owner: America
 	Actor27: tc05
 		Location: 42,85
 		Owner: Neutral
@@ -323,48 +323,48 @@ Actors:
 		Owner: Neutral
 	Actor183: proc
 		Location: 44,73
-		Owner: Allies
+		Owner: America
 	Actor184: proc
 		Location: 41,73
-		Owner: Allies
+		Owner: America
 	Actor90: tent
 		Location: 39,74
-		Owner: Allies
+		Owner: America
 	Actor91: apwr
 		Location: 32,81
-		Owner: Allies
+		Owner: America
 	Actor92: hbox
 		Location: 38,72
-		Owner: Allies
+		Owner: America
 	Actor93: hbox
 		Location: 48,77
-		Owner: Allies
+		Owner: America
 	Actor94: weap
 		Location: 43,80
-		Owner: Allies
+		Owner: America
 	Actor95: pbox
 		Location: 39,80
-		Owner: Allies
+		Owner: America
 	Actor96: gun
 		Location: 48,81
-		Owner: Allies
+		Owner: America
 		Facing: 636
 	Actor97: gun
 		Location: 34,72
-		Owner: Allies
+		Owner: America
 		Facing: 892
 	Actor100: fix
 		Location: 39,82
-		Owner: Allies
+		Owner: America
 	Actor102: dome
 		Location: 36,78
-		Owner: Allies
+		Owner: America
 	Actor103: apwr
 		Location: 35,82
-		Owner: Allies
+		Owner: America
 	Actor104: gun
 		Location: 41,79
-		Owner: Allies
+		Owner: America
 		Facing: 764
 	BridgeBarrel3: brl3
 		Location: 105,78
@@ -377,7 +377,7 @@ Actors:
 		Owner: Neutral
 	Actor108: hpad
 		Location: 33,77
-		Owner: Allies
+		Owner: America
 	BridgeBarrel2: brl3
 		Location: 42,45
 		Owner: USSR
@@ -413,11 +413,11 @@ Actors:
 		Owner: USSR
 	Actor121: jeep
 		Location: 45,83
-		Owner: Allies
+		Owner: America
 		Facing: 636
 	Actor122: jeep
 		Location: 43,83
-		Owner: Allies
+		Owner: America
 		Facing: 380
 	Actor123: t72
 		Location: 73,75
@@ -441,21 +441,21 @@ Actors:
 		Facing: 380
 	Actor128: bradley
 		Location: 44,78
-		Owner: Allies
+		Owner: America
 		Facing: 764
 	Actor129: e1
 		Location: 38,73
-		Owner: Allies
+		Owner: America
 		Facing: 508
 		SubCell: 1
 	Actor130: e1
 		Location: 47,77
-		Owner: Allies
+		Owner: America
 		Facing: 764
 		SubCell: 0
 	Actor131: e1
 		Location: 39,76
-		Owner: Allies
+		Owner: America
 		Facing: 636
 		SubCell: 4
 	Actor132: e1
@@ -556,16 +556,16 @@ Actors:
 		SubCell: 1
 	Actor152: e1
 		Location: 40,77
-		Owner: Allies
+		Owner: America
 		SubCell: 1
 	Actor153: e1
 		Location: 47,80
-		Owner: Allies
+		Owner: America
 		Facing: 252
 		SubCell: 2
 	Actor154: e1
 		Location: 34,73
-		Owner: Allies
+		Owner: America
 		Facing: 892
 		SubCell: 0
 	Actor201: mine
@@ -575,7 +575,7 @@ Actors:
 		Owner: Neutral
 		Location: 68,66
 	Actor194: heli
-		Owner: Allies
+		Owner: America
 		Location: 34,79
 		Facing: 868
 	AlliedBase: waypoint
@@ -669,4 +669,4 @@ Actors:
 		Location: 92,87
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

@@ -21,7 +21,7 @@ Player:
 
 APC:
 	Buildable:
-		Prerequisites: ~vehicles.allies
+		Prerequisites: ~vehicles.america
 
 FTRK:
 	Buildable:

@@ -1877,11 +1877,10 @@ PDOX:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 120
-		Prerequisites: atek, ~structures.allies, ~techlevel.unrestricted
-		BuildLimit: 1
+		Prerequisites: ~disabled
 		Description: Teleports a group of units across the\nmap for a short time.\nRequires power to operate.\nMaximum 1 can be built.\n  Special Ability: Chronoshift
 	Valued:
-		Cost: 1500
+		Cost: 10000
 	Tooltip:
 		Name: Chronosphere
 	Building:
@@ -1891,29 +1890,11 @@ PDOX:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
-		MinRange: 5c0
-		Range: 6c0
-		RequiresCondition: !disabled
-		RevealGeneratedShroud: False
-	RevealsShroud@Offline:
-		Range: 5c0
-		RequiresCondition: disabled
-	RevealsShroud@GAPGEN:
-		Range: 5c0
-		RequiresCondition: !disabled
 	WithBuildingBib:
 		HasMinibib: true
-	ProvidesPrerequisite@germany:
-		Factions: germany
-		Prerequisite: pdox.germany
-	ProvidesPrerequisite@germanstructure:
-		RequiresPrerequisites: structures.germany
-		Prerequisite: pdox.germany
 	ChronoshiftPower@chronoshift:
 		OrderName: Chronoshift
 		PauseOnCondition: disabled
-		Prerequisites: !pdox.germany
 		Icon: chrono
 		ChargeInterval: 3000
 		Name: Chronoshift
@@ -1935,7 +1916,7 @@ PDOX:
 	ChronoshiftPower@advancedchronoshift:
 		OrderName: AdvancedChronoshift
 		PauseOnCondition: disabled
-		Prerequisites: pdox.germany
+		Prerequisites: pdox
 		Icon: chrono
 		ChargeInterval: 3000
 		Name: Advanced Chronoshift

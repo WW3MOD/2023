@@ -142,7 +142,7 @@ WorldLoaded = function()
 	objDestroyAllTrucks = greece.AddObjective("Prevent Soviet convoy trucks from escaping.")
 	objKillAll = greece.AddObjective("Clear the sector of all Soviet presence.")
 	objRadarSpy = greece.AddObjective("Infiltrate the Soviet Radar Dome to reveal truck \necape routes.", "Secondary", false)
-	ussrObj = ussr.AddObjective("Deny the Allies.")
+	ussrObj = ussr.AddObjective("Deny the America.")
 
 	ActivateAI()
 	SetupTriggers()

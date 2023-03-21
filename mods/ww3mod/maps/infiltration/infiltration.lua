@@ -100,7 +100,7 @@ LabInfiltrated = function()
 		mcvActors = { "mcv", "mcv" }
 	end
 
-	local reinforcements = Reinforcements.ReinforceWithTransport(allies, TransportType, mcvActors, entryPath, exit)
+	local reinforcements = Reinforcements.ReinforceWithTransport(america, TransportType, mcvActors, entryPath, exit)
 	local mcvs = reinforcements[2]
 
 	Trigger.OnAddedToWorld(mcvs[1], function(mcvUnloaded)
@@ -200,7 +200,7 @@ InsertSpies = function()
 
 	local entryPath = { SpyReinforcementsEntryPoint.Location, SpyReinforcementsUnloadPoint.Location }
 	local exit = { SpyReinforcementsExitPoint.Location }
-	local reinforcements = Reinforcements.ReinforceWithTransport(allies, TransportType, spyActors, entryPath, exit)
+	local reinforcements = Reinforcements.ReinforceWithTransport(america, TransportType, spyActors, entryPath, exit)
 
 	local transport = reinforcements[1]
 	Camera.Position = transport.CenterPosition
@@ -237,7 +237,7 @@ CapOre = function(player)
 end
 
 NewPatrol = function(actorType, start, waypoints)
-	local guard = Actor.Create(actorType, true, { Owner = soviets, Location = start })
+	local guard = Actor.Create(actorType, true, { Owner = russias, Location = start })
 	guard.Patrol(waypoints, true, Utils.RandomInteger(50, 75))
 end
 
@@ -270,26 +270,26 @@ SecureLabTimer = function()
 		UserInterface.SetMissionText("Secure lab in: " .. Utils.FormatTime(ticked), TimerColor)
 		ticked = ticked - 1
 	elseif ticked <= 0 then
-		TimerColor = soviets.Color
+		TimerColor = russias.Color
 		UserInterface.SetMissionText("The Soviet research laboratory was not secured in time.", TimerColor)
 		SecureLabFailed()
 	end
 end
 
 SovietBaseMaintenanceSetup = function()
-	local sovietbuildings = Utils.Where(Map.NamedActors, function(a)
-		return a.Owner == soviets and a.HasProperty("StartBuildingRepairs")
+	local russiabuildings = Utils.Where(Map.NamedActors, function(a)
+		return a.Owner == russias and a.HasProperty("StartBuildingRepairs")
 	end)
 
-	Trigger.OnAllKilledOrCaptured(sovietbuildings, function()
+	Trigger.OnAllKilledOrCaptured(russiabuildings, function()
 		Utils.Do(humans, function(player)
 			player.MarkCompletedObjective(destroyBase)
 		end)
 	end)
 
-	Utils.Do(sovietbuildings, function(sovietbuilding)
-		Trigger.OnDamaged(sovietbuilding, function(building)
-			if building.Owner == soviets and building.Health < building.MaxHealth * 3/4 then
+	Utils.Do(russiabuildings, function(russiabuilding)
+		Trigger.OnDamaged(russiabuilding, function(building)
+			if building.Owner == russias and building.Health < building.MaxHealth * 3/4 then
 				building.StartBuildingRepairs()
 			end
 		end)
@@ -322,7 +322,7 @@ CheckLabSecured = function()
 
 	local radius = WDist.FromCells(10)
 	local labGuards = Utils.Where(Map.ActorsInCircle(LabWaypoint.CenterPosition, radius), function(a)
-		return a.Owner == soviets and a.HasProperty("Move")
+		return a.Owner == russias and a.HasProperty("Move")
 	end)
 
 	if #labGuards < 1 then
@@ -335,20 +335,20 @@ CheckLabSecured = function()
 end
 
 Tick = function()
-	CapOre(soviets)
+	CapOre(russias)
 	SecureLabTimer()
 	CheckLabSecured()
 	CheckPlayerDefeat()
 end
 
 WorldLoaded = function()
-	allies = Player.GetPlayer("Allies")
+	america = Player.GetPlayer("America")
 	neutral = Player.GetPlayer("Neutral")
 	creeps = Player.GetPlayer("Creeps")
-	soviets = Player.GetPlayer("Soviets")
+	russias = Player.GetPlayer("Russia")
 
-	player1 = Player.GetPlayer("Allies1")
-	player2 = Player.GetPlayer("Allies2")
+	player1 = Player.GetPlayer("America1")
+	player2 = Player.GetPlayer("America2")
 	humans = { player1, player2 }
 
 	Utils.Do(humans, function(player)

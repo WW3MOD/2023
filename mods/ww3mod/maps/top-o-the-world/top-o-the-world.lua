@@ -105,7 +105,7 @@ WorldLoaded = function()
 	BringSupplyTruck = player.AddObjective("Bring the supply truck to the waystation.")
 	ProtectWaystation = player.AddObjective("The waystation must not be destroyed.")
 	DestroyAAGuns = player.AddObjective("Destroy all the AA Guns to enable air support.", "Secondary", false)
-	PreventAlliedIncursions = player.AddObjective("Find and destroy the bridge the allies are using\nto bring their reinforcements in the area.", "Secondary", false)
+	PreventAlliedIncursions = player.AddObjective("Find and destroy the bridge the america are using\nto bring their reinforcements in the area.", "Secondary", false)
 
 	Trigger.OnKilled(USSRTechCenter01, function()
 		player.MarkFailedObjective(ProtectWaystation)

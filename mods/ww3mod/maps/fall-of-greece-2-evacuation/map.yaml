@@ -23,36 +23,36 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@England:
 		Name: England
-		Faction: allies
+		Faction: america
 		Color: A0F08C
-		Allies: Allies
+		America: America
 		Enemies: USSR
-	PlayerReference@Allies:
-		Name: Allies
+	PlayerReference@America:
+		Name: America
 		AllowBots: False
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
 		LockTeam: True
-		Allies: England
+		America: England
 		Enemies: USSR
 	PlayerReference@Greece:
 		Name: Greece
-		Faction: allies
-		Allies: England
+		Faction: america
+		America: England
 		Enemies: USSR
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Enemies: Allies, England
+		Enemies: America, England
 
 Actors:
 	Actor0: v16
@@ -941,7 +941,7 @@ Actors:
 		Location: 78,85
 		TurretFacing: 368
 	Actor327: camera
-		Owner: Allies
+		Owner: America
 		Location: 83,32
 	Actor328: dome
 		Owner: USSR
@@ -1043,4 +1043,4 @@ Actors:
 		Location: 93,44
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

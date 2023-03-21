@@ -23,48 +23,48 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: France, BadGuy
+		America: France, BadGuy
 		Enemies: Germany, Turkey, Greece
 		Bot: campaign
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: USSR, France
+		America: USSR, France
 		Enemies: Germany, Turkey, Greece, England
 		Bot: campaign
 	PlayerReference@Germany:
 		Name: Germany
-		Faction: allies
+		Faction: america
 		Color: 505050
 		Enemies: USSR, France, BadGuy
 		Bot: campaign
 	PlayerReference@France:
 		Name: France
-		Faction: allies
+		Faction: america
 		Color: FC8800
-		Allies: USSR, BadGuy
+		America: USSR, BadGuy
 		Enemies: Germany, Greece
 		Bot: campaign
 	PlayerReference@Turkey:
 		Name: Turkey
-		Faction: allies
+		Faction: america
 		Color: D2997D
-		Allies: USSR
+		America: USSR
 		Enemies: BadGuy
 		Bot: campaign
 	PlayerReference@England:
 		Name: England
-		Faction: allies
+		Faction: america
 		Color: A0F08C
 		Bot: campaign
 	PlayerReference@Greece:
@@ -73,7 +73,7 @@ Players:
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
@@ -1365,4 +1365,4 @@ Actors:
 		Location: 112,62
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

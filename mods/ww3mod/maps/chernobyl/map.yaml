@@ -23,11 +23,11 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
+		Faction: america
 		Enemies: Multi0, Multi1, Multi2, Multi3
 	PlayerReference@Multi0:
 		Name: Multi0

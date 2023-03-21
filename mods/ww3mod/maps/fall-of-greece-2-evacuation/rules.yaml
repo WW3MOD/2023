@@ -101,4 +101,4 @@ GAP:
 
 3TNK:
 	Buildable:
-		Prerequisites: ~vehicles.soviet
+		Prerequisites: ~vehicles.russia

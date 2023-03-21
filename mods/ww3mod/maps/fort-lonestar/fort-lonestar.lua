@@ -100,7 +100,7 @@ IdleHunt = function(actor)
 end
 
 SendUnits = function(entryCell, unitTypes, targetCell, extraData)
-	Reinforcements.Reinforce(soviets, unitTypes, { entryCell }, 40, function(a)
+	Reinforcements.Reinforce(russias, unitTypes, { entryCell }, 40, function(a)
 		if not a.HasProperty("AttackMove") then
 			Trigger.OnIdle(a, function(a)
 				a.Move(targetCell)
@@ -166,15 +166,15 @@ SendWave = function()
 				return
 			end
 
-			Trigger.AfterDelay(DateTime.Minutes(1), SovietsRetreating)
+			Trigger.AfterDelay(DateTime.Minutes(1), RussiaRetreating)
 			Media.DisplayMessage("You almost survived the onslaught! No more waves incoming.")
 		end
 	end)
 end
 
-SovietsRetreating = function()
+RussiaRetreating = function()
 	Utils.Do(Snipers, function(a)
-		if not a.IsDead and a.Owner == soviets then
+		if not a.IsDead and a.Owner == russias then
 			a.Destroy()
 		end
 	end)
@@ -209,7 +209,7 @@ SetupWallOwners = function()
 end
 
 WorldLoaded = function()
-	soviets = Player.GetPlayer("Soviets")
+	russias = Player.GetPlayer("Russia")
 	players = { }
 	for i = 0, 4 do
 		local player = Player.GetPlayer("Multi" ..i)
@@ -224,6 +224,6 @@ WorldLoaded = function()
 
 	SetupWallOwners()
 
-	ParaProxy = Actor.Create("powerproxy.paratroopers", false, { Owner = soviets })
+	ParaProxy = Actor.Create("powerproxy.paratroopers", false, { Owner = russias })
 	SendWave()
 end

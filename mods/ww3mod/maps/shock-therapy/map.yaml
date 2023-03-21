@@ -23,24 +23,24 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@Spain:
 		Name: Spain
-		Faction: allies
+		Faction: america
 		Color: F6D679
-		Allies: Greece, GoodGuy
+		America: Greece, GoodGuy
 		Enemies: USSR
 	PlayerReference@Greece:
 		Name: Greece
-		Faction: allies
+		Faction: america
 		Color: E2E6F6
-		Allies: Spain, GoodGuy
+		America: Spain, GoodGuy
 		Enemies: USSR
 	PlayerReference@GoodGuy:
 		Name: GoodGuy
-		Faction: allies
+		Faction: america
 		Color: E2E6F6
-		Allies: Spain, Greece
+		America: Spain, Greece
 		Enemies: USSR
 	PlayerReference@USSR:
 		Name: USSR
@@ -48,7 +48,7 @@ Players:
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: soviet
+		Faction: russia
 		LockColor: True
 		Color: FE1100
 		LockSpawn: True
@@ -995,4 +995,4 @@ Actors:
 		Location: 83,79
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

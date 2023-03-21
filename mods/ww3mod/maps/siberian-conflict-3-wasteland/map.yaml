@@ -23,26 +23,26 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: BadGuy
-		Enemies: USSR, Allies
+		America: BadGuy
+		Enemies: USSR, America
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: USSR
-		Enemies: BadGuy, Allies
-	PlayerReference@Allies:
-		Name: Allies
+		America: USSR
+		Enemies: BadGuy, America
+	PlayerReference@America:
+		Name: America
 		AllowBots: False
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
@@ -764,7 +764,7 @@ Actors:
 		Facing: 892
 	Actor239: mcv
 		Location: 21,20
-		Owner: Allies
+		Owner: America
 		Facing: 636
 	StartV2: grad
 		Location: 41,35
@@ -772,15 +772,15 @@ Actors:
 		Facing: 124
 	Actor241: jeep
 		Location: 23,20
-		Owner: Allies
+		Owner: America
 		Facing: 636
 	Actor242: jeep
 		Location: 21,22
-		Owner: Allies
+		Owner: America
 		Facing: 636
 	Actor243: arty
 		Location: 19,18
-		Owner: Allies
+		Owner: America
 		Facing: 636
 	Actor244: t72
 		Location: 23,88
@@ -1015,4 +1015,4 @@ Actors:
 		Location: 80,99
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

@@ -113,7 +113,7 @@ DefendActor = function(id, actorToDefend)
 		end
 
 		-- Don't try to kill something you can't kill
-		if attacker.Type == "sniper.soviets" then
+		if attacker.Type == "sniper.russias" then
 			return
 		end
 

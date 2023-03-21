@@ -1107,3 +1107,57 @@ MSLO:
 		String: Nuke
 	InfiltrateForSupportPowerReset:
 		Types: SpyInfiltrate
+
+GUN:
+	Inherits@Type: ^Defense
+
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
+	-WithSpriteBody:
+	-ActorPreviewPlaceBuildingPreview:
+	-BodyOrientation:
+	SequencePlaceBuildingPreview:
+		Sequence: place
+		SequencePalette: placebuilding
+	WithEmbeddedTurretSpriteBody:
+	ClassicFacingBodyOrientation:
+	Building:
+	Buildable:
+		BuildDurationModifier: 30
+		Queue: Defense
+		BuildPaletteOrder: 2
+		Prerequisites: ~disabled
+		Description: Anti-Armor base defense.
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: Gun Turret
+	Health:
+		HP: 5000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	WithBuildingBib:
+		HasMinibib: true
+	Turreted:
+		TurnSpeed: 50
+		InitialFacing: 192
+	Armament:
+		Weapon: 125mmT72Gun
+		LocalOffset: 512,0,112
+		MuzzleSequence: muzzle
+		PauseOnCondition: disabled
+	AttackTurreted:
+		PauseOnCondition: disabled
+		RequiresCondition: !build-incomplete
+	WithMuzzleOverlay:
+	Power:
+		Amount: -20
+	SpawnActorOnDeath:
+		Actor: gun.husk
+		OwnerType: InternalName
+	RenderSprites:
+		Scale: 0.9
+	RenderRangeCircle:
+		Color: FF0000
+		Width: 1

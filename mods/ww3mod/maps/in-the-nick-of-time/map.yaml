@@ -23,17 +23,17 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
 		Enemies: Greece
 	PlayerReference@GoodGuy:
 		Name: GoodGuy
-		Faction: allies
+		Faction: america
 		Color: E2E6F6
-		Allies: Greece
+		America: Greece
 		Enemies: USSR
 	PlayerReference@Greece:
 		Name: Greece
@@ -41,12 +41,12 @@ Players:
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: E2E6F6
 		LockSpawn: True
 		LockTeam: True
-		Allies: GoodGuy
+		America: GoodGuy
 		Enemies: USSR
 
 Actors:
@@ -606,7 +606,7 @@ Actors:
 	USSRHouse: v03
 		Location: 67,76
 		Owner: Neutral
-	AlliesHouse: v02
+	AmericaHouse: v02
 		Location: 76,77
 		Owner: Neutral
 	Actor172: v01
@@ -875,10 +875,10 @@ Actors:
 	DefaultCameraPosition: waypoint
 		Location: 95,96
 		Owner: Neutral
-	AlliesEntry: waypoint
+	AmericaEntry: waypoint
 		Location: 95,98
 		Owner: Neutral
-	AlliesRally: waypoint
+	AmericaRally: waypoint
 		Location: 95,93
 		Owner: Neutral
 	ParaLZ1: waypoint
@@ -920,7 +920,7 @@ Actors:
 	VillageSpawnUSSR: waypoint
 		Location: 67,77
 		Owner: Neutral
-	VillageSpawnAllies: waypoint
+	VillageSpawnAmerica: waypoint
 		Location: 76,78
 		Owner: Neutral
 	VillageRally: waypoint
@@ -954,4 +954,4 @@ Actors:
 		Location: 46,38
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

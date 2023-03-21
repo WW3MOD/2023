@@ -59,7 +59,7 @@ MissionStart = function()
 	Trigger.OnEnteredFootprint({ LightFlare.Location }, function(actor, id)
 		if actor.Owner == England then
 			Trigger.RemoveFootprintTrigger(id)
-			local insertionFlare = Actor.Create("flare", true, { Owner = Allies, Location = LightFlare.Location })
+			local insertionFlare = Actor.Create("flare", true, { Owner = America, Location = LightFlare.Location })
 			Trigger.AfterDelay(DateTime.Seconds(2), function()
 				FlareBoy.AttackMove(FlareBoyAttack.Location)
 				if Difficulty == "normal" then
@@ -93,18 +93,18 @@ end
 
 FailTrigger = function()
 	Trigger.OnAnyKilled(VIPs, function()
-		Allies.MarkFailedObjective(ProtectVIPs)
+		America.MarkFailedObjective(ProtectVIPs)
 	end)
 end
 
 FootprintTriggers = function()
 	local foot1Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger1, function(actor, id)
-		if actor.Owner == Allies and not foot1Triggered then
+		if actor.Owner == America and not foot1Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot1Triggered = true
 
-			local trig1cam = Actor.Create("camera", true, { Owner = Allies, Location = Trigger1Cam.Location })
+			local trig1cam = Actor.Create("camera", true, { Owner = America, Location = Trigger1Cam.Location })
 			Trigger.AfterDelay(DateTime.Seconds(10), function()
 				trig1cam.Destroy()
 			end)
@@ -121,7 +121,7 @@ FootprintTriggers = function()
 
 	local foot2Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger2, function(actor, id)
-		if actor.Owner == Allies and not foot2Triggered then
+		if actor.Owner == America and not foot2Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot2Triggered = true
 
@@ -139,12 +139,12 @@ FootprintTriggers = function()
 
 	local foot3Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger3, function(actor, id)
-		if actor.Owner == Allies and not foot3Triggered then
+		if actor.Owner == America and not foot3Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot3Triggered = true
 
 			Trig3House.Owner = Civilians
-			local camera3 = Actor.Create("camera", true, { Owner = Allies, Location = Trigger3Cam.Location })
+			local camera3 = Actor.Create("camera", true, { Owner = America, Location = Trigger3Cam.Location })
 			Trigger.AfterDelay(DateTime.Seconds(10), function()
 				camera3.Destroy()
 			end)
@@ -167,7 +167,7 @@ FootprintTriggers = function()
 
 	local foot4Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger4, function(actor, id)
-		if actor.Owner == Allies and not foot4Triggered then
+		if actor.Owner == America and not foot4Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot4Triggered = true
 
@@ -179,11 +179,11 @@ FootprintTriggers = function()
 
 	local foot5Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger5, function(actor, id)
-		if actor.Owner == Allies and not foot5Triggered then
+		if actor.Owner == America and not foot5Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot5Triggered = true
 
-			Media.PlaySoundNotification(Allies, "AlertBleep")
+			Media.PlaySoundNotification(America, "AlertBleep")
 			Media.DisplayMessage("Alfa Niner this is Lima One Six. Be advised, Soviet aircraft and armor moving into your AO.", "Headquarters")
 			Utils.Do(Trigger5Team, function(actor)
 				if not actor.IsDead then
@@ -204,7 +204,7 @@ FootprintTriggers = function()
 			end)
 
 			Trigger.AfterDelay(DateTime.Seconds(20), function()
-				Media.PlaySoundNotification(Allies, "AlertBuzzer")
+				Media.PlaySoundNotification(America, "AlertBuzzer")
 				Media.DisplayMessage("Extraction point is compromised. Evacuate the base!", "Headquarters")
 				local defenders = Reinforcements.Reinforce(England, TentTeam, { Tent.Location, TentMove.Location }, 0)
 				Utils.Do(defenders, IdleHunt)
@@ -219,11 +219,11 @@ FootprintTriggers = function()
 			Trigger.AfterDelay(DateTime.Seconds(35), function()
 				local dogs = Reinforcements.Reinforce(USSR, Doggos, { GrenEntry.Location }, 0)
 				Utils.Do(dogs, IdleHunt)
-				Media.PlaySpeechNotification(Allies, "AbombLaunchDetected")
+				Media.PlaySpeechNotification(America, "AbombLaunchDetected")
 				local proxy = Actor.Create("powerproxy.parabombs", false, { Owner = USSR })
 				proxy.TargetAirstrike(TacticalNuke1.CenterPosition, Angle.NorthWest)
 				Trigger.AfterDelay(DateTime.Seconds(5), function()
-					Media.PlaySpeechNotification(Allies, "AbombLaunchDetected")
+					Media.PlaySpeechNotification(America, "AbombLaunchDetected")
 					proxy.TargetAirstrike(TacticalNuke2.CenterPosition, Angle.NorthWest)
 				end)
 				proxy.Destroy()
@@ -237,19 +237,19 @@ FootprintTriggers = function()
 
 	local foot6Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger6, function(actor, id)
-		if actor.Owner == Allies and not foot6Triggered then
+		if actor.Owner == America and not foot6Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot6Triggered = true
 
 			local reinforcement = lstReinforcements.first
-			Media.PlaySpeechNotification(Allies, "ReinforcementsArrived")
-			Reinforcements.ReinforceWithTransport(Allies, "lst.reinforcement", reinforcement.actors, reinforcement.entryPath, reinforcement.exitPath)
+			Media.PlaySpeechNotification(America, "ReinforcementsArrived")
+			Reinforcements.ReinforceWithTransport(America, "lst.reinforcement", reinforcement.actors, reinforcement.entryPath, reinforcement.exitPath)
 		end
 	end)
 
 	local foot7Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger7, function(actor, id)
-		if actor.Owner == Allies and not foot7Triggered then
+		if actor.Owner == America and not foot7Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot7Triggered = true
 
@@ -260,14 +260,14 @@ FootprintTriggers = function()
 				end)
 			end)
 
-			local trig7camera1 = Actor.Create("camera", true, { Owner = Allies, Location = MammothCam.Location })
-			local trig7camera2 = Actor.Create("camera", true, { Owner = Allies, Location = TacticalNuke3.Location })
+			local trig7camera1 = Actor.Create("camera", true, { Owner = America, Location = MammothCam.Location })
+			local trig7camera2 = Actor.Create("camera", true, { Owner = America, Location = TacticalNuke3.Location })
 			Trigger.AfterDelay(DateTime.Seconds(30), function()
 				trig7camera1.Destroy()
 			end)
 
 			Trigger.AfterDelay(DateTime.Seconds(20), function()
-				Media.PlaySpeechNotification(Allies, "AbombLaunchDetected")
+				Media.PlaySpeechNotification(America, "AbombLaunchDetected")
 				local proxy = Actor.Create("powerproxy.parabombs", false, { Owner = USSR })
 				proxy.TargetAirstrike(TacticalNuke3.CenterPosition, Angle.SouthWest)
 				proxy.Destroy()
@@ -288,27 +288,27 @@ FootprintTriggers = function()
 
 	local foot8Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger8, function(actor, id)
-		if actor.Owner == Allies and not foot8Triggered then
+		if actor.Owner == America and not foot8Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot8Triggered = true
 
-			local trig8camera = Actor.Create("camera", true, { Owner = Allies, Location = TeslaCam.Location })
+			local trig8camera = Actor.Create("camera", true, { Owner = America, Location = TeslaCam.Location })
 			Trigger.AfterDelay(DateTime.Seconds(10), function()
 				trig8camera.Destroy()
 			end)
 
-			Media.PlaySpeechNotification(Allies, "ReinforcementsArrived")
+			Media.PlaySpeechNotification(America, "ReinforcementsArrived")
 			RifleDropA.TargetParatroopers(TeslaDrop.CenterPosition, Angle.New(124))
 		end
 	end)
 
 	local foot9Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger9, function(actor, id)
-		if actor.Owner == Allies and not foot9Triggered then
+		if actor.Owner == America and not foot9Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot9Triggered = true
 
-			local trig9camera = Actor.Create("camera", true, { Owner = Allies, Location = BridgeCam.Location })
+			local trig9camera = Actor.Create("camera", true, { Owner = America, Location = BridgeCam.Location })
 			Trigger.AfterDelay(DateTime.Seconds(10), function()
 				trig9camera.Destroy()
 			end)
@@ -321,17 +321,17 @@ FootprintTriggers = function()
 
 	local foot10Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger10, function(actor, id)
-		if actor.Owner == Allies and not foot10Triggered then
+		if actor.Owner == America and not foot10Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot10Triggered = true
 
-			local trig10camera = Actor.Create("camera", true, { Owner = Allies, Location = TruckCam.Location })
+			local trig10camera = Actor.Create("camera", true, { Owner = America, Location = TruckCam.Location })
 			Trigger.AfterDelay(DateTime.Seconds(10), function()
 				trig10camera.Destroy()
 			end)
 
-			Media.PlaySpeechNotification(Allies, "SignalFlareNorth")
-			Actor.Create("camera", true, { Owner = Allies, Location = ExtractionPoint.Location })
+			Media.PlaySpeechNotification(America, "SignalFlareNorth")
+			Actor.Create("camera", true, { Owner = America, Location = ExtractionPoint.Location })
 			SendExtractionHelicopter()
 
 			HealCrateTruck.Move(TruckGo.Location)
@@ -340,18 +340,18 @@ FootprintTriggers = function()
 
 	local foot11Triggered
 	Trigger.OnEnteredFootprint(FootprintTrigger11, function(actor, id)
-		if actor.Owner == Allies and not foot11Triggered then
+		if actor.Owner == America and not foot11Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot11Triggered = true
 
-			local trig11camera = Actor.Create("camera", true, { Owner = Allies, Location = SovBaseCam.Location })
+			local trig11camera = Actor.Create("camera", true, { Owner = America, Location = SovBaseCam.Location })
 			Trigger.AfterDelay(DateTime.Seconds(10), function()
 				trig11camera.Destroy()
 			end)
 
 			local reinforcement = lstReinforcements.second
-			Media.PlaySpeechNotification(Allies, "ReinforcementsArrived")
-			Reinforcements.ReinforceWithTransport(Allies, "lst.reinforcement", reinforcement.actors, reinforcement.entryPath, reinforcement.exitPath)
+			Media.PlaySpeechNotification(America, "ReinforcementsArrived")
+			Reinforcements.ReinforceWithTransport(America, "lst.reinforcement", reinforcement.actors, reinforcement.entryPath, reinforcement.exitPath)
 		end
 	end)
 
@@ -361,7 +361,7 @@ FootprintTriggers = function()
 			Trigger.RemoveFootprintTrigger(id)
 			foot12Triggered = true
 
-			Media.PlaySoundNotification(Allies, "AlertBleep")
+			Media.PlaySoundNotification(America, "AlertBleep")
 			Media.DisplayMessage("Stalin will pay for what he has done today!\nI will bury him with my own hands!", "Stavros")
 		end
 	end)
@@ -471,34 +471,34 @@ ExtractUnits = function(extractionUnit, pos, after)
 end
 
 SendExtractionHelicopter = function()
-	ExtractionHeli = Reinforcements.ReinforceWithTransport(Allies, ExtractionHelicopterType, nil, ExtractionPath)[1]
+	ExtractionHeli = Reinforcements.ReinforceWithTransport(America, ExtractionHelicopterType, nil, ExtractionPath)[1]
 	local exitPos = CPos.New(ExtractionPath[1].X, ExtractionPath[2].Y)
 
 	Trigger.OnKilled(ExtractionHeli, function() USSR.MarkCompletedObjective(SovietObj) end)
 	Trigger.OnAllRemovedFromWorld(VIPs, function()
 		ExtractUnits(ExtractionHeli, exitPos, function()
-			Allies.MarkCompletedObjective(ProtectVIPs)
-			Allies.MarkCompletedObjective(ExtractStavros)
+			America.MarkCompletedObjective(ProtectVIPs)
+			America.MarkCompletedObjective(ExtractStavros)
 		end)
 	end)
 end
 
 WorldLoaded = function()
-	Allies = Player.GetPlayer("Allies")
+	America = Player.GetPlayer("America")
 	USSR = Player.GetPlayer("USSR")
 	BadGuy = Player.GetPlayer("BadGuy")
 	England = Player.GetPlayer("England")
 	Civilians = Player.GetPlayer("GreekCivilians")
 
-	InitObjectives(Allies)
+	InitObjectives(America)
 
 	SovietObj = USSR.AddObjective("Kill Stavros.")
-	ProtectVIPs = Allies.AddObjective("Keep Stavros and Tanya alive.")
-	ExtractStavros = Allies.AddObjective("Get Stavros and Tanya to the extraction helicopter.")
+	ProtectVIPs = America.AddObjective("Keep Stavros and Tanya alive.")
+	ExtractStavros = America.AddObjective("Get Stavros and Tanya to the extraction helicopter.")
 
-	InsertionDrop = Actor.Create("insertiondrop", false, { Owner = Allies })
-	InsertionDropHard = Actor.Create("insertiondrophard", false, { Owner = Allies })
-	RifleDropA = Actor.Create("rifledrop", false, { Owner = Allies })
+	InsertionDrop = Actor.Create("insertiondrop", false, { Owner = America })
+	InsertionDropHard = Actor.Create("insertiondrophard", false, { Owner = America })
+	RifleDropA = Actor.Create("rifledrop", false, { Owner = America })
 	RifleDropS = Actor.Create("rifledrop", false, { Owner = USSR })
 	Camera.Position = LightFlare.CenterPosition
 

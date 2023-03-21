@@ -23,10 +23,10 @@ MiddleVillage = { MiddleChurch, MiddleHouse1, MiddleHouse2, MiddleHouse3, Middle
 EastVillage = { EastChurch, EastHouse1, EastHouse2, EastHouse3 }
 
 MissionStart = function()
-	Reinforcements.Reinforce(Allies, AlliedReinforcementsA, { AlliedSpawn.Location, AlliedBase.Location }, 5)
+	Reinforcements.Reinforce(America, AlliedReinforcementsA, { AlliedSpawn.Location, AlliedBase.Location }, 5)
 	Trigger.AfterDelay(DateTime.Seconds(2), function()
-		AlliesArrived = true
-		Reinforcements.Reinforce(Allies, AlliedReinforcementsB, { AlliedSpawn.Location, AlliedBase.Location }, 2)
+		AmericaArrived = true
+		Reinforcements.Reinforce(America, AlliedReinforcementsB, { AlliedSpawn.Location, AlliedBase.Location }, 2)
 		Utils.Do(RifleSquad, function(actor)
 			if not actor.IsDead then
 				actor.AttackMove(AlliedBase.Location)
@@ -38,7 +38,7 @@ MissionStart = function()
 	Sub1.Patrol(IslandPatrol, true, 1)
 
 	Trigger.AfterDelay(DateTime.Seconds(5), function()
-		Reinforcements.Reinforce(Allies, AlliedReinforcementsC, { AlliedSpawn.Location, AlliedBase.Location }, 5)
+		Reinforcements.Reinforce(America, AlliedReinforcementsC, { AlliedSpawn.Location, AlliedBase.Location }, 5)
 	end)
 
 	Trigger.OnKilled(NWChurch, function()
@@ -63,22 +63,22 @@ MissionStart = function()
 	end)
 
 	Trigger.OnAllKilled(Submarines, function()
-		Allies.MarkCompletedObjective(ClearWaterway)
+		America.MarkCompletedObjective(ClearWaterway)
 	end)
 end
 
 VillageSetup = function()
 	local foot1Triggered
 	Trigger.OnEnteredFootprint(NWVillageTrigger, function(actor, id)
-		if actor.Owner == Allies and not foot1Triggered then
+		if actor.Owner == America and not foot1Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot1Triggered = true
 
 			Utils.Do(NWVillage, function(building)
-				building.Owner = Allies
+				building.Owner = America
 			end)
 
-			Civs1 = Reinforcements.Reinforce(Allies, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchNorthwest.Location, VillageNorthwest.Location }, 0)
+			Civs1 = Reinforcements.Reinforce(America, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchNorthwest.Location, VillageNorthwest.Location }, 0)
 			if not NWChurch.IsDead then
 				Utils.Do(Civs1, function(civ)
 					Trigger.OnKilled(civ, function()
@@ -97,15 +97,15 @@ VillageSetup = function()
 
 	local foot2Triggered
 	Trigger.OnEnteredFootprint(EastVillageTrigger, function(actor, id)
-		if actor.Owner == Allies and not foot2Triggered then
+		if actor.Owner == America and not foot2Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot2Triggered = true
 
 			Utils.Do(EastVillage, function(building)
-				building.Owner = Allies
+				building.Owner = America
 			end)
 
-			Civs2 = Reinforcements.Reinforce(Allies, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchEast.Location, VillageEast.Location }, 0)
+			Civs2 = Reinforcements.Reinforce(America, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchEast.Location, VillageEast.Location }, 0)
 			if not EastChurch.IsDead then
 				Utils.Do(Civs2, function(civ)
 					Trigger.OnKilled(civ, function()
@@ -126,15 +126,15 @@ VillageSetup = function()
 
 	local foot3Triggered
 	Trigger.OnEnteredFootprint(MiddleVillageTrigger, function(actor, id)
-		if actor.Owner == Allies and not foot3Triggered then
+		if actor.Owner == America and not foot3Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot3Triggered = true
 
 			Utils.Do(MiddleVillage, function(building)
-				building.Owner = Allies
+				building.Owner = America
 			end)
 
-			Civs3 = Reinforcements.Reinforce(Allies, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchMiddle.Location, VillageMiddle.Location }, 0)
+			Civs3 = Reinforcements.Reinforce(America, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchMiddle.Location, VillageMiddle.Location }, 0)
 			if not MiddleChurch.IsDead then
 				Utils.Do(Civs3, function(civ)
 					Trigger.OnKilled(civ, function()
@@ -151,15 +151,15 @@ VillageSetup = function()
 
 	local foot4Triggered
 	Trigger.OnEnteredFootprint(SWVillageTrigger, function(actor, id)
-		if actor.Owner == Allies and not foot4Triggered then
+		if actor.Owner == America and not foot4Triggered then
 			Trigger.RemoveFootprintTrigger(id)
 			foot4Triggered = true
 
 			Utils.Do(SWVillage, function(building)
-				building.Owner = Allies
+				building.Owner = America
 			end)
 
-			Civs4 = Reinforcements.Reinforce(Allies, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchSouthwest.Location, VillageSouthwest.Location }, 0)
+			Civs4 = Reinforcements.Reinforce(America, Utils.Take(5, Utils.Shuffle(CivilianTypes)), { ChurchSouthwest.Location, VillageSouthwest.Location }, 0)
 			if not SWChurch.IsDead then
 				Utils.Do(Civs4, function(civ)
 					Trigger.OnKilled(civ, function()
@@ -208,47 +208,47 @@ EvacuateCivilians = function()
 	end)
 
 	Trigger.OnAllKilled(enemyBase, function()
-		Media.PlaySoundNotification(Allies, "AlertBleep")
+		Media.PlaySoundNotification(America, "AlertBleep")
 		Media.DisplayMessage("Alfa Niner this is Pegasus. We are on site and ready to assist with the evacuation.", "Chinook pilot")
-		Reinforcements.Reinforce(Allies, { "tran" }, { ChinookEntry.Location, ChinookLZ.Location })
+		Reinforcements.Reinforce(America, { "tran" }, { ChinookEntry.Location, ChinookLZ.Location })
 	end)
 end
 
 Tick = function()
 	USSR.Cash = 10000
 	if CiviliansEvacuated >= CiviliansEvacuatedThreshold then
-		Allies.MarkCompletedObjective(RescueCivilians)
+		America.MarkCompletedObjective(RescueCivilians)
 	end
 
 	if CiviliansKilled >= CiviliansKilledThreshold then
-		Allies.MarkFailedObjective(RescueCivilians)
+		America.MarkFailedObjective(RescueCivilians)
 	end
 
-	if AlliesArrived and Allies.HasNoRequiredUnits() then
+	if AmericaArrived and America.HasNoRequiredUnits() then
 		USSR.MarkCompletedObjective(SovietObj)
 	end
 end
 
 WorldLoaded = function()
-	Allies = Player.GetPlayer("Allies")
+	America = Player.GetPlayer("America")
 	USSR = Player.GetPlayer("USSR")
 
-	InitObjectives(Allies)
+	InitObjectives(America)
 
 	if Difficulty == "easy" then
-		RescueCivilians = Allies.AddObjective("Evacuate at least half of the civilians to the island\nshelter.")
+		RescueCivilians = America.AddObjective("Evacuate at least half of the civilians to the island\nshelter.")
 	elseif Difficulty == "normal" then
-		RescueCivilians = Allies.AddObjective("Evacuate at least three quarters of the civilians to\nthe island shelter.")
+		RescueCivilians = America.AddObjective("Evacuate at least three quarters of the civilians to\nthe island shelter.")
 	else
-		RescueCivilians = Allies.AddObjective("Evacuate all civilians to the island shelter.")
+		RescueCivilians = America.AddObjective("Evacuate all civilians to the island shelter.")
 	end
 
-	ClearWaterway = Allies.AddObjective("Clear the area of enemy submarine activity.", "Secondary", false)
-	SovietObj = USSR.AddObjective("Defeat Allies.")
+	ClearWaterway = America.AddObjective("Clear the area of enemy submarine activity.", "Secondary", false)
+	SovietObj = USSR.AddObjective("Defeat America.")
 
 	CiviliansEvacuatedThreshold = CiviliansEvacuatedThreshold[Difficulty]
 	CiviliansKilledThreshold = CiviliansKilledThreshold[Difficulty]
-	TextColor = Allies.Color
+	TextColor = America.Color
 	UserInterface.SetMissionText(CiviliansEvacuated .. "/" .. CiviliansEvacuatedThreshold .. " civilians evacuated.", TextColor)
 	StandardDrop = Actor.Create("paradrop", false, { Owner = USSR })
 	FlamerDrop = Actor.Create("flamerdrop", false, { Owner = USSR })

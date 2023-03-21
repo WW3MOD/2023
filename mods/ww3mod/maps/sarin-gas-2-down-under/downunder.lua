@@ -107,10 +107,10 @@ ConsoleTriggers = function()
 
 			Media.DisplayMessage("Sarin Nerve Gas dispensers activated", "Console")
 			local KillCamera = Actor.Create("camera", true, { Owner = greece, Location = Sarin2.Location })
-			local flare1 = Actor.Create("flare", true, { Owner = england, Location = Sarin1.Location })
-			local flare2 = Actor.Create("flare", true, { Owner = england, Location = Sarin2.Location })
-			local flare3 = Actor.Create("flare", true, { Owner = england, Location = Sarin3.Location })
-			local flare4 = Actor.Create("flare", true, { Owner = england, Location = Sarin4.Location })
+			local flare1 = Actor.Create("flare", true, { Owner = america, Location = Sarin1.Location })
+			local flare2 = Actor.Create("flare", true, { Owner = america, Location = Sarin2.Location })
+			local flare3 = Actor.Create("flare", true, { Owner = america, Location = Sarin3.Location })
+			local flare4 = Actor.Create("flare", true, { Owner = america, Location = Sarin4.Location })
 			Trigger.AfterDelay(DateTime.Seconds(4), function()
 				Utils.Do(SarinVictims, function(actor)
 					if not actor.IsDead then
@@ -409,7 +409,7 @@ ScientistRescued = function()
 
 	Trigger.AfterDelay(DateTime.Seconds(5), function()
 		if not ScientistMan.IsDead and not DemoTruck.IsDead then
-			Media.DisplayMessage("The Soviets have an unstable nuclear device stored here. \n I need to move it out of the facility!", "Scientist")
+			Media.DisplayMessage("The Russia have an unstable nuclear device stored here. \n I need to move it out of the facility!", "Scientist")
 			DemoTruck.GrantCondition("mission")
 			ScientistMan.EnterTransport(DemoTruck)
 		end
@@ -451,7 +451,7 @@ end
 
 WorldLoaded = function()
 	greece = Player.GetPlayer("Greece")
-	england = Player.GetPlayer("England")
+	america = Player.GetPlayer("England")
 	turkey = Player.GetPlayer("Turkey")
 	ussr = Player.GetPlayer("USSR")
 	france = Player.GetPlayer("France")
@@ -459,7 +459,7 @@ WorldLoaded = function()
 
 	InitObjectives(greece)
 
-	ussrObj = ussr.AddObjective("Defeat the Allies.")
+	ussrObj = ussr.AddObjective("Defeat the America.")
 	ExitBase = greece.AddObjective("Reach the eastern exit of the facility.")
 	FreeTanya = greece.AddObjective("Free Tanya and keep her alive.")
 	KillVIPs = greece.AddObjective("Kill all Soviet officers and scientists.", "Secondary", false)

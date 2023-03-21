@@ -23,49 +23,49 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: allies
-		Enemies: Soviets
-	PlayerReference@Allies1:
-		Name: Allies1
+		Faction: america
+		Enemies: Russia
+	PlayerReference@America1:
+		Name: America1
 		AllowBots: False
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
 		LockTeam: True
-		Allies: Allies2, Allies
-		Enemies: Soviets
-	PlayerReference@Allies2:
-		Name: Allies2
+		America: America2, America
+		Enemies: Russia
+	PlayerReference@America2:
+		Name: America2
 		AllowBots: False
 		Playable: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: A1EF8C
 		LockSpawn: True
 		LockTeam: True
-		Allies: Allies1, Allies
-		Enemies: Soviets
-	PlayerReference@Allies:
-		Name: Allies
-		Faction: allies
+		America: America1, America
+		Enemies: Russia
+	PlayerReference@America:
+		Name: America
+		Faction: america
 		Color: 5CC1A3
-		Allies: Allies1, Allies2
-		Enemies: Soviets
+		America: America1, America2
+		Enemies: Russia
 		Bot: campaign
-	PlayerReference@Soviets:
-		Name: Soviets
-		Faction: soviet
+	PlayerReference@Russia:
+		Name: Russia
+		Faction: russia
 		Color: FE1100
-		Enemies: Allies1, Allies2, Allies, Creeps
+		Enemies: America1, America2, America, Creeps
 		Bot: campaign
 
 Actors:
@@ -125,19 +125,19 @@ Actors:
 		Owner: Creeps
 	Actor236: sbag
 		Location: 66,36
-		Owner: Soviets
+		Owner: Russia
 	Actor233: sbag
 		Location: 66,35
-		Owner: Soviets
+		Owner: Russia
 	Actor235: sbag
 		Location: 68,35
-		Owner: Soviets
+		Owner: Russia
 	Actor234: sbag
 		Location: 67,35
-		Owner: Soviets
+		Owner: Russia
 	Actor222: hpad
 		Location: 56,36
-		Owner: Soviets
+		Owner: Russia
 	Actor57: t07
 		Location: 74,64
 		Owner: Neutral
@@ -173,344 +173,344 @@ Actors:
 		Owner: Creeps
 	Actor53: powr
 		Location: 86,65
-		Owner: Soviets
+		Owner: Russia
 	Actor113: tc05
 		Location: 86,59
 		Owner: Neutral
 	Actor51: barr
 		Location: 93,70
-		Owner: Soviets
+		Owner: Russia
 	Lab: miss
 		Location: 34,30
-		Owner: Soviets
+		Owner: Russia
 	LabWaypoint: waypoint
 		Location: 34,30
 		Owner: Neutral
 	Actor45: brik
 		Location: 39,34
-		Owner: Soviets
+		Owner: Russia
 	Actor43: brik
 		Location: 39,33
-		Owner: Soviets
+		Owner: Russia
 	Actor42: brik
 		Location: 39,32
-		Owner: Soviets
+		Owner: Russia
 	Actor39: brik
 		Location: 39,31
-		Owner: Soviets
+		Owner: Russia
 	Actor38: brik
 		Location: 39,30
-		Owner: Soviets
+		Owner: Russia
 	Actor34: brik
 		Location: 38,28
-		Owner: Soviets
+		Owner: Russia
 	Actor36: brik
 		Location: 39,29
-		Owner: Soviets
+		Owner: Russia
 	Actor494: e4
 		Location: 98,38
-		Owner: Soviets
+		Owner: Russia
 	Actor495: e4
 		Location: 48,34
-		Owner: Soviets
+		Owner: Russia
 	Actor58: brik
 		Location: 32,28
-		Owner: Soviets
+		Owner: Russia
 	Actor35: brik
 		Location: 39,28
-		Owner: Soviets
+		Owner: Russia
 	Actor110: e1
 		Location: 33,28
-		Owner: Soviets
+		Owner: Russia
 	Actor60: apwr
 		Location: 44,46
-		Owner: Soviets
+		Owner: Russia
 	Actor22: brik
 		Location: 32,34
-		Owner: Soviets
+		Owner: Russia
 	Actor95: brik
 		Location: 32,29
-		Owner: Soviets
+		Owner: Russia
 	Actor97: brik
 		Location: 32,30
-		Owner: Soviets
+		Owner: Russia
 	Actor98: brik
 		Location: 32,31
-		Owner: Soviets
+		Owner: Russia
 	Actor100: brik
 		Location: 32,33
-		Owner: Soviets
+		Owner: Russia
 	Actor263: t72
 		Location: 37,35
-		Owner: Soviets
+		Owner: Russia
 	Actor138: e2
 		Location: 39,37
-		Owner: Soviets
+		Owner: Russia
 	Actor99: brik
 		Location: 32,32
-		Owner: Soviets
+		Owner: Russia
 	Actor106: hpad
 		Location: 34,42
-		Owner: Soviets
+		Owner: Russia
 	Actor21: brik
 		Location: 33,34
-		Owner: Soviets
+		Owner: Russia
 	Actor14: brik
 		Location: 32,35
-		Owner: Soviets
+		Owner: Russia
 	Actor55: brik
 		Location: 32,26
-		Owner: Soviets
+		Owner: Russia
 	Actor40: apwr
 		Location: 44,43
-		Owner: Soviets
+		Owner: Russia
 	Actor69: barr
 		Location: 60,33
-		Owner: Soviets
+		Owner: Russia
 	Actor96: barr
 		Location: 107,36
-		Owner: Soviets
+		Owner: Russia
 	Actor94: barr
 		Location: 39,41
-		Owner: Soviets
+		Owner: Russia
 	Actor102: ftur
 		Location: 46,39
-		Owner: Soviets
+		Owner: Russia
 	Actor4: brik
 		Location: 38,34
-		Owner: Soviets
+		Owner: Russia
 	Actor121: e1
 		Location: 100,21
-		Owner: Soviets
+		Owner: Russia
 	Actor59: sam
 		Location: 47,60
-		Owner: Soviets
+		Owner: Russia
 		TurretFacing: 640
 	Actor61: apwr
 		Location: 45,49
-		Owner: Soviets
+		Owner: Russia
 	Actor62: apwr
 		Location: 46,52
-		Owner: Soviets
+		Owner: Russia
 	Actor29: brik
 		Location: 35,26
-		Owner: Soviets
+		Owner: Russia
 	Actor76: ftur
 		Location: 78,22
-		Owner: Soviets
+		Owner: Russia
 	Actor83: ftur
 		Location: 67,34
-		Owner: Soviets
+		Owner: Russia
 	Actor73: spen
 		Location: 31,82
-		Owner: Soviets
+		Owner: Russia
 	Actor37: dome
 		Location: 44,57
-		Owner: Soviets
+		Owner: Russia
 	Actor65: sam
 		Location: 50,37
-		Owner: Soviets
+		Owner: Russia
 		TurretFacing: 768
 	Actor70: spen
 		Location: 39,71
-		Owner: Soviets
+		Owner: Russia
 	Actor71: spen
 		Location: 25,68
-		Owner: Soviets
+		Owner: Russia
 	Actor64: sam
 		Location: 28,43
-		Owner: Soviets
+		Owner: Russia
 		TurretFacing: 192
 	Actor72: spen
 		Location: 23,76
-		Owner: Soviets
+		Owner: Russia
 	Actor67: fact
 		Location: 42,52
-		Owner: Soviets
+		Owner: Russia
 	Actor85: kenn
 		Location: 58,32
-		Owner: Soviets
+		Owner: Russia
 	Actor103: afld
 		Location: 34,51
-		Owner: Soviets
+		Owner: Russia
 	Actor20: fcom
 		Location: 39,50
-		Owner: Soviets
+		Owner: Russia
 	Actor18: afld
 		Location: 34,45
-		Owner: Soviets
+		Owner: Russia
 	Actor79: afld
 		Location: 34,47
-		Owner: Soviets
+		Owner: Russia
 	Actor74: ftur
 		Location: 31,36
-		Owner: Soviets
+		Owner: Russia
 	Actor32: brik
 		Location: 34,26
-		Owner: Soviets
+		Owner: Russia
 	Actor493: e4
 		Location: 102,24
-		Owner: Soviets
+		Owner: Russia
 	Actor274: e3
 		Location: 34,41
-		Owner: Soviets
+		Owner: Russia
 	Actor452: e4
 		Location: 34,32
-		Owner: Soviets
+		Owner: Russia
 	Actor112: fenc
 		Location: 96,39
-		Owner: Soviets
+		Owner: Russia
 	Actor15: brik
 		Location: 33,35
-		Owner: Soviets
+		Owner: Russia
 	Actor126: e1
 		Location: 109,22
-		Owner: Soviets
+		Owner: Russia
 	Actor107: hpad
 		Location: 36,42
-		Owner: Soviets
+		Owner: Russia
 	Actor129: kenn
 		Location: 110,37
-		Owner: Soviets
+		Owner: Russia
 	Actor108: stek
 		Location: 38,55
-		Owner: Soviets
+		Owner: Russia
 	Actor7: brik
 		Location: 38,35
-		Owner: Soviets
+		Owner: Russia
 	Actor46: brik
 		Location: 33,26
-		Owner: Soviets
+		Owner: Russia
 	Actor6: brik
 		Location: 39,35
-		Owner: Soviets
+		Owner: Russia
 	Actor117: fenc
 		Location: 98,39
-		Owner: Soviets
+		Owner: Russia
 	Actor116: fenc
 		Location: 97,39
-		Owner: Soviets
+		Owner: Russia
 	Actor111: fenc
 		Location: 95,37
-		Owner: Soviets
+		Owner: Russia
 	Actor16: fenc
 		Location: 95,38
-		Owner: Soviets
+		Owner: Russia
 	Actor13: fenc
 		Location: 95,39
-		Owner: Soviets
+		Owner: Russia
 	Actor120: e1
 		Location: 107,41
-		Owner: Soviets
+		Owner: Russia
 	Actor119: e1
 		Location: 99,41
-		Owner: Soviets
+		Owner: Russia
 	Actor279: dog
 		Location: 101,38
-		Owner: Soviets
+		Owner: Russia
 	Actor151: fenc
 		Location: 111,39
-		Owner: Soviets
+		Owner: Russia
 	Actor125: fenc
 		Location: 110,39
-		Owner: Soviets
+		Owner: Russia
 	Actor124: fenc
 		Location: 109,39
-		Owner: Soviets
+		Owner: Russia
 	Actor127: fenc
 		Location: 99,39
-		Owner: Soviets
+		Owner: Russia
 	Actor148: e1
 		Location: 92,20
-		Owner: Soviets
+		Owner: Russia
 	Actor128: ftur
 		Location: 42,61
-		Owner: Soviets
+		Owner: Russia
 	Actor93: afld
 		Location: 34,49
-		Owner: Soviets
+		Owner: Russia
 	Actor101: kenn
 		Location: 41,47
-		Owner: Soviets
+		Owner: Russia
 	Actor133: apwr
 		Location: 97,16
-		Owner: Soviets
+		Owner: Russia
 	Actor131: apwr
 		Location: 107,16
-		Owner: Soviets
+		Owner: Russia
 	Actor132: apwr
 		Location: 107,19
-		Owner: Soviets
+		Owner: Russia
 	Actor130: apwr
 		Location: 101,16
-		Owner: Soviets
+		Owner: Russia
 	Actor134: proc
 		Location: 106,30
-		Owner: Soviets
+		Owner: Russia
 	Actor135: fix
 		Location: 102,25
-		Owner: Soviets
+		Owner: Russia
 	Actor136: dome
 		Location: 107,25
-		Owner: Soviets
+		Owner: Russia
 	HijackFactory: weap
 		Location: 98,32
-		Owner: Soviets
+		Owner: Russia
 	Actor12: sam
 		Location: 34,27
-		Owner: Soviets
+		Owner: Russia
 	Actor297: v08
 		Location: 68,95
 		Owner: Creeps
 	Actor142: fenc
 		Location: 91,16
-		Owner: Soviets
+		Owner: Russia
 	Actor141: fenc
 		Location: 91,17
-		Owner: Soviets
+		Owner: Russia
 	Actor140: fenc
 		Location: 91,18
-		Owner: Soviets
+		Owner: Russia
 	Actor139: fenc
 		Location: 91,19
-		Owner: Soviets
+		Owner: Russia
 	Actor145: ftur
 		Location: 90,23
-		Owner: Soviets
+		Owner: Russia
 	Actor146: ftur
 		Location: 90,19
-		Owner: Soviets
+		Owner: Russia
 	Actor147: e1
 		Location: 92,23
-		Owner: Soviets
+		Owner: Russia
 	Actor118: ftur
 		Location: 99,40
-		Owner: Soviets
+		Owner: Russia
 	Actor149: fact
 		Location: 95,25
-		Owner: Soviets
+		Owner: Russia
 	Actor304: t72
 		Location: 106,38
-		Owner: Soviets
+		Owner: Russia
 		Facing: 384
 	Actor488: t02
 		Location: 110,28
 		Owner: Neutral
 	Actor123: fenc
 		Location: 108,39
-		Owner: Soviets
+		Owner: Russia
 	Actor153: apwr
 		Location: 101,19
-		Owner: Soviets
+		Owner: Russia
 	Actor154: apwr
 		Location: 93,16
-		Owner: Soviets
+		Owner: Russia
 	Actor155: powr
 		Location: 45,41
-		Owner: Soviets
+		Owner: Russia
 	Actor156: apwr
 		Location: 47,55
-		Owner: Soviets
+		Owner: Russia
 	Actor157: tc02
 		Location: 27,46
 		Owner: Neutral
@@ -525,7 +525,7 @@ Actors:
 		Owner: Neutral
 	Actor161: e1
 		Location: 22,42
-		Owner: Soviets
+		Owner: Russia
 	Actor162: t12
 		Location: 22,39
 		Owner: Neutral
@@ -567,7 +567,7 @@ Actors:
 		Owner: Neutral
 	Actor63: apwr
 		Location: 32,53
-		Owner: Soviets
+		Owner: Russia
 	Actor176: tc02
 		Location: 50,62
 		Owner: Neutral
@@ -582,7 +582,7 @@ Actors:
 		Owner: Neutral
 	Actor175: sam
 		Location: 30,58
-		Owner: Soviets
+		Owner: Russia
 		TurretFacing: 384
 	Actor181: t12
 		Location: 27,54
@@ -685,7 +685,7 @@ Actors:
 		Owner: Neutral
 	Actor214: silo
 		Location: 109,29
-		Owner: Soviets
+		Owner: Russia
 	Actor215: t01
 		Location: 96,36
 		Owner: Neutral
@@ -694,169 +694,169 @@ Actors:
 		Owner: Neutral
 	Actor218: fenc
 		Location: 81,65
-		Owner: Soviets
+		Owner: Russia
 	Actor219: fenc
 		Location: 81,66
-		Owner: Soviets
+		Owner: Russia
 	Actor220: fenc
 		Location: 81,67
-		Owner: Soviets
+		Owner: Russia
 	Actor221: tos
 		Location: 39,46
-		Owner: Soviets
+		Owner: Russia
 		Facing: 0
 	Actor228: brik
 		Location: 102,34
-		Owner: Soviets
+		Owner: Russia
 	Actor514: brik
 		Location: 103,34
-		Owner: Soviets
+		Owner: Russia
 	Actor227: e1
 		Location: 98,28
-		Owner: Soviets
+		Owner: Russia
 	Actor226: fenc
 		Location: 95,35
-		Owner: Soviets
+		Owner: Russia
 	Actor225: fenc
 		Location: 95,36
-		Owner: Soviets
+		Owner: Russia
 	Actor224: tos
 		Location: 103,30
-		Owner: Soviets
+		Owner: Russia
 	Actor144: tos
 		Location: 42,58
-		Owner: Soviets
+		Owner: Russia
 	Actor52: hpad
 		Location: 83,65
-		Owner: Soviets
+		Owner: Russia
 	Actor387: powr
 		Location: 89,64
-		Owner: Soviets
+		Owner: Russia
 	Actor231: e1
 		Location: 104,40
-		Owner: Soviets
+		Owner: Russia
 	Actor238: sbag
 		Location: 65,37
-		Owner: Soviets
+		Owner: Russia
 	Actor237: sbag
 		Location: 66,37
-		Owner: Soviets
+		Owner: Russia
 	Actor229: grad
 		Location: 96,19
-		Owner: Soviets
+		Owner: Russia
 		Facing: 256
 	Actor137: e1
 		Location: 66,34
-		Owner: Soviets
+		Owner: Russia
 	Actor50: fenc
 		Location: 81,68
-		Owner: Soviets
+		Owner: Russia
 	Actor242: ftur
 		Location: 90,74
-		Owner: Soviets
+		Owner: Russia
 	Actor241: fenc
 		Location: 93,74
-		Owner: Soviets
+		Owner: Russia
 	Actor240: fenc
 		Location: 94,74
-		Owner: Soviets
+		Owner: Russia
 	Actor239: fenc
 		Location: 95,74
-		Owner: Soviets
+		Owner: Russia
 	Actor232: fenc
 		Location: 96,74
-		Owner: Soviets
+		Owner: Russia
 	Actor244: sbag
 		Location: 64,37
-		Owner: Soviets
+		Owner: Russia
 	Actor245: e3
 		Location: 67,36
-		Owner: Soviets
+		Owner: Russia
 	Actor246: e3
 		Location: 63,38
-		Owner: Soviets
+		Owner: Russia
 	Actor247: e1
 		Location: 69,34
-		Owner: Soviets
+		Owner: Russia
 	Actor248: e1
 		Location: 57,35
-		Owner: Soviets
+		Owner: Russia
 	Actor249: e1
 		Location: 59,33
-		Owner: Soviets
+		Owner: Russia
 	Actor250: e1
 		Location: 47,31
-		Owner: Soviets
+		Owner: Russia
 	Actor251: e1
 		Location: 42,38
-		Owner: Soviets
+		Owner: Russia
 	Actor252: e1
 		Location: 46,38
-		Owner: Soviets
+		Owner: Russia
 	Actor253: e1
 		Location: 49,27
-		Owner: Soviets
+		Owner: Russia
 	Actor254: e1
 		Location: 37,64
-		Owner: Soviets
+		Owner: Russia
 	Actor255: e1
 		Location: 32,63
-		Owner: Soviets
+		Owner: Russia
 	Actor256: e1
 		Location: 40,58
-		Owner: Soviets
+		Owner: Russia
 	Actor257: e1
 		Location: 44,61
-		Owner: Soviets
+		Owner: Russia
 	Actor322: grad
 		Location: 36,57
-		Owner: Soviets
+		Owner: Russia
 	Actor259: e1
 		Location: 43,48
-		Owner: Soviets
+		Owner: Russia
 	Actor260: e1
 		Location: 37,45
-		Owner: Soviets
+		Owner: Russia
 	Actor261: e1
 		Location: 31,40
-		Owner: Soviets
+		Owner: Russia
 	Actor262: e1
 		Location: 37,31
-		Owner: Soviets
+		Owner: Russia
 	Actor17: brik
 		Location: 37,28
-		Owner: Soviets
+		Owner: Russia
 	Actor264: grad
 		Location: 50,36
-		Owner: Soviets
+		Owner: Russia
 		Facing: 768
 	Actor266: t72
 		Location: 88,70
-		Owner: Soviets
+		Owner: Russia
 	Actor268: dog
 		Location: 64,34
-		Owner: Soviets
+		Owner: Russia
 	Actor269: dog
 		Location: 44,38
-		Owner: Soviets
+		Owner: Russia
 	Actor180: apwr
 		Location: 31,59
-		Owner: Soviets
+		Owner: Russia
 	Actor270: dog
 		Location: 43,60
-		Owner: Soviets
+		Owner: Russia
 	Actor265: t72
 		Location: 90,46
-		Owner: Soviets
+		Owner: Russia
 	Actor271: dog
 		Location: 37,40
-		Owner: Soviets
+		Owner: Russia
 	Actor122: fenc
 		Location: 107,39
-		Owner: Soviets
+		Owner: Russia
 	Actor152: ftur
 		Location: 107,40
-		Owner: Soviets
+		Owner: Russia
 	Actor275: tc02
 		Location: 74,48
 		Owner: Neutral
@@ -865,7 +865,7 @@ Actors:
 		Owner: Neutral
 	Actor272: t72
 		Location: 102,37
-		Owner: Soviets
+		Owner: Russia
 		Facing: 640
 	Actor280: t16
 		Location: 87,41
@@ -929,22 +929,22 @@ Actors:
 		Owner: Neutral
 	Actor300: dog
 		Location: 41,49
-		Owner: Soviets
+		Owner: Russia
 	Actor338: ss
 		Location: 57,64
-		Owner: Soviets
+		Owner: Russia
 	Actor301: mine
 		Location: 101,55
 		Owner: Neutral
 	Actor337: ss
 		Location: 19,80
-		Owner: Soviets
+		Owner: Russia
 	Actor316: ss
 		Location: 32,92
-		Owner: Soviets
+		Owner: Russia
 	Actor336: ss
 		Location: 46,80
-		Owner: Soviets
+		Owner: Russia
 	Actor308: tc02
 		Location: 78,104
 		Owner: Neutral
@@ -953,13 +953,13 @@ Actors:
 		Owner: Neutral
 	Actor310: oilb
 		Location: 77,17
-		Owner: Soviets
+		Owner: Russia
 	Actor307: tc02
 		Location: 82,97
 		Owner: Neutral
 	Actor311: oilb
 		Location: 32,76
-		Owner: Soviets
+		Owner: Russia
 	Actor114: c1
 		Location: 69,84
 		Owner: Creeps
@@ -971,79 +971,79 @@ Actors:
 		Owner: Creeps
 	Actor317: e2
 		Location: 106,26
-		Owner: Soviets
+		Owner: Russia
 	Actor318: e2
 		Location: 94,20
-		Owner: Soviets
+		Owner: Russia
 	Actor319: e3
 		Location: 97,29
-		Owner: Soviets
+		Owner: Russia
 	Actor320: e3
 		Location: 109,27
-		Owner: Soviets
+		Owner: Russia
 	Actor321: e3
 		Location: 48,36
-		Owner: Soviets
+		Owner: Russia
 	Actor267: dog
 		Location: 35,61
-		Owner: Soviets
+		Owner: Russia
 	Actor323: e3
 		Location: 30,43
-		Owner: Soviets
+		Owner: Russia
 	Actor324: e3
 		Location: 38,30
-		Owner: Soviets
+		Owner: Russia
 	Actor325: e2
 		Location: 32,36
-		Owner: Soviets
+		Owner: Russia
 	Actor326: e2
 		Location: 62,35
-		Owner: Soviets
+		Owner: Russia
 	Actor327: e2
 		Location: 37,48
-		Owner: Soviets
+		Owner: Russia
 	Actor329: e2
 		Location: 46,28
-		Owner: Soviets
+		Owner: Russia
 	Actor330: e2
 		Location: 35,67
-		Owner: Soviets
+		Owner: Russia
 	Actor331: e1
 		Location: 27,78
-		Owner: Soviets
+		Owner: Russia
 	Actor332: e2
 		Location: 29,79
-		Owner: Soviets
+		Owner: Russia
 	Actor333: e1
 		Location: 75,22
-		Owner: Soviets
+		Owner: Russia
 	Actor334: e2
 		Location: 101,29
-		Owner: Soviets
+		Owner: Russia
 	Actor335: e2
 		Location: 77,20
-		Owner: Soviets
+		Owner: Russia
 	SpyReinforcementsExitPoint: waypoint
 		Location: 48,111
 		Owner: Neutral
 	Actor305: ss
 		Location: 19,101
-		Owner: Soviets
+		Owner: Russia
 	Actor258: apwr
 		Location: 32,56
-		Owner: Soviets
+		Owner: Russia
 	Actor340: v09
 		Location: 72,86
 		Owner: Creeps
 	Actor339: e1
 		Location: 21,35
-		Owner: Soviets
+		Owner: Russia
 	Actor342: v05
 		Location: 68,88
 		Owner: Creeps
 	Actor341: e1
 		Location: 24,27
-		Owner: Soviets
+		Owner: Russia
 	Actor344: v08
 		Location: 65,99
 		Owner: Creeps
@@ -1109,10 +1109,10 @@ Actors:
 		Owner: Creeps
 	Actor343: e1
 		Location: 28,49
-		Owner: Soviets
+		Owner: Russia
 	Actor367: e1
 		Location: 27,60
-		Owner: Soviets
+		Owner: Russia
 	Actor368: t02
 		Location: 75,92
 		Owner: Neutral
@@ -1136,13 +1136,13 @@ Actors:
 		Owner: Neutral
 	Actor375: e1
 		Location: 89,47
-		Owner: Soviets
+		Owner: Russia
 	Actor376: e1
 		Location: 91,46
-		Owner: Soviets
+		Owner: Russia
 	Actor377: dog
 		Location: 91,48
-		Owner: Soviets
+		Owner: Russia
 	Actor378: t10
 		Location: 81,74
 		Owner: Neutral
@@ -1172,68 +1172,68 @@ Actors:
 		Owner: Neutral
 	Actor243: ftur
 		Location: 81,69
-		Owner: Soviets
+		Owner: Russia
 	Actor223: e3
 		Location: 39,53
-		Owner: Soviets
+		Owner: Russia
 	Actor278: ftur
 		Location: 37,58
-		Owner: Soviets
+		Owner: Russia
 	Actor391: ftur
 		Location: 94,66
-		Owner: Soviets
+		Owner: Russia
 	Actor392: e1
 		Location: 83,69
-		Owner: Soviets
+		Owner: Russia
 	Actor393: e1
 		Location: 90,76
-		Owner: Soviets
+		Owner: Russia
 	Actor394: e1
 		Location: 92,67
-		Owner: Soviets
+		Owner: Russia
 	Actor395: e2
 		Location: 88,67
-		Owner: Soviets
+		Owner: Russia
 	Actor396: e2
 		Location: 85,75
-		Owner: Soviets
+		Owner: Russia
 	Actor397: e1
 		Location: 96,72
-		Owner: Soviets
+		Owner: Russia
 	Actor398: e1
 		Location: 89,71
-		Owner: Soviets
+		Owner: Russia
 	Actor399: tsla
 		Location: 94,22
-		Owner: Soviets
+		Owner: Russia
 	Actor400: e1
 		Location: 49,66
-		Owner: Soviets
+		Owner: Russia
 	Actor402: ftur
 		Location: 26,40
-		Owner: Soviets
+		Owner: Russia
 	Actor328: grad
 		Location: 27,37
-		Owner: Soviets
+		Owner: Russia
 		Facing: 256
 	Actor366: powr
 		Location: 35,54
-		Owner: Soviets
+		Owner: Russia
 	Actor403: powr
 		Location: 56,31
-		Owner: Soviets
+		Owner: Russia
 	SpyReinforcementsEntryPoint: waypoint
 		Location: 16,107
 		Owner: Neutral
 	Actor404: ss
 		Location: 80,33
-		Owner: Soviets
+		Owner: Russia
 	Actor405: ss
 		Location: 65,47
-		Owner: Soviets
+		Owner: Russia
 	Actor406: ss
 		Location: 20,56
-		Owner: Soviets
+		Owner: Russia
 	Actor312: t17
 		Location: 88,100
 		Owner: Neutral
@@ -1266,61 +1266,61 @@ Actors:
 		Owner: Neutral
 	Actor409: e1
 		Location: 76,59
-		Owner: Soviets
+		Owner: Russia
 	Actor410: grad
 		Location: 74,59
-		Owner: Soviets
+		Owner: Russia
 	Actor3: dog
 		Location: 74,52
-		Owner: Soviets
+		Owner: Russia
 	Actor416: dog
 		Location: 82,73
-		Owner: Soviets
+		Owner: Russia
 	Actor413: sbag
 		Location: 75,60
-		Owner: Soviets
+		Owner: Russia
 	Actor414: sbag
 		Location: 74,60
-		Owner: Soviets
+		Owner: Russia
 	Actor412: proc
 		Location: 84,68
-		Owner: Soviets
+		Owner: Russia
 	Actor472: brl3
 		Location: 77,101
-		Owner: Soviets
+		Owner: Russia
 	Actor417: sbag
 		Location: 73,60
-		Owner: Soviets
+		Owner: Russia
 	Actor296: kenn
 		Location: 90,68
-		Owner: Soviets
+		Owner: Russia
 	Actor303: e2
 		Location: 100,38
-		Owner: Soviets
+		Owner: Russia
 	Actor408: dog
 		Location: 108,42
-		Owner: Soviets
+		Owner: Russia
 	Actor418: dog
 		Location: 109,74
-		Owner: Soviets
+		Owner: Russia
 	Actor419: e1
 		Location: 108,75
-		Owner: Soviets
+		Owner: Russia
 	Actor420: e1
 		Location: 110,75
-		Owner: Soviets
+		Owner: Russia
 	Actor421: sbag
 		Location: 108,73
-		Owner: Soviets
+		Owner: Russia
 	Actor422: sbag
 		Location: 109,73
-		Owner: Soviets
+		Owner: Russia
 	Actor423: sbag
 		Location: 110,73
-		Owner: Soviets
+		Owner: Russia
 	Actor424: sbag
 		Location: 111,73
-		Owner: Soviets
+		Owner: Russia
 	PatrolPoint43: waypoint
 		Location: 109,51
 		Owner: Neutral
@@ -1338,41 +1338,41 @@ Actors:
 		Owner: Neutral
 	Actor425: dog
 		Location: 79,22
-		Owner: Soviets
+		Owner: Russia
 	Actor426: dog
 		Location: 93,19
-		Owner: Soviets
+		Owner: Russia
 	Actor427: dog
 		Location: 104,24
-		Owner: Soviets
+		Owner: Russia
 	HijackTruck: truk.hijackable
 		Location: 99,34
-		Owner: Soviets
+		Owner: Russia
 		Facing: 640
 	BaseGuard: e1
 		Location: 63,36
-		Owner: Soviets
+		Owner: Russia
 	Actor429: cycl
 		Location: 63,33
-		Owner: Soviets
+		Owner: Russia
 	Actor428: cycl
 		Location: 63,34
-		Owner: Soviets
+		Owner: Russia
 	Actor230: cycl
 		Location: 63,35
-		Owner: Soviets
+		Owner: Russia
 	Actor430: sbag
 		Location: 68,34
-		Owner: Soviets
+		Owner: Russia
 	Actor431: sbag
 		Location: 68,33
-		Owner: Soviets
+		Owner: Russia
 	Actor432: cycl
 		Location: 63,32
-		Owner: Soviets
+		Owner: Russia
 	Actor433: sbag
 		Location: 63,37
-		Owner: Soviets
+		Owner: Russia
 	BaseGuardMovePos: waypoint
 		Location: 62,37
 		Owner: Neutral
@@ -1381,76 +1381,76 @@ Actors:
 		Owner: Neutral
 	Actor411: e2
 		Location: 73,53
-		Owner: Soviets
+		Owner: Russia
 	Actor434: e1
 		Location: 94,54
-		Owner: Soviets
+		Owner: Russia
 	Actor435: dog
 		Location: 95,54
-		Owner: Soviets
+		Owner: Russia
 	Actor436: e1
 		Location: 82,44
-		Owner: Soviets
+		Owner: Russia
 	Actor437: e1
 		Location: 80,43
-		Owner: Soviets
+		Owner: Russia
 	Actor438: dog
 		Location: 81,43
-		Owner: Soviets
+		Owner: Russia
 	Actor439: e1
 		Location: 109,48
-		Owner: Soviets
+		Owner: Russia
 	Actor440: dog
 		Location: 108,48
-		Owner: Soviets
+		Owner: Russia
 	Actor441: t72
 		Location: 108,47
-		Owner: Soviets
+		Owner: Russia
 	Actor442: brl3
 		Location: 82,65
-		Owner: Soviets
+		Owner: Russia
 	Actor443: brl3
 		Location: 82,66
-		Owner: Soviets
+		Owner: Russia
 	Actor444: barl
 		Location: 83,67
-		Owner: Soviets
+		Owner: Russia
 	Actor445: brl3
 		Location: 88,65
-		Owner: Soviets
+		Owner: Russia
 	Actor446: barl
 		Location: 89,66
-		Owner: Soviets
+		Owner: Russia
 	Actor447: barl
 		Location: 87,67
-		Owner: Soviets
+		Owner: Russia
 	Actor448: brl3
 		Location: 89,67
-		Owner: Soviets
+		Owner: Russia
 	Actor450: barl
 		Location: 109,28
-		Owner: Soviets
+		Owner: Russia
 	Actor449: brl3
 		Location: 107,27
-		Owner: Soviets
+		Owner: Russia
 	Actor454: e2
 		Location: 38,32
-		Owner: Soviets
+		Owner: Russia
 	Actor451: barl
 		Location: 108,29
-		Owner: Soviets
+		Owner: Russia
 	Actor453: brl3
 		Location: 38,31
-		Owner: Soviets
+		Owner: Russia
 	LabTruck: truk
 		Location: 36,32
-		Owner: Soviets
+		Owner: Russia
 	Actor455: silo
 		Location: 82,67
-		Owner: Soviets
+		Owner: Russia
 	Actor456: e1
 		Location: 85,66
-		Owner: Soviets
+		Owner: Russia
 	Actor457: t06
 		Location: 101,92
 		Owner: Neutral
@@ -1459,68 +1459,68 @@ Actors:
 		Owner: Creeps
 	Actor459: e1
 		Location: 79,102
-		Owner: Soviets
+		Owner: Russia
 	Actor460: sbag
 		Location: 80,103
-		Owner: Soviets
+		Owner: Russia
 	Actor462: hpad
 		Location: 75,100
-		Owner: Soviets
+		Owner: Russia
 	Actor463: sbag
 		Location: 79,103
-		Owner: Soviets
+		Owner: Russia
 	Actor464: sbag
 		Location: 78,103
-		Owner: Soviets
+		Owner: Russia
 	Actor465: sbag
 		Location: 77,103
-		Owner: Soviets
+		Owner: Russia
 	Actor466: sbag
 		Location: 76,103
-		Owner: Soviets
+		Owner: Russia
 	Actor467: sbag
 		Location: 76,102
-		Owner: Soviets
+		Owner: Russia
 	Actor468: sbag
 		Location: 75,102
-		Owner: Soviets
+		Owner: Russia
 	Actor469: sbag
 		Location: 74,102
-		Owner: Soviets
+		Owner: Russia
 	Actor470: sbag
 		Location: 74,101
-		Owner: Soviets
+		Owner: Russia
 	Actor471: powr
 		Location: 79,98
-		Owner: Soviets
+		Owner: Russia
 	Actor415: sam
 		Location: 77,102
-		Owner: Soviets
+		Owner: Russia
 		TurretFacing: 512
 	Actor475: brl3
 		Location: 79,97
-		Owner: Soviets
+		Owner: Russia
 	Actor407: ftur
 		Location: 76,98
-		Owner: Soviets
+		Owner: Russia
 	Actor473: barl
 		Location: 78,98
-		Owner: Soviets
+		Owner: Russia
 	Actor461: e2
 		Location: 78,97
-		Owner: Soviets
+		Owner: Russia
 	Actor481: fenc
 		Location: 82,99
-		Owner: Soviets
+		Owner: Russia
 	Actor482: fenc
 		Location: 82,100
-		Owner: Soviets
+		Owner: Russia
 	Actor483: fenc
 		Location: 81,99
-		Owner: Soviets
+		Owner: Russia
 	Actor484: fenc
 		Location: 81,98
-		Owner: Soviets
+		Owner: Russia
 	ReinforcementsEntryPoint: waypoint
 		Location: 92,111
 		Owner: Neutral
@@ -1532,16 +1532,16 @@ Actors:
 		Owner: Neutral
 	Actor480: fenc
 		Location: 87,74
-		Owner: Soviets
+		Owner: Russia
 	Actor485: fenc
 		Location: 86,74
-		Owner: Soviets
+		Owner: Russia
 	Actor486: fenc
 		Location: 85,74
-		Owner: Soviets
+		Owner: Russia
 	Actor487: fenc
 		Location: 84,74
-		Owner: Soviets
+		Owner: Russia
 	Actor313: c3
 		Location: 65,86
 		Owner: Creeps
@@ -1568,106 +1568,106 @@ Actors:
 		Owner: Creeps
 	Actor150: silo
 		Location: 109,31
-		Owner: Soviets
+		Owner: Russia
 	Actor489: silo
 		Location: 110,30
-		Owner: Soviets
+		Owner: Russia
 	Actor490: silo
 		Location: 108,30
-		Owner: Soviets
+		Owner: Russia
 	Actor306: e2
 		Location: 43,56
-		Owner: Soviets
+		Owner: Russia
 	Actor365: e3
 		Location: 40,54
-		Owner: Soviets
+		Owner: Russia
 	Actor388: e1
 		Location: 38,50
-		Owner: Soviets
+		Owner: Russia
 	Actor389: e1
 		Location: 48,58
-		Owner: Soviets
+		Owner: Russia
 	Actor390: e2
 		Location: 42,43
-		Owner: Soviets
+		Owner: Russia
 	Actor491: e1
 		Location: 42,41
-		Owner: Soviets
+		Owner: Russia
 	Actor492: e1
 		Location: 35,35
-		Owner: Soviets
+		Owner: Russia
 	BridgeTank: t72
 		Location: 76,20
-		Owner: Soviets
+		Owner: Russia
 	BridgeAttackPoint: waypoint
 		Location: 74,25
 		Owner: Neutral
 	Actor19: brik
 		Location: 37,27
-		Owner: Soviets
+		Owner: Russia
 	Actor23: brik
 		Location: 37,26
-		Owner: Soviets
+		Owner: Russia
 	Actor24: brik
 		Location: 36,26
-		Owner: Soviets
+		Owner: Russia
 	Actor109: brik
 		Location: 32,27
-		Owner: Soviets
+		Owner: Russia
 	Actor496: e4
 		Location: 57,38
-		Owner: Soviets
+		Owner: Russia
 	Actor497: e4
 		Location: 38,60
-		Owner: Soviets
+		Owner: Russia
 	Actor498: m113
 		Location: 78,99
-		Owner: Soviets
+		Owner: Russia
 	Actor499: t72
 		Location: 106,23
-		Owner: Soviets
+		Owner: Russia
 	Actor500: sbag
 		Location: 44,30
-		Owner: Soviets
+		Owner: Russia
 	Actor501: sbag
 		Location: 44,31
-		Owner: Soviets
+		Owner: Russia
 	Actor502: sbag
 		Location: 44,32
-		Owner: Soviets
+		Owner: Russia
 	Actor503: sbag
 		Location: 44,33
-		Owner: Soviets
+		Owner: Russia
 	Actor504: sbag
 		Location: 43,30
-		Owner: Soviets
+		Owner: Russia
 	Actor505: e1
 		Location: 43,32
-		Owner: Soviets
+		Owner: Russia
 	Actor506: e3
 		Location: 43,31
-		Owner: Soviets
+		Owner: Russia
 	Actor507: brik
 		Location: 104,36
-		Owner: Soviets
+		Owner: Russia
 	Actor508: brik
 		Location: 104,35
-		Owner: Soviets
+		Owner: Russia
 	Actor509: brik
 		Location: 104,34
-		Owner: Soviets
+		Owner: Russia
 	Actor510: brik
 		Location: 102,35
-		Owner: Soviets
+		Owner: Russia
 	Actor511: brik
 		Location: 102,36
-		Owner: Soviets
+		Owner: Russia
 	Actor512: brik
 		Location: 103,36
-		Owner: Soviets
+		Owner: Russia
 	Actor513: e1
 		Location: 110,34
-		Owner: Soviets
+		Owner: Russia
 	PatrolPoint31: waypoint
 		Location: 79,71
 		Owner: Neutral
@@ -1703,31 +1703,31 @@ Actors:
 		Owner: Neutral
 	TownAttacker6: e4
 		Location: 70,97
-		Owner: Soviets
+		Owner: Russia
 	TownAttacker4: e4
 		Location: 70,91
-		Owner: Soviets
+		Owner: Russia
 	TownAttacker1: e4
 		Location: 70,82
-		Owner: Soviets
+		Owner: Russia
 	TownAttacker2: e1
 		Location: 70,87
-		Owner: Soviets
+		Owner: Russia
 	TownAttacker5: e1
 		Location: 70,93
-		Owner: Soviets
+		Owner: Russia
 	TownAttacker3: t72
 		Location: 74,87
-		Owner: Soviets
+		Owner: Russia
 	TownAttacker7: t72
 		Location: 73,97
-		Owner: Soviets
+		Owner: Russia
 	SpyReinforcementsUnloadPoint: waypoint
 		Location: 52,94
 		Owner: Neutral
 	Actor522: ss
 		Location: 43,100
-		Owner: Soviets
+		Owner: Russia
 	Hospital: hosp
 		Location: 57,78
 		Owner: Creeps
@@ -1759,34 +1759,34 @@ Actors:
 		Location: 54,88
 		Owner: Neutral
 	Actor570: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 103,35
 	Actor571: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 71,34
 	Actor569: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 37,66
 	Actor572: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 31,62
 	Actor573: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 28,81
 	Actor574: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 49,26
 	Actor575: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 49,33
 	Actor576: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 40,38
 	Actor577: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 31,43
 	Actor578: tsla
-		Owner: Soviets
+		Owner: Russia
 		Location: 43,50
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, ww3mod|rules/coop-missions-rules.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, ww3mod|rules/coop-missions-rules.yaml, rules.yaml

@@ -23,22 +23,22 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: allies
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: england
+		Faction: america
 	PlayerReference@BadGuy:
 		Name: BadGuy
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: USSR
+		America: USSR
 		Enemies: Greece
 	PlayerReference@USSR:
 		Name: USSR
-		Faction: soviet
+		Faction: russia
 		Color: FF1400
-		Allies: BadGuy
+		America: BadGuy
 		Enemies: Greece
 	PlayerReference@Greece:
 		Name: Greece
@@ -46,7 +46,7 @@ Players:
 		Playable: True
 		Required: True
 		LockFaction: True
-		Faction: allies
+		Faction: america
 		LockColor: True
 		Color: ABB7E4
 		LockSpawn: True
@@ -1207,10 +1207,10 @@ Actors:
 	BaseCam: waypoint
 		Location: 81,35
 		Owner: Neutral
-	AlliesSpawn: waypoint
+	AmericaSpawn: waypoint
 		Owner: Neutral
 		Location: 99,46
-	AlliesMove: waypoint
+	AmericaMove: waypoint
 		Location: 81,47
 		Owner: Neutral
 	AlliedBase: waypoint
@@ -1241,4 +1241,4 @@ Actors:
 		Location: 70,92
 		Owner: Neutral
 
-Rules: ww3mod|rules/campaign-rules.yaml, ww3mod|rules/campaign-tooltips.yaml, ww3mod|rules/campaign-palettes.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, rules.yaml

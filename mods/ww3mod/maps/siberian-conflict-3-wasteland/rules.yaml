@@ -40,15 +40,15 @@ MRJ:
 
 3TNK:
 	Buildable:
-		Prerequisites: ~vehicles.soviet
+		Prerequisites: ~vehicles.russia
 
 V2RL:
 	Buildable:
-		Prerequisites: ~vehicles.soviet
+		Prerequisites: ~vehicles.russia
 
 4TNK:
 	Buildable:
-		Prerequisites: ~vehicles.soviet
+		Prerequisites: ~vehicles.russia
 
 QTNK:
 	Buildable:
