@@ -263,40 +263,6 @@
 		Name: Russia
 		InternalName: russia
 		Description: Russia\n
-	ResourceType@ore:
-		Type: Ore
-		Name: Valuable Minerals
-		ResourceType: 1
-		TerrainType: Ore
-		Palette: player
-		Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
-		MaxDensity: 12
-		ValuePerUnit: 25
-		AllowedTerrainTypes: Clear,Road
-		AllowUnderActors: true
-	ResourceType@gem:
-		Type: Gems
-		Name: Valuable Minerals
-		ResourceType: 2
-		TerrainType: Gems
-		Palette: player
-		Sequences: gold01,gold02,gold03,gold04
-		# Sequences: gem01,gem02,gem03,gem04
-		MaxDensity: 12
-		ValuePerUnit: 50
-		AllowedTerrainTypes: Clear,Road
-		AllowUnderActors: true
-	ResourceType@scrap:
-		Type: Scraps
-		Name: Scrap Metal
-		ResourceType: 3
-		TerrainType: Scraps
-		Palette: player
-		Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
-		MaxDensity: 12
-		ValuePerUnit: 12
-		AllowedTerrainTypes: Clear,Road
-		AllowUnderActors: true
 	ResourceRenderer:
 		RenderTypes: Ore, Gems, Scraps
 	JumpjetActorLayer:
@@ -339,6 +305,54 @@ World:
 		SmokeImage: smoke_m
 		SmokeSequences: idle
 	ResourceLayer:
+		RecalculateResourceDensity: true
+		ResourceTypes:
+			Ore:
+				ResourceIndex: 1
+				TerrainType: Ore
+				AllowedTerrainTypes: Clear, Road
+				MaxDensity: 12
+			Gems:
+				ResourceIndex: 2
+				TerrainType: Gems
+				AllowedTerrainTypes: Clear, Road
+				MaxDensity: 12
+
+	# ResourceType@ore:
+	# 	Type: Ore
+	# 	Name: Valuable Minerals
+	# 	ResourceType: 1
+	# 	TerrainType: Ore
+	# 	Palette: player
+	# 	Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
+	# 	MaxDensity: 12
+	# 	ValuePerUnit: 25
+	# 	AllowedTerrainTypes: Clear,Road
+	# 	AllowUnderActors: true
+	# ResourceType@gem:
+	# 	Type: Gems
+	# 	Name: Valuable Minerals
+	# 	ResourceType: 2
+	# 	TerrainType: Gems
+	# 	Palette: player
+	# 	Sequences: gold01,gold02,gold03,gold04
+	# 	# Sequences: gem01,gem02,gem03,gem04
+	# 	MaxDensity: 12
+	# 	ValuePerUnit: 50
+	# 	AllowedTerrainTypes: Clear,Road
+	# 	AllowUnderActors: true
+	# ResourceType@scrap:
+	# 	Type: Scraps
+	# 	Name: Scrap Metal
+	# 	ResourceType: 3
+	# 	TerrainType: Scraps
+	# 	Palette: player
+	# 	Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
+	# 	MaxDensity: 12
+	# 	ValuePerUnit: 12
+	# 	AllowedTerrainTypes: Clear,Road
+	# 	AllowUnderActors: true
+
 	ResourceClaimLayer:
 	WarheadDebugOverlay:
 	SpawnMapActors:
@@ -361,7 +375,7 @@ World:
 		SupportActors: madcat, btr,btr,SN,SN,SN,SN,SN,droneop,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,mnly,harv,mcv,mcv2,truk
 		InnerSupportRadius: 3
 		OuterSupportRadius: 6
-	
+
 	MPStartUnits@test_america:
 		Class: test
 		ClassName: TEST
