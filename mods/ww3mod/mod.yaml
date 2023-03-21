@@ -36,6 +36,30 @@ Packages:
 	ww3mod|bits/desert
 	ww3mod|scripts
 	common|scripts
+	ww3mod|bits
+	ww3mod|bits/aircraft
+	ww3mod|bits/buildings
+	ww3mod|bits/desert
+	ww3mod|bits/icons
+	ww3mod|bits/explosions
+	ww3mod|bits/classes
+	ww3mod|bits/infantry
+	ww3mod|bits/palettes
+	ww3mod|bits/music
+	ww3mod|bits/music/gla
+	ww3mod|bits/naval
+	ww3mod|bits/resources
+	ww3mod|bits/sounds
+	ww3mod|bits/sounds/robot
+	ww3mod|bits/sounds/volkov
+	ww3mod|bits/sounds/chem
+	ww3mod|bits/sounds/terroist
+	ww3mod|bits/sounds/glabike
+	ww3mod|bits/sounds/informan
+	ww3mod|bits/sounds/v3
+	ww3mod|bits/sounds/seal
+	ww3mod|bits/sounds/commando
+	ww3mod|bits/vehicle
 	ww3mod|uibits
 
 MapFolders:
