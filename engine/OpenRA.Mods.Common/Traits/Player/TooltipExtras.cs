@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public new readonly TooltipExtrasInfo Info;
 
-		public TooltipExtras(ActorInitializer init, TooltipExtrasInfo info)
+		public TooltipExtras(ActorInitializer _, TooltipExtrasInfo info)
 			: base(info)
 		{
 			Info = info;

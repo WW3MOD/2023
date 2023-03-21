@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class BallisticMissile : ISync, IFacing, IMove, IPositionable,
 		INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld, IOccupySpace
 	{
-		public static Activity VisualMove(Actor self, WPos fromPos, WPos toPos)
+		public static Activity VisualMove(Actor _, WPos _, WPos _)
 		{
 			return null;
 		}

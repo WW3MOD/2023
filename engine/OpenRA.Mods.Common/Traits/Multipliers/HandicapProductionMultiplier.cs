@@ -9,8 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -20,11 +18,11 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		int IProductionTimeModifierInfo.GetProductionTimeModifier(TechTree techTree, string queue)
 		{
-			int handicap = techTree.Owner.Handicap;
+			var handicap = techTree.Owner.Handicap;
 
 			if (handicap > 0)
 			{
-				float div = 100F / (100 - handicap);
+				var div = 100F / (100 - handicap);
 
 				return (int)(100 / div);
 			}
@@ -34,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		int IProductionCostModifierInfo.GetProductionCostModifier(OpenRA.Mods.Common.Traits.TechTree techTree, string queue)
 		{
-			int handicap = techTree.Owner.Handicap;
+			var handicap = techTree.Owner.Handicap;
 
 			if (handicap > 0)
 			{

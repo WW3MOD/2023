@@ -300,7 +300,7 @@ namespace OpenRA.Mods.Common.Activities
 				--remainingTicks;
 		}
 
-		void RearmTick(Actor self)
+		void RearmTick(Actor _)
 		{
 			var rearmComplete = true;
 			foreach (var ammoPool in rearmable.RearmableAmmoPools)

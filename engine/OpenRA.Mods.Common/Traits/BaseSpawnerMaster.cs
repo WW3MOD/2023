@@ -244,7 +244,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected void SetSpawnedFacing(Actor spawned, Exit exit)
 		{
-			WAngle facingOffset = facing == null ? WAngle.Zero : facing.Facing;
+			var facingOffset = facing == null ? WAngle.Zero : facing.Facing;
 
 			var exitFacing = exit != null && exit.Info.Facing != null ? exit.Info.Facing : WAngle.Zero;
 

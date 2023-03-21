@@ -31,26 +31,23 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly ModifySequenceInfo info;
 
-		readonly Actor self;
-
 		bool isEnabled = false;
 
 		bool IRenderInfantrySequenceModifier.IsModifyingSequence { get { return (isEnabled); } }
 		string IRenderInfantrySequenceModifier.SequencePrefix { get { return info.SequencePrefix; } }
 
-		public ModifySequence(ActorInitializer init, ModifySequenceInfo info)
+		public ModifySequence(ActorInitializer _, ModifySequenceInfo info)
 			: base(info)
 		{
-			self = init.Self;
 			this.info = info;
 		}
 
-		protected override void TraitDisabled(Actor self)
+		protected override void TraitDisabled(Actor _)
 		{
 			isEnabled = false;
 		}
 
-		protected override void TraitEnabled(Actor self)
+		protected override void TraitEnabled(Actor _)
 		{
 			isEnabled = true;
 		}

@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class GrantConditionOnHealingReceived : ConditionalTrait<GrantConditionOnHealingReceivedInfo>, ITick, INotifyDamage, ISelectionBar
 	{
-		public readonly new GrantConditionOnHealingReceivedInfo Info;
+		public new readonly GrantConditionOnHealingReceivedInfo Info;
 		int token = Actor.InvalidConditionToken;
 		int initialDuration;
 		List<HealingStack> stacks;
@@ -78,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits
 				var thresholdStackNumber = 0;
 				var amountHealed = 0;
 
-				for (int i = stacks.Count - 1; i >= 0; i--)
+				for (var i = stacks.Count - 1; i >= 0; i--)
 				{
 					amountHealed += stacks[i].AmountHealed;
 					if (amountHealed >= requiredHealing)
@@ -140,7 +140,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (stacks.Count == 0)
 				return;
 
-			for (int i = 0; i < stacks.Count; i++)
+			for (var i = 0; i < stacks.Count; i++)
 				stacks[i].RemainingDuration--;
 
 			stacks.RemoveAll(s => s.RemainingDuration <= 0);

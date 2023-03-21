@@ -71,7 +71,7 @@ namespace OpenRA.Mods.Common.Activities
 						self.CenterPosition,
 						Target.CenterPosition,
 						new WDist(1),
-						out var blockedPos));
+						out var _));
 		}
 	}
 }

@@ -8,9 +8,7 @@
  */
 #endregion
 
-using System.Linq;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -29,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class CarrierSlave : BaseSpawnerSlave, INotifyIdle
 	{
-		readonly AmmoPool[] ammoPools;
+		/* readonly AmmoPool[] ammoPools; */
 		public readonly CarrierSlaveInfo Info;
 
 		CarrierMaster spawnerMaster;
@@ -38,7 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(init, info)
 		{
 			Info = info;
-			ammoPools = init.Self.TraitsImplementing<AmmoPool>().ToArray();
+			/* ammoPools = init.Self.TraitsImplementing<AmmoPool>().ToArray(); */
 		}
 
 		public void EnterSpawner(Actor self)
@@ -51,10 +49,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.CurrentActivity is EnterCarrierMaster)
 				return;
 
-			// Game.Debug("EnterSpawner");
-
 			// Cancel whatever else self was doing and return.
-			var target = Target.FromActor(Master);
 			self.QueueActivity(false, new EnterCarrierMaster(self, Master, spawnerMaster));
 		}
 
@@ -64,14 +59,14 @@ namespace OpenRA.Mods.Common.Traits
 			this.spawnerMaster = spawnerMaster as CarrierMaster;
 		}
 
-		bool NeedToReload(Actor self)
+		/* bool NeedToReload(Actor _)
 		{
 			// The unit may not have ammo but will have unlimited ammunitions.
 			if (ammoPools.Length == 0)
 				return false;
 
 			return ammoPools.All(x => !x.HasAmmo);
-		}
+		} */
 
 		void INotifyIdle.TickIdle(Actor self)
 		{

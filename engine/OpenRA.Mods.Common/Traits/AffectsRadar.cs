@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected abstract void AddCellsToPlayerRadar(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerRadar(Actor self, Player player);
 
-		public AffectsRadar(Actor self, AffectsRadarInfo info)
+		public AffectsRadar(Actor _, AffectsRadarInfo info)
 			: base(info)
 		{
 			if (Info.Type == VisibilityType.Footprint)

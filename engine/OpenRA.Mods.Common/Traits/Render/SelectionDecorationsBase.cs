@@ -26,15 +26,15 @@ namespace OpenRA.Mods.Common.Traits.Render
 	{
 		IDecoration[] decorations;
 		IDecoration[] selectedDecorations;
-		bool ShowStatusBarAlways = false;
+		readonly bool showStatusBarAlways = false;
 		protected readonly SelectionDecorationsBaseInfo Info;
 
 		DeveloperMode developerMode;
 
-		public SelectionDecorationsBase(SelectionDecorationsBaseInfo info, bool showStatusBarAlways = false)
+		public SelectionDecorationsBase(SelectionDecorationsBaseInfo info, bool showStatusBar = false)
 		{
 			Info = info;
-			ShowStatusBarAlways = showStatusBarAlways;
+			showStatusBarAlways = showStatusBar;
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			decorations = selectedDecorations.Where(d => !d.RequiresSelection).ToArray();
 		}
 
-		IEnumerable<WPos> ActivityTargetPath(Actor self)
+		static IEnumerable<WPos> ActivityTargetPath(Actor self)
 		{
 			if (!self.IsInWorld || self.IsDead)
 				yield break;
@@ -80,7 +80,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			//  * status bar preference is set to "always show"
 			//  * status bar preference is set to "when damaged" and actor is damaged
 			var displayHealth = selected || (regularWorld && statusBars == StatusBarsType.AlwaysShow)
-				|| (regularWorld && statusBars == StatusBarsType.DamageShow && self.GetDamageState() != DamageState.Undamaged) || (ShowStatusBarAlways && self.GetDamageState() != DamageState.Undamaged);
+				|| (regularWorld && statusBars == StatusBarsType.DamageShow && self.GetDamageState() != DamageState.Undamaged) || (showStatusBarAlways && self.GetDamageState() != DamageState.Undamaged);
 
 			// Extra bars are shown when:
 			//  * actor is selected / in active drag rectangle / under the mouse

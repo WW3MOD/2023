@@ -22,9 +22,9 @@ namespace OpenRA.Mods.Common.Activities
 		readonly BallisticMissile sbm;
 		readonly WPos initPos;
 		readonly WPos targetPos;
-		int length;
+		readonly int length;
 		int ticks;
-		WAngle facing;
+		readonly WAngle facing;
 
 		public BallisticMissileFly(Actor self, Target t, BallisticMissile sbm = null)
 		{

@@ -9,9 +9,6 @@
 #endregion
 
 using System.Linq;
-using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -27,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool AllowOwnerChange = false;
 
 		[Desc("Types of damage this actor explodes with due to an unallowed slave action. Leave empty for no damage types.")]
-		public readonly BitSet<DamageType> DamageTypes = default(BitSet<DamageType>);
+		public readonly BitSet<DamageType> DamageTypes = default;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant when the master trait is disabled.")]
@@ -58,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 		int masterTraitDisabledConditionToken = Actor.InvalidConditionToken;
 		int masterTraitPausedConditionToken = Actor.InvalidConditionToken;
 
-		public BaseSpawnerSlave(ActorInitializer init, BaseSpawnerSlaveInfo info)
+		public BaseSpawnerSlave(ActorInitializer _, BaseSpawnerSlaveInfo info)
 		{
 			this.info = info;
 		}

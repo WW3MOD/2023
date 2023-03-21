@@ -9,8 +9,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
-using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
@@ -115,8 +113,7 @@ namespace OpenRA.Mods.CA.Traits
 
 			SpawnIntoWorld(self, se.Actor, self.CenterPosition);
 
-			Stack<int> spawnContainToken;
-			if (spawnContainTokens.TryGetValue(a.Info.Name, out spawnContainToken) && spawnContainToken.Count > 0)
+			if (spawnContainTokens.TryGetValue(a.Info.Name, out var spawnContainToken) && spawnContainToken.Count > 0)
 				self.RevokeCondition(spawnContainToken.Pop());
 
 			if (loadedTokens.Count > 0)
@@ -143,9 +140,7 @@ namespace OpenRA.Mods.CA.Traits
 		{
 			base.Replenish(self, entry);
 
-			string spawnContainCondition;
-
-			if (MissileSpawnerMasterInfo.SpawnContainConditions.TryGetValue(entry.Actor.Info.Name, out spawnContainCondition))
+			if (MissileSpawnerMasterInfo.SpawnContainConditions.TryGetValue(entry.Actor.Info.Name, out var spawnContainCondition))
 				spawnContainTokens.GetOrAdd(entry.Actor.Info.Name).Push(self.GrantCondition(spawnContainCondition));
 			if (MissileSpawnerMasterInfo.LoadedCondition != null)
 				loadedTokens.Push(self.GrantCondition(MissileSpawnerMasterInfo.LoadedCondition));

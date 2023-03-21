@@ -19,7 +19,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class IndirectFire : ConditionalTrait<IndirectFireInfo>
 	{
-		public IndirectFire(Actor self, IndirectFireInfo info)
+		public IndirectFire(Actor _, IndirectFireInfo info)
 			: base(info) { }
 	}
 }

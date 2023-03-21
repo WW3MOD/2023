@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Effects
 			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
 
 		public SpriteEffect(Func<WPos> posFunc, Func<WAngle> facingFunc, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
+			bool visibleThroughFog = false, int delay = 0, float _ = 1f)
 		{
 			this.world = world;
 			this.posFunc = posFunc;

@@ -150,12 +150,8 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (Info.PassiveIncomeUseResourceStorage)
 				{
-					var initialAmount = Resources;
 					GiveResources(amount);
-					amount = Resources - initialAmount;
 				}
-				else
-					amount = ChangeCash(amount);
 			}
 		}
 

@@ -28,10 +28,8 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class WithDamageBehaviour : ConditionalTrait<WithDamageBehaviourInfo>, INotifyDamage
 	{
-		public WithDamageBehaviour(Actor self, WithDamageBehaviourInfo info)
-			: base(info)
-		{
-		}
+		public WithDamageBehaviour(Actor _, WithDamageBehaviourInfo info)
+			: base(info) { }
 
 		void INotifyDamage.Damaged(OpenRA.Actor self, OpenRA.Traits.AttackInfo e)
 		{

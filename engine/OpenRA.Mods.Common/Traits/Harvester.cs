@@ -309,12 +309,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public bool CellResourceMaxSeeded(Actor self, CPos cell)
+		public bool CellResourceMaxSeeded(Actor _, CPos cell)
 		{
 			return resourceLayer.GetResource(cell).Density == resourceLayer.GetMaxDensity(resourceLayer.GetResource(cell).Type);
 		}
 
-		public int CellResourceValue(Actor self, CPos cell)
+		public int CellResourceValue(Actor _, CPos cell)
 		{
 			playerResources.Info.ResourceValues.TryGetValue(resourceLayer.GetResource(cell).Type, out var resourceValue);
 

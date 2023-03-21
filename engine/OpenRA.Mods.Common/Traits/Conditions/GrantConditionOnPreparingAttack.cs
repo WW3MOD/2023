@@ -55,19 +55,19 @@ namespace OpenRA.Mods.Common.Traits
 	public class GrantConditionOnPreparingAttack : PausableConditionalTrait<GrantConditionOnPreparingAttackInfo>, INotifyCreated, ITick, INotifyAttack
 	{
 		readonly Stack<int> tokens = new Stack<int>();
-		readonly Stack<int> preparingTokens = new Stack<int>();
-		readonly Stack<int> attackingTokens = new Stack<int>();
+		/* readonly Stack<int> preparingTokens = new Stack<int>();
+		readonly Stack<int> attackingTokens = new Stack<int>(); */
 
 		/* INotifyAttack[] notifyAttacks; */
 
 		int cooldown = 0;
-		int preparingCooldown = 0;
-		int attackingCooldown = 0;
+		/* int preparingCooldown = 0;
+		int attackingCooldown = 0; */
 
 		// Only tracked when RevokeOnNewTarget is true.
-		Target lastTarget = Target.Invalid;
+		/* readonly Target lastTarget = Target.Invalid; */
 
-		public GrantConditionOnPreparingAttack(ActorInitializer init, GrantConditionOnPreparingAttackInfo info)
+		public GrantConditionOnPreparingAttack(ActorInitializer _, GrantConditionOnPreparingAttackInfo info)
 			: base(info) { }
 
 		/* protected override void Created(Actor self)
@@ -106,7 +106,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			cooldown = Info.RevokeDelay;
-			preparingCooldown = Info.PreparingRevokeDelay;
+			/* preparingCooldown = Info.PreparingRevokeDelay; */
 
 			GrantInstance(self, Info.Condition);
 		}
@@ -131,7 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			cooldown = Info.RevokeDelay;
-			attackingCooldown = Info.AttackingRevokeDelay;
+			/* attackingCooldown = Info.AttackingRevokeDelay; */
 
 			GrantInstance(self, Info.Condition);
 		}

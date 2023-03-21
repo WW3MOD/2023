@@ -72,7 +72,7 @@ namespace OpenRA.Mods.CA.Traits.Render
 		WAngle cachedFacing;
 		int cachedInterval;
 
-		public LeavesTrailsCA(Actor self, LeavesTrailsCAInfo info)
+		public LeavesTrailsCA(Actor _, LeavesTrailsCAInfo info)
 			: base(info)
 		{
 			cachedInterval = Info.StartDelay;

@@ -457,7 +457,7 @@ namespace OpenRA.Mods.Common.Traits
 						var burstWaitmodifiers = burstWaitModifiers.ToArray();
 						BurstWait = Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers);
 
-						var burstmodifiers = burstWaitModifiers.ToArray();
+						var burstmodifiers = burstModifiers.ToArray();
 						Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
 
 						if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Any())

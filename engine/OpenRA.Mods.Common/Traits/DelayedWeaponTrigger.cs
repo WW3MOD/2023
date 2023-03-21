@@ -9,7 +9,6 @@
 #endregion
 
 using OpenRA.GameRules;
-using OpenRA.Mods.AS.Warheads;
 using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -28,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public Actor AttachedBy { get; private set; }
 
-		WeaponInfo weaponInfo;
+		readonly WeaponInfo weaponInfo;
 
 		public bool IsValid { get; private set; }
 

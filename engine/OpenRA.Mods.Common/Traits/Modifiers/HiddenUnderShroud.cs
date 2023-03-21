@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class HiddenUnderShroud : PausableConditionalTrait<HiddenUnderShroudInfo>, IDefaultVisibility, IRenderModifier
 	{
 		// protected readonly HiddenUnderShroudInfo Info;
-		public HiddenUnderShroud(ActorInitializer init, HiddenUnderShroudInfo info)
+		public HiddenUnderShroud(ActorInitializer _, HiddenUnderShroudInfo info)
 			: base(info) { }
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
