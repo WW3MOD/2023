@@ -45,8 +45,8 @@ namespace OpenRA.Mods.Common.Activities
 		WDist maxRange;
 		AttackStatus attackStatus = AttackStatus.UnableToAttack;
 
-		protected INotifyNewTarget[] notifyNewTarget;
-		Target? oldTarget = null;
+		/* protected INotifyNewTarget[] notifyNewTarget;
+		Target? oldTarget = null; */
 
 		public Attack(Actor self, in Target target, bool allowMovement, bool forceAttack, Color? targetLineColor = null)
 		{
@@ -105,12 +105,12 @@ namespace OpenRA.Mods.Common.Activities
 
 			// FF
 			// Never got used in the end but seems to work
-			if (!target.Equals(oldTarget))
+			/* if (!target.Equals(oldTarget))
 			{
 				oldTarget = target;
 				foreach (var n in notifyNewTarget)
 					n.Acquired(self);
-			}
+			} */
 
 			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
 			{

@@ -1,6 +1,10 @@
 ^BasePlayer:
 	AlwaysVisible:
 	Shroud:
+	PlayerResources:
+		ResourceValues:
+			Ore: 25
+			Gems: 50
 
 EditorPlayer:
 	Inherits: ^BasePlayer
@@ -13,8 +17,11 @@ Player:
 		DisplayOrder: 0
 		LowPowerModifier: 300
 		ReadyAudio: ConstructionComplete
+		ReadyTextNotification: Construction complete.
 		BlockedAudio: NoBuild
+		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: Unable to comply. Building in progress.
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
@@ -37,8 +44,11 @@ Player:
 		DisplayOrder: 2
 		LowPowerModifier: 300
 		ReadyAudio: UnitReady
+		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
+		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: Unable to comply. Building in progress.
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
@@ -49,8 +59,11 @@ Player:
 		DisplayOrder: 3
 		LowPowerModifier: 300
 		# ReadyAudio: UnitReady
+		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
+		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: Unable to comply. Building in progress.
 		QueuedAudio: Training
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
@@ -63,8 +76,11 @@ Player:
 		DisplayOrder: 4
 		LowPowerModifier: 300
 		ReadyAudio: UnitReady
+		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
+		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: Unable to comply. Building in progress.
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
@@ -75,8 +91,11 @@ Player:
 		DisplayOrder: 5
 		LowPowerModifier: 300
 		ReadyAudio: UnitReady
+		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
+		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: Unable to comply. Building in progress.
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
@@ -98,6 +117,8 @@ Player:
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio
+		NewOptionsTextNotification: New construction options.
+		CannotPlaceTextNotification: Cannot deploy here.
 	SupportPowerManager:
 	ScriptTriggers:
 	MissionObjectives:
@@ -108,6 +129,7 @@ Player:
 	PowerManager:
 		AdviceInterval: 750
 		SpeechNotification: LowPower
+		TextNotification: Low power.
 	AllyRepair:
 	PlayerResources:
 		SelectableCash: 5000, 10000, 15000, 20000, 25000, 50000
@@ -117,6 +139,7 @@ Player:
 		PassiveIncomeInitialDelay: 100
 		PassiveIncomeUseResourceStorage: false
 		InsufficientFundsNotification: InsufficientFunds
+		InsufficientFundsTextNotification: Insufficient funds.
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:
@@ -141,6 +164,8 @@ Player:
 		Prerequisites: global-factundeploy
 	FrozenActorLayer:
 	BaseAttackNotifier:
+		TextNotification: Base under attack.
+		AllyTextNotification: Our ally is under attack.
 	PlayerStatistics:
 	PlaceBeacon:
 	ProvidesTechPrerequisite@infonly:
@@ -169,11 +194,13 @@ Player:
 		Id: futuristic
 	GrantConditionOnPrerequisiteManager:
 	EnemyWatcher:
-	# VeteranProductionIconOverlay:
-	# 	Image: iconchevrons
-	# 	Sequence: veteran
+	ProductionIconOverlayManager:
+		Type: Veterancy
+		Image: iconchevrons
+		Sequence: veteran
 	ResourceStorageWarning:
 		AdviceInterval: 750
+		TextNotification: Silos needed.
 	PlayerExperience:
 	ProvidesPrerequisite@NATO:
 		Factions: nato, america, europe, ukraine

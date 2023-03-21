@@ -696,6 +696,9 @@ scrollitem-hover:
 scrollitem-pressed:
 	Inherits: button
 
+scrollitem-highlighted:
+	Inherits: button-pressed
+
 scrollheader-selected:
 	Inherits: button
 
