@@ -21,7 +21,7 @@
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Selectable:
-		Bounds: 24,24
+		Bounds: 1024, 1024
 	Targetable:
 		TargetTypes: Ground, Water, Ship
 	Targetable@EMPTargeting:
@@ -133,7 +133,7 @@
 	GpsDot:
 		String: Submarine
 
-^Sonar: 
+^Sonar:
 	DetectCloaked:
 		CloakTypes: Underwater
 		Range: 12c0
@@ -171,7 +171,7 @@ LST:
 		TargetTypes: Ground, Water, Ship, Heavy
 	SelectionDecorations:
 	Selectable:
-		DecorationBounds: 36,36
+		DecorationBounds: 1536,1536
 	Mobile:
 		Locomotor: lcraft
 		Speed: 90
@@ -182,7 +182,7 @@ LST:
 		Types: Infantry, Vehicle
 		MaxWeight: 40
 		PassengerFacing: 0
-		LoadedCondition: loaded	
+		LoadedCondition: loaded
 		LoadingCondition: notmobile
 	WithCargoPipsDecoration:
 		PipCount: 20
@@ -232,7 +232,7 @@ ASCR:
 	WithMuzzleOverlay:
 	# WithSpriteTurret:
 	Selectable:
-		DecorationBounds: 36,36
+		DecorationBounds: 1536,1536
 	RenderSprites:
 		Image: ascr
 		PlayerPalette: playertd
@@ -260,7 +260,7 @@ PTRB:
 	Targetable:
 		TargetTypes: Ground, Water, Ship, Medium
 	Selectable:
-		DecorationBounds: 36,36
+		DecorationBounds: 1536,1536
 	Mobile:
 		TurnSpeed: 16
 		Speed: 82
@@ -330,7 +330,7 @@ FAC:
 	Targetable:
 		TargetTypes: Ground, Water, Ship, Medium
 	Selectable:
-		DecorationBounds: 36,36
+		DecorationBounds: 1536,1536
 	Mobile:
 		TurnSpeed: 16
 		Speed: 82
@@ -400,7 +400,7 @@ FAC2:
 	Targetable:
 		TargetTypes: Ground, Water, Ship, Medium
 	Selectable:
-		DecorationBounds: 36,36
+		DecorationBounds: 1536,1536
 	Mobile:
 		TurnSpeed: 16
 		Speed: 82
@@ -470,7 +470,7 @@ CORV:
 	Targetable:
 		TargetTypes: Ground, Water, Ship, Heavy
 	Selectable:
-		DecorationBounds: 36,36
+		DecorationBounds: 1536,1536
 	Mobile:
 		TurnSpeed: 16
 		Speed: 82
@@ -580,7 +580,7 @@ CORV2:
 	# 	Sequence: turret
 	WithMuzzleOverlay:
 	Selectable:
-		DecorationBounds: 38,38
+		DecorationBounds: 1536,1536
 	HitShape:
 		TargetableOffsets: 448,0,0, -448,0,0
 		Type: Capsule
@@ -613,7 +613,7 @@ NSUB:
 	Mobile:
 		TurnSpeed: 12
 		Speed: 46
-	# Not set to an instance of an object error 
+	# Not set to an instance of an object error
 	Armament@AS:
 		Name: primary
 		Weapon: TorpNuke
@@ -650,7 +650,7 @@ NSUB:
 		FallbackRange: 16c768
 	AttackFrontal:
 	Selectable:
-		DecorationBounds: 44,44
+		DecorationBounds: 1536,1536
 	HitShape:
 		TargetableOffsets: 576,0,0, -576,0,0
 		Type: Capsule
@@ -686,7 +686,7 @@ SS:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
-		DecorationBounds: 38,38
+		DecorationBounds: 1536,1536
 	Health:
 		HP: 2500
 	Armor:
@@ -732,7 +732,7 @@ SS:
 		CloakSound: subshow1.aud
 		UncloakSound: subshow1.aud
 		CloakedCondition: underwater
-		Palette: submerged		
+		Palette: submerged
 		IsPlayerPalette: false
 		UncloakOn: Attack, Heal, Unload, Dock, SelfHeal, Demolish
 		PauseOnCondition: cloak-force-disabled || shallowcrossing || empdisable || minehit || is-shooting
@@ -787,7 +787,7 @@ MSUB:
 		ForceFireIgnoresActors: True
 		PauseOnCondition: empdisable
 	Selectable:
-		DecorationBounds: 38,38
+		DecorationBounds: 1536,1536
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: ReturnFire

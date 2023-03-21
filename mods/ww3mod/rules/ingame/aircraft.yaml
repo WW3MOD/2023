@@ -21,7 +21,7 @@
 		UseLocation: true
 	WithSpriteControlGroupDecoration:
 	Selectable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Aircraft:
 		AirborneCondition: airborne
 	Targetable@GROUND:

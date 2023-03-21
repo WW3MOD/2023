@@ -19,7 +19,7 @@ TRAN:
 	Armor:
 		Type: Light
 	Selectable:
-		DecorationBounds: 40,36
+		DecorationBounds: 1280,1024
 	Aircraft:
 		TurnSpeed: 20
 		Speed: 160
@@ -227,7 +227,7 @@ HELI:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
-		DecorationBounds: 36,28
+		DecorationBounds: 1280,1024
 	Health:
 		HP: 800
 	Armor:
@@ -425,8 +425,8 @@ A10:
 		InitialStanceAI: Defend
 	# ReturnOnIdle:
 	Selectable:
-		Bounds: 36,28,0,2
-		DecorationBounds: 40,29,0,1
+		Bounds: 1280,1024
+		DecorationBounds: 1280,1024
 	SelectionDecorations:
 	# Contrail@1:
 	# 	Offset: -640,171,0
@@ -531,7 +531,7 @@ F16:
 		RequiresSelection: true
 	Selectable:
 		Voice: F16Voice
-		Bounds: 40,29,0,1
+		Bounds: 1280,1024
 	Contrail@1:
 		Offset: -598,-683,0
 	Contrail@2:

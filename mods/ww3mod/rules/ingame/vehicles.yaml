@@ -25,7 +25,7 @@
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Selectable:
-		Bounds: 24, 24
+		Bounds: 1024, 1024
 	Targetable:
 		RequiresCondition: !parachute
 		TargetTypes: Ground, Vehicle
@@ -131,7 +131,7 @@ MCV:
 	Tooltip:
 		Name: Mobile Command Center
 	Selectable:
-		DecorationBounds: 42,42
+		DecorationBounds: 1512,1512
 	Health:
 		HP: 1000
 	Armor:
@@ -230,7 +230,7 @@ HARV:
 	ExternalCondition@PRODUCED:
 		Condition: produced
 	Selectable:
-		DecorationBounds: 42,42
+		DecorationBounds: 1280,1280
 	Targetable@ISHARVESTER:
 		TargetTypes: Harvester
 	Harvester:
@@ -431,7 +431,7 @@ MSAR:
 		Description: When deployed, detects enemies within a large radius.
 	TooltipExtras:
 		Weaknesses: • Unarmed
-		Attributes: • \n• 
+		Attributes: • \n•
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:
@@ -590,7 +590,8 @@ madcat:
 		Width: 1
 		Alpha: 100
 	Selectable:
-		DecorationBounds: 50,70,0,-10
+		Bounds: 1024, 1536,0,-200
+		DecorationBounds: 1024, 1536,0,-200
 		Class: madcat
 	WithDamageOverlay:
 		Image: smoke_mtd

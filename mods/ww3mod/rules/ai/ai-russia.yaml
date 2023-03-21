@@ -157,11 +157,9 @@ Player:
 			barr: 2
 			proc: 2
 			pbox: 5
-			gun: 5
 			sam: 3
 		BuildingDelays:
 			pbox: 1000
-			gun: 1000
 			sam: 1000
 			apwr: 3000
 			fix: 3000

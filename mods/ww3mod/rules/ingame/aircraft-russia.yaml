@@ -32,7 +32,7 @@ HALO:
 	SpawnActorOnDeath:
 		Actor: TRAN.Husk
 	Selectable:
-		DecorationBounds: 40,36
+		DecorationBounds: 1536,1280
 	WithIdleOverlay@ROTOR1AIR:
 		Offset: 260,0,343
 		Sequence: rotor
@@ -81,7 +81,7 @@ HIND:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
-		DecorationBounds: 38,32
+		DecorationBounds: 1280,1024
 	Health:
 		HP: 800
 	Armor:
@@ -217,7 +217,7 @@ MI28:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
-		DecorationBounds: 36,28
+		DecorationBounds: 1280,1024
 	Health:
 		HP: 800
 	Armor:
@@ -441,7 +441,7 @@ FROG:
 		Actor: FROG.Husk.EMP.Empty
 		RequiresCondition: airborne && !ammo-primary && empdisable
 	Selectable:
-		DecorationBounds: 30,28,0,2
+		DecorationBounds: 1280,1024
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	Rearmable:
@@ -468,8 +468,8 @@ MIG:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
-		Bounds: 36,28,0,2
-		DecorationBounds: 40,29,0,1
+		Bounds: 1280,1024
+		DecorationBounds: 1280,1024
 	Health:
 		HP: 550
 	Armor:

@@ -611,7 +611,7 @@ grad:
 		RearmActors: fix
 		AmmoPools: primary-ammo
 	Selectable:
-		DecorationBounds: 28,28
+		DecorationBounds: 1024,1024
 	RenderRangeCircle:
 		Color: FF0000
 		Alpha: 100
@@ -698,7 +698,7 @@ tos:
 		RearmActors: fix
 		AmmoPools: primary-ammo
 	Selectable:
-		DecorationBounds: 28,28
+		DecorationBounds: 1024,1024
 	RenderRangeCircle:
 		Width: 1
 		Color: FF8000 # Yellow, indirect fire
@@ -865,7 +865,7 @@ TTNK:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
-		DecorationBounds: 30,30
+		DecorationBounds: 1024,1024
 	Health:
 		HP: 1500
 	# Targetable@DontEMP:

@@ -67,7 +67,7 @@ abrams:
 	WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: 2TNK.Husk
-		OwnerType: InternalName		
+		OwnerType: InternalName
 	RenderRangeCircle:
 		Color: FF0000
 		Width: 1
@@ -345,7 +345,7 @@ humvee:
 	# 	VoiceSet: HumveeVoice
 	WithRangeCircle@PRIMARY:
 		Range: 16c0
-		Color: FFFF00 
+		Color: FFFF00
 		Width: 1
 		Alpha: 100
 	WithRangeCircle@SECONDARY:
@@ -791,7 +791,7 @@ m270:
 	ProducibleWithLevel:
 		Prerequisites: vehicles.upgraded
 	Selectable:
-		DecorationBounds: 28,28
+		DecorationBounds: 2048,2048
 	RenderRangeCircle:
 		Width: 1
 		Color: FFFF00 # Yellow, indirect fire
@@ -827,7 +827,7 @@ PRSM:
 		Speed: 55
 		PauseOnCondition: empdisable
 	Selectable:
-		DecorationBounds: 28,28
+		DecorationBounds: 2048,2048
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
 	AutoTargetPriority@4:
@@ -1002,7 +1002,7 @@ HIMARS:
 	ProducibleWithLevel:
 		Prerequisites: vehicles.upgraded
 	Selectable:
-		DecorationBounds: 45,45
+		DecorationBounds: 2048,2048
 	RenderRangeCircle:
 		Width: 2
 		Color: FFFF00 # Yellow, indirect fire

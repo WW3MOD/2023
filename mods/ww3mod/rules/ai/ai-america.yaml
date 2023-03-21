@@ -154,11 +154,9 @@ Player:
 			barr: 2
 			proc: 2
 			pbox: 5
-			gun: 5
 			sam: 3
 		BuildingDelays:
 			pbox: 1000
-			gun: 1000
 			sam: 1000
 			apwr: 3000
 			fix: 3000
@@ -233,11 +231,11 @@ Player:
 		RushInterval: 3000
 		AttackScanRadius: 40
 		DangerScanRadius: 25
-		# IncludeInSquadTypes: 
+		# IncludeInSquadTypes:
 		ExcludeFromSquadsTypes: tecn.america, harv, harv.crate, mcv, mcv.ai, pt, dd, dd.ukraine, ca, bshp
 		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: IgnoreThis
-	
+
 	# SquadManagerBotModule@america.sea:
 	# 	RequiresCondition: enable-ai-player && player.nato && !global-disablenavy
 	# 	SquadSize: 4
@@ -262,7 +260,7 @@ Player:
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-player && player.nato
 		CapturingActorTypes: e1.america
-		CapturableActorTypes: barr, weap, proc, fact, hpad, fix, dome, gap, syrd, afld, atek, pbox, hbox, gun, gtur, hsam, agun, mslo, spro, 
+		CapturableActorTypes: barr, weap, proc, fact, hpad, fix, dome, gap, syrd, afld, atek, pbox, hbox, gun, gtur, hsam, agun, mslo, spro,
 		CheckCaptureTargetsForVisibility: true
 		MaximumCaptureTargetOptions: 100
 	CaptureManagerBotModule@tecn:
