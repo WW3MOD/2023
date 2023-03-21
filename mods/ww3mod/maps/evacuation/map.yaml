@@ -302,7 +302,7 @@ Actors:
 	Actor64: e1
 		Location: 96,93
 		Owner: Soviets
-	Actor169: v2rl
+	Actor169: grad
 		Location: 53,20
 		Owner: Soviets
 	Actor122: e1
@@ -486,7 +486,7 @@ Actors:
 	Actor141: t13
 		Location: 104,85
 		Owner: Neutral
-	Actor236: 3tnk
+	Actor236: t72
 		Location: 91,45
 		Owner: Soviets
 	Actor254: tc02
@@ -906,11 +906,11 @@ Actors:
 	Actor253: gun
 		Location: 27,88
 		Owner: Allies
-	Actor534: 1tnk
+	Actor534: bradley
 		Location: 37,90
 		Owner: Allies
 		Facing: 0
-	Actor398: 1tnk
+	Actor398: bradley
 		Location: 36,90
 		Owner: Allies
 		Facing: 0
@@ -1046,7 +1046,7 @@ Actors:
 	Actor32: tc05
 		Location: 83,67
 		Owner: Neutral
-	Actor496: 3tnk
+	Actor496: t72
 		Location: 86,20
 		Owner: Soviets
 	Actor646: fenc
@@ -1247,7 +1247,7 @@ Actors:
 	Actor270: e1
 		Location: 31,87
 		Owner: Soviets
-	Actor573: 2tnk
+	Actor573: abrams
 		Location: 34,92
 		Owner: Allies
 		Facing: 0
@@ -1257,14 +1257,14 @@ Actors:
 	Actor329: e1
 		Location: 41,87
 		Owner: Soviets
-	Actor574: 2tnk
+	Actor574: abrams
 		Location: 35,92
 		Owner: Allies
 		Facing: 0
 	Actor578: v11
 		Location: 64,84
 		Owner: Neutral
-	Actor546: 1tnk
+	Actor546: bradley
 		Location: 38,90
 		Owner: Allies
 		Facing: 0
@@ -1322,7 +1322,7 @@ Actors:
 	Actor187: afld
 		Location: 35,37
 		Owner: Soviets
-	Actor213: v2rl
+	Actor213: grad
 		Location: 52,44
 		Owner: Soviets
 	Actor272: t16
@@ -1445,7 +1445,7 @@ Actors:
 	Actor175: fenc
 		Location: 58,39
 		Owner: Soviets
-	Actor271: v2rl
+	Actor271: grad
 		Location: 29,33
 		Owner: Soviets
 		Facing: 0
@@ -1506,7 +1506,7 @@ Actors:
 	Actor355: dog
 		Location: 40,31
 		Owner: Soviets
-	Actor357: 3tnk
+	Actor357: t72
 		Location: 43,59
 		Owner: Soviets
 		Facing: 360
@@ -1514,11 +1514,11 @@ Actors:
 		Location: 25,94
 		Owner: Allies
 		Facing: 384
-	Actor358: 3tnk
+	Actor358: t72
 		Location: 38,55
 		Owner: Soviets
 		Facing: 440
-	Actor359: v2rl
+	Actor359: grad
 		Location: 44,53
 		Owner: Soviets
 	Actor282: tent
@@ -1746,7 +1746,7 @@ Actors:
 		Location: 87,79
 		Owner: Soviets
 		ScriptTags: TownAttacker
-	TownAttacker22: 3tnk
+	TownAttacker22: t72
 		Location: 84,77
 		Owner: Soviets
 		ScriptTags: TownAttacker

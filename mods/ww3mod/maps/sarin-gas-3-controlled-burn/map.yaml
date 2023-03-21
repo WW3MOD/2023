@@ -736,35 +736,35 @@ Actors:
 		Location: 35,48
 		Owner: Greece
 		Facing: 764
-	Actor226: v2rl
+	Actor226: grad
 		Location: 46,72
 		Owner: USSR
 		Facing: 636
-	Actor227: v2rl
+	Actor227: grad
 		Location: 59,70
 		Owner: USSR
 		Facing: 636
-	Actor228: 4tnk
+	Actor228: tos
 		Location: 53,65
 		Owner: USSR
 		Facing: 636
-	Actor229: 3tnk
+	Actor229: t72
 		Location: 62,64
 		Owner: USSR
 		Facing: 892
-	Actor230: 3tnk
+	Actor230: t72
 		Location: 55,61
 		Owner: USSR
 		Facing: 380
-	NorthMammoth: 4tnk
+	NorthMammoth: tos
 		Location: 51,48
 		Owner: BadGuy
 		Facing: 252
-	SouthMammoth: 4tnk
+	SouthMammoth: tos
 		Location: 33,77
 		Owner: USSR
 		Facing: 380
-	Actor233: 3tnk
+	Actor233: t72
 		Location: 45,68
 		Owner: USSR
 		Facing: 636
@@ -1109,7 +1109,7 @@ Actors:
 		Location: 63,29
 		SubCell: 1
 		Facing: 368
-	Actor358: 3tnk
+	Actor358: t72
 		Owner: BadGuy
 		Location: 73,89
 		Facing: 648

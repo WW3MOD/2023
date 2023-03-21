@@ -611,7 +611,7 @@ FIX:
 		Actor: fix.husk
 		OwnerType: InternalName
 	Sellable:
-		RequiresCondition: !unit.docked && !build-incomplete && !being-captured && !being-demolished
+		RequiresCondition: !build-incomplete && !being-captured && !being-demolished
 	GpsDot:
 		String: Repair
 

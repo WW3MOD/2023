@@ -35,7 +35,6 @@ icon:
 	parashok: parashokicon
 	paragren: paragrenicon
 	parajeep: parajeepicon
-	paratanks: para1tnkicon
 	paramines: paramnlyicon
 	mincicon: mincicon
 	empbomb: empbombicon
@@ -341,7 +340,7 @@ pips:
 	pip-pindown-10: pip-pindown
 		Start: 9
 		Length: 1
-	
+
 pip-ammored:
 	oneshot:
 		Start: 0
@@ -396,7 +395,7 @@ poweroff:
 		Tick: 160
 		ZOffset: 2047
 
-radarcratetd: 
+radarcratetd:
 	idle:
 		Length: *
 		Tick: 80

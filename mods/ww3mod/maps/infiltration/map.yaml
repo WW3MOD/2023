@@ -240,7 +240,7 @@ Actors:
 	Actor100: brik
 		Location: 32,33
 		Owner: Soviets
-	Actor263: 3tnk
+	Actor263: t72
 		Location: 37,35
 		Owner: Soviets
 	Actor138: e2
@@ -489,7 +489,7 @@ Actors:
 	Actor149: fact
 		Location: 95,25
 		Owner: Soviets
-	Actor304: 3tnk
+	Actor304: t72
 		Location: 106,38
 		Owner: Soviets
 		Facing: 384
@@ -701,7 +701,7 @@ Actors:
 	Actor220: fenc
 		Location: 81,67
 		Owner: Soviets
-	Actor221: 4tnk
+	Actor221: tos
 		Location: 39,46
 		Owner: Soviets
 		Facing: 0
@@ -720,10 +720,10 @@ Actors:
 	Actor225: fenc
 		Location: 95,36
 		Owner: Soviets
-	Actor224: 4tnk
+	Actor224: tos
 		Location: 103,30
 		Owner: Soviets
-	Actor144: 4tnk
+	Actor144: tos
 		Location: 42,58
 		Owner: Soviets
 	Actor52: hpad
@@ -741,7 +741,7 @@ Actors:
 	Actor237: sbag
 		Location: 66,37
 		Owner: Soviets
-	Actor229: v2rl
+	Actor229: grad
 		Location: 96,19
 		Owner: Soviets
 		Facing: 256
@@ -808,7 +808,7 @@ Actors:
 	Actor257: e1
 		Location: 44,61
 		Owner: Soviets
-	Actor322: v2rl
+	Actor322: grad
 		Location: 36,57
 		Owner: Soviets
 	Actor259: e1
@@ -826,11 +826,11 @@ Actors:
 	Actor17: brik
 		Location: 37,28
 		Owner: Soviets
-	Actor264: v2rl
+	Actor264: grad
 		Location: 50,36
 		Owner: Soviets
 		Facing: 768
-	Actor266: 3tnk
+	Actor266: t72
 		Location: 88,70
 		Owner: Soviets
 	Actor268: dog
@@ -845,7 +845,7 @@ Actors:
 	Actor270: dog
 		Location: 43,60
 		Owner: Soviets
-	Actor265: 3tnk
+	Actor265: t72
 		Location: 90,46
 		Owner: Soviets
 	Actor271: dog
@@ -863,7 +863,7 @@ Actors:
 	Actor276: t03
 		Location: 91,43
 		Owner: Neutral
-	Actor272: 3tnk
+	Actor272: t72
 		Location: 102,37
 		Owner: Soviets
 		Facing: 640
@@ -1212,7 +1212,7 @@ Actors:
 	Actor402: ftur
 		Location: 26,40
 		Owner: Soviets
-	Actor328: v2rl
+	Actor328: grad
 		Location: 27,37
 		Owner: Soviets
 		Facing: 256
@@ -1267,7 +1267,7 @@ Actors:
 	Actor409: e1
 		Location: 76,59
 		Owner: Soviets
-	Actor410: v2rl
+	Actor410: grad
 		Location: 74,59
 		Owner: Soviets
 	Actor3: dog
@@ -1403,7 +1403,7 @@ Actors:
 	Actor440: dog
 		Location: 108,48
 		Owner: Soviets
-	Actor441: 3tnk
+	Actor441: t72
 		Location: 108,47
 		Owner: Soviets
 	Actor442: brl3
@@ -1596,7 +1596,7 @@ Actors:
 	Actor492: e1
 		Location: 35,35
 		Owner: Soviets
-	BridgeTank: 3tnk
+	BridgeTank: t72
 		Location: 76,20
 		Owner: Soviets
 	BridgeAttackPoint: waypoint
@@ -1623,7 +1623,7 @@ Actors:
 	Actor498: apc
 		Location: 78,99
 		Owner: Soviets
-	Actor499: 3tnk
+	Actor499: t72
 		Location: 106,23
 		Owner: Soviets
 	Actor500: sbag
@@ -1716,10 +1716,10 @@ Actors:
 	TownAttacker5: e1
 		Location: 70,93
 		Owner: Soviets
-	TownAttacker3: 3tnk
+	TownAttacker3: t72
 		Location: 74,87
 		Owner: Soviets
-	TownAttacker7: 3tnk
+	TownAttacker7: t72
 		Location: 73,97
 		Owner: Soviets
 	SpyReinforcementsUnloadPoint: waypoint

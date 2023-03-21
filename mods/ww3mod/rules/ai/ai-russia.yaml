@@ -164,13 +164,6 @@ Player:
 			apwr: 3000
 			fix: 3000
 		BuildingLimits:
-
-	CaptureManagerBotModule@thf:
-		RequiresCondition: enable-ai-player && player.brics
-		CapturingActorTypes: thf
-		CapturableActorTypes: harv,harv.crate,mcv,katy,arty,arty.europe,v2rl,gmlrs,4tnk,ttnk,ctnk,mrj,5tnk,prsm
-		CheckCaptureTargetsForVisibility: true
-		MaximumCaptureTargetOptions: 15
 	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
 		SquadSize: 12
@@ -178,7 +171,7 @@ Player:
 		RushInterval: 200
 		AttackScanRadius: 40
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: e6, thf, dog, ftrk.scout, harv, harv.crate, mcv, mcv.ai, ss, msub, ssam, fsub, nsub, yak.ai, mig, hind
+		ExcludeFromSquadsTypes: # FF TODO
 		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: IgnoreThis
 	SquadManagerBotModule@russia.sea:
@@ -187,7 +180,7 @@ Player:
 		SquadSizeRandomBonus: 8
 		RushInterval: 400
 		AttackScanRadius: 24
-		ExcludeFromSquadsTypes: harv, harv.crate, mcv, mcv.ai, dog, e1, e2, e3, e4, e6, thf, volk, shok, ftrk, ftrk.scout, apc.russia, 3tnk.1b, 3tnk.1b.russia, 3tnk.1b.belarus, 3tnk, 3tnk.russia, 3tnk.belarus, 4tnk, 5tnk, v2rl, ttnk, yak.ai, yak.belarus.ai, mig, hind
+		ExcludeFromSquadsTypes: # FF TODO
 		NavalUnitsTypes: ss,msub,ssam,fsub,nsub
 		ConstructionYardTypes: fact
 		NavalProductionTypes: spen
@@ -198,7 +191,7 @@ Player:
 		SquadSizeRandomBonus: 4
 		RushInterval: 800
 		AttackScanRadius: 48
-		ExcludeFromSquadsTypes: harv, harv.crate, mcv, mcv.ai, dog, e1, e2, e3, e4, e6, thf, volk, shok, ftrk, ftrk.scout, apc.russia, 3tnk.1b, 3tnk.1b.russia, 3tnk, 3tnk.russia, 4tnk, 5tnk, katy, v2rl, ttnk, ss, msub, ssam, fsub, nsub
+		ExcludeFromSquadsTypes: # FF TODO
 		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 	UnitBuilderBotModule@russia:

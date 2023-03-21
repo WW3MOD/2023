@@ -671,57 +671,57 @@ Actors:
 		Location: 70,97
 		Owner: USSR
 		Facing: 380
-	Actor207: 3tnk
+	Actor207: t72
 		Location: 78,86
 		Owner: USSR
 		Facing: 636
-	Actor208: 3tnk
+	Actor208: t72
 		Location: 75,87
 		Owner: USSR
 		Facing: 380
-	Actor209: v2rl
+	Actor209: grad
 		Location: 77,84
 		Owner: USSR
-	Actor210: v2rl
+	Actor210: grad
 		Location: 67,101
 		Owner: USSR
 		Facing: 252
-	Actor211: v2rl
+	Actor211: grad
 		Location: 80,84
 		Owner: USSR
 		Facing: 892
-	Actor212: 3tnk
+	Actor212: t72
 		Location: 83,80
 		Owner: USSR
-	Actor213: 3tnk
+	Actor213: t72
 		Location: 64,86
 		Owner: USSR
 		Facing: 124
-	Actor214: 3tnk
+	Actor214: t72
 		Location: 67,75
 		Owner: USSR
 		Facing: 124
-	Actor215: 3tnk
+	Actor215: t72
 		Location: 62,93
 		Owner: USSR
 		Facing: 380
-	Actor216: 3tnk
+	Actor216: t72
 		Location: 48,95
 		Owner: USSR
 		Facing: 124
-	Actor217: 3tnk
+	Actor217: t72
 		Location: 53,84
 		Owner: USSR
 		Facing: 380
-	Actor218: 3tnk
+	Actor218: t72
 		Location: 41,62
 		Owner: USSR
 		Facing: 892
-	Actor219: 3tnk
+	Actor219: t72
 		Location: 43,63
 		Owner: USSR
 		Facing: 892
-	Actor220: 3tnk
+	Actor220: t72
 		Location: 71,64
 		Owner: USSR
 		Facing: 380

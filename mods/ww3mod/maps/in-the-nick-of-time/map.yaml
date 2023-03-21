@@ -755,74 +755,74 @@ Actors:
 	Actor220: pbox
 		Location: 72,51
 		Owner: USSR
-	Actor221: 2tnk
+	Actor221: abrams
 		Location: 82,86
 		Owner: USSR
 		Health: 50
 		Facing: 764
-	Actor222: 2tnk
+	Actor222: abrams
 		Location: 82,90
 		Owner: USSR
 		Health: 50
 		Facing: 764
-	Actor223: v2rl
+	Actor223: grad
 		Location: 72,87
 		Owner: USSR
 		Facing: 764
-	Mammoth2: 4tnk
+	Mammoth2: tos
 		Location: 61,72
 		Owner: USSR
 		Health: 62
 		Facing: 380
-	Mammoth3: 4tnk
+	Mammoth3: tos
 		Location: 64,72
 		Owner: USSR
 		Health: 62
 		Facing: 380
-	Medium4: 2tnk
+	Medium4: abrams
 		Location: 88,69
 		Owner: USSR
 		Health: 50
 		Facing: 252
-	Medium3: 2tnk
+	Medium3: abrams
 		Location: 88,67
 		Owner: USSR
 		Health: 50
 		Facing: 252
-	LightTank1: 1tnk
+	LightTank1: bradley
 		Location: 96,50
 		Owner: USSR
 		Facing: 508
-	LightTank2: 1tnk
+	LightTank2: bradley
 		Location: 98,50
 		Owner: USSR
 		Facing: 508
-	Medium1: 2tnk
+	Medium1: abrams
 		Location: 77,61
 		Owner: USSR
 		Health: 50
 		Facing: 508
-	Medium2: 2tnk
+	Medium2: abrams
 		Location: 79,61
 		Owner: USSR
 		Health: 50
 		Facing: 508
-	Actor234: 3tnk
+	Actor234: t72
 		Location: 91,40
 		Owner: USSR
 		Health: 47
 		Facing: 636
-	Actor235: 3tnk
+	Actor235: t72
 		Location: 97,41
 		Owner: USSR
 		Health: 50
 		Facing: 380
-	Mammoth1: 4tnk
+	Mammoth1: tos
 		Location: 43,86
 		Owner: USSR
 		Health: 64
 		Facing: 636
-	Actor237: 3tnk
+	Actor237: t72
 		Location: 79,88
 		Owner: USSR
 		Health: 50

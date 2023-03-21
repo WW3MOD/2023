@@ -242,7 +242,7 @@ Player:
 	# 	SquadSizeRandomBonus: 8
 	# 	RushInterval: 400
 	# 	AttackScanRadius: 24
-	# 	ExcludeFromSquadsTypes: harv, harv.crate, mcv, mcv.ai, dog, e1, e1.america, e2, e3, e6, e7, medi, mech, jeep, jeep.scout, apc, apc.ukraine, 1tnk, 1tnk.america, 1tnk.europe, 1tnk.ukraine, 2tnk, 2tnk.america, 2tnk.europe, 2tnk.ukraine, arty, arty.europe, gmlrs, msam, mrj, stnk, ctnk, prsm, heli, littlebird.ai, spit, 1tnf, 2tnf, artf
+	# 	ExcludeFromSquadsTypes:
 	# 	NavalUnitsTypes: pt,dd,ca,bshp
 	# 	ConstructionYardTypes: fact
 	# 	NavalProductionTypes: syrd
@@ -253,7 +253,7 @@ Player:
 	# 	SquadSizeRandomBonus: 4
 	# 	RushInterval: 800
 	# 	AttackScanRadius: 48
-	# 	ExcludeFromSquadsTypes: harv, harv.crate, mcv, mcv.ai, dog, e1, e1.america, e2, e3, e6, e7, medi, mech, jeep, jeep.scout, apc, apc.ukraine, 1tnk, 1tnk.america, 1tnk.europe. 1tnk.ukraine, 2tnk, 2tnk.america, 2tnk.europe, 2tnk.ukraine, arty, arty.europe, msam, mrj, stnk, ctnk, prsm, pt, dd, dd.ukraine, ca, bshp, 1tnf, 2tnf, artf
+	# 	ExcludeFromSquadsTypes:
 	# 	ConstructionYardTypes: fact
 	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 

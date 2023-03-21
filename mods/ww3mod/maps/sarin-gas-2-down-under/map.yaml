@@ -615,14 +615,14 @@ Actors:
 	Actor155: ftur
 		Location: 98,43
 		Owner: USSR
-	Mammoth1: 4tnk
+	Mammoth1: tos
 		Location: 67,44
 		Owner: USSR
 		Facing: 508
-	Mammoth2: 4tnk
+	Mammoth2: tos
 		Location: 73,58
 		Owner: BadGuy
-	StealMammoth: 4tnk
+	StealMammoth: tos
 		Location: 99,40
 		Owner: USSR
 		Facing: 508

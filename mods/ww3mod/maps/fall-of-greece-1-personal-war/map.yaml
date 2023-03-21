@@ -857,22 +857,22 @@ Actors:
 	Actor259: barl
 		Location: 22,75
 		Owner: USSR
-	VillageMammoth: 4tnk
+	VillageMammoth: tos
 		Location: 97,65
 		Owner: USSR
 		Facing: 508
-	Actor261: 4tnk
+	Actor261: tos
 		Location: 67,70
 		Owner: BadGuy
-	Actor262: 4tnk
+	Actor262: tos
 		Location: 73,68
 		Owner: USSR
 		Facing: 124
-	BridgeMammoth1: 4tnk
+	BridgeMammoth1: tos
 		Location: 37,67
 		Owner: USSR
 		Facing: 380
-	BridgeMammoth2: 4tnk
+	BridgeMammoth2: tos
 		Location: 36,67
 		Owner: USSR
 		Facing: 380
@@ -1050,7 +1050,7 @@ Actors:
 		Owner: USSR
 		Facing: 380
 		SubCell: 1
-	SovBaseTeam6: 3tnk
+	SovBaseTeam6: t72
 		Location: 35,57
 		Owner: USSR
 		Facing: 636

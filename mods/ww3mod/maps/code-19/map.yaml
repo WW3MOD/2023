@@ -3875,7 +3875,7 @@ Actors:
 	Actor1550: tc05
 		Owner: Neutral
 		Location: 105,44
-	Actor1569: perma.burn.4tnk.husk
+	Actor1569: perma.burn.tos.husk
 		Owner: Neutral
 		Facing: 96
 		Location: 107,44

@@ -754,11 +754,11 @@ Actors:
 	Actor234: fact
 		Location: 41,80
 		Owner: BadGuy
-	Actor235: v2rl
+	Actor235: grad
 		Location: 87,79
 		Owner: USSR
 		Facing: 892
-	Actor236: v2rl
+	Actor236: grad
 		Location: 70,75
 		Owner: USSR
 		Facing: 892
@@ -766,7 +766,7 @@ Actors:
 		Location: 21,20
 		Owner: Allies
 		Facing: 636
-	StartV2: v2rl
+	StartV2: grad
 		Location: 41,35
 		Owner: USSR
 		Facing: 124
@@ -782,59 +782,59 @@ Actors:
 		Location: 19,18
 		Owner: Allies
 		Facing: 636
-	Actor244: 3tnk
+	Actor244: t72
 		Location: 23,88
 		Owner: BadGuy
 		Facing: 380
-	Actor245: v2rl
+	Actor245: grad
 		Location: 43,74
 		Owner: BadGuy
 		Facing: 124
-	Actor246: v2rl
+	Actor246: grad
 		Location: 55,75
 		Owner: BadGuy
 		Facing: 124
-	Actor247: v2rl
+	Actor247: grad
 		Location: 29,82
 		Owner: BadGuy
 		Facing: 892
-	Actor248: v2rl
+	Actor248: grad
 		Location: 35,79
 		Owner: BadGuy
 		Facing: 380
-	Actor249: 3tnk
+	Actor249: t72
 		Location: 37,78
 		Owner: BadGuy
 		Facing: 636
-	Actor250: 3tnk
+	Actor250: t72
 		Location: 60,78
 		Owner: USSR
 		Facing: 636
-	Actor251: 3tnk
+	Actor251: t72
 		Location: 58,79
 		Owner: USSR
 		Facing: 508
-	Actor252: 3tnk
+	Actor252: t72
 		Location: 51,55
 		Owner: USSR
 		Facing: 380
-	Actor253: 3tnk
+	Actor253: t72
 		Location: 74,35
 		Owner: USSR
 		Facing: 380
-	Actor254: 3tnk
+	Actor254: t72
 		Location: 89,88
 		Owner: USSR
 		Facing: 380
-	Actor255: 3tnk
+	Actor255: t72
 		Location: 87,88
 		Owner: USSR
 		Facing: 380
-	Actor256: 3tnk
+	Actor256: t72
 		Location: 62,71
 		Owner: USSR
 		Facing: 124
-	Actor257: 3tnk
+	Actor257: t72
 		Location: 77,61
 		Owner: USSR
 		Facing: 124

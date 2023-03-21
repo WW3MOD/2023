@@ -470,11 +470,11 @@ Actors:
 	Actor140: apwr
 		Location: 85,8
 		Owner: BadGuy
-	Heavy1: 3tnk
+	Heavy1: t72
 		Location: 70,45
 		Owner: USSR
 		Facing: 380
-	Heavy2: 3tnk
+	Heavy2: t72
 		Location: 58,45
 		Owner: USSR
 		Facing: 636

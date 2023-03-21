@@ -303,7 +303,7 @@ fire:
 	Defaults:
 		Length: *
 		Offset: 0,-3
-		Tick: 105	
+		Tick: 105
 		ZOffset: 511
 	1: fire1
 	2: fire2
@@ -342,7 +342,7 @@ atomicfake:
 	down: atomicdn
 		Length: *
 		ZOffset: 1023
-	
+
 b2bomb:
 	idle: b2bomb
 		Length: *

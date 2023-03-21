@@ -419,27 +419,27 @@ Actors:
 		Location: 43,83
 		Owner: Allies
 		Facing: 380
-	Actor123: 3tnk
+	Actor123: t72
 		Location: 73,75
 		Owner: USSR
 		Facing: 380
-	Actor124: 3tnk
+	Actor124: t72
 		Location: 89,46
 		Owner: USSR
 		Facing: 380
-	Actor125: 3tnk
+	Actor125: t72
 		Location: 41,49
 		Owner: USSR
 		Facing: 380
-	PatrolMammoth: 4tnk
+	PatrolMammoth: tos
 		Location: 56,59
 		Owner: USSR
 		Facing: 636
-	Actor127: 3tnk
+	Actor127: t72
 		Location: 105,83
 		Owner: USSR
 		Facing: 380
-	Actor128: 1tnk
+	Actor128: bradley
 		Location: 44,78
 		Owner: Allies
 		Facing: 764

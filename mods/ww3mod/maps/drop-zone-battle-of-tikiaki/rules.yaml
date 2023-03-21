@@ -23,9 +23,9 @@ UNITCRATE:
 	GiveUnitCrateAction@ttnk:
 		SelectionShares: 4
 		Units: ttnk
-	GiveUnitCrateAction@ftrk:
+	GiveUnitCrateAction@tunguska:
 		SelectionShares: 6
-		Units: ftrk
+		Units: tunguska
 	GiveUnitCrateAction@dtrk:
 		SelectionShares: 1
 		Units: dtrk

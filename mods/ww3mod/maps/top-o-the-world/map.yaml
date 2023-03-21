@@ -546,15 +546,15 @@ Actors:
 	AlliedGNRLHouse: v10
 		Location: 89,94
 		Owner: Greece
-	Actor155: 2tnk
+	Actor155: abrams
 		Location: 94,46
 		Owner: Greece
 		Facing: 380
-	AlliedSquad05MTank01: 2tnk
+	AlliedSquad05MTank01: abrams
 		Location: 57,56
 		Owner: GoodGuy
 		Facing: 124
-	AlliedSquad05MTank02: 2tnk
+	AlliedSquad05MTank02: abrams
 		Location: 63,56
 		Owner: GoodGuy
 		Facing: 124
@@ -562,7 +562,7 @@ Actors:
 		Location: 34,61
 		Owner: Greece
 		Facing: 508
-	AlliedSquad04MTank01: 2tnk
+	AlliedSquad04MTank01: abrams
 		Location: 31,63
 		Owner: GoodGuy
 		Facing: 508
@@ -574,15 +574,15 @@ Actors:
 		Location: 35,63
 		Owner: Greece
 		Facing: 508
-	AlliedSquad04MTank02: 2tnk
+	AlliedSquad04MTank02: abrams
 		Location: 37,63
 		Owner: GoodGuy
 		Facing: 508
-	AlliedSquad03LTank01: 1tnk
+	AlliedSquad03LTank01: bradley
 		Location: 78,63
 		Owner: GoodGuy
 		Facing: 636
-	AlliedSquad04MTank03: 2tnk
+	AlliedSquad04MTank03: abrams
 		Location: 33,64
 		Owner: GoodGuy
 		Facing: 508
@@ -590,51 +590,51 @@ Actors:
 		Location: 34,64
 		Owner: GoodGuy
 		Facing: 508
-	AlliedSquad04MTank04: 2tnk
+	AlliedSquad04MTank04: abrams
 		Location: 35,64
 		Owner: GoodGuy
 		Facing: 508
-	AlliedSquad04MTank05: 2tnk
+	AlliedSquad04MTank05: abrams
 		Location: 34,65
 		Owner: GoodGuy
 		Facing: 508
-	Actor168: 1tnk
+	Actor168: bradley
 		Location: 66,65
 		Owner: GoodGuy
 		Facing: 508
-	Actor169: 2tnk
+	Actor169: abrams
 		Location: 75,78
 		Owner: GoodGuy
 		Facing: 764
-	Actor170: 2tnk
+	Actor170: abrams
 		Location: 78,82
 		Owner: GoodGuy
-	Actor171: 2tnk
+	Actor171: abrams
 		Location: 55,83
 		Owner: GoodGuy
 		Facing: 380
-	USSRHTank01: 3tnk
+	USSRHTank01: t72
 		Location: 35,87
 		Owner: USSR
-	USSRHTank02: 3tnk
+	USSRHTank02: t72
 		Location: 37,87
 		Owner: USSR
-	USSRHTank03: 3tnk
+	USSRHTank03: t72
 		Location: 39,87
 		Owner: USSR
-	USSRMTank01: 4tnk
+	USSRMTank01: tos
 		Location: 35,89
 		Owner: USSR
-	USSRMTank02: 4tnk
+	USSRMTank02: tos
 		Location: 39,89
 		Owner: USSR
-	USSRV201: v2rl
+	USSRV201: grad
 		Location: 34,93
 		Owner: USSR
-	USSRV202: v2rl
+	USSRV202: grad
 		Location: 37,93
 		Owner: USSR
-	USSRV203: v2rl
+	USSRV203: grad
 		Location: 40,93
 		Owner: USSR
 	ObjectiveTruck01: truk

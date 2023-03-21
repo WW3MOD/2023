@@ -1828,14 +1828,14 @@ Actors:
 	Actor430: t16
 		Location: 82,56
 		Owner: Neutral
-	Actor482: 3tnk
+	Actor482: t72
 		Location: 24,43
 		Owner: Soviets
 		Facing: 640
-	Actor641: 3tnk
+	Actor641: t72
 		Location: 23,48
 		Owner: Soviets
-	Actor642: v2rl
+	Actor642: grad
 		Location: 20,45
 		Owner: Soviets
 		Facing: 640
@@ -2091,10 +2091,10 @@ Actors:
 	HarvGuard1: apc
 		Location: 37,98
 		Owner: Soviets
-	HarvGuard2: 3tnk
+	HarvGuard2: t72
 		Location: 39,96
 		Owner: Soviets
-	HarvGuard3: ftrk
+	HarvGuard3: tunguska
 		Location: 46,95
 		Owner: Soviets
 	FarmHouse1: asianhut

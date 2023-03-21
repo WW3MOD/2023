@@ -65,7 +65,7 @@ Actors:
 	Actor24: v22
 		Location: 31,52
 		Owner: Neutral
-	Actor78: 2tnk
+	Actor78: abrams
 		Location: 77,68
 		Owner: Allies
 	Actor23: v23
@@ -322,7 +322,7 @@ Actors:
 	Actor117: fix
 		Location: 106,34
 		Owner: Soviets
-	Actor136: v2rl
+	Actor136: grad
 		Location: 91,40
 		Owner: Soviets
 		Facing: 360
@@ -368,25 +368,25 @@ Actors:
 	Actor135: e1
 		Location: 77,39
 		Owner: Soviets
-	Actor137: 4tnk
+	Actor137: tos
 		Location: 105,33
 		Owner: Soviets
 		Facing: 400
 	Actor123: afld
 		Location: 119,49
 		Owner: Soviets
-	Actor138: 4tnk
+	Actor138: tos
 		Location: 112,46
 		Owner: Soviets
-	Actor139: 3tnk
+	Actor139: t72
 		Location: 89,32
 		Owner: Soviets
 		Facing: 256
-	Actor140: 3tnk
+	Actor140: t72
 		Location: 92,29
 		Owner: Soviets
 		Facing: 80
-	Actor141: 3tnk
+	Actor141: t72
 		Location: 36,23
 		Owner: Soviets
 	Actor142: e1
@@ -413,7 +413,7 @@ Actors:
 	Actor39: pbox
 		Location: 70,89
 		Owner: Allies
-	Actor152: 1tnk
+	Actor152: bradley
 		Location: 69,85
 		Owner: Allies
 		Facing: 440
@@ -429,7 +429,7 @@ Actors:
 	Actor300: brik
 		Location: 48,77
 		Owner: Allies
-	Actor186: 3tnk
+	Actor186: t72
 		Location: 107,50
 		Owner: Soviets
 		Facing: 320
@@ -492,7 +492,7 @@ Actors:
 	Actor183: rock2
 		Location: 93,41
 		Owner: Neutral
-	Actor185: 3tnk
+	Actor185: t72
 		Location: 105,47
 		Owner: Soviets
 	Actor197: dd
@@ -582,7 +582,7 @@ Actors:
 	Actor77: e1
 		Location: 78,74
 		Owner: Allies
-	Actor82: 2tnk
+	Actor82: abrams
 		Location: 82,69
 		Owner: Allies
 	Actor30: pbox
@@ -625,14 +625,14 @@ Actors:
 		Location: 37,67
 		Owner: Allies
 		Facing: 256
-	Actor296: 1tnk
+	Actor296: bradley
 		Location: 58,65
 		Owner: Allies
 		Facing: 768
 	Actor215: brik
 		Location: 58,80
 		Owner: Allies
-	Actor233: 2tnk
+	Actor233: abrams
 		Location: 66,62
 		Owner: Allies
 	Actor240: sbag
@@ -766,14 +766,14 @@ Actors:
 	Actor45: brik
 		Location: 73,64
 		Owner: Allies
-	Actor226: 2tnk
+	Actor226: abrams
 		Location: 62,60
 		Owner: Allies
 		Facing: 960
-	Actor225: 2tnk
+	Actor225: abrams
 		Location: 47,61
 		Owner: Allies
-	Actor239: 1tnk
+	Actor239: bradley
 		Location: 44,65
 		Owner: Allies
 		Facing: 120
@@ -781,11 +781,11 @@ Actors:
 		Location: 45,62
 		Owner: Allies
 		Facing: 64
-	Actor238: 2tnk
+	Actor238: abrams
 		Location: 36,65
 		Owner: Allies
 		Facing: 160
-	Actor224: 2tnk
+	Actor224: abrams
 		Location: 41,62
 		Owner: Allies
 	Actor237: jeep

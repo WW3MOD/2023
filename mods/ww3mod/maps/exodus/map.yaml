@@ -871,7 +871,7 @@ Actors:
 	Actor6: gun
 		Location: 28,44
 		Owner: Allies
-	Actor45: 2tnk
+	Actor45: abrams
 		Location: 28,28
 		Owner: Allies
 	Actor35: gun
@@ -1069,7 +1069,7 @@ Actors:
 	Actor18: apwr
 		Location: 149,72
 		Owner: Soviets
-	Actor230: 3tnk
+	Actor230: t72
 		Location: 157,60
 		Owner: Soviets
 	Actor231: kenn
@@ -1237,7 +1237,7 @@ Actors:
 	Actor275: e3
 		Location: 100,31
 		Owner: Soviets
-	Actor276: 3tnk
+	Actor276: t72
 		Location: 107,30
 		Owner: Soviets
 	Actor277: dome
@@ -1363,7 +1363,7 @@ Actors:
 	Actor343: apc
 		Location: 91,48
 		Owner: Soviets
-	Actor344: 3tnk
+	Actor344: t72
 		Location: 67,52
 		Owner: Soviets
 	Actor161: brl3

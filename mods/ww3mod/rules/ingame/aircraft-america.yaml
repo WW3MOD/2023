@@ -153,7 +153,7 @@ littlebird:
 		FullSequence: pip-green
 		RequiresSelection: true
 	Rearmable:
-		RearmActors: hpad, carr.deployed
+		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
 	WithMuzzleOverlay:
 	Cargo:
@@ -303,7 +303,7 @@ HELI:
 		RequiresSelection: true
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: hpad, carr.deployed
+		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
 	WithIdleOverlay@ROTORAIR:
 		Offset: 0,0,85
@@ -416,7 +416,7 @@ A10:
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: afld, acar.deployed
+		RearmActors: afld
 		AmmoPools: primary-ammo, secondary-ammo
 	RenderRangeCircle:
 		Width: 3

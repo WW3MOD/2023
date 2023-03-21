@@ -149,7 +149,7 @@ HIND:
 		FullSequence: pip-red
 		RequiresSelection: true
 	Rearmable:
-		RearmActors: hpad, carr.deployed
+		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
 	EjectOnDeath@Copilot:
 		PilotActor: E1R1
@@ -293,7 +293,7 @@ MI28:
 		RequiresSelection: true
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: hpad, carr.deployed
+		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
 	WithIdleOverlay@ROTORAIR:
 		Offset: 0,0,85
@@ -445,7 +445,7 @@ FROG:
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	Rearmable:
-		RearmActors: afld, acar.deployed
+		RearmActors: afld
 		AmmoPools: primary-ammo
 	RenderRangeCircle:
 	RenderSprites:
@@ -540,7 +540,7 @@ MIG:
 		RequiresSelection: true
 	Rearmable:
 		AmmoPools: primary-ammo, secondary-ammo
-		RearmActors: afld, s acar.deployed
+		RearmActors: afld
 	Contrail@1:
 		Offset: -598,-683,0
 		TrailLength: 6

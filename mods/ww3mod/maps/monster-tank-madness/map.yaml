@@ -1813,11 +1813,11 @@ Actors:
 	Actor583: barl
 		Location: 88,54
 		Owner: Ukraine
-	Actor588: v2rl
+	Actor588: grad
 		Location: 91,75
 		Owner: USSR
 		Facing: 128
-	Actor589: v2rl
+	Actor589: grad
 		Location: 91,89
 		Owner: USSR
 		Facing: 128
@@ -1832,14 +1832,14 @@ Actors:
 	Actor592: badtruk
 		Location: 89,36
 		Owner: BadGuy
-	Actor593: v2rl
+	Actor593: grad
 		Location: 32,48
 		Owner: BadGuy
 		Facing: 640
-	Actor594: 3tnk
+	Actor594: t72
 		Location: 85,86
 		Owner: USSR
-	Actor595: v2rl
+	Actor595: grad
 		Location: 86,86
 		Owner: USSR
 	Actor596: dtrk
@@ -1851,7 +1851,7 @@ Actors:
 	Actor598: ttnk
 		Location: 55,61
 		Owner: USSR
-	Actor599: bad3tnk
+	Actor599: badt72
 		Location: 76,27
 		Owner: BadGuy
 		Facing: 896
@@ -2023,15 +2023,15 @@ Actors:
 	DemitriChurch: v01
 		Location: 28,99
 		Owner: Neutral
-	stnk1: 5tnk
+	stnk1: iskander
 		Location: 89,59
 		Owner: Turkey
 		TurretFacing: 768
-	stnk2: 5tnk
+	stnk2: iskander
 		Location: 77,57
 		Owner: Turkey
 		TurretFacing: 368
-	stnk3: 5tnk
+	stnk3: iskander
 		Location: 94,53
 		Owner: Turkey
 		TurretFacing: 768

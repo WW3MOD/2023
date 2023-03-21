@@ -849,15 +849,15 @@ Actors:
 		Location: 79,76
 		Owner: Greece
 		Facing: 63
-	Ltnk1: 1tnk
+	Ltnk1: bradley
 		Location: 87,90
 		Owner: Greece
 		Facing: 31
-	Ltnk2: 1tnk
+	Ltnk2: bradley
 		Location: 87,91
 		Owner: Greece
 		Facing: 31
-	Ltnk3: 1tnk
+	Ltnk3: bradley
 		Location: 87,92
 		Owner: Greece
 		Facing: 31

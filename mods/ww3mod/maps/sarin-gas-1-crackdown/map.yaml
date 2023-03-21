@@ -589,58 +589,58 @@ Actors:
 		Location: 62,83
 		Owner: USSR
 		Facing: 892
-	Actor171: v2rl
+	Actor171: grad
 		Location: 55,61
 		Owner: USSR
 		Facing: 252
-	Actor172: v2rl
+	Actor172: grad
 		Location: 70,68
 		Owner: USSR
 		Facing: 636
-	Actor173: 3tnk
+	Actor173: t72
 		Location: 58,54
 		Owner: USSR
 		Facing: 636
-	Actor174: 3tnk
+	Actor174: t72
 		Location: 60,47
 		Owner: USSR
 		Facing: 124
-	Actor175: 3tnk
+	Actor175: t72
 		Location: 63,68
 		Owner: USSR
 		Facing: 508
-	Actor176: 3tnk
+	Actor176: t72
 		Location: 52,53
 		Owner: USSR
 		Facing: 252
-	Actor177: 3tnk
+	Actor177: t72
 		Location: 45,70
 		Owner: USSR
 		Facing: 380
-	Actor178: 3tnk
+	Actor178: t72
 		Location: 59,69
 		Owner: USSR
 		Facing: 508
-	Actor179: v2rl
+	Actor179: grad
 		Location: 48,59
 		Owner: BadGuy
 		Facing: 252
-	Actor180: v2rl
+	Actor180: grad
 		Location: 55,81
 		Owner: USSR
 		Facing: 124
-	PatrolMammoth: 4tnk
+	PatrolMammoth: tos
 		Location: 20,86
 		Owner: BadGuy
 	Actor182: ttnk
 		Location: 64,55
 		Owner: USSR
 		Facing: 380
-	Actor183: 3tnk
+	Actor183: t72
 		Location: 75,43
 		Owner: USSR
 		Facing: 124
-	StartTank: 3tnk
+	StartTank: t72
 		Location: 31,58
 		Owner: BadGuy
 		Facing: 252
