@@ -103,13 +103,16 @@ Rules:
 	ww3mod|rules/ingame/vehicles-russia.yaml
 
 Sequences:
-	ww3mod|sequences/ships.yaml
-	ww3mod|sequences/vehicles.yaml
-	ww3mod|sequences/structures.yaml
-	ww3mod|sequences/infantry.yaml
-	ww3mod|sequences/aircraft.yaml
-	ww3mod|sequences/misc.yaml
-	ww3mod|sequences/decorations.yaml
+	ww3mod|sequences/sequences.yaml
+	ww3mod|sequences/sequences-aircraft.yaml
+	ww3mod|sequences/sequences-decorations.yaml
+	ww3mod|sequences/sequences-defenses.yaml
+	ww3mod|sequences/sequences-infantry.yaml
+	ww3mod|sequences/sequences-ingame.yaml
+	ww3mod|sequences/sequences-misc.yaml
+	ww3mod|sequences/sequences-naval.yaml
+	ww3mod|sequences/sequences-neutral.yaml
+	ww3mod|sequences/sequences-structures.yaml
 
 TileSets:
 	ww3mod|tilesets/snow.yaml

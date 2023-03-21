@@ -188,7 +188,7 @@
 	WithInfantryBody@Parachute:
 		StandSequences: parachute
 		RequiresCondition: parachute
-	
+
 ^CivInfantry:
 	Inherits: ^Infantry
 	Inherits@penalty: ^GlobalPenalty
@@ -1018,7 +1018,7 @@
 		Step: -1
 		Delay: 50
 		StartIfBelow: 25
-		DamageTypes: BleedOutDeath 
+		DamageTypes: BleedOutDeath
 	# TODO add bleedout sequence, make sure it doesnt go ontop of soldier, time it with ChangeHealth delay
 	# WithDamageOverlay@BleedOut:
 	# 	RequiresCondition: onfire == 1 || onfire == 2 || onfire == 3 || onfire == 4
@@ -1281,7 +1281,7 @@ AR:
 	Inherits: ^AR
 
 # Grenadier
-^E2: 
+^E2:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Inherits@Rotting: ^RottingInfantry
@@ -1446,7 +1446,7 @@ TL:
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@Rotting: ^RottingInfantry
 	Tooltip:
-		Name: Mortar	
+		Name: Mortar
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -2131,7 +2131,7 @@ SPY:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 15
 		Prerequisites: ~disabled
-		Description: Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar 
+		Description: Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
 	Tooltip:
 		Name: Attack Dog
 		GenericName: Dog
@@ -2364,7 +2364,7 @@ PILOT:
 		Payload: 200
 		Type: PilotRefund
 # todo: These seem to work but they have no rank pip
-PILOTR1: 
+PILOTR1:
 	Inherits: ^PILOT
 	Tooltip:
 		Name: Pilot 1st Rank
@@ -2399,7 +2399,7 @@ PILOTR3:
 		Prerequisites: ~disabled
 		InitialLevels: 3
 	UpdatesPlayerStatistics:
-		OverrideActor: PILOT	
+		OverrideActor: PILOT
 PILOTR4:
 	Inherits: ^PILOT
 	Tooltip:
@@ -2439,3 +2439,129 @@ GNRL:
 		IdleSequences: idle1
 	RenderSprites:
 		Scale: 0.6
+
+Zombie:
+	Inherits: ^Soldier
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 100
+	Tooltip:
+		Name: Zombie
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 200
+		Prerequisites: ~barracks, ~bio
+		Description: Slow undead. Attacks in close combat.
+	Health:
+		HP: 25000
+	Mobile:
+		Speed: 39
+	AutoTarget:
+		ScanRadius: 5
+	WithInfantryBody:
+		DefaultAttackSequence: bite
+		IdleSequences: idle1
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		RequiresCondition: parachute
+		Palette: player-noshadow
+		IsPlayerPalette: true
+	Armament:
+		Weapon: claw
+	Voiced:
+		VoiceSet: AntVoice
+
+Ant:
+	Inherits: ^Infantry
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 300
+	Tooltip:
+		Name: Giant Ant
+		GenericName: Ant
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 1954
+		Prerequisites: ~barracks, ~bio
+		Description: Irradiated insect that grew oversize.
+	Selectable:
+		Bounds: 1024, 1024, 0, -213
+		DecorationBounds: 1280, 1280, 0, -85
+	Health:
+		HP: 75000
+	Mobile:
+		Speed: 92
+		TurnSpeed: 48
+		Locomotor: lighttracked
+	-Crushable:
+	AutoTarget:
+		ScanRadius: 5
+	AttackFrontal:
+		FacingTolerance: 0
+	WithInfantryBody:
+		DefaultAttackSequence: bite
+	Armament:
+		Weapon: mandible
+	Targetable:
+		TargetTypes: GroundActor, Infantry, Ant
+	WithDeathAnimation:
+		UseDeathTypeSuffix: false
+	Voiced:
+		VoiceSet: AntVoice
+	HitShape:
+		Type: Circle
+			Radius: 469
+
+FireAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Fire Ant
+		GenericVisibility: none
+	Mobile:
+		Speed: 68
+	Armament:
+		Weapon: AntFireball
+	Health:
+		HP: 7500
+	Armor:
+		Type: Heavy
+	Buildable:
+		Prerequisites: ~disabled
+
+ScoutAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Scout Ant
+		GenericVisibility: none
+	Health:
+		HP: 8500
+	Armor:
+		Type: Light
+	AutoTarget:
+		ScanRadius: 7
+	Buildable:
+		Prerequisites: ~disabled
+
+WarriorAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Warrior Ant
+		GenericVisibility: none
+	Mobile:
+		Speed: 56
+	Health:
+		HP: 12500
+	Armor:
+		Type: Heavy
+	Armament:
+		Weapon: MandibleHeavy
+	Buildable:
+		Prerequisites: ~disabled
+	RenderSprites:
+		Image: Ant
