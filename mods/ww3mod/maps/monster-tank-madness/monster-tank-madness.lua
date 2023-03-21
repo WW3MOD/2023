@@ -8,11 +8,11 @@
 ]]
 AlliedUnits =
 {
-	{ delay = 0, types = { "1tnk", "1tnk", "2tnk", "2tnk" } },
+	{ delay = 0, types = { "bradley", "bradley", "abrams", "abrams" } },
 	{ delay = DateTime.Seconds(3), types = { "e1", "e1", "e1", "e3", "e3" } },
 	{ delay = DateTime.Seconds(7), types = { "e6", "e6", "thf" } }
 }
-ReinforceBaseUnits = { "1tnk", "1tnk", "2tnk", "arty", "arty" }
+ReinforceBaseUnits = { "bradley", "bradley", "abrams", "m109", "m109" }
 CivilianEvacuees = { "c2", "c3", "c5", "c6", "c8" }
 USSROutpostFlameTurrets = { FlameTurret1, FlameTurret2 }
 ExplosiveBarrels = { ExplosiveBarrel1, ExplosiveBarrel2 }
@@ -414,7 +414,7 @@ InitTriggers = function()
 
 	local tanksLeft = 0
 	Trigger.OnExitedProximityTrigger(ProvingGroundsCameraPoint.CenterPosition, WDist.New(10 * 1024), function(a, id)
-		if a.Type == "5tnk" then
+		if a.Type == "abrams" then
 			tanksLeft = tanksLeft + 1
 			if tanksLeft == 3 then
 				if TestCamera.IsInWorld then TestCamera.Destroy() end

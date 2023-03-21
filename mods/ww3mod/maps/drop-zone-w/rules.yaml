@@ -19,26 +19,6 @@ World:
 		TechLevelDropdownVisible: False
 		TechLevel: unrestricted
 
-UNITCRATE:
-	Inherits: ^Crate
-	GiveUnitCrateAction@pt:
-		SelectionShares: 7
-		Units: pt
-	GiveUnitCrateAction@dd:
-		SelectionShares: 6
-		Units: dd
-	GiveUnitCrateAction@ca:
-		SelectionShares: 4
-		Units: ca
-	GiveUnitCrateAction@ss:
-		SelectionShares: 6
-		Units: ss
-	GiveUnitCrateAction@msub:
-		SelectionShares: 4
-		Units: msub
-	Crate:
-		TerrainTypes: Water
-
 LST:
 	Tooltip:
 		Name: Naval Mobile HQ

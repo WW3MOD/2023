@@ -18,9 +18,9 @@ GreeceRifles = { GreeceRifle1, GreeceRifle2, GreeceRifle3, GreeceRifle4, GreeceR
 CombatTeam1 = { "mnly", "spy", "spy", "mcv" }
 CombatTeam2 =
 {
-	easy = { "2tnk", "2tnk", "2tnk", "e3", "e3", "e3" },
-	normal = { "e3", "e3", "e3", "2tnk", "1tnk" },
-	hard = { "e3", "e3", "e3", "1tnk" }
+	easy = { "abrams", "abrams", "abrams", "e3", "e3", "e3" },
+	normal = { "e3", "e3", "e3", "abrams", "bradley" },
+	hard = { "e3", "e3", "e3", "bradley" }
 }
 
 SetupTriggers = function()

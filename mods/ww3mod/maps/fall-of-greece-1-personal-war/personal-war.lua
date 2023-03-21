@@ -40,13 +40,13 @@ lstReinforcements =
 {
 	first =
 	{
-		actors = { "2tnk", "2tnk", "2tnk", "2tnk", "2tnk" },
+		actors = { "abrams", "abrams", "abrams", "abrams", "abrams" },
 		entryPath = { BoatSpawn.Location, BoatUnload1.Location },
 		exitPath = { BoatSpawn.Location }
 	},
 	second =
 	{
-		actors = { "1tnk", "1tnk", "2tnk", "2tnk", "2tnk" },
+		actors = { "bradley", "bradley", "abrams", "abrams", "abrams" },
 		entryPath = { BoatSpawn.Location, BoatUnload2.Location },
 		exitPath = { BoatSpawn.Location }
 	}

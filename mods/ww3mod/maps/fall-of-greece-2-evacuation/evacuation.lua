@@ -6,9 +6,9 @@
    the License, or (at your option) any later version. For more
    information, see COPYING.
 ]]
-AlliedReinforcementsA = { "jeep", "jeep" }
+AlliedReinforcementsA = { "humvee", "humvee" }
 AlliedReinforcementsB = { "e1", "e1", "e1", "e3", "e3" }
-AlliedReinforcementsC = { "jeep", "mcv" }
+AlliedReinforcementsC = { "humvee", "mcv" }
 IslandPatrol = { SubPatrol1.Location, SubPatrol2.Location, SubPatrol3.Location, SubPatrol4.Location }
 Submarines = { Sub1, Sub2, Sub3, Sub4, Sub5, Sub6, Sub7, Sub8 }
 RifleSquad = { Rifle1, Rifle2, Rifle3 }

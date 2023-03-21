@@ -895,6 +895,7 @@ pyle.husk:
 		Length: *
 
 pdox:
+	Inherits: emp-overlay
 	idle:
 	damaged-idle:
 		Start: 29

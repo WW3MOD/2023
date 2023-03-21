@@ -15,9 +15,9 @@ RaxTeam = { "e1", "e2", "e2", "e4", "e4", "shok" }
 SouthPatrol = { SouthPatrol1.Location, SouthPatrol2.Location, SouthPatrol3.Location }
 MCVReinforcements =
 {
-	easy = { "1tnk", "1tnk", "2tnk", "2tnk", "2tnk", "2tnk", "arty", "mcv" },
-	normal = { "1tnk", "1tnk", "2tnk", "2tnk", "mcv" },
-	hard = { "1tnk", "1tnk", "mcv" }
+	easy = { "bradley", "bradley", "abrams", "abrams", "abrams", "abrams", "m109", "mcv" },
+	normal = { "bradley", "bradley", "abrams", "abrams", "mcv" },
+	hard = { "bradley", "bradley", "mcv" }
 }
 
 SetupTriggers = function()

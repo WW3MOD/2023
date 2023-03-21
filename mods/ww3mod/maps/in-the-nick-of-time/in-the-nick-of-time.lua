@@ -6,14 +6,14 @@
    the License, or (at your option) any later version. For more
    information, see COPYING.
 ]]
-StartUnits = { "jeep", "jeep", "1tnk", "1tnk", "1tnk", "1tnk", "2tnk", "2tnk" }
+StartUnits = { "humvee", "humvee", "bradley", "bradley", "bradley", "bradley", "abrams", "abrams" }
 StartingPlanes = { Yak1, Yak2 }
 ReinforcementFootprint1 = { CPos.New(93,78), CPos.New(94,78), CPos.New(95,78) }
 InfantrySquad = { "e1", "e1", "e1", "e3", "e3" }
 ReinforcementFootprint2 = { CPos.New(63,84), CPos.New(63,85), CPos.New(63,86), CPos.New(63,87) }
 SouthWaterPath1 = { SouthWaterEntry.Location, SouthWaterLanding1.Location }
 SouthWaterPath2 = { SouthWaterEntry.Location, SouthWaterLanding2.Location }
-SouthWaterTeam = { "iskander", "1tnk", "1tnk", "2tnk", "2tnk" }
+SouthWaterTeam = { "iskander", "bradley", "bradley", "abrams", "abrams" }
 SouthChinookPath = { ChinookEntry1.Location, ChinookLZ1.Location }
 SouthChinookChalk = { "e3", "e3", "e3", "e1", "e1" }
 MammothAttackFootprint = { CPos.New(49,81), CPos.New(50,81), CPos.New(51,81), CPos.New(52,81), CPos.New(53,81) }
@@ -33,7 +33,7 @@ Scientists = { "einstein", "chan", "chan", "chan", "chan" }
 NorthWaterPath1 = { NorthWaterEntry.Location, NorthWaterLanding1.Location }
 NorthWaterPath2 = { NorthWaterEntry.Location, NorthWaterLanding2.Location }
 NorthWaterPath3 = { NorthWaterEntry.Location, NorthWaterLanding3.Location }
-NorthWaterTeam = { "1tnk", "1tnk", "1tnk", "2tnk", "2tnk" }
+NorthWaterTeam = { "bradley", "bradley", "bradley", "abrams", "abrams" }
 BoatofMammoths = { "tos", "tos", "tos", "tos", "tos" }
 EvacuateFootprint = { CPos.New(93,92), CPos.New(94,92), CPos.New(95,92), CPos.New(96,92), CPos.New(97,92), CPos.New(98,92), CPos.New(99,92) }
 TimerTicks = DateTime.Minutes(54)
@@ -261,7 +261,7 @@ EnemyActions = function()
 end
 
 EnemyInfantry = { "e1", "e1", "e3" }
-Tanks = { "1tnk", "t72" }
+Tanks = { "bradley", "t72" }
 AttackGroupSize = 4
 ProductionDelay = DateTime.Seconds(10)
 IdlingUnits = { }

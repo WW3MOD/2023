@@ -411,11 +411,11 @@ Actors:
 	Actor119: barl
 		Location: 90,45
 		Owner: USSR
-	Actor121: jeep
+	Actor121: humvee
 		Location: 45,83
 		Owner: America
 		Facing: 636
-	Actor122: jeep
+	Actor122: humvee
 		Location: 43,83
 		Owner: America
 		Facing: 380

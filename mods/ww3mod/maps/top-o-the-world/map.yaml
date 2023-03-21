@@ -566,11 +566,11 @@ Actors:
 		Location: 31,63
 		Owner: GoodGuy
 		Facing: 508
-	AlliedSquad04Arty01: arty
+	AlliedSquad04Arty01: m109
 		Location: 33,63
 		Owner: Greece
 		Facing: 508
-	AlliedSquad04Arty02: arty
+	AlliedSquad04Arty02: m109
 		Location: 35,63
 		Owner: Greece
 		Facing: 508
@@ -586,7 +586,7 @@ Actors:
 		Location: 33,64
 		Owner: GoodGuy
 		Facing: 508
-	AlliedSquad04Arty03: arty
+	AlliedSquad04Arty03: m109
 		Location: 34,64
 		Owner: GoodGuy
 		Facing: 508

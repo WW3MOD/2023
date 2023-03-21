@@ -588,7 +588,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			map = modData.MapCache[uid];
 
-			Log.Write("test {0}", map.Status.ToString());
+			Log.Write("debug", "test {0}", map.Status.ToString());
 
 			if (map.Status == MapStatus.Available)
 			{

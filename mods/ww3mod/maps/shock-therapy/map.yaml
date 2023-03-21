@@ -841,11 +841,11 @@ Actors:
 	Actor260: powr
 		Location: 83,95
 		Owner: Greece
-	Actor262: arty
+	Actor262: m109
 		Location: 79,68
 		Owner: Greece
 		Facing: 63
-	Actor263: arty
+	Actor263: m109
 		Location: 79,76
 		Owner: Greece
 		Facing: 63
@@ -861,15 +861,15 @@ Actors:
 		Location: 87,92
 		Owner: Greece
 		Facing: 31
-	Jeep3: jeep
+	Jeep3: humvee
 		Location: 88,92
 		Owner: Greece
 		Facing: 31
-	Jeep2: jeep
+	Jeep2: humvee
 		Location: 88,91
 		Owner: Greece
 		Facing: 31
-	Jeep1: jeep
+	Jeep1: humvee
 		Location: 88,90
 		Owner: Greece
 		Facing: 31

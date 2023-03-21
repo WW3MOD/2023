@@ -242,8 +242,8 @@ Player:
 	# 	SquadSizeRandomBonus: 8
 	# 	RushInterval: 400
 	# 	AttackScanRadius: 24
-	# 	ExcludeFromSquadsTypes:
-	# 	NavalUnitsTypes: pt,dd,ca,bshp
+	# 	ExcludeFromSquadsTypes: # FF TODO
+	# 	NavalUnitsTypes: # FF TODO
 	# 	ConstructionYardTypes: fact
 	# 	NavalProductionTypes: syrd
 	# 	IgnoredEnemyTargetTypes: IgnoreThis
@@ -253,7 +253,7 @@ Player:
 	# 	SquadSizeRandomBonus: 4
 	# 	RushInterval: 800
 	# 	AttackScanRadius: 48
-	# 	ExcludeFromSquadsTypes:
+	# 	ExcludeFromSquadsTypes: # FF TODO
 	# 	ConstructionYardTypes: fact
 	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 

@@ -69,7 +69,7 @@ ProductionInterval =
 }
 
 ReinforcementsDelay = DateTime.Minutes(16)
-ReinforcementsUnits = { "2tnk", "2tnk", "2tnk", "2tnk", "2tnk", "2tnk", "1tnk", "1tnk", "jeep", "e1",
+ReinforcementsUnits = { "abrams", "abrams", "abrams", "abrams", "abrams", "abrams", "bradley", "bradley", "humvee", "e1",
 	"e1", "e1", "e1", "e3", "e3", "mcv", "truk", "truk", "truk", "truk", "truk", "truk" }
 
 SpawnAlliedReinforcements = function()

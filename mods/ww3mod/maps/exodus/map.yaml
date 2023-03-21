@@ -883,7 +883,7 @@ Actors:
 	Actor41: e1
 		Location: 30,28
 		Owner: America
-	Actor4: jeep
+	Actor4: humvee
 		Location: 27,45
 		Owner: America
 	Actor40: e1

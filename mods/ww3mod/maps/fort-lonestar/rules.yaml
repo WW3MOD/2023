@@ -75,9 +75,9 @@ FORTCRATE:
 		Amount: 400
 		UseCashTick: true
 		SelectionShares: 30
-	GiveUnitCrateAction@e7:
-		Units: e7
-		SelectionShares: 10
+	# GiveUnitCrateAction@e7:
+	# 	Units: e7
+	# 	SelectionShares: 10
 	GrantExternalConditionCrateAction@ironcurtain:
 		SelectionShares: 10
 		Sequence: invuln

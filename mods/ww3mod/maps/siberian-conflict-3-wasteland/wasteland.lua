@@ -15,7 +15,7 @@ Setup = function()
 
 	Trigger.AfterDelay(DateTime.Seconds(5), function()
 		Media.PlaySpeechNotification(America, "ReinforcementsArrived")
-		Reinforcements.Reinforce(America, { "jeep", "jeep" }, { AlliedReinforcementPoint.Location, DefaultCameraPosition.Location })
+		Reinforcements.Reinforce(America, { "humvee", "humvee" }, { AlliedReinforcementPoint.Location, DefaultCameraPosition.Location })
 		Utils.Do(OpeningAttack, function(a)
 			if not a.IsDead then
 				a.AttackMove(DefaultCameraPosition.Location)
@@ -28,7 +28,7 @@ Setup = function()
 	end)
 
 	Trigger.AfterDelay(DateTime.Seconds(15), function()
-		Reinforcements.Reinforce(America, { "mcv", "2tnk", "2tnk" }, { AlliedReinforcementPoint.Location, DefaultCameraPosition.Location })
+		Reinforcements.Reinforce(America, { "mcv", "abrams", "abrams" }, { AlliedReinforcementPoint.Location, DefaultCameraPosition.Location })
 	end)
 
 	Trigger.OnKilled(MoneyBarrel, function()

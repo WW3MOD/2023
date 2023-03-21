@@ -17,7 +17,7 @@ if DateTime.IsHalloween then
 		{ factory = SovietBarracks1, types = { "ant" } },
 		{ factory = SovietBarracks2, types = { "ant" } },
 		{ factory = SovietBarracks3, types = { "ant" } },
-		{ factory = AlliedWarFactory1, types = { "jeep", "1tnk", "2tnk", "arty", "m270" } },
+		{ factory = AlliedWarFactory1, types = { "humvee", "bradley", "abrams", "m109", "m270" } },
 		{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk", "m113" } }
 	}
 else
@@ -31,12 +31,12 @@ else
 		{ factory = SovietBarracks1, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
 		{ factory = SovietBarracks2, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
 		{ factory = SovietBarracks3, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ factory = AlliedWarFactory1, types = { "jeep", "1tnk", "2tnk", "arty", "m270" } },
+		{ factory = AlliedWarFactory1, types = { "humvee", "bradley", "abrams", "m109", "m270" } },
 		{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk", "m113" } }
 	}
 end
 
-ShipUnitTypes = { "1tnk", "1tnk", "jeep", "2tnk", "2tnk" }
+ShipUnitTypes = { "bradley", "bradley", "humvee", "abrams", "abrams" }
 HelicopterUnitTypes = { "e1", "e1", "e1", "e1", "e3", "e3" };
 
 ParadropWaypoints = { Paradrop1, Paradrop2, Paradrop3, Paradrop4, Paradrop5, Paradrop6, Paradrop7, Paradrop8 }
@@ -117,28 +117,28 @@ InsertAlliedChinookReinforcements = function(entry, hpad)
 	Trigger.AfterDelay(DateTime.Seconds(60), function() InsertAlliedChinookReinforcements(entry, hpad) end)
 end
 
-ParadropSovietUnits = function()
-	local lz = Utils.Random(ParadropWaypoints)
-	local aircraft = powerproxy.TargetParatroopers(lz.CenterPosition)
+-- ParadropSovietUnits = function()
+-- 	local lz = Utils.Random(ParadropWaypoints)
+-- 	local aircraft = powerproxy.TargetParatroopers(lz.CenterPosition)
 
-	Utils.Do(aircraft, function(a)
-		Trigger.OnPassengerExited(a, function(t, p)
-			BindActorTriggers(p)
-		end)
-	end)
+-- 	Utils.Do(aircraft, function(a)
+-- 		Trigger.OnPassengerExited(a, function(t, p)
+-- 			BindActorTriggers(p)
+-- 		end)
+-- 	end)
 
-	Trigger.AfterDelay(DateTime.Seconds(35), ParadropSovietUnits)
-end
+-- 	Trigger.AfterDelay(DateTime.Seconds(35), ParadropSovietUnits)
+-- end
 
-ProduceUnits = function(t)
-	local factory = t.factory
-	if not factory.IsDead then
-		local unitType = t.types[Utils.RandomInteger(1, #t.types + 1)]
-		factory.Wait(Actor.BuildTime(unitType))
-		factory.Produce(unitType)
-		factory.CallFunc(function() ProduceUnits(t) end)
-	end
-end
+-- ProduceUnits = function(t)
+-- 	local factory = t.factory
+-- 	if not factory.IsDead then
+-- 		local unitType = t.types[Utils.RandomInteger(1, #t.types + 1)]
+-- 		factory.Wait(Actor.BuildTime(unitType))
+-- 		factory.Produce(unitType)
+-- 		factory.CallFunc(function() ProduceUnits(t) end)
+-- 	end
+-- end
 
 SetupAlliedUnits = function()
 	Utils.Do(Map.NamedActors, function(a)
@@ -159,7 +159,7 @@ ChronoshiftAlliedUnits = function()
 	local cells = Utils.ExpandFootprint({ ChronoshiftLocation.Location }, false)
 	local units = { }
 	for i = 1, #cells do
-		local unit = Actor.Create("2tnk", true, { Owner = america, Facing = Angle.North })
+		local unit = Actor.Create("abrams", true, { Owner = america, Facing = Angle.North })
 		BindActorTriggers(unit)
 		units[unit] = cells[i]
 	end
@@ -188,9 +188,9 @@ WorldLoaded = function()
 	InsertAlliedChinookReinforcements(Chinook1Entry, HeliPad1)
 	InsertAlliedChinookReinforcements(Chinook2Entry, HeliPad2)
 	powerproxy = Actor.Create(ProxyType, false, { Owner = russia })
-	ParadropSovietUnits()
-	Trigger.AfterDelay(DateTime.Seconds(5), ChronoshiftAlliedUnits)
-	Utils.Do(ProducedUnitTypes, ProduceUnits)
+	-- ParadropSovietUnits()
+	-- Trigger.AfterDelay(DateTime.Seconds(5), ChronoshiftAlliedUnits)
+	-- Utils.Do(ProducedUnitTypes, ProduceUnits)
 
 	Trigger.AfterDelay(DateTime.Seconds(30), function() SendMigs(Mig1Waypoints) end)
 	Trigger.AfterDelay(DateTime.Seconds(30), function() SendMigs(Mig2Waypoints) end)

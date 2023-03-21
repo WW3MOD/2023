@@ -21,13 +21,13 @@ AlliedSquad01 = { AlliedSquad01RocketInf01, AlliedSquad01RocketInf02, AlliedSqua
 AlliedSquad02 = { AlliedSquad02RifleInf01, AlliedSquad02RifleInf02, AlliedSquad02RifleInf03, AlliedSquad02RifleInf04, AlliedSquad02RifleInf05, AlliedSquad02RifleInf06, AlliedSquad02RifleInf07, AlliedSquad02RifleInf08, AlliedSquad02RifleInf09 }
 AlliedSquad03 = { AlliedSquad03LTank01, AlliedSquad03RocketInf01, AlliedSquad03RocketInf02, AlliedSquad03RocketInf03 }
 AlliedSquad04 = { AlliedSquad04STRYKERSHORAD01, AlliedSquad04MTank01, AlliedSquad04MTank02, AlliedSquad04MTank03, AlliedSquad04MTank04, AlliedSquad04MTank05, AlliedSquad04Arty01, AlliedSquad04Arty02, AlliedSquad04Arty03 }
-AlliedTanksReinforcement = { "2tnk", "2tnk" }
+AlliedTanksReinforcement = { "abrams", "abrams" }
 if Difficulty == "easy" then
-	AlliedHuntingParty = { "1tnk" }
+	AlliedHuntingPm109 = { "bradley" }
 elseif Difficulty == "normal" then
-	AlliedHuntingParty = { "1tnk", "1tnk" }
+	AlliedHuntingPm109 = { "bradley", "bradley" }
 elseif Difficulty == "hard" then
-	AlliedHuntingParty = { "1tnk", "1tnk", "1tnk" }
+	AlliedHuntingPm109 = { "bradley", "bradley", "bradley" }
 end
 
 --Building Group Setup
@@ -71,19 +71,19 @@ end
 AlliedGroundPatrols = function(a)
 	if a.HasProperty("Hunt") then
 		if a.IsInWorld then
-			a.Patrol({ AlliedHuntingPartyWP02.Location, AlliedHuntingPartyWP03.Location, AlliedHuntingPartyWP04.Location, AlliedHuntingPartyWP05.Location, AlliedHuntingPartyWP06.Location, AlliedHuntingPartyWP07.Location }, false, 50)
+			a.Patrol({ AlliedHuntingPm109WP02.Location, AlliedHuntingPm109WP03.Location, AlliedHuntingPm109WP04.Location, AlliedHuntingPm109WP05.Location, AlliedHuntingPm109WP06.Location, AlliedHuntingPm109WP07.Location }, false, 50)
 		end
 	end
 end
 
-SpawnAlliedHuntingParty = function()
+SpawnAlliedHuntingPm109 = function()
 	Trigger.AfterDelay(DateTime.Minutes(3), function()
 		if BridgeIsIntact then
-			local tanks = Reinforcements.Reinforce(greece, AlliedHuntingParty, { AlliedHuntingPartySpawn.Location, AlliedHuntingPartyWP01.Location,AlliedHuntingPartyWP03.Location, AlliedHuntingPartyWP05.Location }, 0)
+			local tanks = Reinforcements.Reinforce(greece, AlliedHuntingPm109, { AlliedHuntingPm109Spawn.Location, AlliedHuntingPm109WP01.Location,AlliedHuntingPm109WP03.Location, AlliedHuntingPm109WP05.Location }, 0)
 			Utils.Do(tanks, function(units)
 				HuntObjectiveTruck(units)
 			end)
-			SpawnAlliedHuntingParty()
+			SpawnAlliedHuntingPm109()
 		end
 	end)
 end
@@ -134,7 +134,7 @@ WorldLoaded = function()
   end)
 
 --Triggers Setup
-	SpawnAlliedHuntingParty()
+	SpawnAlliedHuntingPm109()
 
 	Trigger.AfterDelay(0, function()
 		local playerrevealcam = Actor.Create("camera", true, { Owner = player, Location = PlayerStartLocation.Location })
@@ -176,8 +176,8 @@ WorldLoaded = function()
 
 	Trigger.OnEnteredFootprint(RevealBridgeTrigger, function(unit, id)
 		if unit.Owner == player then
-			local bridgecamera01 = Actor.Create("camera", true, { Owner = player, Location = AlliedHuntingPartySpawn.Location })
-			local bridgecamera02 = Actor.Create("camera", true, { Owner = player, Location = AlliedHuntingPartyWP01.Location })
+			local bridgecamera01 = Actor.Create("camera", true, { Owner = player, Location = AlliedHuntingPm109Spawn.Location })
+			local bridgecamera02 = Actor.Create("camera", true, { Owner = player, Location = AlliedHuntingPm109WP01.Location })
 			Trigger.AfterDelay(DateTime.Seconds(6), function()
 				if bridgecamera01.IsInWorld then bridgecamera01.Destroy() end
 				if bridgecamera02.IsInWorld then bridgecamera02.Destroy() end
@@ -218,7 +218,7 @@ WorldLoaded = function()
 	end)
 
 	Trigger.AfterDelay(0, function()
-		BridgeEnd = Map.ActorsInBox(AlliedHuntingPartySpawn.CenterPosition, AlliedHuntingPartyWP01.CenterPosition, function(self) return self.Type == "br2" end)[1]
+		BridgeEnd = Map.ActorsInBox(AlliedHuntingPm109Spawn.CenterPosition, AlliedHuntingPm109WP01.CenterPosition, function(self) return self.Type == "br2" end)[1]
 		Trigger.OnKilled(BridgeEnd, function()
 			BridgeIsIntact = false
 			if not BridgeBarrel01.IsDead then BridgeBarrel01.Kill() end
@@ -239,12 +239,12 @@ WorldLoaded = function()
 
 	Trigger.OnAnyKilled(AlliedSquad04, function()
 		if BridgeIsIntact then
-			local tanks = Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPartySpawn.Location, AlliedHuntingPartyWP01.Location }, 0, function(units)
+			local tanks = Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPm109Spawn.Location, AlliedHuntingPm109WP01.Location }, 0, function(units)
 				AlliedGroundPatrols(units)
 			end)
 			Trigger.OnAllKilled(tanks, function()
 				if BridgeIsIntact then
-					Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPartySpawn.Location, AlliedHuntingPartyWP01.Location }, 0, function(units)
+					Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPm109Spawn.Location, AlliedHuntingPm109WP01.Location }, 0, function(units)
 					AlliedGroundPatrols(units)
 					end)
 				end
@@ -254,12 +254,12 @@ WorldLoaded = function()
 
 	Trigger.OnAllKilled(AlliedSquad04, function()
 		if BridgeIsIntact then
-			local tanks = Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPartySpawn.Location, AlliedHuntingPartyWP01.Location }, 0, function(units)
+			local tanks = Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPm109Spawn.Location, AlliedHuntingPm109WP01.Location }, 0, function(units)
 				AlliedGroundPatrols(units)
 			end)
 			Trigger.OnAllKilled(tanks, function()
 				if BridgeIsIntact then
-					Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPartySpawn.Location, AlliedHuntingPartyWP01.Location }, 0, function(units)
+					Reinforcements.Reinforce(greece, AlliedTanksReinforcement, { AlliedHuntingPm109Spawn.Location, AlliedHuntingPm109WP01.Location }, 0, function(units)
 					AlliedGroundPatrols(units)
 					end)
 				end

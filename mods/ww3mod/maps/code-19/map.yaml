@@ -3203,11 +3203,11 @@ Actors:
 	Actor1431: tc01
 		Owner: Neutral
 		Location: 11,4
-	Actor1432: ca
-		Owner: Neutral
-		Facing: 96
-		TurretFacing: 96
-		Location: 8,2
+	# Actor1432: ca
+	# 	Owner: Neutral
+	# 	Facing: 96
+	# 	TurretFacing: 96
+	# 	Location: 8,2
 	Actor1433: ice04
 		Owner: Neutral
 		Location: 9,2
@@ -3220,11 +3220,11 @@ Actors:
 	Actor1436: ice03
 		Owner: Neutral
 		Location: 9,1
-	Actor1437: pt
-		Owner: Neutral
-		Facing: 96
-		TurretFacing: 96
-		Location: 21,1
+	# Actor1437: pt
+	# 	Owner: Neutral
+	# 	Facing: 96
+	# 	TurretFacing: 96
+	# 	Location: 21,1
 	Actor1438: c3
 		Owner: Neutral
 		Facing: 96
@@ -3295,12 +3295,12 @@ Actors:
 		Facing: 96
 		SubCell: 1
 		Location: 123,14
-	Actor1453: dd
-		Owner: Neutral
-		Location: 112,14
-		Facing: 37
-		TurretFacing: 232
-		Stance: HoldFire
+	# Actor1453: dd
+	# 	Owner: Neutral
+	# 	Location: 112,14
+	# 	Facing: 37
+	# 	TurretFacing: 232
+	# 	Stance: HoldFire
 	Actor245: ice01
 		Owner: Neutral
 		Location: 13,21
@@ -3351,15 +3351,15 @@ Actors:
 		Location: 96,3
 		Facing: 110
 		Health: 16
-	Actor1463: ca
-		Owner: Neutral
-		Location: 128,33
-		Facing: 68
-		TurretFacing: 104
-	Actor1464: dd
-		Owner: Neutral
-		Location: 34,4
-		Facing: 174
+	# Actor1463: ca
+	# 	Owner: Neutral
+	# 	Location: 128,33
+	# 	Facing: 68
+	# 	TurretFacing: 104
+	# Actor1464: dd
+	# 	Owner: Neutral
+	# 	Location: 34,4
+	# 	Facing: 174
 		TurretFacing: 146
 	Actor1439: t16
 		Owner: Neutral

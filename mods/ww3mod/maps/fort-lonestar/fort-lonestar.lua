@@ -27,14 +27,14 @@ if Difficulty == "veryeasy" then
 	Infantry = { "e4", "e1", "e1", "e2", "e2" }
 	Vehicles = { "m113" }
 	Tank = { "t72" }
-	LongRange = { "arty" }
+	LongRange = { "m109" }
 	Boss = { "grad" }
 	Swarm = { "shok", "shok", "shok" }
 elseif Difficulty == "easy" then
 	ParaChance = 25
 	Patrol = { "e1", "e2", "e1" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1" }
-	Vehicles = { "tunguska", "m113", "arty" }
+	Vehicles = { "tunguska", "m113", "m109" }
 	Tank = { "t72" }
 	LongRange = { "grad" }
 	Boss = { "tos" }
@@ -43,7 +43,7 @@ elseif Difficulty == "normal" then
 	ParaChance = 30
 	Patrol = { "e1", "e2", "e1", "e1" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1" }
-	Vehicles = { "tunguska", "tunguska", "m113", "arty" }
+	Vehicles = { "tunguska", "tunguska", "m113", "m109" }
 	Tank = { "t72" }
 	LongRange = { "grad" }
 	Boss = { "tos" }
@@ -52,7 +52,7 @@ elseif Difficulty == "hard" then
 	ParaChance = 35
 	Patrol = { "e1", "e2", "e1", "e1", "e4" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1" }
-	Vehicles = { "arty", "tunguska", "tunguska", "m113", "m113" }
+	Vehicles = { "m109", "tunguska", "tunguska", "m113", "m113" }
 	Tank = { "t72" }
 	LongRange = { "grad" }
 	Boss = { "tos" }
@@ -61,7 +61,7 @@ else
 	ParaChance = 40
 	Patrol = { "e1", "e2", "e1", "e1", "e4", "e4" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1", "e1" }
-	Vehicles = { "arty", "arty", "tunguska", "m113", "m113" }
+	Vehicles = { "m109", "m109", "tunguska", "m113", "m113" }
 	Tank = { "tunguska", "t72" }
 	LongRange = { "grad" }
 	Boss = { "tos" }

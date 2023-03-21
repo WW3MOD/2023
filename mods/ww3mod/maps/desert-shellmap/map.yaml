@@ -236,7 +236,7 @@ Actors:
 	Actor72: brik
 		Location: 87,70
 		Owner: America
-	Actor253: arty
+	Actor253: m109
 		Location: 44,68
 		Owner: America
 	Actor64: brik
@@ -248,14 +248,14 @@ Actors:
 	Actor116: mine
 		Location: 78,21
 		Owner: Neutral
-	Actor93: ca
-		Location: 20,86
-		Owner: America
-		Facing: 256
-	Actor94: ca
-		Location: 40,90
-		Owner: America
-		Facing: 256
+	# Actor93: ca
+	# 	Location: 20,86
+	# 	Owner: America
+	# 	Facing: 256
+	# Actor94: ca
+	# 	Location: 40,90
+	# 	Owner: America
+	# 	Facing: 256
 	Actor95: rock6
 		Location: 10,76
 		Owner: Neutral
@@ -485,20 +485,20 @@ Actors:
 	Actor213: brik
 		Location: 60,80
 		Owner: America
-	Actor196: pt
-		Location: 55,92
-		Owner: America
-		Facing: 640
+	# Actor196: pt
+	# 	Location: 55,92
+	# 	Owner: America
+	# 	Facing: 640
 	Actor183: rock2
 		Location: 93,41
 		Owner: Neutral
 	Actor185: t72
 		Location: 105,47
 		Owner: Russia
-	Actor197: dd
-		Location: 30,88
-		Owner: America
-		Facing: 256
+	# Actor197: dd
+	# 	Location: 30,88
+	# 	Owner: America
+	# 	Facing: 256
 	Actor199: e1
 		Location: 72,83
 		Owner: America
@@ -556,17 +556,17 @@ Actors:
 	Actor38: brik
 		Location: 72,67
 		Owner: America
-	Actor208: e7
-		Location: 39,81
-		Owner: America
-		Facing: 256
+	# Actor208: e7
+	# 	Location: 39,81
+	# 	Owner: America
+	# 	Facing: 256
 	Actor209: e1
 		Location: 41,79
 		Owner: America
 	Actor210: e1
 		Location: 46,80
 		Owner: America
-	Actor211: jeep
+	Actor211: humvee
 		Location: 41,82
 		Owner: America
 		Facing: 360
@@ -621,7 +621,7 @@ Actors:
 	Actor302: brik
 		Location: 41,75
 		Owner: America
-	Actor295: jeep
+	Actor295: humvee
 		Location: 37,67
 		Owner: America
 		Facing: 256
@@ -653,11 +653,11 @@ Actors:
 	Actor245: sbag
 		Location: 58,63
 		Owner: America
-	Actor249: arty
+	Actor249: m109
 		Location: 57,63
 		Owner: America
 		Facing: 960
-	Actor248: arty
+	Actor248: m109
 		Location: 54,63
 		Owner: America
 		Facing: 64
@@ -777,7 +777,7 @@ Actors:
 		Location: 44,65
 		Owner: America
 		Facing: 120
-	Actor236: jeep
+	Actor236: humvee
 		Location: 45,62
 		Owner: America
 		Facing: 64
@@ -788,7 +788,7 @@ Actors:
 	Actor224: abrams
 		Location: 41,62
 		Owner: America
-	Actor237: jeep
+	Actor237: humvee
 		Location: 63,63
 		Owner: America
 	Actor304: e1
@@ -848,7 +848,7 @@ Actors:
 	Actor165: powr
 		Location: 50,74
 		Owner: America
-	Actor257: arty
+	Actor257: m109
 		Location: 72,68
 		Owner: America
 	Actor344: e1
@@ -1152,7 +1152,7 @@ Actors:
 	SovietBarracks3: barr
 		Location: 41,27
 		Owner: Russia
-	IronCurtain: iron
+	IronCurtain: tsla
 		Location: 110,40
 		Owner: Russia
 	AlliedTechnologyCenter: miss

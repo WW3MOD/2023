@@ -770,15 +770,15 @@ Actors:
 		Location: 41,35
 		Owner: USSR
 		Facing: 124
-	Actor241: jeep
+	Actor241: humvee
 		Location: 23,20
 		Owner: America
 		Facing: 636
-	Actor242: jeep
+	Actor242: humvee
 		Location: 21,22
 		Owner: America
 		Facing: 636
-	Actor243: arty
+	Actor243: m109
 		Location: 19,18
 		Owner: America
 		Facing: 636
