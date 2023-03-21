@@ -183,8 +183,8 @@ littlebird:
 		Offset: 0,0,85
 		Sequence: slow-rotor
 		RequiresCondition: !airborne
-	SmokeTrailWhenDamaged:
-		Offset: -427,0,0
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -427,0,0
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	WithRangeCircle@1:
@@ -332,8 +332,8 @@ HELI:
 	SpawnActorOnDeath@EMPEmpty:
 		Actor: HELI.Husk.EMP.Empty
 		RequiresCondition: airborne && !ammo-secondary && empdisable
-	SmokeTrailWhenDamaged:
-		Offset: -427,0,0
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -427,0,0
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	RenderSprites:
@@ -439,9 +439,9 @@ A10:
 		Condition: firing-gun
 	SpawnActorOnDeath:
 		Actor: A10.Husk
-	SmokeTrailWhenDamaged:
-		Offset: -853,0,171
-		Interval: 2
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -853,0,171
+	# 	Interval: 2
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	RenderSprites:
@@ -536,9 +536,9 @@ F16:
 		Offset: -598,-683,0
 	Contrail@2:
 		Offset: -598,683,0
-	SmokeTrailWhenDamaged:
-		Offset: -853,0,171
-		Interval: 2
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -853,0,171
+	# 	Interval: 2
 	SpawnActorOnDeath:
 		Actor: F16.Husk
 		RequiresCondition: airborne

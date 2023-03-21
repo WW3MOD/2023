@@ -277,8 +277,8 @@ Player:
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
 	# 	Icon: paratroopers
 	# 	ChargeInterval: 7500
-	# 	Description: Paratroopers
-	# 	LongDesc: A Badger drops a squad of Veteran infantry\nanywhere on the map.
+	# 	Name: Paratroopers
+	# 	Description: A Badger drops a squad of Veteran infantry\nanywhere on the map.
 	# 	DropItems: E1R1,E1R1,E1R1,E3R1,E1R1,E3R1,E1R1,E1R1
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -302,8 +302,8 @@ Player:
 	# 	RequiresCondition: america.player
 	# 	Icon: paratroopers
 	# 	ChargeInterval: 7500
-	# 	Description: Paratroopers
-	# 	LongDesc: A B-52 drops a squad of Veteran infantry\nanywhere on the map.
+	# 	Name: Paratroopers
+	# 	Description: A B-52 drops a squad of Veteran infantry\nanywhere on the map.
 	# 	DropItems: E1R1,E1R1,E1R1,E3R1,E1R1,E3R1,E1R1,E1R1
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -326,8 +326,8 @@ Player:
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
 	# 	Icon: paratroopers
 	# 	ChargeInterval: 3750
-	# 	Description: Paratroopers
-	# 	LongDesc: A Badger drops a squad of Veteran infantry\nanywhere on the map.
+	# 	Name: Paratroopers
+	# 	Description: A Badger drops a squad of Veteran infantry\nanywhere on the map.
 	# 	DropItems: E1R1,E1R1,E1R1,E3R1,E2R1,E2R1,E1R1,E1R1
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -350,8 +350,8 @@ Player:
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
 	# 	Icon: paragren
 	# 	ChargeInterval: 7500
-	# 	Description: Paragrenadiers
-	# 	LongDesc: A Badger drops four Grenadiers anywhere on the map.
+	# 	Name: Paragrenadiers
+	# 	Description: A Badger drops four Grenadiers anywhere on the map.
 	# 	DropItems: E2R1,E2R1,E2R1,E2R1,E1R1,E1R1,E1R1
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -373,8 +373,8 @@ Player:
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
 	# 	Icon: paramines
 	# 	ChargeInterval: 7500
-	# 	Description: Paramines
-	# 	LongDesc: A Badger drops one Minelayer anywhere on the map.
+	# 	Name: Paramines
+	# 	Description: A Badger drops one Minelayer anywhere on the map.
 	# 	DropItems: MNLY
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -396,8 +396,8 @@ Player:
 	# 	Prerequisites: aircraft.america, player.america, ~techlevel.unrestricted
 	# 	Icon: parajeep
 	# 	ChargeInterval: 7500
-	# 	Description: Parascout
-	# 	LongDesc: A B-52 drops 2 veteran Jeeps anywhere on the map.
+	# 	Name: Parascout
+	# 	Description: A B-52 drops 2 veteran Jeeps anywhere on the map.
 	# 	DropItems: humvee
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -420,8 +420,8 @@ Player:
 	# 	Prerequisites: aircraft.america, fix, player.america, ~techlevel.unrestricted
 	# 	Icon: paratanks
 	# 	ChargeInterval: 7500
-	# 	Description: Paratanks
-	# 	LongDesc: A B-52 drops an Veteran squad of two Light\nand a Medium Tank anywhere on the map.\nThose tanks are standard pattern.
+	# 	Name: Paratanks
+	# 	Description: A B-52 drops an Veteran squad of two Light\nand a Medium Tank anywhere on the map.\nThose tanks are standard pattern.
 	# 	DropItems: 1TNK.R1, 2TNK.R1, 1TNK.R1
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -444,8 +444,8 @@ Player:
 	# 	Prerequisites:
 	# 	Icon: spyplane
 	# 	ChargeInterval: 2750
-	# 	Description: Spy Plane
-	# 	LongDesc: Reveals an area of the map\nand cloaked enemy units.
+	# 	Name: Spy Plane
+	# 	Description: Reveals an area of the map\nand cloaked enemy units.
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	EndChargeSpeechNotification: SpyPlaneReady
 	# 	CameraActor: camera.spyplane
@@ -465,8 +465,8 @@ Player:
 	# 	Prerequisites:
 	# 	Icon: spyplane
 	# 	ChargeInterval: 2750
-	# 	Description: Spy Plane (x2)
-	# 	LongDesc: Reveals an area of the map\nand cloaked enemy units.
+	# 	Name: Spy Plane (x2)
+	# 	Description: Reveals an area of the map\nand cloaked enemy units.
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	EndChargeSpeechNotification: SpyPlaneReady
 	# 	CameraActor: camera.spyplane
@@ -487,8 +487,8 @@ Player:
 	# 	Prerequisites:
 	# 	Icon: lpsummon
 	# 	ChargeInterval: 4500
-	# 	Description: Spy Mast
-	# 	LongDesc: Deploys a Spy Mast anywhere on the map.\nProvides vision and detects cloaked units nearby.\nIt can be disguised to appear as an Tree to the enemy.
+	# 	Name: Spy Mast
+	# 	Description: Deploys a Spy Mast anywhere on the map.\nProvides vision and detects cloaked units nearby.\nIt can be disguised to appear as an Tree to the enemy.
 	# 	DropItems: spmst.summon
 	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
 	# 	SelectTargetSpeechNotification: SelectTarget
@@ -511,8 +511,8 @@ Player:
 	# 	ChargeInterval: 50
 	# 	SquadSize: 1
 	# 	QuantizedFacings: 8
-	# 	Description: Precision Strike
-	# 	LongDesc: A Precision Bomber delivers an Rocket Barrage on target.
+	# 	Name: Precision Strike
+	# 	Description: A Precision Bomber delivers an Rocket Barrage on target.
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	UnitType: u2
 	# 	CameraActor: camera.paradrop
@@ -531,8 +531,8 @@ Player:
 	# 	Prerequisites:
 	# 	Icon: parabombs
 	# 	ChargeInterval: 7500
-	# 	Description: Parabombs
-	# 	LongDesc: A squad of Badgers drop parachuted\nbombs on your target.
+	# 	Name: Parabombs
+	# 	Description: A squad of Badgers drop parachuted\nbombs on your target.
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	CameraActor: camera
 	# 	CameraRemoveDelay: 150
@@ -557,8 +557,8 @@ Player:
 	# 	ChargeInterval: 7500
 	# 	SquadSize: 1
 	# 	QuantizedFacings: 8
-	# 	Description: EMP Bomb
-	# 	LongDesc: A fast plane drops an EMP Bomb on your target,\nthat disables Vehicles, Buildings and Ships.\nDisabled units cannot move or shoot for a while.\nUncloaks hidden units, Submarines will resurface.
+	# 	Name: EMP Bomb
+	# 	Description: A fast plane drops an EMP Bomb on your target,\nthat disables Vehicles, Buildings and Ships.\nDisabled units cannot move or shoot for a while.\nUncloaks hidden units, Submarines will resurface.
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	UnitType: smig
 	# 	CameraActor: camera.paradrop
@@ -577,8 +577,8 @@ Player:
 	# 	Prerequisites:
 	# 	Icon: v2bdgricon
 	# 	ChargeInterval: 7500
-	# 	Description: V2 Missile Strike
-	# 	LongDesc: A Badger fires two V2 rockets on your target.
+	# 	Name: V2 Missile Strike
+	# 	Description: A Badger fires two V2 rockets on your target.
 	# 	SquadSize: 1
 	# 	QuantizedFacings: 8
 	# 	SelectTargetSpeechNotification: SelectTarget

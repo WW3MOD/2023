@@ -97,6 +97,7 @@ namespace OpenRA.Traits
 		// Per-cell count of each source type, used to resolve the final cell type
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
 		readonly ProjectedCellLayer<short> visibleCount;
+		readonly ProjectedCellLayer<short> radarCount;
 		readonly ProjectedCellLayer<short> generatedShroudCount;
 		readonly ProjectedCellLayer<bool> explored;
 		readonly ProjectedCellLayer<bool> touched;
@@ -137,6 +138,7 @@ namespace OpenRA.Traits
 			this.info = info;
 			map = self.World.Map;
 
+			radarCount = new ProjectedCellLayer<short>(map);
 			passiveVisibleCount = new ProjectedCellLayer<short>(map);
 			visibleCount = new ProjectedCellLayer<short>(map);
 			generatedShroudCount = new ProjectedCellLayer<short>(map);
@@ -287,6 +289,9 @@ namespace OpenRA.Traits
 						shroudGenerationEnabled = true;
 						generatedShroudCount[index]++;
 						break;
+					case SourceType.Radar:
+						radarCount[index]++;
+						break;
 				}
 			}
 		}
@@ -314,6 +319,9 @@ namespace OpenRA.Traits
 							break;
 						case SourceType.Shroud:
 							generatedShroudCount[index]--;
+							break;
+						case SourceType.Radar:
+							radarCount[index]--;
 							break;
 					}
 				}
@@ -410,6 +418,16 @@ namespace OpenRA.Traits
 				return map.Contains(puv);
 
 			return resolvedType.Contains(puv) && resolvedType[puv] > ShroudCellType.Shroud;
+		}
+
+		public bool RadarCover(WPos pos)
+		{
+			return RadarCover(map.ProjectedCellCovering(pos));
+		}
+
+		public bool RadarCover(PPos puv)
+		{
+			return radarCount.Contains(puv) && radarCount[puv] > 0;
 		}
 
 		public bool IsVisible(WPos pos)

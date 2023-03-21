@@ -164,8 +164,8 @@ HIND:
 	WithIdleOverlay@ROTORGROUND:
 		Sequence: slow-rotor
 		RequiresCondition: !airborne
-	SmokeTrailWhenDamaged:
-		Offset: -427,0,0
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -427,0,0
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	SpawnActorOnDeath:
@@ -322,8 +322,8 @@ MI28:
 	SpawnActorOnDeath@EMPEmpty:
 		Actor: MI28.Husk.EMP.Empty
 		RequiresCondition: airborne && !ammo-secondary && empdisable
-	SmokeTrailWhenDamaged:
-		Offset: -427,0,0
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -427,0,0
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	RenderSprites:
@@ -337,7 +337,7 @@ FROG:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 4
-		Prerequisites: ~afld, ~aircraft.russia, 
+		Prerequisites: ~afld, ~aircraft.russia,
 		Description: Ground-Attack Plane
 	Valued:
 		Cost: 4000
@@ -414,7 +414,7 @@ FROG:
 
 	# 	RequiresSelection: true
 	# 	AmmoPools: primary-ammo
-	
+
 	Contrail@1:
 		Offset: -258,-723,0
 		TrailLength: 10
@@ -425,9 +425,9 @@ FROG:
 		TrailLength: 10
 		TrailWidth: 48
 		UsePlayerColor: false
-	SmokeTrailWhenDamaged:
-		Offset: -853,0,0
-		Interval: 2
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -853,0,0
+	# 	Interval: 2
 	SpawnActorOnDeath:
 		Actor: FROG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable
@@ -551,9 +551,9 @@ MIG:
 		TrailLength: 6
 		TrailWidth: 48
 		UsePlayerColor: false
-	SmokeTrailWhenDamaged:
-		Offset: -853,0,171
-		Interval: 2
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -853,0,171
+	# 	Interval: 2
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
 	SpawnActorOnDeath:

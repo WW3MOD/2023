@@ -159,7 +159,7 @@
 	HitShape:
 		Type: Circle
 			Radius: 8
-	Aircraft: 
+	Aircraft:
 		LandableTerrainTypes: None
 		Crushes: None
 	Targetable@Drone:
@@ -251,12 +251,12 @@ BADR:
 	SpawnActorOnDeath@EMP:
 		Actor: BADR.Husk.EMP
 		RequiresCondition: airborne && empdisable
-	SmokeTrailWhenDamaged@0:
-		Offset: -432,560,0
-		Interval: 2
-	SmokeTrailWhenDamaged@1:
-		Offset: -432,-560,0
-		Interval: 2
+	# SmokeTrailWhenDamaged@0:
+	# 	Offset: -432,560,0
+	# 	Interval: 2
+	# SmokeTrailWhenDamaged@1:
+	# 	Offset: -432,-560,0
+	# 	Interval: 2
 	RejectsOrders:
 	GivesExperience:
 		Experience: 1000

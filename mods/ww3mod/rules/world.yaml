@@ -273,6 +273,9 @@ World:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
+	# DomainIndex:
+	PathFinderOverlay:
+	HierarchicalPathFinderOverlay:
 	PlayerCommands:
 	HelpCommand:
 	ScreenShaker:
@@ -291,7 +294,6 @@ World:
 		WaterChance: 0
 		InitialSpawnDelay: 3000
 		CheckboxDisplayOrder: 1
-	DomainIndex:
 	SmudgeLayer@SCORCH:
 		Type: Scorch
 		Sequence: scorches
@@ -365,9 +367,9 @@ World:
 		TechLevelDropdownDisplayOrder: 2
 		GameSpeedDropdownDisplayOrder: 3
 		GameSpeed: default
-	CreateMPPlayers:
+	CreateMapPlayers:
 
-	MPStartUnits@All:
+	StartingUnits@All:
 		Class: none
 		ClassName: All units
 		Factions: russia, america
@@ -376,7 +378,7 @@ World:
 		InnerSupportRadius: 3
 		OuterSupportRadius: 6
 
-	MPStartUnits@test_america:
+	StartingUnits@test_america:
 		Class: test
 		ClassName: TEST
 		Factions: america
@@ -384,7 +386,7 @@ World:
 		SupportActors: prsm,prsm,prsm,abrams,bradley,humvee,m113,m109,m270,m270,strykershorad,heli,littlebird,littlebird,littlebird,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,droneop,MT,MT,SF,DOG,DOG,SPY
 		InnerSupportRadius: 3
 		OuterSupportRadius: 6
-	MPStartUnits@test_russia:
+	StartingUnits@test_russia:
 		Class: test
 		ClassName: TEST
 		Factions: russia
@@ -393,7 +395,7 @@ World:
 		InnerSupportRadius: 3
 		OuterSupportRadius: 6
 
-	MPStartUnits@deployed:
+	StartingUnits@deployed:
 		Class: S1
 		ClassName: Conyard
 		Factions: america, russia
@@ -402,7 +404,7 @@ World:
 		InnerSupportRadius: 3
 		OuterSupportRadius: 4
 
-	MPStartUnits@squad_america:
+	StartingUnits@squad_america:
 		Class: S2
 		ClassName: Conyard + Squad
 		Factions: america
@@ -410,7 +412,7 @@ World:
 		SupportActors: TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, AT.america,MEDI.america
 		InnerSupportRadius: 3
 		OuterSupportRadius: 4
-	MPStartUnits@squad_russia:
+	StartingUnits@squad_russia:
 		Class: S2
 		ClassName: Conyard + Squad
 		Factions: russia
@@ -419,7 +421,7 @@ World:
 		InnerSupportRadius: 3
 		OuterSupportRadius: 4
 
-	MPStartUnits@platoon_america:
+	StartingUnits@platoon_america:
 		Class: S3
 		ClassName: Conyard + Platoon
 		Factions: america
@@ -427,7 +429,7 @@ World:
 		SupportActors: TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	MPStartUnits@platoon_russia:
+	StartingUnits@platoon_russia:
 		Class: S3
 		ClassName: Conyard + Platoon
 		Factions: russia
@@ -436,7 +438,7 @@ World:
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-	MPStartUnits@armoured_platoon_america:
+	StartingUnits@armoured_platoon_america:
 		Class: S4
 		ClassName: Conyard + Motorized
 		Factions: america
@@ -444,7 +446,7 @@ World:
 		SupportActors: abrams,abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	MPStartUnits@armoured_platoon_russia:
+	StartingUnits@armoured_platoon_russia:
 		Class: S4
 		ClassName: Conyard + Motorized
 		Factions: russia
@@ -453,7 +455,7 @@ World:
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-	MPStartUnits@armoured_platoon_airsupport_america:
+	StartingUnits@armoured_platoon_airsupport_america:
 		Class: S5
 		ClassName: Conyard + Air support
 		Factions: america
@@ -461,7 +463,7 @@ World:
 		SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	MPStartUnits@armoured_platoon_airsupport_russia:
+	StartingUnits@armoured_platoon_airsupport_russia:
 		Class: S5
 		ClassName: Conyard + Air support
 		Factions: russia
@@ -472,11 +474,11 @@ World:
 
 		# SupportActors: littlebird,iskander,iskander,iskander,e1,e1,e1,e3,e3,e1,e1,e1,e3,e3,e1,e1,e1,e3,e3,tos,tos,giatsint,giatsint,grad,grad,bmp2,t72,abrams,humvee,bradley,m109,m270,m113,e1.russia
 
-	MPStartLocations:
+	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
 		SeparateTeamSpawnsCheckboxVisible: False
 		SeparateTeamSpawnsCheckboxLocked: True
-	SpawnMPUnits:
+	SpawnStartingUnits:
 		DropdownDisplayOrder: 1
 	PathFinder:
 	ValidateOrder:

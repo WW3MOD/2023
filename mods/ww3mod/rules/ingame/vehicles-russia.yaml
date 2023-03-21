@@ -67,7 +67,7 @@ t72:
 	WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: 2TNK.Husk
-		OwnerType: InternalName		
+		OwnerType: InternalName
 	RenderRangeCircle@1:
 		Color: FF0000
 		Alpha: 100
@@ -172,7 +172,7 @@ bmp2:
 		AmmoPools: primary-ammo
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
-		Margin: 8, 6 
+		Margin: 8, 6
 		PipCount: 6
 		RequiresSelection: true
 		FullSequence: pip-green
@@ -425,7 +425,7 @@ tunguska:
 	WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: 2TNK.Husk
-		OwnerType: InternalName		
+		OwnerType: InternalName
 	WithRangeCircle@1:
 		Range: 18c0
 		Color: FFFF00 # Yellow, bullets
@@ -454,10 +454,10 @@ giatsint:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
 		Prerequisites: ~vehicles.russia, ~techlevel.medium
-		Description: 152-mm self-propelled howitzer 
+		Description: 152-mm self-propelled howitzer
 		IconPalette: chrome
 	Tooltip:
-		Name: 2S5 Giatsint-S 
+		Name: 2S5 Giatsint-S
 	Valued:
 		Cost: 1800
 	UpdatesPlayerStatistics:
@@ -543,7 +543,7 @@ grad:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~vehicles.russia, ~techlevel.medium
-		Description: BM-21 Grad long-range rocket artillery. 
+		Description: BM-21 Grad long-range rocket artillery.
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -923,7 +923,7 @@ TTNK:
 		PauseOnCondition: unit.docked
 	Turreted:
 	WithIdleOverlay@SPINNER:
-		Sequence: spinner-not 
+		Sequence: spinner-not
 		RequiresCondition: !is-shooting
 	WithAttackOverlay@ATTACKER:
 		Sequence: spinner
@@ -957,5 +957,5 @@ TTNK:
 
 # Kornet-D: Armored Car with 8 AT missiles
 
-# Shilka: quad-barrel AA 
+# Shilka: quad-barrel AA
 
