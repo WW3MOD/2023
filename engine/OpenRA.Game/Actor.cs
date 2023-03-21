@@ -299,7 +299,7 @@ namespace OpenRA
 			{
 				var dot = DOT[i];
 
-				if (dot.Modulus == 0 || this.World.WorldTick % dot.Modulus == 0)
+				if (dot.Modulus == 0 || World.WorldTick % dot.Modulus == 0)
 				{
 					InflictDamage(this, dot.Damage);
 
