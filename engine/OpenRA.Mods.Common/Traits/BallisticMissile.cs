@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class BallisticMissile : ISync, IFacing, IMove, IPositionable,
 		INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld, IOccupySpace
 	{
-		public static Activity VisualMove(Actor _, WPos _, WPos _)
+		public static Activity VisualMove(Actor _1, WPos _2, WPos _3)
 		{
 			return null;
 		}
@@ -149,7 +149,7 @@ namespace OpenRA.Mods.Common.Traits
 			return FlyStep(MovementSpeed, facing);
 		}
 
-		public WVec FlyStep(int speed, WAngle facing)
+		public static WVec FlyStep(int speed, WAngle facing)
 		{
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromFacing(facing.Facing));
 			return speed * dir / 1024;

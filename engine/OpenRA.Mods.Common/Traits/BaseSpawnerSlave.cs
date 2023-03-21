@@ -9,6 +9,7 @@
 #endregion
 
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -84,7 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.spawnerMaster = spawnerMaster;
 		}
 
-		bool TargetSwitched(Target lastTarget, Target newTarget)
+		static bool TargetSwitched(Target lastTarget, Target newTarget)
 		{
 			if (newTarget.Type != lastTarget.Type)
 				return true;
