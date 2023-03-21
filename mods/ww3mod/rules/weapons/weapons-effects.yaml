@@ -1,0 +1,344 @@
+
+^PiffsEffects:
+	Warhead@PiffEffect: CreateEffect
+		Explosions: piffs
+		ValidTargets: Ground, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: water_piffs
+		ValidTargets: Water
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: true
+
+^PiffEffects:
+	Warhead@PiffEffect: CreateEffect
+		Explosions: piff
+		ValidTargets: Ground, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: water_piff
+		ValidTargets: Water
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: true
+
+^SmallCaliberEffects:
+	Inherits@PiffEffects: ^PiffEffects
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 2
+		Range: 512
+		Duration: 50
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Range: 1c0
+		Duration: 25
+	Warhead@TriggerProne: SpreadDamage
+		ValidTargets: Infantry
+		Delay: 3
+		Spread: 1c0
+		DamageTypes: TriggerProne
+
+^LargeCaliberEffects:
+	Inherits@PiffEffects: ^PiffEffects
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 5
+		Range: 640
+		Duration: 75
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 2
+		Range: 1c256
+		Duration: 50
+	Warhead@TriggerProne: SpreadDamage
+		ValidTargets: Infantry
+		Delay: 3
+		Spread: 1c0
+		DamageTypes: TriggerProne
+
+
+^MinimalPinDownEffects:
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 2
+		Range: 768
+		Duration: 75
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 1
+		Range: 1c512
+		Duration: 50
+	Warhead@TriggerProne: SpreadDamage
+		ValidTargets: Infantry
+		Delay: 3
+		Spread: 1c0
+		DamageTypes: TriggerProne
+
+^SmallPinDownEffects:
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 4
+		Range: 768
+		Duration: 75
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 2
+		Range: 1c512
+		Duration: 50
+	Warhead@TriggerProne: SpreadDamage
+		ValidTargets: Infantry
+		Delay: 3
+		Spread: 1c0
+		DamageTypes: TriggerProne
+
+^MediumPinDownEffects:
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 12
+		Range: 896
+		Duration: 100
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 6
+		Range: 1c768
+		Duration: 75
+	Warhead@PinDown_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 3
+		Range: 2c256
+		Duration: 50
+	Warhead@TriggerProne: SpreadDamage
+		Spread: 2c256
+		ValidTargets: Infantry
+		DamageTypes: TriggerProne
+
+^LargePinDownEffects:
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 32
+		Range: 896
+		Duration: 150
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 16
+		Range: 1c768
+		Duration: 125
+	Warhead@PinDown_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 8
+		Range: 2c256
+		Duration: 100
+	Warhead@PinDown_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 4
+		Range: 3c0
+		Duration: 75
+	Warhead@TriggerProne: SpreadDamage
+		Spread: 3c0
+		ValidTargets: Infantry
+		DamageTypes: TriggerProne
+
+^HugePinDownEffects:
+	Warhead@PinDown: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 64
+		Range: 896
+		Duration: 150
+	Warhead@PinDown_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 32
+		Range: 1c768
+		Duration: 125
+	Warhead@PinDown_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 16
+		Range: 2c256
+		Duration: 100
+	Warhead@PinDown_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 8
+		Range: 3c0
+		Duration: 75
+	Warhead@PinDown_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: pindown
+		Repeat: 4
+		Range: 3c768
+		Duration: 50
+	Warhead@TriggerProne: SpreadDamage
+		Spread: 3c768
+		ValidTargets: Infantry
+		DamageTypes: TriggerProne
+
+^MinimalExplosionEffects:
+	Inherits@SmallPinDownEffects: ^MinimalPinDownEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 1
+		RandomDamage: 100
+		Spread: 96
+		Falloff: 100,50,25,12,6,3,1
+		DamageTypes: Prone30Percent, BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_small
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+		Explosions: splash_small
+
+^SmallExplosionEffects:
+	Inherits@SmallPinDownEffects: ^SmallPinDownEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 1
+		RandomDamage: 100
+		Spread: 128
+		Falloff: 100,50,25,12,6,3,1
+		DamageTypes: Prone30Percent, BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_small
+		# ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+		Explosions: splash_small
+
+^MediumExplosionEffects:
+	Inherits@MediumPinDownEffects: ^MediumPinDownEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 1
+		RandomDamage: 150
+		Spread: 192
+		Falloff: 100,50,25,12,6,3,1
+		DamageTypes: Prone30Percent, BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees
+		Explosions: explosion_medium
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_medium
+		# ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_medium
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^LargeExplosionEffects:
+	Inherits@LargePinDownEffects: ^LargePinDownEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 1
+		RandomDamage: 200
+		Spread: 256
+		Falloff: 100,50,25,12,6,3,1
+		DamageTypes: Prone30Percent, BulletDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom15.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_large
+		# ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^HugeExplosionEffects:
+	Inherits@HugePinDownEffects: ^HugePinDownEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 1
+		RandomDamage: 300
+		Spread: 384
+		Falloff: 100,50,25,12,6,3,1
+		DamageTypes: Prone30Percent, BulletDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@Effect: CreateEffect
+		Explosions: artillery_explosion
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_large
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splashl1.aud, splashl2.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^LargeThermobaricEffects:
+	Warhead@Fire: GrantExternalCondition
+		Range: 3c0
+		Duration: 5
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Effect_1: CreateEffect
+		Explosions: napalm_medium
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Scorch: LeaveSmudge
+		SmudgeType: Scorch
+		Size: 1
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge

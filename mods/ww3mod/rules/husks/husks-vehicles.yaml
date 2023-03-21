@@ -1,0 +1,206 @@
+HARV.FullHusk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Ore Truck)
+	TransformOnCapture:
+		IntoActor: harv
+	InfiltrateForTransform:
+		IntoActor: harv
+	RenderSprites:
+		Image: hhusk
+
+HARV.EmptyHusk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Ore Truck)
+	TransformOnCapture:
+		IntoActor: harv
+	InfiltrateForTransform:
+		IntoActor: harv
+	RenderSprites:
+		Image: hhusk2
+
+HARV.Arabian.FullHusk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Armored Ore Truck)
+	TransformOnCapture:
+		IntoActor: harv
+	InfiltrateForTransform:
+		IntoActor: harv
+	RenderSprites:
+		Image: hhusk.arabian
+
+HARV.Arabian.EmptyHusk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Armored Ore Truck)
+	TransformOnCapture:
+		IntoActor: harv
+	InfiltrateForTransform:
+		IntoActor: harv
+	RenderSprites:
+		Image: hhusk2.arabian
+
+MCV.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (MCV)
+	TransformOnCapture:
+		IntoActor: mcv
+	InfiltrateForTransform:
+		IntoActor: mcv
+	RenderSprites:
+		Image: mcvhusk
+
+MCV2.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (MCV)
+	TransformOnCapture:
+		IntoActor: mcv
+	InfiltrateForTransform:
+		IntoActor: mcv
+	RenderSprites:
+		Image: mcvhusk
+		Scale: 0.8
+
+1TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Light Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: 1tnk
+	InfiltrateForTransform:
+		IntoActor: 1tnk
+	RenderSprites:
+		Image: 1tnk.destroyed
+
+2TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Medium Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: 2tnk
+	InfiltrateForTransform:
+		IntoActor: 2tnk
+	RenderSprites:
+		Image: 2tnk.destroyed
+
+3TNK.1B.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Heavy Tank 1-B)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: 3tnk.1B
+	InfiltrateForTransform:
+		IntoActor: 3tnk.1B
+	RenderSprites:
+		Image: 3tnk.1b.destroyed
+
+3TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Heavy Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: 3tnk
+	InfiltrateForTransform:
+		IntoActor: 3tnk
+	RenderSprites:
+		Image: 3tnk.destroyed
+
+4TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Mammoth Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: 4tnk
+	InfiltrateForTransform:
+		IntoActor: 4tnk
+	RenderSprites:
+		Image: 4tnk.destroyed
+
+5TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Behemoth Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: 5tnk
+	InfiltrateForTransform:
+		IntoActor: 5tnk
+	RenderSprites:
+		Image: 5tnk.destroyed
+
+TNKD.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Tank Destroyer)
+	TransformOnCapture:
+		IntoActor: tnkd
+	InfiltrateForTransform:
+		IntoActor: tnkd
+	RenderSprites:
+		Image: tnkd.destroyed
+
+MGG.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Mobile Gap Generator)
+	ThrowsParticle@spinner:
+		Anim: spinner-idle
+		Offset: -299,0,171
+	TransformOnCapture:
+		IntoActor: mgg
+	InfiltrateForTransform:
+		IntoActor: mgg
+	RenderSprites:
+		Image: mgg.destroyed
+
+RHIN.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Rhino Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: rhin
+	InfiltrateForTransform:
+		IntoActor: rhin
+	RenderSprites:
+		Image: rhin.destroyed
+
+LANS.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Scorpion Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: lans
+	InfiltrateForTransform:
+		IntoActor: lans
+	RenderSprites:
+		Image: lans.destroyed
+
+TNKK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Tank Killer)
+	TransformOnCapture:
+		IntoActor: tnkk
+	InfiltrateForTransform:
+		IntoActor: tnkk
+	RenderSprites:
+		Image: tnkk.destroyed

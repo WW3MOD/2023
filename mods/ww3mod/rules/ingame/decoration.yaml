@@ -1,0 +1,707 @@
+^Tree:
+	Inherits@1: ^SpriteActor
+	Inherits@Shape: ^1x1Shape
+	Inherits@FireMechanic: ^BuildingAffectedByFire
+	BlocksProjectiles:
+		Bypass: 1
+		Height: 256
+	Tree:
+		CrushClasses: tree
+		DetonateClasses: tree
+		AvoidFriendly: false
+		BlockFriendly: false
+	Interactable:
+	Tooltip:
+		Name: Tree
+		ShowOwnerRow: false
+	RenderSprites:
+		Palette: terrain
+	WithSpriteBody:
+	Building:
+		Footprint: x
+		Dimensions: 1,1
+	AppearsOnRadar:
+	RadarColorFromTerrain:
+		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
+	Health:
+		HP: 250
+	Armor:
+		Type: Wood
+	Targetable:
+		TargetTypes: Trees
+	# HiddenUnderShroud:
+	AlwaysVisible:
+	ScriptTriggers:
+	MapEditorData:
+		ExcludeTilesets: INTERIOR
+		Categories: Tree
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+	ProximityExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		Range: 768
+		ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Visible: Always
+	# 	Range: 768
+	# 	# Alpha: 25
+	# 	# Width: 10
+	# 	# Color: 11AA11
+	# 	Alpha: 15
+	# 	Width: 10
+	# 	Color: 11FF11
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	### This one can be used to see the center, disregarding offset
+	# WithRangeCircle@CENTER:
+	# 	Visible: Always
+	# 	Width: 2
+	# 	Alpha: 80
+	# 	Range: 128
+	# 	Color: 11FF11AA
+	# 	ValidRelationships: Neutral, Ally, Enemy
+
+^AmmoBox:
+	Inherits: ^TechBuilding
+	-Selectable:
+	Health:
+		HP: 10
+	Explodes:
+		Weapon: UnitExplode
+	Tooltip:
+		Name: Ammo Box
+	Targetable:
+		TargetTypes: Ground, C4, DetonateAttack, Structure, NoAutoTarget
+	Armor:
+		Type: Light
+	MapEditorData:
+		Categories: Decoration
+	Interactable:
+		Bounds: 24,24
+^Box:
+	Inherits: ^Tree
+	
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: Boxes
+	MapEditorData:
+		-ExcludeTilesets:
+		Categories: Decoration
+	ProximityExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		Range: 1c0
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@ObjectProximity:
+		Range: 1c0
+		Alpha: 30
+		Visible: Always
+		ValidRelationships: Neutral, Ally, Enemy
+^Rock:
+	Inherits@1: ^SpriteActor
+	Interactable:
+	Tooltip:
+		Name: Rock
+		ShowOwnerRow: false
+	RenderSprites:
+		Palette: desert
+	WithSpriteBody:
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	AppearsOnRadar:
+	RadarColorFromTerrain:
+		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
+	# HiddenUnderShroud:
+	AlwaysVisible:
+	ScriptTriggers:
+	MapEditorData:
+		RequireTilesets: DESERT
+		Categories: Decoration
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+	ProximityExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		Range: 1c0
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@ObjectProximity:
+		Range: 1c0
+		Alpha: 30
+		Visible: Always
+		ValidRelationships: Neutral, Ally, Enemy
+
+T01:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T01.Husk
+	Tooltip:
+		Name: T01
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: 0,650,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: 0,650,0
+	# 	Range: 364
+T02:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T02.Husk
+	Tooltip:
+		Name: T02
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -550,760,0
+		Range: 512
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -550,760,0
+	# 	Range: 512
+T03:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T03.Husk
+	Tooltip:
+		Name: T03
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,768,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -512,768,0
+	# 	Range: 364
+T04:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T04.Husk
+	Tooltip:
+		Name: T04
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,768,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -512,768,0
+	# 	Range: 364
+T05:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T05.Husk
+	Tooltip:
+		Name: T05
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -400,450,0
+		Range: 512
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -400,450,0
+	# 	Range: 512
+T06:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T06.Husk
+	Tooltip:
+		Name: T06
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -320,550,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -320,550,0
+	# 	Range: 364
+T07:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T07.Husk
+	Tooltip:
+		Name: T07
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -350,680,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -350,680,0
+	# 	Range: 364
+T08:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: x_
+		Dimensions: 2,1
+	SpawnActorOnDeath:
+		Actor: T08.Husk
+	Tooltip:
+		Name: T08
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -180,100,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -180,100,0
+	# 	Range: 364
+T09:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	MapEditorData:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T09.Husk
+	Tooltip:
+		Name: T09
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -180,100,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -180,100,0
+	# 	Range: 364
+T10:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ xx
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T10.Husk
+	Tooltip:
+		Name: T10
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: 30,680,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: 30,680,0
+	# 	Range: 364
+T11:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ xx
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T11.Husk
+	Tooltip:
+		Name: T11
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -50,650,0
+		Range: 512
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -50,650,0
+	# 	Range: 512
+T12:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T12.Husk
+	Tooltip:
+		Name: T12
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -350,512,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -350,512,0
+	# 	Range: 364
+T13:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T13.Husk
+	Tooltip:
+		Name: T13
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -200,650,0
+		Range: 512
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -200,650,0
+	# 	Range: 512
+T14:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T14.Husk
+	Tooltip:
+		Name: T14
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -165,700,0
+		Range: 364
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -165,700,0
+	# 	Range: 364
+T15:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T15.Husk
+	Tooltip:
+		Name: T15
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -50,750,0
+		Range: 512
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -50,750,0
+	# 	Range: 512
+T16:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T16.Husk
+	Tooltip:
+		Name: T16
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -500,460,0
+		Range: 512
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -500,460,0
+	# 	Range: 512
+T17:
+	Inherits: ^Tree
+	Inherits@SPYMAST: ^DisguiseableTree
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T17.Husk
+	Tooltip:
+		Name: T17
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -256,650,0
+		Range: 400
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -256,650,0
+	# 	Range: 400
+TC01:
+	Inherits: ^Tree
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC01.Husk
+	Tooltip:
+		Name: TC01
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -530,480,0
+		Range: 900
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -530,480,0
+	# 	Range: 900
+TC02:
+	Inherits: ^Tree
+	Building:
+		Footprint: _x_ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC02.Husk
+	Tooltip:
+		Name: TC02
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -350,350,0
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -350,350,0
+	WithRangeCircle@CENTER:
+		Visible: Always
+		Width: 2
+		Alpha: 80
+		Range: 128
+		Color: 11FF11AA
+		ValidRelationships: Neutral, Ally, Enemy
+TC03:
+	Inherits: ^Tree
+	Building:
+		Footprint: xx_ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC03.Husk
+	Tooltip:
+		Name: TC03
+		ShowOwnerRow: false
+	WithRangeCircle@CENTER:
+		Visible: Always
+		Width: 2
+		Alpha: 80
+		Range: 128
+		Color: 11FF11AA
+		ValidRelationships: Neutral, Ally, Enemy
+TC04:
+	Inherits: ^Tree
+	Building:
+		Footprint: ____ xxx_ x___
+		Dimensions: 4,3
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC04.Husk
+	Tooltip:
+		Name: TC04
+		ShowOwnerRow: false
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,64,0
+		Range: 1c128
+	# WithRangeCircle@1_OBJECTPROXIMITY:
+	# 	Offset: -512,64,0
+	# 	Range: 1c128
+TC05:
+	Inherits: ^Tree
+	Building:
+		Footprint: __x_ xxx_ _xx_
+		Dimensions: 4,3
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC05.Husk
+	Tooltip:
+		Name: TC05
+		ShowOwnerRow: false
+	WithRangeCircle@CENTER:
+		Visible: Always
+		Width: 2
+		Alpha: 80
+		Range: 128
+		Color: 11FF11AA
+		ValidRelationships: Neutral, Ally, Enemy
+
+AMMOBOX1:
+	Inherits: ^AmmoBox
+AMMOBOX2:
+	Inherits: ^AmmoBox
+AMMOBOX3:
+	Inherits: ^AmmoBox
+
+BOXES01:
+	Inherits: ^Box
+BOXES02:
+	Inherits: ^Box
+BOXES03:
+	Inherits: ^Box
+BOXES04:
+	Inherits: ^Box
+BOXES05:
+	Inherits: ^Box
+BOXES06:
+	Inherits: ^Box
+BOXES07:
+	Inherits: ^Box
+BOXES08:
+	Inherits: ^Box
+BOXES09:
+	Inherits: ^Box
+
+ICE01:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Tooltip:
+		Name: ICE01
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE02:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: x x
+		Dimensions: 1,2
+	Tooltip:
+		Name: ICE02
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE03:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: xx
+		Dimensions: 2,1
+	Tooltip:
+		Name: ICE03
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE04:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: ICE04
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE05:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: ICE05
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+
+ROCK1:
+	Inherits: ^Rock
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+ROCK2:
+	Inherits: ^Rock
+	Building:
+		Footprint: xx_
+		Dimensions: 3,1
+ROCK3:
+	Inherits: ^Rock
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+ROCK4:
+	Inherits: ^Rock
+	Building:
+		Footprint: x_
+		Dimensions: 2,1
+ROCK5:
+	Inherits: ^Rock
+	Building:
+		Footprint: x_
+		Dimensions: 2,1
+ROCK6:
+	Inherits: ^Rock
+	Building:
+		Footprint: ___ xxx
+		Dimensions: 3,2
+ROCK7:
+	Inherits: ^Rock
+	Building:
+		Footprint: xxxx_
+		Dimensions: 5,1
+
+UTILPOL1:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: Utility Pole
+	MapEditorData:
+		Categories: Decoration
+UTILPOL2:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: Utility Pole
+	MapEditorData:
+		Categories: Decoration
+
+TANKTRAP1:
+	Inherits: ^Rock
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: x
+		Dimensions: 1,1
+	Tooltip:
+		Name: Tank Trap
+	MapEditorData:
+		RequireTilesets: TEMPERAT, SNOW, DESERT, INTERIOR
+TANKTRAP2:
+	Inherits: ^Rock
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: x
+		Dimensions: 1,1
+	Tooltip:
+		Name: Tank Trap
+	MapEditorData:
+		RequireTilesets: TEMPERAT, SNOW, DESERT, INTERIOR

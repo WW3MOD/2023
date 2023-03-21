@@ -89,9 +89,3 @@ MISS:
 		Name: Technology Center
 	-TooltipDescription@ally:
 	-TooltipDescription@other:
-
-HOSP:
-	Tooltip:
-		GenericVisibility: Enemy
-	-TooltipDescription@ally:
-	-TooltipDescription@other:

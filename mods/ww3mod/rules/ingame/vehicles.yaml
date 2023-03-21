@@ -1,0 +1,600 @@
+
+^Vehicle:
+	Inherits@ExistsInWorld: ^ExistsInWorld
+	Inherits@3: ^ClassicFacingSpriteActor
+	Inherits@Bounty: ^GlobalBounty
+	Inherits@Selection: ^SelectableCombatUnit
+	Inherits@AIBoost: ^ProductionAIBoost
+	Inherits@EMPMechanic: ^AffectedByEMP
+	Inherits@Slowdown: ^EffectsWhenDamagedVehicles
+	Inherits@Handicaps: ^PlayerHandicaps
+	Inherits@DamageStates: ^DamageStates
+	Inherits@AmmoDecoration: ^AmmoDecoration
+	Inherits@Detection: ^StandardDetection
+	ExternalCondition@UNITDOCKED:
+		Condition: unit.docked
+	Huntable:
+	OwnerLostAction:
+		Action: Kill
+	DrawLineToTarget:
+	UpdatesPlayerStatistics:
+	Mobile:
+		PauseOnCondition: !(!empdisable && !being-captured)
+		Locomotor: wheeled
+		TurnSpeed: 20
+	SelectionDecorations:
+	WithSpriteControlGroupDecoration:
+	Selectable:
+		Bounds: 24, 24
+	Targetable:
+		RequiresCondition: !parachute
+		TargetTypes: Ground, Vehicle
+	Targetable@EMPTargeting:
+		TargetTypes: EMPTank
+		RequiresCondition: empdisable
+	Targetable@VehicleRepair:
+		RequiresCondition: !parachute && critical-damage
+		TargetTypes: VehicleRepair
+	Repairable:
+		RepairActors: fix
+		PercentageStep: 3
+	Chronoshiftable:
+	Passenger:
+		Weight: 10
+		CargoType: Vehicle
+	AttackMove:
+	HiddenUnderFog:
+	ActorLostNotification:
+	ProximityCaptor:
+		Types: Vehicle
+	GpsDot:
+		String: Vehicle
+	WithDamageOverlay:
+	Guard:
+	Guardable:
+	Tooltip:
+		GenericName: Vehicle
+	CaptureManager:
+		BeingCapturedCondition: being-captured
+	Capturable:
+		Types: vehicle
+		CancelActivity: True
+	CaptureNotification:
+		Notification: UnitStolen
+		LoseNotification: UnitLost
+	MustBeDestroyed:
+	Voiced:
+		VoiceSet: VehicleVoice
+	Parachutable:
+		FallRate: 26
+		KilledOnImpassableTerrain: true
+		ParachutingCondition: parachute
+	WithFacingSpriteBody:
+	WithParachute:
+		ShadowImage: parach-shadow
+		ShadowSequence: idle
+		Image: maxichute
+		Sequence: idle
+		OpeningSequence: open
+		Offset: 0,0,200
+		RequiresCondition: parachute
+	HitShape:
+	EdibleByLeap:
+	TemporaryOwnerManager:
+	MapEditorData:
+		Categories: Vehicle
+	RevealsShroud:
+		# MinRange: 5c0
+		Range: 24c0
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 16c0
+^TrackedVehicle:
+	Inherits@Type: ^Vehicle
+	Mobile:
+		Locomotor: tracked
+	Passenger:
+		Weight: 20
+		CargoType: Vehicle
+^Walker:
+	Inherits: ^Vehicle
+	Tooltip:
+		GenericName: Walker
+	Mobile:
+		Speed: 70
+		Locomotor: walker
+		TurnSpeed: 10
+		PauseOnCondition: empdisable
+	QuantizeFacingsFromSequence:
+		Sequence: stand
+	-WithFacingSpriteBody:
+	WithInfantryBody:
+
+^EffectsWhenDamagedVehicles:
+	SpeedMultiplier@HEAVYDAMAGE:
+		Modifier: 50
+		RequiresCondition: heavy-damage
+	SpeedMultiplier@CRITICALDAMAGE:
+		Modifier: 0
+		RequiresCondition: critical-damage
+
+MCV:
+	Inherits@Type: ^Vehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 102
+		Prerequisites: ~disabled
+		Description: Deploys into Command Center
+	Valued:
+		Cost: 1800
+	Tooltip:
+		Name: Mobile Command Center
+	Selectable:
+		DecorationBounds: 42,42
+	Health:
+		HP: 1000
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 71
+		Locomotor: heavywheeled
+	RevealsShroud:
+		Range: 6c0
+	Transforms:
+		IntoActor: fact
+		Offset: -1,-1
+		Facing: 384
+		TransformSounds: placbldg.aud, build5.aud
+		NoTransformNotification: BuildingCannotPlaceAudio
+		PauseOnCondition: empdisable
+	TransferTimedExternalConditionOnTransform:
+		Condition: invulnerability
+	MustBeDestroyed:
+		RequiredForShortGame: true
+	BaseBuilding:
+	SpawnActorOnDeath:
+		Actor: MCV.Husk
+		OwnerType: InternalName
+	Passenger:
+		Weight: 30
+		CustomPipType: pip-blue
+	GpsDot:
+		String: MCV
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+MCV2:
+	Inherits: MCV
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 102
+		Prerequisites: ~!aitoodumb, ~techlevel.medium
+		Description: Deploys into Field Base
+	Tooltip:
+		Name: Mobile Field Base
+	Transforms:
+		IntoActor: fact2
+		Offset: -1,-1
+		Facing: 384
+		TransformSounds: placbldg.aud, build5.aud
+		NoTransformNotification: BuildingCannotPlaceAudio
+		PauseOnCondition: empdisable
+	Passenger:
+		Weight: 20
+	SpawnActorOnDeath:
+		Actor: MCV2.Husk
+		OwnerType: InternalName
+	RenderSprites:
+		Image: mcv
+		Scale: 0.8
+MCV.ai:
+	Inherits: MCV
+	Buildable:
+		BuildLimit: 2
+		Prerequisites: ~aitoodumb, ~techlevel.medium
+	RenderSprites:
+		Image: mcv
+	-MapEditorData:
+MCV2.ai:
+	Inherits: MCV2
+	Buildable:
+		BuildLimit: 2
+		Prerequisites: ~aitoodumb, ~techlevel.medium
+	RenderSprites:
+		Image: mcv
+	-MapEditorData:
+
+HARV:
+	Inherits@Type: ^Vehicle
+	Inherits@Selection: ^SelectableEconomicUnit
+	-Tooltip:
+	-GpsDot:
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 101
+		Prerequisites: ~techlevel.infonly
+		Description: Collects Ore and Gems for processing.\n  Unarmed
+	Valued:
+		Cost: 600
+	Tooltip@sidebar:
+		Name: Ore Truck
+		RequiresCondition: !produced
+	Tooltip@ingame:
+		Name: Harvester
+		RequiresCondition: produced
+	ExternalCondition@PRODUCED:
+		Condition: produced
+	Selectable:
+		DecorationBounds: 42,42
+	Targetable@ISHARVESTER:
+		TargetTypes: Harvester
+	Harvester:
+		Capacity: 30
+		Resources: Ore,Gems,Scraps
+		BaleUnloadDelay: 1
+		SearchFromProcRadius: 80 # TODO 16-40
+		SearchFromHarvesterRadius: 80 #TODO 8
+		HarvestFacings: 8
+		EmptyCondition: no-ore
+	RevealsShroud:
+		Range: 6c0
+	WithHarvesterPipsDecoration:
+		Position: Bottom
+		Margin: 15, 3
+		RequiresSelection: true
+		PipCount: 9
+		ResourceSequences:
+			Ore: pip-yellow
+			Gems: pip-red
+			Scraps: pip-gray
+	Health:
+		HP: 1500
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 85
+		Locomotor: heavywheeled
+	WithHarvestAnimation:
+	WithDockingAnimation:
+	GpsDot:
+		String: Harvester
+	SpawnActorOnDeath:
+		Actor: HARV.EmptyHusk
+		OwnerType: InternalName
+	HarvesterHuskModifier:
+		FullHuskActor: HARV.FullHusk
+		FullnessThreshold: 50
+	WithHarvesterSpriteBody:
+		ImageByFullness: harvempty, harvhalf, harv
+	-WithFacingSpriteBody:
+	Passenger:
+		CustomPipType: pip-blue
+	ProximityExternalCondition@DOCKED:
+		Condition: dockinprocess
+		Range: 1c0
+		ValidRelationships: Ally
+	ExternalCondition@DOCKED:
+		Condition: docked
+	RejectsOrders:
+		RequiresCondition: docked
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		RequiresCondition: !no-ore
+		Weapon: OreExplosion
+HARV.Crate:
+	Inherits: HARV
+	-Buildable:
+	-Tooltip@sidebar:
+	-Tooltip@ingame:
+	-ExternalCondition@PRODUCED:
+	Tooltip:
+		Name: Harvester
+	RenderSprites:
+		Image: harv
+	-MapEditorData:
+
+TRUK:
+	Inherits@Type: ^Vehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 103
+		Prerequisites: ~techlevel.low
+		Description: Resupplies soldiers
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Supply Truck
+	Health:
+		HP: 500
+	Armor:
+		Type: Unarmored
+	Targetable:
+		TargetTypes: Ground, Vehicle, DemoDisguise, Unarmored
+		RequiresCondition: !parachute
+	Mobile:
+		Speed: 85
+	DeliversCash:
+		Payload: 500
+		Type: MoneyTransfer
+		PlayerExperience: 50
+	Carryable:
+		LocalOffset: 0,0,100
+	Passenger:
+		CustomPipType: pip-blue
+	ProximityExternalCondition@REPLENISHSOLDIERS:
+		Condition: replenish-soldiers
+		Range: 4c0
+		RequiresCondition: !disabled && !mobile
+		ValidRelationships: Ally
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+MNLY:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 104
+		Prerequisites: ~techlevel.medium
+		Description: Carries and lays up to 10 Land Mines\nto destroy unwary enemy units.\nCan detect mines.
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Minelayer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 2500
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	RevealsShroud:
+		Range: 10c0
+	Mobile:
+		Speed: 85
+	Minelayer:
+		Mine: MINV
+		AmmoPoolName: mines-ammo
+		TileUnknownName: build-valid
+		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
+	# MineImmune:
+	AmmoPool:
+		Name: mines-ammo
+		Ammo: 10
+		AmmoCondition: ammo-mines
+		RearmSound: minelay1.aud
+	ReloadAmmoPool:
+		AmmoPool: mines-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 5
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration:
+		Position: Bottom
+		Margin: 7, 3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: mines-ammo
+		RequiresCondition: ammo-mines
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: mines-ammo
+	# DetectCloaked:
+	# 	Range: 4c0
+	# 	CloakTypes: Mine
+	Passenger:
+		CustomPipType: pip-blue
+	RenderSprites:
+		Image: MNLY
+	Carryable:
+		LocalOffset: 0,0,100
+	WithDecoration@AMMO_MINES_NONE:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-ammo-none
+		Position: Top
+		Margin: 0,-5
+		RequiresCondition: !ammo-mines
+		BlinkInterval: 16
+		BlinkPattern: Off, On
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+MSAR:
+	Inherits@Type: ^Vehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Tooltip:
+		Name: Mobile Radar
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 99
+		IconPalette: chrometd
+		Prerequisites: ~techlevel.medium
+		BuildDurationModifier: 50
+		Description: When deployed, detects enemies within a large radius.
+	TooltipExtras:
+		Weaknesses: • Unarmed
+		Attributes: • \n• 
+	Valued:
+		Cost: 1500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 2000
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 72
+		RequireForceMoveCondition: !undeployed
+		ImmovableCondition: deployed
+		RequiresCondition: !deployed
+	RevealsRadar:
+		Range: 42c0
+		RequiresCondition: deployed
+	WithRangeCircle@Radar:
+		Range: 42c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+		RequiresCondition: deployed
+	Repairable:
+		RequireForceMoveCondition: !undeployed
+	Passenger:
+		RequireForceMoveCondition: !undeployed
+	GrantCondition@PreviewWorkaround:
+		Condition: real-actor
+	GrantConditionOnDeploy:
+		PauseOnCondition: empdisable || being-captured
+		DeployedCondition: deployed
+		UndeployedCondition: undeployed
+		Facing: 660
+		AllowedTerrainTypes: Clear, Road, Rough, Ore, Gems
+		DeploySounds: placbldg.aud
+		UndeploySounds: clicky1.aud
+		UndeployOnMove: true
+		UndeployOnPickup: true
+	WithMakeAnimation:
+		BodyNames: deployedbody
+	WithSpriteBody@deployed:
+		Sequence: idle-static
+		RequiresCondition: !undeployed && real-actor
+		Name: deployedbody
+	Carryable:
+		LocalOffset: 0,0,150
+	WithFacingSpriteBody:
+		RequiresCondition: !deployed
+	RenderSprites:
+		Image: msar
+		PlayerPalette: playertd
+	# RangedGpsRadarProvider:
+	# 	Range: 50c0
+	# 	RequiresCondition: deployed && !empdisable
+
+madcat:
+	Inherits@Type: ^Walker
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Tooltip:
+		Name: Madcat
+		GenericName: Madcat walker
+	RenderSprites:
+		Palette: unittem
+		Scale: 0.8
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 1
+		Prerequisites: ~techlevel.futuristic
+		Description: American Main Battle tank
+	Valued:
+		Cost: 2000
+	Health:
+		HP: 10000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	Mobile:
+		Speed: 60
+		TurnSpeed: 10
+	GrantConditionOnMovement@steps:
+		Condition: walker
+	# AmbientSound@step1:
+	# 	SoundFiles: stomp1a.aud, stomp1b.aud, stomp1c.aud
+	# 	Delay: 3
+	# 	Interval: 16
+	# 	RequiresCondition: walker
+	Turreted:
+		TurnSpeed: 20
+	Armament@1:
+		Name: primary
+		Weapon: MadcatGun
+		Recoil: 3
+		RecoilRecovery: 1
+		LocalOffset: 600,500,680, 600,-500,680
+		MuzzleSequence: muzzle-gun
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 300
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: MadcatMissiles
+		LocalOffset: -100,350,1150, -100,-350,1150
+		MuzzleSequence: muzzle-missile
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 30
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 9, 6
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: secondary-ammo
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo, secondary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	# WithShadow:
+	# 	Offset: 0,-500,0
+	RenderRangeCircle:
+		Color: FF0000
+		Width: 1
+		Alpha: 100
+	Selectable:
+		DecorationBounds: 50,70,0,-10
+		Class: madcat
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+

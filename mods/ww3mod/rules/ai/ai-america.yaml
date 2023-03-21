@@ -1,0 +1,273 @@
+Player:
+	SupportPowerBotModule@america:
+		RequiresCondition: enable-ai-player && player.nato
+		Decisions:
+			# UseParatroopers:
+			# 	OrderName: AmericaParatroopers
+			# 	MinimumAttractiveness: 5
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: None
+			# 		CheckRadius: 8c0
+			# 	Consideration@2:
+			# 		Against: Enemy
+			# 		Types: Water
+			# 		Attractiveness: -5
+			# 		TargetMetric: None
+			# 		CheckRadius: 8c0
+			# UseParatanks:
+			# 	OrderName: AmericaParaTanks
+			# 	MinimumAttractiveness: 5
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: None
+			# 		CheckRadius: 8c0
+			# 	Consideration@2:
+			# 		Against: Enemy
+			# 		Types: Water
+			# 		Attractiveness: -5
+			# 		TargetMetric: None
+			# 		CheckRadius: 8c0
+			# UseParascouts:
+			# 	OrderName: AmericaParaScouts
+			# 	MinimumAttractiveness: 5
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: None
+			# 		CheckRadius: 8c0
+			# 	Consideration@2:
+			# 		Against: Enemy
+			# 		Types: Water
+			# 		Attractiveness: -5
+			# 		TargetMetric: None
+			# 		CheckRadius: 8c0
+			# UseNuclear:
+			# 	OrderName: NukeMissile
+			# 	MinimumAttractiveness: 3000
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: Value
+			# 		CheckRadius: 5c0
+			# 	Consideration@2:
+			# 		Against: Ally
+			# 		Types: Air, Ground, Water
+			# 		Attractiveness: -10
+			# 		TargetMetric: Value
+			# 		CheckRadius: 7c0
+			# UsePrecisionStrike:
+			# 	OrderName: PrecisionStrike
+			# 	MinimumAttractiveness: 1
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: None
+			# 		CheckRadius: 1c0
+			# CrateParabombs:
+			# 	OrderName: CrateParabombs
+			# 	MinimumAttractiveness: 1
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: None
+			# 		CheckRadius: 5c0
+			# CrateNuke:
+			# 	OrderName: CrateNuke
+			# 	MinimumAttractiveness: 3000
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: Value
+			# 		CheckRadius: 5c0
+			# 	Consideration@2:
+			# 		Against: Ally
+			# 		Types: Air, Ground, Water
+			# 		Attractiveness: -10
+			# 		TargetMetric: Value
+			# 		CheckRadius: 7c0
+			# UseFakeNuke:
+			# 	OrderName: NukeMissileFake
+			# 	MinimumAttractiveness: 3000
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: Value
+			# 		CheckRadius: 5c0
+			# 	Consideration@2:
+			# 		Against: Ally
+			# 		Types: Air, Ground, Water
+			# 		Attractiveness: -10
+			# 		TargetMetric: Value
+			# 		CheckRadius: 7c0
+			# UseSpyMast:
+			# 	OrderName: ListeningPost
+			# 	MinimumAttractiveness: 5
+			# 	Consideration@1:
+			# 		Against: Enemy
+			# 		Types: Structure
+			# 		Attractiveness: 1
+			# 		TargetMetric: None
+			# 		CheckRadius: 10c0
+			# 	Consideration@2:
+			# 		Against: Enemy
+			# 		Types: Water
+			# 		Attractiveness: -5
+			# 		TargetMetric: None
+			# 		CheckRadius: 10c0
+			# UseDecoyArmy:
+			# 	OrderName: DecoyArmy
+			# 	Consideration@1:
+			# 		Against: Ally
+	BaseBuilderBotModule@america:
+		RequiresCondition: enable-ai-player && player.nato
+		MinimumExcessPower: 50
+		MaximumExcessPower: 160
+		ExcessPowerIncrement: 40
+		ExcessPowerIncreaseThreshold: 4
+		CheckForWaterRadius: 35
+		ConstructionYardTypes: fact
+		RefineryTypes: proc
+		PowerTypes: powr #,apwr
+		BarracksTypes: barr
+		VehiclesFactoryTypes: weap
+		HeliTypes: hpad
+		AirfieldTypes: afld
+		ProductionTypes: barr,weap #,hpad,afld
+		NavalProductionTypes: syrd
+		SiloTypes: silo
+		PlaceDefenseTowardsEnemyChance: 75
+		MaxBaseRadius: 20
+		BuildingFractions:
+			weap: 1
+			fix: 1
+			barr: 2
+			proc: 2
+			pbox: 5
+			gun: 5
+			sam: 3
+		BuildingDelays:
+			pbox: 1000
+			gun: 1000
+			sam: 1000
+			apwr: 3000
+			fix: 3000
+		BuildingLimits:
+
+	UnitBuilderBotModule@america:
+		RequiresCondition: enable-ai-player && player.nato
+		UnitQueues: Vehicle, Infantry
+		UnitDelays:
+			mcv2.ai: 1000
+		UnitsToBuild:
+			harv: 30
+			e1.america: 100
+			e2.america: 30
+			e3.america: 30
+			ar.america: 30
+			tl.america: 25
+			at.america: 25
+			aa.america: 25
+			mt.america: 15
+			sn.america: 10
+			tecn.america: 10
+			medi.america: 10
+			truk: 25
+			abrams: 25
+			bradley: 25
+			humvee: 25
+			m113: 20
+			m109: 20
+			strykershorad: 15
+			m270: 10
+			mcv2.ai: 1
+		UnitLimits:
+			mcv2.ai: 1
+			# harv: 4
+
+	# UnitBuilderBotModule@america.sea:
+	# 	RequiresCondition: enable-ai-player && player.nato && !global-disablenavy
+	# 	IdleBaseUnitsMaximum: 6
+	# 	UnitQueues: Ship
+	# 	UnitsToBuild:
+	# 		pt: 50
+	# 		dd: 30
+	# 		dd.ukraine: 30
+	# 		ca: 20
+	# 		bshp: 15
+	# 	UnitLimits:
+	# 		pt: 8
+	# 		dd: 6
+	# 		dd.ukraine: 6
+	# 		ca: 4
+	# 		bshp: 3
+	# UnitBuilderBotModule@america.air:
+	# 	RequiresCondition: enable-ai-player && player.nato
+	# 	IdleBaseUnitsMaximum: 0
+	# 	UnitQueues: Aircraft
+	# 	UnitDelays:
+	# 		spit: 7500
+	# 	UnitsToBuild:
+	# 		littlebird.ai: 40
+	# 		heli: 60
+	# 		spit: 100
+	# 	UnitLimits:
+	# 		littlebird.ai: 4
+	# 		heli: 6
+	# 		spit: 2
+
+	SquadManagerBotModule@america.land:
+		RequiresCondition: enable-ai-player && player.nato
+		SquadSize: 12
+		SquadSizeRandomBonus: 24
+		RushInterval: 3000
+		AttackScanRadius: 40
+		DangerScanRadius: 25
+		# IncludeInSquadTypes: 
+		ExcludeFromSquadsTypes: tecn.america, harv, harv.crate, mcv, mcv.ai, pt, dd, dd.ukraine, ca, bshp
+		ConstructionYardTypes: fact
+		IgnoredEnemyTargetTypes: IgnoreThis
+	
+	# SquadManagerBotModule@america.sea:
+	# 	RequiresCondition: enable-ai-player && player.nato && !global-disablenavy
+	# 	SquadSize: 4
+	# 	SquadSizeRandomBonus: 8
+	# 	RushInterval: 400
+	# 	AttackScanRadius: 24
+	# 	ExcludeFromSquadsTypes: harv, harv.crate, mcv, mcv.ai, dog, e1, e1.america, e2, e3, e6, e7, medi, mech, jeep, jeep.scout, apc, apc.ukraine, 1tnk, 1tnk.america, 1tnk.europe, 1tnk.ukraine, 2tnk, 2tnk.america, 2tnk.europe, 2tnk.ukraine, arty, arty.europe, gmlrs, msam, mrj, stnk, ctnk, prsm, heli, littlebird.ai, spit, 1tnf, 2tnf, artf
+	# 	NavalUnitsTypes: pt,dd,ca,bshp
+	# 	ConstructionYardTypes: fact
+	# 	NavalProductionTypes: syrd
+	# 	IgnoredEnemyTargetTypes: IgnoreThis
+	# SquadManagerBotModule@america.air:
+	# 	RequiresCondition: enable-ai-player && player.nato
+	# 	SquadSize: 2
+	# 	SquadSizeRandomBonus: 4
+	# 	RushInterval: 800
+	# 	AttackScanRadius: 48
+	# 	ExcludeFromSquadsTypes: harv, harv.crate, mcv, mcv.ai, dog, e1, e1.america, e2, e3, e6, e7, medi, mech, jeep, jeep.scout, apc, apc.ukraine, 1tnk, 1tnk.america, 1tnk.europe. 1tnk.ukraine, 2tnk, 2tnk.america, 2tnk.europe, 2tnk.ukraine, arty, arty.europe, msam, mrj, stnk, ctnk, prsm, pt, dd, dd.ukraine, ca, bshp, 1tnf, 2tnf, artf
+	# 	ConstructionYardTypes: fact
+	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
+	CaptureManagerBotModule@captureenemystructures:
+		RequiresCondition: enable-ai-player && player.nato
+		CapturingActorTypes: e1.america
+		CapturableActorTypes: barr, weap, proc, fact, hpad, fix, dome, gap, syrd, afld, atek, pbox, hbox, gun, gtur, hsam, agun, mslo, spro, 
+		CheckCaptureTargetsForVisibility: true
+		MaximumCaptureTargetOptions: 100
+	CaptureManagerBotModule@tecn:
+		RequiresCondition: enable-ai-player && player.nato
+		CapturingActorTypes: tecn.america
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		CheckCaptureTargetsForVisibility: false
+		MaximumCaptureTargetOptions: 15

@@ -1,0 +1,547 @@
+
+TRAN:
+	Inherits@Type: ^Helicopter
+	Inherits@CargoPips: ^CargoPips
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Helicopter
+		BuildPaletteOrder: 1
+		Prerequisites: ~hpad, ~aircraft.america, ~techlevel.medium
+		Description: Fast Infantry Transport Helicopter.\n  Unarmed
+	Valued:
+		Cost: 1200
+	Tooltip:
+		Name: Chinook
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 600
+	Armor:
+		Type: Light
+	Selectable:
+		DecorationBounds: 40,36
+	Aircraft:
+		TurnSpeed: 20
+		Speed: 160
+		AltitudeVelocity: 0c58
+	WithIdleOverlay@ROTOR1AIR:
+		Offset: 597,0,213
+		Sequence: rotor
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTOR1GROUND:
+		Offset: 597,0,213
+		Sequence: slow-rotor
+		RequiresCondition: !airborne
+	WithIdleOverlay@ROTOR2AIR:
+		Offset: -597,0,341
+		Sequence: rotor2
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTOR2GROUND:
+		Offset: -597,0,341
+		Sequence: slow-rotor2
+		RequiresCondition: !airborne
+	Cargo:
+		Types: Infantry
+		MaxWeight: 36
+		AfterUnloadDelay: 40
+		LoadedCondition: loaded
+	WithCargoPipsDecoration:
+		PipCount: 12
+		Margin: 29, 5
+	SpawnActorOnDeath:
+		Actor: TRAN.Husk
+		RequiresCondition: airborne && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: TRAN.Husk.EMP
+		RequiresCondition: airborne && empdisable
+	RenderSprites:
+		Scale: 1.25
+
+littlebird:
+	Inherits@Type: ^Helicopter
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Inherits@CargoPips: ^CargoPips
+	RenderSprites:
+		Image: littlebird
+		PlayerPalette: playertd
+		IconPalette: temptd
+		Scale: 0.6
+	AutoTarget:
+		InitialStance: Defend
+		InitialStanceAI: Defend
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Helicopter
+		BuildPaletteOrder: 2
+		Prerequisites: ~hpad, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
+		Description: Light helicopter armed with dual chainguns.
+	Tooltip:
+		Name: Littlebird
+	Valued:
+		Cost: 1500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 300
+	Armor:
+		Type: Light
+	Aircraft:
+		WaitDistanceFromResupplyBase: 4c0
+		TakeOffOnResupply: true
+		InitialFacing: 224
+		TurnSpeed: 32
+		Speed: 176
+		LandableTerrainTypes: Clear,Rough,Road,Ore,Beach,Gems
+	AttackAircraft:
+		Armaments: primary, secondary, secondary-air
+		FacingTolerance: 60
+		PersistentTargeting: false
+		AttackType: Hover
+		OpportunityFire: True
+	Armament@1:
+		Name: primary
+		Weapon: 7.62mmMinigun
+		LocalOffset: 150,150,-85, 150,-150,-85
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary, primary-air
+		Ammo: 160
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 4
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		AmmoPools: primary-ammo
+		Position: Bottom
+		Margin: 5, 6
+		PipCount: 4
+		FullSequence: pip-yellow
+		RequiresSelection: true
+	Armament@2:
+		Name: secondary
+		Weapon: HellfireAG
+		LocalOffset: 0,-640,0, 0,640,0
+		LocalYaw: -40, 24
+		PauseOnCondition: !ammo-secondary
+	Armament@2-air:
+		Name: secondary-air
+		Weapon: HellfireAA
+		LocalOffset: 0,-640,0, 0,640,0
+		LocalYaw: -40, 24
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary, secondary-air
+		Ammo: 2
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 2
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		AmmoPools: secondary-ammo
+		Position: Bottom
+		Margin: 1, 3
+		PipCount: 2
+		FullSequence: pip-green
+		RequiresSelection: true
+	Rearmable:
+		RearmActors: hpad, carr.deployed
+		AmmoPools: primary-ammo, secondary-ammo
+	WithMuzzleOverlay:
+	Cargo:
+		Types: Infantry
+		MaxWeight: 4
+		AfterUnloadDelay: 40
+		LoadedCondition: loaded
+	WithCargoPipsDecoration:
+		Margin: 5, 5
+	SpawnActorOnDeath:
+		Actor: littlebird.Husk
+		RequiresCondition: airborne && ammo-secondary && !empdisable
+	SpawnActorOnDeath@Empty:
+		Actor: littlebird.Husk.Empty
+		RequiresCondition: airborne && !ammo-secondary && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: littlebird.Husk.EMP
+		RequiresCondition: airborne && ammo-secondary && empdisable
+	SpawnActorOnDeath@EMPEmpty:
+		Actor: littlebird.Husk.EMP.Empty
+		RequiresCondition: airborne && !ammo-secondary && empdisable
+	WithIdleOverlay@ROTORAIR:
+		Offset: 0,0,85
+		Sequence: rotor
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTORGROUND:
+		Offset: 0,0,85
+		Sequence: slow-rotor
+		RequiresCondition: !airborne
+	SmokeTrailWhenDamaged:
+		Offset: -427,0,0
+	ProducibleWithLevel:
+		Prerequisites: aircraft.upgraded
+	WithRangeCircle@1:
+		Range: 25c0
+		Width: 3
+		Color: 00FFFF # Cyan, antiair & antiground fire
+	WithRangeCircle@3:
+		Range: 12c0
+		Width: 3
+		Color: FFFF00 # Yellow
+	DetectCloaked:
+		Range: 12c0
+	RenderDetectionCircle:
+
+littlebird.AI:
+	Inherits: littlebird
+	Buildable:
+		Prerequisites: ~hpad, ~aircraft.america, ~aitoodumb, ~techlevel.medium
+		Description: Light helicopter armed with dual chainguns.\n
+	AttackAircraft:
+		Armaments: primary, secondary
+	-MapEditorData:
+
+HELI:
+	Inherits@Type: ^Helicopter
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	AutoTarget:
+		InitialStance: Defend
+		InitialStanceAI: Defend
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Helicopter
+		BuildPaletteOrder: 3
+		Prerequisites: ~hpad, ~aircraft.america, ~techlevel.high
+		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.\n  Strong vs Everything\n  Weak vs Anti-Air, Aircraft
+	Tooltip:
+		Name: Apache
+	Valued:
+		Cost: 4000
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Selectable:
+		DecorationBounds: 36,28
+	Health:
+		HP: 800
+	Armor:
+		Type: Heavy
+	Aircraft:
+		TurnSpeed: 24
+		Speed: 165
+	AttackAircraft:
+		FacingTolerance: 60
+		Armaments: primary, secondary, secondary-air
+		PersistentTargeting: false
+		AttackType: Hover
+		OpportunityFire: True
+	Armament@1:
+		Name: primary
+		Weapon: 30mmApacheGun
+		LocalOffset: 250,0,-200
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
+	WithRangeCircle@1:
+		Range: 18c0
+		Width: 3
+		Color: FFFF00 # Yellow
+	WithMuzzleOverlay:
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 200
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 13, 6
+		PipCount: 8
+		FullSequence: pip-yellow
+		RequiresSelection: true
+		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: HellfireAG
+		LocalOffset: 0,213,-85, 0,-213,-85
+		PauseOnCondition: !ammo-secondary
+	Armament@3:
+		Name: secondary-air
+		Weapon: HellfireAA
+		LocalOffset: 0,-213,-85, 0,213,-85
+		PauseOnCondition: !ammo-secondary
+	WithRangeCircle@2:
+		Range: 25c0
+		Width: 3
+		Color: 00FFBB # Cyan, antiair & antiground fire
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary, secondary-air
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 13, 3
+		PipCount: 8
+		FullSequence: pip-green
+		RequiresSelection: true
+		AmmoPools: secondary-ammo
+	Rearmable:
+		RearmActors: hpad, carr.deployed
+		AmmoPools: primary-ammo, secondary-ammo
+	WithIdleOverlay@ROTORAIR:
+		Offset: 0,0,85
+		Sequence: rotor
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTORGROUND:
+		Offset: 0,0,85
+		Sequence: slow-rotor
+		RequiresCondition: !airborne
+	EjectOnDeath@Copilot:
+		PilotActor: E1R1
+		SuccessRate: 80
+		EjectOnGround: false
+		EjectInAir: true
+		AllowUnsuitableCell: true
+		ChuteSound: chute1.aud
+	SpawnActorOnDeath:
+		Actor: HELI.Husk
+		RequiresCondition: airborne && ammo-secondary && !empdisable
+	SpawnActorOnDeath@Empty:
+		Actor: HELI.Husk.Empty
+		RequiresCondition: airborne && !ammo-secondary && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: HELI.Husk.EMP
+		RequiresCondition: airborne && ammo-secondary && empdisable
+	SpawnActorOnDeath@EMPEmpty:
+		Actor: HELI.Husk.EMP.Empty
+		RequiresCondition: airborne && !ammo-secondary && empdisable
+	SmokeTrailWhenDamaged:
+		Offset: -427,0,0
+	ProducibleWithLevel:
+		Prerequisites: aircraft.upgraded
+	RenderSprites:
+		Scale: 1.25
+
+A10:
+	Inherits@Type: ^Plane
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	RenderSprites:
+		PlayerPalette: playertd
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Plane
+		BuildPaletteOrder: 52
+		Prerequisites: ~afld, ~aircraft.america, ~techlevel.high
+		IconPalette: temptd
+		Description: Fast Ground-Attack Plane.
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: Attack Aircraft
+	Health:
+		HP: 800
+	Armor:
+		Type: Medium
+	Aircraft:
+		CruiseAltitude: 2560
+		InitialFacing: 192
+		TurnSpeed: 16
+		Speed: 260
+		RepulsionSpeed: 40
+		MaximumPitch: 65
+	AttackAircraft:
+		FacingTolerance: 0
+	Armament@1:
+		Name: primary
+		Weapon: 30mmA10Gun
+		LocalOffset: 640,0,0
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Ammo: 100
+		AmmoCondition: ammo-primary
+		Armaments: primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 6
+		PipCount: 6
+		FullSequence: pip-yellow
+		RequiresSelection: true
+		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: HellfireAG
+		LocalOffset: 0,-640,0, 0,640,0
+		LocalYaw: -40, 24
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Ammo: 4
+		AmmoCondition: ammo-secondary
+		Armaments: secondary
+	ReloadAmmoPool@1:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 4
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 4
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: secondary-ammo
+	Rearmable:
+		RearmActors: afld, acar.deployed
+		AmmoPools: primary-ammo, secondary-ammo
+	RenderRangeCircle:
+		Width: 3
+	AutoTarget:
+		InitialStance: Defend
+		InitialStanceAI: Defend
+	# ReturnOnIdle:
+	Selectable:
+		Bounds: 36,28,0,2
+		DecorationBounds: 40,29,0,1
+	SelectionDecorations:
+	# Contrail@1:
+	# 	Offset: -640,171,0
+	# 	TrailLength: 6
+	# Contrail@2:
+	# 	Offset: -640,-171,0
+	# 	TrailLength: 6
+	GrantConditionOnAttack:
+		ArmamentNames: secondary
+		Condition: firing-gun
+	SpawnActorOnDeath:
+		Actor: A10.Husk
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,171
+		Interval: 2
+	ProducibleWithLevel:
+		Prerequisites: aircraft.upgraded
+	RenderSprites:
+		Scale: 1.2
+
+F16:
+	Inherits@Type: ^Plane
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Plane
+		BuildPaletteOrder: 51
+		Prerequisites: ~afld, ~aircraft.america, ~techlevel.high
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: F-16 Fighter
+		Description: Fast Multirole Aircraft.
+	Health:
+		HP: 400
+	Armor:
+		Type: Light
+	AttackAircraft:
+		FacingTolerance: 30
+		PersistentTargeting: false
+		OpportunityFire: true
+	Aircraft:
+		CruiseAltitude: 2560
+		InitialFacing: 192
+		TurnSpeed: 16
+		Speed: 350
+		IdleSpeed: 220
+		RepulsionSpeed: 40
+		MaximumPitch: 56
+	AutoTarget:
+		TargetWhenIdle: false
+		TargetWhenDamaged: false
+		EnableStances: false
+	Armament@1:
+		Name: primary
+		Weapon: AirToAirMissile
+		LocalOffset: 0,-340,0, 0,340,0
+		LocalYaw: -40, 24
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		AmmoCondition: ammo-primary
+		Armaments: primary
+		Ammo: 6
+		ReloadDelay: 100
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		AmmoPools: primary-ammo
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		FullSequence: pip-blue
+		RequiresSelection: true
+	Armament@2:
+		Name: secondary
+		Weapon: 20mmCRAM
+		LocalOffset: 256,-213,0
+		# MuzzleSequence: muzzle # Error: Actor type `mig` trait `Armament` field `MuzzleSequence` references an undefined sequence `muzzle` on image `mig`.
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		AmmoCondition: ammo-secondary
+		Armaments: secondary
+		Ammo: 150
+		ReloadDelay: 100
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		AmmoPools: secondary-ammo
+		Position: Bottom
+		Margin: 8, 6
+		PipCount: 6
+		FullSequence: pip-yellow
+		RequiresSelection: true
+	Selectable:
+		Voice: F16Voice
+		Bounds: 40,29,0,1
+	Contrail@1:
+		Offset: -598,-683,0
+	Contrail@2:
+		Offset: -598,683,0
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,171
+		Interval: 2
+	SpawnActorOnDeath:
+		Actor: F16.Husk
+		RequiresCondition: airborne
+	RenderSprites:
+		Image: f16
+		Scale: 1.1

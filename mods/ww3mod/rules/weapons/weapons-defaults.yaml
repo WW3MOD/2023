@@ -1,0 +1,27 @@
+
+^Explosion:
+	ValidTargets: Ground, Water, Air
+	Warhead@Damage: SpreadDamage
+		Spread: 426
+		Damage: 50
+		Versus:
+			None: 90
+			Kevlar: 90
+			Flak: 90
+			Wood: 75
+			Light: 60
+			Heavy: 25
+			Concrete: 100
+		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Structure, Wall, Trees
+	Warhead@Effect: CreateEffect
+		Explosions: self_destruct
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Air, Ship, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge

@@ -69,20 +69,38 @@ MapFolders:
 
 Rules:
 	ww3mod|rules/misc.yaml
-	ww3mod|rules/ai.yaml
+	ww3mod|rules/ai/ai.yaml
+	ww3mod|rules/ai/ai-america.yaml
+	ww3mod|rules/ai/ai-russia.yaml
 	ww3mod|rules/player.yaml
 	ww3mod|rules/palettes.yaml
 	ww3mod|rules/world.yaml
+	ww3mod|rules/temp.yaml
 	ww3mod|rules/defaults.yaml
-	ww3mod|rules/vehicles.yaml
-	ww3mod|rules/husks.yaml
-	ww3mod|rules/structures.yaml
-	ww3mod|rules/infantry.yaml
-	ww3mod|rules/civilian.yaml
-	ww3mod|rules/decoration.yaml
-	ww3mod|rules/aircraft.yaml
-	ww3mod|rules/ships.yaml
-	ww3mod|rules/fakes.yaml
+	ww3mod|rules/ingame/civilian.yaml
+	ww3mod|rules/ingame/decoration.yaml
+	ww3mod|rules/ingame/aircraft.yaml
+	ww3mod|rules/ingame/aircraft-america.yaml
+	ww3mod|rules/ingame/aircraft-russia.yaml
+	ww3mod|rules/husks/husks.yaml
+	ww3mod|rules/husks/husks-neutral.yaml
+	ww3mod|rules/husks/husks-buildings.yaml
+	ww3mod|rules/husks/husks-defenses.yaml
+	ww3mod|rules/husks/husks-vehicles.yaml
+	ww3mod|rules/husks/husks-aircraft.yaml
+	ww3mod|rules/ingame/infantry.yaml
+	ww3mod|rules/ingame/infantry-neutral.yaml
+	ww3mod|rules/ingame/infantry-america.yaml
+	ww3mod|rules/ingame/infantry-russia.yaml
+	ww3mod|rules/ingame/naval.yaml
+	ww3mod|rules/ingame/naval-america.yaml
+	ww3mod|rules/ingame/naval-russia.yaml
+	ww3mod|rules/ingame/structures.yaml
+	ww3mod|rules/ingame/structures-defenses.yaml
+	ww3mod|rules/ingame/structures-neutral.yaml
+	ww3mod|rules/ingame/vehicles.yaml
+	ww3mod|rules/ingame/vehicles-america.yaml
+	ww3mod|rules/ingame/vehicles-russia.yaml
 
 Sequences:
 	ww3mod|sequences/ships.yaml

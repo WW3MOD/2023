@@ -1,0 +1,636 @@
+BADR.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Badger
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 149
+	SmokeTrailWhenDamaged@0:
+		Offset: -432,560,0
+		Interval: 2
+		MinDamage: Undamaged
+	SmokeTrailWhenDamaged@1:
+		Offset: -432,-560,0
+		Interval: 2
+		MinDamage: Undamaged
+	RenderSprites:
+		Image: badr
+	-RevealOnDeath:
+
+BADR.Husk.EMP:
+	Inherits: BADR.Husk
+	Inherits: ^EmpVisualEffect
+
+B52.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: B-52
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 149
+	SmokeTrailWhenDamaged@0:
+		Offset: -432,560,0
+		Interval: 2
+		MinDamage: Undamaged
+	SmokeTrailWhenDamaged@1:
+		Offset: -432,-560,0
+		Interval: 2
+		MinDamage: Undamaged
+	RenderSprites:
+		Image: ally-bdgr
+	-RevealOnDeath:
+
+B52.Husk.EMP:
+	Inherits: B52.Husk
+	Inherits: ^EmpVisualEffect
+
+BULL.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Bull
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 149
+	SmokeTrailWhenDamaged@0:
+		Offset: -432,560,0
+		Interval: 2
+		MinDamage: Undamaged
+	SmokeTrailWhenDamaged@1:
+		Offset: -432,-560,0
+		Interval: 2
+		MinDamage: Undamaged
+	RenderSprites:
+		Image: glabomber
+	-RevealOnDeath:
+
+BULL.Husk.EMP:
+	Inherits: BULL.Husk
+	Inherits: ^EmpVisualEffect
+
+TRAN.Husk.EMP:
+	Inherits: TRAN.Husk
+	Inherits: ^EmpVisualEffect
+
+TRAN.BRICS.Husk:
+	Inherits: TRAN.Husk
+	Tooltip:
+		Name: Yak 24
+
+TRAN.BRICS.Husk.EMP:
+	Inherits: TRAN.BRICS.Husk
+	Inherits: ^EmpVisualEffect
+
+YAK.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Yak Attack Plane
+	Contrail:
+		Offset: -853,0,0
+		UsePlayerColor: false
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 149
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,0
+		Interval: 2
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 9c0
+		Range: 11c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 9c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: yak
+
+YAK.Husk.Empty:
+	Inherits: YAK.Husk
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+YAK.Husk.EMP:
+	Inherits: YAK.Husk
+	Inherits: ^EmpVisualEffect
+
+YAK.Husk.EMP.Empty:
+	Inherits: YAK.Husk
+	Inherits: ^EmpVisualEffect
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+SPIT.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Spitfire Attack Bomber
+	Contrail:
+		UsePlayerColor: false
+		TrailLength: 8
+		TrailWidth: 48
+		Offset: -853,0,0
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 149
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,0
+		Interval: 2
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 9c0
+		Range: 11c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 9c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: ally-yak
+
+SPIT.Husk.Empty:
+	Inherits: SPIT.Husk
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+SPIT.Husk.EMP:
+	Inherits: SPIT.Husk
+	Inherits: ^EmpVisualEffect
+
+SPIT.Husk.EMP.Empty:
+	Inherits: SPIT.Husk
+	Inherits: ^EmpVisualEffect
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+MIG.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: MiG Attack Plane
+	Contrail@1:
+		Offset: -598,-683,0
+		TrailLength: 6
+		TrailWidth: 48
+		UsePlayerColor: false
+	Contrail@2:
+		Offset: -598,683,0
+		TrailLength: 6
+		TrailWidth: 48
+		UsePlayerColor: false
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 186
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,171
+		Interval: 2
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 11c0
+		Range: 13c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 11c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: mig
+		Scale: 1.25
+
+MIG.Husk.Empty:
+	Inherits: MIG.Husk
+	FallsToEarth:
+		Explosion: UnitExplodePlaneEmpty
+
+MIG.Husk.EMP:
+	Inherits: MIG.Husk
+	Inherits: ^EmpVisualEffect
+
+MIG.Husk.EMP.Empty:
+	Inherits: MIG.Husk
+	Inherits: ^EmpVisualEffect	
+	FallsToEarth:
+		Explosion: UnitExplodePlaneEmpty
+
+U2.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Husk (Spy Plane)
+	Aircraft:
+		TurnSpeed: 7
+		Speed: 373
+	Contrail@1:
+		Offset: -725,683,0
+	Contrail@2:
+		Offset: -725,-683,0
+	SmokeTrailWhenDamaged:
+		Offset: -1c43,0,0
+		Interval: 2
+		MinDamage: Undamaged
+	RenderSprites:
+		Image: u2
+
+U2.Husk.EMP:
+	Inherits: U2.Husk
+	Inherits: ^EmpVisualEffect
+
+U2.NATO.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Husk (Precision Bomber)
+	Aircraft:
+		TurnSpeed: 7
+		Speed: 373
+	Contrail@1:
+		Offset: -725,683,0
+	Contrail@2:
+		Offset: -725,-683,0
+	SmokeTrailWhenDamaged:
+		Offset: -1c43,0,0
+		Interval: 2
+		MinDamage: Undamaged
+	RenderSprites:
+		Image: ally-u2
+
+U2.NATO.Husk.EMP:
+	Inherits: U2.NATO.Husk
+	Inherits: ^EmpVisualEffect
+
+TRAN.Husk:
+	Inherits@Type: ^HelicopterHusk
+	Tooltip:
+		Name: Chinook
+	Aircraft:
+		TurnSpeed: 4
+		Speed: 149
+	WithIdleOverlay@PRIMARY:
+		Offset: -597,0,341
+		Sequence: rotor
+	WithIdleOverlay@SECONDARY:
+		Offset: 597,0,213
+		Sequence: rotor2
+	RevealsShroud:
+		MinRange: 6c0
+		Range: 8c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 6c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: tran
+		Scale: 1.25
+
+TRAN.Husk1:
+	Inherits: ^Husk
+	-Capturable:
+	-TransformOnCapture:
+	-InfiltrateForTransform:
+	Tooltip:
+		Name: Husk (Chinook)
+	RenderSprites:
+		Image: tran1husk
+		Scale: 1.25
+
+TRAN.Husk2:
+	Inherits: ^Husk
+	-Capturable:
+	-TransformOnCapture:
+	-InfiltrateForTransform:
+	Tooltip:
+		Name: Husk (Chinook)
+	RenderSprites:
+		Image: tran2husk
+		Scale: 1.25
+
+littlebird.Husk:
+	Inherits@Type: ^HelicopterHusk
+	Tooltip:
+		Name: littlebird
+	Aircraft:
+		TurnSpeed: 4
+		Speed: 112
+	WithIdleOverlay:
+		Sequence: rotor
+	SmokeTrailWhenDamaged:
+		Offset: -427,0,0
+		MinDamage: Undamaged
+	RevealsShroud:
+		Range: 10c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 8c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: littlebird
+		PlayerPalette: playertd
+		Scale: 0.6
+
+littlebird.Husk.Empty:
+	Inherits: littlebird.Husk
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+littlebird.Husk.EMP:
+	Inherits: littlebird.Husk
+	Inherits: ^EmpVisualEffect
+
+littlebird.Husk.EMP.Empty:
+	Inherits: littlebird.Husk
+	Inherits: ^EmpVisualEffect
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+HELI.Husk:
+	Inherits@Type: ^HelicopterHusk
+	Tooltip:
+		Name: Apache
+	Aircraft:
+		TurnSpeed: 4
+		Speed: 149
+	WithIdleOverlay:
+		Offset: 0,0,85
+		Sequence: rotor
+	SmokeTrailWhenDamaged:
+		Offset: -427,0,0
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 10c0
+		Range: 12c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 10c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: heli
+		Scale: 1.25
+
+HELI.Husk.Empty:
+	Inherits: HELI.Husk
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+HELI.Husk.EMP:
+	Inherits: HELI.Husk
+	Inherits: ^EmpVisualEffect
+
+HELI.Husk.EMP.Empty:
+	Inherits: HELI.Husk
+	Inherits: ^EmpVisualEffect
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+
+MI28.Husk:
+	Inherits@Type: ^HelicopterHusk
+	Tooltip:
+		Name: Mi-28
+	Aircraft:
+		TurnSpeed: 4
+		Speed: 149
+	WithIdleOverlay:
+		Offset: 0,0,85
+		Sequence: rotor
+	SmokeTrailWhenDamaged:
+		Offset: -427,0,0
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 10c0
+		Range: 12c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 10c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: heli
+		Scale: 1.2
+
+MI28.Husk.Empty:
+	Inherits: MI28.Husk
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+MI28.Husk.EMP:
+	Inherits: MI28.Husk
+	Inherits: ^EmpVisualEffect
+
+MI28.Husk.EMP.Empty:
+	Inherits: MI28.Husk
+	Inherits: ^EmpVisualEffect
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+# MI2.Husk:
+# 	Inherits@Type: ^HelicopterHusk
+# 	Tooltip:
+# 		Name: MI-2 Scout
+# 	Aircraft:
+# 		TurnSpeed: 4
+# 		Speed: 112
+# 	WithIdleOverlay:
+# 		Sequence: rotor
+# 	SmokeTrailWhenDamaged:
+# 		Offset: -427,0,0
+# 		MinDamage: Undamaged
+# 	RevealsShroud:
+# 		MinRange: 8c0
+# 		Range: 10c0
+# 		Type: GroundPosition
+# 		RevealGeneratedShroud: False
+# 	RevealsShroud@GAPGEN:
+# 		Range: 8c0
+# 		Type: GroundPosition
+# 	RenderSprites:
+# 		Image: mi2
+
+# MI2.Husk.EMP:
+# 	Inherits: MI2.Husk
+# 	Inherits: ^EmpVisualEffect
+
+HIND.Husk:
+	Inherits@Type: ^HelicopterHusk
+	Tooltip:
+		Name: Hind
+	Aircraft:
+		TurnSpeed: 4
+		Speed: 112
+	WithIdleOverlay:
+		Sequence: rotor
+	SmokeTrailWhenDamaged:
+		Offset: -427,0,0
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 8c0
+		Range: 10c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 8c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: hind
+		Scale: 1.3
+
+HIND.Husk.Empty:
+	Inherits: HIND.Husk
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+HIND.Husk.EMP:
+	Inherits: HIND.Husk
+	Inherits: ^EmpVisualEffect
+
+HIND.Husk.EMP.Empty:
+	Inherits: HIND.Husk
+	Inherits: ^EmpVisualEffect
+	FallsToEarth:
+		Explosion: UnitExplodeHeliEmpty
+
+SMIG.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Husk (Special MiG)
+	Aircraft:
+		TurnSpeed: 7
+		Speed: 373
+	Contrail@1:
+		Offset: -725,683,0
+	Contrail@2:
+		Offset: -725,-683,0
+	SmokeTrailWhenDamaged:
+		Offset: -1c43,0,0
+		Interval: 2
+		MinDamage: Undamaged
+	RenderSprites:
+		Image: smig
+
+SMIG.Husk.EMP:
+	Inherits: SMIG.Husk
+	Inherits: ^EmpVisualEffect
+
+FROG.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: Frogfoot Attack Plane
+	Contrail@1:
+		Offset: -258,-723,0
+		TrailLength: 10
+		TrailWidth: 48
+		UsePlayerColor: false
+	Contrail@2:
+		Offset: -258,723,0
+		TrailLength: 10
+		TrailWidth: 48
+		UsePlayerColor: false
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 149
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,0
+		Interval: 2
+		MinDamage: Undamaged
+	RevealsShroud:
+		MinRange: 11c0
+		Range: 13c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 11c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: frog
+		Scale: 1.25
+
+FROG.Husk.Empty:
+	Inherits: FROG.Husk
+	FallsToEarth:
+		Explosion: UnitExplodePlaneEmpty
+
+FROG.Husk.EMP:
+	Inherits: FROG.Husk
+	Inherits: ^EmpVisualEffect
+
+FROG.Husk.EMP.Empty:
+	Inherits: FROG.Husk
+	Inherits: ^EmpVisualEffect	
+	FallsToEarth:
+		Explosion: UnitExplodePlaneEmpty
+
+A10.Husk:
+	Inherits@Type: ^PlaneHusk
+	RenderSprites:
+		PlayerPalette: playertd
+	Tooltip:
+		Name: A-10 Attack Plane
+	Contrail@1:
+		Offset: -640,171,0
+		TrailLength: 15
+	Contrail@2:
+		Offset: -640,-171,0
+		TrailLength: 15
+	Aircraft:
+		TurnSpeed: 5
+		Speed: 186
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,171
+		Interval: 2
+		MinDamage: Undamaged
+	RevealsShroud:
+		Range: 13c0
+		Type: GroundPosition
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 11c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: a10
+		Scale: 1.2
+
+HALO.Husk:
+	Inherits@Type: ^HelicopterHusk
+	Tooltip:
+		Name: Heavy Transport
+	Aircraft:
+		TurnSpeed: 1
+		Speed: 149
+	WithIdleOverlay@PRIMARY:
+		Offset: 260,0,343
+		Sequence: rotor
+	RevealsShroud:
+		Range: 8c0
+		MinRange: 6c0
+		Type: GroundPosition
+		RevealGeneratedShroud: false
+	RevealsShroud@GAPGEN:
+		Range: 6c0
+		Type: GroundPosition
+	RenderSprites:
+		Image: halo
+
+HALO.Husk.EMP:
+	Inherits: HALO.Husk
+	Inherits: ^EmpVisualEffect
+
+F16.Husk:
+	Inherits@Type: ^PlaneHusk
+	Tooltip:
+		Name: F16 Attack Plane
+	WithShadow:
+	Contrail@1:
+		Offset: -598,-683,0
+	Contrail@2:
+		Offset: -598,683,0
+	Aircraft:
+		# ROT: 5
+		Speed: 196
+	SmokeTrailWhenDamaged:
+		Offset: -853,0,171
+		Interval: 2
+		MinDamage: Undamaged
+	RevealsShroud:
+		Range: 12c0
+	RenderSprites:
+		# CameraPitch: 99
+		Image: f16
+		Scale: 1.1

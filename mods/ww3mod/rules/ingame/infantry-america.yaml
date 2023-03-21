@@ -1,0 +1,146 @@
+# Conscript
+E1.america:
+	Inherits: ^E1
+	Buildable:
+		Prerequisites: ~disabled # ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: e1.america
+E1R1.america:
+	Inherits: E1.america
+	-Buildable:
+	Tooltip:
+		Name: Veteran
+	ProducibleWithLevel:
+		Prerequisites: ~disabled
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E1.america
+# Rifleman
+E3.america:
+	Inherits: ^E3	
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: e3.america
+E3R1.america:
+	Inherits: E3.america
+	ProducibleWithLevel:
+		Prerequisites: techlevel.infonly
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E3.america
+	-Buildable:
+# LMG
+AR.america:
+	Inherits: ^AR
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: ar.america
+# Grenadier
+E2.america:
+	Inherits: ^E2
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: e2.america
+E2R1.america:
+	Inherits: E2.america
+	ProducibleWithLevel:
+		Prerequisites: techlevel.infonly
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E2.america
+	-Buildable:
+# Mortar
+MT.america:
+	Inherits: ^MT
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: mt.america
+# Team Leader
+TL.america:
+	Inherits: ^TL
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: tl.america
+# Anti-tank specialist
+AT.america:
+	Inherits: ^AT
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: at.america
+# Anti Air
+AA.america:
+	Inherits: ^AA
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: aa.america
+# Medic
+MEDI.america:
+	Inherits: ^MEDI
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: medi.america
+# Sniper
+SN.america:
+	Inherits: ^SN
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: sn.america
+# Engineer
+E6.america:
+	Inherits: ^E6
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: e6.america
+# Special Forces
+SF.america:
+	Inherits: ^SF
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: sf.america
+# Infiltrating Spy
+SPY.america:
+	Inherits: ^SPY
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: spy.america
+# Attack Dog
+DOG.america:
+	Inherits: ^DOG
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: dog
+# Technician
+TECN.america:
+	Inherits: ^TECN
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: tecn.america
+# Drone Operator
+DRONEOP.america:
+	Inherits: ^DRONEOP
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: droneop.america
+# Flamethrower - 
+E4.america:
+	Inherits: ^E4
+	Buildable:
+		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: e4.america
+

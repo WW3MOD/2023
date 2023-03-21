@@ -1,0 +1,961 @@
+
+t72:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Tooltip:
+		Name: T-72
+		GenericName: MBT
+	RenderSprites:
+		Image: t72
+		Scale: 1.25
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 10
+		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Description: Russian Main Battle Tank
+	Valued:
+		Cost: 1700
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	Health:
+		HP: 4000
+	Mobile:
+		Speed: 67
+		Locomotor: heavytracked
+		TurnSpeed: 10
+		PauseOnCondition: empdisable
+	Turreted:
+		TurnSpeed: 10
+	Armament@1:
+		Name: primary
+		Weapon: 125mmT72Gun
+		# FireDelay: 15
+		Recoil: 85
+		RecoilRecovery: 70
+		LocalOffset: 1300,0,45
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 40
+		AmmoCondition: ammo-primary
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo
+	ReloadAmmoPool:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	SpawnActorOnDeath:
+		Actor: 2TNK.Husk
+		OwnerType: InternalName		
+	RenderRangeCircle@1:
+		Color: FF0000
+		Alpha: 100
+		Width: 2
+	Selectable:
+		Class: MBT
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+bmp2:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@CargoPips: ^CargoPips
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Tooltip:
+		Name: BPM-2
+		GenericName: IFV Troop Carrier
+	# RenderSprites:
+	# 	Image: bmp
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 20
+		Prerequisites: ~vehicles.russia, ~techlevel.low
+		Description: IFV Troop Carrier armed with a 73mm cannon and ATGM
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: BMP-2 IFV
+	Health:
+		HP: 4000
+	Armor:
+		Type: Medium
+	Targetable:
+		TargetTypes: Ground, Vehicle, Medium
+	Mobile:
+		Locomotor: lighttracked-amphbious
+		Speed: 65
+		TurnSpeed: 28
+		PauseOnCondition: empdisable || firing-secondary
+	GrantConditionOnPreparingAttack:
+		ArmamentNames: secondary
+		Condition: firing-secondary
+		RevokeDelay: 100
+		PreparingRevokeDelay: 50
+		AttackingRevokeDelay: 0
+	Turreted:
+		TurnSpeed: 28
+		Offset: -75,10,10
+	Armament@1:
+		Name: primary
+		Weapon: 73mmBmpGun
+		Recoil: 85
+		RecoilRecovery: 25
+		LocalOffset: 500,0,100
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 900
+		AmmoCondition: ammo-primary
+	Armament@2:
+		Name: secondary
+		Weapon: TOW
+		# FireDelay: 50
+		LocalOffset: 100,90,90
+		LocalYaw: -100, 100
+		Recoil: 10
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+	ReloadArmamentsBar:
+		Armaments: secondary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo, secondary-ammo
+	ReloadAmmoPool:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	ReloadAmmoPool:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 8, 6 
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: secondary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+	SpawnActorOnDeath:
+		Actor: 1TNK.Husk
+		OwnerType: InternalName
+	Carryable:
+		LocalOffset: 0,0,100
+	Cargo:
+		Types: Infantry
+		MaxWeight: 7
+		PipCount: 7
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadingCondition: notmobile
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+		Margin: 9, 8
+	Passenger:
+		CustomPipType: pip-green
+	ProducibleWithLevel:
+		Prerequisites: vehicles.upgraded
+	WithRangeCircle@1:
+		Range: 21c0
+		Color: FFFF00
+		Alpha: 100
+	WithRangeCircle@2:
+		Range: 25c0
+		Color: 00FF00
+		Alpha: 100
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+btr:
+	Inherits@Type: ^Vehicle
+	Inherits@CargoPips: ^CargoPips
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAntiInf
+	Tooltip:
+		Name: BTR-80
+		GenericName: Armoured Personnel Carrier
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 4
+		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Description: Amphibious transport. Can transport 8 infantry
+		IconPalette: chrome
+	RenderSprites:
+		Scale: 0.9
+	Valued:
+		Cost: 600
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 3000
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 85
+		Locomotor: lighttracked-amphbious
+		# PauseOnCondition: empdisable || !notmobile
+	Armament@MG:
+		Name: primary
+		Weapon: 12.7mmMG
+		LocalOffset: 300,0,120
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@MG:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 200
+		AmmoCondition: ammo-primary
+		ReloadCount: 20
+	ReloadAmmoPool@MG:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@MG:
+		Position: Bottom
+		Margin: 7, 3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		PauseOnCondition: empdisable
+	Turreted:
+		TurnSpeed: 28
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	Cargo:
+		Types: Infantry
+		MaxWeight: 8
+		LoadedCondition: loaded
+		LoadingCondition: notmobile
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+		Margin: 21, 5
+	Carryable:
+		LocalOffset: 0,0,100
+		RequiresCondition: !loaded
+	Passenger:
+		CustomPipType: pip-green
+	ProducibleWithLevel:
+		Prerequisites: vehicles.upgraded
+	RenderRangeCircle:
+		Alpha: 100
+		Color: FFFF00
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+tunguska:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Tooltip:
+		Name: 2K22 Tunguska
+		GenericName: Mobile AA
+	RenderSprites:
+		Scale: 1.25
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 30
+		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Description: Mobile AA
+	Valued:
+		Cost: 1700
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	Health:
+		HP: 4000
+	Mobile:
+		Speed: 67
+		Locomotor: heavytracked
+		TurnSpeed: 10
+		PauseOnCondition: firing-secondary || empdisable
+	RevealsRadar:
+		Range: 30c0
+	WithRangeCircle@Radar:
+		Range: 30c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+	Turreted:
+		TurnSpeed: 10
+		Offset: -30,0,50
+	Armament@3:
+		Name: primary
+		Weapon: 30mmTunguskaGun.AG
+		Recoil: 30
+		RecoilRecovery: 30
+		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	Armament@1:
+		Name: primary-air
+		Weapon: 30mmTunguskaGun.AA
+		Recoil: 30
+		RecoilRecovery: 30
+		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
+		# LocalOffset: 1000,200,180, 1000,-200,180, 1000,200,280, 1000,-200,280
+		LocalYaw: 0, 100
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	GrantConditionOnPreparingAttack:
+		ArmamentNames: primary
+		Condition: firing-primary
+		# RevokeDelay: 100
+		# PreparingRevokeDelay: 50
+		# AttackingRevokeDelay: 0
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary, tertiary
+		Ammo: 180
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 6
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: 9M311
+		# FireDelay: 30
+		LocalOffset: 500,240,120, 500,-240,120
+		# LocalYaw: -100, 100
+		PauseOnCondition: !ammo-secondary || firing-primary || empdisable
+	GrantConditionOnPreparingAttack:
+		ArmamentNames: secondary
+		Condition: firing-secondary
+		# RevokeDelay: 100
+		# PreparingRevokeDelay: 50
+		# AttackingRevokeDelay: 0
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	ReloadArmamentsBar@2:
+		Armaments: secondary
+		Color: 0000FF
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 5, 3
+		PipCount: 4
+		RequiresSelection: true
+		FullSequence: pip-blue
+		AmmoPools: secondary-ammo
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo, secondary-ammo
+	AttackTurreted:
+		Armaments: primary, primary-air, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	SpawnActorOnDeath:
+		Actor: 2TNK.Husk
+		OwnerType: InternalName		
+	WithRangeCircle@1:
+		Range: 18c0
+		Color: FFFF00 # Yellow, bullets
+		Width: 1
+		Alpha: 100
+	WithRangeCircle@2:
+		Range: 28c0
+		Color: 66B2FF
+		Width: 1
+		Alpha: 100
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+giatsint:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	RenderSprites:
+		Image: giatsint
+		Scale: 1.25
+		# PlayerPalette: playertd
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 40
+		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Description: 152-mm self-propelled howitzer 
+		IconPalette: chrome
+	Tooltip:
+		Name: 2S5 Giatsint-S 
+	Valued:
+		Cost: 1800
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 1500
+	Armor:
+		Type: Medium
+	Targetable:
+		TargetTypes: Ground, Vehicle, Medium
+	-HiddenUnderFog:
+	VisibleWithRadar:
+		Type: GroundPosition
+		PauseOnCondition: !firing
+	RevealsShroud:
+		Range: 10c0
+	Mobile:
+		TurnSpeed: 10
+		Speed: 56
+		Locomotor: lighttracked
+		PauseOnCondition: firing || empdisable
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 100
+	IndirectFire:
+	Armament@1:
+		Weapon: 152mmGiatsintGun
+		# FireDelay: 100
+		Recoil: 85
+		RecoilRecovery: 70
+		MuzzleSequence: muzzle
+		LocalOffset: 800,0,500
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 39
+		AmmoCondition: ammo-primary
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo
+	ReloadAmmoPool:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	WithMuzzleOverlay:
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+		# StopAndWait: 100
+	RenderRangeCircle:
+		Width: 1
+		Alpha: 100
+		Color: FF0000 # Red, explosives
+	Selectable:
+		Class: ARTILLERY
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+grad:
+	Inherits@Type: ^Vehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 50
+		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Description: BM-21 Grad long-range rocket artillery. 
+	Valued:
+		Cost: 1800
+	Tooltip:
+		Name: BM-21 Grad
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 500
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	-HiddenUnderFog:
+	VisibleWithRadar:
+		Type: GroundPosition
+		PauseOnCondition: !firing
+	RevealsShroud:
+		Range: 10c0
+	Mobile:
+		Speed: 50
+		TurnSpeed: 5
+		PauseOnCondition: empdisable
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 150
+	IndirectFire:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+	Armament@1:
+		Weapon: 122mmGradRockets
+		LocalOffset: 0,0,100
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 40
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Turreted:
+		Offset: -300,0,50
+		TurnSpeed: 28
+	AttackTurreted:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+		Scale: 0.5
+		# Sequence: m270
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo
+	Selectable:
+		DecorationBounds: 28,28
+	RenderRangeCircle:
+		Color: FF0000
+		Alpha: 100
+		Width: 1
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+tos:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 60
+		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Description: Thermobaric Multiple Launch Rocket System
+	Valued:
+		Cost: 2500
+	Tooltip:
+		Name: TOS
+	RenderSprites:
+		Scale: 1.25
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 3000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	-HiddenUnderFog:
+	VisibleWithRadar:
+		Type: GroundPosition
+		PauseOnCondition: !firing
+	Mobile:
+		Speed: 50
+		TurnSpeed: 5
+		PauseOnCondition: empdisable
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 150
+	IndirectFire:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+	Armament@1:
+		Weapon: 220mmTOSRockets
+		LocalOffset: 0,0,100
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 24
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Turreted:
+		TurnSpeed: 28
+		Offset: -55,10,10
+	AttackTurreted:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+		Scale: 0.5
+		# Sequence: m270
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo
+	Selectable:
+		DecorationBounds: 28,28
+	RenderRangeCircle:
+		Width: 1
+		Color: FF8000 # Yellow, indirect fire
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+iskander:
+	Inherits@Type: ^Vehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 70
+		Prerequisites: stek, ~vehicles.russia, ~techlevel.high
+		Description: 9K720 Iskander ballistic missile launcher.
+	Valued:
+		Cost: 3500
+	Tooltip:
+		Name: Iskander
+	RenderSprites:
+		Scale: 1.25
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 2000
+	DamageMultiplier@Loaded:
+		RequiresCondition: loaded
+		Modifier: 1000
+	Armor@Normal:
+		RequiresCondition: !loaded
+		Type: Light
+	Armor@Loaded:
+		RequiresCondition: loaded
+		Type: Unarmored
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	-HiddenUnderFog:
+	VisibleWithRadar:
+		Type: GroundPosition
+		PauseOnCondition: !firing
+	RevealsShroud:
+		Range: 10c0
+	Mobile:
+		Speed: 80
+		TurnSpeed: 5
+		Voice: Move
+		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 150
+	IndirectFire:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+	Passenger:
+		Voice: Move
+	Armament@1:
+		Weapon: IskanderTargeter
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 1
+		AmmoCondition: ammo-primary
+		RearmSound: minelay1.aud
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo
+	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable
+		Voice: Attack
+		FacingTolerance: 0
+	WithFacingSpriteBody:
+		RequiresCondition: ammo-primary
+		Name: loaded
+	WithFacingSpriteBody@EMPTY:
+		RequiresCondition: !ammo-primary
+		Sequence: empty-idle
+		Name: reloading
+	MissileSpawnerMaster:
+		Actors: IskanderMissile
+		LoadedCondition: loaded
+		LaunchingCondition: firing-primary
+	ProducibleWithLevel:
+		Prerequisites: vehicles.upgraded
+	# WithProductionIconOverlay:
+	# 	Types: Veterancy
+	# 	Prerequisites: vehicles.upgraded
+	Voiced:
+		VoiceSet: IskanderVoice
+	Exit:
+		SpawnOffset: 0,-128,0
+	RenderRangeCircle:
+		Width: 3
+		Alpha: 100
+		Color: FF0000
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		RequiresCondition: !loaded
+		Weapon: ArtilleryExplode
+	Explodes@Loaded:
+		RequiresCondition: loaded
+		Weapon: IskanderExplosion
+		LaunchingCondition: firing-primary
+
+IskanderMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 50
+	Tooltip:
+		Name: Iskander missile
+	RenderSprites:
+		Scale: 1.25
+	Health:
+		HP: 100
+	BallisticMissile:
+		LaunchAngle: 128
+		Speed: 400
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -200, 0, 0
+	MissileSpawnerSlave:
+	SpawnedExplodes:
+		Weapon: IskanderExplosion
+		EmptyWeapon: VisualExplodeHusk
+		RequiresCondition: !airborne
+	Explodes:
+		Weapon: IskanderExplosion
+		RequiresCondition: airborne
+
+TTNK:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	-WithDecoration@AMMO_NONE:
+	-WithDecoration@AMMO_PRIMARY_NONE:
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 90
+		Prerequisites: stek, ~vehicles.russia, ~techlevel.futuristic
+		Description: Tank with mounted Tesla coil.\nTesla briefly short-circuits Vehicle and Ships.\n  Immune to EMP\n  Strong vs Infantry, Vehicles, Buildings\n  Weak vs Aircraft
+	Valued:
+		Cost: 3000
+	Tooltip:
+		Name: Tesla Tank
+		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Selectable:
+		DecorationBounds: 30,30
+	Health:
+		HP: 1500
+	# Targetable@DontEMP:
+	# 	TargetTypes: EMPInvalid
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 55
+		PauseOnCondition: !(!being-captured) || empdisable
+	AutoTarget:
+		AttackAnythingCondition: stance-attackanything
+	AutoTargetPriority@4:
+		ValidTargets: EmpTargetable
+		InvalidTargets: NoAutoTarget, Unarmored, Light
+		Priority: 4
+	AutoTargetPriority@3:
+		ValidTargets: EmpTargetable
+		Priority: 3
+	AutoTargetPriority@2:
+		ValidTargets: Vehicle, Defense
+		Priority: 2
+	AutoTargetPriority@1:
+		ValidTargets: Infantry
+		Priority: 1
+	Armament@1:
+		Weapon: TTankZap
+		LocalOffset: 0,0,213
+		PauseOnCondition: empdisable || !ammo-primary
+	# Armament@2:
+	# 	Weapon: TTankZapMaxFirepower
+	# 	LocalOffset: 0,0,213
+	# 	PauseOnCondition: empdisable || ammo-primary != 5
+	# 	AmmoUsage: 5
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 5
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		Delay: 30
+		Count: 1
+		Sound: tslachg2.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 6,3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: primary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		PauseOnCondition: unit.docked
+	Turreted:
+	WithIdleOverlay@SPINNER:
+		Sequence: spinner-not 
+		RequiresCondition: !is-shooting
+	WithAttackOverlay@ATTACKER:
+		Sequence: spinner
+	GrantConditionOnAttack@ORBUSAGE:
+		Condition: is-shooting
+		RevokeDelay: 32
+	# ProducibleWithLevel:
+	# 	Prerequisites: vehicles.upgraded
+	Passenger:
+		CustomPipType: pip-white
+	GpsDot:
+		String: EMP
+	RenderRangeCircle:
+		Width: 1
+		Color: FFFFFF # White, Tesla weaponry
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+
+# MT-LB: Amphibious APC
+
+# 9P149: Shturm-S/SM  Mobile anti-tank guided missile system
+
+# 2S1: Gvozdika 122mm turreted Howitzer
+
+# s300: Long range SAM
+
+# 9K35: Strela-10 Short range SAM
+
+# Kornet-D: Armored Car with 8 AT missiles
+
+# Shilka: quad-barrel AA 
+
