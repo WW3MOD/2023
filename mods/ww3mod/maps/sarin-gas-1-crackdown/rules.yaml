@@ -46,7 +46,7 @@ ARTY:
 	Buildable:
 		Prerequisites: ~disabled
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -93,15 +93,15 @@ HPAD:
 TRUK:
 	-SpawnActorOnDeath:
 
-FTRK:
+TUNGUSKA:
 	Buildable:
 		Prerequisites: ~disabled
 
-CTNK:
+M270:
 	Buildable:
 		Prerequisites: ~disabled
 
-STNK:
+M113:
 	Buildable:
 		Prerequisites: ~disabled
 

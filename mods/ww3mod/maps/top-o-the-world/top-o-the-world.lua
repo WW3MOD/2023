@@ -20,7 +20,7 @@ USSRDie06 = { USSRV202, USSRV203 }
 AlliedSquad01 = { AlliedSquad01RocketInf01, AlliedSquad01RocketInf02, AlliedSquad01RocketInf03, AlliedSquad01RocketInf04, AlliedSquad01RocketInf05 }
 AlliedSquad02 = { AlliedSquad02RifleInf01, AlliedSquad02RifleInf02, AlliedSquad02RifleInf03, AlliedSquad02RifleInf04, AlliedSquad02RifleInf05, AlliedSquad02RifleInf06, AlliedSquad02RifleInf07, AlliedSquad02RifleInf08, AlliedSquad02RifleInf09 }
 AlliedSquad03 = { AlliedSquad03LTank01, AlliedSquad03RocketInf01, AlliedSquad03RocketInf02, AlliedSquad03RocketInf03 }
-AlliedSquad04 = { AlliedSquad04MGG01, AlliedSquad04MTank01, AlliedSquad04MTank02, AlliedSquad04MTank03, AlliedSquad04MTank04, AlliedSquad04MTank05, AlliedSquad04Arty01, AlliedSquad04Arty02, AlliedSquad04Arty03 }
+AlliedSquad04 = { AlliedSquad04STRYKERSHORAD01, AlliedSquad04MTank01, AlliedSquad04MTank02, AlliedSquad04MTank03, AlliedSquad04MTank04, AlliedSquad04MTank05, AlliedSquad04Arty01, AlliedSquad04Arty02, AlliedSquad04Arty03 }
 AlliedTanksReinforcement = { "2tnk", "2tnk" }
 if Difficulty == "easy" then
 	AlliedHuntingParty = { "1tnk" }

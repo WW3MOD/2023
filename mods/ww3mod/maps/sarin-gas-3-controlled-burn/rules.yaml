@@ -23,19 +23,19 @@ APC:
 	Buildable:
 		Prerequisites: ~vehicles.america
 
-FTRK:
+TUNGUSKA:
 	Buildable:
 		Prerequisites: ~disabled
 
-DTRK:
+ISKANDER:
 	Buildable:
 		Prerequisites: ~disabled
 
-CTNK:
+M270:
 	Buildable:
 		Prerequisites: ~disabled
 
-STNK:
+M113:
 	Buildable:
 		Prerequisites: ~disabled
 

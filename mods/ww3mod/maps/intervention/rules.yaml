@@ -143,7 +143,7 @@ ARTY:
 	Buildable:
 		Prerequisites: ~disabled
 
-CTNK:
+M270:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -151,7 +151,7 @@ MNLY:
 	Buildable:
 		Prerequisites: ~disabled
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -171,6 +171,6 @@ DD:
 	Buildable:
 		Prerequisites: ~disabled
 
-STNK:
+M113:
 	Buildable:
 		Prerequisites: ~disabled

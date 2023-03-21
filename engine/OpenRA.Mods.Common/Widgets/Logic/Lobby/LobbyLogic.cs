@@ -587,6 +587,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return;
 
 			map = modData.MapCache[uid];
+
+			Log.Write("test {0}", map.Status.ToString());
+
 			if (map.Status == MapStatus.Available)
 			{
 				// Tell the server that we have the map

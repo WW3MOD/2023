@@ -108,11 +108,11 @@ TTNK:
 	Buildable:
 		Prerequisites: ~disabled
 
-CTNK:
+M270:
 	Buildable:
 		Prerequisites: ~disabled
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled
 	CreatesShroud:
@@ -122,7 +122,7 @@ GAP:
 	Buildable:
 		Prerequisites: ~disabled
 
-QTNK:
+ISKANDER:
 	Buildable:
 		Prerequisites: ~disabled
 

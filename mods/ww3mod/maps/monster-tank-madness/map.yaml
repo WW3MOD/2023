@@ -1842,10 +1842,10 @@ Actors:
 	Actor595: grad
 		Location: 86,86
 		Owner: USSR
-	Actor596: dtrk
+	Actor596: iskander
 		Location: 74,81
 		Owner: USSR
-	Actor597: dtrk
+	Actor597: iskander
 		Location: 77,83
 		Owner: USSR
 	Actor598: ttnk
@@ -1855,7 +1855,7 @@ Actors:
 		Location: 76,27
 		Owner: BadGuy
 		Facing: 896
-	Actor600: dtrk
+	Actor600: iskander
 		Location: 86,83
 		Owner: USSR
 	Actor601: e1
@@ -2023,15 +2023,15 @@ Actors:
 	DemitriChurch: v01
 		Location: 28,99
 		Owner: Neutral
-	stnk1: iskander
+	m1131: iskander
 		Location: 89,59
 		Owner: Turkey
 		TurretFacing: 768
-	stnk2: iskander
+	m1132: iskander
 		Location: 77,57
 		Owner: Turkey
 		TurretFacing: 368
-	stnk3: iskander
+	m1133: iskander
 		Location: 94,53
 		Owner: Turkey
 		TurretFacing: 768

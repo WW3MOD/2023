@@ -558,7 +558,7 @@ Actors:
 		Location: 63,56
 		Owner: GoodGuy
 		Facing: 124
-	AlliedSquad04MGG01: strykershorad
+	AlliedSquad04STRYKERSHORAD01: strykershorad
 		Location: 34,61
 		Owner: Greece
 		Facing: 508

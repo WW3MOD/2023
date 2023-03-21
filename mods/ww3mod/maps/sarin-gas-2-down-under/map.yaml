@@ -1187,7 +1187,7 @@ Actors:
 		Location: 82,76
 		SubCell: 2
 		Facing: 368
-	DemoTruck: dtrk
+	DemoTruck: iskander
 		Owner: England
 		Location: 106,76
 		Facing: 252

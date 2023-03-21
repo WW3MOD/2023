@@ -26,9 +26,9 @@ UNITCRATE:
 	GiveUnitCrateAction@tunguska:
 		SelectionShares: 6
 		Units: tunguska
-	GiveUnitCrateAction@dtrk:
+	GiveUnitCrateAction@iskander:
 		SelectionShares: 1
-		Units: dtrk
+		Units: iskander
 	GiveUnitCrateAction@shok:
 		SelectionShares: 1
 		Units: shok
@@ -46,7 +46,7 @@ APC:
 		RequiredForShortGame: true
 	-AttackMove:
 
-DTRK:
+ISKANDER:
 	Tooltip:
 		Name: Bomb Truck
 	Health:

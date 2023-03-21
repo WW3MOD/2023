@@ -210,14 +210,14 @@ TTNK:
 	Buildable:
 		Prerequisites: ~disabled
 
-FTRK:
+TUNGUSKA:
 	Buildable:
 		Prerequisites: ~disabled
 
-CTNK:
+M270:
 	Buildable:
 		Prerequisites: ~disabled
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled

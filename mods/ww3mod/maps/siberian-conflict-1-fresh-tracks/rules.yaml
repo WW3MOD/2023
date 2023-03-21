@@ -47,7 +47,7 @@ HELI:
 	Buildable:
 		Prerequisites: ~hpad
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled
 

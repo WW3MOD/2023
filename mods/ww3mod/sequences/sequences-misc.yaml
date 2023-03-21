@@ -94,9 +94,6 @@ beacon:
 	paramines: mnlybcon
 		Length: *
 		Offset: 0,-42
-	dtrkbcon: dtrkbcon
-		Length: *
-		Offset: 0,-42
 	empbomb: empbombbcon
 		Length: *
 		Offset: 0,-42

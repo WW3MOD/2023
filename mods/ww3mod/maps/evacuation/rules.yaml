@@ -166,11 +166,11 @@ MNLY:
 	Buildable:
 		Prerequisites: ~disabled
 
-FTRK:
+TUNGUSKA:
 	Buildable:
 		Prerequisites: ~disabled
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -178,19 +178,19 @@ TTNK:
 	Buildable:
 		Prerequisites: ~disabled
 
-QTNK:
+ISKANDER:
 	Buildable:
 		Prerequisites: ~disabled
 
-DTRK:
+ISKANDER:
 	Buildable:
 		Prerequisites: ~disabled
 
-CTNK:
+M270:
 	Buildable:
 		Prerequisites: ~disabled
 
-STNK:
+M113:
 	Buildable:
 		Prerequisites: ~disabled
 

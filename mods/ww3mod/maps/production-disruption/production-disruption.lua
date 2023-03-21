@@ -13,7 +13,7 @@ RifleSquad2 = { Rifle4, Rifle5, Rifle6 }
 Heavys = { Heavy1, Heavy2 }
 FlameTowerWall = { FlameTower1, FlameTower2 }
 DemoEngiPath = { WaterEntry1.Location, Beach1.Location }
-DemoEngiTeam = { "dtrk", "dtrk", "e6", "e6", "e6" }
+DemoEngiTeam = { "iskander", "iskander", "e6", "e6", "e6" }
 SovietWaterEntry1 = { WaterEntry2.Location, Beach2.Location }
 SovietWaterEntry2 = { WaterEntry2.Location, Beach3.Location }
 SovietSquad = { "e1", "e1", "e1", "e4", "e4" }
@@ -136,9 +136,9 @@ SendChronos = function()
 			end)
 		end)
 
-		Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoSpawn1.Location })
-		Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoSpawn2.Location })
-		Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoSpawn3.Location })
+		Actor.Create("m270", true, { Owner = Greece, Location = ChronoSpawn1.Location })
+		Actor.Create("m270", true, { Owner = Greece, Location = ChronoSpawn2.Location })
+		Actor.Create("m270", true, { Owner = Greece, Location = ChronoSpawn3.Location })
 		Actor.Create("camera", true, { Owner = Greece, Location = EasyCamera.Location })
 		Media.PlaySound("chrono2.aud")
 	end)

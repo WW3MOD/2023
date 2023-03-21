@@ -298,7 +298,7 @@ SPY:
 		Cost: 300
 	-MustBeDestroyed:
 
-FTRK:
+TUNGUSKA:
 	-Armament@AA:
 	-Armament@AG:
 	Armament:

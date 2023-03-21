@@ -13,7 +13,7 @@ InfantrySquad = { "e1", "e1", "e1", "e3", "e3" }
 ReinforcementFootprint2 = { CPos.New(63,84), CPos.New(63,85), CPos.New(63,86), CPos.New(63,87) }
 SouthWaterPath1 = { SouthWaterEntry.Location, SouthWaterLanding1.Location }
 SouthWaterPath2 = { SouthWaterEntry.Location, SouthWaterLanding2.Location }
-SouthWaterTeam = { "dtrk", "1tnk", "1tnk", "2tnk", "2tnk" }
+SouthWaterTeam = { "iskander", "1tnk", "1tnk", "2tnk", "2tnk" }
 SouthChinookPath = { ChinookEntry1.Location, ChinookLZ1.Location }
 SouthChinookChalk = { "e3", "e3", "e3", "e1", "e1" }
 MammothAttackFootprint = { CPos.New(49,81), CPos.New(50,81), CPos.New(51,81), CPos.New(52,81), CPos.New(53,81) }
@@ -74,8 +74,8 @@ AlliedReinforcements = function()
 			foot3Triggered = true
 
 			Media.PlaySound("chrono2.aud")
-			Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoBeam1.Location })
-			Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoBeam1.Location + CVec.New(1,1) })
+			Actor.Create("m270", true, { Owner = Greece, Location = ChronoBeam1.Location })
+			Actor.Create("m270", true, { Owner = Greece, Location = ChronoBeam1.Location + CVec.New(1,1) })
 
 			Reinforcements.Reinforce(USSR, MoneyTrucks, { AmericaEntry.Location, TruckStop1.Location }, 0)
 			Utils.Do(StartingPlanes, function(yaks)
@@ -114,8 +114,8 @@ AlliedReinforcements = function()
 			foot5Triggered = true
 
 			Media.PlaySound("chrono2.aud")
-			Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoBeam2.Location })
-			Actor.Create("ctnk", true, { Owner = Greece, Location = ChronoBeam2.Location + CVec.New(1,1) })
+			Actor.Create("m270", true, { Owner = Greece, Location = ChronoBeam2.Location })
+			Actor.Create("m270", true, { Owner = Greece, Location = ChronoBeam2.Location + CVec.New(1,1) })
 
 			Utils.Do(LightTanks, IdleHunt)
 		end

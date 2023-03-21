@@ -47,7 +47,7 @@ MISS:
 	Targetable:
 		TargetTypes: GroundActor, C4, DetonateAttack, Structure, CivilianEntry
 
-QTNK:
+ISKANDER:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -79,7 +79,7 @@ MCV:
 	Buildable:
 		Prerequisites: ~disabled
 
-MRJ:
+STRYKERSHORAD:
 	Buildable:
 		Prerequisites: ~disabled
 

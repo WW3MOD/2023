@@ -3310,28 +3310,28 @@ Actors:
 	Actor1157: tc03
 		Owner: Neutral
 		Location: 8,120
-	Actor1454: dtrk
+	Actor1454: iskander
 		Owner: Neutral
 		Location: 8,119
 		Facing: 0
 	Actor1455: tc04
 		Owner: Neutral
 		Location: 8,119
-	Actor1456: dtrk
+	Actor1456: iskander
 		Owner: Neutral
 		Location: 123,121
 		Facing: 0
 	Actor1457: tc05
 		Owner: Neutral
 		Location: 123,121
-	Actor1458: dtrk
+	Actor1458: iskander
 		Owner: Neutral
 		Location: 121,6
 		Facing: 0
 	Actor1459: tc04
 		Owner: Neutral
 		Location: 121,6
-	Actor1460: dtrk
+	Actor1460: iskander
 		Owner: Neutral
 		Location: 13,5
 		Facing: 0

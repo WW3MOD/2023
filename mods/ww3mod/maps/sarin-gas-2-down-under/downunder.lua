@@ -430,7 +430,7 @@ DemoTruckExit = function()
 
 	local trukEscaped
 	Trigger.OnEnteredFootprint({ DemoDrive4.Location }, function(actor, id)
-		if actor.Type == "dtrk" and not trukEscaped then
+		if actor.Type == "iskander" and not trukEscaped then
 			Trigger.RemoveFootprintTrigger(id)
 			trukEscaped = true
 			actor.Destroy()
