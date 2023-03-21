@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (handicap > 0)
 			{
-				float div = 100F / (100 - handicap);
+				var div = 100F / (100 - handicap);
 
 				return (int)(100 * div);
 			}
