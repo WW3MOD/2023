@@ -25,46 +25,46 @@ if Difficulty == "veryeasy" then
 	ParaChance = 20
 	Patrol = { "e1", "e2", "e1" }
 	Infantry = { "e4", "e1", "e1", "e2", "e2" }
-	Vehicles = { "apc" }
-	Tank = { "3tnk" }
+	Vehicles = { "m113" }
+	Tank = { "t72" }
 	LongRange = { "arty" }
-	Boss = { "v2rl" }
+	Boss = { "grad" }
 	Swarm = { "shok", "shok", "shok" }
 elseif Difficulty == "easy" then
 	ParaChance = 25
 	Patrol = { "e1", "e2", "e1" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1" }
-	Vehicles = { "ftrk", "apc", "arty" }
-	Tank = { "3tnk" }
-	LongRange = { "v2rl" }
-	Boss = { "4tnk" }
+	Vehicles = { "tunguska", "m113", "arty" }
+	Tank = { "t72" }
+	LongRange = { "grad" }
+	Boss = { "tos" }
 	Swarm = { "shok", "shok", "shok", "shok", "ttnk" }
 elseif Difficulty == "normal" then
 	ParaChance = 30
 	Patrol = { "e1", "e2", "e1", "e1" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1" }
-	Vehicles = { "ftrk", "ftrk", "apc", "arty" }
-	Tank = { "3tnk" }
-	LongRange = { "v2rl" }
-	Boss = { "4tnk" }
+	Vehicles = { "tunguska", "tunguska", "m113", "arty" }
+	Tank = { "t72" }
+	LongRange = { "grad" }
+	Boss = { "tos" }
 	Swarm = { "shok", "shok", "shok", "shok", "ttnk", "ttnk", "ttnk" }
 elseif Difficulty == "hard" then
 	ParaChance = 35
 	Patrol = { "e1", "e2", "e1", "e1", "e4" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1" }
-	Vehicles = { "arty", "ftrk", "ftrk", "apc", "apc" }
-	Tank = { "3tnk" }
-	LongRange = { "v2rl" }
-	Boss = { "4tnk" }
+	Vehicles = { "arty", "tunguska", "tunguska", "m113", "m113" }
+	Tank = { "t72" }
+	LongRange = { "grad" }
+	Boss = { "tos" }
 	Swarm = { "shok", "shok", "shok", "shok", "shok", "ttnk", "ttnk", "ttnk", "ttnk" }
 else
 	ParaChance = 40
 	Patrol = { "e1", "e2", "e1", "e1", "e4", "e4" }
 	Infantry = { "e4", "e1", "e1", "e2", "e1", "e2", "e1", "e1" }
-	Vehicles = { "arty", "arty", "ftrk", "apc", "apc" }
-	Tank = { "ftrk", "3tnk" }
-	LongRange = { "v2rl" }
-	Boss = { "4tnk" }
+	Vehicles = { "arty", "arty", "tunguska", "m113", "m113" }
+	Tank = { "tunguska", "t72" }
+	LongRange = { "grad" }
+	Boss = { "tos" }
 	Swarm = { "shok", "shok", "shok", "shok", "shok", "shok", "ttnk", "ttnk", "ttnk", "ttnk", "ttnk" }
 end
 

@@ -12,7 +12,7 @@ AttackGroupSize = 10
 BGAttackGroup = { }
 BGAttackGroupSize = 8
 SovietInfantry = { "e1", "e2", "e4" }
-SovietVehicles =  { "ttnk", "3tnk", "3tnk", "v2rl" }
+SovietVehicles =  { "ttnk", "t72", "t72", "grad" }
 ProductionInterval =
 {
 	easy = DateTime.Seconds(25),
@@ -20,7 +20,7 @@ ProductionInterval =
 	hard = DateTime.Seconds(5)
 }
 
-GroundAttackUnits = { { "ttnk", "ttnk", "e2", "e2", "e2" }, { "3tnk", "v2rl", "e4", "e4", "e4" } }
+GroundAttackUnits = { { "ttnk", "ttnk", "e2", "e2", "e2" }, { "t72", "grad", "e4", "e4", "e4" } }
 GroundAttackPaths =
 {
 	{ EscapeSouth5.Location, Patrol1.Location },

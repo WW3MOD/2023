@@ -93,10 +93,6 @@ HPAD:
 TRUK:
 	-SpawnActorOnDeath:
 
-MGG:
-	Buildable:
-		Prerequisites: ~disabled
-
 FTRK:
 	Buildable:
 		Prerequisites: ~disabled

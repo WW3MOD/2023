@@ -121,8 +121,6 @@ Player:
 	Inherits@IC: ^IronCurtainable
 
 ^Husk:
-	TransformOnCapture:
-		ForceHealthPercentage: 80
 
 OILB:
 	Health:

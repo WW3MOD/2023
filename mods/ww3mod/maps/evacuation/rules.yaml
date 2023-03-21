@@ -174,10 +174,6 @@ MRJ:
 	Buildable:
 		Prerequisites: ~disabled
 
-MGG:
-	Buildable:
-		Prerequisites: ~disabled
-
 TTNK:
 	Buildable:
 		Prerequisites: ~disabled

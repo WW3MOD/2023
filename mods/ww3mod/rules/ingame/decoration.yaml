@@ -78,10 +78,10 @@
 	MapEditorData:
 		Categories: Decoration
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 ^Box:
 	Inherits: ^Tree
-	
+
 	RenderSprites:
 		Palette: player
 	Tooltip:

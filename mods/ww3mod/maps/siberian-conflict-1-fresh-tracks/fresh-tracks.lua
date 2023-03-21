@@ -14,13 +14,13 @@ ConvoyEscape = { CPos.New(113, 42), CPos.New(117, 71) }
 
 ConvoyUnits =
 {
-	easy = { { "e2", "e2", "e2", "truk", "truk", "truk" }, { "3tnk", "3tnk", "truk", "truk", "truk" } },
-	normal = { { "3tnk", "3tnk", "3tnk", "truk", "truk", "truk" }, { "3tnk", "v2rl", "e2", "e1", "e1", "truk", "truk", "truk" } },
-	hard = { { "3tnk", "3tnk", "3tnk", "3tnk", "truk", "truk", "truk" }, { "3tnk", "v2rl", "v2rl", "e1", "e1", "e4", "e4", "truk", "truk", "truk", "4tnk" }, { "ttnk", "ttnk", "ttnk", "shok", "shok", "shok", "shok", "truk", "truk", "truk" } }
+	easy = { { "e2", "e2", "e2", "truk", "truk", "truk" }, { "t72", "t72", "truk", "truk", "truk" } },
+	normal = { { "t72", "t72", "t72", "truk", "truk", "truk" }, { "t72", "grad", "e2", "e1", "e1", "truk", "truk", "truk" } },
+	hard = { { "t72", "t72", "t72", "t72", "truk", "truk", "truk" }, { "t72", "grad", "grad", "e1", "e1", "e4", "e4", "truk", "truk", "truk", "tos" }, { "ttnk", "ttnk", "ttnk", "shok", "shok", "shok", "shok", "truk", "truk", "truk" } }
 }
 
-BaseConvoyUnits = { "3tnk", "ttnk", "ttnk", "ttnk", "truk", "truk", "truk"  }
-FinalConvoyUnits = { "3tnk", "3tnk", "3tnk", "3tnk", "truk", "truk", "truk", "4tnk" }
+BaseConvoyUnits = { "t72", "ttnk", "ttnk", "ttnk", "truk", "truk", "truk"  }
+FinalConvoyUnits = { "t72", "t72", "t72", "t72", "truk", "truk", "truk", "tos" }
 
 AttackPaths =
 {
@@ -30,7 +30,7 @@ AttackPaths =
 	{ AttackEntry2.Location }
 }
 
-AttackWaveUnits = { { "3tnk", "3tnk" }, { "e1", "e1", "e1", "e2", "e2", "e4", "e4" }, { "shok", "shok", "shok", "shok", "shok" }, { "ttnk", "ttnk" }, { "4tnk", "e1", "e1", "e2" }, { "v2rl", "v2rl", "ftrk", "ftrk", "ftrk" } }
+AttackWaveUnits = { { "t72", "t72" }, { "e1", "e1", "e1", "e2", "e2", "e4", "e4" }, { "shok", "shok", "shok", "shok", "shok" }, { "ttnk", "ttnk" }, { "tos", "e1", "e1", "e2" }, { "grad", "grad", "tunguska", "tunguska", "tunguska" } }
 
 ConvoyPaths =
 {

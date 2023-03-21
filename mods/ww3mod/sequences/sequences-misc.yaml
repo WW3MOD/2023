@@ -633,3 +633,126 @@ plaserfire:
 		Length: *
 		ZOffset: 511
 
+
+zombie:
+	stand:
+		Facings: 8
+	stand2:
+		Start: 8
+		Facings: 8
+	run:
+		Start: 16
+		Length: 6
+		Facings: 8
+		Tick: 100
+	bite:
+		Start: 64
+		Length: 4
+		Facings: 8
+	idle1:
+		Start: 96
+		Length: 10
+		Tick: 120
+	die1:
+		Start: 106
+		Length: 8
+		Tick: 80
+	die2:
+		Start: 106
+		Length: 8
+		Tick: 80
+	die3:
+		Start: 106
+		Length: 8
+		Tick: 80
+	die4:
+		Start: 106
+		Length: 8
+		Tick: 80
+	die5:
+		Start: 114
+		Length: 19
+		Tick: 80
+	die6: electro
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+		Length: *
+		Tick: 80
+		UseTilesetExtension: true
+		TilesetOverrides:
+			DESERT: TEMPERAT
+			INTERIOR: TEMPERAT
+	die-crushed: corpse1
+		Length: 6
+		Tick: 1600
+		ZOffset: -511
+		UseTilesetExtension: true
+		TilesetOverrides:
+			DESERT: TEMPERAT
+			INTERIOR: TEMPERAT
+	icon: zombicon
+
+ant:
+	stand: ant1
+		Facings: 8
+	run: ant1
+		Start: 8
+		Length: 8
+		Facings: 8
+	bite: ant1
+		Start: 72
+		Length: 4
+		Facings: 8
+	die: ant1
+		Start: 104
+		Length: 8
+		Tick: 300
+	die-crushed: ant1
+		Start: 104
+		Length: 8
+		Tick: 400
+		ZOffset: -511
+	icon: anticon
+
+fireant:
+	stand: ant2
+		Facings: 8
+	run: ant2
+		Start: 8
+		Length: 8
+		Facings: 8
+	bite: ant2
+		Start: 72
+		Length: 4
+		Facings: 8
+	die: ant2
+		Start: 104
+		Length: 8
+		Tick: 300
+	die-crushed: ant2
+		Start: 104
+		Length: 8
+		Tick: 400
+		ZOffset: -511
+	icon: anticon
+
+scoutant:
+	stand: ant3
+		Facings: 8
+	run: ant3
+		Start: 8
+		Length: 8
+		Facings: 8
+	bite: ant3
+		Start: 72
+		Length: 4
+		Facings: 8
+	die: ant3
+		Start: 104
+		Length: 8
+		Tick: 300
+	die-crushed: ant3
+		Start: 104
+		Length: 8
+		Tick: 400
+		ZOffset: -511
+	icon: anticon

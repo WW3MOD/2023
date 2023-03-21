@@ -11,8 +11,8 @@ AttackGroupSize = 10
 BGAttackGroup = { }
 BGAttackGroupSize = 10
 SovietInfantry = { "e1", "e2", "e4" }
-SovietVehicles = { "3tnk", "3tnk", "v2rl" }
-Mammoths = { "4tnk", "4tnk" }
+SovietVehicles = { "t72", "t72", "grad" }
+Mammoths = { "tos", "tos" }
 SovietAircraftType = { "yak" }
 Planes = { }
 

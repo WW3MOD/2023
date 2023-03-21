@@ -1989,7 +1989,7 @@ Actors:
 	Actor648: e3
 		Location: 44,37
 		Owner: Soviets
-	Actor649: apc
+	Actor649: m113
 		Location: 127,43
 		Owner: Soviets
 	Actor650: e1
@@ -2088,7 +2088,7 @@ Actors:
 	Harvester3: harv
 		Location: 32,103
 		Owner: Soviets
-	HarvGuard1: apc
+	HarvGuard1: m113
 		Location: 37,98
 		Owner: Soviets
 	HarvGuard2: t72

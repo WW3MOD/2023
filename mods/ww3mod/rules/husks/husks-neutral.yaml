@@ -2,7 +2,7 @@ OILB.Husk:
 	Inherits: ^TechBuildingHusk
 	Inherits@Shape: ^2x2Shape
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2

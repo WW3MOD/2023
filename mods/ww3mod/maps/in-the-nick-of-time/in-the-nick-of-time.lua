@@ -34,7 +34,7 @@ NorthWaterPath1 = { NorthWaterEntry.Location, NorthWaterLanding1.Location }
 NorthWaterPath2 = { NorthWaterEntry.Location, NorthWaterLanding2.Location }
 NorthWaterPath3 = { NorthWaterEntry.Location, NorthWaterLanding3.Location }
 NorthWaterTeam = { "1tnk", "1tnk", "1tnk", "2tnk", "2tnk" }
-BoatofMammoths = { "4tnk", "4tnk", "4tnk", "4tnk", "4tnk" }
+BoatofMammoths = { "tos", "tos", "tos", "tos", "tos" }
 EvacuateFootprint = { CPos.New(93,92), CPos.New(94,92), CPos.New(95,92), CPos.New(96,92), CPos.New(97,92), CPos.New(98,92), CPos.New(99,92) }
 TimerTicks = DateTime.Minutes(54)
 
@@ -261,7 +261,7 @@ EnemyActions = function()
 end
 
 EnemyInfantry = { "e1", "e1", "e3" }
-Tanks = { "1tnk", "3tnk" }
+Tanks = { "1tnk", "t72" }
 AttackGroupSize = 4
 ProductionDelay = DateTime.Seconds(10)
 IdlingUnits = { }

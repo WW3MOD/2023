@@ -23,10 +23,6 @@ APC:
 	Buildable:
 		Prerequisites: ~vehicles.allies
 
-MGG:
-	Buildable:
-		Prerequisites: ~disabled
-
 FTRK:
 	Buildable:
 		Prerequisites: ~disabled

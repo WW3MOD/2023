@@ -82,27 +82,27 @@ Yak = { "yak" }
 ReinforcementsTicks1 = DateTime.Minutes(5)
 Reinforcements1 =
 {
-	"mgg", "2tnk", "2tnk", "2tnk", "2tnk", "1tnk", "1tnk",
-	"jeep", "jeep", "e1", "e1", "e1", "e1", "e3", "e3"
+	"strykershorad", "abrams", "abrams", "abrams", "abrams", "bradley", "bradley",
+	"humvee", "humvee", "e1", "e1", "e1", "e1", "e3", "e3"
 }
 
 ReinforcementsTicks2 = DateTime.Minutes(10)
 Reinforcements2 =
 {
-	"mgg", "2tnk", "2tnk", "2tnk", "2tnk", "truk", "truk", "truk",
-	"truk",	"truk", "truk", "1tnk", "1tnk", "jeep", "jeep"
+	"strykershorad", "abrams", "abrams", "abrams", "abrams", "truk", "truk", "truk",
+	"truk",	"truk", "truk", "bradley", "bradley", "humvee", "humvee"
 }
 
 SovietUnits1 =
 {
-	"3tnk", "3tnk", "3tnk", "3tnk", "3tnk", "3tnk", "v2rl", "v2rl", "ftrk",
-	"apc", "e1", "e1", "e2", "e3", "e3", "e4"
+	"t72", "t72", "t72", "t72", "t72", "t72", "grad", "grad", "tunguska",
+	"bmp2", "e1", "e1", "e2", "e3", "e3", "e4"
 }
 
 SovietUnits2 =
 {
-	"4tnk", "4tnk", "4tnk", "4tnk", "3tnk", "3tnk", "3tnk", "3tnk", "v2rl",
-	"v2rl", "ftrk", "apc", "e1", "e1", "e2", "e3", "e3", "e4"
+	"tos", "tos", "tos", "tos", "t72", "t72", "t72", "t72", "grad",
+	"grad", "tunguska", "bmp2", "e1", "e1", "e2", "e3", "e3", "e4"
 }
 
 CurrentReinforcement1 = 0
@@ -235,7 +235,7 @@ EvacuateAlliedUnit = function(unit)
 		unit.Stop()
 		unit.Owner = allies
 
-		if unit.Type == 'mgg' then
+		if unit.Type == 'strykershorad' then
 			Utils.Do(humans, function(player)
 				if player then
 					player.MarkCompletedObjective(evacuateMgg)

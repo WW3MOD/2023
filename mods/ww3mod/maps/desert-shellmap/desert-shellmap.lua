@@ -18,10 +18,10 @@ if DateTime.IsHalloween then
 		{ factory = SovietBarracks2, types = { "ant" } },
 		{ factory = SovietBarracks3, types = { "ant" } },
 		{ factory = AlliedWarFactory1, types = { "jeep", "1tnk", "2tnk", "arty", "ctnk" } },
-		{ factory = SovietWarFactory1, types = { "3tnk", "4tnk", "v2rl", "ttnk", "apc" } }
+		{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk", "m113" } }
 	}
 else
-	UnitTypes = { "3tnk", "ftrk", "ttnk", "apc" }
+	UnitTypes = { "t72", "tunguska", "ttnk", "m113" }
 	BeachUnitTypes = { "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4" }
 	ProxyType = "powerproxy.paratroopers"
 	ProducedUnitTypes =
@@ -32,7 +32,7 @@ else
 		{ factory = SovietBarracks2, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
 		{ factory = SovietBarracks3, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
 		{ factory = AlliedWarFactory1, types = { "jeep", "1tnk", "2tnk", "arty", "ctnk" } },
-		{ factory = SovietWarFactory1, types = { "3tnk", "4tnk", "v2rl", "ttnk", "apc" } }
+		{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk", "m113" } }
 	}
 end
 

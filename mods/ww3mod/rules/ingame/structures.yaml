@@ -1166,7 +1166,7 @@ SILO:
 	-MustBeDestroyed:
 	-WithSpriteBody:
 	Selectable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 12
@@ -1488,7 +1488,7 @@ KENN:
 	-GivesBuildableArea:
 	-SpawnActorsOnSell:
 	Selectable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	# Buildable:
 	# 	Queue: Building
 	# 	BuildPaletteOrder: 50
@@ -1867,3 +1867,100 @@ INDP:
 		Description: Maintenance
 		LongDesc: Disables all War Factories, letting them provide income instead.\nWar Factories generate 30$ every 3 seconds.\nLasts for up to 1 minute.
 		SupportPowerPaletteOrder: 8
+
+PDOX:
+	Inherits: ^Building
+	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
+	Inherits@shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048, 2048
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 120
+		Prerequisites: atek, ~structures.allies, ~techlevel.unrestricted
+		BuildLimit: 1
+		Description: Teleports a group of units across the\nmap for a short time.\nRequires power to operate.\nMaximum 1 can be built.\n  Special Ability: Chronoshift
+	Valued:
+		Cost: 1500
+	Tooltip:
+		Name: Chronosphere
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 100000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		MinRange: 5c0
+		Range: 6c0
+		RequiresCondition: !disabled
+		RevealGeneratedShroud: False
+	RevealsShroud@Offline:
+		Range: 5c0
+		RequiresCondition: disabled
+	RevealsShroud@GAPGEN:
+		Range: 5c0
+		RequiresCondition: !disabled
+	WithBuildingBib:
+		HasMinibib: true
+	ProvidesPrerequisite@germany:
+		Factions: germany
+		Prerequisite: pdox.germany
+	ProvidesPrerequisite@germanstructure:
+		RequiresPrerequisites: structures.germany
+		Prerequisite: pdox.germany
+	ChronoshiftPower@chronoshift:
+		OrderName: Chronoshift
+		PauseOnCondition: disabled
+		Prerequisites: !pdox.germany
+		Icon: chrono
+		ChargeInterval: 3000
+		Name: Chronoshift
+		Description: Teleports a group of units across\nthe map for 20 seconds.
+		SelectTargetSpeechNotification: SelectTarget
+		InsufficientPowerSpeechNotification: InsufficientPower
+		BeginChargeSpeechNotification: ChronosphereCharging
+		EndChargeSpeechNotification: ChronosphereReady
+		SelectTargetTextNotification: Select target.
+		InsufficientPowerTextNotification: Insufficient power.
+		BeginChargeTextNotification: Chronosphere charging.
+		EndChargeTextNotification: Chronosphere ready.
+		Duration: 400
+		KillCargo: true
+		DisplayRadarPing: True
+		SupportPowerPaletteOrder: 20
+		Dimensions: 3, 3
+		Footprint: _x_ xxx _x_
+	ChronoshiftPower@advancedchronoshift:
+		OrderName: AdvancedChronoshift
+		PauseOnCondition: disabled
+		Prerequisites: pdox.germany
+		Icon: chrono
+		ChargeInterval: 3000
+		Name: Advanced Chronoshift
+		Description: Teleports a large group of units across\nthe map for 20 seconds.
+		SelectTargetSpeechNotification: SelectTarget
+		InsufficientPowerSpeechNotification: InsufficientPower
+		BeginChargeSpeechNotification: ChronosphereCharging
+		EndChargeSpeechNotification: ChronosphereReady
+		SelectTargetTextNotification: Select target.
+		InsufficientPowerTextNotification: Insufficient power.
+		BeginChargeTextNotification: Chronosphere charging.
+		EndChargeTextNotification: Chronosphere ready.
+		Duration: 400
+		KillCargo: true
+		DisplayRadarPing: True
+		SupportPowerPaletteOrder: 30
+		Dimensions: 5, 5
+		Footprint: __x__ _xxx_ xxxxx _xxx_ __x__
+	SupportPowerChargeBar:
+	InfiltrateForSupportPowerReset:
+		Types: SpyInfiltrate
+	Targetable:
+		TargetTypes: GroundActor, C4, DetonateAttack, Structure, SpyInfiltrate
+	Power:
+		Amount: -200
+	MustBeDestroyed:
+		RequiredForShortGame: false
+	ProvidesPrerequisite@buildingname:

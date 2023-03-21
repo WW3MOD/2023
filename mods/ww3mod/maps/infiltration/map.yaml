@@ -1620,7 +1620,7 @@ Actors:
 	Actor497: e4
 		Location: 38,60
 		Owner: Soviets
-	Actor498: apc
+	Actor498: m113
 		Location: 78,99
 		Owner: Soviets
 	Actor499: t72

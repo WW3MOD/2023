@@ -282,8 +282,6 @@ TRAN.Husk:
 TRAN.Husk1:
 	Inherits: ^Husk
 	-Capturable:
-	-TransformOnCapture:
-	-InfiltrateForTransform:
 	Tooltip:
 		Name: Husk (Chinook)
 	RenderSprites:
@@ -293,8 +291,6 @@ TRAN.Husk1:
 TRAN.Husk2:
 	Inherits: ^Husk
 	-Capturable:
-	-TransformOnCapture:
-	-InfiltrateForTransform:
 	Tooltip:
 		Name: Husk (Chinook)
 	RenderSprites:

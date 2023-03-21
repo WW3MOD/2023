@@ -261,14 +261,14 @@ if ($args.Length -eq 0)
 {
 	Write-Host "Command list:"
 	Write-Host ""
-	Write-Host "  all             Builds the game, its development tools and the mod dlls."
-	Write-Host "  version         Sets the version strings for all mods to the latest"
-	Write-Host "                  version for the current Git branch."
-	Write-Host "  clean           Removes all built and copied files."
-	Write-Host "                  from the mods and the engine directories."
-	Write-Host "  test            Tests the mod's MiniYAML for errors."
-	Write-Host "  check           Checks .cs files for StyleCop violations."
-	Write-Host "  check-scripts   Checks .lua files for syntax errors."
+	Write-Host "  all (a)            - Builds the game, its development tools and the mod dlls."
+	Write-Host "  version (v)        - Sets the version strings for all mods to the latest"
+	Write-Host "                                       version for the current Git branch."
+	Write-Host "  clean (c)          - Removes all built and copied files from the mods and"
+	Write-Host "                                                    the engine directories."
+	Write-Host "  test (t)           - Tests the mod's MiniYAML for errors."
+	Write-Host "  check (e)          - Checks .cs files for StyleCop violations."
+	Write-Host "  check-scripts(s)   - Checks .lua files for syntax errors."
 	Write-Host ""
 	$command = (Read-Host "Enter command").Split(' ', 2)
 }
@@ -391,11 +391,17 @@ if ($command.Length -gt 1)
 switch ($execute)
 {
 	"all" { All-Command }
+	"a" { All-Command }
 	"version" { Version-Command }
+	"v" { Version-Command }
 	"clean" { Clean-Command }
+	"c" { Clean-Command }
 	"test" { Test-Command }
+	"t" { Test-Command }
 	"check" { Check-Command }
+	"e" { Check-Command }
 	"check-scripts" { Check-Scripts-Command }
+	"s" { Check-Scripts-Command }
 	Default { Write-Host ("Invalid command '{0}'" -f $command) }
 }
 

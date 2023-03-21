@@ -72,28 +72,28 @@ Players:
 		Faction: soviet
 
 Actors:
-	Actor0: apc
+	Actor0: m113
 		Location: 28,28
 		Owner: Multi0
-	Actor1: apc
+	Actor1: m113
 		Location: 30,28
 		Owner: Multi1
-	Actor2: apc
+	Actor2: m113
 		Location: 32,28
 		Owner: Multi2
-	Actor3: apc
+	Actor3: m113
 		Location: 32,30
 		Owner: Multi3
-	Actor4: apc
+	Actor4: m113
 		Location: 32,32
 		Owner: Multi4
-	Actor5: apc
+	Actor5: m113
 		Location: 30,32
 		Owner: Multi5
-	Actor6: apc
+	Actor6: m113
 		Location: 28,32
 		Owner: Multi6
-	Actor7: apc
+	Actor7: m113
 		Location: 28,30
 		Owner: Multi7
 	Actor9: tc04

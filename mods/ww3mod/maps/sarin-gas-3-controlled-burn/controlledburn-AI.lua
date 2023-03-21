@@ -11,7 +11,7 @@ AttackGroupSize = 10
 BGAttackGroup = { }
 BGAttackGroupSize = 8
 SovietInfantry = { "e1", "e2", "e4" }
-SovietVehicles = { "3tnk", "3tnk", "v2rl" }
+SovietVehicles = { "t72", "t72", "grad" }
 SovietAircraftType = { "mig", "yak" }
 Planes = { }
 
@@ -86,7 +86,7 @@ ProduceVehicles = function()
 	end)
 end
 
-GroundAttackUnits = { {"4tnk", "3tnk", "e2", "e2", "e2", "e2" }, { "3tnk", "3tnk", "v2rl", "e4", "e4", "e4" }, {"ttnk", "ttnk", "ttnk", "shok", "shok", "shok" } }
+GroundAttackUnits = { {"tos", "t72", "e2", "e2", "e2", "e2" }, { "t72", "t72", "grad", "e4", "e4", "e4" }, {"ttnk", "ttnk", "ttnk", "shok", "shok", "shok" } }
 
 GroundAttackPaths =
 {

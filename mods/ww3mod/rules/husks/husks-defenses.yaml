@@ -1,21 +1,21 @@
 PBOX.Husk:
 	Inherits@Type: ^DefenseHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Pillbox (Destroyed)
 
 HBOX.Husk:
 	Inherits@Type: ^DefenseHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Camo Pillbox (Destroyed)
 
 FTUR.Husk:
 	Inherits@Type: ^DefenseHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Flame Turret (Destroyed)
 
@@ -32,7 +32,7 @@ GUN.Husk:
 TSLA.Husk:
 	Inherits@Type: ^DefenseHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Tesla Coil (Destroyed)
 
@@ -44,14 +44,14 @@ AGUN.Husk:
 	-WithSpriteBody:
 	WithEmbeddedTurretSpriteBody:
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: AA Gun (Destroyed)
 
 SAM.Husk:
 	Inherits@Type: ^DefenseHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
@@ -61,7 +61,7 @@ SAM.Husk:
 HSAM.Husk:
 	Inherits@Type: ^DefenseHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
@@ -71,7 +71,7 @@ HSAM.Husk:
 GAP.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Gap Generator (Destroyed)
 

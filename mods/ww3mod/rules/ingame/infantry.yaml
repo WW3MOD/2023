@@ -1260,7 +1260,6 @@ E3R1:
 	Armament@GARRISONED:
 		Name: garrisoned
 		Weapon: 5.56mmMG
-		MuzzleSequence: garrison-muzzle
 		PauseOnCondition: !ammo-primary
 	Rearmable:
 		RearmActors: tent, barr
@@ -1561,7 +1560,6 @@ MT:
 	Armament@GARRISONED:
 		Name: garrisoned
 		Weapon: 7.62mmSniper
-		MuzzleSequence: muzzle # garrison-muzzle
 	Rearmable:
 		RearmActors: tent, barr
 		AmmoPools: primary-ammo
@@ -2126,6 +2124,7 @@ SPY:
 	-WithDecoration@AMMO_REPLENISHING:
 	-WithDecoration@Class:
 	-HitShape@Cover:
+	-WithInfantryBody@Parachute:
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier

@@ -59,8 +59,8 @@ SovietVehiclesUpgradeDelay = DateTime.Minutes(4)
 SovietVehicleType = "Normal"
 SovietVehicles =
 {
-	Normal = { "3tnk" },
-	Upgraded = { "3tnk", "v2rl" },
+	Normal = { "t72" },
+	Upgraded = { "t72", "grad" },
 }
 ProductionInterval =
 {

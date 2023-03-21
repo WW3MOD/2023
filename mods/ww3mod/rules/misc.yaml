@@ -3,7 +3,7 @@
 	Tooltip:
 		Name: Mine
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	WithSpriteBody:
 	RenderSprites:
 		Scale: 0.5
@@ -49,7 +49,7 @@ MINP:
 ^Crate:
 	Inherits@1: ^SpriteActor
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	HiddenUnderFog:
 	Tooltip:
 		Name: Crate

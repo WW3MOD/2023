@@ -1360,7 +1360,7 @@ Actors:
 	Actor342: e2
 		Location: 88,55
 		Owner: Soviets
-	Actor343: apc
+	Actor343: m113
 		Location: 91,48
 		Owner: Soviets
 	Actor344: t72

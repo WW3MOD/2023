@@ -147,10 +147,6 @@ CTNK:
 	Buildable:
 		Prerequisites: ~disabled
 
-MGG:
-	Buildable:
-		Prerequisites: ~disabled
-
 MNLY:
 	Buildable:
 		Prerequisites: ~disabled

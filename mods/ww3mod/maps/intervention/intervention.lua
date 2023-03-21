@@ -40,8 +40,8 @@ VillageRaidWpts = { VillageRaidEntrypoint.Location, VillageRaidWpt1.Location, Vi
 BaseRaidAircraft = { "mig.scripted", "mig.scripted" }
 BaseRaidWpts = { BaseRaidEntrypoint.Location, UboatPatrolWpt1.Location, BaseRaidWpt2.Location }
 
-BaseFrontAttackUnits = { "e3", "e3", "e1", "e1", "e1", "3tnk", "3tnk", "apc" }
-BaseRearAttackUnits = { "e3", "e3", "e1", "e1", "3tnk", "3tnk", "v2rl" }
+BaseFrontAttackUnits = { "e3", "e3", "e1", "e1", "e1", "t72", "t72", "m113" }
+BaseRearAttackUnits = { "e3", "e3", "e1", "e1", "t72", "t72", "grad" }
 BaseRearAttackWpts = { GroundAttackWpt1.Location, BaseRearAttackWpt1.Location, BaseRearAttackWpt2.Location, BaseRearAttackWpt3.Location }
 
 SovietHarvesters = { Harvester1, Harvester2, Harvester3 }
@@ -57,8 +57,8 @@ GroundPatrolWpts = { PatrolWpt1.Location, PatrolWpt2.Location }
 GroundPatrolUnits =
 {
 	{ "e1", "e1", "e1", "e3", "e3", "dog" },
-	{ "apc", "apc", "ftrk" },
-	{ "3tnk", "3tnk" }
+	{ "m113", "m113", "tunguska" },
+	{ "t72", "t72" }
 }
 
 ParadropSovietUnits = function()

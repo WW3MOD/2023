@@ -230,6 +230,7 @@ agun:
 	icon: agunicon
 
 agun.husk:
+	Inherits: emp-overlay
 	idle: agun
 		Start: 64
 		Facings: 32

@@ -90,7 +90,7 @@ VillageSetup = function()
 		end
 
 		Trigger.AfterDelay(DateTime.Seconds(30), function()
-			local nwAttackers = Reinforcements.Reinforce(USSR, { "3tnk", "3tnk", "3tnk" }, { NWVillageAttack.Location, VillageNorthwest.Location }, 20)
+			local nwAttackers = Reinforcements.Reinforce(USSR, { "t72", "t72", "t72" }, { NWVillageAttack.Location, VillageNorthwest.Location }, 20)
 			Utils.Do(nwAttackers, IdleHunt)
 		end)
 	end)
@@ -171,7 +171,7 @@ VillageSetup = function()
 		end
 
 		Trigger.AfterDelay(DateTime.Seconds(30), function()
-			local swAttackers = Reinforcements.Reinforce(USSR, { "3tnk", "3tnk", "3tnk", "ttnk", "e4", "e4", "e4" }, { SWVillageAttack.Location, VillageSouthwest.Location }, 20)
+			local swAttackers = Reinforcements.Reinforce(USSR, { "t72", "t72", "t72", "ttnk", "e4", "e4", "e4" }, { SWVillageAttack.Location, VillageSouthwest.Location }, 20)
 			Utils.Do(swAttackers, IdleHunt)
 		end)
 	end)

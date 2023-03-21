@@ -17,7 +17,7 @@ DemoEngiTeam = { "dtrk", "dtrk", "e6", "e6", "e6" }
 SovietWaterEntry1 = { WaterEntry2.Location, Beach2.Location }
 SovietWaterEntry2 = { WaterEntry2.Location, Beach3.Location }
 SovietSquad = { "e1", "e1", "e1", "e4", "e4" }
-V2Squad = { "v2rl", "v2rl" }
+V2Squad = { "grad", "grad" }
 SubEscapePath = { SubPath1, SubPath2, SubPath3 }
 
 MissionStart = function()
@@ -25,9 +25,9 @@ MissionStart = function()
 	Chalk1.TargetParatroopers(LZ.CenterPosition, Angle.New(740))
 	if Difficulty == "normal" then
 		Actor.Create("tsla", true, { Owner = USSR, Location = EasyCamera.Location })
-		Actor.Create("4tnk", true, { Owner = USSR, Facing = Angle.South, Location = Mammoth.Location })
-		Actor.Create("4tnk", true, { Owner = USSR, Facing = Angle.South, Location = Mammoth.Location + CVec.New(1,0) })
-		Actor.Create("v2rl", true, { Owner = USSR, Facing = Angle.South, Location = V2.Location })
+		Actor.Create("tos", true, { Owner = USSR, Facing = Angle.South, Location = Mammoth.Location })
+		Actor.Create("tos", true, { Owner = USSR, Facing = Angle.South, Location = Mammoth.Location + CVec.New(1,0) })
+		Actor.Create("grad", true, { Owner = USSR, Facing = Angle.South, Location = V2.Location })
 	end
 
 	Trigger.AfterDelay(DateTime.Seconds(1), function()

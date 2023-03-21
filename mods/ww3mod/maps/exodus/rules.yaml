@@ -115,10 +115,6 @@ CTNK:
 MRJ:
 	Buildable:
 		Prerequisites: ~disabled
-
-MGG:
-	Buildable:
-		Prerequisites: ~disabled
 	CreatesShroud:
 		Range: 6c0
 

@@ -7,7 +7,7 @@
 	-GivesBuildableArea:
 	-AcceptsDeliveredCash:
 	Selectable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Building:
 		TerrainTypes: Clear,Road,Beach,Rough,Ore,Gems,Scraps
 	Targetable:
@@ -34,7 +34,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	-GivesExperience:
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	OwnerLostAction:
 		Action: ChangeOwner
 	Building:
@@ -795,7 +795,7 @@ HSAM:
 # 		BuildDurationModifier: 40
 # 		Description: All-purpose defensive structure.\nRequires power to operate.\nPasses one target to another with other nearby Patriot Defense Systems\n  Strong vs Aircraft, Tanks\n  Weak vs Infantry
 # 	Selectable:
-# 		Bounds: 24,24
+# 		Bounds: 1024,1024
 # 	SelectionDecorations:
 # 	Health:
 # 		HP: 2000
@@ -1059,14 +1059,15 @@ MSLO:
 		Cursor: nuke
 		Icon: abomb
 		ChargeInterval: 10
-		Description: Nuclear Ballistic Missile
-		LongDesc: Launches a devastating atomic bomb at target location.
+		Name: Nuclear Ballistic Missile
+		Description: Launches a devastating atomic bomb at target location.
 		BeginChargeSpeechNotification: AbombPrepping
 		EndChargeSpeechNotification: AbombReady
 		SelectTargetSpeechNotification: SelectTarget
 		InsufficientPowerSpeechNotification: InsufficientPower
 		IncomingSpeechNotification: AbombLaunchDetected
 		MissileWeapon: atomic
+		MissileImage: atomic
 		MissileDelay: 5
 		SpawnOffset: 1c0,427,0
 		DisplayTimerRelationships: Ally, Neutral, Enemy

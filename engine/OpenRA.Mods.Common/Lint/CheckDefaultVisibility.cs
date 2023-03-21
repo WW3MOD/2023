@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Lint
 							if (ios == null)
 								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but has no IOccupySpace traits!");
 							else if (ios.OccupiedCells(actorInfo.Value, CPos.Zero).Count == 0)
-								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but does not have any footprint cells!");
+								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but does not have any footprint cells");
 						}
 					}
 				}

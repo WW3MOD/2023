@@ -281,7 +281,7 @@ ercc-proc:
 	opaquetop: ercc-top
 		Offset: 2, -9
 		ZOffset: 0c312
-		Start: 1	
+		Start: 1
 	damaged-opaquetop: ercc-top
 		Offset: 2, -9
 		ZOffset: 0c312
@@ -653,7 +653,7 @@ hpad:
 			INTERIOR: TEMPERAT
 	icon: hpadicon
 	fake-icon: hpaficon
-	
+
 hpad.husk:
 	idle: hpad
 		Start: 7
@@ -893,4 +893,21 @@ pyle.husk:
 	bib: bib3
 		UseTilesetExtension: true
 		Length: *
-	
+
+pdox:
+	idle:
+	damaged-idle:
+		Start: 29
+	active:
+		Length: 29
+	damaged-active:
+		Start: 29
+		Length: 29
+	make: pdoxmake
+		Length: *
+	bib: mbPDOX
+		Length: *
+		Offset: 0,-4
+		UseTilesetExtension: true
+	icon: pdoxicon
+	fake-icon: pdoficon

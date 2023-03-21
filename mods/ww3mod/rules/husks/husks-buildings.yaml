@@ -64,7 +64,7 @@ BARR.Husk:
 KENN.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Kennel (Destroyed)
 
@@ -82,7 +82,7 @@ PROC.Husk:
 SILO.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 	Tooltip:
 		Name: Ore Silo (Destroyed)
 

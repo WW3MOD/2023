@@ -181,8 +181,6 @@ PBOX:
 	RenderSprites:
 		Image: 4TNK
 	-Capturable:
-	-TransformOnCapture:
-	-InfiltrateForTransform:
 
 DOME.NoInfiltrate:
 	Inherits: DOME
@@ -295,10 +293,6 @@ TTNK:
 		Prerequisites: ~disabled
 
 CTNK:
-	Buildable:
-		Prerequisites: ~disabled
-
-MGG:
 	Buildable:
 		Prerequisites: ~disabled
 

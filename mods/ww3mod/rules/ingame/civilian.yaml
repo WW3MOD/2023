@@ -421,7 +421,7 @@ WINDMILL:
 	MapEditorData:
 		RequireTilesets: TEMPERAT
 	Selectable:
-		Bounds: 24,24,0,-14
+		Bounds: 1024,1024,0,-14
 		DecorationBounds: 36,36,0,-14
 	Tooltip:
 		Name: Windmill
@@ -448,7 +448,7 @@ BARL:
 	MapEditorData:
 		Categories: Decoration
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 BRL3:
 	Inherits: ^TechBuilding
 	-Selectable:
@@ -469,7 +469,7 @@ BRL3:
 	MapEditorData:
 		Categories: Decoration
 	Interactable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 
 BR1:
 	Inherits: ^Bridge
@@ -650,7 +650,7 @@ BRIDGEHUT.small:
 		Footprint: _
 		Dimensions: 1,1
 	Selectable:
-		Bounds: 24,24
+		Bounds: 1024,1024
 		Priority: 2
 	LegacyBridgeHut:
 	Targetable:

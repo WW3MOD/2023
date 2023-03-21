@@ -101,7 +101,7 @@
 		# Offset: -10, 0
 		# ZOffset: -511
 # Unused. Could be nice to add custom panic sequence to soldiers, but it's not really necessary when burn image is overlayed
-^Panic: 
+^Panic:
 	panic-stand: tecn
 		Start: 8
 		Length: 6
@@ -110,6 +110,66 @@
 		Start: 8
 		Length: 6
 		Facings: 8
+
+class:
+	empty_class: empty_class
+		Start: 0
+		Length: 1
+	e1_class: e1_class
+		Start: 0
+		Length: 1
+	e2_class: e2_class
+		Start: 0
+		Length: 1
+	e3_class: e3_class
+		Start: 0
+		Length: 1
+	e4_class: e4_class
+		Start: 0
+		Length: 1
+	e6_class: e6_class
+		Start: 0
+		Length: 1
+	tecn_class: tecn_class
+		Start: 0
+		Length: 1
+	ar_class: ar_class
+		Start: 0
+		Length: 1
+	at_class: at_class
+		Start: 0
+		Length: 1
+	aa_class: aa_class
+		Start: 0
+		Length: 1
+	mt_class: mt_class
+		Start: 0
+		Length: 1
+	medi_class: medi_class
+		Start: 0
+		Length: 1
+	tl_class: tl_class
+		Start: 0
+		Length: 1
+	sn_class: sn_class
+		Start: 0
+		Length: 1
+	sf_class: sf_class
+		Start: 0
+		Length: 1
+	spy_class: spy_class
+		Start: 0
+		Length: 1
+	spy_disguised: spy_disguised
+		Start: 0
+		Length: 10
+		Tick: 80
+	pilot_class: pilot_class
+		Start: 0
+		Length: 1
+	droneop_class: droneop_class
+		Start: 0
+		Length: 1
 
 ^e1:
 	Inherits@PostDeath: ^Rot
@@ -200,10 +260,10 @@
 e1:
 	Inherits: ^e1
 	icon: e1americaicon
-e1.america: 
+e1.america:
 	Inherits: ^e1
 	icon: e1americaicon
-e1.russia: 
+e1.russia:
 	Inherits: ^e1
 	icon: e1russiaicon
 
@@ -296,10 +356,10 @@ e1.russia:
 e2:
 	Inherits: ^e2
 	icon: e2americaicon
-e2.america: 
+e2.america:
 	Inherits: ^e2
 	icon: e2americaicon
-e2.russia: 
+e2.russia:
 	Inherits: ^e2
 	icon: e2russiaicon
 
@@ -397,10 +457,10 @@ e2.russia:
 e3:
 	Inherits: ^e3
 	icon: e3americaicon
-e3.america: 
+e3.america:
 	Inherits: ^e3
 	icon: e3americaicon
-e3.russia: 
+e3.russia:
 	Inherits: ^e3
 	icon: e3russiaicon
 
@@ -510,10 +570,10 @@ e3.russia:
 e4:
 	Inherits: ^e4
 	icon: e4americaicon
-e4.america: 
+e4.america:
 	Inherits: ^e4
 	icon: e4americaicon
-e4.russia: 
+e4.russia:
 	Inherits: ^e4
 	icon: e4russiaicon
 
@@ -588,10 +648,10 @@ e4.russia:
 e6:
 	Inherits: ^e6
 	icon: e6americaicon
-e6.america: 
+e6.america:
 	Inherits: ^e6
 	icon: e6americaicon
-e6.russia: 
+e6.russia:
 	Inherits: ^e6
 	icon: e6russiaicon
 
@@ -612,6 +672,8 @@ e6.russia:
 		Start: 114
 		Length: 2
 		Facings: 8
+	parachute: e1
+		Start: 377
 	idle: medi
 		Start: 178
 		Length: 14
@@ -660,10 +722,10 @@ e6.russia:
 medi:
 	Inherits: ^medi
 	icon: mediamericaicon
-medi.america: 
+medi.america:
 	Inherits: ^medi
 	icon: mediamericaicon
-medi.russia: 
+medi.russia:
 	Inherits: ^medi
 	icon: medirussiaicon
 
@@ -696,6 +758,8 @@ medi.russia:
 		Length: 4
 		Facings: 8
 		Tick: 100
+	parachute: e1
+		Start: 377
 	liedown: sn
 		Start: 192
 		Length: 2
@@ -752,10 +816,10 @@ medi.russia:
 sn:
 	Inherits: ^sn
 	icon: snamericaicon
-sn.america: 
+sn.america:
 	Inherits: ^sn
 	icon: snamericaicon
-sn.russia: 
+sn.russia:
 	Inherits: ^sn
 	icon: snrussiaicon
 
@@ -848,10 +912,10 @@ sn.russia:
 ar:
 	Inherits: ^ar
 	icon: aramericaicon
-ar.america: 
+ar.america:
 	Inherits: ^ar
 	icon: aramericaicon
-ar.russia: 
+ar.russia:
 	Inherits: ^ar
 	icon: arrussiaicon
 
@@ -933,10 +997,10 @@ ar.russia:
 mt:
 	Inherits: ^mt
 	icon: mtamericaicon
-mt.america: 
+mt.america:
 	Inherits: ^mt
 	icon: mtamericaicon
-mt.russia: 
+mt.russia:
 	Inherits: ^mt
 	icon: mtrussiaicon
 
@@ -1018,10 +1082,10 @@ mt.russia:
 at:
 	Inherits: ^at
 	icon: atamericaicon
-at.america: 
+at.america:
 	Inherits: ^at
 	icon: atamericaicon
-at.russia: 
+at.russia:
 	Inherits: ^at
 	icon: atrussiaicon
 
@@ -1103,10 +1167,10 @@ at.russia:
 aa:
 	Inherits: ^aa
 	icon: aaamericaicon
-aa.america: 
+aa.america:
 	Inherits: ^aa
 	icon: aaamericaicon
-aa.russia: 
+aa.russia:
 	Inherits: ^aa
 	icon: aarussiaicon
 
@@ -1115,11 +1179,16 @@ aa.russia:
 	Inherits@PostDeath: ^Rot
 	stand: sf
 		Facings: 8
+	stand2: sf
+		Start: 73
+		Length: 14
 	run: sf
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 120
+	parachute: e1
+		Start: 377
 	idle1: sf
 		Start: 56
 		Length: 15
@@ -1215,15 +1284,15 @@ aa.russia:
 		Length: 6
 		Facings: 8
 		Tick: 80
-	paradrop: sf
+	parachute: sf
 		Start: 602
 sf:
 	Inherits: ^sf
 	icon: sfamericaicon
-sf.america: 
+sf.america:
 	Inherits: ^sf
 	icon: sfamericaicon
-sf.russia: 
+sf.russia:
 	Inherits: ^sf
 	icon: sfrussiaicon
 
@@ -1322,14 +1391,14 @@ sf.russia:
 		Offset: 0, 0
 		UseTilesetCode: false
 		ZOffset: 512
-		Tick: 80			
+		Tick: 80
 tl:
 	Inherits: ^tl
 	icon: tlamericaicon
-tl.america: 
+tl.america:
 	Inherits: ^tl
 	icon: tlamericaicon
-tl.russia: 
+tl.russia:
 	Inherits: ^tl
 	icon: tlrussiaicon
 
@@ -1352,6 +1421,8 @@ tl.russia:
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
+	parachute: e1
+		Start: 377
 	idle1: spy
 		Start: 256
 		Length: 14
@@ -1412,10 +1483,10 @@ tl.russia:
 spy:
 	Inherits: ^spy
 	icon: spyamericaicon
-spy.america: 
+spy.america:
 	Inherits: ^spy
 	icon: spyamericaicon
-spy.russia: 
+spy.russia:
 	Inherits: ^spy
 	icon: spyrussiaicon
 
@@ -1431,6 +1502,8 @@ spy.russia:
 		Start: 8
 		Length: 6
 		Facings: 8
+	parachute: e1
+		Start: 377
 	run: tecn
 		Start: 56
 		Length: 6
@@ -1487,10 +1560,10 @@ spy.russia:
 tecn:
 	Inherits: ^tecn
 	icon: tecnamericaicon
-tecn.america: 
+tecn.america:
 	Inherits: ^tecn
 	icon: tecnamericaicon
-tecn.russia: 
+tecn.russia:
 	Inherits: ^tecn
 	icon: tecnrussiaicon
 
@@ -1598,13 +1671,12 @@ tecn.russia:
 droneop:
 	Inherits: ^droneop
 	icon: droneopicon
-droneop.america: 
+droneop.america:
 	Inherits: ^droneop
 	icon: droneopicon
-droneop.russia: 
+droneop.russia:
 	Inherits: ^droneop
 	icon: droneopicon
-
 
 dog:
 	stand:
@@ -1726,6 +1798,8 @@ mech:
 		Length: 4
 		Facings: 8
 		Tick: 100
+	parachute: e1
+		Start: 377
 	icon: mechicon
 
 shok:
@@ -1769,8 +1843,6 @@ shok:
 		Start: 256
 		Length: 16
 		Facings: 8
-	parachute:
-		Start: 528
 	idle1:
 		Start: 384
 		Length: 14
@@ -1811,6 +1883,8 @@ shok:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
+	parachute:
+		Start: 528
 	icon: shokicon
 
 e9:
@@ -1910,7 +1984,7 @@ e9:
 		Length: 6
 		Facings: 8
 		Tick: 80
-	paradrop:
+	parachute:
 		Start: 602
 	icon: e9icon
 rmbo:
@@ -1954,8 +2028,6 @@ rmbo:
 		Start: 160
 		Length: 4
 		Facings: 8
-	parachute:
-		Start: 431
 	idle1: rmbo
 		Start: 192
 		Length: 16
@@ -1997,6 +2069,8 @@ rmbo:
 		Start: 318
 		Length: 8
 		Tick: 80
+	parachute:
+		Start: 431
 	garrison-muzzle: minigun16
 		Length: 3
 		Stride: 6
@@ -2008,11 +2082,6 @@ rmbo:
 		UseTilesetCode: false
 		ZOffset: 512
 		Tick: 80
-	# mind-overlay: mindanim
-	# 	Length: *
-	# 	Tick: 200
-	# 	BlendMode: Alpha
-	# 	Offset: 0, 0
 	icon: rmboicnh
 boris:
 	Inherits: ^CommonDeaths
@@ -2196,183 +2265,6 @@ thf:
 		Facings: 8
 		Tick: 80
 	icon: thficon
-e7:
-	Inherits@PostDeath: ^Rot
-	stand:
-		Facings: 8
-	run:
-		Start: 8
-		Length: 6
-		Facings: 8
-		Tick: 80
-	shoot-left:
-		Combine:
-			e7:
-				Length: 8
-				Frames: 58, 56, 64, 63, 71, 70, 79, 77
-			e7:
-				Length: 2
-				Frames: 85, 84
-				Offset: 1, 0
-			e7:
-				Length: 2
-				Frames: 92, 91
-			e7:
-				Length: 2
-				Frames: 99, 98
-				Offset: 1, -2
-			e7:
-				Length: 2
-				Frames: 107, 105
-				Offset: 0, -2
-		Length: 2
-		Facings: 8
-	shoot-right:
-		Combine:
-			e7:
-				Length: 8
-				Frames: 57, 56, 65, 63, 72, 70, 78, 77
-			e7:
-				Length: 2
-				Frames: 86, 84
-				Offset: 1, 0
-			e7:
-				Length: 2
-				Frames: 93, 91
-			e7:
-				Length: 2
-				Frames: 100, 98
-				Offset: 1, -2
-			e7:
-				Length: 2
-				Frames: 106, 105
-				Offset: 0, -2
-		Length: 2
-		Facings: 8
-	#	shoot:
-	#	Start: 56
-	#	Length: 7
-	#	Facings: 8
-	idle1:
-		Start: 233
-		Length: 14
-		Tick: 120
-	idle2:
-		Start: 248
-		Length: 14
-		Tick: 120
-	die1:
-		Start: 262
-		Length: 8
-	die2:
-		Start: 270
-		Length: 8
-	die3:
-		Start: 278
-		Length: 8
-	die4:
-		Start: 286
-		Length: 12
-	die5:
-		Start: 298
-		Length: 18
-	die6: electro
-		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die7: poisondeath
-		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	prone-stand:
-		Start: 128
-		Stride: 4
-		Facings: 8
-	prone-run:
-		Start: 128
-		Length: 4
-		Facings: 8
-		Tick: 80
-	prone-shoot:
-		Start: 176
-		Length: 7
-		Facings: 8
-	garrison-muzzle: minigun
-		Length: 3
-		Stride: 6
-		Facings: 8
-	swim_idle: bikinitany
-		Start: 1
-		Facings: 8
-		Length: 4
-		Tick: 100
-		Transpose: True
-	swim_stand: bikinitany
-		Start: 1
-		Facings: 8
-		Length: 4
-		Tick: 100
-		Transpose: True	
-	swim: bikinitany
-		Start: 33
-		Facings: 8
-		Length: 7
-		Tick: 100
-		Transpose: True	
-	swim_shoot: bikinitany
-		Start: 89
-		Facings: 8
-		Length: 6
-		Tick: 100
-		Transpose: True
-	prone-swim_shoot: bikinitany
-		Start: 137
-		Facings: 8
-		Length: 6
-		Tick: 100
-		Transpose: True
-	prone-swim: bikinitany
-		Start: 217
-		Facings: 8
-		Length: 9
-		Tick: 100
-		Transpose: True
-	liedown: bikinitany
-		Start: 289
-		Facings: 8
-		Length: 3
-		Tick: 100
-		Transpose: True	
-	standup: bikinitany
-		Start: 185
-		Facings: 8
-		Length: 4
-		Tick: 100
-		Transpose: True
-	prone-swim_stand: bikinitany
-		Start: 313
-		Facings: 8
-		Length: 9
-		Tick: 100
-		Transpose: True
-	icon: e7icon
-volk:
-	Inherits@PostDeath: ^Rot
-	Defaults: gnrl
-	Inherits: gnrl
-	garrison-muzzle: minigun
-		Length: 6
-		Facings: 8
-	icon: volkicon
 
 c1:
 	stand:
@@ -3080,62 +2972,3 @@ gnrl:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 
-class:
-	empty_class: empty_class
-		Start: 0
-		Length: 1
-	e1_class: e1_class
-		Start: 0
-		Length: 1
-	e2_class: e2_class
-		Start: 0
-		Length: 1
-	e3_class: e3_class
-		Start: 0
-		Length: 1
-	e4_class: e4_class
-		Start: 0
-		Length: 1
-	e6_class: e6_class
-		Start: 0
-		Length: 1
-	tecn_class: tecn_class
-		Start: 0
-		Length: 1
-	ar_class: ar_class
-		Start: 0
-		Length: 1
-	at_class: at_class
-		Start: 0
-		Length: 1
-	aa_class: aa_class
-		Start: 0
-		Length: 1
-	mt_class: mt_class
-		Start: 0
-		Length: 1
-	medi_class: medi_class
-		Start: 0
-		Length: 1
-	tl_class: tl_class
-		Start: 0
-		Length: 1
-	sn_class: sn_class
-		Start: 0
-		Length: 1
-	sf_class: sf_class
-		Start: 0
-		Length: 1
-	spy_class: spy_class
-		Start: 0
-		Length: 1
-	spy_disguised: spy_disguised
-		Start: 0
-		Length: 10
-		Tick: 80
-	pilot_class: pilot_class
-		Start: 0
-		Length: 1
-	droneop_class: droneop_class
-		Start: 0
-		Length: 1

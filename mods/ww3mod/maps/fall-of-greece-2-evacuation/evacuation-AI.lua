@@ -8,7 +8,7 @@
 ]]
 AttackGroup = { }
 SovietInfantry = { "e1", "e2" }
-SovietVehicles = { "3tnk", "3tnk", "v2rl" }
+SovietVehicles = { "t72", "t72", "grad" }
 SovietAircraftType = { "yak" }
 Yaks = { }
 AttackPaths = { AttackRight, AttackLeft }

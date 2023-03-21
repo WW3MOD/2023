@@ -218,14 +218,6 @@ CTNK:
 	Buildable:
 		Prerequisites: ~disabled
 
-MGG:
-	Buildable:
-		Prerequisites: ~disabled
-
 MRJ:
-	Buildable:
-		Prerequisites: ~disabled
-
-GAP:
 	Buildable:
 		Prerequisites: ~disabled
