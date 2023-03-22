@@ -149,7 +149,7 @@ Actors:
 	Actor71: brik
 		Location: 70,64
 		Owner: America
-	Actor325: e3
+	Actor325: ar
 		Location: 76,70
 		Owner: America
 	Actor28: gun
@@ -742,7 +742,7 @@ Actors:
 	Actor287: brik
 		Location: 50,62
 		Owner: America
-	Actor288: e3
+	Actor288: ar
 		Location: 40,63
 		Owner: America
 	Actor289: brik
@@ -754,10 +754,10 @@ Actors:
 	Actor290: brik
 		Location: 60,61
 		Owner: America
-	Actor292: e3
+	Actor292: ar
 		Location: 68,64
 		Owner: America
-	Actor293: e3
+	Actor293: ar
 		Location: 36,69
 		Owner: America
 	Actor219: brik
@@ -923,7 +923,7 @@ Actors:
 	Actor148: apwr
 		Location: 95,94
 		Owner: America
-	Actor324: e3
+	Actor324: ar
 		Location: 73,68
 		Owner: America
 	Actor206: brik

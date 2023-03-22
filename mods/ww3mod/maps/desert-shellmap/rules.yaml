@@ -56,9 +56,3 @@ TRAN.Husk2:
 MISS:
 	DamageMultiplier@INVULNERABLE:
 		Modifier: 0
-
-Ant:
-	Buildable:
-		Prerequisites: barr
-	Health:
-		HP: 20000

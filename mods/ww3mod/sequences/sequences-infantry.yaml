@@ -447,7 +447,6 @@ e2.russia:
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
-
 e3:
 	Inherits: ^e3
 	icon: e3americaicon

@@ -7,21 +7,21 @@
    information, see COPYING.
 ]]
 
-UnitTypes = { "t72", "tunguska", "ttnk" }
-BeachUnitTypes = { "e1", "e2", "e3", "ar", "tl", "at", "aa", "sn", "e1", "e2", "e3", "ar", "tl", "at", "aa", "droneop" }
+UnitTypes = { "t72", "tunguska", "bmp2" }
+BeachUnitTypes = { "e1", "e1", "e1" }
 ProducedUnitTypes =
 {
-	{ factory = AlliedBarracks1, types = { "e1", "e3" } },
-	{ factory = AlliedBarracks2, types = { "e1", "e3" } },
-	{ factory = SovietBarracks1, types = { "dog", "e1", "e2", "e3", "tl" } },
-	{ factory = SovietBarracks2, types = { "e1", "e2", "e3", "at", "tl" } },
-	{ factory = SovietBarracks3, types = { "e1", "e2", "e3", "aa", "tl" } },
+	{ factory = AlliedBarracks1, types = { "e1", "e1" } },
+	{ factory = AlliedBarracks2, types = { "e1", "e1" } },
+	{ factory = SovietBarracks1, types = { "e1", "e1", "e1" } },
+	{ factory = SovietBarracks2, types = { "e1", "e1", "e1" } },
+	{ factory = SovietBarracks3, types = { "e1", "e1", "e1" } },
 	{ factory = AlliedWarFactory1, types = { "humvee", "bradley", "abrams", "m109", "m270" } },
-	{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk" } }
+	{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "bmp2" } }
 }
 
 ShipUnitTypes = { "bradley", "bradley", "humvee", "abrams", "abrams" }
-HelicopterUnitTypes = { "e2", "e3", "tl", "at", "ar", "e3" };
+HelicopterUnitTypes = { "e1", "e1", "e1" };
 
 ParadropWaypoints = { Paradrop1, Paradrop2, Paradrop3, Paradrop4, Paradrop5, Paradrop6, Paradrop7, Paradrop8 }
 
