@@ -32,9 +32,6 @@ World:
 		ShortGameCheckboxLocked: True
 		ShortGameCheckboxEnabled: False
 
-E7:
-	-Crushable:
-
 ^Vehicle:
 	Demolishable:
 

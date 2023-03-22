@@ -35,6 +35,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Custom palette is a player palette BaseName.")]
 		public readonly bool IsPlayerPalette = false;
 
+		[Desc("Position relative to body")]
+		public readonly WVec Offset = WVec.Zero;
+
 		public override object Create(ActorInitializer init) { return new WithOverlay(init, this); }
 	}
 
@@ -49,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var rs = init.Self.Trait<RenderSprites>();
 
 			anim = new Animation(init.Self.World, info.Image);
-			rs.Add(new AnimationWithOffset(anim, null, () => !isActive),
+			rs.Add(new AnimationWithOffset(anim, () => Info.Offset, () => !isActive),
 				info.Palette, info.IsPlayerPalette);
 		}
 

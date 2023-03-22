@@ -665,8 +665,6 @@ AGUN:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	RenderRangeCircle:
-		RangeCircleType: aa
 	Power:
 		Amount: -50
 	SpawnActorOnDeath:
