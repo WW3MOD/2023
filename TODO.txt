@@ -1,1 +1,22 @@
 - Commented out emitWarning, emitError in CheckConditions.cs to "solve" errors. Lots of "consumes condition that is not not defined" and "provides condition that is never used".
+
+
+Loading mod: ww3mod
+[2023-03-22T22:54:35] Game started
+Exception of type `System.NullReferenceException`: Object reference not set to an instance of an object.
+   at OpenRA.Graphics.Animation.Render(WPos pos, WVec& offset, Int32 zOffset, PaletteReference palette, Single scale) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\Animation.cs:line 72
+   at OpenRA.Graphics.AnimationWithOffset.Render(Actor self, PaletteReference pal, Single scale) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\AnimationWithOffset.cs:line 44
+   at OpenRA.Mods.Common.Traits.Render.RenderSprites.Render(Actor self, WorldRenderer wr)+MoveNext() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Mods.Common\Traits\Render\RenderSprites.cs:line 195
+   at OpenRA.Actor.Renderables(WorldRenderer wr)+MoveNext() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Actor.cs:line 333
+   at System.Linq.Enumerable.SelectEnumerableIterator`2.MoveNext()
+   at System.Collections.Generic.List`1.InsertRange(Int32 index, IEnumerable`1 collection)
+   at OpenRA.Graphics.WorldRenderer.GenerateRenderables() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\WorldRenderer.cs:line 125
+   at OpenRA.Graphics.WorldRenderer.PrepareRenderables() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\WorldRenderer.cs:line 247
+   at OpenRA.Game.RenderTick() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 736
+   at OpenRA.Game.Loop() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 844
+   at OpenRA.Game.Run() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 876
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 308
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Launcher\Program.cs:line 32
+
+----------------------------------------
+OpenRA has encountered a fatal error.

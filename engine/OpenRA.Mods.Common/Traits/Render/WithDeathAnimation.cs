@@ -99,7 +99,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 				sequence += Info.DeathTypes[damageType].Random(self.World.SharedRandom);
 			}
 
-			SpawnDeathAnimation(self, self.CenterPosition, rs.GetImage(self), sequence, palette, Info.Delay);
+			var image = rs.GetImage(self);
+
+			SpawnDeathAnimation(self, self.CenterPosition, image, sequence, palette, Info.Delay);
 		}
 
 		public void SpawnDeathAnimation(Actor self, WPos pos, string image, string sequence, string palette, int delay)
