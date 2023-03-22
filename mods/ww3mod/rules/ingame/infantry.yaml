@@ -981,23 +981,14 @@
 		Palette: effect
 	WithOverlay@Burn_3:
 		RequiresCondition: onfire == 5 || onfire == 6
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
 		Image: infantry-burn-3
 		Palette: effect
 	WithOverlay@Burn_4:
 		RequiresCondition: onfire == 7 || onfire == 8
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
 		Image: infantry-burn-4
 		Palette: effect
 	WithOverlay@Burn_5:
 		RequiresCondition: onfire == 9 || onfire == 10
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
 		Image: infantry-burn-5
 		Palette: effect
 
