@@ -287,18 +287,6 @@ Player:
 		DisplayOrder: 300
 		Prerequisites: global-nuclear
 
-	# LobbyPrerequisiteCheckbox@STOLENFUTURISTICTECH:
-	# 	ID: stolenfuturistictech
-	# 	Label: Stolen futuristic
-	# 	Description: Futuristic tech requires infiltrated tech center
-	# 	Enabled: True
-	# 	DisplayOrder: 400
-	# 	Prerequisites: global-stolen-futuristic
-
-	# ProvidesPrerequisite@FUTURISTIC:
-	# 	Prerequisite: player.futuristic
-	# 	RequiresPrerequisites: global-futuristic
-
 	# ParatroopersPower@RUSSIAParatroopers:
 	# 	OrderName: RussiaParatroopers
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted

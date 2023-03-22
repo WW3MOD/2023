@@ -17,7 +17,7 @@ E1R1.russia:
 		OverrideActor: E1.russia
 # Rifleman
 E3.russia:
-	Inherits@BaseUnit: ^E3	
+	Inherits@BaseUnit: ^E3
 	Buildable:
 		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
 	RenderSprites:
@@ -30,7 +30,7 @@ E3R1.russia:
 	UpdatesPlayerStatistics:
 		OverrideActor: E3.russia
 	-Buildable:
-# LMG 
+# LMG
 AR.russia:
 	Inherits@BaseUnit: ^AR
 	Buildable:
@@ -136,7 +136,7 @@ DRONEOP.russia:
 		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: droneop.russia
-# Flamethrower - 
+# Flamethrower -
 E4.russia:
 	Inherits@BaseUnit: ^E4
 	Buildable:
@@ -155,7 +155,7 @@ SHOK:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 99
-		Prerequisites: techcenter, ~infantry.russia, ~techlevel.high, ~global-futuristic
+		Prerequisites: techcenter, ~infantry.russia, ~techlevel.futuristic
 		Description: Infantry with portable Tesla coils.
 	Tooltip:
 		Name: Tesla Trooper
