@@ -260,6 +260,7 @@ BADR:
 	Interactable:
 	GpsDot:
 		String: BigPlane
+
 BADR.Crate:
 	Inherits: BADR
 	ParaDrop:
@@ -267,3 +268,17 @@ BADR.Crate:
 	RenderSprites:
 		Image: badr
 	-MapEditorData:
+
+BADR.Bomber:
+	Inherits: BADR
+	-ParaDrop:
+	-Cargo:
+	-MapEditorData:
+	RenderSprites:
+		Image: badr
+	AttackBomber:
+		FacingTolerance: 8
+	AmmoPool:
+		Ammo: 10
+	Armament:
+		Weapon: ParaBomb
