@@ -406,13 +406,11 @@
 
 ^EmpVisualEffect:
 	WithColoredOverlay@EMPDISABLE:
-		Palette: disabled
 	WithIdleOverlay@EMPDISABLE:
 		Sequence: emp-overlay
 ^AffectedByEMP:
 	WithColoredOverlay@EMPDISABLE:
 		RequiresCondition: empdisable
-		Palette: disabled
 	TimedConditionBar@EMPDISABLE:
 		Condition: empdisable
 		Color: FFFFFF

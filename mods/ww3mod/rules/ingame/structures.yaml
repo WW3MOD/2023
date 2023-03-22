@@ -65,7 +65,6 @@
 
 	# WithColoredOverlay@BUILDING_CLEARED:
 	# 	RequiresCondition: building_cleared
-	# 	Palette: building_cleared
 	# ExternalConditionThatRevokedOnCapture@BUILDING_CLEARED:
 	# 	Condition: building_cleared
 	# 	TotalCap: 1
@@ -142,7 +141,6 @@
 ^DisableOnLowPower:
 	WithColoredOverlay@IDISABLE:
 		RequiresCondition: disabled
-		Palette: disabled
 	GrantConditionOnPowerState@LOWPOWER:
 		Condition: lowpower
 		ValidPowerStates: Low, Critical
@@ -152,7 +150,6 @@
 ^DisableOnPowerDown:
 	WithColoredOverlay@IDISABLE:
 		RequiresCondition: disabled
-		Palette: disabled
 	GrantCondition@IDISABLE:
 		RequiresCondition: powerdown
 		Condition: disabled
@@ -207,7 +204,6 @@
 ^DisabledByPowerOutage:
 	WithColoredOverlay@IDISABLE:
 		RequiresCondition: disabled
-		Palette: disabled
 	GrantCondition@IDISABLE:
 		RequiresCondition: power-outage
 		Condition: disabled
@@ -261,7 +257,6 @@
 ^BuildingAffectedByEMP:
 	WithColoredOverlay@EMPDISABLE:
 		RequiresCondition: empdisable
-		Palette: disabled
 	TimedConditionBar@EMPDISABLE:
 		Condition: empdisable
 		Color: FFFFFF
