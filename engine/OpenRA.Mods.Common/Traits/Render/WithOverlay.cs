@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public class WithOverlay : ConditionalTrait<WithOverlayInfo>
 	{
 		readonly Animation anim;
-		readonly bool isSmoking;
+		bool isActive;
 
 		public WithOverlay(ActorInitializer init, WithOverlayInfo info)
 			: base(info)
@@ -49,8 +49,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var rs = init.Self.Trait<RenderSprites>();
 
 			anim = new Animation(init.Self.World, info.Image);
-			rs.Add(new AnimationWithOffset(anim, null, () => !isSmoking),
+			rs.Add(new AnimationWithOffset(anim, null, () => !isActive),
 				info.Palette, info.IsPlayerPalette);
+		}
+
+		protected override void TraitEnabled(Actor _)
+		{
+			isActive = true;
+		}
+
+		protected override void TraitDisabled(Actor _)
+		{
+			isActive = false;
 		}
 	}
 }
