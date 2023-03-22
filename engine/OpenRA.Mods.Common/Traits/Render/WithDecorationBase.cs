@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public abstract class WithDecorationBaseInfo : ConditionalTraitInfo
 	{
 		[Desc("Position in the actor's selection box to draw the decoration.")]
-		public readonly string Position = "TopLeft";
+		public readonly string Position = "Bottom";
 
 		[Desc("Player relationships who can view the decoration.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;

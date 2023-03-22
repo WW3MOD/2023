@@ -201,7 +201,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			foreach (var a in anims)
 				if (a.IsVisible)
-					yield return a.Animation.ScreenBounds(self, wr);
+					yield return a.Animation.ScreenBounds(self, wr, self);
 		}
 
 		void ITick.Tick(Actor self)

@@ -6,38 +6,22 @@
    the License, or (at your option) any later version. For more
    information, see COPYING.
 ]]
-if DateTime.IsHalloween then
-	UnitTypes = { "ant", "ant", "ant" }
-	BeachUnitTypes = { "ant", "ant" }
-	-- ProxyType = "powerproxy.parazombies"
-	ProducedUnitTypes =
-	{
-		{ factory = AlliedBarracks1, types = { "e1", "e3" } },
-		{ factory = AlliedBarracks2, types = { "e1", "e3" } },
-		{ factory = SovietBarracks1, types = { "ant" } },
-		{ factory = SovietBarracks2, types = { "ant" } },
-		{ factory = SovietBarracks3, types = { "ant" } },
-		{ factory = AlliedWarFactory1, types = { "humvee", "bradley", "abrams", "m109", "m270" } },
-		{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk" } }
-	}
-else
-	UnitTypes = { "t72", "tunguska", "ttnk" }
-	BeachUnitTypes = { "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4" }
-	-- ProxyType = "powerproxy.paratroopers"
-	ProducedUnitTypes =
-	{
-		{ factory = AlliedBarracks1, types = { "e1", "e3" } },
-		{ factory = AlliedBarracks2, types = { "e1", "e3" } },
-		{ factory = SovietBarracks1, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ factory = SovietBarracks2, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ factory = SovietBarracks3, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ factory = AlliedWarFactory1, types = { "humvee", "bradley", "abrams", "m109", "m270" } },
-		{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk" } }
-	}
-end
+
+UnitTypes = { "t72", "tunguska", "ttnk" }
+BeachUnitTypes = { "e1", "e2", "e3", "ar", "tl", "at", "aa", "sn", "e1", "e2", "e3", "ar", "tl", "at", "aa", "droneop" }
+ProducedUnitTypes =
+{
+	{ factory = AlliedBarracks1, types = { "e1", "e3" } },
+	{ factory = AlliedBarracks2, types = { "e1", "e3" } },
+	{ factory = SovietBarracks1, types = { "dog", "e1", "e2", "e3", "tl" } },
+	{ factory = SovietBarracks2, types = { "e1", "e2", "e3", "at", "tl" } },
+	{ factory = SovietBarracks3, types = { "e1", "e2", "e3", "aa", "tl" } },
+	{ factory = AlliedWarFactory1, types = { "humvee", "bradley", "abrams", "m109", "m270" } },
+	{ factory = SovietWarFactory1, types = { "t72", "tos", "grad", "ttnk" } }
+}
 
 ShipUnitTypes = { "bradley", "bradley", "humvee", "abrams", "abrams" }
-HelicopterUnitTypes = { "e1", "e1", "e1", "e1", "e3", "e3" };
+HelicopterUnitTypes = { "e2", "e3", "tl", "at", "ar", "e3" };
 
 ParadropWaypoints = { Paradrop1, Paradrop2, Paradrop3, Paradrop4, Paradrop5, Paradrop6, Paradrop7, Paradrop8 }
 
@@ -174,7 +158,7 @@ Tick = function()
 	ticks = ticks + 1
 
 	local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
-	Camera.Position = viewportOrigin + WVec.New(19200 * math.sin(t), 20480 * math.cos(t), 0)
+	Camera.Position = viewportOrigin + WVec.New(19200 * math.sin(t), 20480 * math.cos(t), 20480)
 end
 
 WorldLoaded = function()
@@ -201,5 +185,5 @@ WorldLoaded = function()
 	SendSovietUnits(Entry4.Location, UnitTypes, 50)
 	SendSovietUnits(Entry5.Location, UnitTypes, 50)
 	SendSovietUnits(Entry6.Location, UnitTypes, 50)
-	SendSovietUnits(Entry7.Location, BeachUnitTypes, 15)
+	-- SendSovietUnits(Entry7.Location, BeachUnitTypes, 15)
 end

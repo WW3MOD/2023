@@ -11,8 +11,9 @@ Packages:
 	~^SupportDir|Content/ra/v2/
 	~^SupportDir|Content/ra/v2/expand
 	~^SupportDir|Content/ra/v2/cnc
-	~^SupportDir|Content/ra/v2/movies
+	# ~^SupportDir|Content/ra/v2/movies
 	^EngineDir
+	$ra: ra
 	$ww3mod: ww3mod
 	^EngineDir|mods/common: common
 	~main.mix
@@ -22,7 +23,6 @@ Packages:
 	~local.mix
 	~sounds.mix
 	~speech.mix
-	# ~nato.mix # TODO?
 	~allies.mix
 	~russian.mix
 	~temperat.mix
@@ -33,7 +33,13 @@ Packages:
 	~hires1.mix
 	~desert.mix
 	~general.mix
-	# ~./v2/cnc/scores.mix
+	# test
+	ra|bits
+	ra|bits/desert
+	ra|scripts
+	common|scripts
+	ra|uibits
+	# /test
 	ww3mod|scripts
 	common|scripts
 	ww3mod|bits
@@ -221,7 +227,7 @@ LoadScreen: LogoStripeLoadScreen
 	Image: ww3mod|uibits/loadscreen.png
 	Image2x: ww3mod|uibits/loadscreen-2x.png
 	Image3x: ww3mod|uibits/loadscreen-3x.png
-	Text: World War 3, Hello
+	Text: World War 3
 
 ServerTraits:
 	LobbyCommands

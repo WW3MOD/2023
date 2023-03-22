@@ -11,20 +11,10 @@
 			JUNGLE: TEMPERAT
 			WINTER: TEMPERAT
 			DUNE: TEMPERAT
-	die8: chronozapTD
-		Length: *
-		BlendMode: Alpha
-	die9: poisonTD
-		Length: *
-	die10: poisonTD
-		Length: *
-	die11: frozen
-		Length: *
-		Tick: 80
-	die12: atomized
-		Length: *
-		Tick: 80
-		BlendMode: Additive
+	# die12: atomized
+	# 	Length: *
+	# 	Tick: 80
+	# 	BlendMode: Additive
 	die-crushed: corpse1
 		Length: 6
 		Tick: 1600
@@ -410,6 +400,10 @@ e2.russia:
 		Facings: 8
 	parachute: e3
 		Start: 377
+	idle: e3
+		Start: 256
+		Length: 16
+		Tick: 120
 	idle1: e3
 		Start: 256
 		Length: 16
@@ -1385,13 +1379,6 @@ sf.russia:
 		Length: 3
 		Stride: 6
 		Facings: 16
-	chrono-overlay: chronofade_small
-		Length: *
-		BlendMode: Additive
-		Offset: 0, 0
-		UseTilesetCode: false
-		ZOffset: 512
-		Tick: 80
 tl:
 	Inherits: ^tl
 	icon: tlamericaicon
@@ -2075,13 +2062,6 @@ rmbo:
 		Length: 3
 		Stride: 6
 		Facings: 16
-	chrono-overlay: chronofade_small
-		Length: *
-		BlendMode: Additive
-		Offset: 0, 0
-		UseTilesetCode: false
-		ZOffset: 512
-		Tick: 80
 	icon: rmboicnh
 boris:
 	Inherits: ^CommonDeaths
@@ -2135,18 +2115,6 @@ boris:
 	die7: boris
 		Start: 210
 		Length: 8
-	chrono-overlay: chronofade_small
-		Length: *
-		BlendMode: Additive
-		Offset: 0, 0
-		UseTilesetCode: false
-		ZOffset: 512
-		Tick: 80
-	mind-overlay: mindanim
-		Length: *
-		Tick: 200
-		BlendMode: Alpha
-		Offset: 0, 0
 	icon: borisicon
 
 terr:

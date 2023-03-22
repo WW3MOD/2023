@@ -348,12 +348,6 @@ b2bomb:
 		Length: *
 		ZOffset: 1023
 
-dig:
-	idle:
-		Length: *
-		ZOffset: 511
-		Offset: 0, 0, 24
-
 twake:
 	idle: twake
 		Length: *
@@ -483,32 +477,6 @@ minv:
 	idle:
 		ZOffset: -512
 	icon: jmin
-
-mins:
-	idle:
-		Length: *
-		ZOffset: -512
-		Tick: 250
-	icon: jmin
-
-mina:
-	emp-overlay: blank1
-		Length: *
-	idle:
-		Length: *
-	chute: parach
-		Start: 5
-		Length: 11
-		Tick: 120
-	icon: bminicon
-
-chemicalmissile:
-	up: cmissup
-		Length: *
-		ZOffset: 1023
-	down: cmissdown
-		Length: *
-		ZOffset: 1023
 
 380mm:
 	idle: 380mm

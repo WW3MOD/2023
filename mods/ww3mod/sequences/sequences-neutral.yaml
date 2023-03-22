@@ -69,8 +69,6 @@ bio:
 		Length: 40
 		Tick: 160
 		Offset: 0,-22
-    icon: bioicon
-		Offset: 0,0
 	none: blank32
 		Length: 1
 
@@ -78,7 +76,7 @@ bio.husk:
 	idle: bio
 		Start: 2
 		Offset: 0,-2
-    icon: bioicon
+	# icon: bioicon
 
 miss:
 	Inherits: emp-overlay
@@ -96,7 +94,6 @@ miss:
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: techicon
 
 miss.husk:
 	idle: miss
