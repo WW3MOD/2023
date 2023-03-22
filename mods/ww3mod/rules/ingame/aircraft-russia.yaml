@@ -419,12 +419,10 @@ FROG:
 		Offset: -258,-723,0
 		TrailLength: 10
 		TrailWidth: 48
-		UsePlayerColor: false
 	Contrail@2:
 		Offset: -258,723,0
 		TrailLength: 10
 		TrailWidth: 48
-		UsePlayerColor: false
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,0
 	# 	Interval: 2
@@ -545,12 +543,10 @@ MIG:
 		Offset: -598,-683,0
 		TrailLength: 6
 		TrailWidth: 48
-		UsePlayerColor: false
 	Contrail@2:
 		Offset: -598,683,0
 		TrailLength: 6
 		TrailWidth: 48
-		UsePlayerColor: false
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171
 	# 	Interval: 2

@@ -3360,7 +3360,7 @@ Actors:
 	# 	Owner: Neutral
 	# 	Location: 34,4
 	# 	Facing: 174
-		TurretFacing: 146
+	# 	TurretFacing: 146
 	Actor1439: t16
 		Owner: Neutral
 		Location: 21,79

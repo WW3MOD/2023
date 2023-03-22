@@ -89,7 +89,7 @@
 	RepairableNear:
 		RepairActors: spen
 	Cloak:
-		CloakTypes: Underwater
+		DetectionTypes: Underwater
 		InitialDelay: 0
 		CloakDelay: 75
 		CloakSound: subshow1.aud
@@ -135,7 +135,7 @@
 
 ^Sonar:
 	DetectCloaked:
-		CloakTypes: Underwater
+		DetectionTypes: Underwater
 		Range: 12c0
 	RenderDetectionCircle:
 
@@ -726,7 +726,7 @@ SS:
 			PointA: 0, -448
 			PointB: 0, 448
 	Cloak:
-		CloakTypes: Underwater
+		DetectionTypes: Underwater
 		InitialDelay: 0
 		CloakDelay: 75
 		CloakSound: subshow1.aud

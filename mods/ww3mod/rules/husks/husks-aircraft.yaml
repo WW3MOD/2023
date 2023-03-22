@@ -86,7 +86,6 @@ YAK.Husk:
 		Name: Yak Attack Plane
 	Contrail:
 		Offset: -853,0,0
-		UsePlayerColor: false
 	Aircraft:
 		TurnSpeed: 5
 		Speed: 149
@@ -125,7 +124,6 @@ SPIT.Husk:
 	Tooltip:
 		Name: Spitfire Attack Bomber
 	Contrail:
-		UsePlayerColor: false
 		TrailLength: 8
 		TrailWidth: 48
 		Offset: -853,0,0
@@ -170,12 +168,10 @@ MIG.Husk:
 		Offset: -598,-683,0
 		TrailLength: 6
 		TrailWidth: 48
-		UsePlayerColor: false
 	Contrail@2:
 		Offset: -598,683,0
 		TrailLength: 6
 		TrailWidth: 48
-		UsePlayerColor: false
 	Aircraft:
 		TurnSpeed: 5
 		Speed: 186
@@ -513,12 +509,10 @@ FROG.Husk:
 		Offset: -258,-723,0
 		TrailLength: 10
 		TrailWidth: 48
-		UsePlayerColor: false
 	Contrail@2:
 		Offset: -258,723,0
 		TrailLength: 10
 		TrailWidth: 48
-		UsePlayerColor: false
 	Aircraft:
 		TurnSpeed: 5
 		Speed: 149

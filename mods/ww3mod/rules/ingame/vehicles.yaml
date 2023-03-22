@@ -395,7 +395,7 @@ MNLY:
 		AmmoPools: mines-ammo
 	# DetectCloaked:
 	# 	Range: 4c0
-	# 	CloakTypes: Mine
+	# 	DetectionTypes: Mine
 	Passenger:
 		CustomPipType: pip-blue
 	RenderSprites:

@@ -19,43 +19,43 @@
 	RevealsShroud:
 		Range: 20c0
 	DetectCloaked@0:
-		CloakTypes: Cloak_0
+		DetectionTypes: Cloak_0
 		Range: 16c0
 	DetectCloaked@1:
-		CloakTypes: Cloak_1
+		DetectionTypes: Cloak_1
 		Range: 14c0
 	DetectCloaked@2:
-		CloakTypes: Cloak_2
+		DetectionTypes: Cloak_2
 		Range: 12c0
 	DetectCloaked@3:
-		CloakTypes: Cloak_3
+		DetectionTypes: Cloak_3
 		Range: 10c0
 	DetectCloaked@4:
-		CloakTypes: Cloak_4
+		DetectionTypes: Cloak_4
 		Range: 10c0
 	DetectCloaked@5:
-		CloakTypes: Cloak_5
+		DetectionTypes: Cloak_5
 		Range: 9c0
 	DetectCloaked@6:
-		CloakTypes: Cloak_6
+		DetectionTypes: Cloak_6
 		Range: 8c0
 	DetectCloaked@7:
-		CloakTypes: Cloak_7
+		DetectionTypes: Cloak_7
 		Range: 8c0
 	DetectCloaked@8:
-		CloakTypes: Cloak_8
+		DetectionTypes: Cloak_8
 		Range: 8c0
 	DetectCloaked@9:
-		CloakTypes: Cloak_9
+		DetectionTypes: Cloak_9
 		Range: 7c0
 	DetectCloaked@10:
-		CloakTypes: Cloak_10
+		DetectionTypes: Cloak_10
 		Range: 5c0
 	DetectCloaked@11:
-		CloakTypes: Cloak_11
+		DetectionTypes: Cloak_11
 		Range: 4c0
 	DetectCloaked@12:
-		CloakTypes: Cloak_12
+		DetectionTypes: Cloak_12
 		Range: 1c512
 
 ^DamageStates:
@@ -239,7 +239,7 @@
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Vehicle, Water
 		InvalidTargets: NoAutoTarget, WaterStructure
-		Priority: 2	
+		Priority: 2
 	AutoTargetPriority@LOWER:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Infantry, Underwater, Mine
@@ -595,7 +595,7 @@
 	HitShape:
 	Interactable:
 		Bounds: 1,1
-		DecorationBounds: 1,1		
+		DecorationBounds: 1,1
 	SelectionDecorations:
 	RejectsOrders:
 # TODO: Check this for use with crater "summoning" for nuke

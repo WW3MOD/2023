@@ -27,7 +27,7 @@
 		CloakSound:
 		UncloakSound:
 		Palette:
-		CloakTypes: Mine
+		DetectionTypes: Mine
 		InitialDelay: 0
 	Immobile:
 		OccupiesSpace: true
@@ -56,7 +56,7 @@ MINP:
 		GenericName: Crate
 		ShowOwnerRow: false
 	Crate:
-		Lifetime: 180
+		Duration: 180
 		TerrainTypes: Clear, Rough, Road, Ore, Beach, Water
 	RenderSprites:
 		Palette: effect
@@ -172,7 +172,7 @@ camera.paradrop.detector:
 	Inherits: camera.paradrop
 	DetectCloaked:
 		Range: 6c0
-		CloakTypes: Cloak, Thief
+		DetectionTypes: Cloak, Thief
 camera.spyplane:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
@@ -190,7 +190,7 @@ SONAR:
 		Name: (support power proxy camera)
 	-RevealsShroud:
 	DetectCloaked:
-		CloakTypes: Underwater
+		DetectionTypes: Underwater
 		Range: 10c0
 FLARE:
 	Immobile:

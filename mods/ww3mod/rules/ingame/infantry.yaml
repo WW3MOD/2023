@@ -549,50 +549,50 @@
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 	Cloak@Permanent:
-		CloakTypes: Cloak_0
+		DetectionTypes: Cloak_0
 		CloakedCondition: cloak-0
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@DuginAttacking:
-		CloakTypes: Cloak_1
+		DetectionTypes: Cloak_1
 		CloakedCondition: cloak-1
 		RequiresCondition: dugin
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@OpenCrawling:
-		CloakTypes: Cloak_1
+		DetectionTypes: Cloak_1
 		CloakedCondition: cloak-1
 		RequiresCondition: deployed
 		UncloakOn: Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@Dugin:
-		CloakTypes: Cloak_2
+		DetectionTypes: Cloak_2
 		CloakedCondition: cloak-2
 		RequiresCondition: dugin
 		UncloakOn: Attack, Move
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
-		CloakTypes: Cloak_2
+		DetectionTypes: Cloak_2
 		CloakedCondition: cloak-2
 		RequiresCondition: object-proximity
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@OpenIdle:
-		CloakTypes: Cloak_3
+		DetectionTypes: Cloak_3
 		CloakedCondition: cloak-3
 		UncloakOn: Move, Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestDuginAttacking:
-		CloakTypes: Cloak_3
+		DetectionTypes: Cloak_3
 		CloakedCondition: cloak-3
 		RequiresCondition: object-proximity && dugin
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestRunning:
-		CloakTypes: Cloak_6
+		DetectionTypes: Cloak_6
 		CloakedCondition: cloak-6
 		RequiresCondition: object-proximity
 		UncloakOn: Attack
@@ -606,21 +606,21 @@
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestCrawling:
-		CloakTypes: Cloak_8
+		DetectionTypes: Cloak_8
 		CloakedCondition: cloak-8
 		RequiresCondition: deployed && object-proximity
 		UncloakOn: Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestIdle:
-		CloakTypes: Cloak_9
+		DetectionTypes: Cloak_9
 		CloakedCondition: cloak-9
 		RequiresCondition: object-proximity
 		UncloakOn: Move, Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestDugin:
-		CloakTypes: Cloak_10
+		DetectionTypes: Cloak_10
 		CloakedCondition: cloak-10
 		RequiresCondition: dugin && object-proximity
 		UncloakOn: Move, Attack
@@ -737,52 +737,52 @@
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 	Cloak@Permanent:
-		CloakTypes: Cloak_4
+		DetectionTypes: Cloak_4
 		CloakedCondition: cloak-4
 		Palette: player
 		IsPlayerPalette: true
 		RequiresCondition: !disguised
 	Cloak@DuginAttacking:
-		CloakTypes: Cloak_5
+		DetectionTypes: Cloak_5
 		CloakedCondition: cloak-5
 		RequiresCondition: dugin && !disguised
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@OpenCrawling:
-		CloakTypes: Cloak_5
+		DetectionTypes: Cloak_5
 		CloakedCondition: cloak-5
 		RequiresCondition: deployed && !disguised
 		UncloakOn: Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@Dugin:
-		CloakTypes: Cloak_6
+		DetectionTypes: Cloak_6
 		CloakedCondition: cloak-6
 		RequiresCondition: dugin && !disguised
 		UncloakOn: Attack, Move
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
-		CloakTypes: Cloak_6
+		DetectionTypes: Cloak_6
 		CloakedCondition: cloak-6
 		RequiresCondition: object-proximity && !disguised
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@OpenIdle:
-		CloakTypes: Cloak_7
+		DetectionTypes: Cloak_7
 		CloakedCondition: cloak-7
 		RequiresCondition: !disguised
 		UncloakOn: Move, Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestDuginAttacking:
-		CloakTypes: Cloak_7
+		DetectionTypes: Cloak_7
 		CloakedCondition: cloak-7
 		RequiresCondition: object-proximity && dugin && !disguised
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestRunning:
-		CloakTypes: Cloak_8
+		DetectionTypes: Cloak_8
 		CloakedCondition: cloak-8
 		RequiresCondition: object-proximity && !disguised
 		UncloakOn: Attack
@@ -796,21 +796,21 @@
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestCrawling:
-		CloakTypes: Cloak_10
+		DetectionTypes: Cloak_10
 		CloakedCondition: cloak-10
 		RequiresCondition: deployed && object-proximity && !disguised
 		UncloakOn: Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestIdle:
-		CloakTypes: Cloak_11
+		DetectionTypes: Cloak_11
 		CloakedCondition: cloak-11
 		RequiresCondition: object-proximity && !disguised
 		UncloakOn: Move, Attack
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@ForestDugin:
-		CloakTypes: Cloak_12
+		DetectionTypes: Cloak_12
 		CloakedCondition: cloak-12
 		RequiresCondition: dugin && object-proximity && !disguised
 		UncloakOn: Move, Attack
@@ -1758,7 +1758,7 @@ AA:
 		ForceTargetRelationships: Ally
 	DetectCloaked@Mine:
 		Range: 5c0
-		CloakTypes: Mine
+		DetectionTypes: Mine
 	# MineImmune:
 	Minelayer:
 		Mine: MINV
@@ -2164,7 +2164,7 @@ SPY:
 	RevealsShroud:
 		Range: 8c0
 	DetectCloaked@DOG:
-		CloakTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
+		DetectionTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
 		Range: 10c0
 	RenderDetectionCircle:
 	IgnoresDisguise:

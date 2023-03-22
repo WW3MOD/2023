@@ -106,11 +106,11 @@ GTWR:
 		Range: 24c0
 		RequiresCondition: loaded
 	DetectCloaked@Medium:
-		CloakTypes: Medium
+		DetectionTypes: Medium
 		Range: 20c0
 		RequiresCondition: loaded
 	DetectCloaked@Hidden:
-		CloakTypes: Hidden
+		DetectionTypes: Hidden
 		Range: 14c0
 		RequiresCondition: loaded
 	WithRangeCircle@Medium:
@@ -241,11 +241,11 @@ HBOX:
 		Range: 20c0
 		RequiresCondition: loaded
 	DetectCloaked@Medium:
-		CloakTypes: Medium
+		DetectionTypes: Medium
 		Range: 16c0
 		RequiresCondition: loaded
 	# Cloak@Medium:
-	# 	CloakTypes: Medium
+	# 	DetectionTypes: Medium
 	# 	CloakedCondition: cloak-medium
 	# 	InitialDelay: 150
 	# 	CloakDelay: 75
@@ -1090,13 +1090,6 @@ MSLO:
 		RequiredForShortGame: false
 	WithSupportPowerActivationAnimation:
 		RequiresCondition: !build-incomplete
-	# Cloak@Hidden:
-	# 	InitialDelay: 150
-	# 	CloakDelay: 300
-	# 	IsPlayerPalette: true
-	# 	UncloakOn: Attack
-	# 	CloakTypes: Hidden
-	# 	PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical

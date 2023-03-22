@@ -1094,7 +1094,7 @@ SYRD:
 	Armor:
 		Type: Concrete
 	DetectCloaked:
-		CloakTypes: Underwater
+		DetectionTypes: Underwater
 		Range: 7c512
 	RenderDetectionCircle:
 	Production:
@@ -1595,7 +1595,7 @@ SPEN:
 	Targetable:
 		TargetTypes: Ground, Water, Structure, WaterStructure, C4, DetonateAttack, SpyInfiltrate
 	DetectCloaked:
-		CloakTypes: Underwater
+		DetectionTypes: Underwater
 		Range:  10c0
 	RenderDetectionCircle:
 	Production:
