@@ -9,7 +9,7 @@
 if DateTime.IsHalloween then
 	UnitTypes = { "ant", "ant", "ant" }
 	BeachUnitTypes = { "ant", "ant" }
-	ProxyType = "powerproxy.parazombies"
+	-- ProxyType = "powerproxy.parazombies"
 	ProducedUnitTypes =
 	{
 		{ factory = AlliedBarracks1, types = { "e1", "e3" } },
@@ -23,7 +23,7 @@ if DateTime.IsHalloween then
 else
 	UnitTypes = { "t72", "tunguska", "ttnk" }
 	BeachUnitTypes = { "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4", "e1", "e2", "e3", "e4" }
-	ProxyType = "powerproxy.paratroopers"
+	-- ProxyType = "powerproxy.paratroopers"
 	ProducedUnitTypes =
 	{
 		{ factory = AlliedBarracks1, types = { "e1", "e3" } },
@@ -187,7 +187,7 @@ WorldLoaded = function()
 	ShipAlliedUnits()
 	InsertAlliedChinookReinforcements(Chinook1Entry, HeliPad1)
 	InsertAlliedChinookReinforcements(Chinook2Entry, HeliPad2)
-	powerproxy = Actor.Create(ProxyType, false, { Owner = russia })
+	-- powerproxy = Actor.Create(ProxyType, false, { Owner = russia })
 	-- ParadropSovietUnits()
 	-- Trigger.AfterDelay(DateTime.Seconds(5), ChronoshiftAlliedUnits)
 	-- Utils.Do(ProducedUnitTypes, ProduceUnits)
