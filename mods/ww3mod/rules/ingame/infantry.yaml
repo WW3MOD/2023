@@ -971,35 +971,35 @@
 		PercentageStep: -10
 		Delay: 1
 
-	WithDamageOverlay@Burn_1:
+	WithOverlay@Burn_1:
 		RequiresCondition: onfire == 1 || onfire == 2
 		DamageTypes: FireDeath
 		MinimumDamageState: Undamaged
 		MaximumDamageState: Dead
 		Image: infantry-burn-1
 		Palette: effect
-	WithDamageOverlay@Burn_2:
+	WithOverlay@Burn_2:
 		RequiresCondition: onfire == 3 || onfire == 4
 		DamageTypes: FireDeath
 		MinimumDamageState: Undamaged
 		MaximumDamageState: Dead
 		Image: infantry-burn-2
 		Palette: effect
-	WithDamageOverlay@Burn_3:
+	WithOverlay@Burn_3:
 		RequiresCondition: onfire == 5 || onfire == 6
 		DamageTypes: FireDeath
 		MinimumDamageState: Undamaged
 		MaximumDamageState: Dead
 		Image: infantry-burn-3
 		Palette: effect
-	WithDamageOverlay@Burn_4:
+	WithOverlay@Burn_4:
 		RequiresCondition: onfire == 7 || onfire == 8
 		DamageTypes: FireDeath
 		MinimumDamageState: Undamaged
 		MaximumDamageState: Dead
 		Image: infantry-burn-4
 		Palette: effect
-	WithDamageOverlay@Burn_5:
+	WithOverlay@Burn_5:
 		RequiresCondition: onfire == 9 || onfire == 10
 		DamageTypes: FireDeath
 		MinimumDamageState: Undamaged
@@ -1020,7 +1020,7 @@
 		StartIfBelow: 25
 		DamageTypes: BleedOutDeath
 	# TODO add bleedout sequence, make sure it doesnt go ontop of soldier, time it with ChangeHealth delay
-	# WithDamageOverlay@BleedOut:
+	# WithOverlay@BleedOut:
 	# 	RequiresCondition: onfire == 1 || onfire == 2 || onfire == 3 || onfire == 4
 	# 	# ? DamageTypes: FireDeath
 	# 	MinimumDamageState: Critical

@@ -2907,6 +2907,7 @@ chan:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 gnrl:
+	Inherits@PostDeath: ^Rot
 	stand:
 		Facings: 8
 	run:
