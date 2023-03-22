@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, emitWarning, mapRules);
 		}
 
-		void Run(Action<string> emitError, Action<string> emitWarning, Ruleset rules)
+		void Run(Action<string> _1/* emitError */, Action<string> _2/* emitWarning */, Ruleset rules)
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
