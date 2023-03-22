@@ -1022,7 +1022,7 @@ MSLO:
 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@Shape: ^2x1Shape
 	Selectable:
-		Bounds: 48,24
+		Bounds: 1536,1024
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
