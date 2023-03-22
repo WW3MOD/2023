@@ -624,7 +624,6 @@ m109:
 		BuildPaletteOrder: 6
 		Prerequisites: ~vehicles.america, ~techlevel.medium
 		Description: M109 Paladin, long range howitzer
-		IconPalette: chrome
 	Tooltip:
 		Name: Paladin
 	Valued:

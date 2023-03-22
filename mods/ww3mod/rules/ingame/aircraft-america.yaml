@@ -64,7 +64,6 @@ littlebird:
 	RenderSprites:
 		Image: littlebird
 		PlayerPalette: playertd
-		IconPalette: temptd
 		Scale: 0.6
 	AutoTarget:
 		InitialStance: Defend
