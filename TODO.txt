@@ -1,0 +1,1 @@
+- Commented out emitWarning, emitError in CheckConditions.cs to "solve" errors. Lots of "consumes condition that is not not defined" and "provides condition that is never used".

@@ -2442,6 +2442,7 @@ GNRL:
 Zombie:
 	Inherits: ^Soldier
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	-WithInfantryBody@Parachute:
 	Valued:
 		Cost: 100
 	Tooltip:

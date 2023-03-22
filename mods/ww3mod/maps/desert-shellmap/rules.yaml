@@ -71,8 +71,3 @@ powerproxy.paratroopers:
 	ParatroopersPower:
 		DisplayBeacon: false
 		DropItems: E1,E1,E2,E3,E4
-
-powerproxy.parazombies:
-	Inherits: powerproxy.paratroopers
-	ParatroopersPower:
-		DropItems: ZOMBIE,ZOMBIE,ZOMBIE,ZOMBIE,ZOMBIE

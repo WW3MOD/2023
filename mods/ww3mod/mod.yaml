@@ -185,7 +185,7 @@ ChromeLayout:
 	common|chrome/text-notifications.yaml
 
 Translations:
-	common|languages/en.ftl
+	ww3mod|languages/en.ftl
 	# ww3mod|languages/english.yaml
 
 Weapons:
