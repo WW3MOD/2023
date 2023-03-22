@@ -790,7 +790,8 @@ m270:
 		DecorationBounds: 2048,2048
 	RenderRangeCircle:
 		Width: 1
-		Color: FFFF00	Explodes:
+		Color: FFFF00
+	Explodes:
 		Weapon: ArtilleryExplode
 
 PRSM:
