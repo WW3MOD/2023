@@ -790,8 +790,7 @@ m270:
 		DecorationBounds: 2048,2048
 	RenderRangeCircle:
 		Width: 1
-		Color: FFFF00 # Yellow, indirect fire
-	Explodes:
+		Color: FFFF00	Explodes:
 		Weapon: ArtilleryExplode
 
 PRSM:
@@ -949,8 +948,6 @@ HIMARS:
 		TurnSpeed: 5
 	Armament@1:
 		Weapon: IskanderTargeter
-		DamageTypes: Prone50Percent, TriggerProne, ExplosionDeath
-		# FireDelay: 150
 		LocalOffset: 192,-64,176, 192,64,176
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
 	AmmoPool@1:
@@ -994,11 +991,10 @@ HIMARS:
 	Explodes@Loaded:
 		RequiresCondition: loaded
 		Weapon: IskanderExplosion
-		LaunchingCondition: firing-primary
 	ProducibleWithLevel:
 		Prerequisites: vehicles.upgraded
 	Selectable:
 		DecorationBounds: 2048,2048
 	RenderRangeCircle:
 		Width: 2
-		Color: FFFF00 # Yellow, indirect fire
+		Color: FFFF00

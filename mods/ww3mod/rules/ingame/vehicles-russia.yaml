@@ -688,8 +688,6 @@ tos:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
-		Scale: 0.5
-		# Sequence: m270
 	Rearmable:
 		RearmActors: fix
 		AmmoPools: primary-ammo
@@ -697,8 +695,7 @@ tos:
 		DecorationBounds: 1024,1024
 	RenderRangeCircle:
 		Width: 1
-		Color: FF8000 # Yellow, indirect fire
-	WithDamageOverlay:
+		Color: FF8000	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
 	Explodes:
