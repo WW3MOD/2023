@@ -239,12 +239,10 @@ BADR:
 		Offset: -432,560,0
 		TrailLength: 8
 		TrailWidth: 48
-		UsePlayerColor: false
 	Contrail@2:
 		Offset: -432,-560,0
 		TrailLength: 8
 		TrailWidth: 48
-		UsePlayerColor: false
 	SpawnActorOnDeath:
 		Actor: BADR.Husk
 		RequiresCondition: airborne && !empdisable
