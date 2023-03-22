@@ -415,7 +415,7 @@ prsm.destroyed:
 		UseClassicFacings: True
 		ZOffset: -512
 
-madcat:
+timberwolf:
 	Inherits: emp-overlay
 	stand:
 		Facings: -8
@@ -431,11 +431,12 @@ madcat:
 		Facings: -32
 		ShadowStart: 224
 		UseClassicFacings: True
+		Scale: 0.8
 	muzzle-gun: gunfire2
 		Length: 5
 	muzzle-missile: smokey
 		Length: 5
-	icon: abramsicon
+	icon: timberwolficon
 
 smoke_mtd:
 	idle: smoke_mtd

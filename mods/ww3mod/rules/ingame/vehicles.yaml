@@ -489,21 +489,20 @@ MSAR:
 	# 	Range: 50c0
 	# 	RequiresCondition: deployed && !empdisable
 
-madcat:
+timberwolf:
 	Inherits@Type: ^Walker
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Tooltip:
-		Name: Madcat
-		GenericName: Madcat walker
+		Name: Timber Wolf
+		GenericName: Timber Wolf
 	RenderSprites:
 		Palette: unittem
-		Scale: 0.8
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
 		Prerequisites: ~techlevel.futuristic
-		Description: American Main Battle tank
+		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
 	Valued:
 		Cost: 2000
 	Health:
@@ -516,12 +515,12 @@ madcat:
 		Speed: 60
 		TurnSpeed: 10
 	GrantConditionOnMovement@steps:
-		Condition: walker
+		Condition: moving
 	# AmbientSound@step1:
 	# 	SoundFiles: stomp1a.aud, stomp1b.aud, stomp1c.aud
 	# 	Delay: 3
 	# 	Interval: 16
-	# 	RequiresCondition: walker
+	# 	RequiresCondition: moving
 	Turreted:
 		TurnSpeed: 20
 	Armament@1:
@@ -592,7 +591,7 @@ madcat:
 	Selectable:
 		Bounds: 1024, 1536,0,-200
 		DecorationBounds: 1024, 1536,0,-200
-		Class: madcat
+		Class: timberwolf
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
