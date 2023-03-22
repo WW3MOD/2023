@@ -55,9 +55,6 @@ namespace OpenRA.Graphics
 
 		public IRenderable[] Render(WPos pos, in WVec offset, int zOffset, PaletteReference palette, float scale = 1f)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			var tintModifiers = CurrentSequence.IgnoreWorldTint ? TintModifiers.IgnoreWorldTint : TintModifiers.None;
 			var alpha = CurrentSequence.GetAlpha(CurrentFrame);
 			var (image, rotation) = CurrentSequence.GetSpriteWithRotation(CurrentFrame, facingFunc());
@@ -77,9 +74,6 @@ namespace OpenRA.Graphics
 
 		public IRenderable[] RenderUI(WorldRenderer wr, int2 pos, in WVec offset, int zOffset, PaletteReference palette, float scale = 1f, float rotation = 0f)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			scale *= CurrentSequence.Scale;
 			var screenOffset = (scale * wr.ScreenVectorComponents(offset)).XY.ToInt2();
 			var imagePos = pos + screenOffset - new int2((int)(scale * Image.Size.X / 2), (int)(scale * Image.Size.Y / 2));
@@ -124,27 +118,18 @@ namespace OpenRA.Graphics
 
 		int CurrentSequenceTickOrDefault()
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			const int DefaultTick = 40; // 25 fps == 40 ms
 			return CurrentSequence?.Tick ?? DefaultTick;
 		}
 
 		void PlaySequence(string sequenceName)
 		{
-			if (sequenceName == "e3")
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			CurrentSequence = GetSequence(sequenceName);
 			timeUntilNextFrame = CurrentSequenceTickOrDefault();
 		}
 
 		public void PlayRepeating(string sequenceName)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			backwards = false;
 			tickAlways = false;
 			PlaySequence(sequenceName);
@@ -160,9 +145,6 @@ namespace OpenRA.Graphics
 
 		public bool ReplaceAnim(string sequenceName)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			if (!HasSequence(sequenceName))
 				return false;
 
@@ -174,9 +156,6 @@ namespace OpenRA.Graphics
 
 		public void PlayThen(string sequenceName, Action after)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			backwards = false;
 			tickAlways = false;
 			PlaySequence(sequenceName);
@@ -212,9 +191,6 @@ namespace OpenRA.Graphics
 
 		public void PlayFetchDirection(string sequenceName, Func<int> direction)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			tickAlways = false;
 			PlaySequence(sequenceName);
 
@@ -238,9 +214,6 @@ namespace OpenRA.Graphics
 
 		public void Tick(int t)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			if (tickAlways)
 				tickFunc();
 			else
@@ -256,9 +229,6 @@ namespace OpenRA.Graphics
 
 		public void ChangeImage(string newImage, string newAnimIfMissing)
 		{
-			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}");
-
 			newImage = newImage.ToLowerInvariant();
 
 			if (Name != newImage)
