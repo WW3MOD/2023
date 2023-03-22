@@ -281,12 +281,10 @@ grad:
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
-		Scale: 0.5
 	turret: m270
 		Start: 64
 		Facings: 32
 		UseClassicFacingFudge: True
-		Scale: 0.5
 	icon: gradicon
 
 giatsint:
@@ -307,12 +305,10 @@ tos:
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
-		Scale: 0.5
 	turret: m270
 		Start: 64
 		Facings: 32
 		UseClassicFacingFudge: True
-		Scale: 0.5
 	icon: tosicon
 
 iskander:
@@ -435,7 +431,6 @@ timberwolf:
 		Facings: -32
 		ShadowStart: 224
 		UseClassicFacings: True
-		Scale: 0.8
 	muzzle-gun: gunfire2
 		Length: 5
 	muzzle-missile: smokey
