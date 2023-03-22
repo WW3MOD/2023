@@ -8,8 +8,6 @@ Player:
 		Visible: True
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
 		Visible: True
-	LobbyPrerequisiteCheckbox@REUSABLEENGINEERS:
-		Visible: True
 	DeveloperMode:
 		CheckboxVisible: True
 
