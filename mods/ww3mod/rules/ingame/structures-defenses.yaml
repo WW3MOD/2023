@@ -520,7 +520,6 @@ CRAM:
 	WithEmbeddedTurretSpriteBody:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	ClassicFacingBodyOrientation:
 	Selectable:
 		DecorationBounds: 1024,1024
@@ -605,7 +604,6 @@ AGUN:
 	WithEmbeddedTurretSpriteBody:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	ClassicFacingBodyOrientation:
 	Selectable:
 		DecorationBounds: 1024,1024
@@ -685,7 +683,6 @@ SAM:
 	WithEmbeddedTurretSpriteBody:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	Selectable:
 		Bounds: 48,24
 	HitShape:
@@ -1104,7 +1101,6 @@ GUN:
 	-BodyOrientation:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	WithEmbeddedTurretSpriteBody:
 	ClassicFacingBodyOrientation:
 	Building:

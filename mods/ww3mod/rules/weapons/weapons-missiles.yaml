@@ -534,8 +534,8 @@ ShipMissile:
 		Inaccuracy: 0c614
 		HorizontalRateOfTurn: 20
 		RangeLimit: 40c0
-		MinLaunchAngle: 128
-		MaxLaunchAngle: 150
+		MinimumLaunchAngle: 128
+		MaximumLaunchAngle: 150
 		CruiseAltitude: 5c0
 		ContrailLength: 14
 		Image: MISSILE
