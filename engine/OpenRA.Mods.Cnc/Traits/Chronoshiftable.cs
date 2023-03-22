@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public readonly string ChronoshiftSound = "chrono2.aud";
 
 		[Desc("Should the actor return to its previous location after the chronoshift wore out?")]
-		public readonly bool ReturnToOrigin = true;
+		public readonly bool ReturnToOrigin = false;
 
 		[Desc("The color the bar of the 'return-to-origin' logic has.")]
 		public readonly Color TimeBarColor = Color.White;

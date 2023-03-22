@@ -21,6 +21,11 @@ fact:
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
+	pdox: factpdox
+		Length: 80
+	damaged-pdox: factpdox
+		Start: 80
+		Length: 80
 	icon: facticon
 	fake-icon: facficon
 
