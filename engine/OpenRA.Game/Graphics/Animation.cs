@@ -55,19 +55,24 @@ namespace OpenRA.Graphics
 
 		public IRenderable[] Render(WPos pos, in WVec offset, int zOffset, PaletteReference palette, float scale = 1f)
 		{
-			var tintModifiers = CurrentSequence.IgnoreWorldTint ? TintModifiers.IgnoreWorldTint : TintModifiers.None;
-			var alpha = CurrentSequence.GetAlpha(CurrentFrame);
-			var (image, rotation) = CurrentSequence.GetSpriteWithRotation(CurrentFrame, facingFunc());
-			var imageRenderable = new SpriteRenderable(image, pos, offset, CurrentSequence.ZOffset + zOffset, palette, CurrentSequence.Scale * scale, alpha, float3.Ones, tintModifiers, IsDecoration,
+			var nullableBool = CurrentSequence?.IgnoreWorldTint;
+
+			if (nullableBool == null)
+				Log.Write("debug", "nullableBool == null");
+
+			var tintModifiers = nullableBool == true ? TintModifiers.IgnoreWorldTint : TintModifiers.None;
+			var alpha = CurrentSequence?.GetAlpha(CurrentFrame) ?? 1f;
+			var (image, rotation) = CurrentSequence?.GetSpriteWithRotation(CurrentFrame, facingFunc()) ?? (new Sprite(new Sheet(SheetType.Indexed, new Size(512, 512)), new Rectangle(512, 512, 512, 0), TextureChannel.Blue, 1f), new WAngle(0));
+			var imageRenderable = new SpriteRenderable(image, pos, offset, CurrentSequence?.ZOffset ?? 0 + zOffset, palette, (CurrentSequence?.Scale ?? 1f) * scale, alpha, float3.Ones, tintModifiers, IsDecoration,
 				rotation);
 
-			if (CurrentSequence.ShadowStart >= 0)
-			{
-				var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
-				var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, CurrentSequence.Scale * scale, 1f, float3.Ones, tintModifiers,
-					true, rotation);
-				return new IRenderable[] { shadowRenderable, imageRenderable };
-			}
+			// if (CurrentSequence.ShadowStart >= 0)
+			// {
+			// 	var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
+			// 	var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, (CurrentSequence?.Scale ?? 1f) * scale, 1f, float3.Ones, tintModifiers,
+			// 		true, rotation);
+			// 	return new IRenderable[] { shadowRenderable, imageRenderable };
+			// }
 
 			return new IRenderable[] { imageRenderable };
 		}
@@ -94,11 +99,11 @@ namespace OpenRA.Graphics
 		public Rectangle ScreenBounds(WorldRenderer wr, WPos pos, in WVec offset, Actor actor = null)
 		{
 			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}", actor);
+				Log.Write("debug", "ScreenBounds CurrentSequence == null - actor: {0}", actor);
 
-			var scale = CurrentSequence.Scale; // 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204
+			var scale = CurrentSequence?.Scale ?? 1f; // 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204
 			var xy = wr.ScreenPxPosition(pos) + wr.ScreenPxOffset(offset);
-			var cb = CurrentSequence.Bounds;
+			var cb = CurrentSequence?.Bounds ?? new Rectangle(512, 512, 512, 0);
 			return Rectangle.FromLTRB(
 				xy.X + (int)(cb.Left * scale),
 				xy.Y + (int)(cb.Top * scale),
@@ -118,6 +123,9 @@ namespace OpenRA.Graphics
 
 		int CurrentSequenceTickOrDefault()
 		{
+			if (CurrentSequence == null)
+				Log.Write("debug", "CurrentSequenceTickOrDefault CurrentSequence == null");
+
 			const int DefaultTick = 40; // 25 fps == 40 ms
 			return CurrentSequence?.Tick ?? DefaultTick;
 		}

@@ -1014,14 +1014,14 @@
 	# 	Palette: effect
 
 ^RottingInfantry:
-	WithDeathAnimation@ROT:
-		DeathSequence: rot
-		DeathTypes:
-			DefaultDeath: 1
-			BulletDeath: 2
-			SmallExplosionDeath: 3
-			ExplosionDeath: 4
-			BleedOutDeath: 5
+	# WithDeathAnimation@ROT:
+	# 	DeathSequence: rot
+	# 	DeathTypes:
+	# 		DefaultDeath: 1
+	# 		BulletDeath: 2
+	# 		SmallExplosionDeath: 3
+	# 		ExplosionDeath: 4
+	# 		BleedOutDeath: 5
 
 # Conscript
 ^E1:
@@ -1341,8 +1341,6 @@ E2R1:
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Team Leader
-	# RenderSprites:
-	# 	Palette: player # Tried temptd but only works when not cloaked and doesn't use player color
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier

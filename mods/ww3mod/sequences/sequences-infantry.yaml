@@ -1370,6 +1370,7 @@ sf.russia:
 		Start: 354
 		Length: 18
 		Tick: 80
+	die6: electro
 	die7: tl
 		Start: 318
 		Length: 8
@@ -1404,11 +1405,9 @@ tl.russia:
 		Start: 64
 		Length: 8
 		Facings: 8
-	garrison-muzzle: minigun
-		Length: 6
-		Facings: 8
 	parachute: e1
 		Start: 377
+	idle: spy
 	idle1: spy
 		Start: 256
 		Length: 14
@@ -1465,6 +1464,9 @@ tl.russia:
 	prone-shoot: spy
 		Start: 192
 		Length: 8
+		Facings: 8
+	garrison-muzzle: minigun
+		Length: 6
 		Facings: 8
 spy:
 	Inherits: ^spy
@@ -1577,9 +1579,6 @@ tecn.russia:
 		# Length: 28
 		Start: 85
 		Length: 28
-	idle: droneop
-		Start: 85
-		Length: 28
 	active-stand: droneop
 		# Start: 157
 		Start: 229
@@ -1611,6 +1610,9 @@ tecn.russia:
 		Facings: 8
 	parachute: e1
 		Start: 377
+	idle: droneop
+		Start: 85
+		Length: 28
 	idle1: e1
 		Start: 256
 		Length: 16

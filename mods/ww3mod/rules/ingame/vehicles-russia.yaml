@@ -694,7 +694,6 @@ tos:
 	Selectable:
 		DecorationBounds: 1024,1024
 	RenderRangeCircle:
-		Width: 1
 		Color: FF8000
 	WithDamageOverlay:
 		Image: smoke_mtd
