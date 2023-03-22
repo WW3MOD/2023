@@ -55,5 +55,3 @@ Player:
 		Visible: False
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
 		Visible: False
-	LobbyPrerequisiteCheckbox@REUSABLEENGINEERS:
-		Visible: False

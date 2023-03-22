@@ -44,7 +44,6 @@
 		TerrainTypes: Clear,Road
 		UndeploySounds: cashturn.aud
 	FootprintPlaceBuildingPreview:
-		LineBuildSegmentPalette: placelinesegment
 	RequiresBuildableArea:
 		AreaTypes: building
 		Adjacent: 10
@@ -131,14 +130,13 @@ GTWR:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 2
-		PipCount: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 1, 5
+		Margin: 3, 5
 	AttackGarrisoned:
 		PortOffsets: 300,300,300
 		PortYaws: 0
@@ -192,14 +190,13 @@ PBOX:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 2
-		PipCount: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 1, 5
+		Margin: 3, 5
 	AttackGarrisoned:
 		PortOffsets: 300,300,300
 		PortYaws: 0
@@ -272,14 +269,13 @@ HBOX:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 2
-		PipCount: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 1, 5
+		Margin: 3, 5
 	AttackGarrisoned:
 		PortOffsets: 300,300,300
 		PortYaws: 0

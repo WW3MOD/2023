@@ -38,14 +38,15 @@
 		RequiresCondition: loaded
 	Cargo:
 		Types: Infantry
-		MaxWeight: 1
-		PipCount: 1
+		MaxWeight: 10
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadingCondition: notmobile
 		LoadedCondition: loaded
 		EjectOnDeath: True
+	WithCargoPipsDecoration:
+		Margin: 17, 5
 	AttackGarrisoned:
 		PortOffsets: -100,0,128, -500,-241,128, -900,-241,128, -1100,0,128, -900,241,128, -500,241,128
 		PortYaws: 0, 176, 341, 512, 682, 853

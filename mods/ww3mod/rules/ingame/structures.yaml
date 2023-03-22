@@ -23,7 +23,6 @@
 		BuildSounds: placbldg.aud, build5.aud
 		UndeploySounds: cashturn.aud
 	ActorPreviewPlaceBuildingPreview:
-		OverridePalette: placebuilding
 	RequiresBuildableArea:
 		AreaTypes: building
 	SoundOnDamageTransition:
@@ -476,7 +475,6 @@ WEAP:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	Selectable:
 		Bounds: 72,48
 	Building:
@@ -617,7 +615,6 @@ POWR:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	Selectable:
 		Bounds: 48,48
 	HitShape:
@@ -672,7 +669,6 @@ APWR:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	Selectable:
 		DecorationBounds: 3072,3072
 	HitShape:
@@ -728,7 +724,6 @@ PROC:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: idle
-		SequencePalette: placebuilding
 	Selectable:
 		DecorationBounds: 3072,3072
 	Building:
@@ -908,7 +903,6 @@ AFLD:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	HitShape:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 420,0,0, 420,-1024,0, 420,1024,0, -777,0,0, -777,-1024,0, -777,1024,0
@@ -1167,6 +1161,7 @@ SILO:
 		BuildPaletteOrder: 12
 		Prerequisites: ~techlevel.infonly
 		Description: Stores excess refined Ore.
+	Building:
 		AllowPlacementOnResources: true
 	Valued:
 		Cost: 150
@@ -1347,7 +1342,6 @@ TECHCENTER:
 		Bounds: 48,48
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	ProximityExternalCondition@REPLENISHSOLDIERS:
 		Condition: replenish-soldiers
 		Range: 4c0
@@ -1437,7 +1431,6 @@ GAP:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	WithSpriteBody:
 		PauseOnCondition: disabled
 	Selectable:
@@ -1704,8 +1697,8 @@ SPRO:
 		Icon: gps
 		OneShot: true
 		ChargeInterval: 12000
-		Description: GPS Satellite
-		LongDesc: Reveals map terrain and provides tactical\ninformation. Requires power and active radar.
+		Name: GPS Satellite
+		Description: Reveals map terrain and provides tactical\ninformation. Requires power and active radar.
 		RevealDelay: 375
 		LaunchSpeechNotification: SatelliteLaunched
 		DisplayTimerRelationships: Ally, Neutral, Enemy
@@ -1721,8 +1714,8 @@ SPRO:
 	#	AvailableText: READY
 	#	ChargeInterval: 12000
 	#	Icon: gps
-	#	Description: Spy Sattelite
-	#	LongDesc: Reveals the entire map while active\nat the cost of doubled Power consumption.\nLasts for up to 1.5 minute.
+	#	Name: Spy Sattelite
+	#	Description: Reveals the entire map while active\nat the cost of doubled Power consumption.\nLasts for up to 1.5 minute.
 	#	SupportPowerPaletteOrder: 9
 	#	RevealsMap@SpySattelite:
 	#	RequiresCondition: satscan-on
@@ -1797,8 +1790,8 @@ OREP:
 		AvailableText: READY
 		ChargeInterval: 1750
 		Icon: orecast
-		Description: Advanced Processing
-		LongDesc: Activate to divert the boost into your Passive income,\nat the cost of +50% Power consumption.\nAll Silos generate +20$ more Income at 2.0x Faster rate.\nLasts for up to 1.5 minute.
+		Name: Advanced Processing
+		Description: Activate to divert the boost into your Passive income,\nat the cost of +50% Power consumption.\nAll Silos generate +20$ more Income at 2.0x Faster rate.\nLasts for up to 1.5 minute.
 		SupportPowerPaletteOrder: 8
 	GrantConditionOnPrerequisite@OreCasting:
 		Condition: orecasting.on
@@ -1813,7 +1806,6 @@ INDP:
 	-ActorPreviewPlaceBuildingPreview:
 	SequencePlaceBuildingPreview:
 		Sequence: place
-		SequencePalette: placebuilding
 	Selectable:
 		DecorationBounds: 3072,3072
 	HitShape:
@@ -1859,8 +1851,8 @@ INDP:
 		AvailableText: READY
 		ChargeInterval: 1500
 		Icon: mainten
-		Description: Maintenance
-		LongDesc: Disables all War Factories, letting them provide income instead.\nWar Factories generate 30$ every 3 seconds.\nLasts for up to 1 minute.
+		Name: Maintenance
+		Description: Disables all War Factories, letting them provide income instead.\nWar Factories generate 30$ every 3 seconds.\nLasts for up to 1 minute.
 		SupportPowerPaletteOrder: 8
 
 PDOX:

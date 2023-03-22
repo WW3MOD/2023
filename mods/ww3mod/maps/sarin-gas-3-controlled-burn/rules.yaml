@@ -19,7 +19,7 @@ Player:
 	PlayerResources:
 		DefaultCash: 7500
 
-APC:
+M113:
 	Buildable:
 		Prerequisites: ~vehicles.america
 

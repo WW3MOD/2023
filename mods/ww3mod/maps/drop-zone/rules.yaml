@@ -38,13 +38,12 @@ UNITCRATE:
 	Crate:
 		TerrainTypes: Clear, Road, Ore, Beach
 
-APC:
+M113:
 	Inherits@AUTOTARGET: ^AutoTargetGround
 	Health:
 		HP: 100000
 	MustBeDestroyed:
 		RequiredForShortGame: true
-	-AttackMove:
 
 ISKANDER:
 	Tooltip:
@@ -84,6 +83,4 @@ Player:
 		Locked: True
 		Visible: False
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
-		Visible: False
-	LobbyPrerequisiteCheckbox@REUSABLEENGINEERS:
 		Visible: False

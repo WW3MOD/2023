@@ -1755,4 +1755,4 @@ Actors:
 		Owner: Russia
 		ScriptTags: TownAttacker
 
-Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, ww3mod|rules/coop-missions-rules.yaml, rules.yaml
+Rules: ww3mod|rules/campaign/campaign-rules.yaml, ww3mod|rules/campaign/campaign-tooltips.yaml, ww3mod|rules/campaign/campaign-palettes.yaml, ww3mod|rules/campaign/coop-missions-rules.yaml, rules.yaml

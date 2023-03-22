@@ -732,7 +732,7 @@ Actors:
 	PowerPlant6: powr
 		Location: 86,32
 		Owner: BadGuy
-	APC: m113
+	M113: m113
 		Location: 35,48
 		Owner: Greece
 		Facing: 764

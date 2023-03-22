@@ -191,7 +191,6 @@ bradley:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 6
-		PipCount: 6
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
@@ -322,7 +321,6 @@ humvee:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 8
-		PipCount: 8
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
@@ -584,7 +582,6 @@ strykershorad:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 9
-		PipCount: 9
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0

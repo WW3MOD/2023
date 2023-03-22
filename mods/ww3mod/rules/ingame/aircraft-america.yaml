@@ -456,8 +456,8 @@ F16:
 	Valued:
 		Cost: 4000
 	Tooltip:
-		Name: F-16 Fighter
-		Description: Fast Multirole Aircraft.
+		Name: F-16
+		GenericName: F-16
 	Health:
 		HP: 400
 	Armor:
@@ -475,8 +475,6 @@ F16:
 		RepulsionSpeed: 40
 		MaximumPitch: 56
 	AutoTarget:
-		TargetWhenIdle: false
-		TargetWhenDamaged: false
 		EnableStances: false
 	Armament@1:
 		Name: primary

@@ -57,7 +57,7 @@ MISS:
 	DamageMultiplier@INVULNERABLE:
 		Modifier: 0
 
-APC:
+M113:
 	Cargo:
 		InitialUnits: e1, e1, e2, e3, e4
 

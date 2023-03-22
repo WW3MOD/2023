@@ -191,7 +191,6 @@ bmp2:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 7
-		PipCount: 7
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
@@ -520,7 +519,6 @@ giatsint:
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
-		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		# StopAndWait: 100
 	RenderRangeCircle:
@@ -605,8 +603,6 @@ grad:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
-		Scale: 0.5
-		# Sequence: m270
 	Rearmable:
 		RearmActors: fix
 		AmmoPools: primary-ammo
@@ -779,7 +775,6 @@ iskander:
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
-		PersistentTargeting: False
 		PauseOnCondition: empdisable
 		Voice: Attack
 		FacingTolerance: 0
@@ -816,7 +811,6 @@ iskander:
 	Explodes@Loaded:
 		RequiresCondition: loaded
 		Weapon: IskanderExplosion
-		LaunchingCondition: firing-primary
 
 IskanderMissile:
 	Inherits: ^ShootableMissile

@@ -146,7 +146,7 @@ MP5:
 			Heavy: 1
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
-7.62mmDMR: 
+7.62mmDMR:
 	Inherits: ^7.62mm
 	Range: 15c0
 	Magazine: 15
@@ -339,7 +339,7 @@ RPG:
 		Blockable: false
 		# ContrailLength: 6
 		# ContrailWidth: 25
-		# ContrailColor: FFBB00
+		# ContrailStartColor: FFBB00
 		Image: tracer_large
 	Warhead@Damage: SpreadDamage
 		Spread: 128
@@ -910,7 +910,7 @@ SubMissile.barrage.display:
 	Range: 30c0
 	MinRange: 3c0
 	Burst: 2
-	BurstDelay: 2
+	BurstDelays: 2
 	BurstWait: 250
 	Report: turret1.aud
 	TargetActorCenter: true

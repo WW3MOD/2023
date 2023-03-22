@@ -599,7 +599,7 @@
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@OpenDugin:
-		ClakTypes: Cloak_7
+		DetectionTypes: Cloak_7
 		CloakedCondition: cloak-7
 		RequiresCondition: dugin
 		UncloakOn: Move, Attack
@@ -789,7 +789,7 @@
 		Palette: player
 		IsPlayerPalette: true
 	Cloak@OpenDugin:
-		ClakTypes: Cloak_9
+		DetectionTypes: Cloak_9
 		CloakedCondition: cloak-9
 		RequiresCondition: dugin && !disguised
 		UncloakOn: Move, Attack
@@ -973,16 +973,10 @@
 
 	WithOverlay@Burn_1:
 		RequiresCondition: onfire == 1 || onfire == 2
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
 		Image: infantry-burn-1
 		Palette: effect
 	WithOverlay@Burn_2:
 		RequiresCondition: onfire == 3 || onfire == 4
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
 		Image: infantry-burn-2
 		Palette: effect
 	WithOverlay@Burn_3:
@@ -2290,7 +2284,7 @@ TECN:
 	# ModifySequence:
 	# 	RequiresCondition: !loaded && primary-ammo
 	Passenger:
-		PipType: pip-white
+		CustomPipType: pip-white
 	WithDecoration@Class:
 		Sequence: droneop_class
 		Image: class

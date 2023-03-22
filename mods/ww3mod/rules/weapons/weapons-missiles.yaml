@@ -290,7 +290,7 @@ Hellfire:
 		HorizontalRateOfTurn: 5
 		RangeLimit: 27c0
 		ContrailLength: 100
-		ContrailColor: FF0000
+		ContrailStartColor: FF0000
 		Blockable: True
 		Image: dragon
 		# TrailImage: smokey
@@ -534,7 +534,8 @@ ShipMissile:
 		Inaccuracy: 0c614
 		HorizontalRateOfTurn: 20
 		RangeLimit: 40c0
-		LaunchAngle: 128
+		MinLaunchAngle: 128
+		MaxLaunchAngle: 150
 		CruiseAltitude: 5c0
 		ContrailLength: 14
 		Image: MISSILE

@@ -209,7 +209,6 @@ quadcopterdrone:
 		LandableTerrainTypes:
 		MoveIntoShroud: true
 		CruiseAltitude: 3c768
-		TakeUpCellWhenLand: false
 	Health:
 		HP: 100
 	CarrierSlave:

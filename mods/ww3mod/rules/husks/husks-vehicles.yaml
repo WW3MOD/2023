@@ -60,7 +60,6 @@ MCV2.Husk:
 		Name: Husk (Mammoth Tank)
 	ThrowsParticle@turret:
 		Anim: turret:
-		IntoActor: 4tnk
 	RenderSprites:
 		Image: 4tnk.destroyed
 

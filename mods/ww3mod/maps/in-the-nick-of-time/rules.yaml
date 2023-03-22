@@ -69,7 +69,7 @@ TUNGUSKA:
 	Buildable:
 		Prerequisites: ~disabled
 
-APC:
+M113:
 	Buildable:
 		Prerequisites: ~disabled
 

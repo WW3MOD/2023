@@ -281,10 +281,12 @@ grad:
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
+		Scale: 0.5
 	turret: m270
 		Start: 64
 		Facings: 32
 		UseClassicFacingFudge: True
+		Scale: 0.5
 	icon: gradicon
 
 giatsint:
