@@ -71,7 +71,7 @@ MCV2.Husk:
 	ThrowsParticle@turret:
 		Anim: turret
 	RenderSprites:
-		Image: abrams.destroyed
+		Image: 5tnk.destroyed
 
 TNKD.Husk:
 	Inherits: ^Husk

@@ -509,6 +509,16 @@ smoke_mtd:
 		UseClassicFacings: True
 		ZOffset: -512
 
+5tnk.destroyed:
+	idle: behe
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: -512
+	turret: 5tnk-tur
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: -512
+
 jeep:
 	Inherits: emp-overlay
 	idle:
