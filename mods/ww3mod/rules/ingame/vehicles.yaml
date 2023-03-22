@@ -87,8 +87,6 @@
 		# MinRange: 5c0
 		Range: 24c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 16c0
 ^TrackedVehicle:
 	Inherits@Type: ^Vehicle
 	Mobile:

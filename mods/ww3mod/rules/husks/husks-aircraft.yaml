@@ -98,9 +98,6 @@ YAK.Husk:
 		Range: 11c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 9c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: yak
 
@@ -139,9 +136,6 @@ SPIT.Husk:
 		Range: 11c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 9c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: ally-yak
 
@@ -184,9 +178,6 @@ MIG.Husk:
 		Range: 13c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 11c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: mig
 		Scale: 1.25
@@ -268,9 +259,6 @@ TRAN.Husk:
 		Range: 8c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 6c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: tran
 		Scale: 1.25
@@ -309,9 +297,6 @@ littlebird.Husk:
 		Range: 10c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 8c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: littlebird
 		PlayerPalette: playertd
@@ -350,9 +335,6 @@ HELI.Husk:
 		Range: 12c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 10c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: heli
 		Scale: 1.25
@@ -391,9 +373,6 @@ MI28.Husk:
 		Range: 12c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 10c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: heli
 		Scale: 1.2
@@ -413,33 +392,6 @@ MI28.Husk.EMP.Empty:
 	FallsToEarth:
 		Explosion: UnitExplodeHeliEmpty
 
-# MI2.Husk:
-# 	Inherits@Type: ^HelicopterHusk
-# 	Tooltip:
-# 		Name: MI-2 Scout
-# 	Aircraft:
-# 		TurnSpeed: 4
-# 		Speed: 112
-# 	WithIdleOverlay:
-# 		Sequence: rotor
-# # 	SmokeTrailWhenDamaged:
-# # 		Offset: -427,0,0
-# # 		MinDamage: Undamaged
-# 	RevealsShroud:
-# 		MinRange: 8c0
-# 		Range: 10c0
-# 		Type: GroundPosition
-# 		RevealGeneratedShroud: False
-# 	RevealsShroud@GAPGEN:
-# 		Range: 8c0
-# 		Type: GroundPosition
-# 	RenderSprites:
-# 		Image: mi2
-
-# MI2.Husk.EMP:
-# 	Inherits: MI2.Husk
-# 	Inherits: ^EmpVisualEffect
-
 HIND.Husk:
 	Inherits@Type: ^HelicopterHusk
 	Tooltip:
@@ -457,9 +409,6 @@ HIND.Husk:
 		Range: 10c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 8c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: hind
 		Scale: 1.3
@@ -525,9 +474,6 @@ FROG.Husk:
 		Range: 13c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 11c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: frog
 		Scale: 1.25
@@ -570,9 +516,6 @@ A10.Husk:
 		Range: 13c0
 		Type: GroundPosition
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
-		Range: 11c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: a10
 		Scale: 1.2
@@ -592,9 +535,6 @@ HALO.Husk:
 		MinRange: 6c0
 		Type: GroundPosition
 		RevealGeneratedShroud: false
-	RevealsShroud@GAPGEN:
-		Range: 6c0
-		Type: GroundPosition
 	RenderSprites:
 		Image: halo
 
