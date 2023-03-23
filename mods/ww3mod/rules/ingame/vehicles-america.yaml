@@ -29,6 +29,7 @@ abrams:
 		PauseOnCondition: empdisable
 	Turreted:
 		TurnSpeed: 20
+		Offset: 0,0,80
 	Armament@1:
 		Name: primary
 		Weapon: 120mmAbramsGun
@@ -109,7 +110,7 @@ bradley:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 72
-		TurnSpeed: 10
+		TurnSpeed: 20
 		PauseOnCondition: firing-wgm || empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -118,7 +119,8 @@ bradley:
 		PreparingRevokeDelay: 50
 		AttackingRevokeDelay: 0
 	Turreted:
-		TurnSpeed: 28
+		TurnSpeed: 20
+		Offset: 0,0,50
 	Armament@1:
 		Name: primary
 		Weapon: 25mmBradleyGun
@@ -217,7 +219,7 @@ bradley:
 		Weapon: ArtilleryExplode
 
 humvee:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
@@ -244,14 +246,14 @@ humvee:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
 		Locomotor: lightwheeled
-		TurnSpeed: 8
+		TurnSpeed: 15
 		Speed: 110
 		AlwaysTurnInPlace: false
 		# Voice: Move
 		PauseOnCondition: empdisable
 	Turreted@MG:
-		TurnSpeed: 8
-		Offset: 32,0,85
+		TurnSpeed: 20
+		Offset: 32,0,80
 	WithSpriteTurret@MG:
 	Armament@MG:
 		Name: primary
@@ -386,6 +388,7 @@ m113:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
 		Speed: 85
+		TurnSpeed: 22
 		Locomotor: lighttracked-amphbious
 		# PauseOnCondition: empdisable || !notmobile
 	Armament@MG:
@@ -416,7 +419,8 @@ m113:
 		TargetFrozenActors: True
 		PauseOnCondition: empdisable
 	Turreted:
-		TurnSpeed: 28
+		TurnSpeed: 25
+		Offset: 0,0,15
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	Cargo:
@@ -444,7 +448,7 @@ m113:
 		Weapon: ArtilleryExplode
 
 strykershorad:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
@@ -471,7 +475,7 @@ strykershorad:
 		TargetTypes: Ground, Vehicle, Medium
 	Mobile:
 		Speed: 97
-		TurnSpeed: 10
+		TurnSpeed: 15
 		Locomotor: heavywheeled
 		PauseOnCondition: empdisable
 	RevealsRadar:
@@ -481,9 +485,6 @@ strykershorad:
 		Color: 000000
 		Width: 5
 		Alpha: 50
-	Turreted:
-		TurnSpeed: 28
-		Offset: -250,0,0
 	Armament@1:
 		Name: primary
 		Weapon: 30mmStrykerGun
@@ -555,6 +556,9 @@ strykershorad:
 		FullReloadSteps: 2
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked
+	Turreted:
+		TurnSpeed: 20
+		Offset: -250,0,80
 	ReloadArmamentsBar@3:
 		Armaments: tertiary
 		Color: 00FF00
@@ -640,7 +644,7 @@ m109:
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
-		TurnSpeed: 10
+		TurnSpeed: 15
 		Speed: 56
 		Locomotor: lighttracked
 		PauseOnCondition: firing || empdisable
@@ -651,7 +655,7 @@ m109:
 	IndirectFire:
 	Turreted:
 		Offset: -200,0,0
-		TurnSpeed: 10
+		TurnSpeed: 15
 	Armament@1:
 		Weapon: 155mmPaladinGun
 		# FireDelay: 100
@@ -688,7 +692,6 @@ m109:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		# StopAndWait: 100
-	WithSpriteTurret:
 	RenderRangeCircle:
 		Width: 1
 		Alpha: 100
@@ -696,6 +699,7 @@ m109:
 	RenderSprites:
 		Image: m109
 		Scale: 1.1
+	WithSpriteTurret:
 	Selectable:
 		Class: ARTILLERY
 	WithDamageOverlay:
@@ -734,7 +738,7 @@ m270:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 50
-		TurnSpeed: 5
+		TurnSpeed: 15
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -744,9 +748,6 @@ m270:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
-	Turreted:
-		Offset: -200,0,0
-		TurnSpeed: 10
 	Armament@1:
 		Weapon: 227mmRockets
 		# FireDelay: 150
@@ -772,7 +773,8 @@ m270:
 		AmmoPools: primary-ammo
 	Turreted:
 		Offset: -300,0,50
-		TurnSpeed: 28
+		# Offset: -180,0,150
+		TurnSpeed: 10
 	AttackTurreted:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
@@ -821,6 +823,7 @@ PRSM:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 55
+		TurnSpeed: 20
 		PauseOnCondition: empdisable
 	Selectable:
 		DecorationBounds: 2048,2048
@@ -838,9 +841,6 @@ PRSM:
 	AutoTargetPriority@1:
 		ValidTargets: Defense
 		Priority: 1
-	Turreted:
-		TurnSpeed: 20
-		Offset: 100,0,0
 	Armament@MaximumFirepower:
 		Name: primary
 		Weapon: PrismLaserMaxFirepower
@@ -854,12 +854,15 @@ PRSM:
 	WithIdleOverlay@Cooldown:
 		RequiresCondition: cooldown
 		Sequence: cooldown
-		Offset: 100,0,300
+		Offset: 120,0,300
 	Armament@LowFirepower:
 		Name: secondary
 		Weapon: PrismLaser
 		LocalOffset: 125,0,180
 		PauseOnCondition: cooldown || !ammo-primary || empdisable
+	Turreted:
+		TurnSpeed: 20
+		Offset: 100,0,10
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary, secondary
@@ -889,7 +892,7 @@ PRSM:
 	Explodes:
 		Weapon: ArtilleryExplode
 HIMARS:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Buildable:
@@ -934,7 +937,7 @@ HIMARS:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 70
-		TurnSpeed: 4
+		TurnSpeed: 10
 		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -944,9 +947,6 @@ HIMARS:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
-	Turreted:
-		Offset: -200,0,0
-		TurnSpeed: 5
 	Armament@1:
 		Weapon: IskanderTargeter
 		LocalOffset: 192,-64,176, 192,64,176
@@ -970,8 +970,8 @@ HIMARS:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Turreted:
-		Offset: -300,0,50
-		TurnSpeed: 28
+		TurnSpeed: 10
+		Offset: -300,0,150
 	AttackTurreted:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
@@ -992,8 +992,6 @@ HIMARS:
 	Explodes@Loaded:
 		RequiresCondition: loaded
 		Weapon: IskanderExplosion
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	Selectable:
 		DecorationBounds: 2048,2048
 	RenderRangeCircle:

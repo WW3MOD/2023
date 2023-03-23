@@ -70,6 +70,7 @@ mnly:
 		UseClassicFacings: True
 	turret: apc-tur3
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: minigun
 		Length: 6
@@ -89,8 +90,10 @@ brdm:
 	turret:
 		Start: 32
 		Facings: 32
+		ZOffset: 300
 	turret-mg: btr-tur
 		Facings: 32
+		ZOffset: 300
 	muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -102,9 +105,11 @@ bmp:
 		Facings: 32
 	turret-flak-ag: gapc-tur
 		Facings: 32
+		ZOffset: 300
 	turret-flak-aa: gapc-tur
 		Start: 32
 		Facings: 32
+		ZOffset: 300
 	muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -123,6 +128,7 @@ btr:
 		Start: 32
 	turret: btr-tur
 		Facings: 32
+		ZOffset: 300
 	muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -136,6 +142,7 @@ abrams:
 	turret: abrams-correction
 		Start: 32
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: gunfire2
 		Length: 5
@@ -153,9 +160,12 @@ humvee:
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
+		ZOffset: 300
 	turret2: stnk
 		Start: 38
 		Facings: 32
+		Scale: 0.9
+		ZOffset: 300
 	muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -176,6 +186,7 @@ m113:
 		Start: 32
 	turret: apc-tur3
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	icon: m113icon
 
@@ -187,6 +198,7 @@ m109:
 	turret: howi-tur
 		Start: 32
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: smokeygun
 		Length: 12
@@ -200,6 +212,7 @@ bradley:
 		UseClassicFacings: True
 	turret: 1tnk-tur
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: gunfire2
 		Length: 2
@@ -212,6 +225,7 @@ strykershorad:
 		UseClassicFacings: True
 	turret: 1tnk-tur
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: gunfire2
 		Length: 2
@@ -225,10 +239,12 @@ m270:
 	turret-idle:
 		Start: 32
 		Facings: 32
-		UseClassicFacingFudge: True
+		ZOffset: 300
+		UseClassicFacingFudge: false
 	turret:
 		Start: 64
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	icon: m270icon
 
@@ -240,6 +256,7 @@ t72:
 	turret: t72
 		Start: 32
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: gunfire2
 		Length: 5
@@ -251,6 +268,7 @@ bmp2:
 		Facings: 32
 	turret: 1tnk-tur
 		Facings: 32
+		ZOffset: 300
 	muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -263,10 +281,14 @@ grad:
 	turret-idle: m270
 		Start: 32
 		Facings: 32
+		Scale: 0.9
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret: m270
 		Start: 64
 		Facings: 32
+		Scale: 0.9
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	icon: gradicon
 
@@ -287,10 +309,14 @@ tos:
 	turret-idle: m270
 		Start: 32
 		Facings: 32
+		Scale: 0.9
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret: m270
 		Start: 64
 		Facings: 32
+		Scale: 0.9
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	icon: tosicon
 
@@ -322,9 +348,11 @@ tunguska:
 		Facings: 32
 	turret-idle: quad_turret
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret: quad_turret
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	muzzle: minigun
 		Length: 6
@@ -339,15 +367,16 @@ himars:
 	turret-idle:
 		Start: 32
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret:
 		Start: 64
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacingFudge: True
 	icon: himarsicon
 
 msar:
-	# Inherits@Type: ^VehicleOverlays
 	Inherits: emp-overlay
 	idle: msar
 		Facings: 32
@@ -382,6 +411,7 @@ prsm:
 		UseClassicFacings: True
 	turret: prsm-tur
 		Facings: 32
+		ZOffset: 300
 		UseClassicFacings: True
 	cooldown: smoke_cooldown
 		Length: *
@@ -408,7 +438,7 @@ timberwolf:
 	run:
 		Length: 12
 		Facings: -8
-		Tick: 75
+		Tick: 70
 	turret:
 		Start: 96
 		Facings: -32

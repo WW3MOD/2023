@@ -87,13 +87,27 @@
 		# MinRange: 5c0
 		Range: 24c0
 		RevealGeneratedShroud: False
+
+^WheeledVehicle:
+	Inherits@Type: ^Vehicle
+	Mobile:
+		Locomotor: wheeled
+	SpeedMultiplier:
+		Modifier: 135
+	Passenger:
+		Weight: 15
+		CargoType: Vehicle
+
 ^TrackedVehicle:
 	Inherits@Type: ^Vehicle
 	Mobile:
 		Locomotor: tracked
+	SpeedMultiplier:
+		Modifier: 135
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle
+
 ^Walker:
 	Inherits: ^Vehicle
 	Tooltip:
@@ -117,7 +131,7 @@
 		RequiresCondition: critical-damage
 
 MCV:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
 	Buildable:
 		Queue: Vehicle
@@ -208,7 +222,7 @@ MCV2.ai:
 	-MapEditorData:
 
 HARV:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableEconomicUnit
 	-Tooltip:
 	-GpsDot:
@@ -301,7 +315,7 @@ HARV.Crate:
 	-MapEditorData:
 
 TRUK:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
 	Buildable:
 		Queue: Vehicle
@@ -416,7 +430,7 @@ MNLY:
 		Weapon: ArtilleryExplode
 
 MSAR:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
 	Tooltip:
 		Name: Mobile Radar
@@ -496,6 +510,7 @@ timberwolf:
 		GenericName: Timber Wolf
 	RenderSprites:
 		Palette: unittem
+		Scale: 0.8
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 1

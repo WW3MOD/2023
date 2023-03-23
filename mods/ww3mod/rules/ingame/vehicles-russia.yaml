@@ -25,10 +25,11 @@ t72:
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked
-		TurnSpeed: 10
+		TurnSpeed: 15
 		PauseOnCondition: empdisable
 	Turreted:
-		TurnSpeed: 10
+		TurnSpeed: 15
+		Offset: 0,0,20
 	Armament@1:
 		Name: primary
 		Weapon: 125mmT72Gun
@@ -108,7 +109,7 @@ bmp2:
 	Mobile:
 		Locomotor: lighttracked-amphbious
 		Speed: 65
-		TurnSpeed: 28
+		TurnSpeed: 20
 		PauseOnCondition: empdisable || firing-secondary
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -116,9 +117,6 @@ bmp2:
 		RevokeDelay: 100
 		PreparingRevokeDelay: 50
 		AttackingRevokeDelay: 0
-	Turreted:
-		TurnSpeed: 28
-		Offset: -75,10,10
 	Armament@1:
 		Name: primary
 		Weapon: 73mmBmpGun
@@ -177,6 +175,9 @@ bmp2:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	Turreted:
+		TurnSpeed: 20
+		Offset: -75,0,60
 	AttackTurreted:
 		TargetFrozenActors: True
 		Armaments: primary, secondary
@@ -217,7 +218,7 @@ bmp2:
 		Weapon: ArtilleryExplode
 
 btr:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInf
@@ -245,7 +246,7 @@ btr:
 	Mobile:
 		Speed: 85
 		Locomotor: lighttracked-amphbious
-		# PauseOnCondition: empdisable || !notmobile
+		TurnSpeed: 15
 	Armament@MG:
 		Name: primary
 		Weapon: 12.7mmMG
@@ -274,7 +275,8 @@ btr:
 		TargetFrozenActors: True
 		PauseOnCondition: empdisable
 	Turreted:
-		TurnSpeed: 28
+		TurnSpeed: 20
+		Offset: 100,0,120
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	Cargo:
@@ -326,7 +328,7 @@ tunguska:
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked
-		TurnSpeed: 10
+		TurnSpeed: 20
 		PauseOnCondition: firing-secondary || empdisable
 	RevealsRadar:
 		Range: 30c0
@@ -336,7 +338,7 @@ tunguska:
 		Width: 5
 		Alpha: 50
 	Turreted:
-		TurnSpeed: 10
+		TurnSpeed: 20
 		Offset: -30,0,50
 	Armament@3:
 		Name: primary
@@ -352,7 +354,6 @@ tunguska:
 		Recoil: 30
 		RecoilRecovery: 30
 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
-		# LocalOffset: 1000,200,180, 1000,-200,180, 1000,200,280, 1000,-200,280
 		LocalYaw: 0, 100
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
@@ -534,7 +535,7 @@ giatsint:
 		Weapon: ArtilleryExplode
 
 grad:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Buildable:
@@ -562,7 +563,7 @@ grad:
 		Range: 10c0
 	Mobile:
 		Speed: 50
-		TurnSpeed: 5
+		TurnSpeed: 8
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -595,14 +596,19 @@ grad:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Turreted:
-		Offset: -300,0,50
-		TurnSpeed: 28
+		Offset: -220,0,140
+		TurnSpeed: 20
 	AttackTurreted:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
-	WithSpriteTurret:
+	WithSpriteTurret@idle:
+		RequiresCondition: !firing
+		Sequence: turret-idle
+	WithSpriteTurret@firing:
+		RequiresCondition: firing
+		Sequence: turret
 	Rearmable:
 		RearmActors: fix
 		AmmoPools: primary-ammo
@@ -647,7 +653,7 @@ tos:
 		PauseOnCondition: !firing
 	Mobile:
 		Speed: 50
-		TurnSpeed: 5
+		TurnSpeed: 20
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -680,14 +686,19 @@ tos:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Turreted:
-		TurnSpeed: 28
-		Offset: -55,10,10
+		TurnSpeed: 20
+		Offset: -100,0,180
 	AttackTurreted:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
-	WithSpriteTurret:
+	WithSpriteTurret@idle:
+		RequiresCondition: !firing
+		Sequence: turret-idle
+	WithSpriteTurret@firing:
+		RequiresCondition: firing
+		Sequence: turret
 	Rearmable:
 		RearmActors: fix
 		AmmoPools: primary-ammo
@@ -702,7 +713,7 @@ tos:
 		Weapon: ArtilleryExplode
 
 iskander:
-	Inherits@Type: ^Vehicle
+	Inherits@Type: ^WheeledVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Buildable:
@@ -786,11 +797,6 @@ iskander:
 		Actors: IskanderMissile
 		LoadedCondition: loaded
 		LaunchingCondition: firing-primary
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
-	# WithProductionIconOverlay:
-	# 	Types: Veterancy
-	# 	Prerequisites: vehicles.upgraded
 	Voiced:
 		VoiceSet: IskanderVoice
 	Exit:
@@ -867,6 +873,7 @@ TTNK:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
 		Speed: 55
+		TurnSpeed: 15
 		PauseOnCondition: !(!being-captured) || empdisable
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
@@ -913,6 +920,7 @@ TTNK:
 		TargetFrozenActors: True
 		PauseOnCondition: unit.docked
 	Turreted:
+		TurnSpeed: 30
 	WithIdleOverlay@SPINNER:
 		Sequence: spinner-not
 		RequiresCondition: !is-shooting
@@ -921,8 +929,6 @@ TTNK:
 	GrantConditionOnAttack@ORBUSAGE:
 		Condition: is-shooting
 		RevokeDelay: 32
-	# ProducibleWithLevel:
-	# 	Prerequisites: vehicles.upgraded
 	Passenger:
 		CustomPipType: pip-white
 	GpsDot:
@@ -935,8 +941,6 @@ TTNK:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
-
-# MT-LB: Amphibious APC
 
 # 9P149: Shturm-S/SM  Mobile anti-tank guided missile system
 

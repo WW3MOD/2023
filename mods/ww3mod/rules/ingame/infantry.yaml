@@ -1186,7 +1186,7 @@ E1R1:
 	Selectable:
 		Class: E3
 	RenderSprites:
-		Scale: 0.6
+		Scale: 0.65
 E3:
 	Inherits: ^E3
 E3R1:
@@ -1260,7 +1260,7 @@ E3R1:
 	Selectable:
 		Class: AR
 	RenderSprites:
-		Scale: 0.6
+		Scale: 0.65
 AR:
 	Inherits: ^AR
 
@@ -1318,7 +1318,7 @@ AR:
 	Selectable:
 		Class: E2
 	RenderSprites:
-		Scale: 0.6
+		Scale: 0.65
 E2:
 	Inherits: ^E2
 E2R1:
@@ -1439,7 +1439,6 @@ TL:
 		Cost: 300
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-
 	Targetable@HighPriority:
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	SpeedMultiplier:
@@ -1487,7 +1486,7 @@ TL:
 	Selectable:
 		Class: MT
 	RenderSprites:
-		Scale: 0.6
+		Scale: 0.65
 MT:
 	Inherits: ^MT
 
@@ -1554,7 +1553,7 @@ MT:
 		RequiresCondition: ammo-primary
 		Color: FFFF00
 	RenderSprites:
-		Scale: 0.5
+		Scale: 0.45
 	Selectable:
 		Class: SN
 	WithDecoration@Class:
@@ -2217,7 +2216,7 @@ DOG:
 	Selectable:
 		Class: TECN
 	RenderSprites:
-		Scale: 0.6
+		Scale: 0.65
 TECN:
 	Inherits: ^TECN
 

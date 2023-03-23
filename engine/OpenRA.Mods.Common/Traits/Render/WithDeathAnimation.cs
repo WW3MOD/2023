@@ -99,14 +99,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 				sequence += Info.DeathTypes[damageType].Random(self.World.SharedRandom);
 			}
 
-			var image = rs.GetImage(self);
-
-			SpawnDeathAnimation(self, self.CenterPosition, image, sequence, palette, Info.Delay);
+			SpawnDeathAnimation(self, self.CenterPosition, rs.GetImage(self), sequence, palette, Info.Delay);
 		}
 
 		public void SpawnDeathAnimation(Actor self, WPos pos, string image, string sequence, string palette, int delay)
 		{
-			self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, image, sequence, palette, delay: delay)));
+			self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, image, sequence, palette, delay: delay, scale: rs.Info.Scale)));
 		}
 
 		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
