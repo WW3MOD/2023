@@ -248,8 +248,6 @@ humvee:
 		Locomotor: lightwheeled
 		TurnSpeed: 15
 		Speed: 110
-		AlwaysTurnInPlace: false
-		# Voice: Move
 		PauseOnCondition: empdisable
 	Turreted@MG:
 		TurnSpeed: 20
