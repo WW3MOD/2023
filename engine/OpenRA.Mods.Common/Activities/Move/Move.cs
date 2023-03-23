@@ -418,7 +418,6 @@ namespace OpenRA.Mods.Common.Activities
 				if (Move.lastMovePartCompletedTick < self.World.WorldTick)
 				{
 					var movementSpeedForCell = mobile.MovementSpeedForCell(mobile.ToCell);
-					var movementStartSpeedForCell = movementSpeedForCell * (float)(mobile.Info.StartSpeedPercent / 100);
 
 					// Maximum speed
 					if (mobile.CurrentSpeed >= movementSpeedForCell)
@@ -429,9 +428,9 @@ namespace OpenRA.Mods.Common.Activities
 					// Forward comrades
 					else
 					{
-						var aa = (float)mobile.CurrentSpeed / (float)movementSpeedForCell * (float)mobile.AccelerationSteps.Length;
-						var aaa = (int)Math.Floor((double)aa);
-						mobile.CurrentSpeed += mobile.AccelerationSteps[aaa];
+						var currentAcceleration = (float)mobile.CurrentSpeed / (float)movementSpeedForCell * (float)mobile.AccelerationSteps.Length;
+						var flooredValue = (int)Math.Floor((double)currentAcceleration);
+						mobile.CurrentSpeed += mobile.AccelerationSteps[flooredValue];
 					}
 
 					progress += mobile.CurrentSpeed;

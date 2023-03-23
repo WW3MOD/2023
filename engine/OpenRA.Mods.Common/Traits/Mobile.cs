@@ -36,8 +36,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle TurnSpeed = new WAngle(512);
 
 		public readonly int Speed = 1;
-		public readonly int StartSpeedPercent = 10;
-		public readonly int[] Acceleration = { 10, 9, 8, 7, 7, 6, 6, 5, 5, 5, 4, 3 };
+
+		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
+		public readonly int[] Acceleration = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
 
 		[Desc("If set to true, this unit will always turn in place instead of following a curved trajectory (like infantry).")]
 		public readonly bool AlwaysTurnInPlace = false;
