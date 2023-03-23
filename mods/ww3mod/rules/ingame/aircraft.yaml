@@ -24,6 +24,8 @@
 		Bounds: 1024,1024
 	Aircraft:
 		AirborneCondition: airborne
+	SpeedMultiplier:
+		Modifier: 135
 	Targetable@GROUND:
 		RequiresCondition: !airborne
 		TargetTypes: Ground, Vehicle
