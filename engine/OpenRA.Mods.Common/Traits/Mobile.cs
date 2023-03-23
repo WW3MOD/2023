@@ -36,6 +36,8 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle TurnSpeed = new WAngle(512);
 
 		public readonly int Speed = 1;
+		public readonly int StartSpeedPercent = 10;
+		public readonly int[] Acceleration = { 10, 9, 8, 7, 7, 6, 6, 5, 5, 5, 4, 3 };
 
 		[Desc("If set to true, this unit will always turn in place instead of following a curved trajectory (like infantry).")]
 		public readonly bool AlwaysTurnInPlace = false;
@@ -94,6 +96,34 @@ namespace OpenRA.Mods.Common.Traits
 
 		public LocomotorInfo LocomotorInfo { get; private set; }
 
+		/* public static IList<double> BuildIntermediateValues(double start, double end)
+		{
+			IList<double> result = new List<double>();
+			if (Math.Abs(start - end) < double.Epsilon)
+			{
+				return result;
+			}
+
+			if (start < end)
+			{
+				// go up
+				for (var d = start + stepSize; d < end; d += stepSize)
+				{
+					result.Add(d);
+				}
+			}
+			else
+			{
+				// go down.
+				for (var d = start - stepSize; d > end; d -= stepSize)
+				{
+					result.Add(d);
+				}
+			}
+
+			return result;
+		} */
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			var locomotorInfos = rules.Actors[SystemActors.World].TraitInfos<LocomotorInfo>();
@@ -105,6 +135,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			// We need to reset the reference to the locomotor between each worlds, otherwise we are reference the previous state.
 			locomotor = null;
+
+			// Set acceleration intermediates
+			/* IList<int> inputs = Acceleration;
+			for (var i = 0; i < inputs.Count - 1; i++)
+			{
+				var inputValue = inputs[i];
+				var nextInputValue = inputs[i + 1];
+
+				AccelerationSteps[0] = inputValue;
+
+				var intermediateValues = BuildIntermediateValues(inputValue, nextInputValue);
+
+				foreach (var intermediate in intermediateValues)
+				{
+					AccelerationSteps[0] = (int)intermediate;
+					Console.WriteLine($"Intermediate: {intermediate}");
+				}
+			}
+
+			AccelerationSteps[0] = inputs.Last(); */
 
 			base.RulesetLoaded(rules, ai);
 		}
@@ -172,6 +222,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		#region IMove CurrentMovementTypes
 		MovementType movementTypes;
+		public int[] AccelerationSteps;
 		public MovementType CurrentMovementTypes
 		{
 			get => movementTypes;
@@ -242,6 +293,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public CPos TopLeft => ToCell;
 
+		public int CurrentAcceleration { get; set; }
+
+		public int CurrentSpeed { get; set; }
+
 		public (CPos, SubCell)[] OccupiedCells()
 		{
 			if (FromCell == ToCell)
@@ -263,6 +318,8 @@ namespace OpenRA.Mods.Common.Traits
 			speedModifiers = Exts.Lazy(() => self.TraitsImplementing<ISpeedModifier>().ToArray().Select(x => x.GetSpeedModifier()));
 
 			ToSubCell = FromSubCell = info.LocomotorInfo.SharesCell ? init.World.Map.Grid.DefaultSubCell : SubCell.FullCell;
+
+			AccelerationSteps = Info.Acceleration;
 
 			var subCellInit = init.GetOrDefault<SubCellInit>();
 			if (subCellInit != null)
@@ -838,6 +895,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
+			CurrentAcceleration = 0;
+			CurrentSpeed = 0;
+
 			if (self.Location.Layer == 0)
 			{
 				// Make sure that units aren't left idling in a transit-only cell

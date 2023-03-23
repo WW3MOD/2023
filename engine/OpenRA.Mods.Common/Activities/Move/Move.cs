@@ -306,7 +306,7 @@ namespace OpenRA.Mods.Common.Activities
 			path = null;
 		}
 
-		bool CellIsEvacuating(Actor self, CPos cell)
+		static bool CellIsEvacuating(Actor self, CPos cell)
 		{
 			foreach (var actor in self.World.ActorMap.GetActorsAt(cell))
 			{
@@ -416,7 +416,26 @@ namespace OpenRA.Mods.Common.Activities
 				// Only move by a full speed step if we didn't already move this tick.
 				// If we did, we limit the move to any carried-over leftover progress.
 				if (Move.lastMovePartCompletedTick < self.World.WorldTick)
-					progress += mobile.MovementSpeedForCell(mobile.ToCell);
+				{
+					var movementSpeedForCell = mobile.MovementSpeedForCell(mobile.ToCell);
+					var movementStartSpeedForCell = movementSpeedForCell * (float)(mobile.Info.StartSpeedPercent / 100);
+
+					// Maximum speed
+					if (mobile.CurrentSpeed >= movementSpeedForCell)
+					{
+						mobile.CurrentSpeed = movementSpeedForCell;
+					}
+
+					// Forward comrades
+					else
+					{
+						var aa = (float)mobile.CurrentSpeed / (float)movementSpeedForCell * (float)mobile.AccelerationSteps.Length;
+						var aaa = (int)Math.Floor((double)aa);
+						mobile.CurrentSpeed += mobile.AccelerationSteps[aaa];
+					}
+
+					progress += mobile.CurrentSpeed;
+				}
 
 				if (progress >= Distance)
 				{
