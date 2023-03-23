@@ -66,13 +66,16 @@ namespace OpenRA.Graphics
 			var imageRenderable = new SpriteRenderable(image, pos, offset, CurrentSequence?.ZOffset ?? 0 + zOffset, palette, (CurrentSequence?.Scale ?? 1f) * scale, alpha, float3.Ones, tintModifiers, IsDecoration,
 				rotation);
 
-			/* if (CurrentSequence.ShadowStart >= 0)
+			if (CurrentSequence.ShadowStart >= 0)
 			{
-				var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
-				var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, (CurrentSequence?.Scale ?? 1f) * scale, 1f, float3.Ones, tintModifiers,
-					true, rotation);
-				return new IRenderable[] { shadowRenderable, imageRenderable };
-			} */
+				var shadow = CurrentSequence?.GetShadow(CurrentFrame, facingFunc());
+				if (shadow != null)
+				{
+					var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, (CurrentSequence?.Scale ?? 1f) * scale, 1f, float3.Ones, tintModifiers,
+						true, rotation);
+					return new IRenderable[] { shadowRenderable, imageRenderable };
+				}
+			}
 
 			return new IRenderable[] { imageRenderable };
 		}
