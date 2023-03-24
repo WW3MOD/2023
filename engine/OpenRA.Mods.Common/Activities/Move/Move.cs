@@ -453,6 +453,10 @@ namespace OpenRA.Mods.Common.Activities
 					var length = int2.Lerp(ArcFromLength, ArcToLength, progress, Distance);
 					var height = int2.Lerp(From.Z, To.Z, progress, Distance);
 					pos = ArcCenter + new WVec(0, length, height).Rotate(WRot.FromYaw(angle));
+
+					mobile.CurrentSpeed -= mobile.Info.TurnSpeedLoss;
+
+					if (mobile.CurrentSpeed < 0) mobile.CurrentSpeed = 0;
 				}
 				else
 					pos = WPos.Lerp(From, To, progress, Distance);
@@ -498,6 +502,8 @@ namespace OpenRA.Mods.Common.Activities
 
 			static bool IsTurn(Mobile mobile, CPos nextCell, Map map)
 			{
+				return true;
+
 				// Some actors with a limited number of sprite facings should never move along curved trajectories.
 				if (mobile.Info.AlwaysTurnInPlace)
 					return false;
