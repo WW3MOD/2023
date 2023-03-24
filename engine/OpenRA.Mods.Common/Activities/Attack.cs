@@ -214,7 +214,7 @@ namespace OpenRA.Mods.Common.Activities
 				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
 				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
 				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
-					&& (checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, checkTarget.CenterPosition, new WDist(1), out var blockedPos))))
+					&& checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
 			{
 				// Try to move within range, drop the target otherwise
 				if (move == null)

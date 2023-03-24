@@ -419,13 +419,13 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					var movementSpeedForCell = mobile.MovementSpeedForCell(mobile.ToCell);
 
-					// Maximum speed
+					// Maximum speed reached
 					if (mobile.CurrentSpeed >= movementSpeedForCell)
 					{
 						mobile.CurrentSpeed = movementSpeedForCell;
 					}
 
-					// Forward comrades
+					// Accelerate
 					else
 					{
 						var currentAcceleration = (float)mobile.CurrentSpeed / (float)movementSpeedForCell * (float)mobile.AccelerationSteps.Length;

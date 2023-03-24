@@ -65,13 +65,13 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			var movementSpeed = aircraft.MovementSpeed;
 
-			// Maximum speed
+			// Maximum speed reached
 			if (aircraft.CurrentSpeed >= movementSpeed) // DesiredSpeed
 			{
 				aircraft.CurrentSpeed = movementSpeed;
 			}
 
-			// Forward comrades
+			// Accelerate
 			else
 			{
 				var currentAcceleration = (float)aircraft.CurrentSpeed / (float)movementSpeed * (float)aircraft.AccelerationSteps.Length;
