@@ -100,34 +100,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public LocomotorInfo LocomotorInfo { get; private set; }
 
-		/* public static IList<double> BuildIntermediateValues(double start, double end)
-		{
-			IList<double> result = new List<double>();
-			if (Math.Abs(start - end) < double.Epsilon)
-			{
-				return result;
-			}
-
-			if (start < end)
-			{
-				// go up
-				for (var d = start + stepSize; d < end; d += stepSize)
-				{
-					result.Add(d);
-				}
-			}
-			else
-			{
-				// go down.
-				for (var d = start - stepSize; d > end; d -= stepSize)
-				{
-					result.Add(d);
-				}
-			}
-
-			return result;
-		} */
-
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			var locomotorInfos = rules.Actors[SystemActors.World].TraitInfos<LocomotorInfo>();
@@ -139,26 +111,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			// We need to reset the reference to the locomotor between each worlds, otherwise we are reference the previous state.
 			locomotor = null;
-
-			// Set acceleration intermediates
-			/* IList<int> inputs = Acceleration;
-			for (var i = 0; i < inputs.Count - 1; i++)
-			{
-				var inputValue = inputs[i];
-				var nextInputValue = inputs[i + 1];
-
-				AccelerationSteps[0] = inputValue;
-
-				var intermediateValues = BuildIntermediateValues(inputValue, nextInputValue);
-
-				foreach (var intermediate in intermediateValues)
-				{
-					AccelerationSteps[0] = (int)intermediate;
-					Console.WriteLine($"Intermediate: {intermediate}");
-				}
-			}
-
-			AccelerationSteps[0] = inputs.Last(); */
 
 			base.RulesetLoaded(rules, ai);
 		}
