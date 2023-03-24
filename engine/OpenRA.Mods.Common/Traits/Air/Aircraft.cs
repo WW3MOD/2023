@@ -60,7 +60,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Speed = 1;
 
 		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
-		public readonly int IdleSpeed = -1;
+		public readonly int IdleSpeed = 0;
+
+		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
+		public readonly int[] Acceleration = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+
+		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
+		public readonly int TurnSpeedLoss = 5;
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
 		public readonly WAngle Pitch = WAngle.Zero;
@@ -234,6 +240,10 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyMoving[] notifyMoving;
 		INotifyCenterPositionChanged[] notifyCenterPositionChanged;
 		IOverrideAircraftLanding overrideAircraftLanding;
+		public int[] AccelerationSteps;
+		public int DesiredSpeed { get; set; }
+		public int CurrentSpeed { get; set; }
+		public WAngle LastDesiredFacing;
 
 		WRot orientation;
 
@@ -273,6 +283,7 @@ namespace OpenRA.Mods.Common.Traits
 				return WAngle.Zero;
 
 			var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
+			// var turnSpeed = TurnSpeed * Info.Speed / CurrentSpeed;
 
 			return new WAngle(Util.ApplyPercentageModifiers(turnSpeed.Angle, speedModifiers).Clamp(1, 1024));
 		}
@@ -308,6 +319,8 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			self = init.Self;
+
+			AccelerationSteps = Info.Acceleration;
 
 			var locationInit = init.GetOrDefault<LocationInit>();
 			if (locationInit != null)
@@ -617,7 +630,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public int MovementSpeed => !IsTraitDisabled && !IsTraitPaused ? Util.ApplyPercentageModifiers(Info.Speed, speedModifiers) : 0;
-		public int IdleMovementSpeed => Info.IdleSpeed < 0 ? MovementSpeed :
+		public int IdleMovementSpeed => Info.IdleSpeed <= 0 ? MovementSpeed :
 			!IsTraitDisabled && !IsTraitPaused ? Util.ApplyPercentageModifiers(Info.IdleSpeed, speedModifiers) : 0;
 
 		public (CPos Cell, SubCell SubCell)[] OccupiedCells()
@@ -740,6 +753,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void OnBecomingIdle(Actor self)
 		{
+			CurrentSpeed = Info.IdleSpeed;
+
 			if (Info.IdleBehavior == IdleBehaviorType.LeaveMap)
 			{
 				self.QueueActivity(new FlyOffMap(self));

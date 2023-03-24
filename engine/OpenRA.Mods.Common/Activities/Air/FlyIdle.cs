@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Activities
 		public FlyIdle(Actor self, int ticks = -1, bool idleTurn = true)
 		{
 			aircraft = self.Trait<Aircraft>();
-			isIdleTurner = aircraft.Info.IdleSpeed > 0 || (!aircraft.Info.CanHover && aircraft.Info.IdleSpeed < 0);
+			isIdleTurner = aircraft.Info.IdleSpeed > 0 || (!aircraft.Info.CanHover && aircraft.Info.IdleSpeed <= 0);
 			remainingTicks = ticks;
 			this.idleTurn = idleTurn;
 

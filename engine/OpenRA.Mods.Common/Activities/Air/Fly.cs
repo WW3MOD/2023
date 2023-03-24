@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -62,8 +63,30 @@ namespace OpenRA.Mods.Common.Activities
 
 		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
+			var movementSpeed = aircraft.MovementSpeed;
+
+			// Maximum speed
+			if (aircraft.CurrentSpeed >= movementSpeed) // DesiredSpeed
+			{
+				aircraft.CurrentSpeed = movementSpeed;
+			}
+
+			// Forward comrades
+			else
+			{
+				var currentAcceleration = (float)aircraft.CurrentSpeed / (float)movementSpeed * (float)aircraft.AccelerationSteps.Length;
+				var flooredValue = (int)Math.Floor((double)currentAcceleration);
+				aircraft.CurrentSpeed += aircraft.AccelerationSteps[flooredValue];
+			}
+
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			var move = aircraft.Info.CanSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
+
+			WVec move;
+			if (aircraft.Info.CanSlide && (aircraft.LastDesiredFacing == desiredFacing || aircraft.CurrentSpeed == 0))
+				move = aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
+			else
+				move = aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
+
 			if (moveOverride != WVec.Zero)
 				move = moveOverride;
 
@@ -92,6 +115,8 @@ namespace OpenRA.Mods.Common.Activities
 				var deltaZ = moveZ.Clamp(-maxDelta, maxDelta);
 				move = new WVec(move.X, move.Y, deltaZ);
 			}
+
+			aircraft.LastDesiredFacing = desiredFacing;
 
 			aircraft.SetPosition(self, aircraft.CenterPosition + move);
 		}
@@ -131,6 +156,9 @@ namespace OpenRA.Mods.Common.Activities
 
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 			var isLanded = dat <= aircraft.LandAltitude;
+
+			if (isLanded)
+				aircraft.CurrentSpeed = 0;
 
 			// HACK: Prevent paused (for example, EMP'd) aircraft from taking off.
 			// This is necessary until the TODOs in the IsCanceling block below are addressed.
@@ -192,7 +220,9 @@ namespace OpenRA.Mods.Common.Activities
 			if (insideMinRange)
 			{
 				if (isSlider)
+				{
 					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
+				}
 				else
 				{
 					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
