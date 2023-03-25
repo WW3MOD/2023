@@ -1,5 +1,23 @@
 - Commented out emitWarning, emitError in CheckConditions.cs to "solve" errors. Lots of "consumes condition that is not not defined" and "provides condition that is never used".
 
+Loading mod: ww3mod
+[2023-03-25T21:39:09] Game started
+Exception of type `System.NullReferenceException`: Object reference not set to an instance of an object.
+   at OpenRA.Graphics.Animation.ScreenBounds(WorldRenderer wr, WPos pos, WVec& offset, Actor actor) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Graphics\Animation.cs:line 97
+   at OpenRA.Graphics.AnimationWithOffset.ScreenBounds(Actor self, WorldRenderer wr, Actor actor) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Graphics\AnimationWithOffset.cs:line 52
+   at OpenRA.Mods.Common.Traits.Render.RenderSprites.ScreenBounds(Actor self, WorldRenderer wr)+MoveNext() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Mods.Common\Traits\Render\RenderSprites.cs:line 203
+   at OpenRA.Actor.Bounds(WorldRenderer wr)+MoveNext() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Actor.cs:line 349
+   at OpenRA.Exts.Union(IEnumerable`1 rects) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Exts.cs:line 169
+   at OpenRA.Traits.ScreenMap.TickRender() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Traits\World\ScreenMap.cs:line 230
+   at OpenRA.Sync.<>c__DisplayClass13_0.<RunUnsynced>b__0() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Sync.cs:line 167
+   at OpenRA.Sync.RunUnsynced[T](Boolean checkSyncHash, World world, Func`1 fn) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Sync.cs:line 205
+   at OpenRA.Sync.RunUnsynced(World world, Action fn) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Sync.cs:line 168
+   at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 639
+   at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 654
+   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 823
+   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 876
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 308
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Launcher\Program.cs:line 32
 
 Loading mod: ww3mod
 [2023-03-22T22:54:35] Game started

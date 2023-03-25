@@ -520,6 +520,7 @@ giatsint:
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
+		FacingTolerance: 0
 		PauseOnCondition: empdisable || unit.docked
 		# StopAndWait: 100
 	RenderRangeCircle:
