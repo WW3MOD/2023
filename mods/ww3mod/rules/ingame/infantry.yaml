@@ -971,24 +971,62 @@
 		PercentageStep: -10
 		Delay: 1
 
-	WithOverlay@Burn_1:
+	# Causes 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 for infantry-burn-1
+
+	# WithOverlay@Burn_1:
+	# 	RequiresCondition: onfire == 1 || onfire == 2
+	# 	Image: infantry-burn-1
+	# 	Palette: effect
+	# WithOverlay@Burn_2:
+	# 	RequiresCondition: onfire == 3 || onfire == 4
+	# 	Image: infantry-burn-2
+	# 	Palette: effect
+	# WithOverlay@Burn_3:
+	# 	RequiresCondition: onfire == 5 || onfire == 6
+	# 	Image: infantry-burn-3
+	# 	Palette: effect
+	# WithOverlay@Burn_4:
+	# 	RequiresCondition: onfire == 7 || onfire == 8
+	# 	Image: infantry-burn-4
+	# 	Palette: effect
+	# WithOverlay@Burn_5:
+	# 	RequiresCondition: onfire == 9 || onfire == 10
+	# 	Image: infantry-burn-5
+	# 	Palette: effect
+
+	WithDamageOverlay@Burn_1:
 		RequiresCondition: onfire == 1 || onfire == 2
+		DamageTypes: FireDeath
+		MinimumDamageState: Undamaged
+		MaximumDamageState: Dead
 		Image: infantry-burn-1
 		Palette: effect
-	WithOverlay@Burn_2:
+	WithDamageOverlay@Burn_2:
 		RequiresCondition: onfire == 3 || onfire == 4
+		DamageTypes: FireDeath
+		MinimumDamageState: Undamaged
+		MaximumDamageState: Dead
 		Image: infantry-burn-2
 		Palette: effect
-	WithOverlay@Burn_3:
+	WithDamageOverlay@Burn_3:
 		RequiresCondition: onfire == 5 || onfire == 6
+		DamageTypes: FireDeath
+		MinimumDamageState: Undamaged
+		MaximumDamageState: Dead
 		Image: infantry-burn-3
 		Palette: effect
-	WithOverlay@Burn_4:
+	WithDamageOverlay@Burn_4:
 		RequiresCondition: onfire == 7 || onfire == 8
+		DamageTypes: FireDeath
+		MinimumDamageState: Undamaged
+		MaximumDamageState: Dead
 		Image: infantry-burn-4
 		Palette: effect
-	WithOverlay@Burn_5:
+	WithDamageOverlay@Burn_5:
 		RequiresCondition: onfire == 9 || onfire == 10
+		DamageTypes: FireDeath
+		MinimumDamageState: Undamaged
+		MaximumDamageState: Dead
 		Image: infantry-burn-5
 		Palette: effect
 

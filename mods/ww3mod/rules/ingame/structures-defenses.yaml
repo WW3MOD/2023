@@ -684,7 +684,7 @@ SAM:
 	SequencePlaceBuildingPreview:
 		Sequence: place
 	Selectable:
-		Bounds: 48,24
+		Bounds: 2048,1024
 	HitShape:
 		Type: Rectangle
 			TopLeft: -768,-512

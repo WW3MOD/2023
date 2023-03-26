@@ -96,7 +96,7 @@ namespace OpenRA.Graphics
 			if (CurrentSequence == null)
 				Log.Write("debug", "CurrentSequence == null - actor: {0}", actor);
 
-			var scale = CurrentSequence.Scale; // 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204
+			var scale = CurrentSequence.Scale; // "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204
 			var xy = wr.ScreenPxPosition(pos) + wr.ScreenPxOffset(offset);
 			var cb = CurrentSequence.Bounds;
 			return Rectangle.FromLTRB(
