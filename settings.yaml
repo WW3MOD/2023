@@ -1,4 +1,13 @@
 # Place in folder: C:\Users\username\AppData\Roaming\OpenRA
+# Do yourself a favor and install AutoHotKey (AHK) and remap your windows key to Ctrl
+# This is the code that work for AHK V1, not V2
+
+# #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+# ; #Warn  ; Enable warnings to assist with detecting common errors.
+# SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+# SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+# LWin::LAlt
+# return
 
 Player:
 	Name: PlayerName
@@ -37,9 +46,9 @@ Keys:
 	CycleHarvesters: C None
 	CycleStatusBars: 229 None
 	TogglePlayerStanceColor: 228 None
-	PowerDown: E Ctrl
+	PowerDown: E Alt
 	Repair: E None
-	Sell: E Shift, Ctrl
+	Sell: E Shift, Alt
 	Stop: X None
 	Scatter: S None
 	ToSelection: UNKNOWN None
@@ -47,16 +56,16 @@ Keys:
 	Pause: BACKSPACE None
 	ResetZoom: UNKNOWN None
 	TakeScreenshot: PLUS None
-	MapBookmarkSave01: NUMBER_1 Alt, Ctrl
-	MapBookmarkSave02: NUMBER_2 Alt, Ctrl
-	MapBookmarkSave03: NUMBER_3 Alt, Ctrl
-	MapBookmarkSave04: NUMBER_4 Alt, Ctrl
+	MapBookmarkSave01: NUMBER_1 Ctrl, Alt
+	MapBookmarkSave02: NUMBER_2 Ctrl, Alt
+	MapBookmarkSave03: NUMBER_3 Ctrl, Alt
+	MapBookmarkSave04: NUMBER_4 Ctrl, Alt
 	ZoomIn: UNKNOWN None
 	ZoomOut: UNKNOWN None
-	MapBookmarkRestore04: NUMBER_4 Shift, Alt
-	MapBookmarkRestore03: NUMBER_3 Shift, Alt
-	MapBookmarkRestore02: NUMBER_2 Shift, Alt
-	MapBookmarkRestore01: NUMBER_1 Shift, Alt
+	MapBookmarkRestore04: NUMBER_4 Shift, Ctrl
+	MapBookmarkRestore03: NUMBER_3 Shift, Ctrl
+	MapBookmarkRestore02: NUMBER_2 Shift, Ctrl
+	MapBookmarkRestore01: NUMBER_1 Shift, Ctrl
 	MapJumpToRightEdge: UNKNOWN None
 	MapJumpToBottomEdge: UNKNOWN None
 	MapJumpToLeftEdge: UNKNOWN None
@@ -66,13 +75,13 @@ Keys:
 	MapScrollLeft: UNKNOWN None
 	MapScrollUp: UNKNOWN None
 	SelectProductionBuilding: C Shift
-	ProductionTypeDefense: Z Shift, Alt
-	ProductionTypeVehicle: Z Ctrl
-	ProductionTypeNaval: Z Alt
+	ProductionTypeDefense: Z Shift, Ctrl
+	ProductionTypeVehicle: Z Alt
+	ProductionTypeNaval: Z Ctrl
 	ProductionTypeAircraft: Z Shift
 	ProductionTypeInfantry: Z None
-	ProductionTypeBuilding: Z Shift, Ctrl
-	CycleProductionBuildings: C Ctrl
+	ProductionTypeBuilding: Z Shift, Alt
+	CycleProductionBuildings: C Alt
 	ControlGroupJumpTo05: UNKNOWN None
 	ControlGroupSelect05: NUMBER_4 None
 	Production01: NUMBER_5 None
@@ -113,17 +122,17 @@ Keys:
 	ControlGroupSelect08: F3 None
 	ControlGroupSelect09: F4 None
 	ControlGroupSelect10: UNKNOWN None
-	ControlGroupCreate05: NUMBER_4 Shift, Ctrl
-	ControlGroupCreate06: F1 Shift, Ctrl
-	ControlGroupCreate07: F2 Shift, Ctrl
-	ControlGroupCreate08: F3 Shift, Ctrl
-	ControlGroupCreate09: F4 Shift, Ctrl
+	ControlGroupCreate05: NUMBER_4 Shift, Alt
+	ControlGroupCreate06: F1 Shift, Alt
+	ControlGroupCreate07: F2 Shift, Alt
+	ControlGroupCreate08: F3 Shift, Alt
+	ControlGroupCreate09: F4 Shift, Alt
 	ControlGroupCreate10: UNKNOWN None
-	ControlGroupAddTo05: NUMBER_4 Ctrl
-	ControlGroupAddTo06: F1 Ctrl
-	ControlGroupAddTo07: F2 Ctrl
-	ControlGroupAddTo08: F3 Ctrl
-	ControlGroupAddTo09: F4 Ctrl
+	ControlGroupAddTo05: NUMBER_4 Alt
+	ControlGroupAddTo06: F1 Alt
+	ControlGroupAddTo07: F2 Alt
+	ControlGroupAddTo08: F3 Alt
+	ControlGroupAddTo09: F4 Alt
 	ControlGroupAddTo10: UNKNOWN None
 	ControlGroupCombineWith05: F1 Shift
 	ControlGroupCombineWith06: F2 Shift
@@ -140,14 +149,14 @@ Keys:
 	ControlGroupJumpTo03: UNKNOWN None
 	ControlGroupJumpTo02: UNKNOWN None
 	ControlGroupJumpTo04: UNKNOWN None
-	ControlGroupAddTo01: 167 Ctrl
-	ControlGroupCreate01: 167 Shift, Ctrl
-	ControlGroupAddTo02: NUMBER_1 Ctrl
-	ControlGroupCreate02: NUMBER_1 Shift, Ctrl
-	ControlGroupCreate03: NUMBER_2 Shift, Ctrl
-	ControlGroupAddTo03: NUMBER_2 Ctrl
-	ControlGroupCreate04: NUMBER_3 Shift, Ctrl
-	ControlGroupAddTo04: NUMBER_3 Ctrl
+	ControlGroupAddTo01: 167 Alt
+	ControlGroupCreate01: 167 Shift, Alt
+	ControlGroupAddTo02: NUMBER_1 Alt
+	ControlGroupCreate02: NUMBER_1 Shift, Alt
+	ControlGroupCreate03: NUMBER_2 Shift, Alt
+	ControlGroupAddTo03: NUMBER_2 Alt
+	ControlGroupCreate04: NUMBER_3 Shift, Alt
+	ControlGroupAddTo04: NUMBER_3 Alt
 	ControlGroupSelect01: 167 None
 	ControlGroupSelect02: NUMBER_1 None
 	ControlGroupSelect03: NUMBER_2 None
@@ -160,6 +169,6 @@ Keys:
 	ObserverCombinedView: F1 None
 	ObserverWorldView: F2 None
 	StanceDefend: Q None
-	StanceAttackAnything: Q Ctrl
+	StanceAttackAnything: Q Alt
 	StanceReturnFire: Q Shift
-	StanceHoldFire: Q Alt
+	StanceHoldFire: Q Ctrl
