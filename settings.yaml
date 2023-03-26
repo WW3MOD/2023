@@ -1,0 +1,165 @@
+# Place in folder: C:\Users\username\AppData\Roaming\OpenRA
+
+Player:
+	Name: PlayerName
+Game:
+	IntroductionPromptVersion: 1
+	TargetLines: Automatic
+	StatusBars: AlwaysShow
+Sound:
+	MusicVolume: 0.05128121
+	CashTicks: False
+Graphics:
+	ViewportDistance: Far
+Server:
+	Map: 25d7b33a4ec0683d3e57bfbdcad47c885ce8e7aa
+	Name: WW3MOD
+	Password:
+	DiscoverNatDevices: True
+Debug:
+	UUID: 81ef6f25-bf1a-4dbf-a1eb-47c0ff63e7dc
+	SendSystemInformation: False
+	SystemInformationVersionPrompt: 5
+	CheckVersion: False
+Keys:
+	StatisticsArmyGraph: F10 None
+	StatisticsGraph: F9 None
+	SupportPower01: UNKNOWN None
+	SupportPower02: UNKNOWN None
+	SupportPower03: UNKNOWN None
+	SupportPower04: UNKNOWN None
+	SupportPower05: UNKNOWN None
+	SupportPower06: UNKNOWN None
+	RemoveFromControlGroup: R None
+	AttackMove: SPACE None
+	ToLastEvent: CAPSLOCK None
+	SelectAllUnits: W None
+	CycleHarvesters: C None
+	CycleStatusBars: 229 None
+	TogglePlayerStanceColor: 228 None
+	PowerDown: E Ctrl
+	Repair: E None
+	Sell: E Shift, Ctrl
+	Stop: X None
+	Scatter: S None
+	ToSelection: UNKNOWN None
+	SelectUnitsByType: A None
+	Pause: BACKSPACE None
+	ResetZoom: UNKNOWN None
+	TakeScreenshot: PLUS None
+	MapBookmarkSave01: NUMBER_1 Alt, Ctrl
+	MapBookmarkSave02: NUMBER_2 Alt, Ctrl
+	MapBookmarkSave03: NUMBER_3 Alt, Ctrl
+	MapBookmarkSave04: NUMBER_4 Alt, Ctrl
+	ZoomIn: UNKNOWN None
+	ZoomOut: UNKNOWN None
+	MapBookmarkRestore04: NUMBER_4 Shift, Alt
+	MapBookmarkRestore03: NUMBER_3 Shift, Alt
+	MapBookmarkRestore02: NUMBER_2 Shift, Alt
+	MapBookmarkRestore01: NUMBER_1 Shift, Alt
+	MapJumpToRightEdge: UNKNOWN None
+	MapJumpToBottomEdge: UNKNOWN None
+	MapJumpToLeftEdge: UNKNOWN None
+	MapJumpToTopEdge: UNKNOWN None
+	MapScrollRight: UNKNOWN None
+	MapScrollDown: UNKNOWN None
+	MapScrollLeft: UNKNOWN None
+	MapScrollUp: UNKNOWN None
+	SelectProductionBuilding: C Shift
+	ProductionTypeDefense: Z Shift, Alt
+	ProductionTypeVehicle: Z Ctrl
+	ProductionTypeNaval: Z Alt
+	ProductionTypeAircraft: Z Shift
+	ProductionTypeInfantry: Z None
+	ProductionTypeBuilding: Z Shift, Ctrl
+	CycleProductionBuildings: C Ctrl
+	ControlGroupJumpTo05: UNKNOWN None
+	ControlGroupSelect05: NUMBER_4 None
+	Production01: NUMBER_5 None
+	ControlGroupSelect06: F1 None
+	Production02: NUMBER_6 None
+	ControlGroupSelect07: F2 None
+	Production03: NUMBER_7 None
+	Production04: T None
+	Production05: Y None
+	Production06: U None
+	Production07: G None
+	CycleBase: TAB None
+	Production08: H None
+	Production09: J None
+	PlaceBeacon: V None
+	Production10: B None
+	Production11: N None
+	ToggleMute: 180 None
+	Production12: M None
+	Production13: NUMBER_8 None
+	Production14: NUMBER_9 None
+	Production15: NUMBER_0 None
+	Production16: I None
+	Production17: O None
+	Production18: P None
+	Production19: K None
+	Production20: L None
+	Production21: 246 None
+	Production23: PERIOD None
+	Production22: COMMA None
+	Production24: MINUS None
+	ReplaySpeedMax: UNKNOWN None
+	StatisticsNone: F3 None
+	ReplaySpeedFast: UNKNOWN None
+	StatisticsBasic: F4 None
+	ReplaySpeedRegular: F12 None
+	StatisticsEconomy: F5 None
+	ControlGroupSelect08: F3 None
+	ControlGroupSelect09: F4 None
+	ControlGroupSelect10: UNKNOWN None
+	ControlGroupCreate05: NUMBER_4 Shift, Ctrl
+	ControlGroupCreate06: F1 Shift, Ctrl
+	ControlGroupCreate07: F2 Shift, Ctrl
+	ControlGroupCreate08: F3 Shift, Ctrl
+	ControlGroupCreate09: F4 Shift, Ctrl
+	ControlGroupCreate10: UNKNOWN None
+	ControlGroupAddTo05: NUMBER_4 Ctrl
+	ControlGroupAddTo06: F1 Ctrl
+	ControlGroupAddTo07: F2 Ctrl
+	ControlGroupAddTo08: F3 Ctrl
+	ControlGroupAddTo09: F4 Ctrl
+	ControlGroupAddTo10: UNKNOWN None
+	ControlGroupCombineWith05: F1 Shift
+	ControlGroupCombineWith06: F2 Shift
+	ControlGroupCombineWith07: F3 Shift
+	ControlGroupCombineWith08: F4 Shift
+	ControlGroupCombineWith10: UNKNOWN None
+	ControlGroupCombineWith09: UNKNOWN None
+	ControlGroupJumpTo06: UNKNOWN None
+	ControlGroupJumpTo07: UNKNOWN None
+	ControlGroupJumpTo09: UNKNOWN None
+	ControlGroupJumpTo08: UNKNOWN None
+	ControlGroupJumpTo10: UNKNOWN None
+	ControlGroupJumpTo01: UNKNOWN None
+	ControlGroupJumpTo03: UNKNOWN None
+	ControlGroupJumpTo02: UNKNOWN None
+	ControlGroupJumpTo04: UNKNOWN None
+	ControlGroupAddTo01: 167 Ctrl
+	ControlGroupCreate01: 167 Shift, Ctrl
+	ControlGroupAddTo02: NUMBER_1 Ctrl
+	ControlGroupCreate02: NUMBER_1 Shift, Ctrl
+	ControlGroupCreate03: NUMBER_2 Shift, Ctrl
+	ControlGroupAddTo03: NUMBER_2 Ctrl
+	ControlGroupCreate04: NUMBER_3 Shift, Ctrl
+	ControlGroupAddTo04: NUMBER_3 Ctrl
+	ControlGroupSelect01: 167 None
+	ControlGroupSelect02: NUMBER_1 None
+	ControlGroupSelect03: NUMBER_2 None
+	ControlGroupSelect04: NUMBER_3 None
+	ReplaySpeedSlow: UNKNOWN None
+	StatisticsCombat: F7 None
+	StatisticsProduction: F6 None
+	StatisticsSupportPowers: F11 None
+	StatisticsArmy: F8 None
+	ObserverCombinedView: F1 None
+	ObserverWorldView: F2 None
+	StanceDefend: Q None
+	StanceAttackAnything: Q Ctrl
+	StanceReturnFire: Q Shift
+	StanceHoldFire: Q Alt
