@@ -277,7 +277,7 @@ FACT:
 		Condition: factundeploy
 		Prerequisites: global-factundeploy
 	Selectable:
-		Bounds: 72,72
+		Bounds: 3072,3072
 	HitShape:
 		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
 		Type: Rectangle
@@ -476,7 +476,7 @@ WEAP:
 	SequencePlaceBuildingPreview:
 		Sequence: place
 	Selectable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: xxx xxx ===
 		Dimensions: 3,3
@@ -616,7 +616,7 @@ POWR:
 	SequencePlaceBuildingPreview:
 		Sequence: place
 	Selectable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	HitShape:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 640,-384,0, 640,512,0, -710,-512,0, -710,512,0
@@ -670,7 +670,8 @@ APWR:
 	SequencePlaceBuildingPreview:
 		Sequence: place
 	Selectable:
-		DecorationBounds: 3072,3072
+		Bounds: 3072,2048
+		DecorationBounds: 3072,2900,0,-256
 	HitShape:
 		TargetableOffsets: -355,-1024,0
 	Building:
@@ -725,7 +726,8 @@ PROC:
 	SequencePlaceBuildingPreview:
 		Sequence: idle
 	Selectable:
-		DecorationBounds: 3072,3072
+		Bounds: 3072,1920,0,-600
+		DecorationBounds: 3072,3280,0,-640
 	Building:
 		Footprint: =Xx x+= ===
 		Dimensions: 3,3
@@ -826,7 +828,7 @@ HPAD:
 	Inherits@PRIMARY: ^PrimaryBuilding
 	Inherits@Shape: ^2x2Shape
 	Selectable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	HitShape:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 768,-512,0, 768,512,0, -281,-512,0, -630,512,0
@@ -920,7 +922,7 @@ AFLD:
 		Name: Airfield
 	Selectable:
 		Class: afld
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Health:
 		HP: 20000
 	Targetable:
@@ -995,7 +997,7 @@ DOME:
 		Prerequisites: ~techlevel.medium
 		Description: Provides an overview\nof the battlefield.\nCan detect cloaked units.\nCan be Infiltrated by an Spy or Saboteur\nresulting in loss of map exploration.\nCan detect cloaked units.\n  Special Ability: Spy Mast\nDeploys a Spy Mast anywhere on the map\nthat provides vision and detects nearby cloaked.\nThe Spy Mast can disguise to appear as an Tree to the enemy.\n (requires Service Depot)
 	Selectable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	HitShape:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 630,-384,0, 630,384,0, -700,-512,0, -700,512,0
@@ -1052,7 +1054,7 @@ SYRD:
 		AreaTypes: building
 		Adjacent: 35
 	Selectable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	HitShape:
 		TargetableOffsets: 768,0,0, 768,-1024,0, 768,1024,0
 		Type: Rectangle
@@ -1211,7 +1213,7 @@ ATEK:
 	Inherits: ^Building
 	Inherits@Shape: ^2x2Shape
 	Selectable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
@@ -1265,7 +1267,7 @@ STEK:
 	Inherits: ^Building
 	Inherits@Shape: ^3x2Shape
 	Selectable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	HitShape:
 		TargetableOffsets: 420,-768,0, 420,768,0, -770,-768,0, -770,768,0
 	Building:
@@ -1339,7 +1341,7 @@ TECHCENTER:
 	Inherits@PRIMARY: ^PrimaryBuilding
 	-ActorPreviewPlaceBuildingPreview:
 	Selectable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	SequencePlaceBuildingPreview:
 		Sequence: place
 	ProximityExternalCondition@REPLENISHSOLDIERS:
@@ -1434,7 +1436,8 @@ GAP:
 	WithSpriteBody:
 		PauseOnCondition: disabled
 	Selectable:
-		DecorationBounds: 3072,3072
+		Bounds: 1024,1024
+		DecorationBounds: 1024,2048,0,-284
 	HitShape:
 		Type: Rectangle
 			TopLeft: -512, -512
@@ -1553,7 +1556,7 @@ SPEN:
 		AreaTypes: building
 		Adjacent: 35
 	Selectable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	HitShape:
 		Type: Rectangle
 			TopLeft: -1536, -598
@@ -1673,7 +1676,7 @@ SPRO:
 	Inherits@RequiresPower: ^DisableOnLowPower
 	Inherits@Shape: ^2x2Shape
 	Selectable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Buildable:
 		Queue: Building
 		Prerequisites: techcenter, ~techlevel.unrestricted
@@ -1751,7 +1754,8 @@ OREP:
 	Inherits@Shape: ^3x2Shape
 	Inherits@RequiresPower: ^DisableOnLowPower
 	Selectable:
-		DecorationBounds: 3072,3072
+		Bounds: 3072,2390
+		DecorationBounds: 3096,3072
 	HitShape:
 		TargetableOffsets: 420,-768,0, 420,768,0, -770,-768,0, -770,768,0
 	# Buildable:
@@ -1807,7 +1811,8 @@ INDP:
 	SequencePlaceBuildingPreview:
 		Sequence: place
 	Selectable:
-		DecorationBounds: 3072,3072
+		Bounds: 3072,2390
+		DecorationBounds: 3096,3072
 	HitShape:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 640,-384,0, 640,512,0, -710,-512,0, -710,512,0

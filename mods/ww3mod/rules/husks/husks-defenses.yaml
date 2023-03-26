@@ -78,7 +78,7 @@ GAP.Husk:
 MSLO.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,24
+		Bounds: 2048,1024
 	Building:
 		Footprint: xx
 		Dimensions: 2,1

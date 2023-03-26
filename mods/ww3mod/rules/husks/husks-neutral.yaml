@@ -15,7 +15,7 @@ OILB.Husk:
 MISS.Husk:
 	Inherits: ^TechBuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: XxX XxX ===
 		Dimensions: 3,3
@@ -28,7 +28,7 @@ MISS.Husk:
 HOSP.Husk:
 	Inherits: ^TechBuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -40,7 +40,7 @@ HOSP.Husk:
 BIO.Husk:
 	Inherits: ^TechBuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -53,7 +53,7 @@ FCOM.Husk:
 	Inherits: ^TechBuildingHusk
 	Inherits@Shape: ^2x2Shape
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx ==
 		Dimensions: 2,3

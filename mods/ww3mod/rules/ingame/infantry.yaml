@@ -28,8 +28,8 @@
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Selectable:
-		Bounds: 768, 853, 0, -256
-		DecorationBounds: 512, 768, 0, -341
+		Bounds: 768,768,0,-256
+		DecorationBounds: 384,768,24,-256
 	Targetable:
 		RequiresCondition: !parachute
 		TargetTypes: Ground, Infantry, Disguise

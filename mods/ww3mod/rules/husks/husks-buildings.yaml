@@ -1,7 +1,7 @@
 FACT.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,72
+		Bounds: 3072,3072
 	Building:
 		Footprint: xxX xxx XxX
 		Dimensions: 3,3
@@ -12,7 +12,7 @@ FACT.Husk:
 POWR.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -28,7 +28,7 @@ POWR.Husk:
 APWR.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: xxx Xxx
 		Dimensions: 3,2
@@ -44,7 +44,7 @@ APWR.Husk:
 TENT.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -54,7 +54,7 @@ TENT.Husk:
 BARR.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -71,7 +71,7 @@ KENN.Husk:
 PROC.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,45,0,-14
+		Bounds: 3072,1920,0,-640
 	Building:
 		Footprint: =Xx x== ===
 		Dimensions: 3,3
@@ -89,7 +89,7 @@ SILO.Husk:
 WEAP.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: xxx xxx ===
 		Dimensions: 3,3
@@ -100,7 +100,7 @@ WEAP.Husk:
 FIX.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 68,34,0,3
+		Bounds: 2900,1450,0,72
 	Building:
 		Footprint: =+= +++ =+=
 		Dimensions: 3,3
@@ -110,7 +110,7 @@ FIX.Husk:
 SYRD.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: XXX xxx XXX
 		Dimensions: 3,3
@@ -121,7 +121,7 @@ SYRD.Husk:
 SPEN.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: XXX xxx XXX
 		Dimensions: 3,3
@@ -132,7 +132,7 @@ SPEN.Husk:
 AFLD.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: xxx xxx
 		Dimensions: 3,2
@@ -144,7 +144,7 @@ AFLD.Husk:
 HPAD.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -155,7 +155,7 @@ HPAD.Husk:
 DOME.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -166,7 +166,7 @@ DOME.Husk:
 ATEK.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -177,7 +177,7 @@ ATEK.Husk:
 STEK.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: XxX XxX
 		Dimensions: 3,2
@@ -188,7 +188,7 @@ STEK.Husk:
 ATEKNEW.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 72,48
+		Bounds: 3072,2048
 	Building:
 		Footprint: XxX XxX
 		Dimensions: 3,2
@@ -199,7 +199,7 @@ ATEKNEW.Husk:
 PYLE.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 48,48
+		Bounds: 2048,2048
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2

@@ -143,7 +143,7 @@ MCV:
 	Tooltip:
 		Name: Mobile Command Center
 	Selectable:
-		DecorationBounds: 1512,1512
+		DecorationBounds: 1792,1792
 	Health:
 		HP: 1000
 	Armor:
@@ -242,7 +242,7 @@ HARV:
 	ExternalCondition@PRODUCED:
 		Condition: produced
 	Selectable:
-		DecorationBounds: 1280,1280
+		DecorationBounds: 1792,1792
 	Targetable@ISHARVESTER:
 		TargetTypes: Harvester
 	Harvester:
@@ -602,8 +602,8 @@ timberwolf:
 		Width: 1
 		Alpha: 100
 	Selectable:
-		Bounds: 1024, 1536,0,-200
-		DecorationBounds: 1024, 1536,0,-200
+		Bounds: 1200,1680,0,-240
+		DecorationBounds: 1200,1680,0,-240
 		Class: timberwolf
 	WithDamageOverlay:
 		Image: smoke_mtd

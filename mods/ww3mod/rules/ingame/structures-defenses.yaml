@@ -522,7 +522,7 @@ CRAM:
 		Sequence: place
 	ClassicFacingBodyOrientation:
 	Selectable:
-		DecorationBounds: 1024,1024
+		DecorationBounds: 1024,768,0,-96
 	Buildable:
 		Queue: Defense
 		Prerequisites: ~structures.america, ~techlevel.medium
@@ -606,7 +606,7 @@ AGUN:
 		Sequence: place
 	ClassicFacingBodyOrientation:
 	Selectable:
-		DecorationBounds: 1024,1024
+		DecorationBounds: 1024,3096,0,-96
 	Buildable:
 		BuildDurationModifier: 30
 		Queue: Defense
@@ -890,7 +890,8 @@ TSLA:
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
 	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
 	Selectable:
-		DecorationBounds: 1024,1024
+		Bounds: 1024,1024
+		DecorationBounds: 1024,960,0,-396
 	Buildable:
 		BuildDurationModifier: 30
 		Queue: Defense
