@@ -784,9 +784,9 @@ iskander:
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
-		PauseOnCondition: empdisable
-		Voice: Attack
 		FacingTolerance: 0
+		Voice: Attack
+		PauseOnCondition: empdisable
 	WithFacingSpriteBody:
 		RequiresCondition: ammo-primary
 		Name: loaded

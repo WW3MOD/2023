@@ -644,6 +644,7 @@ NSUB:
 	RenderRangeCircle:
 		FallbackRange: 16c768
 	AttackFrontal:
+		FacingTolerance: 0
 	Selectable:
 		DecorationBounds: 1536,1536
 	HitShape:
@@ -701,6 +702,7 @@ SS:
 		PauseOnCondition: empdisable
 	AttackFrontal:
 		Armaments: primary, secondary
+		FacingTolerance: 0
 		PauseOnCondition: empdisable
 	WithMuzzleOverlay:
 	AutoTarget:
@@ -777,6 +779,7 @@ MSUB:
 		PauseOnCondition: empdisable
 	AttackFrontal:
 		TargetFrozenActors: True
+		FacingTolerance: 0
 		ForceFireIgnoresActors: True
 		PauseOnCondition: empdisable
 	Selectable:
