@@ -1,6 +1,8 @@
-# Place in folder: C:\Users\username\AppData\Roaming\OpenRA
-# Do yourself a favor and install AutoHotKey (AHK) and remap your windows key to Ctrl
-# This is the code that work for AHK V1, not V2
+# Go to your C:\Users\username\AppData\Roaming\OpenRA folder
+# Copy the Keys and replace the ones in your file
+
+# And optionally, do yourself the favor of installing AutoHotKey (AHK v1) and remap your windows key to Ctrl
+# Below is the code that work for AHK V1, not V2:
 
 # #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 # ; #Warn  ; Enable warnings to assist with detecting common errors.
@@ -8,6 +10,8 @@
 # SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 # LWin::LCtrl
 # return
+
+# If youre new to programming, dont forget to remove the first (leftmost) line of # (it comments out the code)
 
 Player:
 	Name: PlayerName
