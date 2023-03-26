@@ -11,29 +11,8 @@
 # LWin::LCtrl
 # return
 
-# If youre new to programming, dont forget to remove the first (leftmost) line of # (it comments out the code)
+# If you are new to programming: The first (leftmost) line of # must be removed for AHK to be able to read it, but leave these: #NoEnv, #Warn
 
-Player:
-	Name: PlayerName
-Game:
-	IntroductionPromptVersion: 1
-	TargetLines: Automatic
-	StatusBars: AlwaysShow
-Sound:
-	MusicVolume: 0.05128121
-	CashTicks: False
-Graphics:
-	ViewportDistance: Far
-Server:
-	Map: 25d7b33a4ec0683d3e57bfbdcad47c885ce8e7aa
-	Name: WW3MOD
-	Password:
-	DiscoverNatDevices: True
-Debug:
-	UUID: 81ef6f25-bf1a-4dbf-a1eb-47c0ff63e7dc
-	SendSystemInformation: False
-	SystemInformationVersionPrompt: 5
-	CheckVersion: False
 Keys:
 	StatisticsArmyGraph: F10 None
 	StatisticsGraph: F9 None
