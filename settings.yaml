@@ -60,10 +60,10 @@ Keys:
 	Pause: BACKSPACE None
 	ResetZoom: UNKNOWN None
 	TakeScreenshot: PLUS None
-	MapBookmarkSave01: NUMBER_1 Ctrl, Alt
-	MapBookmarkSave02: NUMBER_2 Ctrl, Alt
-	MapBookmarkSave03: NUMBER_3 Ctrl, Alt
-	MapBookmarkSave04: NUMBER_4 Ctrl, Alt
+	MapBookmarkSave01: NUMBER_1 Alt, Ctrl
+	MapBookmarkSave02: NUMBER_2 Alt, Ctrl
+	MapBookmarkSave03: NUMBER_3 Alt, Ctrl
+	MapBookmarkSave04: NUMBER_4 Alt, Ctrl
 	ZoomIn: UNKNOWN None
 	ZoomOut: UNKNOWN None
 	MapBookmarkRestore04: NUMBER_4 Shift, Ctrl
