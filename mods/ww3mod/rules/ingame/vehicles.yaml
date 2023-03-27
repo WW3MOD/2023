@@ -609,4 +609,113 @@ timberwolf:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
-
+		
+timberwolf:
+	Inherits@Type: ^Walker
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Tooltip:
+		Name: Timber Wolf
+		GenericName: Timber Wolf
+	RenderSprites:
+		Palette: unittem
+		Scale: 0.8
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 1
+		Prerequisites: ~techlevel.futuristic
+		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
+	Valued:
+		Cost: 2000
+	Health:
+		HP: 10000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	Mobile:
+		Speed: 60
+		TurnSpeed: 10
+	GrantConditionOnMovement@steps:
+		Condition: moving
+	# AmbientSound@step1:
+	# 	SoundFiles: stomp1a.aud, stomp1b.aud, stomp1c.aud
+	# 	Delay: 3
+	# 	Interval: 16
+	# 	RequiresCondition: moving
+	Turreted:
+		TurnSpeed: 20
+	Armament@1:
+		Name: primary
+		Weapon: MadcatGun
+		Recoil: 3
+		RecoilRecovery: 1
+		LocalOffset: 600,500,680, 600,-500,680
+		MuzzleSequence: muzzle-gun
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 300
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: MadcatMissiles
+		LocalOffset: -100,350,1150, -100,-350,1150
+		MuzzleSequence: muzzle-missile
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 30
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 9, 6
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: secondary-ammo
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo, secondary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	# WithShadow:
+	# 	Offset: 0,-500,0
+	RenderRangeCircle:
+		Color: FF0000
+		Width: 1
+		Alpha: 100
+	Selectable:
+		Bounds: 1200,1680,0,-240
+		DecorationBounds: 1200,1680,0,-240
+		Class: timberwolf
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
