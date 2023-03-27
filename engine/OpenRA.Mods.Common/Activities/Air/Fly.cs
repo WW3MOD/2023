@@ -61,71 +61,6 @@ namespace OpenRA.Mods.Common.Activities
 			this.minRange = minRange;
 		}
 
-		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
-		{
-			var movementSpeed = aircraft.MovementSpeed;
-
-			// Maximum speed reached
-			if (aircraft.CurrentSpeed >= movementSpeed) // DesiredSpeed
-			{
-				aircraft.CurrentSpeed = movementSpeed;
-			}
-
-			// Accelerate
-			else
-			{
-				var currentAcceleration = (float)aircraft.CurrentSpeed / (float)movementSpeed * (float)aircraft.AccelerationSteps.Length;
-				var flooredValue = (int)Math.Floor((double)currentAcceleration);
-				aircraft.CurrentSpeed += aircraft.AccelerationSteps[flooredValue];
-			}
-
-			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-
-			WVec move;
-			if (aircraft.Info.CanSlide && (aircraft.LastDesiredFacing == desiredFacing || aircraft.CurrentSpeed == 0))
-				move = aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
-			else
-				move = aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
-
-			if (moveOverride != WVec.Zero)
-				move = moveOverride;
-
-			var oldFacing = aircraft.Facing;
-			var turnSpeed = aircraft.GetTurnSpeed(idleTurn);
-			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
-
-			var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
-			if (roll != WAngle.Zero)
-			{
-				var desiredRoll = aircraft.Facing == desiredFacing ? WAngle.Zero :
-					new WAngle(roll.Angle * Util.GetTurnDirection(aircraft.Facing, oldFacing));
-
-				aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
-			}
-
-			if (aircraft.Info.Pitch != WAngle.Zero)
-				aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
-
-			// Note: we assume that if move.Z is not zero, it's intentional and we want to move in that vertical direction instead of towards desiredAltitude.
-			// If that is not desired, the place that calls this should make sure moveOverride.Z is zero.
-			if (dat != desiredAltitude || move.Z != 0)
-			{
-				var maxDelta = move.HorizontalLength * aircraft.Info.MaximumPitch.Tan() / 1024;
-				var moveZ = move.Z != 0 ? move.Z : (desiredAltitude.Length - dat.Length);
-				var deltaZ = moveZ.Clamp(-maxDelta, maxDelta);
-				move = new WVec(move.X, move.Y, deltaZ);
-			}
-
-			aircraft.LastDesiredFacing = desiredFacing;
-
-			aircraft.SetPosition(self, aircraft.CenterPosition + move);
-		}
-
-		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
-		{
-			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
-		}
-
 		// Should only be used for vertical-only movement, usually VTOL take-off or land. Terrain-induced altitude changes should always be handled by FlyTick.
 		public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
 		{
@@ -291,6 +226,72 @@ namespace OpenRA.Mods.Common.Activities
 
 			return false;
 		}
+
+		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
+		{
+			var movementSpeed = aircraft.MovementSpeed;
+
+			// Maximum speed reached
+			if (aircraft.CurrentSpeed >= movementSpeed) // DesiredSpeed
+			{
+				aircraft.CurrentSpeed = movementSpeed;
+			}
+
+			// Accelerate
+			else
+			{
+				var currentAcceleration = (float)aircraft.CurrentSpeed / (float)movementSpeed * (float)aircraft.AccelerationSteps.Length;
+				var flooredValue = (int)Math.Floor((double)currentAcceleration);
+				aircraft.CurrentSpeed += aircraft.AccelerationSteps[flooredValue];
+			}
+
+			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
+
+			WVec move;
+			if (aircraft.Info.CanSlide && (aircraft.LastDesiredFacing == desiredFacing || aircraft.CurrentSpeed == 0))
+				move = aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
+			else
+				move = aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
+
+			if (moveOverride != WVec.Zero)
+				move = moveOverride;
+
+			var oldFacing = aircraft.Facing;
+			var turnSpeed = aircraft.GetTurnSpeed(idleTurn);
+			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
+
+			var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
+			if (roll != WAngle.Zero)
+			{
+				var desiredRoll = aircraft.Facing == desiredFacing ? WAngle.Zero :
+					new WAngle(roll.Angle * Util.GetTurnDirection(aircraft.Facing, oldFacing));
+
+				aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
+			}
+
+			if (aircraft.Info.Pitch != WAngle.Zero)
+				aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
+
+			// Note: we assume that if move.Z is not zero, it's intentional and we want to move in that vertical direction instead of towards desiredAltitude.
+			// If that is not desired, the place that calls this should make sure moveOverride.Z is zero.
+			if (dat != desiredAltitude || move.Z != 0)
+			{
+				var maxDelta = move.HorizontalLength * aircraft.Info.MaximumPitch.Tan() / 1024;
+				var moveZ = move.Z != 0 ? move.Z : (desiredAltitude.Length - dat.Length);
+				var deltaZ = moveZ.Clamp(-maxDelta, maxDelta);
+				move = new WVec(move.X, move.Y, deltaZ);
+			}
+
+			aircraft.LastDesiredFacing = desiredFacing;
+
+			aircraft.SetPosition(self, aircraft.CenterPosition + move);
+		}
+
+		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
+		{
+			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
+		}
+
 
 		public override IEnumerable<Target> GetTargets(Actor self)
 		{

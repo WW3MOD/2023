@@ -19,7 +19,7 @@ HALO:
 	Health:
 		HP: 600
 	Aircraft:
-		TurnSpeed: 20
+		TurnSpeed: 8
 		Speed: 160
 		AltitudeVelocity: 0c58
 	Cargo:
@@ -87,7 +87,7 @@ HIND:
 	Armor:
 		Type: Heavy
 	Aircraft:
-		TurnSpeed: 16
+		TurnSpeed: 8
 		Speed: 130
 		InitialFacing: 192
 	AttackAircraft:
@@ -223,7 +223,7 @@ MI28:
 	Armor:
 		Type: Heavy
 	Aircraft:
-		TurnSpeed: 24
+		TurnSpeed: 8
 		Speed: 165
 	AttackAircraft:
 		FacingTolerance: 60
@@ -353,7 +353,7 @@ FROG:
 	Aircraft:
 		CruiseAltitude: 1560
 		InitialFacing: 192
-		TurnSpeed: 20
+		TurnSpeed: 8
 		Speed: 280
 		RepulsionSpeed: 40
 		MaximumPitch: 56
@@ -475,7 +475,7 @@ MIG:
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 16
+		TurnSpeed: 8
 		Speed: 350 # todo 290
 		IdleSpeed: 200
 		RepulsionSpeed: 40

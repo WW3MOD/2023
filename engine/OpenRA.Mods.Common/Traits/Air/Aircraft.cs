@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
-		public readonly WAngle TurnSpeed = new WAngle(512);
+		public readonly WAngle TurnSpeed = new WAngle(128);
 
 		[Desc("Turn speed to apply when aircraft flies in circles while idle. Defaults to TurnSpeed if undefined.")]
 		public readonly WAngle? IdleTurnSpeed = null;
@@ -66,7 +66,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] Acceleration = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
 
 		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
-		public readonly int TurnSpeedLoss = 5;
+		public readonly int TurnSpeedLoss = 10;
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
 		public readonly WAngle Pitch = WAngle.Zero;
