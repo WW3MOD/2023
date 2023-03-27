@@ -18,7 +18,7 @@
 	Building:
 		Dimensions: 1,1
 		Footprint: x
-		TerrainTypes: Clear,Road,Beach,Rough,Ore,Gems,Scraps
+		TerrainTypes: Clear,Road,Beach,Rough,Ore,Gems
 		RequiresBaseProvider: True
 		BuildSounds: placbldg.aud, build5.aud
 		UndeploySounds: cashturn.aud

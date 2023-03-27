@@ -247,13 +247,6 @@ Player:
 	GrantConditionOnPrerequisite@GLOBALJAM:
 		Condition: isbeingjammed
 		Prerequisites: isbeingjammed
-	LobbyPrerequisiteCheckbox@GLOBALSCRAPS:
-		ID: scraps
-		Label: Scrap Metal
-		Description: Most Vehicles and Buildings leave behind Scrap, that is half-value of Ore
-		Enabled: False
-		DisplayOrder: 9
-		Prerequisites: global-scraps
 	LobbyPrerequisiteCheckbox@NAVYDISABLER:
 		ID: disablenavy
 		Label: Disable Navy

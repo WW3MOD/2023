@@ -20,7 +20,6 @@
 			Clear: 95
 			Ore: 85
 			Gems: 85
-			Scraps: 85
 			Beach: 80
 			Rough: 80
 			Shallow: 65
@@ -34,7 +33,6 @@
 			Clear: 95
 			Ore: 85
 			Gems: 85
-			Scraps: 85
 			Beach: 85
 			Rough: 80
 			Shallow: 80
@@ -50,7 +48,6 @@
 			Clear: 95
 			Ore: 85
 			Gems: 85
-			Scraps: 85
 			Beach: 85
 			Rough: 80
 			Shallow: 80
@@ -65,7 +62,6 @@
 			Clear: 95
 			Ore: 85
 			Gems: 85
-			Scraps: 85
 			Beach: 85
 			Rough: 80
 			Shallow: 80
@@ -82,7 +78,6 @@
 			Clear: 85
 			Ore: 85
 			Gems: 85
-			Scraps: 85
 			Beach: 85
 			Rough: 50
 			Shallow: 50
@@ -95,7 +90,6 @@
 			Clear: 80
 			Ore: 80
 			Gems: 80
-			Scraps: 80
 			Beach: 80
 			Rough: 45
 			Shallow: 45
@@ -108,7 +102,6 @@
 			Clear: 70
 			Ore: 45
 			Gems: 45
-			Scraps: 45
 			Beach: 45
 			Rough: 35
 			Shallow: 20
@@ -121,7 +114,6 @@
 			Clear: 95
 			Ore: 95
 			Gems: 95
-			Scraps: 95
 			Beach: 95
 			Rough: 75
 			Shallow: 75
@@ -134,7 +126,6 @@
 			Clear: 95
 			Ore: 95
 			Gems: 95
-			Scraps: 95
 			Beach: 95
 			Rough: 75
 			Shallow: 75
@@ -149,7 +140,6 @@
 			Clear: 90
 			Ore: 90
 			Gems: 90
-			Scraps: 90
 			Beach: 90
 			Rough: 70
 			Shallow: 70
@@ -162,7 +152,6 @@
 			Clear: 80
 			Ore: 65
 			Gems: 65
-			Scraps: 65
 			Beach: 65
 			Rough: 55
 			Shallow: 30
@@ -175,7 +164,6 @@
 			Clear: 90
 			Ore: 90
 			Gems: 90
-			Scraps: 90
 			Beach: 90
 			Rough: 70
 			Shallow: 85
@@ -190,7 +178,6 @@
 			Clear: 100
 			Ore: 100
 			Gems: 100
-			Scraps: 100
 			Beach: 100
 			Rough: 100
 			Shallow: 100
@@ -224,7 +211,6 @@
 			Clear: 80
 			Ore: 80
 			Gems: 80
-			Scraps: 80
 			Beach: 80
 			Rough: 50
 			Shallow: 75

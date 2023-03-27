@@ -247,7 +247,7 @@ HARV:
 		TargetTypes: Harvester
 	Harvester:
 		Capacity: 30
-		Resources: Ore,Gems,Scraps
+		Resources: Ore,Gems
 		BaleUnloadDelay: 1
 		SearchFromProcRadius: 80 # TODO 16-40
 		SearchFromHarvesterRadius: 80 #TODO 8
@@ -263,7 +263,6 @@ HARV:
 		ResourceSequences:
 			Ore: pip-yellow
 			Gems: pip-red
-			Scraps: pip-gray
 	Health:
 		HP: 1500
 	Armor:

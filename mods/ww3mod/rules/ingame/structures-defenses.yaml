@@ -9,7 +9,7 @@
 	Selectable:
 		Bounds: 1024,1024
 	Building:
-		TerrainTypes: Clear,Road,Beach,Rough,Ore,Gems,Scraps
+		TerrainTypes: Clear,Road,Beach,Rough,Ore,Gems
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
 	MustBeDestroyed:
