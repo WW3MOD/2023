@@ -93,7 +93,7 @@
 	Mobile:
 		Locomotor: wheeled
 	SpeedMultiplier:
-		Modifier: 135
+		Modifier: 150
 	Passenger:
 		Weight: 15
 		CargoType: Vehicle
@@ -103,7 +103,7 @@
 	Mobile:
 		Locomotor: tracked
 	SpeedMultiplier:
-		Modifier: 135
+		Modifier: 150
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle

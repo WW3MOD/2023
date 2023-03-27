@@ -25,7 +25,7 @@
 	Aircraft:
 		AirborneCondition: airborne
 	SpeedMultiplier:
-		Modifier: 135
+		Modifier: 150
 	Targetable@GROUND:
 		RequiresCondition: !airborne
 		TargetTypes: Ground, Vehicle
