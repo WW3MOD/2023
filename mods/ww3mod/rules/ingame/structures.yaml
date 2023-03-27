@@ -1018,15 +1018,9 @@ DOME:
 	Armor:
 		Type: Concrete
 	ProvidesPrerequisite@buildingname:
-	ProvidesPrerequisite@LOCALRADAR:
-		Prerequisite: activedome
-		RequiresCondition: !jammed && !disabled && !build-incomplete
-	ProvidesPrerequisite@GLOBALJAM:
-		Prerequisite: isbeingjammed
-		RequiresCondition: jammed
 	RevealsRadar:
 		Range: 50c0
-		RequiresCondition: !heavy-damage && !disabled && !jammed && !build-incomplete
+		RequiresCondition: !heavy-damage && !disabled && !build-incomplete
 	WithRangeCircle@Radar:
 		Range: 50c0
 		Color: 000000

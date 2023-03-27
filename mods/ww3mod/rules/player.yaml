@@ -12,6 +12,7 @@ EditorPlayer:
 Player:
 	Inherits: ^BasePlayer
 	TechTree:
+	ProvidesRadar:
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 0
@@ -132,7 +133,7 @@ Player:
 		TextNotification: Low power.
 	AllyRepair:
 	PlayerResources:
-		SelectableCash: 5000, 10000, 15000, 20000, 25000, 50000
+		SelectableCash: 5000, 7500, 10000, 15000, 20000, 25000, 50000
 		DefaultCash: 15000
 		SelectablePassiveIncome: 0, 50, 100, 150, 200, 300, 400, 500, 750, 1000
 		PassiveIncomeInterval: 100
@@ -234,19 +235,6 @@ Player:
 		Prerequisite: brics.or.russia
 	ProvidesPrerequisite@IsPlaying:
 		Prerequisite: player.online
-	ProvidesRadar@GLOBALRADAR:
-		RequiresCondition: minimap.always.on && !isbeingjammed
-	GrantConditionOnPrerequisite@GLOBALRADAR:
-		Condition: minimap.always.on
-		Prerequisites: global-minimap
-	ProvidesRadar@LOCALRADAR:
-		RequiresCondition: !minimap.always.on && minimap.with.radar && !isbeingjammed
-	GrantConditionOnPrerequisite@LOCALRADAR:
-		Condition: minimap.with.radar
-		Prerequisites: activedome
-	GrantConditionOnPrerequisite@GLOBALJAM:
-		Condition: isbeingjammed
-		Prerequisites: isbeingjammed
 	LobbyPrerequisiteCheckbox@NAVYDISABLER:
 		ID: disablenavy
 		Label: Disable Navy
@@ -254,16 +242,8 @@ Player:
 		Enabled: True
 		DisplayOrder: 12
 		Prerequisites: global-disablenavy
-	LobbyPrerequisiteCheckbox@FREERADAR:
-		ID: freeradar
-		Label: Minimap Always On
-		Description: Minimap available independent of Radar structure, can still get jammed through the Radar structure
-		Enabled: True
-		DisplayOrder: 16
-		Prerequisites: global-minimap
 	GameSaveViewportManager:
 	PlayerRadarTerrain:
-
 	LobbyPrerequisiteCheckbox@GlobalPenalty:
 		ID: penalty
 		Label: War Crime Penalty
@@ -271,7 +251,6 @@ Player:
 		Enabled: False
 		DisplayOrder: 99
 		Prerequisites: global-penalty
-
 	LobbyPrerequisiteCheckbox@NuclearAllowed:
 		ID: nuclearallowed
 		Label: Nuclear
@@ -279,7 +258,6 @@ Player:
 		Enabled: False
 		DisplayOrder: 300
 		Prerequisites: global-nuclear
-
 	# ParatroopersPower@RUSSIAParatroopers:
 	# 	OrderName: RussiaParatroopers
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
