@@ -258,7 +258,7 @@ Player:
 		ID: disablenavy
 		Label: Disable Navy
 		Description: Use this to fix spamming Cruisers in ponds
-		Enabled: False
+		Enabled: True
 		DisplayOrder: 12
 		Prerequisites: global-disablenavy
 	LobbyPrerequisiteCheckbox@FREERADAR:

@@ -1,0 +1,322 @@
+Bugs
+
+Economy
+
+    - Refineries gets filled up, then actually refines whats inside to become money
+    -
+
+Infantry
+
+    - SF demolish should bring building to critical state + disabled until repaired
+
+    - Show class at further zoom
+
+    E6
+        - Disarming mines replenishes C4 Ammo
+        - Autotarget
+        - Repair bridge should have a Delay
+            - Check: RepairsBridges, Captures, CaptureManager, CaptureActor, Enter
+
+    SF
+        - Cant see hidden units
+        - Always stealthy?
+
+    Flamethrower
+        - Clear buildings, turning them into neutral
+
+    Spy
+        - AI shot with mortar when disguised and no other units that were closer seemed to notice?
+        - Infiltrated Refinery gives % of earned cash until that refinery is destroyed/sold
+            - Can be detected manually by looking at the money ticks?
+        - Infiltrating production building makes all units from that building slower/damage less etc
+        - Infiltrating the service depot destroys the next unit that is being serviced, or damages it slowly maybe?
+
+    Sniper
+        - Extra Hidden unless firing?
+
+    Div
+        - Resupply/Ammopool ReloadDelay should be renamed, ReloadDelay is used for reloading magazines
+        - Stealthy units hiding is OP for recon, RevealShroud should be lower when in forest
+        - Capturing bunkers/neutral buildings should not consume captor
+        - AI Conscripts starts to capture but seems to take squad orders and stops - decouple them from squad when they have opportunity to capture
+            - Stop firing building that has been marked for capture
+        - Multiple soldiers capturing building should make it faster, even if only one soldier enters at the end. Some buildings require more than one capturing soldier
+        - Capturable harvesters, also if harvester is close to enemy units it will stop moving like it surrenders
+        - Sell a building that you captured, you'll get your soldier back and not TECN
+        - AI should put soldiers into defense buildings
+        - Infantry should deploy immediately and not wait until at next position
+        - Team Leaders that ranks up becomes a new unit like "Sergeant", "Lieutenant" etc, and when a unit is under the command of a team leader that is under the command of a sergeant it gives double bonus, and so on all the way to rank 4.
+
+Vehicles
+    - Fix opening sequence for btr80
+    - Change M113 to AAVP7A1
+    - Ore trucks
+        - Get stuck if too many trucks are sharing one refinery, they should still que up.
+        - Maybe slower unload to make multiple refineries more important.
+        - Smarter behaviour
+
+    - Humvee can drive in forests now?
+    - Mines should not completely destroy heavy vehicles
+    - TOW missile firing puts actor into !mobile and if a stop order is issued or if the actor is destroyed the TOW loses its guidance
+        - Aiming delay, maybe use QueueChild(new Wait(100, false));
+    - Kamikaze drones
+    - Crystallized Doom tanks
+
+Aircraft
+    - Soldiers in crashed transport helicopters have a small chance of surviving, but receive lots of damage.
+    - Detection, Apache has StandardDetection now
+    - Apache shouldn't use guns vs structures
+    - FighterGun still doesn't do any damage / misses?
+        - offset seems to come from behind the aircraft
+    - F16 doesn't fire auto or manually
+    - Landed helicopters could have a bit longer visual
+    - Mig vs apache very weak
+    - Helicopters doesn't rearm when told to "repair", if helipad occupied. Probably true for all rearming
+    - Aircraft returns to base if unit is killed, even if it has more ammo onboard
+    * Russian Scout helicopter died over water and visuals remain?
+    * Air bug, units unable to spawn if other unit is blocking waypoint
+    - AI should use attack move for aircraft attacks
+    - Slower when turning
+    - Slow down when about to land and increase turn speed, so it doesn't overshoot and go in circles
+    - Flying fortress range not working, hits short. Possibly launch angle
+    - Helicopter rotors bigger?
+
+Naval
+    - Scale up
+    - Cruise missiles that can be shot down
+    - Change landing craft model
+
+Defenses
+    - Blue preview for GTWR, guard tower
+    - GTUR cant force attack ground or own units
+    - GTUR disabled on low power or infiltrated (Still doesn't work)
+    - Attack priorities, prism tower should prioritize tanks
+    - Deal damage to garrisoned soldiers as % of building damage, spread determines if killing multiple units or just one at a time
+        - Show unit's health + ammo over the defense's health
+    - Soldiers inside should be able to rearm, maybe even have automatic rearm / disable ammo drain
+    - Crystallized Doom SAM launcher (NOD), also other cannons but looks a bit unrealistic
+
+Structures
+    - Should buildings require power during construction?
+    - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
+
+Support powers
+    - Nukes
+        - FlashPaletteEffect
+            - Trait: AlphaBreakpoints [{255, 0}], Probably used something like { 50, 200, 0}
+    - Aircraft powers direction, always from own side of the map so its more realistic and more predictable.
+    - Modern Warfare B2 Bomber
+    - Missile strike
+
+DIV
+    - Formations
+        - "Stay in formation", move in current configuration
+        - Pre-defined formations
+    - Units out of ammo rejects attack orders
+    - Add announcements like "Enemy Detected"
+    - UnitStance
+        - Add more stances?
+        - ReturnFire should trigger for nearby units too if one is discovered to enable ambushes.
+        - Types
+            - AMBUSH - only fire when exposed or if an ally close by is exposed, disable by double clicking when activating.
+            - AUTHORIZED WEAPONS - primary, secondary, mg, tow, etc - each "name" gets it's own button, deselecting all means NO FIRE stance.
+            - DON'T FIRE AT: Neutral capturable objects, inefficient targets
+            - Default move is attack move, attack move renamed to "forced move"
+            - RETREAT: When attack-moving, if encountering enemy turn around and stay at maximum range
+            - COHESION: Stay close to more powerful (valuable) units
+        - Multi-toggle stances, and each controls a specific behaviour
+            - Fire at your main priority only (or ideally, skip if there is no such units even close)
+            - Fire at furthest target / closest (avoids overkill on the front line)
+            - Fire at closest or hunt down priority targets? A tank should move forward and attack a tank at the back instead of firing at simple infantry?
+            - Target non-defensive/capturable structures?
+            - Hunt down enemies (Autotarget: ScanRadius)
+            - Keep away (turreted units fall back to max distance)
+            - Auto Guard priority targets (Units are grouped together when enemy appears, tanks go forward, hunts down enemy, then will fall back to artillery units for example)
+            - How do each state work with:
+                - Move (And encountering enemy, should it cancel move order?)
+                - Attack-move
+
+    - Stay at a distance
+    - Cancel attack order if running out of ammo, now they freeze
+    - Render (some?) pips at further zoom
+    - Units can ForceFire on themselves... disable this
+    - Allow infantry to move to and stop in subcells so that they can start firing faster, check in Move, Mobile, Locomotor, Order, MapGrid etc...
+    - Pathfinder FindBidiPath, ignore units that are blocking, don't take detour around
+    - Unit should cancel attack order if out of ammo for current target, now they just freeze while still aiming on target
+    - Units in squad unable to attack a specific target should default back to attack move order not just move
+    - Parallel queues keeps building units that are paused
+    - Use ExplodeWhenEmpty from Missile to make Bullets also able to keep flying until they reach RangeLimit even if missing target (CRAM esp)
+    - Power down icon missing
+    - Load selection order - soldiers and vehicle in selection pairs up automatically
+    - PinDown trait, always prioritize units not taking cover
+    - Don't RevealShroud behind blocking actors
+    - Building queue
+        - Pause AND cancel all with one click by holding Ctrl
+        - Cancel all of a production type by right clicking icon
+        - Set infinite build by adding in same production after finishing each unit
+        - Pausing speeds up other production just as if it was cancelled (infantry)
+    - Ignore blocked bottlenecks. Ground units path finding ignores blocked path by allied units, doesn't take detour.
+        - Units can overlap with allied forces, but are repulsed (borrow from aircraft logic)
+    - War crimes demotes soldier
+
+Ideas:
+    - Dog Idea: Cant move only guard, + Wanders if not guarding
+    - WEATHER - Change shroud to be called "Bad weather" or similar, Make it more like fog, slightly transparent but it hides all actors even with radar or gps etc
+        - GAP should be smoke screen that dissipates
+    - Powerplants are instead industrial plants, generates power and passive income but not so much that it is worth building tons of them for money
+    - Manpower: Every player has a manpower number, every unit costs 1 or more manpower.
+        - Periodically new manpower is added, and this can be used as a cap-limit to avoid huge conscript armies.
+        - When a unit is sold, manpower is returned.
+        - Civilian buildings captured spawns a number of (owned) civilians that can be ordered to a barracks to be "sold" for 0 cash but 1 manpower. Can then be turned into soldiers.
+    - Engineer ground attack spawns mines (anti-personnel or tank or both?)
+    - Time limited games ends with nuclear armageddon
+        - Power "Nuclear escalation" that, if everyone uses it, the nuclear war begins with one nuke per player per 10s or something, game ends by points gathered before Armageddon
+        - Everyone starts with a tactical nuke that counts down to the game end time, when it is reached anyone can fire but if they do they
+    - Indirect fire weapons gain accuracy for each shot while target is stationary (and player has visual on the impact site)
+    - Buildings are built by supply trucks that must drive back and forth from a conyard to fetch supplies and larger buildings require more deliveries.
+    - Pontoon bridges
+    - Change color of sprites so that only small parts of unit is part of player color palette. Armband for infantry, a marking for tanks / Aircraft. Should be enough
+    - Recruiting soldiers costs from the player's points, or "political points", meaning that cheap units are only available if you have a high score / popularity
+    - Upkeep on units, perhaps % of initial value unless changed
+    - Ore purifier can be built directly on top of ore mines to immediately get their profits without harvesters
+    - Nuclear powerplant, releases long lasting toxins if destroyed
+    - Tooltip varies, if enemy to NATO use NATO Codename. Possibly use english version of foreign native names. "Strela" = Arrow. Nato codename "Gopher"
+
+Good to know
+    - Sequences that uses Facings: (negative) only uses half and reverses the rest? Seems so from other mod Shattered Paradise
+
+Unsolved bugs
+
+    - E6 Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
+        - Different name works for C4, so can't see why it wouldn't work.
+        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
+        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
+
+Other Mods
+
+    - https://github.com/AttacqueSuperior/ValiantShades/tree/master/mods/ra2vsh/bits/aircraft
+
+    - Tiberian Aurora
+        - Attack helicopter model, very nice almost too good
+
+    - Crystallized Doom
+        - Some beautiful tank models and more
+        - Voxels, but can be added, look at ^VoxelTank:
+
+    - Shattered Paradise
+        - Crusader infantry, mech suit
+        - Animation militantfire, large fire TS.anim palette?
+        - nahfact tall concrete building, looks like missile factory or something
+        - armh vehicle, good tank chassis but needs rework
+        - limped, egg shaped seeker drone, futuristic
+        - mtstl, stealth building, also comes as mobile, could be used as radar maybe or similar, futuristic
+        - scrin, banshee futuristic
+
+    - C&C Meets Star Wars
+        - Conyard looks good as main base ConYard, original one used as Mobile Field Base
+
+    * Modern Warfare
+        - B2 Bomber
+    - radot5
+        - Hedgehog
+        - OILER, oil pump, provides cash periodically
+        - TBOX radot5, tank bunker. Cool if engineers could build these
+    - Generals Alpha
+        - Raptor F22 (also "King Raptor" model but saw no difference)
+        - F117
+        - Stinger site, sandbag fortification
+        - Replace some arabian sprites with GLA
+        - Worker, GLA, collects supplies
+        - E3, Hunt (beige ish), RPG (brown), misdef (dark) - different animations for rocket soldier
+        - kell, variation on sniper
+    - Combined arms  https://www.moddb.com/mods/command-conquer-combined-arms/images/showcase-soviet#imagebox
+        - Capturable@DRIVER_DEAD
+        Buildings
+            - HQ (commcenter)/EYE(advanced), bunker with a rotating sat-dish, looks good
+            - REP, repair, could replace FIX, might look better, not sure.
+            - UPGC, Generals command center, can be upgraded - not sure this works but maybe use just one as static.. ?
+            - nodfact looks kinda cooler than ra original fact, but needs scorpion image removed
+        Defenses
+            - ATWR, advanced guard tower, looks more like a air control tower or something
+            - HTUR, grand cannon (TD looks like), nice looking, coastal defense ish
+            - STWR, Sonic tower, looks like a rotating radar
+            - LTUR, laser turret, maybe use against UAVs after adding those...
+        Infantry
+            - HACK, hacker, could be used as drone operator
+            - U3, G.I, deployable into bunker
+            - RMBO, rambo, commando, red baret,
+            - SEAL, same but green baret
+            - BORI, boris, Could work as officer unit
+            - SAB, looks just like boris but with black uniform
+            - ACOL, cyber unit with laser...
+            - E8 Descolator, looks like RPG ish
+                - e8d (deployed) could work as a reloading sequence if the green color is changed
+            - N1C, N3C, cyborg but looks just like normal soldier with different colors
+            - XO powersuit, looks very futuristic, but could be cool to have a futuristic version of mod, include Titans etc :O
+        Vehicles
+            - CHPR, chassi looks like some kind of command vehicle, switch turret for radar or something?
+            - CRYO, MLRS with rotatable turret, himars/M270 lookalike
+            - BGGY, buggy scout vehicle
+            - GDRN, tracked drone vehicle
+            - HMMV Humvee, also TOW version
+            - LTNK, light tank, looks pretty good maybe different from current models
+            - ISU, WW1 looking artillery
+            - SPEC, artillery, looking a bit weird
+            - TTRK: Supply Truck
+            - MSAM, looks good
+            - MLRS, Two missiles, Soviet looking
+            - FTNK/HFTK, (Heavy) Flame tank models doesn't look great but check if flame animation is good
+            - BTR, APC, looks god with wheels (?)
+            - IFV, probably same chassi as BTR but with turret
+            - TNKD, tank destroyer, looks pretty good generic tank, could be with trying for some unit
+            - MSAR, mobile sensor array (+ msardeployed), looks great for a command vehicle
+            - WTNK (MWTNK) microwave tank, maybe as a prototype. Could cause Panic with non veterans for example, maybe use disruptor animation (havent checked it)
+            - BATF, battle fortress, doesn't look too good but could be interesting to check how it uses loaded condition for different units
+            - APOC tank, might be too much for realism but chassis + different turret maybe?
+            - pcan, prism cannon tank I guess
+        Aircraft
+            - HORN, hornet
+            - UAV,
+            - NHAW, nighthawk naval helicopter
+            - P51, propeller plane
+            - SUK, sukhoi but looks futuristic, delta wing
+            - B2B, B2 bomber
+            - SMIG, actually perfect for Sukhoi T50 !
+            - C17 transport plane
+            - GALX, similar to C17
+            - RAH rah66, Comanche helicopter
+            - HARR, harrier
+            - AURO, aurora bomber, not real but realistic
+            - MIG, possibly different from original - yes
+        Naval
+            - SB, quick boat, looks ok
+            - CV, drone carrier, looks like a generic ship, cruise missile launcher maybe
+            - ISUB, ICBM Sub, looks generic
+            - DD2, Frigate, One cannon and guess missile launcher at front? Looks pretty good
+            - PT2, Patrol boat, Similar to DD2 but smaller,
+            - CA2, Looks good but not sure how this is used - couldn't find CA2 when searching
+    - Crossfire (Pakistan/India):  https://www.moddb.com/mods/openra-crossfire/images/in-game-units#imagebox
+        Lots of units, looks good - maybe not so much ...
+        - hatf double missile launcher, looks north korean or something
+        - MSLB missile boat, looks pretty good
+    - RADOT5
+        (ADDED) Mortar
+        Sniper
+        Commando
+        Propaganda bonus, check what this is. Could be used by officer units to boost morale and give added speed when in cover for example
+    - RA+
+        Flame tanks (but removed according to a comment?)
+    - Cameo (Low quality):
+        Generals units
+    - Winter War
+        Heavy cannon vehicle ?
+        Sniper
+        Saboteur
+    - Red Alert X
+        Rocket launcher (use for HIMARS)
+        Main Battle Tank
+    - Generals Alpha
+    - Forgotten:  https://www.moddb.com/mods/command-and-conquer-the-forgotten-chapter/images/forgotten-faction1#imagebox
+        Combat engineer
+        SMAW launcher (infantry)
+        Scout (sniper?)
