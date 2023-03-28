@@ -638,3 +638,25 @@ tnkd.destroyed:
 	idle: tnkd
 		Facings: 32
 		UseClassicFacings: True
+		
+reaper:
+	Inherits: emp-overlay
+	stand:
+		Facings: -8
+		Stride: 12
+		Length: 1
+		ShadowZOffset: -500
+	run:
+		Length: 12
+		Facings: -8
+		Tick: 70
+	turret:
+		Start: 96
+		Facings: -32
+		ShadowStart: 224
+		UseClassicFacings: True
+	muzzle-gun: gunfire2
+		Length: 5
+	muzzle-missile: smokey
+		Length: 5
+	icon: reapericon
