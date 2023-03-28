@@ -1,0 +1,215 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Testing Grounds
+
+Author: FreadyFish
+
+Tileset: TEMPERAT
+
+MapSize: 130,130
+
+Bounds: 1,1,128,128
+
+Visibility: Lobby
+
+Categories: Conquest
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: Random
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: Random
+		Enemies: Multi0
+	PlayerReference@Multi0:
+		Name: Multi0
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+
+Actors:
+	Actor0: mpspawn
+		Owner: Neutral
+		Location: 64,64
+	Actor1: t11
+		Owner: Neutral
+		Location: 60,78
+	Actor2: t11
+		Owner: Neutral
+		Location: 66,80
+	Actor3: t11
+		Owner: Neutral
+		Location: 69,78
+	Actor4: t11
+		Owner: Neutral
+		Location: 64,81
+	Actor5: t11
+		Owner: Neutral
+		Location: 58,83
+	Actor6: t11
+		Owner: Neutral
+		Location: 55,79
+	Actor7: tc02
+		Owner: Neutral
+		Location: 60,79
+	Actor8: tc02
+		Owner: Neutral
+		Location: 57,80
+	Actor9: tc02
+		Owner: Neutral
+		Location: 60,83
+	Actor10: tc02
+		Owner: Neutral
+		Location: 67,79
+	Actor11: t16
+		Owner: Neutral
+		Location: 66,79
+	Actor12: t16
+		Owner: Neutral
+		Location: 65,80
+	Actor13: tc03
+		Owner: Neutral
+		Location: 69,80
+	Actor14: tc01
+		Owner: Neutral
+		Location: 63,80
+	Actor15: tc04
+		Owner: Neutral
+		Location: 59,80
+	Actor16: tc05
+		Owner: Neutral
+		Location: 61,81
+	Actor17: tc04
+		Owner: Neutral
+		Location: 66,82
+	Actor18: tc01
+		Owner: Neutral
+		Location: 63,83
+	Actor19: t16
+		Owner: Neutral
+		Location: 65,83
+	Actor20: t16
+		Owner: Neutral
+		Location: 59,82
+	Actor21: t16
+		Owner: Neutral
+		Location: 57,81
+	Actor22: tc01
+		Owner: Neutral
+		Location: 57,82
+	Actor23: tc01
+		Owner: Neutral
+		Location: 64,79
+	Actor24: t15
+		Owner: Neutral
+		Location: 62,78
+	Actor25: t17
+		Owner: Neutral
+		Location: 68,81
+	Actor26: t17
+		Owner: Neutral
+		Location: 56,81
+	Actor27: minv
+		Owner: Neutral
+		Location: 72,79
+	Actor28: minv
+		Owner: Neutral
+		Location: 73,79
+	Actor29: minv
+		Owner: Neutral
+		Location: 74,79
+	Actor30: minv
+		Owner: Neutral
+		Location: 75,79
+	Actor31: minv
+		Owner: Neutral
+		Location: 76,79
+	Actor32: minv
+		Owner: Neutral
+		Location: 77,79
+	Actor33: minv
+		Owner: Neutral
+		Location: 78,79
+	Actor34: minv
+		Owner: Neutral
+		Location: 79,79
+	Actor35: minv
+		Owner: Neutral
+		Location: 80,79
+	Actor36: minv
+		Owner: Neutral
+		Location: 80,80
+	Actor37: minv
+		Owner: Neutral
+		Location: 79,80
+	Actor38: minv
+		Owner: Neutral
+		Location: 78,80
+	Actor39: minv
+		Owner: Neutral
+		Location: 77,80
+	Actor40: minv
+		Owner: Neutral
+		Location: 76,80
+	Actor41: minv
+		Owner: Neutral
+		Location: 75,80
+	Actor42: minv
+		Owner: Neutral
+		Location: 74,80
+	Actor43: minv
+		Owner: Neutral
+		Location: 73,80
+	Actor44: minv
+		Owner: Neutral
+		Location: 72,80
+	Actor45: mine
+		Owner: Neutral
+		Location: 60,50
+	Actor46: mine
+		Owner: Neutral
+		Location: 68,50
+	Actor47: mine
+		Owner: Neutral
+		Location: 64,46
+	Actor48: brl3
+		Owner: Neutral
+		Location: 58,79
+	Actor49: barl
+		Owner: Neutral
+		Location: 59,79
+	Actor50: tanktrap2
+		Owner: Neutral
+		Location: 51,80
+	Actor51: tanktrap2
+		Owner: Neutral
+		Location: 48,80
+	Actor52: tanktrap1
+		Owner: Neutral
+		Location: 49,81
+	Actor53: tanktrap1
+		Owner: Neutral
+		Location: 50,81
+	Actor54: tanktrap1
+		Owner: Neutral
+		Location: 52,81
+	Actor55: tanktrap1
+		Owner: Neutral
+		Location: 53,81
+	Actor56: tanktrap1
+		Owner: Neutral
+		Location: 47,81
+	Actor57: tanktrap1
+		Owner: Neutral
+		Location: 46,81
+	Actor58: tanktrap1
+		Owner: Neutral
+		Location: 54,81
+
+Rules: rules.yaml
