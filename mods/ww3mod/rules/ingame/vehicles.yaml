@@ -615,14 +615,14 @@ timberwolf:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
-		
-timberwolf:
+
+Reaper:
 	Inherits@Type: ^Walker
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Tooltip:
-		Name: Timber Wolf
-		GenericName: Timber Wolf
+		Name: Reaper
+		GenericName: Redeemer
 	RenderSprites:
 		Palette: unittem
 		Scale: 0.8
@@ -630,7 +630,7 @@ timberwolf:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
 		Prerequisites: ~techlevel.futuristic
-		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
+		Description: Something you must have
 	Valued:
 		Cost: 2000
 	Health:
@@ -642,10 +642,17 @@ timberwolf:
 	Mobile:
 		Speed: 60
 		TurnSpeed: 10
+	Turreted:
+		TurnSpeed: 20
+		Offset: 0,0,80	
 	GrantConditionOnMovement@steps:
 		Condition: moving
 	# AmbientSound@step1:
-	# 	SoundFiles: stomp1a.aud, stomp1b.aud, stomp1c.aud
+	# 	SoundFiles:
+	#			VoiceSelect=25-I000,25-I002,25-I004,25-I006
+	#			VoiceMove=25-I012,25-I014,25-I016,25-I018,25-I022
+	#			VoiceAttack=25-I014,25-I022,25-I024,25-I026
+	#			VoiceFeedback=
 	# 	Delay: 3
 	# 	Interval: 16
 	# 	RequiresCondition: moving
@@ -653,7 +660,7 @@ timberwolf:
 		TurnSpeed: 20
 	Armament@1:
 		Name: primary
-		Weapon: MadcatGun
+		Weapon: 120mmAbramsGun
 		Recoil: 3
 		RecoilRecovery: 1
 		LocalOffset: 600,500,680, 600,-500,680
@@ -679,7 +686,7 @@ timberwolf:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: MadcatMissiles
+		Weapon: TTankZap
 		LocalOffset: -100,350,1150, -100,-350,1150
 		MuzzleSequence: muzzle-missile
 		PauseOnCondition: !ammo-secondary || empdisable
@@ -719,7 +726,6 @@ timberwolf:
 	Selectable:
 		Bounds: 1200,1680,0,-240
 		DecorationBounds: 1200,1680,0,-240
-		Class: timberwolf
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
