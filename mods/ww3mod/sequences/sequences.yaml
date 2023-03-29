@@ -645,15 +645,18 @@ reaper:
 	stand:
 		Start: 96
 		Facings: -8
-	shadow:
-		start: 166
+		ShadowStart: 166
 	run:
-		Length: 96
+		Length: 12
 		Facings: -8
 		Tick: 70
 	shoot:
 		Start: 104
 		Length: 5
 		Facings: -8
-		shadow: 269
+		ShadowStart: 269
+	die:
+		Start: 144
+		Lenght: 21
+		ShadowStart: 309
 	icon: reapericon
