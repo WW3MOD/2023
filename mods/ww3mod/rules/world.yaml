@@ -43,7 +43,7 @@
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 95
 			Ore: 85
@@ -57,7 +57,7 @@
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 95
 			Ore: 85
@@ -73,7 +73,7 @@
 		SharesCell: true
 		Crushes: mine, crate
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 85
 			Ore: 85
@@ -85,7 +85,7 @@
 		Name: wheeled
 		Crushes: mine, crate
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 80
 			Ore: 80
@@ -97,7 +97,7 @@
 		Name: heavywheeled
 		Crushes: wall, mine, crate, infantry
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 70
 			Ore: 45
@@ -109,7 +109,7 @@
 		Name: lighttracked
 		Crushes: wall, mine, crate
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 95
 			Ore: 95
@@ -121,7 +121,7 @@
 		Name: lighttracked-amphbious
 		Crushes: wall, mine, crate
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 95
 			Ore: 95
@@ -135,7 +135,7 @@
 		Name: tracked
 		Crushes: wall, infantry, mine, crate
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 90
 			Ore: 90
@@ -147,7 +147,7 @@
 		Name: heavytracked
 		Crushes: wall, infantry, mine, crate, heavywall
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 80
 			Ore: 65
@@ -159,7 +159,7 @@
 		Name: tracked-amphibious
 		Crushes: infantry, mine, crate
 		TerrainSpeeds:
-			Road: 100
+			Road: 150
 			Bridge: 100
 			Clear: 90
 			Ore: 90
