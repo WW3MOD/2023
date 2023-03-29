@@ -616,10 +616,10 @@ Reaper:
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Tooltip:
 		Name: Reaper
-		GenericName: Redeemer
+		GenericName: Reaper
 	RenderSprites:
 		Palette: unittem
-		Scale: 0.8
+		# Scale: 0.8
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
@@ -634,7 +634,7 @@ Reaper:
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:
-		Speed: 60
+		Speed: 50
 		TurnSpeed: 10
 	GrantConditionOnMovement@steps:
 		Condition: moving
@@ -652,7 +652,7 @@ Reaper:
 		Weapon: 120mmAbramsGun
 		Recoil: 3
 		RecoilRecovery: 1
-		LocalOffset: 600,500,680, 600,-500,680
+		LocalOffset: 600,500,680
 		PauseOnCondition: !ammo-primary || empdisable
 	AmmoPool@1:
 		Name: primary-ammo
@@ -675,7 +675,7 @@ Reaper:
 	Armament@2:
 		Name: secondary
 		Weapon: TTankZap
-		LocalOffset: -100,350,1150, -100,-350,1150
+		LocalOffset: 600,-500,680
 		PauseOnCondition: !ammo-secondary || empdisable
 	AmmoPool@2:
 		Name: secondary-ammo
@@ -691,6 +691,7 @@ Reaper:
 	WithInfantryBody:
 		IdleSequences: stand
 		DefaultAttackSequence: shoot
+	WithDeathAnimation:
 	AttackFrontal:
 		FacingTolerance: 0
 		TargetFrozenActors: True
