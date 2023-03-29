@@ -117,6 +117,7 @@
 			Beach: 95
 			Rough: 75
 			Shallow: 75
+			River: 15
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
 		Name: lighttracked-amphbious
 		Crushes: wall, mine, crate
@@ -130,7 +131,7 @@
 			Rough: 75
 			Shallow: 75
 			Water: 15
-			River: 15
+			River: 25
 	Locomotor@TRACKED:
 		Name: tracked
 		Crushes: wall, infantry, mine, crate
@@ -143,6 +144,7 @@
 			Beach: 90
 			Rough: 70
 			Shallow: 70
+			River: 10
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
 		Crushes: wall, infantry, mine, crate, heavywall
@@ -155,6 +157,7 @@
 			Beach: 65
 			Rough: 55
 			Shallow: 30
+			River: 5
 	Locomotor@TRACKED_AMPHIBIOUS:
 		Name: tracked-amphibious
 		Crushes: infantry, mine, crate

@@ -34,9 +34,6 @@ Players:
 		Enemies: Creeps
 
 Actors:
-	Actor0: mpspawn
-		Owner: Neutral
-		Location: 64,64
 	Actor1: t11
 		Owner: Neutral
 		Location: 60,78
@@ -169,12 +166,6 @@ Actors:
 	Actor44: minv
 		Owner: Neutral
 		Location: 72,80
-	Actor45: mine
-		Owner: Neutral
-		Location: 60,50
-	Actor46: mine
-		Owner: Neutral
-		Location: 68,50
 	Actor47: mine
 		Owner: Neutral
 		Location: 64,46
@@ -211,5 +202,8 @@ Actors:
 	Actor58: tanktrap1
 		Owner: Neutral
 		Location: 54,81
+	Actor59: mpspawn
+		Owner: Neutral
+		Location: 63,58
 
 Rules: rules.yaml
