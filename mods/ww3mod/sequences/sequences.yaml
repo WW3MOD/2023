@@ -638,15 +638,14 @@ tnkd.destroyed:
 	idle: tnkd
 		Facings: 32
 		UseClassicFacings: True
-		
+
 reaper:
 	Inherits: emp-overlay
 	stand:
 		Start: 96
 		Facings: -8
-  #ShadowZOffset: 161
-	shadow: 
-		start: 166	
+	shadow:
+		start: 166
 	run:
 		Length: 96
 		Facings: -8
@@ -654,6 +653,6 @@ reaper:
 	shoot:
 		Start: 104
 		Length: 5
-		Facings: -8	
+		Facings: -8
 		shadow: 269
 	icon: reapericon

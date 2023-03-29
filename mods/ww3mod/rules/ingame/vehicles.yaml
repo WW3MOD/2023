@@ -653,7 +653,7 @@ Reaper:
 		Recoil: 3
 		RecoilRecovery: 1
 		LocalOffset: 600,500,680, 600,-500,680
-	PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -693,7 +693,7 @@ Reaper:
 		DefaultAttackSequence: shoot
 	AttackFrontal:
 		FacingTolerance: 0
-		TargetFrozenActors: True	
+		TargetFrozenActors: True
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 9, 6
