@@ -981,8 +981,8 @@ ticktank:
 		Cost: 1500
 	RenderSprites:
 		Image: ticktank
-		Scale: 1.25	
-		Palette: 
+		Scale: 1.25
+		Palette: unittem
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
