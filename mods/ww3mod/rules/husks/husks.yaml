@@ -2,7 +2,7 @@
 ^BasicHusk:
 	Interactable:
 	Health:
-		HP: 280
+		HP: 28000
 	Armor:
 		Type: Heavy
 	HiddenUnderFog:
@@ -18,13 +18,14 @@
 	Inherits: ^BasicHusk
 	Inherits@2: ^ClassicFacingSpriteActor
 	Husk:
-		AllowedTerrain: Clear, Rough, Road, Ore, Gems, Beach, Shallow
+		AllowedTerrain: Clear, Rough, Road, Ore, Gems, Beach
 	WithIdleOverlay@Burns:
 		Image: fire
 		Sequence: 1
 		IsDecoration: true
-	ChangesHealth@Burns:
-		Step: -2
+	ChangesHealth:
+		Step: -200
+		StartIfBelow: 101
 		Delay: 8
 	OwnerLostAction:
 		Action: ChangeOwner
@@ -33,15 +34,19 @@
 		Types: husk
 		ValidRelationships: Enemy, Neutral
 	WithColoredOverlay@IDISABLE:
+		Color: 000000B4
 	Targetable:
-		TargetTypes: Ground, Husk, NoAutoTarget
+		TargetTypes: GroundActor, Husk, NoAutoTarget
 		RequiresForceFire: true
 	Chronoshiftable:
 	Tooltip:
 		GenericName: Destroyed Vehicle
+
 ^PlaneHusk:
 	Inherits: ^BasicHusk
 	Inherits@2: ^SpriteActor
+	Targetable:
+		TargetTypes: AirborneActor, Husk, NoAutoTarget
 	WithShadow:
 		Offset: 43, 128, 0
 		ZOffset: -129
@@ -57,9 +62,12 @@
 	RevealOnDeath:
 		Duration: 60
 		Radius: 4c0
+
 ^HelicopterHusk:
 	Inherits: ^BasicHusk
 	Inherits@2: ^ClassicFacingSpriteActor
+	Targetable:
+		TargetTypes: AirborneActor, Husk, NoAutoTarget
 	WithShadow:
 		Offset: 43, 128, 0
 		ZOffset: -129
@@ -71,11 +79,11 @@
 		CanSlide: True
 	FallsToEarth:
 		Explosion: UnitExplodeHeli
-	ClassicFacingBodyOrientation:
 	-MapEditorData:
 	RevealOnDeath:
 		Duration: 60
 		Radius: 4c0
+
 ^CivBuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:

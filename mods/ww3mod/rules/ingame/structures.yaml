@@ -203,6 +203,7 @@
 ^DisabledByPowerOutage:
 	WithColoredOverlay@IDISABLE:
 		RequiresCondition: disabled
+		Color: 000000B4
 	GrantCondition@IDISABLE:
 		RequiresCondition: power-outage
 		Condition: disabled
