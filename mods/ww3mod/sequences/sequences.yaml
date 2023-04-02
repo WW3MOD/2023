@@ -659,3 +659,13 @@ reaper:
 		Lenght: 21
 		ShadowStart: 309
 	icon: reapericon
+	
+ticktank:
+	Inherits: emp-overlay
+	idle: ticktank
+		Facings: 32
+		UseClassicFacings: True
+	muzzle: gunfire2
+		Length: 5
+	icon: ticktankicon
+	fake-icon: ticktankicon
