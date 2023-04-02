@@ -48,12 +48,21 @@ TRAN:
 	WithCargoPipsDecoration:
 		PipCount: 12
 		Margin: 29, 5
-	SpawnActorOnDeath:
+	SpawnActorOnDeath@hovering:
 		Actor: TRAN.Husk
-		RequiresCondition: airborne && !empdisable
+		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: TRAN.Husk.EMP
-		RequiresCondition: airborne && empdisable
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@moving:
+		Actor: TRAN.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: TRAN.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: TRAN.Husk.ground
+		RequiresCondition: !airborne
 	RenderSprites:
 		Scale: 1.25
 
@@ -162,18 +171,21 @@ littlebird:
 		LoadedCondition: loaded
 	WithCargoPipsDecoration:
 		Margin: 5, 5
-	SpawnActorOnDeath:
+	SpawnActorOnDeath@hovering:
 		Actor: littlebird.Husk
-		RequiresCondition: airborne && ammo-secondary && !empdisable
-	SpawnActorOnDeath@Empty:
-		Actor: littlebird.Husk.Empty
-		RequiresCondition: airborne && !ammo-secondary && !empdisable
+		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: littlebird.Husk.EMP
-		RequiresCondition: airborne && ammo-secondary && empdisable
-	SpawnActorOnDeath@EMPEmpty:
-		Actor: littlebird.Husk.EMP.Empty
-		RequiresCondition: airborne && !ammo-secondary && empdisable
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@moving:
+		Actor: littlebird.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: littlebird.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: littlebird.Husk.ground
+		RequiresCondition: !airborne
 	WithIdleOverlay@ROTORAIR:
 		Offset: 0,0,85
 		Sequence: rotor
@@ -319,18 +331,21 @@ HELI:
 		EjectInAir: true
 		AllowUnsuitableCell: true
 		ChuteSound: chute1.aud
-	SpawnActorOnDeath:
+	SpawnActorOnDeath@hovering:
 		Actor: HELI.Husk
-		RequiresCondition: airborne && ammo-secondary && !empdisable
-	SpawnActorOnDeath@Empty:
-		Actor: HELI.Husk.Empty
-		RequiresCondition: airborne && !ammo-secondary && !empdisable
+		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: HELI.Husk.EMP
-		RequiresCondition: airborne && ammo-secondary && empdisable
-	SpawnActorOnDeath@EMPEmpty:
-		Actor: HELI.Husk.EMP.Empty
-		RequiresCondition: airborne && !ammo-secondary && empdisable
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@moving:
+		Actor: HELI.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: HELI.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: HELI.Husk.ground
+		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	ProducibleWithLevel:

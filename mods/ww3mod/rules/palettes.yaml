@@ -1,4 +1,9 @@
 ^Palettes:
+	PaletteFromGimpOrJascFile@gensmkexploj:
+		Name: gensmkexploj
+		Filename: gensmkexploj.pal
+		Premultiply: false
+		AllowModifiers: false
 	# CA - Combined Arms
 	PaletteFromFile@playertd:
 		Name: playertd

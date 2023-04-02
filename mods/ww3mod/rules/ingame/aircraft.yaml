@@ -136,6 +136,8 @@
 		Crushes: crate, mine, infantry
 		InitialFacing: 224
 		CanSlide: False
+	GrantConditionOnMovement:
+		Condition: moving
 	GpsDot:
 		String: Helicopter
 	Hovers@Cruising:

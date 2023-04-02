@@ -186,7 +186,6 @@ PBOX:
 	# WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: pbox.husk
-		OwnerType: InternalName
 	Cargo:
 		Types: Infantry
 		MaxWeight: 2
@@ -265,7 +264,6 @@ HBOX:
 	# WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: hbox.husk
-		OwnerType: InternalName
 	Cargo:
 		Types: Infantry
 		MaxWeight: 2
@@ -585,7 +583,6 @@ CRAM:
 		Amount: -30
 	SpawnActorOnDeath:
 		Actor: agun.husk
-		OwnerType: InternalName
 	RenderSprites:
 		Scale: 0.85
 	RenderRangeCircle:
@@ -663,7 +660,6 @@ AGUN:
 		Amount: -50
 	SpawnActorOnDeath:
 		Actor: agun.husk
-		OwnerType: InternalName
 	RenderSprites:
 		Scale: 0.9
 	RenderRangeCircle:
@@ -727,7 +723,6 @@ SAM:
 	ClassicFacingBodyOrientation:
 	SpawnActorOnDeath:
 		Actor: sam.husk
-		OwnerType: InternalName
 	RenderRangeCircle:
 		RangeCircleType: aa
 		Width: 3
@@ -769,7 +764,6 @@ HSAM:
 		RevokeDelay: 75
 	SpawnActorOnDeath:
 		Actor: hsam.husk
-		OwnerType: InternalName
 
 # PATRIOT:
 # 	Inherits@Type: ^Defense
@@ -876,7 +870,6 @@ FTUR:
 		EmptyWeapon: BuildingExplode
 	SpawnActorOnDeath:
 		Actor: ftur.husk
-		OwnerType: InternalName
 	RenderSprites:
 		Scale: 0.8
 	RenderRangeCircle:
@@ -954,7 +947,6 @@ TSLA:
 		Amount: -150
 	SpawnActorOnDeath:
 		Actor: tsla.husk
-		OwnerType: InternalName
 	RenderRangeCircle:
 		Width: 3
 		Color: FFFFFF # White, Tesla weaponry
@@ -1087,7 +1079,6 @@ MSLO:
 		ValidDamageStates: Critical
 	SpawnActorOnDeath:
 		Actor: mslo.husk
-		OwnerType: InternalName
 	GpsDot:
 		String: Nuke
 	InfiltrateForSupportPowerReset:
@@ -1139,7 +1130,6 @@ GUN:
 		Amount: -20
 	SpawnActorOnDeath:
 		Actor: gun.husk
-		OwnerType: InternalName
 	RenderSprites:
 		Scale: 0.9
 	RenderRangeCircle:

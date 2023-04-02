@@ -369,7 +369,6 @@ FACT:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: fact.husk
-		OwnerType: InternalName
 	GpsDot:
 		String: ConYard
 FACT2:
@@ -467,7 +466,6 @@ BARR:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: barr.husk
-		OwnerType: InternalName
 WEAP:
 	Inherits: ^Building
 	Inherits@Shape: ^3x2Shape
@@ -543,7 +541,6 @@ WEAP:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: weap.husk
-		OwnerType: InternalName
 	GrantConditionOnPrerequisite@MAINTENANCE:
 		Condition: maintenance
 		Prerequisites: maintenance
@@ -603,7 +600,6 @@ FIX:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: fix.husk
-		OwnerType: InternalName
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished
 	GpsDot:
@@ -652,7 +648,6 @@ POWR:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: powr.husk
-		OwnerType: InternalName
 	WithIdleOverlay@SMOKE:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-smoke
@@ -706,7 +701,6 @@ APWR:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: apwr.husk
-		OwnerType: InternalName
 	WithIdleOverlay@SMOKE:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-smoke
@@ -815,7 +809,6 @@ PROC:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: proc.husk
-		OwnerType: InternalName
 	RenderSprites:
 		Image: ercc-proc
 	FreeActor@1:
@@ -898,7 +891,6 @@ HPAD:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: hpad.husk
-		OwnerType: InternalName
 AFLD:
 	Inherits: ^Building
 	Inherits@PRIMARY: ^PrimaryBuilding
@@ -978,7 +970,6 @@ AFLD:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: afld.husk
-		OwnerType: InternalName
 	GrantConditionOnPrerequisite@AIRESTRICTOR:
 		Prerequisites: aitoodumb
 		Condition: aitoodumb
@@ -1038,7 +1029,6 @@ DOME:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: dome.husk
-		OwnerType: InternalName
 
 SYRD:
 	Inherits: ^Building
@@ -1196,7 +1186,6 @@ SILO:
 		ValidPowerStates: Low, Critical
 	SpawnActorOnDeath:
 		Actor: silo.husk
-		OwnerType: InternalName
 	Explodes:
 		Weapon: SmallBuildingExplode
 		EmptyWeapon: SmallBuildingExplode
@@ -1248,7 +1237,6 @@ ATEK:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: ateknew.husk
-		OwnerType: InternalName
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished && !disabled
 	GrantConditionOnPowerState@LOWPOWER:
@@ -1295,7 +1283,6 @@ STEK:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: stek.husk
-		OwnerType: InternalName
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished && !disabled
 	InfiltrateForSupportPower:
@@ -1417,7 +1404,6 @@ TENT:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: tent.husk
-		OwnerType: InternalName
 
 ### Disabled ###
 
@@ -1462,7 +1448,6 @@ GAP:
 		EmptyWeapon: SmallBuildingExplode
 	SpawnActorOnDeath:
 		Actor: gap.husk
-		OwnerType: InternalName
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-demolished
 	CreatesShroud:
@@ -1539,7 +1524,6 @@ KENN:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: kenn.husk
-		OwnerType: InternalName
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-demolished
 SPEN:
@@ -1739,7 +1723,6 @@ SPRO:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate, ThiefInfiltrate
 	SpawnActorOnDeath:
 		Actor: atek.husk
-		OwnerType: InternalName
 	InfiltrateForExploration:
 		Types: SpyInfiltrate,ThiefInfiltrate
 	RenderSprites:

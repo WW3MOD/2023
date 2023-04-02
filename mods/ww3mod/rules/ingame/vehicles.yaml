@@ -169,7 +169,6 @@ MCV:
 	BaseBuilding:
 	SpawnActorOnDeath:
 		Actor: MCV.Husk
-		OwnerType: InternalName
 	Passenger:
 		Weight: 30
 		CustomPipType: pip-blue
@@ -200,7 +199,6 @@ MCV2:
 		Weight: 20
 	SpawnActorOnDeath:
 		Actor: MCV2.Husk
-		OwnerType: InternalName
 	RenderSprites:
 		Image: mcv
 		Scale: 0.8
@@ -278,7 +276,6 @@ HARV:
 		String: Harvester
 	SpawnActorOnDeath:
 		Actor: HARV.EmptyHusk
-		OwnerType: InternalName
 	HarvesterHuskModifier:
 		FullHuskActor: HARV.FullHusk
 		FullnessThreshold: 50
@@ -352,7 +349,8 @@ TRUK:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
-
+	SpawnActorOnDeath:
+		Actor: TRUK.husk
 MNLY:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Selection: ^SelectableSupportUnit
@@ -427,6 +425,8 @@ MNLY:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: MNLY.husk
 
 MSAR:
 	Inherits@Type: ^WheeledVehicle
@@ -496,6 +496,12 @@ MSAR:
 	RenderSprites:
 		Image: msar
 		PlayerPalette: playertd
+	SpawnActorOnDeath:
+		RequiresCondition: !deployed
+		Actor: MSAR.husk
+	SpawnActorOnDeath@deployed:
+		RequiresCondition: deployed
+		Actor: MSAR.deployed.husk
 	# RangedGpsRadarProvider:
 	# 	Range: 50c0
 	# 	RequiresCondition: deployed && !empdisable

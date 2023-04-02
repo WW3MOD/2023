@@ -29,8 +29,6 @@ HALO:
 	WithCargoPipsDecoration:
 		PipCount: 12
 		Margin: 23, 5
-	SpawnActorOnDeath:
-		Actor: TRAN.Husk
 	Selectable:
 		DecorationBounds: 1700,1536
 	WithIdleOverlay@ROTOR1AIR:
@@ -39,12 +37,21 @@ HALO:
 	WithIdleOverlay@ROTOR1GROUND:
 		Offset: 260,0,343
 		Sequence: slow-rotor
-	SpawnActorOnDeath:
+	SpawnActorOnDeath@hovering:
 		Actor: HALO.Husk
-		RequiresCondition: !empdisable
+		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: HALO.Husk.EMP
-		RequiresCondition: empdisable
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@moving:
+		Actor: HALO.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: HALO.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: HALO.Husk.ground
+		RequiresCondition: !airborne
 	# GrantConditionOnAttack:
 	# 	Condition: dropcargo
 	# ParachuteCargoOnCondition:
@@ -168,18 +175,21 @@ HIND:
 	# 	Offset: -427,0,0
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
-	SpawnActorOnDeath:
+	SpawnActorOnDeath@hovering:
 		Actor: HIND.Husk
-		RequiresCondition: airborne && ammo-primary && !empdisable
-	SpawnActorOnDeath@Empty:
-		Actor: HIND.Husk.empty
-		RequiresCondition: airborne && !ammo-primary && empdisable
+		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: HIND.Husk.EMP
-		RequiresCondition: airborne && ammo-primary && empdisable
-	SpawnActorOnDeath@EMPEmpty:
-		Actor: HIND.Husk.EMP.Empty
-		RequiresCondition: airborne && !ammo-primary && empdisable
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@moving:
+		Actor: HIND.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: HIND.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: HIND.Husk.ground
+		RequiresCondition: !airborne
 	Cargo:
 		Types: Infantry
 		MaxWeight: 8
@@ -310,18 +320,21 @@ MI28:
 		EjectInAir: true
 		AllowUnsuitableCell: true
 		ChuteSound: chute1.aud
-	SpawnActorOnDeath:
+	SpawnActorOnDeath@hovering:
 		Actor: MI28.Husk
-		RequiresCondition: airborne && ammo-secondary && !empdisable
-	SpawnActorOnDeath@Empty:
-		Actor: MI28.Husk.Empty
-		RequiresCondition: airborne && !ammo-secondary && !empdisable
+		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: MI28.Husk.EMP
-		RequiresCondition: airborne && ammo-secondary && empdisable
-	SpawnActorOnDeath@EMPEmpty:
-		Actor: MI28.Husk.EMP.Empty
-		RequiresCondition: airborne && !ammo-secondary && empdisable
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@moving:
+		Actor: MI28.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: MI28.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: MI28.Husk.ground
+		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	ProducibleWithLevel:
@@ -429,15 +442,9 @@ FROG:
 	SpawnActorOnDeath:
 		Actor: FROG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable
-	SpawnActorOnDeath@Empty:
-		Actor: FROG.Husk.Empty
-		RequiresCondition: airborne && !ammo-primary && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: FROG.Husk.EMP
 		RequiresCondition: airborne && ammo-primary && empdisable
-	SpawnActorOnDeath@EMP:
-		Actor: FROG.Husk.EMP.Empty
-		RequiresCondition: airborne && !ammo-primary && empdisable
 	Selectable:
 		DecorationBounds: 720,372,0,48
 	ProducibleWithLevel:
@@ -555,15 +562,9 @@ MIG:
 	SpawnActorOnDeath:
 		Actor: MIG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable
-	SpawnActorOnDeath@Empty:
-		Actor: MIG.Husk.Empty
-		RequiresCondition: airborne && !ammo-primary && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: MIG.Husk.EMP
 		RequiresCondition: airborne && ammo-primary && empdisable
-	SpawnActorOnDeath@EMPEmpty:
-		Actor: MIG.Husk.EMP.Empty
-		RequiresCondition: airborne && !ammo-primary && empdisable
 	RenderRangeCircle:
 		RangeCircleType: aa
 		Width: 3

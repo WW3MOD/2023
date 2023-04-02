@@ -316,6 +316,15 @@ fire:
 	8: fire7
 		FlipX: true
 
+huskdeath:
+	Defaults:
+		Length: *
+		Offset: 0,-3
+		ZOffset: 2000
+	tankammoburn: fuelflame1
+	fuelburn: fuelflame2
+	100test: 100test
+
 laserfire_low:
 	idle: hit_minimal
 

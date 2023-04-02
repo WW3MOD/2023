@@ -716,3 +716,7 @@ AntFireball:
 			Light: 45
 			Heavy: 20
 			Concrete: 15
+
+# Used for traits that has to implement Armament
+Dummy:
+	ReloadDelay: 1

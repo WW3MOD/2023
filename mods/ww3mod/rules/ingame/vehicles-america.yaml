@@ -79,7 +79,6 @@ abrams:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: abrams.husk
-		OwnerType: InternalName
 
 bradley:
 	Inherits@Type: ^TrackedVehicle
@@ -216,7 +215,6 @@ bradley:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: bradley.husk
-		OwnerType: InternalName
 
 humvee:
 	Inherits@Type: ^WheeledVehicle
@@ -358,7 +356,6 @@ humvee:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: humvee.husk
-		OwnerType: InternalName
 
 m113:
 	Inherits@Type: ^TrackedVehicle
@@ -449,7 +446,6 @@ m113:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: m113.husk
-		OwnerType: InternalName
 
 strykershorad:
 	Inherits@Type: ^WheeledVehicle
@@ -618,7 +614,6 @@ strykershorad:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: strykershorad.husk
-		OwnerType: InternalName
 
 m109:
 	Inherits@Type: ^TrackedVehicle
@@ -713,7 +708,6 @@ m109:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: m109.husk
-		OwnerType: InternalName
 
 m270:
 	Inherits@Type: ^TrackedVehicle
@@ -805,7 +799,6 @@ m270:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: m270.husk
-		OwnerType: InternalName
 
 HIMARS:
 	Inherits@Type: ^WheeledVehicle
@@ -915,7 +908,6 @@ HIMARS:
 		Color: FFFF00
 	SpawnActorOnDeath:
 		Actor: HIMARS.husk
-		OwnerType: InternalName
 
 PRSM:
 	Inherits@Type: ^TrackedVehicle
@@ -1014,4 +1006,3 @@ PRSM:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: PRSM.husk
-		OwnerType: InternalName

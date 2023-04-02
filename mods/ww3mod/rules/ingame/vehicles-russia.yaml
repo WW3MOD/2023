@@ -80,7 +80,6 @@ t72:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: t72.husk
-		OwnerType: InternalName
 
 bmp2:
 	Inherits@Type: ^TrackedVehicle
@@ -216,7 +215,6 @@ bmp2:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: bmp2.husk
-		OwnerType: InternalName
 
 btr:
 	Inherits@Type: ^WheeledVehicle
@@ -305,7 +303,6 @@ btr:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: btr.husk
-		OwnerType: InternalName
 
 tunguska:
 	Inherits@Type: ^TrackedVehicle
@@ -444,7 +441,6 @@ tunguska:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: tunguska.husk
-		OwnerType: InternalName
 
 giatsint:
 	Inherits@Type: ^TrackedVehicle
@@ -540,7 +536,6 @@ giatsint:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: giatsint.husk
-		OwnerType: InternalName
 
 grad:
 	Inherits@Type: ^WheeledVehicle
@@ -633,7 +628,6 @@ grad:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: grad.husk
-		OwnerType: InternalName
 
 tos:
 	Inherits@Type: ^TrackedVehicle
@@ -722,6 +716,8 @@ tos:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: tos.husk
 
 iskander:
 	Inherits@Type: ^WheeledVehicle
@@ -826,8 +822,7 @@ iskander:
 		RequiresCondition: loaded
 		Weapon: IskanderExplosion
 	SpawnActorOnDeath:
-		Actor: tos.husk
-		OwnerType: InternalName
+		Actor: iskander.husk
 
 IskanderMissile:
 	Inherits: ^ShootableMissile
@@ -836,7 +831,7 @@ IskanderMissile:
 	Tooltip:
 		Name: Iskander missile
 	RenderSprites:
-		Scale: 1.25
+		Scale: 1
 	Health:
 		HP: 100
 	BallisticMissile:
@@ -957,7 +952,6 @@ TTNK:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: TTNK.husk
-		OwnerType: InternalName
 
 # 9P149: Shturm-S/SM  Mobile anti-tank guided missile system
 
