@@ -955,3 +955,94 @@ TTNK:
 
 # Shilka: quad-barrel AA
 
+ticktank:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 40
+		Prerequisites: ~vehicles.russia, ~techlevel.futuristic
+		Description: yup
+		IconPalette: chrome
+	Tooltip:
+		Name: Tick Tank
+	Valued:
+		Cost: 1500
+	RenderSprites:
+		Image: ticktank
+		Scale: 1.25	
+		Palette: 
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 1500
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	-HiddenUnderFog:
+	VisibleWithRadar:
+		Type: GroundPosition
+		PauseOnCondition: !firing
+	RevealsShroud:
+		Range: 10c0
+	Mobile:
+		TurnSpeed: 10
+		Speed: 56
+		Locomotor: lighttracked
+		PauseOnCondition: firing || empdisable
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 100
+	IndirectFire:
+	Armament@1:
+		Weapon: 152mmGiatsintGun
+		# FireDelay: 100
+		Recoil: 85
+		RecoilRecovery: 70
+		MuzzleSequence: muzzle
+		LocalOffset: 800,0,500
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 39
+		AmmoCondition: ammo-primary
+	Rearmable:
+		RearmActors: fix
+		AmmoPools: primary-ammo
+	ReloadAmmoPool:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	WithMuzzleOverlay:
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		FacingTolerance: 0
+		PauseOnCondition: empdisable || unit.docked
+	RenderRangeCircle:
+		Width: 1
+		Alpha: 100
+		Color: FF0000 # Red, explosives
+	Selectable:
+		Class: ARTILLERY
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
