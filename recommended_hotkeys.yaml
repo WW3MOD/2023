@@ -1,4 +1,5 @@
-# Go to your C:\Users\username\AppData\Roaming\OpenRA folder
+# Go to C:\Users\USERNAME\AppData\Roaming\OpenRA
+# Open the settings.yaml file
 # Copy the Keys and replace the ones in your file
 
 # And optionally, do yourself the favor of installing AutoHotKey (AHK v1) and remap your windows key to Ctrl
@@ -29,13 +30,13 @@ Keys:
 	CycleHarvesters: C None
 	CycleStatusBars: 229 None
 	TogglePlayerStanceColor: 228 None
-	PowerDown: E Alt
+	PowerDown: E Ctrl
 	Repair: E None
-	Sell: E Shift, Alt
+	Sell: E Shift, Ctrl
 	Stop: X None
 	Scatter: S None
 	ToSelection: UNKNOWN None
-	SelectUnitsByType: A None
+	SelectUnitsByType: Q None
 	Pause: BACKSPACE None
 	ResetZoom: UNKNOWN None
 	TakeScreenshot: PLUS None
@@ -45,10 +46,10 @@ Keys:
 	MapBookmarkSave04: NUMBER_4 Alt, Ctrl
 	ZoomIn: UNKNOWN None
 	ZoomOut: UNKNOWN None
-	MapBookmarkRestore04: NUMBER_4 Shift, Ctrl
-	MapBookmarkRestore03: NUMBER_3 Shift, Ctrl
-	MapBookmarkRestore02: NUMBER_2 Shift, Ctrl
-	MapBookmarkRestore01: NUMBER_1 Shift, Ctrl
+	MapBookmarkRestore04: NUMBER_4 Shift, Alt
+	MapBookmarkRestore03: NUMBER_3 Shift, Alt
+	MapBookmarkRestore02: NUMBER_2 Shift, Alt
+	MapBookmarkRestore01: NUMBER_1 Shift, Alt
 	MapJumpToRightEdge: UNKNOWN None
 	MapJumpToBottomEdge: UNKNOWN None
 	MapJumpToLeftEdge: UNKNOWN None
@@ -58,13 +59,13 @@ Keys:
 	MapScrollLeft: UNKNOWN None
 	MapScrollUp: UNKNOWN None
 	SelectProductionBuilding: C Shift
-	ProductionTypeDefense: Z Shift, Ctrl
-	ProductionTypeVehicle: Z Alt
-	ProductionTypeNaval: Z Ctrl
-	ProductionTypeAircraft: Z Shift
-	ProductionTypeInfantry: Z None
-	ProductionTypeBuilding: Z Shift, Alt
-	CycleProductionBuildings: C Alt
+	ProductionTypeDefense: W Shift
+	ProductionTypeVehicle: W Ctrl
+	ProductionTypeNaval: W Shift, Ctrl
+	ProductionTypeAircraft: Q Shift, Ctrl
+	ProductionTypeInfantry: Q Ctrl
+	ProductionTypeBuilding: Q Shift
+	CycleProductionBuildings: C Ctrl
 	ControlGroupJumpTo05: UNKNOWN None
 	ControlGroupSelect05: NUMBER_4 None
 	Production01: NUMBER_5 None
@@ -76,7 +77,7 @@ Keys:
 	Production05: Y None
 	Production06: U None
 	Production07: G None
-	CycleBase: TAB None
+	CycleBase: UNKNOWN None
 	Production08: H None
 	Production09: J None
 	PlaceBeacon: V None
@@ -105,17 +106,17 @@ Keys:
 	ControlGroupSelect08: F3 None
 	ControlGroupSelect09: F4 None
 	ControlGroupSelect10: UNKNOWN None
-	ControlGroupCreate05: NUMBER_4 Shift, Alt
-	ControlGroupCreate06: F1 Shift, Alt
-	ControlGroupCreate07: F2 Shift, Alt
-	ControlGroupCreate08: F3 Shift, Alt
-	ControlGroupCreate09: F4 Shift, Alt
+	ControlGroupCreate05: NUMBER_4 Shift, Ctrl
+	ControlGroupCreate06: F1 Shift, Ctrl
+	ControlGroupCreate07: F2 Shift, Ctrl
+	ControlGroupCreate08: F3 Shift, Ctrl
+	ControlGroupCreate09: F4 Shift, Ctrl
 	ControlGroupCreate10: UNKNOWN None
-	ControlGroupAddTo05: NUMBER_4 Alt
-	ControlGroupAddTo06: F1 Alt
-	ControlGroupAddTo07: F2 Alt
-	ControlGroupAddTo08: F3 Alt
-	ControlGroupAddTo09: F4 Alt
+	ControlGroupAddTo05: NUMBER_4 Ctrl
+	ControlGroupAddTo06: F1 Ctrl
+	ControlGroupAddTo07: F2 Ctrl
+	ControlGroupAddTo08: F3 Ctrl
+	ControlGroupAddTo09: F4 Ctrl
 	ControlGroupAddTo10: UNKNOWN None
 	ControlGroupCombineWith05: F1 Shift
 	ControlGroupCombineWith06: F2 Shift
@@ -132,14 +133,14 @@ Keys:
 	ControlGroupJumpTo03: UNKNOWN None
 	ControlGroupJumpTo02: UNKNOWN None
 	ControlGroupJumpTo04: UNKNOWN None
-	ControlGroupAddTo01: 167 Alt
-	ControlGroupCreate01: 167 Shift, Alt
-	ControlGroupAddTo02: NUMBER_1 Alt
-	ControlGroupCreate02: NUMBER_1 Shift, Alt
-	ControlGroupCreate03: NUMBER_2 Shift, Alt
-	ControlGroupAddTo03: NUMBER_2 Alt
-	ControlGroupCreate04: NUMBER_3 Shift, Alt
-	ControlGroupAddTo04: NUMBER_3 Alt
+	ControlGroupAddTo01: 167 Ctrl
+	ControlGroupCreate01: 167 Shift, Ctrl
+	ControlGroupAddTo02: NUMBER_1 Ctrl
+	ControlGroupCreate02: NUMBER_1 Shift, Ctrl
+	ControlGroupCreate03: NUMBER_2 Shift, Ctrl
+	ControlGroupAddTo03: NUMBER_2 Ctrl
+	ControlGroupCreate04: NUMBER_3 Shift, Ctrl
+	ControlGroupAddTo04: NUMBER_3 Ctrl
 	ControlGroupSelect01: 167 None
 	ControlGroupSelect02: NUMBER_1 None
 	ControlGroupSelect03: NUMBER_2 None
@@ -151,7 +152,7 @@ Keys:
 	StatisticsArmy: F8 None
 	ObserverCombinedView: F1 None
 	ObserverWorldView: F2 None
-	StanceDefend: Q None
-	StanceAttackAnything: Q Alt
-	StanceReturnFire: Q Shift
-	StanceHoldFire: Q Ctrl
+	StanceDefend: A None
+	StanceAttackAnything: A Ctrl
+	StanceReturnFire: A Shift
+	StanceHoldFire: A Alt
