@@ -78,3 +78,113 @@ TNKD.Husk:
 		Name: Husk (Tank Destroyer)
 	RenderSprites:
 		Image: tnkd.destroyed
+
+abrams.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Abrams
+	RenderSprites:
+		Image: abrams
+bradley.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Bradley
+	RenderSprites:
+		Image: bradley
+humvee.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Humbee
+	RenderSprites:
+		Image: humvee
+m113.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: M113
+	RenderSprites:
+		Image: m113
+strykershorad.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Stryker Shorad
+	RenderSprites:
+		Image: strykershorad
+m109.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: M109
+	RenderSprites:
+		Image: m109
+m270.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: M270
+	RenderSprites:
+		Image: m270
+PRSM.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Prism Tank
+	RenderSprites:
+		Image: PRSM
+HIMARS.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: HIMARS
+	RenderSprites:
+		Image: HIMARS
+
+t72.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: T72
+	RenderSprites:
+		Image: t72
+bmp2.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: BMP-2
+	RenderSprites:
+		Image: bmp2
+btr.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: BTR
+	RenderSprites:
+		Image: btr
+tunguska.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Tunguska
+	RenderSprites:
+		Image: tunguska
+giatsint.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Giatsint
+	RenderSprites:
+		Image: giatsint
+grad.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Grad
+	RenderSprites:
+		Image: grad
+tos.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: TOS
+	RenderSprites:
+		Image: tos
+iskander.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Iskander
+	RenderSprites:
+		Image: iskander
+TTNK.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Tesla Tank
+	RenderSprites:
+		Image: TTNK

@@ -66,9 +66,6 @@ abrams:
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
 	WithMuzzleOverlay:
-	SpawnActorOnDeath:
-		Actor: 2TNK.Husk
-		OwnerType: InternalName
 	RenderRangeCircle:
 		Color: FF0000
 		Width: 1
@@ -80,6 +77,9 @@ abrams:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: abrams.husk
+		OwnerType: InternalName
 
 bradley:
 	Inherits@Type: ^TrackedVehicle
@@ -185,9 +185,6 @@ bradley:
 		PauseOnCondition: empdisable || unit.docked
 	WithMuzzleOverlay:
 	WithSpriteTurret:
-	SpawnActorOnDeath:
-		Actor: 1TNK.Husk
-		OwnerType: InternalName
 	Carryable:
 		LocalOffset: 0,0,100
 	Cargo:
@@ -217,6 +214,9 @@ bradley:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: bradley.husk
+		OwnerType: InternalName
 
 humvee:
 	Inherits@Type: ^WheeledVehicle
@@ -356,6 +356,9 @@ humvee:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: humvee.husk
+		OwnerType: InternalName
 
 m113:
 	Inherits@Type: ^TrackedVehicle
@@ -444,6 +447,9 @@ m113:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: m113.husk
+		OwnerType: InternalName
 
 strykershorad:
 	Inherits@Type: ^WheeledVehicle
@@ -576,9 +582,6 @@ strykershorad:
 		PauseOnCondition: empdisable || unit.docked
 	WithMuzzleOverlay:
 	WithSpriteTurret:
-	SpawnActorOnDeath:
-		Actor: 1TNK.Husk
-		OwnerType: InternalName
 	Carryable:
 		LocalOffset: 0,0,100
 	Cargo:
@@ -613,6 +616,9 @@ strykershorad:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: strykershorad.husk
+		OwnerType: InternalName
 
 m109:
 	Inherits@Type: ^TrackedVehicle
@@ -705,6 +711,10 @@ m109:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: m109.husk
+		OwnerType: InternalName
+
 m270:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
@@ -793,102 +803,10 @@ m270:
 		Color: FFFF00
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: m270.husk
+		OwnerType: InternalName
 
-PRSM:
-	Inherits@Type: ^TrackedVehicle
-	Inherits@GainsExperience: ^GainsExperience
-	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
-	-WithDecoration@AMMO_NONE:
-	-WithDecoration@AMMO_PRIMARY_NONE:
-	-WithDecoration@AMMO_SECONDARY_NONE:
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 18
-		Prerequisites: techcenter, ~vehicles.america, ~techlevel.futuristic
-		Description: Experimental vehicle armed with a laser
-	Valued:
-		Cost: 3000
-	Tooltip:
-		Name: Prism Tank
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 1500
-	Armor:
-		Type: Light
-	Targetable:
-		TargetTypes: Ground, Vehicle, Light
-	Mobile:
-		Locomotor: lighttracked
-		Speed: 55
-		TurnSpeed: 20
-		PauseOnCondition: empdisable
-	Selectable:
-		DecorationBounds: 2048,2048
-	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@4:
-		ValidTargets: Medium, Heavy
-		Priority: 4
-	AutoTargetPriority@3:
-		ValidTargets: Vehicle
-		Priority: 3
-	AutoTargetPriority@2:
-		ValidTargets: Infantry
-		Priority: 2
-	AutoTargetPriority@1:
-		ValidTargets: Defense
-		Priority: 1
-	Armament@MaximumFirepower:
-		Name: primary
-		Weapon: PrismLaserMaxFirepower
-		LocalOffset: 125,0,180
-		PauseOnCondition: ammo-primary < 100 || empdisable
-		AmmoUsage: 100
-	GrantConditionOnAttack@Cooldown:
-		Condition: cooldown
-		ArmamentNames: primary
-		RevokeDelay: 80
-	WithIdleOverlay@Cooldown:
-		RequiresCondition: cooldown
-		Sequence: cooldown
-		Offset: 120,0,300
-	Armament@LowFirepower:
-		Name: secondary
-		Weapon: PrismLaser
-		LocalOffset: 125,0,180
-		PauseOnCondition: cooldown || !ammo-primary || empdisable
-	Turreted:
-		TurnSpeed: 20
-		Offset: 100,0,10
-	AmmoPool@1:
-		Name: primary-ammo
-		Armaments: primary, secondary
-		Ammo: 100
-		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		Delay: 30
-		Count: 20
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 6,3
-		PipCount: 5
-		RequiresSelection: true
-		FullSequence: pip-white
-		AmmoPools: primary-ammo
-	AttackTurreted:
-		TargetFrozenActors: True
-		OpportunityFire: False
-		PauseOnCondition: empdisable
-	WithSpriteTurret:
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
-	RenderRangeCircle:
-		Width: 3
-		Alpha: 120
-	Explodes:
-		Weapon: ArtilleryExplode
 HIMARS:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@GainsExperience: ^GainsExperience
@@ -995,3 +913,105 @@ HIMARS:
 	RenderRangeCircle:
 		Width: 2
 		Color: FFFF00
+	SpawnActorOnDeath:
+		Actor: HIMARS.husk
+		OwnerType: InternalName
+
+PRSM:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	-WithDecoration@AMMO_NONE:
+	-WithDecoration@AMMO_PRIMARY_NONE:
+	-WithDecoration@AMMO_SECONDARY_NONE:
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 18
+		Prerequisites: techcenter, ~vehicles.america, ~techlevel.futuristic
+		Description: Experimental vehicle armed with a laser
+	Valued:
+		Cost: 3000
+	Tooltip:
+		Name: Prism Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 1500
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Locomotor: lighttracked
+		Speed: 55
+		TurnSpeed: 20
+		PauseOnCondition: empdisable
+	Selectable:
+		DecorationBounds: 2048,2048
+	AutoTarget:
+		AttackAnythingCondition: stance-attackanything
+	AutoTargetPriority@4:
+		ValidTargets: Medium, Heavy
+		Priority: 4
+	AutoTargetPriority@3:
+		ValidTargets: Vehicle
+		Priority: 3
+	AutoTargetPriority@2:
+		ValidTargets: Infantry
+		Priority: 2
+	AutoTargetPriority@1:
+		ValidTargets: Defense
+		Priority: 1
+	Armament@MaximumFirepower:
+		Name: primary
+		Weapon: PrismLaserMaxFirepower
+		LocalOffset: 125,0,180
+		PauseOnCondition: ammo-primary < 100 || empdisable
+		AmmoUsage: 100
+	GrantConditionOnAttack@Cooldown:
+		Condition: cooldown
+		ArmamentNames: primary
+		RevokeDelay: 80
+	WithIdleOverlay@Cooldown:
+		RequiresCondition: cooldown
+		Sequence: cooldown
+		Offset: 120,0,300
+	Armament@LowFirepower:
+		Name: secondary
+		Weapon: PrismLaser
+		LocalOffset: 125,0,180
+		PauseOnCondition: cooldown || !ammo-primary || empdisable
+	Turreted:
+		TurnSpeed: 20
+		Offset: 100,0,10
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary, secondary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		Delay: 30
+		Count: 20
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 6,3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: primary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		OpportunityFire: False
+		PauseOnCondition: empdisable
+	WithSpriteTurret:
+	ProducibleWithLevel:
+		Prerequisites: vehicles.upgraded
+	RenderRangeCircle:
+		Width: 3
+		Alpha: 120
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: PRSM.husk
+		OwnerType: InternalName

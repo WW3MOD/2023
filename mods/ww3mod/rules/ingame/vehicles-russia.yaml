@@ -67,9 +67,6 @@ t72:
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
 	WithMuzzleOverlay:
-	SpawnActorOnDeath:
-		Actor: 2TNK.Husk
-		OwnerType: InternalName
 	RenderRangeCircle@1:
 		Color: FF0000
 		Alpha: 100
@@ -81,6 +78,9 @@ t72:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: t72.husk
+		OwnerType: InternalName
 
 bmp2:
 	Inherits@Type: ^TrackedVehicle
@@ -185,9 +185,6 @@ bmp2:
 		PauseOnCondition: empdisable || unit.docked
 	WithMuzzleOverlay:
 	WithSpriteTurret:
-	SpawnActorOnDeath:
-		Actor: 1TNK.Husk
-		OwnerType: InternalName
 	Carryable:
 		LocalOffset: 0,0,100
 	Cargo:
@@ -217,6 +214,9 @@ bmp2:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: bmp2.husk
+		OwnerType: InternalName
 
 btr:
 	Inherits@Type: ^WheeledVehicle
@@ -303,6 +303,9 @@ btr:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: btr.husk
+		OwnerType: InternalName
 
 tunguska:
 	Inherits@Type: ^TrackedVehicle
@@ -424,9 +427,6 @@ tunguska:
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
 	WithMuzzleOverlay:
-	SpawnActorOnDeath:
-		Actor: 2TNK.Husk
-		OwnerType: InternalName
 	WithRangeCircle@1:
 		Range: 18c0
 		Color: FFFF00 # Yellow, bullets
@@ -442,6 +442,9 @@ tunguska:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: tunguska.husk
+		OwnerType: InternalName
 
 giatsint:
 	Inherits@Type: ^TrackedVehicle
@@ -535,6 +538,9 @@ giatsint:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: giatsint.husk
+		OwnerType: InternalName
 
 grad:
 	Inherits@Type: ^WheeledVehicle
@@ -625,6 +631,9 @@ grad:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: grad.husk
+		OwnerType: InternalName
 
 tos:
 	Inherits@Type: ^TrackedVehicle
@@ -816,6 +825,9 @@ iskander:
 	Explodes@Loaded:
 		RequiresCondition: loaded
 		Weapon: IskanderExplosion
+	SpawnActorOnDeath:
+		Actor: tos.husk
+		OwnerType: InternalName
 
 IskanderMissile:
 	Inherits: ^ShootableMissile
@@ -943,6 +955,9 @@ TTNK:
 		Palette: temptd
 	Explodes:
 		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: TTNK.husk
+		OwnerType: InternalName
 
 # 9P149: Shturm-S/SM  Mobile anti-tank guided missile system
 
