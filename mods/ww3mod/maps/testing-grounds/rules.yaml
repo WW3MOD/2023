@@ -102,12 +102,12 @@ HALO:
 # HIND:
 # 	Valued:
 # 		Cost: 10
-# MI28:
-# 	Valued:
-# 		Cost: 10
-# FROG:
-# 	Valued:
-# 		Cost: 10
-# MIG:
-# 	Valued:
-# 		Cost: 10
+MI28:
+	Valued:
+		Cost: 10
+FROG:
+	Valued:
+		Cost: 10
+MIG:
+	Valued:
+		Cost: 10

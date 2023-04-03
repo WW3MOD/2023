@@ -232,7 +232,7 @@ namespace OpenRA.Mods.Common.Activities
 			var movementSpeed = aircraft.MovementSpeed;
 
 			// Maximum speed reached
-			if (aircraft.CurrentSpeed >= movementSpeed) // DesiredSpeed
+			if (aircraft.CurrentSpeed >= movementSpeed)
 			{
 				aircraft.CurrentSpeed = movementSpeed;
 			}

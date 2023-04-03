@@ -772,11 +772,12 @@ iskander:
 		Voice: Move
 	Armament@1:
 		Weapon: IskanderTargeter
+		LocalOffset: -100,120,0, -100,-120,0
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 1
+		Ammo: 2
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 	ReloadAmmoPool@1:
@@ -794,12 +795,18 @@ iskander:
 		Voice: Attack
 		PauseOnCondition: empdisable
 	WithFacingSpriteBody:
-		RequiresCondition: ammo-primary
-		Name: loaded
-	WithFacingSpriteBody@EMPTY:
-		RequiresCondition: !ammo-primary
 		Sequence: empty-idle
-		Name: reloading
+
+	WithWeaponOverlay@Missile_1:
+		Sequence: missile
+		Offset: -150,130,150
+		RequiresCondition: ammo-primary == 2
+
+	WithWeaponOverlay@Missile_2:
+		Sequence: missile
+		Offset: -150,-100,150
+		RequiresCondition: ammo-primary
+
 	MissileSpawnerMaster:
 		Actors: IskanderMissile
 		LoadedCondition: loaded
@@ -837,6 +844,7 @@ IskanderMissile:
 	BallisticMissile:
 		LaunchAngle: 128
 		Speed: 400
+		# Acceleration:
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

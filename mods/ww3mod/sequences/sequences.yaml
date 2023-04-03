@@ -321,7 +321,6 @@ tos:
 	icon: tosicon
 
 iskander:
-	# Inherits@Type: ^VehicleOverlays
 	Inherits: emp-overlay
 	idle: iskander-chassi
 		Facings: 32
@@ -330,6 +329,10 @@ iskander:
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
+	missile: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.75
 	icon: iskandericon
 
 iskandermissile:

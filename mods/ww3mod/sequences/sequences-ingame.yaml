@@ -322,8 +322,7 @@ huskdeath:
 		Offset: 0,-3
 		ZOffset: 2000
 	tankammoburn: fuelflame1
-	fuelburn: fuelflame2
-	100test: 100test
+	fuelburn: fuelflame2_75
 
 laserfire_low:
 	idle: hit_minimal
