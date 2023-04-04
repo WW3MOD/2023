@@ -58,6 +58,26 @@
 		DetectionTypes: Cloak_12
 		Range: 1c512
 
+^DetectionProximity:
+	RevealsShroudMultiplier@1:
+		RequiresCondition: object-proximity == 1
+		Modifier: 90
+	RevealsShroudMultiplier@2:
+		RequiresCondition: object-proximity == 2
+		Modifier: 75
+	RevealsShroudMultiplier@3:
+		RequiresCondition: object-proximity > 2
+		Modifier: 50
+	DetectCloakedMultiplier@1:
+		RequiresCondition: object-proximity == 1
+		Modifier: 90
+	DetectCloakedMultiplier@2:
+		RequiresCondition: object-proximity == 2
+		Modifier: 75
+	DetectCloakedMultiplier@3:
+		RequiresCondition: object-proximity > 2
+		Modifier: 50
+
 ^DamageStates:
 	GrantConditionOnDamageState@Damaged:
 		Condition: damaged
@@ -84,59 +104,56 @@
 			600: rank-veteran
 			1200: rank-veteran
 		LevelUpImage: crate-effects
-	GrantCondition@RANK-ELITE:
-		RequiresCondition: rank-veteran >= 4
-		Condition: rank-elite
-	DamageMultiplier@RANK-1:
+	DamageMultiplier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		Modifier: 95
-	DamageMultiplier@RANK-2:
+	DamageMultiplier@Rank_2:
 		RequiresCondition: rank-veteran == 2
 		Modifier: 90
-	DamageMultiplier@RANK-3:
+	DamageMultiplier@Rank_3:
 		RequiresCondition: rank-veteran == 3
 		Modifier: 85
-	DamageMultiplier@RANK-ELITE:
-		RequiresCondition: rank-elite
+	DamageMultiplier@Rank_4:
+		RequiresCondition: rank-veteran == 4
 		Modifier: 80
-	FirepowerMultiplier@RANK-1:
+	FirepowerMultiplier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		Modifier: 105
-	FirepowerMultiplier@RANK-2:
+	FirepowerMultiplier@Rank_2:
 		RequiresCondition: rank-veteran == 2
 		Modifier: 110
-	FirepowerMultiplier@RANK-3:
+	FirepowerMultiplier@Rank_3:
 		RequiresCondition: rank-veteran == 3
 		Modifier: 115
-	FirepowerMultiplier@RANK-ELITE:
-		RequiresCondition: rank-elite
+	FirepowerMultiplier@Rank_4:
+		RequiresCondition: rank-veteran == 4
 		Modifier: 120
-	SpeedMultiplier@RANK-1:
+	SpeedMultiplier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		Modifier: 105
-	SpeedMultiplier@RANK-2:
+	SpeedMultiplier@Rank_2:
 		RequiresCondition: rank-veteran == 2
 		Modifier: 110
-	SpeedMultiplier@RANK-3:
+	SpeedMultiplier@Rank_3:
 		RequiresCondition: rank-veteran == 3
 		Modifier: 115
-	SpeedMultiplier@RANK-ELITE:
-		RequiresCondition: rank-elite
+	SpeedMultiplier@Rank_4:
+		RequiresCondition: rank-veteran == 4
 		Modifier: 120
-	ReloadDelayMultiplier@RANK-1:
+	ReloadDelayMultiplier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		Modifier: 95
-	ReloadDelayMultiplier@RANK-2:
+	ReloadDelayMultiplier@Rank_2:
 		RequiresCondition: rank-veteran == 2
 		Modifier: 90
-	ReloadDelayMultiplier@RANK-3:
+	ReloadDelayMultiplier@Rank_3:
 		RequiresCondition: rank-veteran == 3
 		Modifier: 85
-	ReloadDelayMultiplier@RANK-ELITE:
-		RequiresCondition: rank-elite
+	ReloadDelayMultiplier@Rank_4:
+		RequiresCondition: rank-veteran == 4
 		Modifier: 80
 
-	WithDecoration@RANK-1:
+	WithDecoration@Rank_1:
 		Image: rank
 		Sequence: rank-veteran-1
 		Palette: effect
@@ -144,7 +161,7 @@
 		Margin: 8,5
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 1
-	WithDecoration@RANK-2:
+	WithDecoration@Rank_2:
 		Image: rank
 		Sequence: rank-veteran-2
 		Palette: effect
@@ -152,7 +169,7 @@
 		Margin: 8,5
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 2
-	WithDecoration@RANK-3:
+	WithDecoration@Rank_3:
 		Image: rank
 		Sequence: rank-veteran-3
 		Palette: effect
@@ -160,201 +177,201 @@
 		Margin: 8,5
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 3
-	WithDecoration@RANK-ELITE:
+	WithDecoration@Rank_4:
 		Image: rank
-		Sequence: rank-elite
+		Sequence: rank-veteran-4
 		Palette: effect
 		Position: Top
 		Margin: 8,3
 		ValidRelationships: Ally #, Enemy, Neutral
-		RequiresCondition: rank-elite
+		RequiresCondition: rank-veteran == 4
 
 ^AutoTargetGround:
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetGroundAssaultMove:
 	Inherits: ^AutoTargetGround
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything && !assault-move
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetGroundAntiInf:
 	Inherits: ^AutoTargetGroundAssaultMove
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Infantry
 		Priority: 2
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Vehicle, Defense, Water, Underwater, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
 		Priority: 1
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		Priority: 2
 ^AutoTargetGroundAntiInfandAir:
 	Inherits: ^AutoTargetGroundAntiInf
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air, Infantry
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetGroundAntiTank:
 	Inherits: ^AutoTargetGroundAssaultMove
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Vehicle, Defense, Water, Underwater
 		Priority: 3
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		# RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Infantry, Defense, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
 		Priority: 2
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		Priority: 1
 ^AutoTargetGroundAntiTankandAir:
 	Inherits: ^AutoTargetGroundAntiTank
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air, Vehicle, Water
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		ValidTargets: Infantry, Defense, Mine, Underwater
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetGroundAntiStructure:
 	Inherits: ^AutoTargetGroundAssaultMove
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Structure, Defense
 		Priority: 3
-	AutoTargetPriority@HIGHER:
+	AutoTargetPriority@Higher:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Vehicle, Water
 		InvalidTargets: NoAutoTarget, WaterStructure
 		Priority: 2
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Infantry, Underwater, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
 		Priority: 1
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		Priority: 3
 ^AutoTargetNaval:
 	Inherits: ^AutoTargetGround
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense
 		InvalidTargets: NoAutoTarget
 ^AutoTargetNavalAssaultMove:
 	Inherits: ^AutoTargetGroundAssaultMove
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense
 		InvalidTargets: NoAutoTarget
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
 ^AutoTargetAir:
 	AutoTarget:
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air
 		InvalidTargets: NoAutoTarget
 ^AutoTargetAirICBM:
 	Inherits: ^AutoTargetAir
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air, AirSmall, ICBM
 ^AutoTargetAirAssaultMove:
 	Inherits: ^AutoTargetAir
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything && !assault-move
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetAll:
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetAllAssaultMove:
 	Inherits: ^AutoTargetAll
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything && !assault-move
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetGroundAntiInfDefense:
 	Inherits: ^AutoTargetGround
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Infantry
 		Priority: 2
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Vehicle, Water, Underwater, Defense, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
 		Priority: 1
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		Priority: 2
 ^AutoTargetGroundAntiInfandAirDefense:
 	Inherits: ^AutoTargetGroundAntiInfDefense
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air, Infantry
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		ValidTargets: Vehicle, Water, Underwater, Structure, Defense, Mine
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
 		Priority: 2
 ^AutoTargetGroundAntiTankDefense:
 	Inherits: ^AutoTargetGround
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Vehicle
 		Priority: 2
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Water, Underwater, Defense, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
 		Priority: 1
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		Priority: 2
 ^AutoTargetGroundAntiTankandAirDefense:
 	Inherits: ^AutoTargetGroundAntiTankDefense
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air, Vehicle
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Water, Underwater, Structure, Defense, Mine
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
 		Priority: 2
 ^AttackHelicoptersAutoTargeter:
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 		InvalidTargets: NoAutoTarget, WaterStructure
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 
 ^AmmoDecoration:
-	WithDecoration@AMMO_NONE:
+	WithDecoration@AmmoNone:
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-none
@@ -363,7 +380,7 @@
 		RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
 		BlinkInterval: 8
 		BlinkPattern: Off, On
-	WithDecoration@AMMO_PRIMARY_NONE:
+	WithDecoration@AmmoPrimaryNone:
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-primary-none
@@ -372,7 +389,7 @@
 		RequiresCondition: weapon-primary && weapon-secondary && !ammo-primary && ammo-secondary && !(weapon-tertiary && !ammo-tertiary)
 		BlinkInterval: 16
 		BlinkPattern: Off, On
-	WithDecoration@AMMO_SECONDARY_NONE:
+	WithDecoration@AmmoSecondaryNone:
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-secondary-none
@@ -405,21 +422,22 @@
 			green: pip-green
 
 ^EmpVisualEffect:
-	WithColoredOverlay@EMPDISABLE:
-	WithIdleOverlay@EMPDISABLE:
+	WithColoredOverlay@EMP:
+
+	WithIdleOverlay@EMP:
 		Sequence: emp-overlay
 ^AffectedByEMP:
-	WithColoredOverlay@EMPDISABLE:
+	WithColoredOverlay@EMP:
 		RequiresCondition: empdisable
-	TimedConditionBar@EMPDISABLE:
+	TimedConditionBar@EMP:
 		Condition: empdisable
 		Color: FFFFFF
-	WithIdleOverlay@EMPDISABLE:
+	WithIdleOverlay@EMP:
 		Sequence: emp-overlay
 		RequiresCondition: empdisable
-	ExternalCondition@EMPDISABLE:
+	ExternalCondition@EMP:
 		Condition: empdisable
-	Targetable@EMPDISABLE:
+	Targetable@EMP:
 		RequiresCondition: !empdisable
 		TargetTypes: EmpTargetable
 
@@ -430,22 +448,22 @@
 		Margin: -2, 0
 	DrawLineToTarget:
 ^SelectableCombatUnit:
-	Inherits@selectiondecorations: ^Selectable
+	Inherits@SelectionDecorations: ^Selectable
 	Selectable:
 		Priority: 10
 		PriorityModifiers: Ctrl
 ^SelectableSupportUnit:
-	Inherits@selectiondecorations: ^Selectable
+	Inherits@SelectionDecorations: ^Selectable
 	Selectable:
 		Priority: 8
 		PriorityModifiers: Ctrl, Alt
 ^SelectableEconomicUnit:
-	Inherits@selectiondecorations: ^Selectable
+	Inherits@SelectionDecorations: ^Selectable
 	Selectable:
 		Priority: 6
 		PriorityModifiers: Ctrl, Alt
 ^SelectableBuilding:
-	Inherits@selectiondecorations: ^Selectable
+	Inherits@SelectionDecorations: ^Selectable
 	Selectable:
 		Priority: 2
 
@@ -458,10 +476,10 @@
 		LaunchAngle: 128
 		Speed: 110
 		AirborneCondition: airborne
-	Targetable@GROUND:
+	Targetable@Ground:
 		TargetTypes: ICBM
 		RequiresCondition: !airborne
-	Targetable@AIRBORNE:
+	Targetable@Airborne:
 		TargetTypes: ICBM
 		RequiresCondition: airborne
 	HiddenUnderFog:
@@ -477,7 +495,7 @@
 	WithShadow:
 
 ^GlobalBounty:
-	GrantConditionOnPrerequisite@GLOBALBOUNTY:
+	GrantConditionOnPrerequisite@GlobalBounty:
 		Condition: global-bounty
 		Prerequisites: global-bounty
 	GivesBounty:
@@ -499,18 +517,18 @@
 	# HandicapProductionTimeMultiplier:
 
 ^IncomeAIBoost:
-	ResourcePurifier@incomeaiboost:
+	ResourcePurifier@IncomeAIBoost:
 		Modifier: 20
 		RequiresCondition: owned-by-ai
 		ShowTicks: False
-	GrantConditionOnBotOwner@incomeaiboost:
+	GrantConditionOnBotOwner@IncomeAIBoost:
 		Condition: owned-by-ai
 		Bots: normal
 ^ProductionAIBoost:
-	ProductionTimeMultiplier@productionboost:
+	ProductionTimeMultiplier@ProductionBoost:
 		Multiplier: 120
 		Prerequisites: aitoodumb
-	ProductionCostMultiplier@productionboost:
+	ProductionCostMultiplier@ProductionBoost:
 		Multiplier: 80
 		Prerequisites: aitoodumb
 
@@ -598,7 +616,7 @@
 	RejectsOrders:
 # TODO: Check this for use with crater "summoning" for nuke
 unit.summoner:
-	Inherits@SYSTEM: ^SummonerDummy
+	Inherits@System: ^SummonerDummy
 	RenderSprites:
 		Image: dummy.visual
 

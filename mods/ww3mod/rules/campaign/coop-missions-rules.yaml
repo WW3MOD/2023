@@ -4,7 +4,7 @@ Player:
 		ExploredMapCheckboxVisible: True
 	PlayerResources:
 		DefaultCashDropdownVisible: True
-	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
+	LobbyPrerequisiteCheckbox@GlobalBounty:
 		Visible: True
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
 		Visible: True

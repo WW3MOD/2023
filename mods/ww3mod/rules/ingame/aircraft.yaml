@@ -1,5 +1,5 @@
 
-^NeutralPlane:
+^NeutralAirborne:
 	Inherits@ExistsInWorld: ^ExistsInWorld
 	Inherits@SpriteActor: ^SpriteActor
 	Inherits@Bounty: ^GlobalBounty
@@ -26,10 +26,10 @@
 		AirborneCondition: airborne
 	SpeedMultiplier:
 		Modifier: 150
-	Targetable@GROUND:
+	Targetable@Ground:
 		RequiresCondition: !airborne
 		TargetTypes: Ground, Vehicle
-	Targetable@AIRBORNE:
+	Targetable@Airborne:
 		RequiresCondition: airborne
 		TargetTypes: Air, AirDetonateAttack
 	Targetable@REPAIR:
@@ -63,8 +63,9 @@
 		RequiresCondition: !airborne
 	ExternalCondition@UNITDOCKED:
 		Condition: unit.docked
-^Plane:
-	Inherits: ^NeutralPlane
+
+^Airborne:
+	Inherits: ^NeutralAirborne
 	Inherits@UnitExperience: ^GainsExperience
 	Inherits@AIBoost: ^ProductionAIBoost
 	Repairable:
@@ -81,48 +82,37 @@
 		Type: GroundPosition
 		RevealGeneratedShroud: False
 		RequiresCondition: !airborne
+
+^Aircraft:
+	Inherits@Type: ^Airborne
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
 		RequiresCondition: airborne && !rank-veteran
 		SuccessRate: 80
-		EjectOnGround: false
 		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
 	EjectOnDeath@Rank1:
 		PilotActor: PILOTR1
 		RequiresCondition: airborne && rank-veteran == 1
 		SuccessRate: 80
-		EjectOnGround: false
 		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
 	EjectOnDeath@Rank2:
 		PilotActor: PILOTR2
 		RequiresCondition: airborne && rank-veteran == 2
 		SuccessRate: 80
-		EjectOnGround: false
 		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
-	EjectOnDeath@Rank3:
+	EjectOnDeath@Rank_3:
 		PilotActor: PILOTR3
 		RequiresCondition: airborne && rank-veteran == 3
 		SuccessRate: 80
-		EjectOnGround: false
 		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
 	EjectOnDeath@Rank4:
 		PilotActor: PILOTR4
 		RequiresCondition: airborne && rank-veteran >= 4
 		SuccessRate: 80
-		EjectOnGround: false
 		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
+
 ^Helicopter:
-	Inherits@Type: ^Plane
+	Inherits@Type: ^Airborne
 	-BodyOrientation:
 	Tooltip:
 		GenericName: Helicopter
@@ -145,8 +135,33 @@
 	ClassicFacingBodyOrientation:
 	Repairable:
 		RepairActors: hpad
-	Targetable@ISHELICOPTER:
+	Targetable@Helicopter:
 		TargetTypes: Helicopter
+	EjectOnDeath@Rank0:
+		PilotActor: PILOT
+		RequiresCondition: airborne && !rank-veteran
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank1:
+		PilotActor: PILOTR1
+		RequiresCondition: airborne && rank-veteran == 1
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank2:
+		PilotActor: PILOTR2
+		RequiresCondition: airborne && rank-veteran == 2
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank_3:
+		PilotActor: PILOTR3
+		RequiresCondition: airborne && rank-veteran == 3
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank4:
+		PilotActor: PILOTR4
+		RequiresCondition: airborne && rank-veteran >= 4
+		SuccessRate: 80
+		EjectOnGround: true
 
 ^Drone:
 	Inherits: ^Helicopter
@@ -155,7 +170,7 @@
 	-EjectOnDeath@Rank0:
 	-EjectOnDeath@Rank1:
 	-EjectOnDeath@Rank2:
-	-EjectOnDeath@Rank3:
+	-EjectOnDeath@Rank_3:
 	-EjectOnDeath@Rank4:
 	-Explodes:
 	Armor:
@@ -220,12 +235,11 @@ quadcopterdrone:
 		SlaveReturnOnIdle: false
 
 BADR:
-	Inherits: ^NeutralPlane
+	Inherits: ^NeutralAirborne
 	-Selectable:
 	-Voiced:
 	ParaDrop:
 		DropRange: 4c0
-		ChuteSound: chute1.aud
 	Health:
 		HP: 200
 	Aircraft:

@@ -8,7 +8,8 @@
 		Image: huskdeath
 		Sequence: fuelburn
 		Palette: gensmkexploj
-		Offset: 0,-700,0
+		Offset: 0,-550,0
+	WithDamageOverlay:
 	ChangesHealth:
 		Step: -100
 		StartIfBelow: 101
@@ -20,7 +21,7 @@
 		Types: husk
 		ValidRelationships: Enemy, Neutral
 	WithColoredOverlay@IDISABLE:
-		Color: 000000B4
+		Color: 00000080
 	Targetable:
 		TargetTypes: GroundActor, Husk, NoAutoTarget
 		RequiresForceFire: true

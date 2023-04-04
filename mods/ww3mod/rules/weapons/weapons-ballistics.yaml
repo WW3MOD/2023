@@ -654,7 +654,7 @@ FighterGun:
 		Damage: 4000
 		DamageTypes: ExplosionDeath
 
-MadcatGun:
+TimerWolfGun:
 	Inherits: ^30mm
 	Inherits@PiffEffects: ^PiffEffects
 	Range: 20c0

@@ -708,9 +708,9 @@ SS:
 	AutoTarget:
 		InitialStance: Defend
 		InitialStanceAI: ReturnFire
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Water, Underwater
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		ValidTargets: Water, Underwater
 	RenderSprites:
 		Image: ss

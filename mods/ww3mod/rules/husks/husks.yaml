@@ -35,15 +35,6 @@
 		Categories: Husk
 	OwnerLostAction:
 		Action: ChangeOwner
-	ProximityExternalCondition@ObjectProximity:
-		Condition: object-proximity
-		Range: 1c512
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@ObjectProximity:
-		Range: 1c512
-		Alpha: 30
-		Visible: Always
-		ValidRelationships: Neutral, Ally, Enemy
 ^BuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:

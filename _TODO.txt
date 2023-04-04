@@ -42,7 +42,6 @@ Infantry
 
     Div
         - Resupply/Ammopool ReloadDelay should be renamed, ReloadDelay is used for reloading magazines
-        - Stealthy units hiding is OP for recon, RevealShroud should be lower when in forest
         - Capturing bunkers/neutral buildings should not consume captor
         - AI Conscripts starts to capture but seems to take squad orders and stops - decouple them from squad when they have opportunity to capture
             - Stop firing building that has been marked for capture

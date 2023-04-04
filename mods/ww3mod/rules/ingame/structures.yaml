@@ -255,20 +255,20 @@
 		MinimumDamageState: Heavy
 		MaximumDamageState: Dead
 ^BuildingAffectedByEMP:
-	WithColoredOverlay@EMPDISABLE:
+	WithColoredOverlay@EMP:
 		RequiresCondition: empdisable
-	TimedConditionBar@EMPDISABLE:
+	TimedConditionBar@EMP:
 		Condition: empdisable
 		Color: FFFFFF
-	WithIdleOverlay@EMPDISABLE:
+	WithIdleOverlay@EMP:
 		Sequence: emp-overlay
 		RequiresCondition: empdisable
-	ExternalCondition@EMPDISABLE:
+	ExternalCondition@EMP:
 		Condition: empdisable
-	PowerMultiplier@EMPDISABLE:
+	PowerMultiplier@EMP:
 		RequiresCondition: empdisable
 		Modifier: 0
-	GrantCondition@EMPDISABLE:
+	GrantCondition@EMP:
 		RequiresCondition: empdisable
 		Condition: disabled
 

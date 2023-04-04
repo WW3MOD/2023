@@ -64,13 +64,13 @@ HIND:
 	AutoTarget:
 		InitialStance: Defend
 		InitialStanceAI: Defend
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Air, Vehicle, Water
 		Priority: 3
-	AutoTargetPriority@LOWER:
+	AutoTargetPriority@Lower:
 		ValidTargets: Infantry, Defense, Mine, Underwater
 		Priority: 2
-	AutoTargetPriority@ATTACKANYTHING:
+	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		Priority: 1
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
@@ -161,10 +161,7 @@ HIND:
 	EjectOnDeath@Copilot:
 		PilotActor: E1R1
 		SuccessRate: 80
-		EjectOnGround: false
-		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
+		EjectOnGround: true
 	WithIdleOverlay@ROTORAIR:
 		Sequence: rotor
 		RequiresCondition: airborne
@@ -316,10 +313,7 @@ MI28:
 	EjectOnDeath@Copilot:
 		PilotActor: E1R1
 		SuccessRate: 80
-		EjectOnGround: false
-		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
+		EjectOnGround: true
 	SpawnActorOnDeath@hovering:
 		Actor: MI28.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -343,7 +337,7 @@ MI28:
 		Scale: 1.2
 
 FROG:
-	Inherits@Type: ^Plane
+	Inherits@Type: ^Aircraft
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Inherits@GainsExperience: ^GainsExperience
 	Buildable:
@@ -457,7 +451,7 @@ FROG:
 		Scale: 1.25
 
 MIG:
-	Inherits@Type: ^Plane
+	Inherits@Type: ^Aircraft
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@AUTODAMAGE: ^KilledWithoutAirfield
 	Buildable:

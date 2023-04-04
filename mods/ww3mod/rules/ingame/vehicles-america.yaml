@@ -221,7 +221,7 @@ humvee:
 	Inherits@CargoPips: ^CargoPips
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything && !assault-move
 	RenderSprites:
 		Scale: 0.9
@@ -337,8 +337,6 @@ humvee:
 	# 	RequiresCondition: wgm_missile
 	RenderSprites:
 		Image: humvee
-	# Voiced:
-	# 	VoiceSet: HumveeVoice
 	WithRangeCircle@PRIMARY:
 		Range: 16c0
 		Color: FFFF00
@@ -913,9 +911,9 @@ PRSM:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
-	-WithDecoration@AMMO_NONE:
-	-WithDecoration@AMMO_PRIMARY_NONE:
-	-WithDecoration@AMMO_SECONDARY_NONE:
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoSecondaryNone:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 18

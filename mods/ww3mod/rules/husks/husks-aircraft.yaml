@@ -1,5 +1,5 @@
 
-^PlaneHusk:
+^AircraftHusk:
 	Inherits: ^BasicHusk
 	Inherits@2: ^SpriteActor
 	Targetable:
@@ -40,9 +40,34 @@
 	RevealOnDeath:
 		Duration: 60
 		Radius: 4c0
+	EjectOnDeath@Rank0:
+		PilotActor: PILOT
+		RequiresCondition: airborne && !rank-veteran
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank1:
+		PilotActor: PILOTR1
+		RequiresCondition: airborne && rank-veteran == 1
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank2:
+		PilotActor: PILOTR2
+		RequiresCondition: airborne && rank-veteran == 2
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank_3:
+		PilotActor: PILOTR3
+		RequiresCondition: airborne && rank-veteran == 3
+		SuccessRate: 80
+		EjectOnGround: true
+	EjectOnDeath@Rank4:
+		PilotActor: PILOTR4
+		RequiresCondition: airborne && rank-veteran >= 4
+		SuccessRate: 80
+		EjectOnGround: true
 
 BADR.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: Badger
 	Aircraft:
@@ -65,7 +90,7 @@ BADR.Husk.EMP:
 	Inherits: ^EmpVisualEffect
 
 B52.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: B-52
 	Aircraft:
@@ -88,7 +113,7 @@ B52.Husk.EMP:
 	Inherits: ^EmpVisualEffect
 
 BULL.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: Bull
 	Aircraft:
@@ -111,7 +136,7 @@ BULL.Husk.EMP:
 	Inherits: ^EmpVisualEffect
 
 U2.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: Husk (Spy Plane)
 	Aircraft:
@@ -133,7 +158,7 @@ U2.Husk.EMP:
 	Inherits: ^EmpVisualEffect
 
 U2.NATO.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: Husk (Precision Bomber)
 	Aircraft:
@@ -328,7 +353,7 @@ HELI.Husk.ground:
 		Scale: 1.25
 
 A10.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	RenderSprites:
 		PlayerPalette: playertd
 	Tooltip:
@@ -365,7 +390,7 @@ A10.Husk.ground:
 		Scale: 1.2
 
 F16.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: F16 Attack Plane
 	WithShadow:
@@ -549,7 +574,7 @@ HIND.Husk.ground:
 		Scale: 1.3
 
 FROG.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: Frogfoot Attack Plane
 	Contrail@1:
@@ -591,7 +616,7 @@ FROG.Husk.ground:
 		Scale: 1.25
 
 MIG.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: MiG Attack Plane
 	Contrail@1:
@@ -633,7 +658,7 @@ MIG.Husk.ground:
 		Scale: 1.25
 
 SMIG.Husk:
-	Inherits@Type: ^PlaneHusk
+	Inherits@Type: ^AircraftHusk
 	Tooltip:
 		Name: Husk (Special MiG)
 	Aircraft:

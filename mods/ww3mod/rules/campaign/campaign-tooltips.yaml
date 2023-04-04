@@ -13,7 +13,7 @@
 		GenericVisibility: Enemy
 		ShowOwnerRow: false
 
-^NeutralPlane:
+^NeutralAirborne:
 	Tooltip:
 		GenericVisibility: Enemy
 		ShowOwnerRow: false
@@ -50,7 +50,7 @@
 		GenericStancePrefix: false
 		ShowOwnerRow: false
 
-^PlaneHusk:
+^AircraftHusk:
 	Tooltip:
 		GenericVisibility: Enemy, Ally, Neutral
 		GenericStancePrefix: false

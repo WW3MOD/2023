@@ -167,7 +167,8 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Mobile : PausableConditionalTrait<MobileInfo>, IIssueOrder, IResolveOrder, IOrderVoice, IPositionable, IMove, ITick, ICreationActivity,
-		IFacing, IDeathActorInitModifier, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyBlockingMove, IActorPreviewInitModifier, INotifyBecomingIdle
+		IFacing, IDeathActorInitModifier, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyBlockingMove, IActorPreviewInitModifier, INotifyBecomingIdle,
+		INotifyMoving
 	{
 		readonly Actor self;
 		readonly Lazy<IEnumerable<int>> speedModifiers;
@@ -849,10 +850,21 @@ namespace OpenRA.Mods.Common.Traits
 				init.Add(new HuskSpeedInit(MovementSpeedForCell(self.Location)));
 		}
 
-		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
+		public void Stopped()
 		{
 			CurrentAcceleration = 0;
 			CurrentSpeed = 0;
+		}
+
+		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
+		{
+			if (type == MovementType.None)
+				Stopped();
+		}
+
+		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
+		{
+			Stopped();
 
 			if (self.Location.Layer == 0)
 			{

@@ -219,6 +219,7 @@ Stinger.quad:
 	ReloadDelay: 40
 
 Javelin:
+	Inherits: ^MediumAGMissileEffects
 	ValidTargets: Vehicle, Defense, Water
 	Range: 20c0
 	MinRange: 5c0
@@ -301,7 +302,7 @@ Hellfire:
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
 
-MadcatMissiles:
+TimerWolfMissiles:
 	Inherits: ^MediumAGMissileEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0

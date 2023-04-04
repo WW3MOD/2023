@@ -149,7 +149,7 @@ Player:
 	Shroud:
 		FogCheckboxDisplayOrder: 3
 		ExploredMapCheckboxEnabled: True
-	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
+	LobbyPrerequisiteCheckbox@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
 		Description: Players receive cash bonuses when killing enemy units

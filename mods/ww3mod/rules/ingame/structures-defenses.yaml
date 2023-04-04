@@ -23,7 +23,7 @@
 	-CommandBarBlacklist:
 
 ^SelectableCombatBuilding:
-	Inherits@selectiondecorations: ^Selectable
+	Inherits@SelectionDecorations: ^Selectable
 	Selectable:
 		Priority: 4
 
@@ -146,12 +146,12 @@ PBOX:
 	Inherits@Type: ^Defense
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
-	-WithColoredOverlay@EMPDISABLE:
-	-TimedConditionBar@EMPDISABLE:
-	-WithIdleOverlay@EMPDISABLE:
-	-ExternalCondition@EMPDISABLE:
-	-PowerMultiplier@EMPDISABLE:
-	-GrantCondition@EMPDISABLE:
+	-WithColoredOverlay@EMP:
+	-TimedConditionBar@EMP:
+	-WithIdleOverlay@EMP:
+	-ExternalCondition@EMP:
+	-PowerMultiplier@EMP:
+	-GrantCondition@EMP:
 	-QuantizeFacingsFromSequence:
 	-SpawnActorsOnSell:
 	BodyOrientation:
@@ -206,12 +206,12 @@ HBOX:
 
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
-	-WithColoredOverlay@EMPDISABLE:
-	-TimedConditionBar@EMPDISABLE:
-	-WithIdleOverlay@EMPDISABLE:
-	-ExternalCondition@EMPDISABLE:
-	-PowerMultiplier@EMPDISABLE:
-	-GrantCondition@EMPDISABLE:
+	-WithColoredOverlay@EMP:
+	-TimedConditionBar@EMP:
+	-WithIdleOverlay@EMP:
+	-ExternalCondition@EMP:
+	-PowerMultiplier@EMP:
+	-GrantCondition@EMP:
 	-SpawnActorsOnSell:
 	-MustBeDestroyed:
 	-QuantizeFacingsFromSequence:

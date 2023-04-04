@@ -327,10 +327,7 @@ HELI:
 	EjectOnDeath@Copilot:
 		PilotActor: E1R1
 		SuccessRate: 80
-		EjectOnGround: false
-		EjectInAir: true
-		AllowUnsuitableCell: true
-		ChuteSound: chute1.aud
+		EjectOnGround: true
 	SpawnActorOnDeath@hovering:
 		Actor: HELI.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -354,7 +351,7 @@ HELI:
 		Scale: 1.25
 
 A10:
-	Inherits@Type: ^Plane
+	Inherits@Type: ^Aircraft
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	RenderSprites:
 		PlayerPalette: playertd
@@ -462,7 +459,7 @@ A10:
 		Scale: 1.2
 
 F16:
-	Inherits@Type: ^Plane
+	Inherits@Type: ^Aircraft
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Plane

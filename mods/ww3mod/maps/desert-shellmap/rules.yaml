@@ -1,6 +1,6 @@
 Player:
 	-ConquestVictoryConditions:
-	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
+	LobbyPrerequisiteCheckbox@GlobalBounty:
 		Enabled: False
 		Locked: True
 	PlayerResources:

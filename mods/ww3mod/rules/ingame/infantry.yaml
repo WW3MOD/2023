@@ -12,6 +12,7 @@
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
 	Inherits@Detection: ^StandardDetection
+	Inherits@DetectionProximity: ^DetectionProximity
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -156,7 +157,7 @@
 	AttackFrontal:
 		FacingTolerance: 0
 		TargetFrozenActors: True
-	WithDecoration@AMMO_REPLENISHING:
+	WithDecoration@AmmoReplenishing:
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-replenishing
@@ -549,6 +550,7 @@
 	Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
+		TotalCap: 3
 	Cloak@Permanent:
 		DetectionTypes: Cloak_0
 		CloakedCondition: cloak-0
@@ -1742,9 +1744,9 @@ AA:
 	# Inherits@Selection: ^SelectableSupportUnit
 	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
-	-WithDecoration@AMMO_NONE:
-	-WithDecoration@AMMO_PRIMARY_NONE:
-	-WithDecoration@AMMO_SECONDARY_NONE:
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoSecondaryNone:
 	Tooltip:
 		Name: Engineer
 	Buildable:
@@ -2015,9 +2017,9 @@ SF:
 	Inherits@Type: ^CamoSoldier
 	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
-	-WithDecoration@AMMO_NONE:
-	-WithDecoration@AMMO_PRIMARY_NONE:
-	-WithDecoration@AMMO_REPLENISHING:
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoReplenishing:
 	Tooltip:
 		Name: Medic
 	Buildable:
@@ -2035,7 +2037,7 @@ SF:
 	AutoTarget:
 		InitialStance: AttackAnything
 		InitialStanceAI: AttackAnything
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Heal
 	Armament@1:
 		Weapon: Heal
@@ -2140,9 +2142,9 @@ SPY:
 	Inherits: ^Soldier
 	-AttackFrontal:
 	-ExternalCondition@PinDown:
-	-WithDecoration@AMMO_NONE:
-	-WithDecoration@AMMO_PRIMARY_NONE:
-	-WithDecoration@AMMO_REPLENISHING:
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoReplenishing:
 	-WithDecoration@Class:
 	-HitShape@Cover:
 	-WithInfantryBody@Parachute:
@@ -2178,7 +2180,7 @@ SPY:
 		ScanRadius: 25
 		MinimumScanTimeInterval: 16
 		MaximumScanTimeInterval: 32
-	AutoTargetPriority@DEFAULT:
+	AutoTargetPriority@Default:
 		ValidTargets: Infantry
 	Guard:
 		Voice: Move

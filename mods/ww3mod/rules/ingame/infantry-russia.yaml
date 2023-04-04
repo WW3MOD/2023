@@ -149,8 +149,8 @@ SHOK:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Inherits@Rotting: ^RottingInfantry
-	-WithDecoration@AMMO_PRIMARY_NONE:
-	-WithDecoration@AMMO_REPLENISHING:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoReplenishing:
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier

@@ -445,7 +445,7 @@ rank:
 		Start: 1
 	rank-veteran-3:
 		Start: 2
-	rank-elite:
+	rank-veteran-4:
 		Start: 3
 		Offset: 1, 3
 

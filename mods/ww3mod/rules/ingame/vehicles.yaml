@@ -532,6 +532,7 @@ timberwolf:
 	Mobile:
 		Speed: 60
 		TurnSpeed: 10
+	TreeTraversable:
 	GrantConditionOnMovement@steps:
 		Condition: moving
 	# AmbientSound@step1:
@@ -543,7 +544,7 @@ timberwolf:
 		TurnSpeed: 20
 	Armament@1:
 		Name: primary
-		Weapon: MadcatGun
+		Weapon: TimerWolfGun
 		Recoil: 3
 		RecoilRecovery: 1
 		LocalOffset: 600,500,680, 600,-500,680
@@ -569,7 +570,7 @@ timberwolf:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: MadcatMissiles
+		Weapon: TimerWolfMissiles
 		LocalOffset: -100,350,1150, -100,-350,1150
 		MuzzleSequence: muzzle-missile
 		PauseOnCondition: !ammo-secondary || empdisable
