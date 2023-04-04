@@ -137,21 +137,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			if (--PassiveIncomeTicks < 0)
+			if (--PassiveIncomeTicks <= 0)
 			{
-				PassiveIncomeTicks = Info.PassiveIncomeInterval;
-				ModifyCash(self, PassiveIncomeAmount);
-			}
-		}
+				if (self.Owner.Playable)
+					ChangeCash(Info.PassiveIncomeInterval);
 
-		void ModifyCash(Actor self, int amount)
-		{
-			if (self.Owner.Playable)
-			{
-				if (Info.PassiveIncomeUseResourceStorage)
-				{
-					GiveResources(amount);
-				}
+				PassiveIncomeTicks = Info.PassiveIncomeInterval;
 			}
 		}
 
