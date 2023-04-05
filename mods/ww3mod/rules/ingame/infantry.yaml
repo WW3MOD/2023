@@ -2282,15 +2282,17 @@ TECN:
 		Actors: quadcopterdrone
 		LoadedCondition: loaded
 		AmmoPool: primary-ammo
-		MaxSlaveDistance: 30c0
-		RearmTicks: 0
+		MaxSlaveDistance: 20c0
+		RearmTicks: 150
+	TakeCover:
+		ActiveCondition: !loaded && ammo-primary
 	IndirectFire:
 	Armament@1:
 		Name: primary
 		Weapon: DroneTargeter
 		AmmoUsage: 0
-		PauseOnCondition: !ammo-primary # || !loaded
-		FireDelay: 10
+		PauseOnCondition: !loaded || !ammo-primary
+		FireDelay: 50
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -2301,6 +2303,13 @@ TECN:
 		FullReloadTicks: 200
 		FullReloadSteps: 1
 		RequiresCondition: replenish-soldiers
+	WithRangeCircle:
+		Range: 20c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
 	Rearmable:
 		RearmActors: tent, barr
 		AmmoPools: primary-ammo
@@ -2308,7 +2317,7 @@ TECN:
 		-IdleSequences:
 		StandSequences: stand
 		DefaultAttackSequence: shoot
-	# ModifySequence:
+	# ModifySequence@launched:
 	# 	RequiresCondition: !loaded && primary-ammo
 	Passenger:
 		CustomPipType: pip-white

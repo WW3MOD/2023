@@ -13,13 +13,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Primitives;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Make the unit go prone when under attack, in an attempt to reduce damage. Disable to go permanent prone or Pause to inactivate")]
-	public class TakeCoverInfo : TurretedInfo
+	public class TakeCoverInfo : TurretedInfo, IObservesVariablesInfo
 	{
+		[ConsumedConditionReference]
+		[Desc("Conditions to activate a third custom sequence")]
+		public readonly BooleanExpression ActiveCondition = null;
+
 		[Desc("How long (in ticks) the actor remains prone.",
 			"Negative values mean actor remains prone permanently.")]
 		public readonly int Duration = 150;
@@ -47,6 +52,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Sequence prefix to apply while prone.")]
 		public readonly string ProneSequencePrefix = "prone-";
 
+		[SequenceReference(prefix: true)]
+		[Desc("Sequence prefix to apply while prone.")]
+		public readonly string ActiveSequencePrefix = "active-";
+
 		[Desc("Types of damage that triggers Panic.")]
 		public readonly BitSet<DamageType> PanicTriggerDamageTypes = default;
 
@@ -70,8 +79,31 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class TakeCover : Turreted, INotifyIdle, INotifyDamage, INotifyBecomingIdle, INotifyMoving, INotifyAttack, IDamageModifier, IInaccuracyModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
+	public class TakeCover : Turreted, IObservesVariables, INotifyIdle, INotifyDamage, INotifyBecomingIdle, INotifyMoving, INotifyAttack, IDamageModifier, IInaccuracyModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
 	{
+		IEnumerable<VariableObserver> IObservesVariables.GetVariableObservers()
+		{
+			if (info.ActiveCondition != null)
+				yield return new VariableObserver(ActiveConditionChanged, info.ActiveCondition.Variables);
+		}
+
+		[Sync]
+		public bool IsActiveTraitDisabled { get; private set; }
+
+		void ActiveConditionChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			var wasDisabled = IsActiveTraitDisabled;
+			IsActiveTraitDisabled = !info.ActiveCondition.Evaluate(conditions);
+
+			if (IsActiveTraitDisabled != wasDisabled)
+			{
+				if (wasDisabled)
+					ActiveTraitEnabled(self);
+				else
+					ActiveTraitDisabled(self);
+			}
+		}
+
 		readonly TakeCoverInfo info;
 
 		readonly Actor self;
@@ -88,12 +120,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool isPaused = false;
 
+		bool isActive = false;
+
 		bool IsProne => remainingDuration == -1 || (!IsTraitDisabled && remainingDuration > 0);
 
 		bool IsPanicking => panicStartedTick > 0;
 
 		bool IRenderInfantrySequenceModifier.IsModifyingSequence => (!isPaused && IsProne) || IsPanicking;
-		string IRenderInfantrySequenceModifier.SequencePrefix => IsPanicking ? "panic-" : IsProne ? info.ProneSequencePrefix : "";
+		string IRenderInfantrySequenceModifier.SequencePrefix => IsPanicking ? "panic-" : isActive ? info.ActiveSequencePrefix : IsProne ? info.ProneSequencePrefix : "";
 
 		public TakeCover(ActorInitializer init, TakeCoverInfo info)
 			: base(init, info)
@@ -253,6 +287,18 @@ namespace OpenRA.Mods.Common.Traits
 			return IsPanicking ? info.PanicSpeedModifier : IsProne ?
 				remainingDuration == -1 ? info.SpeedModifierWhenDeployed : info.SpeedModifier
 				: 100;
+		}
+
+		// Trait disables when unit is deployed
+		protected void ActiveTraitDisabled(Actor self)
+		{
+			isActive = false;
+		}
+
+		// When undeployed, the initial stance
+		protected void ActiveTraitEnabled(Actor self)
+		{
+			isActive = true;
 		}
 
 		// Trait disables when unit is deployed

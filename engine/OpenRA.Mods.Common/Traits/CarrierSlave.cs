@@ -19,16 +19,25 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Move this close to the spawner, before entering it.")]
 		public readonly WDist LandingDistance = new WDist(5 * 1024);
 
+		[Desc("Move this close to the spawner, before entering it.")]
+		public readonly int MaxDistance = 0;
+
+		[Desc("Move this close to the spawner, before entering it.")]
+		public readonly int MaxDistanceCheckTicks = 0;
+
+		[Desc("Move this close to the spawner, before entering it.")]
+		public readonly int LandingTime = 0;
+
 		[Desc("When the slave becomes idle, it returns to the carrier.")]
 		public readonly bool SlaveReturnOnIdle = true;
 
 		public override object Create(ActorInitializer init) { return new CarrierSlave(init, this); }
 	}
 
-	public class CarrierSlave : BaseSpawnerSlave, INotifyIdle
+	public class CarrierSlave : BaseSpawnerSlave, ITick, INotifyIdle
 	{
-		/* readonly AmmoPool[] ammoPools; */
 		public readonly CarrierSlaveInfo Info;
+		int maxDistanceCheckTicks;
 
 		CarrierMaster spawnerMaster;
 
@@ -37,6 +46,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			Info = info;
 			/* ammoPools = init.Self.TraitsImplementing<AmmoPool>().ToArray(); */
+		}
+
+		void ITick.Tick(Actor self)
+		{
+			ReturnWithinDistance(self);
 		}
 
 		public void EnterSpawner(Actor self)
@@ -67,6 +81,24 @@ namespace OpenRA.Mods.Common.Traits
 
 			return ammoPools.All(x => !x.HasAmmo);
 		} */
+
+		void ReturnWithinDistance(Actor self)
+		{
+			if (Info.MaxDistance == 0 || --maxDistanceCheckTicks > 0)
+				return;
+
+			maxDistanceCheckTicks = Info.MaxDistanceCheckTicks;
+
+			var diffVector = self.Location - Master.Location;
+
+			if (new WDist((diffVector.Length + 1) * 1024) < new WDist(Info.MaxDistance * 1024))
+				return;
+
+			var cell = Master.Location + diffVector;
+
+			var mv = self.Trait<IMove>();
+			self.QueueActivity(false, mv.MoveTo(cell, 0));
+		}
 
 		void INotifyIdle.TickIdle(Actor self)
 		{

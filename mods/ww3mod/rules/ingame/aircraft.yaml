@@ -220,17 +220,19 @@ quadcopterdrone:
 		IdleTurnSpeed: 16
 		IdleSpeed: 25
 		AltitudeVelocity: 100
-		RepulsionSpeed: 32
+		RepulsionSpeed: 20
 		VTOL: true
 		AirborneCondition: airborne
 		LandableTerrainTypes:
 		MoveIntoShroud: true
 		CruiseAltitude: 3c768
 	Health:
-		HP: 100
+		HP: 30
 	CarrierSlave:
 		LandingDistance: 0
 		SlaveReturnOnIdle: false
+		MaxDistance: 20
+		MaxDistanceCheckTicks: 20
 
 BADR:
 	Inherits: ^NeutralAirborne
