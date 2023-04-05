@@ -289,25 +289,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (carrierSlaveEntry.RearmTicks > 0)
 					carrierSlaveEntry.RearmTicks--;
 			}
-
-			// range check
-			// RangeCheck(self);
 		}
 
-		/* protected void RangeCheck(Actor self)
-		{
-			if (--maxDistanceCheckTicks > 0)
-				return;
-
-			maxDistanceCheckTicks = CarrierMasterInfo.MaxSlaveDistanceCheckInterval;
-			var pos = self.CenterPosition;
-			var inRange = currentTarget.IsInRange(pos, CarrierMasterInfo.MaxSlaveDistance);
-
-			if (!inRange)
-				Recall();
-		} */
-
-		public void MovementTypeChanged(Actor self, MovementType type)
+		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
 		{
 			if (type != MovementType.None)
 				Recall();
