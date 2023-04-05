@@ -231,9 +231,7 @@ quadcopterdrone:
 	Health:
 		HP: 30
 	CarrierSlave:
-		LandingDistance: 0
-		SlaveReturnOnIdle: false
-		MaxDistance: 20
+		MaxDistance: 25
 		MaxDistanceCheckTicks: 20
 		ReturnAfter: 1000
 	RejectsOrders:

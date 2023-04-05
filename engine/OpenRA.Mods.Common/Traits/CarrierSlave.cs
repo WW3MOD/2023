@@ -17,10 +17,7 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Can be slaved to a spawner.")]
 	public class CarrierSlaveInfo : BaseSpawnerSlaveInfo
 	{
-		[Desc("Move this close to the spawner, before entering it.")]
-		public readonly WDist LandingDistance = new WDist(5 * 1024);
-
-		[Desc("Move this close to the spawner, before entering it.")]
+		[Desc("Maximum range from master.")]
 		public readonly int MaxDistance = 0;
 
 		[Desc("Move this close to the spawner, before entering it.")]
@@ -32,7 +29,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color BarColor = Color.White;
 
 		[Desc("When the slave becomes idle, it returns to the carrier.")]
-		public readonly bool SlaveReturnOnIdle = true;
+		public readonly bool SlaveReturnOnIdle = false;
 
 		public override object Create(ActorInitializer init) { return new CarrierSlave(init, this); }
 	}
