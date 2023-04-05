@@ -247,8 +247,8 @@ HARV:
 		Capacity: 30
 		Resources: Ore,Gems
 		BaleUnloadDelay: 1
-		SearchFromProcRadius: 80 # TODO 16-40
-		SearchFromHarvesterRadius: 80 #TODO 8
+		SearchFromProcRadius: 80
+		SearchFromHarvesterRadius: 40
 		HarvestFacings: 8
 		EmptyCondition: no-ore
 	RevealsShroud:
@@ -295,9 +295,6 @@ HARV:
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
-	Explodes:
-		RequiresCondition: !no-ore
-		Weapon: OreExplosion
 HARV.Crate:
 	Inherits: HARV
 	-Buildable:

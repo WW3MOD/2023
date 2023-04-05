@@ -105,7 +105,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Harvester : ConditionalTrait<HarvesterInfo>, IIssueOrder, IResolveOrder, IOrderVoice,
-		ISpeedModifier, ISync, INotifyCreated
+		ISpeedModifier, ISync, INotifyCreated, INotifyKilled
 	{
 		public readonly IReadOnlyDictionary<string, int> Contents;
 
@@ -378,6 +378,31 @@ namespace OpenRA.Mods.Common.Traits
 
 				self.QueueActivity(order.Queued, new FindAndDeliverResources(self, targetActor));
 				self.ShowTargetLines();
+			}
+		}
+
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			SeedContents(self);
+		}
+
+		public void SeedContents(Actor self)
+		{
+			var failedAttempts = 0;
+			while (contents.Values.Count > 0 && failedAttempts++ < 10)
+			{
+				for (var i = 0; i < contents.First().Value; i++)
+				{
+					var cell = Util.RandomWalk(self.Location, self.World.SharedRandom)
+						.Take(1)
+						.SkipWhile(p => !resourceLayer.CanAddResource(contents.First().Key, p))
+						.Cast<CPos?>().FirstOrDefault();
+
+					if (cell != null && resourceLayer.CanAddResource(contents.First().Key, cell.Value))
+						resourceLayer.AddResource(contents.First().Key, cell.Value);
+				}
+
+				contents.Remove(contents.First().Key);
 			}
 		}
 
