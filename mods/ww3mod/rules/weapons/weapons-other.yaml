@@ -645,7 +645,7 @@ DepthChargeDual:
 
 DroneTargeter:
 	ValidTargets: Ground, Water
-	Range: 50c0
+	Range: 40c0
 	ReloadDelay: 50
 	Projectile: InstantHit
 	Warhead@Damage: TargetDamage

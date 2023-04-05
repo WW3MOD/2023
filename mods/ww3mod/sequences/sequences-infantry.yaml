@@ -1577,12 +1577,23 @@ tecn.russia:
 	shoot: droneop
 		# Start: 56
 		# Length: 28
-		Start: 85
+		Start: 56
 		Length: 28
+		Tick: 56
 	active-stand: droneop
-		# Start: 157
+		Start: 253
+		Length: 3
+	active-shoot: droneop
 		Start: 229
 		Length: 18
+	active-run: droneop
+		Start: 8
+		Length: 6
+		Facings: 8
+		Tick: 100
+	prone-shoot: droneop
+		Start: 85
+		Length: 28
 	prone-stand: droneop
 		Start: 130
 		Stride: 4
@@ -1603,10 +1614,6 @@ tecn.russia:
 	standup: e1
 		Start: 176
 		Length: 2
-		Facings: 8
-	prone-shoot: e1
-		Start: 192
-		Length: 8
 		Facings: 8
 	parachute: e1
 		Start: 377

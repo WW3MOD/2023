@@ -22,7 +22,7 @@ TRAN:
 		DecorationBounds: 1700,1536
 	Aircraft:
 		TurnSpeed: 8
-		Speed: 160
+		Speed: 240
 		AltitudeVelocity: 0c58
 	WithIdleOverlay@ROTOR1AIR:
 		Offset: 597,0,213
@@ -98,7 +98,7 @@ littlebird:
 		TakeOffOnResupply: true
 		InitialFacing: 224
 		TurnSpeed: 8
-		Speed: 176
+		Speed: 265
 		LandableTerrainTypes: Clear,Rough,Road,Ore,Beach,Gems
 	AttackAircraft:
 		Armaments: primary, secondary, secondary-air
@@ -245,7 +245,7 @@ HELI:
 		Type: Heavy
 	Aircraft:
 		TurnSpeed: 8
-		Speed: 165
+		Speed: 245
 	AttackAircraft:
 		FacingTolerance: 60
 		Armaments: primary, secondary, secondary-air
@@ -374,8 +374,8 @@ A10:
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 8
-		Speed: 260
-		RepulsionSpeed: 40
+		Speed: 390
+		RepulsionSpeed: 27
 		MaximumPitch: 65
 	AttackAircraft:
 		FacingTolerance: 0
@@ -482,9 +482,9 @@ F16:
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 8
-		Speed: 350
+		Speed: 525
 		IdleSpeed: 220
-		RepulsionSpeed: 40
+		RepulsionSpeed: 27
 		MaximumPitch: 56
 	AutoTarget:
 		EnableStances: false

@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CarrierMaster(init, this); }
 	}
 
-	public class CarrierMaster : BaseSpawnerMaster, ITick, IResolveOrder, INotifyAttack
+	public class CarrierMaster : BaseSpawnerMaster, ITick, IResolveOrder, INotifyAttack, INotifyMoving
 	{
 		class CarrierSlaveEntry : BaseSpawnerSlaveEntry
 		{
@@ -286,10 +286,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// range check
-			RangeCheck(self);
+			// RangeCheck(self);
 		}
 
-		protected void RangeCheck(Actor self)
+		/* protected void RangeCheck(Actor self)
 		{
 			if (--maxDistanceCheckTicks > 0)
 				return;
@@ -299,6 +299,12 @@ namespace OpenRA.Mods.Common.Traits
 			var inRange = currentTarget.IsInRange(pos, CarrierMasterInfo.MaxSlaveDistance);
 
 			if (!inRange)
+				Recall();
+		} */
+
+		public void MovementTypeChanged(Actor self, MovementType type)
+		{
+			if (type != MovementType.None)
 				Recall();
 		}
 

@@ -374,6 +374,7 @@ FACT:
 FACT2:
 	Inherits: FACT
 	-WithBuildingBib:
+	-Power:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
