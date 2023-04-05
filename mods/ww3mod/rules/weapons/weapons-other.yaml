@@ -652,6 +652,25 @@ DroneTargeter:
 		ValidTargets: Ground, Water
 		Damage: 0
 
+DroneJammer:
+	ValidTargets: Drone
+	ReloadDelay: 1
+	Range: 20c0
+	Projectile: LaserZap
+		Inaccuracy: 15
+		Width: 20
+		Duration: 2
+		ZOffset: 2047
+		Color: FFFFFF10
+		SecondaryBeam: true
+		SecondaryBeamWidth: 30
+		SecondaryBeamZOffset: 2047
+		SecondaryBeamColor: FFFFFF05
+		HitAnim: laserfire_low
+	Warhead@Damage: SpreadDamage
+		ValidTargets: Drone
+		Spread: 1
+		Damage: 1
 
 Claw:
 	ReloadDelay: 30

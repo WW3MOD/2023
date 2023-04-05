@@ -162,25 +162,24 @@
 		EjectOnGround: true
 
 ^Drone:
-	Inherits: ^Helicopter
-	-Repairable:
-	-MustBeDestroyed:
-	-EjectOnDeath@Rank0:
-	-EjectOnDeath@Rank1:
-	-EjectOnDeath@Rank2:
-	-EjectOnDeath@Rank_3:
-	-EjectOnDeath@Rank4:
-	-Explodes:
+	Inherits: ^Airborne
+	Aircraft:
+		CanHover: True
+		CruisingCondition: cruising
+		WaitDistanceFromResupplyBase: 4c0
+		TakeOffOnResupply: true
+		VTOL: true
+		LandableTerrainTypes: None
+		Crushes: None
+		InitialFacing: 224
+		CanSlide: False
 	Armor:
 		Type: Unarmored
 	HitShape:
 		Type: Circle
 			Radius: 8
-	Aircraft:
-		LandableTerrainTypes: None
-		Crushes: None
 	Targetable@Drone:
-		TargetTypes: Helicopter, Drone
+		TargetTypes: Drone
 
 ^KilledWithoutAirfield:
 	ChangesHealth@PLANE:
@@ -229,7 +228,7 @@ quadcopterdrone:
 		MoveIntoShroud: true
 		CruiseAltitude: 3c768
 	Health:
-		HP: 30
+		HP: 50
 	CarrierSlave:
 		MaxDistance: 25
 		MaxDistanceCheckTicks: 20

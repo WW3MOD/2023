@@ -2266,6 +2266,7 @@ TECN:
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Inherits@Selection: ^SelectableSupportUnit
+	-WithDecoration@AmmoSecondaryNone:
 	Tooltip:
 		Name: Drone operator
 	Buildable:
@@ -2305,10 +2306,8 @@ TECN:
 		RequiresCondition: replenish-soldiers
 	Armament@2:
 		Name: secondary
-		Weapon: DroneTargeter
+		Weapon: DroneJammer
 		AmmoUsage: 0
-		PauseOnCondition: !loaded || !ammo-primary
-		FireDelay: 50
 	WithRangeCircle:
 		Range: 25c0
 		Width: 3

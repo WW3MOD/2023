@@ -129,6 +129,9 @@ namespace OpenRA.Mods.Common.Traits
 		// invokes Attacking()
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
 		{
+			if (target.Type != TargetType.Terrain)
+				return;
+
 			currentTarget = target;
 
 			if (IsTraitDisabled || IsTraitPaused || !Info.ArmamentNames.Contains(a.Info.Name))
