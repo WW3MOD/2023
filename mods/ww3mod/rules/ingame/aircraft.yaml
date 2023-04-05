@@ -212,6 +212,8 @@ quadcopterdrone:
 	Inherits: ^Drone
 	Tooltip:
 		Name: Drone scout
+	Selectable:
+		Bounds: 384,512
 	Aircraft:
 		MaximumPitch: 90
 		Repulsable: true
@@ -233,6 +235,9 @@ quadcopterdrone:
 		SlaveReturnOnIdle: false
 		MaxDistance: 20
 		MaxDistanceCheckTicks: 20
+		ReturnAfter: 1000
+	RejectsOrders:
+		RequiresCondition: reject-orders
 
 BADR:
 	Inherits: ^NeutralAirborne

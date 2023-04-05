@@ -126,7 +126,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsPanicking => panicStartedTick > 0;
 
-		bool IRenderInfantrySequenceModifier.IsModifyingSequence => (!isPaused && IsProne) || IsPanicking;
+		bool IRenderInfantrySequenceModifier.IsModifyingSequence => (!isPaused && (IsProne || isActive)) || IsPanicking;
 		string IRenderInfantrySequenceModifier.SequencePrefix => IsPanicking ? "panic-" : isActive ? info.ActiveSequencePrefix : IsProne ? info.ProneSequencePrefix : "";
 
 		public TakeCover(ActorInitializer init, TakeCoverInfo info)
