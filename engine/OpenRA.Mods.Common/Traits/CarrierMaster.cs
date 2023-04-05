@@ -77,9 +77,6 @@ namespace OpenRA.Mods.Common.Traits
 		int launchCondition = Actor.InvalidConditionToken;
 		int launchConditionTicks;
 
-		Target currentTarget;
-		int maxDistanceCheckTicks;
-
 		public CarrierMaster(ActorInitializer init, CarrierMasterInfo info)
 			: base(init, info)
 		{
@@ -131,8 +128,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (target.Type != TargetType.Terrain)
 				return;
-
-			currentTarget = target;
 
 			if (IsTraitDisabled || IsTraitPaused || !Info.ArmamentNames.Contains(a.Info.Name))
 				return;

@@ -282,8 +282,8 @@ namespace OpenRA.Mods.Common.Traits
 			if ((isIdleTurn && IdleMovementSpeed == 0) || MovementSpeed == 0)
 				return WAngle.Zero;
 
-			var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
 			// var turnSpeed = TurnSpeed * Info.Speed / CurrentSpeed;
+			var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
 
 			return new WAngle(Util.ApplyPercentageModifiers(turnSpeed.Angle, speedModifiers).Clamp(1, 1024));
 		}
@@ -643,7 +643,7 @@ namespace OpenRA.Mods.Common.Traits
 			return FlyStep(MovementSpeed, facing);
 		}
 
-		public WVec FlyStep(int speed, WAngle facing)
+		public static WVec FlyStep(int speed, WAngle facing)
 		{
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
 			return speed * dir / 1024;

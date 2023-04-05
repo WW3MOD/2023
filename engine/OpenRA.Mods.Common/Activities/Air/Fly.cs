@@ -249,9 +249,9 @@ namespace OpenRA.Mods.Common.Activities
 
 			WVec move;
 			if (aircraft.Info.CanSlide && (aircraft.LastDesiredFacing == desiredFacing || aircraft.CurrentSpeed == 0))
-				move = aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
+				move = Aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
 			else
-				move = aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
+				move = Aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
 
 			if (moveOverride != WVec.Zero)
 				move = moveOverride;
@@ -291,7 +291,6 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
 		}
-
 
 		public override IEnumerable<Target> GetTargets(Actor self)
 		{

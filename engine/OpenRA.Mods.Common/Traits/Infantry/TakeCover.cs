@@ -290,13 +290,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Trait disables when unit is deployed
-		protected void ActiveTraitDisabled(Actor self)
+		protected void ActiveTraitDisabled(Actor _)
 		{
 			isActive = false;
 		}
 
 		// When undeployed, the initial stance
-		protected void ActiveTraitEnabled(Actor self)
+		protected void ActiveTraitEnabled(Actor _)
 		{
 			isActive = true;
 		}

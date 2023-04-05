@@ -502,8 +502,6 @@ namespace OpenRA.Mods.Common.Activities
 
 			static bool IsTurn(Mobile mobile, CPos nextCell, Map map)
 			{
-				return true;
-
 				// Some actors with a limited number of sprite facings should never move along curved trajectories.
 				if (mobile.Info.AlwaysTurnInPlace)
 					return false;
