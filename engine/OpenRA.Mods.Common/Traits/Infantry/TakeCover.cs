@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class TakeCover : Turreted, IObservesVariables, INotifyIdle, INotifyDamage, INotifyBecomingIdle, INotifyMoving, INotifyAttack, IDamageModifier, IInaccuracyModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
 	{
-		IEnumerable<VariableObserver> IObservesVariables.GetVariableObservers()
+		public override IEnumerable<VariableObserver> GetVariableObservers()
 		{
 			if (info.ActiveCondition != null)
 				yield return new VariableObserver(ActiveConditionChanged, info.ActiveCondition.Variables);
