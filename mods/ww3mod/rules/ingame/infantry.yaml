@@ -2303,12 +2303,17 @@ TECN:
 		FullReloadTicks: 200
 		FullReloadSteps: 1
 		RequiresCondition: replenish-soldiers
+	Armament@2:
+		Name: secondary
+		Weapon: DroneTargeter
+		AmmoUsage: 0
+		PauseOnCondition: !loaded || !ammo-primary
+		FireDelay: 50
 	WithRangeCircle:
-		Range: 20c0
-		Alpha: 25
+		Range: 25c0
 		Width: 3
 		Visible: WhenSelected
-		Color: 888888
+		Color: FFFFFF
 		ValidRelationships: Neutral, Ally, Enemy
 	Rearmable:
 		RearmActors: tent, barr

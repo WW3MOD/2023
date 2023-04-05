@@ -51,11 +51,6 @@ namespace OpenRA.Mods.Common.Activities
 					foreach (var pool in ammoPools)
 						while (pool.GiveAmmo(self, 1))
 						{ }
-
-				var carrierSlave = self.Trait<CarrierSlave>();
-
-				carrierSlave.RevokeRejectOrdersToken(self);
-				carrierSlave.ReturnTimeRemaining = carrierSlave.Info.ReturnAfter;
 			});
 		}
 	}

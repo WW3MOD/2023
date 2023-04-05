@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Move this close to the spawner, before entering it.")]
 		public readonly int MaxDistanceCheckTicks = 0;
 
-		[Desc("How long can the slave be out before returning to master.")]
+		[Desc("How long can the slave be out before out-of-range to master.")]
 		public readonly int ReturnAfter = 0;
 
 		public readonly Color BarColor = Color.White;
@@ -42,7 +42,8 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Actor self;
 		public readonly CarrierSlaveInfo Info;
 		public int ReturnTimeRemaining;
-		int rejectOrdersToken = Actor.InvalidConditionToken;
+		public int ForceReturnToken = Actor.InvalidConditionToken;
+		public int OutOfRangeToken = Actor.InvalidConditionToken;
 		int maxDistanceCheckTicks;
 
 		CarrierMaster spawnerMaster;
@@ -73,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (rejectOrders)
-				rejectOrdersToken = self.GrantCondition("reject-orders");
+				ForceReturnToken = self.GrantCondition("force-return");
 
 			// Cancel whatever else self was doing and return.
 			self.QueueActivity(false, new EnterCarrierMaster(self, Master, spawnerMaster));
@@ -102,26 +103,36 @@ namespace OpenRA.Mods.Common.Traits
 			EnterSpawner(self, true);
 		}
 
-		public void RevokeRejectOrdersToken(Actor self)
+		public void RevokeRejectOrdersToken()
 		{
-			self.RevokeCondition(rejectOrdersToken);
+			if (ForceReturnToken != Actor.InvalidConditionToken)
+				ForceReturnToken = self.RevokeCondition(ForceReturnToken);
 		}
 
 		void ReturnWithinDistance(Actor self)
 		{
-			if (Info.MaxDistance == 0 || --maxDistanceCheckTicks > 0)
+			if (!self.IsInWorld || Info.MaxDistance == 0 || --maxDistanceCheckTicks > 0)
 				return;
 
 			maxDistanceCheckTicks = Info.MaxDistanceCheckTicks;
 
 			var diffVector = self.Location - Master.Location;
 
-			if (new WDist((diffVector.Length + 1) * 1024) < new WDist(Info.MaxDistance * 1024))
+			if (new WDist((diffVector.Length - 1) * 1024) < new WDist(Info.MaxDistance * 1024))
 				return;
 
-			var cell = Master.Location + diffVector;
+			var wVecDiff = new WVec(diffVector.X * 1024 / 10, diffVector.Y * 1024 / 10, 0);
+
+			var cell = self.World.Map.CellContaining(
+				new WPos(Master.Location.X * 1024, Master.Location.Y * 1024, 0)
+				+ new WVec((diffVector.X) * 1024, (diffVector.Y) * 1024, 0)
+				- wVecDiff);
 
 			var mv = self.Trait<IMove>();
+
+			if (OutOfRangeToken == Actor.InvalidConditionToken)
+				OutOfRangeToken = self.GrantCondition("out-of-range");
+
 			self.QueueActivity(false, mv.MoveTo(cell, 0));
 		}
 
@@ -129,6 +140,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Info.SlaveReturnOnIdle)
 				EnterSpawner(self);
+
+			if (OutOfRangeToken != Actor.InvalidConditionToken)
+				OutOfRangeToken = self.RevokeCondition(OutOfRangeToken);
 		}
 
 		public override void Stop(Actor self)

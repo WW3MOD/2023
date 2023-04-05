@@ -167,12 +167,19 @@ namespace OpenRA.Mods.Common.Traits
 			// Queue attack order, too.
 			self.World.AddFrameEndTask(w =>
 			{
+				var slave = carrierSlaveEntry.SpawnerSlave;
+
+				if (slave.ForceReturnToken != Actor.InvalidConditionToken)
+					slave.RevokeRejectOrdersToken();
+
+				slave.ReturnTimeRemaining = slave.Info.ReturnAfter;
+
 				// The actor might had been trying to do something before entering the carrier.
 				// Cancel whatever it was trying to do.
-				carrierSlaveEntry.SpawnerSlave.Stop(carrierSlaveEntry.Actor);
+				slave.Stop(carrierSlaveEntry.Actor);
 
 				if (carrierSlaveEntry.Actor.TraitOrDefault<Armament>() != null)
-					carrierSlaveEntry.SpawnerSlave.Attack(carrierSlaveEntry.Actor, delayedTarget);
+					slave.Attack(carrierSlaveEntry.Actor, delayedTarget);
 				else
 				{
 					if (delayedTarget.Type != TargetType.Invalid)
