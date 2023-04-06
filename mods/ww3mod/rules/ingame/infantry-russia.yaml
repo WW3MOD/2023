@@ -170,7 +170,7 @@ SHOK:
 	Armament:
 		Weapon: PortaTesla
 		LocalOffset: 427,0,341
-	TakeCover:
+	InfantryStates:
 		ProneOffset: 227,0,-245
 	AttackFrontal:
 		Voice: Attack

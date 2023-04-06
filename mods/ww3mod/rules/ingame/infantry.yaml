@@ -234,7 +234,7 @@
 		MaximumScanTimeInterval: 32
 	GrantConditionOnDeploy:
 		DeployedCondition: deployed
-	TakeCover:
+	InfantryStates:
 		ProneCondition: !deployed && !critical-damage
 		DamageTriggers: TriggerProne
 		SpeedModifier: 70
@@ -252,7 +252,7 @@
 	GrantConditionOnTerrain@InWater:
 		TerrainTypes: Water
 		Condition: inwater
-	TakeCover:
+	InfantryStates:
 		ProneCondition: !deployed && !inwater
 	WithInfantryBody:
 		RequiresCondition: !inwater
@@ -1207,7 +1207,7 @@ E1R1:
 		Condition: preparing-secondary
 		ArmamentNames: secondary
 		RevokeDelay: 20
-	TakeCover:
+	InfantryStates:
 		PauseOnCondition: preparing-secondary
 	Rearmable:
 		RearmActors: tent, barr
@@ -1903,7 +1903,7 @@ E6:
 		RevokeDelay: 12
 		RevokeOnNewTarget: False
 		RevokeAll: True
-	TakeCover:
+	InfantryStates:
 		ProneOffset: 160,0,-288
 	Explodes:
 		RequiresCondition: ammo-primary
@@ -2285,7 +2285,7 @@ TECN:
 		AmmoPool: primary-ammo
 		MaxSlaveDistance: 20c0
 		RearmTicks: 150
-	TakeCover:
+	InfantryStates:
 		ActiveCondition: !loaded && ammo-primary
 	IndirectFire:
 	Armament@1:

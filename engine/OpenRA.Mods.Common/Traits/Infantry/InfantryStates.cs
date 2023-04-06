@@ -19,7 +19,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Make the unit go prone when under attack, in an attempt to reduce damage. Disable to go permanent prone or Pause to inactivate")]
-	public class TakeCoverInfo : TurretedInfo, IObservesVariablesInfo
+	public class InfantryStatesInfo : TurretedInfo, IObservesVariablesInfo
 	{
 		[ConsumedConditionReference]
 		[Desc("Conditions to activate a third custom sequence")]
@@ -72,18 +72,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The terrain types that this actor should avoid running on to while panicking.")]
 		public readonly HashSet<string> AvoidTerrainTypes = new HashSet<string>();
 
-		public override object Create(ActorInitializer init) => new TakeCover(init, this);
+		public override object Create(ActorInitializer init) => new InfantryStates(init, this);
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			if (Duration > -1 && DamageTriggers.IsEmpty)
-				throw new YamlException("TakeCover: If Duration isn't negative (permanent), DamageTriggers is required.");
+				throw new YamlException("InfantryStates: If Duration isn't negative (permanent), DamageTriggers is required.");
 
 			base.RulesetLoaded(rules, ai);
 		}
 	}
 
-	public class TakeCover : Turreted, IObservesVariables, INotifyIdle, INotifyDamage, INotifyBecomingIdle, INotifyMoving, INotifyAttack, IDamageModifier, IInaccuracyModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
+	public class InfantryStates : Turreted, IObservesVariables, INotifyIdle, INotifyDamage, INotifyBecomingIdle, INotifyMoving, INotifyAttack, IDamageModifier, IInaccuracyModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
 	{
 		public override IEnumerable<VariableObserver> GetVariableObservers()
 		{
@@ -131,7 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		readonly TakeCoverInfo info;
+		readonly InfantryStatesInfo info;
 
 		readonly Actor self;
 
@@ -156,7 +156,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool IRenderInfantrySequenceModifier.IsModifyingSequence => (!isPaused && (IsProne || isActive)) || IsPanicking;
 		string IRenderInfantrySequenceModifier.SequencePrefix => IsPanicking ? "panic-" : isActive ? info.ActiveSequencePrefix : IsProne ? info.ProneSequencePrefix : "";
 
-		public TakeCover(ActorInitializer init, TakeCoverInfo info)
+		public InfantryStates(ActorInitializer init, InfantryStatesInfo info)
 			: base(init, info)
 		{
 			self = init.Self;
