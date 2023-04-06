@@ -329,13 +329,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Trait disables when unit is deployed
-		protected void ProneTraitDisabled(Actor self)
+		protected void ProneTraitDisabled(Actor _)
 		{
 			remainingDuration = -1; // Take cover permanently
 		}
 
 		// When undeployed, the initial stance
-		protected void ProneTraitEnabled(Actor self)
+		protected void ProneTraitEnabled(Actor _)
 		{
 			if (info.Duration < 0 && info.DamageTriggers.IsEmpty)
 			{
@@ -344,12 +344,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		protected void ProneTraitResumed(Actor self)
+		protected void ProneTraitResumed(Actor _)
 		{
 			isPaused = false;
 		}
 
-		protected void ProneTraitPaused(Actor self)
+		protected void ProneTraitPaused(Actor _)
 		{
 			isPaused = true;
 		}
