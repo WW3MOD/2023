@@ -235,7 +235,7 @@
 	GrantConditionOnDeploy:
 		DeployedCondition: deployed
 	TakeCover:
-		RequiresCondition: !deployed && !critical-damage
+		ProneCondition: !deployed && !critical-damage
 		DamageTriggers: TriggerProne
 		SpeedModifier: 70
 		SpeedModifierWhenDeployed: 40
@@ -253,7 +253,7 @@
 		TerrainTypes: Water
 		Condition: inwater
 	TakeCover:
-		RequiresCondition: !deployed && !inwater
+		ProneCondition: !deployed && !inwater
 	WithInfantryBody:
 		RequiresCondition: !inwater
 	WithDeathAnimation:

@@ -23,6 +23,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[ConsumedConditionReference]
 		[Desc("Conditions to activate a third custom sequence")]
+		public readonly BooleanExpression ProneCondition = null;
+
+		[ConsumedConditionReference]
+		[Desc("Conditions to activate a third custom sequence")]
 		public readonly BooleanExpression ActiveCondition = null;
 
 		[Desc("How long (in ticks) the actor remains prone.",
@@ -83,8 +87,31 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public override IEnumerable<VariableObserver> GetVariableObservers()
 		{
+			foreach (var observer in base.GetVariableObservers())
+				yield return observer;
+
+			if (info.ProneCondition != null)
+				yield return new VariableObserver(ProneConditionsChanged, info.ProneCondition.Variables);
+
 			if (info.ActiveCondition != null)
 				yield return new VariableObserver(ActiveConditionChanged, info.ActiveCondition.Variables);
+		}
+
+		[Sync]
+		public bool IsProneTraitDisabled { get; private set; }
+
+		void ProneConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			var wasDisabled = IsProneTraitDisabled;
+			IsProneTraitDisabled = !info.ProneCondition.Evaluate(conditions); // 'Object reference not set to an instance of an object.'
+
+			if (IsProneTraitDisabled != wasDisabled)
+			{
+				if (wasDisabled)
+					ProneTraitEnabled(self);
+				else
+					ProneTraitDisabled(self);
+			}
 		}
 
 		[Sync]
@@ -302,13 +329,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Trait disables when unit is deployed
-		protected override void TraitDisabled(Actor self)
+		protected void ProneTraitDisabled(Actor self)
 		{
 			remainingDuration = -1; // Take cover permanently
 		}
 
 		// When undeployed, the initial stance
-		protected override void TraitEnabled(Actor self)
+		protected void ProneTraitEnabled(Actor self)
 		{
 			if (info.Duration < 0 && info.DamageTriggers.IsEmpty)
 			{
@@ -317,12 +344,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		protected override void TraitResumed(Actor self)
+		protected void ProneTraitResumed(Actor self)
 		{
 			isPaused = false;
 		}
 
-		protected override void TraitPaused(Actor self)
+		protected void ProneTraitPaused(Actor self)
 		{
 			isPaused = true;
 		}
