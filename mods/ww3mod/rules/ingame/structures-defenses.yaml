@@ -136,7 +136,6 @@ GTWR:
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 3, 5
 	AttackGarrisoned:
 		PortOffsets: 300,300,300
 		PortYaws: 0
@@ -195,7 +194,6 @@ PBOX:
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 3, 5
 	AttackGarrisoned:
 		PortOffsets: 300,300,300
 		PortYaws: 0
@@ -273,7 +271,6 @@ HBOX:
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 3, 5
 	AttackGarrisoned:
 		PortOffsets: 300,300,300
 		PortYaws: 0

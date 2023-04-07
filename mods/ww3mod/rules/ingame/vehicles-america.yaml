@@ -195,7 +195,6 @@ bradley:
 		LoadingCondition: notmobile
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 9, 5
 	Passenger:
 		CustomPipType: pip-green
 	ProducibleWithLevel:
@@ -325,7 +324,6 @@ humvee:
 		LoadingCondition: notmobile
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 13, 5
 	# ThrowsShrapnel@Turret1:
 	# 	Weapons: debris.humvee.turret
 	# 	Pieces: 1, 1
@@ -426,7 +424,6 @@ m113:
 		LoadingCondition: notmobile
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 21, 5
 	Carryable:
 		LocalOffset: 0,0,100
 		RequiresCondition: !loaded
@@ -587,7 +584,6 @@ strykershorad:
 		LoadingCondition: notmobile
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 15, 5
 	Passenger:
 		CustomPipType: pip-green
 	ProducibleWithLevel:

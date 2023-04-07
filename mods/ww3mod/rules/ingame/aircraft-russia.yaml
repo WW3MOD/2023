@@ -27,8 +27,7 @@ HALO:
 		MaxWeight: 24
 		AfterUnloadDelay: 40
 	WithCargoPipsDecoration:
-		PipCount: 12
-		Margin: 23, 5
+		PipCount: 24
 	Selectable:
 		DecorationBounds: 1700,1536
 	WithIdleOverlay@ROTOR1AIR:
@@ -192,7 +191,6 @@ HIND:
 		MaxWeight: 8
 		AfterUnloadDelay: 40
 	WithCargoPipsDecoration:
-		Margin: 13, 5
 	RenderSprites:
 		Scale: 1.3
 	WithRangeCircle:

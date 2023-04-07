@@ -204,7 +204,7 @@
 	RevealsShroud:
 		Range: 16c0
 	Passenger:
-		CustomPipType: pip-gray
+		CustomPipType: empty_class
 	ProximityCaptor:
 		Types: CivilianInfantry
 	ScaredyCat:
@@ -1114,7 +1114,7 @@
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-yellow
+		CustomPipType: e1_class
 	WithDecoration@Class:
 		Sequence: e1_class
 	Selectable:
@@ -1221,7 +1221,7 @@ E1R1:
 		DefaultAttackSequence: shoot-rpg
 		RequiresCondition: preparing-secondary
 	Passenger:
-		CustomPipType: pip-yellow
+		CustomPipType: e3_class
 	WithDecoration@Class:
 		Sequence: e3_class
 	Selectable:
@@ -1295,7 +1295,7 @@ E3R1:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-yellow
+		CustomPipType: ar_class
 	WithDecoration@Class:
 		Sequence: ar_class
 	Selectable:
@@ -1353,7 +1353,7 @@ AR:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-red
+		CustomPipType: e2_class
 	WithDecoration@Class:
 		Sequence: e2_class
 	Selectable:
@@ -1452,7 +1452,7 @@ E2R1:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-yellow
+		CustomPipType: tl_class
 	WithDecoration@Class:
 		Sequence: tl_class
 	Selectable:
@@ -1521,7 +1521,7 @@ TL:
 	WithInfantryBody:
 		DefaultAttackSequence: throw
 	Passenger:
-		CustomPipType: pip-red
+		CustomPipType: mt_class
 	WithDecoration@Class:
 		Sequence: mt_class
 	Selectable:
@@ -1589,7 +1589,7 @@ MT:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 	Passenger:
-		CustomPipType: pip-yellow
+		CustomPipType: sn_class
 	RenderRangeCircle:
 		RequiresCondition: ammo-primary
 		Color: FFFF00
@@ -1661,7 +1661,7 @@ SN:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-green
+		CustomPipType: at_class
 	WithDecoration@Class:
 		Sequence: at_class
 	Selectable:
@@ -1728,7 +1728,7 @@ AT:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-blue
+		CustomPipType: aa_class
 	WithDecoration@Class:
 		Sequence: aa_class
 	Selectable:
@@ -1836,7 +1836,7 @@ AA:
 	Voiced:
 		VoiceSet: EngineerVoice
 	Passenger:
-		CustomPipType: pip-white
+		CustomPipType: e6_class
 	WithDecoration@Class:
 		Sequence: e6_class
 	Selectable:
@@ -1914,7 +1914,7 @@ E6:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-orange
+		CustomPipType: e4_class
 	WithDecoration@Class:
 		Sequence: e4_class
 	Selectable:
@@ -2003,6 +2003,8 @@ E4:
 		RequiresCondition: !inwater && !parachute
 	Voiced:
 		VoiceSet: SealVoice
+	Passenger:
+		CustomPipType: sf_class
 	WithDecoration@Class:
 		Sequence: sf_class
 	Selectable:
@@ -2059,7 +2061,7 @@ SF:
 	Voiced:
 		VoiceSet: MedicVoice
 	Passenger:
-		CustomPipType: pip-white
+		CustomPipType: medi_class
 	GpsDot:
 		String: Healer
 	WithDecoration@Class:
@@ -2126,7 +2128,7 @@ MEDI:
 	Voiced:
 		VoiceSet: SpyVoice
 	Passenger:
-		CustomPipType: pip-white
+		CustomPipType: spy_class
 		Voice: Move
 	WithDecoration@Class:
 		Sequence: spy_class
@@ -2222,7 +2224,7 @@ SPY:
 		VoiceSet: DogVoice
 	Passenger:
 		Voice: Move
-		CustomPipType: pip-white
+		CustomPipType: dog_class
 	RenderSprites:
 		Scale: 0.6
 DOG:
@@ -2247,7 +2249,7 @@ DOG:
 	Valued:
 		Cost: 250
 	Passenger:
-		CustomPipType: pip-white
+		CustomPipType: tecn_class
 	WithDecoration@Class:
 		Sequence: tecn_class
 		Image: class
@@ -2324,7 +2326,7 @@ TECN:
 	# ModifySequence@launched:
 	# 	RequiresCondition: !loaded && primary-ammo
 	Passenger:
-		CustomPipType: pip-white
+		CustomPipType: droneop_class
 	WithDecoration@Class:
 		Sequence: droneop_class
 		Image: class
@@ -2383,7 +2385,7 @@ DRONEOP:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !parachute
 	Passenger:
-		CustomPipType: pip-yellow
+		CustomPipType: pilot_class
 	WithDecoration@Class:
 		Sequence: pilot_class
 	Selectable:

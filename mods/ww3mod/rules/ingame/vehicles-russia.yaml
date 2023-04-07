@@ -195,7 +195,6 @@ bmp2:
 		LoadingCondition: notmobile
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 9, 8
 	Passenger:
 		CustomPipType: pip-green
 	ProducibleWithLevel:
@@ -285,7 +284,6 @@ btr:
 		LoadingCondition: notmobile
 		EjectOnDeath: True
 	WithCargoPipsDecoration:
-		Margin: 21, 5
 	Carryable:
 		LocalOffset: 0,0,100
 		RequiresCondition: !loaded

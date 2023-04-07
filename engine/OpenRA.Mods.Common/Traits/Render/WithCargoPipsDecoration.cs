@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using OpenRA.Graphics;
 using OpenRA.Traits;
@@ -20,19 +21,22 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Number of pips to display. Defaults to Cargo.MaxWeight.")]
 		public readonly int PipCount = -1;
 
+		[Desc("Number of pips to display per row.")]
+		public readonly int PerRow = 8;
+
 		[Desc("If non-zero, override the spacing between adjacent pips.")]
 		public readonly int2 PipStride = int2.Zero;
 
 		[Desc("Image that defines the pip sequences.")]
-		public readonly string Image = "pips";
+		public readonly string Image = "class";
 
 		[SequenceReference(nameof(Image))]
 		[Desc("Sequence used for empty pips.")]
-		public readonly string EmptySequence = "pip-empty";
+		public readonly string EmptySequence = "empty_class";
 
 		[SequenceReference(nameof(Image))]
 		[Desc("Sequence used for full pips that aren't defined in CustomPipSequences.")]
-		public readonly string FullSequence = "pip-green";
+		public readonly string FullSequence = "unknown_class";
 
 		[SequenceReference(nameof(Image), dictionaryReference: LintDictionaryReference.Values)]
 		[Desc("Pip sequence to use for specific passenger actors.")]
@@ -50,9 +54,14 @@ namespace OpenRA.Mods.Common.Traits.Render
 		readonly Animation pips;
 		readonly int pipCount;
 
+		readonly Actor self;
+
+		int PipCount { get => self.Trait<Cargo>().PassengerCount; }
+
 		public WithCargoPipsDecoration(Actor self, WithCargoPipsDecorationInfo info)
 			: base(self, info)
 		{
+			this.self = self;
 			cargo = self.Trait<Cargo>();
 			pipCount = info.PipCount > 0 ? info.PipCount : cargo.Info.MaxWeight;
 			pips = new Animation(self.World, info.Image);
@@ -67,8 +76,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 				var pi = c.Info.TraitInfo<PassengerInfo>();
 				if (n < pi.Weight)
 				{
-					if (pi.CustomPipType != null && Info.CustomPipSequences.TryGetValue(pi.CustomPipType, out var sequence))
-						return sequence;
+					if (pi.CustomPipType != null)
+						return pi.CustomPipType;
 
 					return Info.FullSequence;
 				}
@@ -81,19 +90,46 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		protected override IEnumerable<IRenderable> RenderDecoration(Actor self, WorldRenderer wr, int2 screenPos)
 		{
-			pips.PlayRepeating(Info.EmptySequence);
+			var selected = self.World.Selection.Contains(self);
+			var scale = selected ? 1f : 0.5f;
+			var alpha = selected ? 0.2f : 0.05f;
 
 			var palette = wr.Palette(Info.Palette);
-			var pipSize = pips.Image.Size.XY.ToInt2();
-			var pipStride = Info.PipStride != int2.Zero ? Info.PipStride : new int2(pipSize.X, 0);
+			var pipImageSize = pips.Image.Size;
+			var pipSize = new int2((int)(pipImageSize.X * scale), (int)(pipImageSize.Y * scale));
+
+			var pipStrideX = new int2(pipSize.X, 0);
+			var pipStrideY = new int2(0, pipSize.Y);
+
+			var currentRow = 1;
+			var currentRowCount = (currentRow * Info.PerRow) > PipCount ? (PipCount % Info.PerRow) : Info.PerRow;
 
 			screenPos -= pipSize / 2;
-			for (var i = 0; i < pipCount; i++)
+			var startPos = screenPos;
+
+			screenPos -= (currentRowCount - 1) * pipStrideX / 2;
+
+			pips.PlayRepeating(Info.EmptySequence);
+
+			for (var i = 0; i < PipCount; i++)
 			{
 				pips.PlayRepeating(GetPipSequence(i));
-				yield return new UISpriteRenderable(pips.Image, self.CenterPosition, screenPos, 0, palette);
+				yield return new UISpriteRenderable(
+					pips.Image, self.CenterPosition, screenPos, 0, palette, scale, alpha);
 
-				screenPos += pipStride;
+				if (i + 1 >= currentRow * Info.PerRow)
+				{
+					screenPos = startPos - (pipStrideY * currentRow); // Vertical increment for each row
+
+					currentRow++;
+					currentRowCount = (currentRow * Info.PerRow) > PipCount ? (PipCount % Info.PerRow) : Info.PerRow;
+
+					screenPos -= (currentRowCount - 1) * pipStrideX / 2; // Horizontal center alignment
+				}
+				else
+				{
+					screenPos += pipStrideX;
+				}
 			}
 		}
 	}

@@ -403,23 +403,10 @@
 		LoadedCondition: loaded
 	WithCargoPipsDecoration:
 		Position: Top
-		Margin: 1, 3
+		PipStride: 6,6
+		MarginY: -10
 		RequiresCondition: loaded
-		RequiresSelection: true
-		CustomPipSequences:
-			pip-gray: pip-gray
-			pip-orange: pip-orange
-			pip-yellow: pip-yellow
-			pip-blue: pip-blue
-			pip-red: pip-red
-			pip-green: pip-green
-			pip-white: pip-white
-			gray: pip-gray
-			orange: pip-orange
-			yellow: pip-yellow
-			blue: pip-blue
-			red: pip-red
-			green: pip-green
+		RequiresSelection: false
 
 ^EmpVisualEffect:
 	WithColoredOverlay@EMP:

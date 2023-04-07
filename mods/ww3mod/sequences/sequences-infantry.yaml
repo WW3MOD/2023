@@ -105,6 +105,12 @@ class:
 	empty_class: empty_class
 		Start: 0
 		Length: 1
+	unknown_class: unknown_class
+		Start: 0
+		Length: 1
+	dog_class: dog_class
+		Start: 0
+		Length: 1
 	e1_class: e1_class
 		Start: 0
 		Length: 1
@@ -1173,8 +1179,7 @@ aa.russia:
 	stand: sf
 		Facings: 8
 	stand2: sf
-		Start: 73
-		Length: 14
+		Facings: 8
 	run: sf
 		Start: 8
 		Length: 6
@@ -1183,13 +1188,11 @@ aa.russia:
 	parachute: e1
 		Start: 377
 	idle1: sf
-		Start: 56
-		Length: 15
-		Tick: 120
+		Start: 1
+		Facings: 8
 	idle2: sf
-		Start: 71
-		Length: 15
-		Tick: 120
+		Start: 1
+		Facings: 8
 	die1: sf
 		Start: 134
 		Length: 15

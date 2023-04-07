@@ -46,8 +46,8 @@ TRAN:
 		AfterUnloadDelay: 40
 		LoadedCondition: loaded
 	WithCargoPipsDecoration:
-		PipCount: 12
-		Margin: 29, 5
+		PipCount: 36
+		MarginY: -10
 	SpawnActorOnDeath@hovering:
 		Actor: TRAN.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -170,7 +170,6 @@ littlebird:
 		AfterUnloadDelay: 40
 		LoadedCondition: loaded
 	WithCargoPipsDecoration:
-		Margin: 5, 5
 	SpawnActorOnDeath@hovering:
 		Actor: littlebird.Husk
 		RequiresCondition: airborne && !moving && !empdisable

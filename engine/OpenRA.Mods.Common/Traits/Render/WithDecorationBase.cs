@@ -33,6 +33,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[Desc("Offset sprite center position from the selection box edge.")]
 		public readonly int2 Margin = int2.Zero;
+		public readonly int? MarginX = null;
+		public readonly int? MarginY = null;
 
 		[Desc("Screen-space offsets to apply when defined conditions are enabled.",
 			"A dictionary of [condition string]: [x, y offset].")]
@@ -61,11 +63,17 @@ namespace OpenRA.Mods.Common.Traits.Render
 		int2 conditionalOffset;
 		BlinkState[] blinkPattern;
 
+		public int2 Margin { get; set; }
+
 		public WithDecorationBase(Actor self, InfoType info)
 			: base(info)
 		{
 			Self = self;
 			blinkPattern = info.BlinkPattern;
+
+			Margin = new int2(
+				Info.MarginX != null ? Info.MarginX.Value : Info.Margin.X,
+				Info.MarginY != null ? Info.MarginY.Value : Info.Margin.Y);
 		}
 
 		protected virtual bool ShouldRender(Actor self)
@@ -99,7 +107,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (IsTraitDisabled || self.IsDead || !self.IsInWorld || !ShouldRender(self))
 				return Enumerable.Empty<IRenderable>();
 
-			var screenPos = container.GetDecorationOrigin(self, wr, Info.Position, Info.Margin) + conditionalOffset;
+			var screenPos = container.GetDecorationOrigin(self, wr, Info.Position, Margin) + conditionalOffset;
 			return RenderDecoration(self, wr, screenPos);
 		}
 
