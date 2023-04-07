@@ -323,7 +323,7 @@
 ^LargeThermobaricEffects:
 	Warhead@Fire: GrantExternalCondition
 		Range: 3c0
-		Duration: 5
+		Duration: 15
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Effect_1: CreateEffect

@@ -12,7 +12,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
 
@@ -25,29 +24,25 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Conditions to activate a third custom sequence")]
 		public readonly BooleanExpression ProneCondition = null;
 
+		public readonly string ProneGrantsCondition = "prone";
+
+		[Desc("Prone movement speed as a percentage of the normal speed.")]
+		public readonly int ProneSpeedModifier = 60;
+
+		[ConsumedConditionReference]
+		[Desc("Conditions to activate a third custom sequence")]
+		public readonly BooleanExpression PanicCondition = null;
+		public readonly string PanicGrantsCondition = "panicking";
+
+		[Desc("Panic movement speed as a percentage of the normal speed.")]
+		public readonly int PanicSpeedModifier = 150;
+
 		[ConsumedConditionReference]
 		[Desc("Conditions to activate a third custom sequence")]
 		public readonly BooleanExpression ActiveCondition = null;
 
-		[Desc("How long (in ticks) the actor remains prone.",
-			"Negative values mean actor remains prone permanently.")]
-		public readonly int Duration = 150;
-
-		[Desc("Prone movement speed as a percentage of the normal speed.")]
-		public readonly int SpeedModifier = 60;
-
-		[Desc("Prone firing inaccuracy as a percentage.")]
-		public readonly int InaccuracyModifier = 100;
-
-		[Desc("Prone movement speed as a percentage of the normal speed.")]
-		public readonly int SpeedModifierWhenDeployed = 40;
-
-		[Desc("Damage types that trigger prone state. Defined on the warheads.",
-			"If Duration is negative (permanent), you can leave this empty to trigger prone state immediately.")]
-		public readonly BitSet<DamageType> DamageTriggers = default;
-
 		[Desc("Damage modifiers for each damage type (defined on the warheads) while the unit is prone.")]
-		public readonly Dictionary<string, int> DamageModifiers = new Dictionary<string, int>();
+		public readonly Dictionary<string, int> ProneDamageModifiers = new Dictionary<string, int>();
 
 		[Desc("Muzzle offset modifier to apply while prone.")]
 		public readonly WVec ProneOffset = new WVec(500, 0, 0);
@@ -60,14 +55,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Sequence prefix to apply while prone.")]
 		public readonly string ActiveSequencePrefix = "active-";
 
-		[Desc("Types of damage that triggers Panic.")]
-		public readonly BitSet<DamageType> PanicTriggerDamageTypes = default;
-
-		[Desc("How long (in ticks) the actor should panic for.")]
-		public readonly int PanicLength = 100;
-
-		[Desc("Panic movement speed as a percentage of the normal speed.")]
-		public readonly int PanicSpeedModifier = 150;
+		[SequenceReference(prefix: true)]
+		[Desc("Sequence prefix to apply while panicing.")]
+		public readonly string PanicSequencePrefix = "panic-";
 
 		[Desc("The terrain types that this actor should avoid running on to while panicking.")]
 		public readonly HashSet<string> AvoidTerrainTypes = new HashSet<string>();
@@ -76,14 +66,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
-			if (Duration > -1 && DamageTriggers.IsEmpty)
-				throw new YamlException("InfantryStates: If Duration isn't negative (permanent), DamageTriggers is required.");
-
 			base.RulesetLoaded(rules, ai);
 		}
 	}
 
-	public class InfantryStates : Turreted, IObservesVariables, INotifyIdle, INotifyDamage, INotifyBecomingIdle, INotifyMoving, INotifyAttack, IDamageModifier, IInaccuracyModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
+	public class InfantryStates : Turreted, IObservesVariables, IRenderInfantrySequenceModifier, INotifyIdle, ISpeedModifier, IDamageModifier, ISync
 	{
 		public override IEnumerable<VariableObserver> GetVariableObservers()
 		{
@@ -93,41 +80,55 @@ namespace OpenRA.Mods.Common.Traits
 			if (info.ProneCondition != null)
 				yield return new VariableObserver(ProneConditionsChanged, info.ProneCondition.Variables);
 
+			if (info.PanicCondition != null)
+				yield return new VariableObserver(PanicConditionsChanged, info.PanicCondition.Variables);
+
 			if (info.ActiveCondition != null)
 				yield return new VariableObserver(ActiveConditionChanged, info.ActiveCondition.Variables);
 		}
 
 		[Sync]
-		public bool IsProneTraitDisabled { get; private set; }
+		public bool IsProne { get; private set; }
 
 		void ProneConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
 		{
-			var wasDisabled = IsProneTraitDisabled;
-			IsProneTraitDisabled = !info.ProneCondition.Evaluate(conditions); // 'Object reference not set to an instance of an object.'
-
-			if (IsProneTraitDisabled != wasDisabled)
+			if (IsProne != info.ProneCondition.Evaluate(conditions))
 			{
-				if (wasDisabled)
-					ProneTraitEnabled(self);
-				else
+				if (IsProne)
 					ProneTraitDisabled(self);
+				else
+					ProneTraitEnabled(self);
+			}
+		}
+
+		int proneConditionToken = Actor.InvalidConditionToken;
+		int panicConditionToken = Actor.InvalidConditionToken;
+
+		[Sync]
+		public bool IsPanicking { get; private set; }
+
+		void PanicConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			if (IsPanicking != info.PanicCondition.Evaluate(conditions))
+			{
+				if (IsPanicking)
+					PanicTraitDisabled(self);
+				else
+					PanicTraitEnabled(self);
 			}
 		}
 
 		[Sync]
-		public bool IsActiveTraitDisabled { get; private set; }
+		public bool IsActive { get; private set; }
 
 		void ActiveConditionChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
 		{
-			var wasDisabled = IsActiveTraitDisabled;
-			IsActiveTraitDisabled = !info.ActiveCondition.Evaluate(conditions);
-
-			if (IsActiveTraitDisabled != wasDisabled)
+			if (IsActive != info.ActiveCondition.Evaluate(conditions))
 			{
-				if (wasDisabled)
-					ActiveTraitEnabled(self);
-				else
+				if (IsActive)
 					ActiveTraitDisabled(self);
+				else
+					ActiveTraitEnabled(self);
 			}
 		}
 
@@ -139,30 +140,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly Func<CPos, bool> avoidTerrainFilter;
 
-		[Sync]
-		int remainingDuration = 0;
-
-		[Sync]
-		int panicStartedTick;
-
 		bool isPaused = false;
 
-		bool isActive = false;
-
-		bool IsProne => remainingDuration == -1 || (!IsTraitDisabled && remainingDuration > 0);
-
-		bool IsPanicking => panicStartedTick > 0;
-
-		bool IRenderInfantrySequenceModifier.IsModifyingSequence => (!isPaused && (IsProne || isActive)) || IsPanicking;
-		string IRenderInfantrySequenceModifier.SequencePrefix => IsPanicking ? "panic-" : isActive ? info.ActiveSequencePrefix : IsProne ? info.ProneSequencePrefix : "";
+		bool IRenderInfantrySequenceModifier.IsModifyingSequence => !isPaused && (IsProne || IsActive || IsPanicking);
+		string IRenderInfantrySequenceModifier.SequencePrefix =>
+			IsPanicking ? info.PanicSequencePrefix :
+			IsActive ? info.ActiveSequencePrefix :
+			IsProne ? info.ProneSequencePrefix : "";
 
 		public InfantryStates(ActorInitializer init, InfantryStatesInfo info)
 			: base(init, info)
 		{
 			self = init.Self;
 			this.info = info;
-			if (info.Duration < 0 && info.DamageTriggers.IsEmpty)
-				remainingDuration = info.Duration;
 
 			mobile = init.Self.Trait<Mobile>();
 
@@ -170,83 +160,11 @@ namespace OpenRA.Mods.Common.Traits
 				avoidTerrainFilter = c => info.AvoidTerrainTypes.Contains(init.Self.World.Map.GetTerrainInfo(c).Type);
 		}
 
-		void INotifyBecomingIdle.OnBecomingIdle(OpenRA.Actor self)
-		{
-			if (IsTraitPaused || IsTraitDisabled) // deployed
-				return;
-
-			remainingDuration = -1;
-		}
-
-		void INotifyMoving.MovementTypeChanged(OpenRA.Actor self, OpenRA.Mods.Common.Traits.MovementType type)
-		{
-			if (IsTraitPaused || IsTraitDisabled) // deployed
-				return;
-
-			if (remainingDuration > 0) // ongoing countdown from taking damage, stay prone
-				return;
-
-			if (type == MovementType.None || type == MovementType.Turn) // not an actual movement
-				return;
-
-			if (!IsProne)
-				localOffset = info.ProneOffset;
-
-			remainingDuration = 0; // Soldier should get up and run
-		}
-
-		void INotifyDamage.Damaged(Actor self, AttackInfo e)
-		{
-			if (e.Damage.DamageTypes.Overlaps(info.PanicTriggerDamageTypes))
-			{
-				Panic();
-			}
-
-			if (IsTraitPaused || IsTraitDisabled) // deployed
-				return;
-
-			if (remainingDuration == -1) // is already permanently prone
-				return;
-
-			/* // Uncommented so that all damage makes soldiers take cover because why not?
-			if (e.Damage.Value <= 0 || !e.Damage.DamageTypes.Overlaps(info.DamageTriggers))
-				return; */
-
-			if (!IsProne)
-				localOffset = info.ProneOffset;
-
-			remainingDuration = info.Duration; // taking cover temporarily
-		}
-
-		void INotifyAttack.PreparingAttack(OpenRA.Actor self, in OpenRA.Traits.Target target, OpenRA.Mods.Common.Traits.Armament a, OpenRA.Mods.Common.Traits.Barrel barrel)
-		{
-			// TODO: MustStandUpToAttack
-		}
-
-		void INotifyAttack.Attacking(OpenRA.Actor self, in OpenRA.Traits.Target target, OpenRA.Mods.Common.Traits.Armament a, OpenRA.Mods.Common.Traits.Barrel barrel)
-		{
-			if (!IsProne)
-				localOffset = info.ProneOffset;
-
-			// TODO: Make (some) soldiers able to fire on the move, but for now this works
-			remainingDuration = -1; // Go prone
-		}
+		public override bool HasAchievedDesiredFacing => true; // Used for what?
 
 		protected override void Tick(Actor self)
 		{
 			base.Tick(self);
-
-			if (!IsTraitPaused && remainingDuration > 0)
-				remainingDuration--;
-
-			if (remainingDuration == 0)
-				localOffset = WVec.Zero;
-
-			if (IsPanicking && self.World.WorldTick >= panicStartedTick + info.PanicLength)
-			{
-				self.CancelActivity();
-				panicStartedTick = 0;
-			}
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -258,33 +176,20 @@ namespace OpenRA.Mods.Common.Traits
 			var cell = mobile.GetAdjacentCell(self.Location, avoidTerrainFilter);
 			if (cell != null)
 				self.QueueActivity(false, mobile.MoveTo(cell.Value, 0));
-
-			// CVec delta = self.Location - e.Attacker.Location;
-
-			// Game.Debug("Length {0}", delta.Length);
-
-			// if (delta.Length < 1)
-			// {
-			// 	var cell = mobile.GetAdjacentCell(self.Location, avoidTerrainFilter);
-			// 	if (cell != null)
-			// 		self.QueueActivity(false, mobile.MoveTo(cell.Value, 0, null, false, Color.OrangeRed));
-			// } else {
-			// 	// while (delta.Length > 6) { delta /= 2; }
-			// 	var cell = mobile.GetAdjacentCell(self.Location - delta, avoidTerrainFilter);
-			// 	if (cell != null)
-			// 		self.QueueActivity(false, mobile.MoveTo(cell.Value, 0, null, false, Color.OrangeRed));
-			// }
 		}
 
-		public void Panic()
+		int ISpeedModifier.GetSpeedModifier()
 		{
-			if (!IsPanicking)
-				self.CancelActivity();
+			if (IsPanicking)
+			{
+				return info.PanicSpeedModifier;
+			}
 
-			panicStartedTick = self.World.WorldTick;
+			if (IsProne)
+				return info.ProneSpeedModifier;
+
+			return 100;
 		}
-
-		public override bool HasAchievedDesiredFacing => true;
 
 		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
 		{
@@ -294,62 +199,64 @@ namespace OpenRA.Mods.Common.Traits
 			if (damage == null || damage.DamageTypes.IsEmpty)
 				return 100;
 
-			var modifierPercentages = info.DamageModifiers.Where(x => damage.DamageTypes.Contains(x.Key)).Select(x => x.Value);
+			var modifierPercentages = info.ProneDamageModifiers.Where(x => damage.DamageTypes.Contains(x.Key)).Select(x => x.Value);
 			return Util.ApplyPercentageModifiers(100, modifierPercentages);
 		}
 
-		int IInaccuracyModifier.GetInaccuracyModifier()
+		protected void ProneTraitEnabled(Actor self)
 		{
-			if (!IsProne)
-				return 100;
+			IsProne = true;
 
-			var percentage = remainingDuration == -1 ? 100 : 10;
+			if (proneConditionToken == Actor.InvalidConditionToken)
+				proneConditionToken = self.GrantCondition(info.ProneGrantsCondition);
 
-			return percentage;
+			localOffset = info.ProneOffset;
 		}
 
-		// TODO: Change depending on unit experience, rookie soldiers gets almost completely pinned down when under fire?
-		int ISpeedModifier.GetSpeedModifier()
+		protected void ProneTraitDisabled(Actor self)
 		{
-			return IsPanicking ? info.PanicSpeedModifier : IsProne ?
-				remainingDuration == -1 ? info.SpeedModifierWhenDeployed : info.SpeedModifier
-				: 100;
+			IsProne = false;
+
+			if (proneConditionToken != Actor.InvalidConditionToken)
+				proneConditionToken = self.RevokeCondition(proneConditionToken);
+
+			localOffset = WVec.Zero;
 		}
 
-		// Trait disables when unit is deployed
-		protected void ActiveTraitDisabled(Actor _)
+		protected void PanicTraitEnabled(Actor _)
 		{
-			isActive = false;
+			self.CancelActivity();
+
+			IsPanicking = true;
+
+			if (panicConditionToken == Actor.InvalidConditionToken)
+				panicConditionToken = self.GrantCondition(info.PanicGrantsCondition);
 		}
 
-		// When undeployed, the initial stance
+		protected void PanicTraitDisabled(Actor _)
+		{
+			IsPanicking = false;
+
+			if (panicConditionToken != Actor.InvalidConditionToken)
+				panicConditionToken = self.RevokeCondition(panicConditionToken);
+		}
+
 		protected void ActiveTraitEnabled(Actor _)
 		{
-			isActive = true;
+			IsActive = true;
 		}
 
-		// Trait disables when unit is deployed
-		protected void ProneTraitDisabled(Actor _)
+		protected void ActiveTraitDisabled(Actor _)
 		{
-			remainingDuration = -1; // Take cover permanently
+			IsActive = false;
 		}
 
-		// When undeployed, the initial stance
-		protected void ProneTraitEnabled(Actor _)
-		{
-			if (info.Duration < 0 && info.DamageTriggers.IsEmpty)
-			{
-				remainingDuration = info.Duration;
-				localOffset = info.ProneOffset;
-			}
-		}
-
-		protected void ProneTraitResumed(Actor _)
+		protected override void TraitResumed(Actor _)
 		{
 			isPaused = false;
 		}
 
-		protected void ProneTraitPaused(Actor _)
+		protected override void TraitPaused(Actor _)
 		{
 			isPaused = true;
 		}

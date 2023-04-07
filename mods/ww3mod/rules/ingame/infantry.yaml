@@ -235,18 +235,18 @@
 	GrantConditionOnDeploy:
 		DeployedCondition: deployed
 	InfantryStates:
-		ProneCondition: !deployed && !critical-damage
-		DamageTriggers: TriggerProne
-		SpeedModifier: 70
-		SpeedModifierWhenDeployed: 40
-		DamageModifiers:
+		ProneCondition: deployed || pindown || !moving || critical-damage
+		ProneGrantsCondition: prone
+		ProneSpeedModifier: 60
+		ProneDamageModifiers:
 			Prone10Percent: 10
 			Prone20Percent: 20
 			Prone30Percent: 30
 			Prone50Percent: 50
 			Prone80Percent: 80
-		Duration: 50 # TODO: Add Multiplier and set for different ranks, tl boost
-		PanicTriggerDamageTypes: FireDeath
+		PanicCondition: onfire && !critical-damage
+		PanicGrantsCondition: panicking
+		PanicSpeedModifier: 140
 ^AmphibiousSoldier:
 	Inherits@Type: ^CamoSoldier
 	GrantConditionOnTerrain@InWater:
@@ -290,34 +290,34 @@
 		TotalCap: 100
 ^PindownSpeedMultiplier:
 	SpeedMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+		RequiresCondition: !panicking && pindown > 0 && pindown <= 10
 		Modifier: 90
 	SpeedMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+		RequiresCondition: !panicking && pindown > 10 && pindown <= 20
 		Modifier: 80
 	SpeedMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+		RequiresCondition: !panicking && pindown > 20 && pindown <= 30
 		Modifier: 70
 	SpeedMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+		RequiresCondition: !panicking && pindown > 30 && pindown <= 40
 		Modifier: 60
 	SpeedMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+		RequiresCondition: !panicking && pindown > 40 && pindown <= 50
 		Modifier: 50
 	SpeedMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+		RequiresCondition: !panicking && pindown > 50 && pindown <= 60
 		Modifier: 40
 	SpeedMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+		RequiresCondition: !panicking && pindown > 60 && pindown <= 70
 		Modifier: 30
 	SpeedMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+		RequiresCondition: !panicking && pindown > 70 && pindown <= 80
 		Modifier: 20
 	SpeedMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+		RequiresCondition: !panicking && pindown > 80 && pindown <= 90
 		Modifier: 10
 	SpeedMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+		RequiresCondition: !panicking && pindown > 90 && pindown <= 100
 		Modifier: 0
 ^PinDownRevealsShroudMultiplier:
 	RevealsShroudMultiplier@PinDown_1:
@@ -927,115 +927,89 @@
 		RequiresCondition: onfire == 1
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 1
+		Delay: 8
 	ChangesHealth@BurnDamage_2:
 		RequiresCondition: onfire == 2
 		DamageTypes: FireDeath
-		PercentageStep: -2
-		Delay: 1
+		PercentageStep: -1
+		Delay: 7
 	ChangesHealth@BurnDamage_3:
 		RequiresCondition: onfire == 3
 		DamageTypes: FireDeath
-		PercentageStep: -3
-		Delay: 1
+		PercentageStep: -1
+		Delay: 6
 	ChangesHealth@BurnDamage_4:
 		RequiresCondition: onfire == 4
 		DamageTypes: FireDeath
-		PercentageStep: -4
-		Delay: 1
+		PercentageStep: -1
+		Delay: 5
 	ChangesHealth@BurnDamage_5:
 		RequiresCondition: onfire == 5
 		DamageTypes: FireDeath
-		PercentageStep: -5
-		Delay: 1
+		PercentageStep: -1
+		Delay: 4
 	ChangesHealth@BurnDamage_6:
 		RequiresCondition: onfire == 6
 		DamageTypes: FireDeath
-		PercentageStep: -6
-		Delay: 1
+		PercentageStep: -1
+		Delay: 3
 	ChangesHealth@BurnDamage_7:
 		RequiresCondition: onfire == 7
 		DamageTypes: FireDeath
-		PercentageStep: -7
-		Delay: 1
+		PercentageStep: -1
+		Delay: 2
 	ChangesHealth@BurnDamage_8:
 		RequiresCondition: onfire == 8
 		DamageTypes: FireDeath
-		PercentageStep: -8
+		PercentageStep: -1
 		Delay: 1
 	ChangesHealth@BurnDamage_9:
 		RequiresCondition: onfire == 9
 		DamageTypes: FireDeath
-		PercentageStep: -9
+		PercentageStep: -2
 		Delay: 1
 	ChangesHealth@BurnDamage_10:
 		RequiresCondition: onfire == 10
 		DamageTypes: FireDeath
-		PercentageStep: -10
+		PercentageStep: -3
 		Delay: 1
 
 	# Causes 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 for infantry-burn-1
 
-	# WithOverlay@Burn_1:
-	# 	RequiresCondition: onfire == 1 || onfire == 2
-	# 	Image: infantry-burn-1
-	# 	Palette: effect
-	# WithOverlay@Burn_2:
-	# 	RequiresCondition: onfire == 3 || onfire == 4
-	# 	Image: infantry-burn-2
-	# 	Palette: effect
-	# WithOverlay@Burn_3:
-	# 	RequiresCondition: onfire == 5 || onfire == 6
-	# 	Image: infantry-burn-3
-	# 	Palette: effect
-	# WithOverlay@Burn_4:
-	# 	RequiresCondition: onfire == 7 || onfire == 8
-	# 	Image: infantry-burn-4
-	# 	Palette: effect
-	# WithOverlay@Burn_5:
-	# 	RequiresCondition: onfire == 9 || onfire == 10
-	# 	Image: infantry-burn-5
-	# 	Palette: effect
-
-	WithDamageOverlay@Burn_1:
-		# RequiresCondition: onfire == 1 || onfire == 2 # "Does not exist"
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
+	WithIdleOverlay@Burn_1:
+		RequiresCondition: onfire == 1 || onfire == 2
 		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
 		Palette: effect
-	WithDamageOverlay@Burn_2:
-		# RequiresCondition: onfire == 3 || onfire == 4 # "Does not exist"
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
+	WithIdleOverlay@Burn_2:
+		RequiresCondition: onfire == 3 || onfire == 4
 		Image: infantry-burn-2
+		StartSequence: start
+		Sequence: loop
 		Palette: effect
-	WithDamageOverlay@Burn_3:
-		# RequiresCondition: onfire == 5 || onfire == 6 # "Does not exist"
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
+	WithIdleOverlay@Burn_3:
+		RequiresCondition: onfire == 5 || onfire == 6
 		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
 		Palette: effect
-	WithDamageOverlay@Burn_4:
-		# RequiresCondition: onfire == 7 || onfire == 8 # "Does not exist"
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
+	WithIdleOverlay@Burn_4:
+		RequiresCondition: onfire == 7 || onfire == 8
 		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
 		Palette: effect
-	WithDamageOverlay@Burn_5:
-		# RequiresCondition: onfire == 9 || onfire == 10 # "Does not exist"
-		DamageTypes: FireDeath
-		MinimumDamageState: Undamaged
-		MaximumDamageState: Dead
+	WithIdleOverlay@Burn_5:
+		RequiresCondition: onfire == 9 || onfire == 10
 		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
 		Palette: effect
 
 ^EffectsWhenDamagedInfantry:
 	SpeedMultiplier@HEAVYDAMAGE:
-		Modifier: 50
+		Modifier: 75
 		RequiresCondition: heavy-damage
 	SpeedMultiplier@CRITICALDAMAGE:
 		Modifier: 10

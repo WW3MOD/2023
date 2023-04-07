@@ -1,5 +1,16 @@
 2023
 
+- InfantryStates
+    - Force move is "rush", increases speed by ~30% but reduces visual/detection
+        - Also no auto fire, change normal move to be attack move.
+        - Assault move can be when firing and running, with very limited accuracy.
+
+- More on move types:
+    - Normal move without modifier should be attack move, stop and fire if possible.
+    - Hold alt for force move, faster speed but reduced detection. No auto fire at all?
+        Or return fire perhaps? Move when not being supressed, otherwise return fire.
+
+
 - SF: idle sequence
 - Trenches
 - Soldiers enter civilian buildings

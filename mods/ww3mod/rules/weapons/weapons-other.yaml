@@ -1,80 +1,67 @@
 Flamespray:
+	Inherits@SmallPinDownEffects: ^SmallPinDownEffects
 	ValidTargets: Ground, Water, Trees
 	Range: 8c0
 	Burst: 6
 	BurstDelays: 1
 	BurstWait: 30
+	FirstBurstTargetOffset: 0,-300,0
+	FollowingBurstTargetOffset: 0,100,0
 	Report: flamer2.aud
 	Projectile: Bullet
 		Speed: 250
-		Inaccuracy: 512
-		InaccuracyPerProjectile: 1024,1024,0
+		Inaccuracy: 768
 		LaunchAngle: 40
 		Image: fb5
 		TrailImage: smokey
-	Warhead@PinDown: SpreadDamage
-		Spread: 2c0
-		ValidTargets: Infantry
-		DamageTypes: TriggerProne
-	Warhead@Damage_1: SpreadDamage
-		Delay: 2
-		Damage: 75
-		Spread: 256
-		Falloff: 100, 50, 5
+	Warhead@Damage: SpreadDamage
+		Damage: 10
+		Spread: 128
+		Falloff: 100,50,20,20
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Wall, Bridge
-		Versus:
-			Wood: 300
-			Light: 30
-			Heavy: 15
-			Concrete: 200
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
-	Warhead@Damage_2: SpreadDamage
-		Delay: 8
-		Damage: 75
-		Spread: 256
-		Falloff: 100, 50, 5
-		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Wall, Bridge
-		Versus:
-			Wood: 300
-			Light: 30
-			Heavy: 15
-			Concrete: 200
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
-	Warhead@Damage_3: SpreadDamage
-		Delay: 15
-		Damage: 75
-		Spread: 256
-		Falloff: 100, 50, 20
-		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Wall, Bridge
-		Versus:
-			Wood: 300
-			Light: 30
-			Heavy: 15
-			Concrete: 200
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Scorch
-		InvalidTargets: Structure, Wall
-	Warhead@Effect: CreateEffect
-		Explosions: invisblank
-		ImpactSounds: firebl3.aud
-		ImpactActors: false
-	# Warhead@Flames: FireCluster
-	# 	Weapon: BurnFx
-	# 	RandomClusterCount: 1
-	# 	Dimensions: 1,1
-	# 	Footprint: x
-	# 	ValidTargets: Ground
-	# 	InvalidTargets: Water
-	Warhead@Fire: GrantExternalCondition
-		Range: 768
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1024
 		Duration: 50
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 768
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
+		Range: 512
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 256
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 128
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Effect: CreateEffect
+		Explosions: napalm_small
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@Flames: FireCluster
+		Weapon: BurnFx
+		Dimensions: 1,1
+		Footprint: x
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
 	Warhead@StructureFire: GrantExternalCondition
 		Range: 768
 		Duration: 100
@@ -83,6 +70,7 @@ Flamespray:
 		ValidRelationships: Ally, Enemy, Neutral
 
 Flamespray.heavy:
+	Inherits@MediumPinDownEffects: ^MediumPinDownEffects
 	ValidTargets: Ground, Water, Trees
 	Range: 12c0
 	Burst: 10
@@ -98,21 +86,44 @@ Flamespray.heavy:
 		LaunchAngle: 40
 		Image: fb6
 		TrailImage: smokey
-	Warhead@Fire: GrantExternalCondition
-		Range: 384
-		Duration: 300
+	Warhead@Damage: SpreadDamage
+		Damage: 10
+		Spread: 256
+		Falloff: 100,50,25,12,6
+		ValidTargets: Ground, Water, Trees
+	Warhead@Fire_0: GrantExternalCondition
+		Range: 1536
+		Duration: 50
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
-	Warhead@Fire2: GrantExternalCondition
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1280
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 1024
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
 		Range: 768
-		Duration: 40
+		Duration: 125
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
-	Warhead@Fire3: GrantExternalCondition
-		Range: 1c128
-		Duration: 5
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 512
+		Duration: 150
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 256
+		Duration: 50
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
@@ -120,8 +131,26 @@ Flamespray.heavy:
 		Explosions: napalm_medium
 		ImpactSounds: firebl3.aud
 		ImpactActors: false
+	Warhead@FireCluster_1: FireCluster
+		Weapon: BurnFx
+		RandomClusterCount: 3
+		Dimensions: 1,1
+		Footprint: x
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@FireCluster_2: FireCluster
+		Weapon: BurnFx
+		RandomClusterCount: 1
+		Dimensions: 3,3
+		Footprint: _x_,xxx,_x_
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
 
 FireballLauncher:
+	Inherits@LargePinDownEffects: ^LargePinDownEffects
 	ValidTargets: Ground, Water, Trees
 	MinRange: 12c0
 	Range: 16c0
@@ -133,45 +162,64 @@ FireballLauncher:
 		LaunchAngle: 40
 		Image: FB1
 		TrailImage: fb2
-		# TrailImage: smokey
-	# Warhead@Flames: FireCluster
-	# 	Weapon: BurnFx
-	# 	RandomClusterCount: 3
-	# 	Dimensions: 3,3
-	# 	Footprint: _x_ xxx _x_
-	# 	ValidTargets: Ground
-	# 	InvalidTargets: Water
 	Warhead@Damage: SpreadDamage
-		Damage: 1
-		Spread: 128
-		Falloff: 1
+		Damage: 50
+		Spread: 256
+		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Ground, Water, Trees
-		DamageTypes: TriggerProne
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Scorch
-		InvalidTargets: Structure, Wall
+	Warhead@Fire_0: GrantExternalCondition
+		Range: 1536
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1280
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 1024
+		Repeat: 2
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
+		Range: 768
+		Repeat: 3
+		Duration: 125
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 512
+		Repeat: 4
+		Duration: 150
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 256
+		Repeat: 5
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_large
 		ImpactSounds: firebl3.aud
 		ImpactActors: false
-	Warhead@Fire: GrantExternalCondition
-		Range: 384
-		Duration: 300
-		Condition: onfire
-		ValidTargets: Infantry, Vehicles
-		ValidRelationships: Ally, Enemy, Neutral
-	Warhead@Fire2: GrantExternalCondition
-		Range: 768
-		Duration: 40
-		Condition: onfire
-		ValidTargets: Infantry, Vehicles
-		ValidRelationships: Ally, Enemy, Neutral
-	Warhead@Fire3: GrantExternalCondition
-		Range: 1c512
-		Duration: 5
-		Condition: onfire
-		ValidTargets: Infantry, Vehicles
-		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@FireCluster: FireCluster
+		Weapon: BurnFx
+		Dimensions: 3,3
+		Footprint: _x_ xxx _x_
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
 	Warhead@StructureFire: GrantExternalCondition
 		Range: 1c0
 		Duration: 100
