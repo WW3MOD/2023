@@ -1,8 +1,21 @@
 2023
 
-- Sounds for all units: Artillery,
+- SF: idle sequence
 
-- Aircraft husks
+- MCV used as a construction/transport vehicle.
+    - Goes to existing Conyard to load up.
+    - Each unit has seperate build tab, using the Defense icon, placed first.
+    - Other units can also have options that uses the same layout.
+    - The unit is selected, the defense tab is automatically selected and the
+        desired building can be "built" instantly. Choosing any other will
+        replace the current one.
+    - When going to the conyard, manually, it is loaded up and then it can
+        go to the desired loacation and deploy like mainelayer. If multiple
+        builds have been queued it will go back and re-load. When docked,
+        it starts the loading process and builds the selected structure.
+    - When done it becomes loaded and goes to the construction location.
+
+- Sounds for all units: Artillery
 
 Bugs
 
