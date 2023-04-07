@@ -259,6 +259,11 @@ namespace OpenRA
 			return RelationshipWith(p) == PlayerRelationship.Ally;
 		}
 
+		public bool IsNeutralWith(Player p)
+		{
+			return RelationshipWith(p) == PlayerRelationship.Neutral;
+		}
+
 		public Color PlayerRelationshipColor(Actor a)
 		{
 			var renderPlayer = a.World.RenderPlayer;

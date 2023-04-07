@@ -23,6 +23,9 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor can transport Passenger actors.")]
 	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>
 	{
+		[Desc("Should this actor turn nutral when not loaded? For civilian buildings.")]
+		public readonly bool Neutral = false;
+
 		[Desc("The maximum sum of Passenger.Weight that this actor can support.")]
 		public readonly int MaxWeight = 0;
 
@@ -339,6 +342,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			totalWeight -= GetWeight(passenger);
 
+			/* if (totalWeight == 0 && Info.Neutral)
+			{
+				var players = self.World.Players;
+				var player = players.First(pl => pl.PlayerName == "Neutral");
+				self.ChangeOwnerSync(player);
+			} */
+
 			SetPassengerFacing(passenger);
 
 			foreach (var npe in self.TraitsImplementing<INotifyPassengerExited>())
@@ -369,38 +379,41 @@ namespace OpenRA.Mods.Common.Traits
 				passengerFacing.Facing = facing.Value.Facing + Info.PassengerFacing;
 		}
 
-		public void Load(Actor self, Actor a)
+		public void Load(Actor cargoActor, Actor passengerActor)
 		{
-			cargo.Add(a);
-			var w = GetWeight(a);
+			if (cargoActor.Owner != passengerActor.Owner)
+				cargoActor.ChangeOwnerSync(passengerActor.Owner);
+
+			cargo.Add(passengerActor);
+			var w = GetWeight(passengerActor);
 			totalWeight += w;
-			if (reserves.Contains(a))
+			if (reserves.Contains(passengerActor))
 			{
 				reservedWeight -= w;
-				reserves.Remove(a);
-				ReleaseLock(self);
+				reserves.Remove(passengerActor);
+				ReleaseLock(cargoActor);
 
 				if (loadingToken != Actor.InvalidConditionToken)
-					loadingToken = self.RevokeCondition(loadingToken);
+					loadingToken = cargoActor.RevokeCondition(loadingToken);
 			}
 
 			// Don't initialise (effectively twice) if this runs before the FrameEndTask from Created
 			if (initialised)
 			{
-				a.Trait<Passenger>().Transport = self;
+				passengerActor.Trait<Passenger>().Transport = cargoActor;
 
-				foreach (var nec in a.TraitsImplementing<INotifyEnteredCargo>())
-					nec.OnEnteredCargo(a, self);
+				foreach (var nec in passengerActor.TraitsImplementing<INotifyEnteredCargo>())
+					nec.OnEnteredCargo(passengerActor, cargoActor);
 
-				foreach (var npe in self.TraitsImplementing<INotifyPassengerEntered>())
-					npe.OnPassengerEntered(self, a);
+				foreach (var npe in cargoActor.TraitsImplementing<INotifyPassengerEntered>())
+					npe.OnPassengerEntered(cargoActor, passengerActor);
 			}
 
-			if (Info.PassengerConditions.TryGetValue(a.Info.Name, out var passengerCondition))
-				passengerTokens.GetOrAdd(a.Info.Name).Push(self.GrantCondition(passengerCondition));
+			if (Info.PassengerConditions.TryGetValue(passengerActor.Info.Name, out var passengerCondition))
+				passengerTokens.GetOrAdd(passengerActor.Info.Name).Push(cargoActor.GrantCondition(passengerCondition));
 
 			if (!string.IsNullOrEmpty(Info.LoadedCondition))
-				loadedTokens.Push(self.GrantCondition(Info.LoadedCondition));
+				loadedTokens.Push(cargoActor.GrantCondition(Info.LoadedCondition));
 		}
 
 		void INotifyDamage.Damaged(OpenRA.Actor self, OpenRA.Traits.AttackInfo e)

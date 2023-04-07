@@ -1,7 +1,8 @@
 2023
 
 - SF: idle sequence
-
+- Trenches
+- Soldiers enter civilian buildings
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.
     - Each unit has seperate build tab, using the Defense icon, placed first.

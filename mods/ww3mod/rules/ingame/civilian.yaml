@@ -37,6 +37,7 @@
 		RevealGeneratedShroud: True
 		RequiresCondition: loaded
 	Cargo:
+		Neutral: true
 		Types: Infantry
 		MaxWeight: 10
 		AfterLoadDelay: 0

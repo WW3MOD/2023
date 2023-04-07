@@ -117,6 +117,13 @@ namespace OpenRA.Mods.Common.Activities
 					if (actor.Disposed)
 						return;
 
+					if (cargo.PassengerCount == 0 && cargo.Info.Neutral)
+					{
+						var players = self.World.Players;
+						var player = players.First(pl => pl.PlayerName == "Neutral");
+						self.ChangeOwnerSync(player);
+					}
+
 					var move = actor.Trait<IMove>();
 					var pos = actor.Trait<IPositionable>();
 
