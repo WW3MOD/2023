@@ -484,7 +484,6 @@ giatsint:
 	IndirectFire:
 	Armament@1:
 		Weapon: 152mmGiatsintGun
-		# FireDelay: 100
 		Recoil: 85
 		RecoilRecovery: 70
 		MuzzleSequence: muzzle
