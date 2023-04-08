@@ -107,7 +107,7 @@ namespace OpenRA
 		public readonly byte MaximumTerrainHeight = 0;
 		public readonly SubCell DefaultSubCell = (SubCell)byte.MaxValue;
 
-		public readonly int MaximumTileSearchRange = 55;
+		public readonly int MaximumTileSearchRange = 56;
 
 		public readonly bool EnableDepthBuffer = false;
 
