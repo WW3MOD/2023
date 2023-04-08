@@ -163,8 +163,6 @@ SHOK:
 		Cost: 500
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Armor:
-		Type: Kevlar
 	Mobile:
 		Voice: Move
 	Armament:

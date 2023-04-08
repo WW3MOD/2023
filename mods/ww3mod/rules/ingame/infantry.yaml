@@ -146,6 +146,8 @@
 ^Soldier:
 	Inherits: ^Infantry
 	Inherits@AmmoDecoration: ^AmmoDecoration
+	Armor:
+		Type: Kevlar
 	TreeTraversable:
 	UpdatesPlayerStatistics:
 	MustBeDestroyed:
@@ -1055,8 +1057,6 @@
 		Description: Conscript.
 	Valued:
 		Cost: 50
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: 5.56mmAR
@@ -1126,8 +1126,6 @@ E1R1:
 		Description: Rifleman\n Semi automatic rifle\n Single-shot unguided AT weapon
 	Valued:
 		Cost: 100
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: 5.56mmDMR
@@ -1232,8 +1230,6 @@ E3R1:
 		Description: Pins down large groups of enemy soldiers and deals high damage.
 	Valued:
 		Cost: 100
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: 5.56mmMG
@@ -1295,8 +1291,6 @@ AR:
 		Description: Grenadier\n - Grenade launcher
 	Valued:
 		Cost: 100
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: GrenadeLauncher.5mag
@@ -1366,8 +1360,6 @@ E2R1:
 		Cost: 200
 	Mobile:
 		Speed: 40
-	Armor:
-		Type: Kevlar
 	ProximityExternalCondition@TLBoost:
 		Condition: morale-boost
 		ValidRelationships: Ally
@@ -1600,8 +1592,6 @@ SN:
 		AddToArmyValue: true
 	SpeedMultiplier:
 		Modifier: 90
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: Javelin
@@ -1667,8 +1657,6 @@ AT:
 		AddToArmyValue: true
 	SpeedMultiplier:
 		Modifier: 90
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: MANPAD
@@ -1842,8 +1830,6 @@ E6:
 		PauseOnCondition: dont-move
 	SpeedMultiplier:
 		Modifier: 90
-	Armor:
-		Type: Kevlar
 	Armament@1:
 		Name: primary
 		Weapon: Flamespray
@@ -2008,8 +1994,6 @@ SF:
 		Cost: 100
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Armor:
-		Type: Kevlar
 	AutoTarget:
 		InitialStance: AttackAnything
 		InitialStanceAI: AttackAnything
