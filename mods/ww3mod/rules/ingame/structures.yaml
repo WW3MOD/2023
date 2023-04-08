@@ -1009,13 +1009,13 @@ DOME:
 	InfiltrateForExploration:
 		Types: SpyInfiltrate, ThiefInfiltrate
 	Armor:
-		Type: Concrete
+		Type: Medium
 	ProvidesPrerequisite@buildingname:
 	RevealsRadar:
-		Range: 50c0
+		Range: 55c0
 		RequiresCondition: !heavy-damage && !disabled && !build-incomplete
 	WithRangeCircle@Radar:
-		Range: 50c0
+		Range: 55c0
 		Color: 000000
 		Width: 5
 		Alpha: 50

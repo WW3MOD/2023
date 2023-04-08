@@ -1,19 +1,6 @@
 2023
 
-- InfantryStates
-    - Force move is "rush", increases speed by ~30% but reduces visual/detection
-        - Also no auto fire, change normal move to be attack move.
-        - Assault move can be when firing and running, with very limited accuracy.
-
-- More on move types:
-    - Normal move without modifier should be attack move, stop and fire if possible.
-    - Hold alt for force move, faster speed but reduced detection. No auto fire at all?
-        Or return fire perhaps? Move when not being supressed, otherwise return fire.
-
-
-- SF: idle sequence
-- Trenches
-- Soldiers enter civilian buildings
+- Supply instead of power
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.
     - Each unit has seperate build tab, using the Defense icon, placed first.
@@ -26,6 +13,21 @@
         builds have been queued it will go back and re-load. When docked,
         it starts the loading process and builds the selected structure.
     - When done it becomes loaded and goes to the construction location.
+
+- InfantryStates
+    - Force move is "rush", increases speed by ~30% but reduces visual/detection
+        - Also no auto fire, change normal move to be attack move.
+        - Assault move can be when firing and running, with very limited accuracy.
+
+- More on move types:
+    - Normal move without modifier should be attack move, stop and fire if possible.
+    - Hold alt for force move, faster speed but reduced detection. No auto fire at all?
+        Or return fire perhaps? Move when not being supressed, otherwise return fire.
+
+- Trenches
+
+- Soldiers enter civilian buildings
+    -
 
 - Sounds for all units: Artillery
 
@@ -87,8 +89,6 @@ Vehicles
 
     - Humvee can drive in forests now?
     - Mines should not completely destroy heavy vehicles
-    - TOW missile firing puts actor into !mobile and if a stop order is issued or if the actor is destroyed the TOW loses its guidance
-        - Aiming delay, maybe use QueueChild(new Wait(100, false));
     - Kamikaze drones
     - Crystallized Doom tanks
 

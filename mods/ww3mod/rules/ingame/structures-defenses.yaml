@@ -201,7 +201,6 @@ PBOX:
 
 HBOX:
 	Inherits@Type: ^Defense
-
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
 	-WithColoredOverlay@EMP:
