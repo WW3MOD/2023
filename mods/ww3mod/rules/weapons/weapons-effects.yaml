@@ -268,8 +268,8 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamage: 200
-		Spread: 256
+		RandomDamage: 100
+		Spread: 512
 		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge

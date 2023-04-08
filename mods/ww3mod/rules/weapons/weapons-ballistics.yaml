@@ -544,6 +544,27 @@ AACannon:
 			Heavy: 10
 			Concrete: 10
 
+TimerWolfGun:
+	Inherits: ^30mm
+	Inherits@PiffEffects: ^PiffEffects
+	Range: 20c0
+	MinRange: 1c0
+	Burst: 12
+	BurstDelays: 1
+	BurstWait: 3
+	Report: a10gun.wav
+	Projectile: Bullet
+		Inaccuracy: 1c512
+		InaccuracyPerProjectile: 32,32,0
+		Blockable: false
+		Image: tracer_large
+	Warhead@Damage: SpreadDamage
+		Spread: 64
+		Falloff: 100,50,25,12,6,3,1
+		Damage: 500
+		Versus:
+			Heavy: 80
+
 FighterGun:
 	ValidTargets: Air
 	Range: 10c0
@@ -649,31 +670,8 @@ FighterGun:
 	Inherits: ^TankRound
 	Warhead@Damage: SpreadDamage
 		InvalidTargets: Air
-		# Spread: 64
-		# Falloff: 100,50,25,12,6,3,1
 		Damage: 4000
 		DamageTypes: ExplosionDeath
-
-TimerWolfGun:
-	Inherits: ^30mm
-	Inherits@PiffEffects: ^PiffEffects
-	Range: 20c0
-	MinRange: 1c0
-	Burst: 12
-	BurstDelays: 1
-	BurstWait: 3
-	Report: a10gun.wav
-	Projectile: Bullet
-		Inaccuracy: 1c512
-		InaccuracyPerProjectile: 32,32,0
-		Blockable: false
-		Image: tracer_large
-	Warhead@Damage: SpreadDamage
-		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
-		Damage: 500
-		Versus:
-			Heavy: 80
 
 ^ArtilleryRound:
 	Inherits: ^LargeExplosionEffects
@@ -688,12 +686,14 @@ TimerWolfGun:
 		Speed: 500
 		LaunchAngle: 65
 		ContrailLength: 6
-		Inaccuracy: 1c256
+		Inaccuracy: 2c0
 	Warhead@Damage: SpreadDamage
 		InvalidTargets: Air
-		Spread: 96
+		Spread: 80
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 4000
+		Versus:
+			Kevlar: 10
 		DamageTypes: ExplosionDeath
 
 152mmGiatsintGun:

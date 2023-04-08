@@ -185,6 +185,8 @@ namespace OpenRA.Mods.Common.Projectiles
 			target = args.PassiveTarget;
 			if (info.Inaccuracy.Length > 0)
 			{
+				/* if (args.SourceActor) */
+
 				var maxInaccuracyOffset = Util.GetProjectileInaccuracy(info.Inaccuracy.Length, info.InaccuracyType, args);
 				if (info.MinInaccuracy != WDist.Zero)
 				{
@@ -257,7 +259,13 @@ namespace OpenRA.Mods.Common.Projectiles
 			pos = WPos.LerpQuadratic(source, target, angle, ticks, length);
 
 			if (ShouldExplode(world))
+			{
 				Explode(world);
+
+				/* var zeroingIn = args.SourceActor.TraitOrDefault<ZeroingIn>();
+
+				if () */
+			}
 		}
 
 		bool ShouldExplode(World world)
