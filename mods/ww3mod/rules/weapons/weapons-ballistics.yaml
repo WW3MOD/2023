@@ -676,8 +676,8 @@ FighterGun:
 ^ArtilleryRound:
 	Inherits: ^LargeExplosionEffects
 	ValidTargets: Ground, Trees, Water
-	Range: 35c0
-	MinRange: 12c0
+	Range: 40c0
+	MinRange: 10c0
 	ReloadDelay: 180
 	TargetActorCenter: true
 	Report: tank5.aud
@@ -689,28 +689,22 @@ FighterGun:
 		Inaccuracy: 2c0
 	Warhead@Damage: SpreadDamage
 		InvalidTargets: Air
-		Spread: 80
+		Spread: 96
 		Falloff: 100,50,25,12,6,3,1
-		Damage: 4000
+		Damage: 5000
 		Versus:
-			Kevlar: 10
+			Kevlar: 30
 		DamageTypes: ExplosionDeath
 
 152mmGiatsintGun:
 	Inherits: ^ArtilleryRound
 	Projectile: Bullet
-		LaunchAngle: 88
-	Warhead@Damage: SpreadDamage
-		# Spread: 64
-		# Falloff: 100,50,25,12,6,3,1
-		Damage: 5000
-		DamageTypes: ExplosionDeath
-		# InvalidTargets: Air
+		LaunchAngle: 75
 155mmPaladinGun:
 	Inherits: ^ArtilleryRound
 	Burst: 3
-	BurstDelays: 100
-	BurstWait: 200
+	BurstDelays: 120
+	BurstWait: 240
 
 RocketPods:
 	Inherits: ^SmallAGMissileEffects

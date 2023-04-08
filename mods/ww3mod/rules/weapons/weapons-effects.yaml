@@ -266,10 +266,10 @@
 ^LargeExplosionEffects:
 	Inherits@LargePinDownEffects: ^LargePinDownEffects
 	Warhead@Shrapnel: SpreadDamage
-		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamage: 100
-		Spread: 512
+		ValidTargets: Infantry, Unarmored
+		RandomDamage: 200
+		Spread: 640
 		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
@@ -280,8 +280,8 @@
 		ImpactSounds: kaboom15.aud
 		ValidTargets: Ground, Ship, Trees
 	Warhead@EffectShrapnel: CreateEffect
+		Delay: 1
 		Explosions: shrapnel_large
-		# ImpactSounds: kaboom12.aud
 		ValidTargets: Ground, Ship, Trees
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
