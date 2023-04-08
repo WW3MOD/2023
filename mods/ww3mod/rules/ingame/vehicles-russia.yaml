@@ -26,7 +26,7 @@ t72:
 		Speed: 67
 		Locomotor: heavytracked
 		TurnSpeed: 15
-		CanMoveBackward: true
+		# CanMoveBackward: true
 		PauseOnCondition: empdisable
 	Turreted:
 		TurnSpeed: 15
