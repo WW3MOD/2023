@@ -156,14 +156,14 @@ AirToAirMissile:
 MANPAD:
 	Inherits: ^MediumAAMissileEffects
 	ValidTargets: Air
-	Range: 22c0
-	ReloadDelay: 250
+	Range: 23c0
+	ReloadDelay: 200
 	Report: missile1.aud
 	Projectile: Missile
 		Speed: 550
 		Inaccuracy: 400
 		CloseEnough: 400
-		RangeLimit: 26c0
+		RangeLimit: 24c0
 		HorizontalRateOfTurn: 35
 		Arm: 5
 		ExplodeWhenEmpty: true
@@ -223,7 +223,7 @@ Javelin:
 	ValidTargets: Vehicle, Defense, Water
 	Range: 20c0
 	MinRange: 5c0
-	ReloadDelay: 250
+	ReloadDelay: 200
 	Report: missile6.aud
 	Projectile: Missile
 		AirburstAltitude: 32
@@ -232,7 +232,7 @@ Javelin:
 		HorizontalRateOfTurn: 20
 		Inaccuracy: 512
 		Speed: 300
-		RangeLimit: 22c0
+		RangeLimit: 21c0
 		CruiseAltitude: 10c0
 		ContrailLength: 5
 		TrailImage: smokey
