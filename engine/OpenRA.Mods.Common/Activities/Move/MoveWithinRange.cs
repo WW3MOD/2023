@@ -66,9 +66,7 @@ namespace OpenRA.Mods.Common.Activities
 				&& Target.Type != TargetType.Invalid
 				&& (self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
 					|| !BlocksProjectiles.AnyBlockingActorsBetween(
-						self.World,
-						self.Owner,
-						self.CenterPosition,
+						self,
 						Target.CenterPosition,
 						new WDist(1),
 						out var _));

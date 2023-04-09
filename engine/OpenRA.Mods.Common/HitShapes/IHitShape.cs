@@ -17,6 +17,8 @@ namespace OpenRA.Mods.Common.HitShapes
 {
 	public interface IHitShape
 	{
+		WDist VerticalTopOffset { get; }
+
 		WDist OuterRadius { get; }
 
 		WDist DistanceFromEdge(in WVec v);

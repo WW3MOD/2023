@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 		WDist BlockingHeight { get; }
 		int Bypass { get; }
 
-		PlayerRelationship ValidRelationships { get; }
+		PlayerRelationship ExplodesOn { get; }
 	}
 
 	[RequireExplicitImplementation]

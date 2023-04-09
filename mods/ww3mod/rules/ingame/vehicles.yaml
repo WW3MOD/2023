@@ -11,6 +11,12 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
+	BlocksProjectiles:
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 420
+			TopLeft: -350, -500
+			BottomRight: 350, 500
 	ExternalCondition@UNITDOCKED:
 		Condition: unit.docked
 	Huntable:

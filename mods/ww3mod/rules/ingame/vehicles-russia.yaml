@@ -16,12 +16,17 @@ t72:
 		Description: Russian Main Battle Tank
 	Valued:
 		Cost: 1700
-	Armor:
-		Type: Heavy
-	Targetable:
-		TargetTypes: Ground, Vehicle, Heavy
 	Health:
 		HP: 4000
+	Armor:
+		Type: Heavy
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 420
+			TopLeft: -340, -695
+			BottomRight: 340, 695
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked

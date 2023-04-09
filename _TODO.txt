@@ -1,5 +1,14 @@
 2023
 
+- Hitshape
+    - Set rectangle for all vehicles
+    - BlocksProjectiles Height defaults to <Shape>.VerticalTopOffset() ?
+    - Damage is modified based on <Shape>.DistanceFromEdge()
+    - Direction matters
+        - Define Front, Side, Rear Damage modifiers to Armor
+        - Define IgnoresDirection for top attack weapons like Javelin, artillery etc
+
+
 - Supply instead of power
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.

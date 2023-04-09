@@ -8,7 +8,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	Inherits@NeutralOrOccupiedCapturable: ^NeutralOrOccupiedCapturable
-	# BlocksProjectiles:
+	BlocksProjectiles:
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Targetable:
@@ -282,6 +282,7 @@ FACT:
 	HitShape:
 		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
 		Type: Rectangle
+			VerticalTopOffset: 3072
 			TopLeft: -1536, -1536
 			BottomRight: 1536, 1536
 	Building:
@@ -399,7 +400,7 @@ FACT2:
 
 BARR:
 	Inherits: ^InfantryProduction
-	HitShape:
+	HitShape: # TODO
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 490,-470,0, 355,512,0, -355,-512,0, -630,512,0
 	Building:
@@ -561,6 +562,7 @@ FIX:
 	HitShape:
 		TargetableOffsets: 840,0,0, 598,-640,0, 598,640,0, -1060,0,0, -768,-640,0, -768,640,0
 		Type: Polygon
+			VerticalTopOffset: 512
 			Points: -1536,-300, -640,-811, 640,-811, 1536,-300, 1536,555, 640,1110, -640,1110, -1536,555
 	Building:
 		Footprint: =+= +++ =+=

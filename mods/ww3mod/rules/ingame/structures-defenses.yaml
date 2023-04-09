@@ -460,6 +460,7 @@ HGATE:
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
+			VerticalTopOffset: 1024
 			TopLeft: -1536, -512
 			BottomRight: 1536, 512
 	Building:
@@ -487,6 +488,7 @@ VGATE:
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
+			VerticalTopOffset: 1024
 			TopLeft: -512, -1536
 			BottomRight: 512, 1536
 	Building:
@@ -679,6 +681,7 @@ SAM:
 		Bounds: 2048,1024
 	HitShape:
 		Type: Rectangle
+			VerticalTopOffset: 1024
 			TopLeft: -768,-512
 			BottomRight: 768,512
 	Building:

@@ -20,6 +20,11 @@ abrams:
 		HP: 5000
 	Armor:
 		Type: Heavy
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 480
+			TopLeft: -365, -790
+			BottomRight: 365, 790
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:

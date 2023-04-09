@@ -73,6 +73,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly BodyOrientation orientation;
 		ITargetableCells targetableCells;
 		Turreted turret;
+		public WDist VerticalTopOffset;
 
 		((CPos Cell, SubCell SubCell)[] targetableCells,
 			WPos? selfCenterPosition,
@@ -85,6 +86,8 @@ namespace OpenRA.Mods.Common.Traits
 		public HitShape(Actor self, HitShapeInfo info)
 			: base(info)
 		{
+			VerticalTopOffset = info.Type.VerticalTopOffset;
+
 			orientation = self.Trait<BodyOrientation>();
 		}
 

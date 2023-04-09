@@ -139,8 +139,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true;
 
-			if (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
-				&& (target.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), out _)))
+			if (self.TraitOrDefault<IndirectFire>() == null
+				&& target.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out _))
 					return true;
 
 			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw, facingTolerance);

@@ -611,23 +611,27 @@ unit.summoner:
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
+			VerticalTopOffset: 1024
 			TopLeft: -512, -512
 			BottomRight: 512, 512
 ^2x1Shape:
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -1024, -512
 			BottomRight: 1024, 512
 ^2x2Shape:
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
+			VerticalTopOffset: 2048
 			TopLeft: -1024, -1024
 			BottomRight: 1024, 1024
 ^3x2Shape:
 	HitShape:
 		UseTargetableCellsOffsets: true
 		Type: Rectangle
+			VerticalTopOffset: 2512
 			TopLeft: -1536, -1024
 			BottomRight: 1536, 1024

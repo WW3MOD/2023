@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CheckboxDescription = "Enables cheats and developer commands";
 
 		[Desc("Default value of the developer mode checkbox in the lobby.")]
-		public readonly bool CheckboxEnabled = false;
+		public readonly bool CheckboxEnabled = true;
 
 		[Desc("Prevent the developer mode state from being changed in the lobby.")]
 		public readonly bool CheckboxLocked = false;

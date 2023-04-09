@@ -17,24 +17,50 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor blocks bullets and missiles with 'Blockable' property.")]
 	public class BlocksProjectilesInfo : ConditionalTraitInfo, IBlocksProjectilesInfo
 	{
-		public readonly WDist Height = WDist.FromCells(1);
+		public readonly WDist Height = WDist.Zero;
+
 		public readonly int Bypass = 0;
 
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
-		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+		public readonly PlayerRelationship ExplodesOn = PlayerRelationship.Enemy;
+
+		public WDist HitShapeHeight;
 
 		public override object Create(ActorInitializer init) { return new BlocksProjectiles(this); }
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (Height == WDist.Zero)
+			{
+				try
+				{
+					HitShapeInfo hitShape;
+
+					if (ai.HasTraitInfo<HitShapeInfo>())
+					{
+						hitShape = ai.TraitInfos<HitShapeInfo>().First();
+
+						if (hitShape != null)
+							HitShapeHeight = hitShape.Type.VerticalTopOffset;
+					}
+				}
+				catch (System.Exception e)
+				{
+					throw new System.Exception("Test", e);
+				}
+			}
+		}
 	}
 
 	public class BlocksProjectiles : ConditionalTrait<BlocksProjectilesInfo>, IBlocksProjectiles
 	{
 		public BlocksProjectiles(BlocksProjectilesInfo info)
-			: base(info) { }
+			: base(info)
+			{ }
 
-		WDist IBlocksProjectiles.BlockingHeight => Info.Height;
+		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight : Info.Height;
 		int IBlocksProjectiles.Bypass { get { return Info.Bypass; } }
 
-		PlayerRelationship IBlocksProjectiles.ValidRelationships { get { return Info.ValidRelationships; } }
+		PlayerRelationship IBlocksProjectiles.ExplodesOn { get { return Info.ExplodesOn; } }
 
 		public static bool AnyBlockingActorAt(World world, WPos pos)
 		{
@@ -46,7 +72,12 @@ namespace OpenRA.Mods.Common.Traits
 					.Any(Exts.IsTraitEnabled));
 		}
 
-		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit)
+		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false)
+		{
+			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships);
+		}
+
+		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false)
 		{
 			var actors = world.FindBlockingActorsOnLine(start, end, width);
 			var length = (end - start).Length;
@@ -54,8 +85,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in actors)
 			{
+				if (a == self)
+					continue;
+
 				var blockers = a.TraitsImplementing<IBlocksProjectiles>()
-					.Where(Exts.IsTraitEnabled).Where(t => t.ValidRelationships.HasRelationship(a.Owner.RelationshipWith(owner)))
+					.Where(Exts.IsTraitEnabled).Where(t => !checkRelationships || t.ExplodesOn.HasRelationship(a.Owner.RelationshipWith(owner)))
 					.ToList();
 
 				if (blockers.Count == 0)
@@ -69,6 +103,12 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					totalBypassed += 1;
 					continue;
+				}
+
+				if ((hitPos - start).Length < length && blockers.Any(t => t.BlockingHeight > dat))
+				{
+					hit = hitPos;
+					return true;
 				}
 			}
 

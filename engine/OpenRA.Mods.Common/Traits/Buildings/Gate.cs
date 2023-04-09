@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist BlocksProjectilesHeight = new WDist(640);
 
 		[Desc("Determines what projectiles to block based on their allegiance to the gate owner.")]
-		public readonly PlayerRelationship BlocksProjectilesValidRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+		public readonly PlayerRelationship BlocksProjectilesExplodesOn = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
 
 		public override object Create(ActorInitializer init) { return new Gate(init, this); }
 	}
@@ -143,6 +143,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		WDist IBlocksProjectiles.BlockingHeight => new WDist(Info.BlocksProjectilesHeight.Length * (OpenPosition - Position) / OpenPosition);
 
-		PlayerRelationship IBlocksProjectiles.ValidRelationships => Info.BlocksProjectilesValidRelationships;
+		PlayerRelationship IBlocksProjectiles.ExplodesOn => Info.BlocksProjectilesExplodesOn;
 	}
 }

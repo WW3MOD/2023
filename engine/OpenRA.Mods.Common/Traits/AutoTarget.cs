@@ -428,7 +428,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (target.Type != TargetType.Invalid)
 				{
 					if (self.TraitOrDefault<IndirectFire>() == null)
-						if (BlocksProjectiles.AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), out var blockedPos))
+						if (BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out var blockedPos))
 						{
 							// Already checked in TargetInFiringArc, might be unneccesary/inefficient
 							continue;

@@ -23,6 +23,8 @@ namespace OpenRA.Mods.Common.HitShapes
 	{
 		public WDist OuterRadius { get; private set; }
 
+		WDist IHitShape.VerticalTopOffset => new WDist(VerticalTopOffset);
+
 		[FieldLoader.Require]
 		public readonly int2[] Points;
 

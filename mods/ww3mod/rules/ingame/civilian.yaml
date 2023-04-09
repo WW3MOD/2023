@@ -118,8 +118,10 @@ V01:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: -490,-384,0, 0,0,0, 0,470,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -768, -597
 			BottomRight: 896, 683
+			LocalYaw: 100
 V02:
 	Inherits: ^CivBuilding
 	Building:
@@ -131,6 +133,7 @@ V02:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: -490,-512,0, 0,0,0, 0,512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -1024, -512
 			BottomRight: 1024, 597
 V03:
@@ -144,6 +147,7 @@ V03:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: -490,-512,0, 0,0,0, 421,512,0, -210,512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -1024, -597
 			BottomRight: 1024, 597
 V04:
@@ -157,6 +161,7 @@ V04:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, -421,-256,0, -421,256,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -683, -432
 			BottomRight: 683, 683
 V05:
@@ -273,6 +278,7 @@ V20:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: -840,-512,0, 0,0,0, -840,512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -1024, -512
 			BottomRight: 1024, 896
 V21:
@@ -284,11 +290,13 @@ V21:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 840,-512,0, 420,0,0, 840,512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -1024, -1024
 			BottomRight: 1024, 0
 	HitShape@WELL:
 		TargetableOffsets: -770,512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: 0, 0
 			BottomRight: 1024, 598
 V22:
@@ -308,6 +316,7 @@ V24:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: -630,-512,0, 0,0,0, -630,256,0, 420,-512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -1024, -683
 			BottomRight: 640, 853
 V25:
@@ -323,6 +332,7 @@ V25:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,-128,0, 420,512,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -683, -683
 			BottomRight: 1024, 512
 V26:
@@ -376,6 +386,7 @@ V37:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,0,0, 0,1024,0
 		Type: Rectangle
+			VerticalTopOffset: 1536
 			TopLeft: -512, -597
 			BottomRight: 1536, 597
 
@@ -390,7 +401,7 @@ RUSHOUSE:
 	Building:
 		Footprint: x x
 		Dimensions: 1,2
-	HitShape:
+	HitShape: # TODO
 		UseTargetableCellsOffsets: false
 ASIANHUT:
 	Inherits: ^CivBuilding
@@ -405,7 +416,7 @@ SNOWHUT:
 		Dimensions: 1,2
 	RenderSprites:
 		Scale: 0.7
-	HitShape:
+	HitShape: # TODO
 		UseTargetableCellsOffsets: false
 LHUS:
 	Inherits: ^CivBuilding
