@@ -20,6 +20,7 @@ abrams:
 		HP: 5000
 	Armor:
 		Type: Heavy
+		FromFrontSideRear: 100,50,30
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 480

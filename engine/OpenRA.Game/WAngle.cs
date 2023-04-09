@@ -43,6 +43,14 @@ namespace OpenRA
 		public static bool operator ==(WAngle me, WAngle other) { return me.Angle == other.Angle; }
 		public static bool operator !=(WAngle me, WAngle other) { return !(me == other); }
 
+		public static int AngleDiff(int a, int b)
+		{
+			if (b > a)
+				return b - a;
+
+			return a - b;
+		}
+
 		public override int GetHashCode() { return Angle.GetHashCode(); }
 
 		public bool Equals(WAngle other) { return other == this; }

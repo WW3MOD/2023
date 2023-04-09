@@ -83,16 +83,73 @@ namespace OpenRA.Mods.Common.Warheads
 
 		protected virtual int DamageVersus(Actor victim, HitShape shape, WarheadArgs args)
 		{
-			// If no Versus values are defined, DamageVersus would return 100 anyway, so we might as well do that early.
+			var damage = 100;
+
+			if (!args.Weapon.IgnoreArmorDirection)
+			{
+				// Directional damage, e.g. higher damage from the rear
+				var fromFrontSideRear = victim.TraitsImplementing<Armor>()
+					.First(a => !a.IsTraitDisabled).Info.FromFrontSideRear;
+
+				var victimYaw = victim.Orientation.Yaw;
+				var projectileYaw = args.ImpactOrientation.Yaw;
+
+				var alignment = victimYaw - projectileYaw;
+
+				var frontAlignment = (alignment + new WAngle(512)).Angle;
+				var rearAlignment = alignment.Angle;
+				var leftAlignment = (alignment - new WAngle(256)).Angle;	// Fliped, was from rear 256
+				var rightAlignment = (alignment + new WAngle(256)).Angle;	// Fliped, was from rear 768
+
+				float frontModifier = 0;
+				float rearModifier = 0;
+				float leftModifier = 0;
+				float rightModifier = 0;
+
+				if (frontAlignment < 256)
+				{
+					frontModifier = (float)(256 - frontAlignment) / 256f;
+				}
+				else if (frontAlignment > 768)
+				{
+					frontModifier = (float)(frontAlignment - 768) / 256f;
+				}
+				else
+				{
+					if (rearAlignment < 512)
+						rearModifier = (float)(256 - rearAlignment) / 256f;
+					else
+						rearModifier = (float)(rearAlignment - 768) / 256f;
+				}
+
+				if (leftAlignment < 256)
+				{
+					leftModifier = (float)(256 - leftAlignment) / 256f;
+				}
+				else if (leftAlignment > 768)
+				{
+					leftModifier = (float)(leftAlignment - 768) / 256f;
+				}
+				else
+				{
+					if (rightAlignment < 256)
+						rightModifier = (float)(256 - rightAlignment) / 256f;
+					else if (rightAlignment > 256)
+						rightModifier = (float)(rightAlignment - 768) / 256f;
+				}
+
+				damage = (int)(frontModifier * 100f / (fromFrontSideRear[0] / 100f) + leftModifier * 100f / (fromFrontSideRear[1] / 100f) + rightModifier * 100f / (fromFrontSideRear[1] / 100f) + rearModifier * 100f / (fromFrontSideRear[2] / 100f));
+			}
+
+			// If no Versus values are defined, DamageVersus can be ignored.
 			if (Versus.Count == 0)
-				return 100;
+				return damage;
 
-			var armor = victim.TraitsImplementing<Armor>()
+			var armorVs = victim.TraitsImplementing<Armor>()
 				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type) &&
-					(shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)))
-				.Select(a => Versus[a.Info.Type]);
+					(shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
 
-			return Util.ApplyPercentageModifiers(100, armor);
+			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
 		}
 
 		protected virtual void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args)
