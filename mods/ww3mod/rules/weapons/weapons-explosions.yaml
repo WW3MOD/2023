@@ -323,7 +323,7 @@ MiniNuke:
 BurnFX:
 	ValidTargets: Ground, Trees
 	InvalidTargets: Air
-	ReloadDelay: 20
+	BurstWait: 20
 	Range: 0c128
 	Projectile: Bullet
 		Speed: 85
@@ -334,7 +334,7 @@ BurnFX:
 
 FlakFX:
 	ValidTargets: Ground, Water, Trees
-	ReloadDelay: 20
+	BurstWait: 20
 	Range: 1c128
 	Projectile: Bullet
 		Speed: 85
@@ -361,7 +361,7 @@ FlakFX:
 
 NapalmFX:
 	ValidTargets: Ground, Water, Trees
-	ReloadDelay: 20
+	BurstWait: 20
 	Range: 0c938
 	Projectile: Bullet
 		Speed: 85
@@ -422,7 +422,7 @@ NapalmExplosion:
 		InvalidTargets: Ship, Structure, Bridge
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: Scorch
-		InvalidTargets: Structure, Wall, Trees	
+		InvalidTargets: Structure, Wall, Trees
 
 UnitExplodeSmall.suicide:
 	Inherits: UnitExplodeSmall

@@ -91,7 +91,7 @@
 	GrantConditionOnDamageState@HeavyDamage:
 		Condition: heavy-damage
 		ValidDamageStates: Heavy, Critical
-	GrantConditionOnDamageState@CRITICALDAMAGE:
+	GrantConditionOnDamageState@CriticalDamage:
 		Condition: critical-damage
 		ValidDamageStates: Critical
 

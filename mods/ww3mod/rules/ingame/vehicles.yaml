@@ -11,6 +11,8 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
+	Armor:
+		FromFrontSideRear: 100,50,30
 	BlocksProjectiles:
 	HitShape:
 		Type: Rectangle
@@ -129,10 +131,10 @@
 	WithInfantryBody:
 
 ^EffectsWhenDamagedVehicles:
-	SpeedMultiplier@HEAVYDAMAGE:
+	SpeedMultiplier@HeavyDamage:
 		Modifier: 50
 		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
+	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
 

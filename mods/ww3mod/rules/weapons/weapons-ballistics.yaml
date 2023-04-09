@@ -1,7 +1,7 @@
 
 Pistol:
 	ValidTargets: Infantry
-	ReloadDelay: 7
+	BurstWait: 7
 	Range: 6c512
 	Report: gun27.aud
 	Projectile: Bullet
@@ -23,7 +23,7 @@ Pistol:
 	Warhead@EffectWater: CreateEffect
 		Explosions: water_piff
 SilencedPPK:
-	ReloadDelay: 30
+	BurstWait: 30
 	Range: 6c0
 	ValidTargets: Infantry
 	Report: silppk.aud
@@ -242,7 +242,7 @@ MP5:
 	Report: gun13.aud
 
 Grenade:
-	ReloadDelay: 200
+	BurstWait: 200
 	Range: 4c0
 	Report: grenade1.aud
 	Projectile: Bullet
@@ -270,7 +270,7 @@ GrenadeLauncher:
 	Inherits@ExplosionEffects: ^SmallExplosionEffects
 	ValidTargets: Infantry, Unarmored, Light
 	Range: 12c0
-	ReloadDelay: 100
+	BurstWait: 100
 	Report: aacanon3.aud
 	Projectile: Bullet
 		Speed: 300
@@ -298,7 +298,7 @@ GrenadeLauncher.5mag:
 
 RPG:
 	ValidTargets: Vehicle, Defense, Water
-	ReloadDelay: 150
+	BurstWait: 150
 	Range: 12c0
 	MinRange: 2c0
 	Report: aacanon3.aud
@@ -331,7 +331,7 @@ RPG:
 
 20mmCRAM:
 	Range: 22c0
-	ReloadDelay: 1
+	BurstWait: 1
 	ValidTargets: Air, ICBM
 	Projectile: Bullet
 		Speed: 1c0
@@ -598,7 +598,7 @@ FighterGun:
 	InvalidTargets: Concrete, Heavy
 	Range: 25c0
 	MinRange: 8c0
-	ReloadDelay: 100
+	BurstWait: 100
 	Report: 60mm-mortar-firing-1.wav, 60mm-mortar-firing-2.wav, 60mm-mortar-firing-3.wav
 	Projectile: Bullet
 		Speed: 180
@@ -619,7 +619,7 @@ FighterGun:
 73mmBmpGun:
 	Inherits: ^MediumExplosionEffects
 	Range: 21c0
-	ReloadDelay: 100
+	BurstWait: 100
 	Report: cannon1.aud
 	ValidTargets: Ground
 	Projectile: Bullet
@@ -644,7 +644,7 @@ FighterGun:
 ^TankRound:
 	Inherits: ^MediumExplosionEffects
 	Range: 23c0
-	ReloadDelay: 110
+	BurstWait: 110
 	Report: abrams-firing-1.wav, abrams-firing-2.wav, abrams-firing-3.wav
 	ValidTargets: Ground
 	Projectile: Bullet
@@ -665,7 +665,7 @@ FighterGun:
 120mmAbramsGun:
 	Inherits: ^TankRound
 	Range: 24c0
-	ReloadDelay: 130
+	BurstWait: 130
 125mmT72Gun:
 	Inherits: ^TankRound
 	Warhead@Damage: SpreadDamage
@@ -678,7 +678,7 @@ FighterGun:
 	ValidTargets: Ground, Trees, Water
 	Range: 40c0
 	MinRange: 10c0
-	ReloadDelay: 180
+	BurstWait: 180
 	TargetActorCenter: true
 	Report: tank5.aud
 	Projectile: Bullet
@@ -746,7 +746,7 @@ RocketPods:
 	Inherits: ^MediumExplosionEffects
 	Range: 40c0
 	MinRange: 15c0
-	ReloadDelay: 4
+	BurstWait: 4
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	Projectile: Bullet
@@ -768,7 +768,7 @@ RocketPods:
 	Inherits: ^LargeThermobaricEffects
 	Range: 30c0
 	MinRange: 10c0
-	ReloadDelay: 10
+	BurstWait: 10
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	Projectile: Bullet
@@ -793,7 +793,7 @@ RocketPods:
 	Inherits: ^LargeExplosionEffects
 	Range: 40c0
 	MinRange: 15c0
-	ReloadDelay: 10
+	BurstWait: 10
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	Projectile: Bullet
@@ -861,7 +861,7 @@ SubMissile:
 SubMissile.barrage:
 	Inherits: SubMissile
 	Report: rocket1TD.aud
-	ReloadDelay: 600
+	BurstWait: 600
 	Projectile: Bullet
 		Inaccuracy: 3c614
 		LaunchAngle: 180
@@ -880,7 +880,7 @@ SubMissile.barrage:
 			Light: 100
 			Heavy: 50
 SubMissile.barrage.display:
-	ReloadDelay: 740
+	BurstWait: 740
 	Range: 20c0
 	Projectile: Bullet
 		LaunchAngle: 180
@@ -888,7 +888,7 @@ SubMissile.barrage.display:
 		Damage: 0
 
 2Inch:
-	ReloadDelay: 90
+	BurstWait: 90
 	Range: 16c512
 	Report: cannon2.aud
 	InvalidTargets: Underwater
@@ -921,5 +921,5 @@ SubMissile.barrage.display:
 		Explosions: splash_large
 8Inch.singular:
 	Inherits: 8Inch
-	ReloadDelay: 65
+	BurstWait: 65
 	-Burst:

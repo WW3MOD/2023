@@ -28,6 +28,9 @@ abrams:
 			BottomRight: 365, 790
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
+	# JamsMissiles:
+	# 	ActiveProtection: true
+	# 	Range: 2c0
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked

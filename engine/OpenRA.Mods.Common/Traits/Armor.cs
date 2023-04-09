@@ -19,7 +19,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly string Type = null;
 
-		public readonly int[] FromFrontSideRear = { 100, 60, 30 };
+		public readonly int[] FromFrontSideRear = System.Array.Empty<int>();
 
 		public override object Create(ActorInitializer init) { return new Armor(this); }
 	}

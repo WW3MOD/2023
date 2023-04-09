@@ -1010,10 +1010,10 @@
 		Palette: effect
 
 ^EffectsWhenDamagedInfantry:
-	SpeedMultiplier@HEAVYDAMAGE:
+	SpeedMultiplier@HeavyDamage:
 		Modifier: 75
 		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
+	SpeedMultiplier@CriticalDamage:
 		Modifier: 10
 		RequiresCondition: critical-damage
 	ChangesHealth@BleedOut:

@@ -154,7 +154,7 @@ FireballLauncher:
 	ValidTargets: Ground, Water, Trees
 	MinRange: 12c0
 	Range: 16c0
-	ReloadDelay: 40
+	BurstWait: 40
 	Report: flamer2.aud
 	Projectile: Bullet
 		Speed: 350
@@ -228,9 +228,10 @@ FireballLauncher:
 		ValidRelationships: Ally, Enemy, Neutral
 
 ^TeslaWeapon:
-	ReloadDelay: 150
+	BurstWait: 150
 	Range: 25c0
 	Report: tesla1.aud
+	IgnoreArmorDirection: true
 	Projectile: TeslaZap
 	Warhead@Damage: SpreadDamage
 		Damage: 3000
@@ -239,6 +240,7 @@ FireballLauncher:
 TeslaBurst:
 	Range: 5c0
 	Projectile: TeslaZap
+	IgnoreArmorDirection: true
 		# -HitAnim:
 	Warhead@Damage: SpreadDamage
 		Damage: 500
@@ -274,7 +276,7 @@ TeslaZap:
 
 TTankZap:
 	ValidTargets: Infantry, Vehicle, Defense
-	ReloadDelay: 5
+	BurstWait: 5
 	Range: 24c0
 	Report: tesla1.aud
 	Projectile: TeslaZap
@@ -294,7 +296,7 @@ TTankZap:
 TTankZapMaxFirepower:
 	ValidTargets: Medium, Heavy, Structure, Defense, Water
 	InvalidTargets: Infantry, Unarmored
-	ReloadDelay: 40
+	BurstWait: 40
 	Range: 22c0
 	Report: tesla1.aud
 	Projectile: TeslaZap
@@ -310,7 +312,7 @@ TTankZapMaxFirepower:
 
 PortaTesla:
 	Inherits: ^TeslaWeapon
-	ReloadDelay: 100
+	BurstWait: 100
 	Range: 20c0
 	Warhead@Damage: SpreadDamage
 		Damage: 150
@@ -324,7 +326,7 @@ PortaTesla:
 
 DogJaw:
 	ValidTargets: Infantry
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 2c0
 	Report: dogg5p.aud
 	TargetActorCenter: true
@@ -336,7 +338,7 @@ DogJaw:
 		DamageTypes: DefaultDeath
 
 Heal:
-	ReloadDelay: 20
+	BurstWait: 20
 	Range: 1c0
 	ValidTargets: Heal
 	Projectile: Bullet
@@ -351,7 +353,7 @@ Heal:
 Repair:
 	ValidTargets: BuildingRepair, VehicleRepair
 	Range: 1c0
-	ReloadDelay: 50
+	BurstWait: 50
 	Report: fixit1.aud
 	Projectile: Bullet
 		Speed: 200
@@ -370,7 +372,7 @@ Demolish:
 
 ClearMines:
 	ValidTargets: Mine
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 1c0 # can't be less because mines are not traversable so engineer just stops in front of it otherwise
 	Projectile: InstantHit
 	Warhead@Damage: SpreadDamage
@@ -382,7 +384,7 @@ PrismLaserMaxFirepower:
 	Inherits@SmallPinDownEffects: ^SmallPinDownEffects
 	ValidTargets: Vehicle, Structure, Defense, Water, Air, ICBM
 	InvalidTargets: Infantry
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 25c0
 	Report: prisfire.aud
 	Projectile: LaserZap
@@ -414,7 +416,7 @@ PrismLaserMaxFirepower:
 PrismLaser:
 	Inherits@MinimalPinDownEffects: ^MinimalPinDownEffects
 	ValidTargets: Infantry
-	ReloadDelay: 1
+	BurstWait: 1
 	Range: 22c0
 	Report: laser-beam.wav
 	Projectile: LaserZap
@@ -447,7 +449,7 @@ PrismLaser:
 # PrisLaserMaxFirepower
 PrisLaser:
 	ValidTargets: Ground, Water
-	ReloadDelay: 60
+	BurstWait: 60
 	Range: 28c0
 	Report: prisfire.aud
 	Projectile: LaserZap
@@ -473,7 +475,7 @@ PrisLaser:
 
 PrisLaserSupport:
 	ValidTargets: Ground, Water
-	ReloadDelay: 3
+	BurstWait: 3
 	Range: 20c0
 	Report: bpriat1a.aud
 	Projectile: LaserZap
@@ -512,7 +514,7 @@ PrisBurst:
 PrisTLaser:
 	Inherits: PrisLaser
 	Report: ptnkfire.aud
-	ReloadDelay: 50
+	BurstWait: 50
 	Range: 20c0
 	Projectile: LaserZap
 		Blockable: true
@@ -548,7 +550,7 @@ PrisTBurst:
 PrisCLaser:
 	Inherits: PrisTLaser
 	Report: pcanfire.aud
-	ReloadDelay: 140
+	BurstWait: 140
 	Range: 12c0
 	Projectile: LaserZap
 		Width: 70
@@ -570,7 +572,7 @@ PrisCLaser:
 MarineSapper:
 	ValidTargets: Ship, Underwater
 	InvalidTargets: Infantry
-	ReloadDelay: 800
+	BurstWait: 800
 	Range: 1c512
 	Projectile: InstantHit
 	Warhead@Damage: HealthPercentageDamage
@@ -583,7 +585,7 @@ MarineSapper:
 		ImpactActors: false
 
 PlaceC4:
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 1c849
 	Projectile: InstantHit
 	Report: icolseta.aud
@@ -604,7 +606,7 @@ PlaceC4:
 
 PlaceC4Seal:
 	Inherits: PlaceC4
-	ReloadDelay: 50
+	BurstWait: 50
 	ValidTargets: C4, Ship, Vehicle, Structure
 	InvalidTargets: Vehicle, C4Attached, C4Immune
 	Range: 1c255
@@ -639,7 +641,7 @@ C4:
 		Footprint: xxx xxx xxx
 
 ai.targeting.helper:
-	ReloadDelay: 1
+	BurstWait: 1
 	Range: 7c0
 	Projectile: InstantHit
 	Warhead@Damage: SpreadDamage
@@ -652,7 +654,7 @@ ai.targeting.helper.noattack:
 SeaMineTargeting:
 	ValidTargets: Ship, Submarine
 	Range: 1c768
-	ReloadDelay: 1
+	BurstWait: 1
 	TargetActorCenter: true
 	Projectile: InstantHit
 	Warhead@Damage: TargetDamage
@@ -661,7 +663,7 @@ SeaMineTargeting:
 
 DepthCharge:
 	# Inherits: ^Artillery
-	ReloadDelay: 60
+	BurstWait: 60
 	Range: 5c0
 	ValidTargets: Underwater
 	Projectile: Bullet
@@ -694,7 +696,7 @@ DepthChargeDual:
 DroneTargeter:
 	ValidTargets: Ground, Water
 	Range: 25c0
-	ReloadDelay: 200
+	BurstWait: 200
 	Projectile: InstantHit
 	Warhead@Damage: TargetDamage
 		ValidTargets: Ground, Water
@@ -702,7 +704,7 @@ DroneTargeter:
 
 DroneJammer:
 	ValidTargets: Drone
-	ReloadDelay: 1
+	BurstWait: 1
 	Range: 20c0
 	Projectile: LaserZap
 		Inaccuracy: 15
@@ -721,7 +723,7 @@ DroneJammer:
 		Damage: 1
 
 Claw:
-	ReloadDelay: 30
+	BurstWait: 30
 	Range: 1c512
 	ValidTargets: Ground, Water, GroundActor, WaterActor
 	Projectile: Bullet
@@ -786,4 +788,4 @@ AntFireball:
 
 # Used for traits that has to implement Armament
 Dummy:
-	ReloadDelay: 1
+	BurstWait: 1

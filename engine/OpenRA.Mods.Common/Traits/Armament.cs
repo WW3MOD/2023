@@ -103,11 +103,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstDelays.Length > 1 && (WeaponInfo.BurstDelays.Length != WeaponInfo.Burst - 1))
 				throw new YamlException($"Weapon '{weaponToLower}' has an invalid number of BurstDelays, must be single entry or Burst - 1.");
 
-			if (WeaponInfo.ReloadDelay == 0 && WeaponInfo.BurstWait == 0)
-				throw new YamlException("Weapons must define ReloadDelay and/or BurstWait: '{0}'".F(weaponToLower));
-
-			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstWait == 0)
-				throw new YamlException("Weapons with Burst must define BurstWait: '{0}'".F(weaponToLower));
+			if (WeaponInfo.BurstWait == 0)
+				throw new YamlException("Weapons must define BurstWait: '{0}'".F(weaponToLower));
 
 			base.RulesetLoaded(rules, ai);
 		}

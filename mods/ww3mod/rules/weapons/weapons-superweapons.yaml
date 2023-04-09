@@ -1,5 +1,5 @@
 ParaBomb:
-	ReloadDelay: 8
+	BurstWait: 8
 	Range: 3c0
 	Report: chute1.aud
 	Projectile: GravityBomb
@@ -45,7 +45,7 @@ Atomic:
 
 	Warhead@22FlashEffect: FlashPaletteEffect
 		Duration: 20
-		FlashType: Nuke	
+		FlashType: Nuke
 
 	Warhead@HeatRadiation1: SpreadDamage
 		Spread: 1c0
@@ -481,7 +481,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath	
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave25: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -585,7 +585,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath	
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave33: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -598,7 +598,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath 
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave34: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -611,7 +611,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath 
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave35: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -650,7 +650,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath	
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave38: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -663,7 +663,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath				
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave39: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -676,7 +676,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath				
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave40: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -715,7 +715,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath	
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave43: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -728,7 +728,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath	
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave44: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -741,7 +741,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath		
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave45: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -793,7 +793,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath	
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@BlastWave49: SpreadDamage
 		Spread: 512
 		Damage: 10
@@ -848,7 +848,7 @@ Atomic:
 		DamageTypes: Prone30Percent, SmallExplosionDeath
 
 TorpNuke:
-	ReloadDelay: 1500
+	BurstWait: 1500
 	Range: 16c768
 	MinRange: 3c512
 	Report: torpedo1.aud
@@ -938,7 +938,7 @@ TorpNuke:
 		FlashType: Nuke
 
 SubNuke:
-	ReloadDelay: 1500
+	BurstWait: 1500
 	Range: 16c768
 	MinRange: 3c512
 	Report: missile1.aud
@@ -1023,7 +1023,7 @@ SubNuke:
 		FlashType: Nuke
 
 ParaNuke:
-	ReloadDelay: 0
+	BurstWait: 0
 	Range: 0c938
 	Report: chute1.aud
 	ValidTargets: Ground, Water, Bridge
@@ -1205,7 +1205,7 @@ AtomicFake:
 		FlashType: Nuke
 
 EmpBomb:
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 0c512
 	Report: chute1.aud
 	Projectile: GravityBomb

@@ -135,10 +135,10 @@
 	RenderDetectionCircle:
 
 ^EffectsWhenDamagedNaval:
-	SpeedMultiplier@HEAVYDAMAGE:
+	SpeedMultiplier@HeavyDamage:
 		Modifier: 75
 		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
+	SpeedMultiplier@CriticalDamage:
 		Modifier: 50
 		RequiresCondition: critical-damage
 
