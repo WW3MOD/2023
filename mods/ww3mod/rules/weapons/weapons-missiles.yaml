@@ -279,7 +279,7 @@ HellfireAG:
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
 	Burst: 1
-	BurstWait: 40
+	BurstWait: 100
 	MinRange: 5c0
 	Report: missile6.aud
 	Projectile: Missile
@@ -310,7 +310,7 @@ HellfireAA:
 	ValidTargets: Air
 	Range: 21c0
 	MinRange: 5c0
-	BurstWait: 50
+	BurstWait: 140
 	Report: missile6.aud
 	Projectile: Missile
 		Speed: 400

@@ -622,6 +622,7 @@ timberwolf:
 	# 	Delay: 3
 	# 	Interval: 16
 	# 	RequiresCondition: moving
+	IndirectFire:
 	Turreted:
 		TurnSpeed: 20
 	Armament@1:
@@ -648,17 +649,23 @@ timberwolf:
 		Margin: 9, 3
 		PipCount: 6
 		RequiresSelection: true
-		FullSequence: pip-red
+		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: TimerWolfMissiles
+		Weapon: TimerWolfMissilesBarrage
+		LocalOffset: -100,350,1150, -100,-350,1150
+		MuzzleSequence: muzzle-missile
+		PauseOnCondition: !ammo-secondary || empdisable
+	Armament@3:
+		Name: secondary-barrage
+		Weapon: TimerWolfMissilesBarrage
 		LocalOffset: -100,350,1150, -100,-350,1150
 		MuzzleSequence: muzzle-missile
 		PauseOnCondition: !ammo-secondary || empdisable
 	AmmoPool@2:
 		Name: secondary-ammo
-		Armaments: secondary
+		Armaments: secondary, secondary-barrage
 		Ammo: 30
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
@@ -672,15 +679,17 @@ timberwolf:
 		Margin: 9, 6
 		PipCount: 6
 		RequiresSelection: true
-		FullSequence: pip-green
+		FullSequence: pip-red
 		AmmoPools: secondary-ammo
 	Rearmable:
 		RearmActors: fix
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
-		TargetFrozenActors: True
-		Armaments: primary, secondary
 		PauseOnCondition: empdisable || unit.docked
+		Armaments: primary, secondary
+		TargetFrozenActors: True
+		OpportunityFire: True
+		ForceFireIgnoresActors: True
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	# WithShadow:
