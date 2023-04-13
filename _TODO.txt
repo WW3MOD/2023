@@ -6,7 +6,7 @@
     - Damage is modified based on <Shape>.DistanceFromEdge()
     - Direction matters
         - Define Front, Side, Rear Damage modifiers to Armor
-        - Define IgnoresDirection for top attack weapons like Javelin, artillery etc
+        - Define IgnoresDirection for top attack weapons like ATGM, artillery etc
 
 
 - Supply instead of power
@@ -187,7 +187,7 @@ DIV
     - Use ExplodeWhenEmpty from Missile to make Bullets also able to keep flying until they reach RangeLimit even if missing target (CRAM esp)
     - Power down icon missing
     - Load selection order - soldiers and vehicle in selection pairs up automatically
-    - PinDown trait, always prioritize units not taking cover
+    - Suppression trait, always prioritize units not taking cover
     - Don't RevealShroud behind blocking actors
     - Building queue
         - Pause AND cancel all with one click by holding Ctrl

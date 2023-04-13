@@ -59,6 +59,7 @@ namespace OpenRA.GameRules
 		{
 			Weapon = args.Weapon;
 			DamageModifiers = args.DamageModifiers;
+			ImpactPosition = args.ImpactPosition;
 			Source = args.Source;
 			SourceActor = args.SourceActor;
 			WeaponTarget = args.WeaponTarget;

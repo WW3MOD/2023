@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -60,7 +61,16 @@ namespace OpenRA.Mods.Common.Warheads
 				if (closestDistance > Spread.Length)
 					continue;
 
-				InflictDamage(victim, firedBy, closestActiveShape, args);
+				var damage = closestActiveShape.PercentFromEdge(victim, args.ImpactPosition);
+
+				var adjustedModifiers = args.DamageModifiers.Append(damage);
+
+				var updatedWarheadArgs = new WarheadArgs(args)
+				{
+					DamageModifiers = adjustedModifiers.ToArray(),
+				};
+
+				InflictDamage(victim, firedBy, closestActiveShape, updatedWarheadArgs);
 			}
 		}
 	}
