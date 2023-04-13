@@ -145,9 +145,8 @@ bradley:
 	Armament@2:
 		Name: secondary
 		Weapon: TOW.double
-		# FireDelay: 50
 		LocalOffset: 100,90,90
-		LocalYaw: -100, 100
+		# LocalYaw: -100, 100
 		Recoil: 10
 		PauseOnCondition: !ammo-secondary || empdisable
 	AmmoPool@2:
@@ -155,7 +154,7 @@ bradley:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	ReloadArmamentsBar:
+	NextBurstBar:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
@@ -313,7 +312,7 @@ humvee:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
-	ReloadArmamentsBar:
+	NextBurstBar:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
@@ -532,9 +531,9 @@ strykershorad:
 		FullReloadSteps: 4
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked
-	ReloadArmamentsBar@2:
+	NextBurstBar@2:
 		Armaments: secondary
-		Color: 0000FF
+		Color: 66B2FF
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 3
@@ -563,7 +562,7 @@ strykershorad:
 	Turreted:
 		TurnSpeed: 20
 		Offset: -250,0,80
-	ReloadArmamentsBar@3:
+	NextBurstBar@3:
 		Armaments: tertiary
 		Color: 00FF00
 	WithAmmoPipsDecoration@3:

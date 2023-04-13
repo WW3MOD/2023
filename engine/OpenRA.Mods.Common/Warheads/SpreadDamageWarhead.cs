@@ -118,7 +118,6 @@ namespace OpenRA.Mods.Common.Warheads
 				{
 					DamageModifiers = localModifiers.ToArray(),
 					ImpactOrientation = impactOrientation,
-					ImpactPosition = args.ImpactPosition,
 				};
 
 				InflictDamage(victim, firedBy, closestActiveShape, updatedWarheadArgs);

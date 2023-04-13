@@ -8,7 +8,7 @@ ParaBomb:
 		Velocity: 0, 0, -40
 		Acceleration: 0, 0, 0
 		Shadow: False
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 768
 		Damage: 300
 		Versus:
@@ -16,7 +16,7 @@ ParaBomb:
 			Wood: 30
 			Light: 75
 			Concrete: 25
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -60,7 +60,7 @@ Atomic:
 			Medium: 60
 			Heavy: 40
 			Concrete: 10
-		DamageTypes: TriggerProne, Prone30Percent, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@HeatRadiation2: SpreadDamage
 		Spread: 1c0
 		Damage: 100
@@ -75,7 +75,7 @@ Atomic:
 			Medium: 60
 			Heavy: 40
 			Concrete: 10
-		DamageTypes: TriggerProne, Prone30Percent, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@HeatRadiation3: SpreadDamage
 		Spread: 1c0
 		Damage: 100
@@ -90,7 +90,7 @@ Atomic:
 			Medium: 60
 			Heavy: 40
 			Concrete: 10
-		DamageTypes: TriggerProne, Prone30Percent, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@HeatRadiation4: SpreadDamage
 		Spread: 1c0
 		Damage: 100
@@ -105,7 +105,7 @@ Atomic:
 			Medium: 60
 			Heavy: 40
 			Concrete: 10
-		DamageTypes: TriggerProne, Prone30Percent, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 
 	Warhead@Scorch1: LeaveSmudge
 		Delay: 1
@@ -865,7 +865,7 @@ TorpNuke:
 		MaximumLaunchAngle: 0
 		CruiseAltitude: 0
 		CloseEnough: 341
-	Warhead@Damage_Impact: SpreadDamage
+	Warhead@Spread_Impact: SpreadDamage
 		Spread: 0c512
 		Damage: 100
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -877,7 +877,7 @@ TorpNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@2Eff_Water: CreateEffect
 		Explosions: splash_large
 		ImpactSounds: h2obomb2.aud
@@ -904,7 +904,7 @@ TorpNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@5Eff_Areanuke: CreateEffect
 		ImpactSounds: kaboom22.aud
 		Delay: 7
@@ -932,7 +932,7 @@ TorpNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@22FlashEffect: FlashPaletteEffect
 		Duration: 10
 		FlashType: Nuke
@@ -953,7 +953,7 @@ SubNuke:
 		Image: PATRIOT
 		Shadow: True
 		LaunchAngle: 135
-	Warhead@Damage_Impact: SpreadDamage
+	Warhead@Spread_Impact: SpreadDamage
 		Spread: 0c768
 		Damage: 100
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -965,7 +965,7 @@ SubNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@2Eff_Water: CreateEffect
 		Explosions: splash_large
 		ImpactSounds: h2obomb2.aud
@@ -991,7 +991,7 @@ SubNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@5Eff_Areanuke: CreateEffect
 		ImpactSounds: kaboom22.aud
 		Delay: 7
@@ -1014,7 +1014,7 @@ SubNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@8Res_Areanuke: DestroyResource
 		Size: 2
 		Delay: 15
@@ -1032,7 +1032,7 @@ ParaNuke:
 		OpenSequence: open
 		Velocity: 32,0,0
 		Acceleration: 0,0,-1
-	Warhead@Damage_Impact: SpreadDamage
+	Warhead@Spread_Impact: SpreadDamage
 		Spread: 0c768
 		Damage: 100
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -1044,7 +1044,7 @@ ParaNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@2Eff_Water: CreateEffect
 		Explosions: splash_large
 		ImpactSounds: h2obomb2.aud
@@ -1070,7 +1070,7 @@ ParaNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@5Eff_Areanuke: CreateEffect
 		ImpactSounds: kaboom22.aud
 		Delay: 7
@@ -1093,7 +1093,7 @@ ParaNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@8Res_Areanuke: DestroyResource
 		Size: 2
 		Delay: 15
@@ -1103,7 +1103,7 @@ ParaNuke:
 
 TankNuke:
 	ValidTargets: Ground, Water, Bridge
-	Warhead@Damage_Impact: SpreadDamage
+	Warhead@Spread_Impact: SpreadDamage
 		Spread: 0c768
 		Damage: 100
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -1115,7 +1115,7 @@ TankNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@2Eff_Water: CreateEffect
 		Explosions: splash_large
 		ImpactSounds: h2obomb2.aud
@@ -1141,7 +1141,7 @@ TankNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@5Eff_Areanuke: CreateEffect
 		ImpactSounds: kaboom22.aud
 		Delay: 7
@@ -1164,7 +1164,7 @@ TankNuke:
 			Heavy: 100
 			Concrete: 75
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@8Res_Areanuke: DestroyResource
 		Size: 2
 		Delay: 15
@@ -1174,7 +1174,7 @@ TankNuke:
 
 AtomicFake:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
-	Warhead@Damage_impact: SpreadDamage
+	Warhead@Spread_impact: SpreadDamage
 		Spread: 1c0
 		Damage: 1
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -1185,7 +1185,7 @@ AtomicFake:
 			Heavy: 0
 			Wood: 0
 			Concrete: 0
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@2Eff_impact: CreateEffect
 		Explosions: mininuke
 		ImpactSounds: kaboom1.aud
@@ -1214,7 +1214,7 @@ EmpBomb:
 		Velocity: 0, 0, -86
 		Acceleration: 0, 0, 0
 		Shadow: False
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 4c512
 		Damage: 36
 		Versus:
@@ -1223,7 +1223,7 @@ EmpBomb:
 			Light: 30
 			Heavy: 65
 			Concrete: 25
-		DamageTypes: Prone30Percent, TriggerProne
+		DamageTypes: Prone30Percent
 	Warhead@Effect: CreateEffect
 		Explosions: pulse_explosion
 		ImpactSounds: ion1.aud

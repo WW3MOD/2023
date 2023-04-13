@@ -1,5 +1,12 @@
 2023
 
+- AA being blocked gets laggy
+    - Height seems to be a problem, sandbaglayer has default height and hitpos is Z: 220, when shooting hind far behind it at Z:1280
+        Unit height needs to be set at a fraction of its VerticalTopOffset
+    - Also, when out of ammo, cancel attack orders unless being rearmed
+- Check Blocking actors from weapon offset not from center ground position
+
+
 - Hitshape
     - Set rectangle for all vehicles
     - BlocksProjectiles Height defaults to <Shape>.VerticalTopOffset() ?

@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 						hitShape = ai.TraitInfos<HitShapeInfo>().First();
 
 						if (hitShape != null)
-							HitShapeHeight = hitShape.Type.VerticalTopOffset;
+							HitShapeHeight = hitShape.Type.VerticalTopOffset; // Set to fraction ?
 					}
 				}
 				catch (System.Exception e)
@@ -74,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false)
 		{
-			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships);
+			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
 		}
 
 		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false)

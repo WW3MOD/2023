@@ -148,7 +148,7 @@ bmp2:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	ReloadArmamentsBar:
+	NextBurstBar:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
@@ -409,9 +409,9 @@ tunguska:
 		FullReloadSteps: 6
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked
-	ReloadArmamentsBar@2:
+	NextBurstBar@2:
 		Armaments: secondary
-		Color: 0000FF
+		Color: 66B2FF
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 5, 3

@@ -17,23 +17,23 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	[Desc("Visualizes the minimum remaining time for reloading the armaments.")]
-	class ReloadArmamentsBarInfo : TraitInfo
+	class NextBurstBarInfo : TraitInfo
 	{
 		[Desc("Armament names")]
 		public readonly string[] Armaments = { "primary", "secondary" };
 
 		public readonly Color Color = Color.Red;
 
-		public override object Create(ActorInitializer init) { return new ReloadArmamentsBar(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new NextBurstBar(init.Self, this); }
 	}
 
-	class ReloadArmamentsBar : ISelectionBar, INotifyCreated
+	class NextBurstBar : ISelectionBar, INotifyCreated
 	{
-		readonly ReloadArmamentsBarInfo info;
+		readonly NextBurstBarInfo info;
 		readonly Actor self;
 		IEnumerable<Armament> armaments;
 
-		public ReloadArmamentsBar(Actor self, ReloadArmamentsBarInfo info)
+		public NextBurstBar(Actor self, NextBurstBarInfo info)
 		{
 			this.self = self;
 			this.info = info;
@@ -50,7 +50,14 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return 0;
 
-			return armaments.Min(a => a.FireDelay / (float)a.Weapon.ReloadDelay);
+			return armaments.Min(a =>
+				a.Weapon.ReloadDelay > 0 && a.ReloadDelay > a.BurstWait
+				? a.ReloadDelay / (float)a.Weapon.ReloadDelay
+				: a.BurstWait / (a.IsBurstWait
+					? a.Weapon.BurstWait
+					: a.Weapon.BurstDelays.Length == 1
+						? a.BurstWait / a.Weapon.BurstDelays[0]
+						: a.BurstWait / (float)a.Weapon.BurstDelays[a.Weapon.Burst - (a.Weapon.Burst + 1)]));
 		}
 
 		Color ISelectionBar.GetColor() { return info.Color; }

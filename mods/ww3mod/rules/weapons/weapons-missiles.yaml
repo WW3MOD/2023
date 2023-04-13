@@ -1,54 +1,6 @@
 
-^MediumAAMissileEffects:
-	Warhead@AirEffect: CreateEffect
-		ImpactActors: true
-		Explosions: explosion_air_medium
-		ImpactSounds: kaboom25.aud
-
-^SmallAGMissileEffects:
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
-	Warhead@Effect: CreateEffect
-		Explosions: explosion_small
-		ImpactSounds: kaboom25.aud
-		ValidTargets: Ground, Air, Ship, Trees
-	Warhead@EffectWater: CreateEffect
-		Explosions: splash_small
-		ImpactSounds: splash9.aud
-		ValidTargets: Water, Underwater
-		InvalidTargets: Ship, Structure, Bridge
-
-^MediumAGMissileEffects:
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
-	Warhead@Effect: CreateEffect
-		Explosions: explosion_medium
-		ImpactSounds: kaboom25.aud
-		ValidTargets: Ground, Air, Ship, Trees
-	Warhead@EffectWater: CreateEffect
-		Explosions: splash_medium
-		ImpactSounds: splash9.aud
-		ValidTargets: Water, Underwater
-		InvalidTargets: Ship, Structure, Bridge
-
-^LargeAGMissileEffects:
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
-	Warhead@Effect: CreateEffect
-		Explosions: artillery_explosion
-		ImpactSounds: kaboom15.aud
-		ValidTargets: Ground, Air, Ship, Trees
-	Warhead@EffectWater: CreateEffect
-		Explosions: splash_large
-		ImpactSounds: splash9.aud
-		ValidTargets: Water, Underwater
-		InvalidTargets: Ship, Structure, Bridge
-
 SurfaceToAirMissile:
-	Inherits@MediumAAMissileEffects: ^MediumAAMissileEffects
+	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir
 	ValidTargets: Air
 	Range: 35c0
 	Burst: 1
@@ -69,7 +21,7 @@ SurfaceToAirMissile:
 		Blockable: false
 		Image: MISSILE
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 2000
 		RandomDamage: 1000
 		Spread: 128
@@ -87,7 +39,7 @@ SurfaceToAirMissile.double:
 	BurstWait: 80
 
 AirToAirMissile:
-	Inherits: ^MediumAAMissileEffects
+	Inherits: ^MediumExplosionEffectsAir
 	ValidTargets: Air, ICBM
 	Range: 30c0
 	MinRange: 10c0
@@ -105,7 +57,7 @@ AirToAirMissile:
 		ContrailLength: 18
 		ExplodeWhenEmpty: true
 		Blockable: false
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		RandomDamage: 1000
 		Spread: 128
@@ -117,7 +69,7 @@ AirToAirMissile:
 			Heavy: 40
 
 MANPAD:
-	Inherits: ^MediumAAMissileEffects
+	Inherits: ^MediumExplosionEffectsAir
 	ValidTargets: Air
 	Range: 23c0
 	BurstWait: 200
@@ -134,7 +86,7 @@ MANPAD:
 		ExplodeWhenEmpty: true
 		Blockable: false
 		Image: DRAGON
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		Spread: 96
 		Falloff: 100,50,25,12,6,3,1
@@ -145,7 +97,7 @@ MANPAD:
 			Heavy: 60
 
 Stinger:
-	Inherits: ^MediumAAMissileEffects
+	Inherits: ^MediumExplosionEffectsAir
 	ValidTargets: Air
 	Range: 28c0
 	BurstWait: 250
@@ -163,7 +115,7 @@ Stinger:
 		Blockable: false
 		Image: MISSILE
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		Spread: 96
 		Falloff: 100,50,25,12,6,3,1
@@ -185,8 +137,8 @@ Stinger.quad:
 	Inherits: Stinger
 	BurstWait: 40
 
-Javelin:
-	Inherits: ^MediumAGMissileEffects
+ATGM:
+	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense, Water
 	Range: 20c0
 	MinRange: 5c0
@@ -206,7 +158,7 @@ Javelin:
 		TrailImage: smokey
 		Image: DRAGON
 		Blockable: false
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 8000
 		RandomDamage: 2000
 		Spread: 64
@@ -214,7 +166,7 @@ Javelin:
 		DamageTypes: ExplosionDeath
 
 TOW:
-	Inherits: ^MediumAGMissileEffects
+	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
 	MinRange: 3c0
@@ -223,19 +175,19 @@ TOW:
 	Projectile: Missile
 		MaximumLaunchSpeed: 50
 		Acceleration: 30
-		Speed: 220
+		Speed: 250
 		Inaccuracy: 768
+		HorizontalRateOfTurn: 10
 		Arm: 2
 		Blockable: True
 		ManualGuidance: true
+		CruiseAltitude: 100
 		ContrailWidth: 8
 		ContrailLength: 100
 		Image: DRAGON
 		TrailImage: smokey
-		Shadow: True
-		HorizontalRateOfTurn: 10
 		RangeLimit: 26c0
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 1500
@@ -249,7 +201,7 @@ TOW.double:
 	BurstWait: 1000
 
 Hellfire:
-	Inherits: ^MediumAGMissileEffects
+	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
 	BurstWait: 40
@@ -267,7 +219,7 @@ Hellfire:
 		Blockable: True
 		Image: dragon
 		# TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 2500
@@ -275,7 +227,7 @@ Hellfire:
 		DamageTypes: ExplosionDeath
 
 HellfireAG:
-	Inherits: ^MediumAGMissileEffects
+	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
 	Burst: 1
@@ -292,7 +244,7 @@ HellfireAG:
 		ContrailLength: 10
 		Blockable: True
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 2500
@@ -306,7 +258,7 @@ HellfireAG.dual:
 	BurstWait: 1000
 
 HellfireAA:
-	Inherits: ^MediumAGMissileEffects
+	Inherits: ^MediumExplosionEffects
 	ValidTargets: Air
 	Range: 21c0
 	MinRange: 5c0
@@ -320,7 +272,7 @@ HellfireAA:
 		ContrailLength: 6
 		Blockable: True
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 2500
@@ -328,7 +280,7 @@ HellfireAA:
 		DamageTypes: ExplosionDeath
 
 TimerWolfMissiles:
-	Inherits: ^MediumAGMissileEffects
+	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
 	Burst: 4
@@ -347,8 +299,7 @@ TimerWolfMissiles:
 		ContrailLength: 10
 		Blockable: True
 		Image: dragon
-		# TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 1500
@@ -362,7 +313,7 @@ IskanderTargeter:
 	BurstWait: 250
 	Report: vv3latta.aud, vv3lattb.aud
 	Projectile: InstantHit
-	Warhead@Damage: TargetDamage
+	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Water
 		Damage: 50
 		Versus:
@@ -389,7 +340,7 @@ IskanderTargeter:
 		Shadow: True
 		HorizontalRateOfTurn: 10
 		RangeLimit: 12c0
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 128
 		Damage: 200
 		ValidTargets: Ground, Water, Air
@@ -401,7 +352,7 @@ IskanderTargeter:
 			Light: 100
 			Heavy: 100
 			Concrete: 50
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -429,7 +380,7 @@ CruiseMissile:
 		RangeLimit: 32c0
 		Speed: 420
 		CloseEnough: 149
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 120
 		Versus:
 			None: 36
@@ -451,7 +402,7 @@ CruiseMissile:
 		Image: MISSILE
 		TrailImage: smokey
 		ContrailLength: 14
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 426
 		Damage: 25
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -463,15 +414,15 @@ CruiseMissile:
 			Light: 30
 			Heavy: 30
 			Concrete: 100
-		DamageTypes: Prone30Percent, TriggerProne, SmallExplosionDeath
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 
 SubMissileAA:
-	Inherits: ^MediumAAMissileEffects
+	Inherits: ^MediumExplosionEffectsAir
 	Inherits: ^SubMissileDefault
 	BurstWait: 150
 	ValidTargets: Air
 	TargetActorCenter: false
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 20
 
 SubMissileAA.cluster:
@@ -505,7 +456,7 @@ TorpTube:
 		Palette: shadow
 		MaximumLaunchAngle: 0
 		CruiseAltitude: 0
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 426
 		Damage: 120
 		ValidTargets: Water, Underwater, Bridge
@@ -514,7 +465,7 @@ TorpTube:
 			Light: 50
 			Heavy: 85
 			Concrete: 500
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: artillery_explosion
 		ImpactSounds: kaboom15.aud
@@ -532,7 +483,7 @@ ShipMissileTargeter:
 	BurstWait: 150
 	Report: vv3latta.aud, vv3lattb.aud
 	Projectile: InstantHit
-	Warhead@Damage: TargetDamage
+	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Water
 		Damage: 50
 		Versus:
@@ -559,10 +510,10 @@ ShipMissile:
 		ContrailLength: 14
 		Image: MISSILE
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 426
 		Damage: 5000
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Versus:
 			Concrete: 80
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath

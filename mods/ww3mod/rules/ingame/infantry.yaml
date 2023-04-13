@@ -133,13 +133,13 @@
 		ConditionWhenStill: dugin
 		TimeToBeStill: 200
 	HitShape@Cover:
-		RequiresCondition: deployed || !moving
+		RequiresCondition: prone
 		Type: Circle
-			Radius: 8
+			Radius: 20
 	HitShape@Moving:
-		RequiresCondition: !deployed && moving
+		RequiresCondition: !prone
 		Type: Circle
-			Radius: 16
+			Radius: 30
 	MapEditorData:
 		Categories: Infantry
 	EdibleByLeap:
@@ -237,7 +237,7 @@
 	GrantConditionOnDeploy:
 		DeployedCondition: deployed
 	InfantryStates:
-		ProneCondition: deployed || pindown || !moving || critical-damage
+		ProneCondition: deployed || suppressed || !moving || critical-damage
 		ProneGrantsCondition: prone
 		ProneSpeedModifier: 60
 		ProneDamageModifiers:
@@ -281,272 +281,272 @@
 		RequiresCondition: inwater
 
 ^PinsDown:
-	Inherits@PinDownPips: ^PinDownPips
-	Inherits@PindownSpeedMultiplier: ^PindownSpeedMultiplier
-	Inherits@PinDownRevealsShroudMultiplier: ^PinDownRevealsShroudMultiplier
-	Inherits@PinDownBurstMultiplier: ^PinDownBurstMultiplier
-	Inherits@PinDownBurstWaitMultiplier: ^PinDownBurstWaitMultiplier
-	Inherits@PinDownInaccuracyMultiplier: ^PinDownInaccuracyMultiplier
-	ExternalCondition@PinDown:
-		Condition: pindown
+	Inherits@SuppressionPips: ^SuppressionPips
+	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
+	Inherits@SuppressionRevealsShroudMultiplier: ^SuppressionRevealsShroudMultiplier
+	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
+	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
+	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
+	ExternalCondition@Suppression:
+		Condition: suppressed
 		TotalCap: 100
-^PindownSpeedMultiplier:
-	SpeedMultiplier@PinDown_1:
-		RequiresCondition: !panicking && pindown > 0 && pindown <= 10
+^SuppressionSpeedMultiplier:
+	SpeedMultiplier@Suppression_1:
+		RequiresCondition: !panicking && suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	SpeedMultiplier@PinDown_2:
-		RequiresCondition: !panicking && pindown > 10 && pindown <= 20
+	SpeedMultiplier@Suppression_2:
+		RequiresCondition: !panicking && suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	SpeedMultiplier@PinDown_3:
-		RequiresCondition: !panicking && pindown > 20 && pindown <= 30
+	SpeedMultiplier@Suppression_3:
+		RequiresCondition: !panicking && suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	SpeedMultiplier@PinDown_4:
-		RequiresCondition: !panicking && pindown > 30 && pindown <= 40
+	SpeedMultiplier@Suppression_4:
+		RequiresCondition: !panicking && suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	SpeedMultiplier@PinDown_5:
-		RequiresCondition: !panicking && pindown > 40 && pindown <= 50
+	SpeedMultiplier@Suppression_5:
+		RequiresCondition: !panicking && suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	SpeedMultiplier@PinDown_6:
-		RequiresCondition: !panicking && pindown > 50 && pindown <= 60
+	SpeedMultiplier@Suppression_6:
+		RequiresCondition: !panicking && suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	SpeedMultiplier@PinDown_7:
-		RequiresCondition: !panicking && pindown > 60 && pindown <= 70
+	SpeedMultiplier@Suppression_7:
+		RequiresCondition: !panicking && suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	SpeedMultiplier@PinDown_8:
-		RequiresCondition: !panicking && pindown > 70 && pindown <= 80
+	SpeedMultiplier@Suppression_8:
+		RequiresCondition: !panicking && suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	SpeedMultiplier@PinDown_9:
-		RequiresCondition: !panicking && pindown > 80 && pindown <= 90
+	SpeedMultiplier@Suppression_9:
+		RequiresCondition: !panicking && suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	SpeedMultiplier@PinDown_10:
-		RequiresCondition: !panicking && pindown > 90 && pindown <= 100
+	SpeedMultiplier@Suppression_10:
+		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownRevealsShroudMultiplier:
-	RevealsShroudMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionRevealsShroudMultiplier:
+	RevealsShroudMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	RevealsShroudMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	RevealsShroudMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	RevealsShroudMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	RevealsShroudMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	RevealsShroudMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	RevealsShroudMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	RevealsShroudMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	RevealsShroudMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	RevealsShroudMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	RevealsShroudMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	RevealsShroudMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	RevealsShroudMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	RevealsShroudMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	RevealsShroudMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	RevealsShroudMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	RevealsShroudMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	RevealsShroudMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	RevealsShroudMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownDetectCloakedMultiplier:
-	DetectCloakedMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionDetectCloakedMultiplier:
+	DetectCloakedMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	DetectCloakedMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	DetectCloakedMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	DetectCloakedMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	DetectCloakedMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	DetectCloakedMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	DetectCloakedMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	DetectCloakedMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	DetectCloakedMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	DetectCloakedMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	DetectCloakedMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	DetectCloakedMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	DetectCloakedMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	DetectCloakedMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	DetectCloakedMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	DetectCloakedMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	DetectCloakedMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	DetectCloakedMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	DetectCloakedMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownBurstMultiplier:
-	BurstMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionBurstMultiplier:
+	BurstMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	BurstMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	BurstMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	BurstMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	BurstMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	BurstMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	BurstMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	BurstMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	BurstMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	BurstMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	BurstMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	BurstMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	BurstMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	BurstMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	BurstMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	BurstMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	BurstMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	BurstMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	BurstMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownBurstWaitMultiplier:
-	BurstWaitMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionBurstWaitMultiplier:
+	BurstWaitMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 110
-	BurstWaitMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	BurstWaitMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 120
-	BurstWaitMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	BurstWaitMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 130
-	BurstWaitMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	BurstWaitMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 140
-	BurstWaitMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	BurstWaitMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 150
-	BurstWaitMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	BurstWaitMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 160
-	BurstWaitMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	BurstWaitMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 170
-	BurstWaitMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	BurstWaitMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 180
-	BurstWaitMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	BurstWaitMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 190
-	BurstWaitMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	BurstWaitMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 200
-^PinDownInaccuracyMultiplier:
-	InaccuracyMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionInaccuracyMultiplier:
+	InaccuracyMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 120
-	InaccuracyMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	InaccuracyMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 140
-	InaccuracyMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	InaccuracyMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 160
-	InaccuracyMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	InaccuracyMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 180
-	InaccuracyMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	InaccuracyMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 200
-	InaccuracyMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	InaccuracyMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 220
-	InaccuracyMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	InaccuracyMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 240
-	InaccuracyMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	InaccuracyMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 260
-	InaccuracyMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	InaccuracyMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 280
-	InaccuracyMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	InaccuracyMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 300
-^PinDownPips:
-	WithDecoration@PinDown_1:
+^SuppressionPips:
+	WithDecoration@Suppression_1:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-1
+		Sequence: pip-Suppression-1
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 0 && pindown <= 10
-	WithDecoration@PinDown_2:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+	WithDecoration@Suppression_2:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-2
+		Sequence: pip-Suppression-2
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 10 && pindown <= 20
-	WithDecoration@PinDown_3:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+	WithDecoration@Suppression_3:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-3
+		Sequence: pip-Suppression-3
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 20 && pindown <= 30
-	WithDecoration@PinDown_4:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+	WithDecoration@Suppression_4:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-4
+		Sequence: pip-Suppression-4
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 30 && pindown <= 40
-	WithDecoration@PinDown_5:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+	WithDecoration@Suppression_5:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-5
+		Sequence: pip-Suppression-5
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 40 && pindown <= 50
-	WithDecoration@PinDown_6:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+	WithDecoration@Suppression_6:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-6
+		Sequence: pip-Suppression-6
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 50 && pindown <= 60
-	WithDecoration@PinDown_7:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+	WithDecoration@Suppression_7:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-7
+		Sequence: pip-Suppression-7
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 60 && pindown <= 70
-	WithDecoration@PinDown_8:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+	WithDecoration@Suppression_8:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-8
+		Sequence: pip-Suppression-8
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 70 && pindown <= 80
-	WithDecoration@PinDown_9:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+	WithDecoration@Suppression_9:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-9
+		Sequence: pip-Suppression-9
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 80 && pindown <= 90
-	WithDecoration@PinDown_10:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+	WithDecoration@Suppression_10:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-10
+		Sequence: pip-Suppression-10
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 90 && pindown <= 100
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 
 ^InfantryStandardVisibility:
 	Inherits: ^VisibilityPips
@@ -1253,6 +1253,9 @@ E3R1:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FFFF00
 	Armament@GARRISONED:
 		Name: garrisoned
 		Weapon: 5.56mmMG
@@ -1594,7 +1597,7 @@ SN:
 		Modifier: 90
 	Armament@1:
 		Name: primary
-		Weapon: Javelin
+		Weapon: ATGM
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1615,6 +1618,9 @@ SN:
 		FullSequence: pip-green
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 00FF00
 	RenderRangeCircle@1:
 		RequiresCondition: ammo-primary
 		Color: 00FF00
@@ -1680,6 +1686,9 @@ AT:
 		FullSequence: pip-blue
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 66B2FF
 	RenderRangeCircle@AA:
 		Alpha: 80
 		Color: 66B2FF
@@ -2101,7 +2110,7 @@ SPY:
 ^DOG:
 	Inherits: ^Soldier
 	-AttackFrontal:
-	-ExternalCondition@PinDown:
+	-ExternalCondition@Suppression:
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
 	-WithDecoration@AmmoReplenishing:

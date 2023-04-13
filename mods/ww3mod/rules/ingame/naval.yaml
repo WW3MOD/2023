@@ -582,7 +582,7 @@ CORV2:
 			Radius: 320
 			PointA: 0, -448
 			PointB: 0, 448
-	# ReloadArmamentsBar:
+	# ReloadBar:
 	# 	Armaments: primary
 	# 	Color: FFFF00
 	RenderRangeCircle:
@@ -635,10 +635,10 @@ NSUB:
 		Delay: 1500
 		Count: 1
 		PauseOnCondition: ammo
-	ReloadArmamentsBar@1:
+	ReloadBar@1:
 		Armaments: primary
 		Color: FFFF00
-	ReloadArmamentsBar@2:
+	ReloadBar@2:
 		Armaments: secondary
 		Color: FFFF00
 	RenderRangeCircle:
@@ -792,7 +792,7 @@ MSUB:
 		RequiresCondition: !underwater
 	RenderSprites:
 		Image: ADVMSUB
-	ReloadArmamentsBar:
+	ReloadBar:
 		Armaments: primary
 		Color: FFFF00
 	RenderRangeCircle:
@@ -842,7 +842,7 @@ SSAM:
 		RequiresCondition: !underwater
 	RenderSprites:
 		Image: MSUB
-	ReloadArmamentsBar:
+	ReloadBar:
 		Color: FFFF00
 	HitShape:
 		TargetableOffsets: 448,0,0, -448,0,0

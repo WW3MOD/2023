@@ -1,7 +1,7 @@
 
 ^Explosion:
 	ValidTargets: Ground, Water, Air
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 426
 		Damage: 50
 		Versus:
@@ -12,7 +12,7 @@
 			Light: 60
 			Heavy: 25
 			Concrete: 100
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Structure, Wall, Trees

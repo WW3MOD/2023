@@ -146,6 +146,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int Burst { get; protected set; }
 		public int BurstWait { get; protected set; }
 		public int FireDelay { get; protected set; }
+		public bool IsBurstWait { get; protected set; }
 
 		public List<WPos> AimInitialTargetPosition { get; protected set; }
 		public int AimInitialTicksBefore { get; protected set; }
@@ -455,7 +456,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (--Burst < 1)
 					{
 						var burstWaitmodifiers = burstWaitModifiers.ToArray();
-						BurstWait = Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers);
+						SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers), true);
 
 						var burstmodifiers = burstModifiers.ToArray();
 						Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
@@ -469,9 +470,9 @@ namespace OpenRA.Mods.Common.Traits
 					else
 					{
 						if (Weapon.BurstDelays.Length == 1)
-							BurstWait = Weapon.BurstDelays[0];
+							SetBurstWait(Weapon.BurstDelays[0]);
 						else
-							BurstWait = Weapon.BurstDelays[Weapon.Burst - (Burst + 1)];
+							SetBurstWait(Weapon.BurstDelays[Weapon.Burst - (Burst + 1)]);
 					}
 				}
 			}
@@ -479,6 +480,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				throw new Exception("Error in UpdateBurst for: {0}".F(self.Info.Name));
 			}
+		}
+
+		void SetBurstWait(int delay, bool isBurstWait = false)
+		{
+			BurstWait = delay;
+			IsBurstWait = isBurstWait;
 		}
 
 		public virtual bool IsWaitingBurst { get { return BurstWait > 0 || IsTraitDisabled; } }

@@ -2,7 +2,7 @@
 
 UnitExplode:
 	Inherits: ^Explosion
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Falloff: 50, 18, 7, 0
 
 UnitExplodePlane:
@@ -12,7 +12,7 @@ UnitExplodePlane:
 
 UnitExplodePlaneEmpty:
 	Inherits: UnitExplodePlane
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 10
 
 UnitExplodeHeli:
@@ -22,12 +22,12 @@ UnitExplodeHeli:
 
 UnitExplodeHeliEmpty:
 	Inherits: UnitExplodeHeli
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 10
 
 VisualExplode:
 	Inherits: ^Explosion
-	-Warhead@Damage:
+	-Warhead@Spread:
 	Warhead@Effect: CreateEffect
 		Explosions: offseted_napalm_small
 		ImpactSounds: firebl3.aud
@@ -50,7 +50,7 @@ UnitExplodeSubmarine:
 
 UnitExplodeSmall:
 	Inherits: ^Explosion
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 40
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
@@ -58,7 +58,7 @@ UnitExplodeSmall:
 
 ArtilleryExplode:
 	Inherits: ^Explosion
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 150
 	Warhead@Effect: CreateEffect
 		Explosions: self_destruct
@@ -77,7 +77,7 @@ SmallBuildingExplode:
 		Explosions: building, building_napalm, explosion_large, self_destruct
 
 CivPanicExplosion:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Falloff: 100, 100
 		Range: 0, 128
 		Damage: 1
@@ -85,7 +85,7 @@ CivPanicExplosion:
 
 BarrelExplode:
 	Inherits: ^Explosion
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Delay: 5
 		ValidTargets: Ground, Trees
@@ -94,7 +94,7 @@ BarrelExplode:
 			Wood: 100
 			Light: 50
 			Concrete: 10
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath, Incendiary
+		DamageTypes: Prone30Percent, ExplosionDeath, Incendiary
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_medium
 		ImpactSounds: firebl3.aud
@@ -111,14 +111,14 @@ BarrelExplode:
 		ValidTargets: Structure, Trees
 
 ATMine:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 256
 		Falloff: 100,50,25,12,6,3,1
 		Damage: 4000
 		Delay: 2
 		AffectsParent: true
 		InvalidTargets: Mine
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
 		ImpactSounds: mineblo1.aud
@@ -128,8 +128,8 @@ ATMine:
 
 APMine:
 	Inherits: ATMine
-	Warhead@Damage: SpreadDamage
-		DamageTypes: Prone30Percent, TriggerProne, SmallExplosionDeath
+	Warhead@Spread: SpreadDamage
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_medium
 		ImpactSounds: mine1.aud
@@ -137,12 +137,12 @@ APMine:
 		SmudgeType: Scorch
 
 ASMine:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 256
 		Damage: 100
 		AffectsParent: true
 		InvalidTargets: Mine
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 		ValidTargets: Ship, Submarine, Underwater
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
@@ -154,7 +154,7 @@ ASMine:
 
 ASMineMagnetic:
 	Inherits: ASMine
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 1c0
 		Damage: 150
 	Warhead@UncloakSub: GrantExternalCondition
@@ -164,7 +164,7 @@ ASMineMagnetic:
 		ValidTargets: Submarine
 
 OreExplosion:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 9
 		Damage: 10
 		Versus:
@@ -172,7 +172,7 @@ OreExplosion:
 			Wood: 70
 			Light: 60
 			Heavy: 20
-		DamageTypes: Prone30Percent, TriggerProne, SmallExplosionDeath
+		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@Resource: CreateResource
 		AddsResourceType: Ore
 		Size: 1,1
@@ -182,7 +182,7 @@ OreExplosion:
 
 CrateNuke:
 	ValidTargets: Ground, Trees, Water, Air
-	Warhead@Damage_impact: SpreadDamage
+	Warhead@Spread_impact: SpreadDamage
 		Spread: 1c0
 		Damage: 10000
 		Falloff: 368, 135, 80, 50, 20, 10
@@ -190,7 +190,7 @@ CrateNuke:
 		Versus:
 			Concrete: 25
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_impact: DestroyResource
 	Warhead@Effect_impact: CreateEffect
 		Explosions: nuke
@@ -205,7 +205,7 @@ CrateNuke:
 		Versus:
 			Concrete: 25
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_areanuke1: DestroyResource
 		Size: 3
 		Delay: 5
@@ -236,7 +236,7 @@ CrateNuke:
 
 MiniNuke:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
-	Warhead@Damage_impact: SpreadDamage
+	Warhead@Spread_impact: SpreadDamage
 		Spread: 1c0
 		Damage: 300
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
@@ -245,7 +245,7 @@ MiniNuke:
 			Wood: 25
 			Concrete: 25
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_impact: DestroyResource
 		Size: 1
 	Warhead@Effect_impact: CreateEffect
@@ -262,7 +262,7 @@ MiniNuke:
 			Wood: 50
 			Concrete: 25
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_areanuke1: DestroyResource
 		Size: 2
 		Delay: 5
@@ -280,7 +280,7 @@ MiniNuke:
 			Wood: 50
 			Concrete: 25
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@8Dam_areanuke2: SpreadDamage
 		Spread: 3c0
 		Damage: 120
@@ -300,7 +300,7 @@ MiniNuke:
 		Versus:
 			Concrete: 25
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath, Incendiary
+		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@11Dam_areanuke3: SpreadDamage
 		Spread: 4c0
 		Damage: 180
@@ -343,7 +343,7 @@ FlakFX:
 		Shadow: True
 		Blockable: false
 		AirburstAltitude: 1c908
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 213
 		Damage: 40
 		ValidTargets: Air
@@ -353,7 +353,7 @@ FlakFX:
 			Light: 100
 			Heavy: 100
 			Concrete: 100
-		DamageTypes: Prone30Percent, TriggerProne, DefaultDeath
+		DamageTypes: Prone30Percent, DefaultDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_air_small
 		ImpactSounds: aacanon3.aud
@@ -371,7 +371,7 @@ NapalmFX:
 		Shadow: True
 		Blockable: false
 		BounceCount: 0
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 426
 		Damage: 20
 		ValidTargets: Ground, Trees
@@ -382,7 +382,7 @@ NapalmFX:
 			Light: 60
 			Heavy: 25
 			Concrete: 75
-		DamageTypes: Prone30Percent, TriggerProne, FireDeath
+		DamageTypes: Prone30Percent, FireDeath
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_small
 		ImpactSounds: firebl3.aud
@@ -398,7 +398,7 @@ NapalmFX:
 
 NapalmExplosion:
 	ValidTargets: Ground, Water, Trees
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 256
 		Falloff: 100, 20
 		Damage: 500
@@ -410,7 +410,7 @@ NapalmExplosion:
 			Light: 60
 			Heavy: 25
 			Concrete: 75
-		DamageTypes: TriggerProne, FireDeath
+		DamageTypes: FireDeath
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_small
 		ImpactSounds: firebl3.aud
@@ -426,18 +426,18 @@ NapalmExplosion:
 
 UnitExplodeSmall.suicide:
 	Inherits: UnitExplodeSmall
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 1c256
 
 DummyExplode:
 	Inherits: ^Explosion
-	-Warhead@Damage:
+	-Warhead@Spread:
 	-Warhead@Effect:
 	-Warhead@Smudge:
 
 EMPExplode:
 	Inherits: ^Explosion
-	-Warhead@Damage:
+	-Warhead@Spread:
 	-Warhead@Effect:
 	-Warhead@Smudge:
 	Warhead@EMP: GrantExternalCondition
@@ -451,27 +451,27 @@ EMPExplode:
 
 BuildingExplodeRef:
 	Inherits: BuildingExplode
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 256
 		Damage: 1000
 		ValidTargets: Harvester
 
 VisualExplodeHusk:
 	Inherits: ^Explosion
-	-Warhead@Damage:
+	-Warhead@Spread:
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
 
 IskanderExplosion:
-	Inherits: ^HugeExplosionEffects
+	Inherits@ExplosionEffects: ^HugeExplosionEffects
 	ValidTargets: Ground, Trees, Water, ICBM
-	Warhead@Damage_impact: SpreadDamage
+	Warhead@Spread_impact: SpreadDamage
 		Spread: 512
 		Damage: 20000
 		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@2Crater: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Structure, Wall, Trees
@@ -491,7 +491,7 @@ IskanderExplosion:
 
 IskanderExplosionAirborne:
 	Inherits: IskanderExplosion
-	# Warhead@Damage: SpreadDamage
+	# Warhead@Spread: SpreadDamage
 	# 	Range: 0, 4c0, 5c0
 	# 	Falloff: 100, 100, 0
 	# 	Damage: 6750
@@ -502,7 +502,7 @@ IskanderExplosionAirborne:
 	# 		Light: 30
 	# 		Heavy: 20
 	# 		Concrete: 100
-	# 	DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+	# 	DamageTypes: Prone30Percent, ExplosionDeath
 	# Warhead@2Eff: CreateEffect
 	# 	Explosions: artillery_explosion
 	# 	ImpactSounds: kaboom15.aud
