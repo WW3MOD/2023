@@ -165,7 +165,6 @@ FireballLauncher:
 	Warhead@Spread: SpreadDamage
 		Damage: 50
 		Spread: 256
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Ground, Water, Trees
 	Warhead@Fire_0: GrantExternalCondition
 		Range: 1536

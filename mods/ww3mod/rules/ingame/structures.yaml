@@ -1329,7 +1329,7 @@ TECHCENTER:
 		Bounds: 2048,2048
 	SequencePlaceBuildingPreview:
 		Sequence: place
-	ProximityExternalCondition@REPLENISHSOLDIERS:
+	ProximityExternalCondition@ReplenishSoldiers:
 		Condition: replenish-soldiers
 		Range: 4c0
 		RequiresCondition: !build-incomplete && !disabled

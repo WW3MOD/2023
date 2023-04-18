@@ -113,7 +113,6 @@ BarrelExplode:
 ATMine:
 	Warhead@Spread: SpreadDamage
 		Spread: 256
-		Falloff: 100,50,25,12,6,3,1
 		Damage: 4000
 		Delay: 2
 		AffectsParent: true
@@ -463,12 +462,11 @@ VisualExplodeHusk:
 		Explosions: explosion_large
 
 IskanderExplosion:
-	Inherits@ExplosionEffects: ^HugeExplosionEffects
+	Inherits@HitEffects: ^HugeExplosionEffects
 	ValidTargets: Ground, Trees, Water, ICBM
 	Warhead@Spread_impact: SpreadDamage
 		Spread: 512
 		Damage: 20000
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
 		DamageTypes: Prone30Percent, ExplosionDeath

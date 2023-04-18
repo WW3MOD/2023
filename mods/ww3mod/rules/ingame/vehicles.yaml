@@ -328,14 +328,14 @@ TRUK:
 	Tooltip:
 		Name: Supply Truck
 	Health:
-		HP: 500
+		HP: 1000
 	Armor:
 		Type: Unarmored
 	Targetable:
 		TargetTypes: Ground, Vehicle, DemoDisguise, Unarmored
 		RequiresCondition: !parachute
 	Mobile:
-		Speed: 85
+		Speed: 75
 	DeliversCash:
 		Payload: 500
 		Type: MoneyTransfer
@@ -344,7 +344,7 @@ TRUK:
 		LocalOffset: 0,0,100
 	Passenger:
 		CustomPipType: pip-blue
-	ProximityExternalCondition@REPLENISHSOLDIERS:
+	ProximityExternalCondition@ReplenishSoldiers:
 		Condition: replenish-soldiers
 		Range: 4c0
 		RequiresCondition: !disabled && !mobile
@@ -462,7 +462,6 @@ SandBagLayer:
 		AmmoPoolName: mines-ammo
 		TileUnknownName: build-valid
 		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
-	# MineImmune:
 	AmmoPool:
 		Name: mines-ammo
 		Ammo: 5
@@ -484,9 +483,6 @@ SandBagLayer:
 	Rearmable:
 		RearmActors: fix
 		AmmoPools: mines-ammo
-	# DetectCloaked:
-	# 	Range: 4c0
-	# 	DetectionTypes: Mine
 	Passenger:
 		CustomPipType: pip-blue
 	RenderSprites:

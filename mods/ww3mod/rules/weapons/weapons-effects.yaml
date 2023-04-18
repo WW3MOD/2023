@@ -22,7 +22,7 @@
 		ImpactActors: true
 
 ^SmallCaliberEffects:
-	Inherits@PiffEffects: ^PiffEffects
+	Inherits@HitEffects: ^PiffEffects
 	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
@@ -36,7 +36,7 @@
 		Duration: 25
 
 ^LargeCaliberEffects:
-	Inherits@PiffEffects: ^PiffEffects
+	Inherits@HitEffects: ^PiffEffects
 	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
@@ -163,7 +163,6 @@
 		Delay: 1
 		RandomDamage: 100
 		Spread: 96
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
@@ -187,7 +186,6 @@
 		Delay: 1
 		RandomDamage: 100
 		Spread: 128
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
@@ -212,7 +210,6 @@
 		Delay: 1
 		RandomDamage: 150
 		Spread: 192
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
@@ -237,7 +234,6 @@
 		ValidTargets: Infantry, Unarmored
 		RandomDamage: 200
 		Spread: 640
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
@@ -266,7 +262,6 @@
 		Delay: 1
 		RandomDamage: 300
 		Spread: 384
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater

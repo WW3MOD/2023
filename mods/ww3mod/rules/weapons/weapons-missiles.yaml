@@ -25,7 +25,6 @@ SurfaceToAirMissile:
 		Damage: 2000
 		RandomDamage: 1000
 		Spread: 128
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Air, ICBM
 		Versus:
 			Light: 80
@@ -61,7 +60,6 @@ AirToAirMissile:
 		Damage: 1000
 		RandomDamage: 1000
 		Spread: 128
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Air, ICBM
 		Versus:
 			Light: 80
@@ -89,7 +87,6 @@ MANPAD:
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		Spread: 96
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Air
 		Versus:
 			Light: 80
@@ -118,7 +115,6 @@ Stinger:
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		Spread: 96
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Air
 		Versus:
 			Light: 80
@@ -162,7 +158,6 @@ ATGM:
 		Damage: 8000
 		RandomDamage: 2000
 		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: ExplosionDeath
 
 TOW:
@@ -189,7 +184,6 @@ TOW:
 		RangeLimit: 26c0
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
 		Damage: 1500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
@@ -221,7 +215,6 @@ Hellfire:
 		# TrailImage: smokey
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
 		Damage: 2500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
@@ -246,7 +239,6 @@ HellfireAG:
 		TrailImage: smokey
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
 		Damage: 2500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
@@ -274,7 +266,6 @@ HellfireAA:
 		TrailImage: smokey
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
 		Damage: 2500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
@@ -301,7 +292,6 @@ TimerWolfMissiles:
 		Image: dragon
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Falloff: 100,50,25,12,6,3,1
 		Damage: 1500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
