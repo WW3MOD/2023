@@ -100,8 +100,8 @@ namespace OpenRA.Mods.Common.Warheads
 
 					var frontAlignment = (alignment + new WAngle(512)).Angle;
 					var rearAlignment = alignment.Angle;
-					var leftAlignment = (alignment - new WAngle(256)).Angle;	// Fliped, was from rear 256
-					var rightAlignment = (alignment + new WAngle(256)).Angle;	// Fliped, was from rear 768
+					var leftAlignment = (alignment - new WAngle(256)).Angle;
+					var rightAlignment = (alignment + new WAngle(256)).Angle;
 
 					float frontModifier = 0;
 					float rearModifier = 0;
@@ -142,7 +142,6 @@ namespace OpenRA.Mods.Common.Warheads
 
 					damage = (int)(frontModifier * 100f / (fromFrontSideRear[0] / 100f) + leftModifier * 100f / (fromFrontSideRear[1] / 100f) + rightModifier * 100f / (fromFrontSideRear[1] / 100f) + rearModifier * 100f / (fromFrontSideRear[2] / 100f));
 				}
-
 			}
 
 			// If no Versus values are defined, DamageVersus can be ignored.
@@ -169,7 +168,6 @@ namespace OpenRA.Mods.Common.Warheads
 
 			if (Duration > 0)
 			{
-				// Game.Debug("Inflict Durational Damage {0}", Duration);
 				victim.InflictDamage(firedBy, new Actor.DamageOverTime(Duration, Modulus, new Damage(modifiedDamage, DamageTypes)));
 			}
 			else
