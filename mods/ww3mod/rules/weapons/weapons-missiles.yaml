@@ -155,7 +155,7 @@ ATGM:
 		Image: DRAGON
 		Blockable: false
 	Warhead@Spread: SpreadDamage
-		Damage: 8000
+		Damage: 2000
 		RandomDamage: 2000
 		Spread: 64
 		DamageTypes: ExplosionDeath
