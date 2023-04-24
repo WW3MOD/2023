@@ -232,12 +232,14 @@ MINE:
 	AppearsOnMapPreview:
 		Terrain: Ore
 	SeedsResource:
-		Interval: 300
+		Interval: 200
 	MapEditorData:
 		Categories: Resource spawn
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	ActorSpawner:
+	RenderSprites:
+		Image: DRILLMINE
 GMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
@@ -258,12 +260,14 @@ GMINE:
 		Terrain: Gems
 	SeedsResource:
 		ResourceType: Gems
-		Interval: 500
+		Interval: 300
 	MapEditorData:
 		Categories: Resource spawn
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	ActorSpawner:
+	RenderSprites:
+		Image: MINE
 RAILMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
@@ -299,8 +303,8 @@ DRILLMINE:
 		Terrain: Ore
 	SeedsResource:
 		Interval: 50
-	WithIdleAnimation:
-		Interval: 175
+	# WithIdleAnimation:
+	# 	Interval: 175
 	RenderSprites:
 		Palette: player
 	MapEditorData:
