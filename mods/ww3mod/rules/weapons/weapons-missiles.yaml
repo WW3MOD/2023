@@ -154,10 +154,17 @@ ATGM:
 		TrailImage: smokey
 		Image: DRAGON
 		Blockable: false
+	# Warhead@Spread: SpreadDamage
+	# 	Damage: 2000
+	# 	RandomDamage: 2000
+	# 	Spread: 64
+	# 	DamageTypes: ExplosionDeath
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Damage: 2000
-		RandomDamage: 2000
 		Spread: 64
+		Damage: 2000
 		DamageTypes: ExplosionDeath
 
 TOW:
@@ -170,7 +177,7 @@ TOW:
 	Projectile: Missile
 		MaximumLaunchSpeed: 50
 		Acceleration: 30
-		Speed: 250
+		Speed: 300
 		Inaccuracy: 768
 		HorizontalRateOfTurn: 10
 		Arm: 2
@@ -182,10 +189,12 @@ TOW:
 		Image: DRAGON
 		TrailImage: smokey
 		RangeLimit: 26c0
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 1500
-		ValidTargets: Ground, Water, Air
+		Damage: 2000
 		DamageTypes: ExplosionDeath
 
 TOW.double:
@@ -198,7 +207,7 @@ Hellfire:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
-	BurstWait: 40
+	BurstWait: 60
 	MinRange: 5c0
 	Report: missile6.aud
 	Projectile: Missile

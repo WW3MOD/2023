@@ -1126,6 +1126,8 @@ E1R1:
 		Description: Rifleman\n Semi automatic rifle\n Single-shot unguided AT weapon
 	Valued:
 		Cost: 100
+	AttackFrontal:
+		ForceFireIgnoresActors: True
 	Armament@1:
 		Name: primary
 		Weapon: 5.56mmDMR

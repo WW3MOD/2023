@@ -20,19 +20,22 @@ namespace OpenRA.Mods.Common.Warheads
 {
 	public abstract class DamageWarhead : Warhead
 	{
+		[Desc("How much armor this warhead can penetrate.")]
+		public readonly int Penetration = 1;
+
 		[Desc("How much (raw) damage to deal.")]
 		public readonly int Damage = 0;
 
 		[Desc("How much damage to deal in percent.")]
 		public readonly int DamagePercent = 0;
 
-		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage)")]
+		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage).")]
 		public readonly int RandomDamage = 0;
 
-		[Desc("Apply the damage for this many ticks after initial")]
+		[Desc("Apply the damage for this many ticks after initial.")]
 		public readonly int Duration = 0;
 
-		[Desc("Apply the Damage over time slower by waiting this many between each hit")]
+		[Desc("Apply the Damage over time slower by waiting this many ticks between each hit.")]
 		public readonly int Modulus = 0;
 
 		[Desc("Types of damage that this warhead causes. Leave empty for no damage types.")]
@@ -82,6 +85,21 @@ namespace OpenRA.Mods.Common.Warheads
 		}
 
 		protected virtual int DamageVersus(Actor victim, HitShape shape, WarheadArgs args)
+		{
+			var damage = 100;
+
+			// If no Versus values are defined, DamageVersus can be ignored.
+			if (Versus.Count == 0)
+				return damage;
+
+			var armorVs = victim.TraitsImplementing<Armor>()
+				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type)
+					&& (shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
+
+			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
+		}
+
+		protected virtual int ArmorDirectionPercent(Actor victim, HitShape shape, WarheadArgs args)
 		{
 			var damage = 100;
 
@@ -140,7 +158,12 @@ namespace OpenRA.Mods.Common.Warheads
 							rightModifier = (float)(rightAlignment - 768) / 256f;
 					}
 
-					damage = (int)(frontModifier * 100f / (fromFrontSideRear[0] / 100f) + leftModifier * 100f / (fromFrontSideRear[1] / 100f) + rightModifier * 100f / (fromFrontSideRear[1] / 100f) + rearModifier * 100f / (fromFrontSideRear[2] / 100f));
+					var frontDamage = frontModifier * 100f * (fromFrontSideRear[0] / 100f);
+					var leftDamage = leftModifier * 100f * (fromFrontSideRear[1] / 100f);
+					var rightDamage = rightModifier * 100f * (fromFrontSideRear[1] / 100f);
+					var rearDamage = rearModifier * 100f * (fromFrontSideRear[2] / 100f);
+
+					return (int)(frontDamage + leftDamage + rightDamage + rearDamage);
 				}
 			}
 
@@ -149,8 +172,8 @@ namespace OpenRA.Mods.Common.Warheads
 				return damage;
 
 			var armorVs = victim.TraitsImplementing<Armor>()
-				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type) &&
-					(shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
+				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type)
+					&& (shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
 
 			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
 		}
@@ -160,6 +183,26 @@ namespace OpenRA.Mods.Common.Warheads
 			var damage = Damage;
 			if (RandomDamage != 0)
 				damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
+
+			var thickness = victim.Trait<Armor>().Info.Thickness;
+			if (thickness != 0)
+			{
+				if (!args.Weapon.IgnoreArmorDirection)
+				{
+					var armorPercent = ArmorDirectionPercent(victim, shape, args);
+					thickness = thickness * armorPercent / 100;
+				}
+
+				var penetration = Penetration;
+
+				var diff = penetration - thickness;
+
+				if (diff < 0)
+				{
+					// Can't penetrate - Reduce damage by how much it penetrated
+					damage = damage * penetration / thickness;
+				} // TODO: damage more when penetrating? Or less if not?
+			}
 
 			if (DamagePercent != 0)
 				damage += victim.TraitOrDefault<Health>().Info.HP * DamagePercent / 100;

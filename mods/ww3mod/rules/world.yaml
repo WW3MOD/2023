@@ -335,7 +335,7 @@ World:
 		ClassName: All units
 		Factions: russia, america
 		BaseActor: fact
-		SupportActors: MNLY, SandBagLayer, timberwolf, btr,btr,SN,SN,SN,SN,SN,droneop,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,mnly,harv,mcv,mcv2,truk
+		SupportActors: abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, MNLY, SandBagLayer, timberwolf, btr,btr,SN,SN,SN,SN,SN,droneop,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,mnly,harv,mcv,mcv2,truk
 		InnerSupportRadius: 3
 		OuterSupportRadius: 6
 	StartingUnits@test_america:

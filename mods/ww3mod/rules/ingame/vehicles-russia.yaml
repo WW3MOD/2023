@@ -16,10 +16,9 @@ t72:
 		Description: Russian Main Battle Tank
 	Valued:
 		Cost: 1700
-	Health:
-		HP: 4000
 	Armor:
 		Type: Heavy
+		Thickness: 280
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 420
@@ -39,7 +38,6 @@ t72:
 	Armament@1:
 		Name: primary
 		Weapon: 125mmT72Gun
-		# FireDelay: 15
 		Recoil: 85
 		RecoilRecovery: 70
 		LocalOffset: 1300,0,45
@@ -103,10 +101,9 @@ bmp2:
 		Cost: 1000
 	Tooltip:
 		Name: BMP-2 IFV
-	Health:
-		HP: 4000
 	Armor:
-		Type: Medium
+		Type: Light
+		Thickness: 19
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	Mobile:
@@ -138,7 +135,7 @@ bmp2:
 		Weapon: TOW
 		# FireDelay: 50
 		LocalOffset: 100,90,90
-		LocalYaw: -100, 100
+		# LocalYaw: -100, 100
 		Recoil: 10
 		PauseOnCondition: !ammo-secondary || empdisable
 	AmmoPool@2:
@@ -238,10 +235,9 @@ btr:
 		Cost: 600
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 3000
 	Armor:
 		Type: Light
+		Thickness: 8
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
@@ -322,11 +318,10 @@ tunguska:
 	Valued:
 		Cost: 1700
 	Armor:
-		Type: Heavy
+		Type: Light
+		Thickness: 9
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
-	Health:
-		HP: 4000
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked
@@ -461,10 +456,9 @@ giatsint:
 		Cost: 1800
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 1500
 	Armor:
-		Type: Medium
+		Type: Light
+		Thickness: 15
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	-HiddenUnderFog:
@@ -550,10 +544,8 @@ grad:
 		Name: BM-21 Grad
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 500
 	Armor:
-		Type: Light
+		Type: Unarmored
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	-HiddenUnderFog:
@@ -644,10 +636,9 @@ tos:
 		Scale: 1.25
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 3000
 	Armor:
 		Type: Heavy
+		Thickness: 85
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	-HiddenUnderFog:
@@ -734,17 +725,12 @@ iskander:
 		Scale: 1.25
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 2000
 	DamageMultiplier@Loaded:
 		RequiresCondition: loaded
 		Modifier: 1000
-	Armor@Normal:
-		RequiresCondition: !loaded
+	Armor:
 		Type: Light
-	Armor@Loaded:
-		RequiresCondition: loaded
-		Type: Unarmored
+		Thickness: 20
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	-HiddenUnderFog:
@@ -794,17 +780,14 @@ iskander:
 		PauseOnCondition: empdisable
 	WithFacingSpriteBody:
 		Sequence: empty-idle
-
 	WithWeaponOverlay@Missile_1:
 		Sequence: missile
 		Offset: -150,130,150
 		RequiresCondition: ammo-primary == 2
-
 	WithWeaponOverlay@Missile_2:
 		Sequence: missile
 		Offset: -150,-100,150
 		RequiresCondition: ammo-primary
-
 	MissileSpawnerMaster:
 		Actors: IskanderMissile
 		LoadedCondition: loaded
@@ -878,14 +861,13 @@ TTNK:
 		AddToArmyValue: true
 	Selectable:
 		DecorationBounds: 1024,1024
-	Health:
-		HP: 1500
-	# Targetable@DontEMP:
-	# 	TargetTypes: EMPInvalid
 	Armor:
 		Type: Light
+		Thickness: 10
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	# Targetable@DontEMP:
+	# 	TargetTypes: EMPInvalid
 	Mobile:
 		Speed: 55
 		TurnSpeed: 15

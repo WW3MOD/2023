@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Traits;
@@ -20,7 +21,41 @@ namespace OpenRA.Mods.Common.Warheads
 	public class TargetDamageWarhead : DamageWarhead
 	{
 		[Desc("Damage will be applied to actors in this area. A value of zero means only targeted actor will be damaged.")]
-		public readonly WDist Spread = WDist.Zero;
+		public readonly WDist Spread = new WDist(1);
+
+		// protected override void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args)
+		// {
+		// 	var damage = Damage;
+		// 	if (RandomDamage != 0)
+		// 		damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
+
+		// 	var thickness = victim.Trait<Armor>().Info.Thickness;
+		// 	if (thickness != 0)
+		// 	{
+		// 		var penetration = Penetration;
+
+		// 		var diff = penetration - thickness;
+
+		// 		if (diff < 0) // Can't penetrate
+		// 			damage = penetration;
+		// 		else
+		// 		{
+		// 			damage = (int)(damage * (float)(penetration / (float)thickness));
+		// 		}
+		// 	}
+
+		// 	if (DamagePercent != 0)
+		// 		damage += victim.TraitOrDefault<Health>().Info.HP * DamagePercent / 100;
+
+		// 	var modifiedDamage = Util.ApplyPercentageModifiers(damage, args.DamageModifiers.Append(DamageVersus(victim, shape, args)));
+
+		// 	if (Duration > 0)
+		// 	{
+		// 		victim.InflictDamage(firedBy, new Actor.DamageOverTime(Duration, Modulus, new Damage(modifiedDamage, DamageTypes)));
+		// 	}
+		// 	else
+		// 		victim.InflictDamage(firedBy, new Damage(modifiedDamage, DamageTypes));
+		// }
 
 		protected override void DoImpact(WPos pos, Actor firedBy, WarheadArgs args)
 		{
@@ -63,7 +98,9 @@ namespace OpenRA.Mods.Common.Warheads
 
 				var damage = closestActiveShape.PercentFromEdge(victim, args.ImpactPosition);
 
-				var adjustedModifiers = args.DamageModifiers.Append(damage);
+				// var adjustedModifiers = args.DamageModifiers.Append(damage); // what if there are multiple victims? Testing solution below
+				var adjustedModifiers = Array.Empty<int>();
+				adjustedModifiers.Append(args.DamageModifiers).Append(damage);
 
 				var updatedWarheadArgs = new WarheadArgs(args)
 				{

@@ -11,8 +11,10 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
+	Health:
+		HP: 10000
 	Armor:
-		FromFrontSideRear: 100,50,30
+		FromFrontSideRear: 100,50,25
 	BlocksProjectiles:
 	HitShape:
 		Type: Rectangle
@@ -152,8 +154,6 @@ MCV:
 		Name: Mobile Command Center
 	Selectable:
 		DecorationBounds: 1792,1792
-	Health:
-		HP: 1000
 	Armor:
 		Type: Light
 	Targetable:
@@ -269,8 +269,6 @@ HARV:
 		ResourceSequences:
 			Ore: pip-yellow
 			Gems: pip-red
-	Health:
-		HP: 1500
 	Armor:
 		Type: Light
 	Targetable:
@@ -327,8 +325,6 @@ TRUK:
 		Cost: 600
 	Tooltip:
 		Name: Supply Truck
-	Health:
-		HP: 1000
 	Armor:
 		Type: Unarmored
 	Targetable:
@@ -370,8 +366,6 @@ MNLY:
 		Name: Minelayer
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 2500
 	Armor:
 		Type: Light
 	Targetable:
@@ -447,8 +441,6 @@ SandBagLayer:
 		Name: Sandbag-layer
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 2500
 	Armor:
 		Type: Light
 	Targetable:
@@ -525,8 +517,6 @@ MSAR:
 		Cost: 1500
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 2000
 	Armor:
 		Type: Light
 	Targetable:
@@ -601,8 +591,6 @@ timberwolf:
 		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
 	Valued:
 		Cost: 2000
-	Health:
-		HP: 10000
 	Armor:
 		Type: Heavy
 	Targetable:
