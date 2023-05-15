@@ -554,7 +554,7 @@ FighterGun:
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
-^TankRound:
+^TankGun:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 24c0
 	BurstWait: 110
@@ -578,11 +578,11 @@ FighterGun:
 		DamageTypes: ExplosionDeath
 
 120mmAbramsGun:
-	Inherits@Type: ^TankRound
+	Inherits@Type: ^TankGun
 	Range: 25c0
 	BurstWait: 130
 125mmT72Gun:
-	Inherits@Type: ^TankRound
+	Inherits@Type: ^TankGun
 
 ^ArtilleryRound:
 	Inherits@HitEffects: ^LargeExplosionEffects

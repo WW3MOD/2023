@@ -23,6 +23,9 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How much armor this warhead can penetrate.")]
 		public readonly int Penetration = 1;
 
+		[Desc("How much armor this warhead can penetrate.")]
+		public readonly int DamageAtMaxRange = 50;
+
 		[Desc("How much (raw) damage to deal.")]
 		public readonly int Damage = 0;
 
@@ -97,6 +100,16 @@ namespace OpenRA.Mods.Common.Warheads
 					&& (shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
 
 			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
+		}
+
+		protected virtual int RangeDamageMultiplier(Actor victim, Actor firedBy, WarheadArgs args)
+		{
+			var range = (args.Source - args.ImpactPosition).Value.HorizontalLength;
+			var maxRange = args.Weapon.Range.Length;
+			var ofMax = (float)range / maxRange;
+			var damage = ((1 - ofMax) * 100) + (ofMax * DamageAtMaxRange);
+
+			return (int)damage;
 		}
 
 		protected virtual int ArmorDirectionPercent(Actor victim, HitShape shape, WarheadArgs args)
@@ -183,6 +196,8 @@ namespace OpenRA.Mods.Common.Warheads
 			var damage = Damage;
 			if (RandomDamage != 0)
 				damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
+
+			damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
 
 			var thickness = victim.Trait<Armor>().Info.Thickness;
 			if (thickness != 0)
