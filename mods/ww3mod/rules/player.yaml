@@ -200,7 +200,7 @@ Player:
 		Image: iconchevrons
 		Sequence: veteran
 	ResourceStorageWarning:
-		AdviceInterval: 750
+		AdviceInterval: 25000
 		TextNotification: Silos needed.
 	PlayerExperience:
 	ProvidesPrerequisite@NATO:
