@@ -67,8 +67,9 @@ namespace OpenRA.Mods.Common.Warheads
 				var damage = closestActiveShape.PercentFromEdge(victim, args.ImpactPosition);
 
 				// var adjustedModifiers = args.DamageModifiers.Append(damage); // what if there are multiple victims? Testing solution below
-				var adjustedModifiers = Array.Empty<int>();
-				adjustedModifiers.Append(args.DamageModifiers).Append(damage);
+				var adjustedModifiers = new int[args.DamageModifiers.Length + 1];
+				Array.Copy(args.DamageModifiers, adjustedModifiers, args.DamageModifiers.Length);
+				adjustedModifiers[args.DamageModifiers.Length] = damage;
 
 				var updatedWarheadArgs = new WarheadArgs(args)
 				{
