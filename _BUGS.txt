@@ -1,3 +1,21 @@
+
+// Opened Players menu list "All players" and instantly got this
+Exception has occurred: CLR/System.ArgumentException
+An unhandled exception of type 'System.ArgumentException' occurred in OpenRA.Game.dll: 'Panel `observer-scrollheader` was not found.'
+   at OpenRA.Graphics.ChromeProvider.GetPanelImages(String collectionName) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Graphics\ChromeProvider.cs:line 190
+   at OpenRA.Mods.Common.Widgets.WidgetUtils.<>c__DisplayClass2_0.<GetCachedStatefulPanelImages>b__0(ValueTuple`5 args) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\WidgetUtils.cs:line 53
+   at OpenRA.Mods.Common.Widgets.CachedTransform`2.Update(T input) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\WidgetUtils.cs:line 416
+   at OpenRA.Mods.Common.Widgets.ScrollItemWidget.Draw() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\ScrollItemWidget.cs:line 67
+   at OpenRA.Widgets.Widget.DrawOuter() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Widgets\Widget.cs:line 481
+   at OpenRA.Mods.Common.Widgets.ScrollPanelWidget.DrawOuter() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\ScrollPanelWidget.cs:line 233
+   at OpenRA.Widgets.Widget.DrawOuter() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Widgets\Widget.cs:line 483
+   at OpenRA.Widgets.Ui.Draw() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Widgets\Widget.cs:line 96
+   at OpenRA.Game.RenderTick() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 706
+   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 844
+   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 876
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 308
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Launcher\Program.cs:line 2
+
 - Error: "No bounds for actor hsam"
 
 - Commented out emitWarning, emitError in CheckConditions.cs to "solve" errors. Lots of "consumes condition that is not not defined" and "provides condition that is never used".

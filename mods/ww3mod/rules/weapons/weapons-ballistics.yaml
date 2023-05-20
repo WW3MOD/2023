@@ -271,7 +271,8 @@ GrenadeLauncher:
 		Blockable: true
 		LaunchAngle: 82
 		Image: BOMB
-		ContrailLength: 6
+		ContrailWidth: 4
+		ContrailLength: 4
 		ContrailZOffset: 0
 		ContrailDelay: 0
 	Warhead@Target: TargetDamage

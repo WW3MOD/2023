@@ -17,7 +17,7 @@ E1R1.america:
 		OverrideActor: E1.america
 # Rifleman
 E3.america:
-	Inherits: ^E3	
+	Inherits: ^E3
 	Buildable:
 		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
 	RenderSprites:
@@ -130,13 +130,13 @@ TECN.america:
 	RenderSprites:
 		Image: tecn.america
 # Drone Operator
-DRONEOP.america:
-	Inherits: ^DRONEOP
+DR.america:
+	Inherits: ^DR
 	Buildable:
 		Prerequisites: ~barracks, ~player.america, ~techlevel.infonly
 	RenderSprites:
-		Image: droneop.america
-# Flamethrower - 
+		Image: dr.america
+# Flamethrower -
 E4.america:
 	Inherits: ^E4
 	Buildable:

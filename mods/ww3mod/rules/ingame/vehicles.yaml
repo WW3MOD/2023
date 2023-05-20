@@ -15,7 +15,7 @@
 		HP: 10000
 	Armor:
 		FromFrontSideRear: 100,50,25
-	BlocksProjectiles:
+	# BlocksProjectiles:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 420

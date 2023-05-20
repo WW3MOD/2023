@@ -130,12 +130,12 @@ TECN.russia:
 	RenderSprites:
 		Image: tecn.russia
 # Drone Operator
-DRONEOP.russia:
-	Inherits: ^DRONEOP
+DR.russia:
+	Inherits: ^DR
 	Buildable:
 		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
 	RenderSprites:
-		Image: droneop.russia
+		Image: dr.russia
 # Flamethrower -
 E4.russia:
 	Inherits@BaseUnit: ^E4

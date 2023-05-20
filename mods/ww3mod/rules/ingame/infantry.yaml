@@ -2232,7 +2232,7 @@ DOG:
 TECN:
 	Inherits: ^TECN
 
-^DRONEOP:
+^DR:
 	Inherits: ^CamoSoldier
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
@@ -2295,20 +2295,20 @@ TECN:
 	# ModifySequence@launched:
 	# 	RequiresCondition: !loaded && primary-ammo
 	Passenger:
-		CustomPipType: droneop_class
+		CustomPipType: dr_class
 	WithDecoration@Class:
-		Sequence: droneop_class
+		Sequence: dr_class
 		Image: class
 		Palette: effect
 		Position: Top
 		Margin: 0,7
 	Selectable:
-		Class: DRONEOP
+		Class: DR
 	RenderSprites:
 		PlayerPalette: playertd
 		Scale: 0.6
-DRONEOP:
-	Inherits: ^DRONEOP
+DR:
+	Inherits: ^DR
 
 # Pilot
 ^PILOT:

@@ -163,7 +163,7 @@ class:
 	pilot_class: pilot_class
 		Start: 0
 		Length: 1
-	droneop_class: droneop_class
+	dr_class: dr_class
 		Start: 0
 		Length: 1
 
@@ -1558,54 +1558,54 @@ tecn.russia:
 	Inherits: ^tecn
 	icon: tecnrussiaicon
 
-^droneop:
+^dr:
 	Inherits@PostDeath: ^Rot
-	stand: droneop
+	stand: dr
 		Facings: 8
-	run: droneop
+	run: dr
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 100
-	# launch1: droneop
+	# launch1: dr
 	# 	Start: 56
 	# 	Length: 28
-	# launch2: droneop
+	# launch2: dr
 	# 	Start: 85
 	# 	Length: 28
-	# prepare: droneop
+	# prepare: dr
 	# 	Start: 148
 	# 	Length: 8
 	# 	Facings: 8
-	shoot: droneop
+	shoot: dr
 		# Start: 56
 		# Length: 28
 		Start: 56
 		Length: 28
 		Tick: 56
-	active-stand: droneop
+	active-stand: dr
 		Start: 253
 		Length: 3
-	active-shoot: droneop
+	active-shoot: dr
 		Start: 229
 		Length: 18
-	active-run: droneop
+	active-run: dr
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 100
-	prone-shoot: droneop
+	prone-shoot: dr
 		Start: 85
 		Length: 28
-	prone-stand: droneop
+	prone-stand: dr
 		Start: 130
 		Stride: 4
 		Facings: 8
-	prone-stand2: droneop
+	prone-stand2: dr
 		Start: 130
 		Stride: 4
 		Facings: 8
-	prone-run: droneop
+	prone-run: dr
 		Start: 130
 		Length: 4
 		Facings: 8
@@ -1620,7 +1620,7 @@ tecn.russia:
 		Facings: 8
 	parachute: e1
 		Start: 377
-	idle: droneop
+	idle: dr
 		Start: 85
 		Length: 28
 	idle1: e1
@@ -1631,19 +1631,19 @@ tecn.russia:
 		Start: 272
 		Length: 16
 		Tick: 120
-	die1: droneop
+	die1: dr
 		Start: 193
 		Length: 8
-	die2: droneop
+	die2: dr
 		Start: 201
 		Length: 8
-	die3: droneop
+	die3: dr
 		Start: 209
 		Length: 8
-	die4: droneop
+	die4: dr
 		Start: 217
 		Length: 12
-	die5: droneop
+	die5: dr
 		Start: 229
 		Length: 18
 	die6: electro
@@ -1666,15 +1666,15 @@ tecn.russia:
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
-droneop:
-	Inherits: ^droneop
-	icon: droneopicon
-droneop.america:
-	Inherits: ^droneop
-	icon: droneopicon
-droneop.russia:
-	Inherits: ^droneop
-	icon: droneopicon
+dr:
+	Inherits: ^dr
+	icon: dricon
+dr.america:
+	Inherits: ^dr
+	icon: dricon
+dr.russia:
+	Inherits: ^dr
+	icon: dricon
 
 dog:
 	stand:
