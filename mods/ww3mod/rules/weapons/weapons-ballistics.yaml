@@ -270,7 +270,7 @@ GrenadeLauncher:
 		Inaccuracy: 1c512
 		Blockable: true
 		LaunchAngle: 82
-		Image: BOMB
+		Image: grenade_small
 		ContrailWidth: 4
 		ContrailLength: 4
 		ContrailZOffset: 0

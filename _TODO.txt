@@ -1,5 +1,11 @@
 2023
 
+- "quittable" instead of time limited. After X minutes any player can quit, and game will count score.
+    When game ends both players get points based on how many units they have left, making it sometimes
+    preferable to wait to get a better score. Nuclear armageddon mode starts waves of nuclear strikes
+    that ends with all units being destroyed. No points are counted, unless one player is victorious
+    everyione loses.
+
 - AA being blocked gets laggy
     - Height seems to be a problem, sandbaglayer has default height and hitpos is Z: 220, when shooting hind far behind it at Z:1280
         Unit height needs to be set at a fraction of its VerticalTopOffset
