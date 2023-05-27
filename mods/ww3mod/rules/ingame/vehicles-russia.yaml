@@ -132,7 +132,7 @@ bmp2:
 		AmmoCondition: ammo-primary
 	Armament@2:
 		Name: secondary
-		Weapon: TOW
+		Weapon: WGM
 		# FireDelay: 50
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100

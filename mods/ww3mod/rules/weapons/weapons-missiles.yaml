@@ -167,7 +167,7 @@ ATGM:
 		Damage: 2000
 		DamageTypes: ExplosionDeath
 
-TOW:
+WGM:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
@@ -191,14 +191,15 @@ TOW:
 		RangeLimit: 26c0
 	Warhead@Target: TargetDamage
 		Damage: 10000
+		Penetration: 800
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Damage: 2000
 		DamageTypes: ExplosionDeath
 
-TOW.double:
-	Inherits: TOW
+WGM.double:
+	Inherits: WGM
 	Burst: 2
 	BurstDelays: 100
 	BurstWait: 1000
@@ -221,10 +222,13 @@ Hellfire:
 		ContrailStartColor: FF0000
 		Blockable: True
 		Image: dragon
-		# TrailImage: smokey
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		Penetration: 800
+		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 2500
+		Damage: 2000
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
 

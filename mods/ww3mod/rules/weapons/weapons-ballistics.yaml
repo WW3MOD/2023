@@ -688,13 +688,13 @@ TimerWolfMissilesBarrage:
 	Projectile: Bullet
 		LaunchAngle: 70
 		Speed: 300
-		Inaccuracy: 3c0
+		Inaccuracy: 4c0
 		ContrailLength: 10
 		TrailImage: smokey
 		Image: dragon
 	Warhead@Target: TargetDamage
 		Damage: 5000
-		Penetration: 500
+		Penetration: 800
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
@@ -749,7 +749,7 @@ TimerWolfMissilesBarrage:
 		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 15000
-		Penetration: 1000
+		Penetration: 1200
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
