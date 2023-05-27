@@ -345,6 +345,7 @@ namespace OpenRA
 
 			InitializeSettings(args);
 
+			Log.AddChannel("exec", "exec.log");
 			Log.AddChannel("perf", "perf.log");
 			Log.AddChannel("debug", "debug.log");
 			Log.AddChannel("server", "server.log", true);
