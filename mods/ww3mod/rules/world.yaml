@@ -330,12 +330,20 @@ World:
 		GameSpeed: default
 	CreateMapPlayers:
 
+	StartingUnits@supplyroute:
+		Class: none
+		ClassName: Supply Route
+		Factions: russia, america
+		BaseActor: supplyroute
+		SupportActors: abrams,t72,bradley,bmp2,truk
+		InnerSupportRadius: 3
+		OuterSupportRadius: 6
+
 	StartingUnits@btg_america:
 		Class: T1
 		ClassName: BTG
 		Factions: america
 		BaseActor: fact
-		BaseActorOffset: -1,-1
 		SupportActors: E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,TL,TL,MT,MT,MT,SN,SN,SN,AT,AT,AT
 		# SupportActors: bradley,bradley,humvee,humvee,humvee, E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,TL,TL,MT,MT,MT,SN,SN,SN,AT,AT,AT
 		InnerSupportRadius: 4
@@ -345,14 +353,13 @@ World:
 		ClassName: BTG
 		Factions: russia
 		BaseActor: fact
-		BaseActorOffset: -1,-1
 		SupportActors: E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,TL,TL,MT,MT,MT,SN,SN,SN,AT,AT,AT
 		# SupportActors: bmp2,bmp2,bmp2,bmp2,bmp2, E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,TL,TL,MT,MT,MT,SN,SN,SN,AT,AT,AT
 		InnerSupportRadius: 4
 		OuterSupportRadius: 8
 
 	StartingUnits@All:
-		Class: none
+		Class: all
 		ClassName: All units
 		Factions: russia, america
 		BaseActor: fact

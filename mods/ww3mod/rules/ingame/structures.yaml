@@ -272,6 +272,63 @@
 		RequiresCondition: empdisable
 		Condition: disabled
 
+SupplyRoute:
+	Inherits: ^Building
+	Inherits@PRIMARY: ^PrimaryBuilding
+	Selectable:
+		DecorationBounds: 3072,3072
+	HitShape:
+		TargetableOffsets: 840,0,0, 598,-640,0, 598,640,0, -1060,0,0, -768,-640,0, -768,640,0
+		Type: Polygon
+			VerticalTopOffset: 512
+			Points: -1536,-300, -640,-811, 640,-811, 1536,-300, 1536,555, 640,1110, -640,1110, -1536,555
+	Building:
+		Footprint: =+= +++ =+=
+		Dimensions: 3,3
+	BaseBuilding:
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 1000
+		Prerequisites: ~disabled
+		Description: Provides reinforcements
+	Tooltip:
+		Name: Supply Route
+	Health:
+		HP: 50000
+	Targetable:
+		TargetTypes: NoAutoTarget
+	Armor:
+		Type: Indestructable
+	RallyPoint:
+	Exit:
+		FacingCenter: true
+		# SpawnOffset: -170,810,0
+		ExitCell: 1,0
+		RequiresCondition: !being-captured
+	Production:
+		Produces: Vehicle
+		PauseOnCondition: disabled || build-incomplete
+	GrantExternalConditionToProduced:
+		Condition: produced
+	ProductionBar:
+		ProductionType: Vehicle
+	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@america:
+		Factions: america
+		Prerequisite: vehicles.america
+	ProvidesPrerequisite@russia:
+		Factions: russia
+		Prerequisite: vehicles.russia
+	ProvidesPrerequisite@americastructure:
+		RequiresPrerequisites: structures.america
+		Prerequisite: vehicles.america
+	ProvidesPrerequisite@russiastructure:
+		RequiresPrerequisites: structures.russia
+		Prerequisite: vehicles.russia
+	RenderSprites:
+		Image: FIX
+		Scale: 1
+
 FACT:
 	Inherits: ^Building
 	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:

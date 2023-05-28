@@ -73,8 +73,10 @@ namespace OpenRA.Mods.Common.Traits
 					else
 						initialFacing = delta.Yaw;
 				}
-				else
+				else if (!exitinfo.FacingCenter)
 					initialFacing = exitinfo.Facing.Value;
+				else
+					initialFacing = new WAngle(100);
 
 				exitLocations = rp != null && rp.Path.Count > 0 ? rp.Path : new List<CPos> { exit };
 
