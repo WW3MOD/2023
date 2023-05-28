@@ -1,5 +1,9 @@
 2023
 
+- Missing from 2022 probably: Toggle deploy should toggle all on, then off. Not switch current
+
+- Minelayers / Sandbaglayers doesnt continue their queued deploying after going to rearm. Stuck on pad.
+
 - "quittable" instead of time limited. After X minutes any player can quit, and game will count score.
     When game ends both players get points based on how many units they have left, making it sometimes
     preferable to wait to get a better score. Nuclear armageddon mode starts waves of nuclear strikes
