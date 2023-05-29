@@ -81,7 +81,6 @@ MP5:
 	Inherits@HitEffects: ^SmallCaliberEffects
 	ValidTargets: Infantry, Unarmored, Helicopter
 	Range: 14c0
-	DamageAtMaxRange: 50
 	Report: gun11.aud
 	Projectile: Bullet
 		Speed: 1c0
@@ -90,6 +89,7 @@ MP5:
 		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 150
+		DamageAtMaxRange: 50
 		Penetration: 4
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
@@ -137,7 +137,6 @@ MP5:
 	Inherits@HitEffects: ^SmallCaliberEffects
 	ValidTargets: Infantry, Unarmored, Helicopter
 	Range: 15c0
-	DamageAtMaxRange: 50
 	Report: pillbox1.aud
 	Projectile: Bullet
 		Speed: 1c0
@@ -146,6 +145,7 @@ MP5:
 		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 200
+		DamageAtMaxRange: 50
 		Penetration: 5
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
@@ -203,7 +203,6 @@ MP5:
 	Inherits@HitEffects: ^LargeCaliberEffects
 	ValidTargets: Infantry, Unarmored, Helicopter, Light
 	Range: 16c0
-	DamageAtMaxRange: 50
 	Report: gun13.aud
 	Projectile: Bullet
 		Speed: 1c0
@@ -212,6 +211,7 @@ MP5:
 		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 400
+		DamageAtMaxRange: 50
 		Penetration: 15
 		ValidTargets: Infantry, Unarmored, Light, Helicopter
 		DamageTypes: BulletDeath
@@ -373,17 +373,18 @@ AACannon:
 	InvalidTargets: Wall, Husk
 	Report: gun13.aud
 	Range: 18c0
-	DamageAtMaxRange: 50
 	Projectile: Bullet
 		Speed: 1c512
 		Inaccuracy: 512
 		Blockable: true
 	Warhead@Target: TargetDamage
 		Damage: 1000
+		DamageAtMaxRange: 50
 		Penetration: 70
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
+		DamageAtMaxRange: 50
 		Damage: 100
 		DamageTypes: SmallExplosionDeath
 
@@ -512,7 +513,6 @@ AACannon:
 73mm_BMP:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 21c0
-	DamageAtMaxRange: 50
 	BurstWait: 100
 	Report: cannon1.aud
 	ValidTargets: Ground
@@ -526,19 +526,20 @@ AACannon:
 		Shadow: True
 	Warhead@Target: TargetDamage
 		Damage: 1500
+		DamageAtMaxRange: 50
 		Penetration: 200
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Damage: 500
+		DamageAtMaxRange: 50
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
 ^TankRound:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 24c0
-	DamageAtMaxRange: 50
 	BurstWait: 110
 	Report: abrams-firing-1.wav, abrams-firing-2.wav, abrams-firing-3.wav
 	ValidTargets: Ground
@@ -552,11 +553,13 @@ AACannon:
 		Shadow: True
 	Warhead@Target: TargetDamage
 		Damage: 10000
+		DamageAtMaxRange: 50
 		Penetration: 800
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Damage: 1000
+		DamageAtMaxRange: 50
 		DamageTypes: ExplosionDeath
 
 TankRound.Abrams:
@@ -570,7 +573,6 @@ TankRound.T72:
 	Inherits@HitEffects: ^LargeExplosionEffects
 	ValidTargets: Ground, Trees, Water
 	Range: 40c0
-	DamageAtMaxRange: 30
 	MinRange: 10c0
 	BurstWait: 180
 	TargetActorCenter: true
@@ -583,12 +585,14 @@ TankRound.T72:
 		Inaccuracy: 2c0
 	Warhead@Target: TargetDamage
 		Damage: 10000
+		DamageAtMaxRange: 50
 		Penetration: 1200
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 3500
+		DamageAtMaxRange: 90
+		Damage: 5000
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
