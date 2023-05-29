@@ -84,6 +84,7 @@ DogVoice:
 	Voices:
 		Select: dogw3px
 		Move: dogy1
+		Action: dogy1
 		Attack: dogg5p
 		Die: dogw5,dogw7
 		Burned: dogw6
@@ -227,7 +228,7 @@ CommandoVoice:
 		Burned: dedman10,yell1
 		Zapped: dedman6,nuyell3
 		Poisoned: vtoxb,vtoxc,vtoxd,vtoxe,vtoxf,vtoxh
-		
+
 SealVoice:
 	Inherits: ^InfantryDeaths
 	Voices:

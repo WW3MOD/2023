@@ -2404,7 +2404,7 @@ PILOTR4:
 	Inherits: ^PILOT
 	Tooltip:
 		Name: Ace Pilot
- 	Valued:
+	Valued:
 		Cost: 3000
 	ProducibleWithLevel:
 		Prerequisites: ~disabled
@@ -2412,29 +2412,3 @@ PILOTR4:
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
 
-# General
-GNRL:
-	Inherits@Type: ^ArmedCivilian
-	Inherits@Rotting: ^RottingInfantry
-	-Wanders:
-	Tooltip:
-		Name: General
-	Selectable:
-		Class: GNRL
-	Mobile:
-		Voice: Move
-	AttackFrontal:
-		Voice: Attack
-	AttackMove:
-		Voice: Move
-	Passenger:
-		Voice: Move
-	Guard:
-		Voice: Move
-	Voiced:
-		VoiceSet: StavrosVoice
-	-ScaredyCat:
-	WithInfantryBody:
-		IdleSequences: idle1
-	RenderSprites:
-		Scale: 0.6
