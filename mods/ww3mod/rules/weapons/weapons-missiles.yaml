@@ -1,145 +1,11 @@
 
-SurfaceToAirMissile:
-	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir
-	ValidTargets: Air
-	Range: 35c0
-	Burst: 1
-	BurstDelays: 1
-	BurstWait: 100
-	Report: missile1.aud
-	ValidTargets: Air, ICBM
-	Projectile: Missile
-		MaximumLaunchSpeed: 50
-		Acceleration: 35
-		Speed: 800
-		Inaccuracy: 400
-		CloseEnough: 400
-		RangeLimit: 35c0
-		HorizontalRateOfTurn: 35
-		Arm: 5
-		ExplodeWhenEmpty: true
-		Blockable: false
-		Image: MISSILE
-		TrailImage: smokey
-	Warhead@Spread: SpreadDamage
-		Damage: 2000
-		RandomDamage: 1000
-		Spread: 128
-		ValidTargets: Air, ICBM
-		Versus:
-			Light: 80
-			Medium: 70
-			Heavy: 60
-
-SurfaceToAirMissile.double:
-	Inherits: SurfaceToAirMissile
-	Burst: 2
-	BurstDelays: 20
-	BurstWait: 80
-
-AirToAirMissile:
-	Inherits: ^MediumExplosionEffectsAir
-	ValidTargets: Air, ICBM
-	Range: 30c0
-	MinRange: 10c0
-	BurstWait: 30
-	Report: missile7.aud
-	Projectile: Missile
-		MaximumLaunchSpeed: 400
-		Acceleration: 35
-		Speed: 800
-		Inaccuracy: 400
-		CloseEnough: 400
-		RangeLimit: 35c0
-		HorizontalRateOfTurn: 25
-		CruiseAltitude: 2c0
-		ContrailLength: 18
-		ExplodeWhenEmpty: true
-		Blockable: false
-	Warhead@Spread: SpreadDamage
-		Damage: 1000
-		RandomDamage: 1000
-		Spread: 128
-		ValidTargets: Air, ICBM
-		Versus:
-			Light: 80
-			Medium: 60
-			Heavy: 40
-
-MANPAD:
-	Inherits: ^MediumExplosionEffectsAir
-	ValidTargets: Air
-	Range: 23c0
-	BurstWait: 200
-	Report: missile1.aud
-	Projectile: Missile
-		MaximumLaunchSpeed: 20
-		Acceleration: 25
-		Speed: 550
-		Inaccuracy: 400
-		CloseEnough: 400
-		RangeLimit: 24c0
-		HorizontalRateOfTurn: 35
-		Arm: 5
-		ExplodeWhenEmpty: true
-		Blockable: false
-		Image: DRAGON
-	Warhead@Spread: SpreadDamage
-		Damage: 1000
-		Spread: 96
-		ValidTargets: Air
-		Versus:
-			Light: 80
-			Medium: 70
-			Heavy: 60
-
-Stinger:
-	Inherits: ^MediumExplosionEffectsAir
-	ValidTargets: Air
-	Range: 28c0
-	BurstWait: 250
-	Report: missile1.aud
-	Projectile: Missile
-		MaximumLaunchSpeed: 50
-		Acceleration: 35
-		Speed: 550
-		Inaccuracy: 400
-		CloseEnough: 400
-		RangeLimit: 30c0
-		HorizontalRateOfTurn: 35
-		Arm: 5
-		ExplodeWhenEmpty: true
-		Blockable: false
-		Image: MISSILE
-		TrailImage: smokey
-	Warhead@Spread: SpreadDamage
-		Damage: 1000
-		Spread: 96
-		ValidTargets: Air
-		Versus:
-			Light: 80
-			Medium: 60
-			Heavy: 40
-
-Stinger.quad:
-	Inherits: Stinger
-	Magazine: 4
-	Burst: 2
-	BurstDelays: 30
-	BurstWait: 60
-	ReloadDelay: 1000
-
-9M311:
-	Inherits: Stinger
-	BurstWait: 40
-
 ATGM:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense, Water
+	TopAttack: true
 	Range: 20c0
 	MinRange: 5c0
 	BurstWait: 200
-	IgnoreArmorDirection: true
 	Report: missile6.aud
 	Projectile: Missile
 		AirburstAltitude: 32
@@ -154,13 +20,9 @@ ATGM:
 		TrailImage: smokey
 		Image: DRAGON
 		Blockable: false
-	# Warhead@Spread: SpreadDamage
-	# 	Damage: 2000
-	# 	RandomDamage: 2000
-	# 	Spread: 64
-	# 	DamageTypes: ExplosionDeath
 	Warhead@Target: TargetDamage
 		Damage: 10000
+		Penetration: 100
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
@@ -279,7 +141,7 @@ HellfireAA:
 		TrailImage: smokey
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 2500
+		Damage: 2000
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
 
@@ -328,6 +190,125 @@ IskanderTargeter:
 			Heavy: 0
 			Brick: 0
 
+
+SurfaceToAirMissile:
+	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir
+	ValidTargets: Air
+	Range: 35c0
+	Burst: 1
+	BurstDelays: 1
+	BurstWait: 100
+	Report: missile1.aud
+	ValidTargets: Air, ICBM
+	Projectile: Missile
+		MaximumLaunchSpeed: 50
+		Acceleration: 35
+		Speed: 800
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 35c0
+		HorizontalRateOfTurn: 35
+		Arm: 5
+		ExplodeWhenEmpty: true
+		Blockable: false
+		Image: MISSILE
+		TrailImage: smokey
+	Warhead@Spread: SpreadDamage
+		Damage: 2000
+		RandomDamage: 1000
+		Spread: 128
+		ValidTargets: Air, ICBM
+
+SurfaceToAirMissile.double:
+	Inherits: SurfaceToAirMissile
+	Burst: 2
+	BurstDelays: 20
+	BurstWait: 80
+
+AirToAirMissile:
+	Inherits: ^MediumExplosionEffectsAir
+	ValidTargets: Air, ICBM
+	Range: 30c0
+	MinRange: 10c0
+	BurstWait: 30
+	Report: missile7.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 400
+		Acceleration: 35
+		Speed: 800
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 35c0
+		HorizontalRateOfTurn: 25
+		CruiseAltitude: 2c0
+		ContrailLength: 18
+		ExplodeWhenEmpty: true
+		Blockable: false
+	Warhead@Spread: SpreadDamage
+		Damage: 1000
+		RandomDamage: 1000
+		Spread: 128
+		ValidTargets: Air, ICBM
+
+MANPAD:
+	Inherits: ^MediumExplosionEffectsAir
+	ValidTargets: Air
+	Range: 23c0
+	BurstWait: 200
+	Report: missile1.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 20
+		Acceleration: 25
+		Speed: 550
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 24c0
+		HorizontalRateOfTurn: 35
+		Arm: 5
+		ExplodeWhenEmpty: true
+		Blockable: false
+		Image: DRAGON
+	Warhead@Spread: SpreadDamage
+		Damage: 1000
+		Spread: 96
+		ValidTargets: Air
+
+Stinger:
+	Inherits: ^MediumExplosionEffectsAir
+	ValidTargets: Air
+	Range: 28c0
+	BurstWait: 250
+	Report: missile1.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 50
+		Acceleration: 35
+		Speed: 550
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 30c0
+		HorizontalRateOfTurn: 35
+		Arm: 5
+		ExplodeWhenEmpty: true
+		Blockable: false
+		Image: MISSILE
+		TrailImage: smokey
+	Warhead@Spread: SpreadDamage
+		Damage: 1000
+		Spread: 96
+		ValidTargets: Air
+
+Stinger.quad:
+	Inherits: Stinger
+	Magazine: 4
+	Burst: 2
+	BurstDelays: 30
+	BurstWait: 60
+	ReloadDelay: 1000
+
+9M311:
+	Inherits: Stinger
+	BurstWait: 40
+
 ^AntiGroundMissile:
 	BurstWait: 50
 	Range: 12c0
@@ -347,14 +328,6 @@ IskanderTargeter:
 		Spread: 128
 		Damage: 200
 		ValidTargets: Ground, Water, Air
-		Versus:
-			None: 10
-			Kevlar: 100
-			Flak: 100
-			Wood: 100
-			Light: 100
-			Heavy: 100
-			Concrete: 50
 		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
@@ -385,12 +358,6 @@ CruiseMissile:
 		CloseEnough: 149
 	Warhead@Spread: SpreadDamage
 		Damage: 120
-		Versus:
-			None: 36
-			Wood: 88
-			Light: 88
-			Heavy: 88
-			Concrete: 20
 
 ^SubMissileDefault:
 	Inherits: ^AntiGroundMissile
@@ -409,14 +376,6 @@ CruiseMissile:
 		Spread: 426
 		Damage: 25
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
-		Versus:
-			None: 40
-			Kevlar: 40
-			Flak: 40
-			Wood: 50
-			Light: 30
-			Heavy: 30
-			Concrete: 100
 		DamageTypes: Prone30Percent, SmallExplosionDeath
 
 SubMissileAA:
@@ -463,11 +422,6 @@ TorpTube:
 		Spread: 426
 		Damage: 120
 		ValidTargets: Water, Underwater, Bridge
-		Versus:
-			Wood: 50
-			Light: 50
-			Heavy: 85
-			Concrete: 500
 		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: artillery_explosion
@@ -478,45 +432,3 @@ TorpTube:
 		ImpactSounds: splash9.aud
 		ValidTargets: Water
 		InvalidTargets: Ship, Structure, Underwater, Bridge
-
-ShipMissileTargeter:
-	ValidTargets: Ground, Water
-	Range: 50c0
-	MinRange: 12c0
-	BurstWait: 150
-	Report: vv3latta.aud, vv3lattb.aud
-	Projectile: InstantHit
-	Warhead@Target: TargetDamage
-		ValidTargets: Ground, Water
-		Damage: 50
-		Versus:
-			None: 0
-			Wood: 0
-			Concrete: 0
-			Light: 0
-			Medium: 0
-			Heavy: 0
-			Brick: 0
-
-ShipMissile:
-	Inherits: ^AntiGroundMissile
-	Range: 40c0
-	BurstWait: 50
-	Projectile: Missile
-		Speed: 334
-		Inaccuracy: 0c614
-		HorizontalRateOfTurn: 20
-		RangeLimit: 40c0
-		MinimumLaunchAngle: 128
-		MaximumLaunchAngle: 150
-		CruiseAltitude: 5c0
-		ContrailLength: 14
-		Image: MISSILE
-		TrailImage: smokey
-	Warhead@Spread: SpreadDamage
-		Spread: 426
-		Damage: 5000
-		Falloff: 1000, 368, 135, 50, 18, 7, 0
-		Versus:
-			Concrete: 80
-		DamageTypes: Prone30Percent, ExplosionDeath

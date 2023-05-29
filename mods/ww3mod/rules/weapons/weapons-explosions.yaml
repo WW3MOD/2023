@@ -89,11 +89,6 @@ BarrelExplode:
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Delay: 5
 		ValidTargets: Ground, Trees
-		Versus:
-			None: 120
-			Wood: 100
-			Light: 50
-			Concrete: 10
 		DamageTypes: Prone30Percent, ExplosionDeath, Incendiary
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_medium
@@ -111,6 +106,12 @@ BarrelExplode:
 		ValidTargets: Structure, Trees
 
 ATMine:
+	BottomAttack: true
+	Warhead@Spread: TargetDamage
+		Damage: 10000
+		AffectsParent: true
+		InvalidTargets: Mine
+		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 256
 		Damage: 4000
@@ -124,16 +125,6 @@ ATMine:
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Structure, Wall, Trees
-
-APMine:
-	Inherits: ATMine
-	Warhead@Spread: SpreadDamage
-		DamageTypes: Prone30Percent, SmallExplosionDeath
-	Warhead@Effect: CreateEffect
-		Explosions: napalm_medium
-		ImpactSounds: mine1.aud
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Scorch
 
 ASMine:
 	Warhead@Spread: SpreadDamage
@@ -166,11 +157,6 @@ OreExplosion:
 	Warhead@Spread: SpreadDamage
 		Spread: 9
 		Damage: 10
-		Versus:
-			None: 90
-			Wood: 70
-			Light: 60
-			Heavy: 20
 		DamageTypes: Prone30Percent, SmallExplosionDeath
 	Warhead@Resource: CreateResource
 		AddsResourceType: Ore
@@ -186,8 +172,6 @@ CrateNuke:
 		Damage: 10000
 		Falloff: 368, 135, 80, 50, 20, 10
 		ValidTargets: Ground, Trees, Water, Air
-		Versus:
-			Concrete: 25
 		AffectsParent: true
 		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_impact: DestroyResource
@@ -201,8 +185,6 @@ CrateNuke:
 		Falloff: 0, 0, 0, 100, 50, 20, 7, 1
 		Delay: 5
 		ValidTargets: Ground, Water, Air
-		Versus:
-			Concrete: 25
 		AffectsParent: true
 		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_areanuke1: DestroyResource
@@ -240,9 +222,6 @@ MiniNuke:
 		Damage: 300
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		ValidTargets: Ground, Trees, Water, Air
-		Versus:
-			Wood: 25
-			Concrete: 25
 		AffectsParent: true
 		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_impact: DestroyResource
@@ -257,9 +236,6 @@ MiniNuke:
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Delay: 5
 		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Wood: 50
-			Concrete: 25
 		AffectsParent: true
 		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@Resource_areanuke1: DestroyResource
@@ -275,9 +251,6 @@ MiniNuke:
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Delay: 10
 		ValidTargets: Ground, Water, Underwater, Air
-		Versus:
-			Wood: 50
-			Concrete: 25
 		AffectsParent: true
 		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@8Dam_areanuke2: SpreadDamage
@@ -296,8 +269,6 @@ MiniNuke:
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Delay: 15
 		ValidTargets: Ground, Water, Underwater
-		Versus:
-			Concrete: 25
 		AffectsParent: true
 		DamageTypes: Prone30Percent, FireDeath, Incendiary
 	Warhead@11Dam_areanuke3: SpreadDamage
@@ -346,12 +317,6 @@ FlakFX:
 		Spread: 213
 		Damage: 40
 		ValidTargets: Air
-		Versus:
-			None: 100
-			Wood: 100
-			Light: 100
-			Heavy: 100
-			Concrete: 100
 		DamageTypes: Prone30Percent, DefaultDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_air_small
@@ -375,12 +340,6 @@ NapalmFX:
 		Damage: 20
 		ValidTargets: Ground, Trees
 		InvalidTargets: Air
-		Versus:
-			None: 90
-			Wood: 75
-			Light: 60
-			Heavy: 25
-			Concrete: 75
 		DamageTypes: Prone30Percent, FireDeath
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_small
@@ -403,12 +362,6 @@ NapalmExplosion:
 		Damage: 500
 		ValidTargets: Ground, Trees
 		InvalidTargets: Air
-		Versus:
-			None: 90
-			Wood: 75
-			Light: 60
-			Heavy: 25
-			Concrete: 75
 		DamageTypes: FireDeath
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_small
@@ -494,12 +447,6 @@ IskanderExplosionAirborne:
 	# 	Falloff: 100, 100, 0
 	# 	Damage: 6750
 	# 	ValidTargets: Ground, Water, Trees, ICBM
-	# 	Versus:
-	# 		None: 10
-	# 		Wood: 55
-	# 		Light: 30
-	# 		Heavy: 20
-	# 		Concrete: 100
 	# 	DamageTypes: Prone30Percent, ExplosionDeath
 	# Warhead@2Eff: CreateEffect
 	# 	Explosions: artillery_explosion

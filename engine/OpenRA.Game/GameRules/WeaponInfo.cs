@@ -132,8 +132,11 @@ namespace OpenRA.GameRules
 		[Desc("Does this weapon aim at the target's center regardless of other targetable offsets?")]
 		public readonly bool TargetActorCenter = false;
 
-		[Desc("Ignore Armor direction, e.g. for top attack weapons")]
-		public readonly bool IgnoreArmorDirection = false;
+		[Desc("Weapon does damage from above.")]
+		public readonly bool TopAttack = false;
+
+		[Desc("Weapon does damage from below.")]
+		public readonly bool BottomAttack = false;
 
 		[FieldLoader.LoadUsing(nameof(LoadProjectile))]
 		public readonly IProjectileInfo Projectile;

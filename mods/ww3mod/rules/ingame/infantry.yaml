@@ -1061,7 +1061,7 @@
 		Cost: 50
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmAR
+		Weapon: 5.56mmE3
 		Turret: primary-turret
 		PauseOnCondition: !ammo-primary
 	AmmoPool:
@@ -1236,7 +1236,7 @@ E3R1:
 		Cost: 100
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmMG
+		Weapon: 5.56mmAR
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1262,7 +1262,7 @@ E3R1:
 		Color: FFFF00
 	Armament@GARRISONED:
 		Name: garrisoned
-		Weapon: 5.56mmMG
+		Weapon: 5.56mmAR
 		PauseOnCondition: !ammo-primary
 	Rearmable:
 		RearmActors: tent, barr

@@ -93,7 +93,7 @@ MP5:
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
 
-5.56mmAR:
+5.56mmE3:
 	Inherits@Caliber: ^5.56mm
 	Range: 10c0
 	Magazine: 20
@@ -101,7 +101,7 @@ MP5:
 	Burst: 2
 	BurstDelays: 5
 	BurstWait: 12
-5.56mmMG:
+5.56mmAR:
 	Inherits@Caliber: ^5.56mm
 	Magazine: 100
 	ReloadDelay: 150
@@ -191,11 +191,6 @@ MP5:
 	Warhead@Spread: SpreadDamage
 		Spread: 32
 		Damage: 200
-		Versus:
-			Unarmored: 10
-			Light: 5
-			Medium: 3
-			Heavy: 1
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
 	Warhead@AirEffect: CreateEffect
@@ -250,9 +245,6 @@ HandGrenade:
 		ValidTargets: Infantry, Unarmored, Light
 		Damage: 1000
 		Spread: 48
-		Versus:
-			Unarmored: 80
-			Light: 50
 		DamageTypes: SmallExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_medium
@@ -299,11 +291,9 @@ RPG:
 	Report: aacanon3.aud
 	Projectile: Bullet
 		Speed: 500
-		# Arm: 2
+		Inaccuracy: 0c512
 		Blockable: True
 		ContrailLength: 10
-		Inaccuracy: 256
-		# Image: DRAGON
 		Shadow: True
 	Warhead@Target: TargetDamage
 		Damage: 4000
@@ -344,10 +334,6 @@ AACannon:
 		Spread: 196
 		Damage: 100
 		ValidTargets: Air, ICBM
-		Versus:
-			Light: 60
-			Medium: 40
-			Heavy: 20
 		DamageTypes: DefaultDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_air_small
@@ -548,10 +534,6 @@ FighterGun:
 	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Damage: 500
-		Versus:
-			Medium: 70
-			Heavy: 20
-			Concrete: 10
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
@@ -672,10 +654,6 @@ TimerWolfMissilesBarrage:
 	Warhead@Spread: SpreadDamage
 		Spread: 128
 		Damage: 1000
-		Versus:
-			Medium: 50
-			Heavy: 30
-			Concrete: 30
 		DamageTypes: ExplosionDeath
 
 122mmGradRockets:
@@ -778,9 +756,6 @@ TimerWolfMissilesBarrage:
 		InvalidTargets: Air
 		Spread: 256
 		Damage: 5000
-		Versus:
-			Heavy: 75
-			Concrete: 50
 		DamageTypes: ExplosionDeath
 203mm.2shot:
 	Inherits: 203mm
@@ -818,11 +793,6 @@ SubMissile.barrage:
 		Spread: 683
 		Damage: 25
 		ValidTargets: Ground
-		Versus:
-			None: 25
-			Wood: 60
-			Light: 100
-			Heavy: 50
 SubMissile.barrage.display:
 	BurstWait: 740
 	Range: 20c0
@@ -840,10 +810,6 @@ SubMissile.barrage.display:
 		Blockable: true
 	Warhead@Spread: SpreadDamage
 		Damage: 100
-		Versus:
-			Light: 80
-			Heavy: 40
-			Concrete: 40
 
 8Inch:
 	Range: 30c0

@@ -21,7 +21,7 @@ abrams:
 	Armor:
 		Type: Heavy
 		Thickness: 700
-		FromFrontSideRear: 100,40,15
+		Distribution: 100,40,15,10,10
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 480

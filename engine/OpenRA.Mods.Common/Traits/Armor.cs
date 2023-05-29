@@ -23,8 +23,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Armor thickness in mm.")]
 		public readonly int Thickness = 0;
 
-		[Desc("Armor thickness at { Front, Side, Rear } in percent.")]
-		public readonly int[] FromFrontSideRear = System.Array.Empty<int>();
+		[Desc("Armor thickness at { Front, Side, Rear, Top, Bottom } in percent.")]
+		public readonly int[] Distribution = System.Array.Empty<int>();
 
 		public override object Create(ActorInitializer init) { return new Armor(this); }
 	}

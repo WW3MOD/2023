@@ -23,8 +23,14 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How much armor this warhead can penetrate.")]
 		public readonly int Penetration = 1;
 
-		[Desc("How much armor this warhead can penetrate.")]
+		[Desc("Warhead always does full damage regardless of range (e.g. missiles).")]
+		public readonly bool IgnoreRangeFalloff = false;
+
+		[Desc("The percent of damage to deal when firing at max range (e.g. kinetic weapons).")]
 		public readonly int DamageAtMaxRange = 50;
+
+		[Desc("How far out in % will this projectile to maximum damage before starting to falloff to DamageAtMaxRange.")]
+		public readonly int MaxDamageRangePercent = 50; // Unimplemented
 
 		[Desc("How much (raw) damage to deal.")]
 		public readonly int Damage = 0;
@@ -114,15 +120,23 @@ namespace OpenRA.Mods.Common.Warheads
 
 		protected virtual int ArmorDirectionPercent(Actor victim, HitShape shape, WarheadArgs args)
 		{
-			var damage = 100;
+			var armorPercent = 100;
 
-			if (!args.Weapon.IgnoreArmorDirection)
+			var distribution = victim.TraitsImplementing<Armor>()
+				.First(a => !a.IsTraitDisabled).Info.Distribution;
+
+			// Directional damage, e.g. higher damage from the rear
+			if (distribution.Length == 5)
 			{
-				// Directional damage, e.g. higher damage from the rear
-				var fromFrontSideRear = victim.TraitsImplementing<Armor>()
-					.First(a => !a.IsTraitDisabled).Info.FromFrontSideRear;
-
-				if (fromFrontSideRear.Length == 3)
+				if (args.Weapon.TopAttack)
+				{
+					return distribution[3];
+				}
+				else if (args.Weapon.BottomAttack)
+				{
+					return distribution[4];
+				}
+				else
 				{
 					var victimYaw = victim.Orientation.Yaw;
 					var projectileYaw = args.ImpactOrientation.Yaw;
@@ -171,24 +185,16 @@ namespace OpenRA.Mods.Common.Warheads
 							rightModifier = (float)(rightAlignment - 768) / 256f;
 					}
 
-					var frontDamage = frontModifier * 100f * (fromFrontSideRear[0] / 100f);
-					var leftDamage = leftModifier * 100f * (fromFrontSideRear[1] / 100f);
-					var rightDamage = rightModifier * 100f * (fromFrontSideRear[1] / 100f);
-					var rearDamage = rearModifier * 100f * (fromFrontSideRear[2] / 100f);
+					var frontDamage = frontModifier * 100f * (distribution[0] / 100f);
+					var leftDamage = leftModifier * 100f * (distribution[1] / 100f);
+					var rightDamage = rightModifier * 100f * (distribution[1] / 100f);
+					var rearDamage = rearModifier * 100f * (distribution[2] / 100f);
 
 					return (int)(frontDamage + leftDamage + rightDamage + rearDamage);
 				}
 			}
 
-			// If no Versus values are defined, DamageVersus can be ignored.
-			if (Versus.Count == 0)
-				return damage;
-
-			var armorVs = victim.TraitsImplementing<Armor>()
-				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type)
-					&& (shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
-
-			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
+			return armorPercent;
 		}
 
 		protected virtual void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args)
@@ -197,16 +203,14 @@ namespace OpenRA.Mods.Common.Warheads
 			if (RandomDamage != 0)
 				damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
 
-			damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
+			if (!Info.IgnoreRangeFalloff)
+				damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
 
 			var thickness = victim.Trait<Armor>().Info.Thickness;
 			if (thickness != 0)
 			{
-				if (!args.Weapon.IgnoreArmorDirection)
-				{
-					var armorPercent = ArmorDirectionPercent(victim, shape, args);
-					thickness = thickness * armorPercent / 100;
-				}
+				var armorPercent = ArmorDirectionPercent(victim, shape, args);
+				thickness = thickness * armorPercent / 100;
 
 				var penetration = Penetration;
 

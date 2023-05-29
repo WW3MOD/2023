@@ -400,10 +400,6 @@ PrismLaserMaxFirepower:
 		ValidTargets: Vehicle, Structure, Defense, Water, Air, ICBM
 		Spread: 64
 		Damage: 5000
-		Versus:
-			Light: 80
-			Medium: 60
-			Heavy: 40
 		DamageTypes: ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch
@@ -498,12 +494,6 @@ PrisBurst:
 		Spread: 64
 		Falloff: 100, 50, 20, 5, 1
 		Damage: 65
-		Versus:
-			None: 85
-			Wood: 40
-			Concrete: 25
-			Light: 100
-			Heavy: 55
 		DamageTypes: Prone30Percent, ExplosionDeath
 	# -Warhead@Burst:
 	Warhead@Effect: CreateEffect
@@ -520,12 +510,6 @@ PrisTLaser:
 	Warhead@Spread: SpreadDamage
 		Damage: 150
 		Spread: 341
-		Versus:
-			None: 150
-			Wood: 100
-			Concrete: 100
-			Light: 100
-			Heavy: 45
 		DamageTypes: Prone30Percent, ExplosionDeathMinor
 
 PrisTBurst:
@@ -537,9 +521,6 @@ PrisTBurst:
 	Warhead@Spread: SpreadDamage
 		Damage: 40
 		Spread: 160
-		Versus:
-			Wood: 35
-			Concrete: 100
 		DamageTypes: Prone30Percent, ExplosionDeath
 	# -Warhead@Burst:
 	Warhead@Effect: CreateEffect
@@ -560,13 +541,6 @@ PrisCLaser:
 	Warhead@Spread: SpreadDamage
 		Damage: 180
 		Spread: 512
-		Versus:
-			None: 60
-			Wood: 100
-			Concrete: 75
-			Light: 85
-			Heavy: 30
-	# -Warhead@Burst:
 
 MarineSapper:
 	ValidTargets: Ship, Underwater
@@ -623,9 +597,6 @@ C4:
 		Spread: 64
 		Damage: 100
 		DamageTypes: Prone30Percent, ExplosionDeath
-		Versus:
-			Light: 150
-			Heavy: 150
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
 		ImpactSounds: icolexpa.aud
@@ -674,8 +645,6 @@ DepthCharge:
 		Spread: 128
 		Damage: 40
 		ValidTargets: Submarine
-		Versus:
-			Light: 100
 		DamageTypes: ExplosionDeath
 	Warhead@EffectWater: CreateEffect
 		Explosions: splash_large
@@ -731,12 +700,6 @@ Claw:
 		Spread: 213
 		Damage: 3000
 		ValidTargets: GroundActor, WaterActor
-		Versus:
-			None: 97
-			Wood: 10
-			Light: 30
-			Heavy: 10
-			Concrete: 10
 		DamageTypes: Prone50Percent, DefaultDeath
 
 Mandible:
@@ -747,8 +710,6 @@ Mandible:
 	StartBurstReport: antbite.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 6000
-		Versus:
-			None: 90
 		DamageTypes: Prone50Percent, BulletDeath
 
 MandibleHeavy:
@@ -759,11 +720,6 @@ MandibleHeavy:
 	StartBurstReport: antbite.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 10000
-		Versus:
-			None: 100
-			Light: 90
-			Heavy: 35
-			Concrete: 20
 		DamageTypes: Prone50Percent, BulletDeath
 
 AntFireball:
@@ -778,12 +734,6 @@ AntFireball:
 	Warhead@1Dam: SpreadDamage
 		Spread: 213
 		Damage: 4000
-		Versus:
-			None: 80
-			Wood: 85
-			Light: 45
-			Heavy: 20
-			Concrete: 15
 
 # Used for traits that has to implement Armament
 Dummy:

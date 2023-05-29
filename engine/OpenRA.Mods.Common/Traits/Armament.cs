@@ -367,13 +367,9 @@ namespace OpenRA.Mods.Common.Traits
 				Weapon = Weapon,
 				Facing = MuzzleFacing(),
 				CurrentMuzzleFacing = MuzzleFacing,
-
 				DamageModifiers = damageModifiers.ToArray(),
-
 				InaccuracyModifiers = inaccuracyModifiers.ToArray(),
-
 				RangeModifiers = rangeModifiers.ToArray(),
-
 				Source = MuzzlePosition(),
 				CurrentSource = MuzzlePosition,
 				SourceActor = self,

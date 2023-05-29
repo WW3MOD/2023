@@ -14,7 +14,7 @@
 	Health:
 		HP: 10000
 	Armor:
-		FromFrontSideRear: 100,50,25
+		Distribution: 100,50,25,10,10
 	# BlocksProjectiles:
 	HitShape:
 		Type: Rectangle

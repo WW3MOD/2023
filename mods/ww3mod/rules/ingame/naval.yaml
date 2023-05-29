@@ -611,13 +611,13 @@ NSUB:
 	# Not set to an instance of an object error
 	Armament@AS:
 		Name: primary
-		Weapon: TorpNuke
+		Weapon: Dummy # Removed TorpNuke
 		LocalOffset: 612,-171,0, 612,171,0
 		FireDelay: 2
 		PauseOnCondition: !ammo
 	Armament@AG:
 		Name: secondary
-		Weapon: SubNuke
+		Weapon: Dummy # Removed SubNuke
 		LocalOffset: 0,0,0
 		FireDelay: 2
 		PauseOnCondition: !ammo

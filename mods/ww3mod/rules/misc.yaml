@@ -41,10 +41,6 @@ MINV:
 		Image: minv
 	Explodes:
 		Weapon: ATMine
-MINP:
-	Inherits: MINV
-	Explodes:
-		Weapon: APMine
 
 ^Crate:
 	Inherits@1: ^SpriteActor
