@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
 		public readonly PlayerRelationship ExplodesOn = PlayerRelationship.Enemy;
 
-		public WDist HitShapeHeight;
+		public WDist? HitShapeHeight;
 
 		public override object Create(ActorInitializer init) { return new BlocksProjectiles(this); }
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 			{ }
 
-		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight : Info.Height;
+		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight.Value : Info.Height;
 		int IBlocksProjectiles.Bypass { get { return Info.Bypass; } }
 
 		PlayerRelationship IBlocksProjectiles.ExplodesOn { get { return Info.ExplodesOn; } }
