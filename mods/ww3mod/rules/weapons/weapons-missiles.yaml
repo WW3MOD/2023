@@ -94,7 +94,7 @@ Hellfire:
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
 
-HellfireAG:
+Hellfire.Ground:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
@@ -117,14 +117,12 @@ HellfireAG:
 		Damage: 2500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
-
-HellfireAG.dual:
-	Inherits: HellfireAG
+Hellfire.Ground.dual:
+	Inherits: Hellfire.Ground
 	Burst: 2
 	BurstDelays: 65
 	BurstWait: 1000
-
-HellfireAA:
+Hellfire.Air:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Air
 	Range: 21c0
@@ -145,7 +143,7 @@ HellfireAA:
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
 
-TimerWolfMissiles:
+TimerWolf_Missiles:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
@@ -189,7 +187,6 @@ IskanderTargeter:
 			Medium: 0
 			Heavy: 0
 			Brick: 0
-
 
 SurfaceToAirMissile:
 	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir

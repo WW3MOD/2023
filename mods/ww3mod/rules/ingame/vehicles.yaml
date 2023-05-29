@@ -655,7 +655,7 @@ timberwolf:
 		TurnSpeed: 20
 	Armament@1:
 		Name: primary
-		Weapon: TimerWolfGun
+		Weapon: 30mm.TimerWolf
 		Recoil: 3
 		RecoilRecovery: 1
 		LocalOffset: 600,500,680, 600,-500,680
@@ -681,13 +681,13 @@ timberwolf:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: TimerWolfMissilesBarrage
+		Weapon: TimerWolf_Missiles
 		LocalOffset: -100,350,1150, -100,-350,1150
 		MuzzleSequence: muzzle-missile
 		PauseOnCondition: !ammo-secondary || empdisable
 	Armament@3:
 		Name: secondary-barrage
-		Weapon: TimerWolfMissilesBarrage
+		Weapon: TimerWolf_Barrage
 		LocalOffset: -100,350,1150, -100,-350,1150
 		MuzzleSequence: muzzle-missile
 		PauseOnCondition: !ammo-secondary || empdisable

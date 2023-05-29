@@ -1,5 +1,15 @@
 2023
 
+- Vehicles gets disabled at 50% health
+    - Add recovery vehicle that can tow vehicles
+    - Change "Sell" to "Evacuate", units leave vehicle/building and it becomes neutral
+
+- Buildings may require more than one technician to operate, enter as cargo until full before changing owner
+
+- Units might surrender if surrounded and low experience
+
+- SupplyRoute switches production tab, disable via trait?
+
 - Missing from 2022 probably: Toggle deploy should toggle all on, then off. Not switch current
 
 - Minelayers / Sandbaglayers doesnt continue their queued deploying after going to rearm. Stuck on pad.
@@ -16,17 +26,7 @@
     - Also, when out of ammo, cancel attack orders unless being rearmed
 - Check Blocking actors from weapon offset not from center ground position
 
-
-- Hitshape
-    - Set rectangle for all vehicles
-    - BlocksProjectiles Height defaults to <Shape>.VerticalTopOffset() ?
-    - Damage is modified based on <Shape>.DistanceFromEdge()
-    - Direction matters
-        - Define Front, Side, Rear Damage modifiers to Armor
-        - Define IgnoresDirection for top attack weapons like ATGM, artillery etc
-
-
-- Supply instead of power
+- Supply/Upkeep instead of power?
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.
     - Each unit has seperate build tab, using the Defense icon, placed first.
@@ -122,7 +122,7 @@ Aircraft
     - Soldiers in crashed transport helicopters have a small chance of surviving, but receive lots of damage.
     - Detection, Apache has StandardDetection now
     - Apache shouldn't use guns vs structures
-    - FighterGun still doesn't do any damage / misses?
+    - 30mm.FighterGun still doesn't do any damage / misses?
         - offset seems to come from behind the aircraft
     - F16 doesn't fire auto or manually
     - Landed helicopters could have a bit longer visual

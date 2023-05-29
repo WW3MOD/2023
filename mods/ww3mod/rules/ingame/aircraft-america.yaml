@@ -108,7 +108,7 @@ littlebird:
 		OpportunityFire: True
 	Armament@1:
 		Name: primary
-		Weapon: 7.62mmMinigun
+		Weapon: 7.62mm.Minigun
 		LocalOffset: 150,150,-85, 150,-150,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -132,13 +132,13 @@ littlebird:
 		RequiresSelection: true
 	Armament@2:
 		Name: secondary
-		Weapon: HellfireAG
+		Weapon: Hellfire.Ground
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo-secondary
 	Armament@2-air:
 		Name: secondary-air
-		Weapon: HellfireAA
+		Weapon: Hellfire.Air
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo-secondary
@@ -253,7 +253,7 @@ HELI:
 		OpportunityFire: True
 	Armament@1:
 		Name: primary
-		Weapon: 30mmApacheGun
+		Weapon: 30mm.Heli
 		LocalOffset: 250,0,-200
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -282,12 +282,12 @@ HELI:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: HellfireAG
+		Weapon: Hellfire.Ground
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
 	Armament@3:
 		Name: secondary-air
-		Weapon: HellfireAA
+		Weapon: Hellfire.Air
 		LocalOffset: 0,-213,-85, 0,213,-85
 		PauseOnCondition: !ammo-secondary
 	WithRangeCircle@2:
@@ -380,7 +380,7 @@ A10:
 		FacingTolerance: 0
 	Armament@1:
 		Name: primary
-		Weapon: 30mmA10Gun
+		Weapon: 30mm.A10
 		LocalOffset: 640,0,0
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
@@ -403,7 +403,7 @@ A10:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: HellfireAG
+		Weapon: Hellfire.Ground
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo-secondary
@@ -514,7 +514,7 @@ F16:
 		RequiresSelection: true
 	Armament@2:
 		Name: secondary
-		Weapon: 20mmCRAM
+		Weapon: 20mm_CRAM
 		LocalOffset: 256,-213,0
 		# MuzzleSequence: muzzle # Error: Actor type `mig` trait `Armament` field `MuzzleSequence` references an undefined sequence `muzzle` on image `mig`.
 		PauseOnCondition: !ammo-secondary

@@ -541,7 +541,7 @@ CRAM:
 		TurnSpeed: 40
 		InitialFacing: 820
 	Armament@1:
-		Weapon: 20mmCRAM
+		Weapon: 20mm_CRAM
 		LocalOffset: 520,0,450
 		MuzzleSequence: muzzle
 	AmbientSound@ATTACKSOUND1:
@@ -1117,7 +1117,7 @@ GUN:
 		TurnSpeed: 50
 		InitialFacing: 192
 	Armament:
-		Weapon: 125mmT72Gun
+		Weapon: TankRound.T72
 		LocalOffset: 512,0,112
 		MuzzleSequence: muzzle
 		PauseOnCondition: disabled

@@ -66,6 +66,9 @@ namespace OpenRA.Mods.Common.Warheads
 
 				var damage = closestActiveShape.PercentFromEdge(victim, args.ImpactPosition);
 
+				if (DamageAtMaxRange != 100)
+					damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
+
 				// var adjustedModifiers = args.DamageModifiers.Append(damage); // what if there are multiple victims? Testing solution below
 				var adjustedModifiers = new int[args.DamageModifiers.Length + 1];
 				Array.Copy(args.DamageModifiers, adjustedModifiers, args.DamageModifiers.Length);

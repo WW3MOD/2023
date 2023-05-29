@@ -23,14 +23,8 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How much armor this warhead can penetrate.")]
 		public readonly int Penetration = 1;
 
-		[Desc("Warhead always does full damage regardless of range (e.g. missiles).")]
-		public readonly bool IgnoreRangeFalloff = false;
-
 		[Desc("The percent of damage to deal when firing at max range (e.g. kinetic weapons).")]
-		public readonly int DamageAtMaxRange = 50;
-
-		[Desc("How far out in % will this projectile to maximum damage before starting to falloff to DamageAtMaxRange.")]
-		public readonly int MaxDamageRangePercent = 50; // Unimplemented
+		public readonly int DamageAtMaxRange = 100;
 
 		[Desc("How much (raw) damage to deal.")]
 		public readonly int Damage = 0;
@@ -202,9 +196,6 @@ namespace OpenRA.Mods.Common.Warheads
 			var damage = Damage;
 			if (RandomDamage != 0)
 				damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
-
-			if (!Info.IgnoreRangeFalloff)
-				damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
 
 			var thickness = victim.Trait<Armor>().Info.Thickness;
 			if (thickness != 0)

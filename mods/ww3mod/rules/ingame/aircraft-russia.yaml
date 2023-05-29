@@ -105,7 +105,7 @@ HIND:
 		PersistentTargeting: false
 	Armament@1:
 		Name: primary
-		Weapon: 12.7mmHindGun
+		Weapon: 12.7mm.Hind
 		LocalOffset: 85,0,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -202,7 +202,6 @@ HIND:
 		Width: 3
 		Color: FF0000 # Red
 
-
 MI28:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
@@ -238,7 +237,7 @@ MI28:
 		OpportunityFire: True
 	Armament@1:
 		Name: primary
-		Weapon: 30mmApacheGun
+		Weapon: 30mm.Heli
 		LocalOffset: 250,0,-200
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -267,12 +266,12 @@ MI28:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: HellfireAG
+		Weapon: Hellfire.Ground
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
 	Armament@3:
 		Name: secondary-air
-		Weapon: HellfireAA
+		Weapon: Hellfire.Air
 		LocalOffset: 0,-213,-85, 0,213,-85
 		PauseOnCondition: !ammo-secondary
 	WithRangeCircle@2:
@@ -512,7 +511,7 @@ MIG:
 		RequiresSelection: true
 	Armament@2:
 		Name: secondary
-		Weapon: 20mmCRAM
+		Weapon: 20mm_CRAM
 		LocalOffset: 256,-213,0
 		# MuzzleSequence: muzzle # Error: Actor type `mig` trait `Armament` field `MuzzleSequence` references an undefined sequence `muzzle` on image `mig`.
 		PauseOnCondition: !ammo-secondary

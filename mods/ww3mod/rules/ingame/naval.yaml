@@ -215,7 +215,7 @@ ASCR:
 	Armament@1:
 		Name: primary
 		Turret: primary
-		Weapon: 7.62mmMG
+		Weapon: 7.62mm.MG
 		LocalOffset: 200,0,0
 		MuzzleSequence: muzzle
 		PauseOnCondition: empdisable
@@ -262,7 +262,7 @@ PTRB:
 	Armament@1:
 		Turret: primary
 		Name: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		Recoil: 10
 		RecoilRecovery: 5
 		LocalOffset: 200,0,0
@@ -274,7 +274,7 @@ PTRB:
 		Offset: 600,0,50
 	Armament@2:
 		Turret: secondary
-		Weapon: 12.7mmMG
+		Weapon: 12.7mm.MG
 		LocalOffset: 120,0,0
 		MuzzleSequence: muzzle-mg
 		PauseOnCondition: empdisable
@@ -332,7 +332,7 @@ FAC:
 	Armament@1:
 		Turret: primary
 		Name: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		Recoil: 10
 		RecoilRecovery: 5
 		LocalOffset: 120,0,0
@@ -402,7 +402,7 @@ FAC2:
 	Armament@1:
 		Turret: primary
 		Name: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		Recoil: 10
 		RecoilRecovery: 5
 		LocalOffset: 120,0,0
@@ -472,7 +472,7 @@ CORV:
 	Armament@1:
 		Turret: primary
 		Name: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		Recoil: 10
 		RecoilRecovery: 5
 		LocalOffset: 820,0,105
@@ -539,7 +539,7 @@ CORV2:
 		Speed: 56
 	Armament@1:
 		Turret: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		LocalOffset: -480,0,40
 		Recoil: 85
 		RecoilRecovery: 34
@@ -551,7 +551,7 @@ CORV2:
 		Offset: 469,0,128
 	Armament@2:
 		Turret: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		LocalOffset: -480,0,40
 		Recoil: 85
 		RecoilRecovery: 34

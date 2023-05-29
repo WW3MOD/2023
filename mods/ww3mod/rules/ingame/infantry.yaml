@@ -1061,7 +1061,7 @@
 		Cost: 50
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmE3
+		Weapon: 5.56mm.E3
 		Turret: primary-turret
 		PauseOnCondition: !ammo-primary
 	AmmoPool:
@@ -1132,7 +1132,7 @@ E1R1:
 		ForceFireIgnoresActors: True
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmDMR
+		Weapon: 5.56mm.DMR
 		PauseOnCondition: !ammo-primary
 		# FireDelay: 7
 	AmmoPool@1:
@@ -1236,7 +1236,7 @@ E3R1:
 		Cost: 100
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmAR
+		Weapon: 5.56mm.AR
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1262,7 +1262,7 @@ E3R1:
 		Color: FFFF00
 	Armament@GARRISONED:
 		Name: garrisoned
-		Weapon: 5.56mmAR
+		Weapon: 5.56mm.AR
 		PauseOnCondition: !ammo-primary
 	Rearmable:
 		RearmActors: tent, barr
@@ -1373,7 +1373,7 @@ E2R1:
 		Range: 4c0
 	Armament@1:
 		Name: primary
-		Weapon: 7.62mmDMR
+		Weapon: 7.62mm.DMR
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1463,7 +1463,7 @@ TL:
 		Color: FF0000
 	Armament@1:
 		Name: primary
-		Weapon: 60mmMortar
+		Weapon: 60mm_Mortar
 		PauseOnCondition: !ammo-primary
 		LocalOffset: 0,0,10
 		FireDelay: 10
@@ -1532,7 +1532,7 @@ MT:
 		ValidTargets: Infantry
 	Armament@1:
 		Name: primary
-		Weapon: 7.62mmSniper
+		Weapon: 7.62mm.Sniper
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1555,7 +1555,7 @@ MT:
 		RequiresCondition: ammo-primary
 	Armament@GARRISONED:
 		Name: garrisoned
-		Weapon: 7.62mmSniper
+		Weapon: 7.62mm.Sniper
 	Rearmable:
 		RearmActors: tent, barr
 		AmmoPools: primary-ammo
@@ -1919,7 +1919,7 @@ E4:
 		Locomotor: foot-amphibious-mountainer
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmDMR.silencer
+		Weapon: 5.56mm.DMR.silencer
 		PauseOnCondition: !ammo-primary || inwater
 	AmmoPool@1:
 		Name: primary-ammo
