@@ -230,16 +230,15 @@ FireballLauncher:
 	BurstWait: 150
 	Range: 25c0
 	Report: tesla1.aud
-	IgnoreArmorDirection: true
 	Projectile: TeslaZap
 	Warhead@Spread: SpreadDamage
 		Damage: 3000
 		DamageTypes: ElectricityDeath
+	# IgnoreArmor: # Unimplemented
 
 TeslaBurst:
 	Range: 5c0
 	Projectile: TeslaZap
-	IgnoreArmorDirection: true
 		# -HitAnim:
 	Warhead@Spread: SpreadDamage
 		Damage: 500
