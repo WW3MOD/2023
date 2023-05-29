@@ -68,7 +68,7 @@ abrams:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -159,7 +159,7 @@ bradley:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	ReloadAmmoPool:
 		AmmoPool: primary-ammo
@@ -317,7 +317,7 @@ humvee:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -574,7 +574,7 @@ strykershorad:
 		FullSequence: pip-green
 		AmmoPools: tertiary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -672,7 +672,7 @@ m109:
 		Ammo: 39
 		AmmoCondition: ammo-primary
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo
 	ReloadAmmoPool:
 		AmmoPool: primary-ammo
@@ -786,7 +786,7 @@ m270:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithSpriteTurret:
@@ -890,7 +890,7 @@ HIMARS:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithSpriteTurret:

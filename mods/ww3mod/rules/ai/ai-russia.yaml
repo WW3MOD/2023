@@ -11,15 +11,6 @@ Player:
 			# 		Attractiveness: 1
 			# 		TargetMetric: None
 			# 		CheckRadius: 5c0
-			# UseSpyPlaneSecond:
-			# 	OrderName: RussiaSpyPlaneExtra
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 5c0
 			# UseParatroopers:
 			# 	OrderName: RussiaParatroopers
 			# 	MinimumAttractiveness: 5
@@ -35,30 +26,6 @@ Player:
 			# 		Attractiveness: -5
 			# 		TargetMetric: None
 			# 		CheckRadius: 8c0
-			# UseGrenParadrop:
-			# 	OrderName: GrenParadrop
-			# 	MinimumAttractiveness: 5
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# 	Consideration@2:
-			# 		Against: Enemy
-			# 		Types: Water
-			# 		Attractiveness: -5
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# UseParabombs:
-			# 	OrderName: RussiaParabombs
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 5c0
 			# UseV2Strike:
 			# 	OrderName: V2Strike
 			# 	MinimumAttractiveness: 1
@@ -101,69 +68,7 @@ Player:
 			# 		Attractiveness: 1
 			# 		TargetMetric: None
 			# 		CheckRadius: 1c0
-			# UseFieldRepairs:
-			# 	OrderName: FieldRepairPower
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Ally
-			# 		Types: ICTarget
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 2c0
-			# CrateParabombs:
-			# 	OrderName: CrateParabombs
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 5c0
-			# CrateNuke:
-			# 	OrderName: CrateNuke
-			# 	MinimumAttractiveness: 3000
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: Value
-			# 		CheckRadius: 5c0
-			# 	Consideration@2:
-			# 		Against: Ally
-			# 		Types: Air, Ground, Water
-			# 		Attractiveness: -10
-			# 		TargetMetric: Value
-			# 		CheckRadius: 7c0
-	BaseBuilderBotModule@russia:
-		RequiresCondition: enable-ai-player && player.brics
-		MinimumExcessPower: 60
-		MaximumExcessPower: 160
-		ExcessPowerIncrement: 40
-		ExcessPowerIncreaseThreshold: 4
-		CheckForWaterRadius: 8
-		ConstructionYardTypes: fact
-		RefineryTypes: proc
-		PowerTypes: powr,apwr
-		BarracksTypes: barr
-		VehiclesFactoryTypes: weap
-		ProductionTypes: barr,weap,afld,hpad
-		NavalProductionTypes: spen
-		SiloTypes: silo
-		PlaceDefenseTowardsEnemyChance: 75
-		MaxBaseRadius: 45
-		BuildingFractions:
-			weap: 1
-			fix: 1
-			barr: 2
-			proc: 2
-			pbox: 5
-			sam: 3
-		BuildingDelays:
-			pbox: 1000
-			sam: 1000
-			apwr: 3000
-			fix: 3000
-		BuildingLimits:
+
 	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
 		SquadSize: 12
@@ -174,17 +79,7 @@ Player:
 		ExcludeFromSquadsTypes: # FF TODO
 		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: IgnoreThis
-	SquadManagerBotModule@russia.sea:
-		RequiresCondition: enable-ai-player && player.brics && !global-disablenavy
-		SquadSize: 4
-		SquadSizeRandomBonus: 8
-		RushInterval: 400
-		AttackScanRadius: 24
-		ExcludeFromSquadsTypes: # FF TODO
-		NavalUnitsTypes: ss,msub,ssam,fsub,nsub
-		ConstructionYardTypes: fact
-		NavalProductionTypes: spen
-		IgnoredEnemyTargetTypes: IgnoreThis
+
 	SquadManagerBotModule@russia.air:
 		RequiresCondition: enable-ai-player && player.brics
 		SquadSize: 2
@@ -194,6 +89,7 @@ Player:
 		ExcludeFromSquadsTypes: # FF TODO
 		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
 	UnitBuilderBotModule@russia:
 		RequiresCondition: enable-ai-player && player.brics
 		UnitQueues: Vehicle, Infantry
@@ -223,20 +119,7 @@ Player:
 			dog: 6
 			harv: 12
 			mcv2.ai: 1
-	UnitBuilderBotModule@russia.sea:
-		RequiresCondition: enable-ai-player && player.brics && !global-disablenavy
-		IdleBaseUnitsMaximum: 6
-		UnitQueues: Ship
-		UnitsToBuild:
-			ss: 30
-			msub: 20
-			ssam: 20
-			nsub: 1
-		UnitLimits:
-			ss: 4
-			msub: 4
-			ssam: 2
-			nsub: 1
+
 	UnitBuilderBotModule@russia.air:
 		RequiresCondition: enable-ai-player && player.brics
 		IdleBaseUnitsMaximum: 0
@@ -247,4 +130,3 @@ Player:
 			mig: 40
 			hind: 100
 		UnitLimits:
-

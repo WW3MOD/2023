@@ -26,9 +26,39 @@ Players:
 		Name: Creeps
 		NonCombatant: True
 		Faction: Random
-		Enemies: Multi0
+		Enemies: Multi0, Multi1, Multi2, Multi3, Multi4, Multi5, Multi6
 	PlayerReference@Multi0:
 		Name: Multi0
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi1:
+		Name: Multi1
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi2:
+		Name: Multi2
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi3:
+		Name: Multi3
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi4:
+		Name: Multi4
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi5:
+		Name: Multi5
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi6:
+		Name: Multi6
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
@@ -202,9 +232,6 @@ Actors:
 	Actor58: tanktrap1
 		Owner: Neutral
 		Location: 54,81
-	Actor59: mpspawn
-		Owner: Neutral
-		Location: 63,58
 	Actor60: mine
 		Owner: Neutral
 		Location: 61,46
@@ -412,5 +439,26 @@ Actors:
 	Actor131: barb
 		Owner: Neutral
 		Location: 90,67
+	Actor132: mpspawn
+		Owner: Neutral
+		Location: 61,129
+	Actor133: mpspawn
+		Owner: Neutral
+		Location: 0,66
+	Actor134: mpspawn
+		Owner: Neutral
+		Location: 66,0
+	Actor135: mpspawn
+		Owner: Neutral
+		Location: 129,42
+	Actor136: mpspawn
+		Owner: Neutral
+		Location: 108,129
+	Actor137: mpspawn
+		Owner: Neutral
+		Location: 14,129
+	Actor138: mpspawn
+		Owner: Neutral
+		Location: 129,92
 
 Rules: rules.yaml

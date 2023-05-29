@@ -13,6 +13,8 @@ Player:
 	Inherits: ^BasePlayer
 	TechTree:
 	ProvidesRadar:
+	ProximityCaptor:
+		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 0

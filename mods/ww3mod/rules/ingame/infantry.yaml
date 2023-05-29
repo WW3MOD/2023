@@ -143,6 +143,8 @@
 	MapEditorData:
 		Categories: Infantry
 	EdibleByLeap:
+	DeliversCash@Rotation:
+		Type: Rotation
 ^Soldier:
 	Inherits: ^Infantry
 	Inherits@AmmoDecoration: ^AmmoDecoration
@@ -2364,17 +2366,13 @@ DR:
 		Scale: 0.6
 PILOT:
 	Inherits: ^PILOT
-	DeliversCash:
-		Payload: 200
-		Type: PilotRefund
 # todo: These seem to work but they have no rank pip
 PILOTR1:
 	Inherits: ^PILOT
 	Tooltip:
-		Name: Pilot 1st Rank
-	DeliversCash:
-		Payload: 300
-		Type: PilotRefund
+		Name: Pilot Rank 1
+	Valued:
+		Cost: 800
 	ProducibleWithLevel:
 		Prerequisites: ~disabled
 		InitialLevels: 1
@@ -2383,10 +2381,9 @@ PILOTR1:
 PILOTR2:
 	Inherits: ^PILOT
 	Tooltip:
-		Name: Pilot 2d Rank
-	DeliversCash:
-		Payload: 400
-		Type: PilotRefund
+		Name: Pilot Rank 2
+	Valued:
+		Cost: 1200
 	ProducibleWithLevel:
 		Prerequisites: ~disabled
 		InitialLevels: 2
@@ -2395,10 +2392,9 @@ PILOTR2:
 PILOTR3:
 	Inherits: ^PILOT
 	Tooltip:
-		Name: Pilot 3d Rank
-	DeliversCash:
-		Payload: 500
-		Type: PilotRefund
+		Name: Pilot Rank 3
+	Valued:
+		Cost: 2000
 	ProducibleWithLevel:
 		Prerequisites: ~disabled
 		InitialLevels: 3
@@ -2408,9 +2404,8 @@ PILOTR4:
 	Inherits: ^PILOT
 	Tooltip:
 		Name: Ace Pilot
-	DeliversCash:
-		Payload: 1000
-		Type: PilotRefund
+ 	Valued:
+		Cost: 3000
 	ProducibleWithLevel:
 		Prerequisites: ~disabled
 		InitialLevels: 4

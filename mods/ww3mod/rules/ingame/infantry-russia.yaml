@@ -186,10 +186,6 @@ SHOK:
 		VoiceSet: ShokVoice
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
-	DeliversCash:
-		Payload: 118
-		Type: InfantryRefund
-		Voice: Move
 	RenderRangeCircle:
 		Width: 1
 		Color: FFFFFF # White, Tesla weaponry

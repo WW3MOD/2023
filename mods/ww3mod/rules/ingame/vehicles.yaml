@@ -46,7 +46,7 @@
 		RequiresCondition: !parachute && critical-damage
 		TargetTypes: VehicleRepair
 	Repairable:
-		RepairActors: fix
+		RepairActors: fix, logisticscenter
 		PercentageStep: 3
 	Chronoshiftable:
 	Passenger:
@@ -97,6 +97,8 @@
 		# MinRange: 5c0
 		Range: 24c0
 		RevealGeneratedShroud: False
+	DeliversCash@Rotation:
+		Type: Rotation
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle
@@ -107,7 +109,6 @@
 	Passenger:
 		Weight: 15
 		CargoType: Vehicle
-
 ^TrackedVehicle:
 	Inherits@Type: ^Vehicle
 	Mobile:
@@ -117,7 +118,6 @@
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle
-
 ^Walker:
 	Inherits: ^Vehicle
 	Tooltip:
@@ -139,6 +139,54 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
+
+LCCV:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 102
+		Prerequisites: ~techlevel.low
+		Description: Deploys into Logistics Center
+	Valued:
+		Cost: 100
+	Tooltip:
+		Name: Logistics Center Constructor Vehicle
+	Selectable:
+		DecorationBounds: 1792,1792
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 71
+		Locomotor: heavywheeled
+	RevealsShroud:
+		Range: 6c0
+	Transforms:
+		IntoActor: logisticscenter
+		Offset: -1,-1
+		Facing: 384
+		TransformSounds: placbldg.aud, build5.aud
+		NoTransformNotification: BuildingCannotPlaceAudio
+		PauseOnCondition: empdisable
+	MustBeDestroyed:
+		RequiredForShortGame: true
+	SpawnActorOnDeath:
+		Actor: MCV.Husk
+	Passenger:
+		Weight: 30
+		CustomPipType: pip-blue
+	GpsDot:
+		String: MCV
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	RenderSprites:
+		Image: mcv
+		Scale: 0.8
 
 MCV:
 	Inherits@Type: ^WheeledVehicle
@@ -332,10 +380,6 @@ TRUK:
 		RequiresCondition: !parachute
 	Mobile:
 		Speed: 75
-	DeliversCash:
-		Payload: 500
-		Type: MoneyTransfer
-		PlayerExperience: 50
 	Carryable:
 		LocalOffset: 0,0,100
 	Passenger:
@@ -399,7 +443,7 @@ MNLY:
 		AmmoPools: mines-ammo
 		RequiresCondition: ammo-mines
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: mines-ammo
 	# DetectCloaked:
 	# 	Range: 4c0
@@ -473,7 +517,7 @@ SandBagLayer:
 		AmmoPools: mines-ammo
 		RequiresCondition: ammo-mines
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: mines-ammo
 	Passenger:
 		CustomPipType: pip-blue
@@ -666,7 +710,7 @@ timberwolf:
 		FullSequence: pip-red
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: fix, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		PauseOnCondition: empdisable || unit.docked

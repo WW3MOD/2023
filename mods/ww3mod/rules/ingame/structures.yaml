@@ -272,7 +272,7 @@
 		RequiresCondition: empdisable
 		Condition: disabled
 
-SupplyRoute:
+SUPPLYROUTE:
 	Inherits: ^Building
 	Inherits@PRIMARY: ^PrimaryBuilding
 	Selectable:
@@ -297,37 +297,116 @@ SupplyRoute:
 		HP: 50000
 	Targetable:
 		TargetTypes: NoAutoTarget
+	ProximityCapturable:
+		Range: 20c0
+		Dominance: 200
 	Armor:
 		Type: Indestructable
 	RallyPoint:
-	Exit:
-		FacingCenter: true
-		# SpawnOffset: -170,810,0
+	Exit@Infantry_1:
+		ExitCell: 0,0
+		ProductionTypes: Soldier, Infantry
+	Exit@Infantry_2:
+		ExitCell: 2,0
+		ProductionTypes: Soldier, Infantry
+	Exit@Infantry_3:
+		ExitCell: 2,2
+		ProductionTypes: Soldier, Infantry
+	Exit@Infantry_4:
+		ExitCell: 0,2
+		ProductionTypes: Soldier, Infantry
+	Exit@Vehicle_1:
 		ExitCell: 1,0
-		RequiresCondition: !being-captured
+		ProductionTypes: Vehicle
+	Exit@Vehicle_2:
+		ExitCell: 2,1
+		ProductionTypes: Vehicle
+	Exit@Vehicle_3:
+		ExitCell: 1,2
+		ProductionTypes: Vehicle
+	Exit@Vehicle_4:
+		ExitCell: 0,1
+		ProductionTypes: Vehicle
 	Production:
-		Produces: Vehicle
+		Produces: Infantry, Soldier, Vehicle
+		UseRandomExit: true
 		PauseOnCondition: disabled || build-incomplete
 	GrantExternalConditionToProduced:
 		Condition: produced
-	ProductionBar:
-		ProductionType: Vehicle
-	ProvidesPrerequisite@buildingname:
-	ProvidesPrerequisite@america:
+	# ProductionBar:
+	# 	ProductionType: Vehicle
+	AcceptsDeliveredCash:
+		ValidTypes: Rotation
+	ProvidesPrerequisite@BuildingName:
+	ProvidesPrerequisite@Barracks:
+		Prerequisite: barracks
+	ProvidesPrerequisite@AmericaInfantry:
+		Factions: america
+		Prerequisite: infantry.america
+	ProvidesPrerequisite@RussiaInfantry:
+		Factions: russia
+		Prerequisite: infantry.russia
+	ProvidesPrerequisite@AmericaVehicles:
 		Factions: america
 		Prerequisite: vehicles.america
-	ProvidesPrerequisite@russia:
+	ProvidesPrerequisite@RussiaVehicles:
 		Factions: russia
-		Prerequisite: vehicles.russia
-	ProvidesPrerequisite@americastructure:
-		RequiresPrerequisites: structures.america
-		Prerequisite: vehicles.america
-	ProvidesPrerequisite@russiastructure:
-		RequiresPrerequisites: structures.russia
 		Prerequisite: vehicles.russia
 	RenderSprites:
 		Image: FIX
-		Scale: 1
+
+LOGISTICSCENTER:
+	Inherits: ^Building
+	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
+		Condition: factundeploy
+		Prerequisites: global-factundeploy
+	Selectable:
+		Bounds: 3072,3072
+	HitShape:
+		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
+		Type: Rectangle
+			VerticalTopOffset: 3072
+			TopLeft: -1536, -1536
+			BottomRight: 1536, 1536
+	Building:
+		Footprint: =+= +++ =+=
+		# Footprint: xxX xxx +x=
+		Dimensions: 3,3
+		# LocalCenterOffset: 0,-512,0
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 1000
+		Prerequisites: ~disabled
+		Description: Rearms and repairs units
+	Tooltip:
+		Name: Logistics Center
+	Valued:
+		Cost: 2500
+	Health:
+		HP: 40000
+	Armor:
+		Type: Concrete
+	RepairsUnits:
+		StartRepairingNotification: Repairing
+		FinishRepairingNotification: UnitRepaired
+		PauseOnCondition: disabled || build-incomplete
+		RequiresCondition: !build-incomplete && !disabled
+	RallyPoint:
+	ProximityExternalCondition@UNITDOCKED:
+		Condition: unit.docked
+		Range: 2c0
+		RequiresCondition: !build-incomplete && !disabled
+		ValidRelationships: Ally
+	WithBuildingBib:
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	SpawnActorOnDeath:
+		Actor: fact.husk
+	GpsDot:
+		String: Repair
+	RenderSprites:
+		Image: FACT
 
 FACT:
 	Inherits: ^Building

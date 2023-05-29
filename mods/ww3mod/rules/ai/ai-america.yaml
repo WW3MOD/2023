@@ -17,36 +17,6 @@ Player:
 			# 		Attractiveness: -5
 			# 		TargetMetric: None
 			# 		CheckRadius: 8c0
-			# UseParatanks:
-			# 	OrderName: AmericaParaTanks
-			# 	MinimumAttractiveness: 5
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# 	Consideration@2:
-			# 		Against: Enemy
-			# 		Types: Water
-			# 		Attractiveness: -5
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# UseParascouts:
-			# 	OrderName: AmericaParaScouts
-			# 	MinimumAttractiveness: 5
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# 	Consideration@2:
-			# 		Against: Enemy
-			# 		Types: Water
-			# 		Attractiveness: -5
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
 			# UseNuclear:
 			# 	OrderName: NukeMissile
 			# 	MinimumAttractiveness: 3000
@@ -71,45 +41,6 @@ Player:
 			# 		Attractiveness: 1
 			# 		TargetMetric: None
 			# 		CheckRadius: 1c0
-			# CrateParabombs:
-			# 	OrderName: CrateParabombs
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 5c0
-			# CrateNuke:
-			# 	OrderName: CrateNuke
-			# 	MinimumAttractiveness: 3000
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: Value
-			# 		CheckRadius: 5c0
-			# 	Consideration@2:
-			# 		Against: Ally
-			# 		Types: Air, Ground, Water
-			# 		Attractiveness: -10
-			# 		TargetMetric: Value
-			# 		CheckRadius: 7c0
-			# UseFakeNuke:
-			# 	OrderName: NukeMissileFake
-			# 	MinimumAttractiveness: 3000
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: Value
-			# 		CheckRadius: 5c0
-			# 	Consideration@2:
-			# 		Against: Ally
-			# 		Types: Air, Ground, Water
-			# 		Attractiveness: -10
-			# 		TargetMetric: Value
-			# 		CheckRadius: 7c0
 			# UseSpyMast:
 			# 	OrderName: ListeningPost
 			# 	MinimumAttractiveness: 5
@@ -129,46 +60,13 @@ Player:
 			# 	OrderName: DecoyArmy
 			# 	Consideration@1:
 			# 		Against: Ally
-	BaseBuilderBotModule@america:
-		RequiresCondition: enable-ai-player && player.nato
-		MinimumExcessPower: 50
-		MaximumExcessPower: 160
-		ExcessPowerIncrement: 40
-		ExcessPowerIncreaseThreshold: 4
-		CheckForWaterRadius: 35
-		ConstructionYardTypes: fact
-		RefineryTypes: proc
-		PowerTypes: powr #,apwr
-		BarracksTypes: barr
-		VehiclesFactoryTypes: weap
-		HeliTypes: hpad
-		AirfieldTypes: afld
-		ProductionTypes: barr,weap #,hpad,afld
-		NavalProductionTypes: syrd
-		SiloTypes: silo
-		PlaceDefenseTowardsEnemyChance: 75
-		MaxBaseRadius: 20
-		BuildingFractions:
-			weap: 1
-			fix: 1
-			barr: 2
-			proc: 2
-			pbox: 5
-			sam: 3
-		BuildingDelays:
-			pbox: 1000
-			sam: 1000
-			apwr: 3000
-			fix: 3000
-		BuildingLimits:
 
 	UnitBuilderBotModule@america:
 		RequiresCondition: enable-ai-player && player.nato
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
-			mcv2.ai: 1000
+			lccv.ai: 1000
 		UnitsToBuild:
-			harv: 30
 			e1.america: 100
 			e2.america: 30
 			e3.america: 30
@@ -188,10 +86,9 @@ Player:
 			m109: 20
 			strykershorad: 15
 			m270: 10
-			mcv2.ai: 1
+			lccv.ai: 1
 		UnitLimits:
-			mcv2.ai: 1
-			# harv: 4
+			lccv.ai: 1
 
 	# UnitBuilderBotModule@america.sea:
 	# 	RequiresCondition: enable-ai-player && player.nato && !global-disablenavy

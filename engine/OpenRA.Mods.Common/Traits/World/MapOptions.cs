@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string ShortGameCheckboxDescription = "Players are defeated when their bases are destroyed";
 
 		[Desc("Default value of the short game checkbox in the lobby.")]
-		public readonly bool ShortGameCheckboxEnabled = true;
+		public readonly bool ShortGameCheckboxEnabled = false;
 
 		[Desc("Prevent the short game enabled state from being changed in the lobby.")]
 		public readonly bool ShortGameCheckboxLocked = false;
