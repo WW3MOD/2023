@@ -20,7 +20,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		const float DisplayFracPerFrame = .07f;
 		const int DisplayDeltaPerFrame = 37;
 
-		readonly World world;
 		readonly Player player;
 		readonly PlayerResources playerResources;
 		readonly LabelWithTooltipWidget cashLabel;
@@ -38,7 +37,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[ObjectCreator.UseCtor]
 		public IngameCashCounterLogic(Widget widget, ModData modData, World world)
 		{
-			this.world = world;
 			player = world.LocalPlayer;
 			playerResources = player.PlayerActor.Trait<PlayerResources>();
 
