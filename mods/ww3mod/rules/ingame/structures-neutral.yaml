@@ -16,7 +16,6 @@ OILB:
 		HP: 15000
 	EngineerRepairable:
 	CashTrickler:
-		Interval: 100
 		Amount: 100
 	Tooltip:
 		Name: Oil Derrick
@@ -31,8 +30,6 @@ OILB:
 	GpsDot:
 		String: Oil
 	AppearsOnMapPreview:
-	GivesCashOnCapture:
-		Amount: 100
 	UpdatesDerrickCount:
 	SpawnActorOnDeath:
 		Actor: OILB.Husk
@@ -103,12 +100,8 @@ HOSP:
 	EngineerRepairable:
 	Tooltip:
 		Name: Hospital
-	TooltipDescription@ally:
-		Description:
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description:
-		ValidRelationships: Neutral, Enemy
+	TooltipDescription:
+		Description: Hospital
 	WithBuildingBib:
 		HasMinibib: true
 	WithDeathAnimation:
@@ -121,9 +114,6 @@ HOSP:
 	SpawnActorOnDeath:
 		Actor: HOSP.Husk
 		OwnerType: InternalName
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
 
 BIO:
 	Inherits: ^TechBuilding
@@ -137,21 +127,12 @@ BIO:
 		Footprint: xx xx
 		Dimensions: 2,2
 	EngineerRepairable:
-	Power:
-		Amount: 1000
-	GivesCashOnCapture:
-		Amount: 300
 	CashTrickler:
-		Interval: 100
 		Amount: 300
 	Tooltip:
 		Name: Nuclear Reactor
-	TooltipDescription@ally:
-		Description: $300+ & 1000 Power
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: $300+ & 1000 Power
-		ValidRelationships: Neutral, Enemy
+	TooltipDescription:
+		Description: $300+
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -164,10 +145,6 @@ BIO:
 	SpawnActorOnDeath:
 		Actor: BIO.Husk
 		OwnerType: InternalName
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
-	SupportPowerChargeBar:
 
 FCOM:
 	Inherits: ^TechBuilding
@@ -186,12 +163,8 @@ FCOM:
 		Type: Wood
 	Tooltip:
 		Name: Expansion Post
-	TooltipDescription@ally:
+	TooltipDescription:
 		Description: Provides buildable area and +30 Power.
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: Capture to gain buildable area and +30 Power.
-		ValidRelationships: Neutral, Enemy
 	WithBuildingBib:
 	GivesBuildableArea:
 		AreaTypes: building
@@ -199,8 +172,6 @@ FCOM:
 		PauseOnCondition: being-captured
 		Range: 8c0
 	EngineerRepairable:
-	Power:
-		Amount: 30
 	ProvidesPrerequisite@buildingname:
 	AppearsOnMapPreview:
 	GpsDot:

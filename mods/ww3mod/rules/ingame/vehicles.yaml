@@ -99,6 +99,8 @@
 		RevealGeneratedShroud: False
 	DeliversCash@Rotation:
 		Type: Rotation
+	InfersUpkeep:
+		PermilleCost: 10
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle

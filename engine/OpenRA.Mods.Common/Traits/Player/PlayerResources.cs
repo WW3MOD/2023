@@ -63,13 +63,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int DefaultPassiveIncome = 100;
 
 		[Desc("Number of ticks to wait between giving passive income.")]
-		public readonly int PassiveIncomeInterval = 100;
+		public readonly int PassiveIncomeInterval = 50;
 
 		[Desc("Use resource storage for passive income.")]
 		public readonly bool PassiveIncomeUseResourceStorage = true;
 
 		[Desc("Number of ticks to wait before giving first money.")]
-		public readonly int PassiveIncomeInitialDelay = 100;
+		public readonly int PassiveIncomeInitialDelay = 50;
 
 		[Desc("Monetary value of each resource type.", "Dictionary of [resource type]: [value per unit].")]
 		public readonly Dictionary<string, int> ResourceValues = new Dictionary<string, int>();
@@ -130,6 +130,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public int ResourceCapacity;
 
+		// [Sync]
+		public float Upkeep;
+
 		public int Earned;
 		public int Spent;
 
@@ -140,7 +143,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (--PassiveIncomeTicks <= 0)
 			{
 				if (self.Owner.Playable)
-					ChangeCash(Info.PassiveIncomeInterval);
+					ChangeCash(PassiveIncomeAmount - (int)Upkeep);
 
 				PassiveIncomeTicks = Info.PassiveIncomeInterval;
 			}
@@ -257,6 +260,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Resources > ResourceCapacity)
 				Resources = ResourceCapacity;
+		}
+
+		public void AddToUpkeep(float upkeep)
+		{
+			Upkeep += upkeep;
+		}
+
+		public void RemoveFromUpkeep(float upkeep)
+		{
+			Upkeep -= upkeep;
 		}
 	}
 }

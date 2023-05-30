@@ -220,6 +220,7 @@ infinite-power = Infinite
 ## IngameSiloBarLogic
 ## IngameCashCounterLogic
 silo-usage = Silo Usage: { $usage }/{ $capacity }
+cashflow = Cash: { $cash }, Upkeep: -{ $upkeep }
 
 ## ObserverShroudSelectorLogic
 camera-option-all-players = All Players

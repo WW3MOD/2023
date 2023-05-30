@@ -24,16 +24,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Player player;
 		readonly PlayerResources playerResources;
 		readonly LabelWithTooltipWidget cashLabel;
-		readonly CachedTransform<(int Resources, int Capacity), string> siloUsageTooltipCache;
+		readonly CachedTransform<(int Resources, int Capacity), string> cashflowTooltipCache;
 		readonly string cashTemplate;
 
-		int nextCashTickTime = 0;
 		int displayResources;
+		int displayUpkeep;
 
-		string siloUsageTooltip = "";
+		string cashflowTooltip = "";
 
-		[TranslationReference("usage", "capacity")]
-		static readonly string SiloUsage = "silo-usage";
+		[TranslationReference("cash", "income", "upkeep")]
+		static readonly string Cashflow = "cashflow";
 
 		[ObjectCreator.UseCtor]
 		public IngameCashCounterLogic(Widget widget, ModData modData, World world)
@@ -41,21 +41,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.world = world;
 			player = world.LocalPlayer;
 			playerResources = player.PlayerActor.Trait<PlayerResources>();
+
 			displayResources = playerResources.Cash + playerResources.Resources;
 
-			siloUsageTooltipCache = new CachedTransform<(int Resources, int Capacity), string>(x =>
-				modData.Translation.GetString(SiloUsage, Translation.Arguments("usage", x.Resources, "capacity", x.Capacity)));
+			displayUpkeep = (int)playerResources.Upkeep; // Doesn't change anything?
+
+			cashflowTooltipCache = new CachedTransform<(int Cash, int Upkeep), string>(x =>
+				modData.Translation.GetString(Cashflow, Translation.Arguments("cash", displayResources, "upkeep", displayUpkeep)));
+
 			cashLabel = widget.Get<LabelWithTooltipWidget>("CASH");
-			cashLabel.GetTooltipText = () => siloUsageTooltip;
+			cashLabel.GetTooltipText = () => cashflowTooltip;
 
 			cashTemplate = cashLabel.Text;
 		}
 
 		public override void Tick()
 		{
-			if (nextCashTickTime > 0)
-				nextCashTickTime--;
-
 			var actual = playerResources.Cash + playerResources.Resources;
 
 			var diff = Math.Abs(actual - displayResources);
@@ -64,23 +65,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (displayResources < actual)
 			{
 				displayResources += move;
-
-				if (Game.Settings.Sound.CashTicks)
-					Game.Sound.PlayNotification(world.Map.Rules, player, "Sounds", playerResources.Info.CashTickUpNotification, player.Faction.InternalName);
 			}
 			else if (displayResources > actual)
 			{
 				displayResources -= move;
-
-				if (Game.Settings.Sound.CashTicks && nextCashTickTime == 0)
-				{
-					Game.Sound.PlayNotification(world.Map.Rules, player, "Sounds", playerResources.Info.CashTickDownNotification, player.Faction.InternalName);
-					nextCashTickTime = 2;
-				}
 			}
 
-			siloUsageTooltip = siloUsageTooltipCache.Update((playerResources.Resources, playerResources.ResourceCapacity));
-			cashLabel.Text = cashTemplate.F(displayResources);
+			displayUpkeep = (int)playerResources.Upkeep;
+
+			cashflowTooltip = cashflowTooltipCache.Update((displayResources, displayUpkeep));
+
+			cashLabel.Text = cashTemplate.F(displayResources) + " (-" + cashTemplate.F(displayUpkeep) + ")";
 		}
 	}
 }

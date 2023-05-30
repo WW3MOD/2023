@@ -135,11 +135,12 @@ Player:
 		TextNotification: Low power.
 	AllyRepair:
 	PlayerResources:
-		SelectableCash: 5000, 7500, 10000, 15000, 20000, 25000, 50000
-		DefaultCash: 15000
+		SelectableCash: 0, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000
+		DefaultCash: 1000
 		SelectablePassiveIncome: 0, 50, 100, 150, 200, 300, 400, 500, 750, 1000
-		PassiveIncomeInterval: 100
-		PassiveIncomeInitialDelay: 100
+		DefaultPassiveIncome: 100
+		PassiveIncomeInterval: 50
+		PassiveIncomeInitialDelay: 50
 		PassiveIncomeUseResourceStorage: false
 		InsufficientFundsNotification: InsufficientFunds
 		InsufficientFundsTextNotification: Insufficient funds.

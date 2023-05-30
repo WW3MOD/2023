@@ -143,6 +143,8 @@
 	MapEditorData:
 		Categories: Infantry
 	EdibleByLeap:
+	InfersUpkeep:
+		PermilleCost: 10
 	DeliversCash@Rotation:
 		Type: Rotation
 ^Soldier:

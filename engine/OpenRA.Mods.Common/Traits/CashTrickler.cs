@@ -28,10 +28,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Amount = 15;
 
 		[Desc("Whether to show the cash tick indicators rising from the actor.")]
-		public readonly bool ShowTicks = true;
+		public readonly bool ShowTicks = false;
 
 		[Desc("How long to show the cash tick indicator when enabled.")]
-		public readonly int DisplayDuration = 30;
+		public readonly int DisplayDuration = 10;
 
 		[Desc("Use resource storage for cash granted.")]
 		public readonly bool UseResourceStorage = false;

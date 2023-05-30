@@ -1,12 +1,15 @@
 2023
 
+- Littlebird husk is blueish
+
 - Vehicles gets disabled at 50% health
     - Add recovery vehicle that can tow vehicles
     - Change "Sell" to "Evacuate", units leave vehicle/building and it becomes neutral
 
 - Buildings may require more than one technician to operate, enter as cargo until full before changing owner
 
-- Units might surrender if surrounded and low experience
+- Units might surrender if surrounded, low experience
+    - Defects if out of money and upkeep is high
 
 - SupplyRoute switches production tab, disable via trait?
 
