@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new InfersUpkeep(init.Self, this); }
 	}
 
-	public class InfersUpkeep : INotifyOwnerChanged, INotifyCapture, ISync, INotifyKilled, INotifyAddedToWorld, INotifyRemovedFromWorld
+	public class InfersUpkeep : INotifyOwnerChanged, INotifyCapture, INotifyKilled, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		readonly Actor self;
 		readonly InfersUpkeepInfo info;
