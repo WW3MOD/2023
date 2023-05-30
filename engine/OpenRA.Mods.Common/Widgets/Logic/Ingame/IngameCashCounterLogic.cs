@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		string cashflowTooltip = "";
 
-		[TranslationReference("cash", "income", "upkeep")]
+		[TranslationReference("cash", "upkeep")]
 		static readonly string Cashflow = "cashflow";
 
 		[ObjectCreator.UseCtor]
