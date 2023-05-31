@@ -51,13 +51,18 @@ SetupNatoUnits = function()
 end
 
 ticks = 0
-speed = 5
+speed = 1
 
 Tick = function()
 	ticks = ticks + 1
 
 	local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
-	Camera.Position = viewportOrigin + WVec.New(19200 * math.sin(t), 20480 * math.cos(t), 20480)
+
+	Camera.Position = viewportOrigin + WVec.New(-1920 * math.sin(t), -2048 * math.cos(t), 0)
+
+	if ticks == 100 then
+		MSLO1.ActivateNukePower(CPos.New(40,49))
+	end
 end
 
 WorldLoaded = function()
@@ -65,14 +70,21 @@ WorldLoaded = function()
 	russia = Player.GetPlayer("Russia")
 	viewportOrigin = Camera.Position
 
+	Media.DisplayMessage("Message")
+	Media.DisplaySystemMessage("System")
+	Media.FloatingText("Floating", viewportOrigin)
+
 	SetupNatoUnits()
-	SendNatoUnits(LeftRoad4.Location, { "humvee", "abrams", "bradley" }, 50)
+	SendUnits(
+		{LeftRoadEntry.Location, LeftRoad1.Location, LeftRoad2.Location, LeftRoad3.Location, LeftRoad4.Location, LeftRoad5.Location },
+		{ "humvee", "abrams", "bradley" }, 20
+	)
 end
 
-SendNatoUnits = function(entryCell, unitTypes, interval)
-	local units = Reinforcements.Reinforce(NATO, unitTypes, { LeftRoad4.Location, LeftRoad5.Location }, interval)
+SendUnits = function(path, unitTypes, interval)
+	local units = Reinforcements.Reinforce(NATO, unitTypes, path, interval)
 	Utils.Do(units, function(unit)
 		BindActorTriggers(unit)
 	end)
-	Trigger.OnAllKilled(units, function() SendNatoUnits(entryCell, unitTypes, interval) end)
+	Trigger.OnAllKilled(units, function() SendUnits(path, unitTypes, interval) end)
 end

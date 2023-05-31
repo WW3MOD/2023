@@ -13,6 +13,10 @@ World:
 		Scripts: ww3-shellmap.lua
 	-StartGameNotification:
 
+MSLO:
+	NukePower:
+		ChargeInterval: 1
+
 # ^Palettes:
 # 	IndexedPlayerPalette:
 # 		PlayerIndex:
