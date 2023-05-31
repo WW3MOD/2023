@@ -2,7 +2,6 @@
 
 - Add Ukraine faction
 
-- E3 fires RPG at everything, should need force firing
 - Too much cash, cant build fast enough
 - AI needs to learn to build Logistics centers and rearm
 - Runs out of ammo should cancel current order and return to rearm

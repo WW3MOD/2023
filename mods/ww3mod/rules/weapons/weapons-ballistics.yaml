@@ -288,6 +288,7 @@ GrenadeLauncher.5mag:
 RPG:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	ValidTargets: Ground, Vehicle, Defense, Water
+	InvalidTargets: Infantry
 	BurstWait: 150
 	Range: 12c0
 	MinRange: 2c0
