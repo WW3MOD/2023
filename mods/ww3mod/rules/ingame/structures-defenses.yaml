@@ -525,6 +525,8 @@ CRAM:
 		BuildPaletteOrder: 7
 		Description: Anti-Air base defense.
 		IconPalette: chrometd
+	RevealsRadar:
+		Range: 25c0
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -577,8 +579,6 @@ CRAM:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	Power:
-		Amount: -30
 	SpawnActorOnDeath:
 		Actor: agun.husk
 	RenderSprites:
@@ -612,6 +612,8 @@ AGUN:
 		Cost: 800
 	Tooltip:
 		Name: AA Gun
+	RevealsRadar:
+		Range: 25c0
 	Health:
 		HP: 5000
 	Armor:
@@ -654,8 +656,6 @@ AGUN:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	Power:
-		Amount: -50
 	SpawnActorOnDeath:
 		Actor: agun.husk
 	RenderSprites:
@@ -717,8 +717,6 @@ SAM:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	Power:
-		Amount: -30
 	ClassicFacingBodyOrientation:
 	SpawnActorOnDeath:
 		Actor: sam.husk
@@ -799,8 +797,6 @@ HSAM:
 # 		PauseOnCondition: disabled || lowpower
 # 	BodyOrientation:
 # 		QuantizedFacings: 8
-# 	Power:
-# 		Amount: -30
 # 	RenderSprites:
 # 		Image: patriot
 
@@ -862,8 +858,6 @@ FTUR:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	# WithMuzzleOverlay:
-	Power:
-		Amount: -20
 	Explodes:
 		Weapon: BuildingExplode
 		EmptyWeapon: BuildingExplode
@@ -942,8 +936,6 @@ TSLA:
 		Condition: powerdown
 		OrderName: PowerDown
 		RequiresCondition: !TeslaChargeApplied
-	Power:
-		Amount: -150
 	SpawnActorOnDeath:
 		Actor: tsla.husk
 	RenderRangeCircle:
@@ -1003,8 +995,6 @@ PRIS:
 		Name: support
 		Weapon: PrisLaserSupport
 		LocalOffset: 0,0,1024
-	Power:
-		Amount: -150
 	ProvidesPrerequisite@buildingname:
 	WithRangeCircle@SUPPORT:
 		Range: 20c0
@@ -1067,8 +1057,6 @@ MSLO:
 		FlightVelocity: 1024
 		CameraRemoveDelay: 1000
 	SupportPowerChargeBar:
-	Power:
-		Amount: 0
 	MustBeDestroyed:
 		RequiredForShortGame: false
 	WithSupportPowerActivationAnimation:
@@ -1125,8 +1113,6 @@ GUN:
 		PauseOnCondition: disabled
 		RequiresCondition: !build-incomplete
 	WithMuzzleOverlay:
-	Power:
-		Amount: -20
 	SpawnActorOnDeath:
 		Actor: gun.husk
 	RenderSprites:

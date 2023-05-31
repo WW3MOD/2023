@@ -427,9 +427,6 @@ FACT:
 	BaseProvider:
 		PauseOnCondition: being-captured
 		Range: 14c0
-	Power:
-		Amount: 50
-		RequiresCondition: !build-incomplete
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
@@ -590,8 +587,6 @@ BARR:
 	ProvidesPrerequisite@americastructure:
 		RequiresPrerequisites: structures.america
 		Prerequisite: infantry.america
-	Power:
-		Amount: -20
 	InfiltrateForSupportPower:
 		Proxy: barracks.upgraded
 		Types: SpyInfiltrate
@@ -667,8 +662,6 @@ WEAP:
 	ProvidesPrerequisite@russiastructure:
 		RequiresPrerequisites: structures.russia
 		Prerequisite: vehicles.russia
-	Power:
-		Amount: -30
 	InfiltrateForSupportPower:
 		Proxy: vehicles.upgraded
 		Types: SpyInfiltrate
@@ -730,8 +723,6 @@ FIX:
 		HasMinibib: true
 	WithResupplyAnimation:
 		RequiresCondition: !build-incomplete
-	Power:
-		Amount: -30
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -819,7 +810,7 @@ APWR:
 	Valued:
 		Cost: 2000
 	Tooltip:
-		Name: Super Duper Power Plant
+		Name: Advanced Power Plant
 	Health:
 		HP: 28000
 	Targetable:
@@ -932,8 +923,6 @@ PROC:
 	WithIdleOverlay@SMOKE:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-smoke
-	Power:
-		Amount: -50
 	Explodes:
 		Type: Footprint
 		Weapon: BuildingExplodeRef
@@ -1008,8 +997,6 @@ HPAD:
 		SpawnOffset: 0,-256,0
 		ExitCell: 0,0
 		Facing: 896
-	Power:
-		Amount: -20
 	ProvidesPrerequisite@buildingname:
 	ProvidesPrerequisite@america:
 		Factions: america
@@ -1097,8 +1084,6 @@ AFLD:
 	ProvidesPrerequisite@russiastructure:
 		RequiresPrerequisites: structures.russia
 		Prerequisite: aircraft.russia
-	Power:
-		Amount: -20
 	GrantConditionOnPowerState@LOWPOWER:
 		Condition: lowpower
 		ValidPowerStates: Low, Critical
@@ -1159,8 +1144,6 @@ DOME:
 	WithBuildingBib:
 	ExternalCondition@JAMMED:
 		Condition: jammed
-	Power:
-		Amount: -30
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -1244,8 +1227,6 @@ SYRD:
 		Facing: 32
 		ExitCell: 2,0
 		ProductionTypes: Ship, Boat
-	Power:
-		Amount: -30
 	GrantConditionOnPowerState@LOWPOWER:
 		Condition: lowpower
 		ValidPowerStates: Low, Critical
@@ -1316,8 +1297,6 @@ SILO:
 	GrantConditionOnPrerequisite@incomeplayerboost2:
 		Condition: orecasting-on
 		Prerequisites: orecasting
-	Power:
-		Amount: -10
 	GrantConditionOnPowerState@LOWPOWER:
 		Condition: lowpower
 		ValidPowerStates: Low, Critical
@@ -1367,8 +1346,6 @@ ATEK:
 	ProvidesPrerequisite:
 		Prerequisite: techcenter
 	WithBuildingBib:
-	Power:
-		Amount: -100
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -1410,8 +1387,6 @@ STEK:
 	Armor:
 		Type: Concrete
 	WithBuildingBib:
-	Power:
-		Amount: -100
 	ProvidesPrerequisite@buildingname:
 	ProvidesPrerequisite:
 		Prerequisite: techcenter
@@ -1529,8 +1504,6 @@ TENT:
 	ProvidesPrerequisite@americastructure:
 		RequiresPrerequisites: structures.america
 		Prerequisite: infantry.america
-	Power:
-		Amount: -20
 	InfiltrateForSupportPower:
 		Proxy: barracks.upgraded
 		Types: SpyInfiltrate
@@ -1576,8 +1549,6 @@ GAP:
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
 	ProvidesPrerequisite@buildingname:
-	Power:
-		Amount: -100
 	MustBeDestroyed:
 		RequiredForShortGame: false
 	Explodes:
@@ -1654,8 +1625,6 @@ KENN:
 		PauseOnCondition: disabled || build-incomplete
 	ProductionBar:
 		ProductionType: Infantry
-	Power:
-		Amount: -10
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -1763,8 +1732,6 @@ SPEN:
 		Facing: 32
 		ExitCell: 2,0
 		ProductionTypes: Ship
-	Power:
-		Amount: -30
 	GrantConditionOnPowerState@LOWPOWER:
 		Condition: lowpower
 		ValidPowerStates: Low, Critical
@@ -1850,8 +1817,6 @@ SPRO:
 	#	Factions: america
 	#	ResetOnOwnerChange: True
 	SupportPowerChargeBar:
-	Power:
-		Amount: -150
 	ProvidesPrerequisite@buildingname:
 	WithDeathAnimation:
 		DeathSequence: dead
@@ -1894,8 +1859,6 @@ OREP:
 	Armor:
 		Type: Concrete
 	WithBuildingBib:
-	Power:
-		Amount: -150
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -1949,8 +1912,6 @@ INDP:
 	Armor:
 		Type: Concrete
 	WithBuildingBib:
-	Power:
-		Amount: -150
 	ProvidesPrerequisite@buildingname:
 	ProvidesPrerequisite@disabled:
 		Prerequisite: indplowpower
@@ -2047,8 +2008,6 @@ PDOX:
 		Types: SpyInfiltrate
 	Targetable:
 		TargetTypes: GroundActor, C4, DetonateAttack, Structure, SpyInfiltrate
-	Power:
-		Amount: -200
 	MustBeDestroyed:
 		RequiredForShortGame: false
 	ProvidesPrerequisite@buildingname:
