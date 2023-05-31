@@ -13,8 +13,6 @@
 	WithSpriteControlGroupDecoration:
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure
-	RevealsShroud:
-		Range: 5c0
 	Building:
 		Dimensions: 1,1
 		Footprint: x
