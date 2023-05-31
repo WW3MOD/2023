@@ -46,7 +46,7 @@
 		RequiresCondition: !parachute && critical-damage
 		TargetTypes: VehicleRepair
 	Repairable:
-		RepairActors: fix, logisticscenter
+		RepairActors: logisticscenter
 		PercentageStep: 3
 	Chronoshiftable:
 	Passenger:
@@ -346,7 +346,7 @@ timberwolf:
 		FullSequence: pip-red
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		PauseOnCondition: empdisable || unit.docked

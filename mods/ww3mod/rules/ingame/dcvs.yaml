@@ -46,7 +46,7 @@ MNLY:
 		AmmoPools: mines-ammo
 		RequiresCondition: ammo-mines
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: mines-ammo
 	# DetectCloaked:
 	# 	Range: 4c0
@@ -120,7 +120,7 @@ SandBagLayer:
 		AmmoPools: mines-ammo
 		RequiresCondition: ammo-mines
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: mines-ammo
 	Passenger:
 		CustomPipType: pip-blue

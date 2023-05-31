@@ -1,5 +1,11 @@
 2023
 
+- "Sell"/rotate out Aircraft/helicopters
+
+- Airplanes doesnt spawn, helicopters spawn on ground
+
+- Laggy because of blocking? Test more
+
 - Add Ukraine faction
 
 - Too much cash, cant build fast enough

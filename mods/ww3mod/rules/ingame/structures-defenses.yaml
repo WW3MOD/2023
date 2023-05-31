@@ -280,7 +280,7 @@ SBAG:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 3
-		Prerequisites: ~!structures.russia, ~techlevel.low
+		Prerequisites: ~disabled
 		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
 	Valued:
 		Cost: 50
@@ -306,7 +306,7 @@ FENC:
 		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 3
-		Prerequisites: ~structures.russia, ~techlevel.low
+		Prerequisites: ~disabled
 		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
 	Valued:
 		Cost: 50
@@ -384,7 +384,7 @@ BRIK:
 		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 6
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Reinforced concrete wall
 	Valued:
 		Cost: 200
@@ -468,7 +468,7 @@ HGATE:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 9
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Places an horizontal gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
 	WithGateSpriteBody:
 		WallConnections: -1,0, 3,0
@@ -496,7 +496,7 @@ VGATE:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 12
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Places an vertical gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
 	WithGateSpriteBody:
 		WallConnections: 0,-1, 0,3
@@ -520,7 +520,7 @@ CRAM:
 		DecorationBounds: 1024,768,0,-96
 	Buildable:
 		Queue: Defense
-		Prerequisites: ~structures.america, ~techlevel.medium
+		Prerequisites: ~disabled
 		BuildPaletteOrder: 7
 		Description: Anti-Air base defense.
 		IconPalette: chrometd
@@ -605,7 +605,7 @@ AGUN:
 		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 7
-		Prerequisites: ~structures.russia, ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Anti-Air base defense.
 	Valued:
 		Cost: 800
@@ -690,7 +690,7 @@ SAM:
 		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 8
-		Prerequisites: ~disabled # ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Anti-Air base defense.
 	Valued:
 		Cost: 2000
@@ -733,7 +733,7 @@ HSAM:
 		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 8
-		Prerequisites: ~techlevel.high
+		Prerequisites: ~disabled
 		Description: Anti-Air missile launcher.
 	Tooltip:
 		Name: SAM Site
@@ -771,7 +771,7 @@ HSAM:
 # 		Name: Patriot Anti Air Missile Defense System
 # 	Buildable:
 # 		BuildPaletteOrder: 40
-# 		Prerequisites: usabarracks, ~techlevel.low, ~!selectusalaser, ~!selectusasuper, ~usaselected
+# 		Prerequisites: ~disabled
 # 		Queue: Defence.USA, RADefence.USA
 # 		BuildDurationModifier: 40
 # 		Description: All-purpose defensive structure.\nRequires power to operate.\nPasses one target to another with other nearby Patriot Defense Systems\n  Strong vs Aircraft, Tanks\n  Weak vs Infantry
@@ -811,7 +811,7 @@ FTUR:
 		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 4
-		Prerequisites: ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Anti-Infantry base defense.
 	Valued:
 		Cost: 1000
@@ -881,7 +881,7 @@ TSLA:
 		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 5
-		Prerequisites: techcenter, ~structures.russia, ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Advanced base defense.\nTesla briefly short-circuits Vehicle and Ships.
 	Valued:
 		Cost: 2000
@@ -949,7 +949,7 @@ PRIS:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 80
-		Prerequisites: techcenter, ~player.america, ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Advanced experimental base defense.
 	Valued:
 		Cost: 4000
@@ -1012,7 +1012,7 @@ MSLO:
 		BuildDurationModifier: 200
 		Queue: Defense
 		BuildPaletteOrder: 10
-		Prerequisites: ~global-nuclear
+		Prerequisites: ~disabled
 		Description: Stores and prepares an atomic bomb.\nRequires power to operate.\nMaximum 1 can be built.\n  Special Ability: Atom Bomb\nLaunches a devastating atomic bomb at target location.\nCan be Infiltrated by a Spy or Saboteur\nresulting in Timer reset.
 	Tooltip:
 		Name: Missile Silo

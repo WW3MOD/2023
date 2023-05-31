@@ -56,7 +56,7 @@ t72:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	ReloadAmmoPool:
 		AmmoPool: primary-ammo
@@ -147,7 +147,7 @@ bmp2:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	ReloadAmmoPool:
 		AmmoPool: primary-ammo
@@ -411,7 +411,7 @@ tunguska:
 		FullSequence: pip-blue
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		Armaments: primary, primary-air, secondary
@@ -490,7 +490,7 @@ giatsint:
 		Ammo: 39
 		AmmoCondition: ammo-primary
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	ReloadAmmoPool:
 		AmmoPool: primary-ammo
@@ -603,7 +603,7 @@ grad:
 		RequiresCondition: firing
 		Sequence: turret
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	Selectable:
 		DecorationBounds: 1024,1024
@@ -694,7 +694,7 @@ tos:
 		RequiresCondition: firing
 		Sequence: turret
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	Selectable:
 		DecorationBounds: 1024,1024
@@ -770,7 +770,7 @@ iskander:
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked
 	Rearmable:
-		RearmActors: fix, logisticscenter
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	AttackFrontal:
 		TargetFrozenActors: True
