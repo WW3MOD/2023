@@ -295,7 +295,7 @@ Actors:
 	Actor110: fcom
 		Location: 106,44
 		Owner: Russia
-	Actor106: fact
+	Actor106: logisticscenter
 		Location: 114,43
 		Owner: Russia
 	Actor104: apwr
@@ -436,7 +436,7 @@ Actors:
 	Actor174: tc01
 		Location: 98,37
 		Owner: Neutral
-	Actor25: fact
+	Actor25: logisticscenter
 		Location: 86,84
 		Owner: America
 	Actor105: brik

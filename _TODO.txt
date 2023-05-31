@@ -5,6 +5,8 @@
 - Too much cash, cant build fast enough
 - Runs out of ammo should cancel current order and return to rearm
 
+- Autotarget with other armament if reload for primary is long, humvee for example
+
 - AI
     - Needs to learn to build Logistics centers and rearm
     - Unit Builder Module
@@ -29,8 +31,6 @@
     - Defects if out of money and upkeep is high
 
 - SupplyRoute switches production tab, disable via trait?
-
-- Missing from 2022 probably: Toggle deploy should toggle all on, then off. Not switch current
 
 - Minelayers / Sandbaglayers doesn't continue their queued deploying after going to rearm. Stuck on pad.
 

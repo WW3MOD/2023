@@ -473,37 +473,6 @@ Container@PLAYER_WIDGETS:
 					Width: 29
 					Height: 240
 					Children:
-						# ProductionTypeButton@BUILDING:
-						# 	Logic: AddFactionSuffixLogic
-						# 	Width: 28
-						# 	Height: 28
-						# 	VisualHeight: 0
-						# 	Background: sidebar-button
-						# 	TooltipText: Buildings
-						# 	TooltipContainer: TOOLTIP_CONTAINER
-						# 	ProductionGroup: Building
-						# 	Key: ProductionTypeBuilding
-						# 	Children:
-						# 		Image@ICON:
-						# 			X: 6
-						# 			Y: 6
-						# 			ImageCollection: production-icons
-						# ProductionTypeButton@DEFENSE:
-						# 	Logic: AddFactionSuffixLogic
-						# 	Y: 31
-						# 	Width: 28
-						# 	Height: 28
-						# 	VisualHeight: 0
-						# 	Background: sidebar-button
-						# 	TooltipText: Defense
-						# 	TooltipContainer: TOOLTIP_CONTAINER
-						# 	ProductionGroup: Defense
-						# 	Key: ProductionTypeDefense
-						# 	Children:
-						# 		Image@ICON:
-						# 			X: 6
-						# 			Y: 6
-						# 			ImageCollection: production-icons
 						ProductionTypeButton@INFANTRY:
 							Logic: AddFactionSuffixLogic
 							Width: 28
@@ -553,7 +522,7 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: production-icons
 						# ProductionTypeButton@NAVAL:
 						# 	Logic: AddFactionSuffixLogic
-						# 	Y: 155
+						# 	Y: 93
 						# 	Width: 28
 						# 	Height: 28
 						# 	VisualHeight: 0
@@ -567,36 +536,70 @@ Container@PLAYER_WIDGETS:
 						# 			X: 6
 						# 			Y: 6
 						# 			ImageCollection: production-icons
-						Button@SCROLL_UP_BUTTON:
+						ProductionTypeButton@BUILDING:
 							Logic: AddFactionSuffixLogic
 							Y: 93
 							Width: 28
-							Height: 22
+							Height: 28
 							VisualHeight: 0
 							Background: sidebar-button
-							TooltipText: Scroll up
+							TooltipText: Buildings
 							TooltipContainer: TOOLTIP_CONTAINER
+							ProductionGroup: Building
+							Key: ProductionTypeBuilding
 							Children:
 								Image@ICON:
 									X: 6
-									Y: 3
-									ImageCollection: scrollpanel-decorations
-									ImageName: up
-						Button@SCROLL_DOWN_BUTTON:
+									Y: 6
+									ImageCollection: production-icons
+						ProductionTypeButton@DEFENSE:
 							Logic: AddFactionSuffixLogic
 							Y: 124
 							Width: 28
-							Height: 22
+							Height: 28
 							VisualHeight: 0
 							Background: sidebar-button
-							TooltipText: Scroll down
+							TooltipText: Defense
 							TooltipContainer: TOOLTIP_CONTAINER
+							ProductionGroup: Defense
+							Key: ProductionTypeDefense
 							Children:
 								Image@ICON:
 									X: 6
-									Y: 3
-									ImageCollection: scrollpanel-decorations
-									ImageName: down
+									Y: 6
+									ImageCollection: production-icons
+
+
+						# Button@SCROLL_UP_BUTTON:
+						# 	Logic: AddFactionSuffixLogic
+						# 	Y: 93
+						# 	Width: 28
+						# 	Height: 22
+						# 	VisualHeight: 0
+						# 	Background: sidebar-button
+						# 	TooltipText: Scroll up
+						# 	TooltipContainer: TOOLTIP_CONTAINER
+						# 	Children:
+						# 		Image@ICON:
+						# 			X: 6
+						# 			Y: 3
+						# 			ImageCollection: scrollpanel-decorations
+						# 			ImageName: up
+						# Button@SCROLL_DOWN_BUTTON:
+						# 	Logic: AddFactionSuffixLogic
+						# 	Y: 124
+						# 	Width: 28
+						# 	Height: 22
+						# 	VisualHeight: 0
+						# 	Background: sidebar-button
+						# 	TooltipText: Scroll down
+						# 	TooltipContainer: TOOLTIP_CONTAINER
+						# 	Children:
+						# 		Image@ICON:
+						# 			X: 6
+						# 			Y: 3
+						# 			ImageCollection: scrollpanel-decorations
+						# 			ImageName: down
 		Image@SIDEBAR_MONEYBIN:
 			Logic: AddFactionSuffixLogic
 			X: WINDOW_RIGHT - 250

@@ -339,24 +339,22 @@ SUPPLYROUTE:
 		ProductionTypes: Soldier, Infantry
 	Exit@Vehicle_1:
 		ExitCell: 1,0
-		ProductionTypes: Vehicle
+		ProductionTypes: Vehicle, Building, Defense
 	Exit@Vehicle_2:
 		ExitCell: 2,1
-		ProductionTypes: Vehicle
+		ProductionTypes: Vehicle, Building, Defense
 	Exit@Vehicle_3:
 		ExitCell: 1,2
-		ProductionTypes: Vehicle
+		ProductionTypes: Vehicle, Building, Defense
 	Exit@Vehicle_4:
 		ExitCell: 0,1
-		ProductionTypes: Vehicle
+		ProductionTypes: Vehicle, Building, Defense
 	Production:
-		Produces: Infantry, Soldier, Vehicle
+		Produces: Infantry, Soldier, Vehicle, Building, Defense
 		UseRandomExit: true
 		PauseOnCondition: disabled || build-incomplete
 	GrantExternalConditionToProduced:
 		Condition: produced
-	# ProductionBar:
-	# 	ProductionType: Vehicle
 	AcceptsDeliveredCash:
 		ValidTypes: Rotation
 	ProvidesPrerequisite@BuildingName:
@@ -392,9 +390,7 @@ LOGISTICSCENTER:
 			BottomRight: 1536, 1536
 	Building:
 		Footprint: =+= +++ =+=
-		# Footprint: xxX xxx +x=
 		Dimensions: 3,3
-		# LocalCenterOffset: 0,-512,0
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
@@ -430,127 +426,127 @@ LOGISTICSCENTER:
 	RenderSprites:
 		Image: FACT
 
-FACT:
-	Inherits: ^Building
-	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
-		Condition: factundeploy
-		Prerequisites: global-factundeploy
-	Selectable:
-		Bounds: 3072,3072
-	HitShape:
-		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
-		Type: Rectangle
-			VerticalTopOffset: 3072
-			TopLeft: -1536, -1536
-			BottomRight: 1536, 1536
-	Building:
-		Footprint: xxX xxx =x=
-		Dimensions: 3,3
-		LocalCenterOffset: 0,-512,0
-	BaseBuilding:
-	BaseProvider:
-		PauseOnCondition: being-captured
-		Range: 14c0
-	Buildable:
-		Queue: Building
-		BuildPaletteOrder: 1000
-		Prerequisites: ~disabled
-		Description: Produces structures.
-	Tooltip:
-		Name: Command Center
-	Valued:
-		Cost: 2500
-	Health:
-		HP: 40000
-	Armor:
-		Type: Concrete
-	ProvidesPrerequisite@america:
-		Factions: america
-		RequiresPrerequisites: player.america
-		Prerequisite: structures.america
-	ProvidesPrerequisite@ukraine:
-		Factions: ukraine
-		RequiresPrerequisites: player.ukraine
-		Prerequisite: structures.ukraine
-	ProvidesPrerequisite@russia:
-		Factions: russia
-		RequiresPrerequisites: player.russia
-		Prerequisite: structures.russia
-	ProvidesPrerequisite@MCVLIMITER:
-		Prerequisite: mcv.ai
-		RequiresPrerequisites: aitoodumb
-	Production:
-		Produces: Building,Defense,Fakestructure
-		PauseOnCondition: disabled || build-incomplete
-	ProductionBar@Building:
-		ProductionType: Building
-	ProductionBar@Defense:
-		ProductionType: Defense
-		Color: 8A8A8A
-	Transforms:
-		RequiresCondition: factundeploy
-		PauseOnCondition: chrono-vortex || being-captured || being-demolished || build-incomplete
-		IntoActor: mcv
-		Offset: 1,1
-		Facing: 384
-	TransformsIntoMobile:
-		RequiresCondition: factundeploy
-		Locomotor: heavywheeled
-		RequiresForceMove: true
-	TransformsIntoPassenger:
-		RequiresCondition: factundeploy
-		CargoType: Vehicle
-		RequiresForceMove: true
-	TransformsIntoRepairable:
-		RequiresCondition: factundeploy
-		RepairActors: fix
-		RequiresForceMove: true
-	TransformsIntoTransforms:
-		RequiresCondition: factundeploy && build-incomplete
-	TransferTimedExternalConditionOnTransform:
-		Condition: invulnerability
-	ConyardChronoReturn:
-		ReturnOriginalActorOnCondition: build-incomplete
-		Condition: chrono-vortex
-		Damage: 950
-	Sellable:
-		RequiresCondition: !build-incomplete && !chrono-vortex && !being-captured && !being-demolished
-	SpawnActorsOnSell:
-		ActorTypes: tecn
-	WithBuildingBib:
-	WithBuildingPlacedAnimation:
-		RequiresCondition: !build-incomplete && !chrono-vortex
-	WithDeathAnimation:
-		DeathSequence: dead
-		UseDeathTypeSuffix: false
-	SpawnActorOnDeath:
-		Actor: fact.husk
-	GpsDot:
-		String: ConYard
-FACT2:
-	Inherits: FACT
-	-WithBuildingBib:
-	Buildable:
-		Queue: Building
-		BuildPaletteOrder: 1000
-		Prerequisites: ~disabled
-		Description: Extends buildable range.
-	Tooltip:
-		Name: Field Base
-	BaseProvider:
-		PauseOnCondition: being-captured
-		Range: 10c0
-	Valued:
-		Cost: 1500
-	Health:
-		HP: 15000
-	Armor:
-		Type: Heavy
-	Targetable:
-		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	RenderSprites:
-		Image: FACT
-		Scale: 0.8
+# FACT:
+# 	Inherits: ^Building
+# 	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
+# 		Condition: factundeploy
+# 		Prerequisites: global-factundeploy
+# 	Selectable:
+# 		Bounds: 3072,3072
+# 	HitShape:
+# 		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
+# 		Type: Rectangle
+# 			VerticalTopOffset: 3072
+# 			TopLeft: -1536, -1536
+# 			BottomRight: 1536, 1536
+# 	Building:
+# 		Footprint: xxX xxx =x=
+# 		Dimensions: 3,3
+# 		LocalCenterOffset: 0,-512,0
+# 	BaseBuilding:
+# 	BaseProvider:
+# 		PauseOnCondition: being-captured
+# 		Range: 14c0
+# 	Buildable:
+# 		Queue: Building
+# 		BuildPaletteOrder: 1000
+# 		Prerequisites: ~disabled
+# 		Description: Produces structures.
+# 	Tooltip:
+# 		Name: Command Center
+# 	Valued:
+# 		Cost: 2500
+# 	Health:
+# 		HP: 40000
+# 	Armor:
+# 		Type: Concrete
+# 	ProvidesPrerequisite@america:
+# 		Factions: america
+# 		RequiresPrerequisites: player.america
+# 		Prerequisite: structures.america
+# 	ProvidesPrerequisite@ukraine:
+# 		Factions: ukraine
+# 		RequiresPrerequisites: player.ukraine
+# 		Prerequisite: structures.ukraine
+# 	ProvidesPrerequisite@russia:
+# 		Factions: russia
+# 		RequiresPrerequisites: player.russia
+# 		Prerequisite: structures.russia
+# 	ProvidesPrerequisite@MCVLIMITER:
+# 		Prerequisite: mcv.ai
+# 		RequiresPrerequisites: aitoodumb
+# 	Production:
+# 		Produces: Building,Defense,Fakestructure
+# 		PauseOnCondition: disabled || build-incomplete
+# 	ProductionBar@Building:
+# 		ProductionType: Building
+# 	ProductionBar@Defense:
+# 		ProductionType: Defense
+# 		Color: 8A8A8A
+# 	Transforms:
+# 		RequiresCondition: factundeploy
+# 		PauseOnCondition: chrono-vortex || being-captured || being-demolished || build-incomplete
+# 		IntoActor: mcv
+# 		Offset: 1,1
+# 		Facing: 384
+# 	TransformsIntoMobile:
+# 		RequiresCondition: factundeploy
+# 		Locomotor: heavywheeled
+# 		RequiresForceMove: true
+# 	TransformsIntoPassenger:
+# 		RequiresCondition: factundeploy
+# 		CargoType: Vehicle
+# 		RequiresForceMove: true
+# 	TransformsIntoRepairable:
+# 		RequiresCondition: factundeploy
+# 		RepairActors: fix
+# 		RequiresForceMove: true
+# 	TransformsIntoTransforms:
+# 		RequiresCondition: factundeploy && build-incomplete
+# 	TransferTimedExternalConditionOnTransform:
+# 		Condition: invulnerability
+# 	ConyardChronoReturn:
+# 		ReturnOriginalActorOnCondition: build-incomplete
+# 		Condition: chrono-vortex
+# 		Damage: 950
+# 	Sellable:
+# 		RequiresCondition: !build-incomplete && !chrono-vortex && !being-captured && !being-demolished
+# 	SpawnActorsOnSell:
+# 		ActorTypes: tecn
+# 	WithBuildingBib:
+# 	WithBuildingPlacedAnimation:
+# 		RequiresCondition: !build-incomplete && !chrono-vortex
+# 	WithDeathAnimation:
+# 		DeathSequence: dead
+# 		UseDeathTypeSuffix: false
+# 	SpawnActorOnDeath:
+# 		Actor: fact.husk
+# 	GpsDot:
+# 		String: ConYard
+# FACT2:
+# 	Inherits: FACT
+# 	-WithBuildingBib:
+# 	Buildable:
+# 		Queue: Building
+# 		BuildPaletteOrder: 1000
+# 		Prerequisites: ~disabled
+# 		Description: Extends buildable range.
+# 	Tooltip:
+# 		Name: Field Base
+# 	BaseProvider:
+# 		PauseOnCondition: being-captured
+# 		Range: 10c0
+# 	Valued:
+# 		Cost: 1500
+# 	Health:
+# 		HP: 15000
+# 	Armor:
+# 		Type: Heavy
+# 	Targetable:
+# 		TargetTypes: Ground, Structure, Defense, Heavy, C4
+# 	RenderSprites:
+# 		Image: FACT
+# 		Scale: 0.8
 
 BARR:
 	Inherits: ^InfantryProduction
@@ -564,7 +560,7 @@ BARR:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1
-		Prerequisites: ~techlevel.infonly
+		Prerequisites: ~disabled, ~techlevel.infonly
 		Description: Trains and Heals Infantry units.\nDecomissions Infantry for 1/4 of cost.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Infantry.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.\n Special: Free Guards\nEach Barracks comes with two free Rifle Infantry.
 	Valued:
 		Cost: 1000
@@ -637,7 +633,7 @@ WEAP:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 2
-		Prerequisites: ~techlevel.low
+		Prerequisites: ~disabled, ~techlevel.low
 		Description: Produces Vehicle units.
 	Valued:
 		Cost: 2000
@@ -720,7 +716,7 @@ FIX:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 5
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled, ~techlevel.medium
 		Description: Repairs and rearms Vehicles
 	Valued:
 		Cost: 1000
@@ -775,7 +771,7 @@ POWR:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 3
-		Prerequisites: ~techlevel.infonly
+		Prerequisites: ~disabled, ~techlevel.infonly
 		Description: Provides Power for other structures.\nCan be Infiltrated by a Spy or Saboteur\nresulting in a temporary blackout.
 	Valued:
 		Cost: 1000
@@ -828,7 +824,7 @@ APWR:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 6
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled, ~techlevel.medium
 		Description: Provides cheap power but takes longer to build.\nCan be Infiltrated by a Spy or Saboteur\nresulting in a temporary blackout.
 	Valued:
 		Cost: 2000
@@ -886,7 +882,7 @@ PROC:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 4
-		Prerequisites: ~techlevel.infonly
+		Prerequisites: ~disabled, ~techlevel.infonly
 		Description: Refines Ore and Gems\ninto credits.\nCan be Infiltrated resulting in 50% loss of credits stored.\n Special: Free Harvester\nEach Refinery comes with one free Ore Truck.
 	Valued:
 		Cost: 2000
@@ -982,7 +978,7 @@ HPAD:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 7
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled, ~techlevel.medium
 		Description: Produces and reloads Helicopters.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.
 	Valued:
 		Cost: 1000
@@ -1054,7 +1050,7 @@ AFLD:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 8
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled, ~techlevel.medium
 		Description: Produces, repairs and reloads Airplanes.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.\n  Special Ability: Paratroopers\nA Plane drops a squad of\nVeteran infantry anywhere on the map.
 	Valued:
 		Cost: 1500
@@ -1131,7 +1127,7 @@ DOME:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 9
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled, ~techlevel.medium
 		Description: Provides an overview\nof the battlefield.\nCan detect cloaked units.\nCan be Infiltrated by an Spy or Saboteur\nresulting in loss of map exploration.\nCan detect cloaked units.\n  Special Ability: Spy Mast\nDeploys a Spy Mast anywhere on the map\nthat provides vision and detects nearby cloaked.\nThe Spy Mast can disguise to appear as an Tree to the enemy.\n (requires Service Depot)
 	Selectable:
 		Bounds: 2048,2048
@@ -1200,7 +1196,7 @@ SYRD:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 10
-		Prerequisites: ~techlevel.low, ~!global-disablenavy
+		Prerequisites: ~disabled, ~techlevel.low, ~!global-disablenavy
 		Description: Produces and repairs\nShips and Transports.\nNearby Navy can be sold for half their value.\n (their value scaling with health)\n  Special Ability: Sonar Pulse\nReveals all submarines in target\narea for a short time.
 	Valued:
 		Cost: 20 #00
@@ -1287,7 +1283,7 @@ SILO:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 12
-		Prerequisites: ~techlevel.infonly
+		Prerequisites: ~disabled, ~techlevel.infonly
 		Description: Stores excess refined Ore.
 	Building:
 		AllowPlacementOnResources: true
@@ -1350,7 +1346,7 @@ ATEK:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 13
-		Prerequisites: ~structures.america, ~techlevel.futuristic
+		Prerequisites: ~disabled, ~structures.america, ~techlevel.futuristic
 		Description: Provides American advanced technologies.
 	Valued:
 		Cost: 2000
@@ -1397,7 +1393,7 @@ STEK:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 13
-		Prerequisites: ~structures.russia, ~techlevel.futuristic
+		Prerequisites: ~disabled, ~structures.russia, ~techlevel.futuristic
 		Description: Provides Russian advanced technologies.
 	Valued:
 		Cost: 2000
@@ -1785,7 +1781,7 @@ SPRO:
 		Bounds: 2048,2048
 	Buildable:
 		Queue: Building
-		Prerequisites: techcenter, ~techlevel.unrestricted
+		Prerequisites: ~disabled, techcenter, ~techlevel.unrestricted
 		Description: Provides GPS Sattelite uplink.\nMaximum one can be built.\nCan be Infiltrated by an Spy or Saboteur resulting\nin loss of map exploration.\n  Special Ability: GPS Satellite\nReveals map terrain and provides tactical information\n (Requires power and active radar to operate)
 		BuildPaletteOrder: 14
 	Valued:

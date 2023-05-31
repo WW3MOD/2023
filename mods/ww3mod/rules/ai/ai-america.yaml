@@ -104,7 +104,7 @@ Player:
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-player && player.nato
 		CapturingActorTypes: e1.america
-		CapturableActorTypes: barr, weap, proc, fact, hpad, fix, dome, gap, syrd, afld, atek, pbox, hbox, gun, gtur, hsam, agun, mslo, spro,
+		CapturableActorTypes: barr, weap, proc, hpad, fix, dome, gap, syrd, afld, atek, pbox, hbox, gun, gtur, hsam, agun, mslo, spro,
 		CheckCaptureTargetsForVisibility: true
 		MaximumCaptureTargetOptions: 100
 
