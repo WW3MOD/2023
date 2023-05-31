@@ -26,25 +26,8 @@ Players:
 		Name: Creeps
 		NonCombatant: True
 		Faction: Random
-		Enemies: Multi0, Multi1
-	PlayerReference@Multi0:
-		Name: Multi0
-		Playable: True
-		Faction: Random
-		Enemies: Creeps
-	PlayerReference@Multi1:
-		Name: Multi1
-		Playable: True
-		Faction: Random
-		Enemies: Creeps
 
 Actors:
-	Actor0: mpspawn
-		Owner: Neutral
-		Location: 0,50
-	Actor1: mpspawn
-		Owner: Neutral
-		Location: 101,50
 	Actor2: v01
 		Owner: Multi0
 		Location: 40,49
@@ -66,47 +49,6 @@ Actors:
 	LeftRoad5: waypoint
 		Location: 49,48
 		Owner: Neutral
-	Actor9: t72
-		Owner: Multi1
-		Location: 88,44
-		Facing: 256
-	Actor13: t72
-		Owner: Multi1
-		Facing: 256
-		Location: 88,36
-	Actor12: t72
-		Owner: Multi1
-		Facing: 256
-		Location: 88,40
-	Actor15: bmp2
-		Owner: Multi1
-		Location: 85,42
-		Facing: 256
-	Actor16: bmp2
-		Owner: Multi1
-		Facing: 256
-		Location: 85,38
-	APC3: m113
-		Owner: Multi0
-		Location: 6,52
-		Facing: 768
-	APC2: m113
-		Owner: Multi0
-		Location: 8,52
-		Facing: 768
-	APC1: m113
-		Owner: Multi0
-		Location: 10,52
-		Facing: 768
-	Abrams1: abrams
-		Owner: Multi0
-		Location: 7,48
-		Facing: 768
-	Abrams2: abrams
-		Owner: Multi0
-		Location: 7,44
-		Facing: 768
-	Abrams3: abrams
-		Owner: Multi0
-		Location: 7,40
-		Facing: 768
+	LeftRoadEntry: waypoint
+		Owner: Neutral
+		Location: 1,50
