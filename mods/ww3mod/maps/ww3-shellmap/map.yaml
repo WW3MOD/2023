@@ -1,0 +1,112 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Shellmap
+
+Author: FreadyFish
+
+Tileset: TEMPERAT
+
+MapSize: 102,102
+
+Bounds: 1,1,100,100
+
+Visibility: Shellmap
+
+Categories: Shellmap
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: Random
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: Random
+		Enemies: Multi0, Multi1
+	PlayerReference@Multi0:
+		Name: Multi0
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi1:
+		Name: Multi1
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+
+Actors:
+	Actor0: mpspawn
+		Owner: Neutral
+		Location: 0,50
+	Actor1: mpspawn
+		Owner: Neutral
+		Location: 101,50
+	Actor2: v01
+		Owner: Multi0
+		Location: 40,49
+	Actor3: v06
+		Owner: Multi0
+		Location: 35,51
+	LeftRoad1: waypoint
+		Location: 3,52
+		Owner: Neutral
+	LeftRoad2: waypoint
+		Location: 36,52
+		Owner: Neutral
+	LeftRoad3: waypoint
+		Location: 38,51
+		Owner: Neutral
+	LeftRoad4: waypoint
+		Location: 39,48
+		Owner: Neutral
+	LeftRoad5: waypoint
+		Location: 49,48
+		Owner: Neutral
+	Actor9: t72
+		Owner: Multi1
+		Location: 88,44
+		Facing: 256
+	Actor13: t72
+		Owner: Multi1
+		Facing: 256
+		Location: 88,36
+	Actor12: t72
+		Owner: Multi1
+		Facing: 256
+		Location: 88,40
+	Actor15: bmp2
+		Owner: Multi1
+		Location: 85,42
+		Facing: 256
+	Actor16: bmp2
+		Owner: Multi1
+		Facing: 256
+		Location: 85,38
+	APC3: m113
+		Owner: Multi0
+		Location: 6,52
+		Facing: 768
+	APC2: m113
+		Owner: Multi0
+		Location: 8,52
+		Facing: 768
+	APC1: m113
+		Owner: Multi0
+		Location: 10,52
+		Facing: 768
+	Abrams1: abrams
+		Owner: Multi0
+		Location: 7,48
+		Facing: 768
+	Abrams2: abrams
+		Owner: Multi0
+		Location: 7,44
+		Facing: 768
+	Abrams3: abrams
+		Owner: Multi0
+		Location: 7,40
+		Facing: 768
