@@ -8,22 +8,21 @@ Player:
 	ProvidesPrerequisite@AIRESTRICTOR:
 		Prerequisite: aitoodumb
 		RequiresCondition: enable-ai-player
-	HarvesterBotModule@aiplayer:
-		RequiresCondition: enable-ai-player
-		HarvesterTypes: harv
-		RefineryTypes: proc
-	BuildingRepairBotModule@aiplayer:
-		RequiresCondition: enable-ai-player
-	McvManagerBotModule@aiplayer:
-		RequiresCondition: enable-ai-player
-		McvTypes: mcv,mcv2,mcv.ai
-		ConstructionYardTypes: fact
-		McvFactoryTypes: weap
-		MaxBaseRadius: 40
+	# HarvesterBotModule@aiplayer:
+	# 	RequiresCondition: enable-ai-player
+	# 	HarvesterTypes: harv
+	# 	RefineryTypes: proc
+	# BuildingRepairBotModule@aiplayer:
+	# 	RequiresCondition: enable-ai-player
+	# McvManagerBotModule@aiplayer:
+	# 	RequiresCondition: enable-ai-player
+	# 	McvTypes: mcv,mcv2,mcv.ai
+	# 	ConstructionYardTypes: fact
+	# 	McvFactoryTypes: weap
+	# 	MaxBaseRadius: 40
 	GrantConditionOnPrerequisite@NAVYDISABLER:
 		Condition: global-disablenavy
 		Prerequisites: global-disablenavy
-
 	# CaptureManagerBotModule@engineer:
 	# 	RequiresCondition: enable-ai-player
 	# 	CapturingActorTypes: e6

@@ -427,7 +427,7 @@ World:
 		ClassName: All units
 		Factions: russia, america
 		BaseActor: supplyroute
-		SupportActors: abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, MNLY, SandBagLayer, timberwolf, btr,btr,SN,SN,SN,SN,SN,dr,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,mnly,harv,mcv,mcv2,truk
+		SupportActors: abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, MNLY, SandBagLayer, timberwolf, btr,btr,SN,SN,SN,SN,SN,dr,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,mnly,truk
 		InnerSupportRadius: 4
 		OuterSupportRadius: 8
 
@@ -457,7 +457,7 @@ World:
 			2: WarningTwoMinutesRemaining
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
-		PreviewActor: fact.colorpicker
+		PreviewActor: E3.colorpicker
 		PresetHues: 0, 0.125, 0.22, 0.375, 0.5, 0.56, 0.8, 0.88, 0, 0.15, 0.235, 0.4, 0.47, 0.55, 0.75, 0.85
 		PresetSaturations: 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.4, 0.5, 0.4, 0.5, 0.4, 0.5, 0.4, 0.5
 	OrderEffects:

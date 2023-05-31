@@ -77,7 +77,6 @@ Player:
 		AttackScanRadius: 40
 		DangerScanRadius: 25
 		ExcludeFromSquadsTypes: # FF TODO
-		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	SquadManagerBotModule@russia.air:
@@ -87,20 +86,16 @@ Player:
 		RushInterval: 800
 		AttackScanRadius: 48
 		ExcludeFromSquadsTypes: # FF TODO
-		ConstructionYardTypes: fact
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
 	UnitBuilderBotModule@russia:
 		RequiresCondition: enable-ai-player && player.brics
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
-			mcv.ai: 10000
 		UnitsToBuild:
-			harv: 30
-			e1.russia: 100
 			e2.russia: 15
 			e3.russia: 30
-			ar.russia: 10
+			ar.russia: 20
 			tl.russia: 10
 			at.russia: 10
 			aa.russia: 10
@@ -108,17 +103,16 @@ Player:
 			sn.russia: 10
 			tecn.russia: 10
 			medi.russia: 10
+
+			truk: 25
+
 			t72: 10
 			bmp2: 10
 			grad: 10
 			tos: 10
 			giatsint: 10
-			iskander: 10
-			mcv2.ai: 10
 		UnitLimits:
 			dog: 6
-			harv: 12
-			mcv2.ai: 1
 
 	UnitBuilderBotModule@russia.air:
 		RequiresCondition: enable-ai-player && player.brics

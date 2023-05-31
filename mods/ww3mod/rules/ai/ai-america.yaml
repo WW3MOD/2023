@@ -67,18 +67,17 @@ Player:
 		UnitDelays:
 			lccv.ai: 1000
 		UnitsToBuild:
-			e1.america: 100
-			e2.america: 30
+			e2.america: 15
 			e3.america: 30
-			ar.america: 30
-			tl.america: 25
-			at.america: 25
-			aa.america: 25
-			mt.america: 15
+			ar.america: 20
+			tl.america: 10
+			at.america: 10
+			aa.america: 10
+			mt.america: 10
 			sn.america: 10
 			tecn.america: 10
 			medi.america: 10
-			truk: 25
+
 			abrams: 25
 			bradley: 25
 			humvee: 25
@@ -86,40 +85,11 @@ Player:
 			m109: 20
 			strykershorad: 15
 			m270: 10
+
+			truk: 25
 			lccv.ai: 1
 		UnitLimits:
 			lccv.ai: 1
-
-	# UnitBuilderBotModule@america.sea:
-	# 	RequiresCondition: enable-ai-player && player.nato && !global-disablenavy
-	# 	IdleBaseUnitsMaximum: 6
-	# 	UnitQueues: Ship
-	# 	UnitsToBuild:
-	# 		pt: 50
-	# 		dd: 30
-	# 		dd.ukraine: 30
-	# 		ca: 20
-	# 		bshp: 15
-	# 	UnitLimits:
-	# 		pt: 8
-	# 		dd: 6
-	# 		dd.ukraine: 6
-	# 		ca: 4
-	# 		bshp: 3
-	# UnitBuilderBotModule@america.air:
-	# 	RequiresCondition: enable-ai-player && player.nato
-	# 	IdleBaseUnitsMaximum: 0
-	# 	UnitQueues: Aircraft
-	# 	UnitDelays:
-	# 		spit: 7500
-	# 	UnitsToBuild:
-	# 		littlebird.ai: 40
-	# 		heli: 60
-	# 		spit: 100
-	# 	UnitLimits:
-	# 		littlebird.ai: 4
-	# 		heli: 6
-	# 		spit: 2
 
 	SquadManagerBotModule@america.land:
 		RequiresCondition: enable-ai-player && player.nato
@@ -128,31 +98,8 @@ Player:
 		RushInterval: 3000
 		AttackScanRadius: 40
 		DangerScanRadius: 25
-		# IncludeInSquadTypes:
-		ExcludeFromSquadsTypes: tecn.america, harv, harv.crate, mcv, mcv.ai, pt, dd, dd.ukraine, ca, bshp
-		ConstructionYardTypes: fact
+		ExcludeFromSquadsTypes: tecn.america
 		IgnoredEnemyTargetTypes: IgnoreThis
-
-	# SquadManagerBotModule@america.sea:
-	# 	RequiresCondition: enable-ai-player && player.nato && !global-disablenavy
-	# 	SquadSize: 4
-	# 	SquadSizeRandomBonus: 8
-	# 	RushInterval: 400
-	# 	AttackScanRadius: 24
-	# 	ExcludeFromSquadsTypes: # FF TODO
-	# 	NavalUnitsTypes: # FF TODO
-	# 	ConstructionYardTypes: fact
-	# 	NavalProductionTypes: syrd
-	# 	IgnoredEnemyTargetTypes: IgnoreThis
-	# SquadManagerBotModule@america.air:
-	# 	RequiresCondition: enable-ai-player && player.nato
-	# 	SquadSize: 2
-	# 	SquadSizeRandomBonus: 4
-	# 	RushInterval: 800
-	# 	AttackScanRadius: 48
-	# 	ExcludeFromSquadsTypes: # FF TODO
-	# 	ConstructionYardTypes: fact
-	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-player && player.nato
@@ -160,6 +107,7 @@ Player:
 		CapturableActorTypes: barr, weap, proc, fact, hpad, fix, dome, gap, syrd, afld, atek, pbox, hbox, gun, gtur, hsam, agun, mslo, spro,
 		CheckCaptureTargetsForVisibility: true
 		MaximumCaptureTargetOptions: 100
+
 	CaptureManagerBotModule@tecn:
 		RequiresCondition: enable-ai-player && player.nato
 		CapturingActorTypes: tecn.america

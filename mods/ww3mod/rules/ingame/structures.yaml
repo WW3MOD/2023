@@ -358,8 +358,8 @@ SUPPLYROUTE:
 LOGISTICSCENTER:
 	Inherits: ^Building
 	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
-		Condition: factundeploy
-		Prerequisites: global-factundeploy
+		Condition: mcv-undeploys
+		Prerequisites: global-mcv-undeploys
 	Selectable:
 		Bounds: 3072,3072
 	HitShape:

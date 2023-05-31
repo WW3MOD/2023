@@ -357,12 +357,12 @@ waypoint:
 	MapEditorData:
 		Categories: System
 
-fact.colorpicker:
-	Inherits: FACT
+E3.colorpicker:
+	Inherits: E3
 	-Buildable:
 	-MapEditorData:
 	RenderSprites:
-		Image: fact
+		Image: E3
 		Palette: colorpicker
 
 CTFLAG:

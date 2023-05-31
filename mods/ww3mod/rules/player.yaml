@@ -160,12 +160,12 @@ Player:
 		DisplayOrder: 13
 		Prerequisites: global-bounty
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
-		ID: factundeploy
+		ID: mcv-undeploys
 		Label: Redeployable MCVs
 		Description: Allow undeploying Construction Yard
 		Enabled: False
 		DisplayOrder: 7
-		Prerequisites: global-factundeploy
+		Prerequisites: global-mcv-undeploys
 	FrozenActorLayer:
 	BaseAttackNotifier:
 		TextNotification: Base under attack.
