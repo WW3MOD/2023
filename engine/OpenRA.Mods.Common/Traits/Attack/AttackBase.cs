@@ -466,10 +466,11 @@ namespace OpenRA.Mods.Common.Traits
 				// If all are out of ammo, just use valid armament with highest range
 				armaments = armaments.OrderByDescending(x => x.MaxRange());
 				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused);
+
 				if (a == null)
 					a = armaments.First();
 
-				if (!armaments.Any(armament => armament.AmmoPool.HasAmmo))
+				if (!armaments.Any(armament => armament.AmmoPool != null && armament.AmmoPool.HasAmmo))
 					return false;
 
 				var outOfRange = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
