@@ -147,6 +147,15 @@ namespace OpenRA.Mods.Common.Traits
 		public int BurstWait { get; protected set; }
 		public int FireDelay { get; protected set; }
 		public bool IsBurstWait { get; protected set; }
+		public AmmoPool AmmoPool
+		{
+			get
+			{
+				var matchingAmmopool = self.TraitsImplementing<AmmoPool>().FirstOrDefault(ammopool =>
+					ammopool.Info.Armaments.Any(armament => armament == Info.Name));
+				return matchingAmmopool;
+			}
+		}
 
 		public List<WPos> AimInitialTargetPosition { get; protected set; }
 		public int AimInitialTicksBefore { get; protected set; }

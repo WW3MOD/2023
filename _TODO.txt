@@ -1,9 +1,10 @@
 2023
 
+- Add Ukraine faction
+
 - E3 fires RPG at everything, should need force firing
 - Too much cash, cant build fast enough
 - AI needs to learn to build Logistics centers and rearm
-
 - Runs out of ammo should cancel current order and return to rearm
 
 - Remake AI
@@ -188,6 +189,7 @@ DIV
     - Formations
         - "Stay in formation", move in current configuration
         - Pre-defined formations
+        - Check Autotarget and how stances are set there, do similar on Move/Mobile?
     - Units out of ammo rejects attack orders
     - Add announcements like "Enemy Detected"
     - UnitStance

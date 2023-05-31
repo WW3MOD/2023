@@ -458,6 +458,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var forceAttack = modifiers.HasModifier(TargetModifiers.ForceAttack);
 				var armaments = ab.ChooseArmamentsForTarget(target, forceAttack);
+
 				if (!armaments.Any())
 					return false;
 
@@ -467,6 +468,9 @@ namespace OpenRA.Mods.Common.Traits
 				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused);
 				if (a == null)
 					a = armaments.First();
+
+				if (!armaments.Any(armament => armament.AmmoPool.HasAmmo))
+					return false;
 
 				var outOfRange = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
 					(!forceAttack && target.Type == TargetType.FrozenActor && !ab.Info.TargetFrozenActors);
