@@ -21,19 +21,23 @@ Players:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: Random
+		Faction: america
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Faction: Random
+		Faction: america
+	PlayerReference@NATO:
+		Name: NATO
+		Faction: america
+		Color: ABB7E4
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Faction: soviet
+		Color: FE1100
+		Enemies: NATO
 
 Actors:
-	Actor2: v01
-		Owner: Multi0
-		Location: 40,49
-	Actor3: v06
-		Owner: Multi0
-		Location: 35,51
 	LeftRoad1: waypoint
 		Location: 3,52
 		Owner: Neutral
@@ -52,3 +56,11 @@ Actors:
 	LeftRoadEntry: waypoint
 		Owner: Neutral
 		Location: 1,50
+	Barn: v06
+		Owner: Multi0
+		Location: 35,51
+	Church: v01
+		Owner: Multi0
+		Location: 40,49
+
+Rules: rules.yaml

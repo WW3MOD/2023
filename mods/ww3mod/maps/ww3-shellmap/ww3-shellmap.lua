@@ -12,7 +12,7 @@ RightRoadWaypoints = { RightRoad1, RightRoad2, RightRoad3, RightRoad4, RightRoad
 
 BindActorTriggers = function(a)
 	if a.HasProperty("Hunt") then
-		if a.Owner == america then
+		if a.Owner == NATO then
 			Trigger.OnIdle(a, function(a)
 				if a.IsInWorld then
 					a.Hunt()
@@ -41,9 +41,9 @@ BindActorTriggers = function(a)
 	end
 end
 
-SetupAlliedUnits = function()
+SetupNatoUnits = function()
 	Utils.Do(Map.NamedActors, function(a)
-		if a.Owner == america and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
+		if a.Owner == NATO and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
 			a.GrantCondition("unkillable")
 			a.Stance = "Defend"
 		end
@@ -61,18 +61,18 @@ Tick = function()
 end
 
 WorldLoaded = function()
-	america = Player.GetPlayer("America")
+	NATO = Player.GetPlayer("NATO")
 	russia = Player.GetPlayer("Russia")
 	viewportOrigin = Camera.Position
 
-	SetupAlliedUnits()
-	SendSovietUnits(Entry1.Location, UnitTypes, 50)
+	SetupNatoUnits()
+	SendNatoUnits(LeftRoad4.Location, { "humvee", "abrams", "bradley" }, 50)
 end
 
-SendSovietUnits = function(entryCell, unitTypes, interval)
-	local units = Reinforcements.Reinforce(russia, { "t72" }, { entryCell }, interval)
+SendNatoUnits = function(entryCell, unitTypes, interval)
+	local units = Reinforcements.Reinforce(NATO, unitTypes, { LeftRoad4.Location, LeftRoad5.Location }, interval)
 	Utils.Do(units, function(unit)
 		BindActorTriggers(unit)
 	end)
-	Trigger.OnAllKilled(units, function() SendSovietUnits(entryCell, unitTypes, interval) end)
+	Trigger.OnAllKilled(units, function() SendNatoUnits(entryCell, unitTypes, interval) end)
 end
