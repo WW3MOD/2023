@@ -1050,15 +1050,9 @@ Actors:
 	Actor1129: oilb
 		Owner: Neutral
 		Location: 4,53
-	Actor809: mpspawn
-		Owner: Neutral
-		Location: 101,7
 	Actor1217: tc02
 		Owner: Neutral
 		Location: 85,1
-	Actor780: mpspawn
-		Owner: Neutral
-		Location: 0,64
 	Actor1247: t03
 		Owner: Neutral
 		Location: 9,52
@@ -1230,5 +1224,11 @@ Actors:
 	Actor618: v07
 		Owner: Neutral
 		Location: 47,55
+	Actor398: mpspawn
+		Owner: Neutral
+		Location: 1,64
+	Actor403: mpspawn
+		Owner: Neutral
+		Location: 100,7
 
 Rules: rules.yaml

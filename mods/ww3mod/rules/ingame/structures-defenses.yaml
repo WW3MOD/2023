@@ -420,7 +420,6 @@ BRIK:
 	-WithMakeAnimation:
 	-GivesBuildableArea:
 	-GivesExperience:
-	-RevealsShroud:
 	Health:
 		HP: 15000
 	Valued:

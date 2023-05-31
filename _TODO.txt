@@ -32,7 +32,7 @@
 
 - Missing from 2022 probably: Toggle deploy should toggle all on, then off. Not switch current
 
-- Minelayers / Sandbaglayers doesnt continue their queued deploying after going to rearm. Stuck on pad.
+- Minelayers / Sandbaglayers doesn't continue their queued deploying after going to rearm. Stuck on pad.
 
 - "quittable" instead of time limited. After X minutes any player can quit, and game will count score.
     When game ends both players get points based on how many units they have left, making it sometimes
@@ -45,8 +45,6 @@
         Unit height needs to be set at a fraction of its VerticalTopOffset
     - Also, when out of ammo, cancel attack orders unless being rearmed
 - Check Blocking actors from weapon offset not from center ground position
-
-- Supply/Upkeep instead of power?
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.
     - Each unit has seperate build tab, using the Defense icon, placed first.
@@ -165,7 +163,6 @@ Naval
 Defenses
     - Blue preview for GTWR, guard tower
     - GTUR cant force attack ground or own units
-    - GTUR disabled on low power or infiltrated (Still doesn't work)
     - Attack priorities, prism tower should prioritize tanks
     - Deal damage to garrisoned soldiers as % of building damage, spread determines if killing multiple units or just one at a time
         - Show unit's health + ammo over the defense's health
@@ -173,7 +170,6 @@ Defenses
     - Crystallized Doom SAM launcher (NOD), also other cannons but looks a bit unrealistic
 
 Structures
-    - Should buildings require power during construction?
     - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
 
 Support powers
@@ -223,7 +219,6 @@ DIV
     - Units in squad unable to attack a specific target should default back to attack move order not just move
     - Parallel queues keeps building units that are paused
     - Use ExplodeWhenEmpty from Missile to make Bullets also able to keep flying until they reach RangeLimit even if missing target (CRAM esp)
-    - Power down icon missing
     - Load selection order - soldiers and vehicle in selection pairs up automatically
     - Suppression trait, always prioritize units not taking cover
     - Don't RevealShroud behind blocking actors
@@ -240,7 +235,6 @@ Ideas:
     - Dog Idea: Cant move only guard, + Wanders if not guarding
     - WEATHER - Change shroud to be called "Bad weather" or similar, Make it more like fog, slightly transparent but it hides all actors even with radar or gps etc
         - GAP should be smoke screen that dissipates
-    - Powerplants are instead industrial plants, generates power and passive income but not so much that it is worth building tons of them for money
     - Manpower: Every player has a manpower number, every unit costs 1 or more manpower.
         - Periodically new manpower is added, and this can be used as a cap-limit to avoid huge conscript armies.
         - When a unit is sold, manpower is returned.

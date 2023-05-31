@@ -271,24 +271,48 @@
 		Condition: disabled
 
 SUPPLYROUTE:
-	Inherits: ^Building
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@ExistsInWorld: ^ExistsInWorld
+	Inherits@SpriteActor: ^SpriteActor
+	Inherits@Selection: ^SelectableBuilding
+	WithSpriteBody:
+	SelectionDecorations:
+	WithSpriteControlGroupDecoration:
+	UpdatesPlayerStatistics:
+	RequiresBuildableArea:
+		AreaTypes: building
+	CaptureNotification:
+	Guardable:
+		Range: 30c0
+	FrozenUnderFog:
+	FrozenUnderFogUpdatedByGps:
+	MapEditorData:
+		Categories: Building
+	CommandBarBlacklist:
+	OwnerLostAction:
+		Action: Kill
+	AcceptsDeliveredCash:
+		ValidTypes: MoneyTransfer
+	GpsDot:
+		String: Structure
+	MustBeDestroyed:
+		RequiredForShortGame: true
+
+	BaseBuilding:
 	Selectable:
 		DecorationBounds: 3072,3072
 	HitShape:
-		TargetableOffsets: 840,0,0, 598,-640,0, 598,640,0, -1060,0,0, -768,-640,0, -768,640,0
-		Type: Polygon
-			VerticalTopOffset: 512
-			Points: -1536,-300, -640,-811, 640,-811, 1536,-300, 1536,555, 640,1110, -640,1110, -1536,555
+		Type: Rectangle
+			TopLeft: -1536, -1536
+			BottomRight: 1536, 1536
 	Building:
 		Footprint: =+= +++ =+=
 		Dimensions: 3,3
-	BaseBuilding:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
 		Description: Provides reinforcements
+
 	Tooltip:
 		Name: Supply Route
 	Health:
@@ -351,7 +375,7 @@ SUPPLYROUTE:
 		Factions: russia
 		Prerequisite: vehicles.russia
 	RenderSprites:
-		Image: FIX
+		Image: ctflag
 
 LOGISTICSCENTER:
 	Inherits: ^Building
@@ -506,7 +530,6 @@ FACT:
 FACT2:
 	Inherits: FACT
 	-WithBuildingBib:
-	-Power:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
