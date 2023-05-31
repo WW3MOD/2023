@@ -1,6 +1,23 @@
 2023
 
-- Littlebird husk is blueish
+- E3 fires RPG at everything, should need force firing
+- Too much cash, cant build fast enough
+- AI needs to learn to build Logistics centers and rearm
+
+- Runs out of ammo should cancel current order and return to rearm
+
+- Remake AI
+    - Unit Builder Module
+        - Looks at what enemy has.
+        - Builds what is necessary, not just random.
+    - Strategical Module
+        - Designates targets and areas of interest. Oil, and where to defend/attack.
+        - Designates new units to target locations and if needed transfers units between tactical groups.
+    - Tactical Module
+        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
+    - Operational Module
+        - Smaller squads move as one and attacks targets.
+        - Individual units attack targets of high value etc.
 
 - Vehicles gets disabled at 50% health
     - Add recovery vehicle that can tow vehicles

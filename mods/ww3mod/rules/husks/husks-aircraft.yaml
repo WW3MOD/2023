@@ -298,6 +298,7 @@ littlebird.Husk.ground:
 		Name: Littlebird
 	RenderSprites:
 		Image: littlebird
+		PlayerPalette: playertd
 		Scale: 0.6
 
 HELI.Husk:
