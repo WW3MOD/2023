@@ -238,6 +238,7 @@ MP5:
 HandGrenade:
 	BurstWait: 200
 	Range: 4c0
+	MinRange: 1c512
 	Report: grenade1.aud
 	Projectile: Bullet
 		Speed: 136
@@ -258,6 +259,7 @@ GrenadeLauncher:
 	Inherits@HitEffects: ^SmallExplosionEffects
 	ValidTargets: Infantry, Unarmored, Light
 	Range: 12c0
+	MinRange: 1c512
 	BurstWait: 100
 	Report: aacanon3.aud
 	Projectile: Bullet
@@ -346,6 +348,7 @@ AACannon:
 25mm.Bradley:
 	Inherits@Caliber: ^30mm
 	Range: 21c0
+	MinRange: 1c512
 	Magazine: 300
 	ReloadDelay: 250
 	Burst: 20
@@ -406,6 +409,7 @@ AACannon:
 	Inherits@Caliber: ^30mm.Tunguska
 	Inherits@HitEffects: ^PiffEffects
 	ValidTargets: Infantry, Vehicle
+	MinRange: 1c512
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground
 30mm.Tunguska.AA:
@@ -432,6 +436,7 @@ AACannon:
 	BurstDelays: 7
 	BurstWait: 10
 	Range: 22c0
+	MinRange: 1c512
 	Report: cannon2.aud
 	Projectile: Bullet
 		Speed: 1100
@@ -514,6 +519,7 @@ AACannon:
 73mm_BMP:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 21c0
+	MinRange: 1c512
 	BurstWait: 100
 	Report: cannon1.aud
 	ValidTargets: Ground
@@ -541,6 +547,7 @@ AACannon:
 ^TankRound:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 24c0
+	MinRange: 1c512
 	BurstWait: 110
 	Report: abrams-firing-1.wav, abrams-firing-2.wav, abrams-firing-3.wav
 	ValidTargets: Ground
@@ -643,8 +650,8 @@ TimerWolf_Barrage:
 	ValidTargets: Ground
 	InvalidTargets: Infantry, Vehicle, Naval
 	Range: 30c0
-	BurstWait: 1
 	MinRange: 5c0
+	BurstWait: 1
 	FirstBurstTargetOffset: -3000,0,0
 	FollowingBurstTargetOffset: 200,0,0
 	Report: missile6.aud
@@ -663,7 +670,7 @@ TimerWolf_Barrage:
 GradRockets:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 40c0
-	MinRange: 15c0
+	MinRange: 12c0
 	BurstWait: 4
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
@@ -688,7 +695,7 @@ GradRockets:
 TosRockets:
 	Inherits@HitEffects: ^LargeThermobaricEffects
 	Range: 30c0
-	MinRange: 10c0
+	MinRange: 5c0
 	BurstWait: 10
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
@@ -715,7 +722,7 @@ TosRockets:
 M270Rockets:
 	Inherits@HitEffects: ^LargeExplosionEffects
 	Range: 40c0
-	MinRange: 15c0
+	MinRange: 12c0
 	BurstWait: 10
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud

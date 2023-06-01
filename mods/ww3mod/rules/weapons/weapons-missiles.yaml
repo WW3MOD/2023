@@ -70,8 +70,8 @@ Hellfire:
 	Inherits: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
-	BurstWait: 60
 	MinRange: 5c0
+	BurstWait: 60
 	Report: missile6.aud
 	Projectile: Missile
 		MaximumLaunchSpeed: 50
@@ -305,6 +305,9 @@ Stinger.quad:
 9M311:
 	Inherits: Stinger
 	BurstWait: 40
+
+
+# Naval stuff WIP
 
 ^AntiGroundMissile:
 	BurstWait: 50
