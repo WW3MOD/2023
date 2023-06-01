@@ -74,8 +74,19 @@ namespace OpenRA.Mods.Common.Traits
 					var delta = to - spawn;
 					if (delta.HorizontalLengthSquared == 0)
 					{
-						var fi = producee.TraitInfoOrDefault<IFacingInfo>();
-						initialFacing = fi != null ? fi.GetInitialFacing() : WAngle.Zero;
+						if (spawn.X < 3072)
+							initialFacing = new WAngle(768); // Right
+						else if (spawn.Y < 3072)
+							initialFacing = new WAngle(512); // Up
+						else if (spawn.X > ((self.World.Map.MapSize.X * 1024) - 3072))
+							initialFacing = new WAngle(256); // Left
+						else if (spawn.Y > ((self.World.Map.MapSize.Y * 1024) - 3072))
+							initialFacing = new WAngle(0); // Down
+						else
+						{
+							var fi = producee.TraitInfoOrDefault<IFacingInfo>();
+							initialFacing = fi != null ? fi.GetInitialFacing() : WAngle.Zero;
+						}
 					}
 					else
 						initialFacing = delta.Yaw;

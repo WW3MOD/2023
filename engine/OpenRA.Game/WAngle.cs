@@ -18,6 +18,7 @@ namespace OpenRA
 {
 	/// <summary>
 	/// 1D angle - 1024 units = 360 degrees.
+	/// 768 == right
 	/// </summary>
 	public readonly struct WAngle : IScriptBindable, ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, IEquatable<WAngle>
 	{
