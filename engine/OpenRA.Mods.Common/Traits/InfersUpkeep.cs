@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new InfersUpkeep(init.Self, this); }
 	}
 
-	public class InfersUpkeep : INotifyOwnerChanged, INotifyCapture, INotifyKilled, INotifyAddedToWorld, INotifyRemovedFromWorld
+	public class InfersUpkeep : INotifyOwnerChanged, INotifyCapture, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		readonly Actor self;
 		readonly InfersUpkeepInfo info;
@@ -58,11 +58,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			oldOwner.PlayerActor.Trait<PlayerResources>().RemoveFromUpkeep(Cost);
 			newOwner.PlayerActor.Trait<PlayerResources>().AddToUpkeep(Cost);
-		}
-
-		void INotifyKilled.Killed(Actor self, AttackInfo e)
-		{
-			player.RemoveFromUpkeep(Cost);
 		}
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
