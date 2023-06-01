@@ -141,9 +141,6 @@ Player:
 		DefaultPassiveIncome: 100
 		PassiveIncomeInterval: 50
 		PassiveIncomeInitialDelay: 50
-		PassiveIncomeUseResourceStorage: false
-		InsufficientFundsNotification: InsufficientFunds
-		InsufficientFundsTextNotification: Insufficient funds.
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:

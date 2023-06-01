@@ -65,9 +65,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Number of ticks to wait between giving passive income.")]
 		public readonly int PassiveIncomeInterval = 50;
 
-		[Desc("Use resource storage for passive income.")]
-		public readonly bool PassiveIncomeUseResourceStorage = true;
-
 		[Desc("Number of ticks to wait before giving first money.")]
 		public readonly int PassiveIncomeInitialDelay = 50;
 
