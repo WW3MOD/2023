@@ -319,8 +319,9 @@ SUPPLYROUTE:
 	Targetable:
 		TargetTypes: NoAutoTarget
 	ProximityCapturable:
-		Range: 20c0
+		TurnNeutral: true
 		Dominance: 200
+		Range: 20c0
 	Armor:
 		Type: Indestructable
 	RallyPoint:

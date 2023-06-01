@@ -39,6 +39,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If set, capture requires dominance of force (higher unit value).")]
 		public readonly int Dominance = 0;
 
+		[Desc("When captured, Actor turns neutral.")]
+		public readonly bool TurnNeutral = false;
+
 		public void RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
 			var pci = rules.Actors[SystemActors.Player].TraitInfoOrDefault<ProximityCaptorInfo>();
@@ -192,17 +195,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (self.Disposed || captor.Disposed)
 					return;
 
+				var changeTo = Info.TurnNeutral ? self.World.Players.First(p => p.PlayerName == "Neutral") : captor.Owner;
+
 				// prevent (Added|Removed)FromWorld from firing during Actor.ChangeOwner
 				skipTriggerUpdate = true;
 				var previousOwner = self.Owner;
-				self.ChangeOwner(captor.Owner);
+				self.ChangeOwner(changeTo);
 
 				if (self.Owner == self.World.LocalPlayer)
 					w.Add(new FlashTarget(self, Color.White));
 
 				var pc = captor.Info.TraitInfoOrDefault<ProximityCaptorInfo>();
 				foreach (var t in self.TraitsImplementing<INotifyCapture>())
-					t.OnCapture(self, captor, previousOwner, captor.Owner, pc.Types);
+					t.OnCapture(self, captor, previousOwner, changeTo, pc.Types);
 			});
 		}
 
