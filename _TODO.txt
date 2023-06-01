@@ -1,5 +1,11 @@
 2023
 
+
+- Units & DCVs doesn't continue their queue after going to rearm. Stuck on RearmActor.
+
+
+
+
 - "Sell"/rotate out Aircraft/helicopters
 
 - Airplanes doesnt spawn, helicopters spawn on ground
@@ -9,7 +15,6 @@
 - Add Ukraine faction
 
 - Too much cash, cant build fast enough
-- Runs out of ammo should cancel current order and return to rearm
 
 - Autotarget with other armament if reload for primary is long, humvee for example
 
@@ -37,8 +42,6 @@
     - Defects if out of money and upkeep is high
 
 - SupplyRoute switches production tab, disable via trait?
-
-- Minelayers / Sandbaglayers doesn't continue their queued deploying after going to rearm. Stuck on pad.
 
 - "quittable" instead of time limited. After X minutes any player can quit, and game will count score.
     When game ends both players get points based on how many units they have left, making it sometimes

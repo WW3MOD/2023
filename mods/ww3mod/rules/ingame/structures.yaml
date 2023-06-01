@@ -432,6 +432,164 @@ LOGISTICSCENTER:
 	RenderSprites:
 		Image: FACT
 
+
+HPAD:
+	Inherits: ^Building
+	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	HitShape:
+		UseTargetableCellsOffsets: false
+		TargetableOffsets: 0,0,0, 768,-512,0, 768,512,0, -281,-512,0, -630,512,0
+	Building:
+		Footprint: xx ==
+		Dimensions: 2,2
+		LocalCenterOffset: 0,-512,0
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 7
+		Prerequisites: ~disabled, ~techlevel.medium
+		Description: Produces and reloads Helicopters.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: Helipad
+	Health:
+		HP: 15000
+	Targetable:
+		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate
+	InfiltrateForSupportPower:
+		Proxy: aircraft.upgraded
+		Types: SpyInfiltrate
+	Armor:
+		Type: Concrete
+	Production:
+		Produces: Aircraft, Helicopter
+		PauseOnCondition: disabled || build-incomplete
+	ProductionBar:
+		ProductionType: Aircraft
+	RallyPoint:
+	ProximityExternalCondition@UNITDOCKED:
+		Condition: unit.docked
+		Range: 1c0
+		RequiresCondition: !build-incomplete && !disabled
+		ValidRelationships: Ally
+	RepairsUnits:
+		PauseOnCondition: disabled || build-incomplete
+	Reservable:
+	WithResupplyAnimation:
+		RequiresCondition: !build-incomplete
+	Exit@1:
+		RequiresCondition: !being-captured
+		SpawnOffset: 0,-256,0
+		ExitCell: 0,0
+		Facing: 896
+	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@america:
+		Factions: america
+		Prerequisite: aircraft.america
+	ProvidesPrerequisite@ukraine:
+		Factions: ukraine
+		Prerequisite: aircraft.ukraine
+	ProvidesPrerequisite@russia:
+		Factions: russia
+		Prerequisite: aircraft.russia
+	ProvidesPrerequisite@russiastructure:
+		RequiresPrerequisites: structures.russia
+		Prerequisite: aircraft.russia
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	SpawnActorOnDeath:
+		Actor: hpad.husk
+
+AFLD:
+	Inherits: ^Building
+	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@Shape: ^3x2Shape
+	-ActorPreviewPlaceBuildingPreview:
+	SequencePlaceBuildingPreview:
+		Sequence: place
+	HitShape:
+		UseTargetableCellsOffsets: false
+		TargetableOffsets: 0,0,0, 420,0,0, 420,-1024,0, 420,1024,0, -777,0,0, -777,-1024,0, -777,1024,0
+	Building:
+		Footprint: xxx xx+
+		Dimensions: 3,2
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 8
+		Prerequisites: ~disabled, ~techlevel.medium
+		Description: Produces, repairs and reloads Airplanes.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.\n  Special Ability: Paratroopers\nA Plane drops a squad of\nVeteran infantry anywhere on the map.
+	Valued:
+		Cost: 1500
+	Tooltip:
+		Name: Airfield
+	Selectable:
+		Class: afld
+		Bounds: 3072,2048
+	Health:
+		HP: 20000
+	Targetable:
+		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate
+	InfiltrateForSupportPower:
+		Proxy: aircraft.upgraded
+		Types: SpyInfiltrate
+	Armor:
+		Type: Concrete
+	Production:
+		Produces: Aircraft, Plane
+		PauseOnCondition: disabled || build-incomplete
+	ProductionBar:
+		ProductionType: Aircraft
+	RallyPoint:
+	Exit@1:
+		RequiresCondition: !being-captured
+		ExitCell: 1,1
+		Facing: 768
+	ProximityExternalCondition@UNITDOCKED:
+		Condition: unit.docked
+		Range: 1c0
+		RequiresCondition: !build-incomplete && !disabled
+		ValidRelationships: Ally
+	RepairsUnits:
+		PauseOnCondition: disabled || build-incomplete
+	Reservable:
+	WithResupplyAnimation:
+		RequiresCondition: !build-incomplete
+	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@america:
+		Factions: america
+		Prerequisite: aircraft.america
+	ProvidesPrerequisite@ukraine:
+		Factions: ukraine
+		Prerequisite: aircraft.ukraine
+	ProvidesPrerequisite@russia:
+		Factions: russia
+		Prerequisite: aircraft.russia
+	ProvidesPrerequisite@russiastructure:
+		RequiresPrerequisites: structures.russia
+		Prerequisite: aircraft.russia
+	GrantConditionOnPowerState@LOWPOWER:
+		Condition: lowpower
+		ValidPowerStates: Low, Critical
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	SpawnActorOnDeath:
+		Actor: afld.husk
+	GrantConditionOnPrerequisite@AIRESTRICTOR:
+		Prerequisites: aitoodumb
+		Condition: aitoodumb
+	RenderSprites:
+		Image: afld
+	ProximityExternalCondition:
+		Condition: onground
+		Range: 1c0
+
+
+
 # FACT:
 # 	Inherits: ^Building
 # 	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
@@ -967,165 +1125,6 @@ LOGISTICSCENTER:
 # 		SpawnOffset: 1,1
 # 		Facing: 256
 # 		RequiresCondition: !build-incomplete
-
-HPAD:
-	Inherits: ^Building
-	Inherits@PRIMARY: ^PrimaryBuilding
-	Inherits@Shape: ^2x2Shape
-	Selectable:
-		Bounds: 2048,2048
-	HitShape:
-		UseTargetableCellsOffsets: false
-		TargetableOffsets: 0,0,0, 768,-512,0, 768,512,0, -281,-512,0, -630,512,0
-	Building:
-		Footprint: xx ==
-		Dimensions: 2,2
-		LocalCenterOffset: 0,-512,0
-	Buildable:
-		Queue: Building
-		BuildPaletteOrder: 7
-		Prerequisites: ~disabled, ~techlevel.medium
-		Description: Produces and reloads Helicopters.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.
-	Valued:
-		Cost: 1000
-	Tooltip:
-		Name: Helipad
-	Health:
-		HP: 15000
-	Targetable:
-		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate
-	InfiltrateForSupportPower:
-		Proxy: aircraft.upgraded
-		Types: SpyInfiltrate
-	Armor:
-		Type: Concrete
-	Production:
-		Produces: Aircraft, Helicopter
-		PauseOnCondition: disabled || build-incomplete
-	ProductionBar:
-		ProductionType: Aircraft
-	RallyPoint:
-	ProximityExternalCondition@UNITDOCKED:
-		Condition: unit.docked
-		Range: 1c0
-		RequiresCondition: !build-incomplete && !disabled
-		ValidRelationships: Ally
-	RepairsUnits:
-		PauseOnCondition: disabled || build-incomplete
-	Reservable:
-	AcceptsDeliveredCash:
-		ValidTypes: PilotRefund
-	WithResupplyAnimation:
-		RequiresCondition: !build-incomplete
-	Exit@1:
-		RequiresCondition: !being-captured
-		SpawnOffset: 0,-256,0
-		ExitCell: 0,0
-		Facing: 896
-	ProvidesPrerequisite@buildingname:
-	ProvidesPrerequisite@america:
-		Factions: america
-		Prerequisite: aircraft.america
-	ProvidesPrerequisite@ukraine:
-		Factions: ukraine
-		Prerequisite: aircraft.ukraine
-	ProvidesPrerequisite@russia:
-		Factions: russia
-		Prerequisite: aircraft.russia
-	ProvidesPrerequisite@russiastructure:
-		RequiresPrerequisites: structures.russia
-		Prerequisite: aircraft.russia
-	WithDeathAnimation:
-		DeathSequence: dead
-		UseDeathTypeSuffix: false
-	SpawnActorOnDeath:
-		Actor: hpad.husk
-
-AFLD:
-	Inherits: ^Building
-	Inherits@PRIMARY: ^PrimaryBuilding
-	Inherits@Shape: ^3x2Shape
-	-ActorPreviewPlaceBuildingPreview:
-	SequencePlaceBuildingPreview:
-		Sequence: place
-	HitShape:
-		UseTargetableCellsOffsets: false
-		TargetableOffsets: 0,0,0, 420,0,0, 420,-1024,0, 420,1024,0, -777,0,0, -777,-1024,0, -777,1024,0
-	Building:
-		Footprint: xxx xx+
-		Dimensions: 3,2
-	Buildable:
-		Queue: Building
-		BuildPaletteOrder: 8
-		Prerequisites: ~disabled, ~techlevel.medium
-		Description: Produces, repairs and reloads Airplanes.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.\n  Special Ability: Paratroopers\nA Plane drops a squad of\nVeteran infantry anywhere on the map.
-	Valued:
-		Cost: 1500
-	Tooltip:
-		Name: Airfield
-	Selectable:
-		Class: afld
-		Bounds: 3072,2048
-	Health:
-		HP: 20000
-	Targetable:
-		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate
-	InfiltrateForSupportPower:
-		Proxy: aircraft.upgraded
-		Types: SpyInfiltrate
-	Armor:
-		Type: Concrete
-	Production:
-		Produces: Aircraft, Plane
-		PauseOnCondition: disabled || build-incomplete
-	ProductionBar:
-		ProductionType: Aircraft
-	RallyPoint:
-	Exit@1:
-		RequiresCondition: !being-captured
-		ExitCell: 1,1
-		Facing: 768
-	ProximityExternalCondition@UNITDOCKED:
-		Condition: unit.docked
-		Range: 1c0
-		RequiresCondition: !build-incomplete && !disabled
-		ValidRelationships: Ally
-	RepairsUnits:
-		PauseOnCondition: disabled || build-incomplete
-	Reservable:
-	AcceptsDeliveredCash:
-		ValidTypes: PilotRefund
-	WithResupplyAnimation:
-		RequiresCondition: !build-incomplete
-	ProvidesPrerequisite@buildingname:
-	ProvidesPrerequisite@america:
-		Factions: america
-		Prerequisite: aircraft.america
-	ProvidesPrerequisite@ukraine:
-		Factions: ukraine
-		Prerequisite: aircraft.ukraine
-	ProvidesPrerequisite@russia:
-		Factions: russia
-		Prerequisite: aircraft.russia
-	ProvidesPrerequisite@russiastructure:
-		RequiresPrerequisites: structures.russia
-		Prerequisite: aircraft.russia
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
-	WithDeathAnimation:
-		DeathSequence: dead
-		UseDeathTypeSuffix: false
-	SpawnActorOnDeath:
-		Actor: afld.husk
-	GrantConditionOnPrerequisite@AIRESTRICTOR:
-		Prerequisites: aitoodumb
-		Condition: aitoodumb
-	RenderSprites:
-		Image: afld
-	ProximityExternalCondition:
-		Condition: onground
-		Range: 1c0
 
 # DOME:
 # 	Inherits: ^Building
