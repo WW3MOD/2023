@@ -5,7 +5,6 @@
 	Inherits@SpriteActor: ^SpriteActor
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
-	Inherits@AI: ^ProductionAIBoost
 	Inherits@Slowdown: ^EffectsWhenDamagedInfantry
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@PinsDown: ^PinsDown

@@ -1028,7 +1028,6 @@ AFLD:
 
 # PROC:
 # 	Inherits: ^Building
-# 	Inherits@AI: ^IncomeAIBoost
 # 	-ActorPreviewPlaceBuildingPreview:
 # 	SequencePlaceBuildingPreview:
 # 		Sequence: idle

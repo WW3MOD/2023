@@ -1,7 +1,6 @@
 
 ^Defense:
 	Inherits: ^Building
-	Inherits@AI: ^ProductionAIBoost
 	Inherits@Selection: ^SelectableCombatBuilding
 	Inherits@Detection: ^StandardDetection
 	-GivesBuildableArea:

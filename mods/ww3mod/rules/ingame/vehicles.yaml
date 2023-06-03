@@ -4,7 +4,6 @@
 	Inherits@3: ^ClassicFacingSpriteActor
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
-	Inherits@AIBoost: ^ProductionAIBoost
 	Inherits@EMPMechanic: ^AffectedByEMP
 	Inherits@Slowdown: ^EffectsWhenDamagedVehicles
 	Inherits@Handicaps: ^PlayerHandicaps

@@ -503,22 +503,6 @@
 	# HandicapDamageMultiplier:
 	# HandicapProductionTimeMultiplier:
 
-^IncomeAIBoost:
-	ResourcePurifier@IncomeAIBoost:
-		Modifier: 20
-		RequiresCondition: owned-by-ai
-		ShowTicks: False
-	GrantConditionOnBotOwner@IncomeAIBoost:
-		Condition: owned-by-ai
-		Bots: normal
-^ProductionAIBoost:
-	ProductionTimeMultiplier@ProductionBoost:
-		Multiplier: 120
-		Prerequisites: aitoodumb
-	ProductionCostMultiplier@ProductionBoost:
-		Multiplier: 80
-		Prerequisites: aitoodumb
-
 # Use with extendable radar?
 ^DisguiseableTree:
 	Targetable:

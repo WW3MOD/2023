@@ -16,9 +16,12 @@
 
 - AI
     - Needs to learn to build Logistics centers and rearm
+    - AutoAssign Actor Method
+        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
     - Unit Builder Module
         - Looks at what enemy has.
         - Builds what is necessary, not just random.
+        - Units define capabilities, and Builder Module determines what capabilities are needed.
     - Strategical Module
         - Designates targets and areas of interest. Oil, and where to defend/attack.
         - Designates new units to target locations and if needed transfers units between tactical groups.

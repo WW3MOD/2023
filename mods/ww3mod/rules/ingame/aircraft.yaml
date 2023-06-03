@@ -65,7 +65,6 @@
 ^Airborne:
 	Inherits: ^NeutralAirborne
 	Inherits@UnitExperience: ^GainsExperience
-	Inherits@AIBoost: ^ProductionAIBoost
 	Repairable:
 		RepairActors: afld
 	Aircraft:
