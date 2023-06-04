@@ -11,7 +11,6 @@ E1R1.america:
 	Tooltip:
 		Name: Veteran
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E1.america
@@ -25,7 +24,6 @@ E3.america:
 E3R1.america:
 	Inherits: E3.america
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E3.america
@@ -47,7 +45,6 @@ E2.america:
 E2R1.america:
 	Inherits: E2.america
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E2.america

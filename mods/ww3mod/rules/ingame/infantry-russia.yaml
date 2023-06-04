@@ -11,7 +11,6 @@ E1R1.russia:
 	Tooltip:
 		Name: Veteran
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E1.russia
@@ -25,7 +24,6 @@ E3.russia:
 E3R1.russia:
 	Inherits: E3.russia
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E3.russia
@@ -47,7 +45,6 @@ E2.russia:
 E2R1.russia:
 	Inherits: E2.russia
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E2.russia
@@ -184,8 +181,6 @@ SHOK:
 		RequiresCondition: !parachute
 	Voiced:
 		VoiceSet: ShokVoice
-	ProducibleWithLevel:
-		Prerequisites: barracks.upgraded
 	RenderRangeCircle:
 		Width: 1
 		Color: FFFFFF # White, Tesla weaponry
@@ -195,7 +190,6 @@ SHOK:
 SHOKR1:
 	Inherits: SHOK
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 1
 	UpdatesPlayerStatistics:
 		OverrideActor: shok

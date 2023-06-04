@@ -189,8 +189,6 @@ littlebird:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	WithRangeCircle@1:
 		Range: 25c0
 		Width: 3
@@ -333,8 +331,6 @@ HELI:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	RenderSprites:
 		Scale: 1.25
 
@@ -441,8 +437,6 @@ A10:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171
 	# 	Interval: 2
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	RenderSprites:
 		Scale: 1.2
 

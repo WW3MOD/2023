@@ -42,29 +42,29 @@
 		Radius: 4c0
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
-		RequiresCondition: airborne && !rank-veteran
+		RequiresCondition: !rank-veteran
 		SuccessRate: 80
-		EjectOnGround: true
+		EjectInAir: true
 	EjectOnDeath@Rank1:
 		PilotActor: PILOTR1
-		RequiresCondition: airborne && rank-veteran == 1
+		RequiresCondition: rank-veteran == 1
 		SuccessRate: 80
-		EjectOnGround: true
+		EjectInAir: true
 	EjectOnDeath@Rank2:
 		PilotActor: PILOTR2
-		RequiresCondition: airborne && rank-veteran == 2
+		RequiresCondition: rank-veteran == 2
 		SuccessRate: 80
-		EjectOnGround: true
+		EjectInAir: true
 	EjectOnDeath@Rank_3:
 		PilotActor: PILOTR3
-		RequiresCondition: airborne && rank-veteran == 3
+		RequiresCondition: rank-veteran == 3
 		SuccessRate: 80
-		EjectOnGround: true
+		EjectInAir: true
 	EjectOnDeath@Rank4:
 		PilotActor: PILOTR4
-		RequiresCondition: airborne && rank-veteran >= 4
+		RequiresCondition: rank-veteran >= 4
 		SuccessRate: 80
-		EjectOnGround: true
+		EjectInAir: true
 
 BADR.Husk:
 	Inherits@Type: ^AircraftHusk

@@ -169,8 +169,6 @@ HIND:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	SpawnActorOnDeath@hovering:
 		Actor: HIND.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -323,8 +321,6 @@ MI28:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	RenderSprites:
 		Scale: 1.2
 
@@ -433,8 +429,6 @@ FROG:
 		RequiresCondition: airborne && ammo-primary && empdisable
 	Selectable:
 		DecorationBounds: 720,372,0,48
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	Rearmable:
 		RearmActors: afld
 		AmmoPools: primary-ammo
@@ -543,8 +537,6 @@ MIG:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171
 	# 	Interval: 2
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	SpawnActorOnDeath:
 		Actor: MIG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable

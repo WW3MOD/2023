@@ -197,8 +197,6 @@ bmp2:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	WithRangeCircle@1:
 		Range: 21c0
 		Color: FFFF00
@@ -288,8 +286,6 @@ btr:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	RenderRangeCircle:
 		Alpha: 100
 		Color: FFFF00

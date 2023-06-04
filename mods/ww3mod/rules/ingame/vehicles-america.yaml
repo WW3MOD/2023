@@ -206,8 +206,6 @@ bradley:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	WithRangeCircle@1:
 		Range: 21c0
 		Color: FFFF00
@@ -438,8 +436,6 @@ m113:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	RenderRangeCircle:
 		Alpha: 100
 		Color: FFFF00
@@ -595,8 +591,6 @@ strykershorad:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	WithRangeCircle@1:
 		Range: 22c0
 		Color: FFFF00
@@ -791,8 +785,6 @@ m270:
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	Selectable:
 		DecorationBounds: 2048,2048
 	RenderRangeCircle:
@@ -1000,8 +992,6 @@ PRSM:
 		OpportunityFire: False
 		PauseOnCondition: empdisable
 	WithSpriteTurret:
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	RenderRangeCircle:
 		Width: 3
 		Alpha: 120
