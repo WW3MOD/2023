@@ -1,93 +1,4 @@
 Player:
-	SupportPowerBotModule@russia:
-		RequiresCondition: enable-ai-player && player.brics
-		Decisions:
-			# UseSpyPlane:
-			# 	OrderName: RussiaSpyPlane
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 5c0
-			# UseParatroopers:
-			# 	OrderName: RussiaParatroopers
-			# 	MinimumAttractiveness: 5
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# 	Consideration@2:
-			# 		Against: Enemy
-			# 		Types: Water
-			# 		Attractiveness: -5
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# UseV2Strike:
-			# 	OrderName: V2Strike
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 5c0
-			# UseEMPBomb:
-			# 	OrderName: EMPBomb
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 3c0
-			# UseNuclear:
-			# 	OrderName: NukeMissile
-			# 	MinimumAttractiveness: 3000
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: Value
-			# 		CheckRadius: 5c0
-			# 	Consideration@2:
-			# 		Against: Ally
-			# 		Types: Air, Ground, Water
-			# 		Attractiveness: -10
-			# 		TargetMetric: Value
-			# 		CheckRadius: 7c0
-			# UseInvulnerability:
-			# 	OrderName: IronCurtainPower
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Ally
-			# 		Types: ICTarget
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 1c0
-
-	SquadManagerBotModule@russia.land:
-		RequiresCondition: enable-ai-player && player.brics
-		SquadSize: 12
-		SquadSizeRandomBonus: 24
-		RushInterval: 200
-		AttackScanRadius: 40
-		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: # FF TODO
-		IgnoredEnemyTargetTypes: IgnoreThis
-
-	SquadManagerBotModule@russia.air:
-		RequiresCondition: enable-ai-player && player.brics
-		SquadSize: 2
-		SquadSizeRandomBonus: 4
-		RushInterval: 800
-		AttackScanRadius: 48
-		ExcludeFromSquadsTypes: # FF TODO
-		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
-
 	UnitBuilderBotModule@russia:
 		RequiresCondition: enable-ai-player && player.brics
 		UnitQueues: Vehicle, Infantry
@@ -103,24 +14,112 @@ Player:
 			sn.russia: 10
 			tecn.russia: 10
 			medi.russia: 10
-
-			truk: 25
-
 			t72: 10
 			bmp2: 10
 			grad: 10
 			tos: 10
 			giatsint: 10
+			truk: 25
 		UnitLimits:
 			dog: 6
 
-	UnitBuilderBotModule@russia.air:
+
+	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
-		IdleBaseUnitsMaximum: 0
-		UnitQueues: Aircraft
-		UnitsToBuild:
-			yak.ai: 60
-			yak.belarus.ai: 60
-			mig: 40
-			hind: 100
-		UnitLimits:
+		SquadSize: 12
+		SquadSizeRandomBonus: 24
+		RushInterval: 200
+		AttackScanRadius: 40
+		DangerScanRadius: 25
+		ExcludeFromSquadsTypes: # FF TODO
+		IgnoredEnemyTargetTypes: IgnoreThis
+
+	# UnitBuilderBotModule@russia.air:
+	# 	RequiresCondition: enable-ai-player && player.brics
+	# 	IdleBaseUnitsMaximum: 0
+	# 	UnitQueues: Aircraft
+	# 	UnitsToBuild:
+	# 		yak.ai: 60
+	# 		yak.belarus.ai: 60
+	# 		mig: 40
+	# 		hind: 100
+	# 	UnitLimits:
+
+	# SupportPowerBotModule@russia:
+	# 	RequiresCondition: enable-ai-player && player.brics
+	# 	Decisions:
+	# 		# UseSpyPlane:
+	# 		# 	OrderName: RussiaSpyPlane
+	# 		# 	MinimumAttractiveness: 1
+	# 		# 	Consideration@1:
+	# 		# 		Against: Enemy
+	# 		# 		Types: Structure
+	# 		# 		Attractiveness: 1
+	# 		# 		TargetMetric: None
+	# 		# 		CheckRadius: 5c0
+	# 		# UseParatroopers:
+	# 		# 	OrderName: RussiaParatroopers
+	# 		# 	MinimumAttractiveness: 5
+	# 		# 	Consideration@1:
+	# 		# 		Against: Enemy
+	# 		# 		Types: Structure
+	# 		# 		Attractiveness: 1
+	# 		# 		TargetMetric: None
+	# 		# 		CheckRadius: 8c0
+	# 		# 	Consideration@2:
+	# 		# 		Against: Enemy
+	# 		# 		Types: Water
+	# 		# 		Attractiveness: -5
+	# 		# 		TargetMetric: None
+	# 		# 		CheckRadius: 8c0
+	# 		# UseV2Strike:
+	# 		# 	OrderName: V2Strike
+	# 		# 	MinimumAttractiveness: 1
+	# 		# 	Consideration@1:
+	# 		# 		Against: Enemy
+	# 		# 		Types: Structure
+	# 		# 		Attractiveness: 1
+	# 		# 		TargetMetric: None
+	# 		# 		CheckRadius: 5c0
+	# 		# UseEMPBomb:
+	# 		# 	OrderName: EMPBomb
+	# 		# 	MinimumAttractiveness: 1
+	# 		# 	Consideration@1:
+	# 		# 		Against: Enemy
+	# 		# 		Types: Structure
+	# 		# 		Attractiveness: 1
+	# 		# 		TargetMetric: None
+	# 		# 		CheckRadius: 3c0
+	# 		# UseNuclear:
+	# 		# 	OrderName: NukeMissile
+	# 		# 	MinimumAttractiveness: 3000
+	# 		# 	Consideration@1:
+	# 		# 		Against: Enemy
+	# 		# 		Types: Structure
+	# 		# 		Attractiveness: 1
+	# 		# 		TargetMetric: Value
+	# 		# 		CheckRadius: 5c0
+	# 		# 	Consideration@2:
+	# 		# 		Against: Ally
+	# 		# 		Types: Air, Ground, Water
+	# 		# 		Attractiveness: -10
+	# 		# 		TargetMetric: Value
+	# 		# 		CheckRadius: 7c0
+	# 		# UseInvulnerability:
+	# 		# 	OrderName: IronCurtainPower
+	# 		# 	MinimumAttractiveness: 1
+	# 		# 	Consideration@1:
+	# 		# 		Against: Ally
+	# 		# 		Types: ICTarget
+	# 		# 		Attractiveness: 1
+	# 		# 		TargetMetric: None
+	# 		# 		CheckRadius: 1c0
+
+	# SquadManagerBotModule@russia.air:
+	# 	RequiresCondition: enable-ai-player && player.brics
+	# 	SquadSize: 2
+	# 	SquadSizeRandomBonus: 4
+	# 	RushInterval: 800
+	# 	AttackScanRadius: 48
+	# 	ExcludeFromSquadsTypes: # FF TODO
+	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis

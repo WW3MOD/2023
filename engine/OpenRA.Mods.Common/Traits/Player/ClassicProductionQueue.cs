@@ -153,7 +153,7 @@ namespace OpenRA.Mods.Common.Traits
 					.Count(p => !p.Trait.IsTraitDisabled && !p.Trait.IsTraitPaused && p.Actor.Owner == self.Owner && p.Trait.Info.Produces.Contains(type));
 
 				var speedModifier = selfsameProductionsCount.Clamp(1, info.BuildTimeSpeedReduction.Length) - 1;
-				time = (time * info.BuildTimeSpeedReduction[speedModifier]) / 100;
+				time = (time * info.BuildTimeSpeedReduction[speedModifier]) / 500;
 			}
 
 			return time;
