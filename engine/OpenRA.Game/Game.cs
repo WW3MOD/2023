@@ -401,7 +401,7 @@ namespace OpenRA
 			var modSearchArg = args.GetValue("Engine.ModSearchPaths", null);
 			var modSearchPaths = modSearchArg != null ?
 				FieldLoader.GetValue<string[]>("Engine.ModsPath", modSearchArg) :
-				new[] { Path.Combine(Platform.EngineDir, "mods") };
+				new[] { Path.Combine(Platform.EngineDir, "mods"), Path.Combine(Platform.EngineDir, "../mods") };
 
 			Mods = new InstalledMods(modSearchPaths, explicitModPaths);
 			Console.WriteLine("Internal mods:");
