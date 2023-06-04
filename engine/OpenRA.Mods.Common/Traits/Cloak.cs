@@ -251,6 +251,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void TraitDisabled(Actor self) { Uncloak(); }
 
+		// CPU Expensive!
 		public bool IsVisible(Actor self, Player viewer)
 		{
 			if (!Cloaked || self.Owner.IsAlliedWith(viewer))

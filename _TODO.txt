@@ -6,13 +6,18 @@
 
 - Airplanes doesnt spawn, helicopters spawn on ground
 
-- Laggy because of blocking? Test more
+- Laggy
+    - Artillery fire order spikes
+    - Blocking?
 
 - Add Ukraine faction
 
 - Too much cash, cant build fast enough
 
 - Autotarget with other armament if reload for primary is long, humvee for example
+
+- Engineer cant repair
+    - Engineer can capture disabled vehicles?
 
 - AI
     - Needs to learn to build Logistics centers and rearm

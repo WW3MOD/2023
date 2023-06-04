@@ -235,6 +235,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 			public List<GraphConnection> GetConnections(CPos position)
 			{
+				// CPU Expensive!
 				if (changedEdges.TryGetValue(position, out var changedEdge))
 					return changedEdge.ToList();
 				if (abstractEdges.TryGetValue(position, out var abstractEdge))

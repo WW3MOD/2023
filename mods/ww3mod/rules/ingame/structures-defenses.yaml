@@ -2,7 +2,9 @@
 ^Defense:
 	Inherits: ^Building
 	Inherits@Selection: ^SelectableCombatBuilding
-	Inherits@Detection: ^StandardDetection
+	# Inherits@Detection: ^StandardDetection
+	RevealsShroud:
+		Range: 20c0
 	-GivesBuildableArea:
 	-AcceptsDeliveredCash:
 	Selectable:
