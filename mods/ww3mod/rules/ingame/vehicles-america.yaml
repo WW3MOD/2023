@@ -145,7 +145,7 @@ bradley:
 		AmmoCondition: ammo-primary
 	Armament@2:
 		Name: secondary
-		Weapon: WGM.double
+		Weapon: WGM.bradley
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100
 		Recoil: 10
@@ -544,7 +544,7 @@ strykershorad:
 		AmmoPools: secondary-ammo
 	Armament@3:
 		Name: tertiary
-		Weapon: Hellfire.Ground.dual
+		Weapon: Hellfire.strykershorad
 		# FireDelay: 25
 		LocalOffset: 100,-90,90
 		LocalYaw: -70, 100

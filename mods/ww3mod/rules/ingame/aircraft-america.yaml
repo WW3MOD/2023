@@ -101,7 +101,7 @@ littlebird:
 		Speed: 265
 		LandableTerrainTypes: Clear,Rough,Road,Ore,Beach,Gems
 	AttackAircraft:
-		Armaments: primary, secondary, secondary-air
+		Armaments: primary, secondary
 		FacingTolerance: 60
 		PersistentTargeting: false
 		AttackType: Hover
@@ -132,19 +132,13 @@ littlebird:
 		RequiresSelection: true
 	Armament@2:
 		Name: secondary
-		Weapon: Hellfire.Ground
-		LocalOffset: 0,-640,0, 0,640,0
-		LocalYaw: -40, 24
-		PauseOnCondition: !ammo-secondary
-	Armament@2-air:
-		Name: secondary-air
-		Weapon: Hellfire.Air
+		Weapon: Hellfire
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo-secondary
 	AmmoPool@2:
 		Name: secondary-ammo
-		Armaments: secondary, secondary-air
+		Armaments: secondary
 		Ammo: 2
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
@@ -247,7 +241,7 @@ HELI:
 		Speed: 245
 	AttackAircraft:
 		FacingTolerance: 60
-		Armaments: primary, secondary, secondary-air
+		Armaments: primary, secondary
 		PersistentTargeting: false
 		AttackType: Hover
 		OpportunityFire: True
@@ -282,13 +276,8 @@ HELI:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: Hellfire.Ground
+		Weapon: Hellfire
 		LocalOffset: 0,213,-85, 0,-213,-85
-		PauseOnCondition: !ammo-secondary
-	Armament@3:
-		Name: secondary-air
-		Weapon: Hellfire.Air
-		LocalOffset: 0,-213,-85, 0,213,-85
 		PauseOnCondition: !ammo-secondary
 	WithRangeCircle@2:
 		Range: 25c0
@@ -296,7 +285,7 @@ HELI:
 		Color: 00FFBB # Cyan, antiair & antiground fire
 	AmmoPool@2:
 		Name: secondary-ammo
-		Armaments: secondary, secondary-air
+		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
@@ -403,7 +392,7 @@ A10:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: Hellfire.Ground
+		Weapon: Hellfire
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo-secondary

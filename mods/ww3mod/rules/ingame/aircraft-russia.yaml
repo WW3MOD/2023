@@ -266,13 +266,8 @@ MI28:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: Hellfire.Ground
+		Weapon: Hellfire
 		LocalOffset: 0,213,-85, 0,-213,-85
-		PauseOnCondition: !ammo-secondary
-	Armament@3:
-		Name: secondary-air
-		Weapon: Hellfire.Air
-		LocalOffset: 0,-213,-85, 0,213,-85
 		PauseOnCondition: !ammo-secondary
 	WithRangeCircle@2:
 		Range: 25c0

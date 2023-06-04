@@ -1,6 +1,6 @@
 
 ATGM:
-	Inherits: ^MediumExplosionEffects
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense, Water
 	TopAttack: true
 	Range: 20c0
@@ -30,7 +30,7 @@ ATGM:
 		DamageTypes: ExplosionDeath
 
 WGM:
-	Inherits: ^MediumExplosionEffects
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
 	MinRange: 3c0
@@ -60,91 +60,56 @@ WGM:
 		Damage: 2000
 		DamageTypes: ExplosionDeath
 
-WGM.double:
+WGM.bradley:
 	Inherits: WGM
 	Burst: 2
 	BurstDelays: 100
 	BurstWait: 1000
 
 Hellfire:
-	Inherits: ^MediumExplosionEffects
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
 	MinRange: 5c0
 	BurstWait: 60
 	Report: missile6.aud
 	Projectile: Missile
-		MaximumLaunchSpeed: 50
-		Acceleration: 30
 		Speed: 500
-		Inaccuracy: 1c0
-		HorizontalRateOfTurn: 5
-		RangeLimit: 27c0
-		ContrailLength: 100
-		ContrailStartColor: FF0000
+		MaximumLaunchSpeed: 100
+		Acceleration: 30
 		Blockable: True
+		Inaccuracy: 512
+		HorizontalRateOfTurn: 30
+		RangeLimit: 27c0
+		ContrailLength: 10
 		Image: dragon
 	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Water, Air
 		Damage: 10000
 		Penetration: 800
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
+		ValidTargets: Ground, Water, Air
 		Spread: 64
 		Damage: 2000
-		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
 
-Hellfire.Ground:
-	Inherits: ^MediumExplosionEffects
+Hellfire.strykershorad:
+	Inherits: Hellfire
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
-	Burst: 1
-	BurstWait: 100
+	Burst: 2
+	BurstDelays: 65
+	BurstWait: 1000
 	MinRange: 5c0
 	Report: missile6.aud
 	Projectile: Missile
 		MaximumLaunchSpeed: 50
-		Acceleration: 30
 		Speed: 400
-		Inaccuracy: 512
-		HorizontalRateOfTurn: 40
-		RangeLimit: 27c0
-		ContrailLength: 10
-		Blockable: True
-		TrailImage: smokey
-	Warhead@Spread: SpreadDamage
-		Spread: 64
-		Damage: 2500
-		ValidTargets: Ground, Water, Air
-		DamageTypes: ExplosionDeath
-Hellfire.Ground.dual:
-	Inherits: Hellfire.Ground
-	Burst: 2
-	BurstDelays: 65
-	BurstWait: 1000
-Hellfire.Air:
-	Inherits: ^MediumExplosionEffects
-	ValidTargets: Air
-	Range: 21c0
-	MinRange: 5c0
-	BurstWait: 140
-	Report: missile6.aud
-	Projectile: Missile
-		Speed: 400
-		Inaccuracy: 768
-		HorizontalRateOfTurn: 40
-		RangeLimit: 25c0
-		ContrailLength: 6
-		Blockable: True
-		TrailImage: smokey
-	Warhead@Spread: SpreadDamage
-		Spread: 64
-		Damage: 2000
-		ValidTargets: Ground, Water, Air
-		DamageTypes: ExplosionDeath
 
 TimerWolf_Missiles:
-	Inherits: ^MediumExplosionEffects
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
 	Burst: 4
@@ -223,7 +188,7 @@ SurfaceToAirMissile.double:
 	BurstWait: 80
 
 AirToAirMissile:
-	Inherits: ^MediumExplosionEffectsAir
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
 	ValidTargets: Air, ICBM
 	Range: 30c0
 	MinRange: 10c0
@@ -248,7 +213,7 @@ AirToAirMissile:
 		ValidTargets: Air, ICBM
 
 MANPAD:
-	Inherits: ^MediumExplosionEffectsAir
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
 	ValidTargets: Air
 	Range: 23c0
 	BurstWait: 200
@@ -271,7 +236,7 @@ MANPAD:
 		ValidTargets: Air
 
 Stinger:
-	Inherits: ^MediumExplosionEffectsAir
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
 	ValidTargets: Air
 	Range: 28c0
 	BurstWait: 250
@@ -379,7 +344,7 @@ CruiseMissile:
 		DamageTypes: Prone30Percent, SmallExplosionDeath
 
 SubMissileAA:
-	Inherits: ^MediumExplosionEffectsAir
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
 	Inherits: ^SubMissileDefault
 	BurstWait: 150
 	ValidTargets: Air
