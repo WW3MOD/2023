@@ -483,6 +483,7 @@ namespace OpenRA
 			{
 				// TEMP performance "fix"
 				return 0;
+
 				// var n = 0;
 				// var ret = 0;
 
