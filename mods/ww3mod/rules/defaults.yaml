@@ -487,15 +487,15 @@
 		Prerequisites: global-bounty
 	GivesBounty:
 		RequiresCondition: global-bounty
-^GlobalPenalty:
-	GrantConditionOnPrerequisite@GlobalPenalty:
-		Condition: global-penalty
-		Prerequisites: global-penalty
-	GivesBounty:
-		RequiresCondition: global-penalty
-		Fixed: -1000
-		Percentage: 0
-		# Promote: 1
+# ^GlobalPenalty:
+# 	GrantConditionOnPrerequisite@GlobalPenalty:
+# 		Condition: global-penalty
+# 		Prerequisites: global-penalty
+# 	GivesBounty:
+# 		RequiresCondition: global-penalty
+# 		Fixed: -1000
+# 		Percentage: 0
+# 		# Promote: 1
 
 ^PlayerHandicaps:
 	HandicapProductionMultiplier:

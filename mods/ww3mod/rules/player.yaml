@@ -244,13 +244,13 @@ Player:
 		Prerequisites: global-disablenavy
 	GameSaveViewportManager:
 	PlayerRadarTerrain:
-	LobbyPrerequisiteCheckbox@GlobalPenalty:
-		ID: penalty
-		Label: War Crime Penalty
-		Description: Killing civillians costs player $1000
-		Enabled: False
-		DisplayOrder: 99
-		Prerequisites: global-penalty
+	# LobbyPrerequisiteCheckbox@GlobalPenalty:
+	# 	ID: penalty
+	# 	Label: War Crime Penalty
+	# 	Description: Killing civillians costs player $1000
+	# 	Enabled: False
+	# 	DisplayOrder: 99
+	# 	Prerequisites: global-penalty
 	LobbyPrerequisiteCheckbox@NuclearAllowed:
 		ID: nuclearallowed
 		Label: Nuclear

@@ -200,7 +200,7 @@
 
 ^CivInfantry:
 	Inherits: ^Infantry
-	Inherits@penalty: ^GlobalPenalty
+	# Inherits@penalty: ^GlobalPenalty
 	Selectable:
 		Class: CivInfantry
 	Valued:
@@ -226,7 +226,7 @@
 		Scale: 0.6
 ^ArmedCivilian:
 	Inherits: ^CivInfantry
-	-GrantConditionOnPrerequisite@GlobalPenalty:
+	# -GrantConditionOnPrerequisite@GlobalPenalty:
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Armament:
 		Weapon: Pistol
