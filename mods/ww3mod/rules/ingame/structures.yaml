@@ -282,7 +282,7 @@ SUPPLYROUTE:
 		AreaTypes: building
 	CaptureNotification:
 	Guardable:
-		Range: 30c0
+		Range: 20c0
 	FrozenUnderFog:
 	FrozenUnderFogUpdatedByGps:
 	MapEditorData:
@@ -296,7 +296,6 @@ SUPPLYROUTE:
 		String: Structure
 	MustBeDestroyed:
 		RequiredForShortGame: true
-
 	BaseBuilding:
 	Selectable:
 		DecorationBounds: 3072,3072
@@ -378,7 +377,6 @@ SUPPLYROUTE:
 	ProvidesPrerequisite@russia:
 		Factions: russia
 		Prerequisite: aircraft.russia
-
 	RenderSprites:
 		Image: ctflag
 
@@ -432,7 +430,6 @@ LOGISTICSCENTER:
 		String: Repair
 	RenderSprites:
 		Image: FACT
-
 
 HPAD:
 	Inherits: ^Building
@@ -588,7 +585,6 @@ AFLD:
 	ProximityExternalCondition:
 		Condition: onground
 		Range: 1c0
-
 
 
 # FACT:

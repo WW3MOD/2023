@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new ProductionQueueFromSelection(init.World, this); }
 	}
 
-	class ProductionQueueFromSelection : INotifySelection
+	class ProductionQueueFromSelection // : INotifySelection
 	{
 		readonly World world;
 		readonly Lazy<ProductionTabsWidget> tabsWidget;
@@ -40,36 +40,37 @@ namespace OpenRA.Mods.Common.Traits
 			paletteWidget = Exts.Lazy(() => Ui.Root.GetOrNull(info.ProductionPaletteWidget) as ProductionPaletteWidget);
 		}
 
-		void INotifySelection.SelectionChanged()
-		{
-			// Disable for spectators
-			if (world.LocalPlayer == null)
-				return;
+		// Disable tab switching since supply route now builds all
+		// void INotifySelection.SelectionChanged()
+		// {
+		// 	// Disable for spectators
+		// 	if (world.LocalPlayer == null)
+		// 		return;
 
-			// Queue-per-actor
-			var queue = world.Selection.Actors
-				.Where(a => a.IsInWorld && a.World.LocalPlayer == a.Owner)
-				.SelectMany(a => a.TraitsImplementing<ProductionQueue>())
-				.FirstOrDefault(q => q.Enabled);
+		// 	// Queue-per-actor
+		// 	var queue = world.Selection.Actors
+		// 		.Where(a => a.IsInWorld && a.World.LocalPlayer == a.Owner)
+		// 		.SelectMany(a => a.TraitsImplementing<ProductionQueue>())
+		// 		.FirstOrDefault(q => q.Enabled);
 
-			// Queue-per-player
-			if (queue == null)
-			{
-				var types = world.Selection.Actors.Where(a => a.IsInWorld && a.World.LocalPlayer == a.Owner)
-					.SelectMany(a => a.TraitsImplementing<Production>().Where(p => !p.IsTraitDisabled))
-					.SelectMany(t => t.Info.Produces);
+		// 	// Queue-per-player
+		// 	if (queue == null)
+		// 	{
+		// 		var types = world.Selection.Actors.Where(a => a.IsInWorld && a.World.LocalPlayer == a.Owner)
+		// 			.SelectMany(a => a.TraitsImplementing<Production>().Where(p => !p.IsTraitDisabled))
+		// 			.SelectMany(t => t.Info.Produces);
 
-				queue = world.LocalPlayer.PlayerActor.TraitsImplementing<ProductionQueue>()
-					.FirstOrDefault(q => q.Enabled && types.Contains(q.Info.Type));
-			}
+		// 		queue = world.LocalPlayer.PlayerActor.TraitsImplementing<ProductionQueue>()
+		// 			.FirstOrDefault(q => q.Enabled && types.Contains(q.Info.Type));
+		// 	}
 
-			if (queue == null || !queue.BuildableItems().Any())
-				return;
+		// 	if (queue == null || !queue.BuildableItems().Any())
+		// 		return;
 
-			if (tabsWidget.Value != null)
-				tabsWidget.Value.CurrentQueue = queue;
-			else if (paletteWidget.Value != null)
-				paletteWidget.Value.CurrentQueue = queue;
-		}
+		// 	if (tabsWidget.Value != null)
+		// 		tabsWidget.Value.CurrentQueue = queue;
+		// 	else if (paletteWidget.Value != null)
+		// 		paletteWidget.Value.CurrentQueue = queue;
+		// }
 	}
 }

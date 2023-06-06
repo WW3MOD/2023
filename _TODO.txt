@@ -12,12 +12,14 @@
 
 - Add Ukraine faction
 
-- Too much cash, cant build fast enough
-
 - Autotarget with other armament if reload for primary is long, humvee for example
 
 - Engineer cant repair
     - Engineer can capture disabled vehicles?
+- Vehicles gets disabled at 50% health
+    - Add recovery vehicle that can tow vehicles
+    - Change "Sell" to "Evacuate", units leave vehicle/building and it becomes neutral
+- Buildings may require more than one technician to operate, enter as cargo until full before changing owner
 
 - AI
     - Needs to learn to build Logistics centers and rearm
@@ -36,16 +38,8 @@
         - Smaller squads move as one and attacks targets.
         - Individual units attack targets of high value etc.
 
-- Vehicles gets disabled at 50% health
-    - Add recovery vehicle that can tow vehicles
-    - Change "Sell" to "Evacuate", units leave vehicle/building and it becomes neutral
-
-- Buildings may require more than one technician to operate, enter as cargo until full before changing owner
-
 - Units might surrender if surrounded, low experience
     - Defects if out of money and upkeep is high
-
-- SupplyRoute switches production tab, disable via trait?
 
 - "quittable" instead of time limited. After X minutes any player can quit, and game will count score.
     When game ends both players get points based on how many units they have left, making it sometimes
