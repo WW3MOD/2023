@@ -16,9 +16,12 @@ t72:
 		Description: Russian Main Battle Tank
 	Valued:
 		Cost: 1700
+	Health:
+		HP: 10000
 	Armor:
 		Type: Heavy
 		Thickness: 280
+		Distribution: 100,80,80,80,60
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 420
@@ -101,9 +104,12 @@ bmp2:
 		Cost: 1000
 	Tooltip:
 		Name: BMP-2 IFV
+	Health:
+		HP: 7000
 	Armor:
-		Type: Light
-		Thickness: 19
+		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	Mobile:
@@ -233,9 +239,12 @@ btr:
 		Cost: 600
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Health:
+		HP: 7000
 	Armor:
 		Type: Light
-		Thickness: 8
+		Thickness: 10
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
@@ -313,9 +322,12 @@ tunguska:
 		Description: Mobile AA
 	Valued:
 		Cost: 1700
+	Health:
+		HP: 7000
 	Armor:
-		Type: Light
-		Thickness: 9
+		Type: Medium
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:
@@ -452,9 +464,12 @@ giatsint:
 		Cost: 1800
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Health:
+		HP: 7000
 	Armor:
 		Type: Light
-		Thickness: 15
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	-HiddenUnderFog:
@@ -540,8 +555,12 @@ grad:
 		Name: BM-21 Grad
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Health:
+		HP: 5000
 	Armor:
-		Type: Unarmored
+		Type: Light
+		Thickness: 5
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	-HiddenUnderFog:
@@ -632,9 +651,12 @@ tos:
 		Scale: 1.25
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Health:
+		HP: 10000
 	Armor:
-		Type: Heavy
-		Thickness: 85
+		Type: Medium
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	-HiddenUnderFog:
@@ -724,9 +746,12 @@ iskander:
 	DamageMultiplier@Loaded:
 		RequiresCondition: loaded
 		Modifier: 1000
+	Health:
+		HP: 5000
 	Armor:
 		Type: Light
-		Thickness: 20
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	-HiddenUnderFog:
@@ -857,9 +882,12 @@ TTNK:
 		AddToArmyValue: true
 	Selectable:
 		DecorationBounds: 1024,1024
+	Health:
+		HP: 5000
 	Armor:
 		Type: Light
-		Thickness: 10
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	# Targetable@DontEMP:

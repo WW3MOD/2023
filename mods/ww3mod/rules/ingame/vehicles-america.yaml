@@ -111,9 +111,11 @@ bradley:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 4000
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	Mobile:
@@ -243,9 +245,11 @@ humvee:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1200
+		HP: 4000
 	Armor:
 		Type: Light
+		Thickness: 10
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
@@ -382,9 +386,11 @@ m113:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 2500
+		HP: 6000
 	Armor:
 		Type: Light
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
@@ -468,9 +474,11 @@ strykershorad:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 3000
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	Mobile:
@@ -628,9 +636,11 @@ m109:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1500
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 10
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	-HiddenUnderFog:
@@ -722,9 +732,11 @@ m270:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1000
+		HP: 5000
 	Armor:
 		Type: Light
+		Thickness: 8
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	-HiddenUnderFog:
@@ -923,9 +935,11 @@ PRSM:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1500
+		HP: 5000
 	Armor:
 		Type: Light
+		Thickness: 8
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
