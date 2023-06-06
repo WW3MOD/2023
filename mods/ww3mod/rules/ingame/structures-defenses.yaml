@@ -404,7 +404,7 @@ BRIK:
 		CrushClasses: heavywall
 	Demolishable:
 		Condition: being-demolished
-	BlocksProjectiles:
+	# BlocksProjectiles:
 	LineBuild:
 		NodeTypes: concrete, gate
 	LineBuildNode:

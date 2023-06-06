@@ -8,7 +8,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	Inherits@NeutralOrOccupiedCapturable: ^NeutralOrOccupiedCapturable
-	BlocksProjectiles:
+	# BlocksProjectiles:
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Targetable:
