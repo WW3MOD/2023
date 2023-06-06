@@ -13,18 +13,14 @@ OILB:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Health:
-		HP: 15000
+		HP: 25000
 	EngineerRepairable:
 	CashTrickler:
-		Amount: 100
+		Amount: 50
 	Tooltip:
 		Name: Oil Derrick
-	TooltipDescription@ally:
-		Description: $100+
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: $100+
-		ValidRelationships: Neutral, Enemy
+	TooltipDescription:
+		Description: Provides $50 income
 	Explodes:
 		Weapon: BarrelExplode
 	GpsDot:
@@ -51,7 +47,7 @@ MISS:
 		Dimensions: 3,3
 		LocalCenterOffset: 0,-512,0
 	Health:
-		HP: 37000
+		HP: 35000
 	RevealsRadar:
 		Range: 50c0
 		RequiresCondition: !heavy-damage
@@ -65,12 +61,8 @@ MISS:
 		Type: Wood
 	Tooltip:
 		Name: Communications Center
-	TooltipDescription@ally:
+	TooltipDescription:
 		Description: Provides Radar
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: Provides Radar
-		ValidRelationships: Neutral, Enemy
 	WithBuildingBib:
 	EngineerRepairable:
 	WithDeathAnimation:
@@ -118,7 +110,6 @@ HOSP:
 BIO:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^2x2Shape
-	Inherits@POWER_OUTAGE: ^DisabledByPowerOutage
 	Selectable:
 		Bounds: 2048,2048
 	OwnerLostAction:
@@ -126,9 +117,11 @@ BIO:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
+	Health:
+		HP: 55000
 	EngineerRepairable:
 	CashTrickler:
-		Amount: 300
+		Amount: 150
 	Tooltip:
 		Name: Nuclear Reactor
 	TooltipDescription:
@@ -163,8 +156,10 @@ FCOM:
 		Type: Wood
 	Tooltip:
 		Name: Expansion Post
+	CashTrickler:
+		Amount: 100
 	TooltipDescription:
-		Description: Provides buildable area and +30 Power.
+		Description: Provides $100 income
 	WithBuildingBib:
 	GivesBuildableArea:
 		AreaTypes: building
