@@ -33,6 +33,7 @@ namespace OpenRA.Widgets
 		public static Widget MouseFocusWidget;
 		public static Widget KeyboardFocusWidget;
 		public static Widget MouseOverWidget;
+
 		static readonly Mediator Mediator = new Mediator();
 
 		public static void CloseWindow()
