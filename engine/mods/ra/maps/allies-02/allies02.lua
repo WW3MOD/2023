@@ -225,7 +225,7 @@ WorldLoaded = function()
 	SecureObjective = player.AddObjective("Secure the convoy's path.")
 	ConquestObjective = player.AddObjective("Eliminate the entire soviet presence in this area.")
 
-	Trigger.AfterDelay(DateTime.Seconds(1), function() Media.PlaySpeechNotification(america, "MissionTimerInitialised") end)
+	Trigger.AfterDelay(DateTime.Seconds(1), function() Media.PlaySpeechNotification(allies, "MissionTimerInitialised") end)
 
 	RunInitialActivities()
 
