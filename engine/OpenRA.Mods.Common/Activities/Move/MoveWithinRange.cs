@@ -40,7 +40,11 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			// We are now in range. Don't move any further!
 			// HACK: This works around the pathfinder not returning the shortest path
-			return AtCorrectRange(self, self.CenterPosition) && Mobile.CanInteractWithGroundLayer(self) && Mobile.CanStayInCell(self.Location);
+			return Target.Type != TargetType.Invalid
+				&& AtCorrectRange(self.CenterPosition)
+				&& CheckFireSolution(self)
+				&& Mobile.CanInteractWithGroundLayer(self)
+				&& Mobile.CanStayInCell(self.Location);
 		}
 
 		protected override bool ShouldRepath(Actor self, CPos targetLocation)
@@ -60,16 +64,16 @@ namespace OpenRA.Mods.Common.Activities
 			return Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange);
 		}
 
-		bool AtCorrectRange(Actor self, WPos origin)
+		bool CheckFireSolution(Actor self)
 		{
-			return Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange)
-				&& Target.Type != TargetType.Invalid
-				&& (self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
-					|| !BlocksProjectiles.AnyBlockingActorsBetween(
-						self,
-						Target.CenterPosition,
-						new WDist(1),
-						out var _));
+			// AnyBlocking freezes Attack, height check is wrong it seems but either way unit never tries to move, as it does when out of range.
+			// Add NoBlockingActors function seperately
+			return self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
+				|| !BlocksProjectiles.AnyBlockingActorsBetween(
+					self,
+					Target.CenterPosition,
+					new WDist(1),
+					out var _);
 		}
 	}
 }
