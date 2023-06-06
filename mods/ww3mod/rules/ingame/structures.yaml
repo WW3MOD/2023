@@ -81,9 +81,9 @@
 		Adjacent: 5
 	GivesBuildableArea:
 		AreaTypes: building, fake
-	RepairableBuilding:
-		RepairStep: 300
-		RepairingNotification: Repairing
+	# RepairableBuilding:
+	# 	RepairStep: 300
+	# 	RepairingNotification: Repairing
 	EngineerRepairable:
 	AcceptsDeliveredCash:
 		ValidTypes: MoneyTransfer
@@ -100,12 +100,12 @@
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished
 		SellSounds: cashturn.aud
-	WithBuildingRepairDecoration:
-		Image: allyrepair
-		Sequence: repair
-		Position: Center
-		Palette: player
-		IsPlayerPalette: True
+	# WithBuildingRepairDecoration:
+	# 	Image: allyrepair
+	# 	Sequence: repair
+	# 	Position: Center
+	# 	Palette: player
+	# 	IsPlayerPalette: True
 	EdibleByLeap:
 	Targetable@BuildingRepair:
 		RequiresCondition: damaged
@@ -166,12 +166,12 @@
 	PowerMultiplier@POWERDOWN:
 		RequiresCondition: powerdown
 		Modifier: 0
-	RepairableBuilding:
-		RepairCondition: repairing
-		RepairingNotification: Repairing
-	WithBuildingRepairDecoration:
-		Offsets:
-			powerdown: -10, 0
+	# RepairableBuilding:
+	# 	RepairCondition: repairing
+	# 	RepairingNotification: Repairing
+	# WithBuildingRepairDecoration:
+	# 	Offsets:
+	# 		powerdown: -10, 0
 ^DisableOnLowPowerOrPowerDown:
 	Inherits: ^DisableOnLowPower
 	GrantCondition@IDISABLE:
@@ -193,11 +193,11 @@
 	PowerMultiplier@POWERDOWN:
 		RequiresCondition: powerdown
 		Modifier: 0
-	RepairableBuilding:
-		RepairCondition: repairing
-	WithBuildingRepairDecoration:
-		Offsets:
-			powerdown: -10, 0
+	# RepairableBuilding:
+	# 	RepairCondition: repairing
+	# WithBuildingRepairDecoration:
+	# 	Offsets:
+	# 		powerdown: -10, 0
 ^DisabledByPowerOutage:
 	WithColoredOverlay@IDISABLE:
 		RequiresCondition: disabled
