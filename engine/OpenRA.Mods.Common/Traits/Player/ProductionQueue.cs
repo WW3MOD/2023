@@ -436,8 +436,6 @@ namespace OpenRA.Mods.Common.Traits
 
 					var cost = GetProductionCost(unit);
 					var time = GetBuildTime(unit, bi);
-					time = time / 4;
-
 					var amountToBuild = Math.Min(fromLimit, order.ExtraData);
 					for (var n = 0; n < amountToBuild; n++)
 					{
@@ -488,7 +486,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var time = bi.BuildDuration;
 			if (time == -1)
-				time = GetProductionCost(unit);
+				time = GetProductionCost(unit) / 10;
 
 			var modifiers = unit.TraitInfos<IProductionTimeModifierInfo>()
 				.Select(t => t.GetProductionTimeModifier(techTree, Info.Type))

@@ -304,7 +304,6 @@ SBAG:
 FENC:
 	Inherits: ^Wall
 	Buildable:
-		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
@@ -330,7 +329,6 @@ FENC:
 BARB:
 	Inherits: ^Wall
 	Buildable:
-		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
@@ -382,7 +380,6 @@ WOOD:
 BRIK:
 	Inherits: ^Wall
 	Buildable:
-		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
@@ -603,7 +600,6 @@ AGUN:
 	Selectable:
 		DecorationBounds: 1024,3096,0,-96
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
@@ -688,7 +684,6 @@ SAM:
 		Footprint: xx
 		Dimensions: 2,1
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
@@ -731,7 +726,6 @@ HSAM:
 	-WithBuildingBib:
 	-SpawnActorOnDeath:
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
@@ -774,7 +768,6 @@ HSAM:
 # 		BuildPaletteOrder: 40
 # 		Prerequisites: ~disabled
 # 		Queue: Defence.USA, RADefence.USA
-# 		BuildDurationModifier: 40
 # 		Description: All-purpose defensive structure.\nRequires power to operate.\nPasses one target to another with other nearby Patriot Defense Systems\n  Strong vs Aircraft, Tanks\n  Weak vs Infantry
 # 	Selectable:
 # 		Bounds: 1024,1024
@@ -809,7 +802,6 @@ FTUR:
 		QuantizedFacings: 8
 	Building:
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
@@ -879,7 +871,6 @@ TSLA:
 		Bounds: 1024,1024
 		DecorationBounds: 1024,960,0,-396
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
@@ -1010,7 +1001,6 @@ MSLO:
 		Dimensions: 2,1
 		TerrainTypes: Clear,Road
 	Buildable:
-		BuildDurationModifier: 200
 		Queue: Defense
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
@@ -1084,7 +1074,6 @@ GUN:
 	ClassicFacingBodyOrientation:
 	Building:
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
