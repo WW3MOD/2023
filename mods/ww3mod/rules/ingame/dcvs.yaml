@@ -31,12 +31,9 @@ MNLY:
 		Name: mines-ammo
 		Ammo: 10
 		AmmoCondition: ammo-mines
-		RearmSound: minelay1.aud
-	ReloadAmmoPool:
-		AmmoPool: mines-ammo
 		FullReloadTicks: 200
 		FullReloadSteps: 5
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 7, 3
@@ -105,12 +102,9 @@ SandBagLayer:
 		Name: mines-ammo
 		Ammo: 5
 		AmmoCondition: ammo-mines
-		RearmSound: minelay1.aud
-	ReloadAmmoPool:
-		AmmoPool: mines-ammo
 		FullReloadTicks: 200
 		FullReloadSteps: 5
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 7, 3

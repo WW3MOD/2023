@@ -1,6 +1,12 @@
 2023
 
-- Units & DCVs doesn't continue their queue after going to rearm. Stuck on RearmActor.
+- When "Capturing" neutral bunkers etc enter orders for other actors are cancelled
+
+- Supplytruck tries to move out of the way
+
+- "Construction complete" when MCV is built
+
+- Bleedout sequence doesnt show, unit disappears
 
 - "Sell"/rotate out Aircraft/helicopters
 
@@ -9,6 +15,12 @@
 - Laggy
     - Artillery fire order spikes
     - Blocking?
+    - AA being blocked gets laggy
+        - Height seems to be a problem, sandbaglayer has default height and hitpos is Z: 220, when shooting hind far behind it at Z:1280
+            Unit height needs to be set at a fraction of its VerticalTopOffset
+        - Also, when out of ammo, cancel attack orders unless being rearmed
+
+- Check Blocking actors from weapon offset not from center ground position
 
 - Add Ukraine faction
 
@@ -47,11 +59,6 @@
     that ends with all units being destroyed. No points are counted, unless one player is victorious
     everyione loses.
 
-- AA being blocked gets laggy
-    - Height seems to be a problem, sandbaglayer has default height and hitpos is Z: 220, when shooting hind far behind it at Z:1280
-        Unit height needs to be set at a fraction of its VerticalTopOffset
-    - Also, when out of ammo, cancel attack orders unless being rearmed
-- Check Blocking actors from weapon offset not from center ground position
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.
     - Each unit has seperate build tab, using the Defense icon, placed first.
@@ -84,11 +91,6 @@
 
 Bugs
 
-Economy
-
-    - Refineries gets filled up, then actually refines whats inside to become money
-    -
-
 Infantry
 
     - SF demolish should bring building to critical state + disabled until repaired
@@ -100,10 +102,6 @@ Infantry
         - Autotarget
         - Repair bridge should have a Delay
             - Check: RepairsBridges, Captures, CaptureManager, CaptureActor, Enter
-
-    SF
-        - Cant see hidden units
-        - Always stealthy?
 
     Flamethrower
         - Clear buildings, turning them into neutral
@@ -120,7 +118,6 @@ Infantry
 
     Div
         - Resupply/Ammopool ReloadDelay should be renamed, ReloadDelay is used for reloading magazines
-        - Capturing bunkers/neutral buildings should not consume captor
         - AI Conscripts starts to capture but seems to take squad orders and stops - decouple them from squad when they have opportunity to capture
             - Stop firing building that has been marked for capture
         - Multiple soldiers capturing building should make it faster, even if only one soldier enters at the end. Some buildings require more than one capturing soldier
@@ -133,12 +130,7 @@ Infantry
 Vehicles
     - Fix opening sequence for btr80
     - Change M113 to AAVP7A1
-    - Ore trucks
-        - Get stuck if too many trucks are sharing one refinery, they should still que up.
-        - Maybe slower unload to make multiple refineries more important.
-        - Smarter behaviour
-
-    - Humvee can drive in forests now?
+    - Humvee can drive in forests now? Same size as infantry, uses subcells. Why?
     - Mines should not completely destroy heavy vehicles
     - Kamikaze drones
     - Crystallized Doom tanks

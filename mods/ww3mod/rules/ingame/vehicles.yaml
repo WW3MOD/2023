@@ -166,11 +166,21 @@ TRUK:
 		LocalOffset: 0,0,100
 	Passenger:
 		CustomPipType: pip-blue
+	RearmsUnits:
+		CloseEnough: 1c0
 	ProximityExternalCondition@ReplenishSoldiers:
 		Condition: replenish-soldiers
 		Range: 4c0
 		RequiresCondition: !disabled && !mobile
 		ValidRelationships: Ally
+	Armament@ReplenishSoldiersTargeter:
+		Name: replenish
+		Weapon: ReplenishSoldiersTargeter
+		Cursor: guard
+		OutsideRangeCursor: guard
+	AttackTurreted:
+		Armaments: replenish
+	Turreted:
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -303,12 +313,9 @@ timberwolf:
 		Armaments: primary
 		Ammo: 300
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -333,12 +340,9 @@ timberwolf:
 		Armaments: secondary, secondary-barrage
 		Ammo: 30
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@2:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 9, 6

@@ -1,3 +1,4 @@
+
 Flamespray:
 	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
 	ValidTargets: Ground, Water, Trees
@@ -360,6 +361,17 @@ Repair:
 		ValidRelationships: Ally
 		DamagePercent: -1
 		DebugOverlayColor: 00FF00
+
+ReplenishSoldiersTargeter:
+	ValidTargets: SoldierReplenish
+	Range: 4c0
+	BurstWait: 100
+	Projectile: Bullet
+		Speed: 200
+	Warhead@Spread: SpreadDamage
+		ValidTargets: SoldierReplenish
+		ValidRelationships: Ally
+		DamagePercent: 0
 
 Demolish:
 	Warhead@Spread: SpreadDamage

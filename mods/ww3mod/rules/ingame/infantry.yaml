@@ -11,6 +11,8 @@
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
 	# Inherits@Detection: ^StandardDetection
+	RepairableNear:
+		RepairActors: truk
 	RevealsShroud:
 		Range: 20c0
 	# Inherits@DetectionProximity: ^DetectionProximity
@@ -151,6 +153,9 @@
 ^Soldier:
 	Inherits: ^Infantry
 	Inherits@AmmoDecoration: ^AmmoDecoration
+	Targetable@SoldierReplenish:
+		# RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
+		TargetTypes: SoldierReplenish
 	Armor:
 		Type: Kevlar
 	TreeTraversable:
@@ -1083,7 +1088,7 @@
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo # grenade-ammo
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
@@ -1190,7 +1195,7 @@ E1R1:
 	InfantryStates:
 		PauseOnCondition: preparing-secondary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1268,7 +1273,7 @@ E3R1:
 		Weapon: 5.56mm.AR
 		PauseOnCondition: !ammo-primary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1324,7 +1329,7 @@ AR:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1420,7 +1425,7 @@ E2R1:
 		AmmoPools: secondary-ammo
 		RequiresCondition: ammo-secondary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1488,7 +1493,7 @@ TL:
 		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	AttackFrontal:
 		TargetFrozenActors: True
@@ -1559,7 +1564,7 @@ MT:
 		Name: garrisoned
 		Weapon: 7.62mm.Sniper
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1631,7 +1636,7 @@ SN:
 		RequiresCondition: ammo-primary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1699,7 +1704,7 @@ AT:
 		Alpha: 80
 		Color: 66B2FF
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1796,7 +1801,7 @@ AA:
 		BlinkInterval: 16
 		BlinkPattern: On, Off
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: c4-ammo
 	RepairsBridges:
 		# TODO: Add Delay
@@ -1871,7 +1876,7 @@ E6:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	GrantConditionOnAttack:
 		Condition: dont-move
@@ -1968,7 +1973,7 @@ E4:
 		AmmoPools: c4-ammo
 		RequiresCondition: ammo-c4
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo, c4-ammo
 	WithInfantryBody:
 		AttackSequences:
@@ -2290,7 +2295,7 @@ TECN:
 		Color: FFFFFF
 		ValidRelationships: Neutral, Ally, Enemy
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		-IdleSequences:
@@ -2351,7 +2356,7 @@ DR:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: logisticscenter
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo # grenade-ammo
 	WithInfantryBody:
 		IdleSequences: idle1

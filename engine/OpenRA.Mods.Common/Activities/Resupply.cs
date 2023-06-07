@@ -300,23 +300,17 @@ namespace OpenRA.Mods.Common.Activities
 				--remainingTicks;
 		}
 
-		void RearmTick(Actor _)
+		void RearmTick(Actor self)
 		{
 			var rearmComplete = true;
 			foreach (var ammoPool in rearmable.RearmableAmmoPools)
 			{
-				// if (!ammoPool.HasFullAmmo)
-				// {
-				// 	if (--ammoPool.RemainingTicks <= 0)
-				// 	{
-				// 		ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
-				// 		if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
-				// 			Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);
+				if (!ammoPool.HasFullAmmo)
+				{
+					ammoPool.Reload(self);
 
-				// 		ammoPool.GiveAmmo(self, ammoPool.Info.ReloadCount);
-				// 	}
-				// }
-				rearmComplete = false;
+					rearmComplete = false;
+				}
 			}
 
 			if (rearmComplete)

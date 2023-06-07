@@ -55,8 +55,6 @@ namespace OpenRA.Mods.Common.Traits
 		AmmoPool ammoPool;
 		IReloadAmmoModifier[] modifiers;
 		readonly ReloadAmmoPoolInfo info;
-
-		[Sync]
 		int remainingTicks;
 
 		public ReloadAmmoPool(ReloadAmmoPoolInfo info)
@@ -77,7 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
 		{
 			if (Info.ResetOnFire)
-				remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+				ammoPool.RemainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }
@@ -87,30 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitPaused || IsTraitDisabled)
 				return;
 
-			Reload(self, Info.Delay, Info.Count, Info.Sound);
-		}
-
-		protected virtual void Reload(Actor self, int reloadDelay, int reloadCount, string sound)
-		{
-			if (!ammoPool.HasFullAmmo && --remainingTicks == 0)
-			{
-				if (info.FullReloadSteps > 0)
-				{
-					double a = ammoPool.Info.Ammo / info.FullReloadSteps;
-					reloadCount = (int)Math.Ceiling(a);
-				}
-
-				if (info.FullReloadTicks > 0)
-					remainingTicks = Util.ApplyPercentageModifiers(info.FullReloadTicks * reloadCount / ammoPool.Info.Ammo, modifiers.Select(m => m.GetReloadAmmoModifier()));
-				else
-					remainingTicks = Util.ApplyPercentageModifiers(reloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
-
-				ammoPool.GiveAmmo(self, reloadCount);
-
-				remainingTicks = Util.ApplyPercentageModifiers(reloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
-				if (!string.IsNullOrEmpty(sound))
-					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, sound, self.CenterPosition);
-			}
+			ammoPool.Reload(self, Info.Delay, Info.Count);
 		}
 	}
 }

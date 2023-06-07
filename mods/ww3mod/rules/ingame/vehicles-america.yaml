@@ -54,12 +54,9 @@ abrams:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -145,6 +142,16 @@ bradley:
 		Armaments: primary
 		Ammo: 900
 		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
 		Weapon: WGM.bradley
@@ -157,31 +164,9 @@ bradley:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	NextBurstBar:
-		Armaments: secondary
-		Color: 00FF00
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo, secondary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	ReloadAmmoPool:
-		AmmoPool: secondary-ammo
-		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 8, 3
-		PipCount: 6
-		RequiresSelection: true
-		FullSequence: pip-yellow
-		AmmoPools: primary-ammo
+		FullReloadSteps: 8
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -189,6 +174,12 @@ bradley:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	NextBurstBar:
+		Armaments: secondary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
 		Armaments: primary, secondary
@@ -271,12 +262,9 @@ humvee:
 		Armaments: primary
 		Ammo: 200
 		AmmoCondition: ammo-primary
-		ReloadCount: 20
-	ReloadAmmoPool@MG:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@MG:
 		Position: Bottom
 		Margin: 7, 3
@@ -302,12 +290,9 @@ humvee:
 		Armaments: secondary
 		Ammo: 3
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@WGM:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadSteps: 3
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@WGM:
 		Position: Bottom
 		Margin: 3, 6
@@ -410,11 +395,9 @@ m113:
 		Ammo: 200
 		AmmoCondition: ammo-primary
 		ReloadCount: 20
-	ReloadAmmoPool@MG:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@MG:
 		Position: Bottom
 		Margin: 7, 3
@@ -506,12 +489,9 @@ strykershorad:
 		Armaments: primary
 		Ammo: 400
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -530,12 +510,9 @@ strykershorad:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@2:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 4
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -558,12 +535,9 @@ strykershorad:
 		Armaments: tertiary
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
-	ReloadAmmoPool@3:
-		AmmoPool: tertiary-ammo
 		FullReloadTicks: 300
-		FullReloadSteps: 2
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadSteps: 4
+		RearmSound: minelay1.aud
 	Turreted:
 		TurnSpeed: 20
 		Offset: -250,0,80
@@ -675,15 +649,9 @@ m109:
 		Armaments: primary
 		Ammo: 39
 		AmmoCondition: ammo-primary
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -698,6 +666,9 @@ m109:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		# StopAndWait: 100
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
 	RenderRangeCircle:
 		Width: 1
 		Alpha: 100
@@ -769,12 +740,9 @@ m270:
 		Armaments: primary
 		Ammo: 12
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -870,14 +838,11 @@ HIMARS:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 5
+		Ammo: 6
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		Delay: 70
-		Count: 1
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadTicks: 600
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3

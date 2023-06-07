@@ -51,6 +51,9 @@ t72:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -61,12 +64,6 @@ t72:
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
-		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
 	AttackTurreted:
 		TargetFrozenActors: True
 		Armaments: primary
@@ -136,6 +133,16 @@ bmp2:
 		Armaments: primary
 		Ammo: 900
 		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
 		Weapon: WGM
@@ -149,31 +156,9 @@ bmp2:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	NextBurstBar:
-		Armaments: secondary
-		Color: 00FF00
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo, secondary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	ReloadAmmoPool:
-		AmmoPool: secondary-ammo
-		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 8, 3
-		PipCount: 6
-		RequiresSelection: true
-		FullSequence: pip-yellow
-		AmmoPools: primary-ammo
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -181,6 +166,12 @@ bmp2:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	NextBurstBar:
+		Armaments: secondary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
 	Turreted:
 		TurnSpeed: 20
 		Offset: -75,0,60
@@ -262,12 +253,9 @@ btr:
 		Armaments: primary
 		Ammo: 200
 		AmmoCondition: ammo-primary
-		ReloadCount: 20
-	ReloadAmmoPool@MG:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@MG:
 		Position: Bottom
 		Margin: 7, 3
@@ -373,12 +361,9 @@ tunguska:
 		Armaments: primary, tertiary
 		Ammo: 180
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 6
@@ -402,12 +387,9 @@ tunguska:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@2:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -500,21 +482,18 @@ giatsint:
 		Armaments: primary
 		Ammo: 39
 		AmmoCondition: ammo-primary
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
 		PipCount: 6
 		RequiresSelection: true
 		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Rearmable:
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithDamageOverlay:
@@ -590,12 +569,9 @@ grad:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -684,12 +660,9 @@ tos:
 		Armaments: primary
 		Ammo: 24
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -784,12 +757,9 @@ iskander:
 		Armaments: primary
 		Ammo: 2
 		AmmoCondition: ammo-primary
-		RearmSound: minelay1.aud
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
