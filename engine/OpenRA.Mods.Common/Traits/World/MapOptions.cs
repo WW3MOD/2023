@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool TechLevelDropdownVisible = true;
 
 		[Desc("Display order for the tech level option in the lobby.")]
-		public readonly int TechLevelDropdownDisplayOrder = 0;
+		public readonly int TechLevelDropdownDisplayOrder = 5;
 
 		[Desc("Tooltip description for the game speed option in the lobby.")]
 		public readonly string GameSpeedDropdownLabel = "Game Speed";
@@ -71,7 +71,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool GameSpeedDropdownVisible = true;
 
 		[Desc("Display order for the game speed option in the lobby.")]
-		public readonly int GameSpeedDropdownDisplayOrder = 0;
+		public readonly int GameSpeedDropdownDisplayOrder = 3;
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{

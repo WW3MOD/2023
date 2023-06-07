@@ -31,6 +31,76 @@ OILB:
 		Actor: OILB.Husk
 		OwnerType: InternalName
 
+FCOM:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xx xx ==
+		Dimensions: 2,3
+		LocalCenterOffset: 0,-512,0
+	Health:
+		HP: 25000
+	Armor:
+		Type: Wood
+	Tooltip:
+		Name: Expansion Post
+	CashTrickler:
+		Amount: 100
+	TooltipDescription:
+		Description: Provides $100 income
+	WithBuildingBib:
+	GivesBuildableArea:
+		AreaTypes: building
+	BaseProvider:
+		PauseOnCondition: being-captured
+		Range: 8c0
+	EngineerRepairable:
+	ProvidesPrerequisite@buildingname:
+	AppearsOnMapPreview:
+	GpsDot:
+		String: Forward
+	SpawnActorOnDeath:
+		Actor: FCOM.Husk
+		OwnerType: InternalName
+	RenderSprites:
+		Image: acom
+
+BIO:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 55000
+	EngineerRepairable:
+	CashTrickler:
+		Amount: 150
+	Tooltip:
+		Name: Nuclear Reactor
+	TooltipDescription:
+		Description: $300+
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	ProvidesPrerequisite@buildingname:
+	AppearsOnMapPreview:
+	GpsDot:
+		String: Nuke
+	WithIdleOverlay@SMOKE:
+		Sequence: idle-smoke
+	SpawnActorOnDeath:
+		Actor: BIO.Husk
+		OwnerType: InternalName
+
 MISS:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^3x2Shape
@@ -106,73 +176,3 @@ HOSP:
 	SpawnActorOnDeath:
 		Actor: HOSP.Husk
 		OwnerType: InternalName
-
-BIO:
-	Inherits: ^TechBuilding
-	Inherits@Shape: ^2x2Shape
-	Selectable:
-		Bounds: 2048,2048
-	OwnerLostAction:
-		Action: ChangeOwner
-	Building:
-		Footprint: xx xx
-		Dimensions: 2,2
-	Health:
-		HP: 55000
-	EngineerRepairable:
-	CashTrickler:
-		Amount: 150
-	Tooltip:
-		Name: Nuclear Reactor
-	TooltipDescription:
-		Description: $300+
-	WithDeathAnimation:
-		DeathSequence: dead
-		UseDeathTypeSuffix: false
-	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
-	GpsDot:
-		String: Nuke
-	WithIdleOverlay@SMOKE:
-		Sequence: idle-smoke
-	SpawnActorOnDeath:
-		Actor: BIO.Husk
-		OwnerType: InternalName
-
-FCOM:
-	Inherits: ^TechBuilding
-	Inherits@Shape: ^2x2Shape
-	Selectable:
-		Bounds: 2048,2048
-	OwnerLostAction:
-		Action: ChangeOwner
-	Building:
-		Footprint: xx xx ==
-		Dimensions: 2,3
-		LocalCenterOffset: 0,-512,0
-	Health:
-		HP: 25000
-	Armor:
-		Type: Wood
-	Tooltip:
-		Name: Expansion Post
-	CashTrickler:
-		Amount: 100
-	TooltipDescription:
-		Description: Provides $100 income
-	WithBuildingBib:
-	GivesBuildableArea:
-		AreaTypes: building
-	BaseProvider:
-		PauseOnCondition: being-captured
-		Range: 8c0
-	EngineerRepairable:
-	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
-	GpsDot:
-		String: Forward
-	SpawnActorOnDeath:
-		Actor: FCOM.Husk
-		OwnerType: InternalName
-	RenderSprites:
-		Image: acom

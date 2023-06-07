@@ -20,10 +20,10 @@ namespace OpenRA.Mods.Common.Traits
 	public class PlayerResourcesInfo : TraitInfo, ILobbyOptions
 	{
 		[Desc("Descriptive label for the starting cash option in the lobby.")]
-		public readonly string DefaultCashDropdownLabel = "Starting Cash";
+		public readonly string CashDropdownLabel = "Starting Cash";
 
 		[Desc("Tooltip description for the starting cash option in the lobby.")]
-		public readonly string DefaultCashDropdownDescription = "The amount of cash that players start with";
+		public readonly string CashDropdownDescription = "The amount of cash that players start with";
 
 		[Desc("Starting cash options that are available in the lobby options.")]
 		public readonly int[] SelectableCash = { 2500, 5000, 10000, 20000 };
@@ -32,13 +32,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int DefaultCash = 5000;
 
 		[Desc("Force the DefaultCash option by disabling changes in the lobby.")]
-		public readonly bool DefaultCashDropdownLocked = false;
+		public readonly bool CashDropdownLocked = false;
 
 		[Desc("Whether to display the DefaultCash option in the lobby.")]
-		public readonly bool DefaultCashDropdownVisible = true;
+		public readonly bool CashDropdownVisible = true;
 
 		[Desc("Display order for the DefaultCash option.")]
-		public readonly int DefaultCashDropdownDisplayOrder = 0;
+		public readonly int CashDropdownDisplayOrder = 0;
 
 		[NotificationReference("Speech")]
 		[Desc("Speech notification to play when the player does not have any funds.")]
@@ -60,13 +60,38 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] SelectablePassiveIncome = { 0, 50, 100, 150, 200, 300, 400, 500, 750, 1000 };
 
 		[Desc("Default starting cash option: should be one of the SelectableCash options.")]
-		public readonly int DefaultPassiveIncome = 100;
+		public readonly int PassiveIncome = 100;
 
 		[Desc("Number of ticks to wait between giving passive income.")]
 		public readonly int PassiveIncomeInterval = 50;
 
 		[Desc("Number of ticks to wait before giving first money.")]
 		public readonly int PassiveIncomeInitialDelay = 50;
+
+		[Desc("Force the PassiveIncome option by disabling changes in the lobby.")]
+		public readonly bool PassiveIncomeDropdownLocked = false;
+
+		[Desc("Whether to display the PassiveIncome option in the lobby.")]
+		public readonly bool PassiveIncomeDropdownVisible = true;
+
+		[Desc("Display order for the PassiveIncome option.")]
+		public readonly int PassiveIncomeDropdownDisplayOrder = 1;
+
+
+		[Desc("Modify cash given by capturing oil etc.")]
+		public readonly int[] SelectableIncomeModifier = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500 };
+
+		[Desc("Default starting cash option: should be one of the SelectableCash options.")]
+		public readonly int DefaultIncomeModifier = 100;
+
+		[Desc("Force the IncomeModifier option by disabling changes in the lobby.")]
+		public readonly bool IncomeModifierDropdownLocked = false;
+
+		[Desc("Whether to display the IncomeModifier option in the lobby.")]
+		public readonly bool IncomeModifierDropdownVisible = true;
+
+		[Desc("Display order for the IncomeModifier option.")]
+		public readonly int IncomeModifierDropdownDisplayOrder = 2;
 
 		[Desc("Monetary value of each resource type.", "Dictionary of [resource type]: [value per unit].")]
 		public readonly Dictionary<string, int> ResourceValues = new Dictionary<string, int>();
@@ -75,19 +100,23 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var startingCash = SelectableCash.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
 			var passiveIncome = SelectablePassiveIncome.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
+			var incomeModifier = SelectableIncomeModifier.ToDictionary(c => c.ToString(), c => c.ToString() + "%");
 
 			if (startingCash.Count > 0)
-				yield return new LobbyOption("startingcash", DefaultCashDropdownLabel, DefaultCashDropdownDescription, DefaultCashDropdownVisible, DefaultCashDropdownDisplayOrder,
-					startingCash, DefaultCash.ToString(), DefaultCashDropdownLocked);
+				yield return new LobbyOption("startingcash", CashDropdownLabel, CashDropdownDescription, CashDropdownVisible, CashDropdownDisplayOrder,
+					startingCash, DefaultCash.ToString(), CashDropdownLocked);
 
-			yield return new LobbyOption("passiveincome", "Passive Income", "Money granted to all players periodically", DefaultCashDropdownVisible, 4,
-				passiveIncome, DefaultPassiveIncome.ToString(), DefaultCashDropdownLocked);
+			yield return new LobbyOption("passiveincome", "Passive Income", "Money granted to all players periodically", PassiveIncomeDropdownVisible, PassiveIncomeDropdownDisplayOrder,
+				passiveIncome, PassiveIncome.ToString(), PassiveIncomeDropdownLocked);
+
+			yield return new LobbyOption("incomemodifier", "Income Modifier", "Modify income from buildings", CashDropdownVisible, 2,
+				incomeModifier, DefaultIncomeModifier.ToString(), CashDropdownLocked);
 		}
 
 		public override object Create(ActorInitializer init) { return new PlayerResources(init.Self, this); }
 	}
 
-	public class PlayerResources : ISync, ITick
+	public class PlayerResources : ISync, ITick, ICashTricklerModifier
 	{
 		public readonly PlayerResourcesInfo Info;
 		readonly Player owner;
@@ -95,6 +124,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int PassiveIncomeTicks { get; private set; }
 
 		public int PassiveIncomeAmount;
+		public int IncomeModifier;
 
 		public PlayerResources(Actor self, PlayerResourcesInfo info)
 		{
@@ -115,6 +145,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (!int.TryParse(passiveIncome, out PassiveIncomeAmount))
 				PassiveIncomeAmount = 0;
 
+			var incomeModifier = self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault("incomemodifier", "100");
+
+			if (!int.TryParse(incomeModifier, out IncomeModifier))
+				IncomeModifier = 100;
+
 			lastNotificationTime = -Info.InsufficientFundsNotificationInterval;
 		}
 
@@ -127,7 +163,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public int ResourceCapacity;
 
-		// [Sync]
 		public float Upkeep;
 
 		public int Earned;
@@ -267,6 +302,11 @@ namespace OpenRA.Mods.Common.Traits
 		public void RemoveFromUpkeep(float upkeep)
 		{
 			Upkeep -= upkeep;
+		}
+
+		public int GetCashTricklerModifier()
+		{
+			return IncomeModifier;
 		}
 	}
 }

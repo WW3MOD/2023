@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool TimeLimitDropdownVisible = true;
 
 		[Desc("Display order for the time limit dropdown in the lobby.")]
-		public readonly int TimeLimitDisplayOrder = 0;
+		public readonly int TimeLimitDisplayOrder = 4;
 
 		[Desc("Notification text for time limit warnings. The string '{0}' will be replaced by the remaining time in minutes, '{1}' is used for the plural form.")]
 		public readonly string Notification = "{0} minute{1} remaining.";

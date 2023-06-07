@@ -182,7 +182,7 @@ bradley.husk:
 humvee.husk:
 	Inherits: ^Husk
 	Tooltip:
-		Name: Humbee
+		Name: Humvee
 	Armament:
 		Weapon: Dummy
 		PauseOnCondition: !alwaysdisabled

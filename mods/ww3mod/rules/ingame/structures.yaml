@@ -81,9 +81,6 @@
 		Adjacent: 5
 	GivesBuildableArea:
 		AreaTypes: building, fake
-	# RepairableBuilding:
-	# 	RepairStep: 300
-	# 	RepairingNotification: Repairing
 	EngineerRepairable:
 	AcceptsDeliveredCash:
 		ValidTypes: MoneyTransfer
@@ -100,12 +97,6 @@
 	Sellable:
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished
 		SellSounds: cashturn.aud
-	# WithBuildingRepairDecoration:
-	# 	Image: allyrepair
-	# 	Sequence: repair
-	# 	Position: Center
-	# 	Palette: player
-	# 	IsPlayerPalette: True
 	EdibleByLeap:
 	Targetable@BuildingRepair:
 		RequiresCondition: damaged
@@ -507,7 +498,6 @@ HPAD:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: hpad.husk
-
 AFLD:
 	Inherits: ^Building
 	Inherits@PRIMARY: ^PrimaryBuilding
@@ -591,7 +581,6 @@ AFLD:
 	ProximityExternalCondition:
 		Condition: onground
 		Range: 1c0
-
 
 # FACT:
 # 	Inherits: ^Building

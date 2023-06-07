@@ -23,19 +23,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Amount = 15;
 
 		[Desc("Number of ticks to wait between giving money.")]
-		public readonly int Interval = 50;
+		public readonly int Interval = 60;
 
 		[Desc("Number of ticks to wait before giving first money.")]
 		public readonly int InitialDelay = 0;
 
 		[Desc("Whether to show the cash tick indicators rising from the actor.")]
-		public readonly bool ShowTicks = true;
+		public readonly bool ShowTicks = false;
 
 		[Desc("How long to show the cash tick indicator when enabled.")]
-		public readonly int DisplayDuration = 3;
-
-		[Desc("Use resource storage for cash granted.")]
-		public readonly bool UseResourceStorage = false;
+		public readonly int DisplayDuration = 15;
 
 		void IRulesetLoaded<ActorInfo>.RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
@@ -82,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--Ticks < 0)
 			{
-				var cashTrickerModifier = self.TraitsImplementing<ICashTricklerModifier>().Select(x => x.GetCashTricklerModifier());
+				var cashTrickerModifier = self.Owner.PlayerActor.TraitsImplementing<ICashTricklerModifier>().Select(x => x.GetCashTricklerModifier());
 
 				Ticks = info.Interval;
 				ModifyCash(self, Util.ApplyPercentageModifiers(info.Amount, cashTrickerModifier));
@@ -97,14 +94,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ModifyCash(Actor self, int amount)
 		{
-			if (info.UseResourceStorage)
-			{
-				var initialAmount = resources.Resources;
-				resources.GiveResources(amount);
-				amount = resources.Resources - initialAmount;
-			}
-			else
-				amount = resources.ChangeCash(amount);
+			amount = resources.ChangeCash(amount);
 
 			if (info.ShowTicks && amount != 0)
 				AddCashTick(self, amount);
