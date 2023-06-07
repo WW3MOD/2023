@@ -1610,7 +1610,7 @@ SN:
 	Armament@1:
 		Name: primary
 		Weapon: ATGM
-		PauseOnCondition: !ammo-primary
+		PauseOnCondition: !ammo-primary || suppressed > 0
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -2374,7 +2374,6 @@ DR:
 		Scale: 0.6
 PILOT:
 	Inherits: ^PILOT
-# todo: These seem to work but they have no rank pip
 PILOTR1:
 	Inherits: ^PILOT
 	Tooltip:
