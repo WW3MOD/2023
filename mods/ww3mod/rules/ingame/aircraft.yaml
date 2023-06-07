@@ -112,6 +112,8 @@
 		RequiresCondition: airborne && rank-veteran >= 4
 		SuccessRate: 80
 		EjectInAir: true
+	DeliversCash@Rotation:
+		Type: Rotation
 
 ^Helicopter:
 	Inherits@Type: ^Airborne
@@ -139,6 +141,8 @@
 		RepairActors: hpad
 	Targetable@Helicopter:
 		TargetTypes: Helicopter
+	DeliversCash@Rotation:
+		Type: Rotation
 
 ^Drone:
 	Inherits: ^Airborne
@@ -159,17 +163,6 @@
 			Radius: 8
 	Targetable@Drone:
 		TargetTypes: Drone
-
-^KilledWithoutAirfield:
-	ChangesHealth@PLANE:
-		Step: 0
-		PercentageStep: -10
-		Delay: 25
-		DamageCooldown: 0
-		RequiresCondition: !hasairfield
-	GrantConditionOnPrerequisite@AIRFIELD:
-		Prerequisites: afld
-		Condition: hasairfield
 
 ^WhenDamagedAir:
 	SpeedMultiplier@HeavyDamage:

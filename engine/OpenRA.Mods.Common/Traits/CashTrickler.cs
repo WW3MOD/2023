@@ -18,20 +18,21 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Lets the actor generate cash in a set periodic time.")]
 	public class CashTricklerInfo : PausableConditionalTraitInfo, IRulesetLoaded
 	{
+		[FieldLoader.Require]
+		[Desc("Amount of money to give each time.")]
+		public readonly int Amount = 15;
+
 		[Desc("Number of ticks to wait between giving money.")]
 		public readonly int Interval = 50;
 
 		[Desc("Number of ticks to wait before giving first money.")]
 		public readonly int InitialDelay = 0;
 
-		[Desc("Amount of money to give each time.")]
-		public readonly int Amount = 15;
-
 		[Desc("Whether to show the cash tick indicators rising from the actor.")]
-		public readonly bool ShowTicks = false;
+		public readonly bool ShowTicks = true;
 
 		[Desc("How long to show the cash tick indicator when enabled.")]
-		public readonly int DisplayDuration = 10;
+		public readonly int DisplayDuration = 3;
 
 		[Desc("Use resource storage for cash granted.")]
 		public readonly bool UseResourceStorage = false;

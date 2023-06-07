@@ -147,6 +147,7 @@
 		Categories: Infantry
 	EdibleByLeap:
 	InfersUpkeep:
+		FixedCost: 1
 		PermilleCost: 10
 	DeliversCash@Rotation:
 		Type: Rotation
