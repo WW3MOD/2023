@@ -274,7 +274,7 @@ timberwolf:
 		Scale: 0.8
 	Buildable:
 		Queue: Vehicle
-		BuildPaletteOrder: 1
+		BuildPaletteOrder: 1000
 		Prerequisites: ~techlevel.futuristic
 		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
 	Valued:
