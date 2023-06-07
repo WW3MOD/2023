@@ -1,5 +1,7 @@
 2023
 
+- Tesla tank returns to base when out of ammo
+
 - When "Capturing" neutral bunkers etc enter orders for other actors are cancelled
 
 - Supplytruck tries to move out of the way
