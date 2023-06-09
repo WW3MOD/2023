@@ -417,7 +417,7 @@ LOGISTICSCENTER:
 		Range: 2c0
 		RequiresCondition: !build-incomplete && !disabled
 		ValidRelationships: Ally
-	WithBuildingBib:
+	# WithBuildingBib:
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false

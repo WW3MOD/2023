@@ -1,5 +1,12 @@
 2023
 
+- Shroud update
+    - Each cell has a visibility of 0-100, 0 = Shrouded, 100 = visible
+    - Units have detection from 100 down to 0 based on distance.
+        - AffectsShroud.UpdateShroudCells.AddCellsToPlayerShroud
+            -> RevealShroudEffect.AddCellsToPlayerShroud -> player.Shroud.AddSource(this, sourceType, uv);
+    - Units have camouflage 0-100 that makes them invisible at lower visibility
+
 - Tesla tank returns to base when out of ammo
 
 - When "Capturing" neutral bunkers etc enter orders for other actors are cancelled

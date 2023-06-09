@@ -383,8 +383,8 @@ CTFLAG:
 		Dimensions: 1,1
 	Tooltip:
 		Name: Flag
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	MapEditorData:
 		Categories: Decoration
 	Interactable:

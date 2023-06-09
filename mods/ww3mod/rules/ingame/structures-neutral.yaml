@@ -164,8 +164,8 @@ HOSP:
 		Name: Hospital
 	TooltipDescription:
 		Description: Hospital
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false

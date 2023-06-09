@@ -95,7 +95,7 @@ GTWR:
 		Name: Guard Tower
 	Building:
 	Health:
-		HP: 3000
+		HP: 10000
 	Armor:
 		Type: Unarmored
 	Targetable:
@@ -105,26 +105,8 @@ GTWR:
 	RevealsShroud:
 		Range: 24c0
 		RequiresCondition: loaded
-	DetectCloaked@Medium:
-		DetectionTypes: Medium
-		Range: 20c0
-		RequiresCondition: loaded
-	DetectCloaked@Hidden:
-		DetectionTypes: Hidden
-		Range: 14c0
-		RequiresCondition: loaded
-	WithRangeCircle@Medium:
-		Range: 20c0
-		Width: 1
-		Color: FFFFFF
-		Alpha: 10
-	WithRangeCircle@Hidden:
-		Range: 14c0
-		Width: 1
-		Color: FFFFFF
-		Alpha: 10
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	-BodyOrientation:
 	ClassicFacingBodyOrientation:
 		QuantizedFacings: 8
@@ -172,8 +154,8 @@ PBOX:
 		TargetTypes: EMPInvalid
 	Armor:
 		Type: Concrete
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	# Turreted:
 	# 	TurnSpeed: 255
 	# 	Offset: 0,0,64
@@ -534,8 +516,8 @@ CRAM:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 820
@@ -616,8 +598,8 @@ AGUN:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 820
@@ -698,8 +680,8 @@ SAM:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 0
@@ -723,7 +705,7 @@ SAM:
 HSAM:
 	Inherits: SAM
 	-AttackTurreted:
-	-WithBuildingBib:
+	# -WithBuildingBib:
 	-SpawnActorOnDeath:
 	Buildable:
 		Queue: Defense
@@ -815,8 +797,8 @@ FTUR:
 	Armor:
 		Type: Light
 	ProvidesPrerequisite@buildingname:
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	Turreted@1:
 		Turret: ranged-turret
 		TurnSpeed: 255
@@ -886,8 +868,8 @@ TSLA:
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
 	ProvidesPrerequisite@buildingname:
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	Armament:
 		Weapon: TeslaZap
 		LocalOffset: 0,0,896
@@ -954,8 +936,8 @@ PRIS:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	WithSpriteBody:
 		PauseOnCondition: disabled || empdisable
 	WithPrismChargeAnimation:
@@ -1088,8 +1070,8 @@ GUN:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	Turreted:
 		TurnSpeed: 50
 		InitialFacing: 192
