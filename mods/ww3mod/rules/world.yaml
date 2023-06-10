@@ -371,7 +371,7 @@ World:
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
 
-	StartingUnits@armoured_platoon_america:
+	StartingUnits@Motorized_america:
 		Class: motorized
 		ClassName: Motorized
 		Factions: america
@@ -379,7 +379,7 @@ World:
 		SupportActors: abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	StartingUnits@armoured_platoon_russia:
+	StartingUnits@Motorized_russia:
 		Class: motorized
 		ClassName: Motorized
 		Factions: russia
@@ -388,7 +388,7 @@ World:
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-	StartingUnits@armoured_platoon_airsupport_america:
+	StartingUnits@AirSupport_america:
 		Class: air
 		ClassName: Air support
 		Factions: america
@@ -396,7 +396,7 @@ World:
 		SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	StartingUnits@armoured_platoon_airsupport_russia:
+	StartingUnits@AirSupport_russia:
 		Class: air
 		ClassName: Air support
 		Factions: russia

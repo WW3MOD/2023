@@ -7,6 +7,12 @@
             -> RevealShroudEffect.AddCellsToPlayerShroud -> player.Shroud.AddSource(this, sourceType, uv);
     - Units have camouflage 0-100 that makes them invisible at lower visibility
 
+UNIT:
+    Visibility:
+        Size/Range/:
+    Detection:
+
+
 - Tesla tank returns to base when out of ammo
 
 - When "Capturing" neutral bunkers etc enter orders for other actors are cancelled

@@ -18,9 +18,7 @@ Player:
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 0
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
-		ReadyTextNotification: Construction complete.
+		ReadyTextNotification: MCV reporting.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
@@ -28,24 +26,20 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Defense:
 		Type: Defense
 		DisplayOrder: 1
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
 		BlockedAudio: NoBuild
+		ReadyTextNotification: MCV delivered.
 		LimitedAudio: BuildingInProgress
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Vehicle:
 		Type: Vehicle
 		DisplayOrder: 2
-		LowPowerModifier: 300
 		ReadyAudio: UnitReady
 		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
@@ -55,14 +49,10 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicParallelProductionQueue@Infantry:
 		Type: Infantry
 		DisplayOrder: 3
-		LowPowerModifier: 300
-		# ReadyAudio: UnitReady
-		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
@@ -70,14 +60,12 @@ Player:
 		QueuedAudio: Training
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		Sticky: False
 		BuildingCountBuildTimeMultipliers: 100, 75, 50, 25, 20, 15, 10
 		ParallelPenaltyBuildTimeMultipliers: 100
 	ClassicProductionQueue@Ship:
 		Type: Ship
 		DisplayOrder: 4
-		LowPowerModifier: 300
 		ReadyAudio: UnitReady
 		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
@@ -87,12 +75,10 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
 		DisplayOrder: 5
-		LowPowerModifier: 300
 		ReadyAudio: UnitReady
 		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
@@ -102,21 +88,18 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
-	ClassicProductionQueue@Fakestructure:
-		Type: Fakestructure
-		Factions: america, russia
-		DisplayOrder: 6
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
-		BlockedAudio: NoBuild
-		LimitedAudio: BuildingInProgress
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
-		BuildTimeSpeedReduction: , 8, 7, 6, 5
+	# ClassicProductionQueue@Fakestructure:
+	# 	Type: Fakestructure
+	# 	Factions: america, russia
+	# 	DisplayOrder: 6
+	# 	ReadyAudio: ConstructionComplete
+	# 	BlockedAudio: NoBuild
+	# 	LimitedAudio: BuildingInProgress
+	# 	QueuedAudio: Building
+	# 	OnHoldAudio: OnHold
+	# 	CancelledAudio: Cancelled
+	# 	BuildTimeSpeedReduction: , 8, 7, 6, 5
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio
@@ -129,10 +112,7 @@ Player:
 		LoseNotification: Lose
 		LeaveNotification: Leave
 	ConquestVictoryConditions:
-	PowerManager:
-		AdviceInterval: 30000
-		SpeechNotification: LowPower
-		TextNotification: Low power.
+	PowerManager: # TODO Remove
 	AllyRepair:
 	PlayerResources:
 		SelectableCash: 0, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000
