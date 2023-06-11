@@ -26,6 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly CVec ExitCell = CVec.Zero;
 		public readonly WAngle? Facing = null;
 		public readonly bool FacingCenter = false;
+		public readonly WDist Height = WDist.Zero;
 
 		[Desc("Type tags on this exit.")]
 		public readonly HashSet<string> ProductionTypes = new HashSet<string>();

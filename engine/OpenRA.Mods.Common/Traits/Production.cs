@@ -61,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				exit = self.Location + exitinfo.ExitCell;
 				var exitOffset = new CVec(exitinfo.ExitCell.X - 1, exitinfo.ExitCell.Y - 1);
-				var spawn = self.CenterPosition + exitinfo.SpawnOffset;
+				var spawn = self.CenterPosition + exitinfo.SpawnOffset + new WVec(0, 0, exitinfo.Height.Length);
 
 				if (Info.UseRandomExit)
 					spawn += (WVec)exitOffset;

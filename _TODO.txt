@@ -1,5 +1,9 @@
 2023
 
+- A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
+
+- Spawn Aircraft/all units at full speed
+
 - Shroud update
     - Each cell has a visibility of 0-100, 0 = Shrouded, 100 = visible
     - Units have detection from 100 down to 0 based on distance.
@@ -17,13 +21,7 @@ UNIT:
 
 - When "Capturing" neutral bunkers etc enter orders for other actors are cancelled
 
-- Supplytruck tries to move out of the way
-
-- "Construction complete" when MCV is built
-
 - Bleedout sequence doesnt show, unit disappears
-
-- "Sell"/rotate out Aircraft/helicopters
 
 - Airplanes doesnt spawn, helicopters spawn on ground
 

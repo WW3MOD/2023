@@ -329,16 +329,32 @@ SUPPLYROUTE:
 		ProductionTypes: Soldier, Infantry
 	Exit@Vehicle_1:
 		ExitCell: 1,0
-		ProductionTypes: Vehicle, Aircraft, Helicopter, Building, Defense
+		ProductionTypes: Vehicle, Building, Defense
 	Exit@Vehicle_2:
 		ExitCell: 2,1
-		ProductionTypes: Vehicle, Aircraft, Helicopter, Building, Defense
+		ProductionTypes: Vehicle, Building, Defense
 	Exit@Vehicle_3:
 		ExitCell: 1,2
-		ProductionTypes: Vehicle, Aircraft, Helicopter, Building, Defense
+		ProductionTypes: Vehicle, Building, Defense
 	Exit@Vehicle_4:
 		ExitCell: 0,1
-		ProductionTypes: Vehicle, Aircraft, Helicopter, Building, Defense
+		ProductionTypes: Vehicle, Building, Defense
+	Exit@Airborne_1:
+		ExitCell: 1,0
+		Height: 2000
+		ProductionTypes: Aircraft, Helicopter
+	Exit@Airborne_2:
+		ExitCell: 2,1
+		Height: 2000
+		ProductionTypes: Aircraft, Helicopter
+	Exit@Airborne_3:
+		ExitCell: 1,2
+		Height: 2000
+		ProductionTypes: Aircraft, Helicopter
+	Exit@Airborne_4:
+		ExitCell: 0,1
+		Height: 2000
+		ProductionTypes: Aircraft, Helicopter
 	Production:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter, Building, Defense
 		UseRandomExit: true
