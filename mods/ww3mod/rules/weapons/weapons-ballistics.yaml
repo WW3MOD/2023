@@ -84,11 +84,11 @@ MP5:
 	Report: gun11.aud
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 512
+		Inaccuracy: 256
 		Blockable: true
 		Image: tracer_small
 	Warhead@Target: TargetDamage
-		Damage: 150
+		Damage: 200
 		DamageAtMaxRange: 50
 		Penetration: 4
 		ValidTargets: Infantry, Unarmored, Helicopter
@@ -118,7 +118,7 @@ MP5:
 	BurstWait: 20
 	Report: gun5.aud
 	Projectile: Bullet
-		Inaccuracy: 256
+		Inaccuracy: 128
 5.56mm.DMR.silencer:
 	Inherits: 5.56mm.DMR
 	Range: 11c0
@@ -140,12 +140,12 @@ MP5:
 	Report: pillbox1.aud
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 512
+		Inaccuracy: 256
 		Blockable: true
 		Image: tracer_small
 	Warhead@Target: TargetDamage
-		Damage: 200
-		DamageAtMaxRange: 50
+		Damage: 250
+		DamageAtMaxRange: 60
 		Penetration: 5
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
@@ -168,8 +168,8 @@ MP5:
 	Report: gun5.aud
 	Projectile: Bullet
 		Speed: 1c256
-		Inaccuracy: 128
-		MinInaccuracy: 64
+		Inaccuracy: 96
+		MinInaccuracy: 32
 7.62mm.MG:
 	Inherits@Caliber: ^7.62mm
 	Magazine: 100
@@ -206,12 +206,12 @@ MP5:
 	Report: gun13.aud
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 512
+		Inaccuracy: 256
 		Blockable: true
 		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 400
-		DamageAtMaxRange: 50
+		DamageAtMaxRange: 100
 		Penetration: 15
 		ValidTargets: Infantry, Unarmored, Light, Helicopter
 		DamageTypes: BulletDeath
@@ -223,17 +223,11 @@ MP5:
 	Burst: 5
 	BurstDelays: 2
 	BurstWait: 12
-	Projectile: Bullet
-		Speed: 1c0
-		Inaccuracy: 1c0
-		Blockable: true
-		Image: tracer_small
 12.7mm.Hind:
 	Inherits@Caliber: ^12.7mm
 	Burst: 8
 	BurstDelays: 2
 	BurstWait: 10
-	Report: gun13.aud
 
 HandGrenade:
 	BurstWait: 200
@@ -297,7 +291,7 @@ RPG:
 	Report: aacanon3.aud
 	Projectile: Bullet
 		Speed: 500
-		Inaccuracy: 0c512
+		Inaccuracy: 512
 		Blockable: True
 		ContrailLength: 10
 		Shadow: True
@@ -356,7 +350,7 @@ AACannon:
 	BurstWait: 15
 	Report: cannon2.aud
 	Projectile: Bullet
-		Speed: 1100
+		Speed: 900
 		Inaccuracy: 1c256
 		Blockable: true
 		ContrailLength: 5
