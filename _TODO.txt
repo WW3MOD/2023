@@ -13,8 +13,14 @@
 
 UNIT:
     Visibility:
-        Size/Range/:
+        Cloaking
+        Spotted (GPS marker, can be targeted in limited mode)
+        Revealed (Unit type identified, can be targeted fully)
+        RadarSize
     Detection:
+        Cloak ()
+        Sight (Determines shroud effect)
+        Radar
 
 
 - Tesla tank returns to base when out of ammo
