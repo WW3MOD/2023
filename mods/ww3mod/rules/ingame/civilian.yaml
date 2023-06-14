@@ -11,19 +11,24 @@
 		Categories: Civilian building
 	SpawnActorOnDeath@1:
 		Actor: c1
-		Probability: 30
-	SpawnActorOnDeath@2:
-		Actor: c2
-		Probability: 30
-	SpawnActorOnDeath@3:
-		Actor: c3
-		Probability: 30
-	SpawnActorOnDeath@4:
-		Actor: c4
-		Probability: 30
-	SpawnActorOnDeath@5:
-		Actor: c5
-		Probability: 30
+		SpawnOnceOnOwnerChange: true # Works, but all spawns to the same subcell + become owned by you
+		Probability: 30 # Does not work with SpawnOnceOnOwnerChange
+	# SpawnActorOnDeath@2:
+	# 	Actor: c2
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
+	# SpawnActorOnDeath@3:
+	# 	Actor: c3
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
+	# SpawnActorOnDeath@4:
+	# 	Actor: c4
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
+	# SpawnActorOnDeath@5:
+	# 	Actor: c5
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
 	Explodes:
 		Weapon: SmallBuildingExplode
 	Explodes@CIVPANIC:

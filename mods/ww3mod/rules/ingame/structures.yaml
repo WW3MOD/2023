@@ -1837,7 +1837,6 @@ AFLD:
 # 	#	SupportPowerPaletteOrder: 9
 # 	#	RevealsMap@SpySattelite:
 # 	#	RequiresCondition: satscan-on
-# 	#	RevealGeneratedShroud: false
 # 	#	GrantConditionOnPrerequisite@SpySattelite:
 # 	#	Prerequisites: sattelitescan
 # 	#	Condition: satscan-on
