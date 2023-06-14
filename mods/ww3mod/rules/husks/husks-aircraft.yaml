@@ -345,8 +345,6 @@ HELI.Husk.ground:
 
 A10.Husk:
 	Inherits@Type: ^AircraftHusk
-	RenderSprites:
-		PlayerPalette: playertd
 	Tooltip:
 		Name: A-10 Attack Plane
 	Contrail@1:
@@ -364,6 +362,7 @@ A10.Husk:
 	# 	MinDamage: Undamaged
 	RenderSprites:
 		Image: a10
+		PlayerPalette: playertd
 		Scale: 1.2
 	SpawnActorOnDeath:
 		Actor: A10.Husk.ground
@@ -374,6 +373,7 @@ A10.Husk.ground:
 		Name: A10
 	RenderSprites:
 		Image: A10
+		PlayerPalette: playertd
 		Scale: 1.2
 
 F16.Husk:
@@ -386,7 +386,6 @@ F16.Husk:
 	Contrail@2:
 		Offset: -598,683,0
 	Aircraft:
-		# ROT: 5
 		Speed: 196
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171

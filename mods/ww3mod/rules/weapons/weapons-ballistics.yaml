@@ -402,7 +402,7 @@ AACannon:
 30mm.Tunguska.AG:
 	Inherits@Caliber: ^30mm.Tunguska
 	Inherits@HitEffects: ^PiffEffects
-	ValidTargets: Infantry, Vehicle
+	ValidTargets: Infantry, Vehicle, Defense
 	MinRange: 1c512
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground

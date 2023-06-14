@@ -87,7 +87,7 @@ BIO:
 	Tooltip:
 		Name: Nuclear Reactor
 	TooltipDescription:
-		Description: $300+
+		Description: Provides $150 income
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false

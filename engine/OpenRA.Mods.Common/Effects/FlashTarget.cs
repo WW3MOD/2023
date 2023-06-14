@@ -42,7 +42,7 @@ namespace OpenRA.Mods.Common.Effects
 			});
 		}
 
-		public FlashTarget(Actor target, Color color, float alpha = 0.5f, int count = 2, int interval = 2, int delay = 0)
+		public FlashTarget(Actor target, Color color, float alpha = 0.5f, int count = 1, int interval = 2, int delay = 0)
 			: this(target, count, interval, delay)
 		{
 			modifiers = TintModifiers.ReplaceColor;
@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.alpha = alpha;
 		}
 
-		public FlashTarget(Actor target, float3 tint, int count = 2, int interval = 2, int delay = 0)
+		public FlashTarget(Actor target, float3 tint, int count = 1, int interval = 1, int delay = 0)
 			: this(target, count, interval, delay)
 		{
 			this.tint = tint;

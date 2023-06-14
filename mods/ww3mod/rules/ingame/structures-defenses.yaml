@@ -98,6 +98,7 @@ GTWR:
 		HP: 10000
 	Armor:
 		Type: Unarmored
+		Thickness: 25
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
 	Targetable@DontEMP:
@@ -148,11 +149,12 @@ PBOX:
 	Valued:
 		Cost: 500
 	Health:
-		HP: 15000
+		HP: 40000
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
 		Type: Concrete
+		Thickness: 300
 	SpawnActorOnDeath:
 		Actor: pbox.husk
 	Cargo:
@@ -196,40 +198,18 @@ HBOX:
 	Valued:
 		Cost: 300
 	Health:
-		HP: 2000
+		HP: 15000
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
 		Type: Light
+		Thickness: 150
 	RevealsShroud:
 		Range: 20c0
 		RequiresCondition: loaded
-	DetectCloaked@Medium:
-		DetectionTypes: Medium
-		Range: 16c0
-		RequiresCondition: loaded
-	# Cloak@Medium:
-	# 	DetectionTypes: Medium
-	# 	CloakedCondition: cloak-medium
-	# 	InitialDelay: 150
-	# 	CloakDelay: 75
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# 	PauseOnCondition: cloak-force-disabled || build-incomplete
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
-	# Turreted:
-	# 	TurnSpeed: 255
-	# 	Offset: 0,0,64
-	# Armament:
-	# 	Weapon: Sniper
-	# 	MuzzleSequence: muzzle
-	# 	LocalOffset: 448,0,0
-	# 	PauseOnCondition: build-incomplete
-	# AttackTurreted:
-	# WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: hbox.husk
 	Cargo:

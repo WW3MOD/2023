@@ -120,7 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();
-			if (ammoPools.Count() > 0 && ammoPools.All(a => !a.HasAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
+			if (ammoPools.Any() && ammoPools.All(a => !a.HasAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
 				AutoRearm(self);
 		}
 
