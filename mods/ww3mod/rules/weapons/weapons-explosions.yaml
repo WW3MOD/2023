@@ -84,20 +84,13 @@ CivPanicExplosion:
 		Delay: 1
 
 BarrelExplode:
-	Inherits: ^Explosion
-	Warhead@Spread: SpreadDamage
-		Falloff: 1000, 368, 135, 50, 18, 7, 0
-		Delay: 5
-		ValidTargets: Ground, Trees
-		DamageTypes: Prone30Percent, ExplosionDeath, Incendiary
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_medium
 		ImpactSounds: firebl3.aud
 		Delay: 5
-	-Warhead@EffectWater:
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch
-		Size: 2
+		Size: 1
 		Delay: 5
 	Warhead@Fire: GrantExternalCondition
 		Range: 1c768
