@@ -112,6 +112,7 @@ GTWR:
 		QuantizedFacings: 8
 	Cargo:
 		Types: Infantry
+		Neutral: True
 		MaxWeight: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
@@ -170,6 +171,7 @@ PBOX:
 		Actor: pbox.husk
 	Cargo:
 		Types: Infantry
+		Neutral: True
 		MaxWeight: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
@@ -246,6 +248,7 @@ HBOX:
 		Actor: hbox.husk
 	Cargo:
 		Types: Infantry
+		Neutral: True
 		MaxWeight: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0

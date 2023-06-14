@@ -121,7 +121,7 @@ namespace OpenRA.Mods.Common.Activities
 					{
 						var players = self.World.Players;
 						var player = players.First(pl => pl.PlayerName == "Neutral");
-						self.ChangeOwnerSync(player);
+						self.ChangeOwnerSync(player, false);
 					}
 
 					var move = actor.Trait<IMove>();
