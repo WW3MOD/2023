@@ -16,9 +16,11 @@
 		Explosion: UnitExplodePlane
 		MaximumSpinSpeed: 0
 	-MapEditorData:
+	RevealsShroud:
+		Range: 10c0
 	RevealOnDeath:
-		Duration: 60
-		Radius: 4c0
+		Duration: 100
+		Radius: 2c0
 
 ^HelicopterHusk:
 	Inherits: ^BasicHusk
@@ -37,9 +39,11 @@
 	FallsToEarth:
 		Explosion: UnitExplodeHeli
 	-MapEditorData:
+	RevealsShroud:
+		Range: 10c0
 	RevealOnDeath:
-		Duration: 60
-		Radius: 4c0
+		Duration: 100
+		Radius: 2c0
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
 		RequiresCondition: !rank-veteran
@@ -192,11 +196,6 @@ TRAN.Husk:
 	WithIdleOverlay@SECONDARY:
 		Offset: 597,0,213
 		Sequence: rotor2
-	RevealsShroud:
-		MinRange: 6c0
-		Range: 8c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: tran
 		Scale: 1.25
@@ -261,10 +260,6 @@ littlebird.Husk:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		Range: 10c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: littlebird
 		PlayerPalette: playertd
@@ -314,11 +309,6 @@ HELI.Husk:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		MinRange: 10c0
-		Range: 12c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: heli
 		Scale: 1.25
@@ -372,10 +362,6 @@ A10.Husk:
 	# 	Offset: -853,0,171
 	# 	Interval: 2
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		Range: 13c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: a10
 		Scale: 1.2
@@ -406,8 +392,6 @@ F16.Husk:
 	# 	Offset: -853,0,171
 	# 	Interval: 2
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		Range: 12c0
 	RenderSprites:
 		# CameraPitch: 99
 		Image: f16
@@ -434,11 +418,6 @@ HALO.Husk:
 	WithIdleOverlay@PRIMARY:
 		Offset: 260,0,343
 		Sequence: rotor
-	RevealsShroud:
-		Range: 8c0
-		MinRange: 6c0
-		Type: GroundPosition
-		RevealGeneratedShroud: false
 	RenderSprites:
 		Image: halo
 	SpawnActorOnDeath:
@@ -484,11 +463,6 @@ MI28.Husk:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		MinRange: 10c0
-		Range: 12c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: heli
 		Scale: 1.2
@@ -535,11 +509,6 @@ HIND.Husk:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		MinRange: 8c0
-		Range: 10c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: hind
 		Scale: 1.3
@@ -593,11 +562,6 @@ FROG.Husk:
 	# 	Offset: -853,0,0
 	# 	Interval: 2
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		MinRange: 11c0
-		Range: 13c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: frog
 		Scale: 1.25
@@ -635,11 +599,6 @@ MIG.Husk:
 	# 	Offset: -853,0,171
 	# 	Interval: 2
 	# 	MinDamage: Undamaged
-	RevealsShroud:
-		MinRange: 11c0
-		Range: 13c0
-		Type: GroundPosition
-		RevealGeneratedShroud: False
 	RenderSprites:
 		Image: mig
 		Scale: 1.25

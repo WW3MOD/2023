@@ -71,8 +71,12 @@
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
-	RevealsShroud@Air:
+	RevealsRadar:
 		Range: 25c0
+		Type: GroundPosition
+		RequiresCondition: airborne
+	RevealsShroud@Air:
+		Range: 20c0
 		Type: GroundPosition
 		RequiresCondition: airborne
 	RevealsShroud@Ground:
@@ -120,14 +124,14 @@
 		GenericName: Helicopter
 	Aircraft:
 		CanHover: True
+		CanSlide: True
+		VTOL: True
 		CruisingCondition: cruising
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
-		VTOL: true
 		LandableTerrainTypes: Clear, Rough, Road, Ore, Beach, Gems
 		Crushes: crate, mine, infantry
 		InitialFacing: 224
-		CanSlide: False
 	GrantConditionOnMovement:
 		Condition: moving
 	GpsDot:
