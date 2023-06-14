@@ -716,7 +716,6 @@ m270:
 		PauseOnCondition: !firing
 	RevealsShroud:
 		Range: 12c0
-		RevealGeneratedShroud: False
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 50
@@ -817,7 +816,6 @@ HIMARS:
 		PauseOnCondition: !firing
 	RevealsShroud:
 		Range: 10c0
-		RevealGeneratedShroud: False
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 70

@@ -74,12 +74,10 @@
 	RevealsShroud@Air:
 		Range: 25c0
 		Type: GroundPosition
-		RevealGeneratedShroud: False
 		RequiresCondition: airborne
 	RevealsShroud@Ground:
 		Range: 10c0
 		Type: GroundPosition
-		RevealGeneratedShroud: False
 		RequiresCondition: !airborne
 	SpeedMultiplier@Rank_4:
 		RequiresCondition: rank-veteran == 4

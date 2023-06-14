@@ -69,7 +69,6 @@
 # 	RevealsShroud:
 # 		MinRange: 5c0
 # 		Range: 24c0
-# 		RevealGeneratedShroud: False
 # 	RepairableNear:
 # 		RepairActors: syrd
 # ^Submarine:
@@ -79,7 +78,6 @@
 # 	RevealsShroud:
 # 		Range: 20c0
 # 		RequiresCondition: !underwater
-# 		RevealGeneratedShroud: false
 # 	RepairableNear:
 # 		RepairActors: spen
 # 	Cloak:
@@ -658,7 +656,6 @@
 # 	RevealsShroud:
 # 		MinRange: 5c0
 # 		Range: 10c0
-# 		RevealGeneratedShroud: False
 # 	GpsDot:
 # 		String: Nuke
 
@@ -798,7 +795,6 @@
 # 	RevealsShroud:
 # 		MinRange: 5c0
 # 		Range: 8c0
-# 		RevealGeneratedShroud: False
 # 	HitShape:
 # 		TargetableOffsets: 576,0,0, -576,0,0
 # 		Type: Capsule

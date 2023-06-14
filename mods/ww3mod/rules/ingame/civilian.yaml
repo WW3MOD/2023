@@ -34,7 +34,6 @@
 		Action: ChangeOwner
 	RevealsShroud:
 		Range: 24c0
-		RevealGeneratedShroud: True
 		RequiresCondition: loaded
 	Cargo:
 		Neutral: true
