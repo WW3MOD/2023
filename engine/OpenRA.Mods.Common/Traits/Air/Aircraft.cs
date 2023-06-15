@@ -243,6 +243,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int[] AccelerationSteps;
 		public int DesiredSpeed { get; set; }
 		public int CurrentSpeed { get; set; }
+		public WVec CurrentMomentum { get; set; } = WVec.Zero;
 		public WAngle LastDesiredFacing;
 
 		WRot orientation;

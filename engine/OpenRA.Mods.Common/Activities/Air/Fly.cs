@@ -86,19 +86,16 @@ namespace OpenRA.Mods.Common.Activities
 		public override bool Tick(Actor self)
 		{
 			// Refuse to take off if it would land immediately again.
-			if (aircraft.ForceLanding)
-				Cancel(self);
+			if (aircraft.ForceLanding) Cancel(self);
 
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 			var isLanded = dat <= aircraft.LandAltitude;
 
-			if (isLanded)
-				aircraft.CurrentSpeed = 0;
+			if (isLanded) aircraft.CurrentSpeed = 0;
 
 			// HACK: Prevent paused (for example, EMP'd) aircraft from taking off.
 			// This is necessary until the TODOs in the IsCanceling block below are addressed.
-			if (isLanded && aircraft.IsTraitPaused)
-				return false;
+			if (isLanded && aircraft.IsTraitPaused) return false;
 
 			if (IsCanceling)
 			{
@@ -128,14 +125,12 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
-			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
-				lastVisibleTarget = Target.FromTargetPositions(target);
+			if (!targetIsHiddenActor && target.Type == TargetType.Actor) lastVisibleTarget = Target.FromTargetPositions(target);
 
 			useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
 
 			// Target is hidden or dead, and we don't have a fallback position to move towards
-			if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self))
-				return true;
+			if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self)) return true;
 
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 			var pos = aircraft.GetPosition();
@@ -144,8 +139,7 @@ namespace OpenRA.Mods.Common.Activities
 			// Inside the target annulus, so we're done
 			var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
 			var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
-			if (insideMaxRange && !insideMinRange)
-				return true;
+			if (insideMaxRange && !insideMinRange) return true;
 
 			var isSlider = aircraft.Info.CanSlide;
 			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
@@ -169,8 +163,7 @@ namespace OpenRA.Mods.Common.Activities
 			// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
 			// Stop if we are blocked and close enough
 			if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-				delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
-				return true;
+				delta.HorizontalLengthSquared <= nearEnough.LengthSquared) return true;
 
 			// The next move would overshoot, so consider it close enough or set final position if we CanSlide
 			if (delta.HorizontalLengthSquared < move.HorizontalLengthSquared)
@@ -216,13 +209,19 @@ namespace OpenRA.Mods.Common.Activities
 				var turnCenter = aircraft.CenterPosition + turnCenterDir;
 				if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
 					desiredFacing = aircraft.Facing;
+
+				FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
+
+			}
+			else
+			{
+				var slideMove = aircraft.CurrentMomentum + Aircraft.FlyStep(10, delta.Yaw);
+
+				FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, slideMove);
 			}
 
 			positionBuffer.Add(self.CenterPosition);
-			if (positionBuffer.Count > 5)
-				positionBuffer.RemoveAt(0);
-
-			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
+			if (positionBuffer.Count > 5) positionBuffer.RemoveAt(0);
 
 			return false;
 		}
@@ -285,6 +284,8 @@ namespace OpenRA.Mods.Common.Activities
 			aircraft.LastDesiredFacing = desiredFacing;
 
 			aircraft.SetPosition(self, aircraft.CenterPosition + move);
+
+			aircraft.CurrentMomentum = move;
 		}
 
 		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
