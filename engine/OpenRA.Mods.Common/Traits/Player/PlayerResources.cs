@@ -77,7 +77,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the PassiveIncome option.")]
 		public readonly int PassiveIncomeDropdownDisplayOrder = 1;
 
-
 		[Desc("Modify cash given by capturing oil etc.")]
 		public readonly int[] SelectableIncomeModifier = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500 };
 
