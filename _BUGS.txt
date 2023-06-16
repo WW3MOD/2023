@@ -1,3 +1,30 @@
+// Double-clicked structures tab. Debug mode with all units
+Exception has occurred: CLR/System.InvalidOperationException
+An unhandled exception of type 'System.InvalidOperationException' occurred in OpenRA.Game.dll: 'Unit `ctflag` does not have a sequence named `icon`'
+   at OpenRA.Graphics.SequenceProvider.GetSequence(String unitName, String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\SequenceProvider.cs:line 81
+   at OpenRA.Graphics.Animation.GetSequence(String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 249
+   at OpenRA.Graphics.Animation.PlaySequence(String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 130
+   at OpenRA.Graphics.Animation.PlayThen(String sequenceName, Action after) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 164
+   at OpenRA.Graphics.Animation.Play(String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 116
+   at OpenRA.Mods.Common.Widgets.ProductionPaletteWidget.RefreshIcons() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ProductionPaletteWidget.cs:line 487
+   at OpenRA.Mods.Common.Widgets.ProductionPaletteWidget.set_CurrentQueue(ProductionQueue value) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ProductionPaletteWidget.cs:line 108
+   at OpenRA.Mods.Common.Widgets.Logic.ClassicProductionLogic.<>c__DisplayClass2_0.<SetupProductionGroupButton>b__1(Boolean reverse) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\Logic\Ingame\ClassicProductionLogic.cs:line 36
+   at OpenRA.Mods.Common.Widgets.Logic.ClassicProductionLogic.<>c__DisplayClass2_0.<SetupProductionGroupButton>b__3(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\Logic\Ingame\ClassicProductionLogic.cs:line 46
+   at OpenRA.Mods.Common.Widgets.ButtonWidget.HandleMouseInput(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ButtonWidget.cs:line 178
+   at OpenRA.Widgets.Widget.HandleMouseInputOuter(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 423
+   at OpenRA.Widgets.Ui.HandleInput(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 107
+   at OpenRA.DefaultInputHandler.<>c__DisplayClass5_0.<OnMouseInput>b__0() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Input\InputHandler.cs:line 50
+   at OpenRA.Sync.RunUnsynced[T](Boolean checkSyncHash, World world, Func`1 fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 194
+   at OpenRA.Sync.RunUnsynced[T](World world, Func`1 fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 179
+   at OpenRA.DefaultInputHandler.OnMouseInput(MouseInput input) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Input\InputHandler.cs:line 50
+   at OpenRA.Platforms.Default.Sdl2Input.PumpInput(Sdl2PlatformWindow device, IInputHandler inputHandler, Nullable`1 lockedMousePosition) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Platforms.Default\Sdl2Input.cs:line 149
+   at OpenRA.Platforms.Default.Sdl2PlatformWindow.PumpInput(IInputHandler inputHandler) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Platforms.Default\Sdl2PlatformWindow.cs:line 493
+   at OpenRA.Renderer.EndFrame(IInputHandler inputHandler) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Renderer.cs:line 324
+   at OpenRA.Game.RenderTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 721
+   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 844
+   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 876
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 308
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 26
 
 // Opened Players menu list "All players" and instantly got this
 Exception has occurred: CLR/System.ArgumentException
