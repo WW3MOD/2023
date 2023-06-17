@@ -10,7 +10,6 @@ OILB.Husk:
 		Name: Oil Derrick (Destroyed)
 	InfiltrateForTransform:
 		IntoActor: oilb
-		ForceHealthPercentage: 25
 
 MISS.Husk:
 	Inherits: ^TechBuildingHusk

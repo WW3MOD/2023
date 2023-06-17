@@ -933,6 +933,7 @@
 		PlayerExperience: 0
 		CaptureDelay: 20
 		ConsumedByCapture: true
+		EnterCursor: goldwrench
 
 ^InfantryAffectedByFire:
 	ExternalCondition@BurnDamage:
@@ -1751,8 +1752,8 @@ AA:
 	Armament@Repair:
 		Name: primary
 		Weapon: Repair
-		Cursor: goldwrench
-		OutsideRangeCursor: goldwrench
+		Cursor: repair
+		OutsideRangeCursor: repair
 		TargetRelationships: Ally
 		ForceTargetRelationships: None
 	Armament@ClearMines:
@@ -1811,7 +1812,7 @@ AA:
 	Infiltrates@RestoreTechHusk:
 		Types: TechHusk
 		ValidRelationships: Neutral
-		EnterCursor: goldwrench
+		EnterCursor: repair
 		PlayerExperience: 0
 		EnterBehaviour: Exit
 	WithInfantryBody:

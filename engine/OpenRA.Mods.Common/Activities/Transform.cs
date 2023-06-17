@@ -111,13 +111,18 @@ namespace OpenRA.Mods.Common.Activities
 				if (Faction != null)
 					init.Add(new FactionInit(Faction));
 
-				var health = self.TraitOrDefault<IHealth>();
-				if (health != null)
+				var newHP = ForceHealthPercentage;
+				if (newHP != 0)
 				{
-					// Cast to long to avoid overflow when multiplying by the health
-					var newHP = ForceHealthPercentage > 0 ? ForceHealthPercentage : (int)(health.HP * 100L / health.MaxHP);
-					init.Add(new HealthInit(newHP));
+					var iHealth = self.TraitOrDefault<IHealth>();
+					if (iHealth != null)
+					{
+						// Cast to long to avoid overflow when multiplying by the health
+						newHP = (int)(iHealth.HP * 100L / iHealth.MaxHP);
+					}
 				}
+
+				init.Add(new HealthInit(newHP));
 
 				foreach (var modifier in self.TraitsImplementing<ITransformActorInitModifier>())
 					modifier.ModifyTransformActorInit(self, init);

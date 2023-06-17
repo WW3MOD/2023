@@ -84,7 +84,7 @@
 		TargetTypes: Ground, TechHusk, NoAutoTarget
 	InfiltrateForTransform:
 		Types: TechHusk
-		ForceHealthPercentage: 25
+		ForceHealthPercentage: 10
 
 ^TreeHusk:
 	Inherits@1: ^SpriteActor
