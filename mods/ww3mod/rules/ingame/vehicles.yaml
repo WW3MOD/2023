@@ -13,7 +13,7 @@
 	RevealsShroud:
 		Range: 20c0
 	Health:
-		HP: 10000
+		HP: 5000
 	Armor:
 		Distribution: 100,50,25,10,10
 	# BlocksProjectiles:

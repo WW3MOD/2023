@@ -1,5 +1,9 @@
 2023
 
+- Multi-threading for performance, possible?
+    - LogicTick / RenderTick on seperate threads?
+    -
+
 - A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
 
 - Spawn Aircraft/all units at full speed
@@ -10,6 +14,9 @@
         - AffectsShroud.UpdateShroudCells.AddCellsToPlayerShroud
             -> RevealShroudEffect.AddCellsToPlayerShroud -> player.Shroud.AddSource(this, sourceType, uv);
     - Units have camouflage 0-100 that makes them invisible at lower visibility
+
+- Can't issue enter order on neutral cargo actors if shrouded
+- TECN infiltrates cargo neutral structures instead of entering
 
 UNIT:
     Visibility:
