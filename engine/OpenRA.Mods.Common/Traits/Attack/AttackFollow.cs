@@ -92,10 +92,7 @@ namespace OpenRA.Mods.Common.Traits
 			var armaments = ChooseArmamentsForTarget(target, forceAttack);
 			foreach (var a in armaments)
 				if (target.IsInRange(pos, a.MaxRange()) && (a.Weapon.MinRange == WDist.Zero || !target.IsInRange(pos, a.Weapon.MinRange)))
-					if (TargetInFiringArc(self, target, Info.FacingTolerance)
-						&& target.Type != TargetType.Invalid // Make sure target is valid or there can be an error in target.CenterPosition ?
-						&& (self.TraitOrDefault<IndirectFire>() != null // Can fire over blocking actors
-							|| !BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out var _)))
+					if (TargetInFiringArc(self, target, Info.FacingTolerance)) // Make sure target is valid or there can be an error in target.CenterPosition ?
 						return true;
 
 			return false;
