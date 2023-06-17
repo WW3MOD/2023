@@ -156,7 +156,8 @@ namespace OpenRA.Mods.Common.Activities
 			else
 				return false;
 
-			aircraft.SetPosition(self, aircraft.CenterPosition + move);
+			aircraft.SetPosition(self, self.CenterPosition + move);
+
 			return true;
 		}
 
@@ -204,7 +205,10 @@ namespace OpenRA.Mods.Common.Activities
 
 			target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
 			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
+			{
+				// Should be able to wrap code below in if statement for type actor at least. If it is ground then none is necessary?
 				lastVisibleTarget = Target.FromTargetPositions(target);
+			}
 
 			useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
 
