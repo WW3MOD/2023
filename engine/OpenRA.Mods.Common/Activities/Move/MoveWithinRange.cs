@@ -21,9 +21,8 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		readonly WDist maxRange;
 		readonly WDist minRange;
-		readonly Map map;
-		readonly int maxCells;
-		readonly int minCells;
+
+		private int checkTick = 0;
 
 		public MoveWithinRange(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
@@ -31,20 +30,26 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			this.minRange = minRange;
 			this.maxRange = maxRange;
-			map = self.World.Map;
-			maxCells = (maxRange.Length + 1023) / 1024;
-			minCells = minRange.Length / 1024;
 		}
 
 		protected override bool ShouldStop(Actor self)
 		{
-			// We are now in range. Don't move any further!
-			// HACK: This works around the pathfinder not returning the shortest path
-			return Target.Type != TargetType.Invalid
-				&& AtCorrectRange(self.CenterPosition)
-				&& CheckFireSolution(self)
-				&& Mobile.CanInteractWithGroundLayer(self)
-				&& Mobile.CanStayInCell(self.Location);
+			if (checkTick-- <= 0)
+			{
+				// We are now in range. Don't move any further!
+				// HACK: This works around the pathfinder not returning the shortest path
+				var result = Target.Type != TargetType.Invalid
+					&& AtCorrectRange(self.CenterPosition)
+					&& Mobile.CanInteractWithGroundLayer(self)
+					&& Mobile.CanStayInCell(self.Location)
+					&& CheckFireSolution(self);
+
+				checkTick = result ? 0 : 10; // Check every 10 ticks to reduce lag, reset to 0 (instant check) if stopping so that next target checks immediately.
+
+				return result;
+			}
+			else
+				return false;
 		}
 
 		protected override bool ShouldRepath(Actor self, CPos targetLocation)
@@ -53,11 +58,11 @@ namespace OpenRA.Mods.Common.Activities
 				|| !Mobile.CanInteractWithGroundLayer(self) || !Mobile.CanStayInCell(self.Location));
 		}
 
-		protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
-		{
-			return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
-				.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
-		}
+		// protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
+		// {
+		// 	return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
+		// 		.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
+		// }
 
 		bool AtCorrectRange(WPos origin)
 		{

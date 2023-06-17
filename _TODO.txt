@@ -1,5 +1,11 @@
 2023
 
+- ShouldExplode for some bullets could be simplified
+    - Check once when firing and determine impact position,
+        don't run BlockingActors check every tick, instead
+        assume that if there are no blocking actors when shooting,
+        there will be none entering firing arc during bullet flight.
+
 - Add min-range for all weapons, at least so units cant try to shoot at themself
 
 - Multi-threading for performance, possible?
