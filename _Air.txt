@@ -25,12 +25,14 @@ The FlyTowardsTick function can be called from other traits such as
 
 Aircraft (Trait)
 
-
-
-    Speed (MaxSpeed)
-    IdleSpeed
-    Acceleration
-    TurnSpeedLoss
+    Info
+        Speed (MaxSpeed)
+        IdleSpeed
+        Acceleration { }
+        TurnSpeedLoss
+        CanHover
+        CanSlide
+        VTOL
 
     Properties
 

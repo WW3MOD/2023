@@ -128,7 +128,8 @@ namespace OpenRA.Mods.Common.Activities
 			else
 				return false;
 
-			aircraft.SetPosition(self, aircraft.CenterPosition + move);
+			aircraft.SetPosition(self, self.CenterPosition + move);
+
 			return true;
 		}
 
