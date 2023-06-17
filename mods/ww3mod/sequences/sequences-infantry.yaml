@@ -39,7 +39,7 @@
 					DESERT: TEMPERAT
 					INTERIOR: TEMPERAT
 		Length: 7
-		Tick: 640
+		Tick: 2000
 		ZOffset: -511
 	rot2: rot2
 		Combine:
@@ -53,7 +53,7 @@
 					DESERT: TEMPERAT
 					INTERIOR: TEMPERAT
 		Length: 7
-		Tick: 640
+		Tick: 2000
 		ZOffset: -511
 	rot3: rot3
 		Combine:
@@ -67,7 +67,7 @@
 					DESERT: TEMPERAT
 					INTERIOR: TEMPERAT
 		Length: 7
-		Tick: 640
+		Tick: 2000
 		ZOffset: -511
 	rot4: rot4
 		Combine:
@@ -81,7 +81,7 @@
 					DESERT: TEMPERAT
 					INTERIOR: TEMPERAT
 		Length: 7
-		Tick: 960
+		Tick: 3000
 		Offset: -10, 0
 		ZOffset: -511
 	rot5: e1
