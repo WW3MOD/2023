@@ -88,8 +88,9 @@
 
 ^TreeHusk:
 	Inherits@1: ^SpriteActor
-	# BlocksProjectiles:
-	# 	Bypass: 2
+	BlocksProjectiles:
+		Bypass: 2
+		Height: 256
 	Interactable:
 	RenderSprites:
 		Palette: terrain

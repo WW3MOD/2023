@@ -9,7 +9,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
-	# Inherits@Detection: ^StandardDetection
+	Inherits@Detection: ^StandardDetection
 	RevealsShroud:
 		Range: 20c0
 	Health:

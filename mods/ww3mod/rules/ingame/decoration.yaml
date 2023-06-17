@@ -2,8 +2,9 @@
 	Inherits@1: ^SpriteActor
 	Inherits@Shape: ^1x1Shape
 	Inherits@FireMechanic: ^BuildingAffectedByFire
-	# BlocksProjectiles:
-	# 	Bypass: 1
+	BlocksProjectiles:
+		Bypass: 1
+		Height: 256
 	Tree:
 		CrushClasses: tree
 		DetonateClasses: tree

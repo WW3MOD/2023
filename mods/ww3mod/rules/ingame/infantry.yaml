@@ -10,12 +10,12 @@
 	Inherits@PinsDown: ^PinsDown
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
-	# Inherits@Detection: ^StandardDetection
+	Inherits@Detection: ^StandardDetection
 	RepairableNear:
 		RepairActors: truk
 	RevealsShroud:
 		Range: 20c0
-	# Inherits@DetectionProximity: ^DetectionProximity
+	Inherits@DetectionProximity: ^DetectionProximity
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -154,9 +154,9 @@
 ^Soldier:
 	Inherits: ^Infantry
 	Inherits@AmmoDecoration: ^AmmoDecoration
-	Targetable@SoldierReplenish:
-		# RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
-		TargetTypes: SoldierReplenish
+	# Targetable@SoldierReplenish: # WIP: Idea is for supply trucks to target/go to infantry out of ammo
+	# 	# RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
+	# 	TargetTypes: SoldierReplenish
 	Armor:
 		Type: Kevlar
 	TreeTraversable:
@@ -560,280 +560,280 @@
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 
 ^InfantryStandardVisibility:
-	# CPU Expensive! Temp fix, TODO: rewrite
-	# Inherits: ^VisibilityPips
-	# ExternalCondition@ObjectProximity:
-	# 	Condition: object-proximity
-	# 	TotalCap: 3
-	# Cloak@Permanent:
-	# 	DetectionTypes: Cloak_0
-	# 	CloakedCondition: cloak-0
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@DuginAttacking:
-	# 	DetectionTypes: Cloak_1
-	# 	CloakedCondition: cloak-1
-	# 	RequiresCondition: dugin
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@OpenCrawling:
-	# 	DetectionTypes: Cloak_1
-	# 	CloakedCondition: cloak-1
-	# 	RequiresCondition: deployed
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@Dugin:
-	# 	DetectionTypes: Cloak_2
-	# 	CloakedCondition: cloak-2
-	# 	RequiresCondition: dugin
-	# 	UncloakOn: Attack, Move
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
-	# 	DetectionTypes: Cloak_2
-	# 	CloakedCondition: cloak-2
-	# 	RequiresCondition: object-proximity
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@OpenIdle:
-	# 	DetectionTypes: Cloak_3
-	# 	CloakedCondition: cloak-3
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestDuginAttacking:
-	# 	DetectionTypes: Cloak_3
-	# 	CloakedCondition: cloak-3
-	# 	RequiresCondition: object-proximity && dugin
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestRunning:
-	# 	DetectionTypes: Cloak_6
-	# 	CloakedCondition: cloak-6
-	# 	RequiresCondition: object-proximity
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@OpenDugin:
-	# 	DetectionTypes: Cloak_7
-	# 	CloakedCondition: cloak-7
-	# 	RequiresCondition: dugin
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestCrawling:
-	# 	DetectionTypes: Cloak_8
-	# 	CloakedCondition: cloak-8
-	# 	RequiresCondition: deployed && object-proximity
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestIdle:
-	# 	DetectionTypes: Cloak_9
-	# 	CloakedCondition: cloak-9
-	# 	RequiresCondition: object-proximity
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestDugin:
-	# 	DetectionTypes: Cloak_10
-	# 	CloakedCondition: cloak-10
-	# 	RequiresCondition: dugin && object-proximity
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
+	# CPU Expensive!
+	Inherits: ^VisibilityPips
+	ExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		TotalCap: 3
+	Cloak@Permanent:
+		DetectionTypes: Cloak_0
+		CloakedCondition: cloak-0
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@DuginAttacking:
+		DetectionTypes: Cloak_1
+		CloakedCondition: cloak-1
+		RequiresCondition: dugin
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@OpenCrawling:
+		DetectionTypes: Cloak_1
+		CloakedCondition: cloak-1
+		RequiresCondition: deployed
+		UncloakOn: Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@Dugin:
+		DetectionTypes: Cloak_2
+		CloakedCondition: cloak-2
+		RequiresCondition: dugin
+		UncloakOn: Attack, Move
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
+		DetectionTypes: Cloak_2
+		CloakedCondition: cloak-2
+		RequiresCondition: object-proximity
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@OpenIdle:
+		DetectionTypes: Cloak_3
+		CloakedCondition: cloak-3
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestDuginAttacking:
+		DetectionTypes: Cloak_3
+		CloakedCondition: cloak-3
+		RequiresCondition: object-proximity && dugin
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestRunning:
+		DetectionTypes: Cloak_6
+		CloakedCondition: cloak-6
+		RequiresCondition: object-proximity
+		UncloakOn: Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@OpenDugin:
+		DetectionTypes: Cloak_7
+		CloakedCondition: cloak-7
+		RequiresCondition: dugin
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestCrawling:
+		DetectionTypes: Cloak_8
+		CloakedCondition: cloak-8
+		RequiresCondition: deployed && object-proximity
+		UncloakOn: Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestIdle:
+		DetectionTypes: Cloak_9
+		CloakedCondition: cloak-9
+		RequiresCondition: object-proximity
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestDugin:
+		DetectionTypes: Cloak_10
+		CloakedCondition: cloak-10
+		RequiresCondition: dugin && object-proximity
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
 
-	WithRangeCircle@Cloak_0:
-		RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 16c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_1:
-		RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 14c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_2:
-		RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 12c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_3:
-		RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 10c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_4:
-		RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 10c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_5:
-		RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 9c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_6:
-		RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_7:
-		RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_8:
-		RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_9:
-		RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 7c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_10:
-		RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
-		Range: 5c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_11:
-		RequiresCondition: cloak-11 && !cloak-12
-		Range: 4c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_12:
-		RequiresCondition: cloak-12
-		Range: 1c512
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_0:
+	# 	RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 16c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_1:
+	# 	RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 14c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_2:
+	# 	RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 12c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_3:
+	# 	RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 10c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_4:
+	# 	RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 10c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_5:
+	# 	RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 9c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_6:
+	# 	RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 8c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_7:
+	# 	RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 8c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_8:
+	# 	RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 8c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_9:
+	# 	RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 7c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_10:
+	# 	RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 5c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_11:
+	# 	RequiresCondition: cloak-11 && !cloak-12
+	# 	Range: 4c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_12:
+	# 	RequiresCondition: cloak-12
+	# 	Range: 1c512
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
 
 ^InfantryStealthyVisibility:
 	# CPU Expensive! Temp fix, TODO: rewrite
-	# Inherits: ^VisibilityPips
-	# ExternalCondition@ObjectProximity:
-	# 	Condition: object-proximity
-	# Cloak@Permanent:
-	# 	DetectionTypes: Cloak_4
-	# 	CloakedCondition: cloak-4
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# 	RequiresCondition: !disguised
-	# Cloak@DuginAttacking:
-	# 	DetectionTypes: Cloak_5
-	# 	CloakedCondition: cloak-5
-	# 	RequiresCondition: dugin && !disguised
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@OpenCrawling:
-	# 	DetectionTypes: Cloak_5
-	# 	CloakedCondition: cloak-5
-	# 	RequiresCondition: deployed && !disguised
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@Dugin:
-	# 	DetectionTypes: Cloak_6
-	# 	CloakedCondition: cloak-6
-	# 	RequiresCondition: dugin && !disguised
-	# 	UncloakOn: Attack, Move
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
-	# 	DetectionTypes: Cloak_6
-	# 	CloakedCondition: cloak-6
-	# 	RequiresCondition: object-proximity && !disguised
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@OpenIdle:
-	# 	DetectionTypes: Cloak_7
-	# 	CloakedCondition: cloak-7
-	# 	RequiresCondition: !disguised
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestDuginAttacking:
-	# 	DetectionTypes: Cloak_7
-	# 	CloakedCondition: cloak-7
-	# 	RequiresCondition: object-proximity && dugin && !disguised
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestRunning:
-	# 	DetectionTypes: Cloak_8
-	# 	CloakedCondition: cloak-8
-	# 	RequiresCondition: object-proximity && !disguised
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@OpenDugin:
-	# 	DetectionTypes: Cloak_9
-	# 	CloakedCondition: cloak-9
-	# 	RequiresCondition: dugin && !disguised
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestCrawling:
-	# 	DetectionTypes: Cloak_10
-	# 	CloakedCondition: cloak-10
-	# 	RequiresCondition: deployed && object-proximity && !disguised
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestIdle:
-	# 	DetectionTypes: Cloak_11
-	# 	CloakedCondition: cloak-11
-	# 	RequiresCondition: object-proximity && !disguised
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# Cloak@ForestDugin:
-	# 	DetectionTypes: Cloak_12
-	# 	CloakedCondition: cloak-12
-	# 	RequiresCondition: dugin && object-proximity && !disguised
-	# 	UncloakOn: Move, Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
+	Inherits: ^VisibilityPips
+	ExternalCondition@ObjectProximity:
+		Condition: object-proximity
+	Cloak@Permanent:
+		DetectionTypes: Cloak_4
+		CloakedCondition: cloak-4
+		Palette: player
+		IsPlayerPalette: true
+		RequiresCondition: !disguised
+	Cloak@DuginAttacking:
+		DetectionTypes: Cloak_5
+		CloakedCondition: cloak-5
+		RequiresCondition: dugin && !disguised
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@OpenCrawling:
+		DetectionTypes: Cloak_5
+		CloakedCondition: cloak-5
+		RequiresCondition: deployed && !disguised
+		UncloakOn: Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@Dugin:
+		DetectionTypes: Cloak_6
+		CloakedCondition: cloak-6
+		RequiresCondition: dugin && !disguised
+		UncloakOn: Attack, Move
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
+		DetectionTypes: Cloak_6
+		CloakedCondition: cloak-6
+		RequiresCondition: object-proximity && !disguised
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@OpenIdle:
+		DetectionTypes: Cloak_7
+		CloakedCondition: cloak-7
+		RequiresCondition: !disguised
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestDuginAttacking:
+		DetectionTypes: Cloak_7
+		CloakedCondition: cloak-7
+		RequiresCondition: object-proximity && dugin && !disguised
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestRunning:
+		DetectionTypes: Cloak_8
+		CloakedCondition: cloak-8
+		RequiresCondition: object-proximity && !disguised
+		UncloakOn: Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@OpenDugin:
+		DetectionTypes: Cloak_9
+		CloakedCondition: cloak-9
+		RequiresCondition: dugin && !disguised
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestCrawling:
+		DetectionTypes: Cloak_10
+		CloakedCondition: cloak-10
+		RequiresCondition: deployed && object-proximity && !disguised
+		UncloakOn: Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestIdle:
+		DetectionTypes: Cloak_11
+		CloakedCondition: cloak-11
+		RequiresCondition: object-proximity && !disguised
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
+	Cloak@ForestDugin:
+		DetectionTypes: Cloak_12
+		CloakedCondition: cloak-12
+		RequiresCondition: dugin && object-proximity && !disguised
+		UncloakOn: Move, Attack
+		Palette: player
+		IsPlayerPalette: true
 ^VisibilityPips:
 	WithDecoration@Visibility_1:
 		RequiresSelection: true
