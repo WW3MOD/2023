@@ -13,6 +13,9 @@
 	WithSpriteControlGroupDecoration:
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure
+	Targetable@BuildingRepair:
+		RequiresCondition: damaged
+		TargetTypes: BuildingRepair
 	Building:
 		Dimensions: 1,1
 		Footprint: x
@@ -98,9 +101,7 @@
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished
 		SellSounds: cashturn.aud
 	EdibleByLeap:
-	Targetable@BuildingRepair:
-		RequiresCondition: damaged
-		TargetTypes: BuildingRepair
+
 ^TechBuilding:
 	Inherits: ^BasicBuilding
 	Huntable:
