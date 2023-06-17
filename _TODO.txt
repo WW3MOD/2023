@@ -1,5 +1,7 @@
 2023
 
+- Add min-range for all weapons, at least so units cant try to shoot at themself
+
 - Multi-threading for performance, possible?
     - LogicTick / RenderTick on seperate threads?
     -
