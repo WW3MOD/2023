@@ -474,7 +474,7 @@ namespace OpenRA
 		/// Change the actors owner without queuing a FrameEndTask.
 		/// This must only be called from inside an existing FrameEndTask.
 		/// </summary>
-		public void ChangeOwnerSync(Player newOwner)
+		public void ChangeOwnerSync(Player newOwner, bool updateGeneration = true)
 		{
 			if (Disposed)
 				return;
@@ -487,7 +487,8 @@ namespace OpenRA
 				World.Remove(this);
 
 			Owner = newOwner;
-			Generation++;
+			if (updateGeneration)
+				Generation++;
 
 			foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
 				t.OnOwnerChanged(this, oldOwner, newOwner);

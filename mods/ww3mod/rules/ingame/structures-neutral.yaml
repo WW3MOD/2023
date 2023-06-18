@@ -13,29 +13,92 @@ OILB:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Health:
-		HP: 15000
+		HP: 25000
 	EngineerRepairable:
 	CashTrickler:
-		Interval: 100
-		Amount: 100
+		Amount: 50
 	Tooltip:
 		Name: Oil Derrick
-	TooltipDescription@ally:
-		Description: $100+
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: $100+
-		ValidRelationships: Neutral, Enemy
+	TooltipDescription:
+		Description: Provides $50 income
 	Explodes:
 		Weapon: BarrelExplode
 	GpsDot:
 		String: Oil
 	AppearsOnMapPreview:
-	GivesCashOnCapture:
-		Amount: 100
 	UpdatesDerrickCount:
 	SpawnActorOnDeath:
 		Actor: OILB.Husk
+		OwnerType: InternalName
+
+FCOM:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xx xx ==
+		Dimensions: 2,3
+		LocalCenterOffset: 0,-512,0
+	Health:
+		HP: 25000
+	Armor:
+		Type: Wood
+	Tooltip:
+		Name: Expansion Post
+	CashTrickler:
+		Amount: 100
+	TooltipDescription:
+		Description: Provides $100 income
+	WithBuildingBib:
+	GivesBuildableArea:
+		AreaTypes: building
+	BaseProvider:
+		PauseOnCondition: being-captured
+		Range: 8c0
+	EngineerRepairable:
+	ProvidesPrerequisite@buildingname:
+	AppearsOnMapPreview:
+	GpsDot:
+		String: Forward
+	SpawnActorOnDeath:
+		Actor: FCOM.Husk
+		OwnerType: InternalName
+	RenderSprites:
+		Image: acom
+
+BIO:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 55000
+	EngineerRepairable:
+	CashTrickler:
+		Amount: 150
+	Tooltip:
+		Name: Nuclear Reactor
+	TooltipDescription:
+		Description: Provides $150 income
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	ProvidesPrerequisite@buildingname:
+	AppearsOnMapPreview:
+	GpsDot:
+		String: Nuke
+	WithIdleOverlay@SMOKE:
+		Sequence: idle-smoke
+	SpawnActorOnDeath:
+		Actor: BIO.Husk
 		OwnerType: InternalName
 
 MISS:
@@ -54,7 +117,7 @@ MISS:
 		Dimensions: 3,3
 		LocalCenterOffset: 0,-512,0
 	Health:
-		HP: 37000
+		HP: 35000
 	RevealsRadar:
 		Range: 50c0
 		RequiresCondition: !heavy-damage
@@ -68,12 +131,8 @@ MISS:
 		Type: Wood
 	Tooltip:
 		Name: Communications Center
-	TooltipDescription@ally:
+	TooltipDescription:
 		Description: Provides Radar
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: Provides Radar
-		ValidRelationships: Neutral, Enemy
 	WithBuildingBib:
 	EngineerRepairable:
 	WithDeathAnimation:
@@ -103,14 +162,10 @@ HOSP:
 	EngineerRepairable:
 	Tooltip:
 		Name: Hospital
-	TooltipDescription@ally:
-		Description:
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description:
-		ValidRelationships: Neutral, Enemy
-	WithBuildingBib:
-		HasMinibib: true
+	TooltipDescription:
+		Description: Hospital
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -121,92 +176,3 @@ HOSP:
 	SpawnActorOnDeath:
 		Actor: HOSP.Husk
 		OwnerType: InternalName
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
-
-BIO:
-	Inherits: ^TechBuilding
-	Inherits@Shape: ^2x2Shape
-	Inherits@POWER_OUTAGE: ^DisabledByPowerOutage
-	Selectable:
-		Bounds: 2048,2048
-	OwnerLostAction:
-		Action: ChangeOwner
-	Building:
-		Footprint: xx xx
-		Dimensions: 2,2
-	EngineerRepairable:
-	Power:
-		Amount: 1000
-	GivesCashOnCapture:
-		Amount: 300
-	CashTrickler:
-		Interval: 100
-		Amount: 300
-	Tooltip:
-		Name: Nuclear Reactor
-	TooltipDescription@ally:
-		Description: $300+ & 1000 Power
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: $300+ & 1000 Power
-		ValidRelationships: Neutral, Enemy
-	WithDeathAnimation:
-		DeathSequence: dead
-		UseDeathTypeSuffix: false
-	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
-	GpsDot:
-		String: Nuke
-	WithIdleOverlay@SMOKE:
-		Sequence: idle-smoke
-	SpawnActorOnDeath:
-		Actor: BIO.Husk
-		OwnerType: InternalName
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
-	SupportPowerChargeBar:
-
-FCOM:
-	Inherits: ^TechBuilding
-	Inherits@Shape: ^2x2Shape
-	Selectable:
-		Bounds: 2048,2048
-	OwnerLostAction:
-		Action: ChangeOwner
-	Building:
-		Footprint: xx xx ==
-		Dimensions: 2,3
-		LocalCenterOffset: 0,-512,0
-	Health:
-		HP: 25000
-	Armor:
-		Type: Wood
-	Tooltip:
-		Name: Expansion Post
-	TooltipDescription@ally:
-		Description: Provides buildable area and +30 Power.
-		ValidRelationships: Ally
-	TooltipDescription@other:
-		Description: Capture to gain buildable area and +30 Power.
-		ValidRelationships: Neutral, Enemy
-	WithBuildingBib:
-	GivesBuildableArea:
-		AreaTypes: building
-	BaseProvider:
-		PauseOnCondition: being-captured
-		Range: 8c0
-	EngineerRepairable:
-	Power:
-		Amount: 30
-	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
-	GpsDot:
-		String: Forward
-	SpawnActorOnDeath:
-		Actor: FCOM.Husk
-		OwnerType: InternalName
-	RenderSprites:
-		Image: acom

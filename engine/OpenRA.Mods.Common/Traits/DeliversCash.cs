@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits
 	class DeliversCashInfo : TraitInfo
 	{
 		[Desc("The amount of cash the owner receives.")]
-		public readonly int Payload = 500;
+		public readonly int Payload = -1;
 
 		[Desc("The amount of experience the donating player receives.")]
 		public readonly int PlayerExperience = 0;
@@ -81,7 +81,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "DeliverCash")
 				return;
 
-			self.QueueActivity(order.Queued, new DonateCash(self, order.Target, info.Payload, info.PlayerExperience, info.TargetLineColor));
+			var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();
+
+			var amount = info.Payload == -1 && valued != null ? valued.Cost : info.Payload;
+
+			self.QueueActivity(order.Queued, new DonateCash(self, order.Target, amount, info.PlayerExperience, info.TargetLineColor));
 			self.ShowTargetLines();
 		}
 

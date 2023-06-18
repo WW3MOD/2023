@@ -6,7 +6,7 @@ HALO:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
-		Prerequisites: ~hpad, ~aircraft.russia, ~techlevel.medium
+		Prerequisites: ~aircraft.russia, ~techlevel.medium
 		Description: Mil Mi-26 (Halo) Infantry Transport Helicopter.\n  - Unarmed
 	Valued:
 		Cost: 1000
@@ -78,7 +78,7 @@ HIND:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~hpad, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~aircraft.russia, ~techlevel.high
 		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
 	Tooltip:
 		Name: Mi-24 Hind
@@ -105,7 +105,7 @@ HIND:
 		PersistentTargeting: false
 	Armament@1:
 		Name: primary
-		Weapon: 12.7mmHindGun
+		Weapon: 12.7mm.Hind
 		LocalOffset: 85,0,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -169,8 +169,6 @@ HIND:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	SpawnActorOnDeath@hovering:
 		Actor: HIND.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -202,7 +200,6 @@ HIND:
 		Width: 3
 		Color: FF0000 # Red
 
-
 MI28:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
@@ -213,7 +210,7 @@ MI28:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
-		Prerequisites: ~hpad, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~aircraft.russia, ~techlevel.high
 		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.
 	Tooltip:
 		Name: Mi-28
@@ -238,7 +235,7 @@ MI28:
 		OpportunityFire: True
 	Armament@1:
 		Name: primary
-		Weapon: 30mmApacheGun
+		Weapon: 30mm.Heli
 		LocalOffset: 250,0,-200
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -267,13 +264,8 @@ MI28:
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: HellfireAG
+		Weapon: Hellfire
 		LocalOffset: 0,213,-85, 0,-213,-85
-		PauseOnCondition: !ammo-secondary
-	Armament@3:
-		Name: secondary-air
-		Weapon: HellfireAA
-		LocalOffset: 0,-213,-85, 0,213,-85
 		PauseOnCondition: !ammo-secondary
 	WithRangeCircle@2:
 		Range: 25c0
@@ -329,8 +321,6 @@ MI28:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	RenderSprites:
 		Scale: 1.2
 
@@ -342,7 +332,7 @@ FROG:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 4
-		Prerequisites: ~afld, ~aircraft.russia,
+		Prerequisites: ~aircraft.russia,
 		Description: Ground-Attack Plane
 	Valued:
 		Cost: 4000
@@ -439,8 +429,6 @@ FROG:
 		RequiresCondition: airborne && ammo-primary && empdisable
 	Selectable:
 		DecorationBounds: 720,372,0,48
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	Rearmable:
 		RearmActors: afld
 		AmmoPools: primary-ammo
@@ -451,12 +439,11 @@ FROG:
 MIG:
 	Inherits@Type: ^Aircraft
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
-	Inherits@AUTODAMAGE: ^KilledWithoutAirfield
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 5
-		Prerequisites: ~afld, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~aircraft.russia, ~techlevel.high
 		Description: Fast Multi-Role Attack Plane.
 	Tooltip:
 		Name: MiG-29 Falcrum
@@ -512,7 +499,7 @@ MIG:
 		RequiresSelection: true
 	Armament@2:
 		Name: secondary
-		Weapon: 20mmCRAM
+		Weapon: 20mm_CRAM
 		LocalOffset: 256,-213,0
 		# MuzzleSequence: muzzle # Error: Actor type `mig` trait `Armament` field `MuzzleSequence` references an undefined sequence `muzzle` on image `mig`.
 		PauseOnCondition: !ammo-secondary
@@ -549,8 +536,6 @@ MIG:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171
 	# 	Interval: 2
-	ProducibleWithLevel:
-		Prerequisites: aircraft.upgraded
 	SpawnActorOnDeath:
 		Actor: MIG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable

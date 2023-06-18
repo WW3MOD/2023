@@ -3,7 +3,7 @@ Player:
 		FogCheckboxVisible: True
 		ExploredMapCheckboxVisible: True
 	PlayerResources:
-		DefaultCashDropdownVisible: True
+		CashDropdownVisible: True
 	LobbyPrerequisiteCheckbox@GlobalBounty:
 		Visible: True
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:

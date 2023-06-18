@@ -481,31 +481,35 @@ namespace OpenRA
 		{
 			// using (new PerfSample("synchash"))
 			{
-				var n = 0;
-				var ret = 0;
+				// TEMP performance "fix"
+				return 0;
 
-				// Hash all the actors.
-				foreach (var a in Actors)
-					ret += n++ * (int)(1 + a.ActorID) * Sync.HashActor(a);
+				// var n = 0;
+				// var ret = 0;
 
-				// Hash fields marked with the ISync interface.
-				foreach (var actor in ActorsHavingTrait<ISync>())
-					foreach (var syncHash in actor.SyncHashes)
-						ret += n++ * (int)(1 + actor.ActorID) * syncHash.Hash();
+				// // Hash all the actors.
+				// foreach (var a in Actors)
+				// 	ret += n++ * (int)(1 + a.ActorID) * Sync.HashActor(a);
 
-				// Hash game state relevant effects such as projectiles.
-				foreach (var sync in SyncedEffects)
-					ret += n++ * Sync.Hash(sync);
+				// // Hash fields marked with the ISync interface.
+				// // CPU Expensive!
+				// foreach (var actor in ActorsHavingTrait<ISync>())
+				// 	foreach (var syncHash in actor.SyncHashes)
+				// 		ret += n++ * (int)(1 + actor.ActorID) * syncHash.Hash();
 
-				// Hash the shared random number generator.
-				ret += SharedRandom.Last;
+				// // Hash game state relevant effects such as projectiles.
+				// foreach (var sync in SyncedEffects)
+				// 	ret += n++ * Sync.Hash(sync);
 
-				// Hash player RenderPlayer status
-				foreach (var p in Players)
-					if (p.UnlockedRenderPlayer)
-						ret += Sync.HashPlayer(p);
+				// // Hash the shared random number generator.
+				// ret += SharedRandom.Last;
 
-				return ret;
+				// // Hash player RenderPlayer status
+				// foreach (var p in Players)
+				// 	if (p.UnlockedRenderPlayer)
+				// 		ret += Sync.HashPlayer(p);
+
+				// return ret;
 			}
 		}
 

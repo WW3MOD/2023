@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool DropdownVisible = true;
 
 		[Desc("Display order for the starting units option in the lobby.")]
-		public readonly int DropdownDisplayOrder = 0;
+		public readonly int DropdownDisplayOrder = 6;
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{

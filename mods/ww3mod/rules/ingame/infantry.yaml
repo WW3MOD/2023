@@ -5,13 +5,16 @@
 	Inherits@SpriteActor: ^SpriteActor
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
-	Inherits@AI: ^ProductionAIBoost
 	Inherits@Slowdown: ^EffectsWhenDamagedInfantry
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@PinsDown: ^PinsDown
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
 	Inherits@Detection: ^StandardDetection
+	RepairableNear:
+		RepairActors: truk
+	RevealsShroud:
+		Range: 20c0
 	Inherits@DetectionProximity: ^DetectionProximity
 	Huntable:
 	OwnerLostAction:
@@ -133,19 +136,27 @@
 		ConditionWhenStill: dugin
 		TimeToBeStill: 200
 	HitShape@Cover:
-		RequiresCondition: deployed || !moving
+		RequiresCondition: prone
 		Type: Circle
-			Radius: 8
+			Radius: 20
 	HitShape@Moving:
-		RequiresCondition: !deployed && moving
+		RequiresCondition: !prone
 		Type: Circle
-			Radius: 16
+			Radius: 30
 	MapEditorData:
 		Categories: Infantry
 	EdibleByLeap:
+	InfersUpkeep:
+		FixedCost: 1
+		PermilleCost: 10
+	DeliversCash@Rotation:
+		Type: Rotation
 ^Soldier:
 	Inherits: ^Infantry
 	Inherits@AmmoDecoration: ^AmmoDecoration
+	# Targetable@SoldierReplenish: # WIP: Idea is for supply trucks to target/go to infantry out of ammo
+	# 	# RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
+	# 	TargetTypes: SoldierReplenish
 	Armor:
 		Type: Kevlar
 	TreeTraversable:
@@ -195,7 +206,7 @@
 
 ^CivInfantry:
 	Inherits: ^Infantry
-	Inherits@penalty: ^GlobalPenalty
+	# Inherits@penalty: ^GlobalPenalty
 	Selectable:
 		Class: CivInfantry
 	Valued:
@@ -221,7 +232,7 @@
 		Scale: 0.6
 ^ArmedCivilian:
 	Inherits: ^CivInfantry
-	-GrantConditionOnPrerequisite@GlobalPenalty:
+	# -GrantConditionOnPrerequisite@GlobalPenalty:
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Armament:
 		Weapon: Pistol
@@ -237,7 +248,7 @@
 	GrantConditionOnDeploy:
 		DeployedCondition: deployed
 	InfantryStates:
-		ProneCondition: deployed || pindown || !moving || critical-damage
+		ProneCondition: deployed || suppressed || !moving || critical-damage
 		ProneGrantsCondition: prone
 		ProneSpeedModifier: 60
 		ProneDamageModifiers:
@@ -281,274 +292,275 @@
 		RequiresCondition: inwater
 
 ^PinsDown:
-	Inherits@PinDownPips: ^PinDownPips
-	Inherits@PindownSpeedMultiplier: ^PindownSpeedMultiplier
-	Inherits@PinDownRevealsShroudMultiplier: ^PinDownRevealsShroudMultiplier
-	Inherits@PinDownBurstMultiplier: ^PinDownBurstMultiplier
-	Inherits@PinDownBurstWaitMultiplier: ^PinDownBurstWaitMultiplier
-	Inherits@PinDownInaccuracyMultiplier: ^PinDownInaccuracyMultiplier
-	ExternalCondition@PinDown:
-		Condition: pindown
+	Inherits@SuppressionPips: ^SuppressionPips
+	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
+	Inherits@SuppressionRevealsShroudMultiplier: ^SuppressionRevealsShroudMultiplier
+	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
+	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
+	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
+	ExternalCondition@Suppression:
+		Condition: suppressed
 		TotalCap: 100
-^PindownSpeedMultiplier:
-	SpeedMultiplier@PinDown_1:
-		RequiresCondition: !panicking && pindown > 0 && pindown <= 10
+^SuppressionSpeedMultiplier:
+	SpeedMultiplier@Suppression_1:
+		RequiresCondition: !panicking && suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	SpeedMultiplier@PinDown_2:
-		RequiresCondition: !panicking && pindown > 10 && pindown <= 20
+	SpeedMultiplier@Suppression_2:
+		RequiresCondition: !panicking && suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	SpeedMultiplier@PinDown_3:
-		RequiresCondition: !panicking && pindown > 20 && pindown <= 30
+	SpeedMultiplier@Suppression_3:
+		RequiresCondition: !panicking && suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	SpeedMultiplier@PinDown_4:
-		RequiresCondition: !panicking && pindown > 30 && pindown <= 40
+	SpeedMultiplier@Suppression_4:
+		RequiresCondition: !panicking && suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	SpeedMultiplier@PinDown_5:
-		RequiresCondition: !panicking && pindown > 40 && pindown <= 50
+	SpeedMultiplier@Suppression_5:
+		RequiresCondition: !panicking && suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	SpeedMultiplier@PinDown_6:
-		RequiresCondition: !panicking && pindown > 50 && pindown <= 60
+	SpeedMultiplier@Suppression_6:
+		RequiresCondition: !panicking && suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	SpeedMultiplier@PinDown_7:
-		RequiresCondition: !panicking && pindown > 60 && pindown <= 70
+	SpeedMultiplier@Suppression_7:
+		RequiresCondition: !panicking && suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	SpeedMultiplier@PinDown_8:
-		RequiresCondition: !panicking && pindown > 70 && pindown <= 80
+	SpeedMultiplier@Suppression_8:
+		RequiresCondition: !panicking && suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	SpeedMultiplier@PinDown_9:
-		RequiresCondition: !panicking && pindown > 80 && pindown <= 90
+	SpeedMultiplier@Suppression_9:
+		RequiresCondition: !panicking && suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	SpeedMultiplier@PinDown_10:
-		RequiresCondition: !panicking && pindown > 90 && pindown <= 100
+	SpeedMultiplier@Suppression_10:
+		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownRevealsShroudMultiplier:
-	RevealsShroudMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionRevealsShroudMultiplier:
+	RevealsShroudMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	RevealsShroudMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	RevealsShroudMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	RevealsShroudMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	RevealsShroudMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	RevealsShroudMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	RevealsShroudMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	RevealsShroudMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	RevealsShroudMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	RevealsShroudMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	RevealsShroudMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	RevealsShroudMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	RevealsShroudMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	RevealsShroudMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	RevealsShroudMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	RevealsShroudMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	RevealsShroudMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	RevealsShroudMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	RevealsShroudMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownDetectCloakedMultiplier:
-	DetectCloakedMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionDetectCloakedMultiplier:
+	DetectCloakedMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	DetectCloakedMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	DetectCloakedMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	DetectCloakedMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	DetectCloakedMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	DetectCloakedMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	DetectCloakedMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	DetectCloakedMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	DetectCloakedMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	DetectCloakedMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	DetectCloakedMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	DetectCloakedMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	DetectCloakedMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	DetectCloakedMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	DetectCloakedMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	DetectCloakedMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	DetectCloakedMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	DetectCloakedMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	DetectCloakedMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownBurstMultiplier:
-	BurstMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionBurstMultiplier:
+	BurstMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	BurstMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	BurstMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	BurstMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	BurstMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	BurstMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	BurstMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	BurstMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	BurstMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	BurstMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	BurstMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	BurstMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	BurstMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	BurstMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	BurstMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	BurstMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	BurstMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	BurstMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	BurstMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^PinDownBurstWaitMultiplier:
-	BurstWaitMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionBurstWaitMultiplier:
+	BurstWaitMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 110
-	BurstWaitMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	BurstWaitMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 120
-	BurstWaitMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	BurstWaitMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 130
-	BurstWaitMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	BurstWaitMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 140
-	BurstWaitMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	BurstWaitMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 150
-	BurstWaitMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	BurstWaitMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 160
-	BurstWaitMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	BurstWaitMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 170
-	BurstWaitMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	BurstWaitMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 180
-	BurstWaitMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	BurstWaitMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 190
-	BurstWaitMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	BurstWaitMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 200
-^PinDownInaccuracyMultiplier:
-	InaccuracyMultiplier@PinDown_1:
-		RequiresCondition: pindown > 0 && pindown <= 10
+^SuppressionInaccuracyMultiplier:
+	InaccuracyMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 120
-	InaccuracyMultiplier@PinDown_2:
-		RequiresCondition: pindown > 10 && pindown <= 20
+	InaccuracyMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 140
-	InaccuracyMultiplier@PinDown_3:
-		RequiresCondition: pindown > 20 && pindown <= 30
+	InaccuracyMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 160
-	InaccuracyMultiplier@PinDown_4:
-		RequiresCondition: pindown > 30 && pindown <= 40
+	InaccuracyMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 180
-	InaccuracyMultiplier@PinDown_5:
-		RequiresCondition: pindown > 40 && pindown <= 50
+	InaccuracyMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 200
-	InaccuracyMultiplier@PinDown_6:
-		RequiresCondition: pindown > 50 && pindown <= 60
+	InaccuracyMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 220
-	InaccuracyMultiplier@PinDown_7:
-		RequiresCondition: pindown > 60 && pindown <= 70
+	InaccuracyMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 240
-	InaccuracyMultiplier@PinDown_8:
-		RequiresCondition: pindown > 70 && pindown <= 80
+	InaccuracyMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 260
-	InaccuracyMultiplier@PinDown_9:
-		RequiresCondition: pindown > 80 && pindown <= 90
+	InaccuracyMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 280
-	InaccuracyMultiplier@PinDown_10:
-		RequiresCondition: pindown > 90 && pindown <= 100
+	InaccuracyMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 300
-^PinDownPips:
-	WithDecoration@PinDown_1:
+^SuppressionPips:
+	WithDecoration@Suppression_1:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-1
+		Sequence: pip-Suppression-1
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 0 && pindown <= 10
-	WithDecoration@PinDown_2:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+	WithDecoration@Suppression_2:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-2
+		Sequence: pip-Suppression-2
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 10 && pindown <= 20
-	WithDecoration@PinDown_3:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+	WithDecoration@Suppression_3:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-3
+		Sequence: pip-Suppression-3
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 20 && pindown <= 30
-	WithDecoration@PinDown_4:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+	WithDecoration@Suppression_4:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-4
+		Sequence: pip-Suppression-4
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 30 && pindown <= 40
-	WithDecoration@PinDown_5:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+	WithDecoration@Suppression_5:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-5
+		Sequence: pip-Suppression-5
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 40 && pindown <= 50
-	WithDecoration@PinDown_6:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+	WithDecoration@Suppression_6:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-6
+		Sequence: pip-Suppression-6
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 50 && pindown <= 60
-	WithDecoration@PinDown_7:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+	WithDecoration@Suppression_7:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-7
+		Sequence: pip-Suppression-7
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 60 && pindown <= 70
-	WithDecoration@PinDown_8:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+	WithDecoration@Suppression_8:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-8
+		Sequence: pip-Suppression-8
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 70 && pindown <= 80
-	WithDecoration@PinDown_9:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+	WithDecoration@Suppression_9:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-9
+		Sequence: pip-Suppression-9
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 80 && pindown <= 90
-	WithDecoration@PinDown_10:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+	WithDecoration@Suppression_10:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-pindown-10
+		Sequence: pip-Suppression-10
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: pindown > 90 && pindown <= 100
+		RequiresCondition: suppressed > 90 && suppressed <= 100
 
 ^InfantryStandardVisibility:
+	# CPU Expensive!
 	Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
@@ -632,112 +644,113 @@
 		Palette: player
 		IsPlayerPalette: true
 
-	WithRangeCircle@Cloak_0:
-		RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 16c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_1:
-		RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 14c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_2:
-		RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 12c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_3:
-		RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 10c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_4:
-		RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 10c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_5:
-		RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 9c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_6:
-		RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_7:
-		RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_8:
-		RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_9:
-		RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 7c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_10:
-		RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
-		Range: 5c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_11:
-		RequiresCondition: cloak-11 && !cloak-12
-		Range: 4c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_12:
-		RequiresCondition: cloak-12
-		Range: 1c512
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_0:
+	# 	RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 16c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_1:
+	# 	RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 14c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_2:
+	# 	RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 12c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_3:
+	# 	RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 10c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_4:
+	# 	RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 10c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_5:
+	# 	RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 9c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_6:
+	# 	RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 8c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_7:
+	# 	RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 8c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_8:
+	# 	RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 8c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_9:
+	# 	RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 7c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_10:
+	# 	RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
+	# 	Range: 5c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_11:
+	# 	RequiresCondition: cloak-11 && !cloak-12
+	# 	Range: 4c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@Cloak_12:
+	# 	RequiresCondition: cloak-12
+	# 	Range: 1c512
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
 
 ^InfantryStealthyVisibility:
+	# CPU Expensive! Temp fix, TODO: rewrite
 	Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
@@ -920,6 +933,7 @@
 		PlayerExperience: 0
 		CaptureDelay: 20
 		ConsumedByCapture: true
+		EnterCursor: goldwrench
 
 ^InfantryAffectedByFire:
 	ExternalCondition@BurnDamage:
@@ -1010,10 +1024,10 @@
 		Palette: effect
 
 ^EffectsWhenDamagedInfantry:
-	SpeedMultiplier@HEAVYDAMAGE:
+	SpeedMultiplier@HeavyDamage:
 		Modifier: 75
 		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
+	SpeedMultiplier@CriticalDamage:
 		Modifier: 10
 		RequiresCondition: critical-damage
 	ChangesHealth@BleedOut:
@@ -1031,14 +1045,14 @@
 	# 	Palette: effect
 
 ^RottingInfantry:
-	# WithDeathAnimation@ROT:
-	# 	DeathSequence: rot
-	# 	DeathTypes:
-	# 		DefaultDeath: 1
-	# 		BulletDeath: 2
-	# 		SmallExplosionDeath: 3
-	# 		ExplosionDeath: 4
-	# 		BleedOutDeath: 5
+	WithDeathAnimation@ROT:
+		DeathSequence: rot
+		DeathTypes:
+			DefaultDeath: 1
+			BulletDeath: 2
+			SmallExplosionDeath: 3
+			ExplosionDeath: 4
+			BleedOutDeath: 5
 
 # Conscript
 ^E1:
@@ -1059,7 +1073,7 @@
 		Cost: 50
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmAR
+		Weapon: 5.56mm.E3
 		Turret: primary-turret
 		PauseOnCondition: !ammo-primary
 	AmmoPool:
@@ -1076,7 +1090,7 @@
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo # grenade-ammo
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
@@ -1102,7 +1116,6 @@ E1R1:
 	RenderSprites:
 		Image: E1
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E1
@@ -1126,9 +1139,11 @@ E1R1:
 		Description: Rifleman\n Semi automatic rifle\n Single-shot unguided AT weapon
 	Valued:
 		Cost: 100
+	AttackFrontal:
+		ForceFireIgnoresActors: True
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmDMR
+		Weapon: 5.56mm.DMR
 		PauseOnCondition: !ammo-primary
 		# FireDelay: 7
 	AmmoPool@1:
@@ -1153,6 +1168,7 @@ E1R1:
 		Name: secondary
 		Weapon: RPG
 		FireDelay: 8
+		LocalOffset: 0,0,250
 		PauseOnCondition: !ammo-secondary
 	AmmoPool@2:
 		Name: secondary-ammo
@@ -1182,7 +1198,7 @@ E1R1:
 	InfantryStates:
 		PauseOnCondition: preparing-secondary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1207,7 +1223,6 @@ E3R1:
 	RenderSprites:
 		Image: E3
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E3
@@ -1232,7 +1247,7 @@ E3R1:
 		Cost: 100
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmMG
+		Weapon: 5.56mm.AR
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1253,12 +1268,15 @@ E3R1:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FFFF00
 	Armament@GARRISONED:
 		Name: garrisoned
-		Weapon: 5.56mmMG
+		Weapon: 5.56mm.AR
 		PauseOnCondition: !ammo-primary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1314,7 +1332,7 @@ AR:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1335,7 +1353,6 @@ E2R1:
 	RenderSprites:
 		Image: E2
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E2
@@ -1366,7 +1383,7 @@ E2R1:
 		Range: 4c0
 	Armament@1:
 		Name: primary
-		Weapon: 7.62mmDMR
+		Weapon: 7.62mm.DMR
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1411,7 +1428,7 @@ E2R1:
 		AmmoPools: secondary-ammo
 		RequiresCondition: ammo-secondary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1456,7 +1473,7 @@ TL:
 		Color: FF0000
 	Armament@1:
 		Name: primary
-		Weapon: 60mmMortar
+		Weapon: 60mm_Mortar
 		PauseOnCondition: !ammo-primary
 		LocalOffset: 0,0,10
 		FireDelay: 10
@@ -1479,7 +1496,7 @@ TL:
 		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	AttackFrontal:
 		TargetFrozenActors: True
@@ -1525,7 +1542,7 @@ MT:
 		ValidTargets: Infantry
 	Armament@1:
 		Name: primary
-		Weapon: 7.62mmSniper
+		Weapon: 7.62mm.Sniper
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1548,9 +1565,9 @@ MT:
 		RequiresCondition: ammo-primary
 	Armament@GARRISONED:
 		Name: garrisoned
-		Weapon: 7.62mmSniper
+		Weapon: 7.62mm.Sniper
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1594,8 +1611,8 @@ SN:
 		Modifier: 90
 	Armament@1:
 		Name: primary
-		Weapon: Javelin
-		PauseOnCondition: !ammo-primary
+		Weapon: ATGM
+		PauseOnCondition: !ammo-primary || suppressed > 0
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -1615,11 +1632,14 @@ SN:
 		FullSequence: pip-green
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 00FF00
 	RenderRangeCircle@1:
 		RequiresCondition: ammo-primary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1680,11 +1700,14 @@ AT:
 		FullSequence: pip-blue
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 66B2FF
 	RenderRangeCircle@AA:
 		Alpha: 80
 		Color: 66B2FF
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1730,8 +1753,8 @@ AA:
 	Armament@Repair:
 		Name: primary
 		Weapon: Repair
-		Cursor: goldwrench
-		OutsideRangeCursor: goldwrench
+		Cursor: repair
+		OutsideRangeCursor: repair
 		TargetRelationships: Ally
 		ForceTargetRelationships: None
 	Armament@ClearMines:
@@ -1781,7 +1804,7 @@ AA:
 		BlinkInterval: 16
 		BlinkPattern: On, Off
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: c4-ammo
 	RepairsBridges:
 		# TODO: Add Delay
@@ -1790,7 +1813,7 @@ AA:
 	Infiltrates@RestoreTechHusk:
 		Types: TechHusk
 		ValidRelationships: Neutral
-		EnterCursor: goldwrench
+		EnterCursor: repair
 		PlayerExperience: 0
 		EnterBehaviour: Exit
 	WithInfantryBody:
@@ -1856,7 +1879,7 @@ E6:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	GrantConditionOnAttack:
 		Condition: dont-move
@@ -1906,7 +1929,7 @@ E4:
 		Locomotor: foot-amphibious-mountainer
 	Armament@1:
 		Name: primary
-		Weapon: 5.56mmDMR.silencer
+		Weapon: 5.56mm.DMR.silencer
 		PauseOnCondition: !ammo-primary || inwater
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1953,7 +1976,7 @@ E4:
 		AmmoPools: c4-ammo
 		RequiresCondition: ammo-c4
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo, c4-ammo
 	WithInfantryBody:
 		AttackSequences:
@@ -2101,7 +2124,7 @@ SPY:
 ^DOG:
 	Inherits: ^Soldier
 	-AttackFrontal:
-	-ExternalCondition@PinDown:
+	-ExternalCondition@Suppression:
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
 	-WithDecoration@AmmoReplenishing:
@@ -2221,7 +2244,7 @@ DOG:
 TECN:
 	Inherits: ^TECN
 
-^DRONEOP:
+^DR:
 	Inherits: ^CamoSoldier
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
@@ -2275,7 +2298,7 @@ TECN:
 		Color: FFFFFF
 		ValidRelationships: Neutral, Ally, Enemy
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		-IdleSequences:
@@ -2284,20 +2307,20 @@ TECN:
 	# ModifySequence@launched:
 	# 	RequiresCondition: !loaded && primary-ammo
 	Passenger:
-		CustomPipType: droneop_class
+		CustomPipType: dr_class
 	WithDecoration@Class:
-		Sequence: droneop_class
+		Sequence: dr_class
 		Image: class
 		Palette: effect
 		Position: Top
 		Margin: 0,7
 	Selectable:
-		Class: DRONEOP
+		Class: DR
 	RenderSprites:
 		PlayerPalette: playertd
 		Scale: 0.6
-DRONEOP:
-	Inherits: ^DRONEOP
+DR:
+	Inherits: ^DR
 
 # Pilot
 ^PILOT:
@@ -2336,7 +2359,7 @@ DRONEOP:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: tent, barr
+		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo # grenade-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -2353,43 +2376,33 @@ DRONEOP:
 		Scale: 0.6
 PILOT:
 	Inherits: ^PILOT
-	DeliversCash:
-		Payload: 200
-		Type: PilotRefund
-# todo: These seem to work but they have no rank pip
 PILOTR1:
 	Inherits: ^PILOT
 	Tooltip:
-		Name: Pilot 1st Rank
-	DeliversCash:
-		Payload: 300
-		Type: PilotRefund
+		Name: Pilot Rank 1
+	Valued:
+		Cost: 800
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 1
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
 PILOTR2:
 	Inherits: ^PILOT
 	Tooltip:
-		Name: Pilot 2d Rank
-	DeliversCash:
-		Payload: 400
-		Type: PilotRefund
+		Name: Pilot Rank 2
+	Valued:
+		Cost: 1200
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
 PILOTR3:
 	Inherits: ^PILOT
 	Tooltip:
-		Name: Pilot 3d Rank
-	DeliversCash:
-		Payload: 500
-		Type: PilotRefund
+		Name: Pilot Rank 3
+	Valued:
+		Cost: 2000
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 3
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
@@ -2397,38 +2410,10 @@ PILOTR4:
 	Inherits: ^PILOT
 	Tooltip:
 		Name: Ace Pilot
-	DeliversCash:
-		Payload: 1000
-		Type: PilotRefund
+	Valued:
+		Cost: 3000
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 4
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
 
-# General
-GNRL:
-	Inherits@Type: ^ArmedCivilian
-	Inherits@Rotting: ^RottingInfantry
-	-Wanders:
-	Tooltip:
-		Name: General
-	Selectable:
-		Class: GNRL
-	Mobile:
-		Voice: Move
-	AttackFrontal:
-		Voice: Attack
-	AttackMove:
-		Voice: Move
-	Passenger:
-		Voice: Move
-	Guard:
-		Voice: Move
-	Voiced:
-		VoiceSet: StavrosVoice
-	-ScaredyCat:
-	WithInfantryBody:
-		IdleSequences: idle1
-	RenderSprites:
-		Scale: 0.6

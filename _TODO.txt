@@ -1,15 +1,101 @@
 2023
 
-- Hitshape
-    - Set rectangle for all vehicles
-    - BlocksProjectiles Height defaults to <Shape>.VerticalTopOffset() ?
-    - Damage is modified based on <Shape>.DistanceFromEdge()
-    - Direction matters
-        - Define Front, Side, Rear Damage modifiers to Armor
-        - Define IgnoresDirection for top attack weapons like Javelin, artillery etc
+Unsolved bugs
 
+    - E6 Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
+        - Different name works for C4, so can't see why it wouldn't work.
+        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
+        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
 
-- Supply instead of power
+- Shellmaps
+    - "Bradley Square"
+    - Piatykhatky Ukrainian offensive breakthrough
+
+- Units move towards enemy when attacking and being within their minrange, check and adjust for that case
+
+- Helicopter husks on water should sink and disappear
+
+- Slow down walk sequence to match locomotor speed on layer.
+
+- ShouldExplode for some bullets could be simplified
+    - Check once when firing and determine impact position,
+        don't run BlockingActors check every tick, instead
+        assume that if there are no blocking actors when shooting,
+        there will be none entering firing arc during bullet flight.
+
+- Multi-threading for performance, possible?
+    - LogicTick / RenderTick on seperate threads?
+
+- A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
+
+- Spawn Aircraft/all units at full speed
+
+- Shroud update
+    - Each cell has a visibility of 0-100, 0 = Shrouded, 100 = visible
+    - Units have detection from 100 down to 0 based on distance.
+        - AffectsShroud.UpdateShroudCells.AddCellsToPlayerShroud
+            -> RevealShroudEffect.AddCellsToPlayerShroud -> player.Shroud.AddSource(this, sourceType, uv);
+    - Units have camouflage 0-100 that makes them invisible at lower visibility
+
+- Can't issue enter order on neutral cargo actors if shrouded
+- TECN infiltrates cargo neutral structures instead of entering
+
+UNIT:
+    Visibility:
+        Cloaking
+        Spotted (GPS marker, can be targeted in limited mode)
+        Revealed (Unit type identified, can be targeted fully)
+        RadarSize
+    Detection:
+        Cloak ()
+        Sight (Determines shroud effect)
+        Radar
+
+- Tesla tank returns to base when out of ammo
+
+- Bleedout sequence doesnt show, unit disappears
+
+- Airplanes doesnt spawn, helicopters spawn on ground
+
+- Check Blocking actors from weapon offset not from center ground position
+
+- Add Ukraine faction
+
+- Autotarget with other armament if reload for primary is long, humvee for example
+
+- Engineer cant repair
+    - Engineer can capture disabled vehicles?
+- Vehicles gets disabled at 50% health
+    - Add recovery vehicle that can tow vehicles
+    - Change "Sell" to "Evacuate", units leave vehicle/building and it becomes neutral
+- Buildings may require more than one technician to operate, enter as cargo until full before changing owner
+
+- AI
+    - Needs to learn to build Logistics centers and rearm
+    - AutoAssign Actor Method
+        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
+    - Unit Builder Module
+        - Looks at what enemy has.
+        - Builds what is necessary, not just random.
+        - Units define capabilities, and Builder Module determines what capabilities are needed.
+    - Strategical Module
+        - Designates targets and areas of interest. Oil, and where to defend/attack.
+        - Designates new units to target locations and if needed transfers units between tactical groups.
+    - Tactical Module
+        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
+    - Operational Module
+        - Smaller squads move as one and attacks targets.
+        - Individual units attack targets of high value etc.
+
+- Units might surrender if surrounded, low experience
+    - Defects if out of money and upkeep is high
+
+- "quittable" instead of time limited. After X minutes any player can quit, and game will count score.
+    When game ends both players get points based on how many units they have left, making it sometimes
+    preferable to wait to get a better score. Nuclear armageddon mode starts waves of nuclear strikes
+    that ends with all units being destroyed. No points are counted, unless one player is victorious
+    everyione loses.
+
 - MCV used as a construction/transport vehicle.
     - Goes to existing Conyard to load up.
     - Each unit has seperate build tab, using the Defense icon, placed first.
@@ -42,11 +128,6 @@
 
 Bugs
 
-Economy
-
-    - Refineries gets filled up, then actually refines whats inside to become money
-    -
-
 Infantry
 
     - SF demolish should bring building to critical state + disabled until repaired
@@ -58,10 +139,6 @@ Infantry
         - Autotarget
         - Repair bridge should have a Delay
             - Check: RepairsBridges, Captures, CaptureManager, CaptureActor, Enter
-
-    SF
-        - Cant see hidden units
-        - Always stealthy?
 
     Flamethrower
         - Clear buildings, turning them into neutral
@@ -78,7 +155,6 @@ Infantry
 
     Div
         - Resupply/Ammopool ReloadDelay should be renamed, ReloadDelay is used for reloading magazines
-        - Capturing bunkers/neutral buildings should not consume captor
         - AI Conscripts starts to capture but seems to take squad orders and stops - decouple them from squad when they have opportunity to capture
             - Stop firing building that has been marked for capture
         - Multiple soldiers capturing building should make it faster, even if only one soldier enters at the end. Some buildings require more than one capturing soldier
@@ -91,12 +167,7 @@ Infantry
 Vehicles
     - Fix opening sequence for btr80
     - Change M113 to AAVP7A1
-    - Ore trucks
-        - Get stuck if too many trucks are sharing one refinery, they should still que up.
-        - Maybe slower unload to make multiple refineries more important.
-        - Smarter behaviour
-
-    - Humvee can drive in forests now?
+    - Humvee can drive in forests now? Same size as infantry, uses subcells. Why?
     - Mines should not completely destroy heavy vehicles
     - Kamikaze drones
     - Crystallized Doom tanks
@@ -105,7 +176,7 @@ Aircraft
     - Soldiers in crashed transport helicopters have a small chance of surviving, but receive lots of damage.
     - Detection, Apache has StandardDetection now
     - Apache shouldn't use guns vs structures
-    - FighterGun still doesn't do any damage / misses?
+    - 30mm.FighterGun still doesn't do any damage / misses?
         - offset seems to come from behind the aircraft
     - F16 doesn't fire auto or manually
     - Landed helicopters could have a bit longer visual
@@ -126,9 +197,7 @@ Naval
     - Change landing craft model
 
 Defenses
-    - Blue preview for GTWR, guard tower
     - GTUR cant force attack ground or own units
-    - GTUR disabled on low power or infiltrated (Still doesn't work)
     - Attack priorities, prism tower should prioritize tanks
     - Deal damage to garrisoned soldiers as % of building damage, spread determines if killing multiple units or just one at a time
         - Show unit's health + ammo over the defense's health
@@ -136,7 +205,6 @@ Defenses
     - Crystallized Doom SAM launcher (NOD), also other cannons but looks a bit unrealistic
 
 Structures
-    - Should buildings require power during construction?
     - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
 
 Support powers
@@ -151,6 +219,7 @@ DIV
     - Formations
         - "Stay in formation", move in current configuration
         - Pre-defined formations
+        - Check Autotarget and how stances are set there, do similar on Move/Mobile?
     - Units out of ammo rejects attack orders
     - Add announcements like "Enemy Detected"
     - UnitStance
@@ -178,16 +247,14 @@ DIV
     - Stay at a distance
     - Cancel attack order if running out of ammo, now they freeze
     - Render (some?) pips at further zoom
-    - Units can ForceFire on themselves... disable this
     - Allow infantry to move to and stop in subcells so that they can start firing faster, check in Move, Mobile, Locomotor, Order, MapGrid etc...
     - Pathfinder FindBidiPath, ignore units that are blocking, don't take detour around
     - Unit should cancel attack order if out of ammo for current target, now they just freeze while still aiming on target
     - Units in squad unable to attack a specific target should default back to attack move order not just move
     - Parallel queues keeps building units that are paused
     - Use ExplodeWhenEmpty from Missile to make Bullets also able to keep flying until they reach RangeLimit even if missing target (CRAM esp)
-    - Power down icon missing
     - Load selection order - soldiers and vehicle in selection pairs up automatically
-    - PinDown trait, always prioritize units not taking cover
+    - Suppression trait, always prioritize units not taking cover
     - Don't RevealShroud behind blocking actors
     - Building queue
         - Pause AND cancel all with one click by holding Ctrl
@@ -202,7 +269,6 @@ Ideas:
     - Dog Idea: Cant move only guard, + Wanders if not guarding
     - WEATHER - Change shroud to be called "Bad weather" or similar, Make it more like fog, slightly transparent but it hides all actors even with radar or gps etc
         - GAP should be smoke screen that dissipates
-    - Powerplants are instead industrial plants, generates power and passive income but not so much that it is worth building tons of them for money
     - Manpower: Every player has a manpower number, every unit costs 1 or more manpower.
         - Periodically new manpower is added, and this can be used as a cap-limit to avoid huge conscript armies.
         - When a unit is sold, manpower is returned.
@@ -215,21 +281,11 @@ Ideas:
     - Buildings are built by supply trucks that must drive back and forth from a conyard to fetch supplies and larger buildings require more deliveries.
     - Pontoon bridges
     - Change color of sprites so that only small parts of unit is part of player color palette. Armband for infantry, a marking for tanks / Aircraft. Should be enough
-    - Recruiting soldiers costs from the player's points, or "political points", meaning that cheap units are only available if you have a high score / popularity
-    - Upkeep on units, perhaps % of initial value unless changed
-    - Ore purifier can be built directly on top of ore mines to immediately get their profits without harvesters
     - Nuclear powerplant, releases long lasting toxins if destroyed
     - Tooltip varies, if enemy to NATO use NATO Codename. Possibly use english version of foreign native names. "Strela" = Arrow. Nato codename "Gopher"
 
 Good to know
     - Sequences that uses Facings: (negative) only uses half and reverses the rest? Seems so from other mod Shattered Paradise
-
-Unsolved bugs
-
-    - E6 Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
-        - Different name works for C4, so can't see why it wouldn't work.
-        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
-        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
 
 Other Mods
 
@@ -262,7 +318,6 @@ Other Mods
         - TBOX radot5, tank bunker. Cool if engineers could build these
     - Generals Alpha
         - Raptor F22 (also "King Raptor" model but saw no difference)
-        - F117
         - Stinger site, sandbag fortification
         - Replace some arabian sprites with GLA
         - Worker, GLA, collects supplies
@@ -305,7 +360,6 @@ Other Mods
             - MSAM, looks good
             - MLRS, Two missiles, Soviet looking
             - FTNK/HFTK, (Heavy) Flame tank models doesn't look great but check if flame animation is good
-            - BTR, APC, looks god with wheels (?)
             - IFV, probably same chassi as BTR but with turret
             - TNKD, tank destroyer, looks pretty good generic tank, could be with trying for some unit
             - MSAR, mobile sensor array (+ msardeployed), looks great for a command vehicle
@@ -339,7 +393,6 @@ Other Mods
         - hatf double missile launcher, looks north korean or something
         - MSLB missile boat, looks pretty good
     - RADOT5
-        (ADDED) Mortar
         Sniper
         Commando
         Propaganda bonus, check what this is. Could be used by officer units to boost morale and give added speed when in cover for example

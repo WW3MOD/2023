@@ -1,852 +1,1009 @@
 
-^Naval:
-	Inherits@ExistsInWorld: ^ExistsInWorld
-	Inherits@GainsExperience: ^GainsExperience
-	Inherits@SpriteActor: ^SpriteActor
-	Inherits@Bounty: ^GlobalBounty
-	Inherits@Selection: ^SelectableCombatUnit
-	Inherits@AIBoost: ^ProductionAIBoost
-	Inherits@EMPMechanic: ^AffectedByEMP
-	Inherits@Slowdown: ^EffectsWhenDamagedNaval
-	Inherits@DamageStates: ^DamageStates
-	Inherits@Handicaps: ^PlayerHandicaps
-	Huntable:
-	OwnerLostAction:
-		Action: Kill
-	DrawLineToTarget:
-	UpdatesPlayerStatistics:
-	Mobile:
-		Locomotor: naval
-		PauseOnCondition: !(!empdisable)
-	SelectionDecorations:
-	WithSpriteControlGroupDecoration:
-	Selectable:
-		Bounds: 1024, 1024
-	Targetable:
-		TargetTypes: Ground, Water, Ship
-	Targetable@EMPTargeting:
-		TargetTypes: EMPTank
-		RequiresCondition: empdisable
-	Targetable@REPAIR:
-		RequiresCondition: damaged
-		TargetTypes: Repair
-	HiddenUnderFog:
-	AttackMove:
-	ActorLostNotification:
-		Notification: NavalUnitLost
-	ProximityCaptor:
-		Types: Ship
-	Chronoshiftable:
+# ^Naval:
+# 	Inherits@ExistsInWorld: ^ExistsInWorld
+# 	Inherits@GainsExperience: ^GainsExperience
+# 	Inherits@SpriteActor: ^SpriteActor
+# 	Inherits@Bounty: ^GlobalBounty
+# 	Inherits@Selection: ^SelectableCombatUnit
+# 	Inherits@EMPMechanic: ^AffectedByEMP
+# 	Inherits@Slowdown: ^EffectsWhenDamagedNaval
+# 	Inherits@DamageStates: ^DamageStates
+# 	Inherits@Handicaps: ^PlayerHandicaps
+# 	Huntable:
+# 	OwnerLostAction:
+# 		Action: Kill
+# 	DrawLineToTarget:
+# 	UpdatesPlayerStatistics:
+# 	Mobile:
+# 		Locomotor: naval
+# 		PauseOnCondition: !(!empdisable)
+# 	SelectionDecorations:
+# 	WithSpriteControlGroupDecoration:
+# 	Selectable:
+# 		Bounds: 1024, 1024
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship
+# 	Targetable@EMPTargeting:
+# 		TargetTypes: EMPTank
+# 		RequiresCondition: empdisable
+# 	Targetable@REPAIR:
+# 		RequiresCondition: damaged
+# 		TargetTypes: Repair
+# 	HiddenUnderFog:
+# 	AttackMove:
+# 	ActorLostNotification:
+# 		Notification: NavalUnitLost
+# 	ProximityCaptor:
+# 		Types: Ship
+# 	Chronoshiftable:
 
-	GpsDot:
-		String: Ship
-	WithDamageOverlay:
-	Explodes:
-		Weapon: UnitExplodeShip
-		EmptyWeapon: UnitExplodeShip
-	Guard:
-	Guardable:
-	Tooltip:
-		GenericName: Ship
-	MustBeDestroyed:
-	MapEditorData:
-		ExcludeTilesets: INTERIOR
-		Categories: Naval
-	Voiced:
-		VoiceSet: VehicleVoice
-	WithFacingSpriteBody:
-	HitShape:
-	Sellable:
-		SellSounds: cashturn.aud
-		Cursor: sell2
-		ShowTicks: false
-		RequiresCondition: ship.sellable
-	ExternalCondition@Sellable:
-		Condition: ship.sellable
-	EdibleByLeap:
+# 	GpsDot:
+# 		String: Ship
+# 	WithDamageOverlay:
+# 	Explodes:
+# 		Weapon: UnitExplodeShip
+# 		EmptyWeapon: UnitExplodeShip
+# 	Guard:
+# 	Guardable:
+# 	Tooltip:
+# 		GenericName: Ship
+# 	MustBeDestroyed:
+# 	MapEditorData:
+# 		ExcludeTilesets: INTERIOR
+# 		Categories: Naval
+# 	Voiced:
+# 		VoiceSet: VehicleVoice
+# 	WithFacingSpriteBody:
+# 	HitShape:
+# 	Sellable:
+# 		SellSounds: cashturn.aud
+# 		Cursor: sell2
+# 		ShowTicks: false
+# 		RequiresCondition: ship.sellable
+# 	ExternalCondition@Sellable:
+# 		Condition: ship.sellable
+# 	EdibleByLeap:
 
-^Ship:
-	Inherits: ^Naval
-	RevealsShroud:
-		MinRange: 5c0
-		Range: 24c0
-		RevealGeneratedShroud: False
-	RepairableNear:
-		RepairActors: syrd
-^Submarine:
-	Inherits: ^Naval
-	Inherits@Sonar: ^Sonar
-	-MustBeDestroyed:
-	RevealsShroud:
-		Range: 20c0
-		RequiresCondition: !underwater
-		RevealGeneratedShroud: false
-	RepairableNear:
-		RepairActors: spen
-	Cloak:
-		DetectionTypes: Underwater
-		InitialDelay: 0
-		CloakDelay: 75
-		CloakSound: subshow1.aud
-		UncloakSound: subshow1.aud
-		CloakedCondition: underwater
-		Palette: submerged
-		IsPlayerPalette: false
-		UncloakOn: Attack, Heal, Dock, SelfHeal, Demolish
-		PauseOnCondition: cloak-force-disabled || shallowcrossing || empdisable || minehit
-		RequiresCondition: !deployed
-	GrantConditionOnDamageState@UNCLOAK:
-		Condition: cloak-force-disabled
-		ValidDamageStates: Critical
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Submarine
-		RequiresCondition: !underwater
-	Targetable@UNDERWATER:
-		TargetTypes: Underwater, Submarine
-		RequiresCondition: underwater
-	Targetable@REPAIR:
-		RequiresCondition: !underwater && damaged
-		TargetTypes: Repair, RepairShip
-	GrantConditionOnTerrain@CROSSINGFORD:
-		Condition: shallowcrossing
-		TerrainTypes: Shallow
-	GrantConditionOnDeploy:
-		DeployedCondition: deployed
-	ExternalCondition@MINEHIT:
-		Condition: minehit
-	Explodes:
-		Weapon: UnitExplodeSubmarine
-		EmptyWeapon: UnitExplodeSubmarine
-	Sellable:
-		SellSounds: cashturn.aud
-		Cursor: sell2
-		ShowTicks: false
-		RequiresCondition: ship.sellable && !underwater
-	SpeedMultiplier@ONSURFACE:
-		Modifier: 120
-		RequiresCondition: deployed && !heavy-damage
-	GpsDot:
-		String: Submarine
+# ^Ship:
+# 	Inherits: ^Naval
+# 	RevealsShroud:
+# 		MinRange: 5c0
+# 		Range: 24c0
+# 	RepairableNear:
+# 		RepairActors: syrd
+# ^Submarine:
+# 	Inherits: ^Naval
+# 	Inherits@Sonar: ^Sonar
+# 	-MustBeDestroyed:
+# 	RevealsShroud:
+# 		Range: 20c0
+# 		RequiresCondition: !underwater
+# 	RepairableNear:
+# 		RepairActors: spen
+# 	Cloak:
+# 		DetectionTypes: Underwater
+# 		InitialDelay: 0
+# 		CloakDelay: 75
+# 		CloakSound: subshow1.aud
+# 		UncloakSound: subshow1.aud
+# 		CloakedCondition: underwater
+# 		Palette: submerged
+# 		IsPlayerPalette: false
+# 		UncloakOn: Attack, Heal, Dock, SelfHeal, Demolish
+# 		PauseOnCondition: cloak-force-disabled || shallowcrossing || empdisable || minehit
+# 		RequiresCondition: !deployed
+# 	GrantConditionOnDamageState@UNCLOAK:
+# 		Condition: cloak-force-disabled
+# 		ValidDamageStates: Critical
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Submarine
+# 		RequiresCondition: !underwater
+# 	Targetable@UNDERWATER:
+# 		TargetTypes: Underwater, Submarine
+# 		RequiresCondition: underwater
+# 	Targetable@REPAIR:
+# 		RequiresCondition: !underwater && damaged
+# 		TargetTypes: Repair, RepairShip
+# 	GrantConditionOnTerrain@CROSSINGFORD:
+# 		Condition: shallowcrossing
+# 		TerrainTypes: Shallow
+# 	GrantConditionOnDeploy:
+# 		DeployedCondition: deployed
+# 	ExternalCondition@MINEHIT:
+# 		Condition: minehit
+# 	Explodes:
+# 		Weapon: UnitExplodeSubmarine
+# 		EmptyWeapon: UnitExplodeSubmarine
+# 	Sellable:
+# 		SellSounds: cashturn.aud
+# 		Cursor: sell2
+# 		ShowTicks: false
+# 		RequiresCondition: ship.sellable && !underwater
+# 	SpeedMultiplier@ONSURFACE:
+# 		Modifier: 120
+# 		RequiresCondition: deployed && !heavy-damage
+# 	GpsDot:
+# 		String: Submarine
 
-^Sonar:
-	DetectCloaked:
-		DetectionTypes: Underwater
-		Range: 12c0
-	RenderDetectionCircle:
+# ^Sonar:
+# 	DetectCloaked:
+# 		DetectionTypes: Underwater
+# 		Range: 12c0
+# 	RenderDetectionCircle:
 
-^EffectsWhenDamagedNaval:
-	SpeedMultiplier@HEAVYDAMAGE:
-		Modifier: 75
-		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
-		Modifier: 50
-		RequiresCondition: critical-damage
+# ^EffectsWhenDamagedNaval:
+# 	SpeedMultiplier@HeavyDamage:
+# 		Modifier: 75
+# 		RequiresCondition: heavy-damage
+# 	SpeedMultiplier@CriticalDamage:
+# 		Modifier: 50
+# 		RequiresCondition: critical-damage
 
 
-LST:
-	Inherits: ^Ship
-	Inherits@CargoPips: ^CargoPips
-	-Chronoshiftable:
-	Buildable:
-		Queue: Ship
-		BuildPaletteOrder: 1
-		Prerequisites: ~techlevel.low
-		Description: General-purpose naval transport.\nCan carry up to 16 Infantry and Vehicles.\n  Unarmed
-	Valued:
-		Cost: 10
-	Tooltip:
-		Name: Transport
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 12000
-	Armor:
-		Type: Heavy
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Heavy
-	SelectionDecorations:
-	Selectable:
-		DecorationBounds: 1536,1536
-	Mobile:
-		Locomotor: lcraft
-		Speed: 90
-		PauseOnCondition: notmobile
-	WithLandingCraftAnimation:
-		OpenTerrainTypes: Clear, Rough, Road, Ore, Gems, Beach
-	Cargo:
-		Types: Infantry, Vehicle
-		MaxWeight: 40
-		PassengerFacing: 0
-		LoadedCondition: loaded
-		LoadingCondition: notmobile
-	WithCargoPipsDecoration:
-		PipCount: 20
-	RepairableNear:
-		RepairActors: syrd
-	Sellable:
-		RequiresCondition: ship.sellable && !loaded
-	RenderSprites:
-		Scale: 1.3
+# LST:
+# 	Inherits: ^Ship
+# 	Inherits@CargoPips: ^CargoPips
+# 	-Chronoshiftable:
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildPaletteOrder: 1
+# 		Prerequisites: ~techlevel.low
+# 		Description: General-purpose naval transport.\nCan carry up to 16 Infantry and Vehicles.\n  Unarmed
+# 	Valued:
+# 		Cost: 10
+# 	Tooltip:
+# 		Name: Transport
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 12000
+# 	Armor:
+# 		Type: Heavy
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Heavy
+# 	SelectionDecorations:
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	Mobile:
+# 		Locomotor: lcraft
+# 		Speed: 90
+# 		PauseOnCondition: notmobile
+# 	WithLandingCraftAnimation:
+# 		OpenTerrainTypes: Clear, Rough, Road, Ore, Gems, Beach
+# 	Cargo:
+# 		Types: Infantry, Vehicle
+# 		MaxWeight: 40
+# 		PassengerFacing: 0
+# 		LoadedCondition: loaded
+# 		LoadingCondition: notmobile
+# 	WithCargoPipsDecoration:
+# 		PipCount: 20
+# 	RepairableNear:
+# 		RepairActors: syrd
+# 	Sellable:
+# 		RequiresCondition: ship.sellable && !loaded
+# 	RenderSprites:
+# 		Scale: 1.3
 
-ASCR:
-	Inherits: ^Ship
-	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildPaletteOrder: 2
-		Prerequisites: ~techlevel.low
-		Description: Assault Craft.
-	Valued:
-		Cost: 12
-	Tooltip:
-		Name: Assault Craft
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 3500
-	Armor:
-		Type: Light
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Light
-	Mobile:
-		Speed: 72
-		TurnSpeed: 28
-	Armament@1:
-		Name: primary
-		Turret: primary
-		Weapon: 7.62mmMG
-		LocalOffset: 200,0,0
-		MuzzleSequence: muzzle
-		PauseOnCondition: empdisable
-	Turreted:
-		Turret: primary
-		TurnSpeed: 28
-		Offset: 600,0,50
-	AttackTurreted:
-	WithMuzzleOverlay:
-	# WithSpriteTurret:
-	Selectable:
-		DecorationBounds: 1536,1536
-	RenderSprites:
-		Image: ascr
-		PlayerPalette: playertd
-		Scale: 0.6
+# ASCR:
+# 	Inherits: ^Ship
+# 	Inherits@EXPERIENCE: ^GainsExperience
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildPaletteOrder: 2
+# 		Prerequisites: ~techlevel.low
+# 		Description: Assault Craft.
+# 	Valued:
+# 		Cost: 12
+# 	Tooltip:
+# 		Name: Assault Craft
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 3500
+# 	Armor:
+# 		Type: Light
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Light
+# 	Mobile:
+# 		Speed: 72
+# 		TurnSpeed: 28
+# 	Armament@1:
+# 		Name: primary
+# 		Turret: primary
+# 		Weapon: 7.62mm.MG
+# 		LocalOffset: 200,0,0
+# 		MuzzleSequence: muzzle
+# 		PauseOnCondition: empdisable
+# 	Turreted:
+# 		Turret: primary
+# 		TurnSpeed: 28
+# 		Offset: 600,0,50
+# 	AttackTurreted:
+# 	WithMuzzleOverlay:
+# 	# WithSpriteTurret:
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	RenderSprites:
+# 		Image: ascr
+# 		PlayerPalette: playertd
+# 		Scale: 0.6
 
-PTRB:
-	Inherits: ^Ship
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 3
-		Prerequisites: ~syrd, ~techlevel.low
-		Description: Attack Boat
-	Valued:
-		Cost: 30
-	Tooltip:
-		Name: Attack Boat
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 5000
-	Armor:
-		Type: Medium
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Medium
-	Selectable:
-		DecorationBounds: 1536,1536
-	Mobile:
-		TurnSpeed: 16
-		Speed: 82
-	Armament@1:
-		Turret: primary
-		Name: primary
-		Weapon: 25mmBradleyGun
-		Recoil: 10
-		RecoilRecovery: 5
-		LocalOffset: 200,0,0
-		MuzzleSequence: muzzle
-		PauseOnCondition: empdisable
-	Turreted@1:
-		Turret: primary
-		TurnSpeed: 28
-		Offset: 600,0,50
-	Armament@2:
-		Turret: secondary
-		Weapon: 12.7mmMG
-		LocalOffset: 120,0,0
-		MuzzleSequence: muzzle-mg
-		PauseOnCondition: empdisable
-	Turreted@2:
-		Turret: secondary
-		TurnSpeed: 28
-		Offset: -650,0,50
-	AttackTurreted:
-		Armaments: primary, secondary
-		Turrets: primary, secondary
-		PauseOnCondition: empdisable
-	# WithSpriteTurret@PRIMARY:
-	# 	Turret: primary
-	# 	Sequence: turret
-	# WithSpriteTurret@SECONDARY:
-	# 	Turret: secondary
-	# 	Sequence: turret-mg
-	WithMuzzleOverlay:
-	HitShape:
-		TargetableOffsets: 341,0,0, -341,0,0
-		Type: Capsule
-			Radius: 288
-			PointA: 0, -341
-			PointB: 0, 341
-	RenderSprites:
-		Image: ptrb
-		Scale: 0.7
+# PTRB:
+# 	Inherits: ^Ship
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 3
+# 		Prerequisites: ~syrd, ~techlevel.low
+# 		Description: Attack Boat
+# 	Valued:
+# 		Cost: 30
+# 	Tooltip:
+# 		Name: Attack Boat
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 5000
+# 	Armor:
+# 		Type: Medium
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Medium
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	Mobile:
+# 		TurnSpeed: 16
+# 		Speed: 82
+# 	Armament@1:
+# 		Turret: primary
+# 		Name: primary
+# 		Weapon: 25mm.Bradley
+# 		Recoil: 10
+# 		RecoilRecovery: 5
+# 		LocalOffset: 200,0,0
+# 		MuzzleSequence: muzzle
+# 		PauseOnCondition: empdisable
+# 	Turreted@1:
+# 		Turret: primary
+# 		TurnSpeed: 28
+# 		Offset: 600,0,50
+# 	Armament@2:
+# 		Turret: secondary
+# 		Weapon: 12.7mm.MG
+# 		LocalOffset: 120,0,0
+# 		MuzzleSequence: muzzle-mg
+# 		PauseOnCondition: empdisable
+# 	Turreted@2:
+# 		Turret: secondary
+# 		TurnSpeed: 28
+# 		Offset: -650,0,50
+# 	AttackTurreted:
+# 		Armaments: primary, secondary
+# 		Turrets: primary, secondary
+# 		PauseOnCondition: empdisable
+# 	# WithSpriteTurret@PRIMARY:
+# 	# 	Turret: primary
+# 	# 	Sequence: turret
+# 	# WithSpriteTurret@SECONDARY:
+# 	# 	Turret: secondary
+# 	# 	Sequence: turret-mg
+# 	WithMuzzleOverlay:
+# 	HitShape:
+# 		TargetableOffsets: 341,0,0, -341,0,0
+# 		Type: Capsule
+# 			Radius: 288
+# 			PointA: 0, -341
+# 			PointB: 0, 341
+# 	RenderSprites:
+# 		Image: ptrb
+# 		Scale: 0.7
 
-FAC:
-	Inherits: ^Ship
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 4
-		Prerequisites: ~syrd, ~techlevel.low
-		Description: Fast Attack Craft
-	Valued:
-		Cost: 30
-	Tooltip:
-		Name: Fast Attack Craft
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 7000
-	Armor:
-		Type: Medium
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Medium
-	Selectable:
-		DecorationBounds: 1536,1536
-	Mobile:
-		TurnSpeed: 16
-		Speed: 82
-	Armament@1:
-		Turret: primary
-		Name: primary
-		Weapon: 25mmBradleyGun
-		Recoil: 10
-		RecoilRecovery: 5
-		LocalOffset: 120,0,0
-		MuzzleSequence: muzzle
-		PauseOnCondition: empdisable
-	Turreted@1:
-		Turret: primary
-		TurnSpeed: 28
-		Offset: 850,0,50
-	Armament@2:
-		Turret: secondary
-		Weapon: Stinger
-		LocalOffset: 128,0,43
-		MuzzleSequence: muzzle-mg
-		PauseOnCondition: empdisable
-	Turreted@2:
-		Turret: secondary
-		TurnSpeed: 28
-		Offset: -1000,0,50
-	AttackTurreted:
-		Armaments: primary, secondary
-		Turrets: primary, secondary
-		PauseOnCondition: empdisable
-	# WithSpriteTurret@1:
-	# 	Turret: primary
-	# 	Sequence: turret
-	# WithSpriteTurret@2:
-	# 	Turret: secondary
-	# 	Sequence: turret-mg
-	WithMuzzleOverlay:
-	HitShape:
-		TargetableOffsets: 341,0,0, -341,0,0
-		Type: Capsule
-			Radius: 288
-			PointA: 0, -341
-			PointB: 0, 341
-	RenderSprites:
-		Image: fac
-		Scale: 1.1
+# FAC:
+# 	Inherits: ^Ship
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 4
+# 		Prerequisites: ~syrd, ~techlevel.low
+# 		Description: Fast Attack Craft
+# 	Valued:
+# 		Cost: 30
+# 	Tooltip:
+# 		Name: Fast Attack Craft
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 7000
+# 	Armor:
+# 		Type: Medium
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Medium
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	Mobile:
+# 		TurnSpeed: 16
+# 		Speed: 82
+# 	Armament@1:
+# 		Turret: primary
+# 		Name: primary
+# 		Weapon: 25mm.Bradley
+# 		Recoil: 10
+# 		RecoilRecovery: 5
+# 		LocalOffset: 120,0,0
+# 		MuzzleSequence: muzzle
+# 		PauseOnCondition: empdisable
+# 	Turreted@1:
+# 		Turret: primary
+# 		TurnSpeed: 28
+# 		Offset: 850,0,50
+# 	Armament@2:
+# 		Turret: secondary
+# 		Weapon: Stinger
+# 		LocalOffset: 128,0,43
+# 		MuzzleSequence: muzzle-mg
+# 		PauseOnCondition: empdisable
+# 	Turreted@2:
+# 		Turret: secondary
+# 		TurnSpeed: 28
+# 		Offset: -1000,0,50
+# 	AttackTurreted:
+# 		Armaments: primary, secondary
+# 		Turrets: primary, secondary
+# 		PauseOnCondition: empdisable
+# 	# WithSpriteTurret@1:
+# 	# 	Turret: primary
+# 	# 	Sequence: turret
+# 	# WithSpriteTurret@2:
+# 	# 	Turret: secondary
+# 	# 	Sequence: turret-mg
+# 	WithMuzzleOverlay:
+# 	HitShape:
+# 		TargetableOffsets: 341,0,0, -341,0,0
+# 		Type: Capsule
+# 			Radius: 288
+# 			PointA: 0, -341
+# 			PointB: 0, 341
+# 	RenderSprites:
+# 		Image: fac
+# 		Scale: 1.1
 
-FAC2:
-	Inherits: ^Ship
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 4
-		Prerequisites: ~syrd, ~techlevel.low
-		Description: Fast Attack Craft
-	Valued:
-		Cost: 30
-	Tooltip:
-		Name: Fast Attack Craft
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 7000
-	Armor:
-		Type: Medium
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Medium
-	Selectable:
-		DecorationBounds: 1536,1536
-	Mobile:
-		TurnSpeed: 16
-		Speed: 82
-	Armament@1:
-		Turret: primary
-		Name: primary
-		Weapon: 25mmBradleyGun
-		Recoil: 10
-		RecoilRecovery: 5
-		LocalOffset: 120,0,0
-		MuzzleSequence: muzzle
-		PauseOnCondition: empdisable
-	Turreted@1:
-		Turret: primary
-		TurnSpeed: 28
-		Offset: 850,0,50
-	Armament@2:
-		Turret: secondary
-		Weapon: Stinger
-		LocalOffset: 128,0,43
-		MuzzleSequence: muzzle-mg
-		PauseOnCondition: empdisable
-	Turreted@2:
-		Turret: secondary
-		TurnSpeed: 28
-		Offset: -1000,0,50
-	AttackTurreted:
-		Armaments: primary, secondary
-		Turrets: primary, secondary
-		PauseOnCondition: empdisable
-	# WithSpriteTurret@1:
-	# 	Turret: primary
-	# 	Sequence: turret
-	# WithSpriteTurret@2:
-	# # 	Turret: secondary
-	# # 	Sequence: turret-mg
-	WithMuzzleOverlay:
-	HitShape:
-		TargetableOffsets: 341,0,0, -341,0,0
-		Type: Capsule
-			Radius: 288
-			PointA: 0, -341
-			PointB: 0, 341
-	RenderSprites:
-		Image: fac2
-		Scale: 1.1
+# FAC2:
+# 	Inherits: ^Ship
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 4
+# 		Prerequisites: ~syrd, ~techlevel.low
+# 		Description: Fast Attack Craft
+# 	Valued:
+# 		Cost: 30
+# 	Tooltip:
+# 		Name: Fast Attack Craft
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 7000
+# 	Armor:
+# 		Type: Medium
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Medium
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	Mobile:
+# 		TurnSpeed: 16
+# 		Speed: 82
+# 	Armament@1:
+# 		Turret: primary
+# 		Name: primary
+# 		Weapon: 25mm.Bradley
+# 		Recoil: 10
+# 		RecoilRecovery: 5
+# 		LocalOffset: 120,0,0
+# 		MuzzleSequence: muzzle
+# 		PauseOnCondition: empdisable
+# 	Turreted@1:
+# 		Turret: primary
+# 		TurnSpeed: 28
+# 		Offset: 850,0,50
+# 	Armament@2:
+# 		Turret: secondary
+# 		Weapon: Stinger
+# 		LocalOffset: 128,0,43
+# 		MuzzleSequence: muzzle-mg
+# 		PauseOnCondition: empdisable
+# 	Turreted@2:
+# 		Turret: secondary
+# 		TurnSpeed: 28
+# 		Offset: -1000,0,50
+# 	AttackTurreted:
+# 		Armaments: primary, secondary
+# 		Turrets: primary, secondary
+# 		PauseOnCondition: empdisable
+# 	# WithSpriteTurret@1:
+# 	# 	Turret: primary
+# 	# 	Sequence: turret
+# 	# WithSpriteTurret@2:
+# 	# # 	Turret: secondary
+# 	# # 	Sequence: turret-mg
+# 	WithMuzzleOverlay:
+# 	HitShape:
+# 		TargetableOffsets: 341,0,0, -341,0,0
+# 		Type: Capsule
+# 			Radius: 288
+# 			PointA: 0, -341
+# 			PointB: 0, 341
+# 	RenderSprites:
+# 		Image: fac2
+# 		Scale: 1.1
 
-CORV:
-	Inherits: ^Ship
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 5
-		Prerequisites: ~syrd, ~techlevel.low
-		Description: Corvette
-	Valued:
-		Cost: 30
-	Tooltip:
-		Name: Corvette
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 7000
-	Armor:
-		Type: Heavy
-	Targetable:
-		TargetTypes: Ground, Water, Ship, Heavy
-	Selectable:
-		DecorationBounds: 1536,1536
-	Mobile:
-		TurnSpeed: 16
-		Speed: 82
-	Armament@1:
-		Turret: primary
-		Name: primary
-		Weapon: 25mmBradleyGun
-		Recoil: 10
-		RecoilRecovery: 5
-		LocalOffset: 820,0,105
-		MuzzleSequence: muzzle
-		PauseOnCondition: empdisable
-	Turreted@1:
-		Turret: primary
-		TurnSpeed: 28
-		Offset: 1000,0,60
-	Armament@2:
-		Turret: secondary
-		Weapon: Stinger
-		LocalOffset: 128,0,43
-		MuzzleSequence: muzzle-mg
-		PauseOnCondition: empdisable
-	Turreted@2:
-		Turret: secondary
-		TurnSpeed: 28
-		Offset: -1000,0,60
-	AttackTurreted:
-		Armaments: primary, secondary
-		Turrets: primary, secondary
-		PauseOnCondition: empdisable
-	# WithSpriteTurret@PRIMARY:
-	# 	Turret: primary
-	# 	Sequence: turret
-	# 	Palette
-	# WithSpriteTurret@SECONDARY:
-	# 	Turret: secondary
-	# 	Sequence: turret-mg
-	WithMuzzleOverlay:
-	HitShape:
-		TargetableOffsets: 341,0,0, -341,0,0
-		Type: Capsule
-			Radius: 288
-			PointA: 0, -341
-			PointB: 0, 341
-	RenderSprites:
-		Image: corv
-		PlayerPalette: playertd
-		Scale: 1.1
+# CORV:
+# 	Inherits: ^Ship
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 5
+# 		Prerequisites: ~syrd, ~techlevel.low
+# 		Description: Corvette
+# 	Valued:
+# 		Cost: 30
+# 	Tooltip:
+# 		Name: Corvette
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 7000
+# 	Armor:
+# 		Type: Heavy
+# 	Targetable:
+# 		TargetTypes: Ground, Water, Ship, Heavy
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	Mobile:
+# 		TurnSpeed: 16
+# 		Speed: 82
+# 	Armament@1:
+# 		Turret: primary
+# 		Name: primary
+# 		Weapon: 25mm.Bradley
+# 		Recoil: 10
+# 		RecoilRecovery: 5
+# 		LocalOffset: 820,0,105
+# 		MuzzleSequence: muzzle
+# 		PauseOnCondition: empdisable
+# 	Turreted@1:
+# 		Turret: primary
+# 		TurnSpeed: 28
+# 		Offset: 1000,0,60
+# 	Armament@2:
+# 		Turret: secondary
+# 		Weapon: Stinger
+# 		LocalOffset: 128,0,43
+# 		MuzzleSequence: muzzle-mg
+# 		PauseOnCondition: empdisable
+# 	Turreted@2:
+# 		Turret: secondary
+# 		TurnSpeed: 28
+# 		Offset: -1000,0,60
+# 	AttackTurreted:
+# 		Armaments: primary, secondary
+# 		Turrets: primary, secondary
+# 		PauseOnCondition: empdisable
+# 	# WithSpriteTurret@PRIMARY:
+# 	# 	Turret: primary
+# 	# 	Sequence: turret
+# 	# 	Palette
+# 	# WithSpriteTurret@SECONDARY:
+# 	# 	Turret: secondary
+# 	# 	Sequence: turret-mg
+# 	WithMuzzleOverlay:
+# 	HitShape:
+# 		TargetableOffsets: 341,0,0, -341,0,0
+# 		Type: Capsule
+# 			Radius: 288
+# 			PointA: 0, -341
+# 			PointB: 0, 341
+# 	RenderSprites:
+# 		Image: corv
+# 		PlayerPalette: playertd
+# 		Scale: 1.1
 
-CORV2:
-	Inherits: ^Ship
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 6
-		Prerequisites: ~techlevel.high
-		Description: Corvette 2
-	Valued:
-		Cost: 80 #00
-	Tooltip:
-		Name: Corvette 2
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 35000
-	Armor:
-		Type: Heavy
-	Mobile:
-		TurnSpeed: 12
-		Speed: 56
-	Armament@1:
-		Turret: primary
-		Weapon: 25mmBradleyGun
-		LocalOffset: -480,0,40
-		Recoil: 85
-		RecoilRecovery: 34
-		PauseOnCondition: empdisable
-		MuzzleSequence: muzzle
-	Turreted@1:
-		Turret: primary
-		TurnSpeed: 12
-		Offset: 469,0,128
-	Armament@2:
-		Turret: primary
-		Weapon: 25mmBradleyGun
-		LocalOffset: -480,0,40
-		Recoil: 85
-		RecoilRecovery: 34
-		PauseOnCondition: empdisable
-		MuzzleSequence: muzzle
-	Turreted@2:
-		Turret: secondary
-		TurnSpeed: 28
-		Offset: -761,0,128
-	AttackTurreted:
-		Armaments: primary, secondary #, tertiary
-		Turrets: primary, secondary
-		TargetFrozenActors: True
-		ForceFireIgnoresActors: True
-		PauseOnCondition: empdisable
-	# WithSpriteTurret@PRIMARY:
-	# 	Turret: primary
-	# 	Sequence: turret
-	# WithSpriteTurret@SECONDARY:
-	# 	Turret: secondary
-	# 	Sequence: turret
-	WithMuzzleOverlay:
-	Selectable:
-		DecorationBounds: 1536,1536
-	HitShape:
-		TargetableOffsets: 448,0,0, -448,0,0
-		Type: Capsule
-			Radius: 320
-			PointA: 0, -448
-			PointB: 0, 448
-	# ReloadArmamentsBar:
-	# 	Armaments: primary
-	# 	Color: FFFF00
-	RenderRangeCircle:
-		FallbackRange: 30c0
+# CORV2:
+# 	Inherits: ^Ship
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 6
+# 		Prerequisites: ~techlevel.high
+# 		Description: Corvette 2
+# 	Valued:
+# 		Cost: 80 #00
+# 	Tooltip:
+# 		Name: Corvette 2
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 35000
+# 	Armor:
+# 		Type: Heavy
+# 	Mobile:
+# 		TurnSpeed: 12
+# 		Speed: 56
+# 	Armament@1:
+# 		Turret: primary
+# 		Weapon: 25mm.Bradley
+# 		LocalOffset: -480,0,40
+# 		Recoil: 85
+# 		RecoilRecovery: 34
+# 		PauseOnCondition: empdisable
+# 		MuzzleSequence: muzzle
+# 	Turreted@1:
+# 		Turret: primary
+# 		TurnSpeed: 12
+# 		Offset: 469,0,128
+# 	Armament@2:
+# 		Turret: primary
+# 		Weapon: 25mm.Bradley
+# 		LocalOffset: -480,0,40
+# 		Recoil: 85
+# 		RecoilRecovery: 34
+# 		PauseOnCondition: empdisable
+# 		MuzzleSequence: muzzle
+# 	Turreted@2:
+# 		Turret: secondary
+# 		TurnSpeed: 28
+# 		Offset: -761,0,128
+# 	AttackTurreted:
+# 		Armaments: primary, secondary #, tertiary
+# 		Turrets: primary, secondary
+# 		TargetFrozenActors: True
+# 		ForceFireIgnoresActors: True
+# 		PauseOnCondition: empdisable
+# 	# WithSpriteTurret@PRIMARY:
+# 	# 	Turret: primary
+# 	# 	Sequence: turret
+# 	# WithSpriteTurret@SECONDARY:
+# 	# 	Turret: secondary
+# 	# 	Sequence: turret
+# 	WithMuzzleOverlay:
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	HitShape:
+# 		TargetableOffsets: 448,0,0, -448,0,0
+# 		Type: Capsule
+# 			Radius: 320
+# 			PointA: 0, -448
+# 			PointB: 0, 448
+# 	# ReloadBar:
+# 	# 	Armaments: primary
+# 	# 	Color: FFFF00
+# 	RenderRangeCircle:
+# 		FallbackRange: 30c0
 
-NSUB:
-	Inherits@Type: ^Submarine
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 5
-		Prerequisites: ~techlevel.high
-		Description: Nuclear Submarine
-	Valued:
-		Cost: 100
-	Tooltip:
-		Name: Nuclear Submarine
-	Health:
-		HP: 3800
-	Armor:
-		Type: Light
-	Mobile:
-		TurnSpeed: 12
-		Speed: 46
-	# Not set to an instance of an object error
-	Armament@AS:
-		Name: primary
-		Weapon: TorpNuke
-		LocalOffset: 612,-171,0, 612,171,0
-		FireDelay: 2
-		PauseOnCondition: !ammo
-	Armament@AG:
-		Name: secondary
-		Weapon: SubNuke
-		LocalOffset: 0,0,0
-		FireDelay: 2
-		PauseOnCondition: !ammo
-	AmmoPool:
-		Armaments: primary, secondary
-		Ammo: 1
-		AmmoCondition: ammo
-	WithAmmoPipsDecoration:
-		Position: BottomLeft
-		Margin: 8, 3
-		FullSequence: pip-red
-		PipCount: 1
-		RequiresSelection: true
-	ReloadAmmoPool:
-		Delay: 1500
-		Count: 1
-		PauseOnCondition: ammo
-	ReloadArmamentsBar@1:
-		Armaments: primary
-		Color: FFFF00
-	ReloadArmamentsBar@2:
-		Armaments: secondary
-		Color: FFFF00
-	RenderRangeCircle:
-		FallbackRange: 16c768
-	AttackFrontal:
-		FacingTolerance: 0
-	Selectable:
-		DecorationBounds: 1536,1536
-	HitShape:
-		TargetableOffsets: 576,0,0, -576,0,0
-		Type: Capsule
-			Radius: 341
-			PointA: 0, -576
-			PointB: 0, 576
-	AutoTarget:
-		InitialStance: ReturnFire
-		InitialStanceAI: ReturnFire
-	RevealsShroud:
-		MinRange: 5c0
-		Range: 10c0
-		RevealGeneratedShroud: False
-	GpsDot:
-		String: Nuke
+# NSUB:
+# 	Inherits@Type: ^Submarine
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 5
+# 		Prerequisites: ~techlevel.high
+# 		Description: Nuclear Submarine
+# 	Valued:
+# 		Cost: 100
+# 	Tooltip:
+# 		Name: Nuclear Submarine
+# 	Health:
+# 		HP: 3800
+# 	Armor:
+# 		Type: Light
+# 	Mobile:
+# 		TurnSpeed: 12
+# 		Speed: 46
+# 	# Not set to an instance of an object error
+# 	Armament@AS:
+# 		Name: primary
+# 		Weapon: Dummy # Removed TorpNuke
+# 		LocalOffset: 612,-171,0, 612,171,0
+# 		FireDelay: 2
+# 		PauseOnCondition: !ammo
+# 	Armament@AG:
+# 		Name: secondary
+# 		Weapon: Dummy # Removed SubNuke
+# 		LocalOffset: 0,0,0
+# 		FireDelay: 2
+# 		PauseOnCondition: !ammo
+# 	AmmoPool:
+# 		Armaments: primary, secondary
+# 		Ammo: 1
+# 		AmmoCondition: ammo
+# 	WithAmmoPipsDecoration:
+# 		Position: BottomLeft
+# 		Margin: 8, 3
+# 		FullSequence: pip-red
+# 		PipCount: 1
+# 		RequiresSelection: true
+# 	ReloadAmmoPool:
+# 		Delay: 1500
+# 		Count: 1
+# 		PauseOnCondition: ammo
+# 	ReloadBar@1:
+# 		Armaments: primary
+# 		Color: FFFF00
+# 	ReloadBar@2:
+# 		Armaments: secondary
+# 		Color: FFFF00
+# 	RenderRangeCircle:
+# 		FallbackRange: 16c768
+# 	AttackFrontal:
+# 		FacingTolerance: 0
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	HitShape:
+# 		TargetableOffsets: 576,0,0, -576,0,0
+# 		Type: Capsule
+# 			Radius: 341
+# 			PointA: 0, -576
+# 			PointB: 0, 576
+# 	AutoTarget:
+# 		InitialStance: ReturnFire
+# 		InitialStanceAI: ReturnFire
+# 	RevealsShroud:
+# 		MinRange: 5c0
+# 		Range: 10c0
+# 	GpsDot:
+# 		String: Nuke
 
-SS:
-	Inherits@Type: ^Submarine
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	-Cloak:
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 2
-		Prerequisites: ~spen, ~techlevel.low
-		Description: Submerged anti-ship unit armed with Torpedoes\nand Grenadelauncher against Coastal targets.\nCan detect other submarines.\n  Strong vs Infantry, Naval units\n  Weak vs Ground units, Aircraft\n  Special Ability: Submerge\nCan dive underwater to become invisible\nmove unseen and avoid damage of most weapons.\nCan be manually ordered to surface for Repairs.\nMovespeed increase by 20% when on surface\nunless the Submarine is heavily damaged.
-	Valued:
-		Cost: 30
-	Tooltip:
-		Name: Submarine
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Selectable:
-		DecorationBounds: 1536,1536
-	Health:
-		HP: 2500
-	Armor:
-		Type: Light
-	Mobile:
-		TurnSpeed: 16
-		Speed: 56
-	Armament:
-		Weapon: TorpTube
-		LocalOffset: 0,-171,0, 0,171,0
-		FireDelay: 2
-		PauseOnCondition: empdisable
-	Armament@2:
-		Name: secondary
-		Turret: secondary
-		Weapon: GrenadeLauncher
-		LocalOffset: 132,0,96
-		MuzzleSequence: muzzle
-		PauseOnCondition: empdisable
-	AttackFrontal:
-		Armaments: primary, secondary
-		FacingTolerance: 0
-		PauseOnCondition: empdisable
-	WithMuzzleOverlay:
-	AutoTarget:
-		InitialStance: Defend
-		InitialStanceAI: ReturnFire
-	AutoTargetPriority@Default:
-		ValidTargets: Water, Underwater
-	AutoTargetPriority@AttackAnything:
-		ValidTargets: Water, Underwater
-	RenderSprites:
-		Image: ss
-	HitShape:
-		TargetableOffsets: 448,0,0, -448,0,0
-		Type: Capsule
-			Radius: 256
-			PointA: 0, -448
-			PointB: 0, 448
-	Cloak:
-		DetectionTypes: Underwater
-		InitialDelay: 0
-		CloakDelay: 75
-		CloakSound: subshow1.aud
-		UncloakSound: subshow1.aud
-		CloakedCondition: underwater
-		Palette: submerged
-		IsPlayerPalette: false
-		UncloakOn: Attack, Heal, Unload, Dock, SelfHeal, Demolish
-		PauseOnCondition: cloak-force-disabled || shallowcrossing || empdisable || minehit || is-shooting
-		RequiresCondition: !deployed
-	GrantConditionOnAttack@UNCLOAK:
-		Condition: is-shooting
-		ArmamentNames: secondary
-		RevokeDelay: 75
-	Turreted@SECONDARY:
-		Turret: secondary
-		TurnSpeed: 4
-		Offset: 648,0,-50
-	WithSpriteTurret:
-		Turret: secondary
-		RequiresCondition: !underwater
+# SS:
+# 	Inherits@Type: ^Submarine
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	-Cloak:
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 2
+# 		Prerequisites: ~spen, ~techlevel.low
+# 		Description: Submerged anti-ship unit armed with Torpedoes\nand Grenadelauncher against Coastal targets.\nCan detect other submarines.\n  Strong vs Infantry, Naval units\n  Weak vs Ground units, Aircraft\n  Special Ability: Submerge\nCan dive underwater to become invisible\nmove unseen and avoid damage of most weapons.\nCan be manually ordered to surface for Repairs.\nMovespeed increase by 20% when on surface\nunless the Submarine is heavily damaged.
+# 	Valued:
+# 		Cost: 30
+# 	Tooltip:
+# 		Name: Submarine
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	Health:
+# 		HP: 2500
+# 	Armor:
+# 		Type: Light
+# 	Mobile:
+# 		TurnSpeed: 16
+# 		Speed: 56
+# 	Armament:
+# 		Weapon: TorpTube
+# 		LocalOffset: 0,-171,0, 0,171,0
+# 		FireDelay: 2
+# 		PauseOnCondition: empdisable
+# 	Armament@2:
+# 		Name: secondary
+# 		Turret: secondary
+# 		Weapon: GrenadeLauncher
+# 		LocalOffset: 132,0,96
+# 		MuzzleSequence: muzzle
+# 		PauseOnCondition: empdisable
+# 	AttackFrontal:
+# 		Armaments: primary, secondary
+# 		FacingTolerance: 0
+# 		PauseOnCondition: empdisable
+# 	WithMuzzleOverlay:
+# 	AutoTarget:
+# 		InitialStance: Defend
+# 		InitialStanceAI: ReturnFire
+# 	AutoTargetPriority@Default:
+# 		ValidTargets: Water, Underwater
+# 	AutoTargetPriority@AttackAnything:
+# 		ValidTargets: Water, Underwater
+# 	RenderSprites:
+# 		Image: ss
+# 	HitShape:
+# 		TargetableOffsets: 448,0,0, -448,0,0
+# 		Type: Capsule
+# 			Radius: 256
+# 			PointA: 0, -448
+# 			PointB: 0, 448
+# 	Cloak:
+# 		DetectionTypes: Underwater
+# 		InitialDelay: 0
+# 		CloakDelay: 75
+# 		CloakSound: subshow1.aud
+# 		UncloakSound: subshow1.aud
+# 		CloakedCondition: underwater
+# 		Palette: submerged
+# 		IsPlayerPalette: false
+# 		UncloakOn: Attack, Heal, Unload, Dock, SelfHeal, Demolish
+# 		PauseOnCondition: cloak-force-disabled || shallowcrossing || empdisable || minehit || is-shooting
+# 		RequiresCondition: !deployed
+# 	GrantConditionOnAttack@UNCLOAK:
+# 		Condition: is-shooting
+# 		ArmamentNames: secondary
+# 		RevokeDelay: 75
+# 	Turreted@SECONDARY:
+# 		Turret: secondary
+# 		TurnSpeed: 4
+# 		Offset: 648,0,-50
+# 	WithSpriteTurret:
+# 		Turret: secondary
+# 		RequiresCondition: !underwater
 
-MSUB:
-	Inherits@Type: ^Submarine
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	Buildable:
-		Queue: Ship
-		BuildAtProductionType: Boat
-		BuildPaletteOrder: 4
-		Prerequisites: ~techlevel.high
-		Description: Submerged anti-ground siege unit.\nCan detect other submarines.\n  Strong vs Buildings, Ground units, Aircraft\n  Weak vs Naval units\n  Special Ability: Submerge\nCan dive underwater to become invisible\nmove unseen and avoid damage of most weapons.\nCan be manually ordered to surface for Repairs.\nMovespeed increase by 20% when on surface\nunless the Submarine is heavily damaged.
-	Valued:
-		Cost: 60
-	Tooltip:
-		Name: Missile Submarine
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 3500
-	Armor:
-		Type: Light
-	Mobile:
-		TurnSpeed: 12
-		Speed: 46
-	Armament@1:
-		Weapon: SubMissile.2shot
-		LocalOffset: 100,-171,46
-		FireDelay: 2
-		PauseOnCondition: empdisable
-	Armament@2:
-		Name: secondary
-		Weapon: SubMissile.2shot
-		LocalOffset: 100,171,46
-		FireDelay: 2
-		PauseOnCondition: empdisable
-	AttackFrontal:
-		TargetFrozenActors: True
-		FacingTolerance: 0
-		ForceFireIgnoresActors: True
-		PauseOnCondition: empdisable
-	Selectable:
-		DecorationBounds: 1536,1536
-	AutoTarget:
-		InitialStance: HoldFire
-		InitialStanceAI: ReturnFire
-	WithMoveAnimation:
-		MoveSequence: move
-		RequiresCondition: !underwater
-	RenderSprites:
-		Image: ADVMSUB
-	ReloadArmamentsBar:
-		Armaments: primary
-		Color: FFFF00
-	RenderRangeCircle:
-	RevealsShroud:
-		MinRange: 5c0
-		Range: 8c0
-		RevealGeneratedShroud: False
-	HitShape:
-		TargetableOffsets: 576,0,0, -576,0,0
-		Type: Capsule
-			Radius: 341
-			PointA: 0, -576
-			PointB: 0, 576
+# MSUB:
+# 	Inherits@Type: ^Submarine
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	Buildable:
+# 		Queue: Ship
+# 		BuildAtProductionType: Boat
+# 		BuildPaletteOrder: 4
+# 		Prerequisites: ~techlevel.high
+# 		Description: Submerged anti-ground siege unit.\nCan detect other submarines.\n  Strong vs Buildings, Ground units, Aircraft\n  Weak vs Naval units\n  Special Ability: Submerge\nCan dive underwater to become invisible\nmove unseen and avoid damage of most weapons.\nCan be manually ordered to surface for Repairs.\nMovespeed increase by 20% when on surface\nunless the Submarine is heavily damaged.
+# 	Valued:
+# 		Cost: 60
+# 	Tooltip:
+# 		Name: Missile Submarine
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 3500
+# 	Armor:
+# 		Type: Light
+# 	Mobile:
+# 		TurnSpeed: 12
+# 		Speed: 46
+# 	Armament@1:
+# 		Weapon: SubMissile.2shot
+# 		LocalOffset: 100,-171,46
+# 		FireDelay: 2
+# 		PauseOnCondition: empdisable
+# 	Armament@2:
+# 		Name: secondary
+# 		Weapon: SubMissile.2shot
+# 		LocalOffset: 100,171,46
+# 		FireDelay: 2
+# 		PauseOnCondition: empdisable
+# 	AttackFrontal:
+# 		TargetFrozenActors: True
+# 		FacingTolerance: 0
+# 		ForceFireIgnoresActors: True
+# 		PauseOnCondition: empdisable
+# 	Selectable:
+# 		DecorationBounds: 1536,1536
+# 	AutoTarget:
+# 		InitialStance: HoldFire
+# 		InitialStanceAI: ReturnFire
+# 	WithMoveAnimation:
+# 		MoveSequence: move
+# 		RequiresCondition: !underwater
+# 	RenderSprites:
+# 		Image: ADVMSUB
+# 	ReloadBar:
+# 		Armaments: primary
+# 		Color: FFFF00
+# 	RenderRangeCircle:
+# 	RevealsShroud:
+# 		MinRange: 5c0
+# 		Range: 8c0
+# 	HitShape:
+# 		TargetableOffsets: 576,0,0, -576,0,0
+# 		Type: Capsule
+# 			Radius: 341
+# 			PointA: 0, -576
+# 			PointB: 0, 576
 
-SSAM:
-	Inherits: MSUB
-	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
-	-Armament@1:
-	-Armament@2:
-	-AttackFrontal:
-	-WithMoveAnimation:
-	Buildable:
-		BuildPaletteOrder: 3
-		Prerequisites: ~techlevel.medium
-		Description: Submerged unit with anti-air capabilities.\nCan detect other submarines.\n  Strong vs Aircraft\n  Cannot attack ground units\n  Special Ability: Submerge\nCan dive underwater to become invisible\nmove unseen and avoid damage of most weapons.\nCan be manually ordered to surface for Repairs.\nMovespeed increase by 20% when on surface\nunless the Submarine is heavily damaged.
-	Tooltip:
-		Name: SAM Submarine
-	Valued:
-		Cost: 950
-	Health:
-		HP: 3200
-	Mobile:
-		TurnSpeed: 16
-		Speed: 68
-	Armament@1:
-		Weapon: SubMissileAA.cluster
-		LocalOffset: 0,0,101
-		FireDelay: 2
-		PauseOnCondition: empdisable
-	AttackTurreted:
-		Armaments: primary
-		PauseOnCondition: empdisable
-	Turreted:
-		TurnSpeed: 40
-		Offset: 461,0,-100
-	WithSpriteTurret:
-		RequiresCondition: !underwater
-	RenderSprites:
-		Image: MSUB
-	ReloadArmamentsBar:
-		Color: FFFF00
-	HitShape:
-		TargetableOffsets: 448,0,0, -448,0,0
-		Type: Capsule
-			Radius: 256
-			PointA: 0, -448
-			PointB: 0, 448
+# SSAM:
+# 	Inherits: MSUB
+# 	Inherits@AutoTarget: ^AutoTargetNavalAssaultMove
+# 	-Armament@1:
+# 	-Armament@2:
+# 	-AttackFrontal:
+# 	-WithMoveAnimation:
+# 	Buildable:
+# 		BuildPaletteOrder: 3
+# 		Prerequisites: ~techlevel.medium
+# 		Description: Submerged unit with anti-air capabilities.\nCan detect other submarines.\n  Strong vs Aircraft\n  Cannot attack ground units\n  Special Ability: Submerge\nCan dive underwater to become invisible\nmove unseen and avoid damage of most weapons.\nCan be manually ordered to surface for Repairs.\nMovespeed increase by 20% when on surface\nunless the Submarine is heavily damaged.
+# 	Tooltip:
+# 		Name: SAM Submarine
+# 	Valued:
+# 		Cost: 950
+# 	Health:
+# 		HP: 3200
+# 	Mobile:
+# 		TurnSpeed: 16
+# 		Speed: 68
+# 	Armament@1:
+# 		Weapon: SubMissileAA.cluster
+# 		LocalOffset: 0,0,101
+# 		FireDelay: 2
+# 		PauseOnCondition: empdisable
+# 	AttackTurreted:
+# 		Armaments: primary
+# 		PauseOnCondition: empdisable
+# 	Turreted:
+# 		TurnSpeed: 40
+# 		Offset: 461,0,-100
+# 	WithSpriteTurret:
+# 		RequiresCondition: !underwater
+# 	RenderSprites:
+# 		Image: MSUB
+# 	ReloadBar:
+# 		Color: FFFF00
+# 	HitShape:
+# 		TargetableOffsets: 448,0,0, -448,0,0
+# 		Type: Capsule
+# 			Radius: 256
+# 			PointA: 0, -448
+# 			PointB: 0, 448
+
+# WEAPONS
+
+# Naval stuff WIP
+
+# ^AntiGroundMissile:
+# 	BurstWait: 50
+# 	Range: 12c0
+# 	MinRange: 4c512
+# 	Report: missile6.aud
+# 	Projectile: Missile
+# 		Speed: 213
+# 		Arm: 2
+# 		Blockable: false
+# 		ContrailLength: 5
+# 		Inaccuracy: 128
+# 		Image: DRAGON
+# 		HorizontalRateOfTurn: 10
+# 		RangeLimit: 12c0
+# 	Warhead@Spread: SpreadDamage
+# 		Spread: 128
+# 		Damage: 200
+# 		ValidTargets: Ground, Water, Air
+# 		DamageTypes: Prone30Percent, ExplosionDeath
+# 	Warhead@Smudge: LeaveSmudge
+# 		SmudgeType: Crater
+# 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+# 	Warhead@Effect: CreateEffect
+# 		Explosions: explosion_medium
+# 		ImpactSounds: kaboom25.aud
+# 		ValidTargets: Ground, Air, Ship, Trees
+# 	Warhead@EffectWater: CreateEffect
+# 		Explosions: splash_medium
+# 		ImpactSounds: splash9.aud
+# 		ValidTargets: Water, Underwater
+# 		InvalidTargets: Ship, Structure, Bridge
+
+# CruiseMissile:
+# 	Inherits: ^AntiGroundMissile
+# 	BurstWait: 180
+# 	Range: 32c0
+# 	# Burst: 2
+# 	# BurstDelays: 15
+# 	InvalidTargets: Underwater
+# 	Projectile: Missile
+# 		Arm: 3
+# 		Inaccuracy: 0
+# 		HorizontalRateOfTurn: 80
+# 		RangeLimit: 32c0
+# 		Speed: 420
+# 		CloseEnough: 149
+# 	Warhead@Spread: SpreadDamage
+# 		Damage: 120
+
+# ^SubMissileDefault:
+# 	Inherits: ^AntiGroundMissile
+# 	Range: 35c0
+# 	Burst: 2
+# 	BurstWait: 300
+# 	Projectile: Missile
+# 		Speed: 234
+# 		Inaccuracy: 0c614
+# 		HorizontalRateOfTurn: 60
+# 		RangeLimit: 35c0
+# 		Image: missile
+# 		TrailImage: smokey
+# 		ContrailLength: 14
+# 	Warhead@Spread: SpreadDamage
+# 		Spread: 426
+# 		Damage: 25
+# 		Falloff: 1000, 368, 135, 50, 18, 7, 0
+# 		DamageTypes: Prone30Percent, SmallExplosionDeath
+
+# SubMissileAA:
+# 	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
+# 	Inherits: ^SubMissileDefault
+# 	BurstWait: 150
+# 	ValidTargets: Air
+# 	TargetActorCenter: false
+# 	Warhead@Spread: SpreadDamage
+# 		Damage: 20
+
+# SubMissileAA.cluster:
+# 	Inherits: SubMissileAA
+# 	Warhead@Burst: FireCluster
+# 		Weapon: FlakFX
+# 		RandomClusterCount: 4
+# 		Dimensions: 3,3
+# 		Footprint: xxx x_x xxx
+# 		ValidTargets: Air
+
+# SubMissile.2shot:
+# 	Inherits: SubMissile
+# 	BurstDelays: 77
+
+# TorpTube:
+# 	ValidTargets: Water, Underwater, Bridge
+# 	Range: 10c0
+# 	Burst: 2
+# 	BurstDelays: 20
+# 	BurstWait: 100
+# 	Report: torpedo1.aud
+# 	Projectile: Missile
+# 		Image: torpedo
+# 		Arm: 3
+# 		Speed: 85
+# 		TrailImage: bubbles
+# 		HorizontalRateOfTurn: 4
+# 		RangeLimit: 10c819
+# 		BoundToTerrainType: Water
+# 		Palette: shadow
+# 		MaximumLaunchAngle: 0
+# 		CruiseAltitude: 0
+# 	Warhead@Spread: SpreadDamage
+# 		Spread: 426
+# 		Damage: 120
+# 		ValidTargets: Water, Underwater, Bridge
+# 		DamageTypes: Prone30Percent, ExplosionDeath
+# 	Warhead@Effect: CreateEffect
+# 		Explosions: artillery_explosion
+# 		ImpactSounds: kaboom15.aud
+# 		ValidTargets: Ship, Structure, Underwater, Ground, Bridge
+# 	Warhead@EffectWater: CreateEffect
+# 		Explosions: splash_large
+# 		ImpactSounds: splash9.aud
+# 		ValidTargets: Water
+# 		InvalidTargets: Ship, Structure, Underwater, Bridge
+
+# SubMissile:
+# 	Inherits: ^SubMissileDefault
+# 	Range: 16c768
+# 	TargetActorCenter: true
+# 	-Projectile:
+# 	Projectile: Bullet
+# 		Speed: 162
+# 		Blockable: false
+# 		LaunchAngle: 120
+# 		Inaccuracy: 0c614
+# 		Image: missile
+# 		ContrailLength: 14
+# SubMissile.barrage:
+# 	Inherits: SubMissile
+# 	Report: rocket1TD.aud
+# 	BurstWait: 600
+# 	Projectile: Bullet
+# 		Inaccuracy: 3c614
+# 		LaunchAngle: 180
+# 		Image: dragon
+# 	Burst: 12
+# 	BurstDelays: 12
+# 	Warhead@Spread: SpreadDamage
+# 		Spread: 683
+# 		Damage: 25
+# 		ValidTargets: Ground
+# SubMissile.barrage.display:
+# 	BurstWait: 740
+# 	Range: 20c0
+# 	Projectile: Bullet
+# 		LaunchAngle: 180
+# 	Warhead@Spread: SpreadDamage
+# 		Damage: 0
+

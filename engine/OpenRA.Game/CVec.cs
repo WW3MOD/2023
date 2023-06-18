@@ -35,6 +35,8 @@ namespace OpenRA
 		public static bool operator ==(CVec me, CVec other) { return me.X == other.X && me.Y == other.Y; }
 		public static bool operator !=(CVec me, CVec other) { return !(me == other); }
 
+		public static explicit operator WVec(CVec a) => new WVec(a.X * 1024, a.Y * 1024, 0);
+
 		public static CVec Max(CVec a, CVec b) { return new CVec(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y)); }
 		public static CVec Min(CVec a, CVec b) { return new CVec(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y)); }
 

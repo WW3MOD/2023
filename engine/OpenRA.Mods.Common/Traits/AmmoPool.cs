@@ -25,6 +25,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Name(s) of armament(s) that use this pool.")]
 		public readonly string[] Armaments = { "primary", "secondary" };
 
+		[Desc("Time in ticks to fully reload ammopool from empty.")]
+		public readonly int FullReloadTicks = 0;
+
+		[Desc("How many reloads should take place before unit is fully reloaded (based on reloading from empty).")]
+		public readonly int FullReloadSteps = 0;
+
 		[Desc("How much ammo does this pool contain when fully loaded.")]
 		public readonly int Ammo = 1;
 
@@ -34,12 +40,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How much ammo is reloaded after a certain period.")]
 		public readonly int ReloadCount = 1;
 
-		[Desc("Sound to play for each reloaded ammo magazine.")]
-		public readonly string RearmSound = null;
-
-		// HACK: Temporarily kept until Rearm activity is gone for good
 		[Desc("Time to reload per ReloadCount on airfield etc.")]
 		public readonly int ReloadDelay = 50;
+
+		[Desc("Sound to play for each reloaded ammo magazine.")]
+		public readonly string RearmSound = null;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self for each ammo point in this pool.")]
@@ -52,8 +57,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly AmmoPoolInfo Info;
 		readonly Stack<int> tokens = new Stack<int>();
+		IReloadAmmoModifier[] modifiers;
 
-		// HACK: Temporarily needed until Rearm activity is gone for good
 		[Sync]
 		public int RemainingTicks;
 
@@ -93,9 +98,12 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			UpdateCondition(self);
+			modifiers = self.TraitsImplementing<IReloadAmmoModifier>().ToArray();
 
-			// HACK: Temporarily needed until Rearm activity is gone for good
-			RemainingTicks = Info.ReloadDelay;
+			self.World.AddFrameEndTask(w =>
+			{
+				RemainingTicks = Util.ApplyPercentageModifiers(Info.ReloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+			});
 		}
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
@@ -111,7 +119,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
-			if (!HasAmmo && !self.Info.HasTraitInfo<AircraftInfo>())
+			var ammoPools = self.TraitsImplementing<AmmoPool>();
+			if (ammoPools.Any() && ammoPools.All(a => !a.HasAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
 				AutoRearm(self);
 		}
 
@@ -120,8 +129,15 @@ namespace OpenRA.Mods.Common.Traits
 			var nearestResupplier = ChooseResupplier(self);
 
 			if (nearestResupplier != null)
+				self.QueueActivity(false, new Resupply(self, nearestResupplier, nearestResupplier.Trait<RearmsUnits>().Info.CloseEnough));
+			else
 			{
-				self.QueueActivity(false, new Resupply(self, nearestResupplier, new WDist(0)));
+				var bases = self.World.ActorsHavingTrait<BaseBuilding>()
+					.Where(a => a.Owner == self.Owner)
+					.ToList();
+
+				if (bases.Count > 0)
+					self.QueueActivity(false, new Resupply(self, bases.First(), new WDist(0)));
 			}
 		}
 
@@ -132,7 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (rearmInfo == null)
 				return null;
 
-			var rearmActors = self.World.ActorsHavingTrait<RepairsUnits>()
+			var rearmActors = self.World.ActorsHavingTrait<RearmsUnits>()
 				.Where(rearmActor => !rearmActor.IsDead
 					&& rearmActor.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(rearmActor.Info.Name));
@@ -152,6 +168,31 @@ namespace OpenRA.Mods.Common.Traits
 
 			while (CurrentAmmoCount < tokens.Count && tokens.Count > 0)
 				self.RevokeCondition(tokens.Pop());
+		}
+
+		public void Reload(Actor self, int reloadDelay = 0, int reloadCount = 0)
+		{
+			if (reloadDelay == 0) reloadDelay = Info.ReloadDelay;
+			if (reloadCount == 0) reloadCount = Info.ReloadCount;
+
+			if (!HasFullAmmo && --RemainingTicks == 0)
+			{
+				if (Info.FullReloadSteps > 0)
+				{
+					double a = Info.Ammo / Info.FullReloadSteps;
+					reloadCount = (int)System.Math.Ceiling(a);
+				}
+
+				if (Info.FullReloadTicks > 0)
+					RemainingTicks = Util.ApplyPercentageModifiers(Info.FullReloadTicks * reloadCount / Info.Ammo, modifiers.Select(m => m.GetReloadAmmoModifier()));
+				else
+					RemainingTicks = Util.ApplyPercentageModifiers(reloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+
+				GiveAmmo(self, reloadCount);
+
+				if (!string.IsNullOrEmpty(Info.RearmSound))
+					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, Info.RearmSound, self.CenterPosition);
+			}
 		}
 	}
 }

@@ -104,6 +104,9 @@ namespace OpenRA.Mods.Common.Traits
 		bool firstTick = true;
 		int cloakedToken = Actor.InvalidConditionToken;
 
+		int checkTick = 0;
+		bool cachedIsVisible = true;
+
 		public Cloak(CloakInfo info)
 			: base(info)
 		{
@@ -251,14 +254,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void TraitDisabled(Actor self) { Uncloak(); }
 
+		// CPU Expensive!
 		public bool IsVisible(Actor self, Player viewer)
 		{
-			if (!Cloaked || self.Owner.IsAlliedWith(viewer))
-				return true;
+			// CPU improvement
+			if (checkTick-- <= 0)
+				return cachedIsVisible;
 
-			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+			checkTick = 10;
+
+			if (!Cloaked || self.Owner.IsAlliedWith(viewer))
+			{
+				cachedIsVisible = true;
+			}
+
+			cachedIsVisible = self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+
+			return cachedIsVisible;
 		}
 
 		Color IRadarColorModifier.RadarColorOverride(Actor self, Color color)

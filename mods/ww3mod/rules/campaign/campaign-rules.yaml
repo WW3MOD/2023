@@ -8,7 +8,7 @@ Player:
 		ExploredMapCheckboxLocked: True
 		ExploredMapCheckboxEnabled: False
 	PlayerResources:
-		DefaultCashDropdownLocked: True
+		CashDropdownLocked: True
 		DefaultCash: 0
 	ModularBot@CampaignAI:
 		Name: Campaign Player AI

@@ -13,12 +13,12 @@ Player:
 	Inherits: ^BasePlayer
 	TechTree:
 	ProvidesRadar:
+	ProximityCaptor:
+		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 0
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
-		ReadyTextNotification: Construction complete.
+		ReadyTextNotification: MCV reporting.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
@@ -26,24 +26,20 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Defense:
 		Type: Defense
 		DisplayOrder: 1
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
 		BlockedAudio: NoBuild
+		ReadyTextNotification: MCV delivered.
 		LimitedAudio: BuildingInProgress
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Vehicle:
 		Type: Vehicle
 		DisplayOrder: 2
-		LowPowerModifier: 300
 		ReadyAudio: UnitReady
 		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
@@ -53,14 +49,10 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicParallelProductionQueue@Infantry:
 		Type: Infantry
 		DisplayOrder: 3
-		LowPowerModifier: 300
-		# ReadyAudio: UnitReady
-		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
 		LimitedAudio: BuildingInProgress
@@ -68,14 +60,12 @@ Player:
 		QueuedAudio: Training
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		Sticky: False
 		BuildingCountBuildTimeMultipliers: 100, 75, 50, 25, 20, 15, 10
 		ParallelPenaltyBuildTimeMultipliers: 100
 	ClassicProductionQueue@Ship:
 		Type: Ship
 		DisplayOrder: 4
-		LowPowerModifier: 300
 		ReadyAudio: UnitReady
 		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
@@ -85,12 +75,10 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
 		DisplayOrder: 5
-		LowPowerModifier: 300
 		ReadyAudio: UnitReady
 		ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
@@ -100,21 +88,18 @@ Player:
 		QueuedAudio: Building
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
-		SpeedUp: True
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
-	ClassicProductionQueue@Fakestructure:
-		Type: Fakestructure
-		Factions: america, russia
-		DisplayOrder: 6
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
-		BlockedAudio: NoBuild
-		LimitedAudio: BuildingInProgress
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
-		BuildTimeSpeedReduction: , 8, 7, 6, 5
+	# ClassicProductionQueue@Fakestructure:
+	# 	Type: Fakestructure
+	# 	Factions: america, russia
+	# 	DisplayOrder: 6
+	# 	ReadyAudio: ConstructionComplete
+	# 	BlockedAudio: NoBuild
+	# 	LimitedAudio: BuildingInProgress
+	# 	QueuedAudio: Building
+	# 	OnHoldAudio: OnHold
+	# 	CancelledAudio: Cancelled
+	# 	BuildTimeSpeedReduction: , 8, 7, 6, 5
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio
@@ -127,20 +112,15 @@ Player:
 		LoseNotification: Lose
 		LeaveNotification: Leave
 	ConquestVictoryConditions:
-	PowerManager:
-		AdviceInterval: 30000
-		SpeechNotification: LowPower
-		TextNotification: Low power.
+	PowerManager: # TODO Remove
 	AllyRepair:
 	PlayerResources:
-		SelectableCash: 5000, 7500, 10000, 15000, 20000, 25000, 50000
-		DefaultCash: 15000
-		SelectablePassiveIncome: 0, 50, 100, 150, 200, 300, 400, 500, 750, 1000
-		PassiveIncomeInterval: 100
-		PassiveIncomeInitialDelay: 100
-		PassiveIncomeUseResourceStorage: false
-		InsufficientFundsNotification: InsufficientFunds
-		InsufficientFundsTextNotification: Insufficient funds.
+		SelectableCash: 0, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000
+		DefaultCash: 1000
+		SelectablePassiveIncome: 0, 10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000
+		PassiveIncome: 100
+		PassiveIncomeInterval: 50
+		PassiveIncomeInitialDelay: 50
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:
@@ -157,12 +137,12 @@ Player:
 		DisplayOrder: 13
 		Prerequisites: global-bounty
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
-		ID: factundeploy
+		ID: mcv-undeploys
 		Label: Redeployable MCVs
 		Description: Allow undeploying Construction Yard
 		Enabled: False
 		DisplayOrder: 7
-		Prerequisites: global-factundeploy
+		Prerequisites: global-mcv-undeploys
 	FrozenActorLayer:
 	BaseAttackNotifier:
 		TextNotification: Base under attack.
@@ -200,7 +180,7 @@ Player:
 		Image: iconchevrons
 		Sequence: veteran
 	ResourceStorageWarning:
-		AdviceInterval: 750
+		AdviceInterval: 25000
 		TextNotification: Silos needed.
 	PlayerExperience:
 	ProvidesPrerequisite@NATO:
@@ -244,13 +224,13 @@ Player:
 		Prerequisites: global-disablenavy
 	GameSaveViewportManager:
 	PlayerRadarTerrain:
-	LobbyPrerequisiteCheckbox@GlobalPenalty:
-		ID: penalty
-		Label: War Crime Penalty
-		Description: Killing civillians costs player $1000
-		Enabled: False
-		DisplayOrder: 99
-		Prerequisites: global-penalty
+	# LobbyPrerequisiteCheckbox@GlobalPenalty:
+	# 	ID: penalty
+	# 	Label: War Crime Penalty
+	# 	Description: Killing civillians costs player $1000
+	# 	Enabled: False
+	# 	DisplayOrder: 99
+	# 	Prerequisites: global-penalty
 	LobbyPrerequisiteCheckbox@NuclearAllowed:
 		ID: nuclearallowed
 		Label: Nuclear

@@ -59,6 +59,7 @@ namespace OpenRA.GameRules
 		{
 			Weapon = args.Weapon;
 			DamageModifiers = args.DamageModifiers;
+			ImpactPosition = args.ImpactPosition;
 			Source = args.Source;
 			SourceActor = args.SourceActor;
 			WeaponTarget = args.WeaponTarget;
@@ -126,10 +127,16 @@ namespace OpenRA.GameRules
 		public readonly WDist AirThreshold = new WDist(128);
 
 		[Desc("The minimum range the weapon can fire.")]
-		public readonly WDist MinRange = WDist.Zero;
+		public readonly WDist MinRange = new WDist(1);
 
 		[Desc("Does this weapon aim at the target's center regardless of other targetable offsets?")]
 		public readonly bool TargetActorCenter = false;
+
+		[Desc("Weapon does damage from above.")]
+		public readonly bool TopAttack = false;
+
+		[Desc("Weapon does damage from below.")]
+		public readonly bool BottomAttack = false;
 
 		[FieldLoader.LoadUsing(nameof(LoadProjectile))]
 		public readonly IProjectileInfo Projectile;

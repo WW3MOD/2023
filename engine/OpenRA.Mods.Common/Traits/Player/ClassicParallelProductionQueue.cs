@@ -199,7 +199,6 @@ namespace OpenRA.Mods.Common.Traits
 				return 0;
 
 			var time = base.GetBuildTime(unit, bi);
-			time /= 4;
 
 			if (info.SpeedUp)
 			{
@@ -209,7 +208,7 @@ namespace OpenRA.Mods.Common.Traits
 					.Count(p => !p.Trait.IsTraitDisabled && !p.Trait.IsTraitPaused && p.Actor.Owner == self.Owner && p.Trait.Info.Produces.Contains(type));
 
 				var speedModifier = selfsameProductionsCount.Clamp(1, info.BuildingCountBuildTimeMultipliers.Length) - 1;
-				time = (time * info.BuildingCountBuildTimeMultipliers[speedModifier]) / 100;
+				time = time * info.BuildingCountBuildTimeMultipliers[speedModifier] / 100;
 			}
 
 			return time;

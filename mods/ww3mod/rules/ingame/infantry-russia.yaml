@@ -11,7 +11,6 @@ E1R1.russia:
 	Tooltip:
 		Name: Veteran
 	ProducibleWithLevel:
-		Prerequisites: ~disabled
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E1.russia
@@ -19,13 +18,12 @@ E1R1.russia:
 E3.russia:
 	Inherits@BaseUnit: ^E3
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: e3.russia
 E3R1.russia:
 	Inherits: E3.russia
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E3.russia
@@ -34,20 +32,19 @@ E3R1.russia:
 AR.russia:
 	Inherits@BaseUnit: ^AR
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: ar.russia
 # Grenadier
 E2.russia:
 	Inherits@BaseUnit: ^E2
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: e2.russia
 E2R1.russia:
 	Inherits: E2.russia
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
 		OverrideActor: E2.russia
@@ -56,91 +53,91 @@ E2R1.russia:
 MT.russia:
 	Inherits@BaseUnit: ^MT
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: mt.russia
 # Team Leader
 TL.russia:
 	Inherits@BaseUnit: ^TL
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: tl.russia
 # Anti-tank specialist
 AT.russia:
 	Inherits@BaseUnit: ^AT
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: at.russia
 # Anti Air
 AA.russia:
 	Inherits@BaseUnit: ^AA
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: aa.russia
 # Medic
 MEDI.russia:
 	Inherits@BaseUnit: ^MEDI
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: medi.russia
 # Sniper
 SN.russia:
 	Inherits@BaseUnit: ^SN
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: sn.russia
 # Engineer
 E6.russia:
 	Inherits@BaseUnit: ^E6
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: e6.russia
 # Special Forces
 SF.russia:
 	Inherits@BaseUnit: ^SF
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: sf.russia
 # Infiltrating Spy
 SPY.russia:
 	Inherits@BaseUnit: ^SPY
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: spy.russia
 # Attack Dog
 DOG.russia:
 	Inherits@BaseUnit: ^DOG
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: dog
 # Technician
 TECN.russia:
 	Inherits@BaseUnit: ^TECN
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: tecn.russia
 # Drone Operator
-DRONEOP.russia:
-	Inherits: ^DRONEOP
+DR.russia:
+	Inherits: ^DR
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
-		Image: droneop.russia
+		Image: dr.russia
 # Flamethrower -
 E4.russia:
 	Inherits@BaseUnit: ^E4
 	Buildable:
-		Prerequisites: ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: e4.russia
 
@@ -155,7 +152,7 @@ SHOK:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 99
-		Prerequisites: techcenter, ~infantry.russia, ~techlevel.futuristic
+		Prerequisites: ~infantry.russia, ~techlevel.futuristic
 		Description: Infantry with portable Tesla coils.
 	Tooltip:
 		Name: Tesla Trooper
@@ -184,12 +181,6 @@ SHOK:
 		RequiresCondition: !parachute
 	Voiced:
 		VoiceSet: ShokVoice
-	ProducibleWithLevel:
-		Prerequisites: barracks.upgraded
-	DeliversCash:
-		Payload: 118
-		Type: InfantryRefund
-		Voice: Move
 	RenderRangeCircle:
 		Width: 1
 		Color: FFFFFF # White, Tesla weaponry
@@ -199,7 +190,6 @@ SHOK:
 SHOKR1:
 	Inherits: SHOK
 	ProducibleWithLevel:
-		Prerequisites: techlevel.infonly
 		InitialLevels: 1
 	UpdatesPlayerStatistics:
 		OverrideActor: shok

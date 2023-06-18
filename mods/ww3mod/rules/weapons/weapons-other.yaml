@@ -1,5 +1,6 @@
+
 Flamespray:
-	Inherits@SmallPinDownEffects: ^SmallPinDownEffects
+	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
 	ValidTargets: Ground, Water, Trees
 	Range: 8c0
 	Burst: 6
@@ -14,7 +15,7 @@ Flamespray:
 		LaunchAngle: 40
 		Image: fb5
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 10
 		Spread: 128
 		Falloff: 100,50,20,20
@@ -70,7 +71,7 @@ Flamespray:
 		ValidRelationships: Ally, Enemy, Neutral
 
 Flamespray.heavy:
-	Inherits@MediumPinDownEffects: ^MediumPinDownEffects
+	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
 	ValidTargets: Ground, Water, Trees
 	Range: 12c0
 	Burst: 10
@@ -86,7 +87,7 @@ Flamespray.heavy:
 		LaunchAngle: 40
 		Image: fb6
 		TrailImage: smokey
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 10
 		Spread: 256
 		Falloff: 100,50,25,12,6
@@ -150,11 +151,11 @@ Flamespray.heavy:
 		InvalidTargets: Structure, Wall
 
 FireballLauncher:
-	Inherits@LargePinDownEffects: ^LargePinDownEffects
+	Inherits@LargeSuppressionEffects: ^LargeSuppressionEffects
 	ValidTargets: Ground, Water, Trees
 	MinRange: 12c0
 	Range: 16c0
-	ReloadDelay: 40
+	BurstWait: 40
 	Report: flamer2.aud
 	Projectile: Bullet
 		Speed: 350
@@ -162,10 +163,9 @@ FireballLauncher:
 		LaunchAngle: 40
 		Image: FB1
 		TrailImage: fb2
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 50
 		Spread: 256
-		Falloff: 100,50,25,12,6,3,1
 		ValidTargets: Ground, Water, Trees
 	Warhead@Fire_0: GrantExternalCondition
 		Range: 1536
@@ -228,21 +228,22 @@ FireballLauncher:
 		ValidRelationships: Ally, Enemy, Neutral
 
 ^TeslaWeapon:
-	ReloadDelay: 150
+	BurstWait: 150
 	Range: 25c0
 	Report: tesla1.aud
 	Projectile: TeslaZap
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 3000
-		DamageTypes: TriggerProne, ElectricityDeath
+		DamageTypes: ElectricityDeath
+	# IgnoreArmor: # Unimplemented
 
 TeslaBurst:
 	Range: 5c0
 	Projectile: TeslaZap
 		# -HitAnim:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 500
-		DamageTypes: TriggerProne, ElectricityDeath
+		DamageTypes: ElectricityDeath
 	Warhead@EmpDisable: GrantExternalCondition
 		Range: 0c256
 		Duration: 50
@@ -274,16 +275,16 @@ TeslaZap:
 
 TTankZap:
 	ValidTargets: Infantry, Vehicle, Defense
-	ReloadDelay: 5
+	BurstWait: 5
 	Range: 24c0
 	Report: tesla1.aud
 	Projectile: TeslaZap
 		BrightZaps: 0
 		DimZaps: 1
 		Duration: 1
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 400
-		DamageTypes: TriggerProne, ElectricityDeath
+		DamageTypes: ElectricityDeath
 	Warhead@EmpDisable: GrantExternalCondition
 		Range: 0c256
 		Duration: 15
@@ -294,13 +295,13 @@ TTankZap:
 TTankZapMaxFirepower:
 	ValidTargets: Medium, Heavy, Structure, Defense, Water
 	InvalidTargets: Infantry, Unarmored
-	ReloadDelay: 40
+	BurstWait: 40
 	Range: 22c0
 	Report: tesla1.aud
 	Projectile: TeslaZap
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 3000
-		DamageTypes: TriggerProne, ElectricityDeath
+		DamageTypes: ElectricityDeath
 	Warhead@EmpDisable: GrantExternalCondition
 		Range: 0c256
 		Duration: 200
@@ -310,11 +311,11 @@ TTankZapMaxFirepower:
 
 PortaTesla:
 	Inherits: ^TeslaWeapon
-	ReloadDelay: 100
+	BurstWait: 100
 	Range: 20c0
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 150
-		DamageTypes: TriggerProne, ElectricityDeath
+		DamageTypes: ElectricityDeath
 	Warhead@EmpDisable: GrantExternalCondition
 		Range: 0c256
 		Duration: 50
@@ -324,19 +325,19 @@ PortaTesla:
 
 DogJaw:
 	ValidTargets: Infantry
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 2c0
 	Report: dogg5p.aud
 	TargetActorCenter: true
 	Projectile: InstantHit
-	Warhead@Damage: TargetDamage
+	Warhead@Target: TargetDamage
 		Damage: 1000
 		ValidTargets: Infantry
 		InvalidTargets: Ant
 		DamageTypes: DefaultDeath
 
 Heal:
-	ReloadDelay: 20
+	BurstWait: 20
 	Range: 1c0
 	ValidTargets: Heal
 	Projectile: Bullet
@@ -351,18 +352,29 @@ Heal:
 Repair:
 	ValidTargets: BuildingRepair, VehicleRepair
 	Range: 1c0
-	ReloadDelay: 50
+	BurstWait: 50
 	Report: fixit1.aud
 	Projectile: Bullet
 		Speed: 200
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		ValidTargets: BuildingRepair, VehicleRepair
 		ValidRelationships: Ally
 		DamagePercent: -1
 		DebugOverlayColor: 00FF00
 
+ReplenishSoldiersTargeter:
+	ValidTargets: SoldierReplenish
+	Range: 4c0
+	BurstWait: 100
+	Projectile: Bullet
+		Speed: 200
+	Warhead@Spread: SpreadDamage
+		ValidTargets: SoldierReplenish
+		ValidRelationships: Ally
+		DamagePercent: 0
+
 Demolish:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		DamageTypes: DefaultDeath
 	Warhead@Effect: CreateEffect
 		Explosions: building
@@ -370,19 +382,19 @@ Demolish:
 
 ClearMines:
 	ValidTargets: Mine
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 1c0 # can't be less because mines are not traversable so engineer just stops in front of it otherwise
 	Projectile: InstantHit
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 1
 		ValidTargets: Mine
 		DamageTypes: Disarm
 
 PrismLaserMaxFirepower:
-	Inherits@SmallPinDownEffects: ^SmallPinDownEffects
+	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
 	ValidTargets: Vehicle, Structure, Defense, Water, Air, ICBM
 	InvalidTargets: Infantry
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 25c0
 	Report: prisfire.aud
 	Projectile: LaserZap
@@ -395,15 +407,11 @@ PrismLaserMaxFirepower:
 		SecondaryBeamZOffset: 2047
 		SecondaryBeamColor: FFFFFF
 		HitAnim: laserfire
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		ValidTargets: Vehicle, Structure, Defense, Water, Air, ICBM
 		Spread: 64
 		Damage: 5000
-		Versus:
-			Light: 80
-			Medium: 60
-			Heavy: 40
-		DamageTypes: TriggerProne, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
@@ -412,9 +420,9 @@ PrismLaserMaxFirepower:
 		ValidTargets: Ground, Water, Ship, Trees
 
 PrismLaser:
-	Inherits@MinimalPinDownEffects: ^MinimalPinDownEffects
+	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects
 	ValidTargets: Infantry
-	ReloadDelay: 1
+	BurstWait: 1
 	Range: 22c0
 	Report: laser-beam.wav
 	Projectile: LaserZap
@@ -428,10 +436,10 @@ PrismLaser:
 		SecondaryBeamZOffset: 2047
 		SecondaryBeamColor: FFFFFF
 		HitAnim: laserfire_low
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 160
 		Damage: 25
-		DamageTypes: Prone50Percent, TriggerProne, FireDeath
+		DamageTypes: Prone50Percent, FireDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
@@ -447,7 +455,7 @@ PrismLaser:
 # PrisLaserMaxFirepower
 PrisLaser:
 	ValidTargets: Ground, Water
-	ReloadDelay: 60
+	BurstWait: 60
 	Range: 28c0
 	Report: prisfire.aud
 	Projectile: LaserZap
@@ -459,11 +467,11 @@ PrisLaser:
 		SecondaryBeamWidth: 65
 		SecondaryBeamZOffset: 511
 		SecondaryBeamColor: 75D1FF
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100, 50, 20, 5, 1
 		Damage: 3000
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch-NoFlame
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
@@ -473,7 +481,7 @@ PrisLaser:
 
 PrisLaserSupport:
 	ValidTargets: Ground, Water
-	ReloadDelay: 3
+	BurstWait: 3
 	Range: 20c0
 	Report: bpriat1a.aud
 	Projectile: LaserZap
@@ -493,17 +501,11 @@ PrisBurst:
 	Range: 3c0
 	Projectile: LaserZap
 		-HitAnim:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Falloff: 100, 50, 20, 5, 1
 		Damage: 65
-		Versus:
-			None: 85
-			Wood: 40
-			Concrete: 25
-			Light: 100
-			Heavy: 55
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	# -Warhead@Burst:
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_small
@@ -512,20 +514,13 @@ PrisBurst:
 PrisTLaser:
 	Inherits: PrisLaser
 	Report: ptnkfire.aud
-	ReloadDelay: 50
+	BurstWait: 50
 	Range: 20c0
 	Projectile: LaserZap
-		Blockable: true
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 150
 		Spread: 341
-		Versus:
-			None: 150
-			Wood: 100
-			Concrete: 100
-			Light: 100
-			Heavy: 45
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeathMinor
+		DamageTypes: Prone30Percent, ExplosionDeathMinor
 
 PrisTBurst:
 	Inherits: PrisTLaser
@@ -533,13 +528,10 @@ PrisTBurst:
 	Range: 3c0
 	Projectile: LaserZap
 		-HitAnim:
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 40
 		Spread: 160
-		Versus:
-			Wood: 35
-			Concrete: 100
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
+		DamageTypes: Prone30Percent, ExplosionDeath
 	# -Warhead@Burst:
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_small
@@ -548,7 +540,7 @@ PrisTBurst:
 PrisCLaser:
 	Inherits: PrisTLaser
 	Report: pcanfire.aud
-	ReloadDelay: 140
+	BurstWait: 140
 	Range: 12c0
 	Projectile: LaserZap
 		Width: 70
@@ -556,24 +548,17 @@ PrisCLaser:
 		Color: 00FFDDDD
 		SecondaryBeamWidth: 140
 		SecondaryBeamColor: 4be8d499
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 180
 		Spread: 512
-		Versus:
-			None: 60
-			Wood: 100
-			Concrete: 75
-			Light: 85
-			Heavy: 30
-	# -Warhead@Burst:
 
 MarineSapper:
 	ValidTargets: Ship, Underwater
 	InvalidTargets: Infantry
-	ReloadDelay: 800
+	BurstWait: 800
 	Range: 1c512
 	Projectile: InstantHit
-	Warhead@Damage: HealthPercentageDamage
+	Warhead@Spread: HealthPercentageDamage
 		Spread: 0c512
 		Damage: 200
 		ValidTargets: Ship, Underwater
@@ -583,7 +568,7 @@ MarineSapper:
 		ImpactActors: false
 
 PlaceC4:
-	ReloadDelay: 10
+	BurstWait: 10
 	Range: 1c849
 	Projectile: InstantHit
 	Report: icolseta.aud
@@ -604,7 +589,7 @@ PlaceC4:
 
 PlaceC4Seal:
 	Inherits: PlaceC4
-	ReloadDelay: 50
+	BurstWait: 50
 	ValidTargets: C4, Ship, Vehicle, Structure
 	InvalidTargets: Vehicle, C4Attached, C4Immune
 	Range: 1c255
@@ -617,14 +602,11 @@ PlaceC4Seal:
 
 C4:
 	Projectile: InstantHit
-	Warhead@Damage: HealthPercentageDamage
+	Warhead@Spread: HealthPercentageDamage
 		ValidTargets: Air, Ground, Water
 		Spread: 64
 		Damage: 100
-		DamageTypes: Prone30Percent, TriggerProne, ExplosionDeath
-		Versus:
-			Light: 150
-			Heavy: 150
+		DamageTypes: Prone30Percent, ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
 		ImpactSounds: icolexpa.aud
@@ -639,10 +621,10 @@ C4:
 		Footprint: xxx xxx xxx
 
 ai.targeting.helper:
-	ReloadDelay: 1
+	BurstWait: 1
 	Range: 7c0
 	Projectile: InstantHit
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Damage: 0
 
 ai.targeting.helper.noattack:
@@ -652,29 +634,26 @@ ai.targeting.helper.noattack:
 SeaMineTargeting:
 	ValidTargets: Ship, Submarine
 	Range: 1c768
-	ReloadDelay: 1
+	BurstWait: 1
 	TargetActorCenter: true
 	Projectile: InstantHit
-	Warhead@Damage: TargetDamage
+	Warhead@Target: TargetDamage
 		Damage: 0
 		ValidTargets: Ship, Submarine
 
 DepthCharge:
 	# Inherits: ^Artillery
-	ReloadDelay: 60
+	BurstWait: 60
 	Range: 5c0
 	ValidTargets: Underwater
 	Projectile: Bullet
 		Speed: 150
-		Image: BOMB
+		Image: bomb
 		Inaccuracy: 128
-		Blockable: true
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		Spread: 128
 		Damage: 40
 		ValidTargets: Submarine
-		Versus:
-			Light: 100
 		DamageTypes: ExplosionDeath
 	Warhead@EffectWater: CreateEffect
 		Explosions: splash_large
@@ -694,15 +673,15 @@ DepthChargeDual:
 DroneTargeter:
 	ValidTargets: Ground, Water
 	Range: 25c0
-	ReloadDelay: 200
+	BurstWait: 200
 	Projectile: InstantHit
-	Warhead@Damage: TargetDamage
+	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Water
 		Damage: 0
 
 DroneJammer:
 	ValidTargets: Drone
-	ReloadDelay: 1
+	BurstWait: 1
 	Range: 20c0
 	Projectile: LaserZap
 		Inaccuracy: 15
@@ -715,13 +694,13 @@ DroneJammer:
 		SecondaryBeamZOffset: 2047
 		SecondaryBeamColor: FFFFFF05
 		HitAnim: laserfire_low
-	Warhead@Damage: SpreadDamage
+	Warhead@Spread: SpreadDamage
 		ValidTargets: Drone
 		Spread: 1
 		Damage: 1
 
 Claw:
-	ReloadDelay: 30
+	BurstWait: 30
 	Range: 1c512
 	ValidTargets: Ground, Water, GroundActor, WaterActor
 	Projectile: Bullet
@@ -730,13 +709,7 @@ Claw:
 		Spread: 213
 		Damage: 3000
 		ValidTargets: GroundActor, WaterActor
-		Versus:
-			None: 97
-			Wood: 10
-			Light: 30
-			Heavy: 10
-			Concrete: 10
-		DamageTypes: Prone50Percent, TriggerProne, DefaultDeath
+		DamageTypes: Prone50Percent, DefaultDeath
 
 Mandible:
 	Inherits: Claw
@@ -746,9 +719,7 @@ Mandible:
 	StartBurstReport: antbite.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 6000
-		Versus:
-			None: 90
-		DamageTypes: Prone50Percent, TriggerProne, BulletDeath
+		DamageTypes: Prone50Percent, BulletDeath
 
 MandibleHeavy:
 	Inherits: Claw
@@ -758,12 +729,7 @@ MandibleHeavy:
 	StartBurstReport: antbite.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 10000
-		Versus:
-			None: 100
-			Light: 90
-			Heavy: 35
-			Concrete: 20
-		DamageTypes: Prone50Percent, TriggerProne, BulletDeath
+		DamageTypes: Prone50Percent, BulletDeath
 
 AntFireball:
 	Inherits: FireballLauncher
@@ -777,13 +743,7 @@ AntFireball:
 	Warhead@1Dam: SpreadDamage
 		Spread: 213
 		Damage: 4000
-		Versus:
-			None: 80
-			Wood: 85
-			Light: 45
-			Heavy: 20
-			Concrete: 15
 
 # Used for traits that has to implement Armament
 Dummy:
-	ReloadDelay: 1
+	BurstWait: 1

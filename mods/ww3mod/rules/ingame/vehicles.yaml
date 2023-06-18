@@ -4,14 +4,19 @@
 	Inherits@3: ^ClassicFacingSpriteActor
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
-	Inherits@AIBoost: ^ProductionAIBoost
 	Inherits@EMPMechanic: ^AffectedByEMP
 	Inherits@Slowdown: ^EffectsWhenDamagedVehicles
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
-	BlocksProjectiles:
+	RevealsShroud:
+		Range: 20c0
+	Health:
+		HP: 5000
+	Armor:
+		Distribution: 100,50,25,10,10
+	# BlocksProjectiles:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 420
@@ -42,7 +47,7 @@
 		RequiresCondition: !parachute && critical-damage
 		TargetTypes: VehicleRepair
 	Repairable:
-		RepairActors: fix
+		RepairActors: logisticscenter
 		PercentageStep: 3
 	Chronoshiftable:
 	Passenger:
@@ -89,10 +94,11 @@
 	TemporaryOwnerManager:
 	MapEditorData:
 		Categories: Vehicle
-	RevealsShroud:
-		# MinRange: 5c0
-		Range: 24c0
-		RevealGeneratedShroud: False
+	DeliversCash@Rotation:
+		Type: Rotation
+	InfersUpkeep:
+		FixedCost: 3
+		PermilleCost: 10
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle
@@ -103,7 +109,6 @@
 	Passenger:
 		Weight: 15
 		CargoType: Vehicle
-
 ^TrackedVehicle:
 	Inherits@Type: ^Vehicle
 	Mobile:
@@ -113,7 +118,6 @@
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle
-
 ^Walker:
 	Inherits: ^Vehicle
 	Tooltip:
@@ -129,189 +133,12 @@
 	WithInfantryBody:
 
 ^EffectsWhenDamagedVehicles:
-	SpeedMultiplier@HEAVYDAMAGE:
+	SpeedMultiplier@HeavyDamage:
 		Modifier: 50
 		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
+	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
-
-MCV:
-	Inherits@Type: ^WheeledVehicle
-	Inherits@Selection: ^SelectableSupportUnit
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 102
-		Prerequisites: ~disabled
-		Description: Deploys into Command Center
-	Valued:
-		Cost: 1800
-	Tooltip:
-		Name: Mobile Command Center
-	Selectable:
-		DecorationBounds: 1792,1792
-	Health:
-		HP: 1000
-	Armor:
-		Type: Light
-	Targetable:
-		TargetTypes: Ground, Vehicle, Light
-	Mobile:
-		Speed: 71
-		Locomotor: heavywheeled
-	RevealsShroud:
-		Range: 6c0
-	Transforms:
-		IntoActor: fact
-		Offset: -1,-1
-		Facing: 384
-		TransformSounds: placbldg.aud, build5.aud
-		NoTransformNotification: BuildingCannotPlaceAudio
-		PauseOnCondition: empdisable
-	TransferTimedExternalConditionOnTransform:
-		Condition: invulnerability
-	MustBeDestroyed:
-		RequiredForShortGame: true
-	BaseBuilding:
-	SpawnActorOnDeath:
-		Actor: MCV.Husk
-	Passenger:
-		Weight: 30
-		CustomPipType: pip-blue
-	GpsDot:
-		String: MCV
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
-MCV2:
-	Inherits: MCV
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 102
-		Prerequisites: ~!aitoodumb, ~techlevel.medium
-		Description: Deploys into Field Base
-	Tooltip:
-		Name: Mobile Field Base
-	Transforms:
-		IntoActor: fact2
-		Offset: -1,-1
-		Facing: 384
-		TransformSounds: placbldg.aud, build5.aud
-		NoTransformNotification: BuildingCannotPlaceAudio
-		PauseOnCondition: empdisable
-	Passenger:
-		Weight: 20
-	SpawnActorOnDeath:
-		Actor: MCV2.Husk
-	RenderSprites:
-		Image: mcv
-		Scale: 0.8
-MCV.ai:
-	Inherits: MCV
-	Buildable:
-		BuildLimit: 2
-		Prerequisites: ~aitoodumb, ~techlevel.medium
-	RenderSprites:
-		Image: mcv
-	-MapEditorData:
-MCV2.ai:
-	Inherits: MCV2
-	Buildable:
-		BuildLimit: 2
-		Prerequisites: ~aitoodumb, ~techlevel.medium
-	RenderSprites:
-		Image: mcv
-	-MapEditorData:
-
-HARV:
-	Inherits@Type: ^WheeledVehicle
-	Inherits@Selection: ^SelectableEconomicUnit
-	-Tooltip:
-	-GpsDot:
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 101
-		Prerequisites: ~techlevel.infonly
-		Description: Collects Ore and Gems for processing.\n  Unarmed
-	Valued:
-		Cost: 600
-	Tooltip@sidebar:
-		Name: Ore Truck
-		RequiresCondition: !produced
-	Tooltip@ingame:
-		Name: Harvester
-		RequiresCondition: produced
-	ExternalCondition@PRODUCED:
-		Condition: produced
-	Selectable:
-		DecorationBounds: 1792,1792
-	Targetable@ISHARVESTER:
-		TargetTypes: Harvester
-	Harvester:
-		Capacity: 30
-		Resources: Ore,Gems
-		BaleUnloadDelay: 1
-		SearchFromProcRadius: 80
-		SearchFromHarvesterRadius: 40
-		HarvestFacings: 8
-		EmptyCondition: no-ore
-	RevealsShroud:
-		Range: 6c0
-	WithHarvesterPipsDecoration:
-		Position: Bottom
-		Margin: 15, 3
-		RequiresSelection: true
-		PipCount: 9
-		ResourceSequences:
-			Ore: pip-yellow
-			Gems: pip-red
-	Health:
-		HP: 1500
-	Armor:
-		Type: Light
-	Targetable:
-		TargetTypes: Ground, Vehicle, Light
-	Mobile:
-		Speed: 85
-		Locomotor: heavywheeled
-	WithHarvestAnimation:
-	WithDockingAnimation:
-	GpsDot:
-		String: Harvester
-	SpawnActorOnDeath:
-		Actor: HARV.EmptyHusk
-	HarvesterHuskModifier:
-		FullHuskActor: HARV.FullHusk
-		FullnessThreshold: 50
-	WithHarvesterSpriteBody:
-		ImageByFullness: harvempty, harvhalf, harv
-	-WithFacingSpriteBody:
-	Passenger:
-		CustomPipType: pip-blue
-	ProximityExternalCondition@DOCKED:
-		Condition: dockinprocess
-		Range: 1c0
-		ValidRelationships: Ally
-	ExternalCondition@DOCKED:
-		Condition: docked
-	RejectsOrders:
-		RequiresCondition: docked
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-HARV.Crate:
-	Inherits: HARV
-	-Buildable:
-	-Tooltip@sidebar:
-	-Tooltip@ingame:
-	-ExternalCondition@PRODUCED:
-	Tooltip:
-		Name: Harvester
-	RenderSprites:
-		Image: harv
-	-MapEditorData:
 
 TRUK:
 	Inherits@Type: ^WheeledVehicle
@@ -325,28 +152,32 @@ TRUK:
 		Cost: 600
 	Tooltip:
 		Name: Supply Truck
-	Health:
-		HP: 500
 	Armor:
 		Type: Unarmored
 	Targetable:
 		TargetTypes: Ground, Vehicle, DemoDisguise, Unarmored
 		RequiresCondition: !parachute
 	Mobile:
-		Speed: 85
-	DeliversCash:
-		Payload: 500
-		Type: MoneyTransfer
-		PlayerExperience: 50
+		Speed: 75
 	Carryable:
 		LocalOffset: 0,0,100
 	Passenger:
 		CustomPipType: pip-blue
-	ProximityExternalCondition@REPLENISHSOLDIERS:
+	RearmsUnits:
+		CloseEnough: 1c0
+	ProximityExternalCondition@ReplenishSoldiers:
 		Condition: replenish-soldiers
 		Range: 4c0
 		RequiresCondition: !disabled && !mobile
 		ValidRelationships: Ally
+	Armament@ReplenishSoldiersTargeter:
+		Name: replenish
+		Weapon: ReplenishSoldiersTargeter
+		Cursor: guard
+		OutsideRangeCursor: guard
+	AttackTurreted:
+		Armaments: replenish
+	Turreted:
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -354,159 +185,6 @@ TRUK:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: TRUK.husk
-MNLY:
-	Inherits@Type: ^TrackedVehicle
-	Inherits@Selection: ^SelectableSupportUnit
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 104
-		Prerequisites: ~techlevel.medium
-		Description: Carries and lays up to 10 Land Mines\nto destroy unwary enemy units.\nCan detect mines.
-	Valued:
-		Cost: 600
-	Tooltip:
-		Name: Minelayer
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 2500
-	Armor:
-		Type: Light
-	Targetable:
-		TargetTypes: Ground, Vehicle, Light
-	RevealsShroud:
-		Range: 10c0
-	Mobile:
-		Speed: 85
-	Minelayer:
-		Mine: MINV
-		AmmoPoolName: mines-ammo
-		TileUnknownName: build-valid
-		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
-	# MineImmune:
-	AmmoPool:
-		Name: mines-ammo
-		Ammo: 10
-		AmmoCondition: ammo-mines
-		RearmSound: minelay1.aud
-	ReloadAmmoPool:
-		AmmoPool: mines-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 5
-		RequiresCondition: unit.docked
-	WithAmmoPipsDecoration:
-		Position: Bottom
-		Margin: 7, 3
-		PipCount: 5
-		RequiresSelection: true
-		FullSequence: pip-white
-		AmmoPools: mines-ammo
-		RequiresCondition: ammo-mines
-	Rearmable:
-		RearmActors: fix
-		AmmoPools: mines-ammo
-	# DetectCloaked:
-	# 	Range: 4c0
-	# 	DetectionTypes: Mine
-	Passenger:
-		CustomPipType: pip-blue
-	RenderSprites:
-		Image: MNLY
-	Carryable:
-		LocalOffset: 0,0,100
-	WithDecoration@AMMO_MINES_NONE:
-		RequiresSelection: false
-		Image: pips
-		Sequence: pip-ammo-none
-		Position: Top
-		Margin: 0,-5
-		RequiresCondition: !ammo-mines
-		BlinkInterval: 16
-		BlinkPattern: Off, On
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
-	SpawnActorOnDeath:
-		Actor: MNLY.husk
-
-SandBagLayer:
-	Inherits@Type: ^TrackedVehicle
-	Inherits@Selection: ^SelectableSupportUnit
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 104
-		Prerequisites: ~techlevel.medium
-		Description: Can deploy sandbags
-	Valued:
-		Cost: 600
-	Tooltip:
-		Name: Sandbag-layer
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 2500
-	Armor:
-		Type: Light
-	Targetable:
-		TargetTypes: Ground, Vehicle, Light
-	RevealsShroud:
-		Range: 10c0
-	Mobile:
-		Speed: 85
-	Minelayer:
-		Mine: SBAG
-		AmmoPoolName: mines-ammo
-		TileUnknownName: build-valid
-		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
-	# MineImmune:
-	AmmoPool:
-		Name: mines-ammo
-		Ammo: 5
-		AmmoCondition: ammo-mines
-		RearmSound: minelay1.aud
-	ReloadAmmoPool:
-		AmmoPool: mines-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 5
-		RequiresCondition: unit.docked
-	WithAmmoPipsDecoration:
-		Position: Bottom
-		Margin: 7, 3
-		PipCount: 5
-		RequiresSelection: true
-		FullSequence: pip-white
-		AmmoPools: mines-ammo
-		RequiresCondition: ammo-mines
-	Rearmable:
-		RearmActors: fix
-		AmmoPools: mines-ammo
-	# DetectCloaked:
-	# 	Range: 4c0
-	# 	DetectionTypes: Mine
-	Passenger:
-		CustomPipType: pip-blue
-	RenderSprites:
-		Image: MNLY
-	Carryable:
-		LocalOffset: 0,0,100
-	WithDecoration@AMMO_MINES_NONE:
-		RequiresSelection: false
-		Image: pips
-		Sequence: pip-ammo-none
-		Position: Top
-		Margin: 0,-5
-		RequiresCondition: !ammo-mines
-		BlinkInterval: 16
-		BlinkPattern: Off, On
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
-	SpawnActorOnDeath:
-		Actor: MNLY.husk
 
 MSAR:
 	Inherits@Type: ^WheeledVehicle
@@ -527,8 +205,6 @@ MSAR:
 		Cost: 1500
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 2000
 	Armor:
 		Type: Light
 	Targetable:
@@ -598,13 +274,11 @@ timberwolf:
 		Scale: 0.8
 	Buildable:
 		Queue: Vehicle
-		BuildPaletteOrder: 1
+		BuildPaletteOrder: 1000
 		Prerequisites: ~techlevel.futuristic
 		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
 	Valued:
 		Cost: 2000
-	Health:
-		HP: 10000
 	Armor:
 		Type: Heavy
 	Targetable:
@@ -620,11 +294,12 @@ timberwolf:
 	# 	Delay: 3
 	# 	Interval: 16
 	# 	RequiresCondition: moving
+	IndirectFire:
 	Turreted:
 		TurnSpeed: 20
 	Armament@1:
 		Name: primary
-		Weapon: TimerWolfGun
+		Weapon: 30mm.TimerWolf
 		Recoil: 3
 		RecoilRecovery: 1
 		LocalOffset: 600,500,680, 600,-500,680
@@ -635,50 +310,52 @@ timberwolf:
 		Armaments: primary
 		Ammo: 300
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
 		PipCount: 6
 		RequiresSelection: true
-		FullSequence: pip-red
+		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 	Armament@2:
 		Name: secondary
-		Weapon: TimerWolfMissiles
+		Weapon: TimerWolf_Missiles
+		LocalOffset: -100,350,1150, -100,-350,1150
+		MuzzleSequence: muzzle-missile
+		PauseOnCondition: !ammo-secondary || empdisable
+	Armament@3:
+		Name: secondary-barrage
+		Weapon: TimerWolf_Barrage
 		LocalOffset: -100,350,1150, -100,-350,1150
 		MuzzleSequence: muzzle-missile
 		PauseOnCondition: !ammo-secondary || empdisable
 	AmmoPool@2:
 		Name: secondary-ammo
-		Armaments: secondary
+		Armaments: secondary, secondary-barrage
 		Ammo: 30
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@2:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 9, 6
 		PipCount: 6
 		RequiresSelection: true
-		FullSequence: pip-green
+		FullSequence: pip-red
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
-		TargetFrozenActors: True
-		Armaments: primary, secondary
 		PauseOnCondition: empdisable || unit.docked
+		Armaments: primary, secondary
+		TargetFrozenActors: True
+		OpportunityFire: True
+		ForceFireIgnoresActors: True
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	# WithShadow:
@@ -697,3 +374,88 @@ timberwolf:
 	Explodes:
 		Weapon: ArtilleryExplode
 
+HARV:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableEconomicUnit
+	-Tooltip:
+	-GpsDot:
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 101
+		Prerequisites: ~disabled, ~techlevel.infonly
+		Description: Collects Ore and Gems for processing.\n  Unarmed
+	Valued:
+		Cost: 600
+	Tooltip@sidebar:
+		Name: Ore Truck
+		RequiresCondition: !produced
+	Tooltip@ingame:
+		Name: Harvester
+		RequiresCondition: produced
+	ExternalCondition@PRODUCED:
+		Condition: produced
+	Selectable:
+		DecorationBounds: 1792,1792
+	Targetable@ISHARVESTER:
+		TargetTypes: Harvester
+	Harvester:
+		Capacity: 30
+		Resources: Ore,Gems
+		BaleUnloadDelay: 1
+		SearchFromProcRadius: 80
+		SearchFromHarvesterRadius: 40
+		HarvestFacings: 8
+		EmptyCondition: no-ore
+	RevealsShroud:
+		Range: 6c0
+	WithHarvesterPipsDecoration:
+		Position: Bottom
+		Margin: 15, 3
+		RequiresSelection: true
+		PipCount: 9
+		ResourceSequences:
+			Ore: pip-yellow
+			Gems: pip-red
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 85
+		Locomotor: heavywheeled
+	WithHarvestAnimation:
+	WithDockingAnimation:
+	GpsDot:
+		String: Harvester
+	SpawnActorOnDeath:
+		Actor: HARV.EmptyHusk
+	HarvesterHuskModifier:
+		FullHuskActor: HARV.FullHusk
+		FullnessThreshold: 50
+	WithHarvesterSpriteBody:
+		ImageByFullness: harvempty, harvhalf, harv
+	-WithFacingSpriteBody:
+	Passenger:
+		CustomPipType: pip-blue
+	ProximityExternalCondition@DOCKED:
+		Condition: dockinprocess
+		Range: 1c0
+		ValidRelationships: Ally
+	ExternalCondition@DOCKED:
+		Condition: docked
+	RejectsOrders:
+		RequiresCondition: docked
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+HARV.Crate:
+	Inherits: HARV
+	-Buildable:
+	-Tooltip@sidebar:
+	-Tooltip@ingame:
+	-ExternalCondition@PRODUCED:
+	Tooltip:
+		Name: Harvester
+	RenderSprites:
+		Image: harv
+	-MapEditorData:

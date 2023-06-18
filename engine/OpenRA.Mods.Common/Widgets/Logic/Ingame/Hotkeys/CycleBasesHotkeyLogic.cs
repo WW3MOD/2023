@@ -66,8 +66,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (next == null)
 				next = bases.First();
 
+			if (selection.Actors.Any(a => a.TraitOrDefault<BaseBuilding>() != null))
+				viewport.Center(selection.Actors);
+
 			selection.Combine(world, new Actor[] { next }, false, true);
-			viewport.Center(selection.Actors);
 
 			return true;
 		}

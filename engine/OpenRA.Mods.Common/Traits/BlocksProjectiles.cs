@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
 		public readonly PlayerRelationship ExplodesOn = PlayerRelationship.Enemy;
 
-		public WDist HitShapeHeight;
+		public WDist? HitShapeHeight;
 
 		public override object Create(ActorInitializer init) { return new BlocksProjectiles(this); }
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 						hitShape = ai.TraitInfos<HitShapeInfo>().First();
 
 						if (hitShape != null)
-							HitShapeHeight = hitShape.Type.VerticalTopOffset;
+							HitShapeHeight = hitShape.Type.VerticalTopOffset; // Set to fraction ?
 					}
 				}
 				catch (System.Exception e)
@@ -57,7 +57,9 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 			{ }
 
-		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight : Info.Height;
+		//  The result of the expression is always 'true' since a value of type 'WDist' is never equal to 'null' of type 'WDist?'
+		// WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight.Value : Info.Height;
+		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight.Value;
 		int IBlocksProjectiles.Bypass { get { return Info.Bypass; } }
 
 		PlayerRelationship IBlocksProjectiles.ExplodesOn { get { return Info.ExplodesOn; } }
@@ -74,7 +76,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false)
 		{
-			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships);
+			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
 		}
 
 		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false)

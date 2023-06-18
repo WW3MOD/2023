@@ -139,9 +139,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true;
 
-			if (self.TraitOrDefault<IndirectFire>() == null
-				&& target.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out _))
-					return true;
+			if (target.Type == TargetType.Invalid || (self.TraitOrDefault<IndirectFire>() == null &&
+				BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out _)))
+					return false;
 
 			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw, facingTolerance);
 		}
@@ -170,7 +170,10 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			foreach (var a in Armaments)
-				a.CheckFire(self, facing, target);
+			{
+				if (a.Info.AllowIndirectFire) // TODO FF, Unimplemented
+					a.CheckFire(self, facing, target);
+			}
 		}
 
 		IEnumerable<IOrderTargeter> IIssueOrder.Orders
@@ -455,6 +458,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var forceAttack = modifiers.HasModifier(TargetModifiers.ForceAttack);
 				var armaments = ab.ChooseArmamentsForTarget(target, forceAttack);
+
 				if (!armaments.Any())
 					return false;
 
@@ -462,8 +466,12 @@ namespace OpenRA.Mods.Common.Traits
 				// If all are out of ammo, just use valid armament with highest range
 				armaments = armaments.OrderByDescending(x => x.MaxRange());
 				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused);
+
 				if (a == null)
 					a = armaments.First();
+
+				if (!armaments.Any(armament => armament.AmmoPool != null && armament.AmmoPool.HasAmmo))
+					return false;
 
 				var outOfRange = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
 					(!forceAttack && target.Type == TargetType.FrozenActor && !ab.Info.TargetFrozenActors);

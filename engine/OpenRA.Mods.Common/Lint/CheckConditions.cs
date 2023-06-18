@@ -63,6 +63,8 @@ namespace OpenRA.Mods.Common.Lint
 							granted.Add(g);
 				}
 
+				// FF TODO
+
 				/*
 				// var unconsumed = granted.Except(consumed);
 				// if (unconsumed.Any())

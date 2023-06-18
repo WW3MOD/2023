@@ -1,0 +1,69 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Test Shellmap WW3
+
+Author: FreadyFish
+
+Tileset: TEMPERAT
+
+MapSize: 102,102
+
+Bounds: 1,1,100,100
+
+Visibility: Shellmap
+
+Categories: Shellmap
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: america
+	PlayerReference@NATO:
+		Name: NATO
+		Faction: america
+		Color: ABB7E4
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Faction: russia
+		Color: FE1100
+		Enemies: NATO
+
+Actors:
+	LeftRoad1: waypoint
+		Location: 3,52
+		Owner: Neutral
+	LeftRoad2: waypoint
+		Location: 36,52
+		Owner: Neutral
+	LeftRoad3: waypoint
+		Location: 38,51
+		Owner: Neutral
+	LeftRoad4: waypoint
+		Location: 39,48
+		Owner: Neutral
+	LeftRoad5: waypoint
+		Location: 49,48
+		Owner: Neutral
+	LeftRoadEntry: waypoint
+		Owner: Neutral
+		Location: 1,50
+	Barn: v06
+		Location: 35,51
+		Owner: Neutral
+	Church: v01
+		Location: 40,49
+		Owner: Neutral
+	MSLO1: mslo
+		Owner: Neutral
+		Location: 97,3
+
+Rules: rules.yaml

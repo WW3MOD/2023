@@ -1,9 +1,10 @@
 
 ^Defense:
 	Inherits: ^Building
-	Inherits@AI: ^ProductionAIBoost
 	Inherits@Selection: ^SelectableCombatBuilding
 	Inherits@Detection: ^StandardDetection
+	RevealsShroud:
+		Range: 20c0
 	-GivesBuildableArea:
 	-AcceptsDeliveredCash:
 	Selectable:
@@ -94,9 +95,10 @@ GTWR:
 		Name: Guard Tower
 	Building:
 	Health:
-		HP: 3000
+		HP: 10000
 	Armor:
 		Type: Unarmored
+		Thickness: 25
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
 	Targetable@DontEMP:
@@ -104,31 +106,12 @@ GTWR:
 	RevealsShroud:
 		Range: 24c0
 		RequiresCondition: loaded
-	DetectCloaked@Medium:
-		DetectionTypes: Medium
-		Range: 20c0
-		RequiresCondition: loaded
-	DetectCloaked@Hidden:
-		DetectionTypes: Hidden
-		Range: 14c0
-		RequiresCondition: loaded
-	WithRangeCircle@Medium:
-		Range: 20c0
-		Width: 1
-		Color: FFFFFF
-		Alpha: 10
-	WithRangeCircle@Hidden:
-		Range: 14c0
-		Width: 1
-		Color: FFFFFF
-		Alpha: 10
-	WithBuildingBib:
-		HasMinibib: true
 	-BodyOrientation:
 	ClassicFacingBodyOrientation:
 		QuantizedFacings: 8
 	Cargo:
 		Types: Infantry
+		Neutral: True
 		MaxWeight: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
@@ -166,27 +149,17 @@ PBOX:
 	Valued:
 		Cost: 500
 	Health:
-		HP: 15000
+		HP: 40000
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
 		Type: Concrete
-	WithBuildingBib:
-		HasMinibib: true
-	# Turreted:
-	# 	TurnSpeed: 255
-	# 	Offset: 0,0,64
-	# Armament:
-	# 	Weapon: Vulcan
-	# 	MuzzleSequence: muzzle
-	# 	LocalOffset: 448,0,0
-	# 	PauseOnCondition: build-incomplete
-	# AttackTurreted:
-	# WithMuzzleOverlay:
+		Thickness: 300
 	SpawnActorOnDeath:
 		Actor: pbox.husk
 	Cargo:
 		Types: Infantry
+		Neutral: True
 		MaxWeight: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
@@ -225,44 +198,23 @@ HBOX:
 	Valued:
 		Cost: 300
 	Health:
-		HP: 2000
+		HP: 15000
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
 		Type: Light
+		Thickness: 150
 	RevealsShroud:
 		Range: 20c0
 		RequiresCondition: loaded
-	DetectCloaked@Medium:
-		DetectionTypes: Medium
-		Range: 16c0
-		RequiresCondition: loaded
-	# Cloak@Medium:
-	# 	DetectionTypes: Medium
-	# 	CloakedCondition: cloak-medium
-	# 	InitialDelay: 150
-	# 	CloakDelay: 75
-	# 	UncloakOn: Attack
-	# 	Palette: player
-	# 	IsPlayerPalette: true
-	# 	PauseOnCondition: cloak-force-disabled || build-incomplete
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
-	# Turreted:
-	# 	TurnSpeed: 255
-	# 	Offset: 0,0,64
-	# Armament:
-	# 	Weapon: Sniper
-	# 	MuzzleSequence: muzzle
-	# 	LocalOffset: 448,0,0
-	# 	PauseOnCondition: build-incomplete
-	# AttackTurreted:
-	# WithMuzzleOverlay:
 	SpawnActorOnDeath:
 		Actor: hbox.husk
 	Cargo:
 		Types: Infantry
+		Neutral: True
 		MaxWeight: 2
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
@@ -280,7 +232,7 @@ SBAG:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 3
-		Prerequisites: ~!structures.russia, ~techlevel.low
+		Prerequisites: ~disabled
 		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
 	Valued:
 		Cost: 50
@@ -303,10 +255,9 @@ SBAG:
 FENC:
 	Inherits: ^Wall
 	Buildable:
-		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 3
-		Prerequisites: ~structures.russia, ~techlevel.low
+		Prerequisites: ~disabled
 		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
 	Valued:
 		Cost: 50
@@ -329,7 +280,6 @@ FENC:
 BARB:
 	Inherits: ^Wall
 	Buildable:
-		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
@@ -381,10 +331,9 @@ WOOD:
 BRIK:
 	Inherits: ^Wall
 	Buildable:
-		BuildDurationModifier: 10
 		Queue: Defense
 		BuildPaletteOrder: 6
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Reinforced concrete wall
 	Valued:
 		Cost: 200
@@ -420,7 +369,6 @@ BRIK:
 	-WithMakeAnimation:
 	-GivesBuildableArea:
 	-GivesExperience:
-	-RevealsShroud:
 	Health:
 		HP: 15000
 	Valued:
@@ -469,7 +417,7 @@ HGATE:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 9
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Places an horizontal gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
 	WithGateSpriteBody:
 		WallConnections: -1,0, 3,0
@@ -497,7 +445,7 @@ VGATE:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 12
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Places an vertical gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
 	WithGateSpriteBody:
 		WallConnections: 0,-1, 0,3
@@ -521,10 +469,12 @@ CRAM:
 		DecorationBounds: 1024,768,0,-96
 	Buildable:
 		Queue: Defense
-		Prerequisites: ~structures.america, ~techlevel.medium
+		Prerequisites: ~disabled
 		BuildPaletteOrder: 7
 		Description: Anti-Air base defense.
 		IconPalette: chrometd
+	RevealsRadar:
+		Range: 25c0
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -535,13 +485,11 @@ CRAM:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 820
 	Armament@1:
-		Weapon: 20mmCRAM
+		Weapon: 20mm_CRAM
 		LocalOffset: 520,0,450
 		MuzzleSequence: muzzle
 	AmbientSound@ATTACKSOUND1:
@@ -577,8 +525,6 @@ CRAM:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	Power:
-		Amount: -30
 	SpawnActorOnDeath:
 		Actor: agun.husk
 	RenderSprites:
@@ -603,23 +549,22 @@ AGUN:
 	Selectable:
 		DecorationBounds: 1024,3096,0,-96
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 7
-		Prerequisites: ~structures.russia, ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Anti-Air base defense.
 	Valued:
 		Cost: 800
 	Tooltip:
 		Name: AA Gun
+	RevealsRadar:
+		Range: 25c0
 	Health:
 		HP: 5000
 	Armor:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 820
@@ -654,8 +599,6 @@ AGUN:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	Power:
-		Amount: -50
 	SpawnActorOnDeath:
 		Actor: agun.husk
 	RenderSprites:
@@ -688,10 +631,9 @@ SAM:
 		Footprint: xx
 		Dimensions: 2,1
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 8
-		Prerequisites: ~disabled # ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Anti-Air base defense.
 	Valued:
 		Cost: 2000
@@ -703,8 +645,6 @@ SAM:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 0
@@ -717,8 +657,6 @@ SAM:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	WithMuzzleOverlay:
-	Power:
-		Amount: -30
 	ClassicFacingBodyOrientation:
 	SpawnActorOnDeath:
 		Actor: sam.husk
@@ -730,13 +668,11 @@ SAM:
 HSAM:
 	Inherits: SAM
 	-AttackTurreted:
-	-WithBuildingBib:
 	-SpawnActorOnDeath:
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 8
-		Prerequisites: ~techlevel.high
+		Prerequisites: ~disabled
 		Description: Anti-Air missile launcher.
 	Tooltip:
 		Name: SAM Site
@@ -774,9 +710,8 @@ HSAM:
 # 		Name: Patriot Anti Air Missile Defense System
 # 	Buildable:
 # 		BuildPaletteOrder: 40
-# 		Prerequisites: usabarracks, ~techlevel.low, ~!selectusalaser, ~!selectusasuper, ~usaselected
+# 		Prerequisites: ~disabled
 # 		Queue: Defence.USA, RADefence.USA
-# 		BuildDurationModifier: 40
 # 		Description: All-purpose defensive structure.\nRequires power to operate.\nPasses one target to another with other nearby Patriot Defense Systems\n  Strong vs Aircraft, Tanks\n  Weak vs Infantry
 # 	Selectable:
 # 		Bounds: 1024,1024
@@ -799,8 +734,6 @@ HSAM:
 # 		PauseOnCondition: disabled || lowpower
 # 	BodyOrientation:
 # 		QuantizedFacings: 8
-# 	Power:
-# 		Amount: -30
 # 	RenderSprites:
 # 		Image: patriot
 
@@ -813,10 +746,9 @@ FTUR:
 		QuantizedFacings: 8
 	Building:
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 4
-		Prerequisites: ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Anti-Infantry base defense.
 	Valued:
 		Cost: 1000
@@ -827,8 +759,6 @@ FTUR:
 	Armor:
 		Type: Light
 	ProvidesPrerequisite@buildingname:
-	WithBuildingBib:
-		HasMinibib: true
 	Turreted@1:
 		Turret: ranged-turret
 		TurnSpeed: 255
@@ -862,8 +792,6 @@ FTUR:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: disabled
 	# WithMuzzleOverlay:
-	Power:
-		Amount: -20
 	Explodes:
 		Weapon: BuildingExplode
 		EmptyWeapon: BuildingExplode
@@ -885,10 +813,9 @@ TSLA:
 		Bounds: 1024,1024
 		DecorationBounds: 1024,960,0,-396
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 5
-		Prerequisites: techcenter, ~structures.russia, ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Advanced base defense.\nTesla briefly short-circuits Vehicle and Ships.
 	Valued:
 		Cost: 2000
@@ -901,8 +828,6 @@ TSLA:
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
 	ProvidesPrerequisite@buildingname:
-	WithBuildingBib:
-		HasMinibib: true
 	Armament:
 		Weapon: TeslaZap
 		LocalOffset: 0,0,896
@@ -942,8 +867,6 @@ TSLA:
 		Condition: powerdown
 		OrderName: PowerDown
 		RequiresCondition: !TeslaChargeApplied
-	Power:
-		Amount: -150
 	SpawnActorOnDeath:
 		Actor: tsla.husk
 	RenderRangeCircle:
@@ -958,7 +881,7 @@ PRIS:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 80
-		Prerequisites: techcenter, ~player.america, ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Advanced experimental base defense.
 	Valued:
 		Cost: 4000
@@ -971,8 +894,6 @@ PRIS:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
 	WithSpriteBody:
 		PauseOnCondition: disabled || empdisable
 	WithPrismChargeAnimation:
@@ -1003,8 +924,6 @@ PRIS:
 		Name: support
 		Weapon: PrisLaserSupport
 		LocalOffset: 0,0,1024
-	Power:
-		Amount: -150
 	ProvidesPrerequisite@buildingname:
 	WithRangeCircle@SUPPORT:
 		Range: 20c0
@@ -1020,10 +939,9 @@ MSLO:
 		Dimensions: 2,1
 		TerrainTypes: Clear,Road
 	Buildable:
-		BuildDurationModifier: 200
 		Queue: Defense
 		BuildPaletteOrder: 10
-		Prerequisites: ~global-nuclear
+		Prerequisites: ~disabled
 		Description: Stores and prepares an atomic bomb.\nRequires power to operate.\nMaximum 1 can be built.\n  Special Ability: Atom Bomb\nLaunches a devastating atomic bomb at target location.\nCan be Infiltrated by a Spy or Saboteur\nresulting in Timer reset.
 	Tooltip:
 		Name: Missile Silo
@@ -1067,8 +985,6 @@ MSLO:
 		FlightVelocity: 1024
 		CameraRemoveDelay: 1000
 	SupportPowerChargeBar:
-	Power:
-		Amount: 0
 	MustBeDestroyed:
 		RequiredForShortGame: false
 	WithSupportPowerActivationAnimation:
@@ -1096,7 +1012,6 @@ GUN:
 	ClassicFacingBodyOrientation:
 	Building:
 	Buildable:
-		BuildDurationModifier: 30
 		Queue: Defense
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
@@ -1111,13 +1026,11 @@ GUN:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithBuildingBib:
-		HasMinibib: true
 	Turreted:
 		TurnSpeed: 50
 		InitialFacing: 192
 	Armament:
-		Weapon: 125mmT72Gun
+		Weapon: TankRound.T72
 		LocalOffset: 512,0,112
 		MuzzleSequence: muzzle
 		PauseOnCondition: disabled
@@ -1125,8 +1038,6 @@ GUN:
 		PauseOnCondition: disabled
 		RequiresCondition: !build-incomplete
 	WithMuzzleOverlay:
-	Power:
-		Amount: -20
 	SpawnActorOnDeath:
 		Actor: gun.husk
 	RenderSprites:

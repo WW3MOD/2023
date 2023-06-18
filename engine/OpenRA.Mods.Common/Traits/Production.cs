@@ -24,6 +24,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("e.g. Infantry, Vehicles, Aircraft, Buildings")]
 		public readonly string[] Produces = Array.Empty<string>();
 
+		public readonly bool UseRandomExit = false;
+
 		public override object Create(ActorInitializer init) { return new Production(init, this); }
 	}
 
@@ -58,7 +60,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (exitinfo != null && self.OccupiesSpace != null && producee.HasTraitInfo<IOccupySpaceInfo>())
 			{
 				exit = self.Location + exitinfo.ExitCell;
-				var spawn = self.CenterPosition + exitinfo.SpawnOffset;
+				var exitOffset = new CVec(exitinfo.ExitCell.X - 1, exitinfo.ExitCell.Y - 1);
+				var spawn = self.CenterPosition + exitinfo.SpawnOffset + new WVec(0, 0, exitinfo.Height.Length);
+
+				if (Info.UseRandomExit)
+					spawn += (WVec)exitOffset;
+
 				var to = self.World.Map.CenterOfCell(exit);
 
 				WAngle initialFacing;
@@ -67,20 +74,41 @@ namespace OpenRA.Mods.Common.Traits
 					var delta = to - spawn;
 					if (delta.HorizontalLengthSquared == 0)
 					{
-						var fi = producee.TraitInfoOrDefault<IFacingInfo>();
-						initialFacing = fi != null ? fi.GetInitialFacing() : WAngle.Zero;
+						if (spawn.X < 3072)
+							initialFacing = new WAngle(768); // Right
+						else if (spawn.Y < 3072)
+							initialFacing = new WAngle(512); // Up
+						else if (spawn.X > ((self.World.Map.MapSize.X * 1024) - 3072))
+							initialFacing = new WAngle(256); // Left
+						else if (spawn.Y > ((self.World.Map.MapSize.Y * 1024) - 3072))
+							initialFacing = new WAngle(0); // Down
+						else
+						{
+							var fi = producee.TraitInfoOrDefault<IFacingInfo>();
+							initialFacing = fi != null ? fi.GetInitialFacing() : WAngle.Zero;
+						}
 					}
 					else
 						initialFacing = delta.Yaw;
 				}
-				else
+				else if (!exitinfo.FacingCenter)
 					initialFacing = exitinfo.Facing.Value;
+				else
+					initialFacing = new WAngle(100);
 
-				exitLocations = rp != null && rp.Path.Count > 0 ? rp.Path : new List<CPos> { exit };
+				var path = new List<CPos>(rp.Path);
+
+				if (path.Count > 0)
+				{
+					path[0] += exitOffset;
+				}
+
+				exitLocations = path != null && path.Count > 0 ? path : new List<CPos> { exit };
 
 				td.Add(new LocationInit(exit));
 				td.Add(new CenterPositionInit(spawn));
 				td.Add(new FacingInit(initialFacing));
+
 				if (exitinfo != null)
 					td.Add(new CreationActivityDelayInit(exitinfo.ExitDelay));
 			}
@@ -106,7 +134,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual Exit SelectExit(Actor self, ActorInfo producee, string productionType, Func<Exit, bool> p)
 		{
-			if (rp == null || rp.Path.Count == 0)
+			if (Info.UseRandomExit || rp == null || rp.Path.Count == 0)
 				return self.RandomExitOrDefault(self.World, productionType, p);
 
 			return self.NearestExitOrDefault(self.World.Map.CenterOfCell(rp.Path[0]), productionType, p);

@@ -104,6 +104,7 @@ Rules:
 	ww3mod|rules/ingame/structures.yaml
 	ww3mod|rules/ingame/structures-defenses.yaml
 	ww3mod|rules/ingame/structures-neutral.yaml
+	ww3mod|rules/ingame/mcvs.yaml
 	ww3mod|rules/ingame/vehicles.yaml
 	ww3mod|rules/ingame/vehicles-america.yaml
 	ww3mod|rules/ingame/vehicles-russia.yaml
@@ -311,43 +312,47 @@ GameSpeeds:
 	Speeds:
 		strategical:
 			Name: strategical
-			Timestep: 200
+			Timestep: 120
 			OrderLatency: 2
 		tactical:
 			Name: tactical
-			Timestep: 135
+			Timestep: 100
 			OrderLatency: 2
 		slowest:
 			Name: slowest
-			Timestep: 100
+			Timestep: 86
 			OrderLatency: 2
 		slower:
 			Name: slower
-			Timestep: 85
+			Timestep: 75
+			OrderLatency: 2
+		slow:
+			Name: slow
+			Timestep: 67
 			OrderLatency: 2
 		default:
 			Name: normal
-			Timestep: 75
+			Timestep: 60
 			OrderLatency: 2
 		fast:
 			Name: fast
-			Timestep: 70
+			Timestep: 55
 			OrderLatency: 2
 		faster:
 			Name: faster
-			Timestep: 60
+			Timestep: 48
 			OrderLatency: 2
 		fastest:
 			Name: fastest
-			Timestep: 50
+			Timestep: 40
 			OrderLatency: 2
 		crazy:
 			Name: crazy
-			Timestep: 35
+			Timestep: 34
 			OrderLatency: 2
 		insane:
 			Name: insane
-			Timestep: 20
+			Timestep: 30
 			OrderLatency: 2
 
 ModContent:

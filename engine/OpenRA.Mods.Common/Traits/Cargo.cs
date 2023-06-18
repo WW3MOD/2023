@@ -342,13 +342,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			totalWeight -= GetWeight(passenger);
 
-			/* if (totalWeight == 0 && Info.Neutral)
-			{
-				var players = self.World.Players;
-				var player = players.First(pl => pl.PlayerName == "Neutral");
-				self.ChangeOwnerSync(player);
-			} */
-
 			SetPassengerFacing(passenger);
 
 			foreach (var npe in self.TraitsImplementing<INotifyPassengerExited>())
@@ -382,7 +375,7 @@ namespace OpenRA.Mods.Common.Traits
 		public void Load(Actor cargoActor, Actor passengerActor)
 		{
 			if (cargoActor.Owner != passengerActor.Owner)
-				cargoActor.ChangeOwnerSync(passengerActor.Owner);
+				cargoActor.ChangeOwnerSync(passengerActor.Owner, false);
 
 			cargo.Add(passengerActor);
 			var w = GetWeight(passengerActor);

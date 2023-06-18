@@ -41,10 +41,6 @@ MINV:
 		Image: minv
 	Explodes:
 		Weapon: ATMine
-MINP:
-	Inherits: MINV
-	Explodes:
-		Weapon: APMine
 
 ^Crate:
 	Inherits@1: ^SpriteActor
@@ -232,12 +228,14 @@ MINE:
 	AppearsOnMapPreview:
 		Terrain: Ore
 	SeedsResource:
-		Interval: 300
+		Interval: 200
 	MapEditorData:
 		Categories: Resource spawn
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	ActorSpawner:
+	RenderSprites:
+		Image: DRILLMINE
 GMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
@@ -258,12 +256,14 @@ GMINE:
 		Terrain: Gems
 	SeedsResource:
 		ResourceType: Gems
-		Interval: 500
+		Interval: 300
 	MapEditorData:
 		Categories: Resource spawn
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	ActorSpawner:
+	RenderSprites:
+		Image: MINE
 RAILMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
@@ -299,8 +299,8 @@ DRILLMINE:
 		Terrain: Ore
 	SeedsResource:
 		Interval: 50
-	WithIdleAnimation:
-		Interval: 175
+	# WithIdleAnimation:
+	# 	Interval: 175
 	RenderSprites:
 		Palette: player
 	MapEditorData:
@@ -357,12 +357,12 @@ waypoint:
 	MapEditorData:
 		Categories: System
 
-fact.colorpicker:
-	Inherits: FACT
+E3.colorpicker:
+	Inherits: E3
 	-Buildable:
 	-MapEditorData:
 	RenderSprites:
-		Image: fact
+		Image: E3
 		Palette: colorpicker
 
 CTFLAG:
@@ -383,8 +383,8 @@ CTFLAG:
 		Dimensions: 1,1
 	Tooltip:
 		Name: Flag
-	WithBuildingBib:
-		HasMinibib: true
+	# WithBuildingBib:
+	# 	HasMinibib: true
 	MapEditorData:
 		Categories: Decoration
 	Interactable:

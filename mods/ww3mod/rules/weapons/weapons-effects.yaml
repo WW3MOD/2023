@@ -22,181 +22,147 @@
 		ImpactActors: true
 
 ^SmallCaliberEffects:
-	Inherits@PiffEffects: ^PiffEffects
-	Warhead@PinDown: GrantExternalCondition
+	Inherits@HitEffects: ^PiffEffects
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 2
 		Range: 512
 		Duration: 50
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Range: 1c0
 		Duration: 25
-	Warhead@TriggerProne: SpreadDamage
-		ValidTargets: Infantry
-		Delay: 3
-		Spread: 1c0
-		DamageTypes: TriggerProne
 
 ^LargeCaliberEffects:
-	Inherits@PiffEffects: ^PiffEffects
-	Warhead@PinDown: GrantExternalCondition
+	Inherits@HitEffects: ^PiffEffects
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 5
 		Range: 640
 		Duration: 75
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 2
 		Range: 1c256
 		Duration: 50
-	Warhead@TriggerProne: SpreadDamage
-		ValidTargets: Infantry
-		Delay: 3
-		Spread: 1c0
-		DamageTypes: TriggerProne
 
-
-^MinimalPinDownEffects:
-	Warhead@PinDown: GrantExternalCondition
+^MinimalSuppressionEffects:
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 2
 		Range: 768
 		Duration: 75
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 1
 		Range: 1c512
 		Duration: 50
-	Warhead@TriggerProne: SpreadDamage
-		ValidTargets: Infantry
-		Delay: 3
-		Spread: 1c0
-		DamageTypes: TriggerProne
 
-^SmallPinDownEffects:
-	Warhead@PinDown: GrantExternalCondition
+^SmallSuppressionEffects:
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 4
 		Range: 768
 		Duration: 75
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 2
 		Range: 1c512
 		Duration: 50
-	Warhead@TriggerProne: SpreadDamage
-		ValidTargets: Infantry
-		Delay: 3
-		Spread: 1c0
-		DamageTypes: TriggerProne
 
-^MediumPinDownEffects:
-	Warhead@PinDown: GrantExternalCondition
+^MediumSuppressionEffects:
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 12
 		Range: 896
 		Duration: 100
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 6
 		Range: 1c768
 		Duration: 75
-	Warhead@PinDown_3: GrantExternalCondition
+	Warhead@Suppression_3: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 3
 		Range: 2c256
 		Duration: 50
-	Warhead@TriggerProne: SpreadDamage
-		Spread: 2c256
-		ValidTargets: Infantry
-		DamageTypes: TriggerProne
 
-^LargePinDownEffects:
-	Warhead@PinDown: GrantExternalCondition
+^LargeSuppressionEffects:
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 32
 		Range: 896
 		Duration: 150
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 16
 		Range: 1c768
 		Duration: 125
-	Warhead@PinDown_3: GrantExternalCondition
+	Warhead@Suppression_3: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 8
 		Range: 2c256
 		Duration: 100
-	Warhead@PinDown_4: GrantExternalCondition
+	Warhead@Suppression_4: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 4
 		Range: 3c0
 		Duration: 75
-	Warhead@TriggerProne: SpreadDamage
-		Spread: 3c0
-		ValidTargets: Infantry
-		DamageTypes: TriggerProne
 
-^HugePinDownEffects:
-	Warhead@PinDown: GrantExternalCondition
+^HugeSuppressionEffects:
+	Warhead@Suppression: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 64
 		Range: 896
 		Duration: 150
-	Warhead@PinDown_2: GrantExternalCondition
+	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 32
 		Range: 1c768
 		Duration: 125
-	Warhead@PinDown_3: GrantExternalCondition
+	Warhead@Suppression_3: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 16
 		Range: 2c256
 		Duration: 100
-	Warhead@PinDown_4: GrantExternalCondition
+	Warhead@Suppression_4: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 8
 		Range: 3c0
 		Duration: 75
-	Warhead@PinDown_5: GrantExternalCondition
+	Warhead@Suppression_5: GrantExternalCondition
 		ValidTargets: Infantry
-		Condition: pindown
+		Condition: suppressed
 		Repeat: 4
 		Range: 3c768
 		Duration: 50
-	Warhead@TriggerProne: SpreadDamage
-		Spread: 3c768
-		ValidTargets: Infantry
-		DamageTypes: TriggerProne
 
 ^MinimalExplosionEffects:
-	Inherits@SmallPinDownEffects: ^MinimalPinDownEffects
+	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
 		RandomDamage: 100
 		Spread: 96
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
@@ -214,13 +180,12 @@
 		Explosions: splash_small
 
 ^SmallExplosionEffects:
-	Inherits@SmallPinDownEffects: ^SmallPinDownEffects
+	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
 		RandomDamage: 100
 		Spread: 128
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
@@ -239,13 +204,12 @@
 		Explosions: splash_small
 
 ^MediumExplosionEffects:
-	Inherits@MediumPinDownEffects: ^MediumPinDownEffects
+	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
 		RandomDamage: 150
 		Spread: 192
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
@@ -264,13 +228,12 @@
 		InvalidTargets: Ship, Structure, Bridge
 
 ^LargeExplosionEffects:
-	Inherits@LargePinDownEffects: ^LargePinDownEffects
+	Inherits@LargeSuppressionEffects: ^LargeSuppressionEffects
 	Warhead@Shrapnel: SpreadDamage
 		Delay: 1
 		ValidTargets: Infantry, Unarmored
 		RandomDamage: 200
 		Spread: 640
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
@@ -293,13 +256,12 @@
 		InvalidTargets: Ship, Structure, Bridge
 
 ^HugeExplosionEffects:
-	Inherits@HugePinDownEffects: ^HugePinDownEffects
+	Inherits@HugeSuppressionEffects: ^HugeSuppressionEffects
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
 		RandomDamage: 300
 		Spread: 384
-		Falloff: 100,50,25,12,6,3,1
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
@@ -342,3 +304,40 @@
 		ImpactSounds: splash9.aud
 		ValidTargets: Water, Underwater
 		InvalidTargets: Ship, Structure, Bridge
+
+^MinimalExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+
+^SmallExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
+
+^MediumExplosionEffectsAir:
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom25.aud
+
+^LargeExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
+
+^HugeExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false

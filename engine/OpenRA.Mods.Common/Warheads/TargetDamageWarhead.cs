@@ -9,6 +9,8 @@
  */
 #endregion
 
+using System;
+using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -19,7 +21,9 @@ namespace OpenRA.Mods.Common.Warheads
 	public class TargetDamageWarhead : DamageWarhead
 	{
 		[Desc("Damage will be applied to actors in this area. A value of zero means only targeted actor will be damaged.")]
-		public readonly WDist Spread = WDist.Zero;
+		public readonly WDist Spread = new WDist(1);
+
+		/* protected override void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args) {} */
 
 		protected override void DoImpact(WPos pos, Actor firedBy, WarheadArgs args)
 		{
@@ -60,7 +64,23 @@ namespace OpenRA.Mods.Common.Warheads
 				if (closestDistance > Spread.Length)
 					continue;
 
-				InflictDamage(victim, firedBy, closestActiveShape, args);
+				var damage = closestActiveShape.PercentFromEdge(victim, args.ImpactPosition);
+
+				if (DamageAtMaxRange != 100)
+					damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
+
+				// var adjustedModifiers = args.DamageModifiers.Append(damage); // what if there are multiple victims? Testing solution below
+				var adjustedModifiers = new int[args.DamageModifiers.Length + 1];
+				Array.Copy(args.DamageModifiers, adjustedModifiers, args.DamageModifiers.Length);
+				adjustedModifiers[args.DamageModifiers.Length] = damage;
+
+				var updatedWarheadArgs = new WarheadArgs(args)
+				{
+					DamageModifiers = adjustedModifiers.ToArray(),
+					ImpactOrientation = args.ImpactOrientation,
+				};
+
+				InflictDamage(victim, firedBy, closestActiveShape, updatedWarheadArgs);
 			}
 		}
 	}

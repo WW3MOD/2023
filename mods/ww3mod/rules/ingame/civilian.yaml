@@ -11,19 +11,24 @@
 		Categories: Civilian building
 	SpawnActorOnDeath@1:
 		Actor: c1
-		Probability: 30
-	SpawnActorOnDeath@2:
-		Actor: c2
-		Probability: 30
-	SpawnActorOnDeath@3:
-		Actor: c3
-		Probability: 30
-	SpawnActorOnDeath@4:
-		Actor: c4
-		Probability: 30
-	SpawnActorOnDeath@5:
-		Actor: c5
-		Probability: 30
+		SpawnOnceOnOwnerChange: true # Works, but all spawns to the same subcell + become owned by you
+		Probability: 30 # Does not work with SpawnOnceOnOwnerChange
+	# SpawnActorOnDeath@2:
+	# 	Actor: c2
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
+	# SpawnActorOnDeath@3:
+	# 	Actor: c3
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
+	# SpawnActorOnDeath@4:
+	# 	Actor: c4
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
+	# SpawnActorOnDeath@5:
+	# 	Actor: c5
+	# 	SpawnOnceOnOwnerChange: true
+	# 	Probability: 30
 	Explodes:
 		Weapon: SmallBuildingExplode
 	Explodes@CIVPANIC:
@@ -34,7 +39,6 @@
 		Action: ChangeOwner
 	RevealsShroud:
 		Range: 24c0
-		RevealGeneratedShroud: True
 		RequiresCondition: loaded
 	Cargo:
 		Neutral: true
@@ -91,17 +95,15 @@
 		Footprint: ____ ____
 		Dimensions: 4,2
 	Health:
-		HP: 100000
+		HP: 80000
 	Armor:
 		Type: Concrete
+		Thickness: 1000
 	ScriptTriggers:
 	BodyOrientation:
 		QuantizedFacings: 1
 	Interactable:
 		Bounds: 4096,2048
-	# ShakeOnDeath:
-	# 	Duration: 15
-	# 	Intensity: 6
 
 V01:
 	Inherits: ^CivBuilding
@@ -110,6 +112,11 @@ V01:
 		Dimensions: 2,2
 	Tooltip:
 		Name: Church
+	Health:
+		HP: 30000
+	Armor:
+		Type: Light
+		Thickness: 10
 	RevealsShroud:
 		Range: 10c0
 	MapEditorData:
@@ -127,6 +134,11 @@ V02:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
+	Health:
+		HP: 30000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -141,6 +153,11 @@ V03:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
+	Health:
+		HP: 35000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -155,6 +172,11 @@ V04:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
+	Health:
+		HP: 25000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -170,6 +192,11 @@ V05:
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	Health:
+		HP: 20000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 V06:
@@ -178,6 +205,11 @@ V06:
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	Health:
+		HP: 25000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 V07:
@@ -186,23 +218,48 @@ V07:
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	Health:
+		HP: 20000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 V08:
 	Inherits: ^CivBuilding
+	Health:
+		HP: 15000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 
 V09:
 	Inherits: ^CivBuilding
+	Health:
+		HP: 10000
+	Armor:
+		Type: Light
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 V10:
 	Inherits: ^CivBuilding
+	Health:
+		HP: 20000
+	Armor:
+		Type: Medium
+		Thickness: 30
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 V11:
 	Inherits: ^CivBuilding
+	Health:
+		HP: 10000
+	Armor:
+		Type: Medium
+		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 V12:
@@ -235,9 +292,6 @@ V18:
 		ExcludeTilesets: DESERT, INTERIOR
 V19:
 	Inherits: ^CivBuilding
-	-SpawnActorOnDeath@1:
-	-SpawnActorOnDeath@2:
-	-SpawnActorOnDeath@3:
 	RenderSprites:
 		Palette: player
 	Tooltip:
@@ -401,12 +455,22 @@ RUSHOUSE:
 	Building:
 		Footprint: x x
 		Dimensions: 1,2
+	Health:
+		HP: 50000
+	Armor:
+		Type: Heavy
+		Thickness: 50
 	HitShape: # TODO
 		UseTargetableCellsOffsets: false
 ASIANHUT:
 	Inherits: ^CivBuilding
 	MapEditorData:
 		RequireTilesets: TEMPERAT
+	Health:
+		HP: 10000
+	Armor:
+		Type: Light
+		Thickness: 10
 SNOWHUT:
 	Inherits: ^CivBuilding
 	MapEditorData:
@@ -414,6 +478,11 @@ SNOWHUT:
 	Building:
 		Footprint: x x
 		Dimensions: 1,2
+	Health:
+		HP: 10000
+	Armor:
+		Type: Light
+		Thickness: 10
 	RenderSprites:
 		Scale: 0.7
 	HitShape: # TODO
@@ -423,12 +492,17 @@ LHUS:
 	MapEditorData:
 		RequireTilesets: TEMPERAT
 	Selectable:
-		Bounds: 24,48,0,-16
+		Bounds: 1024, 2048, 0, -682
 	Tooltip:
 		Name: Lighthouse
 	Building:
 		Footprint: x
 		Dimensions: 1,1
+	Health:
+		HP: 20000
+	Armor:
+		Type: Medium
+		Thickness: 30
 WINDMILL:
 	Inherits: ^CivBuilding
 	MapEditorData:
@@ -441,6 +515,11 @@ WINDMILL:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
+	Health:
+		HP: 10000
+	Armor:
+		Type: Light
+		Thickness: 10
 BARL:
 	Inherits: ^TechBuilding
 	-Selectable:
@@ -448,7 +527,7 @@ BARL:
 	-SoundOnDamageTransition:
 	-Demolishable:
 	Health:
-		HP: 10
+		HP: 1000
 	Explodes:
 		Weapon: BarrelExplode
 	Tooltip:
@@ -469,7 +548,7 @@ BRL3:
 	-SoundOnDamageTransition:
 	-Demolishable:
 	Health:
-		HP: 10
+		HP: 1000
 	Explodes:
 		Weapon: BarrelExplode
 	Tooltip:

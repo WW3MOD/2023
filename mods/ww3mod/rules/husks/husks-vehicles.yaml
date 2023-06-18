@@ -156,7 +156,7 @@ abrams.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -173,7 +173,7 @@ bradley.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -182,7 +182,7 @@ bradley.husk:
 humvee.husk:
 	Inherits: ^Husk
 	Tooltip:
-		Name: Humbee
+		Name: Humvee
 	Armament:
 		Weapon: Dummy
 		PauseOnCondition: !alwaysdisabled
@@ -190,7 +190,7 @@ humvee.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -207,7 +207,7 @@ m113.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -224,7 +224,7 @@ strykershorad.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -241,7 +241,7 @@ m109.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -258,7 +258,7 @@ m270.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -274,7 +274,7 @@ PRSM.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -298,7 +298,7 @@ t72.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	WithAddedAnimation:
@@ -335,7 +335,7 @@ btr.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -352,7 +352,7 @@ tunguska.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -376,7 +376,7 @@ grad.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:
@@ -392,7 +392,7 @@ tos.husk:
 		Armaments: primary
 		PauseOnCondition: !alwaysdisabled
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 0
 		Offset: 0,0,20
 	WithSpriteTurret:
 	RenderSprites:

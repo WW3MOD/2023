@@ -17,9 +17,11 @@ abrams:
 	Valued:
 		Cost: 2000
 	Health:
-		HP: 5000
+		HP: 10000
 	Armor:
 		Type: Heavy
+		Thickness: 700
+		Distribution: 100,40,15,10,10
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 480
@@ -27,6 +29,9 @@ abrams:
 			BottomRight: 365, 790
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
+	# JamsMissiles:
+	# 	ActiveProtection: true
+	# 	Range: 2c0
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked
@@ -37,7 +42,7 @@ abrams:
 		Offset: 0,0,80
 	Armament@1:
 		Name: primary
-		Weapon: 120mmAbramsGun
+		Weapon: TankRound.Abrams
 		# FireDelay: 15
 		Recoil: 85
 		RecoilRecovery: 70
@@ -49,12 +54,9 @@ abrams:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -63,7 +65,7 @@ abrams:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -106,9 +108,11 @@ bradley:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 4000
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	HitShape:
@@ -132,7 +136,7 @@ bradley:
 		Offset: 0,0,50
 	Armament@1:
 		Name: primary
-		Weapon: 25mmBradleyGun
+		Weapon: 25mm.Bradley
 		Recoil: 10
 		RecoilRecovery: 5
 		LocalOffset: 820,0,105
@@ -143,37 +147,9 @@ bradley:
 		Armaments: primary
 		Ammo: 900
 		AmmoCondition: ammo-primary
-	Armament@2:
-		Name: secondary
-		Weapon: TOW.double
-		# FireDelay: 50
-		LocalOffset: 100,90,90
-		LocalYaw: -100, 100
-		Recoil: 10
-		PauseOnCondition: !ammo-secondary || empdisable
-	AmmoPool@2:
-		Name: secondary-ammo
-		Armaments: secondary
-		Ammo: 8
-		AmmoCondition: ammo-secondary
-	ReloadArmamentsBar:
-		Armaments: secondary
-		Color: 00FF00
-	Rearmable:
-		RearmActors: fix
-		AmmoPools: primary-ammo, secondary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	ReloadAmmoPool:
-		AmmoPool: secondary-ammo
-		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -181,6 +157,21 @@ bradley:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: WGM.bradley
+		LocalOffset: 100,90,90
+		# LocalYaw: -100, 100
+		Recoil: 10
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+		FullReloadTicks: 300
+		FullReloadSteps: 8
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -188,6 +179,12 @@ bradley:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	NextBurstBar:
+		Armaments: secondary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
 		Armaments: primary, secondary
@@ -207,8 +204,6 @@ bradley:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	WithRangeCircle@1:
 		Range: 21c0
 		Color: FFFF00
@@ -246,9 +241,11 @@ humvee:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1200
+		HP: 4000
 	Armor:
 		Type: Light
+		Thickness: 10
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -267,7 +264,7 @@ humvee:
 	WithSpriteTurret@MG:
 	Armament@MG:
 		Name: primary
-		Weapon: 7.62mmMG
+		Weapon: 7.62mm.MG
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
 	AmmoPool@MG:
@@ -275,12 +272,9 @@ humvee:
 		Armaments: primary
 		Ammo: 200
 		AmmoCondition: ammo-primary
-		ReloadCount: 20
-	ReloadAmmoPool@MG:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@MG:
 		Position: Bottom
 		Margin: 7, 3
@@ -297,7 +291,7 @@ humvee:
 		Sequence: turret2
 	Armament@WGM:
 		Name: secondary
-		Weapon: TOW
+		Weapon: WGM
 		Turret: secondary
 		# FireDelay: 50
 		PauseOnCondition: !ammo-secondary || empdisable
@@ -306,12 +300,9 @@ humvee:
 		Armaments: secondary
 		Ammo: 3
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@WGM:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadSteps: 3
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@WGM:
 		Position: Bottom
 		Margin: 3, 6
@@ -319,11 +310,11 @@ humvee:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
-	ReloadArmamentsBar:
+	NextBurstBar:
 		Armaments: secondary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -390,9 +381,11 @@ m113:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 2500
+		HP: 6000
 	Armor:
 		Type: Light
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -407,7 +400,7 @@ m113:
 		# PauseOnCondition: empdisable || !notmobile
 	Armament@MG:
 		Name: primary
-		Weapon: 12.7mmMG
+		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
@@ -417,11 +410,9 @@ m113:
 		Ammo: 200
 		AmmoCondition: ammo-primary
 		ReloadCount: 20
-	ReloadAmmoPool@MG:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@MG:
 		Position: Bottom
 		Margin: 7, 3
@@ -449,8 +440,6 @@ m113:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	RenderRangeCircle:
 		Alpha: 100
 		Color: FFFF00
@@ -483,9 +472,11 @@ strykershorad:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 3000
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	HitShape:
@@ -507,7 +498,7 @@ strykershorad:
 		Alpha: 50
 	Armament@1:
 		Name: primary
-		Weapon: 30mmStrykerGun
+		Weapon: 30mm.Stryker
 		Recoil: 20
 		RecoilRecovery: 25
 		LocalOffset: 768,0,90
@@ -518,12 +509,9 @@ strykershorad:
 		Armaments: primary
 		Ammo: 400
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -542,15 +530,12 @@ strykershorad:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@2:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 4
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	ReloadArmamentsBar@2:
+		RearmSound: minelay1.aud
+	NextBurstBar@2:
 		Armaments: secondary
-		Color: 0000FF
+		Color: 66B2FF
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 3
@@ -560,7 +545,7 @@ strykershorad:
 		AmmoPools: secondary-ammo
 	Armament@3:
 		Name: tertiary
-		Weapon: HellfireAG.dual
+		Weapon: Hellfire.strykershorad
 		# FireDelay: 25
 		LocalOffset: 100,-90,90
 		LocalYaw: -70, 100
@@ -570,16 +555,13 @@ strykershorad:
 		Armaments: tertiary
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
-	ReloadAmmoPool@3:
-		AmmoPool: tertiary-ammo
 		FullReloadTicks: 300
-		FullReloadSteps: 2
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadSteps: 4
+		RearmSound: minelay1.aud
 	Turreted:
 		TurnSpeed: 20
 		Offset: -250,0,80
-	ReloadArmamentsBar@3:
+	NextBurstBar@3:
 		Armaments: tertiary
 		Color: 00FF00
 	WithAmmoPipsDecoration@3:
@@ -590,7 +572,7 @@ strykershorad:
 		FullSequence: pip-green
 		AmmoPools: tertiary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -611,8 +593,6 @@ strykershorad:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	WithRangeCircle@1:
 		Range: 22c0
 		Color: FFFF00
@@ -650,9 +630,11 @@ m109:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1500
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 10
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	HitShape:
@@ -680,7 +662,7 @@ m109:
 		Offset: -200,0,0
 		TurnSpeed: 15
 	Armament@1:
-		Weapon: 155mmPaladinGun
+		Weapon: ArtilleryRound.Paladin
 		# FireDelay: 100
 		Recoil: 85
 		RecoilRecovery: 70
@@ -692,15 +674,9 @@ m109:
 		Armaments: primary
 		Ammo: 39
 		AmmoCondition: ammo-primary
-	Rearmable:
-		RearmActors: fix
-		AmmoPools: primary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -715,6 +691,9 @@ m109:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		# StopAndWait: 100
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
 	RenderRangeCircle:
 		Width: 1
 		Alpha: 100
@@ -749,9 +728,11 @@ m270:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1000
+		HP: 5000
 	Armor:
 		Type: Light
+		Thickness: 8
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -765,7 +746,6 @@ m270:
 		PauseOnCondition: !firing
 	RevealsShroud:
 		Range: 12c0
-		RevealGeneratedShroud: False
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 50
@@ -780,7 +760,7 @@ m270:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
 	Armament@1:
-		Weapon: 227mmRockets
+		Weapon: M270Rockets
 		# FireDelay: 150
 		LocalOffset: 192,-64,176, 192,64,176
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
@@ -789,12 +769,9 @@ m270:
 		Armaments: primary
 		Ammo: 12
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -812,13 +789,11 @@ m270:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	Selectable:
 		DecorationBounds: 2048,2048
 	RenderRangeCircle:
@@ -853,12 +828,12 @@ HIMARS:
 		AddToArmyValue: true
 	Health:
 		HP: 2000
-	Armor@Loaded:
-		RequiresCondition: loaded
-		Type: Unarmored
-	Armor@empty:
-		RequiresCondition: !loaded
-		Type: Medium
+	# Armor@Loaded:
+	# 	RequiresCondition: loaded
+	# 	Type: Unarmored
+	Armor:
+		# RequiresCondition: !loaded
+		Type: Light
 	Targetable@Loaded:
 		RequiresCondition: loaded
 		TargetTypes: Ground, Vehicle, Light
@@ -876,7 +851,6 @@ HIMARS:
 		PauseOnCondition: !firing
 	RevealsShroud:
 		Range: 10c0
-		RevealGeneratedShroud: False
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 70
@@ -897,14 +871,11 @@ HIMARS:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 5
+		Ammo: 6
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		Delay: 70
-		Count: 1
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadTicks: 600
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -921,7 +892,7 @@ HIMARS:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithSpriteTurret:
@@ -953,7 +924,7 @@ PRSM:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 18
-		Prerequisites: techcenter, ~vehicles.america, ~techlevel.futuristic
+		Prerequisites: ~vehicles.america, ~techlevel.futuristic
 		Description: Experimental vehicle armed with a laser
 	Valued:
 		Cost: 3000
@@ -962,9 +933,11 @@ PRSM:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1500
+		HP: 5000
 	Armor:
 		Type: Light
+		Thickness: 8
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -1037,8 +1010,6 @@ PRSM:
 		OpportunityFire: False
 		PauseOnCondition: empdisable
 	WithSpriteTurret:
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	RenderRangeCircle:
 		Width: 3
 		Alpha: 120

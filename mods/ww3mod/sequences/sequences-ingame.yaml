@@ -509,6 +509,11 @@ minv:
 		ZOffset: 1023
 		IgnoreWorldTint: true
 
+grenade_small:
+	idle: grenade_small
+		ZOffset: 1023
+		IgnoreWorldTint: true
+
 tracer_small:
 	idle: tracer_small
 		Facings: 32

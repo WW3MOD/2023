@@ -17,9 +17,11 @@ t72:
 	Valued:
 		Cost: 1700
 	Health:
-		HP: 4000
+		HP: 10000
 	Armor:
 		Type: Heavy
+		Thickness: 280
+		Distribution: 100,80,80,80,60
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 450
@@ -38,8 +40,7 @@ t72:
 		Offset: 0,0,20
 	Armament@1:
 		Name: primary
-		Weapon: 125mmT72Gun
-		# FireDelay: 15
+		Weapon: TankRound.T72
 		Recoil: 85
 		RecoilRecovery: 70
 		LocalOffset: 1300,0,45
@@ -50,6 +51,9 @@ t72:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -58,14 +62,8 @@ t72:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
-		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
 	AttackTurreted:
 		TargetFrozenActors: True
 		Armaments: primary
@@ -94,8 +92,6 @@ bmp2:
 	Tooltip:
 		Name: BPM-2
 		GenericName: IFV Troop Carrier
-	# RenderSprites:
-	# 	Image: bmp
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
@@ -106,9 +102,11 @@ bmp2:
 	Tooltip:
 		Name: BMP-2 IFV
 	Health:
-		HP: 4000
+		HP: 7000
 	Armor:
 		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	HitShape:
@@ -129,7 +127,7 @@ bmp2:
 		AttackingRevokeDelay: 0
 	Armament@1:
 		Name: primary
-		Weapon: 73mmBmpGun
+		Weapon: 73mm_BMP
 		Recoil: 85
 		RecoilRecovery: 25
 		LocalOffset: 500,0,100
@@ -140,37 +138,9 @@ bmp2:
 		Armaments: primary
 		Ammo: 900
 		AmmoCondition: ammo-primary
-	Armament@2:
-		Name: secondary
-		Weapon: TOW
-		# FireDelay: 50
-		LocalOffset: 100,90,90
-		LocalYaw: -100, 100
-		Recoil: 10
-		PauseOnCondition: !ammo-secondary || empdisable
-	AmmoPool@2:
-		Name: secondary-ammo
-		Armaments: secondary
-		Ammo: 8
-		AmmoCondition: ammo-secondary
-	ReloadArmamentsBar:
-		Armaments: secondary
-		Color: 00FF00
-	Rearmable:
-		RearmActors: fix
-		AmmoPools: primary-ammo, secondary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	ReloadAmmoPool:
-		AmmoPool: secondary-ammo
-		FullReloadTicks: 300
-		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -178,6 +148,22 @@ bmp2:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: WGM
+		# FireDelay: 50
+		LocalOffset: 100,90,90
+		# LocalYaw: -100, 100
+		Recoil: 10
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -185,6 +171,12 @@ bmp2:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	NextBurstBar:
+		Armaments: secondary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
 	Turreted:
 		TurnSpeed: 20
 		Offset: -75,0,60
@@ -207,8 +199,6 @@ bmp2:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	WithRangeCircle@1:
 		Range: 21c0
 		Color: FFFF00
@@ -246,9 +236,11 @@ btr:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 3000
+		HP: 7000
 	Armor:
 		Type: Light
+		Thickness: 10
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -262,7 +254,7 @@ btr:
 		TurnSpeed: 15
 	Armament@MG:
 		Name: primary
-		Weapon: 12.7mmMG
+		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
@@ -271,12 +263,9 @@ btr:
 		Armaments: primary
 		Ammo: 200
 		AmmoCondition: ammo-primary
-		ReloadCount: 20
-	ReloadAmmoPool@MG:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@MG:
 		Position: Bottom
 		Margin: 7, 3
@@ -304,8 +293,6 @@ btr:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	ProducibleWithLevel:
-		Prerequisites: vehicles.upgraded
 	RenderRangeCircle:
 		Alpha: 100
 		Color: FFFF00
@@ -333,8 +320,12 @@ tunguska:
 		Description: Mobile AA
 	Valued:
 		Cost: 1700
+	Health:
+		HP: 7000
 	Armor:
-		Type: Heavy
+		Type: Medium
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	HitShape:
@@ -361,7 +352,7 @@ tunguska:
 		Offset: -30,0,50
 	Armament@3:
 		Name: primary
-		Weapon: 30mmTunguskaGun.AG
+		Weapon: 30mm.Tunguska.AG
 		Recoil: 30
 		RecoilRecovery: 30
 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
@@ -369,7 +360,7 @@ tunguska:
 		PauseOnCondition: !ammo-primary || empdisable
 	Armament@1:
 		Name: primary-air
-		Weapon: 30mmTunguskaGun.AA
+		Weapon: 30mm.Tunguska.AA
 		Recoil: 30
 		RecoilRecovery: 30
 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
@@ -387,12 +378,9 @@ tunguska:
 		Armaments: primary, tertiary
 		Ammo: 180
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 6
@@ -403,9 +391,7 @@ tunguska:
 	Armament@2:
 		Name: secondary
 		Weapon: 9M311
-		# FireDelay: 30
 		LocalOffset: 500,240,120, 500,-240,120
-		# LocalYaw: -100, 100
 		PauseOnCondition: !ammo-secondary || firing-primary || empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -418,15 +404,12 @@ tunguska:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-	ReloadAmmoPool@2:
-		AmmoPool: secondary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
-	ReloadArmamentsBar@2:
+		RearmSound: minelay1.aud
+	NextBurstBar@2:
 		Armaments: secondary
-		Color: 0000FF
+		Color: 66B2FF
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 5, 3
@@ -435,7 +418,7 @@ tunguska:
 		FullSequence: pip-blue
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AttackTurreted:
 		Armaments: primary, primary-air, secondary
@@ -481,9 +464,11 @@ giatsint:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1500
+		HP: 7000
 	Armor:
-		Type: Medium
+		Type: Light
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
 	HitShape:
@@ -508,7 +493,7 @@ giatsint:
 		RevokeDelay: 100
 	IndirectFire:
 	Armament@1:
-		Weapon: 152mmGiatsintGun
+		Weapon: ArtilleryRound.Giatsint
 		Recoil: 85
 		RecoilRecovery: 70
 		MuzzleSequence: muzzle
@@ -519,21 +504,18 @@ giatsint:
 		Armaments: primary
 		Ammo: 39
 		AmmoCondition: ammo-primary
-	Rearmable:
-		RearmActors: fix
-		AmmoPools: primary-ammo
-	ReloadAmmoPool:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
 		PipCount: 6
 		RequiresSelection: true
 		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Rearmable:
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithDamageOverlay:
@@ -575,9 +557,11 @@ grad:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 500
+		HP: 5000
 	Armor:
 		Type: Light
+		Thickness: 5
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -604,7 +588,7 @@ grad:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
 	Armament@1:
-		Weapon: 122mmGradRockets
+		Weapon: GradRockets
 		LocalOffset: 0,0,100
 		PauseOnCondition: !ammo-primary || empdisable
 	AmmoPool@1:
@@ -612,12 +596,9 @@ grad:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -640,7 +621,7 @@ grad:
 		RequiresCondition: firing
 		Sequence: turret
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	Selectable:
 		DecorationBounds: 1024,1024
@@ -674,9 +655,11 @@ tos:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 3000
+		HP: 10000
 	Armor:
-		Type: Heavy
+		Type: Medium
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	HitShape:
@@ -701,7 +684,7 @@ tos:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
 	Armament@1:
-		Weapon: 220mmTOSRockets
+		Weapon: TosRockets
 		LocalOffset: 0,0,100
 		PauseOnCondition: !ammo-primary || empdisable
 	AmmoPool@1:
@@ -709,12 +692,9 @@ tos:
 		Armaments: primary
 		Ammo: 24
 		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
 		FullReloadSteps: 6
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -737,7 +717,7 @@ tos:
 		RequiresCondition: firing
 		Sequence: turret
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	Selectable:
 		DecorationBounds: 1024,1024
@@ -758,7 +738,7 @@ iskander:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
-		Prerequisites: stek, ~vehicles.russia, ~techlevel.high
+		Prerequisites: ~vehicles.russia, ~techlevel.high
 		Description: 9K720 Iskander ballistic missile launcher.
 	Valued:
 		Cost: 3500
@@ -768,17 +748,15 @@ iskander:
 		Scale: 1.25
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 2000
 	DamageMultiplier@Loaded:
 		RequiresCondition: loaded
 		Modifier: 1000
-	Armor@Normal:
-		RequiresCondition: !loaded
+	Health:
+		HP: 5000
+	Armor:
 		Type: Light
-	Armor@Loaded:
-		RequiresCondition: loaded
-		Type: Unarmored
+		Thickness: 15
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:
@@ -816,14 +794,11 @@ iskander:
 		Armaments: primary
 		Ammo: 2
 		AmmoCondition: ammo-primary
-		RearmSound: minelay1.aud
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
 		FullReloadTicks: 300
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
 	Rearmable:
-		RearmActors: fix
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	AttackFrontal:
 		TargetFrozenActors: True
@@ -833,17 +808,14 @@ iskander:
 		PauseOnCondition: empdisable
 	WithFacingSpriteBody:
 		Sequence: empty-idle
-
 	WithWeaponOverlay@Missile_1:
 		Sequence: missile
 		Offset: -150,130,150
 		RequiresCondition: ammo-primary == 2
-
 	WithWeaponOverlay@Missile_2:
 		Sequence: missile
 		Offset: -150,-100,150
 		RequiresCondition: ammo-primary
-
 	MissileSpawnerMaster:
 		Actors: IskanderMissile
 		LoadedCondition: loaded
@@ -906,7 +878,7 @@ TTNK:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 90
-		Prerequisites: stek, ~vehicles.russia, ~techlevel.futuristic
+		Prerequisites: ~vehicles.russia, ~techlevel.futuristic
 		Description: Tank with mounted Tesla coil.\nTesla briefly short-circuits Vehicle and Ships.\n  Immune to EMP\n  Strong vs Infantry, Vehicles, Buildings\n  Weak vs Aircraft
 	Valued:
 		Cost: 3000
@@ -918,11 +890,11 @@ TTNK:
 	Selectable:
 		DecorationBounds: 1024,1024
 	Health:
-		HP: 1500
-	# Targetable@DontEMP:
-	# 	TargetTypes: EMPInvalid
+		HP: 5000
 	Armor:
 		Type: Light
+		Thickness: 19
+		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	HitShape:

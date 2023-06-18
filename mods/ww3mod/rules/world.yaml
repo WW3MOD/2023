@@ -1,3 +1,4 @@
+
 ^BaseWorld:
 	Inherits: ^Palettes
 	AlwaysVisible:
@@ -277,8 +278,8 @@ World:
 	HelpCommand:
 	ScreenShaker:
 	BuildingInfluence:
-	ProductionQueueFromSelection:
-		ProductionPaletteWidget: PRODUCTION_PALETTE
+	# ProductionQueueFromSelection:
+	# 	ProductionPaletteWidget: PRODUCTION_PALETTE
 	LegacyBridgeLayer:
 		Bridges: bridge1, bridge2, bridge3, bridge4, br1, br2, br3, sbridge1, sbridge2, sbridge3, sbridge4
 	CustomTerrainDebugOverlay:
@@ -330,104 +331,105 @@ World:
 		GameSpeed: default
 	CreateMapPlayers:
 
-	StartingUnits@All:
+	StartingUnits@none:
 		Class: none
-		ClassName: All units
-		Factions: russia, america
-		BaseActor: fact
-		SupportActors: MNLY, SandBagLayer, timberwolf, btr,btr,SN,SN,SN,SN,SN,droneop,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,mnly,harv,mcv,mcv2,truk
-		InnerSupportRadius: 3
-		OuterSupportRadius: 6
-	StartingUnits@test_america:
-		Class: test
-		ClassName: TEST
-		Factions: america
-		BaseActor: fact
-		SupportActors: prsm,prsm,prsm,abrams,bradley,humvee,m113,m109,m270,m270,strykershorad,heli,littlebird,littlebird,littlebird,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,droneop,MT,MT,SF,DOG,DOG,SPY
-		InnerSupportRadius: 3
-		OuterSupportRadius: 6
-	StartingUnits@test_russia:
-		Class: test
-		ClassName: TEST
-		Factions: russia
-		BaseActor: fact
-		SupportActors: ttnk,ttnk,ttnk,t72,bmp2,bmp2,btr,giatsint,grad,tos,tunguska,hind,hind,mi28,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,droneop,MT,MT,SF,DOG,DOG,SPY
-		InnerSupportRadius: 3
-		OuterSupportRadius: 6
-	StartingUnits@deployed:
-		Class: S1
-		ClassName: Conyard
+		ClassName: None
 		Factions: america, russia
-		BaseActor: fact
-		SupportActors:
-		InnerSupportRadius: 3
-		OuterSupportRadius: 4
+		BaseActor: supplyroute
+
 	StartingUnits@squad_america:
-		Class: S2
-		ClassName: Conyard + Squad
+		Class: squad
+		ClassName: Squad
 		Factions: america
-		BaseActor: fact
+		BaseActor: supplyroute
 		SupportActors: TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, AT.america,MEDI.america
-		InnerSupportRadius: 3
-		OuterSupportRadius: 4
+		InnerSupportRadius: 5
+		OuterSupportRadius: 6
 	StartingUnits@squad_russia:
-		Class: S2
-		ClassName: Conyard + Squad
+		Class: squad
+		ClassName: Squad
 		Factions: russia
-		BaseActor: fact
+		BaseActor: supplyroute
 		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, AT.russia,MEDI.russia
-		InnerSupportRadius: 3
-		OuterSupportRadius: 4
+		InnerSupportRadius: 5
+		OuterSupportRadius: 6
+
 	StartingUnits@platoon_america:
-		Class: S3
-		ClassName: Conyard + Platoon
+		Class: platoon
+		ClassName: Platoon
 		Factions: america
-		BaseActor: fact
+		BaseActor: supplyroute
 		SupportActors: TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
-		OuterSupportRadius: 7
+		OuterSupportRadius: 6
 	StartingUnits@platoon_russia:
-		Class: S3
-		ClassName: Conyard + Platoon
+		Class: platoon
+		ClassName: Platoon
 		Factions: russia
-		BaseActor: fact
+		BaseActor: supplyroute
 		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
 		InnerSupportRadius: 5
-		OuterSupportRadius: 7
-	StartingUnits@armoured_platoon_america:
-		Class: S4
-		ClassName: Conyard + Motorized
+		OuterSupportRadius: 6
+
+	StartingUnits@Motorized_america:
+		Class: motorized
+		ClassName: Motorized
 		Factions: america
-		BaseActor: fact
-		SupportActors: abrams,abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
+		BaseActor: supplyroute
+		SupportActors: abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	StartingUnits@armoured_platoon_russia:
-		Class: S4
-		ClassName: Conyard + Motorized
+	StartingUnits@Motorized_russia:
+		Class: motorized
+		ClassName: Motorized
 		Factions: russia
-		BaseActor: fact
-		SupportActors: t72,t72,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
+		BaseActor: supplyroute
+		SupportActors: t72,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	StartingUnits@armoured_platoon_airsupport_america:
-		Class: S5
-		ClassName: Conyard + Air support
+
+	StartingUnits@AirSupport_america:
+		Class: air
+		ClassName: Air support
 		Factions: america
-		BaseActor: fact
+		BaseActor: supplyroute
 		SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-	StartingUnits@armoured_platoon_airsupport_russia:
-		Class: S5
-		ClassName: Conyard + Air support
+	StartingUnits@AirSupport_russia:
+		Class: air
+		ClassName: Air support
 		Factions: russia
-		BaseActor: fact
+		BaseActor: supplyroute
 		SupportActors: t72,bmp2,tunguska, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia, HIND,HIND,HALO
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-		# SupportActors: littlebird,iskander,iskander,iskander,e1,e1,e1,e3,e3,e1,e1,e1,e3,e3,e1,e1,e1,e3,e3,tos,tos,giatsint,giatsint,grad,grad,bmp2,t72,abrams,humvee,bradley,m109,m270,m113,e1.russia
+	StartingUnits@test_america:
+		Class: test
+		ClassName: TEST
+		Factions: america
+		BaseActor: supplyroute
+		SupportActors: prsm,abrams,bradley,humvee,m113,m109,m270,m270,strykershorad,heli,littlebird,littlebird,littlebird,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,dr,MT,MT,SF,DOG,DOG,SPY
+		InnerSupportRadius: 4
+		OuterSupportRadius: 8
+	StartingUnits@test_russia:
+		Class: test
+		ClassName: TEST
+		Factions: russia
+		BaseActor: supplyroute
+		SupportActors: ttnk,t72,bmp2,bmp2,btr,giatsint,grad,tos,tunguska,hind,hind,mi28,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,dr,MT,MT,SF,DOG,DOG,SPY
+		InnerSupportRadius: 4
+		OuterSupportRadius: 8
+
+	StartingUnits@All:
+		Class: all
+		ClassName: All units
+		Factions: russia, america
+		BaseActor: supplyroute
+		SupportActors: abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, timberwolf, btr,btr,SN,SN,SN,SN,SN,dr,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,truk
+		InnerSupportRadius: 4
+		OuterSupportRadius: 8
 
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
@@ -443,7 +445,6 @@ World:
 	ScriptTriggers:
 	CellTriggerOverlay:
 	TimeLimitManager:
-		TimeLimitDisplayOrder: 2
 		TimeLimitWarnings:
 			40: FourtyMinutesRemaining
 			30: ThirtyMinutesRemaining
@@ -455,7 +456,7 @@ World:
 			2: WarningTwoMinutesRemaining
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
-		PreviewActor: fact.colorpicker
+		PreviewActor: e3.colorpicker
 		PresetHues: 0, 0.125, 0.22, 0.375, 0.5, 0.56, 0.8, 0.88, 0, 0.15, 0.235, 0.4, 0.47, 0.55, 0.75, 0.85
 		PresetSaturations: 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.4, 0.5, 0.4, 0.5, 0.4, 0.5, 0.4, 0.5
 	OrderEffects:

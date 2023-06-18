@@ -91,7 +91,7 @@
 	GrantConditionOnDamageState@HeavyDamage:
 		Condition: heavy-damage
 		ValidDamageStates: Heavy, Critical
-	GrantConditionOnDamageState@CRITICALDAMAGE:
+	GrantConditionOnDamageState@CriticalDamage:
 		Condition: critical-damage
 		ValidDamageStates: Critical
 
@@ -487,37 +487,21 @@
 		Prerequisites: global-bounty
 	GivesBounty:
 		RequiresCondition: global-bounty
-^GlobalPenalty:
-	GrantConditionOnPrerequisite@GlobalPenalty:
-		Condition: global-penalty
-		Prerequisites: global-penalty
-	GivesBounty:
-		RequiresCondition: global-penalty
-		Fixed: -1000
-		Percentage: 0
-		# Promote: 1
+# ^GlobalPenalty:
+# 	GrantConditionOnPrerequisite@GlobalPenalty:
+# 		Condition: global-penalty
+# 		Prerequisites: global-penalty
+# 	GivesBounty:
+# 		RequiresCondition: global-penalty
+# 		Fixed: -1000
+# 		Percentage: 0
+# 		# Promote: 1
 
 ^PlayerHandicaps:
 	HandicapProductionMultiplier:
 	# HandicapFirepowerMultiplier:
 	# HandicapDamageMultiplier:
 	# HandicapProductionTimeMultiplier:
-
-^IncomeAIBoost:
-	ResourcePurifier@IncomeAIBoost:
-		Modifier: 20
-		RequiresCondition: owned-by-ai
-		ShowTicks: False
-	GrantConditionOnBotOwner@IncomeAIBoost:
-		Condition: owned-by-ai
-		Bots: normal
-^ProductionAIBoost:
-	ProductionTimeMultiplier@ProductionBoost:
-		Multiplier: 120
-		Prerequisites: aitoodumb
-	ProductionCostMultiplier@ProductionBoost:
-		Multiplier: 80
-		Prerequisites: aitoodumb
 
 # Use with extendable radar?
 ^DisguiseableTree:

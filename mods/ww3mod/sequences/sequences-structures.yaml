@@ -1,3 +1,26 @@
+
+supplyroute:
+	Inherits: emp-overlay
+	idle:
+		Offset: 0,1
+		ZOffset: -1c511
+	active:
+		Start: 1
+		Length: 6
+		Offset: 0,1
+		ZOffset: -1c511
+	dead: fix-dead
+		Offset: 0,1
+		Tick: 800
+	none: blank32
+		Length: 1
+	bib: mbFIX
+		Length: *
+		ZOffset: -1c511
+		Offset: 0,-4
+		UseTilesetExtension: true
+	icon: fixicon
+
 fact:
 	Inherits: emp-overlay
 	idle: fact

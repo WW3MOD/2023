@@ -801,11 +801,17 @@ namespace OpenRA.Mods.Common.Projectiles
 				targetPassedBy = true;
 
 			// Check whether the homing mechanism is jammed
-			var jammed = info.Jammable && world.ActorsWithTrait<JamsMissiles>().Any(JammedBy);
+			var jammingActor = world.ActorsWithTrait<JamsMissiles>().FirstOrDefault(JammedBy);
+			var jammed = info.Jammable && jammingActor.Actor != null;
 			if (jammed)
 			{
-				desiredHFacing = hFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
-				desiredVFacing = vFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
+				if (jammingActor.Trait.Info.ActiveProtection)
+					Explode(world);
+				else
+				{
+					desiredHFacing = hFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
+					desiredVFacing = vFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
+				}
 			}
 			else if (!args.GuidedTarget.IsValidFor(args.SourceActor))
 				desiredHFacing = hFacing;

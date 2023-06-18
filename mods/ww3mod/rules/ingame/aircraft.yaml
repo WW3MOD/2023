@@ -4,12 +4,14 @@
 	Inherits@SpriteActor: ^SpriteActor
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
-	Inherits@Slowdown: ^EffectsWhenDamagedAir
+	Inherits@WhenDamagedAir: ^WhenDamagedAir
 	Inherits@EMPMechanic: ^AircraftAffectedByEMP
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
+	RevealsShroud:
+		Range: 20c0
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -65,21 +67,25 @@
 ^Airborne:
 	Inherits: ^NeutralAirborne
 	Inherits@UnitExperience: ^GainsExperience
-	Inherits@AIBoost: ^ProductionAIBoost
 	Repairable:
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
-	RevealsShroud@Air:
+	RevealsRadar:
 		Range: 25c0
 		Type: GroundPosition
-		RevealGeneratedShroud: False
+		RequiresCondition: airborne
+	RevealsShroud@Air:
+		Range: 20c0
+		Type: GroundPosition
 		RequiresCondition: airborne
 	RevealsShroud@Ground:
-		Range: 5c0
+		Range: 10c0
 		Type: GroundPosition
-		RevealGeneratedShroud: False
 		RequiresCondition: !airborne
+	SpeedMultiplier@Rank_4:
+		RequiresCondition: rank-veteran == 4
+		Modifier: 120
 
 ^Aircraft:
 	Inherits@Type: ^Airborne
@@ -108,6 +114,8 @@
 		RequiresCondition: airborne && rank-veteran >= 4
 		SuccessRate: 80
 		EjectInAir: true
+	DeliversCash@Rotation:
+		Type: Rotation
 
 ^Helicopter:
 	Inherits@Type: ^Airborne
@@ -116,14 +124,14 @@
 		GenericName: Helicopter
 	Aircraft:
 		CanHover: True
+		CanSlide: True
+		VTOL: True
 		CruisingCondition: cruising
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
-		VTOL: true
 		LandableTerrainTypes: Clear, Rough, Road, Ore, Beach, Gems
 		Crushes: crate, mine, infantry
 		InitialFacing: 224
-		CanSlide: False
 	GrantConditionOnMovement:
 		Condition: moving
 	GpsDot:
@@ -135,31 +143,8 @@
 		RepairActors: hpad
 	Targetable@Helicopter:
 		TargetTypes: Helicopter
-	EjectOnDeath@Rank0:
-		PilotActor: PILOT
-		RequiresCondition: airborne && !rank-veteran
-		SuccessRate: 80
-		EjectOnGround: true
-	EjectOnDeath@Rank1:
-		PilotActor: PILOTR1
-		RequiresCondition: airborne && rank-veteran == 1
-		SuccessRate: 80
-		EjectOnGround: true
-	EjectOnDeath@Rank2:
-		PilotActor: PILOTR2
-		RequiresCondition: airborne && rank-veteran == 2
-		SuccessRate: 80
-		EjectOnGround: true
-	EjectOnDeath@Rank_3:
-		PilotActor: PILOTR3
-		RequiresCondition: airborne && rank-veteran == 3
-		SuccessRate: 80
-		EjectOnGround: true
-	EjectOnDeath@Rank4:
-		PilotActor: PILOTR4
-		RequiresCondition: airborne && rank-veteran >= 4
-		SuccessRate: 80
-		EjectOnGround: true
+	DeliversCash@Rotation:
+		Type: Rotation
 
 ^Drone:
 	Inherits: ^Airborne
@@ -181,23 +166,24 @@
 	Targetable@Drone:
 		TargetTypes: Drone
 
-^KilledWithoutAirfield:
-	ChangesHealth@PLANE:
-		Step: 0
-		PercentageStep: -10
-		Delay: 25
-		DamageCooldown: 0
-		RequiresCondition: !hasairfield
-	GrantConditionOnPrerequisite@AIRFIELD:
-		Prerequisites: afld
-		Condition: hasairfield
-
-^EffectsWhenDamagedAir:
-	SpeedMultiplier@HEAVYDAMAGE:
+^WhenDamagedAir:
+	SpeedMultiplier@HeavyDamage:
 		Modifier: 90
 		RequiresCondition: heavy-damage
-	SpeedMultiplier@CRITICALDAMAGE:
+	SpeedMultiplier@CriticalDamage:
 		Modifier: 75
+		RequiresCondition: critical-damage
+	InaccuracyMultiplier@HeavyDamage:
+		Modifier: 75
+		RequiresCondition: heavy-damage
+	InaccuracyMultiplier@CriticalDamage:
+		Modifier: 50
+		RequiresCondition: critical-damage
+	BurstWaitMultiplier@HeavyDamage:
+		Modifier: 75
+		RequiresCondition: heavy-damage
+	BurstWaitMultiplier@CriticalDamage:
+		Modifier: 50
 		RequiresCondition: critical-damage
 
 ^AircraftAffectedByEMP:
@@ -289,16 +275,16 @@ BADR.Crate:
 		Image: badr
 	-MapEditorData:
 
-BADR.Bomber:
-	Inherits: BADR
-	-ParaDrop:
-	-Cargo:
-	-MapEditorData:
-	RenderSprites:
-		Image: badr
-	AttackBomber:
-		FacingTolerance: 8
-	AmmoPool:
-		Ammo: 10
-	Armament:
-		Weapon: ParaBomb
+# BADR.Bomber:
+# 	Inherits: BADR
+# 	-ParaDrop:
+# 	-Cargo:
+# 	-MapEditorData:
+# 	RenderSprites:
+# 		Image: badr
+# 	AttackBomber:
+# 		FacingTolerance: 8
+# 	AmmoPool:
+# 		Ammo: 10
+# 	Armament:
+# 		Weapon: ParaBomb

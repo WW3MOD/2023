@@ -31,7 +31,6 @@ namespace OpenRA.Mods.Common.Traits
 		readonly World world;
 		readonly Lazy<ProductionTabsWidget> tabsWidget;
 		readonly Lazy<ProductionPaletteWidget> paletteWidget;
-
 		public ProductionQueueFromSelection(World world, ProductionQueueFromSelectionInfo info)
 		{
 			this.world = world;
@@ -40,6 +39,7 @@ namespace OpenRA.Mods.Common.Traits
 			paletteWidget = Exts.Lazy(() => Ui.Root.GetOrNull(info.ProductionPaletteWidget) as ProductionPaletteWidget);
 		}
 
+		// Disable tab switching since supply route now builds all
 		void INotifySelection.SelectionChanged()
 		{
 			// Disable for spectators

@@ -66,6 +66,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition to grant while reloading.")]
 		public readonly string ReloadingCondition = null;
 
+		[Desc("If unit has IndirectFire trait this can be disabled for specific armaments.")]
+		public readonly bool AllowIndirectFire = true; // TODO FF, Unimplemented
+
 		public WeaponInfo WeaponInfo { get; private set; }
 		public WDist ModifiedRange { get; private set; }
 
@@ -103,11 +106,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstDelays.Length > 1 && (WeaponInfo.BurstDelays.Length != WeaponInfo.Burst - 1))
 				throw new YamlException($"Weapon '{weaponToLower}' has an invalid number of BurstDelays, must be single entry or Burst - 1.");
 
-			if (WeaponInfo.ReloadDelay == 0 && WeaponInfo.BurstWait == 0)
-				throw new YamlException("Weapons must define ReloadDelay and/or BurstWait: '{0}'".F(weaponToLower));
-
-			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstWait == 0)
-				throw new YamlException("Weapons with Burst must define BurstWait: '{0}'".F(weaponToLower));
+			if (WeaponInfo.BurstWait == 0)
+				throw new YamlException("Weapons must define BurstWait: '{0}'".F(weaponToLower));
 
 			base.RulesetLoaded(rules, ai);
 		}
@@ -146,6 +146,16 @@ namespace OpenRA.Mods.Common.Traits
 		public int Burst { get; protected set; }
 		public int BurstWait { get; protected set; }
 		public int FireDelay { get; protected set; }
+		public bool IsBurstWait { get; protected set; }
+		public AmmoPool AmmoPool
+		{
+			get
+			{
+				var matchingAmmopool = self.TraitsImplementing<AmmoPool>().FirstOrDefault(ammopool =>
+					ammopool.Info.Armaments.Any(armament => armament == Info.Name));
+				return matchingAmmopool;
+			}
+		}
 
 		public List<WPos> AimInitialTargetPosition { get; protected set; }
 		public int AimInitialTicksBefore { get; protected set; }
@@ -366,13 +376,9 @@ namespace OpenRA.Mods.Common.Traits
 				Weapon = Weapon,
 				Facing = MuzzleFacing(),
 				CurrentMuzzleFacing = MuzzleFacing,
-
 				DamageModifiers = damageModifiers.ToArray(),
-
 				InaccuracyModifiers = inaccuracyModifiers.ToArray(),
-
 				RangeModifiers = rangeModifiers.ToArray(),
-
 				Source = MuzzlePosition(),
 				CurrentSource = MuzzlePosition,
 				SourceActor = self,
@@ -455,7 +461,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (--Burst < 1)
 					{
 						var burstWaitmodifiers = burstWaitModifiers.ToArray();
-						BurstWait = Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers);
+						SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers), true);
 
 						var burstmodifiers = burstModifiers.ToArray();
 						Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
@@ -469,9 +475,9 @@ namespace OpenRA.Mods.Common.Traits
 					else
 					{
 						if (Weapon.BurstDelays.Length == 1)
-							BurstWait = Weapon.BurstDelays[0];
+							SetBurstWait(Weapon.BurstDelays[0]);
 						else
-							BurstWait = Weapon.BurstDelays[Weapon.Burst - (Burst + 1)];
+							SetBurstWait(Weapon.BurstDelays[Weapon.Burst - (Burst + 1)]);
 					}
 				}
 			}
@@ -479,6 +485,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				throw new Exception("Error in UpdateBurst for: {0}".F(self.Info.Name));
 			}
+		}
+
+		void SetBurstWait(int delay, bool isBurstWait = false)
+		{
+			BurstWait = delay;
+			IsBurstWait = isBurstWait;
 		}
 
 		public virtual bool IsWaitingBurst { get { return BurstWait > 0 || IsTraitDisabled; } }

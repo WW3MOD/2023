@@ -9,8 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -21,9 +19,8 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		readonly WDist maxRange;
 		readonly WDist minRange;
-		readonly Map map;
-		readonly int maxCells;
-		readonly int minCells;
+
+		int checkTick = 0;
 
 		public MoveWithinRange(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
@@ -31,16 +28,26 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			this.minRange = minRange;
 			this.maxRange = maxRange;
-			map = self.World.Map;
-			maxCells = (maxRange.Length + 1023) / 1024;
-			minCells = minRange.Length / 1024;
 		}
 
 		protected override bool ShouldStop(Actor self)
 		{
-			// We are now in range. Don't move any further!
-			// HACK: This works around the pathfinder not returning the shortest path
-			return AtCorrectRange(self, self.CenterPosition) && Mobile.CanInteractWithGroundLayer(self) && Mobile.CanStayInCell(self.Location);
+			if (checkTick-- <= 0)
+			{
+				// We are now in range. Don't move any further!
+				// HACK: This works around the pathfinder not returning the shortest path
+				var result = Target.Type != TargetType.Invalid
+					&& AtCorrectRange(self.CenterPosition)
+					&& Mobile.CanInteractWithGroundLayer(self)
+					&& Mobile.CanStayInCell(self.Location)
+					&& CheckFireSolution(self);
+
+				checkTick = result ? 0 : 10; // Check every 10 ticks to reduce lag, reset to 0 (instant check) if stopping so that next target checks immediately.
+
+				return result;
+			}
+			else
+				return false;
 		}
 
 		protected override bool ShouldRepath(Actor self, CPos targetLocation)
@@ -49,27 +56,27 @@ namespace OpenRA.Mods.Common.Activities
 				|| !Mobile.CanInteractWithGroundLayer(self) || !Mobile.CanStayInCell(self.Location));
 		}
 
-		protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
+		/* protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
 		{
 			return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
 				.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
-		}
+		} */
 
 		bool AtCorrectRange(WPos origin)
 		{
 			return Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange);
 		}
 
-		bool AtCorrectRange(Actor self, WPos origin)
+		bool CheckFireSolution(Actor self)
 		{
-			return Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange)
-				&& Target.Type != TargetType.Invalid
-				&& (self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
-					|| !BlocksProjectiles.AnyBlockingActorsBetween(
-						self,
-						Target.CenterPosition,
-						new WDist(1),
-						out var _));
+			// AnyBlocking freezes Attack, height check is wrong it seems but either way unit never tries to move, as it does when out of range.
+			// Add NoBlockingActors function seperately
+			return self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
+				|| !BlocksProjectiles.AnyBlockingActorsBetween(
+					self,
+					Target.CenterPosition,
+					new WDist(1),
+					out var _);
 		}
 	}
 }
