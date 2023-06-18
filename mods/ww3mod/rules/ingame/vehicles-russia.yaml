@@ -113,7 +113,7 @@ bmp2:
 		Type: Rectangle
 			VerticalTopOffset: 480
 			TopLeft: -315, -670
-			BottomRight: 315, 670	
+			BottomRight: 315, 670
 	Mobile:
 		Locomotor: lighttracked-amphbious
 		Speed: 65
@@ -332,7 +332,7 @@ tunguska:
 		Type: Rectangle
 			VerticalTopOffset: 550
 			TopLeft: -400, -550
-			BottomRight: 400, 550	
+			BottomRight: 400, 550
 	Health:
 		HP: 4000
 	Mobile:
@@ -475,7 +475,7 @@ giatsint:
 		Type: Rectangle
 			VerticalTopOffset: 520
 			TopLeft: -330, -800
-			BottomRight: 330, 800	
+			BottomRight: 330, 800
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -568,7 +568,7 @@ grad:
 		Type: Rectangle
 			VerticalTopOffset: 600
 			TopLeft: -240, -730
-			BottomRight: 240, 730	
+			BottomRight: 240, 730
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -666,7 +666,7 @@ tos:
 		Type: Rectangle
 			VerticalTopOffset: 440
 			TopLeft: -360, -950
-			BottomRight: 360, 950	
+			BottomRight: 360, 950
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -901,7 +901,7 @@ TTNK:
 		Type: Rectangle
 			VerticalTopOffset: 300
 			TopLeft: -440, -490
-			BottomRight: 440, 490	
+			BottomRight: 440, 490
 	Mobile:
 		Speed: 55
 		TurnSpeed: 15

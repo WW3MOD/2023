@@ -1,15 +1,20 @@
 2023
 
+
+
+- Shellmaps
+    - "Bradley Square"
+    - Piatykhatky Ukrainian offensive breakthrough
+
+
+
+
 Unsolved bugs
 
     - E6 Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
         - Different name works for C4, so can't see why it wouldn't work.
         - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
         - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
-
-- Shellmaps
-    - "Bradley Square"
-    - Piatykhatky Ukrainian offensive breakthrough
 
 - Units move towards enemy when attacking and being within their minrange, check and adjust for that case
 
