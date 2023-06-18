@@ -57,7 +57,9 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 			{ }
 
-		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight.Value : Info.Height;
+		//  The result of the expression is always 'true' since a value of type 'WDist' is never equal to 'null' of type 'WDist?'
+		// WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight.Value : Info.Height;
+		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight.Value;
 		int IBlocksProjectiles.Bypass { get { return Info.Bypass; } }
 
 		PlayerRelationship IBlocksProjectiles.ExplodesOn { get { return Info.ExplodesOn; } }
