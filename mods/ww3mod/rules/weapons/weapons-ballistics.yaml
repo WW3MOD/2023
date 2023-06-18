@@ -256,7 +256,7 @@ GrenadeLauncher:
 	Projectile: Bullet
 		Speed: 300
 		Inaccuracy: 1c512
-		LaunchAngle: 82
+		LaunchAngle: 50,82
 		Image: grenade_small
 		ContrailLength: 5
 		ContrailWidth: 20
@@ -479,7 +479,7 @@ AACannon:
 	Report: 60mm-mortar-firing-1.wav, 60mm-mortar-firing-2.wav, 60mm-mortar-firing-3.wav
 	Projectile: Bullet
 		Speed: 180
-		LaunchAngle: 95
+		LaunchAngle: 120,95
 		Inaccuracy: 2c256
 		Image: grenade_small
 		ContrailLength: 5
@@ -504,7 +504,7 @@ AACannon:
 	ValidTargets: Ground
 	Projectile: Bullet
 		Speed: 750
-		LaunchAngle: 20
+		LaunchAngle: 0,30
 		Inaccuracy: 1c0
 		Image: tankround
 		ContrailLength: 5
@@ -531,7 +531,7 @@ AACannon:
 	ValidTargets: Ground
 	Projectile: Bullet
 		Speed: 1200
-		LaunchAngle: 10
+		LaunchAngle: 0,20
 		Inaccuracy: 1c0
 		Image: tankround
 		ContrailLength: 4
@@ -565,7 +565,7 @@ TankRound.T72:
 	Projectile: Bullet
 		Inaccuracy: 2c0
 		Speed: 500
-		LaunchAngle: 65
+		LaunchAngle: 20,65
 		Image: 120MM
 		ContrailLength: 8
 		ContrailWidth: 40
@@ -585,7 +585,7 @@ TankRound.T72:
 ArtilleryRound.Giatsint:
 	Inherits@Type: ^ArtilleryRound
 	Projectile: Bullet
-		LaunchAngle: 75
+		LaunchAngle: 65,75
 ArtilleryRound.Paladin:
 	Inherits@Type: ^ArtilleryRound
 	Burst: 3
@@ -633,7 +633,7 @@ TimerWolf_Barrage:
 	FollowingBurstTargetOffset: 200,0,0
 	Report: missile6.aud
 	Projectile: Bullet
-		LaunchAngle: 80
+		LaunchAngle: 30,80
 		Speed: 450
 		Inaccuracy: 2c512
 		Image: dragon
@@ -654,7 +654,7 @@ GradRockets:
 	Projectile: Bullet
 		Inaccuracy: 4c0
 		Speed: 300
-		LaunchAngle: 70
+		LaunchAngle: 30,70
 		Image: dragon
 		TrailImage: smokey
 		TrailDeactivation: 40
@@ -682,7 +682,7 @@ TosRockets:
 	Projectile: Bullet
 		Inaccuracy: 4c0
 		Speed: 250
-		LaunchAngle: 60
+		LaunchAngle: 25,60
 		Image: missile
 		TrailImage: smokey
 		TrailDeactivation: 50
@@ -710,7 +710,7 @@ M270Rockets:
 	Projectile: Bullet
 		Inaccuracy: 2c512
 		Speed: 300
-		LaunchAngle: 70
+		LaunchAngle: 30,70
 		Image: missile
 		TrailImage: smokey
 		TrailDeactivation: 40
@@ -727,37 +727,3 @@ M270Rockets:
 		Damage: 1500
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
-
-SubMissile:
-	Inherits: ^SubMissileDefault
-	Range: 16c768
-	TargetActorCenter: true
-	-Projectile:
-	Projectile: Bullet
-		Speed: 162
-		Blockable: false
-		LaunchAngle: 120
-		Inaccuracy: 0c614
-		Image: missile
-		ContrailLength: 14
-SubMissile.barrage:
-	Inherits: SubMissile
-	Report: rocket1TD.aud
-	BurstWait: 600
-	Projectile: Bullet
-		Inaccuracy: 3c614
-		LaunchAngle: 180
-		Image: dragon
-	Burst: 12
-	BurstDelays: 12
-	Warhead@Spread: SpreadDamage
-		Spread: 683
-		Damage: 25
-		ValidTargets: Ground
-SubMissile.barrage.display:
-	BurstWait: 740
-	Range: 20c0
-	Projectile: Bullet
-		LaunchAngle: 180
-	Warhead@Spread: SpreadDamage
-		Damage: 0

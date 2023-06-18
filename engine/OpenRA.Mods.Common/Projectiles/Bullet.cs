@@ -178,8 +178,14 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			var world = args.SourceActor.World;
 
+			// If two LaunchAngle values are provided, the first is angle at MinRange, second at MaxRange
 			if (info.LaunchAngle.Length > 1)
-				angle = new WAngle(world.SharedRandom.Next(info.LaunchAngle[0].Angle, info.LaunchAngle[1].Angle));
+			{
+				var targetRange = pos - args.PassiveTarget;
+				var rangePercent = (float)(targetRange.Length - args.Weapon.MinRange.Length) / (float)(args.Weapon.Range.Length - args.Weapon.MinRange.Length);
+
+				angle = new WAngle((int)(info.LaunchAngle[0].Angle + rangePercent * (info.LaunchAngle[1].Angle - info.LaunchAngle[0].Angle)));
+			}
 			else
 				angle = info.LaunchAngle[0];
 
