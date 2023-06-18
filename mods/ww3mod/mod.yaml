@@ -327,7 +327,7 @@ GameSpeeds:
 			Timestep: 75
 			OrderLatency: 2
 		slow:
-			Name: slower
+			Name: slow
 			Timestep: 67
 			OrderLatency: 2
 		default:
