@@ -294,7 +294,6 @@ RPG:
 		Inaccuracy: 512
 		Blockable: True
 		ContrailLength: 10
-		Shadow: True
 	Warhead@Target: TargetDamage
 		Damage: 4000
 		Penetration: 500
@@ -339,32 +338,6 @@ AACannon:
 		Explosions: explosion_air_small
 		ValidTargets: Air, ICBM, Ground, Water, Trees
 
-25mm.Bradley:
-	Inherits@Caliber: ^30mm
-	Range: 21c0
-	MinRange: 1c512
-	Magazine: 300
-	ReloadDelay: 250
-	Burst: 20
-	BurstDelays: 4
-	BurstWait: 15
-	Report: cannon2.aud
-	Projectile: Bullet
-		Speed: 900
-		Inaccuracy: 1c256
-		Blockable: true
-		ContrailLength: 5
-		ContrailWidth: 8
-		Image: tankround
-	Warhead@Target: TargetDamage
-		Damage: 1000
-		Penetration: 60
-		DamageTypes: ExplosionDeath
-	Warhead@Spread: SpreadDamage
-		Spread: 64
-		Damage: 100
-		DamageTypes: SmallExplosionDeath
-
 ^30mm:
 	Inherits@HitEffects: ^MinimalExplosionEffects
 	ValidTargets: Infantry, Vehicle, Defense
@@ -383,6 +356,31 @@ AACannon:
 	Warhead@Spread: SpreadDamage
 		Spread: 64
 		DamageAtMaxRange: 50
+		Damage: 100
+		DamageTypes: SmallExplosionDeath
+
+25mm.Bradley:
+	Inherits@Caliber: ^30mm
+	Range: 21c0
+	MinRange: 1c512
+	Magazine: 300
+	ReloadDelay: 250
+	Burst: 20
+	BurstDelays: 4
+	BurstWait: 15
+	Report: cannon2.aud
+	Projectile: Bullet
+		Speed: 900
+		Inaccuracy: 1c256
+		Blockable: true
+		ContrailLength: 5
+		ContrailWidth: 8
+	Warhead@Target: TargetDamage
+		Damage: 1000
+		Penetration: 60
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
 		Damage: 100
 		DamageTypes: SmallExplosionDeath
 
@@ -524,7 +522,6 @@ AACannon:
 		ContrailLength: 8
 		ContrailWidth: 16
 		Image: tankround
-		Shadow: True
 	Warhead@Target: TargetDamage
 		Damage: 1500
 		DamageAtMaxRange: 50
@@ -552,7 +549,6 @@ AACannon:
 		ContrailLength: 8
 		ContrailWidth: 8
 		Image: tankround
-		Shadow: True
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		DamageAtMaxRange: 50
@@ -752,7 +748,6 @@ SubMissile:
 		LaunchAngle: 120
 		Inaccuracy: 0c614
 		Image: MISSILE
-		Shadow: True
 		TrailImage: smokey
 		ContrailLength: 14
 SubMissile.barrage:

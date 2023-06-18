@@ -286,7 +286,6 @@ Stinger.quad:
 		ContrailLength: 5
 		Inaccuracy: 128
 		Image: DRAGON
-		Shadow: True
 		HorizontalRateOfTurn: 10
 		RangeLimit: 12c0
 	Warhead@Spread: SpreadDamage
