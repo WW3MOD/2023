@@ -82,6 +82,7 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
+		LaunchAngle: 0,20
 		ContrailLength: 5
 		ContrailWidth: 3
 		# Image: tracer_small
@@ -138,6 +139,7 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
+		LaunchAngle: 0,20
 		ContrailLength: 5
 		ContrailWidth: 4
 		# Image: tracer_small
@@ -186,6 +188,7 @@ MP5:
 		Speed: 1c0
 		Inaccuracy: 1c512
 		InaccuracyPerProjectile: 64,64,0
+		LaunchAngle: 0,20
 		Image: tracer_large
 	Warhead@Spread: SpreadDamage
 		Spread: 32
@@ -204,6 +207,7 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
+		LaunchAngle: 0,20
 		ContrailLength: 5
 		ContrailWidth: 6
 		Image: tracer_small
@@ -235,6 +239,7 @@ HandGrenade:
 	Projectile: Bullet
 		Speed: 136
 		Inaccuracy: 554
+		LaunchAngle: 40,65
 		Image: bomb
 	Warhead@Spread: SpreadDamage
 		ValidTargets: Infantry, Unarmored, Light
@@ -286,13 +291,14 @@ RPG:
 	MinRange: 2c0
 	Report: aacanon3.aud
 	Projectile: Bullet
-		Speed: 650
+		Speed: 550
 		Inaccuracy: 1c0
+		LaunchAngle: 0,15
 		ContrailLength: 5
 		ContrailWidth: 20
 		Image: tankround
 	Warhead@Target: TargetDamage
-		Damage: 4000
+		Damage: 6000
 		Penetration: 500
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
@@ -344,6 +350,7 @@ AACannon:
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 512
+		LaunchAngle: 0,20
 		ContrailLength: 5
 		ContrailWidth: 12
 		Image: grenade_small
@@ -504,7 +511,7 @@ AACannon:
 	ValidTargets: Ground
 	Projectile: Bullet
 		Speed: 750
-		LaunchAngle: 0,30
+		LaunchAngle: 0,20
 		Inaccuracy: 1c0
 		Image: tankround
 		ContrailLength: 5

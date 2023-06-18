@@ -4,6 +4,7 @@
     - "Bradley Square"
     - Piatykhatky Ukrainian offensive breakthrough
 
+- Units move towards enemy when attacking and being within their minrange, check and adjust for that case
 
 - Helicopter husks on water should sink and disappear
 
