@@ -1,5 +1,12 @@
 2023
 
+Unsolved bugs
+
+    - E6 Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
+        - Different name works for C4, so can't see why it wouldn't work.
+        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
+        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
+
 - Shellmaps
     - "Bradley Square"
     - Piatykhatky Ukrainian offensive breakthrough
@@ -7,8 +14,6 @@
 - Units move towards enemy when attacking and being within their minrange, check and adjust for that case
 
 - Helicopter husks on water should sink and disappear
-
-- Adjust launch angle depending on range, even speed perhaps to simulate the logarithmic nature of ranges
 
 - Slow down walk sequence to match locomotor speed on layer.
 
@@ -48,19 +53,9 @@ UNIT:
 
 - Tesla tank returns to base when out of ammo
 
-- When "Capturing" neutral bunkers etc enter orders for other actors are cancelled
-
 - Bleedout sequence doesnt show, unit disappears
 
 - Airplanes doesnt spawn, helicopters spawn on ground
-
-- Laggy
-    - Artillery fire order spikes
-    - Blocking?
-    - AA being blocked gets laggy
-        - Height seems to be a problem, sandbaglayer has default height and hitpos is Z: 220, when shooting hind far behind it at Z:1280
-            Unit height needs to be set at a fraction of its VerticalTopOffset
-        - Also, when out of ammo, cancel attack orders unless being rearmed
 
 - Check Blocking actors from weapon offset not from center ground position
 
@@ -252,7 +247,6 @@ DIV
     - Stay at a distance
     - Cancel attack order if running out of ammo, now they freeze
     - Render (some?) pips at further zoom
-    - Units can ForceFire on themselves... disable this
     - Allow infantry to move to and stop in subcells so that they can start firing faster, check in Move, Mobile, Locomotor, Order, MapGrid etc...
     - Pathfinder FindBidiPath, ignore units that are blocking, don't take detour around
     - Unit should cancel attack order if out of ammo for current target, now they just freeze while still aiming on target
@@ -287,21 +281,11 @@ Ideas:
     - Buildings are built by supply trucks that must drive back and forth from a conyard to fetch supplies and larger buildings require more deliveries.
     - Pontoon bridges
     - Change color of sprites so that only small parts of unit is part of player color palette. Armband for infantry, a marking for tanks / Aircraft. Should be enough
-    - Recruiting soldiers costs from the player's points, or "political points", meaning that cheap units are only available if you have a high score / popularity
-    - Upkeep on units, perhaps % of initial value unless changed
-    - Ore purifier can be built directly on top of ore mines to immediately get their profits without harvesters
     - Nuclear powerplant, releases long lasting toxins if destroyed
     - Tooltip varies, if enemy to NATO use NATO Codename. Possibly use english version of foreign native names. "Strela" = Arrow. Nato codename "Gopher"
 
 Good to know
     - Sequences that uses Facings: (negative) only uses half and reverses the rest? Seems so from other mod Shattered Paradise
-
-Unsolved bugs
-
-    - E6 Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
-        - Different name works for C4, so can't see why it wouldn't work.
-        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
-        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
 
 Other Mods
 
@@ -334,7 +318,6 @@ Other Mods
         - TBOX radot5, tank bunker. Cool if engineers could build these
     - Generals Alpha
         - Raptor F22 (also "King Raptor" model but saw no difference)
-        - F117
         - Stinger site, sandbag fortification
         - Replace some arabian sprites with GLA
         - Worker, GLA, collects supplies
@@ -410,7 +393,6 @@ Other Mods
         - hatf double missile launcher, looks north korean or something
         - MSLB missile boat, looks pretty good
     - RADOT5
-        (ADDED) Mortar
         Sniper
         Commando
         Propaganda bonus, check what this is. Could be used by officer units to boost morale and give added speed when in cover for example
