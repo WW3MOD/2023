@@ -105,7 +105,12 @@ namespace OpenRA.Mods.Common.Traits
 			cachedLocation = projectedLocation;
 			cachedPos = pos;
 
-			// UpdateShroudCells(self);
+			// CPU improvement - Update shroud every 10 ticks
+			if (checkTick-- <= 0)
+			{
+				checkTick = 10;
+				UpdateShroudCells(self);
+			}
 		}
 
 		void ITick.Tick(Actor self)
