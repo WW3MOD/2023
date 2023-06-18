@@ -1,14 +1,15 @@
 ## MapOptions, MissionBrowserLogic
-strategical = Strategical
-tactical = Tactical
-slowest = Slowest
-slower = Slower
-normal = Normal
-fast = Fast
-faster = Faster
-fastest = Fastest
-crazy = Crazy
-insane = Insane
+strategical = Strategical, 50%
+tactical = Tactical, 60%
+slowest = Slowest, 70%
+slower = Slower, 80%
+slow = Slow, 90%
+normal = Real Time
+fast = Fast, 110%
+faster = Faster, 125%
+fastest = Fastest, 150%
+crazy = Crazy, 175%
+insane = Insane, 200%
 
 ## Server Orders
 custom-rules = This map contains custom rules. Game experience may change.

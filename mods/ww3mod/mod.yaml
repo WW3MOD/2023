@@ -311,47 +311,47 @@ GameSpeeds:
 	DefaultSpeed: default
 	Speeds:
 		strategical:
-			Name: strategical (150)
-			Timestep: 150
-			OrderLatency: 2
-		tactical:
-			Name: tactical (120)
+			Name: strategical
 			Timestep: 120
 			OrderLatency: 2
-		slowest:
-			Name: slowest (100)
+		tactical:
+			Name: tactical
 			Timestep: 100
 			OrderLatency: 2
+		slowest:
+			Name: slowest
+			Timestep: 86
+			OrderLatency: 2
 		slower:
-			Name: slower (85)
-			Timestep: 85
+			Name: slower
+			Timestep: 75
 			OrderLatency: 2
 		slow:
-			Name: slower (70)
-			Timestep: 70
+			Name: slower
+			Timestep: 67
 			OrderLatency: 2
 		default:
-			Name: normal (60)
+			Name: normal
 			Timestep: 60
 			OrderLatency: 2
 		fast:
-			Name: fast (50)
-			Timestep: 50
+			Name: fast
+			Timestep: 55
 			OrderLatency: 2
 		faster:
-			Name: faster (45)
-			Timestep: 45
+			Name: faster
+			Timestep: 48
 			OrderLatency: 2
 		fastest:
-			Name: fastest (40)
+			Name: fastest
 			Timestep: 40
 			OrderLatency: 2
 		crazy:
-			Name: crazy (35)
-			Timestep: 35
+			Name: crazy
+			Timestep: 34
 			OrderLatency: 2
 		insane:
-			Name: insane (30)
+			Name: insane
 			Timestep: 30
 			OrderLatency: 2
 
