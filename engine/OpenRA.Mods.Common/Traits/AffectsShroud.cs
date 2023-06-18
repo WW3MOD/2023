@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected bool CachedTraitDisabled { get; private set; }
 
 		WPos cachedPos;
-		private int checkTick = 0;
+		int checkTick = 0;
 
 		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);

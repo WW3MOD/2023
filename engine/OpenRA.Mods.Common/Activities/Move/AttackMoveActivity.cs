@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Activities
 		bool runningMoveActivity = false;
 		int token = Actor.InvalidConditionToken;
 		Target target = Target.Invalid;
-		private int checkTick = 0;
+		int checkTick = 0;
 
 		public AttackMoveActivity(Actor self, Func<Activity> getMove, bool assaultMoving = false)
 		{

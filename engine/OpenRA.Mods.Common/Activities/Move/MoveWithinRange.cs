@@ -9,8 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -22,7 +20,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly WDist maxRange;
 		readonly WDist minRange;
 
-		private int checkTick = 0;
+		int checkTick = 0;
 
 		public MoveWithinRange(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
@@ -58,11 +56,11 @@ namespace OpenRA.Mods.Common.Activities
 				|| !Mobile.CanInteractWithGroundLayer(self) || !Mobile.CanStayInCell(self.Location));
 		}
 
-		// protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
-		// {
-		// 	return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
-		// 		.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
-		// }
+		/* protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
+		{
+			return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
+				.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
+		} */
 
 		bool AtCorrectRange(WPos origin)
 		{

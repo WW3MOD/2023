@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -54,11 +53,11 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		AmmoPool ammoPool;
 		IReloadAmmoModifier[] modifiers;
-		readonly ReloadAmmoPoolInfo info;
-		int remainingTicks;
 
+		// readonly ReloadAmmoPoolInfo info;
+		// int remainingTicks;
 		public ReloadAmmoPool(ReloadAmmoPoolInfo info)
-			: base(info) { this.info = info; }
+			: base(info) { /* this.info = info; */ }
 
 		protected override void Created(Actor self)
 		{
@@ -66,10 +65,10 @@ namespace OpenRA.Mods.Common.Traits
 			modifiers = self.TraitsImplementing<IReloadAmmoModifier>().ToArray();
 			base.Created(self);
 
-			self.World.AddFrameEndTask(w =>
-			{
-				remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
-			});
+			// self.World.AddFrameEndTask(w =>
+			// {
+			// 	remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+			// });
 		}
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
