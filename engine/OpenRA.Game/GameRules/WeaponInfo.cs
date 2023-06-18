@@ -127,7 +127,7 @@ namespace OpenRA.GameRules
 		public readonly WDist AirThreshold = new WDist(128);
 
 		[Desc("The minimum range the weapon can fire.")]
-		public readonly WDist MinRange = WDist.Zero;
+		public readonly WDist MinRange = new WDist(1);
 
 		[Desc("Does this weapon aim at the target's center regardless of other targetable offsets?")]
 		public readonly bool TargetActorCenter = false;

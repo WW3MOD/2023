@@ -6,11 +6,8 @@
         assume that if there are no blocking actors when shooting,
         there will be none entering firing arc during bullet flight.
 
-- Add min-range for all weapons, at least so units cant try to shoot at themself
-
 - Multi-threading for performance, possible?
     - LogicTick / RenderTick on seperate threads?
-    -
 
 - A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
 
@@ -36,7 +33,6 @@ UNIT:
         Cloak ()
         Sight (Determines shroud effect)
         Radar
-
 
 - Tesla tank returns to base when out of ammo
 
@@ -194,7 +190,6 @@ Naval
     - Change landing craft model
 
 Defenses
-    - Blue preview for GTWR, guard tower
     - GTUR cant force attack ground or own units
     - Attack priorities, prism tower should prioritize tanks
     - Deal damage to garrisoned soldiers as % of building damage, spread determines if killing multiple units or just one at a time
@@ -370,7 +365,6 @@ Other Mods
             - MSAM, looks good
             - MLRS, Two missiles, Soviet looking
             - FTNK/HFTK, (Heavy) Flame tank models doesn't look great but check if flame animation is good
-            - BTR, APC, looks god with wheels (?)
             - IFV, probably same chassi as BTR but with turret
             - TNKD, tank destroyer, looks pretty good generic tank, could be with trying for some unit
             - MSAR, mobile sensor array (+ msardeployed), looks great for a command vehicle
