@@ -303,7 +303,7 @@ namespace OpenRA.Mods.Common.Traits
 			Upkeep -= upkeep;
 		}
 
-		public int GetCashTricklerModifier()
+		int ICashTricklerModifier.GetCashTricklerModifier()
 		{
 			return IncomeModifier;
 		}
