@@ -67,10 +67,13 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly string[] TrailSequences = { "idle" };
 
 		[Desc("Interval in ticks between each spawned Trail animation.")]
-		public readonly int TrailInterval = 2;
+		public readonly int TrailInterval = 1;
 
-		[Desc("Delay in ticks until trail animation is spawned.")]
+		[Desc("Delay in ticks until trail animation is spawned (How far behind will it be relative projectile).")]
 		public readonly int TrailDelay = 1;
+
+		[Desc("Delay in ticks until trail animation is stopped.")]
+		public readonly int TrailDeactivation = -1;
 
 		[PaletteReference(nameof(TrailUsePlayerPalette))]
 		[Desc("Palette used to render the trail sequence.")]
@@ -113,29 +116,32 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Time (in ticks) after which the line should appear. Controls the distance to the actor.")]
 		public readonly int ContrailDelay = 1;
 
+		[Desc("Delay in ticks until contrail animation is stopped.")]
+		public readonly int ContrailDeactivation = -1;
+
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ContrailZOffset = 2047;
 
 		[Desc("Thickness of the emitted line.")]
-		public readonly WDist ContrailWidth = new WDist(64);
+		public readonly WDist ContrailWidth = new WDist(1);
 
 		[Desc("RGB color at the contrail start.")]
-		public readonly Color ContrailStartColor = Color.White;
+		public readonly Color ContrailStartColor = Color.DarkGray; // 169,169,169
 
 		[Desc("Use player remap color instead of a custom color at the contrail the start.")]
 		public readonly bool ContrailStartColorUsePlayerColor = false;
 
 		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
-		public readonly int ContrailStartColorAlpha = 255;
+		public readonly int ContrailStartColorAlpha = 150;
 
 		[Desc("RGB color at the contrail end. Set to start color if undefined")]
-		public readonly Color? ContrailEndColor;
+		public readonly Color? ContrailEndColor = Color.Gray; // 128,128,128
 
 		[Desc("Use player remap color instead of a custom color at the contrail end.")]
 		public readonly bool ContrailEndColorUsePlayerColor = false;
 
 		[Desc("The alpha value [from 0 to 255] of color at the contrail end.")]
-		public readonly int ContrailEndColorAlpha = 0;
+		public readonly int ContrailEndColorAlpha = 60;
 
 		public IProjectile Create(ProjectileArgs args) { return new Bullet(this, args); }
 	}
@@ -229,7 +235,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (info.TrailUsePlayerPalette)
 				trailPalette += args.SourceActor.Owner.InternalName;
 
-			smokeTicks = info.TrailDelay;
+			smokeTicks = 0;
 			remainingBounces = info.BounceCount;
 
 			shadowColor = new float3(info.ShadowColor.R, info.ShadowColor.G, info.ShadowColor.B) / 255f;
@@ -251,6 +257,8 @@ namespace OpenRA.Mods.Common.Projectiles
 			return new WAngle(effective);
 		}
 
+		int activeTicksCount = 0;
+
 		public void Tick(World world)
 		{
 			anim?.Tick();
@@ -258,26 +266,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			lastPos = pos;
 			pos = WPos.LerpQuadratic(source, target, angle, ticks, length);
 
-			if (ShouldExplode(world))
-			{
-				Explode(world);
-
-				/* var zeroingIn = args.SourceActor.TraitOrDefault<ZeroingIn>();
-
-				if () */
-			}
-		}
-
-		bool ShouldExplode(World world)
-		{
-			// Check for walls or other blocking obstacles
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true))
-			{
-				pos = blockedPos;
-				return true;
-			}
-
-			if (!string.IsNullOrEmpty(info.TrailImage) && --smokeTicks < 0)
+			if (!string.IsNullOrEmpty(info.TrailImage) && (info.TrailDeactivation == -1 || activeTicksCount < info.TrailDeactivation) && --smokeTicks < 0)
 			{
 				var delayedPos = WPos.LerpQuadratic(source, target, angle, ticks - info.TrailDelay, length);
 				world.AddFrameEndTask(w => w.Add(new SpriteEffect(delayedPos, GetEffectiveFacing(), w,
@@ -288,6 +277,23 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (info.ContrailLength > 0)
 				contrail.Update(pos);
+
+			if (ShouldExplode(world))
+			{
+				Explode(world);
+			}
+
+			activeTicksCount++;
+		}
+
+		bool ShouldExplode(World world)
+		{
+			// Check for walls or other blocking obstacles
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true))
+			{
+				pos = blockedPos;
+				return true;
+			}
 
 			var flightLengthReached = ticks++ >= length;
 			var shouldBounce = remainingBounces > 0;

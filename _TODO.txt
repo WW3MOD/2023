@@ -1,5 +1,16 @@
 2023
 
+- Shellmaps
+    - "Bradley Square"
+    - Piatykhatky Ukrainian offensive breakthrough
+
+
+- Helicopter husks on water should sink and disappear
+
+- Adjust launch angle depending on range, even speed perhaps to simulate the logarithmic nature of ranges
+
+- Slow down walk sequence to match locomotor speed on layer.
+
 - ShouldExplode for some bullets could be simplified
     - Check once when firing and determine impact position,
         don't run BlockingActors check every tick, instead

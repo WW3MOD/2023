@@ -82,7 +82,9 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
-		Image: tracer_small
+		ContrailLength: 5
+		ContrailWidth: 3
+		# Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 200
 		DamageAtMaxRange: 50
@@ -136,7 +138,9 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
-		Image: tracer_small
+		ContrailLength: 5
+		ContrailWidth: 4
+		# Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 250
 		DamageAtMaxRange: 60
@@ -200,6 +204,8 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
+		ContrailLength: 5
+		ContrailWidth: 6
 		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 400
@@ -229,7 +235,7 @@ HandGrenade:
 	Projectile: Bullet
 		Speed: 136
 		Inaccuracy: 554
-		Image: BOMB
+		Image: bomb
 	Warhead@Spread: SpreadDamage
 		ValidTargets: Infantry, Unarmored, Light
 		Damage: 1000
@@ -252,8 +258,8 @@ GrenadeLauncher:
 		Inaccuracy: 1c512
 		LaunchAngle: 82
 		Image: grenade_small
-		ContrailWidth: 4
-		ContrailLength: 4
+		ContrailLength: 5
+		ContrailWidth: 20
 		ContrailZOffset: 0
 		ContrailDelay: 0
 	Warhead@Target: TargetDamage
@@ -280,10 +286,11 @@ RPG:
 	MinRange: 2c0
 	Report: aacanon3.aud
 	Projectile: Bullet
-		Speed: 500
-		Inaccuracy: 512
-		Blockable: True
-		ContrailLength: 10
+		Speed: 650
+		Inaccuracy: 1c0
+		ContrailLength: 5
+		ContrailWidth: 20
+		Image: tankround
 	Warhead@Target: TargetDamage
 		Damage: 4000
 		Penetration: 500
@@ -337,6 +344,9 @@ AACannon:
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 512
+		ContrailLength: 5
+		ContrailWidth: 12
+		Image: grenade_small
 	Warhead@Target: TargetDamage
 		Damage: 1000
 		DamageAtMaxRange: 50
@@ -361,8 +371,6 @@ AACannon:
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 1c256
-		ContrailLength: 5
-		ContrailWidth: 8
 	Warhead@Target: TargetDamage
 		Damage: 1000
 		Penetration: 60
@@ -420,9 +428,6 @@ AACannon:
 	Projectile: Bullet
 		Speed: 1100
 		Inaccuracy: 1c256
-		ContrailLength: 5
-		ContrailWidth: 8
-		Image: tankround
 30mm.Heli:
 	Inherits@Caliber: ^30mm
 	ValidTargets: Ground
@@ -434,9 +439,6 @@ AACannon:
 	Projectile: Bullet
 		Speed: 800
 		Inaccuracy: 512
-		ContrailLength: 4
-		ContrailWidth: 4
-		Image: tankround
 30mm.TimerWolf:
 	Inherits@Caliber: ^30mm
 	Inherits@HitEffects: ^PiffEffects
@@ -479,7 +481,9 @@ AACannon:
 		Speed: 180
 		LaunchAngle: 95
 		Inaccuracy: 2c256
-		ContrailLength: 8
+		Image: grenade_small
+		ContrailLength: 5
+		ContrailWidth: 20
 	Warhead@Target: TargetDamage
 		Damage: 3000
 		Penetration: 100
@@ -502,9 +506,9 @@ AACannon:
 		Speed: 750
 		LaunchAngle: 20
 		Inaccuracy: 1c0
-		ContrailLength: 8
-		ContrailWidth: 16
 		Image: tankround
+		ContrailLength: 5
+		ContrailWidth: 24
 	Warhead@Target: TargetDamage
 		Damage: 1500
 		DamageAtMaxRange: 50
@@ -529,9 +533,9 @@ AACannon:
 		Speed: 1200
 		LaunchAngle: 10
 		Inaccuracy: 1c0
-		ContrailLength: 8
-		ContrailWidth: 8
 		Image: tankround
+		ContrailLength: 4
+		ContrailWidth: 32
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		DamageAtMaxRange: 50
@@ -559,11 +563,12 @@ TankRound.T72:
 	TargetActorCenter: true
 	Report: tank5.aud
 	Projectile: Bullet
-		Image: 120MM
+		Inaccuracy: 2c0
 		Speed: 500
 		LaunchAngle: 65
-		ContrailLength: 6
-		Inaccuracy: 2c0
+		Image: 120MM
+		ContrailLength: 8
+		ContrailWidth: 40
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		DamageAtMaxRange: 50
@@ -603,12 +608,11 @@ RocketPods:
 		Inaccuracy: 2c0
 		InaccuracyPerProjectile: 64,64,0
 		Speed: 550
-		Shadow: false
-		Blockable: True
-		ContrailLength: 8
-		ContrailWidth: 8
+		Image: dragon
 		TrailImage: smokey
-		Image: DRAGON
+		TrailDeactivation: 6
+		ContrailLength: 4
+		ContrailWidth: 20
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
 		Damage: 3000
@@ -632,8 +636,9 @@ TimerWolf_Barrage:
 		LaunchAngle: 80
 		Speed: 450
 		Inaccuracy: 2c512
-		Image: Dragon
-		ContrailLength: 4
+		Image: dragon
+		ContrailLength: 5
+		ContrailWidth: 20
 	Warhead@Spread: SpreadDamage
 		Spread: 128
 		Damage: 1000
@@ -647,12 +652,15 @@ GradRockets:
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	Projectile: Bullet
-		LaunchAngle: 70
-		Speed: 300
 		Inaccuracy: 4c0
-		ContrailLength: 10
-		TrailImage: smokey
+		Speed: 300
+		LaunchAngle: 70
 		Image: dragon
+		TrailImage: smokey
+		TrailDeactivation: 40
+		ContrailLength: 4
+		ContrailWidth: 24
+		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 5000
 		Penetration: 800
@@ -673,13 +681,14 @@ TosRockets:
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	Projectile: Bullet
 		Inaccuracy: 4c0
-		ContrailDelay: 0
-		Image: dragon
-		Speed: 200
-		LaunchAngle: 70
-		ContrailLength: 15
+		Speed: 250
+		LaunchAngle: 60
+		Image: missile
 		TrailImage: smokey
-		Shadow: true
+		TrailDeactivation: 50
+		ContrailLength: 6
+		ContrailWidth: 30
+		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 5000
 		Penetration: 200
@@ -700,13 +709,13 @@ M270Rockets:
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	Projectile: Bullet
 		Inaccuracy: 2c512
-		ContrailDelay: 0
-		Image: dragon
-		Speed: 200
+		Speed: 300
 		LaunchAngle: 70
-		ContrailLength: 15
+		Image: missile
 		TrailImage: smokey
-		Shadow: true
+		TrailDeactivation: 40
+		ContrailLength: 6
+		ContrailWidth: 30
 		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 15000
@@ -729,8 +738,7 @@ SubMissile:
 		Blockable: false
 		LaunchAngle: 120
 		Inaccuracy: 0c614
-		Image: MISSILE
-		TrailImage: smokey
+		Image: missile
 		ContrailLength: 14
 SubMissile.barrage:
 	Inherits: SubMissile
@@ -739,9 +747,7 @@ SubMissile.barrage:
 	Projectile: Bullet
 		Inaccuracy: 3c614
 		LaunchAngle: 180
-		Image: DRAGON
-		Shadow: true
-		TrailImage: smokey
+		Image: dragon
 	Burst: 12
 	BurstDelays: 12
 	Warhead@Spread: SpreadDamage

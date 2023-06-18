@@ -1168,6 +1168,7 @@ E1R1:
 		Name: secondary
 		Weapon: RPG
 		FireDelay: 8
+		LocalOffset: 0,0,250
 		PauseOnCondition: !ammo-secondary
 	AmmoPool@2:
 		Name: secondary-ammo
