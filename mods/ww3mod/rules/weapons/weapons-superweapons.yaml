@@ -852,7 +852,6 @@ EmpBomb:
 		OpenSequence: open
 		Velocity: 0, 0, -86
 		Acceleration: 0, 0, 0
-		Shadow: False
 	Warhead@Spread: SpreadDamage
 		Spread: 4c512
 		Damage: 36

@@ -648,7 +648,7 @@ DepthCharge:
 	ValidTargets: Underwater
 	Projectile: Bullet
 		Speed: 150
-		Image: BOMB
+		Image: bomb
 		Inaccuracy: 128
 	Warhead@Spread: SpreadDamage
 		Spread: 128

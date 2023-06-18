@@ -43,7 +43,6 @@ WGM:
 		Inaccuracy: 768
 		HorizontalRateOfTurn: 10
 		Arm: 2
-		Blockable: True
 		ManualGuidance: true
 		CruiseAltitude: 100
 		ContrailWidth: 8
@@ -77,7 +76,6 @@ Hellfire:
 		Speed: 500
 		MaximumLaunchSpeed: 100
 		Acceleration: 30
-		Blockable: True
 		Inaccuracy: 512
 		HorizontalRateOfTurn: 30
 		RangeLimit: 27c0
@@ -126,7 +124,6 @@ TimerWolf_Missiles:
 		RangeLimit: 27c0
 		CruiseAltitude: 2c0
 		ContrailLength: 10
-		Blockable: True
 		Image: dragon
 	Warhead@Spread: SpreadDamage
 		Spread: 64
@@ -173,7 +170,7 @@ SurfaceToAirMissile:
 		Arm: 5
 		ExplodeWhenEmpty: true
 		Blockable: false
-		Image: MISSILE
+		Image: missile
 		TrailImage: smokey
 	Warhead@Spread: SpreadDamage
 		Damage: 2000
@@ -252,7 +249,7 @@ Stinger:
 		Arm: 5
 		ExplodeWhenEmpty: true
 		Blockable: false
-		Image: MISSILE
+		Image: missile
 		TrailImage: smokey
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
@@ -333,7 +330,7 @@ CruiseMissile:
 		Inaccuracy: 0c614
 		HorizontalRateOfTurn: 60
 		RangeLimit: 35c0
-		Image: MISSILE
+		Image: missile
 		TrailImage: smokey
 		ContrailLength: 14
 	Warhead@Spread: SpreadDamage
