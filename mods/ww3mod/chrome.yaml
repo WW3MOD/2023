@@ -137,64 +137,6 @@ command-button-brics-disabled:
 command-button-brics-highlighted-disabled:
 	Inherits: command-button-brics-highlighted
 
-sidebar-arabian:
-	Inherits: ^SidebarOther
-	Regions:
-		radar: 290, 67, 222, 222
-		background-top: 0, 185, 238, 262
-		background-moneybin: 0, 85, 238, 28
-		background-iconbg: 12, 227, 190, 47
-		background-iconrow: 0, 116, 238, 47
-		background-bottom: 0, 166, 238, 8
-		background-supportoverlay: 12, 324, 64, 48
-
-sidebar-button-arabian:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 281, 5, 5, 18, 18, 5, 5
-sidebar-button-arabian-hover:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 252, 5, 5, 18, 18, 5, 5
-sidebar-button-arabian-pressed:
-	Inherits: sidebar-button-arabian
-sidebar-button-arabian-highlighted:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 339, 5, 5, 18, 18, 5, 5
-sidebar-button-arabian-highlighted-hover:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 310, 5, 5, 18, 18, 5, 5
-sidebar-button-arabian-highlighted-pressed:
-	Inherits: sidebar-button-arabian-highlighted
-sidebar-button-arabian-disabled:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 484, 5, 5, 18, 18, 5, 5
-sidebar-button-arabian-highlighted-disabled:
-	Inherits: sidebar-button-arabian-disabled
-
-command-button-arabian:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 281, 3, 3, 22, 22, 3, 3
-	PanelSides: Center
-command-button-arabian-hover:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 252, 3, 3, 22, 22, 3, 3
-	PanelSides: Center
-command-button-arabian-pressed:
-	Inherits: command-button-arabian
-command-button-arabian-highlighted:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 339, 3, 3, 22, 22, 3, 3
-	PanelSides: Center
-command-button-arabian-highlighted-hover:
-	Inherits: ^SidebarOther
-	PanelRegion: 260, 310, 3, 3, 22, 22, 3, 3
-	PanelSides: Center
-command-button-arabian-highlighted-pressed:
-	Inherits: command-button-arabian-highlighted
-command-button-arabian-disabled:
-	Inherits: command-button-arabian
-command-button-arabian-highlighted-disabled:
-	Inherits: command-button-arabian-highlighted
-
 sidebar-bits:
 	Inherits: ^Glyphs
 	Regions:
