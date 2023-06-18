@@ -517,7 +517,6 @@ PrisTLaser:
 	BurstWait: 50
 	Range: 20c0
 	Projectile: LaserZap
-		Blockable: true
 	Warhead@Spread: SpreadDamage
 		Damage: 150
 		Spread: 341
@@ -651,7 +650,6 @@ DepthCharge:
 		Speed: 150
 		Image: BOMB
 		Inaccuracy: 128
-		Blockable: true
 	Warhead@Spread: SpreadDamage
 		Spread: 128
 		Damage: 40
