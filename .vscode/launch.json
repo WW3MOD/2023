@@ -20,7 +20,7 @@
 			"type": "coreclr",
 			"request": "launch",
 			"program": "${workspaceRoot}/engine/bin/OpenRA.Utility.dll",
-			"args": ["ww3mod", "--docs", "{DEV_VERSION}"],
+			"args": ["ww3mod", "--check-yaml"],
 			"env": {
 				"ENGINE_DIR": "${workspaceRoot}/engine",
 				"MOD_SEARCH_PATHS": "${workspaceRoot}/mods, ${workspaceRoot}/engine/mods"
