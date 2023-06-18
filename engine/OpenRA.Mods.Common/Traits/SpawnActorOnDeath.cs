@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly string faction;
 		readonly bool enabled;
 
-		bool ChangedFromNeutral = false;
+		bool changedFromNeutral = false;
 
 		Player attackingPlayer;
 
@@ -82,9 +82,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
-			if (Info.SpawnOnceOnOwnerChange && !ChangedFromNeutral)
+			if (Info.SpawnOnceOnOwnerChange && !changedFromNeutral)
 			{
-				ChangedFromNeutral = true;
+				changedFromNeutral = true;
 				SpawnActor(self);
 			}
 		}
@@ -109,7 +109,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (attackingPlayer == null)
 				return;
 
-			if (!ChangedFromNeutral)
+			if (!changedFromNeutral)
 				SpawnActor(self);
 		}
 
