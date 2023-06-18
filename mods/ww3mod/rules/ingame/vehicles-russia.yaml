@@ -24,9 +24,9 @@ t72:
 		Distribution: 100,80,80,80,60
 	HitShape:
 		Type: Rectangle
-			VerticalTopOffset: 420
-			TopLeft: -340, -695
-			BottomRight: 340, 695
+			VerticalTopOffset: 450
+			TopLeft: -400, -950
+			BottomRight: 400, 950
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:
@@ -109,6 +109,11 @@ bmp2:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 480
+			TopLeft: -315, -670
+			BottomRight: 315, 670	
 	Mobile:
 		Locomotor: lighttracked-amphbious
 		Speed: 65
@@ -238,6 +243,11 @@ btr:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 480
+			TopLeft: -290, -770
+			BottomRight: 290, 770
 	Mobile:
 		Speed: 85
 		Locomotor: lighttracked-amphbious
@@ -318,6 +328,13 @@ tunguska:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 550
+			TopLeft: -400, -550
+			BottomRight: 400, 550	
+	Health:
+		HP: 4000
 	Mobile:
 		Speed: 67
 		Locomotor: heavytracked
@@ -454,6 +471,11 @@ giatsint:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 520
+			TopLeft: -330, -800
+			BottomRight: 330, 800	
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -542,6 +564,11 @@ grad:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 600
+			TopLeft: -240, -730
+			BottomRight: 240, 730	
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -635,6 +662,11 @@ tos:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 440
+			TopLeft: -360, -950
+			BottomRight: 360, 950	
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -727,6 +759,11 @@ iskander:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 650
+			TopLeft: -300, -1270
+			BottomRight: 300, 1270
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -860,8 +897,11 @@ TTNK:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
-	# Targetable@DontEMP:
-	# 	TargetTypes: EMPInvalid
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 300
+			TopLeft: -440, -490
+			BottomRight: 440, 490	
 	Mobile:
 		Speed: 55
 		TurnSpeed: 15

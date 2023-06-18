@@ -115,6 +115,11 @@ bradley:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 600
+			TopLeft: -360, -660
+			BottomRight: 360, 660	
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 72
@@ -243,6 +248,11 @@ humvee:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 350
+			TopLeft: -220, -500
+			BottomRight: 220, 500	
 	Mobile:
 		Locomotor: lightwheeled
 		TurnSpeed: 15
@@ -378,6 +388,11 @@ m113:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 500
+			TopLeft: -270, -500
+			BottomRight: 270, 500	
 	Mobile:
 		Speed: 85
 		TurnSpeed: 22
@@ -464,6 +479,11 @@ strykershorad:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 500
+			TopLeft: -275, -700
+			BottomRight: 275, 700	
 	Mobile:
 		Speed: 97
 		TurnSpeed: 15
@@ -617,6 +637,11 @@ m109:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 620
+			TopLeft: -315, -900
+			BottomRight: 315, 900	
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -710,6 +735,11 @@ m270:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 520
+			TopLeft: -360, -530
+			BottomRight: 360, 530	
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -810,6 +840,11 @@ HIMARS:
 	Targetable@empty:
 		RequiresCondition: !loaded
 		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 620
+			TopLeft: -240, -700
+			BottomRight: 240, 700	
 	-HiddenUnderFog:
 	VisibleWithRadar:
 		Type: GroundPosition
@@ -905,6 +940,12 @@ PRSM:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 450
+			TopLeft: -350, -500
+			BottomRight: 350, 500
+	#no info need to be adjusted
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 55
