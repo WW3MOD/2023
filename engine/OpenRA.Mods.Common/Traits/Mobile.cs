@@ -332,7 +332,7 @@ namespace OpenRA.Mods.Common.Traits
 			if ((oldPos - CenterPosition).HorizontalLengthSquared != 0)
 				newMovementTypes |= MovementType.Horizontal;
 
-			if (oldPos.Z != CenterPosition.Z)
+			if (oldPos.Z != CenterPosition.Z) // CPU ~1%
 				newMovementTypes |= MovementType.Vertical;
 
 			if (oldFacing != Facing)

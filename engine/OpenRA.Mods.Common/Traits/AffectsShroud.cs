@@ -50,6 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected bool CachedTraitDisabled { get; private set; }
 
 		WPos cachedPos;
+		private int checkTick = 0;
 
 		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);
@@ -104,7 +105,7 @@ namespace OpenRA.Mods.Common.Traits
 			cachedLocation = projectedLocation;
 			cachedPos = pos;
 
-			UpdateShroudCells(self);
+			// UpdateShroudCells(self);
 		}
 
 		void ITick.Tick(Actor self)
@@ -121,7 +122,12 @@ namespace OpenRA.Mods.Common.Traits
 			cachedRange = range;
 			CachedTraitDisabled = traitDisabled;
 
-			UpdateShroudCells(self);
+			if (checkTick-- <= 0)
+			{
+				// CPU improvement - Update shroud every 10 ticks
+				checkTick = 10;
+				UpdateShroudCells(self);
+			}
 		}
 
 		void UpdateShroudCells(Actor self)
