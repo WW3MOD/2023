@@ -2,7 +2,7 @@
 t72:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Inherits@AutoTarget: ^AutoTargetMBT
 	Tooltip:
 		Name: T-72
 		GenericName: MBT

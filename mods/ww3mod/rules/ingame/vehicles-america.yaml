@@ -2,7 +2,7 @@
 abrams:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Inherits@AutoTarget: ^AutoTargetMBT
 	Tooltip:
 		Name: Abrams M1A2
 		GenericName: Abrams

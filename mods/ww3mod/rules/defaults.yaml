@@ -186,6 +186,28 @@
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 4
 
+^AutoTarget:
+	AutoTarget:
+		AttackAnythingCondition: stance-attackanything
+
+^AutoTargetMBT:
+	Inherits: ^AutoTarget
+	AutoTargetPriority@Heavy:
+		ValidTargets: Heavy
+		Priority: 5
+	AutoTargetPriority@Medium:
+		ValidTargets: Medium
+		Priority: 4
+	AutoTargetPriority@Light:
+		ValidTargets: Light
+		Priority: 3
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		InvalidTargets: NoAutoTarget, WaterStructure
+		Priority: 2
+	AutoTargetPriority@AttackAnything:
+		Priority: 1
+
 ^AutoTargetGround:
 	AutoTarget:
 		AttackAnythingCondition: stance-attackanything
@@ -197,6 +219,7 @@
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
+
 ^AutoTargetGroundAssaultMove:
 	Inherits: ^AutoTargetGround
 	AutoTargetPriority@Default:
