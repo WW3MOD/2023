@@ -11,11 +11,11 @@
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
 	Inherits@Detection: ^StandardDetection
+	Inherits@DetectionProximity: ^DetectionProximity
 	RepairableNear:
 		RepairActors: truk
 	RevealsShroud:
 		Range: 20c0
-	Inherits@DetectionProximity: ^DetectionProximity
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -241,6 +241,7 @@
 		DefaultAttackSequence: shoot
 ^CamoSoldier:
 	Inherits: ^Soldier
+	Inherits: ^VisibilityRangeCircles
 	AutoTarget:
 		ScanRadius: 25
 		MinimumScanTimeInterval: 16
@@ -644,111 +645,6 @@
 		Palette: player
 		IsPlayerPalette: true
 
-	# WithRangeCircle@Cloak_0:
-	# 	RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 16c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_1:
-	# 	RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 14c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_2:
-	# 	RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 12c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_3:
-	# 	RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 10c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_4:
-	# 	RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 10c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_5:
-	# 	RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 9c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_6:
-	# 	RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 8c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_7:
-	# 	RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 8c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_8:
-	# 	RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 8c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_9:
-	# 	RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 7c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_10:
-	# 	RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
-	# 	Range: 5c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_11:
-	# 	RequiresCondition: cloak-11 && !cloak-12
-	# 	Range: 4c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@Cloak_12:
-	# 	RequiresCondition: cloak-12
-	# 	Range: 1c512
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
-
 ^InfantryStealthyVisibility:
 	# CPU Expensive! Temp fix, TODO: rewrite
 	Inherits: ^VisibilityPips
@@ -834,6 +730,111 @@
 		UncloakOn: Move, Attack
 		Palette: player
 		IsPlayerPalette: true
+^VisibilityRangeCircles:
+	WithRangeCircle@Cloak_0:
+		RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 16c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_1:
+		RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 14c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_2:
+		RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 12c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_3:
+		RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 10c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_4:
+		RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 10c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_5:
+		RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 9c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_6:
+		RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 8c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_7:
+		RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 8c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_8:
+		RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 8c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_9:
+		RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+		Range: 7c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_10:
+		RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
+		Range: 5c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_11:
+		RequiresCondition: cloak-11 && !cloak-12
+		Range: 4c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Cloak_12:
+		RequiresCondition: cloak-12
+		Range: 1c512
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
 ^VisibilityPips:
 	WithDecoration@Visibility_1:
 		RequiresSelection: true
