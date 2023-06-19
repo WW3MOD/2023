@@ -39,8 +39,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Particles are drawn in squares when enabled, otherwise with lines.")]
 		public readonly bool UseSquares = true;
 
-		[Desc("Size / width of the particle in px.")]
-		public readonly int[] ParticleSize = { 1, 3 };
+		[Desc("Size / width of the particles in px, chosen randomly.")]
+		public readonly int[] ParticleSizes = { 1, 2, 3 };
 
 		[Desc("Scatters falling direction on the x-axis. Scatter min. and max. value in px/tick.")]
 		public readonly int[] ScatterDirection = { -1, 1 };
@@ -93,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 				var y = r.Next(viewport.Top, viewport.Bottom);
 
 				Pos = new int2(x, y);
-				Size = r.Next(info.ParticleSize[0], info.ParticleSize[1] + 1);
+				Size = info.ParticleSizes[r.Next(info.ParticleSizes.Length - 1)];
 				DirectionScatterX = info.ScatterDirection[0] + r.Next(info.ScatterDirection[1] - info.ScatterDirection[0]);
 				Gravity = float2.Lerp(info.Gravity[0], info.Gravity[1], r.NextFloat());
 				SwingOffset = float2.Lerp(info.SwingOffset[0], info.SwingOffset[1], r.NextFloat());

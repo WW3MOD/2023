@@ -3,8 +3,11 @@ World:
 		ChangingWindLevel: true
 		InstantWindChanges: false
 		UseSquares: true
-		ParticleSize: 2, 3
+		ParticleSizes: 1, 1, 1, 2, 2, 3
+		ParticleDensityFactor: 10
 		ScatterDirection: -1, 1
+		Gravity: 2, 3
+		WindTick: 400, 900
 		ParticleColors: ECECEC, E4E4E4, D0D0D0, BCBCBC
 		LineTailAlphaValue: 0
 	GlobalLightingPaletteEffect:
