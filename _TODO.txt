@@ -1,6 +1,12 @@
 2023
 
 
+- Add Weapon.Info.AverageDamage to override the default
+
+- Multiple Turrets with different AutoTargeting
+- Autotarget with other armament if reload for primary is long, humvee for example
+
+- ShouldExplode on targets that get in the way, but it shouldnt stop autotargeting
 
 - Shellmaps
     - "Bradley Square"
@@ -13,7 +19,7 @@
 
 - Bradleys too good vs infantry? Reduce spread?
 
-- Inacuracy scales logarithmically with distance
+- Inaccuracy scales logarithmically with distance
 
 Unsolved bugs
 
@@ -72,7 +78,6 @@ UNIT:
 
 - Add Ukraine faction
 
-- Autotarget with other armament if reload for primary is long, humvee for example
 
 - Engineer cant repair
     - Engineer can capture disabled vehicles?
