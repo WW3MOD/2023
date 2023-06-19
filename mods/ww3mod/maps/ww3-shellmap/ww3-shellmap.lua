@@ -7,38 +7,38 @@
    information, see COPYING.
 ]]
 
-LeftRoadWaypoints = { LeftRoad1, LeftRoad2, LeftRoad3, LeftRoad4, LeftRoad5 }
-RightRoadWaypoints = { RightRoad1, RightRoad2, RightRoad3, RightRoad4, RightRoad5 }
+-- LeftRoadWaypoints = { LeftRoad1, LeftRoad2, LeftRoad3, LeftRoad4, LeftRoad5 }
+-- RightRoadWaypoints = { RightRoad1, RightRoad2, RightRoad3, RightRoad4, RightRoad5 }
 
 BindActorTriggers = function(a)
-	if a.HasProperty("Hunt") then
-		if a.Owner == NATO then
-			Trigger.OnIdle(a, function(a)
-				if a.IsInWorld then
-					a.Hunt()
-				end
-			end)
-		else
-			Trigger.OnIdle(a, function(a)
-				if a.IsInWorld then
-					a.AttackMove(AlliedTechnologyCenter.Location)
-				end
-			end)
-		end
-	end
+	-- if a.HasProperty("Hunt") then
+	-- 	if a.Owner == NATO then
+	-- 		Trigger.OnIdle(a, function(a)
+	-- 			if a.IsInWorld then
+	-- 				a.Hunt()
+	-- 			end
+	-- 		end)
+	-- 	else
+	-- 		Trigger.OnIdle(a, function(a)
+	-- 			if a.IsInWorld then
+	-- 				a.AttackMove(AlliedTechnologyCenter.Location)
+	-- 			end
+	-- 		end)
+	-- 	end
+	-- end
 
-	if a.HasProperty("HasPassengers") then
-		Trigger.OnPassengerExited(a, function(t, p)
-			BindActorTriggers(p)
-		end)
+	-- if a.HasProperty("HasPassengers") then
+	-- 	Trigger.OnPassengerExited(a, function(t, p)
+	-- 		BindActorTriggers(p)
+	-- 	end)
 
-		Trigger.OnDamaged(a, function()
-			if a.HasPassengers then
-				a.Stop()
-				a.UnloadPassengers()
-			end
-		end)
-	end
+	-- 	Trigger.OnDamaged(a, function()
+	-- 		if a.HasPassengers then
+	-- 			a.Stop()
+	-- 			a.UnloadPassengers()
+	-- 		end
+	-- 	end)
+	-- end
 end
 
 SetupNatoUnits = function()
@@ -60,7 +60,7 @@ Tick = function()
 
 	Camera.Position = viewportOrigin + WVec.New(-1920 * math.sin(t), -2048 * math.cos(t), 0)
 
-	if ticks == 100 then
+	if ticks == 1000 then
 		MSLO1.ActivateNukePower(CPos.New(40,49))
 	end
 end
@@ -74,17 +74,17 @@ WorldLoaded = function()
 	Media.DisplaySystemMessage("System")
 	Media.FloatingText("Floating", viewportOrigin)
 
-	SetupNatoUnits()
-	SendUnits(
-		{LeftRoadEntry.Location, LeftRoad1.Location, LeftRoad2.Location, LeftRoad3.Location, LeftRoad4.Location, LeftRoad5.Location },
-		{ "humvee", "abrams", "bradley" }, 20
-	)
+	-- SetupNatoUnits()
+	-- SendUnits(
+	-- 	{LeftRoadEntry.Location, LeftRoad1.Location, LeftRoad2.Location, LeftRoad3.Location, LeftRoad4.Location, LeftRoad5.Location },
+	-- 	{ "humvee", "abrams", "bradley" }, 20
+	-- )
 end
 
 SendUnits = function(path, unitTypes, interval)
-	local units = Reinforcements.Reinforce(NATO, unitTypes, path, interval)
-	Utils.Do(units, function(unit)
-		BindActorTriggers(unit)
-	end)
-	Trigger.OnAllKilled(units, function() SendUnits(path, unitTypes, interval) end)
+	-- local units = Reinforcements.Reinforce(NATO, unitTypes, path, interval)
+	-- Utils.Do(units, function(unit)
+	-- 	BindActorTriggers(unit)
+	-- end)
+	-- Trigger.OnAllKilled(units, function() SendUnits(path, unitTypes, interval) end)
 end
