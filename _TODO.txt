@@ -7,7 +7,13 @@
     - Piatykhatky Ukrainian offensive breakthrough
 
 
+- Maps, SR too far out
 
+- Infantry cloaking near trees not working? AI could shoot
+
+- Bradleys too good vs infantry? Reduce spread?
+
+- Inacuracy scales logarithmically with distance
 
 Unsolved bugs
 
