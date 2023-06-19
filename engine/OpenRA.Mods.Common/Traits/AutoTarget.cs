@@ -360,6 +360,8 @@ namespace OpenRA.Mods.Common.Traits
 					.Concat(self.Owner.FrozenActorLayer.FrozenActorsInCircle(self.World, self.CenterPosition, scanRange)
 					.Select(Target.FromFrozenActor));
 
+			var chosenTargetAverageDamagePercent = 0;
+
 			foreach (var target in targetsInRange)
 			{
 				BitSet<TargetableType> targetTypes;
@@ -439,14 +441,46 @@ namespace OpenRA.Mods.Common.Traits
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 				foreach (var ati in validPriorities)
 				{
-					if (chosenTarget.Type == TargetType.Invalid || chosenTargetPriority < ati.Priority
-						|| (chosenTargetPriority == ati.Priority && targetRange < chosenTargetRange))
+					if (chosenTarget.Type == TargetType.Invalid // First target we check
+						|| ati.Priority > chosenTargetPriority // Has higher priority
+						|| (ati.Priority == chosenTargetPriority && ( // Same priority
+							targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100 // Significantly closer and isn't completely marked
+							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5 // recieving significantly less firepower
+					)))
 					{
+						/* if (!allowMove) */
+
 						chosenTarget = target;
 						chosenTargetPriority = ati.Priority;
 						chosenTargetRange = targetRange;
+						chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
 					}
 				}
+			}
+
+			if (chosenTarget.Actor != null)
+			{
+				var arms = ab.ChooseArmamentsForTarget(chosenTarget, false);
+
+				var percentDamage = 0;
+				foreach (var arm in arms)
+				{
+					var damageWarheads = arm.Weapon.Warheads.OfType<Warheads.DamageWarhead>();
+					foreach (var warhead in damageWarheads)
+					{
+						var vsArmor = (float)warhead.Penetration / chosenTarget.Actor.Trait<Armor>().Info.Thickness;
+						if (vsArmor > 1)
+							vsArmor = 1;
+
+						var targetHealth = chosenTarget.Actor.TraitOrDefault<Health>()?.HP;
+						if (targetHealth == null)
+							throw new System.InvalidOperationException($"No Health trait for Target: {chosenTarget.Actor.Info.Name} - Shooter: {self.Info.Name}");
+
+						percentDamage += (int)(vsArmor * warhead.Damage / targetHealth * 100);
+					}
+				}
+
+				chosenTarget.Actor.MarkForDestruction(percentDamage);
 			}
 
 			return chosenTarget;

@@ -78,6 +78,13 @@ namespace OpenRA
 
 		public WRot Orientation => facing?.Orientation ?? WRot.None;
 
+		public int AverageDamagePercent = 0;
+
+		public void MarkForDestruction(int damage)
+		{
+			AverageDamagePercent += damage;
+		}
+
 		/// <summary>Value used to represent an invalid token.</summary>
 		public static readonly int InvalidConditionToken = -1;
 
@@ -293,6 +300,10 @@ namespace OpenRA
 			else if (wasIdle)
 				foreach (var tickIdle in tickIdles)
 					tickIdle.TickIdle(this);
+
+			// Reduce the targeting
+			if(AverageDamagePercent > 0 && World.WorldTick % 20 == 0)
+				AverageDamagePercent /= 2;
 
 			// Damage over time
 			for (var i = 0; i < DOT.Count; i++)
