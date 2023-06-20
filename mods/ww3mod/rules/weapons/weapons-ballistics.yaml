@@ -380,7 +380,7 @@ AACannon:
 		Penetration: 60
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Spread: 64
+		Spread: 48
 		Damage: 100
 		DamageTypes: SmallExplosionDeath
 

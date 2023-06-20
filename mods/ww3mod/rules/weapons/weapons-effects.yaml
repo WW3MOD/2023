@@ -161,12 +161,12 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamage: 100
-		Spread: 96
+		RandomDamage: 50
+		Spread: 80
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
-		Explosions: explosion_small
+		Explosions: explosion_minimal
 		ImpactSounds: kaboom12.aud
 	Warhead@EffectShrapnel: CreateEffect
 		Explosions: shrapnel_small
@@ -193,7 +193,6 @@
 		ImpactSounds: kaboom12.aud
 	Warhead@EffectShrapnel: CreateEffect
 		Explosions: shrapnel_small
-		# ImpactSounds: kaboom12.aud
 		ValidTargets: Ground, Ship, Trees
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
@@ -217,7 +216,6 @@
 		ImpactSounds: kaboom12.aud
 	Warhead@EffectShrapnel: CreateEffect
 		Explosions: shrapnel_medium
-		# ImpactSounds: kaboom12.aud
 		ValidTargets: Ground, Ship, Trees
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
@@ -233,7 +231,7 @@
 		Delay: 1
 		ValidTargets: Infantry, Unarmored
 		RandomDamage: 200
-		Spread: 640
+		Spread: 256
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
