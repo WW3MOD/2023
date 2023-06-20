@@ -27,6 +27,16 @@ Players:
 		NonCombatant: True
 		Faction: Random
 		Enemies: Multi0
+	PlayerReference@NATO:
+		Name: NATO
+		Faction: america
+		Color: 35331F
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Faction: russia
+		Color: 2A2E12
+		Enemies: NATO
 	PlayerReference@Multi0:
 		Name: Multi0
 		Playable: True
