@@ -6,7 +6,6 @@
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 512
-		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 100
 		Penetration: 3
@@ -21,7 +20,6 @@ Pistol:
 	Projectile: Bullet
 		Speed: 512
 		Inaccuracy: 512
-		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Spread: 1
 		Damage: 100
@@ -39,7 +37,6 @@ SilencedPPK:
 	Projectile: Bullet
 		Speed: 768
 		Inaccuracy: 64
-		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Spread: 1
 		Damage: 100
@@ -82,10 +79,10 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
-		LaunchAngle: 0,20
+		LaunchAngle: 0,15
 		ContrailLength: 5
 		ContrailWidth: 3
-		# Image: tracer_small
+		ContrailStartColorAlpha: 100
 	Warhead@Target: TargetDamage
 		Damage: 200
 		DamageAtMaxRange: 50
@@ -139,10 +136,10 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
-		LaunchAngle: 0,20
+		LaunchAngle: 0,15
 		ContrailLength: 5
 		ContrailWidth: 4
-		# Image: tracer_small
+		ContrailStartColorAlpha: 110
 	Warhead@Target: TargetDamage
 		Damage: 250
 		DamageAtMaxRange: 60
@@ -188,7 +185,6 @@ MP5:
 		Speed: 1c0
 		Inaccuracy: 1c512
 		InaccuracyPerProjectile: 64,64,0
-		LaunchAngle: 0,20
 		Image: tracer_large
 	Warhead@Spread: SpreadDamage
 		Spread: 32
@@ -207,10 +203,10 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
-		LaunchAngle: 0,20
+		LaunchAngle: 0,15
 		ContrailLength: 5
 		ContrailWidth: 6
-		Image: tracer_small
+		ContrailStartColorAlpha: 130
 	Warhead@Target: TargetDamage
 		Damage: 400
 		DamageAtMaxRange: 100
@@ -353,6 +349,7 @@ AACannon:
 		LaunchAngle: 0,20
 		ContrailLength: 5
 		ContrailWidth: 12
+		ContrailStartColorAlpha: 140
 		Image: grenade_small
 	Warhead@Target: TargetDamage
 		Damage: 1000
@@ -572,7 +569,7 @@ TankRound.T72:
 	Projectile: Bullet
 		Inaccuracy: 2c0
 		Speed: 500
-		LaunchAngle: 20,65
+		LaunchAngle: 40,65
 		Image: 120MM
 		ContrailLength: 8
 		ContrailWidth: 40

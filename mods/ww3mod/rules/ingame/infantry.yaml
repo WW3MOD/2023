@@ -206,6 +206,7 @@
 
 ^CivInfantry:
 	Inherits: ^Infantry
+	Inherits@Rotting: ^RottingInfantry
 	# Inherits@penalty: ^GlobalPenalty
 	Selectable:
 		Class: CivInfantry
@@ -232,6 +233,7 @@
 		Scale: 0.6
 ^ArmedCivilian:
 	Inherits: ^CivInfantry
+	Inherits@Rotting: ^RottingInfantry
 	# -GrantConditionOnPrerequisite@GlobalPenalty:
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Armament:
@@ -242,6 +244,7 @@
 ^CamoSoldier:
 	Inherits: ^Soldier
 	Inherits: ^VisibilityRangeCircles
+	Inherits@Rotting: ^RottingInfantry
 	AutoTarget:
 		ScanRadius: 25
 		MinimumScanTimeInterval: 16
@@ -263,6 +266,7 @@
 		PanicSpeedModifier: 140
 ^AmphibiousSoldier:
 	Inherits@Type: ^CamoSoldier
+	Inherits@Rotting: ^RottingInfantry
 	GrantConditionOnTerrain@InWater:
 		TerrainTypes: Water
 		Condition: inwater
@@ -1058,7 +1062,6 @@
 # Conscript
 ^E1:
 	Inherits@Type: ^CamoSoldier
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
@@ -1127,7 +1130,6 @@ E1R1:
 	Inherits@Type: ^CamoSoldier
 	# TODO: Autotarget vehicles requires prerequisite: ammo-secondary
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
@@ -1297,7 +1299,6 @@ AR:
 ^E2:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Tooltip:
 		Name: Grenadier
@@ -1362,7 +1363,6 @@ E2R1:
 ^TL:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
@@ -1450,7 +1450,6 @@ TL:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Inherits@Visibility: ^InfantryStandardVisibility
-	Inherits@Rotting: ^RottingInfantry
 	Tooltip:
 		Name: Mortar
 	Buildable:
@@ -1518,7 +1517,6 @@ MT:
 ^SN:
 	Inherits@Type: ^CamoSoldier
 	Inherits@Visibility: ^InfantryStandardVisibility
-	Inherits@Rotting: ^RottingInfantry
 	Tooltip:
 		Name: Sniper
 	Buildable:
@@ -1589,7 +1587,6 @@ SN:
 ^AT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetAllAssaultMove
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Targetable@HighPriority:
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
@@ -1659,7 +1656,6 @@ AT:
 ^AA:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetAllAssaultMove
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	AutoTarget:
 		ScanRadius: 300
@@ -1727,7 +1723,6 @@ AA:
 ^E6:
 	Inherits@Type: ^CamoSoldier
 	# Inherits@Selection: ^SelectableSupportUnit
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
@@ -1836,7 +1831,6 @@ E6:
 	Inherits@Type: ^CamoSoldier
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-	Inherits@Rotting: ^RottingInfantry
 	Tooltip:
 		Name: Flamethrower
 	Buildable:
@@ -1911,7 +1905,6 @@ E4:
 ^SF:
 	Inherits@Type: ^AmphibiousSoldier
 	Inherits@Visibility: ^InfantryStealthyVisibility
-	Inherits@Rotting: ^RottingInfantry
 	Tooltip:
 		Name: Special Forces
 	Valued:
@@ -2000,7 +1993,6 @@ SF:
 # Medic
 ^MEDI:
 	Inherits@Type: ^CamoSoldier
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
@@ -2060,7 +2052,6 @@ MEDI:
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Inherits@Selection: ^SelectableSupportUnit
 	Inherits@Visibility: ^InfantryStealthyVisibility
-	Inherits@Rotting: ^RottingInfantry
 	-Tooltip:
 	-Guard:
 	-WithInfantryBody:
@@ -2215,7 +2206,6 @@ DOG:
 ^TECN:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesNeutralBuildings: ^CapturesNeutralBuildings
 	-Wanders:
@@ -2325,7 +2315,6 @@ DR:
 # Pilot
 ^PILOT:
 	Inherits@Type: ^CamoSoldier
-	Inherits@Rotting: ^RottingInfantry
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
