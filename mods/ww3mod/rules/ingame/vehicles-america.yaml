@@ -804,216 +804,216 @@ m270:
 	SpawnActorOnDeath:
 		Actor: m270.husk
 
-HIMARS:
-	Inherits@Type: ^WheeledVehicle
-	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 7
-		Prerequisites: ~vehicles.america, ~techlevel.high
-		Description: HIMARS for commanderbambi
-	Valued:
-		Cost: 3500
-	Tooltip:
-		Name: HIMARS
-	RenderSprites:
-		Scale: 1.25
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	DamageMultiplier@Loaded:
-		RequiresCondition: loaded
-		Modifier: 1000
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 2000
-	# Armor@Loaded:
-	# 	RequiresCondition: loaded
-	# 	Type: Unarmored
-	Armor:
-		# RequiresCondition: !loaded
-		Type: Light
-	Targetable@Loaded:
-		RequiresCondition: loaded
-		TargetTypes: Ground, Vehicle, Light
-	Targetable@empty:
-		RequiresCondition: !loaded
-		TargetTypes: Ground, Vehicle, Medium
-	HitShape:
-		Type: Rectangle
-			VerticalTopOffset: 620
-			TopLeft: -240, -700
-			BottomRight: 240, 700
-	-HiddenUnderFog:
-	VisibleWithRadar:
-		Type: GroundPosition
-		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 10c0
-	Mobile:
-		Locomotor: lighttracked
-		Speed: 70
-		TurnSpeed: 10
-		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
-	GrantConditionOnPreparingAttack:
-		Condition: firing
-		ArmamentNames: primary
-		RevokeDelay: 160
-	IndirectFire:
-	AutoTarget:
-		InitialStance: HoldFire
-		InitialStanceAI: Defend
-	Armament@1:
-		Weapon: IskanderTargeter
-		LocalOffset: 192,-64,176, 192,64,176
-		PauseOnCondition: !ammo-primary || empdisable || unit.docked
-	AmmoPool@1:
-		Name: primary-ammo
-		Armaments: primary
-		Ammo: 6
-		AmmoCondition: ammo-primary
-		FullReloadTicks: 600
-		FullReloadSteps: 6
-		RearmSound: minelay1.aud
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 8, 3
-		PipCount: 6
-		RequiresSelection: true
-		FullSequence: pip-red
-		AmmoPools: primary-ammo
-	Turreted:
-		TurnSpeed: 10
-		Offset: -300,0,150
-	AttackTurreted:
-		TargetFrozenActors: True
-		ForceFireIgnoresActors: True
-		PersistentTargeting: False
-		PauseOnCondition: empdisable || unit.docked
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
-	WithMuzzleOverlay:
-	WithSpriteTurret:
-		Recoils: false
-	MissileSpawnerMaster:
-		Actors: IskanderMissile
-		LoadedCondition: loaded
-		LaunchingCondition: firing-primary
-	Explodes:
-		Weapon: ArtilleryExplode
-	Explodes@Loaded:
-		RequiresCondition: loaded
-		Weapon: IskanderExplosion
-	Selectable:
-		DecorationBounds: 2048,2048
-	RenderRangeCircle:
-		Width: 2
-		Color: FFFF00
-	SpawnActorOnDeath:
-		Actor: HIMARS.husk
+# HIMARS:
+# 	Inherits@Type: ^WheeledVehicle
+# 	Inherits@GainsExperience: ^GainsExperience
+# 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 7
+# 		Prerequisites: ~vehicles.america, ~techlevel.high
+# 		Description: HIMARS for commanderbambi
+# 	Valued:
+# 		Cost: 3500
+# 	Tooltip:
+# 		Name: HIMARS
+# 	RenderSprites:
+# 		Scale: 1.25
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	DamageMultiplier@Loaded:
+# 		RequiresCondition: loaded
+# 		Modifier: 1000
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 2000
+# 	# Armor@Loaded:
+# 	# 	RequiresCondition: loaded
+# 	# 	Type: Unarmored
+# 	Armor:
+# 		# RequiresCondition: !loaded
+# 		Type: Light
+# 	Targetable@Loaded:
+# 		RequiresCondition: loaded
+# 		TargetTypes: Ground, Vehicle, Light
+# 	Targetable@empty:
+# 		RequiresCondition: !loaded
+# 		TargetTypes: Ground, Vehicle, Medium
+# 	HitShape:
+# 		Type: Rectangle
+# 			VerticalTopOffset: 620
+# 			TopLeft: -240, -700
+# 			BottomRight: 240, 700
+# 	-HiddenUnderFog:
+# 	VisibleWithRadar:
+# 		Type: GroundPosition
+# 		PauseOnCondition: !firing
+# 	RevealsShroud:
+# 		Range: 10c0
+# 	Mobile:
+# 		Locomotor: lighttracked
+# 		Speed: 70
+# 		TurnSpeed: 10
+# 		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
+# 	GrantConditionOnPreparingAttack:
+# 		Condition: firing
+# 		ArmamentNames: primary
+# 		RevokeDelay: 160
+# 	IndirectFire:
+# 	AutoTarget:
+# 		InitialStance: HoldFire
+# 		InitialStanceAI: Defend
+# 	Armament@1:
+# 		Weapon: IskanderTargeter
+# 		LocalOffset: 192,-64,176, 192,64,176
+# 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+# 	AmmoPool@1:
+# 		Name: primary-ammo
+# 		Armaments: primary
+# 		Ammo: 6
+# 		AmmoCondition: ammo-primary
+# 		FullReloadTicks: 600
+# 		FullReloadSteps: 6
+# 		RearmSound: minelay1.aud
+# 	WithAmmoPipsDecoration@1:
+# 		Position: Bottom
+# 		Margin: 8, 3
+# 		PipCount: 6
+# 		RequiresSelection: true
+# 		FullSequence: pip-red
+# 		AmmoPools: primary-ammo
+# 	Turreted:
+# 		TurnSpeed: 10
+# 		Offset: -300,0,150
+# 	AttackTurreted:
+# 		TargetFrozenActors: True
+# 		ForceFireIgnoresActors: True
+# 		PersistentTargeting: False
+# 		PauseOnCondition: empdisable || unit.docked
+# 	Rearmable:
+# 		RearmActors: logisticscenter
+# 		AmmoPools: primary-ammo
+# 	WithMuzzleOverlay:
+# 	WithSpriteTurret:
+# 		Recoils: false
+# 	MissileSpawnerMaster:
+# 		Actors: IskanderMissile
+# 		LoadedCondition: loaded
+# 		LaunchingCondition: firing-primary
+# 	Explodes:
+# 		Weapon: ArtilleryExplode
+# 	Explodes@Loaded:
+# 		RequiresCondition: loaded
+# 		Weapon: IskanderExplosion
+# 	Selectable:
+# 		DecorationBounds: 2048,2048
+# 	RenderRangeCircle:
+# 		Width: 2
+# 		Color: FFFF00
+# 	SpawnActorOnDeath:
+# 		Actor: HIMARS.husk
 
-PRSM:
-	Inherits@Type: ^TrackedVehicle
-	Inherits@GainsExperience: ^GainsExperience
-	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
-	-WithDecoration@AmmoNone:
-	-WithDecoration@AmmoPrimaryNone:
-	-WithDecoration@AmmoSecondaryNone:
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 18
-		Prerequisites: ~vehicles.america, ~techlevel.futuristic
-		Description: Experimental vehicle armed with a laser
-	Valued:
-		Cost: 3000
-	Tooltip:
-		Name: Prism Tank
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 5000
-	Armor:
-		Type: Light
-		Thickness: 8
-		Distribution: 100,80,80,80,60
-	Targetable:
-		TargetTypes: Ground, Vehicle, Light
-	HitShape:
-		Type: Rectangle
-			VerticalTopOffset: 450
-			TopLeft: -350, -500
-			BottomRight: 350, 500
-	#no info need to be adjusted
-	Mobile:
-		Locomotor: lighttracked
-		Speed: 55
-		TurnSpeed: 20
-		PauseOnCondition: empdisable
-	Selectable:
-		DecorationBounds: 2048,2048
-	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@4:
-		ValidTargets: Medium, Heavy
-		Priority: 4
-	AutoTargetPriority@3:
-		ValidTargets: Vehicle
-		Priority: 3
-	AutoTargetPriority@2:
-		ValidTargets: Infantry
-		Priority: 2
-	AutoTargetPriority@1:
-		ValidTargets: Defense
-		Priority: 1
-	Armament@MaximumFirepower:
-		Name: primary
-		Weapon: PrismLaserMaxFirepower
-		LocalOffset: 125,0,180
-		PauseOnCondition: ammo-primary < 100 || empdisable
-		AmmoUsage: 100
-	GrantConditionOnAttack@Cooldown:
-		Condition: cooldown
-		ArmamentNames: primary
-		RevokeDelay: 80
-	WithIdleOverlay@Cooldown:
-		RequiresCondition: cooldown
-		Sequence: cooldown
-		Offset: 120,0,300
-	Armament@LowFirepower:
-		Name: secondary
-		Weapon: PrismLaser
-		LocalOffset: 125,0,180
-		PauseOnCondition: cooldown || !ammo-primary || empdisable
-	Turreted:
-		TurnSpeed: 20
-		Offset: 100,0,10
-	AmmoPool@1:
-		Name: primary-ammo
-		Armaments: primary, secondary
-		Ammo: 100
-		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		Delay: 30
-		Count: 20
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 6,3
-		PipCount: 5
-		RequiresSelection: true
-		FullSequence: pip-white
-		AmmoPools: primary-ammo
-	AttackTurreted:
-		TargetFrozenActors: True
-		OpportunityFire: False
-		PauseOnCondition: empdisable
-	WithSpriteTurret:
-	RenderRangeCircle:
-		Width: 3
-		Alpha: 120
-	Explodes:
-		Weapon: ArtilleryExplode
-	SpawnActorOnDeath:
-		Actor: PRSM.husk
+# PRSM:
+# 	Inherits@Type: ^TrackedVehicle
+# 	Inherits@GainsExperience: ^GainsExperience
+# 	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+# 	-WithDecoration@AmmoNone:
+# 	-WithDecoration@AmmoPrimaryNone:
+# 	-WithDecoration@AmmoSecondaryNone:
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 18
+# 		Prerequisites: ~vehicles.america, ~techlevel.futuristic
+# 		Description: Experimental vehicle armed with a laser
+# 	Valued:
+# 		Cost: 3000
+# 	Tooltip:
+# 		Name: Prism Tank
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 5000
+# 	Armor:
+# 		Type: Light
+# 		Thickness: 8
+# 		Distribution: 100,80,80,80,60
+# 	Targetable:
+# 		TargetTypes: Ground, Vehicle, Light
+# 	HitShape:
+# 		Type: Rectangle
+# 			VerticalTopOffset: 450
+# 			TopLeft: -350, -500
+# 			BottomRight: 350, 500
+# 	#no info need to be adjusted
+# 	Mobile:
+# 		Locomotor: lighttracked
+# 		Speed: 55
+# 		TurnSpeed: 20
+# 		PauseOnCondition: empdisable
+# 	Selectable:
+# 		DecorationBounds: 2048,2048
+# 	AutoTarget:
+# 		AttackAnythingCondition: stance-attackanything
+# 	AutoTargetPriority@4:
+# 		ValidTargets: Medium, Heavy
+# 		Priority: 4
+# 	AutoTargetPriority@3:
+# 		ValidTargets: Vehicle
+# 		Priority: 3
+# 	AutoTargetPriority@2:
+# 		ValidTargets: Infantry
+# 		Priority: 2
+# 	AutoTargetPriority@1:
+# 		ValidTargets: Defense
+# 		Priority: 1
+# 	Armament@MaximumFirepower:
+# 		Name: primary
+# 		Weapon: PrismLaserMaxFirepower
+# 		LocalOffset: 125,0,180
+# 		PauseOnCondition: ammo-primary < 100 || empdisable
+# 		AmmoUsage: 100
+# 	GrantConditionOnAttack@Cooldown:
+# 		Condition: cooldown
+# 		ArmamentNames: primary
+# 		RevokeDelay: 80
+# 	WithIdleOverlay@Cooldown:
+# 		RequiresCondition: cooldown
+# 		Sequence: cooldown
+# 		Offset: 120,0,300
+# 	Armament@LowFirepower:
+# 		Name: secondary
+# 		Weapon: PrismLaser
+# 		LocalOffset: 125,0,180
+# 		PauseOnCondition: cooldown || !ammo-primary || empdisable
+# 	Turreted:
+# 		TurnSpeed: 20
+# 		Offset: 100,0,10
+# 	AmmoPool@1:
+# 		Name: primary-ammo
+# 		Armaments: primary, secondary
+# 		Ammo: 100
+# 		AmmoCondition: ammo-primary
+# 	ReloadAmmoPool@1:
+# 		AmmoPool: primary-ammo
+# 		Delay: 30
+# 		Count: 20
+# 	WithAmmoPipsDecoration@1:
+# 		Position: Bottom
+# 		Margin: 6,3
+# 		PipCount: 5
+# 		RequiresSelection: true
+# 		FullSequence: pip-white
+# 		AmmoPools: primary-ammo
+# 	AttackTurreted:
+# 		TargetFrozenActors: True
+# 		OpportunityFire: False
+# 		PauseOnCondition: empdisable
+# 	WithSpriteTurret:
+# 	RenderRangeCircle:
+# 		Width: 3
+# 		Alpha: 120
+# 	Explodes:
+# 		Weapon: ArtilleryExplode
+# 	SpawnActorOnDeath:
+# 		Actor: PRSM.husk
