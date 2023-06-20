@@ -9,6 +9,8 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -17,8 +19,12 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public class MoveWithinRange : MoveAdjacentTo
 	{
+		readonly Target target;
 		readonly WDist maxRange;
 		readonly WDist minRange;
+		readonly Map map;
+		readonly int maxCells;
+		readonly int minCells;
 
 		int checkTick = 0;
 
@@ -26,8 +32,12 @@ namespace OpenRA.Mods.Common.Activities
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
 			: base(self, target, initialTargetPosition, targetLineColor)
 		{
+			this.target = target;
 			this.minRange = minRange;
 			this.maxRange = maxRange;
+			map = self.World.Map;
+			maxCells = (maxRange.Length + 1023) / 1024;
+			minCells = minRange.Length / 1024;
 		}
 
 		protected override bool ShouldStop(Actor self)
@@ -56,11 +66,14 @@ namespace OpenRA.Mods.Common.Activities
 				|| !Mobile.CanInteractWithGroundLayer(self) || !Mobile.CanStayInCell(self.Location));
 		}
 
-		/* protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
+		protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
 		{
-			return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
-				.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
-		} */
+			if (target.Type != TargetType.Invalid && lastVisibleTargetLocation != new CPos(target.CenterPosition.X, target.CenterPosition.Y) && (!AtCorrectRange(self.CenterPosition)))
+				return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
+					.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
+
+			return base.CandidateMovementCells(self);
+		}
 
 		bool AtCorrectRange(WPos origin)
 		{

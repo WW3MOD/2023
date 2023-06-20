@@ -83,6 +83,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
 
+		[Desc("Display order for the stance dropdown in the map editor")]
+		public readonly bool ConditionalPriority = true;
+
 		public override object Create(ActorInitializer init) { return new AutoTarget(init, this); }
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo info)
@@ -331,7 +334,7 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				// Incompatible target types
-				if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
+				if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
 					return false;
 
 				return true;
@@ -361,6 +364,7 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(Target.FromFrozenActor));
 
 			var chosenTargetAverageDamagePercent = 0;
+			var chosenTargetSuppression = 0;
 
 			foreach (var target in targetsInRange)
 			{
@@ -437,22 +441,28 @@ namespace OpenRA.Mods.Common.Traits
 						}
 				}
 
+				var suppression = target.Actor.TraitsImplementing<ExternalCondition>()
+					.FirstOrDefault(t => t.Info.Condition == "suppressed")?.GrantedValue(target.Actor);
+
 				// Evaluate whether we want to target this actor
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 				foreach (var ati in validPriorities)
 				{
-					if (chosenTarget.Type == TargetType.Invalid // First target we check
-						|| ati.Priority > chosenTargetPriority // Has higher priority
+					// TODO: ChangePriority downwards if it is important enough ?
+					if (chosenTarget.Type == TargetType.Invalid // First target we check will be added regardless
+						|| ati.Priority > chosenTargetPriority // Has higher priority goes first
+						|| (Info.ConditionalPriority && suppression < chosenTargetSuppression) // Prioritize non-suppressed targets
 						|| (ati.Priority == chosenTargetPriority && ( // Same priority
-							targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100 // Significantly closer and isn't completely marked
+							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100) // Significantly closer and isn't completely marked
 							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5 // recieving significantly less firepower
 					)))
 					{
-						/* if (!allowMove) */
+						/* if (allowMove) */
 
 						chosenTarget = target;
 						chosenTargetPriority = ati.Priority;
 						chosenTargetRange = targetRange;
+						chosenTargetSuppression = suppression ?? 0;
 						chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
 					}
 				}
@@ -473,8 +483,6 @@ namespace OpenRA.Mods.Common.Traits
 							vsArmor = 1;
 
 						var targetHealth = chosenTarget.Actor.TraitOrDefault<Health>()?.HP;
-						if (targetHealth == null)
-							throw new System.InvalidOperationException($"No Health trait for Target: {chosenTarget.Actor.Info.Name} - Shooter: {self.Info.Name}");
 
 						percentDamage += (int)(vsArmor * warhead.Damage / targetHealth * 100);
 					}
@@ -486,7 +494,7 @@ namespace OpenRA.Mods.Common.Traits
 			return chosenTarget;
 		}
 
-		bool PreventsAutoTarget(Actor attacker, Actor target)
+		static bool PreventsAutoTarget(Actor attacker, Actor target)
 		{
 			foreach (var deat in target.TraitsImplementing<IDisableEnemyAutoTarget>())
 				if (deat.DisableEnemyAutoTarget(target, attacker))

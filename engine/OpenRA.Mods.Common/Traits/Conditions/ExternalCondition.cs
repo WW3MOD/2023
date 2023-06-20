@@ -68,6 +68,17 @@ namespace OpenRA.Mods.Common.Traits
 			Info = info;
 		}
 
+		public int GrantedValue(Actor actor)
+		{
+			var count = 0;
+			if (permanentTokens.TryGetValue(actor, out var permanentTokensForSource))
+				count += permanentTokensForSource.Count;
+			else
+				count += timedTokens.Count;
+
+			return count;
+		}
+
 		public bool CanGrantCondition(object source)
 		{
 			if (source == null)

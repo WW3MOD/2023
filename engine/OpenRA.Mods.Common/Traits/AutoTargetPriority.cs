@@ -20,6 +20,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Target types that can be AutoTargeted.")]
 		public readonly BitSet<TargetableType> ValidTargets = new BitSet<TargetableType>("Ground", "Water", "Air");
 
+		[Desc("Target types that must be precent for AutoTarget")]
+		public readonly BitSet<TargetableType> OnlyTargets = default;
+
 		[Desc("Target types that can't be AutoTargeted.", "Overrules ValidTargets.")]
 		public readonly BitSet<TargetableType> InvalidTargets = new BitSet<TargetableType>("NoAutoTarget");
 
@@ -28,6 +31,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("ValidTargets with larger priorities will be AutoTargeted before lower priorities.")]
 		public readonly int Priority = 1;
+
+		[Desc("Target condition that will increase priority.")]
+		public readonly string PriorityCondition = null;
 
 		public override object Create(ActorInitializer init) { return new AutoTargetPriority(this); }
 	}
