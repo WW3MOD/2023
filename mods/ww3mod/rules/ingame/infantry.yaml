@@ -1232,8 +1232,7 @@ E3R1:
 # LMG
 ^AR:
 	Inherits@Type: ^CamoSoldier
-	Inherits@AutoTarget: ^AutoTargetGroundAntiInfandAir
-	Inherits@Rotting: ^RottingInfantry
+	Inherits@AutoTarget: ^AutoTargetLMG
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:

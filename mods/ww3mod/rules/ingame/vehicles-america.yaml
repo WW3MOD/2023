@@ -363,7 +363,7 @@ m113:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiInf
+	Inherits@AutoTarget: ^AutoTargetHMG
 	Tooltip:
 		Name: M113 APC
 		GenericName: Armoured Personnel Carrier

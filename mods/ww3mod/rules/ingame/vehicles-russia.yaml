@@ -88,7 +88,7 @@ bmp2:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Inherits@AutoTarget: ^AutoTargetIFV
 	Tooltip:
 		Name: BPM-2
 		GenericName: IFV Troop Carrier
@@ -219,7 +219,7 @@ btr:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiInf
+	Inherits@AutoTarget: ^AutoTargetHMG
 	Tooltip:
 		Name: BTR-80
 		GenericName: Armoured Personnel Carrier
