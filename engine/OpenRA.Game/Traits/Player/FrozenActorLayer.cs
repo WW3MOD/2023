@@ -283,7 +283,7 @@ namespace OpenRA.Traits
 			frozenActorsById.Remove(fa.ID);
 		}
 
-		Rectangle FootprintBounds(FrozenActor fa)
+		static Rectangle FootprintBounds(FrozenActor fa)
 		{
 			var p1 = fa.Footprint[0];
 			var minU = p1.U;
