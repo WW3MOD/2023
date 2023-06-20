@@ -86,6 +86,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Probability of locking onto and following target.")]
 		public readonly int LockOnProbability = 100;
 
+		[Desc("How often the missile will reaquire target position during flight.")]
+		public readonly int RetargetTicks = 5;
+
 		[Desc("Horizontal rate of turn.")]
 		public readonly WAngle HorizontalRateOfTurn = new WAngle(20);
 
@@ -220,8 +223,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		bool allowPassBy; // TODO: use this also with high minimum launch angle settings
 
 		WPos targetPosition;
-		readonly WVec offset;
-
+		WVec offset;
 		WVec tarVel;
 		WVec predVel;
 
@@ -863,6 +865,17 @@ namespace OpenRA.Mods.Common.Projectiles
 			var yaw2 = tarVel.HorizontalLengthSquared != 0 ? tarVel.Yaw : WAngle.FromFacing(hFacing);
 			predVel = tarVel.Rotate(WRot.FromYaw(yaw2 - yaw1));
 			targetPosition = newTarPos;
+
+			// Adjust offset during flight to not be predetermined to hit/miss
+			if (ticks % info.RetargetTicks == 0)
+			{
+				var inaccuracy = lockOn && info.LockOnInaccuracy.Length > -1 ? info.LockOnInaccuracy.Length : info.Inaccuracy.Length;
+				if (inaccuracy > 0)
+				{
+					var maxInaccuracyOffset = Util.GetProjectileInaccuracy(info.Inaccuracy.Length, info.InaccuracyType, args);
+					offset = WVec.FromPDF(world.SharedRandom, 2) * maxInaccuracyOffset / 1024;
+				}
+			}
 
 			// Compute current distance from target position
 			var tarDistVec = targetPosition + offset - pos;
