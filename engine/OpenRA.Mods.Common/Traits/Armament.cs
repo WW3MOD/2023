@@ -405,13 +405,8 @@ namespace OpenRA.Mods.Common.Traits
 						if (!initialPosition.Equals(default))
 						{
 							var targetPosition = Target.Value.CenterPosition;
-							var vectorDiffPerTick = WPos.PositionDiff(targetPosition, initialPosition) / Info.FireDelay;
-
-							// var targetSpeed = (vectorDiffPerTick.HorizontalLength);
+							var leadTarget = WVec.CalculateLeadTarget(self.CenterPosition, initialPosition, targetPosition, Info.FireDelay, bullet.Speed.First().Length);
 							var distanceToTarget = WPos.PositionDiff(targetPosition, self.CenterPosition).HorizontalLength;
-							var projectileSpeed = bullet.Speed.First().Length;
-							var ticksToReachTarget = distanceToTarget / projectileSpeed;
-							var leadTarget = vectorDiffPerTick * ticksToReachTarget;
 
 							if (AimInitialTargetPosition.Count > 0)
 								AimInitialTargetPosition.RemoveAt(0);

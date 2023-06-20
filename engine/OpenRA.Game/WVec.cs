@@ -137,6 +137,15 @@ namespace OpenRA
 			return a == b;
 		}
 
+		public static WVec CalculateLeadTarget(WPos launchPosition, WPos initialPosition, WPos targetPosition, int timeSample, int projectileSpeed)
+		{
+			var vectorDiffPerTick = WPos.PositionDiff(targetPosition, initialPosition) / timeSample;
+			var distanceToTarget = WPos.PositionDiff(targetPosition, launchPosition).HorizontalLength;
+			var ticksToReachTarget = distanceToTarget / projectileSpeed;
+			var leadTarget = vectorDiffPerTick * ticksToReachTarget;
+
+			return leadTarget;
+		}
 		public LuaValue this[LuaRuntime runtime, LuaValue key]
 		{
 			get

@@ -229,6 +229,8 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		[Sync]
 		WPos pos;
+		WPos lastPos;
+		WPos lastTargetPosition;
 
 		WVec velocity;
 		int speed;
@@ -250,6 +252,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			this.args = args;
 
 			pos = args.Source;
+			lastPos = pos;
 			hFacing = args.Facing.Facing;
 			gravity = new WVec(0, 0, -info.Gravity);
 			targetPosition = args.PassiveTarget;
@@ -867,7 +870,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			targetPosition = newTarPos;
 
 			// Adjust offset during flight to not be predetermined to hit/miss
-			if (ticks % info.RetargetTicks == 0)
+			if (ticks % info.RetargetTicks == 0 && (targetPosition - pos).Length > 1536)
 			{
 				var inaccuracy = lockOn && info.LockOnInaccuracy.Length > -1 ? info.LockOnInaccuracy.Length : info.Inaccuracy.Length;
 				if (inaccuracy > 0)
@@ -878,9 +881,12 @@ namespace OpenRA.Mods.Common.Projectiles
 			}
 
 			// Compute current distance from target position
-			var tarDistVec = targetPosition + offset - pos;
+			var leadTarget = WVec.CalculateLeadTarget(pos, lastTargetPosition, targetPosition, 1, speed);
+			var tarDistVec = targetPosition + leadTarget + offset - pos;
 			var relTarDist = tarDistVec.Length;
 			var relTarHorDist = tarDistVec.HorizontalLength;
+
+			lastTargetPosition = targetPosition;
 
 			WVec move;
 			if (state == States.Freefall || (info.ManualGuidance && args.SourceActor.IsDead))
@@ -891,7 +897,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			renderFacing = new WVec(move.X, move.Y - move.Z, 0).Yaw;
 
 			// Move the missile
-			var lastPos = pos;
+			lastPos = pos;
 			if (info.AllowSnapping && state != States.Freefall && relTarDist < move.Length)
 				pos = targetPosition + offset;
 			else
