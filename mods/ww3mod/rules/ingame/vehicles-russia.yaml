@@ -30,8 +30,9 @@ t72:
 	Targetable:
 		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:
-		Speed: 67
 		Locomotor: heavytracked
+		Speed: 67
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		# CanMoveBackward: true
 		PauseOnCondition: empdisable
@@ -41,6 +42,7 @@ t72:
 	Armament@1:
 		Name: primary
 		Weapon: TankRound.T72
+		MovementInaccuracy: 50
 		Recoil: 85
 		RecoilRecovery: 70
 		LocalOffset: 1300,0,45
@@ -117,6 +119,7 @@ bmp2:
 	Mobile:
 		Locomotor: lighttracked-amphbious
 		Speed: 65
+		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 20
 		PauseOnCondition: empdisable || firing-secondary
 	GrantConditionOnPreparingAttack:
@@ -249,8 +252,9 @@ btr:
 			TopLeft: -290, -770
 			BottomRight: 290, 770
 	Mobile:
-		Speed: 85
 		Locomotor: lighttracked-amphbious
+		Speed: 85
+		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 	Armament@MG:
 		Name: primary
@@ -336,8 +340,9 @@ tunguska:
 	Health:
 		HP: 4000
 	Mobile:
-		Speed: 67
 		Locomotor: heavytracked
+		Speed: 67
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 20
 		PauseOnCondition: firing-secondary || empdisable
 	RevealsRadar:
@@ -483,9 +488,10 @@ giatsint:
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
-		TurnSpeed: 10
-		Speed: 56
 		Locomotor: lighttracked
+		Speed: 56
+		Acceleration: 5, 4, 3, 2, 1
+		TurnSpeed: 10
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -576,7 +582,8 @@ grad:
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
-		Speed: 50
+		Speed: 70
+		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 8
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
@@ -673,6 +680,7 @@ tos:
 		PauseOnCondition: !firing
 	Mobile:
 		Speed: 50
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 20
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:

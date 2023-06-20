@@ -41,6 +41,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Time to aim the weapon after each BurstDelays. Cannot be 0 for Bullet Projectiles as it is used to calculate how much to lead target.")]
 		public readonly int FireDelay = 5;
 
+		[Desc("How much a moving target cause added inaccuracy. (TargetSpeed * MovementInaccuracy * distanceToTarget / MaxRange)")]
+		public readonly int MovementInaccuracy = 30;
+
 		[Desc("Muzzle position relative to turret or body, (forward, right, up) triples.",
 			"If weapon Burst = 1, it cycles through all listed offsets, otherwise the offset corresponding to current burst is used.")]
 		public readonly WVec[] LocalOffset = Array.Empty<WVec>();
@@ -414,6 +417,17 @@ namespace OpenRA.Mods.Common.Traits
 								AimInitialTargetPosition.RemoveAt(0);
 
 							args.PassiveTarget = targetPosition + leadTarget + args.TargetingVector;
+
+							// Add inaccuracy for moving targets
+							var targetMobile = delayedTarget.Actor.TraitOrDefault<Mobile>();
+							if (targetMobile != null)
+							{
+								var maxInaccuracy = (int)((float)bullet.Inaccuracy.Length * Info.MovementInaccuracy / 100 * targetMobile.CurrentSpeed / targetMobile.Info.Speed * distanceToTarget / args.Weapon.Range.Length);
+
+								// movementInaccuracy goes infront of or behind actors direction
+								var wVec = new WVec(0, self.World.SharedRandom.Next(-maxInaccuracy, maxInaccuracy), 0).Rotate(WRot.FromYaw(leadTarget.Yaw));
+								args.PassiveTarget += wVec;
+							}
 						}
 					}
 

@@ -30,6 +30,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Which Locomotor does this trait use. Must be defined on the World actor.")]
 		public readonly string Locomotor = null;
 
+		[Desc("TODO: How far is ideal from other units.")]
+		public readonly WDist Separation = new WDist(1024);
+
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
@@ -38,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Speed = 1;
 
 		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
-		public readonly int[] Acceleration = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+		public readonly int[] Acceleration = { 8, 7, 6, 5, 4, 3, 2, 1 };
 
 		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
 		public readonly int TurnSpeedLoss = 5;
@@ -847,7 +850,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Allows the husk to drag to its final position
 			if (CanEnterCell(self.Location, self, BlockedByActor.Stationary))
-				init.Add(new HuskSpeedInit(MovementSpeedForCell(self.Location)));
+				init.Add(new HuskSpeedInit(CurrentSpeed));
 		}
 
 		public void Stopped()

@@ -1,3 +1,9 @@
+While adding movementinaccuracy, then last HuskSpeedInit and some other stuff
+
+Exception has occurred: CLR/System.AccessViolationException
+An unhandled exception of type 'System.AccessViolationException' occurred in OpenRA.Platforms.Default.dll: 'Attempted to read or write protected memory. This is often an indication that other memory is corrupt.'
+<Cannot evaluate the exception stack trace>
+
 // Double-clicked structures tab. Debug mode with all units
 Exception has occurred: CLR/System.InvalidOperationException
 An unhandled exception of type 'System.InvalidOperationException' occurred in OpenRA.Game.dll: 'Unit `ctflag` does not have a sequence named `icon`'

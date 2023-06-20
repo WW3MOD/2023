@@ -33,8 +33,9 @@ abrams:
 	# 	ActiveProtection: true
 	# 	Range: 2c0
 	Mobile:
-		Speed: 67
 		Locomotor: heavytracked
+		Speed: 67
+		Acceleration: 6, 5, 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: empdisable
 	Turreted:
@@ -43,6 +44,7 @@ abrams:
 	Armament@1:
 		Name: primary
 		Weapon: TankRound.Abrams
+		MovementInaccuracy: 200
 		# FireDelay: 15
 		Recoil: 85
 		RecoilRecovery: 70
@@ -123,6 +125,7 @@ bradley:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 72
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 20
 		PauseOnCondition: firing-wgm || empdisable
 	GrantConditionOnPreparingAttack:
@@ -255,8 +258,9 @@ humvee:
 			BottomRight: 220, 500
 	Mobile:
 		Locomotor: lightwheeled
-		TurnSpeed: 15
 		Speed: 110
+		Acceleration: 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+		TurnSpeed: 15
 		PauseOnCondition: empdisable
 	Turreted@MG:
 		TurnSpeed: 20
@@ -394,9 +398,10 @@ m113:
 			TopLeft: -270, -500
 			BottomRight: 270, 500
 	Mobile:
-		Speed: 85
-		TurnSpeed: 22
 		Locomotor: lighttracked-amphbious
+		Speed: 85
+		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
+		TurnSpeed: 22
 		# PauseOnCondition: empdisable || !notmobile
 	Armament@MG:
 		Name: primary
@@ -486,6 +491,7 @@ strykershorad:
 			BottomRight: 275, 700
 	Mobile:
 		Speed: 97
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		Locomotor: heavywheeled
 		PauseOnCondition: empdisable
@@ -649,8 +655,9 @@ m109:
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
-		TurnSpeed: 15
 		Speed: 56
+		Acceleration: 5, 4, 3, 2, 1
+		TurnSpeed: 15
 		Locomotor: lighttracked
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
@@ -749,6 +756,7 @@ m270:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 50
+		Acceleration: 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:

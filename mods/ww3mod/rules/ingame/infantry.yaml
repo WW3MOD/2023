@@ -14,8 +14,6 @@
 	Inherits@DetectionProximity: ^DetectionProximity
 	RepairableNear:
 		RepairActors: truk
-	RevealsShroud:
-		Range: 20c0
 	Huntable:
 	OwnerLostAction:
 		Action: Kill

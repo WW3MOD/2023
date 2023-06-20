@@ -102,8 +102,6 @@
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle
-	Mobile:
-		Locomotor: wheeled
 	SpeedMultiplier:
 		Modifier: 150
 	Passenger:
@@ -140,6 +138,11 @@
 		Modifier: 0
 		RequiresCondition: critical-damage
 
+^EffectsWhenMovingVehicles:
+	InaccuracyMultiplier@HeavyDamage:
+		RequiresCondition: moving
+		Modifier: 150
+
 TRUK:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
@@ -158,7 +161,9 @@ TRUK:
 		TargetTypes: Ground, Vehicle, DemoDisguise, Unarmored
 		RequiresCondition: !parachute
 	Mobile:
+		Locomotor: wheeled
 		Speed: 75
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
 	Carryable:
 		LocalOffset: 0,0,100
 	Passenger:
@@ -210,10 +215,11 @@ MSAR:
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
 	Mobile:
+		Locomotor: wheeled
 		Speed: 72
-		RequireForceMoveCondition: !undeployed
-		ImmovableCondition: deployed
 		RequiresCondition: !deployed
+		ImmovableCondition: deployed
+		RequireForceMoveCondition: !undeployed
 	RevealsRadar:
 		Range: 42c0
 		RequiresCondition: deployed
