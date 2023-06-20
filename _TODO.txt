@@ -1,8 +1,6 @@
 2023
 
-
-- Add Weapon.Info.AverageDamage to override the default
-
+- AutoTarget, add Weapon.Info.AverageDamage to override the default
 - Multiple Turrets with different AutoTargeting
 - Autotarget with other armament if reload for primary is long, humvee for example
 
@@ -12,14 +10,15 @@
     - "Bradley Square"
     - Piatykhatky Ukrainian offensive breakthrough
 
-
-- Maps, SR too far out
+- Humvee in two versions, MG & TOW
 
 - Infantry cloaking near trees not working? AI could shoot
 
 - Bradleys too good vs infantry? Reduce spread?
 
 - Inaccuracy scales logarithmically with distance
+
+- Stances, check SetUnitStance
 
 Unsolved bugs
 

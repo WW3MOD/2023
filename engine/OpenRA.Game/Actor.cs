@@ -302,7 +302,7 @@ namespace OpenRA
 					tickIdle.TickIdle(this);
 
 			// Reduce the targeting
-			if(AverageDamagePercent > 0 && World.WorldTick % 20 == 0)
+			if (AverageDamagePercent > 0 && World.WorldTick % 20 == 0)
 				AverageDamagePercent /= 2;
 
 			// Damage over time
