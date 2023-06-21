@@ -112,7 +112,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				TakeAmmo(self, a.Info.AmmoUsage);
 
-				if (!HasAmmo && !self.Info.HasTraitInfo<AircraftInfo>())
+				if (!HasAmmo && self.TraitOrDefault<IMove>() != null && !self.Info.HasTraitInfo<AircraftInfo>())
 					AutoRearm(self);
 			}
 		}
