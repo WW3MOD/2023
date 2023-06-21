@@ -10,7 +10,7 @@ World:
 		AllowMuteBackgroundMusic: true
 		DisableWorldSounds: true
 	LuaScript:
-		Scripts: ww3-shellmap.lua
+		Scripts: test-shellmap-ww3.lua
 	-StartGameNotification:
 
 MSLO:
