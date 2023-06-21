@@ -570,7 +570,7 @@ TankRound.T72:
 		Inaccuracy: 2c0
 		Speed: 500
 		LaunchAngle: 40,65
-		Image: 120MM
+		Image: 120mm
 		ContrailLength: 8
 		ContrailWidth: 40
 	Warhead@Target: TargetDamage
@@ -614,9 +614,10 @@ RocketPods:
 		Speed: 550
 		Image: dragon
 		TrailImage: smokey
-		TrailDeactivation: 6
+		TrailScalePercent: 60
 		ContrailLength: 4
 		ContrailWidth: 20
+		TrailDeactivation: 6
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
 		Damage: 3000
@@ -637,9 +638,9 @@ TimerWolf_Barrage:
 	FollowingBurstTargetOffset: 200,0,0
 	Report: missile6.aud
 	Projectile: Bullet
+		Inaccuracy: 2c512
 		LaunchAngle: 30,80
 		Speed: 450
-		Inaccuracy: 2c512
 		Image: dragon
 		ContrailLength: 5
 		ContrailWidth: 20
@@ -661,9 +662,9 @@ GradRockets:
 		LaunchAngle: 30,70
 		Image: dragon
 		TrailImage: smokey
-		TrailDeactivation: 40
 		ContrailLength: 4
 		ContrailWidth: 24
+		TrailDeactivation: 40
 		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 5000
@@ -687,12 +688,12 @@ TosRockets:
 		Inaccuracy: 4c0
 		Speed: 250
 		LaunchAngle: 25,60
+		Blockable: false
 		Image: missile
 		TrailImage: smokey
-		TrailDeactivation: 50
 		ContrailLength: 6
 		ContrailWidth: 30
-		Blockable: false
+		TrailDeactivation: 50
 	Warhead@Target: TargetDamage
 		Damage: 5000
 		Penetration: 200
@@ -717,9 +718,9 @@ M270Rockets:
 		LaunchAngle: 30,70
 		Image: missile
 		TrailImage: smokey
-		TrailDeactivation: 40
 		ContrailLength: 6
 		ContrailWidth: 30
+		TrailDeactivation: 40
 		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 15000

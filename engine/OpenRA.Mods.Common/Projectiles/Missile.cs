@@ -127,11 +127,14 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Palette used to render the trail sequence.")]
 		public readonly string TrailPalette = "effect";
 
+		[Desc("Determines the size of the trail image.")]
+		public readonly int TrailScalePercent = 100;
+
 		[Desc("Use the Player Palette to render the trail sequence.")]
 		public readonly bool TrailUsePlayerPalette = false;
 
 		[Desc("Interval in ticks between spawning trail animation.")]
-		public readonly int TrailInterval = 2;
+		public readonly int TrailInterval = 1;
 
 		[Desc("Should trail animation be spawned when the propulsion is not activated.")]
 		public readonly bool TrailWhenDeactivated = false;
@@ -915,7 +918,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (!string.IsNullOrEmpty(info.TrailImage) && --ticksToNextSmoke < 0 && (state != States.Freefall || info.TrailWhenDeactivated))
 			{
 				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos - 3 * move / 2, renderFacing, w,
-					info.TrailImage, info.TrailSequences.Random(world.SharedRandom), trailPalette)));
+					info.TrailImage, info.TrailSequences.Random(world.SharedRandom), trailPalette, scale: (float)info.TrailScalePercent / 100)));
 
 				ticksToNextSmoke = info.TrailInterval;
 			}

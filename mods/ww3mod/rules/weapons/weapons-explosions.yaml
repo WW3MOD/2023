@@ -302,7 +302,7 @@ FlakFX:
 	Projectile: Bullet
 		Speed: 85
 		LaunchAngle: 96
-		Image: DRAGON
+		Image: dragon
 		Blockable: false
 		AirburstAltitude: 1c908
 	Warhead@Spread: SpreadDamage
@@ -323,7 +323,7 @@ NapalmFX:
 		Speed: 85
 		LaunchAngle: 0, 32
 		Inaccuracy: 0c938
-		Image: DRAGON
+		Image: dragon
 		Blockable: false
 		BounceCount: 0
 	Warhead@Spread: SpreadDamage

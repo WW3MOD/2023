@@ -8,18 +8,19 @@ ATGM:
 	BurstWait: 200
 	Report: missile6.aud
 	Projectile: Missile
-		AirburstAltitude: 32
-		HorizontalRateOfTurn: 20
 		Inaccuracy: 512
-		MaximumLaunchSpeed: 20
-		Acceleration: 15
 		Speed: 300
+		Acceleration: 15
 		RangeLimit: 21c0
+		HorizontalRateOfTurn: 20
+		AirburstAltitude: 32
+		Blockable: false
+		MaximumLaunchSpeed: 20
 		CruiseAltitude: 10c0
 		ContrailLength: 5
+		Image: dragon
 		TrailImage: smokey
-		Image: DRAGON
-		Blockable: false
+		TrailScalePercent: 75
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		Penetration: 100
@@ -37,19 +38,20 @@ WGM:
 	BurstWait: 500
 	Report: vhumwe2a.wav, vhumwe2b.wav, vhumwe2c.wav, vhumwe2d.wav
 	Projectile: Missile
-		MaximumLaunchSpeed: 50
-		Acceleration: 30
-		Speed: 300
 		Inaccuracy: 768
+		RangeLimit: 26c0
+		Speed: 300
+		Acceleration: 30
+		MaximumLaunchSpeed: 50
 		HorizontalRateOfTurn: 10
 		Arm: 2
 		ManualGuidance: true
 		CruiseAltitude: 100
-		ContrailWidth: 8
 		ContrailLength: 100
-		Image: DRAGON
+		ContrailWidth: 8
+		Image: dragon
 		TrailImage: smokey
-		RangeLimit: 26c0
+		TrailScalePercent: 75
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		Penetration: 800
@@ -168,10 +170,11 @@ SurfaceToAirMissile:
 		RangeLimit: 35c0
 		HorizontalRateOfTurn: 35
 		Arm: 5
-		ExplodeWhenEmpty: true
 		Blockable: false
+		ExplodeWhenEmpty: true
 		Image: missile
 		TrailImage: smokey
+		TrailScalePercent: 75
 	Warhead@Spread: SpreadDamage
 		Damage: 2000
 		RandomDamage: 1000
@@ -201,8 +204,8 @@ AirToAirMissile:
 		HorizontalRateOfTurn: 25
 		CruiseAltitude: 2c0
 		ContrailLength: 18
-		ExplodeWhenEmpty: true
 		Blockable: false
+		ExplodeWhenEmpty: true
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		RandomDamage: 1000
@@ -224,9 +227,9 @@ MANPAD:
 		RangeLimit: 24c0
 		HorizontalRateOfTurn: 35
 		Arm: 5
-		ExplodeWhenEmpty: true
 		Blockable: false
-		Image: DRAGON
+		ExplodeWhenEmpty: true
+		Image: dragon
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		Spread: 96
@@ -239,18 +242,19 @@ Stinger:
 	BurstWait: 250
 	Report: missile1.aud
 	Projectile: Missile
-		MaximumLaunchSpeed: 50
-		Acceleration: 35
-		Speed: 550
 		Inaccuracy: 400
 		CloseEnough: 400
 		RangeLimit: 30c0
+		Speed: 550
+		Acceleration: 35
+		MaximumLaunchSpeed: 50
 		HorizontalRateOfTurn: 35
 		Arm: 5
-		ExplodeWhenEmpty: true
 		Blockable: false
+		ExplodeWhenEmpty: true
 		Image: missile
 		TrailImage: smokey
+		TrailScalePercent: 75
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
 		Spread: 96
