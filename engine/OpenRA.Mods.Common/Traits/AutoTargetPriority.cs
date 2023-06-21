@@ -32,6 +32,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("ValidTargets with larger priorities will be AutoTargeted before lower priorities.")]
 		public readonly int Priority = 1;
 
+		[Desc("Display order for the stance dropdown in the map editor")]
+		public readonly int ConditionalPriority = 0;
+
 		[Desc("Target condition that will increase priority.")]
 		public readonly string PriorityCondition = null;
 
