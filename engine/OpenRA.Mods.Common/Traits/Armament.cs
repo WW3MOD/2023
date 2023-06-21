@@ -414,17 +414,14 @@ namespace OpenRA.Mods.Common.Traits
 							args.PassiveTarget = targetPosition + leadTarget + args.TargetingVector;
 
 							// Add inaccuracy for moving targets
-							if (delayedTarget != null)
+							var targetMobile = delayedTarget.Actor?.TraitOrDefault<Mobile>();
+							if (targetMobile != null)
 							{
-								var targetMobile = delayedTarget.Actor?.TraitOrDefault<Mobile>();
-								if (targetMobile != null)
-								{
-									var maxInaccuracy = (int)((float)bullet.Inaccuracy.Length * Info.MovementInaccuracy / 100 * targetMobile.CurrentSpeed / targetMobile.Info.Speed * distanceToTarget / args.Weapon.Range.Length);
+								var maxInaccuracy = (int)((float)bullet.Inaccuracy.Length * Info.MovementInaccuracy / 100 * targetMobile.CurrentSpeed / targetMobile.Info.Speed * distanceToTarget / args.Weapon.Range.Length);
 
-									// movementInaccuracy goes infront of or behind actors direction
-									var wVec = new WVec(0, self.World.SharedRandom.Next(-maxInaccuracy, maxInaccuracy), 0).Rotate(WRot.FromYaw(leadTarget.Yaw));
-									args.PassiveTarget += wVec;
-								}
+								// movementInaccuracy goes infront of or behind actors direction
+								var wVec = new WVec(0, self.World.SharedRandom.Next(-maxInaccuracy, maxInaccuracy), 0).Rotate(WRot.FromYaw(leadTarget.Yaw));
+								args.PassiveTarget += wVec;
 							}
 						}
 					}

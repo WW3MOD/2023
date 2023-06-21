@@ -135,6 +135,7 @@ namespace OpenRA.Graphics
 					else
 						break;
 				}
+
 				if (changeTick != 0)
 					return changeTick;
 			}

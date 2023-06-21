@@ -454,8 +454,7 @@ namespace OpenRA.Mods.Common.Traits
 						|| (Info.ConditionalPriority && suppression < chosenTargetSuppression) // Prioritize non-suppressed targets
 						|| (ati.Priority == chosenTargetPriority && ( // Same priority
 							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100) // Significantly closer and isn't completely marked
-							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5 // recieving significantly less firepower
-					)))
+							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5))) // recieving significantly less firepower
 					{
 						/* if (allowMove) */
 
