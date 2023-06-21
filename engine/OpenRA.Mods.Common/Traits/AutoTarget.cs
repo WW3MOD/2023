@@ -83,8 +83,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
 
+		// TODO: Move to AutoTargetPriority
 		[Desc("Display order for the stance dropdown in the map editor")]
-		public readonly bool ConditionalPriority = true;
+		public readonly int ConditionalPriority = 0;
 
 		public override object Create(ActorInitializer init) { return new AutoTarget(init, this); }
 
@@ -456,7 +457,7 @@ namespace OpenRA.Mods.Common.Traits
 					// 5 recieving significantly less firepower
 					if (chosenTarget.Type == TargetType.Invalid
 						|| ati.Priority > chosenTargetPriority
-						|| (Info.ConditionalPriority && suppression < chosenTargetSuppression)
+						|| (Info.ConditionalPriority > 0 && suppression < chosenTargetSuppression * Info.ConditionalPriority)
 						|| (ati.Priority == chosenTargetPriority && ( // Same priority
 							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100)
 							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5)))

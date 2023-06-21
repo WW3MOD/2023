@@ -93,7 +93,7 @@ bradley:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Inherits@AutoTarget: ^AutoTargetIFV
 	Tooltip:
 		Name: Bradley
 		GenericName: IFV Troop Carrier
@@ -227,7 +227,7 @@ humvee:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@AutoTarget: ^AutoTargetLMG
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything && !assault-move
 	RenderSprites:
@@ -262,16 +262,16 @@ humvee:
 		Acceleration: 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: empdisable
-	Turreted@MG:
+	Turreted@1:
 		TurnSpeed: 20
 		Offset: 32,0,80
-	WithSpriteTurret@MG:
-	Armament@MG:
+	WithSpriteTurret@1:
+	Armament@1:
 		Name: primary
 		Weapon: 7.62mm.MG
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
-	AmmoPool@MG:
+	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 200
@@ -279,50 +279,50 @@ humvee:
 		FullReloadTicks: 300
 		FullReloadSteps: 6
 		RearmSound: minelay1.aud
-	WithAmmoPipsDecoration@MG:
+	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
 		PipCount: 5
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
-	Turreted@WGM:
-		Turret: secondary
-		TurnSpeed: 8
-		Offset: -160,0,85
-	WithSpriteTurret@WGM:
-		Turret: secondary
-		Sequence: turret2
-	Armament@WGM:
-		Name: secondary
-		Weapon: WGM
-		Turret: secondary
-		# FireDelay: 50
-		PauseOnCondition: !ammo-secondary || empdisable
-	AmmoPool@WGM:
-		Name: secondary-ammo
-		Armaments: secondary
-		Ammo: 3
-		AmmoCondition: ammo-secondary
-		FullReloadTicks: 300
-		FullReloadSteps: 3
-		RearmSound: minelay1.aud
-	WithAmmoPipsDecoration@WGM:
-		Position: Bottom
-		Margin: 3, 6
-		PipCount: 3
-		RequiresSelection: true
-		FullSequence: pip-green
-		AmmoPools: secondary-ammo
-	NextBurstBar:
-		Armaments: secondary
-		Color: 00FF00
+	# Turreted@WGM:
+	# 	Turret: secondary
+	# 	TurnSpeed: 8
+	# 	Offset: -160,0,85
+	# WithSpriteTurret@WGM:
+	# 	Turret: secondary
+	# 	Sequence: turret2
+	# Armament@WGM:
+	# 	Name: secondary
+	# 	Weapon: WGM
+	# 	Turret: secondary
+	# 	# FireDelay: 50
+	# 	PauseOnCondition: !ammo-secondary || empdisable
+	# AmmoPool@WGM:
+	# 	Name: secondary-ammo
+	# 	Armaments: secondary
+	# 	Ammo: 3
+	# 	AmmoCondition: ammo-secondary
+	# 	FullReloadTicks: 300
+	# 	FullReloadSteps: 3
+	# 	RearmSound: minelay1.aud
+	# WithAmmoPipsDecoration@WGM:
+	# 	Position: Bottom
+	# 	Margin: 3, 6
+	# 	PipCount: 3
+	# 	RequiresSelection: true
+	# 	FullSequence: pip-green
+	# 	AmmoPools: secondary-ammo
+	# NextBurstBar:
+	# 	Armaments: secondary
+	# 	Color: 00FF00
 	Rearmable:
 		RearmActors: logisticscenter
-		AmmoPools: primary-ammo, secondary-ammo
+		AmmoPools: primary-ammo #, secondary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
-		Turrets: primary, secondary
+		Turrets: primary #, secondary
 		PauseOnCondition: empdisable || unit.docked
 	WithMuzzleOverlay:
 	Cargo:
@@ -345,16 +345,16 @@ humvee:
 	# 	RequiresCondition: wgm_missile
 	RenderSprites:
 		Image: humvee
-	WithRangeCircle@PRIMARY:
+	WithRangeCircle@1:
 		Range: 16c0
 		Color: FFFF00
 		Width: 1
 		Alpha: 100
-	WithRangeCircle@SECONDARY:
-		Range: 25c0
-		Color: 00FF00
-		Width: 1
-		Alpha: 100
+	# WithRangeCircle@SECONDARY:
+	# 	Range: 25c0
+	# 	Color: 00FF00
+	# 	Width: 1
+	# 	Alpha: 100
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -460,7 +460,7 @@ strykershorad:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Inherits@AutoTarget: ^AutoTargetAAIFV
 	Tooltip:
 		Name: Stryker SHORAD
 		GenericName: Stryker Short Range Air Defense
@@ -623,7 +623,7 @@ strykershorad:
 m109:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@AutoTarget: ^AutoTargetArtillery
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
@@ -722,7 +722,10 @@ m109:
 m270:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@AutoTarget: ^AutoTargetArtillery
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
@@ -764,9 +767,6 @@ m270:
 		ArmamentNames: primary
 		RevokeDelay: 50
 	IndirectFire:
-	AutoTarget:
-		InitialStance: HoldFire
-		InitialStanceAI: Defend
 	Armament@1:
 		Weapon: M270Rockets
 		# FireDelay: 150

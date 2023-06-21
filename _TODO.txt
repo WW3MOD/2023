@@ -1,8 +1,24 @@
 2023
 
-- AutoTarget, add Weapon.Info.AverageDamage to override the default
+Movements
+- Default to AttackMove
+- AttackMove
+    If moving away from enemy, consider it a retreat
+        Stay at max distance from enemy but dont move out of sight
+- ForceMove
+    Units moves faster even under suppression but with limited abilities
+- ForceAttack
+
+
+AutoTarget
+- Don't overkill
+    If a unit fires a salvo, eg MLRS, if there is only one unit,
+        dont shoot the whole salvo, instead sweep
+- Sweeping, shooting at multiple enemies within one burst
+- Retarget if there is a more valid target
+- Add Weapon.Info.AverageDamage to override the default
 - Multiple Turrets with different AutoTargeting
-- Autotarget with other armament if reload for primary is long, humvee for example
+- Use other armament if reload for primary is long, humvee for example
 
 - ShouldExplode on targets that get in the way, but it shouldnt stop autotargeting
 

@@ -311,7 +311,7 @@ btr:
 tunguska:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Inherits@AutoTarget: ^AutoTargetAAIFV
 	Tooltip:
 		Name: 2K22 Tunguska
 		GenericName: Mobile AA
@@ -451,7 +451,7 @@ tunguska:
 giatsint:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@AutoTarget: ^AutoTargetArtillery
 	RenderSprites:
 		Image: giatsint
 		Scale: 1.25
@@ -550,7 +550,10 @@ giatsint:
 grad:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@AutoTarget: ^AutoTargetArtillery
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
@@ -591,9 +594,6 @@ grad:
 		ArmamentNames: primary
 		RevokeDelay: 150
 	IndirectFire:
-	AutoTarget:
-		InitialStance: HoldFire
-		InitialStanceAI: Defend
 	Armament@1:
 		Weapon: GradRockets
 		LocalOffset: 0,0,100
@@ -647,7 +647,10 @@ grad:
 tos:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
-	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@AutoTarget: ^AutoTargetArtilleryInfantry
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
@@ -688,9 +691,6 @@ tos:
 		ArmamentNames: primary
 		RevokeDelay: 150
 	IndirectFire:
-	AutoTarget:
-		InitialStance: HoldFire
-		InitialStanceAI: Defend
 	Armament@1:
 		Weapon: TosRockets
 		LocalOffset: 0,0,100

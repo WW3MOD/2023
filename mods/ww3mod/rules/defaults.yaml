@@ -230,6 +230,7 @@
 	AutoTargetPriority@Infantry:
 		ValidTargets: Infantry
 		Priority: 3
+		ConditionalPriority: 100
 	AutoTargetPriority@Light:
 		ValidTargets: Light
 		Priority: 2
@@ -239,9 +240,58 @@
 	AutoTargetPriority@Infantry:
 		ValidTargets: Infantry
 		PriorityCondition: suppression
+		ConditionalPriority: 100
 		Priority: 3
 	AutoTargetPriority@Unarmored:
 		ValidTargets: Unarmored
+		Priority: 2
+
+^AutoTargetAAIFV:
+	Inherits: ^AutoTargetGroundAntiTank
+	AutoTargetPriority@Helicopters:
+		ValidTargets: Helicopter
+		Priority: 5
+	AutoTargetPriority@Aircraft:
+		ValidTargets: Aircraft
+		Priority: 4
+	AutoTargetPriority@Vehicle:
+		ValidTargets: Vehicle
+		InvalidTargets: Unarmored
+		Priority: 3
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		PriorityCondition: suppression
+		ConditionalPriority: 100
+		Priority: 2
+
+^AutoTargetArtillery:
+	Inherits: ^AutoTarget
+	AutoTargetPriority@Heavy:
+		ValidTargets: Heavy
+		Priority: 5
+	AutoTargetPriority@Medium:
+		ValidTargets: Medium
+		Priority: 4
+	AutoTargetPriority@Light:
+		ValidTargets: Light
+		Priority: 3
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		Priority: 2
+
+^AutoTargetArtilleryInfantry:
+	Inherits: ^AutoTarget
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		Priority: 5
+	AutoTargetPriority@Light:
+		ValidTargets: Light
+		Priority: 4
+	AutoTargetPriority@Medium:
+		ValidTargets: Medium
+		Priority: 3
+	AutoTargetPriority@Heavy:
+		ValidTargets: Heavy
 		Priority: 2
 
 ^AutoTargetGroundAntiInf:
