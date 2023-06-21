@@ -1,14 +1,10 @@
 
 supplyroute:
 	Inherits: emp-overlay
-	idle:
-		Offset: 0,1
-		ZOffset: -1c511
-	active:
-		Start: 1
-		Length: 6
-		Offset: 0,1
-		ZOffset: -1c511
+	idle: ctflag
+		Length: 9
+		Tick: 50
+		Offset: 0,-12
 	dead: fix-dead
 		Offset: 0,1
 		Tick: 800

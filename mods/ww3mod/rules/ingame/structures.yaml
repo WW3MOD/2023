@@ -385,8 +385,6 @@ SUPPLYROUTE:
 	ProvidesPrerequisite@russia:
 		Factions: russia
 		Prerequisite: aircraft.russia
-	RenderSprites:
-		Image: ctflag
 
 LOGISTICSCENTER:
 	Inherits: ^Building
