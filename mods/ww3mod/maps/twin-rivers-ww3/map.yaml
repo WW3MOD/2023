@@ -1267,18 +1267,6 @@ Actors:
 	Actor437: tc04
 		Owner: Neutral
 		Location: 37,51
-	Actor425: mpspawn
-		Owner: Neutral
-		Location: 0,22
-	Actor472: mpspawn
-		Owner: Neutral
-		Location: 0,92
-	Actor462: mpspawn
-		Owner: Neutral
-		Location: 113,92
-	Actor463: mpspawn
-		Owner: Neutral
-		Location: 113,28
 	Actor468: tc04
 		Owner: Neutral
 		Location: 109,49
@@ -1294,3 +1282,15 @@ Actors:
 	Actor475: oilb
 		Owner: Neutral
 		Location: 62,108
+	Actor476: mpspawn
+		Owner: Neutral
+		Location: 1,22
+	Actor425: mpspawn
+		Owner: Neutral
+		Location: 1,92
+	Actor472: mpspawn
+		Owner: Neutral
+		Location: 112,92
+	Actor462: mpspawn
+		Owner: Neutral
+		Location: 112,28

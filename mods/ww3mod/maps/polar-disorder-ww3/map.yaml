@@ -884,12 +884,6 @@ Actors:
 	Actor126: v09
 		Owner: Neutral
 		Location: 10,45
-	Actor290: mpspawn
-		Owner: Neutral
-		Location: 97,16
-	Actor364: mpspawn
-		Owner: Neutral
-		Location: 0,81
 	Actor365: oilb
 		Owner: Neutral
 		Location: 96,7
@@ -905,3 +899,9 @@ Actors:
 	Actor394: snowhut
 		Owner: Neutral
 		Location: 60,64
+	Actor395: mpspawn
+		Owner: Neutral
+		Location: 96,16
+	Actor290: mpspawn
+		Owner: Neutral
+		Location: 1,81
