@@ -29,6 +29,9 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Image containing explosion effect sequence.")]
 		public readonly string Image = "explosion";
 
+		[Desc("Determines the size of the explosion image.")]
+		public readonly int ScalePercent = 100;
+
 		[PaletteReference(nameof(UsePlayerPalette))]
 		[Desc("Palette to use for explosion effect.")]
 		public readonly string Palette = "effect";
@@ -128,7 +131,7 @@ namespace OpenRA.Mods.Common.Warheads
 				if (UsePlayerPalette)
 					palette += firedBy.Owner.InternalName;
 
-				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset, w, Image, explosion, palette)));
+				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, scale: (float)ScalePercent / 100)));
 			}
 
 			var impactSound = ImpactSounds.RandomOrDefault(world.LocalRandom);

@@ -122,6 +122,23 @@ namespace OpenRA.Graphics
 				Log.Write("debug", "CurrentSequenceTickOrDefault CurrentSequence == null"); */
 
 			const int DefaultTick = 40; // 25 fps == 40 ms
+
+			if (CurrentSequence?.ChangeTick != null)
+			{
+				var changeTick = 0;
+				for (var i = 0; i < CurrentSequence.ChangeTick.Length; i += 2)
+				{
+					if (frame > CurrentSequence.ChangeTick[i])
+					{
+						changeTick = CurrentSequence.ChangeTick[i + 1];
+					}
+					else
+						break;
+				}
+				if (changeTick != 0)
+					return changeTick;
+			}
+
 			return CurrentSequence?.Tick ?? DefaultTick;
 		}
 

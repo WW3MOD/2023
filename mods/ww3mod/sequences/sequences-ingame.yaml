@@ -229,6 +229,8 @@ explosion:
 		FlipX: true
 	nuke: atomsfx
 	nuke_large: nuke_large
+		Tick: 15
+		ChangeTick: 10,20, 15,30, 20,40, 25,50, 30,60, 35,70, 40,80, 45,90, 50,100
 		BlendMode: Additive
 	self_destruct: art-exp1
 	artillery_explosion: art-exp1
@@ -382,6 +384,7 @@ twake:
 
 smoke_m:
 	idle:
+		Tick: 500
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512

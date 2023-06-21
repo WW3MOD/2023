@@ -56,12 +56,11 @@ speed = 1
 Tick = function()
 	ticks = ticks + 1
 
-	local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
+	-- local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
+	-- Camera.Position = viewportOrigin + WVec.New(-1920 * math.sin(t), -2048 * math.cos(t), 0)
 
-	Camera.Position = viewportOrigin + WVec.New(-1920 * math.sin(t), -2048 * math.cos(t), 0)
-
-	if ticks == 1000 then
-		MSLO1.ActivateNukePower(CPos.New(40,49))
+	if ticks % 250 == 0 then
+		MSLO1.ActivateNukePower(CPos.New(50, 55))
 	end
 end
 

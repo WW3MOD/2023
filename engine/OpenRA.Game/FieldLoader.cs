@@ -780,10 +780,7 @@ namespace OpenRA
 
 				if (!string.IsNullOrEmpty(Loader))
 				{
-					var method = type.GetMethod(Loader, Flags);
-					if (method == null)
-						throw new InvalidOperationException($"{type.Name} does not specify a loader function '{Loader}'");
-
+					var method = type.GetMethod(Loader, Flags) ?? throw new InvalidOperationException($"{type.Name} does not specify a loader function '{Loader}'");
 					return (Func<MiniYaml, object>)Delegate.CreateDelegate(typeof(Func<MiniYaml, object>), method);
 				}
 

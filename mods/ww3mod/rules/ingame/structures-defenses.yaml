@@ -980,8 +980,8 @@ MSLO:
 		ClockSequence: clock
 		CircleSequence: circles
 		SupportPowerPaletteOrder: 1
-		# DetonationAltitude: 1c256
-		FlightDelay: 100
+		DetonationAltitude: 6c256
+		FlightDelay: 70
 		FlightVelocity: 1024
 		CameraRemoveDelay: 1000
 	SupportPowerChargeBar:
