@@ -449,12 +449,17 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var ati in validPriorities)
 				{
 					// TODO: ChangePriority downwards if it is important enough ?
-					if (chosenTarget.Type == TargetType.Invalid // First target we check will be added regardless
-						|| ati.Priority > chosenTargetPriority // Has higher priority goes first
-						|| (Info.ConditionalPriority && suppression < chosenTargetSuppression) // Prioritize non-suppressed targets
+					// First target we check will be added regardless
+					if (chosenTarget.Type == TargetType.Invalid
+						// Has higher priority goes first
+						|| ati.Priority > chosenTargetPriority
+						// Prioritize non-suppressed targets
+						|| (Info.ConditionalPriority && suppression < chosenTargetSuppression)
 						|| (ati.Priority == chosenTargetPriority && ( // Same priority
-							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100) // Significantly closer and isn't completely marked
-							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5))) // recieving significantly less firepower
+							// Significantly closer and isn't completely marked
+							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100)
+							 // recieving significantly less firepower
+							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5)))
 					{
 						/* if (allowMove) */
 

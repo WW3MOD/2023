@@ -146,6 +146,7 @@ namespace OpenRA
 
 			return leadTarget;
 		}
+
 		public LuaValue this[LuaRuntime runtime, LuaValue key]
 		{
 			get
