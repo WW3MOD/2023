@@ -614,7 +614,6 @@ RocketPods:
 		Speed: 550
 		Image: dragon
 		TrailImage: smokey
-		TrailScalePercent: 60
 		ContrailLength: 4
 		ContrailWidth: 20
 		TrailDeactivation: 6
