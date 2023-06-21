@@ -405,32 +405,6 @@ World:
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-	StartingUnits@test_america:
-		Class: test
-		ClassName: TEST
-		Factions: america
-		BaseActor: supplyroute
-		SupportActors: prsm,abrams,bradley,humvee,m113,m109,m270,m270,strykershorad,heli,littlebird,littlebird,littlebird,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,dr,MT,MT,SF,DOG,DOG,SPY
-		InnerSupportRadius: 4
-		OuterSupportRadius: 8
-	StartingUnits@test_russia:
-		Class: test
-		ClassName: TEST
-		Factions: russia
-		BaseActor: supplyroute
-		SupportActors: ttnk,t72,bmp2,bmp2,btr,giatsint,grad,tos,tunguska,hind,hind,mi28,E2,E2,E2,E2,E2,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,TL,TL,TL,AT,AT,AT,AA,AA,AA,SN,MEDI,MEDI,MEDI,E4,E4,dr,MT,MT,SF,DOG,DOG,SPY
-		InnerSupportRadius: 4
-		OuterSupportRadius: 8
-
-	StartingUnits@All:
-		Class: all
-		ClassName: All units
-		Factions: russia, america
-		BaseActor: supplyroute
-		SupportActors: abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, abrams,t72,bradley,bmp2, timberwolf, btr,btr,SN,SN,SN,SN,SN,dr,msar,himars,E1,E2,E3,AR,AR,AR,AR,AR,TL,MT,SN,AT,AA,MEDI,E6,TECN,E4,SF,DOG,SPY,abrams,t72,bradley,bmp2,humvee,m113,strykershorad,tunguska,giatsint,m109,grad,m270,tos,iskander,TTNK,PRSM,littlebird,heli,tran,hind,mi28,halo,truk
-		InnerSupportRadius: 4
-		OuterSupportRadius: 8
-
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
 	SpawnStartingUnits:
