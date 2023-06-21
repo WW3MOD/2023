@@ -442,7 +442,7 @@ namespace OpenRA.Mods.Common.Traits
 						}
 				}
 
-				var suppression = target.Actor.TraitsImplementing<ExternalCondition>()
+				var suppression = target.Actor?.TraitsImplementing<ExternalCondition>()
 					.FirstOrDefault(t => t.Info.Condition == "suppressed")?.GrantedValue(target.Actor);
 
 				// Evaluate whether we want to target this actor
@@ -457,7 +457,7 @@ namespace OpenRA.Mods.Common.Traits
 					// 5 recieving significantly less firepower
 					if (chosenTarget.Type == TargetType.Invalid
 						|| ati.Priority > chosenTargetPriority
-						|| (Info.ConditionalPriority > 0 && suppression < chosenTargetSuppression * Info.ConditionalPriority)
+						|| (Info.ConditionalPriority > 0 && suppression != null && suppression < chosenTargetSuppression * Info.ConditionalPriority)
 						|| (ati.Priority == chosenTargetPriority && ( // Same priority
 							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100)
 							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5)))

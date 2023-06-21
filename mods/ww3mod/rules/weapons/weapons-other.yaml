@@ -671,7 +671,7 @@ DepthChargeDual:
 	BurstWait: 20
 
 DroneTargeter:
-	ValidTargets: Ground, Water
+	ValidTargets: Ground, Water # TODO: Can target units? For AutoTarget
 	Range: 25c0
 	BurstWait: 200
 	Projectile: InstantHit
