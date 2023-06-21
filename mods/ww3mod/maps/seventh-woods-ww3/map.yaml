@@ -580,18 +580,6 @@ Actors:
 	Actor180: tc01
 		Owner: Neutral
 		Location: 52,24
-	Actor187: mpspawn
-		Owner: Neutral
-		Location: 30,0
-	Actor190: mpspawn
-		Owner: Neutral
-		Location: 0,33
-	Actor191: mpspawn
-		Owner: Neutral
-		Location: 92,113
-	Actor193: mpspawn
-		Owner: Neutral
-		Location: 122,81
 	Actor220: tc04
 		Owner: Neutral
 		Location: 100,71
@@ -616,3 +604,15 @@ Actors:
 	Actor248: hosp
 		Owner: Neutral
 		Location: 62,55
+	Actor247: mpspawn
+		Owner: Neutral
+		Location: 92,112
+	Actor191: mpspawn
+		Owner: Neutral
+		Location: 30,1
+	Actor254: mpspawn
+		Owner: Neutral
+		Location: 1,33
+	Actor190: mpspawn
+		Owner: Neutral
+		Location: 121,81

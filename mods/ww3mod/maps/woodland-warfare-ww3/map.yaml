@@ -3639,12 +3639,6 @@ Actors:
 	Actor1373: bio
 		Owner: Neutral
 		Location: 48,47
-	Actor1361: mpspawn
-		Owner: Neutral
-		Location: 0,4
-	Actor1321: mpspawn
-		Owner: Neutral
-		Location: 97,93
 	Actor1322: v04
 		Owner: Neutral
 		Location: 49,76
@@ -3681,3 +3675,9 @@ Actors:
 	Actor1505: tc03
 		Owner: Neutral
 		Location: 48,45
+	Actor1506: mpspawn
+		Owner: Neutral
+		Location: 1,4
+	Actor1361: mpspawn
+		Owner: Neutral
+		Location: 96,93

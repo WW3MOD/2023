@@ -652,12 +652,6 @@ Actors:
 	Actor108: t11
 		Owner: Neutral
 		Location: 67,21
-	Actor272: mpspawn
-		Owner: Neutral
-		Location: 97,50
-	Actor273: mpspawn
-		Owner: Neutral
-		Location: 0,31
 	Actor288: oilb.husk
 		Owner: Neutral
 		Location: 85,73
@@ -670,3 +664,9 @@ Actors:
 	Actor231: v01
 		Owner: Neutral
 		Location: 17,4
+	Actor254: mpspawn
+		Owner: Neutral
+		Location: 96,50
+	Actor255: mpspawn
+		Owner: Neutral
+		Location: 1,31
