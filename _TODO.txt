@@ -1,5 +1,8 @@
 2023
 
+- Removed news, do same for Connect to forum, change release text
+- Smoke tick needs to be reset to lower value again, they stay too long. Make more SHPs though
+
 Movements
 - Default to AttackMove
 - AttackMove
