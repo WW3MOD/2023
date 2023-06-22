@@ -262,6 +262,20 @@ t72:
 		Length: 5
 	icon: t72icon
 
+t90:
+	Inherits: emp-overlay
+	idle: t90
+		Facings: 32
+		UseClassicFacings: True
+	turret: t90
+		Start: 32
+		Facings: 32
+		ZOffset: 300
+		UseClassicFacings: True
+	muzzle: gunfire2
+		Length: 5
+	icon: t90icon
+
 bmp2:
 	Inherits: emp-overlay
 	idle: bmp
@@ -304,7 +318,7 @@ giatsint:
 
 tos:
 	Inherits: emp-overlay
-	idle: t72
+	idle: t90
 		Facings: 32
 	turret-idle: m270
 		Start: 32
@@ -348,7 +362,7 @@ shootableshipmissile:
 
 tunguska:
 	Inherits: emp-overlay
-	idle: t72
+	idle: t90
 		Facings: 32
 	turret-idle: quad_turret
 		Facings: 32

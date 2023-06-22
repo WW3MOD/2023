@@ -1,21 +1,21 @@
 
-t72:
+t90:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetMBT
 	Tooltip:
-		Name: T-72
+		Name: T-90
 		GenericName: MBT
 	RenderSprites:
-		Image: t72
+		Image: t90
 		Scale: 1.25
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
 		Prerequisites: ~vehicles.russia, ~techlevel.medium
-		Description: Russian Main Battle Tank
+		Description: Main Battle Tank
 	Valued:
-		Cost: 1700
+		Cost: 2000
 	Health:
 		HP: 10000
 	Armor:
@@ -41,7 +41,7 @@ t72:
 		Offset: 0,0,20
 	Armament@1:
 		Name: primary
-		Weapon: TankRound.T72
+		Weapon: TankRound.T90
 		MovementInaccuracy: 50
 		Recoil: 85
 		RecoilRecovery: 70
@@ -84,7 +84,7 @@ t72:
 	Explodes:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
-		Actor: t72.husk
+		Actor: t90.husk
 
 bmp2:
 	Inherits@Type: ^TrackedVehicle

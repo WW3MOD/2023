@@ -307,8 +307,32 @@ t72.husk:
 		Palette: gensmkexploj
 		Offset: 0,-1000,0
 	RenderSprites:
-		Image: t72
+		Image: t90
 		Scale: 1.25
+
+t90.husk:
+	Inherits@Type: ^Husk
+	Tooltip:
+		Name: t90
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	WithAddedAnimation:
+		Image: huskdeath
+		Sequence: tankammoburn
+		Palette: gensmkexploj
+		Offset: 0,-1000,0
+	RenderSprites:
+		Image: t90
+		Scale: 1.25
+
 bmp2.husk:
 	Inherits: ^Husk
 	Tooltip:

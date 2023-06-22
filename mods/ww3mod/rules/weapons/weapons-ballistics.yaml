@@ -557,6 +557,8 @@ TankRound.Abrams:
 	BurstWait: 130
 TankRound.T72:
 	Inherits@Type: ^TankRound
+TankRound.T90:
+	Inherits@Type: ^TankRound
 
 ^ArtilleryRound:
 	Inherits@HitEffects: ^LargeExplosionEffects

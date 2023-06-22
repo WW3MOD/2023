@@ -1030,7 +1030,7 @@ GUN:
 		TurnSpeed: 50
 		InitialFacing: 192
 	Armament:
-		Weapon: TankRound.T72
+		Weapon: TankRound.t90
 		LocalOffset: 512,0,112
 		MuzzleSequence: muzzle
 		PauseOnCondition: disabled
