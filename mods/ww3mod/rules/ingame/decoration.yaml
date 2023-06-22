@@ -5,11 +5,11 @@
 	BlocksProjectiles:
 		Bypass: 1
 		Height: 256
-	Tree:
-		CrushClasses: tree
-		DetonateClasses: tree
-		AvoidFriendly: false
-		BlockFriendly: false
+	# Tree: # Unimplemented ? Cruses always true actually
+	# 	CrushClasses: tree
+	# 	DetonateClasses: tree
+	# 	AvoidFriendly: false
+	# 	BlockFriendly: false
 	Interactable:
 	Tooltip:
 		Name: Tree
@@ -18,13 +18,13 @@
 		Palette: terrain
 	WithSpriteBody:
 	Building:
-		Footprint: x
+		Footprint: _
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
-		Terrain: Tree
-	AppearsOnMapPreview:
-		Terrain: Tree
+	# AppearsOnRadar:
+	# RadarColorFromTerrain:
+	# 	Terrain: Tree
+	# AppearsOnMapPreview:
+	# 	Terrain: Tree
 	Health:
 		HP: 250
 	Armor:
@@ -34,9 +34,9 @@
 	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
-	MapEditorData:
-		ExcludeTilesets: INTERIOR
-		Categories: Tree
+	# MapEditorData:
+	# 	ExcludeTilesets: INTERIOR
+	# 	Categories: Tree
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	ProximityExternalCondition@ObjectProximity:
@@ -81,7 +81,6 @@
 		Bounds: 1024,1024
 ^Box:
 	Inherits: ^Tree
-
 	RenderSprites:
 		Palette: player
 	Tooltip:
@@ -110,11 +109,11 @@
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
-	AppearsOnRadar:
-	RadarColorFromTerrain:
-		Terrain: Tree
-	AppearsOnMapPreview:
-		Terrain: Tree
+	# AppearsOnRadar:
+	# RadarColorFromTerrain:
+	# 	Terrain: Tree
+	# AppearsOnMapPreview:
+	# 	Terrain: Tree
 	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
@@ -137,7 +136,7 @@ T01:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -156,7 +155,7 @@ T02:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -175,7 +174,7 @@ T03:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -194,7 +193,7 @@ T04:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
@@ -213,7 +212,7 @@ T05:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -232,7 +231,7 @@ T06:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -251,7 +250,7 @@ T07:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -270,7 +269,7 @@ T08:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: x_
+		Footprint: __
 		Dimensions: 2,1
 	SpawnActorOnDeath:
 		Actor: T08.Husk
@@ -341,7 +340,7 @@ T12:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -360,7 +359,7 @@ T13:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -379,7 +378,7 @@ T14:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: ___ xx_
+		Footprint: ___ ___
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -398,7 +397,7 @@ T15:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: ___ xx_
+		Footprint: ___ ___
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -417,7 +416,7 @@ T16:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -436,7 +435,7 @@ T17:
 	Inherits: ^Tree
 	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
-		Footprint: __ x_
+		Footprint: __ __
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -454,7 +453,7 @@ T17:
 TC01:
 	Inherits: ^Tree
 	Building:
-		Footprint: ___ xx_
+		Footprint: ___ ___
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: INTERIOR
@@ -472,7 +471,7 @@ TC01:
 TC02:
 	Inherits: ^Tree
 	Building:
-		Footprint: _x_ xx_
+		Footprint: ___ ___
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -495,7 +494,7 @@ TC02:
 TC03:
 	Inherits: ^Tree
 	Building:
-		Footprint: xx_ xx_
+		Footprint: ___ ___
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -514,7 +513,7 @@ TC03:
 TC04:
 	Inherits: ^Tree
 	Building:
-		Footprint: ____ xxx_ x___
+		Footprint: ____ ____ ____
 		Dimensions: 4,3
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -532,7 +531,7 @@ TC04:
 TC05:
 	Inherits: ^Tree
 	Building:
-		Footprint: __x_ xxx_ _xx_
+		Footprint: ____ ____ ____
 		Dimensions: 4,3
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR

@@ -26,8 +26,11 @@ World:
 
 ^Combatant:
 	AutoTarget:
+		ScanRadius: 40
 		InitialStance: AttackAnything
 		InitialStanceAI: AttackAnything
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
 
 MSLO:
 	NukePower:

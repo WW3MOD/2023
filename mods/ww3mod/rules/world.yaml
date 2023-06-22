@@ -11,6 +11,27 @@
 		DefeatMusic: map
 	TerrainGeometryOverlay:
 	DebugVisualizations:
+	Locomotor@TerrainSpeedsTemplate:
+		Name: template
+		TerrainSpeeds:
+			Road: 100
+			Bridge: 100
+
+			Clear: 90
+			Rough: 70
+			Debris: 50
+			Rock: 30
+			Cliffs: 0
+
+			TreeClear: 50
+			TreeRough: 50
+			TreeDebris: 80
+			TreeRock: 80
+			TreeCliffs: 0
+
+			Beach: 80
+			RiverShallow: 30
+			Shallow: 20
 	Locomotor@FOOT:
 		Name: foot
 		Crushes: mine, crate
@@ -18,12 +39,20 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-			Clear: 95
-			Ore: 85
-			Gems: 85
-			Beach: 80
-			Rough: 80
-			Shallow: 65
+
+			Clear: 90
+			Rough: 70
+			Debris: 40
+			Rock: 30
+
+			TreeClear: 60
+			TreeRough: 50
+			TreeDebris: 40
+			TreeRock: 30
+
+			Beach: 70
+			RiverShallow: 30
+			Shallow: 15
 	Locomotor@FOOT_AMPHIBIOUS:
 		Name: foot-amphibious
 		Crushes: mine, crate
@@ -31,105 +60,129 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-			Clear: 95
-			Ore: 85
-			Gems: 85
-			Beach: 85
-			Rough: 80
-			Shallow: 80
-			Water: 60
-			River: 60
+
+			Clear: 90
+			Rough: 70
+			Debris: 40
+			Rock: 30
+
+			TreeClear: 60
+			TreeRough: 50
+			TreeDebris: 40
+			TreeRock: 30
+
+			Beach: 70
+			RiverShallow: 40
+			Shallow: 25
+
+			River: 20
+			Water: 25
 	Locomotor@FOOT_MOUNTAINER:
 		Name: foot-mountainer
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 95
-			Ore: 85
-			Gems: 85
-			Beach: 85
-			Rough: 80
-			Shallow: 80
-			Rock: 20
+
+			Clear: 90
+			Rough: 70
+			Debris: 60
+			Rock: 50
+
+			TreeClear: 60
+			TreeRough: 50
+			TreeDebris: 40
+			TreeRock: 30
+
+			Beach: 70
+			RiverShallow: 40
+			Shallow: 25
+
+			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 95
-			Ore: 85
-			Gems: 85
-			Beach: 85
-			Rough: 80
-			Shallow: 80
-			Water: 60
-			River: 60
-			Rock: 20
+
+			Clear: 90
+			Rough: 70
+			Debris: 60
+			Rock: 50
+
+			TreeClear: 60
+			TreeRough: 50
+			TreeDebris: 40
+			TreeRock: 30
+
+			Beach: 70
+			RiverShallow: 40
+			Shallow: 25
+
+			River: 25
+			Water: 20
+
+			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled
-		SharesCell: true
 		Crushes: mine, crate
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 85
-			Ore: 85
-			Gems: 85
-			Beach: 85
-			Rough: 50
-			Shallow: 50
+			Clear: 70
+			Beach: 50
+			Rough: 35
+			TreeClear: 35
+
 	Locomotor@WHEELED:
 		Name: wheeled
 		Crushes: mine, crate
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 80
-			Ore: 80
-			Gems: 80
-			Beach: 80
-			Rough: 45
-			Shallow: 45
+			Clear: 70
+			Beach: 50
+			Rough: 35
+			Debris: 20
+			TreeClear: 35
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
 		Crushes: wall, mine, crate, infantry
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
 			Clear: 70
-			Ore: 45
-			Gems: 45
-			Beach: 45
+			Beach: 50
 			Rough: 35
-			Shallow: 20
+			Debris: 40
+			TreeClear: 35
 	Locomotor@LIGHTTRACKED:
 		Name: lighttracked
 		Crushes: wall, mine, crate
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 95
-			Ore: 95
-			Gems: 95
-			Beach: 95
-			Rough: 75
-			Shallow: 75
-			River: 15
+			Clear: 70
+			Beach: 50
+			Rough: 35
+			Debris: 40
+			TreeClear: 35
+			RiverShallow: 75
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
-		Name: lighttracked-amphbious
+		Name: lighttracked-amphibious
 		Crushes: wall, mine, crate
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 95
-			Ore: 95
-			Gems: 95
-			Beach: 95
-			Rough: 75
+			Clear: 70
+			Beach: 50
+			Rough: 35
+			Debris: 40
+			TreeClear: 35
+			RiverShallow: 75
 			Shallow: 75
 			Water: 15
 			River: 25
@@ -137,40 +190,40 @@
 		Name: tracked
 		Crushes: wall, infantry, mine, crate
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 90
-			Ore: 90
-			Gems: 90
-			Beach: 90
-			Rough: 70
-			Shallow: 70
+			Clear: 70
+			Beach: 50
+			Rough: 35
+			Debris: 40
+			TreeClear: 35
+			RiverShallow: 75
 			River: 10
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
 		Crushes: wall, infantry, mine, crate, heavywall
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 80
-			Ore: 65
-			Gems: 65
-			Beach: 65
-			Rough: 55
-			Shallow: 30
+			Clear: 70
+			Rough: 65
+			Debris: 60
+			TreeClear: 35
+			Beach: 50
+			RiverShallow: 75
 			River: 5
 	Locomotor@TRACKED_AMPHIBIOUS:
 		Name: tracked-amphibious
 		Crushes: infantry, mine, crate
 		TerrainSpeeds:
-			Road: 150
+			Road: 100
 			Bridge: 100
-			Clear: 90
-			Ore: 90
-			Gems: 90
-			Beach: 90
-			Rough: 70
-			Shallow: 85
+			Clear: 70
+			Beach: 50
+			Rough: 35
+			Debris: 40
+			TreeClear: 35
+			RiverShallow: 75
 			Water: 10
 			River: 10
 	Locomotor@Walker:
@@ -179,26 +232,25 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-			Clear: 100
-			Ore: 100
-			Gems: 100
-			Beach: 100
-			Rough: 100
-			Shallow: 100
+			Clear: 90
+			Rough: 90
+			Debris: 80
+			Rock: 50
+			TreeClear: 50
+			RiverShallow: 75
+			Beach: 75
 			River: 50
-			Rock: 30
 	Locomotor@NAVAL:
 		Name: naval
 		Crushes: mine, crate
 		TerrainSpeeds:
 			Water: 100
-	# FF, unused but use for small boats that can go along rivers
 	Locomotor@NAVAL_SHALLOW:
 		Name: naval-shallow
 		Crushes: mine, crate
 		TerrainSpeeds:
 			Water: 100
-			Shallow: 70
+			River: 70
 	Locomotor@LANDINGCRAFT:
 		Name: lcraft
 		Crushes: mine, crate
@@ -213,8 +265,6 @@
 			Road: 100
 			Bridge: 100
 			Clear: 80
-			Ore: 80
-			Gems: 80
 			Beach: 80
 			Rough: 50
 			Shallow: 75
@@ -465,7 +515,7 @@ World:
 	# 		2: WarningTwoMinutesRemaining
 	# 		1: WarningOneMinuteRemaining
 	# ResourceRenderer:
-	# 	RenderTypes: Ore, Gems, Scraps
+	# 	RenderTypes:  Gems, Scraps
 
 EditorWorld:
 	Inherits: ^BaseWorld

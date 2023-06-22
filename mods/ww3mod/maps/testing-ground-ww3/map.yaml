@@ -41,7 +41,7 @@ Players:
 		Name: Multi0
 		Playable: True
 		Faction: Random
-		Enemies: Creeps
+		Enemies: Creeps, NATO, Russia
 
 Actors:
 	Actor0: mpspawn
@@ -632,3 +632,43 @@ Actors:
 	Actor204: pris
 		Owner: Neutral
 		Location: 18,57
+	Actor205: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 90,17
+	Actor206: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 92,18
+	Actor207: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 93,20
+	Actor208: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 94,22
+	Actor209: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 95,24
+	Actor210: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 96,27
+	Actor211: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 97,29
+	Actor212: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 98,31
+	Actor213: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 100,34
+	Actor214: abrams
+		Owner: NATO
+		Facing: 384
+		Location: 101,36

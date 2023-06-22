@@ -622,9 +622,6 @@ Actors:
 	Actor321: t12
 		Owner: Neutral
 		Location: 88,33
-	Actor322: gmine
-		Owner: Neutral
-		Location: 72,73
 	Actor372: t13
 		Owner: Neutral
 		Location: 74,73

@@ -99,7 +99,7 @@ littlebird:
 		InitialFacing: 224
 		TurnSpeed: 8
 		Speed: 265
-		LandableTerrainTypes: Clear,Rough,Road,Ore,Beach,Gems
+		LandableTerrainTypes: Clear,Rough,Road,Beach
 	AttackAircraft:
 		Armaments: primary, secondary
 		FacingTolerance: 60

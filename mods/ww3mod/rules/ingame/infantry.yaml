@@ -157,7 +157,6 @@
 	# 	TargetTypes: SoldierReplenish
 	Armor:
 		Type: Kevlar
-	TreeTraversable:
 	UpdatesPlayerStatistics:
 	MustBeDestroyed:
 	ProximityCaptor:
@@ -166,7 +165,7 @@
 		IdleSequences: idle1,idle2
 		StandSequences: stand,stand2
 	AttackFrontal:
-		FacingTolerance: 0
+		FacingTolerance: 50
 		TargetFrozenActors: True
 	WithDecoration@AmmoReplenishing:
 		RequiresSelection: false
@@ -241,8 +240,8 @@
 		DefaultAttackSequence: shoot
 ^CamoSoldier:
 	Inherits@Combatant: ^Combatant
-	Inherits: ^Soldier
-	Inherits: ^VisibilityRangeCircles
+	Inherits@Soldier: ^Soldier
+	Inherits@VisibilityRangeCircles: ^VisibilityRangeCircles
 	Inherits@Rotting: ^RottingInfantry
 	AutoTarget:
 		ScanRadius: 25
@@ -594,7 +593,7 @@
 		UncloakOn: Attack, Move
 		Palette: player
 		IsPlayerPalette: true
-	Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
+	Cloak@ForestAttacking:
 		DetectionTypes: Cloak_2
 		CloakedCondition: cloak-2
 		RequiresCondition: object-proximity
@@ -679,7 +678,7 @@
 		UncloakOn: Attack, Move
 		Palette: player
 		IsPlayerPalette: true
-	Cloak@ForestAttacking: # Needs custom trait for Trees, blockable %
+	Cloak@ForestAttacking:
 		DetectionTypes: Cloak_6
 		CloakedCondition: cloak-6
 		RequiresCondition: object-proximity && !disguised
@@ -1579,8 +1578,6 @@ SN:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetMHL
 	Inherits@Visibility: ^InfantryStandardVisibility
-	AutoTarget:
-		ScanRadius: 300
 	Targetable@HighPriority:
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	Buildable:
@@ -1600,7 +1597,7 @@ SN:
 	Armament@1:
 		Name: primary
 		Weapon: ATGM
-		PauseOnCondition: !ammo-primary || suppressed > 0
+		PauseOnCondition: !ammo-primary || suppressed >= 10
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -1648,8 +1645,6 @@ AT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetAir
-	AutoTarget:
-		ScanRadius: 300
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -1758,7 +1753,7 @@ AA:
 		Mine: MINV
 		AmmoPoolName: c4-ammo
 		TileUnknownName: build-valid
-		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
+		TerrainTypes: Clear, Road, Beach, Rough, Bridge
 	Demolition:
 		RequiresCondition: ammo-c4
 	AmmoPool@C4:
@@ -2104,7 +2099,7 @@ SPY:
 
 # Attack Dog
 ^DOG:
-	Inherits: ^Soldier
+	Inherits@Soldier: ^Soldier
 	-AttackFrontal:
 	-ExternalCondition@Suppression:
 	-WithDecoration@AmmoNone:

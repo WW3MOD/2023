@@ -169,7 +169,7 @@
 # 		Speed: 90
 # 		PauseOnCondition: notmobile
 # 	WithLandingCraftAnimation:
-# 		OpenTerrainTypes: Clear, Rough, Road, Ore, Gems, Beach
+# 		OpenTerrainTypes: Clear, Rough, Road, Beach
 # 	Cargo:
 # 		Types: Infantry, Vehicle
 # 		MaxWeight: 40

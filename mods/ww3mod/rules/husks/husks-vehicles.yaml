@@ -3,7 +3,7 @@
 	Inherits: ^BasicHusk
 	Inherits@2: ^ClassicFacingSpriteActor
 	Husk:
-		AllowedTerrain: Clear, Rough, Road, Ore, Gems, Beach
+		AllowedTerrain: Clear,Rough,Road,Beach
 	WithAddedAnimation:
 		Image: huskdeath
 		Sequence: fuelburn
@@ -19,11 +19,11 @@
 	CaptureManager:
 	Capturable:
 		Types: husk
-		ValidRelationships: Enemy, Neutral
+		ValidRelationships: Enemy,Neutral
 	WithColoredOverlay@IDISABLE:
 		Color: 00000080
 	Targetable:
-		TargetTypes: GroundActor, Husk, NoAutoTarget
+		TargetTypes: GroundActor,Husk,NoAutoTarget
 		RequiresForceFire: true
 	Chronoshiftable:
 	Tooltip:

@@ -101,8 +101,6 @@
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle
-	SpeedMultiplier:
-		Modifier: 150
 	Passenger:
 		Weight: 15
 		CargoType: Vehicle
@@ -110,8 +108,6 @@
 	Inherits@Type: ^Vehicle
 	Mobile:
 		Locomotor: tracked
-	SpeedMultiplier:
-		Modifier: 150
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle
@@ -136,6 +132,11 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
+	# BurstWaitMultiplier@CriticalDamage:
+	# 	Modifier: 0
+	# 	RequiresCondition: critical-damage
+	# Turreted:
+	# 	TurnSpeed: 0w
 
 ^EffectsWhenMovingVehicles:
 	InaccuracyMultiplier@HeavyDamage:
@@ -239,7 +240,7 @@ MSAR:
 		DeployedCondition: deployed
 		UndeployedCondition: undeployed
 		Facing: 660
-		AllowedTerrainTypes: Clear, Road, Rough, Ore, Gems
+		AllowedTerrainTypes: Clear, Road, Rough
 		DeploySounds: placbldg.aud
 		UndeploySounds: clicky1.aud
 		UndeployOnMove: true
@@ -291,7 +292,6 @@ MSAR:
 # 	Mobile:
 # 		Speed: 60
 # 		TurnSpeed: 10
-# 	TreeTraversable:
 # 	GrantConditionOnMovement@steps:
 # 		Condition: moving
 # 	# AmbientSound@step1:
@@ -405,7 +405,7 @@ MSAR:
 # 		TargetTypes: Harvester
 # 	Harvester:
 # 		Capacity: 30
-# 		Resources: Ore,Gems
+# 		Resources: Gems
 # 		BaleUnloadDelay: 1
 # 		SearchFromProcRadius: 80
 # 		SearchFromHarvesterRadius: 40

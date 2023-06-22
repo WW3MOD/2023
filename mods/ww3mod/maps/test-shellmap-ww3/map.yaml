@@ -41,672 +41,845 @@ Actors:
 	MSLO1: mslo
 		Owner: Neutral
 		Location: 97,3
-	Actor69: m113
+	Actor205: tc04
+		Owner: Neutral
+		Location: 40,48
+	Actor206: tc04
+		Owner: Neutral
+		Location: 44,51
+	Actor207: tc04
+		Owner: Neutral
+		Location: 48,53
+	Actor208: tc04
+		Owner: Neutral
+		Location: 53,56
+	Actor211: tc04
+		Owner: Neutral
+		Location: 45,45
+	Actor212: tc04
+		Owner: Neutral
+		Location: 50,43
+	Actor215: tc05
+		Owner: Neutral
+		Location: 49,55
+	Actor216: tc05
+		Owner: Neutral
+		Location: 45,53
+	Actor217: tc05
+		Owner: Neutral
+		Location: 41,50
+	Actor218: tc05
+		Owner: Neutral
+		Location: 42,46
+	Actor219: tc05
+		Owner: Neutral
+		Location: 47,44
+	Actor223: tc05
+		Owner: Neutral
+		Location: 37,48
+	Actor224: tc01
+		Owner: Neutral
+		Location: 39,50
+	Actor225: tc01
+		Owner: Neutral
+		Location: 43,53
+	Actor226: tc01
+		Owner: Neutral
+		Location: 47,55
+	Actor227: tc01
+		Owner: Neutral
+		Location: 51,57
+	Actor229: t11
+		Owner: Neutral
+		Location: 41,47
+	Actor230: tc05
+		Owner: Neutral
+		Location: 42,54
+	Actor234: tc02
+		Owner: Neutral
+		Location: 45,55
+	Actor235: tc02
+		Owner: Neutral
+		Location: 47,56
+	Actor237: tc02
+		Owner: Neutral
+		Location: 37,50
+	Actor242: tc02
+		Owner: Neutral
+		Location: 39,53
+	Actor243: tc02
+		Owner: Neutral
+		Location: 39,56
+	Actor244: tc03
+		Owner: Neutral
+		Location: 43,49
+	Actor245: tc03
+		Owner: Neutral
+		Location: 44,50
+	Actor246: tc03
+		Owner: Neutral
+		Location: 45,48
+	Actor247: tc03
+		Owner: Neutral
+		Location: 41,49
+	Actor248: tc03
+		Owner: Neutral
+		Location: 46,46
+	Actor249: tc03
+		Owner: Neutral
+		Location: 45,51
+	Actor250: t07
+		Owner: Neutral
+		Location: 41,52
+	Actor251: t07
+		Owner: Neutral
+		Location: 38,51
+	Actor252: t07
+		Owner: Neutral
+		Location: 38,54
+	Actor253: t07
+		Owner: Neutral
+		Location: 40,56
+	Actor261: t07
+		Owner: Neutral
+		Location: 43,57
+	Actor264: t01
+		Owner: Neutral
+		Location: 42,55
+	Actor265: t02
+		Owner: Neutral
+		Location: 43,56
+	Actor266: t02
+		Owner: Neutral
+		Location: 40,55
+	Actor267: t02
+		Owner: Neutral
+		Location: 42,52
+	Actor268: t02
+		Owner: Neutral
+		Location: 39,51
+	Actor269: t02
+		Owner: Neutral
+		Location: 38,52
+	Actor270: t02
+		Owner: Neutral
+		Location: 42,43
+	Actor271: t02
+		Owner: Neutral
+		Location: 40,43
+	Actor274: t02
+		Owner: Neutral
+		Location: 45,42
+	Actor276: t02
+		Owner: Neutral
+		Location: 37,43
+	Actor277: t02
+		Owner: Neutral
+		Location: 38,48
+	Actor278: t02
+		Owner: Neutral
+		Location: 42,42
+	Actor280: t02
+		Owner: Neutral
+		Location: 39,45
+	Actor281: t02
+		Owner: Neutral
+		Location: 40,45
+	Actor291: tc05
+		Owner: Neutral
+		Location: 36,45
+	Actor292: tc02
+		Owner: Neutral
+		Location: 41,44
+	Actor293: tc02
+		Owner: Neutral
+		Location: 38,44
+	Actor298: tc04
+		Owner: Neutral
+		Location: 43,44
+	Actor299: tc04
+		Owner: Neutral
+		Location: 45,43
+	Actor300: tc04
+		Owner: Neutral
+		Location: 46,42
+	Actor301: tc03
+		Owner: Neutral
+		Location: 50,45
+	Actor306: tc01
+		Owner: Neutral
+		Location: 38,42
+	Actor307: tc01
+		Owner: Neutral
+		Location: 35,42
+	Actor308: tc01
+		Owner: Neutral
+		Location: 36,44
+	Actor309: tc01
+		Owner: Neutral
+		Location: 37,43
+	Actor310: tc01
+		Owner: Neutral
+		Location: 35,43
+	Actor313: tc01
+		Owner: Neutral
+		Location: 36,53
+	Actor314: tc05
+		Owner: Neutral
+		Location: 36,54
+	Actor315: tc02
+		Owner: Neutral
+		Location: 38,57
+	Actor317: tc02
+		Owner: Neutral
+		Location: 41,57
+	Actor318: tc02
+		Owner: Neutral
+		Location: 40,54
+	Actor319: tc02
+		Owner: Neutral
+		Location: 39,46
+	Actor272: m113
 		Owner: NATO
 		Facing: 384
-		Location: 44,35
-	Actor70: m270
+		Location: 39,39
+	Actor273: m270
 		Owner: NATO
 		Facing: 384
-		Location: 46,35
-	Actor71: bradley
+		Location: 41,39
+	Actor275: bradley
 		Owner: NATO
 		Facing: 384
-		Location: 48,35
-	Actor72: abrams
+		Location: 43,39
+	Actor279: abrams
 		Owner: NATO
 		Facing: 512
-		Location: 50,35
-	Actor73: humvee
+		Location: 45,39
+	Actor282: humvee
 		Owner: NATO
 		SubCell: 3
 		Facing: 512
-		Location: 52,35
-	Actor74: strykershorad
+		Location: 47,39
+	Actor283: strykershorad
 		Owner: NATO
 		Facing: 384
-		Location: 54,35
-	Actor75: m109
+		Location: 49,39
+	Actor284: m109
 		Owner: NATO
 		Facing: 384
-		Location: 56,35
-	Actor76: tl
-		Facing: 384
-		Owner: NATO
-		SubCell: 3
-		Location: 41,36
-	Actor77: at
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 42,36
-	Actor78: tl
+		Location: 51,39
+	Actor285: tl
 		Facing: 384
 		Owner: NATO
 		SubCell: 3
-		Location: 43,36
-	Actor79: at
+		Location: 36,40
+	Actor286: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 44,36
-	Actor80: tl
+		Location: 37,40
+	Actor287: tl
 		Facing: 384
 		Owner: NATO
 		SubCell: 3
-		Location: 45,36
-	Actor81: at
+		Location: 38,40
+	Actor288: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 46,36
-	Actor82: tl
+		Location: 39,40
+	Actor289: tl
 		Facing: 384
 		Owner: NATO
 		SubCell: 3
-		Location: 47,36
-	Actor83: at
+		Location: 40,40
+	Actor290: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 48,36
-	Actor85: tl
+		Location: 41,40
+	Actor294: tl
 		Facing: 384
 		Owner: NATO
 		SubCell: 3
-		Location: 49,36
-	Actor87: at
-		Owner: NATO
-		SubCell: 3
-		Facing: 384
-		Location: 50,36
-	Actor89: tl
-		Facing: 384
-		Owner: NATO
-		SubCell: 3
-		Location: 51,36
-	Actor91: at
+		Location: 42,40
+	Actor295: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 52,36
-	Actor93: tl
+		Location: 43,40
+	Actor296: tl
 		Facing: 384
 		Owner: NATO
 		SubCell: 3
-		Location: 53,36
-	Actor95: at
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 54,36
-	Actor97: tl
-		Facing: 384
-		Owner: NATO
-		SubCell: 3
-		Location: 55,36
-	Actor99: at
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 56,36
-	Actor101: tl
-		Facing: 384
-		Owner: NATO
-		SubCell: 3
-		Location: 57,36
-	Actor103: at
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 58,36
-	Actor104: tl
-		Facing: 384
-		Owner: NATO
-		SubCell: 3
-		Location: 59,36
-	Actor106: ar.america
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 40,37
-	Actor108: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 41,37
-	Actor110: ar.america
+		Location: 44,40
+	Actor297: at
 		Owner: NATO
 		SubCell: 3
 		Facing: 384
-		Location: 42,37
-	Actor112: e3
+		Location: 45,40
+	Actor302: tl
+		Facing: 384
+		Owner: NATO
+		SubCell: 3
+		Location: 46,40
+	Actor303: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 43,37
-	Actor114: ar.america
+		Location: 47,40
+	Actor304: tl
+		Facing: 384
 		Owner: NATO
 		SubCell: 3
-		Facing: 384
-		Location: 44,37
-	Actor116: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 45,37
-	Actor128: ar.america
+		Location: 48,40
+	Actor305: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 46,37
-	Actor129: e3
+		Location: 49,40
+	Actor320: tl
+		Facing: 384
+		Owner: NATO
+		SubCell: 3
+		Location: 50,40
+	Actor321: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 47,37
-	Actor132: ar.america
+		Location: 51,40
+	Actor322: tl
+		Facing: 384
+		Owner: NATO
+		SubCell: 3
+		Location: 52,40
+	Actor323: at
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 48,37
-	Actor133: e3
+		Location: 53,40
+	Actor324: ar.america
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 49,37
-	Actor134: ar.america
+		Location: 35,41
+	Actor325: e3
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 50,37
-	Actor135: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 51,37
-	Actor136: ar.america
+		Location: 36,41
+	Actor326: ar.america
 		Owner: NATO
 		SubCell: 3
 		Facing: 384
-		Location: 52,37
-	Actor137: e3
+		Location: 37,41
+	Actor327: e3
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 53,37
-	Actor138: ar.america
+		Location: 38,41
+	Actor334: ar.america
 		Owner: NATO
 		SubCell: 3
 		Facing: 384
-		Location: 54,37
-	Actor139: e3
+		Location: 39,41
+	Actor335: e3
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 55,37
-	Actor140: ar.america
+		Location: 40,41
+	Actor336: ar.america
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 56,37
-	Actor141: e3
+		Location: 41,41
+	Actor337: e3
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 57,37
-	Actor142: ar.america
+		Location: 42,41
+	Actor338: ar.america
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 58,37
-	Actor143: e3
-		Owner: NATO
-		SubCell: 3
-		Facing: 384
-		Location: 59,37
-	Actor144: ar.america
-		Owner: NATO
-		SubCell: 3
-		Facing: 384
-		Location: 60,37
-	Actor145: e3
+		Location: 43,41
+	Actor339: e3
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 40,38
-	Actor146: e2
+		Location: 44,41
+	Actor340: ar.america
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 41,38
-	Actor147: e3
+		Location: 45,41
+	Actor341: e3
 		Owner: NATO
 		Facing: 384
 		SubCell: 3
-		Location: 42,38
-	Actor148: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 43,38
-	Actor149: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 44,38
-	Actor150: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 45,38
-	Actor151: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 46,38
-	Actor152: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 47,38
-	Actor153: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 48,38
-	Actor154: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 49,38
-	Actor155: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 50,38
-	Actor156: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 51,38
-	Actor157: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 52,38
-	Actor158: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 53,38
-	Actor159: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 54,38
-	Actor160: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 55,38
-	Actor161: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 56,38
-	Actor162: e2
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 57,38
-	Actor163: e3
-		Owner: NATO
-		Facing: 384
-		SubCell: 3
-		Location: 58,38
-	Actor164: e2
+		Location: 46,41
+	Actor342: ar.america
 		Owner: NATO
 		SubCell: 3
 		Facing: 384
-		Location: 59,38
-	Actor165: e3
+		Location: 47,41
+	Actor343: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 48,41
+	Actor344: ar.america
 		Owner: NATO
 		SubCell: 3
 		Facing: 384
-		Location: 60,38
-	Actor84: e3
+		Location: 49,41
+	Actor345: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 50,41
+	Actor346: ar.america
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 51,41
+	Actor347: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 52,41
+	Actor348: ar.america
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 53,41
+	Actor349: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 35,42
+	Actor350: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 36,42
+	Actor351: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 37,42
+	Actor352: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 38,42
+	Actor353: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 39,42
+	Actor354: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 40,42
+	Actor355: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 41,42
+	Actor356: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 42,42
+	Actor357: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 43,42
+	Actor358: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 44,42
+	Actor359: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 45,42
+	Actor360: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 46,42
+	Actor361: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 47,42
+	Actor362: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 48,42
+	Actor363: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 49,42
+	Actor364: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 50,42
+	Actor365: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 51,42
+	Actor366: e2
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 52,42
+	Actor367: e3
+		Owner: NATO
+		Facing: 384
+		SubCell: 3
+		Location: 53,42
+	Actor209: e3
 		SubCell: 3
 		Owner: Russia
 		Facing: 384
-		Location: 40,63
-	Actor86: e2.russia
+		Location: 37,59
+	Actor210: e2.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 41,63
-	Actor88: e3
+		Location: 38,59
+	Actor213: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 42,63
-	Actor90: e2.russia
+		Location: 39,59
+	Actor214: e2.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 43,63
-	Actor92: e3
+		Location: 40,59
+	Actor220: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 44,63
-	Actor94: e2.russia
+		Location: 41,59
+	Actor221: e2.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 45,63
-	Actor96: e3
+		Location: 42,59
+	Actor222: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 46,63
-	Actor98: e2.russia
+		Location: 43,59
+	Actor228: e2.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 47,63
-	Actor100: e3
+		Location: 44,59
+	Actor231: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 48,63
-	Actor102: e2.russia
+		Location: 45,59
+	Actor232: e2.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 49,63
-	Actor105: e3
+		Location: 46,59
+	Actor233: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 50,63
-	Actor107: e2.russia
+		Location: 47,59
+	Actor236: e2.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 51,63
-	Actor109: e3
+		Location: 48,59
+	Actor238: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 52,63
-	Actor111: e2.russia
+		Location: 49,59
+	Actor239: e2.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 53,63
-	Actor113: e3
+		Location: 50,59
+	Actor240: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 54,63
-	Actor115: e2.russia
+		Location: 51,59
+	Actor241: e2.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 55,63
-	Actor117: e3
+		Location: 52,59
+	Actor254: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 56,63
-	Actor118: e2.russia
+		Location: 53,59
+	Actor255: e2.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 57,63
-	Actor119: e3
+		Location: 54,59
+	Actor256: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 58,63
-	Actor120: e2.russia
+		Location: 55,59
+	Actor257: e2.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 59,63
-	Actor121: e3
+		Location: 56,59
+	Actor258: e3
 		SubCell: 3
 		Owner: Russia
 		Facing: 384
-		Location: 60,63
-	Actor122: ar.russia
+		Location: 57,59
+	Actor259: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 40,64
-	Actor123: e3
+		Location: 37,60
+	Actor260: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 41,64
-	Actor124: ar.russia
+		Location: 38,60
+	Actor262: ar.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 42,64
-	Actor125: e3
+		Location: 39,60
+	Actor263: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 43,64
-	Actor126: ar.russia
+		Location: 40,60
+	Actor311: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 44,64
-	Actor127: e3
+		Location: 41,60
+	Actor312: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 45,64
-	Actor130: ar.russia
+		Location: 42,60
+	Actor316: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 46,64
-	Actor131: e3
+		Location: 43,60
+	Actor328: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 47,64
-	Actor166: ar.russia
+		Location: 44,60
+	Actor329: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 48,64
-	Actor167: e3
+		Location: 45,60
+	Actor330: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 49,64
-	Actor168: ar.russia
+		Location: 46,60
+	Actor331: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 50,64
-	Actor169: e3
+		Location: 47,60
+	Actor332: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 51,64
-	Actor170: ar.russia
+		Location: 48,60
+	Actor333: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 52,64
-	Actor171: e3
+		Location: 49,60
+	Actor369: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 53,64
-	Actor172: ar.russia
+		Location: 50,60
+	Actor370: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 54,64
-	Actor173: e3
+		Location: 51,60
+	Actor371: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 55,64
-	Actor174: ar.russia
+		Location: 52,60
+	Actor372: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 56,64
-	Actor175: e3
+		Location: 53,60
+	Actor373: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 57,64
-	Actor176: ar.russia
+		Location: 54,60
+	Actor374: ar.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 58,64
-	Actor177: e3
+		Location: 55,60
+	Actor375: e3
 		Facing: 384
 		SubCell: 3
 		Owner: Russia
-		Location: 59,64
-	Actor178: ar.russia
+		Location: 56,60
+	Actor376: ar.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 60,64
-	Actor179: tl.russia
+		Location: 57,60
+	Actor377: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 41,65
-	Actor180: at
+		Location: 38,61
+	Actor378: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 42,65
-	Actor181: tl.russia
+		Location: 39,61
+	Actor379: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 43,65
-	Actor182: at
+		Location: 40,61
+	Actor380: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 44,65
-	Actor183: tl.russia
+		Location: 41,61
+	Actor381: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 45,65
-	Actor184: at
+		Location: 42,61
+	Actor382: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 46,65
-	Actor185: tl.russia
+		Location: 43,61
+	Actor383: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 47,65
-	Actor186: at
+		Location: 44,61
+	Actor384: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 48,65
-	Actor187: tl.russia
+		Location: 45,61
+	Actor385: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 49,65
-	Actor188: at
+		Location: 46,61
+	Actor386: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 50,65
-	Actor189: tl.russia
+		Location: 47,61
+	Actor387: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 51,65
-	Actor190: at
+		Location: 48,61
+	Actor388: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 52,65
-	Actor191: tl.russia
+		Location: 49,61
+	Actor389: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 53,65
-	Actor192: at
+		Location: 50,61
+	Actor390: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 54,65
-	Actor193: tl.russia
+		Location: 51,61
+	Actor391: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 55,65
-	Actor194: at
+		Location: 52,61
+	Actor392: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 56,65
-	Actor195: tl.russia
+		Location: 53,61
+	Actor393: tl.russia
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 57,65
-	Actor196: at
+		Location: 54,61
+	Actor394: at
 		Owner: Russia
 		Facing: 384
 		SubCell: 3
-		Location: 58,65
-	Actor197: tl.russia
+		Location: 55,61
+	Actor395: tl.russia
 		Owner: Russia
 		SubCell: 3
 		Facing: 384
-		Location: 59,65
-	Actor198: tos
+		Location: 56,61
+	Actor396: tos
 		Owner: Russia
 		Facing: 384
-		Location: 44,66
-	Actor199: giatsint
+		Location: 41,62
+	Actor397: giatsint
 		Owner: Russia
 		Facing: 384
-		Location: 46,66
-	Actor200: btr
+		Location: 43,62
+	Actor398: btr
 		Owner: Russia
 		Facing: 384
-		Location: 48,66
-	Actor201: bmp2
+		Location: 45,62
+	Actor399: bmp2
 		Owner: Russia
 		Facing: 0
-		Location: 50,66
-	Actor202: t90
+		Location: 47,62
+	Actor400: t90
 		Owner: Russia
 		Facing: 384
-		Location: 52,66
-	Actor203: grad
+		Location: 49,62
+	Actor401: grad
 		Owner: Russia
 		Facing: 384
-		Location: 54,66
-	Actor204: tunguska
+		Location: 51,62
+	Actor402: tunguska
 		Owner: Russia
 		Facing: 384
-		Location: 56,66
+		Location: 53,62
 
 Rules: rules.yaml

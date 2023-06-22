@@ -541,13 +541,13 @@ AACannon:
 		ContrailLength: 4
 		ContrailWidth: 32
 	Warhead@Target: TargetDamage
-		Damage: 10000
+		Damage: 20000
 		DamageAtMaxRange: 50
 		Penetration: 800
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 1000
+		Damage: 3000
 		DamageAtMaxRange: 50
 		DamageTypes: ExplosionDeath
 
@@ -621,7 +621,7 @@ RocketPods:
 		TrailDeactivation: 6
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
-		Damage: 3000
+		Damage: 5000
 		Penetration: 50
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage

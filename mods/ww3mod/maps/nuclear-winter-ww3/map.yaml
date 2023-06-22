@@ -630,12 +630,6 @@ Actors:
 	Actor969: wood
 		Owner: Neutral
 		Location: 50,9
-	Actor1268: t12
-		Owner: Neutral
-		Location: 49,12
-	Actor1233: t12
-		Owner: Neutral
-		Location: 52,58
 	Actor1234: wood
 		Owner: Neutral
 		Location: 51,62

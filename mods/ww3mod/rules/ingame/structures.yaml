@@ -19,7 +19,7 @@
 	Building:
 		Dimensions: 1,1
 		Footprint: x
-		TerrainTypes: Clear,Road,Beach,Rough,Ore,Gems
+		TerrainTypes: Clear,Road,Beach,Rough
 		RequiresBaseProvider: True
 		BuildSounds: placbldg.aud, build5.aud
 		UndeploySounds: cashturn.aud
@@ -1872,7 +1872,7 @@ AFLD:
 # 	# 	Queue: Building
 # 	# 	BuildPaletteOrder: 15
 # 	# 	Prerequisites: atek, ~structures.nato, ~techlevel.high
-# 	# 	Description: Refines Ore, Scrap and Gems\nincreasing your income by 20%\nMaximum 1 can be built.\nRequires Power to operate.\n  Special Ability: Advanced Processing\nActivate to divert the boost into your Passive income,\nat the cost of +50% Power consumption.\nAll Silos generate +20$ more Income at 2.0x Faster rate.\nLasts for up to 1 minute.
+# 	# 	Description: Refines  Scrap and Gems\nincreasing your income by 20%\nMaximum 1 can be built.\nRequires Power to operate.\n  Special Ability: Advanced Processing\nActivate to divert the boost into your Passive income,\nat the cost of +50% Power consumption.\nAll Silos generate +20$ more Income at 2.0x Faster rate.\nLasts for up to 1 minute.
 # 	Valued:
 # 		Cost: 2500
 # 	Tooltip:

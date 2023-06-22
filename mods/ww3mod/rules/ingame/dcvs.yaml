@@ -16,7 +16,7 @@ MNLY:
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Ground, Vehicle, Light
+		TargetTypes: Ground,Vehicle,Light
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
@@ -25,7 +25,7 @@ MNLY:
 		Mine: MINV
 		AmmoPoolName: mines-ammo
 		TileUnknownName: build-valid
-		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
+		TerrainTypes: Clear,Road,Beach,Rough,Bridge
 	# MineImmune:
 	AmmoPool:
 		Name: mines-ammo
@@ -36,7 +36,7 @@ MNLY:
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration:
 		Position: Bottom
-		Margin: 7, 3
+		Margin: 7,3
 		PipCount: 5
 		RequiresSelection: true
 		FullSequence: pip-white
@@ -62,7 +62,7 @@ MNLY:
 		Margin: 0,-5
 		RequiresCondition: !ammo-mines
 		BlinkInterval: 16
-		BlinkPattern: Off, On
+		BlinkPattern: Off,On
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -88,7 +88,7 @@ SandBagLayer:
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Ground, Vehicle, Light
+		TargetTypes: Ground,Vehicle,Light
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
@@ -97,7 +97,7 @@ SandBagLayer:
 		Mine: SBAG
 		AmmoPoolName: mines-ammo
 		TileUnknownName: build-valid
-		TerrainTypes: Clear, Road, Beach, Ore, Gems, Rough, Bridge
+		TerrainTypes: Clear,Road,Beach,Rough,Bridge
 	AmmoPool:
 		Name: mines-ammo
 		Ammo: 5
@@ -107,7 +107,7 @@ SandBagLayer:
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration:
 		Position: Bottom
-		Margin: 7, 3
+		Margin: 7,3
 		PipCount: 5
 		RequiresSelection: true
 		FullSequence: pip-white
@@ -130,7 +130,7 @@ SandBagLayer:
 		Margin: 0,-5
 		RequiresCondition: !ammo-mines
 		BlinkInterval: 16
-		BlinkPattern: Off, On
+		BlinkPattern: Off,On
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd

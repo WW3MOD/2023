@@ -53,7 +53,7 @@ MINV:
 		ShowOwnerRow: false
 	Crate:
 		Duration: 180
-		TerrainTypes: Clear, Rough, Road, Ore, Beach, Water
+		TerrainTypes: Clear, Rough, Road, Beach, Water
 	RenderSprites:
 		Palette: effect
 		Image: scrate
@@ -222,11 +222,11 @@ MINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
-		Terrain: Ore
-	AppearsOnMapPreview:
-		Terrain: Ore
+	# AppearsOnRadar:
+	# RadarColorFromTerrain:
+	# 	Terrain: Ore
+	# AppearsOnMapPreview:
+	# 	Terrain: Ore
 	SeedsResource:
 		Interval: 200
 	MapEditorData:
@@ -249,11 +249,11 @@ GMINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
-		Terrain: Gems
-	AppearsOnMapPreview:
-		Terrain: Gems
+	# AppearsOnRadar:
+	# RadarColorFromTerrain:
+	# 	Terrain: Gems
+	# AppearsOnMapPreview:
+	# 	Terrain: Gems
 	SeedsResource:
 		ResourceType: Gems
 		Interval: 300

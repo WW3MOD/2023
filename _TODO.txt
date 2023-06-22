@@ -1,5 +1,11 @@
 2023
 
+Terrain
+    - AllowedTerrain, LandableTerrainTypes, TerrainTypes, AllowedTerrainTypes
+
+
+- Colors are camouflage, never silly colors. Select from list instead, maybe even two colors. They could read half of the palette each?
+
 - Save last game settings and view a quick button to load the last one and also drop down
 
 - Removed news, do same for Connect to forum, change release text
@@ -16,6 +22,7 @@ Movements
 
 
 AutoTarget
+- Move within MaxRange of all Armament only on Defend, Attack Anything means autotarget with maxrange of lowest ranging weapon.
 - Don't overkill
     If a unit fires a salvo, eg MLRS, if there is only one unit,
         dont shoot the whole salvo, instead sweep

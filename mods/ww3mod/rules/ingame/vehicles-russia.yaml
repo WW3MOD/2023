@@ -31,9 +31,9 @@ t90:
 		TargetTypes: Ground, Vehicle, Heavy
 	Mobile:
 		Locomotor: heavytracked
-		Speed: 67
-		Acceleration: 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 15
+		Speed: 100
+		Acceleration: 6, 5, 4, 3, 2, 1
+		TurnSpeed: 10
 		# CanMoveBackward: true
 		PauseOnCondition: empdisable
 	Turreted:
@@ -117,10 +117,10 @@ bmp2:
 			TopLeft: -315, -670
 			BottomRight: 315, 670
 	Mobile:
-		Locomotor: lighttracked-amphbious
-		Speed: 65
+		Locomotor: lighttracked-amphibious
+		Speed: 100
 		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 20
+		TurnSpeed: 10
 		PauseOnCondition: empdisable || firing-secondary
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -252,10 +252,10 @@ btr:
 			TopLeft: -290, -770
 			BottomRight: 290, 770
 	Mobile:
-		Locomotor: lighttracked-amphbious
-		Speed: 85
+		Locomotor: lighttracked-amphibious
+		Speed: 110
 		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 15
+		TurnSpeed: 10
 	Armament@MG:
 		Name: primary
 		Weapon: 12.7mm.MG
@@ -341,9 +341,9 @@ tunguska:
 		HP: 4000
 	Mobile:
 		Locomotor: heavytracked
-		Speed: 67
+		Speed: 100
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 20
+		TurnSpeed: 10
 		PauseOnCondition: firing-secondary || empdisable
 	RevealsRadar:
 		Range: 30c0
@@ -489,8 +489,8 @@ giatsint:
 		Range: 10c0
 	Mobile:
 		Locomotor: lighttracked
-		Speed: 56
-		Acceleration: 5, 4, 3, 2, 1
+		Speed: 80
+		Acceleration: 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
@@ -585,8 +585,8 @@ grad:
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
-		Speed: 70
-		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
+		Speed: 110
+		Acceleration: 6, 5, 4, 3, 2, 1
 		TurnSpeed: 8
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
@@ -682,9 +682,9 @@ tos:
 		Type: GroundPosition
 		PauseOnCondition: !firing
 	Mobile:
-		Speed: 50
-		Acceleration: 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 20
+		Speed: 80
+		Acceleration: 6, 5, 4, 3, 2, 1
+		TurnSpeed: 10
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing

@@ -35,8 +35,8 @@ abrams:
 	# 	Range: 2c0
 	Mobile:
 		Locomotor: heavytracked
-		Speed: 67
-		Acceleration: 6, 5, 4, 3, 2, 1
+		Speed: 100
+		Acceleration: 5, 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: empdisable
 	Turreted:
@@ -126,9 +126,9 @@ bradley:
 			BottomRight: 360, 660
 	Mobile:
 		Locomotor: lighttracked
-		Speed: 72
+		Speed: 100
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 20
+		TurnSpeed: 10
 		PauseOnCondition: firing-wgm || empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -261,7 +261,7 @@ humvee:
 			BottomRight: 220, 500
 	Mobile:
 		Locomotor: lightwheeled
-		Speed: 110
+		Speed: 130
 		Acceleration: 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: empdisable
@@ -402,8 +402,8 @@ m113:
 			TopLeft: -270, -500
 			BottomRight: 270, 500
 	Mobile:
-		Locomotor: lighttracked-amphbious
-		Speed: 85
+		Locomotor: lighttracked-amphibious
+		Speed: 100
 		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 22
 		# PauseOnCondition: empdisable || !notmobile
@@ -495,7 +495,7 @@ strykershorad:
 			TopLeft: -275, -700
 			BottomRight: 275, 700
 	Mobile:
-		Speed: 97
+		Speed: 120
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		Locomotor: heavywheeled
@@ -661,7 +661,7 @@ m109:
 	RevealsShroud:
 		Range: 10c0
 	Mobile:
-		Speed: 56
+		Speed: 80
 		Acceleration: 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		Locomotor: lighttracked
@@ -765,7 +765,7 @@ m270:
 		Range: 12c0
 	Mobile:
 		Locomotor: lighttracked
-		Speed: 50
+		Speed: 80
 		Acceleration: 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: firing || empdisable

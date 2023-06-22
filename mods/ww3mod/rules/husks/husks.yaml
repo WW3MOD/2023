@@ -94,11 +94,11 @@
 	Interactable:
 	RenderSprites:
 		Palette: terrain
-	AppearsOnRadar:
-	RadarColorFromTerrain:
-		Terrain: Tree
-	AppearsOnMapPreview:
-		Terrain: Tree
+	# AppearsOnRadar:
+	# RadarColorFromTerrain:
+	# 	Terrain: Tree
+	# AppearsOnMapPreview:
+	# 	Terrain: Tree
 	Building:
 		Footprint: x
 		Dimensions: 1,1
