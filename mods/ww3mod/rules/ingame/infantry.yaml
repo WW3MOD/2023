@@ -240,6 +240,7 @@
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 ^CamoSoldier:
+	Inherits@Combatant: ^Combatant
 	Inherits: ^Soldier
 	Inherits: ^VisibilityRangeCircles
 	Inherits@Rotting: ^RottingInfantry

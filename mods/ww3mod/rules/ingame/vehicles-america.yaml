@@ -1,5 +1,6 @@
 
 abrams:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetMBT
@@ -90,6 +91,7 @@ abrams:
 		Actor: abrams.husk
 
 bradley:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
@@ -224,6 +226,7 @@ bradley:
 		Actor: bradley.husk
 
 humvee:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@EXPERIENCE: ^GainsExperience
@@ -364,6 +367,7 @@ humvee:
 		Actor: humvee.husk
 
 m113:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
@@ -457,6 +461,7 @@ m113:
 		Actor: m113.husk
 
 strykershorad:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
@@ -621,6 +626,7 @@ strykershorad:
 		Actor: strykershorad.husk
 
 m109:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtillery
@@ -720,6 +726,7 @@ m109:
 		Actor: m109.husk
 
 m270:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtillery
