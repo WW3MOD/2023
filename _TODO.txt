@@ -1,5 +1,7 @@
 2023
 
+- Save last game settings and view a quick button to load the last one and also drop down
+
 - Removed news, do same for Connect to forum, change release text
 - Smoke tick needs to be reset to lower value again, they stay too long. Make more SHPs though
 

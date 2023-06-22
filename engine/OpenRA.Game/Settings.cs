@@ -276,7 +276,7 @@ namespace OpenRA
 
 		public Modifiers ZoomModifier = Modifiers.None;
 
-		public bool FetchNews = true;
+		public bool FetchNews = false;
 
 		[Desc("Version of introduction prompt that the player last viewed.")]
 		public int IntroductionPromptVersion = 0;
