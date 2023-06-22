@@ -89,7 +89,6 @@
 		OpeningSequence: open
 		Offset: 0,0,200
 		RequiresCondition: parachute
-	HitShape:
 	EdibleByLeap:
 	TemporaryOwnerManager:
 	MapEditorData:
