@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly int FromRadius = 200;
 		public readonly int ToRadius = 15;
-		public readonly int ShrinkSpeed = 4;
+		public readonly int ResizeSpeed = 4;
 		public readonly float RotationSpeed = 0.12f;
 
 		public override object Create(ActorInitializer init) { return new RadarPings(this); }
@@ -46,10 +46,20 @@ namespace OpenRA.Mods.Common.Traits
 					Pings.Remove(ping);
 		}
 
+		public RadarPing Add(RadarPing radarPing)
+		{
+			if (radarPing.IsVisible())
+				LastPingPosition = radarPing.Position;
+
+			Pings.Add(radarPing);
+
+			return radarPing;
+		}
+
 		public RadarPing Add(Func<bool> isVisible, WPos position, Color color, int duration)
 		{
-			var ping = new RadarPing(isVisible, position, color, duration,
-				info.FromRadius, info.ToRadius, info.ShrinkSpeed, info.RotationSpeed);
+			var ping = new RadarPing(isVisible, position, color, 1, duration,
+				info.FromRadius, info.ToRadius, info.ResizeSpeed, info.RotationSpeed);
 
 			if (ping.IsVisible())
 				LastPingPosition = ping.Position;
@@ -70,26 +80,28 @@ namespace OpenRA.Mods.Common.Traits
 		public Func<bool> IsVisible;
 		public WPos Position;
 		public Color Color;
+		public int LineWidth;
 		public int Duration;
 		public int FromRadius;
 		public int ToRadius;
-		public int ShrinkSpeed;
+		public int ResizeSpeed;
 		public float RotationSpeed;
 
 		int radius;
 		float angle;
 		int tick;
 
-		public RadarPing(Func<bool> isVisible, WPos position, Color color, int duration,
-			int fromRadius, int toRadius, int shrinkSpeed, float rotationSpeed)
+		public RadarPing(Func<bool> isVisible, WPos position, Color color, int lineWidth, int duration,
+			int fromRadius, int toRadius, int resizeSpeed, float rotationSpeed)
 		{
 			IsVisible = isVisible;
 			Position = position;
 			Color = color;
+			LineWidth = lineWidth;
 			Duration = duration;
 			FromRadius = fromRadius;
 			ToRadius = toRadius;
-			ShrinkSpeed = shrinkSpeed;
+			ResizeSpeed = resizeSpeed;
 			RotationSpeed = rotationSpeed;
 
 			radius = fromRadius;
@@ -100,7 +112,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (++tick == Duration)
 				return false;
 
-			radius = Math.Max(radius - ShrinkSpeed, ToRadius);
+			if (ToRadius > FromRadius)
+				radius = Math.Min(radius + ResizeSpeed, ToRadius);
+			else
+				radius = Math.Max(radius - ResizeSpeed, ToRadius);
 			angle -= RotationSpeed;
 			return true;
 		}

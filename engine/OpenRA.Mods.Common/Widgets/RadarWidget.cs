@@ -387,7 +387,7 @@ namespace OpenRA.Mods.Common.Widgets
 				var c = radarPing.Color;
 				var pingCell = world.Map.CellContaining(radarPing.Position);
 				var points = radarPing.Points(CellToMinimapPixel(pingCell)).ToArray();
-				Game.Renderer.RgbaColorRenderer.DrawPolygon(points, 2, c);
+				Game.Renderer.RgbaColorRenderer.DrawPolygon(points, radarPing.LineWidth, c);
 			}
 		}
 

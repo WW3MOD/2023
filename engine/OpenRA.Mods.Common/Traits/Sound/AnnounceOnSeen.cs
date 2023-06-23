@@ -15,12 +15,23 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits.Sound
 {
+	public enum PingType { Default, Soldier, SupportInfantry, Vehicle, Artillery, SupportVehicle }
+
 	[Desc("Players will be notified when this actor becomes visible to them.",
 		"Requires the 'EnemyWatcher' trait on the player actor.")]
 	public class AnnounceOnSeenInfo : TraitInfo
 	{
 		[Desc("Should there be a radar ping on enemies' radar at the actor's location when they see him")]
-		public readonly bool PingRadar = false;
+		public readonly bool PingRadar = true;
+		public readonly PingType Type = PingType.Default;
+		public readonly Color? Color = null;
+		public readonly int? LineWidth = null;
+		public readonly int? Alpha = null;
+		public readonly int? FromRadius = null;
+		public readonly int? ToRadius = null;
+		public readonly int? ResizeSpeed = null;
+		public readonly float? RotationSpeed = null;
+		public readonly int? Duration = null;
 
 		[NotificationReference("Speech")]
 		[Desc("Speech notification to play.")]
@@ -65,7 +76,52 @@ namespace OpenRA.Mods.Common.Traits.Sound
 
 			// Radar notification
 			if (Info.PingRadar)
-				radarPings.Value?.Add(() => true, self.CenterPosition, Color.Red, 50);
+			{
+				Color color = Color.Gray;
+				int alpha = 100;
+				int lineWidth = 1;
+				int duration = 300;
+				int fromRadius = 25;
+				int toRadius = 5;
+				int resizeSpeed = 1;
+				float rotationSpeed = 0.02f;
+
+				switch (Info.Type)
+				{
+					case PingType.Soldier:
+						color = Color.Red;
+						alpha = 70;
+						fromRadius = 1;
+						toRadius = 10;
+						break;
+					case PingType.SupportInfantry:
+						fromRadius = 15;
+						toRadius = 5;
+						break;
+					case PingType.Vehicle:
+						color = Color.Red;
+						lineWidth = 2;
+						fromRadius = 20;
+						toRadius = 10;
+						break;
+					case PingType.Artillery:
+						color = Color.Red;
+						fromRadius = 35;
+						toRadius = 15;
+						break;
+					case PingType.SupportVehicle:
+						fromRadius = 40;
+						toRadius = 10;
+						break;
+				}
+
+				color = Color.FromArgb(Info.Alpha ?? alpha, color.R, color.G, color.B);
+
+				radarPings.Value?.Add(
+					new RadarPing(() => true,
+						self.CenterPosition, color, Info.LineWidth ?? lineWidth, Info.Duration ?? duration, Info.FromRadius ?? fromRadius,
+						Info.ToRadius ?? toRadius, Info.ResizeSpeed ?? resizeSpeed, Info.RotationSpeed ?? rotationSpeed));
+			}
 		}
 	}
 }
