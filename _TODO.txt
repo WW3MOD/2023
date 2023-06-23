@@ -1,5 +1,86 @@
 2023
 
+- Control groups
+
+    - Leader units allow for more efficient grouping
+
+        4       Fire Team       TL
+        12      Squad           NCO
+        30      Platoon         Liutenant
+        100     Company         Captain
+        500     Battalion       Liutenant Colonel
+
+- Stances
+
+    - HUNT          Spread out and search, converge and destroy enemy
+    - HOLD GROUND   Defend current position and newarby friendly forces
+    - AMBUSH        Only fire when exposed or if an ally close by is exposed, disable by double clicking when activating.
+    - RETREAT       Stay at maximum range from enemy
+    - HOLD FIRE     Neutral capturable objects, inefficient targets
+
+- Movements / Formations
+
+    - Move at max individual speed (how it is currently)
+    - Move in formation
+
+    - Close
+    - Default
+    - Far
+    - Organized
+
+
+- Announcements
+
+    - Enemy detected
+
+
+    - Check SetUnitStance
+    - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
+    - Formations
+        - "Stay in formation", move in current configuration
+        - Pre-defined formations
+        - Check Autotarget and how stances are set there, do similar on Move/Mobile?
+    - Units out of ammo rejects attack orders
+    - Add announcements like "Enemy Detected"
+    - UnitStance
+        - Add more stances?
+        - Stay at a distance
+        - ReturnFire should trigger for nearby units too if one is discovered to enable ambushes.
+        - Types
+            - AUTHORIZED WEAPONS - primary, secondary, mg, tow, etc - each "name" gets it's own button, deselecting all means NO FIRE stance.
+            - Default move is attack move, attack move renamed to "forced move"
+            - COHESION: Stay close to more powerful (valuable) units
+        - Multi-toggle stances, and each controls a specific behaviour
+            - Fire at your main priority only (or ideally, skip if there is no such units even close)
+            - Fire at furthest target / closest (avoids overkill on the front line)
+            - Fire at closest or hunt down priority targets? A tank should move forward and attack a tank at the back instead of firing at simple infantry?
+            - Target non-defensive/capturable structures?
+            - Hunt down enemies (Autotarget: ScanRadius)
+            - Keep away (turreted units fall back to max distance)
+            - Auto Guard priority targets (Units are grouped together when enemy appears, tanks go forward, hunts down enemy, then will fall back to artillery units for example)
+            - How do each state work with:
+                - Move (And encountering enemy, should it cancel move order?)
+                - Attack-move
+
+- AI
+    - Needs to learn to build Logistics centers and rearm
+    - AutoAssign Actor Method
+        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
+    - Unit Builder Module
+        - Looks at what enemy has.
+        - Builds what is necessary, not just random.
+        - Units define capabilities, and Builder Module determines what capabilities are needed.
+    - Strategical Module
+        - Designates targets and areas of interest. Oil, and where to defend/attack.
+        - Designates new units to target locations and if needed transfers units between tactical groups.
+    - Tactical Module
+        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
+    - Operational Module
+        - Smaller squads move as one and attacks targets.
+        - Individual units attack targets of high value etc.
+
+
+
 Terrain
     - AllowedTerrain, LandableTerrainTypes, TerrainTypes, AllowedTerrainTypes
 
@@ -46,7 +127,6 @@ AutoTarget
 
 - Inaccuracy scales logarithmically with distance
 
-- Stances, check SetUnitStance
 
 Unsolved bugs
 
@@ -112,23 +192,6 @@ UNIT:
     - Add recovery vehicle that can tow vehicles
     - Change "Sell" to "Evacuate", units leave vehicle/building and it becomes neutral
 - Buildings may require more than one technician to operate, enter as cargo until full before changing owner
-
-- AI
-    - Needs to learn to build Logistics centers and rearm
-    - AutoAssign Actor Method
-        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
-    - Unit Builder Module
-        - Looks at what enemy has.
-        - Builds what is necessary, not just random.
-        - Units define capabilities, and Builder Module determines what capabilities are needed.
-    - Strategical Module
-        - Designates targets and areas of interest. Oil, and where to defend/attack.
-        - Designates new units to target locations and if needed transfers units between tactical groups.
-    - Tactical Module
-        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
-    - Operational Module
-        - Smaller squads move as one and attacks targets.
-        - Individual units attack targets of high value etc.
 
 - Units might surrender if surrounded, low experience
     - Defects if out of money and upkeep is high
@@ -248,7 +311,6 @@ Defenses
     - Crystallized Doom SAM launcher (NOD), also other cannons but looks a bit unrealistic
 
 Structures
-    - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
 
 Support powers
     - Nukes
@@ -259,35 +321,6 @@ Support powers
     - Missile strike
 
 DIV
-    - Formations
-        - "Stay in formation", move in current configuration
-        - Pre-defined formations
-        - Check Autotarget and how stances are set there, do similar on Move/Mobile?
-    - Units out of ammo rejects attack orders
-    - Add announcements like "Enemy Detected"
-    - UnitStance
-        - Add more stances?
-        - ReturnFire should trigger for nearby units too if one is discovered to enable ambushes.
-        - Types
-            - AMBUSH - only fire when exposed or if an ally close by is exposed, disable by double clicking when activating.
-            - AUTHORIZED WEAPONS - primary, secondary, mg, tow, etc - each "name" gets it's own button, deselecting all means NO FIRE stance.
-            - DON'T FIRE AT: Neutral capturable objects, inefficient targets
-            - Default move is attack move, attack move renamed to "forced move"
-            - RETREAT: When attack-moving, if encountering enemy turn around and stay at maximum range
-            - COHESION: Stay close to more powerful (valuable) units
-        - Multi-toggle stances, and each controls a specific behaviour
-            - Fire at your main priority only (or ideally, skip if there is no such units even close)
-            - Fire at furthest target / closest (avoids overkill on the front line)
-            - Fire at closest or hunt down priority targets? A tank should move forward and attack a tank at the back instead of firing at simple infantry?
-            - Target non-defensive/capturable structures?
-            - Hunt down enemies (Autotarget: ScanRadius)
-            - Keep away (turreted units fall back to max distance)
-            - Auto Guard priority targets (Units are grouped together when enemy appears, tanks go forward, hunts down enemy, then will fall back to artillery units for example)
-            - How do each state work with:
-                - Move (And encountering enemy, should it cancel move order?)
-                - Attack-move
-
-    - Stay at a distance
     - Cancel attack order if running out of ammo, now they freeze
     - Render (some?) pips at further zoom
     - Allow infantry to move to and stop in subcells so that they can start firing faster, check in Move, Mobile, Locomotor, Order, MapGrid etc...

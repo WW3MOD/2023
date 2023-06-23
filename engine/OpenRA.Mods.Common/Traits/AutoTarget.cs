@@ -440,6 +440,9 @@ namespace OpenRA.Mods.Common.Traits
 				var suppression = target.Actor?.TraitsImplementing<ExternalCondition>()
 					.FirstOrDefault(t => t.Info.Condition == "suppressed")?.GrantedValue(target.Actor);
 
+				if (target.Actor == null)
+					continue;
+
 				// Evaluate whether we want to target this actor
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 				foreach (var ati in validPriorities)
