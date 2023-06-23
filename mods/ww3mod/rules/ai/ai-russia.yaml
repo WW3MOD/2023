@@ -4,7 +4,7 @@ Player:
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
 		UnitsToBuild:
-			tecn.russia: 100
+			tecn.russia: 1000
 			e2.russia: 100
 			e3.russia: 100
 			ar.russia: 100
@@ -14,18 +14,18 @@ Player:
 			medi.russia: 30
 			aa.russia: 20
 			sn.russia: 20
-			E6.russia: 20
+			e6.russia: 20
 
-			t72: 10
+			truk: 10
+			t90: 10
 			bmp2: 10
-			grad: 10
-			tos: 10
+			btr: 10
 			giatsint: 10
-			truk: 25
+
 		UnitLimits:
-			tecn.russia: 2
-			E6.russia: 2
-			dog: 6
+			truk: 3
+			tecn.russia: 3
+			e6.russia: 2
 
 	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
@@ -37,16 +37,3 @@ Player:
 		ExcludeFromSquadsTypes: tecn.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 
-	CaptureManagerBotModule@tecn:
-		RequiresCondition: enable-ai-player && player.brics
-		CapturingActorTypes: tecn.russia
-		CapturableActorTypes: oilb,bio,miss,fcom,hosp
-		CheckCaptureTargetsForVisibility: false
-		MaximumCaptureTargetOptions: 15
-
-	CaptureManagerBotModule@engineer:
-		RequiresCondition: enable-ai-player
-		CapturingActorTypes: e6
-		CapturableActorTypes: oilb,bio,miss,fcom,hosp
-		CheckCaptureTargetsForVisibility: false
-		MaximumCaptureTargetOptions: 15
