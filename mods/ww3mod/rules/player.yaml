@@ -18,73 +18,73 @@ Player:
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 0
-		ReadyTextNotification: MCV reporting.
-		BlockedAudio: NoBuild
+		# ReadyTextNotification: MCV reporting.
+		# BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Defense:
 		Type: Defense
 		DisplayOrder: 1
-		BlockedAudio: NoBuild
-		ReadyTextNotification: MCV delivered.
-		LimitedAudio: BuildingInProgress
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
+		# BlockedAudio: NoBuild
+		# ReadyTextNotification: MCV delivered.
+		# LimitedAudio: BuildingInProgress
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Vehicle:
 		Type: Vehicle
 		DisplayOrder: 2
-		ReadyTextNotification: Unit ready.
-		BlockedAudio: NoBuild
+		# ReadyTextNotification: Unit ready.
+		# BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicParallelProductionQueue@Infantry:
 		Type: Infantry
 		DisplayOrder: 3
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Training
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
 		Sticky: False
 		BuildingCountBuildTimeMultipliers: 100, 75, 50, 25, 20, 15, 10
 		ParallelPenaltyBuildTimeMultipliers: 100
 	ClassicProductionQueue@Ship:
 		Type: Ship
 		DisplayOrder: 4
-		ReadyTextNotification: Unit ready.
+		# ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
 		DisplayOrder: 5
-		ReadyTextNotification: Unit ready.
+		# ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	# ClassicProductionQueue@Fakestructure:
 	# 	Type: Fakestructure

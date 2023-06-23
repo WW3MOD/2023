@@ -77,14 +77,14 @@ namespace OpenRA.Mods.Common.Traits.Sound
 			// Radar notification
 			if (Info.PingRadar)
 			{
-				Color color = Color.Gray;
-				int alpha = 100;
-				int lineWidth = 1;
-				int duration = 300;
-				int fromRadius = 25;
-				int toRadius = 5;
-				int resizeSpeed = 1;
-				float rotationSpeed = 0.02f;
+				var color = Color.Gray;
+				var alpha = 100;
+				var lineWidth = 1;
+				var duration = 300;
+				var fromRadius = 25;
+				var toRadius = 5;
+				var resizeSpeed = 1;
+				var rotationSpeed = 0.02f;
 
 				switch (Info.Type)
 				{
