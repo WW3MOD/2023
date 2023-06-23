@@ -1,66 +1,4 @@
 Player:
-	SupportPowerBotModule@america:
-		RequiresCondition: enable-ai-player && player.nato
-		Decisions:
-			# UseParatroopers:
-			# 	OrderName: AmericaParatroopers
-			# 	MinimumAttractiveness: 5
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# 	Consideration@2:
-			# 		Against: Enemy
-			# 		Types: Water
-			# 		Attractiveness: -5
-			# 		TargetMetric: None
-			# 		CheckRadius: 8c0
-			# UseNuclear:
-			# 	OrderName: NukeMissile
-			# 	MinimumAttractiveness: 3000
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: Value
-			# 		CheckRadius: 5c0
-			# 	Consideration@2:
-			# 		Against: Ally
-			# 		Types: Air, Ground, Water
-			# 		Attractiveness: -10
-			# 		TargetMetric: Value
-			# 		CheckRadius: 7c0
-			# UsePrecisionStrike:
-			# 	OrderName: PrecisionStrike
-			# 	MinimumAttractiveness: 1
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 1c0
-			# UseSpyMast:
-			# 	OrderName: ListeningPost
-			# 	MinimumAttractiveness: 5
-			# 	Consideration@1:
-			# 		Against: Enemy
-			# 		Types: Structure
-			# 		Attractiveness: 1
-			# 		TargetMetric: None
-			# 		CheckRadius: 10c0
-			# 	Consideration@2:
-			# 		Against: Enemy
-			# 		Types: Water
-			# 		Attractiveness: -5
-			# 		TargetMetric: None
-			# 		CheckRadius: 10c0
-			# UseDecoyArmy:
-			# 	OrderName: DecoyArmy
-			# 	Consideration@1:
-			# 		Against: Ally
-
 	UnitBuilderBotModule@america:
 		RequiresCondition: enable-ai-player && player.nato
 		UnitQueues: Vehicle, Infantry
@@ -93,24 +31,24 @@ Player:
 
 	SquadManagerBotModule@america.land:
 		RequiresCondition: enable-ai-player && player.nato
-		SquadSize: 12
-		SquadSizeRandomBonus: 24
-		RushInterval: 3000
-		AttackScanRadius: 40
+		SquadSize: 5
+		SquadSizeRandomBonus: 20
+		RushInterval: 100
+		AttackScanRadius: 32
 		DangerScanRadius: 25
 		ExcludeFromSquadsTypes: tecn.america
 		IgnoredEnemyTargetTypes: IgnoreThis
 
-	CaptureManagerBotModule@captureenemystructures:
-		RequiresCondition: enable-ai-player && player.nato
-		CapturingActorTypes: e1.america
-		CapturableActorTypes: logisticscenter
-		CheckCaptureTargetsForVisibility: true
-		MaximumCaptureTargetOptions: 100
-
 	CaptureManagerBotModule@tecn:
 		RequiresCondition: enable-ai-player && player.nato
 		CapturingActorTypes: tecn.america
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		CheckCaptureTargetsForVisibility: false
+		MaximumCaptureTargetOptions: 15
+
+	CaptureManagerBotModule@engineer:
+		RequiresCondition: enable-ai-player
+		CapturingActorTypes: e6
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15

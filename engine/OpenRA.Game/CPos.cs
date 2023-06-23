@@ -91,6 +91,11 @@ namespace OpenRA
 			return new MPos(u, v);
 		}
 
+		public WPos ToWPos(int z = 0)
+		{
+			return new WPos(X * 1024, Y * 1024, z);
+		}
+
 		#region Scripting interface
 
 		public LuaValue Add(LuaRuntime runtime, LuaValue left, LuaValue right)

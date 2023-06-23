@@ -262,7 +262,7 @@ t72:
 		Length: 5
 	icon: t72icon
 
-	t90:
+t90:
 	Inherits: emp-overlay
 	idle: t90
 		Facings: 32

@@ -8,6 +8,10 @@ Player:
 	ProvidesPrerequisite@AIRESTRICTOR:
 		Prerequisite: aitoodumb
 		RequiresCondition: enable-ai-player
+	GrantConditionOnPrerequisite@NAVYDISABLER:
+		Condition: global-disablenavy
+		Prerequisites: global-disablenavy
+
 	# HarvesterBotModule@aiplayer:
 	# 	RequiresCondition: enable-ai-player
 	# 	HarvesterTypes: harv
@@ -20,12 +24,32 @@ Player:
 	# 	ConstructionYardTypes: fact
 	# 	McvFactoryTypes: weap
 	# 	MaxBaseRadius: 40
-	GrantConditionOnPrerequisite@NAVYDISABLER:
-		Condition: global-disablenavy
-		Prerequisites: global-disablenavy
-	# CaptureManagerBotModule@engineer:
-	# 	RequiresCondition: enable-ai-player
-	# 	CapturingActorTypes: e6
-	# 	CapturableActorTypes: oilb,bio,miss,fcom,hosp
-	# 	CheckCaptureTargetsForVisibility: false
-	# 	MaximumCaptureTargetOptions: 15
+
+
+	# CaptureManagerBotModule@captureenemystructures:
+	# 	RequiresCondition: enable-ai-player && player.nato
+	# 	CapturingActorTypes: e1.america
+	# 	CapturableActorTypes: logisticscenter
+	# 	CheckCaptureTargetsForVisibility: true
+	# 	MaximumCaptureTargetOptions: 100
+
+
+	# UnitBuilderBotModule@russia.air:
+	# 	RequiresCondition: enable-ai-player && player.brics
+	# 	IdleBaseUnitsMaximum: 0
+	# 	UnitQueues: Aircraft
+	# 	UnitsToBuild:
+	# 		yak.ai: 60
+	# 		yak.belarus.ai: 60
+	# 		mig: 40
+	# 		hind: 100
+	# 	UnitLimits:
+
+	# SquadManagerBotModule@russia.air:
+	# 	RequiresCondition: enable-ai-player && player.brics
+	# 	SquadSize: 2
+	# 	SquadSizeRandomBonus: 4
+	# 	RushInterval: 800
+	# 	AttackScanRadius: 48
+	# 	ExcludeFromSquadsTypes: # FF TODO
+	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis

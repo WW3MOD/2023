@@ -4,16 +4,18 @@ Player:
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
 		UnitsToBuild:
-			e2.russia: 15
-			e3.russia: 30
-			ar.russia: 20
-			tl.russia: 10
-			at.russia: 10
-			aa.russia: 10
-			mt.russia: 10
-			sn.russia: 10
-			tecn.russia: 10
-			medi.russia: 10
+			tecn.russia: 100
+			e2.russia: 100
+			e3.russia: 100
+			ar.russia: 100
+			tl.russia: 100
+			at.russia: 30
+			mt.russia: 30
+			medi.russia: 30
+			aa.russia: 20
+			sn.russia: 20
+			E6.russia: 20
+
 			t72: 10
 			bmp2: 10
 			grad: 10
@@ -21,105 +23,30 @@ Player:
 			giatsint: 10
 			truk: 25
 		UnitLimits:
+			tecn.russia: 2
+			E6.russia: 2
 			dog: 6
-
 
 	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
-		SquadSize: 12
-		SquadSizeRandomBonus: 24
-		RushInterval: 200
-		AttackScanRadius: 40
+		SquadSize: 5
+		SquadSizeRandomBonus: 20
+		RushInterval: 100
+		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: # FF TODO
+		ExcludeFromSquadsTypes: tecn.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 
-	# UnitBuilderBotModule@russia.air:
-	# 	RequiresCondition: enable-ai-player && player.brics
-	# 	IdleBaseUnitsMaximum: 0
-	# 	UnitQueues: Aircraft
-	# 	UnitsToBuild:
-	# 		yak.ai: 60
-	# 		yak.belarus.ai: 60
-	# 		mig: 40
-	# 		hind: 100
-	# 	UnitLimits:
+	CaptureManagerBotModule@tecn:
+		RequiresCondition: enable-ai-player && player.brics
+		CapturingActorTypes: tecn.russia
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		CheckCaptureTargetsForVisibility: false
+		MaximumCaptureTargetOptions: 15
 
-	# SupportPowerBotModule@russia:
-	# 	RequiresCondition: enable-ai-player && player.brics
-	# 	Decisions:
-	# 		# UseSpyPlane:
-	# 		# 	OrderName: RussiaSpyPlane
-	# 		# 	MinimumAttractiveness: 1
-	# 		# 	Consideration@1:
-	# 		# 		Against: Enemy
-	# 		# 		Types: Structure
-	# 		# 		Attractiveness: 1
-	# 		# 		TargetMetric: None
-	# 		# 		CheckRadius: 5c0
-	# 		# UseParatroopers:
-	# 		# 	OrderName: RussiaParatroopers
-	# 		# 	MinimumAttractiveness: 5
-	# 		# 	Consideration@1:
-	# 		# 		Against: Enemy
-	# 		# 		Types: Structure
-	# 		# 		Attractiveness: 1
-	# 		# 		TargetMetric: None
-	# 		# 		CheckRadius: 8c0
-	# 		# 	Consideration@2:
-	# 		# 		Against: Enemy
-	# 		# 		Types: Water
-	# 		# 		Attractiveness: -5
-	# 		# 		TargetMetric: None
-	# 		# 		CheckRadius: 8c0
-	# 		# UseV2Strike:
-	# 		# 	OrderName: V2Strike
-	# 		# 	MinimumAttractiveness: 1
-	# 		# 	Consideration@1:
-	# 		# 		Against: Enemy
-	# 		# 		Types: Structure
-	# 		# 		Attractiveness: 1
-	# 		# 		TargetMetric: None
-	# 		# 		CheckRadius: 5c0
-	# 		# UseEMPBomb:
-	# 		# 	OrderName: EMPBomb
-	# 		# 	MinimumAttractiveness: 1
-	# 		# 	Consideration@1:
-	# 		# 		Against: Enemy
-	# 		# 		Types: Structure
-	# 		# 		Attractiveness: 1
-	# 		# 		TargetMetric: None
-	# 		# 		CheckRadius: 3c0
-	# 		# UseNuclear:
-	# 		# 	OrderName: NukeMissile
-	# 		# 	MinimumAttractiveness: 3000
-	# 		# 	Consideration@1:
-	# 		# 		Against: Enemy
-	# 		# 		Types: Structure
-	# 		# 		Attractiveness: 1
-	# 		# 		TargetMetric: Value
-	# 		# 		CheckRadius: 5c0
-	# 		# 	Consideration@2:
-	# 		# 		Against: Ally
-	# 		# 		Types: Air, Ground, Water
-	# 		# 		Attractiveness: -10
-	# 		# 		TargetMetric: Value
-	# 		# 		CheckRadius: 7c0
-	# 		# UseInvulnerability:
-	# 		# 	OrderName: IronCurtainPower
-	# 		# 	MinimumAttractiveness: 1
-	# 		# 	Consideration@1:
-	# 		# 		Against: Ally
-	# 		# 		Types: ICTarget
-	# 		# 		Attractiveness: 1
-	# 		# 		TargetMetric: None
-	# 		# 		CheckRadius: 1c0
-
-	# SquadManagerBotModule@russia.air:
-	# 	RequiresCondition: enable-ai-player && player.brics
-	# 	SquadSize: 2
-	# 	SquadSizeRandomBonus: 4
-	# 	RushInterval: 800
-	# 	AttackScanRadius: 48
-	# 	ExcludeFromSquadsTypes: # FF TODO
-	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+	CaptureManagerBotModule@engineer:
+		RequiresCondition: enable-ai-player
+		CapturingActorTypes: e6
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		CheckCaptureTargetsForVisibility: false
+		MaximumCaptureTargetOptions: 15
