@@ -16,6 +16,15 @@
 	RenderSprites:
 
 ^Combatant:
+	# AnnounceOnSeen:
+	# 	Type:
+	# 	Color:
+	# 	FromRadius:
+	# 	ToRadius:
+	# 	ResizeSpeed:
+	# 	RotationSpeed:
+	# 	Duration:
+	# 	TextNotification: Discovered
 
 ^StandardDetection:
 	RevealsShroud:

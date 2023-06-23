@@ -59,7 +59,6 @@
 		Modifier: 0
 		RequiresCondition: disable-experience
 	HiddenUnderFog:
-	ActorLostNotification:
 	GpsDot:
 		String: Infantry
 	Crushable:
@@ -200,6 +199,9 @@
 	WithInfantryBody@Parachute:
 		StandSequences: parachute
 		RequiresCondition: parachute
+	AnnounceOnSeen:
+		Type: Soldier
+		TextNotification: Spotted: Infantry
 
 ^CivInfantry:
 	Inherits: ^Infantry
@@ -2197,6 +2199,9 @@ DOG:
 	-Wanders:
 	Tooltip:
 		Name: Technician
+	AnnounceOnSeen:
+		Type: SupportInfantry
+		TextNotification: Spotted: Technician
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier

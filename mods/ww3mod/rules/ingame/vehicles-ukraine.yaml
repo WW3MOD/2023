@@ -6,6 +6,8 @@ t72:
 	Tooltip:
 		Name: T-72
 		GenericName: MBT
+	ActorLostNotification:
+		TextNotification: Lost: T-72
 	RenderSprites:
 		Image: t72
 		Scale: 1.25

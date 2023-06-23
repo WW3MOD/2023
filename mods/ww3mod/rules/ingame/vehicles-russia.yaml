@@ -6,6 +6,11 @@ t90:
 	Tooltip:
 		Name: T-90
 		GenericName: MBT
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: T-90
+	ActorLostNotification:
+		TextNotification: Lost: T-90
 	RenderSprites:
 		Image: t90
 		Scale: 1.25
@@ -94,6 +99,11 @@ bmp2:
 	Tooltip:
 		Name: BPM-2
 		GenericName: IFV Troop Carrier
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: BMP
+	ActorLostNotification:
+		TextNotification: Lost: BMP
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
@@ -101,8 +111,6 @@ bmp2:
 		Description: IFV Troop Carrier armed with a 73mm cannon and ATGM
 	Valued:
 		Cost: 1000
-	Tooltip:
-		Name: BMP-2 IFV
 	Health:
 		HP: 7000
 	Armor:
@@ -226,6 +234,11 @@ btr:
 	Tooltip:
 		Name: BTR-80
 		GenericName: Armoured Personnel Carrier
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: BTR
+	ActorLostNotification:
+		TextNotification: Lost: BTR
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
@@ -315,6 +328,11 @@ tunguska:
 	Tooltip:
 		Name: 2K22 Tunguska
 		GenericName: Mobile AA
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Tunguska
+	ActorLostNotification:
+		TextNotification: Lost: Tunguska
 	RenderSprites:
 		Scale: 1.25
 	Buildable:
@@ -464,6 +482,11 @@ giatsint:
 		IconPalette: chrome
 	Tooltip:
 		Name: 2S5 Giatsint-S
+	AnnounceOnSeen:
+		Type: Artillery
+		TextNotification: Spotted: Giatsint
+	ActorLostNotification:
+		TextNotification: Lost: Giatsint
 	Valued:
 		Cost: 1800
 	UpdatesPlayerStatistics:
@@ -563,6 +586,11 @@ grad:
 		Cost: 1800
 	Tooltip:
 		Name: BM-21 Grad
+	AnnounceOnSeen:
+		Type: Artillery
+		TextNotification: Spotted: Grad
+	ActorLostNotification:
+		TextNotification: Lost: Grad
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -660,6 +688,11 @@ tos:
 		Cost: 2500
 	Tooltip:
 		Name: TOS
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: TOS
+	ActorLostNotification:
+		TextNotification: Lost: TOS
 	RenderSprites:
 		Scale: 1.25
 	UpdatesPlayerStatistics:
@@ -752,6 +785,11 @@ tos:
 # 		Cost: 3500
 # 	Tooltip:
 # 		Name: Iskander
+#	AnnounceOnSeen:
+#		Type: Vehicle
+#		TextNotification: Spotted: Iskander
+#	ActorLostNotification:
+#		TextNotification: Lost: Iskander
 # 	RenderSprites:
 # 		Scale: 1.25
 # 	UpdatesPlayerStatistics:
@@ -893,6 +931,11 @@ tos:
 # 	Tooltip:
 # 		Name: Tesla Tank
 # 		GenericName: Tank
+#	AnnounceOnSeen:
+#		Type: Vehicle
+#		TextNotification: Spotted: Tesla Tank
+#	ActorLostNotification:
+#		TextNotification: Lost: Tesla Tank
 # 	UpdatesPlayerStatistics:
 # 		AddToArmyValue: true
 # 	Selectable:

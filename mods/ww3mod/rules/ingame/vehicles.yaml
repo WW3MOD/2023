@@ -55,7 +55,6 @@
 		CargoType: Vehicle
 	AttackMove:
 	HiddenUnderFog:
-	ActorLostNotification:
 	ProximityCaptor:
 		Types: Vehicle
 	GpsDot:
@@ -72,7 +71,6 @@
 		CancelActivity: True
 	CaptureNotification:
 		Notification: UnitStolen
-		LoseNotification: UnitLost
 	MustBeDestroyed:
 	Voiced:
 		VoiceSet: VehicleVoice
@@ -155,6 +153,11 @@ TRUK:
 		Cost: 600
 	Tooltip:
 		Name: Supply Truck
+	AnnounceOnSeen:
+		Type: SupportVehicle
+		TextNotification: Spotted: Supply truck
+	ActorLostNotification:
+		TextNotification: Lost: Supply Truck
 	Armor:
 		Type: Unarmored
 	Targetable:
@@ -196,6 +199,11 @@ MSAR:
 	Inherits@Selection: ^SelectableSupportUnit
 	Tooltip:
 		Name: Mobile Radar
+	ActorLostNotification:
+		TextNotification: Lost: Mobile Radar
+	AnnounceOnSeen:
+		Type: SupportVehicle
+		TextNotification: Spotted: Mobile Radar
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 99

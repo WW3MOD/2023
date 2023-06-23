@@ -7,6 +7,11 @@ abrams:
 	Tooltip:
 		Name: Abrams M1A2
 		GenericName: Abrams
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Abrams
+	ActorLostNotification:
+		TextNotification: Lost: Abrams
 	RenderSprites:
 		Image: abrams
 		Scale: 1.25
@@ -99,6 +104,11 @@ bradley:
 	Tooltip:
 		Name: Bradley
 		GenericName: IFV Troop Carrier
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Bradley
+	ActorLostNotification:
+		TextNotification: Lost: Bradley
 	RenderSprites:
 		Image: bradley
 		Scale: 1.3
@@ -244,6 +254,11 @@ humvee:
 		Cost: 700
 	Tooltip:
 		Name: Humvee
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Humvee
+	ActorLostNotification:
+		TextNotification: Lost: Humvee
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -375,6 +390,11 @@ m113:
 	Tooltip:
 		Name: M113 APC
 		GenericName: Armoured Personnel Carrier
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: M113
+	ActorLostNotification:
+		TextNotification: Lost: M113
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
@@ -469,6 +489,11 @@ strykershorad:
 	Tooltip:
 		Name: Stryker SHORAD
 		GenericName: Stryker Short Range Air Defense
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Stryker
+	ActorLostNotification:
+		TextNotification: Lost: Stryker
 	RenderSprites:
 		Image: strykershorad
 		Scale: 1.1
@@ -637,6 +662,11 @@ m109:
 		Description: M109 Paladin, long range howitzer
 	Tooltip:
 		Name: Paladin
+	AnnounceOnSeen:
+		Type: Artillery
+		TextNotification: Spotted: Paladin
+	ActorLostNotification:
+		TextNotification: Lost: Paladin
 	Valued:
 		Cost: 1800
 	UpdatesPlayerStatistics:
@@ -742,6 +772,11 @@ m270:
 		Cost: 2000
 	Tooltip:
 		Name: M270 MLRS
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: M270
+	ActorLostNotification:
+		TextNotification: Lost: M270
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -832,6 +867,11 @@ m270:
 # 		Cost: 3500
 # 	Tooltip:
 # 		Name: HIMARS
+#	AnnounceOnSeen:
+#		Type: Vehicle
+#		TextNotification: Spotted: HIMARS
+# 	ActorLostNotification:
+# 		TextNotification: Lost: HIMARS
 # 	RenderSprites:
 # 		Scale: 1.25
 # 	UpdatesPlayerStatistics:
@@ -945,6 +985,11 @@ m270:
 # 		Cost: 3000
 # 	Tooltip:
 # 		Name: Prism Tank
+#	AnnounceOnSeen:
+#		Type: Vehicle
+#		TextNotification: Spotted: Prism Tank
+# 	ActorLostNotification:
+# 		TextNotification: Lost: Prism Tank
 # 	UpdatesPlayerStatistics:
 # 		AddToArmyValue: true
 # 	Health:

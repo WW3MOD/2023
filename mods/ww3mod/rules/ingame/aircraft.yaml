@@ -40,8 +40,6 @@
 	AttackMove:
 	Guard:
 	Guardable:
-	ActorLostNotification:
-		Notification: AirUnitLost
 	ProximityCaptor:
 		Types: Plane
 	GpsDot:
@@ -89,6 +87,8 @@
 
 ^Aircraft:
 	Inherits@Type: ^Airborne
+	ActorLostNotification:
+		Notification: AirUnitLost
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
 		RequiresCondition: airborne && !rank-veteran
@@ -119,6 +119,8 @@
 
 ^Helicopter:
 	Inherits@Type: ^Airborne
+	ActorLostNotification:
+		Notification: AirUnitLost
 	-BodyOrientation:
 	Tooltip:
 		GenericName: Helicopter
