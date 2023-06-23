@@ -21,13 +21,11 @@
 			Rough: 70
 			Debris: 50
 			Rock: 30
-			Cliffs: 0
 
 			TreeClear: 50
 			TreeRough: 50
 			TreeDebris: 80
 			TreeRock: 80
-			TreeCliffs: 0
 
 			Beach: 80
 			RiverShallow: 30

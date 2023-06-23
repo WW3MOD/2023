@@ -102,20 +102,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			self.World.AddFrameEndTask(w =>
 			{
-				RemainingTicks = Util.ApplyPercentageModifiers(Info.ReloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
-
-				var reloadCount = Info.ReloadCount;
-				if (Info.FullReloadSteps > 0)
-				{
-					double a = Info.Ammo / Info.FullReloadSteps;
-					reloadCount = (int)System.Math.Ceiling(a);
-				}
+				// RemainingTicks = Util.ApplyPercentageModifiers(Info.ReloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
 
 				if (Info.FullReloadTicks > 0)
+				{
+					var reloadCount = Info.ReloadCount;
+					if (Info.FullReloadSteps > 0)
+					{
+						double a = Info.Ammo / Info.FullReloadSteps;
+						reloadCount = (int)System.Math.Ceiling(a);
+					}
 					RemainingTicks = Util.ApplyPercentageModifiers(Info.FullReloadTicks * reloadCount / Info.Ammo, modifiers.Select(m => m.GetReloadAmmoModifier()));
+				}
 				else
 					RemainingTicks = Util.ApplyPercentageModifiers(Info.ReloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
-
 			});
 		}
 

@@ -384,7 +384,7 @@ twake:
 
 smoke_m:
 	idle:
-		Tick: 500
+		Tick: 100
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512
