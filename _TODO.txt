@@ -11,37 +11,8 @@
         500     Battalion       Liutenant Colonel
 
 - Stances
-
-    - HUNT          Spread out and search, converge and destroy enemy
-    - HOLD GROUND   Defend current position and newarby friendly forces
-    - AMBUSH        Only fire when exposed or if an ally close by is exposed, disable by double clicking when activating.
-    - RETREAT       Stay at maximum range from enemy
-    - HOLD FIRE     Neutral capturable objects, inefficient targets
-
-- Movements / Formations
-
-    - Move at max individual speed (how it is currently)
-    - Move in formation
-
-    - Close
-    - Default
-    - Far
-    - Organized
-
-
-- Announcements
-
-    - Enemy detected
-
-
     - Check SetUnitStance
     - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
-    - Formations
-        - "Stay in formation", move in current configuration
-        - Pre-defined formations
-        - Check Autotarget and how stances are set there, do similar on Move/Mobile?
-    - Units out of ammo rejects attack orders
-    - Add announcements like "Enemy Detected"
     - UnitStance
         - Add more stances?
         - Stay at a distance
@@ -61,6 +32,30 @@
             - How do each state work with:
                 - Move (And encountering enemy, should it cancel move order?)
                 - Attack-move
+
+    - HUNT          Spread out and search, converge and destroy enemy
+    - HOLD GROUND   Defend current position and newarby friendly forces
+    - AMBUSH        Only fire when exposed or if an ally close by is exposed, disable by double clicking when activating.
+    - RETREAT       Stay at maximum range from enemy
+    - HOLD FIRE     Neutral capturable objects, inefficient targets
+
+- Movements / Formations
+
+    - Units out of ammo rejects attack orders
+    - Move at max individual speed - How it is currently
+    - Move in formation - Don't move away from group
+        - Close
+        - Default
+        - Far
+        - Range-Organized, longest ranged units at the back
+    - Formations
+        - "Stay in formation", move in current configuration
+        - Pre-defined formations
+        - Check Autotarget and how stances are set there, do similar on Move/Mobile?
+
+- Announcements
+
+    - Enemy detected
 
 - AI
     - Needs to learn to build Logistics centers and rearm

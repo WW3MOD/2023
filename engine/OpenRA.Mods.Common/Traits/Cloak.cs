@@ -259,18 +259,22 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// CPU improvement
 			if (checkTick-- <= 0)
+			{
+				checkTick = 10;
 				return cachedIsVisible;
+			}
 
-			checkTick = 10;
 
 			if (!Cloaked || self.Owner.IsAlliedWith(viewer))
 			{
 				cachedIsVisible = true;
 			}
-
-			cachedIsVisible = self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
-				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
-				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+			else
+			{
+				cachedIsVisible = self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+					&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+					&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+			}
 
 			return cachedIsVisible;
 		}
