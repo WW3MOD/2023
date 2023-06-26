@@ -267,6 +267,7 @@ namespace OpenRA.Mods.Common.Traits
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 		}
 
+		// Desynced, hence uncommented
 		// public bool IsVisible(Actor self, Player viewer)
 		// {
 		// 	// CPU improvement
@@ -275,8 +276,6 @@ namespace OpenRA.Mods.Common.Traits
 		// 		checkTick = 10;
 		// 		return cachedIsVisible;
 		// 	}
-
-
 		// 	if (!Cloaked || self.Owner.IsAlliedWith(viewer))
 		// 	{
 		// 		cachedIsVisible = true;
