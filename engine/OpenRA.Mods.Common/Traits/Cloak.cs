@@ -105,6 +105,7 @@ namespace OpenRA.Mods.Common.Traits
 		int cloakedToken = Actor.InvalidConditionToken;
 
 		int checkTick = 0;
+		[Sync]
 		bool cachedIsVisible = true;
 
 		public Cloak(CloakInfo info)

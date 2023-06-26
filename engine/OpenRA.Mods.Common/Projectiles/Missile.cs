@@ -231,9 +231,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		WVec predVel;
 
 		[Sync]
-		WPos pos;
-		WPos lastPos;
-		WPos lastTargetPosition;
+		WPos pos, lastPos, lastTargetPosition;
 
 		WVec velocity;
 		int speed;
