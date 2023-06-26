@@ -477,7 +477,7 @@ namespace OpenRA
 			return nextAID++;
 		}
 
-		public static int SyncHash()
+		public int SyncHash()
 		{
 			// using (new PerfSample("synchash"))
 			{
