@@ -161,12 +161,12 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamage: 50
-		Spread: 80
+		RandomDamage: 25
+		Spread: 96
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
-		Explosions: explosion_minimal
+		Explosions: hit_minimal
 		ImpactSounds: kaboom12.aud
 	Warhead@EffectShrapnel: CreateEffect
 		Explosions: shrapnel_small

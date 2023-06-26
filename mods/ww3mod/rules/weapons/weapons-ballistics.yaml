@@ -599,7 +599,7 @@ ArtilleryRound.Paladin:
 	BurstWait: 240
 
 RocketPods:
-	Inherits@HitEffects: ^SmallExplosionEffects
+	Inherits@HitEffects: ^MediumExplosionEffects
 	ValidTargets: Ground
 	InvalidTargets: Infantry
 	Range: 25c0
