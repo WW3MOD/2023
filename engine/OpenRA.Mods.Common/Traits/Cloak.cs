@@ -259,27 +259,37 @@ namespace OpenRA.Mods.Common.Traits
 		// CPU Expensive!
 		public bool IsVisible(Actor self, Player viewer)
 		{
-			// CPU improvement
-			if (checkTick-- <= 0)
-			{
-				checkTick = 10;
-				return cachedIsVisible;
-			}
-
-
 			if (!Cloaked || self.Owner.IsAlliedWith(viewer))
-			{
-				cachedIsVisible = true;
-			}
-			else
-			{
-				cachedIsVisible = self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
-					&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
-					&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
-			}
+				return true;
 
-			return cachedIsVisible;
+			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 		}
+
+		// public bool IsVisible(Actor self, Player viewer)
+		// {
+		// 	// CPU improvement
+		// 	if (checkTick-- <= 0)
+		// 	{
+		// 		checkTick = 10;
+		// 		return cachedIsVisible;
+		// 	}
+
+
+		// 	if (!Cloaked || self.Owner.IsAlliedWith(viewer))
+		// 	{
+		// 		cachedIsVisible = true;
+		// 	}
+		// 	else
+		// 	{
+		// 		cachedIsVisible = self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+		// 			&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+		// 			&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+		// 	}
+
+		// 	return cachedIsVisible;
+		// }
 
 		Color IRadarColorModifier.RadarColorOverride(Actor self, Color color)
 		{
