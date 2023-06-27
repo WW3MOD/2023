@@ -30,6 +30,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("What units to the AI should build.", "What relative share of the total army must be this type of unit.")]
 		public readonly Dictionary<string, int> UnitsToBuild = null;
 
+
+		[Desc("")]
+		public readonly Dictionary<string, HashSet<string>> GroupTypes = null;
+
+
 		[Desc("What units should the AI have a maximum limit to train.")]
 		public readonly Dictionary<string, int> UnitLimits = null;
 
@@ -89,6 +94,9 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var q in Info.UnitQueues)
 					BuildUnit(bot, q, idleUnitCount < Info.IdleBaseUnitsMaximum);
 			}
+
+			var ownUnits = world.Actors.Where(a => self.Owner.RelationshipWith(a.Owner) == PlayerRelationship.Ally)
+				.ClosestTo(self);
 		}
 
 		void IBotRequestUnitProduction.RequestUnitProduction(IBot bot, string requestedActor)

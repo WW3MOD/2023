@@ -1,6 +1,53 @@
 2023
 
 
+- AI
+
+    - UnitBuilderBotModule
+
+        - Get a list of existing units
+
+        - Get a list of enemy units
+
+        - Calculate units needed to counter enemy
+
+        - Build units
+
+    - SquadManagerBotModule
+
+        - Take unassigned (new) units and assign them to "squads"
+
+        - Assign Squads to missions
+
+            - Defend Supply Route
+
+            - Defend Income
+
+            - Attack Income
+
+            - Attack Supply Route
+
+
+
+    - Needs to learn to build Logistics centers and rearm
+    - AutoAssign Actor Method
+        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
+    - Unit Builder Module
+        - Looks at what enemy has.
+        - Builds what is necessary, not just random.
+        - Units define capabilities, and Builder Module determines what capabilities are needed.
+    - Strategical Module
+        - Designates targets and areas of interest. Oil, and where to defend/attack.
+        - Designates new units to target locations and if needed transfers units between tactical groups.
+    - Tactical Module
+        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
+    - Operational Module
+        - Smaller squads move as one and attacks targets.
+        - Individual units attack targets of high value etc.
+
+
+
+
 - Vehicles becomes visible sometimes through fog?
 - Vehicle speed adjustments
 - Infantry visibility, got desynced. Fix or remake? Current solution uses lots of CPU at render_prepare
@@ -63,24 +110,6 @@
 - Announcements
 
     - Enemy detected
-
-- AI
-    - Needs to learn to build Logistics centers and rearm
-    - AutoAssign Actor Method
-        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
-    - Unit Builder Module
-        - Looks at what enemy has.
-        - Builds what is necessary, not just random.
-        - Units define capabilities, and Builder Module determines what capabilities are needed.
-    - Strategical Module
-        - Designates targets and areas of interest. Oil, and where to defend/attack.
-        - Designates new units to target locations and if needed transfers units between tactical groups.
-    - Tactical Module
-        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
-    - Operational Module
-        - Smaller squads move as one and attacks targets.
-        - Individual units attack targets of high value etc.
-
 
 
 Terrain

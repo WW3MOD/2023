@@ -24,6 +24,15 @@ Player:
 			m113: 10
 			m109: 10
 
+		GroupTypes:
+			fireteam: tl,e3,ar,e2
+			squad: fireteam, fireteam, tl,at,medi
+			platoon: squad, squad, tl,aa,mt,sn
+			company: platoon, platoon, tl,e6
+
+		GroupsToBuild:
+
+
 		UnitLimits:
 			truk: 3
 			tecn.america: 3

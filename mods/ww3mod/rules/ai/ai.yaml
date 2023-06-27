@@ -2,12 +2,15 @@ Player:
 	ModularBot@aiplayer:
 		Name: AI Player
 		Type: normal
+
 	GrantConditionOnBotOwner@aiplayer:
 		Condition: enable-ai-player
 		Bots: normal
+
 	ProvidesPrerequisite@AIRESTRICTOR:
 		Prerequisite: aitoodumb
 		RequiresCondition: enable-ai-player
+
 	GrantConditionOnPrerequisite@NAVYDISABLER:
 		Condition: global-disablenavy
 		Prerequisites: global-disablenavy
@@ -39,14 +42,12 @@ Player:
 	# 	McvFactoryTypes: weap
 	# 	MaxBaseRadius: 40
 
-
 	# CaptureManagerBotModule@captureenemystructures:
 	# 	RequiresCondition: enable-ai-player && player.nato
 	# 	CapturingActorTypes: e1.america
 	# 	CapturableActorTypes: logisticscenter
 	# 	CheckCaptureTargetsForVisibility: true
 	# 	MaximumCaptureTargetOptions: 100
-
 
 	# UnitBuilderBotModule@russia.air:
 	# 	RequiresCondition: enable-ai-player && player.brics
