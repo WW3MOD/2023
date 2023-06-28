@@ -294,10 +294,12 @@ RPG:
 		ContrailWidth: 20
 		Image: tankround
 	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Vehicle, Defense, Water
 		Damage: 6000
 		Penetration: 500
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
+		ValidTargets: Ground, Vehicle, Defense, Water
 		Spread: 64
 		Damage: 800
 		DamageTypes: ExplosionDeath
