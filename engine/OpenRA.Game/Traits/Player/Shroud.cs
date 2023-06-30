@@ -54,6 +54,9 @@ namespace OpenRA.Traits
 		[Desc("Display order for the explore map checkbox in the lobby.")]
 		public readonly int ExploredMapCheckboxDisplayOrder = 0;
 
+		[Desc("")]
+		public readonly int HazeLayers = 10;
+
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			yield return new LobbyBooleanOption("explored", ExploredMapCheckboxLabel, ExploredMapCheckboxDescription,
@@ -71,15 +74,15 @@ namespace OpenRA.Traits
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 
-		enum ShroudCellType : byte { Shroud, Fog, Visible }
+		// enum ShroudCellType : byte { Shroud, Fog, Haze, Visible = 100 }
 		class ShroudSource
 		{
-			public readonly SourceType Type;
+			public readonly int Visibility;
 			public readonly PPos[] ProjectedCells;
 
-			public ShroudSource(SourceType type, PPos[] projectedCells)
+			public ShroudSource(int visibility, PPos[] projectedCells)
 			{
-				Type = type;
+				Visibility = visibility;
 				ProjectedCells = projectedCells;
 			}
 		}
@@ -95,16 +98,18 @@ namespace OpenRA.Traits
 		readonly Dictionary<object, ShroudSource> sources = new Dictionary<object, ShroudSource>();
 
 		// Per-cell count of each source type, used to resolve the final cell type
+		readonly ProjectedCellLayer<short[]> visibilityCount;
+		readonly ProjectedCellLayer<short> radarCount;
+
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
 		readonly ProjectedCellLayer<short> visibleCount;
-		readonly ProjectedCellLayer<short> radarCount;
 		readonly ProjectedCellLayer<short> generatedShroudCount;
 		readonly ProjectedCellLayer<bool> explored;
 		readonly ProjectedCellLayer<bool> touched;
 		bool anyCellTouched;
 
 		// Per-cell cache of the resolved cell type (shroud/fog/visible)
-		readonly ProjectedCellLayer<ShroudCellType> resolvedType;
+		public ProjectedCellLayer<byte> ResolvedVisibility;
 
 		bool disabledChanged;
 		[Sync]
@@ -132,13 +137,17 @@ namespace OpenRA.Traits
 		// Enabled at runtime on first use
 		bool shroudGenerationEnabled;
 		bool passiveVisibilityEnabled;
+		public readonly int hazeLayers;
 
 		public Shroud(Actor self, ShroudInfo info)
 		{
 			this.info = info;
 			map = self.World.Map;
+			hazeLayers = info.HazeLayers;
 
+			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
+
 			passiveVisibleCount = new ProjectedCellLayer<short>(map);
 			visibleCount = new ProjectedCellLayer<short>(map);
 			generatedShroudCount = new ProjectedCellLayer<short>(map);
@@ -147,7 +156,7 @@ namespace OpenRA.Traits
 			anyCellTouched = true;
 
 			// Defaults to 0 = Shroud
-			resolvedType = new ProjectedCellLayer<ShroudCellType>(map);
+			ResolvedVisibility = new ProjectedCellLayer<byte>(map);
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -187,36 +196,38 @@ namespace OpenRA.Traits
 				if (!touched[index] && !disabledChanged)
 					continue;
 
+				if (visibilityCount[index] == null)
+					visibilityCount[index] = new short[2 + info.HazeLayers];
+
 				touched[index] = false;
 
-				var type = ShroudCellType.Shroud;
+				byte visibility = 0;
 
 				if (explored[index])
 				{
-					var count = visibleCount[index];
-					if (!shroudGenerationEnabled || count > 0 || generatedShroudCount[index] == 0)
-					{
-						if (passiveVisibilityEnabled)
-							count += passiveVisibleCount[index];
 
-						type = count > 0 ? ShroudCellType.Visible : ShroudCellType.Fog;
+					for (byte i = (byte)(visibilityCount[index].Length - 1); i > 0; i--)
+					{
+						if (visibilityCount[index][i] > 0)
+							visibility = i;
 					}
 				}
 
 				// PERF: Most cells are unchanged
-				var oldResolvedType = resolvedType[index];
-				if (type != oldResolvedType || disabledChanged)
+				var oldResolvedVisibility = ResolvedVisibility[index];
+				if (visibility != oldResolvedVisibility || disabledChanged)
 				{
-					resolvedType[index] = type;
+					ResolvedVisibility[index] = visibility;
 					var puv = touched.PPosFromIndex(index);
+
 					if (map.Contains(puv))
 						OnShroudChanged(puv);
 
 					if (!disabledChanged && (fogEnabled || !ExploreMapEnabled))
 					{
-						if (type == ShroudCellType.Visible)
+						if (visibility > 1)
 							RevealedCells++;
-						else if (fogEnabled && oldResolvedType == ShroudCellType.Visible)
+						else if (fogEnabled && oldResolvedVisibility > 1)
 							RevealedCells--;
 					}
 
@@ -258,12 +269,12 @@ namespace OpenRA.Traits
 			return ProjectedCellsInRange(map, map.CenterOfCell(cell), WDist.Zero, range, maxHeightDelta);
 		}
 
-		public void AddSource(object key, SourceType type, PPos[] projectedCells)
+		public void AddSource(object key, int visibility, PPos[] projectedCells)
 		{
 			if (sources.ContainsKey(key))
 				throw new InvalidOperationException("Attempting to add duplicate shroud source");
 
-			sources[key] = new ShroudSource(type, projectedCells);
+			sources[key] = new ShroudSource(visibility, projectedCells);
 
 			foreach (var puv in projectedCells)
 			{
@@ -274,25 +285,25 @@ namespace OpenRA.Traits
 				var index = touched.Index(puv);
 				touched[index] = true;
 				anyCellTouched = true;
-				switch (type)
+
+				if (visibilityCount[index] == null)
+					visibilityCount[index] = new short[2 + info.HazeLayers];
+
+				visibilityCount[index][visibility]++;
+
+				if (visibility > 1)
+					explored[index] = true;
+
+				/* if (visibility == 0)
 				{
-					case SourceType.PassiveVisibility:
-						passiveVisibilityEnabled = true;
-						passiveVisibleCount[index]++;
-						explored[index] = true;
-						break;
-					case SourceType.Visibility:
-						visibleCount[index]++;
-						explored[index] = true;
-						break;
-					case SourceType.Shroud:
-						shroudGenerationEnabled = true;
-						generatedShroudCount[index]++;
-						break;
-					case SourceType.Radar:
-						radarCount[index]++;
-						break;
-				}
+					shroudGenerationEnabled = true;
+					generatedShroudCount[index]++;
+				} */
+
+				// Use a different range for radar? Like 100-200, for different strengths - useful for stealth aircraft
+				// case SourceType.Radar:
+				// 	radarCount[index]++;
+				// 	break;
 			}
 		}
 
@@ -309,21 +320,12 @@ namespace OpenRA.Traits
 					var index = touched.Index(puv);
 					touched[index] = true;
 					anyCellTouched = true;
-					switch (state.Type)
-					{
-						case SourceType.PassiveVisibility:
-							passiveVisibleCount[index]--;
-							break;
-						case SourceType.Visibility:
-							visibleCount[index]--;
-							break;
-						case SourceType.Shroud:
-							generatedShroudCount[index]--;
-							break;
-						case SourceType.Radar:
-							radarCount[index]--;
-							break;
-					}
+
+					visibilityCount[index][state.Visibility]--;
+
+					// case SourceType.Radar:
+					// 	radarCount[index]--;
+					// 	break;
 				}
 			}
 
@@ -417,7 +419,7 @@ namespace OpenRA.Traits
 			if (Disabled)
 				return map.Contains(puv);
 
-			return resolvedType.Contains(puv) && resolvedType[puv] > ShroudCellType.Shroud;
+			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 0;
 		}
 
 		public bool RadarCover(WPos pos)
@@ -455,7 +457,7 @@ namespace OpenRA.Traits
 			if (!FogEnabled)
 				return map.Contains(puv);
 
-			return resolvedType.Contains(puv) && resolvedType[puv] == ShroudCellType.Visible;
+			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 1;
 		}
 
 		public bool Contains(PPos uv)
@@ -480,11 +482,11 @@ namespace OpenRA.Traits
 				if (fogEnabled)
 				{
 					// Shroud disabled, Fog enabled
-					if (resolvedType.Contains(puv))
+					if (ResolvedVisibility.Contains(puv))
 					{
 						state |= CellVisibility.Explored;
 
-						if (resolvedType[puv] == ShroudCellType.Visible)
+						if (ResolvedVisibility[puv] > 1)
 							state |= CellVisibility.Visible;
 					}
 				}
@@ -496,21 +498,21 @@ namespace OpenRA.Traits
 				if (fogEnabled)
 				{
 					// Shroud and Fog enabled
-					if (resolvedType.Contains(puv))
+					if (ResolvedVisibility.Contains(puv))
 					{
-						var rt = resolvedType[puv];
-						if (rt == ShroudCellType.Visible)
+						var rt = ResolvedVisibility[puv];
+						if (rt > 1)
 							state |= CellVisibility.Explored | CellVisibility.Visible;
-						else if (rt > ShroudCellType.Shroud)
+						else if (rt > 0)
 							state |= CellVisibility.Explored;
 					}
 				}
-				else if (resolvedType.Contains(puv))
+				else if (ResolvedVisibility.Contains(puv))
 				{
 					// We do not set Explored since IsExplored may return false.
 					state |= CellVisibility.Visible;
 
-					if (resolvedType[puv] > ShroudCellType.Shroud)
+					if (ResolvedVisibility[puv] > 0)
 						state |= CellVisibility.Explored;
 				}
 			}

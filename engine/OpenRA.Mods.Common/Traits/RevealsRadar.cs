@@ -33,7 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(self, info)
 		{
 			this.info = info;
-			type = Shroud.SourceType.Radar;
+			type = Shroud.SourceType.Radar; // TODO
 		}
 
 		protected override void Created(Actor self)
@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, type, uv);
+			p.Shroud.AddSource(this, 10, uv); // TODO
 		}
 
 		protected override void RemoveCellsFromPlayerRadar(Actor self, Player p) { p.Shroud.RemoveSource(this); }

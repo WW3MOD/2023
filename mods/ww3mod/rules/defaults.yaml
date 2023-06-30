@@ -18,47 +18,65 @@
 ^Combatant:
 
 ^StandardDetection:
-	RevealsShroud:
-		Range: 20c0
-	DetectCloaked@0:
-		DetectionTypes: Cloak_0
-		Range: 16c0
-	DetectCloaked@1:
-		DetectionTypes: Cloak_1
-		Range: 14c0
-	DetectCloaked@2:
-		DetectionTypes: Cloak_2
+	RevealsShroud@Visibility:
+		Visibility: 10
+		Range: 10c0
+	RevealsShroud@Haze1:
+		Visibility: 8
+		MinRange: 10c0
 		Range: 12c0
-	DetectCloaked@3:
-		DetectionTypes: Cloak_3
-		Range: 10c0
-	DetectCloaked@4:
-		DetectionTypes: Cloak_4
-		Range: 10c0
-	DetectCloaked@5:
-		DetectionTypes: Cloak_5
-		Range: 9c0
-	DetectCloaked@6:
-		DetectionTypes: Cloak_6
-		Range: 8c0
-	DetectCloaked@7:
-		DetectionTypes: Cloak_7
-		Range: 8c0
-	DetectCloaked@8:
-		DetectionTypes: Cloak_8
-		Range: 8c0
-	DetectCloaked@9:
-		DetectionTypes: Cloak_9
-		Range: 7c0
-	DetectCloaked@10:
-		DetectionTypes: Cloak_10
-		Range: 5c0
-	DetectCloaked@11:
-		DetectionTypes: Cloak_11
-		Range: 4c0
-	DetectCloaked@12:
-		DetectionTypes: Cloak_12
-		Range: 1c512
+	RevealsShroud@Haze2:
+		Visibility: 6
+		MinRange: 12c0
+		Range: 14c0
+	RevealsShroud@Haze3:
+		Visibility: 4
+		MinRange: 14c0
+		Range: 16c0
+	RevealsShroud@Haze4:
+		Visibility: 2
+		MinRange: 16c0
+		Range: 18c0
+
+	# DetectCloaked@0:
+	# 	DetectionTypes: Cloak_0
+	# 	Range: 16c0
+	# DetectCloaked@1:
+	# 	DetectionTypes: Cloak_1
+	# 	Range: 14c0
+	# DetectCloaked@2:
+	# 	DetectionTypes: Cloak_2
+	# 	Range: 12c0
+	# DetectCloaked@3:
+	# 	DetectionTypes: Cloak_3
+	# 	Range: 10c0
+	# DetectCloaked@4:
+	# 	DetectionTypes: Cloak_4
+	# 	Range: 10c0
+	# DetectCloaked@5:
+	# 	DetectionTypes: Cloak_5
+	# 	Range: 9c0
+	# DetectCloaked@6:
+	# 	DetectionTypes: Cloak_6
+	# 	Range: 8c0
+	# DetectCloaked@7:
+	# 	DetectionTypes: Cloak_7
+	# 	Range: 8c0
+	# DetectCloaked@8:
+	# 	DetectionTypes: Cloak_8
+	# 	Range: 8c0
+	# DetectCloaked@9:
+	# 	DetectionTypes: Cloak_9
+	# 	Range: 7c0
+	# DetectCloaked@10:
+	# 	DetectionTypes: Cloak_10
+	# 	Range: 5c0
+	# DetectCloaked@11:
+	# 	DetectionTypes: Cloak_11
+	# 	Range: 4c0
+	# DetectCloaked@12:
+	# 	DetectionTypes: Cloak_12
+	# 	Range: 1c512
 
 ^DetectionProximity:
 	RevealsShroudMultiplier@1:

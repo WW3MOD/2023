@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Effects
 		void AddCellsToPlayerShroud(Player p, PPos[] uv)
 		{
 			if (validStances.HasRelationship(player.RelationshipWith(p)))
-				p.Shroud.AddSource(this, sourceType, uv);
+				p.Shroud.AddSource(this, 10, uv); // todo check type etc
 		}
 
 		void RemoveCellsFromPlayerShroud(Player p) { p.Shroud.RemoveSource(this); }

@@ -23,12 +23,18 @@ namespace OpenRA.Mods.Cnc.Traits
 	class ShroudPaletteInfo : TraitInfo
 	{
 		[PaletteDefinition]
-		[FieldLoader.Require]
 		[Desc("Internal palette name")]
-		public readonly string Name = "shroud";
+		public readonly string Shroud = "shroud";
 
-		[Desc("Palette type")]
-		public readonly bool Fog = false;
+		[PaletteDefinition]
+		[Desc("Internal palette name")]
+		public readonly string Fog = "fog";
+
+		[PaletteDefinition]
+		[Desc("Internal palette name")]
+		public readonly string Haze = "haze";
+
+		public readonly int HazeSteps = 10;
 
 		public override object Create(ActorInitializer init) { return new ShroudPalette(this); }
 	}
@@ -41,30 +47,57 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		public void LoadPalettes(WorldRenderer wr)
 		{
-			var c = info.Fog ? Fog : Shroud;
-			wr.AddPalette(info.Name, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)c[i % 8].ToArgb())));
+			wr.AddPalette(info.Shroud, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)ShroudColors[i % 8].ToArgb())));
+			wr.AddPalette(info.Fog, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)FogColors[i % 8].ToArgb())));
+
+			for (int hazeIndex = 0; hazeIndex < info.HazeSteps; hazeIndex++)
+			{
+				Color[] HazeColors = new[]
+				{
+					Color.FromArgb(0, 0, 0, 0),
+					Color.Green, Color.Blue, Color.Yellow,
+					Color.FromArgb(20 + hazeIndex * 10, 0, 0, 0),
+					Color.FromArgb(96, 0, 0, 0),
+					Color.FromArgb(64, 0, 0, 0),
+					Color.FromArgb(32, 0, 0, 0)
+				};
+
+				wr.AddPalette(info.Haze + hazeIndex, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)HazeColors[i % 8].ToArgb())));
+			}
+
 		}
 
-		static readonly Color[] Fog = new[]
+		static readonly Color[] ShroudColors = new[]
 		{
 			Color.FromArgb(0, 0, 0, 0),
 			Color.Green, Color.Blue, Color.Yellow,
-			Color.FromArgb(128, 0, 0, 0),
+			Color.FromArgb(255, 0, 0, 0),
 			Color.FromArgb(96, 0, 0, 0),
 			Color.FromArgb(64, 0, 0, 0),
 			Color.FromArgb(32, 0, 0, 0)
 		};
 
-		static readonly Color[] Shroud = new[]
+		static readonly Color[] FogColors = new[]
 		{
 			Color.FromArgb(0, 0, 0, 0),
 			Color.Green, Color.Blue, Color.Yellow,
-			Color.FromArgb(160, 0, 0, 0),
+			Color.FromArgb(150, 0, 0, 0),
 			Color.FromArgb(96, 0, 0, 0),
 			Color.FromArgb(64, 0, 0, 0),
 			Color.FromArgb(32, 0, 0, 0)
 		};
 
-		public IEnumerable<string> PaletteNames { get { yield return info.Name; } }
+		public IEnumerable<string> PaletteNames {
+			get
+			{
+				yield return info.Shroud;
+				yield return info.Fog;
+
+				for (int hazeIndex = 0; hazeIndex < info.HazeSteps; hazeIndex++)
+				{
+					yield return info.Haze + hazeIndex;
+				}
+			}
+		}
 	}
 }

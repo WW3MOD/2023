@@ -46,7 +46,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, Shroud.SourceType.Shroud, uv);
+			p.Shroud.AddSource(this, 0, uv);
 		}
 
 		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p) { p.Shroud.RemoveSource(this); }

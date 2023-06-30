@@ -1,0 +1,34 @@
+
+ShroudPalette
+
+    - Dynamically create 100 or so palettes
+
+ShroudRenderer
+
+    - Loads the palette like: fogPaletteReference = wr.Palette(info.FogPalette);
+
+    - Load palette depending on ShroudCellType (convert to int if Haze)
+
+Shroud
+
+    - resolvedType
+
+Flow
+
+    RevealsShroud: Determines how far is visible and Haze falloff
+    Shroud: Resolved type is a dynamic value 1-100 from Fog to Visible
+    -Renderer: Use resolved type to render dynamic palette
+
+
+Problem
+
+    The problem right now is that, even though each cell has the correct ResolvedVisibility set, when
+        the ShroudRenderer renders, it:
+            - Sets shroud everywhere that regenereates just like fog. This can be solved. But,
+            - Even if there was fog in the right place, the changing of the palette makes squares
+                and doesnt fade nicely like layers.
+
+    The solution must be to go back to having multiple layers that fade nicely against eachother.
+        - Should be possible, might be more expensive but if there is no other choice it must be done.
+        - Must find how the border between layers are set and update their opacity to fade nicely.
+

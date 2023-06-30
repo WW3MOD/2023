@@ -95,6 +95,45 @@ namespace OpenRA.Graphics
 			Update(cell.ToMPos(map.Grid.Type), sprite, palette, xyz, scale, alpha, ignoreTint);
 		}
 
+		public void Update(MPos uv, Sprite sprite, PaletteReference palette, in float3 pos, float scale, float alpha, bool ignoreTint)
+		{
+			int2 samplers;
+			if (sprite != null)
+			{
+				if (sprite.BlendMode != BlendMode)
+					throw new InvalidDataException("Attempted to add sprite with a different blend mode");
+
+				samplers = new int2(GetOrAddSheetIndex(sprite.Sheet), GetOrAddSheetIndex((sprite as SpriteWithSecondaryData)?.SecondarySheet));
+
+				// PERF: Remove useless palette assignments for RGBA sprites
+				// HACK: This is working around the limitation that palettes are defined on traits rather than on sequences,
+				// and can be removed once this has been fixed
+				if (sprite.Channel == TextureChannel.RGBA && !(palette?.HasColorShift ?? false))
+					palette = null;
+			}
+			else
+			{
+				sprite = emptySprite;
+				samplers = int2.Zero;
+			}
+
+			// The vertex buffer does not have geometry for cells outside the map
+			if (!map.Tiles.Contains(uv))
+				return;
+
+			var offset = rowStride * uv.V + 6 * uv.U;
+			Util.FastCreateQuad(vertices, pos, sprite, samplers, palette?.TextureIndex ?? 0, offset, scale * sprite.Size, alpha * float3.Ones, alpha);
+			palettes[uv.V * map.MapSize.X + uv.U] = palette;
+
+			if (worldRenderer.TerrainLighting != null)
+			{
+				this.ignoreTint[offset] = ignoreTint;
+				UpdateTint(uv);
+			}
+
+			dirtyRows.Add(uv.V);
+		}
+
 		void UpdateTint(MPos uv)
 		{
 			var offset = rowStride * uv.V + 6 * uv.U;
@@ -152,45 +191,6 @@ namespace OpenRA.Graphics
 			}
 
 			throw new InvalidDataException("Sheet overflow");
-		}
-
-		public void Update(MPos uv, Sprite sprite, PaletteReference palette, in float3 pos, float scale, float alpha, bool ignoreTint)
-		{
-			int2 samplers;
-			if (sprite != null)
-			{
-				if (sprite.BlendMode != BlendMode)
-					throw new InvalidDataException("Attempted to add sprite with a different blend mode");
-
-				samplers = new int2(GetOrAddSheetIndex(sprite.Sheet), GetOrAddSheetIndex((sprite as SpriteWithSecondaryData)?.SecondarySheet));
-
-				// PERF: Remove useless palette assignments for RGBA sprites
-				// HACK: This is working around the limitation that palettes are defined on traits rather than on sequences,
-				// and can be removed once this has been fixed
-				if (sprite.Channel == TextureChannel.RGBA && !(palette?.HasColorShift ?? false))
-					palette = null;
-			}
-			else
-			{
-				sprite = emptySprite;
-				samplers = int2.Zero;
-			}
-
-			// The vertex buffer does not have geometry for cells outside the map
-			if (!map.Tiles.Contains(uv))
-				return;
-
-			var offset = rowStride * uv.V + 6 * uv.U;
-			Util.FastCreateQuad(vertices, pos, sprite, samplers, palette?.TextureIndex ?? 0, offset, scale * sprite.Size, alpha * float3.Ones, alpha);
-			palettes[uv.V * map.MapSize.X + uv.U] = palette;
-
-			if (worldRenderer.TerrainLighting != null)
-			{
-				this.ignoreTint[offset] = ignoreTint;
-				UpdateTint(uv);
-			}
-
-			dirtyRows.Add(uv.V);
 		}
 
 		public void Draw(Viewport viewport)

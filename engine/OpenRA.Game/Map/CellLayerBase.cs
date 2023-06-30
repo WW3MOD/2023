@@ -27,7 +27,18 @@ namespace OpenRA
 		public CellLayerBase(Map map)
 			: this(map.Grid.Type, new Size(map.MapSize.X, map.MapSize.Y)) { }
 
+		public CellLayerBase(Map map, int arraySize)
+			: this(map.Grid.Type, new Size(map.MapSize.X, map.MapSize.Y), arraySize) { }
+
 		public CellLayerBase(MapGridType gridType, Size size)
+		{
+			Size = size;
+			Bounds = new Rectangle(0, 0, Size.Width, Size.Height);
+			GridType = gridType;
+			Entries = new T[size.Width * size.Height];
+		}
+
+		public CellLayerBase(MapGridType gridType, Size size, int arraySize)
 		{
 			Size = size;
 			Bounds = new Rectangle(0, 0, Size.Width, Size.Height);
