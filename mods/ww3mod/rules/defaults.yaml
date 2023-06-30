@@ -18,25 +18,45 @@
 ^Combatant:
 
 ^StandardDetection:
-	RevealsShroud@Visibility:
+	RevealsShroud@Visibility_10:
 		Visibility: 10
+		Range: 8c0
+	RevealsShroud@Visibility_9:
+		Visibility: 9
+		MinRange: 8c0
 		Range: 10c0
-	RevealsShroud@Haze1:
+	RevealsShroud@Visibility_8:
 		Visibility: 8
 		MinRange: 10c0
 		Range: 12c0
-	RevealsShroud@Haze2:
-		Visibility: 6
+	RevealsShroud@Visibility_7:
+		Visibility: 7
 		MinRange: 12c0
 		Range: 14c0
-	RevealsShroud@Haze3:
-		Visibility: 4
+	RevealsShroud@Visibility_6:
+		Visibility: 6
 		MinRange: 14c0
 		Range: 16c0
-	RevealsShroud@Haze4:
-		Visibility: 2
+	RevealsShroud@Visibility_5:
+		Visibility: 5
 		MinRange: 16c0
 		Range: 18c0
+	RevealsShroud@Visibility_4:
+		Visibility: 4
+		MinRange: 18c0
+		Range: 20c0
+	RevealsShroud@Visibility_3:
+		Visibility: 3
+		MinRange: 20c0
+		Range: 22c0
+	RevealsShroud@Visibility_2:
+		Visibility: 2
+		MinRange: 22c0
+		Range: 24c0
+	RevealsShroud@Visibility_1:
+		Visibility: 1
+		MinRange: 24c0
+		Range: 26c0
 
 	# DetectCloaked@0:
 	# 	DetectionTypes: Cloak_0

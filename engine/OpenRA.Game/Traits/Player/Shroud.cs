@@ -87,10 +87,6 @@ namespace OpenRA.Traits
 			}
 		}
 
-		// Visible is not a super set of Explored. IsExplored may return false even if IsVisible returns true.
-		[Flags]
-		public enum CellVisibility : byte { Hidden = 0x0, Explored = 0x1, Visible = 0x2 }
-
 		readonly ShroudInfo info;
 		readonly Map map;
 
@@ -205,7 +201,7 @@ namespace OpenRA.Traits
 
 				if (explored[index])
 				{
-
+					// Find the highest visibility for position
 					for (byte i = (byte)(visibilityCount[index].Length - 1); i > 0; i--)
 					{
 						if (visibilityCount[index][i] > 0)
@@ -225,9 +221,9 @@ namespace OpenRA.Traits
 
 					if (!disabledChanged && (fogEnabled || !ExploreMapEnabled))
 					{
-						if (visibility > 1)
+						if (visibility > 0)
 							RevealedCells++;
-						else if (fogEnabled && oldResolvedVisibility > 1)
+						else if (fogEnabled && oldResolvedVisibility > 0)
 							RevealedCells--;
 					}
 
@@ -291,7 +287,7 @@ namespace OpenRA.Traits
 
 				visibilityCount[index][visibility]++;
 
-				if (visibility > 1)
+				if (visibility > 0)
 					explored[index] = true;
 
 				/* if (visibility == 0)
@@ -467,15 +463,15 @@ namespace OpenRA.Traits
 			return explored.Contains(uv);
 		}
 
-		public CellVisibility GetVisibility(WPos pos)
+		public byte GetVisibility(WPos pos)
 		{
 			return GetVisibility(map.ProjectedCellCovering(pos));
 		}
 
 		// PERF: Combine IsExplored and IsVisible.
-		public CellVisibility GetVisibility(PPos puv)
+		public byte GetVisibility(PPos puv)
 		{
-			var state = CellVisibility.Hidden;
+			var state = 0;
 
 			if (Disabled)
 			{
@@ -484,14 +480,11 @@ namespace OpenRA.Traits
 					// Shroud disabled, Fog enabled
 					if (ResolvedVisibility.Contains(puv))
 					{
-						state |= CellVisibility.Explored;
-
-						if (ResolvedVisibility[puv] > 1)
-							state |= CellVisibility.Visible;
+						state = ResolvedVisibility[puv];
 					}
 				}
 				else if (map.Contains(puv))
-					state |= CellVisibility.Explored | CellVisibility.Visible;
+					state |= 10;
 			}
 			else
 			{
@@ -500,24 +493,17 @@ namespace OpenRA.Traits
 					// Shroud and Fog enabled
 					if (ResolvedVisibility.Contains(puv))
 					{
-						var rt = ResolvedVisibility[puv];
-						if (rt > 1)
-							state |= CellVisibility.Explored | CellVisibility.Visible;
-						else if (rt > 0)
-							state |= CellVisibility.Explored;
+						state = ResolvedVisibility[puv];
 					}
 				}
 				else if (ResolvedVisibility.Contains(puv))
 				{
-					// We do not set Explored since IsExplored may return false.
-					state |= CellVisibility.Visible;
-
 					if (ResolvedVisibility[puv] > 0)
-						state |= CellVisibility.Explored;
+						state = 10;
 				}
 			}
 
-			return state;
+			return (byte)state;
 		}
 	}
 }

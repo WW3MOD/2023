@@ -214,8 +214,6 @@
 	Tooltip:
 		Name: Civilian
 		GenericVisibility: None
-	RevealsShroud:
-		Range: 16c0
 	Passenger:
 		CustomPipType: empty_class
 	ProximityCaptor:

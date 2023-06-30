@@ -10,8 +10,6 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
-	RevealsShroud:
-		Range: 20c0
 	Health:
 		HP: 5000
 	Armor:

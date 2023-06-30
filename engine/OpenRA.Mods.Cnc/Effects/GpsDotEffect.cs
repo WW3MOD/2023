@@ -74,11 +74,11 @@ namespace OpenRA.Mods.Cnc.Effects
 
 			// Hide the indicator behind shroud
 			var visibility = toPlayer.Shroud.GetVisibility(actor.CenterPosition);
-			if (!visibility.HasFlag(Shroud.CellVisibility.Explored))
+			if (visibility == 0)
 				return false;
 
 			// Hide for visible
-			if (visibility.HasFlag(Shroud.CellVisibility.Visible))
+			if (visibility == 10)
 				return false;
 
 			// Hide indicator if the actor wouldn't otherwise be visible if there wasn't fog

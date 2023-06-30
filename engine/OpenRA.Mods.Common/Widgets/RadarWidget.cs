@@ -255,9 +255,9 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var color = 0;
 			var cv = currentPlayer.Shroud.GetVisibility(puv);
-			if (!cv.HasFlag(Shroud.CellVisibility.Explored))
+			if (cv == 0)
 				color = ColorShroud;
-			else if (!cv.HasFlag(Shroud.CellVisibility.Visible))
+			else if (cv > 0)
 				color = ColorFog;
 
 			var stride = radarSheet.Size.Width;

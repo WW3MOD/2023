@@ -14,9 +14,13 @@ Shroud
     - resolvedType
 
 Flow
+    Shroud: Resolved is a number
+        0 = Shroud
+        1 = Fog
+        2- = Haze
+        X = Visibile
 
     RevealsShroud: Determines how far is visible and Haze falloff
-    Shroud: Resolved type is a dynamic value 1-100 from Fog to Visible
     -Renderer: Use resolved type to render dynamic palette
 
 
