@@ -242,10 +242,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else
 			{
-				cellVisibility = puv => {
-					var index = ((MPos)puv).ToCellIndex(map);
-					return world.RenderPlayer.Shroud.ResolvedVisibility[index];
-				};
+				cellVisibility = puv => world.RenderPlayer.Shroud.GetVisibility(puv);
 			}
 
 			var shroudBlend = shroudSprites[0].Sprite.BlendMode;
@@ -291,20 +288,20 @@ namespace OpenRA.Mods.Common.Traits
 			return neighbors;
 		}
 
-		Edges GetEdges(byte[] neighbors, byte visibleMask)
+		Edges GetEdges(byte[] neighbors, byte cellVisibility)
 		{
 			// If a side is shrouded then we also count the corners.
 			var edges = Edges.None;
-			if ((neighbors[(int)Neighbor.Top] & visibleMask) == 0) edges |= Edges.Top;
-			if ((neighbors[(int)Neighbor.Right] & visibleMask) == 0) edges |= Edges.Right;
-			if ((neighbors[(int)Neighbor.Bottom] & visibleMask) == 0) edges |= Edges.Bottom;
-			if ((neighbors[(int)Neighbor.Left] & visibleMask) == 0) edges |= Edges.Left;
+			if (neighbors[(int)Neighbor.Top] < cellVisibility) edges |= Edges.Top;
+			if (neighbors[(int)Neighbor.Right] < cellVisibility) edges |= Edges.Right;
+			if (neighbors[(int)Neighbor.Bottom] < cellVisibility) edges |= Edges.Bottom;
+			if (neighbors[(int)Neighbor.Left] < cellVisibility) edges |= Edges.Left;
 
 			var ucorner = edges & Edges.AllCorners;
-			if ((neighbors[(int)Neighbor.TopLeft] & visibleMask) == 0) edges |= Edges.TopLeft;
-			if ((neighbors[(int)Neighbor.TopRight] & visibleMask) == 0) edges |= Edges.TopRight;
-			if ((neighbors[(int)Neighbor.BottomRight] & visibleMask) == 0) edges |= Edges.BottomRight;
-			if ((neighbors[(int)Neighbor.BottomLeft] & visibleMask) == 0) edges |= Edges.BottomLeft;
+			if (neighbors[(int)Neighbor.TopLeft] < cellVisibility) edges |= Edges.TopLeft;
+			if (neighbors[(int)Neighbor.TopRight] < cellVisibility) edges |= Edges.TopRight;
+			if (neighbors[(int)Neighbor.BottomRight] < cellVisibility) edges |= Edges.BottomRight;
+			if (neighbors[(int)Neighbor.BottomLeft] < cellVisibility) edges |= Edges.BottomLeft;
 
 			// RA provides a set of frames for tiles with shrouded
 			// corners but unshrouded edges. We want to detect this
@@ -406,7 +403,7 @@ namespace OpenRA.Mods.Common.Traits
 							if (fogSprite.Sprite != null)
 								pos += fogSprite.Sprite.Offset - 0.5f * fogSprite.Sprite.Size;
 
-							Layers[i].TerrainSpriteLayer.Update(uv, fogSprite.Sprite, paletteReference, pos, fogSprite.Scale, 0.2f, true);
+							Layers[i].TerrainSpriteLayer.Update(uv, fogSprite.Sprite, paletteReference, pos, fogSprite.Scale, 0.8f, true);
 						}
 					}
 				}
@@ -419,10 +416,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			UpdateShroud(map.ProjectedCells);
 
+			// for (int i = 9; i >= 0; i--) // Loop
 			for (int i = 0; i < 10; i++) // Loop
 			{
-				if (i == 0)
-					continue;
+				if (i < 1) // The first one to be drawn seems to be the only one
+					continue; // showing up, kinda - between the layers.
 
 				Layers[i].TerrainSpriteLayer.Draw(wr.Viewport);
 			}

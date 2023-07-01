@@ -20,43 +20,43 @@
 ^StandardDetection:
 	RevealsShroud@Visibility_10:
 		Visibility: 10
-		Range: 3c0
+		Range: 4c0
 	RevealsShroud@Visibility_9:
 		Visibility: 9
-		MinRange: 3c0
-		Range: 5c0
+		MinRange: 4c0
+		Range: 6c0
 	RevealsShroud@Visibility_8:
 		Visibility: 8
-		MinRange: 5c0
-		Range: 7c0
+		MinRange: 6c0
+		Range: 8c0
 	RevealsShroud@Visibility_7:
 		Visibility: 7
-		MinRange: 7c0
-		Range: 9c0
+		MinRange: 8c0
+		Range: 10c0
 	RevealsShroud@Visibility_6:
 		Visibility: 6
-		MinRange: 9c0
-		Range: 11c0
+		MinRange: 10c0
+		Range: 12c0
 	RevealsShroud@Visibility_5:
 		Visibility: 5
-		MinRange: 11c0
-		Range: 13c0
+		MinRange: 12c0
+		Range: 15c0
 	RevealsShroud@Visibility_4:
 		Visibility: 4
-		MinRange: 13c0
-		Range: 15c0
-	RevealsShroud@Visibility_3:
-		Visibility: 3
 		MinRange: 15c0
 		Range: 18c0
+	RevealsShroud@Visibility_3:
+		Visibility: 3
+		MinRange: 18c0
+		Range: 22c0
 	RevealsShroud@Visibility_2:
 		Visibility: 2
-		MinRange: 18c0
-		Range: 21c0
+		MinRange: 22c0
+		Range: 25c0
 	RevealsShroud@Visibility_1:
 		Visibility: 1
-		MinRange: 21c0
-		Range: 25c0
+		MinRange: 25c0
+		Range: 28c0
 
 	# DetectCloaked@0:
 	# 	DetectionTypes: Cloak_0
