@@ -55,7 +55,7 @@ namespace OpenRA.Traits
 		public readonly int ExploredMapCheckboxDisplayOrder = 0;
 
 		[Desc("")]
-		public readonly int HazeLayers = 10;
+		public readonly int ShroudLayers = 10;
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
@@ -109,23 +109,23 @@ namespace OpenRA.Traits
 
 		bool disabledChanged;
 		[Sync]
-		bool disabled;
-		public bool Disabled
+		bool shroudDisabled;
+		public bool ShroudDisabled
 		{
-			get => disabled;
+			get => shroudDisabled;
 
 			set
 			{
-				if (disabled == value)
+				if (shroudDisabled == value)
 					return;
 
-				disabled = value;
+				shroudDisabled = value;
 				disabledChanged = true;
 			}
 		}
 
 		bool fogEnabled;
-		public bool FogEnabled => !Disabled && fogEnabled;
+		public bool FogEnabled => !ShroudDisabled && fogEnabled;
 		public bool ExploreMapEnabled { get; private set; }
 
 		public int Hash { get; private set; }
@@ -133,13 +133,13 @@ namespace OpenRA.Traits
 		// Enabled at runtime on first use
 		bool shroudGenerationEnabled;
 		bool passiveVisibilityEnabled;
-		public readonly int hazeLayers;
+		public readonly int shroudLayers;
 
 		public Shroud(Actor self, ShroudInfo info)
 		{
 			this.info = info;
 			map = self.World.Map;
-			hazeLayers = info.HazeLayers;
+			shroudLayers = info.ShroudLayers;
 
 			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
@@ -193,7 +193,7 @@ namespace OpenRA.Traits
 					continue;
 
 				if (visibilityCount[index] == null)
-					visibilityCount[index] = new short[2 + info.HazeLayers];
+					visibilityCount[index] = new short[info.ShroudLayers + 1];
 
 				touched[index] = false;
 
@@ -205,8 +205,13 @@ namespace OpenRA.Traits
 					for (byte i = (byte)(visibilityCount[index].Length - 1); i > 0; i--)
 					{
 						if (visibilityCount[index][i] > 0)
+						{
 							visibility = i;
+							break;
+						}
 					}
+					if (visibility == 0)
+						visibility = 1;
 				}
 
 				// PERF: Most cells are unchanged
@@ -221,9 +226,9 @@ namespace OpenRA.Traits
 
 					if (!disabledChanged && (fogEnabled || !ExploreMapEnabled))
 					{
-						if (visibility > 0)
+						if (visibility > 1)
 							RevealedCells++;
-						else if (fogEnabled && oldResolvedVisibility > 0)
+						else if (fogEnabled && oldResolvedVisibility > 1)
 							RevealedCells--;
 					}
 
@@ -283,7 +288,7 @@ namespace OpenRA.Traits
 				anyCellTouched = true;
 
 				if (visibilityCount[index] == null)
-					visibilityCount[index] = new short[2 + info.HazeLayers];
+					visibilityCount[index] = new short[info.ShroudLayers + 1];
 
 				visibilityCount[index][visibility]++;
 
@@ -412,7 +417,7 @@ namespace OpenRA.Traits
 
 		public bool IsExplored(PPos puv)
 		{
-			if (Disabled)
+			if (ShroudDisabled)
 				return map.Contains(puv);
 
 			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 0;
@@ -453,7 +458,7 @@ namespace OpenRA.Traits
 			if (!FogEnabled)
 				return map.Contains(puv);
 
-			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 1;
+			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 0;
 		}
 
 		public bool Contains(PPos uv)
@@ -473,7 +478,7 @@ namespace OpenRA.Traits
 		{
 			var state = 0;
 
-			if (Disabled)
+			if (ShroudDisabled)
 			{
 				if (fogEnabled)
 				{
@@ -484,7 +489,7 @@ namespace OpenRA.Traits
 					}
 				}
 				else if (map.Contains(puv))
-					state |= 10;
+					state = 10;
 			}
 			else
 			{

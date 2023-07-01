@@ -342,7 +342,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			template.Get<LabelWidget>("ARMY_VALUE").GetText = () => armyText.Update(stats.ArmyValue);
 
 			var visionText = new CachedTransform<int, string>(i => Vision(i));
-			template.Get<LabelWidget>("VISION").GetText = () => player.Shroud.Disabled ? "100%" : visionText.Update(player.Shroud.RevealedCells);
+			template.Get<LabelWidget>("VISION").GetText = () => player.Shroud.ShroudDisabled ? "100%" : visionText.Update(player.Shroud.RevealedCells);
 
 			return template;
 		}

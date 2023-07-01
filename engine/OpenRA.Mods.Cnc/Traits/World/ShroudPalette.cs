@@ -26,16 +26,6 @@ namespace OpenRA.Mods.Cnc.Traits
 		[Desc("Internal palette name")]
 		public readonly string Shroud = "shroud";
 
-		[PaletteDefinition]
-		[Desc("Internal palette name")]
-		public readonly string Fog = "fog";
-
-		[PaletteDefinition]
-		[Desc("Internal palette name")]
-		public readonly string Haze = "haze";
-
-		public readonly int HazeSteps = 10;
-
 		public override object Create(ActorInitializer init) { return new ShroudPalette(this); }
 	}
 
@@ -47,41 +37,32 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		public void LoadPalettes(WorldRenderer wr)
 		{
-			wr.AddPalette(info.Shroud, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)ShroudColors[i % 8].ToArgb())));
-			wr.AddPalette(info.Fog, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)FogColors[i % 8].ToArgb())));
+			wr.AddPalette(info.Shroud + "0", new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)ShroudColors[i % 8].ToArgb())));
 
-			for (int hazeIndex = 0; hazeIndex < info.HazeSteps; hazeIndex++)
+			int alpha = 40;
+			for (int index = 1; index < 10; index++)
 			{
-				Color[] HazeColors = new[]
+				Color[] color = new[]
 				{
 					Color.FromArgb(0, 0, 0, 0),
 					Color.Green, Color.Blue, Color.Yellow,
-					Color.FromArgb(20 + hazeIndex * 10, 0, 0, 0),
+					Color.FromArgb(alpha, 0, 50, 0),
 					Color.FromArgb(96, 0, 0, 0),
 					Color.FromArgb(64, 0, 0, 0),
 					Color.FromArgb(32, 0, 0, 0)
 				};
 
-				wr.AddPalette(info.Haze + hazeIndex, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)HazeColors[i % 8].ToArgb())));
-			}
+				// alpha -= 3;
 
+				wr.AddPalette(info.Shroud + index, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)color[i % 8].ToArgb())));
+			}
 		}
 
 		static readonly Color[] ShroudColors = new[]
 		{
 			Color.FromArgb(0, 0, 0, 0),
 			Color.Green, Color.Blue, Color.Yellow,
-			Color.FromArgb(255, 0, 0, 0),
-			Color.FromArgb(96, 0, 0, 0),
-			Color.FromArgb(64, 0, 0, 0),
-			Color.FromArgb(32, 0, 0, 0)
-		};
-
-		static readonly Color[] FogColors = new[]
-		{
-			Color.FromArgb(0, 0, 0, 0),
-			Color.Green, Color.Blue, Color.Yellow,
-			Color.FromArgb(150, 0, 0, 0),
+			Color.FromArgb(255, 50, 0, 0),
 			Color.FromArgb(96, 0, 0, 0),
 			Color.FromArgb(64, 0, 0, 0),
 			Color.FromArgb(32, 0, 0, 0)
@@ -90,12 +71,9 @@ namespace OpenRA.Mods.Cnc.Traits
 		public IEnumerable<string> PaletteNames {
 			get
 			{
-				yield return info.Shroud;
-				yield return info.Fog;
-
-				for (int hazeIndex = 0; hazeIndex < info.HazeSteps; hazeIndex++)
+				for (int i = 0; i < 10; i++)
 				{
-					yield return info.Haze + hazeIndex;
+					yield return info.Shroud + i;
 				}
 			}
 		}
