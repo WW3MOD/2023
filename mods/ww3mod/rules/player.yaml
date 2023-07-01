@@ -172,7 +172,6 @@ Player:
 		Id: futuristic
 	GrantConditionOnPrerequisiteManager:
 	EnemyWatcher:
-		NotificationInterval: 1
 	ProductionIconOverlayManager:
 		Type: Veterancy
 		Image: iconchevrons
