@@ -34,7 +34,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool CheckboxLocked = false;
 
 		[Desc("Whether to display the crates checkbox in the lobby.")]
-		public readonly bool CheckboxVisible = true;
+		public readonly bool CheckboxVisible = false;
 
 		[Desc("Display order for the crates checkbox in the lobby.")]
 		public readonly int CheckboxDisplayOrder = 0;

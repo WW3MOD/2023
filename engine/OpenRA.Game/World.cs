@@ -188,6 +188,8 @@ namespace OpenRA
 
 		bool wasLoadingGameSave;
 
+		bool syncOption;
+
 		internal World(ModData modData, Map map, OrderManager orderManager, WorldType type)
 		{
 			this.modData = modData;
@@ -208,6 +210,8 @@ namespace OpenRA
 			var gameSpeedName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("gamespeed", gameSpeeds.DefaultSpeed);
 			GameSpeed = gameSpeeds.Speeds[gameSpeedName];
 			Timestep = ReplayTimestep = GameSpeed.Timestep;
+
+			syncOption = LobbyInfo.GlobalSettings.OptionOrDefault("sync", true);
 
 			SharedRandom = new MersenneTwister(orderManager.LobbyInfo.GlobalSettings.RandomSeed);
 			LocalRandom = new MersenneTwister();
@@ -481,8 +485,9 @@ namespace OpenRA
 		{
 			// using (new PerfSample("synchash"))
 			{
-				// TEMP performance "fix"
-				// return 0;
+				if (!syncOption)
+					return 0;
+
 				var n = 0;
 				var ret = 0;
 
