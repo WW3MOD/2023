@@ -201,24 +201,24 @@ namespace OpenRA.Graphics
 		}
 
 		// Just copied from RangeCircle but with some modifications... todo, for radar ping
-		// const int RangeCircleSegments = 32;
-		// static readonly Int32Matrix4x4[] RangeCircleStartRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i).AsMatrix());
-		// static readonly Int32Matrix4x4[] RangeCircleEndRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i + 6).AsMatrix());
-		// public static void DrawCircle(WorldRenderer wr, WPos centerPosition, WDist radius,
-		// 	float width, Color color, float borderWidth, Color borderColor)
-		// {
-		// 	var cr = Game.Renderer.RgbaColorRenderer;
-		// 	var offset = new WVec(radius.Length, 0, 0);
-		// 	for (var i = 0; i < RangeCircleSegments; i++)
-		// 	{
-		// 		var a = wr.Viewport.WorldToViewPx(wr.ScreenPosition(centerPosition + offset.Rotate(ref RangeCircleStartRotations[i])));
-		// 		var b = wr.Viewport.WorldToViewPx(wr.ScreenPosition(centerPosition + offset.Rotate(ref RangeCircleEndRotations[i])));
-		// 		if (borderWidth > 0)
-		// 			cr.DrawLine(a, b, borderWidth, borderColor);
-		// 		if (width > 0)
-		// 			cr.DrawLine(a, b, width, color);
-		// 	}
-		// }
+		/* const int RangeCircleSegments = 32;
+		static readonly Int32Matrix4x4[] RangeCircleStartRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i).AsMatrix());
+		static readonly Int32Matrix4x4[] RangeCircleEndRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i + 6).AsMatrix());
+		public static void DrawCircle(WorldRenderer wr, WPos centerPosition, WDist radius,
+			float width, Color color, float borderWidth, Color borderColor)
+		{
+			var cr = Game.Renderer.RgbaColorRenderer;
+			var offset = new WVec(radius.Length, 0, 0);
+			for (var i = 0; i < RangeCircleSegments; i++)
+			{
+				var a = wr.Viewport.WorldToViewPx(wr.ScreenPosition(centerPosition + offset.Rotate(ref RangeCircleStartRotations[i])));
+				var b = wr.Viewport.WorldToViewPx(wr.ScreenPosition(centerPosition + offset.Rotate(ref RangeCircleEndRotations[i])));
+				if (borderWidth > 0)
+					cr.DrawLine(a, b, borderWidth, borderColor);
+				if (width > 0)
+					cr.DrawLine(a, b, width, color);
+			}
+		} */
 
 		public void FillTriangle(in float3 a, in float3 b, in float3 c, Color color, BlendMode blendMode = BlendMode.Alpha)
 		{
