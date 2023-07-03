@@ -353,9 +353,8 @@ namespace OpenRA.Mods.Common.Traits
 			// the map bounds can be initialized as fully shrouded.
 			cellsDirty.Clear(true);
 			anyCellDirty = true;
-			var tl = new PPos(0, 0);
-			var br = new PPos(map.MapSize.X - 1, map.MapSize.Y - 1);
-			UpdateShroud(new ProjectedCellRegion(map, tl, br));
+
+			UpdateShroud(new ProjectedCellRegion(map, new PPos(0, 0), new PPos(map.MapSize.X - 1, map.MapSize.Y - 1)));
 		}
 
 		void UpdateShroud(IEnumerable<PPos> region)
@@ -383,27 +382,30 @@ namespace OpenRA.Mods.Common.Traits
 
 						var edges = GetEdges(puv);
 
-						if (i == 0)
+						if (i >= 0)
 						{
-							var shroudSprite = GetSprite(shroudSprites, edges, tileInfo.Variant);
+							if (i == 0)
+							{
+								var shroudSprite = GetSprite(shroudSprites, edges, tileInfo.Variant);
 
-							if (shroudSprite.Sprite != null)
-								pos += shroudSprite.Sprite.Offset - 0.5f * shroudSprite.Sprite.Size;
+								if (shroudSprite.Sprite != null)
+									pos += shroudSprite.Sprite.Offset - 0.5f * shroudSprite.Sprite.Size;
 
-							Layers[i].TerrainSpriteLayer.Update(uv, shroudSprite.Sprite, paletteReference, pos, shroudSprite.Scale, shroudSprite.Alpha, true);
-						}
-						else
-						{
-							// TODO
-							// if (r >= 2 && r <= 11)
-							// 	paletteReference = shroudPaletteReferences[r-2];
+								Layers[i].TerrainSpriteLayer.Update(uv, shroudSprite.Sprite, paletteReference, pos, shroudSprite.Scale, shroudSprite.Alpha, true);
+							}
+							else
+							{
+								// TODO
+								// if (r >= 2 && r <= 11)
+								// 	paletteReference = shroudPaletteReferences[r-2];
 
-							var fogSprite = GetSprite(fogSprites, edges, tileInfo.Variant);
+								var fogSprite = GetSprite(fogSprites, edges, tileInfo.Variant);
 
-							if (fogSprite.Sprite != null)
-								pos += fogSprite.Sprite.Offset - 0.5f * fogSprite.Sprite.Size;
+								if (fogSprite.Sprite != null)
+									pos += fogSprite.Sprite.Offset - 0.5f * fogSprite.Sprite.Size;
 
-							Layers[i].TerrainSpriteLayer.Update(uv, fogSprite.Sprite, paletteReference, pos, fogSprite.Scale, 0.8f, true);
+								Layers[i].TerrainSpriteLayer.Update(uv, fogSprite.Sprite, paletteReference, pos, fogSprite.Scale, 0.8f, true);
+							}
 						}
 					}
 				}
@@ -419,8 +421,8 @@ namespace OpenRA.Mods.Common.Traits
 			// for (int i = 9; i >= 0; i--) // Loop
 			for (int i = 0; i < 10; i++) // Loop
 			{
-				if (i < 1) // The first one to be drawn seems to be the only one
-					continue; // showing up, kinda - between the layers.
+				// if (i < 1) // The first one to be drawn seems to be the only one
+				// 	continue; // showing up, kinda - between the layers.
 
 				Layers[i].TerrainSpriteLayer.Draw(wr.Viewport);
 			}

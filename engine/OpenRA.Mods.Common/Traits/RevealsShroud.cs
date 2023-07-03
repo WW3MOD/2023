@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class RevealsShroudInfo : AffectsShroudInfo
 	{
 		[Desc("How much visibility to grant for this layer.")]
-		public readonly int Visibility = 5;
+		public readonly int Visibility = 10;
 
 		[Desc("Relationships the watching player needs to see the shroud removed.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;

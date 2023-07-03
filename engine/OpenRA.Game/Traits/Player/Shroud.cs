@@ -131,15 +131,13 @@ namespace OpenRA.Traits
 		public int Hash { get; private set; }
 
 		// Enabled at runtime on first use
-		bool shroudGenerationEnabled;
-		bool passiveVisibilityEnabled;
-		public readonly int shroudLayers;
+		public readonly int ShroudLayers;
 
 		public Shroud(Actor self, ShroudInfo info)
 		{
 			this.info = info;
 			map = self.World.Map;
-			shroudLayers = info.ShroudLayers;
+			ShroudLayers = info.ShroudLayers;
 
 			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
@@ -226,9 +224,9 @@ namespace OpenRA.Traits
 
 					if (!disabledChanged && (fogEnabled || !ExploreMapEnabled))
 					{
-						if (visibility > 1)
+						if (visibility > 0)
 							RevealedCells++;
-						else if (fogEnabled && oldResolvedVisibility > 1)
+						else if (fogEnabled && oldResolvedVisibility > 0)
 							RevealedCells--;
 					}
 

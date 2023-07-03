@@ -39,22 +39,24 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			wr.AddPalette(info.Shroud + "0", new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)ShroudColors[i % 8].ToArgb())));
 
-			int alpha = 30;
+			int alpha = 100;
 			for (int index = 1; index < 10; index++)
 			{
 				Color[] color = new[]
 				{
 					Color.FromArgb(0, 0, 0, 0),
 					Color.Green, Color.Blue, Color.Yellow,
-					Color.FromArgb(alpha, 0, 0, 0),
+					Color.FromArgb(alpha, index == 1 ? 100 : 0, index == 2 ? 100 : 0, index == 3 ? 100 : 30),
 					Color.FromArgb(96, 0, 0, 0),
 					Color.FromArgb(64, 0, 0, 0),
 					Color.FromArgb(32, 0, 0, 0)
 				};
 
-				// alpha -= 3;
+				alpha -= 10;
 
-				wr.AddPalette(info.Shroud + index, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)color[i % 8].ToArgb())));
+				var paletteName = info.Shroud + index;
+
+				wr.AddPalette(paletteName, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)color[i % 8].ToArgb())));
 			}
 		}
 
@@ -62,7 +64,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			Color.FromArgb(0, 0, 0, 0),
 			Color.Green, Color.Blue, Color.Yellow,
-			Color.FromArgb(255, 50, 0, 0),
+			Color.FromArgb(255, 0, 0, 0),
 			Color.FromArgb(96, 0, 0, 0),
 			Color.FromArgb(64, 0, 0, 0),
 			Color.FromArgb(32, 0, 0, 0)
