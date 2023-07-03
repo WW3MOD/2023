@@ -188,7 +188,7 @@ namespace OpenRA
 
 		bool wasLoadingGameSave;
 
-		bool syncOption;
+		readonly bool syncOption;
 
 		internal World(ModData modData, Map map, OrderManager orderManager, WorldType type)
 		{
