@@ -124,8 +124,6 @@ Player:
 		CheckboxDisplayOrder: 10
 	GpsWatcher:
 	Shroud:
-		FogCheckboxDisplayOrder: 3
-		ExploredMapCheckboxEnabled: True
 	LobbyPrerequisiteCheckbox@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
