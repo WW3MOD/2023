@@ -15,6 +15,16 @@ namespace OpenRA.Mods.Common
 {
 	public static class ShroudExts
 	{
+		public static bool AnyWithVisibility(this Shroud shroud, (CPos Cell, SubCell SubCell)[] cells, int visibility)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var cell in cells)
+				if (shroud.IsVisible(cell.Cell, visibility))
+					return true;
+
+			return false;
+		}
+
 		public static bool AnyExplored(this Shroud shroud, (CPos Cell, SubCell SubCell)[] cells)
 		{
 			// PERF: Avoid LINQ.
@@ -35,11 +45,11 @@ namespace OpenRA.Mods.Common
 			return false;
 		}
 
-		public static bool AnyVisible(this Shroud shroud, (CPos Cell, SubCell SubCell)[] cells)
+		public static bool AnyVisible(this Shroud shroud, (CPos Cell, SubCell SubCell)[] cells, int visibility)
 		{
 			// PERF: Avoid LINQ.
 			foreach (var cell in cells)
-				if (shroud.IsVisible(cell.Cell))
+				if (shroud.IsVisible(cell.Cell, visibility))
 					return true;
 
 			return false;

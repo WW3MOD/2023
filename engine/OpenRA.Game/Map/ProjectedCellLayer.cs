@@ -20,9 +20,6 @@ namespace OpenRA
 		public ProjectedCellLayer(Map map)
 			: base(map) { }
 
-		public ProjectedCellLayer(Map map, int arraySize)
-			: base(map, arraySize) { }
-
 		public ProjectedCellLayer(MapGridType gridType, Size size)
 			: base(gridType, size) { }
 

@@ -188,9 +188,8 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var i = (j + 1) * variantStride - 1;
 					shroudSequence = sequenceProvider.GetSequence(info.Sequence, info.OverrideFullShroud);
-					shroudSprites[i] = (shroudSequence.GetSprite(0), shroudSequence.Scale, shroudSequence.GetAlpha(0));
-
 					fogSequence = sequenceProvider.GetSequence(info.Sequence, info.OverrideFullFog);
+					shroudSprites[i] = (shroudSequence.GetSprite(0), shroudSequence.Scale, shroudSequence.GetAlpha(0));
 					fogSprites[i] = (fogSequence.GetSprite(0), fogSequence.Scale, fogSequence.GetAlpha(0));
 				}
 			}
@@ -381,13 +380,13 @@ namespace OpenRA.Mods.Common.Traits
 						var paletteReference = Layers[i].PaletteReference;
 
 						var edges = GetEdges(puv);
+						var shroudSprite = GetSprite(shroudSprites, edges, tileInfo.Variant);
+						var fogSprite = GetSprite(fogSprites, edges, tileInfo.Variant);
 
 						if (i >= 0)
 						{
 							if (i == 0)
 							{
-								var shroudSprite = GetSprite(shroudSprites, edges, tileInfo.Variant);
-
 								if (shroudSprite.Sprite != null)
 									pos += shroudSprite.Sprite.Offset - 0.5f * shroudSprite.Sprite.Size;
 
@@ -398,9 +397,6 @@ namespace OpenRA.Mods.Common.Traits
 								// TODO
 								// if (r >= 2 && r <= 11)
 								// 	paletteReference = shroudPaletteReferences[r-2];
-
-								var fogSprite = GetSprite(fogSprites, edges, tileInfo.Variant);
-
 								if (fogSprite.Sprite != null)
 									pos += fogSprite.Sprite.Offset - 0.5f * fogSprite.Sprite.Size;
 

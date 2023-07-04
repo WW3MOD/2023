@@ -431,32 +431,32 @@ namespace OpenRA.Traits
 			return radarCount.Contains(puv) && radarCount[puv] > 0;
 		}
 
-		public bool IsVisible(WPos pos)
+		public bool IsVisible(WPos pos, int visibility = 10)
 		{
-			return IsVisible(map.ProjectedCellCovering(pos));
+			return IsVisible(map.ProjectedCellCovering(pos), visibility);
 		}
 
-		public bool IsVisible(CPos cell)
+		public bool IsVisible(CPos cell, int visibility = 10)
 		{
-			return IsVisible(cell.ToMPos(map));
+			return IsVisible(cell.ToMPos(map), visibility);
 		}
 
-		public bool IsVisible(MPos uv)
+		public bool IsVisible(MPos uv, int visibility = 10)
 		{
 			foreach (var puv in map.ProjectedCellsCovering(uv))
-				if (IsVisible(puv))
+				if (IsVisible(puv, visibility))
 					return true;
 
 			return false;
 		}
 
 		// In internal shroud coords
-		public bool IsVisible(PPos puv)
+		public bool IsVisible(PPos puv, int visibility = 10)
 		{
 			if (!FogEnabled)
 				return map.Contains(puv);
 
-			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 0;
+			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > visibility;
 		}
 
 		public bool Contains(PPos uv)
