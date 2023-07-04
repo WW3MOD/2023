@@ -195,11 +195,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			for (int i = 0; i < 10; i++) // Loop
+
 			{
 				Layers[i] = new Layer();
 			}
 
 			int spriteCount;
+			// UseExtendedIndex == true
 			if (info.UseExtendedIndex)
 			{
 				notVisibleEdges = Edges.AllSides;
@@ -311,15 +313,18 @@ namespace OpenRA.Mods.Common.Traits
 			return info.UseExtendedIndex ? edges ^ ucorner : edges & Edges.AllCorners;
 		}
 
-		Edges GetEdges(PPos puv)
+		Edges GetEdgeTypes(PPos puv, int layerIndex)
 		{
 			var cv = cellVisibility(puv);
 
-			// If a cell is covered by shroud, then all neigbhors are covered by shroud and fog.
-			if (cv == 0)
+			// TODO: This causes squares, find solution for edges
+			if (cv == layerIndex)
 				return notVisibleEdges;
 
 			var ncv = GetNeighborsVisbility(puv);
+
+			if (ncv.All(n => n == layerIndex))
+				return notVisibleEdges;
 
 			return GetEdges(ncv, cv);
 		}
@@ -361,48 +366,38 @@ namespace OpenRA.Mods.Common.Traits
 			if (!anyCellDirty)
 				return;
 
-			foreach (var puv in region)
+			if (world.RenderPlayer != null)
 			{
-				var uv = (MPos)puv;
-				if (!cellsDirty[uv] || !tileInfos.Contains(uv))
-					continue;
-
-				cellsDirty[uv] = false;
-
-				if (world.RenderPlayer != null)
+				foreach (var puv in region)
 				{
-					for (int i = 0; i < 10; i++) // Loop
+					var uv = (MPos)puv;
+					if (!cellsDirty[uv] || !tileInfos.Contains(uv))
+						continue;
+
+					cellsDirty[uv] = false;
+
+					var cv = cellVisibility(puv);
+
+					for (int i = 9; i >= 0; i--) // Loop
 					{
 						var tileInfo = tileInfos[uv];
-
 						var pos = tileInfo.ScreenPosition;
-
+						var edges = GetEdgeTypes(puv, i);
 						var paletteReference = Layers[i].PaletteReference;
+						var gotSprite = GetSprite(i == 0 || true ? shroudSprites : fogSprites, edges, tileInfo.Variant);
 
-						var edges = GetEdges(puv);
-						var shroudSprite = GetSprite(shroudSprites, edges, tileInfo.Variant);
-						var fogSprite = GetSprite(fogSprites, edges, tileInfo.Variant);
+						if (gotSprite.Sprite != null)
+							pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
 
-						if (i >= 0)
-						{
-							if (i == 0)
-							{
-								if (shroudSprite.Sprite != null)
-									pos += shroudSprite.Sprite.Offset - 0.5f * shroudSprite.Sprite.Size;
+						if (i != cv)
+							gotSprite.Sprite = null;
 
-								Layers[i].TerrainSpriteLayer.Update(uv, shroudSprite.Sprite, paletteReference, pos, shroudSprite.Scale, shroudSprite.Alpha, true);
-							}
-							else
-							{
-								// TODO
-								// if (r >= 2 && r <= 11)
-								// 	paletteReference = shroudPaletteReferences[r-2];
-								if (fogSprite.Sprite != null)
-									pos += fogSprite.Sprite.Offset - 0.5f * fogSprite.Sprite.Size;
+						var alpha = 1f;
+						if (i > 1) alpha -= (i - 1) * (1f / 12);
 
-								Layers[i].TerrainSpriteLayer.Update(uv, fogSprite.Sprite, paletteReference, pos, fogSprite.Scale, 0.8f, true);
-							}
-						}
+						// alpha = 1f; // TODO: remove
+
+						Layers[i].TerrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, alpha, true);
 					}
 				}
 			}
@@ -414,8 +409,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			UpdateShroud(map.ProjectedCells);
 
-			// for (int i = 9; i >= 0; i--) // Loop
-			for (int i = 0; i < 10; i++) // Loop
+			// for (int i = 0; i < 10; i++) // Loop
+			for (int i = 9; i >= 0; i--) // Loop
 			{
 				// if (i < 1) // The first one to be drawn seems to be the only one
 				// 	continue; // showing up, kinda - between the layers.
@@ -448,7 +443,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (disposed)
 				return;
 
-			for (int i = 0; i < 10; i++) // Loop
+			// for (int i = 0; i < 10; i++) // Loop
+			for (int i = 9; i >= 0; i--) // Loop
 			{
 				Layers[i].TerrainSpriteLayer.Dispose();
 			}

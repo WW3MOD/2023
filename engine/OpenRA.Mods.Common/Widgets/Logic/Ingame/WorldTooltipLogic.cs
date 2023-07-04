@@ -60,7 +60,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					case WorldTooltipType.Unexplored:
 						var mapIndex = viewport.TooltipCell.ToMPos(world.Map).ToCellIndex(world.Map);
-						labelText = world.RenderPlayer.Shroud.ResolvedVisibility[mapIndex].ToString();
+						if (world.RenderPlayer != null)
+							labelText = world.RenderPlayer.Shroud.ResolvedVisibility[mapIndex].ToString();
+						else
+							labelText = "";
 						break;
 					case WorldTooltipType.Resource:
 						labelText = viewport.ResourceTooltip;
