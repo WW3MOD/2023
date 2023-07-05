@@ -210,9 +210,6 @@ MSAR:
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
 		Description: When deployed, detects enemies within a large radius.
-	TooltipExtras:
-		Weaknesses: • Unarmed
-		Attributes: • \n•
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:
@@ -227,9 +224,9 @@ MSAR:
 		RequiresCondition: !deployed
 		ImmovableCondition: deployed
 		RequireForceMoveCondition: !undeployed
-	RevealsRadar:
-		Range: 42c0
-		RequiresCondition: deployed
+	# RevealsRadar:
+	# 	Range: 42c0
+	# 	RequiresCondition: deployed
 	WithRangeCircle@Radar:
 		Range: 42c0
 		Color: 000000
@@ -418,8 +415,6 @@ MSAR:
 # 		SearchFromHarvesterRadius: 40
 # 		HarvestFacings: 8
 # 		EmptyCondition: no-ore
-# 	RevealsShroud:
-# 		Range: 6c0
 # 	WithHarvesterPipsDecoration:
 # 		Position: Bottom
 # 		Margin: 15, 3

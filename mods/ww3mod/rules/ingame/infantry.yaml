@@ -2145,8 +2145,6 @@ SPY:
 		ValidTargets: Infantry
 	Guard:
 		Voice: Move
-	RevealsShroud:
-		Range: 8c0
 	DetectCloaked@DOG:
 		DetectionTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
 		Range: 10c0

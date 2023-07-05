@@ -3,8 +3,6 @@
 	Inherits: ^Building
 	Inherits@Selection: ^SelectableCombatBuilding
 	Inherits@Detection: ^StandardDetection
-	RevealsShroud:
-		Range: 20c0
 	-GivesBuildableArea:
 	-AcceptsDeliveredCash:
 	Selectable:
@@ -81,6 +79,7 @@ GTWR:
 	Inherits@Type: ^Defense
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGround
+	Inherits@DetectionWhenLoaded: ^StandardDetectionWhenLoaded
 	RenderSprites:
 		PlayerPalette: playertd
 	Buildable:
@@ -103,9 +102,6 @@ GTWR:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
-	RevealsShroud:
-		Range: 24c0
-		RequiresCondition: loaded
 	-BodyOrientation:
 	ClassicFacingBodyOrientation:
 		QuantizedFacings: 8
@@ -176,6 +172,7 @@ HBOX:
 	Inherits@Type: ^Defense
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
+	Inherits@DetectionWhenLoaded: ^StandardDetectionWhenLoaded
 	-WithColoredOverlay@EMP:
 	-TimedConditionBar@EMP:
 	-WithIdleOverlay@EMP:
@@ -204,9 +201,6 @@ HBOX:
 	Armor:
 		Type: Light
 		Thickness: 150
-	RevealsShroud:
-		Range: 20c0
-		RequiresCondition: loaded
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
@@ -473,8 +467,8 @@ CRAM:
 		BuildPaletteOrder: 7
 		Description: Anti-Air base defense.
 		IconPalette: chrometd
-	RevealsRadar:
-		Range: 25c0
+	# RevealsRadar:
+	# 	Range: 25c0
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -557,8 +551,8 @@ AGUN:
 		Cost: 800
 	Tooltip:
 		Name: AA Gun
-	RevealsRadar:
-		Range: 25c0
+	# RevealsRadar:
+	# 	Range: 25c0
 	Health:
 		HP: 5000
 	Armor:

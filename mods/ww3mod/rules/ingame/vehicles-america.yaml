@@ -525,8 +525,8 @@ strykershorad:
 		TurnSpeed: 15
 		Locomotor: heavywheeled
 		PauseOnCondition: empdisable
-	RevealsRadar:
-		Range: 30c0
+	# RevealsRadar:
+	# 	Range: 30c0
 	WithRangeCircle@Radar:
 		Range: 30c0
 		Color: 000000
@@ -688,8 +688,6 @@ m109:
 	VisibleWithRadar:
 		Type: GroundPosition
 		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 10c0
 	Mobile:
 		Speed: 80
 		Acceleration: 5, 4, 3, 2, 1
@@ -796,8 +794,6 @@ m270:
 	VisibleWithRadar:
 		Type: GroundPosition
 		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 12c0
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 80
@@ -904,8 +900,6 @@ m270:
 # 	VisibleWithRadar:
 # 		Type: GroundPosition
 # 		PauseOnCondition: !firing
-# 	RevealsShroud:
-# 		Range: 10c0
 # 	Mobile:
 # 		Locomotor: lighttracked
 # 		Speed: 70

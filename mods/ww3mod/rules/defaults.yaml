@@ -58,6 +58,30 @@
 		MinRange: 28c0
 		Range: 32c0
 
+
+^StandardDetectionWhenLoaded:
+	Inherits: ^StandardDetection
+	RevealsShroud@Visibility_10:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_9:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_8:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_7:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_6:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_5:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_4:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_3:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_2:
+		RequiresCondition: loaded
+	RevealsShroud@Visibility_1:
+		RequiresCondition: loaded
+
 	# DetectCloaked@0:
 	# 	DetectionTypes: Cloak_0
 	# 	Range: 16c0

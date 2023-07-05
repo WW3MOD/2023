@@ -17,8 +17,6 @@ MNLY:
 		Type: Light
 	Targetable:
 		TargetTypes: Ground,Vehicle,Light
-	RevealsShroud:
-		Range: 10c0
 	Mobile:
 		Speed: 85
 	Minelayer:
@@ -89,8 +87,6 @@ SandBagLayer:
 		Type: Light
 	Targetable:
 		TargetTypes: Ground,Vehicle,Light
-	RevealsShroud:
-		Range: 10c0
 	Mobile:
 		Speed: 85
 	Minelayer:

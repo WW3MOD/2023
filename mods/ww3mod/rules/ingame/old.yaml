@@ -20,8 +20,6 @@ MCV:
 	Mobile:
 		Speed: 71
 		Locomotor: heavywheeled
-	RevealsShroud:
-		Range: 6c0
 	Transforms:
 		IntoActor: fact
 		Offset: -1,-1

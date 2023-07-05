@@ -1,6 +1,7 @@
 
 ^CivBuilding:
-	Inherits: ^TechBuilding
+	Inherits@TechBuilding: ^TechBuilding
+	Inherits@DetectionWhenLoaded: ^StandardDetectionWhenLoaded
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
 	RenderSprites:
@@ -37,9 +38,6 @@
 		Bounds: 2048,2048
 	OwnerLostAction:
 		Action: ChangeOwner
-	RevealsShroud:
-		Range: 24c0
-		RequiresCondition: loaded
 	Cargo:
 		Neutral: true
 		Types: Infantry
@@ -117,8 +115,6 @@ V01:
 	Armor:
 		Type: Light
 		Thickness: 10
-	RevealsShroud:
-		Range: 10c0
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -380,8 +376,6 @@ V25:
 		Dimensions: 2,2
 	Tooltip:
 		Name: Church
-	RevealsShroud:
-		Range: 10c0
 	HitShape:
 		UseTargetableCellsOffsets: false
 		TargetableOffsets: 0,-128,0, 420,512,0

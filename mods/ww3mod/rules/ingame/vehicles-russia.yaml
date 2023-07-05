@@ -363,8 +363,8 @@ tunguska:
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing-secondary || empdisable
-	RevealsRadar:
-		Range: 30c0
+	# RevealsRadar:
+	# 	Range: 30c0
 	WithRangeCircle@Radar:
 		Range: 30c0
 		Color: 000000
@@ -508,8 +508,6 @@ giatsint:
 	VisibleWithRadar:
 		Type: GroundPosition
 		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 10c0
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 80
@@ -610,8 +608,6 @@ grad:
 	VisibleWithRadar:
 		Type: GroundPosition
 		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 10c0
 	Mobile:
 		Speed: 110
 		Acceleration: 6, 5, 4, 3, 2, 1
@@ -814,8 +810,6 @@ tos:
 # 	VisibleWithRadar:
 # 		Type: GroundPosition
 # 		PauseOnCondition: !firing
-# 	RevealsShroud:
-# 		Range: 10c0
 # 	Mobile:
 # 		Speed: 80
 # 		TurnSpeed: 5

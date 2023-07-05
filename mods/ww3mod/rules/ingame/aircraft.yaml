@@ -10,8 +10,6 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Detection: ^StandardDetection
-	RevealsShroud:
-		Range: 20c0
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -69,18 +67,18 @@
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
-	RevealsRadar:
-		Range: 25c0
-		Type: GroundPosition
-		RequiresCondition: airborne
-	RevealsShroud@Air:
-		Range: 20c0
-		Type: GroundPosition
-		RequiresCondition: airborne
-	RevealsShroud@Ground:
-		Range: 10c0
-		Type: GroundPosition
-		RequiresCondition: !airborne
+	# RevealsRadar:
+	# 	Range: 25c0
+	# 	Type: GroundPosition
+	# 	RequiresCondition: airborne
+	# RevealsShroud@Air:
+	# 	Range: 20c0
+	# 	Type: GroundPosition
+	# 	RequiresCondition: airborne
+	# RevealsShroud@Ground:
+	# 	Range: 10c0
+	# 	Type: GroundPosition
+	# 	RequiresCondition: !airborne
 	SpeedMultiplier@Rank_4:
 		RequiresCondition: rank-veteran == 4
 		Modifier: 120
