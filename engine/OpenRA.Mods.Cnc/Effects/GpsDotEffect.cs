@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Cnc.Effects
 		readonly Animation anim;
 
 		readonly PlayerDictionary<DotState> dotStates;
-		readonly IVisibilityModifier[] visibilityModifiers;
+		readonly IShouldHideModifier[] shouldHideModifiers;
 
 		class DotState
 		{
@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Cnc.Effects
 			anim = new Animation(actor.World, info.Image);
 			anim.PlayRepeating(info.String);
 
-			visibilityModifiers = actor.TraitsImplementing<IVisibilityModifier>().ToArray();
+			shouldHideModifiers = actor.TraitsImplementing<IShouldHideModifier>().ToArray();
 
 			dotStates = new PlayerDictionary<DotState>(actor.World,
 				p => new DotState(actor, p.PlayerActor.Trait<GpsWatcher>(), p.FrozenActorLayer));
@@ -82,8 +82,8 @@ namespace OpenRA.Mods.Cnc.Effects
 				return false;
 
 			// Hide indicator if the actor wouldn't otherwise be visible if there wasn't fog
-			foreach (var visibilityModifier in visibilityModifiers)
-				if (!visibilityModifier.IsVisible(actor, toPlayer))
+			foreach (var shouldHideModifier in shouldHideModifiers)
+				if (shouldHideModifier.ShouldHide(actor, toPlayer))
 					return false;
 
 			return true;

@@ -54,7 +54,7 @@ namespace OpenRA.Traits
 		public DamageState DamageState { get; private set; }
 		readonly IHealth health;
 
-		readonly IVisibilityModifier[] visibilityModifiers;
+		readonly IShouldHideModifier[] shouldHideModifiers;
 
 		// The Visible flag is tied directly to the actor visibility under the fog.
 		// If Visible is true, the actor is made invisible (via FrozenUnderFog/IDefaultVisibility)
@@ -110,7 +110,7 @@ namespace OpenRA.Traits
 
 			tooltips = actor.TraitsImplementing<ITooltip>().ToArray();
 			health = actor.TraitOrDefault<IHealth>();
-			visibilityModifiers = actor.TraitsImplementing<IVisibilityModifier>().ToArray();
+			shouldHideModifiers = actor.TraitsImplementing<IShouldHideModifier>().ToArray();
 
 			UpdateVisibility();
 		}
@@ -145,9 +145,9 @@ namespace OpenRA.Traits
 		public void RefreshHidden()
 		{
 			Hidden = false;
-			foreach (var visibilityModifier in visibilityModifiers)
+			foreach (var shouldHideModifier in shouldHideModifiers)
 			{
-				if (!visibilityModifier.IsVisible(actor, viewer))
+				if (shouldHideModifier.ShouldHide(actor, viewer))
 				{
 					Hidden = true;
 					break;

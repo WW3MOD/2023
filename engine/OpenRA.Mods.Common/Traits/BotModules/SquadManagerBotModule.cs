@@ -151,10 +151,10 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsNotHiddenUnit(Actor a)
 		{
 			var hasModifier = false;
-			var visModifiers = a.TraitsImplementing<IVisibilityModifier>();
+			var visModifiers = a.TraitsImplementing<IShouldHideModifier>();
 			foreach (var v in visModifiers)
 			{
-				if (v.IsVisible(a, Player))
+				if (!v.ShouldHide(a, Player))
 					return true;
 
 				hasModifier = true;

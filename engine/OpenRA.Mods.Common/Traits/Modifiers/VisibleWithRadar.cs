@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (traitEnabled && byPlayer.Shroud.RadarCover(pos))
 				return true;
 
-			return byPlayer.Shroud.IsVisible(pos);
+			return byPlayer.Shroud.IsVisible(pos, 1); // TODO
 		}
 
 		protected override void TraitEnabled(Actor self)

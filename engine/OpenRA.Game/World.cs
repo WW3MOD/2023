@@ -104,8 +104,8 @@ namespace OpenRA
 
 		// TODO Shroud
 		public bool FogObscures(Actor a) { return RenderPlayer != null && !a.CanBeViewedByPlayer(RenderPlayer); }
-		public bool FogObscures(CPos p, int visibility) { return RenderPlayer != null && !RenderPlayer.Shroud.IsVisible(p, visibility); }
-		public bool FogObscures(WPos pos, int visibility) { return RenderPlayer != null && !RenderPlayer.Shroud.IsVisible(pos, visibility); }
+		public bool FogObscures(CPos p, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.Shroud.IsVisible(p, visibility); }
+		public bool FogObscures(WPos pos, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.Shroud.IsVisible(pos, visibility); }
 		public bool ShroudObscures(CPos p) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(p); }
 		public bool ShroudObscures(MPos uv) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(uv); }
 		public bool ShroudObscures(WPos pos) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(pos); }

@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateTerrainCell(MPos uv)
 		{
-			if (shroud.IsVisible(uv))
+			if (shroud.IsVisible(uv, 1))
 				UpdateTerrainCellColor(uv);
 		}
 

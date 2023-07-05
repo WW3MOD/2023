@@ -113,7 +113,7 @@ namespace OpenRA.Mods.Cnc.Activities
 				minefield.RemoveAll(c => self.World.ActorMap.GetActorsAt(c)
 					.Any(a => a.Info.Name == minelayer.Info.Mine.ToLowerInvariant() && a.CanBeViewedByPlayer(self.Owner)) ||
 						((!positionable.CanEnterCell(c, null, BlockedByActor.Immovable) || (mobile != null && !mobile.CanStayInCell(c)))
-						&& self.Owner.Shroud.IsVisible(c)));
+						&& self.Owner.Shroud.IsVisible(c, 1)));
 			}
 		}
 

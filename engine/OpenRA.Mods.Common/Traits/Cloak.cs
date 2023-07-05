@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
-		INotifyAttack, ITick, IVisibilityModifier, IRadarColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
+		INotifyAttack, ITick, IShouldHideModifier, IRadarColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
 	{
 		[Sync]
 		int remainingTime;
@@ -161,7 +161,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (remainingTime > 0 || IsTraitDisabled || IsTraitPaused)
 				return r;
 
-			if (Cloaked && IsVisible(self, self.World.RenderPlayer))
+			if (Cloaked && !ShouldHide(self, self.World.RenderPlayer))
 			{
 				var palette = string.IsNullOrEmpty(Info.Palette) ? null : Info.IsPlayerPalette ? wr.Palette(Info.Palette + self.Owner.InternalName) : wr.Palette(Info.Palette);
 				if (palette == null)
@@ -257,7 +257,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void TraitDisabled(Actor self) { Uncloak(); }
 
 		// CPU Expensive!
-		public bool IsVisible(Actor self, Player viewer)
+		public bool ShouldHide(Actor self, Player viewer)
 		{
 			if (!Cloaked || self.Owner.IsAlliedWith(viewer))
 				return true;

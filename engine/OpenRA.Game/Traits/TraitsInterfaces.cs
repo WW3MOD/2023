@@ -201,7 +201,7 @@ namespace OpenRA.Traits
 
 	public interface IDefaultVisibilityInfo : ITraitInfoInterface { }
 	public interface IDefaultVisibility { bool IsVisible(Actor self, Player byPlayer); }
-	public interface IVisibilityModifier { bool IsVisible(Actor self, Player byPlayer); }
+	public interface IShouldHideModifier { bool ShouldHide(Actor self, Player byPlayer); }
 
 	public interface IActorMap
 	{
