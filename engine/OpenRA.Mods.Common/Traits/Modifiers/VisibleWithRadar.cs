@@ -26,8 +26,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override bool IsVisibleInner(Actor self, Player byPlayer)
 		{
-			/* If fog is disabled visibility is determined by shroud
-			if (!byPlayer.Shroud.FogEnabled)
+			// If fog is disabled visibility is determined by shroud
+			/* if (!byPlayer.Shroud.FogEnabled)
 				return base.IsVisibleInner(self, byPlayer);
 			if (Info.Type == VisibilityType.Footprint)
 				return byPlayer.Shroud.AnyVisible(self.OccupiesSpace.OccupiedCells()); */
@@ -37,7 +37,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			// if (self.World.Map.DistanceAboveTerrain(pos).Length > 0 && byPlayer.Shroud.RadarCover(pos))
 			if (traitEnabled && byPlayer.Shroud.RadarCover(pos))
 				return true;
 

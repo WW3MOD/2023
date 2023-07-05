@@ -6,6 +6,7 @@
 	Armor:
 		Type: Heavy
 	HiddenUnderFog:
+		Visibility: 1
 		Type: CenterPosition
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
@@ -63,6 +64,7 @@
 	Tooltip:
 		GenericName: Destroyed Building
 	HiddenUnderFog:
+		Visibility: 1
 		Type: CenterPosition
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:

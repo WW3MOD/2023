@@ -714,6 +714,7 @@
 		TargetTypes: ICBM
 		RequiresCondition: airborne
 	HiddenUnderFog:
+		Visibility: 1
 		Type: GroundPosition
 	Tooltip:
 		Name: Missile
@@ -759,6 +760,7 @@
 	Armor:
 		Type: None
 	HiddenUnderFog:
+		Visibility: 1
 		Type: GroundPosition
 	ProximityCaptor:
 		Types: Plane
@@ -806,6 +808,7 @@
 	Passenger:
 		CargoType: Vehicle
 	HiddenUnderFog:
+		Visibility: 1
 	Tooltip:
 		GenericName: Summoned Actor
 	MustBeDestroyed:

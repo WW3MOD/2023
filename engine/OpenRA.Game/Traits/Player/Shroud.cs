@@ -431,17 +431,17 @@ namespace OpenRA.Traits
 			return radarCount.Contains(puv) && radarCount[puv] > 0;
 		}
 
-		public bool IsVisible(WPos pos, int visibility = 10)
+		public bool IsVisible(WPos pos, int visibility)
 		{
 			return IsVisible(map.ProjectedCellCovering(pos), visibility);
 		}
 
-		public bool IsVisible(CPos cell, int visibility = 10)
+		public bool IsVisible(CPos cell, int visibility)
 		{
 			return IsVisible(cell.ToMPos(map), visibility);
 		}
 
-		public bool IsVisible(MPos uv, int visibility = 10)
+		public bool IsVisible(MPos uv, int visibility)
 		{
 			foreach (var puv in map.ProjectedCellsCovering(uv))
 				if (IsVisible(puv, visibility))
@@ -451,7 +451,7 @@ namespace OpenRA.Traits
 		}
 
 		// In internal shroud coords
-		public bool IsVisible(PPos puv, int visibility = 10)
+		public bool IsVisible(PPos puv, int visibility)
 		{
 			if (!FogEnabled)
 				return map.Contains(puv);
@@ -474,39 +474,24 @@ namespace OpenRA.Traits
 		// PERF: Combine IsExplored and IsVisible.
 		public byte GetVisibility(PPos puv)
 		{
-			var state = 0;
-
-			if (ShroudDisabled)
+			if (fogEnabled)
 			{
-				if (fogEnabled)
+				if (ResolvedVisibility.Contains(puv))
 				{
-					// Shroud disabled, Fog enabled
-					if (ResolvedVisibility.Contains(puv))
-					{
-						state = ResolvedVisibility[puv];
-					}
-				}
-				else if (map.Contains(puv))
-					state = 10;
-			}
-			else
-			{
-				if (fogEnabled)
-				{
-					// Shroud and Fog enabled
-					if (ResolvedVisibility.Contains(puv))
-					{
-						state = ResolvedVisibility[puv];
-					}
-				}
-				else if (ResolvedVisibility.Contains(puv))
-				{
-					if (ResolvedVisibility[puv] > 0)
-						state = 10;
+					return ResolvedVisibility[puv];
 				}
 			}
 
-			return (byte)state;
+			if (ShroudDisabled && map.Contains(puv))
+			{
+				return 10;
+			}
+			else if (ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 0)
+			{
+				return 10;
+			}
+
+			return 0;
 		}
 	}
 }

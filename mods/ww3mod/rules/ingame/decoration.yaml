@@ -31,7 +31,6 @@
 		Type: Wood
 	Targetable:
 		TargetTypes: Trees
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
 	# MapEditorData:

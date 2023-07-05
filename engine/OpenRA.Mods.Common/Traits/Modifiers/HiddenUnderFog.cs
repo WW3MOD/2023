@@ -14,7 +14,8 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("The actor stays invisible under fog of war.")]
 	public class HiddenUnderFogInfo : HiddenUnderShroudInfo
 	{
-		public readonly int Visibility = 5;
+		public readonly int VisualVisibility = 2;
+		public readonly int RadarVisibility = 0;
 		public override object Create(ActorInitializer init) { return new HiddenUnderFog(init, this); }
 	}
 
@@ -31,17 +32,17 @@ namespace OpenRA.Mods.Common.Traits
 		protected override bool IsVisibleInner(Actor self, Player byPlayer)
 		{
 			// If fog is disabled visibility is determined by shroud
-			/* if (!byPlayer.Shroud.FogEnabled)
-				return base.IsVisibleInner(self, byPlayer); */
+			if (!byPlayer.Shroud.FogEnabled)
+				return base.IsVisibleInner(self, byPlayer);
 
 			if (Info.Type == VisibilityType.Footprint)
-				return byPlayer.Shroud.AnyVisible(self.OccupiesSpace.OccupiedCells(), info.Visibility);
+				return byPlayer.Shroud.AnyVisible(self.OccupiesSpace.OccupiedCells(), info.VisualVisibility);
 
 			var pos = self.CenterPosition;
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return byPlayer.Shroud.IsVisible(pos, info.Visibility);
+			return byPlayer.Shroud.IsVisible(pos, info.VisualVisibility);
 		}
 	}
 }

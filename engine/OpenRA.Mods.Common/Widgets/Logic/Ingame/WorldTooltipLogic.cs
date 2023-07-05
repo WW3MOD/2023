@@ -61,7 +61,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					case WorldTooltipType.Unexplored:
 						var mapIndex = viewport.TooltipCell.ToMPos(world.Map).ToCellIndex(world.Map);
 						if (world.RenderPlayer != null)
-							labelText = world.RenderPlayer.Shroud.ResolvedVisibility[mapIndex].ToString();
+							labelText =
+								world.RenderPlayer.Shroud.ResolvedVisibility[mapIndex].ToString()
+								+ " " + world.RenderPlayer.Shroud.IsExplored(viewport.TooltipCell.ToMPos(world.Map));
 						else
 							labelText = "";
 						break;
