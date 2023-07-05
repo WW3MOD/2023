@@ -59,7 +59,7 @@
 		Modifier: 0
 		RequiresCondition: disable-experience
 	HiddenUnderFog:
-		Visibility: 5
+		VisualVisibility: 5
 	GpsDot:
 		String: Infantry
 	Crushable:

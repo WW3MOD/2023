@@ -8,7 +8,7 @@
 	RenderSprites:
 		Scale: 0.5
 	HiddenUnderFog:
-		Visibility: 1
+		VisualVisibility: 1
 	Mine:
 		CrushClasses: mine
 		DetonateClasses: mine
@@ -48,7 +48,7 @@ MINV:
 	Interactable:
 		Bounds: 1024,1024
 	HiddenUnderFog:
-		Visibility: 1
+		VisualVisibility: 1
 	Tooltip:
 		Name: Crate
 		GenericName: Crate
@@ -203,7 +203,7 @@ FLARE:
 	BodyOrientation:
 		QuantizedFacings: 1
 	HiddenUnderFog:
-		Visibility: 1
+		VisualVisibility: 1
 		Type: CenterPosition
 	Interactable:
 	Tooltip:

@@ -53,7 +53,7 @@
 		CargoType: Vehicle
 	AttackMove:
 	HiddenUnderFog:
-		Visibility: 8
+		VisualVisibility: 2
 	ProximityCaptor:
 		Types: Vehicle
 	GpsDot:
