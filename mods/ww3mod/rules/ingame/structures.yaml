@@ -112,7 +112,7 @@
 	Tooltip:
 		Name: Civilian Building
 		GenericVisibility: None
-	FrozenUnderFog:
+	HiddenUnderShroud:
 	MapEditorData:
 		Categories: Tech building
 ^PrimaryBuilding:

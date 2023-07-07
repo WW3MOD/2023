@@ -171,14 +171,14 @@ namespace OpenRA.Traits
 			foreach (var puv in Footprint)
 			{
 				var cv = shroud.GetVisibility(puv);
-				if (cv == 10)
+				if (cv > 1)
 				{
 					Visible = false;
 					Shrouded = false;
 					break;
 				}
 
-				if (Shrouded && cv > 1)
+				if (Shrouded && cv > 0)
 					Shrouded = false;
 			}
 
