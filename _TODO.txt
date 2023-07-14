@@ -1,5 +1,17 @@
 2023
 
+    Shroud
+        FrozenUnderFog Bug
+        Dynamic Visibility
+        Edges
+
+
+
+
+
+
+
+
 
 - Vehicles becomes visible sometimes through fog?
 - Vehicle speed adjustments

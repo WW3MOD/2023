@@ -418,7 +418,9 @@ namespace OpenRA.Traits
 			if (ShroudDisabled)
 				return map.Contains(puv);
 
-			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > 0;
+			var rt = ResolvedVisibility[puv];
+
+			return ResolvedVisibility.Contains(puv) && rt > 0;
 		}
 
 		public bool RadarCover(WPos pos)

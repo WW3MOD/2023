@@ -380,24 +380,36 @@ namespace OpenRA.Mods.Common.Traits
 
 					for (int i = 9; i >= 0; i--) // Loop
 					{
+						var useIndex = i;
 						var tileInfo = tileInfos[uv];
 						var pos = tileInfo.ScreenPosition;
-						var edges = GetEdgeTypes(puv, i);
-						var paletteReference = Layers[i].PaletteReference;
-						var gotSprite = GetSprite(i == 0 || true ? shroudSprites : fogSprites, edges, tileInfo.Variant);
 
-						if (gotSprite.Sprite != null)
-							pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
+						var ncv = GetNeighborsVisbility(puv);
+						var edges = GetEdges(ncv, cv);
 
-						if (i != cv)
+						if (cv == i && ncv.All(n => n >= i))
+						{
+							edges = notVisibleEdges;
+						}
+						else
+						{
+							if (cv == 10)
+								useIndex = 9;
+							else
+								useIndex -= useIndex > 0 ? 1 : 0;
+						}
+
+						var gotSprite = GetSprite(useIndex == 0 ? shroudSprites : fogSprites, edges, tileInfo.Variant);
+						if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
+
+						if (useIndex != cv)
 							gotSprite.Sprite = null;
 
 						var alpha = 1f;
-						if (i > 1) alpha -= (i - 1) * (1f / 12);
+						if (useIndex > 1) alpha -= (useIndex - 1) * (1f / 12);
 
-						// alpha = 1f; // TODO: remove
-
-						Layers[i].TerrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, alpha, true);
+						var paletteReference = Layers[useIndex].PaletteReference;
+						Layers[useIndex].TerrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, alpha, true);
 					}
 				}
 			}
