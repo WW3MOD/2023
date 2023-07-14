@@ -361,6 +361,16 @@ namespace OpenRA.Mods.Common.Traits
 			UpdateShroud(new ProjectedCellRegion(map, new PPos(0, 0), new PPos(map.MapSize.X - 1, map.MapSize.Y - 1)));
 		}
 
+		float Alpha(int index)
+		{
+			var alpha = 1f;
+
+			if (index > 1)
+				alpha -= (index - 1) * (1f / 12);
+
+			return alpha;
+		}
+
 		void UpdateShroud(IEnumerable<PPos> region)
 		{
 			if (!anyCellDirty)
@@ -377,44 +387,66 @@ namespace OpenRA.Mods.Common.Traits
 					cellsDirty[uv] = false;
 
 					var cv = cellVisibility(puv);
+					var tileInfo = tileInfos[uv];
+					var pos = tileInfo.ScreenPosition;
 
 					for (int i = 9; i >= 0; i--) // Loop
 					{
-						var useIndex = i;
-						var tileInfo = tileInfos[uv];
-						var pos = tileInfo.ScreenPosition;
-
-						var ncv = GetNeighborsVisbility(puv);
-						var edges = GetEdges(ncv, cv);
-
-						if (cv == i && ncv.All(n => n >= i))
+						if (cv != i)
 						{
-							edges = notVisibleEdges;
+							// Special case
+							if (cv == 10 && i == 9)
+							{
+								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, null, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant);
+								continue;
+							}
+							// Reset layer for position
+							else
+							{
+								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, null, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant);
+
+								Layers[i].TerrainSpriteLayer.Update(uv, null, Layers[i].PaletteReference, pos, 1f, 1f, true);
+								continue;
+							}
 						}
 						else
 						{
-							if (cv == 10)
-								useIndex = 9;
-							else
-								useIndex -= useIndex > 0 ? 1 : 0;
+
 						}
 
-						var gotSprite = GetSprite(useIndex == 0 ? shroudSprites : fogSprites, edges, tileInfo.Variant);
-						if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
 
-						if (useIndex != cv)
-							gotSprite.Sprite = null;
 
-						var alpha = 1f;
-						if (useIndex > 1) alpha -= (useIndex - 1) * (1f / 12);
+						// var ncv = GetNeighborsVisbility(puv);
 
-						var paletteReference = Layers[useIndex].PaletteReference;
-						Layers[useIndex].TerrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, alpha, true);
+						// if (ncv.All(n => n >= i))
+						// {
+						// 	Layers[i].TerrainSpriteLayer.Update(uv, GetSprite(i == 0 ? shroudSprites : fogSprites, notVisibleEdges, tileInfo.Variant).Sprite, Layers[i].PaletteReference, pos, 1f, Alpha(i), true);
+						// }
+
+						// var useIndex = i;
+						// var edges = GetEdges(ncv, cv);
+
+						// var gotSprite = GetSprite(useIndex == 0 ? shroudSprites : fogSprites, edges, tileInfo.Variant);
+						// if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
+
+						// if (useIndex != cv)
+						// 	gotSprite.Sprite = null;
+
+						// var paletteReference = Layers[useIndex].PaletteReference;
+						// Layers[useIndex].TerrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, Alpha(i), true);
 					}
 				}
 			}
 
 			anyCellDirty = false;
+		}
+
+		void UpdateLayer(TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, Sprite sprite, float alpha, PaletteReference paletteReference, byte tileVariant)
+		{
+			var cv = cellVisibility(puv);
+			var gotSprite = GetSprite(fogSprites, GetEdges(GetNeighborsVisbility(puv), cv), tileVariant);
+			if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
+			terrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, alpha, true);
 		}
 
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
