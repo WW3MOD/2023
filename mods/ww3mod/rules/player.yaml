@@ -1,6 +1,6 @@
 ^BasePlayer:
 	AlwaysVisible:
-	Shroud:
+	CellLayers:
 	PlayerResources:
 		ResourceValues:
 			Ore: 25
@@ -123,7 +123,7 @@ Player:
 	DeveloperMode:
 		CheckboxDisplayOrder: 10
 	GpsWatcher:
-	Shroud:
+	CellLayers:
 	LobbyPrerequisiteCheckbox@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties

@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Widgets
 		Sprite terrainSprite;
 		Sprite actorSprite;
 		Sprite shroudSprite;
-		Shroud shroud;
+		CellLayers shroud;
 		PlayerMiniMapTerrain playerMiniMapTerrain;
 		Player currentPlayer;
 
@@ -126,7 +126,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			currentPlayer = player;
 
-			var newShroud = player != null ? player.Shroud : null;
+			var newShroud = player?.Shroud;
 
 			if (newShroud != shroud)
 			{
@@ -144,7 +144,7 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 
 			var newPlayerMiniMapTerrain =
-				currentPlayer != null ? currentPlayer.PlayerActor.TraitOrDefault<PlayerMiniMapTerrain>() : null;
+				currentPlayer?.PlayerActor.TraitOrDefault<PlayerMiniMapTerrain>();
 
 			if (forceUpdate || newPlayerMiniMapTerrain != playerMiniMapTerrain)
 			{
@@ -220,10 +220,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		void UpdateTerrainColor(MPos uv)
 		{
-			var colorPair = playerMiniMapTerrain != null && playerMiniMapTerrain.IsInitialized ?
+			var (leftColor, rightColor) = playerMiniMapTerrain != null && playerMiniMapTerrain.IsInitialized ?
 				playerMiniMapTerrain[uv] : PlayerMiniMapTerrain.GetColor(world.Map, radarTerrainLayers, uv);
-			var leftColor = colorPair.Left;
-			var rightColor = colorPair.Right;
 
 			var stride = radarSheet.Size.Width;
 

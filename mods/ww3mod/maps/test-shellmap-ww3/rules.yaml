@@ -1,6 +1,6 @@
 Player:
 	-ConquestVictoryConditions:
-	Shroud:
+	CellLayers:
 		ExploredMapCheckboxEnabled: true
 		FogCheckboxEnabled: false
 World:

@@ -1,5 +1,5 @@
 Player:
-	Shroud:
+	CellLayers:
 		FogCheckboxVisible: True
 		ExploredMapCheckboxVisible: True
 	PlayerResources:

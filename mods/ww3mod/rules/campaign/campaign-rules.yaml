@@ -2,7 +2,7 @@ Player:
 	-ConquestVictoryConditions:
 	MissionObjectives:
 		EarlyGameOver: true
-	Shroud:
+	CellLayers:
 		FogCheckboxLocked: True
 		FogCheckboxEnabled: True
 		ExploredMapCheckboxLocked: True

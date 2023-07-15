@@ -27,13 +27,13 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class RevealsMap : ConditionalTrait<RevealsMapInfo>, INotifyKilled, INotifyActorDisposing, INotifyOwnerChanged
 	{
-		readonly Shroud.SourceType type;
+		readonly CellLayers.SourceType type;
 
 		public RevealsMap(RevealsMapInfo info)
 			: base(info)
 		{
-			type = info.RevealGeneratedShroud ? Shroud.SourceType.Visibility
-				: Shroud.SourceType.PassiveVisibility;
+			type = info.RevealGeneratedShroud ? CellLayers.SourceType.Visibility
+				: CellLayers.SourceType.PassiveVisibility;
 		}
 
 		protected void AddCellsToPlayerShroud(Actor self, Player p, PPos[] uv)

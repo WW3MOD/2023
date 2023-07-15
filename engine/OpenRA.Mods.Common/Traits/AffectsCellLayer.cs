@@ -74,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
-					.SelectMany(kv => Shroud.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
+					.SelectMany(kv => CellLayers.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
 				var cells = footprint.ToArray();
 				footprint.Clear();
 				return cells;
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return Shroud.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
+			return CellLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
 				.ToArray();
 		}
 

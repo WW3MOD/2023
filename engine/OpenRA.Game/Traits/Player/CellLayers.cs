@@ -16,7 +16,7 @@ namespace OpenRA.Traits
 {
 	[TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)]
 	[Desc("Required for shroud and fog visibility checks. Add this to the player actor.")]
-	public class ShroudInfo : TraitInfo, ILobbyOptions
+	public class CellLayersInfo : TraitInfo, ILobbyOptions
 	{
 		[Desc("Descriptive label for the fog checkbox in the lobby.")]
 		public readonly string FogCheckboxLabel = "Fog of War";
@@ -54,27 +54,28 @@ namespace OpenRA.Traits
 		[Desc("Display order for the explore map checkbox in the lobby.")]
 		public readonly int ExploredMapCheckboxDisplayOrder = 0;
 
-		[Desc("")]
-		public readonly int ShroudLayers = 10;
+		/* [Desc("How many layers of fog to create, excluding the shroud (black) layer and the visible layer.")]
+		public readonly int FogLayers = 9; */
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			yield return new LobbyBooleanOption("explored", ExploredMapCheckboxLabel, ExploredMapCheckboxDescription,
 				ExploredMapCheckboxVisible, ExploredMapCheckboxDisplayOrder, ExploredMapCheckboxEnabled, ExploredMapCheckboxLocked);
+
 			yield return new LobbyBooleanOption("fog", FogCheckboxLabel, FogCheckboxDescription,
 				FogCheckboxVisible, FogCheckboxDisplayOrder, FogCheckboxEnabled, FogCheckboxLocked);
 		}
 
-		public override object Create(ActorInitializer init) { return new Shroud(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new CellLayers(init.Self, this); }
 	}
 
-	public class Shroud : ISync, INotifyCreated, ITick
+	public class CellLayers : ISync, INotifyCreated, ITick
 	{
+		public static readonly int FogLayers = 9;
 		public enum SourceType : byte { PassiveVisibility, Shroud, Visibility, Radar }
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 
-		// enum ShroudCellType : byte { Shroud, Fog, Haze, Visible = 100 }
 		class ShroudSource
 		{
 			public readonly int Visibility;
@@ -87,7 +88,7 @@ namespace OpenRA.Traits
 			}
 		}
 
-		readonly ShroudInfo info;
+		readonly CellLayersInfo info;
 		readonly Map map;
 
 		// Individual shroud modifier sources (type and area)
@@ -99,7 +100,7 @@ namespace OpenRA.Traits
 
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
 		readonly ProjectedCellLayer<short> visibleCount;
-		readonly ProjectedCellLayer<short> generatedShroudCount;
+		/* readonly ProjectedCellLayer<short> generatedShroudCount; */
 		readonly ProjectedCellLayer<bool> explored;
 		readonly ProjectedCellLayer<bool> touched;
 		bool anyCellTouched;
@@ -127,29 +128,23 @@ namespace OpenRA.Traits
 		bool fogEnabled;
 		public bool FogEnabled => !Disabled && fogEnabled;
 		public bool ExploreMapEnabled { get; private set; }
-
 		public int Hash { get; private set; }
 
-		// Enabled at runtime on first use
-		public readonly int ShroudLayers;
-
-		public Shroud(Actor self, ShroudInfo info)
+		public CellLayers(Actor self, CellLayersInfo info)
 		{
 			this.info = info;
 			map = self.World.Map;
-			ShroudLayers = info.ShroudLayers;
 
 			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
 
 			passiveVisibleCount = new ProjectedCellLayer<short>(map);
 			visibleCount = new ProjectedCellLayer<short>(map);
-			generatedShroudCount = new ProjectedCellLayer<short>(map);
+			/* generatedShroudCount = new ProjectedCellLayer<short>(map); */
 			explored = new ProjectedCellLayer<bool>(map);
 			touched = new ProjectedCellLayer<bool>(map);
 			anyCellTouched = true;
 
-			// Defaults to 0 = Shroud
 			ResolvedVisibility = new ProjectedCellLayer<byte>(map);
 		}
 
@@ -191,7 +186,7 @@ namespace OpenRA.Traits
 					continue;
 
 				if (visibilityCount[index] == null)
-					visibilityCount[index] = new short[info.ShroudLayers + 1];
+					visibilityCount[index] = new short[FogLayers + 2];
 
 				touched[index] = false;
 
@@ -200,7 +195,7 @@ namespace OpenRA.Traits
 				if (explored[index])
 				{
 					// Find the highest visibility for position
-					for (byte i = (byte)(visibilityCount[index].Length - 1); i > 0; i--)
+					for (var i = (byte)(visibilityCount[index].Length - 1); i > 0; i--)
 					{
 						if (visibilityCount[index][i] > 0)
 						{
@@ -208,6 +203,7 @@ namespace OpenRA.Traits
 							break;
 						}
 					}
+
 					if (visibility == 0)
 						visibility = 1;
 				}
@@ -286,7 +282,7 @@ namespace OpenRA.Traits
 				anyCellTouched = true;
 
 				if (visibilityCount[index] == null)
-					visibilityCount[index] = new short[info.ShroudLayers + 1];
+					visibilityCount[index] = new short[FogLayers + 2];
 
 				visibilityCount[index][visibility]++;
 
@@ -348,7 +344,7 @@ namespace OpenRA.Traits
 			}
 		}
 
-		public void Explore(Shroud s)
+		public void Explore(CellLayers s)
 		{
 			if (map.Bounds != s.map.Bounds)
 				throw new ArgumentException("The map bounds of these shrouds do not match.", nameof(s));

@@ -179,8 +179,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (info.CameraRange != WDist.Zero)
 			{
-				var type = info.RevealGeneratedShroud ? Shroud.SourceType.Visibility
-					: Shroud.SourceType.PassiveVisibility;
+				var type = info.RevealGeneratedShroud ? CellLayers.SourceType.Visibility
+					: CellLayers.SourceType.PassiveVisibility;
 
 				self.World.AddFrameEndTask(w => w.Add(new RevealShroudEffect(targetPosition, info.CameraRange, type, self.Owner, info.CameraRelationships,
 					info.FlightDelay - info.CameraSpawnAdvance, info.CameraSpawnAdvance + info.CameraRemoveDelay)));

@@ -24,14 +24,14 @@ namespace OpenRA.Mods.Common.Effects
 
 		readonly WPos pos;
 		readonly Player player;
-		readonly Shroud.SourceType sourceType;
+		readonly CellLayers.SourceType sourceType;
 		readonly WDist revealRadius;
 		readonly PlayerRelationship validStances;
 		readonly int duration;
 
 		int ticks;
 
-		public RevealShroudEffect(WPos pos, WDist radius, Shroud.SourceType type, Player forPlayer, PlayerRelationship stances, int delay = 0, int duration = 50)
+		public RevealShroudEffect(WPos pos, WDist radius, CellLayers.SourceType type, Player forPlayer, PlayerRelationship stances, int delay = 0, int duration = 50)
 		{
 			this.pos = pos;
 			player = forPlayer;
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Effects
 			if (range == WDist.Zero)
 				return NoCells;
 
-			return Shroud.ProjectedCellsInRange(map, pos, WDist.Zero, range).ToArray();
+			return CellLayers.ProjectedCellsInRange(map, pos, WDist.Zero, range).ToArray();
 		}
 
 		public void Tick(World world)
