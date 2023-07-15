@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
-		public readonly VisibilityType Type = VisibilityType.GroundPosition;
+		public readonly VisibilityType Type = VisibilityType.Footprint;
 	}
 
 	public abstract class AffectsCellLayer : ConditionalTrait<AffectsCellLayerInfo>, ISync, INotifyAddedToWorld,

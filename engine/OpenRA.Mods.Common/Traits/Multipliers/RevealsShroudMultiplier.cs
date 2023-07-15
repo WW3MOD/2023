@@ -21,12 +21,12 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new RevealsShroudMultiplier(this); }
 	}
 
-	public class RevealsShroudMultiplier : ConditionalTrait<RevealsShroudMultiplierInfo>, IRevealsShroudModifier
+	public class RevealsShroudMultiplier : ConditionalTrait<RevealsShroudMultiplierInfo>, IVisionModifier
 	{
 		public RevealsShroudMultiplier(RevealsShroudMultiplierInfo info)
 			: base(info) { }
 
-		int IRevealsShroudModifier.GetRevealsShroudModifier()
+		int IVisionModifier.GetVisionModifier()
 		{
 			return IsTraitDisabled ? 100 : Info.Modifier;
 		}

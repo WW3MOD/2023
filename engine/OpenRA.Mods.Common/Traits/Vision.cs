@@ -17,7 +17,7 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public class VisionInfo : AffectsCellLayerInfo
 	{
-		[Desc("How much visibility to grant for this layer.")]
+		[Desc("Strength of this layer, add multiple layers with Min/MaxRange to create a progressive decline")]
 		public readonly int Strength = 10;
 
 		[Desc("Relationships the watching player needs to see the shroud removed.")]
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			base.Created(self);
 
-			rangeModifiers = self.TraitsImplementing<IRevealsShroudModifier>().ToArray().Select(x => x.GetRevealsShroudModifier());
+			rangeModifiers = self.TraitsImplementing<IVisionModifier>().ToArray().Select(x => x.GetVisionModifier());
 		}
 
 		protected override void AddCellsToPlayerShroud(Actor self, Player p, PPos[] uv)

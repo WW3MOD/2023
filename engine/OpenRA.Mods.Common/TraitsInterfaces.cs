@@ -415,10 +415,10 @@ namespace OpenRA.Mods.Common.Traits
 	public interface ICreatesShroudModifier { int GetCreatesShroudModifier(); }
 
 	[RequireExplicitImplementation]
-	public interface IRevealsShroudModifier { int GetRevealsShroudModifier(); }
+	public interface IVisionModifier { int GetVisionModifier(); }
 
 	[RequireExplicitImplementation]
-	public interface IRevealsRadarModifier { int GetRevealsRadarModifier(); }
+	public interface IRadarModifier { int GetRadarModifier(); }
 
 	[RequireExplicitImplementation]
 	public interface IDetectCloakedModifier { int GetDetectCloakedModifier(); }
