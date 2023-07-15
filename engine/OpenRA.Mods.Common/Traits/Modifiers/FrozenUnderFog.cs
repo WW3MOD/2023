@@ -118,8 +118,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool IsVisibleInner(Player byPlayer)
 		{
 			// If fog is disabled visibility is determined by shroud
-			if (!byPlayer.MapLayer.FogEnabled)
-				return byPlayer.MapLayer.AnyExplored(footprint);
+			if (!byPlayer.MapLayers.FogEnabled)
+				return byPlayer.MapLayers.AnyExplored(footprint);
 
 			return frozenStates[byPlayer].IsVisible;
 		}

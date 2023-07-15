@@ -45,10 +45,10 @@ namespace OpenRA.Mods.Common.Effects
 		void AddCellsToPlayerShroud(Player p, PPos[] uv)
 		{
 			if (validStances.HasRelationship(player.RelationshipWith(p)))
-				p.MapLayer.AddSource(this, 10, uv); // todo check type etc
+				p.MapLayers.AddSource(this, 10, uv); // todo check type etc
 		}
 
-		void RemoveCellsFromPlayerShroud(Player p) { p.MapLayer.RemoveSource(this); }
+		void RemoveCellsFromPlayerShroud(Player p) { p.MapLayers.RemoveSource(this); }
 
 		PPos[] ProjectedCells(World world)
 		{

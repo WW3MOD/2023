@@ -262,7 +262,7 @@ namespace OpenRA.Mods.Common.Orders
 
 				footprint.Add(topLeft, MakeCellType(AcceptsPlug(topLeft, plugInfo)));
 			}
-			else if (lineBuildInfo != null && owner.MapLayer.IsExplored(topLeft))
+			else if (lineBuildInfo != null && owner.MapLayers.IsExplored(topLeft))
 			{
 				// Linebuild for walls.
 				if (buildingInfo.Dimensions.X != 1 || buildingInfo.Dimensions.Y != 1)

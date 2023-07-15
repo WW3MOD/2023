@@ -41,10 +41,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.MapLayer.AddSource(this, 10, uv);
+			p.MapLayers.AddSource(this, 10, uv);
 		}
 
-		protected void RemoveCellsFromPlayerShroud(Player p) { p.MapLayer.RemoveSource(this); }
+		protected void RemoveCellsFromPlayerShroud(Player p) { p.MapLayers.RemoveSource(this); }
 
 		protected PPos[] ProjectedCells(Actor self)
 		{

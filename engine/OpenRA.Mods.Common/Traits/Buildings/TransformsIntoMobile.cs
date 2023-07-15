@@ -111,7 +111,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "Move")
 			{
 				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayer.IsExplored(cell))
+				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
 				var currentTransform = self.CurrentActivity as Transform;
@@ -154,7 +154,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.MapLayer.IsExplored(cell))
+						if (!self.Owner.MapLayers.IsExplored(cell))
 							return null;
 					}
 
@@ -197,7 +197,7 @@ namespace OpenRA.Mods.Common.Traits
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				var explored = self.Owner.MapLayer.IsExplored(location);
+				var explored = self.Owner.MapLayers.IsExplored(location);
 				if (!self.World.Map.Contains(location) ||
 				    !(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused))
 				    || (!explored && !mobile.locomotor.Info.MoveIntoShroud)

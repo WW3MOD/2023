@@ -87,7 +87,7 @@ namespace OpenRA.Traits
 			this.actor = actor;
 			this.frozenTrait = frozenTrait;
 			this.viewer = viewer;
-			shroud = viewer.MapLayer;
+			shroud = viewer.MapLayers;
 			NeedRenderables = startsRevealed;
 
 			// Consider all cells inside the map area (ignoring the current map bounds)

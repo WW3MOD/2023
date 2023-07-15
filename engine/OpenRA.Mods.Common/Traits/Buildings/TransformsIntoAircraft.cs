@@ -122,7 +122,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "Move")
 			{
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.MoveIntoShroud && !self.Owner.MapLayer.IsExplored(cell))
+				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 			}
 			else if (order.OrderString == "Enter")
@@ -167,7 +167,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!Info.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.MapLayer.IsExplored(cell))
+						if (!self.Owner.MapLayers.IsExplored(cell))
 							return null;
 					}
 
@@ -206,7 +206,7 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				var location = self.World.Map.CellContaining(target.CenterPosition);
-				var explored = self.Owner.MapLayer.IsExplored(location);
+				var explored = self.Owner.MapLayers.IsExplored(location);
 				cursor = self.World.Map.Contains(location) ? aircraft.Info.Cursor : aircraft.Info.BlockedCursor;
 
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);

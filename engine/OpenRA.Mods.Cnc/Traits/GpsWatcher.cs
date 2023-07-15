@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (!explored && (Launched || allyWatchers.Any(w => w.Trait.Launched)))
 			{
 				explored = true;
-				owner.Shroud.ExploreAll();
+				owner.MapLayers.ExploreAll();
 			}
 
 			if (wasGranted != Granted || wasGrantedAllies != GrantedAllies)

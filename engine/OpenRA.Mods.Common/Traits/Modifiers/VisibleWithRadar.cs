@@ -27,20 +27,20 @@ namespace OpenRA.Mods.Common.Traits
 		protected override bool IsVisibleInner(Actor self, Player byPlayer)
 		{
 			// If fog is disabled visibility is determined by shroud
-			/* if (!byPlayer.Shroud.FogEnabled)
+			/* if (!byPlayer.MapLayers.FogEnabled)
 				return base.IsVisibleInner(self, byPlayer);
 			if (Info.Type == VisibilityType.Footprint)
-				return byPlayer.Shroud.AnyVisible(self.OccupiesSpace.OccupiedCells()); */
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells()); */
 
 			var pos = self.CenterPosition;
 
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			if (traitEnabled && byPlayer.MapLayer.RadarCover(pos))
+			if (traitEnabled && byPlayer.MapLayers.RadarCover(pos))
 				return true;
 
-			return byPlayer.MapLayer.IsVisible(pos, 1); // TODO
+			return byPlayer.MapLayers.IsVisible(pos, 1); // TODO
 		}
 
 		protected override void TraitEnabled(Actor self)

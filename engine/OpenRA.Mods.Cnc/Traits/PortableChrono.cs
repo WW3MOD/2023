@@ -199,7 +199,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				if (self.IsInWorld && self.Owner.Shroud.IsExplored(xy))
+				if (self.IsInWorld && self.Owner.MapLayers.IsExplored(xy))
 				{
 					cursor = targetCursor;
 					return true;
@@ -234,7 +234,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			}
 
 			if (self.IsInWorld && self.Location != cell
-				&& self.Trait<PortableChrono>().CanTeleport && self.Owner.Shroud.IsExplored(cell))
+				&& self.Trait<PortableChrono>().CanTeleport && self.Owner.MapLayers.IsExplored(cell))
 			{
 				world.CancelInputMode();
 				yield return new Order("PortableChronoTeleport", self, Target.FromCell(world, cell), mi.Modifiers.HasModifier(Modifiers.Shift));
@@ -281,7 +281,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		protected override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			if (self.IsInWorld && self.Location != cell
-				&& portableChrono.CanTeleport && self.Owner.Shroud.IsExplored(cell))
+				&& portableChrono.CanTeleport && self.Owner.MapLayers.IsExplored(cell))
 				return info.TargetCursor;
 			else
 				return info.TargetBlockedCursor;

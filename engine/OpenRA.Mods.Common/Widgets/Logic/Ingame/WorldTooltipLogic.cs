@@ -62,8 +62,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						var mapIndex = viewport.TooltipCell.ToMPos(world.Map).ToCellIndex(world.Map);
 						if (world.RenderPlayer != null)
 							labelText =
-								world.RenderPlayer.MapLayer.ResolvedVisibility[mapIndex].ToString()
-								+ " " + world.RenderPlayer.MapLayer.IsExplored(viewport.TooltipCell.ToMPos(world.Map));
+								world.RenderPlayer.MapLayers.ResolvedVisibility[mapIndex].ToString()
+								+ " " + world.RenderPlayer.MapLayers.IsExplored(viewport.TooltipCell.ToMPos(world.Map));
 						else
 							labelText = "";
 						break;

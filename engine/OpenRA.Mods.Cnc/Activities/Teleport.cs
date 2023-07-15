@@ -126,13 +126,13 @@ namespace OpenRA.Mods.Cnc.Activities
 				destination = restrictTo.MinBy(x => (x - destination).LengthSquared);
 
 			var pos = self.Trait<IPositionable>();
-			if (pos.CanEnterCell(destination) && teleporter.Owner.Shroud.IsExplored(destination))
+			if (pos.CanEnterCell(destination) && teleporter.Owner.MapLayers.IsExplored(destination))
 				return destination;
 
 			var max = maximumDistance != null ? maximumDistance.Value : teleporter.World.Map.Grid.MaximumTileSearchRange;
 			foreach (var tile in self.World.Map.FindTilesInCircle(destination, max))
 			{
-				if (teleporter.Owner.Shroud.IsExplored(tile)
+				if (teleporter.Owner.MapLayers.IsExplored(tile)
 					&& (restrictTo == null || restrictTo.Contains(tile))
 					&& pos.CanEnterCell(tile))
 					return tile;

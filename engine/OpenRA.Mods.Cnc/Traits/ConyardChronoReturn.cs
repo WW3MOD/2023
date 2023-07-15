@@ -149,7 +149,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			var max = chronosphere.World.Map.Grid.MaximumTileSearchRange;
 			foreach (var tile in self.World.Map.FindTilesInCircle(destination, max))
-				if (chronosphere.Owner.Shroud.IsExplored(tile) && mobileInfo.CanEnterCell(self.World, null, tile))
+				if (chronosphere.Owner.MapLayers.IsExplored(tile) && mobileInfo.CanEnterCell(self.World, null, tile))
 					return tile;
 
 			return null;

@@ -49,10 +49,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.MapLayer.AddSource(this, info.Strength, uv);
+			p.MapLayers.AddSource(this, info.Strength, uv);
 		}
 
-		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayer.RemoveSource(this); }
+		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayers.RemoveSource(this); }
 
 		public override WDist MinRange
 		{

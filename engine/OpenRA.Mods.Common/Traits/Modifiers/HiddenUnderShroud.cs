@@ -38,13 +38,13 @@ namespace OpenRA.Mods.Common.Traits
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{
 			if (Info.Type == VisibilityType.Footprint)
-				return byPlayer.MapLayer.AnyExplored(self.OccupiesSpace.OccupiedCells());
+				return byPlayer.MapLayers.AnyExplored(self.OccupiesSpace.OccupiedCells());
 
 			var pos = self.CenterPosition;
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return byPlayer.MapLayer.IsExplored(pos);
+			return byPlayer.MapLayers.IsExplored(pos);
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)

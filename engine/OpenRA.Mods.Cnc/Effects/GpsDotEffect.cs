@@ -73,7 +73,7 @@ namespace OpenRA.Mods.Cnc.Effects
 				return false;
 
 			// Hide the indicator behind shroud
-			var visibility = toPlayer.Shroud.GetVisibility(actor.CenterPosition);
+			var visibility = toPlayer.MapLayers.GetVisibility(actor.CenterPosition);
 			if (visibility == 0)
 				return false;
 

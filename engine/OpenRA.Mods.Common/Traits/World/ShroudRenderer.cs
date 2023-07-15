@@ -233,7 +233,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (w.Type == WorldType.Editor)
 				cellVisibility = puv => (byte)(map.Contains(puv) ? 10 : 0);
 			else
-				cellVisibility = puv => world.RenderPlayer.MapLayer.GetVisibility(puv);
+				cellVisibility = puv => world.RenderPlayer.MapLayers.GetVisibility(puv);
 
 			var shroudBlend = shroudSprites[0].Sprite.BlendMode;
 			if (shroudSprites.Any(s => s.Sprite.BlendMode != shroudBlend))
@@ -304,7 +304,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void WorldOnRenderPlayerChanged(Player player)
 		{
-			var newShroud = player?.MapLayer;
+			var newShroud = player?.MapLayers;
 
 			if (shroud != newShroud)
 			{

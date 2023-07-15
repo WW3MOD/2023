@@ -168,7 +168,7 @@ Unsolved bugs
     - Each cell has a visibility of 0-100, 0 = Shrouded, 100 = visible
     - Units have detection from 100 down to 0 based on distance.
         - AffectsCellLayer.UpdateCells.AddCellsToPlayerShroud
-            -> RevealShroudEffect.AddCellsToPlayerShroud -> player.Shroud.AddSource(this, sourceType, uv);
+            -> RevealShroudEffect.AddCellsToPlayerShroud -> player.MapLayers.AddSource(this, sourceType, uv);
     - Units have camouflage 0-100 that makes them invisible at lower visibility
 
 - Can't issue enter order on neutral cargo actors if shrouded

@@ -126,7 +126,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			currentPlayer = player;
 
-			var newShroud = player?.MapLayer;
+			var newShroud = player?.MapLayers;
 
 			if (newShroud != shroud)
 			{
@@ -249,7 +249,7 @@ namespace OpenRA.Mods.Common.Widgets
 		void UpdateShroudCell(PPos puv)
 		{
 			var color = 0;
-			var cv = currentPlayer.MapLayer.GetVisibility(puv);
+			var cv = currentPlayer.MapLayers.GetVisibility(puv);
 			if (cv == 0)
 				color = Color.Black.ToArgb();
 			else
