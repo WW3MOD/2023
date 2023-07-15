@@ -32,7 +32,7 @@ namespace OpenRA.Mods.D2k.Traits
 		public override object Create(ActorInitializer init) { return new BuildableTerrainLayer(init.Self, this); }
 	}
 
-	public class BuildableTerrainLayer : IRenderOverlay, IWorldLoaded, ITickRender, IRadarTerrainLayer, INotifyActorDisposing
+	public class BuildableTerrainLayer : IRenderOverlay, IWorldLoaded, ITickRender, IMiniMapTerrainLayer, INotifyActorDisposing
 	{
 		readonly BuildableTerrainLayerInfo info;
 		readonly Dictionary<CPos, TerrainTile?> dirty = new Dictionary<CPos, TerrainTile?>();
@@ -130,13 +130,13 @@ namespace OpenRA.Mods.D2k.Traits
 			render.Draw(wr.Viewport);
 		}
 
-		event Action<CPos> IRadarTerrainLayer.CellEntryChanged
+		event Action<CPos> IMiniMapTerrainLayer.CellEntryChanged
 		{
 			add => radarColor.CellEntryChanged += value;
 			remove => radarColor.CellEntryChanged -= value;
 		}
 
-		bool IRadarTerrainLayer.TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value)
+		bool IMiniMapTerrainLayer.TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value)
 		{
 			value = radarColor[uv];
 			return strength[uv] > 0;

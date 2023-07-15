@@ -11,33 +11,33 @@
 
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.Radar;
+using OpenRA.Mods.Common.Traits.MiniMap;
 using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class IngameRadarDisplayLogic : ChromeLogic
+	public class IngameMiniMapDisplayLogic : ChromeLogic
 	{
 		[ObjectCreator.UseCtor]
-		public IngameRadarDisplayLogic(Widget widget, World world)
+		public IngameMiniMapDisplayLogic(Widget widget, World world)
 		{
 			var radarEnabled = false;
-			var cachedRadarEnabled = false;
+			var cachedMiniMapEnabled = false;
 			var blockColor = Color.Transparent;
-			var radar = widget.Get<RadarWidget>("RADAR_MINIMAP");
+			var radar = widget.Get<MiniMapWidget>("RADAR_MINIMAP");
 			radar.IsEnabled = () => radarEnabled;
 			var devMode = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
 
 			var ticker = widget.Get<LogicTickerWidget>("RADAR_TICKER");
 			ticker.OnTick = () =>
 			{
-				radarEnabled = devMode.DisableShroud || world.ActorsHavingTrait<ProvidesRadar>(r => !r.IsTraitDisabled)
+				radarEnabled = devMode.DisableShroud || world.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled)
 					.Any(a => a.Owner == world.LocalPlayer);
 
-				if (radarEnabled != cachedRadarEnabled)
+				if (radarEnabled != cachedMiniMapEnabled)
 					Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", radarEnabled ? radar.SoundUp : radar.SoundDown, null);
-				cachedRadarEnabled = radarEnabled;
+				cachedMiniMapEnabled = radarEnabled;
 			};
 
 			var block = widget.GetOrNull<ColorBlockWidget>("RADAR_FADETOBLACK");

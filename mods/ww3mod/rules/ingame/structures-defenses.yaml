@@ -68,7 +68,7 @@
 	FrozenUnderFogUpdatedByGps:
 	Health:
 		HP: 100
-	RadarColorFromTerrain:
+	MiniMapColorFromTerrain:
 		Terrain: Wall
 	AppearsOnMapPreview:
 		Terrain: Wall
@@ -967,7 +967,7 @@ MSLO:
 		SpawnOffset: 1c0,427,0
 		DisplayTimerRelationships: Ally, Neutral, Enemy
 		DisplayBeacon: True
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		BeaconPoster: atomicon
 		CameraRange: 20c0
 		ArrowSequence: arrow

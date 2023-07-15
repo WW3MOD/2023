@@ -101,10 +101,10 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[Desc("Play a video in the radar window. File name has to include the file extension.")]
-		public void PlayMovieInRadar(string videoFileName, LuaFunction onPlayComplete = null)
+		public void PlayMovieInMiniMap(string videoFileName, LuaFunction onPlayComplete = null)
 		{
 			var onComplete = WrapOnPlayComplete(onPlayComplete);
-			Media.PlayFMVInRadar(videoFileName, onComplete);
+			Media.PlayFMVInMiniMap(videoFileName, onComplete);
 		}
 
 		[Desc("Display a text message to the player.")]

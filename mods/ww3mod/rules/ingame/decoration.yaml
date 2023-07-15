@@ -20,8 +20,8 @@
 	Building:
 		Footprint: _
 		Dimensions: 1,1
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree
@@ -108,8 +108,8 @@
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree

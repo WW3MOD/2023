@@ -131,10 +131,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Delay after launch, measured in ticks.")]
 		public readonly int BeaconDelay = 0;
 
-		public readonly bool DisplayRadarPing = false;
+		public readonly bool DisplayMiniMapPing = false;
 
 		[Desc("Measured in ticks.")]
-		public readonly int RadarPingDuration = 125;
+		public readonly int MiniMapPingDuration = 125;
 
 		public readonly string OrderName;
 
@@ -148,7 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly Actor Self;
 		readonly SupportPowerInfo info;
-		protected RadarPing ping;
+		protected MiniMapPing ping;
 
 		public SupportPower(Actor self, SupportPowerInfo info)
 			: base(info)
@@ -203,13 +203,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual void Activate(Actor self, Order order, SupportPowerManager manager)
 		{
-			if (Info.DisplayRadarPing && manager.RadarPings != null)
+			if (Info.DisplayMiniMapPing && manager.MiniMapPings != null)
 			{
-				ping = manager.RadarPings.Value.Add(
+				ping = manager.MiniMapPings.Value.Add(
 					() => order.Player.IsAlliedWith(self.World.RenderPlayer),
 					order.Target.CenterPosition,
 					order.Player.Color,
-					Info.RadarPingDuration);
+					Info.MiniMapPingDuration);
 			}
 
 			foreach (var notify in self.TraitsImplementing<INotifySupportPower>())

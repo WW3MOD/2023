@@ -1,6 +1,6 @@
 
 ^ExistsInWorld:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	CombatDebugOverlay:
 	GivesExperience:
 		PlayerExperienceModifier: 1

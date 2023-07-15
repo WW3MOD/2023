@@ -22,10 +22,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum duration (in milliseconds) between notification events.")]
 		public readonly int NotifyInterval = 30000;
 
-		public readonly Color RadarPingColor = Color.Red;
+		public readonly Color MiniMapPingColor = Color.Red;
 
 		[Desc("Length of time (in ticks) to display a location ping in the minimap.")]
-		public readonly int RadarPingDuration = 250;
+		public readonly int MiniMapPingDuration = 250;
 
 		[NotificationReference("Speech")]
 		[Desc("Speech notification type to play.")]
@@ -47,14 +47,14 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class BaseAttackNotifier : INotifyDamage
 	{
-		readonly RadarPings radarPings;
+		readonly MiniMapPings radarPings;
 		readonly BaseAttackNotifierInfo info;
 
 		long lastAttackTime;
 
 		public BaseAttackNotifier(Actor self, BaseAttackNotifierInfo info)
 		{
-			radarPings = self.World.WorldActor.TraitOrDefault<RadarPings>();
+			radarPings = self.World.WorldActor.TraitOrDefault<MiniMapPings>();
 			this.info = info;
 			lastAttackTime = -info.NotifyInterval;
 		}
@@ -97,7 +97,7 @@ namespace OpenRA.Mods.Common.Traits
 					TextNotificationsManager.AddTransientLine(info.AllyTextNotification, localPlayer);
 				}
 
-				radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer), self.CenterPosition, info.RadarPingColor, info.RadarPingDuration);
+				radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer), self.CenterPosition, info.MiniMapPingColor, info.MiniMapPingDuration);
 
 				lastAttackTime = Game.RunTime;
 			}

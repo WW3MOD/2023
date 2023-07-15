@@ -9,17 +9,17 @@
  */
 #endregion
 
-namespace OpenRA.Mods.Common.Traits.Radar
+namespace OpenRA.Mods.Common.Traits.MiniMap
 {
 	[Desc("This actor enables the radar minimap.")]
-	public class ProvidesRadarInfo : ConditionalTraitInfo
+	public class ProvidesMiniMapInfo : ConditionalTraitInfo
 	{
-		public override object Create(ActorInitializer init) { return new ProvidesRadar(this); }
+		public override object Create(ActorInitializer init) { return new ProvidesMiniMap(this); }
 	}
 
-	public class ProvidesRadar : ConditionalTrait<ProvidesRadarInfo>
+	public class ProvidesMiniMap : ConditionalTrait<ProvidesMiniMapInfo>
 	{
-		public ProvidesRadar(ProvidesRadarInfo info)
+		public ProvidesMiniMap(ProvidesMiniMapInfo info)
 			: base(info) { }
 	}
 }

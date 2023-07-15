@@ -12,7 +12,7 @@ EditorPlayer:
 Player:
 	Inherits: ^BasePlayer
 	TechTree:
-	ProvidesRadar:
+	ProvidesMiniMap:
 	ProximityCaptor:
 		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
@@ -218,7 +218,7 @@ Player:
 		DisplayOrder: 12
 		Prerequisites: global-disablenavy
 	GameSaveViewportManager:
-	PlayerRadarTerrain:
+	PlayerMiniMapTerrain:
 	# LobbyPrerequisiteCheckbox@GlobalPenalty:
 	# 	ID: penalty
 	# 	Label: War Crime Penalty

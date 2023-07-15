@@ -108,7 +108,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new TSVeinsRenderer(init.Self, this); }
 	}
 
-	public class TSVeinsRenderer : IResourceRenderer, IWorldLoaded, IRenderOverlay, ITickRender, INotifyActorDisposing, IRadarTerrainLayer
+	public class TSVeinsRenderer : IResourceRenderer, IWorldLoaded, IRenderOverlay, ITickRender, INotifyActorDisposing, IMiniMapTerrainLayer
 	{
 		[Flags]
 		enum Adjacency : byte
@@ -155,7 +155,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		readonly Queue<CPos> cleanDirty = new Queue<CPos>();
 		readonly HashSet<CPos> veinholeCells = new HashSet<CPos>();
 		readonly int maxDensity;
-		readonly Color veinRadarColor;
+		readonly Color veinMiniMapColor;
 
 		ISpriteSequence veinSequence;
 		PaletteReference veinPalette;
@@ -172,7 +172,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			var terrainInfo = self.World.Map.Rules.TerrainInfo;
 			resourceLayer.Info.TryGetTerrainType(info.ResourceType, out var terrainType);
-			veinRadarColor = terrainInfo.TerrainTypes[terrainInfo.GetTerrainIndex(terrainType)].Color;
+			veinMiniMapColor = terrainInfo.TerrainTypes[terrainInfo.GetTerrainIndex(terrainType)].Color;
 
 			renderIndices = new CellLayer<int[]>(world.Map);
 			borders = new CellLayer<Adjacency>(world.Map);
@@ -400,7 +400,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			yield return new SpriteRenderable(sprite, origin, WVec.Zero, 0, palette, veinSequence.Scale, alpha, float3.Ones, tintModifiers, false);
 		}
 
-		event Action<CPos> IRadarTerrainLayer.CellEntryChanged
+		event Action<CPos> IMiniMapTerrainLayer.CellEntryChanged
 		{
 			add
 			{
@@ -414,14 +414,14 @@ namespace OpenRA.Mods.Cnc.Traits
 			}
 		}
 
-		bool IRadarTerrainLayer.TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value)
+		bool IMiniMapTerrainLayer.TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value)
 		{
 			value = default;
 
 			if (borders[uv] == Adjacency.None && renderIndices[uv] == null)
 				return false;
 
-			value = (veinRadarColor, veinRadarColor);
+			value = (veinMiniMapColor, veinMiniMapColor);
 			return true;
 		}
 	}

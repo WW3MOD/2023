@@ -458,7 +458,7 @@ World:
 	PathFinder:
 	ValidateOrder:
 	DebugPauseState:
-	RadarPings:
+	MiniMapPings:
 	StartGameNotification:
 	ObjectivesPanel:
 		PanelName: SKIRMISH_STATS
@@ -494,7 +494,7 @@ World:
 	# PathFinder:
 	# ValidateOrder:
 	# DebugPauseState:
-	# RadarPings:
+	# MiniMapPings:
 	# StartGameNotification:
 	# ObjectivesPanel:
 	# 	PanelName: SKIRMISH_STATS

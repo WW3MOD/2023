@@ -268,7 +268,7 @@ MSAR:
 	SpawnActorOnDeath@deployed:
 		RequiresCondition: deployed
 		Actor: MSAR.deployed.husk
-	# RangedGpsRadarProvider:
+	# RangedGpsMiniMapProvider:
 	# 	Range: 50c0
 	# 	RequiresCondition: deployed && !empdisable
 

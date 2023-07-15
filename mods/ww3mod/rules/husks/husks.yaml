@@ -18,7 +18,7 @@
 ^CivBuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Building:
 		Dimensions: 1,1
 		Footprint: x
@@ -39,7 +39,7 @@
 ^BuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Building:
 		Dimensions: 1,1
 		Footprint: x
@@ -96,8 +96,8 @@
 	Interactable:
 	RenderSprites:
 		Palette: terrain
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree

@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits.Sound
 	public class AnnounceOnSeenInfo : TraitInfo
 	{
 		[Desc("Should there be a radar ping on enemies' radar at the actor's location when they see him")]
-		public readonly bool PingRadar = true;
+		public readonly bool PingMiniMap = true;
 		public readonly PingType Type = PingType.Default;
 		public readonly Color? Color = null;
 		public readonly int? LineWidth = null;
@@ -49,12 +49,12 @@ namespace OpenRA.Mods.Common.Traits.Sound
 	{
 		public readonly AnnounceOnSeenInfo Info;
 
-		readonly Lazy<RadarPings> radarPings;
+		readonly Lazy<MiniMapPings> radarPings;
 
 		public AnnounceOnSeen(Actor self, AnnounceOnSeenInfo info)
 		{
 			Info = info;
-			radarPings = Exts.Lazy(() => self.World.WorldActor.Trait<RadarPings>());
+			radarPings = Exts.Lazy(() => self.World.WorldActor.Trait<MiniMapPings>());
 		}
 
 		public void OnDiscovered(Actor self, Player discoverer, bool playNotification)
@@ -74,8 +74,8 @@ namespace OpenRA.Mods.Common.Traits.Sound
 			if (discoverer != null)
 				TextNotificationsManager.AddTransientLine(Info.TextNotification, discoverer);
 
-			// Radar notification
-			if (Info.PingRadar)
+			// MiniMap notification
+			if (Info.PingMiniMap)
 			{
 				var color = Color.Gray;
 				var alpha = 100;
@@ -118,7 +118,7 @@ namespace OpenRA.Mods.Common.Traits.Sound
 				color = Color.FromArgb(Info.Alpha ?? alpha, color.R, color.G, color.B);
 
 				radarPings.Value?.Add(
-					new RadarPing(() => true,
+					new MiniMapPing(() => true,
 						self.CenterPosition, color, Info.LineWidth ?? lineWidth, Info.Duration ?? duration, Info.FromRadius ?? fromRadius,
 						Info.ToRadius ?? toRadius, Info.ResizeSpeed ?? resizeSpeed, Info.RotationSpeed ?? rotationSpeed));
 			}

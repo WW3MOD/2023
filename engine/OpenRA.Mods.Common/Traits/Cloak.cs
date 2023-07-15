@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
-		INotifyAttack, ITick, IShouldHideModifier, IRadarColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
+		INotifyAttack, ITick, IShouldHideModifier, IMiniMapColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
 	{
 		[Sync]
 		int remainingTime;
@@ -290,7 +290,7 @@ namespace OpenRA.Mods.Common.Traits
 		// 	return cachedIsVisible;
 		// }
 
-		Color IRadarColorModifier.RadarColorOverride(Actor self, Color color)
+		Color IMiniMapColorModifier.MiniMapColorOverride(Actor self, Color color)
 		{
 			if (self.Owner == self.World.LocalPlayer && Cloaked)
 				color = Color.FromArgb(128, color);

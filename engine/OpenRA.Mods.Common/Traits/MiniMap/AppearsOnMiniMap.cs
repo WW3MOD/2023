@@ -14,32 +14,32 @@ using System.Linq;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits.Radar
+namespace OpenRA.Mods.Common.Traits.MiniMap
 {
-	public class AppearsOnRadarInfo : ConditionalTraitInfo
+	public class AppearsOnMiniMapInfo : ConditionalTraitInfo
 	{
 		public readonly bool UseLocation = false;
 
 		[Desc("Player relationships who can view this actor on radar.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
 
-		public override object Create(ActorInitializer init) { return new AppearsOnRadar(this); }
+		public override object Create(ActorInitializer init) { return new AppearsOnMiniMap(this); }
 	}
 
-	public class AppearsOnRadar : ConditionalTrait<AppearsOnRadarInfo>, IRadarSignature
+	public class AppearsOnMiniMap : ConditionalTrait<AppearsOnMiniMapInfo>, IMiniMapSignature
 	{
-		IRadarColorModifier modifier;
+		IMiniMapColorModifier modifier;
 
-		public AppearsOnRadar(AppearsOnRadarInfo info)
+		public AppearsOnMiniMap(AppearsOnMiniMapInfo info)
 			: base(info) { }
 
 		protected override void Created(Actor self)
 		{
 			base.Created(self);
-			modifier = self.TraitsImplementing<IRadarColorModifier>().FirstOrDefault();
+			modifier = self.TraitsImplementing<IMiniMapColorModifier>().FirstOrDefault();
 		}
 
-		public void PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
+		public void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
 		{
 			var viewer = self.World.RenderPlayer ?? self.World.LocalPlayer;
 			if (IsTraitDisabled || (viewer != null && !Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(viewer))))
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits.Radar
 
 			var color = Game.Settings.Game.UsePlayerStanceColors ? self.Owner.PlayerRelationshipColor(self) : self.Owner.Color;
 			if (modifier != null)
-				color = modifier.RadarColorOverride(self, color);
+				color = modifier.MiniMapColorOverride(self, color);
 
 			if (Info.UseLocation)
 			{

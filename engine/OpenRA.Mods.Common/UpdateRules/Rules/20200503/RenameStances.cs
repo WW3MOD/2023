@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			("FrozenUnderFog", "AlwaysVisibleStances", "AlwaysVisibleRelationships"),
 			("HiddenUnderShroud", "AlwaysVisibleStances", "AlwaysVisibleRelationships"),
 			("HiddenUnderFog", "AlwaysVisibleStances", "AlwaysVisibleRelationships"),
-			("AppearsOnRadar", "ValidStances", "ValidRelationships"),
+			("AppearsOnMiniMap", "ValidStances", "ValidRelationships"),
 			("CashTricklerBar", "DisplayStances", "DisplayRelationships"),
 			("SupportPowerChargeBar", "DisplayStances", "DisplayRelationships"),
 			("WithAmmoPipsDecoration", "ValidStances", "ValidRelationships"),

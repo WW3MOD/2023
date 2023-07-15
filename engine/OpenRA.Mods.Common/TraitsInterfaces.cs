@@ -495,12 +495,12 @@ namespace OpenRA.Mods.Common.Traits
 		HashSet<string> LandableTerrainTypes { get; }
 	}
 
-	public interface IRadarSignature
+	public interface IMiniMapSignature
 	{
-		void PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer);
+		void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer);
 	}
 
-	public interface IRadarColorModifier { Color RadarColorOverride(Actor self, Color color); }
+	public interface IMiniMapColorModifier { Color MiniMapColorOverride(Actor self, Color color); }
 
 	public interface IObjectivesPanel
 	{
@@ -742,7 +742,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface IRadarTerrainLayer
+	public interface IMiniMapTerrainLayer
 	{
 		event Action<CPos> CellEntryChanged;
 		bool TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value);

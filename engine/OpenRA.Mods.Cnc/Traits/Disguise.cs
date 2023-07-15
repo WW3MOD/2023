@@ -98,7 +98,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new Disguise(init.Self, this); }
 	}
 
-	class Disguise : IEffectiveOwner, IIssueOrder, IResolveOrder, IOrderVoice, IRadarColorModifier, INotifyAttack,
+	class Disguise : IEffectiveOwner, IIssueOrder, IResolveOrder, IOrderVoice, IMiniMapColorModifier, INotifyAttack,
 		INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration, ITick
 	{
 		public ActorInfo AsActor { get; private set; }
@@ -157,7 +157,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			return order.OrderString == "Disguise" ? info.Voice : null;
 		}
 
-		Color IRadarColorModifier.RadarColorOverride(Actor self, Color color)
+		Color IMiniMapColorModifier.MiniMapColorOverride(Actor self, Color color)
 		{
 			if (!Disguised || self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return color;

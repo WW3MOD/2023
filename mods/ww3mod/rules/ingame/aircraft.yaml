@@ -17,7 +17,7 @@
 	Armor:
 		Type: Light
 	UpdatesPlayerStatistics:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	WithSpriteControlGroupDecoration:
 	Selectable:

@@ -15,7 +15,7 @@ using System.IO;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
-using OpenRA.Mods.Common.Traits.Radar;
+using OpenRA.Mods.Common.Traits.MiniMap;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -40,8 +40,8 @@ namespace OpenRA.Mods.Common.Traits
 		public PlayerReference Owner { get; set; }
 		public SubCell SubCell { get; }
 		public bool Selected { get; set; }
-		public Color RadarColor { get; private set; }
-		readonly RadarColorFromTerrainInfo terrainRadarColorInfo;
+		public Color MiniMapColor { get; private set; }
+		readonly MiniMapColorFromTerrainInfo terrainMiniMapColorInfo;
 
 		readonly WorldRenderer worldRenderer;
 		readonly TooltipInfoBase tooltip;
@@ -87,8 +87,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			GeneratePreviews();
 
-			terrainRadarColorInfo = Info.TraitInfoOrDefault<RadarColorFromTerrainInfo>();
-			UpdateRadarColor();
+			terrainMiniMapColorInfo = Info.TraitInfoOrDefault<MiniMapColorFromTerrainInfo>();
+			UpdateMiniMapColor();
 
 			// Bounds are fixed from the initial render.
 			// If this is a problem, then we may need to fetch the area from somewhere else
@@ -196,7 +196,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			reference.Add(init);
 			GeneratePreviews();
-			UpdateRadarColor();
+			UpdateMiniMapColor();
 		}
 
 		public void RemoveInit<T>() where T : ActorInit, ISingleInstanceInit
@@ -257,9 +257,9 @@ namespace OpenRA.Mods.Common.Traits
 				.ToArray();
 		}
 
-		void UpdateRadarColor()
+		void UpdateMiniMapColor()
 		{
-			RadarColor = terrainRadarColorInfo == null ? Owner.Color : terrainRadarColorInfo.GetColorFromTerrain(worldRenderer.World);
+			MiniMapColor = terrainMiniMapColorInfo == null ? Owner.Color : terrainMiniMapColorInfo.GetColorFromTerrain(worldRenderer.World);
 		}
 
 		public ActorReference Export()
