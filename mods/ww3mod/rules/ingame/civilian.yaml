@@ -80,6 +80,8 @@
 	MapEditorData:
 		ExcludeTilesets: INTERIOR
 	Interactable:
+	RenderSprites:
+		Scale: 1.2
 ^Bridge:
 	Inherits@Shape: ^1x1Shape
 	AlwaysVisible:

@@ -106,15 +106,17 @@
 	Inherits: ^BasicBuilding
 	Huntable:
 	Health:
-		HP: 400
+		HP: 4000
 	Armor:
 		Type: Wood
 	Tooltip:
 		Name: Civilian Building
 		GenericVisibility: None
-	HiddenUnderShroud:
+	FrozenUnderFog:
+	AppearsOnMapPreview:
 	MapEditorData:
 		Categories: Tech building
+
 ^PrimaryBuilding:
 	PrimaryBuilding:
 		PrimaryCondition: primary

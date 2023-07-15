@@ -65,7 +65,7 @@ namespace OpenRA.Mods.Common.Traits
 		PPos[] ProjectedCells(Actor self)
 		{
 			var map = self.World.Map;
-			var minRange = Info.MinRange;
+			var minRange = MinRange;
 			var maxRange = Range;
 			if (maxRange <= minRange)
 				return NoCells;
@@ -106,11 +106,13 @@ namespace OpenRA.Mods.Common.Traits
 			cachedPos = pos;
 
 			// CPU improvement - Update shroud every 10 ticks
-			if (checkTick-- <= 0)
-			{
-				checkTick = 10;
-				UpdateShroudCells(self);
-			}
+			// if (checkTick-- <= 0)
+			// {
+			// 	checkTick = 10;
+			// 	UpdateShroudCells(self);
+			// }
+
+			UpdateShroudCells(self);
 		}
 
 		void ITick.Tick(Actor self)
@@ -127,12 +129,14 @@ namespace OpenRA.Mods.Common.Traits
 			cachedRange = range;
 			CachedTraitDisabled = traitDisabled;
 
-			if (checkTick-- <= 0)
-			{
-				// CPU improvement - Update shroud every 10 ticks
-				checkTick = 10;
-				UpdateShroudCells(self);
-			}
+			// if (checkTick-- <= 0)
+			// {
+			// 	// CPU improvement - Update shroud every 10 ticks
+			// 	checkTick = 10;
+			// 	UpdateShroudCells(self);
+			// }
+
+			UpdateShroudCells(self);
 		}
 
 		void UpdateShroudCells(Actor self)
@@ -163,6 +167,8 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in self.World.Players)
 				RemoveCellsFromPlayerShroud(self, p);
 		}
+
+		public virtual WDist MinRange => CachedTraitDisabled ? WDist.Zero : Info.MinRange;
 
 		public virtual WDist Range => CachedTraitDisabled ? WDist.Zero : Info.Range;
 

@@ -110,7 +110,7 @@ namespace OpenRA.Traits
 		bool disabledChanged;
 		[Sync]
 		bool shroudDisabled;
-		public bool ShroudDisabled
+		public bool Disabled
 		{
 			get => shroudDisabled;
 
@@ -125,7 +125,7 @@ namespace OpenRA.Traits
 		}
 
 		bool fogEnabled;
-		public bool FogEnabled => !ShroudDisabled && fogEnabled;
+		public bool FogEnabled => !Disabled && fogEnabled;
 		public bool ExploreMapEnabled { get; private set; }
 
 		public int Hash { get; private set; }
@@ -415,7 +415,7 @@ namespace OpenRA.Traits
 
 		public bool IsExplored(PPos puv)
 		{
-			if (ShroudDisabled)
+			if (Disabled)
 				return map.Contains(puv);
 
 			var rt = ResolvedVisibility[puv];
@@ -484,7 +484,7 @@ namespace OpenRA.Traits
 				}
 			}
 
-			if (ShroudDisabled && map.Contains(puv))
+			if (Disabled && map.Contains(puv))
 			{
 				return 10;
 			}

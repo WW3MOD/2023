@@ -54,6 +54,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p) { p.Shroud.RemoveSource(this); }
 
+		public override WDist MinRange
+		{
+			get
+			{
+				if (CachedTraitDisabled)
+					return WDist.Zero;
+
+				var range = Util.ApplyPercentageModifiers(Info.MinRange.Length, rangeModifiers);
+				return new WDist(range);
+			}
+		}
+
 		public override WDist Range
 		{
 			get
