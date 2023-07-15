@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public abstract class AffectsShroudInfo : ConditionalTraitInfo
+	public abstract class AffectsCellLayerInfo : ConditionalTraitInfo
 	{
 		public readonly WDist MinRange = WDist.Zero;
 
@@ -33,7 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly VisibilityType Type = VisibilityType.GroundPosition;
 	}
 
-	public abstract class AffectsShroud : ConditionalTrait<AffectsShroudInfo>, ISync, INotifyAddedToWorld,
+	public abstract class AffectsCellLayer : ConditionalTrait<AffectsCellLayerInfo>, ISync, INotifyAddedToWorld,
 		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, ITick
 	{
 		static readonly PPos[] NoCells = Array.Empty<PPos>();
@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);
 
-		public AffectsShroud(AffectsShroudInfo info)
+		public AffectsCellLayer(AffectsCellLayerInfo info)
 			: base(info)
 		{
 			if (Info.Type == VisibilityType.Footprint)

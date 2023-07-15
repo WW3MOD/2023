@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class CreatesShroudInfo : AffectsShroudInfo
+	public class CreatesShroudInfo : AffectsCellLayerInfo
 	{
 		[Desc("Relationship the watching player needs to see the generated shroud.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Neutral | PlayerRelationship.Enemy;
@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CreatesShroud(this); }
 	}
 
-	public class CreatesShroud : AffectsShroud
+	public class CreatesShroud : AffectsCellLayer
 	{
 		readonly CreatesShroudInfo info;
 		IEnumerable<int> rangeModifiers;

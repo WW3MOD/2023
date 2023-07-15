@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class VisionInfo : AffectsShroudInfo
+	public class VisionInfo : AffectsCellLayerInfo
 	{
 		[Desc("How much visibility to grant for this layer.")]
 		public readonly int Strength = 10;
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Vision(this); }
 	}
 
-	public class Vision : AffectsShroud
+	public class Vision : AffectsCellLayer
 	{
 		readonly VisionInfo info;
 		IEnumerable<int> rangeModifiers;

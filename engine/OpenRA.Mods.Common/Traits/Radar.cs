@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class RadarInfo : AffectsShroudInfo
+	public class RadarInfo : AffectsCellLayerInfo
 	{
 		[Desc("How much visibility to grant for this layer.")]
 		public readonly int Strength = 10;
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Radar(this); }
 	}
 
-	public class Radar : AffectsShroud
+	public class Radar : AffectsCellLayer
 	{
 		readonly RadarInfo info;
 		IEnumerable<int> rangeModifiers;
