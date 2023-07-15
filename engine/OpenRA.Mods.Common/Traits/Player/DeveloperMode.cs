@@ -143,15 +143,15 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (enableAll)
 					{
-						self.Owner.Shroud.ExploreAll();
+						self.Owner.MapLayer.ExploreAll();
 
 						var amount = order.ExtraData != 0 ? (int)order.ExtraData : info.Cash;
 						self.Trait<PlayerResources>().ChangeCash(amount);
 					}
 					else
-						self.Owner.Shroud.ResetExploration();
+						self.Owner.MapLayer.ResetExploration();
 
-					self.Owner.Shroud.Disabled = DisableShroud;
+					self.Owner.MapLayer.Disabled = DisableShroud;
 					if (self.World.LocalPlayer == self.Owner)
 						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
 
@@ -209,7 +209,7 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevVisibility":
 				{
 					disableShroud ^= true;
-					self.Owner.Shroud.Disabled = DisableShroud;
+					self.Owner.MapLayer.Disabled = DisableShroud;
 					if (self.World.LocalPlayer == self.Owner)
 						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
 
@@ -224,13 +224,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				case "DevGiveExploration":
 				{
-					self.Owner.Shroud.ExploreAll();
+					self.Owner.MapLayer.ExploreAll();
 					break;
 				}
 
 				case "DevResetExploration":
 				{
-					self.Owner.Shroud.ResetExploration();
+					self.Owner.MapLayer.ResetExploration();
 					break;
 				}
 

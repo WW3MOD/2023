@@ -1,5 +1,5 @@
 Player:
-	CellLayers:
+	MapLayers:
 		FogCheckboxVisible: True
 		ExploredMapCheckboxVisible: True
 	PlayerResources:

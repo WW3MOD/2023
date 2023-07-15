@@ -2,7 +2,7 @@ Player:
 	-ConquestVictoryConditions:
 	MissionObjectives:
 		EarlyGameOver: true
-	CellLayers:
+	MapLayers:
 		FogCheckboxLocked: True
 		FogCheckboxEnabled: True
 		ExploredMapCheckboxLocked: True

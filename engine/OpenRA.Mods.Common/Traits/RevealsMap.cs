@@ -27,13 +27,13 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class RevealsMap : ConditionalTrait<RevealsMapInfo>, INotifyKilled, INotifyActorDisposing, INotifyOwnerChanged
 	{
-		readonly CellLayers.SourceType type;
+		readonly MapLayers.SourceType type;
 
 		public RevealsMap(RevealsMapInfo info)
 			: base(info)
 		{
-			type = info.RevealGeneratedShroud ? CellLayers.SourceType.Visibility
-				: CellLayers.SourceType.PassiveVisibility;
+			type = info.RevealGeneratedShroud ? MapLayers.SourceType.Visibility
+				: MapLayers.SourceType.PassiveVisibility;
 		}
 
 		protected void AddCellsToPlayerShroud(Actor self, Player p, PPos[] uv)
@@ -41,10 +41,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, 10, uv);
+			p.MapLayer.AddSource(this, 10, uv);
 		}
 
-		protected void RemoveCellsFromPlayerShroud(Player p) { p.Shroud.RemoveSource(this); }
+		protected void RemoveCellsFromPlayerShroud(Player p) { p.MapLayer.RemoveSource(this); }
 
 		protected PPos[] ProjectedCells(Actor self)
 		{

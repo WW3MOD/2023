@@ -346,7 +346,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "DeliverUnit")
 			{
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!aircraftInfo.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
+				if (!aircraftInfo.MoveIntoShroud && !self.Owner.MapLayer.IsExplored(cell))
 					return;
 
 				self.QueueActivity(order.Queued, new DeliverUnit(self, order.Target, Info.DropRange, Info.TargetLineColor));
@@ -445,7 +445,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var location = self.World.Map.CellContaining(target.CenterPosition);
-				var explored = self.Owner.Shroud.IsExplored(location);
+				var explored = self.Owner.MapLayer.IsExplored(location);
 				cursor = self.World.Map.Contains(location) ? info.DropOffCursor : info.DropOffBlockedCursor;
 
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);

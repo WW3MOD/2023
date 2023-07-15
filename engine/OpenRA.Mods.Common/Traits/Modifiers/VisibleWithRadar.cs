@@ -37,10 +37,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			if (traitEnabled && byPlayer.Shroud.RadarCover(pos))
+			if (traitEnabled && byPlayer.MapLayer.RadarCover(pos))
 				return true;
 
-			return byPlayer.Shroud.IsVisible(pos, 1); // TODO
+			return byPlayer.MapLayer.IsVisible(pos, 1); // TODO
 		}
 
 		protected override void TraitEnabled(Actor self)

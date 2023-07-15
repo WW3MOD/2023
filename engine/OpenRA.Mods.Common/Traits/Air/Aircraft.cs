@@ -1036,7 +1036,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!Info.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.Shroud.IsExplored(cell))
+						if (!self.Owner.MapLayer.IsExplored(cell))
 							return null;
 					}
 
@@ -1061,7 +1061,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (orderString == "Move")
 			{
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
+				if (!Info.MoveIntoShroud && !self.Owner.MapLayer.IsExplored(cell))
 					return;
 
 				if (!order.Queued)
@@ -1076,7 +1076,7 @@ namespace OpenRA.Mods.Common.Traits
 			else if (orderString == "Land")
 			{
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
+				if (!Info.MoveIntoShroud && !self.Owner.MapLayer.IsExplored(cell))
 					return;
 
 				if (!order.Queued)
@@ -1309,7 +1309,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				var explored = self.Owner.Shroud.IsExplored(location);
+				var explored = self.Owner.MapLayer.IsExplored(location);
 				cursor = !aircraft.IsTraitPaused && (explored || aircraft.Info.MoveIntoShroud) && self.World.Map.Contains(location) ?
 					aircraft.Info.Cursor : aircraft.Info.BlockedCursor;
 

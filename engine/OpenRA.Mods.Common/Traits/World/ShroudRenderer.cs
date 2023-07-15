@@ -117,7 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool anyCellDirty;
 		readonly (Sprite Sprite, float Scale, float Alpha)[] fogSprites, shroudSprites;
 
-		CellLayers shroud;
+		MapLayers shroud;
 		Func<PPos, byte> cellVisibility;
 
 		Layer[] layers = new Layer[10];
@@ -191,7 +191,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			for (var i = 0; i < CellLayers.FogLayers + 1; i++)
+			for (var i = 0; i < MapLayers.FogLayers + 1; i++)
 				layers[i] = new Layer();
 
 			int spriteCount;
@@ -233,7 +233,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (w.Type == WorldType.Editor)
 				cellVisibility = puv => (byte)(map.Contains(puv) ? 10 : 0);
 			else
-				cellVisibility = puv => world.RenderPlayer.Shroud.GetVisibility(puv);
+				cellVisibility = puv => world.RenderPlayer.MapLayer.GetVisibility(puv);
 
 			var shroudBlend = shroudSprites[0].Sprite.BlendMode;
 			if (shroudSprites.Any(s => s.Sprite.BlendMode != shroudBlend))
@@ -245,7 +245,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var emptySprite = new Sprite(shroudSprites[0].Sprite.Sheet, Rectangle.Empty, TextureChannel.Alpha);
 
-			for (var i = 0; i < CellLayers.FogLayers + 1; i++)
+			for (var i = 0; i < MapLayers.FogLayers + 1; i++)
 			{
 				layers[i].PaletteReference = wr.Palette(info.ShroudPalette + i);
 
@@ -304,7 +304,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void WorldOnRenderPlayerChanged(Player player)
 		{
-			var newShroud = player?.Shroud;
+			var newShroud = player?.MapLayer;
 
 			if (shroud != newShroud)
 			{
@@ -366,7 +366,7 @@ namespace OpenRA.Mods.Common.Traits
 					var tileInfo = tileInfos[uv];
 					var pos = tileInfo.ScreenPosition;
 
-					for (var i = CellLayers.FogLayers; i >= 0; i--)
+					for (var i = MapLayers.FogLayers; i >= 0; i--)
 					{
 						if (cv <= i)
 							// Error
@@ -430,7 +430,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			UpdateShroud(map.ProjectedCells);
 
-			for (var i = CellLayers.FogLayers; i >= 0; i--)
+			for (var i = MapLayers.FogLayers; i >= 0; i--)
 			{
 				layers[i].TerrainSpriteLayer.Draw(wr.Viewport);
 			}
@@ -460,7 +460,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (disposed)
 				return;
 
-			for (var i = CellLayers.FogLayers; i >= 0; i--)
+			for (var i = MapLayers.FogLayers; i >= 0; i--)
 				layers[i].TerrainSpriteLayer.Dispose();
 
 			disposed = true;

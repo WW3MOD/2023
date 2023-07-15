@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Traits
 			var map = init.World.Map;
 
 			// Explore map-placed actors if the "Explore Map" option is enabled
-			var shroudInfo = init.World.Map.Rules.Actors[SystemActors.Player].TraitInfo<CellLayersInfo>();
+			var shroudInfo = init.World.Map.Rules.Actors[SystemActors.Player].TraitInfo<MapLayersInfo>();
 			var exploredMap = init.World.LobbyInfo.GlobalSettings.OptionOrDefault("explored", shroudInfo.ExploredMapCheckboxEnabled);
 			startsRevealed = exploredMap && init.Contains<SpawnedByMapInit>() && !init.Contains<HiddenUnderFogInit>();
 			var buildingInfo = init.Self.Info.TraitInfoOrDefault<BuildingInfo>();
@@ -118,8 +118,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool IsVisibleInner(Player byPlayer)
 		{
 			// If fog is disabled visibility is determined by shroud
-			if (!byPlayer.Shroud.FogEnabled)
-				return byPlayer.Shroud.AnyExplored(footprint);
+			if (!byPlayer.MapLayer.FogEnabled)
+				return byPlayer.MapLayer.AnyExplored(footprint);
 
 			return frozenStates[byPlayer].IsVisible;
 		}

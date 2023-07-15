@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class VisionInfo : AffectsCellLayerInfo
+	public class VisionInfo : AffectsMapLayerInfo
 	{
 		[Desc("Strength of this layer, add multiple layers with Min/MaxRange to create a progressive decline")]
 		public readonly int Strength = 10;
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Vision(this); }
 	}
 
-	public class Vision : AffectsCellLayer
+	public class Vision : AffectsMapLayer
 	{
 		readonly VisionInfo info;
 		IEnumerable<int> rangeModifiers;
@@ -44,15 +44,15 @@ namespace OpenRA.Mods.Common.Traits
 			rangeModifiers = self.TraitsImplementing<IVisionModifier>().ToArray().Select(x => x.GetVisionModifier());
 		}
 
-		protected override void AddCellsToPlayerShroud(Actor self, Player p, PPos[] uv)
+		protected override void AddCellsToPlayerMapLayer(Actor self, Player p, PPos[] uv)
 		{
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, info.Strength, uv);
+			p.MapLayer.AddSource(this, info.Strength, uv);
 		}
 
-		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p) { p.Shroud.RemoveSource(this); }
+		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayer.RemoveSource(this); }
 
 		public override WDist MinRange
 		{

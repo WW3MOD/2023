@@ -104,12 +104,12 @@ namespace OpenRA
 
 		// TODO Shroud
 		public bool FogObscures(Actor a) { return RenderPlayer != null && !a.CanBeViewedByPlayer(RenderPlayer); }
-		public bool FogObscures(CPos p, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.Shroud.IsVisible(p, visibility); }
-		public bool FogObscures(WPos pos, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.Shroud.IsVisible(pos, visibility); }
-		public bool ShroudObscures(CPos p) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(p); }
-		public bool ShroudObscures(MPos uv) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(uv); }
-		public bool ShroudObscures(WPos pos) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(pos); }
-		public bool ShroudObscures(PPos uv) { return RenderPlayer != null && !RenderPlayer.Shroud.IsExplored(uv); }
+		public bool FogObscures(CPos p, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.MapLayer.IsVisible(p, visibility); }
+		public bool FogObscures(WPos pos, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.MapLayer.IsVisible(pos, visibility); }
+		public bool ShroudObscures(CPos p) { return RenderPlayer != null && !RenderPlayer.MapLayer.IsExplored(p); }
+		public bool ShroudObscures(MPos uv) { return RenderPlayer != null && !RenderPlayer.MapLayer.IsExplored(uv); }
+		public bool ShroudObscures(WPos pos) { return RenderPlayer != null && !RenderPlayer.MapLayer.IsExplored(pos); }
+		public bool ShroudObscures(PPos uv) { return RenderPlayer != null && !RenderPlayer.MapLayer.IsExplored(uv); }
 
 		public bool IsReplay => OrderManager.Connection is ReplayConnection;
 

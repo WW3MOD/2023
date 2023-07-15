@@ -16,7 +16,7 @@ namespace OpenRA.Traits
 {
 	[TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)]
 	[Desc("Required for shroud and fog visibility checks. Add this to the player actor.")]
-	public class CellLayersInfo : TraitInfo, ILobbyOptions
+	public class MapLayersInfo : TraitInfo, ILobbyOptions
 	{
 		[Desc("Descriptive label for the fog checkbox in the lobby.")]
 		public readonly string FogCheckboxLabel = "Fog of War";
@@ -66,33 +66,36 @@ namespace OpenRA.Traits
 				FogCheckboxVisible, FogCheckboxDisplayOrder, FogCheckboxEnabled, FogCheckboxLocked);
 		}
 
-		public override object Create(ActorInitializer init) { return new CellLayers(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new MapLayers(init.Self, this); }
 	}
 
-	public class CellLayers : ISync, INotifyCreated, ITick
+	public class MapLayers : ISync, INotifyCreated, ITick
 	{
 		public static readonly int FogLayers = 9;
+
+		// TODO
 		public enum SourceType : byte { PassiveVisibility, Shroud, Visibility, Radar }
+
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 
-		class ShroudSource
+		class VisionSource
 		{
-			public readonly int Visibility;
+			public readonly int Vision;
 			public readonly PPos[] ProjectedCells;
 
-			public ShroudSource(int visibility, PPos[] projectedCells)
+			public VisionSource(int vision, PPos[] projectedCells)
 			{
-				Visibility = visibility;
+				Vision = vision;
 				ProjectedCells = projectedCells;
 			}
 		}
 
-		readonly CellLayersInfo info;
+		readonly MapLayersInfo info;
 		readonly Map map;
 
 		// Individual shroud modifier sources (type and area)
-		readonly Dictionary<object, ShroudSource> sources = new Dictionary<object, ShroudSource>();
+		readonly Dictionary<object, VisionSource> sources = new Dictionary<object, VisionSource>();
 
 		// Per-cell count of each source type, used to resolve the final cell type
 		readonly ProjectedCellLayer<short[]> visibilityCount;
@@ -130,7 +133,7 @@ namespace OpenRA.Traits
 		public bool ExploreMapEnabled { get; private set; }
 		public int Hash { get; private set; }
 
-		public CellLayers(Actor self, CellLayersInfo info)
+		public MapLayers(Actor self, MapLayersInfo info)
 		{
 			this.info = info;
 			map = self.World.Map;
@@ -269,7 +272,7 @@ namespace OpenRA.Traits
 			if (sources.ContainsKey(key))
 				throw new InvalidOperationException("Attempting to add duplicate shroud source");
 
-			sources[key] = new ShroudSource(visibility, projectedCells);
+			sources[key] = new VisionSource(visibility, projectedCells);
 
 			foreach (var puv in projectedCells)
 			{
@@ -316,7 +319,7 @@ namespace OpenRA.Traits
 					touched[index] = true;
 					anyCellTouched = true;
 
-					visibilityCount[index][state.Visibility]--;
+					visibilityCount[index][state.Vision]--;
 
 					// case SourceType.Radar:
 					// 	radarCount[index]--;
@@ -344,7 +347,7 @@ namespace OpenRA.Traits
 			}
 		}
 
-		public void Explore(CellLayers s)
+		public void Explore(MapLayers s)
 		{
 			if (map.Bounds != s.map.Bounds)
 				throw new ArgumentException("The map bounds of these shrouds do not match.", nameof(s));

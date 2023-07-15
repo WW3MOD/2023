@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Widgets
 		Sprite terrainSprite;
 		Sprite actorSprite;
 		Sprite shroudSprite;
-		CellLayers shroud;
+		MapLayers shroud;
 		PlayerMiniMapTerrain playerMiniMapTerrain;
 		Player currentPlayer;
 
@@ -126,7 +126,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			currentPlayer = player;
 
-			var newShroud = player?.Shroud;
+			var newShroud = player?.MapLayer;
 
 			if (newShroud != shroud)
 			{
@@ -249,7 +249,7 @@ namespace OpenRA.Mods.Common.Widgets
 		void UpdateShroudCell(PPos puv)
 		{
 			var color = 0;
-			var cv = currentPlayer.Shroud.GetVisibility(puv);
+			var cv = currentPlayer.MapLayer.GetVisibility(puv);
 			if (cv == 0)
 				color = Color.Black.ToArgb();
 			else

@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	public class PlayerMiniMapTerrainInfo : TraitInfo, Requires<CellLayersInfo>
+	public class PlayerMiniMapTerrainInfo : TraitInfo, Requires<MapLayersInfo>
 	{
 		public override object Create(ActorInitializer init)
 		{
@@ -32,14 +32,14 @@ namespace OpenRA.Mods.Common.Traits
 		readonly World world;
 		IMiniMapTerrainLayer[] radarTerrainLayers;
 		CellLayer<(int, int)> terrainColor;
-		readonly CellLayers shroud;
+		readonly MapLayers shroud;
 
 		public event Action<MPos> CellTerrainColorChanged = null;
 
 		public PlayerMiniMapTerrain(Actor self)
 		{
 			world = self.World;
-			shroud = self.Trait<CellLayers>();
+			shroud = self.Trait<MapLayers>();
 			shroud.OnShroudChanged += UpdateShroudCell;
 		}
 

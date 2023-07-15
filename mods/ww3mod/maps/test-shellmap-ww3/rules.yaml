@@ -1,6 +1,6 @@
 Player:
 	-ConquestVictoryConditions:
-	CellLayers:
+	MapLayers:
 		ExploredMapCheckboxEnabled: true
 		FogCheckboxEnabled: false
 World:

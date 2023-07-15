@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public abstract class AffectsCellLayerInfo : ConditionalTraitInfo
+	public abstract class AffectsMapLayerInfo : ConditionalTraitInfo
 	{
 		public readonly WDist MinRange = WDist.Zero;
 
@@ -33,7 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly VisibilityType Type = VisibilityType.Footprint;
 	}
 
-	public abstract class AffectsCellLayer : ConditionalTrait<AffectsCellLayerInfo>, ISync, INotifyAddedToWorld,
+	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, ISync, INotifyAddedToWorld,
 		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, ITick
 	{
 		static readonly PPos[] NoCells = Array.Empty<PPos>();
@@ -52,10 +52,10 @@ namespace OpenRA.Mods.Common.Traits
 		WPos cachedPos;
 		/* int checkTick = 0; */
 
-		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
-		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);
+		protected abstract void AddCellsToPlayerMapLayer(Actor self, Player player, PPos[] uv);
+		protected abstract void RemoveCellsFromPlayerMapLayer(Actor self, Player player);
 
-		public AffectsCellLayer(AffectsCellLayerInfo info)
+		public AffectsMapLayer(AffectsMapLayerInfo info)
 			: base(info)
 		{
 			if (Info.Type == VisibilityType.Footprint)
@@ -74,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
-					.SelectMany(kv => CellLayers.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
+					.SelectMany(kv => MapLayers.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
 				var cells = footprint.ToArray();
 				footprint.Clear();
 				return cells;
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.Type == VisibilityType.GroundPosition)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return CellLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
+			return MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
 				.ToArray();
 		}
 
@@ -144,8 +144,8 @@ namespace OpenRA.Mods.Common.Traits
 			var cells = ProjectedCells(self);
 			foreach (var p in self.World.Players)
 			{
-				RemoveCellsFromPlayerShroud(self, p);
-				AddCellsToPlayerShroud(self, p, cells);
+				RemoveCellsFromPlayerMapLayer(self, p);
+				AddCellsToPlayerMapLayer(self, p, cells);
 			}
 		}
 
@@ -159,13 +159,13 @@ namespace OpenRA.Mods.Common.Traits
 			var cells = ProjectedCells(self);
 
 			foreach (var p in self.World.Players)
-				AddCellsToPlayerShroud(self, p, cells);
+				AddCellsToPlayerMapLayer(self, p, cells);
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
 			foreach (var p in self.World.Players)
-				RemoveCellsFromPlayerShroud(self, p);
+				RemoveCellsFromPlayerMapLayer(self, p);
 		}
 
 		public virtual WDist MinRange => CachedTraitDisabled ? WDist.Zero : Info.MinRange;

@@ -36,10 +36,10 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				foreach (var player in collector.World.Players)
 					if (collector.Owner.IsAlliedWith(player))
-						player.Shroud.ExploreAll();
+						player.MapLayer.ExploreAll();
 			}
 			else
-				collector.Owner.Shroud.ExploreAll();
+				collector.Owner.MapLayer.ExploreAll();
 
 			base.Activate(collector);
 		}

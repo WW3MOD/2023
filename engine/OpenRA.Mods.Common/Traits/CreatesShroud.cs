@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class CreatesShroudInfo : AffectsCellLayerInfo
+	public class CreatesShroudInfo : AffectsMapLayerInfo
 	{
 		[Desc("Relationship the watching player needs to see the generated shroud.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Neutral | PlayerRelationship.Enemy;
@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CreatesShroud(this); }
 	}
 
-	public class CreatesShroud : AffectsCellLayer
+	public class CreatesShroud : AffectsMapLayer
 	{
 		readonly CreatesShroudInfo info;
 		IEnumerable<int> rangeModifiers;
@@ -41,15 +41,15 @@ namespace OpenRA.Mods.Common.Traits
 			rangeModifiers = self.TraitsImplementing<ICreatesShroudModifier>().ToArray().Select(x => x.GetCreatesShroudModifier());
 		}
 
-		protected override void AddCellsToPlayerShroud(Actor self, Player p, PPos[] uv)
+		protected override void AddCellsToPlayerMapLayer(Actor self, Player p, PPos[] uv)
 		{
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, 0, uv);
+			p.MapLayer.AddSource(this, 0, uv);
 		}
 
-		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p) { p.Shroud.RemoveSource(this); }
+		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayer.RemoveSource(this); }
 
 		public override WDist Range
 		{

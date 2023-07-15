@@ -24,7 +24,7 @@ namespace OpenRA.Traits
 
 	[TraitLocation(SystemActors.Player)]
 	[Desc("Required for FrozenUnderFog to work. Attach this to the player actor.")]
-	public class FrozenActorLayerInfo : TraitInfo, Requires<CellLayersInfo>
+	public class FrozenActorLayerInfo : TraitInfo, Requires<MapLayersInfo>
 	{
 		[Desc("Size of partition bins (cells)")]
 		public readonly int BinSize = 10;
@@ -39,7 +39,7 @@ namespace OpenRA.Traits
 		readonly Actor actor;
 		readonly ICreatesFrozenActors frozenTrait;
 		readonly Player viewer;
-		readonly CellLayers shroud;
+		readonly MapLayers shroud;
 		readonly List<WPos> targetablePositions = new List<WPos>();
 
 		public Player Owner { get; private set; }
@@ -87,7 +87,7 @@ namespace OpenRA.Traits
 			this.actor = actor;
 			this.frozenTrait = frozenTrait;
 			this.viewer = viewer;
-			shroud = viewer.Shroud;
+			shroud = viewer.MapLayer;
 			NeedRenderables = startsRevealed;
 
 			// Consider all cells inside the map area (ignoring the current map bounds)
@@ -266,7 +266,7 @@ namespace OpenRA.Traits
 			partitionedFrozenActorIds = new SpatiallyPartitioned<uint>(
 				world.Map.MapSize.X, world.Map.MapSize.Y, binSize);
 
-			self.Trait<CellLayers>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
+			self.Trait<MapLayers>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
 		}
 
 		public void Add(FrozenActor fa)

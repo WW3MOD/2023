@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// TODO: Make the AI handle such notifications and remove Owner.IsBot from this check
 			// Disable notifications for AI and neutral players (creeps) and for spectators
-			if (self.Owner.Shroud.Disabled || self.Owner.IsBot || !self.Owner.Playable || self.Owner.PlayerReference.Spectating)
+			if (self.Owner.MapLayer.Disabled || self.Owner.IsBot || !self.Owner.Playable || self.Owner.PlayerReference.Spectating)
 				return;
 
 			rescanInterval--;
