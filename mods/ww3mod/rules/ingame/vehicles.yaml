@@ -9,7 +9,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
-	Inherits@Detection: ^StandardDetection
+	Inherits@Vision: ^StandardVision
 	Health:
 		HP: 5000
 	Armor:

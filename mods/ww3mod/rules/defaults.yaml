@@ -17,69 +17,69 @@
 
 ^Combatant:
 
-^StandardDetection:
-	RevealsShroud@Visibility_10:
-		Visibility: 10
+^StandardVision:
+	Vision@10:
+		Strength: 10
 		Range: 4c0
-	RevealsShroud@Visibility_9:
-		Visibility: 9
+	Vision@9:
+		Strength: 9
 		MinRange: 4c0
 		Range: 7c0
-	RevealsShroud@Visibility_8:
-		Visibility: 8
+	Vision@8:
+		Strength: 8
 		MinRange: 7c0
 		Range: 10c0
-	RevealsShroud@Visibility_7:
-		Visibility: 7
+	Vision@7:
+		Strength: 7
 		MinRange: 10c0
 		Range: 13c0
-	RevealsShroud@Visibility_6:
-		Visibility: 6
+	Vision@6:
+		Strength: 6
 		MinRange: 13c0
 		Range: 16c0
-	RevealsShroud@Visibility_5:
-		Visibility: 5
+	Vision@5:
+		Strength: 5
 		MinRange: 16c0
 		Range: 19c0
-	RevealsShroud@Visibility_4:
-		Visibility: 4
+	Vision@4:
+		Strength: 4
 		MinRange: 19c0
 		Range: 22c0
-	RevealsShroud@Visibility_3:
-		Visibility: 3
+	Vision@3:
+		Strength: 3
 		MinRange: 22c0
 		Range: 25c0
-	RevealsShroud@Visibility_2:
-		Visibility: 2
+	Vision@2:
+		Strength: 2
 		MinRange: 25c0
 		Range: 28c0
-	RevealsShroud@Visibility_1:
-		Visibility: 1
+	Vision@1:
+		Strength: 1
 		MinRange: 28c0
 		Range: 32c0
 
 
-^StandardDetectionWhenLoaded:
-	Inherits: ^StandardDetection
-	RevealsShroud@Visibility_10:
+^StandardVisionWhenLoaded:
+	Inherits: ^StandardVision
+	Vision@10:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_9:
+	Vision@9:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_8:
+	Vision@8:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_7:
+	Vision@7:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_6:
+	Vision@6:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_5:
+	Vision@5:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_4:
+	Vision@4:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_3:
+	Vision@3:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_2:
+	Vision@2:
 		RequiresCondition: loaded
-	RevealsShroud@Visibility_1:
+	Vision@1:
 		RequiresCondition: loaded
 
 	# DetectCloaked@0:

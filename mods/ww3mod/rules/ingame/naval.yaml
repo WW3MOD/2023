@@ -66,7 +66,7 @@
 
 # ^Ship:
 # 	Inherits: ^Naval
-# 	RevealsShroud:
+# 	Vision:
 # 		MinRange: 5c0
 # 		Range: 24c0
 # 	RepairableNear:
@@ -75,7 +75,7 @@
 # 	Inherits: ^Naval
 # 	Inherits@Sonar: ^Sonar
 # 	-MustBeDestroyed:
-# 	RevealsShroud:
+# 	Vision:
 # 		Range: 20c0
 # 		RequiresCondition: !underwater
 # 	RepairableNear:
@@ -653,7 +653,7 @@
 # 	AutoTarget:
 # 		InitialStance: ReturnFire
 # 		InitialStanceAI: ReturnFire
-# 	RevealsShroud:
+# 	Vision:
 # 		MinRange: 5c0
 # 		Range: 10c0
 # 	GpsDot:
@@ -792,7 +792,7 @@
 # 		Armaments: primary
 # 		Color: FFFF00
 # 	RenderRangeCircle:
-# 	RevealsShroud:
+# 	Vision:
 # 		MinRange: 5c0
 # 		Range: 8c0
 # 	HitShape:

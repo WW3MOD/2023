@@ -2,7 +2,7 @@
 ^Defense:
 	Inherits: ^Building
 	Inherits@Selection: ^SelectableCombatBuilding
-	Inherits@Detection: ^StandardDetection
+	Inherits@Vision: ^StandardVision
 	-GivesBuildableArea:
 	-AcceptsDeliveredCash:
 	Selectable:
@@ -79,7 +79,7 @@ GTWR:
 	Inherits@Type: ^Defense
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGround
-	Inherits@DetectionWhenLoaded: ^StandardDetectionWhenLoaded
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	RenderSprites:
 		PlayerPalette: playertd
 	Buildable:
@@ -172,7 +172,7 @@ HBOX:
 	Inherits@Type: ^Defense
 	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
-	Inherits@DetectionWhenLoaded: ^StandardDetectionWhenLoaded
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	-WithColoredOverlay@EMP:
 	-TimedConditionBar@EMP:
 	-WithIdleOverlay@EMP:

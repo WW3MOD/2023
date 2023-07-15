@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected bool CachedTraitDisabled { get; private set; }
 
 		WPos cachedPos;
-		int checkTick = 0;
+		/* int checkTick = 0; */
 
 		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);
@@ -106,13 +106,13 @@ namespace OpenRA.Mods.Common.Traits
 			cachedPos = pos;
 
 			// CPU improvement - Update shroud every 10 ticks
-			// if (checkTick-- <= 0)
-			// {
-			// 	checkTick = 10;
-			// 	UpdateShroudCells(self);
-			// }
+			/* if (checkTick-- <= 0)
+			{
+				checkTick = 10;
+				UpdateCells(self);
+			} */
 
-			UpdateShroudCells(self);
+			UpdateCells(self);
 		}
 
 		void ITick.Tick(Actor self)
@@ -130,16 +130,16 @@ namespace OpenRA.Mods.Common.Traits
 			CachedTraitDisabled = traitDisabled;
 
 			// if (checkTick-- <= 0)
-			// {
-			// 	// CPU improvement - Update shroud every 10 ticks
-			// 	checkTick = 10;
-			// 	UpdateShroudCells(self);
-			// }
+			/* {
+				// CPU improvement - Update shroud every 10 ticks
+				checkTick = 10;
+				UpdateCells(self);
+			} */
 
-			UpdateShroudCells(self);
+			UpdateCells(self);
 		}
 
-		void UpdateShroudCells(Actor self)
+		void UpdateCells(Actor self)
 		{
 			var cells = ProjectedCells(self);
 			foreach (var p in self.World.Players)
@@ -185,7 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 				cachedLocation = projectedLocation;
 				cachedPos = pos;
 
-				UpdateShroudCells(self);
+				UpdateCells(self);
 			}
 		}
 	}

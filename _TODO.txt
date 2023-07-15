@@ -167,7 +167,7 @@ Unsolved bugs
 - Shroud update
     - Each cell has a visibility of 0-100, 0 = Shrouded, 100 = visible
     - Units have detection from 100 down to 0 based on distance.
-        - AffectsShroud.UpdateShroudCells.AddCellsToPlayerShroud
+        - AffectsShroud.UpdateCells.AddCellsToPlayerShroud
             -> RevealShroudEffect.AddCellsToPlayerShroud -> player.Shroud.AddSource(this, sourceType, uv);
     - Units have camouflage 0-100 that makes them invisible at lower visibility
 
@@ -180,7 +180,7 @@ UNIT:
         Spotted (GPS marker, can be targeted in limited mode)
         Revealed (Unit type identified, can be targeted fully)
         RadarSize
-    Detection:
+    Vision:
         Cloak ()
         Sight (Determines shroud effect)
         Radar
@@ -290,7 +290,7 @@ Vehicles
 
 Aircraft
     - Soldiers in crashed transport helicopters have a small chance of surviving, but receive lots of damage.
-    - Detection, Apache has StandardDetection now
+    - Detection, Apache has StandardVision now
     - Apache shouldn't use guns vs structures
     - 30mm.FighterGun still doesn't do any damage / misses?
         - offset seems to come from behind the aircraft

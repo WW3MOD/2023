@@ -10,7 +10,7 @@
 	Inherits@PinsDown: ^PinsDown
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
-	Inherits@Detection: ^StandardDetection
+	Inherits@Vision: ^StandardVision
 	Inherits@DetectionProximity: ^DetectionProximity
 	RepairableNear:
 		RepairActors: truk

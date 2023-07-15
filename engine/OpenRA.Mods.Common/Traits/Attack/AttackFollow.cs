@@ -226,7 +226,7 @@ namespace OpenRA.Mods.Common.Traits
 		class AttackActivity : Activity, IActivityNotifyStanceChanged
 		{
 			readonly AttackFollow attack;
-			readonly RevealsShroud[] revealsShroud;
+			readonly Vision[] vision;
 			readonly IMove move;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
@@ -245,7 +245,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				attack = self.Trait<AttackFollow>();
 				move = allowMove ? self.TraitOrDefault<IMove>() : null;
-				revealsShroud = self.TraitsImplementing<RevealsShroud>().ToArray();
+				vision = self.TraitsImplementing<Vision>().ToArray();
 
 				this.target = target;
 				this.forceAttack = forceAttack;
@@ -325,7 +325,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Most actors want to be able to see their target before shooting
 				if (target.Type == TargetType.FrozenActor && !attack.Info.TargetFrozenActors && !forceAttack)
 				{
-					var rs = revealsShroud
+					var rs = vision
 						.Where(t => !t.IsTraitDisabled)
 						.MaxByOrDefault(s => s.Range);
 

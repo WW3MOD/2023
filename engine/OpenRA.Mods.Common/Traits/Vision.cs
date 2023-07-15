@@ -15,23 +15,23 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class RevealsShroudInfo : AffectsShroudInfo
+	public class VisionInfo : AffectsShroudInfo
 	{
 		[Desc("How much visibility to grant for this layer.")]
-		public readonly int Visibility = 10;
+		public readonly int Strength = 10;
 
 		[Desc("Relationships the watching player needs to see the shroud removed.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
 
-		public override object Create(ActorInitializer init) { return new RevealsShroud(this); }
+		public override object Create(ActorInitializer init) { return new Vision(this); }
 	}
 
-	public class RevealsShroud : AffectsShroud
+	public class Vision : AffectsShroud
 	{
-		readonly RevealsShroudInfo info;
+		readonly VisionInfo info;
 		IEnumerable<int> rangeModifiers;
 
-		public RevealsShroud(RevealsShroudInfo info)
+		public Vision(VisionInfo info)
 			: base(info)
 		{
 			this.info = info;
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, info.Visibility, uv);
+			p.Shroud.AddSource(this, info.Strength, uv);
 		}
 
 		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p) { p.Shroud.RemoveSource(this); }

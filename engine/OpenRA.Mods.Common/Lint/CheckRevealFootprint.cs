@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Lint
 				try
 				{
 					var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
-					foreach (var rsi in actorInfo.Value.TraitInfos<RevealsShroudInfo>())
+					foreach (var rsi in actorInfo.Value.TraitInfos<VisionInfo>())
 					{
 						if (rsi.Type != VisibilityType.Footprint)
 							continue;

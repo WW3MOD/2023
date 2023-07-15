@@ -1,7 +1,7 @@
 
 ^CivBuilding:
 	Inherits@TechBuilding: ^TechBuilding
-	Inherits@DetectionWhenLoaded: ^StandardDetectionWhenLoaded
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
 	RenderSprites:

@@ -149,7 +149,7 @@ CAMERA:
 	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 9c256
 		Type: CenterPosition
 	BodyOrientation:
@@ -164,7 +164,7 @@ camera.paradrop:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 camera.paradrop.detector:
 	Inherits: camera.paradrop
@@ -179,21 +179,21 @@ camera.minimum:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	RevealsShroud:
+	Vision:
 		Range: 1c0
 
 SONAR:
 	Inherits: camera.spyplane
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	-RevealsShroud:
+	-Vision:
 	DetectCloaked:
 		DetectionTypes: Underwater
 		Range: 10c0
 FLARE:
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 3c0
 		Type: CenterPosition
 	RenderSprites:

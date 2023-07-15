@@ -9,7 +9,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
-	Inherits@Detection: ^StandardDetection
+	Inherits@Vision: ^StandardVision
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -71,11 +71,11 @@
 	# 	Range: 25c0
 	# 	Type: GroundPosition
 	# 	RequiresCondition: airborne
-	# RevealsShroud@Air:
+	# Vision@Air:
 	# 	Range: 20c0
 	# 	Type: GroundPosition
 	# 	RequiresCondition: airborne
-	# RevealsShroud@Ground:
+	# Vision@Ground:
 	# 	Range: 10c0
 	# 	Type: GroundPosition
 	# 	RequiresCondition: !airborne
