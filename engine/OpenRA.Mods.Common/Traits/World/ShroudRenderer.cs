@@ -368,6 +368,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (index > 1)
 				alpha -= (index - 1) * (1f / 12);
 
+			if (index > 0)
+				alpha /= 3;
+
 			return alpha;
 		}
 
@@ -392,48 +395,79 @@ namespace OpenRA.Mods.Common.Traits
 
 					for (int i = 9; i >= 0; i--) // Loop
 					{
-						if (cv != i)
+						if (cv <= i)
 						{
-							// Special case
-							if (cv == 10 && i == 9)
+							UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, true, i == 0 ? shroudSprites : fogSprites);
+						}
+						// Dont render over tiles with higher visibility
+						else if (cv >= i + 2)
+						{
+							// Reset
+							UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, true, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, fogSprites);
+						}
+						// Handle edges
+						else if (cv == i + 1)
+						{
+							// Use Shroud if it is on the edge
+							if (cv == 1 && i == 0)
 							{
-								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, null, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant);
-								continue;
+								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, shroudSprites);
 							}
-							// Reset layer for position
 							else
-							{
-								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, null, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant);
-
-								Layers[i].TerrainSpriteLayer.Update(uv, null, Layers[i].PaletteReference, pos, 1f, 1f, true);
-								continue;
-							}
+								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, fogSprites);
 						}
 						else
 						{
+							var ncv = GetNeighborsVisbility(puv);
 
+							if (ncv.All(n => n >= i))
+							{
+								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, true, i == 0 ? shroudSprites : fogSprites);
+							}
+							else
+							{
+								UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i > 0 ? i - 1 : i), Layers[i].PaletteReference, tileInfo.Variant, false, i == 0 ? shroudSprites : fogSprites);
+							}
 						}
 
-
-
-						// var ncv = GetNeighborsVisbility(puv);
-
-						// if (ncv.All(n => n >= i))
+						// if (cv != i)
 						// {
-						// 	Layers[i].TerrainSpriteLayer.Update(uv, GetSprite(i == 0 ? shroudSprites : fogSprites, notVisibleEdges, tileInfo.Variant).Sprite, Layers[i].PaletteReference, pos, 1f, Alpha(i), true);
+						// 	// Special cases
+						// 	if (cv == 10 && i == 9)
+						// 	{
+						// 		UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, fogSprites);
+						// 	}
+						// 	else if (cv == 1 && i == 0)
+						// 	{
+						// 		UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, shroudSprites);
+						// 	}
+						// 	// Otherwise, reset layer for position
+						// 	else
+						// 	{
+						// 		UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, true, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, fogSprites);
+						// 	}
 						// }
+						// else
+						// {
+						// 	//
+						// 	if (cv == 1 && i == 0)
+						// 	{
+						// 		UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, false, i == 0 ? shroudSprites : fogSprites);
+						// 	}
+						// 	else
+						// 	{
+						// 		var ncv = GetNeighborsVisbility(puv);
 
-						// var useIndex = i;
-						// var edges = GetEdges(ncv, cv);
-
-						// var gotSprite = GetSprite(useIndex == 0 ? shroudSprites : fogSprites, edges, tileInfo.Variant);
-						// if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
-
-						// if (useIndex != cv)
-						// 	gotSprite.Sprite = null;
-
-						// var paletteReference = Layers[useIndex].PaletteReference;
-						// Layers[useIndex].TerrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, Alpha(i), true);
+						// 		if (ncv.All(n => n >= i))
+						// 		{
+						// 			UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), Layers[i].PaletteReference, tileInfo.Variant, true, i == 0 ? shroudSprites : fogSprites);
+						// 		}
+						// 		else
+						// 		{
+						// 			UpdateLayer(Layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i > 0 ? i - 1 : i), Layers[i].PaletteReference, tileInfo.Variant, false, i == 0 ? shroudSprites : fogSprites);
+						// 		}
+						// 	}
+						// }
 					}
 				}
 			}
@@ -441,12 +475,23 @@ namespace OpenRA.Mods.Common.Traits
 			anyCellDirty = false;
 		}
 
-		void UpdateLayer(TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, Sprite sprite, float alpha, PaletteReference paletteReference, byte tileVariant)
+		void UpdateLayer(TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, bool reset, float alpha, PaletteReference paletteReference, byte tileVariant, bool allEdges, (Sprite, float, float)[] sprites)
 		{
 			var cv = cellVisibility(puv);
-			var gotSprite = GetSprite(fogSprites, GetEdges(GetNeighborsVisbility(puv), cv), tileVariant);
-			if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
-			terrainSpriteLayer.Update(uv, gotSprite.Sprite, paletteReference, pos, 1f, alpha, true);
+
+			Sprite sprite;
+			if (reset)
+				sprite = null;
+			else
+			{
+				var gotSprite = GetSprite(sprites, allEdges ? notVisibleEdges : GetEdges(GetNeighborsVisbility(puv), cv), tileVariant);
+
+				if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
+
+				sprite = gotSprite.Sprite;
+			}
+
+			terrainSpriteLayer.Update(uv, sprite, paletteReference, pos, 1f, alpha, true);
 		}
 
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
