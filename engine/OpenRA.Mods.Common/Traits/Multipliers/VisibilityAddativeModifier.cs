@@ -12,21 +12,21 @@
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Modifies the required vision to see this actor.")]
-	public class VisibilityModifierInfo : ConditionalTraitInfo
+	public class VisibilityAddativeModifierInfo : ConditionalTraitInfo
 	{
 		[FieldLoader.Require]
 		[Desc("Modifier to apply.")]
 		public readonly int Modifier = 0;
 
-		public override object Create(ActorInitializer init) { return new VisibilityModifier(this); }
+		public override object Create(ActorInitializer init) { return new VisibilityAddativeModifier(this); }
 	}
 
-	public class VisibilityModifier : ConditionalTrait<VisibilityModifierInfo>, IVisibilityModifier
+	public class VisibilityAddativeModifier : ConditionalTrait<VisibilityAddativeModifierInfo>, IVisibilityAddativeModifier
 	{
-		public VisibilityModifier(VisibilityModifierInfo info)
+		public VisibilityAddativeModifier(VisibilityAddativeModifierInfo info)
 			: base(info) { }
 
-		int IVisibilityModifier.GetVisibilityModifier()
+		int IVisibilityAddativeModifier.GetVisibilityAddativeModifier()
 		{
 			return IsTraitDisabled ? 0 : Info.Modifier;
 		}

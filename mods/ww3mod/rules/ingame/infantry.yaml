@@ -299,7 +299,7 @@
 ^PinsDown:
 	Inherits@SuppressionPips: ^SuppressionPips
 	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
-	Inherits@SuppressionVisionMultiplier: ^SuppressionVisionMultiplier
+	Inherits@SuppressionVisionPercentageModifier: ^SuppressionVisionPercentageModifier
 	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
 	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
 	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
@@ -337,35 +337,35 @@
 	SpeedMultiplier@Suppression_10:
 		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^SuppressionVisionMultiplier:
-	VisionMultiplier@Suppression_1:
+^SuppressionVisionPercentageModifier:
+	VisionPercentageModifier@Suppression_1:
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	VisionMultiplier@Suppression_2:
+	VisionPercentageModifier@Suppression_2:
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	VisionMultiplier@Suppression_3:
+	VisionPercentageModifier@Suppression_3:
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	VisionMultiplier@Suppression_4:
+	VisionPercentageModifier@Suppression_4:
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	VisionMultiplier@Suppression_5:
+	VisionPercentageModifier@Suppression_5:
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	VisionMultiplier@Suppression_6:
+	VisionPercentageModifier@Suppression_6:
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	VisionMultiplier@Suppression_7:
+	VisionPercentageModifier@Suppression_7:
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	VisionMultiplier@Suppression_8:
+	VisionPercentageModifier@Suppression_8:
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	VisionMultiplier@Suppression_9:
+	VisionPercentageModifier@Suppression_9:
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	VisionMultiplier@Suppression_10:
+	VisionPercentageModifier@Suppression_10:
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
 ^SuppressionDetectCloakedMultiplier:
@@ -569,22 +569,22 @@
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
-	VisibilityModifier@Dugin:
+	VisibilityAddativeModifier@Dugin:
 		RequiresCondition: dugin
 		Modifier: 1
-	VisibilityModifier@Running:
+	VisibilityAddativeModifier@Running:
 		RequiresCondition: moving && !prone
 		Modifier: -2
-	VisibilityModifier@Crawling:
+	VisibilityAddativeModifier@Crawling:
 		RequiresCondition: moving && prone
 		Modifier: -1
-	VisibilityModifier@Forest_1:
+	VisibilityAddativeModifier@Forest_1:
 		RequiresCondition: object-proximity == 1
 		Modifier: 1
-	VisibilityModifier@Forest_2:
+	VisibilityAddativeModifier@Forest_2:
 		RequiresCondition: object-proximity == 2
 		Modifier: 2
-	VisibilityModifier@Forest_3:
+	VisibilityAddativeModifier@Forest_3:
 		RequiresCondition: object-proximity >= 3
 		Modifier: 3
 

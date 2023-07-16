@@ -12,18 +12,18 @@
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Modifies the shroud range revealed by this actor.")]
-	public class VisionMultiplierInfo : ConditionalTraitInfo
+	public class VisionPercentageModifierInfo : ConditionalTraitInfo
 	{
 		[FieldLoader.Require]
 		[Desc("Percentage modifier to apply.")]
 		public readonly int Modifier = 100;
 
-		public override object Create(ActorInitializer init) { return new VisionMultiplier(this); }
+		public override object Create(ActorInitializer init) { return new VisionPercentageModifier(this); }
 	}
 
-	public class VisionMultiplier : ConditionalTrait<VisionMultiplierInfo>, IVisionModifier
+	public class VisionPercentageModifier : ConditionalTrait<VisionPercentageModifierInfo>, IVisionModifier
 	{
-		public VisionMultiplier(VisionMultiplierInfo info)
+		public VisionPercentageModifier(VisionPercentageModifierInfo info)
 			: base(info) { }
 
 		int IVisionModifier.GetVisionModifier()

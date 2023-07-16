@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			base.Created(self);
 
-			visibilityModifiers = self.TraitsImplementing<IVisibilityModifier>().ToArray().Select(x => x.GetVisibilityModifier());
+			visibilityModifiers = self.TraitsImplementing<IVisibilityAddativeModifier>().ToArray().Select(x => x.GetVisibilityAddativeModifier());
 		}
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
