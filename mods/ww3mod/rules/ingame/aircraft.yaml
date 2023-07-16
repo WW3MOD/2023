@@ -75,10 +75,15 @@
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
-	# Radar:
-	# 	Range: 25c0
-	# 	Position: Ground
-	# 	RequiresCondition: airborne
+	Radar:
+		Range: 42c0
+		RequiresCondition: airborne
+	WithRangeCircle@Radar:
+		Range: 42c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+		RequiresCondition: airborne
 	# Vision@Air:
 	# 	Range: 20c0
 	# 	Position: Ground

@@ -67,6 +67,10 @@ Mines
     - Cloaking
     - Engineer demining
 
+Air
+
+    - Reduce Damage from small arms
+
 End Game
 
     - Capturing enemy flag should start a countdown to victory so you cant have hidden units preventing victory and neglect your spawn
