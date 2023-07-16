@@ -57,7 +57,7 @@ SPY.Strong:
 		Image: SPY
 	Health:
 		HP: 10000
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Infiltrates:
 		Types: MissionObjective
@@ -99,7 +99,7 @@ TRUK.Hijackable:
 	RenderSprites:
 		Image: TRUK
 		Palette: truk-soviets
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Voiced:
 		VoiceSet: SpyVoice

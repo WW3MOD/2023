@@ -686,7 +686,7 @@ m109:
 			BottomRight: 315, 900
 	-HiddenUnderFog:
 	VisibleWithRadar:
-		Type: GroundPosition
+		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
 		Speed: 80
@@ -792,7 +792,7 @@ m270:
 			BottomRight: 360, 530
 	-HiddenUnderFog:
 	VisibleWithRadar:
-		Type: GroundPosition
+		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
 		Locomotor: lighttracked
@@ -898,7 +898,7 @@ m270:
 # 			BottomRight: 240, 700
 # 	-HiddenUnderFog:
 # 	VisibleWithRadar:
-# 		Type: GroundPosition
+# 		Position: Ground
 # 		PauseOnCondition: !firing
 # 	Mobile:
 # 		Locomotor: lighttracked

@@ -134,7 +134,7 @@ MNLYR:
 	Mobile:
 		Speed: 128
 		TurnSpeed: 512
-	RevealsShroud:
+	Vision:
 		Range: 40c0
 	MustBeDestroyed:
 		RequiredForShortGame: true

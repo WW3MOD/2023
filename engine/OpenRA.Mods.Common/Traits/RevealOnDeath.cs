@@ -65,7 +65,7 @@ namespace OpenRA.Mods.Common.Traits
 						return;
 
 					w.Add(new RevealShroudEffect(self.CenterPosition, info.Radius,
-						info.RevealGeneratedShroud ? MapLayers.SourceType.Visibility : MapLayers.SourceType.PassiveVisibility,
+						info.RevealGeneratedShroud ? MapLayers.Type.Vision : MapLayers.Type.PassiveVisibility,
 						owner, info.RevealForRelationships, duration: info.Duration));
 				});
 			}

@@ -506,7 +506,7 @@ giatsint:
 			BottomRight: 330, 800
 	-HiddenUnderFog:
 	VisibleWithRadar:
-		Type: GroundPosition
+		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
 		Locomotor: lighttracked
@@ -606,7 +606,7 @@ grad:
 			BottomRight: 240, 730
 	-HiddenUnderFog:
 	VisibleWithRadar:
-		Type: GroundPosition
+		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
 		Speed: 110
@@ -708,7 +708,7 @@ tos:
 			BottomRight: 360, 950
 	-HiddenUnderFog:
 	VisibleWithRadar:
-		Type: GroundPosition
+		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
 		Speed: 80
@@ -808,7 +808,7 @@ tos:
 # 			BottomRight: 300, 1270
 # 	-HiddenUnderFog:
 # 	VisibleWithRadar:
-# 		Type: GroundPosition
+# 		Position: Ground
 # 		PauseOnCondition: !firing
 # 	Mobile:
 # 		Speed: 80
@@ -898,7 +898,7 @@ tos:
 # 		Image: smokey2
 # 		Palette: effect_ts
 # 		MovingInterval: 1
-# 		Type: CenterPosition
+# 		Position: Center
 # 		Offsets: -200, 0, 0
 # 	MissileSpawnerSlave:
 # 	SpawnedExplodes:

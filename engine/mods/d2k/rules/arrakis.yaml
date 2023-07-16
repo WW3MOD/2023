@@ -115,13 +115,13 @@ sandworm:
 		Notification: WormSign
 		TextNotification: Worm sign.
 		PingRadar: True
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	LeavesTrails:
 		Image: sandtrail
 		Sequences: traila, trailb, trailc
 		Palette: effect
-		Type: CenterPosition
+		Position: Center
 		TerrainTypes: Sand, Dune, SpiceSand, Spice
 		MovingInterval: 3
 		RequiresCondition: !attacking
@@ -144,7 +144,7 @@ sietch:
 		HP: 60000
 	Armor:
 		Type: wood
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	-GivesBuildableArea:
 	-Sellable:

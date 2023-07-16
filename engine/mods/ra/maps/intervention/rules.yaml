@@ -25,7 +25,7 @@ World:
 			Allies2: 208, 208, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 154, 155, 143
 
 CAMERA:
-	RevealsShroud:
+	Vision:
 		Range: 18c0
 
 MISS:
@@ -90,7 +90,7 @@ HELI:
 		Cost: 1500
 
 SAM:
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	Power:
 		Amount: -5

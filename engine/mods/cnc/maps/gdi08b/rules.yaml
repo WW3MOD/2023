@@ -117,7 +117,7 @@ STNK:
 		Prerequisites: ~disabled
 
 ARTY:
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 
 HARV:

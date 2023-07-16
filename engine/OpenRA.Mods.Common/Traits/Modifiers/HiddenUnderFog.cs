@@ -35,11 +35,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (!byPlayer.MapLayers.FogEnabled)
 				return base.IsVisibleInner(self, byPlayer);
 
-			if (Info.Type == VisibilityType.Footprint)
+			if (Info.Position == VisibilityPosition.Footprint)
 				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), info.VisualVisibility);
 
 			var pos = self.CenterPosition;
-			if (Info.Type == VisibilityType.GroundPosition)
+			if (Info.Position == VisibilityPosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
 			return byPlayer.MapLayers.IsVisible(pos, info.VisualVisibility);

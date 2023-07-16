@@ -40,7 +40,7 @@ MEDI:
 
 PRISON:
 	HiddenUnderShroud:
-		Type: CenterPosition
+		Position: Center
 	Immobile:
 		OccupiesSpace: false
 	ProximityExternalCondition:
@@ -48,19 +48,19 @@ PRISON:
 		Range: 1c0
 
 CAMERA:
-	RevealsShroud:
+	Vision:
 		Range: 8c7
 
 CAMERA.VeryLarge:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 40c0
 
 E1.Autotarget:
 	Inherits: E1
 	Buildable:
 		Prerequisites: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	AutoTarget:
 		ScanRadius: 7
@@ -71,7 +71,7 @@ E2.Autotarget:
 	Inherits: E2
 	Buildable:
 		Prerequisites: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	AutoTarget:
 		ScanRadius: 7
@@ -79,7 +79,7 @@ E2.Autotarget:
 		Image: E2
 
 DOG:
-	RevealsShroud:
+	Vision:
 		Range: 9c0
 	AutoTarget:
 		ScanRadius: 8

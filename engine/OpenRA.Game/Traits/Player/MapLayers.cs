@@ -72,10 +72,7 @@ namespace OpenRA.Traits
 	public class MapLayers : ISync, INotifyCreated, ITick
 	{
 		public static readonly int FogLayers = 9;
-
-		// TODO
-		public enum SourceType : byte { PassiveVisibility, Shroud, Visibility, Radar }
-
+		public enum Type : byte { Vision, Radar, PassiveVisibility }
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 

@@ -21,7 +21,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum VisibilityType { Footprint, CenterPosition, GroundPosition }
+	public enum VisibilityPosition { Footprint, Center, Ground }
 
 	public enum AttackDelayType { Preparation, Attack }
 

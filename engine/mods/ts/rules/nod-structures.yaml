@@ -19,7 +19,7 @@ NAPOWR:
 		HP: 75000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@LIGHTS:
@@ -62,7 +62,7 @@ NAAPWR:
 		HP: 75000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@LIGHTS:
@@ -107,7 +107,7 @@ NAHAND:
 		HP: 80000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 		MaxHeightDelta: 3
 	Exit@1:
@@ -201,7 +201,7 @@ NAWEAP:
 		HP: 100000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		MaxHeightDelta: 3
 	RallyPoint:
@@ -259,7 +259,7 @@ NAHPAD:
 		Dimensions: 2,2
 	Health:
 		HP: 60000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 		MaxHeightDelta: 3
 	Exit@1:
@@ -336,7 +336,7 @@ NARADR:
 	DetectCloaked:
 		Range: 10c0
 	RenderDetectionCircle:
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@DISH:
@@ -373,7 +373,7 @@ NATECH:
 		HP: 50000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@LIGHTS:
@@ -411,7 +411,7 @@ NASTLH:
 		HP: 60000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@pulse:
@@ -455,7 +455,7 @@ NATMPL:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 		MaxHeightDelta: 3
 	Power:
@@ -509,7 +509,7 @@ NAMISL:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete && !disabled
@@ -581,7 +581,7 @@ NAWAST:
 		Dimensions: 3,3
 	Health:
 		HP: 40000
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 		MaxHeightDelta: 3
 	TiberianSunRefinery:

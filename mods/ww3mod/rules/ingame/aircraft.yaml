@@ -34,7 +34,7 @@
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
 	VisibleWithRadar:
-		Type: GroundPosition
+		Position: Ground
 	AttackMove:
 	Guard:
 	Guardable:
@@ -69,15 +69,15 @@
 		TakeOffOnCreation: False
 	# RevealsRadar:
 	# 	Range: 25c0
-	# 	Type: GroundPosition
+	# 	Position: Ground
 	# 	RequiresCondition: airborne
 	# Vision@Air:
 	# 	Range: 20c0
-	# 	Type: GroundPosition
+	# 	Position: Ground
 	# 	RequiresCondition: airborne
 	# Vision@Ground:
 	# 	Range: 10c0
-	# 	Type: GroundPosition
+	# 	Position: Ground
 	# 	RequiresCondition: !airborne
 	SpeedMultiplier@Rank_4:
 		RequiresCondition: rank-veteran == 4

@@ -7,7 +7,7 @@
 		Type: Heavy
 	HiddenUnderFog:
 		VisualVisibility: 1
-		Type: CenterPosition
+		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
 	WithFacingSpriteBody:
@@ -65,7 +65,7 @@
 		GenericName: Destroyed Building
 	HiddenUnderFog:
 		VisualVisibility: 1
-		Type: CenterPosition
+		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
 	Explodes:

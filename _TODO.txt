@@ -1,18 +1,6 @@
 2023
 
-    Shroud
-        FrozenUnderFog Bug
-        Dynamic Visibility
-        Edges
-
-
-
-
-
-
-
-
-
+- Civ buildings give Base under attack notification
 - Vehicles becomes visible sometimes through fog?
 - Vehicle speed adjustments
 - Infantry visibility, got desynced. Fix or remake? Current solution uses lots of CPU at render_prepare

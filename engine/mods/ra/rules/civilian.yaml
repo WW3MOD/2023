@@ -147,11 +147,11 @@ FCOM:
 	TooltipDescription@other:
 		Description: Capture to give buildable area.
 		ValidRelationships: Neutral, Enemy
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	CaptureManager:
@@ -200,7 +200,7 @@ HOSP:
 	TooltipDescription@other:
 		Description: Capture to enable self-healing for infantry.
 		ValidRelationships: Neutral, Enemy
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -219,7 +219,7 @@ V01:
 		Dimensions: 2,2
 	Tooltip:
 		Name: Church
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -450,11 +450,11 @@ MISS:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 60000
-	RevealsShroud:
+	Vision:
 		MinRange: 6c0
 		Range: 10c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 6c0
 	Armor:
 		Type: Wood
@@ -491,7 +491,7 @@ BIO:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	CaptureManager:
 	CapturableProgressBlink:
@@ -531,7 +531,7 @@ OILB:
 		Dimensions: 2,2
 	Health:
 		HP: 80000
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	CaptureManager:
 	Capturable:
@@ -814,7 +814,7 @@ V25:
 		Dimensions: 2,2
 	Tooltip:
 		Name: Church
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	HitShape:
 		UseTargetableCellsOffsets: false

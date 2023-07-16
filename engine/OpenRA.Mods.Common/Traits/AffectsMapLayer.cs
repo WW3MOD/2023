@@ -18,6 +18,8 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public abstract class AffectsMapLayerInfo : ConditionalTraitInfo
 	{
+		public readonly MapLayers.Type Type = MapLayers.Type.Vision;
+
 		public readonly WDist MinRange = WDist.Zero;
 
 		public readonly WDist Range = WDist.Zero;
@@ -30,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
-		public readonly VisibilityType Type = VisibilityType.Footprint;
+		public readonly VisibilityPosition Position = VisibilityPosition.Footprint;
 	}
 
 	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, ISync, INotifyAddedToWorld,
@@ -58,7 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		public AffectsMapLayer(AffectsMapLayerInfo info)
 			: base(info)
 		{
-			if (Info.Type == VisibilityType.Footprint)
+			if (Info.Position == VisibilityPosition.Footprint)
 				footprint = new HashSet<PPos>();
 		}
 
@@ -70,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (maxRange <= minRange)
 				return NoCells;
 
-			if (Info.Type == VisibilityType.Footprint)
+			if (Info.Position == VisibilityPosition.Footprint)
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
@@ -81,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var pos = self.CenterPosition;
-			if (Info.Type == VisibilityType.GroundPosition)
+			if (Info.Position == VisibilityPosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
 			return MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)

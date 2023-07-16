@@ -127,7 +127,7 @@ MISS:
 		Cost: 0
 	Health:
 		HP: 80000
-	RevealsShroud:
+	Vision:
 		Range: 13c0
 	TooltipDescription@ally:
 		Description: Provides range of vision.

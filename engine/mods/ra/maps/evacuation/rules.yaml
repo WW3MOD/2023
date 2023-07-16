@@ -70,7 +70,7 @@ TRAN:
 	-Selectable:
 	Buildable:
 		Prerequisites: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 0c0
 	Interactable:
 
@@ -204,7 +204,7 @@ MSUB:
 
 Camera.SAM:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 2c0
 
 powerproxy.paras1:

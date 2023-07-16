@@ -97,9 +97,9 @@ CAMERA:
 		QuantizedFacings: 1
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: CenterPosition
+		Position: Center
 	MapEditorData:
 		Categories: System
 
@@ -118,25 +118,25 @@ CAMERA.small:
 	Health:
 		HP: 100000
 	HitShape:
-	RevealsShroud:
+	Vision:
 		Range: 6c0
-		Type: CenterPosition
+		Position: Center
 	MapEditorData:
 		Categories: System
 
 FLARE:
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 3c0
-		Type: CenterPosition
+		Position: Center
 	RenderSprites:
 		Image: smokland
 		Palette: terrain
 	WithSpriteBody:
 		StartSequence: open
 	HiddenUnderFog:
-		Type: CenterPosition
+		Position: Center
 	Tooltip:
 		Name: Flare
 		ShowOwnerRow: false

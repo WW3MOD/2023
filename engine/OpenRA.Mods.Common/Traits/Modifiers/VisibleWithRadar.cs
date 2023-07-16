@@ -34,7 +34,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var pos = self.CenterPosition;
 
-			if (Info.Type == VisibilityType.GroundPosition)
+			if (Info.Position == VisibilityPosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
 			if (traitEnabled && byPlayer.MapLayers.RadarCover(pos))

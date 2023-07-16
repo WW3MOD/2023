@@ -21,7 +21,7 @@ VOLK:
 		HP: 15000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Demolition:
 	Mobile:

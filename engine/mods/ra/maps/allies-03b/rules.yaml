@@ -40,7 +40,7 @@ MEDI:
 
 PRISON:
 	HiddenUnderShroud:
-		Type: CenterPosition
+		Position: Center
 	Immobile:
 		OccupiesSpace: false
 	ProximityExternalCondition:
@@ -48,19 +48,19 @@ PRISON:
 		Range: 1c0
 
 CAMERA:
-	RevealsShroud:
+	Vision:
 		Range: 8c5
 
 CAMERA.VeryLarge:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 40c0
 
 CAMERA.Jeep:
 	AlwaysVisible:
 	Mobile:
 		Locomotor: immobile
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	ScriptTriggers:
 
@@ -68,7 +68,7 @@ E1.Autotarget:
 	Inherits: E1
 	Buildable:
 		Prerequisites: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	AutoTarget:
 		ScanRadius: 7
@@ -79,7 +79,7 @@ E2.Autotarget:
 	Inherits: E2
 	Buildable:
 		Prerequisites: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	AutoTarget:
 		ScanRadius: 7
@@ -89,7 +89,7 @@ E2.Autotarget:
 DOG:
 	Buildable:
 		Prerequisites: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 9c0
 	AutoTarget:
 		ScanRadius: 8
@@ -104,9 +104,9 @@ TRUK:
 TRAN:
 	RejectsOrders:
 	-Selectable:
-	RevealsShroud:
+	Vision:
 		Range: 0c0
-	-RevealsShroud@GAPGEN:
+	-Vision@GAPGEN:
 	Cargo:
 		Types: ~disabled
 	Interactable:
@@ -122,7 +122,7 @@ JEEP.mission:
 	-WithMuzzleOverlay:
 	Cargo:
 		Types: ~disabled
-	RevealsShroud:
+	Vision:
 		Range: 0c0
 	RenderSprites:
 		Image: JEEP

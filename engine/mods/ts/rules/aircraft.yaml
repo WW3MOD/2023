@@ -53,7 +53,7 @@ DPOD2:
 		MaximumPitch: 110
 		LandableTerrainTypes: Clear, Road, Rail, DirtRoad, Rough
 	HiddenUnderFog:
-		Type: CenterPosition
+		Position: Center
 	BodyOrientation:
 		UseClassicPerspectiveFudge: False
 	RenderSprites:
@@ -67,7 +67,7 @@ DPOD2:
 		Image: largesmoke
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 	FallsToEarth:
 		Explosion: DropPodExplode
 		Moves: true
@@ -109,9 +109,9 @@ DSHP:
 		HP: 20000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 3c0
-		Type: CenterPosition
+		Position: Center
 	Cargo:
 		Types: Infantry
 		MaxWeight: 5
@@ -149,9 +149,9 @@ ORCA:
 		HP: 20000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 2c0
-		Type: CenterPosition
+		Position: Center
 	Armament:
 		Weapon: Hellfire
 		PauseOnCondition: !ammo
@@ -213,9 +213,9 @@ ORCAB:
 		HP: 26000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 2c0
-		Type: CenterPosition
+		Position: Center
 	Armament:
 		Weapon: Bomb
 		PauseOnCondition: !ammo
@@ -275,9 +275,9 @@ ORCATRAN:
 		HP: 20000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 2c0
-		Type: CenterPosition
+		Position: Center
 	Cargo:
 		Types: Infantry
 		MaxWeight: 5
@@ -322,9 +322,9 @@ TRNSPORT:
 		HP: 17500
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 2c0
-		Type: CenterPosition
+		Position: Center
 	RenderSprites:
 	Selectable:
 		Bounds: 1327, 1930, 0, -482
@@ -370,9 +370,9 @@ SCRIN:
 		HP: 28000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 2c0
-		Type: CenterPosition
+		Position: Center
 	Armament:
 		Weapon: Proton
 		PauseOnCondition: !ammo
@@ -434,9 +434,9 @@ APACHE:
 		HP: 22500
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 2c0
-		Type: CenterPosition
+		Position: Center
 	Armament:
 		Weapon: HarpyClaw
 		PauseOnCondition: !ammo
@@ -508,7 +508,7 @@ HUNTER:
 	Targetable:
 		TargetTypes: Ground, Vehicle
 	HiddenUnderFog:
-		Type: CenterPosition
+		Position: Center
 	BodyOrientation:
 		UseClassicPerspectiveFudge: False
 	RenderSprites:

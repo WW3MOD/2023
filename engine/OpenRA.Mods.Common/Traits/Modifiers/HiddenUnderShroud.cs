@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (reveal when the center is visible) and ",
 			"Footprint (reveal when any footprint cell is visible).")]
-		public readonly VisibilityType Type = VisibilityType.Footprint;
+		public readonly VisibilityPosition Position = VisibilityPosition.Footprint;
 
 		public override object Create(ActorInitializer init) => new HiddenUnderShroud(init, this);
 	}
@@ -37,11 +37,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{
-			if (Info.Type == VisibilityType.Footprint)
+			if (Info.Position == VisibilityPosition.Footprint)
 				return byPlayer.MapLayers.AnyExplored(self.OccupiesSpace.OccupiedCells());
 
 			var pos = self.CenterPosition;
-			if (Info.Type == VisibilityType.GroundPosition)
+			if (Info.Position == VisibilityPosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
 			return byPlayer.MapLayers.IsExplored(pos);

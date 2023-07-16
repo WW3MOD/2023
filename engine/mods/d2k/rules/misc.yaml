@@ -191,9 +191,9 @@ camera:
 		QuantizedFacings: 1
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 6c768
-		Type: CenterPosition
+		Position: Center
 	MapEditorData:
 		Categories: System
 

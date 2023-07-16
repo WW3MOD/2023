@@ -19,7 +19,7 @@ MCV:
 		Type: Heavy
 	Mobile:
 		Speed: 42
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -81,7 +81,7 @@ HARV:
 		DamageCooldown: 200
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -139,11 +139,11 @@ LPST:
 		TurnSpeed: 20
 		ImmovableCondition: !undeployed
 		RequireForceMoveCondition: !undeployed
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel && undeployed
 		Range: 10c0
 		MaxHeightDelta: 3
-	RevealsShroud@DEPLOYED:
+	Vision@DEPLOYED:
 		RequiresCondition: !undeployed
 		Range: 8c0
 		MaxHeightDelta: 3

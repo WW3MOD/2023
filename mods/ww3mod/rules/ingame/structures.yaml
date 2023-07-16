@@ -31,7 +31,7 @@
 		DestroyedSounds: kaboom22.aud
 	WithSpriteBody:
 	Explodes:
-		Type: Footprint
+		Position: Footprint
 		Weapon: BuildingExplode
 		EmptyWeapon: BuildingExplode
 	CaptureNotification:
@@ -1115,7 +1115,7 @@ AFLD:
 # 		RequiresCondition: !build-incomplete && !disabled
 # 		Sequence: idle-smoke
 # 	Explodes:
-# 		Type: Footprint
+# 		Position: Footprint
 # 		Weapon: BuildingExplodeRef
 # 		EmptyWeapon: BuildingExplodeRef
 # 	Explodes@RESOURCES:

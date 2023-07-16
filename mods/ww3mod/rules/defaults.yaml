@@ -739,7 +739,7 @@
 		RequiresCondition: airborne
 	HiddenUnderFog:
 		VisualVisibility: 1
-		Type: GroundPosition
+		Position: Ground
 	Tooltip:
 		Name: Missile
 		GenericName: Missile
@@ -785,7 +785,7 @@
 		Type: None
 	HiddenUnderFog:
 		VisualVisibility: 1
-		Type: GroundPosition
+		Position: Ground
 	ProximityCaptor:
 		Types: Plane
 	Tooltip:

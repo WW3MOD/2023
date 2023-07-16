@@ -100,7 +100,7 @@ HGUN:
 		HP: 350000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Armament:
 		Weapon: HeavyTurretGun
@@ -117,7 +117,7 @@ ZKOI:
 	Health:
 		HP: 100000
 	-Crushable:
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	Armament:
 		Weapon: CydogJaw
@@ -135,7 +135,7 @@ VOLK:
 	Armor:
 		Type: Heavy
 	-Crushable:
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	Demolition:
 	Mobile:

@@ -151,7 +151,7 @@ CAMERA:
 		OccupiesSpace: false
 	Vision:
 		Range: 9c256
-		Type: CenterPosition
+		Position: Center
 	BodyOrientation:
 		QuantizedFacings: 1
 	WithSpriteBody:
@@ -195,7 +195,7 @@ FLARE:
 		OccupiesSpace: false
 	Vision:
 		Range: 3c0
-		Type: CenterPosition
+		Position: Center
 	RenderSprites:
 		Image: smokland
 	WithSpriteBody:
@@ -204,7 +204,7 @@ FLARE:
 		QuantizedFacings: 1
 	HiddenUnderFog:
 		VisualVisibility: 1
-		Type: CenterPosition
+		Position: Center
 	Interactable:
 	Tooltip:
 		Name: Flare

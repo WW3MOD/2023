@@ -43,7 +43,7 @@ UMAGON:
 	Health:
 		HP: 15000
 	Passenger:
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	Armament:
 		Weapon: Sniper
@@ -67,7 +67,7 @@ CHAMSPY:
 		HP: 12000
 	Mobile:
 		Speed: 85
-	RevealsShroud:
+	Vision:
 		Range: 9c0
 	Passenger:
 	Disguise:
@@ -103,7 +103,7 @@ MUTANT:
 		HP: 5000
 	Mobile:
 		Speed: 56
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Armament:
 		Weapon: Vulcan
@@ -131,7 +131,7 @@ MWMN:
 		HP: 5000
 	Mobile:
 		Speed: 56
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Armament:
 		Weapon: Vulcan
@@ -159,7 +159,7 @@ MUTANT3:
 		HP: 5000
 	Mobile:
 		Speed: 56
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Armament:
 		Weapon: Vulcan
@@ -187,7 +187,7 @@ TRATOS:
 		HP: 20000
 	Mobile:
 		Speed: 71
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 
 OXANNA:
@@ -202,7 +202,7 @@ OXANNA:
 		HP: 5000
 	Mobile:
 		Speed: 56
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithSplitAttackPaletteInfantryBody:
 		DefaultAttackSequence: attack
@@ -219,7 +219,7 @@ SLAV:
 		HP: 30000
 	Mobile:
 		Speed: 56
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithSplitAttackPaletteInfantryBody:
 		DefaultAttackSequence: attack
