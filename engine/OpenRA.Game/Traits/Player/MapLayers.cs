@@ -71,7 +71,7 @@ namespace OpenRA.Traits
 
 	public class MapLayers : ISync, INotifyCreated, ITick
 	{
-		public static readonly int FogLayers = 9;
+		public static readonly int VisionLayers = 11;
 		public enum Type : byte { Vision, Radar, PassiveVisibility }
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
@@ -186,7 +186,7 @@ namespace OpenRA.Traits
 					continue;
 
 				if (visibilityCount[index] == null)
-					visibilityCount[index] = new short[FogLayers + 2];
+					visibilityCount[index] = new short[VisionLayers];
 
 				touched[index] = false;
 
@@ -264,15 +264,16 @@ namespace OpenRA.Traits
 			return ProjectedCellsInRange(map, map.CenterOfCell(cell), WDist.Zero, range, maxHeightDelta);
 		}
 
-		public void AddSource(object key, int visibility, PPos[] projectedCells)
+		public void AddSource(IAffectsMapLayer mapLayer, int strength, PPos[] projectedCells)
 		{
-			if (sources.ContainsKey(key))
+			if (sources.ContainsKey(mapLayer))
 				throw new InvalidOperationException("Attempting to add duplicate shroud source");
 
-			sources[key] = new VisionSource(visibility, projectedCells);
+			sources[mapLayer] = new VisionSource(strength, projectedCells);
 
 			foreach (var puv in projectedCells)
 			{
+				// TODO: Possibly remove this, to render projectiles even if "outside" of map, when shooting arching weapons near edge they become invisible "outside". Maybe render based on ground position, so as long as they are over the map they render?
 				// Force cells outside the visible bounds invisible
 				if (!map.Contains(puv))
 					continue;
@@ -282,23 +283,25 @@ namespace OpenRA.Traits
 				anyCellTouched = true;
 
 				if (visibilityCount[index] == null)
-					visibilityCount[index] = new short[FogLayers + 2];
+					visibilityCount[index] = new short[VisionLayers];
 
-				visibilityCount[index][visibility]++;
+				if (mapLayer.Type == Type.Vision)
+				{
+					visibilityCount[index][strength]++;
 
-				if (visibility > 0)
-					explored[index] = true;
+					if (strength > 0)
+						explored[index] = true;
+				}
+				else if (mapLayer.Type == Type.Radar)
+				{
+					radarCount[index]++;
+				}
 
 				/* if (visibility == 0)
 				{
 					shroudGenerationEnabled = true;
 					generatedShroudCount[index]++;
 				} */
-
-				// Use a different range for radar? Like 100-200, for different strengths - useful for stealth aircraft
-				// case SourceType.Radar:
-				// 	radarCount[index]++;
-				// 	break;
 			}
 		}
 

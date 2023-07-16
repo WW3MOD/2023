@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class VisionInfo : AffectsMapLayerInfo
 	{
 		[Desc("Strength of this layer, add multiple layers with Min/MaxRange to create a progressive decline")]
-		public readonly int Strength = 10;
+		public readonly int Strength = 1;
 
 		[Desc("Relationships the watching player needs to see the shroud removed.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;

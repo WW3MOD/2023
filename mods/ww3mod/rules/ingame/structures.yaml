@@ -1165,7 +1165,7 @@ AFLD:
 # 	Armor:
 # 		Type: Medium
 # 	ProvidesPrerequisite@buildingname:
-# 	RevealsRadar:
+# 	Radar:
 # 		Range: 55c0
 # 		RequiresCondition: !heavy-damage && !disabled && !build-incomplete
 # 	WithRangeCircle@Radar:

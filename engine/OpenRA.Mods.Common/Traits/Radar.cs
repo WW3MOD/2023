@@ -18,9 +18,9 @@ namespace OpenRA.Mods.Common.Traits
 	public class RadarInfo : AffectsMapLayerInfo
 	{
 		[Desc("Strength of this layer, add multiple layers with Min/MaxRange to create a progressive decline")]
-		public readonly int Strength = 10;
+		public readonly int Strength = 1;
 
-		[Desc("Relationships the watching player needs to utilize radar coverage.")]
+		[Desc("Relationships the watching player needs to utilize the radar coverage.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
 
 		public override object Create(ActorInitializer init) { return new Radar(this); }

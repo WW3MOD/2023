@@ -737,8 +737,9 @@
 	Targetable@Airborne:
 		TargetTypes: ICBM
 		RequiresCondition: airborne
-	HiddenUnderFog:
-		VisualVisibility: 1
+	Signature:
+		Vision: 1
+		Radar: 1
 		Position: Ground
 	Tooltip:
 		Name: Missile
@@ -783,8 +784,8 @@
 		Action: Kill
 	Armor:
 		Type: None
-	HiddenUnderFog:
-		VisualVisibility: 1
+	Signature:
+		Vision: 1
 		Position: Ground
 	ProximityCaptor:
 		Types: Plane
@@ -831,8 +832,8 @@
 		HP: 1
 	Passenger:
 		CargoType: Vehicle
-	HiddenUnderFog:
-		VisualVisibility: 1
+	Signature:
+		Vision: 1
 	Tooltip:
 		GenericName: Summoned Actor
 	MustBeDestroyed:

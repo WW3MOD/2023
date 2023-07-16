@@ -33,7 +33,7 @@
 	Targetable@REPAIR:
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
-	VisibleWithRadar:
+	Signature:
 		Position: Ground
 	AttackMove:
 	Guard:
@@ -67,7 +67,7 @@
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
-	# RevealsRadar:
+	# Radar:
 	# 	Range: 25c0
 	# 	Position: Ground
 	# 	RequiresCondition: airborne

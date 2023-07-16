@@ -5,8 +5,8 @@
 		HP: 28000
 	Armor:
 		Type: Heavy
-	HiddenUnderFog:
-		VisualVisibility: 1
+	Signature:
+		Vision: 1
 		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
@@ -63,8 +63,8 @@
 		RequiresForceFire: true
 	Tooltip:
 		GenericName: Destroyed Building
-	HiddenUnderFog:
-		VisualVisibility: 1
+	Signature:
+		Vision: 1
 		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:

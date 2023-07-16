@@ -609,4 +609,9 @@ namespace OpenRA.Traits
 	{
 		void PlayerDisconnected(Actor self, Player p);
 	}
+
+	public interface IAffectsMapLayer
+	{
+		MapLayers.Type Type { get; }
+	}
 }

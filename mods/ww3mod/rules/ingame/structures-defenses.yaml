@@ -467,7 +467,7 @@ CRAM:
 		BuildPaletteOrder: 7
 		Description: Anti-Air base defense.
 		IconPalette: chrometd
-	# RevealsRadar:
+	# Radar:
 	# 	Range: 25c0
 	Valued:
 		Cost: 1000
@@ -551,7 +551,7 @@ AGUN:
 		Cost: 800
 	Tooltip:
 		Name: AA Gun
-	# RevealsRadar:
+	# Radar:
 	# 	Range: 25c0
 	Health:
 		HP: 5000

@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Lint
 					else
 					{
 						var vis = actorInfo.Value.TraitInfoOrDefault<HiddenUnderShroudInfo>();
-						if (vis != null && vis.Position == VisibilityPosition.Footprint)
+						if (vis != null && vis.Position == SignaturePosition.Footprint)
 						{
 							var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
 							if (ios == null)

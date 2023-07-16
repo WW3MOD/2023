@@ -52,8 +52,8 @@
 		Weight: 10
 		CargoType: Vehicle
 	AttackMove:
-	HiddenUnderFog:
-		VisualVisibility: 2
+	Signature:
+		Vision: 3
 	ProximityCaptor:
 		Types: Vehicle
 	GpsDot:
@@ -224,7 +224,7 @@ MSAR:
 		RequiresCondition: !deployed
 		ImmovableCondition: deployed
 		RequireForceMoveCondition: !undeployed
-	# RevealsRadar:
+	# Radar:
 	# 	Range: 42c0
 	# 	RequiresCondition: deployed
 	WithRangeCircle@Radar:

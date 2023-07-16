@@ -58,8 +58,8 @@
 	GainsExperienceMultiplier:
 		Modifier: 0
 		RequiresCondition: disable-experience
-	HiddenUnderFog:
-		VisualVisibility: 5
+	Signature:
+		Vision: 5
 	GpsDot:
 		String: Infantry
 	Crushable:
@@ -1062,7 +1062,6 @@
 ^E1:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Conscript
@@ -1129,7 +1128,6 @@ E1R1:
 	Inherits@Type: ^CamoSoldier
 	# TODO: Autotarget vehicles requires prerequisite: ammo-secondary
 	Inherits@AutoTarget: ^AutoTargetLMGAT
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Rifleman
@@ -1234,7 +1232,6 @@ E3R1:
 ^AR:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Automatic Rifleman
@@ -1298,7 +1295,6 @@ AR:
 ^E2:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGrenades
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Tooltip:
 		Name: Grenadier
 	Buildable:
@@ -1362,7 +1358,6 @@ E2R1:
 ^TL:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGrenades
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Team Leader
@@ -1448,7 +1443,6 @@ TL:
 ^MT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGrenades
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Tooltip:
 		Name: Mortar
 	Buildable:
@@ -1515,7 +1509,6 @@ MT:
 # Sniper
 ^SN:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetSniper
 	Tooltip:
 		Name: Sniper
@@ -1578,7 +1571,6 @@ SN:
 ^AT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetMHL
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Targetable@HighPriority:
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	Buildable:
@@ -1644,7 +1636,6 @@ AT:
 # Anti Air
 ^AA:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetAir
 	Buildable:
 		Queue: Infantry
@@ -1710,7 +1701,6 @@ AA:
 ^E6:
 	Inherits@Type: ^CamoSoldier
 	# Inherits@Selection: ^SelectableSupportUnit
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
 	-WithDecoration@AmmoSecondaryNone:
@@ -1816,7 +1806,6 @@ E6:
 # Flamethrower
 ^E4:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetLMG
 	Tooltip:
 		Name: Flamethrower
@@ -1980,7 +1969,6 @@ SF:
 # Medic
 ^MEDI:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
 	-WithDecoration@AmmoReplenishing:
@@ -2191,7 +2179,6 @@ DOG:
 ^TECN:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesNeutralBuildings: ^CapturesNeutralBuildings
 	-Wanders:
 	Tooltip:
@@ -2304,7 +2291,6 @@ DR:
 ^PILOT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Pilot

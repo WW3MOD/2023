@@ -114,7 +114,7 @@ MISS:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 35000
-	# RevealsRadar:
+	# Radar:
 	# 	Range: 50c0
 	# 	RequiresCondition: !heavy-damage
 	WithRangeCircle@Radar:

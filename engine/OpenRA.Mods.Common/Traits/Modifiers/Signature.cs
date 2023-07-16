@@ -17,8 +17,14 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("The actor stays invisible under the shroud.")]
-	public class HiddenUnderShroudInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
+	public class SignatureInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
 	{
+		[Desc("")]
+		public readonly int Vision = 2;
+
+		[Desc("")]
+		public readonly int Radar = 0;
+
 		[Desc("Players with these relationships can always see the actor.")]
 		public readonly PlayerRelationship AlwaysVisibleRelationships = PlayerRelationship.Ally;
 
@@ -26,25 +32,28 @@ namespace OpenRA.Mods.Common.Traits
 			"Footprint (reveal when any footprint cell is visible).")]
 		public readonly SignaturePosition Position = SignaturePosition.Footprint;
 
-		public override object Create(ActorInitializer init) => new HiddenUnderShroud(init, this);
+		public override object Create(ActorInitializer init) => new Signature(init, this);
 	}
 
-	public class HiddenUnderShroud : PausableConditionalTrait<HiddenUnderShroudInfo>, IDefaultVisibility, IRenderModifier
+	public class Signature : PausableConditionalTrait<SignatureInfo>, IDefaultVisibility, IRenderModifier
 	{
-		// protected readonly HiddenUnderShroudInfo Info;
-		public HiddenUnderShroud(ActorInitializer _, HiddenUnderShroudInfo info)
-			: base(info) { }
+		protected readonly SignatureInfo Info;
+		public Signature(ActorInitializer _, SignatureInfo info)
+			: base(info)
+			{
+				this.Info = info;
+			}
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{
 			if (Info.Position == SignaturePosition.Footprint)
-				return byPlayer.MapLayers.AnyExplored(self.OccupiesSpace.OccupiedCells());
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), Info.Vision);
 
 			var pos = self.CenterPosition;
 			if (Info.Position == SignaturePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return byPlayer.MapLayers.IsExplored(pos);
+			return byPlayer.MapLayers.IsVisible(pos, Info.Vision);
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)

@@ -32,10 +32,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
-		public readonly VisibilityPosition Position = VisibilityPosition.Footprint;
+		public readonly SignaturePosition Position = SignaturePosition.Footprint;
 	}
 
-	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, ISync, INotifyAddedToWorld,
+	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, IAffectsMapLayer, ISync, INotifyAddedToWorld,
 		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, ITick
 	{
 		static readonly PPos[] NoCells = Array.Empty<PPos>();
@@ -60,7 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		public AffectsMapLayer(AffectsMapLayerInfo info)
 			: base(info)
 		{
-			if (Info.Position == VisibilityPosition.Footprint)
+			if (Info.Position == SignaturePosition.Footprint)
 				footprint = new HashSet<PPos>();
 		}
 
@@ -72,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (maxRange <= minRange)
 				return NoCells;
 
-			if (Info.Position == VisibilityPosition.Footprint)
+			if (Info.Position == SignaturePosition.Footprint)
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
@@ -83,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var pos = self.CenterPosition;
-			if (Info.Position == VisibilityPosition.Ground)
+			if (Info.Position == SignaturePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
 			return MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
@@ -170,8 +170,8 @@ namespace OpenRA.Mods.Common.Traits
 				RemoveCellsFromPlayerMapLayer(self, p);
 		}
 
+		public MapLayers.Type Type => Type;
 		public virtual WDist MinRange => CachedTraitDisabled ? WDist.Zero : Info.MinRange;
-
 		public virtual WDist Range => CachedTraitDisabled ? WDist.Zero : Info.Range;
 
 		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)

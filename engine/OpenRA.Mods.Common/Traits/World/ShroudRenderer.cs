@@ -191,7 +191,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			for (var i = 0; i < MapLayers.FogLayers + 1; i++)
+			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
 				layers[i] = new Layer();
 
 			int spriteCount;
@@ -245,7 +245,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var emptySprite = new Sprite(shroudSprites[0].Sprite.Sheet, Rectangle.Empty, TextureChannel.Alpha);
 
-			for (var i = 0; i < MapLayers.FogLayers + 1; i++)
+			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
 			{
 				layers[i].PaletteReference = wr.Palette(info.ShroudPalette + i);
 
@@ -366,7 +366,7 @@ namespace OpenRA.Mods.Common.Traits
 					var tileInfo = tileInfos[uv];
 					var pos = tileInfo.ScreenPosition;
 
-					for (var i = MapLayers.FogLayers; i >= 0; i--)
+					for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
 					{
 						if (cv <= i)
 							// Error
@@ -430,7 +430,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			UpdateShroud(map.ProjectedCells);
 
-			for (var i = MapLayers.FogLayers; i >= 0; i--)
+			for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
 			{
 				layers[i].TerrainSpriteLayer.Draw(wr.Viewport);
 			}
@@ -460,7 +460,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (disposed)
 				return;
 
-			for (var i = MapLayers.FogLayers; i >= 0; i--)
+			for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
 				layers[i].TerrainSpriteLayer.Dispose();
 
 			disposed = true;

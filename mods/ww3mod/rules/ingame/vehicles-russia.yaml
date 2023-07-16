@@ -363,7 +363,7 @@ tunguska:
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing-secondary || empdisable
-	# RevealsRadar:
+	# Radar:
 	# 	Range: 30c0
 	WithRangeCircle@Radar:
 		Range: 30c0
@@ -504,8 +504,8 @@ giatsint:
 			VerticalTopOffset: 520
 			TopLeft: -330, -800
 			BottomRight: 330, 800
-	-HiddenUnderFog:
-	VisibleWithRadar:
+	-Signature:
+	Signature:
 		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
@@ -604,8 +604,8 @@ grad:
 			VerticalTopOffset: 600
 			TopLeft: -240, -730
 			BottomRight: 240, 730
-	-HiddenUnderFog:
-	VisibleWithRadar:
+	-Signature:
+	Signature:
 		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
@@ -706,8 +706,8 @@ tos:
 			VerticalTopOffset: 440
 			TopLeft: -360, -950
 			BottomRight: 360, 950
-	-HiddenUnderFog:
-	VisibleWithRadar:
+	-Signature:
+	Signature:
 		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
@@ -806,8 +806,7 @@ tos:
 # 			VerticalTopOffset: 650
 # 			TopLeft: -300, -1270
 # 			BottomRight: 300, 1270
-# 	-HiddenUnderFog:
-# 	VisibleWithRadar:
+# 	Signature:
 # 		Position: Ground
 # 		PauseOnCondition: !firing
 # 	Mobile:

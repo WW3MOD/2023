@@ -455,7 +455,6 @@ Player:
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	AllowImpassableCells: false
 	# 	QuantizedFacings: 8
-	# 	CameraActor: camera.minimum
 	# 	UnitType: unit.summoner
 	# 	DisplayBeacon: true
 	# 	BeaconPoster: sonrbcon
