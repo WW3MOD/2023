@@ -59,13 +59,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				switch (viewport.TooltipType)
 				{
 					case WorldTooltipType.Unexplored:
-						var mapIndex = viewport.TooltipCell.ToMPos(world.Map).ToCellIndex(world.Map);
-						if (world.RenderPlayer != null)
-							labelText =
-								world.RenderPlayer.MapLayers.ResolvedVisibility[mapIndex].ToString()
-								+ " " + world.RenderPlayer.MapLayers.IsExplored(viewport.TooltipCell.ToMPos(world.Map));
-						else
-							labelText = "";
+						labelText = unrevealedTerrain;
 						break;
 					case WorldTooltipType.Resource:
 						labelText = viewport.ResourceTooltip;
@@ -90,6 +84,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							break;
 						}
 				}
+
+				var mapIndex = viewport.TooltipCell.ToMPos(world.Map).ToCellIndex(world.Map);
+				if (world.RenderPlayer != null)
+					labelText += "\n\nVision: " + world.RenderPlayer.MapLayers.ResolvedVisibility[mapIndex].ToString()
+						+ "\nRadar: " + (world.RenderPlayer.MapLayers.RadarCover(viewport.TooltipCell.ToWPos()) ? "Yes" : "No");
 
 				if (viewport.ActorTooltipExtra != null)
 				{

@@ -33,16 +33,14 @@
 	Targetable@REPAIR:
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
-	Signature@Air:
-		RequiresCondition: airborne
+	Signature:
 		Vision: 2
 		Radar: 1
 		Position: Ground
-	Signature@Ground:
+	VisibilityAddativeModifier@Ground:
 		RequiresCondition: !airborne
-		Vision: 3
-		Radar: 1
-		Position: Ground
+		Modifier: 1
+
 	AttackMove:
 	Guard:
 	Guardable:
@@ -84,14 +82,6 @@
 		Width: 5
 		Alpha: 50
 		RequiresCondition: airborne
-	# Vision@Air:
-	# 	Range: 20c0
-	# 	Position: Ground
-	# 	RequiresCondition: airborne
-	# Vision@Ground:
-	# 	Range: 10c0
-	# 	Position: Ground
-	# 	RequiresCondition: !airborne
 	SpeedMultiplier@Rank_4:
 		RequiresCondition: rank-veteran == 4
 		Modifier: 120

@@ -229,12 +229,12 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			TooltipCell = cell;
-			TooltipType = WorldTooltipType.Unexplored;
-			return;
 
-			/* if (world.ShroudObscures(cell) || world.FogObscures(cell))
+			if (world.ShroudObscures(cell))
 			{
-			} */
+				TooltipType = WorldTooltipType.Unexplored;
+				return;
+			}
 
 			var worldPixel = worldRenderer.Viewport.ViewToWorldPx(Viewport.LastMousePos);
 			var underCursor = world.ScreenMap.ActorsAtMouse(worldPixel)
