@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
-		public readonly SignaturePosition Position = SignaturePosition.Footprint;
+		public readonly SignaturePosition Position = SignaturePosition.Ground;
 	}
 
 	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, IAffectsMapLayer, ISync, INotifyAddedToWorld,
