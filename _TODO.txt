@@ -6,7 +6,6 @@
 - Infantry visibility, got desynced. Fix or remake? Current solution uses lots of CPU at render_prepare
 - Aircraft
 
-
 - Control groups
 
     - Leader units allow for more efficient grouping

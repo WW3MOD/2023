@@ -1,0 +1,68 @@
+
+MapLayers
+
+    - Dynamic Visibility implemented with Progressive Vision
+
+Cover
+
+    - Cargo / Enter
+
+        - Auto Enter order, makes selected units go into nearest transport / makes transports call in nearby infantry
+
+        - Use current behaviour for internal / protected slots
+
+        - Add new mode that puts actors invisible on top of the cell of the Cargo Actor,
+            this allows units to target either the building or autotarget the actor inside.
+
+            -
+
+    - Seek shelter order, makes units seek the highest possible cover near them
+        multiple clicks increases search radius for controling how much they spread out
+
+    - Protection based on cell type / overlaping actors footprint / proximity
+
+Resources
+
+    - Auto Capture for technicians as a "Weapon", making AutoTargeting work
+
+    - Dynamic income based on structure health
+
+    - Autoheals slowly if less than 50% damaged
+        Heavy damage needs engineer to restore and
+        Critical damage needs a special Repair/Construction Vehicle to bring in resources.
+
+Flags
+
+    - Place Flags all around the map edges, chain-linking control gives access to deploy troops there,
+        broken chain makes Flags disabled for calling in reinforcements.
+
+Ammo
+
+    - Create
+
+Orders
+
+    - Attack move default / make infantry fire on the move
+
+Movement
+
+    - Infantry can go over cliffs now
+
+Animations
+
+    - TOS explosion effects
+
+Sounds
+
+    - Voice for all units from real world videos
+
+    -
+
+Widgets
+
+    - Move to edges, remove borders, free up space
+
+End Game
+
+    - Capturing enemy flag should start a countdown to victory so you cant have hidden units preventing victory and neglect your spawn
+
