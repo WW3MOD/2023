@@ -41,19 +41,21 @@ namespace OpenRA.Mods.Common.Traits
 		public Signature(ActorInitializer _, SignatureInfo info)
 			: base(info)
 			{
-				this.Info = info;
+				Info = info;
 			}
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{
-			if (Info.Position == SignaturePosition.Footprint)
-				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), Info.Vision);
-
 			var pos = self.CenterPosition;
 			if (Info.Position == SignaturePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return byPlayer.MapLayers.IsVisible(pos, Info.Vision);
+			if (Info.Position == SignaturePosition.Footprint)
+			{
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), Info.Vision) || (Info.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
+			}
+
+			return byPlayer.MapLayers.IsVisible(pos, Info.Vision) || (Info.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)

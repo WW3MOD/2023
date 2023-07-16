@@ -305,9 +305,9 @@ namespace OpenRA.Traits
 			}
 		}
 
-		public void RemoveSource(object key)
+		public void RemoveSource(IAffectsMapLayer mapLayer)
 		{
-			if (!sources.TryGetValue(key, out var state))
+			if (!sources.TryGetValue(mapLayer, out var state))
 				return;
 
 			foreach (var puv in state.ProjectedCells)
@@ -319,15 +319,18 @@ namespace OpenRA.Traits
 					touched[index] = true;
 					anyCellTouched = true;
 
-					visibilityCount[index][state.Vision]--;
-
-					// case SourceType.Radar:
-					// 	radarCount[index]--;
-					// 	break;
+					if (mapLayer.Type == Type.Vision)
+					{
+						visibilityCount[index][state.Vision]--;
+					}
+					else if (mapLayer.Type == Type.Radar)
+					{
+						radarCount[index]--;
+					}
 				}
 			}
 
-			sources.Remove(key);
+			sources.Remove(mapLayer);
 		}
 
 		public void ExploreProjectedCells(IEnumerable<PPos> cells)
