@@ -30,6 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly VisionInfo info;
 		IEnumerable<int> rangeModifiers;
+		public override MapLayers.Type Type => MapLayers.Type.Vision;
 
 		public Vision(VisionInfo info)
 			: base(info)

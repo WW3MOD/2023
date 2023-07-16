@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("The actor stays invisible under the shroud.")]
+	[Desc("The actor visibility/radar signature/detectability.")]
 	public class SignatureInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
 	{
 		[Desc("")]

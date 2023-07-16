@@ -684,8 +684,8 @@ m109:
 			VerticalTopOffset: 620
 			TopLeft: -315, -900
 			BottomRight: 315, 900
-	-Signature:
-	Signature:
+	Signature@Firing:
+		Radar: 1
 		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
@@ -790,8 +790,8 @@ m270:
 			VerticalTopOffset: 520
 			TopLeft: -360, -530
 			BottomRight: 360, 530
-	-Signature:
-	Signature:
+	Signature@Firing:
+		Radar: 1
 		Position: Ground
 		PauseOnCondition: !firing
 	Mobile:
@@ -896,8 +896,8 @@ m270:
 # 			VerticalTopOffset: 620
 # 			TopLeft: -240, -700
 # 			BottomRight: 240, 700
-# 	-Signature:
-# 	Signature:
+# 	Signature@Firing:
+# 		Radar: 1
 # 		Position: Ground
 # 		PauseOnCondition: !firing
 # 	Mobile:

@@ -33,7 +33,15 @@
 	Targetable@REPAIR:
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
-	Signature:
+	Signature@Air:
+		RequiresCondition: airborne
+		Vision: 2
+		Radar: 1
+		Position: Ground
+	Signature@Ground:
+		RequiresCondition: !airborne
+		Vision: 3
+		Radar: 1
 		Position: Ground
 	AttackMove:
 	Guard:

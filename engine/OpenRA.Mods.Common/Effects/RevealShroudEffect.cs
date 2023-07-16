@@ -18,7 +18,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Effects
 {
-	public class RevealShroudEffect : IEffect
+	public class RevealShroudEffect : IEffect, IAffectsMapLayer
 	{
 		static readonly PPos[] NoCells = Array.Empty<PPos>();
 
@@ -29,6 +29,8 @@ namespace OpenRA.Mods.Common.Effects
 		readonly PlayerRelationship validStances;
 		readonly int duration;
 		int ticks;
+
+		public MapLayers.Type Type => MapLayers.Type.Vision;
 
 		public RevealShroudEffect(WPos pos, WDist radius, MapLayers.Type type, Player forPlayer, PlayerRelationship stances, int delay = 0, int duration = 50)
 		{

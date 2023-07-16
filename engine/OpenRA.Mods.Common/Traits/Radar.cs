@@ -30,6 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly RadarInfo info;
 		IEnumerable<int> rangeModifiers;
+		public override MapLayers.Type Type => MapLayers.Type.Radar;
 
 		public Radar(RadarInfo info)
 			: base(info)

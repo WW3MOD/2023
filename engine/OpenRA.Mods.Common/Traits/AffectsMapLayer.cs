@@ -169,8 +169,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in self.World.Players)
 				RemoveCellsFromPlayerMapLayer(self, p);
 		}
-
-		public MapLayers.Type Type => Type;
+		public virtual MapLayers.Type Type => throw new NotImplementedException();
 		public virtual WDist MinRange => CachedTraitDisabled ? WDist.Zero : Info.MinRange;
 		public virtual WDist Range => CachedTraitDisabled ? WDist.Zero : Info.Range;
 
