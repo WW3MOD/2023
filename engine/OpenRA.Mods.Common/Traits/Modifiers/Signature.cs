@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -37,25 +38,38 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class Signature : PausableConditionalTrait<SignatureInfo>, IDefaultVisibility, IRenderModifier
 	{
-		protected readonly SignatureInfo Info;
+		protected readonly SignatureInfo SignatureInfo;
+		IEnumerable<int> visibilityModifiers;
 		public Signature(ActorInitializer _, SignatureInfo info)
 			: base(info)
 			{
-				Info = info;
+				SignatureInfo = info;
 			}
+
+		protected override void Created(Actor self)
+		{
+			base.Created(self);
+
+			visibilityModifiers = self.TraitsImplementing<IVisibilityModifier>().ToArray().Select(x => x.GetVisibilityModifier());
+		}
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{
 			var pos = self.CenterPosition;
-			if (Info.Position == SignaturePosition.Ground)
+			if (SignatureInfo.Position == SignaturePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			if (Info.Position == SignaturePosition.Footprint)
+			var vision = Util.ApplyAddativeModifiers(SignatureInfo.Vision, visibilityModifiers);
+
+			if (vision > MapLayers.VisionLayers - 1)
+				vision = MapLayers.VisionLayers - 1;
+
+			if (SignatureInfo.Position == SignaturePosition.Footprint)
 			{
-				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), Info.Vision) || (Info.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), vision) || (SignatureInfo.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
 			}
 
-			return byPlayer.MapLayers.IsVisible(pos, Info.Vision) || (Info.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
+			return byPlayer.MapLayers.IsVisible(pos, vision) || (SignatureInfo.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)
@@ -64,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 
 			var relationship = self.Owner.RelationshipWith(byPlayer);
-			return Info.AlwaysVisibleRelationships.HasRelationship(relationship) || IsVisibleInner(self, byPlayer);
+			return SignatureInfo.AlwaysVisibleRelationships.HasRelationship(relationship) || IsVisibleInner(self, byPlayer);
 		}
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)

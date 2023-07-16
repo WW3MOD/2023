@@ -415,6 +415,9 @@ namespace OpenRA.Mods.Common.Traits
 	public interface ICreatesShroudModifier { int GetCreatesShroudModifier(); }
 
 	[RequireExplicitImplementation]
+	public interface IVisibilityModifier { int GetVisibilityModifier(); }
+
+	[RequireExplicitImplementation]
 	public interface IVisionModifier { int GetVisionModifier(); }
 
 	[RequireExplicitImplementation]

@@ -123,13 +123,13 @@
 	# 	Range: 1c512
 
 ^DetectionProximity:
-	RevealsShroudMultiplier@1:
+	VisionMultiplier@1:
 		RequiresCondition: object-proximity == 1
 		Modifier: 90
-	RevealsShroudMultiplier@2:
+	VisionMultiplier@2:
 		RequiresCondition: object-proximity == 2
 		Modifier: 75
-	RevealsShroudMultiplier@3:
+	VisionMultiplier@3:
 		RequiresCondition: object-proximity > 2
 		Modifier: 50
 	DetectCloakedMultiplier@1:

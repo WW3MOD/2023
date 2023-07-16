@@ -12,6 +12,7 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@Vision: ^StandardVision
 	Inherits@DetectionProximity: ^DetectionProximity
+	Inherits@Visibility: ^InfantryStandardVisibility
 	RepairableNear:
 		RepairActors: truk
 	Huntable:
@@ -298,7 +299,7 @@
 ^PinsDown:
 	Inherits@SuppressionPips: ^SuppressionPips
 	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
-	Inherits@SuppressionRevealsShroudMultiplier: ^SuppressionRevealsShroudMultiplier
+	Inherits@SuppressionVisionMultiplier: ^SuppressionVisionMultiplier
 	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
 	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
 	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
@@ -336,35 +337,35 @@
 	SpeedMultiplier@Suppression_10:
 		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^SuppressionRevealsShroudMultiplier:
-	RevealsShroudMultiplier@Suppression_1:
+^SuppressionVisionMultiplier:
+	VisionMultiplier@Suppression_1:
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	RevealsShroudMultiplier@Suppression_2:
+	VisionMultiplier@Suppression_2:
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	RevealsShroudMultiplier@Suppression_3:
+	VisionMultiplier@Suppression_3:
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	RevealsShroudMultiplier@Suppression_4:
+	VisionMultiplier@Suppression_4:
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	RevealsShroudMultiplier@Suppression_5:
+	VisionMultiplier@Suppression_5:
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	RevealsShroudMultiplier@Suppression_6:
+	VisionMultiplier@Suppression_6:
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	RevealsShroudMultiplier@Suppression_7:
+	VisionMultiplier@Suppression_7:
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	RevealsShroudMultiplier@Suppression_8:
+	VisionMultiplier@Suppression_8:
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	RevealsShroudMultiplier@Suppression_9:
+	VisionMultiplier@Suppression_9:
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	RevealsShroudMultiplier@Suppression_10:
+	VisionMultiplier@Suppression_10:
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
 ^SuppressionDetectCloakedMultiplier:
@@ -564,175 +565,29 @@
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 
 ^InfantryStandardVisibility:
-	# CPU Expensive!
-	Inherits: ^VisibilityPips
+	# Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
-	Cloak@Permanent:
-		DetectionTypes: Cloak_0
-		CloakedCondition: cloak-0
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@DuginAttacking:
-		DetectionTypes: Cloak_1
-		CloakedCondition: cloak-1
+	VisibilityModifier@Dugin:
 		RequiresCondition: dugin
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenCrawling:
-		DetectionTypes: Cloak_1
-		CloakedCondition: cloak-1
-		RequiresCondition: deployed
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@Dugin:
-		DetectionTypes: Cloak_2
-		CloakedCondition: cloak-2
-		RequiresCondition: dugin
-		UncloakOn: Attack, Move
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestAttacking:
-		DetectionTypes: Cloak_2
-		CloakedCondition: cloak-2
-		RequiresCondition: object-proximity
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenIdle:
-		DetectionTypes: Cloak_3
-		CloakedCondition: cloak-3
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDuginAttacking:
-		DetectionTypes: Cloak_3
-		CloakedCondition: cloak-3
-		RequiresCondition: object-proximity && dugin
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestRunning:
-		DetectionTypes: Cloak_6
-		CloakedCondition: cloak-6
-		RequiresCondition: object-proximity
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenDugin:
-		DetectionTypes: Cloak_7
-		CloakedCondition: cloak-7
-		RequiresCondition: dugin
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestCrawling:
-		DetectionTypes: Cloak_8
-		CloakedCondition: cloak-8
-		RequiresCondition: deployed && object-proximity
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestIdle:
-		DetectionTypes: Cloak_9
-		CloakedCondition: cloak-9
-		RequiresCondition: object-proximity
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDugin:
-		DetectionTypes: Cloak_10
-		CloakedCondition: cloak-10
-		RequiresCondition: dugin && object-proximity
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
+		Modifier: 1
+	VisibilityModifier@Running:
+		RequiresCondition: moving && !prone
+		Modifier: -2
+	VisibilityModifier@Crawling:
+		RequiresCondition: moving && prone
+		Modifier: -1
+	VisibilityModifier@Forest_1:
+		RequiresCondition: object-proximity == 1
+		Modifier: 1
+	VisibilityModifier@Forest_2:
+		RequiresCondition: object-proximity == 2
+		Modifier: 2
+	VisibilityModifier@Forest_3:
+		RequiresCondition: object-proximity >= 3
+		Modifier: 3
 
-^InfantryStealthyVisibility:
-	# CPU Expensive! Temp fix, TODO: rewrite
-	Inherits: ^VisibilityPips
-	ExternalCondition@ObjectProximity:
-		Condition: object-proximity
-	Cloak@Permanent:
-		DetectionTypes: Cloak_4
-		CloakedCondition: cloak-4
-		Palette: player
-		IsPlayerPalette: true
-		RequiresCondition: !disguised
-	Cloak@DuginAttacking:
-		DetectionTypes: Cloak_5
-		CloakedCondition: cloak-5
-		RequiresCondition: dugin && !disguised
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenCrawling:
-		DetectionTypes: Cloak_5
-		CloakedCondition: cloak-5
-		RequiresCondition: deployed && !disguised
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@Dugin:
-		DetectionTypes: Cloak_6
-		CloakedCondition: cloak-6
-		RequiresCondition: dugin && !disguised
-		UncloakOn: Attack, Move
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestAttacking:
-		DetectionTypes: Cloak_6
-		CloakedCondition: cloak-6
-		RequiresCondition: object-proximity && !disguised
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenIdle:
-		DetectionTypes: Cloak_7
-		CloakedCondition: cloak-7
-		RequiresCondition: !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDuginAttacking:
-		DetectionTypes: Cloak_7
-		CloakedCondition: cloak-7
-		RequiresCondition: object-proximity && dugin && !disguised
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestRunning:
-		DetectionTypes: Cloak_8
-		CloakedCondition: cloak-8
-		RequiresCondition: object-proximity && !disguised
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenDugin:
-		DetectionTypes: Cloak_9
-		CloakedCondition: cloak-9
-		RequiresCondition: dugin && !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestCrawling:
-		DetectionTypes: Cloak_10
-		CloakedCondition: cloak-10
-		RequiresCondition: deployed && object-proximity && !disguised
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestIdle:
-		DetectionTypes: Cloak_11
-		CloakedCondition: cloak-11
-		RequiresCondition: object-proximity && !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDugin:
-		DetectionTypes: Cloak_12
-		CloakedCondition: cloak-12
-		RequiresCondition: dugin && object-proximity && !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
 ^VisibilityRangeCircles:
 	WithRangeCircle@Cloak_0:
 		RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
@@ -838,6 +693,7 @@
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
+
 ^VisibilityPips:
 	WithDecoration@Visibility_1:
 		RequiresSelection: true
