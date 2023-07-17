@@ -42,8 +42,6 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			("GivesExperience", "ValidStances", "ValidRelationships"),
 			("JamsMissiles", "DeflectionStances", "DeflectionRelationships"),
 			("FrozenUnderFog", "AlwaysVisibleStances", "AlwaysVisibleRelationships"),
-			("HiddenUnderShroud", "AlwaysVisibleStances", "AlwaysVisibleRelationships"),
-			("HiddenUnderFog", "AlwaysVisibleStances", "AlwaysVisibleRelationships"),
 			("AppearsOnMiniMap", "ValidStances", "ValidRelationships"),
 			("CashTricklerBar", "DisplayStances", "DisplayRelationships"),
 			("SupportPowerChargeBar", "DisplayStances", "DisplayRelationships"),

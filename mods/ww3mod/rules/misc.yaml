@@ -7,7 +7,7 @@
 	WithSpriteBody:
 	RenderSprites:
 		Scale: 0.4
-	Signature:
+	Detectable:
 		Vision: 1
 	Mine:
 		CrushClasses: mine
@@ -47,7 +47,7 @@ MINV:
 	Inherits@1: ^SpriteActor
 	Interactable:
 		Bounds: 1024,1024
-	Signature:
+	Detectable:
 		Vision: 2
 	Tooltip:
 		Name: Crate
@@ -182,7 +182,7 @@ FLARE:
 		StartSequence: open
 	BodyOrientation:
 		QuantizedFacings: 1
-	Signature:
+	Detectable:
 		Vision: 1
 		Position: Center
 	Interactable:
@@ -195,7 +195,6 @@ FLARE:
 MINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Ore Mine
@@ -222,7 +221,6 @@ MINE:
 GMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Gem Mine
@@ -250,7 +248,6 @@ GMINE:
 RAILMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Abandoned Mine
@@ -268,8 +265,6 @@ RAILMINE:
 DRILLMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
-	# 	AlwaysVisibleRelationships: Ally, Neutral, Enemy
 	AlwaysVisible:
 	Tooltip:
 		Name: Ore Drill
@@ -376,7 +371,6 @@ QUEE:
 	Inherits@1: ^SpriteActor
 	Inherits@Shape: ^2x1Shape
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Queen Ant
@@ -392,7 +386,6 @@ LAR1:
 	Inherits@1: ^SpriteActor
 	Inherits@Shape: ^1x1Shape
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Ant Larva

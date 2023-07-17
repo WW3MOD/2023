@@ -17,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	class CheckDefaultVisibility : ILintRulesPass, ILintServerMapPass
+	class CheckDefaultDetectability : ILintRulesPass, ILintServerMapPass
 	{
 		void ILintRulesPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Ruleset rules)
 		{
@@ -44,8 +44,8 @@ namespace OpenRA.Mods.Common.Lint
 						emitError($"Actor type `{actorInfo.Key}` defines multiple default visibility types!");
 					else
 					{
-						var vis = actorInfo.Value.TraitInfoOrDefault<HiddenUnderShroudInfo>();
-						if (vis != null && vis.Position == SignaturePosition.Footprint)
+						var vis = actorInfo.Value.TraitInfoOrDefault<DetectableInfo>();
+						if (vis != null && vis.Position == DetectablePosition.Footprint)
 						{
 							var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
 							if (ios == null)

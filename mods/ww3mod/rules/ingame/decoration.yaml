@@ -113,7 +113,6 @@
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
 	MapEditorData:

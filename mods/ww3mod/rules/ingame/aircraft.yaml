@@ -33,7 +33,7 @@
 	Targetable@REPAIR:
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
-	Signature:
+	Detectable:
 		Vision: 2
 		Radar: 1
 		RadarDetectableCondition: airborne

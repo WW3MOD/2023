@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Lint
 					var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
 					foreach (var rsi in actorInfo.Value.TraitInfos<VisionInfo>())
 					{
-						if (rsi.Position != SignaturePosition.Footprint)
+						if (rsi.Position != DetectablePosition.Footprint)
 							continue;
 
 						if (ios == null)

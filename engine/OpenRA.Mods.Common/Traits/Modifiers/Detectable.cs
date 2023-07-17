@@ -19,7 +19,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("The actor visibility/radar signature/detectability.")]
-	public class SignatureInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
+	public class DetectableInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
 	{
 		[Desc("")]
 		public readonly int Vision = 2;
@@ -38,19 +38,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (reveal when the center is visible) and ",
 			"Footprint (reveal when any footprint cell is visible).")]
-		public readonly SignaturePosition Position = SignaturePosition.Footprint;
+		public readonly DetectablePosition Position = DetectablePosition.Footprint;
 
-		public override object Create(ActorInitializer init) => new Signature(init, this);
+		public override object Create(ActorInitializer init) => new Detectable(init, this);
 	}
 
-	public class Signature : PausableConditionalTrait<SignatureInfo>, IDefaultVisibility, IRenderModifier
+	public class Detectable : PausableConditionalTrait<DetectableInfo>, IDefaultVisibility, IRenderModifier
 	{
-		protected readonly SignatureInfo SignatureInfo;
+		protected readonly DetectableInfo DetectableInfo;
 		IEnumerable<int> visibilityModifiers;
-		public Signature(ActorInitializer _, SignatureInfo info)
+		public Detectable(ActorInitializer _, DetectableInfo info)
 			: base(info)
 			{
-				SignatureInfo = info;
+				DetectableInfo = info;
 			}
 
 		protected override void Created(Actor self)
@@ -63,15 +63,15 @@ namespace OpenRA.Mods.Common.Traits
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
 		{
 			var pos = self.CenterPosition;
-			if (SignatureInfo.Position == SignaturePosition.Ground)
+			if (DetectableInfo.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			var vision = Util.ApplyAddativeModifiers(SignatureInfo.Vision, visibilityModifiers);
+			var vision = Util.ApplyAddativeModifiers(DetectableInfo.Vision, visibilityModifiers);
 
 			if (vision > MapLayers.VisionLayers - 1)
 				vision = MapLayers.VisionLayers - 1;
 
-			if (SignatureInfo.Position == SignaturePosition.Footprint)
+			if (DetectableInfo.Position == DetectablePosition.Footprint)
 			{
 				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), vision) || (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()));
 			}
@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool RadarDetectionActive()
 		{
-			return SignatureInfo.Radar != 0 && IsRadarDetectable;
+			return DetectableInfo.Radar != 0 && IsRadarDetectable;
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)
@@ -90,7 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 
 			var relationship = self.Owner.RelationshipWith(byPlayer);
-			return SignatureInfo.AlwaysVisibleRelationships.HasRelationship(relationship) || IsVisibleInner(self, byPlayer);
+			return DetectableInfo.AlwaysVisibleRelationships.HasRelationship(relationship) || IsVisibleInner(self, byPlayer);
 		}
 
 		public override IEnumerable<VariableObserver> GetVariableObservers()
@@ -98,8 +98,8 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var observer in base.GetVariableObservers())
 				yield return observer;
 
-			if (SignatureInfo.RadarDetectableCondition != null)
-				yield return new VariableObserver(RadarConditionsChanged, SignatureInfo.RadarDetectableCondition.Variables);
+			if (DetectableInfo.RadarDetectableCondition != null)
+				yield return new VariableObserver(RadarConditionsChanged, DetectableInfo.RadarDetectableCondition.Variables);
 		}
 
 		int radarDetectableConditionToken = Actor.InvalidConditionToken;
@@ -109,7 +109,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void RadarConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
 		{
-			if (IsRadarDetectable != SignatureInfo.RadarDetectableCondition.Evaluate(conditions))
+			if (IsRadarDetectable != DetectableInfo.RadarDetectableCondition.Evaluate(conditions))
 			{
 				if (IsRadarDetectable)
 					RadarDetectableTraitDisabled(self);
@@ -123,7 +123,7 @@ namespace OpenRA.Mods.Common.Traits
 			IsRadarDetectable = true;
 
 			if (radarDetectableConditionToken == Actor.InvalidConditionToken)
-				radarDetectableConditionToken = self.GrantCondition(SignatureInfo.RadarDetectableGrantsCondition);
+				radarDetectableConditionToken = self.GrantCondition(DetectableInfo.RadarDetectableGrantsCondition);
 		}
 
 		protected void RadarDetectableTraitDisabled(Actor self)

@@ -684,7 +684,7 @@ m109:
 			VerticalTopOffset: 620
 			TopLeft: -315, -900
 			BottomRight: 315, 900
-	Signature:
+	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
@@ -790,7 +790,7 @@ m270:
 			VerticalTopOffset: 520
 			TopLeft: -360, -530
 			BottomRight: 360, 530
-	Signature:
+	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
@@ -896,7 +896,7 @@ m270:
 # 			VerticalTopOffset: 620
 # 			TopLeft: -240, -700
 # 			BottomRight: 240, 700
-# 	Signature:
+# 	Detectable:
 # 		Radar: 1
 # 		RadarDetectableCondition: firing
 # 		Position: Ground

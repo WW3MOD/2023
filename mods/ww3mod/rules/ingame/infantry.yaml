@@ -59,7 +59,7 @@
 	GainsExperienceMultiplier:
 		Modifier: 0
 		RequiresCondition: disable-experience
-	Signature:
+	Detectable:
 		Vision: 5
 	GpsDot:
 		String: Infantry

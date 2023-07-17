@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
-		public readonly SignaturePosition Position = SignaturePosition.Ground;
+		public readonly DetectablePosition Position = DetectablePosition.Ground;
 	}
 
 	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, IAffectsMapLayer, ISync, INotifyAddedToWorld,
@@ -60,7 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		public AffectsMapLayer(AffectsMapLayerInfo info)
 			: base(info)
 		{
-			if (Info.Position == SignaturePosition.Footprint)
+			if (Info.Position == DetectablePosition.Footprint)
 				footprint = new HashSet<PPos>();
 		}
 
@@ -72,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (maxRange <= minRange)
 				return NoCells;
 
-			if (Info.Position == SignaturePosition.Footprint)
+			if (Info.Position == DetectablePosition.Footprint)
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
@@ -83,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var pos = self.CenterPosition;
-			if (Info.Position == SignaturePosition.Ground)
+			if (Info.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
 			return MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)

@@ -52,7 +52,7 @@
 		Weight: 10
 		CargoType: Vehicle
 	AttackMove:
-	Signature:
+	Detectable:
 		Vision: 3
 	ProximityCaptor:
 		Types: Vehicle

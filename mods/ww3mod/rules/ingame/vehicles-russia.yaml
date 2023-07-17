@@ -504,7 +504,7 @@ giatsint:
 			VerticalTopOffset: 520
 			TopLeft: -330, -800
 			BottomRight: 330, 800
-	Signature:
+	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
@@ -604,7 +604,7 @@ grad:
 			VerticalTopOffset: 600
 			TopLeft: -240, -730
 			BottomRight: 240, 730
-	Signature:
+	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
@@ -706,7 +706,7 @@ tos:
 			VerticalTopOffset: 440
 			TopLeft: -360, -950
 			BottomRight: 360, 950
-	Signature:
+	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
@@ -806,7 +806,7 @@ tos:
 # 			VerticalTopOffset: 650
 # 			TopLeft: -300, -1270
 # 			BottomRight: 300, 1270
-#	Signature:
+#	Detectable:
 #		Radar: 1
 #		RadarDetectableCondition: firing
 #		Position: Ground

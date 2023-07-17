@@ -737,7 +737,7 @@
 	Targetable@Airborne:
 		TargetTypes: ICBM
 		RequiresCondition: airborne
-	Signature:
+	Detectable:
 		Vision: 1
 		Radar: 1
 		Position: Ground
@@ -784,7 +784,7 @@
 		Action: Kill
 	Armor:
 		Type: None
-	Signature:
+	Detectable:
 		Vision: 1
 		Position: Ground
 	ProximityCaptor:
@@ -832,7 +832,7 @@
 		HP: 1
 	Passenger:
 		CargoType: Vehicle
-	Signature:
+	Detectable:
 		Vision: 1
 	Tooltip:
 		GenericName: Summoned Actor

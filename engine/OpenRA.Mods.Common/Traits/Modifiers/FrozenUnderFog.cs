@@ -57,8 +57,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Explore map-placed actors if the "Explore Map" option is enabled
 			var shroudInfo = init.World.Map.Rules.Actors[SystemActors.Player].TraitInfo<MapLayersInfo>();
-			var exploredMap = init.World.LobbyInfo.GlobalSettings.OptionOrDefault("explored", shroudInfo.ExploredMapCheckboxEnabled);
-			startsRevealed = exploredMap && init.Contains<SpawnedByMapInit>() && !init.Contains<HiddenUnderFogInit>();
+			startsRevealed = init.Contains<SpawnedByMapInit>();
 			var buildingInfo = init.Self.Info.TraitInfoOrDefault<BuildingInfo>();
 			var footprintCells = buildingInfo?.FrozenUnderFogTiles(init.Self.Location).ToList() ?? new List<CPos>() { init.Self.Location };
 			footprint = footprintCells.SelectMany(c => map.ProjectedCellsCovering(c.ToMPos(map))).ToArray();
@@ -188,6 +187,4 @@ namespace OpenRA.Mods.Common.Traits
 			frozenStates[self.Owner].FrozenActor.Invalidate();
 		}
 	}
-
-	public class HiddenUnderFogInit : RuntimeFlagInit, ISingleInstanceInit { }
 }

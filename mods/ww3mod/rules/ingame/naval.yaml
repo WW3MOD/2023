@@ -29,7 +29,7 @@
 # 	Targetable@REPAIR:
 # 		RequiresCondition: damaged
 # 		TargetTypes: Repair
-# 	Signature: # TODO add Vision/Radar
+# 	Detectable: # TODO add Vision/Radar
 # 	AttackMove:
 # 	ActorLostNotification:
 # 		Notification: NavalUnitLost
