@@ -72,7 +72,6 @@ namespace OpenRA.Mods.Cnc.Traits
 			Color.FromArgb(32, 0, 0, 0)
 		};
 
-
 		static readonly Color[] FogColors = new[]
 		{
 			Color.FromArgb(0, 0, 0, 0),
