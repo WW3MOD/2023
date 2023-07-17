@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Effects
 			player = forPlayer;
 			revealRadius = radius;
 			validStances = stances;
-			sourceType = type;
+			/* sourceType = type; */
 			this.duration = duration;
 			ticks = -delay;
 		}
