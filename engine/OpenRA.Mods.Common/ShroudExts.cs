@@ -45,11 +45,21 @@ namespace OpenRA.Mods.Common
 			return false;
 		}
 
-		public static bool AnyVisible(this MapLayers shroud, (CPos Cell, SubCell SubCell)[] cells, int visibility)
+		public static bool AnyVisible(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells, int visibility)
 		{
 			// PERF: Avoid LINQ.
 			foreach (var cell in cells)
-				if (shroud.IsVisible(cell.Cell, visibility))
+				if (mapLayers.IsVisible(cell.Cell, visibility))
+					return true;
+
+			return false;
+		}
+
+		public static bool AnyVisibleOnRader(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var cell in cells)
+				if (mapLayers.RadarCover(cell.Cell.ToWPos()))
 					return true;
 
 			return false;

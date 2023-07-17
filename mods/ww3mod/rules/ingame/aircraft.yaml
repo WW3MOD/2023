@@ -36,11 +36,11 @@
 	Signature:
 		Vision: 2
 		Radar: 1
+		RadarDetectableCondition: airborne
 		Position: Ground
 	VisibilityAddativeModifier@Ground:
 		RequiresCondition: !airborne
 		Modifier: 1
-
 	AttackMove:
 	Guard:
 	Guardable:

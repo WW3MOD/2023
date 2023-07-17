@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Primitives;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -25,6 +26,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("")]
 		public readonly int Radar = 0;
+
+		[ConsumedConditionReference]
+		[Desc("Conditions to activate a third custom sequence")]
+		public readonly BooleanExpression RadarDetectableCondition = null;
+
+		public readonly string RadarDetectableGrantsCondition = "radar-detectable";
 
 		[Desc("Players with these relationships can always see the actor.")]
 		public readonly PlayerRelationship AlwaysVisibleRelationships = PlayerRelationship.Ally;
@@ -66,10 +73,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (SignatureInfo.Position == SignaturePosition.Footprint)
 			{
-				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), vision) || (SignatureInfo.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), vision) || (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()));
 			}
 
-			return byPlayer.MapLayers.IsVisible(pos, vision) || (SignatureInfo.Radar != 0 && byPlayer.MapLayers.RadarCover(pos));
+			return byPlayer.MapLayers.IsVisible(pos, vision) || (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos));
+		}
+
+		bool RadarDetectionActive()
+		{
+			return SignatureInfo.Radar != 0 && IsRadarDetectable;
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)
@@ -79,6 +91,47 @@ namespace OpenRA.Mods.Common.Traits
 
 			var relationship = self.Owner.RelationshipWith(byPlayer);
 			return SignatureInfo.AlwaysVisibleRelationships.HasRelationship(relationship) || IsVisibleInner(self, byPlayer);
+		}
+
+		public override IEnumerable<VariableObserver> GetVariableObservers()
+		{
+			foreach (var observer in base.GetVariableObservers())
+				yield return observer;
+
+			if (SignatureInfo.RadarDetectableCondition != null)
+				yield return new VariableObserver(RadarConditionsChanged, SignatureInfo.RadarDetectableCondition.Variables);
+		}
+
+		int radarDetectableConditionToken = Actor.InvalidConditionToken;
+
+		[Sync]
+		public bool IsRadarDetectable { get; private set; }
+
+		void RadarConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			if (IsRadarDetectable != SignatureInfo.RadarDetectableCondition.Evaluate(conditions))
+			{
+				if (IsRadarDetectable)
+					RadarDetectableTraitDisabled(self);
+				else
+					RadarDetectableTraitEnabled(self);
+			}
+		}
+
+		protected void RadarDetectableTraitEnabled(Actor self)
+		{
+			IsRadarDetectable = true;
+
+			if (radarDetectableConditionToken == Actor.InvalidConditionToken)
+				radarDetectableConditionToken = self.GrantCondition(SignatureInfo.RadarDetectableGrantsCondition);
+		}
+
+		protected void RadarDetectableTraitDisabled(Actor self)
+		{
+			IsRadarDetectable = false;
+
+			if (radarDetectableConditionToken != Actor.InvalidConditionToken)
+				radarDetectableConditionToken = self.RevokeCondition(radarDetectableConditionToken);
 		}
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
