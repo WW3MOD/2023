@@ -1,81 +1,135 @@
 
-MapLayers
-
-    - Dynamic Visibility implemented with Progressive Vision
-
-Cover
-
-    - Cargo / Enter
-
-        - Auto Enter order, makes selected units go into nearest transport / makes transports call in nearby infantry
-
-        - Use current behaviour for internal / protected slots
-
-        - Add new mode that puts actors invisible on top of the cell of the Cargo Actor,
-            this allows units to target either the building or autotarget the actor inside.
-
-            -
-
-    - Seek shelter order, makes units seek the highest possible cover near them
-        multiple clicks increases search radius for controling how much they spread out
-
-    - Protection based on cell type / overlaping actors footprint / proximity
+Flags
+    - Place Flags all around the map edges, chain-linking control gives access to deploy troops there, broken chain makes Flags disabled for calling in reinforcements.
 
 Resources
-
     - Auto Capture for technicians as a "Weapon", making AutoTargeting work
-
     - Dynamic income based on structure health
-
     - Autoheals slowly if less than 50% damaged
         Heavy damage needs engineer to restore and
         Critical damage needs a special Repair/Construction Vehicle to bring in resources.
-
-Flags
-
-    - Place Flags all around the map edges, chain-linking control gives access to deploy troops there,
-        broken chain makes Flags disabled for calling in reinforcements.
-
-Ammo
-
-    - Create
-
-Orders
-
-    - Attack move default / make infantry fire on the move
+    - Nuclear powerplant, releases long lasting radiation if destroyed
 
 Production
-
     - Infinite build
+    - Cancel all of a production type by right clicking icon
+    - Set infinite build by adding in same production after finishing each unit
+    - Pausing speeds up other production just as if it was cancelled (infantry)
 
-Movement
-
-    - Infantry can go over cliffs now
-
-Animations
-
-    - TOS explosion effects
-
-Sounds
-
-    - Voice for all units from real world videos
-
+Movements
+    - Move in formation - Don't move away from group
+        - Close, Default, Far, Range-Organized - longest ranged units at the back
     -
 
-Widgets
+Attacking
+    - Sweeping, shooting at multiple enemies within one burst
+    - Suppression trait, always prioritize units not taking cover
 
+Infantry
+    - Attack move default / make infantry fire on the move
+    - Sprint when force moving soldiers, disables firing on the move
+    - Infantry can go over cliffs now
+    - Adjust speed
+    - E8 Descolator, looks like RPG ish
+        - e8d (deployed) could work as a reloading sequence if the green color is changed
+
+ Spy?
+
+Engineer
+    - Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
+        - Different name works for C4, so can't see why it wouldn't work.
+        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
+        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
+
+Cover
+    - Cargo / Enter
+        - Auto Enter order, makes selected units go into nearest transport / makes transports call in nearby infantry
+        - Use current behaviour for internal / protected slots
+        - Add new mode that puts actors invisible on top of the cell of the Cargo Actor,
+            this allows units to target either the building or autotarget the actor inside.
+    - Seek shelter order, makes units seek the highest possible cover near them
+        multiple clicks increases search radius for controling how much they spread out
+    - Protection based on cell type / overlaping actors footprint / proximity
+    - Trenches
+
+Vehicles
+    - Adjust speed
+    - Firing rate adjustment after game speed was changed, perhaps slower
+    - Tesla tank returns to base when out of ammo
+    - Crystallized Doom tanks
+    - GDRN, tracked drone vehicle
+
+Air
+    - Reduce Damage from small arms
+    - Adjust speed
+    - Helicopter movement, acceleration/deceleration
+    - A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
+    - Tiberian Aurora Attack helicopter model, very nice almost too good
+
+Ammo
+    - Costs money
+    - Trucks need to be sent back
+    - Widget for auto rearm
+    - Fix current behaviour of going to the waypoint, enter Supply Route instead and evacuate area
+    - Units out of ammo rejects attack orders
+
+Animations
+    - TOS explosion effects
+    - Projectiles "Disappearing" ouside northern edge
+    - Colors are camouflage, not silly colors. Select from list instead, maybe even two colors. They could read half of the palette each?
+
+Sounds
+    - Voice
+    - Firing
+    - Explosions
+
+Widgets
     - Move to edges, remove borders, free up space
+    - Add stances, Autotarget priorities
 
 Mines
-
     - Cloaking
     - Engineer demining
 
-Air
+Add Ukraine faction
 
-    - Reduce Damage from small arms
+AI
+    - Needs to learn to build Logistics centers and rearm
+    - AutoAssign Actor Method
+        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
+    - Unit Builder Module
+        - Looks at what enemy has.
+        - Builds what is necessary, not just random.
+        - Units define capabilities, and Builder Module determines what capabilities are needed.
+    - Strategical Module
+        - Designates targets and areas of interest. Oil, and where to defend/attack.
+        - Designates new units to target locations and if needed transfers units between tactical groups.
+    - Tactical Module
+        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
+    - Operational Module
+        - Smaller squads move as one and attacks targets.
+        - Individual units attack targets of high value etc.
 
 End Game
+    - Capturing enemy flag could start a countdown to victory so you cant have hidden units preventing victory and neglect your spawn
+    - Time limited games ends with nuclear armageddon
+        - Power "Nuclear escalation" that, if everyone uses it, the nuclear war begins with one nuke per player per 10s or something, game ends by points gathered before Armageddon
+        - Everyone starts with a tactical nuke that counts down to the game end time, when it is reached anyone can fire but if they do they
 
-    - Capturing enemy flag should start a countdown to victory so you cant have hidden units preventing victory and neglect your spawn
+- Shellmaps
+    - "Bradley Square"
+    - Piatykhatky Ukrainian offensive breakthrough
 
+Div
+    - Civ buildings give Base under attack notification
+    - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
+    - Spawn Aircraft/all units at full speed
+    - Save last game settings and view a quick button to load the last one and also drop down
+
+Futuristic
+    - Shattered Paradise
+        - Crusader infantry, mech suit
+        - Animation militantfire, large fire TS.anim palette?
+        - nahfact tall concrete building, looks like missile factory or something
+        - armh vehicle, good tank chassis but needs rework
+    - ACOL, cyber unit with laser...
