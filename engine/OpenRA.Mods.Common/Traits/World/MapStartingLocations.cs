@@ -179,12 +179,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (p == world.LocalPlayer)
 					wr.Viewport.Center(world.Map.CenterOfCell(p.HomeLocation));
 
-				var cells = Shroud.ProjectedCellsInRange(world.Map, p.HomeLocation, info.InitialExploreRange)
+				var cells = MapLayers.ProjectedCellsInRange(world.Map, p.HomeLocation, info.InitialExploreRange)
 					.ToList();
 
 				foreach (var q in world.Players)
 					if (p.IsAlliedWith(q))
-						q.Shroud.ExploreProjectedCells(cells);
+						q.MapLayers.ExploreProjectedCells(cells);
 			}
 		}
 	}

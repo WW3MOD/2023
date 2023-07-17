@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new EditorActorLayer(this); }
 	}
 
-	public class EditorActorLayer : IWorldLoaded, ITickRender, IRender, IRadarSignature, ICreatePlayers, IRenderAnnotations
+	public class EditorActorLayer : IWorldLoaded, ITickRender, IRender, IMiniMapSignature, ICreatePlayers, IRenderAnnotations
 	{
 		readonly EditorActorLayerInfo info;
 		readonly List<EditorActorPreview> previews = new List<EditorActorPreview>();
@@ -326,11 +326,11 @@ namespace OpenRA.Mods.Common.Traits
 			return nodes;
 		}
 
-		public void PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
+		public void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
 		{
 			foreach (var previewsForCell in cellMap)
 				foreach (var preview in previewsForCell.Value)
-					destinationBuffer.Add((previewsForCell.Key, preview.RadarColor));
+					destinationBuffer.Add((previewsForCell.Key, preview.MiniMapColor));
 		}
 
 		public EditorActorPreview this[string id]

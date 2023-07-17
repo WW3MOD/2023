@@ -93,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class Bridge : IRender, INotifyDamageStateChanged, IRadarSignature
+	public class Bridge : IRender, INotifyDamageStateChanged, IMiniMapSignature
 	{
 		readonly BuildingInfo buildingInfo;
 		readonly Bridge[] neighbours = new Bridge[2];
@@ -409,7 +409,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		void IRadarSignature.PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
+		void IMiniMapSignature.PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
 		{
 			destinationBuffer.AddRange(radarSignature);
 		}

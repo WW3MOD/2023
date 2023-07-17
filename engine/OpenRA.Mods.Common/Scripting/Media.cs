@@ -59,7 +59,7 @@ namespace OpenRA.Mods.Common.Scripting
 			});
 		}
 
-		public static void PlayFMVInRadar(string videoFileName, Action onComplete)
+		public static void PlayFMVInMiniMap(string videoFileName, Action onComplete)
 		{
 			var player = Ui.Root.Get<VideoPlayerWidget>("PLAYER");
 			player.LoadAndPlayAsync(videoFileName, onComplete);

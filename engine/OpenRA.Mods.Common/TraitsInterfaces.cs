@@ -21,7 +21,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum VisibilityType { Footprint, CenterPosition, GroundPosition }
+	public enum DetectablePosition { Footprint, Center, Ground }
 
 	public enum AttackDelayType { Preparation, Attack }
 
@@ -415,10 +415,13 @@ namespace OpenRA.Mods.Common.Traits
 	public interface ICreatesShroudModifier { int GetCreatesShroudModifier(); }
 
 	[RequireExplicitImplementation]
-	public interface IRevealsShroudModifier { int GetRevealsShroudModifier(); }
+	public interface IVisibilityAddativeModifier { int GetVisibilityAddativeModifier(); }
 
 	[RequireExplicitImplementation]
-	public interface IRevealsRadarModifier { int GetRevealsRadarModifier(); }
+	public interface IVisionModifier { int GetVisionModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IRadarModifier { int GetRadarModifier(); }
 
 	[RequireExplicitImplementation]
 	public interface IDetectCloakedModifier { int GetDetectCloakedModifier(); }
@@ -495,12 +498,12 @@ namespace OpenRA.Mods.Common.Traits
 		HashSet<string> LandableTerrainTypes { get; }
 	}
 
-	public interface IRadarSignature
+	public interface IMiniMapSignature
 	{
-		void PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer);
+		void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer);
 	}
 
-	public interface IRadarColorModifier { Color RadarColorOverride(Actor self, Color color); }
+	public interface IMiniMapColorModifier { Color MiniMapColorOverride(Actor self, Color color); }
 
 	public interface IObjectivesPanel
 	{
@@ -742,7 +745,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface IRadarTerrainLayer
+	public interface IMiniMapTerrainLayer
 	{
 		event Action<CPos> CellEntryChanged;
 		bool TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value);

@@ -439,7 +439,7 @@ namespace OpenRA.Mods.Common.Traits
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 
 				// Don't leak info about resources under the shroud
-				if (!self.Owner.Shroud.IsExplored(location))
+				if (!self.Owner.MapLayers.IsExplored(location))
 					return false;
 
 				var info = self.Info.TraitInfo<HarvesterInfo>();

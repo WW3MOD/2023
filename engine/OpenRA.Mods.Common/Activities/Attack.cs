@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Activities
 		protected enum AttackStatus { UnableToAttack, NeedsToTurn, NeedsToMove, Attacking }
 
 		readonly IEnumerable<AttackFrontal> attackTraits;
-		readonly RevealsShroud[] revealsShroud;
+		readonly Vision[] vision;
 		readonly IMove move;
 		readonly IFacing facing;
 		readonly IPositionable positionable;
@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.forceAttack = forceAttack;
 
 			attackTraits = self.TraitsImplementing<AttackFrontal>().ToArray().Where(t => !t.IsTraitDisabled);
-			revealsShroud = self.TraitsImplementing<RevealsShroud>().ToArray();
+			vision = self.TraitsImplementing<Vision>().ToArray();
 			facing = self.Trait<IFacing>();
 			positionable = self.Trait<IPositionable>();
 
@@ -186,7 +186,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (move == null)
 					return AttackStatus.UnableToAttack;
 
-				var rs = revealsShroud
+				var rs = vision
 					.Where(t => !t.IsTraitDisabled)
 					.MaxByOrDefault(s => s.Range);
 

@@ -15,9 +15,9 @@ BOAT:
 		Type: Heavy
 	TDGunboat:
 		Speed: 29
-	RevealsShroud:
+	Vision:
 		Range: 7c0
-		Type: CenterPosition
+		Position: Center
 	Turreted:
 		TurnSpeed: 20
 		Offset: 0,896,171
@@ -69,7 +69,7 @@ LST:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	-BodyOrientation:
 	ClassicFacingBodyOrientation:

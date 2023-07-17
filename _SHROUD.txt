@@ -1,0 +1,10 @@
+
+ShroudRenderer
+
+    cellVisibility
+
+        WAS: a set of
+            Visible, Explored, Hidden
+
+        IS: a number
+

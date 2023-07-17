@@ -5,8 +5,9 @@
 		HP: 28000
 	Armor:
 		Type: Heavy
-	HiddenUnderFog:
-		Type: CenterPosition
+	Detectable:
+		Vision: 1
+		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
 	WithFacingSpriteBody:
@@ -17,7 +18,7 @@
 ^CivBuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Building:
 		Dimensions: 1,1
 		Footprint: x
@@ -38,7 +39,7 @@
 ^BuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Building:
 		Dimensions: 1,1
 		Footprint: x
@@ -62,8 +63,9 @@
 		RequiresForceFire: true
 	Tooltip:
 		GenericName: Destroyed Building
-	HiddenUnderFog:
-		Type: CenterPosition
+	Detectable:
+		Vision: 1
+		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
 	Explodes:
@@ -94,8 +96,8 @@
 	Interactable:
 	RenderSprites:
 		Palette: terrain
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree
@@ -106,7 +108,6 @@
 	Tooltip:
 		Name: Tree (Burnt)
 		ShowOwnerRow: false
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
 	MapEditorData:

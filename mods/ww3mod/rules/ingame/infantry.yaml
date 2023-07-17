@@ -10,8 +10,9 @@
 	Inherits@PinsDown: ^PinsDown
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
-	Inherits@Detection: ^StandardDetection
+	Inherits@Vision: ^StandardVision
 	Inherits@DetectionProximity: ^DetectionProximity
+	Inherits@Visibility: ^InfantryStandardVisibility
 	RepairableNear:
 		RepairActors: truk
 	Huntable:
@@ -58,7 +59,8 @@
 	GainsExperienceMultiplier:
 		Modifier: 0
 		RequiresCondition: disable-experience
-	HiddenUnderFog:
+	Detectable:
+		Vision: 5
 	GpsDot:
 		String: Infantry
 	Crushable:
@@ -214,8 +216,6 @@
 	Tooltip:
 		Name: Civilian
 		GenericVisibility: None
-	RevealsShroud:
-		Range: 16c0
 	Passenger:
 		CustomPipType: empty_class
 	ProximityCaptor:
@@ -299,7 +299,7 @@
 ^PinsDown:
 	Inherits@SuppressionPips: ^SuppressionPips
 	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
-	Inherits@SuppressionRevealsShroudMultiplier: ^SuppressionRevealsShroudMultiplier
+	Inherits@SuppressionVisionPercentageModifier: ^SuppressionVisionPercentageModifier
 	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
 	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
 	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
@@ -337,35 +337,35 @@
 	SpeedMultiplier@Suppression_10:
 		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^SuppressionRevealsShroudMultiplier:
-	RevealsShroudMultiplier@Suppression_1:
+^SuppressionVisionPercentageModifier:
+	VisionPercentageModifier@Suppression_1:
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	RevealsShroudMultiplier@Suppression_2:
+	VisionPercentageModifier@Suppression_2:
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	RevealsShroudMultiplier@Suppression_3:
+	VisionPercentageModifier@Suppression_3:
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	RevealsShroudMultiplier@Suppression_4:
+	VisionPercentageModifier@Suppression_4:
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	RevealsShroudMultiplier@Suppression_5:
+	VisionPercentageModifier@Suppression_5:
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	RevealsShroudMultiplier@Suppression_6:
+	VisionPercentageModifier@Suppression_6:
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	RevealsShroudMultiplier@Suppression_7:
+	VisionPercentageModifier@Suppression_7:
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	RevealsShroudMultiplier@Suppression_8:
+	VisionPercentageModifier@Suppression_8:
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	RevealsShroudMultiplier@Suppression_9:
+	VisionPercentageModifier@Suppression_9:
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	RevealsShroudMultiplier@Suppression_10:
+	VisionPercentageModifier@Suppression_10:
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
 ^SuppressionDetectCloakedMultiplier:
@@ -565,175 +565,29 @@
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 
 ^InfantryStandardVisibility:
-	# CPU Expensive!
-	Inherits: ^VisibilityPips
+	# Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
-	Cloak@Permanent:
-		DetectionTypes: Cloak_0
-		CloakedCondition: cloak-0
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@DuginAttacking:
-		DetectionTypes: Cloak_1
-		CloakedCondition: cloak-1
+	VisibilityAddativeModifier@Dugin:
 		RequiresCondition: dugin
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenCrawling:
-		DetectionTypes: Cloak_1
-		CloakedCondition: cloak-1
-		RequiresCondition: deployed
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@Dugin:
-		DetectionTypes: Cloak_2
-		CloakedCondition: cloak-2
-		RequiresCondition: dugin
-		UncloakOn: Attack, Move
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestAttacking:
-		DetectionTypes: Cloak_2
-		CloakedCondition: cloak-2
-		RequiresCondition: object-proximity
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenIdle:
-		DetectionTypes: Cloak_3
-		CloakedCondition: cloak-3
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDuginAttacking:
-		DetectionTypes: Cloak_3
-		CloakedCondition: cloak-3
-		RequiresCondition: object-proximity && dugin
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestRunning:
-		DetectionTypes: Cloak_6
-		CloakedCondition: cloak-6
-		RequiresCondition: object-proximity
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenDugin:
-		DetectionTypes: Cloak_7
-		CloakedCondition: cloak-7
-		RequiresCondition: dugin
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestCrawling:
-		DetectionTypes: Cloak_8
-		CloakedCondition: cloak-8
-		RequiresCondition: deployed && object-proximity
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestIdle:
-		DetectionTypes: Cloak_9
-		CloakedCondition: cloak-9
-		RequiresCondition: object-proximity
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDugin:
-		DetectionTypes: Cloak_10
-		CloakedCondition: cloak-10
-		RequiresCondition: dugin && object-proximity
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
+		Modifier: 1
+	VisibilityAddativeModifier@Running:
+		RequiresCondition: moving && !prone
+		Modifier: -2
+	VisibilityAddativeModifier@Crawling:
+		RequiresCondition: moving && prone
+		Modifier: -1
+	VisibilityAddativeModifier@Forest_1:
+		RequiresCondition: object-proximity == 1
+		Modifier: 1
+	VisibilityAddativeModifier@Forest_2:
+		RequiresCondition: object-proximity == 2
+		Modifier: 2
+	VisibilityAddativeModifier@Forest_3:
+		RequiresCondition: object-proximity >= 3
+		Modifier: 3
 
-^InfantryStealthyVisibility:
-	# CPU Expensive! Temp fix, TODO: rewrite
-	Inherits: ^VisibilityPips
-	ExternalCondition@ObjectProximity:
-		Condition: object-proximity
-	Cloak@Permanent:
-		DetectionTypes: Cloak_4
-		CloakedCondition: cloak-4
-		Palette: player
-		IsPlayerPalette: true
-		RequiresCondition: !disguised
-	Cloak@DuginAttacking:
-		DetectionTypes: Cloak_5
-		CloakedCondition: cloak-5
-		RequiresCondition: dugin && !disguised
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenCrawling:
-		DetectionTypes: Cloak_5
-		CloakedCondition: cloak-5
-		RequiresCondition: deployed && !disguised
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@Dugin:
-		DetectionTypes: Cloak_6
-		CloakedCondition: cloak-6
-		RequiresCondition: dugin && !disguised
-		UncloakOn: Attack, Move
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestAttacking:
-		DetectionTypes: Cloak_6
-		CloakedCondition: cloak-6
-		RequiresCondition: object-proximity && !disguised
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenIdle:
-		DetectionTypes: Cloak_7
-		CloakedCondition: cloak-7
-		RequiresCondition: !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDuginAttacking:
-		DetectionTypes: Cloak_7
-		CloakedCondition: cloak-7
-		RequiresCondition: object-proximity && dugin && !disguised
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestRunning:
-		DetectionTypes: Cloak_8
-		CloakedCondition: cloak-8
-		RequiresCondition: object-proximity && !disguised
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@OpenDugin:
-		DetectionTypes: Cloak_9
-		CloakedCondition: cloak-9
-		RequiresCondition: dugin && !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestCrawling:
-		DetectionTypes: Cloak_10
-		CloakedCondition: cloak-10
-		RequiresCondition: deployed && object-proximity && !disguised
-		UncloakOn: Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestIdle:
-		DetectionTypes: Cloak_11
-		CloakedCondition: cloak-11
-		RequiresCondition: object-proximity && !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
-	Cloak@ForestDugin:
-		DetectionTypes: Cloak_12
-		CloakedCondition: cloak-12
-		RequiresCondition: dugin && object-proximity && !disguised
-		UncloakOn: Move, Attack
-		Palette: player
-		IsPlayerPalette: true
 ^VisibilityRangeCircles:
 	WithRangeCircle@Cloak_0:
 		RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
@@ -839,6 +693,7 @@
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
+
 ^VisibilityPips:
 	WithDecoration@Visibility_1:
 		RequiresSelection: true
@@ -1063,7 +918,6 @@
 ^E1:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Conscript
@@ -1130,7 +984,6 @@ E1R1:
 	Inherits@Type: ^CamoSoldier
 	# TODO: Autotarget vehicles requires prerequisite: ammo-secondary
 	Inherits@AutoTarget: ^AutoTargetLMGAT
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Rifleman
@@ -1235,7 +1088,6 @@ E3R1:
 ^AR:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Automatic Rifleman
@@ -1299,7 +1151,6 @@ AR:
 ^E2:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGrenades
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Tooltip:
 		Name: Grenadier
 	Buildable:
@@ -1363,7 +1214,6 @@ E2R1:
 ^TL:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGrenades
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Team Leader
@@ -1449,7 +1299,6 @@ TL:
 ^MT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetGrenades
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Tooltip:
 		Name: Mortar
 	Buildable:
@@ -1516,7 +1365,6 @@ MT:
 # Sniper
 ^SN:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetSniper
 	Tooltip:
 		Name: Sniper
@@ -1579,7 +1427,6 @@ SN:
 ^AT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetMHL
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Targetable@HighPriority:
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	Buildable:
@@ -1645,7 +1492,6 @@ AT:
 # Anti Air
 ^AA:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetAir
 	Buildable:
 		Queue: Infantry
@@ -1711,7 +1557,6 @@ AA:
 ^E6:
 	Inherits@Type: ^CamoSoldier
 	# Inherits@Selection: ^SelectableSupportUnit
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
 	-WithDecoration@AmmoSecondaryNone:
@@ -1817,7 +1662,6 @@ E6:
 # Flamethrower
 ^E4:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@AutoTarget: ^AutoTargetLMG
 	Tooltip:
 		Name: Flamethrower
@@ -1981,7 +1825,6 @@ SF:
 # Medic
 ^MEDI:
 	Inherits@Type: ^CamoSoldier
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	-WithDecoration@AmmoNone:
 	-WithDecoration@AmmoPrimaryNone:
 	-WithDecoration@AmmoReplenishing:
@@ -2146,8 +1989,6 @@ SPY:
 		ValidTargets: Infantry
 	Guard:
 		Voice: Move
-	RevealsShroud:
-		Range: 8c0
 	DetectCloaked@DOG:
 		DetectionTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
 		Range: 10c0
@@ -2194,7 +2035,6 @@ DOG:
 ^TECN:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesNeutralBuildings: ^CapturesNeutralBuildings
 	-Wanders:
 	Tooltip:
@@ -2307,7 +2147,6 @@ DR:
 ^PILOT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	# Inherits@Visibility: ^InfantryStandardVisibility
 	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
 	Tooltip:
 		Name: Pilot

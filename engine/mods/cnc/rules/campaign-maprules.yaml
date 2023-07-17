@@ -99,5 +99,5 @@ TRUCK:
 
 MISS:
 	Inherits: ^CivBuilding
-	RevealsShroud:
+	Vision:
 		Range: 3c0

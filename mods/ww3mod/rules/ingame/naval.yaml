@@ -29,7 +29,7 @@
 # 	Targetable@REPAIR:
 # 		RequiresCondition: damaged
 # 		TargetTypes: Repair
-# 	HiddenUnderFog:
+# 	Detectable: # TODO add Vision/Radar
 # 	AttackMove:
 # 	ActorLostNotification:
 # 		Notification: NavalUnitLost
@@ -66,17 +66,13 @@
 
 # ^Ship:
 # 	Inherits: ^Naval
-# 	RevealsShroud:
-# 		MinRange: 5c0
-# 		Range: 24c0
 # 	RepairableNear:
 # 		RepairActors: syrd
 # ^Submarine:
 # 	Inherits: ^Naval
 # 	Inherits@Sonar: ^Sonar
 # 	-MustBeDestroyed:
-# 	RevealsShroud:
-# 		Range: 20c0
+# 	Vision:
 # 		RequiresCondition: !underwater
 # 	RepairableNear:
 # 		RepairActors: spen
@@ -653,9 +649,6 @@
 # 	AutoTarget:
 # 		InitialStance: ReturnFire
 # 		InitialStanceAI: ReturnFire
-# 	RevealsShroud:
-# 		MinRange: 5c0
-# 		Range: 10c0
 # 	GpsDot:
 # 		String: Nuke
 
@@ -792,9 +785,6 @@
 # 		Armaments: primary
 # 		Color: FFFF00
 # 	RenderRangeCircle:
-# 	RevealsShroud:
-# 		MinRange: 5c0
-# 		Range: 8c0
 # 	HitShape:
 # 		TargetableOffsets: 576,0,0, -576,0,0
 # 		Type: Capsule

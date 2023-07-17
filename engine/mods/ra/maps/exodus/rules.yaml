@@ -137,5 +137,5 @@ THF:
 CAMERA.Large:
 	Inherits: CAMERA
 	# Required for YakAttack to work
-	RevealsShroud:
+	Vision:
 		Range: 49c0

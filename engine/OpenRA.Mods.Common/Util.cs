@@ -201,6 +201,16 @@ namespace OpenRA.Mods.Common
 			return (int)a;
 		}
 
+		public static int ApplyAddativeModifiers(int number, IEnumerable<int> additions)
+		{
+			// See the comments of PR#6079 for a faster algorithm if this becomes a performance bottleneck
+			var a = (decimal)number;
+			foreach (var p in additions)
+				a += p;
+
+			return (int)a;
+		}
+
 		public static IEnumerable<CPos> RandomWalk(CPos p, MersenneTwister r)
 		{
 			while (true)

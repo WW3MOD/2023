@@ -16,8 +16,10 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public abstract class AffectsShroudInfo : ConditionalTraitInfo
+	public abstract class AffectsMapLayerInfo : ConditionalTraitInfo
 	{
+		public readonly MapLayers.Type Type = MapLayers.Type.Vision;
+
 		public readonly WDist MinRange = WDist.Zero;
 
 		public readonly WDist Range = WDist.Zero;
@@ -30,10 +32,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
-		public readonly VisibilityType Type = VisibilityType.GroundPosition;
+		public readonly DetectablePosition Position = DetectablePosition.Ground;
 	}
 
-	public abstract class AffectsShroud : ConditionalTrait<AffectsShroudInfo>, ISync, INotifyAddedToWorld,
+	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, IAffectsMapLayer, ISync, INotifyAddedToWorld,
 		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, ITick
 	{
 		static readonly PPos[] NoCells = Array.Empty<PPos>();
@@ -50,41 +52,41 @@ namespace OpenRA.Mods.Common.Traits
 		protected bool CachedTraitDisabled { get; private set; }
 
 		WPos cachedPos;
-		int checkTick = 0;
+		/* int checkTick = 0; */
 
-		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
-		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);
+		protected abstract void AddCellsToPlayerMapLayer(Actor self, Player player, PPos[] uv);
+		protected abstract void RemoveCellsFromPlayerMapLayer(Actor self, Player player);
 
-		public AffectsShroud(AffectsShroudInfo info)
+		public AffectsMapLayer(AffectsMapLayerInfo info)
 			: base(info)
 		{
-			if (Info.Type == VisibilityType.Footprint)
+			if (Info.Position == DetectablePosition.Footprint)
 				footprint = new HashSet<PPos>();
 		}
 
 		PPos[] ProjectedCells(Actor self)
 		{
 			var map = self.World.Map;
-			var minRange = Info.MinRange;
+			var minRange = MinRange;
 			var maxRange = Range;
 			if (maxRange <= minRange)
 				return NoCells;
 
-			if (Info.Type == VisibilityType.Footprint)
+			if (Info.Position == DetectablePosition.Footprint)
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
-					.SelectMany(kv => Shroud.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
+					.SelectMany(kv => MapLayers.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
 				var cells = footprint.ToArray();
 				footprint.Clear();
 				return cells;
 			}
 
 			var pos = self.CenterPosition;
-			if (Info.Type == VisibilityType.GroundPosition)
+			if (Info.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return Shroud.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
+			return MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
 				.ToArray();
 		}
 
@@ -106,11 +108,13 @@ namespace OpenRA.Mods.Common.Traits
 			cachedPos = pos;
 
 			// CPU improvement - Update shroud every 10 ticks
-			if (checkTick-- <= 0)
+			/* if (checkTick-- <= 0)
 			{
 				checkTick = 10;
-				UpdateShroudCells(self);
-			}
+				UpdateCells(self);
+			} */
+
+			UpdateCells(self);
 		}
 
 		void ITick.Tick(Actor self)
@@ -127,21 +131,23 @@ namespace OpenRA.Mods.Common.Traits
 			cachedRange = range;
 			CachedTraitDisabled = traitDisabled;
 
-			if (checkTick-- <= 0)
-			{
+			// if (checkTick-- <= 0)
+			/* {
 				// CPU improvement - Update shroud every 10 ticks
 				checkTick = 10;
-				UpdateShroudCells(self);
-			}
+				UpdateCells(self);
+			} */
+
+			UpdateCells(self);
 		}
 
-		void UpdateShroudCells(Actor self)
+		void UpdateCells(Actor self)
 		{
 			var cells = ProjectedCells(self);
 			foreach (var p in self.World.Players)
 			{
-				RemoveCellsFromPlayerShroud(self, p);
-				AddCellsToPlayerShroud(self, p, cells);
+				RemoveCellsFromPlayerMapLayer(self, p);
+				AddCellsToPlayerMapLayer(self, p, cells);
 			}
 		}
 
@@ -155,15 +161,17 @@ namespace OpenRA.Mods.Common.Traits
 			var cells = ProjectedCells(self);
 
 			foreach (var p in self.World.Players)
-				AddCellsToPlayerShroud(self, p, cells);
+				AddCellsToPlayerMapLayer(self, p, cells);
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
 			foreach (var p in self.World.Players)
-				RemoveCellsFromPlayerShroud(self, p);
+				RemoveCellsFromPlayerMapLayer(self, p);
 		}
 
+		public virtual MapLayers.Type Type => throw new NotImplementedException();
+		public virtual WDist MinRange => CachedTraitDisabled ? WDist.Zero : Info.MinRange;
 		public virtual WDist Range => CachedTraitDisabled ? WDist.Zero : Info.Range;
 
 		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
@@ -179,7 +187,7 @@ namespace OpenRA.Mods.Common.Traits
 				cachedLocation = projectedLocation;
 				cachedPos = pos;
 
-				UpdateShroudCells(self);
+				UpdateCells(self);
 			}
 		}
 	}

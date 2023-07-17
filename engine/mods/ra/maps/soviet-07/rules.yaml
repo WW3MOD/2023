@@ -23,7 +23,7 @@ Player:
 		Locked: True
 
 CAMERA:
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 
 FTUR:

@@ -1,6 +1,6 @@
 ^BasePlayer:
 	AlwaysVisible:
-	Shroud:
+	MapLayers:
 	PlayerResources:
 		ResourceValues:
 			Ore: 25
@@ -12,7 +12,7 @@ EditorPlayer:
 Player:
 	Inherits: ^BasePlayer
 	TechTree:
-	ProvidesRadar:
+	ProvidesMiniMap:
 	ProximityCaptor:
 		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
@@ -123,9 +123,7 @@ Player:
 	DeveloperMode:
 		CheckboxDisplayOrder: 10
 	GpsWatcher:
-	Shroud:
-		FogCheckboxDisplayOrder: 3
-		ExploredMapCheckboxEnabled: True
+	MapLayers:
 	LobbyPrerequisiteCheckbox@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
@@ -220,7 +218,7 @@ Player:
 		DisplayOrder: 12
 		Prerequisites: global-disablenavy
 	GameSaveViewportManager:
-	PlayerRadarTerrain:
+	PlayerMiniMapTerrain:
 	# LobbyPrerequisiteCheckbox@GlobalPenalty:
 	# 	ID: penalty
 	# 	Label: War Crime Penalty
@@ -457,7 +455,6 @@ Player:
 	# 	SelectTargetSpeechNotification: SelectTarget
 	# 	AllowImpassableCells: false
 	# 	QuantizedFacings: 8
-	# 	CameraActor: camera.minimum
 	# 	UnitType: unit.summoner
 	# 	DisplayBeacon: true
 	# 	BeaconPoster: sonrbcon

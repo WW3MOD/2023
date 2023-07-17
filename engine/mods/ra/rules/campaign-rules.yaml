@@ -106,9 +106,9 @@ FCOM:
 		IsPlayerPalette: True
 
 MISS:
-	RevealsShroud:
+	Vision:
 		Range: 3c0
-	-RevealsShroud@GAPGEN:
+	-Vision@GAPGEN:
 
 TRUK:
 	Buildable:

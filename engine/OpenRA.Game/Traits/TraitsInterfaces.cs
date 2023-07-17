@@ -201,7 +201,7 @@ namespace OpenRA.Traits
 
 	public interface IDefaultVisibilityInfo : ITraitInfoInterface { }
 	public interface IDefaultVisibility { bool IsVisible(Actor self, Player byPlayer); }
-	public interface IVisibilityModifier { bool IsVisible(Actor self, Player byPlayer); }
+	public interface IShouldHideModifier { bool ShouldHide(Actor self, Player byPlayer); }
 
 	public interface IActorMap
 	{
@@ -608,5 +608,10 @@ namespace OpenRA.Traits
 	public interface INotifyPlayerDisconnected
 	{
 		void PlayerDisconnected(Actor self, Player p);
+	}
+
+	public interface IAffectsMapLayer
+	{
+		MapLayers.Type Type { get; }
 	}
 }

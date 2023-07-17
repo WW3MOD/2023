@@ -20,8 +20,8 @@
 	Building:
 		Footprint: _
 		Dimensions: 1,1
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree
@@ -31,7 +31,6 @@
 		Type: Wood
 	Targetable:
 		TargetTypes: Trees
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
 	# MapEditorData:
@@ -109,12 +108,11 @@
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Tree
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	ScriptTriggers:
 	MapEditorData:

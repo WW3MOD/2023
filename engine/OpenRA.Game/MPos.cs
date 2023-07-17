@@ -61,6 +61,11 @@ namespace OpenRA
 			var x = V - y;
 			return new CPos(x, y);
 		}
+
+		public int ToCellIndex(Map map)
+		{
+			return V * map.MapSize.X + U;
+		}
 	}
 
 	/// <summary>

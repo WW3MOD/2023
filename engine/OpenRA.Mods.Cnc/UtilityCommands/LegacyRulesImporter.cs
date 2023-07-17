@@ -90,7 +90,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				var sight = rulesSection.GetValue("Sight", string.Empty);
 				if (!string.IsNullOrEmpty(sight))
 				{
-					Console.WriteLine("\tRevealsShroud:");
+					Console.WriteLine("\tVision:");
 					Console.WriteLine("\t\tRange: " + sight + "c0");
 				}
 

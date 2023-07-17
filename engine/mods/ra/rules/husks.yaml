@@ -97,14 +97,14 @@ TRAN.Husk:
 	WithIdleOverlay@SECONDARY:
 		Offset: 597,0,213
 		Sequence: rotor2
-	RevealsShroud:
+	Vision:
 		MinRange: 6c0
 		Range: 8c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 6c0
-		Type: GroundPosition
+		Position: Ground
 	RenderSprites:
 		Image: tran
 
@@ -140,13 +140,13 @@ BADR.Husk:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 	LeavesTrails@1:
 		Offsets: -432,-560,0
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 	RenderSprites:
 		Image: badr
 	-RevealOnDeath:
@@ -167,15 +167,15 @@ MIG.Husk:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
-	RevealsShroud:
+		Position: Center
+	Vision:
 		MinRange: 11c0
 		Range: 13c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 11c0
-		Type: GroundPosition
+		Position: Ground
 	RenderSprites:
 		Image: mig
 
@@ -193,15 +193,15 @@ YAK.Husk:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
-	RevealsShroud:
+		Position: Center
+	Vision:
 		MinRange: 9c0
 		Range: 11c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 9c0
-		Type: GroundPosition
+		Position: Ground
 	RenderSprites:
 		Image: yak
 
@@ -220,17 +220,17 @@ HELI.Husk:
 		Image: smokey
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		TrailWhileStationary: True
 		StationaryInterval: 3
-	RevealsShroud:
+	Vision:
 		MinRange: 10c0
 		Range: 12c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 10c0
-		Type: GroundPosition
+		Position: Ground
 	RenderSprites:
 		Image: heli
 
@@ -248,17 +248,17 @@ HIND.Husk:
 		Image: smokey
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		TrailWhileStationary: True
 		StationaryInterval: 3
-	RevealsShroud:
+	Vision:
 		MinRange: 8c0
 		Range: 10c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 8c0
-		Type: GroundPosition
+		Position: Ground
 	RenderSprites:
 		Image: hind
 
@@ -278,7 +278,7 @@ U2.Husk:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 	RenderSprites:
 		Image: u2
 
@@ -467,16 +467,16 @@ MH60.Husk:
 		Image: smokey
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		TrailWhileStationary: True
 		StationaryInterval: 3
-	RevealsShroud:
+	Vision:
 		MinRange: 8c0
 		Range: 10c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 8c0
-		Type: GroundPosition
+		Position: Ground
 	RenderSprites:
 		Image: MH60

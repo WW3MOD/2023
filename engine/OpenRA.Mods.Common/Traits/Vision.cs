@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,43 +15,57 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class RevealsRadarInfo : AffectsRadarInfo
+	public class VisionInfo : AffectsMapLayerInfo
 	{
+		[Desc("Strength of this layer, add multiple layers with Min/MaxRange to create a progressive decline")]
+		public readonly int Strength = 1;
+
 		[Desc("Relationships the watching player needs to see the shroud removed.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
 
-		public override object Create(ActorInitializer init) { return new RevealsRadar(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new Vision(this); }
 	}
 
-	public class RevealsRadar : AffectsRadar
+	public class Vision : AffectsMapLayer
 	{
-		readonly RevealsRadarInfo info;
-		readonly Shroud.SourceType type;
+		readonly VisionInfo info;
 		IEnumerable<int> rangeModifiers;
+		public override MapLayers.Type Type => MapLayers.Type.Vision;
 
-		public RevealsRadar(Actor self, RevealsRadarInfo info)
-			: base(self, info)
+		public Vision(VisionInfo info)
+			: base(info)
 		{
 			this.info = info;
-			type = Shroud.SourceType.Radar;
 		}
 
 		protected override void Created(Actor self)
 		{
 			base.Created(self);
 
-			rangeModifiers = self.TraitsImplementing<IRevealsRadarModifier>().ToArray().Select(x => x.GetRevealsRadarModifier());
+			rangeModifiers = self.TraitsImplementing<IVisionModifier>().ToArray().Select(x => x.GetVisionModifier());
 		}
 
-		protected override void AddCellsToPlayerRadar(Actor self, Player p, PPos[] uv)
+		protected override void AddCellsToPlayerMapLayer(Actor self, Player p, PPos[] uv)
 		{
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.AddSource(this, type, uv);
+			p.MapLayers.AddSource(this, info.Strength, uv);
 		}
 
-		protected override void RemoveCellsFromPlayerRadar(Actor self, Player p) { p.Shroud.RemoveSource(this); }
+		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayers.RemoveSource(this); }
+
+		public override WDist MinRange
+		{
+			get
+			{
+				if (CachedTraitDisabled)
+					return WDist.Zero;
+
+				var range = Util.ApplyPercentageModifiers(Info.MinRange.Length, rangeModifiers);
+				return new WDist(range);
+			}
+		}
 
 		public override WDist Range
 		{

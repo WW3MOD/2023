@@ -17,24 +17,24 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	public class RadarPingsInfo : TraitInfo
+	public class MiniMapPingsInfo : TraitInfo
 	{
 		public readonly int FromRadius = 200;
 		public readonly int ToRadius = 15;
 		public readonly int ResizeSpeed = 4;
 		public readonly float RotationSpeed = 0.12f;
 
-		public override object Create(ActorInitializer init) { return new RadarPings(this); }
+		public override object Create(ActorInitializer init) { return new MiniMapPings(this); }
 	}
 
-	public class RadarPings : ITick
+	public class MiniMapPings : ITick
 	{
-		public readonly List<RadarPing> Pings = new List<RadarPing>();
-		readonly RadarPingsInfo info;
+		public readonly List<MiniMapPing> Pings = new List<MiniMapPing>();
+		readonly MiniMapPingsInfo info;
 
 		public WPos? LastPingPosition;
 
-		public RadarPings(RadarPingsInfo info)
+		public MiniMapPings(MiniMapPingsInfo info)
 		{
 			this.info = info;
 		}
@@ -46,7 +46,7 @@ namespace OpenRA.Mods.Common.Traits
 					Pings.Remove(ping);
 		}
 
-		public RadarPing Add(RadarPing radarPing)
+		public MiniMapPing Add(MiniMapPing radarPing)
 		{
 			if (radarPing.IsVisible())
 				LastPingPosition = radarPing.Position;
@@ -56,9 +56,9 @@ namespace OpenRA.Mods.Common.Traits
 			return radarPing;
 		}
 
-		public RadarPing Add(Func<bool> isVisible, WPos position, Color color, int duration)
+		public MiniMapPing Add(Func<bool> isVisible, WPos position, Color color, int duration)
 		{
-			var ping = new RadarPing(isVisible, position, color, 1, duration,
+			var ping = new MiniMapPing(isVisible, position, color, 1, duration,
 				info.FromRadius, info.ToRadius, info.ResizeSpeed, info.RotationSpeed);
 
 			if (ping.IsVisible())
@@ -69,13 +69,13 @@ namespace OpenRA.Mods.Common.Traits
 			return ping;
 		}
 
-		public void Remove(RadarPing ping)
+		public void Remove(MiniMapPing ping)
 		{
 			Pings.Remove(ping);
 		}
 	}
 
-	public class RadarPing
+	public class MiniMapPing
 	{
 		public Func<bool> IsVisible;
 		public WPos Position;
@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 		float angle;
 		int tick;
 
-		public RadarPing(Func<bool> isVisible, WPos position, Color color, int lineWidth, int duration,
+		public MiniMapPing(Func<bool> isVisible, WPos position, Color color, int lineWidth, int duration,
 			int fromRadius, int toRadius, int resizeSpeed, float rotationSpeed)
 		{
 			IsVisible = isVisible;

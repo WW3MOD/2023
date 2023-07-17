@@ -19,18 +19,18 @@ namespace OpenRA.Mods.Common.Scripting
 	[ScriptGlobal("Beacon")]
 	public class BeaconGlobal : ScriptGlobal
 	{
-		readonly RadarPings radarPings;
+		readonly MiniMapPings radarPings;
 
 		public BeaconGlobal(ScriptContext context)
 			: base(context)
 		{
-			radarPings = context.World.WorldActor.TraitOrDefault<RadarPings>();
+			radarPings = context.World.WorldActor.TraitOrDefault<MiniMapPings>();
 		}
 
 		[Desc("Creates a new beacon that stays for the specified time at the specified WPos. " +
 			"Does not remove player set beacons, nor gets removed by placing them. " +
 			"Requires the 'PlaceBeacon' trait on the player actor.")]
-		public void New(Player owner, WPos position, int duration = 750, bool showRadarPings = true)
+		public void New(Player owner, WPos position, int duration = 750, bool showMiniMapPings = true)
 		{
 			var beacon = owner.PlayerActor.Info.TraitInfoOrDefault<PlaceBeaconInfo>();
 			if (beacon == null)
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Scripting
 
 			owner.PlayerActor.World.AddFrameEndTask(w => w.Add(playerBeacon));
 
-			if (showRadarPings && radarPings != null)
+			if (showMiniMapPings && radarPings != null)
 			{
 				radarPings.Add(
 					() => owner.IsAlliedWith(owner.World.RenderPlayer),

@@ -16,11 +16,6 @@
 		Explosion: UnitExplodePlane
 		MaximumSpinSpeed: 0
 	-MapEditorData:
-	RevealsShroud:
-		Range: 10c0
-	RevealOnDeath:
-		Duration: 100
-		Radius: 2c0
 
 ^HelicopterHusk:
 	Inherits: ^BasicHusk
@@ -39,11 +34,6 @@
 	FallsToEarth:
 		Explosion: UnitExplodeHeli
 	-MapEditorData:
-	RevealsShroud:
-		Range: 10c0
-	RevealOnDeath:
-		Duration: 100
-		Radius: 2c0
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
 		RequiresCondition: !rank-veteran
@@ -87,7 +77,6 @@ BADR.Husk:
 	# 	MinDamage: Undamaged
 	RenderSprites:
 		Image: badr
-	-RevealOnDeath:
 
 BADR.Husk.EMP:
 	Inherits: BADR.Husk
@@ -110,7 +99,6 @@ B52.Husk:
 	# 	MinDamage: Undamaged
 	RenderSprites:
 		Image: ally-bdgr
-	-RevealOnDeath:
 
 B52.Husk.EMP:
 	Inherits: B52.Husk
@@ -133,7 +121,6 @@ BULL.Husk:
 	# 	MinDamage: Undamaged
 	RenderSprites:
 		Image: glabomber
-	-RevealOnDeath:
 
 BULL.Husk.EMP:
 	Inherits: BULL.Husk

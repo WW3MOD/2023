@@ -22,7 +22,7 @@ EYE:
 		Prerequisites: ~disabled
 
 FLARE:
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 
 STNK:

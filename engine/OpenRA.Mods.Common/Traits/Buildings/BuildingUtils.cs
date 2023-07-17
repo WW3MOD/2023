@@ -122,7 +122,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					// Continue the search if the cell is empty or not visible
 					var c = topLeft + i * vecs[d];
-					if (world.IsCellBuildable(c, segmentInfo, segmentBuildingInfo) || !owner.Shroud.IsExplored(c))
+					if (world.IsCellBuildable(c, segmentInfo, segmentBuildingInfo) || !owner.MapLayers.IsExplored(c))
 						continue;
 
 					// Cell contains an actor. Is it the type we want?

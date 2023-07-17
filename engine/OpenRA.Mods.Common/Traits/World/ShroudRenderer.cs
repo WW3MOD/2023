@@ -27,14 +27,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string[] ShroudVariants = { "shroud" };
 
 		[SequenceReference(nameof(Sequence))]
-		public readonly string[] FogVariants = { "fog" };
+		public readonly string[] FogVariants = { "shroud" };
 
 		[PaletteReference]
 		public readonly string ShroudPalette = "shroud";
 
 		[PaletteReference]
 		public readonly string FogPalette = "fog";
-
 		[Desc("Bitfield of shroud directions for each frame. Lower four bits are",
 			"corners clockwise from TL; upper four are edges clockwise from top")]
 		public readonly int[] Index = { 12, 9, 8, 3, 1, 6, 4, 2, 13, 11, 7, 14 };
@@ -109,22 +108,32 @@ namespace OpenRA.Mods.Common.Traits
 		readonly ShroudRendererInfo info;
 		readonly World world;
 		readonly Map map;
-		readonly (Edges, Edges) notVisibleEdgesPair;
+		readonly Edges notVisibleEdges;
 		readonly byte variantStride;
 		readonly byte[] edgesToSpriteIndexOffset;
 
 		// PERF: Allocate once.
-		readonly Shroud.CellVisibility[] neighbors = new Shroud.CellVisibility[8];
+		readonly byte[] neighbors = new byte[8];
 
 		readonly CellLayer<TileInfo> tileInfos;
 		readonly CellLayer<bool> cellsDirty;
 		bool anyCellDirty;
 		readonly (Sprite Sprite, float Scale, float Alpha)[] fogSprites, shroudSprites;
 
-		Shroud shroud;
-		Func<PPos, Shroud.CellVisibility> cellVisibility;
-		TerrainSpriteLayer shroudLayer, fogLayer;
-		PaletteReference shroudPaletteReference, fogPaletteReference;
+		MapLayers shroud;
+		Func<PPos, byte> cellVisibility;
+
+		readonly Layer[] layers = new Layer[MapLayers.VisionLayers];
+
+		class Layer
+		{
+			public (Sprite, float, float)[] Sprites;
+			public TerrainSpriteLayer TerrainSpriteLayer;
+			public PaletteReference PaletteReference;
+
+			public Layer() { }
+		}
+
 		bool disposed;
 
 		public ShroudRenderer(World world, ShroudRendererInfo info)
@@ -177,15 +186,18 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
+				layers[i] = new Layer();
+
 			int spriteCount;
 			if (info.UseExtendedIndex)
 			{
-				notVisibleEdgesPair = (Edges.AllSides, Edges.AllSides);
+				notVisibleEdges = Edges.AllSides;
 				spriteCount = (int)Edges.All;
 			}
 			else
 			{
-				notVisibleEdgesPair = (Edges.AllCorners, Edges.AllCorners);
+				notVisibleEdges = Edges.AllCorners;
 				spriteCount = (int)Edges.AllCorners;
 			}
 
@@ -214,9 +226,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// All tiles are visible in the editor
 			if (w.Type == WorldType.Editor)
-				cellVisibility = puv => (map.Contains(puv) ? Shroud.CellVisibility.Visible | Shroud.CellVisibility.Explored : Shroud.CellVisibility.Explored);
+				cellVisibility = puv => (byte)(map.Contains(puv) ? 10 : 0);
 			else
-				cellVisibility = puv => (map.Contains(puv) ? Shroud.CellVisibility.Visible | Shroud.CellVisibility.Explored : Shroud.CellVisibility.Hidden);
+				cellVisibility = puv => world.RenderPlayer.MapLayers.GetVisibility(puv);
 
 			var shroudBlend = shroudSprites[0].Sprite.BlendMode;
 			if (shroudSprites.Any(s => s.Sprite.BlendMode != shroudBlend))
@@ -227,15 +239,27 @@ namespace OpenRA.Mods.Common.Traits
 				throw new InvalidDataException("Fog sprites must all use the same blend mode.");
 
 			var emptySprite = new Sprite(shroudSprites[0].Sprite.Sheet, Rectangle.Empty, TextureChannel.Alpha);
-			shroudPaletteReference = wr.Palette(info.ShroudPalette);
-			fogPaletteReference = wr.Palette(info.FogPalette);
-			shroudLayer = new TerrainSpriteLayer(w, wr, emptySprite, shroudBlend, false);
-			fogLayer = new TerrainSpriteLayer(w, wr, emptySprite, fogBlend, false);
+
+			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
+			{
+				if (i == 0)
+				{
+					layers[i].TerrainSpriteLayer = new TerrainSpriteLayer(w, wr, emptySprite, shroudBlend, false);
+					layers[i].PaletteReference = wr.Palette(info.ShroudPalette);
+					layers[i].Sprites = shroudSprites;
+				}
+				else
+				{
+					layers[i].TerrainSpriteLayer = new TerrainSpriteLayer(w, wr, emptySprite, fogBlend, false);
+					layers[i].PaletteReference = wr.Palette(info.FogPalette);
+					layers[i].Sprites = fogSprites;
+				}
+			}
 
 			WorldOnRenderPlayerChanged(world.RenderPlayer);
 		}
 
-		Shroud.CellVisibility[] GetNeighborsVisbility(PPos puv)
+		byte[] GetNeighborsVisbility(PPos puv)
 		{
 			var cell = ((MPos)puv).ToCPos(map);
 			neighbors[(int)Neighbor.Top] = cellVisibility((PPos)(cell + new CVec(0, -1)).ToMPos(map));
@@ -251,20 +275,20 @@ namespace OpenRA.Mods.Common.Traits
 			return neighbors;
 		}
 
-		Edges GetEdges(Shroud.CellVisibility[] neighbors, Shroud.CellVisibility visibleMask)
+		Edges GetEdges(byte[] neighbors, byte cellVisibility)
 		{
 			// If a side is shrouded then we also count the corners.
 			var edges = Edges.None;
-			if ((neighbors[(int)Neighbor.Top] & visibleMask) == 0) edges |= Edges.Top;
-			if ((neighbors[(int)Neighbor.Right] & visibleMask) == 0) edges |= Edges.Right;
-			if ((neighbors[(int)Neighbor.Bottom] & visibleMask) == 0) edges |= Edges.Bottom;
-			if ((neighbors[(int)Neighbor.Left] & visibleMask) == 0) edges |= Edges.Left;
+			if (neighbors[(int)Neighbor.Top] < cellVisibility) edges |= Edges.Top;
+			if (neighbors[(int)Neighbor.Right] < cellVisibility) edges |= Edges.Right;
+			if (neighbors[(int)Neighbor.Bottom] < cellVisibility) edges |= Edges.Bottom;
+			if (neighbors[(int)Neighbor.Left] < cellVisibility) edges |= Edges.Left;
 
 			var ucorner = edges & Edges.AllCorners;
-			if ((neighbors[(int)Neighbor.TopLeft] & visibleMask) == 0) edges |= Edges.TopLeft;
-			if ((neighbors[(int)Neighbor.TopRight] & visibleMask) == 0) edges |= Edges.TopRight;
-			if ((neighbors[(int)Neighbor.BottomRight] & visibleMask) == 0) edges |= Edges.BottomRight;
-			if ((neighbors[(int)Neighbor.BottomLeft] & visibleMask) == 0) edges |= Edges.BottomLeft;
+			if (neighbors[(int)Neighbor.TopLeft] < cellVisibility) edges |= Edges.TopLeft;
+			if (neighbors[(int)Neighbor.TopRight] < cellVisibility) edges |= Edges.TopRight;
+			if (neighbors[(int)Neighbor.BottomRight] < cellVisibility) edges |= Edges.BottomRight;
+			if (neighbors[(int)Neighbor.BottomLeft] < cellVisibility) edges |= Edges.BottomLeft;
 
 			// RA provides a set of frames for tiles with shrouded
 			// corners but unshrouded edges. We want to detect this
@@ -275,26 +299,9 @@ namespace OpenRA.Mods.Common.Traits
 			return info.UseExtendedIndex ? edges ^ ucorner : edges & Edges.AllCorners;
 		}
 
-		(Edges, Edges) GetEdges(PPos puv)
-		{
-			var cv = cellVisibility(puv);
-
-			// If a cell is covered by shroud, then all neigbhors are covered by shroud and fog.
-			if (!cv.HasFlag(Shroud.CellVisibility.Explored))
-				return notVisibleEdgesPair;
-
-			var ncv = GetNeighborsVisbility(puv);
-
-			// If a cell is covered by fog, then all neigbhors are as well.
-			var edgesFog = cv.HasFlag(Shroud.CellVisibility.Visible) ? GetEdges(ncv, Shroud.CellVisibility.Visible) : notVisibleEdgesPair.Item2;
-
-			var edgesShroud = GetEdges(ncv, Shroud.CellVisibility.Explored);
-			return (edgesShroud, edgesFog);
-		}
-
 		void WorldOnRenderPlayerChanged(Player player)
 		{
-			var newShroud = player?.Shroud;
+			var newShroud = player?.MapLayers;
 
 			if (shroud != newShroud)
 			{
@@ -304,12 +311,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (newShroud != null)
 				{
 					cellVisibility = puv => newShroud.GetVisibility(puv);
+
 					newShroud.OnShroudChanged += UpdateShroudCell;
 				}
 				else
 				{
 					// Visible under shroud: Explored. Visible under fog: Visible.
-					cellVisibility = puv => (map.Contains(puv) ? Shroud.CellVisibility.Visible | Shroud.CellVisibility.Explored : Shroud.CellVisibility.Hidden);
+					cellVisibility = puv => (byte)(map.Contains(puv) ? 1 : 0);
 				}
 
 				shroud = newShroud;
@@ -319,9 +327,21 @@ namespace OpenRA.Mods.Common.Traits
 			// the map bounds can be initialized as fully shrouded.
 			cellsDirty.Clear(true);
 			anyCellDirty = true;
-			var tl = new PPos(0, 0);
-			var br = new PPos(map.MapSize.X - 1, map.MapSize.Y - 1);
-			UpdateShroud(new ProjectedCellRegion(map, tl, br));
+
+			UpdateShroud(new ProjectedCellRegion(map, new PPos(0, 0), new PPos(map.MapSize.X - 1, map.MapSize.Y - 1)));
+		}
+
+		static float Alpha(int index)
+		{
+			var alpha = 1f;
+
+			if (index > 1)
+				alpha -= (index - 1) * (1f / 12);
+
+			if (index > 0)
+				alpha /= 3;
+
+			return alpha;
 		}
 
 		void UpdateShroud(IEnumerable<PPos> region)
@@ -329,38 +349,87 @@ namespace OpenRA.Mods.Common.Traits
 			if (!anyCellDirty)
 				return;
 
-			foreach (var puv in region)
+			if (world.RenderPlayer != null)
 			{
-				var uv = (MPos)puv;
-				if (!cellsDirty[uv] || !tileInfos.Contains(uv))
-					continue;
+				foreach (var puv in region)
+				{
+					var uv = (MPos)puv;
+					if (!cellsDirty[uv] || !tileInfos.Contains(uv))
+						continue;
 
-				cellsDirty[uv] = false;
+					cellsDirty[uv] = false;
 
-				var tileInfo = tileInfos[uv];
-				var (edgesShroud, edgesFog) = GetEdges(puv);
-				var shroudSprite = GetSprite(shroudSprites, edgesShroud, tileInfo.Variant);
-				var shroudPos = tileInfo.ScreenPosition;
-				if (shroudSprite.Sprite != null)
-					shroudPos += shroudSprite.Sprite.Offset - 0.5f * shroudSprite.Sprite.Size;
+					var cv = cellVisibility(puv);
+					var tileInfo = tileInfos[uv];
+					var pos = tileInfo.ScreenPosition;
 
-				var fogSprite = GetSprite(fogSprites, edgesFog, tileInfo.Variant);
-				var fogPos = tileInfo.ScreenPosition;
-				if (fogSprite.Sprite != null)
-					fogPos += fogSprite.Sprite.Offset - 0.5f * fogSprite.Sprite.Size;
+					for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
+					{
+						if (cv <= i)
+							UpdateLayer(true, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 
-				shroudLayer.Update(uv, shroudSprite.Sprite, shroudPaletteReference, shroudPos, shroudSprite.Scale, shroudSprite.Alpha, true);
-				fogLayer.Update(uv, fogSprite.Sprite, fogPaletteReference, fogPos, fogSprite.Scale, fogSprite.Alpha, true);
+						// Dont render over tiles with higher visibility, reset tile for layer
+						else if (cv >= i + 2)
+							UpdateLayer(false, true, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+
+						// Handle edges
+						else if (cv == i + 1)
+						{
+							// Use Shroud if it is on the edge
+							if (cv == 1 && i == 0)
+							{
+								UpdateLayer(false, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+							}
+							else
+								UpdateLayer(false, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+						}
+						else
+						{
+							var ncv = GetNeighborsVisbility(puv);
+
+							if (ncv.All(n => n >= i))
+							{
+								UpdateLayer(true, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+							}
+							else
+							{
+								UpdateLayer(false, false, Alpha(i > 0 ? i - 1 : i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+							}
+						}
+					}
+				}
 			}
 
 			anyCellDirty = false;
 		}
 
+		void UpdateLayer(bool allEdges, bool reset, float alpha, TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, PaletteReference paletteReference, byte tileVariant, (Sprite, float, float)[] sprites)
+		{
+			var cv = cellVisibility(puv);
+
+			Sprite sprite;
+			if (reset)
+				sprite = null;
+			else
+			{
+				var gotSprite = GetSprite(sprites, allEdges ? notVisibleEdges : GetEdges(GetNeighborsVisbility(puv), cv), tileVariant);
+
+				if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
+
+				sprite = gotSprite.Sprite;
+			}
+
+			terrainSpriteLayer.Update(uv, sprite, paletteReference, pos, 1f, alpha, true);
+		}
+
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
 		{
 			UpdateShroud(map.ProjectedCells);
-			fogLayer.Draw(wr.Viewport);
-			shroudLayer.Draw(wr.Viewport);
+
+			for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
+			{
+				layers[i].TerrainSpriteLayer.Draw(wr.Viewport);
+			}
 		}
 
 		void UpdateShroudCell(PPos puv)
@@ -387,8 +456,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (disposed)
 				return;
 
-			shroudLayer.Dispose();
-			fogLayer.Dispose();
+			for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
+				layers[i].TerrainSpriteLayer.Dispose();
+
 			disposed = true;
 		}
 	}

@@ -20,9 +20,9 @@ TRAN:
 		HP: 12500
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: GroundPosition
+		Position: GroundPosition
 	WithIdleOverlay@ROTOR1AIR:
 		Offset: 597,0,85
 		Sequence: rotor
@@ -71,9 +71,9 @@ HELI:
 		HP: 12500
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: GroundPosition
+		Position: GroundPosition
 	Armament@PRIMARY:
 		Weapon: HeliAGGun
 		LocalOffset: 128,-213,-85, 128,213,-85
@@ -142,9 +142,9 @@ ORCA:
 		HP: 10000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: GroundPosition
+		Position: GroundPosition
 	Armament@PRIMARY:
 		Weapon: OrcaAGMissiles
 		LocalOffset: 427,-171,-213, 427,171,-213
@@ -197,7 +197,7 @@ C17:
 		MaximumPitch: 36
 	HiddenUnderFog:
 		AlwaysVisibleRelationships: None
-		Type: CenterPosition
+		Position: Center
 	Cargo:
 		MaxWeight: 10
 	DamageMultiplier@INVULNERABLE:
@@ -270,9 +270,9 @@ TRAN.Husk:
 	Aircraft:
 		TurnSpeed: 20
 		Speed: 140
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: GroundPosition
+		Position: GroundPosition
 	WithIdleOverlay@ROTOR1:
 		Offset: 597,0,85
 		Sequence: rotor
@@ -289,9 +289,9 @@ HELI.Husk:
 	Aircraft:
 		TurnSpeed: 16
 		Speed: 186
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: GroundPosition
+		Position: GroundPosition
 	WithIdleOverlay:
 		Offset: 0,0,85
 		Sequence: rotor
@@ -305,8 +305,8 @@ ORCA.Husk:
 	Aircraft:
 		TurnSpeed: 16
 		Speed: 186
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: GroundPosition
+		Position: GroundPosition
 	RenderSprites:
 		Image: orca

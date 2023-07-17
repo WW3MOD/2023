@@ -952,7 +952,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "Move")
 			{
 				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
+				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
 				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor)));
@@ -977,7 +977,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.Shroud.IsExplored(cell))
+						if (!self.Owner.MapLayers.IsExplored(cell))
 							return null;
 					}
 
@@ -1028,7 +1028,7 @@ namespace OpenRA.Mods.Common.Traits
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				var explored = self.Owner.Shroud.IsExplored(location);
+				var explored = self.Owner.MapLayers.IsExplored(location);
 
 				if (mobile.IsTraitPaused
 					|| !self.World.Map.Contains(location)

@@ -148,7 +148,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				var movement = self.Trait<IPositionable>();
 
 				var minefield = GetMinefieldCells(minefieldStart, cell, Info.MinefieldDepth)
-                    .Where(c => IsCellAcceptable(self, c) && self.Owner.Shroud.IsExplored(c)
+                    .Where(c => IsCellAcceptable(self, c) && self.Owner.MapLayers.IsExplored(c)
                         && movement.CanEnterCell(c, null, BlockedByActor.Immovable) && (movement is Mobile mobile && mobile.CanStayInCell(c)))
                     .OrderBy(c => (c - minefieldStart).LengthSquared).ToList();
 

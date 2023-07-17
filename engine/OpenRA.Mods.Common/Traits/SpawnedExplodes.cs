@@ -79,7 +79,7 @@ namespace OpenRA.Mods.CA.Traits
 				PassiveTarget = self.CenterPosition
 			};
 
-			if (Info.Type == ExplosionType.Footprint && buildingInfo != null)
+			if (Info.Position == ExplosionPosition.Footprint && buildingInfo != null)
 			{
 				var cells = buildingInfo.OccupiedTiles(self.Location);
 				foreach (var c in cells)

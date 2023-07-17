@@ -15,15 +15,15 @@ using OpenRA.Scripting;
 
 namespace OpenRA.Mods.Common.Scripting
 {
-	[ScriptGlobal("Radar")]
-	public class RadarGlobal : ScriptGlobal
+	[ScriptGlobal("MiniMap")]
+	public class MiniMapGlobal : ScriptGlobal
 	{
-		readonly RadarPings radarPings;
+		readonly MiniMapPings radarPings;
 
-		public RadarGlobal(ScriptContext context)
+		public MiniMapGlobal(ScriptContext context)
 			: base(context)
 		{
-			radarPings = context.World.WorldActor.TraitOrDefault<RadarPings>();
+			radarPings = context.World.WorldActor.TraitOrDefault<MiniMapPings>();
 		}
 
 		[Desc("Creates a new radar ping that stays for the specified time at the specified WPos.")]

@@ -97,7 +97,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 				var targetCell = target.Location + targetDelta;
 
-				if (self.Owner.Shroud.IsExplored(targetCell) && cs.CanChronoshiftTo(target, targetCell))
+				if (self.Owner.MapLayers.IsExplored(targetCell) && cs.CanChronoshiftTo(target, targetCell))
 					cs.Teleport(target, targetCell, info.Duration, info.KillCargo, self);
 			}
 		}
@@ -114,7 +114,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		public bool SimilarTerrain(CPos xy, CPos sourceLocation)
 		{
-			if (!Self.Owner.Shroud.IsExplored(xy))
+			if (!Self.Owner.MapLayers.IsExplored(xy))
 				return false;
 
 			var sourceTiles = CellsMatching(xy, footprint, dimensions);
@@ -130,7 +130,7 @@ namespace OpenRA.Mods.Cnc.Traits
 					var a = se.Current;
 					var b = de.Current;
 
-					if (!Self.Owner.Shroud.IsExplored(a) || !Self.Owner.Shroud.IsExplored(b))
+					if (!Self.Owner.MapLayers.IsExplored(a) || !Self.Owner.MapLayers.IsExplored(b))
 						return false;
 
 					if (Self.World.Map.GetTerrainIndex(a) != Self.World.Map.GetTerrainIndex(b))
@@ -307,7 +307,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				var delta = xy - sourceLocation;
 				foreach (var t in power.CellsMatching(sourceLocation, footprint, dimensions))
 				{
-					var isValid = manager.Self.Owner.Shroud.IsExplored(t + delta);
+					var isValid = manager.Self.Owner.MapLayers.IsExplored(t + delta);
 					var tile = isValid ? validTile : invalidTile;
 					var alpha = isValid ? validAlpha : invalidAlpha;
 					yield return new SpriteRenderable(tile, wr.World.Map.CenterOfCell(t + delta), WVec.Zero, -511, palette, 1f, alpha, float3.Ones, TintModifiers.IgnoreWorldTint, true);
@@ -319,7 +319,7 @@ namespace OpenRA.Mods.Cnc.Traits
 					if (unit.CanBeViewedByPlayer(manager.Self.Owner))
 					{
 						var targetCell = unit.Location + (xy - sourceLocation);
-						var canEnter = manager.Self.Owner.Shroud.IsExplored(targetCell) &&
+						var canEnter = manager.Self.Owner.MapLayers.IsExplored(targetCell) &&
 							unit.Trait<Chronoshiftable>().CanChronoshiftTo(unit, targetCell);
 						var tile = canEnter ? validTile : invalidTile;
 						var alpha = canEnter ? validAlpha : invalidAlpha;
@@ -367,7 +367,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				foreach (var unit in unitsInRange)
 				{
 					var targetCell = unit.Location + (xy - sourceLocation);
-					if (manager.Self.Owner.Shroud.IsExplored(targetCell) && unit.Trait<Chronoshiftable>().CanChronoshiftTo(unit, targetCell))
+					if (manager.Self.Owner.MapLayers.IsExplored(targetCell) && unit.Trait<Chronoshiftable>().CanChronoshiftTo(unit, targetCell))
 					{
 						canTeleport = true;
 						break;

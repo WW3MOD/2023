@@ -6,8 +6,9 @@
 		Bounds: 1024,1024
 	WithSpriteBody:
 	RenderSprites:
-		Scale: 0.5
-	HiddenUnderFog:
+		Scale: 0.4
+	Detectable:
+		Vision: 1
 	Mine:
 		CrushClasses: mine
 		DetonateClasses: mine
@@ -46,7 +47,8 @@ MINV:
 	Inherits@1: ^SpriteActor
 	Interactable:
 		Bounds: 1024,1024
-	HiddenUnderFog:
+	Detectable:
+		Vision: 2
 	Tooltip:
 		Name: Crate
 		GenericName: Crate
@@ -141,15 +143,13 @@ HEALUPCRATE:
 	-MapEditorData:
 
 CAMERA:
+	Inherits@Vision: ^StandardVision
 	Interactable:
 	EditorOnlyTooltip:
 		Name: (reveals area to owner)
 	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
-		Range: 9c256
-		Type: CenterPosition
 	BodyOrientation:
 		QuantizedFacings: 1
 	WithSpriteBody:
@@ -162,8 +162,6 @@ camera.paradrop:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	RevealsShroud:
-		Range: 6c0
 camera.paradrop.detector:
 	Inherits: camera.paradrop
 	DetectCloaked:
@@ -173,35 +171,20 @@ camera.spyplane:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-camera.minimum:
-	Inherits: CAMERA
-	EditorOnlyTooltip:
-		Name: (support power proxy camera)
-	RevealsShroud:
-		Range: 1c0
 
-SONAR:
-	Inherits: camera.spyplane
-	EditorOnlyTooltip:
-		Name: (support power proxy camera)
-	-RevealsShroud:
-	DetectCloaked:
-		DetectionTypes: Underwater
-		Range: 10c0
 FLARE:
+	Inherits@Vision: ^StandardVision
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
-		Range: 3c0
-		Type: CenterPosition
 	RenderSprites:
 		Image: smokland
 	WithSpriteBody:
 		StartSequence: open
 	BodyOrientation:
 		QuantizedFacings: 1
-	HiddenUnderFog:
-		Type: CenterPosition
+	Detectable:
+		Vision: 1
+		Position: Center
 	Interactable:
 	Tooltip:
 		Name: Flare
@@ -212,7 +195,6 @@ FLARE:
 MINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Ore Mine
@@ -222,8 +204,8 @@ MINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Ore
 	# AppearsOnMapPreview:
 	# 	Terrain: Ore
@@ -239,7 +221,6 @@ MINE:
 GMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Gem Mine
@@ -249,8 +230,8 @@ GMINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	# AppearsOnRadar:
-	# RadarColorFromTerrain:
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
 	# 	Terrain: Gems
 	# AppearsOnMapPreview:
 	# 	Terrain: Gems
@@ -267,7 +248,6 @@ GMINE:
 RAILMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Abandoned Mine
@@ -285,8 +265,6 @@ RAILMINE:
 DRILLMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	# HiddenUnderShroud:
-	# 	AlwaysVisibleRelationships: Ally, Neutral, Enemy
 	AlwaysVisible:
 	Tooltip:
 		Name: Ore Drill
@@ -294,8 +272,8 @@ DRILLMINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Ore
 	SeedsResource:
 		Interval: 50
@@ -393,7 +371,6 @@ QUEE:
 	Inherits@1: ^SpriteActor
 	Inherits@Shape: ^2x1Shape
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Queen Ant
@@ -401,7 +378,7 @@ QUEE:
 		Footprint: xx
 		Dimensions: 2,1
 	WithSpriteBody:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter
@@ -409,7 +386,6 @@ LAR1:
 	Inherits@1: ^SpriteActor
 	Inherits@Shape: ^1x1Shape
 	Interactable:
-	# HiddenUnderShroud:
 	AlwaysVisible:
 	Tooltip:
 		Name: Ant Larva
@@ -419,7 +395,7 @@ LAR1:
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter
@@ -456,7 +432,7 @@ LAR2:
 # 		ChargeInterval: 750
 # 		EndChargeSpeechNotification: SonarPulseReady
 # 		SelectTargetSpeechNotification: SelectTarget
-# 		Actor: sonar
+# 		Actor: sonarcamera # TODO
 # 		LifeTime: 250
 # 		DeploySound: sonpulse.aud
 # 		EffectImage: moveflsh

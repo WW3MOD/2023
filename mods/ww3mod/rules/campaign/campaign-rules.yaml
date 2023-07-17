@@ -2,7 +2,7 @@ Player:
 	-ConquestVictoryConditions:
 	MissionObjectives:
 		EarlyGameOver: true
-	Shroud:
+	MapLayers:
 		FogCheckboxLocked: True
 		FogCheckboxEnabled: True
 		ExploredMapCheckboxLocked: True
@@ -51,5 +51,5 @@ FCOM:
 		Range: 0
 
 MISS:
-	RevealsShroud:
+	Vision:
 		Range: 3c0

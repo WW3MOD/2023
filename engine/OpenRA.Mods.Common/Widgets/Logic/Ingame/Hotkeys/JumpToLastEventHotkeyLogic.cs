@@ -21,14 +21,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 	public class JumpToLastEventHotkeyLogic : SingleHotkeyBaseLogic
 	{
 		readonly Viewport viewport;
-		readonly RadarPings radarPings;
+		readonly MiniMapPings radarPings;
 
 		[ObjectCreator.UseCtor]
 		public JumpToLastEventHotkeyLogic(Widget widget, ModData modData, WorldRenderer worldRenderer, World world, Dictionary<string, MiniYaml> logicArgs)
 			: base(widget, modData, "JumpToLastEventKey", "WORLD_KEYHANDLER", logicArgs)
 		{
 			viewport = worldRenderer.Viewport;
-			radarPings = world.WorldActor.TraitOrDefault<RadarPings>();
+			radarPings = world.WorldActor.TraitOrDefault<MiniMapPings>();
 		}
 
 		protected override bool OnHotkeyActivated(KeyInput e)

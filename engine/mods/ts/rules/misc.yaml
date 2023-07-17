@@ -66,9 +66,9 @@ CAMERA:
 		QuantizedFacings: 1
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: CenterPosition
+		Position: Center
 	DetectCloaked:
 		Range: 10c0
 	MapEditorData:

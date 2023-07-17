@@ -9,9 +9,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
-	Inherits@Detection: ^StandardDetection
-	RevealsShroud:
-		Range: 20c0
+	Inherits@Vision: ^StandardVision
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -19,7 +17,7 @@
 	Armor:
 		Type: Light
 	UpdatesPlayerStatistics:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	WithSpriteControlGroupDecoration:
 	Selectable:
@@ -35,8 +33,14 @@
 	Targetable@REPAIR:
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
-	VisibleWithRadar:
-		Type: GroundPosition
+	Detectable:
+		Vision: 2
+		Radar: 1
+		RadarDetectableCondition: airborne
+		Position: Ground
+	VisibilityAddativeModifier@Ground:
+		RequiresCondition: !airborne
+		Modifier: 1
 	AttackMove:
 	Guard:
 	Guardable:
@@ -69,18 +73,15 @@
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
-	RevealsRadar:
-		Range: 25c0
-		Type: GroundPosition
+	Radar:
+		Range: 42c0
 		RequiresCondition: airborne
-	RevealsShroud@Air:
-		Range: 20c0
-		Type: GroundPosition
+	WithRangeCircle@Radar:
+		Range: 42c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
 		RequiresCondition: airborne
-	RevealsShroud@Ground:
-		Range: 10c0
-		Type: GroundPosition
-		RequiresCondition: !airborne
 	SpeedMultiplier@Rank_4:
 		RequiresCondition: rank-veteran == 4
 		Modifier: 120

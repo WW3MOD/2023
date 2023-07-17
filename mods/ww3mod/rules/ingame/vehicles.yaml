@@ -9,9 +9,7 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
-	Inherits@Detection: ^StandardDetection
-	RevealsShroud:
-		Range: 20c0
+	Inherits@Vision: ^StandardVision
 	Health:
 		HP: 5000
 	Armor:
@@ -54,7 +52,8 @@
 		Weight: 10
 		CargoType: Vehicle
 	AttackMove:
-	HiddenUnderFog:
+	Detectable:
+		Vision: 3
 	ProximityCaptor:
 		Types: Vehicle
 	GpsDot:
@@ -211,9 +210,6 @@ MSAR:
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
 		Description: When deployed, detects enemies within a large radius.
-	TooltipExtras:
-		Weaknesses: • Unarmed
-		Attributes: • \n•
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:
@@ -228,7 +224,7 @@ MSAR:
 		RequiresCondition: !deployed
 		ImmovableCondition: deployed
 		RequireForceMoveCondition: !undeployed
-	RevealsRadar:
+	Radar:
 		Range: 42c0
 		RequiresCondition: deployed
 	WithRangeCircle@Radar:
@@ -272,7 +268,7 @@ MSAR:
 	SpawnActorOnDeath@deployed:
 		RequiresCondition: deployed
 		Actor: MSAR.deployed.husk
-	# RangedGpsRadarProvider:
+	# RangedGpsMiniMapProvider:
 	# 	Range: 50c0
 	# 	RequiresCondition: deployed && !empdisable
 
@@ -419,8 +415,6 @@ MSAR:
 # 		SearchFromHarvesterRadius: 40
 # 		HarvestFacings: 8
 # 		EmptyCondition: no-ore
-# 	RevealsShroud:
-# 		Range: 6c0
 # 	WithHarvesterPipsDecoration:
 # 		Position: Bottom
 # 		Margin: 15, 3

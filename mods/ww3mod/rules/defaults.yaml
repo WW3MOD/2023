@@ -1,6 +1,6 @@
 
 ^ExistsInWorld:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	CombatDebugOverlay:
 	GivesExperience:
 		PlayerExperienceModifier: 1
@@ -17,57 +17,119 @@
 
 ^Combatant:
 
-^StandardDetection:
-	RevealsShroud:
-		Range: 20c0
-	DetectCloaked@0:
-		DetectionTypes: Cloak_0
-		Range: 16c0
-	DetectCloaked@1:
-		DetectionTypes: Cloak_1
-		Range: 14c0
-	DetectCloaked@2:
-		DetectionTypes: Cloak_2
-		Range: 12c0
-	DetectCloaked@3:
-		DetectionTypes: Cloak_3
-		Range: 10c0
-	DetectCloaked@4:
-		DetectionTypes: Cloak_4
-		Range: 10c0
-	DetectCloaked@5:
-		DetectionTypes: Cloak_5
-		Range: 9c0
-	DetectCloaked@6:
-		DetectionTypes: Cloak_6
-		Range: 8c0
-	DetectCloaked@7:
-		DetectionTypes: Cloak_7
-		Range: 8c0
-	DetectCloaked@8:
-		DetectionTypes: Cloak_8
-		Range: 8c0
-	DetectCloaked@9:
-		DetectionTypes: Cloak_9
-		Range: 7c0
-	DetectCloaked@10:
-		DetectionTypes: Cloak_10
-		Range: 5c0
-	DetectCloaked@11:
-		DetectionTypes: Cloak_11
+^StandardVision:
+	Vision@10:
+		Strength: 10
 		Range: 4c0
-	DetectCloaked@12:
-		DetectionTypes: Cloak_12
-		Range: 1c512
+	Vision@9:
+		Strength: 9
+		MinRange: 4c0
+		Range: 7c0
+	Vision@8:
+		Strength: 8
+		MinRange: 7c0
+		Range: 10c0
+	Vision@7:
+		Strength: 7
+		MinRange: 10c0
+		Range: 13c0
+	Vision@6:
+		Strength: 6
+		MinRange: 13c0
+		Range: 16c0
+	Vision@5:
+		Strength: 5
+		MinRange: 16c0
+		Range: 19c0
+	Vision@4:
+		Strength: 4
+		MinRange: 19c0
+		Range: 22c0
+	Vision@3:
+		Strength: 3
+		MinRange: 22c0
+		Range: 25c0
+	Vision@2:
+		Strength: 2
+		MinRange: 25c0
+		Range: 28c0
+	Vision@1:
+		Strength: 1
+		MinRange: 28c0
+		Range: 32c0
+
+
+^StandardVisionWhenLoaded:
+	Inherits: ^StandardVision
+	Vision@10:
+		RequiresCondition: loaded
+	Vision@9:
+		RequiresCondition: loaded
+	Vision@8:
+		RequiresCondition: loaded
+	Vision@7:
+		RequiresCondition: loaded
+	Vision@6:
+		RequiresCondition: loaded
+	Vision@5:
+		RequiresCondition: loaded
+	Vision@4:
+		RequiresCondition: loaded
+	Vision@3:
+		RequiresCondition: loaded
+	Vision@2:
+		RequiresCondition: loaded
+	Vision@1:
+		RequiresCondition: loaded
+
+	# DetectCloaked@0:
+	# 	DetectionTypes: Cloak_0
+	# 	Range: 16c0
+	# DetectCloaked@1:
+	# 	DetectionTypes: Cloak_1
+	# 	Range: 14c0
+	# DetectCloaked@2:
+	# 	DetectionTypes: Cloak_2
+	# 	Range: 12c0
+	# DetectCloaked@3:
+	# 	DetectionTypes: Cloak_3
+	# 	Range: 10c0
+	# DetectCloaked@4:
+	# 	DetectionTypes: Cloak_4
+	# 	Range: 10c0
+	# DetectCloaked@5:
+	# 	DetectionTypes: Cloak_5
+	# 	Range: 9c0
+	# DetectCloaked@6:
+	# 	DetectionTypes: Cloak_6
+	# 	Range: 8c0
+	# DetectCloaked@7:
+	# 	DetectionTypes: Cloak_7
+	# 	Range: 8c0
+	# DetectCloaked@8:
+	# 	DetectionTypes: Cloak_8
+	# 	Range: 8c0
+	# DetectCloaked@9:
+	# 	DetectionTypes: Cloak_9
+	# 	Range: 7c0
+	# DetectCloaked@10:
+	# 	DetectionTypes: Cloak_10
+	# 	Range: 5c0
+	# DetectCloaked@11:
+	# 	DetectionTypes: Cloak_11
+	# 	Range: 4c0
+	# DetectCloaked@12:
+	# 	DetectionTypes: Cloak_12
+	# 	Range: 1c512
 
 ^DetectionProximity:
-	RevealsShroudMultiplier@1:
+	VisionPercentageModifier@1:
 		RequiresCondition: object-proximity == 1
 		Modifier: 90
-	RevealsShroudMultiplier@2:
+	VisionPercentageModifier@2:
 		RequiresCondition: object-proximity == 2
 		Modifier: 75
-	RevealsShroudMultiplier@3:
+	VisionPercentageModifier@3:
 		RequiresCondition: object-proximity > 2
 		Modifier: 50
 	DetectCloakedMultiplier@1:
@@ -675,8 +737,10 @@
 	Targetable@Airborne:
 		TargetTypes: ICBM
 		RequiresCondition: airborne
-	HiddenUnderFog:
-		Type: GroundPosition
+	Detectable:
+		Vision: 1
+		Radar: 1
+		Position: Ground
 	Tooltip:
 		Name: Missile
 		GenericName: Missile
@@ -720,8 +784,9 @@
 		Action: Kill
 	Armor:
 		Type: None
-	HiddenUnderFog:
-		Type: GroundPosition
+	Detectable:
+		Vision: 1
+		Position: Ground
 	ProximityCaptor:
 		Types: Plane
 	Tooltip:
@@ -767,7 +832,8 @@
 		HP: 1
 	Passenger:
 		CargoType: Vehicle
-	HiddenUnderFog:
+	Detectable:
+		Vision: 1
 	Tooltip:
 		GenericName: Summoned Actor
 	MustBeDestroyed:

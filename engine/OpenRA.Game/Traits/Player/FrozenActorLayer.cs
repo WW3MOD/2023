@@ -24,7 +24,7 @@ namespace OpenRA.Traits
 
 	[TraitLocation(SystemActors.Player)]
 	[Desc("Required for FrozenUnderFog to work. Attach this to the player actor.")]
-	public class FrozenActorLayerInfo : TraitInfo, Requires<ShroudInfo>
+	public class FrozenActorLayerInfo : TraitInfo, Requires<MapLayersInfo>
 	{
 		[Desc("Size of partition bins (cells)")]
 		public readonly int BinSize = 10;
@@ -39,7 +39,7 @@ namespace OpenRA.Traits
 		readonly Actor actor;
 		readonly ICreatesFrozenActors frozenTrait;
 		readonly Player viewer;
-		readonly Shroud shroud;
+		readonly MapLayers shroud;
 		readonly List<WPos> targetablePositions = new List<WPos>();
 
 		public Player Owner { get; private set; }
@@ -54,7 +54,7 @@ namespace OpenRA.Traits
 		public DamageState DamageState { get; private set; }
 		readonly IHealth health;
 
-		readonly IVisibilityModifier[] visibilityModifiers;
+		readonly IShouldHideModifier[] shouldHideModifiers;
 
 		// The Visible flag is tied directly to the actor visibility under the fog.
 		// If Visible is true, the actor is made invisible (via FrozenUnderFog/IDefaultVisibility)
@@ -87,7 +87,7 @@ namespace OpenRA.Traits
 			this.actor = actor;
 			this.frozenTrait = frozenTrait;
 			this.viewer = viewer;
-			shroud = viewer.Shroud;
+			shroud = viewer.MapLayers;
 			NeedRenderables = startsRevealed;
 
 			// Consider all cells inside the map area (ignoring the current map bounds)
@@ -110,7 +110,7 @@ namespace OpenRA.Traits
 
 			tooltips = actor.TraitsImplementing<ITooltip>().ToArray();
 			health = actor.TraitOrDefault<IHealth>();
-			visibilityModifiers = actor.TraitsImplementing<IVisibilityModifier>().ToArray();
+			shouldHideModifiers = actor.TraitsImplementing<IShouldHideModifier>().ToArray();
 
 			UpdateVisibility();
 		}
@@ -145,9 +145,9 @@ namespace OpenRA.Traits
 		public void RefreshHidden()
 		{
 			Hidden = false;
-			foreach (var visibilityModifier in visibilityModifiers)
+			foreach (var shouldHideModifier in shouldHideModifiers)
 			{
-				if (!visibilityModifier.IsVisible(actor, viewer))
+				if (shouldHideModifier.ShouldHide(actor, viewer))
 				{
 					Hidden = true;
 					break;
@@ -171,14 +171,14 @@ namespace OpenRA.Traits
 			foreach (var puv in Footprint)
 			{
 				var cv = shroud.GetVisibility(puv);
-				if (cv.HasFlag(Shroud.CellVisibility.Visible))
+				if (cv > 1)
 				{
 					Visible = false;
 					Shrouded = false;
 					break;
 				}
 
-				if (Shrouded && cv.HasFlag(Shroud.CellVisibility.Explored))
+				if (Shrouded && cv > 0)
 					Shrouded = false;
 			}
 
@@ -266,7 +266,7 @@ namespace OpenRA.Traits
 			partitionedFrozenActorIds = new SpatiallyPartitioned<uint>(
 				world.Map.MapSize.X, world.Map.MapSize.Y, binSize);
 
-			self.Trait<Shroud>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
+			self.Trait<MapLayers>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
 		}
 
 		public void Add(FrozenActor fa)

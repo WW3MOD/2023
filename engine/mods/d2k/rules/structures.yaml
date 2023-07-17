@@ -82,7 +82,7 @@ construction_yard:
 			BottomRight: 1536, 1024
 	Armor:
 		Type: cy
-	RevealsShroud:
+	Vision:
 		Range: 5c768
 	Production:
 		Produces: Building, Upgrade
@@ -147,7 +147,7 @@ wind_trap:
 			BottomRight: 1024, 1024
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 3c768
 	RenderSprites:
 		Image: power.ordos
@@ -200,7 +200,7 @@ barracks:
 			BottomRight: 1024, 1024
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 3c768
 	RallyPoint:
 		ForceSetType: Infantry
@@ -278,7 +278,7 @@ refinery:
 			BottomRight: 512, 1024
 	Armor:
 		Type: heavy
-	RevealsShroud:
+	Vision:
 		Range: 3c768
 	Refinery:
 		DockAngle: 640
@@ -342,7 +342,7 @@ silo:
 		HP: 15000
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 2c768
 	RenderSprites:
 		Image: silo.ordos
@@ -407,7 +407,7 @@ light_factory:
 			BottomRight: 1536, 1024
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 5c768
 	RenderSprites:
 		Image: light.ordos
@@ -496,7 +496,7 @@ heavy_factory:
 			BottomRight: 512, -512
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	RallyPoint:
 		ForceSetType: Armor
@@ -586,7 +586,7 @@ outpost:
 			BottomRight: 1536, 1024
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 5c768
 	ProvidesRadar:
 		RequiresCondition: !disabled
@@ -643,7 +643,7 @@ starport:
 			BottomRight: 512, 1536
 	Armor:
 		Type: heavy
-	RevealsShroud:
+	Vision:
 		Range: 3c768
 	RallyPoint:
 		ForceSetType: Starport
@@ -735,7 +735,7 @@ wall:
 		HP: 20000
 	Armor:
 		Type: wall
-	RevealsShroud:
+	Vision:
 		Range: 1c768
 	Crushable:
 		CrushClasses: wall
@@ -796,7 +796,7 @@ medium_gun_turret:
 		Order: 100
 	Armor:
 		Type: heavy
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	BodyOrientation:
 		QuantizedFacings: 32
@@ -844,7 +844,7 @@ large_gun_turret:
 		HP: 30000
 	Armor:
 		Type: heavy
-	RevealsShroud:
+	Vision:
 		Range: 5c768
 	BodyOrientation:
 		QuantizedFacings: 32
@@ -895,7 +895,7 @@ repair_pad:
 			BottomRight: 512, 1536
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 3c768
 	Selectable:
 		Bounds: 3072, 3072
@@ -973,7 +973,7 @@ high_tech_factory:
 			BottomRight: 512, -512
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	RenderSprites:
 		Image: hightech.ordos
@@ -1052,7 +1052,7 @@ research_centre:
 			BottomRight: 512, -512
 	Armor:
 		Type: building
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	RenderSprites:
 		Image: research.ordos
@@ -1112,7 +1112,7 @@ palace:
 			BottomRight: 1536, 1536
 	Armor:
 		Type: heavy
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	RenderSprites:
 		Image: palace.ordos

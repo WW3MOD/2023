@@ -116,8 +116,8 @@ Speech:
 
 Sounds:
 	Notifications:
-		RadarUp: radaron2
-		RadarDown: radardn1
+		MiniMapUp: radaron2
+		MiniMapDown: radardn1
 		CashTickUp: cashup1
 			VolumeModifier: 0.33
 			InterruptType: Overlap

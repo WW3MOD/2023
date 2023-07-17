@@ -93,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new ResourceRenderer(init.Self, this); }
 	}
 
-	public class ResourceRenderer : IResourceRenderer, IWorldLoaded, IRenderOverlay, ITickRender, INotifyActorDisposing, IRadarTerrainLayer
+	public class ResourceRenderer : IResourceRenderer, IWorldLoaded, IRenderOverlay, ITickRender, INotifyActorDisposing, IMiniMapTerrainLayer
 	{
 		protected readonly ResourceRendererInfo Info;
 		protected readonly IResourceLayer ResourceLayer;
@@ -313,13 +313,13 @@ namespace OpenRA.Mods.Common.Traits
 			yield return new SpriteRenderable(sprite, origin, WVec.Zero, 0, palette, sequence.Scale, alpha, float3.Ones, tintModifiers, false);
 		}
 
-		event Action<CPos> IRadarTerrainLayer.CellEntryChanged
+		event Action<CPos> IMiniMapTerrainLayer.CellEntryChanged
 		{
 			add => RenderContents.CellEntryChanged += value;
 			remove => RenderContents.CellEntryChanged -= value;
 		}
 
-		bool IRadarTerrainLayer.TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value)
+		bool IMiniMapTerrainLayer.TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value)
 		{
 			value = default;
 

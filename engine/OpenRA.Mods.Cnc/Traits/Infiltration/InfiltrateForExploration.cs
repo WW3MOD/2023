@@ -62,11 +62,11 @@ namespace OpenRA.Mods.Cnc.Traits
 			TextNotificationsManager.AddTransientLine(info.InfiltratedTextNotification, self.Owner);
 			TextNotificationsManager.AddTransientLine(info.InfiltrationTextNotification, infiltrator.Owner);
 
-			infiltrator.Owner.Shroud.Explore(self.Owner.Shroud);
+			infiltrator.Owner.MapLayers.Explore(self.Owner.MapLayers);
 			var preventReset = self.Owner.PlayerActor.TraitsImplementing<IPreventsShroudReset>()
 				.Any(p => p.PreventShroudReset(self));
 			if (!preventReset)
-				self.Owner.Shroud.ResetExploration();
+				self.Owner.MapLayers.ResetExploration();
 		}
 	}
 }

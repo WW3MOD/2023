@@ -14,7 +14,7 @@
 		HP: 60000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 		MaxHeightDelta: 3
 		RequiresCondition: !inside-tunnel
@@ -52,7 +52,7 @@
 		Type: Light
 	Mobile:
 		Speed: 56
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -77,7 +77,7 @@ ICBM:
 	Mobile:
 		Speed: 85
 		TurnSpeed: 20
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 7c0
 		MaxHeightDelta: 3
@@ -104,7 +104,7 @@ BUS:
 		HP: 10000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -130,7 +130,7 @@ PICK:
 		HP: 10000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -156,7 +156,7 @@ CAR:
 		HP: 10000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -182,7 +182,7 @@ WINI:
 		HP: 20000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3

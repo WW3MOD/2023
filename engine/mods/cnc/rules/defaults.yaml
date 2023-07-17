@@ -303,7 +303,7 @@
 		Crushes: crate, infantry
 		CanSlide: True
 	HiddenUnderFog:
-		Type: GroundPosition
+		Position: Ground
 	ActorLostNotification:
 		TextNotification: Unit lost.
 	Explodes:
@@ -341,7 +341,7 @@
 	Health:
 	Armor:
 		Type: None
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Mobile:
 		AlwaysTurnInPlace: true
@@ -474,7 +474,7 @@
 		Speed: 54
 	Health:
 		HP: 2500
-	RevealsShroud:
+	Vision:
 		Range: 2c0
 	Passenger:
 		CustomPipType: gray
@@ -521,7 +521,7 @@
 		Cost: 1000
 	Tooltip:
 		Name: Dinosaur
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Mobile:
 		Locomotor: critter
@@ -569,7 +569,7 @@
 		HP: 30000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Mobile:
 		Voice: Move
@@ -630,7 +630,7 @@
 	AppearsOnRadar:
 		UseLocation: true
 	HiddenUnderFog:
-		Type: GroundPosition
+		Position: Ground
 		AlwaysVisibleRelationships: None
 	ActorLostNotification:
 		TextNotification: Unit lost.
@@ -698,7 +698,7 @@
 		DestroyedSounds: crumble.aud, xplobig4.aud
 	WithSpriteBody:
 	Explodes:
-		Type: Footprint
+		Position: Footprint
 		Weapon: BuildingExplode
 		EmptyWeapon: BuildingExplode
 	CaptureNotification:
@@ -806,7 +806,7 @@
 		PlayerExperience: 5
 		RepairingNotification: Repairing
 	EngineerRepairable:
-	RevealsShroud:
+	Vision:
 		Range: 3c0
 	Tooltip:
 		ShowOwnerRow: True
@@ -1057,7 +1057,7 @@
 	Armor:
 		Type: Heavy
 	HiddenUnderFog:
-		Type: CenterPosition
+		Position: Center
 		AlwaysVisibleRelationships: None
 	WithFacingSpriteBody:
 	HitShape:

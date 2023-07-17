@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum ExplosionType { Footprint, CenterPosition }
+	public enum ExplosionPosition { Footprint, Center }
 
 	public enum DamageSource { Self, Killer }
 
@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are CenterPosition (explosion at the actors' center) and ",
 			"Footprint (explosion on each occupied cell).")]
-		public readonly ExplosionType Type = ExplosionType.CenterPosition;
+		public readonly ExplosionPosition Position = ExplosionPosition.Center;
 
 		[Desc("Offset of the explosion from the center of the exploding actor (or cell).")]
 		public readonly WVec Offset = WVec.Zero;
@@ -120,7 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (weapon.Report != null && weapon.Report.Length > 0)
 				Game.Sound.Play(SoundType.World, weapon.Report, self.World, self.CenterPosition);
 
-			if (Info.Type == ExplosionType.Footprint && buildingInfo != null)
+			if (Info.Position == ExplosionPosition.Footprint && buildingInfo != null)
 			{
 				var cells = buildingInfo.OccupiedTiles(self.Location);
 				foreach (var c in cells)

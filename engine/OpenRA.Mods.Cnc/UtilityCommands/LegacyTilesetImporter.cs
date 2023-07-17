@@ -178,7 +178,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				else
 					metadata.AppendLine("\t\tTargetTypes: Ground");
 
-				// TODO guess Color from Low/HighRadarColor
+				// TODO guess Color from Low/HighMiniMapColor
 				metadata.AppendLine("\t\tColor: 000000");
 			}
 

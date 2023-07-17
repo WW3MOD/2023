@@ -22,7 +22,7 @@ APC:
 		HP: 20000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -74,7 +74,7 @@ HVR:
 		HP: 23000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 7c0
 		MaxHeightDelta: 3
@@ -129,7 +129,7 @@ SMECH:
 		HP: 17500
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -184,7 +184,7 @@ MMCH:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 8c0
 		MaxHeightDelta: 3
@@ -248,7 +248,7 @@ HMEC:
 		Step: 500
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 8c0
 		MaxHeightDelta: 3
@@ -295,7 +295,7 @@ SONIC:
 		HP: 50000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 7c0
 		MaxHeightDelta: 3
@@ -347,7 +347,7 @@ JUGG:
 		ImmovableCondition: !undeployed
 		RequireForceMoveCondition: !undeployed
 		TerrainOrientationAdjustmentMargin: -1
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 9c0
 		MaxHeightDelta: 3

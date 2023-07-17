@@ -15,7 +15,17 @@ namespace OpenRA.Mods.Common
 {
 	public static class ShroudExts
 	{
-		public static bool AnyExplored(this Shroud shroud, (CPos Cell, SubCell SubCell)[] cells)
+		public static bool AnyWithVisibility(this MapLayers shroud, (CPos Cell, SubCell SubCell)[] cells, int visibility)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var cell in cells)
+				if (shroud.IsVisible(cell.Cell, visibility))
+					return true;
+
+			return false;
+		}
+
+		public static bool AnyExplored(this MapLayers shroud, (CPos Cell, SubCell SubCell)[] cells)
 		{
 			// PERF: Avoid LINQ.
 			foreach (var cell in cells)
@@ -25,7 +35,7 @@ namespace OpenRA.Mods.Common
 			return false;
 		}
 
-		public static bool AnyExplored(this Shroud shroud, PPos[] puvs)
+		public static bool AnyExplored(this MapLayers shroud, PPos[] puvs)
 		{
 			// PERF: Avoid LINQ.
 			foreach (var puv in puvs)
@@ -35,11 +45,21 @@ namespace OpenRA.Mods.Common
 			return false;
 		}
 
-		public static bool AnyVisible(this Shroud shroud, (CPos Cell, SubCell SubCell)[] cells)
+		public static bool AnyVisible(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells, int visibility)
 		{
 			// PERF: Avoid LINQ.
 			foreach (var cell in cells)
-				if (shroud.IsVisible(cell.Cell))
+				if (mapLayers.IsVisible(cell.Cell, visibility))
+					return true;
+
+			return false;
+		}
+
+		public static bool AnyVisibleOnRader(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var cell in cells)
+				if (mapLayers.RadarCover(cell.Cell.ToWPos()))
 					return true;
 
 			return false;

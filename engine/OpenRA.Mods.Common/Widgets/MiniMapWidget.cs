@@ -20,15 +20,12 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
 {
-	public sealed class RadarWidget : Widget, IDisposable
+	public sealed class MiniMapWidget : Widget, IDisposable
 	{
-		public readonly int ColorFog = Color.FromArgb(128, Color.Black).ToArgb();
-		public readonly int ColorShroud = Color.Black.ToArgb();
-
 		public string WorldInteractionController = null;
 		public int AnimationLength = 5;
-		public string RadarOnlineSound = null;
-		public string RadarOfflineSound = null;
+		public string MiniMapOnlineSound = null;
+		public string MiniMapOfflineSound = null;
 		public Func<bool> IsEnabled = () => true;
 		public Action AfterOpen = () => { };
 		public Action AfterClose = () => { };
@@ -36,8 +33,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		readonly World world;
 		readonly WorldRenderer worldRenderer;
-		readonly RadarPings radarPings;
-		readonly IRadarTerrainLayer[] radarTerrainLayers;
+		readonly MiniMapPings radarPings;
+		readonly IMiniMapTerrainLayer[] radarTerrainLayers;
 		readonly bool isRectangularIsometric;
 		readonly int cellWidth;
 		readonly int previewWidth;
@@ -46,7 +43,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		float radarMinimapHeight;
 		int frame;
-		bool hasRadar;
+		bool hasMiniMap;
 		bool cachedEnabled;
 
 		float previewScale = 0;
@@ -59,21 +56,21 @@ namespace OpenRA.Mods.Common.Widgets
 		Sprite terrainSprite;
 		Sprite actorSprite;
 		Sprite shroudSprite;
-		Shroud shroud;
-		PlayerRadarTerrain playerRadarTerrain;
+		MapLayers shroud;
+		PlayerMiniMapTerrain playerMiniMapTerrain;
 		Player currentPlayer;
 
 		public string SoundUp { get; private set; }
 		public string SoundDown { get; private set; }
 
 		[ObjectCreator.UseCtor]
-		public RadarWidget(World world, WorldRenderer worldRenderer)
+		public MiniMapWidget(World world, WorldRenderer worldRenderer)
 		{
 			this.world = world;
 			this.worldRenderer = worldRenderer;
 
-			radarPings = world.WorldActor.TraitOrDefault<RadarPings>();
-			radarTerrainLayers = world.WorldActor.TraitsImplementing<IRadarTerrainLayer>().ToArray();
+			radarPings = world.WorldActor.TraitOrDefault<MiniMapPings>();
+			radarTerrainLayers = world.WorldActor.TraitsImplementing<IMiniMapTerrainLayer>().ToArray();
 			isRectangularIsometric = world.Map.Grid.Type == MapGridType.RectangularIsometric;
 			cellWidth = isRectangularIsometric ? 2 : 1;
 			previewWidth = world.Map.MapSize.X;
@@ -129,7 +126,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			currentPlayer = player;
 
-			var newShroud = player != null ? player.Shroud : null;
+			var newShroud = player?.MapLayers;
 
 			if (newShroud != shroud)
 			{
@@ -146,13 +143,13 @@ namespace OpenRA.Mods.Common.Widgets
 				shroud = newShroud;
 			}
 
-			var newPlayerRadarTerrain =
-				currentPlayer != null ? currentPlayer.PlayerActor.TraitOrDefault<PlayerRadarTerrain>() : null;
+			var newPlayerMiniMapTerrain =
+				currentPlayer?.PlayerActor.TraitOrDefault<PlayerMiniMapTerrain>();
 
-			if (forceUpdate || newPlayerRadarTerrain != playerRadarTerrain)
+			if (forceUpdate || newPlayerMiniMapTerrain != playerMiniMapTerrain)
 			{
-				if (playerRadarTerrain != null)
-					playerRadarTerrain.CellTerrainColorChanged -= CellTerrainColorChanged;
+				if (playerMiniMapTerrain != null)
+					playerMiniMapTerrain.CellTerrainColorChanged -= CellTerrainColorChanged;
 				else
 				{
 					world.Map.Tiles.CellEntryChanged -= CellTerrainColorChanged;
@@ -160,8 +157,8 @@ namespace OpenRA.Mods.Common.Widgets
 						rtl.CellEntryChanged -= CellTerrainColorChanged;
 				}
 
-				if (newPlayerRadarTerrain != null)
-					newPlayerRadarTerrain.CellTerrainColorChanged += CellTerrainColorChanged;
+				if (newPlayerMiniMapTerrain != null)
+					newPlayerMiniMapTerrain.CellTerrainColorChanged += CellTerrainColorChanged;
 				else
 				{
 					world.Map.Tiles.CellEntryChanged += CellTerrainColorChanged;
@@ -169,7 +166,7 @@ namespace OpenRA.Mods.Common.Widgets
 						rtl.CellEntryChanged += CellTerrainColorChanged;
 				}
 
-				playerRadarTerrain = newPlayerRadarTerrain;
+				playerMiniMapTerrain = newPlayerMiniMapTerrain;
 			}
 		}
 
@@ -223,10 +220,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		void UpdateTerrainColor(MPos uv)
 		{
-			var colorPair = playerRadarTerrain != null && playerRadarTerrain.IsInitialized ?
-				playerRadarTerrain[uv] : PlayerRadarTerrain.GetColor(world.Map, radarTerrainLayers, uv);
-			var leftColor = colorPair.Left;
-			var rightColor = colorPair.Right;
+			var (leftColor, rightColor) = playerMiniMapTerrain != null && playerMiniMapTerrain.IsInitialized ?
+				playerMiniMapTerrain[uv] : PlayerMiniMapTerrain.GetColor(world.Map, radarTerrainLayers, uv);
 
 			var stride = radarSheet.Size.Width;
 
@@ -254,11 +249,14 @@ namespace OpenRA.Mods.Common.Widgets
 		void UpdateShroudCell(PPos puv)
 		{
 			var color = 0;
-			var cv = currentPlayer.Shroud.GetVisibility(puv);
-			if (!cv.HasFlag(Shroud.CellVisibility.Explored))
-				color = ColorShroud;
-			else if (!cv.HasFlag(Shroud.CellVisibility.Visible))
-				color = ColorFog;
+			var cv = currentPlayer.MapLayers.GetVisibility(puv);
+			if (cv == 0)
+				color = Color.Black.ToArgb();
+			else
+			{
+				var alpha = 250 - cv * 25;
+				color = Color.FromArgb(alpha, Color.Black).ToArgb();
+			}
 
 			var stride = radarSheet.Size.Width;
 			unsafe
@@ -287,7 +285,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public override string GetCursor(int2 pos)
 		{
-			if (world == null || !hasRadar)
+			if (world == null || !hasMiniMap)
 				return null;
 
 			var cell = MinimapPixelToCell(pos);
@@ -313,7 +311,7 @@ namespace OpenRA.Mods.Common.Widgets
 			if (!mapRect.Contains(mi.Location))
 				return false;
 
-			if (!hasRadar)
+			if (!hasMiniMap)
 				return true;
 
 			var cell = MinimapPixelToCell(mi.Location);
@@ -365,19 +363,19 @@ namespace OpenRA.Mods.Common.Widgets
 				WidgetUtils.DrawSprite(shroudSprite, o, s);
 
 			// Draw viewport rect
-			if (hasRadar)
+			if (hasMiniMap)
 			{
 				var tl = CellToMinimapPixel(world.Map.CellContaining(worldRenderer.ProjectedPosition(worldRenderer.Viewport.TopLeft)));
 				var br = CellToMinimapPixel(world.Map.CellContaining(worldRenderer.ProjectedPosition(worldRenderer.Viewport.BottomRight)));
 
 				Game.Renderer.EnableScissor(mapRect);
-				DrawRadarPings();
+				DrawMiniMapPings();
 				Game.Renderer.RgbaColorRenderer.DrawRect(tl, br, 1, Color.White);
 				Game.Renderer.DisableScissor();
 			}
 		}
 
-		void DrawRadarPings()
+		void DrawMiniMapPings()
 		{
 			if (radarPings == null)
 				return;
@@ -396,7 +394,7 @@ namespace OpenRA.Mods.Common.Widgets
 			// Enable/Disable the radar
 			var enabled = IsEnabled();
 			if (enabled != cachedEnabled)
-				Game.Sound.Play(SoundType.UI, enabled ? RadarOnlineSound : RadarOfflineSound);
+				Game.Sound.Play(SoundType.UI, enabled ? MiniMapOnlineSound : MiniMapOfflineSound);
 			cachedEnabled = enabled;
 
 			if (enabled)
@@ -413,13 +411,13 @@ namespace OpenRA.Mods.Common.Widgets
 					{
 						var colors = (int*)colorBytes;
 
-						foreach (var t in world.ActorsWithTrait<IRadarSignature>())
+						foreach (var t in world.ActorsWithTrait<IMiniMapSignature>())
 						{
 							if (!t.Actor.IsInWorld || world.FogObscures(t.Actor))
 								continue;
 
 							cells.Clear();
-							t.Trait.PopulateRadarSignatureCells(t.Actor, cells);
+							t.Trait.PopulateMiniMapSignatureCells(t.Actor, cells);
 							foreach (var cell in cells)
 							{
 								if (!world.Map.Contains(cell.Cell))
@@ -446,7 +444,7 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 
 			var targetFrame = enabled ? AnimationLength : 0;
-			hasRadar = enabled && frame == AnimationLength;
+			hasMiniMap = enabled && frame == AnimationLength;
 			if (frame == targetFrame)
 				return;
 
@@ -493,8 +491,8 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			base.Removed();
 
-			if (playerRadarTerrain != null)
-				playerRadarTerrain.CellTerrainColorChanged -= CellTerrainColorChanged;
+			if (playerMiniMapTerrain != null)
+				playerMiniMapTerrain.CellTerrainColorChanged -= CellTerrainColorChanged;
 
 			world.RenderPlayerChanged -= WorldOnRenderPlayerChanged;
 			Dispose();

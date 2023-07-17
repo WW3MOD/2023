@@ -15,7 +15,7 @@ DOGGIE:
 		Cost: 100
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Mobile:
 		Speed: 113
@@ -89,7 +89,7 @@ VISC_LRG:
 		HP: 50000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Armament:
 		Weapon: SlimeAttack
@@ -116,7 +116,7 @@ JFISH:
 		Name: Tiberium Floater
 	Health:
 		HP: 50000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Mobile:
 		Speed: 72

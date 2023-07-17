@@ -71,7 +71,7 @@ TRUK:
 
 TRAN:
 	-Selectable:
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Targetable@GROUND:
 		TargetTypes: GroundActor

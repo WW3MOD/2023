@@ -363,8 +363,8 @@ tunguska:
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing-secondary || empdisable
-	RevealsRadar:
-		Range: 30c0
+	# Radar:
+	# 	Range: 30c0
 	WithRangeCircle@Radar:
 		Range: 30c0
 		Color: 000000
@@ -504,12 +504,10 @@ giatsint:
 			VerticalTopOffset: 520
 			TopLeft: -330, -800
 			BottomRight: 330, 800
-	-HiddenUnderFog:
-	VisibleWithRadar:
-		Type: GroundPosition
-		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 10c0
+	Detectable:
+		Radar: 1
+		RadarDetectableCondition: firing
+		Position: Ground
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 80
@@ -606,12 +604,10 @@ grad:
 			VerticalTopOffset: 600
 			TopLeft: -240, -730
 			BottomRight: 240, 730
-	-HiddenUnderFog:
-	VisibleWithRadar:
-		Type: GroundPosition
-		PauseOnCondition: !firing
-	RevealsShroud:
-		Range: 10c0
+	Detectable:
+		Radar: 1
+		RadarDetectableCondition: firing
+		Position: Ground
 	Mobile:
 		Speed: 110
 		Acceleration: 6, 5, 4, 3, 2, 1
@@ -710,10 +706,10 @@ tos:
 			VerticalTopOffset: 440
 			TopLeft: -360, -950
 			BottomRight: 360, 950
-	-HiddenUnderFog:
-	VisibleWithRadar:
-		Type: GroundPosition
-		PauseOnCondition: !firing
+	Detectable:
+		Radar: 1
+		RadarDetectableCondition: firing
+		Position: Ground
 	Mobile:
 		Speed: 80
 		Acceleration: 6, 5, 4, 3, 2, 1
@@ -810,12 +806,10 @@ tos:
 # 			VerticalTopOffset: 650
 # 			TopLeft: -300, -1270
 # 			BottomRight: 300, 1270
-# 	-HiddenUnderFog:
-# 	VisibleWithRadar:
-# 		Type: GroundPosition
-# 		PauseOnCondition: !firing
-# 	RevealsShroud:
-# 		Range: 10c0
+#	Detectable:
+#		Radar: 1
+#		RadarDetectableCondition: firing
+#		Position: Ground
 # 	Mobile:
 # 		Speed: 80
 # 		TurnSpeed: 5
@@ -904,7 +898,7 @@ tos:
 # 		Image: smokey2
 # 		Palette: effect_ts
 # 		MovingInterval: 1
-# 		Type: CenterPosition
+# 		Position: Center
 # 		Offsets: -200, 0, 0
 # 	MissileSpawnerSlave:
 # 	SpawnedExplodes:

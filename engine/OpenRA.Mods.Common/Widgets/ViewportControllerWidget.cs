@@ -20,7 +20,7 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
 {
-	public enum WorldTooltipType { None, Unexplored, Actor, FrozenActor, Resource }
+	public enum WorldTooltipType { None, Unexplored, Explored, Actor, FrozenActor, Resource }
 
 	public class ViewportControllerWidget : Widget
 	{
@@ -48,6 +48,7 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string TooltipTemplate = "WORLD_TOOLTIP";
 		public readonly string TooltipContainer;
 
+		public CPos TooltipCell { get; private set; }
 		public WorldTooltipType TooltipType { get; private set; }
 		public ITooltip ActorTooltip { get; private set; }
 		public IProvideTooltipInfo[] ActorTooltipExtra { get; private set; }
@@ -226,6 +227,8 @@ namespace OpenRA.Mods.Common.Widgets
 			var cell = worldRenderer.Viewport.ViewToWorld(Viewport.LastMousePos);
 			if (!world.Map.Contains(cell))
 				return;
+
+			TooltipCell = cell;
 
 			if (world.ShroudObscures(cell))
 			{

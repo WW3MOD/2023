@@ -22,10 +22,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 	public class RenderDetectionCircleInfo : TraitInfo, Requires<DetectCloakedInfo>
 	{
-		[Desc("WAngle the Radar update line advances per tick.")]
+		[Desc("WAngle the MiniMap update line advances per tick.")]
 		public readonly WAngle UpdateLineTick = new WAngle(-1);
 
-		[Desc("Number of trailing Radar update lines.")]
+		[Desc("Number of trailing MiniMap update lines.")]
 		public readonly int TrailCount = 0;
 
 		[Desc("Color of the circle and scanner update line.")]

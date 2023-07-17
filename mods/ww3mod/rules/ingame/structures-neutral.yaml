@@ -25,7 +25,6 @@ OILB:
 		Weapon: BarrelExplode
 	GpsDot:
 		String: Oil
-	AppearsOnMapPreview:
 	UpdatesDerrickCount:
 	SpawnActorOnDeath:
 		Actor: OILB.Husk
@@ -52,7 +51,6 @@ FCOM:
 		Amount: 100
 	TooltipDescription:
 		Description: Provides $100 income
-	WithBuildingBib:
 	GivesBuildableArea:
 		AreaTypes: building
 	BaseProvider:
@@ -60,7 +58,6 @@ FCOM:
 		Range: 8c0
 	EngineerRepairable:
 	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
 	GpsDot:
 		String: Forward
 	SpawnActorOnDeath:
@@ -92,7 +89,6 @@ BIO:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
 	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
 	GpsDot:
 		String: Nuke
 	WithIdleOverlay@SMOKE:
@@ -118,9 +114,9 @@ MISS:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 35000
-	RevealsRadar:
-		Range: 50c0
-		RequiresCondition: !heavy-damage
+	# Radar:
+	# 	Range: 50c0
+	# 	RequiresCondition: !heavy-damage
 	WithRangeCircle@Radar:
 		Range: 50c0
 		Color: 000000
@@ -133,13 +129,11 @@ MISS:
 		Name: Communications Center
 	TooltipDescription:
 		Description: Provides Radar
-	WithBuildingBib:
 	EngineerRepairable:
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
 	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
 	GpsDot:
 		String: Communications
 	SpawnActorOnDeath:
@@ -164,13 +158,10 @@ HOSP:
 		Name: Hospital
 	TooltipDescription:
 		Description: Hospital
-	# WithBuildingBib:
-	# 	HasMinibib: true
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
 	ProvidesPrerequisite@buildingname:
-	AppearsOnMapPreview:
 	GpsDot:
 		String: Hospital
 	SpawnActorOnDeath:

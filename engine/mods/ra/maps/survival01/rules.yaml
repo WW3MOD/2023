@@ -34,7 +34,7 @@ powerproxy.allied:
 
 CAMERA.sam:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 
 AFLD.mission:

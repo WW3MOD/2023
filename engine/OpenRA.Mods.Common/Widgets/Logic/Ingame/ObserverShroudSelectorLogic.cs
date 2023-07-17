@@ -179,7 +179,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var keyhandler = shroudSelector.Get<LogicKeyListenerWidget>("SHROUD_KEYHANDLER");
 			keyhandler.AddHandler(HandleKeyPress);
 
-			selected = limitViews ? groups.First().Value.First() : world.WorldActor.Owner.Shroud.ExploreMapEnabled ? combined : disableShroud;
+			selected = limitViews ? groups.First().Value.First() : world.WorldActor.Owner.MapLayers.ExploreMapEnabled ? combined : disableShroud;
 			selected.OnClick();
 
 			// Enable zooming out to fractional zoom levels

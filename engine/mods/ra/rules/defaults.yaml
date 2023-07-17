@@ -332,7 +332,7 @@
 		HP: 2500
 	Armor:
 		Type: None
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Mobile:
 		Speed: 54
@@ -467,7 +467,7 @@
 	Tooltip:
 		Name: Civilian
 		GenericVisibility: None
-	RevealsShroud:
+	Vision:
 		Range: 3c0
 	Passenger:
 		CustomPipType: gray
@@ -574,7 +574,7 @@
 		Condition: damaged
 		ValidDamageStates: Light, Medium, Heavy, Critical
 	HiddenUnderFog:
-		Type: GroundPosition
+		Position: Ground
 	AttackMove:
 	Guard:
 	Guardable:
@@ -672,7 +672,7 @@
 		DestroyedSounds: kaboom22.aud
 	WithSpriteBody:
 	Explodes:
-		Type: Footprint
+		Position: Footprint
 		Weapon: BuildingExplode
 		EmptyWeapon: BuildingExplode
 	CaptureNotification:
@@ -832,7 +832,7 @@
 	Explodes:
 		Weapon: Demolish
 		DamageThreshold: 70
-	RevealsShroud:
+	Vision:
 		Range: 1c0
 	WithDecoration@fake:
 		Position: Top
@@ -1010,7 +1010,7 @@
 	Armor:
 		Type: Heavy
 	HiddenUnderFog:
-		Type: CenterPosition
+		Position: Center
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
 	WithFacingSpriteBody:

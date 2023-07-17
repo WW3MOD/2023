@@ -59,7 +59,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (targetPlayer != null && targetPlayer.WinState == WinState.Undefined)
 			{
 				self.World.AddFrameEndTask(w => w.Add(new RevealShroudEffect(self.CenterPosition, info.Radius,
-					info.RevealGeneratedShroud ? Shroud.SourceType.Visibility : Shroud.SourceType.PassiveVisibility,
+					info.RevealGeneratedShroud ? MapLayers.Type.Vision : MapLayers.Type.PassiveVisibility,
 					targetPlayer, info.RevealForRelationships, duration: info.Duration)));
 			}
 		}

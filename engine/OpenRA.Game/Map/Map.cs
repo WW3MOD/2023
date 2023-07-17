@@ -766,7 +766,7 @@ namespace OpenRA
 			{
 				// The minimap is drawn in cell space, so we need to
 				// unproject the PPos bounds to find the MPos boundaries.
-				// This matches the calculation in RadarWidget that is used ingame
+				// This matches the calculation in MiniMapWidget that is used ingame
 				for (var x = Bounds.Left; x < Bounds.Right; x++)
 				{
 					var allTop = Unproject(new PPos(x, Bounds.Top));
