@@ -24,13 +24,13 @@ namespace OpenRA.Mods.Common.Effects
 
 		readonly WPos pos;
 		readonly Player player;
-		/* readonly MapLayers.Type sourceType; */
+		readonly MapLayers.Type sourceType;
 		readonly WDist revealRadius;
 		readonly PlayerRelationship validStances;
 		readonly int duration;
 		int ticks;
 
-		public MapLayers.Type Type => MapLayers.Type.Vision;
+		public MapLayers.Type Type => sourceType;
 
 		public RevealShroudEffect(WPos pos, WDist radius, MapLayers.Type type, Player forPlayer, PlayerRelationship stances, int delay = 0, int duration = 50)
 		{
@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Effects
 			player = forPlayer;
 			revealRadius = radius;
 			validStances = stances;
-			/* sourceType = type; */
+			sourceType = type;
 			this.duration = duration;
 			ticks = -delay;
 		}
