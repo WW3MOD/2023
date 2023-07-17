@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Should we play a notification?
 				var notificationId = $"{actor.Trait.Info.Notification} {actor.Trait.Info.TextNotification}";
-				// var playNotification = !playedNotifications.Contains(notificationId) && ticksBeforeNextNotification <= 0;
+				/* var playNotification = !playedNotifications.Contains(notificationId) && ticksBeforeNextNotification <= 0; */
 				var playNotification = ticksBeforeNextNotification <= 0;
 
 				// Notify the actor that he has been discovered
