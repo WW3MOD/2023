@@ -29,8 +29,11 @@ namespace OpenRA.Mods.Common.Traits
 		[SequenceReference(nameof(Sequence))]
 		public readonly string[] FogVariants = { "shroud" };
 
+		[PaletteReference]
 		public readonly string ShroudPalette = "shroud";
 
+		[PaletteReference]
+		public readonly string FogPalette = "fog";
 		[Desc("Bitfield of shroud directions for each frame. Lower four bits are",
 			"corners clockwise from TL; upper four are edges clockwise from top")]
 		public readonly int[] Index = { 12, 9, 8, 3, 1, 6, 4, 2, 13, 11, 7, 14 };
@@ -120,23 +123,15 @@ namespace OpenRA.Mods.Common.Traits
 		MapLayers shroud;
 		Func<PPos, byte> cellVisibility;
 
-		Layer[] layers = new Layer[10];
+		readonly Layer[] layers = new Layer[MapLayers.VisionLayers];
 
 		class Layer
 		{
-			public (Sprite, float, float) Sprite;
+			public (Sprite, float, float)[] Sprites;
 			public TerrainSpriteLayer TerrainSpriteLayer;
 			public PaletteReference PaletteReference;
 
 			public Layer() { }
-
-			public Layer(
-				(Sprite, float, float) sprite,
-				TerrainSpriteLayer terrainSpriteLayer)
-			{
-				Sprite = sprite;
-				TerrainSpriteLayer = terrainSpriteLayer;
-			}
 		}
 
 		bool disposed;
@@ -247,15 +242,17 @@ namespace OpenRA.Mods.Common.Traits
 
 			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
 			{
-				layers[i].PaletteReference = wr.Palette(info.ShroudPalette + i);
-
 				if (i == 0)
 				{
 					layers[i].TerrainSpriteLayer = new TerrainSpriteLayer(w, wr, emptySprite, shroudBlend, false);
+					layers[i].PaletteReference = wr.Palette(info.ShroudPalette);
+					layers[i].Sprites = shroudSprites;
 				}
 				else
 				{
 					layers[i].TerrainSpriteLayer = new TerrainSpriteLayer(w, wr, emptySprite, fogBlend, false);
+					layers[i].PaletteReference = wr.Palette(info.FogPalette);
+					layers[i].Sprites = fogSprites;
 				}
 			}
 
@@ -369,12 +366,11 @@ namespace OpenRA.Mods.Common.Traits
 					for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
 					{
 						if (cv <= i)
-							// Error
-							UpdateLayer(layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), layers[i].PaletteReference, tileInfo.Variant, true, i == 0 ? shroudSprites : fogSprites);
+							UpdateLayer(true, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 
 						// Dont render over tiles with higher visibility, reset tile for layer
 						else if (cv >= i + 2)
-							UpdateLayer(layers[i].TerrainSpriteLayer, uv, puv, pos, true, Alpha(i), layers[i].PaletteReference, tileInfo.Variant, false, fogSprites);
+							UpdateLayer(false, true, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 
 						// Handle edges
 						else if (cv == i + 1)
@@ -382,10 +378,10 @@ namespace OpenRA.Mods.Common.Traits
 							// Use Shroud if it is on the edge
 							if (cv == 1 && i == 0)
 							{
-								UpdateLayer(layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), layers[i].PaletteReference, tileInfo.Variant, false, shroudSprites);
+								UpdateLayer(false, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 							}
 							else
-								UpdateLayer(layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), layers[i].PaletteReference, tileInfo.Variant, false, fogSprites);
+								UpdateLayer(false, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 						}
 						else
 						{
@@ -393,11 +389,11 @@ namespace OpenRA.Mods.Common.Traits
 
 							if (ncv.All(n => n >= i))
 							{
-								UpdateLayer(layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i), layers[i].PaletteReference, tileInfo.Variant, true, i == 0 ? shroudSprites : fogSprites);
+								UpdateLayer(true, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 							}
 							else
 							{
-								UpdateLayer(layers[i].TerrainSpriteLayer, uv, puv, pos, false, Alpha(i > 0 ? i - 1 : i), layers[i].PaletteReference, tileInfo.Variant, false, i == 0 ? shroudSprites : fogSprites);
+								UpdateLayer(false, false, Alpha(i > 0 ? i - 1 : i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
 							}
 						}
 					}
@@ -407,7 +403,7 @@ namespace OpenRA.Mods.Common.Traits
 			anyCellDirty = false;
 		}
 
-		void UpdateLayer(TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, bool reset, float alpha, PaletteReference paletteReference, byte tileVariant, bool allEdges, (Sprite, float, float)[] sprites)
+		void UpdateLayer(bool allEdges, bool reset, float alpha, TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, PaletteReference paletteReference, byte tileVariant, (Sprite, float, float)[] sprites)
 		{
 			var cv = cellVisibility(puv);
 

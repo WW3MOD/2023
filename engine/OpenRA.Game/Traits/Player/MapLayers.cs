@@ -475,7 +475,6 @@ namespace OpenRA.Traits
 			return GetVisibility(map.ProjectedCellCovering(pos));
 		}
 
-		// PERF: Combine IsExplored and IsVisible.
 		public byte GetVisibility(PPos puv)
 		{
 			if (fogEnabled)

@@ -20,24 +20,29 @@ namespace OpenRA.Mods.Cnc.Traits
 {
 	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
 	[Desc("Adds the hard-coded shroud palette to the game")]
-	class ShroudPaletteInfo : TraitInfo
+	class MapLayersPalettesInfo : TraitInfo
 	{
 		[PaletteDefinition]
 		[Desc("Internal palette name")]
 		public readonly string Shroud = "shroud";
 
-		public override object Create(ActorInitializer init) { return new ShroudPalette(this); }
+		[PaletteDefinition]
+		[Desc("Internal palette name")]
+		public readonly string Fog = "fog";
+
+		public override object Create(ActorInitializer init) { return new MapLayersPalettes(this); }
 	}
 
-	class ShroudPalette : ILoadsPalettes, IProvidesAssetBrowserPalettes
+	class MapLayersPalettes : ILoadsPalettes, IProvidesAssetBrowserPalettes
 	{
-		readonly ShroudPaletteInfo info;
+		readonly MapLayersPalettesInfo info;
 
-		public ShroudPalette(ShroudPaletteInfo info) { this.info = info; }
+		public MapLayersPalettes(MapLayersPalettesInfo info) { this.info = info; }
 
 		public void LoadPalettes(WorldRenderer wr)
 		{
-			wr.AddPalette(info.Shroud + "0", new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)ShroudColors[i % 8].ToArgb())));
+			wr.AddPalette(info.Shroud, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)ShroudColors[i % 8].ToArgb())));
+			wr.AddPalette(info.Fog, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => (uint)FogColors[i % 8].ToArgb())));
 
 			for (int index = 1; index < 10; index++)
 			{
@@ -67,13 +72,23 @@ namespace OpenRA.Mods.Cnc.Traits
 			Color.FromArgb(32, 0, 0, 0)
 		};
 
-		public IEnumerable<string> PaletteNames {
+
+		static readonly Color[] FogColors = new[]
+		{
+			Color.FromArgb(0, 0, 0, 0),
+			Color.Green, Color.Blue, Color.Yellow,
+			Color.FromArgb(160, 0, 0, 0),
+			Color.FromArgb(96, 0, 0, 0),
+			Color.FromArgb(64, 0, 0, 0),
+			Color.FromArgb(32, 0, 0, 0)
+		};
+
+		public IEnumerable<string> PaletteNames
+		{
 			get
 			{
-				for (int i = 0; i < 10; i++)
-				{
-					yield return info.Shroud + i;
-				}
+				yield return info.Shroud;
+				yield return info.Fog;
 			}
 		}
 	}
