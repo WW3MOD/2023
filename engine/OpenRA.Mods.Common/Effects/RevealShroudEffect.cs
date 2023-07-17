@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Effects
 
 		readonly WPos pos;
 		readonly Player player;
-		readonly MapLayers.Type sourceType;
+		/* readonly MapLayers.Type sourceType; */
 		readonly WDist revealRadius;
 		readonly PlayerRelationship validStances;
 		readonly int duration;
