@@ -668,7 +668,7 @@ namespace OpenRA.Mods.Common.Traits
 			ai = Queue.Actor.World.Map.Rules.Actors[Item];
 			bi = ai.TraitInfo<BuildableInfo>();
 			BuildPaletteOrder = bi.BuildPaletteOrder;
-			Infinite = false;
+			Infinite = true;
 		}
 
 		public void Tick(PlayerResources pr)
