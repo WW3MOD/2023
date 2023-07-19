@@ -1,5 +1,5 @@
 ^ExistsInWorld:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	UpdatesPlayerStatistics:
 	CombatDebugOverlay:
 	GivesExperience:
@@ -476,7 +476,7 @@
 	Inherits@2: ^Cloakable
 	CombatDebugOverlay:
 	FrozenUnderFog:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Interactable:
 	OwnerLostAction:
 		Action: ChangeOwner
@@ -888,7 +888,7 @@
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	Targetable@GROUND:
 		TargetTypes: Ground, Vehicle
@@ -1024,8 +1024,8 @@
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Tiberium
 	AppearsOnMapPreview:
 		Terrain: Tiberium

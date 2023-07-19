@@ -335,13 +335,13 @@ Container@EDITOR_WORLD_ROOT:
 			BookmarkSaveKeyPrefix: MapBookmarkSave
 			BookmarkRestoreKeyPrefix: MapBookmarkRestore
 			BookmarkKeyCount: 4
-		Background@RADAR_BG:
+		Background@MINIMAP_BG:
 			X: WINDOW_RIGHT - 325
 			Y: 5
 			Width: 320
 			Height: 320
 			Children:
-				Radar@INGAME_RADAR:
+				MiniMap@INGAME_RADAR:
 					X: 10
 					Y: 10
 					Width: PARENT_RIGHT - 19

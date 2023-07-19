@@ -30,13 +30,10 @@ Infantry
     - Sprint when force moving soldiers, disables firing on the move
     - Infantry can go over cliffs now
     - Adjust speed
-    - E8 Descolator, looks like RPG ish
+    - E8 Desolator, looks like RPG ish
         - e8d (deployed) could work as a reloading sequence if the green color is changed
-
- Spy?
-
-Engineer
-    - Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
+    - Remove Spy, Dog?
+    - Engineer Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
         - Different name works for C4, so can't see why it wouldn't work.
         - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
         - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units

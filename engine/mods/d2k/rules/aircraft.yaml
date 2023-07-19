@@ -92,7 +92,7 @@ frigate:
 		VTOL: true
 		CanHover: true
 		CanSlide: true
-	-AppearsOnRadar:
+	-AppearsOnMiniMap:
 	Cargo:
 		MaxWeight: 20
 	RejectsOrders:

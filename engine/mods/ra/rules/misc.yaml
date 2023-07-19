@@ -249,8 +249,8 @@ MINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Ore
 	AppearsOnMapPreview:
 		Terrain: Ore
@@ -272,8 +272,8 @@ GMINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Gems
 	AppearsOnMapPreview:
 		Terrain: Gems
@@ -313,7 +313,7 @@ QUEE:
 		Footprint: xx
 		Dimensions: 2,1
 	WithSpriteBody:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter
@@ -331,7 +331,7 @@ LAR1:
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter

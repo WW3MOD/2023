@@ -340,14 +340,14 @@ Container@EDITOR_WORLD_ROOT:
 			BookmarkSaveKeyPrefix: MapBookmarkSave
 			BookmarkRestoreKeyPrefix: MapBookmarkRestore
 			BookmarkKeyCount: 4
-		Background@RADAR_BG:
+		Background@MINIMAP_BG:
 			X: WINDOW_RIGHT - 295
 			Y: 5
 			Width: 290
 			Height: 290
 			Background: panel-gray
 			Children:
-				Radar@INGAME_RADAR:
+				MiniMap@INGAME_RADAR:
 					X: 1
 					Y: 1
 					Width: PARENT_RIGHT - 2

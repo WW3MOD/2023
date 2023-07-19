@@ -228,7 +228,7 @@ World:
 	PathFinder:
 	ValidateOrder:
 	DebugPauseState:
-	RadarPings:
+	MiniMapPings:
 	ObjectivesPanel:
 		ExitDelay: 0
 		PanelName: SKIRMISH_STATS

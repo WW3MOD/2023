@@ -155,7 +155,7 @@ Container@OBSERVER_WIDGETS:
 			Height: 256
 			Background: panel-gray
 			Children:
-				Radar:
+				MiniMap:
 					X: 1
 					Y: 1
 					Width: PARENT_RIGHT - 2
@@ -1638,26 +1638,26 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: order-icons
 									ImageName: options
 				Container@RADAR:
-					Logic: IngameRadarDisplayLogic
+					Logic: IngameMiniMapDisplayLogic
 					X: 18
 					Y: 39
 					Children:
-						LogicTicker@RADAR_TICKER:
-						ColorBlock@RADAR_FADETOBLACK:
+						LogicTicker@MINIMAP_TICKER:
+						ColorBlock@MINIMAP_FADETOBLACK:
 							Width: 194
 							Height: 194
-						Image@RADAR_LOGO:
+						Image@MINIMAP_LOGO:
 							Logic: AddFactionSuffixLogic
 							X: 31
 							Y: 31
 							ImageCollection: chrome-radar
 							ImageName: logo
-						Radar@RADAR_MINIMAP:
+						MiniMap@MINIMAP:
 							WorldInteractionController: INTERACTION_CONTROLLER
 							Width: 194
 							Height: 194
-							SoundUp: RadarUp
-							SoundDown: RadarDown
+							SoundUp: MiniMapUp
+							SoundDown: MiniMapDown
 						VideoPlayer@PLAYER:
 							Width: 194
 							Height: 194

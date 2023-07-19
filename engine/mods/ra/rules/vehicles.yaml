@@ -616,7 +616,7 @@ MRJ:
 	Valued:
 		Cost: 1000
 	Tooltip:
-		Name: Mobile Radar Jammer
+		Name: Mobile MiniMap Jammer
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:

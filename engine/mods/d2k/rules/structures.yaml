@@ -575,7 +575,7 @@ outpost:
 		Dimensions: 3,3
 		LocalCenterOffset: 0,-512,0
 	Encyclopedia:
-		Description: If the player has sufficient power, the Radar Outpost will generate a radar map. Radar is automatically activated when construction of the Outpost is complete.\n\nThe Radar Outpost is vulnerable to most types of weapons.
+		Description: If the player has sufficient power, the MiniMap Outpost will generate a radar map. MiniMap is automatically activated when construction of the Outpost is complete.\n\nThe MiniMap Outpost is vulnerable to most types of weapons.
 		Category: Buildings
 		Order: 80
 	Health:
@@ -588,7 +588,7 @@ outpost:
 		Type: building
 	Vision:
 		Range: 5c768
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !disabled
 	RenderSprites:
 		Image: outpost.ordos
@@ -718,7 +718,7 @@ wall:
 	Tooltip:
 		Name: Concrete Wall
 		GenericName: Structure
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	D2kBuilding:
 		BuildSounds: CHUNG.WAV
 		TerrainTypes: Rock, Concrete
@@ -1168,7 +1168,7 @@ palace:
 		DetonationAltitude: 3c0
 		RemoveMissileOnDetonation: False
 		DisplayBeacon: True
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraRange: 10c0
 		CameraRemoveDelay: 60
 		ArrowSequence: arrow

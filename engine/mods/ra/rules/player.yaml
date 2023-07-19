@@ -180,4 +180,4 @@ Player:
 		TextNotification: Silos needed.
 	PlayerExperience:
 	GameSaveViewportManager:
-	PlayerRadarTerrain:
+	PlayerMiniMapTerrain:

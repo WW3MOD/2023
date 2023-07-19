@@ -116,7 +116,7 @@ LPST:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelActor
 	Inherits@selection: ^SelectableSupportUnit
-	-AppearsOnRadar:
+	-AppearsOnMiniMap:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 90

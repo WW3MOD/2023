@@ -22,28 +22,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[ObjectCreator.UseCtor]
 		public IngameMiniMapDisplayLogic(Widget widget, World world)
 		{
-			var radarEnabled = false;
+			var minimapEnabled = false;
 			var cachedMiniMapEnabled = false;
 			var blockColor = Color.Transparent;
-			var radar = widget.Get<MiniMapWidget>("RADAR_MINIMAP");
-			radar.IsEnabled = () => radarEnabled;
+			var minimap = widget.Get<MiniMapWidget>("MINIMAP");
+			minimap.IsEnabled = () => minimapEnabled;
 			var devMode = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
 
-			var ticker = widget.Get<LogicTickerWidget>("RADAR_TICKER");
+			var ticker = widget.Get<LogicTickerWidget>("MINIMAP_TICKER");
 			ticker.OnTick = () =>
 			{
-				radarEnabled = devMode.DisableShroud || world.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled)
+				minimapEnabled = devMode.DisableShroud || world.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled)
 					.Any(a => a.Owner == world.LocalPlayer);
 
-				if (radarEnabled != cachedMiniMapEnabled)
-					Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", radarEnabled ? radar.SoundUp : radar.SoundDown, null);
-				cachedMiniMapEnabled = radarEnabled;
+				if (minimapEnabled != cachedMiniMapEnabled)
+					Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", minimapEnabled ? minimap.SoundUp : minimap.SoundDown, null);
+				cachedMiniMapEnabled = minimapEnabled;
 			};
 
-			var block = widget.GetOrNull<ColorBlockWidget>("RADAR_FADETOBLACK");
+			var block = widget.GetOrNull<ColorBlockWidget>("MINIMAP_FADETOBLACK");
 			if (block != null)
 			{
-				radar.Animating = x => blockColor = Color.FromArgb((int)(255 * x), Color.Black);
+				minimap.Animating = x => blockColor = Color.FromArgb((int)(255 * x), Color.Black);
 				block.IsVisible = () => blockColor.A != 0;
 				block.GetColor = () => blockColor;
 			}

@@ -1,5 +1,5 @@
 ^ExistsInWorld:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	UpdatesPlayerStatistics:
 	CombatDebugOverlay:
 	GivesExperience:
@@ -281,7 +281,7 @@
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	Targetable@GROUND:
 		TargetTypes: Ground, Vehicle
@@ -627,7 +627,7 @@
 	Inherits@handicaps: ^PlayerHandicaps
 	OwnerLostAction:
 		Action: Kill
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	HiddenUnderFog:
 		Position: Ground
@@ -776,7 +776,7 @@
 ^CivBuildingHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Building:
 		Dimensions: 1,1
 		Footprint: x
@@ -855,7 +855,7 @@
 ^CivFieldHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Building:
 		Dimensions: 1,1
 		Footprint: =
@@ -895,7 +895,7 @@
 	Interactable:
 		Bounds: 1024, 1024
 	CombatDebugOverlay:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	OwnerLostAction:
 		Action: ChangeOwner
 	Building:
@@ -930,7 +930,7 @@
 		HP: 10000
 	AppearsOnMapPreview:
 		Terrain: Wall
-	RadarColorFromTerrain:
+	MiniMapColorFromTerrain:
 		Terrain: Wall
 	MapEditorData:
 		Categories: Wall
@@ -947,8 +947,8 @@
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Tree
 	AppearsOnMapPreview:
 		Terrain: Tree
@@ -983,8 +983,8 @@
 ^TreeHusk:
 	Inherits@1: ^SpriteActor
 	Interactable:
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Tree
 	AppearsOnMapPreview:
 		Terrain: Tree
@@ -1013,8 +1013,8 @@
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Tiberium
 	AppearsOnMapPreview:
 		Terrain: Tiberium
@@ -1037,8 +1037,8 @@
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Tree
 	AppearsOnMapPreview:
 		Terrain: Tree

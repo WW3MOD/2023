@@ -440,7 +440,7 @@ GARADR:
 	Valued:
 		Cost: 1000
 	Tooltip:
-		Name: GDI Radar
+		Name: GDI MiniMap
 	ProvidesPrerequisite:
 		Prerequisite: radar
 	Building:
@@ -450,7 +450,7 @@ GARADR:
 		HP: 100000
 	Armor:
 		Type: Wood
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !disabled && !empdisable
 	InfiltrateForExploration:
 	DetectCloaked:
@@ -560,7 +560,7 @@ GAPLUG:
 		SelectTargetSpeechNotification: SelectTarget
 		EndChargeTextNotification: Ion cannon ready.
 		SelectTargetTextNotification: Select target.
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraActor: camera
 	DropPodsPower:
 		Cursor: ioncannon
@@ -571,7 +571,7 @@ GAPLUG:
 		Description: Drop Pod reinforcements.\nSmall team of elite soldiers orbital drops\nto target location.
 		SelectTargetSpeechNotification: SelectTarget
 		SelectTargetTextNotification: Select target.
-		DisplayRadarPing: true
+		DisplayMiniMapPing: true
 		ChargeInterval: 10000
 		UnitTypes: DPOD2E1, DPOD2E2
 		CameraActor: camera

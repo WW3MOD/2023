@@ -75,7 +75,7 @@ airstrike.proxy:
 		UnitType: a10
 		DisplayBeacon: True
 		BeaconPoster: airstrike
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraActor: camera
 		ArrowSequence: arrow
 		ClockSequence: clock

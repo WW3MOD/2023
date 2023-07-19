@@ -320,7 +320,7 @@ NARADR:
 	Valued:
 		Cost: 1000
 	Tooltip:
-		Name: Nod Radar
+		Name: Nod MiniMap
 	ProvidesPrerequisite:
 		Prerequisite: radar
 	Building:
@@ -330,7 +330,7 @@ NARADR:
 		HP: 100000
 	Armor:
 		Type: Wood
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !disabled && !empdisable
 	InfiltrateForExploration:
 	DetectCloaked:
@@ -545,7 +545,7 @@ NAMISL:
 		SpawnOffset: 0, 0c128, 0c512
 		DisplayTimerRelationships: None
 		DisplayBeacon: False
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		BeaconPoster:
 		CameraRange: 10c0
 		FlightVelocity: 1c0

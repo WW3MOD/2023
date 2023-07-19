@@ -62,8 +62,8 @@ Speech:
 Sounds:
 	DefaultVariant: .WAV
 	Notifications:
-		RadarUp: RADRON1
-		RadarDown:
+		MiniMapUp: RADRON1
+		MiniMapDown:
 		DisablePower: POWRDN1
 		EnablePower: POWRUP1
 		CashTickUp: CASHTIK1

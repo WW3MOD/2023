@@ -665,7 +665,7 @@ HQ:
 	Vision:
 		Range: 10c0
 	WithBuildingBib:
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !lowpower
 	RenderDetectionCircle:
 	DetectCloaked:
@@ -692,7 +692,7 @@ HQ:
 		DisplayBeacon: True
 		BeaconPoster: airstrike
 		BeaconPosterPalette: beaconposter
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraActor: camera
 		ArrowSequence: arrow
 		ClockSequence: clock
@@ -780,7 +780,7 @@ EYE:
 	Vision:
 		Range: 10c0
 	WithBuildingBib:
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !lowpower
 	RenderDetectionCircle:
 	DetectCloaked:
@@ -803,7 +803,7 @@ EYE:
 		SelectTargetTextNotification: Select target.
 		InsufficientPowerTextNotification: Insufficient power.
 		OnFireSound: ion1.aud
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraActor: camera.small
 		SupportPowerPaletteOrder: 20
 	SupportPowerChargeBar:
@@ -869,7 +869,7 @@ TMPL:
 		DisplayBeacon: True
 		BeaconPoster: atomic
 		BeaconPosterPalette: beaconposter
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraRange: 10c0
 		ArrowSequence: arrow
 		ClockSequence: clock

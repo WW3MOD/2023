@@ -402,11 +402,11 @@ Container@PLAYER_WIDGETS:
 					ImageCollection: sidebar
 					ImageName: radar
 					Children:
-						LogicTicker@RADAR_TICKER:
-						ColorBlock@RADAR_FADETOBLACK:
+						LogicTicker@MINIMAP_TICKER:
+						ColorBlock@MINIMAP_FADETOBLACK:
 							Width: 222
 							Height: 222
-						MiniMap@RADAR_MINIMAP:
+						MiniMap@MINIMAP:
 							WorldInteractionController: INTERACTION_CONTROLLER
 							X: 1
 							Y: 1

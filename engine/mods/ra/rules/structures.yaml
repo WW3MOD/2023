@@ -55,7 +55,7 @@ MSLO:
 		SpawnOffset: 1c0,427,0
 		DisplayTimerRelationships: Ally, Neutral, Enemy
 		DisplayBeacon: True
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		BeaconPoster: atomicon
 		CameraRange: 10c0
 		ArrowSequence: arrow
@@ -442,7 +442,7 @@ IRON:
 		InsufficientPowerTextNotification: Insufficient power.
 		BeginChargeTextNotification: Iron curtain charging.
 		EndChargeTextNotification: Iron curtain ready.
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		Condition: invulnerability
 		OnFireSound: ironcur9.aud
 		SupportPowerPaletteOrder: 10
@@ -518,7 +518,7 @@ PDOX:
 		EndChargeTextNotification: Chronosphere ready.
 		Duration: 400
 		KillCargo: true
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		SupportPowerPaletteOrder: 20
 		Dimensions: 3, 3
 		Footprint: _x_ xxx _x_
@@ -540,7 +540,7 @@ PDOX:
 		EndChargeTextNotification: Chronosphere ready.
 		Duration: 400
 		KillCargo: true
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		SupportPowerPaletteOrder: 30
 		Dimensions: 5, 5
 		Footprint: __x__ _xxx_ xxxxx _xxx_ __x__
@@ -666,7 +666,7 @@ DOME:
 	Valued:
 		Cost: 1500
 	Tooltip:
-		Name: Radar Dome
+		Name: MiniMap Dome
 	Building:
 		Footprint: xx xx ==
 		Dimensions: 2,3
@@ -689,7 +689,7 @@ DOME:
 		Range: 6c0
 		RequiresCondition: !disabled
 	WithBuildingBib:
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !jammed && !disabled
 	InfiltrateForExploration:
 		Types: SpyInfiltrate

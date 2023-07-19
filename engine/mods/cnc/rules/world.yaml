@@ -260,7 +260,7 @@ World:
 	DebugPauseState:
 	ObjectivesPanel:
 		PanelName: SKIRMISH_STATS
-	RadarPings:
+	MiniMapPings:
 	LoadWidgetAtGameStart:
 		ShellmapRoot: MENU_BACKGROUND
 	ScriptTriggers:

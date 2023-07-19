@@ -373,7 +373,7 @@ World:
 	ValidateOrder:
 	DebugPauseState:
 	ScreenShaker:
-	RadarPings:
+	MiniMapPings:
 	StartGameNotification:
 	ObjectivesPanel:
 		PanelName: SKIRMISH_STATS

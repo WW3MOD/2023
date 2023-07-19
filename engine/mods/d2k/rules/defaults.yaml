@@ -1,5 +1,5 @@
 ^ExistsInWorld:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	UpdatesPlayerStatistics:
 	CombatDebugOverlay:
 	GivesExperience:
@@ -390,7 +390,7 @@
 		GenericName: Unit
 	OwnerLostAction:
 		Action: Kill
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	HiddenUnderFog:
 		Position: Ground

@@ -27,7 +27,7 @@ SPLITBLUE:
 		Interval: 500, 1000
 	Tooltip:
 		Name: Blossom Tree (blue)
-	RadarColorFromTerrain:
+	MiniMapColorFromTerrain:
 		Terrain: BlueTiberium
 	AppearsOnMapPreview:
 		Terrain: BlueTiberium

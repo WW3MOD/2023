@@ -250,7 +250,7 @@ RADAR:
 	AlwaysVisible:
 	Interactable:
 	Tooltip:
-		Name: Radar
+		Name: MiniMap
 
 TECH:
 	AlwaysVisible:
