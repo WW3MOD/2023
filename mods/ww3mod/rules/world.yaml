@@ -16,17 +16,14 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-
 			Clear: 90
 			Rough: 70
 			Debris: 50
 			Rock: 30
-
 			TreeClear: 50
 			TreeRough: 50
 			TreeDebris: 80
 			TreeRock: 80
-
 			Beach: 80
 			RiverShallow: 30
 			Shallow: 20
@@ -37,17 +34,14 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-
 			Clear: 90
 			Rough: 70
 			Debris: 40
 			Rock: 30
-
 			TreeClear: 60
 			TreeRough: 50
 			TreeDebris: 40
 			TreeRock: 30
-
 			Beach: 70
 			RiverShallow: 30
 			Shallow: 15
@@ -58,21 +52,17 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-
 			Clear: 90
 			Rough: 70
 			Debris: 40
 			Rock: 30
-
 			TreeClear: 60
 			TreeRough: 50
 			TreeDebris: 40
 			TreeRock: 30
-
 			Beach: 70
 			RiverShallow: 40
 			Shallow: 25
-
 			River: 20
 			Water: 25
 	Locomotor@FOOT_MOUNTAINER:
@@ -82,21 +72,17 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-
 			Clear: 90
 			Rough: 70
 			Debris: 60
 			Rock: 50
-
 			TreeClear: 60
 			TreeRough: 50
 			TreeDebris: 40
 			TreeRock: 30
-
 			Beach: 70
 			RiverShallow: 40
 			Shallow: 25
-
 			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
@@ -105,24 +91,19 @@
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
-
 			Clear: 90
 			Rough: 70
 			Debris: 60
 			Rock: 50
-
 			TreeClear: 60
 			TreeRough: 50
 			TreeDebris: 40
 			TreeRock: 30
-
 			Beach: 70
 			RiverShallow: 40
 			Shallow: 25
-
 			River: 25
 			Water: 20
-
 			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled
@@ -134,7 +115,6 @@
 			Beach: 50
 			Rough: 35
 			TreeClear: 35
-
 	Locomotor@WHEELED:
 		Name: wheeled
 		Crushes: mine, crate

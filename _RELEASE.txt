@@ -22,13 +22,13 @@ Movements
     -
 
 Attacking
+    - Attack stances, now defend fires on structures incl economy
     - Sweeping, shooting at multiple enemies within one burst
     - Suppression trait, always prioritize units not taking cover
 
 Infantry
     - Attack move default / make infantry fire on the move
     - Sprint when force moving soldiers, disables firing on the move
-    - Infantry can go over cliffs now
     - Adjust speed
     - E8 Desolator, looks like RPG ish
         - e8d (deployed) could work as a reloading sequence if the green color is changed

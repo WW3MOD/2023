@@ -145,52 +145,52 @@ Templates:
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@181:
 		Id: 181
 		Images: s02.des
 		Size: 2,3
 		Categories: Cliffs
 		Tiles:
-			0: Rock
+			0: Cliffs
 			1: Rough
-			2: Rock
-			3: Rock
-			4: Rock
-			5: Rock
+			2: Cliffs
+			3: Cliffs
+			4: Cliffs
+			5: Cliffs
 	Template@182:
 		Id: 182
 		Images: s03.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@183:
 		Id: 183
 		Images: s04.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@184:
 		Id: 184
 		Images: s05.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@185:
 		Id: 185
 		Images: s06.des
@@ -198,83 +198,83 @@ Templates:
 		Categories: Cliffs
 		Tiles:
 			0: Rough
-			1: Rock
-			2: Rock
-			3: Rock
-			4: Rock
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
+			4: Cliffs
 	Template@186:
 		Id: 186
 		Images: s07.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@187:
 		Id: 187
 		Images: s08.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@188:
 		Id: 188
 		Images: s09.des
 		Size: 3,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
-			4: Rock
-			5: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
+			4: Cliffs
+			5: Cliffs
 	Template@189:
 		Id: 189
 		Images: s10.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@190:
 		Id: 190
 		Images: s11.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@191:
 		Id: 191
 		Images: s12.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@192:
 		Id: 192
 		Images: s13.des
 		Size: 3,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 			2: Rough
-			3: Rock
-			4: Rock
+			3: Cliffs
+			4: Cliffs
 			5: Rough
 	Template@193:
 		Id: 193
@@ -282,19 +282,19 @@ Templates:
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
+			0: Cliffs
 			1: Rough
-			2: Rock
+			2: Cliffs
 	Template@194:
 		Id: 194
 		Images: s15.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@195:
 		Id: 195
 		Images: s16.des
@@ -302,49 +302,49 @@ Templates:
 		Categories: Cliffs
 		Tiles:
 			0: Rough
-			2: Rock
-			3: Rock
-			5: Rock
+			2: Cliffs
+			3: Cliffs
+			5: Cliffs
 	Template@196:
 		Id: 196
 		Images: s17.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@197:
 		Id: 197
 		Images: s18.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@198:
 		Id: 198
 		Images: s19.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@199:
 		Id: 199
 		Images: s20.des
 		Size: 2,3
 		Categories: Cliffs
 		Tiles:
-			1: Rock
-			2: Rock
-			3: Rock
-			4: Rock
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
+			4: Cliffs
 			5: Rough
 	Template@200:
 		Id: 200
@@ -352,27 +352,27 @@ Templates:
 		Size: 1,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@202:
 		Id: 202
 		Images: s22.des
 		Size: 2,1
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@203:
 		Id: 203
 		Images: s23.des
 		Size: 3,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
-			4: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
+			4: Cliffs
 			5: Rough
 	Template@204:
 		Id: 204
@@ -380,89 +380,89 @@ Templates:
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@205:
 		Id: 205
 		Images: s25.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@206:
 		Id: 206
 		Images: s26.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@207:
 		Id: 207
 		Images: s27.des
 		Size: 3,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 			2: Rough
 			3: Rough
-			4: Rock
-			5: Rock
+			4: Cliffs
+			5: Cliffs
 	Template@208:
 		Id: 208
 		Images: s28.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			3: Cliffs
 	Template@209:
 		Id: 209
 		Images: s29.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@210:
 		Id: 210
 		Images: s30.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@211:
 		Id: 211
 		Images: s31.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
+			0: Cliffs
 			1: Rough
-			2: Rock
-			3: Rock
+			2: Cliffs
+			3: Cliffs
 	Template@212:
 		Id: 212
 		Images: s32.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 			2: Rough
 	Template@213:
 		Id: 213
@@ -470,60 +470,60 @@ Templates:
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@214:
 		Id: 214
 		Images: s34.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@215:
 		Id: 215
 		Images: s35.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@216:
 		Id: 216
 		Images: s36.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@217:
 		Id: 217
 		Images: s37.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@218:
 		Id: 218
 		Images: s38.des
 		Size: 2,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
-			2: Rock
-			3: Rock
+			0: Cliffs
+			1: Cliffs
+			2: Cliffs
+			3: Cliffs
 	Template@2:
 		Id: 2
 		Images: b01.des
@@ -3124,58 +3124,58 @@ Templates:
 			0: Rock
 			1: Rock
 	Template@383:
-		Id: 383
+		Id: 3830: Rock
 		Images: cliffsl2.des
 		Size: 1,2
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@384:
 		Id: 384
 		Images: cliffsl3.des
 		Size: 2,1
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@385:
 		Id: 385
 		Images: cliffsl4.des
 		Size: 2,1
 		Categories: Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@386:
 		Id: 386
 		Images: cliffsw1.des
 		Size: 1,2
 		Categories: Water Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@387:
 		Id: 387
 		Images: cliffsw2.des
 		Size: 1,2
 		Categories: Water Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@388:
 		Id: 388
 		Images: cliffsw3.des
 		Size: 2,1
 		Categories: Water Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
 	Template@389:
 		Id: 389
 		Images: cliffsw4.des
 		Size: 2,1
 		Categories: Water Cliffs
 		Tiles:
-			0: Rock
-			1: Rock
+			0: Cliffs
+			1: Cliffs
