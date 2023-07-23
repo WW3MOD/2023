@@ -936,15 +936,16 @@ MSLO:
 		Queue: Defense
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Stores and prepares an atomic bomb.\nRequires power to operate.\nMaximum 1 can be built.\n  Special Ability: Atom Bomb\nLaunches a devastating atomic bomb at target location.\nCan be Infiltrated by a Spy or Saboteur\nresulting in Timer reset.
+		Description: Fires a nuclear missile
 	Tooltip:
 		Name: Missile Silo
 	Valued:
 		Cost: 10
 	Health:
-		HP: 15000
+		HP: 90000
 	Armor:
 		Type: Heavy
+		Thickness: 2000
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
 	ProvidesPrerequisite@buildingname:
