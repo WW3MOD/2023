@@ -1,69 +1,92 @@
 General:
 	Name: Desert
 	Id: DESERT
-	EditorTemplateOrder: Terrain, Debris, Road, Cliffs, Water Cliffs, Beach, River, Bridge
+	EditorTemplateOrder: Clear, Rough, Debris, Rock, Road, River, TreeClear, TreeRough, TreeDebris, TreeRock, Cliffs, WaterCliffs, Water, Beach, Bridge
 	HeightDebugColors: 880000
 
 Terrain:
-	TerrainType@Beach:
-		Type: Beach
+	TerrainType@Road:
+		Type: Road
 		TargetTypes: Ground
-		Color: B09C78
+		AcceptsSmudgeType: Crater, Scorch
+		Color: 5E430D
 	TerrainType@Bridge:
 		Type: Bridge
 		TargetTypes: Ground, Bridge
 		AcceptsSmudgeType: Crater, Scorch
 		Color: 606060
+
 	TerrainType@Clear:
 		Type: Clear
 		TargetTypes: Ground
 		AcceptsSmudgeType: Crater, Scorch
-		Color: 865F45
+		Color: 284428
 		RestrictPlayerColor: true
-	TerrainType@Gems:
-		Type: Gems
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: 8470FF
-		RestrictPlayerColor: true
-	TerrainType@Ore:
-		Type: Ore
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: 948060
-		RestrictPlayerColor: true
-	TerrainType@River:
-		Type: River
-		TargetTypes: Ground
-		Color: 6F848B
-	TerrainType@Road:
-		Type: Road
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: A87B53
-	TerrainType@Rock:
-		Type: Rock
-		TargetTypes: Ground
-		Color: 745A3F
 	TerrainType@Rough:
 		Type: Rough
 		TargetTypes: Ground
 		AcceptsSmudgeType: Crater, Scorch
 		Color: 44443C
-	TerrainType@Tree:
-		Type: Tree
+	TerrainType@Debris:
+		Type: Debris
+		TargetTypes: Ground
+		AcceptsSmudgeType: Crater, Scorch
+		Color: 44443C
+	TerrainType@Rock:
+		Type: Rock
+		TargetTypes: Ground
+		Color: 44443C
+	TerrainType@Cliffs:
+		Type: Cliffs
+		TargetTypes: Ground
+		Color: 44443C
+
+	TerrainType@TreeClear:
+		Type: TreeClear
 		TargetTypes: Ground
 		Color: 1C2024
+	TerrainType@TreeRough:
+		Type: TreeRough
+		TargetTypes: Ground
+		AcceptsSmudgeType: Crater, Scorch
+		Color: 44443C
+	TerrainType@TreeDebris:
+		Type: TreeDebris
+		TargetTypes: Ground
+		AcceptsSmudgeType: Crater, Scorch
+		Color: 44443C
+	TerrainType@TreeRock:
+		Type: TreeRock
+		TargetTypes: Ground
+		Color: 44443C
+	TerrainType@TreeCliffs:
+		Type: TreeCliffs
+		TargetTypes: Ground
+		Color: 44443C
+
+	TerrainType@River:
+		Type: River
+		TargetTypes: Ground
+		Color: 5C8CB4
+	TerrainType@RiverShallow:
+		Type: RiverShallow
+		TargetTypes: Ground
+		Color: 5C8CB4
+	TerrainType@Beach:
+		Type: Beach
+		TargetTypes: Ground
+		Color: B09C78
+	TerrainType@Water:
+		Type: Water
+		TargetTypes: Water
+		Color: 5C74A4
+		RestrictPlayerColor: true
+
 	TerrainType@Wall:
 		Type: Wall
 		TargetTypes: Ground
 		AcceptsSmudgeType: Crater, Scorch
 		Color: D0C0A0
-	TerrainType@Water:
-		Type: Water
-		TargetTypes: Water
-		Color: 5DA5CE
-		RestrictPlayerColor: true
 
 Templates:
 	Template@255:
@@ -573,39 +596,39 @@ Templates:
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: Tree
+			0: TreeClear
 	Template@15:
 		Id: 15
 		Images: br02.des
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: Tree
+			0: TreeClear
 	Template@16:
 		Id: 16
 		Images: br03.des
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: Tree
+			0: TreeClear
 	Template@17:
 		Id: 17
 		Images: br04.des
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: Tree
+			0: TreeClear
 	Template@18:
 		Id: 18
 		Images: br05.des
 		Size: 3,2
 		Categories: Debris
 		Tiles:
-			0: Tree
-			1: Tree
+			0: TreeClear
+			1: TreeClear
 			2: Rock
 			3: Rock
-			4: Tree
+			4: TreeClear
 			5: Rock
 	Template@19:
 		Id: 19
@@ -613,54 +636,54 @@ Templates:
 		Size: 2,2
 		Categories: Debris
 		Tiles:
-			0: Tree
-			1: Tree
-			2: Tree
-			3: Tree
+			0: TreeClear
+			1: TreeClear
+			2: TreeClear
+			3: TreeClear
 	Template@20:
 		Id: 20
 		Images: br07.des
 		Size: 2,2
 		Categories: Debris
 		Tiles:
-			0: Tree
-			1: Tree
-			2: Tree
-			3: Tree
+			0: TreeClear
+			1: TreeClear
+			2: TreeClear
+			3: TreeClear
 	Template@21:
 		Id: 21
 		Images: br08.des
 		Size: 3,2
 		Categories: Debris
 		Tiles:
-			0: Tree
-			1: Tree
-			2: Tree
-			3: Tree
-			4: Tree
-			5: Tree
+			0: TreeClear
+			1: TreeClear
+			2: TreeClear
+			3: TreeClear
+			4: TreeClear
+			5: TreeClear
 	Template@22:
 		Id: 22
 		Images: br09.des
 		Size: 3,2
 		Categories: Debris
 		Tiles:
-			0: Tree
-			1: Tree
-			2: Tree
-			3: Tree
-			4: Tree
-			5: Tree
+			0: TreeClear
+			1: TreeClear
+			2: TreeClear
+			3: TreeClear
+			4: TreeClear
+			5: TreeClear
 	Template@23:
 		Id: 23
 		Images: br10.des
 		Size: 2,2
 		Categories: Debris
 		Tiles:
-			0: Tree
-			1: Tree
-			2: Tree
-			3: Tree
+			0: TreeClear
+			1: TreeClear
+			2: TreeClear
+			3: TreeClear
 	Template@35:
 		Id: 35
 		Images: p01.des
@@ -833,7 +856,7 @@ Templates:
 			7: River
 			8: Rock
 			9: Rock
-			10: Tree
+			10: TreeClear
 			11: Rock
 	Template@61:
 		Id: 61
@@ -872,12 +895,12 @@ Templates:
 			13: Rock
 			14: River
 			15: Rock
-			16: Tree
+			16: TreeClear
 			17: Rock
 			18: River
 			19: River
 			20: Rock
-			21: Tree
+			21: TreeClear
 	Template@63:
 		Id: 63
 		Images: rv17.des
@@ -892,7 +915,7 @@ Templates:
 			7: Rock
 			8: Rock
 			9: Rock
-			10: Tree
+			10: TreeClear
 			12: Rock
 			13: Rock
 			14: River
@@ -915,14 +938,14 @@ Templates:
 		Tiles:
 			0: Rock
 			1: River
-			2: Tree
+			2: TreeClear
 			3: Rock
 			4: Rock
 			5: Rock
 			6: Rock
 			8: Rock
 			9: River
-			10: Tree
+			10: TreeClear
 			12: Rock
 			13: River
 			14: Rock
@@ -937,7 +960,7 @@ Templates:
 			3: Clear
 			5: Rock
 			6: River
-			7: Tree
+			7: TreeClear
 			8: Rock
 			9: Rock
 			10: River
@@ -945,7 +968,7 @@ Templates:
 			12: Clear
 			13: Rock
 			14: River
-			15: Tree
+			15: TreeClear
 	Template@66:
 		Id: 66
 		Images: rv20.des
@@ -1061,7 +1084,7 @@ Templates:
 			3: Rock
 			4: River
 			5: River
-			7: Tree
+			7: TreeClear
 			8: Clear
 	Template@72:
 		Id: 72
@@ -1069,7 +1092,7 @@ Templates:
 		Size: 3,3
 		Categories: River
 		Tiles:
-			0: Tree
+			0: TreeClear
 			1: River
 			2: Rock
 			3: River
@@ -1094,7 +1117,7 @@ Templates:
 			7: River
 			8: River
 			9: Rock
-			10: Tree
+			10: TreeClear
 			11: Rock
 	Template@101:
 		Id: 101
@@ -1117,12 +1140,12 @@ Templates:
 		Categories: River
 		Tiles:
 			0: Rough
-			1: Tree
+			1: TreeClear
 			2: River
 			3: River
 			4: River
 			5: River
-			6: Tree
+			6: TreeClear
 			7: River
 			8: Rock
 	Template@103:
@@ -2316,7 +2339,7 @@ Templates:
 		Categories: Beach
 		Tiles:
 			0: Clear
-			1: Tree
+			1: TreeClear
 			2: River
 			3: Beach
 			4: Water
@@ -3124,7 +3147,7 @@ Templates:
 			0: Rock
 			1: Rock
 	Template@383:
-		Id: 3830: Rock
+		Id: 3830
 		Images: cliffsl2.des
 		Size: 1,2
 		Categories: Cliffs

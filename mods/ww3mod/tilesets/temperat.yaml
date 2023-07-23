@@ -88,18 +88,6 @@ Terrain:
 		TargetTypes: Ground
 		AcceptsSmudgeType: Crater, Scorch
 		Color: D0C0A0
-	TerrainType@Gems:
-		Type: Gems
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: 8470FF
-		RestrictPlayerColor: true
-	TerrainType@Ore:
-		Type: Ore
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: 948060
-		RestrictPlayerColor: true
 
 Templates:
 	# Clear
