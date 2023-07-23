@@ -10,7 +10,6 @@
         500     Battalion       Liutenant Colonel
 
 - Stances
-    - Check SetUnitStance
     - UnitStance
         - Add more stances?
         - Stay at a distance

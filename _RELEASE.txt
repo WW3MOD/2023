@@ -82,7 +82,33 @@ Sounds
 
 Widgets
     - Move to edges, remove borders, free up space
-    - Add stances, Autotarget priorities
+
+Stances
+    (Check SetUnitStance)
+
+    - Autotarget priorities
+        - Scorched Earth (Destroy everything, incl neutral economy structures, civilian buildings)
+        - Enemy Economy Structures
+        - All enemies
+        - Only combatants (not structures, supply trucks etc)
+        - Hold fire
+    - Ambush
+        - Do not fire until detected
+    - Authorized Weapons
+        - Primary
+        - Secondary
+        - Tertiary
+        -
+    - Cohesion
+        - Tight (close as possible)
+        - Loose (one extra step between)
+        - Spread out (two steps between)
+        -
+    - Formation
+        - Use current
+        -
+    -
+
 
 Mines
     - Cloaking
