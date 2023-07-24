@@ -10,21 +10,18 @@ Resources
         Critical damage needs a special Repair/Construction Vehicle to bring in resources.
     - Nuclear powerplant, releases long lasting radiation if destroyed
 
-Production
-    - Infinite build
-    - Cancel all of a production type by right clicking icon
-    - Set infinite build by adding in same production after finishing each unit
-    - Pausing speeds up other production just as if it was cancelled (infantry)
-
-Movements
-    - Move in formation - Don't move away from group
-        - Close, Default, Far, Range-Organized - longest ranged units at the back
+Groups / Selection
     -
 
-Attacking
-    - Attack stances, now defend fires on structures incl economy
-    - Sweeping, shooting at multiple enemies within one burst
-    - Suppression trait, always prioritize units not taking cover
+Production
+    - Pause / Cancel all of a production type by clicking icon
+    - Building same unit causes shortage (increased price/build time, then reduced by fixed amount for all units every X ticks until back to normal/minimal price)
+
+    Ctrl - Prioritized Build
+    Ctrl Shift - Build 5
+    Alt - Toggle Infinite build for unit
+    Alt Shift - Cancel all
+    (combine with QWE... to build 123...)
 
 Infantry
     - Attack move default / make infantry fire on the move
@@ -37,17 +34,9 @@ Infantry
         - Different name works for C4, so can't see why it wouldn't work.
         - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
         - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
-
-Cover
-    - Cargo / Enter
-        - Auto Enter order, makes selected units go into nearest transport / makes transports call in nearby infantry
-        - Use current behaviour for internal / protected slots
-        - Add new mode that puts actors invisible on top of the cell of the Cargo Actor,
-            this allows units to target either the building or autotarget the actor inside.
-    - Seek shelter order, makes units seek the highest possible cover near them
-        multiple clicks increases search radius for controling how much they spread out
-    - Protection based on cell type / overlaping actors footprint / proximity
-    - Trenches
+    - Protection, add new mode that puts actors invisible on top of the cell of what is now the Cargo Actor,
+        this allows units to target either the building or autotarget the actor inside.
+        Use current behaviour for internal / protected ("Cargo") slots
 
 Vehicles
     - Adjust speed
@@ -62,6 +51,9 @@ Air
     - Helicopter movement, acceleration/deceleration
     - A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
     - Tiberian Aurora Attack helicopter model, very nice almost too good
+
+Structures
+    - Trenches
 
 Ammo
     - Costs money
@@ -83,31 +75,66 @@ Sounds
 Widgets
     - Move to edges, remove borders, free up space
 
-Stances
-    (Check SetUnitStance)
+Orders
+    Attack Move should be default behaviour
+    Tab - Toggle waypoint mode, always use waypoints
+
+    Q - Move
+    W - Force Move (moves faster but has reduces detection, accuracy, firing rate etc)
+    E - Fighting Retreat (Attack closest enemy but stay at maximum distance)
+    R - Take Cover (multiple clicks increases search radius for controling how much they spread out)
+    - Spread (change so they all move away from center / each other)
+    T - Auto Enter (makes selected units go into nearest transport / makes transports call in nearby infantry)
+    Y - Deploy
+    - Guard
+    - Assault
+    - Force Attack
+    - Checkbox: Resupply
+    - Checkbox: Evacuate (checkbox allows new orders to be placed first and when it finishes, on idle, it executes)
+
+    Attacking
+        - Sweeping, shooting at multiple enemies within one burst
+        - Suppression trait, always prioritize units not taking cover
+
+Stances (Check SetUnitStance)
 
     - Autotarget priorities
         - Scorched Earth (Destroy everything, incl neutral economy structures, civilian buildings)
         - Enemy Economy Structures
         - All enemies
         - Only combatants (not structures, supply trucks etc)
-        - Hold fire
     - Ambush
-        - Do not fire until detected
-    - Authorized Weapons
-        - Primary
-        - Secondary
-        - Tertiary
-        -
+        - Hold fire until group detected (Check closest enemy, if owner has visual on any friendlies within X cells then attack)
+        - Hold fire until personally detected
+        - Hold fire completely
+    - Ammo preservation
+        - Maximum firepower / Suppression
+        - Preserve
+        - Make every shot count
+        - Checkbox: Auto Mode (reduce consumption dynamiccally when ammo is running low unless resupply is close by, this can be calculated dynamiccally based on how far away it is)
+        - Checkbox: Resupply automatically
+        - Checkbox: Ignore when resupplying
     - Cohesion
         - Tight (close as possible)
         - Loose (one extra step between)
         - Spread out (two steps between)
-        -
     - Formation
+        - Line
+        - Box
+        - Column
+    - Formation structure
         - Use current
-        -
+        - Infantry in front
+        - Armor in front
     -
+
+    Later
+        - Authorized Weapons
+            - Primary
+            - Secondary
+            - Tertiary
+
+    "Use as default" - new units will use this, save between games (needs a button like "Save these for next game as default", so it doesn't override everytime)
 
 
 Mines
