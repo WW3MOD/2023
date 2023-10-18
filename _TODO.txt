@@ -1,5 +1,13 @@
 2023
 
+- Ideas
+
+    - Entrance force, dropdown in time that players have before the game starts to use up their initial cash
+    - Set a "tech increase" time when higher tech is allowed
+    - Rename tech levels to something like "DEFCON" but more appropriate.
+    - Rename "Build tree" to "Reservists"
+    - Buildtime adjusted to be more like "callup time"
+
 - Control groups
     - Leader units allow for more efficient grouping
 
