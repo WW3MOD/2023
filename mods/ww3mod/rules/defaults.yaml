@@ -383,9 +383,6 @@
 	AutoTargetPriority@Light:
 		ValidTargets: Light
 		Priority: 3
-	AutoTargetPriority@Medium:
-		ValidTargets: Medium
-		Priority: 2
 
 # TODO: Add Support / Transport to target after combatants
 ^AutoTargetAir:
