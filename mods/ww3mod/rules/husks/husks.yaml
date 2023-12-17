@@ -381,13 +381,13 @@ TC02.Husk:
 		Offset: -350,350,0
 	# WithRangeCircle@1_OBJECTPROXIMITY:
 	# 	Offset: -350,350,0
-	WithRangeCircle@CENTER:
-		Visible: Always
-		Width: 2
-		Alpha: 80
-		Range: 128
-		Color: 11FF11AA
-		ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@CENTER:
+	# 	Visible: Always
+	# 	Width: 2
+	# 	Alpha: 80
+	# 	Range: 128
+	# 	Color: 11FF11AA
+	# 	ValidRelationships: Neutral, Ally, Enemy
 TC03.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -395,13 +395,13 @@ TC03.Husk:
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
-	WithRangeCircle@CENTER:
-		Visible: Always
-		Width: 2
-		Alpha: 80
-		Range: 128
-		Color: 11FF11AA
-		ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@CENTER:
+	# 	Visible: Always
+	# 	Width: 2
+	# 	Alpha: 80
+	# 	Range: 128
+	# 	Color: 11FF11AA
+	# 	ValidRelationships: Neutral, Ally, Enemy
 TC04.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -422,10 +422,10 @@ TC05.Husk:
 		Dimensions: 4,3
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
-	WithRangeCircle@CENTER:
-		Visible: Always
-		Width: 2
-		Alpha: 80
-		Range: 128
-		Color: 11FF11AA
-		ValidRelationships: Neutral, Ally, Enemy
+	# WithRangeCircle@CENTER:
+	# 	Visible: Always
+	# 	Width: 2
+	# 	Alpha: 80
+	# 	Range: 128
+	# 	Color: 11FF11AA
+	# 	ValidRelationships: Neutral, Ally, Enemy
