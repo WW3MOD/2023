@@ -108,7 +108,7 @@
 	Health:
 		HP: 4000
 	Armor:
-		Type: Wood
+		Type: Concrete
 	Tooltip:
 		Name: Civilian Building
 		GenericVisibility: None
