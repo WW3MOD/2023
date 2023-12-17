@@ -3,6 +3,7 @@
 - Ideas
 
     - Entrance force, dropdown in time that players have before the game starts to use up their initial cash
+        - Built units can only be moved within a small circle until timer is finished
     - Set a "tech increase" time when higher tech is allowed
     - Rename tech levels to something like "DEFCON" but more appropriate.
     - Rename "Build tree" to "Reservists"
