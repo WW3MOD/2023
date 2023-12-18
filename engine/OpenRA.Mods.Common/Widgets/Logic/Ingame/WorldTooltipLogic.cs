@@ -89,7 +89,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// if (world.RenderPlayer != null)
 				// 	labelText += "\n\nVision: " + world.RenderPlayer.MapLayers.ResolvedVisibility[mapIndex].ToString()
 				// 		+ "\nRadar: " + (world.RenderPlayer.MapLayers.RadarCover(viewport.TooltipCell.ToWPos()) ? "Yes" : "No");
-
 				if (viewport.ActorTooltipExtra != null)
 				{
 					foreach (var info in viewport.ActorTooltipExtra)
