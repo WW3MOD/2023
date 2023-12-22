@@ -1,5 +1,13 @@
 2023
 
+Bugs
+
+    - Can't recapture spawn if it's lost
+    - Engineer can't repair vehicles
+    - Medic has no attack icon but seems to be able to autotarget
+    -
+
+
 - Ideas
 
     - Entrance force, dropdown in time that players have before the game starts to use up their initial cash

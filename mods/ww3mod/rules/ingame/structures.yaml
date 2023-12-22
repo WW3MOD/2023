@@ -387,6 +387,11 @@ SUPPLYROUTE:
 	ProvidesPrerequisite@russia:
 		Factions: russia
 		Prerequisite: aircraft.russia
+	WithRangeCircle@ObjectProximity:
+		Range: 20c0
+		Alpha: 50
+		Visible: WhenSelected
+		ValidRelationships: Neutral, Ally, Enemy
 
 LOGISTICSCENTER:
 	Inherits: ^Building
