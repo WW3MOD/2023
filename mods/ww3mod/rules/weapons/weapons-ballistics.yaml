@@ -142,7 +142,7 @@ MP5:
 		ContrailStartColorAlpha: 110
 	Warhead@Target: TargetDamage
 		Damage: 250
-		DamageAtMaxRange: 60
+		DamageAtMaxRange: 50
 		Penetration: 5
 		ValidTargets: Infantry, Unarmored, Helicopter
 		DamageTypes: BulletDeath
@@ -208,8 +208,8 @@ MP5:
 		ContrailWidth: 6
 		ContrailStartColorAlpha: 130
 	Warhead@Target: TargetDamage
-		Damage: 400
-		DamageAtMaxRange: 100
+		Damage: 600
+		DamageAtMaxRange: 50
 		Penetration: 15
 		ValidTargets: Infantry, Unarmored, Light, Helicopter
 		DamageTypes: BulletDeath
@@ -477,7 +477,7 @@ AACannon:
 
 60mm_Mortar:
 	Inherits@HitEffects: ^MediumExplosionEffects
-	ValidTargets: Ground, Infantry, Unarmored, Light, Medium
+	ValidTargets: Ground, Infantry, Unarmored, Light
 	InvalidTargets: Concrete, Heavy
 	Range: 25c0
 	MinRange: 8c0
@@ -493,12 +493,12 @@ AACannon:
 	Warhead@Target: TargetDamage
 		Damage: 3000
 		Penetration: 100
-		ValidTargets: Infantry, Unarmored, Light, Medium
+		ValidTargets: Infantry, Unarmored, Light
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
 		Damage: 100
-		ValidTargets: Infantry, Unarmored, Light, Medium
+		ValidTargets: Infantry, Unarmored, Light
 		DamageTypes: SmallExplosionDeath
 
 73mm_BMP:
@@ -516,15 +516,14 @@ AACannon:
 		ContrailLength: 5
 		ContrailWidth: 24
 	Warhead@Target: TargetDamage
-		Damage: 1500
+		Damage: 5000
 		DamageAtMaxRange: 50
-		Penetration: 200
+		Penetration: 300
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 500
-		DamageAtMaxRange: 50
+		Damage: 1000
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
@@ -585,7 +584,6 @@ TankRound.T90:
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		DamageAtMaxRange: 90
 		Damage: 5000
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath

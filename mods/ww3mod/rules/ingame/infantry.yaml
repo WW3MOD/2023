@@ -36,7 +36,7 @@
 	Targetable:
 		RequiresCondition: !parachute
 		TargetTypes: Ground, Infantry, Disguise
-	Targetable@HEAL:
+	Targetable@Heal:
 		RequiresCondition: !parachute && damaged
 		TargetTypes: Heal
 	QuantizeFacingsFromSequence:
@@ -1585,13 +1585,13 @@ AA:
 		OutsideRangeCursor: repair
 		TargetRelationships: Ally
 		ForceTargetRelationships: None
-	Armament@ClearMines:
-		Name: secondary
-		Weapon: ClearMines
-		Cursor: repair
-		OutsideRangeCursor: repair
-		TargetRelationships: Enemy
-		ForceTargetRelationships: Ally
+	# Armament@ClearMines:
+	# 	Name: secondary
+	# 	Weapon: ClearMines
+	# 	Cursor: repair
+	# 	OutsideRangeCursor: repair
+	# 	TargetRelationships: Enemy
+	# 	ForceTargetRelationships: Ally
 	DetectCloaked@Mine:
 		Range: 5c0
 		DetectionTypes: Mine
@@ -1850,7 +1850,7 @@ SF:
 		Cursor: heal
 		OutsideRangeCursor: heal
 		TargetRelationships: Ally
-		ForceTargetRelationships: None
+		# ForceTargetRelationships: None
 	#	Armament@AI:
 	#	Weapon: ai.targeting.helper.noattack
 	#	LocalOffset: 0,0,0

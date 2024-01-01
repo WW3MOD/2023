@@ -16,6 +16,7 @@
 	DrawLineToTarget:
 	Armor:
 		Type: Light
+		Thickness: 3
 	UpdatesPlayerStatistics:
 	AppearsOnMiniMap:
 		UseLocation: true

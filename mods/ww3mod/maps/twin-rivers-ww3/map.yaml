@@ -49,9 +49,6 @@ Players:
 		Enemies: Creeps
 
 Actors:
-	Actor6: mine
-		Location: 35,99
-		Owner: Neutral
 	Actor26: tc04
 		Location: 109,74
 		Owner: Neutral

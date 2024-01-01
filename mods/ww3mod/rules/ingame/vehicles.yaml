@@ -44,6 +44,8 @@
 	Targetable@VehicleRepair:
 		RequiresCondition: !parachute && critical-damage
 		TargetTypes: VehicleRepair
+	Targetable@REPAIR:
+		TargetTypes: Repair
 	Repairable:
 		RepairActors: logisticscenter
 		PercentageStep: 3
@@ -136,7 +138,7 @@
 	# 	TurnSpeed: 0w
 
 ^EffectsWhenMovingVehicles:
-	InaccuracyMultiplier@HeavyDamage:
+	InaccuracyMultiplier@Moving:
 		RequiresCondition: moving
 		Modifier: 150
 

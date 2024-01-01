@@ -18,17 +18,18 @@ TRAN:
 		HP: 600
 	Armor:
 		Type: Light
+		Thickness: 10
 	Selectable:
 		DecorationBounds: 1700,1536
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 240
 		AltitudeVelocity: 0c58
-	WithIdleOverlay@ROTOR1AIR:
+	WithIdleOverlay@Rotor1Air:
 		Offset: 597,0,213
 		Sequence: rotor
 		RequiresCondition: airborne
-	WithIdleOverlay@ROTOR1GROUND:
+	WithIdleOverlay@Rotor1Ground:
 		Offset: 597,0,213
 		Sequence: slow-rotor
 		RequiresCondition: !airborne
@@ -48,13 +49,13 @@ TRAN:
 	WithCargoPipsDecoration:
 		PipCount: 36
 		MarginY: -10
-	SpawnActorOnDeath@hovering:
+	SpawnActorOnDeath@Hovering:
 		Actor: TRAN.Husk
 		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: TRAN.Husk.EMP
 		RequiresCondition: airborne && !moving && empdisable
-	SpawnActorOnDeath@moving:
+	SpawnActorOnDeath@Moving:
 		Actor: TRAN.Husk.moving
 		RequiresCondition: airborne && moving && !empdisable
 	SpawnActorOnDeath@EMPmoving:
@@ -93,6 +94,7 @@ littlebird:
 		HP: 300
 	Armor:
 		Type: Light
+		Thickness: 5
 	Aircraft:
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
@@ -164,13 +166,13 @@ littlebird:
 		AfterUnloadDelay: 40
 		LoadedCondition: loaded
 	WithCargoPipsDecoration:
-	SpawnActorOnDeath@hovering:
+	SpawnActorOnDeath@Hovering:
 		Actor: littlebird.Husk
 		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: littlebird.Husk.EMP
 		RequiresCondition: airborne && !moving && empdisable
-	SpawnActorOnDeath@moving:
+	SpawnActorOnDeath@Moving:
 		Actor: littlebird.Husk.moving
 		RequiresCondition: airborne && moving && !empdisable
 	SpawnActorOnDeath@EMPmoving:
@@ -234,6 +236,7 @@ HELI:
 		HP: 800
 	Armor:
 		Type: Heavy
+		Thickness: 20
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 245
@@ -314,13 +317,13 @@ HELI:
 		PilotActor: E1R1
 		SuccessRate: 80
 		EjectOnGround: true
-	SpawnActorOnDeath@hovering:
+	SpawnActorOnDeath@Hovering:
 		Actor: HELI.Husk
 		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: HELI.Husk.EMP
 		RequiresCondition: airborne && !moving && empdisable
-	SpawnActorOnDeath@moving:
+	SpawnActorOnDeath@Moving:
 		Actor: HELI.Husk.moving
 		RequiresCondition: airborne && moving && !empdisable
 	SpawnActorOnDeath@EMPmoving:
@@ -353,7 +356,8 @@ A10:
 	Health:
 		HP: 800
 	Armor:
-		Type: Medium
+		Type: Heavy
+		Thickness: 20
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
@@ -455,7 +459,8 @@ F16:
 	Health:
 		HP: 400
 	Armor:
-		Type: Light
+		Type: Medium
+		Thickness: 10
 	AttackAircraft:
 		FacingTolerance: 30
 		PersistentTargeting: false

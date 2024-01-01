@@ -337,17 +337,31 @@ DogJaw:
 		DamageTypes: DefaultDeath
 
 Heal:
-	BurstWait: 20
-	Range: 1c0
+	BurstWait: 50
+	Range: 4c0
+	Report: heal2.aud
 	ValidTargets: Heal
 	Projectile: Bullet
 		Speed: 1c682
-	Warhead@Heal: SpreadDamage
-		Damage: -5
+	Warhead@1Dam: SpreadDamage
 		Spread: 213
-		ValidTargets: Heal
+		Damage: -50
 		ValidRelationships: Ally
+		ValidTargets: Heal
 		DebugOverlayColor: 00FF00
+
+# Heal:
+# 	BurstWait: 20
+# 	Range: 1c0
+# 	ValidTargets: Heal
+# 	Projectile: Bullet
+# 		Speed: 1c682
+# 	Warhead@Heal: SpreadDamage
+# 		Damage: -5
+# 		Spread: 213
+# 		ValidTargets: Heal
+# 		ValidRelationships: Ally
+# 		DebugOverlayColor: 00FF00
 
 Repair:
 	ValidTargets: BuildingRepair, VehicleRepair

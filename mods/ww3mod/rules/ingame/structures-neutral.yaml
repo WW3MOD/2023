@@ -13,7 +13,7 @@ OILB:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Health:
-		HP: 25000
+		HP: 50000
 	EngineerRepairable:
 	CashTrickler:
 		Amount: 50

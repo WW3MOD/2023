@@ -18,6 +18,9 @@ HALO:
 		AddToArmyValue: true
 	Health:
 		HP: 600
+	Armor:
+		Type: Light
+		Thickness: 6
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 240
@@ -30,19 +33,19 @@ HALO:
 		PipCount: 24
 	Selectable:
 		DecorationBounds: 1700,1536
-	WithIdleOverlay@ROTOR1AIR:
+	WithIdleOverlay@Rotor1Air:
 		Offset: 260,0,343
 		Sequence: rotor
-	WithIdleOverlay@ROTOR1GROUND:
+	WithIdleOverlay@Rotor1Ground:
 		Offset: 260,0,343
 		Sequence: slow-rotor
-	SpawnActorOnDeath@hovering:
+	SpawnActorOnDeath@Hovering:
 		Actor: HALO.Husk
 		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: HALO.Husk.EMP
 		RequiresCondition: airborne && !moving && empdisable
-	SpawnActorOnDeath@moving:
+	SpawnActorOnDeath@Moving:
 		Actor: HALO.Husk.moving
 		RequiresCondition: airborne && moving && !empdisable
 	SpawnActorOnDeath@EMPmoving:
@@ -92,6 +95,7 @@ HIND:
 		HP: 800
 	Armor:
 		Type: Heavy
+		Thickness: 10
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 195
@@ -169,13 +173,13 @@ HIND:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	SpawnActorOnDeath@hovering:
+	SpawnActorOnDeath@Hovering:
 		Actor: HIND.Husk
 		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: HIND.Husk.EMP
 		RequiresCondition: airborne && !moving && empdisable
-	SpawnActorOnDeath@moving:
+	SpawnActorOnDeath@Moving:
 		Actor: HIND.Husk.moving
 		RequiresCondition: airborne && moving && !empdisable
 	SpawnActorOnDeath@EMPmoving:
@@ -224,6 +228,7 @@ MI28:
 		HP: 800
 	Armor:
 		Type: Heavy
+		Thickness: 20
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 245
@@ -304,13 +309,13 @@ MI28:
 		PilotActor: E1R1
 		SuccessRate: 80
 		EjectOnGround: true
-	SpawnActorOnDeath@hovering:
+	SpawnActorOnDeath@Hovering:
 		Actor: MI28.Husk
 		RequiresCondition: airborne && !moving && !empdisable
 	SpawnActorOnDeath@EMP:
 		Actor: MI28.Husk.EMP
 		RequiresCondition: airborne && !moving && empdisable
-	SpawnActorOnDeath@moving:
+	SpawnActorOnDeath@Moving:
 		Actor: MI28.Husk.moving
 		RequiresCondition: airborne && moving && !empdisable
 	SpawnActorOnDeath@EMPmoving:
@@ -341,7 +346,8 @@ FROG:
 	Health:
 		HP: 700
 	Armor:
-		Type: Medium
+		Type: Heavy
+		Thickness: 20
 	AttackAircraft:
 		Armaments: primary
 		FacingTolerance: 5
@@ -457,7 +463,7 @@ MIG:
 	Health:
 		HP: 550
 	Armor:
-		Type: Light
+		Type: Medium
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192

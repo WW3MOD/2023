@@ -1,12 +1,26 @@
+
+20231010
+
+- Going through all changes in 2023 version,
+    done until:
+
+    -
+
+
+
+
+
+
 2023
 
 Bugs
 
     - Can't recapture spawn if it's lost
-    - Engineer can't repair vehicles
+        - Repeats over and over but works now
+    - Engineer can't repair vehicles, no cursor
+        - Also mines doesnt show up but seems to exist, vehicles avoids them.
     - Medic has no attack icon but seems to be able to autotarget
     -
-
 
 - Ideas
 

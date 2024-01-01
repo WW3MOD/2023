@@ -106,7 +106,7 @@
 	Inherits: ^BasicBuilding
 	Huntable:
 	Health:
-		HP: 4000
+		HP: 40000
 	Armor:
 		Type: Concrete
 	Tooltip:
@@ -313,7 +313,8 @@ SUPPLYROUTE:
 		TargetTypes: NoAutoTarget
 	ProximityCapturable:
 		TurnNeutral: true
-		Dominance: 200
+		ReturnToOriginalOwner: true
+		Dominance: 100
 		Range: 20c0
 	Armor:
 		Type: Indestructable
