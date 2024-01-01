@@ -123,17 +123,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool Tick(Actor self)
 			{
-				if (cargo.IsDead)
-				{
-					carryall.UnreserveCarryable(self);
+				// Cargo may have become invalid or PickupUnit cancelled.
+				if (carryall.Carryable == null || carryall.Carryable.IsDead)
 					return true;
-				}
 
 				var dropRange = carryall.Info.DropRange;
-				var destination = carryable.Destination;
-				if (destination != null)
-					self.QueueActivity(true, new DeliverUnit(self, Target.FromCell(self.World, destination.Value), dropRange, carryall.Info.TargetLineColor));
-
+				self.QueueActivity(true, new DeliverUnit(self, Target.FromCell(self.World, carryable.Destination ?? self.Location), dropRange, carryall.Info.TargetLineColor));
 				return true;
 			}
 		}

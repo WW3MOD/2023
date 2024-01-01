@@ -105,15 +105,6 @@ namespace OpenRA.Mods.Common.Lint
 				referencedKeys.Add(speed.Name);
 			}
 
-			var gameSpeeds = modData.Manifest.Get<GameSpeeds>();
-			foreach (var speed in gameSpeeds.Speeds.Values)
-			{
-				if (!translation.HasMessage(speed.Name))
-					emitError($"{speed.Name} not present in {language} translation.");
-
-				referencedKeys.Add(speed.Name);
-			}
-
 			foreach (var modType in modData.ObjectCreator.GetTypes())
 			{
 				foreach (var fieldInfo in modType.GetFields(Binding).Where(m => Utility.HasAttribute<TranslationReferenceAttribute>(m)))

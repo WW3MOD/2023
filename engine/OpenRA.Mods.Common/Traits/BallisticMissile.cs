@@ -99,6 +99,11 @@ namespace OpenRA.Mods.Common.Traits
 		bool airborne;
 		int airborneToken = Actor.InvalidConditionToken;
 
+		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset, WAngle? facing, Color? targetLineColor = null)
+		{
+			return new Land(self, target, offset, facing, targetLineColor);
+		}
+
 		public BallisticMissile(ActorInitializer init, BallisticMissileInfo info)
 		{
 			Info = info;

@@ -224,9 +224,8 @@ namespace OpenRA.Mods.Common.Activities
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
 			if (!target.IsInRange(pos, maxRange)
-				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
-				// || (mobile != null && !mobile.CanInteractWithGroundLayer(self))) // 1010?
-				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
+				|| ((minRange.Length != 0 && target.IsInRange(pos, minRange)))
+				|| (mobile != null && !mobile.CanInteractWithGroundLayer(self))
 				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
 					&& checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
 			{
@@ -235,14 +234,9 @@ namespace OpenRA.Mods.Common.Activities
 					return AttackStatus.UnableToAttack;
 
 				attackStatus |= AttackStatus.NeedsToMove;
-
-				if (checkTarget.Type != TargetType.Invalid)
-				{
-					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
-
-					// Standard should be to attackmove towards target, unless force firing?
-					return AttackStatus.NeedsToMove;
-				}
+				// var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
+				QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
+				return AttackStatus.NeedsToMove;
 			}
 
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))

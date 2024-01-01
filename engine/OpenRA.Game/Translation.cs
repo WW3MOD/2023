@@ -116,19 +116,8 @@ namespace OpenRA
 
 		public bool TryGetString(string key, out string value, IDictionary<string, object> arguments = null)
 		{
-			if (string.IsNullOrEmpty(key))
-				throw new ArgumentException("A translation key must not be null or empty.", nameof(key));
-
-			if (!HasMessage(key))
-			{
-				value = null;
-				return false;
-			}
-
-			var fluentArguments = new Dictionary<string, IFluentType>();
-			if (arguments != null)
-				foreach (var (k, v) in arguments)
-					fluentArguments.Add(k, v.ToFluentType());
+			if (key == null)
+				throw new ArgumentNullException(nameof(key));
 
 			try
 			{
@@ -143,6 +132,7 @@ namespace OpenRA
 					foreach (var (k, v) in arguments)
 						fluentArguments.Add(k, v.ToFluentType());
 
+				// 1010 ?
 				var result = bundle.TryGetAttrMessage(key, fluentArguments, out var errors, out value);
 				foreach (var error in errors)
 					Log.Write("debug", $"Translation of {key}: {error}");

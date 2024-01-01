@@ -346,8 +346,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var chosenTarget = Target.Invalid;
 
-			if (stance <= UnitStance.ReturnFire)
-				return chosenTarget;
+			// if (Stance <= UnitStance.ReturnFire)
+			// 	return chosenTarget;
 
 			var chosenTargetPriority = int.MinValue;
 			var chosenTargetRange = 0;

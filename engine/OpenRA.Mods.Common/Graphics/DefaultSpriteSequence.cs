@@ -379,7 +379,7 @@ namespace OpenRA.Mods.Common.Graphics
 
 			ignoreWorldTint = LoadField(IgnoreWorldTint, data, defaults);
 			scale = LoadField(Scale, data, defaults);
-			changeTick = LoadField(d, ChangeTick);
+			changeTick = LoadField(ChangeTick, data, defaults);
 
 			reverses = LoadField(Reverses, data, defaults);
 			transpose = LoadField(Transpose, data, defaults);

@@ -27,6 +27,8 @@ namespace OpenRA.Graphics
 		Rectangle Bounds { get; }
 		bool IgnoreWorldTint { get; }
 		float Scale { get; }
+
+		int[] ChangeTick { get; }
 		void ResolveSprites(SpriteCache cache);
 		Sprite GetSprite(int frame);
 		Sprite GetSprite(int frame, WAngle facing);

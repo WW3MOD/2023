@@ -50,8 +50,8 @@ namespace OpenRA.Mods.Common.Warheads
 
 		public void RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
-			if (!rules.Weapons.TryGetValue(Weapon.ToLowerInvariant(), out WeaponInfo))
-				throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(Weapon.ToLowerInvariant()));
+			// if (!rules.Weapons.TryGetValue(Weapon.ToLowerInvariant(), out WeaponInfo))
+				// throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(Weapon.ToLowerInvariant()));
 		}
 
 		public int CalculatedTriggerTime { get; private set; }

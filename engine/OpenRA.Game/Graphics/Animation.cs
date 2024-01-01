@@ -64,7 +64,7 @@ namespace OpenRA.Graphics
 			var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
 			if (shadow != null)
 			{
-				var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
+				// var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
 				var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, CurrentSequence.Scale * scale, 1f, float3.Ones, tintModifiers,
 					true, rotation);
 				return new IRenderable[] { shadowRenderable, imageRenderable };
@@ -95,7 +95,8 @@ namespace OpenRA.Graphics
 		public Rectangle ScreenBounds(WorldRenderer wr, WPos pos, in WVec offset, Actor actor = null)
 		{
 			if (CurrentSequence == null)
-				Log.Write("debug", "CurrentSequence == null - actor: {0}", actor);
+				Log.Write("CurrentSequence == null - actor: {0}", actor.Info.Name);
+				// Log.Write("debug", "CurrentSequence == null - actor: {0}", actor);
 
 			var scale = CurrentSequence.Scale; // "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204
 			var xy = wr.ScreenPxPosition(pos) + wr.ScreenPxOffset(offset);

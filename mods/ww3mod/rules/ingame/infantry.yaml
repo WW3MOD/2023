@@ -1122,7 +1122,7 @@ E3R1:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
-	ReloadBar@1:
+	ReloadArmamentsBar@1:
 		Armaments: primary
 		Color: FFFF00
 	Armament@GARRISONED:

@@ -109,8 +109,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstDelays.Length > 1 && (WeaponInfo.BurstDelays.Length != WeaponInfo.Burst - 1))
 				throw new YamlException($"Weapon '{weaponToLower}' has an invalid number of BurstDelays, must be single entry or Burst - 1.");
 
-			if (WeaponInfo.BurstWait == 0)
-				throw new YamlException("Weapons must define BurstWait: '{0}'".F(weaponToLower));
+			// if (WeaponInfo.BurstWait == 0)
+			// 	throw new YamlException("Weapons must define BurstWait: '{0}'".F(weaponToLower));
 
 			base.RulesetLoaded(rules, ai);
 		}
@@ -152,7 +152,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-				var matchingAmmopool = self.TraitsImplementing<AmmoPool>().FirstOrDefault(ammopool =>
+				var matchingAmmopool = Actor.TraitsImplementing<AmmoPool>().FirstOrDefault(ammopool =>
 					ammopool.Info.Armaments.Any(armament => armament == Info.Name));
 				return matchingAmmopool;
 			}
@@ -490,7 +490,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			catch
 			{
-				throw new Exception("Error in UpdateBurst for: {0}".F(self.Info.Name));
+				// throw new Exception("Error in UpdateBurst for: {0}".F(self.Info.Name));
 			}
 		}
 

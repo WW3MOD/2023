@@ -65,25 +65,25 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override bool Tick(Actor self)
 		{
-			if (IsCanceling || cargo != carryall.Carryable)
-			{
-				if (carryall.State == Carryall.CarryallState.Reserved)
-					carryall.UnreserveCarryable(self);
+						// if (IsCanceling || cargo != carryall.Carryable)
+			// {
+			// 	if (carryall.State == Carryall.CarryallState.Reserved)
+			// 		carryall.UnreserveCarryable(self);
 
-				// Make sure we run the TakeOff activity if we are/have landed
-				if (self.Trait<Aircraft>().HasInfluence())
-				{
-					ChildHasPriority = true;
-					IsInterruptible = false;
-					QueueChild(new TakeOff(self));
-					return false;
-				}
-
+			// 	// Make sure we run the TakeOff activity if we are/have landed
+			// 	if (self.Trait<Aircraft>().HasInfluence())
+			// 	{
+			// 		ChildHasPriority = true;
+			// 		IsInterruptible = false;
+			// 		QueueChild(new TakeOff(self));
+			// 		return false;
+			// 	}
+			// }
+			if (IsCanceling)
 				return true;
 
-			if (cargo.IsDead || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
+			if (cargo.IsDead || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self) || cargo != carryall.Carryable)
 			{
-				carryall.UnreserveCarryable(self);
 				Cancel(self, true);
 				return false;
 			}
