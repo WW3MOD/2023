@@ -1,17 +1,11 @@
 
 ^CommonDeaths:
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-			SNOW: TEMPERAT
-			JUNGLE: TEMPERAT
-			WINTER: TEMPERAT
-			DUNE: TEMPERAT
 	# die12: atomized
 	# 	Length: *
 	# 	Tick: 80
@@ -23,13 +17,6 @@
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-			JUNGLE: TEMPERAT
-			WINTER: TEMPERAT
-			DUNE: TEMPERAT
 ^Rot:
 	rot1:
 		Filename: rot1.shp
@@ -43,10 +30,6 @@
 				TilesetFilenames:
 					SNOW: corpse1.sno
 				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
 		Length: 7
 		Tick: 2000
 		ZOffset: -511
@@ -58,12 +41,10 @@
 				Start: 1
 				Length: 1
 			corpse2:
-				Filename: corpse2.shp
+				Filename: corpse2.tem
+				TilesetFilenames:
+					SNOW: corpse2.sno
 				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
 		Length: 7
 		Tick: 2000
 		ZOffset: -511
@@ -75,12 +56,10 @@
 				Start: 1
 				Length: 1
 			corpse3:
-				Filename: corpse3.shp
+				Filename: corpse3.tem
+				TilesetFilenames:
+					SNOW: corpse3.sno
 				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
 		Length: 7
 		Tick: 2000
 		ZOffset: -511
@@ -92,12 +71,10 @@
 				Start: 1
 				Length: 1
 			corpse1:
-				Filename: corpse1.shp
+				Filename: corpse1.tem
+				TilesetFilenames:
+					SNOW: corpse1.sno
 				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
 		Length: 7
 		Tick: 3000
 		Offset: -10, 0
@@ -294,13 +271,11 @@ class:
 		Start: 324
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -311,10 +286,6 @@ class:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 6
@@ -417,13 +388,11 @@ e1.russia:
 		Start: 324
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -434,10 +403,6 @@ e1.russia:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 6
@@ -550,13 +515,11 @@ e2.russia:
 		Start: 324
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -567,10 +530,6 @@ e2.russia:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 6
@@ -679,13 +638,11 @@ e3.russia:
 		Start: 452
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -696,10 +653,6 @@ e3.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: e4.shp
 		Start: 208
@@ -784,13 +737,11 @@ e4.russia:
 		Start: 182
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -801,10 +752,6 @@ e4.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: e6.shp
 		Start: 82
@@ -884,13 +831,11 @@ e6.russia:
 		Start: 229
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -901,10 +846,6 @@ e6.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: medi.shp
 		Start: 130
@@ -1014,12 +955,11 @@ medi.russia:
 		Start: 452
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die-crushed:
 		Filename: corpse1.tem
 		TilesetFilenames:
@@ -1027,10 +967,6 @@ medi.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 3
@@ -1134,13 +1070,11 @@ sn.russia:
 		Start: 324
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -1151,10 +1085,6 @@ sn.russia:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 6
@@ -1226,13 +1156,11 @@ ar.russia:
 		Start: 452
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -1243,10 +1171,6 @@ ar.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: mt.shp
 		Start: 240
@@ -1335,13 +1259,11 @@ mt.russia:
 		Start: 340
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -1352,10 +1274,6 @@ mt.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: at.shp
 		Start: 144
@@ -1444,13 +1362,11 @@ at.russia:
 		Start: 340
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -1461,10 +1377,6 @@ at.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: aa.shp
 		Start: 144
@@ -1546,12 +1458,11 @@ aa.russia:
 		Start: 229
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die-crushed:
 		Filename: corpse1.tem
 		TilesetFilenames:
@@ -1559,10 +1470,6 @@ aa.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	shoot:
 		Filename: sf.shp
 		Start: 164
@@ -1832,13 +1739,11 @@ tl.russia:
 		Start: 324
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -1849,10 +1754,6 @@ tl.russia:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: spy.shp
 		Start: 144
@@ -1952,12 +1853,11 @@ spy.russia:
 		Length: 18
 		Tick: 80
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -1968,10 +1868,6 @@ spy.russia:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-        TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 6
@@ -2099,13 +1995,11 @@ tecn.russia:
 		Start: 229
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2116,10 +2010,6 @@ tecn.russia:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle:
 		Filename: minigun.shp
 		Length: 6
@@ -2202,10 +2092,6 @@ dog:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	jump:
 		Filename: dogbullt.shp
 		Length: 4
@@ -2295,13 +2181,11 @@ shok:
 		Start: 452
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2312,10 +2196,6 @@ shok:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	parachute:
 		Filename: shok.shp
 		Start: 528
@@ -2363,12 +2243,11 @@ e9:
 		Start: 229
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die-crushed:
 		Filename: corpse1.tem
 		TilesetFilenames:
@@ -2376,10 +2255,6 @@ e9:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	shoot:
 		Filename: e9.shp
 		Start: 164
@@ -2683,12 +2558,11 @@ terr:
 		Length: 18
 		Tick: 80
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2699,10 +2573,6 @@ terr:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	parachute:
 		Filename: terr.shp
 		Start: 0
@@ -2745,13 +2615,11 @@ thf:
 		Start: 175
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2762,10 +2630,6 @@ thf:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Filename: thf.shp
 		Start: 72
@@ -2818,13 +2682,11 @@ c1:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2835,10 +2697,6 @@ c1:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c1.shp
 		Start: 56
@@ -2883,13 +2741,11 @@ c2:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2900,10 +2756,6 @@ c2:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c2.shp
 		Start: 56
@@ -2948,13 +2800,11 @@ c3:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -2965,10 +2815,6 @@ c3:
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c3.shp
 		Start: 56
@@ -3015,12 +2861,11 @@ c4:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3031,10 +2876,6 @@ c4:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c4.shp
 		Start: 56
@@ -3081,12 +2922,11 @@ c5:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3097,10 +2937,6 @@ c5:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c5.shp
 		Start: 56
@@ -3147,12 +2983,11 @@ c6:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3163,10 +2998,6 @@ c6:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c6.shp
 		Start: 56
@@ -3213,12 +3044,11 @@ c7:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3229,10 +3059,6 @@ c7:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c7.shp
 		Start: 56
@@ -3279,12 +3105,11 @@ c8:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3295,10 +3120,6 @@ c8:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c8.shp
 		Start: 56
@@ -3345,12 +3166,11 @@ c9:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3361,10 +3181,6 @@ c9:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c9.shp
 		Start: 56
@@ -3411,12 +3227,11 @@ c10:
 		Start: 180
 		Length: 18
 	die6:
-		Filename: electro.shp
+		Filename: electro.tem
+		TilesetFilenames:
+			SNOW: electro.sno
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	die7:
 		Filename: poisondeath.shp
 		Length: *
@@ -3427,10 +3242,6 @@ c10:
 		Length: *
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Filename: c10.shp
 		Start: 56

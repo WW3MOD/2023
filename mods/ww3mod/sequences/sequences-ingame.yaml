@@ -323,13 +323,11 @@ explosion:
 	napalm_large:
 		Filename: napalm3.shp
 	corpse:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		ZOffset: -512
 		Tick: 1600
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	invisblank:
 		Filename: blank1.shp
 	mininuke:
@@ -355,7 +353,6 @@ emp-overlay:
 		BlendMode: Additive
 		Offset: 0, 0
 		UseTilesetCode: false
-		UseTilesetExtension: false
 		ZOffset: 512
 
 maxichute:
@@ -476,12 +473,6 @@ atomicfake:
 		ZOffset: 1023
 	down:
 		Filename: atomicdn.shp
-		Length: *
-		ZOffset: 1023
-
-b2bomb:
-	idle:
-		Filename: b2bomb.shp
 		Length: *
 		ZOffset: 1023
 

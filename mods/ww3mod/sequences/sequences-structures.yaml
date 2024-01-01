@@ -2,306 +2,350 @@
 supplyroute:
 	Inherits: emp-overlay
 	idle:
-		Filename: ctflag
+		Filename: ctflag.shp
 		Length: 9
 		Tick: 50
 		Offset: 0,-12
 	dead:
-		Filename: fix-dead
+		Filename: fix-dead.shp
 		Offset: 0,1
 		Tick: 800
 	none:
-		Filename: blank32
+		Filename: blank32.shp
 		Length: 1
 	bib:
-		Filename: mbFIX
+		TilesetFilenames:
+			SNOW: mbFIX.sno
+			INTERIOR: mbFIX.int
+			TEMPERAT: mbFIX.tem
+			DESERT: mbFIX.des
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
 	icon:
-		Filename: fixicon
+		Filename: fixicon.shp
 
 fact:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: fact.shp
 	idle:
-		Filename: fact
 	make:
-		Filename: factmake
+		Filename: factmake.shp
 		# Tick: 120
 		Length: *
 	build:
-		Filename: fact
 		Start: 1
 		Length: 25
 		Tick: 80
 	damaged-idle:
-		Filename: fact
 		Start: 26
 	damaged-build:
-		Filename: fact
 		Start: 27
 		Length: 25
 		Tick: 80
 	dead:
-		Filename: fact-dead2
+		Filename: fact-dead2.shp
 		Tick: 800
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	pdox:
-		Filename: factpdox
+		Filename: factpdox.shp
 		Length: 80
 	damaged-pdox:
-		Filename: factpdox
+		Filename: factpdox.shp
 		Start: 80
 		Length: 80
 	icon:
-		Filename: facticon
+		Filename: facticon.shp
 
 fact2:
 	Inherits: fact
 
 fact.husk:
 	idle:
-		Filename: fact-dead
+		Filename: fact-dead.shp
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 
 powr:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: powr.shp
 	idle:
-		Filename: powr
 	damaged-idle:
-		Filename: powr
 		Start: 1
 	idle-smoke:
-		Filename: powr-smoke
+		Filename: powr-smoke.shp
 		Length: 40
 		Tick: 160
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
 	damaged-idle-smoke:
-		Filename: powr-smoke-d
+		Filename: powr-smoke-d.shp
 		Length: 40
 		Tick: 160
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
 	place:
-		Filename: powrmake
+		Filename: powrmake.shp
 		Start: 12
 	make:
-		Filename: powrmake
+		Filename: powrmake.shp
 		Length: *
 		Tick: 1000
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	dead:
-		Filename: powrdead2
+		Filename: powrdead2.shp
 		Tick: 800
 	icon:
-		Filename: powricon
+		Filename: powricon.shp
 
 powr.husk:
 	idle:
-		Filename: powrdead2
+		Filename: powrdead2.shp
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 apwr:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: apwr.shp
 	idle:
-		Filename: apwr
 		Offset: 0,-10
 	damaged-idle:
-		Filename: apwr
 		Start: 1
 		Offset: 0,-10
 	place:
-		Filename: apwrmake
+		Filename: apwrmake.shp
 		Start: 12
 		Offset: 0,-10
 	make:
-		Filename: apwrmake
+		Filename: apwrmake.shp
 		Length: *
 		Tick: 2500
 		Offset: 0,-10
 	idle-smoke:
-		Filename: apwr-smoke
+		Filename: apwr-smoke.shp
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
 	damaged-idle-smoke:
-		Filename: apwr-smoke-d
+		Filename: apwr-smoke-d.shp
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
 	dead:
-		Filename: apwr-dead2
+		Filename: apwr-dead2.shp
 		Tick: 800
 		Offset: 0,-10
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	icon:
-		Filename: apwricon
+		Filename: apwricon.shp
 
 apwr.husk:
 	idle:
-		Filename: apwr-dead2
+		Filename: apwr-dead2.shp
 		Start: 0
 		Length: 1
 		Offset: 0,-10
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 
 powrgrey:
 	Inherits: emp-overlay
 	idle:
-		Filename: powrgrey
+		Filename: powrgrey.shp
 	damaged-idle:
-		Filename: powrgrey
+		Filename: powrgrey.shp
 		Start: 1
 	place:
-		Filename: powrgreymake
+		Filename: powrgreymake.shp
 		Start: 12
 	make:
-		Filename: powrgreymake
+		Filename: powrgreymake.shp
 		Length: *
 		Tick: 1000
 	idle-smoke:
-		Filename: powr-smoke
+		Filename: powr-smoke.shp
 		Length: 40
 		Tick: 40
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
 	damaged-idle-smoke:
-		Filename: powr-smoke-d
+		Filename: powr-smoke-d.shp
 		Length: 40
 		Tick: 160
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
 	dead:
-		Filename: powrgreydead
+		Filename: powrgreydead.shp
 		Tick: 800
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	icon:
-		Filename: powricon
+		Filename: powricon.shp
 
 powrgrey.husk:
 	idle:
-		Filename: powrgreydead
+		Filename: powrgreydead.shp
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 apwrgrey:
 	Inherits: emp-overlay
 	idle:
-		Filename: apwrgrey
+		Filename: apwrgrey.shp
 		Offset: 0,-10
 	damaged-idle:
-		Filename: apwrgrey
+		Filename: apwrgrey.shp
 		Start: 1
 		Offset: 0,-10
 	place:
-		Filename: apwrgreymake
+		Filename: apwrgreymake.shp
 		Start: 12
 		Offset: 0,-10
 	make:
-		Filename: apwrgreymake
+		Filename: apwrgreymake.shp
 		Length: *
 		Tick: 2500
 		Offset: 0,-10
 	idle-smoke:
-		Filename: apwr-smoke
+		Filename: apwr-smoke.shp
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
 	damaged-idle-smoke:
-		Filename: apwr-smoke-d
+		Filename: apwr-smoke-d.shp
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
 	dead:
-		Filename: apwrgreydead
+		Filename: apwrgreydead.shp
 		Tick: 800
 		Offset: 0,-10
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	icon:
-		Filename: apwricon
+		Filename: apwricon.shp
 
 apwrgrey.husk:
 	idle:
-		Filename: apwrgreydead
+		Filename: apwrgreydead.shp
 		Start: 0
 		Length: 1
 		Offset: 0,-10
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 
 powrciv:
 	Inherits: emp-overlay
 	idle:
-		Filename: powrciv
+		Filename: powrciv.shp
 	damaged-idle:
-		Filename: powrciv
+		Filename: powrciv.shp
 		Start: 1
 	place:
-		Filename: powrcivmake
+		Filename: powrcivmake.shp
 		Start: 19
 	make:
-		Filename: powrcivmake
+		Filename: powrcivmake.shp
 		Length: *
 		Tick: 1000
 	idle-smoke:
-		Filename: blank32
+		Filename: blank32.shp
 		Length: *
 	damaged-idle-smoke:
-		Filename: blank32
+		Filename: blank32.shp
 		Length: *
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	dead:
-		Filename: powrciv
+		Filename: powrciv.shp
 		Start: 2
 		Tick: 800
 	icon:
-		Filename: powrcivicon
+		Filename: powrcivicon.shp
 
 powrciv.husk:
 	idle:
-		Filename: powrciv
+		Filename: powrciv.shp
 		Start: 2
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 proc:
 	Inherits: emp-overlay
 	make:
-		Filename: procmake
+		Filename: procmake.shp
 		Tick: 2000
 		Length: *
 	dead:
-		Filename: proc-dead
+		Filename: proc-dead.shp
 		Tick: 800
 		ZOffset: -1c511
 	idle-smoke:
-		Filename: proc-smoke
+		Filename: proc-smoke.shp
 		Length: 40
 		Tick: 160
 		Offset: 0,-25
@@ -309,69 +353,75 @@ proc:
 
 proc.husk:
 	idle:
-		Filename: proc-dead2
+		Filename: proc-dead2.shp
 		Offset: 1, -16
 		ZOffset: -1c511
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 
 ercc-proc:
 	Inherits: emp-overlay
 	idle:
-		Filename: ercc-bot
+		Filename: ercc-bot.shp
 		Offset: 2, -9
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: ercc-bot
+		Filename: ercc-bot.shp
 		Offset: 2, -9
 		ZOffset: -1c511
 		Start: 1
 	topsolid:
-		Filename: ercc-top
+		Filename: ercc-top.shp
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 0
 	damaged-topsolid:
-		Filename: ercc-top
+		Filename: ercc-top.shp
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 2
 	opaquetop:
-		Filename: ercc-top
+		Filename: ercc-top.shp
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 1
 	damaged-opaquetop:
-		Filename: ercc-top
+		Filename: ercc-top.shp
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 3
 	make:
-		Filename: ercc-make
+		Filename: ercc-make.shp
 		Offset: 5, -13
 		Length: *
 		Tick: 2000 # default but should it change ??
 	place:
-		Filename: ercc-bot
+		Filename: ercc-bot.shp
 		Offset: 5, -13
 		Start: 0
 		Length: 1
 	dead:
-		Filename: ercc-bot
+		Filename: ercc-bot.shp
 		Start: 1
 		Length: 1
 		Tick: 800
 		Offset: 2, -9
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Offset: 2, 8
 		ZOffset: -1c612
 		Length: *
 	icon:
-		Filename: procicon
+		Filename: procicon.shp
 	idle-smoke:
-		Filename: proc-smoke
+		Filename: proc-smoke.shp
 		Length: 40
 		Tick: 160
 		Offset: 2,-41
@@ -381,336 +431,387 @@ ercc-proc:
 silo:
 	Inherits: emp-overlay
 	idle:
-		Filename: silo2
+		Filename: silo2.shp
 		Offset: 0,-1
 	damaged-idle:
-		Filename: silo2
+		Filename: silo2.shp
 		Start: 9
 		Offset: 0,-1
 	stages:
-		Filename: silo2
+		Filename: silo2.shp
 		Length: 9
 		Offset: 0,-1
 	damaged-stages:
-		Filename: silo2
+		Filename: silo2.shp
 		Start: 9
 		Length: 9
 		Offset: 0,-1
 	make:
-		Filename: silomake
+		Filename: silomake.shp
 		Tick: 500
 		Length: *
 		Offset: 0,-1
 	bib:
-		Filename: mbSILO
+		TilesetFilenames:
+			SNOW: mbSILO.sno
+			INTERIOR: mbSILO.int
+			TEMPERAT: mbSILO.tem
+			DESERT: mbSILO.des
 		Length: *
 	dead:
-		Filename: silo2
+		Filename: silo2.shp
 		Start: 9
 		Length: 1
 		Tick: 800
 	icon:
-		Filename: siloicon
+		Filename: siloicon.shp
 
 silo.husk:
 	idle:
-		Filename: silo2
+		Filename: silo2.shp
 		Start: 9
 		Length: 1
 	bib:
-		Filename: mbSILO
+		TilesetFilenames:
+			SNOW: mbSILO.sno
+			INTERIOR: mbSILO.int
+			TEMPERAT: mbSILO.tem
+			DESERT: mbSILO.des
 		Length: *
 
 tent:
 	Inherits: emp-overlay
 	Defaults:
 	idle:
-		Filename: tent
+		Filename: tent.shp
 		Length: 10
 		Tick: 100
 	damaged-idle:
-		Filename: tent
+		Filename: tent.shp
 		Start: 10
 		Length: 10
 		Tick: 100
 	place:
-		Filename: tentmake
+		Filename: tentmake.shp
 		Start: 12
 	make:
-		Filename: tentmake
+		Filename: tentmake.shp
 		Tick: 1500
 		Length: *
 	dead:
-		Filename: tent
+		Filename: tent.shp
 		Start: 10
 		Length: 1
 		Tick: 800
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	icon:
-		Filename: tenticon
+		Filename: tenticon.shp
 
 tent.husk:
 	Defaults:
 	idle:
-		Filename: tent
+		Filename: tent.shp
 		Start: 10
 		Length: 1
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 barr:
 	Inherits: emp-overlay
 	idle:
-		Filename: barr
+		Filename: barr.shp
 		Length: 10
 		Offset: 0,-6
 		Tick: 100
 	damaged-idle:
-		Filename: barr
+		Filename: barr.shp
 		Start: 10
 		Length: 10
 		Offset: 0,-6
 		Tick: 100
 	place:
-		Filename: barrmake
+		Filename: barrmake.shp
 		Start: 12
 		Offset: 0,-6
 	make:
-		Filename: barrmake
+		Filename: barrmake.shp
 		Tick: 1500
 		Length: *
 		Offset: 0,-6
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	dead:
-		Filename: barr
+		Filename: barr.shp
 		Start: 10
 		Length: 1
 		Offset: 0,-6
 		Tick: 800
 	icon:
-		Filename: barricon
+		Filename: barricon.shp
 
 barr.husk:
 	idle:
-		Filename: barr-dead
+		Filename: barr-dead.shp
 		Start: 0
 		Length: 1
 		Offset: 0,-6
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 kenn:
 	Inherits: emp-overlay
 	idle:
-		Filename: kenn
+		Filename: kenn.shp
 	damaged-idle:
-		Filename: kenn
+		Filename: kenn.shp
 		Start: 1
 	make:
-		Filename: kennmake
+		Filename: kennmake.shp
 		Tick: 1000
 		Length: *
 	bib:
-		Filename: mbSILO
+		TilesetFilenames:
+			SNOW: mbSILO.sno
+			INTERIOR: mbSILO.int
+			TEMPERAT: mbSILO.tem
+			DESERT: mbSILO.des
 		Length: *
 	dead:
-		Filename: kenn
+		Filename: kenn.shp
 		Start: 1
 		Tick: 800
 	icon:
-		Filename: kennicon
+		Filename: kennicon.shp
 
 kenn.husk:
 	idle:
-		Filename: kenn
+		Filename: kenn.shp
 		Start: 1
 		Length: 1
 	bib:
-		Filename: mbSILO
+		TilesetFilenames:
+			SNOW: mbSILO.sno
+			INTERIOR: mbSILO.int
+			TEMPERAT: mbSILO.tem
+			DESERT: mbSILO.des
 		Length: *
 
 weap:
 	Inherits: emp-overlay
 	idle:
-		Filename: weap
+		Filename: weap.shp
 	damaged-idle:
-		Filename: weap
+		Filename: weap.shp
 		Start: 1
 	place:
-		Filename: weapmake
+		Filename: weapmake.shp
 		Start: 14
 	make:
-		Filename: weapmake
+		Filename: weapmake.shp
 		Tick: 2500
 		Length: *
 	build-top:
-		Filename: weap3
+		Filename: weap3.shp
 		Length: 10
 	damaged-build-top:
-		Filename: weap2
+		Filename: weap2.shp
 		Start: 4
 		Length: 4
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	dead:
-		Filename: weap-dead
+		Filename: weap-dead.shp
 		Tick: 800
 	icon:
-		Filename: weapicon
+		Filename: weapicon.shp
 
 weap.husk:
 	idle:
-		Filename: weap2-dead2
+		Filename: weap-dead.shp
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 
 fix:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: fix.shp
 	idle:
-		Filename: fix
 		Offset: 0,1
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: fix
 		Start: 7
 		Offset: 0,1
 		ZOffset: -1c511
 	active:
-		Filename: fix
 		Start: 1
 		Length: 6
 		Offset: 0,1
 		ZOffset: -1c511
 	damaged-active:
-		Filename: fix
 		Start: 8
 		Length: 6
 		Offset: 0,1
 		ZOffset: -1c511
 	make:
-		Filename: fixmake
+		Filename: fixmake.shp
 		Tick: 2000
 		Length: *
 		Offset: 0,1
 	dead:
-		Filename: fix-dead
+		Filename: fix-dead.shp
 		Offset: 0,1
 		Tick: 800
 	none:
-		Filename: blank32
+		Filename: blank32.shp
 		Length: 1
 	bib:
-		Filename: mbFIX
+		TilesetFilenames:
+			SNOW: mbFIX.sno
+			INTERIOR: mbFIX.int
+			TEMPERAT: mbFIX.tem
+			DESERT: mbFIX.des
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
 	icon:
-		Filename: fixicon
+		Filename: fixicon.shp
 
 fix.husk:
 	idle:
-		Filename: fix-dead
+		Filename: fix-dead.shp
 		Start: 0
 		Length: 1
 		Offset: 0,1
 		ZOffset: -1c511
 	bib:
-		Filename: mbFIX
+		TilesetFilenames:
+			SNOW: mbFIX.sno
+			INTERIOR: mbFIX.int
+			TEMPERAT: mbFIX.tem
+			DESERT: mbFIX.des
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
-
 dome:
 	Inherits: emp-overlay
 	idle:
-		Filename: dome
+		Filename: dome.shp
 		Offset: 0,-4
 	damaged-idle:
-		Filename: dome
+		Filename: dome.shp
 		Start: 1
 		Offset: 0,-4
 	make:
-		Filename: domemake
+		Filename: domemake.shp
 		Tick: 2000
 		Length: *
 		Offset: 0,-4
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	dead:
-		Filename: dome
+		Filename: dome.shp
 		Start: 1
 		Tick: 800
 		Offset: 0,-4
 	icon:
-		Filename: domeicon
+		Filename: domeicon.shp
 
 dome.husk:
 	idle:
-		Filename: dome-dead
+		Filename: dome-dead.shp
 		Start: 0
 		Length: 1
 		Offset: 0,-4
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 afld:
 	Inherits: emp-overlay
 	idle:
-		Filename: afldidle
+		Filename: afldidle.shp
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	damaged-idle:
-		Filename: afldidle
+		Filename: afldidle.shp
 		Start: 8
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	active:
-		Filename: afld
+		Filename: afld.shp
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	damaged-active:
-		Filename: afld
+		Filename: afld.shp
 		Start: 8
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	place:
-		Filename: afldmake
+		Filename: afldmake.shp
 		Start: 10
 	make:
-		Filename: afldmake
+		Filename: afldmake.shp
 		Tick: 2000
 		Length: *
 		Offset: 0,-4
 	dead:
-		Filename: afld
+		Filename: afld.shp
 		Start: 8
 		Length: 1
 		ZOffset: -1023
 		Offset: 0,-4
 	icon:
-		Filename: afldicon
+		Filename: afldicon.shp
 
 afld.husk:
 	idle:
-		Filename: afld
+		Filename: afld.shp
 		Start: 8
 		Length: 1
 		Offset: 0,-4
@@ -718,43 +819,47 @@ afld.husk:
 hpad:
 	Inherits: emp-overlay
 	idle:
-		Filename: hpad
+		Filename: hpad.shp
 		ZOffset: -1023
 	damaged-idle:
-		Filename: hpad
+		Filename: hpad.shp
 		Start: 7
 		ZOffset: -1023
 	active:
-		Filename: hpad
+		Filename: hpad.shp
 		Start: 1
 		Length: 6
 		Tick: 100
 		ZOffset: -1023
 	damaged-active:
-		Filename: hpad
+		Filename: hpad.shp
 		Start: 8
 		Length: 6
 		Tick: 100
 		ZOffset: -1023
 	dead:
-		Filename: hpad
+		Filename: hpad.shp
 		Start: 7
 		Length: 1
 		ZOffset: -1023
 	make:
-		Filename: hpadmake
+		Filename: hpadmake.shp
 		Tick: 2000
 		Start: 4
 		Length: *
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	icon:
-		Filename: hpadicon
+		Filename: hpadicon.shp
 
 hpad.husk:
 	idle:
-		Filename: hpad
+		Filename: hpad.shp
 		Start: 7
 		Length: 1
 		ZOffset: -1023
@@ -762,296 +867,334 @@ hpad.husk:
 atek:
 	Inherits: emp-overlay
 	idle:
-		Filename: atek
+		Filename: atek.shp
 	damaged-idle:
-		Filename: atek
+		Filename: atek.shp
 		Start: 1
 	make:
-		Filename: atekmake
+		Filename: atekmake.shp
 		Tick: 2000
 		Length: *
 	active:
-		Filename: sputdoor
+		Filename: sputdoor.shp
 		Length: *
 		Offset: -4,0
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	dead:
-		Filename: atek-dead
+		Filename: atek-dead.shp
 		Tick: 800
 	none:
-		Filename: blank32
+		Filename: blank32.shp
 		Length: 1
 	icon:
-		Filename: sproicon
+		Filename: sproicon.shp
 
 atek.husk:
 	idle:
-		Filename: atek-dead
+		Filename: atek-dead.shp
 
 ateknew:
 	Inherits: emp-overlay
 	idle:
-		Filename: atek2
+		Filename: atek2.shp
 	damaged-idle:
-		Filename: atek2
+		Filename: atek2.shp
 		Start: 1
 	make:
-		Filename: atek2make
+		Filename: atek2make.shp
 		Tick: 2000
 		Length: *
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	dead:
-		Filename: atek2
+		Filename: atek2.shp
 		Start: 1
 		Tick: 800
 	icon:
-		Filename: ateknewicon
+		Filename: ateknewicon.shp
 
 ateknew.husk:
 	idle:
-		Filename: atek2
+		Filename: atek2.shp
 		Start: 1
 
 stek:
 	Inherits: emp-overlay
 	idle:
-		Filename: stek
+		Filename: stek.shp
 	damaged-idle:
-		Filename: stek
+		Filename: stek.shp
 		Start: 1
 	make:
-		Filename: stekmake
+		Filename: stekmake.shp
 		Tick: 2000
 		Length: *
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	dead:
-		Filename: stek-dead
+		Filename: stek-dead.shp
 		Tick: 800
 	none:
-		Filename: blank32
+		Filename: blank32.shp
 		Length: 1
 	icon:
-		Filename: stekicon
+		Filename: stekicon.shp
 
 stek.husk:
 	idle:
-		Filename: stek-dead
+		Filename: stek-dead.shp
 		Start: 0
 		Length: 1
 
 syrd:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: syrd.shp
 	idle:
-		Filename: syrd
 	damaged-idle:
-		Filename: syrd
 		Start: 1
 	make:
-		Filename: syrdmake
+		Filename: syrdmake.shp
 		Tick: 20 #00
 		Length: *
 	dead:
-		Filename: dead
 		Start: 1
 		Offset: 0,2
 		Tick: 800
 	icon:
-		Filename: syrdicon
+		Filename: syrdicon.shp
 
 syrd.husk:
 	idle:
-		Filename: syrd
+		Filename: syrd.shp
 		Start: 1
 		Offset: 0,2
 
 spen:
 	Inherits: emp-overlay
 	idle:
-		Filename: spen
+		Filename: spen.shp
 		Offset: 0,2
 	damaged-idle:
-		Filename: spen
+		Filename: spen.shp
 		Start: 1
 		Offset: 0,2
 	make:
-		Filename: spenmake
+		Filename: spenmake.shp
 		Tick: 2000
 		Length: *
 		Offset: 0,2
 	dead:
-		Filename: spen
+		Filename: spen.shp
 		Start: 1
 		Offset: 0,2
 		Tick: 800
 	icon:
-		Filename: spenicon
+		Filename: spenicon.shp
 
 spen.husk:
 	idle:
-		Filename: spen
+		Filename: spen.shp
 		Start: 1
 		Offset: 0,2
 
 orep:
 	Inherits: emp-overlay
 	idle:
-		Filename: orep
+		Filename: orep.shp
 	damaged-idle:
-		Filename: orep
+		Filename: orep.shp
 		Start: 1
 	make:
-		Filename: orepmake
+		Filename: orepmake.shp
 		Tick: 2000
 		Length: *
 	dead:
-		Filename: orep
+		Filename: orep.shp
 		Start: 1
 		Tick: 800
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	icon:
-		Filename: orepicon
+		Filename: orepicon.shp
 
 indp:
 	Inherits: emp-overlay
 	idle:
-		Filename: indp
+		Filename: indp.shp
 		Length: 4
 		Tick: 200
 		Offset: 0,-10
 	damaged-idle:
-		Filename: indp
+		Filename: indp.shp
 		Start: 4
 		Length: 4
 		Tick: 200
 		Offset: 0,-10
 	make:
-		Filename: indpmake
+		Filename: indpmake.shp
 		Tick: 2000
 		Length: *
 		Offset: 0,-10
 	place:
-		Filename: indpmake
+		Filename: indpmake.shp
 		Start: 20
 		Length: 1
 		Offset: 0,-10
 	dead:
-		Filename: indp
+		Filename: indp.shp
 		Start: 4
 		Tick: 800
 		Offset: 0,-10
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	icon:
-		Filename: indpicon
+		Filename: indpicon.shp
 
 rresf:
 	Inherits: emp-overlay
 	idle:
-		Filename: rresf
+		Filename: rresf.shp
 	damaged-idle:
-		Filename: rresf
+		Filename: rresf.shp
 		Start: 1
 	dead:
-		Filename: rresf
+		Filename: rresf.shp
 		Start: 1
 		Tick: 800
 	make:
-		Filename: rresf-make
+		Filename: rresf-make.shp
 		Tick: 2000
 		Length: *
 	bib:
-		Filename: bib2
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
 		Length: *
 	icon:
-		Filename: rresficon
+		Filename: rresficon.shp
 
 fcom:
 	idle:
-		Filename: fcom
+		Filename: fcom.shp
 	damaged-idle:
-		Filename: fcom
+		Filename: fcom.shp
 		Start: 1
 	make:
-		Filename: fcommake
+		Filename: fcommake.shp
 		Tick: 2000
 		Length: *
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 fcom.husk:
 	idle:
-		Filename: fcom
+		Filename: fcom.shp
 		Start: 1
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 pyle:
 	Inherits: emp-overlay
 	idle:
-		Filename: pyle
+		Filename: pyle.shp
 		Length: 10
 		Tick: 100
 	damaged-idle:
-		Filename: pyle
+		Filename: pyle.shp
 		Start: 10
 		Length: 10
 		Tick: 100
 	dead:
-		Filename: pyle
+		Filename: pyle.shp
 		Start: 20
 		Tick: 800
 	place:
-		Filename: pylemake
+		Filename: pylemake.shp
 		Start: 19
 	make:
-		Filename: pylemake
+		Filename: pylemake.shp
 		Tick: 1500
 		Length: *
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 	icon:
-		Filename: pyleicon
+		Filename: pyleicon.shp
 
 pyle.husk:
 	idle:
-		Filename: pyle
+		Filename: pyle.shp
 		Start: 20
 	bib:
-		Filename: bib3
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
+		Offset: 0,0
 
 pdox:
 	Inherits: emp-overlay
 	idle:
-		Filename: pdox
+		Filename: pdox.shp
 	damaged-idle:
-		Filename: pdox
+		Filename: pdox.shp
 		Start: 29
 	active:
-		Filename: pdox
+		Filename: pdox.shp
 		Length: 29
 	damaged-active:
-		Filename: pdox
+		Filename: pdox.shp
 		Start: 29
 		Length: 29
 	make:
-		Filename: pdoxmake
+		Filename: pdoxmake.shp
 		Length: *
 	bib:
-		Filename: mbPDOX
+		TilesetFilenames:
+			SNOW: mbPDOX.sno
+			INTERIOR: mbPDOX.int
+			TEMPERAT: mbPDOX.tem
+			DESERT: mbPDOX.des
 		Length: *
 		Offset: 0,-4
 	icon:
-		Filename: pdoxicon
+		Filename: pdoxicon.shp

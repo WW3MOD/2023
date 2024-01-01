@@ -5,11 +5,14 @@ acom:
 		Filename: acom.shp
 		Start: 1
 	make:
-		Filename: acommake
+		Filename: acommake.shp
 		Length: *
 		Tick: 80
 	bib:
-		Filename: bib3.shp
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
 
 acom.husk:
@@ -17,7 +20,10 @@ acom.husk:
 		Filename: acom.shp
 		Start: 1
 	bib:
-		Filename: bib3.shp
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
 
 hosp:
@@ -40,7 +46,11 @@ hosp:
 		Length: *
 		Tick: 80
 	bib:
-		Filename: mbHOSP.shp
+		TilesetFilenames:
+			SNOW: mbHOSP.sno
+			INTERIOR: mbHOSP.int
+			TEMPERAT: mbHOSP.tem
+			DESERT: mbHOSP.des
 		Length: *
 		Offset: 0,1
 	icon:
@@ -51,7 +61,10 @@ hosp.husk:
 		Filename: hosp.shp
 		Start: 8
 	bib:
-		Filename: bib3.shp
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
 
 bio:
@@ -108,7 +121,14 @@ miss:
 		Length: *
 		Tick: 80
 	bib:
-		Filename: bib2.shp
+		Filename: bib2.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des.tem
+		TilesetFilenames:
+			SNOW: bib2.sno
+			DESERT: bib2.des
+		Length: *
 		Length: *
 
 miss.husk:
@@ -128,7 +148,10 @@ oilb:
 	make:
 		Filename: oilb.shp
 	bib:
-		Filename: bib3.shp
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
 		Offset: 0,0
 
@@ -140,6 +163,9 @@ oilb.husk:
 		Start: 1
 		Length: *
 	bib:
-		Filename: bib3.shp
+		Filename: bib3.tem
+		TilesetFilenames:
+			SNOW: bib3.sno
+			DESERT: bib3.des
 		Length: *
 		Offset: 0,0
