@@ -1,157 +1,214 @@
 lst:
 	Inherits: emp-overlay
 	idle:
+		Filename: lst.shp
 	open:
+		Filename: lst.shp
 		Start: 1
 		Length: 4
 		Tick: 150
 	close:
+		Filename: lst.shp
 		Frames: 4, 3, 2, 1
 		Length: 4
 		Tick: 150
 	unload:
+		Filename: lst.shp
 		Start: 4
 		ZOffset: -511
-	icon: lsticon
+	icon: 
+		Filename: lsticon.shp
 
 pt:
 	Inherits: emp-overlay
 	idle:
+		Filename: pt.shp
 		Facings: 16
-	turret: pttur
+	turret: 
+		Filename: pttur.shp
 		Facings: 32
-	turret-mg: mgun
+	turret-mg: 
+		Filename: mgun.shp
 		Facings: 32
-	muzzle: gunfire2
+	muzzle: 
+		Filename: gunfire2.shp
 		Length: 5
-	muzzle-mg: minigun
+	muzzle-mg: 
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: pticon
+	icon:
+		Filename: pticon.shp
 
 ascr:
 	Inherits: emp-overlay
 	idle:
+		Filename: ascr.shp
 		Facings: 32
 		UseClassicFacingFudge: True
-	turret: mgun
+	turret: 
+		Filename: mgun.shp
 		Facings: 32
 		UseClassicFacingFudge: True
 	muzzle: gunfire2
+		Filename: gunfire2.shp
 		Length: 5
-	icon: glaboaticon
-
+	icon: 
+		Filename: glaboaticon.shp
+	
 ptrb:
 	Inherits: emp-overlay
 	idle:
+		Filename: ptrb.shp
 		Facings: 32
-	turret: pttur
+	turret: 
+		Filename: pttur.shp
 		Facings: 32
-	turret-mg: apc-tur3 # mgun
+	turret-mg:  # mgun
+		Filename: apc-tur3.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle: 
+		Filename: gunfire2.shp
 		Length: 2
-	muzzle-mg: minigun
+	muzzle-mg:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: pticon
-
+	icon:
+		Filename: pticon.shp
+	
 fac:
 	Inherits: emp-overlay
 	idle:
+		Filename: fac.shp
 		Facings: 32
-	turret: pttur
+	turret:
+		Filename: pttur.shp
 		Facings: 32
-	turret-mg: apc-tur3
+	turret-mg: 
+		Filename: apc-tur3.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle: 
+		Filename: gunfire2.shp
 		Length: 2
-	muzzle-mg: minigun
+	muzzle-mg: 
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: ddicon
+	icon: 
+		Filename: ddicon.shp
 
 fac2:
 	Inherits: emp-overlay
 	idle:
+		Filename: fac2.shp
 		Facings: 16
-	turret: pttur
+	turret: 
+		Filename: pttur.shp
 		Facings: 32
-	turret-mg: apc-tur3
+	turret-mg: 
+		Filename: apc-tur3.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle: 
+		Filename: gunfire2.shp
 		Length: 2
-	muzzle-mg: minigun
+	muzzle-mg: 
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: ddicon
+	icon:
+		Filename: ddicon.shp
 
 corv:
 	Inherits: emp-overlay
 	idle:
+		Filename: corv.shp
 		Facings: 32
-	turret: pttur
+	turret:
+		Filename: pttur.shp
 		Facings: 32
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 5
-	turret-mg: apc-tur3
+	turret-mg: 
+		Filename: apc-tur3.shp
 		Facings: 32
-	muzzle-mg: minigun
+	muzzle-mg: 
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: bshpicon
+	icon:
+		Filename: bshpicon.shp
 
 corv2:
 	Inherits: emp-overlay
-	idle: corv2
+	idle: 
+		Filename: corv2.shp
 		Facings: 16
-	turret: pttur
+	turret:
+		Filename: pttur.shp
 		Facings: 32
-	muzzle: gunfire2
+	muzzle: 
+		Filename: gunfire2.shp
 		Length: 5
-	turret-mg: mgun
+	turret-mg: 
+		Filename: mgun.shp
 		Facings: 32
-	muzzle-mg: minigun
+	muzzle-mg: 
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: bshpicon
+	icon:
+		Filename: bshpicon.shp
 
 ss:
 	Inherits: emp-overlay
 	idle:
+		Filename: ss.shp
 		Facings: 16
-	turret: jeep
+	turret:
+		Filename: jeep.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
-	muzzle: gunfire2
+	muzzle: 
+		Filename: gunfire2.shp
 		Length: 2
-	icon: ssicon
+	icon: 
+		Filename: ssicon.shp
 
 msub:
 	Inherits: emp-overlay
 	idle:
+		Filename: msub.shp
 		Facings: 16
-	turret: ssam-mini
+	turret: 
+		Filename: ssam-mini.shp
 		Facings: 32
 		UseClassicFacingFudge: True
-	icon: ssubicon
+	icon: s
+		Filename: ssubicon.shp
 
 nsub:
 	Inherits: emp-overlay
 	idle:
+		Filename: nsub.shp
 		Facings: 16
-	icon: nsubicon
+	icon:
+		Filename: nsubicon.shp
 
 advmsub:
 	Inherits: emp-overlay
 	idle:
+		Filename: advmsub.shp
 		Facings: 16
 	move:
+		Filename: advmsub.shp
 		Start: 16
 		Length: 8
 		Facings: 16
-	icon: msubicon
+	icon: 
+		Filename: msubicon.shp
