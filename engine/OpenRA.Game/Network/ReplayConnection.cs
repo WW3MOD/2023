@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,14 +18,14 @@ namespace OpenRA.Network
 {
 	public sealed class ReplayConnection : IConnection
 	{
-		class Chunk
+		sealed class Chunk
 		{
 			public int Frame;
 			public (int ClientId, byte[] Packet)[] Packets;
 		}
 
-		readonly Queue<Chunk> chunks = new Queue<Chunk>();
-		readonly Queue<(int Frame, int SyncHash, ulong DefeatState)> sync = new Queue<(int, int, ulong)>();
+		readonly Queue<Chunk> chunks = new();
+		readonly Queue<(int Frame, int SyncHash, ulong DefeatState)> sync = new();
 		readonly int orderLatency;
 
 		public readonly int TickCount;

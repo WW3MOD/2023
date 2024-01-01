@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,7 +22,7 @@ namespace OpenRA.Graphics
 		public string Name { get; private set; }
 		public bool IsDecoration { get; set; }
 
-		readonly SequenceProvider sequenceProvider;
+		readonly SequenceSet sequences;
 		readonly Func<WAngle> facingFunc;
 		readonly Func<bool> paused;
 
@@ -30,7 +30,7 @@ namespace OpenRA.Graphics
 		bool backwards;
 		bool tickAlways;
 		int timeUntilNextFrame;
-		Action tickFunc = () => { };
+		Action tickFunc;
 
 		public Animation(World world, string name)
 			: this(world, name, () => WAngle.Zero) { }
@@ -43,7 +43,7 @@ namespace OpenRA.Graphics
 
 		public Animation(World world, string name, Func<WAngle> facingFunc, Func<bool> paused)
 		{
-			sequenceProvider = world.Map.Rules.Sequences;
+			sequences = world.Map.Sequences;
 			Name = name.ToLowerInvariant();
 			this.facingFunc = facingFunc;
 			this.paused = paused;
@@ -61,7 +61,8 @@ namespace OpenRA.Graphics
 			var imageRenderable = new SpriteRenderable(image, pos, offset, CurrentSequence.ZOffset + zOffset, palette, CurrentSequence.Scale * scale, alpha, float3.Ones, tintModifiers, IsDecoration,
 				rotation);
 
-			if (CurrentSequence.ShadowStart >= 0)
+			var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
+			if (shadow != null)
 			{
 				var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
 				var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, CurrentSequence.Scale * scale, 1f, float3.Ones, tintModifiers,
@@ -80,9 +81,9 @@ namespace OpenRA.Graphics
 			var alpha = CurrentSequence.GetAlpha(CurrentFrame);
 			var imageRenderable = new UISpriteRenderable(Image, WPos.Zero + offset, imagePos, CurrentSequence.ZOffset + zOffset, palette, scale, alpha, rotation);
 
-			if (CurrentSequence.ShadowStart >= 0)
+			var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
+			if (shadow != null)
 			{
-				var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
 				var shadowPos = pos - new int2((int)(scale * shadow.Size.X / 2), (int)(scale * shadow.Size.Y / 2));
 				var shadowRenderable = new UISpriteRenderable(shadow, WPos.Zero + offset, shadowPos, CurrentSequence.ShadowZOffset + zOffset, palette, scale, 1f, rotation);
 				return new IRenderable[] { shadowRenderable, imageRenderable };
@@ -188,7 +189,7 @@ namespace OpenRA.Graphics
 				if (frame >= CurrentSequence.Length)
 				{
 					frame = CurrentSequence.Length - 1;
-					tickFunc = () => { };
+					tickFunc = null;
 					after?.Invoke();
 				}
 			};
@@ -236,13 +237,13 @@ namespace OpenRA.Graphics
 		public void Tick(int t)
 		{
 			if (tickAlways)
-				tickFunc();
+				tickFunc?.Invoke();
 			else
 			{
 				timeUntilNextFrame -= t;
 				while (timeUntilNextFrame <= 0)
 				{
-					tickFunc();
+					tickFunc?.Invoke();
 					timeUntilNextFrame += CurrentSequenceTickOrDefault();
 				}
 			}
@@ -260,11 +261,11 @@ namespace OpenRA.Graphics
 			}
 		}
 
-		public bool HasSequence(string seq) { return sequenceProvider.HasSequence(Name, seq); }
+		public bool HasSequence(string seq) { return sequences.HasSequence(Name, seq); }
 
 		public ISpriteSequence GetSequence(string sequenceName)
 		{
-			return sequenceProvider.GetSequence(Name, sequenceName);
+			return sequences.GetSequence(Name, sequenceName);
 		}
 
 		public string GetRandomExistingSequence(string[] sequences, MersenneTwister random)

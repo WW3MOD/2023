@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+   Copyright (c) The OpenRA Developers and Contributors
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -100,6 +100,7 @@ GroundWavesDelays =
 	normal = 3,
 	hard = 2
 }
+GroundWavesDelay = GroundWavesDelays[Difficulty]
 
 GroundWaves = function()
 	if not ForwardCommand.IsDead then
@@ -107,7 +108,7 @@ GroundWaves = function()
 		local units = Reinforcements.Reinforce(BadGuy, Utils.Random(GroundAttackUnits), path)
 		Utils.Do(units, IdleHunt)
 
-		Trigger.AfterDelay(DateTime.Minutes(GroundWavesDelays), GroundWaves)
+		Trigger.AfterDelay(DateTime.Minutes(GroundWavesDelay), GroundWaves)
 	end
 end
 
@@ -132,8 +133,6 @@ ProduceAircraft = function()
 end
 
 ActivateAI = function()
-	GroundWavesDelays = GroundWavesDelays[Difficulty]
-
 	local buildings = Utils.Where(Map.ActorsInWorld, function(self) return self.Owner == USSR and self.HasProperty("StartBuildingRepairs") end)
 	Utils.Do(buildings, function(actor)
 		Trigger.OnDamaged(actor, function(building)
@@ -146,6 +145,6 @@ ActivateAI = function()
 	ProduceBadGuyInfantry()
 	ProduceUSSRInfantry()
 	ProduceVehicles()
-	Trigger.AfterDelay(DateTime.Minutes(GroundWavesDelays), GroundWaves)
+	Trigger.AfterDelay(DateTime.Minutes(GroundWavesDelay), GroundWaves)
 	Trigger.AfterDelay(DateTime.Minutes(5), ProduceAircraft)
 end

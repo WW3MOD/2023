@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,16 +19,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class GameTimerLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string Paused = "paused";
+		const string Paused = "label-paused";
 
 		[TranslationReference]
-		static readonly string MaxSpeed = "max-speed";
+		const string MaxSpeed = "label-max-speed";
 
 		[TranslationReference("percentage")]
-		static readonly string Speed = "speed";
+		const string Speed = "label-replay-speed";
 
 		[TranslationReference("percentage")]
-		static readonly string Complete = "complete";
+		const string Complete = "label-replay-complete";
 
 		[ObjectCreator.UseCtor]
 		public GameTimerLogic(Widget widget, ModData modData, OrderManager orderManager, World world)
@@ -38,21 +38,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var tlm = world.WorldActor.TraitOrDefault<TimeLimitManager>();
 			var startTick = Ui.LastTickTime.Value;
 
-			Func<bool> shouldShowStatus = () => (world.Paused || world.ReplayTimestep != world.Timestep)
+			bool ShouldShowStatus() => (world.Paused || world.ReplayTimestep != world.Timestep)
 				&& (Ui.LastTickTime.Value - startTick) / 1000 % 2 == 0;
 
-			Func<bool> paused = () => world.Paused || world.ReplayTimestep == 0;
+			bool Paused() => world.Paused || world.ReplayTimestep == 0;
 
-			var pausedText = modData.Translation.GetString(Paused);
-			var maxSpeedText = modData.Translation.GetString(MaxSpeed);
+			var pausedText = TranslationProvider.GetString(GameTimerLogic.Paused);
+			var maxSpeedText = TranslationProvider.GetString(MaxSpeed);
 			var speedText = new CachedTransform<int, string>(p =>
-					modData.Translation.GetString(Speed, Translation.Arguments("percentage", p)));
+					TranslationProvider.GetString(Speed, Translation.Arguments("percentage", p)));
 
 			if (timer != null)
 			{
 				timer.GetText = () =>
 				{
-					if (status == null && paused() && shouldShowStatus())
+					if (status == null && Paused() && ShouldShowStatus())
 						return pausedText;
 
 					var timeLimit = tlm?.TimeLimit ?? 0;
@@ -64,10 +64,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (status != null)
 			{
 				// Blink the status line
-				status.IsVisible = shouldShowStatus;
+				status.IsVisible = ShouldShowStatus;
 				status.GetText = () =>
 				{
-					if (paused())
+					if (Paused())
 						return pausedText;
 
 					if (world.ReplayTimestep == 1)
@@ -78,7 +78,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			var timerText = new CachedTransform<int, string>(p =>
-				modData.Translation.GetString(Complete, Translation.Arguments("percentage", p)));
+				TranslationProvider.GetString(Complete, Translation.Arguments("percentage", p)));
 			if (timer is LabelWithTooltipWidget timerTooltip)
 			{
 				var connection = orderManager.Connection as ReplayConnection;

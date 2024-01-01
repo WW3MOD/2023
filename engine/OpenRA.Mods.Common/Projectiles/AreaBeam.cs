@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -34,13 +34,13 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly int DamageInterval = 3;
 
 		[Desc("The width of the beam.")]
-		public readonly WDist Width = new WDist(512);
+		public readonly WDist Width = new(512);
 
 		[Desc("The shape of the beam.  Accepts values Cylindrical or Flat.")]
 		public readonly BeamRenderableShape Shape = BeamRenderableShape.Cylindrical;
 
 		[Desc("How far beyond the target the projectile keeps on travelling.")]
-		public readonly WDist BeyondTargetRange = new WDist(0);
+		public readonly WDist BeyondTargetRange = new(0);
 
 		[Desc("The minimum distance the beam travels.")]
 		public readonly WDist MinDistance = WDist.Zero;

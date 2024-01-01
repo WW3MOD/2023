@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,20 +16,20 @@ using System.Text;
 
 namespace OpenRA.Platforms.Default
 {
-	class Shader : ThreadAffine, IShader
+	sealed class Shader : ThreadAffine, IShader
 	{
 		public const int VertexPosAttributeIndex = 0;
 		public const int TexCoordAttributeIndex = 1;
 		public const int TexMetadataAttributeIndex = 2;
 		public const int TintAttributeIndex = 3;
 
-		readonly Dictionary<string, int> samplers = new Dictionary<string, int>();
-		readonly Dictionary<int, int> legacySizeUniforms = new Dictionary<int, int>();
-		readonly Dictionary<int, ITexture> textures = new Dictionary<int, ITexture>();
-		readonly Queue<int> unbindTextures = new Queue<int>();
+		readonly Dictionary<string, int> samplers = new();
+		readonly Dictionary<int, int> legacySizeUniforms = new();
+		readonly Dictionary<int, ITexture> textures = new();
+		readonly Queue<int> unbindTextures = new();
 		readonly uint program;
 
-		protected uint CompileShaderObject(int type, string name)
+		static uint CompileShaderObject(int type, string name)
 		{
 			var ext = type == OpenGL.GL_VERTEX_SHADER ? "vert" : "frag";
 			var filename = Path.Combine(Platform.EngineDir, "glsl", name + "." + ext);
@@ -59,7 +59,7 @@ namespace OpenRA.Platforms.Default
 				var log = new StringBuilder(len);
 				OpenGL.glGetShaderInfoLog(shader, len, out _, log);
 
-				Log.Write("graphics", "GL Info Log:\n{0}", log.ToString());
+				Log.Write("graphics", $"GL Info Log:\n{log}");
 				throw new InvalidProgramException($"Compile error in shader object '{filename}'");
 			}
 
@@ -105,7 +105,7 @@ namespace OpenRA.Platforms.Default
 
 				var log = new StringBuilder(len);
 				OpenGL.glGetProgramInfoLog(program, len, out _, log);
-				Log.Write("graphics", "GL Info Log:\n{0}", log.ToString());
+				Log.Write("graphics", $"GL Info Log:\n{log}");
 				throw new InvalidProgramException($"Link error in shader program '{name}'");
 			}
 

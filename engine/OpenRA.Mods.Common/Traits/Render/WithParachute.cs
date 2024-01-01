@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public readonly bool IsPlayerPalette = true;
 
 		[Desc("Parachute position relative to the paradropped unit.")]
-		public readonly WVec Offset = new WVec(0, 0, 384);
+		public readonly WVec Offset = new(0, 0, 384);
 
 		[Desc("The image that contains the shadow sequence for the paradropped unit.")]
 		public readonly string ShadowImage = null;
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public readonly Color ShadowColor = Color.FromArgb(140, 0, 0, 0);
 
 		[Desc("Shadow position relative to the paradropped unit's intended landing position.")]
-		public readonly WVec ShadowOffset = new WVec(0, 128, 0);
+		public readonly WVec ShadowOffset = new(0, 128, 0);
 
 		[Desc("Z-offset to apply on the shadow sequence.")]
 		public readonly int ShadowZOffset = 0;
@@ -90,15 +90,15 @@ namespace OpenRA.Mods.Common.Traits.Render
 			anim.PlayThen(OpeningSequence, () => anim.PlayRepeating(Sequence));
 
 			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
-			Func<WRot> orientation = () => body.QuantizeOrientation(WRot.FromYaw(facing()), facings);
-			Func<WVec> offset = () => body.LocalToWorld(Offset.Rotate(orientation()));
-			Func<int> zOffset = () =>
+			WRot Orientation() => body.QuantizeOrientation(WRot.FromYaw(facing()), facings);
+			WVec Offset() => body.LocalToWorld(this.Offset.Rotate(Orientation()));
+			int ZOffset()
 			{
-				var tmpOffset = offset();
+				var tmpOffset = Offset();
 				return tmpOffset.Y + tmpOffset.Z + 1;
-			};
+			}
 
-			yield return new SpriteActorPreview(anim, offset, zOffset, p);
+			yield return new SpriteActorPreview(anim, Offset, ZOffset, p);
 		}
 	}
 

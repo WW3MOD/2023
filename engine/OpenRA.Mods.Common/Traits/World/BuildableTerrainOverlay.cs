@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Sprite definition.")]
 		public readonly string Image = "overlay";
 
-		[SequenceReference("Image")]
+		[SequenceReference(nameof(Image))]
 		[Desc("Sequence to use for unbuildable area.")]
 		public readonly string Sequence = "build-invalid";
 
@@ -47,6 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly BuildableTerrainOverlayInfo info;
 		readonly World world;
 		readonly Sprite disabledSprite;
+		readonly float disabledSpriteScale;
 
 		public bool Enabled = false;
 		TerrainSpriteLayer render;
@@ -59,8 +60,9 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			world = self.World;
 
-			var rules = self.World.Map.Rules;
-			disabledSprite = rules.Sequences.GetSequence(info.Image, info.Sequence).GetSprite(0);
+			var spriteSequence = self.World.Map.Sequences.GetSequence(info.Image, info.Sequence);
+			disabledSprite = spriteSequence.GetSprite(0);
+			disabledSpriteScale = spriteSequence.Scale;
 		}
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
@@ -86,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var buildableSprite = !info.AllowedTerrainTypes.Contains(world.Map.GetTerrainInfo(cell).Type) || world.Map.Ramp[cell] != 0 ? disabledSprite : null;
-			render.Update(cell, buildableSprite, palette, 1f, info.Alpha);
+			render.Update(cell, buildableSprite, palette, disabledSpriteScale, info.Alpha);
 		}
 
 		void IRenderAboveWorld.RenderAboveWorld(Actor self, WorldRenderer wr)

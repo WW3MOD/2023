@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 		[ActorReference(dictionaryReference: LintDictionaryReference.Keys)]
 		[Desc("Conditions to grant when a specified actor is being carried.",
 			"A dictionary of [actor name]: [condition].")]
-		public readonly Dictionary<string, string> CarryableConditions = new Dictionary<string, string>();
+		public readonly Dictionary<string, string> CarryableConditions = new();
 
 		[VoiceReference]
 		public readonly string Voice = "Action";
@@ -111,7 +111,7 @@ namespace OpenRA.Mods.Common.Traits
 		int carryConditionToken = Actor.InvalidConditionToken;
 		int carryableConditionToken = Actor.InvalidConditionToken;
 
-		/// <summary>Offset between the carryall's and the carried actor's CenterPositions</summary>
+		/// <summary>Offset between the carryall's and the carried actor's CenterPositions.</summary>
 		public WVec CarryableOffset { get; private set; }
 
 		public Carryall(Actor self, CarryallInfo info)
@@ -142,13 +142,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			// Cargo may be killed in the same tick as, but after they are attached
-			if (Carryable != null && Carryable.IsDead)
+			// Cargo may be killed in the same tick as, but after they are attached.
+			if (State == CarryallState.Carrying && (Carryable == null || Carryable.IsDead))
 				DetachCarryable(self);
 
 			// HACK: We don't have an efficient way to know when the preview
 			// bounds change, so assume that we need to update the screen map
-			// (only) when the facing changes
+			// (only) when the facing changes.
 			if (facing.Facing != cachedFacing && carryablePreview != null)
 			{
 				self.World.ScreenMap.AddOrUpdate(self);
@@ -382,7 +382,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class CarryallPickupOrderTargeter : UnitOrderTargeter
+		sealed class CarryallPickupOrderTargeter : UnitOrderTargeter
 		{
 			public CarryallPickupOrderTargeter(CarryallInfo info)
 				: base("PickupUnit", 5, info.PickUpCursor, false, true)
@@ -415,14 +415,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class CarryallDeliverUnitTargeter : IOrderTargeter
+		sealed class CarryallDeliverUnitTargeter : IOrderTargeter
 		{
 			readonly AircraftInfo aircraftInfo;
 			readonly CarryallInfo info;
 
 			public string OrderID => "DeliverUnit";
 			public int OrderPriority => 6;
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
 			public CarryallDeliverUnitTargeter(AircraftInfo aircraftInfo, CarryallInfo info)

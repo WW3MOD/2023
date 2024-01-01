@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,7 +22,7 @@ namespace OpenRA
 	public readonly struct WAngle : IScriptBindable, ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, IEquatable<WAngle>
 	{
 		public readonly int Angle;
-		public int AngleSquared => (int)Angle * Angle;
+		public int AngleSquared => Angle * Angle;
 
 		public WAngle(int a)
 		{
@@ -31,7 +31,7 @@ namespace OpenRA
 				Angle += 1024;
 		}
 
-		public static readonly WAngle Zero = new WAngle(0);
+		public static readonly WAngle Zero = new(0);
 		public static WAngle FromFacing(int facing) { return new WAngle(facing * 4); }
 		public static WAngle FromDegrees(int degrees) { return new WAngle(degrees * 1024 / 360); }
 		public static WAngle operator *(WAngle a, int b) { return new WAngle(a.Angle * b); }
@@ -54,7 +54,7 @@ namespace OpenRA
 		public override int GetHashCode() { return Angle.GetHashCode(); }
 
 		public bool Equals(WAngle other) { return other == this; }
-		public override bool Equals(object obj) { return obj is WAngle && Equals((WAngle)obj); }
+		public override bool Equals(object obj) { return obj is WAngle angle && Equals(angle); }
 
 		public int Facing => Angle / 4;
 
@@ -112,7 +112,7 @@ namespace OpenRA
 
 		/// <summary>
 		/// Find the index of CosineTable that has the value closest to the given value.
-		/// The first or last index will be returned for values above or below the valid range
+		/// The first or last index will be returned for values above or below the valid range.
 		/// </summary>
 		static int ClosestCosineIndex(int value)
 		{

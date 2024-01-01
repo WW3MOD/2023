@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,21 +17,21 @@ namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
 	[Desc("Palette effect used for sprinkle \"animations\".")]
-	class RotationPaletteEffectInfo : TraitInfo
+	sealed class RotationPaletteEffectInfo : TraitInfo
 	{
 		[Desc("Defines to which palettes this effect should be applied to.",
 			"If none specified, it applies to all palettes not explicitly excluded.")]
-		public readonly HashSet<string> Palettes = new HashSet<string>();
+		public readonly HashSet<string> Palettes = new();
 
 		[Desc("Defines for which tileset IDs this effect should be loaded.",
 			"If none specified, it applies to all tileset IDs not explicitly excluded.")]
-		public readonly HashSet<string> Tilesets = new HashSet<string>();
+		public readonly HashSet<string> Tilesets = new();
 
 		[Desc("Defines which palettes should be excluded from this effect.")]
-		public readonly HashSet<string> ExcludePalettes = new HashSet<string>();
+		public readonly HashSet<string> ExcludePalettes = new();
 
 		[Desc("Don't apply the effect for these tileset IDs.")]
-		public readonly HashSet<string> ExcludeTilesets = new HashSet<string>();
+		public readonly HashSet<string> ExcludeTilesets = new();
 
 		[Desc("Palette index of first RotationRange color.")]
 		public readonly int RotationBase = 0x60;
@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new RotationPaletteEffect(init.World, this); }
 	}
 
-	class RotationPaletteEffect : ITick, IPaletteModifier
+	sealed class RotationPaletteEffect : ITick, IPaletteModifier
 	{
 		readonly RotationPaletteEffectInfo info;
 		readonly uint[] rotationBuffer;

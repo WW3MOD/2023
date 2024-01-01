@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			var tab = tabContainer.Get<ButtonWidget>(buttonId);
 			tab.IsHighlighted = () => menuType == tabType;
-			tab.OnClick = () => { menuType = tabType; };
+			tab.OnClick = () => menuType = tabType;
 
 			var container = widget.Parent.Get<ContainerWidget>(tabId);
 			container.IsVisible = () => menuType == tabType;

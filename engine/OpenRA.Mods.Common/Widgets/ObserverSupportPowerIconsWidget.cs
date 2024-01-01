@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,8 +41,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public string ClockPalette = "chrome";
 		public Func<Player> GetPlayer;
 
-		readonly List<SupportPowersWidget.SupportPowerIcon> supportPowerIconsIcons = new List<SupportPowersWidget.SupportPowerIcon>();
-		readonly List<Rectangle> supportPowerIconsBounds = new List<Rectangle>();
+		readonly List<SupportPowersWidget.SupportPowerIcon> supportPowerIconsIcons = new();
+		readonly List<Rectangle> supportPowerIconsBounds = new();
 		Animation icon;
 		int lastIconIdx;
 		int currentTooltipToken;

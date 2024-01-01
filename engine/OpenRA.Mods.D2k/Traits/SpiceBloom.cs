@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.D2k.Traits
 		public readonly string ResourceType = "Spice";
 
 		[Desc("Spice blooms only grow on these terrain types.")]
-		public readonly HashSet<string> GrowthTerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> GrowthTerrainTypes = new();
 
 		[Desc("The weapon to use for spice creation.")]
 		[WeaponReference]

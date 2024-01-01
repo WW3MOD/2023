@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,7 @@ using OpenRA.Mods.Common.FileFormats;
 
 namespace OpenRA.Mods.Cnc.UtilityCommands
 {
-	class ImportLegacySequenceCommand : IUtilityCommand
+	sealed class ImportLegacySequenceCommand : IUtilityCommand
 	{
 		bool IUtilityCommand.ValidateArguments(string[] args)
 		{
@@ -252,7 +252,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			Console.WriteLine();
 		}
 
-		void ConvertStartLengthFacings(string input)
+		static void ConvertStartLengthFacings(string input)
 		{
 			var splitting = input.Split(',');
 			if (splitting.Length >= 3)

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,11 +36,11 @@ namespace OpenRA.Mods.Common.Widgets
 			var cancelButton = prompt.GetOrNull<ButtonWidget>("CANCEL_BUTTON");
 			var otherButton = prompt.GetOrNull<ButtonWidget>("OTHER_BUTTON");
 
-			var titleMessage = modData.Translation.GetString(title, titleArguments);
+			var titleMessage = TranslationProvider.GetString(title, titleArguments);
 			prompt.Get<LabelWidget>("PROMPT_TITLE").GetText = () => titleMessage;
 
 			var headerTemplate = prompt.Get<LabelWidget>("PROMPT_TEXT");
-			var textMessage = modData.Translation.GetString(text, textArguments);
+			var textMessage = TranslationProvider.GetString(text, textArguments);
 			var headerLines = textMessage.Split('\n');
 			var headerHeight = 0;
 			foreach (var l in headerLines)
@@ -68,7 +68,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 				if (!string.IsNullOrEmpty(confirmText))
 				{
-					var confirmTextMessage = modData.Translation.GetString(confirmText);
+					var confirmTextMessage = TranslationProvider.GetString(confirmText);
 					confirmButton.GetText = () => confirmTextMessage;
 				}
 			}
@@ -85,7 +85,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 				if (!string.IsNullOrEmpty(cancelText))
 				{
-					var cancelTextMessage = modData.Translation.GetString(cancelText);
+					var cancelTextMessage = TranslationProvider.GetString(cancelText);
 					cancelButton.GetText = () => cancelTextMessage;
 				}
 			}
@@ -94,14 +94,11 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				otherButton.Visible = true;
 				otherButton.Bounds.Y += headerHeight;
-				otherButton.OnClick = () =>
-				{
-					onOther();
-				};
+				otherButton.OnClick = onOther;
 
 				if (!string.IsNullOrEmpty(otherText))
 				{
-					var otherTextMessage = modData.Translation.GetString(otherText);
+					var otherTextMessage = TranslationProvider.GetString(otherText);
 					otherButton.GetText = () => otherTextMessage;
 				}
 			}
@@ -117,10 +114,10 @@ namespace OpenRA.Mods.Common.Widgets
 			Func<bool> doValidate = null;
 			ButtonWidget acceptButton = null, cancelButton = null;
 
-			var titleMessage = modData.Translation.GetString(title);
+			var titleMessage = TranslationProvider.GetString(title);
 			panel.Get<LabelWidget>("PROMPT_TITLE").GetText = () => titleMessage;
 
-			var promptMessage = modData.Translation.GetString(prompt);
+			var promptMessage = TranslationProvider.GetString(prompt);
 			panel.Get<LabelWidget>("PROMPT_TEXT").GetText = () => promptMessage;
 
 			var input = panel.Get<TextFieldWidget>("INPUT_TEXT");
@@ -150,7 +147,7 @@ namespace OpenRA.Mods.Common.Widgets
 			acceptButton = panel.Get<ButtonWidget>("ACCEPT_BUTTON");
 			if (!string.IsNullOrEmpty(acceptText))
 			{
-				var acceptTextMessage = modData.Translation.GetString(acceptText);
+				var acceptTextMessage = TranslationProvider.GetString(acceptText);
 				acceptButton.GetText = () => acceptTextMessage;
 			}
 
@@ -166,7 +163,7 @@ namespace OpenRA.Mods.Common.Widgets
 			cancelButton = panel.Get<ButtonWidget>("CANCEL_BUTTON");
 			if (!string.IsNullOrEmpty(cancelText))
 			{
-				var cancelTextMessage = modData.Translation.GetString(cancelText);
+				var cancelTextMessage = TranslationProvider.GetString(cancelText);
 				cancelButton.GetText = () => cancelTextMessage;
 			}
 

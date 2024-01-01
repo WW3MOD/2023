@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				prefix = "/";
 				suffix = "";
-				toComplete = text.Substring(1);
+				toComplete = text[1..];
 				candidates = Commands.Where(x => x.StartsWith(toComplete, StringComparison.InvariantCultureIgnoreCase)).ToList();
 			}
 			else if (Names != null)
@@ -52,14 +52,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var oneWord = text.Contains(' ');
 				if (oneWord)
 				{
-					prefix = text.Substring(0, text.LastIndexOf(' ') + 1);
+					prefix = text[..(text.LastIndexOf(' ') + 1)];
 					suffix = "";
-					toComplete = text.Substring(prefix.Length);
+					toComplete = text[prefix.Length..];
 				}
 				else
 				{
 					prefix = "";
-					suffix = ": ";
+					suffix = " ";
 					toComplete = text;
 				}
 

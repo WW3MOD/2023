@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -124,7 +124,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var scale = 200 / Math.Max(5000, (float)Math.Ceiling(maxValue / 1000) * 1000);
 
-			var widthMaxValue = labelFont.Measure(GetYAxisValueFormat().F(height / scale)).X;
+			var widthMaxValue = labelFont.Measure(string.Format(GetYAxisValueFormat(), height / scale)).X;
 			var widthLongestName = labelFont.Measure(longestName).X;
 
 			// y axis label
@@ -164,7 +164,7 @@ namespace OpenRA.Mods.Common.Widgets
 						}), 1, color);
 
 					if (lastPoint != 0f)
-						labelFont.DrawTextWithShadow(GetValueFormat().F(lastPoint), graphOrigin + new float2(lastX * xStep, -lastPoint * scale - 2),
+						labelFont.DrawTextWithShadow(string.Format(GetValueFormat(), lastPoint), graphOrigin + new float2(lastX * xStep, -lastPoint * scale - 2),
 							color, BackgroundColorDark, BackgroundColorLight, 1);
 				}
 
@@ -174,7 +174,9 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 
 			// Draw x axis
-			axisFont.DrawTextWithShadow(xAxisLabel, new float2(graphOrigin.X, origin.Y) + new float2(width / 2 - xAxisLabelSize.X / 2, -(xAxisLabelSize.Y + Padding)), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
+			axisFont.DrawTextWithShadow(xAxisLabel,
+				new float2(graphOrigin.X, origin.Y) + new float2(width / 2 - xAxisLabelSize.X / 2, -(xAxisLabelSize.Y + Padding)),
+				Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 
 			// TODO: make this stuff not draw outside of the RenderBounds
 			for (int n = pointStart, x = 0; n <= pointEnd; n++, x += xStep)
@@ -183,26 +185,32 @@ namespace OpenRA.Mods.Common.Widgets
 				if (n % XAxisTicksPerLabel != 0)
 					continue;
 
-				var xAxisText = GetXAxisValueFormat().F(n / XAxisTicksPerLabel);
+				var xAxisText = string.Format(GetXAxisValueFormat(), n / XAxisTicksPerLabel);
 				var xAxisTickTextWidth = labelFont.Measure(xAxisText).X;
-				var xLocation = x - (xAxisTickTextWidth / 2);
-				labelFont.DrawTextWithShadow(xAxisText, graphOrigin + new float2(xLocation, 2), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
+				var xLocation = x - xAxisTickTextWidth / 2;
+				labelFont.DrawTextWithShadow(xAxisText,
+					graphOrigin + new float2(xLocation, 2),
+					Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 			}
 
 			// Draw y axis
-			axisFont.DrawTextWithShadow(yAxisLabel,  new float2(origin.X, graphOrigin.Y) + new float2(5 - axisFont.TopOffset, -(height / 2 - yAxisLabelSize.X / 2)), Color.White, BackgroundColorDark, BackgroundColorLight, 1, (float)Math.PI / 2);
+			axisFont.DrawTextWithShadow(yAxisLabel,
+				new float2(origin.X, graphOrigin.Y) + new float2(5 - axisFont.TopOffset, -(height / 2 - yAxisLabelSize.X / 2)),
+				Color.White, BackgroundColorDark, BackgroundColorLight, 1, (float)Math.PI / 2);
 
 			for (var y = GetDisplayFirstYAxisValue() ? 0 : yStep; y <= height; y += yStep)
 			{
 				var yValue = y / scale;
 				cr.DrawLine(graphOrigin + new float2(0, -y), graphOrigin + new float2(5, -y), 1, Color.White);
-				var text = GetYAxisValueFormat().F(yValue);
+				var text = string.Format(GetYAxisValueFormat(), yValue);
 
 				var textWidth = labelFont.Measure(text);
 
 				var yLocation = y + (textWidth.Y + labelFont.TopOffset) / 2;
 
-				labelFont.DrawTextWithShadow(text, graphOrigin + new float2(-(textWidth.X + 3), -yLocation), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
+				labelFont.DrawTextWithShadow(text,
+					graphOrigin + new float2(-(textWidth.X + 3), -yLocation),
+					Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 			}
 
 			// Bottom line

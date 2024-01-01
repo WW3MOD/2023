@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,10 +20,10 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Spawns remains of a husk actor with the correct facing.")]
 	public class HuskInfo : TraitInfo, IPositionableInfo, IFacingInfo, IActorPreviewInitInfo
 	{
-		public readonly HashSet<string> AllowedTerrain = new HashSet<string>();
+		public readonly HashSet<string> AllowedTerrain = new();
 
 		[Desc("Facing to use for actor previews (map editor, color picker, etc)")]
-		public readonly WAngle PreviewFacing = new WAngle(384);
+		public readonly WAngle PreviewFacing = new(384);
 
 		IEnumerable<ActorInit> IActorPreviewInitInfo.ActorPreviewInits(ActorInfo ai, ActorPreviewType type)
 		{
@@ -67,16 +67,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public WPos CenterPosition { get; private set; }
 
-		WRot orientation;
-
 		[Sync]
 		public WAngle Facing
 		{
-			get => orientation.Yaw;
-			set => orientation = orientation.WithYaw(value);
+			get => Orientation.Yaw;
+			set => Orientation = Orientation.WithYaw(value);
 		}
 
-		public WRot Orientation => orientation;
+		public WRot Orientation { get; private set; }
 
 		public WAngle TurnSpeed => WAngle.Zero;
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -154,9 +154,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void ShowAudioDeviceDropdown(DropDownButtonWidget dropdown, SoundDevice[] devices, ScrollPanelWidget scrollPanel)
 		{
 			var i = 0;
-			var options = devices.ToDictionary(d => (i++).ToString(), d => d);
+			var options = devices.ToDictionary(d => i++.ToString(), d => d);
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => soundDevice == options[o],
@@ -171,9 +171,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = WidgetUtils.TruncateText(options[o].Label, deviceLabel.Bounds.Width, font);
 				deviceLabel.GetText = () => label;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 {
 	abstract class AirStateBase : StateBase
 	{
-		static readonly BitSet<TargetableType> AirTargetTypes = new BitSet<TargetableType>("Air");
+		static readonly BitSet<TargetableType> AirTargetTypes = new("Air");
 
 		protected const int MissileUnitMultiplier = 3;
 
@@ -70,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			var checkIndices = Exts.MakeArray(columnCount * rowCount, i => i).Shuffle(owner.World.LocalRandom);
 			foreach (var i in checkIndices)
 			{
-				var pos = new MPos((i % columnCount) * dangerRadius + dangerRadius / 2, (i / columnCount) * dangerRadius + dangerRadius / 2).ToCPos(map);
+				var pos = new MPos(i % columnCount * dangerRadius + dangerRadius / 2, i / columnCount * dangerRadius + dangerRadius / 2).ToCPos(map);
 
 				if (NearToPosSafely(owner, map.CenterOfCell(pos), out detectedEnemyTarget))
 				{
@@ -115,7 +115,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 	}
 
-	class AirIdleState : AirStateBase, IState
+	sealed class AirIdleState : AirStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 
@@ -141,7 +141,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		public void Deactivate(Squad owner) { }
 	}
 
-	class AirAttackState : AirStateBase, IState
+	sealed class AirAttackState : AirStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 
@@ -195,7 +195,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		public void Deactivate(Squad owner) { }
 	}
 
-	class AirFleeState : AirStateBase, IState
+	sealed class AirFleeState : AirStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 

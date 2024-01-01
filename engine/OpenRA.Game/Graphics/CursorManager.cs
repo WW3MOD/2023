@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ namespace OpenRA.Graphics
 {
 	public sealed class CursorManager
 	{
-		class Cursor
+		sealed class Cursor
 		{
 			public string Name;
 			public int2 PaddedSize;
@@ -28,7 +28,7 @@ namespace OpenRA.Graphics
 			public IHardwareCursor[] Cursors;
 		}
 
-		readonly Dictionary<string, Cursor> cursors = new Dictionary<string, Cursor>();
+		readonly Dictionary<string, Cursor> cursors = new();
 		readonly SheetBuilder sheetBuilder;
 		readonly GraphicSettings graphicSettings;
 
@@ -111,8 +111,7 @@ namespace OpenRA.Graphics
 				var template = kv.Value;
 				for (var i = 0; i < template.Sprites.Length; i++)
 				{
-					if (template.Cursors[i] != null)
-						template.Cursors[i].Dispose();
+					template.Cursors[i]?.Dispose();
 
 					// Calculate the padding to position the frame within sequenceBounds
 					var paddingTL = -(template.Bounds.Location - template.Sprites[i].Offset.XY.ToInt2());

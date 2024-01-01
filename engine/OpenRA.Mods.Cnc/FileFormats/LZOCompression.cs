@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -184,7 +184,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						}
 
 						mPos = op - 1;
-						mPos -= (*(ushort*)(void*)ip) >> 2;
+						mPos -= (*(ushort*)ip) >> 2;
 						ip += 2;
 					}
 					else if (t >= 16)
@@ -218,7 +218,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						goto match_done;
 					}
 
-					if (t >= 2 * 4 - (3 - 1) && (op - mPos) >= 4)
+					if (t >= 2 * 4 - (3 - 1) && op - mPos >= 4)
 					{
 						*(uint*)op = *(uint*)mPos;
 						op += 4; mPos += 4; t -= 4 - (3 - 1);
@@ -250,7 +250,11 @@ namespace OpenRA.Mods.Cnc.FileFormats
 					{
 						*op++ = *ip++;
 						if (t > 2)
+						{
+							#pragma warning disable IDE0047
 							(*op++) = *ip++;
+							#pragma warning restore IDE0047
+						}
 					}
 
 					t = *ip++;

@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -97,10 +97,7 @@ namespace OpenRA.Mods.Common
 				return;
 
 			var server = args.Secret.Split('|');
-			Game.RunAfterTick(() =>
-			{
-				Game.RemoteDirectConnect(new ConnectionTarget(server[0], int.Parse(server[1])));
-			});
+			Game.RunAfterTick(() => Game.RemoteDirectConnect(new ConnectionTarget(server[0], int.Parse(server[1]))));
 		}
 
 		void SetStatus(DiscordState state, string details = null, string secret = null, int? players = null, int? slots = null)

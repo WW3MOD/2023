@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,7 +14,7 @@ using OpenRA.Mods.Common.Effects;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Gives cash to the collector.")]
-	class GiveCashCrateActionInfo : CrateActionInfo
+	sealed class GiveCashCrateActionInfo : CrateActionInfo
 	{
 		[Desc("Amount of cash to give.")]
 		public readonly int Amount = 2000;
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GiveCashCrateAction(init.Self, this); }
 	}
 
-	class GiveCashCrateAction : CrateAction
+	sealed class GiveCashCrateAction : CrateAction
 	{
 		readonly GiveCashCrateActionInfo info;
 		public GiveCashCrateAction(Actor self, GiveCashCrateActionInfo info)
@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override int GetSelectionShares(Actor collector)
 		{
 			var pr = collector.Owner.PlayerActor.Trait<PlayerResources>();
-			if (info.Amount < 0 && (pr.Cash + pr.Resources) == 0)
+			if (info.Amount < 0 && pr.Cash + pr.Resources == 0)
 				return 0;
 
 			return base.GetSelectionShares(collector);

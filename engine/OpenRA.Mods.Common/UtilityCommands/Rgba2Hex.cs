@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,7 @@ using System;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class Rgba2Hex : IUtilityCommand
+	sealed class Rgba2Hex : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--rgba2hex";
 
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			return !invalid || PrintUsage();
 		}
 
-		bool PrintUsage()
+		static bool PrintUsage()
 		{
 			Console.WriteLine("");
 			Console.WriteLine("Usage:");
@@ -101,7 +101,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 		}
 	}
 
-	class Argb2Hex : IUtilityCommand
+	sealed class Argb2Hex : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--argb2hex";
 
@@ -137,7 +137,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			return !invalid || PrintUsage();
 		}
 
-		bool PrintUsage()
+		static bool PrintUsage()
 		{
 			Console.WriteLine("");
 			Console.WriteLine("Usage:");

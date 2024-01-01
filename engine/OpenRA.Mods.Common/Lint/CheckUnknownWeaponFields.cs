@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Server;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	class CheckUnknownWeaponFields : ILintPass, ILintMapPass, ILintServerMapPass
+	sealed class CheckUnknownWeaponFields : ILintPass, ILintMapPass, ILintServerMapPass
 	{
 		void ILintPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData)
 		{
@@ -35,16 +35,16 @@ namespace OpenRA.Mods.Common.Lint
 			CheckMapYaml(emitError, emitWarning, modData, map, map.WeaponDefinitions);
 		}
 
-		string NormalizeName(string key)
+		static string NormalizeName(string key)
 		{
 			var name = key.Split('@')[0];
 			if (name.StartsWith("-", StringComparison.Ordinal))
-				return name.Substring(1);
+				return name[1..];
 
 			return name;
 		}
 
-		void CheckWeapons(IEnumerable<MiniYamlNode> weapons, Action<string> emitError, Action<string> emitWarning, ModData modData)
+		static void CheckWeapons(IEnumerable<MiniYamlNode> weapons, Action<string> emitError, Action<string> emitWarning, ModData modData)
 		{
 			var weaponInfo = typeof(WeaponInfo);
 			foreach (var weapon in weapons)
@@ -55,10 +55,10 @@ namespace OpenRA.Mods.Common.Lint
 					if (field.Key.StartsWith("-", StringComparison.Ordinal))
 					{
 						if (field.Value.Nodes.Count > 0)
-							emitError($"{field.Location} {field.Key} defines child nodes, which is not valid for removals.");
+							emitError($"{field.Location} `{field.Key}` defines child nodes, which is not valid for removals.");
 
 						if (!string.IsNullOrEmpty(field.Value.Value))
-							emitError($"{field.Location} {field.Key} defines a value, which is not valid for removals.");
+							emitError($"{field.Location} `{field.Key}` defines a value, which is not valid for removals.");
 
 						continue;
 					}
@@ -110,7 +110,7 @@ namespace OpenRA.Mods.Common.Lint
 			}
 		}
 
-		void CheckMapYaml(Action<string> emitError, Action<string> emitWarning, ModData modData, IReadOnlyFileSystem fileSystem, MiniYaml weaponDefinitions)
+		static void CheckMapYaml(Action<string> emitError, Action<string> emitWarning, ModData modData, IReadOnlyFileSystem fileSystem, MiniYaml weaponDefinitions)
 		{
 			if (weaponDefinitions == null)
 				return;

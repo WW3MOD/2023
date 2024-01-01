@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,55 +25,55 @@ namespace OpenRA.Mods.Common.Commands
 	public class DevCommands : IChatCommand, IWorldLoaded
 	{
 		[TranslationReference]
-		static readonly string CheatsDisabled = "cheats-disabled";
+		const string CheatsDisabled = "notification-cheats-disabled";
 
 		[TranslationReference]
-		static readonly string InvalidCashAmount = "invalid-cash-amount";
+		const string InvalidCashAmount = "notification-invalid-cash-amount";
 
 		[TranslationReference]
-		static readonly string ToggleVisiblityDescription = "toggle-visibility";
+		const string ToggleVisiblityDescription = "description-toggle-visibility";
 
 		[TranslationReference]
-		static readonly string GiveCashDescription = "give-cash";
+		const string GiveCashDescription = "description-give-cash";
 
 		[TranslationReference]
-		static readonly string GiveCashAllDescription = "give-cash-all";
+		const string GiveCashAllDescription = "description-give-cash-all";
 
 		[TranslationReference]
-		static readonly string InstantBuildingDescription = "instant-building";
+		const string InstantBuildingDescription = "description-instant-building";
 
 		[TranslationReference]
-		static readonly string BuildAnywhereDescription = "build-anywhere";
+		const string BuildAnywhereDescription = "description-build-anywhere";
 
 		[TranslationReference]
-		static readonly string UnlimitedPowerDescription = "unlimited-power";
+		const string UnlimitedPowerDescription = "description-unlimited-power";
 
 		[TranslationReference]
-		static readonly string EnableTechDescription = "enable-tech";
+		const string EnableTechDescription = "description-enable-tech";
 
 		[TranslationReference]
-		static readonly string FastChargeDescription = "fast-charge";
+		const string FastChargeDescription = "description-fast-charge";
 
 		[TranslationReference]
-		static readonly string DevCheatAllDescription = "dev-cheat-all";
+		const string DevCheatAllDescription = "description-dev-cheat-all";
 
 		[TranslationReference]
-		static readonly string DevCrashDescription = "dev-crash";
+		const string DevCrashDescription = "description-dev-crash";
 
 		[TranslationReference]
-		static readonly string LevelUpActorDescription = "levelup-actor";
+		const string LevelUpActorDescription = "description-levelup-actor";
 
 		[TranslationReference]
-		static readonly string PlayerExperienceDescription = "player-experience";
+		const string PlayerExperienceDescription = "description-player-experience";
 
 		[TranslationReference]
-		static readonly string PowerOutageDescription = "power-outage";
+		const string PowerOutageDescription = "description-power-outage";
 
 		[TranslationReference]
-		static readonly string KillSelectedActorsDescription = "kill-selected-actors";
+		const string KillSelectedActorsDescription = "description-kill-selected-actors";
 
 		[TranslationReference]
-		static readonly string DisposeSelectedActorsDescription = "dispose-selected-actors";
+		const string DisposeSelectedActorsDescription = "description-dispose-selected-actors";
 
 		readonly IDictionary<string, (string Description, Action<string, World> Handler)> commandHandlers = new Dictionary<string, (string, Action<string, World>)>
 		{
@@ -121,7 +121,7 @@ namespace OpenRA.Mods.Common.Commands
 
 			if (!developerMode.Enabled)
 			{
-				TextNotificationsManager.Debug(Game.ModData.Translation.GetString(CheatsDisabled));
+				TextNotificationsManager.Debug(TranslationProvider.GetString(CheatsDisabled));
 				return;
 			}
 
@@ -149,7 +149,7 @@ namespace OpenRA.Mods.Common.Commands
 				giveCashOrder.ExtraData = (uint)cash;
 			else
 			{
-				TextNotificationsManager.Debug(Game.ModData.Translation.GetString(InvalidCashAmount));
+				TextNotificationsManager.Debug(TranslationProvider.GetString(InvalidCashAmount));
 				return;
 			}
 
@@ -255,6 +255,6 @@ namespace OpenRA.Mods.Common.Commands
 		}
 
 		[Serializable]
-		class DevException : Exception { }
+		public class DevException : Exception { }
 	}
 }

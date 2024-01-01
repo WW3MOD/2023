@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 	[TraitLocation(SystemActors.Player)]
 	[Desc("Tracks neutral and enemy actors' visibility and notifies the player.",
 		"Attach this to the player actor. The actors to track need the 'AnnounceOnSeen' trait.")]
-	class EnemyWatcherInfo : TraitInfo
+	sealed class EnemyWatcherInfo : TraitInfo
 	{
 		[Desc("Interval in ticks between scanning for enemies.")]
 		public readonly int ScanInterval = 60;
@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new EnemyWatcher(this); }
 	}
 
-	class EnemyWatcher : ITick
+	sealed class EnemyWatcher : ITick
 	{
 		readonly EnemyWatcherInfo info;
 		readonly HashSet<Player> discoveredPlayers;

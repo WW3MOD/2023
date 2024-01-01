@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -105,7 +105,7 @@ namespace OpenRA
 		[Desc("Delay in milliseconds before newly joined players can send chat messages.")]
 		public int FloodLimitJoinCooldown = 5000;
 
-		[Desc("Amount of miliseconds player chat messages are tracked for.")]
+		[Desc("Amount of milliseconds player chat messages are tracked for.")]
 		public int FloodLimitInterval = 5000;
 
 		[Desc("Amount of chat messages per FloodLimitInterval a players can send before flood is detected.")]
@@ -113,6 +113,15 @@ namespace OpenRA
 
 		[Desc("Delay in milliseconds before players can send chat messages after flood was detected.")]
 		public int FloodLimitCooldown = 15000;
+
+		[Desc("Can players vote to kick other players?")]
+		public bool EnableVoteKick = true;
+
+		[Desc("After how much time in miliseconds should the vote kick fail after idling?")]
+		public int VoteKickTimer = 30000;
+
+		[Desc("If a vote kick was unsuccessful for how long should the player who started the vote not be able to start new votes?")]
+		public int VoteKickerCooldown = 120000;
 
 		public ServerSettings Clone()
 		{
@@ -177,10 +186,10 @@ namespace OpenRA
 		public bool VSync = true;
 
 		[Desc("Screen resolution in fullscreen mode.")]
-		public int2 FullscreenSize = new int2(0, 0);
+		public int2 FullscreenSize = new(0, 0);
 
 		[Desc("Screen resolution in windowed mode.")]
-		public int2 WindowedSize = new int2(1024, 768);
+		public int2 WindowedSize = new(1024, 768);
 
 		public bool CursorDouble = false;
 		public WorldViewport ViewportDistance = WorldViewport.Medium;
@@ -253,7 +262,7 @@ namespace OpenRA
 
 		public bool LockMouseWindow = false;
 		public MouseScrollType MouseScroll = MouseScrollType.Joystick;
-		public MouseButtonPreference MouseButtonPreference = new MouseButtonPreference();
+		public MouseButtonPreference MouseButtonPreference = new();
 		public float ViewportEdgeScrollStep = 30f;
 		public float UIScrollSpeed = 50f;
 		public float ZoomSpeed = 0.04f;
@@ -295,20 +304,20 @@ namespace OpenRA
 	{
 		readonly string settingsFile;
 
-		public readonly PlayerSettings Player = new PlayerSettings();
-		public readonly GameSettings Game = new GameSettings();
-		public readonly SoundSettings Sound = new SoundSettings();
-		public readonly GraphicSettings Graphics = new GraphicSettings();
-		public readonly ServerSettings Server = new ServerSettings();
-		public readonly DebugSettings Debug = new DebugSettings();
-		internal Dictionary<string, Hotkey> Keys = new Dictionary<string, Hotkey>();
+		public readonly PlayerSettings Player = new();
+		public readonly GameSettings Game = new();
+		public readonly SoundSettings Sound = new();
+		public readonly GraphicSettings Graphics = new();
+		public readonly ServerSettings Server = new();
+		public readonly DebugSettings Debug = new();
+		internal Dictionary<string, Hotkey> Keys = new();
 
 		public readonly Dictionary<string, object> Sections;
 
 		// A direct clone of the file loaded from disk.
 		// Any changed settings will be merged over this on save,
 		// allowing us to persist any unknown configuration keys
-		readonly List<MiniYamlNode> yamlCache = new List<MiniYamlNode>();
+		readonly List<MiniYamlNode> yamlCache = new();
 
 		public Settings(string file, Arguments args)
 		{
@@ -443,7 +452,7 @@ namespace OpenRA
 
 			// avoid UI glitches
 			if (clean.Length > 16)
-				clean = clean.Substring(0, 16);
+				clean = clean[..16];
 
 			return clean;
 		}

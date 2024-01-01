@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,7 +36,7 @@ namespace OpenRA
 		}
 	}
 
-	class Program
+	sealed class Program
 	{
 		static void Main(string[] args)
 		{
@@ -162,16 +162,16 @@ namespace OpenRA
 
 		static void GetActionUsage(string key, Action<Utility, string[]> action)
 		{
-			var descParts = action.Method.GetCustomAttributes<DescAttribute>(true)
+			var descParts = Utility.GetCustomAttributes<DescAttribute>(action.Method, true)
 					.SelectMany(d => d.Lines).ToArray();
 
 			if (descParts.Length == 0)
 				return;
 
 			var args = descParts.Take(descParts.Length - 1).JoinWith(" ");
-			var desc = descParts[descParts.Length - 1];
+			var desc = descParts[^1];
 
-			Console.WriteLine("  {0} {1}{3}  {2}{3}", key, args, desc, Environment.NewLine);
+			Console.WriteLine($"  {key} {args}{Environment.NewLine}  {desc}{Environment.NewLine}");
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,13 +20,13 @@ namespace OpenRA.Mods.Common.Commands
 
 	public class PlayerCommands : IChatCommand, IWorldLoaded
 	{
+		[TranslationReference]
+		const string PauseDescription = "description-pause-description";
+
+		[TranslationReference]
+		const string SurrenderDescription = "description-surrender-description";
+
 		World world;
-
-		[TranslationReference]
-		static readonly string PauseDescription = "pause-description";
-
-		[TranslationReference]
-		static readonly string SurrenderDescription = "surrender-description";
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{

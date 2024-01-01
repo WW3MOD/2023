@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,46 +20,73 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	class GameInfoStatsLogic : ChromeLogic
+	sealed class GameInfoStatsLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string Unmute = "unmute";
+		const string Unmute = "label-unmute-player";
 
 		[TranslationReference]
-		static readonly string Mute = "mute";
+		const string Mute = "label-mute-player";
 
 		[TranslationReference]
-		static readonly string Accomplished = "accomplished";
+		const string Accomplished = "label-mission-accomplished";
 
 		[TranslationReference]
-		static readonly string Failed = "failed";
+		const string Failed = "label-mission-failed";
 
 		[TranslationReference]
-		static readonly string InProgress = "in-progress";
+		const string InProgress = "label-mission-in-progress";
 
 		[TranslationReference("team")]
-		static readonly string TeamNumber = "team-number";
+		const string TeamNumber = "label-team-name";
 
 		[TranslationReference]
-		static readonly string NoTeam = "no-team";
+		const string NoTeam = "label-no-team";
 
 		[TranslationReference]
-		static readonly string Spectators = "spectators";
+		const string Spectators = "label-spectators";
 
 		[TranslationReference]
-		static readonly string Gone = "gone";
+		const string Gone = "label-client-state-disconnected";
+
+		[TranslationReference]
+		const string KickTooltip = "button-kick-player";
 
 		[TranslationReference("player")]
-		static readonly string KickTitle = "kick-title";
+		const string KickTitle = "dialog-kick.title";
 
 		[TranslationReference]
-		static readonly string KickPrompt = "kick-prompt";
+		const string KickPrompt = "dialog-kick.prompt";
 
 		[TranslationReference]
-		static readonly string KickAccept = "kick-accept";
+		const string KickAccept = "dialog-kick.confirm";
+
+		[TranslationReference]
+		const string KickVoteTooltip = "button-vote-kick-player";
+
+		[TranslationReference("player")]
+		const string VoteKickTitle = "dialog-vote-kick.title";
+
+		[TranslationReference]
+		const string VoteKickPrompt = "dialog-vote-kick.prompt";
+
+		[TranslationReference("bots")]
+		const string VoteKickPromptBreakBots = "dialog-vote-kick.prompt-break-bots";
+
+		[TranslationReference]
+		const string VoteKickVoteStart = "dialog-vote-kick.vote-start";
+
+		[TranslationReference]
+		const string VoteKickVoteFor = "dialog-vote-kick.vote-for";
+
+		[TranslationReference]
+		const string VoteKickVoteAgainst = "dialog-vote-kick.vote-against";
+
+		[TranslationReference]
+		const string VoteKickVoteCancel = "dialog-vote-kick.vote-cancel";
 
 		[ObjectCreator.UseCtor]
-		public GameInfoStatsLogic(Widget widget, ModData modData, World world, OrderManager orderManager, WorldRenderer worldRenderer, Action<bool> hideMenu)
+		public GameInfoStatsLogic(Widget widget, ModData modData, World world, OrderManager orderManager, WorldRenderer worldRenderer, Action<bool> hideMenu, Action closeMenu)
 		{
 			var player = world.LocalPlayer;
 			var playerPanel = widget.Get<ScrollPanelWidget>("PLAYER_LIST");
@@ -79,9 +106,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					checkbox.GetText = () => mo.Objectives[0].Description;
 				}
 
-				var failed = modData.Translation.GetString(Failed);
-				var inProgress = modData.Translation.GetString(InProgress);
-				var accomplished = modData.Translation.GetString(Accomplished);
+				var failed = TranslationProvider.GetString(Failed);
+				var inProgress = TranslationProvider.GetString(InProgress);
+				var accomplished = TranslationProvider.GetString(Accomplished);
 				statusLabel.GetText = () => player.WinState == WinState.Won ? accomplished :
 					player.WinState == WinState.Lost ? failed : inProgress;
 				statusLabel.GetColor = () => player.WinState == WinState.Won ? Color.LimeGreen :
@@ -104,8 +131,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var teamTemplate = playerPanel.Get<ScrollItemWidget>("TEAM_TEMPLATE");
 			var playerTemplate = playerPanel.Get("PLAYER_TEMPLATE");
 			var spectatorTemplate = playerPanel.Get("SPECTATOR_TEMPLATE");
-			var unmuteTooltip = modData.Translation.GetString(Unmute);
-			var muteTooltip = modData.Translation.GetString(Mute);
+			var unmuteTooltip = TranslationProvider.GetString(Unmute);
+			var muteTooltip = TranslationProvider.GetString(Mute);
+			var kickTooltip = TranslationProvider.GetString(KickTooltip);
+			var voteKickTooltip = TranslationProvider.GetString(KickVoteTooltip);
 			playerPanel.RemoveChildren();
 
 			var teams = world.Players.Where(p => !p.NonCombatant && p.Playable)
@@ -114,14 +143,89 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.GroupBy(p => (world.LobbyInfo.ClientWithIndex(p.Player.ClientIndex) ?? new Session.Client()).Team)
 				.OrderByDescending(g => g.Sum(gg => gg.PlayerStatistics?.Experience ?? 0));
 
+			void KickAction(Session.Client client, Func<bool> isVoteKick)
+			{
+				hideMenu(true);
+				if (isVoteKick())
+				{
+					var botsCount = 0;
+					if (client.IsAdmin)
+						botsCount = world.Players.Count(p => p.IsBot && p.WinState == WinState.Undefined);
+
+					if (UnitOrders.KickVoteTarget == null)
+					{
+						ConfirmationDialogs.ButtonPrompt(modData,
+							title: VoteKickTitle,
+							titleArguments: Translation.Arguments("player", client.Name),
+							text: botsCount > 0 ? VoteKickPromptBreakBots : VoteKickPrompt,
+							textArguments: Translation.Arguments("bots", botsCount),
+							onConfirm: () =>
+							{
+								orderManager.IssueOrder(Order.Command($"vote_kick {client.Index} {true}"));
+								hideMenu(false);
+								closeMenu();
+							},
+							confirmText: VoteKickVoteStart,
+							onCancel: () => hideMenu(false));
+						return;
+					}
+
+					ConfirmationDialogs.ButtonPrompt(modData,
+						title: VoteKickTitle,
+						titleArguments: Translation.Arguments("player", client.Name),
+						text: botsCount > 0 ? VoteKickPromptBreakBots : VoteKickPrompt,
+						textArguments: Translation.Arguments("bots", botsCount),
+						onConfirm: () =>
+						{
+							orderManager.IssueOrder(Order.Command($"vote_kick {client.Index} {true}"));
+							hideMenu(false);
+							closeMenu();
+						},
+						confirmText: VoteKickVoteFor,
+						onOther: () =>
+						{
+							Ui.CloseWindow();
+							orderManager.IssueOrder(Order.Command($"vote_kick {client.Index} {false}"));
+							hideMenu(false);
+							closeMenu();
+						},
+						otherText: VoteKickVoteAgainst,
+						onCancel: () => hideMenu(false),
+						cancelText: VoteKickVoteCancel);
+				}
+				else
+				{
+					ConfirmationDialogs.ButtonPrompt(modData,
+						title: KickTitle,
+						titleArguments: Translation.Arguments("player", client.Name),
+						text: KickPrompt,
+						onConfirm: () =>
+						{
+							orderManager.IssueOrder(Order.Command($"kick {client.Index} {false}"));
+							hideMenu(false);
+						},
+						confirmText: KickAccept,
+						onCancel: () => hideMenu(false));
+				}
+			}
+
+			var localClient = orderManager.LocalClient;
+			var localPlayer = localClient == null ? null : world.Players.FirstOrDefault(player => player.ClientIndex == localClient.Index);
+			bool LocalPlayerCanKick() => localClient != null
+				&& (Game.IsHost || ((!orderManager.LocalClient.IsObserver) && localPlayer.WinState == WinState.Undefined));
+			bool CanClientBeKicked(Session.Client client, Func<bool> isVoteKick) =>
+				client.Index != localClient.Index && client.State != Session.ClientState.Disconnected
+				&& (!client.IsAdmin || orderManager.LobbyInfo.GlobalSettings.Dedicated)
+				&& (!isVoteKick() || UnitOrders.KickVoteTarget == null || UnitOrders.KickVoteTarget == client.Index);
+
 			foreach (var t in teams)
 			{
 				if (teams.Count() > 1)
 				{
 					var teamHeader = ScrollItemWidget.Setup(teamTemplate, () => false, () => { });
 					var team = t.Key > 0
-						? modData.Translation.GetString(TeamNumber, Translation.Arguments("team", t.Key))
-						: modData.Translation.GetString(NoTeam);
+						? TranslationProvider.GetString(TeamNumber, Translation.Arguments("team", t.Key))
+						: TranslationProvider.GetString(NoTeam);
 					teamHeader.Get<LabelWidget>("TEAM").GetText = () => team;
 					var teamRating = teamHeader.Get<LabelWidget>("TEAM_SCORE");
 					var scoreCache = new CachedTransform<int, string>(s => s.ToString());
@@ -165,6 +269,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					muteCheckbox.IsVisible = () => !pp.IsBot && client.State != Session.ClientState.Disconnected && pp.ClientIndex != orderManager.LocalClient?.Index;
 					muteCheckbox.GetTooltipText = () => muteCheckbox.IsChecked() ? unmuteTooltip : muteTooltip;
 
+					var kickButton = item.Get<ButtonWidget>("KICK");
+					bool IsVoteKick() => !Game.IsHost || pp.WinState == WinState.Undefined;
+					kickButton.IsVisible = () => !pp.IsBot && LocalPlayerCanKick() && CanClientBeKicked(client, IsVoteKick);
+					kickButton.OnClick = () => KickAction(client, IsVoteKick);
+					kickButton.GetTooltipText = () => IsVoteKick() ? voteKickTooltip : kickTooltip;
+
 					playerPanel.AddChild(item);
 				}
 			}
@@ -173,7 +283,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (spectators.Count > 0)
 			{
 				var spectatorHeader = ScrollItemWidget.Setup(teamTemplate, () => false, () => { });
-				var spectatorTeam = modData.Translation.GetString(Spectators);
+				var spectatorTeam = TranslationProvider.GetString(Spectators);
 				spectatorHeader.Get<LabelWidget>("TEAM").GetText = () => spectatorTeam;
 
 				playerPanel.AddChild(spectatorHeader);
@@ -192,27 +302,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 					nameLabel.GetText = () =>
 					{
-						var suffix = client.State == Session.ClientState.Disconnected ? $" ({modData.Translation.GetString(Gone)})" : "";
+						var suffix = client.State == Session.ClientState.Disconnected ? $" ({TranslationProvider.GetString(Gone)})" : "";
 						return name.Update((client.Name, suffix));
 					};
 
 					var kickButton = item.Get<ButtonWidget>("KICK");
-					kickButton.IsVisible = () => Game.IsHost && client.Index != orderManager.LocalClient?.Index && client.State != Session.ClientState.Disconnected;
-					kickButton.OnClick = () =>
-					{
-						hideMenu(true);
-						ConfirmationDialogs.ButtonPrompt(modData,
-							title: KickTitle,
-							titleArguments: Translation.Arguments("player", client.Name),
-							text: KickPrompt,
-							onConfirm: () =>
-							{
-								orderManager.IssueOrder(Order.Command($"kick {client.Index} {false}"));
-								hideMenu(false);
-							},
-							onCancel: () => hideMenu(false),
-							confirmText: KickAccept);
-					};
+					bool IsVoteKick() => !Game.IsHost;
+					kickButton.IsVisible = () => LocalPlayerCanKick() && CanClientBeKicked(client, IsVoteKick);
+					kickButton.OnClick = () => KickAction(client, IsVoteKick);
+					kickButton.GetTooltipText = () => IsVoteKick() ? voteKickTooltip : kickTooltip;
 
 					var muteCheckbox = item.Get<CheckboxWidget>("MUTE");
 					muteCheckbox.IsChecked = () => TextNotificationsManager.MutedPlayers[client.Index];

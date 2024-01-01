@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -56,14 +56,12 @@ namespace OpenRA.Mods.Common.Widgets
 			var isDisabled = IsDisabled();
 			var isHover = Ui.MouseOverWidget == this || Children.Any(c => c == Ui.MouseOverWidget);
 
-			if (getMarkerImage == null)
-				getMarkerImage = WidgetUtils.GetCachedStatefulImage(Decorations, DecorationMarker);
+			getMarkerImage ??= WidgetUtils.GetCachedStatefulImage(Decorations, DecorationMarker);
 
 			var arrowImage = getMarkerImage.Update((isDisabled, Depressed, isHover, false, IsHighlighted()));
 			WidgetUtils.DrawSprite(arrowImage, stateOffset + new float2(rb.Right - (int)((rb.Height + arrowImage.Size.X) / 2), rb.Top + (int)((rb.Height - arrowImage.Size.Y) / 2)));
 
-			if (getSeparatorImage == null)
-				getSeparatorImage = WidgetUtils.GetCachedStatefulImage(Separators, SeparatorImage);
+			getSeparatorImage ??= WidgetUtils.GetCachedStatefulImage(Separators, SeparatorImage);
 
 			var separatorImage = getSeparatorImage.Update((isDisabled, Depressed, isHover, false, IsHighlighted()));
 			if (separatorImage != null)
@@ -129,7 +127,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var panelY = RenderOrigin.Y + Bounds.Height - panelRoot.RenderOrigin.Y;
 			if (panelY + oldBounds.Height > Game.Renderer.Resolution.Height)
-				panelY -= (Bounds.Height + oldBounds.Height);
+				panelY -= Bounds.Height + oldBounds.Height;
 
 			panel.Bounds = new Rectangle(
 				panelX,

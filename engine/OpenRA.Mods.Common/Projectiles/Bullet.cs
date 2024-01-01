@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -86,7 +86,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly bool Blockable = true;
 
 		[Desc("Width of projectile (used for finding blocking actors).")]
-		public readonly WDist Width = new WDist(1);
+		public readonly WDist Width = new(1);
 
 		[Desc("Arc in WAngles, two values indicate variable arc.")]
 		public readonly WAngle[] LaunchAngle = { WAngle.Zero };
@@ -102,7 +102,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly string BounceSound = null;
 
 		[Desc("Terrain where the projectile explodes instead of bouncing.")]
-		public readonly HashSet<string> InvalidBounceTerrain = new HashSet<string>();
+		public readonly HashSet<string> InvalidBounceTerrain = new();
 
 		[Desc("Trigger the explosion if the projectile touches an actor thats owner has these player relationships.")]
 		public readonly PlayerRelationship ValidBounceBlockerRelationships = PlayerRelationship.Enemy | PlayerRelationship.Neutral;
@@ -122,8 +122,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ContrailZOffset = 2047;
 
-		[Desc("Thickness of the emitted line.")]
-		public readonly WDist ContrailWidth = new WDist(1);
+		[Desc("Thickness of the emitted line at the start of the contrail.")]
+		public readonly WDist ContrailStartWidth = new(1);
+
+		[Desc("Thickness of the emitted line at the end of the contrail. Will default to " + nameof(ContrailStartWidth) + " if left undefined")]
+		public readonly WDist? ContrailEndWidth = null;
 
 		[Desc("RGB color at the contrail start.")]
 		public readonly Color ContrailStartColor = Color.DarkGray; // 169,169,169
@@ -234,7 +237,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			{
 				var startcolor = info.ContrailStartColorUsePlayerColor ? Color.FromArgb(info.ContrailStartColorAlpha, args.SourceActor.Owner.Color) : Color.FromArgb(info.ContrailStartColorAlpha, info.ContrailStartColor);
 				var endcolor = info.ContrailEndColorUsePlayerColor ? Color.FromArgb(info.ContrailEndColorAlpha, args.SourceActor.Owner.Color) : Color.FromArgb(info.ContrailEndColorAlpha, info.ContrailEndColor ?? startcolor);
-				contrail = new ContrailRenderable(world, startcolor, endcolor, info.ContrailWidth, info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
+				contrail = new ContrailRenderable(world, startcolor, endcolor, info.ContrailStartWidth, info.ContrailEndWidth ?? info.ContrailStartWidth, info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
 			}
 
 			trailPalette = info.TrailPalette;
@@ -253,7 +256,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			var at = (float)ticks / (length - 1);
 			var attitude = angle.Tan() * (1 - 2 * at) / (4 * 1024);
 
-			var u = (facing.Angle % 512) / 512f;
+			var u = facing.Angle % 512 / 512f;
 			var scale = 2048 * u * (1 - u);
 
 			var effective = (int)(facing.Angle < 512

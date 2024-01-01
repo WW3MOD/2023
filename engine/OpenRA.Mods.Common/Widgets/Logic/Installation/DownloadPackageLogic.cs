@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using ICSharpCode.SharpZipLib.Zip;
+using OpenRA.FileSystem;
 using OpenRA.Support;
 using OpenRA.Widgets;
 
@@ -23,40 +23,40 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class DownloadPackageLogic : ChromeLogic
 	{
-		static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
-
 		[TranslationReference("title")]
-		static readonly string Downloading = "downloading";
+		const string Downloading = "label-downloading";
 
 		[TranslationReference]
-		static readonly string FetchingMirrorList = "fetching-mirror-list";
+		const string FetchingMirrorList = "label-fetching-mirror-list";
 
 		[TranslationReference]
-		static readonly string UnknownHost = "unknown-host";
+		const string UnknownHost = "label-unknown-host";
 
 		[TranslationReference("host", "received", "suffix")]
-		static readonly string DownloadingFrom = "downloading-from";
+		const string DownloadingFrom = "label-downloading-from";
 
 		[TranslationReference("host", "received", "total", "suffix", "progress")]
-		static readonly string DownloadingFromProgress = "downloading-from-progress";
+		const string DownloadingFromProgress = "label-downloading-from-progress";
 
 		[TranslationReference]
-		static readonly string VerifyingArchive = "verifying-archive";
+		const string VerifyingArchive = "label-verifying-archive";
 
 		[TranslationReference]
-		static readonly string ArchiveValidationFailed = "archive-validation-failed";
+		const string ArchiveValidationFailed = "label-archive-validation-failed";
 
 		[TranslationReference]
-		static readonly string Extracting = "extracting";
+		const string Extracting = "label-extracting-archive";
 
 		[TranslationReference("entry")]
-		static readonly string ExtractingEntry = "extracting-entry";
+		const string ExtractingEntry = "label-extracting-archive-entry";
 
 		[TranslationReference]
-		static readonly string ArchiveExtractionFailed = "archive-extraction-failed";
+		const string ArchiveExtractionFailed = "label-archive-extraction-failed";
 
 		[TranslationReference]
-		static readonly string MirrorSelectionFailed = "mirror-selection-failed";
+		const string MirrorSelectionFailed = "label-mirror-selection-failed";
+
+		static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
 
 		readonly ModData modData;
 		readonly ModContent.ModDownload download;
@@ -85,7 +85,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var status = new CachedTransform<string, string>(s => WidgetUtils.TruncateText(s, statusLabel.Bounds.Width, statusFont));
 			statusLabel.GetText = () => status.Update(getStatusText());
 
-			var text = modData.Translation.GetString(Downloading, Translation.Arguments("title", download.Title));
+			var text = TranslationProvider.GetString(Downloading, Translation.Arguments("title", download.Title));
 			panel.Get<LabelWidget>("TITLE").Text = text;
 
 			ShowDownloadDialog();
@@ -93,7 +93,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void ShowDownloadDialog()
 		{
-			getStatusText = () => modData.Translation.GetString(FetchingMirrorList);
+			getStatusText = () => TranslationProvider.GetString(FetchingMirrorList);
 			progressBar.Indeterminate = true;
 
 			var retryButton = panel.Get<ButtonWidget>("RETRY_BUTTON");
@@ -107,7 +107,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var dataTotal = 0.0f;
 				var mag = 0;
 				var dataSuffix = "";
-				var host = downloadHost ?? modData.Translation.GetString(UnknownHost);
+				var host = downloadHost ?? TranslationProvider.GetString(UnknownHost);
 
 				if (total < 0)
 				{
@@ -115,7 +115,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					dataReceived = read / (float)(1L << (mag * 10));
 					dataSuffix = SizeSuffixes[mag];
 
-					getStatusText = () => modData.Translation.GetString(DownloadingFrom,
+					getStatusText = () => TranslationProvider.GetString(DownloadingFrom,
 						Translation.Arguments("host", host, "received", $"{dataReceived:0.00}", "suffix", dataSuffix));
 					progressBar.Indeterminate = true;
 				}
@@ -126,7 +126,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					dataReceived = read / (float)(1L << (mag * 10));
 					dataSuffix = SizeSuffixes[mag];
 
-					getStatusText = () => modData.Translation.GetString(DownloadingFromProgress,
+					getStatusText = () => TranslationProvider.GetString(DownloadingFromProgress,
 						Translation.Arguments("host", host, "received", $"{dataReceived:0.00}", "total", $"{dataTotal:0.00}",
 							"suffix", dataSuffix, "progress", progressPercentage));
 					progressBar.Indeterminate = false;
@@ -135,11 +135,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				progressBar.Percentage = progressPercentage;
 			}
 
-			Action<string> onExtractProgress = s => Game.RunAfterTick(() => getStatusText = () => s);
+			void OnExtractProgress(string s) => Game.RunAfterTick(() => getStatusText = () => s);
 
-			Action<string> onError = s => Game.RunAfterTick(() =>
+			void OnError(string s) => Game.RunAfterTick(() =>
 			{
-				var host = downloadHost ?? modData.Translation.GetString(UnknownHost);
+				var host = downloadHost ?? TranslationProvider.GetString(UnknownHost);
 				Log.Write("install", $"Download from {host} failed: " + s);
 
 				progressBar.Indeterminate = false;
@@ -149,7 +149,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				cancelButton.OnClick = Ui.CloseWindow;
 			});
 
-			Action<string> downloadUrl = url =>
+			void DownloadUrl(string url)
 			{
 				Log.Write("install", "Downloading " + url);
 
@@ -183,7 +183,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						// Validate integrity
 						if (!string.IsNullOrEmpty(download.SHA1))
 						{
-							getStatusText = () => modData.Translation.GetString(VerifyingArchive);
+							getStatusText = () => TranslationProvider.GetString(VerifyingArchive);
 							progressBar.Indeterminate = true;
 
 							var archiveValid = false;
@@ -205,39 +205,45 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 							if (!archiveValid)
 							{
-								onError(modData.Translation.GetString(ArchiveValidationFailed));
+								OnError(TranslationProvider.GetString(ArchiveValidationFailed));
 								return;
 							}
 						}
 
 						// Automatically extract
-						getStatusText = () => modData.Translation.GetString(Extracting);
+						getStatusText = () => TranslationProvider.GetString(Extracting);
 						progressBar.Indeterminate = true;
 
 						var extracted = new List<string>();
 						try
 						{
 							using (var stream = File.OpenRead(file))
-							using (var z = new ZipFile(stream))
 							{
-								foreach (var kv in download.Extract)
+								var packageLoader = download.ObjectCreator.CreateObject<IPackageLoader>($"{download.Type}Loader");
+
+								if (packageLoader.TryParsePackage(stream, file, modData.ModFiles, out var package))
 								{
-									var entry = z.GetEntry(kv.Value);
-									if (entry == null || !entry.IsFile)
-										continue;
+									foreach (var kv in download.Extract)
+									{
+										if (!package.Contains(kv.Value))
+										{
+											Log.Write("install", $"Downloaded package does not contain {kv.Value} - skipping.");
+											continue;
+										}
 
-									onExtractProgress(modData.Translation.GetString(ExtractingEntry, Translation.Arguments("entry", entry.Name)));
-									Log.Write("install", "Extracting " + entry.Name);
-									var targetPath = Platform.ResolvePath(kv.Key);
-									Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
-									extracted.Add(targetPath);
+										OnExtractProgress(TranslationProvider.GetString(ExtractingEntry, Translation.Arguments("entry", kv.Value)));
+										Log.Write("install", "Extracting " + kv.Value);
+										var targetPath = Platform.ResolvePath(kv.Key);
+										Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+										extracted.Add(targetPath);
 
-									using (var zz = z.GetInputStream(entry))
-									using (var f = File.Create(targetPath))
-										zz.CopyTo(f);
+										using (var zz = package.GetStream(kv.Value))
+										using (var f = File.Create(targetPath))
+											await zz.CopyToAsync(f);
+									}
+
+									package.Dispose();
 								}
-
-								z.Close();
 							}
 
 							Game.RunAfterTick(() =>
@@ -256,19 +262,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								File.Delete(f);
 							}
 
-							onError(modData.Translation.GetString(ArchiveExtractionFailed));
+							OnError(TranslationProvider.GetString(ArchiveExtractionFailed));
 						}
 					}
 					catch (Exception e)
 					{
-						onError(e.ToString());
+						OnError(e.ToString());
 					}
 					finally
 					{
 						File.Delete(file);
 					}
 				}, token);
-			};
+			}
 
 			if (download.MirrorList != null)
 			{
@@ -283,18 +289,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						var result = await httpResponseMessage.Content.ReadAsStringAsync();
 
 						var mirrorList = result.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-						downloadUrl(mirrorList.Random(new MersenneTwister()));
+						DownloadUrl(mirrorList.Random(new MersenneTwister()));
 					}
 					catch (Exception e)
 					{
 						Log.Write("install", "Mirror selection failed with error:");
 						Log.Write("install", e.ToString());
-						onError(modData.Translation.GetString(MirrorSelectionFailed));
+						OnError(TranslationProvider.GetString(MirrorSelectionFailed));
 					}
 				});
 			}
 			else
-				downloadUrl(download.URL);
+				DownloadUrl(download.URL);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 		[ActorReference(typeof(AircraftInfo))]
 		public readonly string UnitType = "badr";
 		public readonly int SquadSize = 1;
-		public readonly WVec SquadOffset = new WVec(-1536, 1536, 0);
+		public readonly WVec SquadOffset = new(-1536, 1536, 0);
 
 		[NotificationReference("Speech")]
 		[Desc("Speech notification to play when entering the drop zone.")]
@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int QuantizedFacings = 32;
 
 		[Desc("Spawn and remove the plane this far outside the map.")]
-		public readonly WDist Cordon = new WDist(5120);
+		public readonly WDist Cordon = new(5120);
 
 		[ActorReference(typeof(PassengerInfo))]
 		[Desc("Troops to be delivered.  They will be distributed between the planes if SquadSize > 1.")]
@@ -119,7 +119,7 @@ namespace OpenRA.Mods.Common.Traits
 			Beacon beacon = null;
 			var aircraftInRange = new Dictionary<Actor, bool>();
 
-			Action<Actor> onEnterRange = a =>
+			void OnEnterRange(Actor a)
 			{
 				// Spawn a camera and remove the beacon when the first plane enters the target area
 				if (info.CameraActor != null && camera == null && !aircraftInRange.Any(kv => kv.Value))
@@ -145,18 +145,18 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				aircraftInRange[a] = true;
-			};
+			}
 
-			Action<Actor> onExitRange = a =>
+			void OnExitRange(Actor a)
 			{
 				aircraftInRange[a] = false;
 
 				// Remove the camera when the final plane leaves the target area
 				if (!aircraftInRange.Any(kv => kv.Value))
 					RemoveCamera(camera);
-			};
+			}
 
-			Action<Actor> onRemovedFromWorld = a =>
+			void OnRemovedFromWorld(Actor a)
 			{
 				aircraftInRange[a] = false;
 
@@ -168,7 +168,7 @@ namespace OpenRA.Mods.Common.Traits
 					RemoveCamera(camera);
 					RemoveBeacon(beacon);
 				}
-			};
+			}
 
 			// Create the actors immediately so they can be returned
 			for (var i = -info.SquadSize / 2; i <= info.SquadSize / 2; i++)
@@ -221,9 +221,9 @@ namespace OpenRA.Mods.Common.Traits
 
 					var drop = a.Trait<ParaDrop>();
 					drop.SetLZ(w.Map.CellContaining(target + targetOffset), !info.AllowImpassableCells);
-					drop.OnEnteredDropRange += onEnterRange;
-					drop.OnExitedDropRange += onExitRange;
-					drop.OnRemovedFromWorld += onRemovedFromWorld;
+					drop.OnEnteredDropRange += OnEnterRange;
+					drop.OnExitedDropRange += OnExitRange;
+					drop.OnRemovedFromWorld += OnRemovedFromWorld;
 
 					var cargo = a.Trait<Cargo>();
 					foreach (var unit in units.Skip(added).Take(passengersPerPlane))
@@ -283,10 +283,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (beacon == null)
 				return;
 
-			Self.World.AddFrameEndTask(w =>
-			{
-				w.Remove(beacon);
-			});
+			Self.World.AddFrameEndTask(w => w.Remove(beacon));
 		}
 	}
 }

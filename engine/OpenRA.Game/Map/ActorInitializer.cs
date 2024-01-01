@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -54,7 +54,7 @@ namespace OpenRA
 			// Traits tagged with an instance name prefer inits with the same name.
 			// If a more specific init is not available, fall back to an unnamed init.
 			// If duplicate inits are defined, take the last to match standard yaml override expectations
-			if (info != null && !string.IsNullOrEmpty(info.InstanceName))
+			if (!string.IsNullOrEmpty(info?.InstanceName))
 				return inits.LastOrDefault(i => i.InstanceName == info.InstanceName) ??
 					inits.LastOrDefault(i => string.IsNullOrEmpty(i.InstanceName));
 
@@ -159,8 +159,9 @@ namespace OpenRA
 
 		public virtual void Initialize(T value)
 		{
-			var field = typeof(ValueActorInit<T>).GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			field?.SetValue(this, value);
+			typeof(ValueActorInit<T>)
+				.GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance)
+				?.SetValue(this, value);
 		}
 
 		public override MiniYaml Save()
@@ -245,14 +246,16 @@ namespace OpenRA
 
 		public void Initialize(MiniYaml yaml)
 		{
-			var field = typeof(OwnerInit).GetField(nameof(InternalName), BindingFlags.Public | BindingFlags.Instance);
-			field?.SetValue(this, yaml.Value);
+			typeof(OwnerInit)
+				.GetField(nameof(InternalName), BindingFlags.Public | BindingFlags.Instance)
+				?.SetValue(this, yaml.Value);
 		}
 
 		public void Initialize(Player player)
 		{
-			var field = typeof(OwnerInit).GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			field?.SetValue(this, player);
+			typeof(OwnerInit)
+				.GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance)
+				?.SetValue(this, player);
 		}
 
 		public override MiniYaml Save()

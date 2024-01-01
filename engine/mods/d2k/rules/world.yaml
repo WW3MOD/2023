@@ -157,8 +157,8 @@ World:
 		Type: SandCrater
 		Sequence: sandcraters
 	MapCreeps:
-		CheckboxLabel: Worms
-		CheckboxDescription: Worms roam the map and devour unprepared forces
+		CheckboxLabel: dropdown-map-worms.label
+		CheckboxDescription: dropdown-map-worms.description
 		CheckboxDisplayOrder: 5
 	SpawnMapActors:
 	MapBuildRadius:
@@ -173,12 +173,12 @@ World:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
 	StartingUnits@mcv:
 		Class: none
-		ClassName: MCV Only
+		ClassName: options-starting-units.mcv-only
 		BaseActor: mcv
 		Factions: atreides, ordos, harkonnen
 	StartingUnits@lightatreides:
 		Class: light
-		ClassName: Light Support
+		ClassName: options-starting-units.light-support
 		Factions: atreides
 		BaseActor: mcv
 		SupportActors: light_inf, light_inf, light_inf, trooper, grenadier, trike, quad
@@ -186,7 +186,7 @@ World:
 		OuterSupportRadius: 5
 	StartingUnits@lightharkonnen:
 		Class: light
-		ClassName: Light Support
+		ClassName: options-starting-units.light-support
 		Factions: harkonnen
 		BaseActor: mcv
 		SupportActors: light_inf, light_inf, light_inf, trooper, trooper, trike, quad
@@ -194,7 +194,7 @@ World:
 		OuterSupportRadius: 5
 	StartingUnits@lightordos:
 		Class: light
-		ClassName: Light Support
+		ClassName: options-starting-units.light-support
 		Factions: ordos
 		BaseActor: mcv
 		SupportActors: light_inf, light_inf, light_inf, trooper, engineer, raider, quad
@@ -202,7 +202,7 @@ World:
 		OuterSupportRadius: 5
 	StartingUnits@heavyatreides:
 		Class: heavy
-		ClassName: Heavy Support
+		ClassName: options-starting-units.heavy-support
 		Factions: atreides
 		BaseActor: mcv
 		SupportActors: light_inf, light_inf, light_inf, trooper, grenadier, trike, combat_tank_a, missile_tank
@@ -210,7 +210,7 @@ World:
 		OuterSupportRadius: 5
 	StartingUnits@heavyharkonnen:
 		Class: heavy
-		ClassName: Heavy Support
+		ClassName: options-starting-units.heavy-support
 		Factions: harkonnen
 		BaseActor: mcv
 		SupportActors: light_inf, light_inf, light_inf, trooper, engineer, quad, combat_tank_h, siege_tank
@@ -218,7 +218,7 @@ World:
 		OuterSupportRadius: 5
 	StartingUnits@heavyordos:
 		Class: heavy
-		ClassName: Heavy Support
+		ClassName: options-starting-units.heavy-support
 		Factions: ordos
 		BaseActor: mcv
 		SupportActors: light_inf, light_inf, light_inf, trooper, engineer, raider, combat_tank_o, missile_tank
@@ -240,8 +240,7 @@ World:
 		TimeLimitDisplayOrder: 2
 	ColorPickerManager:
 		PreviewActor: carryall.colorpicker
-		PresetHues: 0, 0.13, 0.18, 0.3, 0.475, 0.625, 0.82, 0.89, 0.97, 0.05, 0.23, 0.375, 0.525, 0.6, 0.75, 0.85
-		PresetSaturations: 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.5, 0.35, 0.4, 0.4, 0.5, 0.5, 0.4, 0.35
+		PresetColors: F21818, FFAE00, FFF830, 44F218, 39C46F, 498221, F2798F, E118F2, 9023CD, 392929, 200738, F218A8, DDB8FF, 184FF2, 2F86F2, 76D2F8
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle

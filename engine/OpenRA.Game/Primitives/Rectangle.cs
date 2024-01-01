@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -63,13 +63,13 @@ namespace OpenRA.Primitives
 		public int Top => Y;
 		public int Bottom => Y + Height;
 		public bool IsEmpty => X == 0 && Y == 0 && Width == 0 && Height == 0;
-		public int2 Location => new int2(X, Y);
-		public Size Size => new Size(Width, Height);
+		public int2 Location => new(X, Y);
+		public Size Size => new(Width, Height);
 
 		public int2 TopLeft => Location;
-		public int2 TopRight => new int2(X + Width, Y);
-		public int2 BottomLeft => new int2(X, Y + Height);
-		public int2 BottomRight => new int2(X + Width, Y + Height);
+		public int2 TopRight => new(X + Width, Y);
+		public int2 BottomLeft => new(X, Y + Height);
+		public int2 BottomRight => new(X + Width, Y + Height);
 
 		public bool Contains(int x, int y)
 		{
@@ -88,7 +88,7 @@ namespace OpenRA.Primitives
 
 		public override bool Equals(object obj)
 		{
-			if (!(obj is Rectangle))
+			if (obj is not Rectangle)
 				return false;
 
 			return this == (Rectangle)obj;

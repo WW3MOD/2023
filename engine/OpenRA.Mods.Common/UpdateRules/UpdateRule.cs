@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,11 +19,11 @@ namespace OpenRA.Mods.Common.UpdateRules
 		public abstract string Description { get; }
 
 		/// <summary>Defines a transformation that is run on each top-level node in a yaml file set.</summary>
-		/// <returns>An enumerable of manual steps to be run by the user</returns>
+		/// <returns>An enumerable of manual steps to be run by the user.</returns>
 		public delegate IEnumerable<string> TopLevelNodeTransform(ModData modData, MiniYamlNode node);
 
 		/// <summary>Defines a transformation that is run on each widget node in a chrome yaml file set.</summary>
-		/// <returns>An enumerable of manual steps to be run by the user</returns>
+		/// <returns>An enumerable of manual steps to be run by the user.</returns>
 		public delegate IEnumerable<string> ChromeNodeTransform(ModData modData, MiniYamlNode widgetNode);
 
 		public virtual IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode) { yield break; }
@@ -36,9 +36,21 @@ namespace OpenRA.Mods.Common.UpdateRules
 
 		public virtual IEnumerable<string> BeforeUpdate(ModData modData) { yield break; }
 		public virtual IEnumerable<string> AfterUpdate(ModData modData) { yield break; }
+	}
 
-		public virtual IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors) { yield break; }
-		public virtual IEnumerable<string> BeforeUpdateWeapons(ModData modData, List<MiniYamlNode> resolvedWeapons) { yield break; }
-		public virtual IEnumerable<string> BeforeUpdateSequences(ModData modData, List<MiniYamlNode> resolvedImages) { yield break; }
+	// These aren't part of the UpdateRule class as to avoid premature yaml merge crashes when updating maps.
+	public interface IBeforeUpdateActors
+	{
+		IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors) { yield break; }
+	}
+
+	public interface IBeforeUpdateWeapons
+	{
+		IEnumerable<string> BeforeUpdateWeapons(ModData modData, List<MiniYamlNode> resolvedWeapons) { yield break; }
+	}
+
+	public interface IBeforeUpdateSequences
+	{
+		IEnumerable<string> BeforeUpdateSequences(ModData modData, List<MiniYamlNode> resolvedImages) { yield break; }
 	}
 }

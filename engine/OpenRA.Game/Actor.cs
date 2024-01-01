@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,6 +35,9 @@ namespace OpenRA
 
 	public sealed class Actor : IScriptBindable, IScriptNotifyBind, ILuaTableBinding, ILuaEqualityBinding, ILuaToStringBinding, IEquatable<Actor>, IDisposable
 	{
+		/// <summary>Value used to represent an invalid token.</summary>
+		public const int InvalidConditionToken = -1;
+
 		internal readonly struct SyncHash
 		{
 			public readonly ISync Trait;
@@ -85,27 +88,24 @@ namespace OpenRA
 			AverageDamagePercent += damage;
 		}
 
-		/// <summary>Value used to represent an invalid token.</summary>
-		public static readonly int InvalidConditionToken = -1;
-
 		public class ConditionState
 		{
 			/// <summary>Delegates that have registered to be notified when this condition changes.</summary>
-			public readonly List<VariableObserverNotifier> Notifiers = new List<VariableObserverNotifier>();
+			public readonly List<VariableObserverNotifier> Notifiers = new();
 
 			/// <summary>Unique integers identifying granted instances of the condition.</summary>
-			public readonly HashSet<int> Tokens = new HashSet<int>();
+			public readonly HashSet<int> Tokens = new();
 		}
 
 		public readonly Dictionary<string, ConditionState> ConditionStates = new Dictionary<string, ConditionState>();
 
 		/// <summary>Each granted condition receives a unique token that is used when revoking.</summary>
-		readonly Dictionary<int, string> conditionTokens = new Dictionary<int, string>();
+		readonly Dictionary<int, string> conditionTokens = new();
 
 		int nextConditionToken = 1;
 
 		/// <summary>Cache of condition -> enabled state for quick evaluation of token counter conditions.</summary>
-		readonly Dictionary<string, int> conditionCache = new Dictionary<string, int>();
+		readonly Dictionary<string, int> conditionCache = new();
 
 		/// <summary>Read-only version of conditionCache that is passed to IConditionConsumers.</summary>
 		readonly IReadOnlyDictionary<string, int> readOnlyConditionCache;
@@ -646,7 +646,7 @@ namespace OpenRA
 			return InvalidConditionToken;
 		}
 
-		/// <summary>Returns whether the specified token is valid for RevokeCondition</summary>
+		/// <summary>Returns whether the specified token is valid for RevokeCondition.</summary>
 		public bool TokenValid(int token)
 		{
 			return conditionTokens.ContainsKey(token);
@@ -659,8 +659,7 @@ namespace OpenRA
 		Lazy<ScriptActorInterface> luaInterface;
 		public void OnScriptBind(ScriptContext context)
 		{
-			if (luaInterface == null)
-				luaInterface = Exts.Lazy(() => new ScriptActorInterface(context, this));
+			luaInterface ??= Exts.Lazy(() => new ScriptActorInterface(context, this));
 		}
 
 		public LuaValue this[LuaRuntime runtime, LuaValue keyValue]

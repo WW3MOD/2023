@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,6 +29,9 @@ namespace OpenRA
 {
 	public static class Game
 	{
+		[TranslationReference("filename")]
+		const string SavedScreenshot = "notification-saved-screenshot";
+
 		public const int TimestepJankThreshold = 250; // Don't catch up for delays larger than 250ms
 
 		public static InstalledMods Mods { get; private set; }
@@ -45,7 +48,7 @@ namespace OpenRA
 		internal static OrderManager OrderManager;
 		static Server.Server server;
 
-		public static MersenneTwister CosmeticRandom = new MersenneTwister(); // not synced
+		public static MersenneTwister CosmeticRandom = new(); // not synced
 
 		public static Renderer Renderer;
 		public static Sound Sound;
@@ -62,7 +65,7 @@ namespace OpenRA
 		{
 			var newConnection = new NetworkConnection(endpoint);
 			if (recordReplay)
-				newConnection.StartRecording(() => { return TimestampedFilename(); });
+				newConnection.StartRecording(() => TimestampedFilename());
 
 			var om = new OrderManager(newConnection);
 			JoinInner(om);
@@ -83,8 +86,9 @@ namespace OpenRA
 
 		static void JoinInner(OrderManager om)
 		{
-			// Refresh TextNotificationsManager before the game starts.
+			// Refresh static classes before the game starts.
 			TextNotificationsManager.Clear();
+			UnitOrders.Clear();
 
 			// HACK: The shellmap World and OrderManager are owned by the main menu's WorldRenderer instead of Game.
 			// This allows us to switch Game.OrderManager from the shellmap to the new network connection when joining
@@ -184,13 +188,8 @@ namespace OpenRA
 			Cursor.SetCursor(null);
 			BeforeGameStart();
 
-			Map map;
-
-			using (new PerfTimer("PrepareMap"))
-				map = ModData.PrepareMap(mapUID);
-
 			using (new PerfTimer("NewWorld"))
-				OrderManager.World = new World(ModData, map, OrderManager, type);
+				OrderManager.World = new World(mapUID, ModData, OrderManager, type);
 
 			OrderManager.World.GameOver += FinishBenchmark;
 
@@ -267,15 +266,14 @@ namespace OpenRA
 		{
 			OrderManager om = null;
 
-			Action lobbyReady = null;
-			lobbyReady = () =>
+			void LobbyReady()
 			{
-				LobbyInfoChanged -= lobbyReady;
+				LobbyInfoChanged -= LobbyReady;
 				foreach (var o in setupOrders)
 					om.IssueOrder(o);
-			};
+			}
 
-			LobbyInfoChanged += lobbyReady;
+			LobbyInfoChanged += LobbyReady;
 
 			om = JoinServer(CreateLocalServer(mapUID), "");
 		}
@@ -419,7 +417,7 @@ namespace OpenRA
 				// Sanitize input from platform-specific launchers
 				// Process.Start requires paths to not be quoted, even if they contain spaces
 				if (launchPath != null && launchPath.First() == '"' && launchPath.Last() == '"')
-					launchPath = launchPath.Substring(1, launchPath.Length - 2);
+					launchPath = launchPath[1..^1];
 
 				// Metadata registration requires an explicit launch path
 				if (launchPath != null)
@@ -566,13 +564,10 @@ namespace OpenRA
 
 		// Note: These delayed actions should only be used by widgets or disposing objects
 		// - things that depend on a particular world should be queuing them on the world actor.
-		static volatile ActionQueue delayedActions = new ActionQueue();
+		static volatile ActionQueue delayedActions = new();
 
 		public static void RunAfterTick(Action a) { delayedActions.Add(a, RunTime); }
 		public static void RunAfterDelay(int delayMilliseconds, Action a) { delayedActions.Add(a, RunTime + delayMilliseconds); }
-
-		[TranslationReference("filename")]
-		static readonly string SavedScreenshot = "saved-screenshot";
 
 		static void TakeScreenshotInner()
 		{
@@ -587,7 +582,7 @@ namespace OpenRA
 				Log.Write("debug", "Taking screenshot " + path);
 
 				Renderer.SaveScreenshot(path);
-				TextNotificationsManager.Debug(ModData.Translation.GetString(SavedScreenshot, Translation.Arguments("filename", filename)));
+				TextNotificationsManager.Debug(TranslationProvider.GetString(SavedScreenshot, Translation.Arguments("filename", filename)));
 			}
 		}
 
@@ -619,10 +614,7 @@ namespace OpenRA
 
 					if (orderManager.TryTick())
 					{
-						Sync.RunUnsynced(world, () =>
-						{
-							world.OrderGenerator.Tick(world);
-						});
+						Sync.RunUnsynced(world, () => world.OrderGenerator.Tick(world));
 
 						world.Tick();
 

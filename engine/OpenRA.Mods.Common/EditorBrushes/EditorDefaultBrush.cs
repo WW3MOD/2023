@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -108,8 +108,11 @@ namespace OpenRA.Mods.Common.Widgets
 		public void Dispose() { }
 	}
 
-	class RemoveActorAction : IEditorAction
+	sealed class RemoveActorAction : IEditorAction
 	{
+		[TranslationReference("name", "id")]
+		const string RemovedActor = "notification-removed-actor";
+
 		public string Text { get; }
 
 		readonly EditorActorLayer editorActorLayer;
@@ -120,7 +123,8 @@ namespace OpenRA.Mods.Common.Widgets
 			this.editorActorLayer = editorActorLayer;
 			this.actor = actor;
 
-			Text = $"Removed {actor.Info.Name} ({actor.ID})";
+			Text = TranslationProvider.GetString(RemovedActor,
+				Translation.Arguments("name", actor.Info.Name, "id", actor.ID));
 		}
 
 		public void Execute()
@@ -139,8 +143,11 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 	}
 
-	class RemoveResourceAction : IEditorAction
+	sealed class RemoveResourceAction : IEditorAction
 	{
+		[TranslationReference("type")]
+		const string RemovedResource = "notification-removed-resource";
+
 		public string Text { get; }
 
 		readonly IResourceLayer resourceLayer;
@@ -153,7 +160,7 @@ namespace OpenRA.Mods.Common.Widgets
 			this.resourceLayer = resourceLayer;
 			this.cell = cell;
 
-			Text = $"Removed {resourceType}";
+			Text = TranslationProvider.GetString(RemovedResource, Translation.Arguments("type", resourceType));
 		}
 
 		public void Execute()

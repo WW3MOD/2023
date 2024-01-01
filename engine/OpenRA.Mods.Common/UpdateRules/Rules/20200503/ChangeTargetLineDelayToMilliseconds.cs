@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,7 @@ using System.Collections.Generic;
 
 namespace OpenRA.Mods.Common.UpdateRules.Rules
 {
-	class ChangeTargetLineDelayToMilliseconds : UpdateRule
+	sealed class ChangeTargetLineDelayToMilliseconds : UpdateRule
 	{
 		public override string Name => "Changed DrawLineToTarget.Delay interpretation from ticks to milliseconds.";
 
@@ -26,11 +26,8 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			foreach (var dltt in actorNode.ChildrenMatching("DrawLineToTarget", includeRemovals: false))
 			{
 				var delayNode = dltt.LastChildMatching("Delay", false);
-				if (delayNode != null)
-				{
-					if (Exts.TryParseIntegerInvariant(delayNode.Value.Value, out var delay))
-						delayNode.ReplaceValue((delay * 1000 / 25).ToString());
-				}
+				if (delayNode != null && Exts.TryParseIntegerInvariant(delayNode.Value.Value, out var delay))
+					delayNode.ReplaceValue((delay * 1000 / 25).ToString());
 			}
 
 			yield break;

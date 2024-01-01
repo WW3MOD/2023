@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -59,10 +59,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
 			var faction = init.GetValue<FactionInit, string>(this);
 			var ownerName = init.Get<OwnerInit>().InternalName;
-			var sequenceProvider = init.World.Map.Rules.Sequences;
+			var sequences = init.World.Map.Sequences;
 			var image = Image ?? init.Actor.Name;
 			var facings = body.QuantizedFacings == -1 ?
-				init.Actor.TraitInfo<IQuantizeBodyOrientationInfo>().QuantizedBodyFacings(init.Actor, sequenceProvider, faction) :
+				init.Actor.TraitInfo<IQuantizeBodyOrientationInfo>().QuantizedBodyFacings(init.Actor, sequences, faction) :
 				body.QuantizedFacings;
 			var palette = init.WorldRenderer.Palette(Palette ?? PlayerPalette + ownerName);
 
@@ -78,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 	public class RenderVoxels : IRender, ITick, INotifyOwnerChanged
 	{
-		class AnimationWrapper
+		sealed class AnimationWrapper
 		{
 			readonly ModelAnimation model;
 			bool cachedVisible;
@@ -105,8 +105,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public readonly RenderVoxelsInfo Info;
 
-		readonly List<ModelAnimation> components = new List<ModelAnimation>();
-		readonly Dictionary<ModelAnimation, AnimationWrapper> wrappers = new Dictionary<ModelAnimation, AnimationWrapper>();
+		readonly List<ModelAnimation> components = new();
+		readonly Dictionary<ModelAnimation, AnimationWrapper> wrappers = new();
 
 		readonly Actor self;
 		readonly BodyOrientation body;

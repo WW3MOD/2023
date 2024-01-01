@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA.Support
 		public static readonly IReadOnlyDictionary<string, int> NoVariables = new ReadOnlyDictionary<string, int>(new Dictionary<string, int>());
 
 		public readonly string Expression;
-		readonly HashSet<string> variables = new HashSet<string>();
+		readonly HashSet<string> variables = new();
 		public IEnumerable<string> Variables => variables;
 
 		enum CharClass { Whitespace, Operator, Mixed, Id, Digit }
@@ -77,14 +77,14 @@ namespace OpenRA.Support
 				case '9':
 					return CharClass.Digit;
 
-					// Fast-track normal whitespace
+				// Fast-track normal whitespace
 				case ' ':
 				case '\t':
 				case '\n':
 				case '\r':
 					return CharClass.Whitespace;
 
-					// Should other whitespace be tested?
+				// Should other whitespace be tested?
 				default:
 					return char.IsWhiteSpace(c) ? CharClass.Whitespace : CharClass.Id;
 			}
@@ -354,7 +354,7 @@ namespace OpenRA.Support
 						if (cc != CharClass.Digit)
 						{
 							if (cc != CharClass.Whitespace && cc != CharClass.Operator && cc != CharClass.Mixed)
-								throw new InvalidDataException($"Number {int.Parse(expression.Substring(start, i - start))} and variable merged at index {start}");
+								throw new InvalidDataException($"Number {int.Parse(expression[start..i])} and variable merged at index {start}");
 
 							return true;
 						}
@@ -369,7 +369,7 @@ namespace OpenRA.Support
 			static TokenType VariableOrKeyword(string expression, int start, ref int i)
 			{
 				if (CharClassOf(expression[i - 1]) == CharClass.Mixed)
-					throw new InvalidDataException($"Invalid identifier end character at index {i - 1} for `{expression.Substring(start, i - start)}`");
+					throw new InvalidDataException($"Invalid identifier end character at index {i - 1} for `{expression[start..i]}`");
 
 				return VariableOrKeyword(expression, start, i - start);
 			}
@@ -540,10 +540,10 @@ namespace OpenRA.Support
 				switch (type)
 				{
 					case TokenType.Number:
-						return new NumberToken(start, expression.Substring(start, i - start));
+						return new NumberToken(start, expression[start..i]);
 
 					case TokenType.Variable:
-						return new VariableToken(start, expression.Substring(start, i - start));
+						return new VariableToken(start, expression[start..i]);
 
 					default:
 						return new Token(type, start);
@@ -551,7 +551,7 @@ namespace OpenRA.Support
 			}
 		}
 
-		class VariableToken : Token
+		sealed class VariableToken : Token
 		{
 			public readonly string Name;
 
@@ -561,7 +561,7 @@ namespace OpenRA.Support
 				: base(TokenType.Variable, index) { Name = symbol; }
 		}
 
-		class NumberToken : Token
+		sealed class NumberToken : Token
 		{
 			public readonly int Value;
 			readonly string symbol;
@@ -576,7 +576,7 @@ namespace OpenRA.Support
 			}
 		}
 
-		public VariableExpression(string expression)
+		protected VariableExpression(string expression)
 		{
 			Expression = expression;
 		}
@@ -714,17 +714,17 @@ namespace OpenRA.Support
 			return Expressions.Expression.Condition(test, ifTrue, ifFalse);
 		}
 
-		class AstStack
+		sealed class AstStack
 		{
-			readonly List<Expression> expressions = new List<Expression>();
-			readonly List<ExpressionType> types = new List<ExpressionType>();
+			readonly List<Expression> expressions = new();
+			readonly List<ExpressionType> types = new();
 
-			public ExpressionType PeekType() { return types[types.Count - 1]; }
+			public ExpressionType PeekType() { return types[^1]; }
 
 			public Expression Peek(ExpressionType toType)
 			{
-				var fromType = types[types.Count - 1];
-				var expression = expressions[expressions.Count - 1];
+				var fromType = types[^1];
+				var expression = expressions[^1];
 				if (toType == fromType)
 					return expression;
 
@@ -772,9 +772,9 @@ namespace OpenRA.Support
 			}
 		}
 
-		class Compiler
+		sealed class Compiler
 		{
-			readonly AstStack ast = new AstStack();
+			readonly AstStack ast = new();
 
 			public Expression Build(Token[] postfix, ExpressionType resultType)
 			{

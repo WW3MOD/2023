@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,6 +21,7 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public class Move : Activity
 	{
+		public WAngle ActorFacingModifier { get; private set; }
 		readonly Mobile mobile;
 		readonly WDist nearEnough;
 		readonly Func<BlockedByActor, List<CPos>> getPath;
@@ -116,7 +117,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (evaluateNearestMovableCell && destination.HasValue)
 			{
 				var movableDestination = mobile.NearestMoveableCell(destination.Value);
-				destination = mobile.CanEnterCell(movableDestination, check: BlockedByActor.Immovable) ? movableDestination : (CPos?)null;
+				destination = mobile.CanEnterCell(movableDestination, check: BlockedByActor.Immovable) ? movableDestination : null;
 			}
 
 			// TODO: Change this to BlockedByActor.Stationary after improving the local avoidance behaviour
@@ -159,10 +160,18 @@ namespace OpenRA.Mods.Common.Activities
 
 			var firstFacing = self.World.Map.FacingBetween(mobile.FromCell, nextCell.Value.Cell, mobile.Facing);
 
-			if (mobile.Info.CanMoveBackward && self.World.WorldTick - startTicks < mobile.Info.BackwardDuration && Math.Abs(firstFacing.Angle - mobile.Facing.Angle) > 256)
-				firstFacing = new WAngle(firstFacing.Angle + 512);
+			if (mobile.Info.CanMoveBackward
+				&& (mobile.Info.MaxBackwardCells < 0 || path.Count < mobile.Info.MaxBackwardCells)
+				&& (mobile.Info.BackwardDuration < 0 || self.World.WorldTick - startTicks < mobile.Info.BackwardDuration)
+				&& Math.Abs(firstFacing.Angle - mobile.Facing.Angle) > 256)
+			{
+				ActorFacingModifier = new WAngle(512);
+				firstFacing += ActorFacingModifier;
+			}
+			else
+				ActorFacingModifier = WAngle.Zero;
 
-			if (firstFacing != mobile.Facing)
+			if (!mobile.Info.TurnsWhileMoving && firstFacing != mobile.Facing)
 			{
 				path.Add(nextCell.Value.Cell);
 				QueueChild(new Turn(self, firstFacing));
@@ -186,7 +195,7 @@ namespace OpenRA.Mods.Common.Activities
 				toTerrainOrientation = WRot.SLerp(map.TerrainOrientation(mobile.FromCell), map.TerrainOrientation(mobile.ToCell), 1, 2);
 
 			var movingOnGroundLayer = mobile.FromCell.Layer == 0 && mobile.ToCell.Layer == 0;
-			QueueChild(new MoveFirstHalf(this, from, to, mobile.Facing, mobile.Facing, null, toTerrainOrientation, margin, carryoverProgress, movingOnGroundLayer));
+			QueueChild(new MoveFirstHalf(this, from, to, mobile.Facing, firstFacing, null, toTerrainOrientation, margin, carryoverProgress, false, movingOnGroundLayer));
 			carryoverProgress = 0;
 			return false;
 		}
@@ -196,7 +205,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (path.Count == 0)
 				return null;
 
-			var nextCell = path[path.Count - 1];
+			var nextCell = path[^1];
 
 			// Something else might have moved us, so the path is no longer valid.
 			if (!Util.AreAdjacentCells(mobile.ToCell, nextCell))
@@ -274,7 +283,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (newPath.Count != 0)
 				{
 					path = newPath;
-					var newCell = path[path.Count - 1];
+					var newCell = path[^1];
 					path.RemoveAt(path.Count - 1);
 
 					return (newCell, mobile.GetAvailableSubCell(nextCell, mobile.FromSubCell, ignoreActor));
@@ -310,7 +319,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			foreach (var actor in self.World.ActorMap.GetActorsAt(cell))
 			{
-				if (!(actor.OccupiesSpace is Mobile move) || move.IsTraitDisabled || !move.IsLeaving())
+				if (actor.OccupiesSpace is not Mobile move || move.IsTraitDisabled || !move.IsLeaving())
 					return false;
 			}
 
@@ -362,11 +371,13 @@ namespace OpenRA.Mods.Common.Activities
 			protected readonly WAngle ArcToAngle;
 			protected readonly int Distance;
 			protected readonly bool MovingOnGroundLayer;
+			protected readonly bool TurnsWhileMoving;
 			readonly int terrainOrientationMargin;
 			protected int progress;
 
-			public MovePart(Move move, WPos from, WPos to, WAngle fromFacing, WAngle toFacing,
-				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool movingOnGroundLayer)
+			protected MovePart(Move move, WPos from, WPos to, WAngle fromFacing, WAngle toFacing,
+				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin,
+				int carryoverProgress, bool shouldArc, bool movingOnGroundLayer)
 			{
 				Move = move;
 				From = from;
@@ -382,9 +393,10 @@ namespace OpenRA.Mods.Common.Activities
 
 				IsInterruptible = false; // See comments in Move.Cancel()
 
+				TurnsWhileMoving = move.mobile.Info.TurnsWhileMoving;
+
 				// Calculate an elliptical arc that joins from and to
-				var delta = (fromFacing - toFacing).Angle;
-				if (delta != 0 && delta != 512)
+				if (shouldArc)
 				{
 					// The center of rotation is where the normal vectors cross
 					var u = new WVec(1024, 0, 0).Rotate(WRot.FromYaw(fromFacing));
@@ -439,7 +451,9 @@ namespace OpenRA.Mods.Common.Activities
 				if (progress >= Distance)
 				{
 					mobile.SetCenterPosition(self, To);
-					mobile.Facing = ToFacing;
+					mobile.Facing = TurnsWhileMoving
+						? Util.TickFacing(mobile.Facing, ToFacing, mobile.TurnSpeed)
+						: ToFacing;
 
 					Move.lastMovePartCompletedTick = self.World.WorldTick;
 					Queue(OnComplete(self, mobile, Move));
@@ -482,7 +496,10 @@ namespace OpenRA.Mods.Common.Activities
 					mobile.SetTerrainRampOrientation(orientation);
 				}
 
-				mobile.Facing = WAngle.Lerp(FromFacing, ToFacing, progress, Distance);
+				mobile.Facing = TurnsWhileMoving
+					? Util.TickFacing(mobile.Facing, ToFacing, mobile.TurnSpeed)
+					: WAngle.Lerp(FromFacing, ToFacing, progress, Distance);
+
 				return false;
 			}
 
@@ -494,16 +511,20 @@ namespace OpenRA.Mods.Common.Activities
 			}
 		}
 
-		class MoveFirstHalf : MovePart
+		sealed class MoveFirstHalf : MovePart
 		{
 			public MoveFirstHalf(Move move, WPos from, WPos to, WAngle fromFacing, WAngle toFacing,
-				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool movingOnGroundLayer)
-				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, movingOnGroundLayer) { }
+				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool shouldArc, bool movingOnGroundLayer)
+				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, shouldArc, movingOnGroundLayer) { }
 
-			static bool IsTurn(Mobile mobile, CPos nextCell, Map map)
+			bool IsTurn(Actor self, Mobile mobile, CPos nextCell, Map map)
 			{
 				// Some actors with a limited number of sprite facings should never move along curved trajectories.
-				if (mobile.Info.AlwaysTurnInPlace)
+				if (mobile.Info.AlwaysTurnInPlace || TurnsWhileMoving)
+					return false;
+
+				// When Backwards duration runs out, let the Move activity do the turn.
+				if (Move.ActorFacingModifier != WAngle.Zero && self.World.WorldTick - Move.startTicks >= mobile.Info.BackwardDuration)
 					return false;
 
 				// Tight U-turns should be done in place instead of making silly looking loops.
@@ -522,7 +543,7 @@ namespace OpenRA.Mods.Common.Activities
 				var nextCell = parent.PopPath(self);
 				if (nextCell != null)
 				{
-					if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(mobile, nextCell.Value.Cell, map))
+					if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(self, mobile, nextCell.Value.Cell, map))
 					{
 						var nextSubcellOffset = map.Grid.OffsetOfSubCell(nextCell.Value.SubCell);
 						WRot? nextToTerrainOrientation = null;
@@ -535,11 +556,12 @@ namespace OpenRA.Mods.Common.Activities
 							Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
 							Util.BetweenCells(self.World, mobile.ToCell, nextCell.Value.Cell) + (toSubcellOffset + nextSubcellOffset) / 2,
 							mobile.Facing,
-							map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing),
+							map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing) + Move.ActorFacingModifier,
 							ToTerrainOrientation,
 							nextToTerrainOrientation,
 							margin,
 							progress - Distance,
+							true,
 							mobile.ToCell.Layer == 0 && nextCell.Value.Cell.Layer == 0);
 
 						mobile.FinishedMoving(self);
@@ -558,11 +580,12 @@ namespace OpenRA.Mods.Common.Activities
 					Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
 					toPos + toSubcellOffset,
 					mobile.Facing,
-					mobile.Facing,
+					TurnsWhileMoving ? map.FacingBetween(mobile.FromCell, mobile.ToCell, mobile.Facing) + Move.ActorFacingModifier : mobile.Facing,
 					ToTerrainOrientation,
 					null,
 					mobile.Info.TerrainOrientationAdjustmentMargin.Length,
 					progress - Distance,
+					false,
 					MovingOnGroundLayer);
 
 				mobile.EnteringCell(self);
@@ -571,11 +594,11 @@ namespace OpenRA.Mods.Common.Activities
 			}
 		}
 
-		class MoveSecondHalf : MovePart
+		sealed class MoveSecondHalf : MovePart
 		{
 			public MoveSecondHalf(Move move, WPos from, WPos to, WAngle fromFacing, WAngle toFacing,
-				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool movingOnGroundLayer)
-				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, movingOnGroundLayer) { }
+				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool shouldArc, bool movingOnGroundLayer)
+				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, shouldArc, movingOnGroundLayer) { }
 
 			protected override MovePart OnComplete(Actor self, Mobile mobile, Move parent)
 			{

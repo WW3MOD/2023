@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,18 +16,18 @@ namespace OpenRA.Mods.Cnc.FileFormats
 {
 	/* TODO: Convert this direct C port into readable code. */
 
-	class BlowfishKeyProvider
+	sealed class BlowfishKeyProvider
 	{
 		const string PublicKeyString = "AihRvNoIbTn85FZRYNZRcT+i6KpU+maCsEqr3Q5q+LDB5tH7Tz2qQ38V";
 
-		class PublicKey
+		sealed class PublicKey
 		{
 			public readonly uint[] KeyOne = new uint[64];
 			public readonly uint[] KeyTwo = new uint[64];
 			public uint Len;
 		}
 
-		readonly PublicKey pubkey = new PublicKey();
+		readonly PublicKey pubkey = new();
 
 		readonly uint[] globOne = new uint[64];
 		uint globOneBitLen, globOneLenXTwo;
@@ -144,7 +144,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 			{
 				for (i = 0; i < len - i2; i++) n[i] = n[i + i2];
 				for (; i < len; i++) n[i] = 0;
-				bits = bits % 32;
+				bits %= 32;
 			}
 
 			if (bits == 0) return;
@@ -161,7 +161,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 			{
 				for (i = len - 1; i > i2; i--) n[i] = n[i - i2];
 				for (; i > 0; i--) n[i] = 0;
-				bits = bits % 32;
+				bits %= 32;
 			}
 
 			if (bits == 0) return;
@@ -228,7 +228,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 			InitBigNum(n1, 0, len);
 			nTwoBitLen = (int)BitLenBigNum(n2, len);
 			bit = 1U << (nTwoBitLen % 32);
-			var j = ((nTwoBitLen + 32) / 32) - 1;
+			var j = (nTwoBitLen + 32) / 32 - 1;
 			nTwoByteLen = (uint)((nTwoBitLen - 1) / 32) * 4;
 			nTmp[nTwoByteLen / 4] |= 1U << ((nTwoBitLen - 1) & 0x1f);
 
@@ -293,7 +293,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 					tmp = 0;
 					for (i = 0; i < len; i++)
 					{
-						tmp = mul * (*pn2) + (*pn1) + tmp;
+						tmp = mul * *pn2 + *pn1 + tmp;
 						*pn1 = (ushort)tmp;
 						pn1++;
 						pn2++;
@@ -371,8 +371,8 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						IncrementBigNum(globTwo, len * 2 + 1);
 						NegBigNum(globTwo, len * 2 + 1);
 						lenDiff = globTwoXtwo + 1 - globOneLenXTwo;
-						var esi = ((ushort*)g2) + (1 + globTwoXtwo - globOneLenXTwo);
-						var edi = ((ushort*)g2) + (globTwoXtwo + 1);
+						var esi = (ushort*)g2 + (1 + globTwoXtwo - globOneLenXTwo);
+						var edi = (ushort*)g2 + (globTwoXtwo + 1);
 						for (; lenDiff != 0; lenDiff--)
 						{
 							edi--;

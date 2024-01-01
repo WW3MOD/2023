@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Mods.Common.FileFormats;
 
 namespace OpenRA.Mods.Cnc.UtilityCommands
 {
-	class LegacyRulesImporter : IUtilityCommand
+	sealed class LegacyRulesImporter : IUtilityCommand
 	{
 		bool IUtilityCommand.ValidateArguments(string[] args)
 		{
@@ -151,10 +151,8 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 							Console.WriteLine("\t\tDimensions: " + dimensions.First() + "," + dimensions.Last());
 
 							Console.Write("\t\tFootprint:");
-							var width = 0;
-							int.TryParse(dimensions.First(), out width);
-							var height = 0;
-							int.TryParse(dimensions.Last(), out height);
+							int.TryParse(dimensions.First(), out var width);
+							int.TryParse(dimensions.Last(), out var height);
 							for (var y = 0; y < height; y++)
 							{
 								Console.Write(" ");

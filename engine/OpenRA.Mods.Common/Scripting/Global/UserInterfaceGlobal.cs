@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,6 +9,8 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using Eluant;
 using OpenRA.Mods.Common.Widgets;
 using OpenRA.Primitives;
 using OpenRA.Scripting;
@@ -28,13 +30,31 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			var luaLabel = Ui.Root.Get("INGAME_ROOT").Get<LabelWidget>("MISSION_TEXT");
 			luaLabel.GetText = () => text;
 
-			var c = color.HasValue ? color.Value : Color.White;
+			var c = color ?? Color.White;
 			luaLabel.GetColor = () => c;
 		}
 
-		public string Translate(string text)
+		public string Translate(string text, LuaTable table = null)
 		{
-			return Context.World.Map.Translate(text);
+			if (table != null)
+			{
+				var argumentDictionary = new Dictionary<string, object>();
+				foreach (var kv in table)
+				{
+					using (kv.Key)
+					using (kv.Value)
+					{
+						if (!kv.Key.TryGetClrValue<string>(out var variable) || !kv.Value.TryGetClrValue<object>(out var value))
+							throw new LuaException($"Translation arguments requires a table of [\"string\"]=value pairs. Received {kv.Key.WrappedClrType().Name},{kv.Value.WrappedClrType().Name}");
+
+						argumentDictionary.Add(variable, value);
+					}
+				}
+
+				return TranslationProvider.GetString(text, argumentDictionary);
+			}
+
+			return TranslationProvider.GetString(text);
 		}
 	}
 }

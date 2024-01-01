@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,9 @@ using Linguini.Bundle;
 using Linguini.Bundle.Builder;
 using Linguini.Shared.Types.Bundle;
 using Linguini.Syntax.Parser;
+using Linguini.Syntax.Parser.Error;
 using OpenRA.FileSystem;
+using OpenRA.Traits;
 
 namespace OpenRA
 {
@@ -26,12 +28,18 @@ namespace OpenRA
 	public sealed class TranslationReferenceAttribute : Attribute
 	{
 		public readonly string[] RequiredVariableNames;
+		public readonly LintDictionaryReference DictionaryReference;
 
 		public TranslationReferenceAttribute() { }
 
 		public TranslationReferenceAttribute(params string[] requiredVariableNames)
 		{
 			RequiredVariableNames = requiredVariableNames;
+		}
+
+		public TranslationReferenceAttribute(LintDictionaryReference dictionaryReference = LintDictionaryReference.None)
+		{
+			DictionaryReference = dictionaryReference;
 		}
 	}
 
@@ -40,21 +48,41 @@ namespace OpenRA
 		readonly FluentBundle bundle;
 
 		public Translation(string language, string[] translations, IReadOnlyFileSystem fileSystem)
+			: this(language, translations, fileSystem, error => Log.Write("debug", error.ToString())) { }
+
+		public Translation(string language, string[] translations, IReadOnlyFileSystem fileSystem, Action<ParseError> onError)
 		{
 			if (translations == null || translations.Length == 0)
 				return;
 
 			bundle = LinguiniBuilder.Builder()
-				.CultureInfo(CultureInfo.InvariantCulture)
+				.CultureInfo(new CultureInfo(language))
 				.SkipResources()
 				.SetUseIsolating(false)
 				.UseConcurrent()
 				.UncheckedBuild();
 
-			ParseTranslations(language, translations, fileSystem);
+			ParseTranslations(language, translations, fileSystem, onError);
 		}
 
-		void ParseTranslations(string language, string[] translations, IReadOnlyFileSystem fileSystem)
+		public Translation(string language, string text, Action<ParseError> onError)
+		{
+			var parser = new LinguiniParser(text);
+			var resource = parser.Parse();
+			foreach (var error in resource.Errors)
+				onError(error);
+
+			bundle = LinguiniBuilder.Builder()
+				.CultureInfo(new CultureInfo(language))
+				.SkipResources()
+				.SetUseIsolating(false)
+				.UseConcurrent()
+				.UncheckedBuild();
+
+			bundle.AddResourceOverriding(resource);
+		}
+
+		void ParseTranslations(string language, string[] translations, IReadOnlyFileSystem fileSystem, Action<ParseError> onError)
 		{
 			// Always load english strings to provide a fallback for missing translations.
 			// It is important to load the english files first so the chosen language's files can override them.
@@ -71,7 +99,7 @@ namespace OpenRA
 					var parser = new LinguiniParser(reader);
 					var resource = parser.Parse();
 					foreach (var error in resource.Errors)
-						Log.Write("debug", error.ToString());
+						onError(error);
 
 					bundle.AddResourceOverriding(resource);
 				}
@@ -104,15 +132,27 @@ namespace OpenRA
 
 			try
 			{
-				var result = bundle.TryGetAttrMsg(key, fluentArguments, out var errors, out value);
+				if (!HasMessage(key))
+				{
+					value = null;
+					return false;
+				}
+
+				var fluentArguments = new Dictionary<string, IFluentType>();
+				if (arguments != null)
+					foreach (var (k, v) in arguments)
+						fluentArguments.Add(k, v.ToFluentType());
+
+				var result = bundle.TryGetAttrMessage(key, fluentArguments, out var errors, out value);
 				foreach (var error in errors)
 					Log.Write("debug", $"Translation of {key}: {error}");
 
 				return result;
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
-				Log.Write("debug", $"Translation of {key}: {e}");
+				Log.Write("debug", $"Failed translation: {key}");
+
 				value = null;
 				return false;
 			}
@@ -120,7 +160,7 @@ namespace OpenRA
 
 		public bool HasMessage(string key)
 		{
-			return bundle.HasMessage(key);
+			return bundle.HasAttrMessage(key);
 		}
 
 		// Adapted from Fluent.Net.SimpleExample.TranslationService by Mark Weaver

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -21,10 +22,11 @@ namespace OpenRA.Mods.Common.Widgets
 	public class SupportPowerTimerWidget : Widget
 	{
 		public readonly string Font = "Bold";
-		public readonly string Format = "{0}: {1}";
+		public readonly string Format = "{0}'s {1}: {2}";
 		public readonly TextAlign Align = TextAlign.Left;
 		public readonly TimerOrder Order = TimerOrder.Descending;
 
+		readonly SpriteFont font;
 		readonly IEnumerable<SupportPowerInstance> powers;
 		readonly Color bgDark, bgLight;
 		(string Text, Color Color)[] texts;
@@ -39,6 +41,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			bgDark = ChromeMetrics.Get<Color>("TextContrastColorDark");
 			bgLight = ChromeMetrics.Get<Color>("TextContrastColorLight");
+			font = Game.Renderer.Fonts[Font];
 		}
 
 		public override void Tick()
@@ -54,7 +57,7 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				var self = p.Instances[0].Self;
 				var time = WidgetUtils.FormatTime(p.RemainingTicks, false, self.World.Timestep);
-				var text = Format.F(p.Info.Name, time);
+				var text = string.Format(Format, self.Owner.PlayerName, p.Info.Name, time);
 				var playerColor = self.Owner.Color;
 
 				if (Game.Settings.Game.UsePlayerStanceColors)
@@ -74,7 +77,6 @@ namespace OpenRA.Mods.Common.Widgets
 			var y = 0;
 			foreach (var t in texts)
 			{
-				var font = Game.Renderer.Fonts[Font];
 				var textSize = font.Measure(t.Text);
 				var location = new float2(Bounds.Location) + new float2(0, y);
 

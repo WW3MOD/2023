@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,20 +22,20 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public class HarvesterInfo : ConditionalTraitInfo, Requires<MobileInfo>
 	{
-		public readonly HashSet<string> DeliveryBuildings = new HashSet<string>();
+		public readonly HashSet<string> DeliveryBuildings = new();
 
 		[Desc("How long (in ticks) to wait until (re-)checking for a nearby available DeliveryBuilding if not yet linked to one.")]
 		public readonly int SearchForDeliveryBuildingDelay = 125;
 
 		[Desc("Cell to move to when automatically unblocking DeliveryBuilding.")]
-		public readonly CVec UnblockCell = new CVec(0, 4);
+		public readonly CVec UnblockCell = new(0, 4);
 
 		[Desc("How much resources it can carry.")]
 		public readonly int Capacity = 28;
 
 		public readonly int BaleLoadDelay = 4;
 
-		[Desc("How fast it can dump it's carryage.")]
+		[Desc("How fast it can dump its bales.")]
 		public readonly int BaleUnloadDelay = 4;
 
 		[Desc("How many bales can it dump at once.")]
@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int HarvestFacings = 0;
 
 		[Desc("Which resources it can harvest.")]
-		public readonly HashSet<string> Resources = new HashSet<string>();
+		public readonly HashSet<string> Resources = new();
 
 		[Desc("Percentage of maximum speed when fully loaded.")]
 		public readonly int FullyLoadedSpeed = 85;
@@ -113,7 +113,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Mobile mobile;
 		readonly IResourceLayer resourceLayer;
 		readonly ResourceClaimLayer claimLayer;
-		readonly Dictionary<string, int> contents = new Dictionary<string, int>();
+		readonly Dictionary<string, int> contents = new();
 		int conditionToken = Actor.InvalidConditionToken;
 
 		[Sync]
@@ -190,7 +190,7 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(r => r.Actor != ignore && r.Actor.Owner == self.Owner && IsAcceptableProcType(r.Actor))
 				.Select(r => new
 				{
-					Location = r.Actor.Location + r.Trait.DeliveryOffset,
+					Location = r.Actor.World.Map.CellContaining(r.Trait.DeliveryPosition),
 					Actor = r.Actor,
 					Occupancy = self.World.ActorsHavingTrait<Harvester>(h => h.LinkedProc == r.Actor).Count()
 				})
@@ -201,8 +201,8 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			// Start a search from each refinery's delivery location:
-			var path = mobile.PathFinder.FindPathToTargetCell(
-				self, refineries.Select(r => r.Key), self.Location, BlockedByActor.None,
+			var path = mobile.PathFinder.FindPathToTargetCells(
+				self, self.Location, refineries.Select(r => r.Key), BlockedByActor.None,
 				location =>
 				{
 					if (!refineries.ContainsKey(location))
@@ -214,7 +214,7 @@ namespace OpenRA.Mods.Common.Traits
 				});
 
 			if (path.Count > 0)
-				return refineries[path.Last()].Actor;
+				return refineries[path[0]].Actor;
 
 			return null;
 		}
@@ -421,11 +421,11 @@ namespace OpenRA.Mods.Common.Traits
 				conditionToken = self.RevokeCondition(conditionToken);
 		}
 
-		class HarvestOrderTargeter : IOrderTargeter
+		sealed class HarvestOrderTargeter : IOrderTargeter
 		{
 			public string OrderID => "Harvest";
 			public int OrderPriority => 10;
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
 			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist Range = WDist.FromCells(5);
 
 		[Desc("Allowed ProximityCaptor actors to capture this actor.")]
-		public readonly BitSet<CaptureType> CaptorTypes = new BitSet<CaptureType>("Player", "Vehicle", "Tank", "Infantry");
+		public readonly BitSet<CaptureType> CaptorTypes = new("Player", "Vehicle", "Tank", "Infantry");
 
 		[Desc("If set, the capturing process stops immediately after another player comes into Range.")]
 		public readonly bool MustBeClear = false;
@@ -64,8 +64,8 @@ namespace OpenRA.Mods.Common.Traits
 		public ProximityCapturableInfo Info;
 		public Actor Self;
 
-		readonly List<Actor> friendlyActorsInRange = new List<Actor>();
-		readonly List<Actor> enemyActorsInRange = new List<Actor>();
+		readonly List<Actor> friendlyActorsInRange = new();
+		readonly List<Actor> enemyActorsInRange = new();
 		int proximityTrigger;
 		WPos prevPosition;
 		bool skipTriggerUpdate;

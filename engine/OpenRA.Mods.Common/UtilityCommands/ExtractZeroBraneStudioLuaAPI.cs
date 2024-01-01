@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Scripting;
 namespace OpenRA.Mods.Common.UtilityCommands
 {
 	// See https://studio.zerobrane.com/doc-api-auto-complete for reference
-	class ExtractZeroBraneStudioLuaAPI : IUtilityCommand
+	sealed class ExtractZeroBraneStudioLuaAPI : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--zbstudio-lua-api";
 
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			var tables = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptGlobal>().OrderBy(t => t.Name);
 			foreach (var t in tables)
 			{
-				var name = t.GetCustomAttributes<ScriptGlobalAttribute>(true).First().Name;
+				var name = Utility.GetCustomAttributes<ScriptGlobalAttribute>(t, true).First().Name;
 				Console.WriteLine("  " + name + " = {");
 				Console.WriteLine("    type = \"class\",");
 				Console.WriteLine("    childs = {");
@@ -64,9 +64,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					if (propertyInfo != null)
 						Console.WriteLine("        type = \"value\",");
 
-					if (member.HasAttribute<DescAttribute>())
+					if (Utility.HasAttribute<DescAttribute>(member))
 					{
-						var desc = member.GetCustomAttributes<DescAttribute>(true).First().Lines.JoinWith("\n");
+						var desc = Utility.GetCustomAttributes<DescAttribute>(member, true).First().Lines.JoinWith("\n");
 						Console.WriteLine("        description = [[{0}]],", desc);
 					}
 
@@ -86,15 +86,11 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				Console.WriteLine("  },");
 			}
 
-			var actorProperties = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptActorProperties>().SelectMany(cg =>
-			{
-				return ScriptMemberWrapper.WrappableMembers(cg);
-			});
+			var actorProperties = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptActorProperties>()
+				.SelectMany(ScriptMemberWrapper.WrappableMembers);
 
-			var scriptProperties = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptPlayerProperties>().SelectMany(cg =>
-			{
-				return ScriptMemberWrapper.WrappableMembers(cg);
-			});
+			var scriptProperties = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptPlayerProperties>()
+				.SelectMany(ScriptMemberWrapper.WrappableMembers);
 
 			var properties = actorProperties.Concat(scriptProperties);
 			foreach (var property in properties.OrderBy(m => m.Name))
@@ -109,9 +105,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				if (propertyInfo != null)
 					Console.WriteLine("    type = \"value\",");
 
-				if (property.HasAttribute<DescAttribute>())
+				if (Utility.HasAttribute<DescAttribute>(property))
 				{
-					var desc = property.GetCustomAttributes<DescAttribute>(true).First().Lines.JoinWith("\n");
+					var desc = Utility.GetCustomAttributes<DescAttribute>(property, true).First().Lines.JoinWith("\n");
 					Console.WriteLine("    description = [[{0}]],", desc);
 				}
 

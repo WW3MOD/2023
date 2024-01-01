@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -21,6 +22,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Internal id for this tech level.")]
 		public readonly string Id;
 
+		[TranslationReference]
 		[Desc("Name shown in the lobby options.")]
 		public readonly string Name;
 
@@ -37,11 +39,9 @@ namespace OpenRA.Mods.Common.Traits
 		readonly ProvidesTechPrerequisiteInfo info;
 		readonly bool enabled;
 
-		static readonly string[] NoPrerequisites = Array.Empty<string>();
-
 		public string Name => info.Name;
 
-		public IEnumerable<string> ProvidesPrerequisites => enabled ? info.Prerequisites : NoPrerequisites;
+		public IEnumerable<string> ProvidesPrerequisites => enabled ? info.Prerequisites : Enumerable.Empty<string>();
 
 		public ProvidesTechPrerequisite(ProvidesTechPrerequisiteInfo info, ActorInitializer init)
 		{

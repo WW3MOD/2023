@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,14 +29,14 @@ namespace OpenRA.Mods.Common.Traits
 	public class BuildingInfo : TraitInfo, IOccupySpaceInfo, IPlaceBuildingDecorationInfo
 	{
 		[Desc("Where you are allowed to place the building (Water, Clear, ...)")]
-		public readonly HashSet<string> TerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> TerrainTypes = new();
 
 		[Desc("x means cell is blocked, capital X means blocked but not counting as targetable, ",
 			"= means part of the footprint but passable, _ means completely empty.")]
 		[FieldLoader.LoadUsing(nameof(LoadFootprint))]
 		public readonly Dictionary<CVec, FootprintCellType> Footprint;
 
-		public readonly CVec Dimensions = new CVec(1, 1);
+		public readonly CVec Dimensions = new(1, 1);
 
 		[Desc("Shift center of the actor by this offset.")]
 		public readonly WVec LocalCenterOffset = WVec.Zero;
@@ -153,7 +153,7 @@ namespace OpenRA.Mods.Common.Traits
 		public WVec CenterOffset(World w)
 		{
 			var off = (w.Map.CenterOfCell(new CPos(Dimensions.X, Dimensions.Y)) - w.Map.CenterOfCell(new CPos(1, 1))) / 2;
-			return (off - new WVec(0, 0, off.Z)) + LocalCenterOffset;
+			return off - new WVec(0, 0, off.Z) + LocalCenterOffset;
 		}
 
 		public BaseProvider FindBaseProvider(World world, Player p, CPos topLeft)

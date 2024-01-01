@@ -37,7 +37,7 @@ Player:
 					CheckRadius: 2c0
 				Consideration@3:
 					Against: Ally
-					Types: Ground, Water
+					Types: Ground
 					Attractiveness: -10
 					TargetMetric: Value
 					CheckRadius: 4c0
@@ -52,7 +52,7 @@ Player:
 					CheckRadius: 5c0
 				Consideration@2:
 					Against: Ally
-					Types: Air, Ground, Water
+					Types: Air, Ground
 					Attractiveness: -10
 					TargetMetric: Value
 					CheckRadius: 7c0
@@ -224,7 +224,7 @@ Player:
 		MaxBaseRadius: 40
 		ExcludeFromSquadsTypes: harvester, mcv, carryall, carryall.reinforce, ornithopter
 		ConstructionYardTypes: construction_yard
-		IgnoredEnemyTargetTypes: Creep
+		IgnoredEnemyTargetTypes: Creep, Air
 		ProtectionTypes: mcv, harvester, construction_yard, conyard.atreides, conyard.harkonnen, conyard.ordos, wind_trap, barracks, refinery, silo, light_factory, heavy_factory, outpost, starport, medium_gun_turret, large_gun_turret, repair_pad, high_tech_factory, research_centre, palace, mcv.starport, harvester.starport
 	UnitBuilderBotModule@omnius:
 		RequiresCondition: enable-omnius-ai
@@ -269,7 +269,7 @@ Player:
 		MaxBaseRadius: 40
 		ExcludeFromSquadsTypes: harvester, mcv, carryall, carryall.reinforce, ornithopter
 		ConstructionYardTypes: construction_yard
-		IgnoredEnemyTargetTypes: Creep
+		IgnoredEnemyTargetTypes: Creep, Air
 		ProtectionTypes: mcv, harvester, construction_yard, conyard.atreides, conyard.harkonnen, conyard.ordos, wind_trap, barracks, refinery, silo, light_factory, heavy_factory, outpost, starport, medium_gun_turret, large_gun_turret, repair_pad, high_tech_factory, research_centre, palace, mcv.starport, harvester.starport
 	UnitBuilderBotModule@vidious:
 		RequiresCondition: enable-vidious-ai
@@ -309,7 +309,7 @@ Player:
 		MaxBaseRadius: 40
 		ExcludeFromSquadsTypes: harvester, mcv, carryall, carryall.reinforce, ornithopter
 		ConstructionYardTypes: construction_yard
-		IgnoredEnemyTargetTypes: Creep
+		IgnoredEnemyTargetTypes: Creep, Air
 		ProtectionTypes: mcv, harvester, construction_yard, conyard.atreides, conyard.harkonnen, conyard.ordos, wind_trap, barracks, refinery, silo, light_factory, heavy_factory, outpost, starport, medium_gun_turret, large_gun_turret, repair_pad, high_tech_factory, research_centre, palace, mcv.starport, harvester.starport
 	UnitBuilderBotModule@gladius:
 		RequiresCondition: enable-gladius-ai

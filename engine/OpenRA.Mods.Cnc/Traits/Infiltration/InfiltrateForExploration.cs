@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,10 +17,13 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Cnc.Traits
 {
 	[Desc("Steal and reset the owner's exploration.")]
-	class InfiltrateForExplorationInfo : TraitInfo
+	sealed class InfiltrateForExplorationInfo : TraitInfo
 	{
 		[Desc("The `TargetTypes` from `Targetable` that are allowed to enter.")]
 		public readonly BitSet<TargetableType> Types = default;
+
+		[Desc("Experience to grant to the infiltrating player.")]
+		public readonly int PlayerExperience = 0;
 
 		[NotificationReference("Speech")]
 		[Desc("Sound the victim will hear when they get sabotaged.")]
@@ -39,7 +42,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new InfiltrateForExploration(this); }
 	}
 
-	class InfiltrateForExploration : INotifyInfiltrated
+	sealed class InfiltrateForExploration : INotifyInfiltrated
 	{
 		readonly InfiltrateForExplorationInfo info;
 
@@ -62,7 +65,9 @@ namespace OpenRA.Mods.Cnc.Traits
 			TextNotificationsManager.AddTransientLine(info.InfiltratedTextNotification, self.Owner);
 			TextNotificationsManager.AddTransientLine(info.InfiltrationTextNotification, infiltrator.Owner);
 
+			infiltrator.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience(info.PlayerExperience);
 			infiltrator.Owner.MapLayers.Explore(self.Owner.MapLayers);
+
 			var preventReset = self.Owner.PlayerActor.TraitsImplementing<IPreventsShroudReset>()
 				.Any(p => p.PreventShroudReset(self));
 			if (!preventReset)

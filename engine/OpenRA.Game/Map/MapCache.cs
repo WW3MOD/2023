@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,32 +25,33 @@ namespace OpenRA
 {
 	public sealed class MapCache : IEnumerable<MapPreview>, IDisposable
 	{
-		public static readonly MapPreview UnknownMap = new MapPreview(null, null, MapGridType.Rectangular, null);
+		public static readonly MapPreview UnknownMap = new(null, null, MapGridType.Rectangular, null);
 		public IReadOnlyDictionary<IReadOnlyPackage, MapClassification> MapLocations => mapLocations;
-		readonly Dictionary<IReadOnlyPackage, MapClassification> mapLocations = new Dictionary<IReadOnlyPackage, MapClassification>();
+		readonly Dictionary<IReadOnlyPackage, MapClassification> mapLocations = new();
+		public bool LoadPreviewImages = true;
 
 		readonly Cache<string, MapPreview> previews;
 		readonly ModData modData;
 		readonly SheetBuilder sheetBuilder;
 		Thread previewLoaderThread;
 		bool previewLoaderThreadShutDown = true;
-		readonly object syncRoot = new object();
-		readonly Queue<MapPreview> generateMinimap = new Queue<MapPreview>();
+		readonly object syncRoot = new();
+		readonly Queue<MapPreview> generateMinimap = new();
 
 		public Dictionary<string, string> StringPool { get; } = new Dictionary<string, string>();
 
-		readonly List<MapDirectoryTracker> mapDirectoryTrackers = new List<MapDirectoryTracker>();
+		readonly List<MapDirectoryTracker> mapDirectoryTrackers = new();
 
 		/// <summary>
-		/// The most recenly modified or loaded map at runtime
+		/// The most recently modified or loaded map at runtime.
 		/// </summary>
 		public string LastModifiedMap { get; private set; } = null;
-		readonly Dictionary<string, string> mapUpdates = new Dictionary<string, string>();
+		readonly Dictionary<string, string> mapUpdates = new();
 
 		string lastLoadedLastModifiedMap;
 
 		/// <summary>
-		/// If LastModifiedMap was picked already, returns a null
+		/// If LastModifiedMap was picked already, returns a null.
 		/// </summary>
 		public string PickLastModifiedMap(MapVisibility visibility)
 		{
@@ -98,7 +99,7 @@ namespace OpenRA
 				IReadOnlyPackage package;
 				var optional = name.StartsWith("~", StringComparison.Ordinal);
 				if (optional)
-					name = name.Substring(1);
+					name = name[1..];
 
 				try
 				{
@@ -122,10 +123,12 @@ namespace OpenRA
 				mapDirectoryTrackers.Add(new MapDirectoryTracker(mapGrid, package, classification));
 			}
 
+			// PERF: Load the mod YAML once outside the loop, and reuse it when resolving each maps custom YAML.
+			var modDataRules = modData.GetRulesYaml();
 			foreach (var kv in MapLocations)
 			{
 				foreach (var map in kv.Key.Contents)
-					LoadMap(map, kv.Key, kv.Value, mapGrid, null);
+					LoadMapInternal(map, kv.Key, kv.Value, mapGrid, null, modDataRules);
 			}
 
 			// We only want to track maps in runtime, not at loadtime
@@ -134,16 +137,21 @@ namespace OpenRA
 
 		public void LoadMap(string map, IReadOnlyPackage package, MapClassification classification, MapGrid mapGrid, string oldMap)
 		{
+			LoadMapInternal(map, package, classification, mapGrid, oldMap, null);
+		}
+
+		void LoadMapInternal(string map, IReadOnlyPackage package, MapClassification classification, MapGrid mapGrid, string oldMap, IEnumerable<List<MiniYamlNode>> modDataRules)
+		{
 			IReadOnlyPackage mapPackage = null;
 			try
 			{
-				using (new Support.PerfTimer(map))
+				using (new PerfTimer(map))
 				{
 					mapPackage = package.OpenPackage(map, modData.ModFiles);
 					if (mapPackage != null)
 					{
 						var uid = Map.ComputeUID(mapPackage);
-						previews[uid].UpdateFromMap(mapPackage, package, classification, modData.Manifest.MapCompatibility, mapGrid.Type);
+						previews[uid].UpdateFromMap(mapPackage, package, classification, modData.Manifest.MapCompatibility, mapGrid.Type, modDataRules);
 
 						if (oldMap != uid)
 						{
@@ -157,10 +165,12 @@ namespace OpenRA
 			catch (Exception e)
 			{
 				mapPackage?.Dispose();
-				Console.WriteLine("Failed to load map: {0}", map);
-				Console.WriteLine("Details: {0}", e);
-				Log.Write("debug", "Failed to load map: {0}", map);
-				Log.Write("debug", "Details: {0}", e);
+				Console.WriteLine($"Failed to load map: {map}");
+				Console.WriteLine("Details:");
+				Console.WriteLine(e);
+				Log.Write("debug", $"Failed to load map: {map}");
+				Log.Write("debug", "Details:");
+				Log.Write("debug", e);
 			}
 		}
 
@@ -182,7 +192,7 @@ namespace OpenRA
 				var name = kv.Key;
 				var optional = name.StartsWith("~", StringComparison.Ordinal);
 				if (optional)
-					name = name.Substring(1);
+					name = name[1..];
 
 				// Don't try to open the map directory in the support directory if it doesn't exist
 				var resolved = Platform.ResolvePath(name);
@@ -194,7 +204,7 @@ namespace OpenRA
 			}
 		}
 
-		public IEnumerable<(IReadWritePackage package, string map)> EnumerateMapDirPackagesAndNames(MapClassification classification = MapClassification.System)
+		public IEnumerable<(IReadWritePackage Package, string Map)> EnumerateMapDirPackagesAndNames(MapClassification classification = MapClassification.System)
 		{
 			var mapDirPackages = EnumerateMapDirPackages(classification);
 
@@ -211,12 +221,6 @@ namespace OpenRA
 				foreach (var map in mapDirPackage.Contents)
 					if (mapDirPackage.OpenPackage(map, modData.ModFiles) is IReadWritePackage mapPackage)
 						yield return mapPackage;
-		}
-
-		public IEnumerable<Map> EnumerateMapsWithoutCaching(MapClassification classification = MapClassification.System)
-		{
-			foreach (var mapPackage in EnumerateMapPackagesWithoutCaching(classification))
-				yield return new Map(modData, mapPackage);
 		}
 
 		public void QueryRemoteMapDetails(string repositoryUrl, IEnumerable<string> uids, Action<MapPreview> mapDetailsReceived = null, Action<MapPreview> mapQueryFailed = null)
@@ -258,8 +262,9 @@ namespace OpenRA
 					}
 					catch (Exception e)
 					{
-						Log.Write("debug", "Remote map query failed with error: {0}", e);
-						Log.Write("debug", "URL was: {0}", url);
+						Log.Write("debug", "Remote map query failed with error:");
+						Log.Write("debug", e);
+						Log.Write("debug", $"URL was: {url}");
 
 						foreach (var uid in batchUids)
 						{
@@ -320,7 +325,8 @@ namespace OpenRA
 							}
 							catch (Exception e)
 							{
-								Log.Write("debug", "Failed to load minimap with exception: {0}", e);
+								Log.Write("debug", "Failed to load minimap with exception:");
+								Log.Write("debug", e);
 							}
 						});
 					}

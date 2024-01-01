@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,18 +29,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var tilesetDropDown = panel.Get<DropDownButtonWidget>("TILESET");
 			var tilesets = modData.DefaultTerrainInfo.Keys;
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+			ScrollItemWidget SetupItem(string option, ScrollItemWidget template)
 			{
 				var item = ScrollItemWidget.Setup(template,
 					() => tilesetDropDown.Text == option,
-					() => { tilesetDropDown.Text = option; });
+					() => tilesetDropDown.Text = option);
 				item.Get<LabelWidget>("LABEL").GetText = () => option;
 				return item;
-			};
+			}
 
 			tilesetDropDown.Text = tilesets.First();
 			tilesetDropDown.OnClick = () =>
-				tilesetDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 210, tilesets, setupItem);
+				tilesetDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 210, tilesets, SetupItem);
 
 			var widthTextField = panel.Get<TextFieldWidget>("WIDTH");
 			var heightTextField = panel.Get<TextFieldWidget>("HEIGHT");
@@ -70,6 +70,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				Action<string> afterSave = uid =>
 				{
+					map.Dispose();
 					Game.LoadEditor(uid);
 
 					Ui.CloseWindow();
@@ -81,6 +82,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{ "onSave", afterSave },
 					{ "onExit", () => { Ui.CloseWindow(); onExit(); } },
 					{ "map", map },
+					{ "world", world },
 					{ "playerDefinitions", map.PlayerDefinitions },
 					{ "actorDefinitions", map.ActorDefinitions }
 				});

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,23 +17,23 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	[Desc("Visualizes the minimum remaining time for reloading the armaments.")]
-	class ReloadBarInfo : TraitInfo
+	sealed class ReloadArmamentsBarInfo : TraitInfo
 	{
 		[Desc("Armament names")]
 		public readonly string[] Armaments = { "primary", "secondary" };
 
 		public readonly Color Color = Color.Red;
 
-		public override object Create(ActorInitializer init) { return new ReloadBar(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new ReloadArmamentsBar(init.Self, this); }
 	}
 
-	class ReloadBar : ISelectionBar, INotifyCreated
+	sealed class ReloadArmamentsBar : ISelectionBar, INotifyCreated
 	{
-		readonly ReloadBarInfo info;
+		readonly ReloadArmamentsBarInfo info;
 		readonly Actor self;
 		IEnumerable<Armament> armaments;
 
-		public ReloadBar(Actor self, ReloadBarInfo info)
+		public ReloadArmamentsBar(Actor self, ReloadArmamentsBarInfo info)
 		{
 			this.self = self;
 			this.info = info;

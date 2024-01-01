@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public readonly string Palette = "effect";
 
 		[Desc("Only leave trail on listed terrain types. Leave empty to leave trail on all terrain types.")]
-		public readonly HashSet<string> TerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> TerrainTypes = new();
 
 		[Desc("Accepts values: Cell to draw the trail sprite in the center of the current cell,",
 			"CenterPosition to draw the trail sprite at the current position.")]

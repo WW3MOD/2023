@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			"The ShadowPalette field has been replaced by ShadowColor on projectiles.\n" +
 			"The Palette field on WithShadow and ShadowPalette on WithParachute have similarly been replaced with ShadowColor.";
 
-		readonly List<string> locations = new List<string>();
+		readonly List<string> locations = new();
 
 		public override IEnumerable<string> AfterUpdate(ModData modData)
 		{

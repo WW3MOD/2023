@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -47,11 +47,11 @@ namespace OpenRA.Mods.Common.Traits
 		readonly BridgeLayer bridgeLayer;
 
 		// Fixed at map load
-		readonly List<CPos[]> segmentLocations = new List<CPos[]>();
+		readonly List<CPos[]> segmentLocations = new();
 
 		// Changes as segments are killed and repaired
-		readonly Dictionary<CPos, IBridgeSegment> segments = new Dictionary<CPos, IBridgeSegment>();
-		readonly HashSet<CPos> dirtyLocations = new HashSet<CPos>();
+		readonly Dictionary<CPos, IBridgeSegment> segments = new();
+		readonly HashSet<CPos> dirtyLocations = new();
 
 		// Enabled during a repair action
 		int repairStep;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,10 +22,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[Desc("Actor types that are considered harvesters. If harvester count drops below RefineryTypes count, a new harvester is built.",
 			"Leave empty to disable harvester replacement. Currently only needed by harvester replacement system.")]
-		public readonly HashSet<string> HarvesterTypes = new HashSet<string>();
+		public readonly HashSet<string> HarvesterTypes = new();
 
 		[Desc("Actor types that are counted as refineries. Currently only needed by harvester replacement system.")]
-		public readonly HashSet<string> RefineryTypes = new HashSet<string>();
+		public readonly HashSet<string> RefineryTypes = new();
 
 		[Desc("Interval (in ticks) between giving out orders to idle harvesters.")]
 		public readonly int ScanForIdleHarvestersInterval = 50;
@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class HarvesterBotModule : ConditionalTrait<HarvesterBotModuleInfo>, IBotTick
 	{
-		class HarvesterTraitWrapper
+		sealed class HarvesterTraitWrapper
 		{
 			public readonly Actor Actor;
 			public readonly Harvester Harvester;
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly World world;
 		/* readonly Player player; */
 		readonly Func<Actor, bool> unitCannotBeOrdered;
-		readonly Dictionary<Actor, HarvesterTraitWrapper> harvesters = new Dictionary<Actor, HarvesterTraitWrapper>();
+		readonly Dictionary<Actor, HarvesterTraitWrapper> harvesters = new();
 
 		IResourceLayer resourceLayer;
 		ResourceClaimLayer claimLayer;
@@ -112,7 +112,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!h.Key.IsIdle)
 				{
 					// Ignore this actor if FindAndDeliverResources is working fine or it is performing a different activity
-					if (!(h.Key.CurrentActivity is FindAndDeliverResources act) || !act.LastSearchFailed)
+					if (h.Key.CurrentActivity is not FindAndDeliverResources act || !act.LastSearchFailed)
 						continue;
 				}
 

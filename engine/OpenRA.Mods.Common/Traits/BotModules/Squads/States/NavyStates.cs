@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return ShouldFlee(owner, enemies => !AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemies));
 		}
 
-		protected Actor FindClosestEnemy(Squad owner)
+		protected static Actor FindClosestEnemy(Squad owner)
 		{
 			var first = owner.Units.First();
 
@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 	}
 
-	class NavyUnitsIdleState : NavyStateBase, IState
+	sealed class NavyUnitsIdleState : NavyStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 
@@ -89,7 +89,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		public void Deactivate(Squad owner) { }
 	}
 
-	class NavyUnitsAttackMoveState : NavyStateBase, IState
+	sealed class NavyUnitsAttackMoveState : NavyStateBase, IState
 	{
 		int lastUpdatedTick;
 		CPos? lastLeaderLocation;
@@ -172,7 +172,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		public void Deactivate(Squad owner) { }
 	}
 
-	class NavyUnitsAttackState : NavyStateBase, IState
+	sealed class NavyUnitsAttackState : NavyStateBase, IState
 	{
 		int lastUpdatedTick;
 		CPos? lastLeaderLocation;
@@ -230,7 +230,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		public void Deactivate(Squad owner) { }
 	}
 
-	class NavyUnitsFleeState : NavyStateBase, IState
+	sealed class NavyUnitsFleeState : NavyStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 

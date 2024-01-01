@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -43,9 +43,8 @@ namespace OpenRA
 		ISoundSource videoSource;
 		ISound music;
 		ISound video;
-		MusicInfo currentMusic;
-		readonly Dictionary<uint, ISound> currentSounds = new Dictionary<uint, ISound>();
-		readonly Dictionary<string, ISound> currentNotifications = new Dictionary<string, ISound>();
+		readonly Dictionary<uint, ISound> currentSounds = new();
+		readonly Dictionary<string, ISound> currentNotifications = new();
 		public bool DummyEngine { get; }
 
 		public Sound(IPlatform platform, SoundSettings soundSettings)
@@ -61,7 +60,7 @@ namespace OpenRA
 		{
 			if (!fileSystem.Exists(filename))
 			{
-				Log.Write("sound", "LoadSound, file does not exist: {0}", filename);
+				Log.Write("sound", $"LoadSound, file does not exist: {filename}");
 				return default;
 			}
 
@@ -127,6 +126,16 @@ namespace OpenRA
 		public void StopAudio()
 		{
 			soundEngine.StopAllSounds();
+		}
+
+		public void SetLooped(ISound sound, bool looped)
+		{
+			soundEngine.SetSoundLooping(looped, sound);
+		}
+
+		public void SetPosition(ISound sound, WPos position)
+		{
+			soundEngine.SetSoundPosition(sound, position);
 		}
 
 		public void MuteAudio()
@@ -216,7 +225,7 @@ namespace OpenRA
 
 		Action onMusicComplete;
 		public bool MusicPlaying { get; private set; }
-		public MusicInfo CurrentMusic => currentMusic;
+		public MusicInfo CurrentMusic { get; private set; }
 
 		public void PlayMusicThen(MusicInfo m, Action then)
 		{
@@ -225,7 +234,7 @@ namespace OpenRA
 
 			onMusicComplete = then;
 
-			if (m == currentMusic && music != null)
+			if (m == CurrentMusic && music != null)
 			{
 				soundEngine.PauseSound(music, false);
 				MusicPlaying = true;
@@ -253,7 +262,7 @@ namespace OpenRA
 				return;
 			}
 
-			currentMusic = m;
+			CurrentMusic = m;
 			MusicPlaying = true;
 		}
 
@@ -280,7 +289,7 @@ namespace OpenRA
 				music = null;
 			}
 
-			currentMusic = null;
+			CurrentMusic = null;
 			MusicPlaying = false;
 		}
 
@@ -347,7 +356,7 @@ namespace OpenRA
 		public float VideoSeekPosition => video?.SeekPosition ?? 0;
 
 		// Returns true if played successfully
-		public bool PlayPredefined(SoundType soundType, Ruleset ruleset, Player p, Actor voicedActor, string type, string definition, string variant,
+		public bool PlayPredefined(SoundType soundType, Ruleset ruleset, Player player, Actor voicedActor, string type, string definition, string variant,
 			bool relative, WPos pos, float volumeModifier, bool attenuateVolume)
 		{
 			if (ruleset == null)
@@ -390,16 +399,16 @@ namespace OpenRA
 
 			if (variant != null)
 			{
-				if (rules.Variants.ContainsKey(variant) && !rules.DisableVariants.Contains(definition))
-					suffix = rules.Variants[variant][id % rules.Variants[variant].Length];
-				if (rules.Prefixes.ContainsKey(variant) && !rules.DisablePrefixes.Contains(definition))
-					prefix = rules.Prefixes[variant][id % rules.Prefixes[variant].Length];
+				if (rules.Variants.TryGetValue(variant, out var v) && !rules.DisableVariants.Contains(definition))
+					suffix = v[id % v.Length];
+				if (rules.Prefixes.TryGetValue(variant, out var p) && !rules.DisablePrefixes.Contains(definition))
+					prefix = p[id % p.Length];
 			}
 
 			var name = prefix + clip + suffix;
 			var actorId = voicedActor != null && voicedActor.World.Selection.Contains(voicedActor) ? 0 : id;
 
-			if (!string.IsNullOrEmpty(name) && (p == null || p == p.World.LocalPlayer))
+			if (!string.IsNullOrEmpty(name) && (player == null || player == player.World.LocalPlayer))
 			{
 				ISound PlaySound()
 				{

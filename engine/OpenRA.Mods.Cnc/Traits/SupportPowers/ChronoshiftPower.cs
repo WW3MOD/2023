@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-	class ChronoshiftPowerInfo : SupportPowerInfo
+	sealed class ChronoshiftPowerInfo : SupportPowerInfo
 	{
 		[FieldLoader.Require]
 		[Desc("Size of the footprint of the affected area.")]
@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new ChronoshiftPower(init.Self, this); }
 	}
 
-	class ChronoshiftPower : SupportPower
+	sealed class ChronoshiftPower : SupportPower
 	{
 		readonly char[] footprint;
 		readonly CVec dimensions;
@@ -140,7 +140,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			return true;
 		}
 
-		class SelectChronoshiftTarget : OrderGenerator
+		sealed class SelectChronoshiftTarget : OrderGenerator
 		{
 			readonly ChronoshiftPower power;
 			readonly char[] footprint;
@@ -161,7 +161,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				this.power = power;
 
 				var info = (ChronoshiftPowerInfo)power.Info;
-				var s = world.Map.Rules.Sequences.GetSequence(info.FootprintImage, info.SourceFootprintSequence);
+				var s = world.Map.Sequences.GetSequence(info.FootprintImage, info.SourceFootprintSequence);
 				footprint = info.Footprint.Where(c => !char.IsWhiteSpace(c)).ToArray();
 				dimensions = info.Dimensions;
 				tile = s.GetSprite(0);
@@ -218,7 +218,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			}
 		}
 
-		class SelectDestination : OrderGenerator
+		sealed class SelectDestination : OrderGenerator
 		{
 			readonly ChronoshiftPower power;
 			readonly CPos sourceLocation;
@@ -240,7 +240,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				footprint = info.Footprint.Where(c => !char.IsWhiteSpace(c)).ToArray();
 				dimensions = info.Dimensions;
 
-				var sequences = world.Map.Rules.Sequences;
+				var sequences = world.Map.Sequences;
 				var tilesetValid = info.ValidFootprintSequence + "-" + world.Map.Tileset.ToLowerInvariant();
 				if (sequences.HasSequence(info.FootprintImage, tilesetValid))
 				{

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -218,19 +218,19 @@ namespace OpenRA.Mods.Common.Scripting
 			foreach (var q in player.PlayerActor.TraitsImplementing<ClassicProductionQueue>().Where(q => q.Enabled))
 				queues.Add(q.Info.Type, q);
 
-			Action<Actor, Actor> globalProductionHandler = (factory, unit) =>
+			void GlobalProductionHandler(Actor factory, Actor unit)
 			{
 				if (factory.Owner != player)
 					return;
 
 				var queue = GetBuildableInfo(unit.Info.Name).Queue.First();
 
-				if (productionHandlers.ContainsKey(queue))
-					productionHandlers[queue](factory, unit);
-			};
+				if (productionHandlers.TryGetValue(queue, out var productionHandler))
+					productionHandler(factory, unit);
+			}
 
 			var triggers = TriggerGlobal.GetScriptTriggers(player.PlayerActor);
-			triggers.OnOtherProducedInternal += globalProductionHandler;
+			triggers.OnOtherProducedInternal += GlobalProductionHandler;
 		}
 
 		[Desc("Build the specified set of actors using classic (RA-style) production queues. " +
@@ -259,7 +259,7 @@ namespace OpenRA.Mods.Common.Scripting
 				var squad = new List<Actor>();
 				var func = actionFunc.CopyReference() as LuaFunction;
 
-				Action<Actor, Actor> productionHandler = (factory, unit) =>
+				void ProductionHandler(Actor factory, Actor unit)
 				{
 					squad.Add(unit);
 					if (squad.Count >= squadSize)
@@ -271,10 +271,10 @@ namespace OpenRA.Mods.Common.Scripting
 						foreach (var q in queueTypes)
 							productionHandlers.Remove(q);
 					}
-				};
+				}
 
 				foreach (var q in queueTypes)
-					productionHandlers.Add(q, productionHandler);
+					productionHandlers.Add(q, ProductionHandler);
 			}
 
 			foreach (var actorType in actorTypes)

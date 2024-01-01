@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Mods.Common.UpdateRules;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class UpdateMapCommand : IUtilityCommand
+	sealed class UpdateMapCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--update-map";
 
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			// HACK: We know that maps can only be oramap or folders, which are ReadWrite
 			var folder = new Folder(Platform.EngineDir);
-			if (!(folder.OpenPackage(args[1], modData.ModFiles) is IReadWritePackage package))
+			if (folder.OpenPackage(args[1], modData.ModFiles) is not IReadWritePackage package)
 				throw new FileNotFoundException(args[1]);
 
 			IEnumerable<UpdateRule> rules = null;

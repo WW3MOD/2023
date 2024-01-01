@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class LegacyBridgeLayer : IWorldLoaded
 	{
 		readonly LegacyBridgeLayerInfo info;
-		readonly Dictionary<ushort, (string Template, int Health)> bridgeTypes = new Dictionary<ushort, (string, int)>();
+		readonly Dictionary<ushort, (string Template, int Health)> bridgeTypes = new();
 		readonly ITemplatedTerrainInfo terrainInfo;
 
 		CellLayer<Bridge> bridges;
@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			bridges = new CellLayer<Bridge>(w.Map);
 
-			// Build a list of templates that should be overlayed with bridges
+			// Build a list of templates that should be overlaid with bridges
 			foreach (var bridge in info.Bridges)
 			{
 				var bi = w.Map.Rules.Actors[bridge].TraitInfo<BridgeInfo>();

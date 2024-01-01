@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,10 +28,10 @@ namespace OpenRA.Mods.Cnc.Traits
 		public readonly string[] UnitTypes = null;
 
 		[Desc("Number of drop pods spawned.")]
-		public readonly int2 Drops = new int2(5, 8);
+		public readonly int2 Drops = new(5, 8);
 
 		[Desc("Sets the approach direction.")]
-		public readonly WAngle PodFacing = new WAngle(128);
+		public readonly WAngle PodFacing = new(128);
 
 		[Desc("Maximum offset from targetLocation")]
 		public readonly int PodScatter = 3;

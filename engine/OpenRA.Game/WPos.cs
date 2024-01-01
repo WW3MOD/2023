@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,7 +25,7 @@ namespace OpenRA
 		public WPos(int x, int y, int z) { X = x; Y = y; Z = z; }
 		public WPos(WDist x, WDist y, WDist z) { X = x.Length; Y = y.Length; Z = z.Length; }
 
-		public static readonly WPos Zero = new WPos(0, 0, 0);
+		public static readonly WPos Zero = new(0, 0, 0);
 
 		public static explicit operator WVec(in WPos a) { return new WVec(a.X, a.Y, a.Z); }
 
@@ -42,12 +42,12 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// Returns the linear interpolation between points 'a' and 'b'
+		/// Returns the linear interpolation between points 'a' and 'b'.
 		/// </summary>
 		public static WPos Lerp(in WPos a, in WPos b, int mul, int div) { return a + (b - a) * mul / div; }
 
 		/// <summary>
-		/// Returns the linear interpolation between points 'a' and 'b'
+		/// Returns the linear interpolation between points 'a' and 'b'.
 		/// </summary>
 		public static WPos Lerp(in WPos a, in WPos b, long mul, long div)
 		{
@@ -71,7 +71,7 @@ namespace OpenRA
 			// Add an additional quadratic variation to height
 			// Uses decimal to avoid integer overflow
 			var offset = (decimal)(b - a).Length * pitch.Tan() * mul * (div - mul) / (1024 * div * div);
-			var clampedOffset = (int)(offset + (decimal)ret.Z).Clamp<decimal>((decimal)int.MinValue, (decimal)int.MaxValue);
+			var clampedOffset = (int)(offset + ret.Z).Clamp(int.MinValue, int.MaxValue);
 
 			return new WPos(ret.X, ret.Y, clampedOffset);
 		}

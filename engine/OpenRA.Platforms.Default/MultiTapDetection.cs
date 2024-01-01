@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,9 +17,9 @@ namespace OpenRA.Platforms.Default
 	static class MultiTapDetection
 	{
 		static readonly Cache<(Keycode Key, Modifiers Mods), TapHistory> KeyHistoryCache =
-			new Cache<(Keycode, Modifiers), TapHistory>(_ => new TapHistory(DateTime.Now - TimeSpan.FromSeconds(1)));
+			new(_ => new TapHistory(DateTime.Now - TimeSpan.FromSeconds(1)));
 		static readonly Cache<byte, TapHistory> ClickHistoryCache =
-			new Cache<byte, TapHistory>(_ => new TapHistory(DateTime.Now - TimeSpan.FromSeconds(1)));
+			new(_ => new TapHistory(DateTime.Now - TimeSpan.FromSeconds(1)));
 
 		public static int DetectFromMouse(byte button, int2 xy)
 		{
@@ -42,7 +42,7 @@ namespace OpenRA.Platforms.Default
 		}
 	}
 
-	class TapHistory
+	sealed class TapHistory
 	{
 		public (DateTime Time, int2 Location) FirstRelease, SecondRelease, ThirdRelease;
 

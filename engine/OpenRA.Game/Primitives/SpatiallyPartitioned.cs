@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Primitives
 	{
 		readonly int rows, cols, binSize;
 		readonly Dictionary<T, Rectangle>[] itemBoundsBins;
-		readonly Dictionary<T, Rectangle> itemBounds = new Dictionary<T, Rectangle>();
+		readonly Dictionary<T, Rectangle> itemBounds = new();
 		readonly Action<Dictionary<T, Rectangle>, T, Rectangle> addItem = (bin, actor, bounds) => bin.Add(actor, bounds);
 		readonly Action<Dictionary<T, Rectangle>, T, Rectangle> removeItem = (bin, actor, bounds) => bin.Remove(actor);
 
@@ -30,7 +30,7 @@ namespace OpenRA.Primitives
 			itemBoundsBins = Exts.MakeArray(rows * cols, _ => new Dictionary<T, Rectangle>());
 		}
 
-		void ValidateBounds(T actor, Rectangle bounds)
+		static void ValidateBounds(T actor, Rectangle bounds)
 		{
 			if (bounds.Width == 0 || bounds.Height == 0)
 				throw new ArgumentException($"Bounds of actor {actor} are empty.", nameof(bounds));

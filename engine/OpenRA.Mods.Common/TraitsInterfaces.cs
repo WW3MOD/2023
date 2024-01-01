@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,9 @@ using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Terrain;
+using OpenRA.Mods.Common.Widgets;
 using OpenRA.Primitives;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -35,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public interface IQuantizeBodyOrientationInfo : ITraitInfoInterface
 	{
-		int QuantizedBodyFacings(ActorInfo ai, SequenceProvider sequenceProvider, string race);
+		int QuantizedBodyFacings(ActorInfo ai, SequenceSet sequences, string faction);
 	}
 
 	public interface IPlaceBuildingDecorationInfo : ITraitInfoInterface
@@ -156,13 +158,6 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface INotifyBeingResupplied
-	{
-		void StartingResupply(Actor self, Actor host);
-		void StoppingResupply(Actor self, Actor host);
-	}
-
-	[RequireExplicitImplementation]
 	public interface INotifyTakeOff { void TakeOff(Actor self); }
 	[RequireExplicitImplementation]
 	public interface INotifyLanding { void Landing(Actor self); }
@@ -178,7 +173,19 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyProduction { void UnitProduced(Actor self, Actor other, CPos exit); }
 	public interface INotifyOtherProduction { void UnitProducedByOther(Actor self, Actor producer, Actor produced, string productionType, TypeDictionary init); }
 	public interface INotifyDelivery { void IncomingDelivery(Actor self); void Delivered(Actor self); }
-	public interface INotifyDocking { void Docked(Actor self, Actor harvester); void Undocked(Actor self, Actor harvester); }
+
+	[RequireExplicitImplementation]
+	public interface INotifyMineLaying
+	{
+		void MineLaying(Actor self, CPos location);
+		void MineLaid(Actor self, Actor mine);
+		void MineLayingCanceled(Actor self, CPos location);
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyDockHost { void Docked(Actor self, Actor client); void Undocked(Actor self, Actor client); }
+	[RequireExplicitImplementation]
+	public interface INotifyDockClient { void Docked(Actor self, Actor host); void Undocked(Actor self, Actor host); }
 
 	[RequireExplicitImplementation]
 	public interface INotifyResourceAccepted { void OnResourceAccepted(Actor self, Actor refinery, string resourceType, int count, int value); }
@@ -218,12 +225,16 @@ namespace OpenRA.Mods.Common.Traits
 		void MovingToRefinery(Actor self, Actor refineryActor);
 		void MovementCancelled(Actor self);
 		void Harvested(Actor self, string resourceType);
-		void Docked();
-		void Undocked();
 	}
 
 	[RequireExplicitImplementation]
-	public interface INotifyUnload
+	public interface INotifyLoadCargo
+	{
+		void Loading(Actor self);
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyUnloadCargo
 	{
 		void Unloading(Actor self);
 	}
@@ -290,8 +301,15 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		void OnDock(Actor harv, DeliverResources dockOrder);
 		int AcceptResources(string resourceType, int count = 1);
-		CVec DeliveryOffset { get; }
+		WPos DeliveryPosition { get; }
+		WAngle DeliveryAngle { get; }
 		bool AllowDocking { get; }
+	}
+
+	public interface IDockClientBody
+	{
+		void PlayDockAnimation(Actor self, Action after);
+		void PlayReverseDockAnimation(Actor self, Action after);
 	}
 
 	public interface IProvidesAssetBrowserPalettes
@@ -303,6 +321,18 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IProvidesAssetBrowserColorPickerPalettes
 	{
 		IEnumerable<string> ColorPickerPaletteNames { get; }
+	}
+
+	public interface IColorPickerManagerInfo : ITraitInfoInterface
+	{
+		(float SMin, float SMax) SaturationRange { get; }
+		(float VMin, float VMax) ValueRange { get; }
+		event Action<Color> OnColorPickerColorUpdate;
+		Color[] PresetColors { get; }
+		Color RandomPresetColor(MersenneTwister random, IEnumerable<Color> terrainColors, IEnumerable<Color> playerColors);
+		Color RandomValidColor(MersenneTwister random, IEnumerable<Color> terrainColors, IEnumerable<Color> playerColors);
+		Color MakeValid(Color color, MersenneTwister random, IEnumerable<Color> terrainColors, IEnumerable<Color> playerColors, Action<string> onError = null);
+		void ShowColorDropDown(DropDownButtonWidget dropdownButton, Color initialColor, string initialFaction, WorldRenderer worldRenderer, Action<Color> onExit);
 	}
 
 	public interface ICallForTransport
@@ -346,14 +376,6 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IActorPreviewInitModifier
 	{
 		void ModifyActorPreviewInit(Actor self, TypeDictionary inits);
-	}
-
-	[RequireExplicitImplementation]
-	public interface INotifyRearm
-	{
-		void RearmingStarted(Actor host, Actor other);
-		void Rearming(Actor host, Actor other);
-		void RearmingFinished(Actor host, Actor other);
 	}
 
 	[RequireExplicitImplementation]
@@ -476,6 +498,8 @@ namespace OpenRA.Mods.Common.Traits
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity ReturnToCell(Actor self);
 		Activity MoveIntoTarget(Actor self, in Target target);
+		Activity MoveOntoTarget(Actor self, in Target target, in WVec offset,
+			WAngle? facing, Color? targetLineColor = null);
 		Activity LocalMove(Actor self, WPos fromPos, WPos toPos);
 		int EstimatedMoveDuration(Actor self, WPos fromPos, WPos toPos);
 		CPos NearestMoveableCell(CPos target);
@@ -587,7 +611,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Name;
 		public readonly int DisplayOrder;
 
-		public EditorActorOption(string name, int displayOrder)
+		protected EditorActorOption(string name, int displayOrder)
 		{
 			Name = name;
 			DisplayOrder = displayOrder;
@@ -832,8 +856,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// Returned path is *reversed* and given target to source.
 		/// The shortest path between a source and the target is returned.
 		/// </summary>
+		/// <remarks>Path searches are not guaranteed to by symmetric,
+		/// the source and target locations cannot be swapped.
+		/// Call <see cref="FindPathToTargetCells"/> instead.</remarks>
 		List<CPos> FindPathToTargetCell(
 			Actor self, IEnumerable<CPos> sources, CPos target, BlockedByActor check,
+			Func<CPos, int> customCost = null,
+			Actor ignoreActor = null,
+			bool laneBias = true);
+
+		/// <summary>
+		/// Calculates a path for the actor from source to multiple possible targets.
+		/// Returned path is *reversed* and given target to source.
+		/// The shortest path between the source and a target is returned.
+		/// </summary>
+		/// <remarks>Path searches are not guaranteed to by symmetric,
+		/// the source and target locations cannot be swapped.
+		/// Call <see cref="FindPathToTargetCell"/> instead.</remarks>
+		List<CPos> FindPathToTargetCells(
+			Actor self, CPos source, IEnumerable<CPos> targets, BlockedByActor check,
 			Func<CPos, int> customCost = null,
 			Actor ignoreActor = null,
 			bool laneBias = true);
@@ -854,6 +895,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// Only terrain is taken into account, i.e. as if <see cref="BlockedByActor.None"/> was given.
 		/// This would apply for any actor using the given <see cref="Locomotor"/>.
 		/// </summary>
+		/// <remarks>Path searches are not guaranteed to by symmetric,
+		/// the source and target locations cannot be swapped.</remarks>
 		bool PathExistsForLocomotor(Locomotor locomotor, CPos source, CPos target);
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,14 +20,14 @@ namespace OpenRA.Network
 {
 	public class Session
 	{
-		public List<Client> Clients = new List<Client>();
+		public List<Client> Clients = new();
 
 		// Keyed by the PlayerReference id that the slot corresponds to
-		public Dictionary<string, Slot> Slots = new Dictionary<string, Slot>();
+		public Dictionary<string, Slot> Slots = new();
 
-		public HashSet<int> DisabledSpawnPoints = new HashSet<int>();
+		public HashSet<int> DisabledSpawnPoints = new();
 
-		public Global GlobalSettings = new Global();
+		public Global GlobalSettings = new();
 
 		public static string AnonymizeIP(IPAddress ip)
 		{
@@ -221,7 +221,7 @@ namespace OpenRA.Network
 			public int NetFrameInterval = 3;
 
 			[FieldLoader.Ignore]
-			public Dictionary<string, LobbyOptionState> LobbyOptions = new Dictionary<string, LobbyOptionState>();
+			public Dictionary<string, LobbyOptionState> LobbyOptions = new();
 
 			public static Global Deserialize(MiniYaml data)
 			{

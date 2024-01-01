@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,12 +14,12 @@ using OpenRA.Primitives;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor is crushable.")]
-	class CrushableInfo : ConditionalTraitInfo
+	sealed class CrushableInfo : ConditionalTraitInfo
 	{
 		[Desc("Sound to play when being crushed.")]
 		public readonly string CrushSound = null;
 		[Desc("Which crush classes does this actor belong to.")]
-		public readonly BitSet<CrushClass> CrushClasses = new BitSet<CrushClass>("infantry");
+		public readonly BitSet<CrushClass> CrushClasses = new("infantry");
 		[Desc("Probability of mobile actors noticing and evading a crush attempt.")]
 		public readonly int WarnProbability = 75;
 		[Desc("Will friendly units just crush me instead of pathing around.")]
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Crushable(init.Self, this); }
 	}
 
-	class Crushable : ConditionalTrait<CrushableInfo>, ICrushable, INotifyCrushed
+	sealed class Crushable : ConditionalTrait<CrushableInfo>, ICrushable, INotifyCrushed
 	{
 		readonly Actor self;
 

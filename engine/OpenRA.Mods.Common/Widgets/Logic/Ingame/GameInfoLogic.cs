@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,32 +20,33 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public enum IngameInfoPanel { AutoSelect, Map, Objectives, Debug, Chat, LobbbyOptions }
 
-	class GameInfoLogic : ChromeLogic
+	sealed class GameInfoLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string Objectives = "menu-game-info.objectives";
+
+		[TranslationReference]
+		const string Briefing = "menu-game-info.briefing";
+
+		[TranslationReference]
+		const string Options = "menu-game-info.options";
+
+		[TranslationReference]
+		const string Debug = "menu-game-info.debug";
+
+		[TranslationReference]
+		const string Chat = "menu-game-info.chat";
+
 		readonly World world;
 		readonly ModData modData;
 		readonly Action<bool> hideMenu;
+		readonly Action closeMenu;
 		readonly IObjectivesPanel iop;
 		IngameInfoPanel activePanel;
 		readonly bool hasError;
 
-		[TranslationReference]
-		static readonly string Objectives = "objectives";
-
-		[TranslationReference]
-		static readonly string Briefing = "briefing";
-
-		[TranslationReference]
-		static readonly string Options = "options";
-
-		[TranslationReference]
-		static readonly string Debug = "debug";
-
-		[TranslationReference]
-		static readonly string Chat = "chat";
-
 		[ObjectCreator.UseCtor]
-		public GameInfoLogic(Widget widget, ModData modData, World world, IngameInfoPanel initialPanel, Action<bool> hideMenu)
+		public GameInfoLogic(Widget widget, ModData modData, World world, IngameInfoPanel initialPanel, Action<bool> hideMenu, Action closeMenu)
 		{
 			var panels = new Dictionary<IngameInfoPanel, (string Panel, string Label, Action<ButtonWidget, Widget> Setup)>()
 			{
@@ -59,6 +60,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.world = world;
 			this.modData = modData;
 			this.hideMenu = hideMenu;
+			this.closeMenu = closeMenu;
 			activePanel = initialPanel;
 
 			var visiblePanels = new List<IngameInfoPanel>();
@@ -101,12 +103,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			for (var i = 0; i < numTabs; i++)
 			{
 				var type = visiblePanels[i];
-				var info = panels[type];
+				var (panel, label, setup) = panels[type];
 				var tabButton = tabContainer?.Get<ButtonWidget>($"BUTTON{i + 1}");
 
 				if (tabButton != null)
 				{
-					tabButton.Text = modData.Translation.GetString(info.Label);
+					tabButton.Text = TranslationProvider.GetString(label);
 					tabButton.OnClick = () =>
 					{
 						if (activePanel == IngameInfoPanel.Chat)
@@ -117,9 +119,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					tabButton.IsHighlighted = () => activePanel == type;
 				}
 
-				var panelContainer = widget.Get<ContainerWidget>(info.Panel);
+				var panelContainer = widget.Get<ContainerWidget>(panel);
 				panelContainer.IsVisible = () => activePanel == type;
-				info.Setup(tabButton, panelContainer);
+				setup(tabButton, panelContainer);
 
 				if (activePanel == IngameInfoPanel.AutoSelect)
 					activePanel = type;
@@ -140,7 +142,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var panel = hasError ? "SCRIPT_ERROR_PANEL" : iop.PanelName;
 			Game.LoadWidget(world, panel, objectivesPanelContainer, new WidgetArgs()
 			{
-				{ "hideMenu", hideMenu }
+				{ "hideMenu", hideMenu },
+				{ "closeMenu", closeMenu },
 			});
 		}
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,12 +36,12 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool BaselineSpawn = false;
 
 		[Desc("Direction the aircraft should face to land.")]
-		public readonly WAngle Facing = new WAngle(256);
+		public readonly WAngle Facing = new(256);
 
 		public override object Create(ActorInitializer init) { return new ProductionAirdrop(init, this); }
 	}
 
-	class ProductionAirdrop : Production
+	sealed class ProductionAirdrop : Production
 	{
 		public ProductionAirdrop(ActorInitializer init, ProductionAirdropInfo info)
 			: base(init, info) { }
@@ -65,7 +65,7 @@ namespace OpenRA.Mods.Common.Traits
 				var bounds = map.Bounds;
 				var center = new MPos(bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2).ToCPos(map);
 				var spawnVec = owner.HomeLocation - center;
-				startPos = owner.HomeLocation + spawnVec * (Exts.ISqrt((bounds.Height * bounds.Height + bounds.Width * bounds.Width) / (4 * spawnVec.LengthSquared)));
+				startPos = owner.HomeLocation + spawnVec * Exts.ISqrt((bounds.Height * bounds.Height + bounds.Width * bounds.Width) / (4 * spawnVec.LengthSquared));
 				endPos = startPos;
 				var spawnDirection = new WVec((self.Location - startPos).X, (self.Location - startPos).Y, 0);
 				spawnFacing = spawnDirection.Yaw;

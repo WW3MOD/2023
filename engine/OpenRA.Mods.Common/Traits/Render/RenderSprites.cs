@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init)
 		{
-			var sequenceProvider = init.World.Map.Rules.Sequences;
+			var sequences = init.World.Map.Sequences;
 			var faction = init.GetValue<FactionInit, string>(this);
 			var ownerName = init.Get<OwnerInit>().InternalName;
 			var image = GetImage(init.Actor, faction);
@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				if (facings == -1)
 				{
 					var qbo = init.Actor.TraitInfoOrDefault<IQuantizeBodyOrientationInfo>();
-					facings = qbo?.QuantizedBodyFacings(init.Actor, sequenceProvider, faction) ?? 1;
+					facings = qbo?.QuantizedBodyFacings(init.Actor, sequences, faction) ?? 1;
 				}
 			}
 
@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			(DamageState.Light, "scuffed-")
 		};
 
-		class AnimationWrapper
+		sealed class AnimationWrapper
 		{
 			public readonly AnimationWithOffset Animation;
 			public readonly string Palette;
@@ -144,7 +144,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public readonly RenderSpritesInfo Info;
 		readonly string faction;
-		readonly List<AnimationWrapper> anims = new List<AnimationWrapper>();
+		readonly List<AnimationWrapper> anims = new();
 		string cachedImage;
 
 		public static Func<WAngle> MakeFacingFunc(Actor self)
@@ -243,7 +243,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			{
 				if (sequence.StartsWith(s.Prefix, StringComparison.Ordinal))
 				{
-					sequence = sequence.Substring(s.Prefix.Length);
+					sequence = sequence[s.Prefix.Length..];
 					break;
 				}
 			}

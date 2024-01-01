@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -65,7 +65,7 @@ namespace OpenRA
 		MissionSelector = 4
 	}
 
-	class MapField
+	sealed class MapField
 	{
 		enum Type { Normal, NodeList, MiniYaml }
 		readonly FieldInfo field;
@@ -149,13 +149,13 @@ namespace OpenRA
 		}
 	}
 
-	public class Map : IReadOnlyFileSystem
+	public sealed class Map : IReadOnlyFileSystem, IDisposable
 	{
 		public const int SupportedMapFormat = 11;
 		public const int CurrentMapFormat = 12;
 		const short InvalidCachedTerrainIndex = -1;
 
-		/// <summary>Defines the order of the fields in map.yaml</summary>
+		/// <summary>Defines the order of the fields in map.yaml.</summary>
 		static readonly MapField[] YamlFields =
 		{
 			new MapField("MapFormat"),
@@ -167,11 +167,11 @@ namespace OpenRA
 			new MapField("Bounds"),
 			new MapField("Visibility"),
 			new MapField("Categories"),
-			new MapField("Translations", required: false, ignoreIfValue: ""),
 			new MapField("LockPreview", required: false, ignoreIfValue: "False"),
 			new MapField("Players", "PlayerDefinitions"),
 			new MapField("Actors", "ActorDefinitions"),
 			new MapField("Rules", "RuleDefinitions", required: false),
+			new MapField("Translations", "TranslationDefinitions", required: false),
 			new MapField("Sequences", "SequenceDefinitions", required: false),
 			new MapField("ModelSequences", "ModelSequenceDefinitions", required: false),
 			new MapField("Weapons", "WeaponDefinitions", required: false),
@@ -193,16 +193,16 @@ namespace OpenRA
 		public Rectangle Bounds;
 		public MapVisibility Visibility = MapVisibility.Lobby;
 		public string[] Categories = { "Conquest" };
-		public string[] Translations;
 
 		public int2 MapSize { get; private set; }
 
 		// Player and actor yaml. Public for access by the map importers and lint checks.
-		public List<MiniYamlNode> PlayerDefinitions = new List<MiniYamlNode>();
-		public List<MiniYamlNode> ActorDefinitions = new List<MiniYamlNode>();
+		public List<MiniYamlNode> PlayerDefinitions = new();
+		public List<MiniYamlNode> ActorDefinitions = new();
 
 		// Custom map yaml. Public for access by the map importers and lint checks
 		public readonly MiniYaml RuleDefinitions;
+		public readonly MiniYaml TranslationDefinitions;
 		public readonly MiniYaml SequenceDefinitions;
 		public readonly MiniYaml ModelSequenceDefinitions;
 		public readonly MiniYaml WeaponDefinitions;
@@ -210,7 +210,7 @@ namespace OpenRA
 		public readonly MiniYaml MusicDefinitions;
 		public readonly MiniYaml NotificationDefinitions;
 
-		public readonly Dictionary<CPos, TerrainTile> ReplacedInvalidTerrainTiles = new Dictionary<CPos, TerrainTile>();
+		public readonly Dictionary<CPos, TerrainTile> ReplacedInvalidTerrainTiles = new();
 
 		// Generated data
 		public readonly MapGrid Grid;
@@ -218,6 +218,8 @@ namespace OpenRA
 		public string Uid { get; private set; }
 
 		public Ruleset Rules { get; private set; }
+		public SequenceSet Sequences { get; private set; }
+
 		public bool InvalidCustomRules { get; private set; }
 		public Exception InvalidCustomRulesException { get; private set; }
 
@@ -253,8 +255,6 @@ namespace OpenRA
 		CellLayer<List<MPos>> inverseCellProjection;
 		CellLayer<byte> projectedHeight;
 		Rectangle projectionSafeBounds;
-
-		internal Translation Translation;
 
 		public static string ComputeUID(IReadOnlyPackage package)
 		{
@@ -390,7 +390,7 @@ namespace OpenRA
 
 							// TODO: Remember to remove this when rewriting tile variants / PickAny
 							if (index == byte.MaxValue)
-								index = (byte)(i % 4 + (j % 4) * 4);
+								index = (byte)(i % 4 + j % 4 * 4);
 
 							Tiles[new MPos(i, j)] = new TerrainTile(tile, index);
 						}
@@ -437,19 +437,18 @@ namespace OpenRA
 			try
 			{
 				Rules = Ruleset.Load(modData, this, Tileset, RuleDefinitions, WeaponDefinitions,
-					VoiceDefinitions, NotificationDefinitions, MusicDefinitions, SequenceDefinitions, ModelSequenceDefinitions);
+					VoiceDefinitions, NotificationDefinitions, MusicDefinitions, ModelSequenceDefinitions);
 			}
 			catch (Exception e)
 			{
-				Log.Write("debug", "Failed to load rules for {0} with error {1}", Title, e);
+				Log.Write("debug", $"Failed to load rules for {Title} with error");
+				Log.Write("debug", e);
 				InvalidCustomRules = true;
 				InvalidCustomRulesException = e;
 				Rules = Ruleset.LoadDefaultsForTileSet(modData, Tileset);
 			}
 
-			Rules.Sequences.Preload();
-
-			Translation = new Translation(Game.Settings.Player.Language, Translations, this);
+			Sequences = new SequenceSet(this, modData, Tileset, SequenceDefinitions);
 
 			var tl = new MPos(0, 0).ToCPos(this);
 			var br = new MPos(MapSize.X - 1, MapSize.Y - 1).ToCPos(this);
@@ -480,17 +479,17 @@ namespace OpenRA
 			AllEdgeCells = UpdateEdgeCells();
 
 			// Invalidate the entry for a cell if anything could cause the terrain index to change.
-			Action<CPos> invalidateTerrainIndex = c =>
+			void InvalidateTerrainIndex(CPos c)
 			{
 				if (cachedTerrainIndexes != null)
 					cachedTerrainIndexes[c] = InvalidCachedTerrainIndex;
-			};
+			}
 
 			// Even though the cache is lazily initialized, we must attach these event handlers on init.
 			// This ensures our handler to invalidate the cache runs first,
 			// so other listeners to these same events will get correct data when calling GetTerrainIndex.
-			CustomTerrain.CellEntryChanged += invalidateTerrainIndex;
-			Tiles.CellEntryChanged += invalidateTerrainIndex;
+			CustomTerrain.CellEntryChanged += InvalidateTerrainIndex;
+			Tiles.CellEntryChanged += InvalidateTerrainIndex;
 		}
 
 		void UpdateRamp(CPos cell)
@@ -648,12 +647,21 @@ namespace OpenRA
 					toPackage.Update(file, Package.GetStream(file).ReadAllBytes());
 
 			if (!LockPreview)
-				toPackage.Update("map.png", SavePreview());
+			{
+				var previewData = SavePreview();
+				if (Package != toPackage || !Enumerable.SequenceEqual(previewData, Package.GetStream("map.png").ReadAllBytes()))
+					toPackage.Update("map.png", previewData);
+			}
 
 			// Update the package with the new map data
-			var s = root.WriteToString();
-			toPackage.Update("map.yaml", Encoding.UTF8.GetBytes(s));
-			toPackage.Update("map.bin", SaveBinaryData());
+			var textData = Encoding.UTF8.GetBytes(root.WriteToString());
+			if (Package != toPackage || !Enumerable.SequenceEqual(textData, Package.GetStream("map.yaml").ReadAllBytes()))
+				toPackage.Update("map.yaml", textData);
+
+			var binaryData = SaveBinaryData();
+			if (Package != toPackage || !Enumerable.SequenceEqual(binaryData, Package.GetStream("map.bin").ReadAllBytes()))
+				toPackage.Update("map.bin", binaryData);
+
 			Package = toPackage;
 
 			// Update UID to match the newly saved data
@@ -739,8 +747,8 @@ namespace OpenRA
 		public byte[] SavePreview()
 		{
 			var actorTypes = Rules.Actors.Values.Where(a => a.HasTraitInfo<IMapPreviewSignatureInfo>());
-			var actors = ActorDefinitions.Where(a => actorTypes.Where(ai => ai.Name == a.Value.Value).Any());
-			var positions = new List<(MPos Position, Color Color)>();
+			var actors = ActorDefinitions.Where(a => actorTypes.Any(ai => ai.Name == a.Value.Value));
+			var positions = new List<(MPos Uv, Color Color)>();
 			foreach (var actor in actors)
 			{
 				var s = new ActorReference(actor.Value.Value, actor.Value.ToDictionary());
@@ -797,14 +805,17 @@ namespace OpenRA
 			var minimapData = new byte[stride * height];
 			(Color Left, Color Right) terrainColor = default;
 
+			var colorsByPosition = positions
+				.GroupBy(p => p.Uv)
+				.ToDictionary(g => g.Key, g => g.First().Color);
 			for (var y = 0; y < height; y++)
 			{
 				for (var x = 0; x < width; x++)
 				{
 					var uv = new MPos(x + Bounds.Left, y + top);
 
-					// FirstOrDefault will return a (MPos.Zero, Color.Transparent) if positions is empty
-					var actorColor = positions.FirstOrDefault(ap => ap.Position == uv).Color;
+					// TryGetValue will return Color.Transparent if not found
+					colorsByPosition.TryGetValue(uv, out var actorColor);
 					if (actorColor.A == 0)
 						terrainColor = GetTerrainColorPair(uv);
 
@@ -983,11 +994,11 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// The size of the map Height step in world units
+		/// The size of the map Height step in world units.
 		/// </summary>
 		/// RectangularIsometric defines 1024 units along the diagonal axis,
 		/// giving a half-tile height step of sqrt(2) * 512
-		public WDist CellHeightStep => new WDist(Grid.Type == MapGridType.RectangularIsometric ? 724 : 512);
+		public WDist CellHeightStep => new(Grid.Type == MapGridType.RectangularIsometric ? 724 : 512);
 
 		public CPos CellContaining(WPos pos)
 		{
@@ -1197,7 +1208,7 @@ namespace OpenRA
 				// This shouldn't happen.  But if it does, return the original value and hope the caller doesn't explode.
 				if (unProjected.Count == 0)
 				{
-					Log.Write("debug", "Failed to clamp map cell {0} to map bounds", uv);
+					Log.Write("debug", $"Failed to clamp map cell {uv} to map bounds");
 					return uv;
 				}
 			}
@@ -1239,8 +1250,8 @@ namespace OpenRA
 			if (allProjected.Length > 0)
 			{
 				var puv = allProjected.First();
-				var horizontalBound = ((puv.U - Bounds.Left) < Bounds.Width / 2) ? Bounds.Left : Bounds.Right;
-				var verticalBound = ((puv.V - Bounds.Top) < Bounds.Height / 2) ? Bounds.Top : Bounds.Bottom;
+				var horizontalBound = (puv.U - Bounds.Left < Bounds.Width / 2) ? Bounds.Left : Bounds.Right;
+				var verticalBound = (puv.V - Bounds.Top < Bounds.Height / 2) ? Bounds.Top : Bounds.Bottom;
 
 				var du = Math.Abs(horizontalBound - puv.U);
 				var dv = Math.Abs(verticalBound - puv.V);
@@ -1269,7 +1280,7 @@ namespace OpenRA
 				// This shouldn't happen.  But if it does, return the original value and hope the caller doesn't explode.
 				if (unProjected.Count == 0)
 				{
-					Log.Write("debug", "Failed to find closest edge for map cell {0}", uv);
+					Log.Write("debug", $"Failed to find closest edge for map cell {uv}");
 					return uv;
 				}
 			}
@@ -1400,12 +1411,9 @@ namespace OpenRA
 			return false;
 		}
 
-		public string Translate(string key, IDictionary<string, object> args = null)
+		public void Dispose()
 		{
-			if (Translation.TryGetString(key, out var message, args))
-				return message;
-
-			return modData.Translation.GetString(key, args);
+			Sequences.Dispose();
 		}
 	}
 }

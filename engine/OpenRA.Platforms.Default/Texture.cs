@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -96,7 +96,7 @@ namespace OpenRA.Platforms.Default
 		{
 			VerifyThreadAffinity();
 			if (!Exts.IsPowerOf2(width) || !Exts.IsPowerOf2(height))
-				throw new InvalidDataException("Non-power-of-two array {0}x{1}".F(width, height));
+				throw new InvalidDataException($"Non-power-of-two array {width}x{height}");
 
 			Size = new Size(width, height);
 			unsafe
@@ -148,9 +148,7 @@ namespace OpenRA.Platforms.Default
 				{
 					for (var i = 0; i < 4 * Size.Width * Size.Height; i += 4)
 					{
-						var temp = data[i];
-						data[i] = data[i + 2];
-						data[i + 2] = temp;
+						(data[i + 2], data[i]) = (data[i], data[i + 2]);
 					}
 				}
 
@@ -165,7 +163,7 @@ namespace OpenRA.Platforms.Default
 				{
 					fixed (byte* ptr = &data[0])
 					{
-						var intPtr = new IntPtr((void*)ptr);
+						var intPtr = new IntPtr(ptr);
 						OpenGL.glGetTexImage(OpenGL.GL_TEXTURE_2D, 0, OpenGL.GL_BGRA,
 							OpenGL.GL_UNSIGNED_BYTE, intPtr);
 					}

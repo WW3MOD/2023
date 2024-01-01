@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,12 +25,12 @@ namespace OpenRA.Platforms.Default
 	sealed class ThreadedGraphicsContext : IGraphicsContext
 	{
 		// PERF: Maintain several object pools to reduce allocations.
-		readonly Stack<Vertex[]> verticesPool = new Stack<Vertex[]>();
-		readonly Stack<Message> messagePool = new Stack<Message>();
-		readonly Queue<Message> messages = new Queue<Message>();
+		readonly Stack<Vertex[]> verticesPool = new();
+		readonly Stack<Message> messagePool = new();
+		readonly Queue<Message> messages = new();
 
 		public readonly int BatchSize;
-		readonly object syncObject = new object();
+		readonly object syncObject = new();
 		readonly Thread renderThread;
 		volatile ExceptionDispatchInfo messageException;
 
@@ -88,26 +88,26 @@ namespace OpenRA.Platforms.Default
 					getCreateFrameBuffer =
 						tuple =>
 						{
-							var t = (ValueTuple<Size, Color>)tuple;
+							var t = ((Size, Color))tuple;
 							return new ThreadedFrameBuffer(this,
 								context.CreateFrameBuffer(t.Item1, (ITextureInternal)CreateTexture(), t.Item2));
 						};
 					getCreateShader = name => new ThreadedShader(this, context.CreateShader((string)name));
 					getCreateVertexBuffer = length => new ThreadedVertexBuffer(this, context.CreateVertexBuffer((int)length));
 					doDrawPrimitives =
-						 tuple =>
-						 {
-							 var t = (ValueTuple<PrimitiveType, int, int>)tuple;
-							 context.DrawPrimitives(t.Item1, t.Item2, t.Item3);
-						 };
+						tuple =>
+						{
+							var t = ((PrimitiveType, int, int))tuple;
+							context.DrawPrimitives(t.Item1, t.Item2, t.Item3);
+						};
 					doEnableScissor =
 						tuple =>
 						{
-							var t = (ValueTuple<int, int, int, int>)tuple;
+							var t = ((int, int, int, int))tuple;
 							context.EnableScissor(t.Item1, t.Item2, t.Item3, t.Item4);
 						};
-					doSetBlendMode = mode => { context.SetBlendMode((BlendMode)mode); };
-					doSetVSync = enabled => { context.SetVSyncEnabled((bool)enabled); };
+					doSetBlendMode = mode => context.SetBlendMode((BlendMode)mode);
+					doSetVSync = enabled => context.SetVSyncEnabled((bool)enabled);
 
 					Monitor.Pulse(syncObject);
 				}
@@ -155,14 +155,14 @@ namespace OpenRA.Platforms.Default
 					verticesPool.Push(vertices);
 		}
 
-		class Message
+		sealed class Message
 		{
 			public Message(ThreadedGraphicsContext device)
 			{
 				this.device = device;
 			}
 
-			readonly AutoResetEvent completed = new AutoResetEvent(false);
+			readonly AutoResetEvent completed = new(false);
 			readonly ThreadedGraphicsContext device;
 			volatile Action action;
 			volatile Action<object> actionWithParam;
@@ -450,7 +450,7 @@ namespace OpenRA.Platforms.Default
 		}
 	}
 
-	class ThreadedFrameBuffer : IFrameBuffer
+	sealed class ThreadedFrameBuffer : IFrameBuffer
 	{
 		readonly ThreadedGraphicsContext device;
 		readonly Func<ITexture> getTexture;
@@ -500,7 +500,7 @@ namespace OpenRA.Platforms.Default
 		}
 	}
 
-	class ThreadedVertexBuffer : IVertexBuffer<Vertex>
+	sealed class ThreadedVertexBuffer : IVertexBuffer<Vertex>
 	{
 		readonly ThreadedGraphicsContext device;
 		readonly Action bind;
@@ -513,8 +513,8 @@ namespace OpenRA.Platforms.Default
 		{
 			this.device = device;
 			bind = vertexBuffer.Bind;
-			setData1 = tuple => { var t = (ValueTuple<Vertex[], int>)tuple; vertexBuffer.SetData(t.Item1, t.Item2); device.ReturnVertices(t.Item1); };
-			setData2 = tuple => { var t = (ValueTuple<Vertex[], int, int, int>)tuple; vertexBuffer.SetData(t.Item1, t.Item2, t.Item3, t.Item4); device.ReturnVertices(t.Item1); };
+			setData1 = tuple => { var t = ((Vertex[], int))tuple; vertexBuffer.SetData(t.Item1, t.Item2); device.ReturnVertices(t.Item1); };
+			setData2 = tuple => { var t = ((Vertex[], int, int, int))tuple; vertexBuffer.SetData(t.Item1, t.Item2, t.Item3, t.Item4); device.ReturnVertices(t.Item1); };
 			setData3 = tuple => { setData2(tuple); return null; };
 			dispose = vertexBuffer.Dispose;
 		}
@@ -563,10 +563,9 @@ namespace OpenRA.Platforms.Default
 		}
 	}
 
-	class ThreadedTexture : ITextureInternal
+	sealed class ThreadedTexture : ITextureInternal
 	{
 		readonly ThreadedGraphicsContext device;
-		readonly uint id;
 		readonly Func<object> getScaleFilter;
 		readonly Action<object> setScaleFilter;
 		readonly Func<object> getSize;
@@ -581,20 +580,20 @@ namespace OpenRA.Platforms.Default
 		public ThreadedTexture(ThreadedGraphicsContext device, ITextureInternal texture)
 		{
 			this.device = device;
-			id = texture.ID;
+			ID = texture.ID;
 			getScaleFilter = () => texture.ScaleFilter;
 			setScaleFilter = value => texture.ScaleFilter = (TextureScaleFilter)value;
 			getSize = () => texture.Size;
-			setEmpty = tuple => { var t = (ValueTuple<int, int>)tuple; texture.SetEmpty(t.Item1, t.Item2); };
+			setEmpty = tuple => { var t = ((int, int))tuple; texture.SetEmpty(t.Item1, t.Item2); };
 			getData = () => texture.GetData();
-			setData1 = tuple => { var t = (ValueTuple<byte[], int, int>)tuple; texture.SetData(t.Item1, t.Item2, t.Item3); };
+			setData1 = tuple => { var t = ((byte[], int, int))tuple; texture.SetData(t.Item1, t.Item2, t.Item3); };
 			setData2 = tuple => { setData1(tuple); return null; };
-			setData3 = tuple => { var t = (ValueTuple<float[], int, int>)tuple; texture.SetFloatData(t.Item1, t.Item2, t.Item3); };
+			setData3 = tuple => { var t = ((float[], int, int))tuple; texture.SetFloatData(t.Item1, t.Item2, t.Item3); };
 			setData4 = tuple => { setData3(tuple); return null; };
 			dispose = texture.Dispose;
 		}
 
-		public uint ID => id;
+		public uint ID { get; }
 
 		public TextureScaleFilter ScaleFilter
 		{
@@ -659,7 +658,7 @@ namespace OpenRA.Platforms.Default
 		}
 	}
 
-	class ThreadedShader : IShader
+	sealed class ThreadedShader : IShader
 	{
 		readonly ThreadedGraphicsContext device;
 		readonly Action prepareRender;
@@ -675,13 +674,13 @@ namespace OpenRA.Platforms.Default
 		{
 			this.device = device;
 			prepareRender = shader.PrepareRender;
-			setBool = tuple => { var t = (ValueTuple<string, bool>)tuple; shader.SetBool(t.Item1, t.Item2); };
-			setMatrix = tuple => { var t = (ValueTuple<string, float[]>)tuple; shader.SetMatrix(t.Item1, t.Item2); };
-			setTexture = tuple => { var t = (ValueTuple<string, ITexture>)tuple; shader.SetTexture(t.Item1, t.Item2); };
-			setVec1 = tuple => { var t = (ValueTuple<string, float>)tuple; shader.SetVec(t.Item1, t.Item2); };
-			setVec2 = tuple => { var t = (ValueTuple<string, float[], int>)tuple; shader.SetVec(t.Item1, t.Item2, t.Item3); };
-			setVec3 = tuple => { var t = (ValueTuple<string, float, float>)tuple; shader.SetVec(t.Item1, t.Item2, t.Item3); };
-			setVec4 = tuple => { var t = (ValueTuple<string, float, float, float>)tuple; shader.SetVec(t.Item1, t.Item2, t.Item3, t.Item4); };
+			setBool = tuple => { var t = ((string, bool))tuple; shader.SetBool(t.Item1, t.Item2); };
+			setMatrix = tuple => { var t = ((string, float[]))tuple; shader.SetMatrix(t.Item1, t.Item2); };
+			setTexture = tuple => { var t = ((string, ITexture))tuple; shader.SetTexture(t.Item1, t.Item2); };
+			setVec1 = tuple => { var t = ((string, float))tuple; shader.SetVec(t.Item1, t.Item2); };
+			setVec2 = tuple => { var t = ((string, float[], int))tuple; shader.SetVec(t.Item1, t.Item2, t.Item3); };
+			setVec3 = tuple => { var t = ((string, float, float))tuple; shader.SetVec(t.Item1, t.Item2, t.Item3); };
+			setVec4 = tuple => { var t = ((string, float, float, float))tuple; shader.SetVec(t.Item1, t.Item2, t.Item3, t.Item4); };
 		}
 
 		public void PrepareRender()

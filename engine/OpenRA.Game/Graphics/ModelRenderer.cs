@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -37,7 +37,7 @@ namespace OpenRA.Graphics
 		// Static constants
 		static readonly float[] ShadowDiffuse = new float[] { 0, 0, 0 };
 		static readonly float[] ShadowAmbient = new float[] { 1, 1, 1 };
-		static readonly float2 SpritePadding = new float2(2, 2);
+		static readonly float2 SpritePadding = new(2, 2);
 		static readonly float[] ZeroVector = new float[] { 0, 0, 0, 1 };
 		static readonly float[] ZVector = new float[] { 0, 0, 1, 1 };
 		static readonly float[] FlipMtx = Util.ScaleMatrix(1, -1, 1);
@@ -47,9 +47,9 @@ namespace OpenRA.Graphics
 		readonly Renderer renderer;
 		readonly IShader shader;
 
-		readonly Dictionary<Sheet, IFrameBuffer> mappedBuffers = new Dictionary<Sheet, IFrameBuffer>();
-		readonly Stack<KeyValuePair<Sheet, IFrameBuffer>> unmappedBuffers = new Stack<KeyValuePair<Sheet, IFrameBuffer>>();
-		readonly List<(Sheet Sheet, Action Func)> doRender = new List<(Sheet, Action)>();
+		readonly Dictionary<Sheet, IFrameBuffer> mappedBuffers = new();
+		readonly Stack<KeyValuePair<Sheet, IFrameBuffer>> unmappedBuffers = new();
+		readonly List<(Sheet Sheet, Action Func)> doRender = new();
 
 		SheetBuilder sheetBuilderForFrame;
 		bool isInFrame;
@@ -167,8 +167,7 @@ namespace OpenRA.Graphics
 			CalculateSpriteGeometry(tl, br, 1, out var spriteSize, out var spriteOffset);
 			CalculateSpriteGeometry(stl, sbr, 2, out var shadowSpriteSize, out var shadowSpriteOffset);
 
-			if (sheetBuilderForFrame == null)
-				sheetBuilderForFrame = new SheetBuilder(SheetType.BGRA, AllocateSheet);
+			sheetBuilderForFrame ??= new SheetBuilder(SheetType.BGRA, AllocateSheet);
 
 			var sprite = sheetBuilderForFrame.Allocate(spriteSize, 0, spriteOffset);
 			var shadowSprite = sheetBuilderForFrame.Allocate(shadowSpriteSize, 0, shadowSpriteOffset);
@@ -303,7 +302,7 @@ namespace OpenRA.Graphics
 			return fbo;
 		}
 
-		void DisableFrameBuffer(IFrameBuffer fbo)
+		static void DisableFrameBuffer(IFrameBuffer fbo)
 		{
 			Game.Renderer.Flush();
 			Game.Renderer.Context.DisableDepthBuffer();

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 	sealed class CellInfoLayerPool
 	{
 		const int MaxPoolSize = 4;
-		readonly Stack<CellLayer<CellInfo>> pool = new Stack<CellLayer<CellInfo>>(MaxPoolSize);
+		readonly Stack<CellLayer<CellInfo>> pool = new(MaxPoolSize);
 		readonly Map map;
 
 		public CellInfoLayerPool(Map map)
@@ -51,14 +51,14 @@ namespace OpenRA.Mods.Common.Pathfinder
 		void ReturnLayer(CellLayer<CellInfo> layer)
 		{
 			lock (pool)
-			   if (pool.Count < MaxPoolSize)
+				if (pool.Count < MaxPoolSize)
 					pool.Push(layer);
 		}
 
-		public class PooledCellInfoLayer : IDisposable
+		public sealed class PooledCellInfoLayer : IDisposable
 		{
 			CellInfoLayerPool layerPool;
-			List<CellLayer<CellInfo>> layers = new List<CellLayer<CellInfo>>();
+			List<CellLayer<CellInfo>> layers = new();
 
 			public PooledCellInfoLayer(CellInfoLayerPool layerPool)
 			{

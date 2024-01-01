@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,9 +21,9 @@ namespace OpenRA.Graphics
 		public ITexture ColorShifts { get; }
 
 		public int Height { get; private set; }
-		readonly Dictionary<string, ImmutablePalette> palettes = new Dictionary<string, ImmutablePalette>();
-		readonly Dictionary<string, MutablePalette> mutablePalettes = new Dictionary<string, MutablePalette>();
-		readonly Dictionary<string, int> indices = new Dictionary<string, int>();
+		readonly Dictionary<string, ImmutablePalette> palettes = new();
+		readonly Dictionary<string, MutablePalette> mutablePalettes = new();
+		readonly Dictionary<string, int> indices = new();
 		byte[] buffer = Array.Empty<byte>();
 		float[] colorShiftBuffer = Array.Empty<float>();
 
@@ -70,7 +70,7 @@ namespace OpenRA.Graphics
 			{
 				Height = Exts.NextPowerOf2(index + 1);
 				Array.Resize(ref buffer, Height * Palette.Size * 4);
-				Array.Resize(ref colorShiftBuffer, Height * 4);
+				Array.Resize(ref colorShiftBuffer, Height * 8);
 			}
 
 			if (allowModifiers)
@@ -79,6 +79,9 @@ namespace OpenRA.Graphics
 				CopyPaletteToBuffer(index, p);
 		}
 
+		[System.Diagnostics.CodeAnalysis.SuppressMessage(
+			"Performance", "CA1854:Prefer the 'IDictionary.TryGetValue(TKey, out TValue)' method",
+			Justification = "False positive - indexer is a set not a get.")]
 		public void ReplacePalette(string name, IPalette p)
 		{
 			if (mutablePalettes.ContainsKey(name))
@@ -90,19 +93,20 @@ namespace OpenRA.Graphics
 			CopyBufferToTexture();
 		}
 
-		public void SetColorShift(string name, float hueOffset, float satOffset, float minHue, float maxHue)
+		public void SetColorShift(string name, float hueOffset, float satOffset, float valueMultiplier, float minHue, float maxHue)
 		{
 			var index = GetPaletteIndex(name);
-			colorShiftBuffer[4 * index + 0] = hueOffset;
-			colorShiftBuffer[4 * index + 1] = satOffset;
-			colorShiftBuffer[4 * index + 2] = minHue;
-			colorShiftBuffer[4 * index + 3] = maxHue;
+			colorShiftBuffer[8 * index + 0] = minHue;
+			colorShiftBuffer[8 * index + 1] = maxHue;
+			colorShiftBuffer[8 * index + 4] = hueOffset;
+			colorShiftBuffer[8 * index + 5] = satOffset;
+			colorShiftBuffer[8 * index + 6] = valueMultiplier;
 		}
 
 		public bool HasColorShift(string name)
 		{
 			var index = GetPaletteIndex(name);
-			return colorShiftBuffer[4 * index + 2] != 0 || colorShiftBuffer[4 * index + 3] != 0;
+			return colorShiftBuffer[8 * index] != 0 || colorShiftBuffer[8 * index + 1] != 0;
 		}
 
 		public void Initialize()
@@ -125,7 +129,7 @@ namespace OpenRA.Graphics
 		void CopyBufferToTexture()
 		{
 			Texture.SetData(buffer, Palette.Size, Height);
-			ColorShifts.SetFloatData(colorShiftBuffer, 1, Height);
+			ColorShifts.SetFloatData(colorShiftBuffer, 2, Height);
 		}
 
 		public void ApplyModifiers(IEnumerable<IPaletteModifier> paletteMods)

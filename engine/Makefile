@@ -3,7 +3,7 @@
 # to compile, run:
 #   make
 #
-# to compile using Mono (version 6.4 or greater) instead of .NET 6, run:
+# to compile using Mono (version 6.12 or greater) instead of .NET 6, run:
 #   make RUNTIME=mono
 #
 # to compile using system libraries for native dependencies, run:
@@ -59,7 +59,6 @@ RM_RF = $(RM) -rf
 RUNTIME ?= net6
 CONFIGURATION ?= Release
 DOTNET_RID = $(shell ${DOTNET} --info | grep RID: | cut -w -f3)
-ARCH_X64 = $(shell echo ${DOTNET_RID} | grep x64)
 
 # Only for use in target version:
 VERSION := $(shell git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || (c=$$(git rev-parse --short HEAD 2>/dev/null) && echo git-$$c))
@@ -69,7 +68,7 @@ ifndef TARGETPLATFORM
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
-ifeq ($(ARCH_X64),)
+ifeq ($(RUNTIME)-$(DOTNET_RID),net6-osx-arm64)
 TARGETPLATFORM = osx-arm64
 else
 TARGETPLATFORM = osx-x64
@@ -92,7 +91,7 @@ endif
 all:
 	@echo "Compiling in ${CONFIGURATION} mode..."
 ifeq ($(RUNTIME), mono)
-	@command -v $(firstword $(MSBUILD)) >/dev/null || (echo "OpenRA requires the '$(MSBUILD)' tool provided by Mono >= 6.4."; exit 1)
+	@command -v $(firstword $(MSBUILD)) >/dev/null || (echo "OpenRA requires the '$(MSBUILD)' tool provided by Mono >= 6.12."; exit 1)
 	@$(MSBUILD) -t:Build -restore -p:Configuration=${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM)
 else
 	@$(DOTNET) build -c ${CONFIGURATION} -nologo -p:TargetPlatform=$(TARGETPLATFORM)
@@ -112,11 +111,10 @@ check:
 	@echo
 	@echo "Compiling in Debug mode..."
 ifeq ($(RUNTIME), mono)
-# Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
-	@$(MSBUILD) -t:build -restore -p:Configuration=Debug -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
+	@$(MSBUILD) -t:clean\;build -restore -p:Configuration=Debug -warnaserror -p:TargetPlatform=$(TARGETPLATFORM)
 else
-# Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
-	@$(DOTNET) build -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
+	@$(DOTNET) clean -c Debug --nologo --verbosity minimal
+	@$(DOTNET) build -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM)
 endif
 ifeq ($(TARGETPLATFORM), unix-generic)
 	@./configure-system-libraries.sh
@@ -131,7 +129,7 @@ endif
 check-scripts:
 	@echo
 	@echo "Checking for Lua syntax errors..."
-	@find lua/ mods/*/{maps,scripts}/ -iname "*.lua" -print0 | xargs -0n1 luac -p
+	@find mods/*/maps/ mods/*/scripts/ -iname "*.lua" -print0 | xargs -0n1 luac -p
 
 test: all
 	@echo
@@ -146,6 +144,11 @@ test: all
 	@echo
 	@echo "Testing Red Alert mod MiniYAML..."
 	@./utility.sh ra --check-yaml
+
+tests:
+	@dotnet build OpenRA.Test/OpenRA.Test.csproj -c Debug --nologo -p:TargetPlatform=$(TARGETPLATFORM)
+	@echo
+	@dotnet test bin/OpenRA.Test.dll --test-adapter-path:.
 
 ############# LOCAL INSTALLATION AND DOWNSTREAM PACKAGING ##############
 #
@@ -174,14 +177,14 @@ help:
 	@echo 'to compile, run:'
 	@echo '  make'
 	@echo
-	@echo 'to compile using Mono (version 6.4 or greater) instead of .NET 6, run:'
+	@echo 'to compile using Mono (version 6.12 or greater) instead of .NET 6, run:'
 	@echo '  make RUNTIME=mono'
 	@echo
 	@echo 'to compile using system libraries for native dependencies, run:'
 	@echo '  make [RUNTIME=net6] TARGETPLATFORM=unix-generic'
 	@echo
 	@echo 'to check the official mods for erroneous yaml files, run:'
-	@echo '  make [RUNTIME=net6] test'
+	@echo '  make [RUNTIME=net6] [TREAT_WARNINGS_AS_ERRORS=false] test'
 	@echo
 	@echo 'to check the engine and official mod dlls for code style violations, run:'
 	@echo '  make [RUNTIME=net6] check'

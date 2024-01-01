@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		readonly Actor self;
 		readonly Cargo cargo;
-		readonly INotifyUnload[] notifiers;
+		readonly INotifyUnloadCargo[] notifiers;
 		readonly bool unloadAll;
 		readonly Aircraft aircraft;
 		readonly Mobile mobile;
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			this.self = self;
 			cargo = self.Trait<Cargo>();
-			notifiers = self.TraitsImplementing<INotifyUnload>().ToArray();
+			notifiers = self.TraitsImplementing<INotifyUnloadCargo>().ToArray();
 			this.unloadAll = unloadAll;
 			aircraft = self.TraitOrDefault<Aircraft>();
 			mobile = self.TraitOrDefault<Mobile>();

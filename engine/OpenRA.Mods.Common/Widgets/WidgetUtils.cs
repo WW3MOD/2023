@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -249,7 +249,7 @@ namespace OpenRA.Mods.Common.Widgets
 						if (spaceIndex == -1)
 							break;
 
-						var fragmentWidth = font.Measure(line.Substring(0, spaceIndex)).X;
+						var fragmentWidth = font.Measure(line[..spaceIndex]).X;
 						if (fragmentWidth > width)
 							break;
 
@@ -258,8 +258,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 					if (start > 0)
 					{
-						lines[i] = line.Substring(0, start - 1);
-						lines.Insert(i + 1, line.Substring(start));
+						lines[i] = line[..(start - 1)];
+						lines.Insert(i + 1, line[start..]);
 					}
 				}
 
@@ -278,7 +278,7 @@ namespace OpenRA.Mods.Common.Widgets
 			var trimmed = text;
 			while (trimmedWidth > width && trimmed.Length > 3)
 			{
-				trimmed = text.Substring(0, trimmed.Length - 4) + "...";
+				trimmed = text[..(trimmed.Length - 4)] + "...";
 				trimmedWidth = font.Measure(trimmed).X;
 			}
 
@@ -323,7 +323,7 @@ namespace OpenRA.Mods.Common.Widgets
 			var nameFont = Game.Renderer.Fonts[label.Font];
 			var name = new CachedTransform<(string Name, WinState WinState, Session.ClientState ClientState), string>(c =>
 			{
-				var suffix = c.WinState == WinState.Undefined ? "" : " (" + c.Item2 + ")";
+				var suffix = c.WinState == WinState.Undefined ? "" : " (" + c.WinState + ")";
 				if (c.ClientState == Session.ClientState.Disconnected)
 					suffix = " (Gone)";
 

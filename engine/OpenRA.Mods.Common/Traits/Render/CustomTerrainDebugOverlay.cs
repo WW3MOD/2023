@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,19 +19,19 @@ namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
 	[Desc("Displays custom terrain types.")]
-	class CustomTerrainDebugOverlayInfo : TraitInfo
+	sealed class CustomTerrainDebugOverlayInfo : TraitInfo
 	{
 		public readonly string Font = "TinyBold";
 
 		public override object Create(ActorInitializer init) { return new CustomTerrainDebugOverlay(this); }
 	}
 
-	class CustomTerrainDebugOverlay : IWorldLoaded, IChatCommand, IRenderAnnotations
+	sealed class CustomTerrainDebugOverlay : IWorldLoaded, IChatCommand, IRenderAnnotations
 	{
 		const string CommandName = "custom-terrain";
 
 		[TranslationReference]
-		const string CommandDescription = "custom-terrain-debug-overlay-description";
+		const string CommandDescription = "description-custom-terrain-debug-overlay";
 
 		public bool Enabled;
 

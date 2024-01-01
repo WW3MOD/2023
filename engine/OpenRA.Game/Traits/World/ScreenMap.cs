@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -47,15 +47,15 @@ namespace OpenRA.Traits
 		readonly Func<Actor, ActorBoundsPair> selectActorAndBounds;
 		readonly Cache<Player, SpatiallyPartitioned<FrozenActor>> partitionedMouseFrozenActors;
 		readonly SpatiallyPartitioned<Actor> partitionedMouseActors;
-		readonly Dictionary<Actor, ActorBoundsPair> partitionedMouseActorBounds = new Dictionary<Actor, ActorBoundsPair>();
+		readonly Dictionary<Actor, ActorBoundsPair> partitionedMouseActorBounds = new();
 
 		readonly Cache<Player, SpatiallyPartitioned<FrozenActor>> partitionedRenderableFrozenActors;
 		readonly SpatiallyPartitioned<Actor> partitionedRenderableActors;
 		readonly SpatiallyPartitioned<IEffect> partitionedRenderableEffects;
 
 		// Updates are done in one pass to ensure all bound changes have been applied
-		readonly HashSet<Actor> addOrUpdateActors = new HashSet<Actor>();
-		readonly HashSet<Actor> removeActors = new HashSet<Actor>();
+		readonly HashSet<Actor> addOrUpdateActors = new();
+		readonly HashSet<Actor> removeActors = new();
 		readonly Cache<Player, HashSet<FrozenActor>> addOrUpdateFrozenActors;
 		readonly Cache<Player, HashSet<FrozenActor>> removeFrozenActors;
 

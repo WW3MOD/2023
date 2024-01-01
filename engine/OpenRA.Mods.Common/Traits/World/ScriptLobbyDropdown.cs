@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,9 +23,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string ID = null;
 
 		[FieldLoader.Require]
+		[TranslationReference]
 		[Desc("Descriptive label for this option.")]
 		public readonly string Label = null;
 
+		[TranslationReference]
 		[Desc("Tooltip description for this option.")]
 		public readonly string Description = null;
 
@@ -34,7 +36,8 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Default = null;
 
 		[FieldLoader.Require]
-		[Desc("Difficulty levels supported by the map.")]
+		[TranslationReference(dictionaryReference: LintDictionaryReference.Values)]
+		[Desc("Options to choose from.")]
 		public readonly Dictionary<string, string> Values = null;
 
 		[Desc("Prevent the option from being changed from its default value.")]
@@ -48,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			yield return new LobbyOption(ID, Label, Description, Visible, DisplayOrder,
+			yield return new LobbyOption(map, ID, Label, Description, Visible, DisplayOrder,
 				Values, Default, Locked);
 		}
 

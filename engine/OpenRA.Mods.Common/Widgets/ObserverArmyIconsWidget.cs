@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -39,9 +39,9 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string TooltipContainer;
 
 		readonly Lazy<TooltipContainerWidget> tooltipContainer;
-		readonly List<ArmyIcon> armyIcons = new List<ArmyIcon>();
+		readonly List<ArmyIcon> armyIcons = new();
 
-		readonly CachedTransform<Player, PlayerStatistics> stats = new CachedTransform<Player, PlayerStatistics>(player => player.PlayerActor.TraitOrDefault<PlayerStatistics>());
+		readonly CachedTransform<Player, PlayerStatistics> stats = new(player => player.PlayerActor.TraitOrDefault<PlayerStatistics>());
 
 		int lastIconIdx;
 		int currentTooltipToken;
@@ -201,7 +201,7 @@ namespace OpenRA.Mods.Common.Widgets
 			TooltipUnit = null;
 		}
 
-		class ArmyIcon
+		sealed class ArmyIcon
 		{
 			public Rectangle Bounds { get; set; }
 			public ArmyUnit Unit { get; set; }

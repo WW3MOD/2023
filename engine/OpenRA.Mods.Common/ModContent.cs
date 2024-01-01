@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,10 +18,10 @@ namespace OpenRA
 {
 	public class ModContent : IGlobalModData
 	{
-		public enum SourceType { Disc, RegistryDirectory, RegistryDirectoryFromFile }
 		public class ModPackage
 		{
 			public readonly string Title;
+			public readonly string Identifier;
 			public readonly string[] TestFiles = Array.Empty<string>();
 			public readonly string[] Sources = Array.Empty<string>();
 			public readonly bool Required;
@@ -29,7 +29,6 @@ namespace OpenRA
 
 			public ModPackage(MiniYaml yaml)
 			{
-				Title = yaml.Value;
 				FieldLoader.Load(this, yaml);
 			}
 
@@ -41,7 +40,10 @@ namespace OpenRA
 
 		public class ModSource
 		{
-			public readonly SourceType Type = SourceType.Disc;
+			public readonly ObjectCreator ObjectCreator;
+
+			[FieldLoader.Ignore]
+			public readonly MiniYaml Type;
 
 			// Used to find installation locations for SourceType.Install
 			public readonly string[] RegistryPrefixes = { string.Empty };
@@ -56,9 +58,16 @@ namespace OpenRA
 			[FieldLoader.Ignore]
 			public readonly List<MiniYamlNode> Install;
 
-			public ModSource(MiniYaml yaml)
+			public readonly string TooltipText;
+
+			public ModSource(MiniYaml yaml, ObjectCreator objectCreator)
 			{
+				ObjectCreator = objectCreator;
 				Title = yaml.Value;
+
+				var type = yaml.Nodes.FirstOrDefault(n => n.Key == "Type");
+				if (type != null)
+					Type = type.Value;
 
 				var idFiles = yaml.Nodes.FirstOrDefault(n => n.Key == "IDFiles");
 				if (idFiles != null)
@@ -74,14 +83,17 @@ namespace OpenRA
 
 		public class ModDownload
 		{
+			public readonly ObjectCreator ObjectCreator;
 			public readonly string Title;
 			public readonly string URL;
 			public readonly string MirrorList;
 			public readonly string SHA1;
+			public readonly string Type;
 			public readonly Dictionary<string, string> Extract;
 
-			public ModDownload(MiniYaml yaml)
+			public ModDownload(MiniYaml yaml, ObjectCreator objectCreator)
 			{
+				ObjectCreator = objectCreator;
 				Title = yaml.Value;
 				FieldLoader.Load(this, yaml);
 			}
@@ -93,7 +105,7 @@ namespace OpenRA
 		public readonly string ContentInstallerMod = "modcontent";
 
 		[FieldLoader.LoadUsing(nameof(LoadPackages))]
-		public readonly Dictionary<string, ModPackage> Packages = new Dictionary<string, ModPackage>();
+		public readonly Dictionary<string, ModPackage> Packages = new();
 
 		static object LoadPackages(MiniYaml yaml)
 		{

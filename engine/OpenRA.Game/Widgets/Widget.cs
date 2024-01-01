@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Network;
@@ -26,15 +27,15 @@ namespace OpenRA.Widgets
 
 		public static Widget Root = new ContainerWidget();
 
-		public static TickTime LastTickTime = new TickTime(() => Timestep, Game.RunTime);
+		public static TickTime LastTickTime = new(() => Timestep, Game.RunTime);
 
-		static readonly Stack<Widget> WindowList = new Stack<Widget>();
+		static readonly Stack<Widget> WindowList = new();
 
 		public static Widget MouseFocusWidget;
 		public static Widget KeyboardFocusWidget;
 		public static Widget MouseOverWidget;
 
-		static readonly Mediator Mediator = new Mediator();
+		static readonly Mediator Mediator = new();
 
 		public static void CloseWindow()
 		{
@@ -126,9 +127,9 @@ namespace OpenRA.Widgets
 			return handled;
 		}
 
-		/// <summary>Possibly handle keyboard input (if this widget has keyboard focus)</summary>
-		/// <returns><c>true</c>, if keyboard input was handled, <c>false</c> if the input should bubble to the parent widget</returns>
-		/// <param name="e">Key input data</param>
+		/// <summary>Possibly handle keyboard input (if this widget has keyboard focus).</summary>
+		/// <returns><c>true</c>, if keyboard input was handled, <c>false</c> if the input should bubble to the parent widget.</returns>
+		/// <param name="e">Key input data.</param>
 		public static bool HandleKeyPress(KeyInput e)
 		{
 			if (KeyboardFocusWidget != null)
@@ -186,14 +187,14 @@ namespace OpenRA.Widgets
 	{
 		string defaultCursor = null;
 
-		public readonly List<Widget> Children = new List<Widget>();
+		public readonly List<Widget> Children = new();
 
 		// Info defined in YAML
 		public string Id = null;
-		public string X = "0";
-		public string Y = "0";
-		public string Width = "0";
-		public string Height = "0";
+		public IntegerExpression X;
+		public IntegerExpression Y;
+		public IntegerExpression Width;
+		public IntegerExpression Height;
 		public string[] Logic = Array.Empty<string>();
 		public ChromeLogic[] LogicObjects { get; private set; }
 		public bool Visible = true;
@@ -204,9 +205,10 @@ namespace OpenRA.Widgets
 		public Rectangle Bounds;
 		public Widget Parent = null;
 		public Func<bool> IsVisible;
-		public Widget() { IsVisible = () => Visible; }
 
-		public Widget(Widget widget)
+		protected Widget() { IsVisible = () => Visible; }
+
+		protected Widget(Widget widget)
 		{
 			Id = widget.Id;
 			X = widget.X;
@@ -263,8 +265,8 @@ namespace OpenRA.Widgets
 				? new Rectangle(0, 0, Game.Renderer.Resolution.Width, Game.Renderer.Resolution.Height)
 				: Parent.Bounds;
 
-			var substitutions = args.ContainsKey("substitutions") ?
-				new Dictionary<string, int>((Dictionary<string, int>)args["substitutions"]) :
+			var substitutions = args.TryGetValue("substitutions", out var subs) ?
+				new Dictionary<string, int>((Dictionary<string, int>)subs) :
 				new Dictionary<string, int>();
 
 			substitutions.Add("WINDOW_RIGHT", Game.Renderer.Resolution.Width);
@@ -273,16 +275,17 @@ namespace OpenRA.Widgets
 			substitutions.Add("PARENT_LEFT", parentBounds.Left);
 			substitutions.Add("PARENT_TOP", parentBounds.Top);
 			substitutions.Add("PARENT_BOTTOM", parentBounds.Height);
-			var width = Evaluator.Evaluate(Width, substitutions);
-			var height = Evaluator.Evaluate(Height, substitutions);
+
+			var readOnlySubstitutions = new ReadOnlyDictionary<string, int>(substitutions);
+			var width = Width != null ? Width.Evaluate(readOnlySubstitutions) : 0;
+			var height = Height != null ? Height.Evaluate(readOnlySubstitutions) : 0;
 
 			substitutions.Add("WIDTH", width);
 			substitutions.Add("HEIGHT", height);
 
-			Bounds = new Rectangle(Evaluator.Evaluate(X, substitutions),
-								   Evaluator.Evaluate(Y, substitutions),
-								   width,
-								   height);
+			var x = X != null ? X.Evaluate(readOnlySubstitutions) : 0;
+			var y = Y != null ? Y.Evaluate(readOnlySubstitutions) : 0;
+			Bounds = new Rectangle(x, y, width, height);
 		}
 
 		public void PostInit(WidgetArgs args)
@@ -396,8 +399,8 @@ namespace OpenRA.Widgets
 		public virtual void MouseExited() { }
 
 		/// <summary>Possibly handles mouse input (click, drag, scroll, etc).</summary>
-		/// <returns><c>true</c>, if mouse input was handled, <c>false</c> if the input should bubble to the parent widget</returns>
-		/// <param name="mi">Mouse input data</param>
+		/// <returns><c>true</c>, if mouse input was handled, <c>false</c> if the input should bubble to the parent widget.</returns>
+		/// <param name="mi">Mouse input data.</param>
 		public virtual bool HandleMouseInput(MouseInput mi) { return false; }
 
 		public bool HandleMouseInputOuter(MouseInput mi)
@@ -645,7 +648,7 @@ namespace OpenRA.Widgets
 
 	public sealed class Mediator
 	{
-		readonly TypeDictionary types = new TypeDictionary();
+		readonly TypeDictionary types = new();
 
 		public void Subscribe<T>(T instance)
 		{

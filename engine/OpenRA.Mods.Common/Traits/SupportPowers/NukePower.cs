@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int FlightDelay = 400;
 
 		[Desc("Visual ascent velocity in WDist / tick.")]
-		public readonly WDist FlightVelocity = new WDist(512);
+		public readonly WDist FlightVelocity = new(512);
 
 		[Desc("Descend immediately on the target.")]
 		public readonly bool SkipAscent = false;
@@ -138,7 +138,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	class NukePower : SupportPower
+	sealed class NukePower : SupportPower
 	{
 		readonly NukePowerInfo info;
 		BodyOrientation body;
@@ -204,10 +204,7 @@ namespace OpenRA.Mods.Common.Traits
 					Info.BeaconDelay,
 					info.FlightDelay - info.BeaconRemoveAdvance);
 
-				self.World.AddFrameEndTask(w =>
-				{
-					w.Add(beacon);
-				});
+				self.World.AddFrameEndTask(w => w.Add(beacon));
 			}
 		}
 

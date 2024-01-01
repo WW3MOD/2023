@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class AcceptsDeliveredExperienceInfo : TraitInfo, Requires<GainsExperienceInfo>
 	{
 		[Desc("Accepted `DeliversExperience` types. Leave empty to accept all types.")]
-		public readonly HashSet<string> ValidTypes = new HashSet<string>();
+		public readonly HashSet<string> ValidTypes = new();
 
 		[Desc("Player relationships the owner of the delivering actor needs.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;

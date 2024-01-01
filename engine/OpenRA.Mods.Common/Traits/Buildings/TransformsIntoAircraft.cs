@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[ActorReference]
 		[FieldLoader.Require]
-		public readonly HashSet<string> DockActors = new HashSet<string> { };
+		public readonly HashSet<string> DockActors = new() { };
 
 		[VoiceReference]
 		public readonly string Voice = "Action";
@@ -178,7 +178,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class AircraftMoveOrderTargeter : IOrderTargeter
+		sealed class AircraftMoveOrderTargeter : IOrderTargeter
 		{
 			readonly TransformsIntoAircraft aircraft;
 
@@ -198,7 +198,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public string OrderID => "Move";
 			public int OrderPriority => 4;
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 
 			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
 			{

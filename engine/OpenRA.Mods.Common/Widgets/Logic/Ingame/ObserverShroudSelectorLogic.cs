@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,37 +23,37 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	[ChromeLogicArgsHotkeys("CombinedViewKey", "WorldViewKey")]
 	public class ObserverShroudSelectorLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string CameraOptionAllPlayers = "options-shroud-selector.all-players";
+
+		[TranslationReference]
+		const string CameraOptionDisableShroud = "options-shroud-selector.disable-shroud";
+
+		[TranslationReference]
+		const string CameraOptionOther = "options-shroud-selector.other";
+
+		[TranslationReference]
+		const string Players = "label-players";
+
+		[TranslationReference("team")]
+		const string TeamNumber = "label-team-name";
+
+		[TranslationReference]
+		const string NoTeam = "label-no-team";
+
 		readonly CameraOption combined, disableShroud;
 		readonly IOrderedEnumerable<IGrouping<int, CameraOption>> teams;
 		readonly bool limitViews;
 
-		readonly HotkeyReference combinedViewKey = new HotkeyReference();
-		readonly HotkeyReference worldViewKey = new HotkeyReference();
+		readonly HotkeyReference combinedViewKey = new();
+		readonly HotkeyReference worldViewKey = new();
 
 		readonly World world;
 
 		CameraOption selected;
 		readonly LabelWidget shroudLabel;
 
-		[TranslationReference]
-		static readonly string CameraOptionAllPlayers = "camera-option-all-players";
-
-		[TranslationReference]
-		static readonly string CameraOptionDisableShroud = "camera-option-disable-shroud";
-
-		[TranslationReference]
-		static readonly string CameraOptionOther = "camera-option-other";
-
-		[TranslationReference]
-		static readonly string Players = "players";
-
-		[TranslationReference("team")]
-		static readonly string TeamNumber = "team-number";
-
-		[TranslationReference]
-		static readonly string NoTeam = "no-team";
-
-		class CameraOption
+		sealed class CameraOption
 		{
 			public readonly Player Player;
 			public readonly string Label;
@@ -104,10 +104,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var groups = new Dictionary<string, IEnumerable<CameraOption>>();
 
-			combined = new CameraOption(this, world, modData.Translation.GetString(CameraOptionAllPlayers), world.Players.First(p => p.InternalName == "Everyone"));
-			disableShroud = new CameraOption(this, world, modData.Translation.GetString(CameraOptionDisableShroud), null);
+			combined = new CameraOption(this, world, TranslationProvider.GetString(CameraOptionAllPlayers), world.Players.First(p => p.InternalName == "Everyone"));
+			disableShroud = new CameraOption(this, world, TranslationProvider.GetString(CameraOptionDisableShroud), null);
 			if (!limitViews)
-				groups.Add(modData.Translation.GetString(CameraOptionOther), new List<CameraOption>() { combined, disableShroud });
+				groups.Add(TranslationProvider.GetString(CameraOptionOther), new List<CameraOption>() { combined, disableShroud });
 
 			teams = world.Players.Where(p => !p.NonCombatant && p.Playable)
 				.Select(p => new CameraOption(this, p))
@@ -119,9 +119,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			foreach (var t in teams)
 			{
 				totalPlayers += t.Count();
-				var label = noTeams ? modData.Translation.GetString(Players) : t.Key > 0
-					? modData.Translation.GetString(TeamNumber, Translation.Arguments("team", t.Key))
-					: modData.Translation.GetString(NoTeam);
+				var label = noTeams ? TranslationProvider.GetString(Players) : t.Key > 0
+					? TranslationProvider.GetString(TeamNumber, Translation.Arguments("team", t.Key))
+					: TranslationProvider.GetString(NoTeam);
 
 				groups.Add(label, t);
 			}
@@ -131,7 +131,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			shroudSelector.IsDisabled = () => shroudSelectorDisabled;
 			shroudSelector.OnMouseDown = _ =>
 			{
-				Func<CameraOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+				ScrollItemWidget SetupItem(CameraOption option, ScrollItemWidget template)
 				{
 					var item = ScrollItemWidget.Setup(template, option.IsSelected, option.OnClick);
 					var showFlag = option.Faction != null;
@@ -156,9 +156,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					labelAlt.GetColor = () => option.Color;
 
 					return item;
-				};
+				}
 
-				shroudSelector.ShowDropDown("SPECTATOR_DROPDOWN_TEMPLATE", 400, groups, setupItem);
+				shroudSelector.ShowDropDown("SPECTATOR_DROPDOWN_TEMPLATE", 400, groups, SetupItem);
 			};
 
 			shroudLabel = shroudSelector.Get<LabelWidget>("LABEL");

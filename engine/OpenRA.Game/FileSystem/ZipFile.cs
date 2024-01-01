@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ namespace OpenRA.FileSystem
 {
 	public class ZipFileLoader : IPackageLoader
 	{
-		static readonly string[] Extensions = { ".zip", ".oramap" };
+		const uint ZipSignature = 0x04034b50;
 
 		class ReadOnlyZipFile : IReadOnlyPackage
 		{
@@ -95,7 +95,7 @@ namespace OpenRA.FileSystem
 
 		sealed class ReadWriteZipFile : ReadOnlyZipFile, IReadWritePackage
 		{
-			readonly MemoryStream pkgStream = new MemoryStream();
+			readonly MemoryStream pkgStream = new();
 
 			public ReadWriteZipFile(string filename, bool create = false)
 			{
@@ -142,23 +142,22 @@ namespace OpenRA.FileSystem
 
 		sealed class ZipFolder : IReadOnlyPackage
 		{
-			public string Name => path;
+			public string Name { get; }
 			public ReadOnlyZipFile Parent { get; }
-			readonly string path;
 
 			public ZipFolder(ReadOnlyZipFile parent, string path)
 			{
 				if (path.EndsWith("/", StringComparison.Ordinal))
-					path = path.Substring(0, path.Length - 1);
+					path = path[..^1];
 
+				Name = path;
 				Parent = parent;
-				this.path = path;
 			}
 
 			public Stream GetStream(string filename)
 			{
 				// Zip files use '/' as a path separator
-				return Parent.GetStream(path + '/' + filename);
+				return Parent.GetStream(Name + '/' + filename);
 			}
 
 			public IEnumerable<string> Contents
@@ -167,9 +166,9 @@ namespace OpenRA.FileSystem
 				{
 					foreach (var entry in Parent.Contents)
 					{
-						if (entry.StartsWith(path, StringComparison.Ordinal) && entry != path)
+						if (entry.StartsWith(Name, StringComparison.Ordinal) && entry != Name)
 						{
-							var filename = entry.Substring(path.Length + 1);
+							var filename = entry[(Name.Length + 1)..];
 							var dirLevels = filename.Split('/').Count(c => !string.IsNullOrEmpty(c));
 							if (dirLevels == 1)
 								yield return filename;
@@ -180,18 +179,18 @@ namespace OpenRA.FileSystem
 
 			public bool Contains(string filename)
 			{
-				return Parent.Contains(path + '/' + filename);
+				return Parent.Contains(Name + '/' + filename);
 			}
 
 			public IReadOnlyPackage OpenPackage(string filename, FileSystem context)
 			{
-				return Parent.OpenPackage(path + '/' + filename, context);
+				return Parent.OpenPackage(Name + '/' + filename, context);
 			}
 
 			public void Dispose() { /* nothing to do */ }
 		}
 
-		class StaticStreamDataSource : IStaticDataSource
+		sealed class StaticStreamDataSource : IStaticDataSource
 		{
 			readonly Stream s;
 			public StaticStreamDataSource(Stream s)
@@ -207,7 +206,10 @@ namespace OpenRA.FileSystem
 
 		public bool TryParsePackage(Stream s, string filename, FileSystem context, out IReadOnlyPackage package)
 		{
-			if (!Extensions.Any(e => filename.EndsWith(e, StringComparison.InvariantCultureIgnoreCase)))
+			var readSignature = s.ReadUInt32();
+			s.Position -= 4;
+
+			if (readSignature != ZipSignature)
 			{
 				package = null;
 				return false;
@@ -219,10 +221,13 @@ namespace OpenRA.FileSystem
 
 		public static bool TryParseReadWritePackage(string filename, out IReadWritePackage package)
 		{
-			if (!Extensions.Any(e => filename.EndsWith(e, StringComparison.InvariantCultureIgnoreCase)))
+			using (var s = File.OpenRead(filename))
 			{
-				package = null;
-				return false;
+				if (s.ReadUInt32() != ZipSignature)
+				{
+					package = null;
+					return false;
+				}
 			}
 
 			package = new ReadWriteZipFile(filename);

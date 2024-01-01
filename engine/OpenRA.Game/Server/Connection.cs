@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,8 +41,8 @@ namespace OpenRA.Server
 
 		long lastReceivedTime = 0;
 
-		readonly BlockingCollection<byte[]> sendQueue = new BlockingCollection<byte[]>();
-		readonly Queue<int> pingHistory = new Queue<int>();
+		readonly BlockingCollection<byte[]> sendQueue = new();
+		readonly Queue<int> pingHistory = new();
 
 		public Connection(Server server, Socket socket, string authToken)
 		{
@@ -70,7 +70,7 @@ namespace OpenRA.Server
 
 		void SendReceiveLoop(object s)
 		{
-			var (server, socket) = (ValueTuple<Server, Socket>)s;
+			var (server, socket) = ((Server, Socket))s;
 			socket.Blocking = false;
 			socket.NoDelay = true;
 

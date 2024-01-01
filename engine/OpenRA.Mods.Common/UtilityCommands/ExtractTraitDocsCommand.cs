@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class ExtractTraitDocsCommand : IUtilityCommand
+	sealed class ExtractTraitDocsCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--docs";
 
@@ -53,8 +53,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				.Select(type => new
 				{
 					type.Namespace,
-					Name = type.Name.EndsWith("Info") ? type.Name.Substring(0, type.Name.Length - 4) : type.Name,
-					Description = string.Join(" ", type.GetCustomAttributes<DescAttribute>(false).SelectMany(d => d.Lines)),
+					Name = type.Name.EndsWith("Info") ? type.Name[..^4] : type.Name,
+					Description = string.Join(" ", Utility.GetCustomAttributes<DescAttribute>(type, false).SelectMany(d => d.Lines)),
 					RequiresTraits = RequiredTraitTypes(type)
 						.Select(y => y.Name),
 					InheritedTypes = type.BaseTypes()
@@ -73,13 +73,13 @@ namespace OpenRA.Mods.Common.UtilityCommands
 								DefaultValue = FieldSaver.SaveField(objectCreator.CreateBasic(type), fi.Field.Name).Value.Value,
 								InternalType = Util.InternalTypeName(fi.Field.FieldType),
 								UserFriendlyType = Util.FriendlyTypeName(fi.Field.FieldType),
-								Description = string.Join(" ", fi.Field.GetCustomAttributes<DescAttribute>(true).SelectMany(d => d.Lines)),
+								Description = string.Join(" ", Utility.GetCustomAttributes<DescAttribute>(fi.Field, true).SelectMany(d => d.Lines)),
 								OtherAttributes = fi.Field.CustomAttributes
 									.Where(a => a.AttributeType.Name != nameof(DescAttribute) && a.AttributeType.Name != nameof(FieldLoader.LoadUsingAttribute))
 									.Select(a =>
 									{
 										var name = a.AttributeType.Name;
-										name = name.EndsWith("Attribute") ? name.Substring(0, name.Length - 9) : name;
+										name = name.EndsWith("Attribute") ? name[..^9] : name;
 
 										return new
 										{

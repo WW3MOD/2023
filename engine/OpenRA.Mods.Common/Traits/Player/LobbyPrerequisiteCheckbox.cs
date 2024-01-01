@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,10 +22,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Internal id for this checkbox.")]
 		public readonly string ID = null;
 
+		[TranslationReference]
 		[FieldLoader.Require]
 		[Desc("Display name for this checkbox.")]
 		public readonly string Label = null;
 
+		[TranslationReference]
 		[Desc("Description name for this checkbox.")]
 		public readonly string Description = null;
 
@@ -43,13 +45,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		[FieldLoader.Require]
 		[Desc("Prerequisites to grant when this checkbox is enabled.")]
-		public readonly HashSet<string> Prerequisites = new HashSet<string>();
+		public readonly HashSet<string> Prerequisites = new();
 
 		IEnumerable<string> ITechTreePrerequisiteInfo.Prerequisites(ActorInfo info) { return Prerequisites; }
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			yield return new LobbyBooleanOption(ID, Label, Description,
+			yield return new LobbyBooleanOption(map, ID, Label, Description,
 				Visible, DisplayOrder, Enabled, Locked);
 		}
 
@@ -59,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class LobbyPrerequisiteCheckbox : INotifyCreated, ITechTreePrerequisite
 	{
 		readonly LobbyPrerequisiteCheckboxInfo info;
-		HashSet<string> prerequisites = new HashSet<string>();
+		HashSet<string> prerequisites = new();
 
 		public LobbyPrerequisiteCheckbox(LobbyPrerequisiteCheckboxInfo info)
 		{

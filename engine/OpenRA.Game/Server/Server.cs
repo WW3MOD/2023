@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -46,15 +46,84 @@ namespace OpenRA.Server
 
 	public sealed class Server
 	{
-		public readonly MersenneTwister Random = new MersenneTwister();
+		[TranslationReference]
+		const string CustomRules = "notification-custom-rules";
+
+		[TranslationReference]
+		const string BotsDisabled = "notification-map-bots-disabled";
+
+		[TranslationReference]
+		const string TwoHumansRequired = "notification-two-humans-required";
+
+		[TranslationReference]
+		const string ErrorGameStarted = "notification-error-game-started";
+
+		[TranslationReference]
+		const string RequiresPassword = "notification-requires-password";
+
+		[TranslationReference]
+		const string IncorrectPassword = "notification-incorrect-password";
+
+		[TranslationReference]
+		const string IncompatibleMod = "notification-incompatible-mod";
+
+		[TranslationReference]
+		const string IncompatibleVersion = "notification-incompatible-version";
+
+		[TranslationReference]
+		const string IncompatibleProtocol = "notification-incompatible-protocol";
+
+		[TranslationReference]
+		const string Banned = "notification-you-were-banned";
+
+		[TranslationReference]
+		const string TempBanned = "notification-you-were-temp-banned";
+
+		[TranslationReference]
+		const string Full = "notification-game-full";
+
+		[TranslationReference("player")]
+		const string Joined = "notification-joined";
+
+		[TranslationReference]
+		const string RequiresAuthentication = "notification-requires-authentication";
+
+		[TranslationReference]
+		const string NoPermission = "notification-no-permission-to-join";
+
+		[TranslationReference("command")]
+		const string UnknownServerCommand = "notification-unknown-server-command";
+
+		[TranslationReference("player")]
+		const string LobbyDisconnected = "notification-lobby-disconnected";
+
+		[TranslationReference("player")]
+		const string PlayerDisconnected = "notification-player-disconnected";
+
+		[TranslationReference("player", "team")]
+		const string PlayerTeamDisconnected = "notification-team-player-disconnected";
+
+		[TranslationReference("player")]
+		const string ObserverDisconnected = "notification-observer-disconnected";
+
+		[TranslationReference("player")]
+		const string NewAdmin = "notification-new-admin";
+
+		[TranslationReference]
+		const string YouWereKicked = "notification-you-were-kicked";
+
+		[TranslationReference]
+		const string GameStarted = "notification-game-started";
+
+		public readonly MersenneTwister Random = new();
 		public readonly ServerType Type;
 
-		public readonly List<Connection> Conns = new List<Connection>();
+		public readonly List<Connection> Conns = new();
 
 		public Session LobbyInfo;
 		public ServerSettings Settings;
 		public ModData ModData;
-		public List<string> TempBans = new List<string>();
+		public List<string> TempBans = new();
 
 		// Managed by LobbyCommands
 		public MapPreview Map;
@@ -65,90 +134,23 @@ namespace OpenRA.Server
 		public int OrderLatency = 1;
 
 		readonly int randomSeed;
-		readonly List<TcpListener> listeners = new List<TcpListener>();
-		readonly TypeDictionary serverTraits = new TypeDictionary();
+		readonly List<TcpListener> listeners = new();
+		readonly TypeDictionary serverTraits = new();
 		readonly PlayerDatabase playerDatabase;
 
 		OrderBuffer orderBuffer;
 
 		volatile ServerState internalState = ServerState.WaitingPlayers;
 
-		readonly BlockingCollection<IServerEvent> events = new BlockingCollection<IServerEvent>();
+		readonly BlockingCollection<IServerEvent> events = new();
 
 		ReplayRecorder recorder;
 		GameInformation gameInfo;
-		readonly List<GameInformation.Player> worldPlayers = new List<GameInformation.Player>();
+		readonly List<GameInformation.Player> worldPlayers = new();
 		readonly Stopwatch pingUpdated = Stopwatch.StartNew();
+
+		public readonly VoteKickTracker VoteKickTracker;
 		readonly PlayerMessageTracker playerMessageTracker;
-
-		[TranslationReference]
-		static readonly string CustomRules = "custom-rules";
-
-		[TranslationReference]
-		static readonly string BotsDisabled = "bots-disabled";
-
-		[TranslationReference]
-		static readonly string TwoHumansRequired = "two-humans-required";
-
-		[TranslationReference]
-		static readonly string ErrorGameStarted = "error-game-started";
-
-		[TranslationReference]
-		static readonly string RequiresPassword = "requires-password";
-
-		[TranslationReference]
-		static readonly string IncorrectPassword = "incorrect-password";
-
-		[TranslationReference]
-		static readonly string IncompatibleMod = "incompatible-mod";
-
-		[TranslationReference]
-		static readonly string IncompatibleVersion = "incompatible-version";
-
-		[TranslationReference]
-		static readonly string IncompatibleProtocol = "incompatible-protocol";
-
-		[TranslationReference]
-		static readonly string Banned = "banned";
-
-		[TranslationReference]
-		static readonly string TempBanned = "temp-banned";
-
-		[TranslationReference]
-		static readonly string Full = "full";
-
-		[TranslationReference("player")]
-		static readonly string Joined = "joined";
-
-		[TranslationReference]
-		static readonly string RequiresForumAccount = "requires-forum-account";
-
-		[TranslationReference]
-		static readonly string NoPermission = "no-permission";
-
-		[TranslationReference("command")]
-		static readonly string UnknownServerCommand = "unknown-server-command";
-
-		[TranslationReference("player")]
-		static readonly string LobbyDisconnected = "lobby-disconnected";
-
-		[TranslationReference("player")]
-		static readonly string PlayerDisconnected = "player-disconnected";
-
-		[TranslationReference("player", "team")]
-		static readonly string PlayerTeamDisconnected = "player-team-disconnected";
-
-		[TranslationReference("player")]
-		static readonly string ObserverDisconnected = "observer-disconnected";
-
-		[TranslationReference("player")]
-		public static readonly string NewAdmin = "new-admin";
-
-		[TranslationReference]
-		static readonly string YouWereKicked = "you-were-kicked";
-
-		[TranslationReference]
-		public static readonly string GameStarted = "game-started";
 
 		public ServerState State
 		{
@@ -318,6 +320,7 @@ namespace OpenRA.Server
 			MapStatusCache = new MapStatusCache(modData, MapStatusChanged, type == ServerType.Dedicated && settings.EnableLintChecks);
 
 			playerMessageTracker = new PlayerMessageTracker(this, DispatchOrdersToClient, SendLocalizedMessageTo);
+			VoteKickTracker = new VoteKickTracker(this);
 
 			LobbyInfo = new Session
 			{
@@ -336,7 +339,7 @@ namespace OpenRA.Server
 
 			if (Settings.RecordReplays && Type == ServerType.Dedicated)
 			{
-				recorder = new ReplayRecorder(() => { return Game.TimestampedFilename(extra: "-Server"); });
+				recorder = new ReplayRecorder(() => Game.TimestampedFilename(extra: "-Server"));
 
 				// We only need one handshake to initialize the replay.
 				// Add it now, then ignore the redundant handshakes from each client
@@ -541,7 +544,7 @@ namespace OpenRA.Server
 					return;
 				}
 
-				Action completeConnection = () =>
+				void CompleteConnection()
 				{
 					lock (LobbyInfo)
 					{
@@ -602,13 +605,13 @@ namespace OpenRA.Server
 						else if (Map.Players.Players.Where(p => p.Value.Playable).All(p => !p.Value.AllowBots))
 							SendLocalizedMessageTo(newConn, BotsDisabled);
 					}
-				};
+				}
 
 				if (Type == ServerType.Local)
 				{
 					// Local servers can only be joined by the local client, so we can trust their identity without validation
 					client.Fingerprint = handshake.Fingerprint;
-					completeConnection();
+					CompleteConnection();
 				}
 				else if (!string.IsNullOrEmpty(handshake.Fingerprint) && !string.IsNullOrEmpty(handshake.AuthSignature))
 				{
@@ -664,7 +667,7 @@ namespace OpenRA.Server
 							if (notAuthenticated)
 							{
 								Log.Write("server", $"Rejected connection from {newConn.EndPoint}; Not authenticated.");
-								SendOrderTo(newConn, "ServerError", RequiresForumAccount);
+								SendOrderTo(newConn, "ServerError", RequiresAuthentication);
 								DropClient(newConn);
 							}
 							else if (blacklisted || notWhitelisted)
@@ -678,7 +681,7 @@ namespace OpenRA.Server
 								DropClient(newConn);
 							}
 							else
-								completeConnection();
+								CompleteConnection();
 						}));
 					});
 				}
@@ -687,11 +690,11 @@ namespace OpenRA.Server
 					if (Type == ServerType.Dedicated && (Settings.RequireAuthentication || Settings.ProfileIDWhitelist.Length > 0))
 					{
 						Log.Write("server", $"Rejected connection from {newConn.EndPoint}; Not authenticated.");
-						SendOrderTo(newConn, "ServerError", RequiresForumAccount);
+						SendOrderTo(newConn, "ServerError", RequiresAuthentication);
 						DropClient(newConn);
 					}
 					else
-						completeConnection();
+						CompleteConnection();
 				}
 			}
 			catch (Exception ex)
@@ -702,7 +705,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		byte[] CreateFrame(int client, int frame, byte[] data)
+		static byte[] CreateFrame(int client, int frame, byte[] data)
 		{
 			var ms = new MemoryStream(data.Length + 12);
 			ms.WriteArray(BitConverter.GetBytes(data.Length + 4));
@@ -712,7 +715,7 @@ namespace OpenRA.Server
 			return ms.GetBuffer();
 		}
 
-		byte[] CreateAckFrame(int frame, byte count)
+		static byte[] CreateAckFrame(int frame, byte count)
 		{
 			var ms = new MemoryStream(14);
 			ms.WriteArray(BitConverter.GetBytes(6));
@@ -723,7 +726,7 @@ namespace OpenRA.Server
 			return ms.GetBuffer();
 		}
 
-		byte[] CreateTickScaleFrame(float scale)
+		static byte[] CreateTickScaleFrame(float scale)
 		{
 			var ms = new MemoryStream(17);
 			ms.WriteArray(BitConverter.GetBytes(9));
@@ -791,15 +794,18 @@ namespace OpenRA.Server
 
 			// Make sure the written file is not valid
 			// TODO: storing a serverside replay on desync would be extremely useful
-			recorder.Metadata = null;
+			if (recorder != null)
+			{
+				recorder.Metadata = null;
 
-			recorder.Dispose();
+				recorder.Dispose();
+			}
 
 			// Stop the recording
 			recorder = null;
 		}
 
-		readonly Dictionary<int, byte[]> syncForFrame = new Dictionary<int, byte[]>();
+		readonly Dictionary<int, byte[]> syncForFrame = new();
 		int lastDefeatStateFrame;
 		ulong lastDefeatState;
 
@@ -856,17 +862,14 @@ namespace OpenRA.Server
 
 		void RecordOrder(int frame, byte[] data, int from)
 		{
-			if (recorder != null)
-			{
-				recorder.ReceiveFrame(from, frame, data);
+			recorder?.ReceiveFrame(from, frame, data);
 
-				if (data.Length > 0 && data[0] == (byte)OrderType.SyncHash)
-				{
-					if (data.Length == Order.SyncHashOrderLength)
-						HandleSyncOrder(frame, data);
-					else
-						Log.Write("server", $"Dropped sync order with length {data.Length} from client {from}. Expected length {Order.SyncHashOrderLength}.");
-				}
+			if (data.Length > 0 && data[0] == (byte)OrderType.SyncHash)
+			{
+				if (data.Length == Order.SyncHashOrderLength)
+					HandleSyncOrder(frame, data);
+				else
+					Log.Write("server", $"Dropped sync order with length {data.Length} from client {from}. Expected length {Order.SyncHashOrderLength}.");
 			}
 		}
 
@@ -958,7 +961,7 @@ namespace OpenRA.Server
 			DispatchServerOrdersToClients(Order.FromTargetString("LocalizedMessage", text, true));
 
 			if (Type == ServerType.Dedicated)
-				WriteLineWithTimeStamp(ModData.Translation.GetString(key, arguments));
+				WriteLineWithTimeStamp(TranslationProvider.GetString(key, arguments));
 		}
 
 		public void SendLocalizedMessageTo(Connection conn, string key, Dictionary<string, object> arguments = null)
@@ -1163,6 +1166,9 @@ namespace OpenRA.Server
 			return LobbyInfo.ClientWithIndex(conn.PlayerIndex);
 		}
 
+		public bool HasClientWonOrLost(Session.Client client) =>
+			worldPlayers.FirstOrDefault(p => p?.ClientIndex == client.Index)?.Outcome != WinState.Undefined;
+
 		public void DropClient(Connection toDrop)
 		{
 			lock (LobbyInfo)
@@ -1302,7 +1308,7 @@ namespace OpenRA.Server
 		{
 			lock (LobbyInfo)
 			{
-				WriteLineWithTimeStamp(ModData.Translation.GetString(GameStarted));
+				WriteLineWithTimeStamp(TranslationProvider.GetString(GameStarted));
 
 				// Drop any players who are not ready
 				foreach (var c in Conns.Where(c => !c.Validated || GetClient(c).IsInvalid).ToArray())
@@ -1323,24 +1329,22 @@ namespace OpenRA.Server
 				foreach (var cmpi in Map.WorldActorInfo.TraitInfos<ICreatePlayersInfo>())
 					cmpi.CreateServerPlayers(Map, LobbyInfo, worldPlayers, playerRandom);
 
-				if (recorder != null)
+				gameInfo = new GameInformation
 				{
-					gameInfo = new GameInformation
-					{
-						Mod = Game.ModData.Manifest.Id,
-						Version = Game.ModData.Manifest.Metadata.Version,
-						MapUid = Map.Uid,
-						MapTitle = Map.Title,
-						StartTimeUtc = DateTime.UtcNow,
-					};
+					Mod = Game.ModData.Manifest.Id,
+					Version = Game.ModData.Manifest.Metadata.Version,
+					MapUid = Map.Uid,
+					MapTitle = Map.Title,
+					StartTimeUtc = DateTime.UtcNow,
+				};
 
-					// Replay metadata should only include the playable players
-					foreach (var p in worldPlayers)
-						if (p != null)
-							gameInfo.Players.Add(p);
+				// Replay metadata should only include the playable players
+				foreach (var p in worldPlayers)
+					if (p != null)
+						gameInfo.Players.Add(p);
 
+				if (recorder != null)
 					recorder.Metadata = new ReplayMetadata(gameInfo);
-				}
 
 				SyncLobbyInfo();
 
@@ -1433,7 +1437,7 @@ namespace OpenRA.Server
 
 		interface IServerEvent { void Invoke(Server server); }
 
-		class ConnectionConnectEvent : IServerEvent
+		sealed class ConnectionConnectEvent : IServerEvent
 		{
 			readonly Socket socket;
 			public ConnectionConnectEvent(Socket socket)
@@ -1447,7 +1451,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class ConnectionDisconnectEvent : IServerEvent
+		sealed class ConnectionDisconnectEvent : IServerEvent
 		{
 			readonly Connection connection;
 			public ConnectionDisconnectEvent(Connection connection)
@@ -1461,7 +1465,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class ConnectionPacketEvent : IServerEvent
+		sealed class ConnectionPacketEvent : IServerEvent
 		{
 			readonly Connection connection;
 			readonly int frame;
@@ -1480,7 +1484,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class ConnectionPingEvent : IServerEvent
+		sealed class ConnectionPingEvent : IServerEvent
 		{
 			readonly Connection connection;
 			readonly int[] pingHistory;
@@ -1503,7 +1507,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class CallbackEvent : IServerEvent
+		sealed class CallbackEvent : IServerEvent
 		{
 			readonly Action action;
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -43,9 +43,6 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		[Desc("Text notification to display when a target is infiltrated.")]
 		public readonly string TextNotification = null;
-
-		[Desc("Experience to grant to the infiltrating player.")]
-		public readonly int PlayerExperience = 0;
 
 		[CursorReference]
 		[Desc("Cursor to display when able to infiltrate the target actor.")]
@@ -127,7 +124,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		}
 	}
 
-	class InfiltrationOrderTargeter : UnitOrderTargeter
+	sealed class InfiltrationOrderTargeter : UnitOrderTargeter
 	{
 		readonly InfiltratesInfo info;
 

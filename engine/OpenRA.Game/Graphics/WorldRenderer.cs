@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,25 +31,25 @@ namespace OpenRA.Graphics
 
 		public event Action PaletteInvalidated = null;
 
-		readonly HashSet<Actor> onScreenActors = new HashSet<Actor>();
-		readonly HardwarePalette palette = new HardwarePalette();
-		readonly Dictionary<string, PaletteReference> palettes = new Dictionary<string, PaletteReference>();
+		readonly HashSet<Actor> onScreenActors = new();
+		readonly HardwarePalette palette = new();
+		readonly Dictionary<string, PaletteReference> palettes = new();
 		readonly IRenderTerrain terrainRenderer;
 		readonly Lazy<DebugVisualizations> debugVis;
 		readonly Func<string, PaletteReference> createPaletteReference;
 		readonly bool enableDepthBuffer;
 
-		readonly List<IFinalizedRenderable> preparedRenderables = new List<IFinalizedRenderable>();
-		readonly List<IFinalizedRenderable> preparedOverlayRenderables = new List<IFinalizedRenderable>();
-		readonly List<IFinalizedRenderable> preparedAnnotationRenderables = new List<IFinalizedRenderable>();
+		readonly List<IFinalizedRenderable> preparedRenderables = new();
+		readonly List<IFinalizedRenderable> preparedOverlayRenderables = new();
+		readonly List<IFinalizedRenderable> preparedAnnotationRenderables = new();
 
-		readonly List<IRenderable> renderablesBuffer = new List<IRenderable>();
+		readonly List<IRenderable> renderablesBuffer = new();
 
 		internal WorldRenderer(ModData modData, World world)
 		{
 			World = world;
 			TileSize = World.Map.Grid.TileSize;
-			TileScale = World.Map.Grid.Type == MapGridType.RectangularIsometric ? 1448 : 1024;
+			TileScale = World.Map.Grid.TileScale;
 			Viewport = new Viewport(this, world.Map);
 
 			createPaletteReference = CreatePaletteReference;
@@ -87,7 +87,7 @@ namespace OpenRA.Graphics
 		{
 			// HACK: This is working around the fact that palettes are defined on traits rather than sequences
 			// and can be removed once this has been fixed.
-			return name == null ? null : palettes.GetOrAdd(name, createPaletteReference);
+			return string.IsNullOrEmpty(name) ? null : palettes.GetOrAdd(name, createPaletteReference);
 		}
 
 		public void AddPalette(string name, ImmutablePalette pal, bool allowModifiers = false, bool allowOverwrite = false)
@@ -109,13 +109,13 @@ namespace OpenRA.Graphics
 			palette.ReplacePalette(name, pal);
 
 			// Update cached PlayerReference if one exists
-			if (palettes.ContainsKey(name))
-				palettes[name].Palette = pal;
+			if (palettes.TryGetValue(name, out var paletteReference))
+				paletteReference.Palette = pal;
 		}
 
-		public void SetPaletteColorShift(string name, float hueOffset, float satOffset, float minHue, float maxHue)
+		public void SetPaletteColorShift(string name, float hueOffset, float satOffset, float valueModifier, float minHue, float maxHue)
 		{
-			palette.SetColorShift(name, hueOffset, satOffset, minHue, maxHue);
+			palette.SetColorShift(name, hueOffset, satOffset, valueModifier, minHue, maxHue);
 		}
 
 		// PERF: Avoid LINQ.
@@ -177,7 +177,7 @@ namespace OpenRA.Graphics
 
 			foreach (var e in World.Effects)
 			{
-				if (!(e is IEffectAboveShroud ea))
+				if (e is not IEffectAboveShroud ea)
 					continue;
 
 				foreach (var renderable in ea.RenderAboveShroud(this))
@@ -218,7 +218,7 @@ namespace OpenRA.Graphics
 
 			foreach (var e in World.Effects)
 			{
-				if (!(e is IEffectAnnotation ea))
+				if (e is not IEffectAnnotation ea)
 					continue;
 
 				foreach (var renderAnnotation in ea.RenderAnnotation(this))

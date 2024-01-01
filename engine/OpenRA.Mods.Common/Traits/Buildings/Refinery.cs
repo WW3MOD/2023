@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -70,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool preventDock = false;
 
 		public bool AllowDocking => !preventDock;
-		public CVec DeliveryOffset => info.DockOffset;
+		public WPos DeliveryPosition => self.World.Map.CenterOfCell(self.Location + info.DockOffset);
 		public WAngle DeliveryAngle => info.DockAngle;
 		public bool IsDragRequired => info.IsDragRequired;
 		public WVec DragOffset => info.DragOffset;
@@ -87,11 +87,6 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			resourceValueModifiers = self.TraitsImplementing<IResourceValueModifier>().ToArray().Select(m => m.GetResourceValueModifier());
-		}
-
-		public virtual Activity DockSequence(Actor harv, Actor self)
-		{
-			return new SpriteHarvesterDockSequence(harv, self, DeliveryAngle, IsDragRequired, DragOffset, DragLength);
 		}
 
 		public IEnumerable<TraitPair<Harvester>> GetLinkedHarvesters()
@@ -171,7 +166,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!preventDock)
 			{
 				dockOrder.QueueChild(new CallFunc(() => dockedHarv = harv, false));
-				dockOrder.QueueChild(DockSequence(harv, self));
+				dockOrder.QueueChild(new HarvesterDockSequence(harv, self, this));
 				dockOrder.QueueChild(new CallFunc(() => dockedHarv = null, false));
 			}
 		}

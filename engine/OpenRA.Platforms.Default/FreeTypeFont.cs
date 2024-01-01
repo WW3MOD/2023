@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,15 +24,15 @@ namespace OpenRA.Platforms.Default
 		internal const uint OK = 0x00;
 		internal const int FT_LOAD_RENDER = 0x04;
 
+		internal const int MetricsWidthOffset = 0; // offsetof(FT_Glyph_Metrics, width)
+		internal const int BitmapPitchOffset = 8; // offsetof(FT_Bitmap, pitch)
 		internal static readonly int FaceRecGlyphOffset = IntPtr.Size == 8 ? 152 : 84; // offsetof(FT_FaceRec, glyph)
 		internal static readonly int GlyphSlotMetricsOffset = IntPtr.Size == 8 ? 48 : 24; // offsetof(FT_GlyphSlotRec, metrics)
 		internal static readonly int GlyphSlotBitmapOffset = IntPtr.Size == 8 ? 152 : 76; // offsetof(FT_GlyphSlotRec, bitmap)
 		internal static readonly int GlyphSlotBitmapLeftOffset = IntPtr.Size == 8 ? 192 : 100; // offsetof(FT_GlyphSlotRec, bitmap_left)
 		internal static readonly int GlyphSlotBitmapTopOffset = IntPtr.Size == 8 ? 196 : 104; // offsetof(FT_GlyphSlotRec, bitmap_top)
-		internal static readonly int MetricsWidthOffset = 0; // offsetof(FT_Glyph_Metrics, width)
 		internal static readonly int MetricsHeightOffset = IntPtr.Size == 8 ? 8 : 4; // offsetof(FT_Glyph_Metrics, height)
 		internal static readonly int MetricsAdvanceOffset = IntPtr.Size == 8 ? 32 : 16; // offsetof(FT_Glyph_Metrics, horiAdvance)
-		internal static readonly int BitmapPitchOffset = 8; // offsetof(FT_Bitmap, pitch)
 		internal static readonly int BitmapBufferOffset = IntPtr.Size == 8 ? 16 : 12; // offsetof(FT_Bitmap, buffer)
 
 		[DllImport("freetype6", CallingConvention = CallingConvention.Cdecl)]
@@ -53,7 +53,7 @@ namespace OpenRA.Platforms.Default
 
 	public sealed class FreeTypeFont : IFont
 	{
-		static readonly FontGlyph EmptyGlyph = new FontGlyph
+		static readonly FontGlyph EmptyGlyph = new()
 		{
 			Offset = int2.Zero,
 			Size = new Size(0, 0),

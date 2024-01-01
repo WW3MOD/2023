@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,11 +18,13 @@ namespace OpenRA.Traits
 	[Desc("Required for shroud and fog visibility checks. Add this to the player actor.")]
 	public class MapLayersInfo : TraitInfo, ILobbyOptions
 	{
+		[TranslationReference]
 		[Desc("Descriptive label for the fog checkbox in the lobby.")]
-		public readonly string FogCheckboxLabel = "Fog of War";
+		public readonly string FogCheckboxLabel = "checkbox-fog-of-war.label";
 
+		[TranslationReference]
 		[Desc("Tooltip description for the fog checkbox in the lobby.")]
-		public readonly string FogCheckboxDescription = "Line of sight is required to view enemy forces";
+		public readonly string FogCheckboxDescription = "checkbox-fog-of-war.description";
 
 		[Desc("Default value of the fog checkbox in the lobby.")]
 		public readonly bool FogCheckboxEnabled = true;
@@ -36,11 +38,13 @@ namespace OpenRA.Traits
 		[Desc("Display order for the fog checkbox in the lobby.")]
 		public readonly int FogCheckboxDisplayOrder = 0;
 
+		[TranslationReference]
 		[Desc("Descriptive label for the explored map checkbox in the lobby.")]
-		public readonly string ExploredMapCheckboxLabel = "Explored Map";
+		public readonly string ExploredMapCheckboxLabel = "checkbox-explored-map.label";
 
+		[TranslationReference]
 		[Desc("Tooltip description for the explored map checkbox in the lobby.")]
-		public readonly string ExploredMapCheckboxDescription = "Initial map shroud is revealed";
+		public readonly string ExploredMapCheckboxDescription = "checkbox-explored-map.description";
 
 		[Desc("Default value of the explore map checkbox in the lobby.")]
 		public readonly bool ExploredMapCheckboxEnabled = false;
@@ -59,10 +63,9 @@ namespace OpenRA.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			yield return new LobbyBooleanOption("explored", ExploredMapCheckboxLabel, ExploredMapCheckboxDescription,
+			yield return new LobbyBooleanOption(map, "explored", ExploredMapCheckboxLabel, ExploredMapCheckboxDescription,
 				ExploredMapCheckboxVisible, ExploredMapCheckboxDisplayOrder, ExploredMapCheckboxEnabled, ExploredMapCheckboxLocked);
-
-			yield return new LobbyBooleanOption("fog", FogCheckboxLabel, FogCheckboxDescription,
+			yield return new LobbyBooleanOption(map, "fog", FogCheckboxLabel, FogCheckboxDescription,
 				FogCheckboxVisible, FogCheckboxDisplayOrder, FogCheckboxEnabled, FogCheckboxLocked);
 		}
 
@@ -76,6 +79,7 @@ namespace OpenRA.Traits
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 
+		enum ShroudCellType : byte { Shroud, Fog, Visible }
 		class VisionSource
 		{
 			public readonly int Vision;
@@ -92,7 +96,7 @@ namespace OpenRA.Traits
 		readonly Map map;
 
 		// Individual shroud modifier sources (type and area)
-		readonly Dictionary<object, VisionSource> sources = new Dictionary<object, VisionSource>();
+		readonly Dictionary<object, VisionSource> sources = new();
 
 		// Per-cell count of each source type, used to resolve the final cell type
 		readonly ProjectedCellLayer<short[]> visibilityCount;
@@ -387,7 +391,7 @@ namespace OpenRA.Traits
 			{
 				var index = touched.Index(puv);
 				touched[index] = true;
-				explored[index] = (visibleCount[index] + passiveVisibleCount[index]) > 0;
+				explored[index] = visibleCount[index] + passiveVisibleCount[index] > 0;
 			}
 
 			anyCellTouched = true;

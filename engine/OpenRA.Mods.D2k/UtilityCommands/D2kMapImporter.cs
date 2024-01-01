@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 
 		// PlayerReference colors in D2k missions only affect chat text and minimap colors because actors use specific palette colors.
 		// So using the colors from the original game's minimap.
-		public static Dictionary<string, (string Faction, Color Color)> PlayerReferenceDataByPlayerName = new Dictionary<string, (string, Color)>
+		public static Dictionary<string, (string Faction, Color Color)> PlayerReferenceDataByPlayerName = new()
 		{
 			{ "Neutral", ("Random", Color.White) },
 			{ "Atreides", ("atreides", Color.FromArgb(90, 115, 148)) },
@@ -36,7 +36,7 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 			{ "Mercenaries", ("mercenary", Color.FromArgb(156, 132, 8)) }
 		};
 
-		public static Dictionary<int, (string Actor, string Owner)> ActorDataByActorCode = new Dictionary<int, (string, string)>
+		public static Dictionary<int, (string Actor, string Owner)> ActorDataByActorCode = new()
 		{
 			{ 20, ("wormspawner", "Creeps") },
 			{ 23, ("mpspawn", "Neutral") },
@@ -367,9 +367,8 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 					map.Resources[locationOnMap] = new ResourceTile(1, 2);
 
 				// Actors
-				if (ActorDataByActorCode.ContainsKey(tileSpecialInfo))
+				if (ActorDataByActorCode.TryGetValue(tileSpecialInfo, out var kvp))
 				{
-					var kvp = ActorDataByActorCode[tileSpecialInfo];
 					if (!rules.Actors.ContainsKey(kvp.Actor.ToLowerInvariant()))
 						Console.WriteLine($"Ignoring unknown actor type: `{kvp.Actor.ToLowerInvariant()}`");
 					else
@@ -409,8 +408,8 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 		{
 			var tileIndex = (int)stream.Position / 4 - 2;
 
-			var x = (tileIndex % mapSize.Width) + MapCordonWidth;
-			var y = (tileIndex / mapSize.Width) + MapCordonWidth;
+			var x = tileIndex % mapSize.Width + MapCordonWidth;
+			var y = tileIndex / mapSize.Width + MapCordonWidth;
 
 			return new CPos(x, y);
 		}

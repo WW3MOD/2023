@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	class BaseBuilderQueueManager
+	sealed class BaseBuilderQueueManager
 	{
 		readonly string category;
 
@@ -161,9 +161,7 @@ namespace OpenRA.Mods.Common.Traits
 					else if (baseBuilder.Info.RefineryTypes.Contains(actorInfo.Name))
 						type = BuildingType.Refinery;
 
-					var pack = ChooseBuildLocation(currentBuilding.Item, true, type);
-					location = pack.Location;
-					actorVariant = pack.Variant;
+					(location, actorVariant) = ChooseBuildLocation(currentBuilding.Item, true, type);
 				}
 
 				if (location == null)
@@ -225,8 +223,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool HasSufficientPowerForActor(ActorInfo actorInfo)
 		{
-			return playerPower == null || (actorInfo.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault)
-				.Sum(p => p.Amount) + playerPower.ExcessPower) >= baseBuilder.Info.MinimumExcessPower;
+			return playerPower == null || actorInfo.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault)
+				.Sum(p => p.Amount) + playerPower.ExcessPower >= baseBuilder.Info.MinimumExcessPower;
 		}
 
 		ActorInfo ChooseBuildingToBuild(ProductionQueue queue)
@@ -324,8 +322,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Does this building have initial delay, if so have we passed it?
 				if (baseBuilder.Info.BuildingDelays != null &&
-					baseBuilder.Info.BuildingDelays.ContainsKey(name) &&
-					baseBuilder.Info.BuildingDelays[name] > world.WorldTick)
+					baseBuilder.Info.BuildingDelays.TryGetValue(name, out var delay) &&
+					delay > world.WorldTick)
 					continue;
 
 				// Can we build this structure?
@@ -343,7 +341,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (count * 100 > frac.Value * playerBuildings.Length)
 					continue;
 
-				if (baseBuilder.Info.BuildingLimits.ContainsKey(name) && baseBuilder.Info.BuildingLimits[name] <= count)
+				if (baseBuilder.Info.BuildingLimits.TryGetValue(name, out var limit) && limit <= count)
 					continue;
 
 				// If we're considering to build a naval structure, check whether there is enough water inside the base perimeter
@@ -390,7 +388,7 @@ namespace OpenRA.Mods.Common.Traits
 				return (null, 0);
 
 			// Find the buildable cell that is closest to pos and centered around center
-			Func<CPos, CPos, int, int, (CPos? Location, int Variant)> findPos = (center, target, minRange, maxRange) =>
+			(CPos? Location, int Variant) FindPos(CPos center, CPos target, int minRange, int maxRange)
 			{
 				var actorVariant = 0;
 				var buildingVariantInfo = actorInfo.TraitInfoOrDefault<PlaceBuildingVariantsInfo>();
@@ -461,7 +459,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				return (null, 0);
-			};
+			}
 
 			var baseCenter = baseBuilder.GetRandomBaseCenter();
 
@@ -475,7 +473,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					var targetCell = closestEnemy != null ? closestEnemy.Location : baseCenter;
 
-					return findPos(baseBuilder.DefenseCenter, targetCell, baseBuilder.Info.MinimumDefenseRadius, baseBuilder.Info.MaximumDefenseRadius);
+					return FindPos(baseBuilder.DefenseCenter, targetCell, baseBuilder.Info.MinimumDefenseRadius, baseBuilder.Info.MaximumDefenseRadius);
 
 				case BuildingType.Refinery:
 
@@ -488,17 +486,17 @@ namespace OpenRA.Mods.Common.Traits
 
 						foreach (var r in nearbyResources)
 						{
-							var found = findPos(baseCenter, r, baseBuilder.Info.MinBaseRadius, baseBuilder.Info.MaxBaseRadius);
+							var found = FindPos(baseCenter, r, baseBuilder.Info.MinBaseRadius, baseBuilder.Info.MaxBaseRadius);
 							if (found.Location != null)
 								return found;
 						}
 					}
 
 					// Try and find a free spot somewhere else in the base
-					return findPos(baseCenter, baseCenter, baseBuilder.Info.MinBaseRadius, baseBuilder.Info.MaxBaseRadius);
+					return FindPos(baseCenter, baseCenter, baseBuilder.Info.MinBaseRadius, baseBuilder.Info.MaxBaseRadius);
 
 				case BuildingType.Building:
-					return findPos(baseCenter, baseCenter, baseBuilder.Info.MinBaseRadius,
+					return FindPos(baseCenter, baseCenter, baseBuilder.Info.MinBaseRadius,
 						distanceToBaseIsImportant ? baseBuilder.Info.MaxBaseRadius : world.Map.Grid.MaximumTileSearchRange);
 			}
 

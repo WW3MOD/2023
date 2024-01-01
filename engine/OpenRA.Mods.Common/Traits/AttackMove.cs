@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Provides access to the attack-move command, which will make the actor automatically engage viable targets while moving to the destination.")]
-	class AttackMoveInfo : TraitInfo, Requires<IMoveInfo>
+	sealed class AttackMoveInfo : TraitInfo, Requires<IMoveInfo>
 	{
 		[VoiceReference]
 		public readonly string Voice = "Action";
@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new AttackMove(init.Self, this); }
 	}
 
-	class AttackMove : IResolveOrder, IOrderVoice
+	sealed class AttackMove : IResolveOrder, IOrderVoice
 	{
 		public readonly AttackMoveInfo Info;
 		readonly IMove move;
@@ -125,9 +125,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (mi.Button == expectedButton)
 			{
-				world.CancelInputMode();
-
 				var queued = mi.Modifiers.HasModifier(Modifiers.Shift);
+				if (!queued)
+					world.CancelInputMode();
+
 				var orderName = mi.Modifiers.HasModifier(Modifiers.Ctrl) ? "AssaultMove" : "AttackMove";
 
 				// Cells outside the playable area should be clamped to the edge for consistency with move orders

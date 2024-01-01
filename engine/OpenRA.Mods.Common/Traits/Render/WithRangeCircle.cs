@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public enum RangeCircleVisibility { Always, WhenSelected }
 
 	[Desc("Renders an arbitrary circle when selected or placing a structure")]
-	class WithRangeCircleInfo : ConditionalTraitInfo, IPlaceBuildingDecorationInfo
+	sealed class WithRangeCircleInfo : ConditionalTraitInfo, IPlaceBuildingDecorationInfo
 	{
 		[Desc("Type of range circle. used to decide which circles to draw on other structures during building placement.")]
 		public readonly string Type = null;
@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	class WithRangeCircle : ConditionalTrait<WithRangeCircleInfo>, IRenderAnnotationsWhenSelected, IRenderAnnotations
+	sealed class WithRangeCircle : ConditionalTrait<WithRangeCircleInfo>, IRenderAnnotationsWhenSelected, IRenderAnnotations
 	{
 		readonly Actor self;
 

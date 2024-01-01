@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,6 +28,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IEnumerable<AttackFrontal> attackTraits;
 		readonly Vision[] vision;
 		readonly IMove move;
+		readonly Mobile mobile;
 		readonly IFacing facing;
 		readonly IPositionable positionable;
 		readonly bool forceAttack;
@@ -59,7 +60,9 @@ namespace OpenRA.Mods.Common.Activities
 			facing = self.Trait<IFacing>();
 			positionable = self.Trait<IPositionable>();
 
-			move = allowMovement ? self.TraitOrDefault<IMove>() : null;
+			var iMove = self.TraitOrDefault<IMove>();
+			mobile = iMove as Mobile;
+			move = allowMovement ? iMove : null;
 
 			// The target may become hidden between the initial order request and the first tick (e.g. if queued)
 			// Moving to any position (even if quite stale) is still better than immediately giving up
@@ -203,15 +206,26 @@ namespace OpenRA.Mods.Common.Activities
 			if (armaments.Count == 0)
 				return AttackStatus.UnableToAttack;
 
-			// Update ranges
-			minRange = armaments.Max(a => a.Weapon.MinRange);
-			maxRange = armaments.Min(a => a.MaxRange());
+			// Update ranges. Exclude paused armaments except when ALL weapons are paused
+			// (e.g. out of ammo), in which case use the paused, valid weapon with highest range.
+			var activeArmaments = armaments.Where(x => !x.IsTraitPaused);
+			if (activeArmaments.Any())
+			{
+				minRange = activeArmaments.Max(a => a.Weapon.MinRange);
+				maxRange = activeArmaments.Min(a => a.MaxRange());
+			}
+			else
+			{
+				minRange = WDist.Zero;
+				maxRange = armaments.Max(a => a.MaxRange());
+			}
 
 			var pos = self.CenterPosition;
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
 			if (!target.IsInRange(pos, maxRange)
 				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
+				// || (mobile != null && !mobile.CanInteractWithGroundLayer(self))) // 1010?
 				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
 				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
 					&& checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
@@ -233,13 +247,20 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
 			{
-				var desiredFacing = (attack.GetTargetPosition(pos, target) - pos).Yaw;
+				// Mirror Turn activity checks.
+				if (mobile == null || (!mobile.IsTraitDisabled && !mobile.IsTraitPaused))
+				{
+					// Don't queue a Turn activity: Executing a child takes an additional tick during which the target may have moved again.
+					facing.Facing = Util.TickFacing(facing.Facing, (attack.GetTargetPosition(pos, target) - pos).Yaw, facing.TurnSpeed);
 
-				// Don't queue a turn activity: Executing a child takes an additional tick during which the target may have moved again
-				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
-
-				// Check again if we turned enough and directly continue attacking if we did
-				if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
+					// Check again if we turned enough and directly continue attacking if we did.
+					if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
+					{
+						attackStatus |= AttackStatus.NeedsToTurn;
+						return AttackStatus.NeedsToTurn;
+					}
+				}
+				else
 				{
 					attackStatus |= AttackStatus.NeedsToTurn;
 					return AttackStatus.NeedsToTurn;

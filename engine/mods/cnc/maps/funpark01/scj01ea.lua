@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+   Copyright (c) The OpenRA Developers and Contributors
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -16,16 +16,16 @@ WorldLoaded = function()
 	Dinosaur = Player.GetPlayer("Dinosaur")
 	Civilian = Player.GetPlayer("Civilian")
 
-	InvestigateObj = Nod.AddObjective("Investigate the nearby village for reports of\nstrange activity.")
+	InvestigateObj = AddPrimaryObjective(Nod, "investigate-village")
 
 	InitObjectives(Nod)
 
-	ReachVillageObj = Nod.AddObjective("Reach the village.")
+	ReachVillageObj = AddPrimaryObjective(Nod, "reach-village")
 
 	Trigger.OnPlayerDiscovered(Civilian, function(_, discoverer)
 		if discoverer == Nod and not Nod.IsObjectiveCompleted(ReachVillageObj) then
 			if not Dinosaur.HasNoRequiredUnits() then
-				KillDinos = Nod.AddObjective("Kill all creatures in the area.")
+				KillDinos = AddPrimaryObjective(Nod, "kill-creatures")
 			end
 
 			Nod.MarkCompletedObjective(ReachVillageObj)

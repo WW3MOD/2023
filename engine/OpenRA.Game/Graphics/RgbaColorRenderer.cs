@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Graphics
 {
 	public class RgbaColorRenderer
 	{
-		static readonly float3 Offset = new float3(0.5f, 0.5f, 0f);
+		static readonly float3 Offset = new(0.5f, 0.5f, 0f);
 
 		readonly SpriteRenderer parent;
 		readonly Vertex[] vertices = new Vertex[6];
@@ -78,9 +78,9 @@ namespace OpenRA.Graphics
 		/// <summary>
 		/// Calculate the 2D intersection of two lines.
 		/// Will behave badly if the lines are parallel.
-		/// Z position is the average of a and b (ignores actual intersection point if it exists)
+		/// Z position is the average of a and b (ignores actual intersection point if it exists).
 		/// </summary>
-		float3 IntersectionOf(in float3 a, in float3 da, in float3 b, in float3 db)
+		static float3 IntersectionOf(in float3 a, in float3 da, in float3 b, in float3 db)
 		{
 			var crossA = a.X * (a.Y + da.Y) - a.Y * (a.X + da.X);
 			var crossB = b.X * (b.Y + db.Y) - b.Y * (b.X + db.X);
@@ -138,7 +138,7 @@ namespace OpenRA.Graphics
 			// Segment is part of closed loop
 			if (closed)
 			{
-				var prev = points[points.Length - 1];
+				var prev = points[^1];
 				var prevDir = (start - prev) / (start - prev).XY.Length;
 				var prevCorner = width / 2 * new float3(-prevDir.Y, prevDir.X, prevDir.Z);
 				ca = IntersectionOf(start - prevCorner, prevDir, start - corner, dir);

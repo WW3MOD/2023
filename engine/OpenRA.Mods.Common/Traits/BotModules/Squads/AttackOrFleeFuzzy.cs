@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -95,8 +95,8 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			"then AttackOrFlee is Flee"
 		};
 
-		public static readonly AttackOrFleeFuzzy Default = new AttackOrFleeFuzzy(null, null, null);
-		public static readonly AttackOrFleeFuzzy Rush = new AttackOrFleeFuzzy(new[]
+		public static readonly AttackOrFleeFuzzy Default = new(null, null, null);
+		public static readonly AttackOrFleeFuzzy Rush = new(new[]
 		{
 			"if ((OwnHealth is Normal) " +
 			"and ((EnemyHealth is NearDead) or (EnemyHealth is Injured) or (EnemyHealth is Normal)) " +
@@ -111,7 +111,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			"then AttackOrFlee is Flee"
 		}, null, null);
 
-		readonly MamdaniFuzzySystem fuzzyEngine = new MamdaniFuzzySystem();
+		readonly MamdaniFuzzySystem fuzzyEngine = new();
 
 		public AttackOrFleeFuzzy(
 			IEnumerable<string> rulesForNormalOwnHealth,
@@ -181,7 +181,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return !double.IsNaN(attackChance) && attackChance < 30.0;
 		}
 
-		static float NormalizedHealth(IEnumerable<Actor> actors, float normalizeByValue)
+		static float NormalizedHealth(IEnumerable<Actor> actors, int normalizeByValue)
 		{
 			var sumOfMaxHp = 0;
 			var sumOfHp = 0;
@@ -218,7 +218,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					var totalReloadDelay = arm.Weapon.ReloadDelay + (arm.Weapon.BurstDelays[0] * (burst - 1)).Clamp(1, 200);
 					var damageWarheads = arm.Weapon.Warheads.OfType<DamageWarhead>();
 					foreach (var warhead in damageWarheads)
-						sumOfDamage += (warhead.Damage * burst / totalReloadDelay) * 100;
+						sumOfDamage += warhead.Damage * burst / totalReloadDelay * 100;
 				}
 
 				return sumOfDamage;
@@ -239,7 +239,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (!own.Any())
 				return 0.0f;
 
-			var relative = (relativeFunc(own, getValue) / relativeFunc(enemy, getValue)) * normalizeByValue;
+			var relative = relativeFunc(own, getValue) / relativeFunc(enemy, getValue) * normalizeByValue;
 			return relative.Clamp(0.0f, 999.0f);
 		}
 

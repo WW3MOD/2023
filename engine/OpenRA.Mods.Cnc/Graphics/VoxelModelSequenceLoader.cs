@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,6 @@ namespace OpenRA.Mods.Cnc.Graphics
 	{
 		public Action<string> OnMissingModelError { get; set; }
 
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "IDE0060:Remove unused parameter", Justification = "Load game API")]
 		public VoxelModelSequenceLoader(ModData modData) { }
 
 		public IModelCache CacheModels(IReadOnlyFileSystem fileSystem, ModData modData, IReadOnlyDictionary<string, MiniYamlNode> modelSequences)
@@ -49,10 +48,10 @@ namespace OpenRA.Mods.Cnc.Graphics
 		}
 	}
 
-	public class VoxelModelCache : IModelCache
+	public sealed class VoxelModelCache : IModelCache
 	{
 		readonly VoxelLoader loader;
-		readonly Dictionary<string, Dictionary<string, IModel>> models = new Dictionary<string, Dictionary<string, IModel>>();
+		readonly Dictionary<string, Dictionary<string, IModel>> models = new();
 
 		public VoxelModelCache(IReadOnlyFileSystem fileSystem)
 		{

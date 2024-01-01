@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,6 +17,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class IngameCashCounterLogic : ChromeLogic
 	{
+		[TranslationReference("usage", "capacity")]
+		const string SiloUsage = "label-silo-usage";
+
 		const float DisplayFracPerFrame = .07f;
 		const int DisplayDeltaPerFrame = 37;
 
@@ -42,10 +45,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			displayResources = playerResources.Cash + playerResources.Resources;
 
+
 			displayUpkeep = (int)playerResources.Upkeep; // Doesn't change anything?
 
 			cashflowTooltipCache = new CachedTransform<(int Cash, int Upkeep), string>(x =>
-				modData.Translation.GetString(Cashflow, Translation.Arguments("cash", displayResources, "upkeep", displayUpkeep)));
+				TranslationProvider.GetString(Cashflow, Translation.Arguments("cash", displayResources, "upkeep", displayUpkeep)));
 
 			cashLabel = widget.Get<LabelWithTooltipWidget>("CASH");
 			cashLabel.GetTooltipText = () => cashflowTooltip;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	[Desc("Displays an overlay whenever resources are harvested by the actor.")]
-	class WithHarvestOverlayInfo : TraitInfo, Requires<RenderSpritesInfo>, Requires<BodyOrientationInfo>
+	sealed class WithHarvestOverlayInfo : TraitInfo, Requires<RenderSpritesInfo>, Requires<BodyOrientationInfo>
 	{
 		[SequenceReference]
 		[Desc("Sequence name to use")]
@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public override object Create(ActorInitializer init) { return new WithHarvestOverlay(init.Self, this); }
 	}
 
-	class WithHarvestOverlay : INotifyHarvesterAction
+	sealed class WithHarvestOverlay : INotifyHarvesterAction
 	{
 		readonly WithHarvestOverlayInfo info;
 		readonly Animation anim;
@@ -66,8 +66,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell) { }
 		void INotifyHarvesterAction.MovingToRefinery(Actor self, Actor targetRefinery) { }
 		void INotifyHarvesterAction.MovementCancelled(Actor self) { }
-		void INotifyHarvesterAction.Docked() { }
-		void INotifyHarvesterAction.Undocked() { }
 
 		public static int ZOffsetFromCenter(Actor self, WPos pos, int offset)
 		{

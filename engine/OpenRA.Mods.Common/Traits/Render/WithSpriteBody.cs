@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -75,18 +75,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			rs = init.Self.Trait<RenderSprites>();
 
-			Func<bool> paused = () => IsTraitPaused &&
+			bool Paused() => IsTraitPaused &&
 				DefaultAnimation.CurrentSequence.Name == NormalizeSequence(init.Self, Info.Sequence);
 
 			Func<WVec> subtractDAT = null;
 			if (info.ForceToGround)
 				subtractDAT = () => new WVec(0, 0, -init.Self.World.Map.DistanceAboveTerrain(init.Self.CenterPosition).Length);
 
-			DefaultAnimation = new Animation(init.World, rs.GetImage(init.Self), baseFacing, paused);
+			DefaultAnimation = new Animation(init.World, rs.GetImage(init.Self), baseFacing, Paused);
 			rs.Add(new AnimationWithOffset(DefaultAnimation, subtractDAT, () => IsTraitDisabled), info.Palette, info.IsPlayerPalette);
 
 			// Cache the bounds from the default sequence to avoid flickering when the animation changes
-			boundsAnimation = new Animation(init.World, rs.GetImage(init.Self), baseFacing, paused);
+			boundsAnimation = new Animation(init.World, rs.GetImage(init.Self), baseFacing, Paused);
 			boundsAnimation.PlayRepeating(info.Sequence);
 		}
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	class CheckHitShapes : ILintRulesPass, ILintServerMapPass
+	sealed class CheckHitShapes : ILintRulesPass, ILintServerMapPass
 	{
 		void ILintRulesPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Ruleset rules)
 		{
@@ -29,11 +29,11 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, mapRules);
 		}
 
-		void Run(Action<string> emitError, Ruleset rules)
+		static void Run(Action<string> emitError, Ruleset rules)
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
-				// Catch TypeDictionary errors
+				// Catch TypeDictionary errors.
 				try
 				{
 					var health = actorInfo.Value.TraitInfoOrDefault<IHealthInfo>();
@@ -42,11 +42,11 @@ namespace OpenRA.Mods.Common.Lint
 
 					var hitShapes = actorInfo.Value.TraitInfos<HitShapeInfo>();
 					if (!hitShapes.Any())
-						emitError($"Actor type `{actorInfo.Key}` has a Health trait but no HitShape trait!");
+						emitError($"Actor type `{actorInfo.Key}` has a Health trait but no HitShape trait.");
 				}
 				catch (InvalidOperationException e)
 				{
-					emitError($"{e.Message} (Actor type `{actorInfo.Key}`)");
+					emitError($"{e.Message} (Actor type `{actorInfo.Key}`).");
 				}
 			}
 		}

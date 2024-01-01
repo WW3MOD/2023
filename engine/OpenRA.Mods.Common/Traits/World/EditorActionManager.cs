@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,8 +21,8 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class EditorActionManager : IWorldLoaded
 	{
-		readonly Stack<EditorActionContainer> undoStack = new Stack<EditorActionContainer>();
-		readonly Stack<EditorActionContainer> redoStack = new Stack<EditorActionContainer>();
+		readonly Stack<EditorActionContainer> undoStack = new();
+		readonly Stack<EditorActionContainer> redoStack = new();
 
 		public event Action<EditorActionContainer> ItemAdded;
 		public event Action<EditorActionContainer> ItemRemoved;
@@ -31,10 +31,12 @@ namespace OpenRA.Mods.Common.Traits
 		int nextId;
 
 		public bool Modified;
+		public bool SaveFailed;
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
 			Add(new OpenMapAction());
+			Modified = false;
 		}
 
 		public void Add(IEditorAction editorAction)
@@ -142,11 +144,14 @@ namespace OpenRA.Mods.Common.Traits
 		string Text { get; }
 	}
 
-	class OpenMapAction : IEditorAction
+	sealed class OpenMapAction : IEditorAction
 	{
+		[TranslationReference]
+		const string Opened = "notification-opened";
+
 		public OpenMapAction()
 		{
-			Text = "Opened";
+			Text = TranslationProvider.GetString(Opened);
 		}
 
 		public void Execute()

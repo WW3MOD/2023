@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -103,13 +103,16 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 	}
 
-	class AddResourcesEditorAction : IEditorAction
+	sealed class AddResourcesEditorAction : IEditorAction
 	{
+		[TranslationReference("amount", "type")]
+		const string AddedResource = "notification-added-resource";
+
 		public string Text { get; private set; }
 
 		readonly IResourceLayer resourceLayer;
 		readonly string resourceType;
-		readonly List<CellResource> cellResources = new List<CellResource>();
+		readonly List<CellResource> cellResources = new();
 
 		public AddResourcesEditorAction(string resourceType, IResourceLayer resourceLayer)
 		{
@@ -145,9 +148,7 @@ namespace OpenRA.Mods.Common.Widgets
 			resourceLayer.ClearResources(resourceCell.Cell);
 			resourceLayer.AddResource(resourceCell.NewResourceType, resourceCell.Cell, resourceLayer.GetMaxDensity(resourceCell.NewResourceType));
 			cellResources.Add(resourceCell);
-
-			var cellText = cellResources.Count != 1 ? "cells" : "cell";
-			Text = $"Added {cellResources.Count} {cellText} of {resourceType}";
+			Text = TranslationProvider.GetString(AddedResource, Translation.Arguments("amount", cellResources.Count, "type", resourceType));
 		}
 	}
 }

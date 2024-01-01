@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -32,10 +32,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public readonly bool VisibleThroughFog = false;
 
 		[Desc("Height at which to play the animation when descending.")]
-		public readonly WDist DistanceAboveTerrain = new WDist(756);
+		public readonly WDist DistanceAboveTerrain = new(756);
 
 		[Desc("Only play on these terrain types.")]
-		public readonly HashSet<string> TerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> TerrainTypes = new();
 
 		public override object Create(ActorInitializer init) { return new WithAircraftLandingEffect(this); }
 	}

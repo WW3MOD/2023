@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Cnc.Traits
 {
 	[Desc("Funds are transferred from the owner to the infiltrator.")]
-	class InfiltrateForCashInfo : TraitInfo
+	sealed class InfiltrateForCashInfo : TraitInfo
 	{
 		[Desc("The `TargetTypes` from `Targetable` that are allowed to enter.")]
 		public readonly BitSet<TargetableType> Types = default;
@@ -32,6 +32,12 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		[Desc("Maximum amount of funds which will be stolen.")]
 		public readonly int Maximum = int.MaxValue;
+
+		[Desc("Experience to grant to the infiltrating player.")]
+		public readonly int PlayerExperience = 0;
+
+		[Desc("Experience to grant to the infiltrating player based on cash stolen.")]
+		public readonly int PlayerExperiencePercentage = 0;
 
 		[NotificationReference("Speech")]
 		[Desc("Sound the victim will hear when they get robbed.")]
@@ -53,7 +59,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new InfiltrateForCash(this); }
 	}
 
-	class InfiltrateForCash : INotifyInfiltrated
+	sealed class InfiltrateForCash : INotifyInfiltrated
 	{
 		readonly InfiltrateForCashInfo info;
 
@@ -73,6 +79,8 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			targetResources.TakeCash(toTake);
 			spyResources.GiveCash(toGive);
+
+			infiltrator.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience(info.PlayerExperience + toTake * info.PlayerExperiencePercentage / 100);
 
 			if (info.InfiltratedNotification != null)
 				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", info.InfiltratedNotification, self.Owner.Faction.InternalName);

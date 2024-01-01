@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA
 {
 	public class WidgetLoader
 	{
-		readonly Dictionary<string, MiniYamlNode> widgets = new Dictionary<string, MiniYamlNode>();
+		readonly Dictionary<string, MiniYamlNode> widgets = new();
 		readonly ModData modData;
 
 		public WidgetLoader(ModData modData)
@@ -28,7 +28,7 @@ namespace OpenRA
 			foreach (var file in modData.Manifest.ChromeLayout.Select(a => MiniYaml.FromStream(modData.DefaultFileSystem.Open(a), a)))
 				foreach (var w in file)
 				{
-					var key = w.Key.Substring(w.Key.IndexOf('@') + 1);
+					var key = w.Key[(w.Key.IndexOf('@') + 1)..];
 					if (widgets.ContainsKey(key))
 						throw new InvalidDataException($"Widget has duplicate Key `{w.Key}` at {w.Location}");
 					widgets.Add(key, w);

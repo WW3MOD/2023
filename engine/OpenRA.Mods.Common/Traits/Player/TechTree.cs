@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,7 +12,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -26,12 +25,11 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class TechTree
 	{
-		readonly List<Watcher> watchers = new List<Watcher>();
-		readonly Player player;
+		readonly List<Watcher> watchers = new();
 
 		public TechTree(ActorInitializer init)
 		{
-			player = init.Self.Owner;
+			Owner = init.Self.Owner;
 			init.World.ActorAdded += ActorChanged;
 			init.World.ActorRemoved += ActorChanged;
 		}
@@ -39,13 +37,13 @@ namespace OpenRA.Mods.Common.Traits
 		public void ActorChanged(Actor a)
 		{
 			var bi = a.Info.TraitInfoOrDefault<BuildableInfo>();
-			if (a.Owner == player && (a.Info.HasTraitInfo<ITechTreePrerequisiteInfo>() || (bi != null && bi.BuildLimit > 0)))
+			if (a.Owner == Owner && (a.Info.HasTraitInfo<ITechTreePrerequisiteInfo>() || (bi != null && bi.BuildLimit > 0)))
 				Update();
 		}
 
 		public void Update()
 		{
-			var ownedPrerequisites = GatherOwnedPrerequisites(player);
+			var ownedPrerequisites = GatherOwnedPrerequisites(Owner);
 			foreach (var w in watchers)
 				w.Update(ownedPrerequisites);
 		}
@@ -67,14 +65,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool HasPrerequisites(IEnumerable<string> prerequisites)
 		{
-			var ownedPrereqs = GatherOwnedPrerequisites(player);
+			var ownedPrereqs = GatherOwnedPrerequisites(Owner);
 			return prerequisites.All(p => !(p.Replace("~", "").StartsWith("!", StringComparison.Ordinal)
 					^ !ownedPrereqs.ContainsKey(p.Replace("!", "").Replace("~", ""))));
 		}
 
-		static Cache<string, List<Actor>> GatherOwnedPrerequisites(Player player)
+		static Dictionary<string, int> GatherOwnedPrerequisites(Player player)
 		{
-			var ret = new Cache<string, List<Actor>>(x => new List<Actor>());
+			var ret = new Dictionary<string, int>();
 			if (player == null)
 				return ret;
 
@@ -90,7 +88,8 @@ namespace OpenRA.Mods.Common.Traits
 					if (p == null)
 						continue;
 
-					ret[p].Add(b.Actor);
+					ret.TryGetValue(p, out var count);
+					ret[p] = count + 1;
 				}
 			}
 
@@ -104,21 +103,24 @@ namespace OpenRA.Mods.Common.Traits
 					a.Actor.Info.TraitInfo<BuildableInfo>().BuildLimit > 0);
 
 			foreach (var buildable in buildables)
-				ret[buildable.Actor.Info.Name].Add(buildable.Actor);
+			{
+				var name = buildable.Actor.Info.Name;
+				ret.TryGetValue(name, out var count);
+				ret[name] = count + 1;
+			}
 
 			return ret;
 		}
 
-		public Player Owner => player;
+		public Player Owner { get; }
 
-		class Watcher
+		sealed class Watcher
 		{
 			public readonly string Key;
-			public ITechTreeElement RegisteredBy => watcher;
+			public ITechTreeElement RegisteredBy { get; }
 
 			// Strings may be either actor type, or "alternate name" key
 			readonly string[] prerequisites;
-			readonly ITechTreeElement watcher;
 			bool hasPrerequisites;
 			readonly int limit;
 			bool hidden;
@@ -128,13 +130,13 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Key = key;
 				this.prerequisites = prerequisites;
-				this.watcher = watcher;
+				RegisteredBy = watcher;
 				hasPrerequisites = false;
 				this.limit = limit;
 				hidden = false;
 			}
 
-			bool HasPrerequisites(Cache<string, List<Actor>> ownedPrerequisites)
+			bool HasPrerequisites(Dictionary<string, int> ownedPrerequisites)
 			{
 				// PERF: Avoid LINQ.
 				foreach (var prereq in prerequisites)
@@ -147,7 +149,7 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			bool IsHidden(Cache<string, List<Actor>> ownedPrerequisites)
+			bool IsHidden(Dictionary<string, int> ownedPrerequisites)
 			{
 				// PERF: Avoid LINQ.
 				foreach (var prereq in prerequisites)
@@ -162,12 +164,12 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 			}
 
-			public void Update(Cache<string, List<Actor>> ownedPrerequisites)
+			public void Update(Dictionary<string, int> ownedPrerequisites)
 			{
-				var hasReachedLimit = limit > 0 && ownedPrerequisites.ContainsKey(Key) && ownedPrerequisites[Key].Count >= limit;
+				var hasReachedLimit = limit > 0 && ownedPrerequisites.TryGetValue(Key, out var count) && count >= limit;
 
 				// The '!' annotation inverts prerequisites: "I'm buildable if this prerequisite *isn't* met"
-				var nowHasPrerequisites = HasPrerequisites(ownedPrerequisites) && !hasReachedLimit;
+				var nowHasPrerequisites = !hasReachedLimit && HasPrerequisites(ownedPrerequisites);
 				var nowHidden = IsHidden(ownedPrerequisites);
 
 				if (initialized == false)
@@ -179,16 +181,16 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Hide the item from the UI if a prereq annotated with '~' is not met.
 				if (nowHidden && !hidden)
-					watcher.PrerequisitesItemHidden(Key);
+					RegisteredBy.PrerequisitesItemHidden(Key);
 
 				if (!nowHidden && hidden)
-					watcher.PrerequisitesItemVisible(Key);
+					RegisteredBy.PrerequisitesItemVisible(Key);
 
 				if (nowHasPrerequisites && !hasPrerequisites)
-					watcher.PrerequisitesAvailable(Key);
+					RegisteredBy.PrerequisitesAvailable(Key);
 
 				if (!nowHasPrerequisites && hasPrerequisites)
-					watcher.PrerequisitesUnavailable(Key);
+					RegisteredBy.PrerequisitesUnavailable(Key);
 
 				hidden = nowHidden;
 				hasPrerequisites = nowHasPrerequisites;

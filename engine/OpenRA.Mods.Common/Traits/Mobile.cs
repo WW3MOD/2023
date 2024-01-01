@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
-		public readonly WAngle TurnSpeed = new WAngle(512);
+		public readonly WAngle TurnSpeed = new(512);
 
 		public readonly int Speed = 1;
 
@@ -49,6 +49,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If set to true, this unit will always turn in place instead of following a curved trajectory (like infantry).")]
 		public readonly bool AlwaysTurnInPlace = false;
 
+		[Desc("If set to true, this unit won't stop to turn, it will turn while moving instead.")]
+		public readonly bool TurnsWhileMoving = false;
+
 		[CursorReference]
 		[Desc("Cursor to display when a move order can be issued at target location.")]
 		public readonly string Cursor = "move";
@@ -56,7 +59,7 @@ namespace OpenRA.Mods.Common.Traits
 		[CursorReference(dictionaryReference: LintDictionaryReference.Values)]
 		[Desc("Cursor overrides to display for specific terrain types.",
 			"A dictionary of [terrain type]: [cursor name].")]
-		public readonly Dictionary<string, string> TerrainCursors = new Dictionary<string, string>();
+		public readonly Dictionary<string, string> TerrainCursors = new();
 
 		[CursorReference]
 		[Desc("Cursor to display when a move order cannot be issued at target location.")]
@@ -69,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color TargetLineColor = Color.Green;
 
 		[Desc("Facing to use for actor previews (map editor, color picker, etc)")]
-		public readonly WAngle PreviewFacing = new WAngle(384);
+		public readonly WAngle PreviewFacing = new(384);
 
 		[Desc("Display order for the facing slider in the map editor")]
 		public readonly int EditorFacingDisplayOrder = 3;
@@ -77,8 +80,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Can move backward if possible")]
 		public readonly bool CanMoveBackward = false;
 
-		[Desc("After how many ticks the actor will turn forward during backoff")]
+		[Desc("After how many ticks the actor will turn forward during backoff.",
+			"If set to -1 the unit will be allowed to move backwards without time limit.")]
 		public readonly int BackwardDuration = 40;
+
+		[Desc("Actor will only try to move backwards when the path (in cells) is shorter than this value.",
+			"If set to -1 the unit will be allowed to move backwards without range limit.")]
+		public readonly int MaxBackwardCells = 15;
 
 		[ConsumedConditionReference]
 		[Desc("Boolean expression defining the condition under which the regular (non-force) move cursor is disabled.")]
@@ -90,7 +98,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("The distance from the edge of a cell over which the actor will adjust its tilt when moving between cells with different ramp types.",
 			"-1 means that the actor does not tilt on slopes.")]
-		public readonly WDist TerrainOrientationAdjustmentMargin = new WDist(-1);
+		public readonly WDist TerrainOrientationAdjustmentMargin = new(-1);
 
 		IEnumerable<ActorInit> IActorPreviewInitInfo.ActorPreviewInits(ActorInfo ai, ActorPreviewType type)
 		{
@@ -129,19 +137,17 @@ namespace OpenRA.Mods.Common.Traits
 		public bool CanEnterCell(World world, Actor self, CPos cell, SubCell subCell = SubCell.FullCell, Actor ignoreActor = null, BlockedByActor check = BlockedByActor.All)
 		{
 			// PERF: Avoid repeated trait queries on the hot path
-			if (locomotor == null)
-				locomotor = world.WorldActor.TraitsImplementing<Locomotor>()
+			locomotor ??= world.WorldActor.TraitsImplementing<Locomotor>()
 				   .SingleOrDefault(l => l.Info.Name == Locomotor);
 
 			return locomotor.MovementCostToEnterCell(
-				self, cell, check, ignoreActor, subCell) != PathGraph.MovementCostForUnreachableCell;
+				self, cell, check, ignoreActor, false, subCell) != PathGraph.MovementCostForUnreachableCell;
 		}
 
 		public bool CanStayInCell(World world, CPos cell)
 		{
 			// PERF: Avoid repeated trait queries on the hot path
-			if (locomotor == null)
-				locomotor = world.WorldActor.TraitsImplementing<Locomotor>()
+			locomotor ??= world.WorldActor.TraitsImplementing<Locomotor>()
 				   .SingleOrDefault(l => l.Info.Name == Locomotor);
 
 			if (cell.Layer == CustomMovementLayerType.Tunnel)
@@ -205,7 +211,6 @@ namespace OpenRA.Mods.Common.Traits
 		WAngle oldFacing;
 		WRot orientation;
 		WPos oldPos;
-		CPos fromCell, toCell;
 		public SubCell FromSubCell, ToSubCell;
 
 		INotifyCustomLayerChanged[] notifyCustomLayerChanged;
@@ -237,10 +242,10 @@ namespace OpenRA.Mods.Common.Traits
 		#endregion
 
 		[Sync]
-		public CPos FromCell => fromCell;
+		public CPos FromCell { get; private set; }
 
 		[Sync]
-		public CPos ToCell => toCell;
+		public CPos ToCell { get; private set; }
 
 		public Locomotor Locomotor { get; private set; }
 
@@ -291,7 +296,7 @@ namespace OpenRA.Mods.Common.Traits
 			var locationInit = init.GetOrDefault<LocationInit>();
 			if (locationInit != null)
 			{
-				fromCell = toCell = locationInit.Value;
+				FromCell = ToCell = locationInit.Value;
 				SetCenterPosition(self, init.World.Map.CenterOfSubCell(FromCell, FromSubCell));
 			}
 
@@ -516,7 +521,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			foreach (var n in notifyCenterPositionChanged)
-				n.CenterPositionChanged(self, fromCell.Layer, toCell.Layer);
+				n.CenterPositionChanged(self, FromCell.Layer, ToCell.Layer);
 		}
 
 		public void SetTerrainRampOrientation(WRot orientation)
@@ -527,7 +532,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool IsLeavingCell(CPos location, SubCell subCell = SubCell.Any)
 		{
-			return ToCell != location && fromCell == location
+			return ToCell != location && FromCell == location
 				&& (subCell == SubCell.Any || FromSubCell == subCell || subCell == SubCell.FullCell || FromSubCell == SubCell.FullCell);
 		}
 
@@ -562,25 +567,25 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			RemoveInfluence();
-			fromCell = from;
-			toCell = to;
+			FromCell = from;
+			ToCell = to;
 			FromSubCell = fromSub;
 			ToSubCell = toSub;
 			AddInfluence();
 			IsBlocking = false;
 
 			// Most custom layer conditions are added/removed when starting the transition between layers.
-			if (toCell.Layer != fromCell.Layer)
+			if (ToCell.Layer != FromCell.Layer)
 				foreach (var n in notifyCustomLayerChanged)
-					n.CustomLayerChanged(self, fromCell.Layer, toCell.Layer);
+					n.CustomLayerChanged(self, FromCell.Layer, ToCell.Layer);
 		}
 
 		public void FinishedMoving(Actor self)
 		{
 			// Need to check both fromCell and toCell because FinishedMoving is called multiple times during the move
-			if (fromCell.Layer == toCell.Layer)
+			if (FromCell.Layer == ToCell.Layer)
 				foreach (var n in notifyFinishedMoving)
-					n.FinishedMoving(self, fromCell.Layer, toCell.Layer);
+					n.FinishedMoving(self, FromCell.Layer, ToCell.Layer);
 
 			// Only crush actors on having landed
 			if (!self.IsAtGroundLevel())
@@ -722,6 +727,11 @@ namespace OpenRA.Mods.Common.Traits
 			// Activity cancels if the target moves by more than half a cell
 			// to avoid problems with the cell grid
 			return WrapMove(new LocalMoveIntoTarget(self, target, new WDist(512)));
+		}
+
+		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset, WAngle? facing, Color? targetLineColor = null)
+		{
+			return WrapMove(new MoveOntoAndTurn(self, target, offset, facing, targetLineColor));
 		}
 
 		public Activity LocalMove(Actor self, WPos fromPos, WPos toPos)
@@ -995,7 +1005,7 @@ namespace OpenRA.Mods.Common.Traits
 			return returnToCellOnCreation ? new ReturnToCellActivity(self, creationActivityDelay, returnToCellOnCreationRecalculateSubCell) : null;
 		}
 
-		class MoveOrderTargeter : IOrderTargeter
+		sealed class MoveOrderTargeter : IOrderTargeter
 		{
 			readonly Mobile mobile;
 			readonly LocomotorInfo locomotorInfo;
@@ -1018,7 +1028,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public string OrderID => "Move";
 			public int OrderPriority => 4;
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 
 			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
 			{

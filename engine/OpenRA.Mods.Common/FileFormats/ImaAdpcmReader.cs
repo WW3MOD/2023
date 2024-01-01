@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,25 +13,7 @@ using System.IO;
 
 namespace OpenRA.Mods.Common.FileFormats
 {
-	public struct ImaAdpcmChunk
-	{
-		public int CompressedSize;
-		public int OutputSize;
-
-		public static ImaAdpcmChunk Read(Stream s)
-		{
-			ImaAdpcmChunk c;
-			c.CompressedSize = s.ReadUInt16();
-			c.OutputSize = s.ReadUInt16();
-
-			if (s.ReadUInt32() != 0xdeaf)
-				throw new InvalidDataException("Chunk header is bogus");
-
-			return c;
-		}
-	}
-
-	public class ImaAdpcmReader
+	public static class ImaAdpcmReader
 	{
 		static readonly int[] IndexAdjust = { -1, -1, -1, -1, 2, 4, 6, 8 };
 		static readonly int[] StepTable =
@@ -53,7 +35,7 @@ namespace OpenRA.Mods.Common.FileFormats
 			var sb = (b & 8) != 0;
 			b &= 7;
 
-			var delta = (StepTable[index] * b) / 4 + StepTable[index] / 8;
+			var delta = StepTable[index] * b / 4 + StepTable[index] / 8;
 			if (sb)
 				delta = -delta;
 

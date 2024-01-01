@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,11 +20,13 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Attach this to the player actor.")]
 	public class DeveloperModeInfo : TraitInfo, ILobbyOptions
 	{
+		[TranslationReference]
 		[Desc("Descriptive label for the developer mode checkbox in the lobby.")]
-		public readonly string CheckboxLabel = "Debug Menu";
+		public readonly string CheckboxLabel = "checkbox-debug-menu.label";
 
+		[TranslationReference]
 		[Desc("Tooltip description for the developer mode checkbox in the lobby.")]
-		public readonly string CheckboxDescription = "Enables cheats and developer commands";
+		public readonly string CheckboxDescription = "checkbox-debug-menu.description";
 
 		[Desc("Default value of the developer mode checkbox in the lobby.")]
 		public readonly bool CheckboxEnabled = true;
@@ -64,8 +66,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			yield return new LobbyBooleanOption("cheats", CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
-			yield return new LobbyBooleanOption("sync", "Sync", "Sync game code to detect errors with other players. Lowers performance.",
+			yield return new LobbyBooleanOption(map, "cheats", CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
+			yield return new LobbyBooleanOption(map, "sync", "Sync", "Sync game code to detect errors with other players. Lowers performance.",
 				true, 5, false, false);
 		}
 
@@ -74,6 +76,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class DeveloperMode : IResolveOrder, ISync, INotifyCreated, IUnlocksRenderPlayer
 	{
+		[TranslationReference("cheat", "player", "suffix")]
+		const string CheatUsed = "notification-cheat-used";
+
 		readonly DeveloperModeInfo info;
 		public bool Enabled { get; private set; }
 
@@ -107,9 +112,6 @@ namespace OpenRA.Mods.Common.Traits
 		public bool BuildAnywhere => Enabled && buildAnywhere;
 
 		bool enableAll;
-
-		[TranslationReference("cheat", "player", "suffix")]
-		static readonly string CheatUsed = "cheat-used";
 
 		public DeveloperMode(DeveloperModeInfo info)
 		{
@@ -279,7 +281,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var arguments = Translation.Arguments("cheat", order.OrderString, "player", self.Owner.PlayerName, "suffix", debugSuffix);
-			TextNotificationsManager.Debug(Game.ModData.Translation.GetString(CheatUsed, arguments));
+			TextNotificationsManager.Debug(TranslationProvider.GetString(CheatUsed, arguments));
 		}
 
 		bool IUnlocksRenderPlayer.RenderPlayerUnlocked => Enabled;

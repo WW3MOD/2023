@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.FileSystem;
 using OpenRA.GameRules;
@@ -23,6 +24,7 @@ using OpenRA.Support;
 
 namespace OpenRA.Traits
 {
+	[AttributeUsage(AttributeTargets.Interface)]
 	public sealed class RequireExplicitImplementationAttribute : Attribute { }
 
 	[Flags]
@@ -37,7 +39,7 @@ namespace OpenRA.Traits
 	}
 
 	/// <summary>
-	/// Type tag for DamageTypes <see cref="Primitives.BitSet{T}"/>.
+	/// Type tag for DamageTypes <see cref="BitSet{T}"/>.
 	/// </summary>
 	public sealed class DamageType { DamageType() { } }
 
@@ -272,7 +274,7 @@ namespace OpenRA.Traits
 
 	public interface IMapPreviewSignatureInfo : ITraitInfoInterface
 	{
-		void PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos, Color)> destinationBuffer);
+		void PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos Uv, Color Color)> destinationBuffer);
 	}
 
 	public interface IOccupySpaceInfo : ITraitInfoInterface
@@ -483,7 +485,7 @@ namespace OpenRA.Traits
 	}
 
 	/// <summary>
-	/// Indicates target types as defined on <see cref="Traits.ITargetable"/> are present in a <see cref="Primitives.BitSet{T}"/>.
+	/// Indicates target types as defined on <see cref="ITargetable"/> are present in a <see cref="BitSet{T}"/>.
 	/// </summary>
 	public sealed class TargetableType { TargetableType() { } }
 
@@ -542,15 +544,15 @@ namespace OpenRA.Traits
 		public readonly bool IsVisible;
 		public readonly int DisplayOrder;
 
-		public LobbyOption(string id, string name, string description, bool visible, int displayorder,
+		public LobbyOption(MapPreview map, string id, string name, string description, bool visible, int displayorder,
 			IReadOnlyDictionary<string, string> values, string defaultValue, bool locked)
 		{
 			Id = id;
-			Name = name;
-			Description = description;
+			Name = map.GetLocalisedString(name);
+			Description = description != null ? map.GetLocalisedString(description) : null;
 			IsVisible = visible;
 			DisplayOrder = displayorder;
-			Values = values;
+			Values = values.ToDictionary(v => v.Key, v => map.GetLocalisedString(v.Value));
 			DefaultValue = defaultValue;
 			IsLocked = locked;
 		}
@@ -563,14 +565,14 @@ namespace OpenRA.Traits
 
 	public class LobbyBooleanOption : LobbyOption
 	{
-		static readonly Dictionary<string, string> BoolValues = new Dictionary<string, string>()
+		static readonly Dictionary<string, string> BoolValues = new()
 		{
 			{ true.ToString(), "Enabled" },
 			{ false.ToString(), "Disabled" }
 		};
 
-		public LobbyBooleanOption(string id, string name, string description, bool visible, int displayorder, bool defaultValue, bool locked)
-			: base(id, name, description, visible, displayorder, new ReadOnlyDictionary<string, string>(BoolValues), defaultValue.ToString(), locked) { }
+		public LobbyBooleanOption(MapPreview map, string id, string name, string description, bool visible, int displayorder, bool defaultValue, bool locked)
+			: base(map, id, name, description, visible, displayorder, new ReadOnlyDictionary<string, string>(BoolValues), defaultValue.ToString(), locked) { }
 
 		public override string Label(string newValue)
 		{

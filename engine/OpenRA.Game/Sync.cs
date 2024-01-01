@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,7 +28,7 @@ namespace OpenRA
 	public static class Sync
 	{
 		static readonly ConcurrentCache<Type, Func<object, int>> HashFunctions =
-			new ConcurrentCache<Type, Func<object, int>>(GenerateHashFunc);
+			new(GenerateHashFunc);
 
 		internal static Func<object, int> GetHashFunction(ISync sync)
 		{
@@ -40,7 +40,7 @@ namespace OpenRA
 			return GetHashFunction(sync)(sync);
 		}
 
-		static readonly Dictionary<Type, MethodInfo> CustomHashFunctions = new Dictionary<Type, MethodInfo>()
+		static readonly Dictionary<Type, MethodInfo> CustomHashFunctions = new()
 		{
 			{ typeof(int2), ((Func<int2, int>)HashInt2).Method },
 			{ typeof(CPos), ((Func<CPos, int>)HashCPos).Method },
@@ -57,8 +57,8 @@ namespace OpenRA
 
 		static void EmitSyncOpcodes(Type type, ILGenerator il)
 		{
-			if (CustomHashFunctions.ContainsKey(type))
-				il.EmitCall(OpCodes.Call, CustomHashFunctions[type], null);
+			if (CustomHashFunctions.TryGetValue(type, out var hashFunction))
+				il.EmitCall(OpCodes.Call, hashFunction, null);
 			else if (type == typeof(bool))
 			{
 				var l = il.DefineLabel();

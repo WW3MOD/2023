@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -49,7 +49,7 @@ namespace OpenRA.Graphics
 
 			public readonly int[] PanelRegion = null;
 			public readonly PanelSides PanelSides = PanelSides.All;
-			public readonly Dictionary<string, Rectangle> Regions = new Dictionary<string, Rectangle>();
+			public readonly Dictionary<string, Rectangle> Regions = new();
 		}
 
 		public static IReadOnlyDictionary<string, Collection> Collections => collections;
@@ -100,9 +100,7 @@ namespace OpenRA.Graphics
 
 		static void LoadCollection(string name, MiniYaml yaml)
 		{
-			if (Game.ModData.LoadScreen != null)
-				Game.ModData.LoadScreen.Display();
-
+			Game.ModData.LoadScreen?.Display();
 			collections.Add(name, FieldLoader.Load<Collection>(yaml));
 		}
 
@@ -265,13 +263,13 @@ namespace OpenRA.Graphics
 
 			if (!collections.TryGetValue(collectionName, out var collection))
 			{
-				Log.Write("debug", "Could not find collection '{0}'", collectionName);
+				Log.Write("debug", $"Could not find collection '{collectionName}'");
 				return new Size(0, 0);
 			}
 
 			if (collection.PanelRegion == null || collection.PanelRegion.Length != 8)
 			{
-				Log.Write("debug", "Collection '{0}' does not define a valid PanelRegion", collectionName);
+				Log.Write("debug", $"Collection '{collectionName}' does not define a valid PanelRegion");
 				return new Size(0, 0);
 			}
 

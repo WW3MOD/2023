@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,6 +22,7 @@ namespace OpenRA.Mods.Common.FileFormats
 	{
 		const uint MaxFileGroupCount = 71;
 
+		[Flags]
 		enum CABFlags : ushort
 		{
 			FileSplit = 0x1,
@@ -42,10 +43,14 @@ namespace OpenRA.Mods.Common.FileFormats
 			public readonly uint FirstFile;
 			public readonly uint LastFile;
 
-			public FileGroup(Stream stream, long offset)
+			public FileGroup(Stream stream, long offset, uint version)
 			{
 				var nameOffset = stream.ReadUInt32();
 				stream.Position += 18;
+
+				if (version <= 5)
+					stream.Position += 54;
+
 				FirstFile = stream.ReadUInt32();
 				LastFile = stream.ReadUInt32();
 
@@ -105,7 +110,7 @@ namespace OpenRA.Mods.Common.FileFormats
 
 			public readonly byte[] MD5;
 			public readonly uint NameOffset;
-			public readonly ushort DirectoryIndex;
+			public readonly uint DirectoryIndex;
 			public readonly uint LinkToPrevious;
 
 			public readonly uint LinkToNext;
@@ -113,33 +118,63 @@ namespace OpenRA.Mods.Common.FileFormats
 			public readonly ushort Volume;
 			public readonly string Filename;
 
-			public FileDescriptor(Stream stream, uint index, long tableOffset)
+			public FileDescriptor(Stream stream, uint index, long tableOffset, uint version)
 			{
 				Index = index;
-				Flags = (CABFlags)stream.ReadUInt16();
-				ExpandedSize = stream.ReadUInt32();
-				stream.Position += 4;
-				CompressedSize = stream.ReadUInt32();
 
-				stream.Position += 4;
-				DataOffset = stream.ReadUInt32();
-				stream.Position += 4;
-				MD5 = stream.ReadBytes(16);
+				if (version <= 5)
+				{
+					NameOffset = stream.ReadUInt32();
+					DirectoryIndex = stream.ReadUInt32();
+					Flags = (CABFlags)stream.ReadUInt16();
+					ExpandedSize = stream.ReadUInt32();
+					CompressedSize = stream.ReadUInt32();
+					stream.Position += 20;
+					DataOffset = stream.ReadUInt32();
 
-				stream.Position += 16;
-				NameOffset = stream.ReadUInt32();
-				DirectoryIndex = stream.ReadUInt16();
-				stream.Position += 12;
-				LinkToPrevious = stream.ReadUInt32();
-				LinkToNext = stream.ReadUInt32();
+					MD5 = new byte[16];
+					LinkToPrevious = 0;
+					LinkToNext = 0;
+					LinkFlags = 0;
+					Volume = 0;
 
-				LinkFlags = (LinkFlags)stream.ReadUInt8();
-				Volume = stream.ReadUInt16();
+					if ((Flags & CABFlags.FileInvalid) == 0)
+					{
+						var pos = stream.Position;
+						stream.Position = tableOffset + NameOffset;
+						Filename = stream.ReadASCIIZ();
+						stream.Position = pos;
+					}
+					else
+						Filename = "";
+				}
+				else
+				{
+					Flags = (CABFlags)stream.ReadUInt16();
+					ExpandedSize = stream.ReadUInt32();
+					stream.Position += 4;
+					CompressedSize = stream.ReadUInt32();
 
-				var pos = stream.Position;
-				stream.Position = tableOffset + NameOffset;
-				Filename = stream.ReadASCIIZ();
-				stream.Position = pos;
+					stream.Position += 4;
+					DataOffset = stream.ReadUInt32();
+					stream.Position += 4;
+					MD5 = stream.ReadBytes(16);
+
+					stream.Position += 16;
+					NameOffset = stream.ReadUInt32();
+					DirectoryIndex = stream.ReadUInt16();
+					stream.Position += 12;
+					LinkToPrevious = stream.ReadUInt32();
+					LinkToNext = stream.ReadUInt32();
+
+					LinkFlags = (LinkFlags)stream.ReadUInt8();
+					Volume = stream.ReadUInt16();
+
+					var pos = stream.Position;
+					stream.Position = tableOffset + NameOffset;
+					Filename = stream.ReadASCIIZ();
+					stream.Position = pos;
+				}
 			}
 		}
 
@@ -207,7 +242,7 @@ namespace OpenRA.Mods.Common.FileFormats
 			}
 		}
 
-		class CabExtracter
+		sealed class CabExtracter
 		{
 			readonly FileDescriptor file;
 			readonly Dictionary<int, Stream> volumes;
@@ -338,8 +373,9 @@ namespace OpenRA.Mods.Common.FileFormats
 			}
 		}
 
-		readonly Dictionary<string, FileDescriptor> index = new Dictionary<string, FileDescriptor>();
+		readonly Dictionary<string, FileDescriptor> index = new();
 		readonly Dictionary<int, Stream> volumes;
+		readonly uint version;
 
 		public InstallShieldCABCompression(Stream header, Dictionary<int, Stream> volumes)
 		{
@@ -348,7 +384,20 @@ namespace OpenRA.Mods.Common.FileFormats
 			if (header.ReadUInt32() != 0x28635349)
 				throw new InvalidDataException("Not an Installshield CAB package");
 
-			header.Position += 8;
+			var versionTmp = header.ReadUInt32();
+
+			// Logic taken from UnShield
+			// https://github.com/twogood/unshield/blob/1.5.1/lib/libunshield.c#L277-L288
+			if (versionTmp >> 24 == 1)
+				version = (versionTmp >> 12) & 0xf;
+			else if (versionTmp >> 24 == 2 || versionTmp >> 24 == 4)
+			{
+				version = versionTmp & 0xffff;
+				if (version != 0)
+					version /= 100;
+			}
+
+			header.Position += 4;
 			var cabDescriptorOffset = header.ReadUInt32();
 			header.Position = cabDescriptorOffset + 12;
 			var cabDescriptor = new CabDescriptor(header);
@@ -374,7 +423,7 @@ namespace OpenRA.Mods.Common.FileFormats
 					nextOffset = header.ReadUInt32();
 					header.Position = cabDescriptorOffset + descriptorOffset;
 
-					fileGroups.Add(new FileGroup(header, cabDescriptorOffset));
+					fileGroups.Add(new FileGroup(header, cabDescriptorOffset, version));
 				}
 			}
 
@@ -383,8 +432,15 @@ namespace OpenRA.Mods.Common.FileFormats
 			{
 				for (var i = fileGroup.FirstFile; i <= fileGroup.LastFile; i++)
 				{
-					header.Position = cabDescriptorOffset +	cabDescriptor.FileTableOffset + cabDescriptor.FileTableOffset2 + i * 0x57;
-					var file = new FileDescriptor(header, i, cabDescriptorOffset + cabDescriptor.FileTableOffset);
+					if (version <= 5)
+					{
+						header.Position = cabDescriptorOffset + cabDescriptor.FileTableOffset + cabDescriptor.FileTableOffset2 + i * 4;
+						header.Position = cabDescriptorOffset + cabDescriptor.FileTableOffset + header.ReadUInt32();
+					}
+					else
+						header.Position = cabDescriptorOffset + cabDescriptor.FileTableOffset + cabDescriptor.FileTableOffset2 + i * 0x57;
+
+					var file = new FileDescriptor(header, i, cabDescriptorOffset + cabDescriptor.FileTableOffset, version);
 					var path = $"{fileGroup.Name}\\{directories[file.DirectoryIndex].Name}\\{file.Filename}";
 					index[path] = file;
 				}

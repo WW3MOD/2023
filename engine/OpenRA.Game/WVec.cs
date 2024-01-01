@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA
 		public WVec(int x, int y, int z) { X = x; Y = y; Z = z; }
 		public WVec(WDist x, WDist y, WDist z) { X = x.Length; Y = y.Length; Z = z.Length; }
 
-		public static readonly WVec Zero = new WVec(0, 0, 0);
+		public static readonly WVec Zero = new(0, 0, 0);
 
 		public static WVec operator +(in WVec a, in WVec b) { return new WVec(a.X + b.X, a.Y + b.Y, a.Z + b.Z); }
 		public static WVec operator -(in WVec a, in WVec b) { return new WVec(a.X - b.X, a.Y - b.Y, a.Z - b.Z); }

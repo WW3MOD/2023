@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -216,7 +216,7 @@ namespace OpenRA
 			{
 				var logic = PlayerActor.TraitsImplementing<IBot>().FirstOrDefault(b => b.Info.Type == BotType);
 				if (logic == null)
-					Log.Write("debug", "Invalid bot type: {0}", BotType);
+					Log.Write("debug", $"Invalid bot type: {BotType}");
 				else
 					logic.Activate(this);
 			}
@@ -253,7 +253,7 @@ namespace OpenRA
 			return PlayerRelationship.Neutral;
 		}
 
-		/// <summary> returns true if player is null </summary>
+		/// <summary>Returns true if player is null.</summary>
 		public bool IsAlliedWith(Player p)
 		{
 			return RelationshipWith(p) == PlayerRelationship.Ally;
@@ -299,8 +299,7 @@ namespace OpenRA
 		Lazy<ScriptPlayerInterface> luaInterface;
 		public void OnScriptBind(ScriptContext context)
 		{
-			if (luaInterface == null)
-				luaInterface = Exts.Lazy(() => new ScriptPlayerInterface(context, this));
+			luaInterface ??= Exts.Lazy(() => new ScriptPlayerInterface(context, this));
 		}
 
 		public LuaValue this[LuaRuntime runtime, LuaValue keyValue]

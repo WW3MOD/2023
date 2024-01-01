@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			"ResourceType.PipColor has been removed and resource pip colours are now defined\n" +
 			"in WithHarvesterPipsDecoration.ResourceSequences.";
 
-		static readonly Dictionary<string, string> PipReplacements = new Dictionary<string, string>
+		static readonly Dictionary<string, string> PipReplacements = new()
 		{
 			{ "transparent", "pip-empty" },
 			{ "green", "pip-green" },
@@ -41,11 +41,11 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 		};
 
 		bool customPips;
-		readonly List<string> locations = new List<string>();
-		readonly List<string> cargoPipLocations = new List<string>();
-		readonly HashSet<string> cargoCustomPips = new HashSet<string>();
-		readonly List<string> harvesterPipLocations = new List<string>();
-		readonly Dictionary<string, string> harvesterCustomPips = new Dictionary<string, string>();
+		readonly List<string> locations = new();
+		readonly List<string> cargoPipLocations = new();
+		readonly HashSet<string> cargoCustomPips = new();
+		readonly List<string> harvesterPipLocations = new();
+		readonly Dictionary<string, string> harvesterCustomPips = new();
 
 		public override IEnumerable<string> AfterUpdate(ModData modData)
 		{

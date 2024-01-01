@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.D2k.Traits.Buildings
 			{
 				var map = self.World.Map;
 
-				if (!(self.World.Map.Rules.TerrainInfo is ITemplatedTerrainInfo terrainInfo))
+				if (self.World.Map.Rules.TerrainInfo is not ITemplatedTerrainInfo terrainInfo)
 					throw new InvalidDataException("D2kBuilding requires a template-based tileset.");
 
 				var template = terrainInfo.Templates[info.ConcreteTemplate];

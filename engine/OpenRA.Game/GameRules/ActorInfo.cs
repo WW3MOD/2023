@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -32,7 +32,7 @@ namespace OpenRA
 		/// You can remove inherited traits by adding a - in front of them as in -TraitName: to inherit everything, but this trait.
 		/// </summary>
 		public readonly string Name;
-		readonly TypeDictionary traits = new TypeDictionary();
+		readonly TypeDictionary traits = new();
 		List<TraitInfo> constructOrderCache = null;
 
 		public ActorInfo(ObjectCreator creator, string name, MiniYaml node)
@@ -115,39 +115,46 @@ namespace OpenRA
 			}).ToList();
 
 			var resolved = source.Where(s => s.Dependencies.Count == 0 && s.OptionalDependencies.Count == 0).ToList();
-			var unresolved = source.Except(resolved);
+			var unresolved = source.ToHashSet();
+			unresolved.ExceptWith(resolved);
 
-			var testResolve = new Func<Type, Type, bool>((a, b) => a == b || a.IsAssignableFrom(b));
+			static bool AreResolvable(Type a, Type b) => a.IsAssignableFrom(b);
 
 			// This query detects which unresolved traits can be immediately resolved as all their direct dependencies are met.
 			var more = unresolved.Where(u =>
 				u.Dependencies.All(d => // To be resolvable, all dependencies must be satisfied according to the following conditions:
-					resolved.Exists(r => testResolve(d, r.Type)) && // There must exist a resolved trait that meets the dependency.
-					!unresolved.Any(u1 => testResolve(d, u1.Type))) && // All matching traits that meet this dependency must be resolved first.
+					resolved.Exists(r => AreResolvable(d, r.Type)) && // There must exist a resolved trait that meets the dependency.
+					!unresolved.Any(u1 => AreResolvable(d, u1.Type))) && // All matching traits that meet this dependency must be resolved first.
 				u.OptionalDependencies.All(d => // To be resolvable, all optional dependencies must be satisfied according to the following condition:
-					!unresolved.Any(u1 => testResolve(d, u1.Type)))); // All matching traits that meet this optional dependencies must be resolved first.
+					!unresolved.Any(u1 => AreResolvable(d, u1.Type)))); // All matching traits that meet this optional dependencies must be resolved first.
 
 			// Continue resolving traits as long as possible.
 			// Each time we resolve some traits, this means dependencies for other traits may then be possible to satisfy in the next pass.
-			while (more.Any())
-				resolved.AddRange(more);
-
-			if (unresolved.Any())
+			var readyToResolve = more.ToList();
+			while (readyToResolve.Count != 0)
 			{
-				var exceptionString = "ActorInfo(\"" + Name + "\") failed to initialize because of the following:\r\n";
-				var missing = unresolved.SelectMany(u => u.Dependencies.Where(d => !source.Any(s => testResolve(d, s.Type)))).Distinct();
+				resolved.AddRange(readyToResolve);
+				unresolved.ExceptWith(readyToResolve);
+				readyToResolve.Clear();
+				readyToResolve.AddRange(more);
+			}
 
-				exceptionString += "Missing:\r\n";
+			if (unresolved.Count != 0)
+			{
+				var exceptionString = "ActorInfo(\"" + Name + "\") failed to initialize because of the following:\n";
+				var missing = unresolved.SelectMany(u => u.Dependencies.Where(d => !source.Any(s => AreResolvable(d, s.Type)))).Distinct();
+
+				exceptionString += "Missing:\n";
 				foreach (var m in missing)
-					exceptionString += m + " \r\n";
+					exceptionString += m + " \n";
 
-				exceptionString += "Unresolved:\r\n";
+				exceptionString += "Unresolved:\n";
 				foreach (var u in unresolved)
 				{
 					var deps = u.Dependencies.Where(d => !resolved.Exists(r => r.Type == d));
 					var optDeps = u.OptionalDependencies.Where(d => !resolved.Exists(r => r.Type == d));
 					var allDeps = string.Join(", ", deps.Select(o => o.ToString()).Concat(optDeps.Select(o => $"[{o}]")));
-					exceptionString += $"{u.Type}: {{ {allDeps} }}\r\n";
+					exceptionString += $"{u.Type}: {{ {allDeps} }}\n";
 				}
 
 				throw new YamlException(exceptionString);

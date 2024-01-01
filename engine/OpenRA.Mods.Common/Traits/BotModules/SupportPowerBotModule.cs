@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[Desc("Tells the AI how to use its support powers.")]
 		[FieldLoader.LoadUsing(nameof(LoadDecisions))]
-		public readonly List<SupportPowerDecision> Decisions = new List<SupportPowerDecision>();
+		public readonly List<SupportPowerDecision> Decisions = new();
 
 		static object LoadDecisions(MiniYaml yaml)
 		{
@@ -40,9 +40,9 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly World world;
 		readonly Player player;
-		readonly Dictionary<SupportPowerInstance, int> waitingPowers = new Dictionary<SupportPowerInstance, int>();
-		readonly Dictionary<string, SupportPowerDecision> powerDecisions = new Dictionary<string, SupportPowerDecision>();
-		readonly List<SupportPowerInstance> stalePowers = new List<SupportPowerInstance>();
+		readonly Dictionary<SupportPowerInstance, int> waitingPowers = new();
+		readonly Dictionary<string, SupportPowerDecision> powerDecisions = new();
+		readonly List<SupportPowerInstance> stalePowers = new();
 		SupportPowerManager supportPowerManager;
 
 		public SupportPowerBotModule(Actor self, SupportPowerBotModuleInfo info)
@@ -79,9 +79,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				// If we have recently tried and failed to find a use location for a power, then do not try again until later
 				var isDelayed = waitingPowers[sp] > 0;
-				if (sp.Ready && !isDelayed && powerDecisions.ContainsKey(sp.Info.OrderName))
+				if (sp.Ready && !isDelayed && powerDecisions.TryGetValue(sp.Info.OrderName, out var powerDecision))
 				{
-					var powerDecision = powerDecisions[sp.Info.OrderName];
 					if (powerDecision == null)
 					{
 						AIUtils.BotDebug("{0} couldn't find powerDecision for {1}", player.PlayerName, sp.Info.OrderName);
@@ -186,11 +185,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			var checkRadius = powerDecision.CoarseScanRadius;
 			var fineCheck = powerDecision.FineScanRadius;
-			for (var i = 0 - extendedRange; i <= (checkRadius + extendedRange); i += fineCheck)
+			for (var i = 0 - extendedRange; i <= checkRadius + extendedRange; i += fineCheck)
 			{
 				var x = checkPos.X + i;
 
-				for (var j = 0 - extendedRange; j <= (checkRadius + extendedRange); j += fineCheck)
+				for (var j = 0 - extendedRange; j <= checkRadius + extendedRange; j += fineCheck)
 				{
 					var y = checkPos.Y + j;
 					var pos = world.Map.CenterOfCell(new CPos(x, y));

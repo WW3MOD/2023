@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ namespace OpenRA
 		public readonly int U, V;
 
 		public MPos(int u, int v) { U = u; V = v; }
-		public static readonly MPos Zero = new MPos(0, 0);
+		public static readonly MPos Zero = new(0, 0);
 
 		public static bool operator ==(MPos me, MPos other) { return me.U == other.U && me.V == other.V; }
 		public static bool operator !=(MPos me, MPos other) { return !(me == other); }
@@ -27,7 +27,7 @@ namespace OpenRA
 		public override int GetHashCode() { return U.GetHashCode() ^ V.GetHashCode(); }
 
 		public bool Equals(MPos other) { return other == this; }
-		public override bool Equals(object obj) { return obj is MPos && Equals((MPos)obj); }
+		public override bool Equals(object obj) { return obj is MPos uv && Equals(uv); }
 
 		public MPos Clamp(Rectangle r)
 		{
@@ -69,14 +69,14 @@ namespace OpenRA
 	}
 
 	/// <summary>
-	/// Projected map position
+	/// Projected map position.
 	/// </summary>
 	public readonly struct PPos : IEquatable<PPos>
 	{
 		public readonly int U, V;
 
 		public PPos(int u, int v) { U = u; V = v; }
-		public static readonly PPos Zero = new PPos(0, 0);
+		public static readonly PPos Zero = new(0, 0);
 
 		public static bool operator ==(PPos me, PPos other) { return me.U == other.U && me.V == other.V; }
 		public static bool operator !=(PPos me, PPos other) { return !(me == other); }
@@ -93,7 +93,7 @@ namespace OpenRA
 		public override int GetHashCode() { return U.GetHashCode() ^ V.GetHashCode(); }
 
 		public bool Equals(PPos other) { return other == this; }
-		public override bool Equals(object obj) { return obj is PPos && Equals((PPos)obj); }
+		public override bool Equals(object obj) { return obj is PPos puv && Equals(puv); }
 
 		public override string ToString() { return U + "," + V; }
 	}

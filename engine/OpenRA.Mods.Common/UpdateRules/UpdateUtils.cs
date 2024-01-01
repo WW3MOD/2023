@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.UpdateRules
 			var yaml = new YamlFileSet();
 			foreach (var filename in files)
 			{
-				if (!modData.ModFiles.TryGetPackageContaining(filename, out var package, out var name) || !(package is IReadWritePackage))
+				if (!modData.ModFiles.TryGetPackageContaining(filename, out var package, out var name) || package is not IReadWritePackage)
 				{
 					Console.WriteLine("Failed to load file `{0}` for writing. It will not be updated.", filename);
 					continue;
@@ -114,8 +114,11 @@ namespace OpenRA.Mods.Common.UpdateRules
 				var mapRulesNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Rules");
 				if (mapRulesNode != null)
 				{
-					var resolvedActors = LoadMapYaml(modData.DefaultFileSystem, mapPackage, modData.Manifest.Rules, mapRulesNode.Value);
-					manualSteps.AddRange(rule.BeforeUpdateActors(modData, resolvedActors));
+					if (rule is IBeforeUpdateActors before)
+					{
+						var resolvedActors = LoadMapYaml(modData.DefaultFileSystem, mapPackage, modData.Manifest.Rules, mapRulesNode.Value);
+						manualSteps.AddRange(before.BeforeUpdateActors(modData, resolvedActors));
+					}
 
 					var mapRules = LoadInternalMapYaml(modData, mapPackage, mapRulesNode.Value, externalFilenames);
 					manualSteps.AddRange(ApplyTopLevelTransform(modData, mapRules, rule.UpdateActorNode));
@@ -125,8 +128,11 @@ namespace OpenRA.Mods.Common.UpdateRules
 				var mapWeaponsNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Weapons");
 				if (mapWeaponsNode != null)
 				{
-					var resolvedWeapons = LoadMapYaml(modData.DefaultFileSystem, mapPackage, modData.Manifest.Weapons, mapWeaponsNode.Value);
-					manualSteps.AddRange(rule.BeforeUpdateWeapons(modData, resolvedWeapons));
+					if (rule is IBeforeUpdateWeapons before)
+					{
+						var resolvedWeapons = LoadMapYaml(modData.DefaultFileSystem, mapPackage, modData.Manifest.Weapons, mapWeaponsNode.Value);
+						manualSteps.AddRange(before.BeforeUpdateWeapons(modData, resolvedWeapons));
+					}
 
 					var mapWeapons = LoadInternalMapYaml(modData, mapPackage, mapWeaponsNode.Value, externalFilenames);
 					manualSteps.AddRange(ApplyTopLevelTransform(modData, mapWeapons, rule.UpdateWeaponNode));
@@ -136,8 +142,11 @@ namespace OpenRA.Mods.Common.UpdateRules
 				var mapSequencesNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Sequences");
 				if (mapSequencesNode != null)
 				{
-					var resolvedImages = LoadMapYaml(modData.DefaultFileSystem, mapPackage, modData.Manifest.Sequences, mapSequencesNode.Value);
-					manualSteps.AddRange(rule.BeforeUpdateSequences(modData, resolvedImages));
+					if (rule is IBeforeUpdateSequences before)
+					{
+						var resolvedImages = LoadMapYaml(modData.DefaultFileSystem, mapPackage, modData.Manifest.Sequences, mapSequencesNode.Value);
+						manualSteps.AddRange(before.BeforeUpdateSequences(modData, resolvedImages));
+					}
 
 					var mapSequences = LoadInternalMapYaml(modData, mapPackage, mapSequencesNode.Value, externalFilenames);
 					manualSteps.AddRange(ApplyTopLevelTransform(modData, mapSequences, rule.UpdateSequenceNode));
@@ -229,16 +238,28 @@ namespace OpenRA.Mods.Common.UpdateRules
 
 			manualSteps.AddRange(rule.BeforeUpdate(modData));
 
-			var resolvedActors = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null);
-			manualSteps.AddRange(rule.BeforeUpdateActors(modData, resolvedActors));
+			if (rule is IBeforeUpdateActors beforeActors)
+			{
+				var resolvedActors = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null);
+				manualSteps.AddRange(beforeActors.BeforeUpdateActors(modData, resolvedActors));
+			}
+
 			manualSteps.AddRange(ApplyTopLevelTransform(modData, modRules, rule.UpdateActorNode));
 
-			var resolvedWeapons = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
-			manualSteps.AddRange(rule.BeforeUpdateWeapons(modData, resolvedWeapons));
+			if (rule is IBeforeUpdateWeapons beforeWeapons)
+			{
+				var resolvedWeapons = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+				manualSteps.AddRange(beforeWeapons.BeforeUpdateWeapons(modData, resolvedWeapons));
+			}
+
 			manualSteps.AddRange(ApplyTopLevelTransform(modData, modWeapons, rule.UpdateWeaponNode));
 
-			var resolvedSequences = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Sequences, null);
-			manualSteps.AddRange(rule.BeforeUpdateSequences(modData, resolvedSequences));
+			if (rule is IBeforeUpdateSequences beforeSequences)
+			{
+				var resolvedImages = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Sequences, null);
+				manualSteps.AddRange(beforeSequences.BeforeUpdateSequences(modData, resolvedImages));
+			}
+
 			manualSteps.AddRange(ApplyTopLevelTransform(modData, modSequences, rule.UpdateSequenceNode));
 
 			manualSteps.AddRange(ApplyTopLevelTransform(modData, modTilesets, rule.UpdateTilesetNode));
@@ -305,22 +326,29 @@ namespace OpenRA.Mods.Common.UpdateRules
 		public static void Save(this YamlFileSet files)
 		{
 			foreach (var file in files)
-				file.Item1?.Update(file.Item2, Encoding.UTF8.GetBytes(file.Item3.WriteToString()));
+			{
+				if (file.Item1 == null)
+					continue;
+
+				var textData = Encoding.UTF8.GetBytes(file.Item3.WriteToString());
+				if (!Enumerable.SequenceEqual(textData, file.Item1.GetStream(file.Item2).ReadAllBytes()))
+					file.Item1.Update(file.Item2, textData);
+			}
 		}
 
-		/// <summary>Checks if node is a removal (has '-' prefix)</summary>
+		/// <summary>Checks if node is a removal (has '-' prefix).</summary>
 		public static bool IsRemoval(this MiniYamlNode node)
 		{
 			return node.Key[0].ToString() == "-";
 		}
 
-		/// <summary>Renames a yaml key preserving any @suffix</summary>
+		/// <summary>Renames a yaml key preserving any @suffix.</summary>
 		public static void RenameKey(this MiniYamlNode node, string newKey, bool preserveSuffix = true, bool includeRemovals = true)
 		{
 			var prefix = includeRemovals && node.IsRemoval() ? "-" : "";
 			var split = node.Key.IndexOf("@", StringComparison.Ordinal);
 			if (preserveSuffix && split > -1)
-				node.Key = prefix + newKey + node.Key.Substring(split);
+				node.Key = prefix + newKey + node.Key[split..];
 			else
 				node.Key = prefix + newKey;
 		}
@@ -363,13 +391,13 @@ namespace OpenRA.Mods.Common.UpdateRules
 			node.MoveNode(fromNode, toNode);
 		}
 
-		/// <summary>Removes children with keys equal to [match] or [match]@[arbitrary suffix]</summary>
+		/// <summary>Removes children with keys equal to [match] or [match]@[arbitrary suffix].</summary>
 		public static int RemoveNodes(this MiniYamlNode node, string match, bool ignoreSuffix = true, bool includeRemovals = true)
 		{
 			return node.Value.Nodes.RemoveAll(n => n.KeyMatches(match, ignoreSuffix, includeRemovals));
 		}
 
-		/// <summary>Returns true if the node is of the form <match> or <match>@arbitrary</summary>
+		/// <summary>Returns true if the node is of the form [match] or [match]@[arbitrary suffix].</summary>
 		public static bool KeyMatches(this MiniYamlNode node, string match, bool ignoreSuffix = true, bool includeRemovals = true)
 		{
 			if (node.Key == null)
@@ -384,17 +412,17 @@ namespace OpenRA.Mods.Common.UpdateRules
 				return false;
 
 			var atPosition = node.Key.IndexOf('@');
-			return atPosition > 0 && node.Key.Substring(0, atPosition) == prefix + match;
+			return atPosition > 0 && node.Key[..atPosition] == prefix + match;
 		}
 
-		/// <summary>Returns true if the node is of the form <*match*>, <*match*>@arbitrary or <arbitrary>@*match*</summary>
+		/// <summary>Returns true if the node is of the form [match], [match]@[arbitrary suffix] or [arbitrary suffix]@[match].</summary>
 		public static bool KeyContains(this MiniYamlNode node, string match, bool ignoreSuffix = true, bool includeRemovals = true)
 		{
 			if (node.Key == null)
 				return false;
 
 			var atPosition = node.Key.IndexOf('@');
-			var relevantPart = ignoreSuffix && atPosition > 0 ? node.Key.Substring(0, atPosition) : node.Key;
+			var relevantPart = ignoreSuffix && atPosition > 0 ? node.Key[..atPosition] : node.Key;
 
 			if (relevantPart.Contains(match) && (includeRemovals || !node.IsRemoval()))
 				return true;
@@ -402,13 +430,13 @@ namespace OpenRA.Mods.Common.UpdateRules
 			return false;
 		}
 
-		/// <summary>Returns children with keys equal to [match] or [match]@[arbitrary suffix]</summary>
+		/// <summary>Returns children with keys equal to [match] or [match]@[arbitrary suffix].</summary>
 		public static IEnumerable<MiniYamlNode> ChildrenMatching(this MiniYamlNode node, string match, bool ignoreSuffix = true, bool includeRemovals = true)
 		{
 			return node.Value.Nodes.Where(n => n.KeyMatches(match, ignoreSuffix, includeRemovals));
 		}
 
-		/// <summary>Returns children whose keys contain 'match' (optionally in the suffix)</summary>
+		/// <summary>Returns children whose keys contain 'match' (optionally in the suffix).</summary>
 		public static IEnumerable<MiniYamlNode> ChildrenContaining(this MiniYamlNode node, string match, bool ignoreSuffix = true, bool includeRemovals = true)
 		{
 			return node.Value.Nodes.Where(n => n.KeyContains(match, ignoreSuffix, includeRemovals));

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -81,7 +81,7 @@ namespace OpenRA.Network
 		public const int MetadataMarker = -1;
 		public const int TraitDataMarker = -3;
 
-		readonly MemoryStream ordersStream = new MemoryStream();
+		readonly MemoryStream ordersStream = new();
 
 		// Loaded from file and updated during gameplay
 		public int LastOrdersFrame { get; private set; }
@@ -92,7 +92,7 @@ namespace OpenRA.Network
 		public Session.Global GlobalSettings { get; private set; }
 		public Dictionary<string, Session.Slot> Slots { get; private set; }
 		public Dictionary<string, SlotClient> SlotClients { get; private set; }
-		public Dictionary<int, MiniYaml> TraitData = new Dictionary<int, MiniYaml>();
+		public Dictionary<int, MiniYaml> TraitData = new();
 
 		// Set on game start
 		int[] clientsBySlotIndex = Array.Empty<int>();
@@ -284,39 +284,40 @@ namespace OpenRA.Network
 			// - File offset of metadata start marker
 			// - File offset of custom trait data
 			// - Metadata end marker
-			var file = File.Create(path);
+			using (var file = File.Create(path))
+			{
+				ordersStream.Seek(0, SeekOrigin.Begin);
+				ordersStream.CopyTo(file);
+				file.Write(BitConverter.GetBytes(MetadataMarker), 0, 4);
+				file.Write(BitConverter.GetBytes(LastOrdersFrame), 0, 4);
+				file.Write(BitConverter.GetBytes(LastSyncFrame), 0, 4);
+				file.Write(lastSyncPacket, 0, Order.SyncHashOrderLength);
 
-			ordersStream.Seek(0, SeekOrigin.Begin);
-			ordersStream.CopyTo(file);
-			file.Write(BitConverter.GetBytes(MetadataMarker), 0, 4);
-			file.Write(BitConverter.GetBytes(LastOrdersFrame), 0, 4);
-			file.Write(BitConverter.GetBytes(LastSyncFrame), 0, 4);
-			file.Write(lastSyncPacket, 0, Order.SyncHashOrderLength);
+				var globalSettingsNodes = new List<MiniYamlNode>() { GlobalSettings.Serialize() };
+				file.WriteString(Encoding.UTF8, globalSettingsNodes.WriteToString());
 
-			var globalSettingsNodes = new List<MiniYamlNode>() { GlobalSettings.Serialize() };
-			file.WriteString(Encoding.UTF8, globalSettingsNodes.WriteToString());
+				var slotNodes = Slots
+					.Select(s => s.Value.Serialize())
+					.ToList();
+				file.WriteString(Encoding.UTF8, slotNodes.WriteToString());
 
-			var slotNodes = Slots
-				.Select(s => s.Value.Serialize())
-				.ToList();
-			file.WriteString(Encoding.UTF8, slotNodes.WriteToString());
+				var slotClientNodes = SlotClients
+					.Select(s => s.Value.Serialize(s.Key))
+					.ToList();
+				file.WriteString(Encoding.UTF8, slotClientNodes.WriteToString());
 
-			var slotClientNodes = SlotClients
-				.Select(s => s.Value.Serialize(s.Key))
-				.ToList();
-			file.WriteString(Encoding.UTF8, slotClientNodes.WriteToString());
+				var traitDataOffset = file.Length;
+				file.Write(BitConverter.GetBytes(TraitDataMarker), 0, 4);
 
-			var traitDataOffset = file.Length;
-			file.Write(BitConverter.GetBytes(TraitDataMarker), 0, 4);
+				var traitDataNodes = TraitData
+					.Select(kv => new MiniYamlNode(kv.Key.ToString(), kv.Value))
+					.ToList();
+				file.WriteString(Encoding.UTF8, traitDataNodes.WriteToString());
 
-			var traitDataNodes = TraitData
-				.Select(kv => new MiniYamlNode(kv.Key.ToString(), kv.Value))
-				.ToList();
-			file.WriteString(Encoding.UTF8, traitDataNodes.WriteToString());
-
-			file.Write(BitConverter.GetBytes(ordersStream.Length), 0, 4);
-			file.Write(BitConverter.GetBytes(traitDataOffset), 0, 4);
-			file.Write(BitConverter.GetBytes(EOFMarker), 0, 4);
+				file.Write(BitConverter.GetBytes(ordersStream.Length), 0, 4);
+				file.Write(BitConverter.GetBytes(traitDataOffset), 0, 4);
+				file.Write(BitConverter.GetBytes(EOFMarker), 0, 4);
+			}
 		}
 	}
 }

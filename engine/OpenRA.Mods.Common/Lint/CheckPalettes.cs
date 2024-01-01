@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	class CheckPalettes : ILintRulesPass, ILintServerMapPass
+	sealed class CheckPalettes : ILintRulesPass, ILintServerMapPass
 	{
 		void ILintRulesPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Ruleset rules)
 		{
@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, mapRules);
 		}
 
-		void Run(Action<string> emitError, Ruleset rules)
+		static void Run(Action<string> emitError, Ruleset rules)
 		{
 			var palettes = new List<string>();
 			var playerPalettes = new List<string>();
@@ -39,10 +39,10 @@ namespace OpenRA.Mods.Common.Lint
 			{
 				foreach (var traitInfo in actorInfo.Value.TraitInfos<TraitInfo>())
 				{
-					var fields = traitInfo.GetType().GetFields();
+					var fields = Utility.GetFields(traitInfo.GetType());
 					foreach (var field in fields)
 					{
-						var paletteReference = field.GetCustomAttributes<PaletteReferenceAttribute>(true).FirstOrDefault();
+						var paletteReference = Utility.GetCustomAttributes<PaletteReferenceAttribute>(field, true).FirstOrDefault();
 						if (paletteReference == null)
 							continue;
 
@@ -64,12 +64,12 @@ namespace OpenRA.Mods.Common.Lint
 							if (isPlayerPalette)
 							{
 								if (!playerPalettes.Contains(reference))
-									emitError($"Undefined player palette reference {reference} detected at {traitInfo} for {actorInfo.Key}");
+									emitError($"Undefined player palette reference `{reference}` detected at `{traitInfo}` for `{actorInfo.Key}`");
 							}
 							else
 							{
 								if (!palettes.Contains(reference))
-									emitError($"Undefined palette reference {reference} detected at {traitInfo} for {actorInfo.Key}");
+									emitError($"Undefined palette reference `{reference}` detected at `{traitInfo}` for `{actorInfo.Key}`");
 							}
 						}
 					}
@@ -82,10 +82,10 @@ namespace OpenRA.Mods.Common.Lint
 				if (projectileInfo == null)
 					continue;
 
-				var fields = projectileInfo.GetType().GetFields();
+				var fields = Utility.GetFields(projectileInfo.GetType());
 				foreach (var field in fields)
 				{
-					var paletteReference = field.GetCustomAttributes<PaletteReferenceAttribute>(true).FirstOrDefault();
+					var paletteReference = Utility.GetCustomAttributes<PaletteReferenceAttribute>(field, true).FirstOrDefault();
 					if (paletteReference == null)
 						continue;
 
@@ -107,29 +107,29 @@ namespace OpenRA.Mods.Common.Lint
 						if (isPlayerPalette)
 						{
 							if (!playerPalettes.Contains(reference))
-								emitError($"Undefined player palette reference {reference} detected at weapon {weaponInfo.Key}.");
+								emitError($"Undefined player palette reference `{reference}` detected at weapon `{weaponInfo.Key}`.");
 						}
 						else
 						{
 							if (!palettes.Contains(reference))
-								emitError($"Undefined palette reference {reference} detected at weapon {weaponInfo.Key}.");
+								emitError($"Undefined palette reference `{reference}` detected at weapon `{weaponInfo.Key}`.");
 						}
 					}
 				}
 			}
 		}
 
-		void GetPalettes(Ruleset rules, List<string> palettes, List<string> playerPalettes, Action<string> emitError)
+		static void GetPalettes(Ruleset rules, List<string> palettes, List<string> playerPalettes, Action<string> emitError)
 		{
-			// Palettes are only defined on the world actor
+			// Palettes are only defined on the world actor.
 			var worldActorInfo = rules.Actors[SystemActors.World];
 			var tilesetPalettes = new List<(string Tileset, string PaletteName)>();
 			foreach (var traitInfo in worldActorInfo.TraitInfos<TraitInfo>())
 			{
-				var fields = traitInfo.GetType().GetFields();
+				var fields = Utility.GetFields(traitInfo.GetType());
 				foreach (var field in fields)
 				{
-					var paletteDefinition = field.GetCustomAttributes<PaletteDefinitionAttribute>(true).FirstOrDefault();
+					var paletteDefinition = Utility.GetCustomAttributes<PaletteDefinitionAttribute>(field, true).FirstOrDefault();
 					if (paletteDefinition == null)
 						continue;
 
@@ -139,7 +139,7 @@ namespace OpenRA.Mods.Common.Lint
 						if (paletteDefinition.IsPlayerPalette)
 						{
 							if (playerPalettes.Contains(value))
-								emitError($"Duplicate player palette definition for palette name {value}");
+								emitError($"Duplicate player palette definition for palette name `{value}`.");
 
 							playerPalettes.Add(value);
 						}
@@ -151,12 +151,12 @@ namespace OpenRA.Mods.Common.Lint
 							{
 								var tilesetPalette = (tilesetSpecificPaletteInfo.Tileset, value);
 								if (tilesetPalettes.Contains(tilesetPalette))
-									emitError($"Duplicate palette definition for palette name {value}");
+									emitError($"Duplicate palette definition for palette name `{value}`.");
 								else
 								{
 									tilesetPalettes.Add(tilesetPalette);
 
-									// Only add the basic palette name once
+									// Only add the basic palette name once.
 									if (!palettes.Contains(value))
 										palettes.Add(value);
 								}
@@ -164,7 +164,7 @@ namespace OpenRA.Mods.Common.Lint
 							else
 							{
 								if (palettes.Contains(value))
-									emitError($"Duplicate palette definition for palette name {value}");
+									emitError($"Duplicate palette definition for palette name `{value}`.");
 
 								palettes.Add(value);
 							}

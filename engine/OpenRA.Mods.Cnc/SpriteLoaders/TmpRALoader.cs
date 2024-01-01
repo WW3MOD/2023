@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Cnc.SpriteLoaders
 {
 	public class TmpRALoader : ISpriteLoader
 	{
-		class TmpRAFrame : ISpriteFrame
+		sealed class TmpRAFrame : ISpriteFrame
 		{
 			public SpriteFrameType Type => SpriteFrameType.Indexed8;
 			public Size Size { get; }
@@ -39,7 +39,7 @@ namespace OpenRA.Mods.Cnc.SpriteLoaders
 			}
 		}
 
-		bool IsTmpRA(Stream s)
+		static bool IsTmpRA(Stream s)
 		{
 			var start = s.Position;
 
@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Cnc.SpriteLoaders
 			return a == 0 && b == 0x2c73;
 		}
 
-		TmpRAFrame[] ParseFrames(Stream s)
+		static TmpRAFrame[] ParseFrames(Stream s)
 		{
 			var start = s.Position;
 			var width = s.ReadUInt16();

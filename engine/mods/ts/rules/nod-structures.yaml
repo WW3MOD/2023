@@ -160,6 +160,7 @@ NAHAND:
 		IsPlayerPalette: false
 		LineWidth: 2
 		ForceSetType: Infantry
+		CirclesSequence:
 	CommandBarBlacklist:
 		DisableStop: false
 	Production:
@@ -209,6 +210,7 @@ NAWEAP:
 		IsPlayerPalette: false
 		LineWidth: 2
 		ForceSetType: Vehicle
+		CirclesSequence:
 	CommandBarBlacklist:
 		DisableStop: false
 	Exit@1:
@@ -271,6 +273,7 @@ NAHPAD:
 		IsPlayerPalette: false
 		LineWidth: 2
 		ForceSetType: Air
+		CirclesSequence:
 	CommandBarBlacklist:
 		DisableStop: false
 	Production:
@@ -333,6 +336,7 @@ NARADR:
 	ProvidesMiniMap:
 		RequiresCondition: !disabled && !empdisable
 	InfiltrateForExploration:
+		PlayerExperience: 10
 	DetectCloaked:
 		Range: 10c0
 	RenderDetectionCircle:
@@ -584,7 +588,7 @@ NAWAST:
 	Vision:
 		Range: 6c0
 		MaxHeightDelta: 3
-	TiberianSunRefinery:
+	Refinery:
 		DockAngle: 640
 		DockOffset: 2,1
 	StoresResources:

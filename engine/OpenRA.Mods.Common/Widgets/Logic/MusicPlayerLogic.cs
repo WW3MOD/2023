@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,10 +19,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class MusicPlayerLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string SoundMuted = "sound-muted";
+		const string SoundMuted = "label-sound-muted";
 
 		[TranslationReference]
-		static readonly string NoSongPlaying = "no-song-playing";
+		const string NoSongPlaying = "label-no-song-playing";
 
 		readonly ScrollPanelWidget musicList;
 		readonly ScrollItemWidget itemTemplate;
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			BuildMusicTable();
 
-			Func<bool> noMusic = () => !musicPlaylist.IsMusicAvailable || musicPlaylist.CurrentSongIsBackground || currentSong == null;
+			bool NoMusic() => !musicPlaylist.IsMusicAvailable || musicPlaylist.CurrentSongIsBackground || currentSong == null;
 			panel.Get("NO_MUSIC_LABEL").IsVisible = () => !musicPlaylist.IsMusicAvailable;
 
 			if (musicPlaylist.IsMusicAvailable)
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				panel.Get<LabelWidget>("MUTE_LABEL").GetText = () =>
 				{
 					if (Game.Settings.Sound.Mute)
-						return modData.Translation.GetString(SoundMuted);
+						return TranslationProvider.GetString(SoundMuted);
 
 					return "";
 				};
@@ -57,25 +57,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var playButton = panel.Get<ButtonWidget>("BUTTON_PLAY");
 			playButton.OnClick = Play;
-			playButton.IsDisabled = noMusic;
+			playButton.IsDisabled = NoMusic;
 			playButton.IsVisible = () => !Game.Sound.MusicPlaying;
 
 			var pauseButton = panel.Get<ButtonWidget>("BUTTON_PAUSE");
 			pauseButton.OnClick = Game.Sound.PauseMusic;
-			pauseButton.IsDisabled = noMusic;
+			pauseButton.IsDisabled = NoMusic;
 			pauseButton.IsVisible = () => Game.Sound.MusicPlaying;
 
 			var stopButton = panel.Get<ButtonWidget>("BUTTON_STOP");
-			stopButton.OnClick = () => { musicPlaylist.Stop(); };
-			stopButton.IsDisabled = noMusic;
+			stopButton.OnClick = musicPlaylist.Stop;
+			stopButton.IsDisabled = NoMusic;
 
 			var nextButton = panel.Get<ButtonWidget>("BUTTON_NEXT");
 			nextButton.OnClick = () => { currentSong = musicPlaylist.GetNextSong(); Play(); };
-			nextButton.IsDisabled = noMusic;
+			nextButton.IsDisabled = NoMusic;
 
 			var prevButton = panel.Get<ButtonWidget>("BUTTON_PREV");
 			prevButton.OnClick = () => { currentSong = musicPlaylist.GetPrevSong(); Play(); };
-			prevButton.IsDisabled = noMusic;
+			prevButton.IsDisabled = NoMusic;
 
 			var shuffleCheckbox = panel.Get<CheckboxWidget>("SHUFFLE");
 			shuffleCheckbox.IsChecked = () => Game.Settings.Sound.Shuffle;
@@ -101,7 +101,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return $"{minutes:D2}:{seconds:D2} / {totalMinutes:D2}:{totalSeconds:D2}";
 			};
 
-			var noSongPlaying = modData.Translation.GetString(NoSongPlaying);
+			var noSongPlaying = TranslationProvider.GetString(NoSongPlaying);
 			var musicTitle = panel.GetOrNull<LabelWidget>("TITLE_LABEL");
 			if (musicTitle != null)
 				musicTitle.GetText = () => currentSong != null ? currentSong.Title : noSongPlaying;

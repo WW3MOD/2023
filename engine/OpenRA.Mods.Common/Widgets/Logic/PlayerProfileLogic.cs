@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -132,10 +132,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class RegisteredProfileTooltipLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string LoadingPlayerProfile = "loading-player-profile";
+		const string LoadingPlayerProfile = "label-loading-player-profile";
 
 		[TranslationReference]
-		static readonly string LoadingPlayerProfileFailed = "loading-player-profile-failed";
+		const string LoadingPlayerProfileFailed = "label-loading-player-profile-failed";
 
 		readonly PlayerDatabase playerDatabase;
 		PlayerProfile profile;
@@ -160,7 +160,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var profileWidth = 0;
 			var maxProfileWidth = widget.Bounds.Width;
-			var messageText = modData.Translation.GetString(LoadingPlayerProfile);
+			var messageText = TranslationProvider.GetString(LoadingPlayerProfile);
 			var messageWidth = messageFont.Measure(messageText).X + 2 * message.Bounds.Left;
 
 			Task.Run(async () =>
@@ -249,7 +249,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					if (profile == null)
 					{
-						messageText = modData.Translation.GetString(LoadingPlayerProfileFailed);
+						messageText = TranslationProvider.GetString(LoadingPlayerProfileFailed);
 						messageWidth = messageFont.Measure(messageText).X + 2 * message.Bounds.Left;
 						header.Bounds.Width = widget.Bounds.Width = messageWidth;
 					}

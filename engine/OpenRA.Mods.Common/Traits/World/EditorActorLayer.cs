@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -39,8 +39,8 @@ namespace OpenRA.Mods.Common.Traits
 	public class EditorActorLayer : IWorldLoaded, ITickRender, IRender, IMiniMapSignature, ICreatePlayers, IRenderAnnotations
 	{
 		readonly EditorActorLayerInfo info;
-		readonly List<EditorActorPreview> previews = new List<EditorActorPreview>();
-		readonly Dictionary<CPos, List<EditorActorPreview>> cellMap = new Dictionary<CPos, List<EditorActorPreview>>();
+		readonly List<EditorActorPreview> previews = new();
+		readonly Dictionary<CPos, List<EditorActorPreview>> cellMap = new();
 
 		SpatiallyPartitioned<EditorActorPreview> screenMap;
 		WorldRenderer worldRenderer;
@@ -201,7 +201,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var kv in mp)
 			{
 				var name = kv.Key;
-				var index = int.Parse(name.Substring(5));
+				var index = int.Parse(name[5..]);
 
 				if (index >= newCount)
 				{
@@ -284,10 +284,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			for (var i = (byte)SubCell.First; i < map.Grid.SubCellOffsets.Length; i++)
 			{
-				var blocked = previews.Any(p =>
-				{
-					return p.Footprint.TryGetValue(cell, out var s) && s == (SubCell)i;
-				});
+				var blocked = previews.Any(p => p.Footprint.TryGetValue(cell, out var s) && s == (SubCell)i);
 
 				if (!blocked)
 					return (SubCell)i;

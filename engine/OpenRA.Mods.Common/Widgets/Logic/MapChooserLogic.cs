@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,56 +19,63 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class MapChooserLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string AllMaps = "all-maps";
-		readonly string allMaps;
+		const string AllMaps = "label-all-maps";
 
 		[TranslationReference]
-		static readonly string NoMatches = "no-matches";
+		const string NoMatches = "label-no-matches";
 
 		[TranslationReference("players")]
-		static readonly string Players = "player-players";
+		const string Players = "label-player-count";
 
 		[TranslationReference("author")]
-		static readonly string CreatedBy = "created-by";
+		const string CreatedBy = "label-created-by";
 
 		[TranslationReference]
-		static readonly string MapSizeHuge = "map-size-huge";
+		const string MapSizeHuge = "label-map-size-huge";
 
 		[TranslationReference]
-		static readonly string MapSizeLarge = "map-size-large";
+		const string MapSizeLarge = "label-map-size-large";
 
 		[TranslationReference]
-		static readonly string MapSizeMedium = "map-size-medium";
+		const string MapSizeMedium = "label-map-size-medium";
 
 		[TranslationReference]
-		static readonly string MapSizeSmall = "map-size-small";
+		const string MapSizeSmall = "label-map-size-small";
 
 		[TranslationReference("map")]
-		static readonly string MapDeletionFailed = "map-deletion-failed";
+		const string MapDeletionFailed = "notification-map-deletion-failed";
 
 		[TranslationReference]
-		static readonly string DeleteMapTitle = "delete-map-title";
+		const string DeleteMapTitle = "dialog-delete-map.title";
 
 		[TranslationReference("title")]
-		static readonly string DeleteMapPrompt = "delete-map-prompt";
+		const string DeleteMapPrompt = "dialog-delete-map.prompt";
 
 		[TranslationReference]
-		static readonly string DeleteMapAccept = "delete-map-accept";
+		const string DeleteMapAccept = "dialog-delete-map.confirm";
 
 		[TranslationReference]
-		static readonly string DeleteAllMapsTitle = "delete-all-maps-title";
+		const string DeleteAllMapsTitle = "dialog-delete-all-maps.title";
 
 		[TranslationReference]
-		static readonly string DeleteAllMapsPrompt = "delete-all-maps-prompt";
+		const string DeleteAllMapsPrompt = "dialog-delete-all-maps.prompt";
 
 		[TranslationReference]
-		static readonly string DeleteAllMapsAccept = "delete-all-maps-accept";
+		const string DeleteAllMapsAccept = "dialog-delete-all-maps.confirm";
 
 		[TranslationReference]
-		static readonly string OrderMapsByPlayers = "order-maps-players";
+		const string OrderMapsByPlayers = "options-order-maps.player-count";
 
 		[TranslationReference]
-		static readonly string OrderMapsByDate = "order-maps-date";
+		const string OrderMapsByTitle = "options-order-maps.title";
+
+		[TranslationReference]
+		const string OrderMapsByDate = "options-order-maps.date";
+
+		[TranslationReference]
+		const string OrderMapsBySize = "options-order-maps.size";
+
+		readonly string allMaps;
 
 		readonly Widget widget;
 		readonly DropDownButtonWidget gameModeDropdown;
@@ -76,9 +83,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		MapClassification currentTab;
 
-		readonly Dictionary<MapClassification, ScrollPanelWidget> scrollpanels = new Dictionary<MapClassification, ScrollPanelWidget>();
+		readonly Dictionary<MapClassification, ScrollPanelWidget> scrollpanels = new();
 
-		readonly Dictionary<MapClassification, MapPreview[]> tabMaps = new Dictionary<MapClassification, MapPreview[]>();
+		readonly Dictionary<MapClassification, MapPreview[]> tabMaps = new();
 		string[] visibleMaps;
 
 		string selectedUid;
@@ -88,8 +95,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		string mapFilter;
 
 		Func<MapPreview, long> orderByFunc;
-		readonly string orderByPlayer;
-		readonly string orderByDate;
 
 		[ObjectCreator.UseCtor]
 		internal MapChooserLogic(Widget widget, ModData modData, string initialMap,
@@ -99,9 +104,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 			this.onSelect = onSelect;
 
-			allMaps = modData.Translation.GetString(AllMaps);
-			orderByPlayer = modData.Translation.GetString(OrderMapsByPlayers);
-			orderByDate = modData.Translation.GetString(OrderMapsByDate);
+			allMaps = TranslationProvider.GetString(AllMaps);
 
 			var approving = new Action(() =>
 			{
@@ -188,9 +191,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SetupMapTab(MapClassification.User, filter, "USER_MAPS_TAB_BUTTON", "USER_MAPS_TAB", itemTemplate);
 			SetupMapTab(MapClassification.System, filter, "SYSTEM_MAPS_TAB_BUTTON", "SYSTEM_MAPS_TAB", itemTemplate);
 
-			if (initialMap == null && tabMaps.ContainsKey(initialTab) && tabMaps[initialTab].Length > 0)
+			if (initialMap == null && tabMaps.TryGetValue(initialTab, out var map) && map.Length > 0)
 			{
-				selectedUid = Game.ModData.MapCache.ChooseInitialMap(tabMaps[initialTab].Select(mp => mp.Uid).First(),
+				selectedUid = Game.ModData.MapCache.ChooseInitialMap(map.Select(mp => mp.Uid).First(),
 					Game.CosmeticRandom);
 				currentTab = initialTab;
 			}
@@ -252,29 +255,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.ToList();
 
 				// 'all game types' extra item
-				categories.Insert(0, (null as string, tabMaps[tab].Length));
+				categories.Insert(0, (null, tabMaps[tab].Length));
 
-				Func<(string Category, int Count), string> showItem = x => (x.Category ?? allMaps) + $" ({x.Count})";
+				string ShowItem((string Category, int Count) x) => (x.Category ?? allMaps) + $" ({x.Count})";
 
-				Func<(string Category, int Count), ScrollItemWidget, ScrollItemWidget> setupItem = (ii, template) =>
+				ScrollItemWidget SetupItem((string Category, int Count) ii, ScrollItemWidget template)
 				{
 					var item = ScrollItemWidget.Setup(template,
 						() => category == ii.Category,
 						() => { category = ii.Category; EnumerateMaps(tab, itemTemplate); });
-					item.Get<LabelWidget>("LABEL").GetText = () => showItem(ii);
+					item.Get<LabelWidget>("LABEL").GetText = () => ShowItem(ii);
 					return item;
-				};
+				}
 
 				gameModeDropdown.OnClick = () =>
-					gameModeDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 210, categories, setupItem);
+					gameModeDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 210, categories, SetupItem);
 
 				gameModeDropdown.GetText = () =>
 				{
 					var item = categories.FirstOrDefault(m => m.Category == category);
 					if (item == default((string, int)))
-						item.Category = modData.Translation.GetString(NoMatches);
+						item.Category = TranslationProvider.GetString(NoMatches);
 
-					return showItem(item);
+					return ShowItem(item);
 				};
 			}
 		}
@@ -285,16 +288,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (orderByDropdown == null)
 				return;
 
+			var orderByPlayer = TranslationProvider.GetString(OrderMapsByPlayers);
+
 			var orderByDict = new Dictionary<string, Func<MapPreview, long>>()
 			{
 				{ orderByPlayer, m => m.PlayerCount },
-				{ orderByDate, m => -m.ModifiedDate.Ticks }
+				{ TranslationProvider.GetString(OrderMapsByTitle), null },
+				{ TranslationProvider.GetString(OrderMapsByDate), m => -m.ModifiedDate.Ticks },
+				{ TranslationProvider.GetString(OrderMapsBySize), m => m.Bounds.Width * m.Bounds.Height },
 			};
 
-			if (orderByFunc == null)
-				orderByFunc = orderByDict[orderByPlayer];
+			orderByFunc = orderByDict[orderByPlayer];
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, template) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget template)
 			{
 				var item = ScrollItemWidget.Setup(template,
 					() => orderByFunc == orderByDict[o],
@@ -302,10 +308,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 
 				return item;
-			};
+			}
 
 			orderByDropdown.OnClick = () =>
-				orderByDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, orderByDict.Keys, setupItem);
+				orderByDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, orderByDict.Keys, SetupItem);
 
 			orderByDropdown.GetText = () =>
 				orderByDict.FirstOrDefault(m => m.Value == orderByFunc).Key;
@@ -316,14 +322,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (!int.TryParse(mapFilter, out var playerCountFilter))
 				playerCountFilter = -1;
 
-			var maps = tabMaps[tab]
+			var validMaps = tabMaps[tab]
 				.Where(m => category == null || m.Categories.Contains(category))
 				.Where(m => mapFilter == null ||
 					(m.Title != null && m.Title.IndexOf(mapFilter, StringComparison.OrdinalIgnoreCase) >= 0) ||
 					(m.Author != null && m.Author.IndexOf(mapFilter, StringComparison.OrdinalIgnoreCase) >= 0) ||
-					m.PlayerCount == playerCountFilter)
-				.OrderBy(orderByFunc)
-				.ThenBy(m => m.Title);
+					m.PlayerCount == playerCountFilter);
+
+			IOrderedEnumerable<MapPreview> maps;
+			if (orderByFunc == null)
+				maps = validMaps.OrderBy(m => m.Title);
+			else
+				maps = validMaps.OrderBy(orderByFunc).ThenBy(m => m.Title);
 
 			scrollpanels[tab].RemoveChildren();
 			foreach (var loop in maps)
@@ -333,17 +343,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// Access the minimap to trigger async generation of the minimap.
 				preview.GetMinimap();
 
-				Action dblClick = () =>
+				void DblClick()
 				{
 					if (onSelect != null)
 					{
 						Ui.CloseWindow();
 						onSelect(preview.Uid);
 					}
-				};
+				}
 
 				var item = ScrollItemWidget.Setup(preview.Uid, template, () => selectedUid == preview.Uid,
-					() => selectedUid = preview.Uid, dblClick);
+					() => selectedUid = preview.Uid, DblClick);
 				item.IsVisible = () => item.RenderBounds.IntersectsWith(scrollpanels[tab].RenderBounds);
 
 				var titleLabel = item.Get<LabelWithTooltipWidget>("TITLE");
@@ -363,23 +373,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (type != null)
 						details = type + " ";
 
-					details += modData.Translation.GetString(Players, Translation.Arguments("players", preview.PlayerCount));
+					details += TranslationProvider.GetString(Players, Translation.Arguments("players", preview.PlayerCount));
 					detailsWidget.GetText = () => details;
 				}
 
 				var authorWidget = item.GetOrNull<LabelWithTooltipWidget>("AUTHOR");
 				if (authorWidget != null && !string.IsNullOrEmpty(preview.Author))
-					WidgetUtils.TruncateLabelToTooltip(authorWidget, modData.Translation.GetString(CreatedBy, Translation.Arguments("author", preview.Author)));
+					WidgetUtils.TruncateLabelToTooltip(authorWidget, TranslationProvider.GetString(CreatedBy, Translation.Arguments("author", preview.Author)));
 
 				var sizeWidget = item.GetOrNull<LabelWidget>("SIZE");
 				if (sizeWidget != null)
 				{
 					var size = preview.Bounds.Width + "x" + preview.Bounds.Height;
 					var numberPlayableCells = preview.Bounds.Width * preview.Bounds.Height;
-					if (numberPlayableCells >= 120 * 120) size += " " + modData.Translation.GetString(MapSizeHuge);
-					else if (numberPlayableCells >= 90 * 90) size += " " + modData.Translation.GetString(MapSizeLarge);
-					else if (numberPlayableCells >= 60 * 60) size += " " + modData.Translation.GetString(MapSizeMedium);
-					else size += " " + modData.Translation.GetString(MapSizeSmall);
+					if (numberPlayableCells >= 120 * 120) size += " " + TranslationProvider.GetString(MapSizeHuge);
+					else if (numberPlayableCells >= 90 * 90) size += " " + TranslationProvider.GetString(MapSizeLarge);
+					else if (numberPlayableCells >= 60 * 60) size += " " + TranslationProvider.GetString(MapSizeMedium);
+					else size += " " + TranslationProvider.GetString(MapSizeSmall);
 					sizeWidget.GetText = () => size;
 				}
 
@@ -407,7 +417,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 			catch (Exception ex)
 			{
-				TextNotificationsManager.Debug(modData.Translation.GetString(MapDeletionFailed, Translation.Arguments("map", map)));
+				TextNotificationsManager.Debug(TranslationProvider.GetString(MapDeletionFailed, Translation.Arguments("map", map)));
 				Log.Write("debug", ex.ToString());
 			}
 

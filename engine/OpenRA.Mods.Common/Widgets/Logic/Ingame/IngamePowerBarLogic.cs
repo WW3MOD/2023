@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,10 +18,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class IngamePowerBarLogic : ChromeLogic
 	{
 		[TranslationReference("usage", "capacity")]
-		static readonly string PowerUsage = "power-usage";
+		const string PowerUsage = "label-power-usage";
 
 		[TranslationReference]
-		static readonly string Infinite = "infinite-power";
+		const string Infinite = "label-infinite-power";
 
 		[ObjectCreator.UseCtor]
 		public IngamePowerBarLogic(Widget widget, ModData modData, World world)
@@ -35,10 +35,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			powerBar.TooltipTextCached = new CachedTransform<(float Current, float Capacity), string>(usage =>
 			{
 				var capacity = developerMode.UnlimitedPower ?
-					modData.Translation.GetString(Infinite) :
+					TranslationProvider.GetString(Infinite) :
 					powerManager.PowerProvided.ToString();
 
-				return modData.Translation.GetString(
+				return TranslationProvider.GetString(
 					PowerUsage,
 					Translation.Arguments("usage", usage.Current, "capacity", capacity));
 			});

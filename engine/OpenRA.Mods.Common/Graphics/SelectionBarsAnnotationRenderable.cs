@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,35 +17,32 @@ namespace OpenRA.Mods.Common.Graphics
 {
 	public class SelectionBarsAnnotationRenderable : IRenderable, IFinalizedRenderable
 	{
-		readonly WPos pos;
 		readonly Actor actor;
-		readonly bool displayHealth;
-		readonly bool displayExtra;
 		readonly Rectangle decorationBounds;
 
 		public SelectionBarsAnnotationRenderable(Actor actor, Rectangle decorationBounds, bool displayHealth, bool displayExtra)
 			: this(actor.CenterPosition, actor, decorationBounds)
 		{
-			this.displayHealth = displayHealth;
-			this.displayExtra = displayExtra;
+			DisplayHealth = displayHealth;
+			DisplayExtra = displayExtra;
 		}
 
 		public SelectionBarsAnnotationRenderable(WPos pos, Actor actor, Rectangle decorationBounds)
 		{
-			this.pos = pos;
+			Pos = pos;
 			this.actor = actor;
 			this.decorationBounds = decorationBounds;
 		}
 
-		public WPos Pos => pos;
-		public bool DisplayHealth => displayHealth;
-		public bool DisplayExtra => displayExtra;
+		public WPos Pos { get; }
+		public bool DisplayHealth { get; }
+		public bool DisplayExtra { get; }
 
 		public int ZOffset => 0;
 		public bool IsDecoration => true;
 
 		public IRenderable WithZOffset(int newOffset) { return this; }
-		public IRenderable OffsetBy(in WVec vec) { return new SelectionBarsAnnotationRenderable(pos + vec, actor, decorationBounds); }
+		public IRenderable OffsetBy(in WVec vec) { return new SelectionBarsAnnotationRenderable(Pos + vec, actor, decorationBounds); }
 		public IRenderable AsDecoration() { return this; }
 
 		void DrawExtraBars(float2 start, float2 end)
@@ -63,7 +60,7 @@ namespace OpenRA.Mods.Common.Graphics
 			}
 		}
 
-		void DrawSelectionBar(float2 start, float2 end, float value, Color barColor)
+		static void DrawSelectionBar(float2 start, float2 end, float value, Color barColor)
 		{
 			var c = Color.FromArgb(128, 30, 30, 30);
 			var c2 = Color.FromArgb(128, 10, 10, 10);

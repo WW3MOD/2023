@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,7 +26,7 @@ namespace OpenRA.Graphics
 		float[] Bounds(uint frame);
 		ModelRenderData RenderData(uint section);
 
-		/// <summary>Returns the smallest rectangle that covers all rotations of all frames in a model</summary>
+		/// <summary>Returns the smallest rectangle that covers all rotations of all frames in a model.</summary>
 		Rectangle AggregateBounds { get; }
 	}
 
@@ -62,7 +62,7 @@ namespace OpenRA.Graphics
 	{
 		public Action<string> OnMissingModelError { get; set; }
 
-		class PlaceholderModelCache : IModelCache
+		sealed class PlaceholderModelCache : IModelCache
 		{
 			public IVertexBuffer<Vertex> VertexBuffer => throw new NotImplementedException();
 
@@ -84,7 +84,6 @@ namespace OpenRA.Graphics
 			}
 		}
 
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "IDE0060:Remove unused parameter", Justification = "Load game API")]
 		public PlaceholderModelSequenceLoader(ModData modData) { }
 
 		public IModelCache CacheModels(IReadOnlyFileSystem fileSystem, ModData modData, IReadOnlyDictionary<string, MiniYamlNode> modelDefinitions)

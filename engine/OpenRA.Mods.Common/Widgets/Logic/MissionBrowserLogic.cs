@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,22 +26,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		enum PlayingVideo { None, Info, Briefing, GameStart }
 
 		[TranslationReference]
-		static readonly string NoVideoTitle = "no-video-title";
+		const string NoVideoTitle = "dialog-no-video.title";
 
 		[TranslationReference]
-		static readonly string NoVideoPrompt = "no-video-prompt";
+		const string NoVideoPrompt = "dialog-no-video.prompt";
 
 		[TranslationReference]
-		static readonly string NoVideoCancel = "no-video-cancel";
+		const string NoVideoCancel = "dialog-no-video.cancel";
 
 		[TranslationReference]
-		static readonly string CantPlayTitle = "cant-play-title";
+		const string CantPlayTitle = "dialog-cant-play-video.title";
 
 		[TranslationReference]
-		static readonly string CantPlayPrompt = "cant-play-prompt";
+		const string CantPlayPrompt = "dialog-cant-play-video.prompt";
 
 		[TranslationReference]
-		static readonly string CantPlayCancel = "cant-play-cancel";
+		const string CantPlayCancel = "dialog-cant-play-video.cancel";
+
+		[TranslationReference]
+		const string DifficultyNormal = "options-difficulty.normal";
 
 		readonly ModData modData;
 		readonly Action onStart;
@@ -286,26 +289,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			if (difficultyButton != null)
 			{
-				var difficultyName = new CachedTransform<string, string>(id => id == null || !difficulties.ContainsKey(id) ? "Normal" : difficulties[id]);
+				var difficultyName = new CachedTransform<string, string>(id => preview.GetLocalisedString(
+					id == null || !difficulties.ContainsKey(id) ? DifficultyNormal : difficulties[id]));
+
 				difficultyButton.IsDisabled = () => difficultyDisabled;
 				difficultyButton.GetText = () => difficultyName.Update(difficulty);
 				difficultyButton.OnMouseDown = _ =>
 				{
 					var options = difficulties.Select(kv => new DropDownOption
 					{
-						Title = kv.Value,
+						Title = preview.GetLocalisedString(kv.Value),
 						IsSelected = () => difficulty == kv.Key,
 						OnClick = () => difficulty = kv.Key
 					});
 
-					Func<DropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+					ScrollItemWidget SetupItem(DropDownOption option, ScrollItemWidget template)
 					{
 						var item = ScrollItemWidget.Setup(template, option.IsSelected, option.OnClick);
 						item.Get<LabelWidget>("LABEL").GetText = () => option.Title;
 						return item;
-					};
+					}
 
-					difficultyButton.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", options.Count() * 30, options, setupItem);
+					difficultyButton.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", options.Count() * 30, options, SetupItem);
 				};
 			}
 
@@ -314,25 +319,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var speeds = modData.Manifest.Get<GameSpeeds>().Speeds;
 				gameSpeed = "default";
 
-				var speedText = new CachedTransform<string, string>(s => modData.Translation.GetString(speeds[s].Name));
+				var speedText = new CachedTransform<string, string>(s => TranslationProvider.GetString(speeds[s].Name));
 				gameSpeedButton.GetText = () => speedText.Update(gameSpeed);
 				gameSpeedButton.OnMouseDown = _ =>
 				{
 					var options = speeds.Select(s => new DropDownOption
 					{
-						Title = modData.Translation.GetString(s.Value.Name),
+						Title = TranslationProvider.GetString(s.Value.Name),
 						IsSelected = () => gameSpeed == s.Key,
 						OnClick = () => gameSpeed = s.Key
 					});
 
-					Func<DropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+					ScrollItemWidget SetupItem(DropDownOption option, ScrollItemWidget template)
 					{
 						var item = ScrollItemWidget.Setup(template, option.IsSelected, option.OnClick);
 						item.Get<LabelWidget>("LABEL").GetText = () => option.Title;
 						return item;
-					};
+					}
 
-					gameSpeedButton.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", options.Count() * 30, options, setupItem);
+					gameSpeedButton.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", options.Count() * 30, options, SetupItem);
 				};
 			}
 		}
@@ -434,16 +439,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				var fsPlayer = fullscreenVideoPlayer.Get<VideoPlayerWidget>("PLAYER");
 				fullscreenVideoPlayer.Visible = true;
-				PlayVideo(fsPlayer, missionData.StartVideo, PlayingVideo.GameStart, () =>
-				{
-					Game.CreateAndStartLocalServer(selectedMap.Uid, orders);
-				});
+				PlayVideo(fsPlayer, missionData.StartVideo, PlayingVideo.GameStart,
+					() => Game.CreateAndStartLocalServer(selectedMap.Uid, orders));
 			}
 			else
 				Game.CreateAndStartLocalServer(selectedMap.Uid, orders);
 		}
 
-		class DropDownOption
+		sealed class DropDownOption
 		{
 			public string Title;
 			public Func<bool> IsSelected;

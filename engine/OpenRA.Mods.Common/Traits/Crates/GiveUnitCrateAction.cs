@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string[] Units = Array.Empty<string>();
 
 		[Desc("Factions that are allowed to trigger this action.")]
-		public readonly HashSet<string> ValidFactions = new HashSet<string>();
+		public readonly HashSet<string> ValidFactions = new();
 
 		[Desc("Override the owner of the newly spawned unit: e.g. Creeps or Neutral")]
 		public readonly string Owner = null;
@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly Actor self;
 		readonly GiveUnitCrateActionInfo info;
-		readonly List<CPos> usedCells = new List<CPos>();
+		readonly List<CPos> usedCells = new();
 
 		public GiveUnitCrateAction(Actor self, GiveUnitCrateActionInfo info)
 			: base(self, info)

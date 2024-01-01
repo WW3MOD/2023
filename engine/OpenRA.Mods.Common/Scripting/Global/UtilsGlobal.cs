@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -81,6 +81,20 @@ namespace OpenRA.Mods.Common.Scripting
 			for (var i = numElements; i <= table.Count; i++)
 				using (LuaValue key = t.Count + 1, value = table[i])
 					t.Add(key, value);
+
+			return t;
+		}
+
+		[Desc("Concatenates two Lua tables into a single table.")]
+		public LuaTable Concat(LuaValue[] firstCollection, LuaValue[] secondCollection)
+		{
+			var t = Context.CreateTable();
+
+			foreach (var e in firstCollection)
+				t.Add(t.Count + 1, e);
+
+			foreach (var e in secondCollection)
+				t.Add(t.Count + 1, e);
 
 			return t;
 		}

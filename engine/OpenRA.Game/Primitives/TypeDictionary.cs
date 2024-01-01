@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,10 +16,10 @@ using System.Linq;
 
 namespace OpenRA.Primitives
 {
-	public class TypeDictionary : IEnumerable
+	public class TypeDictionary : IEnumerable<object>
 	{
 		static readonly Func<Type, List<object>> CreateList = type => new List<object>();
-		readonly Dictionary<Type, List<object>> data = new Dictionary<Type, List<object>>();
+		readonly Dictionary<Type, List<object>> data = new();
 
 		public void Add(object val)
 		{
@@ -101,13 +101,19 @@ namespace OpenRA.Primitives
 
 		public void TrimExcess()
 		{
+			data.TrimExcess();
 			foreach (var objs in data.Values)
 				objs.TrimExcess();
 		}
 
-		public IEnumerator GetEnumerator()
+		public IEnumerator<object> GetEnumerator()
 		{
 			return WithInterface<object>().GetEnumerator();
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return GetEnumerator();
 		}
 	}
 

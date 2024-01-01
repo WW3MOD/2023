@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -61,34 +61,34 @@ namespace OpenRA.Network
 
 		public const int ProtocolVersion = 2;
 
-		/// <summary>Online game number or -1 for LAN games</summary>
+		/// <summary>Online game number or -1 for LAN games.</summary>
 		public readonly int Id = -1;
 
-		/// <summary>Name of the server</summary>
+		/// <summary>Name of the server.</summary>
 		public readonly string Name = null;
 
 		/// <summary>ip:port string to connect to.</summary>
 		public readonly string Address = null;
 
-		/// <summary>Port of the server</summary>
+		/// <summary>Port of the server.</summary>
 		public readonly int Port = 0;
 
-		/// <summary>The current state of the server (waiting/playing/completed)</summary>
+		/// <summary>The current state of the server (waiting/playing/completed).</summary>
 		public readonly int State = 0;
 
-		/// <summary>The number of slots available for non-bot players</summary>
+		/// <summary>The number of slots available for non-bot players.</summary>
 		public readonly int MaxPlayers = 0;
 
-		/// <summary>UID of the map</summary>
+		/// <summary>UID of the map.</summary>
 		public readonly string Map = null;
 
-		/// <summary>Mod ID</summary>
+		/// <summary>Mod ID.</summary>
 		public readonly string Mod = "";
 
-		/// <summary>Mod Version</summary>
+		/// <summary>Mod Version.</summary>
 		public readonly string Version = "";
 
-		/// <summary>Human-readable mod title</summary>
+		/// <summary>Human-readable mod title.</summary>
 		public readonly string ModTitle = "";
 
 		/// <summary>URL to show in game listings for custom/unknown mods.</summary>
@@ -100,13 +100,13 @@ namespace OpenRA.Network
 		/// <summary>GeoIP resolved server location.</summary>
 		public readonly string Location = "";
 
-		/// <summary>Password protected</summary>
+		/// <summary>Password protected.</summary>
 		public readonly bool Protected = false;
 
-		/// <summary>Players must be authenticated with the OpenRA forum</summary>
+		/// <summary>Players must be authenticated with the OpenRA forum.</summary>
 		public readonly bool Authentication = false;
 
-		/// <summary>UTC datetime string when the game changed to the Playing state</summary>
+		/// <summary>UTC datetime string when the game changed to the Playing state.</summary>
 		public readonly string Started = null;
 
 		/// <summary>Number of non-spectator, non-bot players. Only defined if GameServer is parsed from yaml.</summary>
@@ -132,7 +132,7 @@ namespace OpenRA.Network
 		[FieldLoader.LoadUsing(nameof(LoadClients))]
 		public readonly GameClient[] Clients;
 
-		/// <summary>The list of spawnpoints that are disabled for this game</summary>
+		/// <summary>The list of spawnpoints that are disabled for this game.</summary>
 		public readonly int[] DisabledSpawnPoints = Array.Empty<int>();
 
 		public string ModLabel => $"{ModTitle} ({Version})";
@@ -254,7 +254,7 @@ namespace OpenRA.Network
 			var clientsNode = new MiniYaml("");
 			var i = 0;
 			foreach (var c in Clients)
-				clientsNode.Nodes.Add(new MiniYamlNode("Client@" + (i++).ToString(), FieldSaver.Save(c)));
+				clientsNode.Nodes.Add(new MiniYamlNode("Client@" + i++.ToString(), FieldSaver.Save(c)));
 
 			root.Add(new MiniYamlNode("Clients", clientsNode));
 			return new MiniYaml("", root)

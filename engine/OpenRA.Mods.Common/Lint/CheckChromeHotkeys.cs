@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,30 +29,30 @@ namespace OpenRA.Mods.Common.Lint
 	[AttributeUsage(AttributeTargets.Method)]
 	public sealed class CustomLintableHotkeyNames : Attribute { }
 
-	class CheckChromeHotkeys : ILintPass
+	sealed class CheckChromeHotkeys : ILintPass
 	{
 		public void Run(Action<string> emitError, Action<string> emitWarning, ModData modData)
 		{
-			// Build the list of valid hotkey names
+			// Build the list of valid hotkey names.
 			var namedKeys = modData.Hotkeys.Definitions.Select(d => d.Name).ToArray();
 
-			// Build the list of widget keys to validate
+			// Build the list of widget keys to validate.
 			var checkWidgetFields = modData.ObjectCreator.GetTypesImplementing<Widget>()
-				.SelectMany(w => w.GetFields()
+				.SelectMany(w => Utility.GetFields(w)
 					.Where(f => f.FieldType == typeof(HotkeyReference))
-					.Select(f => (w.Name.Substring(0, w.Name.Length - 6), f.Name)))
+					.Select(f => (w.Name[..^6], f.Name)))
 				.ToArray();
 
 			var customLintMethods = new Dictionary<string, List<string>>();
 
 			foreach (var w in modData.ObjectCreator.GetTypesImplementing<Widget>())
 			{
-				foreach (var m in w.GetMethods().Where(m => m.HasAttribute<CustomLintableHotkeyNames>()))
+				foreach (var m in w.GetMethods().Where(m => Utility.HasAttribute<CustomLintableHotkeyNames>(m)))
 				{
 					var p = m.GetParameters();
 					if (p.Length == 3 && p[0].ParameterType == typeof(MiniYamlNode) && p[1].ParameterType == typeof(Action<string>)
 							&& p[2].ParameterType == typeof(Action<string>))
-						customLintMethods.GetOrAdd(w.Name.Substring(0, w.Name.Length - 6)).Add(m.Name);
+						customLintMethods.GetOrAdd(w.Name[..^6]).Add(m.Name);
 				}
 			}
 
@@ -77,11 +77,11 @@ namespace OpenRA.Mods.Common.Lint
 					{
 						// Keys are valid if they refer to a named key or can be parsed as a regular Hotkey.
 						if (!namedKeys.Contains(node.Value.Value) && !Hotkey.TryParse(node.Value.Value, out var unused))
-							emitError($"{node.Location} refers to a Key named `{node.Value.Value}` that does not exist");
+							emitError($"{node.Location} refers to a Key named `{node.Value.Value}` that does not exist.");
 					}
 				}
 
-				// Check runtime-defined hotkey names
+				// Check runtime-defined hotkey names.
 				var widgetType = node.Key.Split('@')[0];
 				if (customLintMethods.TryGetValue(widgetType, out var checkMethods))
 				{
@@ -90,10 +90,10 @@ namespace OpenRA.Mods.Common.Lint
 
 					foreach (var name in keyNames)
 						if (!namedKeys.Contains(name) && !Hotkey.TryParse(name, out var unused))
-							emitError($"{node.Location} refers to a Key named `{name}` that does not exist");
+							emitError($"{node.Location} refers to a Key named `{name}` that does not exist.");
 				}
 
-				// Logic classes can declare the data key names that specify hotkeys
+				// Logic classes can declare the data key names that specify hotkeys.
 				if (node.Key == "Logic" && node.Value.Nodes.Count > 0)
 				{
 					var typeNames = FieldLoader.GetValue<string[]>(node.Key, node.Value.Value);
@@ -104,13 +104,13 @@ namespace OpenRA.Mods.Common.Lint
 						if (type == null)
 							continue;
 
-						checkArgKeys.AddRange(type.GetCustomAttributes<ChromeLogicArgsHotkeys>(true).SelectMany(x => x.LogicArgKeys));
+						checkArgKeys.AddRange(Utility.GetCustomAttributes<ChromeLogicArgsHotkeys>(type, true).SelectMany(x => x.LogicArgKeys));
 					}
 
 					foreach (var n in node.Value.Nodes)
 						if (checkArgKeys.Contains(n.Key))
 							if (!namedKeys.Contains(n.Value.Value) && !Hotkey.TryParse(n.Value.Value, out var unused))
-								emitError($"{filename} {node.Value.Value}:{n.Key} refers to a Key named `{n.Value.Value}` that does not exist");
+								emitError($"{filename} {node.Value.Value}:{n.Key} refers to a Key named `{n.Value.Value}` that does not exist.");
 				}
 
 				if (node.Value.Nodes != null)

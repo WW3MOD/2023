@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,14 +20,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ModContentPromptLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string Continue = "button-continue";
+
+		[TranslationReference]
+		const string Quit = "button-quit";
+
 		readonly ModContent content;
 		bool requiredContentInstalled;
-
-		[TranslationReference]
-		static readonly string Continue = "continue";
-
-		[TranslationReference]
-		static readonly string Quit = "quit";
 
 		[ObjectCreator.UseCtor]
 		public ModContentPromptLogic(ModData modData, Widget widget, Manifest mod, ModContent content, Action continueLoading)
@@ -35,8 +35,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.content = content;
 			CheckRequiredContentInstalled();
 
-			var continueMessage = modData.Translation.GetString(Continue);
-			var quitMessage = modData.Translation.GetString(Quit);
+			var continueMessage = TranslationProvider.GetString(Continue);
+			var quitMessage = TranslationProvider.GetString(Quit);
 
 			var panel = widget.Get("CONTENT_PROMPT_PANEL");
 			var headerTemplate = panel.Get<LabelWidget>("HEADER_TEMPLATE");
@@ -86,7 +86,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				Ui.OpenWindow("PACKAGE_DOWNLOAD_PANEL", new WidgetArgs
 				{
-					{ "download", new ModContent.ModDownload(download.Value) },
+					{ "download", new ModContent.ModDownload(download.Value, modObjectCreator) },
 					{ "onSuccess", continueLoading }
 				});
 			};

@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace OpenRA.Mods.Common.UpdateRules.Rules
 {
-	public class UnhardcodeBaseBuilderBotModule : UpdateRule
+	public class UnhardcodeBaseBuilderBotModule : UpdateRule, IBeforeUpdateActors
 	{
 		MiniYamlNode defences;
 
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 		public override string Description => "DefenseTypes were added.";
 
-		public override IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors)
+		public IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors)
 		{
 			var defences = new List<string>();
 

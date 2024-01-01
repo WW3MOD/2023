@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,14 +20,11 @@ namespace OpenRA.Mods.Common.Graphics
 	public class UIModelRenderable : IRenderable, IPalettedRenderable
 	{
 		readonly IEnumerable<ModelAnimation> models;
-		readonly WPos effectiveWorldPos;
 		readonly int2 screenPos;
-		readonly int zOffset;
 		readonly WRot camera;
 		readonly WRot lightSource;
 		readonly float[] lightAmbientColor;
 		readonly float[] lightDiffuseColor;
-		readonly PaletteReference palette;
 		readonly PaletteReference normalsPalette;
 		readonly PaletteReference shadowPalette;
 		readonly float scale;
@@ -38,28 +35,28 @@ namespace OpenRA.Mods.Common.Graphics
 			PaletteReference color, PaletteReference normals, PaletteReference shadow)
 		{
 			this.models = models;
-			this.effectiveWorldPos = effectiveWorldPos;
+			Pos = effectiveWorldPos;
 			this.screenPos = screenPos;
-			this.zOffset = zOffset;
+			ZOffset = zOffset;
 			this.scale = scale;
 			this.camera = camera;
 			this.lightSource = lightSource;
 			this.lightAmbientColor = lightAmbientColor;
 			this.lightDiffuseColor = lightDiffuseColor;
-			palette = color;
+			Palette = color;
 			normalsPalette = normals;
 			shadowPalette = shadow;
 		}
 
-		public WPos Pos => effectiveWorldPos;
-		public PaletteReference Palette => palette;
-		public int ZOffset => zOffset;
+		public WPos Pos { get; }
+		public PaletteReference Palette { get; }
+		public int ZOffset { get; }
 		public bool IsDecoration => false;
 
 		public IPalettedRenderable WithPalette(PaletteReference newPalette)
 		{
 			return new UIModelRenderable(
-				models, effectiveWorldPos, screenPos, zOffset, camera, scale,
+				models, Pos, screenPos, ZOffset, camera, scale,
 				lightSource, lightAmbientColor, lightDiffuseColor,
 				newPalette, normalsPalette, shadowPalette);
 		}
@@ -73,7 +70,7 @@ namespace OpenRA.Mods.Common.Graphics
 			return new FinalizedUIModelRenderable(wr, this);
 		}
 
-		class FinalizedUIModelRenderable : IFinalizedRenderable
+		sealed class FinalizedUIModelRenderable : IFinalizedRenderable
 		{
 			readonly UIModelRenderable model;
 			readonly ModelRenderProxy renderProxy;
@@ -86,7 +83,7 @@ namespace OpenRA.Mods.Common.Graphics
 				renderProxy = Game.Renderer.WorldModelRenderer.RenderAsync(
 					wr, draw, model.camera, model.scale, WRot.None, model.lightSource,
 					model.lightAmbientColor, model.lightDiffuseColor,
-					model.palette, model.normalsPalette, model.shadowPalette);
+					model.Palette, model.normalsPalette, model.shadowPalette);
 			}
 
 			public void Render(WorldRenderer wr)

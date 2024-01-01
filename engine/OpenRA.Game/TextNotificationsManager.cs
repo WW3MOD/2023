@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,13 +17,13 @@ namespace OpenRA
 {
 	public static class TextNotificationsManager
 	{
-		public static readonly int SystemClientId = -1;
+		public const int SystemClientId = -1;
 		static readonly string SystemMessageLabel;
 
 		public static long ChatDisabledUntil { get; internal set; }
-		public static readonly Dictionary<int, bool> MutedPlayers = new Dictionary<int, bool>();
+		public static readonly Dictionary<int, bool> MutedPlayers = new();
 
-		static readonly List<TextNotification> NotificationsCache = new List<TextNotification>();
+		static readonly List<TextNotification> NotificationsCache = new();
 		public static IReadOnlyList<TextNotification> Notifications => NotificationsCache;
 
 		static TextNotificationsManager()
@@ -66,9 +66,9 @@ namespace OpenRA
 			AddTextNotification(TextNotificationPool.Chat, clientId, prefix, text, prefixColor, textColor);
 		}
 
-		public static void Debug(string s, params object[] args)
+		public static void Debug(string format, params object[] args)
 		{
-			AddSystemLine("Debug", string.Format(s, args));
+			AddSystemLine("Debug", string.Format(format, args));
 		}
 
 		static void AddTextNotification(TextNotificationPool pool, int clientId, string prefix, string text, Color? prefixColor = null, Color? textColor = null)

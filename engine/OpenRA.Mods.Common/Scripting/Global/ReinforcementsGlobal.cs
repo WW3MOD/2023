@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -55,10 +55,15 @@ namespace OpenRA.Mods.Common.Scripting
 				initDict.Add(new FacingInit(facing));
 			}
 
-			return Context.World.CreateActor(addToWorld, actorType, initDict);
+			// The actor must be added to the world at the end of the tick.
+			var a = Context.World.CreateActor(false, actorType, initDict);
+			if (addToWorld)
+				Context.World.AddFrameEndTask(w => w.Add(a));
+
+			return a;
 		}
 
-		void Move(Actor actor, CPos dest)
+		static void Move(Actor actor, CPos dest)
 		{
 			var move = actor.TraitOrDefault<IMove>();
 			if (move == null)
@@ -79,7 +84,7 @@ namespace OpenRA.Mods.Common.Scripting
 			for (var i = 0; i < actorTypes.Length; i++)
 			{
 				var af = actionFunc != null ? (LuaFunction)actionFunc.CopyReference() : null;
-				var actor = CreateActor(owner, actorTypes[i], false, entryPath[0], entryPath.Length > 1 ? entryPath[1] : (CPos?)null);
+				var actor = CreateActor(owner, actorTypes[i], false, entryPath[0], entryPath.Length > 1 ? entryPath[1] : null);
 				actors.Add(actor);
 
 				var actionDelay = i * interval;
@@ -118,7 +123,7 @@ namespace OpenRA.Mods.Common.Scripting
 		public LuaTable ReinforceWithTransport(Player owner, string actorType, string[] cargoTypes, CPos[] entryPath, CPos[] exitPath = null,
 			LuaFunction actionFunc = null, LuaFunction exitFunc = null, int dropRange = 3)
 		{
-			var transport = CreateActor(owner, actorType, true, entryPath[0], entryPath.Length > 1 ? entryPath[1] : (CPos?)null);
+			var transport = CreateActor(owner, actorType, true, entryPath[0], entryPath.Length > 1 ? entryPath[1] : null);
 			var cargo = transport.TraitOrDefault<Cargo>();
 
 			var passengers = new List<Actor>();

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,6 +19,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public abstract class CommonSelectorLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string None = "options-common-selector.none";
+
+		[TranslationReference]
+		const string SearchResults = "options-common-selector.search-results";
+
+		[TranslationReference]
+		const string All = "options-common-selector.all";
+
+		[TranslationReference]
+		const string Multiple = "options-common-selector.multiple";
+
 		protected readonly Widget Widget;
 		protected readonly ModData ModData;
 		protected readonly TextFieldWidget SearchTextField;
@@ -28,25 +40,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		protected readonly ScrollPanelWidget Panel;
 		protected readonly ScrollItemWidget ItemTemplate;
 
-		protected readonly HashSet<string> SelectedCategories = new HashSet<string>();
-		protected readonly List<string> FilteredCategories = new List<string>();
+		protected readonly HashSet<string> SelectedCategories = new();
+		protected readonly List<string> FilteredCategories = new();
 
 		protected string[] allCategories;
 		protected string searchFilter;
 
-		[TranslationReference]
-		static readonly string None = "none";
-
-		[TranslationReference]
-		static readonly string SearchResults = "search-results";
-
-		[TranslationReference]
-		static readonly string All = "all";
-
-		[TranslationReference]
-		static readonly string Multiple = "multiple";
-
-		public CommonSelectorLogic(Widget widget, ModData modData, World world, WorldRenderer worldRenderer, string templateListId, string previewTemplateId)
+		protected CommonSelectorLogic(Widget widget, ModData modData, World world, WorldRenderer worldRenderer, string templateListId, string previewTemplateId)
 		{
 			Widget = widget;
 			ModData = modData;
@@ -71,10 +71,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return true;
 			};
 
-			var none = ModData.Translation.GetString(None);
-			var searchResults = ModData.Translation.GetString(SearchResults);
-			var all = ModData.Translation.GetString(All);
-			var multiple = ModData.Translation.GetString(Multiple);
+			var none = TranslationProvider.GetString(None);
+			var searchResults = TranslationProvider.GetString(SearchResults);
+			var all = TranslationProvider.GetString(All);
+			var multiple = TranslationProvider.GetString(Multiple);
 
 			var categorySelector = widget.Get<DropDownButtonWidget>("CATEGORIES_DROPDOWN");
 			categorySelector.GetText = () =>

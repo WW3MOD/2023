@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -63,7 +63,7 @@ namespace OpenRA.Platforms.Default
 		public const int GL_CONTEXT_LOST = 0x0507;
 		public const int GL_TABLE_TOO_LARGE = 0x8031;
 
-		static readonly Dictionary<int, string> ErrorToText = new Dictionary<int, string>
+		static readonly Dictionary<int, string> ErrorToText = new()
 		{
 			{ GL_NO_ERROR, "No Error" },
 			{ GL_INVALID_ENUM, "Invalid Enum" },
@@ -157,7 +157,7 @@ namespace OpenRA.Platforms.Default
 		public const int GL_DEBUG_SOURCE_APPLICATION = 0x824A;
 		public const int GL_DEBUG_SOURCE_OTHER = 0x824B;
 
-		static readonly Dictionary<int, string> DebugSourceToText = new Dictionary<int, string>
+		static readonly Dictionary<int, string> DebugSourceToText = new()
 		{
 			{ GL_DEBUG_SOURCE_API, "API" },
 			{ GL_DEBUG_SOURCE_WINDOW_SYSTEM, "Window System" },
@@ -177,7 +177,7 @@ namespace OpenRA.Platforms.Default
 		public const int GL_DEBUG_TYPE_POP_GROUP = 0x826A;
 		public const int GL_DEBUG_TYPE_OTHER = 0x8251;
 
-		static readonly Dictionary<int, string> DebugTypeToText = new Dictionary<int, string>
+		static readonly Dictionary<int, string> DebugTypeToText = new()
 		{
 			{ GL_DEBUG_TYPE_ERROR, "Error" },
 			{ GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR, "Deprecated Behaviour" },
@@ -195,7 +195,7 @@ namespace OpenRA.Platforms.Default
 		public const int GL_DEBUG_SEVERITY_LOW = 0x9148;
 		public const int GL_DEBUG_SEVERITY_NOTIFICATION = 0x826B;
 
-		static readonly Dictionary<int, string> DebugSeverityToText = new Dictionary<int, string>
+		static readonly Dictionary<int, string> DebugSeverityToText = new()
 		{
 			{ GL_DEBUG_SEVERITY_HIGH, "High" },
 			{ GL_DEBUG_SEVERITY_MEDIUM, "Medium" },
@@ -716,7 +716,7 @@ namespace OpenRA.Platforms.Default
 			Log.Write("graphics", "");
 			Log.Write("graphics", "OpenGL Information:");
 			var vendor = glGetString(GL_VENDOR);
-			Log.Write("graphics", "Vendor: {0}", vendor);
+			Log.Write("graphics", $"Vendor: {vendor}");
 			if (vendor.Contains("Microsoft"))
 			{
 				var msg = "";
@@ -725,9 +725,9 @@ namespace OpenRA.Platforms.Default
 				Log.Write("graphics", msg);
 			}
 
-			Log.Write("graphics", "Renderer: {0}", glGetString(GL_RENDERER));
-			Log.Write("graphics", "GL Version: {0}", glGetString(GL_VERSION));
-			Log.Write("graphics", "Shader Version: {0}", glGetString(GL_SHADING_LANGUAGE_VERSION));
+			Log.Write("graphics", $"Renderer: {glGetString(GL_RENDERER)}");
+			Log.Write("graphics", $"GL Version: {glGetString(GL_VERSION)}");
+			Log.Write("graphics", $"Shader Version: {glGetString(GL_SHADING_LANGUAGE_VERSION)}");
 			Log.Write("graphics", "Available extensions:");
 
 			if (Profile != GLProfile.Legacy)

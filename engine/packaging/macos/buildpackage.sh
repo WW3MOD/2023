@@ -21,10 +21,8 @@ if [[ "${OSTYPE}" != "darwin"* ]]; then
 	exit 1
 fi
 
-command -v clang >/dev/null 2>&1 || { echo >&2 "macOS packaging requires clang."; exit 1; }
-
-if [ $# -ne "2" ]; then
-	echo "Usage: $(basename "$0") tag outputdir"
+if [ $# -ne "4" ]; then
+	echo "Usage: $(basename "$0") tag outputdir platform dmg"
 	exit 1
 fi
 
@@ -242,14 +240,14 @@ if [ -n "${MACOS_DEVELOPER_USERNAME}" ] && [ -n "${MACOS_DEVELOPER_PASSWORD}" ] 
 	sudo xcode-select -r
 
 	# Create a temporary read-only dmg for submission (notarization service rejects read/write images)
-	hdiutil convert "build.dmg" -format ULFO -ov -o "build-notarization.dmg"
+	hdiutil convert "${DMG_PATH}" -format ULFO -ov -o "${NOTARIZE_DMG_PATH}"
 
-	xcrun notarytool submit "build-notarization.dmg" --wait --apple-id "${MACOS_DEVELOPER_USERNAME}" --password "${MACOS_DEVELOPER_PASSWORD}" --team-id "${MACOS_DEVELOPER_IDENTITY}"
+	xcrun notarytool submit "${NOTARIZE_DMG_PATH}" --wait --apple-id "${MACOS_DEVELOPER_USERNAME}" --password "${MACOS_DEVELOPER_PASSWORD}" --team-id "${MACOS_DEVELOPER_IDENTITY}"
 
-	rm "build-notarization.dmg"
+	rm "${NOTARIZE_DMG_PATH}"
 
-	echo "Stapling tickets"
-	DMG_DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "build.dmg" | egrep '^/dev/' | sed 1q | awk '{print $1}')
+	echo "${DMG_PATH}: Stapling tickets"
+	DMG_DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_PATH}" | egrep '^/dev/' | sed 1q | awk '{print $1}')
 	sleep 2
 
 	xcrun stapler staple "/Volumes/OpenRA/OpenRA - Red Alert.app"
@@ -260,7 +258,35 @@ if [ -n "${MACOS_DEVELOPER_USERNAME}" ] && [ -n "${MACOS_DEVELOPER_PASSWORD}" ] 
 	sync
 
 	hdiutil detach "${DMG_DEVICE}"
+	break
+}
+
+finalize_package() {
+	PLATFORM="${1}"
+	INPUT_PATH="${2}"
+	OUTPUT_PATH="${3}"
+
+	if [ "${PLATFORM}" = "mono" ]; then
+		hdiutil convert "${INPUT_PATH}" -format UDZO -imagekey zlib-level=9 -ov -o "${OUTPUT_PATH}-mono.dmg"
+	else
+		# ULFO offers better compression and faster decompression speeds, but is only supported by 10.11+
+		hdiutil convert "${INPUT_PATH}" -format ULFO -ov -o "${OUTPUT_PATH}.dmg"
+	fi
+
+	echo "Stapling tickets"
+	DMG_DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "build.dmg" | egrep '^/dev/' | sed 1q | awk '{print $1}')
+	sleep 2
+
+PLATFORM="$3"
+DISK_IMAGE="$4"
+
+build_platform "${PLATFORM}" "${DISK_IMAGE}"
+
+	sync
+	sync
+
+if [ -n "${MACOS_DEVELOPER_USERNAME}" ] && [ -n "${MACOS_DEVELOPER_PASSWORD}" ] && [ -n "${MACOS_DEVELOPER_IDENTITY}" ]; then
+	notarize_package "${DISK_IMAGE}"
 fi
 
-hdiutil convert "build.dmg" -format ULFO -ov -o "${OUTPUTDIR}/OpenRA-${TAG}.dmg"
-rm "build.dmg"
+finalize_package "${PLATFORM}" "${DISK_IMAGE}" "${OUTPUTDIR}/OpenRA-${TAG}"

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,6 +19,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ProductionTooltipLogic : ChromeLogic
 	{
+		[TranslationReference("prequisites")]
+		const string Requires = "label-requires";
+
 		[ObjectCreator.UseCtor]
 		public ProductionTooltipLogic(Widget widget, TooltipContainerWidget tooltipContainer, Player player, Func<ProductionIcon> getTooltipIcon)
 		{
@@ -45,7 +48,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var descFont = Game.Renderer.Fonts[descLabel.Font];
 			var requiresFont = Game.Renderer.Fonts[requiresLabel.Font];
 			var formatBuildTime = new CachedTransform<int, string>(time => WidgetUtils.FormatTime(time, world.Timestep));
-			var requiresFormat = requiresLabel.Text;
 
 			ActorInfo lastActor = null;
 			var lastHotkey = Hotkey.Invalid;
@@ -100,7 +102,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var requiresSize = int2.Zero;
 				if (prereqs.Any())
 				{
-					requiresLabel.Text = requiresFormat.F(prereqs.JoinWith(", "));
+					requiresLabel.Text = TranslationProvider.GetString(Requires, Translation.Arguments("prequisites", prereqs.JoinWith(", ")));
 					requiresSize = requiresFont.Measure(requiresLabel.Text);
 					requiresLabel.Visible = true;
 					descLabel.Bounds.Y = descLabelY + requiresLabel.Bounds.Height;
@@ -116,7 +118,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					var power = actor.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(i => i.Amount);
 					powerLabel.Text = power.ToString();
-					powerLabel.GetColor = () => ((pm.PowerProvided - pm.PowerDrained) >= -power || power > 0)
+					powerLabel.GetColor = () => (pm.PowerProvided - pm.PowerDrained >= -power || power > 0)
 						? Color.White : Color.Red;
 					powerLabel.Visible = power != 0;
 					powerIcon.Visible = power != 0;
@@ -126,7 +128,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var buildTime = tooltipIcon.ProductionQueue?.GetBuildTime(actor, buildable) ?? 0;
 				var timeModifier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerModifier : 100;
 
-				timeLabel.Text = formatBuildTime.Update((buildTime * timeModifier) / 100);
+				timeLabel.Text = formatBuildTime.Update(buildTime * timeModifier / 100);
 				timeLabel.TextColor = (pm != null && pm.PowerState != PowerState.Normal && tooltipIcon.ProductionQueue.Info.LowPowerModifier > 100) ? Color.Red : Color.White;
 				var timeSize = font.Measure(timeLabel.Text);
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Warheads
 		public readonly int ResourceAmount = 0;
 
 		[Desc("Resource types to remove with this warhead.", "If empty, all resource types will be removed.")]
-		public readonly HashSet<string> ResourceTypes = new HashSet<string>();
+		public readonly HashSet<string> ResourceTypes = new();
 
 		public override void DoImpact(in Target target, WarheadArgs args)
 		{

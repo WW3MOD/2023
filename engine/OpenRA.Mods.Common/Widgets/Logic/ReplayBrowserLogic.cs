@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,90 +26,90 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class ReplayBrowserLogic : ChromeLogic
 	{
 		[TranslationReference("time")]
-		static readonly string Duration = "duration";
+		const string Duration = "label-duration";
 
 		[TranslationReference]
-		static readonly string Singleplayer = "singleplayer";
+		const string Singleplayer = "options-replay-type.singleplayer";
 
 		[TranslationReference]
-		static readonly string Multiplayer = "multiplayer";
+		const string Multiplayer = "options-replay-type.multiplayer";
 
 		[TranslationReference]
-		static readonly string Today = "today";
+		const string Today = "options-replay-date.today";
 
 		[TranslationReference]
-		static readonly string LastWeek = "last-week";
+		const string LastWeek = "options-replay-date.last-week";
 
 		[TranslationReference]
-		static readonly string LastFortnight = "last-fortnight";
+		const string LastFortnight = "options-replay-date.last-fortnight";
 
 		[TranslationReference]
-		static readonly string LastMonth = "last-month";
+		const string LastMonth = "options-replay-date.last-month";
 
 		[TranslationReference]
-		static readonly string ReplayDurationVeryShort = "replay-duration-very-short";
+		const string ReplayDurationVeryShort = "options-replay-duration.very-short";
 
 		[TranslationReference]
-		static readonly string ReplayDurationShort = "replay-duration-short";
+		const string ReplayDurationShort = "options-replay-duration.short";
 
 		[TranslationReference]
-		static readonly string ReplayDurationMedium = "replay-duration-medium";
+		const string ReplayDurationMedium = "options-replay-duration.medium";
 
 		[TranslationReference]
-		static readonly string ReplayDurationLong = "replay-duration-long";
+		const string ReplayDurationLong = "options-replay-duration.long";
 
 		[TranslationReference]
-		static readonly string RenameReplayTitle = "rename-replay-title";
+		const string RenameReplayTitle = "dialog-rename-replay.title";
 
 		[TranslationReference]
-		static readonly string RenameReplayPrompt = "rename-replay-prompt";
+		const string RenameReplayPrompt = "dialog-rename-replay.prompt";
 
 		[TranslationReference]
-		static readonly string RenameReplayAccept = "rename-replay-accept";
+		const string RenameReplayAccept = "dialog-rename-replay.confirm";
 
 		[TranslationReference]
-		static readonly string DeleteReplayTitle = "delete-replay-title";
+		const string DeleteReplayTitle = "dialog-delete-replay.title";
 
 		[TranslationReference("replay")]
-		static readonly string DeleteReplayPrompt = "delete-replay-prompt";
+		const string DeleteReplayPrompt = "dialog-delete-replay.prompt";
 
 		[TranslationReference]
-		static readonly string DeleteReplayAccept = "delete-replay-accept";
+		const string DeleteReplayAccept = "dialog-delete-replay.confirm";
 
 		[TranslationReference]
-		static readonly string DeleteAllReplaysTitle = "delete-all-replays-title";
+		const string DeleteAllReplaysTitle = "dialog-delete-all-replays.title";
 
 		[TranslationReference("count")]
-		static readonly string DeleteAllReplaysPrompt = "delete-all-replays-prompt";
+		const string DeleteAllReplaysPrompt = "dialog-delete-all-replays.prompt";
 
 		[TranslationReference]
-		static readonly string DeleteAllReplaysAccept = "delete-all-replays-accept";
+		const string DeleteAllReplaysAccept = "dialog-delete-all-replays.confirm";
 
 		[TranslationReference("file")]
-		static readonly string ReplayDeletionFailed = "replay-deletion-failed";
+		const string ReplayDeletionFailed = "notification-replay-deletion-failed";
 
 		[TranslationReference]
-		static readonly string Players = "players";
+		const string Players = "label-players";
 
 		[TranslationReference("team")]
-		static readonly string TeamNumber = "team-number";
+		const string TeamNumber = "label-team-name";
 
 		[TranslationReference]
-		static readonly string NoTeam = "no-team";
+		const string NoTeam = "label-no-team";
 
 		[TranslationReference]
-		static readonly string Victory = "victory";
+		const string Victory = "options-winstate.victory";
 
 		[TranslationReference]
-		static readonly string Defeat = "defeat";
+		const string Defeat = "options-winstate.defeat";
 
-		static Filter filter = new Filter();
+		static Filter filter = new();
 
 		readonly Widget panel;
 		readonly ScrollPanelWidget replayList, playerList;
 		readonly ScrollItemWidget playerTemplate, playerHeader;
-		readonly List<ReplayMetadata> replays = new List<ReplayMetadata>();
-		readonly Dictionary<ReplayMetadata, ReplayState> replayState = new Dictionary<ReplayMetadata, ReplayState>();
+		readonly List<ReplayMetadata> replays = new();
+		readonly Dictionary<ReplayMetadata, ReplayState> replayState = new();
 		readonly Action onStart;
 		readonly ModData modData;
 		readonly WebServices services;
@@ -148,7 +148,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var watch = panel.Get<ButtonWidget>("WATCH_BUTTON");
 			watch.IsDisabled = () => selectedReplay == null || map.Status != MapStatus.Available;
-			watch.OnClick = () => { WatchReplay(); };
+			watch.OnClick = WatchReplay;
 
 			var mapPreviewRoot = panel.Get("MAP_PREVIEW_ROOT");
 			mapPreviewRoot.IsVisible = () => selectedReplay != null;
@@ -179,7 +179,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 
 			var replayDuration = new CachedTransform<ReplayMetadata, string>(r =>
-				modData.Translation.GetString(Duration, Translation.Arguments("time", WidgetUtils.FormatTimeSeconds((int)selectedReplay.GameInfo.Duration.TotalSeconds))));
+				TranslationProvider.GetString(Duration, Translation.Arguments("time", WidgetUtils.FormatTimeSeconds((int)selectedReplay.GameInfo.Duration.TotalSeconds))));
 			panel.Get<LabelWidget>("DURATION").GetText = () => replayDuration.Update(selectedReplay);
 
 			SetupFilters();
@@ -231,8 +231,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var options = new List<(GameType GameType, string Text)>
 					{
 						(GameType.Any, ddb.GetText()),
-						(GameType.Singleplayer, modData.Translation.GetString(Singleplayer)),
-						(GameType.Multiplayer, modData.Translation.GetString(Multiplayer))
+						(GameType.Singleplayer, TranslationProvider.GetString(Singleplayer)),
+						(GameType.Multiplayer, TranslationProvider.GetString(Multiplayer))
 					};
 
 					var lookup = options.ToDictionary(kvp => kvp.GameType, kvp => kvp.Text);
@@ -240,7 +240,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					ddb.GetText = () => lookup[filter.Type];
 					ddb.OnMouseDown = _ =>
 					{
-						Func<(GameType GameType, string Text), ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem((GameType GameType, string Text) option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -248,9 +248,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								() => { filter.Type = option.GameType; ApplyFilter(); });
 							item.Get<LabelWidget>("LABEL").GetText = () => option.Text;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -264,10 +264,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var options = new List<(DateType DateType, string Text)>
 					{
 						(DateType.Any, ddb.GetText()),
-						(DateType.Today, modData.Translation.GetString(Today)),
-						(DateType.LastWeek, modData.Translation.GetString(LastWeek)),
-						(DateType.LastFortnight, modData.Translation.GetString(LastFortnight)),
-						(DateType.LastMonth, modData.Translation.GetString(LastMonth))
+						(DateType.Today, TranslationProvider.GetString(Today)),
+						(DateType.LastWeek, TranslationProvider.GetString(LastWeek)),
+						(DateType.LastFortnight, TranslationProvider.GetString(LastFortnight)),
+						(DateType.LastMonth, TranslationProvider.GetString(LastMonth))
 					};
 
 					var lookup = options.ToDictionary(kvp => kvp.DateType, kvp => kvp.Text);
@@ -275,7 +275,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					ddb.GetText = () => lookup[filter.Date];
 					ddb.OnMouseDown = _ =>
 					{
-						Func<(DateType DateType, string Text), ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem((DateType DateType, string Text) option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -284,9 +284,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 							item.Get<LabelWidget>("LABEL").GetText = () => option.Text;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -300,10 +300,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var options = new List<(DurationType DurationType, string Text)>
 					{
 						(DurationType.Any, ddb.GetText()),
-						(DurationType.VeryShort, modData.Translation.GetString(ReplayDurationVeryShort)),
-						(DurationType.Short, modData.Translation.GetString(ReplayDurationShort)),
-						(DurationType.Medium, modData.Translation.GetString(ReplayDurationMedium)),
-						(DurationType.Long, modData.Translation.GetString(ReplayDurationLong))
+						(DurationType.VeryShort, TranslationProvider.GetString(ReplayDurationVeryShort)),
+						(DurationType.Short, TranslationProvider.GetString(ReplayDurationShort)),
+						(DurationType.Medium, TranslationProvider.GetString(ReplayDurationMedium)),
+						(DurationType.Long, TranslationProvider.GetString(ReplayDurationLong))
 					};
 
 					var lookup = options.ToDictionary(kvp => kvp.DurationType, kvp => kvp.Text);
@@ -311,7 +311,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					ddb.GetText = () => lookup[filter.Duration];
 					ddb.OnMouseDown = _ =>
 					{
-						Func<(DurationType DurationType, string Text), ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem((DurationType DurationType, string Text) option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -319,9 +319,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								() => { filter.Duration = option.DurationType; ApplyFilter(); });
 							item.Get<LabelWidget>("LABEL").GetText = () => option.Text;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -337,8 +337,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var options = new List<(WinState WinState, string Text)>
 					{
 						(WinState.Undefined, ddb.GetText()),
-						(WinState.Lost, modData.Translation.GetString(Defeat)),
-						(WinState.Won, modData.Translation.GetString(Victory))
+						(WinState.Lost, TranslationProvider.GetString(Defeat)),
+						(WinState.Won, TranslationProvider.GetString(Victory))
 					};
 
 					var lookup = options.ToDictionary(kvp => kvp.WinState, kvp => kvp.Text);
@@ -346,7 +346,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					ddb.GetText = () => lookup[filter.Outcome];
 					ddb.OnMouseDown = _ =>
 					{
-						Func<(WinState WinState, string Text), ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem((WinState WinState, string Text) option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -354,9 +354,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								() => { filter.Outcome = option.WinState; ApplyFilter(); });
 							item.Get<LabelWidget>("LABEL").GetText = () => option.Text;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -378,13 +378,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					var options = replays.Select(r => r.GameInfo.MapTitle).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 					options.Sort(StringComparer.OrdinalIgnoreCase);
-					options.Insert(0, null);	// no filter
+					options.Insert(0, null); // no filter
 
 					var anyText = ddb.GetText();
 					ddb.GetText = () => string.IsNullOrEmpty(filter.MapName) ? anyText : filter.MapName;
 					ddb.OnMouseDown = _ =>
 					{
-						Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem(string option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -392,9 +392,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								() => { filter.MapName = option; ApplyFilter(); });
 							item.Get<LabelWidget>("LABEL").GetText = () => option ?? anyText;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -406,13 +406,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					var options = replays.SelectMany(r => r.GameInfo.Players.Select(p => p.Name)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 					options.Sort(StringComparer.OrdinalIgnoreCase);
-					options.Insert(0, null);	// no filter
+					options.Insert(0, null); // no filter
 
 					var anyText = ddb.GetText();
 					ddb.GetText = () => string.IsNullOrEmpty(filter.PlayerName) ? anyText : filter.PlayerName;
 					ddb.OnMouseDown = _ =>
 					{
-						Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem(string option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -420,9 +420,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								() => { filter.PlayerName = option; ApplyFilter(); });
 							item.Get<LabelWidget>("LABEL").GetText = () => option ?? anyText;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -438,13 +438,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						.SelectMany(r => r.GameInfo.Players.Select(p => p.FactionName).Where(n => !string.IsNullOrEmpty(n)))
 						.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 					options.Sort(StringComparer.OrdinalIgnoreCase);
-					options.Insert(0, null);	// no filter
+					options.Insert(0, null); // no filter
 
 					var anyText = ddb.GetText();
 					ddb.GetText = () => string.IsNullOrEmpty(filter.Faction) ? anyText : filter.Faction;
 					ddb.OnMouseDown = _ =>
 					{
-						Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (option, tpl) =>
+						ScrollItemWidget SetupItem(string option, ScrollItemWidget tpl)
 						{
 							var item = ScrollItemWidget.Setup(
 								tpl,
@@ -452,9 +452,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								() => { filter.Faction = option; ApplyFilter(); });
 							item.Get<LabelWidget>("LABEL").GetText = () => option ?? anyText;
 							return item;
-						};
+						}
 
-						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, setupItem);
+						ddb.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 330, options, SetupItem);
 					};
 				}
 			}
@@ -497,7 +497,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					});
 			};
 
-			Action<ReplayMetadata, Action> onDeleteReplay = (r, after) =>
+			void OnDeleteReplay(ReplayMetadata r, Action after)
 			{
 				ConfirmationDialogs.ButtonPrompt(modData,
 					title: DeleteReplayTitle,
@@ -510,13 +510,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					},
 					confirmText: DeleteReplayAccept,
 					onCancel: () => { });
-			};
+			}
 
 			var deleteButton = panel.Get<ButtonWidget>("MNG_DELSEL_BUTTON");
 			deleteButton.IsDisabled = () => selectedReplay == null;
 			deleteButton.OnClick = () =>
 			{
-				onDeleteReplay(selectedReplay, () =>
+				OnDeleteReplay(selectedReplay, () =>
 				{
 					if (selectedReplay == null)
 						SelectFirstVisibleReplay();
@@ -533,7 +533,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				if (list.Count == 1)
 				{
-					onDeleteReplay(list[0], () => { if (selectedReplay == null) SelectFirstVisibleReplay(); });
+					OnDeleteReplay(list[0], () => { if (selectedReplay == null) SelectFirstVisibleReplay(); });
 					return;
 				}
 
@@ -580,7 +580,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 			catch (Exception ex)
 			{
-				TextNotificationsManager.Debug(modData.Translation.GetString(ReplayDeletionFailed, Translation.Arguments("file", replay.FilePath)));
+				TextNotificationsManager.Debug(TranslationProvider.GetString(ReplayDeletionFailed, Translation.Arguments("file", replay.FilePath)));
 				Log.Write("debug", ex.ToString());
 				return;
 			}
@@ -716,9 +716,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var noTeams = players.Count() == 1;
 				foreach (var p in players)
 				{
-					var label = noTeams ? modData.Translation.GetString(Players) : p.Key > 0
-						? modData.Translation.GetString(TeamNumber, Translation.Arguments("team", p.Key))
-						: modData.Translation.GetString(NoTeam);
+					var label = noTeams ? TranslationProvider.GetString(Players) : p.Key > 0
+						? TranslationProvider.GetString(TeamNumber, Translation.Arguments("team", p.Key))
+						: TranslationProvider.GetString(NoTeam);
 
 					teams.Add(label, p);
 				}
@@ -819,13 +819,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			base.Dispose(disposing);
 		}
 
-		class ReplayState
+		sealed class ReplayState
 		{
 			public bool Visible;
 			public ScrollItemWidget Item;
 		}
 
-		class Filter
+		sealed class Filter
 		{
 			public GameType Type;
 			public DateType Date;

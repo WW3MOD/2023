@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,28 +29,28 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class ActorMap : IActorMap, ITick, INotifyCreated
 	{
-		class InfluenceNode
+		sealed class InfluenceNode
 		{
 			public InfluenceNode Next;
 			public SubCell SubCell;
 			public Actor Actor;
 		}
 
-		class Bin
+		sealed class Bin
 		{
-			public readonly List<Actor> Actors = new List<Actor>();
-			public readonly List<ProximityTrigger> ProximityTriggers = new List<ProximityTrigger>();
+			public readonly List<Actor> Actors = new();
+			public readonly List<ProximityTrigger> ProximityTriggers = new();
 		}
 
-		class CellTrigger
+		sealed class CellTrigger
 		{
 			public readonly CPos[] Footprint;
 			public bool Dirty;
 
 			readonly Action<Actor> onActorEntered;
 			readonly Action<Actor> onActorExited;
-			readonly HashSet<Actor> oldActors = new HashSet<Actor>();
-			readonly HashSet<Actor> currentActors = new HashSet<Actor>();
+			readonly HashSet<Actor> oldActors = new();
+			readonly HashSet<Actor> currentActors = new();
 
 			public CellTrigger(CPos[] footprint, Action<Actor> onActorEntered, Action<Actor> onActorExited)
 			{
@@ -89,7 +89,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class ProximityTrigger : IDisposable
+		sealed class ProximityTrigger : IDisposable
 		{
 			public WPos TopLeft { get; private set; }
 			public WPos BottomRight { get; private set; }
@@ -98,8 +98,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			readonly Action<Actor> onActorEntered;
 			readonly Action<Actor> onActorExited;
-			readonly HashSet<Actor> oldActors = new HashSet<Actor>();
-			readonly HashSet<Actor> currentActors = new HashSet<Actor>();
+			readonly HashSet<Actor> oldActors = new();
+			readonly HashSet<Actor> currentActors = new();
 
 			WPos position;
 			WDist range;
@@ -166,9 +166,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly ActorMapInfo info;
 		readonly Map map;
-		readonly Dictionary<int, CellTrigger> cellTriggers = new Dictionary<int, CellTrigger>();
-		readonly Dictionary<CPos, List<CellTrigger>> cellTriggerInfluence = new Dictionary<CPos, List<CellTrigger>>();
-		readonly Dictionary<int, ProximityTrigger> proximityTriggers = new Dictionary<int, ProximityTrigger>();
+		readonly Dictionary<int, CellTrigger> cellTriggers = new();
+		readonly Dictionary<CPos, List<CellTrigger>> cellTriggerInfluence = new();
+		readonly Dictionary<int, ProximityTrigger> proximityTriggers = new();
 		int nextTriggerId;
 
 		CellLayer<InfluenceNode>[] influence;
@@ -181,8 +181,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Position updates are done in one pass
 		// to ensure consistency during a tick
-		readonly HashSet<Actor> addActorPosition = new HashSet<Actor>();
-		readonly HashSet<Actor> removeActorPosition = new HashSet<Actor>();
+		readonly HashSet<Actor> addActorPosition = new();
+		readonly HashSet<Actor> removeActorPosition = new();
 		readonly Predicate<Actor> actorShouldBeRemoved;
 
 		public WDist LargestActorRadius { get; }
@@ -229,24 +229,23 @@ namespace OpenRA.Mods.Common.Traits
 		struct ActorsAtEnumerator : IEnumerator<Actor>
 		{
 			InfluenceNode node;
-			Actor current;
 
 			public ActorsAtEnumerator(InfluenceNode node)
 			{
 				this.node = node;
-				current = null;
+				Current = null;
 			}
 
 			public void Reset() { throw new NotSupportedException(); }
-			public Actor Current => current;
+			public Actor Current { get; private set; }
 
-			object IEnumerator.Current => current;
+			object IEnumerator.Current => Current;
 			public void Dispose() { }
 			public bool MoveNext()
 			{
 				while (node != null)
 				{
-					current = node.Actor;
+					Current = node.Actor;
 					node = node.Next;
 					return true;
 				}
@@ -299,14 +298,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (!layer.Contains(uv))
 				return preferredSubCell != SubCell.Any ? preferredSubCell : SubCell.First;
 
-			if (preferredSubCell != SubCell.Any && !AnyActorsAt(uv, cell, layer, preferredSubCell, checkTransient))
+			var influenceNode = layer[uv];
+			if (preferredSubCell != SubCell.Any && !AnyActorsAt(influenceNode, cell, preferredSubCell, checkTransient))
 				return preferredSubCell;
 
-			if (!AnyActorsAt(uv, layer))
+			if (influenceNode == null)
 				return map.Grid.DefaultSubCell;
 
 			for (var i = (int)SubCell.First; i < map.Grid.SubCellOffsets.Length; i++)
-				if (i != (int)preferredSubCell && !AnyActorsAt(uv, cell, layer, (SubCell)i, checkTransient))
+				if (i != (int)preferredSubCell && !AnyActorsAt(influenceNode, cell, (SubCell)i, checkTransient))
 					return (SubCell)i;
 
 			return SubCell.Invalid;
@@ -319,23 +319,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (!layer.Contains(uv))
 				return preferredSubCell != SubCell.Any ? preferredSubCell : SubCell.First;
 
-			if (preferredSubCell != SubCell.Any && !AnyActorsAt(uv, layer, preferredSubCell, checkIfBlocker))
+			var influenceNode = layer[uv];
+			if (preferredSubCell != SubCell.Any && !AnyActorsAt(influenceNode, preferredSubCell, checkIfBlocker))
 				return preferredSubCell;
 
-			if (!AnyActorsAt(uv, layer))
+			if (influenceNode == null)
 				return map.Grid.DefaultSubCell;
 
 			for (var i = (byte)SubCell.First; i < map.Grid.SubCellOffsets.Length; i++)
-				if (i != (byte)preferredSubCell && !AnyActorsAt(uv, layer, (SubCell)i, checkIfBlocker))
+				if (i != (byte)preferredSubCell && !AnyActorsAt(influenceNode, (SubCell)i, checkIfBlocker))
 					return (SubCell)i;
 
 			return SubCell.Invalid;
-		}
-
-		// NOTE: pos required to be in map bounds
-		bool AnyActorsAt(MPos uv, CellLayer<InfluenceNode> layer)
-		{
-			return layer[uv] != null;
 		}
 
 		// NOTE: always includes transients with influence
@@ -346,22 +341,22 @@ namespace OpenRA.Mods.Common.Traits
 			if (!layer.Contains(uv))
 				return false;
 
-			return AnyActorsAt(uv, layer);
+			return layer[uv] != null;
 		}
 
 		// NOTE: pos required to be in map bounds
-		bool AnyActorsAt(MPos uv, CPos a, CellLayer<InfluenceNode> layer, SubCell sub, bool checkTransient)
+		static bool AnyActorsAt(InfluenceNode influenceNode, CPos a, SubCell sub, bool checkTransient)
 		{
 			var always = sub == SubCell.FullCell || sub == SubCell.Any;
-			for (var i = layer[uv]; i != null; i = i.Next)
+			for (var i = influenceNode; i != null; i = i.Next)
 			{
 				if (always || i.SubCell == sub || i.SubCell == SubCell.FullCell)
 				{
 					if (checkTransient)
 						return true;
 
-					var pos = i.Actor.TraitOrDefault<IPositionable>();
-					if (pos == null || !pos.IsLeavingCell(a, i.SubCell))
+					// PERF: Avoid trait lookup
+					if (i.Actor.OccupiesSpace is not IPositionable pos || !pos.IsLeavingCell(a, i.SubCell))
 						return true;
 				}
 			}
@@ -377,14 +372,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (!layer.Contains(uv))
 				return false;
 
-			return AnyActorsAt(uv, a, layer, sub, checkTransient);
+			return AnyActorsAt(layer[uv], a, sub, checkTransient);
 		}
 
 		// NOTE: can not check aircraft
-		bool AnyActorsAt(MPos uv, CellLayer<InfluenceNode> layer, SubCell sub, Func<Actor, bool> withCondition)
+		static bool AnyActorsAt(InfluenceNode influenceNode, SubCell sub, Func<Actor, bool> withCondition)
 		{
 			var always = sub == SubCell.FullCell || sub == SubCell.Any;
-			for (var i = layer[uv]; i != null; i = i.Next)
+
+			for (var i = influenceNode; i != null; i = i.Next)
 				if ((always || i.SubCell == sub || i.SubCell == SubCell.FullCell) && withCondition(i.Actor))
 					return true;
 
@@ -399,7 +395,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!layer.Contains(uv))
 				return false;
 
-			return AnyActorsAt(uv, layer, sub, withCondition);
+			return AnyActorsAt(layer[uv], sub, withCondition);
 		}
 
 		public IEnumerable<Actor> AllActors()

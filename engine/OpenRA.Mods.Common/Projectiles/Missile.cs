@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -45,22 +45,22 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly Color ShadowColor = Color.FromArgb(140, 0, 0, 0);
 
 		[Desc("Minimum vertical launch angle (pitch).")]
-		public readonly WAngle MinimumLaunchAngle = new WAngle(-64);
+		public readonly WAngle MinimumLaunchAngle = new(-64);
 
 		[Desc("Maximum vertical launch angle (pitch).")]
-		public readonly WAngle MaximumLaunchAngle = new WAngle(128);
+		public readonly WAngle MaximumLaunchAngle = new(128);
 
 		[Desc("Minimum launch speed in WDist / tick. Defaults to Speed if -1.")]
-		public readonly WDist MinimumLaunchSpeed = new WDist(-1);
+		public readonly WDist MinimumLaunchSpeed = new(-1);
 
 		[Desc("Maximum launch speed in WDist / tick. Defaults to Speed if -1.")]
-		public readonly WDist MaximumLaunchSpeed = new WDist(-1);
+		public readonly WDist MaximumLaunchSpeed = new(-1);
 
 		[Desc("Maximum projectile speed in WDist / tick")]
-		public readonly WDist Speed = new WDist(384);
+		public readonly WDist Speed = new(384);
 
 		[Desc("Projectile acceleration when propulsion activated.")]
-		public readonly WDist Acceleration = new WDist(5);
+		public readonly WDist Acceleration = new(5);
 
 		[Desc("How many ticks before this missile is armed and can explode.")]
 		public readonly int Arm = 0;
@@ -72,7 +72,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly bool TerrainHeightAware = false;
 
 		[Desc("Width of projectile (used for finding blocking actors).")]
-		public readonly WDist Width = new WDist(1);
+		public readonly WDist Width = new(1);
 
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Absolute;
 
 		[Desc("Inaccuracy override when successfully locked onto target. Defaults to Inaccuracy if negative.")]
-		public readonly WDist LockOnInaccuracy = new WDist(-1);
+		public readonly WDist LockOnInaccuracy = new(-1);
 
 		[Desc("Probability of locking onto and following target.")]
 		public readonly int LockOnProbability = 100;
@@ -90,10 +90,10 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly int RetargetTicks = 5;
 
 		[Desc("Horizontal rate of turn.")]
-		public readonly WAngle HorizontalRateOfTurn = new WAngle(20);
+		public readonly WAngle HorizontalRateOfTurn = new(20);
 
 		[Desc("Vertical rate of turn.")]
-		public readonly WAngle VerticalRateOfTurn = new WAngle(24);
+		public readonly WAngle VerticalRateOfTurn = new(24);
 
 		[Desc("Gravity applied while in free fall.")]
 		public readonly int Gravity = 10;
@@ -111,7 +111,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly WDist AirburstAltitude = WDist.Zero;
 
 		[Desc("Cruise altitude. Zero means no cruise altitude used.")]
-		public readonly WDist CruiseAltitude = new WDist(512);
+		public readonly WDist CruiseAltitude = new(512);
 
 		[Desc("Activate homing mechanism after this many ticks.")]
 		public readonly int HomingActivationDelay = 0;
@@ -148,8 +148,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ContrailZOffset = 2047;
 
-		[Desc("Thickness of the emitted line.")]
-		public readonly WDist ContrailWidth = new WDist(64);
+		[Desc("Thickness of the emitted line at the start of the contrail.")]
+		public readonly WDist ContrailStartWidth = new(64);
+
+		[Desc("Thickness of the emitted line at the end of the contrail. Will default to " + nameof(ContrailStartWidth) + " if left undefined")]
+		public readonly WDist? ContrailEndWidth = null;
 
 		[Desc("RGB color at the contrail start.")]
 		public readonly Color ContrailStartColor = Color.White;
@@ -160,7 +163,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
 		public readonly int ContrailStartColorAlpha = 255;
 
-		[Desc("RGB color at the contrail end. Set to start color if undefined")]
+		[Desc("RGB color at the contrail end. Will default to " + nameof(ContrailStartColor) + " if left undefined")]
 		public readonly Color? ContrailEndColor;
 
 		[Desc("Use player remap color instead of a custom color at the contrail end.")]
@@ -185,7 +188,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Explodes when inside this proximity radius to target.",
 			"Note: If this value is lower than the missile speed, this check might",
 			"not trigger fast enough, causing the missile to fly past the target.")]
-		public readonly WDist CloseEnough = new WDist(298);
+		public readonly WDist CloseEnough = new(298);
 
 		public IProjectile Create(ProjectileArgs args) { return new Missile(this, args); }
 	}
@@ -293,7 +296,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			{
 				var startcolor = info.ContrailStartColorUsePlayerColor ? Color.FromArgb(info.ContrailStartColorAlpha, args.SourceActor.Owner.Color) : Color.FromArgb(info.ContrailStartColorAlpha, info.ContrailStartColor);
 				var endcolor = info.ContrailEndColorUsePlayerColor ? Color.FromArgb(info.ContrailEndColorAlpha, args.SourceActor.Owner.Color) : Color.FromArgb(info.ContrailEndColorAlpha, info.ContrailEndColor ?? startcolor);
-				contrail = new ContrailRenderable(world, startcolor, endcolor, info.ContrailWidth, info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
+				contrail = new ContrailRenderable(world, startcolor, endcolor, info.ContrailStartWidth, info.ContrailEndWidth ?? info.ContrailStartWidth, info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
 			}
 
 			trailPalette = info.TrailPalette;
@@ -310,7 +313,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			// angular speed in radians per tick = rot in facing units per tick * (pi radians / 128 facing units)
 			// pi = 314 / 100
 			// ==> loopRadius = (speed * 128 * 100) / (314 * rot)
-			return (speed * 6400) / (157 * rot);
+			return speed * 6400 / (157 * rot);
 		}
 
 		void DetermineLaunchSpeedAndAngleForIncline(int predClfDist, int diffClfMslHgt, int relTarHorDist,
@@ -324,9 +327,9 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			// Compute minimum speed necessary to both be able to face directly upwards and have enough space
 			// to hit the target without passing it by (and thus having to do horizontal loops)
-			var minSpeed = ((System.Math.Min(predClfDist * 1024 / (1024 - WAngle.FromFacing(vFacing).Sin()),
+			var minSpeed = (System.Math.Min(predClfDist * 1024 / (1024 - WAngle.FromFacing(vFacing).Sin()),
 					(relTarHorDist + predClfDist) * 1024 / (2 * (2048 - WAngle.FromFacing(vFacing).Sin())))
-				* info.VerticalRateOfTurn.Facing * 157) / 6400).Clamp(minLaunchSpeed, maxLaunchSpeed);
+				* info.VerticalRateOfTurn.Facing * 157 / 6400).Clamp(minLaunchSpeed, maxLaunchSpeed);
 
 			if ((sbyte)vFacing < 0)
 				speed = minSpeed;
@@ -582,7 +585,7 @@ namespace OpenRA.Mods.Common.Projectiles
 						&& (predClfDist <= loopRadius * (1024 - WAngle.FromFacing(vFacing).Sin()) / 1024
 
 							// When evaluating this the incline will be *not* be hit before vertical facing attains 64
-				// At current speed target too close to hit without passing it by
+							// At current speed target too close to hit without passing it by
 							|| relTarHorDist <= 2 * loopRadius * (2048 - WAngle.FromFacing(vFacing).Sin()) / 1024 - predClfDist))
 
 					|| (desiredVFacing == 0 // Upper part of incline surmounting manoeuvre
@@ -639,7 +642,8 @@ namespace OpenRA.Mods.Common.Projectiles
 					if (targetPassedBy)
 						desiredVFacing = desiredVFacing.Clamp(-info.VerticalRateOfTurn.Facing, info.VerticalRateOfTurn.Facing);
 					else if (lastHt == 0)
-					{ // Before the target is passed by, missile speed should be changed
+					{
+						// Before the target is passed by, missile speed should be changed
 						// Target's height above loop's center
 						var tarHgt = (loopRadius * WAngle.FromFacing(vFacing).Cos() / 1024 - System.Math.Abs(relTarHgt)).Clamp(0, loopRadius);
 

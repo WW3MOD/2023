@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,9 +14,9 @@ using System.Linq;
 
 namespace OpenRA.Mods.Common.UpdateRules.Rules
 {
-	public class UnhardcodeSquadManager : UpdateRule
+	public class UnhardcodeSquadManager : UpdateRule, IBeforeUpdateActors
 	{
-		readonly List<MiniYamlNode> addNodes = new List<MiniYamlNode>();
+		readonly List<MiniYamlNode> addNodes = new();
 
 		// Excludes AttackBomber and AttackTDGunboatTurreted as actors with these AttackBase traits aren't supposed to be controlled.
 		readonly string[] attackBase = { "AttackLeap", "AttackPopupTurreted", "AttackAircraft", "AttackTesla", "AttackCharges", "AttackFollow", "AttackTurreted", "AttackFrontal", "AttackGarrisoned", "AttackOmni", "AttackSwallow" };
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 		public override string Description => "AirUnitsTypes and ProtectionTypes were added.";
 
-		public override IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors)
+		public IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors)
 		{
 			var aircraft = new List<string>();
 			var vips = new List<string>();

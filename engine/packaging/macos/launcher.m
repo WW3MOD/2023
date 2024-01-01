@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation. For more information,
@@ -13,7 +13,7 @@
 #include <mach/machine.h>
 
 #define SYSTEM_MONO_PATH @"/Library/Frameworks/Mono.framework/Versions/Current/"
-#define SYSTEM_MONO_MIN_VERSION @"6.4"
+#define SYSTEM_MONO_MIN_VERSION @"6.12"
 #define DOTNET_MIN_MACOS_VERSION 10.15
 
 @interface OpenRALauncher : NSObject <NSApplicationDelegate>

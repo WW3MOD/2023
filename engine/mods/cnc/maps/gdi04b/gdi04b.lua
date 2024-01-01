@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+   Copyright (c) The OpenRA Developers and Contributors
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -51,7 +51,7 @@ SendGDIReinforcements = function()
 			if GDIReinforcementsLeft > 0 then
 				GDIReinforcementsLeft = GDIReinforcementsLeft - 1
 				Trigger.AfterDelay(DateTime.Seconds(5), function()
-					Media.DisplayMessage("APC squads in reserve: " .. GDIReinforcementsLeft, "Battlefield Control")
+					Media.DisplayMessage(UserInterface.Translate("apcs-left", { ["apcs"] = GDIReinforcementsLeft }), UserInterface.Translate("battlefield-control"))
 					SendGDIReinforcements()
 				end)
 			end
@@ -104,8 +104,9 @@ WorldLoaded = function()
 
 	InitObjectives(GDI)
 
-	GDIObjective = GDI.AddObjective("Retrieve the crate with the stolen rods.")
-	ReinforcementsObjective = GDI.AddObjective("Eliminate " .. KillsUntilReinforcements .. " Nod units for reinforcements.", "Secondary", false)
+	GDIObjective = AddPrimaryObjective(GDI, "retrieve-rods")
+	local eliminateReinforcements = UserInterface.Translate("eliminate-reinforcements", { ["kills"] = KillsUntilReinforcements })
+	ReinforcementsObjective = AddSecondaryObjective(GDI, eliminateReinforcements)
 
 	SetupWorld()
 

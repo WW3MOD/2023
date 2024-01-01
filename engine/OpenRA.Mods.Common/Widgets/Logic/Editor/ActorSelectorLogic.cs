@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ActorSelectorLogic : CommonSelectorLogic
 	{
-		class ActorSelectorActor
+		[TranslationReference("actorType")]
+		const string ActorTypeTooltip = "label-actor-type";
+
+		sealed class ActorSelectorActor
 		{
 			public readonly ActorInfo Actor;
 			public readonly string[] Categories;
@@ -42,9 +45,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly ActorSelectorActor[] allActors;
 		readonly EditorCursorLayer editorCursor;
 
-		[TranslationReference]
-		static readonly string Type = "type";
-
 		PlayerReference selectedOwner;
 
 		[ObjectCreator.UseCtor]
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var editorLayer = world.WorldActor.Trait<EditorActorLayer>();
 
 			selectedOwner = editorLayer.Players.Players.Values.First();
-			Func<PlayerReference, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+			ScrollItemWidget SetupItem(PlayerReference option, ScrollItemWidget template)
 			{
 				var item = ScrollItemWidget.Setup(template, () => selectedOwner == option, () => SelectOwner(option));
 
@@ -65,7 +65,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				item.GetColor = () => option.Color;
 
 				return item;
-			};
+			}
 
 			editorLayer.OnPlayerRemoved = () =>
 			{
@@ -77,7 +77,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			ownersDropDown.OnClick = () =>
 			{
 				var owners = editorLayer.Players.Players.Values.OrderBy(p => p.Name);
-				ownersDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, owners, setupItem);
+				ownersDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, owners, SetupItem);
 			};
 
 			ownersDropDown.Text = selectedOwner.Name;
@@ -115,8 +115,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (tooltip != null)
 					searchTerms.Add(tooltip.Name);
 
-				var type = modData.Translation.GetString(Type);
-				var tooltipText = (tooltip == null ? $"{type}: " : tooltip.Name + $"\n{type}: ") + a.Name;
+				var actorType = TranslationProvider.GetString(ActorTypeTooltip, Translation.Arguments("actorType", a.Name));
+				var tooltipText = tooltip == null ? actorType : tooltip.Name + $"\n{actorType}";
 				allActorsTemp.Add(new ActorSelectorActor(a, editorData.Categories, searchTerms.ToArray(), tooltipText));
 			}
 
@@ -222,8 +222,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 				catch
 				{
-					Log.Write("debug", "Map editor ignoring actor {0}, because of missing sprites for tileset {1}.",
-						actor.Name, World.Map.Rules.TerrainInfo.Id);
+					Log.Write("debug", $"Map editor ignoring actor {actor.Name}, "
+						+ $"because of missing sprites for tileset {World.Map.Rules.TerrainInfo.Id}.");
 					continue;
 				}
 			}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,12 +17,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ConnectionLogic : ChromeLogic
 	{
+		[TranslationReference("endpoint")]
+		const string ConnectingToEndpoint = "label-connecting-to-endpoint";
+
 		readonly Action onConnect;
 		readonly Action onAbort;
 		readonly Action<string> onRetry;
-
-		[TranslationReference("endpoint")]
-		static readonly string ConnectingToEndpoint = "connecting-to-endpoint";
 
 		void ConnectionStateChanged(OrderManager om, string password, NetworkConnection connection)
 		{
@@ -42,6 +42,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{ "connection", connection },
 					{ "password", password },
 					{ "onAbort", onAbort },
+					{ "onQuit", null },
 					{ "onRetry", onRetry }
 				});
 			}
@@ -65,7 +66,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var panel = widget;
 			panel.Get<ButtonWidget>("ABORT_BUTTON").OnClick = () => { CloseWindow(); onAbort(); };
 
-			var connectingDesc = modData.Translation.GetString(ConnectingToEndpoint, Translation.Arguments("endpoint", endpoint));
+			var connectingDesc = TranslationProvider.GetString(ConnectingToEndpoint, Translation.Arguments("endpoint", endpoint));
 			widget.Get<LabelWidget>("CONNECTING_DESC").GetText = () => connectingDesc;
 		}
 
@@ -86,32 +87,40 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 	public class ConnectionFailedLogic : ChromeLogic
 	{
+		[TranslationReference("target")]
+		const string CouldNotConnectToTarget = "label-could-not-connect-to-target";
+
+		[TranslationReference]
+		const string UnknownError = "label-unknown-error";
+
+		[TranslationReference]
+		const string PasswordRequired = "label-password-required";
+
+		[TranslationReference]
+		const string ConnectionFailed = "label-connection-failed";
+
 		readonly PasswordFieldWidget passwordField;
 		bool passwordOffsetAdjusted;
 
-		[TranslationReference("target")]
-		static readonly string CouldNotConnectToTarget = "could-not-connect-to-target";
-
-		[TranslationReference]
-		static readonly string UnknownError = "unknown-error";
-
-		[TranslationReference]
-		static readonly string PasswordRequired = "password-required";
-
-		[TranslationReference]
-		static readonly string ConnectionFailed = "connection-failed";
-
 		[ObjectCreator.UseCtor]
-		public ConnectionFailedLogic(Widget widget, ModData modData, OrderManager orderManager, NetworkConnection connection, string password, Action onAbort, Action<string> onRetry)
+		public ConnectionFailedLogic(Widget widget, ModData modData, OrderManager orderManager, NetworkConnection connection, string password, Action onAbort, Action onQuit, Action<string> onRetry)
 		{
 			var panel = widget;
 			var abortButton = panel.Get<ButtonWidget>("ABORT_BUTTON");
+			var quitButton = panel.Get<ButtonWidget>("QUIT_BUTTON");
 			var retryButton = panel.Get<ButtonWidget>("RETRY_BUTTON");
+			var leaving = false;
 
 			abortButton.Visible = onAbort != null;
+			abortButton.IsDisabled = () => leaving;
 			abortButton.OnClick = () => { Ui.CloseWindow(); onAbort(); };
 
+			quitButton.Visible = onQuit != null;
+			quitButton.IsDisabled = () => leaving;
+			quitButton.OnClick = () => { onQuit(); leaving = true; };
+
 			retryButton.Visible = onRetry != null;
+			retryButton.IsDisabled = () => leaving;
 			retryButton.OnClick = () =>
 			{
 				var pass = passwordField != null && passwordField.IsVisible() ? passwordField.Text : password;
@@ -120,15 +129,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				onRetry(pass);
 			};
 
-			var connectingDescText = modData.Translation.GetString(CouldNotConnectToTarget, Translation.Arguments("target", connection.Target));
+			var connectingDescText = TranslationProvider.GetString(CouldNotConnectToTarget, Translation.Arguments("target", connection.Target));
 			widget.Get<LabelWidget>("CONNECTING_DESC").GetText = () => connectingDescText;
 
 			var connectionError = widget.Get<LabelWidget>("CONNECTION_ERROR");
-			var connectionErrorText = orderManager.ServerError != null ? modData.Translation.GetString(orderManager.ServerError) : connection.ErrorMessage ?? modData.Translation.GetString(UnknownError);
+			var connectionErrorText = orderManager.ServerError != null ? TranslationProvider.GetString(orderManager.ServerError) : connection.ErrorMessage ?? TranslationProvider.GetString(UnknownError);
 			connectionError.GetText = () => connectionErrorText;
 
 			var panelTitle = widget.Get<LabelWidget>("TITLE");
-			var panelTitleText = orderManager.AuthenticationFailed ? modData.Translation.GetString(PasswordRequired) : modData.Translation.GetString(ConnectionFailed);
+			var panelTitleText = orderManager.AuthenticationFailed ? TranslationProvider.GetString(PasswordRequired) : TranslationProvider.GetString(ConnectionFailed);
 			panelTitle.GetText = () => panelTitleText;
 
 			passwordField = panel.GetOrNull<PasswordFieldWidget>("PASSWORD");
@@ -171,7 +180,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class ConnectionSwitchModLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string ModSwitchFailed = "mod-switch-failed";
+		const string ModSwitchFailed = "notification-mod-switch-failed";
 
 		[ObjectCreator.UseCtor]
 		public ConnectionSwitchModLogic(Widget widget, OrderManager orderManager, NetworkConnection connection, Action onAbort, Action<string> onRetry)

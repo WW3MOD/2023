@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.D2k.Traits
 {
 	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
-	class D2kFogPaletteInfo : TraitInfo
+	sealed class D2kFogPaletteInfo : TraitInfo
 	{
 		[PaletteDefinition]
 		[FieldLoader.Require]
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.D2k.Traits
 		public override object Create(ActorInitializer init) { return new D2kFogPalette(this); }
 	}
 
-	class D2kFogPalette : ILoadsPalettes, IProvidesAssetBrowserPalettes
+	sealed class D2kFogPalette : ILoadsPalettes, IProvidesAssetBrowserPalettes
 	{
 		readonly D2kFogPaletteInfo info;
 		public D2kFogPalette(D2kFogPaletteInfo info) { this.info = info; }

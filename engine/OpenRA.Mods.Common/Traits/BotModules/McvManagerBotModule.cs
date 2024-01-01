@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
@@ -20,13 +19,13 @@ namespace OpenRA.Mods.Common.Traits
 	public class McvManagerBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Actor types that are considered MCVs (deploy into base builders).")]
-		public readonly HashSet<string> McvTypes = new HashSet<string>();
+		public readonly HashSet<string> McvTypes = new();
 
 		[Desc("Actor types that are considered construction yards (base builders).")]
-		public readonly HashSet<string> ConstructionYardTypes = new HashSet<string>();
+		public readonly HashSet<string> ConstructionYardTypes = new();
 
 		[Desc("Actor types that are able to produce MCVs.")]
-		public readonly HashSet<string> McvFactoryTypes = new HashSet<string>();
+		public readonly HashSet<string> McvFactoryTypes = new();
 
 		[Desc("Try to maintain at least this many ConstructionYardTypes, build an MCV if number is below this.")]
 		public readonly int MinimumConstructionYardCount = 1;
@@ -178,7 +177,7 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			// Find the buildable cell that is closest to pos and centered around center
-			Func<CPos, CPos, int, int, CPos?> findPos = (center, target, minRange, maxRange) =>
+			CPos? FindPos(CPos center, CPos target, int minRange, int maxRange)
 			{
 				var cells = world.Map.FindTilesInAnnulus(center, minRange, maxRange);
 
@@ -193,11 +192,11 @@ namespace OpenRA.Mods.Common.Traits
 						return cell;
 
 				return null;
-			};
+			}
 
 			var baseCenter = GetRandomBaseCenter();
 
-			return findPos(baseCenter, baseCenter, Info.MinBaseRadius,
+			return FindPos(baseCenter, baseCenter, Info.MinBaseRadius,
 				distanceToBaseIsImportant ? Info.MaxBaseRadius : world.Map.Grid.MaximumTileSearchRange);
 		}
 

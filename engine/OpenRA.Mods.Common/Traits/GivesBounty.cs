@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("When killed, this actor causes the attacking player to receive money.")]
-	class GivesBountyInfo : ConditionalTraitInfo
+	sealed class GivesBountyInfo : ConditionalTraitInfo
 	{
 		[Desc("Fixed amount to give, overrides Percentage.")]
 		public readonly int Fixed = 0;
@@ -39,9 +39,9 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GivesBounty(this); }
 	}
 
-	class GivesBounty : ConditionalTrait<GivesBountyInfo>, INotifyKilled, INotifyPassengerEntered, INotifyPassengerExited
+	sealed class GivesBounty : ConditionalTrait<GivesBountyInfo>, INotifyKilled, INotifyPassengerEntered, INotifyPassengerExited
 	{
-		readonly Dictionary<Actor, GivesBounty[]> passengerBounties = new Dictionary<Actor, GivesBounty[]>();
+		readonly Dictionary<Actor, GivesBounty[]> passengerBounties = new();
 
 		public GivesBounty(GivesBountyInfo info)
 			: base(info) { }

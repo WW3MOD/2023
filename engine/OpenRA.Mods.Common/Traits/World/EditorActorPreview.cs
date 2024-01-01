@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly TooltipInfoBase tooltip;
 		IActorPreview[] previews;
 		readonly ActorReference reference;
-		readonly Dictionary<INotifyEditorPlacementInfo, object> editorData = new Dictionary<INotifyEditorPlacementInfo, object>();
+		readonly Dictionary<INotifyEditorPlacementInfo, object> editorData = new();
 
 		public EditorActorPreview(WorldRenderer worldRenderer, string id, ActorReference reference, PlayerReference owner)
 		{
@@ -207,7 +207,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public MiniYaml Save()
 		{
-			bool SaveInit(object init)
+			bool SaveInit(ActorInit init)
 			{
 				if (init is FactionInit factionInit && factionInit.Value == Owner.Faction)
 					return false;
@@ -220,7 +220,7 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			return reference.Save((Func<object, bool>)SaveInit);
+			return reference.Save(SaveInit);
 		}
 
 		WPos PreviewPosition(World world, ActorReference actor)

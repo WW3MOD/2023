@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -37,13 +37,13 @@ namespace OpenRA.Mods.Common.Traits
 			"'Land' will behave like 'None' (hover or circle) if a suitable landing site is not available.")]
 		public readonly IdleBehaviorType IdleBehavior = IdleBehaviorType.None;
 
-		public readonly WDist CruiseAltitude = new WDist(1280);
+		public readonly WDist CruiseAltitude = new(1280);
 
 		[Desc("Whether the aircraft can be repulsed.")]
 		public readonly bool Repulsable = true;
 
 		[Desc("The distance it tries to maintain from other aircraft if repulsable.")]
-		public readonly WDist IdealSeparation = new WDist(1706);
+		public readonly WDist IdealSeparation = new(1706);
 
 		[Desc("The speed at which the aircraft is repulsed from other aircraft. Specify -1 for normal movement speed.")]
 		public readonly int RepulsionSpeed = -1;
@@ -51,10 +51,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
-		public readonly WAngle TurnSpeed = new WAngle(512);
+		public readonly WAngle TurnSpeed = new(512);
 
 		[Desc("Turn speed to apply when aircraft flies in circles while idle. Defaults to TurnSpeed if undefined.")]
 		public readonly WAngle? IdleTurnSpeed = null;
+
+		[Desc("When flying if the difference between current facing and desired facing is less than this value, don't turn. This prevents visual jitter.")]
+		public readonly WAngle TurnDeadzone = new(2);
 
 		[Desc("Maximum flight speed when cruising.")]
 		public readonly int Speed = 1;
@@ -80,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum altitude where this aircraft is considered airborne.")]
 		public readonly int MinAirborneAltitude = 1;
 
-		public readonly HashSet<string> LandableTerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> LandableTerrainTypes = new();
 
 		[Desc("Can the actor be ordered to move in to shroud?")]
 		public readonly bool MoveIntoShroud = true;
@@ -136,7 +139,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle MaximumPitch = WAngle.FromDegrees(10);
 
 		[Desc("How fast this actor ascends or descends when moving vertically only (vertical take off/landing or hovering towards CruiseAltitude).")]
-		public readonly WDist AltitudeVelocity = new WDist(43);
+		public readonly WDist AltitudeVelocity = new(43);
 
 		[Desc("Sounds to play when the actor is taking off.")]
 		public readonly string[] TakeoffSounds = Array.Empty<string>();
@@ -145,13 +148,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string[] LandingSounds = Array.Empty<string>();
 
 		[Desc("The distance of the resupply base that the aircraft will wait for its turn.")]
-		public readonly WDist WaitDistanceFromResupplyBase = new WDist(3072);
+		public readonly WDist WaitDistanceFromResupplyBase = new(3072);
 
 		[Desc("The number of ticks that a airplane will wait to make a new search for an available airport.")]
 		public readonly int NumberOfTicksToVerifyAvailableAirport = 150;
 
 		[Desc("Facing to use for actor previews (map editor, color picker, etc)")]
-		public readonly WAngle PreviewFacing = new WAngle(384);
+		public readonly WAngle PreviewFacing = new(384);
 
 		[Desc("Display order for the facing slider in the map editor")]
 		public readonly int EditorFacingDisplayOrder = 3;
@@ -235,28 +238,26 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyCenterPositionChanged[] notifyCenterPositionChanged;
 		IOverrideAircraftLanding overrideAircraftLanding;
 
-		WRot orientation;
-
 		[Sync]
 		public WAngle Facing
 		{
-			get => orientation.Yaw;
-			set => orientation = orientation.WithYaw(value);
+			get => Orientation.Yaw;
+			set => Orientation = Orientation.WithYaw(value);
 		}
 
 		public WAngle Pitch
 		{
-			get => orientation.Pitch;
-			set => orientation = orientation.WithPitch(value);
+			get => Orientation.Pitch;
+			set => Orientation = Orientation.WithPitch(value);
 		}
 
 		public WAngle Roll
 		{
-			get => orientation.Roll;
-			set => orientation = orientation.WithRoll(value);
+			get => Orientation.Roll;
+			set => Orientation = Orientation.WithRoll(value);
 		}
 
-		public WRot Orientation => orientation;
+		public WRot Orientation { get; private set; }
 
 		[Sync]
 		public WPos CenterPosition { get; private set; }
@@ -415,7 +416,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Add takeoff activity if Aircraft trait is not paused and the actor should not land when idle.
-			if (ForceLanding && !IsTraitPaused && !cruising && !(self.CurrentActivity is TakeOff))
+			if (ForceLanding && !IsTraitPaused && !cruising && self.CurrentActivity is not TakeOff)
 			{
 				ForceLanding = false;
 
@@ -539,7 +540,7 @@ namespace OpenRA.Mods.Common.Traits
 				return new WVec(1024, 0, 0).Rotate(rot);
 			}
 
-			return (d * 1024 * 8) / (int)distSq;
+			return d * 1024 * 8 / (int)distSq;
 		}
 
 		public Actor GetActorBelow()
@@ -765,9 +766,7 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
-				if (Info.IdleBehavior != IdleBehaviorType.Land && dat != Info.CruiseAltitude)
-					self.QueueActivity(new TakeOff(self));
-				else if (Info.IdleBehavior == IdleBehaviorType.Land && Info.LandableTerrainTypes.Count > 0)
+				if (Info.IdleBehavior == IdleBehaviorType.Land && Info.LandableTerrainTypes.Count > 0)
 					self.QueueActivity(new Land(self));
 				else
 					self.QueueActivity(new FlyIdle(self));
@@ -804,7 +803,7 @@ namespace OpenRA.Mods.Common.Traits
 			var altitude = self.World.Map.DistanceAboveTerrain(CenterPosition);
 
 			// LandingCells define OccupiedCells, so we need to keep current position with LandindCells in sync.
-			// Though we don't want to update LandingCells when the unit is airborn, as when non-VTOL units reserve
+			// Though we don't want to update LandingCells when the unit is airborne, as when non-VTOL units reserve
 			// their landing position it is expected for their landing cell to not match their current position.
 			if (HasInfluence() && altitude.Length <= Info.MinAirborneAltitude)
 			{
@@ -934,6 +933,11 @@ namespace OpenRA.Mods.Common.Traits
 		public Activity MoveIntoTarget(Actor self, in Target target)
 		{
 			return new Land(self, target);
+		}
+
+		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset, WAngle? facing, Color? targetLineColor = null)
+		{
+			return new Land(self, target, offset, facing, targetLineColor);
 		}
 
 		public Activity LocalMove(Actor self, WPos fromPos, WPos toPos)
@@ -1226,7 +1230,7 @@ namespace OpenRA.Mods.Common.Traits
 			return new AssociateWithAirfieldActivity(self, creationActivityDelay);
 		}
 
-		class AssociateWithAirfieldActivity : Activity
+		sealed class AssociateWithAirfieldActivity : Activity
 		{
 			readonly Aircraft aircraft;
 			readonly int delay;

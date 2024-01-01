@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -131,10 +131,10 @@ namespace OpenRA.Mods.Common.Activities
 				var lastproc = harv.LastLinkedProc ?? harv.LinkedProc;
 				if (lastproc != null && !lastproc.Disposed)
 				{
-					var deliveryLoc = lastproc.Location + lastproc.Trait<IAcceptResources>().DeliveryOffset;
-					if (self.Location == deliveryLoc && harv.IsEmpty)
+					var deliveryLoc = lastproc.Trait<IAcceptResources>().DeliveryPosition;
+					if (self.CenterPosition == deliveryLoc && harv.IsEmpty)
 					{
-						var unblockCell = deliveryLoc + harv.Info.UnblockCell;
+						var unblockCell = self.World.Map.CellContaining(deliveryLoc) + harv.Info.UnblockCell;
 						var moveTo = mobile.NearestMoveableCell(unblockCell, 1, 5);
 						QueueChild(mobile.MoveTo(moveTo, 1));
 					}
@@ -152,7 +152,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		/// <summary>
 		/// Finds the closest harvestable pos between the current position of the harvester
-		/// and the last order location
+		/// and the last order location.
 		/// </summary>
 		CPos? ClosestHarvestablePos(Actor self)
 		{
@@ -246,10 +246,10 @@ namespace OpenRA.Mods.Common.Activities
 		CPos? GetSearchFromProcLocation()
 		{
 			if (harv.LastLinkedProc != null && !harv.LastLinkedProc.IsDead && harv.LastLinkedProc.IsInWorld)
-				return harv.LastLinkedProc.Location + harv.LastLinkedProc.Trait<IAcceptResources>().DeliveryOffset;
+				return harv.LastLinkedProc.World.Map.CellContaining(harv.LastLinkedProc.Trait<IAcceptResources>().DeliveryPosition);
 
 			if (harv.LinkedProc != null && !harv.LinkedProc.IsDead && harv.LinkedProc.IsInWorld)
-				return harv.LinkedProc.Location + harv.LinkedProc.Trait<IAcceptResources>().DeliveryOffset;
+				return harv.LinkedProc.World.Map.CellContaining(harv.LinkedProc.Trait<IAcceptResources>().DeliveryPosition);
 
 			return null;
 		}

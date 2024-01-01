@@ -426,7 +426,7 @@ JEEP:
 		Type: Light
 	Mobile:
 		TurnSpeed: 40
-		Speed: 160
+		Speed: 164
 		PauseOnCondition: notmobile || being-captured
 	Vision:
 		MinRange: 4c0
@@ -922,7 +922,7 @@ STNK:
 		UncloakSound: appear1.aud
 		IsPlayerPalette: true
 		PauseOnCondition: cloak-force-disabled
-		UncloakOn: Attack, Unload, Heal, Dock
+		UncloakOn: Attack, Load, Unload, Heal, Dock
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical

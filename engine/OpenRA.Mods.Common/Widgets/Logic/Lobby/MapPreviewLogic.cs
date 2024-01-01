@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,27 +19,27 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class MapPreviewLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string Connecting = "label-connecting";
+
+		[TranslationReference("size")]
+		const string Downloading = "label-downloading-map";
+
+		[TranslationReference("size", "progress")]
+		const string DownloadingPercentage = "label-downloading-map-progress";
+
+		[TranslationReference]
+		const string RetryInstall = "button-retry-install";
+
+		[TranslationReference]
+		const string RetrySearch = "button-retry-search";
+
+		[TranslationReference("author")]
+		const string CreatedBy = "label-created-by";
+
 		readonly int blinkTickLength = 10;
 		bool installHighlighted;
 		int blinkTick;
-
-		[TranslationReference]
-		static readonly string Connecting = "connecting";
-
-		[TranslationReference("size")]
-		static readonly string Downloading = "downloading-map";
-
-		[TranslationReference("size", "progress")]
-		static readonly string DownloadingPercentage = "downloading-map-progress";
-
-		[TranslationReference]
-		static readonly string RetryInstall = "retry-install";
-
-		[TranslationReference]
-		static readonly string RetrySearch = "retry-search";
-
-		[TranslationReference("author")]
-		static readonly string CreatedBy = "created-by";
 
 		[ObjectCreator.UseCtor]
 		internal MapPreviewLogic(Widget widget, ModData modData, OrderManager orderManager, Func<(MapPreview Map, Session.MapStatus Status)> getMap,
@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return map.Status == MapStatus.Available && isPlayable;
 				};
 
-				SetupWidgets(available, modData, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
+				SetupWidgets(available, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
 			}
 
 			var invalid = widget.GetOrNull("MAP_INVALID");
@@ -70,7 +70,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return map.Status == MapStatus.Available && (serverStatus & Session.MapStatus.Incompatible) != 0;
 				};
 
-				SetupWidgets(invalid, modData, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
+				SetupWidgets(invalid, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
 			}
 
 			var validating = widget.GetOrNull("MAP_VALIDATING");
@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return map.Status == MapStatus.Available && (serverStatus & Session.MapStatus.Validating) != 0;
 				};
 
-				SetupWidgets(validating, modData, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
+				SetupWidgets(validating, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
 			}
 
 			var download = widget.GetOrNull("MAP_DOWNLOADABLE");
@@ -90,7 +90,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				download.IsVisible = () => getMap().Map.Status == MapStatus.DownloadAvailable;
 
-				SetupWidgets(download, modData, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
+				SetupWidgets(download, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
 
 				var install = download.GetOrNull<ButtonWidget>("MAP_INSTALL");
 				if (install != null)
@@ -117,7 +117,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return map.Status != MapStatus.Available && map.Status != MapStatus.DownloadAvailable;
 				};
 
-				SetupWidgets(progress, modData, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
+				SetupWidgets(progress, getMap, onMouseDown, getSpawnOccupants, getDisabledSpawnPoints, showUnoccupiedSpawnpoints);
 
 				var statusSearching = progress.GetOrNull("MAP_STATUS_SEARCHING");
 				if (statusSearching != null)
@@ -152,13 +152,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{
 						var (map, _) = getMap();
 						if (map.DownloadBytes == 0)
-							return modData.Translation.GetString(Connecting);
+							return TranslationProvider.GetString(Connecting);
 
 						// Server does not provide the total file length
 						if (map.DownloadPercentage == 0)
-							 modData.Translation.GetString(Downloading, Translation.Arguments("size", map.DownloadBytes / 1024));
+							TranslationProvider.GetString(Downloading, Translation.Arguments("size", map.DownloadBytes / 1024));
 
-						return modData.Translation.GetString(DownloadingPercentage, Translation.Arguments("size", map.DownloadBytes / 1024, "progress", map.DownloadPercentage));
+						return TranslationProvider.GetString(DownloadingPercentage, Translation.Arguments("size", map.DownloadBytes / 1024, "progress", map.DownloadPercentage));
 					};
 				}
 
@@ -188,8 +188,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					};
 
 					retry.GetText = () => getMap().Map.Status == MapStatus.DownloadError
-						? modData.Translation.GetString(RetryInstall)
-						: modData.Translation.GetString(RetrySearch);
+						? TranslationProvider.GetString(RetryInstall)
+						: TranslationProvider.GetString(RetrySearch);
 				}
 
 				var progressbar = progress.GetOrNull<ProgressBarWidget>("MAP_PROGRESSBAR");
@@ -211,7 +211,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		static void SetupWidgets(Widget parent, ModData modData,
+		static void SetupWidgets(Widget parent,
 			Func<(MapPreview Map, Session.MapStatus Status)> getMap,
 			Action<MapPreviewWidget, MapPreview, MouseInput> onMouseDown,
 			Func<Dictionary<int, SpawnOccupant>> getSpawnOccupants,
@@ -256,7 +256,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				var font = Game.Renderer.Fonts[authorLabel.Font];
 				var author = new CachedTransform<MapPreview, string>(
-					m => WidgetUtils.TruncateText(modData.Translation.GetString(CreatedBy, Translation.Arguments("author", m.Author)), authorLabel.Bounds.Width, font));
+					m => WidgetUtils.TruncateText(TranslationProvider.GetString(CreatedBy, Translation.Arguments("author", m.Author)), authorLabel.Bounds.Width, font));
 				authorLabel.GetText = () => author.Update(getMap().Map);
 			}
 		}

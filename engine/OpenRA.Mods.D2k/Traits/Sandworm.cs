@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -17,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.D2k.Traits
 {
-	class SandwormInfo : WandersInfo, Requires<MobileInfo>, Requires<AttackBaseInfo>
+	sealed class SandwormInfo : WandersInfo, Requires<MobileInfo>, Requires<AttackBaseInfo>
 	{
 		[Desc("Time between rescanning for targets (in ticks).")]
 		public readonly int TargetRescanInterval = 125;
@@ -34,7 +33,7 @@ namespace OpenRA.Mods.D2k.Traits
 		public override object Create(ActorInitializer init) { return new Sandworm(init.Self, this); }
 	}
 
-	class Sandworm : Wanders, ITick, INotifyActorDisposing
+	sealed class Sandworm : Wanders, ITick, INotifyActorDisposing
 	{
 		public readonly SandwormInfo WormInfo;
 
@@ -93,16 +92,16 @@ namespace OpenRA.Mods.D2k.Traits
 				return;
 			}
 
-			Func<Actor, bool> isValidTarget = a =>
+			bool IsValidTarget(Actor a)
 			{
 				if (!a.Info.HasTraitInfo<AttractsWormsInfo>())
 					return false;
 
 				return mobile.CanEnterCell(a.Location, null, BlockedByActor.None);
-			};
+			}
 
 			var actorsInRange = self.World.FindActorsInCircle(self.CenterPosition, WormInfo.MaxSearchRadius)
-				.Where(isValidTarget).SelectMany(a => a.TraitsImplementing<AttractsWorms>());
+				.Where(IsValidTarget).SelectMany(a => a.TraitsImplementing<AttractsWorms>());
 
 			var noiseDirection = actorsInRange.Aggregate(WVec.Zero, (a, b) => a + b.AttractionAtPosition(self.CenterPosition));
 

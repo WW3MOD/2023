@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class DebugChromeRegions : IUtilityCommand
+	sealed class DebugChromeRegions : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--debug-chrome-regions";
 
@@ -74,7 +74,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				}
 			}
 
-			var output = HtmlTemplate.JoinWith("\n").F(zoom, Convert.ToBase64String(modData.ModFiles.Open(image).ReadAllBytes()), "[" + regions.JoinWith(",") + "]");
+			var output = string.Format(HtmlTemplate.JoinWith("\n"), zoom, Convert.ToBase64String(modData.ModFiles.Open(image).ReadAllBytes()), "[" + regions.JoinWith(",") + "]");
 			var outputPath = Path.ChangeExtension(image, ".html");
 			File.WriteAllLines(outputPath, new[] { output });
 			Console.WriteLine("Saved {0}", outputPath);

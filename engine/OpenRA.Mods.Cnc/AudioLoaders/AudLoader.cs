@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,14 +17,14 @@ namespace OpenRA.Mods.Cnc.AudioLoaders
 {
 	public class AudLoader : ISoundLoader
 	{
-		bool IsAud(Stream s)
+		static bool IsAud(Stream s)
 		{
 			var start = s.Position;
 			s.Position += 11;
 			var readFormat = s.ReadByte();
 			s.Position = start;
 
-			return readFormat == (int)SoundFormat.ImaAdpcm;
+			return readFormat == (int)SoundFormat.ImaAdpcm || readFormat == (int)SoundFormat.WestwoodCompressed;
 		}
 
 		bool ISoundLoader.TryParseSound(Stream stream, out ISoundFormat sound)

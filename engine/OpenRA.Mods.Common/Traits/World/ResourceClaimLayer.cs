@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,8 +21,8 @@ namespace OpenRA.Mods.Common.Traits
 
 	public sealed class ResourceClaimLayer
 	{
-		readonly Dictionary<CPos, List<Actor>> claimByCell = new Dictionary<CPos, List<Actor>>(32);
-		readonly Dictionary<Actor, CPos> claimByActor = new Dictionary<Actor, CPos>(32);
+		readonly Dictionary<CPos, List<Actor>> claimByCell = new(32);
+		readonly Dictionary<Actor, CPos> claimByActor = new(32);
 
 		/// <summary>
 		/// Attempt to reserve the resource in a cell for the given actor.

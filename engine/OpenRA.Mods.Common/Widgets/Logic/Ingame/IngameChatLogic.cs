@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,6 +23,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	[ChromeLogicArgsHotkeys("OpenTeamChat", "OpenGeneralChat")]
 	public class IngameChatLogic : ChromeLogic, INotificationHandler<TextNotification>
 	{
+		[TranslationReference]
+		const string TeamChat = "button-team-chat";
+
+		[TranslationReference]
+		const string GeneralChat = "button-general-chat";
+
+		[TranslationReference("seconds")]
+		const string ChatAvailability = "label-chat-availability";
+
+		[TranslationReference]
+		const string ChatDisabled = "label-chat-disabled";
+
 		readonly Ruleset modRules;
 		readonly World world;
 
@@ -34,27 +46,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly TextFieldWidget chatText;
 		readonly CachedTransform<int, string> chatAvailableIn;
 		readonly string chatDisabled;
-		readonly Dictionary<TextNotificationPool, Widget> templates = new Dictionary<TextNotificationPool, Widget>();
+		readonly Dictionary<TextNotificationPool, Widget> templates = new();
 
-		readonly TabCompletionLogic tabCompletion = new TabCompletionLogic();
+		readonly TabCompletionLogic tabCompletion = new();
 
 		readonly string chatLineSound = ChromeMetrics.Get<string>("ChatLineSound");
 
 		bool chatEnabled;
 
 		readonly bool isMenuChat;
-
-		[TranslationReference]
-		static readonly string Team = "team";
-
-		[TranslationReference]
-		static readonly string All = "all";
-
-		[TranslationReference("seconds")]
-		static readonly string ChatAvailability = "chat-availability";
-
-		[TranslationReference]
-		static readonly string ChatDisabled = "chat-disabled";
 
 		[ObjectCreator.UseCtor]
 		public IngameChatLogic(Widget widget, OrderManager orderManager, World world, ModData modData, bool isMenuChat, Dictionary<string, MiniYaml> logicArgs)
@@ -70,10 +70,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var disableTeamChat = alwaysDisabled || (world.LocalPlayer != null && !players.Any(p => p.IsAlliedWith(world.LocalPlayer)));
 			var teamChat = !disableTeamChat;
 
-			var teamMessage = modData.Translation.GetString(Team);
-			var allMessage = modData.Translation.GetString(All);
+			var teamMessage = TranslationProvider.GetString(TeamChat);
+			var allMessage = TranslationProvider.GetString(GeneralChat);
 
-			chatDisabled = modData.Translation.GetString(ChatDisabled);
+			chatDisabled = TranslationProvider.GetString(ChatDisabled);
 
 			// Only execute this once, the first time this widget is loaded
 			if (TextNotificationsManager.MutedPlayers.Count == 0)
@@ -194,7 +194,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return true;
 			};
 
-			chatAvailableIn = new CachedTransform<int, string>(x => modData.Translation.GetString(ChatAvailability, Translation.Arguments("seconds", x)));
+			chatAvailableIn = new CachedTransform<int, string>(x => TranslationProvider.GetString(ChatAvailability, Translation.Arguments("seconds", x)));
 
 			if (!isMenuChat)
 			{

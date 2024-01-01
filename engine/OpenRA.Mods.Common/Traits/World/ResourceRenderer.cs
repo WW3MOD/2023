@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -62,7 +62,7 @@ namespace OpenRA.Mods.Common.Traits
 			return ret;
 		}
 
-		void IMapPreviewSignatureInfo.PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos, Color)> destinationBuffer)
+		void IMapPreviewSignatureInfo.PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos Uv, Color Color)> destinationBuffer)
 		{
 			var resourceLayer = ai.TraitInfoOrDefault<IResourceLayerInfo>();
 			if (resourceLayer == null)
@@ -98,11 +98,11 @@ namespace OpenRA.Mods.Common.Traits
 		protected readonly ResourceRendererInfo Info;
 		protected readonly IResourceLayer ResourceLayer;
 		protected readonly CellLayer<RendererCellContents> RenderContents;
-		protected readonly Dictionary<string, Dictionary<string, ISpriteSequence>> Variants = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
+		protected readonly Dictionary<string, Dictionary<string, ISpriteSequence>> Variants = new();
 		protected readonly World World;
 
-		readonly HashSet<CPos> dirty = new HashSet<CPos>();
-		readonly Queue<CPos> cleanDirty = new Queue<CPos>();
+		readonly HashSet<CPos> dirty = new();
+		readonly Queue<CPos> cleanDirty = new();
 		TerrainSpriteLayer shadowLayer;
 		TerrainSpriteLayer spriteLayer;
 		bool disposed;
@@ -124,7 +124,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void WorldLoaded(World w, WorldRenderer wr)
 		{
-			var sequences = w.Map.Rules.Sequences;
+			var sequences = w.Map.Sequences;
 			foreach (var kv in Info.ResourceTypes)
 			{
 				var resourceInfo = kv.Value;
@@ -141,12 +141,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (shadowLayer == null)
 				{
-					var firstWithShadow = resourceVariants.Values.FirstOrDefault(v => v.ShadowStart > 0);
-					if (firstWithShadow != null)
+					var firstShadow = resourceVariants.Values
+						.Select(v => v.GetShadow(0, WAngle.Zero))
+						.FirstOrDefault(s => s != null);
+					if (firstShadow != null)
 					{
-						var first = firstWithShadow.GetShadow(0, WAngle.Zero);
-						var emptySprite = new Sprite(first.Sheet, Rectangle.Empty, TextureChannel.Alpha);
-						shadowLayer = new TerrainSpriteLayer(w, wr, emptySprite, first.BlendMode, wr.World.Type != WorldType.Editor);
+						var emptySprite = new Sprite(firstShadow.Sheet, Rectangle.Empty, TextureChannel.Alpha);
+						shadowLayer = new TerrainSpriteLayer(w, wr, emptySprite, firstShadow.BlendMode, wr.World.Type != WorldType.Editor);
 					}
 				}
 

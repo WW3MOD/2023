@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,7 +41,7 @@ namespace OpenRA
 			Bits = (x & 0xFFF) << 20 | (y & 0xFFF) << 8 | layer;
 		}
 
-		public static readonly CPos Zero = new CPos(0, 0, 0);
+		public static readonly CPos Zero = new(0, 0, 0);
 
 		public static explicit operator CPos(int2 a) { return new CPos(a.X, a.Y); }
 
@@ -56,7 +56,7 @@ namespace OpenRA
 		public override int GetHashCode() { return Bits.GetHashCode(); }
 
 		public bool Equals(CPos other) { return Bits == other.Bits; }
-		public override bool Equals(object obj) { return obj is CPos pos && Equals(pos); }
+		public override bool Equals(object obj) { return obj is CPos cell && Equals(cell); }
 
 		public override string ToString()
 		{

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,10 +18,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class IngamePowerCounterLogic : ChromeLogic
 	{
 		[TranslationReference("usage", "capacity")]
-		static readonly string PowerUsage = "power-usage";
+		const string PowerUsage = "label-power-usage";
 
 		[TranslationReference]
-		static readonly string Infinite = "infinite-power";
+		const string Infinite = "label-infinite-power";
 
 		[ObjectCreator.UseCtor]
 		public IngamePowerCounterLogic(Widget widget, ModData modData, World world)
@@ -31,17 +31,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var powerManager = world.LocalPlayer.PlayerActor.Trait<PowerManager>();
 			var power = widget.Get<LabelWithTooltipWidget>("POWER");
 			var powerIcon = widget.Get<ImageWidget>("POWER_ICON");
-			var unlimitedCapacity = modData.Translation.GetString(Infinite);
+			var unlimitedCapacity = TranslationProvider.GetString(Infinite);
 
 			powerIcon.GetImageName = () => powerManager.ExcessPower < 0 ? "power-critical" : "power-normal";
 			power.GetColor = () => powerManager.ExcessPower < 0 ? Color.Red : Color.White;
 			power.GetText = () => developerMode.UnlimitedPower ? unlimitedCapacity : powerManager.ExcessPower.ToString();
 
-			var tooltipTextCached = new CachedTransform<(string, string), string>(((string usage, string capacity) args) =>
+			var tooltipTextCached = new CachedTransform<(string, string), string>(((string Usage, string Capacity) args) =>
 			{
-				return modData.Translation.GetString(
+				return TranslationProvider.GetString(
 					PowerUsage,
-					Translation.Arguments("usage", args.usage, "capacity", args.capacity));
+					Translation.Arguments("usage", args.Usage, "capacity", args.Capacity));
 			});
 
 			power.GetTooltipText = () =>

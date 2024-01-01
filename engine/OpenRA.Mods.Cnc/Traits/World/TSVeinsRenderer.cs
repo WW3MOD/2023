@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -44,9 +44,9 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		[ActorReference]
 		[Desc("Actor types that should be treated as veins for adjacency.")]
-		public readonly HashSet<string> VeinholeActors = new HashSet<string> { };
+		public readonly HashSet<string> VeinholeActors = new() { };
 
-		void IMapPreviewSignatureInfo.PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos, Color)> destinationBuffer)
+		void IMapPreviewSignatureInfo.PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos Uv, Color Color)> destinationBuffer)
 		{
 			var resourceLayer = ai.TraitInfoOrDefault<IResourceLayerInfo>();
 			if (resourceLayer == null)
@@ -120,7 +120,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			PlusY = 0x8,
 		}
 
-		static readonly Dictionary<Adjacency, int[]> BorderIndices = new Dictionary<Adjacency, int[]>()
+		static readonly Dictionary<Adjacency, int[]> BorderIndices = new()
 		{
 			{ Adjacency.MinusY, new[] { 3, 4, 5 } },
 			{ Adjacency.PlusX, new[] { 6, 7, 8 } },
@@ -151,9 +151,9 @@ namespace OpenRA.Mods.Cnc.Traits
 		readonly IResourceLayer resourceLayer;
 		readonly CellLayer<int[]> renderIndices;
 		readonly CellLayer<Adjacency> borders;
-		readonly HashSet<CPos> dirty = new HashSet<CPos>();
-		readonly Queue<CPos> cleanDirty = new Queue<CPos>();
-		readonly HashSet<CPos> veinholeCells = new HashSet<CPos>();
+		readonly HashSet<CPos> dirty = new();
+		readonly Queue<CPos> cleanDirty = new();
+		readonly HashSet<CPos> veinholeCells = new();
 		readonly int maxDensity;
 		readonly Color veinMiniMapColor;
 
@@ -193,7 +193,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			foreach (var a in w.Actors)
 				ActorAddedToWorld(a);
 
-			veinSequence = w.Map.Rules.Sequences.GetSequence(info.Image, info.Sequence);
+			veinSequence = w.Map.Sequences.GetSequence(info.Image, info.Sequence);
 			veinPalette = wr.Palette(info.Palette);
 
 			var first = veinSequence.GetSprite(0);

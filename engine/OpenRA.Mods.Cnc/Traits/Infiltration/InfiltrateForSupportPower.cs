@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-	class InfiltrateForSupportPowerInfo : TraitInfo
+	sealed class InfiltrateForSupportPowerInfo : TraitInfo
 	{
 		[ActorReference]
 		[FieldLoader.Require]
@@ -23,6 +23,9 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		[Desc("The `TargetTypes` from `Targetable` that are allowed to enter.")]
 		public readonly BitSet<TargetableType> Types = default;
+
+		[Desc("Experience to grant to the infiltrating player.")]
+		public readonly int PlayerExperience = 0;
 
 		[NotificationReference("Speech")]
 		[Desc("Sound the victim will hear when technology gets stolen.")]
@@ -41,7 +44,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new InfiltrateForSupportPower(this); }
 	}
 
-	class InfiltrateForSupportPower : INotifyInfiltrated
+	sealed class InfiltrateForSupportPower : INotifyInfiltrated
 	{
 		readonly InfiltrateForSupportPowerInfo info;
 
@@ -63,6 +66,8 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			TextNotificationsManager.AddTransientLine(info.InfiltratedTextNotification, self.Owner);
 			TextNotificationsManager.AddTransientLine(info.InfiltrationTextNotification, infiltrator.Owner);
+
+			infiltrator.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience(info.PlayerExperience);
 
 			infiltrator.World.AddFrameEndTask(w => w.CreateActor(info.Proxy, new TypeDictionary
 			{

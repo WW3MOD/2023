@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,14 +41,14 @@ namespace OpenRA.Mods.Common.Activities
 
 		/// <summary>
 		/// Called early in the activity tick to allow subclasses to update state.
-		/// Call Cancel(self, true) if it is no longer valid to enter
+		/// Call Cancel(self, true) if it is no longer valid to enter.
 		/// </summary>
 		protected virtual void TickInner(Actor self, in Target target, bool targetIsDeadOrHiddenActor) { }
 
 		/// <summary>
 		/// Called when the actor is ready to transition from approaching to entering the target actor.
 		/// Return true to start entering, or false to wait in the WaitingToEnter state.
-		/// Call Cancel(self, true) before returning false if it is no longer valid to enter
+		/// Call Cancel(self, true) before returning false if it is no longer valid to enter.
 		/// </summary>
 		protected virtual bool TryStartEnter(Actor self, Actor targetActor) { return true; }
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -174,8 +174,11 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 	}
 
-	class CopyPasteEditorAction : IEditorAction
+	sealed class CopyPasteEditorAction : IEditorAction
 	{
+		[TranslationReference("amount")]
+		const string CopiedTiles = "notification-copied-tiles";
+
 		public string Text { get; }
 
 		readonly MapCopyFilters copyFilters;
@@ -187,12 +190,12 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly CellLayer<byte> mapHeight;
 		readonly CellLayer<ResourceTile> mapResources;
 
-		readonly Queue<UndoCopyPaste> undoCopyPastes = new Queue<UndoCopyPaste>();
-		readonly Queue<EditorActorPreview> removedActors = new Queue<EditorActorPreview>();
-		readonly Queue<EditorActorPreview> addedActorPreviews = new Queue<EditorActorPreview>();
+		readonly Queue<UndoCopyPaste> undoCopyPastes = new();
+		readonly Queue<EditorActorPreview> removedActors = new();
+		readonly Queue<EditorActorPreview> addedActorPreviews = new();
 
 		public CopyPasteEditorAction(MapCopyFilters copyFilters, Map map,
-			Dictionary<CPos, (TerrainTile, ResourceTile, byte)> tiles, Dictionary<string, ActorReference> previews,
+			Dictionary<CPos, (TerrainTile Tile, ResourceTile Resource, byte Height)> tiles, Dictionary<string, ActorReference> previews,
 			EditorActorLayer editorLayer, CellRegion dest)
 		{
 			this.copyFilters = copyFilters;
@@ -205,7 +208,7 @@ namespace OpenRA.Mods.Common.Widgets
 			mapHeight = map.Height;
 			mapResources = map.Resources;
 
-			Text = $"Copied {tiles.Count} tiles";
+			Text = TranslationProvider.GetString(CopiedTiles, Translation.Arguments("amount", tiles.Count));
 		}
 
 		public void Execute()
@@ -268,7 +271,7 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 	}
 
-	class UndoCopyPaste
+	sealed class UndoCopyPaste
 	{
 		public CPos Cell { get; }
 		public TerrainTile MapTile { get; }

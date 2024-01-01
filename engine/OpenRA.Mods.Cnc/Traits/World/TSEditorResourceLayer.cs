@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,18 +17,18 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Cnc.Traits
 {
 	[TraitLocation(SystemActors.EditorWorld)]
-	class TSEditorResourceLayerInfo : EditorResourceLayerInfo, Requires<EditorActorLayerInfo>
+	sealed class TSEditorResourceLayerInfo : EditorResourceLayerInfo, Requires<EditorActorLayerInfo>
 	{
 		public readonly string VeinType = "Veins";
 
 		[ActorReference]
 		[Desc("Actor types that should be treated as veins for adjacency.")]
-		public readonly HashSet<string> VeinholeActors = new HashSet<string> { };
+		public readonly HashSet<string> VeinholeActors = new() { };
 
 		public override object Create(ActorInitializer init) { return new TSEditorResourceLayer(init.Self, this); }
 	}
 
-	class TSEditorResourceLayer : EditorResourceLayer
+	sealed class TSEditorResourceLayer : EditorResourceLayer
 	{
 		readonly TSEditorResourceLayerInfo info;
 		readonly EditorActorLayer actorLayer;

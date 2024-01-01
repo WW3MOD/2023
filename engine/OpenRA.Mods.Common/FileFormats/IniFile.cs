@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ namespace OpenRA.Mods.Common.FileFormats
 {
 	public class IniFile
 	{
-		readonly Dictionary<string, IniSection> sections = new Dictionary<string, IniSection>();
+		readonly Dictionary<string, IniSection> sections = new();
 
 		public IniFile(Stream s)
 		{
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.FileFormats
 			}
 		}
 
-		readonly Regex sectionPattern = new Regex(@"^\[([^]]*)\]");
+		readonly Regex sectionPattern = new(@"^\[([^]]*)\]");
 
 		IniSection ProcessSection(string line)
 		{
@@ -67,7 +67,7 @@ namespace OpenRA.Mods.Common.FileFormats
 		{
 			var comment = line.IndexOf(';');
 			if (comment >= 0)
-				line = line.Substring(0, comment);
+				line = line[..comment];
 
 			line = line.Trim();
 			if (line.Length == 0)
@@ -78,8 +78,8 @@ namespace OpenRA.Mods.Common.FileFormats
 			var eq = line.IndexOf('=');
 			if (eq >= 0)
 			{
-				key = line.Substring(0, eq).Trim();
-				value = line.Substring(eq + 1, line.Length - eq - 1).Trim();
+				key = line[..eq].Trim();
+				value = line[(eq + 1)..].Trim();
 			}
 
 			if (currentSection == null)
@@ -111,7 +111,7 @@ namespace OpenRA.Mods.Common.FileFormats
 	public class IniSection : IEnumerable<KeyValuePair<string, string>>
 	{
 		public string Name { get; }
-		readonly Dictionary<string, string> values = new Dictionary<string, string>();
+		readonly Dictionary<string, string> values = new();
 
 		public IniSection(string name)
 		{

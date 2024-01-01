@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,19 +20,27 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ActorEditLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string DuplicateActorId = "label-duplicate-actor-id";
+
+		[TranslationReference]
+		const string EnterActorId = "label-actor-id";
+
+		[TranslationReference]
+		const string Owner = "label-actor-owner";
+
 		// Error states define overlapping bits to simplify panel reflow logic
 		[Flags]
 		enum ActorIDStatus { Normal = 0, Duplicate = 1, Empty = 3 }
 
 		readonly WorldRenderer worldRenderer;
-		readonly ModData modData;
 		readonly EditorActorLayer editorActorLayer;
 		readonly EditorActionManager editorActionManager;
 		readonly EditorViewportControllerWidget editor;
 		readonly BackgroundWidget actorEditPanel;
 		readonly LabelWidget typeLabel;
 		readonly TextFieldWidget actorIDField;
-		readonly HashSet<TextFieldWidget> typableFields = new HashSet<TextFieldWidget>();
+		readonly HashSet<TextFieldWidget> typableFields = new();
 		readonly LabelWidget actorIDErrorLabel;
 
 		readonly Widget initContainer;
@@ -44,15 +52,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		readonly int editPanelPadding; // Padding between right edge of actor and the edit panel.
 		readonly long scrollVisibleTimeout = 100; // Delay after scrolling map before edit widget becomes visible again.
-
-		[TranslationReference]
-		static readonly string DuplicateActorId = "duplicate-actor-id";
-
-		[TranslationReference]
-		static readonly string EnterActorId = "enter-actor-id";
-
-		[TranslationReference]
-		static readonly string Owner = "owner";
 
 		long lastScrollTime = 0;
 		int2 lastScrollPosition = int2.Zero;
@@ -86,9 +85,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 
 		[ObjectCreator.UseCtor]
-		public ActorEditLogic(Widget widget, ModData modData, World world, WorldRenderer worldRenderer, Dictionary<string, MiniYaml> logicArgs)
+		public ActorEditLogic(Widget widget, World world, WorldRenderer worldRenderer, Dictionary<string, MiniYaml> logicArgs)
 		{
-			this.modData = modData;
 			this.worldRenderer = worldRenderer;
 
 			editorActorLayer = world.WorldActor.Trait<EditorActorLayer>();
@@ -115,8 +113,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			actorIDErrorLabel = actorEditPanel.Get<LabelWidget>("ACTOR_ID_ERROR_LABEL");
 			actorIDErrorLabel.IsVisible = () => actorIDStatus != ActorIDStatus.Normal;
 			actorIDErrorLabel.GetText = () => actorIDStatus == ActorIDStatus.Duplicate ?
-				modData.Translation.GetString(DuplicateActorId)
-					: modData.Translation.GetString(EnterActorId);
+				TranslationProvider.GetString(DuplicateActorId)
+					: TranslationProvider.GetString(EnterActorId);
 
 			if (logicArgs.TryGetValue("EditPanelPadding", out var yaml))
 				editPanelPadding = FieldLoader.GetValue<int>("EditPanelPadding", yaml.Value);
@@ -146,7 +144,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (editorActorLayer[actorId] != null)
 					{
 						nextActorIDStatus = ActorIDStatus.Duplicate;
-						actorIDErrorLabel.Text = modData.Translation.GetString(DuplicateActorId);
+						actorIDErrorLabel.Text = TranslationProvider.GetString(DuplicateActorId);
 						actorIDErrorLabel.Visible = true;
 						return;
 					}
@@ -230,40 +228,40 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 					// Add owner dropdown
 					var ownerContainer = dropdownOptionTemplate.Clone();
-					var owner = modData.Translation.GetString(Owner);
+					var owner = TranslationProvider.GetString(Owner);
 					ownerContainer.Get<LabelWidget>("LABEL").GetText = () => owner;
 					var ownerDropdown = ownerContainer.Get<DropDownButtonWidget>("OPTION");
 					var selectedOwner = actor.Owner;
 
-					Action<EditorActorPreview, PlayerReference> updateOwner = (preview, reference) =>
+					void UpdateOwner(EditorActorPreview preview, PlayerReference reference)
 					{
 						preview.Owner = reference;
 						preview.ReplaceInit(new OwnerInit(reference.Name));
-					};
+					}
 
-					var ownerHandler = new EditorActorOptionActionHandle<PlayerReference>(updateOwner, actor.Owner);
+					var ownerHandler = new EditorActorOptionActionHandle<PlayerReference>(UpdateOwner, actor.Owner);
 					editActorPreview.Add(ownerHandler);
 
-					Func<PlayerReference, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+					ScrollItemWidget SetupItem(PlayerReference option, ScrollItemWidget template)
 					{
 						var item = ScrollItemWidget.Setup(template, () => selectedOwner == option, () =>
 						{
 							selectedOwner = option;
-							updateOwner(CurrentActor, selectedOwner);
+							UpdateOwner(CurrentActor, selectedOwner);
 							ownerHandler.OnChange(option);
 						});
 
 						item.Get<LabelWidget>("LABEL").GetText = () => option.Name;
 						item.GetColor = () => option.Color;
 						return item;
-					};
+					}
 
 					ownerDropdown.GetText = () => selectedOwner.Name;
 					ownerDropdown.GetColor = () => selectedOwner.Color;
 					ownerDropdown.OnClick = () =>
 					{
 						var owners = editorActorLayer.Players.Players.Values.OrderBy(p => p.Name);
-						ownerDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, owners, setupItem);
+						ownerDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, owners, SetupItem);
 					};
 
 					initContainer.Bounds.Height += ownerContainer.Bounds.Height;
@@ -320,9 +318,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							var valueField = sliderContainer.GetOrNull<TextFieldWidget>("VALUE");
 							if (valueField != null)
 							{
-								Action<float> updateValueField = f => valueField.Text = ((int)f).ToString();
-								updateValueField(so.GetValue(actor));
-								slider.OnChange += updateValueField;
+								void UpdateValueField(float f) => valueField.Text = ((int)f).ToString();
+								UpdateValueField(so.GetValue(actor));
+								slider.OnChange += UpdateValueField;
 
 								valueField.OnTextEdited = () =>
 								{
@@ -348,7 +346,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							editActorPreview.Add(editorActionHandle);
 
 							var dropdown = dropdownContainer.Get<DropDownButtonWidget>("OPTION");
-							Func<KeyValuePair<string, string>, ScrollItemWidget, ScrollItemWidget> dropdownSetup = (option, template) =>
+							ScrollItemWidget DropdownSetup(KeyValuePair<string, string> option, ScrollItemWidget template)
 							{
 								var item = ScrollItemWidget.Setup(template,
 									() => ddo.GetValue(actor) == option.Key,
@@ -360,10 +358,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 								item.Get<LabelWidget>("LABEL").GetText = () => option.Value;
 								return item;
-							};
+							}
 
 							dropdown.GetText = () => ddo.Labels[ddo.GetValue(actor)];
-							dropdown.OnClick = () => dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, ddo.Labels, dropdownSetup);
+							dropdown.OnClick = () => dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, ddo.Labels, DropdownSetup);
 
 							initContainer.AddChild(dropdownContainer);
 						}
@@ -463,8 +461,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		bool ShouldDoOnSave { get; }
 	}
 
-	class EditActorEditorAction : IEditorAction
+	sealed class EditActorEditorAction : IEditorAction
 	{
+		[TranslationReference("name", "id")]
+		const string EditedActor = "notification-edited-actor";
+
 		public string Text { get; }
 
 		readonly IEnumerable<IEditActorHandle> handles;
@@ -478,7 +479,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			actorId = actor.ID;
 			this.actor = actor;
 			this.handles = handles;
-			Text = $"Edited {actor.Info.Name} ({actor.ID})";
+			Text = TranslationProvider.GetString(EditedActor, Translation.Arguments("name", actor.Info.Name, "id", actor.ID));
 		}
 
 		public void Execute()
@@ -501,11 +502,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 	}
 
-	class EditActorPreview
+	sealed class EditActorPreview
 	{
 		readonly EditorActorPreview actor;
 		readonly SetActorIdAction setActorIdAction;
-		readonly List<IEditActorHandle> handles = new List<IEditActorHandle>();
+		readonly List<IEditActorHandle> handles = new();
 
 		public EditActorPreview(EditorActorPreview actor)
 		{

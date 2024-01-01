@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,11 +27,6 @@ namespace OpenRA
 			return string.Compare(str.ToUpperInvariant(), str, false) == 0;
 		}
 
-		public static string F(this string fmt, params object[] args)
-		{
-			return string.Format(fmt, args);
-		}
-
 		public static T WithDefault<T>(T def, Func<T> f)
 		{
 			try { return f(); }
@@ -45,21 +40,16 @@ namespace OpenRA
 			return a.GetTypes().Select(t => t.Namespace).Distinct().Where(n => n != null);
 		}
 
-		public static bool HasAttribute<T>(this MemberInfo mi)
+		public static bool HasAttribute<TAttribute>(this MemberInfo mi)
+			where TAttribute : Attribute
 		{
-			return Attribute.IsDefined(mi, typeof(T));
+			return Attribute.IsDefined(mi, typeof(TAttribute));
 		}
 
-		public static T[] GetCustomAttributes<T>(this MemberInfo mi, bool inherit)
-			where T : class
+		public static TAttribute[] GetCustomAttributes<TAttribute>(this MemberInfo mi, bool inherit)
+			where TAttribute : Attribute
 		{
-			return (T[])mi.GetCustomAttributes(typeof(T), inherit);
-		}
-
-		public static T[] GetCustomAttributes<T>(this ParameterInfo mi)
-			where T : class
-		{
-			return (T[])mi.GetCustomAttributes(typeof(T), true);
+			return (TAttribute[])mi.GetCustomAttributes(typeof(TAttribute), inherit);
 		}
 
 		public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>
@@ -119,13 +109,23 @@ namespace OpenRA
 
 		public static V GetOrAdd<K, V>(this Dictionary<K, V> d, K k, V v)
 		{
+#if NET5_0_OR_GREATER
+			// SAFETY: Dictionary cannot be modified whilst the ref is alive.
+			ref var value = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(d, k, out var exists);
+			if (!exists)
+				value = v;
+			return value;
+#else
 			if (!d.TryGetValue(k, out var ret))
 				d.Add(k, ret = v);
 			return ret;
+#endif
 		}
 
 		public static V GetOrAdd<K, V>(this Dictionary<K, V> d, K k, Func<K, V> createFn)
 		{
+			// Cannot use CollectionsMarshal.GetValueRefOrAddDefault here,
+			// the creation function could mutate the dictionary which would invalidate the ref.
 			if (!d.TryGetValue(k, out var ret))
 				d.Add(k, ret = createFn(k));
 			return ret;
@@ -149,7 +149,7 @@ namespace OpenRA
 		static T Random<T>(IEnumerable<T> ts, MersenneTwister r, bool throws)
 		{
 			var xs = ts as ICollection<T>;
-			xs = xs ?? ts.ToList();
+			xs ??= ts.ToList();
 			if (xs.Count == 0)
 			{
 				if (throws)
@@ -396,8 +396,8 @@ namespace OpenRA
 			string debugName, Func<TKey, string> logKey = null, Func<TElement, string> logValue = null)
 		{
 			// Fall back on ToString() if null functions are provided:
-			logKey = logKey ?? (s => s.ToString());
-			logValue = logValue ?? (s => s.ToString());
+			logKey ??= s => s.ToString();
+			logValue ??= s => s.ToString();
 
 			// Try to build a dictionary and log all duplicates found (if any):
 			var dupKeys = new Dictionary<TKey, List<string>>();
@@ -515,7 +515,7 @@ namespace OpenRA
 
 		public static bool IsTraitEnabled<T>(this T trait)
 		{
-			return !(trait is IDisabledTrait disabledTrait) || !disabledTrait.IsTraitDisabled;
+			return trait is not IDisabledTrait disabledTrait || !disabledTrait.IsTraitDisabled;
 		}
 
 		public static T FirstEnabledTraitOrDefault<T>(this IEnumerable<T> ts)
@@ -562,6 +562,11 @@ namespace OpenRA
 		{
 			return new LineSplitEnumerator(str.AsSpan(), separator);
 		}
+
+		public static bool TryParseInt32Invariant(string s, out int i)
+		{
+			return int.TryParse(s, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out i);
+		}
 	}
 
 	public ref struct LineSplitEnumerator
@@ -595,8 +600,8 @@ namespace OpenRA
 				return true;
 			}
 
-			Current = span.Slice(0, index);
-			str = span.Slice(index + 1);
+			Current = span[..index];
+			str = span[(index + 1)..];
 			return true;
 		}
 

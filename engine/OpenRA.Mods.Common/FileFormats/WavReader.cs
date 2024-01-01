@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -127,7 +127,7 @@ namespace OpenRA.Mods.Common.FileFormats
 			{
 				this.channels = channels;
 				numBlocks = dataSize / blockAlign;
-				blockDataSize = blockAlign - (channels * 4);
+				blockDataSize = blockAlign - channels * 4;
 				outputSize = uncompressedSize * channels * 2;
 				predictor = new int[channels];
 				index = new int[channels];
@@ -258,7 +258,7 @@ namespace OpenRA.Mods.Common.FileFormats
 				return ++currentBlock >= numBlocks;
 			}
 
-			short WriteSample(short t, Queue<byte> data)
+			static short WriteSample(short t, Queue<byte> data)
 			{
 				data.Enqueue((byte)t);
 				data.Enqueue((byte)(t >> 8));
@@ -266,9 +266,9 @@ namespace OpenRA.Mods.Common.FileFormats
 			}
 
 			// This code contains elements from libsndfile
-			short DecodeNibble(short nibble, byte bpred, ref short idelta, ref short s1, ref short s2)
+			static short DecodeNibble(short nibble, byte bpred, ref short idelta, ref short s1, ref short s2)
 			{
-				var predict = ((s1 * AdaptCoeff1[bpred]) + (s2 * AdaptCoeff2[bpred])) >> 8;
+				var predict = (s1 * AdaptCoeff1[bpred] + s2 * AdaptCoeff2[bpred]) >> 8;
 
 				var twosCompliment = (nibble & 0x8) > 0
 					? nibble - 0x10

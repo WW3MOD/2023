@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,15 +22,14 @@ namespace OpenRA.Platforms.Default
 {
 	sealed class Sdl2PlatformWindow : ThreadAffine, IPlatformWindow
 	{
-		readonly IGraphicsContext context;
 		readonly Sdl2Input input;
 
-		public IGraphicsContext Context => context;
+		public IGraphicsContext Context { get; }
 
 		readonly IntPtr window;
 		bool disposed;
 
-		readonly object syncObject = new object();
+		readonly object syncObject = new();
 		readonly Size windowSize;
 		Size surfaceSize;
 		float windowScale = 1f;
@@ -127,7 +126,7 @@ namespace OpenRA.Platforms.Default
 		[DllImport("libX11")]
 		static extern IntPtr XInternAtom(IntPtr display, string atom_name, bool only_if_exists);
 
-		[DllImport("libX11", CharSet=CharSet.Ansi)]
+		[DllImport("libX11", CharSet = CharSet.Ansi)]
 		static extern int XChangeProperty(IntPtr display, IntPtr window, IntPtr property, IntPtr type, int format, IntPtr mode, string data, int elements);
 
 		[DllImport("libX11")]
@@ -210,7 +209,7 @@ namespace OpenRA.Platforms.Default
 							var lines = p.StandardOutput.ReadToEnd().Split('\n');
 
 							foreach (var line in lines)
-								if (line.StartsWith("Xft.dpi") && int.TryParse(line.Substring(8), out var dpi))
+								if (line.StartsWith("Xft.dpi") && int.TryParse(line.AsSpan(8), out var dpi))
 									windowScale = dpi / 96f;
 						}
 						catch { }
@@ -303,6 +302,11 @@ namespace OpenRA.Platforms.Default
 				}
 				else if (windowMode == WindowMode.PseudoFullscreen)
 				{
+					// Gnome >= 44 does not consider SDL_WINDOW_FULLSCREEN_DESKTOP to be borderless!
+					// This must be called before SetWindowFullscreen for the workaround to function.
+					if (Platform.CurrentPlatform == PlatformType.Linux)
+						SDL.SDL_SetWindowBordered(Window, SDL.SDL_bool.SDL_FALSE);
+
 					SDL.SDL_SetWindowFullscreen(Window, (uint)SDL.SDL_WindowFlags.SDL_WINDOW_FULLSCREEN_DESKTOP);
 					SDL.SDL_SetHint(SDL.SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
 
@@ -341,18 +345,18 @@ namespace OpenRA.Platforms.Default
 			{
 				var ctx = new Sdl2GraphicsContext(this);
 				ctx.InitializeOpenGL();
-				context = ctx;
+				Context = ctx;
 			}
 			else
-				context = new ThreadedGraphicsContext(new Sdl2GraphicsContext(this), batchSize);
+				Context = new ThreadedGraphicsContext(new Sdl2GraphicsContext(this), batchSize);
 
-			context.SetVSyncEnabled(Game.Settings.Graphics.VSync);
+			Context.SetVSyncEnabled(Game.Settings.Graphics.VSync);
 
 			SDL.SDL_SetModState(SDL.SDL_Keymod.KMOD_NONE);
 			input = new Sdl2Input();
 		}
 
-		byte[] DoublePixelData(byte[] data, Size size)
+		static byte[] DoublePixelData(byte[] data, Size size)
 		{
 			var scaledData = new byte[4 * data.Length];
 			for (var y = 0; y < size.Height; y++)
@@ -467,7 +471,7 @@ namespace OpenRA.Platforms.Default
 
 			disposed = true;
 
-			context?.Dispose();
+			Context?.Dispose();
 
 			if (Window != IntPtr.Zero)
 				SDL.SDL_DestroyWindow(Window);
@@ -499,13 +503,13 @@ namespace OpenRA.Platforms.Default
 		public string GetClipboardText()
 		{
 			VerifyThreadAffinity();
-			return input.GetClipboardText();
+			return Sdl2Input.GetClipboardText();
 		}
 
 		public bool SetClipboardText(string text)
 		{
 			VerifyThreadAffinity();
-			return input.SetClipboardText(text);
+			return Sdl2Input.SetClipboardText(text);
 		}
 
 		static void SetSDLAttributes(GLProfile profile)

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,8 +22,8 @@ namespace OpenRA.Mods.Common.FileFormats
 {
 	public static class Blast
 	{
-		public static readonly int MAXBITS = 13; // maximum code length
-		public static readonly int MAXWIN = 4096; // maximum window size
+		public const int MAXBITS = 13; // maximum code length
+		public const int MAXWIN = 4096; // maximum window size
 
 		static readonly byte[] LitLen =
 		{
@@ -59,9 +59,9 @@ namespace OpenRA.Mods.Common.FileFormats
 			3, 4, 5, 6, 7, 8
 		};
 
-		static readonly Huffman LitCode = new Huffman(LitLen, 256);
-		static readonly Huffman LenCode = new Huffman(LenLen, 16);
-		static readonly Huffman DistCode = new Huffman(DistLen, 64);
+		static readonly Huffman LitCode = new(LitLen, 256);
+		static readonly Huffman LenCode = new(LenLen, 16);
+		static readonly Huffman DistCode = new(DistLen, 64);
 
 		/// <summary>PKWare Compression Library stream.</summary>
 		/// <param name="input">Compressed input stream.</param>
@@ -200,7 +200,7 @@ namespace OpenRA.Mods.Common.FileFormats
 		}
 	}
 
-	class BitReader
+	sealed class BitReader
 	{
 		readonly Stream stream;
 		byte bitBuffer = 0;
@@ -242,7 +242,7 @@ namespace OpenRA.Mods.Common.FileFormats
 	 * codes.  Those tables are the number of codes of each length, and the symbols
 	 * sorted by length, retaining their original order within each length.
 	 */
-	class Huffman
+	sealed class Huffman
 	{
 		public short[] Count; // number of symbols of each length
 		public short[] Symbol; // canonically ordered symbols
@@ -277,8 +277,8 @@ namespace OpenRA.Mods.Common.FileFormats
 			var left = 1; // one possible code of zero length
 			for (var len = 1; len <= Blast.MAXBITS; len++)
 			{
-				left <<= 1;	// one more bit, double codes left
-				left -= Count[len];	// deduct count from possible codes
+				left <<= 1; // one more bit, double codes left
+				left -= Count[len]; // deduct count from possible codes
 				if (left < 0)
 					throw new InvalidDataException("over subscribed code set");
 			}

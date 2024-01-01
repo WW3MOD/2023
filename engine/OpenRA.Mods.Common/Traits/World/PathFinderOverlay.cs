@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -42,12 +42,11 @@ namespace OpenRA.Mods.Common.Traits
 		const string CommandName = "path-debug";
 
 		[TranslationReference]
-		const string CommandDescription = "path-debug-description";
+		const string CommandDescription = "description-path-debug-overlay";
 
 		sealed class Record : PathSearch.IRecorder, IEnumerable<(CPos Source, CPos Destination, int CostSoFar, int EstimatedRemainingCost)>
 		{
-			readonly Dictionary<CPos, (CPos Source, int CostSoFar, int EstimatedRemainingCost)> edges
-				= new Dictionary<CPos, (CPos Source, int CostSoFar, int EstimatedRemainingCost)>();
+			readonly Dictionary<CPos, (CPos Source, int CostSoFar, int EstimatedRemainingCost)> edges = new();
 
 			public void Add(CPos source, CPos destination, int costSoFar, int estimatedRemainingCost)
 			{
@@ -69,6 +68,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool Enabled { get; private set; }
 
 		Actor forActor;
+		bool record;
 		CPos[] sourceCells;
 		CPos? targetCell;
 
@@ -106,11 +106,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Enabled)
 			{
 				forActor = null;
+				record = false;
 				return;
 			}
 
 			if (!actor.World.Selection.Contains(actor))
+			{
+				record = false;
 				return;
+			}
 
 			abstractEdges1 = null;
 			abstractEdges2 = null;
@@ -119,11 +123,12 @@ namespace OpenRA.Mods.Common.Traits
 			sourceCells = sources.ToArray();
 			targetCell = target;
 			forActor = actor;
+			record = true;
 		}
 
 		public PathSearch.IRecorder RecordAbstractEdges(Actor actor)
 		{
-			if (forActor != actor)
+			if (!record || forActor != actor)
 				return null;
 			if (abstractEdges1 == null)
 				return abstractEdges1 = new Record();
@@ -134,7 +139,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public PathSearch.IRecorder RecordLocalEdges(Actor actor)
 		{
-			if (forActor != actor)
+			if (!record || forActor != actor)
 				return null;
 			if (localEdges1 == null)
 				return localEdges1 = new Record();

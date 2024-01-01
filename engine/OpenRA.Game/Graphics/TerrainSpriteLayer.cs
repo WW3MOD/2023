@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,7 +27,7 @@ namespace OpenRA.Graphics
 		readonly IVertexBuffer<Vertex> vertexBuffer;
 		readonly Vertex[] vertices;
 		readonly bool[] ignoreTint;
-		readonly HashSet<int> dirtyRows = new HashSet<int>();
+		readonly HashSet<int> dirtyRows = new();
 		readonly int rowStride;
 		readonly bool restrictToBounds;
 
@@ -114,7 +114,7 @@ namespace OpenRA.Graphics
 			// transparent for isometric tiles
 			var tl = worldRenderer.TerrainLighting;
 			var pos = map.CenterOfCell(uv.ToCPos(map));
-			var step = map.Grid.Type == MapGridType.RectangularIsometric ? 724 : 512;
+			var step = map.Grid.TileScale / 2;
 			var weights = new[]
 			{
 				tl.TintAt(pos + new WVec(-step, -step, 0)),

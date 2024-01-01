@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -42,7 +42,7 @@ namespace OpenRA.Network
 		{
 			switch (value.ToFluentType())
 			{
-				case FluentNumber _:
+				case FluentNumber:
 					return FluentArgumentType.Number;
 				default:
 					return FluentArgumentType.String;
@@ -76,7 +76,7 @@ namespace OpenRA.Network
 			return arguments.ToArray();
 		}
 
-		public LocalizedMessage(ModData modData, MiniYaml yaml)
+		public LocalizedMessage(MiniYaml yaml)
 		{
 			// Let the FieldLoader do the dirty work of loading the public fields.
 			FieldLoader.Load(this, yaml);
@@ -95,7 +95,7 @@ namespace OpenRA.Network
 					argumentDictionary.Add(argument.Key, argument.Value);
 			}
 
-			TranslatedText = modData.Translation.GetString(Key, argumentDictionary);
+			TranslatedText = TranslationProvider.GetString(Key, argumentDictionary);
 		}
 
 		public static string Serialize(string key, Dictionary<string, object> arguments = null)

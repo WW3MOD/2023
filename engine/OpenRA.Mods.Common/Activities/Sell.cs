@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
-	class Sell : Activity
+	sealed class Sell : Activity
 	{
 		readonly IHealth health;
 		readonly SellableInfo sellableInfo;
@@ -37,9 +37,9 @@ namespace OpenRA.Mods.Common.Activities
 			var sellValue = self.GetSellValue();
 
 			// Cast to long to avoid overflow when multiplying by the health
-			var hp = health != null ? (long)health.HP : 1L;
-			var maxHP = health != null ? (long)health.MaxHP : 1L;
-			var refund = (int)((sellValue * sellableInfo.RefundPercent * hp) / (100 * maxHP));
+			var hp = health != null ? health.HP : 1L;
+			var maxHP = health != null ? health.MaxHP : 1L;
+			var refund = (int)(sellValue * sellableInfo.RefundPercent * hp / (100 * maxHP));
 			refund = playerResources.ChangeCash(refund);
 
 			foreach (var ns in self.TraitsImplementing<INotifySold>())

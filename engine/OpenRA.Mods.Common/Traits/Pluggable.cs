@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -30,12 +30,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Requirements for accepting a plug type.",
 			"Key is the plug type that the requirements applies to.",
 			"Value is the condition expression defining the requirements to place the plug.")]
-		public readonly Dictionary<string, BooleanExpression> Requirements = new Dictionary<string, BooleanExpression>();
+		public readonly Dictionary<string, BooleanExpression> Requirements = new();
 
 		[Desc("Options to display in the map editor.",
 			"Key is the plug type that the requirements applies to.",
 			"Value is the label that is displayed in the actor editor dropdown.")]
-		public readonly Dictionary<string, string> EditorOptions = new Dictionary<string, string>();
+		public readonly Dictionary<string, string> EditorOptions = new();
 
 		[Desc("Label to use for an empty plug socket.")]
 		public readonly string EmptyOption = "Empty";

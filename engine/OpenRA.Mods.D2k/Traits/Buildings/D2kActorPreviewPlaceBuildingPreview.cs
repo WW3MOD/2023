@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.D2k.Traits
 	public class D2kActorPreviewPlaceBuildingPreviewInfo : ActorPreviewPlaceBuildingPreviewInfo
 	{
 		[Desc("Terrain types that should show the 'unsafe' footprint tile.")]
-		public readonly HashSet<string> UnsafeTerrainTypes = new HashSet<string> { "Rock" };
+		public readonly HashSet<string> UnsafeTerrainTypes = new() { "Rock" };
 
 		[Desc("Only check for 'unsafe' footprint tiles when you have these prerequisites.")]
 		public readonly string[] RequiresPrerequisites = Array.Empty<string>();
@@ -33,15 +33,15 @@ namespace OpenRA.Mods.D2k.Traits
 		[Desc("Sprite image to use for the overlay.")]
 		public readonly string Image = "overlay";
 
-		[SequenceReference("Image")]
+		[SequenceReference(nameof(Image))]
 		[Desc("Sprite overlay to use for valid cells.")]
 		public readonly string TileValidName = "build-valid";
 
-		[SequenceReference("Image")]
+		[SequenceReference(nameof(Image))]
 		[Desc("Sprite overlay to use for invalid cells.")]
 		public readonly string TileInvalidName = "build-invalid";
 
-		[SequenceReference("Image")]
+		[SequenceReference(nameof(Image))]
 		[Desc("Sprite overlay to use for blocked cells.")]
 		public readonly string TileUnsafeName = "build-unsafe";
 
@@ -58,7 +58,7 @@ namespace OpenRA.Mods.D2k.Traits
 
 	public class D2kActorPreviewPlaceBuildingPreview { }
 
-	class D2kActorPreviewPlaceBuildingPreviewPreview : ActorPreviewPlaceBuildingPreviewPreview
+	sealed class D2kActorPreviewPlaceBuildingPreviewPreview : ActorPreviewPlaceBuildingPreviewPreview
 	{
 		readonly D2kActorPreviewPlaceBuildingPreviewInfo info;
 		readonly bool checkUnsafeTiles;
@@ -72,7 +72,7 @@ namespace OpenRA.Mods.D2k.Traits
 			this.info = info;
 
 			var world = wr.World;
-			var sequences = world.Map.Rules.Sequences;
+			var sequences = world.Map.Sequences;
 
 			var techTree = init.Get<OwnerInit>().Value(world).PlayerActor.Trait<TechTree>();
 			checkUnsafeTiles = info.RequiresPrerequisites.Length > 0 && techTree.HasPrerequisites(info.RequiresPrerequisites);

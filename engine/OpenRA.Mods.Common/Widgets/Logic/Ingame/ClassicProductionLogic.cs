@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -133,7 +133,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					// Select the first active tab
 					foreach (var b in typesContainer.Children)
 					{
-						if (!(b is ProductionTypeButtonWidget button) || button.IsDisabled())
+						if (b is not ProductionTypeButtonWidget button || button.IsDisabled())
 							continue;
 
 						button.OnClick();
@@ -148,7 +148,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (scrollDown != null)
 			{
 				scrollDown.OnClick = palette.ScrollDown;
-				scrollDown.IsVisible = () => palette.TotalIconCount > (palette.MaxIconRowOffset * palette.Columns);
+				scrollDown.IsVisible = () => palette.TotalIconCount > palette.MaxIconRowOffset * palette.Columns;
 				scrollDown.IsDisabled = () => !palette.CanScrollDown;
 			}
 
@@ -157,7 +157,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (scrollUp != null)
 			{
 				scrollUp.OnClick = palette.ScrollUp;
-				scrollUp.IsVisible = () => palette.TotalIconCount > (palette.MaxIconRowOffset * palette.Columns);
+				scrollUp.IsVisible = () => palette.TotalIconCount > palette.MaxIconRowOffset * palette.Columns;
 				scrollUp.IsDisabled = () => !palette.CanScrollUp;
 			}
 
@@ -179,7 +179,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Check if icon heights exceed y resolution
 			var maxItemsHeight = screenHeight - sidebarProductionHeight;
 
-			var maxIconRowOffest = (maxItemsHeight / productionPalette.IconSize.Y) - 1;
+			var maxIconRowOffest = maxItemsHeight / productionPalette.IconSize.Y - 1;
 			productionPalette.MaxIconRowOffset = Math.Min(maxIconRowOffest, productionPalette.MaximumRows);
 		}
 	}

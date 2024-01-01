@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
-using OpenRA.Support;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -23,48 +23,46 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class DisplaySettingsLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string Close = "close";
+		const string Close = "options-camera.close";
 
 		[TranslationReference]
-		static readonly string Medium = "medium";
+		const string Medium = "options-camera.medium";
 
 		[TranslationReference]
-		static readonly string Far = "far";
+		const string Far = "options-camera.far";
 
 		[TranslationReference]
-		static readonly string Furthest = "furthest";
+		const string Furthest = "options-camera.furthest";
 
 		[TranslationReference]
-		static readonly string Windowed = "windowed";
+		const string Windowed = "options-display-mode.windowed";
 
 		[TranslationReference]
-		static readonly string LegacyFullscreen = "legacy-fullscreen";
-		readonly string legacyFullscreen;
+		const string LegacyFullscreen = "options-display-mode.legacy-fullscreen";
 
 		[TranslationReference]
-		static readonly string Fullscreen = "fullscreen";
-		readonly string fullscreen;
+		const string Fullscreen = "options-display-mode.fullscreen";
 
 		[TranslationReference("number")]
-		static readonly string Display = "display";
+		const string Display = "label-video-display-index";
 
 		[TranslationReference]
-		static readonly string Standard = "standard";
+		const string Standard = "options-status-bars.standard";
 
 		[TranslationReference]
-		static readonly string ShowOnDamage = "show-on-damage";
+		const string ShowOnDamage = "options-status-bars.show-on-damage";
 
 		[TranslationReference]
-		static readonly string AlwaysShow = "always-show";
+		const string AlwaysShow = "options-status-bars.always-show";
 
 		[TranslationReference]
-		static readonly string Automatic = "automatic";
+		const string Automatic = "options-target-lines.automatic";
 
 		[TranslationReference]
-		static readonly string Manual = "manual";
+		const string Manual = "options-target-lines.manual";
 
 		[TranslationReference]
-		static readonly string Disabled = "disabled";
+		const string Disabled = "options-target-lines.disabled";
 
 		static readonly int OriginalVideoDisplay;
 		static readonly WindowMode OriginalGraphicsMode;
@@ -83,6 +81,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly string manual;
 		readonly string disabled;
 
+		readonly string legacyFullscreen;
+		readonly string fullscreen;
+
 		static DisplaySettingsLogic()
 		{
 			var original = Game.Settings;
@@ -100,17 +101,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 			viewportSizes = modData.Manifest.Get<WorldViewportSizes>();
 
-			legacyFullscreen = modData.Translation.GetString(LegacyFullscreen);
-			fullscreen = modData.Translation.GetString(Fullscreen);
+			legacyFullscreen = TranslationProvider.GetString(LegacyFullscreen);
+			fullscreen = TranslationProvider.GetString(Fullscreen);
 
 			registerPanel(panelID, label, InitPanel, ResetPanel);
 
-			showOnDamage = modData.Translation.GetString(ShowOnDamage);
-			alwaysShow = modData.Translation.GetString(AlwaysShow);
+			showOnDamage = TranslationProvider.GetString(ShowOnDamage);
+			alwaysShow = TranslationProvider.GetString(AlwaysShow);
 
-			automatic = modData.Translation.GetString(Automatic);
-			manual = modData.Translation.GetString(Manual);
-			disabled = modData.Translation.GetString(Disabled);
+			automatic = TranslationProvider.GetString(Automatic);
+			manual = TranslationProvider.GetString(Manual);
+			disabled = TranslationProvider.GetString(Disabled);
 		}
 
 		public static string GetViewportSizeName(ModData modData, WorldViewport worldViewport)
@@ -118,13 +119,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			switch (worldViewport)
 			{
 				case WorldViewport.Close:
-					return modData.Translation.GetString(Close);
+					return TranslationProvider.GetString(Close);
 				case WorldViewport.Medium:
-					return modData.Translation.GetString(Medium);
+					return TranslationProvider.GetString(Medium);
 				case WorldViewport.Far:
-					return modData.Translation.GetString(Far);
+					return TranslationProvider.GetString(Far);
 				case WorldViewport.Native:
-					return modData.Translation.GetString(Furthest);
+					return TranslationProvider.GetString(Furthest);
 				default:
 					return "";
 			}
@@ -148,14 +149,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SettingsUtils.BindCheckboxPref(panel, "HIDE_REPLAY_CHAT_CHECKBOX", gs, "HideReplayChat");
 
 			var windowModeDropdown = panel.Get<DropDownButtonWidget>("MODE_DROPDOWN");
-			windowModeDropdown.OnMouseDown = _ => ShowWindowModeDropdown(modData, windowModeDropdown, ds, scrollPanel);
+			windowModeDropdown.OnMouseDown = _ => ShowWindowModeDropdown(windowModeDropdown, ds, scrollPanel);
 			windowModeDropdown.GetText = () => ds.Mode == WindowMode.Windowed
-				? modData.Translation.GetString(Windowed)
+				? TranslationProvider.GetString(Windowed)
 				: ds.Mode == WindowMode.Fullscreen ? legacyFullscreen : fullscreen;
 
 			var displaySelectionDropDown = panel.Get<DropDownButtonWidget>("DISPLAY_SELECTION_DROPDOWN");
 			displaySelectionDropDown.OnMouseDown = _ => ShowDisplaySelectionDropdown(displaySelectionDropDown, ds);
-			var displaySelectionLabel = new CachedTransform<int, string>(i => modData.Translation.GetString(Display, Translation.Arguments("number", i + 1)));
+			var displaySelectionLabel = new CachedTransform<int, string>(i => TranslationProvider.GetString(Display, Translation.Arguments("number", i + 1)));
 			displaySelectionDropDown.GetText = () => displaySelectionLabel.Update(ds.VideoDisplay);
 			displaySelectionDropDown.IsDisabled = () => Game.Renderer.DisplayCount < 2;
 
@@ -167,15 +168,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			glProfileDropdown.IsDisabled = () => disableProfile;
 
 			var statusBarsDropDown = panel.Get<DropDownButtonWidget>("STATUS_BAR_DROPDOWN");
-			statusBarsDropDown.OnMouseDown = _ => ShowStatusBarsDropdown(modData, statusBarsDropDown, gs);
+			statusBarsDropDown.OnMouseDown = _ => ShowStatusBarsDropdown(statusBarsDropDown, gs);
 			statusBarsDropDown.GetText = () => gs.StatusBars == StatusBarsType.Standard
-				? modData.Translation.GetString(Standard)
+				? TranslationProvider.GetString(Standard)
 				: gs.StatusBars == StatusBarsType.DamageShow
 					? showOnDamage
 					: alwaysShow;
 
 			var targetLinesDropDown = panel.Get<DropDownButtonWidget>("TARGET_LINES_DROPDOWN");
-			targetLinesDropDown.OnMouseDown = _ => ShowTargetLinesDropdown(modData, targetLinesDropDown, gs);
+			targetLinesDropDown.OnMouseDown = _ => ShowTargetLinesDropdown(targetLinesDropDown, gs);
 			targetLinesDropDown.GetText = () => gs.TargetLines == TargetLinesType.Automatic
 				? automatic
 				: gs.TargetLines == TargetLinesType.Manual
@@ -267,14 +268,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return true;
 			};
 
-			var colorManager = modData.DefaultRules.Actors[SystemActors.World].TraitInfo<ColorPickerManagerInfo>();
-			colorManager.Color = ps.Color;
+			var colorManager = modData.DefaultRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 
 			var colorDropdown = panel.Get<DropDownButtonWidget>("PLAYERCOLOR");
 			colorDropdown.IsDisabled = () => worldRenderer.World.Type != WorldType.Shellmap;
-			colorDropdown.OnMouseDown = _ => ColorPickerLogic.ShowColorDropDown(colorDropdown, colorManager, worldRenderer, () =>
+			colorDropdown.OnMouseDown = _ => colorManager.ShowColorDropDown(colorDropdown, ps.Color, null, worldRenderer, color =>
 			{
-				Game.Settings.Player.Color = colorManager.Color;
+				ps.Color = color;
 				Game.Settings.Save();
 			});
 			colorDropdown.Get<ColorBlockWidget>("COLORBLOCK").GetColor = () => ps.Color;
@@ -332,16 +332,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			};
 		}
 
-		static void ShowWindowModeDropdown(ModData modData, DropDownButtonWidget dropdown, GraphicSettings s, ScrollPanelWidget scrollPanel)
+		static void ShowWindowModeDropdown(DropDownButtonWidget dropdown, GraphicSettings s, ScrollPanelWidget scrollPanel)
 		{
 			var options = new Dictionary<string, WindowMode>()
 			{
-				{ modData.Translation.GetString(Fullscreen), WindowMode.PseudoFullscreen },
-				{ modData.Translation.GetString(LegacyFullscreen), WindowMode.Fullscreen },
-				{ modData.Translation.GetString(Windowed), WindowMode.Windowed },
+				{ TranslationProvider.GetString(Fullscreen), WindowMode.PseudoFullscreen },
+				{ TranslationProvider.GetString(LegacyFullscreen), WindowMode.Fullscreen },
+				{ TranslationProvider.GetString(Windowed), WindowMode.Windowed },
 			};
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.Mode == options[o],
@@ -353,44 +353,44 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 
 		public static void BindTextNotificationPoolFilterSettings(Widget panel, GameSettings gs)
 		{
-			Action<TextNotificationPoolFilters> toggleFilterFlag = f =>
+			void ToggleFilterFlag(TextNotificationPoolFilters f)
 			{
 				gs.TextNotificationPoolFilters ^= f;
 				Game.Settings.Save();
-			};
+			}
 
 			var feedbackCheckbox = panel.GetOrNull<CheckboxWidget>("UI_FEEDBACK_CHECKBOX");
 			if (feedbackCheckbox != null)
 			{
 				feedbackCheckbox.IsChecked = () => gs.TextNotificationPoolFilters.HasFlag(TextNotificationPoolFilters.Feedback);
-				feedbackCheckbox.OnClick = () => toggleFilterFlag(TextNotificationPoolFilters.Feedback);
+				feedbackCheckbox.OnClick = () => ToggleFilterFlag(TextNotificationPoolFilters.Feedback);
 			}
 
 			var transientsCheckbox = panel.GetOrNull<CheckboxWidget>("TRANSIENTS_CHECKBOX");
 			if (transientsCheckbox != null)
 			{
 				transientsCheckbox.IsChecked = () => gs.TextNotificationPoolFilters.HasFlag(TextNotificationPoolFilters.Transients);
-				transientsCheckbox.OnClick = () => toggleFilterFlag(TextNotificationPoolFilters.Transients);
+				transientsCheckbox.OnClick = () => ToggleFilterFlag(TextNotificationPoolFilters.Transients);
 			}
 		}
 
-		static void ShowStatusBarsDropdown(ModData modData, DropDownButtonWidget dropdown, GameSettings s)
+		static void ShowStatusBarsDropdown(DropDownButtonWidget dropdown, GameSettings s)
 		{
 			var options = new Dictionary<string, StatusBarsType>()
 			{
-				{ modData.Translation.GetString(Standard), StatusBarsType.Standard },
-				{ modData.Translation.GetString(ShowOnDamage), StatusBarsType.DamageShow },
-				{ modData.Translation.GetString(AlwaysShow), StatusBarsType.AlwaysShow },
+				{ TranslationProvider.GetString(Standard), StatusBarsType.Standard },
+				{ TranslationProvider.GetString(ShowOnDamage), StatusBarsType.DamageShow },
+				{ TranslationProvider.GetString(AlwaysShow), StatusBarsType.AlwaysShow },
 			};
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.StatusBars == options[o],
@@ -398,14 +398,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 
 		static void ShowDisplaySelectionDropdown(DropDownButtonWidget dropdown, GraphicSettings s)
 		{
-			Func<int, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(int o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.VideoDisplay == o,
@@ -414,14 +414,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = $"Display {o + 1}";
 				item.Get<LabelWidget>("LABEL").GetText = () => label;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, Enumerable.Range(0, Game.Renderer.DisplayCount), setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, Enumerable.Range(0, Game.Renderer.DisplayCount), SetupItem);
 		}
 
 		static void ShowGLProfileDropdown(DropDownButtonWidget dropdown, GraphicSettings s)
 		{
-			Func<GLProfile, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(GLProfile o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.GLProfile == o,
@@ -430,22 +430,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = o.ToString();
 				item.Get<LabelWidget>("LABEL").GetText = () => label;
 				return item;
-			};
+			}
 
 			var profiles = new[] { GLProfile.Automatic }.Concat(Game.Renderer.SupportedGLProfiles);
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, profiles, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, profiles, SetupItem);
 		}
 
-		static void ShowTargetLinesDropdown(ModData modData, DropDownButtonWidget dropdown, GameSettings s)
+		static void ShowTargetLinesDropdown(DropDownButtonWidget dropdown, GameSettings s)
 		{
 			var options = new Dictionary<string, TargetLinesType>()
 			{
-				{ modData.Translation.GetString(Automatic), TargetLinesType.Automatic },
-				{ modData.Translation.GetString(Manual), TargetLinesType.Manual },
-				{ modData.Translation.GetString(Disabled), TargetLinesType.Disabled },
+				{ TranslationProvider.GetString(Automatic), TargetLinesType.Automatic },
+				{ TranslationProvider.GetString(Manual), TargetLinesType.Manual },
+				{ TranslationProvider.GetString(Disabled), TargetLinesType.Disabled },
 			};
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.TargetLines == options[o],
@@ -453,14 +453,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 
 		public static void ShowBattlefieldCameraDropdown(ModData modData, DropDownButtonWidget dropdown, WorldViewportSizes viewportSizes, GraphicSettings gs)
 		{
-			Func<WorldViewport, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(WorldViewport o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => gs.ViewportDistance == o,
@@ -469,7 +469,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = GetViewportSizeName(modData, o);
 				item.Get<LabelWidget>("LABEL").GetText = () => label;
 				return item;
-			};
+			}
 
 			var windowHeight = Game.Renderer.NativeResolution.Height;
 
@@ -484,7 +484,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (viewportSizes.AllowNativeZoom && farRange.Y < windowHeight)
 				validSizes.Add(WorldViewport.Native);
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, validSizes, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, validSizes, SetupItem);
 		}
 
 		static void RecalculateWidgetLayout(Widget w, bool insideScrollPanel = false)
@@ -511,8 +511,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{ "PARENT_BOTTOM", parentBounds.Height }
 			};
 
-			var width = Evaluator.Evaluate(w.Width, substitutions);
-			var height = Evaluator.Evaluate(w.Height, substitutions);
+			var readOnlySubstitutions = new ReadOnlyDictionary<string, int>(substitutions);
+			var width = w.Width != null ? w.Width.Evaluate(readOnlySubstitutions) : 0;
+			var height = w.Height != null ? w.Height.Evaluate(readOnlySubstitutions) : 0;
 
 			substitutions.Add("WIDTH", width);
 			substitutions.Add("HEIGHT", height);
@@ -521,8 +522,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				w.Bounds = new Rectangle(w.Bounds.X, w.Bounds.Y, width, w.Bounds.Height);
 			else
 				w.Bounds = new Rectangle(
-					Evaluator.Evaluate(w.X, substitutions),
-					Evaluator.Evaluate(w.Y, substitutions),
+					w.X != null ? w.X.Evaluate(readOnlySubstitutions) : 0,
+					w.Y != null ? w.Y.Evaluate(readOnlySubstitutions) : 0,
 					width,
 					height);
 
@@ -532,7 +533,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		public static void ShowUIScaleDropdown(DropDownButtonWidget dropdown, GraphicSettings gs)
 		{
-			Func<float, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(float o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => gs.UIScale == o,
@@ -552,14 +553,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = $"{(int)(100 * o)}%";
 				item.Get<LabelWidget>("LABEL").GetText = () => label;
 				return item;
-			};
+			}
 
 			var viewportSizes = Game.ModData.Manifest.Get<WorldViewportSizes>();
 			var maxScales = new float2(Game.Renderer.NativeResolution) / new float2(viewportSizes.MinEffectiveResolution);
 			var maxScale = Math.Min(maxScales.X, maxScales.Y);
 
 			var validScales = new[] { 1f, 1.25f, 1.5f, 1.75f, 2f }.Where(x => x <= maxScale);
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, validScales, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, validScales, SetupItem);
 		}
 	}
 }

@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+   Copyright (c) The OpenRA Developers and Contributors
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -73,9 +73,9 @@ WorldLoaded = function()
 		GDI.MarkFailedObjective(DefendTown)
 	end)
 
-	NodObjective = Nod.AddPrimaryObjective("Destroy all GDI troops.")
-	DefendTown = GDI.AddPrimaryObjective("Defend the town of Białystok.")
-	EliminateNod = GDI.AddPrimaryObjective("Eliminate all Nod forces in the area.")
+	NodObjective = AddPrimaryObjective(Nod, "")
+	DefendTown = AddPrimaryObjective(GDI, "defend-bialystok")
+	EliminateNod = AddPrimaryObjective(GDI, "eliminate-nod")
 
 	Trigger.OnExitedFootprint(TownAttackTrigger, function(a, id)
 		if not TownAttackTriggered and a.Owner == GDI then

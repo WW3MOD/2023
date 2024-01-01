@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,6 +17,7 @@ using System.Linq;
 using OpenRA.FileSystem;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Video;
 using OpenRA.Widgets;
 
@@ -34,6 +35,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Unknown = 16
 		}
 
+		[TranslationReference("length")]
+		const string LengthInSeconds = "label-length-in-seconds";
+
+		[TranslationReference]
+		const string AllPackages = "label-all-packages";
+
 		readonly string[] allowedExtensions;
 		readonly string[] allowedSpriteExtensions;
 		readonly string[] allowedModelExtensions;
@@ -50,6 +57,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly SliderWidget frameSlider;
 		readonly ScrollPanelWidget assetList;
 		readonly ScrollItemWidget template;
+
+		readonly Cache<SheetType, SheetBuilder> sheetBuilders;
+		readonly Cache<string, Sprite[]> spriteCache;
 
 		IReadOnlyPackage assetSource = null;
 		bool animateFrames = false;
@@ -71,22 +81,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		float modelScale;
 		AssetType assetTypesToDisplay = AssetType.Sprite | AssetType.Model | AssetType.Audio | AssetType.Video;
 
-		[TranslationReference("length")]
-		static readonly string LengthInSeconds = "length-in-seconds";
-
-		[TranslationReference]
-		static readonly string AllPackages = "all-packages";
-
 		readonly string allPackages;
 
 		[ObjectCreator.UseCtor]
 		public AssetBrowserLogic(Widget widget, Action onExit, ModData modData, WorldRenderer worldRenderer)
 		{
+			sheetBuilders = new Cache<SheetType, SheetBuilder>(t => new SheetBuilder(t));
+			spriteCache = new Cache<string, Sprite[]>(
+				filename => FrameLoader.GetFrames(modData.DefaultFileSystem, filename, modData.SpriteLoaders, out _)
+						.Select(f => sheetBuilders[SheetBuilder.FrameTypeToSheetType(f.Type)].Add(f))
+						.ToArray());
+
 			world = worldRenderer.World;
 			this.modData = modData;
 			panel = widget;
 
-			allPackages = modData.Translation.GetString(AllPackages);
+			allPackages = TranslationProvider.GetString(AllPackages);
 
 			var colorPickerPalettes = world.WorldActor.TraitsImplementing<IProvidesAssetBrowserColorPickerPalettes>()
 				.SelectMany(p => p.ColorPickerPaletteNames)
@@ -167,16 +177,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				panel.GetOrNull<LabelWidget>("PALETTE_DESC").IsVisible = () => currentSprites != null || currentVoxel != null;
 			}
 
-			var colorManager = modData.DefaultRules.Actors[SystemActors.World].TraitInfo<ColorPickerManagerInfo>();
-			colorManager.Color = Game.Settings.Player.Color;
+			var colorManager = modData.DefaultRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 
 			var colorDropdown = panel.GetOrNull<DropDownButtonWidget>("COLOR");
 			if (colorDropdown != null)
 			{
+				var color = Game.Settings.Player.Color;
 				colorDropdown.IsDisabled = () => !colorPickerPalettes.Contains(currentPalette);
-				colorDropdown.OnMouseDown = _ => ColorPickerLogic.ShowColorDropDown(colorDropdown, colorManager, worldRenderer);
+				colorDropdown.OnMouseDown = _ => colorManager.ShowColorDropDown(colorDropdown, color, null, worldRenderer, c => color = c);
 				colorDropdown.IsVisible = () => currentSprites != null || currentVoxel != null;
-				panel.Get<ColorBlockWidget>("COLORBLOCK").GetColor = () => colorManager.Color;
+
+				panel.Get<ColorBlockWidget>("COLORBLOCK").GetColor = () => color;
 			}
 
 			filenameInput = panel.Get<TextFieldWidget>("FILENAME_INPUT");
@@ -227,7 +238,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (frameText != null)
 			{
 				var soundLength = new CachedTransform<double, string>(p =>
-					modData.Translation.GetString(LengthInSeconds, Translation.Arguments("length", Math.Round(p, 3))));
+					TranslationProvider.GetString(LengthInSeconds, Translation.Arguments("length", Math.Round(p, 3))));
 
 				frameText.GetText = () =>
 				{
@@ -420,7 +431,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				currentFrame = currentSprites.Length - 1;
 		}
 
-		readonly Dictionary<string, bool> assetVisByName = new Dictionary<string, bool>();
+		readonly Dictionary<string, bool> assetVisByName = new();
 
 		bool FilterAsset(string filename)
 		{
@@ -452,7 +463,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			var item = ScrollItemWidget.Setup(template,
 				() => currentFilename == filepath && currentPackage == package,
-				() => { LoadAsset(package, filepath); });
+				() => LoadAsset(package, filepath));
 
 			var label = item.Get<LabelWithTooltipWidget>("TITLE");
 			WidgetUtils.TruncateLabelToTooltip(label, filepath);
@@ -505,7 +516,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var fileExtension = Path.GetExtension(filename.ToLowerInvariant());
 				if (allowedSpriteExtensions.Contains(fileExtension))
 				{
-					currentSprites = world.Map.Rules.Sequences.SpriteCache[prefix + filename];
+					currentSprites = spriteCache[prefix + filename];
 					currentFrame = 0;
 
 					if (frameSlider != null && currentSprites?.Length > 0)
@@ -519,7 +530,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				else if (allowedModelExtensions.Contains(fileExtension))
 				{
 					var voxelName = Path.GetFileNameWithoutExtension(filename);
-					currentVoxel = world.ModelCache.GetModel(voxelName);
+					currentVoxel = world.ModelCache.GetModel(prefix + voxelName);
 					currentSprites = null;
 				}
 				else if (allowedAudioExtensions.Contains(fileExtension))
@@ -547,7 +558,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					// Mute music so it doesn't interfere with the current asset.
 					MuteSounds();
 
-					var video = VideoLoader.GetVideo(Game.ModData.DefaultFileSystem.Open(filename), true, Game.ModData.VideoLoaders);
+					var video = VideoLoader.GetVideo(Game.ModData.DefaultFileSystem.Open(prefix + filename), true, Game.ModData.VideoLoaders);
 					if (video != null)
 					{
 						player = panel.Get<VideoPlayerWidget>("PLAYER");
@@ -666,15 +677,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				name = source.Name;
 				var compare = Platform.CurrentPlatform == PlatformType.Windows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 				if (name.StartsWith(modData.Manifest.Package.Name, compare))
-					name = "$" + modData.Manifest.Id + "/" + name.Substring(modData.Manifest.Package.Name.Length + 1);
+					name = "$" + modData.Manifest.Id + "/" + name[(modData.Manifest.Package.Name.Length + 1)..];
 				else if (name.StartsWith(Platform.EngineDir, compare))
-					name = "./" + name.Substring(Platform.EngineDir.Length);
+					name = "./" + name[Platform.EngineDir.Length..];
 				else if (name.StartsWith(Platform.SupportDir, compare))
-					name = "^" + name.Substring(Platform.SupportDir.Length);
+					name = "^" + name[Platform.SupportDir.Length..];
 			}
 
 			if (name.Length > 18)
-				name = "..." + name.Substring(name.Length - 15);
+				name = "..." + name[^15..];
 
 			return name;
 		}

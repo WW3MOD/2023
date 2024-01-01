@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,21 +24,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public static class LobbyUtils
 	{
 		[TranslationReference]
-		static readonly string Open = "open";
+		const string Open = "options-lobby-slot.open";
 
 		[TranslationReference]
-		static readonly string Closed = "closed";
+		const string Closed = "options-lobby-slot.closed";
 
 		[TranslationReference]
-		static readonly string Bots = "bots";
+		const string Bots = "options-lobby-slot.bots";
 
 		[TranslationReference]
-		static readonly string BotsDisabled = "bots-disabled";
+		const string BotsDisabled = "options-lobby-slot.bots-disabled";
 
 		[TranslationReference]
-		static readonly string Slot = "slot";
+		const string Slot = "options-lobby-slot.slot";
 
-		class SlotDropDownOption
+		sealed class SlotDropDownOption
 		{
 			public readonly string Title;
 			public readonly string Order;
@@ -55,12 +55,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		public static void ShowSlotDropDown(DropDownButtonWidget dropdown, Session.Slot slot,
 			Session.Client client, OrderManager orderManager, MapPreview map, ModData modData)
 		{
-			var open = modData.Translation.GetString(Open);
-			var closed = modData.Translation.GetString(Closed);
+			var open = TranslationProvider.GetString(Open);
+			var closed = TranslationProvider.GetString(Closed);
 			var options = new Dictionary<string, IEnumerable<SlotDropDownOption>>
 			{
 				{
-					modData.Translation.GetString(Slot), new List<SlotDropDownOption>
+					TranslationProvider.GetString(Slot), new List<SlotDropDownOption>
 					{
 						new SlotDropDownOption(open, "slot_open " + slot.PlayerReference, () => !slot.Closed && client == null),
 						new SlotDropDownOption(closed, "slot_close " + slot.PlayerReference, () => slot.Closed)
@@ -80,18 +80,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 			}
 
-			options.Add(bots.Count > 0 ? modData.Translation.GetString(Bots) : modData.Translation.GetString(BotsDisabled), bots);
+			options.Add(bots.Count > 0 ? TranslationProvider.GetString(Bots) : TranslationProvider.GetString(BotsDisabled), bots);
 
-			Func<SlotDropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(SlotDropDownOption o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					o.Selected,
 					() => orderManager.IssueOrder(Order.Command(o.Order)));
 				item.Get<LabelWidget>("LABEL").GetText = () => o.Title;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 180, options, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 180, options, SetupItem);
 		}
 
 		public static void ShowPlayerActionDropDown(DropDownButtonWidget dropdown,
@@ -137,37 +137,37 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 			}
 
-			Func<DropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(DropDownOption o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate, o.IsSelected, o.OnClick);
 				var labelWidget = item.Get<LabelWidget>("LABEL");
 				labelWidget.GetText = () => o.Title;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("PLAYERACTION_DROPDOWN_TEMPLATE", 167, options, setupItem);
+			dropdown.ShowDropDown("PLAYERACTION_DROPDOWN_TEMPLATE", 167, options, SetupItem);
 		}
 
 		public static void ShowTeamDropDown(DropDownButtonWidget dropdown, Session.Client client,
 			OrderManager orderManager, int teamCount)
 		{
-			Func<int, ScrollItemWidget, ScrollItemWidget> setupItem = (ii, itemTemplate) =>
+			ScrollItemWidget SetupItem(int ii, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => client.Team == ii,
 					() => orderManager.IssueOrder(Order.Command($"team {client.Index} {ii}")));
 				item.Get<LabelWidget>("LABEL").GetText = () => ii == 0 ? "-" : ii.ToString();
 				return item;
-			};
+			}
 
 			var options = Enumerable.Range(0, teamCount + 1);
-			dropdown.ShowDropDown("TEAM_DROPDOWN_TEMPLATE", 150, options, setupItem);
+			dropdown.ShowDropDown("TEAM_DROPDOWN_TEMPLATE", 150, options, SetupItem);
 		}
 
 		public static void ShowHandicapDropDown(DropDownButtonWidget dropdown, Session.Client client,
 			OrderManager orderManager)
 		{
-			Func<int, ScrollItemWidget, ScrollItemWidget> setupItem = (ii, itemTemplate) =>
+			ScrollItemWidget SetupItem(int ii, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => client.Handicap == ii,
@@ -176,26 +176,26 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = $"{ii}%";
 				item.Get<LabelWidget>("LABEL").GetText = () => label;
 				return item;
-			};
+			}
 
 			// Handicaps may be set between 0 - 95% in steps of 5%
 			var options = Enumerable.Range(0, 20).Select(i => 5 * i);
-			dropdown.ShowDropDown("TEAM_DROPDOWN_TEMPLATE", 150, options, setupItem);
+			dropdown.ShowDropDown("TEAM_DROPDOWN_TEMPLATE", 150, options, SetupItem);
 		}
 
 		public static void ShowSpawnDropDown(DropDownButtonWidget dropdown, Session.Client client,
 			OrderManager orderManager, IEnumerable<int> spawnPoints)
 		{
-			Func<int, ScrollItemWidget, ScrollItemWidget> setupItem = (ii, itemTemplate) =>
+			ScrollItemWidget SetupItem(int ii, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => client.SpawnPoint == ii,
 					() => SetSpawnPoint(orderManager, client, ii));
 				item.Get<LabelWidget>("LABEL").GetText = () => ii == 0 ? "-" : Convert.ToChar('A' - 1 + ii).ToString();
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("SPAWN_DROPDOWN_TEMPLATE", 150, spawnPoints, setupItem);
+			dropdown.ShowDropDown("SPAWN_DROPDOWN_TEMPLATE", 150, spawnPoints, SetupItem);
 		}
 
 		/// <summary>Splits a string into two parts on the first instance of a given token.</summary>
@@ -205,15 +205,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return (null, null);
 
 			var split = input.IndexOf(token, StringComparison.Ordinal);
-			var first = split > 0 ? input.Substring(0, split) : input;
-			var second = split > 0 ? input.Substring(split + token.Length) : null;
+			var first = split > 0 ? input[..split] : input;
+			var second = split > 0 ? input[(split + token.Length)..] : null;
 			return (first, second);
 		}
 
 		public static void ShowFactionDropDown(DropDownButtonWidget dropdown, Session.Client client,
 			OrderManager orderManager, Dictionary<string, LobbyFaction> factions)
 		{
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (factionId, itemTemplate) =>
+			ScrollItemWidget SetupItem(string factionId, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => client.Faction == factionId,
@@ -228,42 +228,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				flag.GetImageCollection = () => "flags";
 				flag.GetImageName = () => factionId;
 
-				var tooltip = SplitOnFirstToken(faction.Description);
-				item.GetTooltipText = () => tooltip.First;
-				item.GetTooltipDesc = () => tooltip.Second;
+				var (text, desc) = SplitOnFirstToken(faction.Description);
+				item.GetTooltipText = () => text;
+				item.GetTooltipDesc = () => desc;
 
 				return item;
-			};
+			}
 
 			var options = factions.Where(f => f.Value.Selectable).GroupBy(f => f.Value.Side)
 				.ToDictionary(g => g.Key ?? "", g => g.Select(f => f.Key));
 
-			dropdown.ShowDropDown("FACTION_DROPDOWN_TEMPLATE", 154, options, setupItem);
-		}
-
-		public static void ShowColorDropDown(DropDownButtonWidget color, Session.Client client,
-			OrderManager orderManager, WorldRenderer worldRenderer, ColorPickerManagerInfo colorManager)
-		{
-			Action onExit = () =>
-			{
-				if (client == orderManager.LocalClient)
-				{
-					Game.Settings.Player.Color = colorManager.Color;
-					Game.Settings.Save();
-				}
-
-				color.RemovePanel();
-				orderManager.IssueOrder(Order.Command($"color {client.Index} {colorManager.Color}"));
-			};
-
-			var colorChooser = Game.LoadWidget(worldRenderer.World, "COLOR_CHOOSER", null, new WidgetArgs()
-			{
-				{ "onChange", (Action<Color>)(c => colorManager.Color = c) },
-				{ "initialColor", client.Color },
-				{ "initialFaction", client.Faction }
-			});
-
-			color.AttachPanel(colorChooser, onExit);
+			dropdown.ShowDropDown("FACTION_DROPDOWN_TEMPLATE", 154, options, SetupItem);
 		}
 
 		public static void SelectSpawnPoint(OrderManager orderManager, MapPreviewWidget mapPreview, MapPreview preview, MouseInput mi)
@@ -283,7 +258,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var selectedSpawn = DetermineSelectedSpawnPoint(mapPreview, preview, mi);
 
 			var locals = orderManager.LobbyInfo.Clients.Where(c => c.Index == orderManager.LocalClient.Index || (Game.IsHost && c.Bot != null));
-			var playerToMove = locals.FirstOrDefault(c => ((selectedSpawn == 0) ^ (c.SpawnPoint == 0) && !c.IsObserver));
+			var playerToMove = locals.FirstOrDefault(c => (selectedSpawn == 0) ^ (c.SpawnPoint == 0) && !c.IsObserver);
 			SetSpawnPoint(orderManager, playerToMove, selectedSpawn);
 		}
 
@@ -463,8 +438,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				WidgetUtils.TruncateText(name, slot.Bounds.Width - slot.Bounds.Height - slot.LeftMargin - slot.RightMargin,
 				Game.Renderer.Fonts[slot.Font]));
 
-			var closed = modData.Translation.GetString(Closed);
-			var open = modData.Translation.GetString(Open);
+			var closed = TranslationProvider.GetString(Closed);
+			var open = TranslationProvider.GetString(Open);
 			slot.GetText = () => truncated.Update(c != null ? c.Name : s.Closed ? closed : open);
 			slot.OnMouseDown = _ => ShowSlotDropDown(slot, s, c, orderManager, map, modData);
 
@@ -477,8 +452,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var name = parent.Get<LabelWidget>("NAME");
 			name.IsVisible = () => true;
 			name.GetText = () => c != null ? c.Name : s.Closed
-				? modData.Translation.GetString(Closed)
-				: modData.Translation.GetString(Open);
+				? TranslationProvider.GetString(Closed)
+				: TranslationProvider.GetString(Open);
 
 			// Ensure Slot selector (if present) is hidden
 			HideChildWidget(parent, "SLOT_OPTIONS");
@@ -511,7 +486,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			checkBox.IsVisible = () => orderManager.LocalClient.IsAdmin && !skirmishMode;
 			checkBox.IsDisabled = () => false;
 
-			Action okPressed = () =>
+			void OkPressed()
 			{
 				orderManager.IssueOrder(Order.Command($"allow_spectators {!orderManager.LobbyInfo.GlobalSettings.AllowSpectators}"));
 				orderManager.IssueOrders(
@@ -520,7 +495,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							client => Order.Command($"kick {client.Index} {client.Name}")).ToArray());
 
 				after();
-			};
+			}
 
 			checkBox.OnClick = () =>
 			{
@@ -532,7 +507,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					Game.LoadWidget(null, "KICK_SPECTATORS_DIALOG", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs
 					{
 						{ "clientCount", spectatorCount },
-						{ "okPressed", okPressed },
+						{ "okPressed", OkPressed },
 						{ "cancelPressed", after }
 					});
 				}
@@ -544,13 +519,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			};
 		}
 
-		public static void SetupEditableColorWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager, WorldRenderer worldRenderer, ColorPickerManagerInfo colorManager)
+		public static void SetupEditableColorWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager, WorldRenderer worldRenderer, IColorPickerManagerInfo colorManager)
 		{
-			var color = parent.Get<DropDownButtonWidget>("COLOR");
-			color.IsDisabled = () => (s != null && s.LockColor) || orderManager.LocalClient.IsReady;
-			color.OnMouseDown = _ => ShowColorDropDown(color, c, orderManager, worldRenderer, colorManager);
+			var colorDropdown = parent.Get<DropDownButtonWidget>("COLOR");
+			colorDropdown.IsDisabled = () => (s != null && s.LockColor) || orderManager.LocalClient.IsReady;
+			colorDropdown.OnMouseDown = _ => colorManager.ShowColorDropDown(colorDropdown, c.Color, c.Faction, worldRenderer, color =>
+			{
+				if (c == orderManager.LocalClient)
+				{
+					Game.Settings.Player.Color = color;
+					Game.Settings.Save();
+				}
 
-			SetupColorWidget(color, c);
+				orderManager.IssueOrder(Order.Command($"color {c.Index} {color}"));
+			});
+
+			SetupColorWidget(colorDropdown, c);
 		}
 
 		public static void SetupColorWidget(Widget parent, Session.Client c)
@@ -566,9 +550,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			dropdown.IsDisabled = () => s.LockFaction || orderManager.LocalClient.IsReady;
 			dropdown.OnMouseDown = _ => ShowFactionDropDown(dropdown, c, orderManager, factions);
 
-			var tooltip = SplitOnFirstToken(factions[c.Faction].Description);
-			dropdown.GetTooltipText = () => tooltip.First;
-			dropdown.GetTooltipDesc = () => tooltip.Second;
+			var (text, desc) = SplitOnFirstToken(factions[c.Faction].Description);
+			dropdown.GetTooltipText = () => text;
+			dropdown.GetTooltipDesc = () => desc;
 
 			SetupFactionWidget(dropdown, c, factions);
 		}
@@ -693,7 +677,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 	}
 
-	class ShowPlayerActionDropDownOption
+	sealed class ShowPlayerActionDropDownOption
 	{
 		public Action Click { get; set; }
 		public string Title;

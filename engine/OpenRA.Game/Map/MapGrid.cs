@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,7 +29,10 @@ namespace OpenRA
 		public readonly WVec[][] Polygons;
 		public readonly WRot Orientation;
 
-		public CellRamp(MapGridType type, WRot orientation, RampCornerHeight tl = RampCornerHeight.Low, RampCornerHeight tr = RampCornerHeight.Low, RampCornerHeight br = RampCornerHeight.Low,  RampCornerHeight bl = RampCornerHeight.Low, RampSplit split = RampSplit.Flat)
+		public CellRamp(MapGridType type, WRot orientation,
+			RampCornerHeight tl = RampCornerHeight.Low, RampCornerHeight tr = RampCornerHeight.Low,
+			RampCornerHeight br = RampCornerHeight.Low, RampCornerHeight bl = RampCornerHeight.Low,
+			RampSplit split = RampSplit.Flat)
 		{
 			Orientation = orientation;
 			if (type == MapGridType.RectangularIsometric)
@@ -103,7 +106,7 @@ namespace OpenRA
 	public class MapGrid : IGlobalModData
 	{
 		public readonly MapGridType Type = MapGridType.Rectangular;
-		public readonly Size TileSize = new Size(24, 24);
+		public readonly Size TileSize = new(24, 24);
 		public readonly byte MaximumTerrainHeight = 0;
 		public readonly SubCell DefaultSubCell = (SubCell)byte.MaxValue;
 
@@ -125,9 +128,13 @@ namespace OpenRA
 
 		internal readonly CVec[][] TilesByDistance;
 
+		public int TileScale { get; }
+
 		public MapGrid(MiniYaml yaml)
 		{
 			FieldLoader.Load(this, yaml);
+
+			TileScale = Type == MapGridType.RectangularIsometric ? 1448 : 1024;
 
 			// The default subcell index defaults to the middle entry
 			var defaultSubCellIndex = (byte)DefaultSubCell;

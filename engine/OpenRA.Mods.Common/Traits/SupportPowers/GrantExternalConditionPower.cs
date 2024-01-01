@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -118,7 +118,7 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
-		class SelectConditionTarget : OrderGenerator
+		sealed class SelectConditionTarget : OrderGenerator
 		{
 			readonly GrantExternalConditionPower power;
 			readonly char[] footprint;
@@ -140,7 +140,7 @@ namespace OpenRA.Mods.Common.Traits
 				footprint = power.info.Footprint.Where(c => !char.IsWhiteSpace(c)).ToArray();
 				dimensions = power.info.Dimensions;
 
-				var sequence = world.Map.Rules.Sequences.GetSequence(power.info.FootprintImage, power.info.FootprintSequence);
+				var sequence = world.Map.Sequences.GetSequence(power.info.FootprintImage, power.info.FootprintSequence);
 				tile = sequence.GetSprite(0);
 				alpha = sequence.GetAlpha(0);
 			}

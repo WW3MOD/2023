@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,8 +28,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// HACK: We don't want D2k bots to repair all their buildings on placement
 			// where half their HP is removed via neutral terrain damage.
-			// TODO: Implement concrete placement for D2k bots and remove this hack.
-			if (self.Owner.RelationshipWith(e.Attacker.Owner) == PlayerRelationship.Neutral)
+			// TODO: Implement concrete placement for D2k bots and remove this hack on players relationship check.
+			if (self.IsDead || self.Owner.RelationshipWith(e.Attacker.Owner) == PlayerRelationship.Neutral)
 				return;
 
 			var rb = self.TraitOrDefault<RepairableBuilding>();

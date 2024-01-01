@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -75,11 +75,11 @@ namespace OpenRA.Mods.Common.Traits
 		Turreted turret;
 		public WDist VerticalTopOffset;
 
-		((CPos Cell, SubCell SubCell)[] targetableCells,
-			WPos? selfCenterPosition,
-			WRot? selfOrientation,
-			WRot? turretLocalOrientation,
-			WVec? turretOffset) cacheInput;
+		((CPos Cell, SubCell SubCell)[] TargetableCells,
+			WPos? SelfCenterPosition,
+			WRot? SelfOrientation,
+			WRot? TurretLocalOrientation,
+			WVec? TurretOffset) cacheInput;
 
 		WPos[] cachedTargetablePositions;
 

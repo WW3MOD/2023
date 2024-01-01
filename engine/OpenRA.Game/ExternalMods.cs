@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,7 +41,7 @@ namespace OpenRA
 
 	public class ExternalMods : IReadOnlyDictionary<string, ExternalMod>
 	{
-		readonly Dictionary<string, ExternalMod> mods = new Dictionary<string, ExternalMod>();
+		readonly Dictionary<string, ExternalMod> mods = new();
 		readonly SheetBuilder sheetBuilder;
 
 		Sheet CreateSheet()
@@ -81,8 +81,8 @@ namespace OpenRA
 					}
 					catch (Exception e)
 					{
-						Log.Write("debug", "Failed to parse mod metadata file '{0}'", path);
-						Log.Write("debug", e.ToString());
+						Log.Write("debug", $"Failed to parse mod metadata file '{path}'");
+						Log.Write("debug", e);
 					}
 				}
 			}
@@ -174,17 +174,19 @@ namespace OpenRA
 				catch (Exception e)
 				{
 					Log.Write("debug", "Failed to register current mod metadata");
-					Log.Write("debug", e.ToString());
+					Log.Write("debug", e);
 				}
 			}
 		}
 
 		/// <summary>
 		/// Removes invalid mod registrations:
-		/// * LaunchPath no longer exists
-		/// * LaunchPath and mod id matches the active mod, but the version is different
-		/// * Filename doesn't match internal key
-		/// * Fails to parse as a mod registration
+		/// <list type="bullet">
+		/// <item>LaunchPath no longer exists.</item>
+		/// <item>LaunchPath and mod id matches the active mod, but the version is different.</item>
+		/// <item>Filename doesn't match internal key.</item>
+		/// <item>Fails to parse as a mod registration.</item>
+		/// </list>
 		/// </summary>
 		internal void ClearInvalidRegistrations(ModRegistration registration)
 		{
@@ -211,8 +213,8 @@ namespace OpenRA
 					}
 					catch (Exception e)
 					{
-						Log.Write("debug", "Failed to parse mod metadata file '{0}'", path);
-						Log.Write("debug", e.ToString());
+						Log.Write("debug", $"Failed to parse mod metadata file '{path}'");
+						Log.Write("debug", e);
 					}
 
 					// Remove from the ingame mod switcher
@@ -223,12 +225,12 @@ namespace OpenRA
 					try
 					{
 						File.Delete(path);
-						Log.Write("debug", "Removed invalid mod metadata file '{0}'", path);
+						Log.Write("debug", $"Removed invalid mod metadata file '{path}'");
 					}
 					catch (Exception e)
 					{
-						Log.Write("debug", "Failed to remove mod metadata file '{0}'", path);
-						Log.Write("debug", e.ToString());
+						Log.Write("debug", $"Failed to remove mod metadata file '{path}'");
+						Log.Write("debug", e);
 					}
 				}
 			}
@@ -249,13 +251,13 @@ namespace OpenRA
 				}
 				catch (Exception e)
 				{
-					Log.Write("debug", "Failed to remove mod metadata file '{0}'", path);
-					Log.Write("debug", e.ToString());
+					Log.Write("debug", $"Failed to remove mod metadata file '{path}'");
+					Log.Write("debug", e);
 				}
 			}
 		}
 
-		IEnumerable<string> GetSupportDirs(ModRegistration registration)
+		static IEnumerable<string> GetSupportDirs(ModRegistration registration)
 		{
 			var sources = new HashSet<string>(4);
 			if (registration.HasFlag(ModRegistration.System))

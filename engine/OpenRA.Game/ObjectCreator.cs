@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,7 +22,7 @@ namespace OpenRA
 	{
 		// .NET does not support unloading assemblies, so mod libraries will leak across mod changes.
 		// This tracks the assemblies that have been loaded since game start so that we don't load multiple copies
-		static readonly Dictionary<string, Assembly> ResolvedAssemblies = new Dictionary<string, Assembly>();
+		static readonly Dictionary<string, Assembly> ResolvedAssemblies = new();
 
 		readonly Cache<string, Type> typeCache;
 		readonly Cache<Type, ConstructorInfo> ctorCache;
@@ -49,13 +49,15 @@ namespace OpenRA
 			assemblies = assemblyList.SelectMany(asm => asm.GetNamespaces().Select(ns => (asm, ns))).ToArray();
 		}
 
-		void LoadAssembly(List<Assembly> assemblyList, string resolvedPath)
+		static void LoadAssembly(List<Assembly> assemblyList, string resolvedPath)
 		{
 			// .NET doesn't provide any way of querying the metadata of an assembly without either:
 			//   (a) loading duplicate data into the application domain, breaking the world.
 			//   (b) crashing if the assembly has already been loaded.
 			// We can't check the internal name of the assembly, so we'll work off the data instead
-			var hash = CryptoUtil.SHA1Hash(File.ReadAllBytes(resolvedPath));
+			string hash;
+			using (var stream = File.OpenRead(resolvedPath))
+				hash = CryptoUtil.SHA1Hash(stream);
 
 			if (!ResolvedAssemblies.TryGetValue(hash, out var assembly))
 			{

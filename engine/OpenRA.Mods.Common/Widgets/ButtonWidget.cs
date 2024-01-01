@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string TooltipContainer;
 		public readonly string TooltipTemplate = "BUTTON_TOOLTIP";
 
-		public HotkeyReference Key = new HotkeyReference();
+		public HotkeyReference Key = new();
 		public bool DisableKeyRepeat = false;
 		public bool DisableKeySound = false;
 
@@ -263,11 +263,10 @@ namespace OpenRA.Mods.Common.Widgets
 				case TextAlign.Left:
 					return new int2(rb.X + LeftMargin, y);
 				case TextAlign.Center:
+				default:
 					return new int2(rb.X + (UsableWidth - textSize.X) / 2, y);
 				case TextAlign.Right:
 					return new int2(rb.X + UsableWidth - textSize.X - RightMargin, y);
-				default:
-					throw new ArgumentOutOfRangeException("Align");
 			}
 		}
 

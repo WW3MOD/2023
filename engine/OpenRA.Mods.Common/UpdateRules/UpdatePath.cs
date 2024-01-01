@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,20 +31,6 @@ namespace OpenRA.Mods.Common.UpdateRules
 		// release-to-bleed path.
 		static readonly UpdatePath[] Paths =
 		{
-			new UpdatePath("release-20200202", "release-20200503", new UpdateRule[]
-			{
-				new RemoveYesNo(),
-				new RemoveInitialFacingHardcoding(),
-				new RemoveAirdropActorTypeDefault(),
-				new RenameProneTime(),
-				new RemoveWithPermanentInjury(),
-				new AddResourceRenderer(),
-				new ReformatChromeProvider(),
-				new RenameSpins(),
-				new CreateScreenShakeWarhead(),
-				new RenameRallyPointPath(),
-			}),
-
 			new UpdatePath("release-20200503", "release-20210321", new UpdateRule[]
 			{
 				new AddPipDecorationTraits(),
@@ -72,9 +58,8 @@ namespace OpenRA.Mods.Common.UpdateRules
 				new RemoveLaysTerrain(),
 			}),
 
-			new UpdatePath("release-20210321", new UpdateRule[]
+			new UpdatePath("release-20210321", "release-20230225", new UpdateRule[]
 			{
-				// Bleed only changes here
 				new RenameMPTraits(),
 				new RemovePlayerHighlightPalette(),
 				new ReplaceWithColoredOverlayPalette(),
@@ -87,14 +72,12 @@ namespace OpenRA.Mods.Common.UpdateRules
 				new RemoveSmokeTrailWhenDamaged(),
 				new ReplaceCrateSecondsWithTicks(),
 				new UseMillisecondsForSounds(),
-				new UnhardcodeSquadManager(),
 				new RenameSupportPowerDescription(),
 				new AttackBomberFacingTolerance(),
 				new AttackFrontalFacingTolerance(),
 				new RenameCloakTypes(),
 				new SplitNukePowerMissileImage(),
 				new ReplaceSequenceEmbeddedPalette(),
-				new UnhardcodeBaseBuilderBotModule(),
 				new UnhardcodeVeteranProductionIconOverlay(),
 				new RenameContrailProperties(),
 				new RemoveDomainIndex(),
@@ -109,8 +92,7 @@ namespace OpenRA.Mods.Common.UpdateRules
 			if (namedType != null && namedType.IsSubclassOf(typeof(UpdateRule)))
 				return new[] { (UpdateRule)objectCreator.CreateBasic(namedType) };
 
-			var namedPath = Paths.FirstOrDefault(p => p.source == source);
-			return namedPath != null ? namedPath.Rules(chain) : null;
+			return Paths.FirstOrDefault(p => p.source == source)?.Rules(chain);
 		}
 
 		public static IEnumerable<string> KnownPaths { get { return Paths.Select(p => p.source); } }

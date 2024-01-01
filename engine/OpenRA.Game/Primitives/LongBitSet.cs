@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ namespace OpenRA.Primitives
 {
 	static class LongBitSetAllocator<T> where T : class
 	{
-		static readonly Cache<string, long> Bits = new Cache<string, long>(Allocate);
+		static readonly Cache<string, long> Bits = new(Allocate);
 		static long nextBits = 1;
 
 		static long Allocate(string value)
@@ -116,7 +116,7 @@ namespace OpenRA.Primitives
 		public static bool operator !=(LongBitSet<T> me, LongBitSet<T> other) { return !(me == other); }
 
 		public bool Equals(LongBitSet<T> other) { return other == this; }
-		public override bool Equals(object obj) { return obj is LongBitSet<T> && Equals((LongBitSet<T>)obj); }
+		public override bool Equals(object obj) { return obj is LongBitSet<T> set && Equals(set); }
 		public override int GetHashCode() { return bits.GetHashCode(); }
 
 		public bool IsEmpty => bits == 0;

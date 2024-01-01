@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,11 +24,13 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly string StartingUnitsClass = "none";
 
+		[TranslationReference]
 		[Desc("Descriptive label for the starting units option in the lobby.")]
-		public readonly string DropdownLabel = "Starting Units";
+		public readonly string DropdownLabel = "dropdown-starting-units.label";
 
+		[TranslationReference]
 		[Desc("Tooltip description for the starting units option in the lobby.")]
-		public readonly string DropdownDescription = "The units that players start the game with";
+		public readonly string DropdownDescription = "dropdown-starting-units.description";
 
 		[Desc("Prevent the starting units option from being changed in the lobby.")]
 		public readonly bool DropdownLocked = false;
@@ -45,10 +47,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Duplicate classes are defined for different race variants
 			foreach (var t in map.WorldActorInfo.TraitInfos<StartingUnitsInfo>())
-				startingUnits[t.Class] = t.ClassName;
+				startingUnits[t.Class] = map.GetLocalisedString(t.ClassName);
 
 			if (startingUnits.Count > 0)
-				yield return new LobbyOption("startingunits", DropdownLabel, DropdownDescription, DropdownVisible, DropdownDisplayOrder,
+				yield return new LobbyOption(map, "startingunits", DropdownLabel, DropdownDescription, DropdownVisible, DropdownDisplayOrder,
 					startingUnits, StartingUnitsClass, DropdownLocked);
 		}
 
@@ -85,7 +87,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (unitGroup.BaseActor != null)
 			{
-				var facing = unitGroup.BaseActorFacing.HasValue ? unitGroup.BaseActorFacing.Value : new WAngle(w.SharedRandom.Next(1024));
+				var facing = unitGroup.BaseActorFacing ?? new WAngle(w.SharedRandom.Next(1024));
 				w.CreateActor(unitGroup.BaseActor.ToLowerInvariant(), new TypeDictionary
 				{
 					new LocationInit(p.HomeLocation + unitGroup.BaseActorOffset),
@@ -113,7 +115,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var subCell = ip.SharesCell ? w.ActorMap.FreeSubCell(validCell) : 0;
-				var facing = unitGroup.SupportActorsFacing.HasValue ? unitGroup.SupportActorsFacing.Value : new WAngle(w.SharedRandom.Next(1024));
+				var facing = unitGroup.SupportActorsFacing ?? new WAngle(w.SharedRandom.Next(1024));
 
 				w.CreateActor(s.ToLowerInvariant(), new TypeDictionary
 				{

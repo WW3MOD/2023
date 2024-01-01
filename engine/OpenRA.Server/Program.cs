@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Support;
 
 namespace OpenRA.Server
 {
-	class Program
+	sealed class Program
 	{
 		static void Main(string[] args)
 		{
@@ -83,7 +83,11 @@ namespace OpenRA.Server
 			{
 				// HACK: The engine code *still* assumes that Game.ModData is set
 				var modData = Game.ModData = new ModData(mods[modID], mods);
+				modData.MapCache.LoadPreviewImages = false; // PERF: Server doesn't need previews, save memory by not loading them.
 				modData.MapCache.LoadMaps();
+
+				// HACK: Related to the above one, initialize the translations so we can load maps with their (translated) lobby options.
+				TranslationProvider.Initialize(modData, modData.DefaultFileSystem);
 
 				settings.Map = modData.MapCache.ChooseInitialMap(settings.Map, new MersenneTwister());
 

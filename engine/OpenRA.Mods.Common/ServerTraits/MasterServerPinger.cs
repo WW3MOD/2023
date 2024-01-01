@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,20 +31,25 @@ namespace OpenRA.Mods.Common.Server
 		const int RateLimitInterval = 1000;
 
 		[TranslationReference]
-		static readonly string NoPortForward = "no-port-forward";
+		const string NoPortForward = "notification-no-port-forward";
+
 		[TranslationReference]
-		static readonly string BlacklistedTitle = "blacklisted-title";
+		const string BlacklistedTitle = "notification-blacklisted-server-name";
+
 		[TranslationReference]
-		static readonly string InvalidErrorCode = "invalid-error-code";
+		const string InvalidErrorCode = "notification-invalid-error-code";
+
 		[TranslationReference]
-		static readonly string Connected = "master-server-connected";
+		const string Connected = "notification-master-server-connected";
+
 		[TranslationReference]
-		static readonly string Error = "master-server-error";
+		const string Error = "notification-master-server-error";
+
 		[TranslationReference]
-		static readonly string GameOffline = "game-offline";
+		const string GameOffline = "notification-game-offline";
 
 		static readonly Beacon LanGameBeacon;
-		static readonly Dictionary<int, string> MasterServerErrors = new Dictionary<int, string>()
+		static readonly Dictionary<int, string> MasterServerErrors = new()
 		{
 			{ 1, NoPortForward },
 			{ 2, BlacklistedTitle }
@@ -55,7 +60,7 @@ namespace OpenRA.Mods.Common.Server
 		bool isInitialPing = true;
 
 		volatile bool isBusy;
-		readonly Queue<string> masterServerMessages = new Queue<string>();
+		readonly Queue<string> masterServerMessages = new();
 
 		static MasterServerPinger()
 		{

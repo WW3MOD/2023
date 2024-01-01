@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+   Copyright (c) The OpenRA Developers and Contributors
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -7,18 +7,14 @@
    information, see COPYING.
 ]]
 
-Difficulty = Map.LobbyOption("difficulty")
+Difficulty = Map.LobbyOptionOrDefault("difficulty", "normal")
 
 InitObjectives = function(player)
-	Trigger.OnObjectiveAdded(player, function(p, id)
-		Media.DisplayMessage(p.GetObjectiveDescription(id), "New " .. string.lower(p.GetObjectiveType(id)) .. " objective")
-	end)
-
 	Trigger.OnObjectiveCompleted(player, function(p, id)
-		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective completed")
+		Media.DisplayMessage(p.GetObjectiveDescription(id), UserInterface.Translate("objective-completed"))
 	end)
 	Trigger.OnObjectiveFailed(player, function(p, id)
-		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective failed")
+		Media.DisplayMessage(p.GetObjectiveDescription(id), UserInterface.Translate("objective-failed"))
 	end)
 
 	Trigger.OnPlayerLost(player, function()
@@ -32,6 +28,8 @@ InitObjectives = function(player)
 		end)
 	end)
 end
+
+Mentat = UserInterface.Translate("mentat")
 
 SendCarryallReinforcements = function(player, currentWave, totalWaves, delay, pathFunction, unitTypes, customCondition, customHuntFunction, announcementFunction)
 	Trigger.AfterDelay(delay, function()

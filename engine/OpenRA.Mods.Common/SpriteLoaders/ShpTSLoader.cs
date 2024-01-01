@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 {
 	public class ShpTSLoader : ISpriteLoader
 	{
-		class ShpTSFrame : ISpriteFrame
+		sealed class ShpTSFrame : ISpriteFrame
 		{
 			public SpriteFrameType Type => SpriteFrameType.Indexed8;
 			public Size Size { get; }
@@ -85,7 +85,7 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 			}
 		}
 
-		bool IsShpTS(Stream s)
+		static bool IsShpTS(Stream s)
 		{
 			var start = s.Position;
 
@@ -128,7 +128,7 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 			return f == imageCount || type < 4;
 		}
 
-		ShpTSFrame[] ParseFrames(Stream s)
+		static ShpTSFrame[] ParseFrames(Stream s)
 		{
 			var start = s.Position;
 

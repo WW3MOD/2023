@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		// PERF: Maintain a pool of layers used for paths searches for each world. These searches are performed often
 		// so we wish to avoid the high cost of initializing a new search space every time by reusing the old ones.
-		static readonly ConditionalWeakTable<World, CellInfoLayerPool> LayerPoolTable = new ConditionalWeakTable<World, CellInfoLayerPool>();
+		static readonly ConditionalWeakTable<World, CellInfoLayerPool> LayerPoolTable = new();
 		static readonly ConditionalWeakTable<World, CellInfoLayerPool>.CreateValueCallback CreateLayerPool = world => new CellInfoLayerPool(world.Map);
 
 		static CellInfoLayerPool LayerPoolForWorld(World world)
@@ -44,9 +44,9 @@ namespace OpenRA.Mods.Common.Pathfinder
 			IRecorder recorder = null)
 		{
 			var graph = new MapPathGraph(LayerPoolForWorld(world), locomotor, self, world, check, customCost, ignoreActor, laneBias, false);
-			var search = new PathSearch(graph, loc => 0, 0, targetPredicate, recorder);
+			var search = new PathSearch(graph, (_, _) => 0, 0, targetPredicate, recorder);
 
-			AddInitialCells(world, locomotor, froms, customCost, search);
+			AddInitialCells(world, locomotor, self, froms, check, customCost, ignoreActor, false, search);
 
 			return search;
 		}
@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			Actor ignoreActor = null,
 			bool laneBias = true,
 			bool inReverse = false,
-			Func<CPos, int> heuristic = null,
+			Func<CPos, bool, int> heuristic = null,
 			Grid? grid = null,
 			IRecorder recorder = null)
 		{
@@ -68,14 +68,25 @@ namespace OpenRA.Mods.Common.Pathfinder
 			else
 				graph = new MapPathGraph(LayerPoolForWorld(world), locomotor, self, world, check, customCost, ignoreActor, laneBias, inReverse);
 
-			heuristic = heuristic ?? DefaultCostEstimator(locomotor, target);
+			heuristic ??= DefaultCostEstimator(locomotor, target);
 			var search = new PathSearch(graph, heuristic, heuristicWeightPercentage, loc => loc == target, recorder);
 
-			AddInitialCells(world, locomotor, froms, customCost, search);
+			AddInitialCells(world, locomotor, self, froms, check, customCost, ignoreActor, inReverse, search);
 
 			return search;
 		}
 
+		/// <summary>
+		/// Determines if a cell is a valid pathfinding location.
+		/// <list type="bullet">
+		/// <item>It is in the world.</item>
+		/// <item>It is either on the ground layer (0) or on an *enabled* custom movement layer.</item>
+		/// <item>It has not been excluded by the <paramref name="customCost"/>.</item>
+		/// </list>
+		/// If required, follow this with a call to
+		/// <see cref="Locomotor.MovementCostToEnterCell(Actor, CPos, CPos, BlockedByActor, Actor, bool)"/> to
+		/// determine if the cell is accessible.
+		/// </summary>
 		public static bool CellAllowsMovement(World world, Locomotor locomotor, CPos cell, Func<CPos, int> customCost)
 		{
 			return world.Map.Contains(cell) &&
@@ -83,10 +94,18 @@ namespace OpenRA.Mods.Common.Pathfinder
 				(customCost == null || customCost(cell) != PathGraph.PathCostForInvalidPath);
 		}
 
-		static void AddInitialCells(World world, Locomotor locomotor, IEnumerable<CPos> froms, Func<CPos, int> customCost, PathSearch search)
+		static void AddInitialCells(World world, Locomotor locomotor, Actor self, IEnumerable<CPos> froms,
+			BlockedByActor check, Func<CPos, int> customCost, Actor ignoreActor, bool inReverse, PathSearch search)
 		{
+			// A source cell is allowed to have an unreachable movement cost.
+			// Therefore we don't need to check if the cell is accessible, only that it allows movement.
+			// *Unless* the search is being done in reverse, in this case the source is really a target,
+			// and a target is required to have a reachable cost.
+			// We also need to ignore self, so we don't consider the location blocked by ourselves!
 			foreach (var sl in froms)
-				if (CellAllowsMovement(world, locomotor, sl, customCost))
+				if (CellAllowsMovement(world, locomotor, sl, customCost) &&
+					(!inReverse || locomotor.MovementCostToEnterCell(self, sl, check, ignoreActor, true)
+						!= PathGraph.MovementCostForUnreachableCell))
 					search.AddInitialCell(sl, customCost);
 		}
 
@@ -110,10 +129,10 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// <param name="locomotor">Locomotor used to provide terrain costs.</param>
 		/// <param name="destination">The cell for which costs are to be given by the estimation function.</param>
 		/// <returns>A delegate that calculates the cost estimation between the <paramref name="destination"/> and the given cell.</returns>
-		public static Func<CPos, int> DefaultCostEstimator(Locomotor locomotor, CPos destination)
+		public static Func<CPos, bool, int> DefaultCostEstimator(Locomotor locomotor, CPos destination)
 		{
 			var estimator = DefaultCostEstimator(locomotor);
-			return here => estimator(here, destination);
+			return (here, _) => estimator(here, destination);
 		}
 
 		/// <summary>
@@ -143,7 +162,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		public IPathGraph Graph { get; }
 		public Func<CPos, bool> TargetPredicate { get; set; }
-		readonly Func<CPos, int> heuristic;
+		readonly Func<CPos, bool, int> heuristic;
 		readonly int heuristicWeightPercentage;
 		readonly IRecorder recorder;
 		readonly IPriorityQueue<GraphConnection> openQueue;
@@ -152,7 +171,10 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// Initialize a new search.
 		/// </summary>
 		/// <param name="graph">Graph over which the search is conducted.</param>
-		/// <param name="heuristic">Provides an estimation of the distance between the given cell and the target.</param>
+		/// <param name="heuristic">Provides an estimation of the distance between the given cell and the target.
+		/// The Boolean parameter indicates if the cell is known to be accessible.
+		/// When true, it is known accessible as it is being explored by the search.
+		/// When false, the cell is being considered as a starting location and might not be accessible.</param>
 		/// <param name="heuristicWeightPercentage">
 		/// The search will aim for the shortest path when given a weight of 100%.
 		/// We can allow the search to find paths that aren't optimal by changing the weight.
@@ -162,14 +184,15 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// The search can skip some areas of the search space, meaning it has less work to do.
 		/// </param>
 		/// <param name="targetPredicate">Determines if the given cell is the target.</param>
-		PathSearch(IPathGraph graph, Func<CPos, int> heuristic, int heuristicWeightPercentage, Func<CPos, bool> targetPredicate, IRecorder recorder)
+		/// <param name="recorder">If provided, will record all nodes explored by searches performed.</param>
+		PathSearch(IPathGraph graph, Func<CPos, bool, int> heuristic, int heuristicWeightPercentage, Func<CPos, bool> targetPredicate, IRecorder recorder)
 		{
 			Graph = graph;
 			this.heuristic = heuristic;
 			this.heuristicWeightPercentage = heuristicWeightPercentage;
 			TargetPredicate = targetPredicate;
 			this.recorder = recorder;
-			openQueue = new PriorityQueue<GraphConnection>(GraphConnection.ConnectionCostComparer);
+			openQueue = new Primitives.PriorityQueue<GraphConnection, GraphConnection.CostComparer>(default);
 		}
 
 		void AddInitialCell(CPos location, Func<CPos, int> customCost)
@@ -182,7 +205,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 					return;
 			}
 
-			var heuristicCost = heuristic(location);
+			var heuristicCost = heuristic(location, false);
 			if (heuristicCost == PathGraph.PathCostForInvalidPath)
 				return;
 
@@ -218,9 +241,9 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		/// <summary>
 		/// This function analyzes the neighbors of the most promising node in the pathfinding graph
-		/// using the A* algorithm (A-star) and returns that node
+		/// using the A* algorithm (A-star) and returns that node.
 		/// </summary>
-		/// <returns>The most promising node of the iteration</returns>
+		/// <returns>The most promising node of the iteration.</returns>
 		CPos Expand()
 		{
 			var currentMinNode = openQueue.Pop().Destination;
@@ -228,7 +251,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			var currentInfo = Graph[currentMinNode];
 			Graph[currentMinNode] = new CellInfo(CellStatus.Closed, currentInfo.CostSoFar, currentInfo.EstimatedTotalCost, currentInfo.PreviousNode);
 
-			foreach (var connection in Graph.GetConnections(currentMinNode))
+			foreach (var connection in Graph.GetConnections(currentMinNode, TargetPredicate))
 			{
 				// Calculate the cost up to that point
 				var costSoFarToNeighbor = currentInfo.CostSoFar + connection.Cost;
@@ -252,7 +275,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 				else
 				{
 					// If the heuristic reports the cell is unreachable, we won't consider it.
-					var heuristicCost = heuristic(neighbor);
+					var heuristicCost = heuristic(neighbor, true);
 					if (heuristicCost == PathGraph.PathCostForInvalidPath)
 						continue;
 					estimatedRemainingCostToTarget = heuristicCost * heuristicWeightPercentage / 100;

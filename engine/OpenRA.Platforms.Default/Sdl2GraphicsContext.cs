@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,8 +19,9 @@ namespace OpenRA.Platforms.Default
 	sealed class Sdl2GraphicsContext : ThreadAffine, IGraphicsContext
 	{
 		readonly Sdl2PlatformWindow window;
-		bool disposed;
 		IntPtr context;
+
+		public string GLVersion => OpenGL.Version;
 
 		public Sdl2GraphicsContext(Sdl2PlatformWindow window)
 		{
@@ -269,10 +270,12 @@ namespace OpenRA.Platforms.Default
 
 		public void Dispose()
 		{
-			if (disposed)
-				return;
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
 
-			disposed = true;
+		void Dispose(bool _)
+		{
 			if (context != IntPtr.Zero)
 			{
 				SDL.SDL_GL_DeleteContext(context);
@@ -280,6 +283,9 @@ namespace OpenRA.Platforms.Default
 			}
 		}
 
-		public string GLVersion => OpenGL.Version;
+		~Sdl2GraphicsContext()
+		{
+			Dispose(false);
+		}
 	}
 }

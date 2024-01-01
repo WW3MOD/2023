@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,13 +18,13 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	[Desc("Renders crates with both water and land variants.")]
-	class WithCrateBodyInfo : TraitInfo, Requires<RenderSpritesInfo>, IRenderActorPreviewSpritesInfo
+	sealed class WithCrateBodyInfo : TraitInfo, Requires<RenderSpritesInfo>, IRenderActorPreviewSpritesInfo
 	{
 		[Desc("Easteregg sequences to use in December.")]
 		public readonly string[] XmasImages = Array.Empty<string>();
 
 		[Desc("Terrain types on which to display WaterSequence.")]
-		public readonly HashSet<string> WaterTerrainTypes = new HashSet<string> { "Water" };
+		public readonly HashSet<string> WaterTerrainTypes = new() { "Water" };
 
 		[SequenceReference]
 		public readonly string IdleSequence = "idle";
@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	class WithCrateBody : INotifyParachute, INotifyAddedToWorld
+	sealed class WithCrateBody : INotifyParachute, INotifyAddedToWorld
 	{
 		readonly Actor self;
 		readonly Animation anim;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -42,6 +42,7 @@ namespace OpenRA.Traits
 		readonly MapLayers shroud;
 		readonly List<WPos> targetablePositions = new List<WPos>();
 
+		public Player Viewer { get; }
 		public Player Owner { get; private set; }
 		public BitSet<TargetableType> TargetTypes { get; private set; }
 		public IEnumerable<WPos> TargetablePositions => targetablePositions;
@@ -86,7 +87,7 @@ namespace OpenRA.Traits
 		{
 			this.actor = actor;
 			this.frozenTrait = frozenTrait;
-			this.viewer = viewer;
+			Viewer = viewer;
 			shroud = viewer.MapLayers;
 			NeedRenderables = startsRevealed;
 
@@ -96,15 +97,11 @@ namespace OpenRA.Traits
 				.ToArray();
 
 			if (Footprint.Length == 0)
-				throw new ArgumentException(("This frozen actor has no footprint.\n" +
-					"Actor Name: {0}\n" +
-					"Actor Location: {1}\n" +
-					"Input footprint: [{2}]\n" +
-					"Input footprint (after shroud.Contains): [{3}]")
-					.F(actor.Info.Name,
-					actor.Location.ToString(),
-					footprint.Select(p => p.ToString()).JoinWith("|"),
-					footprint.Select(p => shroud.Contains(p).ToString()).JoinWith("|")));
+				throw new ArgumentException("This frozen actor has no footprint.\n" +
+					$"Actor Name: {actor.Info.Name}\n" +
+					$"Actor Location: {actor.Location}\n" +
+					$"Input footprint: [{footprint.Select(p => p.ToString()).JoinWith("|")}]\n" +
+					$"Input footprint (after shroud.Contains): [{footprint.Select(p => shroud.Contains(p).ToString()).JoinWith("|")}]");
 
 			CenterPosition = actor.CenterPosition;
 
@@ -119,7 +116,6 @@ namespace OpenRA.Traits
 		public bool IsValid => Owner != null;
 		public ActorInfo Info => actor.Info;
 		public Actor Actor => !actor.IsDead ? actor : null;
-		public Player Viewer => viewer;
 
 		public void RefreshState()
 		{
@@ -254,7 +250,7 @@ namespace OpenRA.Traits
 		readonly Player owner;
 		readonly Dictionary<uint, FrozenActor> frozenActorsById;
 		readonly SpatiallyPartitioned<uint> partitionedFrozenActorIds;
-		readonly HashSet<uint> dirtyFrozenActorIds = new HashSet<uint>();
+		readonly HashSet<uint> dirtyFrozenActorIds = new();
 
 		public FrozenActorLayer(Actor self, FrozenActorLayerInfo info)
 		{

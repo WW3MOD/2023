@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.Traits
 		[ActorReference(dictionaryReference: LintDictionaryReference.Keys)]
 		[Desc("Conditions to grant when this actor is loaded inside specified transport.",
 			"A dictionary of [actor name]: [condition].")]
-		public readonly Dictionary<string, string> CargoConditions = new Dictionary<string, string>();
+		public readonly Dictionary<string, string> CargoConditions = new();
 
 		[GrantedConditionReference]
 		public IEnumerable<string> LinterCargoConditions => CargoConditions.Values;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,7 +23,7 @@ namespace OpenRA.Mods.D2k.Traits
 		public readonly int[] Falloff = { 100, 100, 25, 11, 6, 4, 3, 2, 1, 0 };
 
 		[Desc("Range between falloff steps.")]
-		public readonly WDist Spread = new WDist(3072);
+		public readonly WDist Spread = new(3072);
 
 		[Desc("Ranges at which each Falloff step is defined. Overrides Spread.")]
 		public readonly WDist[] Range = null;
@@ -68,7 +68,7 @@ namespace OpenRA.Mods.D2k.Traits
 			var length = distance.Length;
 
 			// Actor is too far to hear anything.
-			if (length > effectiveRange[effectiveRange.Length - 1].Length)
+			if (length > effectiveRange[^1].Length)
 				return WVec.Zero;
 
 			var direction = 1024 * distance / length;

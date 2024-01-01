@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public sealed class TerrainLighting : ITerrainLighting
 	{
-		class LightSource
+		sealed class LightSource
 		{
 			public readonly WPos Pos;
 			public readonly CPos Cell;
@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly TerrainLightingInfo info;
 		readonly Map map;
-		readonly Dictionary<int, LightSource> lightSources = new Dictionary<int, LightSource>();
+		readonly Dictionary<int, LightSource> lightSources = new();
 		readonly SpatiallyPartitioned<LightSource> partitionedLightSources;
 		readonly float3 globalTint;
 		int nextLightSourceToken = 1;
@@ -68,14 +68,14 @@ namespace OpenRA.Mods.Common.Traits
 			map = world.Map;
 			globalTint = new float3(info.RedTint, info.GreenTint, info.BlueTint);
 
-			var cellSize = map.Grid.Type == MapGridType.RectangularIsometric ? 1448 : 1024;
+			var tileScale = map.Grid.TileScale;
 			partitionedLightSources = new SpatiallyPartitioned<LightSource>(
-				(map.MapSize.X + 1) * cellSize,
-				(map.MapSize.Y + 1) * cellSize,
-				info.BinSize * cellSize);
+				(map.MapSize.X + 1) * tileScale,
+				(map.MapSize.Y + 1) * tileScale,
+				info.BinSize * tileScale);
 		}
 
-		Rectangle Bounds(LightSource source)
+		static Rectangle Bounds(LightSource source)
 		{
 			var c = source.Pos;
 			var r = source.Range.Length;

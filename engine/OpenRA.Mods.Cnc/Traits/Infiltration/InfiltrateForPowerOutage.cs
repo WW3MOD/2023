@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,13 +15,16 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-	class InfiltrateForPowerOutageInfo : TraitInfo
+	sealed class InfiltrateForPowerOutageInfo : TraitInfo
 	{
 		[Desc("The `TargetTypes` from `Targetable` that are allowed to enter.")]
 		public readonly BitSet<TargetableType> Types = default;
 
 		[Desc("Measured in ticks.")]
 		public readonly int Duration = 500;
+
+		[Desc("Experience to grant to the infiltrating player.")]
+		public readonly int PlayerExperience = 0;
 
 		[NotificationReference("Speech")]
 		[Desc("Sound the victim will hear when they get sabotaged.")]
@@ -40,7 +43,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new InfiltrateForPowerOutage(init.Self, this); }
 	}
 
-	class InfiltrateForPowerOutage : INotifyOwnerChanged, INotifyInfiltrated
+	sealed class InfiltrateForPowerOutage : INotifyOwnerChanged, INotifyInfiltrated
 	{
 		readonly InfiltrateForPowerOutageInfo info;
 		PowerManager playerPower;
@@ -64,6 +67,8 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			TextNotificationsManager.AddTransientLine(info.InfiltratedTextNotification, self.Owner);
 			TextNotificationsManager.AddTransientLine(info.InfiltrationTextNotification, infiltrator.Owner);
+
+			infiltrator.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience(info.PlayerExperience);
 
 			playerPower.TriggerPowerOutage(info.Duration);
 		}

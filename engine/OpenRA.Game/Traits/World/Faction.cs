@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA.Traits
 		public readonly string InternalName = null;
 
 		[Desc("Pick a random faction as the player's faction out of this list.")]
-		public readonly HashSet<string> RandomFactionMembers = new HashSet<string>();
+		public readonly HashSet<string> RandomFactionMembers = new();
 
 		[Desc("The side that the faction belongs to. For example, England belongs to the 'Allies' side.")]
 		public readonly string Side = null;

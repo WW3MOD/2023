@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,14 +12,14 @@
 using System.Collections.Generic;
 using System.IO;
 using OpenRA.Graphics;
-using OpenRA.Mods.Common.Graphics;
+using OpenRA.Mods.Common.SpriteLoaders;
 using OpenRA.Primitives;
 
 namespace OpenRA.Mods.D2k.SpriteLoaders
 {
 	public class R8Loader : ISpriteLoader
 	{
-		class R8Frame : ISpriteFrame
+		sealed class R8Frame : ISpriteFrame
 		{
 			public SpriteFrameType Type => SpriteFrameType.Indexed8;
 			public Size Size { get; }
@@ -78,7 +78,7 @@ namespace OpenRA.Mods.D2k.SpriteLoaders
 			}
 		}
 
-		bool IsR8(Stream s)
+		static bool IsR8(Stream s)
 		{
 			var start = s.Position;
 

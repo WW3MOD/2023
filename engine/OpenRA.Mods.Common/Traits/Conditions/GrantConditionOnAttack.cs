@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Condition = null;
 
 		[Desc("Name of the armaments that grant this condition.")]
-		public readonly HashSet<string> ArmamentNames = new HashSet<string>() { "primary" };
+		public readonly HashSet<string> ArmamentNames = new() { "primary" };
 
 		[Desc("Shots required to apply an instance of the condition. If there are more instances of the condition granted than values listed,",
 			"the last value is used for all following instances beyond the defined range.")]
@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class GrantConditionOnAttack : PausableConditionalTrait<GrantConditionOnAttackInfo>, INotifyCreated, ITick, INotifyAttack
 	{
-		readonly Stack<int> tokens = new Stack<int>();
+		readonly Stack<int> tokens = new();
 
 		int cooldown = 0;
 		int shotsFired = 0;
@@ -90,7 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		bool TargetChanged(in Target lastTarget, in Target target)
+		static bool TargetChanged(in Target lastTarget, in Target target)
 		{
 			// Invalidate reveal changing the target.
 			if (lastTarget.Type == TargetType.FrozenActor && target.Type == TargetType.Actor)
@@ -144,7 +144,7 @@ namespace OpenRA.Mods.Common.Traits
 			shotsFired++;
 			var requiredShots = tokens.Count < Info.RequiredShotsPerInstance.Length
 				? Info.RequiredShotsPerInstance[tokens.Count]
-				: Info.RequiredShotsPerInstance[Info.RequiredShotsPerInstance.Length - 1];
+				: Info.RequiredShotsPerInstance[^1];
 
 			if (shotsFired >= requiredShots)
 			{

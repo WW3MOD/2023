@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -33,8 +33,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Time (in ticks) after which the line should appear. Controls the distance to the actor.")]
 		public readonly int TrailDelay = 0;
 
-		[Desc("Thickness of the emitted line.")]
-		public readonly WDist TrailWidth = new WDist(64);
+		[Desc("Thickness of the emitted line at the start of the contrail.")]
+		public readonly WDist StartWidth = new(64);
+
+		[Desc("Thickness of the emitted line at the end of the contrail. Will default to " + nameof(StartWidth) + " if left undefined")]
+		public readonly WDist? EndWidth = null;
 
 		[Desc("RGB color at the contrail start.")]
 		public readonly Color StartColor = Color.White;
@@ -45,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
 		public readonly int StartColorAlpha = 255;
 
-		[Desc("RGB color at the contrail end. Set to start color if undefined")]
+		[Desc("RGB color at the contrail end. Will default to " + nameof(StartColor) + " if left undefined")]
 		public readonly Color? EndColor;
 
 		[Desc("Use player remap color instead of a custom color at the contrail end.")]
@@ -74,7 +77,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			startcolor = info.StartColorUsePlayerColor ? Color.FromArgb(info.StartColorAlpha, self.Owner.Color) : Color.FromArgb(info.StartColorAlpha, info.StartColor);
 			endcolor = info.EndColorUsePlayerColor ? Color.FromArgb(info.EndColorAlpha, self.Owner.Color) : Color.FromArgb(info.EndColorAlpha, info.EndColor ?? startcolor);
-			trail = new ContrailRenderable(self.World, startcolor, endcolor, info.TrailWidth, info.TrailLength, info.TrailDelay, info.ZOffset);
+			trail = new ContrailRenderable(self.World, startcolor, endcolor, info.StartWidth, info.EndWidth ?? info.StartWidth, info.TrailLength, info.TrailDelay, info.ZOffset);
 
 			body = self.Trait<BodyOrientation>();
 		}
@@ -103,7 +106,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
-			trail = new ContrailRenderable(self.World, startcolor, endcolor, info.TrailWidth, info.TrailLength, info.TrailDelay, info.ZOffset);
+			trail = new ContrailRenderable(self.World, startcolor, endcolor, info.StartWidth, info.EndWidth ?? info.StartWidth, info.TrailLength, info.TrailDelay, info.ZOffset);
 		}
 	}
 }

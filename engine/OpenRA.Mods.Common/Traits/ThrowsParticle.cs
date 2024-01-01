@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	class ThrowsParticleInfo : TraitInfo, Requires<WithSpriteBodyInfo>, Requires<BodyOrientationInfo>
+	sealed class ThrowsParticleInfo : TraitInfo, Requires<WithSpriteBodyInfo>, Requires<BodyOrientationInfo>
 	{
 		[FieldLoader.Require]
 		public readonly string Anim = null;
@@ -25,10 +25,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WVec Offset = WVec.Zero;
 
 		[Desc("Minimum distance to throw the particle")]
-		public readonly WDist MinThrowRange = new WDist(256);
+		public readonly WDist MinThrowRange = new(256);
 
 		[Desc("Maximum distance to throw the particle")]
-		public readonly WDist MaxThrowRange = new WDist(768);
+		public readonly WDist MaxThrowRange = new(768);
 
 		[Desc("Minimum angle to throw the particle")]
 		public readonly WAngle MinThrowAngle = WAngle.FromDegrees(30);
@@ -40,12 +40,12 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Velocity = 75;
 
 		[Desc("Speed at which the particle turns.")]
-		public readonly WAngle TurnSpeed = new WAngle(60);
+		public readonly WAngle TurnSpeed = new(60);
 
 		public override object Create(ActorInitializer init) { return new ThrowsParticle(init, this); }
 	}
 
-	class ThrowsParticle : ITick
+	sealed class ThrowsParticle : ITick
 	{
 		WVec pos;
 		readonly WVec initialPos;

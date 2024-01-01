@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -59,11 +59,11 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			map = self.World.Map;
 
-			var copySequence = map.Rules.Sequences.GetSequence(info.Image, info.CopySequence);
+			var copySequence = map.Sequences.GetSequence(info.Image, info.CopySequence);
 			copyTile = copySequence.GetSprite(0);
 			copyAlpha = copySequence.GetAlpha(0);
 
-			var pasteSequence = map.Rules.Sequences.GetSequence(info.Image, info.PasteSequence);
+			var pasteSequence = map.Sequences.GetSequence(info.Image, info.PasteSequence);
 			pasteTile = pasteSequence.GetSprite(0);
 			pasteAlpha = pasteSequence.GetAlpha(0);
 		}

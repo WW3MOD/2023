@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -80,6 +80,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class AttackGarrisoned : AttackFollow, INotifyPassengerEntered, INotifyPassengerExited, IRender
 	{
 		public new readonly AttackGarrisonedInfo Info;
+		INotifyAttack[] notifyAttacks;
 		readonly Lazy<BodyOrientation> coords;
 		readonly List<Armament> armaments;
 		readonly List<AnimationWithOffset> muzzles;
@@ -97,6 +98,12 @@ namespace OpenRA.Mods.Common.Traits
 			paxFacing = new Dictionary<Actor, IFacing>();
 			paxPos = new Dictionary<Actor, IPositionable>();
 			paxRender = new Dictionary<Actor, RenderSprites>();
+		}
+
+		protected override void Created(Actor self)
+		{
+			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
+			base.Created(self);
 		}
 
 		protected override Func<IEnumerable<Armament>> InitializeGetArmaments(Actor self)
@@ -184,6 +191,7 @@ namespace OpenRA.Mods.Common.Traits
 					muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
 				}
 
+				foreach (var npa in notifyAttacks)
 				if (Info.FlashOnAttack)
 					self.World.AddFrameEndTask(w =>
 					{

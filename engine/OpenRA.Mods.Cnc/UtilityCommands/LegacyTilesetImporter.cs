@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Mods.Common.FileFormats;
 
 namespace OpenRA.Mods.Cnc.UtilityCommands
 {
-	class ImportLegacyTilesetCommand : IUtilityCommand
+	sealed class ImportLegacyTilesetCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--tileset-import";
 
@@ -146,7 +146,8 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 
 								data.AppendLine($"\t\t\t\tMinColor: {s.ReadUInt8():X2}{s.ReadUInt8():X2}{s.ReadUInt8():X2}");
 								data.AppendLine($"\t\t\t\tMaxColor: {s.ReadUInt8():X2}{s.ReadUInt8():X2}{s.ReadUInt8():X2}");
-								data.AppendLine($"\t\t\t\tZOffset: {(-tileSize.Height / 2.0f)}");
+								var zOffset = -tileSize.Height / 2.0f;
+								data.AppendLine($"\t\t\t\tZOffset: {zOffset}");
 								data.AppendLine("\t\t\t\tZRamp: 0");
 							}
 						}

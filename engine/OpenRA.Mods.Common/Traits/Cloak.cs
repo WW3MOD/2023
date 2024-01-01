@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,13 +25,15 @@ namespace OpenRA.Mods.Common.Traits
 		None = 0,
 		Attack = 1,
 		Move = 2,
-		Unload = 4,
-		Infiltrate = 8,
-		Demolish = 16,
-		Damage = 32,
-		Heal = 64,
-		SelfHeal = 128,
-		Dock = 256
+		Load = 4,
+		Unload = 8,
+		Infiltrate = 16,
+		Demolish = 32,
+		Damage = 64,
+		Heal = 128,
+		SelfHeal = 256,
+		Dock = 512,
+		SupportPower = 1024,
 	}
 
 	// Type tag for DetectionTypes
@@ -57,7 +59,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Palette = "cloak";
 		public readonly bool IsPlayerPalette = false;
 
-		public readonly BitSet<DetectionType> DetectionTypes = new BitSet<DetectionType>("Cloak");
+		public readonly BitSet<DetectionType> DetectionTypes = new("Cloak");
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while cloaked.")]
@@ -90,8 +92,8 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cloak(this); }
 	}
 
-	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
-		INotifyAttack, ITick, IShouldHideModifier, IMiniMapColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
+	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnloadCargo, INotifyLoadCargo, INotifyDemolition, INotifyInfiltration,
+		INotifyAttack, ITick, IShouldHideModifier, IMiniMapColorModifier, INotifyCreated, INotifyDockClient, INotifySupportPower
 	{
 		[Sync]
 		int remainingTime;
@@ -163,11 +165,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Cloaked && !ShouldHide(self, self.World.RenderPlayer))
 			{
-				var palette = string.IsNullOrEmpty(Info.Palette) ? null : Info.IsPlayerPalette ? wr.Palette(Info.Palette + self.Owner.InternalName) : wr.Palette(Info.Palette);
+				var palette = wr.Palette(Info.IsPlayerPalette ? Info.Palette + self.Owner.InternalName : Info.Palette);
+
 				if (palette == null)
 					return r;
 				else
-					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable ? ((IPalettedRenderable)a).WithPalette(palette) : a);
+					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable pr ? pr.WithPalette(palette) : a);
 			}
 			else
 				return SpriteRenderable.None;
@@ -298,15 +301,7 @@ namespace OpenRA.Mods.Common.Traits
 			return color;
 		}
 
-		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell) { }
-
-		void INotifyHarvesterAction.MovingToRefinery(Actor self, Actor refineryActor) { }
-
-		void INotifyHarvesterAction.MovementCancelled(Actor self) { }
-
-		void INotifyHarvesterAction.Harvested(Actor self, string resourceType) { }
-
-		void INotifyHarvesterAction.Docked()
+		void INotifyDockClient.Docked(Actor self, Actor host)
 		{
 			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
 			{
@@ -315,12 +310,19 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		void INotifyHarvesterAction.Undocked()
+		void INotifyDockClient.Undocked(Actor self, Actor host)
 		{
-			isDocking = false;
+			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
+				isDocking = false;
 		}
 
-		void INotifyUnload.Unloading(Actor self)
+		void INotifyLoadCargo.Loading(Actor self)
+		{
+			if (Info.UncloakOn.HasFlag(UncloakType.Load))
+				Uncloak();
+		}
+
+		void INotifyUnloadCargo.Unloading(Actor self)
 		{
 			if (Info.UncloakOn.HasFlag(UncloakType.Unload))
 				Uncloak();
@@ -338,19 +340,12 @@ namespace OpenRA.Mods.Common.Traits
 				Uncloak();
 		}
 
-		void INotifyBeingResupplied.StartingResupply(Actor self, Actor host)
-		{
-			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
-			{
-				isDocking = true;
-				Uncloak();
-			}
-		}
+		void INotifySupportPower.Charged(Actor self) { return; }
 
-		void INotifyBeingResupplied.StoppingResupply(Actor self, Actor host)
+		void INotifySupportPower.Activated(Actor self)
 		{
-			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
-				isDocking = false;
+			if (Info.UncloakOn.HasFlag(UncloakType.SupportPower))
+				Uncloak();
 		}
 	}
 }

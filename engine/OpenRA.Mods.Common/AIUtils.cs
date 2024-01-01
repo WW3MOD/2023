@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -74,10 +74,10 @@ namespace OpenRA.Mods.Common
 			return owner.World.Map.Rules.Actors.Where(k => names.Contains(k.Key)).Random(owner.World.LocalRandom).Value;
 		}
 
-		public static void BotDebug(string s, params object[] args)
+		public static void BotDebug(string format, params object[] args)
 		{
 			if (Game.Settings.Debug.BotDebug)
-				TextNotificationsManager.Debug(s, args);
+				TextNotificationsManager.Debug(format, args);
 		}
 	}
 }

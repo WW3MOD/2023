@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class ExtractSettingsDocsCommand : IUtilityCommand
+	sealed class ExtractSettingsDocsCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--settings-docs";
 
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			Console.WriteLine(
 				"This documentation displays annotated settings with default values and description. " +
 				"Please do not edit it directly, but add new `[Desc(\"String\")]` tags to the source code. This file has been " +
-				"automatically generated for version {0} of OpenRA.", version);
+				$"automatically generated for version {version} of OpenRA.");
 			Console.WriteLine();
 			Console.WriteLine("All settings can be changed by starting the game via a command-line parameter like `Game.Mod=ra`.");
 			Console.WriteLine();
@@ -56,21 +56,27 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			Console.WriteLine();
 
 			var sections = new Settings(null, new Arguments()).Sections;
+			sections.Add("Launch", new LaunchArguments(new Arguments(Array.Empty<string>())));
 			foreach (var section in sections.OrderBy(s => s.Key))
 			{
-				var fields = section.Value.GetType().GetFields();
-				if (fields.Any(field => field.GetCustomAttributes<DescAttribute>(false).Length > 0))
+				var fields = Utility.GetFields(section.Value.GetType());
+				if (fields.Any(field => Utility.GetCustomAttributes<DescAttribute>(field, false).Length > 0))
+				{
 					Console.WriteLine($"## {section.Key}");
-				else
-					Console.WriteLine();
+					if (section.Key == "Launch")
+					{
+						Console.WriteLine("These are runtime parameters which can't be defined in `settings.yaml`.");
+						Console.WriteLine();
+					}
+				}
 
 				foreach (var field in fields)
 				{
-					if (!field.HasAttribute<DescAttribute>())
+					if (!Utility.HasAttribute<DescAttribute>(field))
 						continue;
 
 					Console.WriteLine($"### {field.Name}");
-					var lines = field.GetCustomAttributes<DescAttribute>(false).SelectMany(d => d.Lines);
+					var lines = Utility.GetCustomAttributes<DescAttribute>(field, false).SelectMany(d => d.Lines);
 					foreach (var line in lines)
 					{
 						Console.WriteLine(line);
@@ -80,15 +86,13 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					var value = field.GetValue(section.Value);
 					if (value != null && !value.ToString().StartsWith("System."))
 					{
-						Console.WriteLine("**Default Value:** {0}", value);
+						Console.WriteLine($"**Default Value:** {value}");
 						Console.WriteLine();
 						Console.WriteLine("```miniyaml");
 						Console.WriteLine($"{section.Key}: ");
 						Console.WriteLine($"\t{field.Name}: {value}");
 						Console.WriteLine("```");
 					}
-					else
-						Console.WriteLine();
 				}
 			}
 		}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,10 +35,11 @@ namespace OpenRA.Mods.Common.Terrain
 
 	public sealed class DefaultTileCache : IDisposable
 	{
-		readonly Dictionary<ushort, TheaterTemplate> templates = new Dictionary<ushort, TheaterTemplate>();
+		readonly Dictionary<ushort, TheaterTemplate> templates = new();
 		readonly Cache<SheetType, SheetBuilder> sheetBuilders;
-		readonly Sprite missingTile;
 		readonly MersenneTwister random;
+
+		public Sprite MissingTile { get; }
 
 		public DefaultTileCache(DefaultTerrain terrainInfo, Action<uint, string> onMissingImage = null)
 		{
@@ -94,7 +95,7 @@ namespace OpenRA.Mods.Common.Terrain
 					}
 
 					var frameCount = terrainInfo.EnableDepth && depthFrames == null ? allFrames.Length / 2 : allFrames.Length;
-					var indices = templateInfo.Frames != null ? templateInfo.Frames : Exts.MakeArray(t.Value.TilesCount, j => j);
+					var indices = templateInfo.Frames ?? Exts.MakeArray(t.Value.TilesCount, j => j);
 
 					var start = indices.Min();
 					var end = indices.Max();
@@ -154,29 +155,27 @@ namespace OpenRA.Mods.Common.Terrain
 				missingSheetType = SheetType.BGRA;
 			}
 
-			missingTile = sheetBuilders[missingSheetType].Add(new byte[missingDataLength], missingFrameType, new Size(1, 1));
+			MissingTile = sheetBuilders[missingSheetType].Add(new byte[missingDataLength], missingFrameType, new Size(1, 1));
 			foreach (var sb in sheetBuilders.Values)
 				sb.Current.ReleaseBuffer();
 		}
 
 		public bool HasTileSprite(TerrainTile r, int? variant = null)
 		{
-			return TileSprite(r, variant) != missingTile;
+			return TileSprite(r, variant) != MissingTile;
 		}
 
 		public Sprite TileSprite(TerrainTile r, int? variant = null)
 		{
 			if (!templates.TryGetValue(r.Type, out var template))
-				return missingTile;
+				return MissingTile;
 
 			if (r.Index >= template.Stride)
-				return missingTile;
+				return MissingTile;
 
-			var start = template.Variants > 1 ? variant.HasValue ? variant.Value : random.Next(template.Variants) : 0;
+			var start = template.Variants > 1 ? variant ?? random.Next(template.Variants) : 0;
 			return template.Sprites[start * template.Stride + r.Index];
 		}
-
-		public Sprite MissingTile => missingTile;
 
 		public void Dispose()
 		{

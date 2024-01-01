@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,15 +36,12 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			var target = targets.ClosestTo(self);
-
-			// FF TODO: 'Collection must not be empty.'
-			/* var target = targets.Random(new Support.MersenneTwister(self.World.LobbyInfo.GlobalSettings.RandomSeed)); */
-
-			if (target == null)
+			var targetActor = targets.ClosestTo(self);
+			if (targetActor == null)
 				return false;
 
-			QueueChild(new AttackMoveActivity(self, () => move.MoveTo(target.Location, 2)));
+			// We want to keep 2 cells of distance from the target to prevent the pathfinder from thinking the target position is blocked.
+			QueueChild(new AttackMoveActivity(self, () => move.MoveWithinRange(Target.FromCell(self.World, targetActor.Location), WDist.FromCells(2))));
 			QueueChild(new Wait(25));
 			return false;
 		}

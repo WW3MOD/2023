@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class ConvertSpriteToPngCommand : IUtilityCommand
+	sealed class ConvertSpriteToPngCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--png";
 
@@ -39,9 +39,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			if (args.Contains("--noshadow"))
 			{
 				Array.Resize(ref shadowIndex, shadowIndex.Length + 3);
-				shadowIndex[shadowIndex.Length - 1] = 1;
-				shadowIndex[shadowIndex.Length - 2] = 3;
-				shadowIndex[shadowIndex.Length - 3] = 4;
+				shadowIndex[^1] = 1;
+				shadowIndex[^2] = 3;
+				shadowIndex[^3] = 4;
 			}
 
 			var palette = new ImmutablePalette(args[2], new[] { 0 }, shadowIndex);
@@ -79,7 +79,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				}
 
 				var png = new Png(pngData, SpriteFrameType.Indexed8, frameSize.Width, frameSize.Height, palColors);
-				png.Save($"{prefix}-{(count++):D4}.png");
+				#pragma warning disable SA1003
+				png.Save($"{prefix}-{count++:D4}.png");
+				#pragma warning restore SA1003
 			}
 
 			Console.WriteLine("Saved {0}-[0..{1}].png", prefix, count - 1);

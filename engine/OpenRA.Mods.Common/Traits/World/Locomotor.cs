@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -84,26 +84,28 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected static object LoadSpeeds(MiniYaml y)
 		{
-			var ret = new Dictionary<string, TerrainInfo>();
-			foreach (var t in y.ToDictionary()["TerrainSpeeds"].Nodes)
+			var speeds = y.ToDictionary()["TerrainSpeeds"].Nodes;
+			var ret = new Dictionary<string, TerrainInfo>(speeds.Count);
+			foreach (var t in speeds)
 			{
 				var speed = FieldLoader.GetValue<int>("speed", t.Value.Value);
 				if (speed > 0)
 				{
 					var nodesDict = t.Value.ToDictionary();
-					var cost = (nodesDict.ContainsKey("PathingCost")
-						? FieldLoader.GetValue<short>("cost", nodesDict["PathingCost"].Value)
-						: 10000 / speed);
+					var cost = nodesDict.TryGetValue("PathingCost", out var entry)
+						? FieldLoader.GetValue<short>("cost", entry.Value)
+						: 10000 / speed;
 					ret.Add(t.Key, new TerrainInfo(speed, (short)cost));
 				}
 			}
 
+			ret.TrimExcess();
 			return ret;
 		}
 
 		public class TerrainInfo
 		{
-			public static readonly TerrainInfo Impassable = new TerrainInfo();
+			public static readonly TerrainInfo Impassable = new();
 
 			public readonly short Cost;
 			public readonly int Speed;
@@ -152,7 +154,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly LocomotorInfo.TerrainInfo[] terrainInfos;
 		readonly World world;
-		readonly HashSet<CPos> dirtyCells = new HashSet<CPos>();
+		readonly HashSet<CPos> dirtyCells = new();
 		readonly bool sharesCell;
 
 		CellLayer<short>[] cellsCost;
@@ -204,30 +206,30 @@ namespace OpenRA.Mods.Common.Traits
 			return terrainInfos[index].Speed;
 		}
 
-		public short MovementCostToEnterCell(Actor actor, CPos destNode, BlockedByActor check, Actor ignoreActor, SubCell subCell = SubCell.FullCell)
+		public short MovementCostToEnterCell(Actor actor, CPos destNode, BlockedByActor check, Actor ignoreActor, bool ignoreSelf = false, SubCell subCell = SubCell.FullCell)
 		{
 			var cellCost = MovementCostForCell(destNode);
 
 			if (cellCost == PathGraph.MovementCostForUnreachableCell ||
-				!CanMoveFreelyInto(actor, destNode, subCell, check, ignoreActor))
+				!CanMoveFreelyInto(actor, destNode, subCell, check, ignoreActor, ignoreSelf))
 				return PathGraph.MovementCostForUnreachableCell;
 
 			return cellCost;
 		}
 
-		public short MovementCostToEnterCell(Actor actor, CPos srcNode, CPos destNode, BlockedByActor check, Actor ignoreActor)
+		public short MovementCostToEnterCell(Actor actor, CPos srcNode, CPos destNode, BlockedByActor check, Actor ignoreActor, bool ignoreSelf = false)
 		{
 			var cellCost = MovementCostForCell(destNode, srcNode);
 
 			if (cellCost == PathGraph.MovementCostForUnreachableCell ||
-				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor))
+				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor, ignoreSelf))
 				return PathGraph.MovementCostForUnreachableCell;
 
 			return cellCost;
 		}
 
 		// Determines whether the actor is blocked by other Actors
-		bool CanMoveFreelyInto(Actor actor, CPos cell, SubCell subCell, BlockedByActor check, Actor ignoreActor)
+		bool CanMoveFreelyInto(Actor actor, CPos cell, SubCell subCell, BlockedByActor check, Actor ignoreActor, bool ignoreSelf)
 		{
 			// If the check allows: We are not blocked by other actors.
 			if (check == BlockedByActor.None)
@@ -260,7 +262,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Cache doesn't account for ignored actors, subcells, temporary blockers or transit only actors.
 			// These must use the slow path.
-			if (ignoreActor == null && subCell == SubCell.FullCell &&
+			if (ignoreActor == null && !ignoreSelf && subCell == SubCell.FullCell &&
 				!cellFlag.HasCellFlag(CellFlag.HasTemporaryBlocker) && !cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor))
 			{
 				// We already know there are uncrushable actors in the cell so we are always blocked.
@@ -282,7 +284,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var otherActors = subCell == SubCell.FullCell ? world.ActorMap.GetActorsAt(cell) : world.ActorMap.GetActorsAt(cell, subCell);
 			foreach (var otherActor in otherActors)
-				if (IsBlockedBy(actor, otherActor, ignoreActor, cell, check, cellFlag))
+				if (IsBlockedBy(actor, otherActor, ignoreActor, ignoreSelf, cell, check, cellFlag))
 					return false;
 
 			return true;
@@ -303,12 +305,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (check > BlockedByActor.None)
 			{
-				Func<Actor, bool> checkTransient = otherActor => IsBlockedBy(self, otherActor, ignoreActor, cell, check, GetCache(cell).CellFlag);
+				bool CheckTransient(Actor otherActor) => IsBlockedBy(self, otherActor, ignoreActor, false, cell, check, GetCache(cell).CellFlag);
 
 				if (!sharesCell)
-					return world.ActorMap.AnyActorsAt(cell, SubCell.FullCell, checkTransient) ? SubCell.Invalid : SubCell.FullCell;
+					return world.ActorMap.AnyActorsAt(cell, SubCell.FullCell, CheckTransient) ? SubCell.Invalid : SubCell.FullCell;
 
-				return world.ActorMap.FreeSubCell(cell, preferredSubCell, checkTransient);
+				return world.ActorMap.FreeSubCell(cell, preferredSubCell, CheckTransient);
 			}
 
 			if (!sharesCell)
@@ -320,9 +322,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// <remarks>This logic is replicated in <see cref="HierarchicalPathFinder.ActorIsBlocking"/> and
 		/// <see cref="HierarchicalPathFinder.ActorCellIsBlocking"/>. If this method is updated please update those as
 		/// well.</remarks>
-		bool IsBlockedBy(Actor actor, Actor otherActor, Actor ignoreActor, CPos cell, BlockedByActor check, CellFlag cellFlag)
+		bool IsBlockedBy(Actor actor, Actor otherActor, Actor ignoreActor, bool ignoreSelf, CPos cell, BlockedByActor check, CellFlag cellFlag)
 		{
-			if (otherActor == ignoreActor)
+			if (otherActor == ignoreActor || (ignoreSelf && otherActor == actor))
 				return false;
 
 			var otherMobile = otherActor.OccupiesSpace as Mobile;

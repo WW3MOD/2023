@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CannotPlaceTextNotification = null;
 
 		[Desc("Hotkey to toggle between PlaceBuildingVariants when placing a structure.")]
-		public readonly HotkeyReference ToggleVariantKey = new HotkeyReference();
+		public readonly HotkeyReference ToggleVariantKey = new();
 
 		public override object Create(ActorInitializer init) { return new PlaceBuilding(this); }
 	}

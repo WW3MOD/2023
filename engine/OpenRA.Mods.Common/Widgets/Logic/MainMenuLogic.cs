@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,6 +22,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class MainMenuLogic : ChromeLogic
 	{
+		[TranslationReference]
+		const string LoadingNews = "label-loading-news";
+
+		[TranslationReference("message")]
+		const string NewsRetrivalFailed = "label-news-retrieval-failed";
+
+		[TranslationReference("message")]
+		const string NewsParsingFailed = "label-news-parsing-failed";
+
+		[TranslationReference("author", "datetime")]
+		const string AuthorDateTime = "label-author-datetime";
+
 		protected enum MenuType { Main, Singleplayer, Extras, MapEditor, StartupPrompts, None }
 
 		protected enum MenuPanel { None, Missions, Skirmish, Multiplayer, MapEditor, Replays, GameSaves }
@@ -32,15 +44,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Widget newsTemplate;
 		readonly LabelWidget newsStatus;
 		readonly ModData modData;
-
-		[TranslationReference]
-		static readonly string LoadingNews = "loading-news";
-
-		[TranslationReference("message")]
-		static readonly string NewsRetrivalFailed = "news-retrival-failed";
-
-		[TranslationReference("message")]
-		static readonly string NewsParsingFailed = "news-parsing-failed";
 
 		// Update news once per game launch
 		static bool fetchedNews;
@@ -221,7 +224,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				newsPanel.RemoveChild(newsTemplate);
 
 				newsStatus = newsPanel.Get<LabelWidget>("NEWS_STATUS");
-				SetNewsStatus(modData.Translation.GetString(LoadingNews));
+				SetNewsStatus(TranslationProvider.GetString(LoadingNews));
 			}
 
 			Game.OnRemoteDirectConnect += OnRemoteDirectConnect;
@@ -249,34 +252,34 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			menuType = MenuType.StartupPrompts;
 
-			Action onIntroductionComplete = () =>
+			void OnIntroductionComplete()
 			{
-				Action onSysInfoComplete = () =>
+				void OnSysInfoComplete()
 				{
 					LoadAndDisplayNews(webServices, newsBG);
 					SwitchMenu(MenuType.Main);
-				};
+				}
 
 				if (SystemInfoPromptLogic.ShouldShowPrompt())
 				{
 					Ui.OpenWindow("MAINMENU_SYSTEM_INFO_PROMPT", new WidgetArgs
 					{
-						{ "onComplete", onSysInfoComplete }
+						{ "onComplete", OnSysInfoComplete }
 					});
 				}
 				else
-					onSysInfoComplete();
-			};
+					OnSysInfoComplete();
+			}
 
 			if (IntroductionPromptLogic.ShouldShowPrompt())
 			{
 				Game.OpenWindow("MAINMENU_INTRODUCTION_PROMPT", new WidgetArgs
 				{
-					{ "onComplete", onIntroductionComplete }
+					{ "onComplete", OnIntroductionComplete }
 				});
 			}
 			else
-				onIntroductionComplete();
+				OnIntroductionComplete();
 
 			Game.OnShellmapLoaded += OpenMenuBasedOnLastGame;
 
@@ -333,9 +336,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							catch (Exception e)
 							{
 								Game.RunAfterTick(() => // run on the main thread
-								{
-									SetNewsStatus(modData.Translation.GetString(NewsRetrivalFailed, Translation.Arguments("message", e.Message)));
-								});
+									SetNewsStatus(TranslationProvider.GetString(NewsRetrivalFailed, Translation.Arguments("message", e.Message))));
 							}
 						});
 					}
@@ -377,7 +378,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			newsStatus.GetText = () => message;
 		}
 
-		class NewsItem
+		sealed class NewsItem
 		{
 			public string Title;
 			public string Author;
@@ -406,7 +407,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 			catch (Exception ex)
 			{
-				SetNewsStatus(modData.Translation.GetString(NewsParsingFailed, Translation.Arguments("message", ex.Message)));
+				SetNewsStatus(TranslationProvider.GetString(NewsParsingFailed, Translation.Arguments("message", ex.Message)));
 			}
 
 			return null;
@@ -427,7 +428,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				titleLabel.GetText = () => item.Title;
 
 				var authorDateTimeLabel = newsItem.Get<LabelWidget>("AUTHOR_DATETIME");
-				var authorDateTime = authorDateTimeLabel.Text.F(item.Author, item.DateTime.ToLocalTime());
+				var authorDateTime = TranslationProvider.GetString(AuthorDateTime, Translation.Arguments(
+					"author", item.Author,
+					"datetime", item.DateTime.ToLocalTime().ToString()));
+
 				authorDateTimeLabel.GetText = () => authorDateTime;
 
 				var contentLabel = newsItem.Get<LabelWidget>("CONTENT");

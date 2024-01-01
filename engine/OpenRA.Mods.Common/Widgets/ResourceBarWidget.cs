@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,8 +31,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public Func<float> GetProvided = () => 0;
 		public Func<float> GetUsed = () => 0;
 		public Func<Color> GetBarColor = () => Color.White;
-		readonly EWMA providedLerp = new EWMA(0.3f);
-		readonly EWMA usedLerp = new EWMA(0.3f);
+		readonly EWMA providedLerp = new(0.3f);
+		readonly EWMA usedLerp = new(0.3f);
 		readonly World world;
 		Sprite indicator;
 

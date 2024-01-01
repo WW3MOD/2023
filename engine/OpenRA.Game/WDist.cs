@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,8 +27,8 @@ namespace OpenRA
 		public long LengthSquared => (long)Length * Length;
 
 		public WDist(int r) { Length = r; }
-		public static readonly WDist Zero = new WDist(0);
-		public static readonly WDist MaxValue = new WDist(int.MaxValue);
+		public static readonly WDist Zero = new(0);
+		public static readonly WDist MaxValue = new(int.MaxValue);
 		public static WDist FromCells(int cells) { return new WDist(1024 * cells); }
 
 		public static WDist operator +(WDist a, WDist b) { return new WDist(a.Length + b.Length); }
@@ -97,7 +97,7 @@ namespace OpenRA
 
 		public int CompareTo(object obj)
 		{
-			if (!(obj is WDist))
+			if (obj is not WDist)
 				return 1;
 			return Length.CompareTo(((WDist)obj).Length);
 		}

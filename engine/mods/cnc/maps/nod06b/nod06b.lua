@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+   Copyright (c) The OpenRA Developers and Contributors
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -93,8 +93,8 @@ WorldLoaded = function()
 
 	InitObjectives(Nod)
 
-	StealDetonator = Nod.AddObjective("Steal the GDI nuclear detonator.")
-	DestroyVillage = Nod.AddObjective("Destroy the houses of the GDI supporters\nin the village.", "Secondary", false)
+	StealDetonator = AddPrimaryObjective(Nod, "steal-nuclear-detonator")
+	DestroyVillage = AddSecondaryObjective(Nod, "destroy-gdi-supporter-houses")
 
 	InsertNodUnits()
 
@@ -120,7 +120,7 @@ WorldLoaded = function()
 
 	Trigger.OnEnteredFootprint(Win1CellTriggerActivator, function(a, id)
 		if a.Owner == Nod then
-			EvacuateObjective = Nod.AddObjective("Move to the evacuation point.")
+			EvacuateObjective = AddPrimaryObjective(Nod, "move-to-evacuation-point")
 			Nod.MarkCompletedObjective(StealDetonator)
 			Trigger.RemoveFootprintTrigger(id)
 		end

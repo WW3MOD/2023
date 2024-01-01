@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		public readonly string ToActor;
 		public CVec Offset = CVec.Zero;
-		public WAngle Facing = new WAngle(384);
+		public WAngle Facing = new(384);
 		public string[] Sounds = Array.Empty<string>();
 		public string Notification = null;
 		public string TextNotification = null;
@@ -66,15 +66,15 @@ namespace OpenRA.Mods.Common.Activities
 
 				// Wait forever
 				QueueChild(new WaitFor(() => false));
-				makeAnimation.Reverse(self, () => DoTransform(self));
+				makeAnimation.Reverse(self, () => DoTransform(self, transforms, makeAnimation));
 				return false;
 			}
 
-			DoTransform(self);
+			DoTransform(self, transforms, null);
 			return true;
 		}
 
-		void DoTransform(Actor self)
+		void DoTransform(Actor self, Transforms transforms, WithMakeAnimation makeAnimation)
 		{
 			// This activity may be buried as a child within one or more parents
 			// We need to consider the top-level activities when transferring orders to the new actor!
@@ -84,6 +84,20 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				if (self.IsDead || self.WillDispose)
 					return;
+
+				// Prevent deployment in bogus locations
+				if (transforms != null && !transforms.CanDeploy())
+				{
+					if (!SkipMakeAnims && makeAnimation != null)
+						makeAnimation.Forward(self, () => { IsInterruptible = true; Cancel(self, true); });
+					else
+					{
+						IsInterruptible = true;
+						Cancel(self, true);
+					}
+
+					return;
+				}
 
 				foreach (var nt in self.TraitsImplementing<INotifyTransform>())
 					nt.OnTransform(self);
@@ -152,7 +166,7 @@ namespace OpenRA.Mods.Common.Activities
 		}
 	}
 
-	class IssueOrderAfterTransform : Activity
+	sealed class IssueOrderAfterTransform : Activity
 	{
 		readonly string orderString;
 		readonly Target target;

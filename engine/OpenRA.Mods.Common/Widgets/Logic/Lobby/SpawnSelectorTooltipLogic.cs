@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,13 +18,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class SpawnSelectorTooltipLogic : ChromeLogic
 	{
 		[TranslationReference]
-		static readonly string DisabledSpawn = "disabled-spawn";
+		const string DisabledSpawn = "label-disabled-spawn";
 
 		[TranslationReference]
-		static readonly string AvailableSpawn = "available-spawn";
+		const string AvailableSpawn = "label-available-spawn";
 
 		[TranslationReference("team")]
-		static readonly string TeamNumber = "team-number";
+		const string TeamNumber = "label-team-name";
 
 		readonly CachedTransform<int, string> teamMessage;
 
@@ -47,9 +47,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var labelText = "";
 			string playerFaction = null;
 			var playerTeam = -1;
-			teamMessage = new CachedTransform<int, string>(t => modData.Translation.GetString(TeamNumber, Translation.Arguments("team", t)));
-			var disabledSpawn = modData.Translation.GetString(DisabledSpawn);
-			var availableSpawn = modData.Translation.GetString(AvailableSpawn);
+			teamMessage = new CachedTransform<int, string>(t => TranslationProvider.GetString(TeamNumber, Translation.Arguments("team", t)));
+			var disabledSpawn = TranslationProvider.GetString(DisabledSpawn);
+			var availableSpawn = TranslationProvider.GetString(AvailableSpawn);
 
 			tooltipContainer.BeforeRender = () =>
 			{

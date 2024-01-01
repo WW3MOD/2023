@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,8 @@ using System.Collections.Generic;
 
 namespace OpenRA
 {
-	// List of keycodes, duplicated from SDL 2.0.1
+	// List of keycodes. Duplicated from SDL 2.0.1, with the addition
+	// of MOUSE4 and MOUSE5.
 	public enum Keycode
 	{
 		UNKNOWN = 0,
@@ -252,11 +253,13 @@ namespace OpenRA
 		KBDILLUMUP = 280 | (1 << 30),
 		EJECT = 281 | (1 << 30),
 		SLEEP = 282 | (1 << 30),
+		MOUSE4 = 283 | (1 << 30),
+		MOUSE5 = 284 | (1 << 30)
 	}
 
 	public static class KeycodeExts
 	{
-		static readonly Dictionary<Keycode, string> KeyNames = new Dictionary<Keycode, string>
+		static readonly Dictionary<Keycode, string> KeyNames = new()
 		{
 			{ Keycode.UNKNOWN, "Undefined" },
 			{ Keycode.RETURN, "Return" },
@@ -494,6 +497,8 @@ namespace OpenRA
 			{ Keycode.KBDILLUMUP, "KBDIllumUp" },
 			{ Keycode.EJECT, "Eject" },
 			{ Keycode.SLEEP, "Sleep" },
+			{ Keycode.MOUSE4, "Mouse 4" },
+			{ Keycode.MOUSE5, "Mouse 5" },
 		};
 
 		public static string DisplayString(Keycode k)
