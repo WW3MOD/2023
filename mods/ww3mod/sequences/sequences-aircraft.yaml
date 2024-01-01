@@ -1,31 +1,41 @@
 quadcopterdrone:
 	Inherits: emp-overlay
 	idle:
+		Filename: quadcopterdrone.shp
 		Facings: 1
 		# UseClassicFacings: True
 
 tran:
 	Inherits: emp-overlay
-	idle: tran2
+	idle:
+		Filename: tran2.shp
 		Facings: 32
 		UseClassicFacings: True
-	rotor: lrotor
+	rotor:
+		Filename: lrotor.shp
 		Length: 4
-	rotor2: rrotor
+	rotor2:
+		Filename: rrotor.shp
 		Length: 4
-	slow-rotor: lrotor
+	slow-rotor:
+		Filename: lrotor.shp
 		Start: 4
 		Length: 8
-	slow-rotor2: rrotor
+	slow-rotor2:
+		Filename: rrotor.shp
 		Start: 4
 		Length: 8
-	open: tran2
+	open:
+		Filename: tran2.shp
 		Start: 32
 		Length: 4
-	unload: tran2
+	unload:
+		Filename: tran2.shp
 		Start: 35
-	icon: chinookicon
-	svyt-icon: tran2icon
+	icon:
+		Filename: chinookicon.shp
+	svyt-icon:
+		Filename: tran2icon.shp
 
 # mi2:
 # 	Inherits: emp-overlay
@@ -42,185 +52,183 @@ tran:
 hind:
 	Inherits: emp-overlay
 	idle:
+		Filename: hind.shp
 		Facings: 32
 		UseClassicFacings: True
 	rotor: lrotorlg
+		Filename: lrotorlg.shp
 		Length: 4
-	slow-rotor: lrotorlg
+	slow-rotor:
+		Filename: lrotorlg.shp
 		Start: 4
 		Length: 8
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: hindicon
+	icon:
+		Filename: hindicon.shp
 
 mi28:
 	Inherits: emp-overlay
-	idle: heli
+	idle:
+		Filename: heli.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	rotor: lrotor
+	rotor:
+		Filename: lrotor.shp
 		Length: 4
-	slow-rotor: lrotor
+	slow-rotor:
+		Filename: lrotor.shp
 		Start: 4
 		Length: 8
-	icon: mi28icon
+	icon:
+		Filename: mi28icon.shp
 
 frog:
 	Inherits: emp-overlay
-	idle: frog
+	idle:
+		Filename: frog.shp
 		Facings: 16
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: frogicon
+	icon:
+		Filename: frogicon.shp
 
 mig:
 	Inherits: emp-overlay
 	idle:
+		Filename: mig.shp
 		Facings: 16
-	icon: migicon
+	icon:
+		Filename: migicon.shp
 
 smig:
 	Inherits: emp-overlay
 	idle:
+		Filename: smig.shp
 		Facings: 16
 
 a10:
 	Inherits: emp-overlay
 	idle:
+		Filename: a10.shp
 		Facings: 32
 		# ClassicFacingBodyOrientation: True
-	icon: a10icon
+	icon:
+		Filename: a10icon.shp
 
 halo:
 	Inherits: emp-overlay
-	idle: halo
+	idle:
+		Filename: halo.shp
 		Facings: 32
 		UseClassicFacings: True
-	rotor: lrotorhuge
+	rotor:
+		Filename: lrotorhuge.shp
 		Length: 4
-	slow-rotor: lrotorhuge
+	slow-rotor:
+		Filename: lrotorhuge.shp
 		Start: 4
 		Length: 8
-	icon: haloicon
+	icon:
+		Filename: haloicon.shp
 
 littlebird:
 	Inherits: emp-overlay
 	idle:
+		Filename: littlebird.shp
 		Facings: 32
 		UseClassicFacings: True
-	rotor: lrotor2blade
+	rotor:
+		Filename: lrotor2blade.shp
 		Length: 4
-	slow-rotor: lrotor2blade
+	slow-rotor:
+		Filename: lrotor2blade.shp
 		Start: 4
 		Length: 8
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: littlebirdicon
+	icon:
+		Filename: littlebirdicon.shp
 
 heli:
 	Inherits: emp-overlay
 	idle:
+		Filename: heli.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	rotor: lrotor
+	rotor:
+		Filename: lrotor.shp
 		Length: 4
-	slow-rotor: lrotor
+	slow-rotor:
+		Filename: lrotor.shp
 		Start: 4
 		Length: 8
-	icon: apacheicon
+	icon:
+		Filename: apacheicon.shp
 
 f16:
 	Inherits: emp-overlay
-	idle: f16
+	idle:
+		Filename: f16.shp
 		Start: 0
 		Facings: 32
-	icon: f16icon
+	icon:
+		Filename: f16icon.shp
 
 ally-bdgr:
 	Inherits: emp-overlay
 	idle:
+		Filename: ally-bdgr.shp
 		Facings: 16
-	turret1: btr-tur-flip
+	turret1:
+		Filename: btr-tur-flip.shp
 		Start: 0
 		Facings: 32
 		ZOffset: -24
-	turret2: apc-tur-flip
+	turret2:
+		Filename: apc-tur-flip.shp
 		Start: 0
 		Facings: 32
 		ZOffset: -24
-	turret3: arty-tur-flip
+	turret3:
+		Filename: arty-tur-flip.shp
 		Start: 0
 		Facings: 32
 		ZOffset: -24
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 2
-	muzzle-mg: minigun
+	muzzle-mg:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 	icon: b52icon
-
-ally-yak:
-	Inherits: emp-overlay
-	idle:
-		Facings: 16
-	muzzle: minigun
-		Length: 6
-		Facings: 8
-	icon: yakallyicon
-
-ally-mig:
-	Inherits: emp-overlay
-	idle:
-		Facings: 16
-	icon: migallyicon
-
-ally-u2:
-	Inherits: emp-overlay
-	idle:
-		Facings: 16
+		Filename: b52icon.shp
 
 badr:
 	Inherits: emp-overlay
 	idle:
+		Filename: badr.shp
 		Facings: 16
-	icon: badricon
-
-yak:
-	Inherits: emp-overlay
-	idle:
-		Facings: 16
-	muzzle: minigun
-		Length: 6
-		Facings: 8
-	icon: yakicon
-
-u2:
-	Inherits: emp-overlay
-	idle:
-		Facings: 16
-
-nebr:
-	Inherits: emp-overlay
-	idle:
-		Facings: 16
-	icon: nebricon
+	icon:
+		Filename: badricon.shp
 
 smig:
 	Inherits: emp-overlay
 	idle:
+		Filename: smig.shp
 		Facings: 16
-
-glabomber:
-	Inherits: emp-overlay
-	idle:
-		Facings: 32
-

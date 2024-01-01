@@ -53,8 +53,6 @@ Player:
 	# 	IdleBaseUnitsMaximum: 0
 	# 	UnitQueues: Aircraft
 	# 	UnitsToBuild:
-	# 		yak.ai: 60
-	# 		yak.belarus.ai: 60
 	# 		mig: 40
 	# 		hind: 100
 	# 	UnitLimits:

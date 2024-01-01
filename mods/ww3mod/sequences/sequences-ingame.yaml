@@ -1,203 +1,248 @@
 tankround:
 	idle:
+		Filename: tankround.shp
 		ZOffset: 1023
-
 
 120mm:
 	idle:
+		Filename: 120mm.shp
 		ZOffset: 1023
 
 50cal:
 	idle:
+		Filename: 50cal.shp
 		ZOffset: 1023
 
 v2:
 	idle:
+		Filename: v2.shp
 		Facings: 32
 		ZOffset: 1023
 
 dragon:
 	idle:
+		Filename: dragon.shp
 		Facings: 32
 		ZOffset: 1023
 
 smokey:
 	idle:
+		Filename: smokey.shp
 		Length: *
 		ZOffset: 1023
 
 bomb:
 	idle:
+		Filename: bomb.shp
 		Length: *
 		ZOffset: 1023
 
 missile:
 	idle:
+		Filename: missile.shp
 		Facings: 32
 		ZOffset: 1023
 
 torpedo:
-	idle: missile
+	idle:
+		Filename: missile.shp
 		Facings: 32
 		ZOffset: -1023
 
 litning:
 	bright:
+		Filename: litning.shp
 		Length: 4
 		ZOffset: 1023
 	dim:
+		Filename: litning.shp
 		Start: 4
 		Length: 4
 		ZOffset: 1023
 
 fb1:
 	idle:
+		Filename: fb1.shp
 		Length: *
 		ZOffset: 1023
 
 fb2:
 	idle:
+		Filename: fb2.shp
 		Length: *
 		ZOffset: 1023
 
 fb3:
 	idle:
+		Filename: fb3.shp
 		Facings: 32
 		ZOffset: 1023
 
 fb4:
 	idle:
+		Filename: fb4.shp
 		Length: *
 		ZOffset: 1023
 
 fb5:
 	idle:
+		Filename: fb5.shp
 		Facings: 32
 		ZOffset: 1023
 
 fb6:
 	idle:
+		Filename: fb6.shp
 		Facings: 32
 		ZOffset: 1023
 
 burn-l:
 	idle:
+		Filename: burn-l.shp
 		Length: *
 		ZOffset: 512
 	loop:
+		Filename: burn-l.shp
 		Start: 16
 		Length: 44
 		ZOffset: 512
 	end:
+		Filename: burn-l.shp
 		Start: 60
 		Length: 6
 		ZOffset: 512
 
 burn-m:
 	idle:
+		Filename: burn-m.shp
 		Length: *
 		ZOffset: 512
 	loop:
+		Filename: burn-m.shp
 		Start: 16
 		Length: 44
 		ZOffset: 512
 	end:
+		Filename: burn-m.shp
 		Start: 60
 		Length: 6
 		ZOffset: 512
 
 burn-s:
 	idle:
+		Filename: burn-s.shp
 		Length: *
 		ZOffset: 512
 	loop:
+		Filename: burn-s.shp
 		Start: 12
 		Length: 46
 		ZOffset: 512
 	end:
+		Filename: burn-s.shp
 		Start: 59
 		Length: 5
 		ZOffset: 512
 
 infantry-burn-1:
-	idle: smoke_m
+	idle:
+		Filename: smoke_m.shp
 		Length: *
 		ZOffset: 512
-	start: smoke_m
+	start:
+		Filename: smoke_m.shp
 		Length: *
 		ZOffset: 512
-	loop: smoke_m
+	loop:
+		Filename: smoke_m.shp
 		Start: 10
 		Length: 10
 		ZOffset: 512
-	end: smoke_m
+	end:
+		Filename: smoke_m.shp
 		Start: 5
 		Length: 10
 		ZOffset: 512
 
 infantry-burn-2:
-	idle: smoke_m
+	idle:
+		Filename: smoke_m.shp
 		Length: *
 		ZOffset: 512
-	start: smoke_m
+	start:
+		Filename: smoke_m.shp
 		Length: *
 		ZOffset: 512
-	loop: smoke_m
+	loop:
+		Filename: smoke_m.shp
 		Start: 20
 		Length: 10
 		ZOffset: 512
-	end: smoke_m
+	end:
+		Filename: smoke_m.shp
 		Start: 15
 		Length: 10
 		ZOffset: 512
 
 infantry-burn-3:
-	idle: burn-s
+	idle:
+		Filename: burn-s.shp
 		Length: *
 		ZOffset: 512
-	start:  smoke_m
+	start:
+		Filename: smoke_m.shp
 		Start: 20
 		Length: 10
 		ZOffset: 512
-	loop: burn-s
+	loop:
+		Filename: burn-s.shp
 		Start: 16
 		Length: 10
 		ZOffset: 512
-	end: burn-s
+	end:
+		Filename: burn-s.shp
 		Start: 0
 		Length: 8
 		ZOffset: 512
 
 infantry-burn-4:
-	idle: burn-s
+	idle:
+		Filename: burn-s.shp
 		Length: *
 		ZOffset: 512
-	start: burn-s
+	start:
+		Filename: burn-s.shp
 		Start: 16
 		Length: 10
 		ZOffset: 512
-	loop: burn-s
+	loop:
+		Filename: burn-s.shp
 		Start: 16
 		Length: 30
 		ZOffset: 512
-	end: burn-s
+	end:
+		Filename: burn-s.shp
 		Start: 58
 		Length: 5
 		ZOffset: 512
 
 infantry-burn-5:
-	idle: burn-m
+	idle:
+		Filename: burn-m.shp
 		Length: *
 		ZOffset: 512
-	start: burn-s
+	start:
+		Filename: burn-s.shp
 		Start: 16
 		Length: 30
 		ZOffset: 512
-	loop: burn-m
+	loop:
+		Filename: burn-m.shp
 		Start: 13
 		Length: 10
 		ZOffset: 512
-	end: burn-m
+	end:
+		Filename: burn-m.shp
 		Start: 60
 		Length: 6
 		ZOffset: 512
@@ -206,69 +251,106 @@ explosion:
 	Defaults:
 		Length: *
 		ZOffset: 2047
-	piff: piff
-	piffs: piffpiff
-	water_piff: wpiff
-	water_piffs: wpifpif
-	hit_minimal: hit_minimal
-	hit_small: hit_small
-	explosion_minimal: veh-hit3
-	explosion_small: veh-hit3
-	explosion_medium: veh-hit2
-	explosion_large: frag1
+	piff:
+		Filename: piff.shp
+	piffs:
+		Filename: piffpiff.shp
+	water_piff:
+		Filename: wpiff.shp
+	water_piffs:
+		Filename: wpifpif.shp
+	hit_minimal:
+		Filename: hit_minimal.shp
+	hit_small:
+		Filename: hit_small.shp
+	explosion_minimal:
+		Filename: veh-hit3.shp
+	explosion_small:
+		Filename: veh-hit3.shp
+	explosion_medium:
+		Filename: veh-hit2.shp
+	explosion_large:
+		Filename: frag1.shp
 		Offset: -2,0
-	flak_explosion_ground: flak
-	shrapnel_small: shrapnel_small
-	shrapnel_medium: shrapnel_medium
-	shrapnel_large: shrapnel_large
-	explosion_air_small: flak
+	flak_explosion_ground:
+		Filename: flak.shp
+	shrapnel_small:
+		Filename: shrapnel_small.shp
+	shrapnel_medium:
+		Filename: shrapnel_medium.shp
+	shrapnel_large:
+		Filename: shrapnel_large.shp
+	explosion_air_small:
+		Filename: flak.shp
 		ZOffset: 511
-	explosion_air_medium: veh-hit1
+	explosion_air_medium:
+		Filename: veh-hit1.shp
 		ZOffset: 511
-	building_napalm: napalm2
+	building_napalm:
+		Filename: napalm2.shp
 		FlipX: true
-	nuke: atomsfx
-	nuke_large: nuke_large
+	nuke:
+		Filename: atomsfx.shp
+	nuke_large:
+		Filename: nuke_large.shp
 		Tick: 15
 		ChangeTick: 10,20, 15,30, 20,40, 25,50, 30,60, 35,70, 40,80, 45,90, 50,100
 		BlendMode: Additive
-	self_destruct: art-exp1
-	artillery_explosion: art-exp1
-	building: fball1
+	self_destruct:
+		Filename: art-exp1.shp
+	artillery_explosion:
+		Filename: art-exp1.shp
+	building:
+		Filename: fball1.shp
 		Offset: 0,-9
-	building2: fball1
+	building2:
+		Filename: fball1.shp
 		Offset: 0,-9
 		FlipX: true
-	splash_small: h2o_exp3
-	splash_medium: h2o_exp2
-	splash_large: h2o_exp1
-	offseted_napalm_small: napalm1
+	splash_small:
+		Filename: h2o_exp3.shp
+	splash_medium:
+		Filename: h2o_exp2.shp
+	splash_large:
+		Filename: h2o_exp1.shp
+	offseted_napalm_small:
+		Filename: napalm1.shp
 		Offset: 0, -6
-	napalm_small: napalm1
-	napalm_medium: napalm2
-	napalm_large: napalm3
-	corpse: corpse1
+	napalm_small:
+		Filename: napalm1.shp
+	napalm_medium:
+		Filename: napalm2.shp
+	napalm_large:
+		Filename: napalm3.shp
+	corpse:
+		Filename: corpse1.shp
 		ZOffset: -512
 		Tick: 1600
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	invisblank: blank1
-	mininuke: miniatomsfx
+	invisblank:
+		Filename: blank1.shp
+	mininuke:
+		Filename: miniatomsfx.shp
 		Length: *
-	pulse_explosion: pulsefx2
+	pulse_explosion:
+		Filename: pulsefx2.shp
 		BlendMode: Additive
 		Tick: 80
-	pulse_explosion_small: pulsefx1
+	pulse_explosion_small:
+		Filename: pulsefx1.shp
 		BlendMode: Alpha
 		Tick: 80
-	hvnd: hvnd
+	hvnd:
+		Filename: hvnd.shp
 		Tick: 200
 		ZOffset: 512
 
 emp-overlay:
-	emp-overlay: empfx01
+	emp-overlay:
+		Filename: empfx01.shp
 		Length: *
 		BlendMode: Additive
 		Offset: 0, 0
@@ -278,42 +360,52 @@ emp-overlay:
 
 maxichute:
 	open:
+		Filename: maxichute.shp
 		ZOffset: 512
 	idle:
+		Filename: maxichute.shp
 		Length: 20
 		ZOffset: 512
 
 parach:
 	open:
+		Filename: parach.shp
 		Length: 5
 	idle:
+		Filename: parach.shp
 		Start: 5
 		Length: 11
 
 parach-shadow:
 	idle:
+		Filename: parach-shadow.shp
 		Length: *
 
 bomblet:
 	idle:
+		Filename: bomblet.shp
 		Length: *
 		ZOffset: 1023
 
 parabomb:
 	open:
+		Filename: parabomb.shp
 		Length: 8
 		ZOffset: 1023
 	idle:
+		Filename: parabomb.shp
 		Start: 8
 		Length: 5
 		ZOffset: 1023
 
 smokland:
-	open: playersmoke
+	open:
+		Filename: playersmoke.shp
 		Length: 72
 		Tick: 120
 		ZOffset: 1023
-	idle: playersmoke
+	idle:
+		Filename: playersmoke.shp
 		Start: 72
 		Length: 20
 		Tick: 120
@@ -325,15 +417,23 @@ fire:
 		Offset: 0,-3
 		Tick: 105
 		ZOffset: 511
-	1: fire1
-	2: fire2
-	3: fire7
-	4: fire4
-	5: fire5
-	6: fire6
-	7: fire6
+	1:
+		Filename: fire1.shp
+	2:
+		Filename: fire2.shp
+	3:
+		Filename: fire7.shp
+	4:
+		Filename: fire4.shp
+	5:
+		Filename: fire5.shp
+	6:
+		Filename: fire6.shp
+	7:
+		Filename: fire6.shp
 		FlipX: true
-	8: fire7
+	8:
+		Filename: fire7.shp
 		FlipX: true
 
 huskdeath:
@@ -342,58 +442,71 @@ huskdeath:
 		Offset: 0,-3
 		ZOffset: 2000
 	tankammoburn: fuelflame1
+		Filename: fuelflame1.shp
 	fuelburn: fuelflame2_75
+		Filename: fuelflame2_75.shp
 
 laserfire_low:
-	idle: hit_minimal
+	idle:
+		Filename: hit_minimal.shp
 
 laserfire:
 	idle: veh-hit3
+		Filename: veh-hit3.shp
 		Length: *
 		ZOffset: 511
 
 ionsfx:
 	idle:
+		Filename: ionsfx.shp
 		Length: *
 		Offset: 0, -78
 		ZOffset: 1023
 
 patriot:
 	idle:
+		Filename: patriot.shp
 		Facings: 32
 		ZOffset: 1023
 
 atomicfake:
-	up: atomicup
+	up:
+		Filename: atomicup.shp
 		Length: *
 		ZOffset: 1023
-	down: atomicdn
+	down:
+		Filename: atomicdn.shp
 		Length: *
 		ZOffset: 1023
 
 b2bomb:
-	idle: b2bomb
+	idle:
+		Filename: b2bomb.shp
 		Length: *
 		ZOffset: 1023
 
 twake:
-	idle: twake
+	idle:
+		Filename: twake.shp
 		Length: *
 		Tick: 300
 		ZOffset: -511
 
 smoke_m:
 	idle:
+		Filename: smoke_m.shp
 		Tick: 100
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512
 	loop:
+		Filename: smoke_m.shp
 		Start: 49
 		Length: 42
 		Offset: 2, -5
 		ZOffset: 512
 	end:
+		Filename: smoke_m.shp
 		Start: 26
 		Length: -26
 		Offset: 2, -5
@@ -401,20 +514,24 @@ smoke_m:
 
 sputnik:
 	idle:
+		Filename: sputnik.shp
 		Length: *
 		Offset: -4,0
 		ZOffset: 1023
 
 atomic:
-	up: atomicup
+	up:
+		Filename: atomicup.shp
 		Length: *
 		ZOffset: 1023
-	down: atomicdn
+	down:
+		Filename: atomicdn.shp
 		Length: *
 		ZOffset: 1023
 
 bubbles:
 	idle:
+		Filename: bubbles.shp
 		Length: *
 		Tick: 220
 
@@ -422,9 +539,12 @@ scrate:
 	Defaults:
 		ZOffset: -511
 	idle:
+		Filename: scrate.shp
 	land:
+		Filename: scrate.shp
 		Start: 1
 	water:
+		Filename: scrate.shp
 		Start: 2
 		Length: 4
 		Tick: 500
@@ -433,9 +553,12 @@ scrate-healup:
 	Defaults:
 		ZOffset: -511
 	idle:
+		Filename: scrate-healup.shp
 	land:
+		Filename: scrate-healup.shp
 		Start: 1
 	water:
+		Filename: scrate-healup.shp
 		Start: 2
 		Length: 4
 		Tick: 500
@@ -444,18 +567,24 @@ wcrate:
 	Defaults:
 		ZOffset: -511
 	idle:
+		Filename: wcrate.shp
 	land:
-	water: wwcrate
+		Filename: wcrate.shp
+	water:
+		Filename: wwcrate.shp
 		Length: *
 		Tick: 500
 
 xcratea:
 	idle:
+		Filename: xcratea.shp
 		ZOffset: -511
 	land:
+		Filename: xcratea.shp
 		Start: 1
 		ZOffset: -511
 	water:
+		Filename: xcratea.shp
 		Start: 2
 		Length: 4
 		Tick: 500
@@ -463,11 +592,14 @@ xcratea:
 
 xcrateb:
 	idle:
+		Filename: xcrateb.shp
 		ZOffset: -511
 	land:
+		Filename: xcrateb.shp
 		Start: 1
 		ZOffset: -511
 	water:
+		Filename: xcrateb.shp
 		Start: 2
 		Length: 4
 		Tick: 500
@@ -475,11 +607,14 @@ xcrateb:
 
 xcratec:
 	idle:
+		Filename: xcratec.shp
 		ZOffset: -511
 	land:
+		Filename: xcratec.shp
 		Start: 1
 		ZOffset: -511
 	water:
+		Filename: xcratec.shp
 		Start: 2
 		Length: 4
 		Tick: 500
@@ -487,11 +622,14 @@ xcratec:
 
 xcrated:
 	idle:
+		Filename: xcrated.shp
 		ZOffset: -511
 	land:
+		Filename: xcrated.shp
 		Start: 1
 		ZOffset: -511
 	water:
+		Filename: xcrated.shp
 		Start: 2
 		Length: 4
 		Tick: 500
@@ -499,36 +637,45 @@ xcrated:
 
 minp:
 	idle:
+		Filename: minp.shp
 		ZOffset: -512
 	icon: jmin
+		Filename: jmin.shp
 
 minv:
 	idle:
+		Filename: minv.shp
 		ZOffset: -512
-	icon: jmin
+	icon:
+		Filename: jmin.shp
 
 380mm:
-	idle: 380mm
+	idle:
+		Filename: 380mm.shp
 		ZOffset: 1023
 		IgnoreWorldTint: true
 
 grenade_small:
-	idle: grenade_small
+	idle:
+		Filename: grenade_small.shp
 		ZOffset: 1023
 		IgnoreWorldTint: true
 
 tracer_small:
-	idle: tracer_small
+	idle:
+		Filename: tracer_small.shp
 		Facings: 32
 		ZOffset: 1023
 		IgnoreWorldTint: true
 
 tracer_large:
-	idle: tracer_large
+	idle:
+		Filename: tracer_large.shp
 		Facings: 32
 		ZOffset: 1023
 		IgnoreWorldTint: true
 hjm:
 	idle:
+		Filename: hjm.shp
 		Facings: 32
 		ZOffset: 1023
