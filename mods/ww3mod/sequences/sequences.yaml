@@ -1,5 +1,6 @@
 ^VehicleOverlays:
 	emp-overlay: emp_fx01
+		Filename: emp_fx01.shp
 		Length: *
 		BlendMode: Additive
 		Offset: 0, 0
@@ -7,35 +8,44 @@
 		ZOffset: 512
 
 mcv:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: mcv-idle.shp
 		Facings: 32
 		UseClassicFacings: True
 	icon: mcvicon
+		Filename: mcvicon.shp
 	fake-icon: mcvficon
+		Filename: mcvficon.shp
 
 mcvhusk:
 	idle:
+		Filename: mcvhusk.shp
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -1023
 
 harv:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: harv.shp
 		Facings: 32
 		UseClassicFacings: True
 	harvest:
+		Filename: harv.shp
 		Start: 32
 		Length: 8
 		Facings: 8
 	dock: harv
+		Filename: harv.shp
 		Start: 96
 		Length: 8
 	dock-loop: harv
+		Filename: harv.shp
 		Start: 104
 		Length: 7
 	icon: harvicon
+		Filename: harvicon.shp
 
 harvempty:
 	Inherits: harv
@@ -45,614 +55,654 @@ harvhalf:
 
 hhusk:
 	idle:
+		Filename: hhusk.shp
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -1023
 
 hhusk2:
 	idle:
+		Filename: hhusk2.shp
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -1023
 
 truk:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: truk.shp
 		Facings: 32
 		UseClassicFacings: True
-	icon: trukicon
-	fake-icon: truficon
+	icon:
+		Filename: trukicon.shp
+	fake-icon:
+		Filename: truficon.shp
 
 mnly:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: mnly.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: apc-tur3
+	turret:
+		Filename: apc-tur3.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
 	muzzle: minigun
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 	icon: mnlyicon
+		Filename: mnlyicon.shp
 
 tran1husk:
 	idle:
+		Filename: tran1husk.shp
 
 tran2husk:
 	idle:
+		Filename: tran2husk.shp
 
 brdm:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: brdm.shp
 		Facings: 32
 	turret:
+		Filename: brdm.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
-	turret-mg: btr-tur
+	turret-mg:
+		Filename: btr-tur.shp
 		Facings: 32
 		ZOffset: 300
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: brdmicon
+	icon:
+		Filename: brdmicon.shp
 
 bmp:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: bmp.shp
 		Facings: 32
-	turret-flak-ag: gapc-tur
+	turret-flak-ag:
+		Filename: gapc-tur.shp
 		Facings: 32
 		ZOffset: 300
-	turret-flak-aa: gapc-tur
+	turret-flak-aa:
+		Filename: gapc-tur.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	muzzle-flak: gunfire2
+	muzzle-flak:
+		Filename: gunfire2.shp
 		Length: 2
 	icon: bmpicon
+		Filename: bmpicon.shp
 
 btr:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: btr.shp
 		Facings: 32
 	open:
+		Filename: btr.shp
 		Start: 32
 		Length: 3
 	unload:
+		Filename: btr.shp
 		Start: 32
-	turret: btr-tur
+	turret:
+		Filename: btr-tur.shp
 		Facings: 32
 		ZOffset: 300
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: btricon
+	icon:
+		Filename: btricon.shp
 
 abrams:
-	Inherits: emp-overlay
-	idle: abrams-correction
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: abrams-correction.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: abrams-correction
+	turret:
+		Filename: abrams-correction.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 5
 	muzzle-mg: minigun
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: abramsicon
+	icon:
+		Filename: abramsicon.shp
 
 humvee:
-	Inherits: emp-overlay
-	idle: humvee
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: humvee.shp
 		Facings: 32
 		UseClassicFacingFudge: True
-	turret: humvee
+	turret:
+		Filename: humvee.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
 		ZOffset: 300
-	turret2: stnk
+	turret2:
+		Filename: stnk.shp
 		Start: 38
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 	icon: humveeicon
+		Filename: humveeicon.shp
 
 m113:
-	Inherits: emp-overlay
-	idle: apc
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: apc.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	open: apc
+	open:
+		Filename: apc.shp
 		Start: 32
 		Length: 3
-	unload: apc
+	unload:
+		Filename: apc.shp
 		Start: 32
-	turret: apc-tur3
+	turret:
+		Filename: apc-tur3.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	icon: m113icon
+	icon:
+		Filename: m113icon.shp
 
 m109:
-	Inherits: emp-overlay
-	idle: prsm-reversed
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: prsm-reversed.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: howi-tur
+	turret:
+		Filename: howi-tur.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: smokeygun
+	muzzle:
+		Filename: smokeygun.shp
 		Length: 12
 		Tick: 30
-	icon: m109icon
+	icon:
+		Filename: m109icon.shp
 
 bradley:
-	Inherits: emp-overlay
-	idle: 1tnk
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: 1tnk.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: 1tnk-tur
+	turret:
+		Filename: 1tnk-tur.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 2
-	icon: bradleyicon
+	icon:
+		Filename: bradleyicon.shp
 
 strykershorad:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: strykershorad.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: 1tnk-tur
+	turret:
+		Filename: 1tnk-tur.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 2
-	icon: strykershoradicon
+	icon:
+		Filename: strykershoradicon.shp
 
 m270:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: m270.shp
 		Facings: 32
 		UseClassicFacingFudge: True
 	turret-idle:
+		Filename: m270.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: false
 	turret:
+		Filename: m270.shp
 		Start: 64
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	icon: m270icon
+		Filename: m270icon.shp
 
 t72:
-	Inherits: emp-overlay
-	idle: t72
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: t72.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: t72
+	turret:
+		Filename: t72.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 5
 	icon: t72icon
+		Filename: t72icon.shp
 
 t90:
-	Inherits: emp-overlay
-	idle: t90
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: t90.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: t90
+	turret:
+		Filename: t90.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 5
-	icon: t90icon
+	icon:
+		Filename: t90icon.shp
 
 bmp2:
-	Inherits: emp-overlay
-	idle: bmp
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: bmp.shp
 		Facings: 32
-	turret: 1tnk-tur
+	turret:
+		Filename: 1tnk-tur.shp
 		Facings: 32
 		ZOffset: 300
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: bmp2icon
+	icon:
+		Filename: bmp2icon.shp
 
 grad:
-	Inherits: emp-overlay
-	idle: grad-chassi
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: grad-chassi.shp
 		Facings: 32
-	turret-idle: m270
+	turret-idle:
+		Filename: m270.shp
 		Start: 32
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	turret: m270
+	turret:
+		Filename: m270.shp
 		Start: 64
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	icon: gradicon
+	icon:
+		Filename: gradicon.shp
 
 giatsint:
-	Inherits: emp-overlay
-	idle: giatsint
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: giatsint.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 5
 	icon: giatsinticon
+		Filename: giatsinticon.shp
 	fake-icon: giatsinticon
+		Filename: giatsinticon.shp
 
 tos:
-	Inherits: emp-overlay
-	idle: t90
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: t90.shp
 		Facings: 32
-	turret-idle: m270
+	turret-idle:
+		Filename: m270.shp
 		Start: 32
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	turret: m270
+	turret:
+		Filename: m270.shp
 		Start: 64
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	icon: tosicon
+		Filename: tosicon.shp
 
 iskander:
-	Inherits: emp-overlay
-	idle: iskander-chassi
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: iskander-chassi.shp
 		Facings: 32
 		UseClassicFacings: True
-	empty-idle: iskander-chassi
+	empty-idle:
+		Filename: iskander-chassi.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
-	missile: iskander-missile
+	missile:
+		Filename: iskander-missile.shp
 		Facings: 32
 		ZOffset: 1023
 		Scale: 0.75
-	icon: iskandericon
+	icon:
+		Filename: iskandericon.shp
 
 iskandermissile:
-	idle: iskander-missile
+	idle:
+		Filename: iskander-missile.shp
 		Facings: 32
 		ZOffset: 1023
 		Scale: 0.8
 
 shootableshipmissile:
-	idle: iskander-missile
+	idle:
+		Filename: iskander-missile.shp
 		Facings: 32
 		ZOffset: 1023
 
 tunguska:
-	Inherits: emp-overlay
-	idle: t90
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: t90.shp
 		Facings: 32
-	turret-idle: quad_turret
-		Facings: 32
-		ZOffset: 300
-		UseClassicFacingFudge: True
-	turret: quad_turret
+	turret-idle:
+		Filename: quad_turret.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	muzzle: minigun
+	turret:
+		Filename: quad_turret.shp
+		Facings: 32
+		ZOffset: 300
+		UseClassicFacingFudge: True
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: tunguskaicon
+	icon:
+		Filename: tunguskaicon.shp
 
 himars:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: himars.shp
 		Facings: 32
 		UseClassicFacingFudge: True
 	turret-idle:
+		Filename: himars.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret:
+		Filename: himars.shp
 		Start: 64
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	icon: himarsicon
+	icon:
+		Filename: himarsicon.shp
 
 msar:
-	Inherits: emp-overlay
-	idle: msar
-		Facings: 32
-		UseClassicFacings: True
-	spinner: msarspinner
-		Length: 32
-	make: msarmake
-		Length: *
-		Tick: 50
-	idle-static: msardeployed
-		Length: 14
-		Tick: 80
-	icon: msaricnh
-
-ttnk:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: msar.shp
 		Facings: 32
 		UseClassicFacings: True
 	spinner:
+		Filename: msarspinner.shp
+		Length: 32
+	make:
+		Filename: msarmake.shp
+		Length: *
+		Tick: 50
+	idle-static:
+		Filename: msardeployed.shp
+		Length: 14
+		Tick: 80
+	icon:
+		Filename: msaricnh.shp
+
+ttnk:
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: ttnk.shp
+		Facings: 32
+		UseClassicFacings: True
+	spinner:
+		Filename: ttnk.shp
 		Start: 32
 		Length: 32
 	spinner-not:
+		Filename: ttnk.shp
 		Start: 32
 		Length: 1
 	icon: ttnkicon
+		Filename: ttnkicon.shp
 
 prsm:
-	Inherits: emp-overlay
-	idle: prsm
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: prsm.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: prsm-tur
+	turret:
+		Filename: prsm-tur.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	cooldown: smoke_cooldown
+	cooldown:
+		Filename: smoke_cooldown.shp
 		Length: *
 		Tick: 50
-	icon: prsmicon
+	icon:
+		Filename: prsmicon.shp
 
 prsm.destroyed:
-	idle: prsm
+	idle:
+		Filename: prsm.shp
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -512
-	turret: prsm-tur
+	turret:
+		Filename: prsm-tur.shp
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -512
 
 timberwolf:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	stand:
+		Filename: timberwolf.shp
 		Facings: -8
 		Stride: 12
 		Length: 1
 		ShadowZOffset: -500
 	run:
+		Filename: timberwolf.shp
 		Length: 12
 		Facings: -8
 		Tick: 70
 	turret:
+		Filename: timberwolf.shp
 		Start: 96
 		Facings: -32
 		ShadowStart: 224
 		UseClassicFacings: True
-	muzzle-gun: gunfire2
+	muzzle-gun:
+		Filename: gunfire2.shp
 		Length: 5
-	muzzle-missile: smokey
+	muzzle-missile:
+		Filename: smokey.shp
 		Length: 5
-	icon: timberwolficon
+	icon:
+		Filename: timberwolficon.shp
 
 smoke_mtd:
-	idle: smoke_mtd
+	idle:
+		Filename: smoke_mtd.shp
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512
-	loop: smoke_mtd
+	loop:
+		Filename: smoke_mtd.shp
 		Start: 49
 		Length: 42
 		Offset: 2, -5
 		ZOffset: 512
-	end: smoke_mtd
+	end:
+		Filename: smoke_mtd.shp
 		Start: 26
-		Length: -26
+		# Length: -26 // No longer allowed use indv frames in rev instead
 		Offset: 2, -5
 		ZOffset: 512
 
 1tnk.destroyed:
-	idle: 1tnk
+	idle:
+		Filename: 1tnk.shp
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -512
-	turret: 1tnk
+	turret:
+		Filename: 1tnk.shp
 		Start: 32
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-
-2tnk.destroyed:
-	idle: 2tnk
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-	turret: 2tnk
-		Start: 32
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-
-3tnk.destroyed:
-	idle: 3tnk
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-	turret: 3tnk
-		Start: 32
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-
-3tnk.1b.destroyed:
-	idle: 3tnk-1b
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-	turret: 3tnk-1b
-		Start: 32
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-
-4tnk.destroyed:
-	idle: 4tnk
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-	turret: 4tnk
-		Start: 32
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-
-5tnk.destroyed:
-	idle: behe
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-	turret: 5tnk-tur
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -512
 
 jeep:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: jeep.shp
 		Facings: 32
 		UseClassicFacings: True
 	turret:
+		Filename: jeep.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: jeepicon
+	icon:
+		Filename: jeepicon.shp
 
 mrj:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: mrj.shp
 		Facings: 32
 		UseClassicFacings: True
-	turret: mgun
+	turret:
+		Filename: mgun.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 	spinner:
+		Filename: mrj.shp
 		Start: 32
 		Length: 32
 	icon: mrjicon
-	mhqicon: mhqicon
+		Filename: mrjicon.shp
 
 stnk:
-	Inherits: emp-overlay
-	idle: papc
+	Inherits: ^VehicleOverlays
+	idle:
+		Filename: papc.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 	icon: stnkicon
+		Filename: stnkicon.shp
 
 ctnk:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: ctnk.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: gunfire2
+	muzzle:
+		Filename: gunfire2.shp
 		Length: 5
-	icon: ctnkicon
+	icon:
+		Filename: ctnkicon.shp
 
 dtrk:
-	Inherits: emp-overlay
+	Inherits: ^VehicleOverlays
 	idle:
+		Filename: dtrk.shp
 		Facings: 32
 		UseClassicFacings: True
-	truk-body: truk
+	truk-body:
+		Filename: truk.shp
 		Facings: 32
 		UseClassicFacings: True
-	icon: dtrkicon
-
-mgg:
-	Inherits: emp-overlay
-	idle:
-		Facings: 32
-		UseClassicFacings: True
-	spinner:
-		Start: 32
-		Length: 8
-		Tick: 90
-	spinner-idle:
-		Start: 32
-		Length: 1
-		Tick: 90
-	turret: ssam
-		Facings: 32
-		UseClassicFacingFudge: False
-	muzzle: mgg
-		Length: 2
-	icon: mggicon
-	msam-icon: msamicon
-	fake-icon: mggficon
-
-mgg.destroyed:
-	idle: mgg
-		Facings: 32
-		UseClassicFacings: True
-		ZOffset: -512
-	spinner: mgg
-		Start: 32
-		Length: 8
-		ZOffset: -512
-	spinner-idle: mgg
-		Start: 32
-
-tnkd:
-	Inherits: emp-overlay
-	idle:
-		Facings: 32
-		UseClassicFacings: True
-	muzzle: gunfire2
-		Length: 2
-	icon: tnkdicon
-
-tnkd.destroyed:
-	idle: tnkd
-		Facings: 32
-		UseClassicFacings: True
+	icon:
+		Filename: dtrkicon.shp

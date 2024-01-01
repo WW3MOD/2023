@@ -1,6 +1,6 @@
 Metadata:
 	Title: WW3MOD
-	Version: release-20230225
+	Version: release-20231010
 	Website: https://www.openra.net
 	WebIcon32: https://www.openra.net/images/icons/ra_32x32.png
 	WindowTitle: WW3MOD
@@ -71,7 +71,7 @@ Packages:
 MapFolders:
 	ww3mod|maps: System
 	~^SupportDir|maps/ww3mod: User
-	# ~^SupportDir|maps/ra/release-20230225: User
+	# ~^SupportDir|maps/ra/release-20231010: User
 
 Rules:
 	ww3mod|rules/misc.yaml

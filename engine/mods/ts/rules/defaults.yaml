@@ -346,7 +346,7 @@
 		Weapon: BuildingExplosions
 		EmptyWeapon: BuildingExplosions
 		Position: Footprint
-	EngineerRepairable:
+	InstantlyRepairable:
 	ShakeOnDeath:
 	Guardable:
 		Range: 3c0

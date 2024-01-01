@@ -358,7 +358,7 @@ BRIK:
 	Inherits: ^Building
 	Inherits@Handicaps: ^PlayerHandicaps
 	-WithSpriteBody:
-	-EngineerRepairable:
+	-InstantlyRepairable:
 	-SpawnActorsOnSell:
 	-WithMakeAnimation:
 	-GivesBuildableArea:

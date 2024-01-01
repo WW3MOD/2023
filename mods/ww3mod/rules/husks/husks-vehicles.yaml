@@ -76,41 +76,6 @@ MCV2.Husk:
 	RenderSprites:
 		Image: 2tnk.destroyed
 
-3TNK.1B.Husk:
-	Inherits: ^Husk
-	Tooltip:
-		Name: Husk (Heavy Tank 1-B)
-	ThrowsParticle@turret:
-		Anim: turret
-	RenderSprites:
-		Image: 3tnk.1b.destroyed
-
-4TNK.Husk:
-	Inherits: ^Husk
-	Tooltip:
-		Name: Husk (Mammoth Tank)
-	ThrowsParticle@turret:
-		Anim: turret:
-	RenderSprites:
-		Image: 4tnk.destroyed
-
-5TNK.Husk:
-	Inherits: ^Husk
-	Tooltip:
-		Name: Husk (Behemoth Tank)
-	ThrowsParticle@turret:
-		Anim: turret
-	RenderSprites:
-		Image: 5tnk.destroyed
-
-TNKD.Husk:
-	Inherits: ^Husk
-	Tooltip:
-		Name: Husk (Tank Destroyer)
-	RenderSprites:
-		Image: tnkd.destroyed
-
-
 TRUK.husk:
 	Inherits: ^Husk
 	Tooltip:

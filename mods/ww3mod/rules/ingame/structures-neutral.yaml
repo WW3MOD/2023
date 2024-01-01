@@ -14,7 +14,7 @@ OILB:
 		Dimensions: 2,2
 	Health:
 		HP: 50000
-	EngineerRepairable:
+	InstantlyRepairable:
 	CashTrickler:
 		Amount: 50
 	Tooltip:
@@ -56,7 +56,7 @@ FCOM:
 	BaseProvider:
 		PauseOnCondition: being-captured
 		Range: 8c0
-	EngineerRepairable:
+	InstantlyRepairable:
 	ProvidesPrerequisite@buildingname:
 	GpsDot:
 		String: Forward
@@ -78,7 +78,7 @@ BIO:
 		Dimensions: 2,2
 	Health:
 		HP: 55000
-	EngineerRepairable:
+	InstantlyRepairable:
 	CashTrickler:
 		Amount: 150
 	Tooltip:
@@ -129,7 +129,7 @@ MISS:
 		Name: Communications Center
 	TooltipDescription:
 		Description: Provides Radar
-	EngineerRepairable:
+	InstantlyRepairable:
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -153,7 +153,7 @@ HOSP:
 		Dimensions: 2,2
 	Health:
 		HP: 55000
-	EngineerRepairable:
+	InstantlyRepairable:
 	Tooltip:
 		Name: Hospital
 	TooltipDescription:

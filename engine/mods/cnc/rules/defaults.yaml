@@ -806,7 +806,7 @@
 		RepairStep: 1400
 		PlayerExperience: 5
 		RepairingNotification: Repairing
-	EngineerRepairable:
+	InstantlyRepairable:
 	Vision:
 		Range: 3c0
 	Tooltip:

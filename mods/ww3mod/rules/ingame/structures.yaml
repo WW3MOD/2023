@@ -84,7 +84,7 @@
 		Adjacent: 5
 	GivesBuildableArea:
 		AreaTypes: building, fake
-	EngineerRepairable:
+	InstantlyRepairable:
 	AcceptsDeliveredCash:
 		ValidTypes: MoneyTransfer
 	WithMakeAnimation:
