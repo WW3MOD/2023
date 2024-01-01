@@ -48,8 +48,6 @@ fact:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	pdox:
 		Filename: factpdox
 		Length: 80
@@ -69,8 +67,6 @@ fact.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 powr:
 	Inherits: emp-overlay
@@ -101,8 +97,6 @@ powr:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: powrdead2
 		Tick: 800
@@ -115,8 +109,6 @@ powr.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 apwr:
 	Inherits: emp-overlay
@@ -155,8 +147,6 @@ apwr:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: apwricon
 
@@ -169,8 +159,6 @@ apwr.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 powrgrey:
 	Inherits: emp-overlay
@@ -204,8 +192,6 @@ powrgrey:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: powricon
 
@@ -215,8 +201,6 @@ powrgrey.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 apwrgrey:
 	Inherits: emp-overlay
@@ -255,8 +239,6 @@ apwrgrey:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: apwricon
 
@@ -269,8 +251,6 @@ apwrgrey.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 powrciv:
 	Inherits: emp-overlay
@@ -295,8 +275,6 @@ powrciv:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: powrciv
 		Start: 2
@@ -311,8 +289,6 @@ powrciv.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 proc:
 	Inherits: emp-overlay
@@ -339,8 +315,6 @@ proc.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 ercc-proc:
 	Inherits: emp-overlay
@@ -394,8 +368,6 @@ ercc-proc:
 		Offset: 2, 8
 		ZOffset: -1c612
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: procicon
 	idle-smoke:
@@ -452,8 +424,6 @@ silo.husk:
 tent:
 	Inherits: emp-overlay
 	Defaults:
-		TilesetOverrides:
-			INTERIOR: SNOW
 	idle:
 		Filename: tent
 		Length: 10
@@ -478,15 +448,11 @@ tent:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: tenticon
 
 tent.husk:
 	Defaults:
-		TilesetOverrides:
-			INTERIOR: SNOW
 	idle:
 		Filename: tent
 		Start: 10
@@ -494,8 +460,6 @@ tent.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 barr:
 	Inherits: emp-overlay
@@ -522,8 +486,6 @@ barr:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: barr
 		Start: 10
@@ -542,8 +504,6 @@ barr.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 kenn:
 	Inherits: emp-overlay
@@ -599,8 +559,6 @@ weap:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: weap-dead
 		Tick: 800
@@ -613,8 +571,6 @@ weap.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 fix:
 	Inherits: emp-overlay
@@ -689,8 +645,6 @@ dome:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: dome
 		Start: 1
@@ -708,8 +662,6 @@ dome.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 afld:
 	Inherits: emp-overlay
@@ -797,8 +749,6 @@ hpad:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: hpadicon
 
@@ -827,8 +777,6 @@ atek:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: atek-dead
 		Tick: 800
@@ -856,8 +804,6 @@ ateknew:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: atek2
 		Start: 1
@@ -884,8 +830,6 @@ stek:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	dead:
 		Filename: stek-dead
 		Tick: 800
@@ -972,8 +916,6 @@ orep:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: orepicon
 
@@ -1008,8 +950,6 @@ indp:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: indpicon
 
@@ -1031,8 +971,6 @@ rresf:
 	bib:
 		Filename: bib2
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	icon:
 		Filename: rresficon
 
@@ -1049,8 +987,6 @@ fcom:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 fcom.husk:
 	idle:
@@ -1059,8 +995,6 @@ fcom.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 pyle:
 	Inherits: emp-overlay

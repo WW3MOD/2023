@@ -1,17 +1,11 @@
 tc04:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc04.tem
 
 tc04.husk:
 	Defaults:
 		Filename: tc04.tem
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc04.tem
 		Start: 1
@@ -23,17 +17,11 @@ tc04.husk:
 
 tc05:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc05.tem
 
 tc05.husk:
 	Defaults: tc05
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc05.tem
 		Start: 1
@@ -45,17 +33,11 @@ tc05.husk:
 
 tc03:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc03.tem
 
 tc03.husk:
 	Defaults: tc03
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc03.tem
 		Start: 1
@@ -67,17 +49,11 @@ tc03.husk:
 
 tc02:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc02.tem
 
 tc02.husk:
 	Defaults: tc02
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc02.tem
 		Start: 1
@@ -89,15 +65,11 @@ tc02.husk:
 
 tc01:
 	Defaults:
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc01.tem
 
 tc01.husk:
 	Defaults: tc01
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: tc01.tem
 		Start: 1
@@ -109,17 +81,11 @@ tc01.husk:
 
 t17:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t17.tem
 
 t17.husk:
 	Defaults: t17
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t17.tem
 		Start: 1
@@ -131,17 +97,11 @@ t17.husk:
 
 t16:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t16.tem
 
 t16.husk:
 	Defaults: t16
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t16.tem
 		Start: 1
@@ -153,17 +113,11 @@ t16.husk:
 
 t15:
 	Defaults: t15
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t15.tem
 
 t15.husk:
 	Defaults: t15
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t15.tem
 		Start: 1
@@ -175,17 +129,11 @@ t15.husk:
 
 t14:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t14.tem
 
 t14.husk:
 	Defaults: t14
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t14.tem
 		Start: 1
@@ -197,17 +145,11 @@ t14.husk:
 
 t13:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t13.tem
 
 t13.husk:
 	Defaults: t13
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t13.tem
 		Start: 1
@@ -219,17 +161,11 @@ t13.husk:
 
 t12:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t12.tem
 
 t12.husk:
 	Defaults: t12
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t12.tem
 		Start: 1
@@ -241,17 +177,11 @@ t12.husk:
 
 t11:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t11.tem
 
 t11.husk:
 	Defaults: t11
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t11.tem
 		Start: 1
@@ -263,17 +193,11 @@ t11.husk:
 
 t10:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t10.tem
 
 t10.husk:
 	Defaults: t10
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t10.tem
 		Start: 1
@@ -285,15 +209,11 @@ t10.husk:
 
 t08:
 	Defaults:
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t08.tem
 
 t08.husk:
 	Defaults: t08
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t08.tem
 		Start: 1
@@ -305,17 +225,11 @@ t08.husk:
 
 t07:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t07.tem
 
 t07.husk:
 	Defaults: t07
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t07.tem
 		Start: 1
@@ -327,17 +241,11 @@ t07.husk:
 
 t06:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t06.tem
 
 t06.husk:
 	Defaults: t06
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t06.tem
 		Start: 1
@@ -349,17 +257,11 @@ t06.husk:
 
 t05:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t05.tem
 
 t05.husk:
 	Defaults: t05
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t05.tem
 		Start: 1
@@ -371,17 +273,11 @@ t05.husk:
 
 t03:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t03.tem
 
 t03.husk:
 	Defaults: t03
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t03.tem
 		Start: 1
@@ -393,17 +289,11 @@ t03.husk:
 
 t02:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t02.tem
 
 t02.husk:
 	Defaults: t02
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t02.tem
 		Start: 1
@@ -415,17 +305,11 @@ t02.husk:
 
 t01:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t01.tem
 
 t01.husk:
 	Defaults: t01
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: t01.tem
 		Start: 1
@@ -467,9 +351,6 @@ ice05:
 
 v01:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v01.tem
 	damaged-idle:
@@ -478,9 +359,6 @@ v01:
 
 v02:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v02.tem
 		Start: 1
@@ -490,9 +368,6 @@ v02:
 
 v03:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v03.tem
 		Start: 1
@@ -502,9 +377,6 @@ v03:
 
 v04:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v04.tem
 		Start: 2
@@ -520,9 +392,6 @@ v04:
 
 v05:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v05.tem
 		Start: 2
@@ -532,9 +401,6 @@ v05:
 
 v06:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v06.tem
 		Start: 1
@@ -544,9 +410,6 @@ v06:
 
 v07:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v07.tem
 		Start: 2
@@ -556,9 +419,6 @@ v07:
 
 v08:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v08.tem
 		Start: 1
@@ -568,9 +428,6 @@ v08:
 
 v09:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v09.tem
 		Start: 1
@@ -580,9 +437,6 @@ v09:
 
 v10:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v10.tem
 		Start: 1
@@ -592,9 +446,6 @@ v10:
 
 v11:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v11.tem
 		Start: 1
@@ -604,9 +455,6 @@ v11:
 
 v12:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v12.tem
 		Start: 1
@@ -616,9 +464,6 @@ v12:
 
 v13:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v13.tem
 		Start: 1
@@ -628,9 +473,6 @@ v13:
 
 v14:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v14.tem
 		ZOffset: -512
@@ -641,9 +483,6 @@ v14:
 
 v15:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v15.tem
 		ZOffset: -512
@@ -654,9 +493,6 @@ v15:
 
 v16:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v16.tem
 		ZOffset: -512
@@ -667,9 +503,6 @@ v16:
 
 v17:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v17.tem
 		ZOffset: -512
@@ -680,9 +513,6 @@ v17:
 
 v18:
 	Defaults:
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	idle:
 		Filename: v18.tem
 		ZOffset: -512

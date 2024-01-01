@@ -11,8 +11,6 @@ acom:
 	bib:
 		Filename: bib3.shp
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 acom.husk:
 	idle:
@@ -21,8 +19,6 @@ acom.husk:
 	bib:
 		Filename: bib3.shp
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 hosp:
 	Inherits: emp-overlay
@@ -114,8 +110,6 @@ miss:
 	bib:
 		Filename: bib2.shp
 		Length: *
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 miss.husk:
 	idle:
@@ -137,8 +131,6 @@ oilb:
 		Filename: bib3.shp
 		Length: *
 		Offset: 0,0
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
 
 oilb.husk:
 	Defaults:
@@ -151,5 +143,3 @@ oilb.husk:
 		Filename: bib3.shp
 		Length: *
 		Offset: 0,0
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
