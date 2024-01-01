@@ -1,6 +1,5 @@
 tc04:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -10,7 +9,6 @@ tc04:
 tc04.husk:
 	Defaults:
 		Filename: tc04.tem
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -25,7 +23,6 @@ tc04.husk:
 
 tc05:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -34,7 +31,6 @@ tc05:
 
 tc05.husk:
 	Defaults: tc05
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -49,7 +45,6 @@ tc05.husk:
 
 tc03:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -58,7 +53,6 @@ tc03:
 
 tc03.husk:
 	Defaults: tc03
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -73,7 +67,6 @@ tc03.husk:
 
 tc02:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -82,7 +75,6 @@ tc02:
 
 tc02.husk:
 	Defaults: tc02
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -97,7 +89,6 @@ tc02.husk:
 
 tc01:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	idle:
@@ -105,7 +96,6 @@ tc01:
 
 tc01.husk:
 	Defaults: tc01
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	idle:
@@ -119,7 +109,6 @@ tc01.husk:
 
 t17:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -128,7 +117,6 @@ t17:
 
 t17.husk:
 	Defaults: t17
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -143,7 +131,6 @@ t17.husk:
 
 t16:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -152,7 +139,6 @@ t16:
 
 t16.husk:
 	Defaults: t16
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -167,7 +153,6 @@ t16.husk:
 
 t15:
 	Defaults: t15
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -176,7 +161,6 @@ t15:
 
 t15.husk:
 	Defaults: t15
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -191,7 +175,6 @@ t15.husk:
 
 t14:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -200,7 +183,6 @@ t14:
 
 t14.husk:
 	Defaults: t14
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -215,7 +197,6 @@ t14.husk:
 
 t13:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -224,7 +205,6 @@ t13:
 
 t13.husk:
 	Defaults: t13
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -239,7 +219,6 @@ t13.husk:
 
 t12:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -248,7 +227,6 @@ t12:
 
 t12.husk:
 	Defaults: t12
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -263,7 +241,6 @@ t12.husk:
 
 t11:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -272,7 +249,6 @@ t11:
 
 t11.husk:
 	Defaults: t11
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -287,7 +263,6 @@ t11.husk:
 
 t10:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -296,7 +271,6 @@ t10:
 
 t10.husk:
 	Defaults: t10
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -311,7 +285,6 @@ t10.husk:
 
 t08:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	idle:
@@ -319,7 +292,6 @@ t08:
 
 t08.husk:
 	Defaults: t08
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	idle:
@@ -333,7 +305,6 @@ t08.husk:
 
 t07:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -342,7 +313,6 @@ t07:
 
 t07.husk:
 	Defaults: t07
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -357,7 +327,6 @@ t07.husk:
 
 t06:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -366,7 +335,6 @@ t06:
 
 t06.husk:
 	Defaults: t06
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -381,7 +349,6 @@ t06.husk:
 
 t05:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -390,7 +357,6 @@ t05:
 
 t05.husk:
 	Defaults: t05
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -405,7 +371,6 @@ t05.husk:
 
 t03:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -414,7 +379,6 @@ t03:
 
 t03.husk:
 	Defaults: t03
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -429,7 +393,6 @@ t03.husk:
 
 t02:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -438,7 +401,6 @@ t02:
 
 t02.husk:
 	Defaults: t02
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -453,7 +415,6 @@ t02.husk:
 
 t01:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -462,7 +423,6 @@ t01:
 
 t01.husk:
 	Defaults: t01
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -507,7 +467,6 @@ ice05:
 
 v01:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -519,7 +478,6 @@ v01:
 
 v02:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -532,7 +490,6 @@ v02:
 
 v03:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -545,7 +502,6 @@ v03:
 
 v04:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -564,7 +520,6 @@ v04:
 
 v05:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -577,7 +532,6 @@ v05:
 
 v06:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -590,7 +544,6 @@ v06:
 
 v07:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -603,7 +556,6 @@ v07:
 
 v08:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -616,7 +568,6 @@ v08:
 
 v09:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -629,7 +580,6 @@ v09:
 
 v10:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -642,7 +592,6 @@ v10:
 
 v11:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -655,7 +604,6 @@ v11:
 
 v12:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -668,7 +616,6 @@ v12:
 
 v13:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -681,7 +628,6 @@ v13:
 
 v14:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -695,7 +641,6 @@ v14:
 
 v15:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -709,7 +654,6 @@ v15:
 
 v16:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -723,7 +667,6 @@ v16:
 
 v17:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
@@ -737,7 +680,6 @@ v17:
 
 v18:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT

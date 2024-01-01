@@ -11,7 +11,6 @@ acom:
 	bib:
 		Filename: bib3.shp
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -22,7 +21,6 @@ acom.husk:
 	bib:
 		Filename: bib3.shp
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -49,7 +47,6 @@ hosp:
 		Filename: mbHOSP.shp
 		Length: *
 		Offset: 0,1
-		UseTilesetExtension: true
 	icon:
 		Filename: hospicon.shp
 
@@ -59,7 +56,6 @@ hosp.husk:
 		Start: 8
 	bib:
 		Filename: bib3.shp
-		UseTilesetExtension: true
 		Length: *
 
 bio:
@@ -118,7 +114,6 @@ miss:
 	bib:
 		Filename: bib2.shp
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -142,7 +137,6 @@ oilb:
 		Filename: bib3.shp
 		Length: *
 		Offset: 0,0
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -157,6 +151,5 @@ oilb.husk:
 		Filename: bib3.shp
 		Length: *
 		Offset: 0,0
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT

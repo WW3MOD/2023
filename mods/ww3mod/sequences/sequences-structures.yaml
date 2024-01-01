@@ -18,7 +18,6 @@ supplyroute:
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
-		UseTilesetExtension: true
 	icon:
 		Filename: fixicon
 
@@ -49,7 +48,6 @@ fact:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	pdox:
@@ -71,7 +69,6 @@ fact.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -104,7 +101,6 @@ powr:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -119,7 +115,6 @@ powr.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -160,7 +155,6 @@ apwr:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -175,7 +169,6 @@ apwr.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -211,7 +204,6 @@ powrgrey:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -223,7 +215,6 @@ powrgrey.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -264,7 +255,6 @@ apwrgrey:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -279,7 +269,6 @@ apwrgrey.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -306,7 +295,6 @@ powrciv:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -323,7 +311,6 @@ powrciv.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -352,7 +339,6 @@ proc.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -408,7 +394,6 @@ ercc-proc:
 		Offset: 2, 8
 		ZOffset: -1c612
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -447,7 +432,6 @@ silo:
 	bib:
 		Filename: mbSILO
 		Length: *
-		UseTilesetExtension: true
 	dead:
 		Filename: silo2
 		Start: 9
@@ -464,12 +448,10 @@ silo.husk:
 	bib:
 		Filename: mbSILO
 		Length: *
-		UseTilesetExtension: true
 
 tent:
 	Inherits: emp-overlay
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: SNOW
 	idle:
@@ -500,11 +482,9 @@ tent:
 			INTERIOR: TEMPERAT
 	icon:
 		Filename: tenticon
-		UseTilesetExtension: false
 
 tent.husk:
 	Defaults:
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: SNOW
 	idle:
@@ -514,7 +494,6 @@ tent.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -543,7 +522,6 @@ barr:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -564,7 +542,6 @@ barr.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -582,7 +559,6 @@ kenn:
 	bib:
 		Filename: mbSILO
 		Length: *
-		UseTilesetExtension: true
 	dead:
 		Filename: kenn
 		Start: 1
@@ -598,7 +574,6 @@ kenn.husk:
 	bib:
 		Filename: mbSILO
 		Length: *
-		UseTilesetExtension: true
 
 weap:
 	Inherits: emp-overlay
@@ -624,7 +599,6 @@ weap:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -639,7 +613,6 @@ weap.husk:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -683,7 +656,6 @@ fix:
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
-		UseTilesetExtension: true
 	icon:
 		Filename: fixicon
 
@@ -699,7 +671,6 @@ fix.husk:
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
-		UseTilesetExtension: true
 
 dome:
 	Inherits: emp-overlay
@@ -718,7 +689,6 @@ dome:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -738,7 +708,6 @@ dome.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -828,7 +797,6 @@ hpad:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -859,7 +827,6 @@ atek:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -889,7 +856,6 @@ ateknew:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -918,7 +884,6 @@ stek:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
@@ -1007,7 +972,6 @@ orep:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -1044,7 +1008,6 @@ indp:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -1068,7 +1031,6 @@ rresf:
 	bib:
 		Filename: bib2
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon:
@@ -1087,7 +1049,6 @@ fcom:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -1098,7 +1059,6 @@ fcom.husk:
 	bib:
 		Filename: bib3
 		Length: *
-		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
@@ -1126,7 +1086,6 @@ pyle:
 		Length: *
 	bib:
 		Filename: bib3
-		UseTilesetExtension: true
 		Length: *
 	icon:
 		Filename: pyleicon
@@ -1137,7 +1096,6 @@ pyle.husk:
 		Start: 20
 	bib:
 		Filename: bib3
-		UseTilesetExtension: true
 		Length: *
 
 pdox:
@@ -1161,6 +1119,5 @@ pdox:
 		Filename: mbPDOX
 		Length: *
 		Offset: 0,-4
-		UseTilesetExtension: true
 	icon:
 		Filename: pdoxicon
