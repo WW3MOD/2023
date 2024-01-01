@@ -17,7 +17,9 @@
 	# 	Tick: 80
 	# 	BlendMode: Additive
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -37,7 +39,9 @@
 				Start: 1
 				Length: 1
 			corpse1:
-				Filename: corpse1.shp
+				Filename: corpse1.tem
+				TilesetFilenames:
+					SNOW: corpse1.sno
 				Length: 6
 				UseTilesetExtension: true
 				TilesetOverrides:
@@ -301,7 +305,9 @@ class:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -422,7 +428,9 @@ e1.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -553,7 +561,9 @@ e2.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -680,7 +690,9 @@ e3.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -783,7 +795,9 @@ e4.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -881,7 +895,9 @@ e6.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1005,7 +1021,9 @@ medi.russia:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1127,7 +1145,9 @@ sn.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -1217,7 +1237,9 @@ ar.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1324,7 +1346,9 @@ mt.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1431,7 +1455,9 @@ at.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1527,7 +1553,9 @@ aa.russia:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1815,7 +1843,9 @@ tl.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1932,7 +1962,9 @@ spy.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2078,7 +2110,9 @@ tecn.russia:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2162,7 +2196,9 @@ dog:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2270,7 +2306,9 @@ shok:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2332,7 +2370,9 @@ e9:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2653,7 +2693,9 @@ terr:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2714,7 +2756,9 @@ thf:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2785,7 +2829,9 @@ c1:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2848,7 +2894,9 @@ c2:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2911,7 +2959,9 @@ c3:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2975,7 +3025,9 @@ c4:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -3039,7 +3091,9 @@ c5:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -3103,7 +3157,9 @@ c6:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -3167,7 +3223,9 @@ c7:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -3231,7 +3289,9 @@ c8:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -3295,7 +3355,9 @@ c9:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -3359,7 +3421,9 @@ c10:
 		Filename: poisondeath.shp
 		Length: *
 	die-crushed:
-		Filename: corpse1.shp
+		Filename: corpse1.tem
+		TilesetFilenames:
+			SNOW: corpse1.sno
 		Length: *
 		Tick: 1600
 		ZOffset: -511
