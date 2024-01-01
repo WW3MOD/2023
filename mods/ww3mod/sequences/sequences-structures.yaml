@@ -1,59 +1,75 @@
 
 supplyroute:
 	Inherits: emp-overlay
-	idle: ctflag
+	idle:
+		Filename: ctflag
 		Length: 9
 		Tick: 50
 		Offset: 0,-12
-	dead: fix-dead
+	dead:
+		Filename: fix-dead
 		Offset: 0,1
 		Tick: 800
-	none: blank32
+	none:
+		Filename: blank32
 		Length: 1
-	bib: mbFIX
+	bib:
+		Filename: mbFIX
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
 		UseTilesetExtension: true
-	icon: fixicon
+	icon:
+		Filename: fixicon
 
 fact:
 	Inherits: emp-overlay
-	idle: fact
-	make: factmake
+	idle:
+		Filename: fact
+	make:
+		Filename: factmake
 		# Tick: 120
 		Length: *
-	build: fact
+	build:
+		Filename: fact
 		Start: 1
 		Length: 25
 		Tick: 80
-	damaged-idle: fact
+	damaged-idle:
+		Filename: fact
 		Start: 26
-	damaged-build: fact
+	damaged-build:
+		Filename: fact
 		Start: 27
 		Length: 25
 		Tick: 80
-	dead: fact-dead2
+	dead:
+		Filename: fact-dead2
 		Tick: 800
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	pdox: factpdox
+	pdox:
+		Filename: factpdox
 		Length: 80
-	damaged-pdox: factpdox
+	damaged-pdox:
+		Filename: factpdox
 		Start: 80
 		Length: 80
-	icon: facticon
-	fake-icon: facficon
+	icon:
+		Filename: facticon
 
 fact2:
 	Inherits: fact
 
 fact.husk:
-	idle: fact-dead
-	bib: bib2
+	idle:
+		Filename: fact-dead
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -62,36 +78,46 @@ fact.husk:
 powr:
 	Inherits: emp-overlay
 	idle:
+		Filename: powr
 	damaged-idle:
+		Filename: powr
 		Start: 1
-	idle-smoke: powr-smoke
+	idle-smoke:
+		Filename: powr-smoke
 		Length: 40
 		Tick: 160
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
-	damaged-idle-smoke: powr-smoke-d
+	damaged-idle-smoke:
+		Filename: powr-smoke-d
 		Length: 40
 		Tick: 160
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
-	place: powrmake
+	place:
+		Filename: powrmake
 		Start: 12
-	make: powrmake
+	make:
+		Filename: powrmake
 		Length: *
 		Tick: 1000
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	dead: powrdead2
+	dead:
+		Filename: powrdead2
 		Tick: 800
-	icon: powricon
-	fake-icon: fpwricon
+	icon:
+		Filename: powricon
 
 powr.husk:
-	idle: powrdead2
-	bib: bib3
+	idle:
+		Filename: powrdead2
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -100,44 +126,54 @@ powr.husk:
 apwr:
 	Inherits: emp-overlay
 	idle:
+		Filename: apwr
 		Offset: 0,-10
 	damaged-idle:
+		Filename: apwr
 		Start: 1
 		Offset: 0,-10
-	place: apwrmake
+	place:
+		Filename: apwrmake
 		Start: 12
 		Offset: 0,-10
-	make: apwrmake
+	make:
+		Filename: apwrmake
 		Length: *
 		Tick: 2500
 		Offset: 0,-10
-	idle-smoke: apwr-smoke
+	idle-smoke:
+		Filename: apwr-smoke
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
-	damaged-idle-smoke: apwr-smoke-d
+	damaged-idle-smoke:
+		Filename: apwr-smoke-d
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
-	dead: apwr-dead2
+	dead:
+		Filename: apwr-dead2
 		Tick: 800
 		Offset: 0,-10
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: apwricon
-	fake-icon: fapwicon
+	icon:
+		Filename: apwricon
 
 apwr.husk:
-	idle: apwr-dead2
+	idle:
+		Filename: apwr-dead2
 		Start: 0
 		Length: 1
 		Offset: 0,-10
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -146,36 +182,46 @@ apwr.husk:
 powrgrey:
 	Inherits: emp-overlay
 	idle:
+		Filename: powrgrey
 	damaged-idle:
+		Filename: powrgrey
 		Start: 1
-	place: powrgreymake
+	place:
+		Filename: powrgreymake
 		Start: 12
-	make: powrgreymake
+	make:
+		Filename: powrgreymake
 		Length: *
 		Tick: 1000
-	idle-smoke: powr-smoke
+	idle-smoke:
+		Filename: powr-smoke
 		Length: 40
 		Tick: 40
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
-	damaged-idle-smoke: powr-smoke-d
+	damaged-idle-smoke:
+		Filename: powr-smoke-d
 		Length: 40
 		Tick: 160
 		Offset: 0,-20
 		BlendMode: DoubleMultiplicative
-	dead: powrgreydead
+	dead:
+		Filename: powrgreydead
 		Tick: 800
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: powricon
-	fake-icon: fpwricon
+	icon:
+		Filename: powricon
 
 powrgrey.husk:
-	idle: powrgreydead
-	bib: bib3
+	idle:
+		Filename: powrgreydead
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -184,44 +230,54 @@ powrgrey.husk:
 apwrgrey:
 	Inherits: emp-overlay
 	idle:
+		Filename: apwrgrey
 		Offset: 0,-10
 	damaged-idle:
+		Filename: apwrgrey
 		Start: 1
 		Offset: 0,-10
-	place: apwrgreymake
+	place:
+		Filename: apwrgreymake
 		Start: 12
 		Offset: 0,-10
-	make: apwrgreymake
+	make:
+		Filename: apwrgreymake
 		Length: *
 		Tick: 2500
 		Offset: 0,-10
-	idle-smoke: apwr-smoke
+	idle-smoke:
+		Filename: apwr-smoke
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
-	damaged-idle-smoke: apwr-smoke-d
+	damaged-idle-smoke:
+		Filename: apwr-smoke-d
 		Length: 40
 		Tick: 160
 		Offset: -12,-30
 		BlendMode: DoubleMultiplicative
-	dead: apwrgreydead
+	dead:
+		Filename: apwrgreydead
 		Tick: 800
 		Offset: 0,-10
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: apwricon
-	fake-icon: fapwicon
+	icon:
+		Filename: apwricon
 
 apwrgrey.husk:
-	idle: apwrgreydead
+	idle:
+		Filename: apwrgreydead
 		Start: 0
 		Length: 1
 		Offset: 0,-10
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -230,31 +286,42 @@ apwrgrey.husk:
 powrciv:
 	Inherits: emp-overlay
 	idle:
+		Filename: powrciv
 	damaged-idle:
+		Filename: powrciv
 		Start: 1
-	place: powrcivmake
+	place:
+		Filename: powrcivmake
 		Start: 19
-	make: powrcivmake
+	make:
+		Filename: powrcivmake
 		Length: *
 		Tick: 1000
-	idle-smoke: blank32
+	idle-smoke:
+		Filename: blank32
 		Length: *
-	damaged-idle-smoke: blank32
+	damaged-idle-smoke:
+		Filename: blank32
 		Length: *
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	dead: powrciv
+	dead:
+		Filename: powrciv
 		Start: 2
 		Tick: 800
-	icon: powrcivicon
+	icon:
+		Filename: powrcivicon
 
 powrciv.husk:
-	idle: powrciv
+	idle:
+		Filename: powrciv
 		Start: 2
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -262,24 +329,28 @@ powrciv.husk:
 
 proc:
 	Inherits: emp-overlay
-	make: procmake
+	make:
+		Filename: procmake
 		Tick: 2000
 		Length: *
-    fake-icon: proficon
-	dead: proc-dead
+	dead:
+		Filename: proc-dead
 		Tick: 800
 		ZOffset: -1c511
-	idle-smoke: proc-smoke
+	idle-smoke:
+		Filename: proc-smoke
 		Length: 40
 		Tick: 160
 		Offset: 0,-25
 		BlendMode: DoubleMultiplicative
 
 proc.husk:
-	idle: proc-dead2
+	idle:
+		Filename: proc-dead2
 		Offset: 1, -16
 		ZOffset: -1c511
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -287,90 +358,111 @@ proc.husk:
 
 ercc-proc:
 	Inherits: emp-overlay
-	idle: ercc-bot
+	idle:
+		Filename: ercc-bot
 		Offset: 2, -9
 		ZOffset: -1c511
-	damaged-idle: ercc-bot
+	damaged-idle:
+		Filename: ercc-bot
 		Offset: 2, -9
 		ZOffset: -1c511
 		Start: 1
-	topsolid: ercc-top
+	topsolid:
+		Filename: ercc-top
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 0
-	damaged-topsolid: ercc-top
+	damaged-topsolid:
+		Filename: ercc-top
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 2
-	opaquetop: ercc-top
+	opaquetop:
+		Filename: ercc-top
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 1
-	damaged-opaquetop: ercc-top
+	damaged-opaquetop:
+		Filename: ercc-top
 		Offset: 2, -9
 		ZOffset: 0c312
 		Start: 3
-	make: ercc-make
+	make:
+		Filename: ercc-make
 		Offset: 5, -13
 		Length: *
 		Tick: 2000 # default but should it change ??
-	place: ercc-bot
+	place:
+		Filename: ercc-bot
 		Offset: 5, -13
 		Start: 0
 		Length: 1
-	dead: ercc-bot
+	dead:
+		Filename: ercc-bot
 		Start: 1
 		Length: 1
 		Tick: 800
 		Offset: 2, -9
-	bib: bib2
-        Offset: 2, 8
+	bib:
+		Filename: bib2
+		Offset: 2, 8
 		ZOffset: -1c612
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: procicon
-	fake-icon: proficon
-	idle-smoke: proc-smoke
+	icon:
+		Filename: procicon
+	idle-smoke:
+		Filename: proc-smoke
 		Length: 40
 		Tick: 160
 		Offset: 2,-41
-        ZOffset: 1c511
+		ZOffset: 1c511
 		BlendMode: DoubleMultiplicative
 
 silo:
 	Inherits: emp-overlay
-	idle: silo2
+	idle:
+		Filename: silo2
 		Offset: 0,-1
-	damaged-idle: silo2
+	damaged-idle:
+		Filename: silo2
 		Start: 9
 		Offset: 0,-1
-	stages: silo2
+	stages:
+		Filename: silo2
 		Length: 9
 		Offset: 0,-1
-	damaged-stages: silo2
+	damaged-stages:
+		Filename: silo2
 		Start: 9
 		Length: 9
 		Offset: 0,-1
-	make: silomake
+	make:
+		Filename: silomake
 		Tick: 500
 		Length: *
 		Offset: 0,-1
-	bib: mbSILO
+	bib:
+		Filename: mbSILO
 		Length: *
 		UseTilesetExtension: true
-	dead: silo2
+	dead:
+		Filename: silo2
 		Start: 9
 		Length: 1
 		Tick: 800
-	icon: siloicon
+	icon:
+		Filename: siloicon
 
 silo.husk:
-	idle: silo2
+	idle:
+		Filename: silo2
 		Start: 9
 		Length: 1
-	bib: mbSILO
+	bib:
+		Filename: mbSILO
 		Length: *
 		UseTilesetExtension: true
 
@@ -381,28 +473,33 @@ tent:
 		TilesetOverrides:
 			INTERIOR: SNOW
 	idle:
+		Filename: tent
 		Length: 10
 		Tick: 100
 	damaged-idle:
+		Filename: tent
 		Start: 10
 		Length: 10
 		Tick: 100
-	place: tentmake
+	place:
+		Filename: tentmake
 		Start: 12
-	make: tentmake
+	make:
+		Filename: tentmake
 		Tick: 1500
 		Length: *
 	dead:
+		Filename: tent
 		Start: 10
 		Length: 1
 		Tick: 800
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: tenticon
-		UseTilesetExtension: false
-	fake-icon: tenficon
+	icon:
+		Filename: tenticon
 		UseTilesetExtension: false
 
 tent.husk:
@@ -410,10 +507,12 @@ tent.husk:
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: SNOW
-	idle: tent
+	idle:
+		Filename: tent
 		Start: 10
 		Length: 1
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -422,40 +521,48 @@ tent.husk:
 barr:
 	Inherits: emp-overlay
 	idle:
+		Filename: barr
 		Length: 10
 		Offset: 0,-6
 		Tick: 100
 	damaged-idle:
+		Filename: barr
 		Start: 10
 		Length: 10
 		Offset: 0,-6
 		Tick: 100
-	place: barrmake
+	place:
+		Filename: barrmake
 		Start: 12
 		Offset: 0,-6
-	make: barrmake
+	make:
+		Filename: barrmake
 		Tick: 1500
 		Length: *
 		Offset: 0,-6
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
+		Filename: barr
 		Start: 10
 		Length: 1
 		Offset: 0,-6
 		Tick: 800
-	icon: barricon
-	fake-icon: barficon
+	icon:
+		Filename: barricon
 
 barr.husk:
-	idle: barr-dead
+	idle:
+		Filename: barr-dead
 		Start: 0
 		Length: 1
 		Offset: 0,-6
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -464,56 +571,73 @@ barr.husk:
 kenn:
 	Inherits: emp-overlay
 	idle:
+		Filename: kenn
 	damaged-idle:
+		Filename: kenn
 		Start: 1
-	make: kennmake
+	make:
+		Filename: kennmake
 		Tick: 1000
 		Length: *
-	bib: mbSILO
+	bib:
+		Filename: mbSILO
 		Length: *
 		UseTilesetExtension: true
 	dead:
+		Filename: kenn
 		Start: 1
 		Tick: 800
-	icon: kennicon
-	fake-icon: kenficon
+	icon:
+		Filename: kennicon
 
 kenn.husk:
-	idle: kenn
+	idle:
+		Filename: kenn
 		Start: 1
 		Length: 1
-	bib: mbSILO
+	bib:
+		Filename: mbSILO
 		Length: *
 		UseTilesetExtension: true
 
 weap:
 	Inherits: emp-overlay
 	idle:
+		Filename: weap
 	damaged-idle:
+		Filename: weap
 		Start: 1
-	place: weapmake
+	place:
+		Filename: weapmake
 		Start: 14
-	make: weapmake
+	make:
+		Filename: weapmake
 		Tick: 2500
 		Length: *
-	build-top: weap3
+	build-top:
+		Filename: weap3
 		Length: 10
-	damaged-build-top: weap2
+	damaged-build-top:
+		Filename: weap2
 		Start: 4
 		Length: 4
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	dead: weap-dead
+	dead:
+		Filename: weap-dead
 		Tick: 800
-	icon: weapicon
-	fake-icon: weaficon
+	icon:
+		Filename: weapicon
 
 weap.husk:
-	idle: weap-dead2
-	bib: bib2
+	idle:
+		Filename: weap2-dead2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -522,46 +646,56 @@ weap.husk:
 fix:
 	Inherits: emp-overlay
 	idle:
+		Filename: fix
 		Offset: 0,1
 		ZOffset: -1c511
 	damaged-idle:
+		Filename: fix
 		Start: 7
 		Offset: 0,1
 		ZOffset: -1c511
 	active:
+		Filename: fix
 		Start: 1
 		Length: 6
 		Offset: 0,1
 		ZOffset: -1c511
 	damaged-active:
+		Filename: fix
 		Start: 8
 		Length: 6
 		Offset: 0,1
 		ZOffset: -1c511
-	make: fixmake
+	make:
+		Filename: fixmake
 		Tick: 2000
 		Length: *
 		Offset: 0,1
-	dead: fix-dead
+	dead:
+		Filename: fix-dead
 		Offset: 0,1
 		Tick: 800
-	none: blank32
+	none:
+		Filename: blank32
 		Length: 1
-	bib: mbFIX
+	bib:
+		Filename: mbFIX
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
 		UseTilesetExtension: true
-	icon: fixicon
-	fake-icon: fixficon
+	icon:
+		Filename: fixicon
 
 fix.husk:
-	idle: fix-dead
+	idle:
+		Filename: fix-dead
 		Start: 0
 		Length: 1
 		Offset: 0,1
 		ZOffset: -1c511
-	bib: mbFIX
+	bib:
+		Filename: mbFIX
 		Length: *
 		ZOffset: -1c511
 		Offset: 0,-4
@@ -570,32 +704,39 @@ fix.husk:
 dome:
 	Inherits: emp-overlay
 	idle:
+		Filename: dome
 		Offset: 0,-4
 	damaged-idle:
+		Filename: dome
 		Start: 1
 		Offset: 0,-4
-	make: domemake
+	make:
+		Filename: domemake
 		Tick: 2000
 		Length: *
 		Offset: 0,-4
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	dead:
+		Filename: dome
 		Start: 1
 		Tick: 800
 		Offset: 0,-4
-	icon: domeicon
-	fake-icon: domficon
+	icon:
+		Filename: domeicon
 
 dome.husk:
-	idle: dome-dead
+	idle:
+		Filename: dome-dead
 		Start: 0
 		Length: 1
 		Offset: 0,-4
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -603,44 +744,52 @@ dome.husk:
 
 afld:
 	Inherits: emp-overlay
-	idle: afldidle
+	idle:
+		Filename: afldidle
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
-	damaged-idle: afldidle
+	damaged-idle:
+		Filename: afldidle
 		Start: 8
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	active:
+		Filename: afld
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	damaged-active:
+		Filename: afld
 		Start: 8
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
-	place: afldmake
+	place:
+		Filename: afldmake
 		Start: 10
-	make: afldmake
+	make:
+		Filename: afldmake
 		Tick: 2000
 		Length: *
 		Offset: 0,-4
-	dead: afld
+	dead:
+		Filename: afld
 		Start: 8
 		Length: 1
 		ZOffset: -1023
 		Offset: 0,-4
-	icon: afldicon
-	fake-icon: aflficon
+	icon:
+		Filename: afldicon
 
 afld.husk:
-	idle: afld
+	idle:
+		Filename: afld
 		Start: 8
 		Length: 1
 		Offset: 0,-4
@@ -648,38 +797,46 @@ afld.husk:
 hpad:
 	Inherits: emp-overlay
 	idle:
+		Filename: hpad
 		ZOffset: -1023
 	damaged-idle:
+		Filename: hpad
 		Start: 7
 		ZOffset: -1023
 	active:
+		Filename: hpad
 		Start: 1
 		Length: 6
 		Tick: 100
 		ZOffset: -1023
 	damaged-active:
+		Filename: hpad
 		Start: 8
 		Length: 6
 		Tick: 100
 		ZOffset: -1023
 	dead:
+		Filename: hpad
 		Start: 7
 		Length: 1
 		ZOffset: -1023
-	make: hpadmake
+	make:
+		Filename: hpadmake
 		Tick: 2000
 		Start: 4
 		Length: *
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: hpadicon
-	fake-icon: hpaficon
+	icon:
+		Filename: hpadicon
 
 hpad.husk:
-	idle: hpad
+	idle:
+		Filename: hpad
 		Start: 7
 		Length: 1
 		ZOffset: -1023
@@ -687,203 +844,259 @@ hpad.husk:
 atek:
 	Inherits: emp-overlay
 	idle:
+		Filename: atek
 	damaged-idle:
+		Filename: atek
 		Start: 1
-	make: atekmake
+	make:
+		Filename: atekmake
 		Tick: 2000
 		Length: *
-	active: sputdoor
+	active:
+		Filename: sputdoor
 		Length: *
 		Offset: -4,0
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	dead: atek-dead
+	dead:
+		Filename: atek-dead
 		Tick: 800
-	none: blank32
+	none:
+		Filename: blank32
 		Length: 1
-	icon: sproicon
-	fake-icon: sprofakeicon
+	icon:
+		Filename: sproicon
 
 atek.husk:
-	idle: atek-dead
+	idle:
+		Filename: atek-dead
 
 ateknew:
 	Inherits: emp-overlay
-	idle: atek2
-	damaged-idle: atek2
+	idle:
+		Filename: atek2
+	damaged-idle:
+		Filename: atek2
 		Start: 1
-	make: atek2make
+	make:
+		Filename: atek2make
 		Tick: 2000
 		Length: *
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	dead: atek2
+	dead:
+		Filename: atek2
 		Start: 1
 		Tick: 800
-	icon: ateknewicon
-	fake-icon: ateknewfakeicon
+	icon:
+		Filename: ateknewicon
 
 ateknew.husk:
-	idle: atek2
+	idle:
+		Filename: atek2
 		Start: 1
 
 stek:
 	Inherits: emp-overlay
 	idle:
+		Filename: stek
 	damaged-idle:
+		Filename: stek
 		Start: 1
-	make: stekmake
+	make:
+		Filename: stekmake
 		Tick: 2000
 		Length: *
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	dead: stek-dead
+	dead:
+		Filename: stek-dead
 		Tick: 800
-	icon: stekicon
-	fake-icon: steficon
-	none: blank32
+	none:
+		Filename: blank32
 		Length: 1
+	icon:
+		Filename: stekicon
 
 stek.husk:
-	idle: stek-dead
+	idle:
+		Filename: stek-dead
 		Start: 0
 		Length: 1
 
 syrd:
 	Inherits: emp-overlay
 	idle:
+		Filename: syrd
 	damaged-idle:
+		Filename: syrd
 		Start: 1
-	make: syrdmake
+	make:
+		Filename: syrdmake
 		Tick: 20 #00
 		Length: *
 	dead:
+		Filename: dead
 		Start: 1
 		Offset: 0,2
 		Tick: 800
-	icon: syrdicon
-	fake-icon: syrficon
+	icon:
+		Filename: syrdicon
 
 syrd.husk:
-	idle: syrd
+	idle:
+		Filename: syrd
 		Start: 1
 		Offset: 0,2
 
 spen:
 	Inherits: emp-overlay
 	idle:
+		Filename: spen
 		Offset: 0,2
 	damaged-idle:
+		Filename: spen
 		Start: 1
 		Offset: 0,2
-	make: spenmake
+	make:
+		Filename: spenmake
 		Tick: 2000
 		Length: *
 		Offset: 0,2
 	dead:
+		Filename: spen
 		Start: 1
 		Offset: 0,2
 		Tick: 800
-	icon: spenicon
-	fake-icon: speficon
+	icon:
+		Filename: spenicon
 
 spen.husk:
-	idle: spen
+	idle:
+		Filename: spen
 		Start: 1
 		Offset: 0,2
 
 orep:
 	Inherits: emp-overlay
-	idle: orep
-	damaged-idle: orep
+	idle:
+		Filename: orep
+	damaged-idle:
+		Filename: orep
 		Start: 1
-	make: orepmake
+	make:
+		Filename: orepmake
 		Tick: 2000
 		Length: *
-	dead: orep
+	dead:
+		Filename: orep
 		Start: 1
 		Tick: 800
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: orepicon
+	icon:
+		Filename: orepicon
 
 indp:
 	Inherits: emp-overlay
-	idle: indp
+	idle:
+		Filename: indp
 		Length: 4
 		Tick: 200
 		Offset: 0,-10
-	damaged-idle: indp
+	damaged-idle:
+		Filename: indp
 		Start: 4
 		Length: 4
 		Tick: 200
 		Offset: 0,-10
-	make: indpmake
+	make:
+		Filename: indpmake
 		Tick: 2000
 		Length: *
 		Offset: 0,-10
-	place: indpmake
+	place:
+		Filename: indpmake
 		Start: 20
 		Length: 1
 		Offset: 0,-10
-	dead: indp
+	dead:
+		Filename: indp
 		Start: 4
 		Tick: 800
 		Offset: 0,-10
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: indpicon
+	icon:
+		Filename: indpicon
 
 rresf:
 	Inherits: emp-overlay
 	idle:
+		Filename: rresf
 	damaged-idle:
+		Filename: rresf
 		Start: 1
 	dead:
+		Filename: rresf
 		Start: 1
 		Tick: 800
-	make: rresf-make
+	make:
+		Filename: rresf-make
 		Tick: 2000
 		Length: *
-	bib: bib2
+	bib:
+		Filename: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	icon: rresficon
+	icon:
+		Filename: rresficon
 
 fcom:
 	idle:
+		Filename: fcom
 	damaged-idle:
+		Filename: fcom
 		Start: 1
-	make: fcommake
+	make:
+		Filename: fcommake
 		Tick: 2000
 		Length: *
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 
 fcom.husk:
-	idle: fcom
+	idle:
+		Filename: fcom
 		Start: 1
-	bib: bib3
+	bib:
+		Filename: bib3
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -892,47 +1105,62 @@ fcom.husk:
 pyle:
 	Inherits: emp-overlay
 	idle:
+		Filename: pyle
 		Length: 10
 		Tick: 100
 	damaged-idle:
+		Filename: pyle
 		Start: 10
 		Length: 10
 		Tick: 100
 	dead:
+		Filename: pyle
 		Start: 20
 		Tick: 800
-	place: pylemake
+	place:
+		Filename: pylemake
 		Start: 19
-	make: pylemake
+	make:
+		Filename: pylemake
 		Tick: 1500
 		Length: *
-	bib: bib3
+	bib:
+		Filename: bib3
 		UseTilesetExtension: true
 		Length: *
-	icon: pyleicon
+	icon:
+		Filename: pyleicon
 
 pyle.husk:
-	idle: pyle
+	idle:
+		Filename: pyle
 		Start: 20
-	bib: bib3
+	bib:
+		Filename: bib3
 		UseTilesetExtension: true
 		Length: *
 
 pdox:
 	Inherits: emp-overlay
 	idle:
+		Filename: pdox
 	damaged-idle:
+		Filename: pdox
 		Start: 29
 	active:
+		Filename: pdox
 		Length: 29
 	damaged-active:
+		Filename: pdox
 		Start: 29
 		Length: 29
-	make: pdoxmake
+	make:
+		Filename: pdoxmake
 		Length: *
-	bib: mbPDOX
+	bib:
+		Filename: mbPDOX
 		Length: *
 		Offset: 0,-4
 		UseTilesetExtension: true
-	icon: pdoxicon
-	fake-icon: pdoficon
+	icon:
+		Filename: pdoxicon

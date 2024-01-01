@@ -508,7 +508,7 @@ smoke_m:
 	end:
 		Filename: smoke_m.shp
 		Start: 26
-		Length: -26
+		# Length: -26 // 1010
 		Offset: 2, -5
 		ZOffset: 512
 

@@ -2232,12 +2232,6 @@ Actors:
 	Actor985: tc03
 		Owner: Neutral
 		Location: 42,76
-	Actor988: v19
-		Owner: Neutral
-		Location: 66,33
-	Actor989: v19
-		Owner: Neutral
-		Location: 63,30
 	Actor990: brl3
 		Owner: Neutral
 		Location: 65,33
@@ -2250,12 +2244,6 @@ Actors:
 	Actor993: barl
 		Owner: Neutral
 		Location: 66,32
-	Actor994: v19
-		Owner: Neutral
-		Location: 33,66
-	Actor995: v19
-		Owner: Neutral
-		Location: 30,63
 	Actor996: brl3
 		Owner: Neutral
 		Location: 33,65

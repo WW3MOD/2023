@@ -123,12 +123,6 @@ Actors:
 	Actor42: brl3
 		Owner: Neutral
 		Location: 75,42
-	Actor43: v19
-		Owner: Neutral
-		Location: 75,43
-	Actor44: v19
-		Owner: Neutral
-		Location: 75,48
 	Actor45: fenc
 		Owner: Neutral
 		Location: 75,47
@@ -186,12 +180,6 @@ Actors:
 	Actor63: fenc
 		Owner: Neutral
 		Location: 21,22
-	Actor65: v19
-		Owner: Neutral
-		Location: 21,23
-	Actor66: v19
-		Owner: Neutral
-		Location: 21,18
 	Actor68: brl3
 		Owner: Neutral
 		Location: 21,24
@@ -606,24 +594,12 @@ Actors:
 	Actor254: v05
 		Owner: Neutral
 		Location: 62,25
-	Actor255: v19
-		Owner: Neutral
-		Location: 35,44
-	Actor256: v19
-		Owner: Neutral
-		Location: 37,46
 	Actor257: brl3
 		Owner: Neutral
 		Location: 37,47
 	Actor258: barl
 		Owner: Neutral
 		Location: 34,44
-	Actor259: v19
-		Owner: Neutral
-		Location: 59,20
-	Actor260: v19
-		Owner: Neutral
-		Location: 61,22
 	Actor261: brl3
 		Owner: Neutral
 		Location: 59,19

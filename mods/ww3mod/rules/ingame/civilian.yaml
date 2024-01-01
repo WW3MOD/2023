@@ -288,39 +288,7 @@ V18:
 	Inherits: ^CivField
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
-V19:
-	Inherits: ^CivBuilding
-	RenderSprites:
-		Palette: player
-	Tooltip:
-		Name: Oil Pump
-	SpawnActorOnDeath:
-		Actor: V19.Husk
-	Targetable:
-		TargetTypes: Ground, C4, DetonateAttack, Structure, NoAutoTarget
-V19.Husk:
-	Inherits: ^CivBuilding
-	-Selectable:
-	-Targetable:
-	-Demolishable:
-	-HitShape:
-	-Health:
-	-Explodes:
-	-Explodes@CIVPANIC:
-	-ChangesHealth@BurnDamage:
-	-ExternalCondition@BurnDamage:
-	-WithDamageOverlay@SmallBurn:
-	-WithDamageOverlay@MediumBurn:
-	-WithDamageOverlay@LargeBurn:
-	RenderSprites:
-		Palette: player
-	Tooltip:
-		Name: Husk (Oil Pump)
-	WithSpriteBody:
-	WithIdleOverlay:
-		StartSequence: fire-start
-		Sequence: fire-loop
-	Interactable:
+
 V20:
 	Inherits: ^DesertCivBuilding
 	Building:

@@ -1,58 +1,69 @@
 pbox:
-	Inherits: emp-overlay
+	Defaults:
+		Filename: pbox.shp
 	idle:
 	damaged-idle:
 		Start: 1
-	make: pboxmake
+	make:
+		Filename: pboxmake.shp
 		Length: *
 		Tick: 500
-	muzzle: minigun
-		Length: 6
-		Facings: 8
-	bib: mbPBOX
-		Length: *
-		Offset: 0,-2
-		UseTilesetExtension: true
-	icon: pboxicon
-
-pbox.husk:
-	idle: pbox-dead
-
-hbox:
-	Inherits: emp-overlay
-	Defaults:
-		UseTilesetExtension: true
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
-	idle:
-		Filename: hbox.shp
-	damaged-idle:
-		Filename: hbox.shp
-		Start: 2
-	make:
-		Filename: hboxmake.shp
-		Length: *
-		Tick: 300
 	muzzle:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-		UseTilesetExtension: false
+	bib:
+		TilesetFilenames:
+			SNOW: mbPBOX.sno
+			INTERIOR: mbPBOX.int
+			TEMPERAT: mbPBOX.tem
+			DESERT: mbPBOX.des
+		Length: *
+		Offset: 0,-2
+	icon:
+		Filename: pboxicon.shp
+
+pbox.husk:
+	idle:
+		Filename: pbox-dead.shp
+
+hbox:
+	Inherits: emp-overlay
+	Defaults:
+		Filename: hbox.tem
+		TilesetFilenames:
+			SNOW: hbox.sno
+			DESERT: hbox.des
+	idle:
+	damaged-idle:
+		Start: 2
+	make:
+		Filename: hboxmake.tem
+		TilesetFilenames:
+			SNOW: hboxmake.sno
+			DESERT: hboxmake.des
+		Length: *
+		Tick: 300
+	muzzle:
+		Filename: minigun.shp
+		TilesetFilenames:
+		Length: 6
+		Facings: 8
 	icon:
 		Filename: hboxicon.shp
-		UseTilesetExtension: false
+		TilesetFilenames:
 
 hbox.husk:
-	idle: hbox-dead
+	idle:
 		Filename: hbox-dead.shp
 
 ftur:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: ftur.shp
+	idle:
 		Offset: 0,-2
 	damaged-idle:
-		Filename: ftur.shp
 		Start: 1
 		Offset: 0,-2
 	make:
@@ -61,9 +72,12 @@ ftur:
 		Offset: 0,-2
 		Tick: 600
 	bib:
-		Filename: mbFTUR.shp
+		TilesetFilenames:
+			SNOW: mbFTUR.sno
+			INTERIOR: mbFTUR.int
+			TEMPERAT: mbFTUR.tem
+			DESERT: mbFTUR.des
 		Length: *
-		UseTilesetExtension: true
 	muzzle-spray:
 		Combine:
 			flame-n:
@@ -104,15 +118,18 @@ ftur:
 		Filename: fturicon.shp
 
 ftur.husk:
-	idle: ftur
+	idle:
 		Filename: ftur.shp
 		Start: 1
 		Length: 1
 		Offset: 0,-2
 	bib:
-		Filename: mbFTUR.shp
+		TilesetFilenames:
+			SNOW: mbFTUR.sno
+			INTERIOR: mbFTUR.int
+			TEMPERAT: mbFTUR.tem
+			DESERT: mbFTUR.des
 		Length: *
-		UseTilesetExtension: true
 
 gtur:
 	Inherits: emp-overlay
@@ -138,10 +155,13 @@ gtur:
 		Facings: 8
 		Offset: 0,-5
 	bib:
-		Filename: mbSAM.shp
+		TilesetFilenames:
+			SNOW: mbSAM.sno
+			INTERIOR: mbSAM.int
+			TEMPERAT: mbSAM.tem
+			DESERT: mbSAM.des
 		Length: *
-		Offset: 0,-5
-		UseTilesetExtension: true
+		Offset: 0,1
 	dead:
 		Filename: gturmake.shp
 		Start: 8
@@ -182,9 +202,12 @@ tsla:
 		Tick: 100
 		Offset: 0,-13
 	bib:
-		Filename: mbTSLA.shp
+		TilesetFilenames:
+			SNOW: mbTSLA.sno
+			INTERIOR: mbTSLA.int
+			TEMPERAT: mbTSLA.tem
+			DESERT: mbTSLA.des
 		Length: *
-		UseTilesetExtension: true
 	icon:
 		Filename: tslaicon.shp
 
@@ -192,10 +215,13 @@ tsla.husk:
 	idle:
 		Filename: tsla-dead.shp
 		Offset: 0,-13
-	bib: mbTSLA
-		Filename: mbTSLA.shp
+	bib:
+		TilesetFilenames:
+			SNOW: mbTSLA.sno
+			INTERIOR: mbTSLA.int
+			TEMPERAT: mbTSLA.tem
+			DESERT: mbTSLA.des
 		Length: *
-		UseTilesetExtension: true
 
 agun:
 	Inherits: emp-overlay
@@ -215,7 +241,8 @@ agun:
 		Length: *
 		Tick: 600
 		Offset: 0,-13
-	place: agunmake
+	place:
+		Filename: agunmake.shp
 		Start: 9
 		Length: 1
 		Offset: 0,-13
@@ -236,9 +263,12 @@ agun:
 		Start: 1
 		Length: 4
 	bib:
-		Filename: mbAGUN.shp
+		TilesetFilenames:
+			SNOW: mbAGUN.sno
+			INTERIOR: mbAGUN.int
+			TEMPERAT: mbAGUN.tem
+			DESERT: mbAGUN.des
 		Length: *
-		UseTilesetExtension: true
 	icon:
 		Filename: agunicon.shp
 
@@ -251,9 +281,12 @@ agun.husk:
 		UseClassicFacings: True
 		Offset: 0,-13
 	bib:
-		Filename: mbAGUN.shp
+		TilesetFilenames:
+			SNOW: mbAGUN.sno
+			INTERIOR: mbAGUN.int
+			TEMPERAT: mbAGUN.tem
+			DESERT: mbAGUN.des
 		Length: *
-		UseTilesetExtension: true
 
 cram:
 	Inherits: emp-overlay
@@ -288,12 +321,12 @@ cram:
 		Start: 1
 		Length: 4
 	bib:
-		Filename: mbAGUN.shp
+		TilesetFilenames:
+			SNOW: mbAGUN.sno
+			INTERIOR: mbAGUN.int
+			TEMPERAT: mbAGUN.tem
+			DESERT: mbAGUN.des
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			JUNGLE: TEMPERAT
-			BARREN: TEMPERAT
 	icon:
 		Filename: cramicnh.shp
 
@@ -326,10 +359,13 @@ sam:
 		Facings: 8
 		Offset: -1,6
 	bib:
-		Filename: mbSAM.shp
+		TilesetFilenames:
+			SNOW: mbSAM.sno
+			INTERIOR: mbSAM.int
+			TEMPERAT: mbSAM.tem
+			DESERT: mbSAM.des
 		Length: *
 		Offset: 0,1
-		UseTilesetExtension: true
 	icon:
 		Filename: samicon.shp
 
@@ -340,10 +376,13 @@ sam.husk:
 		Length: 1
 		Offset: -1,-2
 	bib:
-		Filename: mbSAM.shp
+		TilesetFilenames:
+			SNOW: mbSAM.sno
+			INTERIOR: mbSAM.int
+			TEMPERAT: mbSAM.tem
+			DESERT: mbSAM.des
 		Length: *
 		Offset: 0,1
-		UseTilesetExtension: true
 
 # patriot:
 # 	idle: patriot
@@ -421,40 +460,42 @@ hsam.husk:
 		Filename: hsam.shp
 		Start: 67
 		Length: 1
-
+`
 mslo:
 	Inherits: emp-overlay
 	Defaults:
-		UseTilesetExtension: true
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
+		Filename: mslo.tem
+		TilesetFilenames:
+			SNOW: mslo.sno
+			DESERT: mslo.des
 	idle:
-		Filename: mslo.shp
 	damaged-idle:
-		Filename: mslo.shp
 		Start: 8
 	make:
-		Filename: mslomake.shp
+		Filename: mslomake.tem
+		TilesetFilenames:
+			SNOW: mslomake.sno
+			DESERT: mslomake.des
 		Length: *
 		Tick: 1000
 	active:
-		Filename: mslo.shp
 		Start: 1
 		Length: 7
 		Tick: 80
 	damaged-active:
-		Filename: mslo.shp
 		Start: 9
 		Length: 7
 	icon:
-		Filename: msloicon.shp
-		UseTilesetExtension: false
+		Filename: msloicon2.shp
+		TilesetFilenames:
 
 mslo.husk:
 	Defaults:
-		UseTilesetExtension: true
+		Filename: mslo.tem
+		TilesetFilenames:
+			SNOW: mslo.sno
+			DESERT: mslo.des
 	idle:
-		Filename: mslo.shp
 		Start: 12
 		Length: 1
 
@@ -633,12 +674,12 @@ gtwr:
 		Start: 2
 		Tick: 800
 	bib:
-		Filename: mbFTUR.shp
+		TilesetFilenames:
+			SNOW: mbFTUR.sno
+			INTERIOR: mbFTUR.int
+			TEMPERAT: mbFTUR.tem
+			DESERT: mbFTUR.des
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
-			BARREN: TEMPERAT
 
 
 pris:
@@ -671,11 +712,12 @@ pris:
 		Tick: 1000
 		Offset: 0,-13
 	bib:
-		Filename: mbFTUR.shp
+		TilesetFilenames:
+			SNOW: mbFTUR.sno
+			INTERIOR: mbFTUR.int
+			TEMPERAT: mbFTUR.tem
+			DESERT: mbFTUR.des
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			BARREN: TEMPERAT
 	icon:
 		Filename: prisicon.shp
 
@@ -712,10 +754,13 @@ gun:
 		Filename: gunfire2.shp
 		Length: 5
 	bib:
-		Filename: mbGUN.shp
+		TilesetFilenames:
+			SNOW: mbGUN.sno
+			INTERIOR: mbGUN.int
+			TEMPERAT: mbGUN.tem
+			DESERT: mbGUN.des
 		Length: *
 		Offset: -1,-1
-		UseTilesetExtension: true
 	icon:
 		Filename: gunicon.shp
 
@@ -723,7 +768,10 @@ gun.husk:
 	idle:
 		Filename: gun-dead.shp
 	bib:
-		Filename: mbGUN.shp
+		TilesetFilenames:
+			SNOW: mbGUN.sno
+			INTERIOR: mbGUN.int
+			TEMPERAT: mbGUN.tem
+			DESERT: mbGUN.des
 		Length: *
 		Offset: -1,-1
-		UseTilesetExtension: true

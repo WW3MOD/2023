@@ -142,9 +142,6 @@ Actors:
 	Actor125: tc03
 		Owner: Neutral
 		Location: 45,52
-	Actor126: v19
-		Owner: Neutral
-		Location: 41,53
 	Actor127: oilb
 		Owner: Neutral
 		Location: 39,54
@@ -157,9 +154,6 @@ Actors:
 	Actor130: t02
 		Owner: Neutral
 		Location: 77,59
-	Actor131: v19
-		Owner: Neutral
-		Location: 82,61
 	Actor133: tc02
 		Owner: Neutral
 		Location: 4,8

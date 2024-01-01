@@ -1,6 +1,6 @@
 ^VehicleOverlays:
 	emp-overlay:
-		Filename: emp_fx01.shp
+		Filename: empfx01.shp
 		Length: *
 		BlendMode: Additive
 		Offset: 0, 0
@@ -10,7 +10,7 @@
 mcv:
 	Inherits: ^VehicleOverlays
 	idle:
-		Filename: mcv-idle.shp
+		Filename: mcv.shp
 		Facings: 32
 		UseClassicFacings: True
 	icon:

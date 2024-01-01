@@ -1771,7 +1771,8 @@ tl.russia:
 	parachute:
 		Filename: e1.shp
 		Start: 377
-	idle: spy
+	idle:
+		Filename: spy.shp
 	idle1:
 		Filename: spy.shp
 		Start: 256
@@ -2511,6 +2512,7 @@ rmbo:
 		Length: 8
 		Tick: 80
 	parachute:
+		Filename: rmbo.shp
 		Start: 431
 	garrison-muzzle:
 		Filename: minigun16.shp

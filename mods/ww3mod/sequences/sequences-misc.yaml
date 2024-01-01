@@ -1,114 +1,167 @@
 
 powerdown:
-	disabled: speed
+	disabled:
+		Filename: speed
 		Start: 3
 		ZOffset: 2047
 
 rallypoint:
-	flag: flagfly
+	flag:
+		Filename: flagfly
 		Length: *
 		Offset: 11,-5
 		ZOffset: 2535
-	circles: fpls
+	circles:
+		Filename: fpls
 		Length: *
 		ZOffset: 2047
 
 icon:
-	abomb: atomicon
-	invuln: infxicon
-	chrono: warpicon
-	spyplane: smigicon
-	paratroopers: pinficon
-	gps: gpssicon
-	parabombs: pbmbicon
-	sonar: sonricon
-	fieldrepair: frepicon
-	abombfake: atomfakeicon
-	lpsummon: spmsticon
-	decoyarmy: decoyarmyicon
-	orecast: orepupgicon
-	mainten: mainticon
-	precicon: precicon
-	healcrate: healcrateicon
-	overcharge: overchargeicon
-	parashok: parashokicon
-	paragren: paragrenicon
-	parajeep: parajeepicon
-	paramines: paramnlyicon
-	mincicon: mincicon
-	empbomb: empbombicon
-	v2bdgricon: v2bdgricon
-	artyicon: artystrikicon
-	cmissicon: cmissicon
-	paranuke: paranukeicon
-	nitroicon: nitroicon
-	infoicon: infoicon
+	abomb:
+		Filename: atomicon
+	invuln:
+		Filename: infxicon
+	chrono:
+		Filename: warpicon
+	spyplane:
+		Filename: smigicon
+	paratroopers:
+		Filename: pinficon
+	gps:
+		Filename: gpssicon
+	parabombs:
+		Filename: pbmbicon
+	sonar:
+		Filename: sonricon
+	fieldrepair:
+		Filename: frepicon
+	abombfake:
+		Filename: atomfakeicon
+	lpsummon:
+		Filename: spmsticon
+	decoyarmy:
+		Filename: decoyarmyicon
+	orecast:
+		Filename: orepupgicon
+	mainten:
+		Filename: mainticon
+	precicon:
+		Filename: precicon
+	healcrate:
+		Filename: healcrateicon
+	overcharge:
+		Filename: overchargeicon
+	parashok:
+		Filename: parashokicon
+	paragren:
+		Filename: paragrenicon
+	parajeep:
+		Filename: parajeepicon
+	paramines:
+		Filename: paramnlyicon
+	mincicon:
+		Filename: mincicon
+	empbomb:
+		Filename: empbombicon
+	v2bdgricon:
+		Filename: v2bdgricon
+	artyicon:
+		Filename: artystrikicon
+	cmissicon:
+		Filename: cmissicon
+	paranuke:
+		Filename: paranukeicon
+	nitroicon:
+		Filename: nitroicon
+	infoicon:
+		Filename: infoicon
 
 clock:
 	idle:
+		Filename: clock
 		Length: *
 
 beacon:
 	Defaults:
 		ZOffset: 2535
-	arrow: mouse
+	arrow:
+		Filename: mouse
 		Start: 5
 		Offset: 1,-12
-	circles: fpls
+	circles:
+		Filename: fpls
 		Length: *
 		ZOffset: 2047
-	atomicon: lores|atomicon
+	atomicon:
+		Filename: lores|atomicon
 		Length: *
 		Offset: 0,-42
-	pbmbicon: lores|pbmbicon
+	pbmbicon:
+		Filename: lores|pbmbicon
 		Length: *
 		Offset: 0,-42
-	camicon: lores|camicon
+	camicon:
+		Filename: lores|camicon
 		Length: *
 		Offset: 0,-42
-	pinficon: lores|pinficon
+	pinficon:
+		Filename: lores|pinficon
 		Length: *
 		Offset: 0,-42
-	sonrbcon: sonrbcon
+	sonrbcon:
+		Filename: sonrbcon
 		Length: *
 		Offset: 0,-42
-	precbcon: precbcon
+	precbcon:
+		Filename: precbcon
 		Length: *
 		Offset: 0,-42
-	healcrate: healcratebcon
+	healcrate:
+		Filename: healcratebcon
 		Length: *
 		Offset: 0,-42
-	parashok: shokbcon
+	parashok:
+		Filename: shokbcon
 		Length: *
 		Offset: 0,-42
-	paragren: grenbcon
+	paragren:
+		Filename: grenbcon
 		Length: *
 		Offset: 0,-42
-	parajeep: jeepbcon
+	parajeep:
+		Filename: jeepbcon
 		Length: *
 		Offset: 0,-42
-	paratanks: 1tnkbcon
+	paratanks:
+		Filename: 1tnkbcon
 		Length: *
 		Offset: 0,-42
-	paramines: mnlybcon
+	paramines:
+		Filename: mnlybcon
 		Length: *
 		Offset: 0,-42
-	empbomb: empbombbcon
+	empbomb:
+		Filename: empbombbcon
 		Length: *
 		Offset: 0,-42
-	v2bdgrbcon: v2bdgrbcon
+	v2bdgrbcon:
+		Filename: v2bdgrbcon
 		Length: *
 		Offset: 0,-42
-	artybcon: artystrikbcon
+	artybcon:
+		Filename: artystrikbcon
 		Length: *
 		Offset: 0,-42
-	cmissbcon: cmissbcon
+	cmissbcon:
+		Filename: cmissbcon
 		Length: *
 		Offset: 0,-42
-	paranuke: paranukebcon
+	paranuke:
+		Filename: paranukebcon
 		Length: *
 		Offset: 0,-42
-	clock: beaconclock
+	clock:
+		Filename: beaconclock
 		Length: *
 		Offset: 0,-42
 
@@ -116,19 +169,26 @@ overlay:
 	Defaults: trans.icn
 		AddExtension: False
 	build-valid:
+		Filename: build-valid.shp
 	build-invalid:
+		Filename: build-invalid.shp
 		Start: 2
 	target-valid:
+		Filename: target-valid.shp
 	target-select:
+		Filename: target-select.shp
 		Start: 1
 	target-invalid:
+		Filename: target-invalid.shp
 		Start: 2
 
 editor-overlay:
 	Defaults: trans.icn
 		AddExtension: False
 	copy:
+		Filename: editor-overlay
 	paste:
+		Filename: paste
 		Start: 2
 
 resources:
@@ -137,42 +197,72 @@ resources:
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	gold01: gold01
-	gold02: gold02
-	gold03: gold03
-	gold04: gold04
-	gem01: gem01
-	gem02: gem02
-	gem03: gem03
-	gem04: gem04
-	scrap01: scrap01
-	scrap02: scrap02
-	scrap03: scrap03
-	scrap04: scrap04
-	scrap05: scrap05
-	scrap06: scrap06
-	scrap07: scrap07
-	scrap08: scrap08
-	scrap09: scrap09
-	scrap10: scrap10
-	scrap11: scrap11
-	scrap12: scrap12
-	scrap13: scrap13
-	scrap14: scrap14
-	scrap15: scrap15
-	scrap16: scrap16
-	scrap17: scrap17
-	scrap18: scrap18
-	scrap19: scrap19
-	scrap20: scrap20
+	gold01:
+		Filename: gold01
+	gold02:
+		Filename: gold02
+	gold03:
+		Filename: gold03
+	gold04:
+		Filename: gold04
+	gem01:
+		Filename: gem01
+	gem02:
+		Filename: gem02
+	gem03:
+		Filename: gem03
+	gem04:
+		Filename: gem04
+	scrap01:
+		Filename: scrap01
+	scrap02:
+		Filename: scrap02
+	scrap03:
+		Filename: scrap03
+	scrap04:
+		Filename: scrap04
+	scrap05:
+		Filename: scrap05
+	scrap06:
+		Filename: scrap06
+	scrap07:
+		Filename: scrap07
+	scrap08:
+		Filename: scrap08
+	scrap09:
+		Filename: scrap09
+	scrap10:
+		Filename: scrap10
+	scrap11:
+		Filename: scrap11
+	scrap12:
+		Filename: scrap12
+	scrap13:
+		Filename: scrap13
+	scrap14:
+		Filename: scrap14
+	scrap15:
+		Filename: scrap15
+	scrap16:
+		Filename: scrap16
+	scrap17:
+		Filename: scrap17
+	scrap18:
+		Filename: scrap18
+	scrap19:
+		Filename: scrap19
+	scrap20:
+		Filename: scrap20
 
 mine:
 	idle:
+		Filename: mine
 		UseTilesetExtension: true
 		ZOffset: -1024
 
 gmine:
 	idle:
+		Filename: gmine
 		ZOffset: -1024
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -180,6 +270,7 @@ gmine:
 
 railmine:
 	idle:
+		Filename: railmine
 		ZOffset: -512
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -190,156 +281,215 @@ drillmine:
 		UseTilesetExtension: false
 		Offset: -1, -16
 	idle:
+		Filename: drillmine
 		Start: 0
 		Length: 1
 	active:
+		Filename: drillmine
 		Start: 0
 		Length: 32
 		Tick: 160
 
 pips:
-	pip-ammo-secondary-none: pip-ammo
-	pip-ammo-primary-none: pip-ammo
+	pip-ammo-secondary-none:
+		Filename: pip-ammo
+	pip-ammo-primary-none:
+		Filename: pip-ammo
 		Start: 1
-	pip-ammo-none: pip-ammo
+	pip-ammo-none:
+		Filename: pip-ammo
 		Start: 2
-	pip-ammo-replenishing: pip-ammo
+	pip-ammo-replenishing:
+		Filename: pip-ammo
 		Start: 3
-	pip-morale-boost: pip-morale-boost
-	pip-heal: pip-heal
-	pip-cloak-medium: pip-cloak
-	pip-cloak-hidden: pip-cloak
+	pip-morale-boost:
+		Filename: pip-morale-boost
+	pip-heal:
+		Filename: pip-heal
+	pip-cloak-medium:
+		Filename: pip-cloak
+	pip-cloak-hidden:
+		Filename: pip-cloak
 		Start: 1
-	pip-cloak-stealthy: pip-cloak
+	pip-cloak-stealthy:
+		Filename: pip-cloak
 		Start: 2
 	groups:
+		Filename: pips
 		Start: 8
 		Length: 10
 		Offset: 9, 5
 	medic:
+		Filename: pips
 		Start: 20
 		Offset: 15, 1
-	pip-skull: pip-skull
+	pip-skull:
+		Filename: pip-skull
 		Offset: -2, 0
-	pip-seal: pip-seal
+	pip-seal:
+		Filename: pip-seal
 		Offset: -2, 0
 	tag-fake:
+		Filename: pips
 		Start: 18
 		Offset: 0, 2
 	tag-primary:
+		Filename: pips
 		Start: 2
 		Offset: 0, 2
-	pip-empty: pips2
-	pip-green: pips2
+	pip-empty:
+		Filename: pips2
+	pip-green:
+		Filename: pips2
 		Start: 1
-	pip-yellow: pips2
+	pip-yellow:
+		Filename: pips2
 		Start: 2
-	pip-gray: pips2
+	pip-gray:
+		Filename: pips2
 		Start: 3
-	pip-red: pips2
+	pip-red:
+		Filename: pips2
 		Start: 4
-	pip-blue: pips2
+	pip-blue:
+		Filename: pips2
 		Start: 5
-	pip-white: pips2
+	pip-white:
+		Filename: pips2
 		Start: 6
-	pip-orange: pips2
+	pip-orange:
+		Filename: pips2
 		Start: 7
-	pip-cover: pip-cover
+	pip-cover:
+		Filename: pip-cover
 		Start: 0
-	pip-dugin: pip-cover
+	pip-dugin:
+		Filename: pip-cover
 		Start: 1
-	pip-disguised: pip-disguised
+	pip-disguised:
+		Filename: pip-disguised
 		Length: *
 		Tick: 300
 		Offset: 0, -6
 	tag-hold:
+		Filename: pips
 		Start: 4
 		Offset: 0, 2
-	tag-reload: tag-reload
+	tag-reload:
+		Filename: tag-reload
 		Offset: 0, 2
-	tag-reload-small: tag-reload-small
+	tag-reload-small:
+		Filename: tag-reload-small
 		Offset: 0, 2
-	tag-deployed: tag-deployed
+	tag-deployed:
+		Filename: tag-deployed
 		Offset: 0, 2
-	pip-hazmat: pip-hazmat
+	pip-hazmat:
+		Filename: pip-hazmat
 		Length: *
-	tag-ag: tag-mig
+	tag-ag:
+		Filename: tag-mig
 		Offset: 0, 2
-	tag-aa: tag-mig
+	tag-aa:
+		Filename: tag-mig
 		Start: 1
 		Offset: 0, 2
-	pip-visibility-1: pip-visibility
+	pip-visibility-1:
+		Filename: pip-visibility
 		Start: 0
 		Length: 1
-	pip-visibility-2: pip-visibility
+	pip-visibility-2:
+		Filename: pip-visibility
 		Start: 1
 		Length: 1
-	pip-visibility-3: pip-visibility
+	pip-visibility-3:
+		Filename: pip-visibility
 		Start: 2
 		Length: 1
-	pip-visibility-4: pip-visibility
+	pip-visibility-4:
+		Filename: pip-visibility
 		Start: 3
 		Length: 1
-	pip-visibility-5: pip-visibility
+	pip-visibility-5:
+		Filename: pip-visibility
 		Start: 4
 		Length: 1
-	pip-visibility-6: pip-visibility
+	pip-visibility-6:
+		Filename: pip-visibility
 		Start: 5
 		Length: 1
-	pip-visibility-7: pip-visibility
+	pip-visibility-7:
+		Filename: pip-visibility
 		Start: 6
 		Length: 1
-	pip-visibility-8: pip-visibility
+	pip-visibility-8:
+		Filename: pip-visibility
 		Start: 7
 		Length: 1
-	pip-visibility-9: pip-visibility
+	pip-visibility-9:
+		Filename: pip-visibility
 		Start: 8
 		Length: 1
-	pip-visibility-10: pip-visibility
+	pip-visibility-10:
+		Filename: pip-visibility
 		Start: 9
 		Length: 1
-	pip-visibility-11: pip-visibility
+	pip-visibility-11:
+		Filename: pip-visibility
 		Start: 10
 		Length: 1
-	pip-visibility-12: pip-visibility
+	pip-visibility-12:
+		Filename: pip-visibility
 		Start: 11
 		Length: 1
-	pip-Suppression-1: pip-Suppression
+	pip-Suppression-1:
+		Filename: pip-Suppression
 		Start: 0
 		Length: 1
-	pip-Suppression-2: pip-Suppression
+	pip-Suppression-2:
+		Filename: pip-Suppression
 		Start: 1
 		Length: 1
-	pip-Suppression-3: pip-Suppression
+	pip-Suppression-3:
+		Filename: pip-Suppression
 		Start: 2
 		Length: 1
-	pip-Suppression-4: pip-Suppression
+	pip-Suppression-4:
+		Filename: pip-Suppression
 		Start: 3
 		Length: 1
-	pip-Suppression-5: pip-Suppression
+	pip-Suppression-5:
+		Filename: pip-Suppression
 		Start: 4
 		Length: 1
-	pip-Suppression-6: pip-Suppression
+	pip-Suppression-6:
+		Filename: pip-Suppression
 		Start: 5
 		Length: 1
-	pip-Suppression-7: pip-Suppression
+	pip-Suppression-7:
+		Filename: pip-Suppression
 		Start: 6
 		Length: 1
-	pip-Suppression-8: pip-Suppression
+	pip-Suppression-8:
+		Filename: pip-Suppression
 		Start: 7
 		Length: 1
-	pip-Suppression-9: pip-Suppression
+	pip-Suppression-9:
+		Filename: pip-Suppression
 		Start: 8
 		Length: 1
-	pip-Suppression-10: pip-Suppression
+	pip-Suppression-10:
+		Filename: pip-Suppression
 		Start: 9
 		Length: 1
 
 pip-ammored:
 	oneshot:
+		Filename: pip-ammored
 		Start: 0
 		Length: 1
 	threeshot:
+		Filename: pip-ammored
 		Start: 1
 		Length: 1
 
@@ -347,55 +497,80 @@ crate-effects:
 	Defaults:
 		ZOffset: 2047
 		Length: *
-	speed: speed
-	dollar: dollar
-	reveal-map: earth
-	hide-map: empulse
-	fpower: fpower
-	gps: gpsbox
-	invuln: invulbox
-	heal: invun
-	nuke: missile2
-	parabombs: parabox
-	sonar: sonarbox
-	stealth: stealth2
-	timequake: tquake
-	armor: armor
-	chrono: chronbox
-	airstrike: deviator
-	levelup: levelup
+	speed:
+		Filename: speed
+	dollar:
+		Filename: dollar
+	reveal-map:
+		Filename: earth
+	hide-map:
+		Filename: empulse
+	fpower:
+		Filename: fpower
+	gps:
+		Filename: gpsbox
+	invuln:
+		Filename: invulbox
+	heal:
+		Filename: invun
+	nuke:
+		Filename: missile2
+	parabombs:
+		Filename: parabox
+	sonar:
+		Filename: sonarbox
+	stealth:
+		Filename: stealth2
+	timequake:
+		Filename: tquake
+	armor:
+		Filename: armor
+	chrono:
+		Filename: chronbox
+	airstrike:
+		Filename: deviator
+	levelup:
+		Filename: levelup
 		Tick: 200
 
 quee:
 	idle:
+		Filename: quee
 		Length: 10
 	damaged-idle:
+		Filename: quee
 		Start: 10
 		Length: 10
 
 lar1:
 	idle:
+		Filename: lar1
 
 lar2:
 	idle:
+		Filename: lar2
 
 dummy:
-	idle: blank32
+	idle:
+		Filename: blank32
 		Facings: 32
 
 poweroff:
 	charging:
+		Filename: poweroff
 		Length: *
 		Tick: 160
 		ZOffset: 2047
 
 radarcratetd:
 	idle:
+		Filename: radarcratetd
 		Length: *
 		Tick: 80
 
 moveflsh:
 	idle:
+		Filename: moveflsh
 		Length: *
 		Tick: 80
 		ZOffset: 2047
@@ -405,135 +580,188 @@ moveflsh:
 
 select:
 	repair:
+		Filename: select
 		Start: 2
-	repair-small: select
+	repair-small:
+		Filename: select
 		Start: 3
 
 poweroff:
 	offline:
+		Filename: poweroff
 		Length: *
 		Tick: 160
 		ZOffset: 2047
 
 allyrepair:
 	repair:
+		Filename: allyrepair
 		Length: *
 		Tick: 160
 		ZOffset: 2047
 
 tabs:
 	left-normal:
+		Filename: tabs
 	left-pressed:
+		Filename: tabs
 		Start: 1
 
 dd-crnr:
 	idle:
+		Filename: dd-crnr
 		Length: *
 	top-left:
+		Filename: dd-crnr
 	top-right:
 		Start: 1
+		Filename: dd-crnr
 	bottom-left:
 		Start: 2
+		Filename: dd-crnr
 	bottom-right:
+		Filename: dd-crnr
 		Start: 3
 
 rank:
 	Defaults:
 		Offset: 0, 3
 	rank-veteran-1:
+		Filename: rank
 	rank-veteran-2:
+		Filename: rank
 		Start: 1
 	rank-veteran-3:
+		Filename: rank
 		Start: 2
 	rank-veteran-4:
+		Filename: rank
 		Start: 3
 		Offset: 1, 3
 
 iconchevrons:
 	veteran:
+		Filename: iconchevrons
 		Offset: 2, 2
 
 mpspawn:
 	idle:
+		Filename: mpspawn
 		Length: *
 
 waypoint:
 	idle:
+		Filename: waypoint
 		Length: *
 
 camera:
 	idle:
+		Filename: camera
 		Length: *
 
 gpsdot:
 	Infantry:
+		Filename: gpsdot
 	Vehicle:
+		Filename: gpsdot
 		Start: 1
 	Naval:
+		Filename: gpsdot
 		Start: 2
 	Helicopter:
+		Filename: gpsdot
 		Start: 3
 	Plane:
+		Filename: gpsdot
 		Start: 4
 	Harvester:
+		Filename: gpsdot
 		Start: 5
 	Structure:
+		Filename: gpsdot
 		Start: 6
 	Oil:
+		Filename: gpsdot
 		Start: 7
 	Hospital:
+		Filename: gpsdot
 		Start: 8
 	Biohazard:
+		Filename: gpsdot
 		Start: 9
 	Communications:
+		Filename: gpsdot
 		Start: 10
 	Forward:
+		Filename: gpsdot
 		Start: 11
 	Mech:
+		Filename: gpsdot
 		Start: 12
 	Ant:
+		Filename: gpsdot
 		Start: 13
 	Nuke:
+		Filename: gpsdot
 		Start: 14
 	Repulsor:
+		Filename: gpsdot
 		Start: 15
 	Commando:
+		Filename: gpsdot
 		Start: 16
 	Hovercraft:
+		Filename: gpsdot
 		Start: 18
 	MCV:
+		Filename: gpsdot
 		Start: 19
 	Heavy:
+		Filename: gpsdot
 		Start: 20
 	Healer:
+		Filename: gpsdot
 		Start: 21
 	Repair:
+		Filename: gpsdot
 		Start: 22
 	EMP:
+		Filename: gpsdot
 		Start: 23
 	Super:
+		Filename: gpsdot
 		Start: 24
 	Spacecraft:
+		Filename: gpsdot
 		Start: 25
 	Submarine:
+		Filename: gpsdot
 		Start: 26
 	Ship:
+		Filename: gpsdot
 		Start: 27
 	SmallMech:
+		Filename: gpsdot
 		Start: 28
 	Tech:
+		Filename: gpsdot
 		Start: 29
 	ConYard:
+		Filename: gpsdot
 		Start: 30
 	Power:
+		Filename: gpsdot
 		Start: 31
 	Sniper:
+		Filename: gpsdot
 		Start: 32
 	BigPlane:
+		Filename: gpsdot
 		Start: 32
 
 shroud:
-	shroud: shadow
+	shroud:
+		Filename: shadow
 		Length: *
 
 scorches:
@@ -542,12 +770,18 @@ scorches:
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	sc1: sc1
-	sc2: sc2
-	sc3: sc3
-	sc4: sc4
-	sc5: sc5
-	sc6: sc6
+	sc1:
+		Filename: sc1
+	sc2:
+		Filename: sc2
+	sc3:
+		Filename: sc3
+	sc4:
+		Filename: sc4
+	sc5:
+		Filename: sc5
+	sc6:
+		Filename: sc6
 
 craters:
 	Defaults:
@@ -555,66 +789,84 @@ craters:
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
-	cr1: cr1
-	cr2: cr2
-	cr3: cr3
-	cr4: cr4
-	cr5: cr5
-	cr6: cr6
+	cr1:
+		Filename: cr1
+	cr2:
+		Filename: cr2
+	cr3:
+		Filename: cr3
+	cr4:
+		Filename: cr4
+	cr5:
+		Filename: cr5
+	cr6:
+		Filename: cr6
 
 ctflag:
 	idle:
+		Filename: ctflag
 		Length: 9
 		Tick: 50
 		Offset: 0,-12
-	bib: mbGAP
+	bib:
+		Filename: mbGAP
 		Length: *
 		UseTilesetExtension: true
 
 paradirection:
-	arrow-t: mouse
+	arrow-t:
+		Filename: mouse
 		Start: 1
 		Y: -7
 		Offset: 0, -19, 0
-	arrow-tr: mouse
+	arrow-tr:
+		Filename: mouse
 		Start: 2
 		X: 6
 		Y: -5
 		Offset: 15, -15, 0
-	arrow-r: mouse
+	arrow-r:
+		Filename: mouse
 		Start: 3
 		X: 7
 		Offset: 19, 0, 0
-	arrow-br: mouse
+	arrow-br:
+		Filename: mouse
 		Start: 4
 		X: 6
 		Y: 5
 		Offset: 15, 15, 0
-	arrow-b: mouse
+	arrow-b:
+		Filename: mouse
 		Start: 5
 		Y: 7
 		Offset: 0, 19, 0
-	arrow-bl: mouse
+	arrow-bl:
+		Filename: mouse
 		Start: 6
 		X: -6
 		Y: 5
 		Offset: -15, 15, 0
-	arrow-l: mouse
+	arrow-l:
+		Filename: mouse
 		Start: 7
 		X: -8
 		Offset: -19, 0, 0
-	arrow-tl: mouse
+	arrow-tl:
+		Filename: mouse
 		Start: 8
 		X: -6
 		y: 5
 		Offset: -15, -15, 0
 
 dummy.visual:
-	idle: blank32
+	idle:
+		Filename: blank32
 		Facings: 32
 
 smokey2:
-	idle: smokey2
+	idle:
+		Filename: smokey2
 		tick: 200
 		Length: *
 		ZOffset: 1023
@@ -622,7 +874,8 @@ smokey2:
 plaserfire:
 	Defaults:
 		IgnoreWorldTint: true
-	idle: frag1
+	idle:
+		Filename: frag1
 		Offset: -2,0
 		Length: *
 		ZOffset: 511

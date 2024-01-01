@@ -2,13 +2,13 @@ acom:
 	idle:
 		Filename: acom.shp
 	damaged-idle:
-	  Filename: acom.shp
+		Filename: acom.shp
 		Start: 1
-	make: 
-	  Filename: acommake
+	make:
+		Filename: acommake
 		Length: *
 		Tick: 80
-	bib: 
+	bib:
 		Filename: bib3.shp
 		Length: *
 		UseTilesetExtension: true
@@ -16,10 +16,10 @@ acom:
 			INTERIOR: TEMPERAT
 
 acom.husk:
-	idle: 
+	idle:
 		Filename: acom.shp
 		Start: 1
-	bib: 
+	bib:
 		Filename: bib3.shp
 		Length: *
 		UseTilesetExtension: true
@@ -41,56 +41,57 @@ hosp:
 		Filename: hosp.shp
 		Start: 8
 		Tick: 800
-	make: 
+	make:
 		Filename: hospmake.shp
-	  Length: *
+		Length: *
 		Tick: 80
-	bib: 
+	bib:
 		Filename: mbHOSP.shp
 		Length: *
 		Offset: 0,1
 		UseTilesetExtension: true
-	icon: 
+	icon:
 		Filename: hospicon.shp
-	  
+
 hosp.husk:
-	idle: hosp.shp
+	idle:
+		Filename: hosp.shp
 		Start: 8
-	bib: 
+	bib:
 		Filename: bib3.shp
-	  UseTilesetExtension: true
+		UseTilesetExtension: true
 		Length: *
 
 bio:
 	Inherits: emp-overlay
 	Defaults:
 		Offset: 0,-2
-	idle: 
+	idle:
 		Filename: bio.shp
-	damaged-idle: 
+	damaged-idle:
 		Filename: bio.shp
-  	Start: 1
+		Start: 1
 	dead:
 		Filename: bio.shp
 		Start: 2
 		Tick: 800
-	make: 
+	make:
 		Filename: biomake.shp
-	  Length: *
+		Length: *
 		Tick: 80
-	idle-smoke: 
+	idle-smoke:
 		Filename: bio-smoke.shp
-	  Length: 40
+		Length: 40
 		Tick: 160
 		Offset: 0,-22
-	damaged-idle-smoke: 
+	damaged-idle-smoke:
 		Filename: bio-smoke-d.shp
 		Length: 40
 		Tick: 160
 		Offset: 0,-22
-	none: 
+	none:
 		Filename: blank32.shp
-	  Length: 1
+		Length: 1
 
 bio.husk:
 	idle:
@@ -105,16 +106,16 @@ miss:
 		Filename: miss.shp
 	damaged-idle:
 		Filename: miss.shp
-    Start: 1
-	dead: 
+		Start: 1
+	dead:
 		Filename: miss.shp
 		Start: 2
 		Tick: 800
-	make: 
+	make:
 		Filename: missmake.shp
 		Length: *
 		Tick: 80
-	bib: 
+	bib:
 		Filename: bib2.shp
 		Length: *
 		UseTilesetExtension: true
@@ -122,7 +123,7 @@ miss:
 			INTERIOR: TEMPERAT
 
 miss.husk:
-	idle: 
+	idle:
 		Filename: miss.shp
 		Start: 2
 
@@ -136,7 +137,8 @@ oilb:
 		Start: 1
 		Length: *
 	make:
-	bib: 
+		Filename: oilb.shp
+	bib:
 		Filename: bib3.shp
 		Length: *
 		Offset: 0,0
@@ -147,7 +149,7 @@ oilb:
 oilb.husk:
 	Defaults:
 		Offset: 0,-6
-	idle: 
+	idle:
 		Filename: oilb.shp
 		Start: 1
 		Length: *
