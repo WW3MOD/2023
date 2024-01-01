@@ -68,13 +68,6 @@ HSAM.Husk:
 	Tooltip:
 		Name: Camo SAM Site (Destroyed)
 
-GAP.Husk:
-	Inherits: ^BuildingHusk
-	Interactable:
-		Bounds: 1024,1024
-	Tooltip:
-		Name: Gap Generator (Destroyed)
-
 MSLO.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:

@@ -1,5 +1,5 @@
 ^VehicleOverlays:
-	emp-overlay: emp_fx01
+	emp-overlay:
 		Filename: emp_fx01.shp
 		Length: *
 		BlendMode: Additive
@@ -13,10 +13,8 @@ mcv:
 		Filename: mcv-idle.shp
 		Facings: 32
 		UseClassicFacings: True
-	icon: mcvicon
+	icon:
 		Filename: mcvicon.shp
-	fake-icon: mcvficon
-		Filename: mcvficon.shp
 
 mcvhusk:
 	idle:
@@ -36,15 +34,15 @@ harv:
 		Start: 32
 		Length: 8
 		Facings: 8
-	dock: harv
+	dock:
 		Filename: harv.shp
 		Start: 96
 		Length: 8
-	dock-loop: harv
+	dock-loop:
 		Filename: harv.shp
 		Start: 104
 		Length: 7
-	icon: harvicon
+	icon:
 		Filename: harvicon.shp
 
 harvempty:
@@ -75,8 +73,6 @@ truk:
 		UseClassicFacings: True
 	icon:
 		Filename: trukicon.shp
-	fake-icon:
-		Filename: truficon.shp
 
 mnly:
 	Inherits: ^VehicleOverlays
@@ -89,11 +85,11 @@ mnly:
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: minigun
+	muzzle:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: mnlyicon
+	icon:
 		Filename: mnlyicon.shp
 
 tran1husk:
@@ -146,7 +142,7 @@ bmp:
 	muzzle-flak:
 		Filename: gunfire2.shp
 		Length: 2
-	icon: bmpicon
+	icon:
 		Filename: bmpicon.shp
 
 btr:
@@ -187,7 +183,7 @@ abrams:
 	muzzle:
 		Filename: gunfire2.shp
 		Length: 5
-	muzzle-mg: minigun
+	muzzle-mg:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
@@ -216,7 +212,7 @@ humvee:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: humveeicon
+	icon:
 		Filename: humveeicon.shp
 
 m113:
@@ -315,7 +311,7 @@ m270:
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	icon: m270icon
+	icon:
 		Filename: m270icon.shp
 
 t72:
@@ -333,7 +329,7 @@ t72:
 	muzzle:
 		Filename: gunfire2.shp
 		Length: 5
-	icon: t72icon
+	icon:
 		Filename: t72icon.shp
 
 t90:
@@ -401,9 +397,7 @@ giatsint:
 	muzzle:
 		Filename: gunfire2.shp
 		Length: 5
-	icon: giatsinticon
-		Filename: giatsinticon.shp
-	fake-icon: giatsinticon
+	icon:
 		Filename: giatsinticon.shp
 
 tos:
@@ -425,7 +419,7 @@ tos:
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
-	icon: tosicon
+	icon:
 		Filename: tosicon.shp
 
 iskander:
@@ -537,7 +531,7 @@ ttnk:
 		Filename: ttnk.shp
 		Start: 32
 		Length: 1
-	icon: ttnkicon
+	icon:
 		Filename: ttnkicon.shp
 
 prsm:
@@ -666,7 +660,7 @@ mrj:
 		Filename: mrj.shp
 		Start: 32
 		Length: 32
-	icon: mrjicon
+	icon:
 		Filename: mrjicon.shp
 
 stnk:
@@ -679,7 +673,7 @@ stnk:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: stnkicon
+	icon:
 		Filename: stnkicon.shp
 
 ctnk:

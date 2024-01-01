@@ -1,6 +1,7 @@
 
 ^CommonDeaths:
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
@@ -15,7 +16,8 @@
 	# 	Length: *
 	# 	Tick: 80
 	# 	BlendMode: Additive
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -27,12 +29,15 @@
 			WINTER: TEMPERAT
 			DUNE: TEMPERAT
 ^Rot:
-	rot1: rot1
+	rot1:
+		Filename: rot1.shp
 		Combine:
 			minigun:
+				Filename: minigun.shp
 				Start: 1
 				Length: 1
 			corpse1:
+				Filename: corpse1.shp
 				Length: 6
 				UseTilesetExtension: true
 				TilesetOverrides:
@@ -41,12 +46,15 @@
 		Length: 7
 		Tick: 2000
 		ZOffset: -511
-	rot2: rot2
+	rot2:
+		Filename: rot2.shp
 		Combine:
 			minigun:
+				Filename: minigun.shp
 				Start: 1
 				Length: 1
 			corpse2:
+				Filename: corpse2.shp
 				Length: 6
 				UseTilesetExtension: true
 				TilesetOverrides:
@@ -55,12 +63,15 @@
 		Length: 7
 		Tick: 2000
 		ZOffset: -511
-	rot3: rot3
+	rot3:
+		Filename: rot3.shp
 		Combine:
 			minigun:
+				Filename: minigun.shp
 				Start: 1
 				Length: 1
 			corpse3:
+				Filename: corpse3.shp
 				Length: 6
 				UseTilesetExtension: true
 				TilesetOverrides:
@@ -69,12 +80,15 @@
 		Length: 7
 		Tick: 2000
 		ZOffset: -511
-	rot4: rot4
+	rot4:
+		Filename: rot4.shp
 		Combine:
 			minigun:
+				Filename: minigun.shp
 				Start: 1
 				Length: 1
 			corpse1:
+				Filename: corpse1.shp
 				Length: 6
 				UseTilesetExtension: true
 				TilesetOverrides:
@@ -84,7 +98,8 @@
 		Tick: 3000
 		Offset: -10, 0
 		ZOffset: -511
-	rot5: e1
+	rot5:
+		Filename: e1.shp
 		Start: 291
 		Length: 5
 		Tick: 3000
@@ -92,157 +107,201 @@
 		# ZOffset: -511
 # Unused. Could be nice to add custom panic sequence to soldiers, but it's not really necessary when burn image is overlayed
 ^Panic:
-	panic-stand: tecn
+	panic-stand:
+		Filename: tecn.shp
 		Start: 8
 		Length: 6
 		Facings: 8
-	panic-run: tecn
+	panic-run:
+		Filename: tecn.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 
 class:
-	empty_class: empty_class
+	empty_class:
+		Filename: empty_class.shp
 		Start: 0
 		Length: 1
-	unknown_class: unknown_class
+	unknown_class:
+		Filename: unknown_class.shp
 		Start: 0
 		Length: 1
-	dog_class: dog_class
+	dog_class:
+		Filename: dog_class.shp
 		Start: 0
 		Length: 1
-	e1_class: e1_class
+	e1_class:
+		Filename: e1_class.shp
 		Start: 0
 		Length: 1
-	e2_class: e2_class
+	e2_class:
+		Filename: e2_class.shp
 		Start: 0
 		Length: 1
-	e3_class: e3_class
+	e3_class:
+		Filename: e3_class.shp
 		Start: 0
 		Length: 1
-	e4_class: e4_class
+	e4_class:
+		Filename: e4_class.shp
 		Start: 0
 		Length: 1
-	e6_class: e6_class
+	e6_class:
+		Filename: e6_class.shp
 		Start: 0
 		Length: 1
-	tecn_class: tecn_class
+	tecn_class:
+		Filename: tecn_class.shp
 		Start: 0
 		Length: 1
-	ar_class: ar_class
+	ar_class:
+		Filename: ar_class.shp
 		Start: 0
 		Length: 1
-	at_class: at_class
+	at_class:
+		Filename: at_class.shp
 		Start: 0
 		Length: 1
-	aa_class: aa_class
+	aa_class:
+		Filename: aa_class.shp
 		Start: 0
 		Length: 1
-	mt_class: mt_class
+	mt_class:
+		Filename: mt_class.shp
 		Start: 0
 		Length: 1
-	medi_class: medi_class
+	medi_class:
+		Filename: medi_class.shp
 		Start: 0
 		Length: 1
-	tl_class: tl_class
+	tl_class:
+		Filename: tl_class.shp
 		Start: 0
 		Length: 1
-	sn_class: sn_class
+	sn_class:
+		Filename: sn_class.shp
 		Start: 0
 		Length: 1
-	sf_class: sf_class
+	sf_class:
+		Filename: sf_class.shp
 		Start: 0
 		Length: 1
-	spy_class: spy_class
+	spy_class:
+		Filename: spy_class.shp
 		Start: 0
 		Length: 1
-	spy_disguised: spy_disguised
+	spy_disguised:
+		Filename: spy_disguised.shp
 		Start: 0
 		Length: 10
 		Tick: 80
-	pilot_class: pilot_class
+	pilot_class:
+		Filename: pilot_class.shp
 		Start: 0
 		Length: 1
-	dr_class: dr_class
+	dr_class:
+		Filename: dr_class.shp
 		Start: 0
 		Length: 1
 
 ^e1:
 	Inherits@PostDeath: ^Rot
-	stand: e1
+	stand:
+		Filename: e1.shp
 		Facings: 8
-	stand2: e1
+	stand2:
+		Filename: e1.shp
 		Start: 8
 		Facings: 8
-	run: e1
+	run:
+		Filename: e1.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: e1
+	shoot:
+		Filename: e1.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	prone-stand: e1
+	prone-stand:
+		Filename: e1.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: e1
+	prone-stand2:
+		Filename: e1.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: e1
+	prone-run:
+		Filename: e1.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 100
-	liedown: e1
+	liedown:
+		Filename: e1.shp
 		Start: 128
 		Length: 2
 		Facings: 8
-	standup: e1
+	standup:
+		Filename: e1.shp
 		Start: 176
 		Length: 2
 		Facings: 8
-	prone-shoot: e1
+	prone-shoot:
+		Filename: e1.shp
 		Start: 192
 		Length: 8
 		Facings: 8
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
-	idle1: e1
+	idle1:
+		Filename: e1.shp
 		Start: 256
 		Length: 16
 		Tick: 120
-	idle2: e1
+	idle2:
+		Filename: e1.shp
 		Start: 272
 		Length: 16
 		Tick: 120
-	die1: e1
+	die1:
+		Filename: e1.shp
 		Start: 288
 		Length: 8
-	die2: e1
+	die2:
+		Filename: e1.shp
 		Start: 296
 		Length: 8
-	die3: e1
+	die3:
+		Filename: e1.shp
 		Start: 304
 		Length: 8
-	die4: e1
+	die4:
+		Filename: e1.shp
 		Start: 312
 		Length: 12
-	die5: e1
+	die5:
+		Filename: e1.shp
 		Start: 324
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -250,95 +309,120 @@ class:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 e1:
 	Inherits: ^e1
-	icon: e1americaicon
+	icon:
+		Filename: e1americaicon.shp
 e1.america:
 	Inherits: ^e1
-	icon: e1americaicon
+	icon:
+		Filename: e1americaicon.shp
 e1.russia:
 	Inherits: ^e1
-	icon: e1russiaicon
+	icon:
+		Filename: e1russiaicon.shp
 
 ^e2:
 	Inherits@PostDeath: ^Rot
-	stand: e2
+	stand:
+		Filename: e2.shp
 		Facings: 8
-	stand2: e2
+	stand2:
+		Filename: e2.shp
 		Start: 8
 		Facings: 8
-	run: e2
+	run:
+		Filename: e2.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: e2
+	shoot:
+		Filename: e2.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	prone-stand: e2
+	prone-stand:
+		Filename: e2.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: e2
+	prone-stand2:
+		Filename: e2.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: e2
+	prone-run:
+		Filename: e2.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 100
-	liedown: e2
+	liedown:
+		Filename: e2.shp
 		Start: 128
 		Length: 2
 		Facings: 8
-	standup: e2
+	standup:
+		Filename: e2.shp
 		Start: 176
 		Length: 2
 		Facings: 8
-	prone-shoot: e2
+	prone-shoot:
+		Filename: e2.shp
 		Start: 192
 		Length: 8
 		Facings: 8
-	parachute: e2
+	parachute:
+		Filename: e2.shp
 		Start: 377
-	idle1: e2
+	idle1:
+		Filename: e2.shp
 		Start: 256
 		Length: 16
 		Tick: 120
-	idle2: e2
+	idle2:
+		Filename: e2.shp
 		Start: 272
 		Length: 16
 		Tick: 120
-	die1: e2
+	die1:
+		Filename: e2.shp
 		Start: 288
 		Length: 8
-	die2: e2
+	die2:
+		Filename: e2.shp
 		Start: 296
 		Length: 8
-	die3: e2
+	die3:
+		Filename: e2.shp
 		Start: 304
 		Length: 8
-	die4: e2
+	die4:
+		Filename: e2.shp
 		Start: 312
 		Length: 12
-	die5: e2
+	die5:
+		Filename: e2.shp
 		Start: 324
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -346,103 +430,130 @@ e1.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 e2:
 	Inherits: ^e2
-	icon: e2americaicon
+	icon:
+		Filename: e2americaicon.shp
 e2.america:
 	Inherits: ^e2
-	icon: e2americaicon
+	icon:
+		Filename: e2americaicon.shp
 e2.russia:
 	Inherits: ^e2
-	icon: e2russiaicon
+	icon:
+		Filename: e2russiaicon.shp
 
 ^e3:
 	Inherits@PostDeath: ^Rot
-	stand: e3
+	stand:
+		Filename: e3.shp
 		Facings: 8
-	stand2: e3
+	stand2:
+		Filename: e3.shp
 		Start: 8
 		Facings: 8
-	run: e3
+	run:
+		Filename: e3.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: e3
+	shoot:
+		Filename: e3.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	shoot-rpg: e3
+	shoot-rpg:
+		Filename: e3.shp
 		Start: 437
 		Length: 16
 		Facings: 8
-	prone-stand: e3
+	prone-stand:
+		Filename: e3.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: e3
+	prone-stand2:
+		Filename: e3.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: e3
+	prone-run:
+		Filename: e3.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 100
-	liedown: e3
+	liedown:
+		Filename: e3.shp
 		Start: 128
 		Length: 2
 		Facings: 8
-	standup: e3
+	standup:
+		Filename: e3.shp
 		Start: 176
 		Length: 2
 		Facings: 8
-	prone-shoot: e3
+	prone-shoot:
+		Filename: e3.shp
 		Start: 192
 		Length: 8
 		Facings: 8
-	parachute: e3
+	parachute:
+		Filename: e3.shp
 		Start: 377
-	idle: e3
+	idle:
+		Filename: e3.shp
 		Start: 256
 		Length: 16
 		Tick: 120
-	idle1: e3
+	idle1:
+		Filename: e3.shp
 		Start: 256
 		Length: 16
 		Tick: 120
-	idle2: e3
+	idle2:
+		Filename: e3.shp
 		Start: 272
 		Length: 16
 		Tick: 120
-	die1: e3
+	die1:
+		Filename: e3.shp
 		Start: 288
 		Length: 8
-	die2: e3
+	die2:
+		Filename: e3.shp
 		Start: 296
 		Length: 8
-	die3: e3
+	die3:
+		Filename: e3.shp
 		Start: 304
 		Length: 8
-	die4: e3
+	die4:
+		Filename: e3.shp
 		Start: 312
 		Length: 12
-	die5: e3
+	die5:
+		Filename: e3.shp
 		Start: 324
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -450,98 +561,126 @@ e2.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 e3:
 	Inherits: ^e3
-	icon: e3americaicon
+	icon:
+		Filename: e3americaicon.shp
 e3.america:
 	Inherits: ^e3
-	icon: e3americaicon
+	icon:
+		Filename: e3americaicon.shp
 e3.russia:
 	Inherits: ^e3
-	icon: e3russiaicon
+	icon:
+		Filename: e3russiaicon.shp
 
 ^e4:
 	Inherits@PostDeath: ^Rot
-	stand: e4
+	stand:
+		Filename: e4.shp
 		Facings: 8
-	stand2: e4
+	stand2:
+		Filename: e4.shp
 		Start: 8
 		Facings: 8
-	run: e4
+	run:
+		Filename: e4.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 120
-	shoot: e4
+	shoot:
+		Filename: e4.shp
 		Start: 64
 		Length: 16
 		Facings: 8
-	muzzle: e4
+	muzzle:
+		Filename: e4.shp
 		Combine:
 			flame-n:
+				Filename: flame-n.shp
 				Length: *
 				Offset: 1,6
 			flame-nw:
+				Filename: flame-nw.shp
 				Length: *
 				Offset: 8,7
 			flame-w:
+				Filename: flame-w.shp
 				Length: *
 				Offset: 8,2
 			flame-sw:
+				Filename: flame-sw.shp
 				Length: *
 				Offset: 7,-2
 			flame-s:
+				Filename: flame-s.shp
 				Length: *
 				Offset: 1,-2
 			flame-se:
+				Filename: flame-se.shp
 				Length: *
 				Offset: -5,-2
 			flame-e:
+				Filename: flame-e.shp
 				Length: *
 				Offset: -7,2
 			flame-ne:
+				Filename: flame-ne.shp
 				Length: *
 				Offset: -7,8
 		Facings: 8
 		Length: 13
-	parachute: e4
+	parachute:
+		Filename: e4.shp
 		Start: 528
-	idle1: e4
+	idle1:
+		Filename: e4.shp
 		Start: 384
 		Length: 14
 		Tick: 120
-	idle2: e4
+	idle2:
+		Filename: e4.shp
 		Start: 399
 		Length: 16
 		Tick: 120
-	die1: e4
+	die1:
+		Filename: e4.shp
 		Start: 416
 		Length: 8
-	die2: e4
+	die2:
+		Filename: e4.shp
 		Start: 424
 		Length: 8
-	die3: e4
+	die3:
+		Filename: e4.shp
 		Start: 432
 		Length: 8
-	die4: e4
+	die4:
+		Filename: e4.shp
 		Start: 440
 		Length: 12
-	die5: e4
+	die5:
+		Filename: e4.shp
 		Start: 452
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -549,81 +688,102 @@ e3.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: e4
+	prone-stand:
+		Filename: e4.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
-	prone-stand2: e4
+	prone-stand2:
+		Filename: e4.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
-	prone-run: e4
+	prone-run:
+		Filename: e4.shp
 		Start: 208
 		Length: 4
 		Facings: 8
 		Tick: 120
-	prone-shoot: e4
+	prone-shoot:
+		Filename: e4.shp
 		Start: 256
 		Length: 16
 		Facings: 8
 e4:
 	Inherits: ^e4
-	icon: e4americaicon
+	icon:
+		Filename: e4americaicon.shp
 e4.america:
 	Inherits: ^e4
-	icon: e4americaicon
+	icon:
+		Filename: e4americaicon.shp
 e4.russia:
 	Inherits: ^e4
-	icon: e4russiaicon
+	icon:
+		Filename: e4russiaicon.shp
 
 ^e6:
 	Inherits@PostDeath: ^Rot
-	stand: e6
+	stand:
+		Filename: e6.shp
 		Start: 0
 		Facings: 8
-	stand2: e6
+	stand2:
+		Filename: e6.shp
 		Start: 0
 		Facings: 8
-	run: e6
+	run:
+		Filename: e6.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	parachute: e6
+	parachute:
+		Filename: e6.shp
 		Start: 210
-	idle1: e6
+	idle1:
+		Filename: e6.shp
 		Start: 121
 		Length: 8
 		Tick: 120
-	idle2: e6
+	idle2:
+		Filename: e6.shp
 		Start: 130
 		Length: 14
 		Tick: 120
-	die1: e6
+	die1:
+		Filename: e6.shp
 		Start: 146
 		Length: 8
-	die2: e6
+	die2:
+		Filename: e6.shp
 		Start: 154
 		Length: 8
-	die3: e6
+	die3:
+		Filename: e6.shp
 		Start: 162
 		Length: 8
-	die4: e6
+	die4:
+		Filename: e6.shp
 		Start: 170
 		Length: 12
-	die5: e6
+	die5:
+		Filename: e6.shp
 		Start: 182
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -631,77 +791,97 @@ e4.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: e6
+	prone-stand:
+		Filename: e6.shp
 		Start: 82
 		Stride: 4
 		Facings: 8
-	prone-stand2: e6
+	prone-stand2:
+		Filename: e6.shp
 		Start: 82
 		Stride: 4
 		Facings: 8
-	prone-run: e6
+	prone-run:
+		Filename: e6.shp
 		Start: 82
 		Length: 4
 		Facings: 8
 		Tick: 100
 e6:
 	Inherits: ^e6
-	icon: e6americaicon
+	icon:
+		Filename: e6americaicon.shp
 e6.america:
 	Inherits: ^e6
-	icon: e6americaicon
+	icon:
+		Filename: e6americaicon.shp
 e6.russia:
 	Inherits: ^e6
-	icon: e6russiaicon
+	icon:
+		Filename: e6russiaicon.shp
 
 ^medi:
 	Inherits@PostDeath: ^Rot
-	stand: medi
+	stand:
+		Filename: medi.shp
 		Facings: 8
-	run: medi
+	run:
+		Filename: medi.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 100
-	heal: medi
+	heal:
+		Filename: medi.shp
 		Start: 56
 		Length: 58
 		Tick: 120
-	standup: medi
+	standup:
+		Filename: medi.shp
 		Start: 114
 		Length: 2
 		Facings: 8
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
-	idle: medi
+	idle:
+		Filename: medi.shp
 		Start: 178
 		Length: 14
 		Tick: 120
-	die1: medi
+	die1:
+		Filename: medi.shp
 		Start: 193
 		Length: 7
-	die2: medi
+	die2:
+		Filename: medi.shp
 		Start: 201
 		Length: 8
-	die3: medi
+	die3:
+		Filename: medi.shp
 		Start: 209
 		Length: 8
-	die4: medi
+	die4:
+		Filename: medi.shp
 		Start: 217
 		Length: 12
-	die5: medi
+	die5:
+		Filename: medi.shp
 		Start: 229
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -709,98 +889,123 @@ e6.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: medi
+	prone-stand:
+		Filename: medi.shp
 		Start: 130
 		Stride: 4
 		Facings: 8
-	prone-run: medi
+	prone-run:
+		Filename: medi.shp
 		Start: 130
 		Length: 4
 		Facings: 8
 		Tick: 100
 medi:
 	Inherits: ^medi
-	icon: mediamericaicon
+	icon:
+		Filename: mediamericaicon.shp
 medi.america:
 	Inherits: ^medi
-	icon: mediamericaicon
+	icon:
+		Filename: mediamericaicon.shp
 medi.russia:
 	Inherits: ^medi
-	icon: medirussiaicon
+	icon:
+		Filename: medirussiaicon.shp
 
 ^sn:
 	Inherits@PostDeath: ^Rot
-	stand: sn
+	stand:
+		Filename: sn.shp
 		Facings: 8
-	stand2: sn
+	stand2:
+		Filename: sn.shp
 		Start: 8
 		Facings: 8
-	run: sn
+	run:
+		Filename: sn.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: sn
+	shoot:
+		Filename: sn.shp
 		Start: 64
 		Length: 16
 		Facings: 8
-	prone-stand: sn
+	prone-stand:
+		Filename: sn.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
-	prone-stand2: sn
+	prone-stand2:
+		Filename: sn.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
-	prone-run: sn
+	prone-run:
+		Filename: sn.shp
 		Start: 208
 		Length: 4
 		Facings: 8
 		Tick: 100
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
-	liedown: sn
+	liedown:
+		Filename: sn.shp
 		Start: 192
 		Length: 2
 		Facings: 8
-	standup: sn
+	standup:
+		Filename: sn.shp
 		Start: 240
 		Length: 2
 		Facings: 8
-	prone-shoot: sn
+	prone-shoot:
+		Filename: sn.shp
 		Start: 256
 		Length: 16
 		Facings: 8
-	idle1: sn
+	idle1:
+		Filename: sn.shp
 		Start: 384
 		Length: 14
 		Tick: 120
-	idle2: sn
+	idle2:
+		Filename: sn.shp
 		Start: 399
 		Length: 16
 		Tick: 120
-	die1: sn
+	die1:
+		Filename: sn.shp
 		Start: 416
 		Length: 8
-	die2: sn
+	die2:
+		Filename: sn.shp
 		Start: 424
 		Length: 8
-	die3: sn
+	die3:
+		Filename: sn.shp
 		Start: 432
 		Length: 8
-	die4: sn
+	die4:
+		Filename: sn.shp
 		Start: 440
 		Length: 12
-	die5: sn
+	die5:
+		Filename: sn.shp
 		Start: 452
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -808,96 +1013,121 @@ medi.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 3
 		Stride: 6
 		Facings: 8
 sn:
 	Inherits: ^sn
-	icon: snamericaicon
+	icon:
+		Filename: snamericaicon.shp
 sn.america:
 	Inherits: ^sn
-	icon: snamericaicon
+	icon:
+		Filename: snamericaicon.shp
 sn.russia:
 	Inherits: ^sn
-	icon: snrussiaicon
+	icon:
+		Filename: snrussiaicon.shp
 
 ^ar:
 	Inherits@PostDeath: ^Rot
-	stand: ar
+	stand:
+		Filename: ar.shp
 		Facings: 8
-	stand2: ar
+	stand2:
+		Filename: ar.shp
 		Start: 8
 		Facings: 8
-	run: ar
+	run:
+		Filename: ar.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: ar
+	shoot:
+		Filename: ar.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	prone-stand: ar
+	prone-stand:
+		Filename: ar.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: ar
+	prone-stand2:
+		Filename: ar.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: ar
+	prone-run:
+		Filename: ar.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 100
-	liedown: ar
+	liedown:
+		Filename: ar.shp
 		Start: 128
 		Length: 2
 		Facings: 8
-	standup: ar
+	standup:
+		Filename: ar.shp
 		Start: 176
 		Length: 2
 		Facings: 8
-	prone-shoot: ar
+	prone-shoot:
+		Filename: ar.shp
 		Start: 192
 		Length: 8
 		Facings: 8
-	parachute: ar
+	parachute:
+		Filename: ar.shp
 		Start: 377
-	idle1: ar
+	idle1:
+		Filename: ar.shp
 		Start: 256
 		Length: 16
 		Tick: 120
-	idle2: ar
+	idle2:
+		Filename: ar.shp
 		Start: 272
 		Length: 16
 		Tick: 120
-	die1: ar
+	die1:
+		Filename: ar.shp
 		Start: 288
 		Length: 8
-	die2: ar
+	die2:
+		Filename: ar.shp
 		Start: 296
 		Length: 8
-	die3: ar
+	die3:
+		Filename: ar.shp
 		Start: 304
 		Length: 8
-	die4: ar
+	die4:
+		Filename: ar.shp
 		Start: 312
 		Length: 12
-	die5: ar
+	die5:
+		Filename: ar.shp
 		Start: 324
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -905,70 +1135,89 @@ sn.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 ar:
 	Inherits: ^ar
-	icon: aramericaicon
+	icon:
+		Filename: aramericaicon.shp
 ar.america:
 	Inherits: ^ar
-	icon: aramericaicon
+	icon:
+		Filename: aramericaicon.shp
 ar.russia:
 	Inherits: ^ar
-	icon: arrussiaicon
+	icon:
+		Filename: arrussiaicon.shp
 
 ^mt:
 	Inherits@PostDeath: ^Rot
-	stand: mt
+	stand:
+		Filename: mt.shp
 		Facings: 8
-	stand2: mt
+	stand2:
+		Filename: mt.shp
 		Start: 8
 		Facings: 8
-	run: mt
+	run:
+		Filename: mt.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 80
-	throw: mt
+	throw:
+		Filename: mt.shp
 		Start: 64
 		Length: 20
 		Facings: 8
-	parachute: mt
+	parachute:
+		Filename: mt.shp
 		Start: 505
-	idle1: mt
+	idle1:
+		Filename: mt.shp
 		Start: 384
 		Length: 14
 		Tick: 120
-	idle2: mt
+	idle2:
+		Filename: mt.shp
 		Start: 399
 		Length: 16
 		Tick: 120
-	die1: mt
+	die1:
+		Filename: mt.shp
 		Start: 416
 		Length: 8
-	die2: mt
+	die2:
+		Filename: mt.shp
 		Start: 424
 		Length: 8
-	die3: mt
+	die3:
+		Filename: mt.shp
 		Start: 432
 		Length: 8
-	die4: mt
+	die4:
+		Filename: mt.shp
 		Start: 440
 		Length: 12
-	die5: mt
+	die5:
+		Filename: mt.shp
 		Start: 452
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -976,84 +1225,106 @@ ar.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: mt
+	prone-stand:
+		Filename: mt.shp
 		Start: 240
 		Stride: 4
 		Facings: 8
-	prone-stand2: mt
+	prone-stand2:
+		Filename: mt.shp
 		Start: 240
 		Stride: 4
 		Facings: 8
-	prone-run: mt
+	prone-run:
+		Filename: mt.shp
 		Start: 240
 		Length: 4
 		Facings: 8
 		Tick: 80
-	prone-throw: mt
+	prone-throw:
+		Filename: mt.shp
 		Start: 288
 		Length: 12
 		Facings: 8
 mt:
 	Inherits: ^mt
-	icon: mtamericaicon
+	icon:
+		Filename: mtamericaicon.shp
 mt.america:
 	Inherits: ^mt
-	icon: mtamericaicon
+	icon:
+		Filename: mtamericaicon.shp
 mt.russia:
 	Inherits: ^mt
-	icon: mtrussiaicon
+	icon:
+		Filename: mtrussiaicon.shp
 
 ^at:
 	Inherits@PostDeath: ^Rot
-	stand: at
+	stand:
+		Filename: at.shp
 		Facings: 8
-	stand2: at
+	stand2:
+		Filename: at.shp
 		Start: 8
 		Facings: 8
-	run: at
+	run:
+		Filename: at.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 120
-	shoot: at
+	shoot:
+		Filename: at.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	parachute: at
+	parachute:
+		Filename: at.shp
 		Start: 393
-	idle1: at
+	idle1:
+		Filename: at.shp
 		Start: 272
 		Length: 14
 		Tick: 120
-	idle2: at
+	idle2:
+		Filename: at.shp
 		Start: 287
 		Length: 16
 		Tick: 120
-	die1: at
+	die1:
+		Filename: at.shp
 		Start: 304
 		Length: 8
-	die2: at
+	die2:
+		Filename: at.shp
 		Start: 312
 		Length: 8
-	die3: at
+	die3:
+		Filename: at.shp
 		Start: 320
 		Length: 8
-	die4: at
+	die4:
+		Filename: at.shp
 		Start: 328
 		Length: 12
-	die5: at
+	die5:
+		Filename: at.shp
 		Start: 340
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1061,84 +1332,106 @@ mt.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: at
+	prone-stand:
+		Filename: at.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: at
+	prone-stand2:
+		Filename: at.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: at
+	prone-run:
+		Filename: at.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 120
-	prone-shoot: at
+	prone-shoot:
+		Filename: at.shp
 		Start: 192
 		Length: 10
 		Facings: 8
 at:
 	Inherits: ^at
-	icon: atamericaicon
+	icon:
+		Filename: atamericaicon.shp
 at.america:
 	Inherits: ^at
-	icon: atamericaicon
+	icon:
+		Filename: atamericaicon.shp
 at.russia:
 	Inherits: ^at
-	icon: atrussiaicon
+	icon:
+		Filename: atrussiaicon.shp
 
 ^aa:
 	Inherits@PostDeath: ^Rot
-	stand: aa
+	stand:
+		Filename: aa.shp
 		Facings: 8
-	stand2: aa
+	stand2:
+		Filename: aa.shp
 		Start: 8
 		Facings: 8
-	run: aa
+	run:
+		Filename: aa.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 120
-	shoot: aa
+	shoot:
+		Filename: aa.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	parachute: aa
+	parachute:
+		Filename: aa.shp
 		Start: 393
-	idle1: aa
+	idle1:
+		Filename: aa.shp
 		Start: 272
 		Length: 14
 		Tick: 120
-	idle2: aa
+	idle2:
+		Filename: aa.shp
 		Start: 287
 		Length: 16
 		Tick: 120
-	die1: aa
+	die1:
+		Filename: aa.shp
 		Start: 304
 		Length: 8
-	die2: aa
+	die2:
+		Filename: aa.shp
 		Start: 312
 		Length: 8
-	die3: aa
+	die3:
+		Filename: aa.shp
 		Start: 320
 		Length: 8
-	die4: aa
+	die4:
+		Filename: aa.shp
 		Start: 328
 		Length: 12
-	die5: aa
+	die5:
+		Filename: aa.shp
 		Start: 340
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1146,75 +1439,95 @@ at.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: aa
+	prone-stand:
+		Filename: aa.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: aa
+	prone-stand2:
+		Filename: aa.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: aa
+	prone-run:
+		Filename: aa.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 120
-	prone-shoot: aa
+	prone-shoot:
+		Filename: aa.shp
 		Start: 192
 		Length: 10
 		Facings: 8
 aa:
 	Inherits: ^aa
-	icon: aaamericaicon
+	icon:
+		Filename: aaamericaicon.shp
 aa.america:
 	Inherits: ^aa
-	icon: aaamericaicon
+	icon:
+		Filename: aaamericaicon.shp
 aa.russia:
 	Inherits: ^aa
-	icon: aarussiaicon
+	icon:
+		Filename: aarussiaicon.shp
 
 ^sf:
 	Inherits: ^CommonDeaths
 	Inherits@PostDeath: ^Rot
-	stand: sf
+	stand:
+		Filename: sf.shp
 		Facings: 8
-	stand2: sf
+	stand2:
+		Filename: sf.shp
 		Facings: 8
-	run: sf
+	run:
+		Filename: sf.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 120
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
-	idle1: sf
+	idle1:
+		Filename: sf.shp
 		Start: 1
 		Facings: 8
-	idle2: sf
+	idle2:
+		Filename: sf.shp
 		Start: 1
 		Facings: 8
-	die1: sf
+	die1:
+		Filename: sf.shp
 		Start: 134
 		Length: 15
-	die2: sf
+	die2:
+		Filename: sf.shp
 		Start: 149
 		Length: 15
-	die3: sf
+	die3:
+		Filename: sf.shp
 		Start: 209
 		Length: 8
-	die4: sf
+	die4:
+		Filename: sf.shp
 		Start: 217
 		Length: 12
-	die5: sf
+	die5:
+		Filename: sf.shp
 		Start: 229
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1222,228 +1535,286 @@ aa.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	shoot: sf
+	shoot:
+		Filename: sf.shp
 		Start: 164
 		Length: 6
 		Facings: 8
 		Tick: 80
-	prone-shoot: sf
+	prone-shoot:
+		Filename: sf.shp
 		Start: 212
 		Length: 6
 		Facings: 8
 		Tick: 80
-	liedown: sf
+	liedown:
+		Filename: sf.shp
 		Start: 260
 		Length: 2
 		Facings: 8
-	standup: sf
+	standup:
+		Filename: sf.shp
 		Start: 276
 		Length: 2
 		Facings: 8
-	prone-stand: sf
+	prone-stand:
+		Filename: sf.shp
 		Frames: 86, 92, 98, 104, 110, 116, 122, 128
 		Facings: 8
-	prone-run: sf
+	prone-run:
+		Filename: sf.shp
 		Start: 86
 		Length: 6
 		Facings: 8
 		Tick: 100
-	swim-stand: sf
+	swim-stand:
+		Filename: sf.shp
 		Start: 340
 		Facings: 8
 		Length: 6
 		Tick: 160
-	swim-idle1: sf
+	swim-idle1:
+		Filename: sf.shp
 		Start: 484
 		Length: 15
 		Tick: 160
-	swim-idle2: sf
+	swim-idle2:
+		Filename: sf.shp
 		Start: 499
 		Length: 15
 		Tick: 160
-	swim: sf
+	swim:
+		Filename: sf.shp
 		Start: 388
 		Facings: 8
 		Length: 6
 		Tick: 120
-	swim-die: sf
+	swim-die:
+		Filename: sf.shp
 		Start: 534
 		Length: 22
-	swim-die1: sf
+	swim-die1:
+		Filename: sf.shp
 		Start: 512
 		Length: 22
-	swim-die2: sf
+	swim-die2:
+		Filename: sf.shp
 		Start: 534
 		Length: 20
-	swim-shoot: sf
+	swim-shoot:
+		Filename: sf.shp
 		Start: 436
 		Length: 6
 		Facings: 8
 		Tick: 80
-	parachute: sf
+	parachute:
+		Filename: sf.shp
 		Start: 602
 sf:
 	Inherits: ^sf
-	icon: sfamericaicon
+	icon:
+		Filename: sfamericaicon.shp
 sf.america:
 	Inherits: ^sf
-	icon: sfamericaicon
+	icon:
+		Filename: sfamericaicon.shp
 sf.russia:
 	Inherits: ^sf
-	icon: sfrussiaicon
+	icon:
+		Filename: sfrussiaicon.shp
 
 ^tl:
 	Inherits: ^CommonDeaths
 	Inherits@PostDeath: ^Rot
-	stand: tl
+	stand:
+		Filename: tl.shp
 		Facings: 8
-	stand2: tl
+	stand2:
+		Filename: tl.shp
 		Start: 8
 		Facings: 8
-	run: tl
+	run:
+		Filename: tl.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: tl
+	shoot:
+		Filename: tl.shp
 		Start: 64
 		Length: 4
 		Facings: 8
-	liedown: tl
+	liedown:
+		Filename: tl.shp
 		Start: 96
 		Length: 2
 		Facings: 8
-	standup: tl
+	standup:
+		Filename: tl.shp
 		Start: 144
 		Length: 2
 		Facings: 8
-	prone-stand: tl
+	prone-stand:
+		Filename: tl.shp
 		Start: 112
 		Stride: 4
 		Facings: 8
-	prone-stand2: tl
+	prone-stand2:
+		Filename: tl.shp
 		Start: 112
 		Stride: 4
 		Facings: 8
-	prone-run: tl
+	prone-run:
+		Filename: tl.shp
 		Start: 112
 		Length: 4
 		Facings: 8
 		Tick: 100
-	prone-shoot: tl
+	prone-shoot:
+		Filename: tl.shp
 		Start: 160
 		Length: 4
 		Facings: 8
-	parachute: tl
+	parachute:
+		Filename: tl.shp
 		Start: 431
-	idle1: tl
+	idle1:
+		Filename: tl.shp
 		Start: 192
 		Length: 16
 		Tick: 120
-	idle2: tl
+	idle2:
+		Filename: tl.shp
 		Start: 208
 		Length: 16
 		Tick: 120
-	idle3: tl
+	idle3:
+		Filename: tl.shp
 		Start: 224
 		Length: 15
 		Tick: 120
-	cheer: tl
+	cheer:
+		Filename: tl.shp
 		Start: 396
 		Length: 3
 		Facings: 8
 		Tick: 120
-	die1: tl
+	die1:
+		Filename: tl.shp
 		Start: 318
 		Length: 8
 		Tick: 80
-	die2: tl
+	die2:
+		Filename: tl.shp
 		Start: 326
 		Length: 8
 		Tick: 80
-	die3: tl
+	die3:
+		Filename: tl.shp
 		Start: 334
 		Length: 8
 		Tick: 80
-	die4: tl
+	die4:
+		Filename: tl.shp
 		Start: 342
 		Length: 12
 		Tick: 80
-	die5: tl
+	die5:
+		Filename: tl.shp
 		Start: 354
 		Length: 18
 		Tick: 80
 	die6: electro
-	die7: tl
+	die7:
+		Filename: tl.shp
 		Start: 318
 		Length: 8
 		Tick: 80
-	garrison-muzzle: minigun16
+	garrison-muzzle:
+		Filename: minigun16.shp
 		Length: 3
 		Stride: 6
 		Facings: 16
 tl:
 	Inherits: ^tl
-	icon: tlamericaicon
+	icon:
+		Filename: tlamericaicon.shp
 tl.america:
 	Inherits: ^tl
-	icon: tlamericaicon
+	icon:
+		Filename: tlamericaicon.shp
 tl.russia:
 	Inherits: ^tl
-	icon: tlrussiaicon
+	icon:
+		Filename: tlrussiaicon.shp
 
 ^spy:
 	Inherits@PostDeath: ^Rot
-	stand: spy
+	stand:
+		Filename: spy.shp
 		Facings: 8
-	stand2: spy
+	stand2:
+		Filename: spy.shp
 		Start: 8
 		Facings: 8
-	run: spy
+	run:
+		Filename: spy.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: spy
+	shoot:
+		Filename: spy.shp
 		Start: 64
 		Length: 8
 		Facings: 8
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
 	idle: spy
-	idle1: spy
+	idle1:
+		Filename: spy.shp
 		Start: 256
 		Length: 14
 		Tick: 120
-	idle2: spy
+	idle2:
+		Filename: spy.shp
 		Start: 271
 		Length: 16
 		Tick: 120
-	die1: spy
+	die1:
+		Filename: spy.shp
 		Start: 288
 		Length: 8
-	die2: spy
+	die2:
+		Filename: spy.shp
 		Start: 296
 		Length: 8
-	die3: spy
+	die3:
+		Filename: spy.shp
 		Start: 304
 		Length: 8
-	die4: spy
+	die4:
+		Filename: spy.shp
 		Start: 312
 		Length: 12
-	die5: spy
+	die5:
+		Filename: spy.shp
 		Start: 324
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1451,93 +1822,116 @@ tl.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	prone-stand: spy
+	prone-stand:
+		Filename: spy.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-stand2: spy
+	prone-stand2:
+		Filename: spy.shp
 		Start: 144
 		Stride: 4
 		Facings: 8
-	prone-run: spy
+	prone-run:
+		Filename: spy.shp
 		Start: 144
 		Length: 4
 		Facings: 8
 		Tick: 100
-	prone-shoot: spy
+	prone-shoot:
+		Filename: spy.shp
 		Start: 192
 		Length: 8
 		Facings: 8
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 spy:
 	Inherits: ^spy
-	icon: spyamericaicon
+	icon:
+		Filename: spyamericaicon.shp
 spy.america:
 	Inherits: ^spy
-	icon: spyamericaicon
+	icon:
+		Filename: spyamericaicon.shp
 spy.russia:
 	Inherits: ^spy
-	icon: spyrussiaicon
+	icon:
+		Filename: spyrussiaicon.shp
 
 ^tecn:
 	Inherits@PostDeath: ^Rot
-	stand: tecn
+	stand:
+		Filename: tecn.shp
 		Facings: 8
-	panic-stand: tecn
+	panic-stand:
+		Filename: tecn.shp
 		Start: 8
 		Length: 6
 		Facings: 8
-	panic-run: tecn
+	panic-run:
+		Filename: tecn.shp
 		Start: 8
 		Length: 6
 		Facings: 8
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
-	run: tecn
+	run:
+		Filename: tecn.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
-	shoot: tecn
+	shoot:
+		Filename: tecn.shp
 		Start: 205
 		Length: 4
 		Facings: 8
-	cheer: tecn
+	cheer:
+		Filename: tecn.shp
 		Start: 200
 		Length: 3
 		Facings: 8
 		Tick: 120
-	die1: tecn
+	die1:
+		Filename: tecn.shp
 		Start: 329
 		Length: 8
 		Tick: 80
-	die2: tecn
+	die2:
+		Filename: tecn.shp
 		Start: 337
 		Length: 8
 		Tick: 80
-	die3: tecn
+	die3:
+		Filename: tecn.shp
 		Start: 337
 		Length: 8
 		Tick: 80
-	die4: tecn
+	die4:
+		Filename: tecn.shp
 		Start: 345
 		Length: 12
 		Tick: 80
-	die5: tecn
+	die5:
+		Filename: tecn.shp
 		Start: 357
 		Length: 18
 		Tick: 80
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -1545,24 +1939,30 @@ spy.russia:
         TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 tecn:
 	Inherits: ^tecn
-	icon: tecnamericaicon
+	icon:
+		Filename: tecnamericaicon.shp
 tecn.america:
 	Inherits: ^tecn
-	icon: tecnamericaicon
+	icon:
+		Filename: tecnamericaicon.shp
 tecn.russia:
 	Inherits: ^tecn
-	icon: tecnrussiaicon
+	icon:
+		Filename: tecnrussiaicon.shp
 
 ^dr:
 	Inherits@PostDeath: ^Rot
-	stand: dr
+	stand:
+		Filename: dr.shp
 		Facings: 8
-	run: dr
+	run:
+		Filename: dr.shp
 		Start: 8
 		Length: 6
 		Facings: 8
@@ -1577,85 +1977,107 @@ tecn.russia:
 	# 	Start: 148
 	# 	Length: 8
 	# 	Facings: 8
-	shoot: dr
+	shoot:
+		Filename: dr.shp
 		# Start: 56
 		# Length: 28
 		Start: 56
 		Length: 28
 		Tick: 56
-	active-stand: dr
+	active-stand:
+		Filename: dr.shp
 		Start: 253
 		Length: 3
-	active-shoot: dr
+	active-shoot:
+		Filename: dr.shp
 		Start: 229
 		Length: 18
-	active-run: dr
+	active-run:
+		Filename: dr.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 100
-	prone-shoot: dr
+	prone-shoot:
+		Filename: dr.shp
 		Start: 85
 		Length: 28
-	prone-stand: dr
+	prone-stand:
+		Filename: dr.shp
 		Start: 130
 		Stride: 4
 		Facings: 8
-	prone-stand2: dr
+	prone-stand2:
+		Filename: dr.shp
 		Start: 130
 		Stride: 4
 		Facings: 8
-	prone-run: dr
+	prone-run:
+		Filename: dr.shp
 		Start: 130
 		Length: 4
 		Facings: 8
 		Tick: 100
-	liedown: e1
+	liedown:
+		Filename: e1.shp
 		Start: 128
 		Length: 2
 		Facings: 8
-	standup: e1
+	standup:
+		Filename: e1.shp
 		Start: 176
 		Length: 2
 		Facings: 8
-	parachute: e1
+	parachute:
+		Filename: e1.shp
 		Start: 377
-	idle: dr
+	idle:
+		Filename: dr.shp
 		Start: 85
 		Length: 28
-	idle1: e1
+	idle1:
+		Filename: e1.shp
 		Start: 256
 		Length: 16
 		Tick: 120
-	idle2: e1
+	idle2:
+		Filename: e1.shp
 		Start: 272
 		Length: 16
 		Tick: 120
-	die1: dr
+	die1:
+		Filename: dr.shp
 		Start: 193
 		Length: 8
-	die2: dr
+	die2:
+		Filename: dr.shp
 		Start: 201
 		Length: 8
-	die3: dr
+	die3:
+		Filename: dr.shp
 		Start: 209
 		Length: 8
-	die4: dr
+	die4:
+		Filename: dr.shp
 		Start: 217
 		Length: 12
-	die5: dr
+	die5:
+		Filename: dr.shp
 		Start: 229
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -1663,65 +2085,83 @@ tecn.russia:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	garrison-muzzle: minigun
+	garrison-muzzle:
+		Filename: minigun.shp
 		Length: 6
 		Facings: 8
 dr:
 	Inherits: ^dr
-	icon: dricon
+	icon:
+		Filename: dricon.shp
 dr.america:
 	Inherits: ^dr
-	icon: dricon
+	icon:
+		Filename: dricon.shp
 dr.russia:
 	Inherits: ^dr
-	icon: dricon
+	icon:
+		Filename: dricon.shp
 
 dog:
 	stand:
+		Filename: dog.shp
 		Facings: 8
 	walk:
+		Filename: dog.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 80
 	run:
+		Filename: dog.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 	eat:
+		Filename: dog.shp
 		Start: 104
 		Length: 14
 		Facings: 8
 		Tick: 120
 	idle1:
+		Filename: dog.shp
 		Start: 216
 		Length: 7
 		Tick: 120
 	idle2:
+		Filename: dog.shp
 		Start: 224
 		Length: 11
 		Tick: 120
 	die1:
+		Filename: dog.shp
 		Start: 236
 		Length: 6
 	die2:
+		Filename: dog.shp
 		Start: 242
 		Length: 9
 	die3:
+		Filename: dog.shp
 		Start: 236
 		Length: 6
 	die4:
+		Filename: dog.shp
 		Start: 242
 		Length: 9
 	die5:
+		Filename: dog.shp
 		Start: 251
 		Length: 14
-	die6: electdog
+	die6:
+		Filename: electdog.shp
 		Length: *
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1729,151 +2169,107 @@ dog:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	jump: dogbullt
+	jump:
+		Filename: dogbullt.shp
 		Length: 4
 		Facings: 8
-	icon: dogicon
-
-mech:
-	Inherits@PostDeath: ^Rot
-	stand:
-		Facings: 8
-	run:
-		Start: 8
-		Length: 6
-		Facings: 8
-		Tick: 100
-	repair:
-		Start: 56
-		Length: 58
-		Tick: 120
-	standup:
-		Start: 114
-		Length: 2
-		Facings: 8
-	idle:
-		Start: 178
-		Length: 14
-		Tick: 120
-	die1:
-		Start: 193
-		Length: 7
-	die2:
-		Start: 201
-		Length: 8
-	die3:
-		Start: 209
-		Length: 8
-	die4:
-		Start: 217
-		Length: 12
-	die5:
-		Start: 229
-		Length: 18
-	die6: electro
-		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die7: poisondeath
-		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	prone-stand:
-		Start: 130
-		Stride: 4
-		Facings: 8
-	prone-run:
-		Start: 130
-		Length: 4
-		Facings: 8
-		Tick: 100
-	parachute: e1
-		Start: 377
-	icon: mechicon
+	icon:
+		Filename: dogicon.shp
 
 shok:
 	Inherits@PostDeath: ^Rot
 	stand:
+		Filename: shok.shp
 		Facings: 8
 	stand2:
+		Filename: shok.shp
 		Start: 8
 		Facings: 8
 	run:
+		Filename: shok.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 120
 	shoot:
+		Filename: shok.shp
 		Start: 64
 		Length: 16
 		Facings: 8
 	prone-stand:
+		Filename: shok.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
 	prone-stand2:
+		Filename: shok.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
 	prone-run:
+		Filename: shok.shp
 		Start: 208
 		Length: 4
 		Facings: 8
 		Tick: 120
 	liedown:
+		Filename: shok.shp
 		Start: 192
 		Length: 2
 		Facings: 8
 	standup:
+		Filename: shok.shp
 		Start: 240
 		Length: 2
 		Facings: 8
 	prone-shoot:
+		Filename: shok.shp
 		Start: 256
 		Length: 16
 		Facings: 8
 	idle1:
+		Filename: shok.shp
 		Start: 384
 		Length: 14
 		Tick: 120
 	idle2:
+		Filename: shok.shp
 		Start: 399
 		Length: 16
 		Tick: 120
 	die1:
+		Filename: shok.shp
 		Start: 416
 		Length: 8
 	die2:
+		Filename: shok.shp
 		Start: 424
 		Length: 8
 	die3:
+		Filename: shok.shp
 		Start: 432
 		Length: 8
 	die4:
+		Filename: shok.shp
 		Start: 440
 		Length: 12
 	die5:
+		Filename: shok.shp
 		Start: 452
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1882,47 +2278,60 @@ shok:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	parachute:
+		Filename: shok.shp
 		Start: 528
-	icon: shokicon
+	icon:
+		Filename: shokicon.shp
 
 e9:
 	stand:
+		Filename: e9.shp
 		Facings: 8
 	run:
+		Filename: e9.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 120
 	idle1:
+		Filename: e9.shp
 		Start: 56
 		Length: 15
 		Tick: 120
 	idle2:
+		Filename: e9.shp
 		Start: 71
 		Length: 15
 		Tick: 120
 	die1:
+		Filename: e9.shp
 		Start: 134
 		Length: 15
 	die2:
+		Filename: e9.shp
 		Start: 149
 		Length: 15
-	die3: e1
+	die3:
+		Filename: e1.shp
 		Start: 209
 		Length: 8
-	die4: e1
+	die4:
+		Filename: e1.shp
 		Start: 217
 		Length: 12
-	die5: e1
+	die5:
+		Filename: e1.shp
 		Start: 229
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -1931,302 +2340,379 @@ e9:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	shoot:
+		Filename: e9.shp
 		Start: 164
 		Length: 6
 		Facings: 8
 		Tick: 80
 	prone-shoot:
+		Filename: e9.shp
 		Start: 212
 		Length: 6
 		Facings: 8
 		Tick: 80
 	liedown:
+		Filename: e9.shp
 		Start: 260
 		Length: 2
 		Facings: 8
 	standup:
+		Filename: e9.shp
 		Start: 276
 		Length: 2
 		Facings: 8
 	prone-stand:
+		Filename: e9.shp
 		Frames: 86, 92, 98, 104, 110, 116, 122, 128
 		Facings: 8
 	prone-run:
+		Filename: e9.shp
 		Start: 86
 		Length: 6
 		Facings: 8
 		Tick: 100
 	swim-stand:
+		Filename: e9.shp
 		Start: 340
 		Facings: 8
 		Length: 6
 		Tick: 160
 	swim-idle1:
+		Filename: e9.shp
 		Start: 484
 		Length: 15
 		Tick: 160
 	swim-idle2:
+		Filename: e9.shp
 		Start: 499
 		Length: 15
 		Tick: 160
 	swim:
+		Filename: e9.shp
 		Start: 388
 		Facings: 8
 		Length: 6
 		Tick: 120
 	swim-die:
+		Filename: e9.shp
 		Start: 512
 		Length: 22
 	swim-shoot:
+		Filename: e9.shp
 		Start: 436
 		Length: 6
 		Facings: 8
 		Tick: 80
 	parachute:
+		Filename: e9.shp
 		Start: 602
-	icon: e9icon
+	icon:
+		Filename: e9icon.shp
 rmbo:
 	Inherits: ^CommonDeaths
-	stand: rmbo
+	stand:
+		Filename: rmbo.shp
 		Facings: 8
-	stand2: rmbo
+	stand2:
+		Filename: rmbo.shp
 		Start: 8
 		Facings: 8
-	run: rmbo
+	run:
+		Filename: rmbo.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
-	shoot: rmbo
+	shoot:
+		Filename: rmbo.shp
 		Start: 64
 		Length: 4
 		Facings: 8
-	liedown: rmbo
+	liedown:
+		Filename: rmbo.shp
 		Start: 96
 		Length: 2
 		Facings: 8
-	standup: rmbo
+	standup:
+		Filename: rmbo.shp
 		Start: 144
 		Length: 2
 		Facings: 8
-	prone-stand: rmbo
+	prone-stand:
+		Filename: rmbo.shp
 		Start: 112
 		Stride: 4
 		Facings: 8
-	prone-stand2: rmbo
+	prone-stand2:
+		Filename: rmbo.shp
 		Start: 112
 		Stride: 4
 		Facings: 8
-	prone-run: rmbo
+	prone-run:
+		Filename: rmbo.shp
 		Start: 112
 		Length: 4
 		Facings: 8
 		Tick: 100
-	prone-shoot: rmbo
+	prone-shoot:
+		Filename: rmbo.shp
 		Start: 160
 		Length: 4
 		Facings: 8
-	idle1: rmbo
+	idle1:
+		Filename: rmbo.shp
 		Start: 192
 		Length: 16
 		Tick: 120
-	idle2: rmbo
+	idle2:
+		Filename: rmbo.shp
 		Start: 208
 		Length: 16
 		Tick: 120
-	idle3: rmbo
+	idle3:
+		Filename: rmbo.shp
 		Start: 224
 		Length: 15
 		Tick: 120
-	cheer: rmbo
+	cheer:
+		Filename: rmbo.shp
 		Start: 396
 		Length: 3
 		Facings: 8
 		Tick: 120
-	die1: rmbo
+	die1:
+		Filename: rmbo.shp
 		Start: 318
 		Length: 8
 		Tick: 80
-	die2: rmbo
+	die2:
+		Filename: rmbo.shp
 		Start: 326
 		Length: 8
 		Tick: 80
-	die3: rmbo
+	die3:
+		Filename: rmbo.shp
 		Start: 334
 		Length: 8
 		Tick: 80
-	die4: rmbo
+	die4:
+		Filename: rmbo.shp
 		Start: 342
 		Length: 12
 		Tick: 80
-	die5: rmbo
+	die5:
+		Filename: rmbo.shp
 		Start: 354
 		Length: 18
 		Tick: 80
-	die7: rmbo
+	die7:
+		Filename: rmbo.shp
 		Start: 318
 		Length: 8
 		Tick: 80
 	parachute:
 		Start: 431
-	garrison-muzzle: minigun16
+	garrison-muzzle:
+		Filename: minigun16.shp
 		Length: 3
 		Stride: 6
 		Facings: 16
-	icon: rmboicnh
+	icon:
+		Filename: rmboicnh.shp
 boris:
 	Inherits: ^CommonDeaths
 	Inherits@PostDeath: ^Rot
-	stand: boris
+	stand:
+		Filename: boris.shp
 		Facings: 8
-	run: boris
+	run:
+		Filename: boris.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 80
-	shoot: boris
+	shoot:
+		Filename: boris.shp
 		Start: 56
 		Length: 4
 		Facings: 8
-	prone-stand: boris
+	prone-stand:
+		Filename: boris.shp
 		Start: 104
 		Stride: 4
 		Facings: 8
-	prone-run: boris
+	prone-run:
+		Filename: boris.shp
 		Start: 104
 		Length: 4
 		Facings: 8
-	standup-0: boris
+	standup-0:
+		Filename: boris.shp
 		Start: 136
 		Length: 2
 		Facings: 8
-	prone-shoot: boris
+	prone-shoot:
+		Filename: boris.shp
 		Start: 152
 		Length: 4
 		Facings: 8
-	idle1: boris
+	idle1:
+		Filename: boris.shp
 		Start: 184
 		Length: 26
 		Tick: 120
-	die1: boris
+	die1:
+		Filename: boris.shp
 		Start: 210
 		Length: 8
-	die2: boris
+	die2:
+		Filename: boris.shp
 		Start: 218
 		Length: 8
-	die3: boris
+	die3:
+		Filename: boris.shp
 		Start: 226
 		Length: 8
-	die4: boris
+	die4:
+		Filename: boris.shp
 		Start: 234
 		Length: 12
-	die5: boris
+	die5:
+		Filename: boris.shp
 		Start: 246
 		Length: 18
-	die7: boris
+	die7:
+		Filename: boris.shp
 		Start: 210
 		Length: 8
-	icon: borisicon
+	icon:
+		Filename: borisicon.shp
 
 terr:
 	Inherits@PostDeath: ^Rot
 	stand:
+		Filename: terr.shp
 		Facings: 8
 	walk:
+		Filename: terr.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 	run:
+		Filename: terr.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: terr.shp
 		Start: 205
 		Length: 4
 		Facings: 8
 	cheer:
+		Filename: terr.shp
 		Start: 200
 		Length: 3
 		Facings: 8
 		Tick: 120
 	die1:
+		Filename: terr.shp
 		Start: 329
 		Length: 8
 		Tick: 80
 	die2:
+		Filename: terr.shp
 		Start: 337
 		Length: 8
 		Tick: 80
 	die3:
+		Filename: terr.shp
 		Start: 337
 		Length: 8
 		Tick: 80
 	die4:
+		Filename: terr.shp
 		Start: 345
 		Length: 12
 		Tick: 80
 	die5:
+		Filename: terr.shp
 		Start: 357
 		Length: 18
 		Tick: 80
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
 		UseTilesetExtension: true
-        TilesetOverrides:
+		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	parachute:
+		Filename: terr.shp
 		Start: 0
-	icon: terricon
+	icon:
+		Filename: terricon.shp
 thf:
 	Inherits@PostDeath: ^Rot
 	stand:
+		Filename: thf.shp
 		Facings: 8
 	run:
+		Filename: thf.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 100
 	idle:
+		Filename: thf.shp
 		Start: 120
 		Length: 19
 		Tick: 120
 	die1:
+		Filename: thf.shp
 		Start: 139
 		Length: 8
 	die2:
+		Filename: thf.shp
 		Start: 147
 		Length: 8
 	die3:
+		Filename: thf.shp
 		Start: 155
 		Length: 8
 	die4:
+		Filename: thf.shp
 		Start: 163
 		Length: 12
 	die5:
+		Filename: thf.shp
 		Start: 175
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2235,54 +2721,69 @@ thf:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	prone-stand:
+		Filename: thf.shp
 		Start: 72
 		Stride: 4
 		Facings: 8
 	prone-run:
+		Filename: thf.shp
 		Start: 72
 		Length: 4
 		Facings: 8
 		Tick: 80
-	icon: thficon
+	icon:
+		Filename: thficon.shp
 
 c1:
 	stand:
+		Filename: c1.shp
 		Facings: 8
 	panic-stand:
+		Filename: c1.shp
 		Facings: 8
 	panic-run:
+		Filename: c1.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c1.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c1.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c1.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c1.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c1.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c1.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2291,48 +2792,61 @@ c1:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c1.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c2:
 	stand:
+		Filename: c2.shp
 		Facings: 8
 	panic-stand:
+		Filename: c2.shp
 		Facings: 8
 	panic-run:
+		Filename: c2.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c2.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c2.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c2.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c2.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c2.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c2.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2341,48 +2855,61 @@ c2:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c2.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c3:
 	stand:
+		Filename: c3.shp
 		Facings: 8
 	panic-stand:
+		Filename: c3.shp
 		Facings: 8
 	panic-run:
+		Filename: c3.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c3.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c3.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c3.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c3.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c3.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c3.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: 6
 		Tick: 1600
 		ZOffset: -511
@@ -2391,49 +2918,62 @@ c3:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c3.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c4:
 	stand:
+		Filename: c4.shp
 		Facings: 8
 	panic-stand:
+		Filename: c4.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c4.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c4.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c4.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c4.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c4.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c4.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c4.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2442,49 +2982,62 @@ c4:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c4.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c5:
 	stand:
+		Filename: c5.shp
 		Facings: 8
 	panic-stand:
+		Filename: c5.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c5.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c5.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c5.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c5.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c5.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c5.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c5.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2493,49 +3046,62 @@ c5:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c5.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c6:
 	stand:
+		Filename: c6.shp
 		Facings: 8
 	panic-stand:
+		Filename: c6.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c6.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c6.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c6.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c6.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c6.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c6.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c6.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2544,49 +3110,62 @@ c6:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c6.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c7:
 	stand:
+		Filename: c7.shp
 		Facings: 8
 	panic-stand:
+		Filename: c7.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c7.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c7.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c7.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c7.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c7.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c7.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c7.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2595,49 +3174,62 @@ c7:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c7.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c8:
 	stand:
+		Filename: c8.shp
 		Facings: 8
 	panic-stand:
+		Filename: c8.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c8.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c8.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c8.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c8.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c8.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c8.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c8.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2646,49 +3238,62 @@ c8:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c8.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c9:
 	stand:
+		Filename: c9.shp
 		Facings: 8
 	panic-stand:
+		Filename: c9.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c9.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c9.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c9.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c9.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c9.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c9.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c9.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2697,49 +3302,62 @@ c9:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c9.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c10:
 	stand:
+		Filename: c10.shp
 		Facings: 8
 	panic-stand:
+		Filename: c10.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
+		Filename: c10.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
+		Filename: c10.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
+		Filename: c10.shp
 		Start: 152
 		Length: 8
 	die2:
+		Filename: c10.shp
 		Start: 160
 		Length: 8
 	die3:
+		Filename: c10.shp
 		Start: 168
 		Length: 12
 	die4:
+		Filename: c10.shp
 		Start: 168
 		Length: 12
 	die5:
+		Filename: c10.shp
 		Start: 180
 		Length: 18
-	die6: electro
+	die6:
+		Filename: electro.shp
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die7: poisondeath
+	die7:
+		Filename: poisondeath.shp
 		Length: *
-	die-crushed: corpse1
+	die-crushed:
+		Filename: corpse1.shp
 		Length: *
 		Tick: 1600
 		ZOffset: -511
@@ -2748,207 +3366,8 @@ c10:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	run:
+		Filename: c10.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
-
-einstein:
-	stand:
-		Facings: 8
-	panic-stand:
-		Facings: 8
-	panic-run:
-		Start: 8
-		Length: 6
-		Facings: 8
-	run:
-		Start: 56
-		Length: 6
-		Facings: 8
-		Tick: 80
-	die1:
-		Start: 120
-		Length: 8
-	die2:
-		Start: 128
-		Length: 8
-	die3:
-		Start: 136
-		Length: 12
-	die4:
-		Start: 136
-		Length: 12
-	die5:
-		Start: 148
-		Length: 17
-	die6: electro
-		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-delphi:
-	stand:
-		Facings: 8
-	panic-stand:
-		Facings: 8
-	panic-run:
-		Start: 8
-		Length: 6
-		Facings: 8
-	run:
-		Start: 56
-		Length: 6
-		Facings: 8
-		Tick: 80
-	die1:
-		Start: 329
-		Length: 8
-	die2:
-		Start: 337
-		Length: 8
-	die3:
-		Start: 345
-		Length: 12
-	die4:
-		Start: 345
-		Length: 12
-	die5:
-		Start: 357
-		Length: 17
-	die6: electro
-		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-chan:
-	stand:
-		Facings: 8
-	panic-stand:
-		Facings: 8
-	panic-run:
-		Start: 8
-		Length: 6
-		Facings: 8
-	run:
-		Start: 56
-		Length: 6
-		Facings: 8
-		Tick: 80
-	die1:
-		Start: 120
-		Length: 8
-	die2:
-		Start: 128
-		Length: 8
-	die3:
-		Start: 136
-		Length: 12
-	die4:
-		Start: 136
-		Length: 12
-	die5:
-		Start: 148
-		Length: 17
-	die6: electro
-		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-gnrl:
-	Inherits@PostDeath: ^Rot
-	stand:
-		Facings: 8
-	run:
-		Start: 8
-		Length: 6
-		Facings: 8
-		Tick: 100
-	shoot:
-		Start: 56
-		Length: 4
-		Facings: 8
-	prone-stand:
-		Start: 104
-		Stride: 4
-		Facings: 8
-	prone-run:
-		Start: 104
-		Length: 4
-		Facings: 8
-		Tick: 100
-	standup:
-		Start: 136
-		Length: 2
-		Facings: 8
-	prone-shoot:
-		Start: 152
-		Length: 4
-		Facings: 8
-	idle1:
-		Start: 184
-		Length: 26
-		Tick: 120
-	die1:
-		Start: 210
-		Length: 8
-	die2:
-		Start: 218
-		Length: 8
-	die3:
-		Start: 226
-		Length: 8
-	die4:
-		Start: 234
-		Length: 12
-	die5:
-		Start: 246
-		Length: 18
-	die6: electro
-		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die7: poisondeath
-		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-

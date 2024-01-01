@@ -1556,50 +1556,6 @@ AFLD:
 
 # ### Disabled ###
 
-# GAP:
-# 	Inherits: ^Building
-# 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
-# 	-AcceptsDeliveredCash:
-# 	-ActorPreviewPlaceBuildingPreview:
-# 	SequencePlaceBuildingPreview:
-# 		Sequence: place
-# 	WithSpriteBody:
-# 		PauseOnCondition: disabled
-# 	Selectable:
-# 		Bounds: 1024,1024
-# 		DecorationBounds: 1024,2048,0,-284
-# 	HitShape:
-# 		Type: Rectangle
-# 			TopLeft: -512, -512
-# 			BottomRight: 512, 512
-# 	# Buildable:
-# 	# 	Queue: Building
-# 	# 	BuildPaletteOrder: 15
-# 	# 	Prerequisites: ~techlevel.futuristic
-# 	# 	Description: Obscures the enemy's view with shroud.\nRequires power to operate.
-# 	Tooltip:
-# 		Name: Gap Generator
-# 	Valued:
-# 		Cost: 1000
-# 	Health:
-# 		HP: 5000
-# 	Armor:
-# 		Type: Heavy
-# 	Targetable:
-# 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-# 	ProvidesPrerequisite@buildingname:
-# 	MustBeDestroyed:
-# 		RequiredForShortGame: false
-# 	Explodes:
-# 		Weapon: SmallBuildingExplode
-# 		EmptyWeapon: SmallBuildingExplode
-# 	SpawnActorOnDeath:
-# 		Actor: gap.husk
-# 	Sellable:
-# 		RequiresCondition: !build-incomplete && !being-demolished
-# 	CreatesShroud:
-# 		Range: 10c0
-# 		RequiresCondition: !disabled
 # KENN:
 # 	Inherits: ^Building
 # 	Inherits@PRIMARY: ^PrimaryBuilding

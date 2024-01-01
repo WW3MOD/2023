@@ -1,3 +1,8 @@
+mechanic
+- can repair vehicles fully, but takes "ammo" needed from a supply truck.
+- So to repair you need a mechanic and a supply truck
+- Engineer can still repair to 30-50% or something
+- Only pistol
 
 20231010
 
