@@ -1642,7 +1642,6 @@ AA:
 		Types: TechHusk
 		ValidRelationships: Neutral
 		EnterCursor: repair
-		PlayerExperience: 0
 		EnterBehaviour: Exit
 	WithInfantryBody:
 		RequiresCondition: !parachute
@@ -1907,7 +1906,6 @@ MEDI:
 	Infiltrates:
 		Types: SpyInfiltrate
 		Notification: BuildingInfiltrated
-		PlayerExperience: 50
 	Disguise:
 		DisguisedCondition: disguised
 	Armament@1:
