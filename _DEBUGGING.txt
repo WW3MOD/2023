@@ -1,0 +1,12 @@
+
+VS Code
+
+    F5 - Launch game with debugger
+
+
+Visual Studio 
+
+    Profiler
+
+    - 
+
