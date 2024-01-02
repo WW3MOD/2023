@@ -9,8 +9,11 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+// using System.IO;
+using OpenRA.FileSystem;
 using OpenRA.Mods.Common.UpdateRules.Rules;
 
 namespace OpenRA.Mods.Common.UpdateRules
@@ -82,6 +85,21 @@ namespace OpenRA.Mods.Common.UpdateRules
 				new RenameContrailProperties(),
 				new RemoveDomainIndex(),
 				new AddControlGroups(),
+			}),
+
+			new UpdatePath("release-20230225", "release-20231010", new UpdateRule[]
+			{
+				new AddColorPickerValueRange(),
+				new ExplicitSequenceFilenames(),
+				new ProductionTabsWidgetAddTabButtonCollection(),
+				new RemoveExperienceFromInfiltrates(),
+				new RemoveNegativeSequenceLength(),
+				new RemoveSequenceHasEmbeddedPalette(),
+				new RemoveTSRefinery(),
+				new RenameContrailWidth(),
+				new RenameEngineerRepair(),
+				new RenameMcvCrateAction(),
+				new TextNotificationsDisplayWidgetRemoveTime(),
 			})
 		};
 
@@ -116,13 +134,24 @@ namespace OpenRA.Mods.Common.UpdateRules
 
 		IEnumerable<UpdateRule> Rules(bool chain = true)
 		{
-			if (chainToSource != null && chain)
+			try
 			{
-				var child = Paths.First(p => p.source == chainToSource);
-				return rules.Concat(child.Rules(chain));
-			}
+				if (chainToSource != null && chain)
+				{
+					var child = Paths.FirstOrDefault(p => p.source == chainToSource);
+					if (child != null)
+						return rules.Concat(child.Rules(chain));
+					else
+						return rules;
+				}
 
-			return rules;
+				return rules;
+			}
+			catch (System.InvalidOperationException e)
+			{
+				Console.WriteLine("Test");
+				throw new System.InvalidOperationException(e.Message);
+			}
 		}
 	}
 }

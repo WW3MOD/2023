@@ -283,7 +283,7 @@ MapGrid:
 
 DefaultOrderGenerator: UnitOrderGenerator
 
-SupportsMapsFrom: ww3mod #, ra?
+SupportsMapsFrom: ww3mod
 
 SoundFormats: Aud, Wav
 
@@ -294,7 +294,7 @@ VideoFormats: Vqa, Wsa
 TerrainFormat: DefaultTerrain
 
 SpriteSequenceFormat: ClassicTilesetSpecificSpriteSequence
-	TilesetExtensions:
+	TilesetCodes:
 		TEMPERAT: .tem
 		SNOW: .sno
 		INTERIOR: .int
