@@ -349,7 +349,7 @@ namespace OpenRA
 				}
 				catch (InvalidDataException e)
 				{
-					throw new YamlException(e.Message);
+					throw new YamlException(e.Message + " .. " + field.ToString() + " .. " + fieldName + " .. " + value + " .. " + fieldType.ToString());
 				}
 			}
 
