@@ -132,26 +132,15 @@ namespace OpenRA.Mods.Common.UpdateRules
 			this.chainToSource = chainToSource;
 		}
 
-		IEnumerable<UpdateRule> Rules(bool chain = true)
+		IReadOnlyCollection<UpdateRule> Rules(bool chain = true)
 		{
-			try
+			if (chainToSource != null && chain)
 			{
-				if (chainToSource != null && chain)
-				{
-					var child = Paths.FirstOrDefault(p => p.source == chainToSource);
-					if (child != null)
-						return rules.Concat(child.Rules(chain));
-					else
-						return rules;
-				}
+				var child = Paths.First(p => p.source == chainToSource);
+				return rules.Concat(child.Rules(chain)).ToList();
+			}
 
-				return rules;
-			}
-			catch (System.InvalidOperationException e)
-			{
-				Console.WriteLine("Test");
-				throw new System.InvalidOperationException(e.Message);
-			}
+			return rules;
 		}
 	}
 }
