@@ -62,7 +62,6 @@
 	# Targetable@BUILDING_CLEARED:
 	# 	TargetTypes:
 	# 	RequiresCondition: building_cleared
-
 	# WithColoredOverlay@BUILDING_CLEARED:
 	# 	RequiresCondition: building_cleared
 	# ExternalConditionThatRevokedOnCapture@BUILDING_CLEARED:
@@ -78,7 +77,6 @@
 	# MustBeDestroyed:
 	# 	RequiresCondition: !building_cleared
 	# CaptureManager:
-
 	UpdatesPlayerStatistics:
 	RequiresBuildableArea:
 		Adjacent: 5
@@ -101,6 +99,8 @@
 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished
 		SellSounds: cashturn.aud
 	EdibleByLeap:
+
+
 
 ^TechBuilding:
 	Inherits: ^BasicBuilding

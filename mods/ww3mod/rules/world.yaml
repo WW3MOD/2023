@@ -357,13 +357,11 @@ World:
 		GameSpeedDropdownDisplayOrder: 3
 		GameSpeed: default
 	CreateMapPlayers:
-
 	StartingUnits@none:
 		Class: none
 		ClassName: None
 		Factions: america, russia
 		BaseActor: supplyroute
-
 	StartingUnits@squad_america:
 		Class: squad
 		ClassName: Squad
@@ -380,7 +378,6 @@ World:
 		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, AT.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
-
 	StartingUnits@platoon_america:
 		Class: platoon
 		ClassName: Platoon
@@ -397,7 +394,6 @@ World:
 		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
-
 	StartingUnits@Motorized_america:
 		Class: motorized
 		ClassName: Motorized
@@ -414,7 +410,6 @@ World:
 		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-
 	StartingUnits@AirSupport_america:
 		Class: air
 		ClassName: Air support
@@ -431,7 +426,6 @@ World:
 		SupportActors: t90,bmp2,tunguska, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia, HIND,HIND,HALO
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
-
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
 	SpawnStartingUnits:
@@ -464,7 +458,6 @@ World:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle
 		TerrainFlashPalette: moveflash
-
 	# MapStartingLocations:
 	# 	SeparateTeamSpawnsCheckboxDisplayOrder: 6
 	# 	SeparateTeamSpawnsCheckboxVisible: False
@@ -493,6 +486,13 @@ World:
 	# 		1: WarningOneMinuteRemaining
 	# ResourceRenderer:
 	# 	RenderTypes:  Gems, Scraps
+
+
+
+
+
+
+
 
 EditorWorld:
 	Inherits: ^BaseWorld

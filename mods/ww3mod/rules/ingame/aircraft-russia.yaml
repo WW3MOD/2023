@@ -385,7 +385,6 @@ FROG:
 		Margin: 13, 3
 		PipCount: 8
 		FullSequence: pip-red
-
 		RequiresSelection: true
 		AmmoPools: primary-ammo
 	# Bomb
@@ -412,10 +411,8 @@ FROG:
 	# 	Margin: 13, 3
 	# 	PipCount: 8
 	# 	FullSequence: pip-red
-
 	# 	RequiresSelection: true
 	# 	AmmoPools: primary-ammo
-
 	Contrail@1:
 		Offset: -258,-723,0
 		TrailLength: 10
@@ -441,6 +438,9 @@ FROG:
 	RenderRangeCircle:
 	RenderSprites:
 		Scale: 1.25
+
+
+
 
 MIG:
 	Inherits@Type: ^Aircraft

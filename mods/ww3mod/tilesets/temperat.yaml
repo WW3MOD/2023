@@ -16,7 +16,6 @@ Terrain:
 		TargetTypes: Ground, Bridge
 		AcceptsSmudgeType: Crater, Scorch
 		Color: 606060
-
 	TerrainType@Clear:
 		Type: Clear
 		TargetTypes: Ground
@@ -41,7 +40,6 @@ Terrain:
 		Type: Cliffs
 		TargetTypes: Ground
 		Color: 44443C
-
 	TerrainType@TreeClear:
 		Type: TreeClear
 		TargetTypes: Ground
@@ -64,7 +62,6 @@ Terrain:
 		Type: TreeCliffs
 		TargetTypes: Ground
 		Color: 44443C
-
 	TerrainType@River:
 		Type: River
 		TargetTypes: Ground
@@ -82,12 +79,15 @@ Terrain:
 		TargetTypes: Water
 		Color: 5C74A4
 		RestrictPlayerColor: true
-
 	TerrainType@Wall:
 		Type: Wall
 		TargetTypes: Ground
 		AcceptsSmudgeType: Crater, Scorch
 		Color: D0C0A0
+
+
+
+
 
 Templates:
 	# Clear
@@ -140,7 +140,6 @@ Templates:
 			5: Clear
 			6: Clear
 			7: Clear
-
 	# Rough
 	Template@225:
 		Id: 225
@@ -179,7 +178,6 @@ Templates:
 		Categories: Rough
 		Tiles:
 			0: Rough
-
 	# Debris
 	Template@103:
 		Id: 103
@@ -215,7 +213,6 @@ Templates:
 		Tiles:
 			0: Debris
 			1: Debris
-
 	# Rock
 	Template@216:
 		Id: 216
@@ -306,7 +303,6 @@ Templates:
 			0: Rock
 			1: Rock
 			2: Rock
-
 	# Crater
 	Template@400:
 		Id: 400
@@ -326,7 +322,6 @@ Templates:
 			9: Rough
 			10: Rough
 			11: Clear
-
 	# Tree Clear
 	Template@55255:
 		Id: 55255
@@ -377,7 +372,6 @@ Templates:
 			5: TreeClear
 			6: TreeClear
 			7: TreeClear
-
 	# Tree Rough
 	Template@55225:
 		Id: 55225
@@ -416,7 +410,6 @@ Templates:
 		Categories: TreeRough
 		Tiles:
 			0: TreeRough
-
 	# Tree Debris
 	Template@55103:
 		Id: 55103
@@ -452,7 +445,6 @@ Templates:
 		Tiles:
 			0: TreeDebris
 			1: TreeDebris
-
 	# Tree Rocks
 	Template@55216:
 		Id: 55216
@@ -543,7 +535,6 @@ Templates:
 			0: TreeRock
 			1: TreeRock
 			2: TreeRock
-
 	# Road
 	Template@173:
 		Id: 173
@@ -1032,7 +1023,6 @@ Templates:
 		Categories: Road
 		Tiles:
 			0: Road
-
 	# River
 	Template@231:
 		Id: 231
@@ -1283,7 +1273,6 @@ Templates:
 		Tiles:
 			0: Rock
 			1: River
-
 	# River Shallow
 	Template@129:
 		Id: 129
@@ -1331,7 +1320,6 @@ Templates:
 		Tiles:
 			0: RiverShallow
 			1: RiverShallow
-
 	# River Bridge
 	Template@520:
 		Id: 520
@@ -1545,7 +1533,6 @@ Templates:
 			13: River
 			14: River
 			15: Clear
-
 	# Bridge 3
 	Template@235:
 		Id: 235
@@ -1941,7 +1928,6 @@ Templates:
 			6: Beach
 			7: Beach
 			8: Clear
-
 	# River Cliffs
 	Template@125:
 		Id: 125
@@ -1997,7 +1983,6 @@ Templates:
 			3: River
 			4: River
 			5: River
-
 	# Cliffs
 	Template@135:
 		Id: 135
@@ -2384,7 +2369,6 @@ Templates:
 			1: Cliffs
 			2: Cliffs
 			3: Cliffs
-
 	# Cliffs
 	Template@401:
 		Id: 401
@@ -2418,7 +2402,6 @@ Templates:
 		Tiles:
 			0: Cliffs
 			1: Cliffs
-
 	# Beach
 	Template@3:
 		Id: 3
@@ -3260,7 +3243,6 @@ Templates:
 			3: Beach
 			4: Beach
 			6: Clear
-
 	# Water Cliffs (river)
 	Template@550:
 		Id: 550
@@ -3286,7 +3268,6 @@ Templates:
 			3: Rock
 			4: Rock
 			5: Rock
-
 	# Water Cliffs 1
 	Template@552:
 		Id: 552
@@ -3360,7 +3341,6 @@ Templates:
 			3: Rock
 			4: Rock
 			5: Rock
-
 	# Water Cliffs 2
 	Template@59:
 		Id: 59
@@ -3750,7 +3730,6 @@ Templates:
 			1: Rock
 			2: Rock
 			3: Rock
-
 	# Water Cliffs 3
 	Template@405:
 		Id: 405
@@ -3784,7 +3763,6 @@ Templates:
 		Tiles:
 			0: Rock
 			1: Rock
-
 	# Water
 	Template@1:
 		Id: 1
@@ -3803,7 +3781,6 @@ Templates:
 			1: Water
 			2: Water
 			3: Water
-
 	# Water Rocks
 	Template@57:
 		Id: 57

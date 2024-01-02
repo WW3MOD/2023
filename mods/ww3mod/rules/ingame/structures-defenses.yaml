@@ -996,7 +996,6 @@ MSLO:
 
 GUN:
 	Inherits@Type: ^Defense
-
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
 	-WithSpriteBody:
 	-ActorPreviewPlaceBuildingPreview:

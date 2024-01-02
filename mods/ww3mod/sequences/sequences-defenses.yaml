@@ -460,7 +460,7 @@ hsam.husk:
 		Filename: hsam.shp
 		Start: 67
 		Length: 1
-`
+`:
 mslo:
 	Inherits: emp-overlay
 	Defaults:

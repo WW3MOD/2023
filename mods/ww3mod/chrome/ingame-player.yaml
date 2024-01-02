@@ -568,8 +568,6 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: production-icons
-
-
 						# Button@SCROLL_UP_BUTTON:
 						# 	Logic: AddFactionSuffixLogic
 						# 	Y: 93
@@ -634,7 +632,6 @@ Container@PLAYER_WIDGETS:
 					Height: 23
 					Align: Center
 					Font: TinyBold
-
 				# LabelWithTooltip@UPKEEP:
 				# 	Logic: IngamePowerCounterLogic
 				# 	X: PARENT_RIGHT - WIDTH - 30

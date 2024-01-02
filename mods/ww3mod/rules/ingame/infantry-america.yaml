@@ -140,4 +140,3 @@ E4.america:
 		Prerequisites: ~player.america, ~techlevel.infonly
 	RenderSprites:
 		Image: e4.america
-

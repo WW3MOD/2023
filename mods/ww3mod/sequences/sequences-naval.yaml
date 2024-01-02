@@ -16,7 +16,7 @@ lst:
 		Filename: lst.shp
 		Start: 4
 		ZOffset: -511
-	icon: 
+	icon:
 		Filename: lsticon.shp
 
 pt:
@@ -24,16 +24,16 @@ pt:
 	idle:
 		Filename: pt.shp
 		Facings: 16
-	turret: 
+	turret:
 		Filename: pttur.shp
 		Facings: 32
-	turret-mg: 
+	turret-mg:
 		Filename: mgun.shp
 		Facings: 32
-	muzzle: 
+	muzzle:
 		Filename: gunfire2.shp
 		Length: 5
-	muzzle-mg: 
+	muzzle-mg:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
@@ -46,14 +46,14 @@ ascr:
 		Filename: ascr.shp
 		Facings: 32
 		UseClassicFacingFudge: True
-	turret: 
+	turret:
 		Filename: mgun.shp
 		Facings: 32
 		UseClassicFacingFudge: True
 	muzzle: gunfire2
 		Filename: gunfire2.shp
 		Length: 5
-	icon: 
+	icon:
 		Filename: glaboaticon.shp
 	
 ptrb:
@@ -61,14 +61,14 @@ ptrb:
 	idle:
 		Filename: ptrb.shp
 		Facings: 32
-	turret: 
+	turret:
 		Filename: pttur.shp
 		Facings: 32
-	turret-mg:  # mgun
+	turret-mg: # mgun
 		Filename: apc-tur3.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: 
+	muzzle:
 		Filename: gunfire2.shp
 		Length: 2
 	muzzle-mg:
@@ -86,18 +86,18 @@ fac:
 	turret:
 		Filename: pttur.shp
 		Facings: 32
-	turret-mg: 
+	turret-mg:
 		Filename: apc-tur3.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: 
+	muzzle:
 		Filename: gunfire2.shp
 		Length: 2
-	muzzle-mg: 
+	muzzle-mg:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
-	icon: 
+	icon:
 		Filename: ddicon.shp
 
 fac2:
@@ -105,17 +105,17 @@ fac2:
 	idle:
 		Filename: fac2.shp
 		Facings: 16
-	turret: 
+	turret:
 		Filename: pttur.shp
 		Facings: 32
-	turret-mg: 
+	turret-mg:
 		Filename: apc-tur3.shp
 		Facings: 32
 		UseClassicFacings: True
-	muzzle: 
+	muzzle:
 		Filename: gunfire2.shp
 		Length: 2
-	muzzle-mg: 
+	muzzle-mg:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
@@ -133,10 +133,10 @@ corv:
 	muzzle:
 		Filename: gunfire2.shp
 		Length: 5
-	turret-mg: 
+	turret-mg:
 		Filename: apc-tur3.shp
 		Facings: 32
-	muzzle-mg: 
+	muzzle-mg:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
@@ -145,19 +145,19 @@ corv:
 
 corv2:
 	Inherits: emp-overlay
-	idle: 
+	idle:
 		Filename: corv2.shp
 		Facings: 16
 	turret:
 		Filename: pttur.shp
 		Facings: 32
-	muzzle: 
+	muzzle:
 		Filename: gunfire2.shp
 		Length: 5
-	turret-mg: 
+	turret-mg:
 		Filename: mgun.shp
 		Facings: 32
-	muzzle-mg: 
+	muzzle-mg:
 		Filename: minigun.shp
 		Length: 6
 		Facings: 8
@@ -174,10 +174,10 @@ ss:
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
-	muzzle: 
+	muzzle:
 		Filename: gunfire2.shp
 		Length: 2
-	icon: 
+	icon:
 		Filename: ssicon.shp
 
 msub:
@@ -185,7 +185,7 @@ msub:
 	idle:
 		Filename: msub.shp
 		Facings: 16
-	turret: 
+	turret:
 		Filename: ssam-mini.shp
 		Facings: 32
 		UseClassicFacingFudge: True
@@ -210,5 +210,5 @@ advmsub:
 		Start: 16
 		Length: 8
 		Facings: 16
-	icon: 
+	icon:
 		Filename: msubicon.shp

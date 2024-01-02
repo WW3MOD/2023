@@ -15,18 +15,15 @@ Player:
 			aa.russia: 20
 			sn.russia: 20
 			e6.russia: 20
-
 			truk: 10
 			t90: 10
 			bmp2: 10
 			btr: 10
 			giatsint: 10
-
 		UnitLimits:
 			truk: 3
 			tecn.russia: 3
 			e6.russia: 2
-
 	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
 		SquadSize: 5
@@ -36,4 +33,3 @@ Player:
 		DangerScanRadius: 25
 		ExcludeFromSquadsTypes: tecn.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
-

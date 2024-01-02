@@ -81,7 +81,6 @@
 		RequiresCondition: loaded
 	Vision@1:
 		RequiresCondition: loaded
-
 	# DetectCloaked@0:
 	# 	DetectionTypes: Cloak_0
 	# 	Range: 16c0
@@ -121,6 +120,7 @@
 	# DetectCloaked@12:
 	# 	DetectionTypes: Cloak_12
 	# 	Range: 1c512
+
 
 ^DetectionProximity:
 	VisionPercentageModifier@1:
@@ -216,7 +216,6 @@
 	ReloadDelayMultiplier@Rank_4:
 		RequiresCondition: rank-veteran == 4
 		Modifier: 80
-
 	WithDecoration@Rank_1:
 		Image: rank
 		Sequence: rank-veteran-1
@@ -249,6 +248,7 @@
 		Margin: 8,3
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 4
+
 
 ^AutoTarget:
 	AutoTarget:
@@ -675,9 +675,9 @@
 
 ^EmpVisualEffect:
 	WithColoredOverlay@EMP:
-
 	WithIdleOverlay@EMP:
 		Sequence: emp-overlay
+
 ^AffectedByEMP:
 	WithColoredOverlay@EMP:
 		RequiresCondition: empdisable

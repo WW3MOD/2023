@@ -415,21 +415,21 @@ flags:
 		Random: 0, 90, 30, 15
 		RandomArabian: 30, 90, 30, 15
 		spectator: 0, 75, 30, 15
-
 		nato: 0, 45, 30, 15
 		america: 1, 1, 28, 13
 		europe: 0, 15, 30, 15
 		ukraine: 0, 30, 30, 15
-
 		brics: 30, 45, 30, 15
 		russia: 31, 1, 28, 13
 		china: 30, 15, 30, 15
 		belarus: 30, 30, 30, 15
-
 		arabian: 0, 105, 30, 15
 		iraq: 30, 105, 30, 15
 		syria: 0, 120, 30, 15
 		jordan: 30, 120, 30, 15
+
+
+
 
 music:
 	Inherits: ^Glyphs

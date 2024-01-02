@@ -16,19 +16,16 @@ Player:
 			aa.america: 20
 			sn.america: 20
 			e6.america: 20
-
 			truk: 10
 			abrams: 10
 			bradley: 10
 			humvee: 10
 			m113: 10
 			m109: 10
-
 		UnitLimits:
 			truk: 3
 			tecn.america: 3
 			e6.america: 2
-
 	SquadManagerBotModule@america.land:
 		RequiresCondition: enable-ai-player && player.nato
 		SquadSize: 5
@@ -38,5 +35,3 @@ Player:
 		DangerScanRadius: 25
 		ExcludeFromSquadsTypes: tecn.america
 		IgnoredEnemyTargetTypes: IgnoreThis
-
-

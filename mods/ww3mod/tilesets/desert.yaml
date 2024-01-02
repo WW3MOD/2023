@@ -15,7 +15,6 @@ Terrain:
 		TargetTypes: Ground, Bridge
 		AcceptsSmudgeType: Crater, Scorch
 		Color: 606060
-
 	TerrainType@Clear:
 		Type: Clear
 		TargetTypes: Ground
@@ -40,7 +39,6 @@ Terrain:
 		Type: Cliffs
 		TargetTypes: Ground
 		Color: 44443C
-
 	TerrainType@TreeClear:
 		Type: TreeClear
 		TargetTypes: Ground
@@ -63,7 +61,6 @@ Terrain:
 		Type: TreeCliffs
 		TargetTypes: Ground
 		Color: 44443C
-
 	TerrainType@River:
 		Type: River
 		TargetTypes: Ground
@@ -81,12 +78,15 @@ Terrain:
 		TargetTypes: Water
 		Color: 5C74A4
 		RestrictPlayerColor: true
-
 	TerrainType@Wall:
 		Type: Wall
 		TargetTypes: Ground
 		AcceptsSmudgeType: Crater, Scorch
 		Color: D0C0A0
+
+
+
+
 
 Templates:
 	Template@255:

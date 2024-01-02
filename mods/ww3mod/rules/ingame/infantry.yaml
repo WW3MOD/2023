@@ -849,9 +849,7 @@
 		DamageTypes: FireDeath
 		PercentageStep: -3
 		Delay: 1
-
 	# Causes 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 for infantry-burn-1
-
 	WithIdleOverlay@Burn_1:
 		RequiresCondition: onfire == 1 || onfire == 2
 		Image: infantry-burn-1
@@ -882,6 +880,8 @@
 		StartSequence: start
 		Sequence: loop
 		Palette: effect
+
+
 
 ^EffectsWhenDamagedInfantry:
 	SpeedMultiplier@HeavyDamage:
@@ -2235,4 +2235,3 @@ PILOTR4:
 		InitialLevels: 4
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
-

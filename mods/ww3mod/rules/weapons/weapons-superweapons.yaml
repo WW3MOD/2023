@@ -35,20 +35,16 @@ Atomic:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		ValidTargets: Ground, Water, Air
-
 	# Warhead@CreateActor: CreateActor
 	# 	Actor: # ScorchWithRadiation actor?
 	# Warhead@Resource_impact: DestroyResource
 	# 	Size: 2
-
 	Warhead@22FlashEffect: FlashPaletteEffect
 		Duration: 20
 		FlashType: Nuke
-
 	Warhead@ShakeScreeEffect: ShakeScreen
 		Duration: 100
 		Intensity: 100
-
 	Warhead@HeatRadiation1: SpreadDamage
 		Spread: 512
 		Damage: 100
@@ -65,7 +61,6 @@ Atomic:
 		Modulus: 2
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: Prone30Percent, FireDeath
-
 	# Warhead@Scorch1: LeaveSmudge
 	# 	Delay: 50
 	# 	Size: 1
@@ -99,7 +94,6 @@ Atomic:
 	# 	SmudgeType: Scorch
 	# 	AirThreshold: 10000 # Ignore
 	# 	# InvalidTargets: Vehicle, Structure, Wall
-
 	Warhead@Fire1: GrantExternalCondition
 		Delay: 3
 		Range: 2c512
@@ -130,7 +124,6 @@ Atomic:
 		Duration: 10
 		Condition: onfire
 		ValidTargets: Structure, Infantry, Trees
-
 	Warhead@BlastWave1: SpreadDamage
 		Spread: 2c0
 		Damage: 50000
@@ -807,6 +800,13 @@ Atomic:
 			Heavy: 40
 			Concrete: 100
 		DamageTypes: Prone30Percent, SmallExplosionDeath
+
+
+
+
+
+
+
 
 EmpBomb:
 	BurstWait: 10
