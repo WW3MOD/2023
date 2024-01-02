@@ -46,10 +46,12 @@ hbox:
 		Tick: 300
 	muzzle:
 		Filename: minigun.shp
+		TilesetFilenames:
 		Length: 6
 		Facings: 8
 	icon:
 		Filename: hboxicon.shp
+		TilesetFilenames:
 
 hbox.husk:
 	idle:
@@ -77,7 +79,6 @@ ftur:
 			DESERT: mbFTUR.des
 		Length: *
 	muzzle-spray:
-		Filename:
 		Combine:
 			0:
 				Filename: flame-n.shp
