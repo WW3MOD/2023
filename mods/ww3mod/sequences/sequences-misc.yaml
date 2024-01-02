@@ -302,6 +302,7 @@ resources:
 
 mine:
 	idle:
+		Filename: mine.shp
 		TilesetFilenames:
 			SNOW: mine.sno
 			INTERIOR: mine.int
@@ -326,8 +327,9 @@ railmine:
 		ZOffset: -512
 
 ctflag:
-	idle:
+	Defaults:
 		Filename: ctflag.shp
+	idle:
 		Length: 9
 		Tick: 50
 		Offset: 0,-12
@@ -340,36 +342,30 @@ ctflag:
 		Length: *
 
 paradirection:
-	arrow-t:
+	Defaults:
 		Filename: mouse.shp
+	arrow-t:
 		Start: 1
 		Offset: 0, -19, 0
 	arrow-tr:
-		Filename: mouse.shp
 		Start: 2
 		Offset: 15, -15, 0
 	arrow-r:
-		Filename: mouse.shp
 		Start: 3
 		Offset: 19, 0, 0
 	arrow-br:
-		Filename: mouse.shp
 		Start: 4
 		Offset: 15, 15, 0
 	arrow-b:
-		Filename: mouse.shp
 		Start: 5
 		Offset: 0, 19, 0
 	arrow-bl:
-		Filename: mouse.shp
 		Start: 6
 		Offset: -15, 15, 0
 	arrow-l:
-		Filename: mouse.shp
 		Start: 7
 		Offset: -19, 0, 0
 	arrow-tl:
-		Filename: mouse.shp
 		Start: 8
 		Offset: -15, -15, 0
 
@@ -384,6 +380,8 @@ twinkle:
 		Filename: twinkle3.shp
 
 pips:
+	Defaults:
+		Filename: pip-visibility.shp
 	pip-ammo-secondary-none:
 		Filename: pip-ammo.shp
 	pip-ammo-primary-none:
@@ -488,51 +486,39 @@ pips:
 		Start: 1
 		Offset: 0, 2
 	pip-visibility-1:
-		Filename: pip-visibility.shp
 		Start: 0
 		Length: 1
 	pip-visibility-2:
-		Filename: pip-visibility.shp
 		Start: 1
 		Length: 1
 	pip-visibility-3:
-		Filename: pip-visibility.shp
 		Start: 2
 		Length: 1
 	pip-visibility-4:
-		Filename: pip-visibility.shp
 		Start: 3
 		Length: 1
 	pip-visibility-5:
-		Filename: pip-visibility.shp
 		Start: 4
 		Length: 1
 	pip-visibility-6:
-		Filename: pip-visibility.shp
 		Start: 5
 		Length: 1
 	pip-visibility-7:
-		Filename: pip-visibility.shp
 		Start: 6
 		Length: 1
 	pip-visibility-8:
-		Filename: pip-visibility.shp
 		Start: 7
 		Length: 1
 	pip-visibility-9:
-		Filename: pip-visibility.shp
 		Start: 8
 		Length: 1
 	pip-visibility-10:
-		Filename: pip-visibility.shp
 		Start: 9
 		Length: 1
 	pip-visibility-11:
-		Filename: pip-visibility.shp
 		Start: 10
 		Length: 1
 	pip-visibility-12:
-		Filename: pip-visibility.shp
 		Start: 11
 		Length: 1
 	pip-Suppression-1:
@@ -577,12 +563,12 @@ pips:
 		Length: 1
 
 pip-ammored:
-	oneshot:
+	Defaults:
 		Filename: pip-ammored.shp
+	oneshot:
 		Start: 0
 		Length: 1
 	threeshot:
-		Filename: pip-ammored.shp
 		Start: 1
 		Length: 1
 
@@ -627,11 +613,11 @@ crate-effects:
 		Tick: 200
 
 quee:
-	idle:
+	Defaults:
 		Filename: quee.shp
+	idle:
 		Length: 10
 	damaged-idle:
-		Filename: quee.shp
 		Start: 10
 		Length: 10
 
@@ -672,11 +658,11 @@ moveflsh:
 		ZOffset: 2047
 
 select:
-	repair:
+	Defaults:
 		Filename: select.shp
+	repair:
 		Start: 2
 	repair-small:
-		Filename: select.shp
 		Start: 3
 
 poweroff:
@@ -694,26 +680,23 @@ allyrepair:
 		ZOffset: 2047
 
 tabs:
+	Defaults:
+		Filename: tabs.shp
 	left-normal:
-		Filename: tabs.shp
 	left-pressed:
-		Filename: tabs.shp
 		Start: 1
 
 dd-crnr:
-	idle:
+	Defaults:
 		Filename: dd-crnr.shp
+	idle:
 		Length: *
 	top-left:
-		Filename: dd-crnr.shp
 	top-right:
 		Start: 1
-		Filename: dd-crnr.shp
 	bottom-left:
 		Start: 2
-		Filename: dd-crnr.shp
 	bottom-right:
-		Filename: dd-crnr.shp
 		Start: 3
 
 rank:

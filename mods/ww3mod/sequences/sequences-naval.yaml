@@ -1,19 +1,17 @@
 lst:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: lst.shp
 	idle:
-		Filename: lst.shp
 	open:
-		Filename: lst.shp
 		Start: 1
 		Length: 4
 		Tick: 150
 	close:
-		Filename: lst.shp
 		Frames: 4, 3, 2, 1
 		Length: 4
 		Tick: 150
 	unload:
-		Filename: lst.shp
 		Start: 4
 		ZOffset: -511
 	icon:
@@ -202,11 +200,11 @@ nsub:
 
 advmsub:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: advmsub.shp
+	idle:
 		Facings: 16
 	move:
-		Filename: advmsub.shp
 		Start: 16
 		Length: 8
 		Facings: 16

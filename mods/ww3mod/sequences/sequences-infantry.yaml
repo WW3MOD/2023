@@ -19,7 +19,6 @@
 		ZOffset: -511
 ^Rot:
 	rot1:
-		Filename: rot1.shp
 		Combine:
 			minigun:
 				Filename: minigun.shp
@@ -34,7 +33,6 @@
 		Tick: 2000
 		ZOffset: -511
 	rot2:
-		Filename: rot2.shp
 		Combine:
 			minigun:
 				Filename: minigun.shp
@@ -49,7 +47,6 @@
 		Tick: 2000
 		ZOffset: -511
 	rot3:
-		Filename: rot3.shp
 		Combine:
 			minigun:
 				Filename: minigun.shp
@@ -64,7 +61,6 @@
 		Tick: 2000
 		ZOffset: -511
 	rot4:
-		Filename: rot4.shp
 		Combine:
 			minigun:
 				Filename: minigun.shp
@@ -1659,7 +1655,6 @@ sf.russia:
 		Start: 354
 		Length: 18
 		Tick: 80
-	die6: electro
 	die7:
 		Filename: tl.shp
 		Start: 318
@@ -2028,55 +2023,46 @@ dr.russia:
 		Filename: dricon.shp
 
 dog:
-	stand:
+	Defaults:
 		Filename: dog.shp
+	stand:
 		Facings: 8
 	walk:
-		Filename: dog.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 80
 	run:
-		Filename: dog.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 	eat:
-		Filename: dog.shp
 		Start: 104
 		Length: 14
 		Facings: 8
 		Tick: 120
 	idle1:
-		Filename: dog.shp
 		Start: 216
 		Length: 7
 		Tick: 120
 	idle2:
-		Filename: dog.shp
 		Start: 224
 		Length: 11
 		Tick: 120
 	die1:
-		Filename: dog.shp
 		Start: 236
 		Length: 6
 	die2:
-		Filename: dog.shp
 		Start: 242
 		Length: 9
 	die3:
-		Filename: dog.shp
 		Start: 236
 		Length: 6
 	die4:
-		Filename: dog.shp
 		Start: 242
 		Length: 9
 	die5:
-		Filename: dog.shp
 		Start: 251
 		Length: 14
 	die6:
@@ -2101,83 +2087,68 @@ dog:
 
 shok:
 	Inherits@PostDeath: ^Rot
-	stand:
+	Defaults:
 		Filename: shok.shp
+	stand:
 		Facings: 8
 	stand2:
-		Filename: shok.shp
 		Start: 8
 		Facings: 8
 	run:
-		Filename: shok.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 120
 	shoot:
-		Filename: shok.shp
 		Start: 64
 		Length: 16
 		Facings: 8
 	prone-stand:
-		Filename: shok.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
 	prone-stand2:
-		Filename: shok.shp
 		Start: 208
 		Stride: 4
 		Facings: 8
 	prone-run:
-		Filename: shok.shp
 		Start: 208
 		Length: 4
 		Facings: 8
 		Tick: 120
 	liedown:
-		Filename: shok.shp
 		Start: 192
 		Length: 2
 		Facings: 8
 	standup:
-		Filename: shok.shp
 		Start: 240
 		Length: 2
 		Facings: 8
 	prone-shoot:
-		Filename: shok.shp
 		Start: 256
 		Length: 16
 		Facings: 8
 	idle1:
-		Filename: shok.shp
 		Start: 384
 		Length: 14
 		Tick: 120
 	idle2:
-		Filename: shok.shp
 		Start: 399
 		Length: 16
 		Tick: 120
 	die1:
-		Filename: shok.shp
 		Start: 416
 		Length: 8
 	die2:
-		Filename: shok.shp
 		Start: 424
 		Length: 8
 	die3:
-		Filename: shok.shp
 		Start: 432
 		Length: 8
 	die4:
-		Filename: shok.shp
 		Start: 440
 		Length: 12
 	die5:
-		Filename: shok.shp
 		Start: 452
 		Length: 18
 	die6:
@@ -2197,37 +2168,32 @@ shok:
 		Tick: 1600
 		ZOffset: -511
 	parachute:
-		Filename: shok.shp
 		Start: 528
 	icon:
 		Filename: shokicon.shp
 
 e9:
-	stand:
+	Defaults:
 		Filename: e9.shp
+	stand:
 		Facings: 8
 	run:
-		Filename: e9.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 120
 	idle1:
-		Filename: e9.shp
 		Start: 56
 		Length: 15
 		Tick: 120
 	idle2:
-		Filename: e9.shp
 		Start: 71
 		Length: 15
 		Tick: 120
 	die1:
-		Filename: e9.shp
 		Start: 134
 		Length: 15
 	die2:
-		Filename: e9.shp
 		Start: 149
 		Length: 15
 	die3:
@@ -2256,178 +2222,146 @@ e9:
 		Tick: 1600
 		ZOffset: -511
 	shoot:
-		Filename: e9.shp
 		Start: 164
 		Length: 6
 		Facings: 8
 		Tick: 80
 	prone-shoot:
-		Filename: e9.shp
 		Start: 212
 		Length: 6
 		Facings: 8
 		Tick: 80
 	liedown:
-		Filename: e9.shp
 		Start: 260
 		Length: 2
 		Facings: 8
 	standup:
-		Filename: e9.shp
 		Start: 276
 		Length: 2
 		Facings: 8
 	prone-stand:
-		Filename: e9.shp
 		Frames: 86, 92, 98, 104, 110, 116, 122, 128
 		Facings: 8
 	prone-run:
-		Filename: e9.shp
 		Start: 86
 		Length: 6
 		Facings: 8
 		Tick: 100
 	swim-stand:
-		Filename: e9.shp
 		Start: 340
 		Facings: 8
 		Length: 6
 		Tick: 160
 	swim-idle1:
-		Filename: e9.shp
 		Start: 484
 		Length: 15
 		Tick: 160
 	swim-idle2:
-		Filename: e9.shp
 		Start: 499
 		Length: 15
 		Tick: 160
 	swim:
-		Filename: e9.shp
 		Start: 388
 		Facings: 8
 		Length: 6
 		Tick: 120
 	swim-die:
-		Filename: e9.shp
 		Start: 512
 		Length: 22
 	swim-shoot:
-		Filename: e9.shp
 		Start: 436
 		Length: 6
 		Facings: 8
 		Tick: 80
 	parachute:
-		Filename: e9.shp
 		Start: 602
 	icon:
 		Filename: e9icon.shp
 rmbo:
 	Inherits: ^CommonDeaths
-	stand:
+	Defaults:
 		Filename: rmbo.shp
+	stand:
 		Facings: 8
 	stand2:
-		Filename: rmbo.shp
 		Start: 8
 		Facings: 8
 	run:
-		Filename: rmbo.shp
 		Start: 16
 		Length: 6
 		Facings: 8
 		Tick: 100
 	shoot:
-		Filename: rmbo.shp
 		Start: 64
 		Length: 4
 		Facings: 8
 	liedown:
-		Filename: rmbo.shp
 		Start: 96
 		Length: 2
 		Facings: 8
 	standup:
-		Filename: rmbo.shp
 		Start: 144
 		Length: 2
 		Facings: 8
 	prone-stand:
-		Filename: rmbo.shp
 		Start: 112
 		Stride: 4
 		Facings: 8
 	prone-stand2:
-		Filename: rmbo.shp
 		Start: 112
 		Stride: 4
 		Facings: 8
 	prone-run:
-		Filename: rmbo.shp
 		Start: 112
 		Length: 4
 		Facings: 8
 		Tick: 100
 	prone-shoot:
-		Filename: rmbo.shp
 		Start: 160
 		Length: 4
 		Facings: 8
 	idle1:
-		Filename: rmbo.shp
 		Start: 192
 		Length: 16
 		Tick: 120
 	idle2:
-		Filename: rmbo.shp
 		Start: 208
 		Length: 16
 		Tick: 120
 	idle3:
-		Filename: rmbo.shp
 		Start: 224
 		Length: 15
 		Tick: 120
 	cheer:
-		Filename: rmbo.shp
 		Start: 396
 		Length: 3
 		Facings: 8
 		Tick: 120
 	die1:
-		Filename: rmbo.shp
 		Start: 318
 		Length: 8
 		Tick: 80
 	die2:
-		Filename: rmbo.shp
 		Start: 326
 		Length: 8
 		Tick: 80
 	die3:
-		Filename: rmbo.shp
 		Start: 334
 		Length: 8
 		Tick: 80
 	die4:
-		Filename: rmbo.shp
 		Start: 342
 		Length: 12
 		Tick: 80
 	die5:
-		Filename: rmbo.shp
 		Start: 354
 		Length: 18
 		Tick: 80
 	die7:
-		Filename: rmbo.shp
 		Start: 318
 		Length: 8
 		Tick: 80
 	parachute:
-		Filename: rmbo.shp
 		Start: 431
 	garrison-muzzle:
 		Filename: minigun16.shp
@@ -2439,67 +2373,55 @@ rmbo:
 boris:
 	Inherits: ^CommonDeaths
 	Inherits@PostDeath: ^Rot
-	stand:
+	Defaults:
 		Filename: boris.shp
+	stand:
 		Facings: 8
 	run:
-		Filename: boris.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 80
 	shoot:
-		Filename: boris.shp
 		Start: 56
 		Length: 4
 		Facings: 8
 	prone-stand:
-		Filename: boris.shp
 		Start: 104
 		Stride: 4
 		Facings: 8
 	prone-run:
-		Filename: boris.shp
 		Start: 104
 		Length: 4
 		Facings: 8
 	standup-0:
-		Filename: boris.shp
 		Start: 136
 		Length: 2
 		Facings: 8
 	prone-shoot:
-		Filename: boris.shp
 		Start: 152
 		Length: 4
 		Facings: 8
 	idle1:
-		Filename: boris.shp
 		Start: 184
 		Length: 26
 		Tick: 120
 	die1:
-		Filename: boris.shp
 		Start: 210
 		Length: 8
 	die2:
-		Filename: boris.shp
 		Start: 218
 		Length: 8
 	die3:
-		Filename: boris.shp
 		Start: 226
 		Length: 8
 	die4:
-		Filename: boris.shp
 		Start: 234
 		Length: 12
 	die5:
-		Filename: boris.shp
 		Start: 246
 		Length: 18
 	die7:
-		Filename: boris.shp
 		Start: 210
 		Length: 8
 	icon:
@@ -2507,53 +2429,45 @@ boris:
 
 terr:
 	Inherits@PostDeath: ^Rot
-	stand:
+	Defaults:
 		Filename: terr.shp
+	stand:
 		Facings: 8
 	walk:
-		Filename: terr.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 	run:
-		Filename: terr.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: terr.shp
 		Start: 205
 		Length: 4
 		Facings: 8
 	cheer:
-		Filename: terr.shp
 		Start: 200
 		Length: 3
 		Facings: 8
 		Tick: 120
 	die1:
-		Filename: terr.shp
 		Start: 329
 		Length: 8
 		Tick: 80
 	die2:
-		Filename: terr.shp
 		Start: 337
 		Length: 8
 		Tick: 80
 	die3:
-		Filename: terr.shp
 		Start: 337
 		Length: 8
 		Tick: 80
 	die4:
-		Filename: terr.shp
 		Start: 345
 		Length: 12
 		Tick: 80
 	die5:
-		Filename: terr.shp
 		Start: 357
 		Length: 18
 		Tick: 80
@@ -2574,44 +2488,37 @@ terr:
 		Tick: 1600
 		ZOffset: -511
 	parachute:
-		Filename: terr.shp
 		Start: 0
 	icon:
 		Filename: terricon.shp
 thf:
 	Inherits@PostDeath: ^Rot
-	stand:
+	Defaults:
 		Filename: thf.shp
+	stand:
 		Facings: 8
 	run:
-		Filename: thf.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 100
 	idle:
-		Filename: thf.shp
 		Start: 120
 		Length: 19
 		Tick: 120
 	die1:
-		Filename: thf.shp
 		Start: 139
 		Length: 8
 	die2:
-		Filename: thf.shp
 		Start: 147
 		Length: 8
 	die3:
-		Filename: thf.shp
 		Start: 155
 		Length: 8
 	die4:
-		Filename: thf.shp
 		Start: 163
 		Length: 12
 	die5:
-		Filename: thf.shp
 		Start: 175
 		Length: 18
 	die6:
@@ -2631,12 +2538,10 @@ thf:
 		Tick: 1600
 		ZOffset: -511
 	prone-stand:
-		Filename: thf.shp
 		Start: 72
 		Stride: 4
 		Facings: 8
 	prone-run:
-		Filename: thf.shp
 		Start: 72
 		Length: 4
 		Facings: 8
@@ -2645,40 +2550,33 @@ thf:
 		Filename: thficon.shp
 
 c1:
-	stand:
+	Defaults:
 		Filename: c1.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c1.shp
 		Facings: 8
 	panic-run:
-		Filename: c1.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c1.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c1.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c1.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c1.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c1.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c1.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -2698,46 +2596,38 @@ c1:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c1.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c2:
-	stand:
+	Defaults:
 		Filename: c2.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c2.shp
 		Facings: 8
 	panic-run:
-		Filename: c2.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c2.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c2.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c2.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c2.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c2.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c2.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -2757,46 +2647,38 @@ c2:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c2.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c3:
-	stand:
+	Defaults:
 		Filename: c3.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c3.shp
 		Facings: 8
 	panic-run:
-		Filename: c3.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c3.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c3.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c3.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c3.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c3.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c3.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -2816,48 +2698,40 @@ c3:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c3.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c4:
-	stand:
+	Defaults:
 		Filename: c4.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c4.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c4.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c4.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c4.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c4.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c4.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c4.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c4.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -2877,48 +2751,40 @@ c4:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c4.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c5:
-	stand:
+	Defaults:
 		Filename: c5.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c5.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c5.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c5.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c5.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c5.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c5.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c5.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c5.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -2938,48 +2804,40 @@ c5:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c5.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c6:
-	stand:
+	Defaults:
 		Filename: c6.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c6.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c6.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c6.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c6.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c6.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c6.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c6.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c6.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -2999,48 +2857,40 @@ c6:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c6.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c7:
-	stand:
+	Defaults:
 		Filename: c7.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c7.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c7.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c7.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c7.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c7.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c7.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c7.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c7.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -3060,48 +2910,40 @@ c7:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c7.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c8:
-	stand:
+	Defaults:
 		Filename: c8.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c8.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c8.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c8.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c8.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c8.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c8.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c8.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c8.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -3121,48 +2963,40 @@ c8:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c8.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c9:
-	stand:
+	Defaults:
 		Filename: c9.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c9.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c9.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c9.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c9.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c9.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c9.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c9.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c9.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -3182,48 +3016,40 @@ c9:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c9.shp
 		Start: 56
 		Length: 6
 		Facings: 8
 		Tick: 80
 c10:
-	stand:
+	Defaults:
 		Filename: c10.shp
+	stand:
 		Facings: 8
 	panic-stand:
-		Filename: c10.shp
 		Start: 8
 		Stride: 6
 		Facings: 8
 	panic-run:
-		Filename: c10.shp
 		Start: 8
 		Length: 6
 		Facings: 8
 	shoot:
-		Filename: c10.shp
 		Start: 120
 		Length: 4
 		Facings: 8
 	die1:
-		Filename: c10.shp
 		Start: 152
 		Length: 8
 	die2:
-		Filename: c10.shp
 		Start: 160
 		Length: 8
 	die3:
-		Filename: c10.shp
 		Start: 168
 		Length: 12
 	die4:
-		Filename: c10.shp
 		Start: 168
 		Length: 12
 	die5:
-		Filename: c10.shp
 		Start: 180
 		Length: 18
 	die6:
@@ -3243,7 +3069,6 @@ c10:
 		Tick: 1600
 		ZOffset: -511
 	run:
-		Filename: c10.shp
 		Start: 56
 		Length: 6
 		Facings: 8

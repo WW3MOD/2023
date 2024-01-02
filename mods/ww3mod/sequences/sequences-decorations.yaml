@@ -1,5 +1,4 @@
 tc04:
-	Defaults:
 	idle:
 		Filename: tc04.tem
 
@@ -7,21 +6,17 @@ tc04.husk:
 	Defaults:
 		Filename: tc04.tem
 	idle:
-		Filename: tc04.tem
 		Start: 1
 	dead:
-		Filename: tc04.tem
 		Start: 2
 		Length: 8
 		Tick: 80
 
 tc05:
-	Defaults:
 	idle:
 		Filename: tc05.tem
 
 tc05.husk:
-	Defaults: tc05
 	idle:
 		Filename: tc05.tem
 		Start: 1
@@ -32,12 +27,10 @@ tc05.husk:
 		Tick: 80
 
 tc03:
-	Defaults:
 	idle:
 		Filename: tc03.tem
 
 tc03.husk:
-	Defaults: tc03
 	idle:
 		Filename: tc03.tem
 		Start: 1
@@ -48,12 +41,10 @@ tc03.husk:
 		Tick: 80
 
 tc02:
-	Defaults:
 	idle:
 		Filename: tc02.tem
 
 tc02.husk:
-	Defaults: tc02
 	idle:
 		Filename: tc02.tem
 		Start: 1
@@ -64,12 +55,10 @@ tc02.husk:
 		Tick: 80
 
 tc01:
-	Defaults:
 	idle:
 		Filename: tc01.tem
 
 tc01.husk:
-	Defaults: tc01
 	idle:
 		Filename: tc01.tem
 		Start: 1
@@ -80,12 +69,10 @@ tc01.husk:
 		Tick: 80
 
 t17:
-	Defaults:
 	idle:
 		Filename: t17.tem
 
 t17.husk:
-	Defaults: t17
 	idle:
 		Filename: t17.tem
 		Start: 1
@@ -96,12 +83,10 @@ t17.husk:
 		Tick: 80
 
 t16:
-	Defaults:
 	idle:
 		Filename: t16.tem
 
 t16.husk:
-	Defaults: t16
 	idle:
 		Filename: t16.tem
 		Start: 1
@@ -112,12 +97,10 @@ t16.husk:
 		Tick: 80
 
 t15:
-	Defaults: t15
 	idle:
 		Filename: t15.tem
 
 t15.husk:
-	Defaults: t15
 	idle:
 		Filename: t15.tem
 		Start: 1
@@ -128,12 +111,10 @@ t15.husk:
 		Tick: 80
 
 t14:
-	Defaults:
 	idle:
 		Filename: t14.tem
 
 t14.husk:
-	Defaults: t14
 	idle:
 		Filename: t14.tem
 		Start: 1
@@ -144,12 +125,10 @@ t14.husk:
 		Tick: 80
 
 t13:
-	Defaults:
 	idle:
 		Filename: t13.tem
 
 t13.husk:
-	Defaults: t13
 	idle:
 		Filename: t13.tem
 		Start: 1
@@ -160,12 +139,10 @@ t13.husk:
 		Tick: 80
 
 t12:
-	Defaults:
 	idle:
 		Filename: t12.tem
 
 t12.husk:
-	Defaults: t12
 	idle:
 		Filename: t12.tem
 		Start: 1
@@ -176,12 +153,10 @@ t12.husk:
 		Tick: 80
 
 t11:
-	Defaults:
 	idle:
 		Filename: t11.tem
 
 t11.husk:
-	Defaults: t11
 	idle:
 		Filename: t11.tem
 		Start: 1
@@ -192,12 +167,10 @@ t11.husk:
 		Tick: 80
 
 t10:
-	Defaults:
 	idle:
 		Filename: t10.tem
 
 t10.husk:
-	Defaults: t10
 	idle:
 		Filename: t10.tem
 		Start: 1
@@ -208,12 +181,10 @@ t10.husk:
 		Tick: 80
 
 t08:
-	Defaults:
 	idle:
 		Filename: t08.tem
 
 t08.husk:
-	Defaults: t08
 	idle:
 		Filename: t08.tem
 		Start: 1
@@ -224,12 +195,10 @@ t08.husk:
 		Tick: 80
 
 t07:
-	Defaults:
 	idle:
 		Filename: t07.tem
 
 t07.husk:
-	Defaults: t07
 	idle:
 		Filename: t07.tem
 		Start: 1
@@ -240,12 +209,10 @@ t07.husk:
 		Tick: 80
 
 t06:
-	Defaults:
 	idle:
 		Filename: t06.tem
 
 t06.husk:
-	Defaults: t06
 	idle:
 		Filename: t06.tem
 		Start: 1
@@ -256,12 +223,10 @@ t06.husk:
 		Tick: 80
 
 t05:
-	Defaults:
 	idle:
 		Filename: t05.tem
 
 t05.husk:
-	Defaults: t05
 	idle:
 		Filename: t05.tem
 		Start: 1
@@ -272,12 +237,10 @@ t05.husk:
 		Tick: 80
 
 t03:
-	Defaults:
 	idle:
 		Filename: t03.tem
 
 t03.husk:
-	Defaults: t03
 	idle:
 		Filename: t03.tem
 		Start: 1
@@ -288,12 +251,10 @@ t03.husk:
 		Tick: 80
 
 t02:
-	Defaults:
 	idle:
 		Filename: t02.tem
 
 t02.husk:
-	Defaults: t02
 	idle:
 		Filename: t02.tem
 		Start: 1
@@ -304,12 +265,10 @@ t02.husk:
 		Tick: 80
 
 t01:
-	Defaults:
 	idle:
 		Filename: t01.tem
 
 t01.husk:
-	Defaults: t01
 	idle:
 		Filename: t01.tem
 		Start: 1
@@ -350,7 +309,6 @@ ice05:
 		AddExtension: false
 
 v01:
-	Defaults:
 	idle:
 		Filename: v01.tem
 	damaged-idle:
@@ -358,7 +316,6 @@ v01:
 		Start: 1
 
 v02:
-	Defaults:
 	idle:
 		Filename: v02.tem
 		Start: 1
@@ -367,7 +324,6 @@ v02:
 		Start: 1
 
 v03:
-	Defaults:
 	idle:
 		Filename: v03.tem
 		Start: 1
@@ -376,7 +332,6 @@ v03:
 		Start: 1
 
 v04:
-	Defaults:
 	idle:
 		Filename: v04.tem
 		Start: 2
@@ -391,7 +346,6 @@ v04:
 		Start: 3
 
 v05:
-	Defaults:
 	idle:
 		Filename: v05.tem
 		Start: 2
@@ -400,7 +354,6 @@ v05:
 		Start: 1
 
 v06:
-	Defaults:
 	idle:
 		Filename: v06.tem
 		Start: 1
@@ -409,7 +362,6 @@ v06:
 		Start: 1
 
 v07:
-	Defaults:
 	idle:
 		Filename: v07.tem
 		Start: 2
@@ -418,7 +370,6 @@ v07:
 		Start: 1
 
 v08:
-	Defaults:
 	idle:
 		Filename: v08.tem
 		Start: 1
@@ -427,7 +378,6 @@ v08:
 		Start: 1
 
 v09:
-	Defaults:
 	idle:
 		Filename: v09.tem
 		Start: 1
@@ -436,7 +386,6 @@ v09:
 		Start: 1
 
 v10:
-	Defaults:
 	idle:
 		Filename: v10.tem
 		Start: 1
@@ -445,7 +394,6 @@ v10:
 		Start: 1
 
 v11:
-	Defaults:
 	idle:
 		Filename: v11.tem
 		Start: 1
@@ -454,7 +402,6 @@ v11:
 		Start: 1
 
 v12:
-	Defaults:
 	idle:
 		Filename: v12.tem
 		Start: 1
@@ -463,7 +410,6 @@ v12:
 		Start: 1
 
 v13:
-	Defaults:
 	idle:
 		Filename: v13.tem
 		Start: 1
@@ -472,7 +418,6 @@ v13:
 		Start: 1
 
 v14:
-	Defaults:
 	idle:
 		Filename: v14.tem
 		ZOffset: -512
@@ -482,7 +427,6 @@ v14:
 		ZOffset: -512
 
 v15:
-	Defaults:
 	idle:
 		Filename: v15.tem
 		ZOffset: -512
@@ -492,7 +436,6 @@ v15:
 		ZOffset: -512
 
 v16:
-	Defaults:
 	idle:
 		Filename: v16.tem
 		ZOffset: -512
@@ -502,7 +445,6 @@ v16:
 		ZOffset: -512
 
 v17:
-	Defaults:
 	idle:
 		Filename: v17.tem
 		ZOffset: -512
@@ -512,7 +454,6 @@ v17:
 		ZOffset: -512
 
 v18:
-	Defaults:
 	idle:
 		Filename: v18.tem
 		ZOffset: -512
@@ -522,8 +463,6 @@ v18:
 		ZOffset: -512
 
 rice:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: rice.tem
 		ZOffset: -512
@@ -533,23 +472,21 @@ rice:
 		ZOffset: -512
 
 utilpol1:
+	Defaults:
+		Filename: utilpol1.shp
 	idle:
-		Filename: utilpol1.shp
 	damaged-idle:
-		Filename: utilpol1.shp
 		Start: 1
 	dead:
-		Filename: utilpol1.shp
 		Start: 1
 
 utilpol2:
+	Defaults:
+		Filename: utilpol2.shp
 	idle:
-		Filename: utilpol2.shp
 	damaged-idle:
-		Filename: utilpol2.shp
 		Start: 1
 	dead:
-		Filename: utilpol2.shp
 		Start: 1
 
 ammobox1:
@@ -573,40 +510,40 @@ tanktrap2:
 		Filename: tanktrap2.shp
 
 rushouse:
-	idle:
+	Defaults:
 		Filename: rushouse.shp
+	idle:
 		Start: 1
 	damaged-idle:
-		Filename: rushouse.shp
 		Start: 1
 
 asianhut:
-	idle:
+	Defaults:
 		Filename: asianhut.shp
+	idle:
 		Start: 1
 	damaged-idle:
-		Filename: asianhut.shp
 		Start: 1
 
 barb:
+	Defaults:
+		Filename: barb.shp
 	idle:
 		Length: 16
-		Filename: barb.shp
 	damaged-idle:
 		Start: 16
 		Length: 16
-		Filename: barb.shp
 	icon:
 		Filename: barbicon.shp
 
 wood:
+	Defaults:
+		Filename: wood.shp
 	idle:
 		Length: 16
-		Filename: wood.shp
 	damaged-idle:
 		Start: 16
 		Length: 16
-		Filename: wood.shp
 
 barl:
 	idle:
@@ -697,32 +634,24 @@ rock7:
 		AddExtension: false
 
 t04:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: t04.des
 
 t04.husk:
-	Defaults: t04.des
-		AddExtension: false
+	Defaults:
+		Filename: t04.des
 	idle:
 		Start: 1
-		Filename: t04.des
 	dead:
-		Filename: t04.des
 		Start: 2
 		Length: 8
 		Tick: 80
 
 t09:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: t09.des
 
 t09.husk:
-	Defaults: t09
-		AddExtension: false
 	idle:
 		Start: 1
 		Filename: t09.des
@@ -733,8 +662,6 @@ t09.husk:
 		Tick: 80
 
 v20:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v20.des
 		Length: 3
@@ -746,8 +673,6 @@ v20:
 		Tick: 120
 
 v21:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v21.des
 		Length: 3
@@ -759,8 +684,6 @@ v21:
 		Tick: 120
 
 v22:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v22.des
 		Length: 3
@@ -772,8 +695,6 @@ v22:
 		Tick: 120
 
 v23:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v23.des
 		Length: 3
@@ -785,8 +706,6 @@ v23:
 		Tick: 120
 
 v24:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v24.des
 	damaged-idle:
@@ -794,8 +713,6 @@ v24:
 		Start: 1
 
 v25:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v25.des
 	damaged-idle:
@@ -803,8 +720,6 @@ v25:
 		Start: 1
 
 v26:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v26.des
 	damaged-idle:
@@ -812,8 +727,6 @@ v26:
 		Start: 1
 
 v27:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v27.des
 	damaged-idle:
@@ -821,8 +734,6 @@ v27:
 		Start: 1
 
 v28:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v28.des
 	damaged-idle:
@@ -830,8 +741,6 @@ v28:
 		Start: 1
 
 v29:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v29.des
 	damaged-idle:
@@ -839,8 +748,6 @@ v29:
 		Start: 1
 
 v30:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v30.des
 	damaged-idle:
@@ -848,8 +755,6 @@ v30:
 		Start: 2
 
 v31:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v31.des
 	damaged-idle:
@@ -857,8 +762,6 @@ v31:
 		Start: 1
 
 v32:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v32.des
 	damaged-idle:
@@ -866,8 +769,6 @@ v32:
 		Start: 1
 
 v33:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v33.des
 	damaged-idle:
@@ -875,8 +776,6 @@ v33:
 		Start: 1
 
 v34:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v34.des
 	damaged-idle:
@@ -884,8 +783,6 @@ v34:
 		Start: 1
 
 v35:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v35.des
 	damaged-idle:
@@ -893,8 +790,6 @@ v35:
 		Start: 1
 
 v36:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v36.des
 	damaged-idle:
@@ -903,8 +798,6 @@ v36:
 
 
 v37:
-	Defaults:
-		AddExtension: false
 	idle:
 		Filename: v37.des
 	damaged-idle:
@@ -913,38 +806,35 @@ v37:
 
 snowhut:
 	Defaults:
+		Filename: snowhut.shp
 		Offset: 0,-5
 	idle:
-		Filename: snowhut.shp
 		Length: 3
 		Tick: 360
 	damaged-idle:
-		Filename: snowhut.shp
 		Start: 3
 		Tick: 120
 
 lhus:
 	Defaults:
+		Filename: lhus.shp
 		Offset: 0,-16
 	idle:
-		Filename: lhus.shp
 		Length: 16
 		Tick: 180
 	damaged-idle:
-		Filename: lhus.shp
 		Start: 16
 		Tick: 180
 		Length: 8
 
 windmill:
 	Defaults:
+		Filename: windmill.shp
 		Offset: 0,-16
 	idle:
-		Filename: windmill.shp
 		Length: 8
 		Tick: 80
 	damaged-idle:
-		Filename: windmill.shp
 		Start: 8
 		Length: 8
 		Tick: 80

@@ -50,12 +50,12 @@ torpedo:
 		ZOffset: -1023
 
 litning:
-	bright:
+	Defaults:
 		Filename: litning.shp
+	bright:
 		Length: 4
 		ZOffset: 1023
 	dim:
-		Filename: litning.shp
 		Start: 4
 		Length: 4
 		ZOffset: 1023
@@ -97,96 +97,90 @@ fb6:
 		ZOffset: 1023
 
 burn-l:
-	idle:
+	Defaults:
 		Filename: burn-l.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	loop:
-		Filename: burn-l.shp
 		Start: 16
 		Length: 44
 		ZOffset: 512
 	end:
-		Filename: burn-l.shp
 		Start: 60
 		Length: 6
 		ZOffset: 512
 
 burn-m:
-	idle:
+	Defaults:
 		Filename: burn-m.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	loop:
-		Filename: burn-m.shp
 		Start: 16
 		Length: 44
 		ZOffset: 512
 	end:
-		Filename: burn-m.shp
 		Start: 60
 		Length: 6
 		ZOffset: 512
 
 burn-s:
-	idle:
+	Defaults:
 		Filename: burn-s.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	loop:
-		Filename: burn-s.shp
 		Start: 12
 		Length: 46
 		ZOffset: 512
 	end:
-		Filename: burn-s.shp
 		Start: 59
 		Length: 5
 		ZOffset: 512
 
 infantry-burn-1:
-	idle:
+	Defaults:
 		Filename: smoke_m.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	start:
-		Filename: smoke_m.shp
 		Length: *
 		ZOffset: 512
 	loop:
-		Filename: smoke_m.shp
 		Start: 10
 		Length: 10
 		ZOffset: 512
 	end:
-		Filename: smoke_m.shp
 		Start: 5
 		Length: 10
 		ZOffset: 512
 
 infantry-burn-2:
-	idle:
+	Defaults:
 		Filename: smoke_m.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	start:
-		Filename: smoke_m.shp
 		Length: *
 		ZOffset: 512
 	loop:
-		Filename: smoke_m.shp
 		Start: 20
 		Length: 10
 		ZOffset: 512
 	end:
-		Filename: smoke_m.shp
 		Start: 15
 		Length: 10
 		ZOffset: 512
 
 infantry-burn-3:
-	idle:
+	Defaults:
 		Filename: burn-s.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	start:
@@ -195,40 +189,37 @@ infantry-burn-3:
 		Length: 10
 		ZOffset: 512
 	loop:
-		Filename: burn-s.shp
 		Start: 16
 		Length: 10
 		ZOffset: 512
 	end:
-		Filename: burn-s.shp
 		Start: 0
 		Length: 8
 		ZOffset: 512
 
 infantry-burn-4:
-	idle:
+	Defaults:
 		Filename: burn-s.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	start:
-		Filename: burn-s.shp
 		Start: 16
 		Length: 10
 		ZOffset: 512
 	loop:
-		Filename: burn-s.shp
 		Start: 16
 		Length: 30
 		ZOffset: 512
 	end:
-		Filename: burn-s.shp
 		Start: 58
 		Length: 5
 		ZOffset: 512
 
 infantry-burn-5:
-	idle:
+	Defaults:
 		Filename: burn-m.shp
+	idle:
 		Length: *
 		ZOffset: 512
 	start:
@@ -237,12 +228,10 @@ infantry-burn-5:
 		Length: 30
 		ZOffset: 512
 	loop:
-		Filename: burn-m.shp
 		Start: 13
 		Length: 10
 		ZOffset: 512
 	end:
-		Filename: burn-m.shp
 		Start: 60
 		Length: 6
 		ZOffset: 512
@@ -356,20 +345,20 @@ emp-overlay:
 		ZOffset: 512
 
 maxichute:
-	open:
+	Defaults:
 		Filename: maxichute.shp
+	open:
 		ZOffset: 512
 	idle:
-		Filename: maxichute.shp
 		Length: 20
 		ZOffset: 512
 
 parach:
-	open:
+	Defaults:
 		Filename: parach.shp
+	open:
 		Length: 5
 	idle:
-		Filename: parach.shp
 		Start: 5
 		Length: 11
 
@@ -385,24 +374,24 @@ bomblet:
 		ZOffset: 1023
 
 parabomb:
-	open:
+	Defaults:
 		Filename: parabomb.shp
+	open:
 		Length: 8
 		ZOffset: 1023
 	idle:
-		Filename: parabomb.shp
 		Start: 8
 		Length: 5
 		ZOffset: 1023
 
 smokland:
-	open:
+	Defaults:
 		Filename: playersmoke.shp
+	open:
 		Length: 72
 		Tick: 120
 		ZOffset: 1023
 	idle:
-		Filename: playersmoke.shp
 		Start: 72
 		Length: 20
 		Tick: 120
@@ -484,20 +473,19 @@ twake:
 		ZOffset: -511
 
 smoke_m:
-	idle:
+	Defaults:
 		Filename: smoke_m.shp
+	idle:
 		Tick: 100
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512
 	loop:
-		Filename: smoke_m.shp
 		Start: 49
 		Length: 42
 		Offset: 2, -5
 		ZOffset: 512
 	end:
-		Filename: smoke_m.shp
 		Start: 26
 		# Length: -26 // 1010
 		Offset: 2, -5
@@ -528,99 +516,90 @@ bubbles:
 
 scrate:
 	Defaults:
+		Filename: scrate.shp
 		ZOffset: -511
 	idle:
-		Filename: scrate.shp
 	land:
-		Filename: scrate.shp
 		Start: 1
 	water:
-		Filename: scrate.shp
 		Start: 2
 		Length: 4
 		Tick: 500
 
 scrate-healup:
 	Defaults:
+		Filename: scrate-healup.shp
 		ZOffset: -511
 	idle:
-		Filename: scrate-healup.shp
 	land:
-		Filename: scrate-healup.shp
 		Start: 1
 	water:
-		Filename: scrate-healup.shp
 		Start: 2
 		Length: 4
 		Tick: 500
 
 wcrate:
 	Defaults:
+		Filename: wcrate.shp
 		ZOffset: -511
 	idle:
-		Filename: wcrate.shp
 	land:
-		Filename: wcrate.shp
 	water:
 		Filename: wwcrate.shp
 		Length: *
 		Tick: 500
 
 xcratea:
-	idle:
+	Defaults:
 		Filename: xcratea.shp
+	idle:
 		ZOffset: -511
 	land:
-		Filename: xcratea.shp
 		Start: 1
 		ZOffset: -511
 	water:
-		Filename: xcratea.shp
 		Start: 2
 		Length: 4
 		Tick: 500
 		ZOffset: -511
 
 xcrateb:
-	idle:
+	Defaults:
 		Filename: xcrateb.shp
+	idle:
 		ZOffset: -511
 	land:
-		Filename: xcrateb.shp
 		Start: 1
 		ZOffset: -511
 	water:
-		Filename: xcrateb.shp
 		Start: 2
 		Length: 4
 		Tick: 500
 		ZOffset: -511
 
 xcratec:
-	idle:
+	Defaults:
 		Filename: xcratec.shp
+	idle:
 		ZOffset: -511
 	land:
-		Filename: xcratec.shp
 		Start: 1
 		ZOffset: -511
 	water:
-		Filename: xcratec.shp
 		Start: 2
 		Length: 4
 		Tick: 500
 		ZOffset: -511
 
 xcrated:
-	idle:
+	Defaults:
 		Filename: xcrated.shp
+	idle:
 		ZOffset: -511
 	land:
-		Filename: xcrated.shp
 		Start: 1
 		ZOffset: -511
 	water:
-		Filename: xcrated.shp
 		Start: 2
 		Length: 4
 		Tick: 500

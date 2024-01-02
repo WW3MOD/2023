@@ -1,8 +1,8 @@
 acom:
+	Defaults:
+		Filename: acom.shp
 	idle:
-		Filename: acom.shp
 	damaged-idle:
-		Filename: acom.shp
 		Start: 1
 	make:
 		Filename: acommake.shp
@@ -28,17 +28,16 @@ acom.husk:
 
 hosp:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: hosp.shp
+	idle:
 		Length: 4
 		Tick: 100
 	damaged-idle:
-		Filename: hosp.shp
 		Start: 4
 		Length: 4
 		Tick: 100
 	dead:
-		Filename: hosp.shp
 		Start: 8
 		Tick: 800
 	make:
@@ -70,14 +69,12 @@ hosp.husk:
 bio:
 	Inherits: emp-overlay
 	Defaults:
+		Filename: bio.shp
 		Offset: 0,-2
 	idle:
-		Filename: bio.shp
 	damaged-idle:
-		Filename: bio.shp
 		Start: 1
 	dead:
-		Filename: bio.shp
 		Start: 2
 		Tick: 800
 	make:
@@ -107,13 +104,12 @@ bio.husk:
 
 miss:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: miss.shp
 	idle:
-		Filename: miss.shp
 	damaged-idle:
-		Filename: miss.shp
 		Start: 1
 	dead:
-		Filename: miss.shp
 		Start: 2
 		Tick: 800
 	make:
@@ -138,15 +134,13 @@ miss.husk:
 
 oilb:
 	Defaults:
+		Filename: oilb.shp
 		Offset: 0,-6
 	idle:
-		Filename: oilb.shp
 	damaged-idle:
-		Filename: oilb.shp
 		Start: 1
 		Length: *
 	make:
-		Filename: oilb.shp
 	bib:
 		Filename: bib3.tem
 		TilesetFilenames:

@@ -14,6 +14,7 @@ supplyroute:
 		Filename: blank32.shp
 		Length: 1
 	bib:
+		Filename: supplyroute.shp
 		TilesetFilenames:
 			SNOW: mbFIX.sno
 			INTERIOR: mbFIX.int
@@ -184,10 +185,10 @@ apwr.husk:
 
 powrgrey:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: powrgrey.shp
 	idle:
-		Filename: powrgrey.shp
 	damaged-idle:
-		Filename: powrgrey.shp
 		Start: 1
 	place:
 		Filename: powrgreymake.shp
@@ -234,11 +235,11 @@ powrgrey.husk:
 
 apwrgrey:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: apwrgrey.shp
+	idle:
 		Offset: 0,-10
 	damaged-idle:
-		Filename: apwrgrey.shp
 		Start: 1
 		Offset: 0,-10
 	place:
@@ -290,10 +291,10 @@ apwrgrey.husk:
 
 powrciv:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: powrciv.shp
 	idle:
-		Filename: powrciv.shp
 	damaged-idle:
-		Filename: powrciv.shp
 		Start: 1
 	place:
 		Filename: powrcivmake.shp
@@ -316,7 +317,6 @@ powrciv:
 		Length: *
 		Offset: 0,0
 	dead:
-		Filename: powrciv.shp
 		Start: 2
 		Tick: 800
 	icon:
@@ -365,12 +365,12 @@ proc.husk:
 
 ercc-proc:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: ercc-bot.shp
+	idle:
 		Offset: 2, -9
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: ercc-bot.shp
 		Offset: 2, -9
 		ZOffset: -1c511
 		Start: 1
@@ -400,12 +400,10 @@ ercc-proc:
 		Length: *
 		Tick: 2000 # default but should it change ??
 	place:
-		Filename: ercc-bot.shp
 		Offset: 5, -13
 		Start: 0
 		Length: 1
 	dead:
-		Filename: ercc-bot.shp
 		Start: 1
 		Length: 1
 		Tick: 800
@@ -430,19 +428,17 @@ ercc-proc:
 
 silo:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: silo2.shp
+	idle:
 		Offset: 0,-1
 	damaged-idle:
-		Filename: silo2.shp
 		Start: 9
 		Offset: 0,-1
 	stages:
-		Filename: silo2.shp
 		Length: 9
 		Offset: 0,-1
 	damaged-stages:
-		Filename: silo2.shp
 		Start: 9
 		Length: 9
 		Offset: 0,-1
@@ -452,6 +448,7 @@ silo:
 		Length: *
 		Offset: 0,-1
 	bib:
+		Filename: silo.shp
 		TilesetFilenames:
 			SNOW: mbSILO.sno
 			INTERIOR: mbSILO.int
@@ -459,7 +456,6 @@ silo:
 			DESERT: mbSILO.des
 		Length: *
 	dead:
-		Filename: silo2.shp
 		Start: 9
 		Length: 1
 		Tick: 800
@@ -472,6 +468,7 @@ silo.husk:
 		Start: 9
 		Length: 1
 	bib:
+		Filename: silo.husk.shp
 		TilesetFilenames:
 			SNOW: mbSILO.sno
 			INTERIOR: mbSILO.int
@@ -482,12 +479,11 @@ silo.husk:
 tent:
 	Inherits: emp-overlay
 	Defaults:
-	idle:
 		Filename: tent.shp
+	idle:
 		Length: 10
 		Tick: 100
 	damaged-idle:
-		Filename: tent.shp
 		Start: 10
 		Length: 10
 		Tick: 100
@@ -499,7 +495,6 @@ tent:
 		Tick: 1500
 		Length: *
 	dead:
-		Filename: tent.shp
 		Start: 10
 		Length: 1
 		Tick: 800
@@ -514,7 +509,6 @@ tent:
 		Filename: tenticon.shp
 
 tent.husk:
-	Defaults:
 	idle:
 		Filename: tent.shp
 		Start: 10
@@ -529,13 +523,13 @@ tent.husk:
 
 barr:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: barr.shp
+	idle:
 		Length: 10
 		Offset: 0,-6
 		Tick: 100
 	damaged-idle:
-		Filename: barr.shp
 		Start: 10
 		Length: 10
 		Offset: 0,-6
@@ -557,7 +551,6 @@ barr:
 		Length: *
 		Offset: 0,0
 	dead:
-		Filename: barr.shp
 		Start: 10
 		Length: 1
 		Offset: 0,-6
@@ -581,10 +574,10 @@ barr.husk:
 
 kenn:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: kenn.shp
 	idle:
-		Filename: kenn.shp
 	damaged-idle:
-		Filename: kenn.shp
 		Start: 1
 	make:
 		Filename: kennmake.shp
@@ -598,7 +591,6 @@ kenn:
 			DESERT: mbSILO.des
 		Length: *
 	dead:
-		Filename: kenn.shp
 		Start: 1
 		Tick: 800
 	icon:
@@ -610,6 +602,7 @@ kenn.husk:
 		Start: 1
 		Length: 1
 	bib:
+		Filename: kenn.husk.shp
 		TilesetFilenames:
 			SNOW: mbSILO.sno
 			INTERIOR: mbSILO.int
@@ -619,10 +612,10 @@ kenn.husk:
 
 weap:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: weap.shp
 	idle:
-		Filename: weap.shp
 	damaged-idle:
-		Filename: weap.shp
 		Start: 1
 	place:
 		Filename: weapmake.shp
@@ -713,6 +706,7 @@ fix.husk:
 		Offset: 0,1
 		ZOffset: -1c511
 	bib:
+		Filename: fix.husk.shp
 		TilesetFilenames:
 			SNOW: mbFIX.sno
 			INTERIOR: mbFIX.int
@@ -723,11 +717,11 @@ fix.husk:
 		Offset: 0,-4
 dome:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: dome.shp
+	idle:
 		Offset: 0,-4
 	damaged-idle:
-		Filename: dome.shp
 		Start: 1
 		Offset: 0,-4
 	make:
@@ -743,7 +737,6 @@ dome:
 		Length: *
 		Offset: 0,0
 	dead:
-		Filename: dome.shp
 		Start: 1
 		Tick: 800
 		Offset: 0,-4
@@ -766,6 +759,8 @@ dome.husk:
 
 afld:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: afld.shp
 	idle:
 		Filename: afldidle.shp
 		Length: 8
@@ -780,13 +775,11 @@ afld:
 		ZOffset: -1023
 		Offset: 0,-4
 	active:
-		Filename: afld.shp
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
 		Offset: 0,-4
 	damaged-active:
-		Filename: afld.shp
 		Start: 8
 		Length: 8
 		Tick: 160
@@ -801,7 +794,6 @@ afld:
 		Length: *
 		Offset: 0,-4
 	dead:
-		Filename: afld.shp
 		Start: 8
 		Length: 1
 		ZOffset: -1023
@@ -818,27 +810,24 @@ afld.husk:
 
 hpad:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: hpad.shp
+	idle:
 		ZOffset: -1023
 	damaged-idle:
-		Filename: hpad.shp
 		Start: 7
 		ZOffset: -1023
 	active:
-		Filename: hpad.shp
 		Start: 1
 		Length: 6
 		Tick: 100
 		ZOffset: -1023
 	damaged-active:
-		Filename: hpad.shp
 		Start: 8
 		Length: 6
 		Tick: 100
 		ZOffset: -1023
 	dead:
-		Filename: hpad.shp
 		Start: 7
 		Length: 1
 		ZOffset: -1023
@@ -866,10 +855,10 @@ hpad.husk:
 
 atek:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: atek.shp
 	idle:
-		Filename: atek.shp
 	damaged-idle:
-		Filename: atek.shp
 		Start: 1
 	make:
 		Filename: atekmake.shp
@@ -901,10 +890,10 @@ atek.husk:
 
 ateknew:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: atek2.shp
 	idle:
-		Filename: atek2.shp
 	damaged-idle:
-		Filename: atek2.shp
 		Start: 1
 	make:
 		Filename: atek2make.shp
@@ -917,7 +906,6 @@ ateknew:
 			DESERT: bib2.des
 		Length: *
 	dead:
-		Filename: atek2.shp
 		Start: 1
 		Tick: 800
 	icon:
@@ -930,10 +918,10 @@ ateknew.husk:
 
 stek:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: stek.shp
 	idle:
-		Filename: stek.shp
 	damaged-idle:
-		Filename: stek.shp
 		Start: 1
 	make:
 		Filename: stekmake.shp
@@ -986,11 +974,11 @@ syrd.husk:
 
 spen:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: spen.shp
+	idle:
 		Offset: 0,2
 	damaged-idle:
-		Filename: spen.shp
 		Start: 1
 		Offset: 0,2
 	make:
@@ -999,7 +987,6 @@ spen:
 		Length: *
 		Offset: 0,2
 	dead:
-		Filename: spen.shp
 		Start: 1
 		Offset: 0,2
 		Tick: 800
@@ -1014,17 +1001,16 @@ spen.husk:
 
 orep:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: orep.shp
 	idle:
-		Filename: orep.shp
 	damaged-idle:
-		Filename: orep.shp
 		Start: 1
 	make:
 		Filename: orepmake.shp
 		Tick: 2000
 		Length: *
 	dead:
-		Filename: orep.shp
 		Start: 1
 		Tick: 800
 	bib:
@@ -1038,13 +1024,13 @@ orep:
 
 indp:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: indp.shp
+	idle:
 		Length: 4
 		Tick: 200
 		Offset: 0,-10
 	damaged-idle:
-		Filename: indp.shp
 		Start: 4
 		Length: 4
 		Tick: 200
@@ -1060,7 +1046,6 @@ indp:
 		Length: 1
 		Offset: 0,-10
 	dead:
-		Filename: indp.shp
 		Start: 4
 		Tick: 800
 		Offset: 0,-10
@@ -1075,13 +1060,12 @@ indp:
 
 rresf:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: rresf.shp
 	idle:
-		Filename: rresf.shp
 	damaged-idle:
-		Filename: rresf.shp
 		Start: 1
 	dead:
-		Filename: rresf.shp
 		Start: 1
 		Tick: 800
 	make:
@@ -1098,10 +1082,10 @@ rresf:
 		Filename: rresficon.shp
 
 fcom:
+	Defaults:
+		Filename: fcom.shp
 	idle:
-		Filename: fcom.shp
 	damaged-idle:
-		Filename: fcom.shp
 		Start: 1
 	make:
 		Filename: fcommake.shp
@@ -1129,17 +1113,16 @@ fcom.husk:
 
 pyle:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: pyle.shp
+	idle:
 		Length: 10
 		Tick: 100
 	damaged-idle:
-		Filename: pyle.shp
 		Start: 10
 		Length: 10
 		Tick: 100
 	dead:
-		Filename: pyle.shp
 		Start: 20
 		Tick: 800
 	place:
@@ -1173,16 +1156,14 @@ pyle.husk:
 
 pdox:
 	Inherits: emp-overlay
+	Defaults:
+		Filename: pdox.shp
 	idle:
-		Filename: pdox.shp
 	damaged-idle:
-		Filename: pdox.shp
 		Start: 29
 	active:
-		Filename: pdox.shp
 		Length: 29
 	damaged-active:
-		Filename: pdox.shp
 		Start: 29
 		Length: 29
 	make:

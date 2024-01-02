@@ -7,8 +7,9 @@ quadcopterdrone:
 
 tran:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: tran2.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	rotor:
@@ -26,11 +27,9 @@ tran:
 		Start: 4
 		Length: 8
 	open:
-		Filename: tran2.shp
 		Start: 32
 		Length: 4
 	unload:
-		Filename: tran2.shp
 		Start: 35
 	icon:
 		Filename: chinookicon.shp

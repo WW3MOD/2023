@@ -25,21 +25,19 @@ mcvhusk:
 
 harv:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: harv.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	harvest:
-		Filename: harv.shp
 		Start: 32
 		Length: 8
 		Facings: 8
 	dock:
-		Filename: harv.shp
 		Start: 96
 		Length: 8
 	dock-loop:
-		Filename: harv.shp
 		Start: 104
 		Length: 7
 	icon:
@@ -102,11 +100,11 @@ tran2husk:
 
 brdm:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: brdm.shp
+	idle:
 		Facings: 32
 	turret:
-		Filename: brdm.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
@@ -123,15 +121,15 @@ brdm:
 
 bmp:
 	Inherits: ^VehicleOverlays
+	Defaults:
+		Filename: gapc-tur.shp
 	idle:
 		Filename: bmp.shp
 		Facings: 32
 	turret-flak-ag:
-		Filename: gapc-tur.shp
 		Facings: 32
 		ZOffset: 300
 	turret-flak-aa:
-		Filename: gapc-tur.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
@@ -147,15 +145,14 @@ bmp:
 
 btr:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: btr.shp
+	idle:
 		Facings: 32
 	open:
-		Filename: btr.shp
 		Start: 32
 		Length: 3
 	unload:
-		Filename: btr.shp
 		Start: 32
 	turret:
 		Filename: btr-tur.shp
@@ -170,12 +167,12 @@ btr:
 
 abrams:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: abrams-correction.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	turret:
-		Filename: abrams-correction.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
@@ -192,12 +189,12 @@ abrams:
 
 humvee:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: humvee.shp
+	idle:
 		Facings: 32
 		UseClassicFacingFudge: True
 	turret:
-		Filename: humvee.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacingFudge: True
@@ -217,8 +214,9 @@ humvee:
 
 m113:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: apc.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	muzzle:
@@ -226,11 +224,9 @@ m113:
 		Length: 6
 		Facings: 8
 	open:
-		Filename: apc.shp
 		Start: 32
 		Length: 3
 	unload:
-		Filename: apc.shp
 		Start: 32
 	turret:
 		Filename: apc-tur3.shp
@@ -295,18 +291,17 @@ strykershorad:
 
 m270:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: m270.shp
+	idle:
 		Facings: 32
 		UseClassicFacingFudge: True
 	turret-idle:
-		Filename: m270.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: false
 	turret:
-		Filename: m270.shp
 		Start: 64
 		Facings: 32
 		ZOffset: 300
@@ -316,12 +311,12 @@ m270:
 
 t72:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: t72.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	turret:
-		Filename: t72.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
@@ -334,12 +329,12 @@ t72:
 
 t90:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: t90.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	turret:
-		Filename: t90.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
@@ -368,18 +363,18 @@ bmp2:
 
 grad:
 	Inherits: ^VehicleOverlays
+	Defaults:
+		Filename: m270.shp
 	idle:
 		Filename: grad-chassi.shp
 		Facings: 32
 	turret-idle:
-		Filename: m270.shp
 		Start: 32
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret:
-		Filename: m270.shp
 		Start: 64
 		Facings: 32
 		Scale: 0.9
@@ -402,18 +397,18 @@ giatsint:
 
 tos:
 	Inherits: ^VehicleOverlays
+	Defaults:
+		Filename: m270.shp
 	idle:
 		Filename: t90.shp
 		Facings: 32
 	turret-idle:
-		Filename: m270.shp
 		Start: 32
 		Facings: 32
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret:
-		Filename: m270.shp
 		Start: 64
 		Facings: 32
 		Scale: 0.9
@@ -424,12 +419,12 @@ tos:
 
 iskander:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: iskander-chassi.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	empty-idle:
-		Filename: iskander-chassi.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -456,16 +451,16 @@ shootableshipmissile:
 
 tunguska:
 	Inherits: ^VehicleOverlays
+	Defaults:
+		Filename: quad_turret.shp
 	idle:
 		Filename: t90.shp
 		Facings: 32
 	turret-idle:
-		Filename: quad_turret.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret:
-		Filename: quad_turret.shp
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
@@ -478,18 +473,17 @@ tunguska:
 
 himars:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: himars.shp
+	idle:
 		Facings: 32
 		UseClassicFacingFudge: True
 	turret-idle:
-		Filename: himars.shp
 		Start: 32
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
 	turret:
-		Filename: himars.shp
 		Start: 64
 		Facings: 32
 		ZOffset: 300
@@ -519,16 +513,15 @@ msar:
 
 ttnk:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: ttnk.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	spinner:
-		Filename: ttnk.shp
 		Start: 32
 		Length: 32
 	spinner-not:
-		Filename: ttnk.shp
 		Start: 32
 		Length: 1
 	icon:
@@ -566,19 +559,18 @@ prsm.destroyed:
 
 timberwolf:
 	Inherits: ^VehicleOverlays
-	stand:
+	Defaults:
 		Filename: timberwolf.shp
+	stand:
 		Facings: -8
 		Stride: 12
 		Length: 1
 		ShadowZOffset: -500
 	run:
-		Filename: timberwolf.shp
 		Length: 12
 		Facings: -8
 		Tick: 70
 	turret:
-		Filename: timberwolf.shp
 		Start: 96
 		Facings: -32
 		ShadowStart: 224
@@ -593,32 +585,31 @@ timberwolf:
 		Filename: timberwolficon.shp
 
 smoke_mtd:
-	idle:
+	Defaults:
 		Filename: smoke_mtd.shp
+	idle:
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512
 	loop:
-		Filename: smoke_mtd.shp
 		Start: 49
 		Length: 42
 		Offset: 2, -5
 		ZOffset: 512
 	end:
-		Filename: smoke_mtd.shp
 		Start: 26
 		# Length: -26 // No longer allowed use indv frames in rev instead
 		Offset: 2, -5
 		ZOffset: 512
 
 1tnk.destroyed:
-	idle:
+	Defaults:
 		Filename: 1tnk.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 		ZOffset: -512
 	turret:
-		Filename: 1tnk.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -626,12 +617,12 @@ smoke_mtd:
 
 jeep:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: jeep.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	turret:
-		Filename: jeep.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -644,8 +635,9 @@ jeep:
 
 mrj:
 	Inherits: ^VehicleOverlays
-	idle:
+	Defaults:
 		Filename: mrj.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	turret:
@@ -657,7 +649,6 @@ mrj:
 		Length: 6
 		Facings: 8
 	spinner:
-		Filename: mrj.shp
 		Start: 32
 		Length: 32
 	icon:

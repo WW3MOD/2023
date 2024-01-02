@@ -46,12 +46,10 @@ hbox:
 		Tick: 300
 	muzzle:
 		Filename: minigun.shp
-		TilesetFilenames:
 		Length: 6
 		Facings: 8
 	icon:
 		Filename: hboxicon.shp
-		TilesetFilenames:
 
 hbox.husk:
 	idle:
@@ -79,36 +77,37 @@ ftur:
 			DESERT: mbFTUR.des
 		Length: *
 	muzzle-spray:
+		Filename:
 		Combine:
-			flame-n:
+			0:
 				Filename: flame-n.shp
 				Length: *
 				Offset: 3,6
-			flame-nw:
+			1:
 				Filename: flame-nw.shp
 				Length: *
 				Offset: 8,7
-			flame-w:
+			2:
 				Filename: flame-w.shp
 				Length: *
 				Offset: 8,2
-			flame-sw:
+			3:
 				Filename: flame-sw.shp
 				Length: *
 				Offset: 7,-2
-			flame-s:
+			4:
 				Filename: flame-s.shp
 				Length: *
 				Offset: 3,-2
-			flame-se:
+			5:
 				Filename: flame-se.shp
 				Length: *
 				Offset: -5,-2
-			flame-e:
+			6:
 				Filename: flame-e.shp
 				Length: *
 				Offset: -7,2
-			flame-ne:
+			7:
 				Filename: flame-ne.shp
 				Length: *
 				Offset: -7,8
@@ -124,6 +123,7 @@ ftur.husk:
 		Length: 1
 		Offset: 0,-2
 	bib:
+		Filename: ftur.husk.shp
 		TilesetFilenames:
 			SNOW: mbFTUR.sno
 			INTERIOR: mbFTUR.int
@@ -133,13 +133,13 @@ ftur.husk:
 
 gtur:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: gtur.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 		Offset: 0,-5
 	damaged-idle:
-		Filename: gtur.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -177,11 +177,11 @@ gtur:
 
 tsla:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: tsla.shp
+	idle:
 		Offset: 0,-13
 	damaged-idle:
-		Filename: tsla.shp
 		Start: 10
 		Offset: 0,-13
 	make:
@@ -190,13 +190,11 @@ tsla:
 		Tick: 1000
 		Offset: 0,-13
 	active:
-		Filename: tsla.shp
 		Start: 1
 		Length: 9
 		Tick: 100
 		Offset: 0,-13
 	damaged-active:
-		Filename: tsla.shp
 		Start: 11
 		Length: 9
 		Tick: 100
@@ -216,6 +214,7 @@ tsla.husk:
 		Filename: tsla-dead.shp
 		Offset: 0,-13
 	bib:
+		Filename: tsla.husk.shp
 		TilesetFilenames:
 			SNOW: mbTSLA.sno
 			INTERIOR: mbTSLA.int
@@ -225,13 +224,13 @@ tsla.husk:
 
 agun:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: agun.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 		Offset: 0,-13
 	recoil:
-		Filename: agun.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -247,13 +246,11 @@ agun:
 		Length: 1
 		Offset: 0,-13
 	damaged-idle:
-		Filename: agun.shp
 		Start: 64
 		Facings: 32
 		UseClassicFacings: True
 		Offset: 0,-13
 	damaged-recoil:
-		Filename: agun.shp
 		Start: 96
 		Facings: 32
 		UseClassicFacings: True
@@ -281,6 +278,7 @@ agun.husk:
 		UseClassicFacings: True
 		Offset: 0,-13
 	bib:
+		Filename: agun.husk.shp
 		TilesetFilenames:
 			SNOW: mbAGUN.sno
 			INTERIOR: mbAGUN.int
@@ -290,13 +288,13 @@ agun.husk:
 
 cram:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: cram.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 		Offset: 0,-13
 	damaged-idle:
-		Filename: cram.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -307,7 +305,6 @@ cram:
 		Length: 1
 		Offset: 0,-13
 	turret:
-		Filename: cram.shp
 		Facings: 32
 		UseClassicFacings: True
 		Offset: 0,-13
@@ -332,13 +329,13 @@ cram:
 
 sam:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: sam2.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 		Offset: -1,-2
 	damaged-idle:
-		Filename: sam2.shp
 		Start: 34
 		Facings: 32
 		UseClassicFacings: True
@@ -359,6 +356,7 @@ sam:
 		Facings: 8
 		Offset: -1,6
 	bib:
+		Filename: sam.shp
 		TilesetFilenames:
 			SNOW: mbSAM.sno
 			INTERIOR: mbSAM.int
@@ -376,6 +374,7 @@ sam.husk:
 		Length: 1
 		Offset: -1,-2
 	bib:
+		Filename: sam.husk.shp
 		TilesetFilenames:
 			SNOW: mbSAM.sno
 			INTERIOR: mbSAM.int
@@ -399,44 +398,37 @@ sam.husk:
 
 hsam:
 	Inherits: emp-overlay
-	closed-idle:
+	Defaults:
 		Filename: hsam.shp
+	closed-idle:
 		Start: 0
 	opening:
-		Filename: hsam.shp
 		Start: 1
 		Length: 16
 		Tick: 30
 	idle:
-		Filename: hsam.shp
 		Start: 17
 		Facings: 32
 		UseClassicFacings: True
 	closing:
-		Filename: hsam.shp
 		Start: 50
 		Length: 14
 		Tick: 30
 	damaged-closed-idle:
-		Filename: hsam.shp
 		Start: 64
 	damaged-opening:
-		Filename: hsam.shp
 		Start: 65
 		Length: 16
 		Tick: 30
 	damaged-idle:
-		Filename: hsam.shp
 		Start: 81
 		Facings: 32
 		UseClassicFacings: True
 	damaged-closing:
-		Filename: hsam.shp
 		Start: 114
 		Length: 14
 		Tick: 30
 	dead:
-		Filename: hsam.shp
 		Start: 128
 		Tick: 800
 	make:
@@ -514,35 +506,34 @@ fenc:
 		Filename: fencicon.shp
 
 barb:
-	idle:
+	Defaults:
 		Filename: barb.shp
+	idle:
 		Length: 16
 	damaged-idle:
-		Filename: barb.shp
 		Start: 16
 		Length: 16
 	icon:
 		Filename: barbicon.shp
 
 cycl:
-	idle:
+	Defaults:
 		Filename: cycl.shp
+	idle:
 		Length: 16
 	damaged-idle:
-		Filename: cycl.shp
 		Start: 16
 		Length: 16
 
 brik:
-	idle:
+	Defaults:
 		Filename: brik.shp
+	idle:
 		Length: 16
 	scratched-idle:
-		Filename: brik.shp
 		Start: 16
 		Length: 16
 	damaged-idle:
-		Filename: brik.shp
 		Start: 32
 		Length: 16
 	icon:
@@ -550,23 +541,21 @@ brik:
 
 vgate:
 	Inherits: emp-overlay
-	open:
+	Defaults:
 		Filename: vgate.shp
+	open:
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	idle:
-		Filename: vgate.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: vgate.shp
 		Frames: 13, 12, 11, 10, 9, 8, 7
 		Length: 7
 		ZOffset: -1c511
 	make:
-		Filename: vgate.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		Tick: 400
@@ -576,23 +565,21 @@ vgate:
 
 hgate:
 	Inherits: emp-overlay
-	open:
+	Defaults:
 		Filename: hgate.shp
+	open:
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	idle:
-		Filename: hgate.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: hgate.shp
 		Frames: 13, 12, 11, 10, 9, 8, 7
 		Length: 7
 		ZOffset: -1c511
 	make:
-		Filename: hgate.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		Tick: 400
@@ -602,23 +589,21 @@ hgate:
 
 hgate-america:
 	Inherits: emp-overlay
-	open:
+	Defaults:
 		Filename: hgate-america.shp
+	open:
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	idle:
-		Filename: hgate-america.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: hgate-america.shp
 		Frames: 13, 12, 11, 10, 9, 8, 7
 		Length: 7
 		ZOffset: -1c511
 	make:
-		Filename: hgate-america.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		Tick: 400
@@ -628,23 +613,21 @@ hgate-america:
 
 hgate-russia:
 	Inherits: emp-overlay
-	open:
+	Defaults:
 		Filename: hgate-russia.shp
+	open:
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	idle:
-		Filename: hgate-russia.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		ZOffset: -1c511
 	damaged-idle:
-		Filename: hgate-russia.shp
 		Frames: 13, 12, 11, 10, 9, 8, 7
 		Length: 7
 		ZOffset: -1c511
 	make:
-		Filename: hgate-russia.shp
 		Frames: 6, 5, 4, 3, 2, 1, 0
 		Length: 7
 		Tick: 400
@@ -654,8 +637,9 @@ hgate-russia:
 
 gtwr:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: gtwr.shp
+	idle:
 	make:
 		Filename: gtwrmake.shp
 		Length: *
@@ -667,7 +651,6 @@ gtwr:
 	icon:
 		Filename: gtwricnh.shp
 	damaged-idle:
-		Filename: gtwr.shp
 		Start: 1
 	dead:
 		Filename: gtwrmake.shp
@@ -684,13 +667,13 @@ gtwr:
 
 pris:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: pris.shp
+	idle:
 		Length: 32
 		Tick: 150
 		Offset: 0,-13
 	damaged-idle:
-		Filename: pris.shp
 		Start: 32
 		Length: 32
 		Tick: 150
@@ -723,12 +706,12 @@ pris:
 
 gun:
 	Inherits: emp-overlay
-	idle:
+	Defaults:
 		Filename: gun.shp
+	idle:
 		Facings: 32
 		UseClassicFacings: True
 	recoil:
-		Filename: gun.shp
 		Start: 32
 		Facings: 32
 		UseClassicFacings: True
@@ -741,12 +724,10 @@ gun:
 		Start: 19
 		Length: 1
 	damaged-idle:
-		Filename: gun.shp
 		Start: 64
 		Facings: 32
 		UseClassicFacings: True
 	damaged-recoil:
-		Filename: gun.shp
 		Start: 96
 		Facings: 32
 		UseClassicFacings: True
@@ -768,6 +749,7 @@ gun.husk:
 	idle:
 		Filename: gun-dead.shp
 	bib:
+		Filename: gun.husk.shp
 		TilesetFilenames:
 			SNOW: mbGUN.sno
 			INTERIOR: mbGUN.int
