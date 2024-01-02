@@ -81,7 +81,7 @@ MP5:
 		Inaccuracy: 256
 		LaunchAngle: 0,15
 		ContrailLength: 5
-		ContrailWidth: 3
+		ContrailStartWidth: 3
 		ContrailStartColorAlpha: 100
 	Warhead@Target: TargetDamage
 		Damage: 200
@@ -138,7 +138,7 @@ MP5:
 		Inaccuracy: 256
 		LaunchAngle: 0,15
 		ContrailLength: 5
-		ContrailWidth: 4
+		ContrailStartWidth: 4
 		ContrailStartColorAlpha: 110
 	Warhead@Target: TargetDamage
 		Damage: 250
@@ -205,7 +205,7 @@ MP5:
 		Inaccuracy: 256
 		LaunchAngle: 0,15
 		ContrailLength: 5
-		ContrailWidth: 6
+		ContrailStartWidth: 6
 		ContrailStartColorAlpha: 130
 	Warhead@Target: TargetDamage
 		Damage: 600
@@ -260,7 +260,7 @@ GrenadeLauncher:
 		LaunchAngle: 50,82
 		Image: grenade_small
 		ContrailLength: 5
-		ContrailWidth: 20
+		ContrailStartWidth: 20
 		ContrailZOffset: 0
 		ContrailDelay: 0
 	Warhead@Target: TargetDamage
@@ -291,7 +291,7 @@ RPG:
 		Inaccuracy: 1c0
 		LaunchAngle: 0,15
 		ContrailLength: 5
-		ContrailWidth: 20
+		ContrailStartWidth: 20
 		Image: tankround
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Vehicle, Defense, Water
@@ -350,7 +350,7 @@ AACannon:
 		Inaccuracy: 512
 		LaunchAngle: 0,20
 		ContrailLength: 5
-		ContrailWidth: 12
+		ContrailStartWidth: 12
 		ContrailStartColorAlpha: 140
 		Image: grenade_small
 	Warhead@Target: TargetDamage
@@ -489,7 +489,7 @@ AACannon:
 		Inaccuracy: 2c256
 		Image: grenade_small
 		ContrailLength: 5
-		ContrailWidth: 20
+		ContrailStartWidth: 20
 	Warhead@Target: TargetDamage
 		Damage: 3000
 		Penetration: 100
@@ -514,7 +514,7 @@ AACannon:
 		Inaccuracy: 1c0
 		Image: tankround
 		ContrailLength: 5
-		ContrailWidth: 24
+		ContrailStartWidth: 24
 	Warhead@Target: TargetDamage
 		Damage: 5000
 		DamageAtMaxRange: 50
@@ -540,7 +540,7 @@ AACannon:
 		Inaccuracy: 1c0
 		Image: tankround
 		ContrailLength: 4
-		ContrailWidth: 32
+		ContrailStartWidth: 32
 	Warhead@Target: TargetDamage
 		Damage: 20000
 		DamageAtMaxRange: 50
@@ -575,7 +575,7 @@ TankRound.T90:
 		LaunchAngle: 40,65
 		Image: 120mm
 		ContrailLength: 8
-		ContrailWidth: 40
+		ContrailStartWidth: 40
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		DamageAtMaxRange: 50
@@ -617,7 +617,7 @@ RocketPods:
 		Image: dragon
 		TrailImage: smokey
 		ContrailLength: 4
-		ContrailWidth: 20
+		ContrailStartWidth: 20
 		TrailDeactivation: 6
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
@@ -644,7 +644,7 @@ TimerWolf_Barrage:
 		Speed: 450
 		Image: dragon
 		ContrailLength: 5
-		ContrailWidth: 20
+		ContrailStartWidth: 20
 	Warhead@Spread: SpreadDamage
 		Spread: 128
 		Damage: 1000
@@ -664,7 +664,7 @@ GradRockets:
 		Image: dragon
 		TrailImage: smokey
 		ContrailLength: 4
-		ContrailWidth: 24
+		ContrailStartWidth: 24
 		TrailDeactivation: 40
 		Blockable: false
 	Warhead@Target: TargetDamage
@@ -693,7 +693,7 @@ TosRockets:
 		Image: missile
 		TrailImage: smokey
 		ContrailLength: 6
-		ContrailWidth: 30
+		ContrailStartWidth: 30
 		TrailDeactivation: 50
 	Warhead@Target: TargetDamage
 		Damage: 5000
@@ -720,7 +720,7 @@ M270Rockets:
 		Image: missile
 		TrailImage: smokey
 		ContrailLength: 6
-		ContrailWidth: 30
+		ContrailStartWidth: 30
 		TrailDeactivation: 40
 		Blockable: false
 	Warhead@Target: TargetDamage

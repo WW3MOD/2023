@@ -470,11 +470,11 @@ FROG.Husk:
 	Contrail@1:
 		Offset: -258,-723,0
 		TrailLength: 10
-		TrailWidth: 48
+		StartWidth: 48
 	Contrail@2:
 		Offset: -258,723,0
 		TrailLength: 10
-		TrailWidth: 48
+		StartWidth: 48
 	Aircraft:
 		TurnSpeed: 5
 		Speed: 149
@@ -507,11 +507,11 @@ MIG.Husk:
 	Contrail@1:
 		Offset: -598,-683,0
 		TrailLength: 6
-		TrailWidth: 48
+		StartWidth: 48
 	Contrail@2:
 		Offset: -598,683,0
 		TrailLength: 6
-		TrailWidth: 48
+		StartWidth: 48
 	Aircraft:
 		TurnSpeed: 5
 		Speed: 186

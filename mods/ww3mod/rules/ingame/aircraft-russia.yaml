@@ -416,11 +416,11 @@ FROG:
 	Contrail@1:
 		Offset: -258,-723,0
 		TrailLength: 10
-		TrailWidth: 48
+		StartWidth: 48
 	Contrail@2:
 		Offset: -258,723,0
 		TrailLength: 10
-		TrailWidth: 48
+		StartWidth: 48
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,0
 	# 	Interval: 2
@@ -534,11 +534,11 @@ MIG:
 	Contrail@1:
 		Offset: -598,-683,0
 		TrailLength: 6
-		TrailWidth: 48
+		StartWidth: 48
 	Contrail@2:
 		Offset: -598,683,0
 		TrailLength: 6
-		TrailWidth: 48
+		StartWidth: 48
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171
 	# 	Interval: 2

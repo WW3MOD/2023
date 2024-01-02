@@ -48,7 +48,7 @@ WGM:
 		ManualGuidance: true
 		CruiseAltitude: 100
 		ContrailLength: 100
-		ContrailWidth: 8
+		ContrailStartWidth: 8
 		Image: dragon
 		TrailImage: smokey
 		TrailScalePercent: 75
