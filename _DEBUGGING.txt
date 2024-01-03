@@ -4,9 +4,14 @@ VS Code
     F5 - Launch game with debugger
 
 
-Visual Studio 
+Visual Studio
 
     Profiler
 
-    - 
+        Solution Explorer (to the right)
+        Solution "OpenRA"
+        OpenRA.Launcher
+        Debug --> Any CPU --> OpenRA.Launcher --> WW3MOD
+
+
 
