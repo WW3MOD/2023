@@ -42,27 +42,28 @@ BindActorTriggers = function(a)
 end
 
 SetupNatoUnits = function()
-	Utils.Do(Map.NamedActors, function(a)
-		if a.Owner == nato and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
-			a.GrantCondition("unkillable")
-			a.Stance = "Defend"
-		end
-	end)
+	-- Utils.Do(Map.NamedActors, function(a)
+	-- 	if a.Owner == nato and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
+	-- 		a.GrantCondition("unkillable")
+	-- 		a.Stance = "Defend"
+	-- 	end
+	-- end)
 end
+-- cameraMovement = 25 * 1024
 
 ticks = 0
-speed = 5
-cameraMovement = 15 * 1024
+speedPercent = 0
+xSpeed = 70
+ySpeed = 90
 
 Tick = function()
 	ticks = ticks + 1
 
-	local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
-	Camera.Position = viewportOrigin + WVec.New(cameraMovement * math.sin(t), -cameraMovement * math.sin(t), 0)
-
-	-- if ticks % 250 == 0 then
-	-- 	MSLO1.ActivateNukePower(CPos.New(50, 55))
-	-- end
+	if ticks < 500 then
+		Camera.Position = Camera.Position + WVec.New(xSpeed, -ySpeed, 0)
+	elseif ticks == 1000 then
+		MSLO1.ActivateNukePower(CPos.New(50, 55))
+	end
 end
 
 WorldLoaded = function()
@@ -77,16 +78,34 @@ WorldLoaded = function()
 	-- Media.FloatingText("Floating", viewportOrigin)
 
 	-- SetupNatoUnits()
-	-- SendUnits(
-	-- 	{LeftRoadEntry.Location, LeftRoad1.Location, LeftRoad2.Location, LeftRoad3.Location, LeftRoad4.Location, LeftRoad5.Location },
-	-- 	{ "humvee", "abrams", "bradley" }, 20
+
+	Reinforcements.ReinforceWithTransport(nato,
+		"bradley",
+		{ "ar", "e3", "e3", "at", "e2", "tl" },
+		{ WestRoad0.Location, WestRoad1.Location, WestRoad2.Location, WestRoad3.Location, WestRoad4.Location, WestRoad5.Location, WestRoad6.Location, WestRoad7.Location, WestRoad8.Location, WestRoad9.Location },
+		nil,
+		nil,
+		function() end,
+		3
+	)
+
+	-- ReinforceWithTransport(
+	-- 	Player owner,
+	-- 	string actorType,
+	-- 	String[] cargoTypes,
+	-- 	CPos[] entryPath,
+	-- 	CPos[] exitPath = nil,
+	-- 	LuaFunction actionFunc = nil,
+	-- 	LuaFunction exitFunc = nil,
+	-- 	int dropRange = 3
 	-- )
+
 end
 
-SendUnits = function(path, unitTypes, interval)
-	-- local units = Reinforcements.Reinforce(nato, unitTypes, path, interval)
-	-- Utils.Do(units, function(unit)
-	-- 	BindActorTriggers(unit)
-	-- end)
-	-- Trigger.OnAllKilled(units, function() SendUnits(path, unitTypes, interval) end)
-end
+-- SendUnits = function(path, unitTypes, interval)
+-- 	local units = Reinforcements.Reinforce(nato, unitTypes, path, interval)
+-- 	Utils.Do(units, function(unit)
+-- 		BindActorTriggers(unit)
+-- 	end)
+-- 	Trigger.OnAllKilled(units, function() SendUnits(path, unitTypes, interval) end)
+-- end
