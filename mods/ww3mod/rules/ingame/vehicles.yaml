@@ -42,7 +42,7 @@
 		TargetTypes: EMPTank
 		RequiresCondition: empdisable
 	Targetable@VehicleRepair:
-		RequiresCondition: !parachute && critical-damage
+		RequiresCondition: damaged
 		TargetTypes: VehicleRepair
 	Targetable@REPAIR:
 		TargetTypes: Repair

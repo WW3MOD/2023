@@ -385,6 +385,7 @@ namespace OpenRA.Mods.Common.Traits
 			else if (t.Type == TargetType.Actor)
 				owner = t.Actor.Owner;
 
+			// FF TODO Check ammo?
 			return Armaments.Where(a =>
 				!a.IsTraitDisabled
 				&& (owner == null || (forceAttack ? a.Info.ForceTargetRelationships : a.Info.TargetRelationships).HasRelationship(self.Owner.RelationshipWith(owner)))
@@ -470,6 +471,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (a == null)
 					a = armaments.First();
 
+				// FF TODO
 				if (!armaments.Any(armament => armament.AmmoPool != null && armament.AmmoPool.HasAmmo))
 					return false;
 

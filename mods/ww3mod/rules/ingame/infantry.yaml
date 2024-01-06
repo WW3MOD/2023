@@ -1584,16 +1584,28 @@ AA:
 		Cursor: repair
 		OutsideRangeCursor: repair
 		TargetRelationships: Ally
-		ForceTargetRelationships: None
-	# Armament@ClearMines:
-	# 	Name: secondary
-	# 	Weapon: ClearMines
-	# 	Cursor: repair
-	# 	OutsideRangeCursor: repair
-	# 	TargetRelationships: Enemy
-	# 	ForceTargetRelationships: Ally
+		ForceTargetRelationships: Ally, Neutral
+		PauseOnCondition: !ammo-primary || suppressed >= 10
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 100
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+		Armament@ClearMines:
+		Name: secondary
+		Weapon: ClearMines
+		Cursor: repair
+		OutsideRangeCursor: repair
+		TargetRelationships: Enemy
+		ForceTargetRelationships: Ally
 	DetectCloaked@Mine:
-		Range: 5c0
+		Range: 3c0
 		DetectionTypes: Mine
 	# MineImmune:
 	Minelayer:
@@ -1846,11 +1858,19 @@ SF:
 	AutoTargetPriority@Default:
 		ValidTargets: Heal
 	Armament@1:
+		Name: primary
 		Weapon: Heal
+		TargetRelationships: Ally
+		ForceTargetRelationships: None
+		AmmoUsage: 0
 		Cursor: heal
 		OutsideRangeCursor: heal
-		TargetRelationships: Ally
-		# ForceTargetRelationships: None
+		PauseOnCondition: !ammo-primary || suppressed >= 10
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 1
+		AmmoCondition: ammo-primary
 	#	Armament@AI:
 	#	Weapon: ai.targeting.helper.noattack
 	#	LocalOffset: 0,0,0
