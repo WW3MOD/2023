@@ -1,13 +1,20 @@
 
 Bugs
 
-    - Can't recapture spawn if it's lost. Repeats over and over but basically works now
+    Supply Route
+        - Gets captured over and over when enemy is close by
 
-    - Engineer can't repair vehicles, no cursor
-        - Also mines doesnt show up but seems to exist, vehicles avoids them.
+    Mines
+        - Enemy sees mines but doesnt avoids
+        - Friendly avoids but doesnt see
 
-    - Medic has no attack icon but seems to be able to autotarget
-    -
+    Vehicles rearm
+        - Auto-returns when only one ammo is out
+
+    DroneOp
+        - Cant shoot/jam drones, needs AmmoPool fix
+
+
 
 - Ideas
 

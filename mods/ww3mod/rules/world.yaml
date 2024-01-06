@@ -281,16 +281,16 @@
 		Name: Russia
 		InternalName: russia
 		Description: Russia\n
-	ResourceRenderer:
-		ResourceTypes:
-			Ore:
-				Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
-				Palette: player
-				Name: Valuable Minerals
-			Gems:
-				Sequences: gold01, gold02, gold03, gold04
-				Palette: player
-				Name: Valuable Minerals
+	# ResourceRenderer:
+	# 	ResourceTypes:
+	# 		Ore:
+	# 			Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
+	# 			Palette: player
+	# 			Name: Valuable Minerals
+	# 		Gems:
+	# 			Sequences: gold01, gold02, gold03, gold04
+	# 			Palette: player
+	# 			Name: Valuable Minerals
 	# JumpjetActorLayer:
 	# 	HeightOffset: 1c460
 
@@ -331,20 +331,20 @@ World:
 		SmokeChance: 25
 		SmokeImage: smoke_m
 		SmokeSequences: idle
-	ResourceLayer:
-		RecalculateResourceDensity: true
-		ResourceTypes:
-			Ore:
-				ResourceIndex: 1
-				TerrainType: Ore
-				AllowedTerrainTypes: Clear, Road
-				MaxDensity: 12
-			Gems:
-				ResourceIndex: 2
-				TerrainType: Gems
-				AllowedTerrainTypes: Clear, Road
-				MaxDensity: 12
-	ResourceClaimLayer:
+	# ResourceLayer:
+	# 	RecalculateResourceDensity: true
+	# 	ResourceTypes:
+	# 		Ore:
+	# 			ResourceIndex: 1
+	# 			TerrainType: Ore
+	# 			AllowedTerrainTypes: Clear, Road
+	# 			MaxDensity: 12
+	# 		Gems:
+	# 			ResourceIndex: 2
+	# 			TerrainType: Gems
+	# 			AllowedTerrainTypes: Clear, Road
+	# 			MaxDensity: 12
+	# ResourceClaimLayer:
 	WarheadDebugOverlay:
 	SpawnMapActors:
 	MapBuildRadius:
@@ -498,19 +498,19 @@ EditorWorld:
 	Inherits: ^BaseWorld
 	EditorActorLayer:
 	EditorCursorLayer:
-	EditorResourceLayer:
-		RecalculateResourceDensity: true
-		ResourceTypes:
-			Ore:
-				ResourceIndex: 1
-				TerrainType: Ore
-				AllowedTerrainTypes: Clear, Road
-				MaxDensity: 12
-			Gems:
-				ResourceIndex: 2
-				TerrainType: Gems
-				AllowedTerrainTypes: Clear, Road
-				MaxDensity: 12
+	# EditorResourceLayer:
+	# 	RecalculateResourceDensity: true
+	# 	ResourceTypes:
+	# 		Ore:
+	# 			ResourceIndex: 1
+	# 			TerrainType: Ore
+	# 			AllowedTerrainTypes: Clear, Road
+	# 			MaxDensity: 12
+	# 		Gems:
+	# 			ResourceIndex: 2
+	# 			TerrainType: Gems
+	# 			AllowedTerrainTypes: Clear, Road
+	# 			MaxDensity: 12
 	EditorSelectionLayer:
 	LoadWidgetAtGameStart:
 	EditorActionManager:

@@ -1,10 +1,10 @@
 ^BasePlayer:
 	AlwaysVisible:
 	MapLayers:
-	PlayerResources:
-		ResourceValues:
-			Ore: 25
-			Gems: 50
+	# PlayerResources:
+	# 	ResourceValues:
+	# 		Ore: 25
+	# 		Gems: 50
 
 EditorPlayer:
 	Inherits: ^BasePlayer

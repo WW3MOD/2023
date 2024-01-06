@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int InitialSpawnDelay = 0;
 
 		[Desc("Which terrain types can we drop on?")]
-		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Ore", "Beach" };
+		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Beach" };
 
 		[Desc("Which terrain types count as water?")]
 		public readonly HashSet<string> ValidWater = new HashSet<string> { "Water" };
