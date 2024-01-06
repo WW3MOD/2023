@@ -43,6 +43,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Time to reload per ReloadCount on airfield etc.")]
 		public readonly int ReloadDelay = 50;
 
+		[Desc("Should actor automatically move to rearm when out of ammo.")]
+		public readonly bool AutoRearm = true;
+
+		[ConsumedConditionReference]
+		[Desc("Should actor automatically move to rearm when out of ammo.")]
+		public readonly string AutoRearmCondition = null;
+
 		[Desc("Sound to play for each reloaded ammo magazine.")]
 		public readonly string RearmSound = null;
 
@@ -146,13 +153,13 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(false, new Resupply(self, nearestResupplier, nearestResupplier.Trait<RearmsUnits>().Info.CloseEnough));
 			else
 			{
-				var bases = self.World.ActorsHavingTrait<BaseBuilding>()
-					.Where(a => a.Owner == self.Owner)
-					.ToList();
+				// var bases = self.World.ActorsHavingTrait<BaseBuilding>()
+				// 	.Where(a => a.Owner == self.Owner)
+				// 	.ToList();
 
-				// TODO Supply Route exit map / rotate unit. Should not go to rally point of SR.
-				if (bases.Count > 0)
-					self.QueueActivity(false, new Resupply(self, bases.First(), new WDist(0)));
+				// // FF TODO Supply Route exit map / rotate unit. Should not go to rally point of SR.
+				// if (bases.Count > 0)
+				// 	self.QueueActivity(false, new Resupply(self, bases.First(), new WDist(0)));
 			}
 		}
 

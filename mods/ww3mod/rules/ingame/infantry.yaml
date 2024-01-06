@@ -2092,7 +2092,6 @@ TECN:
 	Armament@1:
 		Name: primary
 		Weapon: DroneTargeter
-		AmmoUsage: 0
 		PauseOnCondition: !loaded || !ammo-primary
 		FireDelay: 50
 	AmmoPool@1:
@@ -2108,7 +2107,6 @@ TECN:
 	Armament@2:
 		Name: secondary
 		Weapon: DroneJammer
-		AmmoUsage: 0
 	WithRangeCircle:
 		Range: 25c0
 		Width: 3
@@ -2122,7 +2120,25 @@ TECN:
 		-IdleSequences:
 		StandSequences: stand
 		DefaultAttackSequence: shoot
-	# ModifySequence@launched:
+	GrantConditionOnPreparingAttack@PrepareDrone:
+		ArmamentNames: primary
+		Condition: prepare
+	WithDecoration@prepare:
+		RequiresCondition: !prepare
+		Sequence: sn_class
+		Image: class
+		Palette: effect
+		Position: Top
+		Margin: 0,-10
+	WithInfantryBody@PrepareDrone:
+		RequiresCondition: prepare
+		StandSequences: prepare
+		DefaultAttackSequence: prepare
+	WithInfantryBody@OperatingDrone:
+		RequiresCondition: !loaded && primary-ammo
+		StandSequences: operating
+		DefaultAttackSequence: operating
+	# ModifySequence@Operating:
 	# 	RequiresCondition: !loaded && primary-ammo
 	Passenger:
 		CustomPipType: dr_class

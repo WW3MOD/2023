@@ -1,19 +1,22 @@
 
-Bugs
 
-    Supply Route
-        - Gets captured over and over when enemy is close by
+Field v18 size
+
+
+Bugs
 
     Mines
         - Enemy sees mines but doesnt avoids
         - Friendly avoids but doesnt see
 
+    DroneOp
+        - Does no damage to drones
+
+    Supply Route
+        - Gets captured over and over when enemy is close by
+
     Vehicles rearm
         - Auto-returns when only one ammo is out
-
-    DroneOp
-        - Cant shoot/jam drones, needs AmmoPool fix
-
 
 
 - Ideas

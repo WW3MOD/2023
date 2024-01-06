@@ -166,7 +166,7 @@
 		Type: Unarmored
 	HitShape:
 		Type: Circle
-			Radius: 8
+			Radius: 1
 	Targetable@Drone:
 		TargetTypes: Drone
 
@@ -194,8 +194,8 @@
 	Inherits@EMPMechanic: ^AffectedByEMP
 	Aircraft:
 		PauseOnCondition: empdisable
-	KillsSelf@EMPONAIR:
-		RequiresCondition: airborne && empdisable
+	# KillsSelf@EMPONAIR:
+	# 	RequiresCondition: airborne && empdisable
 
 quadcopterdrone:
 	Inherits: ^Drone

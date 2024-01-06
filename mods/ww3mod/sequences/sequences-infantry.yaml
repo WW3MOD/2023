@@ -1567,22 +1567,16 @@ tecn.russia:
 		Length: 6
 		Facings: 8
 		Tick: 100
-	# launch1: dr
-	# 	Start: 56
-	# 	Length: 28
-	# launch2: dr
-	# 	Start: 85
-	# 	Length: 28
-	# prepare: dr
-	# 	Start: 148
-	# 	Length: 8
-	# 	Facings: 8
-	shoot: dr
-		# Start: 56
-		# Length: 28
+	prepare: dr
 		Start: 56
 		Length: 28
-		Tick: 56
+		Tick: 50
+	operating: dr
+		Start: 162
+		Stride: 2
+		Facings: 8
+	shoot: dr
+		Facings: 8
 	active-stand: dr
 		Start: 253
 		Length: 3
