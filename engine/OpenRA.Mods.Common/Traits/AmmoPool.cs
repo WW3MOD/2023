@@ -150,6 +150,7 @@ namespace OpenRA.Mods.Common.Traits
 					.Where(a => a.Owner == self.Owner)
 					.ToList();
 
+				// TODO Supply Route exit map / rotate unit. Should not go to rally point of SR.
 				if (bases.Count > 0)
 					self.QueueActivity(false, new Resupply(self, bases.First(), new WDist(0)));
 			}
