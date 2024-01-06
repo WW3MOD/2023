@@ -4,7 +4,7 @@ RequiresMod: ww3mod
 
 Title: Shellmap WW3 Ivanisvke
 
-Author: FreadyFish
+Author: WW3MOD
 
 Tileset: TEMPERAT
 
@@ -37,6 +37,6 @@ Players:
 		Color: 679267
 		Enemies: NATO
 
-Actors:	
+Actors:
 
 Rules: rules.yaml
