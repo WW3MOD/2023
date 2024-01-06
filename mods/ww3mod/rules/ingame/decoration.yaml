@@ -33,9 +33,9 @@
 		TargetTypes: Trees
 	AlwaysVisible:
 	ScriptTriggers:
-	# MapEditorData:
-	# 	ExcludeTilesets: INTERIOR
-	# 	Categories: Tree
+	MapEditorData:
+		ExcludeTilesets: INTERIOR
+		Categories: Tree
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	ProximityExternalCondition@ObjectProximity:
