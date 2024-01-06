@@ -12,7 +12,7 @@
 
 BindActorTriggers = function(a)
 	-- if a.HasProperty("Hunt") then
-	-- 	if a.Owner == NATO then
+	-- 	if a.Owner == nato then
 	-- 		Trigger.OnIdle(a, function(a)
 	-- 			if a.IsInWorld then
 	-- 				a.Hunt()
@@ -43,7 +43,7 @@ end
 
 SetupNatoUnits = function()
 	Utils.Do(Map.NamedActors, function(a)
-		if a.Owner == NATO and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
+		if a.Owner == nato and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
 			a.GrantCondition("unkillable")
 			a.Stance = "Defend"
 		end
@@ -51,13 +51,14 @@ SetupNatoUnits = function()
 end
 
 ticks = 0
-speed = 1
+speed = 5
+cameraMovement = 15 * 1024
 
 Tick = function()
 	ticks = ticks + 1
 
-	-- local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
-	-- Camera.Position = viewportOrigin + WVec.New(-1920 * math.sin(t), -2048 * math.cos(t), 0)
+	local t = (ticks + 45) % (360 * speed) * (math.pi / 180) / speed;
+	Camera.Position = viewportOrigin + WVec.New(cameraMovement * math.sin(t), -cameraMovement * math.sin(t), 0)
 
 	-- if ticks % 250 == 0 then
 	-- 	MSLO1.ActivateNukePower(CPos.New(50, 55))
@@ -65,13 +66,15 @@ Tick = function()
 end
 
 WorldLoaded = function()
-	NATO = Player.GetPlayer("NATO")
+	nato = Player.GetPlayer("NATO")
 	russia = Player.GetPlayer("Russia")
+
+	Camera.Position = WPos.New(1024 * 32, 1024 * 85, 0)
 	viewportOrigin = Camera.Position
 
-	Media.DisplayMessage("Message")
-	Media.DisplaySystemMessage("System")
-	Media.FloatingText("Floating", viewportOrigin)
+	-- Media.DisplayMessage("Message")
+	-- Media.DisplaySystemMessage("System")
+	-- Media.FloatingText("Floating", viewportOrigin)
 
 	-- SetupNatoUnits()
 	-- SendUnits(
@@ -81,7 +84,7 @@ WorldLoaded = function()
 end
 
 SendUnits = function(path, unitTypes, interval)
-	-- local units = Reinforcements.Reinforce(NATO, unitTypes, path, interval)
+	-- local units = Reinforcements.Reinforce(nato, unitTypes, path, interval)
 	-- Utils.Do(units, function(unit)
 	-- 	BindActorTriggers(unit)
 	-- end)
