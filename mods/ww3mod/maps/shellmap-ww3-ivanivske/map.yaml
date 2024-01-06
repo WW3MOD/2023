@@ -1,0 +1,42 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Shellmap WW3 Ivanisvke
+
+Author: FreadyFish
+
+Tileset: TEMPERAT
+
+MapSize: 102,102
+
+Bounds: 1,1,100,100
+
+Visibility: Shellmap
+
+Categories: Shellmap
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: america
+	PlayerReference@NATO:
+		Name: NATO
+		Faction: america
+		Color: 5E7561
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Faction: russia
+		Color: 679267
+		Enemies: NATO
+
+Actors:	
+
+Rules: rules.yaml
