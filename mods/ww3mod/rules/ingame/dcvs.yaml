@@ -3,7 +3,7 @@ MNLY:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Selection: ^SelectableSupportUnit
 	Buildable:
-		Queue: Vehicle
+		Queue: Defense
 		BuildPaletteOrder: 104
 		Prerequisites: ~techlevel.medium
 		Description: Carries and lays up to 10 Land Mines\nto destroy unwary enemy units.\nCan detect mines.
@@ -73,7 +73,7 @@ SandBagLayer:
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Selection: ^SelectableSupportUnit
 	Buildable:
-		Queue: Vehicle
+		Queue: Defense
 		BuildPaletteOrder: 104
 		Prerequisites: ~techlevel.medium
 		Description: Can deploy sandbags

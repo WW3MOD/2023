@@ -105,6 +105,7 @@ Rules:
 	ww3mod|rules/ingame/structures-defenses.yaml
 	ww3mod|rules/ingame/structures-neutral.yaml
 	ww3mod|rules/ingame/mcvs.yaml
+	ww3mod|rules/ingame/dcvs.yaml
 	ww3mod|rules/ingame/vehicles.yaml
 	ww3mod|rules/ingame/vehicles-america.yaml
 	ww3mod|rules/ingame/vehicles-russia.yaml
