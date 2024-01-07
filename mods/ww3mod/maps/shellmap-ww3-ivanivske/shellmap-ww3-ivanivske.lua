@@ -82,7 +82,7 @@ WorldLoaded = function()
 	Reinforcements.ReinforceWithTransport(nato,
 		"bradley",
 		{ "ar", "e3", "e3", "at", "e2", "tl" },
-		{ WestRoad0.Location, WestRoad1.Location, WestRoad2.Location, WestRoad3.Location, WestRoad4.Location, WestRoad5.Location, WestRoad6.Location, WestRoad7.Location, WestRoad8.Location, WestRoad9.Location },
+		{ WestRoad0.Location, WestRoad1.Location, WestRoad2.Location, WestRoad3.Location, WestRoad4.Location, WestRoad5.Location, WestRoad6.Location, WestRoad7.Location, WestRoad8.Location },
 		nil,
 		nil,
 		function() end,
