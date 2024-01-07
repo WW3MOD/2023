@@ -1580,27 +1580,29 @@ AA:
 		ValidTargets: BuildingRepair, VehicleRepair, Mine
 	Armament@1:
 		Name: primary
-		Weapon: MP5
-		PauseOnCondition: !ammo-primary
+		Weapon: ClearMines
+		Cursor: repair
+		OutsideRangeCursor: repair
+		PauseOnCondition: suppressed >= 10
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
-		AmmoPool: c4-ammo
+		AmmoPool: primary-ammo
 		FullReloadTicks: 200
 		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
-		Margin: 4, 0
+		Margin: 4, 3
 		PipCount: 3
 		RequiresSelection: true
-		FullSequence: pip-white
-		AmmoPools: c4-ammo
-		RequiresCondition: ammo-c4
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
 	Armament@2:
 		Name: secondary
 		Weapon: Repair
