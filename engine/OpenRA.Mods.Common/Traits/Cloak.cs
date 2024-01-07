@@ -262,7 +262,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.Owner.IsAlliedWith(viewer))
 				return false;
 
-			return Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => !a.Actor.Owner.IsAlliedWith(viewer)
+			return Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 		}
