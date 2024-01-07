@@ -386,7 +386,7 @@ ClearMines:
 	Range: 1c0 # can't be less because mines are not traversable so engineer just stops in front of it otherwise
 	Projectile: InstantHit
 	Warhead@Spread: SpreadDamage
-		Damage: 1
+		Damage: 1000
 		ValidTargets: Mine
 		DamageTypes: Disarm
 

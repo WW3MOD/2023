@@ -48,28 +48,32 @@ SilencedPPK:
 		ValidTargets: Water, Underwater
 		InvalidTargets: Ship, Structure, Bridge
 MP5:
+	Inherits@HitEffects: ^SmallCaliberEffects
 	ValidTargets: Infantry
 	Range: 10c0
 	Magazine: 10
 	ReloadDelay: 60
-	Burst: 2
+	Burst: 3
 	BurstDelays: 5
 	BurstWait: 10
-	Report: pillbox1.aud
+	Report: gun11.aud
 	InvalidTargets: Vehicle, Ship, Structure, Wall, Husk
 	Projectile: Bullet
 		Inaccuracy: 256
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 256
+		LaunchAngle: 0,15
+		ContrailLength: 5
+		ContrailWidth: 3
+		ContrailStartColorAlpha: 100
 	Warhead@Target: TargetDamage
-		Spread: 1
 		Damage: 100
+		DamageAtMaxRange: 50
+		Penetration: 1
 		ValidTargets: Infantry
-	Warhead@Effect: CreateEffect
-		Explosions: piff
-		ValidTargets: Ground, Ship, Air, Trees
-	Warhead@EffectWater: CreateEffect
-		Explosions: water_piff
-		ValidTargets: Water, Underwater
-		InvalidTargets: Ship, Structure, Bridge
+		DamageTypes: BulletDeath
+
 
 ^5.56mm:
 	Inherits@HitEffects: ^SmallCaliberEffects

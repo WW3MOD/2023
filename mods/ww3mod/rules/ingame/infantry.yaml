@@ -1578,19 +1578,48 @@ AA:
 	AutoTargetPriority@Default:
 		RequiresCondition: stance-attackanything
 		ValidTargets: BuildingRepair, VehicleRepair, Mine
-	Armament@Repair:
+	Armament@1:
 		Name: primary
+		Weapon: MP5
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: c4-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 0
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: c4-ammo
+		RequiresCondition: ammo-c4
+	Armament@2:
+		Name: secondary
 		Weapon: Repair
 		Cursor: repair
 		OutsideRangeCursor: repair
 		TargetRelationships: Ally
 		ForceTargetRelationships: Ally, Neutral
-		PauseOnCondition: !ammo-primary || suppressed >= 10
+		PauseOnCondition: !ammo-secondary || suppressed >= 10
+	Armament@3:
+		Name: tertiary
+		Weapon: ClearMines
+		Cursor: repair
+		OutsideRangeCursor: repair
+		PauseOnCondition: suppressed >= 10
 	DetectCloaked@Mine:
-		Range: 3c0
+		Range: 2c0
 		DetectionTypes: Mine
-	# MineImmune:
-	# 	RequiresCondition: deployed # TODO
+	MineImmune:
+		RequiresCondition: deployed # TODO
 	Minelayer:
 		Mine: MINV
 		AmmoPoolName: c4-ammo
@@ -1617,15 +1646,15 @@ AA:
 		FullSequence: pip-white
 		AmmoPools: c4-ammo
 		RequiresCondition: ammo-c4
-	WithDecoration@AMMO_NONE_C4:
-		RequiresSelection: false
-		Image: pips
-		Sequence: pip-ammo-none
-		Position: Top
-		Margin: 0,-5
-		RequiresCondition: !ammo-c4
-		BlinkInterval: 16
-		BlinkPattern: On, Off
+	# WithDecoration@AMMO_NONE_C4:
+	# 	RequiresSelection: false
+	# 	Image: pips
+	# 	Sequence: pip-ammo-none
+	# 	Position: Top
+	# 	Margin: 0,-5
+	# 	RequiresCondition: !ammo-c4
+	# 	BlinkInterval: 16
+	# 	BlinkPattern: On, Off
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: c4-ammo
