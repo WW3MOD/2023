@@ -358,6 +358,14 @@
 		ValidTargets: Unarmored
 		Priority: 2
 
+^AutoTargetSmallCaliber:
+	Inherits: ^AutoTarget
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		PriorityCondition: suppression
+		ConditionalPriority: 100
+		Priority: 3
+
 ^AutoTargetLMGAT:
 	Inherits: ^AutoTarget
 	AutoTargetPriority@Vehicle:

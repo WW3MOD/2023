@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Target types that can be AutoTargeted.")]
 		public readonly BitSet<TargetableType> ValidTargets = new BitSet<TargetableType>("Ground", "Water", "Air");
 
-		[Desc("Target types that must be precent for AutoTarget")]
+		[Desc("Target types that must be present for AutoTarget")]
 		public readonly BitSet<TargetableType> OnlyTargets = default;
 
 		[Desc("Target types that can't be AutoTargeted.", "Overrules ValidTargets.")]

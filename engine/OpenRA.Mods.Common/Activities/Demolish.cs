@@ -50,7 +50,8 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Make sure we can still demolish the target before entering
 			// (but not before, because this may stop the actor in the middle of nowhere)
-			if (!enterDemolishables.Any(i => i.IsValidTarget(enterActor, self)) || !self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == "c4-ammo").HasAmmo)
+			var useAmmo = self.TraitsImplementing<Demolition>().First().Info.UseAmmo;
+			if (!enterDemolishables.Any(i => i.IsValidTarget(enterActor, self)) || !self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo).HasAmmo)
 			{
 				Cancel(self, true);
 				return false;
@@ -71,9 +72,9 @@ namespace OpenRA.Mods.Common.Activities
 				if (!enterDemolishables.Any(i => i.IsValidTarget(enterActor, self)))
 					return;
 
-				var c4ammopool = self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == "c4-ammo");
-
-				c4ammopool.TakeAmmo(self, 1);
+				var useAmmo = self.TraitsImplementing<Demolition>().First().Info.UseAmmo;
+				var ammopool = self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo);
+				ammopool.TakeAmmo(self, 1);
 
 				w.Add(new FlashTarget(enterActor, Color.White, count: flashes, interval: flashInterval, delay: flashesDelay));
 

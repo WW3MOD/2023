@@ -50,10 +50,10 @@ abrams:
 	Armament@1:
 		Name: primary
 		Weapon: TankRound.Abrams
-		MovementInaccuracy: 200
+		MovementInaccuracy: 50
 		# FireDelay: 15
-		Recoil: 85
-		RecoilRecovery: 70
+		Recoil: 30
+		RecoilRecovery: 30
 		LocalOffset: 1200,0,80
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable

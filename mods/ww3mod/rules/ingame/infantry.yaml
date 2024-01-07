@@ -1557,9 +1557,6 @@ AA:
 ^E6:
 	Inherits@Type: ^CamoSoldier
 	# Inherits@Selection: ^SelectableSupportUnit
-	-WithDecoration@AmmoNone:
-	-WithDecoration@AmmoPrimaryNone:
-	-WithDecoration@AmmoSecondaryNone:
 	Tooltip:
 		Name: Engineer
 	Buildable:
@@ -1575,44 +1572,77 @@ AA:
 	AutoTarget:
 		InitialStance: AttackAnything
 		InitialStanceAI: AttackAnything
-	AutoTargetPriority@Default:
-		RequiresCondition: stance-attackanything
-		ValidTargets: BuildingRepair, VehicleRepair, Mine
-	Armament@1:
-		Name: primary
-		Weapon: ClearMines
-		Cursor: repair
-		OutsideRangeCursor: repair
-		PauseOnCondition: suppressed >= 10
-	AmmoPool@1:
-		Name: primary-ammo
-		Armaments: primary
-		Ammo: 100
-		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
-		Sound: minelay1.aud
-		RequiresCondition: replenish-soldiers
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 4, 3
-		PipCount: 3
-		RequiresSelection: true
-		FullSequence: pip-yellow
-		AmmoPools: primary-ammo
-		RequiresCondition: ammo-primary
-	Armament@2:
-		Name: secondary
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		PriorityCondition: suppression
+		ConditionalPriority: 100
+		Priority: 4
+	AutoTargetPriority@Repair:
+		ValidTargets: VehicleRepair, BuildingRepair
+		Priority: 3
+	AutoTargetPriority@Mine:
+		ValidTargets: Mine
+		Priority: 2
+	# Armament@1:
+	# 	Name: primary
+	# 	Weapon: MP5
+	# 	PauseOnCondition: !ammo-primary
+	# AmmoPool@1:
+	# 	Name: primary-ammo
+	# 	Armaments: primary
+	# 	Ammo: 100
+	# 	AmmoCondition: ammo-primary
+	# ReloadAmmoPool@1:
+	# 	AmmoPool: primary-ammo
+	# 	FullReloadTicks: 200
+	# 	FullReloadSteps: 3
+	# 	Sound: minelay1.aud
+	# 	RequiresCondition: replenish-soldiers
+	# WithAmmoPipsDecoration@1:
+	# 	Position: Bottom
+	# 	Margin: 4, 3
+	# 	PipCount: 3
+	# 	RequiresSelection: true
+	# 	FullSequence: pip-yellow
+	# 	AmmoPools: primary-ammo
+	# 	RequiresCondition: ammo-primary
+	# Demolition:
+	# 	RequiresCondition: ammo-secondary
+	# 	UseAmmo: secondary-ammo
+	# Minelayer:
+	# 	Mine: MINV
+	# 	AmmoPoolName: secondary-ammo
+	# 	TileUnknownName: build-valid
+	# 	TerrainTypes: Clear, Road, Beach, Rough, Bridge
+	# AmmoPool@2:
+	# 	Name: secondary-ammo
+	# 	Armaments: secondary
+	# 	Ammo: 3
+	# 	AmmoCondition: ammo-secondary
+	# ReloadAmmoPool@2:
+	# 	AmmoPool: secondary-ammo
+	# 	FullReloadTicks: 200
+	# 	FullReloadSteps: 3
+	# 	Sound: minelay1.aud
+	# 	RequiresCondition: replenish-soldiers
+	# WithAmmoPipsDecoration@2:
+	# 	Position: Bottom
+	# 	Margin: 4, 0
+	# 	PipCount: 3
+	# 	RequiresSelection: true
+	# 	FullSequence: pip-white
+	# 	AmmoPools: secondary-ammo
+	# 	RequiresCondition: ammo-secondary
+	Armament@Repair:
+		Name: repair
 		Weapon: Repair
 		Cursor: repair
 		OutsideRangeCursor: repair
 		TargetRelationships: Ally
 		ForceTargetRelationships: Ally, Neutral
-		PauseOnCondition: !ammo-secondary || suppressed >= 10
-	Armament@3:
-		Name: tertiary
+		PauseOnCondition: suppressed >= 10
+	Armament@ClearMines:
+		Name: clearmines
 		Weapon: ClearMines
 		Cursor: repair
 		OutsideRangeCursor: repair
@@ -1622,32 +1652,7 @@ AA:
 		DetectionTypes: Mine
 	MineImmune:
 		RequiresCondition: deployed # TODO
-	Minelayer:
-		Mine: MINV
-		AmmoPoolName: c4-ammo
-		TileUnknownName: build-valid
-		TerrainTypes: Clear, Road, Beach, Rough, Bridge
-	Demolition:
-		RequiresCondition: ammo-c4
-	AmmoPool@C4:
-		Name: c4-ammo
-		Armaments: c4
-		Ammo: 3
-		AmmoCondition: ammo-c4
-	ReloadAmmoPool@C4:
-		AmmoPool: c4-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
-		Sound: minelay1.aud
-		RequiresCondition: replenish-soldiers
-	WithAmmoPipsDecoration@C4:
-		Position: Bottom
-		Margin: 4, 0
-		PipCount: 3
-		RequiresSelection: true
-		FullSequence: pip-white
-		AmmoPools: c4-ammo
-		RequiresCondition: ammo-c4
+
 	# WithDecoration@AMMO_NONE_C4:
 	# 	RequiresSelection: false
 	# 	Image: pips
