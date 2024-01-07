@@ -161,7 +161,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (remainingTime > 0 || IsTraitDisabled || IsTraitPaused)
 				return r;
 
-			if (Cloaked && !ShouldHide(self, self.World.RenderPlayer))
+			if (ShouldHide(self, self.World.RenderPlayer))
+				return SpriteRenderable.None;
+			else
 			{
 				var palette = string.IsNullOrEmpty(Info.Palette) ? null : Info.IsPlayerPalette ? wr.Palette(Info.Palette + self.Owner.InternalName) : wr.Palette(Info.Palette);
 				if (palette == null)
@@ -169,8 +171,6 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable ? ((IPalettedRenderable)a).WithPalette(palette) : a);
 			}
-			else
-				return SpriteRenderable.None;
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)
@@ -259,10 +259,10 @@ namespace OpenRA.Mods.Common.Traits
 		// CPU Expensive!
 		public bool ShouldHide(Actor self, Player viewer)
 		{
-			if (Cloaked && !self.Owner.IsAlliedWith(viewer))
-				return true;
+			if (self.Owner.IsAlliedWith(viewer))
+				return false;
 
-			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => !a.Actor.Owner.IsAlliedWith(viewer)
+			return Cloaked && self.World.ActorsWithTrait<DetectCloaked>().Any(a => !a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 		}
