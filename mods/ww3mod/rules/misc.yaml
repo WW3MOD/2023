@@ -3,12 +3,13 @@
 	Tooltip:
 		Name: Mine
 	Interactable:
-		Bounds: 1024,1024
+		Bounds: 1024, 1024
 	WithSpriteBody:
 	RenderSprites:
 		Scale: 0.4
 	Detectable:
 		Vision: 1
+		AlwaysVisibleRelationships: Ally
 	Mine:
 		CrushClasses: mine
 		DetonateClasses: mine
@@ -18,18 +19,18 @@
 		DamageTypes: Disarm
 		Behaviour: Dispose
 	Health:
-		HP: 400
+		HP: 500
 		NotifyAppliedDamage: false
 	Armor:
 		Type: Light
-	Targetable:
-		TargetTypes: Ground, Mine
 	Cloak:
 		CloakSound:
 		UncloakSound:
 		Palette:
 		DetectionTypes: Mine
 		InitialDelay: 0
+	Targetable:
+		TargetTypes: Mine
 	Immobile:
 		OccupiesSpace: true
 	HitShape:
