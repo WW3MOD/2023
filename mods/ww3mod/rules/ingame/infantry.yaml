@@ -299,7 +299,7 @@
 ^PinsDown:
 	Inherits@SuppressionPips: ^SuppressionPips
 	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
-	Inherits@SuppressionVisionPercentageModifier: ^SuppressionVisionPercentageModifier
+	Inherits@SuppressionVisionModifier: ^SuppressionVisionModifier
 	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
 	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
 	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
@@ -337,35 +337,35 @@
 	SpeedMultiplier@Suppression_10:
 		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
 		Modifier: 0
-^SuppressionVisionPercentageModifier:
-	VisionPercentageModifier@Suppression_1:
+^SuppressionVisionModifier:
+	VisionModifier@Suppression_1:
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 		Modifier: 90
-	VisionPercentageModifier@Suppression_2:
+	VisionModifier@Suppression_2:
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 		Modifier: 80
-	VisionPercentageModifier@Suppression_3:
+	VisionModifier@Suppression_3:
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 		Modifier: 70
-	VisionPercentageModifier@Suppression_4:
+	VisionModifier@Suppression_4:
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 		Modifier: 60
-	VisionPercentageModifier@Suppression_5:
+	VisionModifier@Suppression_5:
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 50
-	VisionPercentageModifier@Suppression_6:
+	VisionModifier@Suppression_6:
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 		Modifier: 40
-	VisionPercentageModifier@Suppression_7:
+	VisionModifier@Suppression_7:
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 		Modifier: 30
-	VisionPercentageModifier@Suppression_8:
+	VisionModifier@Suppression_8:
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 		Modifier: 20
-	VisionPercentageModifier@Suppression_9:
+	VisionModifier@Suppression_9:
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 		Modifier: 10
-	VisionPercentageModifier@Suppression_10:
+	VisionModifier@Suppression_10:
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 		Modifier: 0
 ^SuppressionDetectCloakedMultiplier:
@@ -2092,6 +2092,7 @@ TECN:
 	Armament@1:
 		Name: primary
 		Weapon: DroneTargeter
+		AmmoUsage: 0
 		PauseOnCondition: !loaded || !ammo-primary
 		FireDelay: 50
 	AmmoPool@1:
@@ -2123,13 +2124,13 @@ TECN:
 	GrantConditionOnPreparingAttack@PrepareDrone:
 		ArmamentNames: primary
 		Condition: prepare
-	WithDecoration@prepare:
-		RequiresCondition: !prepare
-		Sequence: sn_class
-		Image: class
-		Palette: effect
-		Position: Top
-		Margin: 0,-10
+	# WithDecoration@prepare:
+	# 	RequiresCondition: !prepare
+	# 	Sequence: sn_class
+	# 	Image: class
+	# 	Palette: effect
+	# 	Position: Top
+	# 	Margin: 0,-10
 	WithInfantryBody@PrepareDrone:
 		RequiresCondition: prepare
 		StandSequences: prepare

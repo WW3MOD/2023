@@ -697,12 +697,11 @@ DroneJammer:
 		ValidTargets: Drone
 		Spread: 100
 		Damage: 3
-	Warhead@EmpDisable: GrantExternalCondition
+	Warhead@DroneDisable: GrantExternalCondition
+		Condition: dronedisable
+		ValidTargets: Drone
 		Range: 100
 		Duration: 5
-		Condition: empdisable
-		ValidTargets: Drone
-		InvalidTargets: EMPInvalid
 
 Claw:
 	BurstWait: 30

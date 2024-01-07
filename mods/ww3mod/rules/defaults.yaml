@@ -123,13 +123,13 @@
 	# 	Range: 1c512
 
 ^DetectionProximity:
-	VisionPercentageModifier@1:
+	VisionModifier@1:
 		RequiresCondition: object-proximity == 1
 		Modifier: 90
-	VisionPercentageModifier@2:
+	VisionModifier@2:
 		RequiresCondition: object-proximity == 2
 		Modifier: 75
-	VisionPercentageModifier@3:
+	VisionModifier@3:
 		RequiresCondition: object-proximity > 2
 		Modifier: 50
 	DetectCloakedMultiplier@1:

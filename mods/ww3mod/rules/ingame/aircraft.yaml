@@ -152,7 +152,10 @@
 
 ^Drone:
 	Inherits: ^Airborne
+	ExternalCondition@DroneDisable:
+		Condition: dronedisable
 	Aircraft:
+		PauseOnCondition: dronedisable
 		CanHover: True
 		CruisingCondition: cruising
 		WaitDistanceFromResupplyBase: 4c0
@@ -162,6 +165,14 @@
 		Crushes: None
 		InitialFacing: 224
 		CanSlide: False
+	VisionModifier@DroneDisable:
+		RequiresCondition: dronedisable
+		Modifier: 0
+	WithColoredOverlay@DroneDisable:
+		RequiresCondition: dronedisable
+	WithIdleOverlay@DroneDisable:
+		Sequence: emp-overlay
+		RequiresCondition: dronedisable
 	Armor:
 		Type: Unarmored
 	HitShape:
