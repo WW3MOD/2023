@@ -85,7 +85,7 @@ GTWR:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 0
-		Prerequisites: ~techlevel.low
+		Prerequisites: ~disabled
 		IconPalette: chrometd
 		Description: Anti-infantry base defense.
 	Valued:
@@ -138,7 +138,7 @@ PBOX:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 1
-		Prerequisites: ~techlevel.low
+		Prerequisites: ~disabled
 		Description: Reinforced static defense
 	Tooltip:
 		Name: Bunker
@@ -188,7 +188,7 @@ HBOX:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 4
-		Prerequisites: ~techlevel.medium
+		Prerequisites: ~disabled
 		Description: Camouflaged emplacement
 	Tooltip:
 		Name: Camo Pillbox

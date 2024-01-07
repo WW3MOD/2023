@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 	public abstract class AttackBaseInfo : PausableConditionalTraitInfo
 	{
 		[Desc("Armament names")]
-		public readonly string[] Armaments = { "primary", "secondary" };
+		public readonly string[] Armaments = { "primary", "secondary", "tertiary", "quaternary", "repair", "clearmines" };
 
 		[CursorReference]
 		[Desc("Cursor to display when hovering over a valid target.")]
