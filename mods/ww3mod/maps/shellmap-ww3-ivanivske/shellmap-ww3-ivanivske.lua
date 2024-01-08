@@ -26,7 +26,41 @@ Tick = function()
 
 	if ticks < 800 then
 		Camera.Position = Camera.Position + WVec.New(25, -45, 0)
-	elseif ticks == 1000 then
+	end
+
+	if ticks == 150 then
+		NatoTLatBMP.EnterTransport(NatoBMP1)
+		NatoARatBMP.EnterTransport(NatoBMP1)
+		NatoATatBMP.EnterTransport(NatoBMP1)
+		NatoE2atBMP.EnterTransport(NatoBMP1)
+		NatoE3atBMP.EnterTransport(NatoBMP1)
+	end
+
+	if ticks == 200 then
+		NatoBMP1.Move(WestHiddenExit1.Location, 0)
+		NatoBMP1.Move(WestHiddenExit2.Location, 0)
+		NatoBMP1.Move(WestHiddenExit3.Location, 0)
+		NatoBMP1.Move(WestRoad2.Location, 0)
+		NatoBMP1.Move(WestRoad3.Location, 0)
+		NatoBMP1.Move(WestRoad4.Location, 0)
+		NatoBMP1.Move(WestRoad5.Location, 0)
+		NatoBMP1.Move(WestRoad6.Location, 0)
+		NatoBMP1.UnloadPassengers(SouthVehicleLane1.Location, 1)
+		NatoBMP1.Patrol({SouthVehicleLane2.Location, SouthVehicleLane3.Location, SouthVehicleLane4.Location, SouthVehicleLane5.Location }, false, 50)
+	end
+
+	if ticks == 200 then
+
+	end
+
+	if ticks == 800 then
+		RussiaT90Tank1.Patrol({EastEntry1_1.Location, EastEntry1_2.Location }, false, 0)
+		RussiaT90Tank2.Patrol({EastEntry2_1.Location, EastEntry2_2.Location }, false, 0)
+		RussiaT90Tank3.Patrol({EastEntry3_1.Location }, false, 0)
+		RussiaT90Tank4.Patrol({EastEntry4_1.Location, EastEntry4_2.Location, EastEntry4_3.Location }, false, 0)
+	end
+
+	if ticks == 10000 then
 		MSLO1.ActivateNukePower(CPos.New(50, 55))
 	end
 end

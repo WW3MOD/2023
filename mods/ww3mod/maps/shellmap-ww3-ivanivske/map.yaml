@@ -335,13 +335,7 @@ Actors:
 	WestRoad1: waypoint
 		Owner: Neutral
 		Location: 11,72
-	Actor1429: silo.husk
-		Owner: Neutral
-		Location: 22,72
-	Actor1428: hbox.husk
-		Owner: Neutral
-		Location: 46,59
-	Actor1431: bmp2
+	NatoBMP1: bmp2
 		Owner: NATO
 		Location: 18,63
 		Facing: 563
@@ -376,18 +370,9 @@ Actors:
 	Actor1440: tc01
 		Owner: Neutral
 		Location: 18,61
-	Actor1442: t05
-		Owner: Neutral
-		Location: 19,63
-	Actor1443: tc03
-		Owner: Neutral
-		Location: 19,62
 	Actor1444: t11
 		Owner: Neutral
 		Location: 30,65
-	Actor1445: t14
-		Owner: Neutral
-		Location: 36,69
 	Actor27: t07
 		Owner: Neutral
 		Location: 26,64
@@ -422,34 +407,9 @@ Actors:
 	Actor1453: t14
 		Owner: Neutral
 		Location: 23,67
-	Actor1454: rushouse
-		Owner: Neutral
-		Location: 39,72
 	WestRoadDrop1: waypoint
 		Owner: Neutral
 		Location: 53,55
-	Actor1459: hbox
-		Owner: Russia
-		Location: 93,72
-	Actor1460: hbox
-		Owner: Russia
-		Location: 91,83
-	Actor1461: t90
-		Owner: Russia
-		Facing: 384
-		Location: 98,78
-	Actor1462: t90
-		Owner: Russia
-		Location: 97,68
-		Facing: 229
-	Actor1463: tos
-		Owner: Russia
-		Location: 97,61
-		Facing: 245
-	Actor1776: tc05
-		Owner: Neutral
-		Faction: russia
-		Location: 53,53
 	Actor1777: tc04
 		Owner: Neutral
 		Faction: russia
@@ -504,9 +464,6 @@ Actors:
 	Actor1877: tc01
 		Owner: Neutral
 		Location: 68,54
-	Actor1842: tc01
-		Owner: Neutral
-		Location: 83,54
 	Actor1752: t05
 		Owner: Neutral
 		Location: 70,53
@@ -567,9 +524,6 @@ Actors:
 	Actor2197: t07
 		Owner: Neutral
 		Location: 83,53
-	Actor2198: t08
-		Owner: Neutral
-		Location: 52,55
 	MSLO1: mslo
 		Owner: Neutral
 		Location: 100,0
@@ -861,9 +815,6 @@ Actors:
 	Actor1895: v18
 		Owner: Neutral
 		Location: 84,57
-	Actor1896: v18
-		Owner: Neutral
-		Location: 85,57
 	Actor1897: v18
 		Owner: Neutral
 		Location: 59,58
@@ -942,9 +893,6 @@ Actors:
 	Actor1922: v18
 		Owner: Neutral
 		Location: 84,58
-	Actor1925: v18
-		Owner: Neutral
-		Location: 85,58
 	Actor1927: v18
 		Owner: Neutral
 		Location: 59,59
@@ -1023,9 +971,6 @@ Actors:
 	Actor1956: v18
 		Owner: Neutral
 		Location: 84,59
-	Actor1957: v18
-		Owner: Neutral
-		Location: 85,59
 	Actor1958: v18
 		Owner: Neutral
 		Location: 59,60
@@ -1104,9 +1049,6 @@ Actors:
 	Actor1990: v18
 		Owner: Neutral
 		Location: 84,60
-	Actor1991: v18
-		Owner: Neutral
-		Location: 85,60
 	Actor1992: v18
 		Owner: Neutral
 		Location: 59,61
@@ -1185,9 +1127,6 @@ Actors:
 	Actor2017: v18
 		Owner: Neutral
 		Location: 84,61
-	Actor2018: v18
-		Owner: Neutral
-		Location: 85,61
 	Actor2019: v18
 		Owner: Neutral
 		Location: 59,62
@@ -1266,9 +1205,6 @@ Actors:
 	Actor2051: v18
 		Owner: Neutral
 		Location: 84,62
-	Actor2052: v18
-		Owner: Neutral
-		Location: 85,62
 	Actor2053: v18
 		Owner: Neutral
 		Location: 59,63
@@ -1347,9 +1283,6 @@ Actors:
 	Actor2085: v18
 		Owner: Neutral
 		Location: 84,63
-	Actor2086: v18
-		Owner: Neutral
-		Location: 85,63
 	Actor2087: v18
 		Owner: Neutral
 		Location: 59,64
@@ -1428,9 +1361,6 @@ Actors:
 	Actor2112: v18
 		Owner: Neutral
 		Location: 84,64
-	Actor2113: v18
-		Owner: Neutral
-		Location: 85,64
 	Actor2114: v18
 		Owner: Neutral
 		Location: 59,65
@@ -1509,9 +1439,6 @@ Actors:
 	Actor2146: v18
 		Owner: Neutral
 		Location: 84,65
-	Actor2147: v18
-		Owner: Neutral
-		Location: 85,65
 	Actor2148: v18
 		Owner: Neutral
 		Location: 59,66
@@ -1590,9 +1517,6 @@ Actors:
 	Actor2180: v18
 		Owner: Neutral
 		Location: 84,66
-	Actor2181: v18
-		Owner: Neutral
-		Location: 85,66
 	Actor2206: v18
 		Owner: Neutral
 		Location: 79,67
@@ -1611,9 +1535,6 @@ Actors:
 	Actor2218: v18
 		Owner: Neutral
 		Location: 84,67
-	Actor2219: v18
-		Owner: Neutral
-		Location: 85,67
 	Actor2240: v18
 		Owner: Neutral
 		Location: 79,68
@@ -1632,9 +1553,6 @@ Actors:
 	Actor2252: v18
 		Owner: Neutral
 		Location: 84,68
-	Actor2253: v18
-		Owner: Neutral
-		Location: 85,68
 	Actor2274: v18
 		Owner: Neutral
 		Location: 79,69
@@ -1653,9 +1571,6 @@ Actors:
 	Actor2286: v18
 		Owner: Neutral
 		Location: 84,69
-	Actor2287: v18
-		Owner: Neutral
-		Location: 85,69
 	Actor2308: v18
 		Owner: Neutral
 		Location: 79,70
@@ -1674,9 +1589,6 @@ Actors:
 	Actor2320: v18
 		Owner: Neutral
 		Location: 84,70
-	Actor2321: v18
-		Owner: Neutral
-		Location: 85,70
 	Actor2342: v18
 		Owner: Neutral
 		Location: 79,71
@@ -1695,9 +1607,6 @@ Actors:
 	Actor2354: v18
 		Owner: Neutral
 		Location: 84,71
-	Actor2355: v18
-		Owner: Neutral
-		Location: 85,71
 	Actor2376: v18
 		Owner: Neutral
 		Location: 79,72
@@ -1716,9 +1625,6 @@ Actors:
 	Actor2381: v18
 		Owner: Neutral
 		Location: 84,72
-	Actor2389: v18
-		Owner: Neutral
-		Location: 85,72
 	Actor2410: v18
 		Owner: Neutral
 		Location: 79,73
@@ -1737,9 +1643,6 @@ Actors:
 	Actor2415: v18
 		Owner: Neutral
 		Location: 84,73
-	Actor2423: v18
-		Owner: Neutral
-		Location: 85,73
 	Actor2444: v18
 		Owner: Neutral
 		Location: 79,74
@@ -1758,9 +1661,6 @@ Actors:
 	Actor2449: v18
 		Owner: Neutral
 		Location: 84,74
-	Actor2457: v18
-		Owner: Neutral
-		Location: 85,74
 	Actor2478: v18
 		Owner: Neutral
 		Location: 79,75
@@ -1779,9 +1679,6 @@ Actors:
 	Actor2832: v18
 		Owner: Neutral
 		Location: 84,75
-	Actor2840: v18
-		Owner: Neutral
-		Location: 85,75
 	Actor2868: v18
 		Owner: Neutral
 		Location: 79,76
@@ -1800,9 +1697,6 @@ Actors:
 	Actor2873: v18
 		Owner: Neutral
 		Location: 84,76
-	Actor2874: v18
-		Owner: Neutral
-		Location: 85,76
 	Actor2902: v18
 		Owner: Neutral
 		Location: 79,77
@@ -1821,9 +1715,6 @@ Actors:
 	Actor2907: v18
 		Owner: Neutral
 		Location: 84,77
-	Actor2908: v18
-		Owner: Neutral
-		Location: 85,77
 	Actor2936: v18
 		Owner: Neutral
 		Location: 79,78
@@ -1842,9 +1733,6 @@ Actors:
 	Actor2948: v18
 		Owner: Neutral
 		Location: 84,78
-	Actor2949: v18
-		Owner: Neutral
-		Location: 85,78
 	Actor2977: v18
 		Owner: Neutral
 		Location: 79,79
@@ -1863,9 +1751,6 @@ Actors:
 	Actor2982: v18
 		Owner: Neutral
 		Location: 84,79
-	Actor2983: v18
-		Owner: Neutral
-		Location: 85,79
 	Actor3011: v18
 		Owner: Neutral
 		Location: 79,80
@@ -1884,9 +1769,6 @@ Actors:
 	Actor3016: v18
 		Owner: Neutral
 		Location: 84,80
-	Actor3017: v18
-		Owner: Neutral
-		Location: 85,80
 	Actor3045: v18
 		Owner: Neutral
 		Location: 79,81
@@ -1905,9 +1787,6 @@ Actors:
 	Actor3057: v18
 		Owner: Neutral
 		Location: 84,81
-	Actor3058: v18
-		Owner: Neutral
-		Location: 85,81
 	Actor3086: v18
 		Owner: Neutral
 		Location: 79,82
@@ -1926,9 +1805,6 @@ Actors:
 	Actor3091: v18
 		Owner: Neutral
 		Location: 84,82
-	Actor3092: v18
-		Owner: Neutral
-		Location: 85,82
 	Actor1843: v18
 		Owner: Neutral
 		Location: 52,67
@@ -4053,9 +3929,6 @@ Actors:
 	Actor2513: v18
 		Owner: Neutral
 		Location: 84,83
-	Actor2514: v18
-		Owner: Neutral
-		Location: 85,83
 	Actor2542: v18
 		Owner: Neutral
 		Location: 79,84
@@ -4074,9 +3947,6 @@ Actors:
 	Actor2547: v18
 		Owner: Neutral
 		Location: 84,84
-	Actor2548: v18
-		Owner: Neutral
-		Location: 85,84
 	Actor2576: v18
 		Owner: Neutral
 		Location: 79,85
@@ -4095,9 +3965,6 @@ Actors:
 	Actor2581: v18
 		Owner: Neutral
 		Location: 84,85
-	Actor2582: v18
-		Owner: Neutral
-		Location: 85,85
 	Actor2610: v18
 		Owner: Neutral
 		Location: 79,86
@@ -4116,9 +3983,6 @@ Actors:
 	Actor2615: v18
 		Owner: Neutral
 		Location: 84,86
-	Actor2616: v18
-		Owner: Neutral
-		Location: 85,86
 	Actor2644: v18
 		Owner: Neutral
 		Location: 79,87
@@ -4137,9 +4001,6 @@ Actors:
 	Actor2649: v18
 		Owner: Neutral
 		Location: 84,87
-	Actor2650: v18
-		Owner: Neutral
-		Location: 85,87
 	Actor2678: v18
 		Owner: Neutral
 		Location: 79,88
@@ -4158,9 +4019,6 @@ Actors:
 	Actor2683: v18
 		Owner: Neutral
 		Location: 84,88
-	Actor2684: v18
-		Owner: Neutral
-		Location: 85,88
 	Actor2718: v18
 		Owner: Neutral
 		Location: 79,89
@@ -4179,9 +4037,6 @@ Actors:
 	Actor2723: v18
 		Owner: Neutral
 		Location: 84,89
-	Actor2724: v18
-		Owner: Neutral
-		Location: 85,89
 	Actor2725: v18
 		Owner: Neutral
 		Location: 79,90
@@ -4200,9 +4055,6 @@ Actors:
 	Actor2757: v18
 		Owner: Neutral
 		Location: 84,90
-	Actor2758: v18
-		Owner: Neutral
-		Location: 85,90
 	Actor2759: v18
 		Owner: Neutral
 		Location: 79,91
@@ -4221,9 +4073,6 @@ Actors:
 	Actor2791: v18
 		Owner: Neutral
 		Location: 84,91
-	Actor2792: v18
-		Owner: Neutral
-		Location: 85,91
 	Actor2793: v18
 		Owner: Neutral
 		Location: 79,92
@@ -4242,9 +4091,6 @@ Actors:
 	Actor2825: v18
 		Owner: Neutral
 		Location: 84,92
-	Actor2826: v18
-		Owner: Neutral
-		Location: 85,92
 	Actor3102: v17
 		Owner: Neutral
 		Location: 15,76
@@ -9306,5 +9152,265 @@ Actors:
 	Actor4771: v17
 		Owner: Neutral
 		Location: 90,51
+	RussiaT90Tank1: t90
+		Owner: Russia
+		Location: 100,64
+		Facing: 256
+	RussiaT90Tank2: t90
+		Owner: Russia
+		Location: 100,68
+		Facing: 256
+	Actor4772: t90
+		Owner: Russia
+		TurretFacing: 0
+		Facing: 512
+		Location: 98,17
+	Actor4776: t90
+		Owner: Russia
+		TurretFacing: 0
+		Facing: 512
+		Location: 98,20
+	Actor4777: t90
+		Owner: Russia
+		TurretFacing: 0
+		Facing: 512
+		Location: 98,24
+	Actor4778: t90
+		Owner: Russia
+		TurretFacing: 0
+		Facing: 512
+		Location: 98,28
+	Actor3058: tc04
+		Owner: Neutral
+		Location: 86,56
+	Actor3092: tc04
+		Owner: Neutral
+		Location: 86,62
+	Actor4779: tc04
+		Owner: Neutral
+		Location: 86,71
+	Actor4782: tc04
+		Owner: Neutral
+		Location: 86,90
+	Actor4784: tc04
+		Owner: Neutral
+		Location: 86,58
+	Actor4785: t16
+		Owner: Neutral
+		Location: 87,57
+	Actor4786: t05
+		Owner: Neutral
+		Location: 88,57
+	Actor4783: tc02
+		Owner: Neutral
+		Location: 86,61
+	Actor4787: t05
+		Owner: Neutral
+		Location: 88,61
+	EastEntry1_1: waypoint
+		Owner: Neutral
+		Location: 90,61
+	EastEntry1_2: waypoint
+		Owner: Neutral
+		Location: 87,61
+	Actor4791: tc05
+		Owner: Neutral
+		Location: 86,69
+	Actor4792: tc01
+		Owner: Neutral
+		Location: 87,64
+	Actor4793: tc01
+		Owner: Neutral
+		Location: 87,59
+	RussiaT90Tank4: t90
+		Owner: Russia
+		Location: 100,81
+		Facing: 256
+	RussiaT90Tank3: t90
+		Owner: Russia
+		Location: 100,75
+		Facing: 256
+	EastEntry2_0: waypoint
+		Owner: Neutral
+		Location: 100,68
+	EastEntry2_1: waypoint
+		Owner: Neutral
+		Location: 89,69
+	EastEntry2_2: waypoint
+		Owner: Neutral
+		Location: 87,69
+	EastEntry3_0: waypoint
+		Owner: Neutral
+		Location: 100,75
+	EastEntry3_1: waypoint
+		Owner: Neutral
+		Location: 87,75
+	EastEntry4_0: waypoint
+		Owner: Neutral
+		Location: 100,81
+	EastEntry4_1: waypoint
+		Owner: Neutral
+		Location: 91,81
+	EastEntry4_2: waypoint
+		Owner: Neutral
+		Location: 89,82
+	EastEntry4_3: waypoint
+		Owner: Neutral
+		Location: 87,82
+	Actor4781: tc04
+		Owner: Neutral
+		Location: 86,79
+	Actor4804: tc05
+		Owner: Neutral
+		Location: 86,82
+	Actor4805: tc01
+		Owner: Neutral
+		Location: 87,80
+	Actor4807: tc01
+		Owner: Neutral
+		Location: 87,86
+	Actor4808: tc03
+		Owner: Neutral
+		Location: 86,86
+	Actor4809: tc02
+		Owner: Neutral
+		Location: 86,88
+	Actor4810: t02
+		Owner: Neutral
+		Location: 87,87
+	Actor4811: t02
+		Owner: Neutral
+		Location: 87,89
+	Actor4812: t06
+		Owner: Neutral
+		Location: 88,87
+	Actor4813: t06
+		Owner: Neutral
+		Location: 88,89
+	Actor4814: t05
+		Owner: Neutral
+		Location: 87,87
+	Actor4815: t05
+		Owner: Neutral
+		Location: 86,89
+	Actor4816: t05
+		Owner: Neutral
+		Location: 88,88
+	Actor4817: t05
+		Owner: Neutral
+		Location: 88,85
+	Actor4818: tc03
+		Owner: Neutral
+		Location: 51,54
+	Actor4819: tc02
+		Owner: Neutral
+		Location: 54,54
+	Actor4820: tc01
+		Owner: Neutral
+		Location: 53,53
+	Actor4821: tc03
+		Owner: Neutral
+		Location: 84,54
+	Actor4822: tc01
+		Owner: Neutral
+		Location: 86,67
+	Actor4823: tc02
+		Owner: Neutral
+		Location: 87,66
+	Actor4824: tc03
+		Owner: Neutral
+		Location: 86,64
+	Actor4825: tc01
+		Owner: Neutral
+		Location: 86,65
+	Actor4826: t16
+		Owner: Neutral
+		Location: 88,65
+	Actor4827: t16
+		Owner: Neutral
+		Location: 88,67
+	Actor4828: tc05
+		Owner: Neutral
+		Location: 86,75
+	Actor4829: tc04
+		Owner: Neutral
+		Location: 86,77
+	Actor4830: tc01
+		Owner: Neutral
+		Location: 87,78
+	Actor4806: tc04
+		Owner: Neutral
+		Location: 86,84
+	WestHiddenExit1: waypoint
+		Owner: Neutral
+		Location: 18,64
+	WestHiddenExit2: waypoint
+		Owner: Neutral
+		Location: 19,65
+	WestHiddenExit3: waypoint
+		Owner: Neutral
+		Location: 20,65
+	EastEntry1_0: waypoint
+		Owner: Neutral
+		Location: 100,64
+	Actor4831: tc01.husk
+		Owner: Neutral
+		Location: 87,72
+	Actor4832: t15.husk
+		Owner: Neutral
+		Location: 86,73
+	SouthVehicleLane1: waypoint
+		Owner: Neutral
+		Location: 59,56
+	SouthVehicleLane5: waypoint
+		Owner: Neutral
+		Location: 84,56
+	SouthVehicleLane4: waypoint
+		Owner: Neutral
+		Location: 80,56
+	SouthVehicleLane3: waypoint
+		Owner: Neutral
+		Location: 74,56
+	SouthVehicleLane2: waypoint
+		Owner: Neutral
+		Location: 67,56
+	SouthVehicleLane0: waypoint
+		Owner: Neutral
+		Location: 52,56
+	NatoE3atBMP: e3r1
+		Owner: NATO
+		SubCell: 1
+		Location: 18,64
+		Facing: 384
+	NatoARatBMP: ar
+		Owner: NATO
+		Location: 19,63
+		SubCell: 1
+		Facing: 384
+	NatoTLatBMP: tl
+		Owner: NATO
+		Location: 19,63
+		SubCell: 2
+		Facing: 384
+	NatoE2atBMP: e2r1
+		Owner: NATO
+		Location: 18,64
+		SubCell: 2
+		Facing: 384
+	NatoATatBMP: at
+		Owner: NATO
+		SubCell: 1
+		Location: 18,63
+		Facing: 384
+	Actor4773: tc03
+		Owner: Neutral
+		Location: 19,62
+	Actor4774: t05
+		Owner: Neutral
+		Location: 19,63
+	Actor4780: tos
+		Owner: Russia
+		Facing: 245
+		Location: 100,33
 
 Rules: rules.yaml
