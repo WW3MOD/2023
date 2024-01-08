@@ -46,6 +46,7 @@ Tick = function()
 		NatoBMP1.Move(WestRoad5.Location, 0)
 		NatoBMP1.Move(WestRoad6.Location, 0)
 		NatoBMP1.UnloadPassengers(SouthVehicleLane1.Location, 1)
+		-- NatoBMP1.Wait(30)
 		NatoBMP1.Patrol({SouthVehicleLane2.Location, SouthVehicleLane3.Location, SouthVehicleLane4.Location, SouthVehicleLane5.Location }, false, 50)
 	end
 

@@ -23,6 +23,9 @@ namespace OpenRA.Mods.Common.Traits.Sound
 		[Desc("Text notification to display to the new owner.")]
 		public readonly string TextNotification = null;
 
+		[Desc("How often to play the notification at most.")]
+		public readonly int TicksBetweenNotifications = -1;
+
 		[Desc("Specifies if Notification is played with the voice of the new owners faction.")]
 		public readonly bool NewOwnerVoice = true;
 
@@ -39,7 +42,7 @@ namespace OpenRA.Mods.Common.Traits.Sound
 		public override object Create(ActorInitializer init) { return new CaptureNotification(this); }
 	}
 
-	public class CaptureNotification : INotifyCapture
+	public class CaptureNotification : INotifyCapture, ITick
 	{
 		readonly CaptureNotificationInfo info;
 		public CaptureNotification(CaptureNotificationInfo info)
@@ -47,8 +50,23 @@ namespace OpenRA.Mods.Common.Traits.Sound
 			this.info = info;
 		}
 
+		int ticksLeft = 0;
+
+		void ITick.Tick(Actor self)
+		{
+			ticksLeft--;
+		}
+
 		void INotifyCapture.OnCapture(Actor self, Actor captor, Player oldOwner, Player newOwner, BitSet<CaptureType> captureTypes)
 		{
+			if (info.TicksBetweenNotifications > 0)
+			{
+				if (ticksLeft > 0)
+					return;
+				else
+					ticksLeft = info.TicksBetweenNotifications;
+			}
+
 			var faction = info.NewOwnerVoice ? newOwner.Faction.InternalName : oldOwner.Faction.InternalName;
 			Game.Sound.PlayNotification(self.World.Map.Rules, newOwner, "Speech", info.Notification, faction);
 			TextNotificationsManager.AddTransientLine(info.TextNotification, newOwner);

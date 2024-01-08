@@ -274,7 +274,8 @@ SUPPLYROUTE:
 	UpdatesPlayerStatistics:
 	RequiresBuildableArea:
 		AreaTypes: building
-	CaptureNotification:
+	# CaptureNotification:
+	# 	TicksBetweenNotifications: 100
 	Guardable:
 		Range: 20c0
 	FrozenUnderFog:
@@ -284,8 +285,6 @@ SUPPLYROUTE:
 	CommandBarBlacklist:
 	OwnerLostAction:
 		Action: Kill
-	AcceptsDeliveredCash:
-		ValidTypes: MoneyTransfer
 	GpsDot:
 		String: Structure
 	MustBeDestroyed:
