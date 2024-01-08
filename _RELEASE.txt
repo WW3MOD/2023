@@ -1,17 +1,18 @@
 
-Flags
+Supply Route
+
     - Place Flags all around the map edges, chain-linking control gives access to deploy troops there, broken chain makes Flags disabled for calling in reinforcements.
+        - Consider implementing a "per building" build queue (difficult?)
+    - Gets captured over and over when enemy is close by
+
+- Can't issue enter order on neutral cargo actors if shrouded
+
+
 
 Resources
     - Auto Capture for technicians as a "Weapon", making AutoTargeting work
     - Dynamic income based on structure health
-    - Autoheals slowly if less than 50% damaged
-        Heavy damage needs engineer to restore and
-        Critical damage needs a special Repair/Construction Vehicle to bring in resources.
     - Nuclear powerplant, releases long lasting radiation if destroyed
-
-Groups / Selection
-    -
 
 Production
     - Pause / Cancel all of a production type by clicking icon
@@ -25,22 +26,13 @@ Production
 
 Infantry
     - Attack move default / make infantry fire on the move
-    - Sprint when force moving soldiers, disables firing on the move
-    - Adjust speed
-    - E8 Desolator, looks like RPG ish
-        - e8d (deployed) could work as a reloading sequence if the green color is changed
-    - Remove Spy, Dog?
-    - Engineer Repair and MineClearing doesn't work unless they have primary/secondary weapon name.
-        - Different name works for C4, so can't see why it wouldn't work.
-        - Solution now is to merge Vehicle/BuildingRepair to primary, MineClearing secondary, and the rest after that.
-        - Actually, it seems like tertiary weapon doesn't work, is this for all units? Must one of the three be paused for the others to work perhaps? Because tertiary is a thing for many other units
+        - Sprint when force moving soldiers, disables firing on the move
+    - Remove Spy, adapt SF to take that role instead
     - Protection, add new mode that puts actors invisible on top of the cell of what is now the Cargo Actor,
         this allows units to target either the building or autotarget the actor inside.
         Use current behaviour for internal / protected ("Cargo") slots
 
 Vehicles
-    - Adjust speed
-    - Firing rate adjustment after game speed was changed, perhaps slower
     - Tesla tank returns to base when out of ammo
     - Crystallized Doom tanks
     - GDRN, tracked drone vehicle
@@ -56,11 +48,10 @@ Structures
     - Trenches
 
 Ammo
+    - Units out of ammo should reject attack orders
     - Costs money
     - Trucks need to be sent back
     - Widget for auto rearm
-    - Fix current behaviour of going to the waypoint, enter Supply Route instead and evacuate area
-    - Units out of ammo rejects attack orders
 
 Animations
     - TOS explosion effects
@@ -77,8 +68,8 @@ Widgets
 
 Orders
     Attack Move should be default behaviour
-    Tab - Toggle waypoint mode, always use waypoints
 
+    Tab - Toggle waypoint mode, always use waypoints
     Q - Move
     W - Force Move (moves faster but has reduces detection, accuracy, firing rate etc)
     E - Fighting Retreat (Attack closest enemy but stay at maximum distance)
@@ -136,10 +127,6 @@ Stances (Check SetUnitStance)
 
     "Use as default" - new units will use this, save between games (needs a button like "Save these for next game as default", so it doesn't override everytime)
 
-
-Mines
-    - Cloaking
-    - Engineer demining
 
 Add Ukraine faction
 

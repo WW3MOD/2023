@@ -7,60 +7,25 @@
    information, see COPYING.
 ]]
 
--- LeftRoadWaypoints = { LeftRoad1, LeftRoad2, LeftRoad3, LeftRoad4, LeftRoad5 }
--- RightRoadWaypoints = { RightRoad1, RightRoad2, RightRoad3, RightRoad4, RightRoad5 }
-
 BindActorTriggers = function(a)
-	-- if a.HasProperty("Hunt") then
-	-- 	if a.Owner == nato then
-	-- 		Trigger.OnIdle(a, function(a)
-	-- 			if a.IsInWorld then
-	-- 				a.Hunt()
-	-- 			end
-	-- 		end)
-	-- 	else
-	-- 		Trigger.OnIdle(a, function(a)
-	-- 			if a.IsInWorld then
-	-- 				a.AttackMove(AlliedTechnologyCenter.Location)
-	-- 			end
-	-- 		end)
-	-- 	end
-	-- end
-
-	-- if a.HasProperty("HasPassengers") then
-	-- 	Trigger.OnPassengerExited(a, function(t, p)
-	-- 		BindActorTriggers(p)
-	-- 	end)
-
-	-- 	Trigger.OnDamaged(a, function()
-	-- 		if a.HasPassengers then
-	-- 			a.Stop()
-	-- 			a.UnloadPassengers()
-	-- 		end
-	-- 	end)
-	-- end
+	if a.HasProperty("HasPassengers") then
+		Trigger.OnDamaged(a, function()
+			if a.HasPassengers then
+				a.Stop()
+				a.UnloadPassengers()
+			end
+		end)
+	end
 end
 
-SetupNatoUnits = function()
-	-- Utils.Do(Map.NamedActors, function(a)
-	-- 	if a.Owner == nato and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
-	-- 		a.GrantCondition("unkillable")
-	-- 		a.Stance = "Defend"
-	-- 	end
-	-- end)
-end
--- cameraMovement = 25 * 1024
+SetupNatoUnits = function() end
 
 ticks = 0
-speedPercent = 0
-xSpeed = 70
-ySpeed = 90
-
 Tick = function()
 	ticks = ticks + 1
 
-	if ticks < 500 then
-		Camera.Position = Camera.Position + WVec.New(xSpeed, -ySpeed, 0)
+	if ticks < 800 then
+		Camera.Position = Camera.Position + WVec.New(25, -45, 0)
 	elseif ticks == 1000 then
 		MSLO1.ActivateNukePower(CPos.New(50, 55))
 	end
@@ -82,7 +47,7 @@ WorldLoaded = function()
 	Reinforcements.ReinforceWithTransport(nato,
 		"bradley",
 		{ "ar", "e3", "e3", "at", "e2", "tl" },
-		{ WestRoad0.Location, WestRoad1.Location, WestRoad2.Location, WestRoad3.Location, WestRoad4.Location, WestRoad5.Location, WestRoad6.Location, WestRoad7.Location, WestRoad8.Location, WestRoad9.Location },
+		{ WestRoad0.Location, WestRoad1.Location, WestRoad2.Location, WestRoad3.Location, WestRoad4.Location, WestRoad5.Location, WestRoad6.Location, WestRoadDrop1.Location },
 		nil,
 		nil,
 		function() end,

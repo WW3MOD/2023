@@ -1,20 +1,5 @@
 
-
-Field v18 size
-
-
 Bugs
-
-    Mines
-        - Enemy sees mines but doesnt avoids
-        - Friendly avoids but doesnt see
-
-    Supply Route
-        - Gets captured over and over when enemy is close by
-
-    Vehicles rearm
-        - Auto-returns when only one ammo is out. Commented out if thre are no rearming actors on map
-
 
 - Ideas
 
@@ -69,9 +54,6 @@ Bugs
         - Pre-defined formations
         - Check Autotarget and how stances are set there, do similar on Move/Mobile?
 
-- Announcements
-    - Enemy detected
-
 Terrain
     - AllowedTerrain, LandableTerrainTypes, TerrainTypes, AllowedTerrainTypes
 
@@ -121,7 +103,6 @@ Unsolved bugs
 - Multi-threading for performance, possible?
     - LogicTick / RenderTick on seperate threads?
 
-- Can't issue enter order on neutral cargo actors if shrouded
 - TECN infiltrates cargo neutral structures instead of entering
 
 UNIT:
