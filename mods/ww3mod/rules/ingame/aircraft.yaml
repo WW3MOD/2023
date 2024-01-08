@@ -118,6 +118,7 @@
 		EjectInAir: true
 	DeliversCash@Rotation:
 		Type: Rotation
+		AdjustForHandicap: True
 
 ^Helicopter:
 	Inherits@Type: ^Airborne
@@ -149,6 +150,7 @@
 		TargetTypes: Helicopter
 	DeliversCash@Rotation:
 		Type: Rotation
+		AdjustForHandicap: True
 
 ^Drone:
 	Inherits: ^Airborne

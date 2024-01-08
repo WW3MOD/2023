@@ -150,6 +150,7 @@
 		PermilleCost: 10
 	DeliversCash@Rotation:
 		Type: Rotation
+		AdjustForHandicap: True
 ^Soldier:
 	Inherits: ^Infantry
 	Inherits@AmmoDecoration: ^AmmoDecoration
