@@ -276,6 +276,8 @@ SUPPLYROUTE:
 		AreaTypes: building
 	# CaptureNotification:
 	# 	TicksBetweenNotifications: 100
+	Detectable:
+		Vision: 1
 	Guardable:
 		Range: 20c0
 	FrozenUnderFog:

@@ -172,7 +172,7 @@ namespace OpenRA
 				var renderModifiersList = new List<IRenderModifier>();
 				var rendersList = new List<IRender>();
 				var mouseBoundsList = new List<IMouseBounds>();
-				var visibilityModifiersList = new List<IShouldHideModifier>();
+				var detectableModifiersList = new List<IShouldHideModifier>();
 				var becomingIdlesList = new List<INotifyBecomingIdle>();
 				var tickIdlesList = new List<INotifyIdle>();
 				var targetablesList = new List<ITargetable>();
@@ -197,7 +197,7 @@ namespace OpenRA
 					{ if (trait is IRenderModifier t) renderModifiersList.Add(t); }
 					{ if (trait is IRender t) rendersList.Add(t); }
 					{ if (trait is IMouseBounds t) mouseBoundsList.Add(t); }
-					{ if (trait is IShouldHideModifier t) visibilityModifiersList.Add(t); }
+					{ if (trait is IShouldHideModifier t) detectableModifiersList.Add(t); }
 					{ if (trait is IDefaultVisibility t) defaultVisibility = t; }
 					{ if (trait is INotifyBecomingIdle t) becomingIdlesList.Add(t); }
 					{ if (trait is INotifyIdle t) tickIdlesList.Add(t); }
@@ -210,7 +210,7 @@ namespace OpenRA
 				renderModifiers = renderModifiersList.ToArray();
 				renders = rendersList.ToArray();
 				mouseBounds = mouseBoundsList.ToArray();
-				shouldHideModifiers = visibilityModifiersList.ToArray();
+				shouldHideModifiers = detectableModifiersList.ToArray();
 				becomingIdles = becomingIdlesList.ToArray();
 				tickIdles = tickIdlesList.ToArray();
 				Targetables = targetablesList.ToArray();

@@ -55,7 +55,6 @@
 		CargoType: Vehicle
 	AttackMove:
 	Detectable:
-		Vision: 3
 	ProximityCaptor:
 		Types: Vehicle
 	GpsDot:

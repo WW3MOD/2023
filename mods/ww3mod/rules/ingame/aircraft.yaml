@@ -35,13 +35,12 @@
 		RequiresCondition: !airborne && damaged
 		TargetTypes: Repair
 	Detectable:
-		Vision: 2
 		Radar: 1
 		RadarDetectableCondition: airborne
 		Position: Ground
-	VisibilityAddativeModifier@Ground:
+	DetectableAddativeModifier@Ground:
 		RequiresCondition: !airborne
-		Modifier: 1
+		VisionModifier: 3
 	AttackMove:
 	Guard:
 	Guardable:

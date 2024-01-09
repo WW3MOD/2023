@@ -1,9 +1,19 @@
 
 Fix
 
+    - Protection based on tile / proximity. Show pips
+        - Kinda done, do more testing
+
     - Mortar (or anyone) should not shoot at tech buildings
     - Tanks / Vehicles reverse
-    - Protection based on tile / proximity. Show pips
+    - Enemy proximity adds to a condition, friendlies subtract. Total gives bonus/reduction in morale. Different units base their value to add on their combat value, that can also be used for other things (Capture domination etc)
+    - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
+    - The buildable units become more and more ranked the less of them you buy. Get only one type and all will be level 0, but build slowly and you can start recruiting even veterans (up to level 2?)
+    - When barely visible, show as GPS dot.
+    - It's weird that a tank can fire accurately based on another unit's vision. How fix?
+    - Shoot at last known location if losing track of target and it was stationary
+    - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
+
 
 Bugs
 

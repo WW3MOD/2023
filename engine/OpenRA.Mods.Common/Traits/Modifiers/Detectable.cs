@@ -21,10 +21,10 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("The actor visibility/radar signature/detectability.")]
 	public class DetectableInfo : PausableConditionalTraitInfo, IDefaultVisibilityInfo
 	{
-		[Desc("")]
+		[Desc("What level of vision is required to detect this actor")]
 		public readonly int Vision = 2;
 
-		[Desc("")]
+		[Desc("0 = not detectable by radar, 1 = is detectable by radar. (Using int because possible future implementation of stealth features)")]
 		public readonly int Radar = 0;
 
 		[ConsumedConditionReference]
@@ -32,6 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BooleanExpression RadarDetectableCondition = null;
 
 		public readonly string RadarDetectableGrantsCondition = "radar-detectable";
+		public readonly string VisionDetectableConditionPrefix = "visibility-";
 
 		[Desc("Players with these relationships can always see the actor.")]
 		public readonly PlayerRelationship AlwaysVisibleRelationships = PlayerRelationship.Ally;
@@ -46,7 +47,9 @@ namespace OpenRA.Mods.Common.Traits
 	public class Detectable : PausableConditionalTrait<DetectableInfo>, IDefaultVisibility, IRenderModifier
 	{
 		protected readonly DetectableInfo DetectableInfo;
-		IEnumerable<int> visibilityModifiers;
+		IEnumerable<int> detectableModifiers;
+		public int PreviousVisibility { get; set; }
+		public int CurrentVisibility { get; set; }
 		public Detectable(ActorInitializer _, DetectableInfo info)
 			: base(info)
 			{
@@ -57,7 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			base.Created(self);
 
-			visibilityModifiers = self.TraitsImplementing<IVisibilityAddativeModifier>().ToArray().Select(x => x.GetVisibilityAddativeModifier());
+			detectableModifiers = self.TraitsImplementing<IDetectableAddativeModifier>().ToArray().Select(x => x.GetDetectableVisionAddativeModifier());
 		}
 
 		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
@@ -66,17 +69,27 @@ namespace OpenRA.Mods.Common.Traits
 			if (DetectableInfo.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			var vision = Util.ApplyAddativeModifiers(DetectableInfo.Vision, visibilityModifiers);
+			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
 
-			if (vision > MapLayers.VisionLayers - 1)
-				vision = MapLayers.VisionLayers - 1;
+			if (detectable <= 0)
+				detectable = 1;
+			else if (detectable > MapLayers.VisionLayers - 1)
+				detectable = MapLayers.VisionLayers - 1;
+
+			CurrentVisibility = detectable;
+
+			if (PreviousVisibility != CurrentVisibility)
+			{
+				DetectableVisionChanged(self);
+				PreviousVisibility = CurrentVisibility;
+			}
 
 			if (DetectableInfo.Position == DetectablePosition.Footprint)
 			{
-				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), vision) || (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()));
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), detectable) || (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()));
 			}
 
-			return byPlayer.MapLayers.IsVisible(pos, vision) || (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos));
+			return byPlayer.MapLayers.IsVisible(pos, detectable) || (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos));
 		}
 
 		bool RadarDetectionActive()
@@ -102,10 +115,20 @@ namespace OpenRA.Mods.Common.Traits
 				yield return new VariableObserver(RadarConditionsChanged, DetectableInfo.RadarDetectableCondition.Variables);
 		}
 
-		int radarDetectableConditionToken = Actor.InvalidConditionToken;
+		[Sync]
+		int visionDetectableConditionToken = Actor.InvalidConditionToken;
+
+		protected void DetectableVisionChanged(Actor self)
+		{
+			if (visionDetectableConditionToken != Actor.InvalidConditionToken)
+				visionDetectableConditionToken = self.RevokeCondition(visionDetectableConditionToken);
+
+			visionDetectableConditionToken = self.GrantCondition(DetectableInfo.VisionDetectableConditionPrefix + CurrentVisibility);
+		}
 
 		[Sync]
 		public bool IsRadarDetectable { get; private set; }
+		int radarDetectableConditionToken = Actor.InvalidConditionToken;
 
 		void RadarConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
 		{
@@ -136,6 +159,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
+			// TODO Modify to GPS dot when barely visible?
 			return IsVisible(self, self.World.RenderPlayer) ? r : SpriteRenderable.None;
 		}
 

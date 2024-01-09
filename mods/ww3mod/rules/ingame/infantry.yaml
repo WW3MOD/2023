@@ -60,7 +60,7 @@
 		Modifier: 0
 		RequiresCondition: disable-experience
 	Detectable:
-		Vision: 5
+		Vision: 3
 	GpsDot:
 		String: Infantry
 	Crushable:
@@ -244,7 +244,7 @@
 ^CamoSoldier:
 	Inherits@Combatant: ^Combatant
 	Inherits@Soldier: ^Soldier
-	# Inherits@VisibilityRangeCircles: ^VisibilityRangeCircles
+	Inherits@VisibilityRangeCircles: ^VisibilityRangeCircles
 	Inherits@Rotting: ^RottingInfantry
 	AutoTarget:
 		ScanRadius: 25
@@ -566,129 +566,141 @@
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 
 ^InfantryStandardVisibility:
-	# Inherits: ^VisibilityPips
+	Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
-	VisibilityAddativeModifier@Dugin:
-		RequiresCondition: dugin
-		Modifier: 1
-	VisibilityAddativeModifier@Running:
-		RequiresCondition: moving && !prone
-		Modifier: -2
-	VisibilityAddativeModifier@Crawling:
-		RequiresCondition: moving && prone
-		Modifier: -1
-	VisibilityAddativeModifier@Forest_1:
-		RequiresCondition: object-proximity == 1
-		Modifier: 1
-	VisibilityAddativeModifier@Forest_2:
+	# DetectableAddativeModifier@InCover1:
+	# 	RequiresCondition: object-proximity == 1
+	# 	VisionModifier: 1
+	DetectableAddativeModifier@InCover2:
 		RequiresCondition: object-proximity == 2
-		Modifier: 2
-	VisibilityAddativeModifier@Forest_3:
+		VisionModifier: 1
+	DetectableAddativeModifier@InCover3:
 		RequiresCondition: object-proximity >= 3
-		Modifier: 3
+		VisionModifier: 2
+
+	DetectableAddativeModifier@Prone:
+		RequiresCondition: prone
+		VisionModifier: 1
+	DetectableAddativeModifier@Dugin:
+		RequiresCondition: dugin
+		VisionModifier: 1
+
+	GrantConditionOnAttack@Firing:
+		Condition: firinganyweapon
+		RevokeDelay: 12
+		RevokeOnNewTarget: False
+		RevokeAll: True
+	DetectableAddativeModifier@Firing:
+		RequiresCondition: firinganyweapon
+		VisionModifier: -2
+
+	DetectableAddativeModifier@Moving:
+		RequiresCondition: moving
+		VisionModifier: -1
+
 
 ^VisibilityRangeCircles:
-	WithRangeCircle@Cloak_0:
-		RequiresCondition: cloak-0 && !cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	# WithRangeCircle@Detectable0:
+	# 	RequiresCondition: visibility-0
+	# 	Range: 32c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable1:
+		RequiresCondition: visibility-1
+		Range: 32c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable2:
+		RequiresCondition: visibility-2
+		Range: 28c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable3:
+		RequiresCondition: visibility-3
+		Range: 25c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable4:
+		RequiresCondition: visibility-4
+		Range: 22c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable5:
+		RequiresCondition: visibility-5
+		Range: 19c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable6:
+		RequiresCondition: visibility-6
 		Range: 16c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_1:
-		RequiresCondition: cloak-1 && !cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 14c0
+	WithRangeCircle@Detectable7:
+		RequiresCondition: visibility-7
+		Range: 13c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_2:
-		RequiresCondition: cloak-2 && !cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 12c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_3:
-		RequiresCondition: cloak-3 && !cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	WithRangeCircle@Detectable8:
+		RequiresCondition: visibility-8
 		Range: 10c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_4:
-		RequiresCondition: cloak-4 && !cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 10c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_5:
-		RequiresCondition: cloak-5 && !cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 9c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_6:
-		RequiresCondition: cloak-6 && !cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_7:
-		RequiresCondition: cloak-7 && !cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_8:
-		RequiresCondition: cloak-8 && !cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
-		Range: 8c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_9:
-		RequiresCondition: cloak-9 && !cloak-10 && !cloak-11 && !cloak-12
+	WithRangeCircle@Detectable9:
+		RequiresCondition: visibility-9
 		Range: 7c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_10:
-		RequiresCondition: cloak-10 && !cloak-11 && !cloak-12
-		Range: 5c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_11:
-		RequiresCondition: cloak-11 && !cloak-12
+	WithRangeCircle@Detectable10:
+		RequiresCondition: visibility-10
 		Range: 4c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Cloak_12:
-		RequiresCondition: cloak-12
-		Range: 1c512
+	WithRangeCircle@Detectable11:
+		RequiresCondition: visibility-11
+		Range: 3c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable12:
+		RequiresCondition: visibility-12
+		Range: 2c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -702,84 +714,84 @@
 		Sequence: pip-visibility-1
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-1
+		RequiresCondition: visibility-1
 	WithDecoration@Visibility_2:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-2
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-2
+		RequiresCondition: visibility-2
 	WithDecoration@Visibility_3:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-3
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-3
+		RequiresCondition: visibility-3
 	WithDecoration@Visibility_4:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-4
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-4
+		RequiresCondition: visibility-4
 	WithDecoration@Visibility_5:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-5
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-5
+		RequiresCondition: visibility-5
 	WithDecoration@Visibility_6:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-6
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-6
+		RequiresCondition: visibility-6
 	WithDecoration@Visibility_7:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-7
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-7
+		RequiresCondition: visibility-7
 	WithDecoration@Visibility_8:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-8
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-8
+		RequiresCondition: visibility-8
 	WithDecoration@Visibility_9:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-9
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-9
+		RequiresCondition: visibility-9
 	WithDecoration@Visibility_10:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-10
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-10
+		RequiresCondition: visibility-10
 	WithDecoration@Visibility_11:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-11
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-11
+		RequiresCondition: visibility-11
 	WithDecoration@Visibility_12:
 		RequiresSelection: true
 		Image: pips
 		Sequence: pip-visibility-12
 		Position: Top
 		Margin: 0,7
-		RequiresCondition: cloak-12
+		RequiresCondition: visibility-12
 
 ^CapturesOccupiedBuildings:
 	CaptureManager:
