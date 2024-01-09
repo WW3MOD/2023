@@ -3,6 +3,7 @@ Fix
 
     - Protection based on tile / proximity. Show pips
         - Kinda done, do more testing
+        - Remove object-proximity / merge with layer check.
 
     - Mortar (or anyone) should not shoot at tech buildings
     - Tanks / Vehicles reverse

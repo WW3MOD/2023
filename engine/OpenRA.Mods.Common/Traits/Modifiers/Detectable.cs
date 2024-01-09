@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) => new Detectable(init, this);
 	}
 
-	public class Detectable : PausableConditionalTrait<DetectableInfo>, IDefaultVisibility, IRenderModifier
+	public class Detectable : PausableConditionalTrait<DetectableInfo>, IDefaultVisibility, IRenderModifier, ITick
 	{
 		protected readonly DetectableInfo DetectableInfo;
 		IEnumerable<int> detectableModifiers;
@@ -63,12 +63,8 @@ namespace OpenRA.Mods.Common.Traits
 			detectableModifiers = self.TraitsImplementing<IDetectableAddativeModifier>().ToArray().Select(x => x.GetDetectableVisionAddativeModifier());
 		}
 
-		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
+		void ITick.Tick(Actor self)
 		{
-			var pos = self.CenterPosition;
-			if (DetectableInfo.Position == DetectablePosition.Ground)
-				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
-
 			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
 
 			if (detectable <= 0)
@@ -83,6 +79,20 @@ namespace OpenRA.Mods.Common.Traits
 				DetectableVisionChanged(self);
 				PreviousVisibility = CurrentVisibility;
 			}
+		}
+
+		protected virtual bool IsVisibleInner(Actor self, Player byPlayer)
+		{
+			var pos = self.CenterPosition;
+			if (DetectableInfo.Position == DetectablePosition.Ground)
+				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
+
+			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
+
+			if (detectable <= 0)
+				detectable = 1;
+			else if (detectable > MapLayers.VisionLayers - 1)
+				detectable = MapLayers.VisionLayers - 1;
 
 			if (DetectableInfo.Position == DetectablePosition.Footprint)
 			{
