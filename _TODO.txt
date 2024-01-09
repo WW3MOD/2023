@@ -1,7 +1,13 @@
 
+Fix
+
+    - Mortar (or anyone) should not shoot at tech buildings
+    - Tanks / Vehicles reverse
+    - Protection based on tile / proximity. Show pips
+
 Bugs
 
-- Ideas
+Ideas
 
     - Entrance force, dropdown in time that players have before the game starts to use up their initial cash
         - Built units can only be moved within a small circle until timer is finished

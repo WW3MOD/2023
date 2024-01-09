@@ -58,7 +58,7 @@ Tick = function()
 		RussiaT90Tank1.Patrol({EastEntry1_1.Location, EastEntry1_2.Location }, false, 0)
 		RussiaT90Tank2.Patrol({EastEntry2_1.Location, EastEntry2_2.Location }, false, 0)
 		RussiaT90Tank3.Patrol({EastEntry3_1.Location }, false, 0)
-		RussiaT90Tank4.Patrol({EastEntry4_1.Location, EastEntry4_2.Location, EastEntry4_3.Location }, false, 0)
+		RussiaT90Tank4.Patrol({EastEntry4_1.Location, EastEntry4_2.Location }, false, 0)
 	end
 
 	if ticks == 10000 then
