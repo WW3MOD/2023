@@ -205,42 +205,6 @@
 	AnnounceOnSeen:
 		Type: Soldier
 		TextNotification: Spotted: Infantry
-
-^CivInfantry:
-	Inherits: ^Infantry
-	# Inherits@Rotting: ^RottingInfantry # TODO: add sequences
-	# Inherits@penalty: ^GlobalPenalty
-	Selectable:
-		Class: CivInfantry
-	Valued:
-		Cost: 25
-	Tooltip:
-		Name: Civilian
-		GenericVisibility: None
-	Passenger:
-		CustomPipType: empty_class
-	ProximityCaptor:
-		Types: CivilianInfantry
-	ScaredyCat:
-	Voiced:
-		VoiceSet: CivilianMaleVoice
-	Wanders:
-		MinMoveDelay: 150
-		MaxMoveDelay: 750
-	MapEditorData:
-		Categories: Civilian infantry
-	RenderSprites:
-		Scale: 0.6
-^ArmedCivilian:
-	Inherits: ^CivInfantry
-	# Inherits@Rotting: ^RottingInfantry # TODO: add sequences
-	# -GrantConditionOnPrerequisite@GlobalPenalty:
-	Inherits@AutoTarget: ^AutoTargetLMG
-	Armament:
-		Weapon: Pistol
-	AttackFrontal:
-	WithInfantryBody:
-		DefaultAttackSequence: shoot
 ^CamoSoldier:
 	Inherits@Combatant: ^Combatant
 	Inherits@Soldier: ^Soldier
@@ -296,6 +260,41 @@
 	Targetable@InWater:
 		TargetTypes: Water
 		RequiresCondition: inwater
+^CivInfantry:
+	Inherits: ^Infantry
+	# Inherits@Rotting: ^RottingInfantry # TODO: add sequences
+	# Inherits@penalty: ^GlobalPenalty
+	Selectable:
+		Class: CivInfantry
+	Valued:
+		Cost: 25
+	Tooltip:
+		Name: Civilian
+		GenericVisibility: None
+	Passenger:
+		CustomPipType: empty_class
+	ProximityCaptor:
+		Types: CivilianInfantry
+	ScaredyCat:
+	Voiced:
+		VoiceSet: CivilianMaleVoice
+	Wanders:
+		MinMoveDelay: 150
+		MaxMoveDelay: 750
+	MapEditorData:
+		Categories: Civilian infantry
+	RenderSprites:
+		Scale: 0.6
+^ArmedCivilian:
+	Inherits: ^CivInfantry
+	# Inherits@Rotting: ^RottingInfantry # TODO: add sequences
+	# -GrantConditionOnPrerequisite@GlobalPenalty:
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Armament:
+		Weapon: Pistol
+	AttackFrontal:
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
 
 ^PinsDown:
 	Inherits@SuppressionPips: ^SuppressionPips

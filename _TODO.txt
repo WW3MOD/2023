@@ -5,7 +5,7 @@ Fix
         - Kinda done, do more testing
         - Remove object-proximity / merge with layer check.
 
-    - Mortar (or anyone) should not shoot at tech buildings
+    - Mortar / tanks (or anyone) should not shoot at tech buildings
     - Tanks / Vehicles reverse
     - Enemy proximity adds to a condition, friendlies subtract. Total gives bonus/reduction in morale. Different units base their value to add on their combat value, that can also be used for other things (Capture domination etc)
     - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
