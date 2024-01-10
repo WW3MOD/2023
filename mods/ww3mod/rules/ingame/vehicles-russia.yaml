@@ -52,7 +52,7 @@ btr:
 	AmmoPool@MG:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 200
+		Ammo: 500
 		AmmoCondition: ammo-primary
 		FullReloadTicks: 300
 		FullReloadSteps: 6
@@ -63,6 +63,9 @@ btr:
 		PipCount: 5
 		RequiresSelection: true
 		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	Rearmable:
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True

@@ -292,7 +292,7 @@ humvee:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 200
+		Ammo: 300
 		AmmoCondition: ammo-primary
 		FullReloadTicks: 300
 		FullReloadSteps: 6
@@ -436,7 +436,7 @@ m113:
 	AmmoPool@MG:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 200
+		Ammo: 500
 		AmmoCondition: ammo-primary
 		ReloadCount: 20
 		FullReloadTicks: 300
@@ -449,6 +449,9 @@ m113:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
 		PauseOnCondition: empdisable
