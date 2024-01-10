@@ -23,109 +23,395 @@
 
 ^SmallCaliberEffects:
 	Inherits@HitEffects: ^PiffEffects
-	Warhead@Suppression: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 2
-		Range: 512
-		Duration: 50
-	Warhead@Suppression_2: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Range: 1c0
-		Duration: 25
 
-^LargeCaliberEffects:
-	Inherits@HitEffects: ^PiffEffects
-	Warhead@Suppression: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 5
-		Range: 640
-		Duration: 75
-	Warhead@Suppression_2: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 2
-		Range: 1c256
-		Duration: 50
+	# Warhead@Suppression_1: GrantExternalCondition
+	# 	ValidTargets: Infantry
+	# 	Condition: suppressed
+	# 	MinRange: 0
+	# 	Range: 1c0
+	# 	MinRepeat: 0
+	# 	Repeat: 100
+	# 	RepeatFalloff: linear
+	# 	Duration: 100
+	# 	DurationFalloff: none
 
-^MinimalSuppressionEffects:
-	Warhead@Suppression: GrantExternalCondition
+	Warhead@Suppression_1: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
-		Repeat: 2
-		Range: 768
-		Duration: 75
-	Warhead@Suppression_2: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 1
-		Range: 1c512
-		Duration: 50
-
-^SmallSuppressionEffects:
-	Warhead@Suppression: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 4
-		Range: 768
-		Duration: 75
-	Warhead@Suppression_2: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 2
-		Range: 1c512
-		Duration: 50
-
-^MediumSuppressionEffects:
-	Warhead@Suppression: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 12
-		Range: 896
+		Repeat: 50
+		Range: 32
 		Duration: 100
 	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
-		Repeat: 6
-		Range: 1c768
-		Duration: 75
+		Repeat: 25
+		Range: 64
+		Duration: 100
 	Warhead@Suppression_3: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
-		Repeat: 3
-		Range: 2c256
-		Duration: 50
-
-^LargeSuppressionEffects:
-	Warhead@Suppression: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 32
-		Range: 896
-		Duration: 150
-	Warhead@Suppression_2: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 16
-		Range: 1c768
-		Duration: 125
-	Warhead@Suppression_3: GrantExternalCondition
-		ValidTargets: Infantry
-		Condition: suppressed
-		Repeat: 8
-		Range: 2c256
+		Repeat: 12
+		Range: 128
 		Duration: 100
 	Warhead@Suppression_4: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
-		Repeat: 4
+		Repeat: 6
+		Range: 256
+		Duration: 100
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 3
+		Range: 512
+		Duration: 100
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 2
+		Range: 768
+		Duration: 100
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 1
+		Range: 1c0
+		Duration: 100
+
+^MediumCaliberEffects:
+	Inherits@HitEffects: ^PiffEffects
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 100
+		Range: 32
+		Duration: 100
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 50
+		Range: 64
+		Duration: 100
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 25
+		Range: 128
+		Duration: 100
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 12
+		Range: 256
+		Duration: 100
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 6
+		Range: 512
+		Duration: 100
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 3
+		Range: 768
+		Duration: 100
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 2
+		Range: 1c0
+		Duration: 100
+	Warhead@Suppression_8: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 1
+		Range: 1c256
+		Duration: 100
+
+^LargeCaliberEffects:
+	Inherits@HitEffects: ^PiffEffects
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 160
+		Range: 32
+		Duration: 100
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 80
+		Range: 64
+		Duration: 100
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 40
+		Range: 128
+		Duration: 100
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 20
+		Range: 256
+		Duration: 100
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 10
+		Range: 512
+		Duration: 100
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 5
+		Range: 768
+		Duration: 100
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 3
+		Range: 1c0
+		Duration: 100
+	Warhead@Suppression_8: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 2
+		Range: 1c256
+		Duration: 100
+	Warhead@Suppression_9: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 1
+		Range: 1c512
+		Duration: 100
+
+^MinimalSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 120
+		Range: 64
+		Duration: 250
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 80
+		Range: 128
+		Duration: 150
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 40
+		Range: 256
+		Duration: 100
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 20
+		Range: 512
+		Duration: 100
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 10
+		Range: 768
+		Duration: 100
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 5
+		Range: 1c0
+		Duration: 100
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 3
+		Range: 1c512
+		Duration: 100
+	Warhead@Suppression_8: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 2
+		Range: 2c0
+		Duration: 100
+	Warhead@Suppression_9: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 1
+		Range: 2c512
+		Duration: 100
+
+^SmallSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 120
+		Range: 64
+		Duration: 300
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 80
+		Range: 128
+		Duration: 200
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 40
+		Range: 256
+		Duration: 100
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 20
+		Range: 512
+		Duration: 100
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 10
+		Range: 768
+		Duration: 100
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 5
+		Range: 1c0
+		Duration: 100
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 3
+		Range: 1c512
+		Duration: 100
+	Warhead@Suppression_8: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 2
+		Range: 2c0
+		Duration: 100
+	Warhead@Suppression_9: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 1
+		Range: 2c512
+		Duration: 100
+
+^MediumSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 200
+		Range: 128
+		Duration: 400
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 150
+		Range: 256
+		Duration: 300
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 120
+		Range: 512
+		Duration: 250
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 100
+		Range: 768
+		Duration: 200
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 50
+		Range: 1c0
+		Duration: 150
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 24
+		Range: 1c512
+		Duration: 200
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 12
+		Range: 2c0
+		Duration: 150
+	Warhead@Suppression_8: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 6
+		Range: 2c768
+		Duration: 100
+	Warhead@Suppression_9: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 3
+		Range: 3c512
+		Duration: 50
+
+^LargeSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 200
+		Range: 128
+		Duration: 500
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 200
+		Range: 256
+		Duration: 400
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 150
+		Range: 512
+		Duration: 350
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 120
+		Range: 768
+		Duration: 300
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 80
+		Range: 1c0
+		Duration: 250
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 40
+		Range: 1c512
+		Duration: 200
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 20
+		Range: 2c256
+		Duration: 150
+	Warhead@Suppression_8: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 10
 		Range: 3c0
-		Duration: 75
+		Duration: 100
+	Warhead@Suppression_9: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Repeat: 5
+		Range: 4c0
+		Duration: 50
 
 ^HugeSuppressionEffects:
-	Warhead@Suppression: GrantExternalCondition
+	Warhead@Suppression_1: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Repeat: 64
@@ -231,7 +517,7 @@
 		Delay: 1
 		ValidTargets: Infantry, Unarmored
 		RandomDamage: 200
-		Spread: 256
+		Spread: 1c0
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater

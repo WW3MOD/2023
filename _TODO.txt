@@ -20,6 +20,8 @@ Bugs
 
 Ideas
 
+    - Add HandGrenade, IndirectFire
+
     - Entrance force, dropdown in time that players have before the game starts to use up their initial cash
         - Built units can only be moved within a small circle until timer is finished
     - Set a "tech increase" time when higher tech is allowed

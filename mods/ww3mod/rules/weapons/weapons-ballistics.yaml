@@ -133,7 +133,7 @@ MP5:
 		Inaccuracy: 64
 
 ^7.62mm:
-	Inherits@HitEffects: ^SmallCaliberEffects
+	Inherits@HitEffects: ^MediumCaliberEffects
 	ValidTargets: Infantry, Unarmored, Helicopter
 	Range: 15c0
 	Report: pillbox1.aud
@@ -232,6 +232,7 @@ MP5:
 	BurstWait: 10
 
 HandGrenade:
+	Inherits@HitEffects: ^SmallExplosionEffects
 	BurstWait: 200
 	Range: 4c0
 	MinRange: 1c512
