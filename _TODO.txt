@@ -15,8 +15,10 @@ Fix
     - Shoot at last known location if losing track of target and it was stationary
     - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
 
-
 Bugs
+
+    - BTR doesnt reload at logistics center?
+    - Reduce Suppression, very high close by for a short time, less and longer the further out
 
 Ideas
 
