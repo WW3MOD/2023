@@ -232,7 +232,7 @@ MP5:
 	BurstWait: 10
 
 HandGrenade:
-	Inherits@HitEffects: ^SmallExplosionEffects
+	Inherits@HitEffects: ^MinimalExplosionEffects
 	BurstWait: 200
 	Range: 4c0
 	MinRange: 1c512
@@ -253,7 +253,7 @@ HandGrenade:
 	Warhead@EffectWater: CreateEffect
 		Explosions: splash_small
 GrenadeLauncher:
-	Inherits@HitEffects: ^SmallExplosionEffects
+	Inherits@HitEffects: ^MinimalExplosionEffects
 	ValidTargets: Infantry, Unarmored, Light
 	Range: 12c0
 	MinRange: 1c512
@@ -481,7 +481,7 @@ AACannon:
 		Image: tracer_large
 
 60mm_Mortar:
-	Inherits@HitEffects: ^MediumExplosionEffects
+	Inherits@HitEffects: ^SmallExplosionEffects
 	ValidTargets: Ground, Infantry, Unarmored, Light
 	InvalidTargets: Concrete, Heavy
 	Range: 25c0
@@ -507,7 +507,7 @@ AACannon:
 		DamageTypes: SmallExplosionDeath
 
 73mm_BMP:
-	Inherits@HitEffects: ^MediumExplosionEffects
+	Inherits@HitEffects: ^SmallExplosionEffects
 	Range: 21c0
 	MinRange: 1c512
 	BurstWait: 100
