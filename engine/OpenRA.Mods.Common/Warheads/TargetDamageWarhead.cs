@@ -81,6 +81,9 @@ namespace OpenRA.Mods.Common.Warheads
 				};
 
 				InflictDamage(victim, firedBy, closestActiveShape, updatedWarheadArgs);
+
+				// TODO, remove as condition and add directly?
+				// Suppression(victim, firedBy, closestActiveShape, updatedWarheadArgs);
 			}
 		}
 	}

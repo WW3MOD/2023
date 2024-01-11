@@ -1,6 +1,13 @@
 
 Fix
 
+    - Suppression
+        - Update using normal DamageWarhead,
+            - Calculates suppression values at first run and caches them.
+            - When Warhead makes impact, deal just as damage, based on range
+        - Create custom using conditions? Set the condition directly, not using repeat?
+        - a getter, updates when the warhead makes impakt
+
     - Protection based on tile / proximity. Show pips
         - Kinda done, do more testing
         - Remove object-proximity / merge with layer check.
@@ -16,9 +23,6 @@ Fix
     - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
 
 Bugs
-
-    - BTR doesnt reload at logistics center?
-    - Reduce Suppression, very high close by for a short time, less and longer the further out
 
 Ideas
 
