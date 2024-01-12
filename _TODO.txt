@@ -1,6 +1,10 @@
 
 Fix
 
+    - Reload of E3 and AR (?) is very slow
+
+    - Should not shoot at nuclear silo, at least not when neutral
+
     - Mortar / tanks (or anyone) should not shoot at tech buildings
 
     - Suppression

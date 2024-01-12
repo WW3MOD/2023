@@ -450,7 +450,7 @@
 	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Vehicle, Defense, Water, Underwater, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 1
 	AutoTargetPriority@AttackAnything:
 		Priority: 2
@@ -461,10 +461,10 @@
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
-		InvalidTargets: NoAutoTarget, Structure, WaterStructure
+		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 		InvalidTargets: NoAutoTarget
 
 ^AutoTargetGroundAssaultMove:
@@ -483,7 +483,7 @@
 	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Vehicle, Defense, Water, Underwater, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 1
 	AutoTargetPriority@AttackAnything:
 		Priority: 2
@@ -493,7 +493,7 @@
 		ValidTargets: Air, Infantry
 	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetGroundAntiTank:
 	Inherits: ^AutoTargetGroundAssaultMove
@@ -503,7 +503,7 @@
 	AutoTargetPriority@Lower:
 		# RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Infantry, Defense, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 2
 	AutoTargetPriority@AttackAnything:
 		Priority: 1
@@ -515,22 +515,22 @@
 		ValidTargets: Infantry, Defense, Mine, Underwater
 	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetGroundAntiStructure:
 	Inherits: ^AutoTargetGroundAssaultMove
 	AutoTargetPriority@Default:
-		ValidTargets: Structure, Defense
+		ValidTargets:  Defense
 		Priority: 3
 	AutoTargetPriority@Higher:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Vehicle, Water
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 2
 	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything && !assault-move
 		ValidTargets: Infantry, Underwater, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 1
 	AutoTargetPriority@AttackAnything:
 		Priority: 3
@@ -546,7 +546,7 @@
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@AttackAnything:
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 ^AutoTargetAir:
 	AutoTarget:
 	AutoTargetPriority@Default:
@@ -572,10 +572,10 @@
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
-		InvalidTargets: NoAutoTarget, Structure, WaterStructure
+		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		InvalidTargets: NoAutoTarget
 ^AutoTargetAllAssaultMove:
 	Inherits: ^AutoTargetAll
@@ -593,7 +593,7 @@
 	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Vehicle, Water, Underwater, Defense, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 1
 	AutoTargetPriority@AttackAnything:
 		Priority: 2
@@ -602,9 +602,9 @@
 	AutoTargetPriority@Default:
 		ValidTargets: Air, Infantry
 	AutoTargetPriority@Lower:
-		ValidTargets: Vehicle, Water, Underwater, Structure, Defense, Mine
+		ValidTargets: Vehicle, Water, Underwater, Defense, Mine
 	AutoTargetPriority@AttackAnything:
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		Priority: 2
 ^AutoTargetGroundAntiTankDefense:
 	Inherits: ^AutoTargetGround
@@ -614,7 +614,7 @@
 	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Water, Underwater, Defense, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget
 		Priority: 1
 	AutoTargetPriority@AttackAnything:
 		Priority: 2
@@ -624,9 +624,9 @@
 		ValidTargets: Air, Vehicle
 	AutoTargetPriority@Lower:
 		RequiresCondition: !stance-attackanything
-		ValidTargets: Infantry, Water, Underwater, Structure, Defense, Mine
+		ValidTargets: Infantry, Water, Underwater, Defense, Mine
 	AutoTargetPriority@AttackAnything:
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		Priority: 2
 # ^AutoTargetAttackHelicopters:
 # 	AutoTarget:
@@ -634,10 +634,10 @@
 # 	AutoTargetPriority@Default:
 # 		RequiresCondition: !stance-attackanything
 # 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
-# 		InvalidTargets: NoAutoTarget, WaterStructure
+# 		InvalidTargets: NoAutoTarget
 # 	AutoTargetPriority@AttackAnything:
 # 		RequiresCondition: stance-attackanything
-# 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
+# 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 # 		InvalidTargets: NoAutoTarget
 
 ^AmmoDecoration:
