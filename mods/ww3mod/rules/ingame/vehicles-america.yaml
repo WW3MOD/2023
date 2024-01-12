@@ -23,7 +23,7 @@ abrams:
 	Valued:
 		Cost: 2000
 	Health:
-		HP: 10000
+		HP: 14000
 	Armor:
 		Type: Heavy
 		Thickness: 700
@@ -50,7 +50,7 @@ abrams:
 	Armament@1:
 		Name: primary
 		Weapon: TankRound.Abrams
-		MovementInaccuracy: 50
+		# MovementInaccuracy: 50
 		# FireDelay: 15
 		Recoil: 30
 		RecoilRecovery: 30

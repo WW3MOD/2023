@@ -104,6 +104,8 @@
 
 ^TechBuilding:
 	Inherits: ^BasicBuilding
+	Targetable:
+		TargetTypes: Ground, C4, DetonateAttack
 	Huntable:
 	Health:
 		HP: 40000

@@ -375,9 +375,6 @@
 		ValidTargets: Infantry
 		Priority: 3
 		ConditionalPriority: 100
-	AutoTargetPriority@Light:
-		ValidTargets: Light
-		Priority: 2
 
 ^AutoTargetGrenades:
 	Inherits: ^AutoTarget
@@ -464,7 +461,7 @@
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget, Structure, WaterStructure
 	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
@@ -575,7 +572,7 @@
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
+		InvalidTargets: NoAutoTarget, Structure, WaterStructure
 	AutoTargetPriority@AttackAnything:
 		RequiresCondition: stance-attackanything
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
@@ -631,17 +628,17 @@
 	AutoTargetPriority@AttackAnything:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
 		Priority: 2
-^AttackHelicoptersAutoTargeter:
-	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
-		InvalidTargets: NoAutoTarget, WaterStructure
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything
-		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
-		InvalidTargets: NoAutoTarget
+# ^AutoTargetAttackHelicopters:
+# 	AutoTarget:
+# 		AttackAnythingCondition: stance-attackanything
+# 	AutoTargetPriority@Default:
+# 		RequiresCondition: !stance-attackanything
+# 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
+# 		InvalidTargets: NoAutoTarget, WaterStructure
+# 	AutoTargetPriority@AttackAnything:
+# 		RequiresCondition: stance-attackanything
+# 		ValidTargets: Infantry, Vehicle, Water, Underwater, Structure, Defense, Mine
+# 		InvalidTargets: NoAutoTarget
 
 ^AmmoDecoration:
 	WithDecoration@AmmoNone:

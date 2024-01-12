@@ -44,7 +44,7 @@ FCOM:
 	Health:
 		HP: 25000
 	Armor:
-		Type: Wood
+		Type: Concrete
 	Tooltip:
 		Name: Expansion Post
 	CashTrickler:
@@ -124,7 +124,7 @@ MISS:
 		Alpha: 50
 		RequiresCondition: !build-incomplete
 	Armor:
-		Type: Wood
+		Type: Concrete
 	Tooltip:
 		Name: Communications Center
 	TooltipDescription:

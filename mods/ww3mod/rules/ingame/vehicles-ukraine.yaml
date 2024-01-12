@@ -44,7 +44,7 @@ t72:
 	Armament@1:
 		Name: primary
 		Weapon: TankRound.T72
-		MovementInaccuracy: 50
+		# MovementInaccuracy: 50
 		Recoil: 85
 		RecoilRecovery: 70
 		LocalOffset: 1300,0,45

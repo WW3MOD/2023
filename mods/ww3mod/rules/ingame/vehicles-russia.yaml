@@ -256,7 +256,7 @@ t90:
 	Valued:
 		Cost: 2000
 	Health:
-		HP: 10000
+		HP: 12000
 	Armor:
 		Type: Heavy
 		Thickness: 280
@@ -281,7 +281,7 @@ t90:
 	Armament@1:
 		Name: primary
 		Weapon: TankRound.T90
-		MovementInaccuracy: 50
+		# MovementInaccuracy: 50
 		Recoil: 30
 		RecoilRecovery: 30
 		LocalOffset: 1300,0,45
