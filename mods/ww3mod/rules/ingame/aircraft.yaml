@@ -235,6 +235,9 @@ quadcopterdrone:
 		MaxDistance: 25
 		MaxDistanceCheckTicks: 20
 		ReturnAfter: 1000
+	VisionModifier@DroneOutOfRange:
+		RequiresCondition: out-of-range
+		Modifier: 50
 	RejectsOrders:
 		RequiresCondition: force-return || out-of-range
 
