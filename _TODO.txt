@@ -35,7 +35,9 @@ Fix
         - Remove object-proximity / merge with layer check.
 
     - Tanks / Vehicles reverse
+
     - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
+
     - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
 
 Units

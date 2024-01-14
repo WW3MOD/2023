@@ -186,10 +186,10 @@
 		Condition: replenish-soldiers
 	DamageMultiplier@TLBoost:
 		RequiresCondition: morale-boost
-		Modifier: 75
+		Modifier: 80
 	SpeedMultiplier@TLBoost:
 		RequiresCondition: morale-boost
-		Modifier: 125
+		Modifier: 120
 	WithDecoration@TLBoost:
 		RequiresSelection: false
 		Image: pips
@@ -1237,11 +1237,10 @@ E2R1:
 		Description: Team leader. Boosts morale of nearby soldiers.
 	Valued:
 		Cost: 200
-	Mobile:
-		Speed: 40
 	ProximityExternalCondition@TLBoost:
 		Condition: morale-boost
 		ValidRelationships: Ally
+		AffectsParent: true
 		Range: 4c0
 	Armament@1:
 		Name: primary
