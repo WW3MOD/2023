@@ -706,13 +706,13 @@ DroneJammer:
 Claw:
 	BurstWait: 30
 	Range: 1c512
-	ValidTargets: Ground, Water, GroundActor, WaterActor
+	ValidTargets: Ground, Water, WaterActor
 	Projectile: Bullet
 		Speed: 1c682
 	Warhead@1Dam: SpreadDamage
 		Spread: 213
 		Damage: 3000
-		ValidTargets: GroundActor, WaterActor
+		ValidTargets: WaterActor
 		DamageTypes: Prone50Percent, DefaultDeath
 
 Mandible:

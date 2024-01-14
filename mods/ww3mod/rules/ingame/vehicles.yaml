@@ -131,6 +131,12 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
+	ChangesHealth@Burning:
+		PercentageStep: -1
+		Delay: 5
+		StartIfBelow: 25
+		# DamageTypes: BurnoutOutDeath
+
 	# BurstWaitMultiplier@CriticalDamage:
 	# 	Modifier: 0
 	# 	RequiresCondition: critical-damage

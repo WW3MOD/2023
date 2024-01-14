@@ -76,8 +76,8 @@ HIND:
 		RequiresCondition: stance-attackanything
 		Priority: 1
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
-		InvalidTargets: NoAutoTarget
-	Buildable:
+
+			Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2

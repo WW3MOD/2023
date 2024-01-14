@@ -28,7 +28,7 @@
 		GenericStancePrefix: false
 		ShowOwnerRow: false
 	Targetable:
-		TargetTypes: Ground, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground
 		RequiresForceFire: true
 	FrozenUnderFog:
 	ScriptTriggers:
@@ -59,7 +59,7 @@
 	OwnerLostAction:
 		Action: ChangeOwner
 	Targetable:
-		TargetTypes: Ground, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground
 		RequiresForceFire: true
 	Tooltip:
 		GenericName: Destroyed Building
@@ -83,7 +83,7 @@
 	Tooltip:
 		GenericName: Tech Building (Destroyed)
 	Targetable:
-		TargetTypes: Ground, TechHusk, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground, TechHusk
 	InfiltrateForTransform:
 		Types: TechHusk
 		ForceHealthPercentage: 10

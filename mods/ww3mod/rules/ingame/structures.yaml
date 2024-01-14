@@ -2048,7 +2048,7 @@ AFLD:
 # 	InfiltrateForSupportPowerReset:
 # 		Types: SpyInfiltrate
 # 	Targetable:
-# 		TargetTypes: GroundActor, C4, DetonateAttack, Structure, SpyInfiltrate
+# 		TargetTypes: C4, DetonateAttack, Structure
 # 	MustBeDestroyed:
 # 		RequiredForShortGame: false
 # 	ProvidesPrerequisite@buildingname:

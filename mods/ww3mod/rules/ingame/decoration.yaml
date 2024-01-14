@@ -71,7 +71,7 @@
 	Tooltip:
 		Name: Ammo Box
 	Targetable:
-		TargetTypes: Ground, C4, DetonateAttack, Structure, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground, C4, DetonateAttack, Structure
 	Armor:
 		Type: Light
 	MapEditorData:

@@ -23,7 +23,7 @@
 	WithColoredOverlay@IDISABLE:
 		Color: 00000080
 	Targetable:
-		TargetTypes: GroundActor,Husk,NoAutoTarget
+		TargetTypes: NoAutoTarget, Husk
 		RequiresForceFire: true
 	Chronoshiftable:
 	Tooltip:

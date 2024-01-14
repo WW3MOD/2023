@@ -57,7 +57,7 @@
 	LineBuildNode:
 		Types: wall, gate
 	Targetable:
-		TargetTypes: Ground, Concrete, C4, DetonateAttack, Wall, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground, Concrete, C4, DetonateAttack, Wall
 	RenderSprites:
 		Palette: effect
 	WithWallSpriteBody:
@@ -938,16 +938,16 @@ MSLO:
 		Prerequisites: ~disabled
 		Description: Fires a nuclear missile
 	Tooltip:
-		Name: Missile Silo
+		Name: Nuclear Missile Silo
 	Valued:
-		Cost: 10
+		Cost: 50000
 	Health:
 		HP: 90000
 	Armor:
-		Type: Heavy
+		Type: Concrete
 		Thickness: 2000
 	Targetable:
-		TargetTypes: Ground, Structure, Defense, Heavy, C4
+		TargetTypes: Structure, Concrete, C4
 	ProvidesPrerequisite@buildingname:
 	NukePower:
 		OrderName: NukeMissile
@@ -984,15 +984,10 @@ MSLO:
 		RequiredForShortGame: false
 	WithSupportPowerActivationAnimation:
 		RequiresCondition: !build-incomplete
-	GrantConditionOnDamageState@UNCLOAK:
-		Condition: cloak-force-disabled
-		ValidDamageStates: Critical
 	SpawnActorOnDeath:
 		Actor: mslo.husk
 	GpsDot:
 		String: Nuke
-	InfiltrateForSupportPowerReset:
-		Types: SpyInfiltrate
 
 GUN:
 	Inherits@Type: ^Defense

@@ -1,11 +1,28 @@
 
 Fix
 
-    - Reload of E3 and AR (?) is very slow
-
     - Should not shoot at nuclear silo, at least not when neutral
 
-    - Mortar / tanks (or anyone) should not shoot at tech buildings
+    - Infantry speed slower
+    - Make transports more important
+
+    - When unit runs out of ammo, cancel current order (attackmove) so it becomes idle (and searches for supplies)
+
+    - Drone loses sight when operator is moving.
+
+    - Civ building
+        - Should not spawn civillians on death
+        - Units inside takes damage when building is hit.
+        - When firing, the unit firing pops up as a pip for the enemy
+        - Units can be selected one by one and with shift, marking them with a white outline
+        - Pips gets larger when alt is held
+
+    - Vehicles takes suppression, possibly stunned instead for a duration determined by the damage taken.
+        - If the damage is large enough then derail vehicle as if driver was incapacitated for a bit
+
+    - Shoot at last known location if losing track of target and it was stationary
+        - When losing a target, keep it visible if any unit is still targeting it and has at least 1 vision
+
 
     - Suppression
         - Update using normal DamageWarhead,
@@ -19,19 +36,23 @@ Fix
         - Remove object-proximity / merge with layer check.
 
     - Tanks / Vehicles reverse
-    - Enemy proximity adds to a condition, friendlies subtract. Total gives bonus/reduction in morale. Different units base their value to add on their combat value, that can also be used for other things (Capture domination etc)
     - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
-    - The buildable units become more and more ranked the less of them you buy. Get only one type and all will be level 0, but build slowly and you can start recruiting even veterans (up to level 2?)
-    - When barely visible, show as GPS dot.
-    - It's weird that a tank can fire accurately based on another unit's vision. How fix?
-    - Shoot at last known location if losing track of target and it was stationary
     - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
 
 Bugs
 
 Ideas
 
+    - Binoculars / Laser designator for team leader.
+        - If a force-attack is made on the ground, use Binoculars. Reveals area.
+        - If force-attack is used on unit (only vehicles?), laser mark that unit.
+        - Makes some missiles shoot further and also makes some, otherwise unguided, missiles use tracking.
+        - Perfect for Himars / Iskander strikes.
+
+    - When barely visible, show as GPS dot.
     - Add HandGrenade, IndirectFire
+    - Enemy proximity adds to a condition, friendlies subtract. Total gives bonus/reduction in morale. Different units base their value to add on their combat value, that can also be used for other things (Capture domination etc)
+    - The buildable units become more and more ranked the less of them you buy. Get only one type and all will be level 0, but build slowly and you can start recruiting even veterans (up to level 2?)
 
     - Entrance force, dropdown in time that players have before the game starts to use up their initial cash
         - Built units can only be moved within a small circle until timer is finished
@@ -39,6 +60,8 @@ Ideas
     - Rename tech levels to something like "DEFCON" but more appropriate.
     - Rename "Build tree" to "Reservists"
     - Buildtime adjusted to be more like "callup time"
+
+    - Helicopters when critically damaged "falls to earth" but slower, so you can control it but it loses altitude. When hitting ground, pilots evacuate and helicopter ChangesHealth until dead.
 
 - Control groups
     - Leader units allow for more efficient grouping

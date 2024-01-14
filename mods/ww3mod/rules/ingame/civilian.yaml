@@ -297,7 +297,7 @@ V19:
 	SpawnActorOnDeath:
 		Actor: V19.Husk
 	Targetable:
-		TargetTypes: Ground, C4, DetonateAttack, Structure, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground, C4, DetonateAttack, Structure
 V19.Husk:
 	Inherits: ^CivBuilding
 	-Selectable:
@@ -532,7 +532,7 @@ BARL:
 	Armor:
 		Type: None
 	Targetable:
-		TargetTypes: Ground, DemoTruck, Barrel, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground, DemoTruck, Barrel
 	MapEditorData:
 		Categories: Decoration
 	Interactable:
@@ -553,7 +553,7 @@ BRL3:
 	Armor:
 		Type: None
 	Targetable:
-		TargetTypes: Ground, DemoTruck, Barrel, NoAutoTarget
+		TargetTypes: NoAutoTarget, Ground, DemoTruck, Barrel
 	MapEditorData:
 		Categories: Decoration
 	Interactable:
