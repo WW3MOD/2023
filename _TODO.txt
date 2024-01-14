@@ -1,10 +1,13 @@
 
+Ongoing
+
+    - Infantry speed slower, set 25 from 35
+        - Make transports more important
+
 Fix
 
-    - Should not shoot at nuclear silo, at least not when neutral
-
-    - Infantry speed slower
-    - Make transports more important
+    - Default lobby options
+        - Explored map
 
     - When unit runs out of ammo, cancel current order (attackmove) so it becomes idle (and searches for supplies)
 
@@ -23,7 +26,6 @@ Fix
     - Shoot at last known location if losing track of target and it was stationary
         - When losing a target, keep it visible if any unit is still targeting it and has at least 1 vision
 
-
     - Suppression
         - Update using normal DamageWarhead,
             - Calculates suppression values at first run and caches them.
@@ -39,6 +41,11 @@ Fix
     - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
     - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
 
+Units
+
+    - Humvee in two versions, MG & TOW
+    - Add HandGrenade, IndirectFire
+
 Bugs
 
 Ideas
@@ -50,7 +57,6 @@ Ideas
         - Perfect for Himars / Iskander strikes.
 
     - When barely visible, show as GPS dot.
-    - Add HandGrenade, IndirectFire
     - Enemy proximity adds to a condition, friendlies subtract. Total gives bonus/reduction in morale. Different units base their value to add on their combat value, that can also be used for other things (Capture domination etc)
     - The buildable units become more and more ranked the less of them you buy. Get only one type and all will be level 0, but build slowly and you can start recruiting even veterans (up to level 2?)
 
@@ -110,17 +116,17 @@ Ideas
 Terrain
     - AllowedTerrain, LandableTerrainTypes, TerrainTypes, AllowedTerrainTypes
 
-- Removed news, do same for Connect to forum, change release text
 - Smoke tick needs to be reset to lower value again, they stay too long. Make more SHPs though
 
 Movements
-- Default to AttackMove
-- AttackMove
-    If moving away from enemy, consider it a retreat
-        Stay at max distance from enemy but dont move out of sight
-- ForceMove
-    Units moves faster even under suppression but with limited abilities
-- ForceAttack
+
+    - Default to AttackMove
+    - AttackMove
+        If moving away from enemy, consider it a retreat
+            Stay at max distance from enemy but dont move out of sight
+    - ForceMove
+        Units moves faster even under suppression but with limited abilities
+    - ForceAttack
 
 AutoTarget
     - Move within MaxRange of all Armament only on Defend, Attack Anything means autotarget with maxrange of lowest ranging weapon.
@@ -133,8 +139,6 @@ AutoTarget
     - Use other armament if reload for primary is long, humvee for example
 
 - ShouldExplode on targets that get in the way, but it shouldnt stop autotargeting
-
-- Humvee in two versions, MG & TOW
 
 - Inaccuracy scales logarithmically with distance
 

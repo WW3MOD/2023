@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CarrierMaster(init, this); }
 	}
 
-	public class CarrierMaster : BaseSpawnerMaster, ITick, IResolveOrder, INotifyAttack, INotifyMoving
+	public class CarrierMaster : BaseSpawnerMaster, ITick, IResolveOrder, INotifyAttack //, INotifyMoving
 	{
 		class CarrierSlaveEntry : BaseSpawnerSlaveEntry
 		{
@@ -168,7 +168,10 @@ namespace OpenRA.Mods.Common.Traits
 				var slave = carrierSlaveEntry.SpawnerSlave;
 
 				if (slave.ForceReturnToken != Actor.InvalidConditionToken)
-					slave.RevokeRejectOrdersToken();
+					slave.RevokeForceReturnToken();
+
+				if (slave.LostConnectionToken != Actor.InvalidConditionToken)
+					slave.RevokeLostConnectionToken();
 
 				slave.ReturnTimeRemaining = slave.Info.ReturnAfter;
 
@@ -193,15 +196,31 @@ namespace OpenRA.Mods.Common.Traits
 
 		void Recall()
 		{
-			// TODO: Bug? Runs periodically before first launch then stops
-			// Game.Debug("Recall");
-
-			// Tell launched slaves to come back and enter me.
 			foreach (var slaveEntry in SlaveEntries)
 				if (slaveEntry.IsLaunched && slaveEntry.IsValid)
 				{
 					var carrierSlaveEntry = slaveEntry as CarrierSlaveEntry;
 					carrierSlaveEntry.SpawnerSlave.EnterSpawner(slaveEntry.Actor);
+				}
+		}
+
+		void ForceRecall()
+		{
+			foreach (var slaveEntry in SlaveEntries)
+				if (slaveEntry.IsLaunched && slaveEntry.IsValid)
+				{
+					var carrierSlaveEntry = slaveEntry as CarrierSlaveEntry;
+					carrierSlaveEntry.SpawnerSlave.EnterSpawner(slaveEntry.Actor, true);
+				}
+		}
+
+		void SetConnection(bool connection)
+		{
+			foreach (var slaveEntry in SlaveEntries)
+				if (slaveEntry.IsLaunched && slaveEntry.IsValid)
+				{
+					var carrierSlaveEntry = slaveEntry as CarrierSlaveEntry;
+					carrierSlaveEntry.SpawnerSlave.SetConnection(slaveEntry.Actor, connection);
 				}
 		}
 
@@ -291,14 +310,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
+		protected override void TraitResumed(Actor self)
 		{
-			if (type != MovementType.None)
-				Recall();
+			SetConnection(true);
 		}
 
 		protected override void TraitPaused(Actor self)
 		{
+			SetConnection(false);
 			Recall();
 		}
 	}

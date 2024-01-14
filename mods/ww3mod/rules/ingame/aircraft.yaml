@@ -153,6 +153,7 @@
 
 ^Drone:
 	Inherits: ^Airborne
+	-Voiced:
 	ExternalCondition@DroneDisable:
 		Condition: dronedisable
 	Aircraft:
@@ -235,11 +236,11 @@ quadcopterdrone:
 		MaxDistance: 25
 		MaxDistanceCheckTicks: 20
 		ReturnAfter: 1000
-	VisionModifier@DroneOutOfRange:
-		RequiresCondition: out-of-range
-		Modifier: 50
+	VisionModifier@OperatorLostContact:
+		RequiresCondition: lost-connection
+		Modifier: 0
 	RejectsOrders:
-		RequiresCondition: force-return || out-of-range
+		RequiresCondition: lost-connection || force-return
 
 BADR:
 	Inherits: ^NeutralAirborne

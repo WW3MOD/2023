@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly CarrierSlaveInfo Info;
 		public int ReturnTimeRemaining;
 		public int ForceReturnToken = Actor.InvalidConditionToken;
-		public int OutOfRangeToken = Actor.InvalidConditionToken;
+		public int LostConnectionToken = Actor.InvalidConditionToken;
 		int maxDistanceCheckTicks;
 
 		CarrierMaster spawnerMaster;
@@ -60,7 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 			ReturnWithinDistance(self);
 		}
 
-		public void EnterSpawner(Actor self, bool rejectOrders = false)
+		public void EnterSpawner(Actor self, bool forced = false)
 		{
 			// Hopefully, self will be disposed shortly afterwards by SpawnerSlaveDisposal policy.
 			if (Master == null || Master.IsDead)
@@ -70,11 +70,25 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.CurrentActivity is EnterCarrierMaster)
 				return;
 
-			if (rejectOrders)
+			if (forced)
 				ForceReturnToken = self.GrantCondition("force-return");
 
 			// Cancel whatever else self was doing and return.
 			self.QueueActivity(false, new EnterCarrierMaster(self, Master, spawnerMaster));
+		}
+
+		public void SetConnection(Actor self, bool connection)
+		{
+			if (connection)
+			{
+				if (LostConnectionToken != Actor.InvalidConditionToken)
+					LostConnectionToken = self.RevokeCondition(LostConnectionToken);
+			}
+			else
+			{
+				if (LostConnectionToken == Actor.InvalidConditionToken)
+					LostConnectionToken = self.GrantCondition("lost-connection");
+			}
 		}
 
 		public override void LinkMaster(Actor self, Actor master, BaseSpawnerMaster spawnerMaster)
@@ -100,10 +114,16 @@ namespace OpenRA.Mods.Common.Traits
 			EnterSpawner(self, true);
 		}
 
-		public void RevokeRejectOrdersToken()
+		public void RevokeForceReturnToken()
 		{
 			if (ForceReturnToken != Actor.InvalidConditionToken)
 				ForceReturnToken = self.RevokeCondition(ForceReturnToken);
+		}
+
+		public void RevokeLostConnectionToken()
+		{
+			if (LostConnectionToken != Actor.InvalidConditionToken)
+				LostConnectionToken = self.RevokeCondition(LostConnectionToken);
 		}
 
 		void ReturnWithinDistance(Actor self)
@@ -127,8 +147,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			var mv = self.Trait<IMove>();
 
-			if (OutOfRangeToken == Actor.InvalidConditionToken)
-				OutOfRangeToken = self.GrantCondition("out-of-range");
+			if (LostConnectionToken == Actor.InvalidConditionToken)
+				LostConnectionToken = self.GrantCondition("lost-connection");
 
 			self.QueueActivity(false, mv.MoveTo(cell, 0));
 		}
@@ -138,8 +158,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.SlaveReturnOnIdle)
 				EnterSpawner(self);
 
-			if (OutOfRangeToken != Actor.InvalidConditionToken)
-				OutOfRangeToken = self.RevokeCondition(OutOfRangeToken);
+			if (LostConnectionToken != Actor.InvalidConditionToken)
+				LostConnectionToken = self.RevokeCondition(LostConnectionToken);
 		}
 
 		public override void Stop(Actor self)

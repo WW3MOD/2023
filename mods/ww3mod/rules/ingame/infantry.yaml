@@ -25,7 +25,7 @@
 	Armor:
 		Type: None
 	Mobile:
-		Speed: 35
+		Speed: 25
 		AlwaysTurnInPlace: true
 		Locomotor: foot
 	SelectionDecorations:
@@ -2129,6 +2129,7 @@ TECN:
 	AutoTarget:
 		ScanRadius: 25
 	CarrierMaster:
+		PauseOnCondition: moving
 		Actors: quadcopterdrone
 		LoadedCondition: loaded
 		AmmoPool: primary-ammo

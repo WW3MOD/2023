@@ -1,0 +1,214 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="OpenRA.Mods.Common.Activities.FallToEarth">
+    <Position X="28.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgAAAAAgAAAAAAAAAAAAAAAAAAAAAAQAQAAAAAAAQAA=</HashCode>
+      <FileName>Activities\Air\FallToEarth.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Fly">
+    <Position X="15.75" Y="1.75" Width="2.25" />
+    <TypeIdentifier>
+      <HashCode>IAAAEAggAAABBABAIAQAAAAAwAAAAAQAAAAAAgAAQAA=</HashCode>
+      <FileName>Activities\Air\Fly.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="aircraft" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FlyAttack" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="11.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AFCAAAAgBCAABAJEIBEAAkAAQAAAAAAEAAAAAgAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyAttack.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FlyAttackRun">
+    <Position X="25.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAJAAAAAAAAABAAACAAAABAAAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyAttack.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.StrafeAttackRun" Collapsed="true">
+    <Position X="8" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEAAAAAgAAAAAAAAJAAAAAAAAAAAAAAAAAABAAAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyAttack.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FlyFollow" Collapsed="true">
+    <Position X="2.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAggAAAABABAIAAAAAAAQAAAAAAAAgAAAgAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyFollow.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FlyForward" Collapsed="true">
+    <Position X="4.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAgAAAEAAAAAQAAAAAIAAAAAAAAAAAAACAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyForward.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FlyIdle" Collapsed="true">
+    <Position X="6.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAgABAAAAAAAABAQAAAAAAAAAIAAAAAAAAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyIdle.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FlyOffMap" Collapsed="true">
+    <Position X="8" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAgAAAAAAAAIACAAAAAAAAEAAAAAAABAAAAQAA=</HashCode>
+      <FileName>Activities\Air\FlyOffMap.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Land" Collapsed="true">
+    <Position X="4.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AACAEQAgAAIABAEAYAQAAAAAAAAAAIAAAAABEgAAQAA=</HashCode>
+      <FileName>Activities\Air\Land.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.ReturnToBase" Collapsed="true">
+    <Position X="2.75" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABAAABAgAAAABAAAAAAAAAAAAAAACAAAAAAABAQIQAA=</HashCode>
+      <FileName>Activities\Air\ReturnToBase.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.TakeOff" Collapsed="true">
+    <Position X="9.75" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAQAA=</HashCode>
+      <FileName>Activities\Air\TakeOff.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Drag" Collapsed="true">
+    <Position X="4.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAACAAIABAAgAEAAAAAIAAAAAAAAAAABKAAAQAA=</HashCode>
+      <FileName>Activities\Move\Drag.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.LocalMoveIntoTarget" Collapsed="true">
+    <Position X="6.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABAAAAAAAAAABAAAIAAAAAAAAAAAAAAAAAABggBAQAA=</HashCode>
+      <FileName>Activities\Move\LocalMoveIntoTarget.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.DeployInner" Collapsed="true">
+    <Position X="2.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAABAAAAAAAAAAAAAAAAAAAQAA=</HashCode>
+      <FileName>Activities\DeployForGrantedCondition.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.FindAndDeliverResources" Collapsed="true">
+    <Position X="8" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAQAAAAgABCAGAKAAEAAACAAAAAACAAAlgAAAQAA=</HashCode>
+      <FileName>Activities\FindAndDeliverResources.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Parachute" Collapsed="true">
+    <Position X="8" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAQAAAAAAAAAIAAAAAAAAQEAAABAAAAQAA=</HashCode>
+      <FileName>Activities\Parachute.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.PickupUnit" Collapsed="true">
+    <Position X="9.75" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAoAAAAAAAABAAAAAACAAgAACAAAAAEAAABBwAAQAA=</HashCode>
+      <FileName>Activities\PickupUnit.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.RemoveSelf" Collapsed="true">
+    <Position X="11.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA=</HashCode>
+      <FileName>Activities\RemoveSelf.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Resupply" Collapsed="true">
+    <Position X="13.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABQADAAiQAAChACBQAAAAAAAACCBQAoBgAgABAEAQAg=</HashCode>
+      <FileName>Activities\Resupply.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Transform" Collapsed="true">
+    <Position X="11.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>KAAAAAAAAAAQAAAAAAAAAAJEAAAAQAAARAABAAAAwAA=</HashCode>
+      <FileName>Activities\Transform.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.IssueOrderAfterTransform" Collapsed="true">
+    <Position X="2.75" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAABAAAIAAAgAAAAAAAAAAAIAAAAgAAAAA=</HashCode>
+      <FileName>Activities\Transform.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Turn" Collapsed="true">
+    <Position X="13.25" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAABAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAgAAAQAA=</HashCode>
+      <FileName>Activities\Turn.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.UnloadCargo" Collapsed="true">
+    <Position X="2.75" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAEAEAAgASAAAAEAAAAAAAAAABAAAIAAAAABhUAAQAA=</HashCode>
+      <FileName>Activities\UnloadCargo.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.Wait" Collapsed="true">
+    <Position X="4.5" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAQAA=</HashCode>
+      <FileName>Activities\Wait.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Activities.WaitFor" Collapsed="true">
+    <Position X="6.25" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAQAA=</HashCode>
+      <FileName>Activities\Wait.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="OpenRA.Mods.Common.Traits.Aircraft">
+    <Position X="19.25" Y="3" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
+    <NestedTypes>
+      <Class Name="OpenRA.Mods.Common.Traits.Aircraft.AssociateWithAirfieldActivity">
+        <TypeIdentifier>
+          <NewMemberFileName>Traits\Air\Aircraft.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+      <Class Name="OpenRA.Mods.Common.Traits.Aircraft.AircraftMoveOrderTargeter">
+        <TypeIdentifier>
+          <NewMemberFileName>Traits\Air\Aircraft.cs</NewMemberFileName>
+        </TypeIdentifier>
+        <Lollipop Position="0.2" />
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>QF1BhRFzSSDdCJMEFH4xCVkECioqkhUCqEhCwoDlZEE=</HashCode>
+      <FileName>Traits\Air\Aircraft.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
