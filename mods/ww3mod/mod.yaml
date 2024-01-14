@@ -81,7 +81,6 @@ Rules:
 	ww3mod|rules/player.yaml
 	ww3mod|rules/palettes.yaml
 	ww3mod|rules/world.yaml
-	ww3mod|rules/temp.yaml
 	ww3mod|rules/defaults.yaml
 	ww3mod|rules/ingame/civilian.yaml
 	ww3mod|rules/ingame/decoration.yaml
