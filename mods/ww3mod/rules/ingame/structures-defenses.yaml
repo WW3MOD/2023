@@ -926,6 +926,7 @@ MSLO:
 	Inherits: ^Building
 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@Shape: ^2x1Shape
+	-BlocksProjectiles:
 	Selectable:
 		Bounds: 1536,1024
 	Building:
