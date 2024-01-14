@@ -43,7 +43,7 @@ namespace OpenRA.Traits
 		public readonly string ExploredMapCheckboxDescription = "Initial map shroud is revealed";
 
 		[Desc("Default value of the explore map checkbox in the lobby.")]
-		public readonly bool ExploredMapCheckboxEnabled = false;
+		public readonly bool ExploredMapCheckboxEnabled = true;
 
 		[Desc("Prevent the explore map enabled state from being changed in the lobby.")]
 		public readonly bool ExploredMapCheckboxLocked = false;

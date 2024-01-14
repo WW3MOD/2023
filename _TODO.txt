@@ -7,11 +7,8 @@ Ongoing
 Fix
 
     - Default lobby options
-        - Explored map
 
     - When unit runs out of ammo, cancel current order (attackmove) so it becomes idle (and searches for supplies)
-
-    - Drone loses sight when operator is moving.
 
     - Civ building
         - Should not spawn civillians on death
