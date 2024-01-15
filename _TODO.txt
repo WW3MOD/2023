@@ -6,6 +6,8 @@ Ongoing
 
 Fix
 
+    - M270 MLRS Bounds too large
+
     - Default lobby options
 
     - When unit runs out of ammo, cancel current order (attackmove) so it becomes idle (and searches for supplies)

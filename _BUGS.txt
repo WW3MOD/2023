@@ -1,115 +1,25 @@
-Multiplayer, built some ftur with debug, should be solved but check Port removal failed: Error 714: NoSuchEntryInArray ??
-Port forwarding failed: Error ConflictInMappingEntry: ConflictInMappingEntry
-[2023-06-21T02:38:56] Game started
-Port removal failed: Error 714: NoSuchEntryInArray
-Port forwarding failed: Error ConflictInMappingEntry: ConflictInMappingEntry
-[2023-06-21T02:49:08] Game started
-Port removal failed: Error 714: NoSuchEntryInArray
-Exception of type `System.InvalidOperationException`: Actor ftur does not have trait of type `OpenRA.Mods.Common.Traits.IMove`
-   at OpenRA.TraitDictionary.TraitContainer`1.Get(Actor actor) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\TraitDictionary.cs:line 163
-   at OpenRA.Mods.Common.Activities.Resupply..ctor(Actor self, Actor host, WDist closeEnough, Boolean stayOnResupplier) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Resupply.cs:line 46
-   at OpenRA.Mods.Common.Traits.AmmoPool.AutoRearm(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AmmoPool.cs:line 140
-   at OpenRA.Mods.Common.Traits.Armament.<>c__DisplayClass69_0.<FireBarrel>b__2(Int32 burst) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Armament.cs:line 443
-   at OpenRA.Mods.Common.Traits.Armament.Tick(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Armament.cs:line 272
-   at OpenRA.TraitDictionary.TraitContainer`1.ApplyToAllTimed(Action`2 action, String text) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\TraitDictionary.cs:line 313
-   at OpenRA.World.Tick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\World.cs:line 446
-   at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 639
-   at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 654
-   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 823
-   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 876
-   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 308
-   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 32
 
-While adding movementinaccuracy, then last HuskSpeedInit and some other stuff
+River Zeta
 
-Exception has occurred: CLR/System.AccessViolationException
-An unhandled exception of type 'System.AccessViolationException' occurred in OpenRA.Platforms.Default.dll: 'Attempted to read or write protected memory. This is often an indication that other memory is corrupt.'
-<Cannot evaluate the exception stack trace>
-
-// Double-clicked structures tab. Debug mode with all units
-Exception has occurred: CLR/System.InvalidOperationException
-An unhandled exception of type 'System.InvalidOperationException' occurred in OpenRA.Game.dll: 'Unit `ctflag` does not have a sequence named `icon`'
-   at OpenRA.Graphics.SequenceProvider.GetSequence(String unitName, String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\SequenceProvider.cs:line 81
-   at OpenRA.Graphics.Animation.GetSequence(String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 249
-   at OpenRA.Graphics.Animation.PlaySequence(String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 130
-   at OpenRA.Graphics.Animation.PlayThen(String sequenceName, Action after) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 164
-   at OpenRA.Graphics.Animation.Play(String sequenceName) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Graphics\Animation.cs:line 116
-   at OpenRA.Mods.Common.Widgets.ProductionPaletteWidget.RefreshIcons() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ProductionPaletteWidget.cs:line 487
-   at OpenRA.Mods.Common.Widgets.ProductionPaletteWidget.set_CurrentQueue(ProductionQueue value) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ProductionPaletteWidget.cs:line 108
-   at OpenRA.Mods.Common.Widgets.Logic.ClassicProductionLogic.<>c__DisplayClass2_0.<SetupProductionGroupButton>b__1(Boolean reverse) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\Logic\Ingame\ClassicProductionLogic.cs:line 36
-   at OpenRA.Mods.Common.Widgets.Logic.ClassicProductionLogic.<>c__DisplayClass2_0.<SetupProductionGroupButton>b__3(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\Logic\Ingame\ClassicProductionLogic.cs:line 46
-   at OpenRA.Mods.Common.Widgets.ButtonWidget.HandleMouseInput(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ButtonWidget.cs:line 178
-   at OpenRA.Widgets.Widget.HandleMouseInputOuter(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 423
-   at OpenRA.Widgets.Ui.HandleInput(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 107
-   at OpenRA.DefaultInputHandler.<>c__DisplayClass5_0.<OnMouseInput>b__0() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Input\InputHandler.cs:line 50
-   at OpenRA.Sync.RunUnsynced[T](Boolean checkSyncHash, World world, Func`1 fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 194
-   at OpenRA.Sync.RunUnsynced[T](World world, Func`1 fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 179
-   at OpenRA.DefaultInputHandler.OnMouseInput(MouseInput input) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Input\InputHandler.cs:line 50
-   at OpenRA.Platforms.Default.Sdl2Input.PumpInput(Sdl2PlatformWindow device, IInputHandler inputHandler, Nullable`1 lockedMousePosition) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Platforms.Default\Sdl2Input.cs:line 149
-   at OpenRA.Platforms.Default.Sdl2PlatformWindow.PumpInput(IInputHandler inputHandler) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Platforms.Default\Sdl2PlatformWindow.cs:line 493
-   at OpenRA.Renderer.EndFrame(IInputHandler inputHandler) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Renderer.cs:line 324
-   at OpenRA.Game.RenderTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 721
-   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 844
-   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 876
-   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 308
-   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 26
-
-// Opened Players menu list "All players" and instantly got this
-Exception has occurred: CLR/System.ArgumentException
-An unhandled exception of type 'System.ArgumentException' occurred in OpenRA.Game.dll: 'Panel `observer-scrollheader` was not found.'
-   at OpenRA.Graphics.ChromeProvider.GetPanelImages(String collectionName) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Graphics\ChromeProvider.cs:line 190
-   at OpenRA.Mods.Common.Widgets.WidgetUtils.<>c__DisplayClass2_0.<GetCachedStatefulPanelImages>b__0(ValueTuple`5 args) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\WidgetUtils.cs:line 53
-   at OpenRA.Mods.Common.Widgets.CachedTransform`2.Update(T input) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\WidgetUtils.cs:line 416
-   at OpenRA.Mods.Common.Widgets.ScrollItemWidget.Draw() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\ScrollItemWidget.cs:line 67
-   at OpenRA.Widgets.Widget.DrawOuter() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Widgets\Widget.cs:line 481
-   at OpenRA.Mods.Common.Widgets.ScrollPanelWidget.DrawOuter() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Mods.Common\Widgets\ScrollPanelWidget.cs:line 233
-   at OpenRA.Widgets.Widget.DrawOuter() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Widgets\Widget.cs:line 483
-   at OpenRA.Widgets.Ui.Draw() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Widgets\Widget.cs:line 96
-   at OpenRA.Game.RenderTick() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 706
-   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 844
-   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 876
-   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Game\Game.cs:line 308
-   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD 2023\engine\OpenRA.Launcher\Program.cs:line 2
-
-- Error: "No bounds for actor hsam"
-
-- Commented out emitWarning, emitError in CheckConditions.cs to "solve" errors. Lots of "consumes condition that is not not defined" and "provides condition that is never used".
-
-Loading mod: ww3mod
-[2023-03-25T21:39:09] Game started
-Exception of type `System.NullReferenceException`: Object reference not set to an instance of an object.
-   at OpenRA.Graphics.Animation.ScreenBounds(WorldRenderer wr, WPos pos, WVec& offset, Actor actor) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Graphics\Animation.cs:line 97
-   at OpenRA.Graphics.AnimationWithOffset.ScreenBounds(Actor self, WorldRenderer wr, Actor actor) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Graphics\AnimationWithOffset.cs:line 52
-   at OpenRA.Mods.Common.Traits.Render.RenderSprites.ScreenBounds(Actor self, WorldRenderer wr)+MoveNext() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Mods.Common\Traits\Render\RenderSprites.cs:line 203
-   at OpenRA.Actor.Bounds(WorldRenderer wr)+MoveNext() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Actor.cs:line 349
-   at OpenRA.Exts.Union(IEnumerable`1 rects) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Exts.cs:line 169
-   at OpenRA.Traits.ScreenMap.TickRender() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Traits\World\ScreenMap.cs:line 230
-   at OpenRA.Sync.<>c__DisplayClass13_0.<RunUnsynced>b__0() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Sync.cs:line 167
-   at OpenRA.Sync.RunUnsynced[T](Boolean checkSyncHash, World world, Func`1 fn) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Sync.cs:line 205
-   at OpenRA.Sync.RunUnsynced(World world, Action fn) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Sync.cs:line 168
-   at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 639
-   at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 654
-   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 823
-   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 876
-   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Game\Game.cs:line 308
-   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\2023\engine\OpenRA.Launcher\Program.cs:line 32
-
-Loading mod: ww3mod
-[2023-03-22T22:54:35] Game started
-Exception of type `System.NullReferenceException`: Object reference not set to an instance of an object.
-   at OpenRA.Graphics.Animation.Render(WPos pos, WVec& offset, Int32 zOffset, PaletteReference palette, Single scale) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\Animation.cs:line 72
-   at OpenRA.Graphics.AnimationWithOffset.Render(Actor self, PaletteReference pal, Single scale) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\AnimationWithOffset.cs:line 44
-   at OpenRA.Mods.Common.Traits.Render.RenderSprites.Render(Actor self, WorldRenderer wr)+MoveNext() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Mods.Common\Traits\Render\RenderSprites.cs:line 195
-   at OpenRA.Actor.Renderables(WorldRenderer wr)+MoveNext() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Actor.cs:line 333
-   at System.Linq.Enumerable.SelectEnumerableIterator`2.MoveNext()
-   at System.Collections.Generic.List`1.InsertRange(Int32 index, IEnumerable`1 collection)
-   at OpenRA.Graphics.WorldRenderer.GenerateRenderables() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\WorldRenderer.cs:line 125
-   at OpenRA.Graphics.WorldRenderer.PrepareRenderables() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Graphics\WorldRenderer.cs:line 247
-   at OpenRA.Game.RenderTick() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 736
-   at OpenRA.Game.Loop() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 844
-   at OpenRA.Game.Run() in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 876
-   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Game\Game.cs:line 308
-   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\RÜMEYSA\Desktop\2023\engine\OpenRA.Launcher\Program.cs:line 32
-
-----------------------------------------
-OpenRA has encountered a fatal error.
+   Port forwarding failed: Error ConflictInMappingEntry: ConflictInMappingEntry
+   [2024-01-14T20:41:57] Game started
+   Port removal failed: Error 714: NoSuchEntryInArray
+   Exception of type `System.InvalidOperationException`: Actor world does not have trait of type `OpenRA.Mods.Common.Traits.IResourceLayer`
+      at OpenRA.TraitDictionary.TraitContainer`1.Get(Actor actor) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\TraitDictionary.cs:line 163
+      at OpenRA.Mods.Common.Traits.SeedsResource..ctor(Actor self, SeedsResourceInfo info) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\SeedsResource.cs:line 36
+      at OpenRA.Mods.Common.Traits.SeedsResourceInfo.Create(ActorInitializer init) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\SeedsResource.cs:line 24
+      at OpenRA.Actor..ctor(World world, String name, TypeDictionary initDict) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Actor.cs:line 184
+      at OpenRA.Mods.Common.Traits.SpawnMapActors.WorldLoaded(World world, WorldRenderer wr) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\World\SpawnMapActors.cs:line 52
+      at OpenRA.World.LoadComplete(WorldRenderer wr) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\World.cs:line 297
+      at OpenRA.Game.StartGame(String mapUID, WorldType type) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 203
+      at OpenRA.Network.UnitOrders.ProcessOrder(OrderManager orderManager, World world, Int32 clientId, Order order) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Network\UnitOrders.cs:line 155
+      at OpenRA.Network.OrderManager.ReceiveImmediateOrders(Int32 clientId, OrderPacket orders) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Network\OrderManager.cs:line 170
+      at OpenRA.Network.NetworkConnection.OpenRA.Network.IConnection.Receive(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Network\Connection.cs:line 347
+      at OpenRA.Sync.<>c__DisplayClass13_0.<RunUnsynced>b__0() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 167
+      at OpenRA.Sync.RunUnsynced(World world, Action fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 168
+      at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 639
+      at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 654
+      at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 823
+      at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 876
+      at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 308
+      at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 32

@@ -407,29 +407,19 @@ VisualExplodeHusk:
 
 IskanderExplosion:
 	Inherits@HitEffects: ^HugeExplosionEffects
-	ValidTargets: Ground, Trees, Water, ICBM
+	ValidTargets: Ground, Trees, Water
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		DamageAtMaxRange: 50
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
 	Warhead@Spread_impact: SpreadDamage
-		Spread: 512
-		Damage: 20000
+		Spread: 768
+		Damage: 15000
+		Penetration: 2000
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
 		DamageTypes: Prone30Percent, ExplosionDeath
-	Warhead@2Crater: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Structure, Wall, Trees
-	Warhead@Scorch: LeaveSmudge
-		SmudgeType: Scorch
-		Size: 1
-	Warhead@Explosion: CreateEffect
-		Explosions: building, building2
-		ValidTargets: Ground, Air, Ship, Trees
-	Warhead@Sound: CreateEffect
-		ImpactSounds: kaboom22.aud
-		Delay: 2
-		ImpactActors: false
-	Warhead@EffectWater: CreateEffect
-		Explosions: splash_large
-		ImpactSounds: splashl1.aud, splashl2.aud
 
 IskanderExplosionAirborne:
 	Inherits: IskanderExplosion

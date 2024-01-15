@@ -514,7 +514,7 @@ grad:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	Selectable:
-		DecorationBounds: 1024,1024
+		Class: MLRS
 	RenderRangeCircle:
 		Color: FF0000
 		Alpha: 100
@@ -615,8 +615,6 @@ tos:
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
-	Selectable:
-		DecorationBounds: 1024,1024
 	RenderRangeCircle:
 		Color: FF8000
 	WithDamageOverlay:
@@ -772,146 +770,146 @@ tunguska:
 	SpawnActorOnDeath:
 		Actor: tunguska.husk
 
-# iskander:
-# 	Inherits@Type: ^WheeledVehicle
-# 	Inherits@GainsExperience: ^GainsExperience
-# 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-# 	Buildable:
-# 		Queue: Vehicle
-# 		BuildPaletteOrder: 70
-# 		Prerequisites: ~vehicles.russia, ~techlevel.high
-# 		Description: 9K720 Iskander ballistic missile launcher.
-# 	Valued:
-# 		Cost: 3500
-# 	Tooltip:
-# 		Name: Iskander
-#	AnnounceOnSeen:
-#		Type: Vehicle
-#		TextNotification: Spotted: Iskander
-#	ActorLostNotification:
-#		TextNotification: Lost: Iskander
-# 	RenderSprites:
-# 		Scale: 1.25
-# 	UpdatesPlayerStatistics:
-# 		AddToArmyValue: true
-# 	DamageMultiplier@Loaded:
-# 		RequiresCondition: loaded
-# 		Modifier: 1000
-# 	Health:
-# 		HP: 5000
-# 	Armor:
-# 		Type: Light
-# 		Thickness: 15
-# 		Distribution: 100,80,80,80,60
-# 	Targetable:
-# 		TargetTypes: Ground, Vehicle, Light
-# 	HitShape:
-# 		Type: Rectangle
-# 			VerticalTopOffset: 650
-# 			TopLeft: -300, -1270
-# 			BottomRight: 300, 1270
-#	Detectable:
-#		Radar: 1
-#		RadarDetectableCondition: firing
-#		Position: Ground
-# 	Mobile:
-# 		Speed: 80
-# 		TurnSpeed: 5
-# 		Voice: Move
-# 		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
-# 	GrantConditionOnPreparingAttack:
-# 		Condition: firing
-# 		ArmamentNames: primary
-# 		RevokeDelay: 150
-# 	IndirectFire:
-# 	AutoTarget:
-# 		InitialStance: HoldFire
-# 		InitialStanceAI: Defend
-# 	Passenger:
-# 		Voice: Move
-# 	Armament@1:
-# 		Weapon: IskanderTargeter
-# 		LocalOffset: -100,120,0, -100,-120,0
-# 		PauseOnCondition: !ammo-primary
-# 	AmmoPool@1:
-# 		Name: primary-ammo
-# 		Armaments: primary
-# 		Ammo: 2
-# 		AmmoCondition: ammo-primary
-# 		FullReloadTicks: 300
-# 		FullReloadSteps: 6
-# 		RearmSound: minelay1.aud
-# 	Rearmable:
-# 		RearmActors: logisticscenter
-# 		AmmoPools: primary-ammo
-# 	AttackFrontal:
-# 		TargetFrozenActors: True
-# 		ForceFireIgnoresActors: True
-# 		FacingTolerance: 0
-# 		Voice: Attack
-# 		PauseOnCondition: empdisable
-# 	WithFacingSpriteBody:
-# 		Sequence: empty-idle
-# 	WithWeaponOverlay@Missile_1:
-# 		Sequence: missile
-# 		Offset: -150,130,150
-# 		RequiresCondition: ammo-primary == 2
-# 	WithWeaponOverlay@Missile_2:
-# 		Sequence: missile
-# 		Offset: -150,-100,150
-# 		RequiresCondition: ammo-primary
-# 	MissileSpawnerMaster:
-# 		Actors: IskanderMissile
-# 		LoadedCondition: loaded
-# 		LaunchingCondition: firing-primary
-# 	Voiced:
-# 		VoiceSet: IskanderVoice
-# 	Exit:
-# 		SpawnOffset: 0,-128,0
-# 	RenderRangeCircle:
-# 		Width: 3
-# 		Alpha: 100
-# 		Color: FF0000
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		RequiresCondition: !loaded
-# 		Weapon: ArtilleryExplode
-# 	Explodes@Loaded:
-# 		RequiresCondition: loaded
-# 		Weapon: IskanderExplosion
-# 	SpawnActorOnDeath:
-# 		Actor: iskander.husk
+iskander:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 70
+		Prerequisites: ~vehicles.russia, ~techlevel.high
+		Description: 9K720 Iskander ballistic missile launcher.
+	Valued:
+		Cost: 3500
+	Tooltip:
+		Name: Iskander
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Iskander
+	ActorLostNotification:
+		TextNotification: Lost: Iskander
+	RenderSprites:
+		Scale: 1.25
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	DamageMultiplier@Loaded:
+		RequiresCondition: loaded
+		Modifier: 1000
+	Health:
+		HP: 5000
+	Armor:
+		Type: Light
+		Thickness: 15
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 650
+			TopLeft: -300, -1270
+			BottomRight: 300, 1270
+	Detectable:
+		Radar: 1
+		RadarDetectableCondition: firing
+		Position: Ground
+	Mobile:
+		Speed: 80
+		TurnSpeed: 5
+		Voice: Move
+		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 150
+	IndirectFire:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+	Passenger:
+		Voice: Move
+	Armament@1:
+		Weapon: IskanderTargeter
+		LocalOffset: -100,120,0, -100,-120,0
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 2
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		FacingTolerance: 0
+		Voice: Attack
+		PauseOnCondition: empdisable
+	WithFacingSpriteBody:
+		Sequence: empty-idle
+	WithWeaponOverlay@Missile_1:
+		Sequence: missile
+		Offset: -150,130,150
+		RequiresCondition: ammo-primary == 2
+	WithWeaponOverlay@Missile_2:
+		Sequence: missile
+		Offset: -150,-100,150
+		RequiresCondition: ammo-primary
+	MissileSpawnerMaster:
+		Actors: IskanderMissile
+		LoadedCondition: loaded
+		LaunchingCondition: firing-primary
+	Voiced:
+		VoiceSet: IskanderVoice
+	Exit:
+		SpawnOffset: 0,-128,0
+	RenderRangeCircle:
+		Width: 3
+		Alpha: 100
+		Color: FF0000
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		RequiresCondition: !loaded
+		Weapon: ArtilleryExplode
+	Explodes@Loaded:
+		RequiresCondition: loaded
+		Weapon: IskanderExplosion
+	SpawnActorOnDeath:
+		Actor: iskander.husk
 
-# IskanderMissile:
-# 	Inherits: ^ShootableMissile
-# 	Valued:
-# 		Cost: 50
-# 	Tooltip:
-# 		Name: Iskander missile
-# 	RenderSprites:
-# 		Scale: 1
-# 	Health:
-# 		HP: 100
-# 	BallisticMissile:
-# 		LaunchAngle: 128
-# 		Speed: 400
-# 		# Acceleration:
-# 	LeavesTrailsCA:
-# 		Image: smokey2
-# 		Palette: effect_ts
-# 		MovingInterval: 1
-# 		Position: Center
-# 		Offsets: -200, 0, 0
-# 	MissileSpawnerSlave:
-# 	SpawnedExplodes:
-# 		Weapon: IskanderExplosion
-# 		EmptyWeapon: VisualExplodeHusk
-# 		RequiresCondition: !airborne
-# 	Explodes:
-# 		Weapon: IskanderExplosion
-# 		RequiresCondition: airborne
+IskanderMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 50
+	Tooltip:
+		Name: Iskander missile
+	RenderSprites:
+		Scale: 1
+	Health:
+		HP: 100
+	BallisticMissile:
+		LaunchAngle: 128
+		Speed: 400
+		# Acceleration:
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Position: Center
+		Offsets: -200, 0, 0
+	MissileSpawnerSlave:
+	SpawnedExplodes:
+		Weapon: IskanderExplosion
+		EmptyWeapon: VisualExplodeHusk
+		RequiresCondition: !airborne
+	Explodes:
+		Weapon: IskanderExplosion
+		RequiresCondition: airborne
 
 # TTNK:
 # 	Inherits@Type: ^TrackedVehicle
