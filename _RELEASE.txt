@@ -1,14 +1,4 @@
 
-Supply Route
-
-    - Place Flags all around the map edges, chain-linking control gives access to deploy troops there, broken chain makes Flags disabled for calling in reinforcements.
-        - Consider implementing a "per building" build queue (difficult?)
-    - Gets captured over and over when enemy is close by
-
-- Can't issue enter order on neutral cargo actors if shrouded
-
-
-
 Resources
     - Auto Capture for technicians as a "Weapon", making AutoTargeting work
     - Dynamic income based on structure health
@@ -25,8 +15,6 @@ Production
     (combine with QWE... to build 123...)
 
 Infantry
-    - Attack move default / make infantry fire on the move
-        - Sprint when force moving soldiers, disables firing on the move
     - Remove Spy, adapt SF to take that role instead
     - Protection, add new mode that puts actors invisible on top of the cell of what is now the Cargo Actor,
         this allows units to target either the building or autotarget the actor inside.
@@ -47,11 +35,6 @@ Air
 Structures
     - Trenches
 
-Ammo
-    - Units out of ammo should reject attack orders
-    - Costs money
-    - Trucks need to be sent back
-    - Widget for auto rearm
 
 Animations
     - TOS explosion effects

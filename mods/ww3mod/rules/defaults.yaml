@@ -58,7 +58,6 @@
 		MinRange: 28c0
 		Range: 32c0
 
-
 ^StandardVisionWhenLoaded:
 	Inherits: ^StandardVision
 	Vision@10:

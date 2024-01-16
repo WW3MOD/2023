@@ -10,7 +10,7 @@ Fix
 
     - Default lobby options
 
-    - When unit runs out of ammo, cancel current order (attackmove) so it becomes idle (and searches for supplies)
+    - Select units deprioritizes
 
     - Civ building
         - Should not spawn civillians on death
@@ -50,10 +50,26 @@ Units
 
 Bugs
 
+    - Can't issue enter order on neutral cargo actors if shrouded
+
 Ideas
 
-    - Force move is sprint, normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
-        - Change spread command to make units seek nearest high cover tile
+    Ammo
+        - Units out of ammo should reject attack orders
+        - Costs money
+        - Trucks need to be sent back
+        - Logistics centres needs delivery from supply trucks
+        - Widget for auto rearm
+
+    - Make infantry fire on the move
+    - Force move is sprint
+        - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
+    - Attack move default
+
+    - Change spread command to make units seek nearest high cover tile
+
+    - Place Flags all around the map edges, chain-linking control gives access to deploy troops there, broken chain makes Flags disabled for calling in reinforcements.
+        - Consider implementing a "per building" build queue (difficult?)
 
     - Binoculars / Laser designator for team leader.
         - If a force-attack is made on the ground, use Binoculars. Reveals area.
@@ -67,6 +83,7 @@ Ideas
 
     - Entrance force, dropdown in time that players have before the game starts to use up their initial cash
         - Built units can only be moved within a small circle until timer is finished
+
     - Set a "tech increase" time when higher tech is allowed
     - Rename tech levels to something like "DEFCON" but more appropriate.
     - Rename "Build tree" to "Reservists"

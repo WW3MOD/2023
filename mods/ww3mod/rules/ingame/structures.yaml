@@ -1485,10 +1485,6 @@ AFLD:
 # 		Range: 4c0
 # 		RequiresCondition: !build-incomplete && !disabled
 # 		ValidRelationships: Ally
-# 	ProximityExternalCondition@barracksheal:
-# 		Condition: barracks
-# 		ValidRelationships: Ally
-# 		Range: 4c0
 # 	WithRangeCircle:
 # 		Range: 4c0
 # TENT:

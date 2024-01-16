@@ -13,8 +13,6 @@
 	Inherits@Vision: ^StandardVision
 	Inherits@DetectionProximity: ^DetectionProximity
 	Inherits@Visibility: ^InfantryStandardVisibility
-	RepairableNear:
-		RepairActors: truk
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -72,36 +70,6 @@
 		GenericName: Soldier
 	ExternalCondition@MoraleBoost:
 		Condition: morale-boost
-	ExternalCondition@barracks:
-		Condition: barracks
-	GrantCondition@BarracksHealing:
-		RequiresCondition: barracks && damaged
-		Condition: barracksheal
-	ChangesHealth@BarracksHealing:
-		Step: 5
-		Delay: 100
-		StartIfBelow: 50
-		DamageCooldown: 500
-		RequiresCondition: barracksheal
-	# ChangesHealth@Hospital:
-	# 	Step: 5
-	# 	Delay: 100
-	# 	DamageCooldown: 500
-	# 	RequiresCondition: hospitalheal
-	GrantConditionOnPrerequisite@Hospital:
-		Condition: hospital
-		Prerequisites: hosp
-	GrantCondition@Hospital:
-		RequiresCondition: hospital && damaged
-		Condition: hospitalheal
-	WithDecoration@RedCross:
-		Image: pips
-		Sequence: pip-heal
-		Position: TopLeft
-		Margin: 1,-4
-		RequiresCondition: ( barracksheal || hospitalheal )
-		BlinkInterval: 32
-		BlinkPattern: Off, On
 	DeathSounds@Normal:
 		DeathTypes: DefaultDeath, BulletDeath, SmallExplosionDeath, ExplosionDeath
 	DeathSounds@Burned:
@@ -138,7 +106,7 @@
 		RequiresCondition: prone
 		Type: Circle
 			Radius: 20
-	HitShape@Moving:
+	HitShape@Standing:
 		RequiresCondition: !prone
 		Type: Circle
 			Radius: 30
@@ -217,7 +185,7 @@
 	GrantConditionOnDeploy:
 		DeployedCondition: deployed
 	InfantryStates:
-		ProneCondition: deployed || suppressed || !moving || critical-damage
+		ProneCondition: deployed || suppressed > 30 || !moving || critical-damage
 		ProneGrantsCondition: prone
 		ProneSpeedModifier: 60
 		ProneDamageModifiers:
