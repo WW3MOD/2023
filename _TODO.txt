@@ -4,9 +4,9 @@ Ongoing
     - Infantry speed slower, set 25 from 35
         - Make transports more important
 
-Fix
+    - Tanks / Vehicles reverse
 
-    - M270 MLRS Bounds too large
+Fix
 
     - Default lobby options
 
@@ -36,11 +36,12 @@ Fix
         - Kinda done, do more testing
         - Remove object-proximity / merge with layer check.
 
-    - Tanks / Vehicles reverse
-
     - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
 
     - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
+
+    - Iskander missile acceleration + balancing
+    - New Himars missile, similar to Iskander but smaller and shorter range + balancing
 
 Units
 
@@ -50,6 +51,9 @@ Units
 Bugs
 
 Ideas
+
+    - Force move is sprint, normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
+        - Change spread command to make units seek nearest high cover tile
 
     - Binoculars / Laser designator for team leader.
         - If a force-attack is made on the ground, use Binoculars. Reveals area.

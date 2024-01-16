@@ -1,3 +1,9 @@
+
+OrderResupply: R
+	Description: Order resupply
+	Types: World
+	Contexts: Player
+
 CycleBase: H
 	Description: Jump to base
 	Types: World
