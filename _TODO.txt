@@ -13,7 +13,6 @@ Fix
     - Select units deprioritizes
 
     - Civ building
-        - Should not spawn civillians on death
         - Units inside takes damage when building is hit.
         - When firing, the unit firing pops up as a pip for the enemy
         - Units can be selected one by one and with shift, marking them with a white outline
@@ -49,8 +48,6 @@ Units
     - Add HandGrenade, IndirectFire
 
 Bugs
-
-    - Can't issue enter order on neutral cargo actors if shrouded
 
 Ideas
 
