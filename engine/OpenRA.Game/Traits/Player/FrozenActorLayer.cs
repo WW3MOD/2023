@@ -36,7 +36,7 @@ namespace OpenRA.Traits
 	{
 		public readonly PPos[] Footprint;
 		public readonly WPos CenterPosition;
-		readonly Actor actor;
+		public readonly Actor actor;
 		readonly ICreatesFrozenActors frozenTrait;
 		readonly Player viewer;
 		readonly MapLayers shroud;
