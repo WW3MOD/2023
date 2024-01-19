@@ -8,6 +8,12 @@ Ongoing
 
 Fix
 
+    - Map editor
+        - Add more civilian structures
+        - Add more tiles, roads especially
+        - Update / Create new maps
+
+
     - Default lobby options
 
     - Select units deprioritizes

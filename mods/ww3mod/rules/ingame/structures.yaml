@@ -9,9 +9,17 @@
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	Inherits@NeutralOrOccupiedCapturable: ^NeutralOrOccupiedCapturable
 	BlocksProjectiles:
-	Vision@10:
-		Strength: 10
-		Range: 4c0
+	Vision@3:
+		Strength: 3
+		Range: 1c0
+	Vision@2:
+		Strength: 2
+		MinRange: 1c0
+		Range: 2c0
+	Vision@1:
+		Strength: 1
+		MinRange: 2c0
+		Range: 3c0
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Targetable:

@@ -44,8 +44,8 @@ namespace OpenRA.Mods.Common.LoadScreens
 				lastSheet = s;
 				lastDensity = density;
 				logo = CreateSprite(s, density, new Rectangle(0, 0, 256, 256));
-				stripeRight = CreateSprite(s, density, new Rectangle(258, 0, 120, 256));
-				stripeLeft = CreateSprite(s, density, new Rectangle(518, 0, 120, 256));
+				stripeLeft = CreateSprite(s, density, new Rectangle(256, 0, 128, 256));
+				stripeRight = CreateSprite(s, density, new Rectangle(512, 0, 128, 256));
 			}
 
 			if (r.Resolution != lastResolution)
