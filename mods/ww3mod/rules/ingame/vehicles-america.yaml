@@ -677,7 +677,7 @@ m109:
 	Health:
 		HP: 7000
 	Armor:
-		Type: Medium
+		Type: Light
 		Thickness: 10
 		Distribution: 100,80,80,80,60
 	Targetable:
