@@ -38,8 +38,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Which turret (if present) should this armament be assigned to.")]
 		public readonly string Turret = "primary";
 
-		[Desc("Time to aim the weapon after each BurstDelays. Cannot be 0 for Bullet Projectiles as it is used to calculate how much to lead target.")]
-		public readonly int FireDelay = 5;
+		[Desc("Cannot be 0 for Bullet Projectiles as it is used to calculate how much to lead target by checking position change (speed) between this many ticks. Lower numbers tested and does not work properly.")]
+		public readonly int FireDelay = 3;
+
+		[Desc("How long time unit needs after acquiring the target (turret facing) to aim, before being able to fire")]
+		public readonly int AimingDelay = 15;
 
 		[Desc("How much a moving target cause added inaccuracy. (TargetSpeed * MovementInaccuracy * distanceToTarget / MaxRange)")]
 		public readonly int MovementInaccuracy = 30;
@@ -145,6 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public WDist Recoil;
 		public int Magazine { get; protected set; }
+		public int AimingDelay { get; protected set; }
 		public int ReloadDelay { get; protected set; }
 		public int Burst { get; protected set; }
 		public int BurstWait { get; protected set; }
@@ -233,29 +237,32 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 		}
 
-		void UpdateCondition(Actor self)
+		void UpdateReloadingCondition(Actor self)
 		{
 			if (string.IsNullOrEmpty(Info.ReloadingCondition))
 				return;
 
-			var enabled = !IsTraitDisabled && IsReloading;
+			var isReloading = !IsTraitDisabled && IsReloading;
 
-			if (enabled && conditionToken == Actor.InvalidConditionToken)
+			if (isReloading && conditionToken == Actor.InvalidConditionToken)
 				conditionToken = self.GrantCondition(Info.ReloadingCondition);
-			else if (!enabled && conditionToken != Actor.InvalidConditionToken)
+			else if (!isReloading && conditionToken != Actor.InvalidConditionToken)
 				conditionToken = self.RevokeCondition(conditionToken);
 		}
 
 		protected virtual void Tick(Actor self)
 		{
 			// We need to disable conditions if IsTraitDisabled is true, so we have to update conditions before the return below.
-			UpdateCondition(self);
+			UpdateReloadingCondition(self);
 
 			if (IsTraitDisabled)
 			{
 				delayedActions.Clear(); // Seems necessary to stop immediatelly, but will cause ammo to be drawn so needs updating for that
 				return;
 			}
+
+			if (AimingDelay > 0)
+				--AimingDelay;
 
 			if (ReloadDelay > 0)
 				--ReloadDelay;
@@ -292,7 +299,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual bool CanFire(Actor self, in Target target)
 		{
-			if (IsReloading || IsWaitingBurst || IsTraitPaused)
+			if (IsReloading || IsWaitingBurst || IsAiming || IsTraitPaused)
 				return false;
 
 			if (turret != null && !turret.HasAchievedDesiredFacing)
@@ -315,6 +322,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!target.Equals(oldTarget))
 			{
 				oldTarget = target;
+				AimingDelay = Info.AimingDelay;
 				delayedActions.Clear();
 				AimInitialTargetPosition.Clear();
 			}
@@ -502,8 +510,9 @@ namespace OpenRA.Mods.Common.Traits
 			IsBurstWait = isBurstWait;
 		}
 
-		public virtual bool IsWaitingBurst { get { return BurstWait > 0 || IsTraitDisabled; } }
-		public virtual bool IsReloading => ReloadDelay > 0 || IsTraitDisabled;
+		public virtual bool IsAiming { get { return AimingDelay > 0; } }
+		public virtual bool IsWaitingBurst { get { return BurstWait > 0; } }
+		public virtual bool IsReloading => ReloadDelay > 0;
 
 		public WVec MuzzleOffset(Actor self, Barrel b)
 		{

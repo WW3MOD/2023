@@ -173,8 +173,8 @@ namespace OpenRA.Mods.Common.Projectiles
 		{
 			this.info = info;
 			this.args = args;
-			pos = args.Source;
-			source = args.Source;
+			pos = args.CurrentSource();
+			source = args.CurrentSource();
 
 			var world = args.SourceActor.World;
 
