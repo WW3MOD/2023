@@ -8,6 +8,8 @@ Ongoing
 
 Fix
 
+    - Forest (or any tile with permanent vision modifier) shows up as lower vision in game.
+
     - Map editor
         - Add more civilian structures
         - Add more tiles, roads especially

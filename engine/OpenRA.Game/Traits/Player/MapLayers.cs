@@ -470,6 +470,21 @@ namespace OpenRA.Traits
 			return explored.Contains(uv);
 		}
 
+		public byte Normalize(byte check)
+		{
+			// TODO add not explored and all visible
+			if (fogEnabled)
+			{
+				return check <= 1 ? (byte)1 : check >= 10 ? (byte)10 : check;
+			}
+			else if (Disabled) // ??
+			{
+
+			}
+
+			return (byte)5;
+		}
+
 		public byte GetVisibility(WPos pos)
 		{
 			return GetVisibility(map.ProjectedCellCovering(pos));
@@ -481,7 +496,10 @@ namespace OpenRA.Traits
 			{
 				if (ResolvedVisibility.Contains(puv))
 				{
-					return ResolvedVisibility[puv];
+					byte resolved = (byte)ResolvedVisibility[puv];
+					byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+
+					return (byte)Normalize((byte)(resolved - modify));
 				}
 			}
 

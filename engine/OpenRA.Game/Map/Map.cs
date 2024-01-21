@@ -238,6 +238,7 @@ namespace OpenRA
 		public CellLayer<byte> Height { get; private set; }
 		public CellLayer<byte> Ramp { get; private set; }
 		public CellLayer<byte> CustomTerrain { get; private set; }
+		public CellLayer<byte> ModifyVisualLayer { get; private set; }
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
@@ -475,6 +476,37 @@ namespace OpenRA
 				}
 
 				Ramp[uv] = info.RampType;
+			}
+
+			// Read terrain type and set layer of adjusted visual for the coordiate.
+
+			ModifyVisualLayer = new CellLayer<byte>(this);
+			foreach (var uv in AllCells.MapCoords)
+			{
+				var tile = Tiles[uv];
+				var terrainType = this.GetTerrainInfo(uv.ToCPos(this)).Type;
+
+				byte terrainTypeModifier = 0;
+				switch (terrainType)
+				{
+					case "TreeClear":
+						terrainTypeModifier = 1;
+						break;
+					case "TreeRough":
+						terrainTypeModifier = 2;
+						break;
+					case "TreeDebris":
+						terrainTypeModifier = 3;
+						break;
+					case "TreeRock":
+						terrainTypeModifier = 4;
+						break;
+					default:
+						terrainTypeModifier = 0;
+						break;
+				}
+
+				ModifyVisualLayer[uv] = terrainTypeModifier;
 			}
 
 			AllEdgeCells = UpdateEdgeCells();

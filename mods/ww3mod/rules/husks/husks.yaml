@@ -126,7 +126,6 @@
 
 T01.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -140,7 +139,6 @@ T01.Husk:
 	# 	Range: 182
 T02.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -154,7 +152,6 @@ T02.Husk:
 	# 	Range: 256
 T03.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -168,7 +165,6 @@ T03.Husk:
 	# 	Range: 182
 T04.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -182,7 +178,6 @@ T04.Husk:
 	# 	Range: 182
 T05.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -196,7 +191,6 @@ T05.Husk:
 	# 	Range: 256
 T06.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -210,7 +204,6 @@ T06.Husk:
 	# 	Range: 182
 T07.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -224,7 +217,6 @@ T07.Husk:
 	# 	Range: 182
 T08.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: x_
 		Dimensions: 2,1
@@ -236,7 +228,6 @@ T08.Husk:
 	# 	Range: 182
 T09.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	MapEditorData:
 		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
 	ProximityExternalCondition@ObjectProximity:
@@ -247,7 +238,6 @@ T09.Husk:
 	# 	Range: 182
 T10.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ xx
 		Dimensions: 2,2
@@ -261,7 +251,6 @@ T10.Husk:
 	# 	Range: 182
 T11.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ xx
 		Dimensions: 2,2
@@ -275,7 +264,6 @@ T11.Husk:
 	# 	Range: 256
 T12.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -289,7 +277,6 @@ T12.Husk:
 	# 	Range: 182
 T13.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -303,7 +290,6 @@ T13.Husk:
 	# 	Range: 256
 T14.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: ___ xx_
 		Dimensions: 3,2
@@ -317,7 +303,6 @@ T14.Husk:
 	# 	Range: 182
 T15.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: ___ xx_
 		Dimensions: 3,2
@@ -331,7 +316,6 @@ T15.Husk:
 	# 	Range: 256
 T16.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -345,7 +329,6 @@ T16.Husk:
 	# 	Range: 256
 T17.Husk:
 	Inherits: ^TreeHusk
-	Inherits@SPYMAST: ^DisguiseableTree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
