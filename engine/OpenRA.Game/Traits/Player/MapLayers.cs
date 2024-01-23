@@ -78,13 +78,27 @@ namespace OpenRA.Traits
 
 		class VisionSource
 		{
-			public readonly int Vision;
-			public readonly PPos[] ProjectedCells;
+			public readonly PPos Origin;
+			public readonly int VisionBase;
+			public readonly VisionSourceNode[] VisionSourceNodes;
 
-			public VisionSource(int vision, PPos[] projectedCells)
+			public VisionSource(PPos origin, int visionBase, VisionSourceNode[] visionSourceNodes)
 			{
-				Vision = vision;
-				ProjectedCells = projectedCells;
+				Origin = origin;
+				VisionBase = visionBase;
+				VisionSourceNodes = visionSourceNodes;
+			}
+		}
+
+		class VisionSourceNode
+		{
+			public readonly int VisionModified;
+			public readonly PPos Cell;
+
+			public VisionSourceNode(int visionModified, PPos cell)
+			{
+				VisionModified = visionModified;
+				Cell = cell;
 			}
 		}
 
@@ -95,7 +109,7 @@ namespace OpenRA.Traits
 		readonly Dictionary<object, VisionSource> sources = new Dictionary<object, VisionSource>();
 
 		// Per-cell count of each source type, used to resolve the final cell type
-		readonly ProjectedCellLayer<short[]> visibilityCount;
+		ProjectedCellLayer<short[]> visibilityCount;
 		readonly ProjectedCellLayer<short> radarCount;
 
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
@@ -125,6 +139,8 @@ namespace OpenRA.Traits
 			}
 		}
 
+		public byte ShadowModify { get; set;}
+
 		bool fogEnabled;
 		public bool FogEnabled => !Disabled && fogEnabled;
 		public bool ExploreMapEnabled { get; private set; }
@@ -134,6 +150,8 @@ namespace OpenRA.Traits
 		{
 			this.info = info;
 			map = self.World.Map;
+
+			ShadowModify = 10;
 
 			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
@@ -274,27 +292,26 @@ namespace OpenRA.Traits
 
 		public void AddSource(IAffectsMapLayer mapLayer, int strength, PPos[] projectedCells, Actor self = null)
 		{
+			// TEST
 			if (sources.ContainsKey(mapLayer))
 				throw new InvalidOperationException("Attempting to add duplicate shroud source");
 
-			sources[mapLayer] = new VisionSource(strength, projectedCells);
+			var selfLocation = self.Location.ToMPos(map);
 
-			if (self != null)
-			{
+			VisionSourceNode[] visionSourceNodes = new VisionSourceNode[projectedCells.Length];
 
-			}
-
+			var i = 0;
 			foreach (var puv in projectedCells)
 			{
-				var shadowModify = 0;
 				// Force cells outside the visible bounds invisible
 				if (!map.Contains(puv))
 					continue;
 
 				var index = touched.Index(puv);
+				var shadowModify = 0;
 
-				if(self != null && map.ShadowLayers != null && map.ShadowLayers[self.Location.ToMPos(map)][(MPos)puv] == true)
-					shadowModify = 3;
+				if(self != null && map.ShadowLayers != null && map.ShadowLayers[selfLocation][(MPos)puv] == true)
+					shadowModify = ShadowModify;
 
 				var modifiedStrength = strength - shadowModify;
 
@@ -324,16 +341,28 @@ namespace OpenRA.Traits
 					shroudGenerationEnabled = true;
 					generatedShroudCount[index]++;
 				} */
+
+				visionSourceNodes[i] = new VisionSourceNode(modifiedStrength, puv);
+				i++;
 			}
+
+			sources[mapLayer] = new VisionSource((PPos)selfLocation, strength, visionSourceNodes);
 		}
 
 		public void RemoveSource(IAffectsMapLayer mapLayer)
 		{
-			if (!sources.TryGetValue(mapLayer, out var state))
+			if (!sources.TryGetValue(mapLayer, out var source))
 				return;
 
-			foreach (var puv in state.ProjectedCells)
+			var shadowModify = 0;
+
+			foreach (var node in source.VisionSourceNodes)
 			{
+				if (node == null) // Temp solution, the last 10 or so entries are null because the position formats are weird.
+					break;
+
+				var puv = node.Cell;
+
 				// Cells outside the visible bounds don't increment visibleCount
 				if (map.Contains(puv))
 				{
@@ -341,9 +370,12 @@ namespace OpenRA.Traits
 					touched[index] = true;
 					anyCellTouched = true;
 
+					if(map.ShadowLayers != null && map.ShadowLayers[((MPos)source.Origin).ToCPos(map)][(MPos)puv] == true)
+						shadowModify = ShadowModify;
+
 					if (mapLayer.Type == Type.Vision)
 					{
-						visibilityCount[index][state.Vision]--;
+						visibilityCount[index][node.VisionModified]--;
 					}
 					else if (mapLayer.Type == Type.Radar)
 					{
