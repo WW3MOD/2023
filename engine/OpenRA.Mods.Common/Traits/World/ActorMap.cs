@@ -476,6 +476,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			TickFunction();
+		}
+
+		public void TickFunction()
+		{
 			// Position updates are done in one pass
 			// to ensure consistency during a tick
 			if (removeActorPosition.Count > 0)

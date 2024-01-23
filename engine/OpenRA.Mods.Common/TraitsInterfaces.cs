@@ -46,6 +46,19 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyPrismCharging { void Charging(Actor self, in Target target); }
 
 	[RequireExplicitImplementation]
+	public interface IBlocksSight
+	{
+		WDist BlockingHeight { get; }
+		int Bypass { get; }
+
+		PlayerRelationship ExplodesOn { get; }
+	}
+
+	[RequireExplicitImplementation]
+	public interface IBlocksSightInfo : ITraitInfoInterface { }
+
+
+	[RequireExplicitImplementation]
 	public interface IBlocksProjectiles
 	{
 		WDist BlockingHeight { get; }

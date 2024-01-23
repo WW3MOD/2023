@@ -273,7 +273,6 @@ namespace OpenRA.Traits
 
 			foreach (var puv in projectedCells)
 			{
-				// TODO: Possibly remove this, to render projectiles even if "outside" of map, when shooting arching weapons near edge they become invisible "outside". Maybe render based on ground position, so as long as they are over the map they render?
 				// Force cells outside the visible bounds invisible
 				if (!map.Contains(puv))
 					continue;
@@ -498,6 +497,8 @@ namespace OpenRA.Traits
 				{
 					byte resolved = (byte)ResolvedVisibility[puv];
 					byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+
+					//
 
 					return (byte)Normalize((byte)(resolved - modify));
 				}

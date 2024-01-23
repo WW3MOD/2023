@@ -1,6 +1,29 @@
 
 Ongoing
 
+    ShadowCaster
+
+        - Cast shadows behind trees and buildings.
+
+        - Use BlocksProjectiles? But would be cool if it was seperate so that we can add things as smoke with same effect
+            - Add something like "Density" trait, that BlocksProjectile uses as default unless changed
+
+        - Using Octagonal algorithm, copied from https://github.com/THEjoezack/ShadowCaster/blob/master/ShadowCaster/ShadowCaster.cs
+
+        - At the first load every tile caches what vision looks like from there in a custom MapLayer
+
+        - Set as a number, not boolean, as strength of the shadow / how tall and generally massive the blocking actor is
+            - Different actors can see these differently?
+            - Eg a drone should see better behind a building than a ground unit
+            - Use this or a different number to set the mass of the object, that determines how
+
+        - When drawing the combined vision from MapLayer, remove tiles that are in the shadows. (How most efficiently?)
+
+        - Units with Vision trait defines their viewing height
+            - If the view height is lower than the blocking height, it is completely blocked behind for as far as the unit can see
+            - If the unit is looking from above the block height
+
+
     - Infantry speed slower, set 25 from 35
         - Make transports more important
 

@@ -53,6 +53,47 @@ namespace OpenRA.Mods.Common.Traits
 				Actors[kv.Key] = actor;
 				LastMapActorID = actor.ActorID;
 			}
+
+			/// Cast Shadows of spawned units
+			// TODO: If fog enabled...
+
+			// world.ActorMap.Update();
+			SetShadows(world);
+		}
+
+		public static void SetShadows(World world)
+		{
+			world.ActorMap.TickFunction();
+
+			var map = world.Map;
+
+			if (map.Visibility.HasFlag(MapVisibility.Shellmap))
+				return;
+
+			var ShadowLayers = new CellLayer<CellLayer<byte>>(map);
+
+			foreach (var fromUV in map.AllCells.MapCoords)
+			{
+				var shadowLayer = new CellLayer<byte>(map);
+
+				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 24, 25, false)) // TODO 25/25 works? Test later
+				{
+					MPos toUV = tilePos.ToMPos(map);
+
+					if (BlocksSight.AnyBlockingActorsBetween(world, fromUV.ToWPos(map), toUV.ToWPos(map), new WDist(1), out WPos hit, null, false))
+					{
+						shadowLayer[toUV] = (byte)1;
+					}
+					else
+					{
+						shadowLayer[toUV] = (byte)2;
+					}
+				}
+
+				ShadowLayers[fromUV] = shadowLayer;
+			}
+
+			map.ShadowLayers = ShadowLayers;
 		}
 
 		bool PreventMapSpawn(World world, ActorReference actorReference, IEnumerable<IPreventMapSpawn> preventMapSpawns)

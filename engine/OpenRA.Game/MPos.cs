@@ -62,6 +62,31 @@ namespace OpenRA
 			return new CPos(x, y);
 		}
 
+		public WPos ToWPos(Map map)
+		{
+			return ToWPos(map.Grid.Type);
+		}
+
+		public WPos ToWPos(MapGridType gridType)
+		{
+			if (gridType == MapGridType.Rectangular)
+				return new WPos(U * 1024, V * 1024, 0);
+
+			// Convert from rectangular map position to RectangularIsometric cell position
+			//  - The staggered rows make this fiddly (hint: draw a diagram!)
+			// (a) Consider the relationships:
+			//  - +1u (even -> odd) adds (1, -1) to (x, y)
+			//  - +1v (even -> odd) adds (1, 0) to (x, y)
+			//  - +1v (odd -> even) adds (0, 1) to (x, y)
+			// (b) Therefore:
+			//  - au + 2bv adds (a + b) to (x, y)
+			//  - a correction factor is added if v is odd
+			var offset = (V & 1) == 1 ? 1 : 0;
+			var y = (V - offset) / 2 - U;
+			var x = V - y;
+			return new WPos(x * 1024, y * 1024, 0);
+		}
+
 		public int ToCellIndex(Map map)
 		{
 			return V * map.MapSize.X + U;
