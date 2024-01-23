@@ -73,7 +73,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var shadowLayer = new CellLayer<bool>(map);
 
-				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 1, 15, true)) // 1/25?
+				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 2, 29, true))
 				{
 					MPos toUV = tilePos.ToMPos(map);
 					// var toIndex = map.Tiles.Index(toUV); // No definition of Index, also this is unnecessary - but why doesnt it work? Maybe it does now..
