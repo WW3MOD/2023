@@ -163,8 +163,9 @@ namespace OpenRA.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			if (!anyCellTouched && !disabledChanged)
-				return;
+			// TEST
+			// if (!anyCellTouched && !disabledChanged)
+			// 	return;
 
 			anyCellTouched = false;
 
@@ -182,8 +183,10 @@ namespace OpenRA.Traits
 			for (var index = 0; index < maxIndex; index++)
 			{
 				// PERF: Most cells are not touched
-				if (!touched[index] && !disabledChanged)
-					continue;
+
+				// TEST
+				// if (!touched[index] && !disabledChanged)
+				// 	continue;
 
 				if (visibilityCount[index] == null)
 					visibilityCount[index] = new short[VisionLayers];
@@ -212,7 +215,8 @@ namespace OpenRA.Traits
 
 				// PERF: Most cells are unchanged
 				var oldResolvedVisibility = ResolvedVisibility[index];
-				if (visibility != oldResolvedVisibility || disabledChanged)
+				// TEST
+				if (true || visibility != oldResolvedVisibility || disabledChanged)
 				{
 
 					ResolvedVisibility[index] = visibility;
@@ -275,21 +279,27 @@ namespace OpenRA.Traits
 
 			sources[mapLayer] = new VisionSource(strength, projectedCells);
 
-			var selfPosIndex = self.Location.ToMPos(map);
+			if (self != null)
+			{
+
+			}
 
 			foreach (var puv in projectedCells)
 			{
+				var shadowModify = 0;
 				// Force cells outside the visible bounds invisible
 				if (!map.Contains(puv))
 					continue;
 
 				var index = touched.Index(puv);
 
-				if(map.ShadowLayers != null && map.ShadowLayers[selfPosIndex][(MPos)puv] == true)
-					strength = strength - 5;
+				if(self != null && map.ShadowLayers != null && map.ShadowLayers[self.Location.ToMPos(map)][(MPos)puv] == true)
+					shadowModify = 3;
 
-				if (strength < 0)
-					strength = 0;
+				var modifiedStrength = strength - shadowModify;
+
+				if (modifiedStrength < 1)
+					modifiedStrength = 1;
 
 				touched[index] = true;
 				anyCellTouched = true;
@@ -299,7 +309,7 @@ namespace OpenRA.Traits
 
 				if (mapLayer.Type == Type.Vision)
 				{
-					visibilityCount[index][strength]++;
+					visibilityCount[index][modifiedStrength]++;
 
 					if (strength > 0)
 						explored[index] = true;

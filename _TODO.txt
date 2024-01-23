@@ -3,6 +3,10 @@ Ongoing
 
     Shadow casting
 
+        Bugs
+            - When touched is removed it works (better), update touched to reflect shadow changes
+            - Still a problem where it starts off great, then when an area is shadowed, it stays that way in some places
+
         Parts
 
             - SpawnMapActors

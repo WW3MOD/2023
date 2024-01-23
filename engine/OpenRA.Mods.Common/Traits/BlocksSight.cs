@@ -81,8 +81,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static bool AnyBlockingActorsBetween(World world, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false)
 		{
-			var aaa = world.ActorMap.AllActors();
-
 			// var actors = world.FindBlockingActorsOnLine(start, end, width);
 			var actors = world.FindActorsOnLine(start, end, width);
 			var length = (end - start).Length;
@@ -93,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (a == self)
 					continue;
 
-				var blockers = a.TraitsImplementing<IBlocksProjectiles>()
+				var blockers = a.TraitsImplementing<IBlocksSight>()
 					.ToList();
 
 				if (blockers.Count == 0)
