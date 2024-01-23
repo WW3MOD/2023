@@ -24,42 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public void WorldLoaded(World world, WorldRenderer wr)
 		{
-			// TODO: If fog enabled...
 
-			// var map = world.Map;
-
-			// var ShadowLayers = new CellLayer<CellLayer<byte>>(map);
-
-			// var counter1 = 0;
-			// var counter2 = 0;
-
-			// foreach (var uv in map.AllCells.MapCoords)
-			// {
-			// 	counter1++;
-
-			// 	var shadowLayer = new CellLayer<byte>(map);
-
-			// 	foreach (var tile in map.FindTilesInAnnulus(uv.ToCPos(map), 24, 25, false)) // TODO 25/25 works? Test later
-			// 	{
-			// 		counter2++;
-
-			// 		MPos mpos = tile.ToMPos(map);
-
-			// 		if (BlocksSight.AnyBlockingActorsBetween(world, uv.ToWPos(map), mpos.ToWPos(map), new WDist(100), out WPos hit, null, false))
-			// 		{
-			// 			shadowLayer[mpos] = (byte)1;
-			// 		}
-			// 		else
-			// 		{
-			// 			shadowLayer[mpos] = (byte)2;
-			// 		}
-
-			// 	}
-
-			// 	ShadowLayers[uv] = shadowLayer;
-			// }
-
-			// map.ShadowLayers = ShadowLayers;
 		}
 	}
 }

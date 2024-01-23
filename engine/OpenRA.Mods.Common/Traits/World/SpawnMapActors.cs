@@ -54,39 +54,37 @@ namespace OpenRA.Mods.Common.Traits
 				LastMapActorID = actor.ActorID;
 			}
 
-			/// Cast Shadows of spawned units
-			// TODO: If fog enabled...
-
-			// world.ActorMap.Update();
 			SetShadows(world);
 		}
 
-		public static void SetShadows(World world)
+		public static void SetShadows(World world) // TODO: If fog enabled...
 		{
-			world.ActorMap.TickFunction();
-
 			var map = world.Map;
-
 			if (map.Visibility.HasFlag(MapVisibility.Shellmap))
 				return;
 
-			var ShadowLayers = new CellLayer<CellLayer<byte>>(map);
+			world.ActorMap.TickFunction(); // TODO: Conditionally?
+
+			var ShadowLayers = new CellLayer<CellLayer<bool>>(map);
 
 			foreach (var fromUV in map.AllCells.MapCoords)
 			{
-				var shadowLayer = new CellLayer<byte>(map);
+				// var fromIndex = map.Tiles.Index(fromUV); // No definition of Index, also this is unnecessary - but why doesnt it work? Maybe it does now..
 
-				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 24, 25, false)) // TODO 25/25 works? Test later
+				var shadowLayer = new CellLayer<bool>(map);
+
+				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 1, 15, true)) // 1/25?
 				{
 					MPos toUV = tilePos.ToMPos(map);
+					// var toIndex = map.Tiles.Index(toUV); // No definition of Index, also this is unnecessary - but why doesnt it work? Maybe it does now..
 
 					if (BlocksSight.AnyBlockingActorsBetween(world, fromUV.ToWPos(map), toUV.ToWPos(map), new WDist(1), out WPos hit, null, false))
 					{
-						shadowLayer[toUV] = (byte)1;
+						shadowLayer[toUV] = true;
 					}
 					else
 					{
-						shadowLayer[toUV] = (byte)2;
+						shadowLayer[toUV] = false;
 					}
 				}
 

@@ -1,7 +1,22 @@
 
 Ongoing
 
-    ShadowCaster
+    Shadow casting
+
+        Parts
+
+            - SpawnMapActors
+                - Facilitates SetShadows, that calculates the ShadowLayers
+                - Gets called when map actors are spawed for now
+                - Improvement: Calculate when saving map?
+                - Or: Calculate on the fly but only where its needed, and cache it.
+            - Map.ShadowLayers, stores all tiles and which other tiles are shadowed from each
+            - AddSource()
+                - Uses Shadowlayers to
+                - Reduces vision strength of the shadowed projectedCells of visibilityCount
+                - Based on actor location
+
+
 
         - Cast shadows behind trees and buildings.
 

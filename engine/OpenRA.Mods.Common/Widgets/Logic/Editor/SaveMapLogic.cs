@@ -75,7 +75,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		[ObjectCreator.UseCtor]
 		public SaveMapLogic(Widget widget, ModData modData, Action<string> onSave, Action onExit,
-			World world, Map map, List<MiniYamlNode> playerDefinitions, List<MiniYamlNode> actorDefinitions, List<MiniYamlNode> shadowLayersDefinitions)
+			World world, Map map, List<MiniYamlNode> playerDefinitions, List<MiniYamlNode> actorDefinitions)
 		{
 			var title = widget.Get<TextFieldWidget>("TITLE");
 			title.Text = map.Title;
@@ -204,9 +204,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				if (playerDefinitions != null)
 					map.PlayerDefinitions = playerDefinitions;
-
-				if (shadowLayersDefinitions != null)
-					map.ShadowLayersDefinitions = shadowLayersDefinitions;
 
 				map.RequiresMod = modData.Manifest.Id;
 

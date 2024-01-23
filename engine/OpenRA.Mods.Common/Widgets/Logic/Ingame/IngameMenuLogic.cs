@@ -457,8 +457,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				var playerDefinitions = editorActorLayer.Players.ToMiniYaml();
 
-				var shadowLayersDefinitions = world.Map.ShadowLayersToMiniYaml();
-
 				var playerCount = new MapPlayers(playerDefinitions).Players.Count;
 				if (playerCount > MapPlayers.MaximumPlayerCount)
 				{
@@ -479,7 +477,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{ "world", world },
 					{ "map", world.Map },
 					{ "playerDefinitions", playerDefinitions },
-					{ "shadowLayersDefinitions", shadowLayersDefinitions },
 					{ "actorDefinitions", editorActorLayer.Save() }
 				});
 			};

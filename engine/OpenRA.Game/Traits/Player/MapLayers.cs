@@ -204,7 +204,9 @@ namespace OpenRA.Traits
 						}
 					}
 
-					if (visibility == 0)
+					// Tick function. TODO
+
+					if (visibility <= 0)
 						visibility = 1;
 				}
 
@@ -212,7 +214,9 @@ namespace OpenRA.Traits
 				var oldResolvedVisibility = ResolvedVisibility[index];
 				if (visibility != oldResolvedVisibility || disabledChanged)
 				{
+
 					ResolvedVisibility[index] = visibility;
+
 					var puv = touched.PPosFromIndex(index);
 
 					if (map.Contains(puv))
@@ -264,12 +268,14 @@ namespace OpenRA.Traits
 			return ProjectedCellsInRange(map, map.CenterOfCell(cell), WDist.Zero, range, maxHeightDelta);
 		}
 
-		public void AddSource(IAffectsMapLayer mapLayer, int strength, PPos[] projectedCells)
+		public void AddSource(IAffectsMapLayer mapLayer, int strength, PPos[] projectedCells, Actor self = null)
 		{
 			if (sources.ContainsKey(mapLayer))
 				throw new InvalidOperationException("Attempting to add duplicate shroud source");
 
 			sources[mapLayer] = new VisionSource(strength, projectedCells);
+
+			var selfPosIndex = self.Location.ToMPos(map);
 
 			foreach (var puv in projectedCells)
 			{
@@ -278,6 +284,13 @@ namespace OpenRA.Traits
 					continue;
 
 				var index = touched.Index(puv);
+
+				if(map.ShadowLayers != null && map.ShadowLayers[selfPosIndex][(MPos)puv] == true)
+					strength = strength - 5;
+
+				if (strength < 0)
+					strength = 0;
+
 				touched[index] = true;
 				anyCellTouched = true;
 
@@ -497,6 +510,8 @@ namespace OpenRA.Traits
 				{
 					byte resolved = (byte)ResolvedVisibility[puv];
 					byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+
+					// byte shadows = (byte)map.ShadowLayer[(MPos)puv];
 
 					//
 

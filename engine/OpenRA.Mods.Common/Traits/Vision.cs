@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.MapLayers.AddSource(this, info.Strength, uv);
+			p.MapLayers.AddSource(this, info.Strength, uv, self);
 		}
 
 		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayers.RemoveSource(this); }

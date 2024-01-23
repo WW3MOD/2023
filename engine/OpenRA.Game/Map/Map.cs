@@ -158,7 +158,6 @@ namespace OpenRA
 		/// <summary>Defines the order of the fields in map.yaml</summary>
 		static readonly MapField[] YamlFields =
 		{
-			new MapField("ShadowLayers", "ShadowLayersDefinitions", required: false),
 			new MapField("MapFormat"),
 			new MapField("RequiresMod"),
 			new MapField("Title"),
@@ -199,7 +198,6 @@ namespace OpenRA
 		public int2 MapSize { get; private set; }
 
 		// Player and actor yaml. Public for access by the map importers and lint checks.
-		public List<MiniYamlNode> ShadowLayersDefinitions = new List<MiniYamlNode>();
 		public List<MiniYamlNode> PlayerDefinitions = new List<MiniYamlNode>();
 		public List<MiniYamlNode> ActorDefinitions = new List<MiniYamlNode>();
 
@@ -241,7 +239,7 @@ namespace OpenRA
 		public CellLayer<byte> Ramp { get; private set; }
 		public CellLayer<byte> CustomTerrain { get; private set; }
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
-		public CellLayer<CellLayer<byte>> ShadowLayers { get; set; }
+		public CellLayer<CellLayer<bool>> ShadowLayers { get; set; }
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
@@ -368,7 +366,6 @@ namespace OpenRA
 			if (MapFormat < SupportedMapFormat)
 				throw new InvalidDataException($"Map format {MapFormat} is not supported.\n File: {package.Name}");
 
-			ShadowLayersDefinitions = MiniYaml.NodesOrEmpty(yaml, "ShadowLayers");
 			PlayerDefinitions = MiniYaml.NodesOrEmpty(yaml, "Players");
 			ActorDefinitions = MiniYaml.NodesOrEmpty(yaml, "Actors");
 
@@ -1442,42 +1439,6 @@ namespace OpenRA
 				return message;
 
 			return modData.Translation.GetString(key, args);
-		}
-
-		public List<MiniYamlNode> ShadowLayersToMiniYaml()
-		{
-			var shadowLayersList = new List<MiniYamlNode>(); // A list of all cells and their lists
-
-			// foreach (var layer in ShadowLayers) // For each of those
-			// {
-			// 	var surroundingTiles = new List<MiniYamlNode>(); // Create an inner list to be filled with surrounding tiles
-
-			// 	foreach (var l in layer) // For each of the surrounding cells
-			// 	{
-			// 		new MiniYamlNode("Squads", "", Squads.Select(s => new MiniYamlNode("Squad", s.Serialize())).ToList()),
-
-			// 		var worldNode = new MiniYamlNode(l, new MiniYaml("", new List<MiniYamlNode>()));
-			// 		surroundingTiles.Add(new MiniYamlNode("ShadowLayers", new MiniYaml("", new List<MiniYamlNode>())));
-			// 		worldNode.Value.Nodes.Add(missionData);
-			// 	}
-
-			// 	shadowLayersList.Add(new MiniYamlNode("ShadowLayers", new MiniYaml("", new List<MiniYamlNode>())));
-			// }
-
-
-			var s = ShadowLayers;
-
-			// return ShadowLayers.Select(p => new MiniYamlNode("ShadowLayer",
-			// 	FieldSaver.SaveDifferences(p, new CellLayer<CellLayer<byte>>(this)))).ToList();
-
-			return ShadowLayers.Select(p => new MiniYamlNode("ShadowLayer", new MiniYaml("", new List<MiniYamlNode>()))).ToList();
-
-			// var shadowLayersNode = new MiniYamlNode("ShadowLayers", new MiniYaml("", new List<MiniYamlNode>()));
-
-			// return shadowLayersList;
-
-			// return ShadowLayers.Select(s => new MiniYamlNode($"ShadowLayers@1",
-			// 	FieldSaver.SaveDifferences(s.Value, ShadowLayers))).ToList();
 		}
 	}
 }
