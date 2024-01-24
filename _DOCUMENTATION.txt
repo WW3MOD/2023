@@ -1,0 +1,19 @@
+
+Ongoing
+
+    Shadow casting
+
+        Besides the classic Shroud, units can now hide behind actors spawned by SpawnMapActors that has the BlocksSight trait.
+
+        - SpawnMapActors
+            - Facilitates SetShadows, that calculates the ShadowLayers
+            - Gets called when map actors are spawed for now
+            - Improvement: Calculate when saving map?
+            - Or: Calculate on the fly but only where its needed, and cache it.
+
+        - Map
+            - ShadowLayers stores all tiles and caches which tiles from that location will be shadowed.
+
+        - AddSource()
+
+        - RemoveSource()
