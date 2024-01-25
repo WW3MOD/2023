@@ -310,15 +310,6 @@ namespace OpenRA.Traits
 					continue;
 
 				var index = touched.Index(puv);
-				var shadowModify = 0;
-
-				if(selfLocation != MPos.Zero && map.ShadowLayers != null && map.ShadowLayers[selfLocation][(MPos)puv] == true)
-					shadowModify = ShadowModify;
-
-				var modifiedStrength = strength - shadowModify;
-
-				if (modifiedStrength < 1)
-					modifiedStrength = 1;
 
 				touched[index] = true;
 				anyCellTouched = true;
@@ -328,23 +319,28 @@ namespace OpenRA.Traits
 
 				if (mapLayer.Type == Type.Vision)
 				{
+					var shadowModify = 0;
+
+					if(map.ShadowLayers != null)
+						shadowModify = map.ShadowLayers[selfLocation][(MPos)puv];
+
+					var modifiedStrength = strength - shadowModify;
+
+					if (modifiedStrength < 1)
+						modifiedStrength = 1;
+
 					visibilityCount[index][modifiedStrength]++;
 
 					if (strength > 0)
 						explored[index] = true;
+
+					visionSourceNodes[i] = new VisionSourceNode(modifiedStrength, puv);
 				}
 				else if (mapLayer.Type == Type.Radar)
 				{
 					radarCount[index]++;
 				}
 
-				/* if (visibility == 0)
-				{
-					shroudGenerationEnabled = true;
-					generatedShroudCount[index]++;
-				} */
-
-				visionSourceNodes[i] = new VisionSourceNode(modifiedStrength, puv);
 				i++;
 			}
 
@@ -355,8 +351,6 @@ namespace OpenRA.Traits
 		{
 			if (!sources.TryGetValue(mapLayer, out var source))
 				return;
-
-			var shadowModify = 0;
 
 			foreach (var node in source.VisionSourceNodes)
 			{
@@ -371,9 +365,6 @@ namespace OpenRA.Traits
 					var index = touched.Index(puv);
 					touched[index] = true;
 					anyCellTouched = true;
-
-					if(map.ShadowLayers != null && map.ShadowLayers[((MPos)source.Origin).ToCPos(map)][(MPos)puv] == true)
-						shadowModify = ShadowModify;
 
 					if (mapLayer.Type == Type.Vision)
 					{

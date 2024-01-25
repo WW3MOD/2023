@@ -48,10 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface IBlocksSight
 	{
-		WDist BlockingHeight { get; }
-		int Bypass { get; }
-
-		PlayerRelationship ExplodesOn { get; }
+		byte Density { get; }
 	}
 
 	[RequireExplicitImplementation]

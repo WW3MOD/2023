@@ -1,1029 +1,3 @@
-ShadowLayers:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-	ShadowLayer:
-
 MapFormat: 12
 
 RequiresMod: ww3mod
@@ -1120,27 +94,6 @@ Actors:
 	Actor19: tc05
 		Owner: Neutral
 		Location: 16,17
-	Actor20: tc05
-		Owner: Neutral
-		Location: 11,13
-	Actor21: tc05
-		Owner: Neutral
-		Location: 9,11
-	Actor22: tc05
-		Owner: Neutral
-		Location: 7,9
-	Actor23: tc05
-		Owner: Neutral
-		Location: 5,6
-	Actor24: tc05
-		Owner: Neutral
-		Location: 3,5
-	Actor25: tc05
-		Owner: Neutral
-		Location: 2,3
-	Actor26: tc05
-		Owner: Neutral
-		Location: 1,1
 	Actor27: tc05
 		Owner: Neutral
 		Location: 2,26
@@ -1189,3 +142,111 @@ Actors:
 	Actor42: mpspawn
 		Owner: Neutral
 		Location: 5,16
+	Actor43: t10
+		Owner: Neutral
+		Location: 10,11
+	Actor44: t10
+		Owner: Neutral
+		Location: 10,8
+	Actor45: t10
+		Owner: Neutral
+		Location: 10,5
+	Actor46: t10
+		Owner: Neutral
+		Location: 10,2
+	Actor47: t10
+		Owner: Neutral
+		Location: 10,0
+	Actor48: t10
+		Owner: Neutral
+		Location: 9,5
+	Actor49: t10
+		Owner: Neutral
+		Location: 8,5
+	Actor50: t10
+		Owner: Neutral
+		Location: 7,5
+	Actor51: t10
+		Owner: Neutral
+		Location: 6,5
+	Actor52: t10
+		Owner: Neutral
+		Location: 5,5
+	Actor53: t10
+		Owner: Neutral
+		Location: 4,5
+	Actor54: t10
+		Owner: Neutral
+		Location: 3,5
+	Actor55: t10
+		Owner: Neutral
+		Location: 2,5
+	Actor56: t10
+		Owner: Neutral
+		Location: 1,5
+	Actor57: t10
+		Owner: Neutral
+		Location: 9,8
+	Actor58: t10
+		Owner: Neutral
+		Location: 8,8
+	Actor59: t10
+		Owner: Neutral
+		Location: 7,8
+	Actor60: t10
+		Owner: Neutral
+		Location: 6,8
+	Actor61: t10
+		Owner: Neutral
+		Location: 9,11
+	Actor62: t10
+		Owner: Neutral
+		Location: 8,11
+	Actor63: t10
+		Owner: Neutral
+		Location: 9,2
+	Actor64: t10
+		Owner: Neutral
+		Location: 8,2
+	Actor65: t10
+		Owner: Neutral
+		Location: 7,2
+	Actor66: t10
+		Owner: Neutral
+		Location: 6,2
+	Actor67: t10
+		Owner: Neutral
+		Location: 5,2
+	Actor68: t10
+		Owner: Neutral
+		Location: 4,2
+	Actor69: t10
+		Owner: Neutral
+		Location: 15,1
+	Actor70: t10
+		Owner: Neutral
+		Location: 15,2
+	Actor71: t10
+		Owner: Neutral
+		Location: 15,3
+	Actor72: t10
+		Owner: Neutral
+		Location: 15,4
+	Actor73: t10
+		Owner: Neutral
+		Location: 15,5
+	Actor74: t10
+		Owner: Neutral
+		Location: 15,6
+	Actor75: t10
+		Owner: Neutral
+		Location: 15,7
+	Actor76: t10
+		Owner: Neutral
+		Location: 15,8
+	Actor77: t10
+		Owner: Neutral
+		Location: 15,9
+	Actor78: t10
+		Owner: Neutral
+		Location: 15,10

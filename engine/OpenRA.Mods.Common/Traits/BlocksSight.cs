@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -19,10 +20,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly WDist Height = WDist.Zero;
 
-		public readonly int Bypass = 0;
-
-		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
-		public readonly PlayerRelationship ExplodesOn = PlayerRelationship.Enemy;
+		[Desc("Percentage of sight looking through this actor should remove")]
+		public readonly byte Density = 100;
 
 		public WDist? HitShapeHeight;
 
@@ -54,17 +53,11 @@ namespace OpenRA.Mods.Common.Traits
 	public class BlocksSight : ConditionalTrait<BlocksSightInfo>, IBlocksSight
 	{
 		public BlocksSight(BlocksSightInfo info)
-			: base(info)
-			{ }
+			: base(info) { }
 
-		// The result of the expression is always 'true' since a value of type 'WDist' is never equal to 'null' of type 'WDist?'
-		// WDist IBlocksSight.BlockingHeight => Info.HitShapeHeight.Value;
-		WDist IBlocksSight.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight.Value : Info.Height;
-		int IBlocksSight.Bypass { get { return Info.Bypass; } }
+		byte IBlocksSight.Density { get { return Info.Density; } }
 
-		PlayerRelationship IBlocksSight.ExplodesOn { get { return Info.ExplodesOn; } }
-
-		public static bool AnyBlockingActorAt(World world, WPos pos)
+		/* public static bool AnyBlockingActorAt(World world, WPos pos)
 		{
 			var dat = world.Map.DistanceAboveTerrain(pos);
 
@@ -72,41 +65,18 @@ namespace OpenRA.Mods.Common.Traits
 				.Any(a => a.TraitsImplementing<IBlocksSight>()
 					.Where(t => t.BlockingHeight > dat)
 					.Any(Exts.IsTraitEnabled));
+		} */
+
+		public static List<Actor> BlockingActorsBetween(Actor self, WPos end, WDist width)
+		{
+			return BlockingActorsBetween(self.World, self.CenterPosition, end, width);
 		}
 
-		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit)
+		public static List<Actor> BlockingActorsBetween(World world, WPos start, WPos end, WDist width)
 		{
-			return AnyBlockingActorsBetween(self.World, self.CenterPosition, end, width, out hit);
-		}
+			var actors = world.FindActorsOnLine(start, end, width).ToList();
 
-		public static bool AnyBlockingActorsBetween(World world, WPos start, WPos end, WDist width, out WPos hit)
-		{
-			// var actors = world.FindBlockingActorsOnLine(start, end, width);
-			var actors = world.FindActorsOnLine(start, end, width);
-			var length = (end - start).Length;
-
-			foreach (var a in actors)
-			{
-				var blockers = a.TraitsImplementing<IBlocksSight>()
-					.ToList();
-
-				if (blockers.Count == 0)
-					continue;
-
-				var hitPos = WorldExtensions.MinimumPointLineProjection(start, end, a.CenterPosition);
-				var dat = world.Map.DistanceAboveTerrain(hitPos);
-
-				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
-
-				if ((hitPos - start).Length < length && blockers.Any(t => t.BlockingHeight > dat))
-				{
-					hit = hitPos;
-					return true;
-				}
-			}
-
-			hit = WPos.Zero;
-			return false;
+			return actors.Where(a => a.TraitsImplementing<IBlocksSight>().Count() > 0).ToList();
 		}
 	}
 }

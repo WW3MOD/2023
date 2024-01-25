@@ -3,7 +3,9 @@
 	Inherits@1: ^SpriteActor
 	Inherits@Shape: ^1x1Shape
 	Inherits@FireMechanic: ^BuildingAffectedByFire
+	CombatDebugOverlay:
 	BlocksSight:
+		Density: 10
 	BlocksProjectiles:
 		Bypass: 1
 		Height: 256

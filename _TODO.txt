@@ -9,7 +9,36 @@ Ongoing
 
     Shadow casting
 
-        Parts
+        Density
+
+            - Block not based on actor hitshape, as Density can vary for each tile for multi-tile actors
+                - We also need to make shadows dissipate, slightly, with distance. An actor hiding right behind a tree should be more shadowed than one far behind.
+                    - Though, this depends on the density. For 100% density it doesn't dissipate at all.
+
+            - One idea is to define multiple hitshapes for the actor and set a density for each of those.
+                - Means we can keep using BlocksProjectiles code.
+                - Also has the benefit of being able to create more in depth blocking based on what the sprite actually shows.
+                    - But also makes it less predictable, the tiles are nice as it becomes more.. chess like, predictable for the player.
+                - But BlocksProjectiles needs updating too, as it currently uses Bypass which has the same problem with multi-tiles blockers.
+
+            - Instead define Density for each tile in the Building Footprint, and use it (unless overridden in the BlocksProjectile/Sight trait) to calculate blockers total density between origin and target.
+                - Use Footprint code to define a number from 0-100 for each tile.
+                - Create a new "TilesBetween" function,
+                    - then read what actor is on that tile,
+                    - and what Density that tile has if it is a BlocksSight actor.
+
+        TODO
+
+            - Building Footprint density
+
+
+
+            - TilesBetween function
+
+                Building.OccupiedTiles
+
+
+        Documentation
 
             - SpawnMapActors
                 - Facilitates SetShadows, that calculates the ShadowLayers

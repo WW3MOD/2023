@@ -239,7 +239,7 @@ namespace OpenRA
 		public CellLayer<byte> Ramp { get; private set; }
 		public CellLayer<byte> CustomTerrain { get; private set; }
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
-		public CellLayer<CellLayer<bool>> ShadowLayers { get; set; }
+		public CellLayer<CellLayer<byte>> ShadowLayers { get; set; }
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
