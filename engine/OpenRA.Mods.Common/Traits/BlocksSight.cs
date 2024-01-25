@@ -74,9 +74,9 @@ namespace OpenRA.Mods.Common.Traits
 					.Any(Exts.IsTraitEnabled));
 		}
 
-		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false)
+		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit)
 		{
-			return AnyBlockingActorsBetween(self.World, self.CenterPosition, end, width, out hit, self, checkRelationships); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
+			return AnyBlockingActorsBetween(self.World, self.CenterPosition, end, width, out hit);
 		}
 
 		public static bool AnyBlockingActorsBetween(World world, WPos start, WPos end, WDist width, out WPos hit)
