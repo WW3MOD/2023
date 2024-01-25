@@ -100,18 +100,25 @@ namespace OpenRA.Mods.Common.Traits
 			CurrentAmmoCount = (CurrentAmmoCount - count).Clamp(0, Info.Ammo);
 			UpdateCondition(self);
 
-			if (CurrentAmmoCount == 0)
+			/* if (CurrentAmmoCount == 0)
 			{
-				CheckAndAutoRearm(self);
-			}
+				AutoRearmIfAllEmpty(self);
+			} */
 
 			return true;
 		}
 
-		public void CheckAndAutoRearm(Actor self)
+		public void AutoRearmIfAllEmpty(Actor self)
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();
 			if (ammoPools.Any() && ammoPools.All(a => !a.HasAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
+				AutoRearm(self);
+		}
+
+		public void AutoRearmIfAnyNotFull(Actor self)
+		{
+			var ammoPools = self.TraitsImplementing<AmmoPool>();
+			if (ammoPools.Any() && ammoPools.Any(a => !a.HasFullAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
 				AutoRearm(self);
 		}
 
@@ -147,13 +154,13 @@ namespace OpenRA.Mods.Common.Traits
 				TakeAmmo(self, a.Info.AmmoUsage);
 
 				if (!HasAmmo && self.TraitOrDefault<IMove>() != null && !self.Info.HasTraitInfo<AircraftInfo>())
-					AutoRearm(self);
+					AutoRearmIfAllEmpty(self);
 			}
 		}
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
-			CheckAndAutoRearm(self);
+			AutoRearmIfAllEmpty(self);
 		}
 
 		public static void AutoRearm(Actor self)

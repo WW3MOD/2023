@@ -1,4 +1,6 @@
 
+if (modifiers.HasModifier(TargetModifiers.ForceMove))
+
 Ongoing
 
     Shadow casting

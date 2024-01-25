@@ -48,13 +48,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			{
 				var ammoPools = actor.TraitsImplementing<AmmoPool>();
 				if (ammoPools != null)
-					// foreach (var ammoPool in ammoPools)
-					var count = ammoPools.Count();
-					for (int i = 0; i < count; i++)
+				{
+					foreach (var ammoPool in ammoPools)
 					{
-						// ammoPool.CheckAndAutoRearm(actor);
-						OpenRA.Mods.Common.Traits.AmmoPool.AutoRearm(actor);
+						// OpenRA.Mods.Common.Traits.AmmoPool.AutoRearm(actor);
+						ammoPool.AutoRearmIfAnyNotFull(actor);
 					}
+				}
 			}
 
 			return true;
