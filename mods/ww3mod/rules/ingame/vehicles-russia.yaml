@@ -807,8 +807,8 @@ iskander:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 650
-			TopLeft: -300, -1270
-			BottomRight: 300, 1270
+			TopLeft: -300, -1170
+			BottomRight: 300, 1170
 	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
