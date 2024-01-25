@@ -480,12 +480,11 @@ namespace OpenRA
 			}
 
 			// Read terrain type and set layer of adjusted visual for the coordiate.
-
 			ModifyVisualLayer = new CellLayer<byte>(this);
 			foreach (var uv in AllCells.MapCoords)
 			{
 				var tile = Tiles[uv];
-				var terrainType = this.GetTerrainInfo(uv.ToCPos(this)).Type;
+				var terrainType = GetTerrainInfo(uv.ToCPos(this)).Type;
 
 				byte terrainTypeModifier = 0;
 				switch (terrainType)

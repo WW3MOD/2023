@@ -129,6 +129,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				return target.FrozenActor.Actor;
 			}
+
 			return target.Actor;
 		}
 
@@ -175,11 +176,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (order.OrderString != "EnterTransport")
 				return;
-
-			// Enter orders are only valid for own/allied actors,
-			// which are guaranteed to never be frozen.
-			// if (order.Target.Type != TargetType.Actor)
-			// 	return;
 
 			var targetActor = GetActor(order.Target);
 			if (!CanEnter(targetActor))

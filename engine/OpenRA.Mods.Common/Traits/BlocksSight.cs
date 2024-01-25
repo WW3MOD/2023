@@ -79,18 +79,14 @@ namespace OpenRA.Mods.Common.Traits
 			return AnyBlockingActorsBetween(self.World, self.CenterPosition, end, width, out hit, self, checkRelationships); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
 		}
 
-		public static bool AnyBlockingActorsBetween(World world, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false)
+		public static bool AnyBlockingActorsBetween(World world, WPos start, WPos end, WDist width, out WPos hit)
 		{
 			// var actors = world.FindBlockingActorsOnLine(start, end, width);
 			var actors = world.FindActorsOnLine(start, end, width);
 			var length = (end - start).Length;
-			var totalBypassed = 0;
 
 			foreach (var a in actors)
 			{
-				if (a == self)
-					continue;
-
 				var blockers = a.TraitsImplementing<IBlocksSight>()
 					.ToList();
 
@@ -101,11 +97,6 @@ namespace OpenRA.Mods.Common.Traits
 				var dat = world.Map.DistanceAboveTerrain(hitPos);
 
 				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
-				// if (isBlocking != null && isBlocking.Bypass > 0 && totalBypassed < isBlocking.Bypass)
-				// {
-				// 	totalBypassed += 1;
-				// 	continue;
-				// }
 
 				if ((hitPos - start).Length < length && blockers.Any(t => t.BlockingHeight > dat))
 				{
@@ -116,33 +107,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			hit = WPos.Zero;
 			return false;
-
-			// var actors = world.FindBlockingActorsOnLine(start, end, width);
-			// var length = (end - start).Length;
-
-			// foreach (var a in actors)
-			// {
-			// 	if (a == self)
-			// 		continue;
-
-			// 	var blockers = a.TraitsImplementing<IBlocksSight>()
-			// 		.ToList();
-
-			// 	if (blockers.Count == 0)
-			// 		continue;
-
-			// 	var hitPos = WorldExtensions.MinimumPointLineProjection(start, end, a.CenterPosition);
-			// 	var dat = world.Map.DistanceAboveTerrain(hitPos);
-
-			// 	if ((hitPos - start).Length < length && blockers.Any(t => t.BlockingHeight > dat))
-			// 	{
-			// 		hit = hitPos;
-			// 		return true;
-			// 	}
-			// }
-
-			// hit = WPos.Zero;
-			// return false;
 		}
 	}
 }

@@ -63,22 +63,21 @@ namespace OpenRA.Mods.Common.Traits
 			if (map.Visibility.HasFlag(MapVisibility.Shellmap))
 				return;
 
-			world.ActorMap.TickFunction(); // TODO: Conditionally?
+			// TODO: Conditionally?
+			world.ActorMap.TickFunction();
 
 			var ShadowLayers = new CellLayer<CellLayer<bool>>(map);
 
 			foreach (var fromUV in map.AllCells.MapCoords)
 			{
 				// var fromIndex = map.Tiles.Index(fromUV); // No definition of Index, also this is unnecessary - but why doesnt it work? Maybe it does now..
-
 				var shadowLayer = new CellLayer<bool>(map);
 
 				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 2, 29, true))
 				{
 					MPos toUV = tilePos.ToMPos(map);
 					// var toIndex = map.Tiles.Index(toUV); // No definition of Index, also this is unnecessary - but why doesnt it work? Maybe it does now..
-
-					if (BlocksSight.AnyBlockingActorsBetween(world, fromUV.ToWPos(map), toUV.ToWPos(map), new WDist(1), out WPos hit, null, false))
+					if (BlocksSight.AnyBlockingActorsBetween(world, fromUV.ToWPos(map), toUV.ToWPos(map), new WDist(1), out WPos hit))
 					{
 						shadowLayer[toUV] = true;
 					}

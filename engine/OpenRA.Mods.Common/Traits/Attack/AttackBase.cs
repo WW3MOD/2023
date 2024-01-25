@@ -243,8 +243,6 @@ namespace OpenRA.Mods.Common.Traits
 			// PERF: Avoid LINQ.
 			foreach (var armament in Armaments)
 			{
-				// return true;
-
 				var checkIsValid = checkForCenterTargetingWeapons ? armament.Weapon.TargetActorCenter : !armament.IsTraitPaused;
 				var reloadingStateIsValid = !reloadingIsInvalid || !armament.IsReloading;
 				if (checkIsValid && reloadingStateIsValid && !armament.IsTraitDisabled && armament.Weapon.IsValidAgainst(t, self.World, self))
@@ -476,9 +474,6 @@ namespace OpenRA.Mods.Common.Traits
 				// FF TODO, What if unit has both arm with and without ammopool? Seems to work
 				if (armaments.All(armament => armament.AmmoPool != null && !armament.AmmoPool.HasAmmo))
 					return false;
-				// OLD, caused problems with units that does not have ammopool
-				// if (!armaments.Any(armament => armament.AmmoPool != null && armament.AmmoPool.HasAmmo))
-				// 	return false;
 
 				var outOfRange = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
 					(!forceAttack && target.Type == TargetType.FrozenActor && !ab.Info.TargetFrozenActors);

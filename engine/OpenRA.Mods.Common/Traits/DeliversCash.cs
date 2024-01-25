@@ -96,7 +96,6 @@ namespace OpenRA.Mods.Common.Traits
 					var div = 100F / (100 - handicap);
 					amount = (int)(amount * div);
 				}
-
 			}
 
 			self.QueueActivity(order.Queued, new DonateCash(self, order.Target, amount, info.PlayerExperience, info.TargetLineColor));

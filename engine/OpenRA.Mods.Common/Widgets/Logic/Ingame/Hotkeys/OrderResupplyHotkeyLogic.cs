@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
 using OpenRA.Mods.Common.Traits;
@@ -23,7 +22,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 	public class OrderResupplyHotkeyLogic : SingleHotkeyBaseLogic
 	{
 		readonly World world;
-		readonly WorldRenderer worldRenderer;
 		readonly ISelection selection;
 
 		public readonly string ClickSound = ChromeMetrics.Get<string>("ClickSound");
@@ -34,7 +32,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			: base(widget, modData, "OrderResupplyKey", "WORLD_KEYHANDLER", logicArgs)
 		{
 			this.world = world;
-			this.worldRenderer = worldRenderer;
 			selection = world.Selection;
 		}
 
@@ -51,7 +48,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			{
 				var ammoPools = actor.TraitsImplementing<AmmoPool>();
 				if (ammoPools != null)
-					foreach (var ammoPool in ammoPools)
+					// foreach (var ammoPool in ammoPools)
+					for (int i = 0; i < ammoPools.Count(); i++)
 					{
 						// ammoPool.CheckAndAutoRearm(actor);
 						OpenRA.Mods.Common.Traits.AmmoPool.AutoRearm(actor);
@@ -59,65 +57,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			}
 
 			return true;
-
-			// var modifiers = Game.GetModifierKeys()
-
-			// if (!selectionToOrder.Any()) // or any modifiers
-			// {
-			// 	TextNotificationsManager.AddFeedbackLine("Nothing selected.");
-			// 	Game.Sound.PlayNotification(world.Map.Rules, world.LocalPlayer, "Sounds", ClickDisabledSound, null);
-
-			// 	var eligiblePlayers = SelectionUtils.GetPlayersToIncludeInSelection(world);
-
-			// 	// Select actors on the screen which belong to the current player(s)
-			// 	selectionToOrder = SelectionUtils.SelectActorsOnScreen(world, worldRenderer, null, eligiblePlayers).SubsetWithHighestSelectionPriority(e.Modifiers).ToList();
-
-			// }
-
-			// var eligiblePlayers = SelectionUtils.GetPlayersToIncludeInSelection(world);
-
-
-
-
-			// var ownedActors = selection.Actors
-			// 	.Where(x => !x.IsDead && eligiblePlayers.Contains(x.Owner))
-			// 	.ToList();
-
-			// if (ownedActors.Count == 0)
-			// 	return false;
-
-			// // Get all the selected actors' selection classes
-			// var selectedClasses = ownedActors
-			// 	.Select(a => a.Trait<ISelectable>().Class)
-			// 	.ToHashSet();
-
-			// // Select actors on the screen that have the same selection class as one of the already selected actors
-			// var newSelection = SelectionUtils.SelectActorsOnScreen(world, worldRenderer, selectedClasses, eligiblePlayers).ToList();
-
-			// // Check if selecting actors on the screen has selected new units
-			// if (newSelection.Count > selection.Actors.Count())
-			// {
-			// 	if (newSelection.Count > 1)
-			// 		TextNotificationsManager.AddFeedbackLine($"Selected {newSelection.Count} units across screen.");
-			// 	else
-			// 		TextNotificationsManager.AddFeedbackLine("Selected one unit across screen.");
-			// }
-			// else
-			// {
-			// 	// Select actors in the world that have the same selection class as one of the already selected actors
-			// 	newSelection = SelectionUtils.SelectActorsInWorld(world, selectedClasses, eligiblePlayers).ToList();
-
-			// 	if (newSelection.Count > 1)
-			// 		TextNotificationsManager.AddFeedbackLine($"Selected {newSelection.Count} units across map.");
-			// 	else
-			// 		TextNotificationsManager.AddFeedbackLine("Selected one unit across map.");
-			// }
-
-			// selection.Combine(world, newSelection, true, false);
-
-			// Game.Sound.PlayNotification(world.Map.Rules, world.LocalPlayer, "Sounds", ClickSound, null);
-
-			// return true;
 		}
 	}
 }

@@ -11,7 +11,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -109,12 +108,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (skipTriggerUpdate || !CanBeCapturedBy(other))
 				return;
 
-			if (other.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Ally) {
+			if (other.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Ally)
 				friendlyActorsInRange.Add(other);
-			}
-			else {
+			else
 				enemyActorsInRange.Add(other);
-			}
 
 			UpdateOwnership();
 		}
@@ -124,12 +121,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (skipTriggerUpdate || !CanBeCapturedBy(other))
 				return;
 
-			if (other.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Ally) {
+			if (other.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Ally)
 				friendlyActorsInRange.Remove(other);
-			}
-			else {
+			else
 				enemyActorsInRange.Remove(other);
-			}
 
 			UpdateOwnership();
 		}
@@ -180,7 +175,8 @@ namespace OpenRA.Mods.Common.Traits
 					else if (Self.Owner != enemyCaptor.Owner && isClear)
 						ChangeOwnership(Self, enemyCaptor);
 				}
-				else // if (Self.Owner != enemyCaptor.Owner)
+				// if (Self.Owner != enemyCaptor.Owner)
+				else
 				{
 					if (Info.Dominance > 0)
 					{
