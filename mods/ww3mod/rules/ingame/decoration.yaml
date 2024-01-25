@@ -327,13 +327,6 @@ TC03:
 	Tooltip:
 		Name: TC03
 		ShowOwnerRow: false
-	# WithRangeCircle@CENTER:
-	# 	Visible: Always
-	# 	Width: 2
-	# 	Alpha: 80
-	# 	Range: 128
-	# 	Color: 11FF11AA
-	# 	ValidRelationships: Neutral, Ally, Enemy
 TC04:
 	Inherits: ^Tree
 	Building:
@@ -358,13 +351,6 @@ TC05:
 	Tooltip:
 		Name: TC05
 		ShowOwnerRow: false
-	# WithRangeCircle@CENTER:
-	# 	Visible: Always
-	# 	Width: 2
-	# 	Alpha: 80
-	# 	Range: 128
-	# 	Color: 11FF11AA
-	# 	ValidRelationships: Neutral, Ally, Enemy
 
 AMMOBOX1:
 	Inherits: ^AmmoBox

@@ -118,12 +118,6 @@
 		Condition: object-proximity
 		Range: 384
 		ValidRelationships: Neutral, Ally, Enemy
-	# WithRangeCircle@ObjectProximity:
-	# 	Range: 1c0
-	# 	Alpha: 50
-	# 	Visible: Always
-	# 	ValidRelationships: Neutral, Ally, Enemy
-
 T01.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -134,9 +128,6 @@ T01.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: 0,650,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: 0,650,0
-	# 	Range: 182
 T02.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -147,9 +138,6 @@ T02.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -550,760,0
 		Range: 256
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -550,760,0
-	# 	Range: 256
 T03.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -160,9 +148,6 @@ T03.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -512,768,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -512,768,0
-	# 	Range: 182
 T04.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -173,9 +158,6 @@ T04.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -512,768,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -512,768,0
-	# 	Range: 182
 T05.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -186,9 +168,6 @@ T05.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -400,450,0
 		Range: 256
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -400,450,0
-	# 	Range: 256
 T06.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -199,9 +178,6 @@ T06.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -320,550,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -320,550,0
-	# 	Range: 182
 T07.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -212,9 +188,6 @@ T07.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -350,680,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -350,680,0
-	# 	Range: 182
 T08.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -223,9 +196,6 @@ T08.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -180,100,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -180,100,0
-	# 	Range: 182
 T09.Husk:
 	Inherits: ^TreeHusk
 	MapEditorData:
@@ -233,9 +203,6 @@ T09.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -180,100,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -180,100,0
-	# 	Range: 182
 T10.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -246,9 +213,6 @@ T10.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: 30,680,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: 30,680,0
-	# 	Range: 182
 T11.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -259,9 +223,6 @@ T11.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -50,650,0
 		Range: 256
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -50,650,0
-	# 	Range: 256
 T12.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -272,9 +233,6 @@ T12.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -350,512,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -350,512,0
-	# 	Range: 182
 T13.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -285,9 +243,6 @@ T13.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -200,650,0
 		Range: 256
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -200,650,0
-	# 	Range: 256
 T14.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -298,9 +253,6 @@ T14.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -165,700,0
 		Range: 182
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -165,700,0
-	# 	Range: 182
 T15.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -311,9 +263,6 @@ T15.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -50,750,0
 		Range: 256
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -50,750,0
-	# 	Range: 256
 T16.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -324,9 +273,6 @@ T16.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -500,460,0
 		Range: 256
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -500,460,0
-	# 	Range: 256
 T17.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -337,9 +283,6 @@ T17.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -256,650,0
 		Range: 200
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -256,650,0
-	# 	Range: 200
 TC01.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -350,9 +293,6 @@ TC01.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -530,480,0
 		Range: 450
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -530,480,0
-	# 	Range: 450
 TC02.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -362,15 +302,6 @@ TC02.Husk:
 		ExcludeTilesets: DESERT, INTERIOR
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -350,350,0
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -350,350,0
-	# WithRangeCircle@CENTER:
-	# 	Visible: Always
-	# 	Width: 2
-	# 	Alpha: 80
-	# 	Range: 128
-	# 	Color: 11FF11AA
-	# 	ValidRelationships: Neutral, Ally, Enemy
 TC03.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -378,13 +309,6 @@ TC03.Husk:
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
-	# WithRangeCircle@CENTER:
-	# 	Visible: Always
-	# 	Width: 2
-	# 	Alpha: 80
-	# 	Range: 128
-	# 	Color: 11FF11AA
-	# 	ValidRelationships: Neutral, Ally, Enemy
 TC04.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -395,9 +319,6 @@ TC04.Husk:
 	ProximityExternalCondition@ObjectProximity:
 		Offset: -512,64,0
 		Range: 640
-	# WithRangeCircle@1_OBJECTPROXIMITY:
-	# 	Offset: -512,64,0
-	# 	Range: 640
 TC05.Husk:
 	Inherits: ^TreeHusk
 	Building:
@@ -405,10 +326,3 @@ TC05.Husk:
 		Dimensions: 4,3
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
-	# WithRangeCircle@CENTER:
-	# 	Visible: Always
-	# 	Width: 2
-	# 	Alpha: 80
-	# 	Range: 128
-	# 	Color: 11FF11AA
-	# 	ValidRelationships: Neutral, Ally, Enemy
