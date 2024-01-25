@@ -43,13 +43,13 @@ btr:
 		Speed: 110
 		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 10
-	Armament@MG:
+	Armament@1:
 		Name: primary
 		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
-	AmmoPool@MG:
+	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 500
@@ -57,13 +57,17 @@ btr:
 		FullReloadTicks: 300
 		FullReloadSteps: 6
 		RearmSound: minelay1.aud
-	WithAmmoPipsDecoration@MG:
+	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
 		PipCount: 5
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Alpha: 100
+		Color: FFFF00
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -87,9 +91,6 @@ btr:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	RenderRangeCircle:
-		Alpha: 100
-		Color: FFFF00
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -166,6 +167,10 @@ bmp2:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Alpha: 100
 	Armament@2:
 		Name: secondary
 		Weapon: WGM
@@ -189,6 +194,10 @@ bmp2:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		Color: 00FF00
+		Alpha: 100
 	NextBurstBar:
 		Armaments: secondary
 		Color: 00FF00
@@ -217,14 +226,6 @@ bmp2:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	WithRangeCircle@1:
-		Range: 21c0
-		Color: FFFF00
-		Alpha: 100
-	WithRangeCircle@2:
-		Range: 25c0
-		Color: 00FF00
-		Alpha: 100
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -302,6 +303,11 @@ t90:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FF0000
+		Alpha: 100
+		Width: 2
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -311,10 +317,7 @@ t90:
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
 	WithMuzzleOverlay:
-	RenderRangeCircle@1:
-		Color: FF0000
-		Alpha: 100
-		Width: 2
+
 	Selectable:
 		Class: MBT
 	WithDamageOverlay:
@@ -400,6 +403,11 @@ giatsint:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 1
+		Alpha: 100
+		Color: FF0000
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -413,10 +421,6 @@ giatsint:
 		FacingTolerance: 0
 		PauseOnCondition: empdisable || unit.docked
 		# StopAndWait: 100
-	RenderRangeCircle:
-		Width: 1
-		Alpha: 100
-		Color: FF0000 # Red, explosives
 	Selectable:
 		Class: ARTILLERY
 	WithDamageOverlay:
@@ -496,6 +500,11 @@ grad:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FF0000
+		Alpha: 100
+		Width: 1
 	Turreted:
 		Offset: -220,0,140
 		TurnSpeed: 20
@@ -515,10 +524,6 @@ grad:
 		AmmoPools: primary-ammo
 	Selectable:
 		Class: MLRS
-	RenderRangeCircle:
-		Color: FF0000
-		Alpha: 100
-		Width: 1
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -598,6 +603,10 @@ tos:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FF8000
+		Width: 2
 	Turreted:
 		TurnSpeed: 20
 		Offset: -100,0,180
@@ -615,8 +624,6 @@ tos:
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
-	RenderRangeCircle:
-		Color: FF8000
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -667,8 +674,8 @@ tunguska:
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing-secondary || empdisable
-	# Radar:
-	# 	Range: 30c0
+	Radar:
+		Range: 30c0
 	WithRangeCircle@Radar:
 		Range: 30c0
 		Color: 000000
@@ -677,7 +684,7 @@ tunguska:
 	Turreted:
 		TurnSpeed: 20
 		Offset: -30,0,50
-	Armament@3:
+	Armament@1:
 		Name: primary
 		Weapon: 30mm.Tunguska.AG
 		Recoil: 30
@@ -685,7 +692,7 @@ tunguska:
 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
-	Armament@1:
+	Armament@1_Air:
 		Name: primary-air
 		Weapon: 30mm.Tunguska.AA
 		Recoil: 30
@@ -694,12 +701,9 @@ tunguska:
 		LocalYaw: 0, 100
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
-	GrantConditionOnPreparingAttack:
+	GrantConditionOnPreparingAttack@1:
 		ArmamentNames: primary
 		Condition: firing-primary
-		# RevokeDelay: 100
-		# PreparingRevokeDelay: 50
-		# AttackingRevokeDelay: 0
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary, tertiary
@@ -715,17 +719,19 @@ tunguska:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 1
+		Alpha: 100
 	Armament@2:
 		Name: secondary
 		Weapon: 9M311
 		LocalOffset: 500,240,120, 500,-240,120
 		PauseOnCondition: !ammo-secondary || firing-primary || empdisable
-	GrantConditionOnPreparingAttack:
+	GrantConditionOnPreparingAttack@2:
 		ArmamentNames: secondary
 		Condition: firing-secondary
-		# RevokeDelay: 100
-		# PreparingRevokeDelay: 50
-		# AttackingRevokeDelay: 0
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -744,6 +750,11 @@ tunguska:
 		RequiresSelection: true
 		FullSequence: pip-blue
 		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		Color: 66B2FF
+		Width: 1
+		Alpha: 100
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
@@ -752,16 +763,6 @@ tunguska:
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
 	WithMuzzleOverlay:
-	WithRangeCircle@1:
-		Range: 18c0
-		Color: FFFF00 # Yellow, bullets
-		Width: 1
-		Alpha: 100
-	WithRangeCircle@2:
-		Range: 28c0
-		Color: 66B2FF
-		Width: 1
-		Alpha: 100
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -839,6 +840,11 @@ iskander:
 		FullReloadTicks: 300
 		FullReloadSteps: 6
 		RearmSound: minelay1.aud
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 3
+		Alpha: 100
+		Color: FF0000
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -866,10 +872,6 @@ iskander:
 		VoiceSet: IskanderVoice
 	Exit:
 		SpawnOffset: 0,-128,0
-	RenderRangeCircle:
-		Width: 3
-		Alpha: 100
-		Color: FF0000
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd

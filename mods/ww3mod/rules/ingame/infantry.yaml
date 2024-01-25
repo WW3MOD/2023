@@ -1024,7 +1024,9 @@ E1R1:
 		FullSequence: pip-red
 		AmmoPools: secondary-ammo
 		RequiresCondition: ammo-secondary
-	RenderRangeCircle@Rpg:
+	RenderRangeCircle@2:
+		Armament: secondary
+		RangeCircleType: E3
 		RequiresCondition: ammo-secondary
 		Color: FF0000
 	GrantConditionOnPreparingAttack:
@@ -1295,9 +1297,6 @@ TL:
 	SpeedMultiplier:
 		Modifier: 90
 	IndirectFire:
-	RenderRangeCircle:
-		RequiresCondition: ammo-primary
-		Color: FF0000
 	Armament@1:
 		Name: primary
 		Weapon: 60mm_Mortar
@@ -1309,6 +1308,11 @@ TL:
 		Armaments: primary
 		Ammo: 25
 		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 4, 3
@@ -1317,11 +1321,10 @@ TL:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
-		RequiresCondition: replenish-soldiers
+	RenderRangeCircle@1:
+		Armament: primary
+		RequiresCondition: ammo-primary
+		Color: FF0000
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
@@ -1380,6 +1383,10 @@ MT:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		RequiresCondition: ammo-primary
+		Color: FFFF00
 	Armament@GARRISONED:
 		Name: garrisoned
 		Weapon: 7.62mm.Sniper
@@ -1390,9 +1397,6 @@ MT:
 		DefaultAttackSequence: shoot
 	Passenger:
 		CustomPipType: sn_class
-	RenderRangeCircle:
-		RequiresCondition: ammo-primary
-		Color: FFFF00
 	RenderSprites:
 		Scale: 0.45
 	Selectable:
@@ -1445,11 +1449,12 @@ SN:
 		FullSequence: pip-green
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		RequiresCondition: ammo-primary
+		Color: 00FF00
 	NextBurstBar@1:
 		Armaments: primary
-		Color: 00FF00
-	RenderRangeCircle@1:
-		RequiresCondition: ammo-primary
 		Color: 00FF00
 	Rearmable:
 		RearmActors: truk, logisticscenter
@@ -1509,11 +1514,12 @@ AT:
 		FullSequence: pip-blue
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		Alpha: 80
+		Color: 66B2FF
 	NextBurstBar@1:
 		Armaments: primary
-		Color: 66B2FF
-	RenderRangeCircle@AA:
-		Alpha: 80
 		Color: 66B2FF
 	Rearmable:
 		RearmActors: truk, logisticscenter
@@ -2121,15 +2127,17 @@ TECN:
 		FullReloadTicks: 200
 		FullReloadSteps: 1
 		RequiresCondition: replenish-soldiers
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FFFFFF
 	Armament@2:
 		Name: secondary
 		Weapon: DroneJammer
-	WithRangeCircle:
-		Range: 25c0
-		Width: 3
-		Visible: WhenSelected
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 4
 		Color: FFFFFF
-		ValidRelationships: Neutral, Ally, Enemy
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo

@@ -132,6 +132,10 @@ HIND:
 		PipCount: 8
 		FullSequence: pip-yellow
 		RequiresSelection: true
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: 00FFFF
 	Armament@2:
 		Name: secondary
 		Weapon: RocketPods
@@ -157,6 +161,10 @@ HIND:
 		PipCount: 8
 		FullSequence: pip-red
 		RequiresSelection: true
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 3
+		Color: FF0000
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -194,14 +202,6 @@ HIND:
 	WithCargoPipsDecoration:
 	RenderSprites:
 		Scale: 1.3
-	WithRangeCircle:
-		Range: 16c0
-		Width: 2
-		Color: 00FFFF # Yellow
-	WithRangeCircle:
-		Range: 25c0
-		Width: 3
-		Color: FF0000 # Red
 
 MI28:
 	Inherits@Type: ^Helicopter
@@ -243,11 +243,6 @@ MI28:
 		LocalOffset: 250,0,-200
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
-	WithRangeCircle@1:
-		Range: 18c0
-		Width: 3
-		Color: FFFF00 # Yellow
-	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -266,15 +261,16 @@ MI28:
 		FullSequence: pip-yellow
 		RequiresSelection: true
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 3
+		Color: FFFF00
+	WithMuzzleOverlay:
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
-	WithRangeCircle@2:
-		Range: 25c0
-		Width: 3
-		Color: 00FFBB # Cyan, antiair & antiground fire
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary, secondary-air
@@ -293,6 +289,10 @@ MI28:
 		FullSequence: pip-green
 		RequiresSelection: true
 		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 3
+		Color: 00FFBB
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -437,7 +437,6 @@ FROG:
 	Rearmable:
 		RearmActors: afld
 		AmmoPools: primary-ammo
-	RenderRangeCircle:
 	RenderSprites:
 		Scale: 1.25
 
@@ -547,10 +546,5 @@ MIG:
 	SpawnActorOnDeath@EMP:
 		Actor: MIG.Husk.EMP
 		RequiresCondition: airborne && ammo-primary && empdisable
-	RenderRangeCircle:
-		RangeCircleType: aa
-		Width: 3
-		Alpha: 80
-		Color: 66B2FF
 	RenderSprites:
 		Scale: 1.25

@@ -44,7 +44,7 @@ humvee:
 		Acceleration: 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: empdisable
-	Turreted@1:
+	Turreted:
 		TurnSpeed: 20
 		Offset: 32,0,80
 	WithSpriteTurret@1:
@@ -68,6 +68,11 @@ humvee:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 1
+		Alpha: 100
 	# Turreted@WGM:
 	# 	Turret: secondary
 	# 	TurnSpeed: 8
@@ -96,7 +101,12 @@ humvee:
 	# 	RequiresSelection: true
 	# 	FullSequence: pip-green
 	# 	AmmoPools: secondary-ammo
-	# NextBurstBar:
+	# RenderRangeCircle@2:
+	# 	Armament: secondary
+	# 	Color: 00FF00
+	# 	Width: 1
+	# 	Alpha: 100
+	# NextBurstBar@2:
 	# 	Armaments: secondary
 	# 	Color: 00FF00
 	Rearmable:
@@ -127,16 +137,6 @@ humvee:
 	# 	RequiresCondition: wgm_missile
 	RenderSprites:
 		Image: humvee
-	WithRangeCircle@1:
-		Range: 16c0
-		Color: FFFF00
-		Width: 1
-		Alpha: 100
-	# WithRangeCircle@SECONDARY:
-	# 	Range: 25c0
-	# 	Color: 00FF00
-	# 	Width: 1
-	# 	Alpha: 100
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -191,13 +191,13 @@ m113:
 		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 22
 		# PauseOnCondition: empdisable || !notmobile
-	Armament@MG:
+	Armament@1:
 		Name: primary
 		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary || empdisable
-	AmmoPool@MG:
+	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 500
@@ -206,13 +206,17 @@ m113:
 		FullReloadTicks: 300
 		FullReloadSteps: 6
 		RearmSound: minelay1.aud
-	WithAmmoPipsDecoration@MG:
+	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
 		PipCount: 5
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Alpha: 100
+		Color: FFFF00
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
@@ -236,9 +240,6 @@ m113:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	RenderRangeCircle:
-		Alpha: 100
-		Color: FFFF00
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -371,11 +372,13 @@ bradley:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	WithRangeCircle@1:
+	RenderRangeCircle@1:
+		Armament: primary
 		Range: 21c0
 		Color: FFFF00
 		Alpha: 100
-	WithRangeCircle@2:
+	RenderRangeCircle@2:
+		Armament: secondary
 		Range: 25c0
 		Color: 00FF00
 		Alpha: 100
@@ -460,6 +463,11 @@ abrams:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FF0000
+		Width: 1
+		Alpha: 100
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -469,10 +477,6 @@ abrams:
 		PauseOnCondition: empdisable || unit.docked
 	WithSpriteTurret:
 	WithMuzzleOverlay:
-	RenderRangeCircle:
-		Color: FF0000
-		Width: 1
-		Alpha: 100
 	Selectable:
 		Class: MBT
 	WithDamageOverlay:
@@ -528,8 +532,8 @@ strykershorad:
 		TurnSpeed: 15
 		Locomotor: heavywheeled
 		PauseOnCondition: empdisable
-	# Radar:
-	# 	Range: 30c0
+	Radar:
+		Range: 30c0
 	WithRangeCircle@Radar:
 		Range: 30c0
 		Color: 000000
@@ -558,6 +562,10 @@ strykershorad:
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 2
 	Armament@2:
 		Name: secondary
 		Weapon: Stinger.quad
@@ -582,6 +590,12 @@ strykershorad:
 		RequiresSelection: true
 		FullSequence: pip-blue
 		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		RangeCircleType: aa
+		Color: 66B2FF
+		Alpha: 100
+		Width: 1
 	Armament@3:
 		Name: tertiary
 		Weapon: Hellfire.strykershorad
@@ -597,12 +611,6 @@ strykershorad:
 		FullReloadTicks: 300
 		FullReloadSteps: 4
 		RearmSound: minelay1.aud
-	Turreted:
-		TurnSpeed: 20
-		Offset: -250,0,80
-	NextBurstBar@3:
-		Armaments: tertiary
-		Color: 00FF00
 	WithAmmoPipsDecoration@3:
 		Position: Bottom
 		Margin: -8, 3
@@ -610,6 +618,16 @@ strykershorad:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: tertiary-ammo
+	RenderRangeCircle@3:
+		Armament: tertiary
+		Color: 00FF00
+		Alpha: 100
+	NextBurstBar@3:
+		Armaments: tertiary
+		Color: 00FF00
+	Turreted:
+		TurnSpeed: 20
+		Offset: -250,0,80
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
@@ -632,19 +650,6 @@ strykershorad:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	WithRangeCircle@1:
-		Range: 22c0
-		Color: FFFF00
-		Width: 1
-	RenderRangeCircle@2:
-		RangeCircleType: aa
-		Color: 66B2FF
-		Alpha: 100
-		Width: 1
-	WithRangeCircle@3:
-		Range: 22c0
-		Color: 00FF00
-		Alpha: 100
 	WithDamageOverlay:
 		Image: smoke_mtd
 		Palette: temptd
@@ -728,6 +733,11 @@ m109:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Alpha: 100
+		Color: FF0000
 	WithMuzzleOverlay:
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -738,10 +748,6 @@ m109:
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
-	RenderRangeCircle:
-		Width: 1
-		Alpha: 100
-		Color: FF0000
 	RenderSprites:
 		Image: m109
 		Scale: 1.1
@@ -828,6 +834,10 @@ m270:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FF0000
 	Turreted:
 		Offset: -300,0,50
 		# Offset: -180,0,150
@@ -845,9 +855,6 @@ m270:
 		Recoils: false
 	Selectable:
 		Class: MLRS
-	RenderRangeCircle:
-		Width: 1
-		Color: FF0000
 	Explodes:
 		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
@@ -935,6 +942,10 @@ HIMARS:
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FF0000
 	Turreted:
 		TurnSpeed: 10
 		Offset: -300,0,150
@@ -960,9 +971,6 @@ HIMARS:
 		Weapon: IskanderExplosion
 	Selectable:
 		DecorationBounds: 2048,2048
-	RenderRangeCircle:
-		Width: 2
-		Color: FFFF00
 	SpawnActorOnDeath:
 		Actor: HIMARS.husk
 

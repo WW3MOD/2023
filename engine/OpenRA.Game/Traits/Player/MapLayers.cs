@@ -294,9 +294,11 @@ namespace OpenRA.Traits
 		{
 			// TEST
 			if (sources.ContainsKey(mapLayer))
-				throw new InvalidOperationException("Attempting to add duplicate shroud source");
+				throw new InvalidOperationException("Attempting to add duplicate mapLayer");
 
-			var selfLocation = self.Location.ToMPos(map);
+			MPos selfLocation = MPos.Zero;
+			if (self != null)
+				selfLocation = self.Location.ToMPos(map);
 
 			VisionSourceNode[] visionSourceNodes = new VisionSourceNode[projectedCells.Length];
 
@@ -310,7 +312,7 @@ namespace OpenRA.Traits
 				var index = touched.Index(puv);
 				var shadowModify = 0;
 
-				if(self != null && map.ShadowLayers != null && map.ShadowLayers[selfLocation][(MPos)puv] == true)
+				if(selfLocation != MPos.Zero && map.ShadowLayers != null && map.ShadowLayers[selfLocation][(MPos)puv] == true)
 					shadowModify = ShadowModify;
 
 				var modifiedStrength = strength - shadowModify;

@@ -57,7 +57,7 @@ FCOM:
 		PauseOnCondition: being-captured
 		Range: 8c0
 	EngineerRepairable:
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	GpsDot:
 		String: Forward
 	SpawnActorOnDeath:
@@ -88,7 +88,7 @@ BIO:
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	GpsDot:
 		String: Nuke
 	WithIdleOverlay@SMOKE:
@@ -133,7 +133,7 @@ MISS:
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	GpsDot:
 		String: Communications
 	SpawnActorOnDeath:
@@ -161,7 +161,7 @@ HOSP:
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	GpsDot:
 		String: Hospital
 	SpawnActorOnDeath:

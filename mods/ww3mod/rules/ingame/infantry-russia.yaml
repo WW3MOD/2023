@@ -162,9 +162,13 @@ SHOK:
 		AddToArmyValue: true
 	Mobile:
 		Voice: Move
-	Armament:
+	Armament@1:
 		Weapon: PortaTesla
 		LocalOffset: 427,0,341
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 3
+		Color: FFFFFF
 	InfantryStates:
 		ProneOffset: 227,0,-245
 	AttackFrontal:
@@ -181,9 +185,6 @@ SHOK:
 		RequiresCondition: !parachute
 	Voiced:
 		VoiceSet: ShokVoice
-	RenderRangeCircle:
-		Width: 1
-		Color: FFFFFF # White, Tesla weaponry
 	RenderSprites:
 		Image: SHOK
 		Scale: 0.6

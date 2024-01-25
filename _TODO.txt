@@ -1,6 +1,10 @@
 
 if (modifiers.HasModifier(TargetModifiers.ForceMove))
 
+Update Content/ra references to Content/ww3
+
+Add scores.mix
+
 Ongoing
 
     Shadow casting

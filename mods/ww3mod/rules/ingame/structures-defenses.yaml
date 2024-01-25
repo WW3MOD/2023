@@ -752,7 +752,7 @@ FTUR:
 		HP: 10000
 	Armor:
 		Type: Light
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	Turreted@1:
 		Turret: ranged-turret
 		TurnSpeed: 255
@@ -821,7 +821,7 @@ TSLA:
 		Type: Heavy
 	Targetable:
 		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	Armament:
 		Weapon: TeslaZap
 		LocalOffset: 0,0,896
@@ -899,28 +899,28 @@ PRIS:
 		SupportArmament: support
 		ReceiverOffset: 0,0,896
 		BuffCondition: prism-stack
-	FirepowerMultiplier@STACK-1:
+	FirepowerMultiplier@Stack-1:
 		RequiresCondition: prism-stack == 1
 		Modifier: 200
-	FirepowerMultiplier@STACK-2:
+	FirepowerMultiplier@Stack-2:
 		RequiresCondition: prism-stack == 2
 		Modifier: 300
-	FirepowerMultiplier@STACK-3:
+	FirepowerMultiplier@Stack-3:
 		RequiresCondition: prism-stack == 3
 		Modifier: 400
-	FirepowerMultiplier@STACK-4:
+	FirepowerMultiplier@Stack-4:
 		RequiresCondition: prism-stack == 4
 		Modifier: 500
 	Armament:
 		Weapon: PrisLaser
 		LocalOffset: 0,-85,956
-	Armament@support:
+	Armament@Support:
 		Name: support
 		Weapon: PrisLaserSupport
 		LocalOffset: 0,0,1024
-	ProvidesPrerequisite@buildingname:
-	WithRangeCircle@SUPPORT:
-		Range: 20c0
+	ProvidesPrerequisite@BuildingName:
+	RenderRangeCircle@Support:
+		Armament: support
 
 MSLO:
 	Inherits: ^Building
@@ -949,7 +949,7 @@ MSLO:
 		Thickness: 2000
 	Targetable:
 		TargetTypes: Structure, Concrete, C4
-	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@BuildingName:
 	NukePower:
 		OrderName: NukeMissile
 		PauseOnCondition: disabled

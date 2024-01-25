@@ -24,6 +24,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 	[Desc("Draw a circle indicating my weapon's range.")]
 	class RenderRangeCircleInfo : ConditionalTraitInfo, IPlaceBuildingDecorationInfo, IRulesetLoaded, Requires<AttackBaseInfo>
 	{
+		[Desc("Which armament to draw circle for.")]
+		public readonly string Armament = "primary";
+
+		[Desc("I think this overlaps same type circles, try it out.")]
 		public readonly string RangeCircleType = null;
 
 		[Desc("Range to draw if no armaments are available.")]
@@ -93,17 +97,22 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	class RenderRangeCircle : ConditionalTrait<RenderRangeCircleInfo>, IRenderAnnotationsWhenSelected
+	class RenderRangeCircle : ConditionalTrait<RenderRangeCircleInfo>, INotifyCreated, IRenderAnnotationsWhenSelected
 	{
-		// public readonly RenderRangeCircleInfo Info;
+		public readonly RenderRangeCircleInfo Info;
 		readonly Actor self;
-		readonly AttackBase attack;
+		public Armament armament;
 
 		public RenderRangeCircle(Actor self, RenderRangeCircleInfo info)
 			: base(info)
 		{
+			this.Info = info;
 			this.self = self;
-			attack = self.Trait<AttackBase>();
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			armament = self.TraitsImplementing<Armament>().FirstOrDefault(a => a.Info.Name == Info.Armament);
 		}
 
 		bool Visible
@@ -127,7 +136,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 					yield break;
 
-				var range = Info.RangeCircleMode == RangeCircleMode.Minimum ? attack.GetMinimumRange() : attack.GetMaximumRange();
+				var range = Info.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
 				if (range == WDist.Zero)
 					yield break;
 

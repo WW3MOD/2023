@@ -214,6 +214,11 @@ namespace OpenRA.Mods.Common.Traits
 			return new WDist(Util.ApplyPercentageModifiers(Weapon.Range.Length, rangeModifiers.ToArray()));
 		}
 
+		public virtual WDist MinRange()
+		{
+			return new WDist(Weapon.MinRange.Length);
+		}
+
 		protected override void Created(Actor self)
 		{
 			Magazine = Weapon.Magazine;

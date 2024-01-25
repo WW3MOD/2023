@@ -132,6 +132,10 @@ littlebird:
 		PipCount: 4
 		FullSequence: pip-yellow
 		RequiresSelection: true
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 3
+		Color: FFFF00
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
@@ -156,6 +160,10 @@ littlebird:
 		PipCount: 2
 		FullSequence: pip-green
 		RequiresSelection: true
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 3
+		Color: 00FFFF
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -191,14 +199,6 @@ littlebird:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	WithRangeCircle@1:
-		Range: 25c0
-		Width: 3
-		Color: 00FFFF # Cyan, antiair & antiground fire
-	WithRangeCircle@3:
-		Range: 12c0
-		Width: 3
-		Color: FFFF00 # Yellow
 	DetectCloaked:
 		Range: 12c0
 	RenderDetectionCircle:
@@ -252,10 +252,9 @@ HELI:
 		LocalOffset: 250,0,-200
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
-	WithRangeCircle@1:
-		Range: 18c0
+	RenderRangeCircle@1:
 		Width: 3
-		Color: FFFF00 # Yellow
+		Color: FFFF00
 	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
@@ -280,10 +279,9 @@ HELI:
 		Weapon: Hellfire
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
-	WithRangeCircle@2:
-		Range: 25c0
+	RenderRangeCircle@2:
 		Width: 3
-		Color: 00FFBB # Cyan, antiair & antiground fire
+		Color: 00FFBB
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -390,6 +388,10 @@ A10:
 		FullSequence: pip-yellow
 		RequiresSelection: true
 		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 3
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
@@ -414,11 +416,13 @@ A10:
 		RequiresSelection: true
 		FullSequence: pip-green
 		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		Color: 00FF00
+		Width: 3
 	Rearmable:
 		RearmActors: afld
 		AmmoPools: primary-ammo, secondary-ammo
-	RenderRangeCircle:
-		Width: 3
 	AutoTarget:
 		InitialStance: Defend
 		InitialStanceAI: Defend
