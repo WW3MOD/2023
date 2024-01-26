@@ -36,8 +36,8 @@ btr:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 480
-			TopLeft: -290, -770
-			BottomRight: 290, 770
+			TopLeft: -290, -780
+			BottomRight: 290, 780
 	Mobile:
 		Locomotor: lighttracked-amphibious
 		Speed: 110
@@ -130,8 +130,8 @@ bmp2:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 480
-			TopLeft: -315, -670
-			BottomRight: 315, 670
+			TopLeft: -315, -690
+			BottomRight: 315, 690
 	Mobile:
 		Locomotor: lighttracked-amphibious
 		Speed: 100
@@ -364,8 +364,8 @@ giatsint:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 520
-			TopLeft: -330, -800
-			BottomRight: 330, 800
+			TopLeft: -350, -800
+			BottomRight: 350, 800
 	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
@@ -465,8 +465,8 @@ grad:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 600
-			TopLeft: -240, -730
-			BottomRight: 240, 730
+			TopLeft: -250, -720
+			BottomRight: 250, 720
 	Detectable:
 		Radar: 1
 		RadarDetectableCondition: firing
