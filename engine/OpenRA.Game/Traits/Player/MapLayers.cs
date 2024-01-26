@@ -182,8 +182,8 @@ namespace OpenRA.Traits
 		void ITick.Tick(Actor self)
 		{
 			// TEST
-			// if (!anyCellTouched && !disabledChanged)
-			// 	return;
+			if (!anyCellTouched && !disabledChanged)
+				return;
 
 			anyCellTouched = false;
 
@@ -203,8 +203,8 @@ namespace OpenRA.Traits
 				// PERF: Most cells are not touched
 
 				// TEST
-				// if (!touched[index] && !disabledChanged)
-				// 	continue;
+				if (!touched[index] && !disabledChanged)
+					continue;
 
 				if (visibilityCount[index] == null)
 					visibilityCount[index] = new short[VisionLayers];
@@ -234,7 +234,7 @@ namespace OpenRA.Traits
 				// PERF: Most cells are unchanged
 				var oldResolvedVisibility = ResolvedVisibility[index];
 				// TEST
-				if (true || visibility != oldResolvedVisibility || disabledChanged)
+				if (visibility != oldResolvedVisibility || disabledChanged)
 				{
 
 					ResolvedVisibility[index] = visibility;
