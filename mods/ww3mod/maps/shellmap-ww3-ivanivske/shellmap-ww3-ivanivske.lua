@@ -83,7 +83,7 @@ WorldLoaded = function()
 		"bradley",
 		{ "ar", "e3", "e3", "at", "e2", "tl" },
 		{ WestRoad0.Location, WestRoad1.Location, WestRoad2.Location, WestRoad3.Location, WestRoad4.Location, WestRoad5.Location, WestRoad6.Location, WestRoadDrop1.Location },
-		nil,
+git		nil,
 		nil,
 		function() end,
 		3

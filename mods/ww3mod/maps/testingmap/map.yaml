@@ -1,0 +1,243 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: testingmap
+
+Author: bambifish
+
+Tileset: TEMPERAT
+
+MapSize: 102,102
+
+Bounds: 1,1,100,100
+
+Visibility: Lobby
+
+Categories: Conquest
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: Random
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: Random
+
+Actors:
+	Actor0: tc05
+		Owner: Neutral
+		Location: 1,8
+	Actor1: tc05
+		Owner: Neutral
+		Location: 1,10
+	Actor2: tc05
+		Owner: Neutral
+		Location: 0,11
+	Actor3: tc05
+		Owner: Neutral
+		Location: 3,14
+	Actor4: tc05
+		Owner: Neutral
+		Location: 2,15
+	Actor5: tc05
+		Owner: Neutral
+		Location: 1,17
+	Actor6: tc05
+		Owner: Neutral
+		Location: 1,13
+	Actor7: t15
+		Owner: Neutral
+		Location: 3,12
+	Actor8: t15
+		Owner: Neutral
+		Location: 4,17
+	Actor9: t15
+		Owner: Neutral
+		Location: 3,18
+	Actor10: tc01
+		Owner: Neutral
+		Location: 4,19
+	Actor11: tc01
+		Owner: Neutral
+		Location: 2,19
+	Actor12: tc01
+		Owner: Neutral
+		Location: 4,21
+	Actor13: tc01
+		Owner: Neutral
+		Location: 3,20
+	Actor14: tc01
+		Owner: Neutral
+		Location: 4,20
+	Actor15: tc01
+		Owner: Neutral
+		Location: 3,7
+	Actor16: tc01
+		Owner: Neutral
+		Location: 1,10
+	Actor17: tc01
+		Owner: Neutral
+		Location: 1,11
+	Actor18: tc01
+		Owner: Neutral
+		Location: 0,9
+	Actor19: t07
+		Owner: Neutral
+		Location: 0,12
+	Actor20: oilb
+		Owner: Neutral
+		Location: 2,14
+	Actor21: oilb
+		Owner: Neutral
+		Location: 0,0
+	Actor22: t12
+		Owner: Neutral
+		Location: 3,21
+	Actor23: tc01
+		Owner: Neutral
+		Location: 0,21
+	Actor24: t01
+		Owner: Neutral
+		Location: 0,20
+	Actor25: t01
+		Owner: Neutral
+		Location: 0,19
+	Actor26: t01
+		Owner: Neutral
+		Location: 0,10
+	Actor27: t01
+		Owner: Neutral
+		Location: 0,15
+	Actor28: t01
+		Owner: Neutral
+		Location: 2,16
+	Actor29: oilb
+		Owner: Neutral
+		Location: 100,96
+	Actor31: tc05
+		Owner: Neutral
+		Location: 96,70
+	Actor36: tc05
+		Owner: Neutral
+		Location: 94,76
+	Actor37: tc05
+		Owner: Neutral
+		Location: 95,78
+	Actor39: t13
+		Owner: Neutral
+		Location: 101,73
+	Actor42: t12
+		Owner: Neutral
+		Location: 97,77
+	Actor47: t07
+		Owner: Neutral
+		Location: 101,76
+	Actor48: t07
+		Owner: Neutral
+		Location: 98,77
+	Actor52: t07
+		Owner: Neutral
+		Location: 100,78
+	Actor53: t07
+		Owner: Neutral
+		Location: 100,79
+	Actor55: t07
+		Owner: Neutral
+		Location: 101,75
+	Actor56: t07
+		Owner: Neutral
+		Location: 101,74
+	Actor57: t08
+		Owner: Neutral
+		Location: 99,79
+	Actor58: t08
+		Owner: Neutral
+		Location: 98,79
+	Actor59: t08
+		Owner: Neutral
+		Location: 98,78
+	Actor60: t08
+		Owner: Neutral
+		Location: 97,75
+	Actor65: tc05
+		Owner: Neutral
+		Location: 97,79
+	Actor66: tc05
+		Owner: Neutral
+		Location: 99,79
+	Actor67: tc05
+		Owner: Neutral
+		Location: 100,80
+	Actor68: tc05
+		Owner: Neutral
+		Location: 97,81
+	Actor71: tc05
+		Owner: Neutral
+		Location: 93,77
+	Actor72: tc05
+		Owner: Neutral
+		Location: 94,79
+	Actor73: tc04
+		Owner: Neutral
+		Location: 95,80
+	Actor74: tc04
+		Owner: Neutral
+		Location: 96,81
+	Actor75: t15
+		Owner: Neutral
+		Location: 93,71
+	Actor76: tc02
+		Owner: Neutral
+		Location: 93,72
+	Actor77: t12
+		Owner: Neutral
+		Location: 94,73
+	Actor78: t12
+		Owner: Neutral
+		Location: 99,69
+	Actor64: oilb
+		Owner: Neutral
+		Location: 99,77
+	Actor61: tc05
+		Owner: Neutral
+		Location: 95,71
+	Actor62: tc05
+		Owner: Neutral
+		Location: 94,72
+	Actor63: tc05
+		Owner: Neutral
+		Location: 96,73
+	Actor69: tc05
+		Owner: Neutral
+		Location: 94,74
+	Actor70: tc04
+		Owner: Neutral
+		Location: 93,74
+	Actor79: tc04
+		Owner: Neutral
+		Location: 97,83
+	Actor80: t15
+		Owner: Neutral
+		Location: 96,82
+	Actor81: tc02
+		Owner: Neutral
+		Location: 100,82
+	Actor82: tc02
+		Owner: Neutral
+		Location: 101,83
+	Actor83: tc03
+		Owner: Neutral
+		Location: 101,97
+	Actor84: tc03
+		Owner: Neutral
+		Location: 99,95
+	Actor85: tc05
+		Owner: Neutral
+		Location: 98,69
+	Actor86: tc03
+		Owner: Neutral
+		Location: 100,74
