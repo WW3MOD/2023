@@ -135,7 +135,7 @@ HIND:
 	RenderRangeCircle@1:
 		Armament: primary
 		Width: 2
-		Color: 00FFFF
+		Color: FFFF00
 	Armament@2:
 		Name: secondary
 		Weapon: RocketPods
