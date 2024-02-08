@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		OccupiedPassableTransitOnly = '+'
 	}
 
-	public class BuildingInfo : TraitInfo, IOccupySpaceInfo, IPlaceBuildingDecorationInfo
+	public class BuildingInfo : TraitInfo, IOccupySpaceInfo, IPlaceBuildingDecorationInfo, IDensityInfo
 	{
 		[Desc("Where you are allowed to place the building (Water, Clear, ...)")]
 		public readonly HashSet<string> TerrainTypes = new HashSet<string>();
@@ -35,6 +35,10 @@ namespace OpenRA.Mods.Common.Traits
 			"= means part of the footprint but passable, _ means completely empty.")]
 		[FieldLoader.LoadUsing(nameof(LoadFootprint))]
 		public readonly Dictionary<CVec, FootprintCellType> Footprint;
+
+		[Desc("Density in percent, for each cell in footprint.")]
+		[FieldLoader.LoadUsing(nameof(LoadDensity))]
+		public readonly Dictionary<CVec, byte> Density;
 
 		public readonly CVec Dimensions = new CVec(1, 1);
 
@@ -92,6 +96,54 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return ret;
+		}
+
+		protected static object LoadDensity(MiniYaml yaml)
+		{
+			var densityYaml = yaml.Nodes.FirstOrDefault(n => n.Key == "Density");
+			var densities = densityYaml?.Value.Value;
+
+			var ret = new Dictionary<CVec, byte>();
+
+			if (densities == null)
+				return ret;
+
+			var dimensionsYaml = yaml.Nodes.FirstOrDefault(n => n.Key == "Dimensions");
+			var dim = dimensionsYaml != null ? FieldLoader.GetValue<CVec>("Dimensions", dimensionsYaml.Value.Value) : new CVec(1, 1);
+
+			var d = densities.Replace(" ", "").Split(',');
+
+			if (d.Length != dim.X * dim.Y)
+			{
+				var fp = densityYaml.Value.Value;
+				var dims = dim.X + "x" + dim.Y;
+				throw new YamlException($"Invalid density: {fp} does not match dimensions {dims}");
+			}
+
+			var index = 0;
+			for (var y = 0; y < dim.Y; y++)
+			{
+				for (var x = 0; x < dim.X; x++)
+				{
+					var c = d[index++];
+					if (!byte.TryParse(c, out byte parsed) || parsed < 0 || parsed > 100)
+						throw new YamlException($"Invalid density cell type '{c}', should be 0-100");
+
+					ret[new CVec(x, y)] = parsed;
+				}
+			}
+
+			return ret;
+		}
+
+		Dictionary<CVec, byte> IDensityInfo.Density()
+		{
+			return Density;
+		}
+
+		public IEnumerable<CPos> DensityTiles(CPos location)
+		{
+			return Density.Select(kv => location + kv.Key);
 		}
 
 		public IEnumerable<CPos> FootprintTiles(CPos location, FootprintCellType type)

@@ -271,6 +271,11 @@ namespace OpenRA.Traits
 		int2 GetDecorationOrigin(Actor self, WorldRenderer wr, string pos, int2 margin);
 	}
 
+	public interface IDensityInfo : ITraitInfoInterface
+	{
+		Dictionary<CVec, byte> Density();
+	}
+
 	public interface IMapPreviewSignatureInfo : ITraitInfoInterface
 	{
 		void PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos, Color)> destinationBuffer);

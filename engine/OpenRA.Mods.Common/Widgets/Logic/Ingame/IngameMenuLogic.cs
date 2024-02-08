@@ -448,9 +448,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var button = AddButton("SAVE_MAP", SaveMapButton);
 			button.OnClick = () =>
 			{
-				world.ActorMap.TickFunction();
-				SpawnMapActors.SetShadows(world);
-
 				hideMenu = true;
 				var editorActorLayer = world.WorldActor.Trait<EditorActorLayer>();
 				var actionManager = world.WorldActor.Trait<EditorActionManager>();
@@ -474,7 +471,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					{ "onSave", (Action<string>)(_ => { ShowMenu(); actionManager.Modified = false; }) },
 					{ "onExit", ShowMenu },
-					{ "world", world },
 					{ "map", world.Map },
 					{ "playerDefinitions", playerDefinitions },
 					{ "actorDefinitions", editorActorLayer.Save() }

@@ -4,10 +4,8 @@
 	Inherits@Shape: ^1x1Shape
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	CombatDebugOverlay:
-	BlocksSight:
-		Density: 10
 	BlocksProjectiles:
-		Bypass: 1
+		Bypass: 3
 		Height: 256
 	# Tree: # Unimplemented ? Crushes always true actually
 	# 	CrushClasses: tree
@@ -23,6 +21,7 @@
 	WithSpriteBody:
 	Building:
 		Footprint: _
+		Density: 10
 		Dimensions: 1,1
 	# AppearsOnMiniMap:
 	# MiniMapColorFromTerrain:
@@ -98,6 +97,7 @@ T01:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -110,6 +110,7 @@ T02:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -122,6 +123,7 @@ T03:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -134,6 +136,7 @@ T04:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
@@ -146,6 +149,7 @@ T05:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -158,6 +162,7 @@ T06:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -170,6 +175,7 @@ T07:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -182,6 +188,7 @@ T08:
 	Inherits: ^Tree
 	Building:
 		Footprint: __
+		Density: 10,10
 		Dimensions: 2,1
 	SpawnActorOnDeath:
 		Actor: T08.Husk
@@ -201,6 +208,7 @@ T10:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ xx
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -213,6 +221,7 @@ T11:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ xx
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -225,6 +234,7 @@ T12:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -237,6 +247,7 @@ T13:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -249,6 +260,7 @@ T14:
 	Inherits: ^Tree
 	Building:
 		Footprint: ___ ___
+		Density: 10,10,10, 10,10,10
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -261,6 +273,7 @@ T15:
 	Inherits: ^Tree
 	Building:
 		Footprint: ___ ___
+		Density: 10,10,10, 10,10,10
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -273,6 +286,7 @@ T16:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -285,6 +299,7 @@ T17:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ __
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -297,6 +312,7 @@ TC01:
 	Inherits: ^Tree
 	Building:
 		Footprint: ___ ___
+		Density: 10,10,10, 10,10,10
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: INTERIOR
@@ -309,6 +325,7 @@ TC02:
 	Inherits: ^Tree
 	Building:
 		Footprint: ___ ___
+		Density: 10,10,10, 10,10,10
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -321,6 +338,7 @@ TC03:
 	Inherits: ^Tree
 	Building:
 		Footprint: ___ ___
+		Density: 10,10,10, 10,10,10
 		Dimensions: 3,2
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -333,6 +351,7 @@ TC04:
 	Inherits: ^Tree
 	Building:
 		Footprint: ____ ____ ____
+		Density: 10,10,10,10, 10,10,10,10, 10,10,10,10
 		Dimensions: 4,3
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -345,6 +364,7 @@ TC05:
 	Inherits: ^Tree
 	Building:
 		Footprint: ____ ____ ____
+		Density: 10,10,10,10, 10,10,10,10, 10,10,10,10
 		Dimensions: 4,3
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
@@ -386,6 +406,7 @@ ICE01:
 		Palette: player
 	Building:
 		Footprint: xx xx
+		Density: 10,10, 10,10
 		Dimensions: 2,2
 	Tooltip:
 		Name: ICE01
@@ -398,6 +419,7 @@ ICE02:
 		Palette: player
 	Building:
 		Footprint: x x
+		Density: 10,10
 		Dimensions: 1,2
 	Tooltip:
 		Name: ICE02
@@ -410,6 +432,7 @@ ICE03:
 		Palette: player
 	Building:
 		Footprint: xx
+		Density: 10,10
 		Dimensions: 2,1
 	Tooltip:
 		Name: ICE03
@@ -439,36 +462,43 @@ ROCK1:
 	Inherits: ^Rock
 	Building:
 		Footprint: ___ xx_
+		Density: 0,0,0, 50,50,0
 		Dimensions: 3,2
 ROCK2:
 	Inherits: ^Rock
 	Building:
 		Footprint: xx_
+		Density: 50,50,0
 		Dimensions: 3,1
 ROCK3:
 	Inherits: ^Rock
 	Building:
 		Footprint: ___ xx_
+		Density: 0,0,0, 50,50,0
 		Dimensions: 3,2
 ROCK4:
 	Inherits: ^Rock
 	Building:
 		Footprint: x_
+		Density: 50,0
 		Dimensions: 2,1
 ROCK5:
 	Inherits: ^Rock
 	Building:
 		Footprint: x_
+		Density: 50,0
 		Dimensions: 2,1
 ROCK6:
 	Inherits: ^Rock
 	Building:
 		Footprint: ___ xxx
+		Density: 0,0,0, 50,50,50
 		Dimensions: 3,2
 ROCK7:
 	Inherits: ^Rock
 	Building:
 		Footprint: xxxx_
+		Density: 50,50,50,50,0
 		Dimensions: 5,1
 
 UTILPOL1:
@@ -494,6 +524,7 @@ TANKTRAP1:
 		Palette: player
 	Building:
 		Footprint: x
+		Density: 20
 		Dimensions: 1,1
 	Tooltip:
 		Name: Tank Trap
@@ -505,6 +536,7 @@ TANKTRAP2:
 		Palette: player
 	Building:
 		Footprint: x
+		Density: 20
 		Dimensions: 1,1
 	Tooltip:
 		Name: Tank Trap

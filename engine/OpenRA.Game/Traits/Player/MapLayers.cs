@@ -321,8 +321,8 @@ namespace OpenRA.Traits
 				{
 					var shadowModify = 0;
 
-					if(map.ShadowLayers != null)
-						shadowModify = map.ShadowLayers[selfLocation][(MPos)puv];
+					if(map.ShadowLayer != null)
+						shadowModify = map.ShadowLayer[selfLocation][(MPos)puv];
 
 					var modifiedStrength = strength - shadowModify;
 
@@ -544,13 +544,11 @@ namespace OpenRA.Traits
 				if (ResolvedVisibility.Contains(puv))
 				{
 					byte resolved = (byte)ResolvedVisibility[puv];
-					byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+					return (byte)resolved;
 
-					// byte shadows = (byte)map.ShadowLayer[(MPos)puv];
-
-					//
-
-					return (byte)Normalize((byte)(resolved - modify));
+					// For modifying based on cell type, but removed since shadow caster was implemented.
+					/* byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+					return (byte)Normalize((byte)(resolved - modify)); */
 				}
 			}
 

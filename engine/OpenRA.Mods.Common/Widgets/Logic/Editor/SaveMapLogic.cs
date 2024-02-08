@@ -15,7 +15,6 @@ using System.IO;
 using System.Linq;
 using OpenRA.FileSystem;
 using OpenRA.Widgets;
-using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
@@ -75,7 +74,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		[ObjectCreator.UseCtor]
 		public SaveMapLogic(Widget widget, ModData modData, Action<string> onSave, Action onExit,
-			World world, Map map, List<MiniYamlNode> playerDefinitions, List<MiniYamlNode> actorDefinitions)
+			Map map, List<MiniYamlNode> playerDefinitions, List<MiniYamlNode> actorDefinitions)
 		{
 			var title = widget.Get<TextFieldWidget>("TITLE");
 			title.Text = map.Title;
@@ -194,8 +193,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			Action<string> saveMap = (string combinedPath) =>
 			{
-				SpawnMapActors.SetShadows(world);
-
 				map.Title = title.Text;
 				map.Author = author.Text;
 

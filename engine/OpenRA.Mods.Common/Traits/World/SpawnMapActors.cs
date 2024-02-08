@@ -54,52 +54,6 @@ namespace OpenRA.Mods.Common.Traits
 				Actors[kv.Key] = actor;
 				LastMapActorID = actor.ActorID;
 			}
-
-			SetShadows(world);
-		}
-
-		public static void SetShadows(World world) // TODO: If fog enabled...
-		{
-			var map = world.Map;
-			if (map.Visibility.HasFlag(MapVisibility.Shellmap))
-				return;
-
-			// TODO: Conditionally?
-			world.ActorMap.TickFunction();
-
-			var ShadowLayers = new CellLayer<CellLayer<byte>>(map);
-
-			foreach (var fromUV in map.AllCells.MapCoords)
-			{
-				// var fromIndex = map.Tiles.Index(fromUV); // No definition of Index, also this is unnecessary - but why doesnt it work? Maybe it does now..
-				var shadowLayer = new CellLayer<byte>(map);
-
-				foreach (var tilePos in map.FindTilesInAnnulus(fromUV.ToCPos(map), 2, 29, true))
-				{
-					MPos toUV = tilePos.ToMPos(map);
-
-					var blockers = BlocksSight.BlockingActorsBetween(world, fromUV.ToWPos(map), toUV.ToWPos(map), new WDist(1));
-
-					var total = 0f;
-					foreach (var blocker in blockers)
-					{
-						var density = blocker.TraitsImplementing<BlocksSight>().First().Info.Density;
-						var hitPos = WorldExtensions.MinimumPointLineProjection(fromUV.ToWPos(map), toUV.ToWPos(map), blocker.CenterPosition);
-						// var fromEdge = blocker.Trait<HitShape>().PercentFromEdge(blocker, hitPos);
-						// * fromEdge
-						total += density / 10f;
-					}
-
-					if (total > byte.MaxValue)
-						shadowLayer[toUV] = byte.MaxValue;
-					else
-						shadowLayer[toUV] = (byte) Math.Ceiling(total);
-				}
-
-				ShadowLayers[fromUV] = shadowLayer;
-			}
-
-			map.ShadowLayers = ShadowLayers;
 		}
 
 		bool PreventMapSpawn(World world, ActorReference actorReference, IEnumerable<IPreventMapSpawn> preventMapSpawns)

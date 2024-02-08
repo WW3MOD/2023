@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Mods.Common
@@ -69,6 +70,18 @@ namespace OpenRA.Mods.Common
 		public static IEnumerable<Actor> FindBlockingActorsOnLine(this World world, WPos lineStart, WPos lineEnd, WDist lineWidth)
 		{
 			return world.FindActorsOnLine(lineStart, lineEnd, lineWidth, true);
+		}
+
+		public static List<Actor> BlockingActorsBetween(Actor self, WPos end, WDist width)
+		{
+			return BlockingActorsBetween(self.World, self.CenterPosition, end, width);
+		}
+
+		public static List<Actor> BlockingActorsBetween(World world, WPos start, WPos end, WDist width)
+		{
+			var actors = FindActorsOnLine(world, start, end, width).ToList();
+
+			return actors.Where(a => a.TraitsImplementing<IBlocksSight>().Count() > 0).ToList();
 		}
 
 		/// <summary>

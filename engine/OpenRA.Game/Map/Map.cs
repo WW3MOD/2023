@@ -99,7 +99,8 @@ namespace OpenRA
 			var node = nodes.FirstOrDefault(n => n.Key == key);
 			if (node == null)
 			{
-				if (key != "ShadowLayers" && required)
+				// FF TODO
+				if (key != "ShadowLayer" && required)
 					throw new YamlException($"Required field `{key}` not found in map.yaml");
 				return;
 			}
@@ -239,7 +240,8 @@ namespace OpenRA
 		public CellLayer<byte> Ramp { get; private set; }
 		public CellLayer<byte> CustomTerrain { get; private set; }
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
-		public CellLayer<CellLayer<byte>> ShadowLayers { get; set; }
+		public CellLayer<byte> DensityLayer { get; set; }
+		public CellLayer<CellLayer<byte>> ShadowLayer { get; set; }
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
@@ -429,10 +431,61 @@ namespace OpenRA
 				Height.CellEntryChanged += UpdateProjection;
 			}
 
+			// Moved from PostInit because needed below, but probably doesnt matter
+			var tl = new MPos(0, 0).ToCPos(this);
+			var br = new MPos(MapSize.X - 1, MapSize.Y - 1).ToCPos(this);
+			AllCells = new CellRegion(Grid.Type, tl, br);
+
+			var btl = new PPos(Bounds.Left, Bounds.Top);
+			var bbr = new PPos(Bounds.Right - 1, Bounds.Bottom - 1);
+			SetBounds(btl, bbr);
+
+			using (var s = Package.GetStream("shadows.bin"))
+			{
+				if (s != null)
+				{
+
+					DensityLayer = new CellLayer<byte>(this);
+					ShadowLayer = new CellLayer<CellLayer<byte>>(this);
+
+					foreach (var fromUV in AllCells.MapCoords)
+					{
+						DensityLayer[fromUV] = s.ReadUInt8();
+
+						ShadowLayer[fromUV] = new CellLayer<byte>(this);
+
+						foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+						{
+							ShadowLayer[fromUV][toUV] = s.ReadUInt8();
+						}
+					}
+				}
+			}
+
 			PostInit();
 
 			Uid = ComputeUID(Package, MapFormat);
 		}
+
+		// MapCoordsRegion ValidCellsAround(MPos from, byte size)
+		// {
+		// 	int topLeftX = from.U - size;
+		// 	int topLeftY = from.V - size;
+		// 	int bottomRightX = from.U + size;
+		// 	int bottomRightY = from.V + size;
+
+		// 	if (topLeftX < 0)
+		// 		topLeftX = 0;
+		// 	if (topLeftY < 0)
+		// 		topLeftY = 0;
+
+		// 	if (bottomRightX + 1 > AllCells.Size.Width)
+		// 		bottomRightX = 0;
+		// 	if (bottomRightY + 1 > AllCells.Size.Height)
+		// 		bottomRightY = 0;
+
+		// 	return new MapCoordsRegion(new MPos(topLeftX, topLeftY), new MPos(bottomRightX, bottomRightY));
+		// }
 
 		void PostInit()
 		{
@@ -453,14 +506,6 @@ namespace OpenRA
 
 			Translation = new Translation(Game.Settings.Player.Language, Translations, this);
 
-			var tl = new MPos(0, 0).ToCPos(this);
-			var br = new MPos(MapSize.X - 1, MapSize.Y - 1).ToCPos(this);
-			AllCells = new CellRegion(Grid.Type, tl, br);
-
-			var btl = new PPos(Bounds.Left, Bounds.Top);
-			var bbr = new PPos(Bounds.Right - 1, Bounds.Bottom - 1);
-			SetBounds(btl, bbr);
-
 			CustomTerrain = new CellLayer<byte>(this);
 			foreach (var uv in AllCells.MapCoords)
 				CustomTerrain[uv] = byte.MaxValue;
@@ -480,7 +525,8 @@ namespace OpenRA
 			}
 
 			// Read terrain type and set layer of adjusted visual for the coordiate.
-			ModifyVisualLayer = new CellLayer<byte>(this);
+			// Used before shadow caster were implemented but code works and might prove useful
+			/* ModifyVisualLayer = new CellLayer<byte>(this);
 			foreach (var uv in AllCells.MapCoords)
 			{
 				var tile = Tiles[uv];
@@ -507,7 +553,7 @@ namespace OpenRA
 				}
 
 				ModifyVisualLayer[uv] = terrainTypeModifier;
-			}
+			} */
 
 			AllEdgeCells = UpdateEdgeCells();
 
@@ -686,6 +732,7 @@ namespace OpenRA
 			var s = root.WriteToString();
 			toPackage.Update("map.yaml", Encoding.UTF8.GetBytes(s));
 			toPackage.Update("map.bin", SaveBinaryData());
+			toPackage.Update("shadows.bin", SaveShadowsBinaryData());
 			Package = toPackage;
 
 			// Update UID to match the newly saved data
@@ -749,6 +796,91 @@ namespace OpenRA
 			}
 
 			return dataStream.ToArray();
+		}
+
+		public byte[] SaveShadowsBinaryData()
+		{
+			// Was moved into constructor for reason I don't remember, but caused error with shellmap because it doesn't have shadowlayer? Not sure
+			SetDensityLayer();
+			SetShadowLayer();
+
+			var dataStream = new MemoryStream();
+			using (var writer = new BinaryWriter(dataStream))
+			{
+				foreach (var fromUV in AllCells.MapCoords)
+				{
+					writer.Write(DensityLayer[fromUV]);
+
+					foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+					{
+						writer.Write(ShadowLayer[fromUV][toUV]);
+					}
+
+				}
+
+			}
+
+			return dataStream.ToArray();
+		}
+
+		public void SetDensityLayer()
+		{
+			DensityLayer = new CellLayer<byte>(this);
+			var actorsRules = Rules.Actors;
+
+			// Iterate through all actors on map
+			// Set the shadow value for each tile in its footprint
+			foreach (var kv in ActorDefinitions)
+			{
+				var actorReference = new ActorReference(kv.Value.Value, kv.Value.ToDictionary());
+				var location = actorReference.Get<LocationInit>().Value;
+				var actorType = actorReference.Type;
+				var ai = actorsRules[actorType];
+				var density = ai.TraitInfoOrDefault<IDensityInfo>();
+
+				if (density != null)
+				{
+					foreach (var d in density.Density())
+					{
+						var pos = location + d.Key;
+
+						if (DensityLayer.IsValidCoordinate(pos.X, pos.Y))
+							DensityLayer[pos] += d.Value;
+					}
+				}
+			}
+		}
+
+		public void SetShadowLayer()
+		{
+			ShadowLayer = new CellLayer<CellLayer<byte>>(this);
+
+			foreach (var fromUV in AllCells.MapCoords)
+			{
+				var shadowLayer = new CellLayer<byte>(this);
+
+				foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+				{
+					MPos toUV = tilePos.ToMPos(this);
+
+					var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
+
+					var total = 0f;
+					foreach (var tile in tiles)
+					{
+						total += DensityLayer[tile] / 10f;
+					}
+
+					if (total > byte.MaxValue)
+						shadowLayer[toUV] = byte.MaxValue;
+					else
+						shadowLayer[toUV] = (byte) Math.Ceiling(total);
+				}
+
+				ShadowLayer[fromUV] = shadowLayer;
+			}
+
+			this.ShadowLayer = ShadowLayer;
 		}
 
 		public (Color Left, Color Right) GetTerrainColorPair(MPos uv)
@@ -1074,6 +1206,7 @@ namespace OpenRA
 		{
 			return projectedHeight[(MPos)puv];
 		}
+
 
 		public WAngle FacingBetween(CPos cell, CPos towards, WAngle fallbackfacing)
 		{
@@ -1441,3 +1574,4 @@ namespace OpenRA
 		}
 	}
 }
+

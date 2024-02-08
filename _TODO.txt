@@ -1,75 +1,20 @@
 
 if (modifiers.HasModifier(TargetModifiers.ForceMove))
 
-Update Content/ra references to Content/ww3
-
 Add scores.mix
 
 Ongoing
 
     Shadow casting
 
-        Density
+        - Half density per tile from now seems about right, adjust for each decoration
 
-            - Block not based on actor hitshape, as Density can vary for each tile for multi-tile actors
-                - We also need to make shadows dissipate, slightly, with distance. An actor hiding right behind a tree should be more shadowed than one far behind.
-                    - Though, this depends on the density. For 100% density it doesn't dissipate at all.
+    Tile Post init update based on actor
 
-            - One idea is to define multiple hitshapes for the actor and set a density for each of those.
-                - Means we can keep using BlocksProjectiles code.
-                - Also has the benefit of being able to create more in depth blocking based on what the sprite actually shows.
-                    - But also makes it less predictable, the tiles are nice as it becomes more.. chess like, predictable for the player.
-                - But BlocksProjectiles needs updating too, as it currently uses Bypass which has the same problem with multi-tiles blockers.
-
-            - Instead define Density for each tile in the Building Footprint, and use it (unless overridden in the BlocksProjectile/Sight trait) to calculate blockers total density between origin and target.
-                - Use Footprint code to define a number from 0-100 for each tile.
-                - Create a new "TilesBetween" function,
-                    - then read what actor is on that tile,
-                    - and what Density that tile has if it is a BlocksSight actor.
-
-        TODO
-
-            - Building Footprint density
+        - Tiles with trees should automatically get a different tile type for locomotor/pathfinder
+        -
 
 
-
-            - TilesBetween function
-
-                Building.OccupiedTiles
-
-
-        Documentation
-
-            - SpawnMapActors
-                - Facilitates SetShadows, that calculates the ShadowLayers
-                - Gets called when map actors are spawed for now
-                - Improvement: Calculate when saving map?
-                - Or: Calculate on the fly but only where its needed, and cache it.
-            - Map.ShadowLayers, stores all tiles and which other tiles are shadowed from each
-            - AddSource()
-                - Uses Shadowlayers to
-                - Reduces vision strength of the shadowed projectedCells of visibilityCount
-                - Based on actor location
-
-        - Cast shadows behind trees and buildings.
-
-        - Use BlocksProjectiles? But would be cool if it was seperate so that we can add things as smoke with same effect
-            - Add something like "Density" trait, that BlocksProjectile uses as default unless changed
-
-        - Using Octagonal algorithm, copied from https://github.com/THEjoezack/ShadowCaster/blob/master/ShadowCaster/ShadowCaster.cs
-
-        - At the first load every tile caches what vision looks like from there in a custom MapLayer
-
-        - Set as a number, not boolean, as strength of the shadow / how tall and generally massive the blocking actor is
-            - Different actors can see these differently?
-            - Eg a drone should see better behind a building than a ground unit
-            - Use this or a different number to set the mass of the object, that determines how
-
-        - When drawing the combined vision from MapLayer, remove tiles that are in the shadows. (How most efficiently?)
-
-        - Units with Vision trait defines their viewing height
-            - If the view height is lower than the blocking height, it is completely blocked behind for as far as the unit can see
-            - If the unit is looking from above the block height
 
 
     - Infantry speed slower, set 25 from 35
@@ -79,13 +24,15 @@ Ongoing
 
 Fix
 
-    - Forest (or any tile with permanent vision modifier) shows up as lower vision in game.
+    - Mortars shoots at oil derrick
+    - Captured SR gives access to enemy technology
+    - Captured SR gives access to spawn, how to deal with this?
+    - DR or any should cancel attack order when out of ammo and resupply
 
     - Map editor
         - Add more civilian structures
         - Add more tiles, roads especially
         - Update / Create new maps
-
 
     - Default lobby options
 

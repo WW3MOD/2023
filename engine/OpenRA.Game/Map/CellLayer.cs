@@ -158,6 +158,56 @@ namespace OpenRA
 		{
 			return uv.Clamp(new Rectangle(0, 0, Size.Width - 1, Size.Height - 1));
 		}
+
+		public System.Collections.Generic.IEnumerable<MPos> TilesIntersectingLine(MPos from, MPos to)
+		{
+			int startX = from.U;
+			int startY = from.V;
+			int endX = to.U;
+			int endY = to.V;
+
+			// Validate input coordinates
+			if (!IsValidCoordinate(startX, startY) || !IsValidCoordinate(endX, endY))
+			{
+				yield break;
+			}
+
+			// Use Bresenham's line algorithm to find the coordinates of the line
+			int dx = Math.Abs(endX - startX);
+			int dy = Math.Abs(endY - startY);
+			int sx = startX < endX ? 1 : -1;
+			int sy = startY < endY ? 1 : -1;
+			int err = dx - dy;
+
+			while (true)
+			{
+				if (IsValidCoordinate(startX, startY))
+				{
+					// Store the tile in a collection or perform other operations here
+					yield return new MPos(startX, startY);
+				}
+
+				if (startX == endX && startY == endY)
+					yield break;
+
+				int e2 = 2 * err;
+				if (e2 > -dy)
+				{
+					err -= dy;
+					startX += sx;
+				}
+				if (e2 < dx)
+				{
+					err += dx;
+					startY += sy;
+				}
+			}
+		}
+
+		public bool IsValidCoordinate(int x, int y)
+		{
+			return x >= 0 && (x + 1) < Size.Width && y >= 0 && (y + 1) < Size.Height;
+		}
 	}
 
 	// Helper functions
