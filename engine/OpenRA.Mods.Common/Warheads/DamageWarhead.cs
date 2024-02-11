@@ -32,8 +32,14 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How much damage to deal in percent.")]
 		public readonly int DamagePercent = 0;
 
+		[Desc("For each actor hit, multiply damage recieved with this percent.")]
+		public readonly int RandomDamagePercent = 0;
+
 		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage).")]
-		public readonly int RandomDamage = 0;
+		public readonly int RandomDamageAddition = 0;
+
+		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage).")]
+		public readonly int RandomDamageSubtraction = 0;
 
 		[Desc("Apply the damage for this many ticks after initial.")]
 		public readonly int Duration = 0;
@@ -194,8 +200,21 @@ namespace OpenRA.Mods.Common.Warheads
 		protected virtual void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args)
 		{
 			var damage = Damage;
-			if (RandomDamage != 0)
-				damage += firedBy.World.SharedRandom.Next(0, RandomDamage);
+			if (RandomDamageAddition != 0)
+			{
+				damage += firedBy.World.SharedRandom.Next(0, RandomDamageAddition);
+			}
+
+			if (RandomDamageSubtraction != 0)
+			{
+				damage -= firedBy.World.SharedRandom.Next(0, RandomDamageSubtraction);
+			}
+
+			if (RandomDamagePercent != 0)
+			{
+				damage *= firedBy.World.SharedRandom.Next(0, RandomDamagePercent);
+				damage /= 100;
+			}
 
 			var thickness = victim.Trait<Armor>().Info.Thickness;
 			if (thickness != 0)
