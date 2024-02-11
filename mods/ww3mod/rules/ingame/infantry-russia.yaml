@@ -2,7 +2,7 @@
 E1.russia:
 	Inherits@BaseUnit: ^E1
 	Buildable:
-		Prerequisites: ~disabled # ~barracks, ~player.russia, ~techlevel.infonly
+		Prerequisites: ~disabled # ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: e1.russia
 E1R1.russia:
@@ -152,7 +152,7 @@ SHOK:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 99
-		Prerequisites: ~infantry.russia, ~techlevel.futuristic
+		Prerequisites: ~player.russia, ~infantry.russia, ~techlevel.futuristic
 		Description: Infantry with portable Tesla coils.
 	Tooltip:
 		Name: Tesla Trooper

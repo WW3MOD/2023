@@ -116,7 +116,7 @@
 ^TechBuilding:
 	Inherits: ^BasicBuilding
 	Targetable:
-		TargetTypes: NoAutoTarget, Ground, C4, DetonateAttack
+		TargetTypes: NoAutoTarget, C4, DetonateAttack
 	Huntable:
 	Health:
 		HP: 40000
@@ -382,8 +382,6 @@ SUPPLYROUTE:
 	AcceptsDeliveredCash:
 		ValidTypes: Rotation
 	ProvidesPrerequisite@BuildingName:
-	ProvidesPrerequisite@Barracks:
-		Prerequisite: barracks
 	ProvidesPrerequisite@AmericaInfantry:
 		Factions: america
 		Prerequisite: infantry.america
@@ -530,6 +528,7 @@ HPAD:
 		UseDeathTypeSuffix: false
 	SpawnActorOnDeath:
 		Actor: hpad.husk
+
 AFLD:
 	Inherits: ^Building
 	Inherits@PRIMARY: ^PrimaryBuilding

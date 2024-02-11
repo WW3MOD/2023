@@ -381,13 +381,13 @@ AACannon:
 	Report: cannon2.aud
 	Projectile: Bullet
 		Speed: 900
-		Inaccuracy: 1c256
+		Inaccuracy: 0c512
 	Warhead@Target: TargetDamage
 		Damage: 1000
 		Penetration: 60
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Spread: 48
+		Spread: 24
 		Damage: 100
 		DamageTypes: SmallExplosionDeath
 
@@ -576,6 +576,7 @@ TankRound.T90:
 	Report: tank5.aud
 	Projectile: Bullet
 		Inaccuracy: 2c0
+		InaccuracyType: Absolute
 		Speed: 500
 		LaunchAngle: 40,65
 		Image: 120mm

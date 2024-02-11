@@ -2,7 +2,7 @@
 E1.america:
 	Inherits: ^E1
 	Buildable:
-		Prerequisites: ~disabled # ~barracks, ~player.america, ~techlevel.infonly
+		Prerequisites: ~disabled # ~player.america, ~techlevel.infonly
 	RenderSprites:
 		Image: e1.america
 E1R1.america:

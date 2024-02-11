@@ -14,7 +14,7 @@ t72:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Main Battle Tank
 	Valued:
 		Cost: 1700

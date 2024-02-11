@@ -6,28 +6,51 @@ Add scores.mix
 Ongoing
 
     Shadow casting
-
         - Half density per tile from now seems about right, adjust for each decoration
 
-    Tile Post init update based on actor
-
+    Tile post init update based on actor
         - Tiles with trees should automatically get a different tile type for locomotor/pathfinder
-        -
 
-
-
-
-    - Infantry speed slower, set 25 from 35
-        - Make transports more important
-
-    - Tanks / Vehicles reverse
 
 Fix
 
-    - Mortars shoots at oil derrick
-    - Captured SR gives access to enemy technology
-    - Captured SR gives access to spawn, how to deal with this?
+    - When shooting ATGM units can't unload
+
     - DR or any should cancel attack order when out of ammo and resupply
+
+    Supply Route
+
+        - ! Possibly make maps with a bit of space around, reducing the map bounds to be less than -1 of map
+            - ! Just makes map smaller, with black around
+            - Spawned units spawn beyond bounds and rejects orders until they have moved inside bounds
+            - Spawn units randomly along the edge instead of all around the SR
+                - Determine when map loads if it is on the vertical or horizontal edge
+
+        - Captured SR gives access to spawn, how to deal with this?
+
+        - Make maps with more spawns as default
+        - Add neutral SRs in between that can be captured
+        - Link SRs at game start to the closest player spawn to determine who controls what is beyond border, only those can give spawn
+        - Add checkbox to give all linked spawn points to closest player
+        - Checkbox that only allows your side of the map to be spawnable points
+        - Make each spawn have a different queue, done in CA
+        - Game mode where there is a brief period of queueing up units before game starts
+        - Only give access if a coherent line of control from original spawn is established
+        - Otherwise just turn neutral and deny access for enemy
+        - Determine which spawn is original for player
+        - Give each original spawn around the map a letter A, B, C etc
+        - Give each non original spawn a number, like A1, A2, A3 etc
+
+        - Time to "build" could be removed, instead there is a "call-up time" from the moment unit is ordered no matter how many there are
+
+        - Possible to build loaded vehicles, how?
+            - Special queue or modifyer hotkey that puts soldiers into next vehicle? But no.
+            - Select a vehicle to load, then select the soldiers to put inside.
+            - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
+            - These are stored as templates, even saved between games, in a special templates tab
+
+
+    - Tanks / Vehicles reverse
 
     - Map editor
         - Add more civilian structures
@@ -44,7 +67,7 @@ Fix
         - Units can be selected one by one and with shift, marking them with a white outline
         - Pips gets larger when alt is held
 
-    - Vehicles takes suppression, possibly stunned instead for a duration determined by the damage taken.
+    - Vehicles suppression, or stunned instead for a duration determined by the damage taken.
         - If the damage is large enough then derail vehicle as if driver was incapacitated for a bit
 
     - Shoot at last known location if losing track of target and it was stationary
@@ -55,7 +78,7 @@ Fix
             - Calculates suppression values at first run and caches them.
             - When Warhead makes impact, deal just as damage, based on range
         - Create custom using conditions? Set the condition directly, not using repeat?
-        - a getter, updates when the warhead makes impakt
+        - a getter, updates when the warhead makes impact
 
     - Protection based on tile / proximity. Show pips
         - Kinda done, do more testing
@@ -89,10 +112,11 @@ Ideas
         - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
     - Attack move default
 
-    - Change spread command to make units seek nearest high cover tile
+    Game modes
 
-    - Place Flags all around the map edges, chain-linking control gives access to deploy troops there, broken chain makes Flags disabled for calling in reinforcements.
-        - Consider implementing a "per building" build queue (difficult?)
+        - Only points matter in the end
+
+    - Change spread command to make units seek nearest high cover tile
 
     - Binoculars / Laser designator for team leader.
         - If a force-attack is made on the ground, use Binoculars. Reveals area.
@@ -175,9 +199,10 @@ Movements
 
 AutoTarget
     - Move within MaxRange of all Armament only on Defend, Attack Anything means autotarget with maxrange of lowest ranging weapon.
+    - Sweeping fire trait, when other units are nearby target it automatically changes target to shoot at multiple enemies for max suppression.
     - Don't overkill
         If a unit fires a salvo, eg MLRS, if there is only one unit,
-            dont shoot the whole salvo, instead sweep
+            dont shoot the whole salvo, instead sweep if other units nearby.
     - Retarget if there is a more valid target
     - Add Weapon.Info.AverageDamage to override the default
     - Multiple Turrets with different AutoTargeting

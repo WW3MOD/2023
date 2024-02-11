@@ -16,7 +16,7 @@ btr:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Amphibious transport. Can transport 8 infantry
 		IconPalette: chrome
 	RenderSprites:
@@ -115,7 +115,7 @@ bmp2:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
-		Prerequisites: ~vehicles.russia, ~techlevel.low
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.low
 		Description: IFV Troop Carrier armed with a 73mm cannon and ATGM
 	Valued:
 		Cost: 1000
@@ -252,7 +252,7 @@ t90:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Main Battle Tank
 	Valued:
 		Cost: 2000
@@ -339,7 +339,7 @@ giatsint:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: 152-mm self-propelled howitzer
 		IconPalette: chrome
 	Tooltip:
@@ -441,7 +441,7 @@ grad:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: BM-21 Grad long-range rocket artillery.
 	Valued:
 		Cost: 1800
@@ -542,7 +542,7 @@ tos:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Thermobaric Multiple Launch Rocket System
 	Valued:
 		Cost: 2500
@@ -649,7 +649,7 @@ tunguska:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
-		Prerequisites: ~vehicles.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Mobile AA
 	Valued:
 		Cost: 1700
@@ -778,7 +778,7 @@ iskander:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
-		Prerequisites: ~vehicles.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.high
 		Description: 9K720 Iskander ballistic missile launcher.
 	Valued:
 		Cost: 3500
@@ -922,7 +922,7 @@ IskanderMissile:
 # 	Buildable:
 # 		Queue: Vehicle
 # 		BuildPaletteOrder: 90
-# 		Prerequisites: ~vehicles.russia, ~techlevel.futuristic
+# 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.futuristic
 # 		Description: Tank with mounted Tesla coil.\nTesla briefly short-circuits Vehicle and Ships.\n  Immune to EMP\n  Strong vs Infantry, Vehicles, Buildings\n  Weak vs Aircraft
 # 	Valued:
 # 		Cost: 3000

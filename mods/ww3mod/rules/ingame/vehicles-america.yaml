@@ -12,7 +12,7 @@ humvee:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Fast scout with MG and TOW Missiles
 	Valued:
 		Cost: 700
@@ -162,7 +162,7 @@ m113:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 2
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Amphibious transport. Can transport 12 infantry
 		IconPalette: chrome
 	RenderSprites:
@@ -268,7 +268,7 @@ bradley:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 3
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Troop Carrier Infantry Fighting Vehicle
 	Valued:
 		Cost: 1600
@@ -409,7 +409,7 @@ abrams:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: American Main Battle tank
 	Valued:
 		Cost: 2000
@@ -507,7 +507,7 @@ strykershorad:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 5
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Troop Carrier Infantry Fighting Vehicle
 	Valued:
 		Cost: 2500
@@ -666,7 +666,7 @@ m109:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: M109 Paladin, long range howitzer
 	Tooltip:
 		Name: Paladin
@@ -773,7 +773,7 @@ m270:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
-		Prerequisites: ~vehicles.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Long-range rocket artillery with hight area of effect.
 	Valued:
 		Cost: 2000
@@ -867,7 +867,7 @@ HIMARS:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 8
-		Prerequisites: ~vehicles.america, ~techlevel.high
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
 		Description: HIMARS for commanderbambi
 	Valued:
 		Cost: 3500
@@ -984,7 +984,7 @@ HIMARS:
 # 	Buildable:
 # 		Queue: Vehicle
 # 		BuildPaletteOrder: 18
-# 		Prerequisites: ~vehicles.america, ~techlevel.futuristic
+# 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.futuristic
 # 		Description: Experimental vehicle armed with a laser
 # 	Valued:
 # 		Cost: 3000
