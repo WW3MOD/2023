@@ -29,7 +29,8 @@
 			Shallow: 20
 	Locomotor@FOOT:
 		Name: foot
-		Crushes: mine, crate
+		Crushes: mine, crate, tree
+		Passes: tree
 		SharesCell: true
 		TerrainSpeeds:
 			Road: 100
@@ -47,7 +48,8 @@
 			Shallow: 15
 	Locomotor@FOOT_AMPHIBIOUS:
 		Name: foot-amphibious
-		Crushes: mine, crate
+		Crushes: mine, crate, tree
+		Passes: tree
 		SharesCell: true
 		TerrainSpeeds:
 			Road: 100
@@ -67,7 +69,8 @@
 			Water: 25
 	Locomotor@FOOT_MOUNTAINER:
 		Name: foot-mountainer
-		Crushes: mine, crate
+		Crushes: mine, crate, tree
+		Passes: tree
 		SharesCell: true
 		TerrainSpeeds:
 			Road: 100
@@ -86,7 +89,8 @@
 			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
-		Crushes: mine, crate
+		Crushes: mine, crate, tree
+		Passes: tree
 		SharesCell: true
 		TerrainSpeeds:
 			Road: 100

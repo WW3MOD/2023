@@ -11,44 +11,11 @@ Ongoing
     Tile post init update based on actor
         - Tiles with trees should automatically get a different tile type for locomotor/pathfinder
 
-
 Fix
 
     - When shooting ATGM units can't unload
 
     - DR or any should cancel attack order when out of ammo and resupply
-
-    Supply Route
-
-        - ! Possibly make maps with a bit of space around, reducing the map bounds to be less than -1 of map
-            - ! Just makes map smaller, with black around
-            - Spawned units spawn beyond bounds and rejects orders until they have moved inside bounds
-            - Spawn units randomly along the edge instead of all around the SR
-                - Determine when map loads if it is on the vertical or horizontal edge
-
-        - Captured SR gives access to spawn, how to deal with this?
-
-        - Make maps with more spawns as default
-        - Add neutral SRs in between that can be captured
-        - Link SRs at game start to the closest player spawn to determine who controls what is beyond border, only those can give spawn
-        - Add checkbox to give all linked spawn points to closest player
-        - Checkbox that only allows your side of the map to be spawnable points
-        - Make each spawn have a different queue, done in CA
-        - Game mode where there is a brief period of queueing up units before game starts
-        - Only give access if a coherent line of control from original spawn is established
-        - Otherwise just turn neutral and deny access for enemy
-        - Determine which spawn is original for player
-        - Give each original spawn around the map a letter A, B, C etc
-        - Give each non original spawn a number, like A1, A2, A3 etc
-
-        - Time to "build" could be removed, instead there is a "call-up time" from the moment unit is ordered no matter how many there are
-
-        - Possible to build loaded vehicles, how?
-            - Special queue or modifyer hotkey that puts soldiers into next vehicle? But no.
-            - Select a vehicle to load, then select the soldiers to put inside.
-            - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
-            - These are stored as templates, even saved between games, in a special templates tab
-
 
     - Tanks / Vehicles reverse
 
@@ -100,6 +67,37 @@ Bugs
 
 Ideas
 
+    Supply Route
+
+        - ! Possibly make maps with a bit of space around, reducing the map bounds to be less than -1 of map
+            - ! Just makes map smaller, with black around
+            - Spawned units spawn beyond bounds and rejects orders until they have moved inside bounds
+            - Spawn units randomly along the edge instead of all around the SR
+                - Determine when map loads if it is on the vertical or horizontal edge
+
+        - Captured SR gives access to spawn, how to deal with this?
+
+        - Make maps with more spawns as default
+        - Add neutral SRs in between that can be captured
+        - Link SRs at game start to the closest player spawn to determine who controls what is beyond border, only those can give spawn
+        - Add checkbox to give all linked spawn points to closest player
+        - Checkbox that only allows your side of the map to be spawnable points
+        - Make each spawn have a different queue, done in CA
+        - Game mode where there is a brief period of queueing up units before game starts
+        - Only give access if a coherent line of control from original spawn is established
+        - Otherwise just turn neutral and deny access for enemy
+        - Determine which spawn is original for player
+        - Give each original spawn around the map a letter A, B, C etc
+        - Give each non original spawn a number, like A1, A2, A3 etc
+
+        - Time to "build" could be removed, instead there is a "call-up time" from the moment unit is ordered no matter how many there are
+
+        - Possible to build loaded vehicles, how?
+            - Special queue or modifyer hotkey that puts soldiers into next vehicle? But no.
+            - Select a vehicle to load, then select the soldiers to put inside.
+            - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
+            - These are stored as templates, even saved between games, in a special templates tab
+
     Ammo
         - Units out of ammo should reject attack orders
         - Costs money
@@ -108,9 +106,10 @@ Ideas
         - Widget for auto rearm
 
     - Make infantry fire on the move
-    - Force move is sprint
+        - Force move is sprint
         - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
-    - Attack move default
+
+    - Attack move as default?
 
     Game modes
 
