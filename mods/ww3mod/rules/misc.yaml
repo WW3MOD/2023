@@ -287,25 +287,6 @@ DRILLMINE:
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 
-barracks.upgraded:
-	AlwaysVisible:
-	ProvidesPrerequisite:
-vehicles.upgraded:
-	AlwaysVisible:
-	ProvidesPrerequisite:
-aircraft.upgraded:
-	AlwaysVisible:
-	ProvidesPrerequisite:
-
-tech.stolen:
-	AlwaysVisible:
-	ProvidesPrerequisite:
-	Interactable:
-	Tooltip:
-		Name: enemy Tech Center infiltrated
-	Buildable:
-		Description: Tech Unit
-
 mpspawn:
 	Interactable:
 	EditorOnlyTooltip:

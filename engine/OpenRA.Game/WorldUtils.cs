@@ -34,6 +34,16 @@ namespace OpenRA
 			return positions.MinByOrDefault(p => (p - pos).LengthSquared);
 		}
 
+		// public static IEnumerable<Actor> FindActorsInAnnulus(this World world, WPos origin, WDist innerRadius, WDist outerRadius)
+		// {
+		// 	// Target ranges are calculated in 2D, so ignore height differences
+		// 	var vec = new WVec(r, r, WDist.Zero);
+		// 	return world.ActorMap.ActorsInBox(origin - vec, origin + vec).Where(
+		// 		a => (a.CenterPosition - origin).HorizontalLengthSquared >= innerRadius.LengthSquared
+		// 			&& (a.CenterPosition - origin).HorizontalLengthSquared <= outerRadius.LengthSquared
+		// 	);
+		// }
+
 		public static IEnumerable<Actor> FindActorsInCircle(this World world, WPos origin, WDist r)
 		{
 			// Target ranges are calculated in 2D, so ignore height differences

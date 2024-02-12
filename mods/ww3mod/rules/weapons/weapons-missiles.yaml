@@ -177,7 +177,7 @@ SurfaceToAirMissile:
 		TrailScalePercent: 75
 	Warhead@Spread: SpreadDamage
 		Damage: 2000
-		RandomDamage: 1000
+		RandomDamageAddition: 1000
 		Spread: 128
 		ValidTargets: Air, ICBM
 
@@ -208,7 +208,7 @@ AirToAirMissile:
 		ExplodeWhenEmpty: true
 	Warhead@Spread: SpreadDamage
 		Damage: 1000
-		RandomDamage: 1000
+		RandomDamageAddition: 1000
 		Spread: 128
 		ValidTargets: Air, ICBM
 
