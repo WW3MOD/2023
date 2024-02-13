@@ -393,7 +393,9 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamagePercent: 25
+		Damage: 200
+		RandomDamagePercent: 0
+		RandomDamageSubtraction: 50
 		Spread: 96
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
@@ -416,7 +418,9 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamagePercent: 100
+		Damage: 200
+		RandomDamagePercent: 0
+		RandomDamageSubtraction: 50
 		Spread: 128
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
@@ -439,7 +443,9 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 1
-		RandomDamagePercent: 150
+		Damage: 200
+		RandomDamagePercent: 0
+		RandomDamageSubtraction: 50
 		Spread: 192
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Effect: CreateEffect
@@ -462,7 +468,9 @@
 	Warhead@Shrapnel: SpreadDamage
 		Delay: 1
 		ValidTargets: Infantry, Unarmored
-		RandomDamagePercent: 200
+		Damage: 200
+		RandomDamagePercent: 0
+		RandomDamageSubtraction: 50
 		Spread: 1c0
 		DamageTypes: Prone30Percent, BulletDeath
 	Warhead@Smudge: LeaveSmudge

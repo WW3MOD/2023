@@ -32,8 +32,8 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How much damage to deal in percent.")]
 		public readonly int DamagePercent = 0;
 
-		[Desc("For each actor hit, multiply damage recieved with this percent.")]
-		public readonly int RandomDamagePercent = 0;
+		[Desc("Percent of damage to deal randomly for each unit, from this value to 100.")]
+		public readonly int RandomDamagePercent = 100;
 
 		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage).")]
 		public readonly int RandomDamageAddition = 0;
@@ -210,9 +210,9 @@ namespace OpenRA.Mods.Common.Warheads
 				damage -= firedBy.World.SharedRandom.Next(0, RandomDamageSubtraction);
 			}
 
-			if (RandomDamagePercent != 0)
+			if (RandomDamagePercent != 100)
 			{
-				damage *= firedBy.World.SharedRandom.Next(0, RandomDamagePercent);
+				damage *= firedBy.World.SharedRandom.Next(RandomDamagePercent, 100);
 				damage /= 100;
 			}
 

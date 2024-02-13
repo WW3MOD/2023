@@ -5,6 +5,9 @@ Add scores.mix
 
 Ongoing
 
+    - RandomDamagePercent
+        - 
+
     - When shooting ATGM units can't unload
         - Problematic because when firing, the actor's order is locked to attack and only after it is done it will accept the next order.
 
