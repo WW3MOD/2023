@@ -4,7 +4,7 @@
 	Warhead@Spread: SpreadDamage
 		Spread: 426
 		Damage: 50
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Structure, Wall, Trees

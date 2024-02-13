@@ -397,7 +397,7 @@
 		RandomDamagePercent: 0
 		RandomDamageSubtraction: 50
 		Spread: 96
-		DamageTypes: Prone30Percent, BulletDeath
+		DamageTypes: BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
 		Explosions: hit_minimal
@@ -422,7 +422,7 @@
 		RandomDamagePercent: 0
 		RandomDamageSubtraction: 50
 		Spread: 128
-		DamageTypes: Prone30Percent, BulletDeath
+		DamageTypes: BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
 		Explosions: explosion_small
@@ -447,7 +447,7 @@
 		RandomDamagePercent: 0
 		RandomDamageSubtraction: 50
 		Spread: 192
-		DamageTypes: Prone30Percent, BulletDeath
+		DamageTypes: BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
 		Explosions: explosion_medium
@@ -472,7 +472,7 @@
 		RandomDamagePercent: 0
 		RandomDamageSubtraction: 50
 		Spread: 1c0
-		DamageTypes: Prone30Percent, BulletDeath
+		DamageTypes: BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -500,7 +500,7 @@
 		Delay: 1
 		RandomDamagePercent: 300
 		Spread: 384
-		DamageTypes: Prone30Percent, BulletDeath
+		DamageTypes: BulletDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees

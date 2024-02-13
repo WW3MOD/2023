@@ -111,7 +111,7 @@ ATMine:
 		Delay: 2
 		AffectsParent: true
 		InvalidTargets: Mine
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
 		ImpactSounds: mineblo1.aud
@@ -125,7 +125,7 @@ ASMine:
 		Damage: 100
 		AffectsParent: true
 		InvalidTargets: Mine
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 		ValidTargets: Ship, Submarine, Underwater
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
@@ -150,7 +150,7 @@ OreExplosion:
 	Warhead@Spread: SpreadDamage
 		Spread: 9
 		Damage: 10
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@Resource: CreateResource
 		AddsResourceType: Ore
 		Size: 1,1
@@ -166,7 +166,7 @@ CrateNuke:
 		Falloff: 368, 135, 80, 50, 20, 10
 		ValidTargets: Ground, Trees, Water, Air
 		AffectsParent: true
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
+		DamageTypes: FireDeath, Incendiary
 	Warhead@Resource_impact: DestroyResource
 	Warhead@Effect_impact: CreateEffect
 		Explosions: nuke
@@ -179,7 +179,7 @@ CrateNuke:
 		Delay: 5
 		ValidTargets: Ground, Water, Air
 		AffectsParent: true
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
+		DamageTypes: FireDeath, Incendiary
 	Warhead@Resource_areanuke1: DestroyResource
 		Size: 3
 		Delay: 5
@@ -216,7 +216,7 @@ MiniNuke:
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		ValidTargets: Ground, Trees, Water, Air
 		AffectsParent: true
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
+		DamageTypes: FireDeath, Incendiary
 	Warhead@Resource_impact: DestroyResource
 		Size: 1
 	Warhead@Effect_impact: CreateEffect
@@ -230,7 +230,7 @@ MiniNuke:
 		Delay: 5
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		AffectsParent: true
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
+		DamageTypes: FireDeath, Incendiary
 	Warhead@Resource_areanuke1: DestroyResource
 		Size: 2
 		Delay: 5
@@ -245,7 +245,7 @@ MiniNuke:
 		Delay: 10
 		ValidTargets: Ground, Water, Underwater, Air
 		AffectsParent: true
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
+		DamageTypes: FireDeath, Incendiary
 	Warhead@8Dam_areanuke2: SpreadDamage
 		Spread: 3c0
 		Damage: 120
@@ -263,7 +263,7 @@ MiniNuke:
 		Delay: 15
 		ValidTargets: Ground, Water, Underwater
 		AffectsParent: true
-		DamageTypes: Prone30Percent, FireDeath, Incendiary
+		DamageTypes: FireDeath, Incendiary
 	Warhead@11Dam_areanuke3: SpreadDamage
 		Spread: 4c0
 		Damage: 180
@@ -309,7 +309,7 @@ FlakFX:
 		Spread: 213
 		Damage: 40
 		ValidTargets: Air
-		DamageTypes: Prone30Percent, DefaultDeath
+		DamageTypes: DefaultDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_air_small
 		ImpactSounds: aacanon3.aud
@@ -331,7 +331,7 @@ NapalmFX:
 		Damage: 20
 		ValidTargets: Ground, Trees
 		InvalidTargets: Air
-		DamageTypes: Prone30Percent, FireDeath
+		DamageTypes: FireDeath
 	Warhead@Effect: CreateEffect
 		Explosions: napalm_small
 		ImpactSounds: firebl3.aud
@@ -419,7 +419,7 @@ IskanderExplosion:
 		Penetration: 2000
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 
 IskanderExplosionAirborne:
 	Inherits: IskanderExplosion
@@ -428,7 +428,7 @@ IskanderExplosionAirborne:
 	# 	Falloff: 100, 100, 0
 	# 	Damage: 6750
 	# 	ValidTargets: Ground, Water, Trees, ICBM
-	# 	DamageTypes: Prone30Percent, ExplosionDeath
+	# 	DamageTypes: ExplosionDeath
 	# Warhead@2Eff: CreateEffect
 	# 	Explosions: artillery_explosion
 	# 	ImpactSounds: kaboom15.aud

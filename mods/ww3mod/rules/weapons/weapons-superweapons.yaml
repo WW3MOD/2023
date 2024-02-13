@@ -11,7 +11,7 @@
 # 	Warhead@Spread: SpreadDamage
 # 		Spread: 768
 # 		Damage: 300
-# 		DamageTypes: Prone30Percent, ExplosionDeath
+# 		DamageTypes: ExplosionDeath
 # 	Warhead@Smudge: LeaveSmudge
 # 		SmudgeType: Crater
 # 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -55,7 +55,7 @@ Atomic:
 		Penetration: 100
 		Falloff: 50000, 45000, 40000, 35000, 30000, 25000, 20000, 15000, 10000, 5000, 2500, 1000, 500, 250, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
-		DamageTypes: Prone30Percent, FireDeath
+		DamageTypes: FireDeath
 	Warhead@HeatRadiation2: SpreadDamage
 		Spread: 512
 		Damage: 100
@@ -64,7 +64,7 @@ Atomic:
 		Duration: 5
 		Modulus: 2
 		ValidTargets: Ground, Trees, Water, Underwater, Air
-		DamageTypes: Prone30Percent, FireDeath
+		DamageTypes: FireDeath
 
 	# Warhead@Scorch1: LeaveSmudge
 	# 	Delay: 50
@@ -143,7 +143,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave2: SpreadDamage
 		Spread: 2c0
 		Damage: 45000
@@ -156,7 +156,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave3: SpreadDamage
 		Spread: 2c0
 		Damage: 40000
@@ -169,7 +169,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave4: SpreadDamage
 		Spread: 2c0
 		Damage: 35000
@@ -182,7 +182,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave5: SpreadDamage
 		Spread: 2c0
 		Damage: 30000
@@ -195,7 +195,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave6: SpreadDamage
 		Spread: 2c0
 		Damage: 25000
@@ -208,7 +208,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave7: SpreadDamage
 		Spread: 2c0
 		Damage: 20000
@@ -221,7 +221,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave8: SpreadDamage
 		Spread: 2c0
 		Damage: 15000
@@ -234,7 +234,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave9: SpreadDamage
 		Spread: 2c0
 		Damage: 10000
@@ -247,7 +247,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave10: SpreadDamage
 		Spread: 2c0
 		Damage: 8000
@@ -260,7 +260,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave11: SpreadDamage
 		Spread: 2c0
 		Damage: 6000
@@ -273,7 +273,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave12: SpreadDamage
 		Spread: 2c0
 		Damage: 4000
@@ -286,7 +286,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave13: SpreadDamage
 		Spread: 2c0
 		Damage: 3000
@@ -299,7 +299,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave14: SpreadDamage
 		Spread: 2c0
 		Damage: 2000
@@ -312,7 +312,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave15: SpreadDamage
 		Spread: 2c0
 		Damage: 1200
@@ -325,7 +325,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave16: SpreadDamage
 		Spread: 2c0
 		Damage: 600
@@ -338,7 +338,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave17: SpreadDamage
 		Spread: 2c0
 		Damage: 300
@@ -351,7 +351,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave18: SpreadDamage
 		Spread: 2c0
 		Damage: 150
@@ -364,7 +364,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave19: SpreadDamage
 		Spread: 2c0
 		Damage: 80
@@ -377,7 +377,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave20: SpreadDamage
 		Spread: 2c0
 		Damage: 80
@@ -390,7 +390,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave21: SpreadDamage
 		Spread: 2c0
 		Damage: 25
@@ -403,7 +403,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave22: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -416,7 +416,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave23: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -429,7 +429,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave24: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -442,7 +442,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave25: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -455,7 +455,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave26: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -468,7 +468,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave27: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -481,7 +481,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave28: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -494,7 +494,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave29: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -507,7 +507,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave30: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -520,7 +520,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave31: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -533,7 +533,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave32: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -546,7 +546,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave33: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -559,7 +559,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave34: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -572,7 +572,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave35: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -585,7 +585,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave36: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -598,7 +598,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave37: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -611,7 +611,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave38: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -624,7 +624,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave39: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -637,7 +637,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave40: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -650,7 +650,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave41: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -663,7 +663,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave42: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -676,7 +676,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave43: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -689,7 +689,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave44: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -702,7 +702,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave45: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -715,7 +715,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave46: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -728,7 +728,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave47: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -741,7 +741,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave48: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -754,7 +754,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave49: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -767,7 +767,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave50: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -780,7 +780,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave52: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -793,7 +793,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 	Warhead@BlastWave53: SpreadDamage
 		Spread: 2c0
 		Damage: 10
@@ -806,7 +806,7 @@ Atomic:
 			Medium: 55
 			Heavy: 40
 			Concrete: 100
-		DamageTypes: Prone30Percent, SmallExplosionDeath
+		DamageTypes: SmallExplosionDeath
 
 EmpBomb:
 	BurstWait: 10

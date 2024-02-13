@@ -439,7 +439,7 @@ PrismLaser:
 	Warhead@Spread: SpreadDamage
 		Spread: 160
 		Damage: 25
-		DamageTypes: Prone50Percent, FireDeath
+		DamageTypes: FireDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
@@ -471,7 +471,7 @@ PrisLaser:
 		Spread: 64
 		Falloff: 100, 50, 20, 5, 1
 		Damage: 3000
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Scorch-NoFlame
 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
@@ -505,7 +505,7 @@ PrisBurst:
 		Spread: 64
 		Falloff: 100, 50, 20, 5, 1
 		Damage: 65
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	# -Warhead@Burst:
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_small
@@ -520,7 +520,7 @@ PrisTLaser:
 	Warhead@Spread: SpreadDamage
 		Damage: 150
 		Spread: 341
-		DamageTypes: Prone30Percent, ExplosionDeathMinor
+		DamageTypes: ExplosionDeathMinor
 
 PrisTBurst:
 	Inherits: PrisTLaser
@@ -531,7 +531,7 @@ PrisTBurst:
 	Warhead@Spread: SpreadDamage
 		Damage: 40
 		Spread: 160
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	# -Warhead@Burst:
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_small
@@ -606,7 +606,7 @@ C4:
 		ValidTargets: Air, Ground, Water
 		Spread: 64
 		Damage: 100
-		DamageTypes: Prone30Percent, ExplosionDeath
+		DamageTypes: ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
 		ImpactSounds: icolexpa.aud
@@ -713,7 +713,7 @@ Claw:
 		Spread: 213
 		Damage: 3000
 		ValidTargets: WaterActor
-		DamageTypes: Prone50Percent, DefaultDeath
+		DamageTypes: DefaultDeath
 
 Mandible:
 	Inherits: Claw
@@ -723,7 +723,7 @@ Mandible:
 	StartBurstReport: antbite.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 6000
-		DamageTypes: Prone50Percent, BulletDeath
+		DamageTypes: BulletDeath
 
 MandibleHeavy:
 	Inherits: Claw
@@ -733,7 +733,7 @@ MandibleHeavy:
 	StartBurstReport: antbite.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 10000
-		DamageTypes: Prone50Percent, BulletDeath
+		DamageTypes: BulletDeath
 
 AntFireball:
 	Inherits: FireballLauncher

@@ -858,7 +858,7 @@
 # 		Spread: 128
 # 		Damage: 200
 # 		ValidTargets: Ground, Water, Air
-# 		DamageTypes: Prone30Percent, ExplosionDeath
+# 		DamageTypes: ExplosionDeath
 # 	Warhead@Smudge: LeaveSmudge
 # 		SmudgeType: Crater
 # 		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
@@ -906,7 +906,7 @@
 # 		Spread: 426
 # 		Damage: 25
 # 		Falloff: 1000, 368, 135, 50, 18, 7, 0
-# 		DamageTypes: Prone30Percent, SmallExplosionDeath
+# 		DamageTypes: SmallExplosionDeath
 
 # SubMissileAA:
 # 	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
@@ -952,7 +952,7 @@
 # 		Spread: 426
 # 		Damage: 120
 # 		ValidTargets: Water, Underwater, Bridge
-# 		DamageTypes: Prone30Percent, ExplosionDeath
+# 		DamageTypes: ExplosionDeath
 # 	Warhead@Effect: CreateEffect
 # 		Explosions: artillery_explosion
 # 		ImpactSounds: kaboom15.aud
