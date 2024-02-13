@@ -535,17 +535,8 @@ namespace OpenRA
 				byte terrainTypeModifier = 0;
 				switch (terrainType)
 				{
-					case "TreeClear":
+					case "Rock":
 						terrainTypeModifier = 1;
-						break;
-					case "TreeRough":
-						terrainTypeModifier = 2;
-						break;
-					case "TreeDebris":
-						terrainTypeModifier = 3;
-						break;
-					case "TreeRock":
-						terrainTypeModifier = 4;
 						break;
 					default:
 						terrainTypeModifier = 0;

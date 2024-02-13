@@ -20,10 +20,6 @@
 			Rough: 70
 			Debris: 50
 			Rock: 30
-			TreeClear: 50
-			TreeRough: 50
-			TreeDebris: 80
-			TreeRock: 80
 			Beach: 80
 			RiverShallow: 30
 			Shallow: 20
@@ -39,10 +35,6 @@
 			Rough: 70
 			Debris: 40
 			Rock: 30
-			TreeClear: 60
-			TreeRough: 50
-			TreeDebris: 40
-			TreeRock: 30
 			Beach: 70
 			RiverShallow: 30
 			Shallow: 15
@@ -58,10 +50,6 @@
 			Rough: 70
 			Debris: 40
 			Rock: 30
-			TreeClear: 60
-			TreeRough: 50
-			TreeDebris: 40
-			TreeRock: 30
 			Beach: 70
 			RiverShallow: 40
 			Shallow: 25
@@ -79,10 +67,6 @@
 			Rough: 70
 			Debris: 60
 			Rock: 50
-			TreeClear: 60
-			TreeRough: 50
-			TreeDebris: 40
-			TreeRock: 30
 			Beach: 70
 			RiverShallow: 40
 			Shallow: 25
@@ -99,10 +83,6 @@
 			Rough: 70
 			Debris: 60
 			Rock: 50
-			TreeClear: 60
-			TreeRough: 50
-			TreeDebris: 40
-			TreeRock: 30
 			Beach: 70
 			RiverShallow: 40
 			Shallow: 25
@@ -118,7 +98,6 @@
 			Clear: 70
 			Beach: 50
 			Rough: 35
-			TreeClear: 35
 	Locomotor@WHEELED:
 		Name: wheeled
 		Crushes: mine, crate
@@ -129,7 +108,6 @@
 			Beach: 50
 			Rough: 35
 			Debris: 20
-			TreeClear: 35
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
 		Crushes: wall, mine, crate, infantry
@@ -140,7 +118,6 @@
 			Beach: 50
 			Rough: 35
 			Debris: 40
-			TreeClear: 35
 	Locomotor@LIGHTTRACKED:
 		Name: lighttracked
 		Crushes: wall, mine, crate
@@ -151,7 +128,6 @@
 			Beach: 50
 			Rough: 35
 			Debris: 40
-			TreeClear: 35
 			RiverShallow: 75
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
 		Name: lighttracked-amphibious
@@ -163,7 +139,6 @@
 			Beach: 50
 			Rough: 35
 			Debris: 40
-			TreeClear: 35
 			RiverShallow: 75
 			Shallow: 75
 			Water: 15
@@ -178,7 +153,6 @@
 			Beach: 50
 			Rough: 35
 			Debris: 40
-			TreeClear: 35
 			RiverShallow: 75
 			River: 10
 	Locomotor@HEAVYTRACKED:
@@ -190,7 +164,6 @@
 			Clear: 70
 			Rough: 65
 			Debris: 60
-			TreeClear: 35
 			Beach: 50
 			RiverShallow: 75
 			River: 5
@@ -204,7 +177,6 @@
 			Beach: 50
 			Rough: 35
 			Debris: 40
-			TreeClear: 35
 			RiverShallow: 75
 			Water: 10
 			River: 10
@@ -218,7 +190,6 @@
 			Rough: 90
 			Debris: 80
 			Rock: 50
-			TreeClear: 50
 			RiverShallow: 75
 			Beach: 75
 			River: 50

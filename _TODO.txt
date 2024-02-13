@@ -5,15 +5,12 @@ Add scores.mix
 
 Ongoing
 
-    Shadow casting
-        - Half density per tile from now seems about right, adjust for each decoration
-
-    Tile post init update based on actor
-        - Tiles with trees should automatically get a different tile type for locomotor/pathfinder
+    - When shooting ATGM units can't unload
+        - Problematic because when firing, the actor's order is locked to attack and only after it is done it will accept the next order.
 
 Fix
 
-    - When shooting ATGM units can't unload
+    - Remove Tree-tiles
 
     - DR or any should cancel attack order when out of ammo and resupply
 
@@ -23,8 +20,6 @@ Fix
         - Add more civilian structures
         - Add more tiles, roads especially
         - Update / Create new maps
-
-    - Default lobby options
 
     - Select units deprioritizes
 
@@ -53,8 +48,6 @@ Fix
 
     - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
 
-    - Add AimingTicks to Armament, and delay by that much before actually firing but must come after prepare attack
-
     - Iskander missile acceleration + balancing
     - New Himars missile, similar to Iskander but smaller and shorter range + balancing
 
@@ -67,6 +60,12 @@ Bugs
 
 Ideas
 
+    Lobby options
+        - Load previous settings
+        - Load from list of previous games
+        - Consider default options and shown order
+        - Add more options for range, firepower etc?
+
     Supply Route
 
         - ! Possibly make maps with a bit of space around, reducing the map bounds to be less than -1 of map
@@ -74,9 +73,7 @@ Ideas
             - Spawned units spawn beyond bounds and rejects orders until they have moved inside bounds
             - Spawn units randomly along the edge instead of all around the SR
                 - Determine when map loads if it is on the vertical or horizontal edge
-
         - Captured SR gives access to spawn, how to deal with this?
-
         - Make maps with more spawns as default
         - Add neutral SRs in between that can be captured
         - Link SRs at game start to the closest player spawn to determine who controls what is beyond border, only those can give spawn

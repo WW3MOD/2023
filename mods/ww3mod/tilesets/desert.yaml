@@ -1,7 +1,7 @@
 General:
 	Name: Desert
 	Id: DESERT
-	EditorTemplateOrder: Clear, Rough, Debris, Rock, Road, River, TreeClear, TreeRough, TreeDebris, TreeRock, Cliffs, WaterCliffs, Water, Beach, Bridge
+	EditorTemplateOrder: Clear, Rough, Debris, Rock, Road, River, Cliffs, WaterCliffs, Water, Beach, Bridge
 	HeightDebugColors: 880000
 
 Terrain:
@@ -38,29 +38,6 @@ Terrain:
 		Color: 44443C
 	TerrainType@Cliffs:
 		Type: Cliffs
-		TargetTypes: Ground
-		Color: 44443C
-
-	TerrainType@TreeClear:
-		Type: TreeClear
-		TargetTypes: Ground
-		Color: 1C2024
-	TerrainType@TreeRough:
-		Type: TreeRough
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: 44443C
-	TerrainType@TreeDebris:
-		Type: TreeDebris
-		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
-		Color: 44443C
-	TerrainType@TreeRock:
-		Type: TreeRock
-		TargetTypes: Ground
-		Color: 44443C
-	TerrainType@TreeCliffs:
-		Type: TreeCliffs
 		TargetTypes: Ground
 		Color: 44443C
 
@@ -596,39 +573,39 @@ Templates:
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: TreeClear
+			0: Clear
 	Template@15:
 		Id: 15
 		Images: br02.des
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: TreeClear
+			0: Clear
 	Template@16:
 		Id: 16
 		Images: br03.des
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: TreeClear
+			0: Clear
 	Template@17:
 		Id: 17
 		Images: br04.des
 		Size: 1,1
 		Categories: Debris
 		Tiles:
-			0: TreeClear
+			0: Clear
 	Template@18:
 		Id: 18
 		Images: br05.des
 		Size: 3,2
 		Categories: Debris
 		Tiles:
-			0: TreeClear
-			1: TreeClear
+			0: Clear
+			1: Clear
 			2: Rock
 			3: Rock
-			4: TreeClear
+			4: Clear
 			5: Rock
 	Template@19:
 		Id: 19
@@ -636,54 +613,54 @@ Templates:
 		Size: 2,2
 		Categories: Debris
 		Tiles:
-			0: TreeClear
-			1: TreeClear
-			2: TreeClear
-			3: TreeClear
+			0: Clear
+			1: Clear
+			2: Clear
+			3: Clear
 	Template@20:
 		Id: 20
 		Images: br07.des
 		Size: 2,2
 		Categories: Debris
 		Tiles:
-			0: TreeClear
-			1: TreeClear
-			2: TreeClear
-			3: TreeClear
+			0: Clear
+			1: Clear
+			2: Clear
+			3: Clear
 	Template@21:
 		Id: 21
 		Images: br08.des
 		Size: 3,2
 		Categories: Debris
 		Tiles:
-			0: TreeClear
-			1: TreeClear
-			2: TreeClear
-			3: TreeClear
-			4: TreeClear
-			5: TreeClear
+			0: Clear
+			1: Clear
+			2: Clear
+			3: Clear
+			4: Clear
+			5: Clear
 	Template@22:
 		Id: 22
 		Images: br09.des
 		Size: 3,2
 		Categories: Debris
 		Tiles:
-			0: TreeClear
-			1: TreeClear
-			2: TreeClear
-			3: TreeClear
-			4: TreeClear
-			5: TreeClear
+			0: Clear
+			1: Clear
+			2: Clear
+			3: Clear
+			4: Clear
+			5: Clear
 	Template@23:
 		Id: 23
 		Images: br10.des
 		Size: 2,2
 		Categories: Debris
 		Tiles:
-			0: TreeClear
-			1: TreeClear
-			2: TreeClear
-			3: TreeClear
+			0: Clear
+			1: Clear
+			2: Clear
+			3: Clear
 	Template@35:
 		Id: 35
 		Images: p01.des
@@ -856,7 +833,7 @@ Templates:
 			7: River
 			8: Rock
 			9: Rock
-			10: TreeClear
+			10: Clear
 			11: Rock
 	Template@61:
 		Id: 61
@@ -895,12 +872,12 @@ Templates:
 			13: Rock
 			14: River
 			15: Rock
-			16: TreeClear
+			16: Clear
 			17: Rock
 			18: River
 			19: River
 			20: Rock
-			21: TreeClear
+			21: Clear
 	Template@63:
 		Id: 63
 		Images: rv17.des
@@ -915,7 +892,7 @@ Templates:
 			7: Rock
 			8: Rock
 			9: Rock
-			10: TreeClear
+			10: Clear
 			12: Rock
 			13: Rock
 			14: River
@@ -938,14 +915,14 @@ Templates:
 		Tiles:
 			0: Rock
 			1: River
-			2: TreeClear
+			2: Clear
 			3: Rock
 			4: Rock
 			5: Rock
 			6: Rock
 			8: Rock
 			9: River
-			10: TreeClear
+			10: Clear
 			12: Rock
 			13: River
 			14: Rock
@@ -960,7 +937,7 @@ Templates:
 			3: Clear
 			5: Rock
 			6: River
-			7: TreeClear
+			7: Clear
 			8: Rock
 			9: Rock
 			10: River
@@ -968,7 +945,7 @@ Templates:
 			12: Clear
 			13: Rock
 			14: River
-			15: TreeClear
+			15: Clear
 	Template@66:
 		Id: 66
 		Images: rv20.des
@@ -1084,7 +1061,7 @@ Templates:
 			3: Rock
 			4: River
 			5: River
-			7: TreeClear
+			7: Clear
 			8: Clear
 	Template@72:
 		Id: 72
@@ -1092,7 +1069,7 @@ Templates:
 		Size: 3,3
 		Categories: River
 		Tiles:
-			0: TreeClear
+			0: Clear
 			1: River
 			2: Rock
 			3: River
@@ -1117,7 +1094,7 @@ Templates:
 			7: River
 			8: River
 			9: Rock
-			10: TreeClear
+			10: Clear
 			11: Rock
 	Template@101:
 		Id: 101
@@ -1140,12 +1117,12 @@ Templates:
 		Categories: River
 		Tiles:
 			0: Rough
-			1: TreeClear
+			1: Clear
 			2: River
 			3: River
 			4: River
 			5: River
-			6: TreeClear
+			6: Clear
 			7: River
 			8: Rock
 	Template@103:
@@ -2339,7 +2316,7 @@ Templates:
 		Categories: Beach
 		Tiles:
 			0: Clear
-			1: TreeClear
+			1: Clear
 			2: River
 			3: Beach
 			4: Water
