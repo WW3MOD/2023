@@ -62,8 +62,9 @@
 	GpsDot:
 		String: Infantry
 	Crushable:
-		CrushSound: squishy2.aud
-		WarnProbability: 100
+		CrushClasses: infantry
+		KilledByRelationships: Enemy
+		KillSound: squishy2.aud
 	Guard:
 	Guardable:
 	Tooltip:

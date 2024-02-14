@@ -9,21 +9,34 @@
  */
 #endregion
 
+/* Could add Crush Damage, and give that much damage instead of just killing instantly */
+
 using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor is crushable.")]
 	class CrushableInfo : ConditionalTraitInfo
 	{
-		[Desc("Sound to play when being crushed.")]
-		public readonly string CrushSound = null;
+
 		[Desc("Which crush classes does this actor belong to.")]
-		public readonly BitSet<CrushClass> CrushClasses = new BitSet<CrushClass>("infantry");
+		public readonly BitSet<CrushClass> CrushClasses = new BitSet<CrushClass>("none");
+
+		[Desc("Player Relationship to be able too pass over (Crush) this Crushable.")]
+		public readonly PlayerRelationship CrushedByRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+
+		[Desc("Relationships where the crush action kills this Crushable.")]
+		public readonly PlayerRelationship KilledByRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+
 		[Desc("Probability of mobile actors noticing and evading a crush attempt.")]
-		public readonly int WarnProbability = 75;
-		[Desc("Will friendly units just crush me instead of pathing around.")]
-		public readonly bool CrushedByFriendlies = false;
+		public readonly int WarnProbability = 100;
+
+		[Desc("Sound to play when being passed (crushed).")]
+		public readonly string CrushSound = null;
+
+		[Desc("Sound to play when being crushed to death.")]
+		public readonly string KillSound = null;
 
 		public override object Create(ActorInitializer init) { return new Crushable(init.Self, this); }
 	}
@@ -40,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
-			if (!CrushableInner(crushClasses, crusher.Owner))
+			if (!CrushableInner(self, crusher, crushClasses))
 				return;
 
 			var mobile = self.TraitOrDefault<Mobile>();
@@ -50,20 +63,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
-			if (!CrushableInner(crushClasses, crusher.Owner))
+			if (!CrushableInner(self, crusher, crushClasses))
 				return;
 
 			Game.Sound.Play(SoundType.World, Info.CrushSound, crusher.CenterPosition);
 
 			var crusherMobile = crusher.TraitOrDefault<Mobile>();
 
-			if (!crusherMobile.Locomotor.Info.Passes.Overlaps(crushClasses))
+			if (Info.KilledByRelationships.HasRelationship(self.Owner.RelationshipWith(crusher.Owner))
+				&& crusherMobile.Info.LocomotorInfo.Kills.Overlaps(crushClasses))
+			{
+				Game.Sound.Play(SoundType.World, Info.KillSound, crusher.CenterPosition);
 				self.Kill(crusher, crusherMobile != null ? crusherMobile.Info.LocomotorInfo.CrushDamageTypes : default);
+			}
 		}
 
 		bool ICrushable.CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
-			return CrushableInner(crushClasses, crusher.Owner);
+			return CrushableInner(self, crusher, crushClasses);
 		}
 
 		LongBitSet<PlayerBitMask> ICrushable.CrushableBy(Actor self, BitSet<CrushClass> crushClasses)
@@ -71,15 +88,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || !Info.CrushClasses.Overlaps(crushClasses))
 				return self.World.NoPlayersMask;
 
-			return Info.CrushedByFriendlies ? self.World.AllPlayersMask : self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+			return Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Ally) ? self.World.AllPlayersMask : self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
 		}
 
-		bool CrushableInner(BitSet<CrushClass> crushClasses, Player crushOwner)
+		bool CrushableInner(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
 			if (IsTraitDisabled)
 				return false;
 
-			if (!Info.CrushedByFriendlies && crushOwner.IsAlliedWith(self.Owner))
+			var shouldCrush = Info.CrushedByRelationships.HasRelationship(self.Owner.RelationshipWith(crusher.Owner));
+
+			var relationship = self.Owner.RelationshipWith(crusher.Owner);
+			if (!Info.CrushedByRelationships.HasRelationship(relationship))
 				return false;
 
 			return Info.CrushClasses.Overlaps(crushClasses);

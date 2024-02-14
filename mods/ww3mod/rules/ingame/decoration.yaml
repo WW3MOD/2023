@@ -9,6 +9,7 @@
 		Height: 256
 	Crushable:
 		CrushClasses: tree
+		KilledByRelationships: None
 	Interactable:
 	Tooltip:
 		Name: Tree

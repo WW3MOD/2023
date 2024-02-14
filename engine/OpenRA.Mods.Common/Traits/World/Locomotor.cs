@@ -61,9 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[Desc("Locomotor ID.")]
 		public readonly string Name = "default";
-
 		public readonly int WaitAverage = 40;
-
 		public readonly int WaitSpread = 10;
 
 		[Desc("Allow multiple (infantry) units in one cell.")]
@@ -72,11 +70,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Can the actor be ordered to move in to shroud?")]
 		public readonly bool MoveIntoShroud = true;
 
-		[Desc("e.g. crate, wall, infantry, tree")]
+		[Desc("Can pass by cell of other units, e.g. crate, wall, infantry, tree")]
 		public readonly BitSet<CrushClass> Crushes = default;
 
-		[Desc("What should not be crushed (killed), e.g. tree for units that can move in forests. Add these to Crushes as well")]
-		public readonly BitSet<CrushClass> Passes = default;
+		[Desc("What should be killed when crushed")]
+		public readonly BitSet<CrushClass> Kills = default;
 
 		[Desc("Types of damage that are caused while crushing. Leave empty for no damage types.")]
 		public readonly BitSet<DamageType> CrushDamageTypes = default;

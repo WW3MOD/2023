@@ -51,6 +51,7 @@
 		DestroyedSounds: sandbag2.aud
 	Crushable:
 		CrushClasses: wall
+		KilledByRelationships: Enemy
 	LineBuild:
 		Range: 8
 		NodeTypes: wall
@@ -344,6 +345,7 @@ BRIK:
 		Type: Concrete
 	Crushable:
 		CrushClasses: heavywall
+		KilledByRelationships: Enemy
 	Demolishable:
 		Condition: being-demolished
 	BlocksProjectiles:

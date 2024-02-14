@@ -91,7 +91,8 @@
 			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled
-		Crushes: mine, crate
+		Crushes: mine, crate, infantry
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -100,7 +101,8 @@
 			Rough: 35
 	Locomotor@WHEELED:
 		Name: wheeled
-		Crushes: mine, crate
+		Crushes: mine, crate, infantry
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -111,6 +113,7 @@
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
 		Crushes: wall, mine, crate, infantry
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -120,7 +123,8 @@
 			Debris: 40
 	Locomotor@LIGHTTRACKED:
 		Name: lighttracked
-		Crushes: wall, mine, crate
+		Crushes: wall, mine, crate, infantry
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -131,7 +135,8 @@
 			RiverShallow: 75
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
 		Name: lighttracked-amphibious
-		Crushes: wall, mine, crate
+		Crushes: wall, mine, crate, infantry
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -146,6 +151,7 @@
 	Locomotor@TRACKED:
 		Name: tracked
 		Crushes: wall, infantry, mine, crate
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -158,6 +164,7 @@
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
 		Crushes: wall, infantry, mine, crate, heavywall
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -170,6 +177,7 @@
 	Locomotor@TRACKED_AMPHIBIOUS:
 		Name: tracked-amphibious
 		Crushes: infantry, mine, crate
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -183,6 +191,7 @@
 	Locomotor@Walker:
 		Name: walker
 		Crushes: wall, infantry, mine, crate
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -214,6 +223,7 @@
 	Locomotor@AMPHIBIOUS:
 		Name: amphibious
 		Crushes: infantry, mine, crate
+		Passes: infantry
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
