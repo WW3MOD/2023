@@ -112,20 +112,21 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	// Type tag for crush class bits
-	public class CrushClass { }
+	public class PassClass { }
 
 	[RequireExplicitImplementation]
-	public interface ICrushable
+	public interface IPassable
 	{
-		bool CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
-		LongBitSet<PlayerBitMask> CrushableBy(Actor self, BitSet<CrushClass> crushClasses);
+		bool PassableBy(Actor self, Actor passer, BitSet<PassClass> passClasses);
+		LongBitSet<PlayerBitMask> PassableBy(Actor self, BitSet<PassClass> passClasses);
 	}
 
 	[RequireExplicitImplementation]
-	public interface INotifyCrushed
+	public interface INotifyBeingPassed
 	{
-		void OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
-		void WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
+		void OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses);
+		void WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses);
+		void OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses);
 	}
 
 	[RequireExplicitImplementation]

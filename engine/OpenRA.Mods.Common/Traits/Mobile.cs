@@ -586,19 +586,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (!self.IsAtGroundLevel())
 				return;
 
-			CrushAction(self, (notifyCrushed) => notifyCrushed.OnCrush);
+			PassAction(self, (notifyPassed) => notifyPassed.OnBeingPassed);
 		}
 
-		void CrushAction(Actor self, Func<INotifyCrushed, Action<Actor, Actor, BitSet<CrushClass>>> action)
+		void PassAction(Actor self, Func<INotifyBeingPassed, Action<Actor, Actor, BitSet<PassClass>>> action)
 		{
-			var crushables = self.World.ActorMap.GetActorsAt(ToCell, ToSubCell).Where(a => a != self)
-				.SelectMany(a => a.TraitsImplementing<ICrushable>().Select(t => new TraitPair<ICrushable>(a, t)));
+			var passables = self.World.ActorMap.GetActorsAt(ToCell, ToSubCell).Where(a => a != self)
+				.SelectMany(a => a.TraitsImplementing<IPassable>().Select(t => new TraitPair<IPassable>(a, t)));
 
 			// Only crush actors that are on the ground level
-			foreach (var crushable in crushables)
-				if (crushable.Trait.CrushableBy(crushable.Actor, self, Info.LocomotorInfo.Crushes) && crushable.Actor.IsAtGroundLevel())
-					foreach (var notifyCrushed in crushable.Actor.TraitsImplementing<INotifyCrushed>())
-						action(notifyCrushed)(crushable.Actor, self, Info.LocomotorInfo.Crushes);
+			foreach (var passable in passables)
+				if (passable.Trait.PassableBy(passable.Actor, self, Info.LocomotorInfo.Passes) && passable.Actor.IsAtGroundLevel())
+					foreach (var notifyPassed in passable.Actor.TraitsImplementing<INotifyBeingPassed>())
+						action(notifyPassed)(passable.Actor, self, Info.LocomotorInfo.Passes);
 		}
 
 		public void AddInfluence()
@@ -804,7 +804,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!self.IsAtGroundLevel())
 				return;
 
-			CrushAction(self, (notifyCrushed) => notifyCrushed.WarnCrush);
+			PassAction(self, (notifyPassed) => notifyPassed.WarnPass);
 		}
 
 		public Activity MoveTo(Func<BlockedByActor, List<CPos>> pathFunc) { return new Move(self, pathFunc); }

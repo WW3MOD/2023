@@ -133,8 +133,8 @@
 		CruisingCondition: cruising
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
-		LandableTerrainTypes: Clear,Rough,Road,Beach
-		Crushes: crate,mine,infantry
+		LandableTerrainTypes: Clear, Rough, Road, Beach
+		Crushes: crate, mine, infantry
 		InitialFacing: 224
 	GrantConditionOnMovement:
 		Condition: moving

@@ -86,7 +86,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool MoveIntoShroud = true;
 
 		[Desc("e.g. crate, wall, infantry")]
-		public readonly BitSet<CrushClass> Crushes = default;
+		public readonly BitSet<PassClass> Crushes = default;
 
 		[Desc("Types of damage that are caused while crushing. Leave empty for no damage types.")]
 		public readonly BitSet<DamageType> CrushDamageTypes = default;
@@ -710,9 +710,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// If the other actor in our way cannot be crushed, we are blocked.
 			// PERF: Avoid LINQ.
-			var crushables = otherActor.TraitsImplementing<ICrushable>();
-			foreach (var crushable in crushables)
-				if (crushable.CrushableBy(otherActor, self, Info.Crushes))
+			var passables = otherActor.TraitsImplementing<IPassable>();
+			foreach (var passable in passables)
+				if (passable.PassableBy(otherActor, self, Info.Crushes))
 					return false;
 
 			return true;
@@ -845,24 +845,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (!self.IsAtGroundLevel())
 				return;
 
-			CrushAction(self, (notifyCrushed) => notifyCrushed.OnCrush);
+			PassAction(self, (notifyCrushed) => notifyCrushed.OnBeingPassed);
 		}
 
 		public void EnteringCell(Actor self)
 		{
-			CrushAction(self, (notifyCrushed) => notifyCrushed.WarnCrush);
+			PassAction(self, (notifyCrushed) => notifyCrushed.WarnPass);
 		}
 
-		void CrushAction(Actor self, Func<INotifyCrushed, Action<Actor, Actor, BitSet<CrushClass>>> action)
+		void PassAction(Actor self, Func<INotifyBeingPassed, Action<Actor, Actor, BitSet<PassClass>>> action)
 		{
-			var crushables = self.World.ActorMap.GetActorsAt(TopLeft).Where(a => a != self)
-				.SelectMany(a => a.TraitsImplementing<ICrushable>().Select(t => new TraitPair<ICrushable>(a, t)));
+			var passables = self.World.ActorMap.GetActorsAt(TopLeft).Where(a => a != self)
+				.SelectMany(a => a.TraitsImplementing<IPassable>().Select(t => new TraitPair<IPassable>(a, t)));
 
 			// Only crush actors that are on the ground level
-			foreach (var crushable in crushables)
-				if (crushable.Trait.CrushableBy(crushable.Actor, self, Info.Crushes) && crushable.Actor.IsAtGroundLevel())
-					foreach (var notifyCrushed in crushable.Actor.TraitsImplementing<INotifyCrushed>())
-						action(notifyCrushed)(crushable.Actor, self, Info.Crushes);
+			foreach (var passable in passables)
+				if (passable.Trait.PassableBy(passable.Actor, self, Info.Crushes) && passable.Actor.IsAtGroundLevel())
+					foreach (var notifyCrushed in passable.Actor.TraitsImplementing<INotifyBeingPassed>())
+						action(notifyCrushed)(passable.Actor, self, Info.Crushes);
 		}
 
 		public void AddInfluence((CPos, SubCell)[] landingCells)

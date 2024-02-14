@@ -61,9 +61,9 @@
 		Vision: 3
 	GpsDot:
 		String: Infantry
-	Crushable:
-		CrushClasses: infantry
-		KilledByRelationships: Enemy
+	Passable:
+		PassClasses: infantry
+		CrushedByRelationships: Enemy
 		KillSound: squishy2.aud
 	Guard:
 	Guardable:

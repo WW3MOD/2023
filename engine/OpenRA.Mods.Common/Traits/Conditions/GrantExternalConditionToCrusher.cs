@@ -18,22 +18,22 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Grant a condition to the crushing actor.")]
 	public class GrantExternalConditionToCrusherInfo : TraitInfo
 	{
-		[Desc("The condition to apply on a crush attempt. Must be included among the crusher actor's ExternalCondition traits.")]
-		public readonly string WarnCrushCondition = null;
+		[Desc("The condition to apply on a crush attempt. Must be included among the passer actor's ExternalCondition traits.")]
+		public readonly string WarnPassCondition = null;
 
 		[Desc("Duration of the condition applied on a crush attempt (in ticks). Set to 0 for a permanent condition.")]
-		public readonly int WarnCrushDuration = 0;
+		public readonly int WarnPassDuration = 0;
 
-		[Desc("The condition to apply on a successful crush. Must be included among the crusher actor's ExternalCondition traits.")]
-		public readonly string OnCrushCondition = null;
+		[Desc("The condition to apply on a successful crush. Must be included among the passer actor's ExternalCondition traits.")]
+		public readonly string OnBeingPassedCondition = null;
 
 		[Desc("Duration of the condition applied on a successful crush (in ticks). Set to 0 for a permanent condition.")]
-		public readonly int OnCrushDuration = 0;
+		public readonly int OnBeingPassedDuration = 0;
 
 		public override object Create(ActorInitializer init) { return new GrantExternalConditionToCrusher(this); }
 	}
 
-	public class GrantExternalConditionToCrusher : INotifyCrushed
+	public class GrantExternalConditionToCrusher : INotifyBeingPassed
 	{
 		public readonly GrantExternalConditionToCrusherInfo Info;
 
@@ -42,18 +42,22 @@ namespace OpenRA.Mods.Common.Traits
 			Info = info;
 		}
 
-		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
+		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			crusher.TraitsImplementing<ExternalCondition>()
-				.FirstOrDefault(t => t.Info.Condition == Info.OnCrushCondition && t.CanGrantCondition(self))
-				?.GrantCondition(crusher, self, Info.OnCrushDuration);
+			passer.TraitsImplementing<ExternalCondition>()
+				.FirstOrDefault(t => t.Info.Condition == Info.WarnPassCondition && t.CanGrantCondition(self))
+				?.GrantCondition(passer, self, Info.WarnPassDuration);
 		}
 
-		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
+		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			crusher.TraitsImplementing<ExternalCondition>()
-				.FirstOrDefault(t => t.Info.Condition == Info.WarnCrushCondition && t.CanGrantCondition(self))
-				?.GrantCondition(crusher, self, Info.WarnCrushDuration);
+			passer.TraitsImplementing<ExternalCondition>()
+				.FirstOrDefault(t => t.Info.Condition == Info.OnBeingPassedCondition && t.CanGrantCondition(self))
+				?.GrantCondition(passer, self, Info.OnBeingPassedDuration);
+		}
+
+		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
+		{
 		}
 	}
 }

@@ -6,15 +6,12 @@
 		Bounds: 1024, 1024
 	WithSpriteBody:
 	RenderSprites:
-		Scale: 0.4
+		Scale: 0.5
 	Detectable:
 		Vision: 1
 		AlwaysVisibleRelationships: Ally
-	Mine:
-		CrushClasses: mine
-		DetonateClasses: mine
-		AvoidFriendly: false
-		BlockFriendly: true
+	Passable:
+		PassClasses: mine
 	WithDamageBehaviour:
 		DamageTypes: Disarm
 		Behaviour: Dispose

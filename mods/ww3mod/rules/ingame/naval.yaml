@@ -15,7 +15,7 @@
 # 	DrawLineToTarget:
 # 	UpdatesPlayerStatistics:
 # 	Mobile:
-# 		Locomotor: naval
+# 		Locomotor: naval-deep
 # 		PauseOnCondition: !(!empdisable)
 # 	SelectionDecorations:
 # 	WithSpriteControlGroupDecoration:
