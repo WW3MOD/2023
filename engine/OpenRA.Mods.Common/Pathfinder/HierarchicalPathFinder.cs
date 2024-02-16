@@ -658,7 +658,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 			var passables = actor.TraitsImplementing<IPassable>();
 			foreach (var passable in passables)
-				if (world.NoPlayersMask != passable.PassableBy(actor, locomotor.Info.Passes))
+				if (world.NoPlayersMask != passable.PassableBy(actor, locomotor.Info.PassableClasses))
 					return false;
 
 			return true;

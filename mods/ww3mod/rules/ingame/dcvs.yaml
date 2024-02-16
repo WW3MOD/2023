@@ -16,15 +16,15 @@ MNLY:
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Ground,Vehicle,Light
+		TargetTypes: Ground, Vehicle, Light
 	Mobile:
 		Speed: 85
 	Minelayer:
 		Mine: MINV
 		AmmoPoolName: mines-ammo
 		TileUnknownName: build-valid
-		TerrainTypes: Clear,Road,Beach,Rough,Bridge
-	# MineImmune:
+		TerrainTypes: Clear, Road, Beach, Rough, Bridge
+	# MineImmune: # if friendly mines?
 	AmmoPool:
 		Name: mines-ammo
 		Ammo: 10

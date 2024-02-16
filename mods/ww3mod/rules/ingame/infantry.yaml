@@ -63,6 +63,7 @@
 		String: Infantry
 	Passable:
 		PassClasses: infantry
+		PassedByRelationships: Ally, Neutral
 		CrushedByRelationships: Enemy
 		KillSound: squishy2.aud
 	Guard:

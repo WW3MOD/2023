@@ -5,8 +5,21 @@ Add scores.mix
 
 Ongoing
 
+    - Passable
+
+        - Cases:
+
+            - Pass
+
+            - Crush
+                - But not if
+
+    - Mines
+        - Mines from enemy stays frozen
+        - Disarm causes exploson and kills Engineer
+
     - RandomDamagePercent
-        - 
+        -
 
     - When shooting ATGM units can't unload
         - Problematic because when firing, the actor's order is locked to attack and only after it is done it will accept the next order.

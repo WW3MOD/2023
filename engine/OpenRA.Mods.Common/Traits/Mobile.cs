@@ -596,9 +596,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Only crush actors that are on the ground level
 			foreach (var passable in passables)
-				if (passable.Trait.PassableBy(passable.Actor, self, Info.LocomotorInfo.Passes) && passable.Actor.IsAtGroundLevel())
+				if (passable.Trait.PassableBy(passable.Actor, self, Info.LocomotorInfo.PassableClasses) && passable.Actor.IsAtGroundLevel())
 					foreach (var notifyPassed in passable.Actor.TraitsImplementing<INotifyBeingPassed>())
-						action(notifyPassed)(passable.Actor, self, Info.LocomotorInfo.Passes);
+						action(notifyPassed)(passable.Actor, self, Info.LocomotorInfo.PassableClasses);
 		}
 
 		public void AddInfluence()

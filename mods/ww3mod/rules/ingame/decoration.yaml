@@ -9,7 +9,7 @@
 		Height: 256
 	Passable:
 		PassClasses: tree
-		CrushedByRelationships: None
+		PassedByRelationships: Ally, Neutral, Enemy
 	Interactable:
 	Tooltip:
 		Name: Tree

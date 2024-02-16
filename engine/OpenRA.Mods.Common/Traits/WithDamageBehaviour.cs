@@ -37,7 +37,6 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (e.Damage.DamageTypes.Overlaps(Info.DamageTypes))
-
 				// if (Info.Behaviour == "Dispose"), if there will be more options in future otherwise just dispose
 				self.Dispose();
 		}

@@ -102,49 +102,24 @@ ATMine:
 	BottomAttack: true
 	Warhead@Spread: TargetDamage
 		Damage: 10000
+		Spread: 512
+		Penetration: 500
 		AffectsParent: true
 		InvalidTargets: Mine
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 256
 		Damage: 4000
-		Delay: 2
+		Delay: 1
 		AffectsParent: true
 		InvalidTargets: Mine
 		DamageTypes: ExplosionDeath
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_large
-		ImpactSounds: mineblo1.aud
+		ImpactSounds: kaboom25.aud
 	Warhead@Smudge: LeaveSmudge
 		SmudgeType: Crater
 		InvalidTargets: Structure, Wall, Trees
-
-ASMine:
-	Warhead@Spread: SpreadDamage
-		Spread: 256
-		Damage: 100
-		AffectsParent: true
-		InvalidTargets: Mine
-		DamageTypes: ExplosionDeath
-		ValidTargets: Ship, Submarine, Underwater
-	Warhead@Effect: CreateEffect
-		Explosions: explosion_large
-		ImpactSounds: mineblo1.aud
-	Warhead@EffectWater: CreateEffect
-		Explosions: explosion_large
-		ImpactSounds: mineblo1.aud
-		ValidTargets: Underwater
-
-ASMineMagnetic:
-	Inherits: ASMine
-	Warhead@Spread: SpreadDamage
-		Spread: 1c0
-		Damage: 150
-	Warhead@UncloakSub: GrantExternalCondition
-		Range: 0c768
-		Duration: 50
-		Condition: minehit
-		ValidTargets: Submarine
 
 OreExplosion:
 	Warhead@Spread: SpreadDamage

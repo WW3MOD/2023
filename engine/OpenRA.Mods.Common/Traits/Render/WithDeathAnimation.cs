@@ -111,6 +111,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
+
+		}
+
+		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
+		{
 			crushed = true;
 
 			if (Info.CrushedSequence == null)
@@ -121,10 +126,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 				crushPalette += self.Owner.InternalName;
 
 			SpawnDeathAnimation(self, self.CenterPosition, rs.GetImage(self), Info.CrushedSequence, crushPalette, Info.Delay);
-		}
-
-		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
-		{
 		}
 	}
 }

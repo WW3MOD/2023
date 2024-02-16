@@ -12,6 +12,7 @@
 		AlwaysVisibleRelationships: Ally
 	Passable:
 		PassClasses: mine
+		CrushedByRelationships: Enemy, Neutral
 	WithDamageBehaviour:
 		DamageTypes: Disarm
 		Behaviour: Dispose

@@ -25,7 +25,7 @@
 			Shallow: 20
 	Locomotor@FOOT:
 		Name: foot
-		Passes: tree
+		Passes: tree, sandbag
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -40,7 +40,7 @@
 			Shallow: 15
 	Locomotor@FOOT_AMPHIBIOUS:
 		Name: foot-amphibious
-		Passes: tree
+		Passes: tree, sandbag
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -57,7 +57,7 @@
 			Water: 25
 	Locomotor@FOOT_MOUNTAINER:
 		Name: foot-mountainer
-		Passes: tree
+		Passes: tree, sandbag
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -73,7 +73,7 @@
 			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
-		Passes: tree
+		Passes: tree, sandbag
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -91,7 +91,6 @@
 			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled
-		Passes: tree
 		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
@@ -101,7 +100,6 @@
 			Rough: 35
 	Locomotor@WHEELED:
 		Name: wheeled
-		Passes: tree
 		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
@@ -112,8 +110,7 @@
 			Debris: 20
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
-		Passes: tree
-		Crushes: mine, infantry, wall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -123,8 +120,7 @@
 			Debris: 40
 	Locomotor@LIGHTTRACKED:
 		Name: lighttracked
-		Passes: tree
-		Crushes: mine, infantry, wall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -135,8 +131,7 @@
 			RiverShallow: 75
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
 		Name: lighttracked-amphibious
-		Passes: tree
-		Crushes: mine, infantry, wall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -150,8 +145,7 @@
 			River: 25
 	Locomotor@TRACKED:
 		Name: tracked
-		Passes: tree
-		Crushes: mine, infantry, wall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -163,8 +157,7 @@
 			River: 10
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
-		Passes: tree
-		Crushes: mine, infantry, wall, heavywall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -176,8 +169,7 @@
 			River: 5
 	Locomotor@TRACKED_AMPHIBIOUS:
 		Name: tracked-amphibious
-		Passes: tree
-		Crushes: mine, infantry, wall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -190,8 +182,7 @@
 			River: 10
 	Locomotor@Walker:
 		Name: walker
-		Passes: tree
-		Crushes: mine, infantry, wall, heavywall, crate
+		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -215,7 +206,6 @@
 			River: 70
 	Locomotor@LANDINGCRAFT:
 		Name: lcraft
-		Passes: tree
 		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Water: 100

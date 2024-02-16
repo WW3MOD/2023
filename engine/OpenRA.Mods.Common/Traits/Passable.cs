@@ -25,10 +25,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BitSet<PassClass> PassClasses = new BitSet<PassClass>("none");
 
 		[Desc("Player Relationship to be able too pass over (Crush) this Passable.")]
-		public readonly PlayerRelationship PassedByRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+		public readonly PlayerRelationship PassedByRelationships = PlayerRelationship.None; // PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
 
 		[Desc("Relationships where the crush action kills this Passable.")]
-		public readonly PlayerRelationship CrushedByRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+		public readonly PlayerRelationship CrushedByRelationships = PlayerRelationship.None;
 
 		[Desc("Probability of mobile actors noticing and evading a crush attempt.")]
 		public readonly int WarnProbability = 100;
@@ -54,8 +54,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			if (!PassableInner(self, passer, passClasses))
-				return;
+			// if (!PassableInner(self, passer, passClasses))
+			// 	return;
 
 			var mobile = self.TraitOrDefault<Mobile>();
 			if (mobile != null && self.World.SharedRandom.Next(100) <= Info.WarnProbability)
@@ -64,13 +64,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			if (!PassableInner(self, passer, passClasses))
-				return;
+			// if (!PassableInner(self, passer, passClasses))
+			// 	return;
 
 			Game.Sound.Play(SoundType.World, Info.CrushSound, passer.CenterPosition);
 
 			var passerMobile = passer.TraitOrDefault<Mobile>();
 
+			/* Helicopter landing on a mine: Exception has occurred: CLR/System.NullReferenceException
+				An unhandled exception of type 'System.NullReferenceException' occurred in OpenRA.Mods.Common.dll: 'Object reference not set to an instance of an object.'
+				at OpenRA.Mods.Common.Traits.Passable.OpenRA.Mods.Common.Traits.INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet`1 passClasses) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Passable.cs:line 74
+				at OpenRA.Mods.Common.Traits.Aircraft.PassAction(Actor self, Func`2 action) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 865
+				at OpenRA.Mods.Common.Traits.Aircraft.FinishedMoving(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 848
+				at OpenRA.Mods.Common.Traits.Aircraft.SetPosition(Actor self, WPos pos) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 839
+				at OpenRA.Mods.Common.Activities.Fly.VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, Boolean idleTurn) in */
 			if (Info.CrushedByRelationships.HasRelationship(self.Owner.RelationshipWith(passer.Owner))
 				&& passerMobile.Info.LocomotorInfo.Crushes.Overlaps(passClasses)
 				&& self.IsAtGroundLevel())
@@ -85,6 +92,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
+
 		}
 
 		bool IPassable.PassableBy(Actor self, Actor passer, BitSet<PassClass> passClasses)
@@ -97,7 +105,36 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || !Info.PassClasses.Overlaps(passClasses))
 				return self.World.NoPlayersMask;
 
-			return Info.PassedByRelationships.HasRelationship(PlayerRelationship.Ally) ? self.World.AllPlayersMask : self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+			if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Ally) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Ally))
+				if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
+					return self.World.AllPlayersMask;
+				else
+					return self.Owner.AlliedPlayersMask;
+			else
+				if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
+					return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+
+			return self.World.NoPlayersMask;
+
+			// return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+
+			// if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Ally) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Ally))
+			// 	if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Neutral) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Neutral))
+			// 		if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
+			// 			return self.World.AllPlayersMask;
+			// 		else
+			// 			return self.World.AllPlayersMask.Except(self.Owner.EnemyPlayersMask);
+			// 	else
+			// 		return self.Owner.AlliedPlayersMask;
+			// else if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Neutral) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Neutral))
+			// 		if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
+			// 			return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+			// 		else
+			// 			return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask).Except(self.Owner.EnemyPlayersMask);
+			// else if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
+			// 	return self.Owner.EnemyPlayersMask;
+
+			// return self.World.NoPlayersMask;
 		}
 
 		bool PassableInner(Actor self, Actor passer, BitSet<PassClass> passClasses)
@@ -105,10 +142,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled)
 				return false;
 
-			var shouldCrush = Info.PassedByRelationships.HasRelationship(self.Owner.RelationshipWith(passer.Owner));
-
 			var relationship = self.Owner.RelationshipWith(passer.Owner);
-			if (!Info.PassedByRelationships.HasRelationship(relationship))
+			if (!Info.PassedByRelationships.HasRelationship(relationship) && !Info.CrushedByRelationships.HasRelationship(relationship))
 				return false;
 
 			return Info.PassClasses.Overlaps(passClasses);

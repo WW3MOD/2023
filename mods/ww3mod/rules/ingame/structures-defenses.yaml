@@ -49,9 +49,6 @@
 	SoundOnDamageTransition:
 		DamagedSounds: sandbag2.aud
 		DestroyedSounds: sandbag2.aud
-	Passable:
-		PassClasses: wall
-		CrushedByRelationships: Enemy
 	LineBuild:
 		Range: 8
 		NodeTypes: wall
@@ -239,6 +236,10 @@ SBAG:
 		HP: 150
 	Armor:
 		Type: Concrete
+	Passable:
+		PassClasses: sandbag
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	LineBuild:
 		NodeTypes: sandbag
 		Range: 12
@@ -343,9 +344,6 @@ BRIK:
 		HP: 15000
 	Armor:
 		Type: Concrete
-	Passable:
-		PassClasses: heavywall
-		CrushedByRelationships: Enemy
 	Demolishable:
 		Condition: being-demolished
 	BlocksProjectiles:
