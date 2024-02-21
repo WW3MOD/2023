@@ -181,28 +181,28 @@ FireballLauncher:
 		ValidRelationships: Ally, Enemy, Neutral
 	Warhead@Fire_2: GrantExternalCondition
 		Range: 1024
-		Repeat: 2
+		Amount: 2
 		Duration: 100
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
 	Warhead@Fire_3: GrantExternalCondition
 		Range: 768
-		Repeat: 3
+		Amount: 3
 		Duration: 125
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
 	Warhead@Fire_4: GrantExternalCondition
 		Range: 512
-		Repeat: 4
+		Amount: 4
 		Duration: 150
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
 		ValidRelationships: Ally, Enemy, Neutral
 	Warhead@Fire_5: GrantExternalCondition
 		Range: 256
-		Repeat: 5
+		Amount: 5
 		Duration: 50
 		Condition: onfire
 		ValidTargets: Infantry, Vehicles
@@ -383,10 +383,9 @@ Demolish:
 ClearMines:
 	ValidTargets: Mine
 	BurstWait: 10
-	Range: 1c0 # can't be less because mines are not traversable so engineer just stops in front of it otherwise
+	Range: 1c0
 	Projectile: InstantHit
-	Warhead@Spread: SpreadDamage
-		# Damage: 1000 # Otherwise it explodes? Untested
+	Warhead@Target: TargetDamage
 		ValidTargets: Mine
 		DamageTypes: Disarm
 

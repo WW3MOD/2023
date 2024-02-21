@@ -19,7 +19,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly WDist Height = WDist.Zero;
 
-		public readonly int Bypass = 0;
+		public readonly int MaxBypass = 0;
+		public readonly int BypassChance = 100;
 
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
 		public readonly PlayerRelationship ExplodesOn = PlayerRelationship.Enemy;
@@ -53,14 +54,19 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class BlocksProjectiles : ConditionalTrait<BlocksProjectilesInfo>, IBlocksProjectiles
 	{
+		// readonly BlocksProjectilesInfo info;
+
 		public BlocksProjectiles(BlocksProjectilesInfo info)
 			: base(info)
-			{ }
+			{
+				// this.info = info;
+			}
 
 		// The result of the expression is always 'true' since a value of type 'WDist' is never equal to 'null' of type 'WDist?'
 		// WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight.Value;
 		WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight != null ? Info.HitShapeHeight.Value : Info.Height;
-		int IBlocksProjectiles.Bypass { get { return Info.Bypass; } }
+		int IBlocksProjectiles.MaxBypass { get { return Info.MaxBypass; } }
+		int IBlocksProjectiles.BypassChance { get { return Info.BypassChance; } }
 
 		PlayerRelationship IBlocksProjectiles.ExplodesOn { get { return Info.ExplodesOn; } }
 
@@ -79,7 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
 		}
 
-		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false)
+		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false, bool checkBypassChance = false)
 		{
 			var actors = world.FindBlockingActorsOnLine(start, end, width);
 			var length = (end - start).Length;
@@ -100,8 +106,11 @@ namespace OpenRA.Mods.Common.Traits
 				var hitPos = WorldExtensions.MinimumPointLineProjection(start, end, a.CenterPosition);
 				var dat = world.Map.DistanceAboveTerrain(hitPos);
 
+				var rand = world.SharedRandom.Next(100);
+
 				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
-				if (isBlocking != null && isBlocking.Bypass > 0 && totalBypassed < isBlocking.Bypass)
+				if ((isBlocking != null && isBlocking.MaxBypass > 0 && totalBypassed < isBlocking.MaxBypass)
+					&& (!checkBypassChance || isBlocking.BypassChance == 100 || isBlocking.BypassChance > rand))
 				{
 					totalBypassed += 1;
 					continue;

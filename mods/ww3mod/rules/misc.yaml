@@ -1,3 +1,4 @@
+
 ^Mine:
 	Inherits: ^SpriteActor
 	Tooltip:
@@ -13,6 +14,10 @@
 	Passable:
 		PassClasses: mine
 		CrushedByRelationships: Enemy, Neutral
+	ProximityExternalCondition@MineProximity:
+		Condition: mine-proximity
+		Range: 512
+		ValidRelationships: Ally, Neutral, Enemy
 	WithDamageBehaviour:
 		DamageTypes: Disarm
 		Behaviour: Dispose

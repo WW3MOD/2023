@@ -265,6 +265,10 @@ FENC:
 		HP: 500
 	Armor:
 		Type: Concrete
+	Passable:
+		PassClasses: fence
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	LineBuild:
 		NodeTypes: fence
 		Range: 12
@@ -290,6 +294,10 @@ BARB:
 		HP: 750
 	Armor:
 		Type: Concrete
+	Passable:
+		PassClasses: barbedwire
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	LineBuild:
 		NodeTypes: barbwire
 		Range: 12
@@ -304,6 +312,10 @@ CYCL:
 		Name: Chain-Link Barrier
 	Armor:
 		Type: Wood
+	Passable:
+		PassClasses: barbedwire
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	LineBuild:
 		NodeTypes: chain
 	LineBuildNode:
@@ -317,6 +329,10 @@ WOOD:
 		Name: Wooden Fence
 	Armor:
 		Type: Wood
+	Passable:
+		PassClasses: fence
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	LineBuild:
 		NodeTypes: woodfence
 	LineBuildNode:
@@ -344,6 +360,10 @@ BRIK:
 		HP: 15000
 	Armor:
 		Type: Concrete
+	Passable:
+		PassClasses: heavywall
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	Demolishable:
 		Condition: being-demolished
 	BlocksProjectiles:
@@ -413,6 +433,10 @@ HGATE:
 		BuildPaletteOrder: 9
 		Prerequisites: ~disabled
 		Description: Places an horizontal gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
+	Passable:
+		PassClasses: heavywall
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	WithGateSpriteBody:
 		WallConnections: -1,0, 3,0
 	LineBuildNode:
@@ -441,6 +465,10 @@ VGATE:
 		BuildPaletteOrder: 12
 		Prerequisites: ~disabled
 		Description: Places an vertical gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
+	Passable:
+		PassClasses: heavywall
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
 	WithGateSpriteBody:
 		WallConnections: 0,-1, 0,3
 	LineBuildNode:

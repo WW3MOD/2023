@@ -59,7 +59,8 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IBlocksProjectiles
 	{
 		WDist BlockingHeight { get; }
-		int Bypass { get; }
+		int MaxBypass { get; }
+		int BypassChance { get; }
 
 		PlayerRelationship ExplodesOn { get; }
 	}

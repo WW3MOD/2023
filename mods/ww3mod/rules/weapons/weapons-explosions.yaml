@@ -78,8 +78,8 @@ SmallBuildingExplode:
 
 CivPanicExplosion:
 	Warhead@Spread: SpreadDamage
-		Falloff: 100, 100
-		Range: 0, 128
+		Falloff: 100
+		Range: 128
 		Damage: 1
 		Delay: 1
 

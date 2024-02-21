@@ -5,7 +5,9 @@
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	CombatDebugOverlay:
 	BlocksProjectiles:
-		Bypass: 3
+		MaxBypass: 4
+		BypassChance: 80
+		ExplodesOn: Ally, Neutral, Enemy
 		Height: 256
 	Passable:
 		PassClasses: tree

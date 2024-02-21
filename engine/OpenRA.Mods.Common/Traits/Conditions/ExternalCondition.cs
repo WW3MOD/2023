@@ -35,6 +35,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If > 0, restrict the number of times that this condition can be granted by any source.")]
 		public readonly int TotalCap = 0;
 
+		[Desc("Reduce periodicity, how often will it reduce.")]
+		public readonly int ReduceTicks = 0;
+
+		[Desc("How much should it reduce.")]
+		public readonly int ReduceAmount = 0;
+
 		public override object Create(ActorInitializer init) { return new ExternalCondition(this); }
 	}
 
@@ -192,12 +198,44 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			var count = 0; // move
+			var worldTick = self.World.WorldTick;
+
+			if (Info.ReduceTicks > 0 && worldTick % Info.ReduceTicks == 0)
+			{
+				// Reduce the permanent tokens
+
+				foreach (var kvp in permanentTokens)
+				{
+					foreach (var token in kvp.Value)
+					{
+						if (count >= Info.ReduceAmount)
+							break;
+
+						if (TryRevokeCondition(self, kvp.Key, token))
+							count++;
+					}
+				}
+
+				// while (count < permanentTokens.Count)
+				// {
+				// 	if (count >= Info.ReduceAmount)
+				// 		break;
+
+				// 	var token = permanentTokens[count];
+
+				// 	// if (self.TokenValid(token))
+				// 	// 	self.RevokeCondition(token);
+
+				// 	count++;
+				// }
+			}
+
 			if (timedTokens.Count == 0)
 				return;
 
 			// Remove expired tokens
-			var worldTick = self.World.WorldTick;
-			var count = 0;
+			count = 0;
 			while (count < timedTokens.Count && timedTokens[count].Expires < worldTick)
 			{
 				var token = timedTokens[count].Token;

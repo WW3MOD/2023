@@ -574,6 +574,7 @@ TankRound.T90:
 	BurstWait: 180
 	TargetActorCenter: true
 	Report: tank5.aud
+	TopAttack: true
 	Projectile: Bullet
 		Inaccuracy: 2c0
 		InaccuracyType: Absolute
@@ -583,14 +584,13 @@ TankRound.T90:
 		ContrailLength: 8
 		ContrailWidth: 40
 	Warhead@Target: TargetDamage
-		Damage: 10000
-		DamageAtMaxRange: 50
-		Penetration: 1200
+		Damage: 15000
+		Penetration: 1000
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
 		Spread: 64
-		Damage: 5000
+		Damage: 3000
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
@@ -663,6 +663,7 @@ GradRockets:
 	BurstWait: 4
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
+	TopAttack: true
 	Projectile: Bullet
 		Inaccuracy: 4c0
 		Speed: 300
@@ -674,13 +675,13 @@ GradRockets:
 		TrailDeactivation: 40
 		Blockable: false
 	Warhead@Target: TargetDamage
-		Damage: 5000
-		Penetration: 800
+		Damage: 6000
+		Penetration: 250
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Spread: 64
-		Damage: 500
+		Spread: 96
+		Damage: 1000
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 
@@ -691,6 +692,7 @@ TosRockets:
 	BurstWait: 10
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
+	TopAttack: true
 	Projectile: Bullet
 		Inaccuracy: 4c0
 		Speed: 250
@@ -703,7 +705,7 @@ TosRockets:
 		TrailDeactivation: 50
 	Warhead@Target: TargetDamage
 		Damage: 5000
-		Penetration: 200
+		Penetration: 100
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
@@ -719,6 +721,7 @@ M270Rockets:
 	BurstWait: 10
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
+	TopAttack: true
 	Projectile: Bullet
 		Inaccuracy: 2c512
 		Speed: 300
@@ -731,11 +734,11 @@ M270Rockets:
 		Blockable: false
 	Warhead@Target: TargetDamage
 		Damage: 15000
-		Penetration: 1200
+		Penetration: 500
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Spread: 64
+		Spread: 96
 		Damage: 1500
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath

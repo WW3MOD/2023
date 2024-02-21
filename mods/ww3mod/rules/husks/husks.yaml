@@ -91,7 +91,8 @@
 ^TreeHusk:
 	Inherits@1: ^SpriteActor
 	BlocksProjectiles:
-		Bypass: 2
+		MaxBypass: 5
+		BypassChance: 85
 		Height: 256
 	Interactable:
 	RenderSprites:

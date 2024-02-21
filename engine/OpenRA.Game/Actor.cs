@@ -80,9 +80,9 @@ namespace OpenRA
 
 		public int AverageDamagePercent = 0;
 
-		public void MarkForDestruction(int damage)
+		public void MarkForDestruction(int percentDamage)
 		{
-			AverageDamagePercent += damage;
+			AverageDamagePercent += percentDamage;
 		}
 
 		/// <summary>Value used to represent an invalid token.</summary>

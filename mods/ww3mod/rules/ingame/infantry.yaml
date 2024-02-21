@@ -276,6 +276,8 @@
 	ExternalCondition@Suppression:
 		Condition: suppressed
 		TotalCap: 100
+		ReduceTicks: 5
+		ReduceAmount: 1
 ^SuppressionSpeedMultiplier:
 	SpeedMultiplier@Suppression_1:
 		RequiresCondition: !panicking && suppressed > 0 && suppressed <= 10
@@ -1633,12 +1635,16 @@ AA:
 		Weapon: ClearMines
 		Cursor: repair
 		OutsideRangeCursor: repair
-		PauseOnCondition: suppressed >= 10
 	DetectCloaked@Mine:
 		Range: 2c0
 		DetectionTypes: Mine
 	MineImmune:
-		RequiresCondition: deployed # TODO
+		RequiresCondition: deployed
+	ExternalCondition@MineProximity:
+		Condition: mine-proximity
+	GrantCondition:
+		Condition: deployed
+		RequiresCondition: mine-proximity
 
 	# WithDecoration@AMMO_NONE_C4:
 	# 	RequiresSelection: false

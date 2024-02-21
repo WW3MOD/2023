@@ -367,7 +367,6 @@ giatsint:
 			TopLeft: -330, -800
 			BottomRight: 330, 800
 	Detectable:
-		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
@@ -468,7 +467,6 @@ grad:
 			TopLeft: -240, -730
 			BottomRight: 240, 730
 	Detectable:
-		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
@@ -571,7 +569,6 @@ tos:
 			TopLeft: -360, -950
 			BottomRight: 360, 950
 	Detectable:
-		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
@@ -810,7 +807,6 @@ iskander:
 			TopLeft: -300, -1270
 			BottomRight: 300, 1270
 	Detectable:
-		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:

@@ -129,7 +129,8 @@ namespace OpenRA.Mods.Common.Traits
 			blockedPositions = Enumerable.Empty<CPos>();
 		}
 
-		int IBlocksProjectiles.Bypass { get { return 0; } }
+		int IBlocksProjectiles.MaxBypass { get { return 0; } }
+		int IBlocksProjectiles.BypassChance { get { return 0; } }
 
 		bool CanRemoveBlockage(Actor self, Actor blocking)
 		{

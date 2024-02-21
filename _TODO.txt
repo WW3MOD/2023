@@ -1,36 +1,33 @@
 
-if (modifiers.HasModifier(TargetModifiers.ForceMove))
-
-Add scores.mix
-
 Ongoing
 
-    - Passable
-
-        - Cases:
-
-            - Pass
-
-            - Crush
-                - But not if
-
-    - Mines
-        - Mines from enemy stays frozen
-        - Disarm causes exploson and kills Engineer
-
-    - RandomDamagePercent
-        -
-
-    - When shooting ATGM units can't unload
-        - Problematic because when firing, the actor's order is locked to attack and only after it is done it will accept the next order.
+    - Grad does almost no damage, was doubled
+    - Artillery gets revealed when firing even without radar
+    - A bit less bypass of trees, also make them protect by % just like sand bags should do still?
+    - Passed units should resume their queue after being nudged
+    - Artillery too effective vs infantry
 
 Fix
 
-    - Remove Tree-tiles
+    - Tanks fire through forests and just hits trees
+
+    - Vehicles passes but doesnt crush fence on Woodland warfare
+
+    - Upkeep percent modifier dropdown option
+
+    - Passable
+        - Fence can not be crushed by tanks
+            - Should be destroyable by engineer
+        - Mines
+            - Adjust damage
+            - Stay frozen? Difficult?
 
     - DR or any should cancel attack order when out of ammo and resupply
 
     - Tanks / Vehicles reverse
+
+    - When shooting ATGM units can't unload
+        - Problematic because when firing, the actor's order is locked to attack and only after it is done it will accept the next order.
 
     - Map editor
         - Add more civilian structures
@@ -42,7 +39,7 @@ Fix
     - Civ building
         - Units inside takes damage when building is hit.
         - When firing, the unit firing pops up as a pip for the enemy
-        - Units can be selected one by one and with shift, marking them with a white outline
+        - Units can be selected one by one and with shift, marking them with a white outlinea
         - Pips gets larger when alt is held
 
     - Vehicles suppression, or stunned instead for a duration determined by the damage taken.
@@ -493,3 +490,10 @@ Other Mods
         Combat engineer
         SMAW launcher (infantry)
         Scout (sniper?)
+
+
+Div
+
+    Add scores.mix
+
+    if (modifiers.HasModifier(TargetModifiers.ForceMove))

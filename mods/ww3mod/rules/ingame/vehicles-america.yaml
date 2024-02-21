@@ -693,7 +693,6 @@ m109:
 			TopLeft: -315, -900
 			BottomRight: 315, 900
 	Detectable:
-		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
@@ -907,7 +906,6 @@ HIMARS:
 			TopLeft: -240, -700
 			BottomRight: 240, 700
 	Detectable:
-		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:

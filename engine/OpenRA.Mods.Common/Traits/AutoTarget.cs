@@ -437,38 +437,50 @@ namespace OpenRA.Mods.Common.Traits
 						}
 				}
 
-				var suppression = target.Actor?.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(t => t.Info.Condition == "suppressed")?.GrantedValue(target.Actor);
-
 				if (target.Actor == null)
 					continue;
 
-				// Evaluate whether we want to target this actor
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
+
+				var priorityValue = 0;
+
+				var chosenTargetValue = int.MaxValue;
+
+				// Evaluate whether we want to target this actor
 				foreach (var ati in validPriorities)
 				{
-					// TODO: ChangePriority downwards if it is important enough ?
-					// 1 First target we check will be added regardless
-					// 2 Has higher priority goes first
-					// 3 Prioritize non-suppressed targets
-					// 4 Significantly closer and isn't completely marked
-					// 5 recieving significantly less firepower
-					if (chosenTarget.Type == TargetType.Invalid
-						|| ati.Priority > chosenTargetPriority
-						|| (ati.ConditionalPriority > 0 && suppression != null && suppression < chosenTargetSuppression * ati.ConditionalPriority)
-						|| (ati.Priority == chosenTargetPriority && ( // Same priority
-							(targetRange < chosenTargetRange * 0.8 && target.Actor.AverageDamagePercent < 100)
-							|| target.Actor.AverageDamagePercent < chosenTargetAverageDamagePercent * 0.5)))
-					{
-						/* if (allowMove) */
+					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
 
-						chosenTarget = target;
-						chosenTargetPriority = ati.Priority;
-						chosenTargetRange = targetRange;
-						chosenTargetSuppression = suppression ?? 0;
-						chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
+					// If we have no chosen target this is the first and should be added directly.
+					if (!(chosenTarget.Type == TargetType.Invalid))
+					{
+						// Shorter range has higher priority
+						priorityValue += targetRange;
+
+						// Don't overkill
+						if (target.Actor.AverageDamagePercent > 200)
+							priorityValue *= target.Actor.AverageDamagePercent - 100;
+
+						// Optionally: Prioritize targets with the priorityCondition
+						if (ati.ConditionalPriority > 0)
+							priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
+
+						// Divide by the original Priority value, lower Priority is more prioritized
+						priorityValue /= ati.Priority;
+
+						// Reversed from original OpenRA, lower value is higher priority
+						if (priorityValue >= chosenTargetValue)
+							continue;
 					}
+
+					chosenTarget = target;
+					chosenTargetPriority = ati.Priority;
+					chosenTargetRange = targetRange;
+					chosenTargetSuppression = priorityCondition ?? 0;
+					chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
 				}
+
 			}
 
 			if (chosenTarget.Actor != null)

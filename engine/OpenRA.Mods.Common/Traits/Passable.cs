@@ -20,7 +20,6 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor is passable.")]
 	public class PassableInfo : ConditionalTraitInfo
 	{
-
 		[Desc("Which crush classes does this actor belong to.")]
 		public readonly BitSet<PassClass> PassClasses = new BitSet<PassClass>("none");
 
@@ -57,6 +56,10 @@ namespace OpenRA.Mods.Common.Traits
 			// if (!PassableInner(self, passer, passClasses))
 			// 	return;
 
+			// Quick fix for infantry losing their queue after being nudged by friendly vehicles
+			if (self.Owner.RelationshipWith(passer.Owner) == PlayerRelationship.Ally)
+				return;
+
 			var mobile = self.TraitOrDefault<Mobile>();
 			if (mobile != null && self.World.SharedRandom.Next(100) <= Info.WarnProbability)
 				mobile.Nudge(passer);
@@ -84,15 +87,18 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				foreach (var notifyCrushed in self.TraitsImplementing<INotifyBeingPassed>())
 					notifyCrushed.OnBeingCrushed(self, passer, passerMobile.Info.LocomotorInfo.Crushes);
-
-				Game.Sound.Play(SoundType.World, Info.KillSound, passer.CenterPosition);
-				self.Kill(passer, passerMobile != null ? passerMobile.Info.LocomotorInfo.CrushDamageTypes : default);
 			}
 		}
 
 		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
+			var passerMobile = passer.TraitOrDefault<Mobile>();
 
+			if (passer.Info.HasTraitInfo<MineImmuneInfo>())
+				return;
+
+			Game.Sound.Play(SoundType.World, Info.KillSound, passer.CenterPosition);
+			self.Kill(passer, passerMobile != null ? passerMobile.Info.LocomotorInfo.CrushDamageTypes : default);
 		}
 
 		bool IPassable.PassableBy(Actor self, Actor passer, BitSet<PassClass> passClasses)
@@ -159,4 +165,9 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.ActorMap.UpdateOccupiedCells(self.OccupiesSpace);
 		}
 	}
+
+
+	[Desc("Tag trait for stuff that should not trigger mines.")]
+	class MineImmuneInfo : TraitInfo<MineImmune> { }
+	class MineImmune { }
 }
