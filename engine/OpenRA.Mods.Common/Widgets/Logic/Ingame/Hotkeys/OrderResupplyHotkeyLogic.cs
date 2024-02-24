@@ -52,7 +52,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					foreach (var ammoPool in ammoPools)
 					{
 						// OpenRA.Mods.Common.Traits.AmmoPool.AutoRearm(actor);
-						ammoPool.AutoRearmIfAnyNotFull(actor);
+						// Desyncs, orders needs to be synced, some kind of handshake involved.
+						// ammoPool.AutoRearmIfAnyNotFull(actor);
 					}
 				}
 			}

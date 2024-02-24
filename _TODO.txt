@@ -9,6 +9,10 @@ Ongoing
 
 Fix
 
+    - Sync fail
+        - Frame 4645, no sync report available
+        - "R" Resupply hotkey causes instant desync
+
     - Autotarget
 
     - Tanks fire through forests and just hits trees
