@@ -10,7 +10,6 @@ Ongoing
 Fix
 
     - Sync fail
-        - Frame 4645, no sync report available
         - "R" Resupply hotkey causes instant desync
 
     - Autotarget

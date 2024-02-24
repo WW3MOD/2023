@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int LowPowerModifier = 100;
 
 		[Desc("Production items that have more than this many items in the queue will be produced in a loop.")]
-		public readonly int InfiniteBuildLimit = -1;
+		public readonly int InfiniteBuildLimit = 99;
 
 		[NotificationReference("Speech")]
 		[Desc("Notification played when production is complete.",
