@@ -19,7 +19,13 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly WDist Height = WDist.Zero;
 
+		[Desc("Always bypass this many regardless of BypassChance.")]
+		public readonly int MinBypass = 0;
+
+		[Desc("Never bypass more actors than this.")]
 		public readonly int MaxBypass = 0;
+
+		[Desc("Chance of bypassing each blocking actor after the MinBypass is reached.")]
 		public readonly int BypassChance = 100;
 
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
@@ -80,9 +86,9 @@ namespace OpenRA.Mods.Common.Traits
 					.Any(Exts.IsTraitEnabled));
 		}
 
-		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false)
+		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false, bool checkBypassChance = false)
 		{
-			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
+			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships, checkBypassChance); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
 		}
 
 		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false, bool checkBypassChance = false)
@@ -106,11 +112,9 @@ namespace OpenRA.Mods.Common.Traits
 				var hitPos = WorldExtensions.MinimumPointLineProjection(start, end, a.CenterPosition);
 				var dat = world.Map.DistanceAboveTerrain(hitPos);
 
-				var rand = world.SharedRandom.Next(100);
-
 				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
 				if ((isBlocking != null && isBlocking.MaxBypass > 0 && totalBypassed < isBlocking.MaxBypass)
-					&& (!checkBypassChance || isBlocking.BypassChance == 100 || isBlocking.BypassChance > rand))
+					&& (!checkBypassChance || isBlocking.BypassChance == 100 || isBlocking.BypassChance > world.SharedRandom.Next(100)))
 				{
 					totalBypassed += 1;
 					continue;

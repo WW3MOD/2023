@@ -2,7 +2,7 @@
 Flamespray:
 	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
 	ValidTargets: Ground, Water, Trees
-	Range: 8c0
+	Range: 6c0
 	Burst: 6
 	BurstDelays: 1
 	BurstWait: 30

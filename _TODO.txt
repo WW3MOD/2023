@@ -9,7 +9,10 @@ Ongoing
 
 Fix
 
+    - Autotarget
+
     - Tanks fire through forests and just hits trees
+    - AT soldier (and other missiles?) can fire through forests but doesnt risk hitting trees
 
     - Vehicles passes but doesnt crush fence on Woodland warfare
 

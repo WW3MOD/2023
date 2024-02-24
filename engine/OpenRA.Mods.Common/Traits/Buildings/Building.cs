@@ -113,7 +113,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var d = densities.Replace(" ", "").Split(',');
 
-			if (d.Length != dim.X * dim.Y)
+			if (d.Length != 1 && d.Length != dim.X * dim.Y)
 			{
 				var fp = densityYaml.Value.Value;
 				var dims = dim.X + "x" + dim.Y;
@@ -125,7 +125,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				for (var x = 0; x < dim.X; x++)
 				{
-					var c = d[index++];
+					var c = d.Length == 1 ? d[0] : d[index++];
 					if (!byte.TryParse(c, out byte parsed) || parsed < 0 || parsed > 100)
 						throw new YamlException($"Invalid density cell type '{c}', should be 0-100");
 

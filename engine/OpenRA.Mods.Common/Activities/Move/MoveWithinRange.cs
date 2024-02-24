@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			// AnyBlocking freezes Attack, height check is wrong it seems but either way unit never tries to move, as it does when out of range.
 			// Add NoBlockingActors function seperately
-			return self.TraitOrDefault<IndirectFire>() != null // If the actor can fire over BlockingActors || No blocking actors between target
+			return self.TraitOrDefault<IndirectFire>() != null
 				|| !BlocksProjectiles.AnyBlockingActorsBetween(
 					self,
 					Target.CenterPosition,

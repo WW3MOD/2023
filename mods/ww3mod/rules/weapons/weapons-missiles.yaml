@@ -14,7 +14,7 @@ ATGM:
 		RangeLimit: 21c0
 		HorizontalRateOfTurn: 20
 		AirburstAltitude: 32
-		Blockable: false
+		Blockable: true
 		MaximumLaunchSpeed: 20
 		CruiseAltitude: 10c0
 		ContrailLength: 5
