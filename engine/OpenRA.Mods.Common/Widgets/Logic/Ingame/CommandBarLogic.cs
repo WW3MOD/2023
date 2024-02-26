@@ -31,11 +31,13 @@ namespace OpenRA.Mods.Common.Widgets
 		bool forceAttackDisabled = true;
 		bool guardDisabled = true;
 		bool scatterDisabled = true;
+		bool resupplyDisabled = true;
 		bool stopDisabled = true;
 		bool waypointModeDisabled = true;
 
 		int deployHighlighted;
 		int scatterHighlighted;
+		int resupplyHighlighted;
 		int stopHighlighted;
 
 		TraitPair<IIssueDeployOrder>[] selectedDeploys = Array.Empty<TraitPair<IIssueDeployOrder>>();
@@ -174,6 +176,24 @@ namespace OpenRA.Mods.Common.Widgets
 				deployButton.OnKeyPress = ki => { deployHighlighted = 2; deployButton.OnClick(); };
 			}
 
+			var resupplyButton = widget.GetOrNull<ButtonWidget>("RESUPPLY");
+			if (resupplyButton != null)
+			{
+				WidgetUtils.BindButtonIcon(resupplyButton);
+				resupplyButton.IsDisabled = () => { UpdateStateIfNecessary(); return resupplyDisabled; };
+				resupplyButton.IsHighlighted = () => resupplyHighlighted > 0;
+				resupplyButton.OnClick = () =>
+				{
+					if (highlightOnButtonPress)
+						resupplyHighlighted = 2;
+
+					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
+					PerformKeyboardOrderOnSelection(a => new Order("Resupply", a, queued));
+				};
+
+				resupplyButton.OnKeyPress = ki => { resupplyHighlighted = 2; resupplyButton.OnClick(); };
+			}
+
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
 			if (stopButton != null)
 			{
@@ -292,6 +312,7 @@ namespace OpenRA.Mods.Common.Widgets
 			forceMoveDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<MobileInfo>() || a.Info.HasTraitInfo<AircraftInfo>());
 			forceAttackDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AttackBaseInfo>());
 			scatterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
+			resupplyDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AmmoPoolInfo>());
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()

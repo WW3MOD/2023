@@ -60,7 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new AmmoPool(this); }
 	}
 
-	public class AmmoPool : INotifyCreated, INotifyAttack, INotifyBecomingIdle, ISync
+	public class AmmoPool : INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync
 	{
 		public readonly AmmoPoolInfo Info;
 		readonly Stack<int> tokens = new Stack<int>();
@@ -161,6 +161,26 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
 			AutoRearmIfAllEmpty(self);
+		}
+
+		void IResolveOrder.ResolveOrder(Actor self, Order order)
+		{
+			if (order.OrderString == "Resupply")
+			{
+				if (self.World.IsGameOver)
+					return;
+
+				var ammoPools = self.TraitsImplementing<AmmoPool>();
+				if (ammoPools != null)
+				{
+					foreach (var ammoPool in ammoPools)
+					{
+						// OpenRA.Mods.Common.Traits.AmmoPool.AutoRearm(self);
+						// Desyncs, orders needs to be synced, some kind of handshake involved.
+						ammoPool.AutoRearmIfAnyNotFull(self);
+					}
+				}
+			}
 		}
 
 		public static void AutoRearm(Actor self)

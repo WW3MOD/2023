@@ -146,6 +146,25 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: deploy
+				Button@RESUPPLY:
+					Logic: AddFactionSuffixLogic
+					X: 272
+					Width: 10
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: Resupply
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Resupply
+					TooltipDesc: Selected units will perform their default resupply activity
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: resupply
 				Button@SCATTER:
 					Logic: AddFactionSuffixLogic
 					X: 170

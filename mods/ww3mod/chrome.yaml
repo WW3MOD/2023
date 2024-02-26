@@ -249,6 +249,8 @@ command-icons:
 		guard-disabled: 75, 232, 24, 24
 		deploy: 100, 207, 24, 24
 		deploy-disabled: 100, 232, 24, 24
+		resupply: 100, 207, 24, 24 # TODO
+		resupply-disabled: 100, 232, 24, 24 # TODO
 		scatter: 125, 207, 24, 24
 		scatter-disabled: 125, 232, 24, 24
 		stop: 150, 207, 24, 24
