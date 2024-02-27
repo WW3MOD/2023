@@ -39,24 +39,12 @@ Players:
 		Enemies: Creeps
 
 Actors:
-	Actor0: lhus
-		Owner: Neutral
-		Location: 8,89
-	Actor1: v02
-		Owner: Neutral
-		Location: 8,89
 	Actor2: v03
 		Owner: Neutral
 		Location: 6,88
-	Actor3: lhus
-		Owner: Neutral
-		Location: 89,8
 	Actor5: v02
 		Owner: Neutral
 		Location: 88,6
-	Actor6: v03
-		Owner: Neutral
-		Location: 89,8
 	Actor20: oilb
 		Owner: Neutral
 		Location: 70,70
@@ -768,9 +756,6 @@ Actors:
 	Actor301: tc03
 		Owner: Neutral
 		Location: 73,63
-	Actor300: t13
-		Owner: Neutral
-		Location: 75,62
 	Actor302: tc01
 		Owner: Neutral
 		Location: 71,62
@@ -1779,24 +1764,6 @@ Actors:
 	Actor690: t14
 		Owner: Neutral
 		Location: 52,86
-	Actor692: t15
-		Owner: Neutral
-		Location: 69,71
-	Actor693: t16
-		Owner: Neutral
-		Location: 72,69
-	Actor694: t05
-		Owner: Neutral
-		Location: 25,27
-	Actor695: t15
-		Owner: Neutral
-		Location: 27,24
-	Actor696: t14
-		Owner: Neutral
-		Location: 27,27
-	Actor697: t14
-		Owner: Neutral
-		Location: 68,68
 	Actor740: tc01
 		Owner: Neutral
 		Location: 72,95
@@ -1920,9 +1887,6 @@ Actors:
 	Actor807: tc03
 		Owner: Neutral
 		Location: 8,91
-	Actor808: t12
-		Owner: Neutral
-		Location: 8,90
 	Actor809: t07
 		Owner: Neutral
 		Location: 10,91
@@ -2205,9 +2169,6 @@ Actors:
 	Actor943: t16
 		Owner: Neutral
 		Location: 24,-1
-	Actor977: oilb
-		Owner: Neutral
-		Location: 31,64
 	Actor978: oilb
 		Owner: Neutral
 		Location: 64,31
@@ -2232,42 +2193,6 @@ Actors:
 	Actor985: tc03
 		Owner: Neutral
 		Location: 42,76
-	Actor988: v19
-		Owner: Neutral
-		Location: 66,33
-	Actor989: v19
-		Owner: Neutral
-		Location: 63,30
-	Actor990: brl3
-		Owner: Neutral
-		Location: 65,33
-	Actor991: brl3
-		Owner: Neutral
-		Location: 64,30
-	Actor992: barl
-		Owner: Neutral
-		Location: 63,31
-	Actor993: barl
-		Owner: Neutral
-		Location: 66,32
-	Actor994: v19
-		Owner: Neutral
-		Location: 33,66
-	Actor995: v19
-		Owner: Neutral
-		Location: 30,63
-	Actor996: brl3
-		Owner: Neutral
-		Location: 33,65
-	Actor997: brl3
-		Owner: Neutral
-		Location: 30,64
-	Actor998: barl
-		Owner: Neutral
-		Location: 32,66
-	Actor999: barl
-		Owner: Neutral
-		Location: 31,63
 	Actor1025: tc04
 		Owner: Neutral
 		Location: 76,53
@@ -3135,12 +3060,6 @@ Actors:
 	Actor1333: tc03
 		Owner: Neutral
 		Location: 96,86
-	Actor1335: tc01
-		Owner: Neutral
-		Location: 26,88
-	Actor1336: tc01
-		Owner: Neutral
-		Location: 69,6
 	Actor1337: tc03
 		Owner: Neutral
 		Location: 20,54
@@ -3336,81 +3255,6 @@ Actors:
 	Actor1408: t08
 		Owner: Neutral
 		Location: 70,37
-	Actor1409: fenc
-		Owner: Neutral
-		Location: 47,53
-	Actor1410: fenc
-		Owner: Neutral
-		Location: 48,53
-	Actor1411: fenc
-		Owner: Neutral
-		Location: 49,53
-	Actor1412: fenc
-		Owner: Neutral
-		Location: 50,53
-	Actor1413: fenc
-		Owner: Neutral
-		Location: 50,52
-	Actor1414: fenc
-		Owner: Neutral
-		Location: 51,52
-	Actor1415: fenc
-		Owner: Neutral
-		Location: 51,51
-	Actor1416: fenc
-		Owner: Neutral
-		Location: 52,51
-	Actor1417: fenc
-		Owner: Neutral
-		Location: 52,50
-	Actor1418: fenc
-		Owner: Neutral
-		Location: 53,50
-	Actor1419: fenc
-		Owner: Neutral
-		Location: 53,49
-	Actor1420: fenc
-		Owner: Neutral
-		Location: 53,48
-	Actor1421: fenc
-		Owner: Neutral
-		Location: 53,47
-	Actor1422: fenc
-		Owner: Neutral
-		Location: 43,49
-	Actor1423: fenc
-		Owner: Neutral
-		Location: 43,48
-	Actor1424: fenc
-		Owner: Neutral
-		Location: 43,47
-	Actor1425: fenc
-		Owner: Neutral
-		Location: 43,46
-	Actor1426: fenc
-		Owner: Neutral
-		Location: 44,46
-	Actor1427: fenc
-		Owner: Neutral
-		Location: 44,45
-	Actor1428: fenc
-		Owner: Neutral
-		Location: 45,45
-	Actor1429: fenc
-		Owner: Neutral
-		Location: 45,44
-	Actor1431: fenc
-		Owner: Neutral
-		Location: 46,43
-	Actor1432: fenc
-		Owner: Neutral
-		Location: 47,43
-	Actor1433: fenc
-		Owner: Neutral
-		Location: 48,43
-	Actor1434: fenc
-		Owner: Neutral
-		Location: 49,43
 	Actor1435: t02
 		Owner: Neutral
 		Location: 19,79
@@ -3621,21 +3465,12 @@ Actors:
 	Actor274: t14
 		Owner: Neutral
 		Location: 15,78
-	Actor1430: fenc
-		Owner: Neutral
-		Location: 46,44
 	Actor1369: oilb
 		Owner: Neutral
 		Location: 4,18
 	Actor1370: oilb
 		Owner: Neutral
 		Location: 92,79
-	Actor1371: oilb
-		Owner: Neutral
-		Location: 28,88
-	Actor1372: oilb
-		Owner: Neutral
-		Location: 67,7
 	Actor1373: bio
 		Owner: Neutral
 		Location: 48,47
@@ -3660,15 +3495,9 @@ Actors:
 	Actor1368: tc01
 		Owner: Neutral
 		Location: 45,46
-	Actor1450: tc01
-		Owner: Neutral
-		Location: 51,48
 	Actor1502: tc03
 		Owner: Neutral
 		Location: 46,47
-	Actor1503: tc03
-		Owner: Neutral
-		Location: 48,49
 	Actor1504: tc03
 		Owner: Neutral
 		Location: 50,47
@@ -3681,3 +3510,201 @@ Actors:
 	Actor1361: mpspawn
 		Owner: Neutral
 		Location: 96,93
+	Actor977: oilb
+		Owner: Neutral
+		Location: 31,64
+	Actor808: t12
+		Owner: Neutral
+		Location: 8,90
+	Actor1: v02
+		Owner: Neutral
+		Location: 8,89
+	Actor6: v03
+		Owner: Neutral
+		Location: 89,8
+	Actor1321: tc01
+		Owner: Neutral
+		Location: 90,2
+	Actor1507: tc01
+		Owner: Neutral
+		Location: 92,1
+	Actor1508: tc01
+		Owner: Neutral
+		Location: 92,4
+	Actor1509: tc01
+		Owner: Neutral
+		Location: 94,3
+	Actor1510: tc01
+		Owner: Neutral
+		Location: 95,1
+	Actor1511: tc01
+		Owner: Neutral
+		Location: 91,6
+	Actor1512: tc04
+		Owner: Neutral
+		Location: 93,5
+	Actor1513: tc04
+		Owner: Neutral
+		Location: 93,0
+	Actor1514: tc04
+		Owner: Neutral
+		Location: 95,2
+	Actor1515: tc04
+		Owner: Neutral
+		Location: 96,4
+	Actor1516: t06
+		Owner: Neutral
+		Location: 97,0
+	Actor1517: t06
+		Owner: Neutral
+		Location: 96,0
+	Actor1518: t06
+		Owner: Neutral
+		Location: 91,0
+	Actor1519: t06
+		Owner: Neutral
+		Location: 92,3
+	Actor1520: t06
+		Owner: Neutral
+		Location: 91,4
+	Actor1521: tc02
+		Owner: Neutral
+		Location: 92,2
+	Actor1522: tc02
+		Owner: Neutral
+		Location: 90,5
+	Actor1523: tc04
+		Owner: Neutral
+		Location: 90,3
+	Actor1524: tc05
+		Owner: Neutral
+		Location: 4,90
+	Actor1525: tc02
+		Owner: Neutral
+		Location: 2,90
+	Actor1526: tc02
+		Owner: Neutral
+		Location: 5,93
+	Actor1527: tc04
+		Owner: Neutral
+		Location: 4,95
+	Actor1528: tc04
+		Owner: Neutral
+		Location: 0,90
+	Actor1529: tc04
+		Owner: Neutral
+		Location: 0,94
+	Actor1530: tc01
+		Owner: Neutral
+		Location: 2,96
+	Actor1531: tc01
+		Owner: Neutral
+		Location: 3,93
+	Actor1532: tc01
+		Owner: Neutral
+		Location: 0,92
+	Actor1533: tc01
+		Owner: Neutral
+		Location: 2,91
+	Actor1534: tc01
+		Owner: Neutral
+		Location: 4,89
+	Actor1535: tc01
+		Owner: Neutral
+		Location: 2,95
+	Actor1536: t07
+		Owner: Neutral
+		Location: 1,96
+	Actor1537: t07
+		Owner: Neutral
+		Location: 2,93
+	Actor1538: t07
+		Owner: Neutral
+		Location: 3,92
+	Actor1539: t07
+		Owner: Neutral
+		Location: 4,94
+	Actor1540: t07
+		Owner: Neutral
+		Location: 3,94
+	Actor1541: t06
+		Owner: Neutral
+		Location: 1,93
+	Actor1542: t06
+		Owner: Neutral
+		Location: 2,92
+	Actor1543: t06
+		Owner: Neutral
+		Location: 4,92
+	Actor1544: t06
+		Owner: Neutral
+		Location: 5,94
+	Actor1545: t06
+		Owner: Neutral
+		Location: 92,0
+	Actor1546: t06
+		Owner: Neutral
+		Location: 95,-1
+	Actor1547: t06
+		Owner: Neutral
+		Location: 92,-1
+	Actor1548: t06
+		Owner: Neutral
+		Location: 97,1
+	Actor1549: t06
+		Owner: Neutral
+		Location: 95,5
+	Actor1550: tc05
+		Owner: Neutral
+		Location: 92,3
+	Actor1551: t15
+		Owner: Neutral
+		Location: 92,5
+	Actor1552: t11
+		Owner: Neutral
+		Location: 4,94
+	Actor1553: t14
+		Owner: Neutral
+		Location: 1,92
+	Actor1554: t05
+		Owner: Neutral
+		Location: 0,96
+	Actor1555: t16
+		Owner: Neutral
+		Location: 97,-1
+	Actor1556: t16
+		Owner: Neutral
+		Location: 94,-1
+	Actor1557: t16
+		Owner: Neutral
+		Location: 91,1
+	Actor1558: t16
+		Owner: Neutral
+		Location: 95,4
+	Actor1559: t16
+		Owner: Neutral
+		Location: 97,3
+	Actor1450: tc01
+		Owner: Neutral
+		Location: 51,48
+	Actor1503: tc03
+		Owner: Neutral
+		Location: 48,49
+	Actor1409: logisticscenter
+		Owner: Neutral
+		Location: 74,23
+	Actor1410: logisticscenter
+		Owner: Neutral
+		Location: 20,73
+	Actor1335: oilb
+		Owner: Neutral
+		Location: 23,91
+	Actor1336: oilb
+		Owner: Neutral
+		Location: 73,4
+	Actor1371: t02
+		Owner: Neutral
+		Location: 73,62
+	Actor1372: t02
+		Owner: Neutral
+		Location: 74,62
