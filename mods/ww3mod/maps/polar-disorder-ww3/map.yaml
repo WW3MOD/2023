@@ -629,18 +629,6 @@ Actors:
 	Actor311: wood
 		Owner: Neutral
 		Location: 32,49
-	Actor266: brl3
-		Owner: Neutral
-		Location: 66,48
-	Actor267: barl
-		Owner: Neutral
-		Location: 67,48
-	Actor302: brl3
-		Owner: Neutral
-		Location: 31,49
-	Actor312: barl
-		Owner: Neutral
-		Location: 30,49
 	Actor313: wood
 		Owner: Neutral
 		Location: 65,49
@@ -749,18 +737,6 @@ Actors:
 	Actor341: wood
 		Owner: Neutral
 		Location: 51,29
-	Actor342: brl3
-		Owner: Neutral
-		Location: 51,27
-	Actor343: barl
-		Owner: Neutral
-		Location: 51,28
-	Actor351: brl3
-		Owner: Neutral
-		Location: 46,70
-	Actor352: barl
-		Owner: Neutral
-		Location: 46,69
 	Actor353: t07
 		Owner: Neutral
 		Location: 44,68
@@ -806,18 +782,6 @@ Actors:
 	Actor369: wood
 		Owner: Neutral
 		Location: 97,4
-	Actor370: brl3
-		Owner: Neutral
-		Location: 96,2
-	Actor371: barl
-		Owner: Neutral
-		Location: 96,3
-	Actor372: brl3
-		Owner: Neutral
-		Location: 1,94
-	Actor373: barl
-		Owner: Neutral
-		Location: 1,95
 	Actor374: wood
 		Owner: Neutral
 		Location: 66,96
@@ -857,18 +821,6 @@ Actors:
 	Actor386: wood
 		Owner: Neutral
 		Location: 34,0
-	Actor387: brl3
-		Owner: Neutral
-		Location: 33,2
-	Actor388: barl
-		Owner: Neutral
-		Location: 33,1
-	Actor389: brl3
-		Owner: Neutral
-		Location: 65,95
-	Actor390: barl
-		Owner: Neutral
-		Location: 64,95
 	Actor397: v13
 		Owner: Neutral
 		Location: 72,41
@@ -890,9 +842,6 @@ Actors:
 	Actor391: oilb
 		Owner: Neutral
 		Location: 0,88
-	Actor393: snowhut
-		Owner: Neutral
-		Location: 49,45
 	Actor392: snowhut
 		Owner: Neutral
 		Location: 38,31
@@ -905,3 +854,15 @@ Actors:
 	Actor290: mpspawn
 		Owner: Neutral
 		Location: 1,81
+	Actor271: oilb
+		Owner: Neutral
+		Location: 10,9
+	Actor274: oilb
+		Owner: Neutral
+		Location: 85,86
+	Actor275: logisticscenter
+		Owner: Neutral
+		Location: 64,31
+	Actor276: logisticscenter
+		Owner: Neutral
+		Location: 32,64

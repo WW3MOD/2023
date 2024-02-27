@@ -11,9 +11,9 @@ OILB:
 		Action: ChangeOwner
 	Building:
 		# LocalCenterOffset: 512,512,0
-		Footprint: =x= xxx =x=
-		Dimensions: 3,3
-		Density: 0,10,0, 10,20,10, 0,10,0
+		Footprint: xx xx
+		Dimensions: 2,2
+		Density: 10
 	Health:
 		HP: 50000
 	EngineerRepairable:
@@ -40,10 +40,10 @@ FCOM:
 	OwnerLostAction:
 		Action: ChangeOwner
 	Building:
-		Footprint: =x= xxx =x=
-		Dimensions: 3,3
-		Density: 0,10,0, 10,20,10, 0,10,0
-		# LocalCenterOffset: 0,-512,0
+		Footprint: xx xx ==
+		Dimensions: 2,3
+		LocalCenterOffset: 0,-512,0
+		Density: 10
 	Health:
 		HP: 25000
 	Armor:
@@ -79,7 +79,7 @@ BIO:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 20
+		Density: 10
 	Health:
 		HP: 55000
 	EngineerRepairable:
@@ -115,7 +115,8 @@ MISS:
 	Building:
 		Footprint: xxx xxx ===
 		Dimensions: 3,3
-		Density: 20,20,20, 20,20,20, 0,0,0
+		LocalCenterOffset: 0,-512,0
+		Density: 10,10,10, 10,10,5, 0,0,0
 		# LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 35000
@@ -154,10 +155,9 @@ HOSP:
 		Priority: 0
 		Bounds: 2048,2048
 	Building:
-		# LocalCenterOffset: 512,512,0
-		Footprint: =x= xxx =x=
-		Dimensions: 3,3
-		Density: 0,10,0, 10,20,10, 0,10,0
+		Footprint: xx xx
+		Dimensions: 2,2
+		Density: 10
 	Health:
 		HP: 55000
 	EngineerRepairable:

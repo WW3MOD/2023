@@ -190,6 +190,14 @@ namespace OpenRA.Mods.Common.Widgets
 					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
 					PerformKeyboardOrderOnSelection(a => new Order("Resupply", a, queued));
 				};
+				resupplyButton.OnDoubleClick = () =>
+				{
+					if (highlightOnButtonPress)
+						resupplyHighlighted = 2;
+
+					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
+					PerformKeyboardOrderOnSelection(a => new Order("Resupply", a, queued));
+				};
 
 				resupplyButton.OnKeyPress = ki => { resupplyHighlighted = 2; resupplyButton.OnClick(); };
 			}

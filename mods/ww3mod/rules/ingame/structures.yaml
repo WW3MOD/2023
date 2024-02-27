@@ -417,6 +417,7 @@ LOGISTICSCENTER:
 	Building:
 		Footprint: =+= +++ =+=
 		Dimensions: 3,3
+		Density: 0,10,0, 10,15,10, 0,10,0
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
@@ -542,6 +543,7 @@ AFLD:
 	Building:
 		Footprint: xxx xx+
 		Dimensions: 3,2
+		Density: 10,0,0, 0,0,0
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 8

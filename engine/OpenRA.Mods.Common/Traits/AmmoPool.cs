@@ -191,13 +191,20 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(false, new Resupply(self, nearestResupplier, nearestResupplier.Trait<RearmsUnits>().Info.CloseEnough));
 			else
 			{
-				// var bases = self.World.ActorsHavingTrait<BaseBuilding>()
-				// 	.Where(a => a.Owner == self.Owner)
-				// 	.ToList();
+				var deliversCash = self.TraitOrDefault<DeliversCash>();
+
+				if (deliversCash != null)
+				{
+					var bases = self.World.ActorsHavingTrait<BaseBuilding>()
+						.Where(a => a.Owner == self.Owner)
+						.ToList();
+
+					deliversCash.GoDonateCash(self, Target.FromActor(bases.First()), false);
+				}
 
 				// // FF TODO Supply Route exit map / rotate unit. Should not go to rally point of SR.
 				// if (bases.Count > 0)
-				// 	self.QueueActivity(false, new Resupply(self, bases.First(), new WDist(0)));
+				// 	self.QueueActivity(false, new Sell(self, bases.First(), new WDist(0)));
 			}
 		}
 

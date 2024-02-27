@@ -95,8 +95,7 @@
 		Type: Rotation
 		AdjustForHandicap: True
 	InfersUpkeep:
-		FixedCost: 3
-		PermilleCost: 10
+		PermilleCost: 5
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle

@@ -84,6 +84,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "DeliverCash")
 				return;
 
+			GoDonateCash(self, order.Target, order.Queued);
+		}
+
+
+		public void GoDonateCash(Actor self, Target target, bool queued)
+		{
 			var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();
 
 			var amount = info.Payload == -1 && valued != null ? valued.Cost : info.Payload;
@@ -98,7 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			self.QueueActivity(order.Queued, new DonateCash(self, order.Target, amount, info.PlayerExperience, info.TargetLineColor));
+			self.QueueActivity(queued, new DonateCash(self, target, amount, info.PlayerExperience, info.TargetLineColor));
 			self.ShowTargetLines();
 		}
 

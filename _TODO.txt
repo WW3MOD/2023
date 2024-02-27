@@ -7,21 +7,27 @@ Ongoing
     - Passed units should resume their queue after being nudged
     - Artillery too effective vs infantry
 
-
-
 Fix
 
-    Orders
-        - R => Resupply order
-        - Splice orders, check IsImmediate
+    - Resupply
+        - Running out of ammo: Auto rearm or leave battlefield
+            - Add "Stance" toggle button to indicate if auto rearm should happen or not
+        - Go to resupply actor
+            - R hotkey
+        - Leave battlefield
+            - Double click
+        - Leave battlefield even if not low on ammo
+            - Tripple click?
 
-    - Sync fail
-        - "R" Resupply hotkey causes instant desync
+    Orders
+        - Splice orders, check IsImmediate
 
     - Autotarget
 
-    - Tanks fire through forests and just hits trees
-    - AT soldier (and other missiles?) can fire through forests but doesnt risk hitting trees
+    - Bypass
+        - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing
+        - Tanks fire through forests and just hits trees
+        - AT soldier (and other missiles?) can fire through forests but doesnt risk hitting trees
 
     - Vehicles passes but doesnt crush fence on Woodland warfare
 
