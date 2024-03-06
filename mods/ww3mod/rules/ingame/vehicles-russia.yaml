@@ -1,5 +1,4 @@
 
-
 btr:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@CargoPips: ^CargoPips
@@ -41,7 +40,7 @@ btr:
 	Mobile:
 		Locomotor: lighttracked-amphibious
 		Speed: 110
-		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
+		Acceleration: 2, 3, 4, 3, 2, 1
 		TurnSpeed: 10
 	Armament@1:
 		Name: primary
@@ -135,7 +134,7 @@ bmp2:
 	Mobile:
 		Locomotor: lighttracked-amphibious
 		Speed: 100
-		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
+		Acceleration: 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: empdisable || firing-secondary
 	GrantConditionOnPreparingAttack:
@@ -272,12 +271,12 @@ t90:
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 100
-		Acceleration: 6, 5, 4, 3, 2, 1
+		Acceleration: 3, 2, 1
 		TurnSpeed: 10
 		# CanMoveBackward: true
 		PauseOnCondition: empdisable
 	Turreted:
-		TurnSpeed: 15
+		TurnSpeed: 20
 		Offset: 0,0,20
 	Armament@1:
 		Name: primary
@@ -372,8 +371,8 @@ giatsint:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 80
-		Acceleration: 4, 3, 2, 1
-		TurnSpeed: 10
+		Acceleration: 2, 1
+		TurnSpeed: 8
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -471,7 +470,7 @@ grad:
 		Position: Ground
 	Mobile:
 		Speed: 110
-		Acceleration: 6, 5, 4, 3, 2, 1
+		Acceleration: 2, 3, 2, 1
 		TurnSpeed: 8
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
@@ -573,7 +572,7 @@ tos:
 		Position: Ground
 	Mobile:
 		Speed: 80
-		Acceleration: 6, 5, 4, 3, 2, 1
+		Acceleration: 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
@@ -668,7 +667,7 @@ tunguska:
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 100
-		Acceleration: 7, 6, 5, 4, 3, 2, 1
+		Acceleration: 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing-secondary || empdisable
 	Radar:

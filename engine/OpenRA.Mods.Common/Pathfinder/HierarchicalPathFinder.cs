@@ -727,6 +727,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			BlockedByActor check, int heuristicWeightPercentage, Func<CPos, int> customCost,
 			Actor ignoreActor, bool laneBias, PathFinderOverlay pathFinderOverlay)
 		{
+			// check = BlockedByActor.Immovable;
 			if (costEstimator == null)
 				return PathFinder.NoPath;
 
@@ -843,6 +844,9 @@ namespace OpenRA.Mods.Common.Pathfinder
 			BlockedByActor check, int heuristicWeightPercentage, Func<CPos, int> customCost,
 			Actor ignoreActor, bool laneBias, PathFinderOverlay pathFinderOverlay)
 		{
+			// Override, experimental. To make units not avoid mobile actors but ask them to move out of the way. Should perhaps check Moving actors, and ignore them. If a unit is standing still inside the prefered path they should nudge ahead of time.
+			check = BlockedByActor.Immovable;
+
 			if (costEstimator == null)
 				return PathFinder.NoPath;
 
@@ -1263,6 +1267,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			bool inReverse = false,
 			PathSearch.IRecorder recorder = null)
 		{
+			// check = BlockedByActor.Immovable;
 			return PathSearch.ToTargetCell(
 				world, locomotor, self, srcs, dst, check, heuristicWeightPercentage,
 				customCost, ignoreActor, laneBias, inReverse, heuristic, grid, recorder);

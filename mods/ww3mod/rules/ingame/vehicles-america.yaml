@@ -41,7 +41,7 @@ humvee:
 	Mobile:
 		Locomotor: lightwheeled
 		Speed: 130
-		Acceleration: 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+		Acceleration: 3, 4, 5, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: empdisable
 	Turreted:
@@ -84,7 +84,7 @@ humvee:
 	# 	Name: secondary
 	# 	Weapon: WGM
 	# 	Turret: secondary
-	# 	# FireDelay: 50
+	# 	FireDelay: 50
 	# 	PauseOnCondition: !ammo-secondary || empdisable
 	# AmmoPool@WGM:
 	# 	Name: secondary-ammo
@@ -109,6 +109,7 @@ humvee:
 	# NextBurstBar@2:
 	# 	Armaments: secondary
 	# 	Color: 00FF00
+
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo #, secondary-ammo
@@ -188,8 +189,8 @@ m113:
 	Mobile:
 		Locomotor: lighttracked-amphibious
 		Speed: 100
-		Acceleration: 8, 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 22
+		Acceleration: 4, 3, 2, 1
+		TurnSpeed: 10
 		# PauseOnCondition: empdisable || !notmobile
 	Armament@1:
 		Name: primary
@@ -290,7 +291,7 @@ bradley:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 100
-		Acceleration: 7, 6, 5, 4, 3, 2, 1
+		Acceleration: 4, 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: firing-wgm || empdisable
 	GrantConditionOnPreparingAttack:
@@ -432,7 +433,7 @@ abrams:
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 100
-		Acceleration: 5, 4, 3, 2, 1
+		Acceleration: 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: empdisable
 	Turreted:
@@ -528,8 +529,8 @@ strykershorad:
 			BottomRight: 275, 700
 	Mobile:
 		Speed: 120
-		Acceleration: 7, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 15
+		Acceleration: 3, 4, 3, 2, 1
+		TurnSpeed: 10
 		Locomotor: heavywheeled
 		PauseOnCondition: empdisable
 	Radar:
@@ -697,8 +698,8 @@ m109:
 		Position: Ground
 	Mobile:
 		Speed: 80
-		Acceleration: 5, 4, 3, 2, 1
-		TurnSpeed: 15
+		Acceleration: 2, 1
+		TurnSpeed: 8
 		Locomotor: lighttracked
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
@@ -805,8 +806,8 @@ m270:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 80
-		Acceleration: 5, 4, 3, 2, 1
-		TurnSpeed: 15
+		Acceleration: 2, 1
+		TurnSpeed: 8
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -911,7 +912,7 @@ HIMARS:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 70
-		TurnSpeed: 10
+		TurnSpeed: 8
 		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
 	GrantConditionOnPreparingAttack:
 		Condition: firing

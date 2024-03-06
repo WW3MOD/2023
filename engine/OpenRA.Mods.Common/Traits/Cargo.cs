@@ -167,6 +167,15 @@ namespace OpenRA.Mods.Common.Traits
 			facing = Exts.Lazy(self.TraitOrDefault<IFacing>);
 		}
 
+		// // Request the closest actorst that are cargoable to enter the transport
+		// bool PickUpClosestActors(Actor self)
+		// {
+		// 	// Find the closest actors to self
+		// 	// This method finds the closest actors that can be picked up by the transport
+		// 	// It will attempt to pick up the closest available actors that match the cargo criteria
+
+		// }
+
 		void INotifyCreated.Created(Actor self)
 		{
 			aircraft = self.TraitOrDefault<Aircraft>();

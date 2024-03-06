@@ -36,15 +36,18 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
-		public readonly WAngle TurnSpeed = new WAngle(512);
+		public readonly WAngle TurnSpeed = new WAngle(10);
 
 		public readonly int Speed = 1;
 
 		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
-		public readonly int[] Acceleration = { 5, 4, 3, 2, 1 };
+		public readonly int[] Acceleration = { 3, 2, 1 };
 
 		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
-		public readonly int TurnSpeedLoss = 3;
+		public readonly int TurnSpeedLoss = 1;
+
+		[Desc("How fast the speed is decreased")]
+		public readonly int Deceleration = 5;
 
 		[Desc("If set to true, this unit will always turn in place instead of following a curved trajectory (like infantry).")]
 		public readonly bool AlwaysTurnInPlace = false;
@@ -218,6 +221,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsImmovable { get; private set; }
 		public bool TurnToMove;
 		public bool IsBlocking { get; private set; }
+		public int Deceleration { get => Info.Deceleration; }
 
 		public bool IsMovingBetweenCells => FromCell != ToCell;
 
@@ -252,8 +256,6 @@ namespace OpenRA.Mods.Common.Traits
 		public WPos CenterPosition { get; private set; }
 
 		public CPos TopLeft => ToCell;
-
-		public int CurrentAcceleration { get; set; }
 
 		public int CurrentSpeed { get; set; }
 
@@ -758,7 +760,14 @@ namespace OpenRA.Mods.Common.Traits
 			var terrainSpeed = Locomotor.MovementSpeedForCell(cell);
 			var modifiers = speedModifiers.Value.Append(terrainSpeed);
 
-			return Util.ApplyPercentageModifiers(Info.Speed, modifiers);
+			var aa = Util.ApplyPercentageModifiers(Info.Speed, modifiers);
+
+			if (aa == 22)
+			{
+
+			}
+
+			return aa;
 		}
 
 		public CPos NearestMoveableCell(CPos target, int minRange, int maxRange)
@@ -855,7 +864,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void Stopped()
 		{
-			CurrentAcceleration = 0;
 			CurrentSpeed = 0;
 		}
 

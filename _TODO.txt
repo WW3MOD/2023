@@ -1,4 +1,41 @@
 
+Temp
+
+    Supply Route
+
+        - Add more
+
+    Supply Route
+
+        - Spawned units spawn beyond bounds and rejects orders until they have moved inside bounds
+            - Check something like SpawnAtMapEdge
+
+        - Spawn units randomly along the edge instead of all around the SR
+            - Determine when map loads if it is on the vertical or horizontal edge
+
+        - Captured SR gives access to spawn, how to deal with this?
+        - Make maps with more spawns as default
+        - Add neutral SRs in between that can be captured
+        - Link SRs at game start to the closest player spawn to determine who controls what is beyond border, only those can give spawn
+        - Add checkbox to give all linked spawn points to closest player
+        - Checkbox that only allows your side of the map to be spawnable points
+        - Make each spawn have a different queue, done in CA
+        - Game mode where there is a brief period of queueing up units before game starts
+        - Only give access if a coherent line of control from original spawn is established
+        - Otherwise just turn neutral and deny access for enemy
+        - Determine which spawn is original for player
+        - Give each original spawn around the map a letter A, B, C etc
+        - Give each non original spawn a number, like A1, A2, A3 etc
+
+        - Time to "build" could be removed, instead there is a "call-up time" from the moment unit is ordered no matter how many there are
+
+        - Possible to build loaded vehicles, how?
+            - Special queue or modifyer hotkey that puts soldiers into next vehicle? But no.
+            - Select a vehicle to load, then select the soldiers to put inside.
+            - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
+            - These are stored as templates, even saved between games, in a special templates tab
+
+
 Ongoing
 
     - Grad does almost no damage, was doubled
@@ -6,6 +43,9 @@ Ongoing
     - A bit less bypass of trees, also make them protect by % just like sand bags should do still?
     - Passed units should resume their queue after being nudged
     - Artillery too effective vs infantry
+
+    - Move / Mobile
+        - Now uses Immovable to check if path is blocked, not All.
 
 Fix
 
