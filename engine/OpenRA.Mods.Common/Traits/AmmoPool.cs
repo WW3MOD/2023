@@ -199,6 +199,9 @@ namespace OpenRA.Mods.Common.Traits
 						.Where(a => a.Owner == self.Owner)
 						.ToList();
 
+					if (bases.Count == 0)
+						return;
+
 					deliversCash.GoDonateCash(self, Target.FromActor(bases.First()), false);
 				}
 

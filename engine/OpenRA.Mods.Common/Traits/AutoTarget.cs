@@ -344,9 +344,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (stance <= UnitStance.ReturnFire)
 				return chosenTarget;
 
-			var chosenTargetPriority = int.MinValue;
-			var chosenTargetRange = 0;
-
 			var activePriorities = activeTargetPriorities.ToList();
 			if (activePriorities.Count == 0)
 				return chosenTarget;
@@ -359,8 +356,11 @@ namespace OpenRA.Mods.Common.Traits
 					.Concat(self.Owner.FrozenActorLayer.FrozenActorsInCircle(self.World, self.CenterPosition, scanRange)
 					.Select(Target.FromFrozenActor));
 
+			var chosenTargetPriority = 0;
+			var chosenTargetRange = 0;
 			var chosenTargetAverageDamagePercent = 0;
 			var chosenTargetSuppression = 0;
+			var chosenTargetValue = int.MaxValue;
 
 			foreach (var target in targetsInRange)
 			{
@@ -396,9 +396,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				var validPriorities = activePriorities.Where(ati =>
 				{
-					// Already have a higher priority target
-					if (ati.Priority < chosenTargetPriority)
-						return false;
+					// // Already have a higher priority target
+					// if (ati.Priority < chosenTargetPriority)
+					// 	return false;
 
 					// Incompatible relationship
 					if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
@@ -444,37 +444,34 @@ namespace OpenRA.Mods.Common.Traits
 
 				var priorityValue = 0;
 
-				var chosenTargetValue = int.MaxValue;
-
 				// Evaluate whether we want to target this actor
 				foreach (var ati in validPriorities)
 				{
+					priorityValue = 0;
+
 					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
 						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
 
-					// If we have no chosen target this is the first and should be added directly.
-					if (!(chosenTarget.Type == TargetType.Invalid))
-					{
-						// Shorter range has higher priority
-						priorityValue += targetRange;
+					// Shorter range has higher priority
+					priorityValue += targetRange;
 
-						// Don't overkill
-						if (target.Actor.AverageDamagePercent > 200)
-							priorityValue *= target.Actor.AverageDamagePercent - 100;
+					// Don't overkill
+					if (target.Actor.AverageDamagePercent > 200)
+						priorityValue *= target.Actor.AverageDamagePercent - 100;
 
-						// Optionally: Prioritize targets with the priorityCondition
-						if (ati.ConditionalPriority > 0)
-							priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
+					// Optionally: Prioritize targets with the priorityCondition
+					if (ati.ConditionalPriority > 0)
+						priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
 
-						// Divide by the original Priority value, lower Priority is more prioritized
-						priorityValue /= ati.Priority;
+					// Divide by the original Priority value, lower Priority is more prioritized
+					priorityValue /= (ati.Priority);
 
-						// Reversed from original OpenRA, lower value is higher priority
-						if (priorityValue >= chosenTargetValue)
-							continue;
-					}
+					// Reversed from original OpenRA, lower value is higher priority. If we have no chosen target this is the first and should be added directly.
+					if (priorityValue >= chosenTargetValue && chosenTarget.Type != TargetType.Invalid)
+						continue;
 
 					chosenTarget = target;
+					chosenTargetValue = priorityValue;
 					chosenTargetPriority = ati.Priority;
 					chosenTargetRange = targetRange;
 					chosenTargetSuppression = priorityCondition ?? 0;
