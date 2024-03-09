@@ -1,12 +1,15 @@
 
 Game thoughts
 
-    - AutoTarget, priority by type should be higher. Tanks should prioritize vehicles more for example
-    - Ammo should cost money
     - Ballistics hits trees too much? Deprioritize if chance to hit is too low
+        - ATGM hits trees, make it immune but needs clear line of sight (if trees not within 1-2 tiles) to fire
+    - Civ building "base under attack"
+    - Bradley drives in forest
+
+    - Ammo should cost money
     - Air
     - TOS reduce damage
-    - 
+    -
 
 Temp
 

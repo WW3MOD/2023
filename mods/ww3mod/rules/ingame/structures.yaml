@@ -63,7 +63,6 @@
 	Inherits: ^BasicBuilding
 	Inherits@EMPMechanic: ^BuildingAffectedByEMP
 	Inherits@DamageStates: ^DamageStates
-	Huntable:
 	OwnerLostAction:
 		Action: Kill
 	# 	RequiresCondition: !building_cleared
