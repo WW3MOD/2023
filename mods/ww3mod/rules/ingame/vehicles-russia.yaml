@@ -542,7 +542,7 @@ tos:
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Thermobaric Multiple Launch Rocket System
 	Valued:
-		Cost: 2500
+		Cost: 2000
 	Tooltip:
 		Name: TOS
 	AnnounceOnSeen:

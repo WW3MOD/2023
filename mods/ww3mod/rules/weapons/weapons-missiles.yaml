@@ -39,7 +39,7 @@ WGM:
 	Report: vhumwe2a.wav, vhumwe2b.wav, vhumwe2c.wav, vhumwe2d.wav
 	Projectile: Missile
 		Inaccuracy: 768
-		RangeLimit: 26c0
+		RangeLimit: 25c0
 		Speed: 300
 		Acceleration: 30
 		MaximumLaunchSpeed: 50

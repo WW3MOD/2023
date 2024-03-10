@@ -388,7 +388,31 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 5
-		Damage: 200
+		Damage: 25
+		RandomDamagePercentFrom: 0
+		Spread: 64
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees
+		Explosions: hit_minimal
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_small
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+		Explosions: splash_small
+
+^SmallerExplosionEffects:
+	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 50
 		RandomDamagePercentFrom: 0
 		Spread: 96
 		DamageTypes: BulletDeath
@@ -412,7 +436,7 @@
 	Warhead@Shrapnel: SpreadDamage
 		ValidTargets: Infantry, Unarmored
 		Delay: 5
-		Damage: 200
+		Damage: 100
 		RandomDamagePercentFrom: 0
 		Spread: 128
 		DamageTypes: BulletDeath
@@ -430,6 +454,30 @@
 		ValidTargets: Water, Underwater
 		InvalidTargets: Ship, Structure, Bridge
 		Explosions: splash_small
+
+^SmallMediumExplosionEffects:
+	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 150
+		RandomDamagePercentFrom: 0
+		Spread: 192
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees, Mine
+		Explosions: explosion_medium
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_medium
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_medium
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
 
 ^MediumExplosionEffects:
 	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
