@@ -47,14 +47,14 @@ namespace OpenRA.Mods.Common.Traits
 	public class PlaceBeacon : IResolveOrder
 	{
 		readonly PlaceBeaconInfo info;
-		readonly RadarPings radarPings;
+		readonly MiniMapPings radarPings;
 
 		Beacon playerBeacon;
-		RadarPing playerRadarPing;
+		MiniMapPing playerMiniMapPing;
 
 		public PlaceBeacon(Actor self, PlaceBeaconInfo info)
 		{
-			radarPings = self.World.WorldActor.TraitOrDefault<RadarPings>();
+			radarPings = self.World.WorldActor.TraitOrDefault<MiniMapPings>();
 			this.info = info;
 		}
 
@@ -79,10 +79,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (radarPings != null)
 				{
-					if (playerRadarPing != null)
-						radarPings.Remove(playerRadarPing);
+					if (playerMiniMapPing != null)
+						radarPings.Remove(playerMiniMapPing);
 
-					playerRadarPing = radarPings.Add(
+					playerMiniMapPing = radarPings.Add(
 						() => self.Owner.IsAlliedWith(self.World.RenderPlayer),
 						order.Target.CenterPosition,
 						self.Owner.Color,

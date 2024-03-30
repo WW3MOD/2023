@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Every time another production building of the same queue is",
 			"constructed, the build times of all actors in the queue",
 			"modified by a percentage of the original time.")]
-		public readonly int[] BuildingCountBuildTimeMultipliers = { 100, 86, 75, 67, 60, 55, 50 };
+		public readonly int[] BuildingCountBuildTimeMultipliers = { 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5 };
 
 		[Desc("Build time modifier multiplied by the number of parallel production for producing different actors at the same time.")]
 		public readonly int[] ParallelPenaltyBuildTimeMultipliers = { 100, 116, 133, 150, 166, 183, 200, 216, 233, 250 };
@@ -208,7 +208,7 @@ namespace OpenRA.Mods.Common.Traits
 					.Count(p => !p.Trait.IsTraitDisabled && !p.Trait.IsTraitPaused && p.Actor.Owner == self.Owner && p.Trait.Info.Produces.Contains(type));
 
 				var speedModifier = selfsameProductionsCount.Clamp(1, info.BuildingCountBuildTimeMultipliers.Length) - 1;
-				time = (time * info.BuildingCountBuildTimeMultipliers[speedModifier]) / 100;
+				time = time * info.BuildingCountBuildTimeMultipliers[speedModifier] / 100;
 			}
 
 			return time;

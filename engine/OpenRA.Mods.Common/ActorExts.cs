@@ -58,6 +58,7 @@ namespace OpenRA.Mods.Common
 			return stance == PlayerRelationship.Enemy;
 		}
 
+		// TODO
 		public static void NotifyBlocker(this Actor self, IEnumerable<Actor> blockers)
 		{
 			foreach (var blocker in blockers)

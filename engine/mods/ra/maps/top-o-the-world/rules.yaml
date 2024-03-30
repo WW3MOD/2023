@@ -45,7 +45,7 @@ GNRL:
 
 SCAMERA:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 5c512
 
 powerproxy.spyplane:

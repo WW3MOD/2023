@@ -306,7 +306,7 @@ namespace OpenRA.Mods.Common.Activities
 			path = null;
 		}
 
-		bool CellIsEvacuating(Actor self, CPos cell)
+		static bool CellIsEvacuating(Actor self, CPos cell)
 		{
 			foreach (var actor in self.World.ActorMap.GetActorsAt(cell))
 			{
@@ -409,6 +409,11 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
+			/**
+			* Ticks the Move activity each frame to update the actor's position along
+			* the defined move path. Handles acceleration, deceleration, and completing
+			* the move when the target is reached.
+			*/
 			public override bool Tick(Actor self)
 			{
 				var mobile = Move.mobile;
@@ -416,8 +421,39 @@ namespace OpenRA.Mods.Common.Activities
 				// Only move by a full speed step if we didn't already move this tick.
 				// If we did, we limit the move to any carried-over leftover progress.
 				if (Move.lastMovePartCompletedTick < self.World.WorldTick)
-					progress += mobile.MovementSpeedForCell(mobile.ToCell);
+				{
+					var movementSpeedForCell = mobile.MovementSpeedForCell(mobile.ToCell);
 
+					// Exceeding movementSpeedForCell
+					if (mobile.CurrentSpeed > movementSpeedForCell)
+					{
+						mobile.CurrentSpeed -= mobile.Deceleration;
+
+						if (mobile.CurrentSpeed < movementSpeedForCell)
+						{
+							mobile.CurrentSpeed = movementSpeedForCell;
+						}
+					}
+
+					// Accelerate
+					else if (mobile.CurrentSpeed != movementSpeedForCell)
+					{
+						var currentAcceleration = ((float)mobile.CurrentSpeed / (float)movementSpeedForCell * (float)mobile.AccelerationSteps.Length) - 1f;
+						var flooredValue = (int)Math.Ceiling((double)currentAcceleration);
+						mobile.CurrentSpeed += mobile.AccelerationSteps[flooredValue >= 0 ? flooredValue : 0];
+					}
+
+					progress += mobile.CurrentSpeed;
+				}
+
+				// Decelerate if close to target
+				// if (progress * (progress / mobile.Deceleration) >= Distance)
+				// {
+				// 	progress -= mobile.CurrentSpeed;
+				// 	mobile.CurrentSpeed -= mobile.Deceleration;
+				// 	progress += mobile.CurrentSpeed;
+				// }
+				// else
 				if (progress >= Distance)
 				{
 					mobile.SetCenterPosition(self, To);
@@ -435,6 +471,10 @@ namespace OpenRA.Mods.Common.Activities
 					var length = int2.Lerp(ArcFromLength, ArcToLength, progress, Distance);
 					var height = int2.Lerp(From.Z, To.Z, progress, Distance);
 					pos = ArcCenter + new WVec(0, length, height).Rotate(WRot.FromYaw(angle));
+
+					mobile.CurrentSpeed -= mobile.Info.TurnSpeedLoss;
+
+					if (mobile.CurrentSpeed < 0) mobile.CurrentSpeed = 0;
 				}
 				else
 					pos = WPos.Lerp(From, To, progress, Distance);
@@ -484,6 +524,8 @@ namespace OpenRA.Mods.Common.Activities
 				if (mobile.Info.AlwaysTurnInPlace)
 					return false;
 
+				return true;
+
 				// Tight U-turns should be done in place instead of making silly looking loops.
 				var nextFacing = map.FacingBetween(nextCell, mobile.ToCell, mobile.Facing);
 				var currentFacing = map.FacingBetween(mobile.ToCell, mobile.FromCell, mobile.Facing);
@@ -493,21 +535,28 @@ namespace OpenRA.Mods.Common.Activities
 
 			protected override MovePart OnComplete(Actor self, Mobile mobile, Move parent)
 			{
+				/// Checks if the next path cell requires turning, creates a MoveFirstHalf
+				/// to reach the midpoint between current and next cell while turning to
+				/// face the next cell, finishes moving to current cell, updates location
+				/// to next cell, and returns the MoveFirstHalf.
 				var map = self.World.Map;
 				var fromSubcellOffset = map.Grid.OffsetOfSubCell(mobile.FromSubCell);
 				var toSubcellOffset = map.Grid.OffsetOfSubCell(mobile.ToSubCell);
 
+				// If we are not already facing the next cell, we need to turn.
 				var nextCell = parent.PopPath(self);
 				if (nextCell != null)
 				{
 					if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(mobile, nextCell.Value.Cell, map))
 					{
+						// If we are moving along a curved trajectory, we need to turn in place.
 						var nextSubcellOffset = map.Grid.OffsetOfSubCell(nextCell.Value.SubCell);
 						WRot? nextToTerrainOrientation = null;
 						var margin = mobile.Info.TerrainOrientationAdjustmentMargin.Length;
 						if (margin >= 0)
 							nextToTerrainOrientation = WRot.SLerp(map.TerrainOrientation(mobile.ToCell), map.TerrainOrientation(nextCell.Value.Cell), 1, 2);
 
+						// Creates a new MoveFirstHalf to reach the midpoint between current and next cell while turning to face the next cell.
 						var ret = new MoveFirstHalf(
 							Move,
 							Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
@@ -525,6 +574,7 @@ namespace OpenRA.Mods.Common.Activities
 						return ret;
 					}
 
+					// Adds the next path cell to the path queue.
 					parent.path.Add(nextCell.Value.Cell);
 				}
 

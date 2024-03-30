@@ -29,9 +29,12 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Image containing explosion effect sequence.")]
 		public readonly string Image = "explosion";
 
+		[Desc("Determines the size of the explosion image.")]
+		public readonly int ScalePercent = 100;
+
 		[PaletteReference(nameof(UsePlayerPalette))]
 		[Desc("Palette to use for explosion effect.")]
-		public readonly string ExplosionPalette = "effect";
+		public readonly string Palette = "effect";
 
 		[Desc("Remap explosion effect to player color, if art supports it.")]
 		public readonly bool UsePlayerPalette = false;
@@ -50,6 +53,7 @@ namespace OpenRA.Mods.Common.Warheads
 
 		[Desc("The maximum inaccuracy of the effect spawn position relative to actual impact position.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
+		public WVec Offset = new WVec(0, 0, 0);
 
 		static readonly BitSet<TargetableType> TargetTypeAir = new BitSet<TargetableType>("Air");
 
@@ -123,11 +127,11 @@ namespace OpenRA.Mods.Common.Warheads
 					pos -= new WVec(0, 0, dat.Length);
 				}
 
-				var palette = ExplosionPalette;
+				var palette = Palette;
 				if (UsePlayerPalette)
 					palette += firedBy.Owner.InternalName;
 
-				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, Image, explosion, palette)));
+				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, scale: (float)ScalePercent / 100)));
 			}
 
 			var impactSound = ImpactSounds.RandomOrDefault(world.LocalRandom);

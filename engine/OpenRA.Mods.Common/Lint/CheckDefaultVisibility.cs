@@ -17,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	class CheckDefaultVisibility : ILintRulesPass, ILintServerMapPass
+	class CheckDefaultDetectability : ILintRulesPass, ILintServerMapPass
 	{
 		void ILintRulesPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Ruleset rules)
 		{
@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, mapRules);
 		}
 
-		void Run(Action<string> emitError, Ruleset rules)
+		static void Run(Action<string> emitError, Ruleset rules)
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
@@ -44,14 +44,14 @@ namespace OpenRA.Mods.Common.Lint
 						emitError($"Actor type `{actorInfo.Key}` defines multiple default visibility types!");
 					else
 					{
-						var vis = actorInfo.Value.TraitInfoOrDefault<HiddenUnderShroudInfo>();
-						if (vis != null && vis.Type == VisibilityType.Footprint)
+						var vis = actorInfo.Value.TraitInfoOrDefault<DetectableInfo>();
+						if (vis != null && vis.Position == DetectablePosition.Footprint)
 						{
 							var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
 							if (ios == null)
 								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but has no IOccupySpace traits!");
 							else if (ios.OccupiedCells(actorInfo.Value, CPos.Zero).Count == 0)
-								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but does not have any footprint cells!");
+								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but does not have any footprint cells");
 						}
 					}
 				}

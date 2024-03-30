@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -21,15 +22,26 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Condition = null;
 
 		[Desc("Apply condition on listed movement types. Available options are: None, Horizontal, Vertical, Turn.")]
-		public readonly MovementType ValidMovementTypes = MovementType.Horizontal;
+		public readonly HashSet<MovementType> ValidMovementTypes = new HashSet<MovementType>() { MovementType.Horizontal, MovementType.Vertical };
+		public readonly HashSet<MovementType> ValidStopTypes = new HashSet<MovementType>() { MovementType.None };
+
+		// [FieldLoader.Require]
+		[GrantedConditionReference]
+		[Desc("Condition to grant after not moving for {TimeToBeStill} ticks.")]
+		public readonly string ConditionWhenStill = null;
+
+		[Desc("Amount of ticks required to pass without firing to revoke an instance.")]
+		public readonly int TimeToBeStill = 0;
 
 		public override object Create(ActorInitializer init) { return new GrantConditionOnMovement(init.Self, this); }
 	}
 
-	public class GrantConditionOnMovement : ConditionalTrait<GrantConditionOnMovementInfo>, INotifyMoving
+	public class GrantConditionOnMovement : ConditionalTrait<GrantConditionOnMovementInfo>, INotifyMoving, ITick
 	{
 		readonly IMove movement;
 		int conditionToken = Actor.InvalidConditionToken;
+		int conditionWhenStillToken = Actor.InvalidConditionToken;
+		int cooldown = 0;
 
 		public GrantConditionOnMovement(Actor self, GrantConditionOnMovementInfo info)
 			: base(info)
@@ -37,14 +49,35 @@ namespace OpenRA.Mods.Common.Traits
 			movement = self.Trait<IMove>();
 		}
 
+		void ITick.Tick(Actor self)
+		{
+			if (Info.TimeToBeStill != 0 && conditionWhenStillToken == Actor.InvalidConditionToken)
+			{
+				if (--cooldown == 0)
+				{
+					conditionWhenStillToken = self.GrantCondition(Info.ConditionWhenStill);
+				}
+			}
+		}
+
 		void UpdateCondition(Actor self, MovementType types)
 		{
-			var validMovement = !IsTraitDisabled && (types & Info.ValidMovementTypes) != 0;
+			var validMovement = !IsTraitDisabled && Info.ValidMovementTypes.Contains(types);
+			var validStop = !IsTraitDisabled && !validMovement && Info.ValidStopTypes.Contains(types);
 
-			if (!validMovement && conditionToken != Actor.InvalidConditionToken)
+			if (validStop && conditionToken != Actor.InvalidConditionToken)
+			{
 				conditionToken = self.RevokeCondition(conditionToken);
+				cooldown = Info.TimeToBeStill;
+			}
 			else if (validMovement && conditionToken == Actor.InvalidConditionToken)
+			{
 				conditionToken = self.GrantCondition(Info.Condition);
+				if (conditionWhenStillToken != Actor.InvalidConditionToken)
+				{
+					conditionWhenStillToken = self.RevokeCondition(conditionWhenStillToken);
+				}
+			}
 		}
 
 		void INotifyMoving.MovementTypeChanged(Actor self, MovementType types)

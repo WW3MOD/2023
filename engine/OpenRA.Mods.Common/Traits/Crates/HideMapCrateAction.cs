@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Don't hide the map if the shroud is force-revealed
 			var preventReset = collector.Owner.PlayerActor.TraitsImplementing<IPreventsShroudReset>()
 				.Any(p => p.PreventShroudReset(collector.Owner.PlayerActor));
-			if (preventReset || collector.Owner.Shroud.ExploreMapEnabled)
+			if (preventReset || collector.Owner.MapLayers.ExploreMapEnabled)
 				return 0;
 
 			return base.GetSelectionShares(collector);
@@ -49,10 +49,10 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				foreach (var player in collector.World.Players)
 					if (player.IsAlliedWith(collector.Owner))
-						player.Shroud.ResetExploration();
+						player.MapLayers.ResetExploration();
 			}
 			else
-				collector.Owner.Shroud.ResetExploration();
+				collector.Owner.MapLayers.ResetExploration();
 
 			base.Activate(collector);
 		}

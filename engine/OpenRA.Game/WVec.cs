@@ -102,7 +102,7 @@ namespace OpenRA
 		public override int GetHashCode() { return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode(); }
 
 		public bool Equals(WVec other) { return other == this; }
-		public override bool Equals(object obj) { return obj is WVec && Equals((WVec)obj); }
+		public override bool Equals(object obj) { return obj is WVec vec && Equals(vec); }
 
 		public override string ToString() { return X + "," + Y + "," + Z; }
 
@@ -135,6 +135,16 @@ namespace OpenRA
 				return false;
 
 			return a == b;
+		}
+
+		public static WVec CalculateLeadTarget(WPos launchPosition, WPos initialPosition, WPos targetPosition, int timeSample, int projectileSpeed)
+		{
+			var vectorDiffPerTick = WPos.PositionDiff(targetPosition, initialPosition) / timeSample;
+			var distanceToTarget = WPos.PositionDiff(targetPosition, launchPosition).HorizontalLength;
+			var ticksToReachTarget = distanceToTarget / projectileSpeed;
+			var leadTarget = vectorDiffPerTick * ticksToReachTarget;
+
+			return leadTarget;
 		}
 
 		public LuaValue this[LuaRuntime runtime, LuaValue key]

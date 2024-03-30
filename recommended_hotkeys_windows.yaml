@@ -1,0 +1,157 @@
+# Go to C:\Users\USERNAME\AppData\Roaming\OpenRA
+# Open the settings.yaml file
+# Copy the Keys and replace the ones in your file
+
+# And optionally, do yourself the favor of installing AutoHotKey (AHK v1) and remap your windows key to Ctrl
+# Below is the code that work for AHK V1, not V2:
+
+# #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+# ; #Warn  ; Enable warnings to assist with detecting common errors.
+# SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+# SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+# LWin::LCtrl
+# return
+
+# If you are new to programming: The first (leftmost) line of # must be removed for AHK to be able to read it, but leave these: #NoEnv, #Warn
+Keys:
+	StatisticsArmyGraph: F10 None
+	StatisticsGraph: F9 None
+	SupportPower01: UNKNOWN None
+	SupportPower02: UNKNOWN None
+	SupportPower03: UNKNOWN None
+	SupportPower04: UNKNOWN None
+	SupportPower05: UNKNOWN None
+	SupportPower06: UNKNOWN None
+	RemoveFromControlGroup: R None
+	AttackMove: SPACE None
+	ToLastEvent: CAPSLOCK None
+	SelectAllUnits: W None
+	CycleHarvesters: C None
+	CycleStatusBars: 229 None
+	TogglePlayerStanceColor: 228 None
+	PowerDown: E Alt
+	Repair: E None
+	Sell: E Shift, Alt
+	Stop: X None
+	Scatter: S None
+	ToSelection: UNKNOWN None
+	SelectUnitsByType: Q None
+	Pause: BACKSPACE None
+	ResetZoom: UNKNOWN None
+	TakeScreenshot: PLUS None
+	MapBookmarkSave01: NUMBER_1 Ctrl, Alt
+	MapBookmarkSave02: NUMBER_2 Ctrl, Alt
+	MapBookmarkSave03: NUMBER_3 Ctrl, Alt
+	MapBookmarkSave04: NUMBER_4 Ctrl, Alt
+	ZoomIn: UNKNOWN None
+	ZoomOut: UNKNOWN None
+	MapBookmarkRestore04: NUMBER_4 Shift, Ctrl
+	MapBookmarkRestore03: NUMBER_3 Shift, Ctrl
+	MapBookmarkRestore02: NUMBER_2 Shift, Ctrl
+	MapBookmarkRestore01: NUMBER_1 Shift, Ctrl
+	MapJumpToRightEdge: UNKNOWN None
+	MapJumpToBottomEdge: UNKNOWN None
+	MapJumpToLeftEdge: UNKNOWN None
+	MapJumpToTopEdge: UNKNOWN None
+	MapScrollRight: UNKNOWN None
+	MapScrollDown: UNKNOWN None
+	MapScrollLeft: UNKNOWN None
+	MapScrollUp: UNKNOWN None
+	SelectProductionBuilding: C Shift
+	ProductionTypeDefense: W Shift
+	ProductionTypeVehicle: W Alt
+	ProductionTypeNaval: W Shift, Alt
+	ProductionTypeAircraft: Q Shift, Alt
+	ProductionTypeInfantry: Q Alt
+	ProductionTypeBuilding: Q Shift
+	CycleProductionBuildings: C Alt
+	ControlGroupJumpTo05: UNKNOWN None
+	ControlGroupSelect05: NUMBER_4 None
+	Production01: NUMBER_5 None
+	ControlGroupSelect06: F1 None
+	Production02: NUMBER_6 None
+	ControlGroupSelect07: F2 None
+	Production03: NUMBER_7 None
+	Production04: T None
+	Production05: Y None
+	Production06: U None
+	Production07: G None
+	CycleBase: UNKNOWN None
+	Production08: H None
+	Production09: J None
+	PlaceBeacon: V None
+	Production10: B None
+	Production11: N None
+	ToggleMute: 180 None
+	Production12: M None
+	Production13: NUMBER_8 None
+	Production14: NUMBER_9 None
+	Production15: NUMBER_0 None
+	Production16: I None
+	Production17: O None
+	Production18: P None
+	Production19: K None
+	Production20: L None
+	Production21: 246 None
+	Production23: PERIOD None
+	Production22: COMMA None
+	Production24: MINUS None
+	ReplaySpeedMax: UNKNOWN None
+	StatisticsNone: F3 None
+	ReplaySpeedFast: UNKNOWN None
+	StatisticsBasic: F4 None
+	ReplaySpeedRegular: F12 None
+	StatisticsEconomy: F5 None
+	ControlGroupSelect08: F3 None
+	ControlGroupSelect09: F4 None
+	ControlGroupSelect10: UNKNOWN None
+	ControlGroupCreate05: NUMBER_4 Shift, Alt
+	ControlGroupCreate06: F1 Shift, Alt
+	ControlGroupCreate07: F2 Shift, Alt
+	ControlGroupCreate08: F3 Shift, Alt
+	ControlGroupCreate09: F4 Shift, Alt
+	ControlGroupCreate10: UNKNOWN None
+	ControlGroupAddTo05: NUMBER_4 Alt
+	ControlGroupAddTo06: F1 Alt
+	ControlGroupAddTo07: F2 Alt
+	ControlGroupAddTo08: F3 Alt
+	ControlGroupAddTo09: F4 Alt
+	ControlGroupAddTo10: UNKNOWN None
+	ControlGroupCombineWith05: F1 Shift
+	ControlGroupCombineWith06: F2 Shift
+	ControlGroupCombineWith07: F3 Shift
+	ControlGroupCombineWith08: F4 Shift
+	ControlGroupCombineWith10: UNKNOWN None
+	ControlGroupCombineWith09: UNKNOWN None
+	ControlGroupJumpTo06: UNKNOWN None
+	ControlGroupJumpTo07: UNKNOWN None
+	ControlGroupJumpTo09: UNKNOWN None
+	ControlGroupJumpTo08: UNKNOWN None
+	ControlGroupJumpTo10: UNKNOWN None
+	ControlGroupJumpTo01: UNKNOWN None
+	ControlGroupJumpTo03: UNKNOWN None
+	ControlGroupJumpTo02: UNKNOWN None
+	ControlGroupJumpTo04: UNKNOWN None
+	ControlGroupAddTo01: 167 Alt
+	ControlGroupCreate01: 167 Shift, Alt
+	ControlGroupAddTo02: NUMBER_1 Alt
+	ControlGroupCreate02: NUMBER_1 Shift, Alt
+	ControlGroupCreate03: NUMBER_2 Shift, Alt
+	ControlGroupAddTo03: NUMBER_2 Alt
+	ControlGroupCreate04: NUMBER_3 Shift, Alt
+	ControlGroupAddTo04: NUMBER_3 Alt
+	ControlGroupSelect01: 167 None
+	ControlGroupSelect02: NUMBER_1 None
+	ControlGroupSelect03: NUMBER_2 None
+	ControlGroupSelect04: NUMBER_3 None
+	ReplaySpeedSlow: UNKNOWN None
+	StatisticsCombat: F7 None
+	StatisticsProduction: F6 None
+	StatisticsSupportPowers: F11 None
+	StatisticsArmy: F8 None
+	ObserverCombinedView: F1 None
+	ObserverWorldView: F2 None
+	StanceDefend: A None
+	StanceAttackAnything: A Alt
+	StanceReturnFire: A Shift
+	StanceHoldFire: A Ctrl

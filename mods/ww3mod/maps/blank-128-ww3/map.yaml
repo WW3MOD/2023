@@ -1,0 +1,95 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Blank 128 WW3
+
+Author: FreadyFish
+
+Tileset: TEMPERAT
+
+MapSize: 130,130
+
+Bounds: 1,1,128,128
+
+Visibility: Lobby
+
+Categories: Conquest
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: Random
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: Random
+		Enemies: Multi0, Multi1, Multi2, Multi3, Multi4, Multi5, Multi6, Multi7
+	PlayerReference@Multi0:
+		Name: Multi0
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi1:
+		Name: Multi1
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi2:
+		Name: Multi2
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi3:
+		Name: Multi3
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi4:
+		Name: Multi4
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi5:
+		Name: Multi5
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi6:
+		Name: Multi6
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+	PlayerReference@Multi7:
+		Name: Multi7
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
+
+Actors:
+	Actor0: mpspawn
+		Owner: Neutral
+		Location: 1,42
+	Actor1: mpspawn
+		Owner: Neutral
+		Location: 1,86
+	Actor2: mpspawn
+		Owner: Neutral
+		Location: 42,1
+	Actor3: mpspawn
+		Owner: Neutral
+		Location: 86,1
+	Actor4: mpspawn
+		Owner: Neutral
+		Location: 128,42
+	Actor5: mpspawn
+		Owner: Neutral
+		Location: 128,86
+	Actor6: mpspawn
+		Owner: Neutral
+		Location: 86,128
+	Actor7: mpspawn
+		Owner: Neutral
+		Location: 42,128

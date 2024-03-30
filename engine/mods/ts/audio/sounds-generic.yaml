@@ -31,8 +31,8 @@ Sounds:
 		Notification: notify
 		Nsweep: nsweep
 		Options: options
-		RadarDown: radardn1
-		RadarUp: commup1
+		MiniMapDown: radardn1
+		MiniMapUp: commup1
 		Scoldsfx: scoldsfx
 		SellSound: cashturn
 		StubSoundForTriggers: boop

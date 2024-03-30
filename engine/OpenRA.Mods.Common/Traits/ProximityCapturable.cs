@@ -36,6 +36,15 @@ namespace OpenRA.Mods.Common.Traits
 			"This option implies the `Sticky` behaviour as well.")]
 		public readonly bool Permanent = false;
 
+		[Desc("If set, capture requires dominance of force (higher unit value).")]
+		public readonly int Dominance = 0;
+
+		[Desc("When captured, Actor turns neutral.")]
+		public readonly bool TurnNeutral = false;
+
+		[Desc("If capturing player moves away ownership is reverted to original owner.")]
+		public readonly bool ReturnToOriginalOwner = false;
+
 		public void RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
 			var pci = rules.Actors[SystemActors.Player].TraitInfoOrDefault<ProximityCaptorInfo>();
@@ -54,7 +63,8 @@ namespace OpenRA.Mods.Common.Traits
 		public ProximityCapturableInfo Info;
 		public Actor Self;
 
-		readonly List<Actor> actorsInRange = new List<Actor>();
+		readonly List<Actor> friendlyActorsInRange = new List<Actor>();
+		readonly List<Actor> enemyActorsInRange = new List<Actor>();
 		int proximityTrigger;
 		WPos prevPosition;
 		bool skipTriggerUpdate;
@@ -81,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			self.World.ActorMap.RemoveProximityTrigger(proximityTrigger);
-			actorsInRange.Clear();
+			enemyActorsInRange.Clear();
 		}
 
 		void ITick.Tick(Actor self)
@@ -98,7 +108,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (skipTriggerUpdate || !CanBeCapturedBy(other))
 				return;
 
-			actorsInRange.Add(other);
+			if (other.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Ally)
+				friendlyActorsInRange.Add(other);
+			else
+				enemyActorsInRange.Add(other);
+
 			UpdateOwnership();
 		}
 
@@ -107,7 +121,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (skipTriggerUpdate || !CanBeCapturedBy(other))
 				return;
 
-			actorsInRange.Remove(other);
+			if (other.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Ally)
+				friendlyActorsInRange.Remove(other);
+			else
+				enemyActorsInRange.Remove(other);
+
 			UpdateOwnership();
 		}
 
@@ -122,7 +140,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateOwnership()
 		{
-			if (Captured && Info.Permanent)
+			if (Captured && (Info.Permanent || OriginalOwner.WinState == OpenRA.WinState.Lost))
 			{
 				// This area has been captured and cannot ever be re-captured, so we get rid of the
 				// ProximityTrigger and ensure that it won't be recreated in AddedToWorld.
@@ -134,10 +152,10 @@ namespace OpenRA.Mods.Common.Traits
 			// The actor that has been in the area the longest will be the captor.
 			// The previous implementation used the closest one, but that doesn't work with
 			// ProximityTriggers since they only generate events when actors enter or leave.
-			var captor = actorsInRange.FirstOrDefault();
+			var enemyCaptor = enemyActorsInRange.FirstOrDefault();
 
 			// The last unit left the area
-			if (captor == null)
+			if (enemyCaptor == null)
 			{
 				// Unless the Sticky option is set, we revert to the original owner.
 				if (Captured && !Info.Sticky)
@@ -147,21 +165,41 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (Info.MustBeClear)
 				{
-					var isClear = actorsInRange.All(a => captor.Owner.RelationshipWith(a.Owner) == PlayerRelationship.Ally);
+					var isClear = enemyActorsInRange.All(a => enemyCaptor.Owner.RelationshipWith(a.Owner) == PlayerRelationship.Ally);
 
 					// An enemy unit has wandered into the area, so we've lost control of it.
 					if (Captured && !isClear)
 						ChangeOwnership(Self, OriginalOwner.PlayerActor);
 
 					// We don't own the area yet, but it is clear from enemy units, so we take possession of it.
-					else if (Self.Owner != captor.Owner && isClear)
-						ChangeOwnership(Self, captor);
+					else if (Self.Owner != enemyCaptor.Owner && isClear)
+						ChangeOwnership(Self, enemyCaptor);
 				}
+				// if (Self.Owner != enemyCaptor.Owner)
 				else
 				{
-					// In all other cases, we just take over.
-					if (Self.Owner != captor.Owner)
-						ChangeOwnership(Self, captor);
+					if (Info.Dominance > 0)
+					{
+						var allyValue = 0;
+						var enemyValue = 0;
+
+						foreach (var actor in enemyActorsInRange)
+						{
+							enemyValue += actor.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+						}
+
+						foreach (var actor in friendlyActorsInRange)
+						{
+							allyValue += actor.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+						}
+
+						if (enemyValue > allyValue * Info.Dominance / 100)
+							ChangeOwnership(Self, enemyCaptor);
+						else
+							ChangeOwnership(Self, OriginalOwner.PlayerActor);
+					}
+					else
+						ChangeOwnership(Self, enemyCaptor);
 				}
 			}
 		}
@@ -173,17 +211,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (self.Disposed || captor.Disposed)
 					return;
 
+				var changeTo = Info.TurnNeutral & captor.Owner.RelationshipWith(OriginalOwner) == PlayerRelationship.Enemy ? self.World.Players.First(p => p.PlayerName == "Neutral") : captor.Owner;
+
 				// prevent (Added|Removed)FromWorld from firing during Actor.ChangeOwner
 				skipTriggerUpdate = true;
 				var previousOwner = self.Owner;
-				self.ChangeOwner(captor.Owner);
+				self.ChangeOwner(changeTo);
 
 				if (self.Owner == self.World.LocalPlayer)
 					w.Add(new FlashTarget(self, Color.White));
 
 				var pc = captor.Info.TraitInfoOrDefault<ProximityCaptorInfo>();
 				foreach (var t in self.TraitsImplementing<INotifyCapture>())
-					t.OnCapture(self, captor, previousOwner, captor.Owner, pc.Types);
+					t.OnCapture(self, captor, previousOwner, changeTo, pc.Types);
 			});
 		}
 

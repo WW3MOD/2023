@@ -1,0 +1,626 @@
+
+^PiffsEffects:
+	Warhead@PiffEffect: CreateEffect
+		Explosions: piffs
+		ValidTargets: Ground, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: water_piffs
+		ValidTargets: Water
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: true
+
+^PiffEffects:
+	Warhead@PiffEffect: CreateEffect
+		Explosions: piff
+		ValidTargets: Ground, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: water_piff
+		ValidTargets: Water
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: true
+
+^SmallCaliberEffects:
+	Inherits@HitEffects: ^PiffEffects
+	# Warhead@Suppression: GrantExternalCondition
+	# 	ValidTargets: Infantry
+	# 	Condition: suppressed
+	# 	Amount: 50
+	# 	Range: 10
+	# 	Duration: 50
+
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 10
+		# Duration: 50
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 20
+		# Duration: 25
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 40
+		# Duration: 6
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 80
+		# Duration: 12
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 160
+		# Duration: 25
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 320
+		# Duration: 50
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 640
+		# Duration: 100
+
+^MediumCaliberEffects:
+	Inherits@HitEffects: ^PiffEffects
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 10
+		# Duration: 75
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 20
+		# Duration: 32
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 40
+		# Duration: 8
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 80
+		# Duration: 16
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 160
+		# Duration: 32
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 320
+		# Duration: 64
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 640
+		# Duration: 128
+
+^LargeCaliberEffects:
+	Inherits@HitEffects: ^PiffEffects
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 20
+		# Duration: 100
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 40
+		# Duration: 50
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 80
+		# Duration: 25
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 160
+		# Duration: 50
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 320
+		# Duration: 100
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 640
+		# Duration: 150
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 960
+		# Duration: 200
+
+^MinimalSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 64
+		# Duration: 150
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 128
+		# Duration: 75
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 256
+		# Duration: 32
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 512
+		# Duration: 64
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 1c0
+		# Duration: 128
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 1c512
+		# Duration: 172
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 2c0
+		# Duration: 256
+
+^SmallSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 96
+		# Duration: 150
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 192
+		# Duration: 75
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 384
+		# Duration: 32
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 768
+		# Duration: 64
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 1c512
+		# Duration: 128
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 2c256
+		# Duration: 172
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 3c0
+		# Duration: 256
+
+^MediumSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 128
+		# Duration: 150
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 256
+		# Duration: 75
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 512
+		# Duration: 32
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 1c0
+		# Duration: 64
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 2c0
+		# Duration: 128
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 3c0
+		# Duration: 172
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 4c0
+		# Duration: 256
+
+^LargeSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 192
+		# Duration: 150
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 384
+		# Duration: 75
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 768
+		# Duration: 32
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 1c512
+		# Duration: 64
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 3c0
+		# Duration: 128
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 4c512
+		# Duration: 172
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 6c0
+		# Duration: 256
+
+^HugeSuppressionEffects:
+	Warhead@Suppression_1: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 50
+		Range: 256
+		# Duration: 150
+	Warhead@Suppression_2: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 25
+		Range: 512
+		# Duration: 75
+	Warhead@Suppression_3: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 12
+		Range: 1c0
+		# Duration: 32
+	Warhead@Suppression_4: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 6
+		Range: 2c0
+		# Duration: 64
+	Warhead@Suppression_5: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 3
+		Range: 4c0
+		# Duration: 128
+	Warhead@Suppression_6: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 2
+		Range: 6c0
+		# Duration: 172
+	Warhead@Suppression_7: GrantExternalCondition
+		ValidTargets: Infantry
+		Condition: suppressed
+		Amount: 1
+		Range: 8c0
+		# Duration: 256
+
+^MinimalExplosionEffects:
+	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 25
+		RandomDamagePercentFrom: 0
+		Spread: 64
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees
+		Explosions: hit_minimal
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_small
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+		Explosions: splash_small
+
+^SmallerExplosionEffects:
+	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 50
+		RandomDamagePercentFrom: 0
+		Spread: 96
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees
+		Explosions: hit_minimal
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_small
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+		Explosions: splash_small
+
+^SmallExplosionEffects:
+	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 100
+		RandomDamagePercentFrom: 0
+		Spread: 128
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees, Mine
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_small
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+		Explosions: splash_small
+
+^SmallMediumExplosionEffects:
+	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 150
+		RandomDamagePercentFrom: 0
+		Spread: 192
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees, Mine
+		Explosions: explosion_medium
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_medium
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_medium
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^MediumExplosionEffects:
+	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 200
+		RandomDamagePercentFrom: 0
+		Spread: 256
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		ValidTargets: Ground, Ship, Trees, Mine
+		Explosions: explosion_medium
+		ImpactSounds: kaboom12.aud
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_medium
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_medium
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^LargeExplosionEffects:
+	Inherits@LargeSuppressionEffects: ^LargeSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 200
+		RandomDamagePercentFrom: 0
+		Spread: 256
+		# Falloff: 100, 50, 25, 12, 6, 3, 1
+		# RangeSteps: 512, 256, 256, 256, 256, 256, 256
+		DamageTypes: BulletDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom15.aud
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@EffectShrapnel: CreateEffect
+		Delay: 1
+		Explosions: shrapnel_large
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^HugeExplosionEffects:
+	Inherits@HugeSuppressionEffects: ^HugeSuppressionEffects
+	Warhead@Shrapnel: SpreadDamage
+		ValidTargets: Infantry, Unarmored
+		Delay: 5
+		Damage: 200
+		RandomDamagePercentFrom: 0
+		Spread: 768
+		DamageTypes: BulletDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@Scorch: LeaveSmudge
+		SmudgeType: Scorch
+		Size: 1
+	Warhead@Effect: CreateEffect
+		Explosions: building, building2
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@EffectShrapnel: CreateEffect
+		Explosions: shrapnel_large
+		ValidTargets: Ground, Ship, Trees, Mine
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splashl1.aud, splashl2.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^LargeThermobaricEffects:
+	Warhead@Fire: GrantExternalCondition
+		Range: 3c0
+		# Duration: 15
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Effect_1: CreateEffect
+		Explosions: napalm_medium
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Ship, Trees
+	Warhead@Scorch: LeaveSmudge
+		SmudgeType: Scorch
+		Size: 1
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+^MinimalExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+
+^SmallExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
+
+^MediumExplosionEffectsAir:
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom25.aud
+
+^LargeExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
+
+^HugeExplosionEffectsAir:
+	Warhead@Target: TargetDamage
+		ValidTargets: Air
+	Warhead@Effect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false

@@ -1,0 +1,273 @@
+
+ATGM:
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ValidTargets: Vehicle, Defense, Water
+	TopAttack: true
+	Range: 20c0
+	MinRange: 3c0
+	BurstWait: 200
+	Report: missile6.aud
+	Projectile: Missile
+		Inaccuracy: 512
+		Speed: 300
+		Acceleration: 15
+		RangeLimit: 21c0
+		HorizontalRateOfTurn: 20
+		AirburstAltitude: 32
+		Blockable: false
+		MaximumLaunchSpeed: 20
+		CruiseAltitude: 10c0
+		ContrailLength: 5
+		Image: dragon
+		TrailImage: smokey
+		TrailScalePercent: 75
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		Penetration: 100
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 2000
+		DamageTypes: ExplosionDeath
+
+WGM:
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ValidTargets: Vehicle, Defense
+	Range: 25c0
+	MinRange: 3c0
+	BurstWait: 500
+	Report: vhumwe2a.wav, vhumwe2b.wav, vhumwe2c.wav, vhumwe2d.wav
+	Projectile: Missile
+		Inaccuracy: 768
+		RangeLimit: 25c0
+		Speed: 300
+		Acceleration: 30
+		MaximumLaunchSpeed: 50
+		HorizontalRateOfTurn: 10
+		Arm: 2
+		ManualGuidance: true
+		CruiseAltitude: 100
+		ContrailLength: 100
+		ContrailWidth: 8
+		Image: dragon
+		TrailImage: smokey
+		TrailScalePercent: 75
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		Penetration: 800
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 2000
+		DamageTypes: ExplosionDeath
+
+WGM.bradley:
+	Inherits: WGM
+	Burst: 2
+	BurstDelays: 100
+	BurstWait: 1000
+
+Hellfire:
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ValidTargets: Vehicle, Air, Defense
+	Range: 25c0
+	MinRange: 5c0
+	BurstWait: 60
+	Report: missile6.aud
+	Projectile: Missile
+		Speed: 500
+		MaximumLaunchSpeed: 100
+		Acceleration: 30
+		Inaccuracy: 512
+		HorizontalRateOfTurn: 30
+		RangeLimit: 27c0
+		ContrailLength: 10
+		Image: dragon
+	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Water, Air
+		Damage: 10000
+		Penetration: 800
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Ground, Water, Air
+		Spread: 64
+		Damage: 2000
+		DamageTypes: ExplosionDeath
+
+Hellfire.strykershorad:
+	Inherits: Hellfire
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ValidTargets: Vehicle, Defense
+	Range: 25c0
+	Burst: 2
+	BurstDelays: 65
+	BurstWait: 1000
+	MinRange: 5c0
+	Report: missile6.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 50
+		Speed: 400
+
+TimerWolf_Missiles:
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ValidTargets: Vehicle, Air, Defense
+	Range: 25c0
+	Burst: 4
+	BurstDelays: 3
+	BurstWait: 30
+	MinRange: 5c0
+	Report: missile6.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 50
+		Acceleration: 30
+		Speed: 850
+		Inaccuracy: 1c0
+		HorizontalRateOfTurn: 5
+		RangeLimit: 27c0
+		CruiseAltitude: 2c0
+		ContrailLength: 10
+		Image: dragon
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 1500
+		ValidTargets: Ground, Water, Air
+		DamageTypes: ExplosionDeath
+
+IskanderTargeter:
+	ValidTargets: Ground, Water
+	Range: 50c0
+	MinRange: 16c0
+	BurstWait: 250
+	Report: vv3latta.aud, vv3lattb.aud
+	Projectile: InstantHit
+	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Water
+		Damage: 50
+		Versus:
+			None: 0
+			Wood: 0
+			Concrete: 0
+			Light: 0
+			Medium: 0
+			Heavy: 0
+			Brick: 0
+
+SurfaceToAirMissile:
+	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir
+	ValidTargets: Air
+	Range: 35c0
+	Burst: 1
+	BurstDelays: 1
+	BurstWait: 100
+	Report: missile1.aud
+	ValidTargets: Air, ICBM
+	Projectile: Missile
+		MaximumLaunchSpeed: 50
+		Acceleration: 35
+		Speed: 800
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 35c0
+		HorizontalRateOfTurn: 35
+		Arm: 5
+		Blockable: false
+		ExplodeWhenEmpty: true
+		Image: missile
+		TrailImage: smokey
+		TrailScalePercent: 75
+	Warhead@Spread: SpreadDamage
+		Damage: 2000
+		RandomDamageAddition: 1000
+		Spread: 128
+		ValidTargets: Air, ICBM
+
+SurfaceToAirMissile.double:
+	Inherits: SurfaceToAirMissile
+	Burst: 2
+	BurstDelays: 20
+	BurstWait: 80
+
+AirToAirMissile:
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
+	ValidTargets: Air, ICBM
+	Range: 30c0
+	MinRange: 10c0
+	BurstWait: 30
+	Report: missile7.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 400
+		Acceleration: 35
+		Speed: 800
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 35c0
+		HorizontalRateOfTurn: 25
+		CruiseAltitude: 2c0
+		ContrailLength: 18
+		Blockable: false
+		ExplodeWhenEmpty: true
+	Warhead@Spread: SpreadDamage
+		Damage: 1000
+		RandomDamageAddition: 1000
+		Spread: 128
+		ValidTargets: Air, ICBM
+
+MANPAD:
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
+	ValidTargets: Air
+	Range: 23c0
+	BurstWait: 200
+	Report: missile1.aud
+	Projectile: Missile
+		MaximumLaunchSpeed: 20
+		Acceleration: 25
+		Speed: 550
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 24c0
+		HorizontalRateOfTurn: 35
+		Arm: 5
+		Blockable: false
+		ExplodeWhenEmpty: true
+		Image: dragon
+	Warhead@Spread: SpreadDamage
+		Damage: 1000
+		Spread: 96
+		ValidTargets: Air
+
+Stinger:
+	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
+	ValidTargets: Air
+	Range: 28c0
+	BurstWait: 250
+	Report: missile1.aud
+	Projectile: Missile
+		Inaccuracy: 400
+		CloseEnough: 400
+		RangeLimit: 30c0
+		Speed: 550
+		Acceleration: 35
+		MaximumLaunchSpeed: 50
+		HorizontalRateOfTurn: 35
+		Arm: 5
+		Blockable: false
+		ExplodeWhenEmpty: true
+		Image: missile
+		TrailImage: smokey
+		TrailScalePercent: 75
+	Warhead@Spread: SpreadDamage
+		Damage: 1000
+		Spread: 96
+		ValidTargets: Air
+
+Stinger.quad:
+	Inherits: Stinger
+	Magazine: 4
+	Burst: 2
+	BurstDelays: 30
+	BurstWait: 60
+	ReloadDelay: 1000
+
+9M311:
+	Inherits: Stinger
+	BurstWait: 40

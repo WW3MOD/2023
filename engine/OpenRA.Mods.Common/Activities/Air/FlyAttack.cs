@@ -75,6 +75,15 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			returnToBase = false;
 
+			// FF - if all ammo is depleted and the current order is not a move order, cancel and return to rearm
+			// OR - if just have fired and cannot fire anymore, turn back and attack from same direction again
+			if (rearmable != null && attackAircraft.Armaments.All(x => x.IsTraitPaused))
+			{
+				self.QueueActivity(!attackAircraft.Info.AbortOnResupply, new ReturnToBase(self));
+				returnToBase = true;
+				return true;
+			}
+
 			// Refuse to take off if it would land immediately again.
 			if (aircraft.ForceLanding)
 				Cancel(self);

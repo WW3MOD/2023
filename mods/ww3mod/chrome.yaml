@@ -1,6 +1,9 @@
 ^Sidebar:
 	Image: sidebar.png
 
+^SidebarOther:
+	Image: sidebar-other.png
+
 ^Dialog:
 	Image: dialog.png
 
@@ -14,7 +17,12 @@
 	Image2x: loadscreen-2x.png
 	Image3x: loadscreen-3x.png
 
-sidebar-allies:
+^Flags:
+	Image: flags.png
+	Image2x: flags-2x.png
+	Image3x: flags-3x.png
+
+sidebar-nato:
 	Inherits: ^Sidebar
 	Regions:
 		radar: 290, 67, 222, 222
@@ -25,54 +33,54 @@ sidebar-allies:
 		background-bottom: 0, 166, 238, 8
 		background-supportoverlay: 12, 324, 64, 48
 
-sidebar-button-allies:
+sidebar-button-nato:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 281, 5, 5, 18, 18, 5, 5
-sidebar-button-allies-hover:
+sidebar-button-nato-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 252, 5, 5, 18, 18, 5, 5
-sidebar-button-allies-pressed:
-	Inherits: sidebar-button-allies
-sidebar-button-allies-highlighted:
+sidebar-button-nato-pressed:
+	Inherits: sidebar-button-nato
+sidebar-button-nato-highlighted:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 339, 5, 5, 18, 18, 5, 5
-sidebar-button-allies-highlighted-hover:
+sidebar-button-nato-highlighted-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 310, 5, 5, 18, 18, 5, 5
-sidebar-button-allies-highlighted-pressed:
-	Inherits: sidebar-button-allies-highlighted
-sidebar-button-allies-disabled:
+sidebar-button-nato-highlighted-pressed:
+	Inherits: sidebar-button-nato-highlighted
+sidebar-button-nato-disabled:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 484, 5, 5, 18, 18, 5, 5
-sidebar-button-allies-highlighted-disabled:
-	Inherits: sidebar-button-allies-disabled
+sidebar-button-nato-highlighted-disabled:
+	Inherits: sidebar-button-nato-disabled
 
-command-button-allies:
+command-button-nato:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 281, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-allies-hover:
+command-button-nato-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 252, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-allies-pressed:
-	Inherits: command-button-allies
-command-button-allies-highlighted:
+command-button-nato-pressed:
+	Inherits: command-button-nato
+command-button-nato-highlighted:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 339, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-allies-highlighted-hover:
+command-button-nato-highlighted-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 310, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-allies-highlighted-pressed:
-	Inherits: command-button-allies-highlighted
-command-button-allies-disabled:
-	Inherits: command-button-allies
-command-button-allies-highlighted-disabled:
-	Inherits: command-button-allies-highlighted
+command-button-nato-highlighted-pressed:
+	Inherits: command-button-nato-highlighted
+command-button-nato-disabled:
+	Inherits: command-button-nato
+command-button-nato-highlighted-disabled:
+	Inherits: command-button-nato-highlighted
 
-sidebar-soviet:
+sidebar-brics:
 	Inherits: ^Sidebar
 	Regions:
 		radar: 290, 290, 222, 222
@@ -83,51 +91,51 @@ sidebar-soviet:
 		background-bottom: 0, 166, 238, 8
 		background-supportoverlay: 77, 324, 64, 48
 
-sidebar-button-soviet:
+sidebar-button-brics:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 165, 5, 5, 18, 18, 5, 5
-sidebar-button-soviet-hover:
+sidebar-button-brics-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 136, 5, 5, 18, 18, 5, 5
-sidebar-button-soviet-pressed:
-	Inherits: sidebar-button-soviet
-sidebar-button-soviet-highlighted:
+sidebar-button-brics-pressed:
+	Inherits: sidebar-button-brics
+sidebar-button-brics-highlighted:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 223, 5, 5, 18, 18, 5, 5
-sidebar-button-soviet-highlighted-hover:
+sidebar-button-brics-highlighted-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 194, 5, 5, 18, 18, 5, 5
-sidebar-button-soviet-highlighted-pressed:
-	Inherits: sidebar-button-soviet-highlighted
-sidebar-button-soviet-disabled:
-	Inherits: sidebar-button-allies-disabled
-sidebar-button-soviet-highlighted-disabled:
-	Inherits: sidebar-button-allies-disabled
+sidebar-button-brics-highlighted-pressed:
+	Inherits: sidebar-button-brics-highlighted
+sidebar-button-brics-disabled:
+	Inherits: sidebar-button-nato-disabled
+sidebar-button-brics-highlighted-disabled:
+	Inherits: sidebar-button-nato-disabled
 
-command-button-soviet:
+command-button-brics:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 165, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-soviet-hover:
+command-button-brics-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 136, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-soviet-pressed:
-	Inherits: command-button-soviet
-command-button-soviet-highlighted:
+command-button-brics-pressed:
+	Inherits: command-button-brics
+command-button-brics-highlighted:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 223, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-soviet-highlighted-hover:
+command-button-brics-highlighted-hover:
 	Inherits: ^Sidebar
 	PanelRegion: 260, 194, 3, 3, 22, 22, 3, 3
 	PanelSides: Center
-command-button-soviet-highlighted-pressed:
-	Inherits: command-button-soviet-highlighted
-command-button-soviet-disabled:
-	Inherits: command-button-soviet
-command-button-soviet-highlighted-disabled:
-	Inherits: command-button-soviet-highlighted
+command-button-brics-highlighted-pressed:
+	Inherits: command-button-brics-highlighted
+command-button-brics-disabled:
+	Inherits: command-button-brics
+command-button-brics-highlighted-disabled:
+	Inherits: command-button-brics-highlighted
 
 sidebar-bits:
 	Inherits: ^Glyphs
@@ -163,6 +171,9 @@ production-icons:
 		ship: 187, 68, 16, 16
 		ship-disabled: 187, 85, 16, 16
 		ship-alert: 187, 102, 16, 16
+		fakestructure: 171, 51, 16, 16
+		fakestructure-disabled: 204, 51, 16, 16
+		fakestructure-alert: 188, 51, 16, 16
 
 order-icons:
 	Inherits: ^Glyphs
@@ -185,6 +196,9 @@ order-icons:
 		stats: 204, 68, 16, 16
 		stats-disabled: 204, 85, 16, 16
 		stats-active: 204, 102, 16, 16
+		debug: 221, 51, 16, 16
+		debug-disabled: 221, 67, 16, 16
+		debug-active: 221, 83, 16, 16
 
 power-icons:
 	Inherits: ^Glyphs
@@ -203,12 +217,16 @@ stance-icons:
 	Regions:
 		attack-anything: 0, 119, 16, 16
 		attack-anything-disabled: 0, 136, 16, 16
+		attack-anything-active: 0, 153, 16, 16
 		defend: 17, 119, 16, 16
 		defend-disabled: 17, 136, 16, 16
+		defend-active: 17, 153, 16, 16
 		return-fire: 34, 119, 16, 16
 		return-fire-disabled: 34, 136, 16, 16
+		return-fire-active: 34, 153, 16, 16
 		hold-fire: 51, 119, 16, 16
 		hold-fire-disabled: 51, 136, 16, 16
+		hold-fire-active: 51, 153, 16, 16
 
 stance-icons-highlighted:
 	Inherits: stance-icons
@@ -231,6 +249,8 @@ command-icons:
 		guard-disabled: 75, 232, 24, 24
 		deploy: 100, 207, 24, 24
 		deploy-disabled: 100, 232, 24, 24
+		resupply: 100, 207, 24, 24 # TODO
+		resupply-disabled: 100, 232, 24, 24 # TODO
 		scatter: 125, 207, 24, 24
 		scatter-disabled: 125, 232, 24, 24
 		stop: 150, 207, 24, 24
@@ -269,9 +289,9 @@ sidebar-button-observer-highlighted-hover:
 sidebar-button-observer-highlighted-pressed:
 	Inherits: sidebar-button-observer-highlighted
 sidebar-button-observer-disabled:
-	Inherits: sidebar-button-allies-disabled
+	Inherits: sidebar-button-nato-disabled
 sidebar-button-observer-highlighted-disabled:
-	Inherits: sidebar-button-allies-disabled
+	Inherits: sidebar-button-nato-disabled
 
 observer-scrollpanel-button:
 	Inherits: ^Dialog
@@ -293,6 +313,12 @@ observer-scrollheader:
 
 observer-scrollheader-highlighted:
 	Inherits: observer-scrollpanel-button-disabled
+
+observer-scrollheader-selected:
+	Inherits: observer-scrollpanel-button-disabled
+
+observer-scrollitem-selected:
+	Inherits: observer-scrollpanel-button-pressed
 
 observer-scrollitem:
 
@@ -383,22 +409,29 @@ strategic:
 		player_owned: 160, 142, 22, 22
 
 flags:
-	Inherits: ^Glyphs
+	Inherits: ^Flags
 	Regions:
-		england: 226, 49, 30, 15
-		germany: 226, 65, 30, 15
-		france: 226, 81, 30, 15
-		spain: 226, 97, 30, 15
-		turkey: 226, 113, 30, 15
-		greece: 226, 129, 30, 15
-		ukraine: 226, 145, 30, 15
-		russia: 226, 161, 30, 15
-		allies: 226, 177, 30, 15
-		soviet: 226, 193, 30, 15
-		RandomSoviet: 226, 209, 30, 15
-		RandomAllies: 226, 225, 30, 15
-		Random: 226, 241, 30, 15
-		spectator: 226, 241, 30, 15
+		RandomCountry: 30, 75, 30, 15
+		RandomNATO: 0, 60, 30, 15
+		RandomBRICS: 30, 60, 30, 15
+		Random: 0, 90, 30, 15
+		RandomArabian: 30, 90, 30, 15
+		spectator: 0, 75, 30, 15
+
+		nato: 0, 45, 30, 15
+		america: 1, 1, 28, 13
+		europe: 0, 15, 30, 15
+		ukraine: 0, 30, 30, 15
+
+		brics: 30, 45, 30, 15
+		russia: 31, 1, 28, 13
+		china: 30, 15, 30, 15
+		belarus: 30, 30, 30, 15
+
+		arabian: 0, 105, 30, 15
+		iraq: 30, 105, 30, 15
+		syria: 0, 120, 30, 15
+		jordan: 30, 120, 30, 15
 
 music:
 	Inherits: ^Glyphs
@@ -512,7 +545,7 @@ slider-thumb-pressed:
 	Inherits: button-pressed
 
 slider-thumb-disabled:
-	Inherits: button-disabled
+	Inherits: button
 
 checkbox:
 	Inherits: button-pressed
@@ -524,6 +557,18 @@ checkmark-tick:
 		checked-pressed: 204, 0, 16, 16
 		unchecked: 0, 0, 0, 0
 		unchecked-pressed: 204, 0, 16, 16
+
+checkbox-bits:
+	Inherits: ^Glyphs
+	Regions:
+		checked: 187, 0, 16, 16
+		checked-pressed: 204, 0, 16, 16
+		unchecked: 0, 0, 0, 0
+		unchecked-pressed: 204, 0, 16, 16
+		checked-disabled: 204, 0, 16, 16
+		crossed: 221, 0, 16, 16
+		crossed-disabled: 238, 0, 16, 16
+
 
 checkmark-tick-highlighted:
 	Inherits: checkmark-tick
@@ -574,6 +619,9 @@ checkbox-highlighted-pressed:
 checkbox-highlighted-disabled:
 	Inherits: checkbox-disabled
 
+scrollitem-selected:
+	Inherits: button-pressed
+
 checkbox-toggle:
 
 checkbox-toggle-hover:
@@ -600,6 +648,9 @@ scrollitem-pressed:
 
 scrollitem-highlighted:
 	Inherits: button-pressed
+
+scrollheader-selected:
+	Inherits: button
 
 scrollitem-nohover:
 
@@ -630,18 +681,23 @@ scrollpanel-decorations:
 	Inherits: ^Glyphs
 	Regions:
 		down: 68, 17, 16, 16
+		down-pressed: 68, 17, 16, 16
 		down-disabled: 85, 17, 16, 16
 		up: 102, 17, 16, 16
+		up-pressed: 102, 17, 16, 16
 		up-disabled: 119, 17, 16, 16
 		right: 136, 17, 16, 16
+		right-pressed: 136, 17, 16, 16
 		right-disabled: 153, 17, 16, 16
 		left: 170, 17, 16, 16
+		left-pressed: 170, 17, 16, 16
 		left-disabled: 187, 17, 16, 16
 
 dropdown-decorations:
 	Inherits: ^Glyphs
 	Regions:
 		marker: 68, 17, 16, 16
+		marker-pressed: 68, 17, 16, 16
 		marker-disabled: 85, 17, 16, 16
 
 dropdown-separators:

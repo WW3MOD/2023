@@ -270,7 +270,11 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (remainingTicks == 0)
 			{
+				var percentageStep = repairable != null && repairable.Info.PercentageStep > 0 ? repairable.Info.PercentageStep : repairsUnits.Info.PercentageStep;
+				var selfHealth = self.TraitOrDefault<Health>().Info.HP;
+
 				var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0 ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
+				hpToRepair += repairable.Info.PercentageStep * selfHealth / 100;
 
 				// Cast to long to avoid overflow when multiplying by the health
 				var value = (long)unitCost * repairsUnits.Info.ValuePercentage;
@@ -303,14 +307,7 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				if (!ammoPool.HasFullAmmo)
 				{
-					if (--ammoPool.RemainingTicks <= 0)
-					{
-						ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
-						if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
-							Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);
-
-						ammoPool.GiveAmmo(self, ammoPool.Info.ReloadCount);
-					}
+					ammoPool.Reload(self);
 
 					rearmComplete = false;
 				}

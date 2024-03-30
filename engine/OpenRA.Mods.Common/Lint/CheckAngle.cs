@@ -65,12 +65,12 @@ namespace OpenRA.Mods.Common.Lint
 			if (testMaxAngle && InvalidAngle(maxAngle))
 				emitError($"Weapon `{weaponInfo}`: Projectile maximum LaunchAngle must not exceed (-)255!");
 
-			if ((minAngle < 256) && (maxAngle < 256) && (minAngle > maxAngle))
-				emitError($"Weapon `{weaponInfo}`: Projectile minimum LaunchAngle must not exceed maximum LaunchAngle!");
-			if ((minAngle > 768) && (maxAngle > 768) && (minAngle > maxAngle))
-				emitError($"Weapon `{weaponInfo}`: Projectile minimum LaunchAngle must not exceed maximum LaunchAngle!");
-			if ((minAngle < 256) && (maxAngle > 768))
-				emitError($"Weapon `{weaponInfo}`: Projectile minimum LaunchAngle must not exceed maximum LaunchAngle!");
+			// if ((minAngle < 256) && (maxAngle < 256) && (minAngle > maxAngle))
+			// 	emitError($"Weapon `{weaponInfo}`: Projectile minimum LaunchAngle must not exceed maximum LaunchAngle!");
+			// if ((minAngle > 768) && (maxAngle > 768) && (minAngle > maxAngle))
+			// 	emitError($"Weapon `{weaponInfo}`: Projectile minimum LaunchAngle must not exceed maximum LaunchAngle!");
+			// if ((minAngle < 256) && (maxAngle > 768))
+			// 	emitError($"Weapon `{weaponInfo}`: Projectile minimum LaunchAngle must not exceed maximum LaunchAngle!");
 		}
 	}
 }

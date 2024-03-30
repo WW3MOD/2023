@@ -1,4 +1,32 @@
 ^Palettes:
+	PaletteFromGimpOrJascFile@gensmkexploj:
+		Name: gensmkexploj
+		Filename: gensmkexploj.pal
+		Premultiply: false
+		AllowModifiers: false
+	# CA - Combined Arms
+	PaletteFromFile@playertd:
+		Name: playertd
+		Filename: temperattd.pal
+		ShadowIndex: 4
+	PaletteFromFile@temptd:
+		Name: temptd
+		Filename: temperattd.pal
+		ShadowIndex: 4
+	PlayerColorPalette@TD:
+		BasePalette: temptd
+		BaseName: playertd
+		RemapIndex: 176, 178, 180, 182, 184, 186, 189, 191, 177, 179, 181, 183, 185, 187, 188, 190
+	PaletteFromFile@unittem:
+		Name: unittem
+		Filename: unittem.pal
+		ShadowIndex: 1
+		AllowModifiers: false
+	PaletteFromFile@chromeTD:
+		Name: chrometd
+		Filename: temperattd.pal
+		AllowModifiers: false
+	# - END
 	PaletteFromFile@terrain-snow:
 		Name: terrain
 		Tileset: SNOW
@@ -41,10 +69,18 @@
 		Name: effect
 		Filename: temperat.pal
 		ShadowIndex: 4
-	ColorPickerPalette@colorpicker:
+	# ColorPickerPalette@colorpicker:
+	# 	Name: colorpicker
+	# 	BasePalette: player
+	# 	RemapIndex: 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95
+	# 	AllowModifiers: false
+	PaletteFromFile@effect_ts:
+		Name: effect_ts
+		Filename: anim.pal
+	PaletteFromFile@colorpicker:
 		Name: colorpicker
-		BasePalette: player
-		RemapIndex: 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95
+		Filename: temperat.pal
+		ShadowIndex: 4
 		AllowModifiers: false
 	PaletteFromFile@desert:
 		Name: desert
@@ -62,17 +98,37 @@
 		G: 0
 		B: 0
 		A: 140
+	PaletteFromRGBA@highlight:
+		Name: highlight
+		R: 255
+		G: 255
+		B: 255
+		A: 128
 	PaletteFromRGBA@moveflash:
 		Name: moveflash
 		R: 255
 		G: 255
 		B: 255
 		A: 64
-	ShroudPalette@shroud:
-		Name: shroud
-	ShroudPalette@fog:
-		Name: fog
-		Fog: true
+	PaletteFromRGBA@invuln:
+		Name: invuln
+		R: 128
+		G: 0
+		B: 0
+		A: 128
+	PaletteFromRGBA@invuln2:
+		Name: invuln2
+		R: 0
+		G: 0
+		B: 128
+		A: 128
+	PaletteFromRGBA@disabled:
+		Name: disabled
+		R: 0
+		G: 0
+		B: 0
+		A: 180
+	MapLayersPalettes:
 	PlayerColorPalette:
 		BasePalette: player
 		RemapIndex: 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95
@@ -84,6 +140,7 @@
 		BaseName: cloak
 		BasePalette: player
 		Alpha: 0.55
+	# PlayerHighlightPalette:
 	MenuPaletteEffect:
 	RotationPaletteEffect@defaultwater:
 		Palettes: terrain
@@ -142,3 +199,50 @@
 		BasePalette: player
 		Index: 7, 14, 118, 119, 159, 187, 188
 		ReplaceIndex: 137, 15, 129, 131, 137, 163, 165
+	PaletteFromPaletteWithAlpha@placelinesegment:
+		Name: placelinesegment
+		BasePalette: terrain
+		Alpha: 0.65
+	PaletteFromPlayerPaletteWithAlpha@placebuilding:
+		BaseName: placebuilding
+		BasePalette: player
+		Alpha: 0.65
+	PaletteFromRGBA@armor:
+		Name: armor
+		R: 68
+		G: 148
+		B: 228
+		A: 128
+	PaletteFromRGBA@frenzy:
+		Name: firepower
+		R: 212
+		G: 120
+		B: 16
+		A: 128
+	PaletteFromRGBA@turbo:
+		Name: speed
+		R: 248
+		G: 233
+		B: 71
+		A: 128
+	PaletteFromRGBA@invis:
+		Name: invis
+		R: 32
+		G: 7
+		B: 56
+		A: 128
+	PaletteFromRGBA@chemicals:
+		Name: chemweapon
+		R: 88
+		G: 252
+		B: 84
+		A: 128
+
+	# PaletteFromFile@temptd:
+	# 	Name: temptd
+	# 	Filename: temperattd.pal
+	# 	ShadowIndex: 4
+	# PlayerColorPalette@TD:
+	# 	BasePalette: temptd
+	# 	BaseName: playertd
+	# 	RemapIndex: 176, 178, 180, 182, 184, 186, 189, 191, 177, 179, 181, 183, 185, 187, 188, 190

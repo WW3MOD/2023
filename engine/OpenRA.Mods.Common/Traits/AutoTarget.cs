@@ -82,7 +82,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
-
 		public override object Create(ActorInitializer init) { return new AutoTarget(init, this); }
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo info)
@@ -331,7 +330,7 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				// Incompatible target types
-				if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
+				if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
 					return false;
 
 				return true;
@@ -341,8 +340,9 @@ namespace OpenRA.Mods.Common.Traits
 		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn)
 		{
 			var chosenTarget = Target.Invalid;
-			var chosenTargetPriority = int.MinValue;
-			var chosenTargetRange = 0;
+
+			if (stance <= UnitStance.ReturnFire)
+				return chosenTarget;
 
 			var activePriorities = activeTargetPriorities.ToList();
 			if (activePriorities.Count == 0)
@@ -355,6 +355,12 @@ namespace OpenRA.Mods.Common.Traits
 				targetsInRange = targetsInRange
 					.Concat(self.Owner.FrozenActorLayer.FrozenActorsInCircle(self.World, self.CenterPosition, scanRange)
 					.Select(Target.FromFrozenActor));
+
+			var chosenTargetPriority = 0;
+			var chosenTargetRange = 0;
+			var chosenTargetAverageDamagePercent = 0;
+			var chosenTargetSuppression = 0;
+			var chosenTargetValue = int.MaxValue;
 
 			foreach (var target in targetsInRange)
 			{
@@ -390,9 +396,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				var validPriorities = activePriorities.Where(ati =>
 				{
-					// Already have a higher priority target
-					if (ati.Priority < chosenTargetPriority)
-						return false;
+					// // Already have a higher priority target
+					// if (ati.Priority < chosenTargetPriority)
+					// 	return false;
 
 					// Incompatible relationship
 					if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
@@ -421,24 +427,86 @@ namespace OpenRA.Mods.Common.Traits
 				if (!allowTurn && !ab.TargetInFiringArc(self, target, ab.Info.FacingTolerance))
 					continue;
 
-				// Evaluate whether we want to target this actor
+				if (target.Type != TargetType.Invalid)
+				{
+					if (self.TraitOrDefault<IndirectFire>() == null)
+						if (BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out var blockedPos, true, true))
+						{
+							// Already checked in TargetInFiringArc, might be unneccesary/inefficient
+							continue;
+						}
+				}
+
+				if (target.Actor == null)
+					continue;
+
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
+
+				var priorityValue = 0;
+
+				// Evaluate whether we want to target this actor
 				foreach (var ati in validPriorities)
 				{
-					if (chosenTarget.Type == TargetType.Invalid || chosenTargetPriority < ati.Priority
-						|| (chosenTargetPriority == ati.Priority && targetRange < chosenTargetRange))
+					priorityValue = 0;
+
+					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
+
+					// Shorter range has higher priority
+					priorityValue += targetRange;
+
+					// Don't overkill
+					if (target.Actor.AverageDamagePercent > 200)
+						priorityValue *= target.Actor.AverageDamagePercent - 100;
+
+					// Optionally: Prioritize targets with the priorityCondition
+					if (ati.ConditionalPriority > 0)
+						priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
+
+					// Divide by the original Priority value, lower Priority is more prioritized
+					priorityValue /= (ati.Priority);
+
+					// Reversed from original OpenRA, lower value is higher priority. If we have no chosen target this is the first and should be added directly.
+					if (priorityValue >= chosenTargetValue && chosenTarget.Type != TargetType.Invalid)
+						continue;
+
+					chosenTarget = target;
+					chosenTargetValue = priorityValue;
+					chosenTargetPriority = ati.Priority;
+					chosenTargetRange = targetRange;
+					chosenTargetSuppression = priorityCondition ?? 0;
+					chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
+				}
+
+			}
+
+			if (chosenTarget.Actor != null)
+			{
+				var arms = ab.ChooseArmamentsForTarget(chosenTarget, false);
+
+				var percentDamage = 0;
+				foreach (var arm in arms)
+				{
+					var damageWarheads = arm.Weapon.Warheads.OfType<Warheads.DamageWarhead>();
+					foreach (var warhead in damageWarheads)
 					{
-						chosenTarget = target;
-						chosenTargetPriority = ati.Priority;
-						chosenTargetRange = targetRange;
+						var vsArmor = (float)warhead.Penetration / chosenTarget.Actor.Trait<Armor>().Info.Thickness;
+						if (vsArmor > 1)
+							vsArmor = 1;
+
+						var targetHealth = chosenTarget.Actor.TraitOrDefault<Health>()?.HP;
+
+						percentDamage += (int)(vsArmor * warhead.Damage / targetHealth * 100);
 					}
 				}
+
+				chosenTarget.Actor.MarkForDestruction(percentDamage);
 			}
 
 			return chosenTarget;
 		}
 
-		bool PreventsAutoTarget(Actor attacker, Actor target)
+		static bool PreventsAutoTarget(Actor attacker, Actor target)
 		{
 			foreach (var deat in target.TraitsImplementing<IDisableEnemyAutoTarget>())
 				if (deat.DisableEnemyAutoTarget(target, attacker))

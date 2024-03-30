@@ -1,0 +1,157 @@
+lst:
+	Inherits: emp-overlay
+	idle:
+	open:
+		Start: 1
+		Length: 4
+		Tick: 150
+	close:
+		Frames: 4, 3, 2, 1
+		Length: 4
+		Tick: 150
+	unload:
+		Start: 4
+		ZOffset: -511
+	icon: lsticon
+
+pt:
+	Inherits: emp-overlay
+	idle:
+		Facings: 16
+	turret: pttur
+		Facings: 32
+	turret-mg: mgun
+		Facings: 32
+	muzzle: gunfire2
+		Length: 5
+	muzzle-mg: minigun
+		Length: 6
+		Facings: 8
+	icon: pticon
+
+ascr:
+	Inherits: emp-overlay
+	idle:
+		Facings: 32
+		UseClassicFacingFudge: True
+	turret: mgun
+		Facings: 32
+		UseClassicFacingFudge: True
+	muzzle: gunfire2
+		Length: 5
+	icon: glaboaticon
+
+ptrb:
+	Inherits: emp-overlay
+	idle:
+		Facings: 32
+	turret: pttur
+		Facings: 32
+	turret-mg: apc-tur3 # mgun
+		Facings: 32
+		UseClassicFacings: True
+	muzzle: gunfire2
+		Length: 2
+	muzzle-mg: minigun
+		Length: 6
+		Facings: 8
+	icon: pticon
+
+fac:
+	Inherits: emp-overlay
+	idle:
+		Facings: 32
+	turret: pttur
+		Facings: 32
+	turret-mg: apc-tur3
+		Facings: 32
+		UseClassicFacings: True
+	muzzle: gunfire2
+		Length: 2
+	muzzle-mg: minigun
+		Length: 6
+		Facings: 8
+	icon: ddicon
+
+fac2:
+	Inherits: emp-overlay
+	idle:
+		Facings: 16
+	turret: pttur
+		Facings: 32
+	turret-mg: apc-tur3
+		Facings: 32
+		UseClassicFacings: True
+	muzzle: gunfire2
+		Length: 2
+	muzzle-mg: minigun
+		Length: 6
+		Facings: 8
+	icon: ddicon
+
+corv:
+	Inherits: emp-overlay
+	idle:
+		Facings: 32
+	turret: pttur
+		Facings: 32
+	muzzle: gunfire2
+		Length: 5
+	turret-mg: apc-tur3
+		Facings: 32
+	muzzle-mg: minigun
+		Length: 6
+		Facings: 8
+	icon: bshpicon
+
+corv2:
+	Inherits: emp-overlay
+	idle: corv2
+		Facings: 16
+	turret: pttur
+		Facings: 32
+	muzzle: gunfire2
+		Length: 5
+	turret-mg: mgun
+		Facings: 32
+	muzzle-mg: minigun
+		Length: 6
+		Facings: 8
+	icon: bshpicon
+
+ss:
+	Inherits: emp-overlay
+	idle:
+		Facings: 16
+	turret: jeep
+		Start: 32
+		Facings: 32
+		UseClassicFacingFudge: True
+	muzzle: gunfire2
+		Length: 2
+	icon: ssicon
+
+msub:
+	Inherits: emp-overlay
+	idle:
+		Facings: 16
+	turret: ssam-mini
+		Facings: 32
+		UseClassicFacingFudge: True
+	icon: ssubicon
+
+nsub:
+	Inherits: emp-overlay
+	idle:
+		Facings: 16
+	icon: nsubicon
+
+advmsub:
+	Inherits: emp-overlay
+	idle:
+		Facings: 16
+	move:
+		Start: 16
+		Length: 8
+		Facings: 16
+	icon: msubicon

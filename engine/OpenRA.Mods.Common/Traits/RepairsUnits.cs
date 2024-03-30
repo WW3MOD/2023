@@ -19,7 +19,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cost in % of the unit value to fully repair the unit.")]
 		public readonly int ValuePercentage = 20;
 
-		public readonly int HpPerStep = 10;
+		public readonly int HpPerStep = 0;
+
+		public readonly int PercentageStep = 0;
 
 		[Desc("Time (in ticks) between two repair steps.")]
 		public readonly int Interval = 24;

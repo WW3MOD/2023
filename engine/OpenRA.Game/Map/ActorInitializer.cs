@@ -160,8 +160,7 @@ namespace OpenRA
 		public virtual void Initialize(T value)
 		{
 			var field = typeof(ValueActorInit<T>).GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			if (field != null)
-				field.SetValue(this, value);
+			field?.SetValue(this, value);
 		}
 
 		public override MiniYaml Save()
@@ -247,15 +246,13 @@ namespace OpenRA
 		public void Initialize(MiniYaml yaml)
 		{
 			var field = typeof(OwnerInit).GetField(nameof(InternalName), BindingFlags.Public | BindingFlags.Instance);
-			if (field != null)
-				field.SetValue(this, yaml.Value);
+			field?.SetValue(this, yaml.Value);
 		}
 
 		public void Initialize(Player player)
 		{
 			var field = typeof(OwnerInit).GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			if (field != null)
-				field.SetValue(this, player);
+			field?.SetValue(this, player);
 		}
 
 		public override MiniYaml Save()

@@ -44,7 +44,7 @@ engineer:
 		AddToArmyValue: true
 	Health:
 		HP: 5000
-	RevealsShroud:
+	Vision:
 		Range: 2c768
 	Mobile:
 		Speed: 31
@@ -80,7 +80,7 @@ trooper:
 		AddToArmyValue: true
 	Health:
 		HP: 7000
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	Mobile:
 		Speed: 31
@@ -114,7 +114,7 @@ thumper:
 		AddToArmyValue: true
 	Health:
 		HP: 3750
-	RevealsShroud:
+	Vision:
 		Range: 2c768
 	Mobile:
 		Speed: 43
@@ -167,7 +167,7 @@ fremen:
 		Cost: 200 ## actually 0, but spawns from support power at Palace
 	Health:
 		HP: 7000
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	AutoTarget:
 		ScanRadius: 7
@@ -252,7 +252,7 @@ sardaukar:
 		HP: 10000
 	Mobile:
 		Speed: 31
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	WithInfantryBody:
 		DefaultAttackSequence: shoot

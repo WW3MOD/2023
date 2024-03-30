@@ -31,14 +31,14 @@ BADR:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 	LeavesTrails@1:
 		Offsets: -432,-560,0
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 	-EjectOnDeath:
 	RejectsOrders:
@@ -78,14 +78,14 @@ MIG:
 		AddToArmyValue: true
 	Health:
 		HP: 10000
-	RevealsShroud:
+	Vision:
 		MinRange: 11c0
 		Range: 13c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 11c0
-		Type: GroundPosition
+		Position: Ground
 	Armament:
 		Weapon: Maverick
 		LocalOffset: 0,-640,0, 0,640,0
@@ -123,7 +123,7 @@ MIG:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
@@ -156,14 +156,14 @@ YAK:
 		AddToArmyValue: true
 	Health:
 		HP: 6000
-	RevealsShroud:
+	Vision:
 		MinRange: 9c0
 		Range: 11c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 9c0
-		Type: GroundPosition
+		Position: Ground
 	Armament@PRIMARY:
 		Weapon: ChainGun.Yak
 		LocalOffset: 256,-213,0
@@ -203,7 +203,7 @@ YAK:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
@@ -239,14 +239,14 @@ TRAN:
 		AddToArmyValue: true
 	Health:
 		HP: 14000
-	RevealsShroud:
+	Vision:
 		MinRange: 6c0
 		Range: 8c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 6c0
-		Type: GroundPosition
+		Position: Ground
 	Aircraft:
 		TurnSpeed: 20
 		Speed: 128
@@ -293,14 +293,14 @@ HELI:
 		AddToArmyValue: true
 	Health:
 		HP: 12000
-	RevealsShroud:
+	Vision:
 		MinRange: 10c0
 		Range: 12c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 10c0
-		Type: GroundPosition
+		Position: Ground
 	Armament@PRIMARY:
 		Weapon: HellfireAA
 		LocalOffset: 0,-213,-85, 0,213,-85
@@ -338,7 +338,7 @@ HELI:
 		Image: smokey
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 		TrailWhileStationary: True
 		StationaryInterval: 3
@@ -375,14 +375,14 @@ HIND:
 		AddToArmyValue: true
 	Health:
 		HP: 10000
-	RevealsShroud:
+	Vision:
 		MinRange: 8c0
 		Range: 10c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 8c0
-		Type: GroundPosition
+		Position: Ground
 	Armament@PRIMARY:
 		Weapon: ChainGun
 		LocalOffset: 85,-213,-85, 85,213,-85
@@ -423,7 +423,7 @@ HIND:
 		Image: smokey
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 		TrailWhileStationary: True
 		StationaryInterval: 3
@@ -474,7 +474,7 @@ U2:
 		MovingInterval: 2
 		Image: smokey
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 	RejectsOrders:
 	Interactable:
@@ -499,14 +499,14 @@ MH60:
 		AddToArmyValue: true
 	Health:
 		HP: 10000
-	RevealsShroud:
+	Vision:
 		MinRange: 8c0
 		Range: 10c0
-		Type: GroundPosition
+		Position: Ground
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 8c0
-		Type: GroundPosition
+		Position: Ground
 	Armament@PRIMARY:
 		Weapon: ChainGun
 		LocalOffset: 85,-213,-85, 85,213,-85
@@ -546,7 +546,7 @@ MH60:
 		Image: smokey
 		MovingInterval: 3
 		SpawnAtLastPosition: False
-		Type: CenterPosition
+		Position: Center
 		RequiresCondition: enable-smoke
 		TrailWhileStationary: True
 		StationaryInterval: 3

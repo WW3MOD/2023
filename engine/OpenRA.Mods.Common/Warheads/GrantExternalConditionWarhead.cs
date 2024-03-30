@@ -26,7 +26,29 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Duration of the condition (in ticks). Set to 0 for a permanent condition.")]
 		public readonly int Duration = 0;
 
-		public readonly WDist Range = WDist.FromCells(1);
+		[Desc("How many times the condition should be granted.")]
+		public readonly int[] Amount = { 1 };
+
+		public readonly WDist[] Range = { WDist.FromCells(1) };
+
+		WDist[] effectiveRange;
+
+		// void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
+		// {
+		// 	if (Range != null)
+		// 	{
+		// 		if (Range.Length != 1 && Range.Length != Amount.Length)
+		// 			throw new YamlException("Number of range values must be 1 or equal to the number of Amount values.");
+
+		// 		for (var i = 0; i < Range.Length - 1; i++)
+		// 			if (Range[i] > Range[i + 1])
+		// 				throw new YamlException("Range values must be specified in an increasing order.");
+
+		// 		effectiveRange = Range;
+		// 	}
+		// 	else
+		// 		effectiveRange = Exts.MakeArray(Amount.Length, i => i * Spread);
+		// }
 
 		public override void DoImpact(in Target target, WarheadArgs args)
 		{
@@ -36,16 +58,19 @@ namespace OpenRA.Mods.Common.Warheads
 				return;
 
 			var actors = target.Type == TargetType.Actor ? new[] { target.Actor } :
-				firedBy.World.FindActorsInCircle(target.CenterPosition, Range);
+				firedBy.World.FindActorsInCircle(target.CenterPosition, Range[0]);
 
 			foreach (var a in actors)
 			{
 				if (!IsValidAgainst(a, firedBy))
 					continue;
 
-				a.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(t => t.Info.Condition == Condition && t.CanGrantCondition(firedBy))
-					?.GrantCondition(a, firedBy, Duration);
+				for (var i = 0; i < Amount[0]; i++)
+				{
+					a.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(t => t.Info.Condition == Condition && t.CanGrantCondition(firedBy))
+						?.GrantCondition(a, firedBy, Duration);
+				}
 			}
 		}
 	}

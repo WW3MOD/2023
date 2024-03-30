@@ -22,7 +22,7 @@ Speech:
 		C4PlantedMissionComplete: 00-n180
 		CaptureNodTechCenterToRecoverTheCrystals: 00-n134
 		CaptureTheTvStationToTheEast: 01-n020
-		CapturingTheLocalRadarTowers: 01-n038
+		CapturingTheLocalMiniMapTowers: 01-n038
 		CivilianCityIsUnderAttack: 00-n255
 		CiviliansEvacuatedObjectiveComplete: 00-n024
 		ClearTheZoneForMcvDropshipDeployment: 00-n247

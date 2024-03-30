@@ -56,7 +56,7 @@ namespace OpenRA
 		public override int GetHashCode() { return Bits.GetHashCode(); }
 
 		public bool Equals(CPos other) { return Bits == other.Bits; }
-		public override bool Equals(object obj) { return obj is CPos && Equals((CPos)obj); }
+		public override bool Equals(object obj) { return obj is CPos pos && Equals(pos); }
 
 		public override string ToString()
 		{
@@ -89,6 +89,11 @@ namespace OpenRA
 			var u = (X - Y) / 2;
 			var v = X + Y;
 			return new MPos(u, v);
+		}
+
+		public WPos ToWPos(int z = 0)
+		{
+			return new WPos(X * 1024, Y * 1024, z);
 		}
 
 		#region Scripting interface

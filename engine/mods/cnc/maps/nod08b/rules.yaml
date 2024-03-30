@@ -163,7 +163,7 @@ BOAT:
 		InitialStance: AttackAnything
 	RejectsOrders:
 		Except: Attack
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		ValidRelationships: Enemy, Neutral, Ally
 

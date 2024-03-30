@@ -235,6 +235,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 			public List<GraphConnection> GetConnections(CPos position)
 			{
+				// CPU Expensive!
 				if (changedEdges.TryGetValue(position, out var changedEdge))
 					return changedEdge.ToList();
 				if (abstractEdges.TryGetValue(position, out var abstractEdge))
@@ -634,7 +635,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// <summary>
 		/// <see cref="BlockedByActor.Immovable"/> defines immovability based on the mobile trait. The blocking rules
 		/// in <see cref="Locomotor.CanMoveFreelyInto(Actor, CPos, SubCell, BlockedByActor, Actor)"/> allow units to
-		/// pass these immovable actors if they are temporary blockers (e.g. gates) or crushable by the locomotor.
+		/// pass these immovable actors if they are temporary blockers (e.g. gates) or passable by the locomotor.
 		/// Since our abstract graph must work for any actor, we have to be conservative and can only consider a subset
 		/// of the immovable actors in the graph - ones we know cannot be passed by some actors due to these rules.
 		/// Both this and <see cref="ActorCellIsBlocking"/> must be true for a cell to be blocked.
@@ -655,9 +656,9 @@ namespace OpenRA.Mods.Common.Pathfinder
 			if (isTemporaryBlocker)
 				return false;
 
-			var crushables = actor.TraitsImplementing<ICrushable>();
-			foreach (var crushable in crushables)
-				if (world.NoPlayersMask != crushable.CrushableBy(actor, locomotor.Info.Crushes))
+			var passables = actor.TraitsImplementing<IPassable>();
+			foreach (var passable in passables)
+				if (world.NoPlayersMask != passable.PassableBy(actor, locomotor.Info.PassableClasses))
 					return false;
 
 			return true;
@@ -726,6 +727,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			BlockedByActor check, int heuristicWeightPercentage, Func<CPos, int> customCost,
 			Actor ignoreActor, bool laneBias, PathFinderOverlay pathFinderOverlay)
 		{
+			// check = BlockedByActor.Immovable;
 			if (costEstimator == null)
 				return PathFinder.NoPath;
 
@@ -842,6 +844,9 @@ namespace OpenRA.Mods.Common.Pathfinder
 			BlockedByActor check, int heuristicWeightPercentage, Func<CPos, int> customCost,
 			Actor ignoreActor, bool laneBias, PathFinderOverlay pathFinderOverlay)
 		{
+			// Override, experimental. To make units not avoid mobile actors but ask them to move out of the way. Should perhaps check Moving actors, and ignore them. If a unit is standing still inside the prefered path they should nudge ahead of time.
+			check = BlockedByActor.Immovable;
+
 			if (costEstimator == null)
 				return PathFinder.NoPath;
 
@@ -1262,6 +1267,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			bool inReverse = false,
 			PathSearch.IRecorder recorder = null)
 		{
+			// check = BlockedByActor.Immovable;
 			return PathSearch.ToTargetCell(
 				world, locomotor, self, srcs, dst, check, heuristicWeightPercentage,
 				customCost, ignoreActor, laneBias, inReverse, heuristic, grid, recorder);

@@ -94,7 +94,7 @@ DEMITRI:
 		VoiceSet: DemitriVoice
 
 TRAN:
-	RevealsShroud:
+	Vision:
 		Range: 0c0
 	Cargo:
 		Types: Demitri
@@ -128,10 +128,10 @@ PBOX:
 		Type: Concrete
 	Mobile:
 		Speed: 42
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 		RequiresCondition: !friendly
-	RevealsShroud@friendly:
+	Vision@friendly:
 		Range: 6c0
 		RequiresCondition: friendly
 		ValidRelationships: Ally, Enemy

@@ -24,6 +24,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types that are valid for naval squads.")]
 		public readonly HashSet<string> NavalUnitsTypes = new HashSet<string>();
 
+		[Desc("Actor types that should be included in attack squad.")]
+		public readonly HashSet<string> IncludeInSquadTypes = new HashSet<string>();
+
 		[Desc("Actor types that are excluded from ground attacks.")]
 		public readonly HashSet<string> AirUnitsTypes = new HashSet<string>();
 
@@ -58,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int MinimumAttackForceDelay = 0;
 
 		[Desc("Radius in cells around enemy BaseBuilder (Construction Yard) where AI scans for targets to rush.")]
-		public readonly int RushAttackScanRadius = 15;
+		public readonly int RushAttackScanRadius = 40;
 
 		[Desc("Radius in cells around the base that should be scanned for units to be protected.")]
 		public readonly int ProtectUnitScanRadius = 15;
@@ -71,13 +74,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int IdleScanRadius = 10;
 
 		[Desc("Radius in cells that squads should scan for danger around their position to make flee decisions.")]
-		public readonly int DangerScanRadius = 10;
+		public readonly int DangerScanRadius = 30;
 
 		[Desc("Radius in cells that attack squads should scan for enemies around their position when trying to attack.")]
-		public readonly int AttackScanRadius = 12;
+		public readonly int AttackScanRadius = 30;
 
 		[Desc("Radius in cells that protecting squads should scan for enemies around their position.")]
-		public readonly int ProtectionScanRadius = 8;
+		public readonly int ProtectionScanRadius = 35;
 
 		[Desc("Enemy target types to never target.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes = default;
@@ -148,10 +151,10 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsNotHiddenUnit(Actor a)
 		{
 			var hasModifier = false;
-			var visModifiers = a.TraitsImplementing<IVisibilityModifier>();
+			var visModifiers = a.TraitsImplementing<IShouldHideModifier>();
 			foreach (var v in visModifiers)
 			{
-				if (v.IsVisible(a, Player))
+				if (!v.ShouldHide(a, Player))
 					return true;
 
 				hasModifier = true;
@@ -258,6 +261,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var newUnits = World.ActorsHavingTrait<IPositionable>()
 				.Where(a => a.Owner == Player &&
+
+					// FF TODO: This could be useful
+					// Info.IncludeInSquadTypes.Contains(a.Info.Name) &&
 					!Info.ExcludeFromSquadsTypes.Contains(a.Info.Name) &&
 					!activeUnits.Contains(a));
 

@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Part of the combat overlay from `" + nameof(DeveloperMode) + "`. Attach this to the world actor.")]
 	public class WarheadDebugOverlayInfo : TraitInfo
 	{
-		public readonly int DisplayDuration = 25;
+		public readonly int DisplayDuration = 3;
 
 		public override object Create(ActorInitializer init) { return new WarheadDebugOverlay(this); }
 	}

@@ -1,0 +1,198 @@
+# Conscript
+E1.russia:
+	Inherits@BaseUnit: ^E1
+	Buildable:
+		Prerequisites: ~disabled # ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: e1.russia
+E1R1.russia:
+	Inherits: E1.russia
+	-Buildable:
+	Tooltip:
+		Name: Veteran
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E1.russia
+# Rifleman
+E3.russia:
+	Inherits@BaseUnit: ^E3
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: e3.russia
+E3R1.russia:
+	Inherits: E3.russia
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E3.russia
+	-Buildable:
+# LMG
+AR.russia:
+	Inherits@BaseUnit: ^AR
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: ar.russia
+# Grenadier
+E2.russia:
+	Inherits@BaseUnit: ^E2
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: e2.russia
+E2R1.russia:
+	Inherits: E2.russia
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E2.russia
+	-Buildable:
+# Mortar
+MT.russia:
+	Inherits@BaseUnit: ^MT
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: mt.russia
+# Team Leader
+TL.russia:
+	Inherits@BaseUnit: ^TL
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: tl.russia
+# Anti-tank specialist
+AT.russia:
+	Inherits@BaseUnit: ^AT
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: at.russia
+# Anti Air
+AA.russia:
+	Inherits@BaseUnit: ^AA
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: aa.russia
+# Medic
+MEDI.russia:
+	Inherits@BaseUnit: ^MEDI
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: medi.russia
+# Sniper
+SN.russia:
+	Inherits@BaseUnit: ^SN
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: sn.russia
+# Engineer
+E6.russia:
+	Inherits@BaseUnit: ^E6
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: e6.russia
+# Special Forces
+SF.russia:
+	Inherits@BaseUnit: ^SF
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: sf.russia
+# Infiltrating Spy
+SPY.russia:
+	Inherits@BaseUnit: ^SPY
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: spy.russia
+# Attack Dog
+DOG.russia:
+	Inherits@BaseUnit: ^DOG
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: dog
+# Technician
+TECN.russia:
+	Inherits@BaseUnit: ^TECN
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: tecn.russia
+# Drone Operator
+DR.russia:
+	Inherits: ^DR
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: dr.russia
+# Flamethrower -
+E4.russia:
+	Inherits@BaseUnit: ^E4
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: e4.russia
+
+# Tesla Trooper
+SHOK:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Inherits@Rotting: ^RottingInfantry
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoReplenishing:
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 99
+		Prerequisites: ~player.russia, ~infantry.russia, ~techlevel.futuristic
+		Description: Infantry with portable Tesla coils.
+	Tooltip:
+		Name: Tesla Trooper
+	Valued:
+		Cost: 500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Mobile:
+		Voice: Move
+	Armament@1:
+		Weapon: PortaTesla
+		LocalOffset: 427,0,341
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 3
+		Color: FFFFFF
+	InfantryStates:
+		ProneOffset: 227,0,-245
+	AttackFrontal:
+		Voice: Attack
+	AttackMove:
+		Voice: Move
+	Passenger:
+		Voice: Move
+		CustomPipType: pip-red
+	Guard:
+		Voice: Move
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Voiced:
+		VoiceSet: ShokVoice
+	RenderSprites:
+		Image: SHOK
+		Scale: 0.6
+SHOKR1:
+	Inherits: SHOK
+	ProducibleWithLevel:
+		InitialLevels: 1
+	UpdatesPlayerStatistics:
+		OverrideActor: shok
+	-Buildable:
+	-MapEditorData:

@@ -22,10 +22,13 @@ namespace OpenRA.Mods.Common.Traits
 	class DeliversCashInfo : TraitInfo
 	{
 		[Desc("The amount of cash the owner receives.")]
-		public readonly int Payload = 500;
+		public readonly int Payload = -1;
 
 		[Desc("The amount of experience the donating player receives.")]
 		public readonly int PlayerExperience = 0;
+
+		[Desc("Should the amount be multiplied by the handicap to give the proportional value back? E.g. Used for rotating units off map.")]
+		public readonly bool AdjustForHandicap = false;
 
 		[Desc("Identifier checked against AcceptsDeliveredCash.ValidTypes. Only needed if the latter is not empty.")]
 		public readonly string Type = null;
@@ -81,7 +84,27 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "DeliverCash")
 				return;
 
-			self.QueueActivity(order.Queued, new DonateCash(self, order.Target, info.Payload, info.PlayerExperience, info.TargetLineColor));
+			GoDonateCash(self, order.Target, order.Queued);
+		}
+
+
+		public void GoDonateCash(Actor self, Target target, bool queued)
+		{
+			var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();
+
+			var amount = info.Payload == -1 && valued != null ? valued.Cost : info.Payload;
+
+			if (info.AdjustForHandicap)
+			{
+				var handicap = self.Owner.Handicap;
+				if (handicap > 0)
+				{
+					var div = 100F / (100 - handicap);
+					amount = (int)(amount * div);
+				}
+			}
+
+			self.QueueActivity(queued, new DonateCash(self, target, amount, info.PlayerExperience, info.TargetLineColor));
 			self.ShowTargetLines();
 		}
 

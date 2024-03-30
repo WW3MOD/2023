@@ -22,6 +22,8 @@ namespace OpenRA.Mods.Common.HitShapes
 	{
 		public WDist OuterRadius => Radius;
 
+		WDist IHitShape.VerticalTopOffset => new WDist(VerticalTopOffset);
+
 		[FieldLoader.Require]
 		public readonly WDist Radius = new WDist(426);
 
@@ -46,6 +48,11 @@ namespace OpenRA.Mods.Common.HitShapes
 			return new WDist(Math.Max(0, v.Length - Radius.Length));
 		}
 
+		public int PercentFromEdge(in WVec v)
+		{
+			return 100 * (Radius.Length - v.HorizontalLength) / Radius.Length;
+		}
+
 		public WDist DistanceFromEdge(WPos pos, WPos origin, WRot orientation)
 		{
 			if (pos.Z > origin.Z + VerticalTopOffset)
@@ -55,6 +62,17 @@ namespace OpenRA.Mods.Common.HitShapes
 				return DistanceFromEdge(pos - (origin + new WVec(0, 0, VerticalBottomOffset)));
 
 			return DistanceFromEdge(pos - new WPos(origin.X, origin.Y, pos.Z));
+		}
+
+		public int PercentFromEdge(WPos pos, WPos origin, WRot orientation)
+		{
+			if (pos.Z > origin.Z + VerticalTopOffset)
+				return PercentFromEdge(pos - (origin + new WVec(0, 0, VerticalTopOffset)));
+
+			if (pos.Z < origin.Z + VerticalBottomOffset)
+				return PercentFromEdge(pos - (origin + new WVec(0, 0, VerticalBottomOffset)));
+
+			return PercentFromEdge(pos - new WPos(origin.X, origin.Y, pos.Z));
 		}
 
 		IEnumerable<IRenderable> IHitShape.RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos origin, WRot orientation)

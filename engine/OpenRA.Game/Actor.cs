@@ -78,10 +78,17 @@ namespace OpenRA
 
 		public WRot Orientation => facing?.Orientation ?? WRot.None;
 
+		public int AverageDamagePercent = 0;
+
+		public void MarkForDestruction(int percentDamage)
+		{
+			AverageDamagePercent += percentDamage;
+		}
+
 		/// <summary>Value used to represent an invalid token.</summary>
 		public static readonly int InvalidConditionToken = -1;
 
-		class ConditionState
+		public class ConditionState
 		{
 			/// <summary>Delegates that have registered to be notified when this condition changes.</summary>
 			public readonly List<VariableObserverNotifier> Notifiers = new List<VariableObserverNotifier>();
@@ -90,7 +97,7 @@ namespace OpenRA
 			public readonly HashSet<int> Tokens = new HashSet<int>();
 		}
 
-		readonly Dictionary<string, ConditionState> conditionStates = new Dictionary<string, ConditionState>();
+		public readonly Dictionary<string, ConditionState> ConditionStates = new Dictionary<string, ConditionState>();
 
 		/// <summary>Each granted condition receives a unique token that is used when revoking.</summary>
 		readonly Dictionary<int, string> conditionTokens = new Dictionary<int, string>();
@@ -103,6 +110,22 @@ namespace OpenRA
 		/// <summary>Read-only version of conditionCache that is passed to IConditionConsumers.</summary>
 		readonly IReadOnlyDictionary<string, int> readOnlyConditionCache;
 
+		internal List<DamageOverTime> DOT;
+
+		public class DamageOverTime
+		{
+			public int Ticks;
+			public int Modulus;
+			public Damage Damage;
+
+			public DamageOverTime(int t, int m, Damage d)
+			{
+				Ticks = t;
+				Modulus = m;
+				Damage = d;
+			}
+		}
+
 		internal SyncHash[] SyncHashes { get; }
 
 		readonly IFacing facing;
@@ -111,7 +134,7 @@ namespace OpenRA
 		readonly IRenderModifier[] renderModifiers;
 		readonly IRender[] renders;
 		readonly IMouseBounds[] mouseBounds;
-		readonly IVisibilityModifier[] visibilityModifiers;
+		readonly IShouldHideModifier[] shouldHideModifiers;
 		readonly IDefaultVisibility defaultVisibility;
 		readonly INotifyBecomingIdle[] becomingIdles;
 		readonly INotifyIdle[] tickIdles;
@@ -149,7 +172,7 @@ namespace OpenRA
 				var renderModifiersList = new List<IRenderModifier>();
 				var rendersList = new List<IRender>();
 				var mouseBoundsList = new List<IMouseBounds>();
-				var visibilityModifiersList = new List<IVisibilityModifier>();
+				var detectableModifiersList = new List<IShouldHideModifier>();
 				var becomingIdlesList = new List<INotifyBecomingIdle>();
 				var tickIdlesList = new List<INotifyIdle>();
 				var targetablesList = new List<ITargetable>();
@@ -174,7 +197,7 @@ namespace OpenRA
 					{ if (trait is IRenderModifier t) renderModifiersList.Add(t); }
 					{ if (trait is IRender t) rendersList.Add(t); }
 					{ if (trait is IMouseBounds t) mouseBoundsList.Add(t); }
-					{ if (trait is IVisibilityModifier t) visibilityModifiersList.Add(t); }
+					{ if (trait is IShouldHideModifier t) detectableModifiersList.Add(t); }
 					{ if (trait is IDefaultVisibility t) defaultVisibility = t; }
 					{ if (trait is INotifyBecomingIdle t) becomingIdlesList.Add(t); }
 					{ if (trait is INotifyIdle t) tickIdlesList.Add(t); }
@@ -187,7 +210,7 @@ namespace OpenRA
 				renderModifiers = renderModifiersList.ToArray();
 				renders = rendersList.ToArray();
 				mouseBounds = mouseBoundsList.ToArray();
-				visibilityModifiers = visibilityModifiersList.ToArray();
+				shouldHideModifiers = detectableModifiersList.ToArray();
 				becomingIdles = becomingIdlesList.ToArray();
 				tickIdles = tickIdlesList.ToArray();
 				Targetables = targetablesList.ToArray();
@@ -196,6 +219,8 @@ namespace OpenRA
 				enabledTargetableWorldPositions = EnabledTargetablePositions.SelectMany(tp => tp.TargetablePositions(this));
 				SyncHashes = syncHashesList.ToArray();
 			}
+
+			DOT = new List<DamageOverTime>();
 		}
 
 		internal void Initialize(bool addToWorld = true)
@@ -214,7 +239,7 @@ namespace OpenRA
 					allObserverNotifiers.Add(variableUser.Notifier);
 					foreach (var variable in variableUser.Variables)
 					{
-						var cs = conditionStates.GetOrAdd(variable);
+						var cs = ConditionStates.GetOrAdd(variable);
 						cs.Notifiers.Add(variableUser.Notifier);
 
 						// Initialize conditions that have not yet been granted to 0
@@ -275,6 +300,26 @@ namespace OpenRA
 			else if (wasIdle)
 				foreach (var tickIdle in tickIdles)
 					tickIdle.TickIdle(this);
+
+			// Reduce the targeting
+			if (AverageDamagePercent > 0 && World.WorldTick % 20 == 0)
+				AverageDamagePercent /= 2;
+
+			// Damage over time
+			for (var i = 0; i < DOT.Count; i++)
+			{
+				var dot = DOT[i];
+
+				if (dot.Modulus == 0 || World.WorldTick % dot.Modulus == 0)
+				{
+					InflictDamage(this, dot.Damage);
+
+					if (dot.Ticks-- <= 0)
+					{
+						DOT.RemoveAt(i);
+					}
+				}
+			}
 		}
 
 		public IEnumerable<IRenderable> Render(WorldRenderer wr)
@@ -440,7 +485,7 @@ namespace OpenRA
 		/// Change the actors owner without queuing a FrameEndTask.
 		/// This must only be called from inside an existing FrameEndTask.
 		/// </summary>
-		public void ChangeOwnerSync(Player newOwner)
+		public void ChangeOwnerSync(Player newOwner, bool updateGeneration = true)
 		{
 			if (Disposed)
 				return;
@@ -453,7 +498,8 @@ namespace OpenRA
 				World.Remove(this);
 
 			Owner = newOwner;
-			Generation++;
+			if (updateGeneration)
+				Generation++;
 
 			foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
 				t.OnOwnerChanged(this, oldOwner, newOwner);
@@ -481,6 +527,14 @@ namespace OpenRA
 			health.InflictDamage(this, attacker, damage, false);
 		}
 
+		public void InflictDamage(Actor _, DamageOverTime dot)
+		{
+			if (Disposed || health == null)
+				return;
+
+			DOT.Add(dot);
+		}
+
 		public void Kill(Actor attacker, BitSet<DamageType> damageTypes = default)
 		{
 			if (Disposed || health == null)
@@ -492,8 +546,8 @@ namespace OpenRA
 		public bool CanBeViewedByPlayer(Player player)
 		{
 			// PERF: Avoid LINQ.
-			foreach (var visibilityModifier in visibilityModifiers)
-				if (!visibilityModifier.IsVisible(this, player))
+			foreach (var shouldHideModifier in shouldHideModifiers)
+				if (shouldHideModifier.ShouldHide(this, player))
 					return false;
 
 			return defaultVisibility.IsVisible(this, player);
@@ -528,6 +582,11 @@ namespace OpenRA
 			return false;
 		}
 
+		public bool UnDeployed()
+		{
+			return conditionCache.Any(a => a.Key == "deployed" && a.Value == 0);
+		}
+
 		public IEnumerable<WPos> GetTargetablePositions()
 		{
 			if (EnabledTargetablePositions.Any())
@@ -540,7 +599,7 @@ namespace OpenRA
 
 		void UpdateConditionState(string condition, int token, bool isRevoke)
 		{
-			var conditionState = conditionStates.GetOrAdd(condition);
+			var conditionState = ConditionStates.GetOrAdd(condition);
 
 			if (isRevoke)
 				conditionState.Tokens.Remove(token);

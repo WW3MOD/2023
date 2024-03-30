@@ -20,6 +20,9 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("When killed, this actor causes the attacking player to receive money.")]
 	class GivesBountyInfo : ConditionalTraitInfo
 	{
+		[Desc("Fixed amount to give, overrides Percentage.")]
+		public readonly int Fixed = 0;
+
 		[Desc("Percentage of the killed actor's Cost or CustomSellValue to be given.")]
 		public readonly int Percentage = 10;
 
@@ -45,7 +48,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		int GetBountyValue(Actor self)
 		{
-			return self.GetSellValue() * Info.Percentage / 100;
+			var sellvalue = 0;
+
+			if (Info.Fixed != 0)
+			{
+				sellvalue += Info.Fixed;
+			}
+
+			if (Info.Percentage != 0)
+			{
+				sellvalue += self.GetSellValue() * Info.Percentage / 100;
+			}
+
+			return sellvalue;
 		}
 
 		int GetDisplayedBountyValue(Actor self)

@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int LowPowerModifier = 100;
 
 		[Desc("Production items that have more than this many items in the queue will be produced in a loop.")]
-		public readonly int InfiniteBuildLimit = -1;
+		public readonly int InfiniteBuildLimit = 99;
 
 		[NotificationReference("Speech")]
 		[Desc("Notification played when production is complete.",
@@ -486,7 +486,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var time = bi.BuildDuration;
 			if (time == -1)
-				time = GetProductionCost(unit);
+				time = GetProductionCost(unit) / 10;
 
 			var modifiers = unit.TraitInfos<IProductionTimeModifierInfo>()
 				.Select(t => t.GetProductionTimeModifier(techTree, Info.Type))
@@ -591,7 +591,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var traits = productionTraits.Where(p => !p.IsTraitDisabled && p.Info.Produces.Contains(Info.Type));
 			var unpaused = traits.FirstOrDefault(a => !a.IsTraitPaused);
-			return new TraitPair<Production>(self, unpaused != null ? unpaused : traits.FirstOrDefault());
+			return new TraitPair<Production>(self, unpaused ?? traits.FirstOrDefault());
 		}
 
 		// Builds a unit from the actor that holds this queue (1 queue per building)

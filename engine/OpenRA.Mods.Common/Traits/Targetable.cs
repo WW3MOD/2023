@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (cloaks.Length == 0 || (!viewer.IsDead && viewer.Info.HasTraitInfo<IgnoresCloakInfo>()))
 				return true;
 
-			return cloaks.All(c => c.IsTraitDisabled || c.IsVisible(self, viewer.Owner));
+			return cloaks.All(c => c.IsTraitDisabled || !c.ShouldHide(self, viewer.Owner));
 		}
 
 		public virtual BitSet<TargetableType> TargetTypes => Info.TargetTypes;

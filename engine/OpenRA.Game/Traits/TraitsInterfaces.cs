@@ -201,7 +201,7 @@ namespace OpenRA.Traits
 
 	public interface IDefaultVisibilityInfo : ITraitInfoInterface { }
 	public interface IDefaultVisibility { bool IsVisible(Actor self, Player byPlayer); }
-	public interface IVisibilityModifier { bool IsVisible(Actor self, Player byPlayer); }
+	public interface IShouldHideModifier { bool ShouldHide(Actor self, Player byPlayer); }
 
 	public interface IActorMap
 	{
@@ -225,6 +225,7 @@ namespace OpenRA.Traits
 		void AddPosition(Actor a, IOccupySpace ios);
 		void RemovePosition(Actor a, IOccupySpace ios);
 		void UpdatePosition(Actor a, IOccupySpace ios);
+		void TickFunction();
 		IEnumerable<Actor> ActorsInBox(WPos a, WPos b);
 
 		WDist LargestActorRadius { get; }
@@ -268,6 +269,11 @@ namespace OpenRA.Traits
 	{
 		IEnumerable<IRenderable> RenderSelectionAnnotations(Actor self, WorldRenderer worldRenderer, Color color);
 		int2 GetDecorationOrigin(Actor self, WorldRenderer wr, string pos, int2 margin);
+	}
+
+	public interface IDensityInfo : ITraitInfoInterface
+	{
+		Dictionary<CVec, byte> Density();
 	}
 
 	public interface IMapPreviewSignatureInfo : ITraitInfoInterface
@@ -608,5 +614,10 @@ namespace OpenRA.Traits
 	public interface INotifyPlayerDisconnected
 	{
 		void PlayerDisconnected(Actor self, Player p);
+	}
+
+	public interface IAffectsMapLayer
+	{
+		MapLayers.Type Type { get; }
 	}
 }

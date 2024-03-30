@@ -21,15 +21,15 @@ MSLO:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RequiresCondition: !disabled
 		RevealGeneratedShroud: False
-	RevealsShroud@Offline:
+	Vision@Offline:
 		Range: 5c0
 		RequiresCondition: disabled
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 		RequiresCondition: !disabled
 	NukePower:
@@ -55,7 +55,7 @@ MSLO:
 		SpawnOffset: 1c0,427,0
 		DisplayTimerRelationships: Ally, Neutral, Enemy
 		DisplayBeacon: True
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		BeaconPoster: atomicon
 		CameraRange: 10c0
 		ArrowSequence: arrow
@@ -95,11 +95,11 @@ GAP:
 		HP: 50000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -151,11 +151,11 @@ SPEN:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Exit@1:
 		RequiresCondition: !being-captured
@@ -294,11 +294,11 @@ SYRD:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Exit@1:
 		RequiresCondition: !being-captured
@@ -414,15 +414,15 @@ IRON:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RequiresCondition: !disabled
 		RevealGeneratedShroud: False
-	RevealsShroud@Offline:
+	Vision@Offline:
 		Range: 5c0
 		RequiresCondition: disabled
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 		RequiresCondition: !disabled
 	WithBuildingBib:
@@ -442,7 +442,7 @@ IRON:
 		InsufficientPowerTextNotification: Insufficient power.
 		BeginChargeTextNotification: Iron curtain charging.
 		EndChargeTextNotification: Iron curtain ready.
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		Condition: invulnerability
 		OnFireSound: ironcur9.aud
 		SupportPowerPaletteOrder: 10
@@ -481,15 +481,15 @@ PDOX:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RequiresCondition: !disabled
 		RevealGeneratedShroud: False
-	RevealsShroud@Offline:
+	Vision@Offline:
 		Range: 5c0
 		RequiresCondition: disabled
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 		RequiresCondition: !disabled
 	WithBuildingBib:
@@ -518,7 +518,7 @@ PDOX:
 		EndChargeTextNotification: Chronosphere ready.
 		Duration: 400
 		KillCargo: true
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		SupportPowerPaletteOrder: 20
 		Dimensions: 3, 3
 		Footprint: _x_ xxx _x_
@@ -540,7 +540,7 @@ PDOX:
 		EndChargeTextNotification: Chronosphere ready.
 		Duration: 400
 		KillCargo: true
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		SupportPowerPaletteOrder: 30
 		Dimensions: 5, 5
 		Footprint: __x__ _xxx_ xxxxx _xxx_ __x__
@@ -575,11 +575,11 @@ TSLA:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 6c0
 		Range: 7c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 6c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -619,11 +619,11 @@ AGUN:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -666,7 +666,7 @@ DOME:
 	Valued:
 		Cost: 1500
 	Tooltip:
-		Name: Radar Dome
+		Name: MiniMap Dome
 	Building:
 		Footprint: xx xx ==
 		Dimensions: 2,3
@@ -677,19 +677,19 @@ DOME:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 6c0
 		Range: 10c0
 		RequiresCondition: !disabled
 		RevealGeneratedShroud: False
-	RevealsShroud@Offline:
+	Vision@Offline:
 		Range: 5c0
 		RequiresCondition: disabled
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 6c0
 		RequiresCondition: !disabled
 	WithBuildingBib:
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !jammed && !disabled
 	InfiltrateForExploration:
 		Types: SpyInfiltrate
@@ -719,11 +719,11 @@ PBOX:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -775,11 +775,11 @@ HBOX:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	Cloak:
 		InitialDelay: 125
@@ -835,11 +835,11 @@ GUN:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c512
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -884,11 +884,11 @@ FTUR:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -939,11 +939,11 @@ SAM:
 		HP: 40000
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		MinRange: 5c0
 		Range: 8c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -994,11 +994,11 @@ ATEK:
 		HP: 60000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	GpsPower:
@@ -1045,11 +1045,11 @@ WEAP:
 		HP: 150000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	WithProductionDoorOverlay:
@@ -1178,11 +1178,11 @@ FACT:
 		HP: 150000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Production:
 		Produces: Building, Defense
@@ -1271,11 +1271,11 @@ PROC:
 		HP: 90000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Refinery:
 		DockAngle: 256
@@ -1349,7 +1349,7 @@ SILO:
 		HP: 30000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	InfiltrateForCash:
 		Percentage: 50
@@ -1402,11 +1402,11 @@ HPAD:
 		HP: 80000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	WithResupplyAnimation:
@@ -1490,11 +1490,11 @@ AFLD:
 		HP: 100000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Exit@1:
 		RequiresCondition: !being-captured
@@ -1651,7 +1651,7 @@ POWR:
 		HP: 40000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 	Power:
@@ -1691,7 +1691,7 @@ APWR:
 		HP: 70000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	WithBuildingBib:
 	Power:
@@ -1729,11 +1729,11 @@ STEK:
 		HP: 80000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	Power:
@@ -1766,11 +1766,11 @@ BARR:
 		HP: 60000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	RallyPoint:
@@ -1847,7 +1847,7 @@ KENN:
 		HP: 30000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 		HasMinibib: True
@@ -1933,11 +1933,11 @@ TENT:
 		HP: 60000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	WithBuildingBib:
 	RallyPoint:
@@ -2022,11 +2022,11 @@ FIX:
 		HP: 80000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Reservable:
 	RallyPoint:

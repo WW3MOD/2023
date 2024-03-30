@@ -17,7 +17,7 @@ using OpenRA.Scripting;
 namespace OpenRA
 {
 	/// <summary>
-	/// 1D angle - 1024 units = 360 degrees.
+	/// 1D angle - 1024 units = 360 degrees. 768 == right
 	/// </summary>
 	public readonly struct WAngle : IScriptBindable, ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, IEquatable<WAngle>
 	{
@@ -34,12 +34,22 @@ namespace OpenRA
 		public static readonly WAngle Zero = new WAngle(0);
 		public static WAngle FromFacing(int facing) { return new WAngle(facing * 4); }
 		public static WAngle FromDegrees(int degrees) { return new WAngle(degrees * 1024 / 360); }
+		public static WAngle operator *(WAngle a, int b) { return new WAngle(a.Angle * b); }
+		public static WAngle operator /(WAngle a, int b) { return new WAngle(a.Angle / b); }
 		public static WAngle operator +(WAngle a, WAngle b) { return new WAngle(a.Angle + b.Angle); }
 		public static WAngle operator -(WAngle a, WAngle b) { return new WAngle(a.Angle - b.Angle); }
 		public static WAngle operator -(WAngle a) { return new WAngle(-a.Angle); }
 
 		public static bool operator ==(WAngle me, WAngle other) { return me.Angle == other.Angle; }
 		public static bool operator !=(WAngle me, WAngle other) { return !(me == other); }
+
+		public static int AngleDiff(int a, int b)
+		{
+			if (b > a)
+				return b - a;
+
+			return a - b;
+		}
 
 		public override int GetHashCode() { return Angle.GetHashCode(); }
 

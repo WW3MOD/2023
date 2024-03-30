@@ -13,6 +13,10 @@ trim_trailing_whitespace = true
 indent_style = tab
 indent_size = 4
 
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 4
+
 dotnet_separate_import_directive_groups = false
 dotnet_sort_system_directives_first = true
 

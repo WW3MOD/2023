@@ -29,7 +29,7 @@ E2:
 		FacingTolerance: 0
 	WithSplitAttackPaletteInfantryBody:
 		DefaultAttackSequence: attack
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
@@ -60,7 +60,7 @@ MEDIC:
 		Description: Heals nearby infantry.\n  Unarmed
 	Voiced:
 		VoiceSet: Medic
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Mobile:
 		Speed: 56
@@ -114,7 +114,7 @@ JUMPJET:
 		Type: Light
 	Passenger:
 		CustomPipType: green
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Armament:
 		Weapon: JumpCannon
@@ -185,7 +185,7 @@ JUMPJET.Husk:
 	BodyOrientation:
 		QuantizedFacings: 1
 	HiddenUnderFog:
-		Type: GroundPosition
+		Position: Ground
 	ScriptTriggers:
 	Tooltip:
 		Name: Jumpjet Infantry
@@ -240,7 +240,7 @@ GHOST:
 	Health:
 		HP: 20000
 	Passenger:
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Armament:
 		Weapon: LtRail

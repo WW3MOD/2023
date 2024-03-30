@@ -105,10 +105,11 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Harvester : ConditionalTrait<HarvesterInfo>, IIssueOrder, IResolveOrder, IOrderVoice,
-		ISpeedModifier, ISync, INotifyCreated
+		ISpeedModifier, ISync, INotifyCreated, INotifyKilled
 	{
 		public readonly IReadOnlyDictionary<string, int> Contents;
 
+		PlayerResources playerResources;
 		readonly Mobile mobile;
 		readonly IResourceLayer resourceLayer;
 		readonly ResourceClaimLayer claimLayer;
@@ -148,6 +149,8 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			UpdateCondition(self);
+
+			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 
 			// Note: This is queued in a FrameEndTask because otherwise the activity is dropped/overridden while moving out of a factory.
 			if (Info.SearchOnCreation)
@@ -306,6 +309,18 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		public bool CellResourceMaxSeeded(Actor _, CPos cell)
+		{
+			return resourceLayer.GetResource(cell).Density == resourceLayer.GetMaxDensity(resourceLayer.GetResource(cell).Type);
+		}
+
+		public int CellResourceValue(Actor _, CPos cell)
+		{
+			playerResources.Info.ResourceValues.TryGetValue(resourceLayer.GetResource(cell).Type, out var resourceValue);
+
+			return resourceLayer.GetResource(cell).Density * resourceValue;
+		}
+
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{
 			if (order.OrderID == "Deliver" || order.OrderID == "Harvest")
@@ -366,6 +381,31 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			SeedContents(self);
+		}
+
+		public void SeedContents(Actor self)
+		{
+			var failedAttempts = 0;
+			while (contents.Values.Count > 0 && failedAttempts++ < 10)
+			{
+				for (var i = 0; i < contents.First().Value; i++)
+				{
+					var cell = Util.RandomWalk(self.Location, self.World.SharedRandom)
+						.Take(1)
+						.SkipWhile(p => !resourceLayer.CanAddResource(contents.First().Key, p))
+						.Cast<CPos?>().FirstOrDefault();
+
+					if (cell != null && resourceLayer.CanAddResource(contents.First().Key, cell.Value))
+						resourceLayer.AddResource(contents.First().Key, cell.Value);
+				}
+
+				contents.Remove(contents.First().Key);
+			}
+		}
+
 		int ISpeedModifier.GetSpeedModifier()
 		{
 			return 100 - (100 - Info.FullyLoadedSpeed) * contents.Values.Sum() / Info.Capacity;
@@ -399,7 +439,7 @@ namespace OpenRA.Mods.Common.Traits
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 
 				// Don't leak info about resources under the shroud
-				if (!self.Owner.Shroud.IsExplored(location))
+				if (!self.Owner.MapLayers.IsExplored(location))
 					return false;
 
 				var info = self.Info.TraitInfo<HarvesterInfo>();

@@ -1,0 +1,475 @@
+
+^Vehicle:
+	Inherits@ExistsInWorld: ^ExistsInWorld
+	Inherits@3: ^ClassicFacingSpriteActor
+	Inherits@Bounty: ^GlobalBounty
+	Inherits@Selection: ^SelectableCombatUnit
+	Inherits@EMPMechanic: ^AffectedByEMP
+	Inherits@Slowdown: ^EffectsWhenDamagedVehicles
+	Inherits@Handicaps: ^PlayerHandicaps
+	Inherits@DamageStates: ^DamageStates
+	Inherits@AmmoDecoration: ^AmmoDecoration
+	Inherits@Vision: ^StandardVision
+	Health:
+		HP: 5000
+	Armor:
+		Distribution: 100,50,25,10,10
+	# BlocksProjectiles:
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 420
+			TopLeft: -350, -500
+			BottomRight: 350, 500
+	ExternalCondition@UNITDOCKED:
+		Condition: unit.docked
+	Huntable:
+	OwnerLostAction:
+		Action: Kill
+	DrawLineToTarget:
+	UpdatesPlayerStatistics:
+	Mobile:
+		PauseOnCondition: !(!empdisable && !being-captured)
+		Locomotor: wheeled
+		TurnSpeed: 20
+	SelectionDecorations:
+	WithSpriteControlGroupDecoration:
+	Selectable:
+		Bounds: 1024, 1024
+	Targetable:
+		RequiresCondition: !parachute
+		TargetTypes: Ground, Vehicle
+	Targetable@EMPTargeting:
+		TargetTypes: EMPTank
+		RequiresCondition: empdisable
+	Targetable@VehicleRepair:
+		RequiresCondition: damaged
+		TargetTypes: VehicleRepair
+	Targetable@REPAIR:
+		TargetTypes: Repair
+	Repairable:
+		RepairActors: logisticscenter
+		PercentageStep: 3
+	Chronoshiftable:
+	Passenger:
+		Weight: 10
+		CargoType: Vehicle
+	AttackMove:
+	Detectable:
+	ProximityCaptor:
+		Types: Vehicle
+	GpsDot:
+		String: Vehicle
+	WithDamageOverlay:
+	Guard:
+	Guardable:
+	Tooltip:
+		GenericName: Vehicle
+	CaptureManager:
+		BeingCapturedCondition: being-captured
+	Capturable:
+		Types: vehicle
+		CancelActivity: True
+	CaptureNotification:
+		Notification: UnitStolen
+	MustBeDestroyed:
+	Voiced:
+		VoiceSet: VehicleVoice
+	Parachutable:
+		FallRate: 26
+		KilledOnImpassableTerrain: true
+		ParachutingCondition: parachute
+	WithFacingSpriteBody:
+	WithParachute:
+		ShadowImage: parach-shadow
+		ShadowSequence: idle
+		Image: maxichute
+		Sequence: idle
+		OpeningSequence: open
+		Offset: 0,0,200
+		RequiresCondition: parachute
+	EdibleByLeap:
+	TemporaryOwnerManager:
+	MapEditorData:
+		Categories: Vehicle
+	DeliversCash@Rotation:
+		Type: Rotation
+		AdjustForHandicap: True
+	InfersUpkeep:
+		PermilleCost: 5
+
+^WheeledVehicle:
+	Inherits@Type: ^Vehicle
+	Passenger:
+		Weight: 15
+		CargoType: Vehicle
+^TrackedVehicle:
+	Inherits@Type: ^Vehicle
+	Mobile:
+		Locomotor: tracked
+	Passenger:
+		Weight: 20
+		CargoType: Vehicle
+^Walker:
+	Inherits: ^Vehicle
+	Tooltip:
+		GenericName: Walker
+	Mobile:
+		Speed: 70
+		Locomotor: walker
+		TurnSpeed: 10
+		PauseOnCondition: empdisable
+	QuantizeFacingsFromSequence:
+		Sequence: stand
+	-WithFacingSpriteBody:
+	WithInfantryBody:
+
+^EffectsWhenDamagedVehicles:
+	SpeedMultiplier@HeavyDamage:
+		Modifier: 50
+		RequiresCondition: heavy-damage
+	SpeedMultiplier@CriticalDamage:
+		Modifier: 0
+		RequiresCondition: critical-damage
+	ChangesHealth@Burning:
+		PercentageStep: -1
+		Delay: 5
+		StartIfBelow: 25
+		# DamageTypes: BurnoutOutDeath
+
+	# BurstWaitMultiplier@CriticalDamage:
+	# 	Modifier: 0
+	# 	RequiresCondition: critical-damage
+	# Turreted:
+	# 	TurnSpeed: 0w
+
+^EffectsWhenMovingVehicles:
+	InaccuracyMultiplier@Moving:
+		RequiresCondition: moving
+		Modifier: 150
+
+TRUK:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 103
+		Prerequisites: ~techlevel.low
+		Description: Resupplies soldiers
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Supply Truck
+	AnnounceOnSeen:
+		Type: SupportVehicle
+		TextNotification: Spotted: Supply truck
+	ActorLostNotification:
+		TextNotification: Lost: Supply Truck
+	Armor:
+		Type: Unarmored
+	Targetable:
+		TargetTypes: Ground, Vehicle, DemoDisguise, Unarmored
+		RequiresCondition: !parachute
+	Mobile:
+		Locomotor: wheeled
+		Speed: 75
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
+	Carryable:
+		LocalOffset: 0,0,100
+	Passenger:
+		CustomPipType: pip-blue
+	RearmsUnits:
+		CloseEnough: 1c0
+	ProximityExternalCondition@ReplenishSoldiers:
+		Condition: replenish-soldiers
+		Range: 4c0
+		RequiresCondition: !disabled && !mobile
+		ValidRelationships: Ally
+	Armament@ReplenishSoldiersTargeter:
+		Name: replenish
+		Weapon: ReplenishSoldiersTargeter
+		Cursor: guard
+		OutsideRangeCursor: guard
+	AttackTurreted:
+		Armaments: replenish
+	Turreted:
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: TRUK.husk
+
+MSAR:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Tooltip:
+		Name: Mobile Radar
+	ActorLostNotification:
+		TextNotification: Lost: Mobile Radar
+	AnnounceOnSeen:
+		Type: SupportVehicle
+		TextNotification: Spotted: Mobile Radar
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 99
+		IconPalette: chrometd
+		Prerequisites: ~techlevel.medium
+		BuildDurationModifier: 50
+		Description: When deployed, detects enemies within a large radius.
+	Valued:
+		Cost: 1500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Locomotor: wheeled
+		Speed: 72
+		RequiresCondition: !deployed
+		ImmovableCondition: deployed
+		RequireForceMoveCondition: !undeployed
+	Radar:
+		Range: 42c0
+		RequiresCondition: deployed
+	WithRangeCircle@Radar:
+		Range: 42c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+		RequiresCondition: deployed
+	Repairable:
+		RequireForceMoveCondition: !undeployed
+	Passenger:
+		RequireForceMoveCondition: !undeployed
+	GrantCondition@PreviewWorkaround:
+		Condition: real-actor
+	GrantConditionOnDeploy:
+		PauseOnCondition: empdisable || being-captured
+		DeployedCondition: deployed
+		UndeployedCondition: undeployed
+		Facing: 660
+		AllowedTerrainTypes: Clear, Road, Rough
+		DeploySounds: placbldg.aud
+		UndeploySounds: clicky1.aud
+		UndeployOnMove: true
+		UndeployOnPickup: true
+	WithMakeAnimation:
+		BodyNames: deployedbody
+	WithSpriteBody@deployed:
+		Sequence: idle-static
+		RequiresCondition: !undeployed && real-actor
+		Name: deployedbody
+	Carryable:
+		LocalOffset: 0,0,150
+	WithFacingSpriteBody:
+		RequiresCondition: !deployed
+	RenderSprites:
+		Image: msar
+		PlayerPalette: playertd
+	SpawnActorOnDeath:
+		RequiresCondition: !deployed
+		Actor: MSAR.husk
+	SpawnActorOnDeath@deployed:
+		RequiresCondition: deployed
+		Actor: MSAR.deployed.husk
+	# RangedGpsMiniMapProvider:
+	# 	Range: 50c0
+	# 	RequiresCondition: deployed && !empdisable
+
+# timberwolf:
+# 	Inherits@Type: ^Walker
+# 	Inherits@GainsExperience: ^GainsExperience
+# 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+# 	Tooltip:
+# 		Name: Timber Wolf
+# 		GenericName: Timber Wolf
+# 	RenderSprites:
+# 		Palette: unittem
+# 		Scale: 0.8
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 1000
+# 		Prerequisites: ~techlevel.futuristic
+# 		Description: The Timber Wolf class mech, also known as Mad Cat, is a fast heavy walker armed with two 30mm autocannons and 30 shoulder-mounted guided rockets.
+# 	Valued:
+# 		Cost: 2000
+# 	Armor:
+# 		Type: Heavy
+# 	Targetable:
+# 		TargetTypes: Ground, Vehicle, Heavy
+# 	Mobile:
+# 		Speed: 60
+# 		TurnSpeed: 10
+# 	GrantConditionOnMovement@steps:
+# 		Condition: moving
+# 	# AmbientSound@step1:
+# 	# 	SoundFiles: stomp1a.aud, stomp1b.aud, stomp1c.aud
+# 	# 	Delay: 3
+# 	# 	Interval: 16
+# 	# 	RequiresCondition: moving
+# 	IndirectFire:
+# 	Turreted:
+# 		TurnSpeed: 20
+# 	Armament@1:
+# 		Name: primary
+# 		Weapon: 30mm.TimerWolf
+# 		Recoil: 3
+# 		RecoilRecovery: 1
+# 		LocalOffset: 600,500,680, 600,-500,680
+# 		MuzzleSequence: muzzle-gun
+# 		PauseOnCondition: !ammo-primary || empdisable
+# 	AmmoPool@1:
+# 		Name: primary-ammo
+# 		Armaments: primary
+# 		Ammo: 300
+# 		AmmoCondition: ammo-primary
+# 		FullReloadTicks: 300
+# 		FullReloadSteps: 6
+# 		RearmSound: minelay1.aud
+# 	WithAmmoPipsDecoration@1:
+# 		Position: Bottom
+# 		Margin: 9, 3
+# 		PipCount: 6
+# 		RequiresSelection: true
+# 		FullSequence: pip-yellow
+# 		AmmoPools: primary-ammo
+# 	Armament@2:
+# 		Name: secondary
+# 		Weapon: TimerWolf_Missiles
+# 		LocalOffset: -100,350,1150, -100,-350,1150
+# 		MuzzleSequence: muzzle-missile
+# 		PauseOnCondition: !ammo-secondary || empdisable
+# 	Armament@3:
+# 		Name: secondary-barrage
+# 		Weapon: TimerWolf_Barrage
+# 		LocalOffset: -100,350,1150, -100,-350,1150
+# 		MuzzleSequence: muzzle-missile
+# 		PauseOnCondition: !ammo-secondary || empdisable
+# 	AmmoPool@2:
+# 		Name: secondary-ammo
+# 		Armaments: secondary, secondary-barrage
+# 		Ammo: 30
+# 		AmmoCondition: ammo-secondary
+# 		FullReloadTicks: 300
+# 		FullReloadSteps: 6
+# 		RearmSound: minelay1.aud
+# 	WithAmmoPipsDecoration@2:
+# 		Position: Bottom
+# 		Margin: 9, 6
+# 		PipCount: 6
+# 		RequiresSelection: true
+# 		FullSequence: pip-red
+# 		AmmoPools: secondary-ammo
+# 	Rearmable:
+# 		RearmActors: logisticscenter
+# 		AmmoPools: primary-ammo, secondary-ammo
+# 	AttackTurreted:
+# 		PauseOnCondition: empdisable || unit.docked
+# 		Armaments: primary, secondary
+# 		TargetFrozenActors: True
+# 		OpportunityFire: True
+# 		ForceFireIgnoresActors: True
+# 	WithSpriteTurret:
+# 	WithMuzzleOverlay:
+# 	# WithShadow:
+# 	# 	Offset: 0,-500,0
+# 	RenderRangeCircle: # TODO
+# 		Color: FF0000
+# 		Width: 1
+# 		Alpha: 100
+# 	Selectable:
+# 		Bounds: 1200,1680,0,-240
+# 		DecorationBounds: 1200,1680,0,-240
+# 		Class: timberwolf
+# 	WithDamageOverlay:
+# 		Image: smoke_mtd
+# 		Palette: temptd
+# 	Explodes:
+# 		Weapon: ArtilleryExplode
+
+# HARV:
+# 	Inherits@Type: ^WheeledVehicle
+# 	Inherits@Selection: ^SelectableEconomicUnit
+# 	-Tooltip:
+# 	-GpsDot:
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 101
+# 		Prerequisites: ~disabled, ~techlevel.infonly
+# 		Description: Collects Ore and Gems for processing.\n  Unarmed
+# 	Valued:
+# 		Cost: 600
+# 	Tooltip@sidebar:
+# 		Name: Ore Truck
+# 		RequiresCondition: !produced
+# 	Tooltip@ingame:
+# 		Name: Harvester
+# 		RequiresCondition: produced
+# 	ExternalCondition@PRODUCED:
+# 		Condition: produced
+# 	Selectable:
+# 		DecorationBounds: 1792,1792
+# 	Targetable@ISHARVESTER:
+# 		TargetTypes: Harvester
+# 	Harvester:
+# 		Capacity: 30
+# 		Resources: Gems
+# 		BaleUnloadDelay: 1
+# 		SearchFromProcRadius: 80
+# 		SearchFromHarvesterRadius: 40
+# 		HarvestFacings: 8
+# 		EmptyCondition: no-ore
+# 	WithHarvesterPipsDecoration:
+# 		Position: Bottom
+# 		Margin: 15, 3
+# 		RequiresSelection: true
+# 		PipCount: 9
+# 		ResourceSequences:
+# 			Ore: pip-yellow
+# 			Gems: pip-red
+# 	Armor:
+# 		Type: Light
+# 	Targetable:
+# 		TargetTypes: Ground, Vehicle, Light
+# 	Mobile:
+# 		Speed: 85
+# 		Locomotor: heavywheeled
+# 	WithHarvestAnimation:
+# 	WithDockingAnimation:
+# 	GpsDot:
+# 		String: Harvester
+# 	SpawnActorOnDeath:
+# 		Actor: HARV.EmptyHusk
+# 	HarvesterHuskModifier:
+# 		FullHuskActor: HARV.FullHusk
+# 		FullnessThreshold: 50
+# 	WithHarvesterSpriteBody:
+# 		ImageByFullness: harvempty, harvhalf, harv
+# 	-WithFacingSpriteBody:
+# 	Passenger:
+# 		CustomPipType: pip-blue
+# 	ProximityExternalCondition@DOCKED:
+# 		Condition: dockinprocess
+# 		Range: 1c0
+# 		ValidRelationships: Ally
+# 	ExternalCondition@DOCKED:
+# 		Condition: docked
+# 	RejectsOrders:
+# 		RequiresCondition: docked
+# 	WithDamageOverlay:
+# 		Image: smoke_mtd
+# 		Palette: temptd
+# HARV.Crate:
+# 	Inherits: HARV
+# 	-Buildable:
+# 	-Tooltip@sidebar:
+# 	-Tooltip@ingame:
+# 	-ExternalCondition@PRODUCED:
+# 	Tooltip:
+# 		Name: Harvester
+# 	RenderSprites:
+# 		Image: harv
+# 	-MapEditorData:

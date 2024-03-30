@@ -1,0 +1,82 @@
+
+C1:
+	Inherits@Type: ^ArmedCivilian
+
+C2:
+	Inherits: ^CivInfantry
+	Voiced:
+		VoiceSet: CivilianFemaleVoice
+
+C3:
+	Inherits: ^CivInfantry
+
+C4:
+	Inherits: ^CivInfantry
+	RenderSprites:
+		Image: C4
+	Voiced:
+		VoiceSet: CivilianFemaleVoice
+
+C5:
+	Inherits: ^CivInfantry
+	RenderSprites:
+		Image: C5
+
+C6:
+	Inherits: ^CivInfantry
+	RenderSprites:
+		Image: C6
+	Voiced:
+		VoiceSet: CivilianFemaleVoice
+
+C7:
+	Inherits@Type: ^ArmedCivilian
+	RenderSprites:
+		Image: C7
+
+C8:
+	Inherits: ^CivInfantry
+	RenderSprites:
+		Image: C8
+	Voiced:
+		VoiceSet: CivilianFemaleVoice
+
+C9:
+	Inherits: ^CivInfantry
+	RenderSprites:
+		Image: C9
+
+C10:
+	Inherits: ^CivInfantry
+	RenderSprites:
+		Image: C10
+	Voiced:
+		VoiceSet: CivilianFemaleVoice
+
+C11:
+	Inherits: C10
+
+EINSTEIN:
+	Inherits: ^CivInfantry
+	-Wanders:
+	Tooltip:
+		Name: Prof. Einstein
+	Mobile:
+	Voiced:
+		VoiceSet: EinsteinVoice
+
+DELPHI:
+	Inherits: ^CivInfantry
+	-Wanders:
+	Tooltip:
+		Name: Agent Delphi
+	Mobile:
+
+CHAN:
+	Inherits: ^CivInfantry
+	Valued:
+		Cost: 500
+	Selectable:
+		Class: CHAN
+	Tooltip:
+		Name: Scientist

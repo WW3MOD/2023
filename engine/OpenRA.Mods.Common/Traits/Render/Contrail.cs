@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color StartColor = Color.White;
 
 		[Desc("Use player remap color instead of a custom color at the contrail the start.")]
-		public readonly bool StartColorUsePlayerColor = true;
+		public readonly bool StartColorUsePlayerColor = false;
 
 		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
 		public readonly int StartColorAlpha = 255;

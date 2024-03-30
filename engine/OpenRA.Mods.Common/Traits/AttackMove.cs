@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 			{
 				var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-				if (!self.Owner.Shroud.IsExplored(cell))
+				if (!self.Owner.MapLayers.IsExplored(cell))
 					return null;
 			}
 
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "AttackMove" || order.OrderString == "AssaultMove")
 			{
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
+				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
 				var targetLocation = move.NearestMoveableCell(cell);
@@ -157,7 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 				var info = subject.Trait.Info;
 				if (world.Map.Contains(cell))
 				{
-					var explored = subject.Actor.Owner.Shroud.IsExplored(cell);
+					var explored = subject.Actor.Owner.MapLayers.IsExplored(cell);
 					var cannotMove = subjects.FirstOrDefault(a => !a.Trait.Info.MoveIntoShroud).Trait;
 					var blocked = !explored && cannotMove != null;
 

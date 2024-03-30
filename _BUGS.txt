@@ -1,0 +1,25 @@
+
+River Zeta
+
+   Port forwarding failed: Error ConflictInMappingEntry: ConflictInMappingEntry
+   [2024-01-14T20:41:57] Game started
+   Port removal failed: Error 714: NoSuchEntryInArray
+   Exception of type `System.InvalidOperationException`: Actor world does not have trait of type `OpenRA.Mods.Common.Traits.IResourceLayer`
+      at OpenRA.TraitDictionary.TraitContainer`1.Get(Actor actor) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\TraitDictionary.cs:line 163
+      at OpenRA.Mods.Common.Traits.SeedsResource..ctor(Actor self, SeedsResourceInfo info) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\SeedsResource.cs:line 36
+      at OpenRA.Mods.Common.Traits.SeedsResourceInfo.Create(ActorInitializer init) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\SeedsResource.cs:line 24
+      at OpenRA.Actor..ctor(World world, String name, TypeDictionary initDict) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Actor.cs:line 184
+      at OpenRA.Mods.Common.Traits.SpawnMapActors.WorldLoaded(World world, WorldRenderer wr) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\World\SpawnMapActors.cs:line 52
+      at OpenRA.World.LoadComplete(WorldRenderer wr) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\World.cs:line 297
+      at OpenRA.Game.StartGame(String mapUID, WorldType type) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 203
+      at OpenRA.Network.UnitOrders.ProcessOrder(OrderManager orderManager, World world, Int32 clientId, Order order) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Network\UnitOrders.cs:line 155
+      at OpenRA.Network.OrderManager.ReceiveImmediateOrders(Int32 clientId, OrderPacket orders) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Network\OrderManager.cs:line 170
+      at OpenRA.Network.NetworkConnection.OpenRA.Network.IConnection.Receive(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Network\Connection.cs:line 347
+      at OpenRA.Sync.<>c__DisplayClass13_0.<RunUnsynced>b__0() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 167
+      at OpenRA.Sync.RunUnsynced(World world, Action fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 168
+      at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 639
+      at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 654
+      at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 823
+      at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 876
+      at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 308
+      at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 32

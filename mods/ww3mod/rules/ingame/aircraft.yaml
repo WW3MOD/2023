@@ -1,0 +1,310 @@
+
+^NeutralAirborne:
+	Inherits@ExistsInWorld: ^ExistsInWorld
+	Inherits@SpriteActor: ^SpriteActor
+	Inherits@Bounty: ^GlobalBounty
+	Inherits@Selection: ^SelectableCombatUnit
+	Inherits@WhenDamagedAir: ^WhenDamagedAir
+	Inherits@EMPMechanic: ^AircraftAffectedByEMP
+	Inherits@Handicaps: ^PlayerHandicaps
+	Inherits@DamageStates: ^DamageStates
+	Inherits@AmmoDecoration: ^AmmoDecoration
+	Inherits@Vision: ^StandardVision
+	Huntable:
+	OwnerLostAction:
+		Action: Kill
+	DrawLineToTarget:
+	Armor:
+		Type: Light
+		Thickness: 3
+	UpdatesPlayerStatistics:
+	AppearsOnMiniMap:
+		UseLocation: true
+	WithSpriteControlGroupDecoration:
+	Selectable:
+		Bounds: 1024,1024
+	Aircraft:
+		AirborneCondition: airborne
+	Targetable@Ground:
+		RequiresCondition: !airborne
+		TargetTypes: Ground, Vehicle
+	Targetable@Airborne:
+		RequiresCondition: airborne
+		TargetTypes: Air, AirDetonateAttack
+	Targetable@REPAIR:
+		RequiresCondition: !airborne && damaged
+		TargetTypes: Repair
+	Detectable:
+		Radar: 1
+		RadarDetectableCondition: airborne
+		Position: Ground
+	DetectableAddativeModifier@Ground:
+		RequiresCondition: !airborne
+		VisionModifier: 3
+	AttackMove:
+	Guard:
+	Guardable:
+	ProximityCaptor:
+		Types: Plane
+	GpsDot:
+		String: Plane
+	Tooltip:
+		GenericName: Plane
+	WithShadow:
+		Offset: 43, 128, 0
+		ZOffset: -129
+	WithFacingSpriteBody:
+	MustBeDestroyed:
+	Voiced:
+		VoiceSet: GenericVoice
+	HitShape:
+	MapEditorData:
+		Categories: Aircraft
+	Explodes:
+		Weapon: UnitExplode
+		RequiresCondition: !airborne
+	ExternalCondition@UNITDOCKED:
+		Condition: unit.docked
+
+^Airborne:
+	Inherits: ^NeutralAirborne
+	Inherits@UnitExperience: ^GainsExperience
+	Repairable:
+		RepairActors: afld
+	Aircraft:
+		TakeOffOnCreation: False
+	Radar:
+		Range: 42c0
+		RequiresCondition: airborne
+	WithRangeCircle@Radar:
+		Range: 42c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+		RequiresCondition: airborne
+	SpeedMultiplier@Rank_4:
+		RequiresCondition: rank-veteran == 4
+		Modifier: 120
+
+^Aircraft:
+	Inherits@Type: ^Airborne
+	ActorLostNotification:
+		Notification: AirUnitLost
+	EjectOnDeath@Rank0:
+		PilotActor: PILOT
+		RequiresCondition: airborne && !rank-veteran
+		SuccessRate: 80
+		EjectInAir: true
+	EjectOnDeath@Rank1:
+		PilotActor: PILOTR1
+		RequiresCondition: airborne && rank-veteran == 1
+		SuccessRate: 80
+		EjectInAir: true
+	EjectOnDeath@Rank2:
+		PilotActor: PILOTR2
+		RequiresCondition: airborne && rank-veteran == 2
+		SuccessRate: 80
+		EjectInAir: true
+	EjectOnDeath@Rank_3:
+		PilotActor: PILOTR3
+		RequiresCondition: airborne && rank-veteran == 3
+		SuccessRate: 80
+		EjectInAir: true
+	EjectOnDeath@Rank4:
+		PilotActor: PILOTR4
+		RequiresCondition: airborne && rank-veteran >= 4
+		SuccessRate: 80
+		EjectInAir: true
+	DeliversCash@Rotation:
+		Type: Rotation
+		AdjustForHandicap: True
+
+^Helicopter:
+	Inherits@Type: ^Airborne
+	ActorLostNotification:
+		Notification: AirUnitLost
+	-BodyOrientation:
+	Tooltip:
+		GenericName: Helicopter
+	Aircraft:
+		CanHover: True
+		CanSlide: True
+		VTOL: True
+		CruisingCondition: cruising
+		WaitDistanceFromResupplyBase: 4c0
+		TakeOffOnResupply: true
+		LandableTerrainTypes: Clear, Rough, Road, Beach
+		Crushes: crate, mine, infantry
+		InitialFacing: 224
+	GrantConditionOnMovement:
+		Condition: moving
+	GpsDot:
+		String: Helicopter
+	Hovers@Cruising:
+		RequiresCondition: cruising
+	ClassicFacingBodyOrientation:
+	Repairable:
+		RepairActors: hpad
+	Targetable@Helicopter:
+		TargetTypes: Helicopter
+	DeliversCash@Rotation:
+		Type: Rotation
+		AdjustForHandicap: True
+
+^Drone:
+	Inherits: ^Airborne
+	-Voiced:
+	ExternalCondition@DroneDisable:
+		Condition: dronedisable
+	Aircraft:
+		PauseOnCondition: dronedisable
+		CanHover: True
+		CruisingCondition: cruising
+		WaitDistanceFromResupplyBase: 4c0
+		TakeOffOnResupply: true
+		VTOL: true
+		LandableTerrainTypes: None
+		Crushes: None
+		InitialFacing: 224
+		CanSlide: False
+	VisionModifier@DroneDisable:
+		RequiresCondition: dronedisable
+		Modifier: 0
+	WithColoredOverlay@DroneDisable:
+		RequiresCondition: dronedisable
+	WithIdleOverlay@DroneDisable:
+		Sequence: emp-overlay
+		RequiresCondition: dronedisable
+	Armor:
+		Type: Unarmored
+	HitShape:
+		Type: Circle
+			Radius: 1
+	Targetable@Drone:
+		TargetTypes: Drone
+
+^WhenDamagedAir:
+	SpeedMultiplier@HeavyDamage:
+		Modifier: 90
+		RequiresCondition: heavy-damage
+	SpeedMultiplier@CriticalDamage:
+		Modifier: 75
+		RequiresCondition: critical-damage
+	InaccuracyMultiplier@HeavyDamage:
+		Modifier: 75
+		RequiresCondition: heavy-damage
+	InaccuracyMultiplier@CriticalDamage:
+		Modifier: 50
+		RequiresCondition: critical-damage
+	BurstWaitMultiplier@HeavyDamage:
+		Modifier: 75
+		RequiresCondition: heavy-damage
+	BurstWaitMultiplier@CriticalDamage:
+		Modifier: 50
+		RequiresCondition: critical-damage
+
+^AircraftAffectedByEMP:
+	Inherits@EMPMechanic: ^AffectedByEMP
+	Aircraft:
+		PauseOnCondition: empdisable
+	# KillsSelf@EMPONAIR:
+	# 	RequiresCondition: airborne && empdisable
+
+quadcopterdrone:
+	Inherits: ^Drone
+	Tooltip:
+		Name: Drone scout
+	Selectable:
+		Bounds: 760,760
+	Aircraft:
+		MaximumPitch: 90
+		Repulsable: true
+		TurnSpeed: 32
+		Speed: 100
+		IdleTurnSpeed: 16
+		IdleSpeed: 25
+		AltitudeVelocity: 100
+		RepulsionSpeed: 20
+		VTOL: true
+		AirborneCondition: airborne
+		LandableTerrainTypes:
+		MoveIntoShroud: true
+		CruiseAltitude: 3c768
+	Health:
+		HP: 50
+	CarrierSlave:
+		MaxDistance: 25
+		MaxDistanceCheckTicks: 20
+		ReturnAfter: 1000
+	VisionModifier@OperatorLostContact:
+		RequiresCondition: lost-connection
+		Modifier: 0
+	RejectsOrders:
+		RequiresCondition: lost-connection || force-return
+
+BADR:
+	Inherits: ^NeutralAirborne
+	-Selectable:
+	-Voiced:
+	ParaDrop:
+		DropRange: 4c0
+	Health:
+		HP: 200
+	Aircraft:
+		CruiseAltitude: 2560
+		TurnSpeed: 16
+		Speed: 300
+		Repulsable: False
+		MaximumPitch: 56
+	Cargo:
+		MaxWeight: 16
+	Tooltip:
+		Name: Badger
+	Contrail@1:
+		Offset: -432,560,0
+		TrailLength: 8
+		TrailWidth: 48
+	Contrail@2:
+		Offset: -432,-560,0
+		TrailLength: 8
+		TrailWidth: 48
+	SpawnActorOnDeath:
+		Actor: BADR.Husk
+		RequiresCondition: airborne && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: BADR.Husk.EMP
+		RequiresCondition: airborne && empdisable
+	# SmokeTrailWhenDamaged@0:
+	# 	Offset: -432,560,0
+	# 	Interval: 2
+	# SmokeTrailWhenDamaged@1:
+	# 	Offset: -432,-560,0
+	# 	Interval: 2
+	RejectsOrders:
+	GivesExperience:
+		Experience: 1000
+	Interactable:
+	GpsDot:
+		String: BigPlane
+
+BADR.Crate:
+	Inherits: BADR
+	ParaDrop:
+		DropRange: 0c512
+	RenderSprites:
+		Image: badr
+	-MapEditorData:
+
+# BADR.Bomber:
+# 	Inherits: BADR
+# 	-ParaDrop:
+# 	-Cargo:
+# 	-MapEditorData:
+# 	RenderSprites:
+# 		Image: badr
+# 	AttackBomber:
+# 		FacingTolerance: 8
+# 	AmmoPool:
+# 		Ammo: 10
+# 	Armament:
+# 		Weapon: ParaBomb

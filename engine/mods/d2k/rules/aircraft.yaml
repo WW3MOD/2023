@@ -63,13 +63,13 @@ carryall:
 		Category: Units
 	Aircraft:
 		MinAirborneAltitude: 400
-	RevealsShroud@lifting_low:
+	Vision@lifting_low:
 		Range: 2c512
-		Type: GroundPosition
+		Position: Ground
 		RequiresCondition: !airborne
-	RevealsShroud@lifting_high:
+	Vision@lifting_high:
 		Range: 1c256
-		Type: GroundPosition
+		Position: Ground
 		RequiresCondition: !cruising
 	Buildable:
 		Queue: Aircraft
@@ -92,7 +92,7 @@ frigate:
 		VTOL: true
 		CanHover: true
 		CanSlide: true
-	-AppearsOnRadar:
+	-AppearsOnMiniMap:
 	Cargo:
 		MaxWeight: 20
 	RejectsOrders:

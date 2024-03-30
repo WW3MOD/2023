@@ -1,0 +1,176 @@
+OILB:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	HitShape:
+		UseTargetableCellsOffsets: false
+		TargetableOffsets: 0,0,0, 630,-300,0, 420,512,0, -420,-512,0, -630,300,0
+	Selectable:
+		Priority: 0
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		# LocalCenterOffset: 512,512,0
+		Footprint: xx xx
+		Dimensions: 2,2
+		Density: 10
+	Health:
+		HP: 50000
+	EngineerRepairable:
+	CashTrickler:
+		Amount: 50
+	Tooltip:
+		Name: Oil Derrick
+	TooltipDescription:
+		Description: Provides $50 income
+	Explodes:
+		Weapon: BarrelExplode
+	GpsDot:
+		String: Oil
+	UpdatesDerrickCount:
+	SpawnActorOnDeath:
+		Actor: OILB.Husk
+		OwnerType: InternalName
+
+FCOM:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xx xx ==
+		Dimensions: 2,3
+		LocalCenterOffset: 0,-512,0
+		Density: 10
+	Health:
+		HP: 25000
+	Armor:
+		Type: Concrete
+	Tooltip:
+		Name: Expansion Post
+	CashTrickler:
+		Amount: 100
+	TooltipDescription:
+		Description: Provides $100 income
+	GivesBuildableArea:
+		AreaTypes: building
+	BaseProvider:
+		PauseOnCondition: being-captured
+		Range: 8c0
+	EngineerRepairable:
+	ProvidesPrerequisite@BuildingName:
+	GpsDot:
+		String: Forward
+	SpawnActorOnDeath:
+		Actor: FCOM.Husk
+		OwnerType: InternalName
+	RenderSprites:
+		Image: acom
+
+BIO:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	Selectable:
+		Bounds: 2048,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+		Density: 10
+	Health:
+		HP: 55000
+	EngineerRepairable:
+	CashTrickler:
+		Amount: 150
+	Tooltip:
+		Name: Nuclear Reactor
+	TooltipDescription:
+		Description: Provides $150 income
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	ProvidesPrerequisite@BuildingName:
+	GpsDot:
+		String: Nuke
+	WithIdleOverlay@SMOKE:
+		Sequence: idle-smoke
+	SpawnActorOnDeath:
+		Actor: BIO.Husk
+		OwnerType: InternalName
+
+MISS:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^3x2Shape
+	HitShape: # TODO
+		UseTargetableCellsOffsets: false
+		TargetableOffsets: 0,0,0, 840,0,0, 840,-1024,0, 420,768,0, -840,0,0, -840,-1024,0, -840,1024,0
+	Selectable:
+		Priority: 0
+		Bounds: 3072,2048
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Footprint: xxx xxx ===
+		Dimensions: 3,3
+		LocalCenterOffset: 0,-512,0
+		Density: 10,10,10, 10,10,5, 0,0,0
+		# LocalCenterOffset: 0,-512,0
+	Health:
+		HP: 35000
+	# Radar:
+	# 	Range: 50c0
+	# 	RequiresCondition: !heavy-damage
+	WithRangeCircle@Radar:
+		Range: 50c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+		RequiresCondition: !build-incomplete
+	Armor:
+		Type: Concrete
+	Tooltip:
+		Name: Communications Center
+	TooltipDescription:
+		Description: Provides Radar
+	EngineerRepairable:
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	ProvidesPrerequisite@BuildingName:
+	GpsDot:
+		String: Communications
+	SpawnActorOnDeath:
+		Actor: MISS.Husk
+		OwnerType: InternalName
+
+HOSP:
+	Inherits: ^TechBuilding
+	Inherits@Shape: ^2x2Shape
+	OwnerLostAction:
+		Action: ChangeOwner
+	Selectable:
+		Priority: 0
+		Bounds: 2048,2048
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+		Density: 10
+	Health:
+		HP: 55000
+	EngineerRepairable:
+	Tooltip:
+		Name: Hospital
+	TooltipDescription:
+		Description: Hospital
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	ProvidesPrerequisite@BuildingName:
+	GpsDot:
+		String: Hospital
+	SpawnActorOnDeath:
+		Actor: HOSP.Husk
+		OwnerType: InternalName

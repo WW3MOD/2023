@@ -1,0 +1,744 @@
+^9mm:
+	Inherits@HitEffects: ^SmallCaliberEffects
+	ValidTargets: Infantry, Unarmored, Helicopter
+	Range: 14c0
+	Report: gun11.aud
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 512
+	Warhead@Target: TargetDamage
+		Damage: 100
+		Penetration: 3
+		ValidTargets: Infantry, Unarmored, Helicopter
+		DamageTypes: BulletDeath
+
+Pistol:
+	ValidTargets: Infantry
+	BurstWait: 7
+	Range: 6c512
+	Report: gun27.aud
+	Projectile: Bullet
+		Speed: 512
+		Inaccuracy: 512
+	Warhead@Target: TargetDamage
+		Spread: 1
+		Damage: 100
+		ValidTargets: Infantry
+		DamageTypes: BulletDeath
+	Warhead@Effect: CreateEffect
+		Explosions: piff
+	Warhead@EffectWater: CreateEffect
+		Explosions: water_piff
+SilencedPPK:
+	BurstWait: 30
+	Range: 6c0
+	ValidTargets: Infantry
+	Report: silppk.aud
+	Projectile: Bullet
+		Speed: 768
+		Inaccuracy: 64
+	Warhead@Target: TargetDamage
+		Spread: 1
+		Damage: 100
+	Warhead@Effect: CreateEffect
+		Explosions: piffs
+		ValidTargets: Ground, Ship, Air, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: water_piffs
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+MP5:
+	Inherits@HitEffects: ^SmallCaliberEffects
+	ValidTargets: Infantry
+	Range: 10c0
+	Magazine: 10
+	ReloadDelay: 60
+	Burst: 3
+	BurstDelays: 5
+	BurstWait: 10
+	Report: gun11.aud
+	InvalidTargets: Vehicle, Ship, Structure, Wall, Husk
+	Projectile: Bullet
+		Inaccuracy: 256
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 256
+		LaunchAngle: 0,15
+		ContrailLength: 5
+		ContrailWidth: 3
+		ContrailStartColorAlpha: 100
+	Warhead@Target: TargetDamage
+		Damage: 100
+		DamageAtMaxRange: 50
+		Penetration: 1
+		ValidTargets: Infantry
+		DamageTypes: BulletDeath
+
+
+^5.56mm:
+	Inherits@HitEffects: ^SmallCaliberEffects
+	ValidTargets: Infantry, Unarmored, Helicopter
+	Range: 14c0
+	Report: gun11.aud
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 256
+		LaunchAngle: 0,15
+		ContrailLength: 5
+		ContrailWidth: 3
+		ContrailStartColorAlpha: 100
+	Warhead@Target: TargetDamage
+		Damage: 200
+		DamageAtMaxRange: 50
+		Penetration: 4
+		ValidTargets: Infantry, Unarmored, Helicopter
+		DamageTypes: BulletDeath
+
+5.56mm.E3:
+	Inherits@Caliber: ^5.56mm
+	Range: 10c0
+	Magazine: 20
+	ReloadDelay: 60
+	Burst: 2
+	BurstDelays: 5
+	BurstWait: 12
+5.56mm.AR:
+	Inherits@Caliber: ^5.56mm
+	Magazine: 100
+	ReloadDelay: 150
+	Burst: 10
+	BurstDelays: 1
+	BurstWait: 8
+5.56mm.DMR:
+	Inherits@Caliber: ^5.56mm
+	Magazine: 20
+	ReloadDelay: 65
+	Burst: 3
+	BurstDelays: 8
+	BurstWait: 20
+	Report: gun5.aud
+	Projectile: Bullet
+		Inaccuracy: 128
+5.56mm.DMR.silencer:
+	Inherits: 5.56mm.DMR
+	Range: 11c0
+	Magazine: 20
+	ReloadDelay: 20
+	Burst: 3
+	BurstDelays: 3
+	BurstWait: 15
+	Report: silppk.aud
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 64
+
+^7.62mm:
+	Inherits@HitEffects: ^MediumCaliberEffects
+	ValidTargets: Infantry, Unarmored, Helicopter
+	Range: 15c0
+	Report: pillbox1.aud
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 256
+		LaunchAngle: 0,15
+		ContrailLength: 5
+		ContrailWidth: 4
+		ContrailStartColorAlpha: 110
+	Warhead@Target: TargetDamage
+		Damage: 250
+		DamageAtMaxRange: 50
+		Penetration: 5
+		ValidTargets: Infantry, Unarmored, Helicopter
+		DamageTypes: BulletDeath
+
+7.62mm.DMR:
+	Inherits@Caliber: ^7.62mm
+	Range: 15c0
+	Magazine: 15
+	ReloadDelay: 65
+	Burst: 3
+	BurstDelays: 10
+	BurstWait: 20
+	Report: gun5.aud
+7.62mm.Sniper:
+	Inherits@Caliber: ^7.62mm
+	Range: 20c0
+	Magazine: 5
+	ReloadDelay: 200
+	BurstWait: 120
+	Report: gun5.aud
+	Projectile: Bullet
+		Speed: 1c256
+		Inaccuracy: 96
+		MinInaccuracy: 32
+7.62mm.MG:
+	Inherits@Caliber: ^7.62mm
+	Magazine: 100
+	ReloadDelay: 150
+	Burst: 6
+	BurstDelays: 1
+	BurstWait: 10
+7.62mm.Minigun:
+	Inherits@Caliber: ^7.62mm
+	Inherits@HitEffects: ^PiffsEffects
+	Range: 15c0
+	Burst: 20
+	BurstDelays: 1
+	BurstWait: 5
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 1c512
+		InaccuracyPerProjectile: 64,64,0
+		Image: tracer_large
+	Warhead@Spread: SpreadDamage
+		Spread: 32
+		Damage: 200
+		ValidTargets: Infantry, Unarmored, Helicopter
+		DamageTypes: BulletDeath
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
+
+^12.7mm:
+	Inherits@HitEffects: ^LargeCaliberEffects
+	ValidTargets: Infantry, Unarmored, Helicopter, Light
+	Range: 16c0
+	Report: gun13.aud
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 256
+		LaunchAngle: 0,15
+		ContrailLength: 5
+		ContrailWidth: 6
+		ContrailStartColorAlpha: 130
+	Warhead@Target: TargetDamage
+		Damage: 600
+		DamageAtMaxRange: 50
+		Penetration: 15
+		ValidTargets: Infantry, Unarmored, Light, Helicopter
+		DamageTypes: BulletDeath
+
+12.7mm.MG:
+	Inherits@Caliber: ^12.7mm
+	Magazine: 100
+	ReloadDelay: 150
+	Burst: 5
+	BurstDelays: 2
+	BurstWait: 12
+12.7mm.Hind:
+	Inherits@Caliber: ^12.7mm
+	Burst: 8
+	BurstDelays: 2
+	BurstWait: 10
+
+HandGrenade:
+	Inherits@HitEffects: ^MinimalExplosionEffects
+	BurstWait: 200
+	Range: 4c0
+	MinRange: 1c512
+	Report: grenade1.aud
+	Projectile: Bullet
+		Speed: 136
+		Inaccuracy: 554
+		LaunchAngle: 40,65
+		Image: bomb
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Infantry, Unarmored, Light
+		Damage: 1000
+		Spread: 48
+		DamageTypes: SmallExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_medium
+		ImpactSounds: kaboom25.aud
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_small
+GrenadeLauncher:
+	Inherits@HitEffects: ^MinimalExplosionEffects
+	ValidTargets: Infantry, Unarmored, Light
+	Range: 12c0
+	MinRange: 1c512
+	BurstWait: 100
+	Report: aacanon3.aud
+	Projectile: Bullet
+		Speed: 300
+		Inaccuracy: 1c512
+		LaunchAngle: 50,82
+		Image: grenade_small
+		ContrailLength: 5
+		ContrailWidth: 20
+		ContrailZOffset: 0
+		ContrailDelay: 0
+	Warhead@Target: TargetDamage
+		Damage: 1000
+		Penetration: 60
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 150
+		ValidTargets: Infantry, Unarmored, Light
+		DamageTypes: ExplosionDeath
+GrenadeLauncher.5mag:
+	Inherits: GrenadeLauncher
+	Magazine: 5
+	BurstWait: 15
+	ReloadDelay: 150
+
+RPG:
+	Inherits@HitEffects: ^MediumExplosionEffects
+	ValidTargets: Ground, Vehicle, Defense, Water
+	InvalidTargets: Infantry
+	BurstWait: 150
+	Range: 12c0
+	MinRange: 2c0
+	Report: aacanon3.aud
+	Projectile: Bullet
+		Speed: 550
+		Inaccuracy: 1c0
+		LaunchAngle: 0,15
+		ContrailLength: 5
+		ContrailWidth: 20
+		Image: tankround
+	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Vehicle, Defense, Water
+		Damage: 6000
+		Penetration: 500
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Ground, Vehicle, Defense, Water
+		Spread: 64
+		Damage: 800
+		DamageTypes: ExplosionDeath
+
+20mm_CRAM:
+	Range: 22c0
+	BurstWait: 1
+	ValidTargets: Air, ICBM
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 256
+		Blockable: false
+		Image: tracer_large
+	Warhead@Target: TargetDamage
+		Damage: 600
+		Penetration: 40
+		ValidTargets: Air, ICBM
+		DamageTypes: DefaultDeath
+
+AACannon:
+	Range: 20c0
+	Burst: 10
+	BurstDelays: 2
+	BurstWait: 4
+	Report: aacanon3.aud
+	ValidTargets: Air, ICBM
+	Projectile: Bullet
+		Speed: 8c0
+		Inaccuracy: 2c0
+		Blockable: false
+	Warhead@Spread: SpreadDamage
+		Spread: 196
+		Damage: 100
+		ValidTargets: Air, ICBM
+		DamageTypes: DefaultDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_air_small
+		ValidTargets: Air, ICBM, Ground, Water, Trees
+
+^30mm:
+	Inherits@HitEffects: ^MinimalExplosionEffects
+	ValidTargets: Infantry, Vehicle, Defense
+	InvalidTargets: Wall, Husk
+	Report: gun13.aud
+	Range: 18c0
+	Projectile: Bullet
+		Speed: 900
+		Inaccuracy: 512
+		LaunchAngle: 0,20
+		ContrailLength: 5
+		ContrailWidth: 12
+		ContrailStartColorAlpha: 140
+		Image: grenade_small
+	Warhead@Target: TargetDamage
+		Damage: 1000
+		DamageAtMaxRange: 50
+		Penetration: 70
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		DamageAtMaxRange: 50
+		Damage: 100
+		DamageTypes: SmallExplosionDeath
+
+25mm.Bradley:
+	Inherits@Caliber: ^30mm
+	Range: 20c0
+	MinRange: 1c512
+	Magazine: 300
+	ReloadDelay: 250
+	Burst: 20
+	BurstDelays: 4
+	BurstWait: 15
+	Report: cannon2.aud
+	Projectile: Bullet
+		Speed: 900
+		Inaccuracy: 0c768
+	Warhead@Target: TargetDamage
+		Damage: 500
+		Penetration: 60
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 24
+		Damage: 100
+		DamageTypes: SmallExplosionDeath
+
+^30mm.Tunguska:
+	Inherits@Caliber: ^30mm
+	Range: 18c0
+	Burst: 12
+	BurstDelays: 1
+	BurstWait: 12
+	Report: gun13.aud
+	Projectile: Bullet
+		Speed: 900
+		Inaccuracy: 1c0
+		InaccuracyPerProjectile: 12,12,0
+		Image: tracer_small
+30mm.Tunguska.AG:
+	Inherits@Caliber: ^30mm.Tunguska
+	Inherits@HitEffects: ^PiffEffects
+	ValidTargets: Infantry, Vehicle, Defense
+	MinRange: 1c512
+	Warhead@Target: TargetDamage
+		ValidTargets: Ground
+30mm.Tunguska.AA:
+	Inherits@Caliber: ^30mm.Tunguska
+	Inherits@HitEffects: ^MinimalExplosionEffectsAir
+	ValidTargets: Helicopter
+30mm.A10:
+	Inherits@Caliber: ^30mm
+	Inherits@HitEffects: ^PiffEffects
+	Range: 20c0
+	MinRange: 1c0
+	Burst: 15
+	BurstDelays: 1
+	BurstWait: 3
+	Report: A10.wav
+	Projectile: Bullet
+		Inaccuracy: 1c512
+		InaccuracyPerProjectile: 32,32,0
+		Blockable: false
+		Image: tracer_large
+30mm.Stryker:
+	Inherits@Caliber: ^30mm
+	Burst: 5
+	BurstDelays: 7
+	BurstWait: 10
+	Range: 22c0
+	MinRange: 1c512
+	Report: cannon2.aud
+	Projectile: Bullet
+		Speed: 1100
+		Inaccuracy: 1c256
+30mm.Heli:
+	Inherits@Caliber: ^30mm
+	ValidTargets: Ground
+	Range: 18c0
+	Burst: 11
+	BurstDelays: 3,3,3,3,6,3,3,3,3,8
+	BurstWait: 10
+	Report: aacanon3.aud
+	Projectile: Bullet
+		Speed: 800
+		Inaccuracy: 512
+30mm.TimerWolf:
+	Inherits@Caliber: ^30mm
+	Inherits@HitEffects: ^PiffEffects
+	Range: 20c0
+	MinRange: 1c0
+	Burst: 12
+	BurstDelays: 1
+	BurstWait: 3
+	Report: A10.wav
+	Projectile: Bullet
+		Inaccuracy: 1c512
+		InaccuracyPerProjectile: 32,32,0
+		Blockable: false
+		Image: tracer_large
+30mm.Fighter:
+	Inherits@Caliber: ^30mm
+	Inherits@HitEffects: ^MinimalExplosionEffectsAir
+	ValidTargets: Air
+	Range: 10c0
+	MinRange: 2c0
+	Burst: 15
+	BurstDelays: 1
+	BurstWait: 20
+	Report: A10.aud
+	Projectile: Bullet
+		Speed: 5c0
+		Inaccuracy: 0c768
+		InaccuracyPerProjectile: 32,32,0
+		Image: tracer_large
+
+60mm_Mortar:
+	Inherits@HitEffects: ^SmallExplosionEffects
+	ValidTargets: Ground, Infantry, Unarmored, Light
+	InvalidTargets: Concrete, Heavy
+	Range: 25c0
+	MinRange: 8c0
+	BurstWait: 100
+	Report: 60mm-mortar-firing-1.wav, 60mm-mortar-firing-2.wav, 60mm-mortar-firing-3.wav
+	Projectile: Bullet
+		Speed: 180
+		LaunchAngle: 120,95
+		Inaccuracy: 2c256
+		Image: grenade_small
+		ContrailLength: 5
+		ContrailWidth: 20
+	Warhead@Target: TargetDamage
+		Damage: 3000
+		Penetration: 100
+		ValidTargets: Infantry, Unarmored, Light
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 100
+		ValidTargets: Infantry, Unarmored, Light
+		DamageTypes: SmallExplosionDeath
+
+73mm_BMP:
+	Inherits@HitEffects: ^SmallMediumExplosionEffects
+	Range: 22c0
+	MinRange: 1c512
+	BurstWait: 100
+	Report: cannon1.aud
+	ValidTargets: Ground
+	Projectile: Bullet
+		Speed: 750
+		LaunchAngle: 0,20
+		Inaccuracy: 1c0
+		Image: tankround
+		ContrailLength: 5
+		ContrailWidth: 24
+	Warhead@Target: TargetDamage
+		Damage: 5000
+		DamageAtMaxRange: 50
+		Penetration: 300
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 1000
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+
+^TankRound:
+	Inherits@HitEffects: ^MediumExplosionEffects
+	Range: 24c0
+	MinRange: 1c512
+	BurstWait: 110
+	Report: abrams-firing-1.wav, abrams-firing-2.wav, abrams-firing-3.wav
+	ValidTargets: Ground
+	Projectile: Bullet
+		Speed: 1200
+		LaunchAngle: 0,20
+		Inaccuracy: 0c768
+		Image: tankround
+		ContrailLength: 4
+		ContrailWidth: 32
+	Warhead@Target: TargetDamage
+		Damage: 20000
+		DamageAtMaxRange: 50
+		Penetration: 800
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 3000
+		DamageAtMaxRange: 50
+		DamageTypes: ExplosionDeath
+
+TankRound.Abrams:
+	Inherits@Type: ^TankRound
+	Range: 25c0
+	BurstWait: 130
+TankRound.T72:
+	Inherits@Type: ^TankRound
+TankRound.T90:
+	Inherits@Type: ^TankRound
+
+^ArtilleryRound:
+	Inherits@HitEffects: ^LargeExplosionEffects
+	ValidTargets: Ground, Trees, Water
+	Range: 40c0
+	MinRange: 10c0
+	BurstWait: 180
+	TargetActorCenter: true
+	Report: tank5.aud
+	TopAttack: true
+	Projectile: Bullet
+		Inaccuracy: 2c0
+		InaccuracyType: Absolute
+		Speed: 500
+		LaunchAngle: 40,65
+		Image: 120mm
+		ContrailLength: 8
+		ContrailWidth: 40
+	Warhead@Target: TargetDamage
+		Damage: 15000
+		Penetration: 1000
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 3000
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+
+ArtilleryRound.Giatsint:
+	Inherits@Type: ^ArtilleryRound
+	Projectile: Bullet
+		LaunchAngle: 65,75
+ArtilleryRound.Paladin:
+	Inherits@Type: ^ArtilleryRound
+	Burst: 3
+	BurstDelays: 120
+	BurstWait: 240
+
+RocketPods:
+	Inherits@HitEffects: ^MediumExplosionEffects
+	ValidTargets: Ground
+	InvalidTargets: Infantry
+	Range: 25c0
+	MinRange: 4c0
+	Magazine: 20
+	ReloadDelay: 25
+	Burst: 10
+	BurstDelays: 1
+	BurstWait: 5
+	Report: missile6.aud
+	Projectile: Bullet
+		Inaccuracy: 2c0
+		InaccuracyPerProjectile: 64,64,0
+		Speed: 550
+		Image: dragon
+		TrailImage: smokey
+		ContrailLength: 4
+		ContrailWidth: 20
+		TrailDeactivation: 6
+	ValidTargets: Ground, Trees, Water
+	Warhead@Target: TargetDamage
+		Damage: 5000
+		Penetration: 50
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Damage: 200
+
+TimerWolf_Barrage:
+	Inherits@HitEffects: ^LargeThermobaricEffects
+	ValidTargets: Ground
+	InvalidTargets: Infantry, Vehicle, Naval
+	Range: 30c0
+	MinRange: 5c0
+	BurstWait: 1
+	FirstBurstTargetOffset: -3000,0,0
+	FollowingBurstTargetOffset: 200,0,0
+	Report: missile6.aud
+	Projectile: Bullet
+		Inaccuracy: 2c512
+		LaunchAngle: 30,80
+		Speed: 450
+		Image: dragon
+		ContrailLength: 5
+		ContrailWidth: 20
+	Warhead@Spread: SpreadDamage
+		Spread: 128
+		Damage: 1000
+		DamageTypes: ExplosionDeath
+
+GradRockets:
+	Inherits@HitEffects: ^MediumExplosionEffects
+	Range: 40c0
+	MinRange: 12c0
+	BurstWait: 4
+	ValidTargets: Ground, Trees, Water
+	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
+	TopAttack: true
+	Projectile: Bullet
+		Inaccuracy: 4c0
+		Speed: 300
+		LaunchAngle: 30,70
+		Image: dragon
+		TrailImage: smokey
+		ContrailLength: 4
+		ContrailWidth: 24
+		TrailDeactivation: 40
+		Blockable: false
+	Warhead@Target: TargetDamage
+		Damage: 6000
+		Penetration: 250
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 96
+		Damage: 1000
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+
+TosRockets:
+	Inherits@HitEffects: ^LargeThermobaricEffects
+	Range: 28c0
+	MinRange: 5c0
+	BurstWait: 10
+	ValidTargets: Ground, Trees, Water
+	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
+	TopAttack: true
+	Projectile: Bullet
+		Inaccuracy: 4c0
+		Speed: 250
+		LaunchAngle: 25,60
+		Blockable: false
+		Image: missile
+		TrailImage: smokey
+		ContrailLength: 6
+		ContrailWidth: 30
+		TrailDeactivation: 50
+	Warhead@Target: TargetDamage
+		Damage: 5000
+		Penetration: 100
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 256
+		Damage: 300
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+
+M270Rockets:
+	Inherits@HitEffects: ^LargeExplosionEffects
+	Range: 40c0
+	MinRange: 12c0
+	BurstWait: 10
+	ValidTargets: Ground, Trees, Water
+	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
+	TopAttack: true
+	Projectile: Bullet
+		Inaccuracy: 2c512
+		Speed: 300
+		LaunchAngle: 30,70
+		Image: missile
+		TrailImage: smokey
+		ContrailLength: 6
+		ContrailWidth: 30
+		TrailDeactivation: 40
+		Blockable: false
+	Warhead@Target: TargetDamage
+		Damage: 15000
+		Penetration: 500
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 96
+		Damage: 1500
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath

@@ -19,7 +19,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[Desc("Absolute amount of health points added in each step.",
 			"Use negative values to apply damage.")]
-		public readonly int Step = 5;
+		public readonly int Step = 0;
 
 		[Desc("Relative percentages of health added in each step.",
 			"Use negative values to apply damage.",
@@ -30,7 +30,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Delay = 5;
 
 		[Desc("Heal if current health is below this percentage of full health.")]
-		public readonly int StartIfBelow = 50;
+		public readonly int StartIfBelow = 101;
+
+		[Desc("Heal if current health is below this percentage of full health.")]
+		public readonly int StartIfAbove = 0;
 
 		[Desc("Time in ticks to wait after taking damage.")]
 		public readonly int DamageCooldown = 0;
@@ -64,6 +67,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Cast to long to avoid overflow when multiplying by the health
 			if (health.HP >= Info.StartIfBelow * (long)health.MaxHP / 100)
+				return;
+
+			if (health.HP < Info.StartIfAbove * (long)health.MaxHP / 100)
 				return;
 
 			if (damageTicks > 0)

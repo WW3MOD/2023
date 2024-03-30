@@ -49,9 +49,9 @@ STEK:
 
 TECH.CAM:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 4c0
-		Type: CenterPosition
+		Position: Center
 
 APWR:
 	Buildable:

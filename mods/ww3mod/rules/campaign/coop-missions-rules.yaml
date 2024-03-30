@@ -1,0 +1,24 @@
+Player:
+	MapLayers:
+		FogCheckboxVisible: True
+		ExploredMapCheckboxVisible: True
+	PlayerResources:
+		CashDropdownVisible: True
+	LobbyPrerequisiteCheckbox@GlobalBounty:
+		Visible: True
+	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
+		Visible: True
+	DeveloperMode:
+		CheckboxVisible: True
+
+World:
+	CrateSpawner:
+		CheckboxVisible: True
+	MapBuildRadius:
+		AllyBuildRadiusCheckboxVisible: True
+		BuildRadiusCheckboxVisible: True
+	MapOptions:
+		ShortGameCheckboxVisible: True
+		TechLevelDropdownVisible: True
+	TimeLimitManager:
+		TimeLimitDropdownVisible: True

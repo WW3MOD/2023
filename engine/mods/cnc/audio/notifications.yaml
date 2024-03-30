@@ -80,8 +80,8 @@ Sounds:
 		Keystroke: keystrok
 		LevelUp: text2
 		NewTarget: newtarg1
-		RadarDown: powrdn1
-		RadarUp: comcntr1
+		MiniMapDown: powrdn1
+		MiniMapUp: comcntr1
 		Sell: cashturn
 		SignalFlare: flare1
 		SignalFlareEast: flaree1

@@ -73,6 +73,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly BodyOrientation orientation;
 		ITargetableCells targetableCells;
 		Turreted turret;
+		public WDist VerticalTopOffset;
 
 		((CPos Cell, SubCell SubCell)[] targetableCells,
 			WPos? selfCenterPosition,
@@ -85,6 +86,8 @@ namespace OpenRA.Mods.Common.Traits
 		public HitShape(Actor self, HitShapeInfo info)
 			: base(info)
 		{
+			VerticalTopOffset = info.Type.VerticalTopOffset;
+
 			orientation = self.Trait<BodyOrientation>();
 		}
 
@@ -152,6 +155,13 @@ namespace OpenRA.Mods.Common.Traits
 			var origin = turret != null ? self.CenterPosition + turret.Position(self) : self.CenterPosition;
 			var orientation = turret != null ? turret.WorldOrientation : self.Orientation;
 			return Info.Type.DistanceFromEdge(pos, origin, orientation);
+		}
+
+		public int PercentFromEdge(Actor self, WPos pos)
+		{
+			var origin = turret != null ? self.CenterPosition + turret.Position(self) : self.CenterPosition;
+			var orientation = turret != null ? turret.WorldOrientation : self.Orientation;
+			return Info.Type.PercentFromEdge(pos, origin, orientation);
 		}
 
 		public IEnumerable<IRenderable> RenderDebugAnnotations(Actor self)

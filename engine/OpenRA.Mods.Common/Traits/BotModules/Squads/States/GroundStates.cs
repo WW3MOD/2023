@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return ShouldFlee(owner, enemies => !AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemies));
 		}
 
-		protected Actor FindClosestEnemy(Squad owner)
+		protected static Actor FindClosestEnemy(Squad owner)
 		{
 			return owner.SquadManager.FindClosestEnemy(owner.Units.First().CenterPosition);
 		}
@@ -60,6 +60,28 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 			else
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+
+			foreach (var a in owner.Units)
+			{
+				if (BusyAttack(a))
+					continue;
+
+				var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
+				{
+					if (IsRearming(a))
+						continue;
+
+					if (!HasAmmo(ammoPools))
+					{
+						owner.Bot.QueueOrder(new Order("ReturnToBase", a, false));
+						continue;
+					}
+				}
+
+				if (CanAttackTarget(a, owner.TargetActor))
+					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
+			}
 		}
 
 		public void Deactivate(Squad owner) { }

@@ -17,7 +17,14 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Used to define weapon efficiency modifiers with different percentages per Type.")]
 	public class ArmorInfo : ConditionalTraitInfo
 	{
+		[Desc("Armor type determines what weapons can target this actor and their damage modifiers.")]
 		public readonly string Type = null;
+
+		[Desc("Armor thickness in mm.")]
+		public readonly int Thickness = 0;
+
+		[Desc("Armor thickness at { Front, Side, Rear, Top, Bottom } in percent.")]
+		public readonly int[] Distribution = System.Array.Empty<int>();
 
 		public override object Create(ActorInitializer init) { return new Armor(this); }
 	}

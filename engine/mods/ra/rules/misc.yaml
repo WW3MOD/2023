@@ -184,9 +184,9 @@ CAMERA:
 	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 10c0
-		Type: CenterPosition
+		Position: Center
 	BodyOrientation:
 		QuantizedFacings: 1
 	WithSpriteBody:
@@ -199,7 +199,7 @@ camera.paradrop:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 
 camera.spyplane:
@@ -211,7 +211,7 @@ SONAR:
 	Inherits: camera.spyplane
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	-RevealsShroud:
+	-Vision:
 	DetectCloaked:
 		DetectionTypes: Underwater
 		Range: 10c0
@@ -219,9 +219,9 @@ SONAR:
 FLARE:
 	Immobile:
 		OccupiesSpace: false
-	RevealsShroud:
+	Vision:
 		Range: 3c0
-		Type: CenterPosition
+		Position: Center
 	RenderSprites:
 		Image: smokland
 	WithSpriteBody:
@@ -229,7 +229,7 @@ FLARE:
 	BodyOrientation:
 		QuantizedFacings: 1
 	HiddenUnderFog:
-		Type: CenterPosition
+		Position: Center
 	Interactable:
 	Tooltip:
 		Name: Flare
@@ -249,8 +249,8 @@ MINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Ore
 	AppearsOnMapPreview:
 		Terrain: Ore
@@ -272,8 +272,8 @@ GMINE:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Gems
 	AppearsOnMapPreview:
 		Terrain: Gems
@@ -313,7 +313,7 @@ QUEE:
 		Footprint: xx
 		Dimensions: 2,1
 	WithSpriteBody:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter
@@ -331,7 +331,7 @@ LAR1:
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter

@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class SellableInfo : ConditionalTraitInfo
 	{
 		[Desc("Percentage of units value to give back after selling.")]
-		public readonly int RefundPercent = 50;
+		public readonly int RefundPercent = 100;
 
 		[Desc("List of audio clips to play when the actor is being sold.")]
 		public readonly string[] SellSounds = Array.Empty<string>();

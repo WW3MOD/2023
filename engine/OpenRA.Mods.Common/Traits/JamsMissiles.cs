@@ -20,10 +20,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist Range = WDist.Zero;
 
 		[Desc("What player relationships are affected.")]
-		public readonly PlayerRelationship DeflectionRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
+		public readonly PlayerRelationship DeflectionRelationships = PlayerRelationship.Neutral | PlayerRelationship.Enemy;
 
 		[Desc("Chance of deflecting missiles.")]
 		public readonly int Chance = 100;
+
+		[Desc("Should explode instead of deflect")]
+		public readonly bool ActiveProtection = false;
 
 		public override object Create(ActorInitializer init) { return new JamsMissiles(this); }
 	}

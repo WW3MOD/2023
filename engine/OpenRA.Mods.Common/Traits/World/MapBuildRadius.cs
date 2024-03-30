@@ -25,13 +25,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string AllyBuildRadiusCheckboxDescription = "Allow allies to place structures inside your build area";
 
 		[Desc("Default value of the ally build radius checkbox in the lobby.")]
-		public readonly bool AllyBuildRadiusCheckboxEnabled = true;
+		public readonly bool AllyBuildRadiusCheckboxEnabled = false;
 
 		[Desc("Prevent the ally build radius state from being changed in the lobby.")]
 		public readonly bool AllyBuildRadiusCheckboxLocked = false;
 
 		[Desc("Whether to display the ally build radius checkbox in the lobby.")]
-		public readonly bool AllyBuildRadiusCheckboxVisible = true;
+		public readonly bool AllyBuildRadiusCheckboxVisible = false;
 
 		[Desc("Display order for the ally build radius checkbox in the lobby.")]
 		public readonly int AllyBuildRadiusCheckboxDisplayOrder = 0;
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool BuildRadiusCheckboxLocked = false;
 
 		[Desc("Display the build radius checkbox in the lobby.")]
-		public readonly bool BuildRadiusCheckboxVisible = true;
+		public readonly bool BuildRadiusCheckboxVisible = false;
 
 		[Desc("Display order for the build radius checkbox in the lobby.")]
 		public readonly int BuildRadiusCheckboxDisplayOrder = 0;

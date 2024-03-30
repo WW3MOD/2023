@@ -1,0 +1,5 @@
+
+
+engine\OpenRA.Mods.Common\Traits\Attack\AttackBase.cs - Armaments = { "primary", "secondary", "tertiary", "quaternary", "repair", "clearmines" };
+    engine\OpenRA.Mods.Common\Traits\Armament.cs Armament.Name - Can not differ from AttackBase Armaments
+

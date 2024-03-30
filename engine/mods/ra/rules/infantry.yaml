@@ -26,7 +26,7 @@ DOG:
 		Voice: Move
 	Passenger:
 		Voice: Move
-	RevealsShroud:
+	Vision:
 		Range: 5c512
 	Armament:
 		Weapon: DogJaw
@@ -340,7 +340,7 @@ SPY:
 	-Guard:
 	Mobile:
 		Voice: Move
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Passenger:
 		CustomPipType: blue
@@ -417,7 +417,7 @@ E7:
 		Voice: Move
 	Guard:
 		Voice: Move
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Demolition:
 		DetonationDelay: 45
@@ -476,7 +476,7 @@ MEDI:
 		HP: 6000
 	Mobile:
 		Speed: 49
-	RevealsShroud:
+	Vision:
 		Range: 3c0
 	Passenger:
 		CustomPipType: blue
@@ -520,7 +520,7 @@ MECH:
 	Mobile:
 		Speed: 49
 		Voice: Move
-	RevealsShroud:
+	Vision:
 		Range: 3c0
 	Passenger:
 		CustomPipType: blue
@@ -636,7 +636,7 @@ THF:
 		AddToArmyValue: true
 	Health:
 		HP: 5000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Passenger:
 		CustomPipType: blue
@@ -696,7 +696,7 @@ SHOK:
 		HP: 5000
 	Mobile:
 		Voice: Move
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Armament@PRIMARY:
 		Weapon: PortaTesla
@@ -749,7 +749,7 @@ SNIPER:
 		HP: 8000
 	Passenger:
 		CustomPipType: red
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	AutoTarget:
 		InitialStance: HoldFire

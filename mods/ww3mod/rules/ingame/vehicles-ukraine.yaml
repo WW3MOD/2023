@@ -1,0 +1,89 @@
+
+t72:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetMBT
+	Tooltip:
+		Name: T-72
+		GenericName: MBT
+	ActorLostNotification:
+		TextNotification: Lost: T-72
+	RenderSprites:
+		Image: t72
+		Scale: 1.25
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 10
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
+		Description: Main Battle Tank
+	Valued:
+		Cost: 1700
+	Health:
+		HP: 10000
+	Armor:
+		Type: Heavy
+		Thickness: 280
+		Distribution: 100,80,80,80,60
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 450
+			TopLeft: -400, -950
+			BottomRight: 400, 950
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	Mobile:
+		Locomotor: heavytracked
+		Speed: 67
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
+		TurnSpeed: 15
+		# CanMoveBackward: true
+		PauseOnCondition: empdisable
+	Turreted:
+		TurnSpeed: 15
+		Offset: 0,0,20
+	Armament@1:
+		Name: primary
+		Weapon: TankRound.T72
+		# MovementInaccuracy: 50
+		Recoil: 85
+		RecoilRecovery: 70
+		LocalOffset: 1300,0,45
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 40
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	RenderRangeCircle@1:
+		Color: FF0000
+		Alpha: 100
+		Width: 2
+	Selectable:
+		Class: MBT
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: t72.husk

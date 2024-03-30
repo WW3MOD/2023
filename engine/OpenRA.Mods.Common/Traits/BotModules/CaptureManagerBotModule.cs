@@ -148,7 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					return capturers.Any(tp => captureManager.CanBeTargetedBy(target, tp.Actor, tp.Trait));
 				})
-				.OrderByDescending(target => target.GetSellValue())
+				.OrderByDescending(target => (target.CenterPosition - bot.Player.HomeLocation.ToWPos()).Length)
 				.Take(maximumCaptureTargetOptions);
 
 			if (Info.CapturableActorTypes.Count > 0)

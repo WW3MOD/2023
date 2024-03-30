@@ -51,20 +51,20 @@ namespace OpenRA.Graphics
 
 		public int CurrentFrame => backwards ? CurrentSequence.Length - frame - 1 : frame;
 
-		public Sprite Image => CurrentSequence.GetSprite(CurrentFrame, facingFunc());
+		public Sprite Image => CurrentSequence?.GetSprite(CurrentFrame, facingFunc()) ?? new Sprite(new Sheet(SheetType.Indexed, new Size(512, 512)), new Rectangle(512, 512, 512, 0), TextureChannel.Blue, 1f);
 
-		public IRenderable[] Render(WPos pos, in WVec offset, int zOffset, PaletteReference palette)
+		public IRenderable[] Render(WPos pos, in WVec offset, int zOffset, PaletteReference palette, float scale = 1f)
 		{
 			var tintModifiers = CurrentSequence.IgnoreWorldTint ? TintModifiers.IgnoreWorldTint : TintModifiers.None;
 			var alpha = CurrentSequence.GetAlpha(CurrentFrame);
 			var (image, rotation) = CurrentSequence.GetSpriteWithRotation(CurrentFrame, facingFunc());
-			var imageRenderable = new SpriteRenderable(image, pos, offset, CurrentSequence.ZOffset + zOffset, palette, CurrentSequence.Scale, alpha, float3.Ones, tintModifiers, IsDecoration,
+			var imageRenderable = new SpriteRenderable(image, pos, offset, CurrentSequence.ZOffset + zOffset, palette, CurrentSequence.Scale * scale, alpha, float3.Ones, tintModifiers, IsDecoration,
 				rotation);
 
 			if (CurrentSequence.ShadowStart >= 0)
 			{
 				var shadow = CurrentSequence.GetShadow(CurrentFrame, facingFunc());
-				var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, CurrentSequence.Scale, 1f, float3.Ones, tintModifiers,
+				var shadowRenderable = new SpriteRenderable(shadow, pos, offset, CurrentSequence.ShadowZOffset + zOffset, palette, CurrentSequence.Scale * scale, 1f, float3.Ones, tintModifiers,
 					true, rotation);
 				return new IRenderable[] { shadowRenderable, imageRenderable };
 			}
@@ -91,9 +91,12 @@ namespace OpenRA.Graphics
 			return new IRenderable[] { imageRenderable };
 		}
 
-		public Rectangle ScreenBounds(WorldRenderer wr, WPos pos, in WVec offset)
+		public Rectangle ScreenBounds(WorldRenderer wr, WPos pos, in WVec offset, Actor actor = null)
 		{
-			var scale = CurrentSequence.Scale;
+			if (CurrentSequence == null)
+				Log.Write("debug", "CurrentSequence == null - actor: {0}", actor);
+
+			var scale = CurrentSequence.Scale; // "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204
 			var xy = wr.ScreenPxPosition(pos) + wr.ScreenPxOffset(offset);
 			var cb = CurrentSequence.Bounds;
 			return Rectangle.FromLTRB(
@@ -115,7 +118,28 @@ namespace OpenRA.Graphics
 
 		int CurrentSequenceTickOrDefault()
 		{
+			/* if (CurrentSequence == null)
+				Log.Write("debug", "CurrentSequenceTickOrDefault CurrentSequence == null"); */
+
 			const int DefaultTick = 40; // 25 fps == 40 ms
+
+			if (CurrentSequence?.ChangeTick != null)
+			{
+				var changeTick = 0;
+				for (var i = 0; i < CurrentSequence.ChangeTick.Length; i += 2)
+				{
+					if (frame > CurrentSequence.ChangeTick[i])
+					{
+						changeTick = CurrentSequence.ChangeTick[i + 1];
+					}
+					else
+						break;
+				}
+
+				if (changeTick != 0)
+					return changeTick;
+			}
+
 			return CurrentSequence?.Tick ?? DefaultTick;
 		}
 

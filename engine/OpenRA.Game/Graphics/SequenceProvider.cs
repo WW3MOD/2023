@@ -13,12 +13,11 @@ using System;
 using System.Collections.Generic;
 using OpenRA.FileSystem;
 using OpenRA.Primitives;
+using Sequences = System.Collections.Generic.IReadOnlyDictionary<string, System.Lazy<System.Collections.Generic.IReadOnlyDictionary<string, OpenRA.Graphics.ISpriteSequence>>>;
+using UnitSequences = System.Lazy<System.Collections.Generic.IReadOnlyDictionary<string, OpenRA.Graphics.ISpriteSequence>>;
 
 namespace OpenRA.Graphics
 {
-	using Sequences = IReadOnlyDictionary<string, Lazy<IReadOnlyDictionary<string, ISpriteSequence>>>;
-	using UnitSequences = Lazy<IReadOnlyDictionary<string, ISpriteSequence>>;
-
 	public interface ISpriteSequence
 	{
 		string Name { get; }
@@ -28,6 +27,7 @@ namespace OpenRA.Graphics
 		int Facings { get; }
 		int InterpolatedFacings { get; }
 		int Tick { get; }
+		int[] ChangeTick { get; }
 		int ZOffset { get; }
 		int ShadowStart { get; }
 		int ShadowZOffset { get; }

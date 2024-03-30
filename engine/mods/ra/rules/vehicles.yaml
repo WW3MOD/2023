@@ -19,11 +19,11 @@ V2RL:
 		Type: Light
 	Mobile:
 		Speed: 72
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Armament:
 		Weapon: SCUD
@@ -73,11 +73,11 @@ V2RL:
 		Type: Heavy
 	Mobile:
 		Speed: 113
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Turreted:
 		TurnSpeed: 28
@@ -118,11 +118,11 @@ V2RL:
 		Type: Heavy
 	Mobile:
 		Speed: 72
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Turreted:
 		TurnSpeed: 20
@@ -167,11 +167,11 @@ V2RL:
 		Type: Heavy
 	Mobile:
 		Speed: 60
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Turreted:
 		TurnSpeed: 20
@@ -217,11 +217,11 @@ V2RL:
 	Mobile:
 		Speed: 43
 		Locomotor: heavytracked
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Turreted:
 		TurnSpeed: 8
@@ -279,11 +279,11 @@ ARTY:
 		TurnSpeed: 8
 		Speed: 72
 		Locomotor: lighttracked
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Armament:
 		Weapon: 155mm
@@ -334,7 +334,7 @@ HARV:
 	Mobile:
 		Speed: 72
 		Locomotor: heavywheeled
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithHarvestAnimation:
 	WithDockingAnimation:
@@ -387,7 +387,7 @@ MCV:
 	Mobile:
 		Speed: 60
 		Locomotor: heavywheeled
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Transforms:
 		IntoActor: fact
@@ -428,11 +428,11 @@ JEEP:
 		TurnSpeed: 40
 		Speed: 160
 		PauseOnCondition: notmobile || being-captured
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 7c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Turreted:
 		TurnSpeed: 40
@@ -477,11 +477,11 @@ APC:
 	Mobile:
 		Speed: 128
 		PauseOnCondition: notmobile || being-captured
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Armament:
 		Weapon: M60mg
@@ -520,11 +520,11 @@ MNLY:
 		Type: Heavy
 	Mobile:
 		Speed: 113
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 5c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Minelayer:
 		Mine: MINV
@@ -569,7 +569,7 @@ TRUK:
 		Type: Light
 	Mobile:
 		Speed: 113
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	DeliversCash:
 		Payload: 500
@@ -599,11 +599,11 @@ MGG:
 	WithIdleOverlay@SPINNER:
 		Offset: -299,0,171
 		Sequence: spinner
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	CreatesShroud:
 		Range: 6c0
@@ -616,7 +616,7 @@ MRJ:
 	Valued:
 		Cost: 1000
 	Tooltip:
-		Name: Mobile Radar Jammer
+		Name: Mobile MiniMap Jammer
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -630,7 +630,7 @@ MRJ:
 		Type: Heavy
 	Mobile:
 		Speed: 68
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	WithIdleOverlay@SPINNER:
 		Sequence: spinner
@@ -670,11 +670,11 @@ TTNK:
 		Type: Light
 	Mobile:
 		Speed: 92
-	RevealsShroud:
+	Vision:
 		MinRange: 6c0
 		Range: 7c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 6c0
 	Armament:
 		Weapon: TTankZap
@@ -713,11 +713,11 @@ FTRK:
 	Mobile:
 		TurnSpeed: 40
 		Speed: 113
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Turreted:
 		TurnSpeed: 40
@@ -762,7 +762,7 @@ DTRK:
 		Type: Light
 	Mobile:
 		Speed: 67
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Explodes:
 		Weapon: MiniNuke
@@ -805,11 +805,11 @@ CTNK:
 	Mobile:
 		Speed: 86
 		Locomotor: heavywheeled
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	Armament@PRIMARY:
 		Weapon: APTusk
@@ -855,11 +855,11 @@ QTNK:
 		Speed: 46
 	Chronoshiftable:
 		RequiresCondition: !deployed && !being-captured
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 6c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	MadTank:
 		DeployedCondition: deployed
@@ -895,11 +895,11 @@ STNK:
 		Speed: 128
 		Locomotor: heavywheeled
 		PauseOnCondition: notmobile || being-captured
-	RevealsShroud:
+	Vision:
 		MinRange: 4c0
 		Range: 7c0
 		RevealGeneratedShroud: False
-	RevealsShroud@GAPGEN:
+	Vision@GAPGEN:
 		Range: 4c0
 	AutoTarget:
 		InitialStance: HoldFire

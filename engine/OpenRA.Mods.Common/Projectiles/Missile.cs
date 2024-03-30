@@ -86,6 +86,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Probability of locking onto and following target.")]
 		public readonly int LockOnProbability = 100;
 
+		[Desc("How often the missile will reaquire target position during flight.")]
+		public readonly int RetargetTicks = 5;
+
 		[Desc("Horizontal rate of turn.")]
 		public readonly WAngle HorizontalRateOfTurn = new WAngle(20);
 
@@ -97,6 +100,9 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		[Desc("Run out of fuel after covering this distance. Zero for defaulting to weapon range. Negative for unlimited fuel.")]
 		public readonly WDist RangeLimit = WDist.Zero;
+
+		[Desc("Loses guidance if shooter dies.")]
+		public readonly bool ManualGuidance = false;
 
 		[Desc("Explode when running out of fuel.")]
 		public readonly bool ExplodeWhenEmpty = true;
@@ -121,11 +127,14 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Palette used to render the trail sequence.")]
 		public readonly string TrailPalette = "effect";
 
+		[Desc("Determines the size of the trail image.")]
+		public readonly int TrailScalePercent = 100;
+
 		[Desc("Use the Player Palette to render the trail sequence.")]
 		public readonly bool TrailUsePlayerPalette = false;
 
 		[Desc("Interval in ticks between spawning trail animation.")]
-		public readonly int TrailInterval = 2;
+		public readonly int TrailInterval = 1;
 
 		[Desc("Should trail animation be spawned when the propulsion is not activated.")]
 		public readonly bool TrailWhenDeactivated = false;
@@ -217,13 +226,12 @@ namespace OpenRA.Mods.Common.Projectiles
 		bool allowPassBy; // TODO: use this also with high minimum launch angle settings
 
 		WPos targetPosition;
-		readonly WVec offset;
-
+		WVec offset;
 		WVec tarVel;
 		WVec predVel;
 
 		[Sync]
-		WPos pos;
+		WPos pos, lastPos, lastTargetPosition;
 
 		WVec velocity;
 		int speed;
@@ -245,6 +253,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			this.args = args;
 
 			pos = args.Source;
+			lastPos = pos;
 			hFacing = args.Facing.Facing;
 			gravity = new WVec(0, 0, -info.Gravity);
 			targetPosition = args.PassiveTarget;
@@ -798,11 +807,17 @@ namespace OpenRA.Mods.Common.Projectiles
 				targetPassedBy = true;
 
 			// Check whether the homing mechanism is jammed
-			var jammed = info.Jammable && world.ActorsWithTrait<JamsMissiles>().Any(JammedBy);
+			var jammingActor = world.ActorsWithTrait<JamsMissiles>().FirstOrDefault(JammedBy);
+			var jammed = info.Jammable && jammingActor.Actor != null;
 			if (jammed)
 			{
-				desiredHFacing = hFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
-				desiredVFacing = vFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
+				if (jammingActor.Trait.Info.ActiveProtection)
+					Explode(world);
+				else
+				{
+					desiredHFacing = hFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
+					desiredVFacing = vFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
+				}
 			}
 			else if (!args.GuidedTarget.IsValidFor(args.SourceActor))
 				desiredHFacing = hFacing;
@@ -855,13 +870,27 @@ namespace OpenRA.Mods.Common.Projectiles
 			predVel = tarVel.Rotate(WRot.FromYaw(yaw2 - yaw1));
 			targetPosition = newTarPos;
 
+			// Adjust offset during flight to not be predetermined to hit/miss
+			if (ticks % info.RetargetTicks == 0 && (targetPosition - pos).Length > 1536)
+			{
+				var inaccuracy = lockOn && info.LockOnInaccuracy.Length > -1 ? info.LockOnInaccuracy.Length : info.Inaccuracy.Length;
+				if (inaccuracy > 0)
+				{
+					var maxInaccuracyOffset = Util.GetProjectileInaccuracy(info.Inaccuracy.Length, info.InaccuracyType, args);
+					offset = WVec.FromPDF(world.SharedRandom, 2) * maxInaccuracyOffset / 1024;
+				}
+			}
+
 			// Compute current distance from target position
-			var tarDistVec = targetPosition + offset - pos;
+			var leadTarget = WVec.CalculateLeadTarget(pos, lastTargetPosition, targetPosition, 1, speed);
+			var tarDistVec = targetPosition + leadTarget + offset - pos;
 			var relTarDist = tarDistVec.Length;
 			var relTarHorDist = tarDistVec.HorizontalLength;
 
+			lastTargetPosition = targetPosition;
+
 			WVec move;
-			if (state == States.Freefall)
+			if (state == States.Freefall || (info.ManualGuidance && args.SourceActor.IsDead))
 				move = FreefallTick();
 			else
 				move = HomingTick(world, tarDistVec, relTarHorDist);
@@ -869,7 +898,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			renderFacing = new WVec(move.X, move.Y - move.Z, 0).Yaw;
 
 			// Move the missile
-			var lastPos = pos;
+			lastPos = pos;
 			if (info.AllowSnapping && state != States.Freefall && relTarDist < move.Length)
 				pos = targetPosition + offset;
 			else
@@ -877,7 +906,7 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			// Check for walls or other blocking obstacles
 			var shouldExplode = false;
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos))
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true))
 			{
 				pos = blockedPos;
 				shouldExplode = true;
@@ -887,7 +916,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (!string.IsNullOrEmpty(info.TrailImage) && --ticksToNextSmoke < 0 && (state != States.Freefall || info.TrailWhenDeactivated))
 			{
 				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos - 3 * move / 2, renderFacing, w,
-					info.TrailImage, info.TrailSequences.Random(world.SharedRandom), trailPalette)));
+					info.TrailImage, info.TrailSequences.Random(world.SharedRandom), trailPalette, scale: (float)info.TrailScalePercent / 100)));
 
 				ticksToNextSmoke = info.TrailInterval;
 			}

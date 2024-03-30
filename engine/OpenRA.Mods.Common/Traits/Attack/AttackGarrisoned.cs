@@ -47,6 +47,8 @@ namespace OpenRA.Mods.Common.Traits
 		[PaletteReference]
 		public readonly string MuzzlePalette = "effect";
 
+		public readonly bool FlashOnAttack = true;
+
 		public override object Create(ActorInitializer init) { return new AttackGarrisoned(init.Self, this); }
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -181,6 +183,12 @@ namespace OpenRA.Mods.Common.Traits
 					muzzles.Add(muzzleFlash);
 					muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
 				}
+
+				if (Info.FlashOnAttack)
+					self.World.AddFrameEndTask(w =>
+					{
+						w.Add(new Effects.FlashTarget(self, Color.Orange, 0.1f));
+					});
 
 				foreach (var npa in self.TraitsImplementing<INotifyAttack>())
 					npa.Attacking(self, target, a, barrel);

@@ -110,6 +110,7 @@ namespace OpenRA.Mods.Common.Graphics
 		int ISpriteSequence.Facings => throw exception;
 		int ISpriteSequence.InterpolatedFacings => throw exception;
 		int ISpriteSequence.Tick => throw exception;
+		int[] ISpriteSequence.ChangeTick => throw exception;
 		int ISpriteSequence.ZOffset => throw exception;
 		int ISpriteSequence.ShadowStart => throw exception;
 		int ISpriteSequence.ShadowZOffset => throw exception;
@@ -178,6 +179,11 @@ namespace OpenRA.Mods.Common.Graphics
 		static readonly SpriteSequenceField<int> Tick = new SpriteSequenceField<int>(nameof(Tick), 40);
 		int ISpriteSequence.Tick => tick;
 		readonly int tick;
+
+		[Desc("Change the tick rate to y after x ticks. Format: { x, y, x, y, ... }")]
+		static readonly SpriteSequenceField<int[]> ChangeTick = new SpriteSequenceField<int[]>(nameof(ChangeTick), null);
+		int[] ISpriteSequence.ChangeTick => changeTick;
+		readonly int[] changeTick;
 
 		[Desc("Value controlling the Z-order. A higher values means rendering on top of other sprites at the same position. " +
 			"Use power of 2 values to avoid glitches.")]
@@ -302,6 +308,7 @@ namespace OpenRA.Mods.Common.Graphics
 				shadowZOffset = LoadField(d, ShadowZOffset).Length;
 				zOffset = LoadField(d, ZOffset).Length;
 				tick = LoadField(d, Tick);
+				changeTick = LoadField(d, ChangeTick);
 				transpose = LoadField(d, Transpose);
 				frames = LoadField(d, Frames);
 				ignoreWorldTint = LoadField(d, IgnoreWorldTint);
@@ -326,7 +333,7 @@ namespace OpenRA.Mods.Common.Graphics
 				var offset = LoadField(d, Offset);
 				var blendMode = LoadField(d, BlendMode);
 
-				Func<int, IEnumerable<int>> getUsedFrames = frameCount =>
+				IEnumerable<int> GetUsedFrames(int frameCount)
 				{
 					if (d.TryGetValue(Length.Key, out var lengthYaml) && lengthYaml.Value == "*")
 						length = frames?.Length ?? frameCount - start;
@@ -383,7 +390,7 @@ namespace OpenRA.Mods.Common.Graphics
 						return usedFrames.Concat(usedFrames.Select(i => i + shadowStart - start));
 
 					return usedFrames;
-				};
+				}
 
 				if (d.TryGetValue(Combine.Key, out var combine))
 				{
@@ -401,7 +408,7 @@ namespace OpenRA.Mods.Common.Graphics
 						var subFrames = LoadField(sd, Frames);
 						var subLength = 0;
 
-						Func<int, IEnumerable<int>> subGetUsedFrames = subFrameCount =>
+						IEnumerable<int> SubGetUsedFrames(int subFrameCount)
 						{
 							if (sd.TryGetValue(Length.Key, out var subLengthYaml) && subLengthYaml.Value == "*")
 								subLength = subFrames != null ? subFrames.Length : subFrameCount - subStart;
@@ -409,10 +416,10 @@ namespace OpenRA.Mods.Common.Graphics
 								subLength = LoadField(sd, Length);
 
 							return subFrames != null ? subFrames.Skip(subStart).Take(subLength) : Enumerable.Range(subStart, subLength);
-						};
+						}
 
 						var subSrc = GetSpriteSrc(modData, tileSet, sequence, animation, sub.Key, sd);
-						var subSprites = cache[subSrc, subGetUsedFrames].Select(s =>
+						var subSprites = cache[subSrc, SubGetUsedFrames].Select(s =>
 						{
 							if (s == null)
 								return null;
@@ -430,14 +437,14 @@ namespace OpenRA.Mods.Common.Graphics
 					}
 
 					sprites = combined.ToArray();
-					getUsedFrames(sprites.Length);
+					GetUsedFrames(sprites.Length);
 				}
 				else
 				{
 					// Apply offset to each sprite in the sequence
 					// Different sequences may apply different offsets to the same frame
 					var src = GetSpriteSrc(modData, tileSet, sequence, animation, info.Value, d);
-					sprites = cache[src, getUsedFrames].Select(s =>
+					sprites = cache[src, GetUsedFrames].Select(s =>
 					{
 						if (s == null)
 							return null;

@@ -1,0 +1,550 @@
+
+HALO:
+	Inherits@Type: ^Helicopter
+	Inherits@CargoPips: ^CargoPips
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Helicopter
+		BuildPaletteOrder: 1
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.medium
+		Description: Mil Mi-26 (Halo) Infantry Transport Helicopter.\n  - Unarmed
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: Halo
+	RenderSprites:
+		Image: halo
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 600
+	Armor:
+		Type: Light
+		Thickness: 6
+	Aircraft:
+		TurnSpeed: 8
+		Speed: 240
+		AltitudeVelocity: 0c58
+	Cargo:
+		Types: Infantry
+		MaxWeight: 24
+		AfterUnloadDelay: 40
+	WithCargoPipsDecoration:
+		PipCount: 24
+	Selectable:
+		DecorationBounds: 1700,1536
+	WithIdleOverlay@Rotor1Air:
+		Offset: 260,0,343
+		Sequence: rotor
+	WithIdleOverlay@Rotor1Ground:
+		Offset: 260,0,343
+		Sequence: slow-rotor
+	SpawnActorOnDeath@Hovering:
+		Actor: HALO.Husk
+		RequiresCondition: airborne && !moving && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: HALO.Husk.EMP
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@Moving:
+		Actor: HALO.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: HALO.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: HALO.Husk.ground
+		RequiresCondition: !airborne
+	# GrantConditionOnAttack:
+	# 	Condition: dropcargo
+	# ParachuteCargoOnCondition:
+	# 	RequiresCondition: dropcargo
+
+HIND:
+	Inherits@Type: ^Helicopter
+	# Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Inherits@CargoPips: ^CargoPips
+	AutoTarget:
+		InitialStance: Defend
+		InitialStanceAI: Defend
+	AutoTargetPriority@Default:
+		ValidTargets: Air, Vehicle, Water
+		Priority: 3
+	AutoTargetPriority@Lower:
+		ValidTargets: Infantry, Defense, Mine, Underwater
+		Priority: 2
+	AutoTargetPriority@AttackAnything:
+		RequiresCondition: stance-attackanything
+		Priority: 1
+		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Helicopter
+		BuildPaletteOrder: 2
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
+		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
+	Tooltip:
+		Name: Mi-24 Hind
+	Valued:
+		Cost: 2500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Selectable:
+		DecorationBounds: 1620,1360
+	Health:
+		HP: 800
+	Armor:
+		Type: Heavy
+		Thickness: 10
+	Aircraft:
+		TurnSpeed: 8
+		Speed: 195
+		InitialFacing: 192
+	AttackAircraft:
+		Armaments: primary, secondary #, secondary-air
+		FacingTolerance: 60
+		AttackType: Hover
+		ForceFireIgnoresActors: True
+		OpportunityFire: True
+		PersistentTargeting: false
+	Armament@1:
+		Name: primary
+		Weapon: 12.7mm.Hind
+		LocalOffset: 85,0,-85
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
+	WithMuzzleOverlay:
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 150
+		ReloadDelay: 6
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		AmmoPools: primary-ammo
+		Position: Bottom
+		Margin: 13, 6
+		PipCount: 8
+		FullSequence: pip-yellow
+		RequiresSelection: true
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FFFF00
+	Armament@2:
+		Name: secondary
+		Weapon: RocketPods
+		LocalOffset: 0,-640,0, 0,640,0
+		LocalYaw: -40, 24
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 80
+		ReloadDelay: 16
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		AmmoPools: secondary-ammo
+		Position: Bottom
+		Margin: 13, 3
+		PipCount: 8
+		FullSequence: pip-red
+		RequiresSelection: true
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 3
+		Color: FF0000
+	Rearmable:
+		RearmActors: hpad
+		AmmoPools: primary-ammo, secondary-ammo
+	EjectOnDeath@Copilot:
+		PilotActor: E1R1
+		SuccessRate: 80
+		EjectOnGround: true
+	WithIdleOverlay@ROTORAIR:
+		Sequence: rotor
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTORGROUND:
+		Sequence: slow-rotor
+		RequiresCondition: !airborne
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -427,0,0
+	SpawnActorOnDeath@Hovering:
+		Actor: HIND.Husk
+		RequiresCondition: airborne && !moving && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: HIND.Husk.EMP
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@Moving:
+		Actor: HIND.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: HIND.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: HIND.Husk.ground
+		RequiresCondition: !airborne
+	Cargo:
+		Types: Infantry
+		MaxWeight: 8
+		AfterUnloadDelay: 40
+	WithCargoPipsDecoration:
+	RenderSprites:
+		Scale: 1.3
+
+MI28:
+	Inherits@Type: ^Helicopter
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	AutoTarget:
+		InitialStance: Defend
+		InitialStanceAI: Defend
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Helicopter
+		BuildPaletteOrder: 3
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
+		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.
+	Tooltip:
+		Name: Mi-28
+	Valued:
+		Cost: 4000
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Selectable:
+		DecorationBounds: 1070,1200
+	Health:
+		HP: 800
+	Armor:
+		Type: Heavy
+		Thickness: 20
+	Aircraft:
+		TurnSpeed: 8
+		Speed: 245
+	AttackAircraft:
+		FacingTolerance: 60
+		Armaments: primary, secondary, secondary-air
+		PersistentTargeting: false
+		AttackType: Hover
+		OpportunityFire: True
+	Armament@1:
+		Name: primary
+		Weapon: 30mm.Heli
+		LocalOffset: 250,0,-200
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 200
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 13, 6
+		PipCount: 8
+		FullSequence: pip-yellow
+		RequiresSelection: true
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 3
+		Color: FFFF00
+	WithMuzzleOverlay:
+	Armament@2:
+		Name: secondary
+		Weapon: Hellfire
+		LocalOffset: 0,213,-85, 0,-213,-85
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary, secondary-air
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 13, 3
+		PipCount: 8
+		FullSequence: pip-green
+		RequiresSelection: true
+		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 3
+		Color: 00FFBB
+	Rearmable:
+		RearmActors: hpad
+		AmmoPools: primary-ammo, secondary-ammo
+	WithIdleOverlay@ROTORAIR:
+		Offset: 0,0,85
+		Sequence: rotor
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTORGROUND:
+		Offset: 0,0,85
+		Sequence: slow-rotor
+		RequiresCondition: !airborne
+	EjectOnDeath@Copilot:
+		PilotActor: E1R1
+		SuccessRate: 80
+		EjectOnGround: true
+	SpawnActorOnDeath@Hovering:
+		Actor: MI28.Husk
+		RequiresCondition: airborne && !moving && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: MI28.Husk.EMP
+		RequiresCondition: airborne && !moving && empdisable
+	SpawnActorOnDeath@Moving:
+		Actor: MI28.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@EMPmoving:
+		Actor: MI28.Husk.moving
+		RequiresCondition: airborne && moving && !empdisable
+	SpawnActorOnDeath@Ground:
+		Actor: MI28.Husk.ground
+		RequiresCondition: !airborne
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -427,0,0
+	RenderSprites:
+		Scale: 1.2
+
+FROG:
+	Inherits@Type: ^Aircraft
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+	Inherits@GainsExperience: ^GainsExperience
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Plane
+		BuildPaletteOrder: 4
+		Prerequisites: ~player.russia, ~aircraft.russia,
+		Description: Ground-Attack Plane
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: Su-25 Frogfoot
+	Health:
+		HP: 700
+	Armor:
+		Type: Heavy
+		Thickness: 20
+	AttackAircraft:
+		Armaments: primary
+		FacingTolerance: 5
+	Aircraft:
+		CruiseAltitude: 1560
+		InitialFacing: 192
+		TurnSpeed: 8
+		Speed: 420
+		RepulsionSpeed: 27
+		MaximumPitch: 56
+		TakeoffSounds: migtoff1.aud
+	AutoTarget:
+		InitialStance: Defend
+		InitialStanceAI: Defend
+	Armament@1:
+		Name: primary
+		Weapon: RocketPods
+		LocalOffset: 256,-213,0, 256,213,0
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 60
+		ReloadDelay: 25
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 13, 3
+		PipCount: 8
+		FullSequence: pip-red
+
+		RequiresSelection: true
+		AmmoPools: primary-ammo
+	# Bomb
+	# Armament@1:
+	# 	Name: primary
+	# 	Weapon: RocketPods
+	# 	LocalOffset: 256,-213,0, 256,213,0
+	# 	MuzzleSequence: muzzle
+	# 	PauseOnCondition: !ammo-primary
+	# AmmoPool@1:
+	# 	Name: primary-ammo
+	# 	Armaments: primary
+	# 	Ammo: 60
+	# 	ReloadDelay: 25
+	# 	AmmoCondition: ammo-primary
+	# ReloadAmmoPool@1:
+	# 	AmmoPool: primary-ammo
+	# 	FullReloadTicks: 400
+	# 	FullReloadSteps: 8
+	# 	Sound: minelay1.aud
+	# 	RequiresCondition: unit.docked && !airborne
+	# WithAmmoPipsDecoration@1:
+	# 	Position: Bottom
+	# 	Margin: 13, 3
+	# 	PipCount: 8
+	# 	FullSequence: pip-red
+
+	# 	RequiresSelection: true
+	# 	AmmoPools: primary-ammo
+
+	Contrail@1:
+		Offset: -258,-723,0
+		TrailLength: 10
+		TrailWidth: 48
+	Contrail@2:
+		Offset: -258,723,0
+		TrailLength: 10
+		TrailWidth: 48
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -853,0,0
+	# 	Interval: 2
+	SpawnActorOnDeath:
+		Actor: FROG.Husk
+		RequiresCondition: airborne && ammo-primary && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: FROG.Husk.EMP
+		RequiresCondition: airborne && ammo-primary && empdisable
+	Selectable:
+		DecorationBounds: 720,372,0,48
+	Rearmable:
+		RearmActors: afld
+		AmmoPools: primary-ammo
+	RenderSprites:
+		Scale: 1.25
+
+MIG:
+	Inherits@Type: ^Aircraft
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Buildable:
+		Queue: Aircraft
+		BuildAtProductionType: Plane
+		BuildPaletteOrder: 5
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
+		Description: Fast Multi-Role Attack Plane.
+	Tooltip:
+		Name: MiG-29 Falcrum
+	Valued:
+		Cost: 4000
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Selectable:
+		Bounds: 1070,1200,0,48
+		DecorationBounds: 1700,1240,0,24
+	Health:
+		HP: 550
+	Armor:
+		Type: Medium
+	Aircraft:
+		CruiseAltitude: 2560
+		InitialFacing: 192
+		TurnSpeed: 8
+		Speed: 525
+		IdleSpeed: 200
+		RepulsionSpeed: 27
+		MaximumPitch: 56
+		TakeoffSounds: migtoff1.aud
+	AttackAircraft:
+		FacingTolerance: 20
+		Armaments: primary, secondary
+		PersistentTargeting: false
+		OpportunityFire: true
+	Armament@1:
+		Name: primary
+		Weapon: AirToAirMissile
+		LocalOffset: 0,-640,0, 0,640,0
+		LocalYaw: -40, 24
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		AmmoCondition: ammo-primary
+		Armaments: primary
+		Ammo: 6
+		ReloadDelay: 100
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 6
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@1:
+		AmmoPools: primary-ammo
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		FullSequence: pip-blue
+		RequiresSelection: true
+	Armament@2:
+		Name: secondary
+		Weapon: 20mm_CRAM
+		LocalOffset: 256,-213,0
+		# MuzzleSequence: muzzle # Error: Actor type `mig` trait `Armament` field `MuzzleSequence` references an undefined sequence `muzzle` on image `mig`.
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		AmmoCondition: ammo-secondary
+		Armaments: secondary
+		Ammo: 150
+		ReloadDelay: 100
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 400
+		FullReloadSteps: 8
+		Sound: minelay1.aud
+		RequiresCondition: unit.docked && !airborne
+	WithAmmoPipsDecoration@2:
+		AmmoPools: secondary-ammo
+		Position: Bottom
+		Margin: 8, 6
+		PipCount: 6
+		FullSequence: pip-yellow
+		RequiresSelection: true
+	Rearmable:
+		AmmoPools: primary-ammo, secondary-ammo
+		RearmActors: afld
+	Contrail@1:
+		Offset: -598,-683,0
+		TrailLength: 6
+		TrailWidth: 48
+	Contrail@2:
+		Offset: -598,683,0
+		TrailLength: 6
+		TrailWidth: 48
+	# SmokeTrailWhenDamaged:
+	# 	Offset: -853,0,171
+	# 	Interval: 2
+	SpawnActorOnDeath:
+		Actor: MIG.Husk
+		RequiresCondition: airborne && ammo-primary && !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: MIG.Husk.EMP
+		RequiresCondition: airborne && ammo-primary && empdisable
+	RenderSprites:
+		Scale: 1.25

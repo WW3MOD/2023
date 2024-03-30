@@ -15,7 +15,7 @@ FACT:
 		HP: 210000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	Production:
 		Produces: Building.GDI, Building.Nod, Defence.GDI, Defence.Nod
@@ -172,7 +172,7 @@ NUKE:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 55000
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 	Power:
@@ -203,7 +203,7 @@ NUK2:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 70000
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 	Power:
@@ -236,7 +236,7 @@ PROC:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 100000
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Refinery:
 		DockAngle: 448
@@ -282,7 +282,7 @@ SILO:
 	-GivesBuildableArea:
 	Health:
 		HP: 50000
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -326,7 +326,7 @@ PYLE:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 60000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	WithBuildingBib:
 	RallyPoint:
@@ -387,7 +387,7 @@ HAND:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 60000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	WithBuildingBib:
 	RallyPoint:
@@ -451,7 +451,7 @@ AFLD:
 		LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 110000
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	RallyPoint:
 	CommandBarBlacklist:
@@ -515,7 +515,7 @@ WEAP:
 		DecorationBounds: 3072, 2730, 0, -682
 	Health:
 		HP: 110000
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	WithBuildingBib:
 	WithProductionDoorOverlay:
@@ -576,7 +576,7 @@ HPAD:
 		Dimensions: 2,2
 	Health:
 		HP: 60000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Exit@1:
 		SpawnOffset: 0,-256,0
@@ -662,10 +662,10 @@ HQ:
 		PauseOnCondition: lowpower
 	Health:
 		HP: 80000
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	WithBuildingBib:
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !lowpower
 	RenderDetectionCircle:
 	DetectCloaked:
@@ -692,7 +692,7 @@ HQ:
 		DisplayBeacon: True
 		BeaconPoster: airstrike
 		BeaconPosterPalette: beaconposter
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraActor: camera
 		ArrowSequence: arrow
 		ClockSequence: clock
@@ -727,7 +727,7 @@ FIX:
 		DecorationBounds: 3072, 2048
 	Health:
 		HP: 80000
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -777,10 +777,10 @@ EYE:
 		PauseOnCondition: lowpower
 	Health:
 		HP: 130000
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	WithBuildingBib:
-	ProvidesRadar:
+	ProvidesMiniMap:
 		RequiresCondition: !lowpower
 	RenderDetectionCircle:
 	DetectCloaked:
@@ -803,7 +803,7 @@ EYE:
 		SelectTargetTextNotification: Select target.
 		InsufficientPowerTextNotification: Insufficient power.
 		OnFireSound: ion1.aud
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraActor: camera.small
 		SupportPowerPaletteOrder: 20
 	SupportPowerChargeBar:
@@ -838,7 +838,7 @@ TMPL:
 		DecorationBounds: 3072, 2901, 0, -512
 	Health:
 		HP: 210000
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	RenderDetectionCircle:
 	DetectCloaked:
@@ -869,7 +869,7 @@ TMPL:
 		DisplayBeacon: True
 		BeaconPoster: atomic
 		BeaconPosterPalette: beaconposter
-		DisplayRadarPing: True
+		DisplayMiniMapPing: True
 		CameraRange: 10c0
 		ArrowSequence: arrow
 		ClockSequence: clock
@@ -906,7 +906,7 @@ GUN:
 		HP: 41000
 	Armor:
 		Type: Concrete
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -963,7 +963,7 @@ SAM:
 		HP: 40000
 	Armor:
 		Type: Concrete
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Turreted:
 		TurnSpeed: 40
@@ -1009,7 +1009,7 @@ OBLI:
 		HP: 75000
 	Armor:
 		Type: Concrete
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -1054,7 +1054,7 @@ GTWR:
 		HP: 40000
 	Armor:
 		Type: Concrete
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	WithBuildingBib:
 		HasMinibib: true
@@ -1095,7 +1095,7 @@ ATWR:
 		HP: 55000
 	Armor:
 		Type: Concrete
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	-RenderRangeCircle:
 	WithRangeCircle:

@@ -1,0 +1,752 @@
+
+Flamespray:
+	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
+	ValidTargets: Ground, Water, Trees
+	Range: 6c0
+	Burst: 6
+	BurstDelays: 1
+	BurstWait: 30
+	FirstBurstTargetOffset: 0,-300,0
+	FollowingBurstTargetOffset: 0,100,0
+	Report: flamer2.aud
+	Projectile: Bullet
+		Speed: 250
+		Inaccuracy: 768
+		LaunchAngle: 40
+		Image: fb5
+		TrailImage: smokey
+	Warhead@Spread: SpreadDamage
+		Damage: 10
+		Spread: 128
+		Falloff: 100,50,20,20
+		ValidTargets: Ground, Water, Trees
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1024
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 768
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
+		Range: 512
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 256
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 128
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Effect: CreateEffect
+		Explosions: napalm_small
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@Flames: FireCluster
+		Weapon: BurnFx
+		Dimensions: 1,1
+		Footprint: x
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
+	Warhead@StructureFire: GrantExternalCondition
+		Range: 768
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Structure, Trees
+		ValidRelationships: Ally, Enemy, Neutral
+
+Flamespray.heavy:
+	Inherits@MediumSuppressionEffects: ^MediumSuppressionEffects
+	ValidTargets: Ground, Water, Trees
+	Range: 12c0
+	Burst: 10
+	BurstDelays: 1
+	BurstWait: 30
+	FirstBurstTargetOffset: 0,-600,0
+	FollowingBurstTargetOffset: 0,120,0
+	Report: flamer2.aud
+	Projectile: Bullet
+		Speed: 250
+		Inaccuracy: 2c512
+		InaccuracyPerProjectile: 512,512,0
+		LaunchAngle: 40
+		Image: fb6
+		TrailImage: smokey
+	Warhead@Spread: SpreadDamage
+		Damage: 10
+		Spread: 256
+		Falloff: 100,50,25,12,6
+		ValidTargets: Ground, Water, Trees
+	Warhead@Fire_0: GrantExternalCondition
+		Range: 1536
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1280
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 1024
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
+		Range: 768
+		Duration: 125
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 512
+		Duration: 150
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 256
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Effect: CreateEffect
+		Explosions: napalm_medium
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@FireCluster_1: FireCluster
+		Weapon: BurnFx
+		RandomClusterCount: 3
+		Dimensions: 1,1
+		Footprint: x
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@FireCluster_2: FireCluster
+		Weapon: BurnFx
+		RandomClusterCount: 1
+		Dimensions: 3,3
+		Footprint: _x_,xxx,_x_
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
+
+FireballLauncher:
+	Inherits@LargeSuppressionEffects: ^LargeSuppressionEffects
+	ValidTargets: Ground, Water, Trees
+	MinRange: 12c0
+	Range: 16c0
+	BurstWait: 40
+	Report: flamer2.aud
+	Projectile: Bullet
+		Speed: 350
+		Inaccuracy: 1c512
+		LaunchAngle: 40
+		Image: FB1
+		TrailImage: fb2
+	Warhead@Spread: SpreadDamage
+		Damage: 50
+		Spread: 256
+		ValidTargets: Ground, Water, Trees
+	Warhead@Fire_0: GrantExternalCondition
+		Range: 1536
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1280
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 1024
+		Amount: 2
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
+		Range: 768
+		Amount: 3
+		Duration: 125
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 512
+		Amount: 4
+		Duration: 150
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 256
+		Amount: 5
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Effect: CreateEffect
+		Explosions: napalm_large
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@FireCluster: FireCluster
+		Weapon: BurnFx
+		Dimensions: 3,3
+		Footprint: _x_ xxx _x_
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
+	Warhead@StructureFire: GrantExternalCondition
+		Range: 1c0
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Structure, Trees
+		ValidRelationships: Ally, Enemy, Neutral
+
+^TeslaWeapon:
+	BurstWait: 150
+	Range: 25c0
+	Report: tesla1.aud
+	Projectile: TeslaZap
+	Warhead@Spread: SpreadDamage
+		Damage: 3000
+		DamageTypes: ElectricityDeath
+	# IgnoreArmor: # Unimplemented
+
+TeslaBurst:
+	Range: 5c0
+	Projectile: TeslaZap
+		# -HitAnim:
+	Warhead@Spread: SpreadDamage
+		Damage: 500
+		DamageTypes: ElectricityDeath
+	Warhead@EmpDisable: GrantExternalCondition
+		Range: 0c256
+		Duration: 50
+		Condition: empdisable
+		ValidTargets: Vehicle, Ship, Submarine
+		InvalidTargets: EMPInvalid
+
+TeslaZap:
+	Inherits: ^TeslaWeapon
+	InvalidTargets: EMPTank
+	Warhead@Burst1: FireCluster
+		Weapon: TeslaBurst
+		RandomClusterCount: 5
+		Dimensions: 3,3
+		Footprint: xxx x_x xxx
+	Warhead@Burst2: FireCluster
+		Weapon: TeslaBurst
+		RandomClusterCount: 2
+		Dimensions: 5,5
+		Footprint: _xxx_ x___x x___x x___x _xxx_
+	Warhead@EmpDisable: GrantExternalCondition
+		Range: 0c256
+		Duration: 120
+		Condition: empdisable
+		ValidTargets: Vehicle, Ship, Submarine
+		InvalidTargets: EMPInvalid
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+
+TTankZap:
+	ValidTargets: Infantry, Vehicle, Defense
+	BurstWait: 5
+	Range: 24c0
+	Report: tesla1.aud
+	Projectile: TeslaZap
+		BrightZaps: 0
+		DimZaps: 1
+		Duration: 1
+	Warhead@Spread: SpreadDamage
+		Damage: 400
+		DamageTypes: ElectricityDeath
+	Warhead@EmpDisable: GrantExternalCondition
+		Range: 0c256
+		Duration: 15
+		Condition: empdisable
+		ValidTargets: Infantry, Vehicle, Defense
+		InvalidTargets: EMPInvalid
+
+TTankZapMaxFirepower:
+	ValidTargets: Medium, Heavy, Structure, Defense, Water
+	InvalidTargets: Infantry, Unarmored
+	BurstWait: 40
+	Range: 22c0
+	Report: tesla1.aud
+	Projectile: TeslaZap
+	Warhead@Spread: SpreadDamage
+		Damage: 3000
+		DamageTypes: ElectricityDeath
+	Warhead@EmpDisable: GrantExternalCondition
+		Range: 0c256
+		Duration: 200
+		Condition: empdisable
+		ValidTargets: Vehicle, Ship, Submarine
+		InvalidTargets: EMPInvalid
+
+PortaTesla:
+	Inherits: ^TeslaWeapon
+	BurstWait: 100
+	Range: 20c0
+	Warhead@Spread: SpreadDamage
+		Damage: 150
+		DamageTypes: ElectricityDeath
+	Warhead@EmpDisable: GrantExternalCondition
+		Range: 0c256
+		Duration: 50
+		Condition: empdisable
+		ValidTargets: Vehicle, Ship, Submarine
+		InvalidTargets: EMPInvalid
+
+DogJaw:
+	ValidTargets: Infantry
+	BurstWait: 10
+	Range: 2c0
+	Report: dogg5p.aud
+	TargetActorCenter: true
+	Projectile: InstantHit
+	Warhead@Target: TargetDamage
+		Damage: 1000
+		ValidTargets: Infantry
+		InvalidTargets: Ant
+		DamageTypes: DefaultDeath
+
+Heal:
+	ValidTargets: Heal
+	Range: 1c0
+	BurstWait: 50
+	# Report: heal2.aud
+	Projectile: Bullet
+		Speed: 1c682
+	Warhead@1Dam: SpreadDamage
+		ValidTargets: Heal
+		ValidRelationships: Ally
+		DamagePercent: -5
+		DebugOverlayColor: 00FF00
+
+Repair:
+	ValidTargets: BuildingRepair, VehicleRepair
+	Range: 1c0
+	BurstWait: 50
+	# Report: fixit1.aud
+	Projectile: Bullet
+		Speed: 200
+	Warhead@Spread: SpreadDamage
+		ValidTargets: BuildingRepair, VehicleRepair
+		ValidRelationships: Ally
+		DamagePercent: -1
+		DebugOverlayColor: 00FF00
+
+ReplenishSoldiersTargeter:
+	ValidTargets: SoldierReplenish
+	Range: 4c0
+	BurstWait: 100
+	Projectile: Bullet
+		Speed: 200
+	Warhead@Spread: SpreadDamage
+		ValidTargets: SoldierReplenish
+		ValidRelationships: Ally
+		DamagePercent: 0
+
+Demolish:
+	Warhead@Spread: SpreadDamage
+		DamageTypes: DefaultDeath
+	Warhead@Effect: CreateEffect
+		Explosions: building
+		ImpactSounds: kaboom25.aud
+
+ClearMines:
+	ValidTargets: Mine
+	BurstWait: 10
+	Range: 1c0
+	Projectile: InstantHit
+	Warhead@Target: TargetDamage
+		ValidTargets: Mine
+		DamageTypes: Disarm
+
+PrismLaserMaxFirepower:
+	Inherits@SmallSuppressionEffects: ^SmallSuppressionEffects
+	ValidTargets: Vehicle, Structure, Defense, Water, Air, ICBM
+	InvalidTargets: Infantry
+	BurstWait: 10
+	Range: 25c0
+	Report: prisfire.aud
+	Projectile: LaserZap
+		Width: 100
+		# Duration: 5
+		ZOffset: 2047
+		Color: 00AAFF
+		SecondaryBeam: true
+		SecondaryBeamWidth: 65
+		SecondaryBeamZOffset: 2047
+		SecondaryBeamColor: FFFFFF
+		HitAnim: laserfire
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Vehicle, Structure, Defense, Water, Air, ICBM
+		Spread: 64
+		Damage: 5000
+		DamageTypes: ExplosionDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
+	Warhead@Effect: CreateEffect
+		ImpactSounds: xplos.aud
+		ValidTargets: Ground, Water, Ship, Trees
+
+PrismLaser:
+	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects
+	ValidTargets: Infantry
+	BurstWait: 1
+	Range: 22c0
+	Report: laser-beam.wav
+	Projectile: LaserZap
+		Width: 50
+		Duration: 2
+		AirburstAltitude: 150
+		ZOffset: 2047
+		Color: FF8000
+		SecondaryBeam: true
+		SecondaryBeamWidth: 25
+		SecondaryBeamZOffset: 2047
+		SecondaryBeamColor: FFFFFF
+		HitAnim: laserfire_low
+	Warhead@Spread: SpreadDamage
+		Spread: 160
+		Damage: 25
+		DamageTypes: FireDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
+	Warhead@Effect: CreateEffect
+		ImpactSounds: xplos.aud
+		ValidTargets: Ground, Water, Ship, Trees
+	# Warhead@Burst: FireCluster
+	# 	Weapon: PrisBurst
+	# 	RandomClusterCount: 3
+	# 	Dimensions: 3,3
+	# 	Footprint: xxx x_x xxx
+
+# PrisLaserMaxFirepower
+PrisLaser:
+	ValidTargets: Ground, Water
+	BurstWait: 60
+	Range: 28c0
+	Report: prisfire.aud
+	Projectile: LaserZap
+		Width: 60
+		HitAnim: plaserfire
+		Color: 00FFFFC8
+		ZOffset: 512
+		SecondaryBeam: true
+		SecondaryBeamWidth: 65
+		SecondaryBeamZOffset: 511
+		SecondaryBeamColor: 75D1FF
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Falloff: 100, 50, 20, 5, 1
+		Damage: 3000
+		DamageTypes: ExplosionDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch-NoFlame
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees, Creep
+	Warhead@Effect: CreateEffect
+		ImpactSounds: xplos.aud
+		ValidTargets: Ground, Water, Ship, Trees
+
+PrisLaserSupport:
+	ValidTargets: Ground, Water
+	BurstWait: 3
+	Range: 20c0
+	Report: bpriat1a.aud
+	Projectile: LaserZap
+		Width: 35
+		Color: 00FFFFC8
+		ZOffset: 512
+		SecondaryBeam: true
+		SecondaryBeamWidth: 65
+		SecondaryBeamZOffset: 511
+		SecondaryBeamColor: 75D1FF
+	Warhead@1Dum: Dummy
+	AirThreshold: 1000
+
+PrisBurst:
+	Inherits: PrisLaser
+	-Report:
+	Range: 3c0
+	Projectile: LaserZap
+		-HitAnim:
+	Warhead@Spread: SpreadDamage
+		Spread: 64
+		Falloff: 100, 50, 20, 5, 1
+		Damage: 65
+		DamageTypes: ExplosionDeath
+	# -Warhead@Burst:
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+		-ImpactSounds:
+
+PrisTLaser:
+	Inherits: PrisLaser
+	Report: ptnkfire.aud
+	BurstWait: 50
+	Range: 20c0
+	Projectile: LaserZap
+	Warhead@Spread: SpreadDamage
+		Damage: 150
+		Spread: 341
+		DamageTypes: ExplosionDeathMinor
+
+PrisTBurst:
+	Inherits: PrisTLaser
+	-Report:
+	Range: 3c0
+	Projectile: LaserZap
+		-HitAnim:
+	Warhead@Spread: SpreadDamage
+		Damage: 40
+		Spread: 160
+		DamageTypes: ExplosionDeath
+	# -Warhead@Burst:
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+		-ImpactSounds:
+
+PrisCLaser:
+	Inherits: PrisTLaser
+	Report: pcanfire.aud
+	BurstWait: 140
+	Range: 12c0
+	Projectile: LaserZap
+		Width: 70
+		Duration: 15
+		Color: 00FFDDDD
+		SecondaryBeamWidth: 140
+		SecondaryBeamColor: 4be8d499
+	Warhead@Spread: SpreadDamage
+		Damage: 180
+		Spread: 512
+
+MarineSapper:
+	ValidTargets: Ship, Underwater
+	InvalidTargets: Infantry
+	BurstWait: 800
+	Range: 1c512
+	Projectile: InstantHit
+	Warhead@Spread: HealthPercentageDamage
+		Spread: 0c512
+		Damage: 200
+		ValidTargets: Ship, Underwater
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_medium
+		ImpactSounds: mineblo1.aud
+		ImpactActors: false
+
+PlaceC4:
+	BurstWait: 10
+	Range: 1c849
+	Projectile: InstantHit
+	Report: icolseta.aud
+	ValidTargets: C4, Vehicle, Structure
+	InvalidTargets: C4Attached, C4Immune
+	Warhead@AttachDelayedWeapon: AttachDelayedWeapon
+		Weapon: C4
+		Type: c4
+		TriggerTime: 60
+		DeathTypes: ExplosionDeath
+		Range: 1
+	Warhead@TargetValidator: SpreadDamage
+	Warhead@highlight: GrantExternalCondition
+		Range: 0c256
+		Duration: 2
+		Condition: highlight
+		ValidTargets: Ground, Structure, Vehicle
+
+PlaceC4Seal:
+	Inherits: PlaceC4
+	BurstWait: 50
+	ValidTargets: C4, Ship, Vehicle, Structure
+	InvalidTargets: Vehicle, C4Attached, C4Immune
+	Range: 1c255
+	Warhead@AttachDelayedWeapon: AttachDelayedWeapon
+		TriggerTime: 500
+		Type: c4seal
+		ScaleTriggerTimeWithValue: true
+	Warhead@highlight: GrantExternalCondition
+		ValidTargets: Ground, Structure
+
+C4:
+	Projectile: InstantHit
+	Warhead@Spread: HealthPercentageDamage
+		ValidTargets: Air, Ground, Water
+		Spread: 64
+		Damage: 100
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: icolexpa.aud
+		ValidTargets: Ground, Water, Air
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Structure, Wall, Trees
+	Warhead@Flames: FireCluster
+		Weapon: BurnFx
+		RandomClusterCount: 3
+		Dimensions: 3,3
+		Footprint: xxx xxx xxx
+
+ai.targeting.helper:
+	BurstWait: 1
+	Range: 7c0
+	Projectile: InstantHit
+	Warhead@Spread: SpreadDamage
+		Damage: 0
+
+ai.targeting.helper.noattack:
+	Inherits: ai.targeting.helper
+	ValidTargets: None
+
+SeaMineTargeting:
+	ValidTargets: Ship, Submarine
+	Range: 1c768
+	BurstWait: 1
+	TargetActorCenter: true
+	Projectile: InstantHit
+	Warhead@Target: TargetDamage
+		Damage: 0
+		ValidTargets: Ship, Submarine
+
+DepthCharge:
+	# Inherits: ^Artillery
+	BurstWait: 60
+	Range: 5c0
+	ValidTargets: Underwater
+	Projectile: Bullet
+		Speed: 150
+		Image: bomb
+		Inaccuracy: 128
+	Warhead@Spread: SpreadDamage
+		Spread: 128
+		Damage: 40
+		ValidTargets: Submarine
+		DamageTypes: ExplosionDeath
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: h2obomb2.aud
+		ValidTargets: Water, Underwater
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom15.aud
+		ValidTargets: Submarine
+
+DepthChargeDual:
+	Inherits: DepthCharge
+	Burst: 2
+	BurstDelays: 4
+	BurstWait: 20
+
+DroneTargeter:
+	ValidTargets: Ground, Water # TODO: Can target units? For AutoTarget
+	Range: 25c0
+	BurstWait: 200
+	Projectile: InstantHit
+	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Water
+		Damage: 0
+
+DroneJammer:
+	ValidTargets: Drone
+	BurstWait: 1
+	Range: 20c0
+	Projectile: LaserZap
+		Width: 40
+		Duration: 10
+		# ZOffset: 2047
+		Color: FFFFFF10
+		SecondaryBeam: true
+		SecondaryBeamWidth: 60
+		# SecondaryBeamZOffset: 2047
+		SecondaryBeamColor: FFFFFF05
+		HitAnim: laserfire_low
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Drone
+		Spread: 100
+		Damage: 3
+	Warhead@DroneDisable: GrantExternalCondition
+		Condition: dronedisable
+		ValidTargets: Drone
+		Range: 100
+		Duration: 5
+
+Claw:
+	BurstWait: 30
+	Range: 1c512
+	ValidTargets: Ground, Water, WaterActor
+	Projectile: Bullet
+		Speed: 1c682
+	Warhead@1Dam: SpreadDamage
+		Spread: 213
+		Damage: 3000
+		ValidTargets: WaterActor
+		DamageTypes: DefaultDeath
+
+Mandible:
+	Inherits: Claw
+	Burst: 2
+	BurstDelays: 14
+	BurstWait: 10
+	StartBurstReport: antbite.aud
+	Warhead@1Dam: SpreadDamage
+		Damage: 6000
+		DamageTypes: BulletDeath
+
+MandibleHeavy:
+	Inherits: Claw
+	Burst: 2
+	BurstDelays: 20
+	BurstWait: 15
+	StartBurstReport: antbite.aud
+	Warhead@1Dam: SpreadDamage
+		Damage: 10000
+		DamageTypes: BulletDeath
+
+AntFireball:
+	Inherits: FireballLauncher
+	Report: antbite.aud
+	Burst: 2
+	BurstDelays: 20
+	BurstWait: 50
+	Range: 4c0
+	Projectile: Bullet
+		Speed: 200
+	Warhead@1Dam: SpreadDamage
+		Spread: 213
+		Damage: 4000
+
+# Used for traits that has to implement Armament
+Dummy:
+	BurstWait: 1

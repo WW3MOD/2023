@@ -1,3 +1,5 @@
+@powershell -NoProfile -ExecutionPolicy Bypass -File make.ps1 %* all
+
 @echo off
 setlocal EnableDelayedExpansion
 title OpenRA

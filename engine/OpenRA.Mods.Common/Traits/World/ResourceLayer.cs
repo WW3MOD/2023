@@ -129,17 +129,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void WorldLoaded(World w, WorldRenderer wr)
 		{
+			/* // Remove all starting ore
 			foreach (var cell in w.Map.AllCells)
 			{
 				var resource = world.Map.Resources[cell];
 				if (!ResourceTypesByIndex.TryGetValue(resource.Type, out var resourceType))
 					continue;
-
 				if (!AllowResourceAt(resourceType, cell))
 					continue;
-
 				Content[cell] = CreateResourceCell(resourceType, cell, resource.Index);
-			}
+			} */
 
 			if (!info.RecalculateResourceDensity)
 				return;

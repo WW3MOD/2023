@@ -27,8 +27,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Allowed to land on.")]
 		public readonly HashSet<string> TerrainTypes = new HashSet<string>();
 
-		[Desc("Define actors that can collect crates by setting this into the Crushes field from the Mobile trait.")]
-		public readonly string CrushClass = "crate";
+		[Desc("Define actors that can collect crates by setting this into the Passes field from the Mobile trait.")]
+		public readonly string PassClass = "crate";
 
 		public override object Create(ActorInitializer init) { return new Crate(init, this); }
 
@@ -70,8 +70,8 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class Crate : ITick, IPositionable, ICrushable, ISync, INotifyCreated,
-		INotifyParachute, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyCrushed
+	public class Crate : ITick, IPositionable, IPassable, ISync, INotifyCreated,
+		INotifyParachute, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyBeingPassed
 	{
 		readonly Actor self;
 		readonly CrateInfo info;
@@ -99,14 +99,18 @@ namespace OpenRA.Mods.Common.Traits
 			notifyCenterPositionChanged = self.TraitsImplementing<INotifyCenterPositionChanged>().ToArray();
 		}
 
-		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses) { }
+		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses) { }
 
-		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
+		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			if (!crushClasses.Contains(info.CrushClass))
+			if (!passClasses.Contains(info.PassClass))
 				return;
 
-			OnCrushInner(crusher);
+			OnBeingPassedInner(passer);
+		}
+
+		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
+		{
 		}
 
 		void INotifyParachute.OnParachute(Actor self) { }
@@ -121,24 +125,24 @@ namespace OpenRA.Mods.Common.Traits
 
 			var collector = landedOn.FirstOrDefault(a =>
 			{
-				// Mobile is (currently) the only trait that supports crushing
+				// Mobile is (currently) the only trait that supports passing
 				var mi = a.Info.TraitInfoOrDefault<MobileInfo>();
 				if (mi == null)
 					return false;
 
 				// Make sure that the actor can collect this crate type
-				// Crate can only be crushed if it is not in the air.
-				return self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.CrushClass);
+				// Crate can only be passed if it is not in the air.
+				return self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.PassClass);
 			});
 
 			// Destroy the crate if none of the units in the cell are valid collectors
 			if (collector != null)
-				OnCrushInner(collector);
+				OnBeingPassedInner(collector);
 			else
 				self.Dispose();
 		}
 
-		void OnCrushInner(Actor crusher)
+		void OnBeingPassedInner(Actor passer)
 		{
 			if (collected)
 				return;
@@ -150,7 +154,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (crateActions.Any())
 			{
-				var shares = crateActions.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(crusher)));
+				var shares = crateActions.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(passer)));
 
 				var totalShares = shares.Sum(a => a.Shares);
 				var n = self.World.SharedRandom.Next(totalShares);
@@ -159,7 +163,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (n < s.Shares)
 					{
-						s.Action.Activate(crusher);
+						s.Action.Activate(passer);
 						return;
 					}
 
@@ -228,14 +232,14 @@ namespace OpenRA.Mods.Common.Traits
 			return GetAvailableSubCell(a, SubCell.Any, ignoreActor, check) != SubCell.Invalid;
 		}
 
-		bool ICrushable.CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
+		bool IPassable.PassableBy(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			return crushClasses.Contains(info.CrushClass);
+			return passClasses.Contains(info.PassClass);
 		}
 
-		LongBitSet<PlayerBitMask> ICrushable.CrushableBy(Actor self, BitSet<CrushClass> crushClasses)
+		LongBitSet<PlayerBitMask> IPassable.PassableBy(Actor self, BitSet<PassClass> passClasses)
 		{
-			return crushClasses.Contains(info.CrushClass) ? self.World.AllPlayersMask : self.World.NoPlayersMask;
+			return passClasses.Contains(info.PassClass) ? self.World.AllPlayersMask : self.World.NoPlayersMask;
 		}
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)

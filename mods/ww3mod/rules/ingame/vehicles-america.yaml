@@ -1,0 +1,1083 @@
+
+humvee:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^WheeledVehicle
+	Inherits@CargoPips: ^CargoPips
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetLMG
+	AutoTargetPriority@Default:
+		RequiresCondition: !stance-attackanything && !assault-move
+	RenderSprites:
+		Scale: 0.9
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 1
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: Fast scout with MG and TOW Missiles
+	Valued:
+		Cost: 700
+	Tooltip:
+		Name: Humvee
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Humvee
+	ActorLostNotification:
+		TextNotification: Lost: Humvee
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 4000
+	Armor:
+		Type: Light
+		Thickness: 10
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 350
+			TopLeft: -220, -500
+			BottomRight: 220, 500
+	Mobile:
+		Locomotor: lightwheeled
+		Speed: 130
+		Acceleration: 3, 4, 5, 6, 5, 4, 3, 2, 1
+		TurnSpeed: 15
+		PauseOnCondition: empdisable
+	Turreted:
+		TurnSpeed: 20
+		Offset: 32,0,80
+	WithSpriteTurret@1:
+	Armament@1:
+		Name: primary
+		Weapon: 7.62mm.MG
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 300
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 7, 3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 1
+		Alpha: 100
+	# Turreted@WGM:
+	# 	Turret: secondary
+	# 	TurnSpeed: 8
+	# 	Offset: -160,0,85
+	# WithSpriteTurret@WGM:
+	# 	Turret: secondary
+	# 	Sequence: turret2
+	# Armament@WGM:
+	# 	Name: secondary
+	# 	Weapon: WGM
+	# 	Turret: secondary
+	# 	FireDelay: 50
+	# 	PauseOnCondition: !ammo-secondary || empdisable
+	# AmmoPool@WGM:
+	# 	Name: secondary-ammo
+	# 	Armaments: secondary
+	# 	Ammo: 3
+	# 	AmmoCondition: ammo-secondary
+	# 	FullReloadTicks: 300
+	# 	FullReloadSteps: 3
+	# 	RearmSound: minelay1.aud
+	# WithAmmoPipsDecoration@WGM:
+	# 	Position: Bottom
+	# 	Margin: 3, 6
+	# 	PipCount: 3
+	# 	RequiresSelection: true
+	# 	FullSequence: pip-green
+	# 	AmmoPools: secondary-ammo
+	# RenderRangeCircle@2:
+	# 	Armament: secondary
+	# 	Color: 00FF00
+	# 	Width: 1
+	# 	Alpha: 100
+	# NextBurstBar@2:
+	# 	Armaments: secondary
+	# 	Color: 00FF00
+
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo #, secondary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Turrets: primary #, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithMuzzleOverlay:
+	Cargo:
+		Types: Infantry
+		MaxWeight: 8
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadingCondition: notmobile
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	# ThrowsShrapnel@Turret1:
+	# 	Weapons: debris.humvee.turret
+	# 	Pieces: 1, 1
+	# 	Range: 1c0, 1c0
+	# ThrowsShrapnel@Turret2:
+	# 	Weapons: debris.rocket_buggy.turret
+	# 	Pieces: 1, 1
+	# 	Range: 1c0, 1c0
+	# 	RequiresCondition: wgm_missile
+	RenderSprites:
+		Image: humvee
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: humvee.husk
+
+m113:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^TrackedVehicle
+	Inherits@CargoPips: ^CargoPips
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetHMG
+	Tooltip:
+		Name: M113 APC
+		GenericName: Armoured Personnel Carrier
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: M113
+	ActorLostNotification:
+		TextNotification: Lost: M113
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 2
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: Amphibious transport. Can transport 12 infantry
+		IconPalette: chrome
+	RenderSprites:
+		Image: m113
+		Scale: 0.9
+	Valued:
+		Cost: 700
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 6000
+	Armor:
+		Type: Light
+		Thickness: 15
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 500
+			TopLeft: -270, -500
+			BottomRight: 270, 500
+	Mobile:
+		Locomotor: lighttracked-amphibious
+		Speed: 100
+		Acceleration: 4, 3, 2, 1
+		TurnSpeed: 10
+		# PauseOnCondition: empdisable || !notmobile
+	Armament@1:
+		Name: primary
+		Weapon: 12.7mm.MG
+		LocalOffset: 300,0,120
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 500
+		AmmoCondition: ammo-primary
+		ReloadCount: 20
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 7, 3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Alpha: 100
+		Color: FFFF00
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		PauseOnCondition: empdisable
+	Turreted:
+		TurnSpeed: 25
+		Offset: 0,0,15
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	Cargo:
+		Types: Infantry
+		MaxWeight: 12
+		LoadedCondition: loaded
+		LoadingCondition: notmobile
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	Carryable:
+		LocalOffset: 0,0,100
+		RequiresCondition: !loaded
+	Passenger:
+		CustomPipType: pip-green
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: m113.husk
+
+bradley:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^TrackedVehicle
+	Inherits@CargoPips: ^CargoPips
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetIFV
+	Tooltip:
+		Name: Bradley
+		GenericName: IFV Troop Carrier
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Bradley
+	ActorLostNotification:
+		TextNotification: Lost: Bradley
+	RenderSprites:
+		Image: bradley
+		Scale: 1.3
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 3
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: Troop Carrier Infantry Fighting Vehicle
+	Valued:
+		Cost: 1600
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 7000
+	Armor:
+		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 600
+			TopLeft: -360, -660
+			BottomRight: 360, 660
+	Mobile:
+		Locomotor: lighttracked
+		Speed: 100
+		Acceleration: 4, 3, 2, 1
+		TurnSpeed: 10
+		PauseOnCondition: firing-wgm || empdisable
+	GrantConditionOnPreparingAttack:
+		ArmamentNames: secondary
+		Condition: firing-wgm
+		RevokeDelay: 100
+		PreparingRevokeDelay: 50
+		AttackingRevokeDelay: 0
+	Turreted:
+		TurnSpeed: 20
+		Offset: 0,0,50
+	Armament@1:
+		Name: primary
+		Weapon: 25mm.Bradley
+		Recoil: 10
+		RecoilRecovery: 5
+		LocalOffset: 820,0,105
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 900
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	Armament@2:
+		Name: secondary
+		Weapon: WGM.bradley
+		LocalOffset: 100,90,90
+		# LocalYaw: -100, 100
+		Recoil: 10
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+		FullReloadTicks: 300
+		FullReloadSteps: 8
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 8, 6
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: secondary-ammo
+	NextBurstBar:
+		Armaments: secondary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+	Carryable:
+		LocalOffset: 0,0,100
+	Cargo:
+		Types: Infantry
+		MaxWeight: 6
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadingCondition: notmobile
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	Passenger:
+		CustomPipType: pip-green
+	RenderRangeCircle@1:
+		Armament: primary
+		Range: 21c0
+		Color: FFFF00
+		Alpha: 100
+	RenderRangeCircle@2:
+		Armament: secondary
+		Range: 25c0
+		Color: 00FF00
+		Alpha: 100
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: bradley.husk
+
+abrams:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetMBT
+	Tooltip:
+		Name: Abrams M1A2
+		GenericName: Abrams
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Abrams
+	ActorLostNotification:
+		TextNotification: Lost: Abrams
+	RenderSprites:
+		Image: abrams
+		Scale: 1.25
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 4
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: American Main Battle tank
+	Valued:
+		Cost: 2000
+	Health:
+		HP: 14000
+	Armor:
+		Type: Heavy
+		Thickness: 700
+		Distribution: 100,40,15,10,10
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 480
+			TopLeft: -365, -790
+			BottomRight: 365, 790
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	# JamsMissiles:
+	# 	ActiveProtection: true
+	# 	Range: 2c0
+	Mobile:
+		Locomotor: heavytracked
+		Speed: 100
+		Acceleration: 3, 2, 1
+		TurnSpeed: 10
+		PauseOnCondition: empdisable
+	Turreted:
+		TurnSpeed: 20
+		Offset: 0,0,80
+	Armament@1:
+		Name: primary
+		Weapon: TankRound.Abrams
+		# MovementInaccuracy: 50
+		# FireDelay: 15
+		Recoil: 30
+		RecoilRecovery: 30
+		LocalOffset: 1200,0,80
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 40
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FF0000
+		Width: 1
+		Alpha: 100
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	Selectable:
+		Class: MBT
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: abrams.husk
+
+strykershorad:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^WheeledVehicle
+	Inherits@CargoPips: ^CargoPips
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetAAIFV
+	Tooltip:
+		Name: Stryker SHORAD
+		GenericName: Stryker Short Range Air Defense
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Stryker
+	ActorLostNotification:
+		TextNotification: Lost: Stryker
+	RenderSprites:
+		Image: strykershorad
+		Scale: 1.1
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 5
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: Troop Carrier Infantry Fighting Vehicle
+	Valued:
+		Cost: 2500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 7000
+	Armor:
+		Type: Medium
+		Thickness: 15
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 500
+			TopLeft: -275, -700
+			BottomRight: 275, 700
+	Mobile:
+		Speed: 120
+		Acceleration: 3, 4, 3, 2, 1
+		TurnSpeed: 10
+		Locomotor: heavywheeled
+		PauseOnCondition: empdisable
+	Radar:
+		Range: 30c0
+	WithRangeCircle@Radar:
+		Range: 30c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+	Armament@1:
+		Name: primary
+		Weapon: 30mm.Stryker
+		Recoil: 20
+		RecoilRecovery: 25
+		LocalOffset: 768,0,90
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 400
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 6
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 2
+	Armament@2:
+		Name: secondary
+		Weapon: Stinger.quad
+		LocalOffset: 100,90,90
+		LocalYaw: -100, 100
+		PauseOnCondition: !ammo-secondary || empdisable
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+		FullReloadTicks: 300
+		FullReloadSteps: 4
+		RearmSound: minelay1.aud
+	NextBurstBar@2:
+		Armaments: secondary
+		Color: 66B2FF
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 4
+		RequiresSelection: true
+		FullSequence: pip-blue
+		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		RangeCircleType: aa
+		Color: 66B2FF
+		Alpha: 100
+		Width: 1
+	Armament@3:
+		Name: tertiary
+		Weapon: Hellfire.strykershorad
+		# FireDelay: 25
+		LocalOffset: 100,-90,90
+		LocalYaw: -70, 100
+		PauseOnCondition: !ammo-tertiary || empdisable
+	AmmoPool@3:
+		Name: tertiary-ammo
+		Armaments: tertiary
+		Ammo: 4
+		AmmoCondition: ammo-tertiary
+		FullReloadTicks: 300
+		FullReloadSteps: 4
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@3:
+		Position: Bottom
+		Margin: -8, 3
+		PipCount: 2
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: tertiary-ammo
+	RenderRangeCircle@3:
+		Armament: tertiary
+		Color: 00FF00
+		Alpha: 100
+	NextBurstBar@3:
+		Armaments: tertiary
+		Color: 00FF00
+	Turreted:
+		TurnSpeed: 20
+		Offset: -250,0,80
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
+	AttackTurreted:
+		TargetFrozenActors: True
+		Armaments: primary, secondary, tertiary
+		PauseOnCondition: empdisable || unit.docked
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+	Carryable:
+		LocalOffset: 0,0,100
+	Cargo:
+		Types: Infantry
+		MaxWeight: 9
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadingCondition: notmobile
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	Passenger:
+		CustomPipType: pip-green
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: strykershorad.husk
+
+m109:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetArtillery
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 6
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: M109 Paladin, long range howitzer
+	Tooltip:
+		Name: Paladin
+	AnnounceOnSeen:
+		Type: Artillery
+		TextNotification: Spotted: Paladin
+	ActorLostNotification:
+		TextNotification: Lost: Paladin
+	Valued:
+		Cost: 1800
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 7000
+	Armor:
+		Type: Light
+		Thickness: 10
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 620
+			TopLeft: -315, -900
+			BottomRight: 315, 900
+	Detectable:
+		RadarDetectableCondition: firing
+		Position: Ground
+	Mobile:
+		Speed: 80
+		Acceleration: 2, 1
+		TurnSpeed: 8
+		Locomotor: lighttracked
+		PauseOnCondition: firing || empdisable
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 100
+	IndirectFire:
+	Turreted:
+		Offset: -200,0,0
+		TurnSpeed: 15
+	Armament@1:
+		Weapon: ArtilleryRound.Paladin
+		# FireDelay: 100
+		Recoil: 85
+		RecoilRecovery: 70
+		MuzzleSequence: muzzle
+		LocalOffset: 950,0,380
+		PauseOnCondition: !ammo-primary || empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 39
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Alpha: 100
+		Color: FF0000
+	WithMuzzleOverlay:
+	AttackTurreted:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+		# StopAndWait: 100
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	RenderSprites:
+		Image: m109
+		Scale: 1.1
+	WithSpriteTurret:
+	Selectable:
+		Class: ARTILLERY
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: m109.husk
+
+m270:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetArtillery
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 7
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
+		Description: Long-range rocket artillery with hight area of effect.
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: M270 MLRS
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: M270
+	ActorLostNotification:
+		TextNotification: Lost: M270
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 5000
+	Armor:
+		Type: Light
+		Thickness: 8
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 520
+			TopLeft: -360, -530
+			BottomRight: 360, 530
+	Detectable:
+		# Radar: 1 # TODO this should be removed, but check if it works as intended or fixes needed
+		RadarDetectableCondition: firing
+		Position: Ground
+	Mobile:
+		Locomotor: lighttracked
+		Speed: 80
+		Acceleration: 2, 1
+		TurnSpeed: 8
+		PauseOnCondition: firing || empdisable
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 50
+	IndirectFire:
+	Armament@1:
+		Weapon: M270Rockets
+		# FireDelay: 150
+		LocalOffset: 192,-64,176, 192,64,176
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 12
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FF0000
+	Turreted:
+		Offset: -300,0,50
+		# Offset: -180,0,150
+		TurnSpeed: 10
+	AttackTurreted:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+		Recoils: false
+	Selectable:
+		Class: MLRS
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: m270.husk
+
+HIMARS:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 8
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
+		Description: HIMARS for commanderbambi
+	Valued:
+		Cost: 3500
+	Tooltip:
+		Name: HIMARS
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: HIMARS
+	ActorLostNotification:
+		TextNotification: Lost: HIMARS
+	RenderSprites:
+		Scale: 1.25
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	DamageMultiplier@Loaded:
+		RequiresCondition: loaded
+		Modifier: 1000
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 2000
+	# Armor@Loaded:
+	# 	RequiresCondition: loaded
+	# 	Type: Unarmored
+	Armor:
+		# RequiresCondition: !loaded
+		Type: Light
+	Targetable@Loaded:
+		RequiresCondition: loaded
+		TargetTypes: Ground, Vehicle, Light
+	Targetable@empty:
+		RequiresCondition: !loaded
+		TargetTypes: Ground, Vehicle, Medium
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 620
+			TopLeft: -240, -700
+			BottomRight: 240, 700
+	Detectable:
+		RadarDetectableCondition: firing
+		Position: Ground
+	Mobile:
+		Locomotor: lighttracked
+		Speed: 70
+		TurnSpeed: 8
+		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 160
+	IndirectFire:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+	Armament@1:
+		Weapon: IskanderTargeter
+		LocalOffset: 192,-64,176, 192,64,176
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 6
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 600
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FF0000
+	Turreted:
+		TurnSpeed: 10
+		Offset: -300,0,150
+	AttackTurreted:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+		Recoils: false
+	MissileSpawnerMaster:
+		Actors: IskanderMissile
+		LoadedCondition: loaded
+		LaunchingCondition: firing-primary
+	Explodes:
+		Weapon: ArtilleryExplode
+	Explodes@Loaded:
+		RequiresCondition: loaded
+		Weapon: IskanderExplosion
+	Selectable:
+		DecorationBounds: 2048,2048
+	SpawnActorOnDeath:
+		Actor: HIMARS.husk
+
+# PRSM:
+# 	Inherits@Type: ^TrackedVehicle
+# 	Inherits@GainsExperience: ^GainsExperience
+# 	# Inherits@AutoTarget: ^AutoTargetGroundAntiTank
+# 	-WithDecoration@AmmoNone:
+# 	-WithDecoration@AmmoPrimaryNone:
+# 	-WithDecoration@AmmoSecondaryNone:
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 18
+# 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.futuristic
+# 		Description: Experimental vehicle armed with a laser
+# 	Valued:
+# 		Cost: 3000
+# 	Tooltip:
+# 		Name: Prism Tank
+#	AnnounceOnSeen:
+#		Type: Vehicle
+#		TextNotification: Spotted: Prism Tank
+# 	ActorLostNotification:
+# 		TextNotification: Lost: Prism Tank
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 5000
+# 	Armor:
+# 		Type: Light
+# 		Thickness: 8
+# 		Distribution: 100,80,80,80,60
+# 	Targetable:
+# 		TargetTypes: Ground, Vehicle, Light
+# 	HitShape:
+# 		Type: Rectangle
+# 			VerticalTopOffset: 450
+# 			TopLeft: -350, -500
+# 			BottomRight: 350, 500
+# 	#no info need to be adjusted
+# 	Mobile:
+# 		Locomotor: lighttracked
+# 		Speed: 55
+# 		TurnSpeed: 20
+# 		PauseOnCondition: empdisable
+# 	Selectable:
+# 		DecorationBounds: 2048,2048
+# 	AutoTarget:
+# 		AttackAnythingCondition: stance-attackanything
+# 	AutoTargetPriority@4:
+# 		ValidTargets: Medium, Heavy
+# 		Priority: 4
+# 	AutoTargetPriority@3:
+# 		ValidTargets: Vehicle
+# 		Priority: 3
+# 	AutoTargetPriority@2:
+# 		ValidTargets: Infantry
+# 		Priority: 2
+# 	AutoTargetPriority@1:
+# 		ValidTargets: Defense
+# 		Priority: 1
+# 	Armament@MaximumFirepower:
+# 		Name: primary
+# 		Weapon: PrismLaserMaxFirepower
+# 		LocalOffset: 125,0,180
+# 		PauseOnCondition: ammo-primary < 100 || empdisable
+# 		AmmoUsage: 100
+# 	GrantConditionOnAttack@Cooldown:
+# 		Condition: cooldown
+# 		ArmamentNames: primary
+# 		RevokeDelay: 80
+# 	WithIdleOverlay@Cooldown:
+# 		RequiresCondition: cooldown
+# 		Sequence: cooldown
+# 		Offset: 120,0,300
+# 	Armament@LowFirepower:
+# 		Name: secondary
+# 		Weapon: PrismLaser
+# 		LocalOffset: 125,0,180
+# 		PauseOnCondition: cooldown || !ammo-primary || empdisable
+# 	Turreted:
+# 		TurnSpeed: 20
+# 		Offset: 100,0,10
+# 	AmmoPool@1:
+# 		Name: primary-ammo
+# 		Armaments: primary, secondary
+# 		Ammo: 100
+# 		AmmoCondition: ammo-primary
+# 	ReloadAmmoPool@1:
+# 		AmmoPool: primary-ammo
+# 		Delay: 30
+# 		Count: 20
+# 	WithAmmoPipsDecoration@1:
+# 		Position: Bottom
+# 		Margin: 6,3
+# 		PipCount: 5
+# 		RequiresSelection: true
+# 		FullSequence: pip-white
+# 		AmmoPools: primary-ammo
+# 	AttackTurreted:
+# 		TargetFrozenActors: True
+# 		OpportunityFire: False
+# 		PauseOnCondition: empdisable
+# 	WithSpriteTurret:
+# 	RenderRangeCircle:
+# 		Width: 3
+# 		Alpha: 120
+# 	Explodes:
+# 		Weapon: ArtilleryExplode
+# 	SpawnActorOnDeath:
+# 		Actor: PRSM.husk

@@ -36,6 +36,11 @@ namespace OpenRA
 		public static bool operator ==(in WPos me, in WPos other) { return me.X == other.X && me.Y == other.Y && me.Z == other.Z; }
 		public static bool operator !=(in WPos me, in WPos other) { return !(me == other); }
 
+		public static WVec PositionDiff(WPos a, WPos b)
+		{
+			return new WVec(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+		}
+
 		/// <summary>
 		/// Returns the linear interpolation between points 'a' and 'b'
 		/// </summary>
@@ -74,7 +79,7 @@ namespace OpenRA
 		public override int GetHashCode() { return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode(); }
 
 		public bool Equals(WPos other) { return other == this; }
-		public override bool Equals(object obj) { return obj is WPos && Equals((WPos)obj); }
+		public override bool Equals(object obj) { return obj is WPos pos && Equals(pos); }
 
 		public override string ToString() { return X + "," + Y + "," + Z; }
 

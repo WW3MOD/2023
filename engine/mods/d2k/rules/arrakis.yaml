@@ -35,7 +35,7 @@ spicebloom:
 	BodyOrientation:
 		QuantizedFacings: 1
 	RenderSprites:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	Tooltip:
 		Name: Spice Bloom
@@ -47,7 +47,7 @@ spicebloom:
 	Crushable:
 		CrushClasses: spicebloom
 		CrushedByFriendlies: true
-	RadarColorFromTerrain:
+	MiniMapColorFromTerrain:
 		Terrain: Spice
 	AppearsOnMapPreview:
 		Terrain: Spice
@@ -101,7 +101,7 @@ sandworm:
 	WithAttackOverlay@sand:
 		Sequence: sand
 	HiddenUnderFog:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	AttackSwallow:
 		AttackRequiresEnteringCell: true
@@ -114,14 +114,14 @@ sandworm:
 	AnnounceOnSeen:
 		Notification: WormSign
 		TextNotification: Worm sign.
-		PingRadar: True
-	RevealsShroud:
+		PingMiniMap: True
+	Vision:
 		Range: 5c0
 	LeavesTrails:
 		Image: sandtrail
 		Sequences: traila, trailb, trailc
 		Palette: effect
-		Type: CenterPosition
+		Position: Center
 		TerrainTypes: Sand, Dune, SpiceSand, Spice
 		MovingInterval: 3
 		RequiresCondition: !attacking
@@ -144,7 +144,7 @@ sietch:
 		HP: 60000
 	Armor:
 		Type: wood
-	RevealsShroud:
+	Vision:
 		Range: 10c0
 	-GivesBuildableArea:
 	-Sellable:

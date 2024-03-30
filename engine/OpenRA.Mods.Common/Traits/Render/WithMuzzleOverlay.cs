@@ -24,6 +24,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Ignore the weapon position, and always draw relative to the center of the actor")]
 		public readonly bool IgnoreOffset = false;
 
+		[Desc("Muzzle position relative to LocalOffset for Armament, (forward, right, up) triples.)")]
+		public readonly WVec[] Offset = Array.Empty<WVec>();
 		public override object Create(ActorInitializer init) { return new WithMuzzleOverlay(init.Self, this); }
 	}
 
@@ -59,6 +61,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 					else
 						getFacing = () => WAngle.Zero;
 
+					var customOffset = Info.Offset.Any() ? Info.Offset[barrel.Index] : WVec.Zero;
+
 					var muzzleFlash = new Animation(self.World, render.GetImage(self), getFacing)
 					{
 						IsDecoration = true
@@ -67,7 +71,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 					visible.Add(barrel, false);
 					anims.Add(barrel,
 						new AnimationWithOffset(muzzleFlash,
-							() => info.IgnoreOffset ? WVec.Zero : arm.MuzzleOffset(self, barrel),
+							() => info.IgnoreOffset ? WVec.Zero : arm.MuzzleOffset(self, barrel) + customOffset,
 							() => IsTraitDisabled || !visible[barrel],
 							p => RenderUtils.ZOffsetFromCenter(self, p, 2)));
 				}

@@ -37,6 +37,10 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 
 			var target = targets.ClosestTo(self);
+
+			// FF TODO: 'Collection must not be empty.'
+			/* var target = targets.Random(new Support.MersenneTwister(self.World.LobbyInfo.GlobalSettings.RandomSeed)); */
+
 			if (target == null)
 				return false;
 

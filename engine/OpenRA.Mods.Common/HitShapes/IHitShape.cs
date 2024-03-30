@@ -17,10 +17,13 @@ namespace OpenRA.Mods.Common.HitShapes
 {
 	public interface IHitShape
 	{
+		WDist VerticalTopOffset { get; }
+
 		WDist OuterRadius { get; }
 
 		WDist DistanceFromEdge(in WVec v);
 		WDist DistanceFromEdge(WPos pos, WPos origin, WRot orientation);
+		int PercentFromEdge(WPos pos, WPos origin, WRot orientation);
 
 		void Initialize();
 		IEnumerable<IRenderable> RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos origin, WRot orientation);

@@ -33,7 +33,7 @@ namespace OpenRA.Mods.Common.Orders
 
 		public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 		{
-			if (!self.Owner.IsAlliedWith(target.Owner) || !target.Info.HasTraitInfo<T>() || !canTarget(target, modifiers))
+			if ((!self.Owner.IsAlliedWith(target.Owner) && !self.Owner.IsNeutralWith(target.Owner)) || !target.Info.HasTraitInfo<T>() || !canTarget(target, modifiers))
 				return false;
 
 			cursor = useEnterCursor(target) ? enterCursor : enterBlockedCursor;
@@ -43,7 +43,11 @@ namespace OpenRA.Mods.Common.Orders
 		public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 		{
 			// Allied actors are never frozen
-			return false;
+			if ((!self.Owner.IsAlliedWith(target.Actor.Owner) && !self.Owner.IsNeutralWith(target.Actor.Owner)) || !target.Actor.Info.HasTraitInfo<T>() || !canTarget(target.Actor, modifiers))
+				return false;
+
+			cursor = useEnterCursor(target.Actor) ? enterCursor : enterBlockedCursor;
+			return true;
 		}
 	}
 }

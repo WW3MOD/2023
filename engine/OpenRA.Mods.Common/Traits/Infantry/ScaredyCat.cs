@@ -16,7 +16,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Makes the unit automatically run around when taking damage.")]
-	class ScaredyCatInfo : TraitInfo, Requires<MobileInfo>
+	class ScaredyCatInfo : ConditionalTraitInfo, Requires<MobileInfo>
 	{
 		[Desc("Chance (out of 100) the unit has to enter panic mode when attacked.")]
 		public readonly int PanicChance = 100;
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int PanicSpeedModifier = 200;
 
 		[Desc("Chance (out of 100) the unit has to enter panic mode when attacking.")]
-		public readonly int AttackPanicChance = 20;
+		public readonly int AttackPanicChance = 0;
 
 		[Desc("The terrain types that this actor should avoid running on to while panicking.")]
 		public readonly HashSet<string> AvoidTerrainTypes = new HashSet<string>();

@@ -8,6 +8,7 @@
  * information, see COPYING.
  */
 #endregion
+#pragma warning disable CA2211
 
 using System;
 using System.Collections.Generic;

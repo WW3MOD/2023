@@ -1,0 +1,39 @@
+Player:
+	UnitBuilderBotModule@russia:
+		RequiresCondition: enable-ai-player && player.brics
+		UnitQueues: Vehicle, Infantry
+		UnitDelays:
+		UnitsToBuild:
+			tecn.russia: 1000
+			e2.russia: 100
+			e3.russia: 100
+			ar.russia: 100
+			tl.russia: 100
+			at.russia: 30
+			mt.russia: 30
+			medi.russia: 30
+			aa.russia: 20
+			sn.russia: 20
+			e6.russia: 20
+
+			truk: 10
+			t90: 10
+			bmp2: 10
+			btr: 10
+			giatsint: 10
+
+		UnitLimits:
+			truk: 3
+			tecn.russia: 3
+			e6.russia: 2
+
+	SquadManagerBotModule@russia.land:
+		RequiresCondition: enable-ai-player && player.brics
+		SquadSize: 5
+		SquadSizeRandomBonus: 20
+		RushInterval: 100
+		AttackScanRadius: 32
+		DangerScanRadius: 25
+		ExcludeFromSquadsTypes: tecn.russia
+		IgnoredEnemyTargetTypes: IgnoreThis
+

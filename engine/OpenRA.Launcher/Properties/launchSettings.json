@@ -1,5 +1,9 @@
 {
   "profiles": {
+    "WW3MOD": {
+      "commandName": "Project",
+      "commandLineArgs": "Engine.EngineDir=\"..\" Game.Mod=ww3mod"
+    },
     "Tiberian Dawn": {
       "commandName": "Project",
       "commandLineArgs": "Engine.EngineDir=\"..\" Game.Mod=cnc"

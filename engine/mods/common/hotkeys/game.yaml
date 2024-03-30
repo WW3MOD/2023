@@ -1,3 +1,4 @@
+
 CycleBase: H
 	Description: Jump to base
 	Types: World
@@ -78,8 +79,13 @@ Stop: S
 	Types: Unit
 	Contexts: Player
 
-Scatter: X Ctrl
+Scatter: S
 	Description: Scatter
+	Types: Unit
+	Contexts: Player
+
+Resupply: R
+	Description: Resupply
 	Types: Unit
 	Contexts: Player
 

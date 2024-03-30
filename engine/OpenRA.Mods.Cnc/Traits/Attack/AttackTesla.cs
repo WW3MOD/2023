@@ -22,13 +22,13 @@ namespace OpenRA.Mods.Cnc.Traits
 	class AttackTeslaInfo : AttackBaseInfo
 	{
 		[Desc("How many charges this actor has to attack with, once charged.")]
-		public readonly int MaxCharges = 1;
+		public readonly int MaxCharges = 10;
 
 		[Desc("Reload time for all charges (in ticks).")]
-		public readonly int ReloadDelay = 120;
+		public readonly int ReloadDelay = 200;
 
 		[Desc("Delay for initial charge attack (in ticks).")]
-		public readonly int InitialChargeDelay = 22;
+		public readonly int InitialChargeDelay = 50;
 
 		[Desc("Delay between charge attacks (in ticks).")]
 		public readonly int ChargeDelay = 3;

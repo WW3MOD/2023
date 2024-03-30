@@ -1,0 +1,136 @@
+
+MNLY:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 104
+		Prerequisites: ~techlevel.medium
+		Description: Carries and lays up to 10 Land Mines\nto destroy unwary enemy units.\nCan detect mines.
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Minelayer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 85
+	Minelayer:
+		Mine: MINV
+		AmmoPoolName: mines-ammo
+		TileUnknownName: build-valid
+		TerrainTypes: Clear, Road, Beach, Rough, Bridge
+	# MineImmune: # if friendly mines?
+	AmmoPool:
+		Name: mines-ammo
+		Ammo: 10
+		AmmoCondition: ammo-mines
+		FullReloadTicks: 200
+		FullReloadSteps: 5
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration:
+		Position: Bottom
+		Margin: 7,3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: mines-ammo
+		RequiresCondition: ammo-mines
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: mines-ammo
+	# DetectCloaked:
+	# 	Range: 4c0
+	# 	DetectionTypes: Mine
+	Passenger:
+		CustomPipType: pip-blue
+	RenderSprites:
+		Image: MNLY
+	Carryable:
+		LocalOffset: 0,0,100
+	WithDecoration@AMMO_MINES_NONE:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-ammo-none
+		Position: Top
+		Margin: 0,-5
+		RequiresCondition: !ammo-mines
+		BlinkInterval: 16
+		BlinkPattern: Off,On
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: MNLY.husk
+
+SandBagLayer:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 104
+		Prerequisites: ~techlevel.medium
+		Description: Can deploy sandbags
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Sandbag-layer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground,Vehicle,Light
+	Mobile:
+		Speed: 85
+	Minelayer:
+		Mine: SBAG
+		AmmoPoolName: mines-ammo
+		TileUnknownName: build-valid
+		TerrainTypes: Clear,Road,Beach,Rough,Bridge
+	AmmoPool:
+		Name: mines-ammo
+		Ammo: 5
+		AmmoCondition: ammo-mines
+		FullReloadTicks: 200
+		FullReloadSteps: 5
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration:
+		Position: Bottom
+		Margin: 7,3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: mines-ammo
+		RequiresCondition: ammo-mines
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: mines-ammo
+	Passenger:
+		CustomPipType: pip-blue
+	RenderSprites:
+		Image: MNLY
+	Carryable:
+		LocalOffset: 0,0,100
+	WithDecoration@AMMO_MINES_NONE:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-ammo-none
+		Position: Top
+		Margin: 0,-5
+		RequiresCondition: !ammo-mines
+		BlinkInterval: 16
+		BlinkPattern: Off,On
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: MNLY.husk

@@ -20,7 +20,7 @@ MCV:
 		HpPerStep: 1819
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Transforms:
 		IntoActor: fact
@@ -71,7 +71,7 @@ HARV:
 		HpPerStep: 2584
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	ActorLostNotification:
 		Notification: HarvesterLost
@@ -124,7 +124,7 @@ APC:
 		HpPerStep: 1440
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	Turreted:
 		TurnSpeed: 40
@@ -202,7 +202,7 @@ ARTY:
 		HpPerStep: 568
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Armament:
 		Weapon: ArtilleryShell
@@ -251,7 +251,7 @@ FTNK:
 		HpPerStep: 2046
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Armament:
 		Weapon: BigFlamer
@@ -296,7 +296,7 @@ BGGY:
 		HpPerStep: 1819
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Turreted:
 		TurnSpeed: 40
@@ -342,7 +342,7 @@ BIKE:
 		HpPerStep: 1000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Armament:
 		Weapon: BikeRockets
@@ -383,7 +383,7 @@ JEEP:
 		HpPerStep: 1819
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Turreted:
 		TurnSpeed: 40
@@ -428,7 +428,7 @@ LTNK:
 		HpPerStep: 2062
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Turreted:
 		TurnSpeed: 28
@@ -473,7 +473,7 @@ MTNK:
 		HpPerStep: 2274
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Turreted:
 		TurnSpeed: 20
@@ -525,7 +525,7 @@ HTNK:
 		HpPerStep: 2198
 	Armor:
 		Type: Heavy
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	WithSpriteTurret:
 	Turreted:
@@ -588,7 +588,7 @@ MSAM:
 		HpPerStep: 606
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	Turreted:
 		TurnSpeed: 512
@@ -643,7 +643,7 @@ MLRS:
 		HpPerStep: 1364
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 8c0
 	Turreted:
 		TurnSpeed: 32
@@ -702,7 +702,7 @@ STNK:
 		HpPerStep: 758
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	Cloak:
 		InitialDelay: 85
@@ -749,7 +749,7 @@ MHQ:
 		Type: Light
 	Mobile:
 		Speed: 72
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	WithIdleOverlay@SPINNER:
 		Sequence: spinner
@@ -776,7 +776,7 @@ TRUCK:
 		Type: Light
 	Mobile:
 		Speed: 113
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	DeliversCash:
 		Payload: 1000

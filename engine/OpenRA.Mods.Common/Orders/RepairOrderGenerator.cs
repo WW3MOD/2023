@@ -39,8 +39,9 @@ namespace OpenRA.Mods.Common.Orders
 			if (underCursor == null)
 				yield break;
 
-			if (underCursor.GetDamageState() == DamageState.Undamaged)
-				yield break;
+			// if (underCursor.GetDamageState() == DamageState.Undamaged)
+			// // if (underCursor.GetDamageState() == DamageState.Undamaged && !underCursor.TraitOrDefault<Rearmable>().RearmableAmmoPools.Any(a => !a.HasFullAmmo))
+			// 	yield break;
 
 			// Repair a building.
 			if (underCursor.Info.HasTraitInfo<RepairableBuildingInfo>())

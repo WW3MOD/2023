@@ -52,7 +52,7 @@ BRIDGEHUT:
 	-Targetable:
 
 FLARE:
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 
 SAM:

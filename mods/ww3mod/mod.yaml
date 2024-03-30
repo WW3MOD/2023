@@ -1,9 +1,9 @@
 Metadata:
-	Title: Red Alert
+	Title: WW3MOD
 	Version: release-20230225
 	Website: https://www.openra.net
 	WebIcon32: https://www.openra.net/images/icons/ra_32x32.png
-	WindowTitle: OpenRA - Red Alert
+	WindowTitle: WW3MOD
 
 PackageFormats: Mix
 
@@ -11,8 +11,9 @@ Packages:
 	~^SupportDir|Content/ra/v2/
 	~^SupportDir|Content/ra/v2/expand
 	~^SupportDir|Content/ra/v2/cnc
-	~^SupportDir|Content/ra/v2/movies
+	# ~^SupportDir|Content/ra/v2/movies
 	^EngineDir
+	$ra: ra
 	$ww3mod: ww3mod
 	^EngineDir|mods/common: common
 	~main.mix
@@ -32,10 +33,39 @@ Packages:
 	~hires1.mix
 	~desert.mix
 	~general.mix
-	ww3mod|bits
-	ww3mod|bits/desert
+	# test
+	ra|bits
+	ra|bits/desert
+	ra|scripts
+	common|scripts
+	ra|uibits
+	# /test
 	ww3mod|scripts
 	common|scripts
+	ww3mod|bits
+	ww3mod|bits/aircraft
+	ww3mod|bits/buildings
+	ww3mod|bits/desert
+	ww3mod|bits/icons
+	ww3mod|bits/explosions
+	ww3mod|bits/classes
+	ww3mod|bits/infantry
+	ww3mod|bits/palettes
+	ww3mod|bits/music
+	ww3mod|bits/music/gla
+	ww3mod|bits/naval
+	ww3mod|bits/resources
+	ww3mod|bits/sounds
+	ww3mod|bits/sounds/robot
+	ww3mod|bits/sounds/volkov
+	ww3mod|bits/sounds/chem
+	ww3mod|bits/sounds/terroist
+	ww3mod|bits/sounds/glabike
+	ww3mod|bits/sounds/informan
+	ww3mod|bits/sounds/v3
+	ww3mod|bits/sounds/seal
+	ww3mod|bits/sounds/commando
+	ww3mod|bits/vehicle
 	ww3mod|uibits
 
 MapFolders:
@@ -45,29 +75,51 @@ MapFolders:
 
 Rules:
 	ww3mod|rules/misc.yaml
-	ww3mod|rules/ai.yaml
+	ww3mod|rules/ai/ai.yaml
+	ww3mod|rules/ai/ai-america.yaml
+	ww3mod|rules/ai/ai-russia.yaml
 	ww3mod|rules/player.yaml
 	ww3mod|rules/palettes.yaml
 	ww3mod|rules/world.yaml
 	ww3mod|rules/defaults.yaml
-	ww3mod|rules/vehicles.yaml
-	ww3mod|rules/husks.yaml
-	ww3mod|rules/structures.yaml
-	ww3mod|rules/infantry.yaml
-	ww3mod|rules/civilian.yaml
-	ww3mod|rules/decoration.yaml
-	ww3mod|rules/aircraft.yaml
-	ww3mod|rules/ships.yaml
-	ww3mod|rules/fakes.yaml
+	ww3mod|rules/ingame/civilian.yaml
+	ww3mod|rules/ingame/decoration.yaml
+	ww3mod|rules/ingame/aircraft.yaml
+	ww3mod|rules/ingame/aircraft-america.yaml
+	ww3mod|rules/ingame/aircraft-russia.yaml
+	ww3mod|rules/husks/husks.yaml
+	ww3mod|rules/husks/husks-neutral.yaml
+	ww3mod|rules/husks/husks-buildings.yaml
+	ww3mod|rules/husks/husks-defenses.yaml
+	ww3mod|rules/husks/husks-vehicles.yaml
+	ww3mod|rules/husks/husks-aircraft.yaml
+	ww3mod|rules/ingame/infantry.yaml
+	ww3mod|rules/ingame/infantry-neutral.yaml
+	ww3mod|rules/ingame/infantry-america.yaml
+	ww3mod|rules/ingame/infantry-russia.yaml
+	ww3mod|rules/ingame/naval.yaml
+	ww3mod|rules/ingame/naval-america.yaml
+	ww3mod|rules/ingame/naval-russia.yaml
+	ww3mod|rules/ingame/structures.yaml
+	ww3mod|rules/ingame/structures-defenses.yaml
+	ww3mod|rules/ingame/structures-neutral.yaml
+	ww3mod|rules/ingame/mcvs.yaml
+	ww3mod|rules/ingame/dcvs.yaml
+	ww3mod|rules/ingame/vehicles.yaml
+	ww3mod|rules/ingame/vehicles-america.yaml
+	ww3mod|rules/ingame/vehicles-russia.yaml
 
 Sequences:
-	ww3mod|sequences/ships.yaml
-	ww3mod|sequences/vehicles.yaml
-	ww3mod|sequences/structures.yaml
-	ww3mod|sequences/infantry.yaml
-	ww3mod|sequences/aircraft.yaml
-	ww3mod|sequences/misc.yaml
-	ww3mod|sequences/decorations.yaml
+	ww3mod|sequences/sequences.yaml
+	ww3mod|sequences/sequences-aircraft.yaml
+	ww3mod|sequences/sequences-decorations.yaml
+	ww3mod|sequences/sequences-defenses.yaml
+	ww3mod|sequences/sequences-infantry.yaml
+	ww3mod|sequences/sequences-ingame.yaml
+	ww3mod|sequences/sequences-misc.yaml
+	ww3mod|sequences/sequences-naval.yaml
+	ww3mod|sequences/sequences-neutral.yaml
+	ww3mod|sequences/sequences-structures.yaml
 
 TileSets:
 	ww3mod|tilesets/snow.yaml
@@ -140,24 +192,26 @@ ChromeLayout:
 	common|chrome/text-notifications.yaml
 
 Translations:
-	common|languages/en.ftl
+	ww3mod|languages/en.ftl
+	# ww3mod|languages/english.yaml
 
 Weapons:
-	ww3mod|weapons/explosions.yaml
-	ww3mod|weapons/ballistics.yaml
-	ww3mod|weapons/missiles.yaml
-	ww3mod|weapons/other.yaml
-	ww3mod|weapons/smallcaliber.yaml
-	ww3mod|weapons/superweapons.yaml
+	ww3mod|rules/weapons/weapons-defaults.yaml
+	ww3mod|rules/weapons/weapons-effects.yaml
+	ww3mod|rules/weapons/weapons-explosions.yaml
+	ww3mod|rules/weapons/weapons-ballistics.yaml
+	ww3mod|rules/weapons/weapons-missiles.yaml
+	ww3mod|rules/weapons/weapons-other.yaml
+	ww3mod|rules/weapons/weapons-superweapons.yaml
 
 Voices:
-	ww3mod|audio/voices.yaml
+    ww3mod|rules/sound/voices.yaml
 
 Notifications:
-	ww3mod|audio/notifications.yaml
+	ww3mod|rules/sound/notifications.yaml
 
 Music:
-	ww3mod|audio/music.yaml
+    ww3mod|rules/sound/music.yaml
 
 Hotkeys:
 	common|hotkeys/game.yaml
@@ -174,7 +228,7 @@ LoadScreen: LogoStripeLoadScreen
 	Image: ww3mod|uibits/loadscreen.png
 	Image2x: ww3mod|uibits/loadscreen-2x.png
 	Image3x: ww3mod|uibits/loadscreen-3x.png
-	Text: Filling Crates..., Charging Capacitors..., Reticulating Splines..., Planting Trees..., Building Bridges..., Aging Empires..., Compiling EVA..., Constructing Pylons..., Activating Skynet..., Splitting Atoms...
+	Text: World War 3
 
 ServerTraits:
 	LobbyCommands
@@ -229,7 +283,7 @@ MapGrid:
 
 DefaultOrderGenerator: UnitOrderGenerator
 
-SupportsMapsFrom: ww3mod
+SupportsMapsFrom: ww3mod #, ra?
 
 SoundFormats: Aud, Wav
 
@@ -256,30 +310,50 @@ AssetBrowser:
 GameSpeeds:
 	DefaultSpeed: default
 	Speeds:
+		strategical:
+			Name: strategical
+			Timestep: 120
+			OrderLatency: 2
+		tactical:
+			Name: tactical
+			Timestep: 100
+			OrderLatency: 2
 		slowest:
 			Name: slowest
-			Timestep: 80
+			Timestep: 86
 			OrderLatency: 2
 		slower:
 			Name: slower
-			Timestep: 50
-			OrderLatency: 3
+			Timestep: 75
+			OrderLatency: 2
+		slow:
+			Name: slow
+			Timestep: 67
+			OrderLatency: 2
 		default:
 			Name: normal
-			Timestep: 40
-			OrderLatency: 3
+			Timestep: 60
+			OrderLatency: 2
 		fast:
 			Name: fast
-			Timestep: 35
-			OrderLatency: 4
+			Timestep: 55
+			OrderLatency: 2
 		faster:
 			Name: faster
-			Timestep: 30
-			OrderLatency: 4
+			Timestep: 48
+			OrderLatency: 2
 		fastest:
 			Name: fastest
-			Timestep: 20
-			OrderLatency: 6
+			Timestep: 40
+			OrderLatency: 2
+		crazy:
+			Name: crazy
+			Timestep: 34
+			OrderLatency: 2
+		insane:
+			Name: insane
+			Timestep: 30
+			OrderLatency: 2
 
 ModContent:
 	InstallPromptMessage: Red Alert requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without music\nor videos) from a mirror of the 2008 Red Alert freeware release.\n\nAdvanced Install includes options for copying the music, videos, and\nother content from an original game disc or digital installation.
@@ -316,6 +390,9 @@ ModContent:
 		music-aftermath: Aftermath Music
 			TestFiles: ^SupportDir|Content/ra/v2/expand/await.aud, ^SupportDir|Content/ra/v2/expand/bog.aud, ^SupportDir|Content/ra/v2/expand/float_v2.aud, ^SupportDir|Content/ra/v2/expand/gloom.aud, ^SupportDir|Content/ra/v2/expand/grndwire.aud, ^SupportDir|Content/ra/v2/expand/rpt.aud, ^SupportDir|Content/ra/v2/expand/search.aud, ^SupportDir|Content/ra/v2/expand/traction.aud, ^SupportDir|Content/ra/v2/expand/wastelnd.aud
 			Sources: aftermath, aftermath-linux, ra-origin
+		# cncmusic: C&C Game Music
+		# 	TestFiles: ^Content/ra/v2/cnc/scores.mix
+		# 	Download: cncmusic
 	Downloads:
 		ww3mod|installer/downloads.yaml
 	Sources:
@@ -329,3 +406,7 @@ ModContent:
 
 DiscordService:
 	ApplicationId: 699222659766026240
+
+# ModCredits:
+# 	ModCreditsFile: ww3mod|credits.txt
+# 	ModTabTitle: WW3MOD

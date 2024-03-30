@@ -1,0 +1,544 @@
+
+^Tree:
+	Inherits@1: ^SpriteActor
+	Inherits@Shape: ^1x1Shape
+	Inherits@FireMechanic: ^BuildingAffectedByFire
+	CombatDebugOverlay:
+	BlocksProjectiles:
+		MaxBypass: 4
+		BypassChance: 80
+		ExplodesOn: Ally, Neutral, Enemy
+		Height: 256
+	Passable:
+		PassClasses: tree
+		PassedByRelationships: Ally, Neutral, Enemy
+	Interactable:
+	Tooltip:
+		Name: Tree
+		ShowOwnerRow: false
+	RenderSprites:
+		Palette: terrain
+	WithSpriteBody:
+	Building:
+		Footprint: x
+		Density: 10
+		Dimensions: 1,1
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
+	# 	Terrain: Tree
+	# AppearsOnMapPreview:
+	# 	Terrain: Tree
+	Health:
+		HP: 250
+	Armor:
+		Type: Wood
+	Targetable:
+		TargetTypes: Trees
+	AlwaysVisible:
+	ScriptTriggers:
+	MapEditorData:
+		ExcludeTilesets: INTERIOR
+		Categories: Tree
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+
+^AmmoBox:
+	Inherits: ^TechBuilding
+	-Selectable:
+	Health:
+		HP: 10
+	Explodes:
+		Weapon: UnitExplode
+	Tooltip:
+		Name: Ammo Box
+	Targetable:
+		TargetTypes: NoAutoTarget, Ground, C4, DetonateAttack, Structure
+	Armor:
+		Type: Light
+	MapEditorData:
+		Categories: Decoration
+	Interactable:
+		Bounds: 1024,1024
+^Box:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: Boxes
+	MapEditorData:
+		-ExcludeTilesets:
+		Categories: Decoration
+^Rock:
+	Inherits@1: ^SpriteActor
+	Interactable:
+	Tooltip:
+		Name: Rock
+		ShowOwnerRow: false
+	RenderSprites:
+		Palette: desert
+	WithSpriteBody:
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
+	# 	Terrain: Tree
+	# AppearsOnMapPreview:
+	# 	Terrain: Tree
+	AlwaysVisible:
+	ScriptTriggers:
+	MapEditorData:
+		RequireTilesets: DESERT
+		Categories: Decoration
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+
+T01:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T01.Husk
+	Tooltip:
+		Name: T01
+		ShowOwnerRow: false
+T02:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T02.Husk
+	Tooltip:
+		Name: T02
+		ShowOwnerRow: false
+T03:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T03.Husk
+	Tooltip:
+		Name: T03
+		ShowOwnerRow: false
+T04:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T04.Husk
+	Tooltip:
+		Name: T04
+		ShowOwnerRow: false
+T05:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T05.Husk
+	Tooltip:
+		Name: T05
+		ShowOwnerRow: false
+T06:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T06.Husk
+	Tooltip:
+		Name: T06
+		ShowOwnerRow: false
+T07:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T07.Husk
+	Tooltip:
+		Name: T07
+		ShowOwnerRow: false
+T08:
+	Inherits: ^Tree
+	Building:
+		Footprint: x_
+		Density: 5,0
+		Dimensions: 2,1
+	SpawnActorOnDeath:
+		Actor: T08.Husk
+	Tooltip:
+		Name: T08
+		ShowOwnerRow: false
+T09:
+	Inherits: ^Tree
+	MapEditorData:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T09.Husk
+	Tooltip:
+		Name: T09
+		ShowOwnerRow: false
+T10:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ xx
+		Density: 0,0, 10,10
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T10.Husk
+	Tooltip:
+		Name: T10
+		ShowOwnerRow: false
+T11:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ xx
+		Density: 0,0, 10,10
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T11.Husk
+	Tooltip:
+		Name: T11
+		ShowOwnerRow: false
+T12:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T12.Husk
+	Tooltip:
+		Name: T12
+		ShowOwnerRow: false
+T13:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T13.Husk
+	Tooltip:
+		Name: T13
+		ShowOwnerRow: false
+T14:
+	Inherits: ^Tree
+	Building:
+		Footprint: ___ _x_
+		Density: 0,0,0, 0,10,0
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T14.Husk
+	Tooltip:
+		Name: T14
+		ShowOwnerRow: false
+T15:
+	Inherits: ^Tree
+	Building:
+		Footprint: ___ _x_
+		Density: 0,0,0, 0,15,0
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T15.Husk
+	Tooltip:
+		Name: T15
+		ShowOwnerRow: false
+T16:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T16.Husk
+	Tooltip:
+		Name: T16
+		ShowOwnerRow: false
+T17:
+	Inherits: ^Tree
+	Building:
+		Footprint: __ x_
+		Density: 0,0, 10,0
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T17.Husk
+	Tooltip:
+		Name: T17
+		ShowOwnerRow: false
+TC01:
+	Inherits: ^Tree
+	Building:
+		Footprint: ==_ xx_
+		Density: 5,5,0, 10,10,0
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC01.Husk
+	Tooltip:
+		Name: TC01
+		ShowOwnerRow: false
+TC02:
+	Inherits: ^Tree
+	Building:
+		Footprint: ==_ x=_
+		Density: 5,5,0, 10,5,0
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC02.Husk
+	Tooltip:
+		Name: TC02
+		ShowOwnerRow: false
+TC03:
+	Inherits: ^Tree
+	Building:
+		Footprint: x=_ xx_
+		Density: 10,5,0, 10,10,0
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC03.Husk
+	Tooltip:
+		Name: TC03
+		ShowOwnerRow: false
+TC04:
+	Inherits: ^Tree
+	Building:
+		Footprint: x==_ xx=_ x___
+		Density: 10,5,5,0, 10,10,5,0, 10,0,0,0
+		Dimensions: 4,3
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC04.Husk
+	Tooltip:
+		Name: TC04
+		ShowOwnerRow: false
+TC05:
+	Inherits: ^Tree
+	Building:
+		Footprint: __x_ xxx_ _=x_
+		Density: 0,0,10,0, 10,10,10,0, 0,5,10,0
+		Dimensions: 4,3
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC05.Husk
+	Tooltip:
+		Name: TC05
+		ShowOwnerRow: false
+
+AMMOBOX1:
+	Inherits: ^AmmoBox
+AMMOBOX2:
+	Inherits: ^AmmoBox
+AMMOBOX3:
+	Inherits: ^AmmoBox
+
+BOXES01:
+	Inherits: ^Box
+BOXES02:
+	Inherits: ^Box
+BOXES03:
+	Inherits: ^Box
+BOXES04:
+	Inherits: ^Box
+BOXES05:
+	Inherits: ^Box
+BOXES06:
+	Inherits: ^Box
+BOXES07:
+	Inherits: ^Box
+BOXES08:
+	Inherits: ^Box
+BOXES09:
+	Inherits: ^Box
+
+ICE01:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: xx xx
+		Density: 10,10, 10,10
+		Dimensions: 2,2
+	Tooltip:
+		Name: ICE01
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE02:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: x x
+		Density: 10,10
+		Dimensions: 1,2
+	Tooltip:
+		Name: ICE02
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE03:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: xx
+		Density: 10,10
+		Dimensions: 2,1
+	Tooltip:
+		Name: ICE03
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE04:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: ICE04
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+ICE05:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: ICE05
+	MapEditorData:
+		RequireTilesets: SNOW
+		Categories: Decoration
+
+ROCK1:
+	Inherits: ^Rock
+	Building:
+		Footprint: xxx xxx
+		Density: 0,0,0, 50,50,0
+		Dimensions: 3,2
+ROCK2:
+	Inherits: ^Rock
+	Building:
+		Footprint: xxx
+		Density: 50,50,0
+		Dimensions: 3,1
+ROCK3:
+	Inherits: ^Rock
+	Building:
+		Footprint: xxx xxx
+		Density: 0,0,0, 50,50,0
+		Dimensions: 3,2
+ROCK4:
+	Inherits: ^Rock
+	Building:
+		Footprint: xx
+		Density: 50,0
+		Dimensions: 2,1
+ROCK5:
+	Inherits: ^Rock
+	Building:
+		Footprint: xx
+		Density: 50,0
+		Dimensions: 2,1
+ROCK6:
+	Inherits: ^Rock
+	Building:
+		Footprint: xxx xxx
+		Density: 0,0,0, 50,50,50
+		Dimensions: 3,2
+ROCK7:
+	Inherits: ^Rock
+	Building:
+		Footprint: xxxxx
+		Density: 50,50,50,50,0
+		Dimensions: 5,1
+
+UTILPOL1:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: Utility Pole
+	MapEditorData:
+		Categories: Decoration
+UTILPOL2:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+	Tooltip:
+		Name: Utility Pole
+	MapEditorData:
+		Categories: Decoration
+
+TANKTRAP1:
+	Inherits: ^Rock
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: x
+		Density: 20
+		Dimensions: 1,1
+	Tooltip:
+		Name: Tank Trap
+	MapEditorData:
+		RequireTilesets: TEMPERAT, SNOW, DESERT, INTERIOR
+TANKTRAP2:
+	Inherits: ^Rock
+	RenderSprites:
+		Palette: player
+	Building:
+		Footprint: x
+		Density: 20
+		Dimensions: 1,1
+	Tooltip:
+		Name: Tank Trap
+	MapEditorData:
+		RequireTilesets: TEMPERAT, SNOW, DESERT, INTERIOR

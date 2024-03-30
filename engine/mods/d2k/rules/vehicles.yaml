@@ -25,7 +25,7 @@ mcv:
 		Category: Units
 	Mobile:
 		Speed: 31
-	RevealsShroud:
+	Vision:
 		Range: 2c768
 	MustBeDestroyed:
 		RequiredForShortGame: true
@@ -87,7 +87,7 @@ harvester:
 		Category: Units
 	Mobile:
 		Speed: 43
-	RevealsShroud:
+	Vision:
 		Range: 3c768
 	Explodes:
 		Weapon: UnitExplodeLarge
@@ -144,7 +144,7 @@ trike:
 	Mobile:
 		TurnSpeed: 40
 		Speed: 128
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	WithMuzzleOverlay:
 	Armament@damage:
@@ -186,7 +186,7 @@ quad:
 	Mobile:
 		TurnSpeed: 32
 		Speed: 96
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	Armament:
 		Weapon: Rocket
@@ -233,7 +233,7 @@ siege_tank:
 	Mobile:
 		Speed: 43
 		TurnSpeed: 12
-	RevealsShroud:
+	Vision:
 		Range: 6c768
 	Turreted:
 		TurnSpeed: 12
@@ -290,7 +290,7 @@ missile_tank:
 		Description: The Missile Tank is anti-aircraft capable and effective against most targets, except infantry units.\n\nMissile Tanks are vulnerable to most weapons, though high-caliber guns are slightly less effective.
 		Order: 190
 		Category: Units
-	RevealsShroud:
+	Vision:
 		Range: 6c768
 	Armament:
 		Weapon: mtank_pri
@@ -335,7 +335,7 @@ sonic_tank:
 	Mobile:
 		TurnSpeed: 12
 		Speed: 31
-	RevealsShroud:
+	Vision:
 		Range: 5c768
 	Armament:
 		Weapon: Sound
@@ -385,7 +385,7 @@ devastator:
 		PauseOnCondition: notmobile
 	AutoCarryable:
 		RequiresCondition: !overload
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	Armament:
 		Weapon: DevBullet
@@ -461,7 +461,7 @@ raider:
 	Mobile:
 		TurnSpeed: 40
 		Speed: 149
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	WithMuzzleOverlay:
 	Armament@damage:
@@ -539,7 +539,7 @@ deviator:
 		Description: The Deviator's missiles discharge a silicon cloud that interferes with vehicle controls - temporarily changing the allegiance of the targeted unit. Personnel are not seriously effected by the cloud.\n\nThe Deviator is vulnerable to most types of weapon, though high-caliber guns are slightly less effective.
 		Order: 210
 		Category: Units
-	RevealsShroud:
+	Vision:
 		Range: 4c768
 	Armament:
 		Weapon: DeviatorMissile
@@ -581,7 +581,7 @@ deviator:
 	Mobile:
 		Speed: 75
 		TurnSpeed: 20
-	RevealsShroud:
+	Vision:
 		Range: 5c768
 	Turreted:
 		TurnSpeed: 20

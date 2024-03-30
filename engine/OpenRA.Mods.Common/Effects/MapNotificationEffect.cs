@@ -19,7 +19,7 @@ namespace OpenRA.Mods.Common.Effects
 {
 	public class MapNotificationEffect : IEffect
 	{
-		readonly RadarPings radarPings;
+		readonly MiniMapPings radarPings;
 
 		readonly WPos pos;
 		readonly Player player;
@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Effects
 			visible = pingVisible;
 			color = pingColor;
 
-			radarPings = player.World.WorldActor.TraitOrDefault<RadarPings>();
+			radarPings = player.World.WorldActor.TraitOrDefault<MiniMapPings>();
 		}
 
 		public void Tick(World world)

@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int BuildDuration = -1;
 
 		[Desc("Percentage modifier to apply to the build duration.")]
-		public readonly int BuildDurationModifier = 60;
+		public readonly int BuildDurationModifier = 100;
 
 		[Desc("Sort order for the production palette. Smaller numbers are presented earlier.")]
 		public readonly int BuildPaletteOrder = 9999;

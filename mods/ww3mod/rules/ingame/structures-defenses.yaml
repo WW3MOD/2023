@@ -1,0 +1,1066 @@
+
+^Defense:
+	Inherits: ^Building
+	Inherits@Selection: ^SelectableCombatBuilding
+	Inherits@Vision: ^StandardVision
+	-GivesBuildableArea:
+	-AcceptsDeliveredCash:
+	Selectable:
+		Bounds: 1024,1024
+	Building:
+		TerrainTypes: Clear,Road,Beach,Rough
+	Targetable:
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+	MustBeDestroyed:
+		RequiredForShortGame: false
+	DrawLineToTarget:
+	Explodes:
+		Weapon: SmallBuildingExplode
+		EmptyWeapon: SmallBuildingExplode
+	MapEditorData:
+		Categories: Defense
+	-CommandBarBlacklist:
+
+^SelectableCombatBuilding:
+	Inherits@SelectionDecorations: ^Selectable
+	Selectable:
+		Priority: 4
+
+^Wall:
+	Inherits@ExistsInWorld: ^ExistsInWorld
+	Inherits@2: ^SpriteActor
+	Inherits@Shape: ^1x1Shape
+	Inherits@Handicaps: ^PlayerHandicaps
+	-GivesExperience:
+	Interactable:
+		Bounds: 1024,1024
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+		BuildSounds: placbldg.aud
+		TerrainTypes: Clear,Road
+		UndeploySounds: cashturn.aud
+	FootprintPlaceBuildingPreview:
+	RequiresBuildableArea:
+		AreaTypes: building
+		Adjacent: 10
+	SoundOnDamageTransition:
+		DamagedSounds: sandbag2.aud
+		DestroyedSounds: sandbag2.aud
+	LineBuild:
+		Range: 8
+		NodeTypes: wall
+	LineBuildNode:
+		Types: wall, gate
+	Targetable:
+		TargetTypes: NoAutoTarget, Ground, Concrete, C4, DetonateAttack, Wall
+	RenderSprites:
+		Palette: effect
+	WithWallSpriteBody:
+	Sellable:
+		SellSounds: cashturn.aud
+	Guardable:
+	FrozenUnderFog:
+	FrozenUnderFogUpdatedByGps:
+	Health:
+		HP: 100
+	MiniMapColorFromTerrain:
+		Terrain: Wall
+	AppearsOnMapPreview:
+		Terrain: Wall
+	MapEditorData:
+		Categories: Wall
+
+GTWR:
+	Inherits@Type: ^Defense
+	Inherits@CargoPips: ^CargoPips
+	Inherits@AutoTarget: ^AutoTargetGround
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
+	RenderSprites:
+		PlayerPalette: playertd
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 0
+		Prerequisites: ~disabled
+		IconPalette: chrometd
+		Description: Anti-infantry base defense.
+	Valued:
+		Cost: 200
+	Tooltip:
+		Name: Guard Tower
+	Building:
+	Health:
+		HP: 10000
+	Armor:
+		Type: Unarmored
+		Thickness: 25
+	Targetable:
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
+	Targetable@DontEMP:
+		TargetTypes: EMPInvalid
+	-BodyOrientation:
+	ClassicFacingBodyOrientation:
+		QuantizedFacings: 8
+	Cargo:
+		Types: Infantry
+		Neutral: True
+		MaxWeight: 2
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadedCondition: loaded
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	AttackGarrisoned:
+		PortOffsets: 300,300,300
+		PortYaws: 0
+		PortCones: 512
+
+PBOX:
+	Inherits@Type: ^Defense
+	Inherits@CargoPips: ^CargoPips
+	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
+	-WithColoredOverlay@EMP:
+	-TimedConditionBar@EMP:
+	-WithIdleOverlay@EMP:
+	-ExternalCondition@EMP:
+	-PowerMultiplier@EMP:
+	-GrantCondition@EMP:
+	-QuantizeFacingsFromSequence:
+	-SpawnActorsOnSell:
+	BodyOrientation:
+		QuantizedFacings: 8
+	Building:
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 1
+		Prerequisites: ~disabled
+		Description: Reinforced static defense
+	Tooltip:
+		Name: Bunker
+	Valued:
+		Cost: 500
+	Health:
+		HP: 40000
+	Targetable@DontEMP:
+		TargetTypes: EMPInvalid
+	Armor:
+		Type: Concrete
+		Thickness: 300
+	SpawnActorOnDeath:
+		Actor: pbox.husk
+	Cargo:
+		Types: Infantry
+		Neutral: True
+		MaxWeight: 2
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadedCondition: loaded
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	AttackGarrisoned:
+		PortOffsets: 300,300,300
+		PortYaws: 0
+		PortCones: 512
+
+HBOX:
+	Inherits@Type: ^Defense
+	Inherits@CargoPips: ^CargoPips
+	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
+	-WithColoredOverlay@EMP:
+	-TimedConditionBar@EMP:
+	-WithIdleOverlay@EMP:
+	-ExternalCondition@EMP:
+	-PowerMultiplier@EMP:
+	-GrantCondition@EMP:
+	-SpawnActorsOnSell:
+	-MustBeDestroyed:
+	-QuantizeFacingsFromSequence:
+	BodyOrientation:
+		QuantizedFacings: 8
+	Building:
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 4
+		Prerequisites: ~disabled
+		Description: Camouflaged emplacement
+	Tooltip:
+		Name: Camo Pillbox
+	Valued:
+		Cost: 300
+	Health:
+		HP: 15000
+	Targetable@DontEMP:
+		TargetTypes: EMPInvalid
+	Armor:
+		Type: Light
+		Thickness: 150
+	GrantConditionOnDamageState@UNCLOAK:
+		Condition: cloak-force-disabled
+		ValidDamageStates: Critical
+	SpawnActorOnDeath:
+		Actor: hbox.husk
+	Cargo:
+		Types: Infantry
+		Neutral: True
+		MaxWeight: 2
+		AfterLoadDelay: 0
+		BeforeUnloadDelay: 0
+		AfterUnloadDelay: 0
+		LoadedCondition: loaded
+		EjectOnDeath: True
+	WithCargoPipsDecoration:
+	AttackGarrisoned:
+		PortOffsets: 300,300,300
+		PortYaws: 0
+		PortCones: 512
+
+SBAG:
+	Inherits: ^Wall
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 3
+		Prerequisites: ~disabled
+		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
+	Valued:
+		Cost: 50
+	CustomSellValue:
+		Value: 0
+	Tooltip:
+		Name: Sandbag Wall
+	Health:
+		HP: 150
+	Armor:
+		Type: Concrete
+	Passable:
+		PassClasses: sandbag
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	LineBuild:
+		NodeTypes: sandbag
+		Range: 12
+	LineBuildNode:
+		Types: sandbag
+	WithWallSpriteBody:
+		Type: sandbag
+
+FENC:
+	Inherits: ^Wall
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 3
+		Prerequisites: ~disabled
+		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
+	Valued:
+		Cost: 50
+	CustomSellValue:
+		Value: 0
+	Tooltip:
+		Name: Wire Fence
+	Health:
+		HP: 500
+	Armor:
+		Type: Concrete
+	Passable:
+		PassClasses: fence
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	LineBuild:
+		NodeTypes: fence
+		Range: 12
+	LineBuildNode:
+		Types: fence
+	WithWallSpriteBody:
+		Type: fence
+
+BARB:
+	Inherits: ^Wall
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 3
+		Prerequisites: ~disabled
+		Description: Stops infantry and light vehicles.\nCan be crushed by tracked vehicles.
+	Valued:
+		Cost: 50
+	CustomSellValue:
+		Value: 0
+	Tooltip:
+		Name: Barbed-Wire Fence
+	Health:
+		HP: 750
+	Armor:
+		Type: Concrete
+	Passable:
+		PassClasses: barbedwire
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	LineBuild:
+		NodeTypes: barbwire
+		Range: 12
+	LineBuildNode:
+		Types: barbwire
+	WithWallSpriteBody:
+		Type: barbwire
+
+CYCL:
+	Inherits: ^Wall
+	Tooltip:
+		Name: Chain-Link Barrier
+	Armor:
+		Type: Wood
+	Passable:
+		PassClasses: barbedwire
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	LineBuild:
+		NodeTypes: chain
+	LineBuildNode:
+		Types: chain
+	WithWallSpriteBody:
+		Type: chain
+
+WOOD:
+	Inherits: ^Wall
+	Tooltip:
+		Name: Wooden Fence
+	Armor:
+		Type: Wood
+	Passable:
+		PassClasses: fence
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	LineBuild:
+		NodeTypes: woodfence
+	LineBuildNode:
+		Types: woodfence
+	WithWallSpriteBody:
+		Type: woodfence
+
+BRIK:
+	Inherits: ^Wall
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 6
+		Prerequisites: ~disabled
+		Description: Reinforced concrete wall
+	Valued:
+		Cost: 200
+	CustomSellValue:
+		Value: 0
+	Tooltip:
+		Name: Concrete Wall
+	SoundOnDamageTransition:
+		DamagedSounds: crmble2.aud
+		DestroyedSounds: kaboom30.aud
+	Health:
+		HP: 15000
+	Armor:
+		Type: Concrete
+	Passable:
+		PassClasses: heavywall
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	Demolishable:
+		Condition: being-demolished
+	BlocksProjectiles:
+	LineBuild:
+		NodeTypes: concrete, gate
+	LineBuildNode:
+		Types: concrete, gate
+	WithWallSpriteBody:
+		Type: concrete
+
+^Gate:
+	Inherits: ^Building
+	Inherits@Handicaps: ^PlayerHandicaps
+	-WithSpriteBody:
+	-EngineerRepairable:
+	-SpawnActorsOnSell:
+	-WithMakeAnimation:
+	-GivesBuildableArea:
+	-GivesExperience:
+	Health:
+		HP: 15000
+	Valued:
+		Cost: 250
+	Sellable:
+		RequiresCondition: !being-demolished
+	CustomSellValue:
+		Value: 50
+	Demolishable:
+		Condition: being-demolished
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	LineBuildNode:
+		Types: concrete, gate
+	WithGateSpriteBody:
+		PauseOnCondition: disabled
+	Tooltip:
+		Name: Gate
+	Building:
+		BuildSounds: place2.aud
+		TerrainTypes: Clear, Road
+	RequiresBuildableArea:
+		AreaTypes: building
+		Adjacent: 10
+	MapEditorData:
+		Categories: Wall
+	Gate:
+		PauseOnCondition: disabled
+		OpeningSound: hydrod1.aud
+		ClosingSound: hvydoor1.aud
+		BlocksProjectilesHeight: 0
+
+HGATE:
+	Inherits: ^Gate
+	HitShape:
+		UseTargetableCellsOffsets: true
+		Type: Rectangle
+			VerticalTopOffset: 1024
+			TopLeft: -1536, -512
+			BottomRight: 1536, 512
+	Building:
+		Footprint: xxx
+		Dimensions: 3,1
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 9
+		Prerequisites: ~disabled
+		Description: Places an horizontal gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
+	Passable:
+		PassClasses: heavywall
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	WithGateSpriteBody:
+		WallConnections: -1,0, 3,0
+	LineBuildNode:
+		Connections: -1,0, 1,0
+	Tooltip:
+		Name: Gate - (horizontal)
+	RenderSprites:
+		Image: hgate
+		FactionImages:
+			america: hgate-america
+			russia: hgate-russia
+
+VGATE:
+	Inherits: ^Gate
+	HitShape:
+		UseTargetableCellsOffsets: true
+		Type: Rectangle
+			VerticalTopOffset: 1024
+			TopLeft: -512, -1536
+			BottomRight: 512, 1536
+	Building:
+		Footprint: x x x
+		Dimensions: 1,3
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 12
+		Prerequisites: ~disabled
+		Description: Places an vertical gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
+	Passable:
+		PassClasses: heavywall
+		PassedByRelationships: Ally, Neutral, Enemy
+		CrushedByRelationships: Enemy
+	WithGateSpriteBody:
+		WallConnections: 0,-1, 0,3
+	LineBuildNode:
+		Connections: 0,-1, 0,1
+	Tooltip:
+		Name: Gate I (vertical)
+
+CRAM:
+	Inherits@Type: ^Defense
+	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+	Inherits@AutoTarget: ^AutoTargetAirICBM
+	-WithSpriteBody:
+	-ActorPreviewPlaceBuildingPreview:
+	-BodyOrientation:
+	WithEmbeddedTurretSpriteBody:
+	SequencePlaceBuildingPreview:
+		Sequence: place
+	ClassicFacingBodyOrientation:
+	Selectable:
+		DecorationBounds: 1024,768,0,-96
+	Buildable:
+		Queue: Defense
+		Prerequisites: ~disabled
+		BuildPaletteOrder: 7
+		Description: Anti-Air base defense.
+		IconPalette: chrometd
+	# Radar:
+	# 	Range: 25c0
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: AA Gun
+	Health:
+		HP: 5000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 820
+	Armament@1:
+		Weapon: 20mm_CRAM
+		LocalOffset: 520,0,450
+		MuzzleSequence: muzzle
+	AmbientSound@ATTACKSOUND1:
+		SoundFiles: cram.wav
+		RequiresCondition: firing
+	GrantConditionOnAttack@FIRING:
+		ArmamentNames: primary
+		Condition: firing
+		RevokeDelay: 15
+		RevokeOnNewTarget: True
+	AmmoPool:
+		Armaments: primary
+		Ammo: 24
+		AmmoCondition: ammo
+		ReloadDelay: 6
+	WithAmmoPipsDecoration:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 6
+		RequiresSelection: true
+	ReloadAmmoPool:
+		Delay: 42
+		Count: 24
+		RequiresCondition: !ammo
+	WithDecoration@ammoreplenish:
+		RequiresSelection: false
+		Image: pips
+		Sequence: tag-reload-small
+		Position: Top
+		Margin: 0, -6
+		RequiresCondition: !ammo
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled
+	WithMuzzleOverlay:
+	SpawnActorOnDeath:
+		Actor: agun.husk
+	RenderSprites:
+		Scale: 0.85
+	RenderRangeCircle:
+		RangeCircleType: aa
+		Color: 66B2FF
+		Alpha: 80
+		Width: 1
+
+AGUN:
+	Inherits@Type: ^Defense
+	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+	Inherits@AutoTarget: ^AutoTargetAirICBM
+	-WithSpriteBody:
+	-ActorPreviewPlaceBuildingPreview:
+	-BodyOrientation:
+	WithEmbeddedTurretSpriteBody:
+	SequencePlaceBuildingPreview:
+		Sequence: place
+	ClassicFacingBodyOrientation:
+	Selectable:
+		DecorationBounds: 1024,3096,0,-96
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 7
+		Prerequisites: ~disabled
+		Description: Anti-Air base defense.
+	Valued:
+		Cost: 800
+	Tooltip:
+		Name: AA Gun
+	# Radar:
+	# 	Range: 25c0
+	Health:
+		HP: 5000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 820
+	Armament:
+		Name: primary
+		Weapon: AACannon
+		LocalOffset: 520,100,450, 520,-150,450
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo
+	AmmoPool:
+		Armaments: primary
+		Ammo: 24
+		AmmoCondition: ammo
+		ReloadDelay: 6
+	WithAmmoPipsDecoration:
+		Position: BottomLeft
+		Margin: 4, 3
+		PipCount: 6
+		RequiresSelection: true
+	ReloadAmmoPool:
+		Delay: 42
+		Count: 24
+		RequiresCondition: !ammo
+	WithDecoration@ammoreplenish:
+		RequiresSelection: false
+		Image: pips
+		Sequence: tag-reload-small
+		Position: Top
+		Margin: 0, -6
+		RequiresCondition: !ammo
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled
+	WithMuzzleOverlay:
+	SpawnActorOnDeath:
+		Actor: agun.husk
+	RenderSprites:
+		Scale: 0.9
+	RenderRangeCircle:
+		RangeCircleType: aa
+		Color: 66B2FF
+		Alpha: 80
+		Width: 1
+
+SAM:
+	Inherits@Type: ^Defense
+	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+	Inherits@AutoTarget: ^AutoTargetAirICBM
+	Inherits@Shape: ^2x1Shape
+	-WithSpriteBody:
+	-ActorPreviewPlaceBuildingPreview:
+	-BodyOrientation:
+	WithEmbeddedTurretSpriteBody:
+	SequencePlaceBuildingPreview:
+		Sequence: place
+	Selectable:
+		Bounds: 2048,1024
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 1024
+			TopLeft: -768,-512
+			BottomRight: 768,512
+	Building:
+		Footprint: xx
+		Dimensions: 2,1
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 8
+		Prerequisites: ~disabled
+		Description: Anti-Air base defense.
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: SAM Site
+	Health:
+		HP: 3000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 0
+	Armament:
+		Weapon: SurfaceToAirMissile.double
+		FireDelay: 5
+		LocalOffset: 0,0,320
+		MuzzleSequence: muzzle
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled
+	WithMuzzleOverlay:
+	ClassicFacingBodyOrientation:
+	SpawnActorOnDeath:
+		Actor: sam.husk
+	RenderRangeCircle:
+		RangeCircleType: aa
+		Width: 3
+		Alpha: 80
+		Color: 66B2FF
+HSAM:
+	Inherits: SAM
+	-AttackTurreted:
+	-SpawnActorOnDeath:
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 8
+		Prerequisites: ~disabled
+		Description: Anti-Air missile launcher.
+	Tooltip:
+		Name: SAM Site
+	Valued:
+		Cost: 3000
+	Turreted:
+		RealignDelay: -1
+		TurnSpeed: 120
+		InitialFacing: 0
+	AttackPopupTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled
+	Cloak:
+		InitialDelay: 125
+		CloakDelay: 75
+		IsPlayerPalette: true
+		PauseOnCondition: cloak-force-disabled || empdisable || build-incomplete || is-shooting
+	GrantConditionOnDamageState@UNCLOAK:
+		Condition: cloak-force-disabled
+		ValidDamageStates: Critical
+	GrantConditionOnAttack@UNCLOAK:
+		Condition: is-shooting
+		ArmamentNames: primary
+		RevokeDelay: 75
+	SpawnActorOnDeath:
+		Actor: hsam.husk
+
+# PATRIOT:
+# 	Inherits@Type: ^Defense
+# 	Inherits@AutoTarget: ^AutoTargetAirICBM
+# 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+# 	Valued:
+# 		Cost: 3500
+# 	Tooltip:
+# 		Name: Patriot Anti Air Missile Defense System
+# 	Buildable:
+# 		BuildPaletteOrder: 40
+# 		Prerequisites: ~disabled
+# 		Queue: Defence.USA, RADefence.USA
+# 		Description: All-purpose defensive structure.\nRequires power to operate.\nPasses one target to another with other nearby Patriot Defense Systems\n  Strong vs Aircraft, Tanks\n  Weak vs Infantry
+# 	Selectable:
+# 		Bounds: 1024,1024
+# 	SelectionDecorations:
+# 	Health:
+# 		HP: 2000
+# 	Armor:
+# 		Type: Light
+# 	Turreted:
+# 		TurnSpeed: 12
+# 		Offset: 0,0,120
+# 	WithSpriteBody:
+# 	WithSpriteTurret:
+# 	Armament@1:
+# 		Weapon: SurfaceToAirMissile
+# 		LocalOffset: -85,120,340, -85,-120,340
+# 		LocalYaw: -100, 100
+# 		Recoil: 10
+# 	AttackTurreted:
+# 		PauseOnCondition: disabled || lowpower
+# 	BodyOrientation:
+# 		QuantizedFacings: 8
+# 	RenderSprites:
+# 		Image: patriot
+
+FTUR:
+	Inherits@Type: ^Defense
+	Inherits@AutoTarget: ^AutoTargetGround
+	Inherits@RequiresPower: ^DisableOnPowerDown
+	-QuantizeFacingsFromSequence:
+	BodyOrientation:
+		QuantizedFacings: 8
+	Building:
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 4
+		Prerequisites: ~disabled
+		Description: Anti-Infantry base defense.
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: Flame Turret
+	Health:
+		HP: 10000
+	Armor:
+		Type: Light
+	ProvidesPrerequisite@BuildingName:
+	Turreted@1:
+		Turret: ranged-turret
+		TurnSpeed: 255
+		Offset: 0,0,112
+	Turreted@2:
+		Turret: melee-turret
+		TurnSpeed: 255
+		Offset: 0,0,112
+	Armament@1:
+		Name: primary
+		Weapon: FireballLauncher
+		LocalOffset: 512,0,42
+		Turret: ranged-turret
+		PauseOnCondition: disabled
+	Armament@2:
+		Name: secondary
+		Weapon: Flamespray.heavy
+		AmmoUsage: 10
+		LocalOffset: 1536,128,64, 1536,-128,64
+		MuzzleSequence: muzzle-spray
+		Turret: melee-turret
+		PauseOnCondition: empdisable
+	AmmoPool:
+		Armaments: primary, secondary
+		Ammo: 10
+		AmmoCondition: ammo
+		ReloadDelay: 40
+	AttackTurreted:
+		Armaments: primary, secondary
+		Turrets: ranged-turret, melee-turret
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled
+	# WithMuzzleOverlay:
+	Explodes:
+		Weapon: BuildingExplode
+		EmptyWeapon: BuildingExplode
+	SpawnActorOnDeath:
+		Actor: ftur.husk
+	RenderSprites:
+		Scale: 0.8
+	RenderRangeCircle:
+		Width: 3
+		Alpha: 70
+		Color: FF8000
+
+TSLA:
+	Inherits@Type: ^Defense
+	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
+	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
+	Selectable:
+		Bounds: 1024,1024
+		DecorationBounds: 1024,960,0,-396
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 5
+		Prerequisites: ~disabled
+		Description: Advanced base defense.\nTesla briefly short-circuits Vehicle and Ships.
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: Tesla Coil
+	Health:
+		HP: 10000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	ProvidesPrerequisite@BuildingName:
+	Armament:
+		Weapon: TeslaZap
+		LocalOffset: 0,0,896
+	AttackTesla:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled
+		ChargeAudio: tslachg2.aud
+		MaxCharges: 5
+		ReloadDelay: 30
+	WithTeslaChargeAnimation:
+	Targetable@ChargeTargeting:
+		TargetTypes: Charge
+		RequiresCondition: !TeslaHasCharge && lowpower
+	GrantCondition@Overcharge:
+		Condition: TeslaHasCharge
+		RequiresCondition: TeslaChargeApplied
+	ExternalCondition@Overcharge:
+		Condition: TeslaChargeApplied
+	WithDecoration@Overcharge:
+		Image: poweroff
+		Sequence: charging
+		Position: BottomRight
+		RequiresCondition: TeslaChargeApplied
+	TimedConditionBar@Charged:
+		Condition: TeslaChargeApplied
+		Color: f4f442
+	GrantConditionOnPowerState@LOWPOWER:
+		Condition: lowpower
+		ValidPowerStates: Low, Critical
+		RequiresCondition: !TeslaChargeApplied
+	GrantCondition@IDISABLE:
+		RequiresCondition: lowpower || powerdown && !TeslaHasCharge && !empdisable
+		Condition: disabled
+	ToggleConditionOnOrder:
+		DisabledSound: EnablePower
+		EnabledSound: DisablePower
+		Condition: powerdown
+		OrderName: PowerDown
+		RequiresCondition: !TeslaChargeApplied
+	SpawnActorOnDeath:
+		Actor: tsla.husk
+	RenderRangeCircle:
+		Width: 3
+		Color: FFFFFF # White, Tesla weaponry
+
+PRIS:
+	Inherits@Type: ^Defense
+	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
+	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 80
+		Prerequisites: ~disabled
+		Description: Advanced experimental base defense.
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: Prism Tower
+	Building:
+	Health:
+		HP: 10000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	WithSpriteBody:
+		PauseOnCondition: disabled || empdisable
+	WithPrismChargeAnimation:
+	AttackPrismSupported:
+		PauseOnCondition: build-incomplete || disabled || empdisable
+		ChargeAudio: bpripow.aud
+		MaxCharges: 1
+		ReloadDelay: 40
+		SupportArmament: support
+		ReceiverOffset: 0,0,896
+		BuffCondition: prism-stack
+	FirepowerMultiplier@Stack-1:
+		RequiresCondition: prism-stack == 1
+		Modifier: 200
+	FirepowerMultiplier@Stack-2:
+		RequiresCondition: prism-stack == 2
+		Modifier: 300
+	FirepowerMultiplier@Stack-3:
+		RequiresCondition: prism-stack == 3
+		Modifier: 400
+	FirepowerMultiplier@Stack-4:
+		RequiresCondition: prism-stack == 4
+		Modifier: 500
+	Armament:
+		Weapon: PrisLaser
+		LocalOffset: 0,-85,956
+	Armament@Support:
+		Name: support
+		Weapon: PrisLaserSupport
+		LocalOffset: 0,0,1024
+	ProvidesPrerequisite@BuildingName:
+	RenderRangeCircle@Support:
+		Armament: support
+
+MSLO:
+	Inherits: ^Building
+	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
+	Inherits@Shape: ^2x1Shape
+	-BlocksProjectiles:
+	Selectable:
+		Bounds: 1536,1024
+	Building:
+		Footprint: xx
+		Dimensions: 2,1
+		TerrainTypes: Clear,Road
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 10
+		Prerequisites: ~disabled
+		Description: Fires a nuclear missile
+	Tooltip:
+		Name: Nuclear Missile Silo
+	Valued:
+		Cost: 50000
+	Health:
+		HP: 90000
+	Armor:
+		Type: Concrete
+		Thickness: 2000
+	Targetable:
+		TargetTypes: Structure, Concrete, C4
+	ProvidesPrerequisite@BuildingName:
+	NukePower:
+		OrderName: NukeMissile
+		PauseOnCondition: disabled
+		Cursor: nuke
+		Icon: abomb
+		ChargeInterval: 10
+		Name: Nuclear Ballistic Missile
+		Description: Launches a devastating atomic bomb at target location.
+		BeginChargeSpeechNotification: AbombPrepping
+		EndChargeSpeechNotification: AbombReady
+		SelectTargetSpeechNotification: SelectTarget
+		InsufficientPowerSpeechNotification: InsufficientPower
+		IncomingSpeechNotification: AbombLaunchDetected
+		MissileWeapon: atomic
+		MissileImage: atomic
+		MissileDelay: 5
+		SpawnOffset: 1c0,427,0
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		BeaconPoster: atomicon
+		CameraRange: 20c0
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SupportPowerPaletteOrder: 1
+		DetonationAltitude: 6c256
+		FlightDelay: 70
+		FlightVelocity: 1024
+		CameraRemoveDelay: 1000
+	SupportPowerChargeBar:
+	MustBeDestroyed:
+		RequiredForShortGame: false
+	WithSupportPowerActivationAnimation:
+		RequiresCondition: !build-incomplete
+	SpawnActorOnDeath:
+		Actor: mslo.husk
+	GpsDot:
+		String: Nuke
+
+GUN:
+	Inherits@Type: ^Defense
+
+	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
+	-WithSpriteBody:
+	-ActorPreviewPlaceBuildingPreview:
+	-BodyOrientation:
+	SequencePlaceBuildingPreview:
+		Sequence: place
+	WithEmbeddedTurretSpriteBody:
+	ClassicFacingBodyOrientation:
+	Building:
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 2
+		Prerequisites: ~disabled
+		Description: Anti-Armor base defense.
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: Gun Turret
+	Health:
+		HP: 5000
+	Armor:
+		Type: Heavy
+	Targetable:
+		TargetTypes: Ground, Structure, Defense, Heavy, C4
+	Turreted:
+		TurnSpeed: 50
+		InitialFacing: 192
+	Armament:
+		Weapon: TankRound.t90
+		LocalOffset: 512,0,112
+		MuzzleSequence: muzzle
+		PauseOnCondition: disabled
+	AttackTurreted:
+		PauseOnCondition: disabled
+		RequiresCondition: !build-incomplete
+	WithMuzzleOverlay:
+	SpawnActorOnDeath:
+		Actor: gun.husk
+	RenderSprites:
+		Scale: 0.9
+	RenderRangeCircle:
+		Color: FF0000
+		Width: 1

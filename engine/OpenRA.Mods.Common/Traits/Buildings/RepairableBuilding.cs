@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int RepairInterval = 24;
 
 		[Desc("The maximum amount of HP to repair each step.")]
-		public readonly int RepairStep = 7;
+		public readonly int RepairStep = 200;
 
 		[Desc("Damage types used for the repair.")]
 		public readonly BitSet<DamageType> RepairDamageTypes = default;

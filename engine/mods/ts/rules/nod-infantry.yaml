@@ -30,7 +30,7 @@ E3:
 		FacingTolerance: 0
 	WithSplitAttackPaletteInfantryBody:
 		DefaultAttackSequence: attack
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
@@ -63,7 +63,7 @@ CYBORG:
 	Health:
 		HP: 30000
 	Passenger:
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Armament:
 		Weapon: Vulcan3
@@ -102,7 +102,7 @@ CYC2:
 	Health:
 		HP: 50000
 	Passenger:
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 	Armament:
 		Weapon: CyCannon
@@ -139,5 +139,5 @@ MHIJACK:
 	Captures:
 		CaptureTypes: Vehicle
 		PlayerExperience: 10
-	RevealsShroud:
+	Vision:
 		Range: 6c0

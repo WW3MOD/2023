@@ -23,6 +23,6 @@ Player:
 TRAN:
 	RejectsOrders:
 	-Selectable:
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 	Interactable:

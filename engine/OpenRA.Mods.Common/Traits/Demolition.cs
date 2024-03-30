@@ -20,15 +20,21 @@ namespace OpenRA.Mods.Common.Traits
 {
 	class DemolitionInfo : ConditionalTraitInfo
 	{
+		[Desc("Which ammo pool to draw from, null for no ammo use")]
+		public readonly string UseAmmo = null;
+
+		[Desc("How much ammo to use")]
+		public readonly int AmmoDrain = 1;
+
 		[Desc("Delay to demolish the target once the explosive device is planted. " +
 			"Measured in game ticks. Default is 1.8 seconds.")]
-		public readonly int DetonationDelay = 45;
+		public readonly int DetonationDelay = 62;
 
 		[Desc("Number of times to flash the target.")]
 		public readonly int Flashes = 3;
 
 		[Desc("Delay before the flashing starts.")]
-		public readonly int FlashesDelay = 4;
+		public readonly int FlashesDelay = 50;
 
 		[Desc("Interval between each flash.")]
 		public readonly int FlashInterval = 4;

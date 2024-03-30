@@ -19,7 +19,7 @@ Player:
 		DefaultCash: 0
 
 SPY:
-	RevealsShroud:
+	Vision:
 		Range: 7c0
 
 4TNK:
@@ -47,7 +47,7 @@ DTRK:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 1
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		ValidRelationships: Neutral
 		RequiresCondition: mission

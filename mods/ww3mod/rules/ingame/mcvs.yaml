@@ -1,0 +1,131 @@
+
+LCCV:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 1
+		Prerequisites: ~techlevel.low
+		Description: Deploys into Logistics Center
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: Logistics Center MCV
+	Selectable:
+		DecorationBounds: 1792,1792
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 71
+		Locomotor: heavywheeled
+	Transforms:
+		IntoActor: logisticscenter
+		Offset: -1,-1
+		Facing: 384
+		TransformSounds: placbldg.aud, build5.aud
+		NoTransformNotification: BuildingCannotPlaceAudio
+		PauseOnCondition: empdisable
+	MustBeDestroyed:
+		RequiredForShortGame: true
+	SpawnActorOnDeath:
+		Actor: MCV.Husk
+	Passenger:
+		Weight: 30
+		CustomPipType: pip-blue
+	GpsDot:
+		String: MCV
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	RenderSprites:
+		Image: mcv
+		Scale: 0.8
+
+# MCV:
+# 	Inherits@Type: ^WheeledVehicle
+# 	Inherits@Selection: ^SelectableSupportUnit
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 102
+# 		Prerequisites: ~disabled
+# 		Description: Deploys into Command Center
+# 	Valued:
+# 		Cost: 1800
+# 	Tooltip:
+# 		Name: Mobile Command Center
+# 	Selectable:
+# 		DecorationBounds: 1792,1792
+# 	Armor:
+# 		Type: Light
+# 	Targetable:
+# 		TargetTypes: Ground, Vehicle, Light
+# 	Mobile:
+# 		Speed: 71
+# 		Locomotor: heavywheeled
+# 	Transforms:
+# 		IntoActor: fact
+# 		Offset: -1,-1
+# 		Facing: 384
+# 		TransformSounds: placbldg.aud, build5.aud
+# 		NoTransformNotification: BuildingCannotPlaceAudio
+# 		PauseOnCondition: empdisable
+# 	TransferTimedExternalConditionOnTransform:
+# 		Condition: invulnerability
+# 	MustBeDestroyed:
+# 		RequiredForShortGame: true
+# 	BaseBuilding:
+# 	SpawnActorOnDeath:
+# 		Actor: MCV.Husk
+# 	Passenger:
+# 		Weight: 30
+# 		CustomPipType: pip-blue
+# 	GpsDot:
+# 		String: MCV
+# 	WithDamageOverlay:
+# 		Image: smoke_mtd
+# 		Palette: temptd
+# 	Explodes:
+# 		Weapon: ArtilleryExplode
+# MCV2:
+# 	Inherits: MCV
+# 	Buildable:
+# 		Queue: Vehicle
+# 		BuildPaletteOrder: 102
+# 		Prerequisites: ~disabled, ~!aitoodumb, ~techlevel.medium
+# 		Description: Deploys into Field Base
+# 	Tooltip:
+# 		Name: Mobile Field Base
+# 	Transforms:
+# 		IntoActor: fact2
+# 		Offset: -1,-1
+# 		Facing: 384
+# 		TransformSounds: placbldg.aud, build5.aud
+# 		NoTransformNotification: BuildingCannotPlaceAudio
+# 		PauseOnCondition: empdisable
+# 	Passenger:
+# 		Weight: 20
+# 	SpawnActorOnDeath:
+# 		Actor: MCV2.Husk
+# 	RenderSprites:
+# 		Image: mcv
+# 		Scale: 0.8
+# MCV.ai:
+# 	Inherits: MCV
+# 	Buildable:
+# 		BuildLimit: 2
+# 		Prerequisites: ~aitoodumb, ~techlevel.medium
+# 	RenderSprites:
+# 		Image: mcv
+# 	-MapEditorData:
+# MCV2.ai:
+# 	Inherits: MCV2
+# 	Buildable:
+# 		BuildLimit: 2
+# 		Prerequisites: ~aitoodumb, ~techlevel.medium
+# 	RenderSprites:
+# 		Image: mcv
+# 	-MapEditorData:

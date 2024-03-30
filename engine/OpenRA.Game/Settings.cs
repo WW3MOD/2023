@@ -144,7 +144,7 @@ namespace OpenRA
 		public string UUID = Guid.NewGuid().ToString();
 
 		[Desc("Enable hidden developer settings in the Advanced settings tab.")]
-		public bool DisplayDeveloperSettings = false;
+		public bool DisplayDeveloperSettings = true;
 
 		[Desc("Display bot debug messages in the game chat.")]
 		public bool BotDebug = false;
@@ -276,7 +276,7 @@ namespace OpenRA
 
 		public Modifiers ZoomModifier = Modifiers.None;
 
-		public bool FetchNews = true;
+		public bool FetchNews = false;
 
 		[Desc("Version of introduction prompt that the player last viewed.")]
 		public int IntroductionPromptVersion = 0;

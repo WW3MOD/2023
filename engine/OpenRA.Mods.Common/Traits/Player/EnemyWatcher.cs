@@ -21,10 +21,10 @@ namespace OpenRA.Mods.Common.Traits
 	class EnemyWatcherInfo : TraitInfo
 	{
 		[Desc("Interval in ticks between scanning for enemies.")]
-		public readonly int ScanInterval = 25;
+		public readonly int ScanInterval = 60;
 
 		[Desc("Minimal ticks in-between notifications.")]
-		public readonly int NotificationInterval = 750;
+		public readonly int NotificationInterval = 0;
 
 		public override object Create(ActorInitializer init) { return new EnemyWatcher(this); }
 	}
@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// TODO: Make the AI handle such notifications and remove Owner.IsBot from this check
 			// Disable notifications for AI and neutral players (creeps) and for spectators
-			if (self.Owner.Shroud.Disabled || self.Owner.IsBot || !self.Owner.Playable || self.Owner.PlayerReference.Spectating)
+			if (self.Owner.MapLayers.Disabled || self.Owner.IsBot || !self.Owner.Playable || self.Owner.PlayerReference.Spectating)
 				return;
 
 			rescanInterval--;
@@ -91,7 +91,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Should we play a notification?
 				var notificationId = $"{actor.Trait.Info.Notification} {actor.Trait.Info.TextNotification}";
-				var playNotification = !playedNotifications.Contains(notificationId) && ticksBeforeNextNotification <= 0;
+				/* var playNotification = !playedNotifications.Contains(notificationId) && ticksBeforeNextNotification <= 0; */
+				var playNotification = ticksBeforeNextNotification <= 0;
 
 				// Notify the actor that he has been discovered
 				foreach (var trait in actor.Actor.TraitsImplementing<INotifyDiscovered>())

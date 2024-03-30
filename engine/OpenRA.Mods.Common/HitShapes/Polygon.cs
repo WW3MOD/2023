@@ -23,6 +23,8 @@ namespace OpenRA.Mods.Common.HitShapes
 	{
 		public WDist OuterRadius { get; private set; }
 
+		WDist IHitShape.VerticalTopOffset => new WDist(VerticalTopOffset);
+
 		[FieldLoader.Require]
 		public readonly int2[] Points;
 
@@ -100,6 +102,24 @@ namespace OpenRA.Mods.Common.HitShapes
 			return new WDist(Exts.ISqrt(min2 + z * z));
 		}
 
+		public int PercentFromEdge(in WVec v)
+		{
+			var p = new int2(v.X, v.Y);
+			var z = Math.Abs(v.Z);
+			if (Points.PolygonContains(p))
+				return z;
+
+			var min2 = DistanceSquaredFromLineSegment(p, Points[Points.Length - 1], Points[0], squares[0]);
+			for (var i = 1; i < Points.Length; i++)
+			{
+				var d2 = DistanceSquaredFromLineSegment(p, Points[i - 1], Points[i], squares[i]);
+				if (d2 < min2)
+					min2 = d2;
+			}
+
+			return Exts.ISqrt(min2 + z * z);
+		}
+
 		public WDist DistanceFromEdge(WPos pos, WPos origin, WRot orientation)
 		{
 			orientation += WRot.FromYaw(LocalYaw);
@@ -111,6 +131,19 @@ namespace OpenRA.Mods.Common.HitShapes
 				return DistanceFromEdge((pos - (origin + new WVec(0, 0, VerticalBottomOffset))).Rotate(-orientation));
 
 			return DistanceFromEdge((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
+		}
+
+		public int PercentFromEdge(WPos pos, WPos origin, WRot orientation)
+		{
+			orientation += WRot.FromYaw(LocalYaw);
+
+			if (pos.Z > origin.Z + VerticalTopOffset)
+				return PercentFromEdge((pos - (origin + new WVec(0, 0, VerticalTopOffset))).Rotate(-orientation));
+
+			if (pos.Z < origin.Z + VerticalBottomOffset)
+				return PercentFromEdge((pos - (origin + new WVec(0, 0, VerticalBottomOffset))).Rotate(-orientation));
+
+			return PercentFromEdge((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
 		}
 
 		IEnumerable<IRenderable> IHitShape.RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos actorPos, WRot orientation)

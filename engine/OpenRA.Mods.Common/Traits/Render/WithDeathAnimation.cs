@@ -59,7 +59,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public override object Create(ActorInitializer init) { return new WithDeathAnimation(init.Self, this); }
 	}
 
-	public class WithDeathAnimation : ConditionalTrait<WithDeathAnimationInfo>, INotifyKilled, INotifyCrushed
+	public class WithDeathAnimation : ConditionalTrait<WithDeathAnimationInfo>, INotifyKilled, INotifyBeingPassed
 	{
 		readonly RenderSprites rs;
 		bool crushed;
@@ -72,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-			// Actors with Crushable trait will spawn CrushedSequence.
+			// Actors with Passable trait will spawn CrushedSequence.
 			if (crushed || IsTraitDisabled)
 				return;
 
@@ -104,10 +104,17 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public void SpawnDeathAnimation(Actor self, WPos pos, string image, string sequence, string palette, int delay)
 		{
-			self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, image, sequence, palette, delay: delay)));
+			self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, image, sequence, palette, delay: delay, scale: rs.Info.Scale)));
 		}
 
-		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
+		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses) { }
+
+		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
+		{
+
+		}
+
+		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
 			crushed = true;
 
@@ -120,7 +127,5 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			SpawnDeathAnimation(self, self.CenterPosition, rs.GetImage(self), Info.CrushedSequence, crushPalette, Info.Delay);
 		}
-
-		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses) { }
 	}
 }

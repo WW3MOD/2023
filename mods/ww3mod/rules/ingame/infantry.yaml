@@ -1,0 +1,2283 @@
+
+^Infantry:
+	Inherits@ExistsInWorld: ^ExistsInWorld
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@SpriteActor: ^SpriteActor
+	Inherits@Bounty: ^GlobalBounty
+	Inherits@Selection: ^SelectableCombatUnit
+	Inherits@Slowdown: ^EffectsWhenDamagedInfantry
+	Inherits@Handicaps: ^PlayerHandicaps
+	Inherits@PinsDown: ^PinsDown
+	Inherits@FireEffects: ^InfantryAffectedByFire
+	Inherits@DamageStates: ^DamageStates
+	Inherits@Vision: ^StandardVision
+	Inherits@DetectionProximity: ^DetectionProximity
+	Inherits@Visibility: ^InfantryStandardVisibility
+	Huntable:
+	OwnerLostAction:
+		Action: Kill
+		DeathTypes: DefaultDeath
+	DrawLineToTarget:
+	Health:
+		HP: 100
+	Armor:
+		Type: None
+	Mobile:
+		Speed: 25
+		AlwaysTurnInPlace: true
+		Locomotor: foot
+	SelectionDecorations:
+	WithSpriteControlGroupDecoration:
+	Selectable:
+		Bounds: 768,768,0,-256
+		DecorationBounds: 384,768,24,-256
+	Targetable:
+		RequiresCondition: !parachute
+		TargetTypes: Ground, Infantry, Disguise
+	Targetable@Heal:
+		RequiresCondition: !parachute && damaged
+		TargetTypes: Heal
+	QuantizeFacingsFromSequence:
+		Sequence: stand
+	WithInfantryBody:
+	WithDeathAnimation:
+		DeathTypes:
+			DefaultDeath: 1
+			BulletDeath: 2
+			SmallExplosionDeath: 3
+			ExplosionDeath: 4
+			FireDeath: 5
+			ElectricityDeath: 6
+			TiberiumDeath: 7
+		CrushedSequence: die-crushed
+	AttackMove:
+	Passenger:
+		CargoType: Infantry
+		CargoCondition: disable-experience
+	GainsExperienceMultiplier:
+		Modifier: 0
+		RequiresCondition: disable-experience
+	Detectable:
+		Vision: 3
+	GpsDot:
+		String: Infantry
+	Passable:
+		PassClasses: infantry
+		PassedByRelationships: Ally, Neutral
+		CrushedByRelationships: Enemy
+		KillSound: squishy2.aud
+	Guard:
+	Guardable:
+	Tooltip:
+		GenericName: Soldier
+	ExternalCondition@MoraleBoost:
+		Condition: morale-boost
+	DeathSounds@Normal:
+		DeathTypes: DefaultDeath, BulletDeath, SmallExplosionDeath, ExplosionDeath
+	DeathSounds@Burned:
+		Voice: Burned
+		DeathTypes: FireDeath
+	DeathSounds@Zapped:
+		Voice: Zapped
+		DeathTypes: ElectricityDeath
+	Parachutable:
+		FallRate: 26
+		KilledOnImpassableTerrain: true
+		GroundCorpseSequence: corpse
+		GroundImpactSound: squishy2.aud
+		WaterImpactSound: splash9.aud
+		WaterCorpseSequence: splash_small
+		ParachutingCondition: parachute
+	Cloneable:
+		Types: Infantry
+	Voiced:
+		VoiceSet: GenericVoice
+	WithParachute:
+		ShadowImage: parach-shadow
+		ShadowSequence: idle
+		Image: parach
+		Sequence: idle
+		OpeningSequence: open
+		Offset: 0,0,427
+		RequiresCondition: parachute
+	GrantConditionOnMovement:
+		Condition: moving
+		ConditionWhenStill: dugin
+		TimeToBeStill: 200
+	HitShape@Cover:
+		RequiresCondition: prone
+		Type: Circle
+			Radius: 20
+	HitShape@Standing:
+		RequiresCondition: !prone
+		Type: Circle
+			Radius: 30
+	MapEditorData:
+		Categories: Infantry
+	EdibleByLeap:
+	InfersUpkeep:
+		PermilleCost: 5
+	DeliversCash@Rotation:
+		Type: Rotation
+		AdjustForHandicap: True
+^Soldier:
+	Inherits: ^Infantry
+	Inherits@AmmoDecoration: ^AmmoDecoration
+	# Targetable@SoldierReplenish: # WIP: Idea is for supply trucks to target/go to infantry out of ammo
+	# 	# RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
+	# 	TargetTypes: SoldierReplenish
+	Armor:
+		Type: Kevlar
+	UpdatesPlayerStatistics:
+	MustBeDestroyed:
+	ProximityCaptor:
+		Types: Infantry
+	WithInfantryBody:
+		IdleSequences: idle1,idle2
+		StandSequences: stand,stand2
+	AttackFrontal:
+		FacingTolerance: 50
+		TargetFrozenActors: True
+	WithDecoration@AmmoReplenishing:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-ammo-replenishing
+		Position: Top
+		Margin: 0,-5
+		RequiresCondition: replenish-soldiers # Doesn't work, needs "ammo-primary-not-full" && ( !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) )
+	WithDecoration@Class:
+		Sequence: empty_class # Required here but should be replaced for each unit
+		Image: class
+		Palette: effect
+		Position: Top
+		Margin: 0,7
+	ExternalCondition@AmmoReplenish:
+		Condition: replenish-soldiers
+	DamageMultiplier@TLBoost:
+		RequiresCondition: morale-boost
+		Modifier: 80
+	SpeedMultiplier@TLBoost:
+		RequiresCondition: morale-boost
+		Modifier: 120
+	WithDecoration@TLBoost:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-morale-boost
+		Position: TopRight
+		Margin: -1,-4
+		RequiresCondition: morale-boost
+		BlinkInterval: 32
+		BlinkPattern: Off, On
+	WithInfantryBody@Parachute:
+		StandSequences: parachute
+		RequiresCondition: parachute
+	AnnounceOnSeen:
+		Type: Soldier
+		TextNotification: Spotted: Infantry
+^CamoSoldier:
+	Inherits@Combatant: ^Combatant
+	Inherits@Soldier: ^Soldier
+	Inherits@VisibilityRangeCircles: ^VisibilityRangeCircles
+	Inherits@Rotting: ^RottingInfantry
+	AutoTarget:
+		ScanRadius: 25
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+	GrantConditionOnDeploy:
+		DeployedCondition: deployed
+	InfantryStates:
+		ProneCondition: deployed || suppressed > 30 || !moving || critical-damage
+		ProneGrantsCondition: prone
+		ProneSpeedModifier: 60
+		ProneDamageModifiers:
+			Prone10Percent: 10
+			Prone20Percent: 20
+			Prone30Percent: 30
+			Prone50Percent: 50
+			Prone80Percent: 80
+		PanicCondition: onfire && !critical-damage
+		PanicGrantsCondition: panicking
+		PanicSpeedModifier: 140
+^AmphibiousSoldier:
+	Inherits@Type: ^CamoSoldier
+	Inherits@Rotting: ^RottingInfantry
+	GrantConditionOnTerrain@InWater:
+		TerrainTypes: Water
+		Condition: inwater
+	InfantryStates:
+		ProneCondition: !deployed && !inwater
+	WithInfantryBody:
+		RequiresCondition: !inwater
+	WithDeathAnimation:
+		RequiresCondition: !inwater
+	WithInfantryBody@InWater:
+		IdleSequences: swim-idle1,swim-idle2
+		MoveSequence: swim
+		StandSequences: swim-stand
+		DefaultAttackSequence: swim-shoot
+		RequiresCondition: inwater
+	WithDeathAnimation@InWater:
+		RequiresCondition: inwater
+		DeathSequence: swim-die
+		DeathTypes:
+			DefaultDeath: 1
+			BulletDeath: 2
+			SmallExplosionDeath: 1
+			ExplosionDeath: 1
+			FireDeath: 2
+			ElectricityDeath: 2
+	Targetable@InWater:
+		TargetTypes: Water
+		RequiresCondition: inwater
+^CivInfantry:
+	Inherits: ^Infantry
+	# Inherits@Rotting: ^RottingInfantry # TODO: add sequences
+	# Inherits@penalty: ^GlobalPenalty
+	Selectable:
+		Class: CivInfantry
+	Valued:
+		Cost: 25
+	Tooltip:
+		Name: Civilian
+		GenericVisibility: None
+	Passenger:
+		CustomPipType: empty_class
+	ProximityCaptor:
+		Types: CivilianInfantry
+	ScaredyCat:
+	Voiced:
+		VoiceSet: CivilianMaleVoice
+	Wanders:
+		MinMoveDelay: 150
+		MaxMoveDelay: 750
+	MapEditorData:
+		Categories: Civilian infantry
+	RenderSprites:
+		Scale: 0.6
+^ArmedCivilian:
+	Inherits: ^CivInfantry
+	# Inherits@Rotting: ^RottingInfantry # TODO: add sequences
+	# -GrantConditionOnPrerequisite@GlobalPenalty:
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Armament:
+		Weapon: Pistol
+	AttackFrontal:
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+
+^PinsDown:
+	Inherits@SuppressionPips: ^SuppressionPips
+	Inherits@SuppressionSpeedMultiplier: ^SuppressionSpeedMultiplier
+	Inherits@SuppressionVisionModifier: ^SuppressionVisionModifier
+	Inherits@SuppressionBurstMultiplier: ^SuppressionBurstMultiplier
+	Inherits@SuppressionBurstWaitMultiplier: ^SuppressionBurstWaitMultiplier
+	Inherits@SuppressionInaccuracyMultiplier: ^SuppressionInaccuracyMultiplier
+	ExternalCondition@Suppression:
+		Condition: suppressed
+		TotalCap: 100
+		ReduceTicks: 5
+		ReduceAmount: 1
+^SuppressionSpeedMultiplier:
+	SpeedMultiplier@Suppression_1:
+		RequiresCondition: !panicking && suppressed > 0 && suppressed <= 10
+		Modifier: 90
+	SpeedMultiplier@Suppression_2:
+		RequiresCondition: !panicking && suppressed > 10 && suppressed <= 20
+		Modifier: 80
+	SpeedMultiplier@Suppression_3:
+		RequiresCondition: !panicking && suppressed > 20 && suppressed <= 30
+		Modifier: 70
+	SpeedMultiplier@Suppression_4:
+		RequiresCondition: !panicking && suppressed > 30 && suppressed <= 40
+		Modifier: 60
+	SpeedMultiplier@Suppression_5:
+		RequiresCondition: !panicking && suppressed > 40 && suppressed <= 50
+		Modifier: 50
+	SpeedMultiplier@Suppression_6:
+		RequiresCondition: !panicking && suppressed > 50 && suppressed <= 60
+		Modifier: 40
+	SpeedMultiplier@Suppression_7:
+		RequiresCondition: !panicking && suppressed > 60 && suppressed <= 70
+		Modifier: 30
+	SpeedMultiplier@Suppression_8:
+		RequiresCondition: !panicking && suppressed > 70 && suppressed <= 80
+		Modifier: 20
+	SpeedMultiplier@Suppression_9:
+		RequiresCondition: !panicking && suppressed > 80 && suppressed <= 90
+		Modifier: 10
+	SpeedMultiplier@Suppression_10:
+		RequiresCondition: !panicking && suppressed > 90 && suppressed <= 100
+		Modifier: 0
+^SuppressionVisionModifier:
+	VisionModifier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 90
+	VisionModifier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 80
+	VisionModifier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 70
+	VisionModifier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 60
+	VisionModifier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 50
+	VisionModifier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+		Modifier: 40
+	VisionModifier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+		Modifier: 30
+	VisionModifier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+		Modifier: 20
+	VisionModifier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+		Modifier: 10
+	VisionModifier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
+		Modifier: 0
+^SuppressionDetectCloakedMultiplier:
+	DetectCloakedMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 90
+	DetectCloakedMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 80
+	DetectCloakedMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 70
+	DetectCloakedMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 60
+	DetectCloakedMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 50
+	DetectCloakedMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+		Modifier: 40
+	DetectCloakedMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+		Modifier: 30
+	DetectCloakedMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+		Modifier: 20
+	DetectCloakedMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+		Modifier: 10
+	DetectCloakedMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
+		Modifier: 0
+^SuppressionBurstMultiplier:
+	BurstMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 90
+	BurstMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 80
+	BurstMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 70
+	BurstMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 60
+	BurstMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 50
+	BurstMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+		Modifier: 40
+	BurstMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+		Modifier: 30
+	BurstMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+		Modifier: 20
+	BurstMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+		Modifier: 10
+	BurstMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
+		Modifier: 0
+^SuppressionBurstWaitMultiplier:
+	BurstWaitMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 110
+	BurstWaitMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 120
+	BurstWaitMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 130
+	BurstWaitMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 140
+	BurstWaitMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 150
+	BurstWaitMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+		Modifier: 160
+	BurstWaitMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+		Modifier: 170
+	BurstWaitMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+		Modifier: 180
+	BurstWaitMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+		Modifier: 190
+	BurstWaitMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
+		Modifier: 200
+^SuppressionInaccuracyMultiplier:
+	InaccuracyMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 120
+	InaccuracyMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 140
+	InaccuracyMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 160
+	InaccuracyMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 180
+	InaccuracyMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 200
+	InaccuracyMultiplier@Suppression_6:
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+		Modifier: 220
+	InaccuracyMultiplier@Suppression_7:
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+		Modifier: 240
+	InaccuracyMultiplier@Suppression_8:
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+		Modifier: 260
+	InaccuracyMultiplier@Suppression_9:
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+		Modifier: 280
+	InaccuracyMultiplier@Suppression_10:
+		RequiresCondition: suppressed > 90 && suppressed <= 100
+		Modifier: 300
+^SuppressionPips:
+	WithDecoration@Suppression_1:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-1
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+	WithDecoration@Suppression_2:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-2
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+	WithDecoration@Suppression_3:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-3
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+	WithDecoration@Suppression_4:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-4
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+	WithDecoration@Suppression_5:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-5
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+	WithDecoration@Suppression_6:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-6
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 50 && suppressed <= 60
+	WithDecoration@Suppression_7:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-7
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 60 && suppressed <= 70
+	WithDecoration@Suppression_8:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-8
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 70 && suppressed <= 80
+	WithDecoration@Suppression_9:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-9
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 80 && suppressed <= 90
+	WithDecoration@Suppression_10:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-Suppression-10
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: suppressed > 90 && suppressed <= 100
+
+^InfantryStandardVisibility:
+	Inherits: ^VisibilityPips
+	ExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		TotalCap: 3
+	# DetectableAddativeModifier@InCover1:
+	# 	RequiresCondition: object-proximity == 1
+	# 	VisionModifier: 1
+	DetectableAddativeModifier@InCover2:
+		RequiresCondition: object-proximity == 2
+		VisionModifier: 1
+	DetectableAddativeModifier@InCover3:
+		RequiresCondition: object-proximity >= 3
+		VisionModifier: 2
+
+	DetectableAddativeModifier@Prone:
+		RequiresCondition: prone
+		VisionModifier: 1
+	DetectableAddativeModifier@Dugin:
+		RequiresCondition: dugin
+		VisionModifier: 1
+
+	GrantConditionOnAttack@Firing:
+		Condition: firinganyweapon
+		RevokeDelay: 12
+		RevokeOnNewTarget: False
+		RevokeAll: True
+	DetectableAddativeModifier@Firing:
+		RequiresCondition: firinganyweapon
+		VisionModifier: -2
+
+	DetectableAddativeModifier@Moving:
+		RequiresCondition: moving
+		VisionModifier: -1
+
+
+^VisibilityRangeCircles:
+	# WithRangeCircle@Detectable0:
+	# 	RequiresCondition: visibility-0
+	# 	Range: 32c0
+	# 	Alpha: 25
+	# 	Width: 3
+	# 	Visible: WhenSelected
+	# 	Color: 888888
+	# 	ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable1:
+		RequiresCondition: visibility-1
+		Range: 32c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable2:
+		RequiresCondition: visibility-2
+		Range: 28c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable3:
+		RequiresCondition: visibility-3
+		Range: 25c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable4:
+		RequiresCondition: visibility-4
+		Range: 22c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable5:
+		RequiresCondition: visibility-5
+		Range: 19c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable6:
+		RequiresCondition: visibility-6
+		Range: 16c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable7:
+		RequiresCondition: visibility-7
+		Range: 13c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable8:
+		RequiresCondition: visibility-8
+		Range: 10c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable9:
+		RequiresCondition: visibility-9
+		Range: 7c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable10:
+		RequiresCondition: visibility-10
+		Range: 4c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable11:
+		RequiresCondition: visibility-11
+		Range: 3c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+	WithRangeCircle@Detectable12:
+		RequiresCondition: visibility-12
+		Range: 2c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Neutral, Ally, Enemy
+
+^VisibilityPips:
+	WithDecoration@Visibility_1:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-1
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-1
+	WithDecoration@Visibility_2:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-2
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-2
+	WithDecoration@Visibility_3:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-3
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-3
+	WithDecoration@Visibility_4:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-4
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-4
+	WithDecoration@Visibility_5:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-5
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-5
+	WithDecoration@Visibility_6:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-6
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-6
+	WithDecoration@Visibility_7:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-7
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-7
+	WithDecoration@Visibility_8:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-8
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-8
+	WithDecoration@Visibility_9:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-9
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-9
+	WithDecoration@Visibility_10:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-10
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-10
+	WithDecoration@Visibility_11:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-11
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-11
+	WithDecoration@Visibility_12:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-visibility-12
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: visibility-12
+
+^CapturesOccupiedBuildings:
+	CaptureManager:
+	Captures@OCCUPIED:
+		CaptureTypes: building-occupied
+		PlayerExperience: 0
+		CaptureDelay: 1000
+^CapturesNeutralBuildings:
+	CaptureManager:
+	Captures@CAPTURESNEUTRAL:
+		CaptureTypes: building-neutral
+		PlayerExperience: 0
+		CaptureDelay: 20
+		ConsumedByCapture: true
+		EnterCursor: goldwrench
+
+^InfantryAffectedByFire:
+	ExternalCondition@BurnDamage:
+		Condition: onfire
+		TotalCap: 10
+	ChangesHealth@BurnDamage_1:
+		RequiresCondition: onfire == 1
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 8
+	ChangesHealth@BurnDamage_2:
+		RequiresCondition: onfire == 2
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 7
+	ChangesHealth@BurnDamage_3:
+		RequiresCondition: onfire == 3
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 6
+	ChangesHealth@BurnDamage_4:
+		RequiresCondition: onfire == 4
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 5
+	ChangesHealth@BurnDamage_5:
+		RequiresCondition: onfire == 5
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 4
+	ChangesHealth@BurnDamage_6:
+		RequiresCondition: onfire == 6
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 3
+	ChangesHealth@BurnDamage_7:
+		RequiresCondition: onfire == 7
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 2
+	ChangesHealth@BurnDamage_8:
+		RequiresCondition: onfire == 8
+		DamageTypes: FireDeath
+		PercentageStep: -1
+		Delay: 1
+	ChangesHealth@BurnDamage_9:
+		RequiresCondition: onfire == 9
+		DamageTypes: FireDeath
+		PercentageStep: -2
+		Delay: 1
+	ChangesHealth@BurnDamage_10:
+		RequiresCondition: onfire == 10
+		DamageTypes: FireDeath
+		PercentageStep: -3
+		Delay: 1
+
+	# Causes 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 for infantry-burn-1
+
+	WithIdleOverlay@Burn_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+	WithIdleOverlay@Burn_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-2
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+	WithIdleOverlay@Burn_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+	WithIdleOverlay@Burn_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+	WithIdleOverlay@Burn_5:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+
+^EffectsWhenDamagedInfantry:
+	SpeedMultiplier@HeavyDamage:
+		Modifier: 75
+		RequiresCondition: heavy-damage
+	SpeedMultiplier@CriticalDamage:
+		Modifier: 10
+		RequiresCondition: critical-damage
+	ChangesHealth@BleedOut:
+		Step: -1
+		Delay: 50
+		StartIfBelow: 25
+		DamageTypes: BleedOutDeath
+	# TODO add bleedout sequence, make sure it doesnt go ontop of soldier, time it with ChangeHealth delay
+	# WithOverlay@BleedOut:
+	# 	RequiresCondition: onfire == 1 || onfire == 2 || onfire == 3 || onfire == 4
+	# 	# ? DamageTypes: FireDeath
+	# 	MinimumDamageState: Critical
+	# 	MaximumDamageState: Dead
+	# 	Image: # bleedout
+	# 	Palette: effect
+
+^RottingInfantry:
+	WithDeathAnimation@ROT:
+		DeathSequence: rot
+		DeathTypes:
+			DefaultDeath: 1
+			BulletDeath: 2
+			SmallExplosionDeath: 3
+			ExplosionDeath: 4
+			BleedOutDeath: 5
+
+# Conscript
+^E1:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
+	Tooltip:
+		Name: Conscript
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 1
+		Prerequisites: ~disabled
+		Description: Conscript.
+	Valued:
+		Cost: 50
+	Armament@1:
+		Name: primary
+		Weapon: 5.56mm.E3
+		Turret: primary-turret
+		PauseOnCondition: !ammo-primary
+	AmmoPool:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo # grenade-ammo
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		RequiresCondition: replenish-soldiers
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: e1_class
+	WithDecoration@Class:
+		Sequence: e1_class
+	Selectable:
+		Class: E1
+	RenderSprites:
+		Scale: 0.6
+E1:
+	Inherits: ^E1
+E1R1:
+	Inherits: ^E1
+	RenderSprites:
+		Image: E1
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E1
+	-Buildable:
+
+# Rifleman with RPG
+^E3:
+	Inherits@Type: ^CamoSoldier
+	# TODO: Autotarget vehicles requires prerequisite: ammo-secondary
+	Inherits@AutoTarget: ^AutoTargetLMGAT
+	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
+	Tooltip:
+		Name: Rifleman
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 2
+		Prerequisites: ~disabled
+		Description: Rifleman\n Semi automatic rifle\n Single-shot unguided AT weapon
+	Valued:
+		Cost: 100
+	AttackFrontal:
+		ForceFireIgnoresActors: True
+	Armament@1:
+		Name: primary
+		Weapon: 5.56mm.DMR
+		PauseOnCondition: !ammo-primary
+		# FireDelay: 7
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Armament@2:
+		Name: secondary
+		Weapon: RPG
+		FireDelay: 8
+		LocalOffset: 0,0,250
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 1
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 200
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 0, 0
+		PipCount: 1
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: secondary-ammo
+		RequiresCondition: ammo-secondary
+	RenderRangeCircle@2:
+		Armament: secondary
+		RangeCircleType: E3
+		RequiresCondition: ammo-secondary
+		Color: FF0000
+	GrantConditionOnPreparingAttack:
+		Condition: preparing-secondary
+		ArmamentNames: secondary
+		RevokeDelay: 20
+	InfantryStates:
+		PauseOnCondition: preparing-secondary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute && !preparing-secondary
+	WithInfantryBody@RPG:
+		IdleSequences: shoot-rpg
+		DefaultAttackSequence: shoot-rpg
+		RequiresCondition: preparing-secondary
+	Passenger:
+		CustomPipType: e3_class
+	WithDecoration@Class:
+		Sequence: e3_class
+	Selectable:
+		Class: E3
+	RenderSprites:
+		Scale: 0.65
+E3:
+	Inherits: ^E3
+E3R1:
+	Inherits: E3
+	RenderSprites:
+		Image: E3
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E3
+	-Buildable:
+
+# LMG
+^AR:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
+	Tooltip:
+		Name: Automatic Rifleman
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 3
+		Prerequisites: ~disabled
+		Description: Pins down large groups of enemy soldiers and deals high damage.
+	Valued:
+		Cost: 100
+	Armament@1:
+		Name: primary
+		Weapon: 5.56mm.AR
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary, garrisoned
+		Ammo: 500
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FFFF00
+	Armament@GARRISONED:
+		Name: garrisoned
+		Weapon: 5.56mm.AR
+		PauseOnCondition: !ammo-primary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: ar_class
+	WithDecoration@Class:
+		Sequence: ar_class
+	Selectable:
+		Class: AR
+	RenderSprites:
+		Scale: 0.65
+AR:
+	Inherits: ^AR
+
+# Grenadier
+^E2:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetGrenades
+	Tooltip:
+		Name: Grenadier
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 4
+		Prerequisites: ~disabled
+		Description: Grenadier\n - Grenade launcher
+	Valued:
+		Cost: 100
+	Armament@1:
+		Name: primary
+		Weapon: GrenadeLauncher.5mag
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 30
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: e2_class
+	WithDecoration@Class:
+		Sequence: e2_class
+	Selectable:
+		Class: E2
+	RenderSprites:
+		Scale: 0.65
+E2:
+	Inherits: ^E2
+E2R1:
+	Inherits: ^E2
+	RenderSprites:
+		Image: E2
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: E2
+	-Buildable:
+
+# Team Leader
+^TL:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetGrenades
+	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
+	Tooltip:
+		Name: Team Leader
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 5
+		Prerequisites: ~disabled
+		Description: Team leader. Boosts morale of nearby soldiers.
+	Valued:
+		Cost: 200
+	ProximityExternalCondition@TLBoost:
+		Condition: morale-boost
+		ValidRelationships: Ally
+		AffectsParent: true
+		Range: 4c0
+	Armament@1:
+		Name: primary
+		Weapon: 7.62mm.DMR
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Armament@2:
+		Name: secondary
+		Weapon: GrenadeLauncher
+		PauseOnCondition: !ammo-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 6
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 4, 0
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: secondary-ammo
+		RequiresCondition: ammo-secondary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: tl_class
+	WithDecoration@Class:
+		Sequence: tl_class
+	Selectable:
+		Class: TL
+	RenderSprites:
+		Scale: 0.7
+TL:
+	Inherits: ^TL
+
+# Mortar
+^MT:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetGrenades
+	Tooltip:
+		Name: Mortar
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 6
+		Prerequisites: ~disabled
+		Description: 60mm mortar
+	Valued:
+		Cost: 300
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Targetable@HighPriority:
+		TargetTypes: Ground, Infantry, HighPriorityInfantry
+	SpeedMultiplier:
+		Modifier: 90
+	IndirectFire:
+	Armament@1:
+		Name: primary
+		Weapon: 60mm_Mortar
+		PauseOnCondition: !ammo-primary
+		LocalOffset: 0,0,10
+		FireDelay: 10
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 25
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		RequiresCondition: ammo-primary
+		Color: FF0000
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+	WithInfantryBody:
+		DefaultAttackSequence: throw
+	Passenger:
+		CustomPipType: mt_class
+	WithDecoration@Class:
+		Sequence: mt_class
+	Selectable:
+		Class: MT
+	RenderSprites:
+		Scale: 0.65
+MT:
+	Inherits: ^MT
+
+# Sniper
+^SN:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetSniper
+	Tooltip:
+		Name: Sniper
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 7
+		Prerequisites: ~disabled
+		Description: Elite sniper infantry unit.\n
+	Valued:
+		Cost: 400
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Armament@1:
+		Name: primary
+		Weapon: 7.62mm.Sniper
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 50
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		RequiresCondition: ammo-primary
+		Color: FFFF00
+	Armament@GARRISONED:
+		Name: garrisoned
+		Weapon: 7.62mm.Sniper
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+	Passenger:
+		CustomPipType: sn_class
+	RenderSprites:
+		Scale: 0.45
+	Selectable:
+		Class: SN
+	WithDecoration@Class:
+		Sequence: sn_class
+SN:
+	Inherits: ^SN
+
+# Anti-tank specialist
+^AT:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetMHL
+	Targetable@HighPriority:
+		TargetTypes: Ground, Infantry, HighPriorityInfantry
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 8
+		Prerequisites: ~disabled
+		Description: Anti-tank Specialist
+	Tooltip:
+		Name: AT Specialist
+	Valued:
+		Cost: 300
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	SpeedMultiplier:
+		Modifier: 90
+	Armament@1:
+		Name: primary
+		Weapon: ATGM
+		PauseOnCondition: !ammo-primary || suppressed >= 10
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 3
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-green
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		RequiresCondition: ammo-primary
+		Color: 00FF00
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 00FF00
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: at_class
+	WithDecoration@Class:
+		Sequence: at_class
+	Selectable:
+		Class: AT
+	RenderSprites:
+		Scale: 0.5
+AT:
+	Inherits: ^AT
+
+# Anti Air
+^AA:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetAir
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 9
+		Prerequisites: ~disabled
+		Description: Anti-air Specialist
+	Tooltip:
+		Name: AA Specialist
+	Valued:
+		Cost: 300
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	SpeedMultiplier:
+		Modifier: 90
+	Armament@1:
+		Name: primary
+		Weapon: MANPAD
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 3
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-blue
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		Alpha: 80
+		Color: 66B2FF
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 66B2FF
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: aa_class
+	WithDecoration@Class:
+		Sequence: aa_class
+	Selectable:
+		Class: AA
+	RenderSprites:
+		Scale: 0.5
+AA:
+	Inherits: ^AA
+
+# Engineer
+^E6:
+	Inherits@Type: ^CamoSoldier
+	# Inherits@Selection: ^SelectableSupportUnit
+	Tooltip:
+		Name: Engineer
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 10
+		Prerequisites: ~disabled
+		Description: - Can repair damaged buildings and bridges.\n- Carries 3 C4 charges/mines.
+	Valued:
+		Cost: 250
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	AutoTarget:
+		InitialStance: AttackAnything
+		InitialStanceAI: AttackAnything
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		PriorityCondition: suppression
+		ConditionalPriority: 100
+		Priority: 4
+	AutoTargetPriority@Repair:
+		ValidTargets: VehicleRepair, BuildingRepair
+		Priority: 3
+	AutoTargetPriority@Mine:
+		ValidTargets: Mine
+		Priority: 2
+	Armament@1:
+		Name: primary
+		Weapon: MP5
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Demolition:
+		RequiresCondition: ammo-secondary
+		UseAmmo: secondary-ammo
+	Minelayer:
+		Mine: MINV
+		AmmoPoolName: secondary-ammo
+		TileUnknownName: build-valid
+		TerrainTypes: Clear, Road, Beach, Rough, Bridge
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 3
+		AmmoCondition: ammo-secondary
+	ReloadAmmoPool@2:
+		AmmoPool: secondary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 4, 0
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: secondary-ammo
+		RequiresCondition: ammo-secondary
+	Armament@Repair:
+		Name: repair
+		Weapon: Repair
+		Cursor: repair
+		OutsideRangeCursor: repair
+		TargetRelationships: Ally
+		ForceTargetRelationships: Ally, Neutral
+		PauseOnCondition: suppressed >= 10
+	Armament@ClearMines:
+		Name: clearmines
+		Weapon: ClearMines
+		Cursor: repair
+		OutsideRangeCursor: repair
+	DetectCloaked@Mine:
+		Range: 2c0
+		DetectionTypes: Mine
+	MineImmune:
+		RequiresCondition: deployed
+	ExternalCondition@MineProximity:
+		Condition: mine-proximity
+	GrantCondition:
+		Condition: deployed
+		RequiresCondition: mine-proximity
+
+	# WithDecoration@AMMO_NONE_C4:
+	# 	RequiresSelection: false
+	# 	Image: pips
+	# 	Sequence: pip-ammo-none
+	# 	Position: Top
+	# 	Margin: 0,-5
+	# 	RequiresCondition: !ammo-c4
+	# 	BlinkInterval: 16
+	# 	BlinkPattern: On, Off
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: c4-ammo
+	RepairsBridges:
+		# TODO: Add Delay
+		EnterBehaviour: Exit
+	CaptureManager:
+	Infiltrates@RestoreTechHusk:
+		Types: TechHusk
+		ValidRelationships: Neutral
+		EnterCursor: repair
+		PlayerExperience: 0
+		EnterBehaviour: Exit
+	WithInfantryBody:
+		RequiresCondition: !parachute
+	Voiced:
+		VoiceSet: EngineerVoice
+	Passenger:
+		CustomPipType: e6_class
+	WithDecoration@Class:
+		Sequence: e6_class
+	Selectable:
+		Class: E6
+	RenderSprites:
+		Scale: 0.6
+E6:
+	Inherits: ^E6
+
+# Flamethrower
+^E4:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Tooltip:
+		Name: Flamethrower
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 11
+		Prerequisites: ~disabled
+		Description: Close-range anti-structure unit.\nMay explode on death.
+	Valued:
+		Cost: 100
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Mobile:
+		PauseOnCondition: dont-move
+	SpeedMultiplier:
+		Modifier: 90
+	Armament@1:
+		Name: primary
+		Weapon: Flamespray
+		MuzzleSequence: muzzle
+		LocalOffset: 500,0,300
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 90
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-orange
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	GrantConditionOnAttack:
+		Condition: dont-move
+		RevokeDelay: 12
+		RevokeOnNewTarget: False
+		RevokeAll: True
+	InfantryStates:
+		ProneOffset: 160,0,-288
+	Explodes:
+		RequiresCondition: ammo-primary
+		Weapon: NapalmExplosion
+		DamageSource: Killer
+		Chance: 50
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: e4_class
+	WithDecoration@Class:
+		Sequence: e4_class
+	Selectable:
+		Class: E4
+	RenderSprites:
+		Scale: 0.6
+E4:
+	Inherits: ^E4
+
+# Special Forces
+^SF:
+	Inherits@Type: ^AmphibiousSoldier
+	# Inherits@Visibility: ^InfantryStealthyVisibility
+	Tooltip:
+		Name: Special Forces
+	Valued:
+		Cost: 600
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		BuildPaletteOrder: 12
+		Prerequisites: ~disabled
+		Queue: Infantry
+		IconPalette: chrome
+		Description: Elite stealthy unit, can swim and climb. Carries 3 C4 charges.
+	Mobile:
+		Speed: 40
+		Locomotor: foot-amphibious-mountainer
+	Armament@1:
+		Name: primary
+		Weapon: 5.56mm.DMR.silencer
+		PauseOnCondition: !ammo-primary || inwater
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Demolition:
+		RequiresCondition: ammo-c4
+		DetonationDelay: 300
+		FlashesDelay: 260
+		FlashInterval: 10
+		DamageTypes: ExplosionDeath
+		Voice: Demolish
+	AmmoPool@2:
+		Name: c4-ammo
+		Armaments: c4
+		Ammo: 3
+		AmmoCondition: ammo-c4
+	ReloadAmmoPool@2:
+		AmmoPool: c4-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 4, 0
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: c4-ammo
+		RequiresCondition: ammo-c4
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo, c4-ammo
+	WithInfantryBody:
+		AttackSequences:
+			primary: shoot
+			secondary: stand
+		IdleSequences: idle1,idle2
+		RequiresCondition: !inwater && !parachute
+	Voiced:
+		VoiceSet: SealVoice
+	Passenger:
+		CustomPipType: sf_class
+	WithDecoration@Class:
+		Sequence: sf_class
+	Selectable:
+		Class: SF
+	RenderSprites:
+		Scale: 0.5
+SF:
+	Inherits: ^SF
+
+# Medic
+^MEDI:
+	Inherits@Type: ^CamoSoldier
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoReplenishing:
+	Tooltip:
+		Name: Medic
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 13
+		Prerequisites: ~disabled
+		Description: - Heals wounded soldiers.\n- Unarmed
+	Valued:
+		Cost: 100
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	AutoTarget:
+		InitialStance: AttackAnything
+		InitialStanceAI: AttackAnything
+	AutoTargetPriority@Default:
+		ValidTargets: Heal
+	Armament@1:
+		Name: primary
+		Weapon: Heal
+		TargetRelationships: Ally
+		ForceTargetRelationships: None
+		Cursor: heal
+		OutsideRangeCursor: heal
+		PauseOnCondition: suppressed >= 10
+	#	Armament@AI:
+	#	Weapon: ai.targeting.helper.noattack
+	#	LocalOffset: 0,0,0
+	#	RequiresCondition: enable-helper
+	#	GrantConditionOnBotOwner@aiplayer:
+	#	Condition: enable-helper
+	#	Bots: normal
+	WithInfantryBody:
+		IdleSequences: idle
+		StandSequences: stand
+		DefaultAttackSequence: heal
+	Voiced:
+		VoiceSet: MedicVoice
+	Passenger:
+		CustomPipType: medi_class
+	GpsDot:
+		String: Healer
+	WithDecoration@Class:
+		Sequence: medi_class
+	Selectable:
+		Class: MEDI
+	RenderSprites:
+		Scale: 0.6
+MEDI:
+	Inherits: ^MEDI
+
+# Infiltrating Spy
+^SPY:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Inherits@Selection: ^SelectableSupportUnit
+	# Inherits@Visibility: ^InfantryStealthyVisibility
+	-Tooltip:
+	-Guard:
+	-WithInfantryBody:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: Defend
+		ScanRadius: 10
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 14
+		Prerequisites: ~disabled
+		Description: Agent of the Intelligence Service. Stealthy and can disguise as enemy soldier.
+	Valued:
+		Cost: 500
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Mobile:
+		Voice: Move
+	AttackMove:
+		Voice: Move
+	Infiltrates:
+		Types: SpyInfiltrate
+		Notification: BuildingInfiltrated
+		PlayerExperience: 50
+	Disguise:
+		DisguisedCondition: disguised
+	Armament@1:
+		Name: ppk
+		Weapon: SilencedPPK
+	WithDisguisingInfantryBody:
+		DefaultAttackSequence: shoot
+		IdleSequences: idle1,idle2
+		StandSequences: stand,stand2
+	WithDecoration@Disguised:
+		Image: class
+		Sequence: spy_disguised
+		Palette: effect
+		Position: Top
+		Margin: 0,7
+		RequiresCondition: disguised
+	DisguiseTooltip:
+		Name: Spy
+		GenericName: Soldier
+	IgnoresDisguise:
+	Voiced:
+		VoiceSet: SpyVoice
+	Passenger:
+		CustomPipType: spy_class
+		Voice: Move
+	WithDecoration@Class:
+		Sequence: spy_class
+	Selectable:
+		Class: SPY
+	RenderSprites:
+		Scale: 0.6
+SPY:
+	Inherits: ^SPY
+
+# Attack Dog
+^DOG:
+	Inherits@Soldier: ^Soldier
+	-AttackFrontal:
+	-ExternalCondition@Suppression:
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoReplenishing:
+	-WithDecoration@Class:
+	-HitShape@Cover:
+	-WithInfantryBody@Parachute:
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 15
+		Prerequisites: ~disabled
+		Description: Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
+	Tooltip:
+		Name: Attack Dog
+		GenericName: Dog
+	Valued:
+		Cost: 100
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 100
+	Mobile:
+		Speed: 80
+		Voice: Move
+		PauseOnCondition: attack-cooldown || eating
+	HitShape@Dog:
+		RequiresCondition: deployed || !moving
+		Type: Circle
+			Radius: 12
+	HitShape@Moving:
+		RequiresCondition: moving
+		Type: Circle
+			Radius: 6
+	AutoTarget:
+		InitialStance: AttackAnything
+		ScanRadius: 25
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+	Guard:
+		Voice: Move
+	DetectCloaked@DOG:
+		DetectionTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
+		Range: 10c0
+	RenderDetectionCircle:
+	IgnoresDisguise:
+	Armament:
+		Weapon: DogJaw
+		ReloadingCondition: attack-cooldown
+	AttackLeap:
+		Speed: 120
+		Voice: Attack
+		PauseOnCondition: attacking || attack-cooldown
+	AttackMove:
+		Voice: Move
+	GrantConditionOnAttack:
+		Condition: eating
+		RevokeDelay: 45
+	GrantConditionWhileAiming:
+		Condition: run
+	Targetable:
+		TargetTypes: Ground, Infantry
+	WithInfantryBody:
+		MoveSequence: walk
+		StandSequences: stand
+		DefaultAttackSequence: eat
+		RequiresCondition: !run
+	WithInfantryBody@RUN:
+		MoveSequence: run
+		RequiresCondition: run
+	SpeedMultiplier:
+		Modifier: 150
+		RequiresCondition: run
+	Voiced:
+		VoiceSet: DogVoice
+	Passenger:
+		Voice: Move
+		CustomPipType: dog_class
+	RenderSprites:
+		Scale: 0.6
+DOG:
+	Inherits: ^DOG
+
+# Technician
+^TECN:
+	Inherits@Type: ^ArmedCivilian
+	Inherits@Selection: ^SelectableSupportUnit
+	Inherits@CapturesNeutralBuildings: ^CapturesNeutralBuildings
+	-Wanders:
+	Tooltip:
+		Name: Technician
+	AnnounceOnSeen:
+		Type: SupportInfantry
+		TextNotification: Spotted: Technician
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 16
+		Prerequisites: ~disabled
+		Description: Operates buildings
+	Valued:
+		Cost: 250
+	Passenger:
+		CustomPipType: tecn_class
+	WithDecoration@Class:
+		Sequence: tecn_class
+		Image: class
+		Palette: effect
+		Position: Top
+		Margin: 0,7
+	Selectable:
+		Class: TECN
+	RenderSprites:
+		Scale: 0.65
+TECN:
+	Inherits: ^TECN
+
+^DR:
+	Inherits: ^CamoSoldier
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTarget
+	Inherits@Selection: ^SelectableSupportUnit
+	-WithDecoration@AmmoSecondaryNone:
+	Tooltip:
+		Name: Drone operator
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 70
+		Prerequisites: ~disabled
+		Description: Drone operator
+	Valued:
+		Cost: 150
+	AutoTarget:
+		ScanRadius: 25
+	CarrierMaster:
+		PauseOnCondition: moving
+		Actors: quadcopterdrone
+		LoadedCondition: loaded
+		AmmoPool: primary-ammo
+		MaxSlaveDistance: 20c0
+		RearmTicks: 150
+	InfantryStates:
+		ActiveCondition: !loaded && ammo-primary
+	IndirectFire:
+	Armament@1:
+		Name: primary
+		Weapon: DroneTargeter
+		AmmoUsage: 0
+		PauseOnCondition: !loaded || !ammo-primary
+		FireDelay: 50
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 1
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 1
+		RequiresCondition: replenish-soldiers
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FFFFFF
+	Armament@2:
+		Name: secondary
+		Weapon: DroneJammer
+	RenderRangeCircle@2:
+		Armament: secondary
+		Width: 4
+		Color: FFFFFF
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		-IdleSequences:
+		StandSequences: stand
+		DefaultAttackSequence: shoot
+	GrantConditionOnPreparingAttack@PrepareDrone:
+		ArmamentNames: primary
+		Condition: prepare
+	# WithDecoration@prepare:
+	# 	RequiresCondition: !prepare
+	# 	Sequence: sn_class
+	# 	Image: class
+	# 	Palette: effect
+	# 	Position: Top
+	# 	Margin: 0,-10
+	WithInfantryBody@PrepareDrone:
+		RequiresCondition: prepare
+		StandSequences: prepare
+		DefaultAttackSequence: prepare
+	WithInfantryBody@OperatingDrone:
+		RequiresCondition: !loaded && primary-ammo
+		StandSequences: operating
+		DefaultAttackSequence: operating
+	# ModifySequence@Operating:
+	# 	RequiresCondition: !loaded && primary-ammo
+	Passenger:
+		CustomPipType: dr_class
+	WithDecoration@Class:
+		Sequence: dr_class
+		Image: class
+		Palette: effect
+		Position: Top
+		Margin: 0,7
+	Selectable:
+		Class: DR
+	RenderSprites:
+		PlayerPalette: playertd
+		Scale: 0.6
+DR:
+	Inherits: ^DR
+
+# Pilot
+^PILOT:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetLMG
+	Inherits@CapturesOccupiedBuildings: ^CapturesOccupiedBuildings
+	Tooltip:
+		Name: Pilot
+	Valued:
+		Cost: 500
+	Armor:
+		Type: None
+	Armament@1:
+		Name: primary
+		Weapon: MP5
+		Turret: primary-turret
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 100
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		Delay: 50
+		Count: 20
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo # grenade-ammo
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: pilot_class
+	WithDecoration@Class:
+		Sequence: pilot_class
+	Selectable:
+		Class: Pilot
+	RenderSprites:
+		Image: E1
+		Scale: 0.6
+PILOT:
+	Inherits: ^PILOT
+PILOTR1:
+	Inherits: ^PILOT
+	Tooltip:
+		Name: Pilot Rank 1
+	Valued:
+		Cost: 800
+	ProducibleWithLevel:
+		InitialLevels: 1
+	UpdatesPlayerStatistics:
+		OverrideActor: PILOT
+PILOTR2:
+	Inherits: ^PILOT
+	Tooltip:
+		Name: Pilot Rank 2
+	Valued:
+		Cost: 1200
+	ProducibleWithLevel:
+		InitialLevels: 2
+	UpdatesPlayerStatistics:
+		OverrideActor: PILOT
+PILOTR3:
+	Inherits: ^PILOT
+	Tooltip:
+		Name: Pilot Rank 3
+	Valued:
+		Cost: 2000
+	ProducibleWithLevel:
+		InitialLevels: 3
+	UpdatesPlayerStatistics:
+		OverrideActor: PILOT
+PILOTR4:
+	Inherits: ^PILOT
+	Tooltip:
+		Name: Ace Pilot
+	Valued:
+		Cost: 3000
+	ProducibleWithLevel:
+		InitialLevels: 4
+	UpdatesPlayerStatistics:
+		OverrideActor: PILOT
+

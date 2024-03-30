@@ -30,12 +30,24 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Which Locomotor does this trait use. Must be defined on the World actor.")]
 		public readonly string Locomotor = null;
 
+		[Desc("TODO: How far is ideal from other units.")]
+		public readonly WDist Separation = new WDist(1024);
+
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
-		public readonly WAngle TurnSpeed = new WAngle(512);
+		public readonly WAngle TurnSpeed = new WAngle(10);
 
 		public readonly int Speed = 1;
+
+		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
+		public readonly int[] Acceleration = { 3, 2, 1 };
+
+		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
+		public readonly int TurnSpeedLoss = 1;
+
+		[Desc("How fast the speed is decreased")]
+		public readonly int Deceleration = 5;
 
 		[Desc("If set to true, this unit will always turn in place instead of following a curved trajectory (like infantry).")]
 		public readonly bool AlwaysTurnInPlace = false;
@@ -161,7 +173,8 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Mobile : PausableConditionalTrait<MobileInfo>, IIssueOrder, IResolveOrder, IOrderVoice, IPositionable, IMove, ITick, ICreationActivity,
-		IFacing, IDeathActorInitModifier, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyBlockingMove, IActorPreviewInitModifier, INotifyBecomingIdle
+		IFacing, IDeathActorInitModifier, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyBlockingMove, IActorPreviewInitModifier, INotifyBecomingIdle,
+		INotifyMoving
 	{
 		readonly Actor self;
 		readonly Lazy<IEnumerable<int>> speedModifiers;
@@ -172,6 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		#region IMove CurrentMovementTypes
 		MovementType movementTypes;
+		public int[] AccelerationSteps;
 		public MovementType CurrentMovementTypes
 		{
 			get => movementTypes;
@@ -207,6 +221,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsImmovable { get; private set; }
 		public bool TurnToMove;
 		public bool IsBlocking { get; private set; }
+		public int Deceleration { get => Info.Deceleration; }
 
 		public bool IsMovingBetweenCells => FromCell != ToCell;
 
@@ -242,6 +257,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public CPos TopLeft => ToCell;
 
+		public int CurrentSpeed { get; set; }
+
 		public (CPos, SubCell)[] OccupiedCells()
 		{
 			if (FromCell == ToCell)
@@ -263,6 +280,8 @@ namespace OpenRA.Mods.Common.Traits
 			speedModifiers = Exts.Lazy(() => self.TraitsImplementing<ISpeedModifier>().ToArray().Select(x => x.GetSpeedModifier()));
 
 			ToSubCell = FromSubCell = info.LocomotorInfo.SharesCell ? init.World.Map.Grid.DefaultSubCell : SubCell.FullCell;
+
+			AccelerationSteps = Info.Acceleration;
 
 			var subCellInit = init.GetOrDefault<SubCellInit>();
 			if (subCellInit != null)
@@ -318,7 +337,7 @@ namespace OpenRA.Mods.Common.Traits
 			if ((oldPos - CenterPosition).HorizontalLengthSquared != 0)
 				newMovementTypes |= MovementType.Horizontal;
 
-			if (oldPos.Z != CenterPosition.Z)
+			if (oldPos.Z != CenterPosition.Z) // CPU ~1%
 				newMovementTypes |= MovementType.Vertical;
 
 			if (oldFacing != Facing)
@@ -569,19 +588,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (!self.IsAtGroundLevel())
 				return;
 
-			CrushAction(self, (notifyCrushed) => notifyCrushed.OnCrush);
+			PassAction(self, (notifyPassed) => notifyPassed.OnBeingPassed);
 		}
 
-		void CrushAction(Actor self, Func<INotifyCrushed, Action<Actor, Actor, BitSet<CrushClass>>> action)
+		void PassAction(Actor self, Func<INotifyBeingPassed, Action<Actor, Actor, BitSet<PassClass>>> action)
 		{
-			var crushables = self.World.ActorMap.GetActorsAt(ToCell, ToSubCell).Where(a => a != self)
-				.SelectMany(a => a.TraitsImplementing<ICrushable>().Select(t => new TraitPair<ICrushable>(a, t)));
+			var passables = self.World.ActorMap.GetActorsAt(ToCell, ToSubCell).Where(a => a != self)
+				.SelectMany(a => a.TraitsImplementing<IPassable>().Select(t => new TraitPair<IPassable>(a, t)));
 
 			// Only crush actors that are on the ground level
-			foreach (var crushable in crushables)
-				if (crushable.Trait.CrushableBy(crushable.Actor, self, Info.LocomotorInfo.Crushes) && crushable.Actor.IsAtGroundLevel())
-					foreach (var notifyCrushed in crushable.Actor.TraitsImplementing<INotifyCrushed>())
-						action(notifyCrushed)(crushable.Actor, self, Info.LocomotorInfo.Crushes);
+			foreach (var passable in passables)
+				if (passable.Trait.PassableBy(passable.Actor, self, Info.LocomotorInfo.PassableClasses) && passable.Actor.IsAtGroundLevel())
+					foreach (var notifyPassed in passable.Actor.TraitsImplementing<INotifyBeingPassed>())
+						action(notifyPassed)(passable.Actor, self, Info.LocomotorInfo.PassableClasses);
 		}
 
 		public void AddInfluence()
@@ -741,7 +760,14 @@ namespace OpenRA.Mods.Common.Traits
 			var terrainSpeed = Locomotor.MovementSpeedForCell(cell);
 			var modifiers = speedModifiers.Value.Append(terrainSpeed);
 
-			return Util.ApplyPercentageModifiers(Info.Speed, modifiers);
+			var aa = Util.ApplyPercentageModifiers(Info.Speed, modifiers);
+
+			if (aa == 22)
+			{
+
+			}
+
+			return aa;
 		}
 
 		public CPos NearestMoveableCell(CPos target, int minRange, int maxRange)
@@ -787,7 +813,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!self.IsAtGroundLevel())
 				return;
 
-			CrushAction(self, (notifyCrushed) => notifyCrushed.WarnCrush);
+			PassAction(self, (notifyPassed) => notifyPassed.WarnPass);
 		}
 
 		public Activity MoveTo(Func<BlockedByActor, List<CPos>> pathFunc) { return new Move(self, pathFunc); }
@@ -833,11 +859,24 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Allows the husk to drag to its final position
 			if (CanEnterCell(self.Location, self, BlockedByActor.Stationary))
-				init.Add(new HuskSpeedInit(MovementSpeedForCell(self.Location)));
+				init.Add(new HuskSpeedInit(CurrentSpeed));
+		}
+
+		public void Stopped()
+		{
+			CurrentSpeed = 0;
+		}
+
+		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
+		{
+			if (type == MovementType.None)
+				Stopped();
 		}
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
+			Stopped();
+
 			if (self.Location.Layer == 0)
 			{
 				// Make sure that units aren't left idling in a transit-only cell
@@ -921,7 +960,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "Move")
 			{
 				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
+				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
 				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor)));
@@ -946,7 +985,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.Shroud.IsExplored(cell))
+						if (!self.Owner.MapLayers.IsExplored(cell))
 							return null;
 					}
 
@@ -997,7 +1036,7 @@ namespace OpenRA.Mods.Common.Traits
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				var explored = self.Owner.Shroud.IsExplored(location);
+				var explored = self.Owner.MapLayers.IsExplored(location);
 
 				if (mobile.IsTraitPaused
 					|| !self.World.Map.Contains(location)

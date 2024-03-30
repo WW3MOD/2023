@@ -1,0 +1,19 @@
+
+^Explosion:
+	ValidTargets: Ground, Water, Air
+	Warhead@Spread: SpreadDamage
+		Spread: 426
+		Damage: 50
+		DamageTypes: ExplosionDeath
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Structure, Wall, Trees
+	Warhead@Effect: CreateEffect
+		Explosions: self_destruct
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Air, Ship, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge

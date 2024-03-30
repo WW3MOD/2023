@@ -15,8 +15,8 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Put this on the actor that gets crushed to replace the crusher with a new actor.")]
-	public class TransformCrusherOnCrushInfo : TraitInfo
+	[Desc("Put this on the actor that gets crushed to replace the passer with a new actor.")]
+	public class TransformCrusherOnBeingPassedInfo : TraitInfo
 	{
 		[ActorReference]
 		[FieldLoader.Require]
@@ -24,36 +24,40 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly bool SkipMakeAnims = true;
 
-		public readonly BitSet<CrushClass> CrushClasses = default;
+		public readonly BitSet<PassClass> PassClasses = default;
 
-		public override object Create(ActorInitializer init) { return new TransformCrusherOnCrush(init, this); }
+		public override object Create(ActorInitializer init) { return new TransformCrusherOnBeingPassed(init, this); }
 	}
 
-	public class TransformCrusherOnCrush : INotifyCrushed
+	public class TransformCrusherOnBeingPassed : INotifyBeingPassed
 	{
-		readonly TransformCrusherOnCrushInfo info;
+		readonly TransformCrusherOnBeingPassedInfo info;
 		readonly string faction;
 
-		public TransformCrusherOnCrush(ActorInitializer init, TransformCrusherOnCrushInfo info)
+		public TransformCrusherOnBeingPassed(ActorInitializer init, TransformCrusherOnBeingPassedInfo info)
 		{
 			this.info = info;
 			faction = init.GetValue<FactionInit, string>(init.Self.Owner.Faction.InternalName);
 		}
 
-		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses) { }
+		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses) { }
 
-		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
+		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			if (!info.CrushClasses.Overlaps(crushClasses))
+			if (!info.PassClasses.Overlaps(passClasses))
 				return;
 
-			var facing = crusher.TraitOrDefault<IFacing>();
+			var facing = passer.TraitOrDefault<IFacing>();
 			var transform = new Transform(info.IntoActor) { Faction = faction };
 			if (facing != null)
 				transform.Facing = facing.Facing;
 
 			transform.SkipMakeAnims = info.SkipMakeAnims;
-			crusher.QueueActivity(false, transform);
+			passer.QueueActivity(false, transform);
+		}
+
+		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
+		{
 		}
 	}
 }

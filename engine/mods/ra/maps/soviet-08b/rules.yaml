@@ -22,7 +22,7 @@ Player:
 		DefaultCash: 5000
 
 CAMERA:
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 
 LST.Reinforcement:

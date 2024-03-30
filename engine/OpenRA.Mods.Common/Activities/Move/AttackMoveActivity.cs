@@ -27,6 +27,7 @@ namespace OpenRA.Mods.Common.Activities
 		bool runningMoveActivity = false;
 		int token = Actor.InvalidConditionToken;
 		Target target = Target.Invalid;
+		int checkTick = 0;
 
 		public AttackMoveActivity(Actor self, Func<Activity> getMove, bool assaultMoving = false)
 		{
@@ -56,16 +57,20 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || attackMove == null || autoTarget == null)
 				return TickChild(self);
 
-			// We are currently not attacking, so scan for new targets.
-			if (ChildActivity == null || runningMoveActivity)
+			// CPU improvement - Only check every 10 ticks
+			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
+				// We are currently not attacking, so scan for new targets.
 				// Use the standard ScanForTarget rate limit while we are running the move activity to save performance.
 				// Override the rate limit if our attack activity has completed so we can immediately acquire a new target instead of moving.
+				// CPU Expensive!
 				target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
 
 				// Cancel the current move activity and queue attack activities if we find a new target.
 				if (target.Type != TargetType.Invalid)
 				{
+					checkTick = 0;
+
 					runningMoveActivity = false;
 					ChildActivity?.Cancel(self);
 
@@ -78,6 +83,7 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					runningMoveActivity = true;
 					QueueChild(getMove());
+					checkTick = 10;
 				}
 			}
 

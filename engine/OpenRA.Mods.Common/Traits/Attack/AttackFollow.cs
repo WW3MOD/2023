@@ -79,6 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 		}
 
+		/// <summary>Actor can be viewed, is within min/max range, is not blocked, and TargetInFiringArc </summary>
 		protected bool CanAimAtTarget(Actor self, in Target target, bool forceAttack)
 		{
 			if (target.Type == TargetType.Actor && !target.Actor.CanBeViewedByPlayer(self.Owner))
@@ -91,7 +92,7 @@ namespace OpenRA.Mods.Common.Traits
 			var armaments = ChooseArmamentsForTarget(target, forceAttack);
 			foreach (var a in armaments)
 				if (target.IsInRange(pos, a.MaxRange()) && (a.Weapon.MinRange == WDist.Zero || !target.IsInRange(pos, a.Weapon.MinRange)))
-					if (TargetInFiringArc(self, target, Info.FacingTolerance))
+					if (TargetInFiringArc(self, target, Info.FacingTolerance)) // Make sure target is valid or there can be an error in target.CenterPosition ?
 						return true;
 
 			return false;
@@ -225,7 +226,7 @@ namespace OpenRA.Mods.Common.Traits
 		class AttackActivity : Activity, IActivityNotifyStanceChanged
 		{
 			readonly AttackFollow attack;
-			readonly RevealsShroud[] revealsShroud;
+			readonly Vision[] vision;
 			readonly IMove move;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
@@ -244,7 +245,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				attack = self.Trait<AttackFollow>();
 				move = allowMove ? self.TraitOrDefault<IMove>() : null;
-				revealsShroud = self.TraitsImplementing<RevealsShroud>().ToArray();
+				vision = self.TraitsImplementing<Vision>().ToArray();
 
 				this.target = target;
 				this.forceAttack = forceAttack;
@@ -324,7 +325,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Most actors want to be able to see their target before shooting
 				if (target.Type == TargetType.FrozenActor && !attack.Info.TargetFrozenActors && !forceAttack)
 				{
-					var rs = revealsShroud
+					var rs = vision
 						.Where(t => !t.IsTraitDisabled)
 						.MaxByOrDefault(s => s.Range);
 
@@ -348,7 +349,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				// We've reached the required range - if the target is visible and valid then we wait
 				// otherwise if it is hidden or dead we give up
-				if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange))
+				if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange)
+					&& checkTarget.Type != TargetType.Invalid
+					&& (self.TraitOrDefault<IndirectFire>() != null
+						|| !BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
 				{
 					if (useLastVisibleTarget)
 						return true;

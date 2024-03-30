@@ -19,7 +19,7 @@ World:
 
 Camera.Small:
 	Inherits: CAMERA
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 
 TSLA:
@@ -41,7 +41,7 @@ LST.IN:
 
 TRAN:
 	-Selectable:
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	Targetable@GROUND:
 		TargetTypes: GroundActor
@@ -58,7 +58,7 @@ TRUK.mission:
 	Inherits: TRUK
 	WithFacingSpriteBody:
 	-SpawnActorOnDeath:
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		ValidRelationships: Ally, Enemy
 		RequiresCondition: hijacked

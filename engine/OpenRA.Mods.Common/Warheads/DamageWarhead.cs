@@ -20,8 +20,32 @@ namespace OpenRA.Mods.Common.Warheads
 {
 	public abstract class DamageWarhead : Warhead
 	{
+		[Desc("How much armor this warhead can penetrate.")]
+		public readonly int Penetration = 1;
+
+		[Desc("The percent of damage to deal when firing at max range (e.g. kinetic weapons).")]
+		public readonly int DamageAtMaxRange = 100;
+
 		[Desc("How much (raw) damage to deal.")]
 		public readonly int Damage = 0;
+
+		[Desc("How much damage to deal in percent.")]
+		public readonly int DamagePercent = 0;
+
+		[Desc("Percent of damage to deal randomly for each unit, from this value to 100.")]
+		public readonly int RandomDamagePercentFrom = 100;
+
+		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage).")]
+		public readonly int RandomDamageAddition = 0;
+
+		[Desc("Random extra damage for each victim (Total = Damage + Random(0, RandomDamage).")]
+		public readonly int RandomDamageSubtraction = 0;
+
+		[Desc("Apply the damage for this many ticks after initial.")]
+		public readonly int Duration = 0;
+
+		[Desc("Apply the Damage over time slower by waiting this many ticks between each hit.")]
+		public readonly int Modulus = 0;
 
 		[Desc("Types of damage that this warhead causes. Leave empty for no damage types.")]
 		public readonly BitSet<DamageType> DamageTypes = default;
@@ -71,22 +95,152 @@ namespace OpenRA.Mods.Common.Warheads
 
 		protected virtual int DamageVersus(Actor victim, HitShape shape, WarheadArgs args)
 		{
-			// If no Versus values are defined, DamageVersus would return 100 anyway, so we might as well do that early.
+			var damage = 100;
+
+			// If no Versus values are defined, DamageVersus can be ignored.
 			if (Versus.Count == 0)
-				return 100;
+				return damage;
 
-			var armor = victim.TraitsImplementing<Armor>()
-				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type) &&
-					(shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)))
-				.Select(a => Versus[a.Info.Type]);
+			var armorVs = victim.TraitsImplementing<Armor>()
+				.Where(a => !a.IsTraitDisabled && a.Info.Type != null && Versus.ContainsKey(a.Info.Type)
+					&& (shape.Info.ArmorTypes.IsEmpty || shape.Info.ArmorTypes.Contains(a.Info.Type)));
 
-			return Util.ApplyPercentageModifiers(100, armor);
+			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
+		}
+
+		protected virtual int RangeDamageMultiplier(Actor victim, Actor firedBy, WarheadArgs args)
+		{
+			var range = (args.Source - args.ImpactPosition).Value.HorizontalLength;
+			var maxRange = args.Weapon.Range.Length;
+			var ofMax = (float)range / maxRange;
+			var damage = ((1 - ofMax) * 100) + (ofMax * DamageAtMaxRange);
+
+			return (int)damage;
+		}
+
+		protected virtual int ArmorDirectionPercent(Actor victim, HitShape shape, WarheadArgs args)
+		{
+			var armorPercent = 100;
+
+			var distribution = victim.TraitsImplementing<Armor>()
+				.First(a => !a.IsTraitDisabled).Info.Distribution;
+
+			// Directional damage, e.g. higher damage from the rear
+			if (distribution.Length == 5)
+			{
+				if (args.Weapon.TopAttack)
+				{
+					return distribution[3];
+				}
+				else if (args.Weapon.BottomAttack)
+				{
+					return distribution[4];
+				}
+				else
+				{
+					var victimYaw = victim.Orientation.Yaw;
+					var projectileYaw = args.ImpactOrientation.Yaw;
+
+					var alignment = victimYaw - projectileYaw;
+
+					var frontAlignment = (alignment + new WAngle(512)).Angle;
+					var rearAlignment = alignment.Angle;
+					var leftAlignment = (alignment - new WAngle(256)).Angle;
+					var rightAlignment = (alignment + new WAngle(256)).Angle;
+
+					float frontModifier = 0;
+					float rearModifier = 0;
+					float leftModifier = 0;
+					float rightModifier = 0;
+
+					if (frontAlignment < 256)
+					{
+						frontModifier = (float)(256 - frontAlignment) / 256f;
+					}
+					else if (frontAlignment > 768)
+					{
+						frontModifier = (float)(frontAlignment - 768) / 256f;
+					}
+					else
+					{
+						if (rearAlignment < 512)
+							rearModifier = (float)(256 - rearAlignment) / 256f;
+						else
+							rearModifier = (float)(rearAlignment - 768) / 256f;
+					}
+
+					if (leftAlignment < 256)
+					{
+						leftModifier = (float)(256 - leftAlignment) / 256f;
+					}
+					else if (leftAlignment > 768)
+					{
+						leftModifier = (float)(leftAlignment - 768) / 256f;
+					}
+					else
+					{
+						if (rightAlignment < 256)
+							rightModifier = (float)(256 - rightAlignment) / 256f;
+						else if (rightAlignment > 256)
+							rightModifier = (float)(rightAlignment - 768) / 256f;
+					}
+
+					var frontDamage = frontModifier * 100f * (distribution[0] / 100f);
+					var leftDamage = leftModifier * 100f * (distribution[1] / 100f);
+					var rightDamage = rightModifier * 100f * (distribution[1] / 100f);
+					var rearDamage = rearModifier * 100f * (distribution[2] / 100f);
+
+					return (int)(frontDamage + leftDamage + rightDamage + rearDamage);
+				}
+			}
+
+			return armorPercent;
 		}
 
 		protected virtual void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args)
 		{
-			var damage = Util.ApplyPercentageModifiers(Damage, args.DamageModifiers.Append(DamageVersus(victim, shape, args)));
-			victim.InflictDamage(firedBy, new Damage(damage, DamageTypes));
+			var damage = Damage;
+
+			if (RandomDamageAddition != 0)
+				damage += firedBy.World.SharedRandom.Next(0, RandomDamageAddition);
+
+			if (RandomDamageSubtraction != 0)
+				damage -= firedBy.World.SharedRandom.Next(0, RandomDamageSubtraction);
+
+			if (RandomDamagePercentFrom != 100)
+			{
+				damage *= firedBy.World.SharedRandom.Next(RandomDamagePercentFrom, 100);
+				damage /= 100;
+			}
+
+			var thickness = victim.Trait<Armor>().Info.Thickness;
+			if (thickness != 0)
+			{
+				var armorPercent = ArmorDirectionPercent(victim, shape, args);
+				thickness = thickness * armorPercent / 100;
+
+				var penetration = Penetration;
+
+				var diff = penetration - thickness;
+
+				if (diff < 0)
+				{
+					// Can't penetrate - Reduce damage by how much it penetrated
+					damage = damage * penetration / thickness;
+				} // TODO: damage more when penetrating? Or less if not?
+			}
+
+			if (DamagePercent != 0)
+				damage += victim.TraitOrDefault<Health>().Info.HP * DamagePercent / 100;
+
+			var modifiedDamage = Util.ApplyPercentageModifiers(damage, args.DamageModifiers.Append(DamageVersus(victim, shape, args)));
+
+			if (Duration > 0)
+			{
+				victim.InflictDamage(firedBy, new Actor.DamageOverTime(Duration, Modulus, new Damage(modifiedDamage, DamageTypes)));
+			}
+			else
+				victim.InflictDamage(firedBy, new Damage(modifiedDamage, DamageTypes));
 		}
 
 		protected abstract void DoImpact(WPos pos, Actor firedBy, WarheadArgs args);

@@ -1,10 +1,10 @@
 ^BasePlayer:
 	AlwaysVisible:
-	Shroud:
-	PlayerResources:
-		ResourceValues:
-			Ore: 25
-			Gems: 50
+	MapLayers:
+	# PlayerResources:
+	# 	ResourceValues:
+	# 		Ore: 25
+	# 		Gems: 50
 
 EditorPlayer:
 	Inherits: ^BasePlayer
@@ -12,91 +12,91 @@ EditorPlayer:
 Player:
 	Inherits: ^BasePlayer
 	TechTree:
+	ProvidesMiniMap:
+	ProximityCaptor:
+		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 0
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
-		ReadyTextNotification: Construction complete.
-		BlockedAudio: NoBuild
+		# ReadyTextNotification: MCV reporting.
+		# BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
+		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Defense:
 		Type: Defense
 		DisplayOrder: 1
-		LowPowerModifier: 300
-		ReadyAudio: ConstructionComplete
-		ReadyTextNotification: Construction complete.
-		BlockedAudio: NoBuild
-		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
+		# BlockedAudio: NoBuild
+		# ReadyTextNotification: MCV delivered.
+		# LimitedAudio: BuildingInProgress
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
+		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Vehicle:
 		Type: Vehicle
-		DisplayOrder: 3
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: Unit ready.
-		BlockedAudio: NoBuild
-		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
-		BuildTimeSpeedReduction: 100, 75, 60, 50
-	ClassicProductionQueue@Infantry:
-		Type: Infantry
 		DisplayOrder: 2
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: Unit ready.
+		# ReadyTextNotification: Unit ready.
+		# BlockedAudio: NoBuild
+		BlockedTextNotification: Unable to build more.
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
+		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
+	ClassicParallelProductionQueue@Infantry:
+		Type: Infantry
+		DisplayOrder: 3
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Training
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
+		Sticky: False
+		BuildingCountBuildTimeMultipliers: 100, 75, 50, 25, 20, 15, 10
+		ParallelPenaltyBuildTimeMultipliers: 100
 	ClassicProductionQueue@Ship:
 		Type: Ship
-		DisplayOrder: 5
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: Unit ready.
+		DisplayOrder: 4
+		# ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
+		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
-		DisplayOrder: 4
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: Unit ready.
+		DisplayOrder: 5
+		# ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: Unable to comply. Building in progress.
-		QueuedAudio: Building
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
+		# LimitedAudio: BuildingInProgress
+		# LimitedTextNotification: Unable to comply. Building in progress.
+		# QueuedAudio: Building
+		# OnHoldAudio: OnHold
+		# CancelledAudio: Cancelled
+		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
+	# ClassicProductionQueue@Fakestructure:
+	# 	Type: Fakestructure
+	# 	Factions: america, russia
+	# 	DisplayOrder: 6
+	# 	ReadyAudio: ConstructionComplete
+	# 	BlockedAudio: NoBuild
+	# 	LimitedAudio: BuildingInProgress
+	# 	QueuedAudio: Building
+	# 	OnHoldAudio: OnHold
+	# 	CancelledAudio: Cancelled
+	# 	BuildTimeSpeedReduction: , 8, 7, 6, 5
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio
@@ -109,41 +109,35 @@ Player:
 		LoseNotification: Lose
 		LeaveNotification: Leave
 	ConquestVictoryConditions:
-	PowerManager:
-		SpeechNotification: LowPower
-		TextNotification: Low power.
+	PowerManager: # TODO Remove
 	AllyRepair:
 	PlayerResources:
-		InsufficientFundsNotification: InsufficientFunds
-		InsufficientFundsTextNotification: Insufficient funds.
+		SelectableCash: 0, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000
+		DefaultCash: 1000
+		SelectablePassiveIncome: 0, 10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000
+		PassiveIncome: 100
+		PassiveIncomeInterval: 50
+		PassiveIncomeInitialDelay: 50
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:
 		CheckboxDisplayOrder: 10
 	GpsWatcher:
-	Shroud:
-		FogCheckboxDisplayOrder: 3
-	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
+	MapLayers:
+	LobbyPrerequisiteCheckbox@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
 		Description: Players receive cash bonuses when killing enemy units
 		Enabled: False
-		DisplayOrder: 8
+		DisplayOrder: 13
 		Prerequisites: global-bounty
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
-		ID: factundeploy
+		ID: mcv-undeploys
 		Label: Redeployable MCVs
 		Description: Allow undeploying Construction Yard
-		Enabled: True
-		DisplayOrder: 7
-		Prerequisites: global-factundeploy
-	LobbyPrerequisiteCheckbox@REUSABLEENGINEERS:
-		ID: reusable-engineers
-		Label: Reusable Engineers
-		Description: Engineers remain on the battlefield after capturing a structure
 		Enabled: False
-		DisplayOrder: 9
-		Prerequisites: global-reusable-engineers
+		DisplayOrder: 7
+		Prerequisites: global-mcv-undeploys
 	FrozenActorLayer:
 	BaseAttackNotifier:
 		TextNotification: Base under attack.
@@ -158,18 +152,22 @@ Player:
 		Name: Low
 		Prerequisites: techlevel.infonly, techlevel.low
 		Id: low
-	ProvidesTechPrerequisite@medium:
+	ProvidesTechPrerequisite@Medium:
 		Name: Medium
 		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium
 		Id: medium
 	ProvidesTechPrerequisite@high:
-		Name: No Superweapons
+		Name: High
 		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high
-		Id: nosuperweapons
+		Id: high
 	ProvidesTechPrerequisite@unrestricted:
 		Name: Unrestricted
 		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high, techlevel.unrestricted
 		Id: unrestricted
+	ProvidesTechPrerequisite@futuristic:
+		Name: Futuristic
+		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high, techlevel.unrestricted, techlevel.futuristic
+		Id: futuristic
 	GrantConditionOnPrerequisiteManager:
 	EnemyWatcher:
 	ProductionIconOverlayManager:
@@ -177,7 +175,381 @@ Player:
 		Image: iconchevrons
 		Sequence: veteran
 	ResourceStorageWarning:
+		AdviceInterval: 25000
 		TextNotification: Silos needed.
 	PlayerExperience:
+	ProvidesPrerequisite@NATO:
+		Factions: nato, america, europe, ukraine
+		Prerequisite: player.nato
+	GrantConditionOnPrerequisite@NATO:
+		Condition: player.nato
+		Prerequisites: player.nato
+	ProvidesPrerequisite@America:
+		Factions: america
+		Prerequisite: player.america
+	GrantConditionOnPrerequisite@America:
+		Condition: player.nato
+		Prerequisites: player.america
+	ProvidesPrerequisite@BRICS:
+		Factions: brics, russia, china, belarus
+		Prerequisite: player.brics
+	GrantConditionOnPrerequisite@BRICS:
+		Condition: player.brics
+		Prerequisites: player.brics
+	ProvidesPrerequisite@Russia:
+		Factions: russia
+		Prerequisite: player.russia
+	GrantConditionOnPrerequisite@Russia:
+		Condition: player.brics
+		Prerequisites: player.russia
+	ProvidesPrerequisite@natooramerica:
+		Factions: nato, america
+		Prerequisite: nato.or.america
+	ProvidesPrerequisite@bricsorrussia:
+		Factions: brics, russia
+		Prerequisite: brics.or.russia
+	ProvidesPrerequisite@IsPlaying:
+		Prerequisite: player.online
+	LobbyPrerequisiteCheckbox@NAVYDISABLER:
+		ID: disablenavy
+		Label: Disable Navy
+		Description: Use this to fix spamming Cruisers in ponds
+		Enabled: True
+		DisplayOrder: 12
+		Prerequisites: global-disablenavy
 	GameSaveViewportManager:
-	PlayerRadarTerrain:
+	PlayerMiniMapTerrain:
+	# LobbyPrerequisiteCheckbox@GlobalPenalty:
+	# 	ID: penalty
+	# 	Label: War Crime Penalty
+	# 	Description: Killing civillians costs player $1000
+	# 	Enabled: False
+	# 	DisplayOrder: 99
+	# 	Prerequisites: global-penalty
+	LobbyPrerequisiteCheckbox@NuclearAllowed:
+		ID: nuclearallowed
+		Label: Nuclear
+		Description: The conflict has escallated to nuclear warfare.
+		Enabled: False
+		DisplayOrder: 300
+		Prerequisites: global-nuclear
+	# ParatroopersPower@RUSSIAParatroopers:
+	# 	OrderName: RussiaParatroopers
+	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
+	# 	Icon: paratroopers
+	# 	ChargeInterval: 7500
+	# 	Name: Paratroopers
+	# 	Description: A Badger drops a squad of Veteran infantry\nanywhere on the map.
+	# 	DropItems: E1R1,E1R1,E1R1,E3R1,E1R1,E3R1,E1R1,E1R1
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	UnitType: badr
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: pinficon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	PauseOnCondition: lowpower
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# ParatroopersPower@AmericaParatroopers:
+	# 	OrderName: AmericaParatroopers
+	# 	Prerequisites: aircraft.america, ~techlevel.unrestricted
+	# 	RequiresCondition: america.player
+	# 	Icon: paratroopers
+	# 	ChargeInterval: 7500
+	# 	Name: Paratroopers
+	# 	Description: A B-52 drops a squad of Veteran infantry\nanywhere on the map.
+	# 	DropItems: E1R1,E1R1,E1R1,E3R1,E1R1,E3R1,E1R1,E1R1
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	UnitType: b52
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: pinficon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	PauseOnCondition: lowpower
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# ParatroopersPower@RussiaFastParatroopers:
+	# 	OrderName: RussiaFastParatroopers
+	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
+	# 	Icon: paratroopers
+	# 	ChargeInterval: 3750
+	# 	Name: Paratroopers
+	# 	Description: A Badger drops a squad of Veteran infantry\nanywhere on the map.
+	# 	DropItems: E1R1,E1R1,E1R1,E3R1,E2R1,E2R1,E1R1,E1R1
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: pinficon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	PauseOnCondition: lowpower
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# ParatroopersPower@GrenParadrop:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: GrenParadrop
+	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
+	# 	Icon: paragren
+	# 	ChargeInterval: 7500
+	# 	Name: Paragrenadiers
+	# 	Description: A Badger drops four Grenadiers anywhere on the map.
+	# 	DropItems: E2R1,E2R1,E2R1,E2R1,E1R1,E1R1,E1R1
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: paragren
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# ParatroopersPower@ParaMines:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: RussiaParaMines
+	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
+	# 	Icon: paramines
+	# 	ChargeInterval: 7500
+	# 	Name: Paramines
+	# 	Description: A Badger drops one Minelayer anywhere on the map.
+	# 	DropItems: MNLY
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: paramines
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# ParatroopersPower@ParaJeeps:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: AmericaParaScouts
+	# 	Prerequisites: aircraft.america, player.america, ~techlevel.unrestricted
+	# 	Icon: parajeep
+	# 	ChargeInterval: 7500
+	# 	Name: Parascout
+	# 	Description: A B-52 drops 2 veteran Jeeps anywhere on the map.
+	# 	DropItems: humvee
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	UnitType: b52
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: parajeep
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# ParatroopersPower@AmericaParaScouts:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: AmericaParaTanks
+	# 	Prerequisites: aircraft.america, fix, player.america, ~techlevel.unrestricted
+	# 	Icon: paratanks
+	# 	ChargeInterval: 7500
+	# 	Name: Paratanks
+	# 	Description: A B-52 drops an Veteran squad of two Light\nand a Medium Tank anywhere on the map.\nThose tanks are standard pattern.
+	# 	DropItems: 1TNK.R1, 2TNK.R1, 1TNK.R1
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	CameraActor: camera.paradrop
+	# 	UnitType: b52
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: paratanks
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airdrop
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 4
+	# AirstrikePower@Spyplane:
+	# 	PauseOnCondition: lowpower
+	# 	OrderName: RussiaSpyPlane
+	# 	Prerequisites:
+	# 	Icon: spyplane
+	# 	ChargeInterval: 2750
+	# 	Name: Spy Plane
+	# 	Description: Reveals an area of the map\nand cloaked enemy units.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	EndChargeSpeechNotification: SpyPlaneReady
+	# 	CameraActor: camera.spyplane
+	# 	CameraRemoveDelay: 250
+	# 	UnitType: u2
+	# 	QuantizedFacings: 8
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: camicon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: chrono-select
+	# 	SupportPowerPaletteOrder: 5
+	# AirstrikePower@SpyplaneExtra:
+	# 	PauseOnCondition: lowpower
+	# 	OrderName: RussiaSpyPlaneExtra
+	# 	Prerequisites:
+	# 	Icon: spyplane
+	# 	ChargeInterval: 2750
+	# 	Name: Spy Plane (x2)
+	# 	Description: Reveals an area of the map\nand cloaked enemy units.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	EndChargeSpeechNotification: SpyPlaneReady
+	# 	CameraActor: camera.spyplane
+	# 	CameraRemoveDelay: 250
+	# 	UnitType: u2
+	# 	QuantizedFacings: 8
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: camicon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: chrono-select
+	# 	SupportPowerPaletteOrder: 5
+	# 	StartFullyCharged: true
+	# ParatroopersPower@ListeningPost:
+	# 	PauseOnCondition: disabled
+	# 	OrderName: ListeningPost
+	# 	Prerequisites:
+	# 	Icon: lpsummon
+	# 	ChargeInterval: 4500
+	# 	Name: Spy Mast
+	# 	Description: Deploys a Spy Mast anywhere on the map.\nProvides vision and detects cloaked units nearby.\nIt can be disguised to appear as an Tree to the enemy.
+	# 	DropItems: spmst.summon
+	# 	ReinforcementsArrivedSpeechNotification: ReinforcementsArrived
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	AllowImpassableCells: false
+	# 	QuantizedFacings: 8
+	# 	UnitType: unit.summoner
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: sonrbcon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	SupportPowerPaletteOrder: 5
+	# B2 STRIKE
+	# AirstrikePower@PrecisionStrike:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: PrecisionStrike
+	# 	Prerequisites:
+	# 	Icon: precicon
+	# 	ChargeInterval: 50
+	# 	SquadSize: 1
+	# 	QuantizedFacings: 8
+	# 	Name: Precision Strike
+	# 	Description: A Precision Bomber delivers an Rocket Barrage on target.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	UnitType: u2
+	# 	CameraActor: camera.paradrop
+	# 	DisplayBeacon: True
+	# 	BeaconPoster: precbcon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airstrike
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 3
+	# AirstrikePower@Parabombs:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: RussiaParabombs
+	# 	Prerequisites:
+	# 	Icon: parabombs
+	# 	ChargeInterval: 7500
+	# 	Name: Parabombs
+	# 	Description: A squad of Badgers drop parachuted\nbombs on your target.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	CameraActor: camera
+	# 	CameraRemoveDelay: 150
+	# 	UnitType: badr.bomber
+	# 	QuantizedFacings: 8
+	# 	DisplayBeacon: true
+	# 	BeaconPoster: pbmbicon
+	# 	SquadSize: 3
+	# 	SquadOffset: 1792,1792,0
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airstrike
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 3
+	# AirstrikePower@EMPBomb:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: EMPBomb
+	# 	Prerequisites: ~tech.stolen
+	# 	Icon: empbomb
+	# 	ChargeInterval: 7500
+	# 	SquadSize: 1
+	# 	QuantizedFacings: 8
+	# 	Name: EMP Bomb
+	# 	Description: A fast plane drops an EMP Bomb on your target,\nthat disables Vehicles, Buildings and Ships.\nDisabled units cannot move or shoot for a while.\nUncloaks hidden units, Submarines will resurface.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	UnitType: smig
+	# 	CameraActor: camera.paradrop
+	# 	DisplayBeacon: True
+	# 	BeaconPoster: empbomb
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: empstrike
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 3
+	# AirstrikePower@V2Strike:
+	# 	PauseOnCondition: disabled || lowpower
+	# 	OrderName: V2Strike
+	# 	Prerequisites:
+	# 	Icon: v2bdgricon
+	# 	ChargeInterval: 7500
+	# 	Name: V2 Missile Strike
+	# 	Description: A Badger fires two V2 rockets on your target.
+	# 	SquadSize: 1
+	# 	QuantizedFacings: 8
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	UnitType: badr.cruiser
+	# 	CameraActor: camera.paradrop
+	# 	DisplayBeacon: True
+	# 	BeaconPoster: v2bdgrbcon
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: airstrike
+	# 	UseDirectionalTarget: True
+	# 	DirectionArrowAnimation: paradirection
+	# 	SupportPowerPaletteOrder: 3

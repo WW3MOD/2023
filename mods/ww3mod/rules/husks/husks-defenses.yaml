@@ -1,0 +1,86 @@
+PBOX.Husk:
+	Inherits@Type: ^DefenseHusk
+	Interactable:
+		Bounds: 1024,1024
+	Tooltip:
+		Name: Pillbox (Destroyed)
+
+HBOX.Husk:
+	Inherits@Type: ^DefenseHusk
+	Interactable:
+		Bounds: 1024,1024
+	Tooltip:
+		Name: Camo Pillbox (Destroyed)
+
+FTUR.Husk:
+	Inherits@Type: ^DefenseHusk
+	Interactable:
+		Bounds: 1024,1024
+	Tooltip:
+		Name: Flame Turret (Destroyed)
+
+GUN.Husk:
+	Inherits@Type: ^DefenseHusk
+	Turreted:
+		TurnSpeed: 12
+		InitialFacing: 56
+	-WithSpriteBody:
+	WithEmbeddedTurretSpriteBody:
+	Tooltip:
+		Name: Gun Turret (Destroyed)
+
+TSLA.Husk:
+	Inherits@Type: ^DefenseHusk
+	Interactable:
+		Bounds: 1024,1024
+	Tooltip:
+		Name: Tesla Coil (Destroyed)
+
+AGUN.Husk:
+	Inherits@Type: ^DefenseHusk
+	Turreted:
+		TurnSpeed: 15
+		InitialFacing: 224
+	-WithSpriteBody:
+	WithEmbeddedTurretSpriteBody:
+	Interactable:
+		Bounds: 1024,1024
+	Tooltip:
+		Name: AA Gun (Destroyed)
+
+SAM.Husk:
+	Inherits@Type: ^DefenseHusk
+	Interactable:
+		Bounds: 1024,1024
+	Building:
+		Footprint: xx
+		Dimensions: 2,1
+	Tooltip:
+		Name: SAM Site (Destroyed)
+
+HSAM.Husk:
+	Inherits@Type: ^DefenseHusk
+	Interactable:
+		Bounds: 1024,1024
+	Building:
+		Footprint: xx
+		Dimensions: 2,1
+	Tooltip:
+		Name: Camo SAM Site (Destroyed)
+
+GAP.Husk:
+	Inherits: ^BuildingHusk
+	Interactable:
+		Bounds: 1024,1024
+	Tooltip:
+		Name: Gap Generator (Destroyed)
+
+MSLO.Husk:
+	Inherits: ^BuildingHusk
+	Interactable:
+		Bounds: 2048,1024
+	Building:
+		Footprint: xx
+		Dimensions: 2,1
+	Tooltip:
+		Name: Missile Silo (Destroyed)

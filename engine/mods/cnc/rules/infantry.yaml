@@ -239,7 +239,7 @@ RMBO:
 		HP: 15000
 	Passenger:
 		CustomPipType: red
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	AutoTarget:
 		ScanRadius: 8

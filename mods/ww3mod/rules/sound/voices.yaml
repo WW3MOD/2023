@@ -1,0 +1,243 @@
+GenericVoice:
+	Variants:
+		america: .v01,.v03
+		ukraine: .v01,.v03
+		russia: .r01,.r03
+	Voices:
+		Select: await1,ready,report1,yessir1
+		Action: ackno,affirm1,noprob,overout,ritaway,roger,ugotit
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+	DisableVariants: Die, Burned, Zapped
+
+VehicleVoice:
+	Variants:
+		america: .v00,.v02
+		ukraine: .v00,.v02
+		russia: .r00,.r02
+	Voices:
+		Select: vehic1,yessir1,report1,await1
+		Action: ackno,affirm1
+
+EngineerVoice:
+	Voices:
+		Select: eengin1,eyessir1
+		Action: eaffirm1,emovout1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+MedicVoice:
+	Voices:
+		Select: mrespon1,myessir1
+		Action: maffirm1,mmovout1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+MechanicVoice:
+	Voices:
+		Select: mhuh1,mhowdy1,myes1
+		Move: mboss1,mhear1,myes1,mrise1
+		Action: mhotdig1,mwrench1,myeehaw1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+ThiefVoice:
+	Voices:
+		Select: swhat1,syeah1
+		Action: saffirm1,smout1,sokay1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+		Attack: candy,pickclean,fivefinger
+
+TanyaVoice:
+	Voices:
+		Select: yo1,yes1,yeah1
+		Move: onit1,cmon1,rokroll1
+		Action: tuffguy1,bombit1
+		Die: tandeth1
+		Burned: tandeth1
+		Zapped: tandeth1
+		Build: laugh1
+		Kill: gotit1,lefty1
+		Demolish: keepem1,tuffguy1
+
+VolkovVoice:
+	DefaultVariant: .aud
+	Voices:
+		Select: sv2await,sv2ready,sv2report,sv2yessir
+		Move: sv2ackno,sv2affirm,sv2noprob,sv2overout,sv2ritaway,sv2roger,sv2ugotit
+		Action: sv2ackno,sv2affirm,sv2noprob,sv2overout,sv2ritaway,sv2roger,sv2ugotit
+		Attack: sv2ackno,sv2affirm,sv2noprob,sv2overout,sv2ritaway,sv2roger,sv2ugotit
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+		Build: sv2ready
+		Kill: sv2ugotit,sv2noprob
+		Demolish: sv2ritaway,sv2overout
+
+DogVoice:
+	Voices:
+		Select: dogw3px
+		Move: dogy1
+		Action: dogy1
+		Attack: dogg5p
+		Die: dogw5,dogw7
+		Burned: dogw6
+		Zapped: dogw6
+
+SpyVoice:
+	Voices:
+		Select: syessir1,scomnd1
+		Move: sonway1,sindeed1
+		Action: sking1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+CivilianMaleVoice:
+	Voices:
+		Select: guyyeah1
+		Action: guyokay1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+CivilianFemaleVoice:
+	Voices:
+		Select: girlyeah
+		Action: girlokay
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+EinsteinVoice:
+	Voices:
+		Select: einah1
+		Action: einok1,einyes1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+ShokVoice:
+	Voices:
+		Select: jjuice1,jjump1,jyes1
+		Action: jdance1,jchrge1,jpower1
+		Move: jdance1,jchrge1,jpower1
+		Attack: jburn1,jcrisp1,jshock1,jlight1
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+AntVoice:
+	Voices:
+		Select: antbite
+		Action: antbite
+		Die: antdie
+		Burned: antdie
+		Zapped: antdie
+
+StavrosVoice:
+	Voices:
+		Select: stavcmdr
+		Move: stavcrse, stavyes, stavmov
+		Attack: stavcrse, stavyes
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
+		Burned: dedman10
+		Zapped: dedman6
+
+RoboticVoice:
+	DefaultVariant: .wav
+	Voices:
+		Attack: vsenmova, vsenmovb, vsenmovc
+		Select: vsensela, vsenselb, vsenselc, vsenseld
+		Move: vsenmova, vsenmovb, vsenmovc
+		Action: vsenmova, vsenmovb, vsenmovc
+
+ChemVoice:
+	DefaultVariant: .aud
+	Voices:
+		Select: chemhithaveyounow, chemhitprepare, chemhitgotme
+		Move: chemhitholdstill, chemkilltooeasy, chemkilltakethat
+		Action: chemkilllaugh
+		Attack: chemhitprepare4death, chemhitattackbreh, chemhitburn, chemhitsprayem
+		Die: chemdie1
+		Burned: chemdiehard, chemdiehard2
+		Zapped: chemdieveryhard
+		Build: chemkilltakevitamins
+		Kill: chemkilldisintegrated, chemkilllaugh, chemkillmelted, chemhitburn
+
+FanaticVoice:
+	DefaultVariant: .aud
+	Voices:
+		Select: itersea, iterseb, itersec, itersee, itersef, itersed
+		Move: itermoa, itermob, itermoc, itermoe, itermof, itermog, itermod
+		Action: iterata, iteratb, iteratc, iteratd, iterate
+		Attack: iterata, iteratb, iteratc, iteratd, iterate
+		Die: iterdia, iterdib, iterdic, iterdid, iterdie
+		Burned: iterdia, iterdib, iterdic, iterdid, iterdie
+		Zapped: iterdia, iterdib, iterdic, iterdid, iterdie
+
+CycleVoice:
+	DefaultVariant: .aud
+	Voices:
+		Attack: vcycata, vcycatb, vcycatc, vcycatd, vcycate
+		Select: vcycsea, vcycseb, vcycsec, vcycsed, vcycsee
+		Move: vcycmoa, vcycmod, vcycmoe, vcycmof, vcycmog, vcycmoc
+		Action: vcycata, vcycatb, vcycatc, vcycatd, vcycate
+
+InfoVoice:
+	DefaultVariant: .aud
+	VolumeModifier: 1.1
+	Voices:
+		Select: InformantVoiceSelect01,InformantVoiceSelect02,InformantVoiceSelect03
+		Move: InformantVoiceMove01,InformantVoiceMove02,InformantVoiceMove03
+		Action: InformantVoiceFear01,InformantVoiceFear02,InformantVoiceFear03
+		Die: InformantVoiceDie01,InformantVoiceDie02,InformantVoiceDie03
+		Burned: dedman10
+		Zapped: dedman6
+
+IskanderVoice:
+	Voices:
+		Select: vv3lsea,vv3lseb,vv3lsec,vv3lsed,vv3lsee
+		Move: vv3lmob,vv3lmoc,vv3lmod,vv3lmoe
+		Attack: vv3lata,vv3latb,vv3latc,vv3latd,vv3late
+		Action:  vv3lmob,vv3lmoc,vv3lmod,vv3lmoe
+
+CommandoVoice:
+	Voices:
+		Select: ryeah1,ryes1,ryo1
+		Move: rcmon1,ronit1,rgotit1
+		Attack: ronit1,rgotit1,rnoprblm1
+		Action: ronit1,rgotit1,rnoprblm1
+		Demolish: rnoprblm1
+		Die: ramyell1
+		Burned: ramyell1
+		Zapped: ramyell1
+		Poisoned: ramyell1
+		Build: rrokroll1
+		Kill: rkeepem1,rlaugh1,rlefty1,rtuffguy1
+
+^InfantryDeaths:
+	Voices:
+		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8,nuyell1,nuyell12,nuyell3,nuyell4,nuyell5
+		Burned: dedman10,yell1
+		Zapped: dedman6,nuyell3
+		Poisoned: vtoxb,vtoxc,vtoxd,vtoxe,vtoxf,vtoxh
+
+SealVoice:
+	Inherits: ^InfantryDeaths
+	Voices:
+		Select: iseasea, iseaseb, iseasec, iseased
+		Move: iseamoa, iseamob, iseamoc
+		Attack: iseaata, iseaatb, iseaatc
+		Demolish: iseaexa, iseaexb, iseaexd
+		Action: iseafea
+		Die: iseadia, iseadib, iseadic
+		Build: iseasec
+		Kill: iseaatc, iseased
+

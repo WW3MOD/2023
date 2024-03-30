@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		readonly World world;
-		readonly Player player;
+		/* readonly Player player; */
 		readonly Func<Actor, bool> unitCannotBeOrdered;
 		readonly Dictionary<Actor, HarvesterTraitWrapper> harvesters = new Dictionary<Actor, HarvesterTraitWrapper>();
 
@@ -68,7 +68,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			world = self.World;
-			player = self.Owner;
+			/* player = self.Owner; */
 			unitCannotBeOrdered = a => a.Owner != self.Owner || a.IsDead || !a.IsInWorld;
 		}
 
@@ -127,23 +127,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Less harvesters than refineries - build a new harvester
 			var unitBuilder = requestUnitProduction.FirstEnabledTraitOrDefault();
-			if (unitBuilder != null && Info.HarvesterTypes.Count > 0)
-			{
-				var harvInfo = AIUtils.GetInfoByCommonName(Info.HarvesterTypes, player);
-				var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player);
-				if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) == 0)
-					unitBuilder.RequestUnitProduction(bot, harvInfo.Name);
-			}
+
+			// FF TODO: look this up, lots of changes here 2023 and this was the only one from 2022
+			// if (unitBuilder != null && Info.HarvesterTypes.Count > 0)
+			// {
+			// 	var harvInfo = AIUtils.GetInfoByCommonName(Info.HarvesterTypes, player);
+			// 	var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player);
+			// 	if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) == 0)
+			// 		unitBuilder.RequestUnitProduction(bot, harvInfo.Name);
+			// }
 		}
 
 		Target FindNextResource(Actor actor, HarvesterTraitWrapper harv)
 		{
-			Func<CPos, bool> isValidResource = cell =>
+			bool IsValidResource(CPos cell) =>
 				harv.Harvester.CanHarvestCell(cell) &&
 				claimLayer.CanClaimCell(actor, cell);
 
 			var path = harv.Mobile.PathFinder.FindPathToTargetCellByPredicate(
-				actor, new[] { actor.Location }, isValidResource, BlockedByActor.Stationary,
+				actor, new[] { actor.Location }, IsValidResource, BlockedByActor.Stationary,
 				loc => world.FindActorsInCircle(world.Map.CenterOfCell(loc), Info.HarvesterEnemyAvoidanceRadius)
 					.Where(u => !u.IsDead && actor.Owner.RelationshipWith(u.Owner) == PlayerRelationship.Enemy)
 					.Sum(u => Math.Max(WDist.Zero.Length, Info.HarvesterEnemyAvoidanceRadius.Length - (world.Map.CenterOfCell(loc) - u.CenterPosition).Length)));

@@ -398,28 +398,28 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: order-icons
 									ImageName: options
 				Container@RADAR:
-					Logic: IngameRadarDisplayLogic
+					Logic: IngameMiniMapDisplayLogic
 					Children:
-						LogicTicker@RADAR_TICKER:
+						LogicTicker@MINIMAP_TICKER:
 						Image@INSIGNIA:
 							Logic: AddFactionSuffixLogic
 							X: 37
 							Y: 85
 							ImageCollection: radar
 							ImageName: insignia
-						ColorBlock@RADAR_FADETOBLACK:
+						ColorBlock@MINIMAP_FADETOBLACK:
 							X: 16
 							Y: 64
 							Width: 206
 							Height: 161
-						Radar@RADAR_MINIMAP:
+						MiniMap@MINIMAP:
 							WorldInteractionController: INTERACTION_CONTROLLER
 							X: 16
 							Y: 64
 							Width: 206
 							Height: 161
-							SoundUp: RadarUp
-							SoundDown: RadarDown
+							SoundUp: MiniMapUp
+							SoundDown: MiniMapDown
 						VideoPlayer@PLAYER:
 							X: 16
 							Y: 64

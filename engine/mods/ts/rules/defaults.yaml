@@ -1,5 +1,5 @@
 ^ExistsInWorld:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	UpdatesPlayerStatistics:
 	CombatDebugOverlay:
 	GivesExperience:
@@ -343,7 +343,7 @@
 	Explodes:
 		Weapon: BuildingExplosions
 		EmptyWeapon: BuildingExplosions
-		Type: Footprint
+		Position: Footprint
 	EngineerRepairable:
 	ShakeOnDeath:
 	Guardable:
@@ -414,7 +414,7 @@
 		HP: 90000
 	Armor:
 		Type: Wood
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 		MaxHeightDelta: 3
 	RenderSprites:
@@ -476,7 +476,7 @@
 	Inherits@2: ^Cloakable
 	CombatDebugOverlay:
 	FrozenUnderFog:
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Interactable:
 	OwnerLostAction:
 		Action: ChangeOwner
@@ -562,7 +562,7 @@
 		Type: None
 	Valued:
 		Cost: 10
-	RevealsShroud:
+	Vision:
 		RequiresCondition: !inside-tunnel
 		Range: 2c0
 		MaxHeightDelta: 3
@@ -697,7 +697,7 @@
 ^Soldier:
 	Inherits@1: ^Infantry
 	Inherits@2: ^RegularInfantryDeath
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	MustBeDestroyed:
 	TakeCover:
@@ -727,7 +727,7 @@
 		Weapon: CyborgExplode
 		EmptyWeapon: CyborgExplode
 	DeathSounds:
-	RevealsShroud:
+	Vision:
 		Range: 4c0
 	MustBeDestroyed:
 	TakeCover:
@@ -888,7 +888,7 @@
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 		UseLocation: true
 	Targetable@GROUND:
 		TargetTypes: Ground, Vehicle
@@ -920,7 +920,7 @@
 	Voiced:
 		VoiceSet: Heli
 	HiddenUnderFog:
-		Type: GroundPosition
+		Position: Ground
 	AttackMove:
 		Voice: Move
 		MoveIntoShroud: false
@@ -967,7 +967,7 @@
 	Armor:
 		Type: Heavy
 	HiddenUnderFog:
-		Type: GroundPosition
+		Position: Ground
 		AlwaysVisibleRelationships: None
 	ScriptTriggers:
 	Interactable:
@@ -1024,8 +1024,8 @@
 	Building:
 		Footprint: x
 		Dimensions: 1,1
-	AppearsOnRadar:
-	RadarColorFromTerrain:
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
 		Terrain: Tiberium
 	AppearsOnMapPreview:
 		Terrain: Tiberium
@@ -1137,7 +1137,7 @@
 	-GivesBuildableArea:
 	RenderRangeCircle:
 	RenderDetectionCircle:
-	RevealsShroud:
+	Vision:
 		Range: 6c0
 	DetectCloaked:
 		Range: 5c0
@@ -1172,7 +1172,7 @@
 		HP: 10000
 	Armor:
 		Type: Light
-	RevealsShroud:
+	Vision:
 		Range: 5c0
 		MaxHeightDelta: 3
 		RequiresCondition: !inside-tunnel

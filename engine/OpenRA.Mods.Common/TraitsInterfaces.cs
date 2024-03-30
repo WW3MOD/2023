@@ -21,7 +21,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum VisibilityType { Footprint, CenterPosition, GroundPosition }
+	public enum DetectablePosition { Footprint, Center, Ground }
 
 	public enum AttackDelayType { Preparation, Attack }
 
@@ -43,12 +43,26 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<IRenderable> RenderAnnotations(WorldRenderer wr, World w, ActorInfo ai, WPos centerPosition);
 	}
 
+	public interface INotifyPrismCharging { void Charging(Actor self, in Target target); }
+
+	[RequireExplicitImplementation]
+	public interface IBlocksSight
+	{
+		byte Density { get; }
+	}
+
+	[RequireExplicitImplementation]
+	public interface IBlocksSightInfo : ITraitInfoInterface { }
+
+
 	[RequireExplicitImplementation]
 	public interface IBlocksProjectiles
 	{
 		WDist BlockingHeight { get; }
+		int MaxBypass { get; }
+		int BypassChance { get; }
 
-		PlayerRelationship ValidRelationships { get; }
+		PlayerRelationship ExplodesOn { get; }
 	}
 
 	[RequireExplicitImplementation]
@@ -74,6 +88,12 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
+	public interface INotifyVisualPositionChanged
+	{
+		void VisualPositionChanged(Actor self, byte oldLayer, byte newLayer);
+	}
+
+	[RequireExplicitImplementation]
 	public interface INotifyCenterPositionChanged
 	{
 		void CenterPositionChanged(Actor self, byte oldLayer, byte newLayer);
@@ -93,20 +113,21 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	// Type tag for crush class bits
-	public class CrushClass { }
+	public class PassClass { }
 
 	[RequireExplicitImplementation]
-	public interface ICrushable
+	public interface IPassable
 	{
-		bool CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
-		LongBitSet<PlayerBitMask> CrushableBy(Actor self, BitSet<CrushClass> crushClasses);
+		bool PassableBy(Actor self, Actor passer, BitSet<PassClass> passClasses);
+		LongBitSet<PlayerBitMask> PassableBy(Actor self, BitSet<PassClass> passClasses);
 	}
 
 	[RequireExplicitImplementation]
-	public interface INotifyCrushed
+	public interface INotifyBeingPassed
 	{
-		void OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
-		void WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
+		void OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses);
+		void WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses);
+		void OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses);
 	}
 
 	[RequireExplicitImplementation]
@@ -114,6 +135,12 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		void StartedAiming(Actor self, AttackBase attack);
 		void StoppedAiming(Actor self, AttackBase attack);
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyNewTarget
+	{
+		void Acquired(Actor self);
 	}
 
 	[RequireExplicitImplementation]
@@ -158,6 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public interface INotifyBuildingPlaced { void BuildingPlaced(Actor self); }
 	public interface INotifyBurstComplete { void FiredBurst(Actor self, in Target target, Armament a); }
+	public interface INotifyMagazineComplete { void FiredMagazine(Actor self, in Target target, Armament a); }
 	public interface INotifyChat { bool OnChat(string from, string message); }
 	public interface INotifyProduction { void UnitProduced(Actor self, Actor other, CPos exit); }
 	public interface INotifyOtherProduction { void UnitProducedByOther(Actor self, Actor producer, Actor produced, string productionType, TypeDictionary init); }
@@ -369,6 +397,12 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IReloadModifier { int GetReloadModifier(); }
 
 	[RequireExplicitImplementation]
+	public interface IBurstWaitModifier { int GetBurstWaitModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IBurstModifier { int GetBurstModifier(); }
+
+	[RequireExplicitImplementation]
 	public interface IReloadAmmoModifier { int GetReloadAmmoModifier(); }
 
 	[RequireExplicitImplementation]
@@ -393,7 +427,13 @@ namespace OpenRA.Mods.Common.Traits
 	public interface ICreatesShroudModifier { int GetCreatesShroudModifier(); }
 
 	[RequireExplicitImplementation]
-	public interface IRevealsShroudModifier { int GetRevealsShroudModifier(); }
+	public interface IDetectableAddativeModifier { int GetDetectableVisionAddativeModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IVisionModifier { int GetVisionModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IRadarModifier { int GetRadarModifier(); }
 
 	[RequireExplicitImplementation]
 	public interface IDetectCloakedModifier { int GetDetectCloakedModifier(); }
@@ -470,12 +510,12 @@ namespace OpenRA.Mods.Common.Traits
 		HashSet<string> LandableTerrainTypes { get; }
 	}
 
-	public interface IRadarSignature
+	public interface IMiniMapSignature
 	{
-		void PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer);
+		void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer);
 	}
 
-	public interface IRadarColorModifier { Color RadarColorOverride(Actor self, Color color); }
+	public interface IMiniMapColorModifier { Color MiniMapColorOverride(Actor self, Color color); }
 
 	public interface IObjectivesPanel
 	{
@@ -717,7 +757,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface IRadarTerrainLayer
+	public interface IMiniMapTerrainLayer
 	{
 		event Action<CPos> CellEntryChanged;
 		bool TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value);

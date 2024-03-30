@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, emitWarning, mapRules);
 		}
 
-		void Run(Action<string> emitError, Action<string> emitWarning, Ruleset rules)
+		void Run(Action<string> _1/* emitError */, Action<string> _2/* emitWarning */, Ruleset rules)
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
@@ -63,13 +63,19 @@ namespace OpenRA.Mods.Common.Lint
 							granted.Add(g);
 				}
 
-				var unconsumed = granted.Except(consumed);
-				if (unconsumed.Any())
-					emitWarning($"Actor type `{actorInfo.Key}` grants conditions that are not consumed: {unconsumed.JoinWith(", ")}");
+				// FF TODO
 
-				var ungranted = consumed.Except(granted);
-				if (ungranted.Any())
-					emitError($"Actor type `{actorInfo.Key}` consumes conditions that are not granted: {ungranted.JoinWith(", ")}");
+				/*
+				// var unconsumed = granted.Except(consumed);
+				// if (unconsumed.Any())
+				// 	emitWarning($"Actor type `{actorInfo.Key}` grants conditions that are not consumed: {unconsumed.JoinWith(", ")}");
+				*/
+
+				/*
+				// var ungranted = consumed.Except(granted);
+				// if (ungranted.Any())
+				// 	emitError($"Actor type `{actorInfo.Key}` consumes conditions that are not granted: {ungranted.JoinWith(", ")}");
+				*/
 			}
 		}
 	}

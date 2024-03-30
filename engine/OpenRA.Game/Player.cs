@@ -59,7 +59,7 @@ namespace OpenRA
 		public readonly PlayerReference PlayerReference;
 		public readonly bool IsBot;
 		public readonly string BotType;
-		public readonly Shroud Shroud;
+		public readonly MapLayers MapLayers;
 		public readonly FrozenActorLayer FrozenActorLayer;
 
 		/// <summary>The faction (including Random, etc.) that was selected in the lobby.</summary>
@@ -208,7 +208,7 @@ namespace OpenRA
 			PlayerActor = new Actor(world, playerActorType.ToString(), new TypeDictionary { new OwnerInit(this) });
 			PlayerActor.Initialize(true);
 
-			Shroud = PlayerActor.Trait<Shroud>();
+			MapLayers = PlayerActor.Trait<MapLayers>();
 			FrozenActorLayer = PlayerActor.TraitOrDefault<FrozenActorLayer>();
 
 			// Enable the bot logic on the host
@@ -257,6 +257,11 @@ namespace OpenRA
 		public bool IsAlliedWith(Player p)
 		{
 			return RelationshipWith(p) == PlayerRelationship.Ally;
+		}
+
+		public bool IsNeutralWith(Player p)
+		{
+			return RelationshipWith(p) == PlayerRelationship.Neutral;
 		}
 
 		public Color PlayerRelationshipColor(Actor a)

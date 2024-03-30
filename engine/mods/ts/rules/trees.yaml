@@ -13,7 +13,7 @@ BIGBLUE:
 		Name: Large Blue Tiberium Crystal
 	RenderSprites:
 		Palette: bluetiberium
-	RadarColorFromTerrain:
+	MiniMapColorFromTerrain:
 		Terrain: BlueTiberium
 	AppearsOnMapPreview:
 		Terrain: BlueTiberium
@@ -101,7 +101,7 @@ TREE25:
 
 VEINHOLE:
 	HiddenUnderShroud:
-	RadarColorFromTerrain:
+	MiniMapColorFromTerrain:
 		Terrain: Veins
 	AppearsOnMapPreview:
 		Terrain: Veins
@@ -110,7 +110,7 @@ VEINHOLE:
 		Dimensions: 3, 3
 	BodyOrientation:
 		QuantizedFacings: 1
-	AppearsOnRadar:
+	AppearsOnMiniMap:
 	Tooltip:
 		Name: Veinhole
 	RenderSprites:

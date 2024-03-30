@@ -11,9 +11,9 @@ World:
 
 TRAN.Extraction:
 	Inherits: TRAN
-	RevealsShroud:
+	Vision:
 		Range: 0c0
-	-RevealsShroud@GAPGEN:
+	-Vision@GAPGEN:
 	RejectsOrders:
 	-Selectable:
 	Cargo:

@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Activities
 		protected enum AttackStatus { UnableToAttack, NeedsToTurn, NeedsToMove, Attacking }
 
 		readonly IEnumerable<AttackFrontal> attackTraits;
-		readonly RevealsShroud[] revealsShroud;
+		readonly Vision[] vision;
 		readonly IMove move;
 		readonly IFacing facing;
 		readonly IPositionable positionable;
@@ -45,6 +45,9 @@ namespace OpenRA.Mods.Common.Activities
 		WDist maxRange;
 		AttackStatus attackStatus = AttackStatus.UnableToAttack;
 
+		/* protected INotifyNewTarget[] notifyNewTarget;
+		Target? oldTarget = null; */
+
 		public Attack(Actor self, in Target target, bool allowMovement, bool forceAttack, Color? targetLineColor = null)
 		{
 			this.target = target;
@@ -52,7 +55,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.forceAttack = forceAttack;
 
 			attackTraits = self.TraitsImplementing<AttackFrontal>().ToArray().Where(t => !t.IsTraitDisabled);
-			revealsShroud = self.TraitsImplementing<RevealsShroud>().ToArray();
+			vision = self.TraitsImplementing<Vision>().ToArray();
 			facing = self.Trait<IFacing>();
 			positionable = self.Trait<IPositionable>();
 
@@ -99,6 +102,15 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			target = RecalculateTarget(self, out var targetIsHiddenActor);
+
+			// FF
+			// Never got used in the end but seems to work
+			/* if (!target.Equals(oldTarget))
+			{
+				oldTarget = target;
+				foreach (var n in notifyNewTarget)
+					n.Acquired(self);
+			} */
 
 			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
 			{
@@ -174,7 +186,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (move == null)
 					return AttackStatus.UnableToAttack;
 
-				var rs = revealsShroud
+				var rs = vision
 					.Where(t => !t.IsTraitDisabled)
 					.MaxByOrDefault(s => s.Range);
 
@@ -196,18 +208,27 @@ namespace OpenRA.Mods.Common.Activities
 			maxRange = armaments.Min(a => a.MaxRange());
 
 			var pos = self.CenterPosition;
+			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
+
 			if (!target.IsInRange(pos, maxRange)
 				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
-				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self)))
+				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
+				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
+					&& checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
 			{
 				// Try to move within range, drop the target otherwise
 				if (move == null)
 					return AttackStatus.UnableToAttack;
 
 				attackStatus |= AttackStatus.NeedsToMove;
-				var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
-				QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
-				return AttackStatus.NeedsToMove;
+
+				if (checkTarget.Type != TargetType.Invalid)
+				{
+					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
+
+					// Standard should be to attackmove towards target, unless force firing?
+					return AttackStatus.NeedsToMove;
+				}
 			}
 
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))

@@ -28,13 +28,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CheckboxDescription = "Collect crates with units to receive random bonuses or penalties";
 
 		[Desc("Default value of the crates checkbox in the lobby.")]
-		public readonly bool CheckboxEnabled = true;
+		public readonly bool CheckboxEnabled = false;
 
 		[Desc("Prevent the crates state from being changed in the lobby.")]
 		public readonly bool CheckboxLocked = false;
 
 		[Desc("Whether to display the crates checkbox in the lobby.")]
-		public readonly bool CheckboxVisible = true;
+		public readonly bool CheckboxVisible = false;
 
 		[Desc("Display order for the crates checkbox in the lobby.")]
 		public readonly int CheckboxDisplayOrder = 0;
@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int InitialSpawnDelay = 0;
 
 		[Desc("Which terrain types can we drop on?")]
-		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Ore", "Beach" };
+		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Beach" };
 
 		[Desc("Which terrain types count as water?")]
 		public readonly HashSet<string> ValidWater = new HashSet<string> { "Water" };

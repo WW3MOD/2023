@@ -1,0 +1,79 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		BackgroundMusic: intro
+		AllowMuteBackgroundMusic: true
+		DisableWorldSounds: true
+	LuaScript:
+		Scripts: shellmap-ww3-ivanivske.lua
+	GlobalLightingPaletteEffect:
+		Red: 0.9
+		Green: 0.9
+		Blue: 0.9
+		Ambient: 0.9
+
+^ExistsInWorld:
+	GivesExperience:
+		ActorExperienceModifier: 500
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 40
+		InitialStance: AttackAnything
+		InitialStanceAI: AttackAnything
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+MSLO:
+	NukePower:
+		ChargeInterval: 1
+
+^SuppressionPips:
+	WithDecoration@Suppression_1:
+		RequiresSelection: false
+	WithDecoration@Suppression_2:
+		RequiresSelection: false
+	WithDecoration@Suppression_3:
+		RequiresSelection: false
+	WithDecoration@Suppression_4:
+		RequiresSelection: false
+	WithDecoration@Suppression_5:
+		RequiresSelection: false
+	WithDecoration@Suppression_6:
+		RequiresSelection: false
+	WithDecoration@Suppression_7:
+		RequiresSelection: false
+	WithDecoration@Suppression_8:
+		RequiresSelection: false
+	WithDecoration@Suppression_9:
+		RequiresSelection: false
+	WithDecoration@Suppression_10:
+		RequiresSelection: false
+
+# ^Palettes:
+# 	IndexedPlayerPalette:
+# 		PlayerIndex:
+# 			Soviets: 229, 230, 231, 232, 233, 234, 235, 8, 236, 237, 238, 239, 221, 222, 223, 223
+# 			Allies: 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175
+
+# TRAN.Husk2:
+# 	WithIdleOverlay@Burns:
+# 		Image: fire
+# 		Sequence: 1
+# 		IsDecoration: True
+# APC:
+# 	Cargo:
+# 		InitialUnits: e1, e1, e2, e3, e4
+# powerproxy.paratroopers:
+# 	ParatroopersPower:
+# 		DisplayBeacon: false
+# 		DropItems: E1,E1,E2,E3,E4
+

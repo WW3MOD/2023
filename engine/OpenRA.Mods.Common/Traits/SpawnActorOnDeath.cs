@@ -28,6 +28,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Probability the actor spawns.")]
 		public readonly int Probability = 100;
 
+		[Desc("Civilian buildings spawns fleeing civilians when captured for the first time.")]
+		public readonly bool SpawnOnceOnOwnerChange = false;
+
 		[Desc("Owner of the spawned actor. Allowed keywords:" +
 			"'Victim', 'Killer' and 'InternalName'. " +
 			"Falls back to 'InternalName' if 'Victim' is used " +
@@ -61,10 +64,12 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SpawnActorOnDeath(init, this); }
 	}
 
-	public class SpawnActorOnDeath : ConditionalTrait<SpawnActorOnDeathInfo>, INotifyKilled, INotifyRemovedFromWorld
+	public class SpawnActorOnDeath : ConditionalTrait<SpawnActorOnDeathInfo>, INotifyKilled, INotifyRemovedFromWorld, INotifyOwnerChanged
 	{
 		readonly string faction;
 		readonly bool enabled;
+
+		bool changedFromNeutral = false;
 
 		Player attackingPlayer;
 
@@ -73,6 +78,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			enabled = !info.RequiresLobbyCreeps || init.Self.World.WorldActor.Trait<MapCreeps>().Enabled;
 			faction = init.GetValue<FactionInit, string>(init.Self.Owner.Faction.InternalName);
+		}
+
+		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		{
+			if (Info.SpawnOnceOnOwnerChange && !changedFromNeutral)
+			{
+				changedFromNeutral = true;
+				SpawnActor(self);
+			}
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
@@ -95,6 +109,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (attackingPlayer == null)
 				return;
 
+			if (!changedFromNeutral)
+				SpawnActor(self);
+		}
+
+		void SpawnActor(Actor self)
+		{
 			var defeated = self.Owner.WinState == WinState.Lost;
 			if (defeated && !Info.SpawnAfterDefeat)
 				return;

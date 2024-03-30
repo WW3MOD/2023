@@ -41,6 +41,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Custom PlayerColorPalette: BaseName")]
 		public readonly string PlayerPalette = "player";
 
+		[Desc("Change the sprite image size.")]
+		public readonly float Scale = 1f;
+
 		public override object Create(ActorInitializer init) { return new RenderSprites(init, this); }
 
 		public IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init)
@@ -189,7 +192,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 					a.CachePalette(wr, owner);
 				}
 
-				foreach (var r in a.Animation.Render(self, a.PaletteReference))
+				foreach (var r in a.Animation.Render(self, a.PaletteReference, Info.Scale))
 					yield return r;
 			}
 		}
@@ -198,7 +201,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			foreach (var a in anims)
 				if (a.IsVisible)
-					yield return a.Animation.ScreenBounds(self, wr);
+					yield return a.Animation.ScreenBounds(self, wr, self);
 		}
 
 		void ITick.Tick(Actor self)

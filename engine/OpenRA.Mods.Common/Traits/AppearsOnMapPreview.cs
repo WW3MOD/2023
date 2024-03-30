@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Traits
 				var owner = map.PlayerDefinitions.Single(p => s.Get<OwnerInit>().InternalName == p.Value.Nodes.Last(k => k.Key == "Name").Value.Value);
 				var colorValue = owner.Value.Nodes.Where(n => n.Key == "Color");
 				var ownerColor = colorValue.Any() ? colorValue.First().Value.Value : "FFFFFF";
-				Color.TryParse(ownerColor, out color);
+				_ = Color.TryParse(ownerColor, out color);
 			}
 
 			var ios = ai.TraitInfo<IOccupySpaceInfo>();

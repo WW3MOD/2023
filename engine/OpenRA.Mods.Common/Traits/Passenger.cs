@@ -123,6 +123,16 @@ namespace OpenRA.Mods.Common.Traits
 			return CanEnter(target.TraitOrDefault<Cargo>());
 		}
 
+		Actor GetActor(Target target)
+		{
+			if (target.FrozenActor != null)
+			{
+				return target.FrozenActor.Actor;
+			}
+
+			return target.Actor;
+		}
+
 		public string VoicePhraseForOrder(Actor self, Order order)
 		{
 			if (order.OrderString != "EnterTransport")
@@ -167,12 +177,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "EnterTransport")
 				return;
 
-			// Enter orders are only valid for own/allied actors,
-			// which are guaranteed to never be frozen.
-			if (order.Target.Type != TargetType.Actor)
-				return;
-
-			var targetActor = order.Target.Actor;
+			var targetActor = GetActor(order.Target);
 			if (!CanEnter(targetActor))
 				return;
 

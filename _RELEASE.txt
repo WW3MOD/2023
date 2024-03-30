@@ -1,0 +1,155 @@
+
+Resources
+    - Auto Capture for technicians as a "Weapon", making AutoTargeting work
+    - Dynamic income based on structure health
+    - Nuclear powerplant, releases long lasting radiation if destroyed
+
+Production
+    - Pause / Cancel all of a production type by clicking icon
+    - Building same unit causes shortage (increased price/build time, then reduced by fixed amount for all units every X ticks until back to normal/minimal price)
+
+    Ctrl - Prioritized Build
+    Ctrl Shift - Build 5
+    Alt - Toggle Infinite build for unit
+    Alt Shift - Cancel all
+    (combine with QWE... to build 123...)
+
+Infantry
+    - Remove Spy, adapt SF to take that role instead
+    - Protection, add new mode that puts actors invisible on top of the cell of what is now the Cargo Actor,
+        this allows units to target either the building or autotarget the actor inside.
+        Use current behaviour for internal / protected ("Cargo") slots
+
+Vehicles
+    - Tesla tank returns to base when out of ammo
+    - Crystallized Doom tanks
+    - GDRN, tracked drone vehicle
+
+Air
+    - Reduce Damage from small arms
+    - Adjust speed
+    - Helicopter movement, acceleration/deceleration
+    - A10 freezes mid-air when out of gun-ammo and attack-moving with gun-only target in range
+    - Tiberian Aurora Attack helicopter model, very nice almost too good
+
+Structures
+    - Trenches
+
+
+Animations
+    - TOS explosion effects
+    - Projectiles "Disappearing" ouside northern edge
+    - Colors are camouflage, not silly colors. Select from list instead, maybe even two colors. They could read half of the palette each?
+
+Sounds
+    - Voice
+    - Firing
+    - Explosions
+
+Widgets
+    - Move to edges, remove borders, free up space
+
+Orders
+    Attack Move should be default behaviour
+
+    Tab - Toggle waypoint mode, always use waypoints
+    Q - Move
+    W - Force Move (moves faster but has reduces detection, accuracy, firing rate etc)
+    E - Fighting Retreat (Attack closest enemy but stay at maximum distance)
+    R - Take Cover (multiple clicks increases search radius for controling how much they spread out)
+    - Spread (change so they all move away from center / each other)
+    T - Auto Enter (makes selected units go into nearest transport / makes transports call in nearby infantry)
+    Y - Deploy
+    - Guard
+    - Assault
+    - Force Attack
+    - Checkbox: Resupply
+    - Checkbox: Evacuate (checkbox allows new orders to be placed first and when it finishes, on idle, it executes)
+
+    Attacking
+        - Sweeping, shooting at multiple enemies within one burst
+        - Suppression trait, always prioritize units not taking cover
+
+Stances (Check SetUnitStance)
+
+    - Autotarget priorities
+        - Scorched Earth (Destroy everything, incl neutral economy structures, civilian buildings)
+        - Enemy Economy Structures
+        - All enemies
+        - Only combatants (not structures, supply trucks etc)
+    - Ambush
+        - Hold fire until group detected (Check closest enemy, if owner has visual on any friendlies within X cells then attack)
+        - Hold fire until personally detected
+        - Hold fire completely
+    - Ammo preservation
+        - Maximum firepower / Suppression
+        - Preserve
+        - Make every shot count
+        - Checkbox: Auto Mode (reduce consumption dynamiccally when ammo is running low unless resupply is close by, this can be calculated dynamiccally based on how far away it is)
+        - Checkbox: Resupply automatically
+        - Checkbox: Ignore when resupplying
+    - Cohesion
+        - Tight (close as possible)
+        - Loose (one extra step between)
+        - Spread out (two steps between)
+    - Formation
+        - Line
+        - Box
+        - Column
+    - Formation structure
+        - Use current
+        - Infantry in front
+        - Armor in front
+    -
+
+    Later
+        - Authorized Weapons
+            - Primary
+            - Secondary
+            - Tertiary
+
+    "Use as default" - new units will use this, save between games (needs a button like "Save these for next game as default", so it doesn't override everytime)
+
+
+Add Ukraine faction
+
+AI
+    - Needs to learn to build Logistics centers and rearm
+    - AutoAssign Actor Method
+        - Single Actor can call this method to determine where to go, can be used by both AI and player as a stance. "Autoassign on idle"
+    - Unit Builder Module
+        - Looks at what enemy has.
+        - Builds what is necessary, not just random.
+        - Units define capabilities, and Builder Module determines what capabilities are needed.
+    - Strategical Module
+        - Designates targets and areas of interest. Oil, and where to defend/attack.
+        - Designates new units to target locations and if needed transfers units between tactical groups.
+    - Tactical Module
+        - Coordinates units for each point of interest, spreads out and keeps a tactical formation.
+    - Operational Module
+        - Smaller squads move as one and attacks targets.
+        - Individual units attack targets of high value etc.
+
+End Game
+    - Capturing enemy flag could start a countdown to victory so you cant have hidden units preventing victory and neglect your spawn
+    - Time limited games ends with nuclear armageddon
+        - Power "Nuclear escalation" that, if everyone uses it, the nuclear war begins with one nuke per player per 10s or something, game ends by points gathered before Armageddon
+        - Everyone starts with a tactical nuke that counts down to the game end time, when it is reached anyone can fire but if they do they
+
+- Shellmaps
+    - "Bradley Square"
+    - Piatykhatky Ukrainian offensive breakthrough
+
+Div
+    - Civ buildings give Base under attack notification
+    - Buildings can have attack stance and that translates into what the default should be for units (that doesn't implement some kind of LockInitialStance Trait, or possibly OverrideAttackAllStance. Useful for spies I guess)
+    - Spawn Aircraft/all units at full speed
+    - Save last game settings and view a quick button to load the last one and also drop down
+
+Futuristic
+    - Shattered Paradise
+        - Crusader infantry, mech suit
+        - Animation militantfire, large fire TS.anim palette?
+        - nahfact tall concrete building, looks like missile factory or something
+        - armh vehicle, good tank chassis but needs rework
+    - ACOL, cyber unit with laser...

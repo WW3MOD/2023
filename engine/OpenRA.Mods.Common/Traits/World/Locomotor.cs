@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits
 		HasMovingActor = 1,
 		HasStationaryActor = 2,
 		HasMovableActor = 4,
-		HasCrushableActor = 8,
+		HasPassableActor = 8,
 		HasTemporaryBlocker = 16,
 		HasTransitOnlyActor = 32,
 	}
@@ -57,13 +57,11 @@ namespace OpenRA.Mods.Common.Traits
 
 	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
 	[Desc("Used by Mobile. Attach these to the world actor. You can have multiple variants by adding @suffixes.")]
-	public class LocomotorInfo : TraitInfo, NotBefore<ICustomMovementLayerInfo>
+	public class LocomotorInfo : TraitInfo, IRulesetLoaded, NotBefore<ICustomMovementLayerInfo>
 	{
 		[Desc("Locomotor ID.")]
 		public readonly string Name = "default";
-
 		public readonly int WaitAverage = 40;
-
 		public readonly int WaitSpread = 10;
 
 		[Desc("Allow multiple (infantry) units in one cell.")]
@@ -72,8 +70,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Can the actor be ordered to move in to shroud?")]
 		public readonly bool MoveIntoShroud = true;
 
-		[Desc("e.g. crate, wall, infantry")]
-		public readonly BitSet<CrushClass> Crushes = default;
+		[Desc("Can pass by cell of other units, e.g. crate, wall, infantry, tree")]
+		public readonly BitSet<PassClass> Passes = default;
+
+		[Desc("What should be crushed (killed) when passed over")]
+		public readonly BitSet<PassClass> Crushes = default;
 
 		[Desc("Types of damage that are caused while crushing. Leave empty for no damage types.")]
 		public readonly BitSet<DamageType> CrushDamageTypes = default;
@@ -99,6 +100,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return ret;
+		}
+		public BitSet<PassClass> PassableClasses { get; private set; }
+
+		public void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			PassableClasses = Passes.Union(Crushes);
 		}
 
 		public class TerrainInfo
@@ -131,13 +138,13 @@ namespace OpenRA.Mods.Common.Traits
 		readonly struct CellCache
 		{
 			public readonly LongBitSet<PlayerBitMask> Immovable;
-			public readonly LongBitSet<PlayerBitMask> Crushable;
+			public readonly LongBitSet<PlayerBitMask> Passable;
 			public readonly CellFlag CellFlag;
 
-			public CellCache(LongBitSet<PlayerBitMask> immovable, CellFlag cellFlag, LongBitSet<PlayerBitMask> crushable = default)
+			public CellCache(LongBitSet<PlayerBitMask> immovable, CellFlag cellFlag, LongBitSet<PlayerBitMask> passable = default)
 			{
 				Immovable = immovable;
-				Crushable = crushable;
+				Passable = passable;
 				CellFlag = cellFlag;
 			}
 		}
@@ -247,7 +254,7 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// All actors that may be in the cell can be crushed.
-			if (cellCache.Crushable.Overlaps(actor.Owner.PlayerMask))
+			if (cellCache.Passable.Overlaps(actor.Owner.PlayerMask))
 				return true;
 
 			// If the check allows: We are not blocked by moving units.
@@ -263,12 +270,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (ignoreActor == null && subCell == SubCell.FullCell &&
 				!cellFlag.HasCellFlag(CellFlag.HasTemporaryBlocker) && !cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor))
 			{
-				// We already know there are uncrushable actors in the cell so we are always blocked.
+				// We already know there are unpassable actors in the cell so we are always blocked.
 				if (check == BlockedByActor.All)
 					return false;
 
 				// We already know there are either immovable or stationary actors which the check does not allow.
-				if (!cellFlag.HasCellFlag(CellFlag.HasCrushableActor))
+				if (!cellFlag.HasCellFlag(CellFlag.HasPassableActor))
 					return false;
 
 				// All actors in the cell are immovable and some cannot be crushed.
@@ -354,14 +361,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// If we cannot crush the other actor in our way, we are blocked.
-			if (!cellFlag.HasCellFlag(CellFlag.HasCrushableActor) || Info.Crushes.IsEmpty)
+			if (!cellFlag.HasCellFlag(CellFlag.HasPassableActor) || Info.PassableClasses.IsEmpty)
 				return true;
 
 			// If the other actor in our way cannot be crushed, we are blocked.
 			// PERF: Avoid LINQ.
-			var crushables = otherActor.TraitsImplementing<ICrushable>();
-			foreach (var crushable in crushables)
-				if (crushable.CrushableBy(otherActor, actor, Info.Crushes))
+			var passables = otherActor.TraitsImplementing<IPassable>();
+			foreach (var passable in passables)
+				if (passable.PassableBy(otherActor, actor, Info.PassableClasses))
 					return false;
 
 			return true;
@@ -474,14 +481,14 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var cellImmovablePlayers = default(LongBitSet<PlayerBitMask>);
-				var cellCrushablePlayers = world.AllPlayersMask;
+				var cellPassablePlayers = world.AllPlayersMask;
 
 				foreach (var actor in actors)
 				{
 					var actorImmovablePlayers = world.AllPlayersMask;
-					var actorCrushablePlayers = world.NoPlayersMask;
+					var actorPassablePlayers = world.NoPlayersMask;
 
-					var crushables = actor.TraitsImplementing<ICrushable>();
+					var passables = actor.TraitsImplementing<IPassable>();
 					var mobile = actor.OccupiesSpace as Mobile;
 					var isMovable = mobile != null && !mobile.IsTraitDisabled && !mobile.IsTraitPaused && !mobile.IsImmovable;
 					var isMoving = isMovable && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal);
@@ -491,11 +498,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (isTransitOnly)
 						cellFlag |= CellFlag.HasTransitOnlyActor;
 
-					if (crushables.Any())
+					if (passables.Any())
 					{
-						cellFlag |= CellFlag.HasCrushableActor;
-						foreach (var crushable in crushables)
-							actorCrushablePlayers = actorCrushablePlayers.Union(crushable.CrushableBy(actor, Info.Crushes));
+						cellFlag |= CellFlag.HasPassableActor;
+						foreach (var passable in passables)
+							actorPassablePlayers = actorPassablePlayers.Union(passable.PassableBy(actor, Info.PassableClasses));
 					}
 
 					if (isMoving)
@@ -517,11 +524,11 @@ namespace OpenRA.Mods.Common.Traits
 							cellFlag |= CellFlag.HasTemporaryBlocker;
 					}
 
-					cellCrushablePlayers = cellCrushablePlayers.Intersect(actorCrushablePlayers);
+					cellPassablePlayers = cellPassablePlayers.Intersect(actorPassablePlayers);
 					cellImmovablePlayers = cellImmovablePlayers.Union(actorImmovablePlayers);
 				}
 
-				cache[cell] = new CellCache(cellImmovablePlayers, cellFlag, cellCrushablePlayers);
+				cache[cell] = new CellCache(cellImmovablePlayers, cellFlag, cellPassablePlayers);
 			}
 		}
 	}

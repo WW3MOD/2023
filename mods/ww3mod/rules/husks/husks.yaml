@@ -1,0 +1,329 @@
+
+^BasicHusk:
+	Interactable:
+	Health:
+		HP: 28000
+	Armor:
+		Type: Heavy
+	Detectable:
+		Vision: 1
+		Position: Center
+		AlwaysVisibleRelationships: None
+	ScriptTriggers:
+	WithFacingSpriteBody:
+	HitShape:
+	MapEditorData:
+		Categories: Husk
+
+^CivBuildingHusk:
+	Inherits@1: ^SpriteActor
+	Interactable:
+	AppearsOnMiniMap:
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+	WithSpriteBody:
+	Tooltip:
+		GenericName: Civilian Building (Destroyed)
+		GenericStancePrefix: false
+		ShowOwnerRow: false
+	Targetable:
+		TargetTypes: NoAutoTarget, Ground
+		RequiresForceFire: true
+	FrozenUnderFog:
+	ScriptTriggers:
+	MapEditorData:
+		Categories: Husk
+	OwnerLostAction:
+		Action: ChangeOwner
+^BuildingHusk:
+	Inherits@1: ^SpriteActor
+	Interactable:
+	AppearsOnMiniMap:
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+	WithSpriteBody:
+	Health:
+		HP: 200
+	Armor:
+		Type: Wood
+	WithIdleOverlay@Burns:
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+	ChangesHealth@Burns:
+		Step: -10
+		Delay: 8
+	HitShape:
+	OwnerLostAction:
+		Action: ChangeOwner
+	Targetable:
+		TargetTypes: NoAutoTarget, Ground
+		RequiresForceFire: true
+	Tooltip:
+		GenericName: Destroyed Building
+	Detectable:
+		Vision: 1
+		Position: Center
+		AlwaysVisibleRelationships: None
+	ScriptTriggers:
+	Explodes:
+		Weapon: BuildingExplode
+	MapEditorData:
+		Categories: Husk
+^DefenseHusk:
+	Inherits@1: ^BuildingHusk
+	Health:
+		HP: 200
+	Explodes:
+		Weapon: SmallBuildingExplode
+^TechBuildingHusk:
+	Inherits: ^CivBuildingHusk
+	Tooltip:
+		GenericName: Tech Building (Destroyed)
+	Targetable:
+		TargetTypes: NoAutoTarget, Ground, TechHusk
+	InfiltrateForTransform:
+		Types: TechHusk
+		ForceHealthPercentage: 10
+
+^TreeHusk:
+	Inherits@1: ^SpriteActor
+	BlocksProjectiles:
+		MaxBypass: 5
+		BypassChance: 85
+		Height: 256
+	Interactable:
+	RenderSprites:
+		Palette: terrain
+	# AppearsOnMiniMap:
+	# MiniMapColorFromTerrain:
+	# 	Terrain: Tree
+	# AppearsOnMapPreview:
+	# 	Terrain: Tree
+	Building:
+		Footprint: x
+		Dimensions: 1,1
+	WithSpriteBody:
+	Tooltip:
+		Name: Tree (Burnt)
+		ShowOwnerRow: false
+	AlwaysVisible:
+	ScriptTriggers:
+	MapEditorData:
+		Categories: Tree
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+	ProximityExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		Range: 384
+		ValidRelationships: Neutral, Ally, Enemy
+T01.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: 0,650,0
+		Range: 182
+T02.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -550,760,0
+		Range: 256
+T03.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,768,0
+		Range: 182
+T04.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,768,0
+		Range: 182
+T05.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -400,450,0
+		Range: 256
+T06.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -320,550,0
+		Range: 182
+T07.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -350,680,0
+		Range: 182
+T08.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: x_
+		Dimensions: 2,1
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -180,100,0
+		Range: 182
+T09.Husk:
+	Inherits: ^TreeHusk
+	MapEditorData:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -180,100,0
+		Range: 182
+T10.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ xx
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: 30,680,0
+		Range: 182
+T11.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ xx
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -50,650,0
+		Range: 256
+T12.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -350,512,0
+		Range: 182
+T13.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -200,650,0
+		Range: 256
+T14.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -165,700,0
+		Range: 182
+T15.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -50,750,0
+		Range: 256
+T16.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -500,460,0
+		Range: 256
+T17.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __ x_
+		Dimensions: 2,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -256,650,0
+		Range: 200
+TC01.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: ___ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -530,480,0
+		Range: 450
+TC02.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: _x_ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -350,350,0
+TC03.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: xx_ xx_
+		Dimensions: 3,2
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+TC04.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: ____ xxx_ x___
+		Dimensions: 4,3
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,64,0
+		Range: 640
+TC05.Husk:
+	Inherits: ^TreeHusk
+	Building:
+		Footprint: __x_ xxx_ _xx_
+		Dimensions: 4,3
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR

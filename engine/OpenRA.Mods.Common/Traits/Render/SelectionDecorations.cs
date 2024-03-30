@@ -19,6 +19,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 {
 	public class SelectionDecorationsInfo : SelectionDecorationsBaseInfo, Requires<InteractableInfo>
 	{
+		public readonly bool ShowStatusBarAlways = false;
 		public override object Create(ActorInitializer init) { return new SelectionDecorations(init.Self, this); }
 	}
 
@@ -27,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		readonly Interactable interactable;
 
 		public SelectionDecorations(Actor self, SelectionDecorationsInfo info)
-			: base(info)
+			: base(info, info.ShowStatusBarAlways)
 		{
 			interactable = self.Trait<Interactable>();
 		}
@@ -42,6 +43,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				case "BottomLeft": return bounds.BottomLeft;
 				case "BottomRight": return bounds.BottomRight;
 				case "Top": return new int2(bounds.Left + bounds.Size.Width / 2, bounds.Top);
+				case "Bottom": return new int2(bounds.Left + bounds.Size.Width / 2, bounds.Bottom);
 				default: return bounds.TopLeft + new int2(bounds.Size.Width / 2, bounds.Size.Height / 2);
 			}
 		}
@@ -54,7 +56,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 				case "TopRight": return new int2(-margin.X, margin.Y);
 				case "BottomLeft": return new int2(margin.X, -margin.Y);
 				case "BottomRight": return -margin;
-				case "Top": return new int2(0, margin.Y);
+				case "Top": return new int2(-margin.X, margin.Y);
+				case "Bottom": return -margin;
 				default: return int2.Zero;
 			}
 		}

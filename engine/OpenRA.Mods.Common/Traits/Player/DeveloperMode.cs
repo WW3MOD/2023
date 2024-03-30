@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CheckboxDescription = "Enables cheats and developer commands";
 
 		[Desc("Default value of the developer mode checkbox in the lobby.")]
-		public readonly bool CheckboxEnabled = false;
+		public readonly bool CheckboxEnabled = true;
 
 		[Desc("Prevent the developer mode state from being changed in the lobby.")]
 		public readonly bool CheckboxLocked = false;
@@ -65,6 +65,8 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			yield return new LobbyBooleanOption("cheats", CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
+			yield return new LobbyBooleanOption("sync", "Sync", "Sync game code to detect errors with other players. Lowers performance.",
+				true, 5, false, false);
 		}
 
 		public override object Create(ActorInitializer init) { return new DeveloperMode(this); }
@@ -141,15 +143,15 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (enableAll)
 					{
-						self.Owner.Shroud.ExploreAll();
+						self.Owner.MapLayers.ExploreAll();
 
 						var amount = order.ExtraData != 0 ? (int)order.ExtraData : info.Cash;
 						self.Trait<PlayerResources>().ChangeCash(amount);
 					}
 					else
-						self.Owner.Shroud.ResetExploration();
+						self.Owner.MapLayers.ResetExploration();
 
-					self.Owner.Shroud.Disabled = DisableShroud;
+					self.Owner.MapLayers.Disabled = DisableShroud;
 					if (self.World.LocalPlayer == self.Owner)
 						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
 
@@ -207,7 +209,7 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevVisibility":
 				{
 					disableShroud ^= true;
-					self.Owner.Shroud.Disabled = DisableShroud;
+					self.Owner.MapLayers.Disabled = DisableShroud;
 					if (self.World.LocalPlayer == self.Owner)
 						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
 
@@ -222,13 +224,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				case "DevGiveExploration":
 				{
-					self.Owner.Shroud.ExploreAll();
+					self.Owner.MapLayers.ExploreAll();
 					break;
 				}
 
 				case "DevResetExploration":
 				{
-					self.Owner.Shroud.ResetExploration();
+					self.Owner.MapLayers.ResetExploration();
 					break;
 				}
 

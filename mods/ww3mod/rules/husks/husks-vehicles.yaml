@@ -1,0 +1,439 @@
+
+^Husk:
+	Inherits: ^BasicHusk
+	Inherits@2: ^ClassicFacingSpriteActor
+	Husk:
+		AllowedTerrain: Clear,Rough,Road,Beach
+	WithAddedAnimation:
+		Image: huskdeath
+		Sequence: fuelburn
+		Palette: gensmkexploj
+		Offset: 0,-550,0
+	WithDamageOverlay:
+	ChangesHealth:
+		Step: -100
+		StartIfBelow: 101
+		Delay: 8
+	OwnerLostAction:
+		Action: ChangeOwner
+	CaptureManager:
+	Capturable:
+		Types: husk
+		ValidRelationships: Enemy,Neutral
+	WithColoredOverlay@IDISABLE:
+		Color: 00000080
+	Targetable:
+		TargetTypes: NoAutoTarget, Husk
+		RequiresForceFire: true
+	Chronoshiftable:
+	Tooltip:
+		GenericName: Destroyed Vehicle
+
+HARV.FullHusk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Ore Truck)
+	RenderSprites:
+		Image: hhusk
+
+HARV.EmptyHusk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Ore Truck)
+	RenderSprites:
+		Image: hhusk2
+
+MCV.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (MCV)
+	RenderSprites:
+		Image: mcvhusk
+
+MCV2.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (MCV)
+	RenderSprites:
+		Image: mcvhusk
+		Scale: 0.8
+
+1TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Light Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	RenderSprites:
+		Image: 1tnk.destroyed
+
+2TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Medium Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	RenderSprites:
+		Image: 2tnk.destroyed
+
+3TNK.1B.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Heavy Tank 1-B)
+	ThrowsParticle@turret:
+		Anim: turret
+	RenderSprites:
+		Image: 3tnk.1b.destroyed
+
+4TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Mammoth Tank)
+	ThrowsParticle@turret:
+		Anim: turret:
+	RenderSprites:
+		Image: 4tnk.destroyed
+
+5TNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Behemoth Tank)
+	ThrowsParticle@turret:
+		Anim: turret
+	RenderSprites:
+		Image: 5tnk.destroyed
+
+TNKD.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Husk (Tank Destroyer)
+	RenderSprites:
+		Image: tnkd.destroyed
+
+
+TRUK.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Supply Truck
+	RenderSprites:
+		Image: truk
+
+MSAR.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Mobile Radar
+	RenderSprites:
+		Image: msar
+		PlayerPalette: playertd
+
+MSAR.deployed.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Mobile Radar
+	WithSpriteBody@deployed:
+		Sequence: idle-static
+		RequiresCondition: !undeployed && real-actor
+		Name: deployedbody
+	RenderSprites:
+		Image: msar
+		PlayerPalette: playertd
+
+MNLY.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Minelayer
+	RenderSprites:
+		Image: mnly
+
+abrams.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Abrams
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: abrams
+		Scale: 1.25
+bradley.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Bradley
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: bradley
+		Scale: 1.3
+humvee.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Humvee
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: humvee
+		Scale: 0.9
+m113.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: M113
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: m113
+		Scale: 0.9
+strykershorad.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Stryker Shorad
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: strykershorad
+		Scale: 1.1
+m109.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: M109
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: m109
+		Scale: 1.1
+m270.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: M270
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: m270
+PRSM.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Prism Tank
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: PRSM
+HIMARS.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: HIMARS
+	RenderSprites:
+		Image: HIMARS
+		Scale: 1.25
+
+t72.husk:
+	Inherits@Type: ^Husk
+	Tooltip:
+		Name: T72
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	WithAddedAnimation:
+		Image: huskdeath
+		Sequence: tankammoburn
+		Palette: gensmkexploj
+		Offset: 0,-1000,0
+	RenderSprites:
+		Image: t90
+		Scale: 1.25
+
+t90.husk:
+	Inherits@Type: ^Husk
+	Tooltip:
+		Name: t90
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	WithAddedAnimation:
+		Image: huskdeath
+		Sequence: tankammoburn
+		Palette: gensmkexploj
+		Offset: 0,-1000,0
+	RenderSprites:
+		Image: t90
+		Scale: 1.25
+
+bmp2.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: BMP-2
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: bmp2
+btr.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: BTR
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: btr
+		Scale: 0.9
+tunguska.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Tunguska
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: tunguska
+		Scale: 1.25
+giatsint.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Giatsint
+	RenderSprites:
+		Image: giatsint
+		Scale: 1.25
+grad.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Grad
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: grad
+tos.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: TOS
+	Armament:
+		Weapon: Dummy
+		PauseOnCondition: !alwaysdisabled
+	AttackTurreted:
+		Armaments: primary
+		PauseOnCondition: !alwaysdisabled
+	Turreted:
+		TurnSpeed: 0
+		Offset: 0,0,20
+	WithSpriteTurret:
+	RenderSprites:
+		Image: tos
+		Scale: 1.25
+iskander.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Iskander
+	WithFacingSpriteBody:
+		Sequence: empty-idle
+	RenderSprites:
+		Image: iskander
+		Scale: 1.25
+TTNK.husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: Tesla Tank
+	RenderSprites:
+		Image: TTNK

@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class WithColoredOverlayInfo : ConditionalTraitInfo
 	{
 		[Desc("Color to overlay.")]
-		public readonly Color Color = Color.FromArgb(128, 128, 0, 0);
+		public readonly Color Color = Color.FromArgb(0, 0, 0, 100);
 
 		public override object Create(ActorInitializer init) { return new WithColoredOverlay(this); }
 	}

@@ -23,6 +23,9 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor can transport Passenger actors.")]
 	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>
 	{
+		[Desc("Should this actor turn nutral when not loaded? For civilian buildings.")]
+		public readonly bool Neutral = false;
+
 		[Desc("The maximum sum of Passenger.Weight that this actor can support.")]
 		public readonly int MaxWeight = 0;
 
@@ -36,7 +39,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool EjectOnSell = true;
 
 		[Desc("When this actor dies should all of its passengers be unloaded?")]
-		public readonly bool EjectOnDeath = false;
+		public readonly bool EjectOnDeath = true;
 
 		[Desc("Terrain types that this actor is allowed to eject actors onto. Leave empty for all terrain types.")]
 		public readonly HashSet<string> UnloadTerrainTypes = new HashSet<string>();
@@ -88,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cargo(init, this); }
 	}
 
-	public class Cargo : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated, INotifyKilled,
+	public class Cargo : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated, INotifyKilled, INotifyDamage,
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
 		ITransformActorInitModifier
 	{
@@ -163,6 +166,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			facing = Exts.Lazy(self.TraitOrDefault<IFacing>);
 		}
+
+		// // Request the closest actorst that are cargoable to enter the transport
+		// bool PickUpClosestActors(Actor self)
+		// {
+		// 	// Find the closest actors to self
+		// 	// This method finds the closest actors that can be picked up by the transport
+		// 	// It will attempt to pick up the closest available actors that match the cargo criteria
+
+		// }
 
 		void INotifyCreated.Created(Actor self)
 		{
@@ -369,66 +381,114 @@ namespace OpenRA.Mods.Common.Traits
 				passengerFacing.Facing = facing.Value.Facing + Info.PassengerFacing;
 		}
 
-		public void Load(Actor self, Actor a)
+		public void Load(Actor cargoActor, Actor passengerActor)
 		{
-			cargo.Add(a);
-			var w = GetWeight(a);
+			if (cargoActor.Owner != passengerActor.Owner)
+				cargoActor.ChangeOwnerSync(passengerActor.Owner, false);
+
+			cargo.Add(passengerActor);
+			var w = GetWeight(passengerActor);
 			totalWeight += w;
-			if (reserves.Contains(a))
+			if (reserves.Contains(passengerActor))
 			{
 				reservedWeight -= w;
-				reserves.Remove(a);
-				ReleaseLock(self);
+				reserves.Remove(passengerActor);
+				ReleaseLock(cargoActor);
 
 				if (loadingToken != Actor.InvalidConditionToken)
-					loadingToken = self.RevokeCondition(loadingToken);
+					loadingToken = cargoActor.RevokeCondition(loadingToken);
 			}
 
 			// Don't initialise (effectively twice) if this runs before the FrameEndTask from Created
 			if (initialised)
 			{
-				a.Trait<Passenger>().Transport = self;
+				passengerActor.Trait<Passenger>().Transport = cargoActor;
 
-				foreach (var nec in a.TraitsImplementing<INotifyEnteredCargo>())
-					nec.OnEnteredCargo(a, self);
+				foreach (var nec in passengerActor.TraitsImplementing<INotifyEnteredCargo>())
+					nec.OnEnteredCargo(passengerActor, cargoActor);
 
-				foreach (var npe in self.TraitsImplementing<INotifyPassengerEntered>())
-					npe.OnPassengerEntered(self, a);
+				foreach (var npe in cargoActor.TraitsImplementing<INotifyPassengerEntered>())
+					npe.OnPassengerEntered(cargoActor, passengerActor);
 			}
 
-			if (Info.PassengerConditions.TryGetValue(a.Info.Name, out var passengerCondition))
-				passengerTokens.GetOrAdd(a.Info.Name).Push(self.GrantCondition(passengerCondition));
+			if (Info.PassengerConditions.TryGetValue(passengerActor.Info.Name, out var passengerCondition))
+				passengerTokens.GetOrAdd(passengerActor.Info.Name).Push(cargoActor.GrantCondition(passengerCondition));
 
 			if (!string.IsNullOrEmpty(Info.LoadedCondition))
-				loadedTokens.Push(self.GrantCondition(Info.LoadedCondition));
+				loadedTokens.Push(cargoActor.GrantCondition(Info.LoadedCondition));
+		}
+
+		void INotifyDamage.Damaged(OpenRA.Actor self, OpenRA.Traits.AttackInfo e)
+		{
+			var damageThreshold = self.Trait<Health>().MaxHP / 4;
+
+			// Heavy hits deals damage to soldiers
+			// if (e.Damage.Value > damageThreshold)
+			// 	foreach (var passenger in Passengers)
+			// 	{
+			// 		var random = self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
+			// 		int damage = e.Damage.Value;
+			// 		if (damage > 0)
+			// 		{
+			// 			int damageToDeal = passenger.Trait<Health>().MaxHP * damage / self.Trait<Health>().MaxHP;
+			// 			damageToDeal += random;
+			// 			passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
+			// 		}
+			// 	}
+
+			// Unload when low health
+			if (self.Trait<Health>().HP < damageThreshold)
+			{
+				var currentActivityType = self.CurrentActivity?.GetType();
+
+				if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
+					self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
+			}
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			if (Info.EjectOnDeath)
+			{
 				while (!IsEmpty() && CanUnload(BlockedByActor.All))
 				{
 					var passenger = Unload(self);
-					var cp = self.CenterPosition;
-					var inAir = self.World.Map.DistanceAboveTerrain(cp).Length != 0;
-					var positionable = passenger.Trait<IPositionable>();
-					positionable.SetPosition(passenger, self.Location);
+					var random = self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
+					var damage = e.Damage.Value;
 
-					if (!inAir && positionable.CanEnterCell(self.Location, self, BlockedByActor.None))
+					if (damage > 0)
 					{
-						self.World.AddFrameEndTask(w => w.Add(passenger));
-						var nbms = passenger.TraitsImplementing<INotifyBlockingMove>();
-						foreach (var nbm in nbms)
-							nbm.OnNotifyBlockingMove(passenger, passenger);
+						var damageToDeal = passenger.Trait<Health>().MaxHP * damage / self.Trait<Health>().MaxHP;
+						damageToDeal += random;
+						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
 					}
-					else
-						passenger.Kill(e.Attacker);
+
+					if (!passenger.IsDead)
+					{
+						var cp = self.CenterPosition;
+						var inAir = self.World.Map.DistanceAboveTerrain(cp).Length != 0;
+						var positionable = passenger.Trait<IPositionable>();
+						positionable.SetPosition(passenger, self.Location);
+
+						if (!inAir && positionable.CanEnterCell(self.Location, self, BlockedByActor.None))
+						{
+							self.World.AddFrameEndTask(w => w.Add(passenger));
+							var nbms = passenger.TraitsImplementing<INotifyBlockingMove>();
+							foreach (var nbm in nbms)
+								nbm.OnNotifyBlockingMove(passenger, passenger);
+						}
+						else
+							passenger.Kill(e.Attacker);
+					}
 				}
+			}
+			else
+			{
+				foreach (var c in cargo)
+					c.Kill(e.Attacker);
 
-			foreach (var c in cargo)
-				c.Kill(e.Attacker);
-
-			cargo.Clear();
+				cargo.Clear();
+			}
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)
