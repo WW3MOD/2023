@@ -107,6 +107,9 @@ namespace OpenRA.GameRules
 		[Desc("Number of shots.")]
 		public readonly int Burst = 1;
 
+		[Desc("Randomize burst by +/- this much for irregular shooting")]
+		public readonly int BurstRandomize = 0;
+
 		[Desc("Delay in ticks between firing shots from the same ammo magazine. If one entry, it will be used for all bursts.",
 			"If multiple entries, their number needs to match Burst - 1.")]
 		public readonly int[] BurstDelays = { 1 };

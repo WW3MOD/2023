@@ -486,6 +486,12 @@ namespace OpenRA.Mods.Common.Traits
 						SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers), true);
 
 						var burstmodifiers = burstModifiers.ToArray();
+
+						if (Weapon.BurstRandomize > 0)
+						{
+							Burst = self.World.SharedRandom.Next(Weapon.Burst - Weapon.BurstRandomize / 2, (Weapon.Burst + Weapon.BurstRandomize / 2) + Weapon.Burst % 2);
+						}
+
 						Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
 
 						if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Any())

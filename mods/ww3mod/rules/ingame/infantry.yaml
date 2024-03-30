@@ -1003,6 +1003,9 @@ E1R1:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FFFF00
 	Armament@2:
 		Name: secondary
 		Weapon: RPG
@@ -1027,6 +1030,9 @@ E1R1:
 		FullSequence: pip-red
 		AmmoPools: secondary-ammo
 		RequiresCondition: ammo-secondary
+	ReloadBar@2:
+		Armaments: secondary
+		Color: FF0000
 	RenderRangeCircle@2:
 		Armament: secondary
 		RangeCircleType: E3
@@ -1168,6 +1174,9 @@ AR:
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FF0000
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
@@ -1386,6 +1395,9 @@ MT:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FFFF00
 	RenderRangeCircle@1:
 		Armament: primary
 		RequiresCondition: ammo-primary
@@ -1797,6 +1809,9 @@ E4:
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
+	ReloadBar@1:
+		Armaments: primary
+		Color: FFFF00
 	Demolition:
 		RequiresCondition: ammo-c4
 		DetonationDelay: 300
