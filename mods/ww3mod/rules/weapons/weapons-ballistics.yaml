@@ -107,6 +107,7 @@ MP5:
 	Magazine: 100
 	ReloadDelay: 150
 	Burst: 10
+	BurstRandomize: 5
 	BurstDelays: 1
 	BurstWait: 8
 5.56mm.DMR:
@@ -375,13 +376,14 @@ AACannon:
 	MinRange: 1c512
 	Magazine: 300
 	ReloadDelay: 250
-	Burst: 20
+	Burst: 4
+	BurstRandomize: 2
 	BurstDelays: 4
 	BurstWait: 15
 	Report: cannon2.aud
 	Projectile: Bullet
 		Speed: 900
-		Inaccuracy: 0c768
+		Inaccuracy: 0c312
 	Warhead@Target: TargetDamage
 		Damage: 500
 		Penetration: 60
@@ -428,17 +430,17 @@ AACannon:
 		InaccuracyPerProjectile: 32,32,0
 		Blockable: false
 		Image: tracer_large
-30mm.Stryker:
-	Inherits@Caliber: ^30mm
-	Burst: 5
-	BurstDelays: 7
-	BurstWait: 10
-	Range: 22c0
-	MinRange: 1c512
-	Report: cannon2.aud
-	Projectile: Bullet
-		Speed: 1100
-		Inaccuracy: 1c256
+# 30mm.Stryker:
+# 	Inherits@Caliber: ^30mm
+# 	Burst: 5
+# 	BurstDelays: 7
+# 	BurstWait: 10
+# 	Range: 20c0
+# 	MinRange: 1c512
+# 	Report: cannon2.aud
+# 	Projectile: Bullet
+# 		Speed: 1100
+# 		Inaccuracy: 1c256
 30mm.Heli:
 	Inherits@Caliber: ^30mm
 	ValidTargets: Ground

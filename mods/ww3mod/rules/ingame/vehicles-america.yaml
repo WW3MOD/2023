@@ -542,7 +542,7 @@ strykershorad:
 		Alpha: 50
 	Armament@1:
 		Name: primary
-		Weapon: 30mm.Stryker
+		Weapon: 25mm.Bradley # 30mm.Stryker
 		Recoil: 20
 		RecoilRecovery: 25
 		LocalOffset: 768,0,90
