@@ -24,6 +24,7 @@
 		Type: None
 	Mobile:
 		Speed: 25
+		TurnSpeed: 200
 		AlwaysTurnInPlace: true
 		Locomotor: foot
 	SelectionDecorations:
