@@ -162,10 +162,10 @@
 	GainsExperience:
 		LevelUpNotification: LevelUp
 		Conditions:
-			50: rank-veteran
-			150: rank-veteran
-			600: rank-veteran
-			1200: rank-veteran
+			100: rank-veteran
+			200: rank-veteran
+			400: rank-veteran
+			800: rank-veteran
 		LevelUpImage: crate-effects
 	DamageMultiplier@Rank_1:
 		RequiresCondition: rank-veteran == 1

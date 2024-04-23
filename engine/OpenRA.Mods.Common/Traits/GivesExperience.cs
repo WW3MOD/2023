@@ -1,4 +1,5 @@
 #region Copyright & License Information
+using System;
 /*
  * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
@@ -9,6 +10,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
@@ -33,7 +35,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GivesExperience(this); }
 	}
 
-	class GivesExperience : INotifyKilled, INotifyCreated
+	class GivesExperience : INotifyDamage, INotifyKilled, INotifyCreated
 	{
 		readonly GivesExperienceInfo info;
 
@@ -69,6 +71,35 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var killerExperienceModifier = e.Attacker.TraitsImplementing<IGainsExperienceModifier>()
 					.Select(x => x.GetGainsExperienceModifier()).Append(info.ActorExperienceModifier);
+				killer.GiveExperience(Util.ApplyPercentageModifiers(exp, killerExperienceModifier));
+			}
+
+			e.Attacker.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()
+				?.GiveExperience(Util.ApplyPercentageModifiers(exp, new[] { info.PlayerExperienceModifier }));
+		}
+
+		// FF: Add experience from damaging enemies & healing friendlies
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
+		{
+			if (exp == 0 || e.Attacker == null || e.Attacker.Disposed)
+				return;
+
+			if (!info.ValidRelationships.HasRelationship(e.Attacker.Owner.RelationshipWith(self.Owner)))
+				return;
+
+			exp = Util.ApplyPercentageModifiers(exp, experienceModifiers);
+
+			exp = (exp * e.Damage.Value) / self.Trait<Health>().MaxHP;
+
+			if (exp < 0)
+				exp = Math.Abs(exp);
+
+			var killer = e.Attacker.TraitOrDefault<GainsExperience>();
+			if (killer != null)
+			{
+				var killerExperienceModifier = e.Attacker.TraitsImplementing<IGainsExperienceModifier>()
+					.Select(x => x.GetGainsExperienceModifier()).Append(info.ActorExperienceModifier);
+
 				killer.GiveExperience(Util.ApplyPercentageModifiers(exp, killerExperienceModifier));
 			}
 
