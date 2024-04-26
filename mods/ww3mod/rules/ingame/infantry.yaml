@@ -11,8 +11,8 @@
 	Inherits@FireEffects: ^InfantryAffectedByFire
 	Inherits@DamageStates: ^DamageStates
 	Inherits@Vision: ^StandardVision
-	Inherits@DetectionProximity: ^DetectionProximity
-	Inherits@Visibility: ^InfantryStandardVisibility
+	# Inherits@DetectionProximity: ^DetectionProximity
+	Inherits@Visibility: ^DetectableInfantryStandard
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -178,7 +178,7 @@
 ^CamoSoldier:
 	Inherits@Combatant: ^Combatant
 	Inherits@Soldier: ^Soldier
-	Inherits@VisibilityRangeCircles: ^VisibilityRangeCircles
+	# Inherits@DetectableRangeCircles: ^DetectableRangeCircles
 	Inherits@Rotting: ^RottingInfantry
 	AutoTarget:
 		ScanRadius: 25
@@ -536,28 +536,26 @@
 		Margin: 0,7
 		RequiresCondition: suppressed > 90 && suppressed <= 100
 
-^InfantryStandardVisibility:
+^DetectableInfantryStandard:
 	Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
-	# DetectableAddativeModifier@InCover1:
-	# 	RequiresCondition: object-proximity == 1
-	# 	VisionModifier: 1
+	DetectableAddativeModifier@InCover1:
+		RequiresCondition: object-proximity == 1
+		VisionModifier: 1
 	DetectableAddativeModifier@InCover2:
 		RequiresCondition: object-proximity == 2
-		VisionModifier: 1
+		VisionModifier: 2
 	DetectableAddativeModifier@InCover3:
 		RequiresCondition: object-proximity >= 3
-		VisionModifier: 2
-
+		VisionModifier: 3
 	DetectableAddativeModifier@Prone:
 		RequiresCondition: prone
 		VisionModifier: 1
 	DetectableAddativeModifier@Dugin:
 		RequiresCondition: dugin
 		VisionModifier: 1
-
 	GrantConditionOnAttack@Firing:
 		Condition: firinganyweapon
 		RevokeDelay: 12
@@ -566,13 +564,11 @@
 	DetectableAddativeModifier@Firing:
 		RequiresCondition: firinganyweapon
 		VisionModifier: -2
-
 	DetectableAddativeModifier@Moving:
 		RequiresCondition: moving
 		VisionModifier: -1
 
-
-^VisibilityRangeCircles:
+^DetectableRangeCircles:
 	# WithRangeCircle@Detectable0:
 	# 	RequiresCondition: visibility-0
 	# 	Range: 32c0
@@ -1373,6 +1369,8 @@ MT:
 		Cost: 400
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Detectable:
+		Vision: 5
 	Armament@1:
 		Name: primary
 		Weapon: 7.62mm.Sniper
@@ -1772,7 +1770,6 @@ E4:
 # Special Forces
 ^SF:
 	Inherits@Type: ^AmphibiousSoldier
-	# Inherits@Visibility: ^InfantryStealthyVisibility
 	Tooltip:
 		Name: Special Forces
 	Valued:
@@ -1788,6 +1785,8 @@ E4:
 	Mobile:
 		Speed: 40
 		Locomotor: foot-amphibious-mountainer
+	Detectable:
+		Vision: 5
 	Armament@1:
 		Name: primary
 		Weapon: 5.56mm.DMR.silencer
@@ -1917,160 +1916,6 @@ SF:
 		Scale: 0.6
 MEDI:
 	Inherits: ^MEDI
-
-# Infiltrating Spy
-^SPY:
-	Inherits@Type: ^CamoSoldier
-	Inherits@AutoTarget: ^AutoTargetLMG
-	Inherits@Selection: ^SelectableSupportUnit
-	# Inherits@Visibility: ^InfantryStealthyVisibility
-	-Tooltip:
-	-Guard:
-	-WithInfantryBody:
-	AutoTarget:
-		InitialStance: HoldFire
-		InitialStanceAI: Defend
-		ScanRadius: 10
-	Buildable:
-		Queue: Infantry
-		BuildAtProductionType: Soldier
-		BuildPaletteOrder: 14
-		Prerequisites: ~disabled
-		Description: Agent of the Intelligence Service. Stealthy and can disguise as enemy soldier.
-	Valued:
-		Cost: 500
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Mobile:
-		Voice: Move
-	AttackMove:
-		Voice: Move
-	Infiltrates:
-		Types: SpyInfiltrate
-		Notification: BuildingInfiltrated
-		PlayerExperience: 50
-	Disguise:
-		DisguisedCondition: disguised
-	Armament@1:
-		Name: ppk
-		Weapon: SilencedPPK
-	WithDisguisingInfantryBody:
-		DefaultAttackSequence: shoot
-		IdleSequences: idle1,idle2
-		StandSequences: stand,stand2
-	WithDecoration@Disguised:
-		Image: class
-		Sequence: spy_disguised
-		Palette: effect
-		Position: Top
-		Margin: 0,7
-		RequiresCondition: disguised
-	DisguiseTooltip:
-		Name: Spy
-		GenericName: Soldier
-	IgnoresDisguise:
-	Voiced:
-		VoiceSet: SpyVoice
-	Passenger:
-		CustomPipType: spy_class
-		Voice: Move
-	WithDecoration@Class:
-		Sequence: spy_class
-	Selectable:
-		Class: SPY
-	RenderSprites:
-		Scale: 0.6
-SPY:
-	Inherits: ^SPY
-
-# Attack Dog
-^DOG:
-	Inherits@Soldier: ^Soldier
-	-AttackFrontal:
-	-ExternalCondition@Suppression:
-	-WithDecoration@AmmoNone:
-	-WithDecoration@AmmoPrimaryNone:
-	-WithDecoration@AmmoReplenishing:
-	-WithDecoration@Class:
-	-HitShape@Cover:
-	-WithInfantryBody@Parachute:
-	Buildable:
-		Queue: Infantry
-		BuildAtProductionType: Soldier
-		BuildPaletteOrder: 15
-		Prerequisites: ~disabled
-		Description: Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
-	Tooltip:
-		Name: Attack Dog
-		GenericName: Dog
-	Valued:
-		Cost: 100
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 100
-	Mobile:
-		Speed: 80
-		Voice: Move
-		PauseOnCondition: attack-cooldown || eating
-	HitShape@Dog:
-		RequiresCondition: deployed || !moving
-		Type: Circle
-			Radius: 12
-	HitShape@Moving:
-		RequiresCondition: moving
-		Type: Circle
-			Radius: 6
-	AutoTarget:
-		InitialStance: AttackAnything
-		ScanRadius: 25
-		MinimumScanTimeInterval: 16
-		MaximumScanTimeInterval: 32
-	AutoTargetPriority@Infantry:
-		ValidTargets: Infantry
-	Guard:
-		Voice: Move
-	DetectCloaked@DOG:
-		DetectionTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
-		Range: 10c0
-	RenderDetectionCircle:
-	IgnoresDisguise:
-	Armament:
-		Weapon: DogJaw
-		ReloadingCondition: attack-cooldown
-	AttackLeap:
-		Speed: 120
-		Voice: Attack
-		PauseOnCondition: attacking || attack-cooldown
-	AttackMove:
-		Voice: Move
-	GrantConditionOnAttack:
-		Condition: eating
-		RevokeDelay: 45
-	GrantConditionWhileAiming:
-		Condition: run
-	Targetable:
-		TargetTypes: Ground, Infantry
-	WithInfantryBody:
-		MoveSequence: walk
-		StandSequences: stand
-		DefaultAttackSequence: eat
-		RequiresCondition: !run
-	WithInfantryBody@RUN:
-		MoveSequence: run
-		RequiresCondition: run
-	SpeedMultiplier:
-		Modifier: 150
-		RequiresCondition: run
-	Voiced:
-		VoiceSet: DogVoice
-	Passenger:
-		Voice: Move
-		CustomPipType: dog_class
-	RenderSprites:
-		Scale: 0.6
-DOG:
-	Inherits: ^DOG
 
 # Technician
 ^TECN:
@@ -2297,3 +2142,157 @@ PILOTR4:
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
 
+# Infiltrating Spy
+# ^SPY:
+# 	Inherits@Type: ^CamoSoldier
+# 	Inherits@AutoTarget: ^AutoTargetLMG
+# 	Inherits@Selection: ^SelectableSupportUnit
+# 	-Tooltip:
+# 	-Guard:
+# 	-WithInfantryBody:
+# 	AutoTarget:
+# 		InitialStance: HoldFire
+# 		InitialStanceAI: Defend
+# 		ScanRadius: 10
+# 	Buildable:
+# 		Queue: Infantry
+# 		BuildAtProductionType: Soldier
+# 		BuildPaletteOrder: 14
+# 		Prerequisites: ~disabled
+# 		Description: Agent of the Intelligence Service. Stealthy and can disguise as enemy soldier.
+# 	Valued:
+# 		Cost: 500
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Mobile:
+# 		Voice: Move
+# 	AttackMove:
+# 		Voice: Move
+# 	Infiltrates:
+# 		Types: SpyInfiltrate
+# 		Notification: BuildingInfiltrated
+# 		PlayerExperience: 50
+# 	Disguise:
+# 		DisguisedCondition: disguised
+# 	Detectable:
+# 		Vision: 5
+# 	Armament@1:
+# 		Name: ppk
+# 		Weapon: SilencedPPK
+# 	WithDisguisingInfantryBody:
+# 		DefaultAttackSequence: shoot
+# 		IdleSequences: idle1,idle2
+# 		StandSequences: stand,stand2
+# 	WithDecoration@Disguised:
+# 		Image: class
+# 		Sequence: spy_disguised
+# 		Palette: effect
+# 		Position: Top
+# 		Margin: 0,7
+# 		RequiresCondition: disguised
+# 	DisguiseTooltip:
+# 		Name: Spy
+# 		GenericName: Soldier
+# 	IgnoresDisguise:
+# 	Voiced:
+# 		VoiceSet: SpyVoice
+# 	Passenger:
+# 		CustomPipType: spy_class
+# 		Voice: Move
+# 	WithDecoration@Class:
+# 		Sequence: spy_class
+# 	Selectable:
+# 		Class: SPY
+# 	RenderSprites:
+# 		Scale: 0.6
+# SPY:
+# 	Inherits: ^SPY
+
+# Attack Dog
+# ^DOG:
+# 	Inherits@Soldier: ^Soldier
+# 	-AttackFrontal:
+# 	-ExternalCondition@Suppression:
+# 	-WithDecoration@AmmoNone:
+# 	-WithDecoration@AmmoPrimaryNone:
+# 	-WithDecoration@AmmoReplenishing:
+# 	-WithDecoration@Class:
+# 	-HitShape@Cover:
+# 	-WithInfantryBody@Parachute:
+# 	Buildable:
+# 		Queue: Infantry
+# 		BuildAtProductionType: Soldier
+# 		BuildPaletteOrder: 15
+# 		Prerequisites: ~disabled
+# 		Description: Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
+# 	Tooltip:
+# 		Name: Attack Dog
+# 		GenericName: Dog
+# 	Valued:
+# 		Cost: 100
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 100
+# 	Mobile:
+# 		Speed: 80
+# 		Voice: Move
+# 		PauseOnCondition: attack-cooldown || eating
+# 	HitShape@Dog:
+# 		RequiresCondition: deployed || !moving
+# 		Type: Circle
+# 			Radius: 12
+# 	HitShape@Moving:
+# 		RequiresCondition: moving
+# 		Type: Circle
+# 			Radius: 6
+# 	AutoTarget:
+# 		InitialStance: AttackAnything
+# 		ScanRadius: 25
+# 		MinimumScanTimeInterval: 16
+# 		MaximumScanTimeInterval: 32
+# 	AutoTargetPriority@Infantry:
+# 		ValidTargets: Infantry
+# 	Guard:
+# 		Voice: Move
+# 	DetectCloaked@DOG:
+# 		DetectionTypes: Stealthy, Hidden, Cloaked, High, Medium, Low
+# 		Range: 10c0
+# 	RenderDetectionCircle:
+# 	IgnoresDisguise:
+# 	Armament:
+# 		Weapon: DogJaw
+# 		ReloadingCondition: attack-cooldown
+# 	AttackLeap:
+# 		Speed: 120
+# 		Voice: Attack
+# 		PauseOnCondition: attacking || attack-cooldown
+# 	AttackMove:
+# 		Voice: Move
+# 	GrantConditionOnAttack:
+# 		Condition: eating
+# 		RevokeDelay: 45
+# 	GrantConditionWhileAiming:
+# 		Condition: run
+# 	Targetable:
+# 		TargetTypes: Ground, Infantry
+# 	WithInfantryBody:
+# 		MoveSequence: walk
+# 		StandSequences: stand
+# 		DefaultAttackSequence: eat
+# 		RequiresCondition: !run
+# 	WithInfantryBody@RUN:
+# 		MoveSequence: run
+# 		RequiresCondition: run
+# 	SpeedMultiplier:
+# 		Modifier: 150
+# 		RequiresCondition: run
+# 	Voiced:
+# 		VoiceSet: DogVoice
+# 	Passenger:
+# 		Voice: Move
+# 		CustomPipType: dog_class
+# 	RenderSprites:
+# 		Scale: 0.6
+# DOG:
+# 	Inherits: ^DOG

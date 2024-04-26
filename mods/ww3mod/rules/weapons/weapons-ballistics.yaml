@@ -711,8 +711,9 @@ TosRockets:
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Spread: 256
-		Damage: 300
+		Spread: 128
+		Falloff: 100,80,60,40,20,10,5,2,1
+		Damage: 1500
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 

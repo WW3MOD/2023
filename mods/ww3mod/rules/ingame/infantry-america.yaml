@@ -105,20 +105,6 @@ SF.america:
 		Prerequisites: ~player.america, ~techlevel.infonly
 	RenderSprites:
 		Image: sf.america
-# Infiltrating Spy
-SPY.america:
-	Inherits: ^SPY
-	Buildable:
-		Prerequisites: ~player.america, ~techlevel.infonly
-	RenderSprites:
-		Image: spy.america
-# Attack Dog
-DOG.america:
-	Inherits: ^DOG
-	Buildable:
-		Prerequisites: ~player.america, ~techlevel.infonly
-	RenderSprites:
-		Image: dog
 # Technician
 TECN.america:
 	Inherits: ^TECN
@@ -141,3 +127,17 @@ E4.america:
 	RenderSprites:
 		Image: e4.america
 
+# Infiltrating Spy
+# SPY.america:
+# 	Inherits: ^SPY
+# 	Buildable:
+# 		Prerequisites: ~player.america, ~techlevel.infonly
+# 	RenderSprites:
+# 		Image: spy.america
+# Attack Dog
+# DOG.america:
+# 	Inherits: ^DOG
+# 	Buildable:
+# 		Prerequisites: ~player.america, ~techlevel.infonly
+# 	RenderSprites:
+# 		Image: dog

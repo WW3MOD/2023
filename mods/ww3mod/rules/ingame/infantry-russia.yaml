@@ -105,20 +105,6 @@ SF.russia:
 		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: sf.russia
-# Infiltrating Spy
-SPY.russia:
-	Inherits@BaseUnit: ^SPY
-	Buildable:
-		Prerequisites: ~player.russia, ~techlevel.infonly
-	RenderSprites:
-		Image: spy.russia
-# Attack Dog
-DOG.russia:
-	Inherits@BaseUnit: ^DOG
-	Buildable:
-		Prerequisites: ~player.russia, ~techlevel.infonly
-	RenderSprites:
-		Image: dog
 # Technician
 TECN.russia:
 	Inherits@BaseUnit: ^TECN
@@ -196,3 +182,18 @@ SHOKR1:
 		OverrideActor: shok
 	-Buildable:
 	-MapEditorData:
+
+# Infiltrating Spy
+# SPY.russia:
+# 	Inherits@BaseUnit: ^SPY
+# 	Buildable:
+# 		Prerequisites: ~player.russia, ~techlevel.infonly
+# 	RenderSprites:
+# 		Image: spy.russia
+# Attack Dog
+# DOG.russia:
+# 	Inherits@BaseUnit: ^DOG
+# 	Buildable:
+# 		Prerequisites: ~player.russia, ~techlevel.infonly
+# 	RenderSprites:
+# 		Image: dog
