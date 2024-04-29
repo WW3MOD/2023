@@ -33,11 +33,11 @@
 			Bridge: 100
 			Clear: 90
 			Rough: 70
-			Debris: 40
-			Rock: 30
-			Beach: 70
-			RiverShallow: 30
-			Shallow: 15
+			Debris: 60
+			Rock: 50
+			Beach: 80
+			RiverShallow: 40
+			Shallow: 30
 	Locomotor@FOOT_AMPHIBIOUS:
 		Name: foot-amphibious
 		Passes: tree, sandbag, fence
@@ -48,13 +48,13 @@
 			Bridge: 100
 			Clear: 90
 			Rough: 70
-			Debris: 40
-			Rock: 30
-			Beach: 70
-			RiverShallow: 40
-			Shallow: 25
-			River: 20
-			Water: 25
+			Debris: 60
+			Rock: 50
+			Beach: 80
+			RiverShallow: 50
+			Shallow: 50
+			River: 40
+			Water: 40
 	Locomotor@FOOT_MOUNTAINER:
 		Name: foot-mountainer
 		Passes: tree, sandbag, fence
@@ -67,9 +67,9 @@
 			Rough: 70
 			Debris: 60
 			Rock: 50
-			Beach: 70
+			Beach: 80
 			RiverShallow: 40
-			Shallow: 25
+			Shallow: 20
 			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
@@ -83,11 +83,11 @@
 			Rough: 70
 			Debris: 60
 			Rock: 50
-			Beach: 70
-			RiverShallow: 40
-			Shallow: 25
-			River: 25
-			Water: 20
+			Beach: 80
+			RiverShallow: 50
+			Shallow: 50
+			River: 40
+			Water: 40
 			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled

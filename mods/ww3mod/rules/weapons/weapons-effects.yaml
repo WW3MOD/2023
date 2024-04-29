@@ -542,9 +542,34 @@
 		InvalidTargets: Ship, Structure, Bridge
 
 ^LargeThermobaricEffects:
-	Warhead@Fire: GrantExternalCondition
-		Range: 3c0
-		# Duration: 15
+	Warhead@Fire1: GrantExternalCondition
+		Range: 1c768
+		Amount: 1
+		Duration: 20
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Fire2: GrantExternalCondition
+		Range: 1c512
+		Amount: 1
+		Duration: 40
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Fire3: GrantExternalCondition
+		Range: 1c256
+		Amount: 1
+		Duration: 80
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Fire4: GrantExternalCondition
+		Range: 1c0
+		Amount: 1
+		Duration: 120
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Fire5: GrantExternalCondition
+		Range: 768
+		Amount: 1
+		Duration: 200
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Effect_1: CreateEffect

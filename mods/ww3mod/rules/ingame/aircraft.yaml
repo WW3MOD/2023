@@ -10,6 +10,7 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Vision: ^StandardVision
+	Inherits@DamagePips: ^DamageVehiclePips
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -186,19 +187,19 @@
 ^WhenDamagedAir:
 	SpeedMultiplier@HeavyDamage:
 		Modifier: 90
-		RequiresCondition: heavy-damage
+		RequiresCondition: heavy-damage-attained
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 75
 		RequiresCondition: critical-damage
 	InaccuracyMultiplier@HeavyDamage:
 		Modifier: 75
-		RequiresCondition: heavy-damage
+		RequiresCondition: heavy-damage-attained
 	InaccuracyMultiplier@CriticalDamage:
 		Modifier: 50
 		RequiresCondition: critical-damage
 	BurstWaitMultiplier@HeavyDamage:
 		Modifier: 75
-		RequiresCondition: heavy-damage
+		RequiresCondition: heavy-damage-attained
 	BurstWaitMultiplier@CriticalDamage:
 		Modifier: 50
 		RequiresCondition: critical-damage

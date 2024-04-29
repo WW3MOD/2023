@@ -51,6 +51,24 @@ namespace OpenRA.Mods.Common.Activities
 			// Make sure we can still demolish the target before entering
 			// (but not before, because this may stop the actor in the middle of nowhere)
 			var useAmmo = self.TraitsImplementing<Demolition>().First().Info.UseAmmo;
+
+			// BUG, SF demolishing building
+			/* 	Exception has occurred: CLR/System.InvalidOperationException
+			An unhandled exception of type 'System.InvalidOperationException' occurred in System.Linq.dll: 'Sequence contains no matching element'
+			at System.Linq.ThrowHelper.ThrowNoMatchException()
+			at System.Linq.Enumerable.First[TSource](IEnumerable`1 source, Func`2 predicate)
+			at OpenRA.Mods.Common.Activities.Demolish.TryStartEnter(Actor self, Actor targetActor) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Demolish.cs:line 54
+			at OpenRA.Mods.Common.Activities.Enter.Tick(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Enter.cs:line 111
+			at OpenRA.Activities.Activity.TickOuter(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Activities\Activity.cs:line 120
+			at OpenRA.Traits.ActivityUtils.RunActivity(Actor self, Activity act) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Traits\ActivityUtils.cs:line 31
+			at OpenRA.Actor.Tick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Actor.cs:line 288
+			at OpenRA.World.Tick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\World.cs:line 449
+			at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 627
+			at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 651
+			at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 823
+			at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 876
+			at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 308
+			at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 26 */
 			if (!enterDemolishables.Any(i => i.IsValidTarget(enterActor, self)) || !self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo).HasAmmo)
 			{
 				Cancel(self, true);

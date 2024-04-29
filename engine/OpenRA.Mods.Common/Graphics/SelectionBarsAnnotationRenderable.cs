@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Graphics
 			foreach (var extraBar in actor.TraitsImplementing<ISelectionBar>())
 			{
 				var value = extraBar.GetValue();
-				if (value != 0 || extraBar.DisplayWhenEmpty)
+				if ((value != 0 && !double.IsNaN(value)) || extraBar.DisplayWhenEmpty)
 				{
 					var offset = new float2(0, 4);
 					start += offset;
@@ -67,9 +67,9 @@ namespace OpenRA.Mods.Common.Graphics
 		{
 			var c = Color.FromArgb(128, 30, 30, 30);
 			var c2 = Color.FromArgb(128, 10, 10, 10);
-			var p = new float2(0, -4);
-			var q = new float2(0, -3);
-			var r = new float2(0, -2);
+			var p = new float2(0, 0);
+			var q = new float2(0, 1);
+			var r = new float2(0, 2);
 
 			var barColor2 = Color.FromArgb(255, barColor.R / 2, barColor.G / 2, barColor.B / 2);
 
@@ -89,8 +89,13 @@ namespace OpenRA.Mods.Common.Graphics
 			if (Game.Settings.Game.UsePlayerStanceColors)
 				return actor.Owner.PlayerRelationshipColor(actor);
 
-			return health.DamageState == DamageState.Critical ? Color.Red :
-				health.DamageState == DamageState.Heavy ? Color.Yellow : Color.LimeGreen;
+			// var red = (int)((float)(health.MaxHP - health.HP) / 100f * 255);
+			var yellow = 255 - (int)((float)(health.MaxHP - health.HP) / 100f * 255);
+
+			return Color.FromArgb(255, 255, yellow, 0);
+
+			// return health.DamageState == DamageState.Critical ? Color.Red :
+			// 	health.DamageState == DamageState.Heavy ? Color.Yellow : Color.LimeGreen;
 		}
 
 		void DrawHealthBar(IHealth health, float2 start, float2 end)
@@ -111,7 +116,7 @@ namespace OpenRA.Mods.Common.Graphics
 				healthColor.G / 2,
 				healthColor.B / 2);
 
-			var z = float3.Lerp(start, end, (float)health.HP / health.MaxHP);
+			var z = float3.Lerp(start, end, (float)(health.MaxHP - health.HP) / 100f);
 
 			var cr = Game.Renderer.RgbaColorRenderer;
 			cr.DrawLine(start + p, end + p, 1, c);
@@ -122,20 +127,20 @@ namespace OpenRA.Mods.Common.Graphics
 			cr.DrawLine(start + q, z + q, 1, healthColor);
 			cr.DrawLine(start + r, z + r, 1, healthColor2);
 
-			if (health.DisplayHP != health.HP)
-			{
-				var deltaColor = Color.OrangeRed;
-				var deltaColor2 = Color.FromArgb(
-					255,
-					deltaColor.R / 2,
-					deltaColor.G / 2,
-					deltaColor.B / 2);
-				var zz = float3.Lerp(start, end, (float)health.DisplayHP / health.MaxHP);
+			// if (health.DisplayHP != health.HP)
+			// {
+			// 	var deltaColor = Color.OrangeRed;
+			// 	var deltaColor2 = Color.FromArgb(
+			// 		255,
+			// 		deltaColor.R / 2,
+			// 		deltaColor.G / 2,
+			// 		deltaColor.B / 2);
+			// 	var zz = float3.Lerp(start, end, health.MaxHP - health.DisplayHP);
 
-				cr.DrawLine(z + p, zz + p, 1, deltaColor2);
-				cr.DrawLine(z + q, zz + q, 1, deltaColor);
-				cr.DrawLine(z + r, zz + r, 1, deltaColor2);
-			}
+			// 	cr.DrawLine(z + p, zz + p, 1, deltaColor2);
+			// 	cr.DrawLine(z + q, zz + q, 1, deltaColor);
+			// 	cr.DrawLine(z + r, zz + r, 1, deltaColor2);
+			// }
 		}
 
 		public IFinalizedRenderable PrepareRender(WorldRenderer wr) { return this; }
@@ -145,11 +150,11 @@ namespace OpenRA.Mods.Common.Graphics
 				return;
 
 			var health = actor.TraitOrDefault<IHealth>();
-			var start = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Left + 1, decorationBounds.Top));
-			var end = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Right - 1, decorationBounds.Top));
+			var start = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Left + 1, decorationBounds.Bottom));
+			var end = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Right - 1, decorationBounds.Bottom));
 
-			if (DisplayHealth)
-				DrawHealthBar(health, start, end);
+			// if (DisplayHealth)
+			// 	DrawHealthBar(health, start, end);
 
 			if (DisplayExtra)
 				DrawExtraBars(start, end);

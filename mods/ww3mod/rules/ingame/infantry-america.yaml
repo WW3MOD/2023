@@ -127,6 +127,14 @@ E4.america:
 	RenderSprites:
 		Image: e4.america
 
+# Attack Dog
+DOG.america:
+	Inherits: ^DOG
+	Buildable:
+		Prerequisites: ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: dog
+
 # Infiltrating Spy
 # SPY.america:
 # 	Inherits: ^SPY
@@ -134,10 +142,3 @@ E4.america:
 # 		Prerequisites: ~player.america, ~techlevel.infonly
 # 	RenderSprites:
 # 		Image: spy.america
-# Attack Dog
-# DOG.america:
-# 	Inherits: ^DOG
-# 	Buildable:
-# 		Prerequisites: ~player.america, ~techlevel.infonly
-# 	RenderSprites:
-# 		Image: dog

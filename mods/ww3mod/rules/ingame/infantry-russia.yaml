@@ -127,6 +127,14 @@ E4.russia:
 	RenderSprites:
 		Image: e4.russia
 
+# Attack Dog
+DOG.russia:
+	Inherits@BaseUnit: ^DOG
+	Buildable:
+		Prerequisites: ~player.russia, ~techlevel.infonly
+	RenderSprites:
+		Image: dog
+
 # Tesla Trooper
 SHOK:
 	Inherits@Type: ^CamoSoldier
@@ -183,6 +191,7 @@ SHOKR1:
 	-Buildable:
 	-MapEditorData:
 
+
 # Infiltrating Spy
 # SPY.russia:
 # 	Inherits@BaseUnit: ^SPY
@@ -190,10 +199,3 @@ SHOKR1:
 # 		Prerequisites: ~player.russia, ~techlevel.infonly
 # 	RenderSprites:
 # 		Image: spy.russia
-# Attack Dog
-# DOG.russia:
-# 	Inherits@BaseUnit: ^DOG
-# 	Buildable:
-# 		Prerequisites: ~player.russia, ~techlevel.infonly
-# 	RenderSprites:
-# 		Image: dog

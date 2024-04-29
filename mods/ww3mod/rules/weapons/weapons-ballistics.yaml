@@ -696,7 +696,7 @@ TosRockets:
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	TopAttack: true
 	Projectile: Bullet
-		Inaccuracy: 4c0
+		Inaccuracy: 3c512
 		Speed: 250
 		LaunchAngle: 25,60
 		Blockable: false
@@ -706,7 +706,7 @@ TosRockets:
 		ContrailWidth: 30
 		TrailDeactivation: 50
 	Warhead@Target: TargetDamage
-		Damage: 5000
+		Damage: 3000
 		Penetration: 100
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath

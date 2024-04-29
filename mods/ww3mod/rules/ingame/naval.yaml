@@ -117,7 +117,7 @@
 # 		RequiresCondition: ship.sellable && !underwater
 # 	SpeedMultiplier@ONSURFACE:
 # 		Modifier: 120
-# 		RequiresCondition: deployed && !heavy-damage
+# 		RequiresCondition: deployed && !heavy-damage-attained
 # 	GpsDot:
 # 		String: Submarine
 
@@ -130,7 +130,7 @@
 # ^EffectsWhenDamagedNaval:
 # 	SpeedMultiplier@HeavyDamage:
 # 		Modifier: 75
-# 		RequiresCondition: heavy-damage
+# 		RequiresCondition: heavy-damage-attained
 # 	SpeedMultiplier@CriticalDamage:
 # 		Modifier: 50
 # 		RequiresCondition: critical-damage

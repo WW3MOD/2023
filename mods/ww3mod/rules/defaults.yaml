@@ -81,45 +81,32 @@
 	Vision@1:
 		RequiresCondition: loaded
 
-	# DetectCloaked@0:
-	# 	DetectionTypes: Cloak_0
-	# 	Range: 16c0
-	# DetectCloaked@1:
-	# 	DetectionTypes: Cloak_1
-	# 	Range: 14c0
-	# DetectCloaked@2:
-	# 	DetectionTypes: Cloak_2
-	# 	Range: 12c0
-	# DetectCloaked@3:
-	# 	DetectionTypes: Cloak_3
-	# 	Range: 10c0
-	# DetectCloaked@4:
-	# 	DetectionTypes: Cloak_4
-	# 	Range: 10c0
-	# DetectCloaked@5:
-	# 	DetectionTypes: Cloak_5
-	# 	Range: 9c0
-	# DetectCloaked@6:
-	# 	DetectionTypes: Cloak_6
-	# 	Range: 8c0
-	# DetectCloaked@7:
-	# 	DetectionTypes: Cloak_7
-	# 	Range: 8c0
-	# DetectCloaked@8:
-	# 	DetectionTypes: Cloak_8
-	# 	Range: 8c0
-	# DetectCloaked@9:
-	# 	DetectionTypes: Cloak_9
-	# 	Range: 7c0
-	# DetectCloaked@10:
-	# 	DetectionTypes: Cloak_10
-	# 	Range: 5c0
-	# DetectCloaked@11:
-	# 	DetectionTypes: Cloak_11
-	# 	Range: 4c0
-	# DetectCloaked@12:
-	# 	DetectionTypes: Cloak_12
-	# 	Range: 1c512
+^DamageVehiclePips:
+	WithDecoration@DamageVehiclePips_Light:
+		Image: pips
+		Sequence: pip-damage-vehicle-light
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: light-damage
+	WithDecoration@DamageVehiclePips_Medium:
+		Image: pips
+		Sequence: pip-damage-vehicle-medium
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: medium-damage
+	WithDecoration@DamageVehiclePips_Heavy:
+		Image: pips
+		Sequence: pip-damage-vehicle-heavy
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: heavy-damage
+	WithDecoration@DamageVehiclePips_Critical:
+		Image: pips
+		Sequence: pip-damage-vehicle-critical
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: critical-damage
+
 
 # ^DetectionProximity:
 # 	VisionModifier@1:
@@ -131,15 +118,6 @@
 # 	VisionModifier@3:
 # 		RequiresCondition: object-proximity > 2
 # 		Modifier: 50
-# 	DetectCloakedMultiplier@1:
-# 		RequiresCondition: object-proximity == 1
-# 		Modifier: 90
-# 	DetectCloakedMultiplier@2:
-# 		RequiresCondition: object-proximity == 2
-# 		Modifier: 75
-# 	DetectCloakedMultiplier@3:
-# 		RequiresCondition: object-proximity > 2
-# 		Modifier: 50
 
 ^DamageStates:
 	GrantConditionOnDamageState@Damaged:
@@ -147,12 +125,21 @@
 		ValidDamageStates: Light, Medium, Heavy, Critical
 	GrantConditionOnDamageState@LightDamage:
 		Condition: light-damage
+		ValidDamageStates: Light
+	GrantConditionOnDamageState@LightDamageAttained:
+		Condition: light-damage-attained
 		ValidDamageStates: Light, Medium, Heavy, Critical
 	GrantConditionOnDamageState@MediumDamage:
 		Condition: medium-damage
+		ValidDamageStates: Medium
+	GrantConditionOnDamageState@MediumDamageAttained:
+		Condition: medium-damage-attained
 		ValidDamageStates: Medium, Heavy, Critical
 	GrantConditionOnDamageState@HeavyDamage:
 		Condition: heavy-damage
+		ValidDamageStates: Heavy
+	GrantConditionOnDamageState@HeavyDamageAttained:
+		Condition: heavy-damage-attained
 		ValidDamageStates: Heavy, Critical
 	GrantConditionOnDamageState@CriticalDamage:
 		Condition: critical-damage
@@ -221,7 +208,7 @@
 		Sequence: rank-veteran-1
 		Palette: effect
 		Position: Top
-		Margin: 8,5
+		Margin: 16,0
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 1
 	WithDecoration@Rank_2:
@@ -229,7 +216,7 @@
 		Sequence: rank-veteran-2
 		Palette: effect
 		Position: Top
-		Margin: 8,5
+		Margin: 16,0
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 2
 	WithDecoration@Rank_3:
@@ -237,7 +224,7 @@
 		Sequence: rank-veteran-3
 		Palette: effect
 		Position: Top
-		Margin: 8,5
+		Margin: 16,0
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 3
 	WithDecoration@Rank_4:
@@ -245,7 +232,7 @@
 		Sequence: rank-veteran-4
 		Palette: effect
 		Position: Top
-		Margin: 8,3
+		Margin: 16,0
 		ValidRelationships: Ally #, Enemy, Neutral
 		RequiresCondition: rank-veteran == 4
 
@@ -346,6 +333,12 @@
 		ValidTargets: Light
 		Priority: 2
 
+^AutoTargetInfantry:
+	Inherits: ^AutoTarget
+	AutoTargetPriority@Infantry:
+		ValidTargets: Infantry
+		Priority: 1
+
 ^AutoTargetLMG:
 	Inherits: ^AutoTarget
 	AutoTargetPriority@Infantry:
@@ -384,9 +377,9 @@
 	AutoTargetPriority@Unarmored:
 		ValidTargets: Unarmored
 		Priority: 4
-	AutoTargetPriority@Light:
-		ValidTargets: Light
-		Priority: 3
+	# AutoTargetPriority@Light:
+	# 	ValidTargets: Light
+	# 	Priority: 3
 
 # TODO: Add Support / Transport to target after combatants
 ^AutoTargetAir:
@@ -628,7 +621,7 @@
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-none
-		Position: Top
+		Position: Bottom
 		Margin: 0,-5
 		RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
 		BlinkInterval: 8
@@ -637,7 +630,7 @@
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-primary-none
-		Position: Top
+		Position: Bottom
 		Margin: 0,-5
 		RequiresCondition: weapon-primary && weapon-secondary && !ammo-primary && ammo-secondary && !(weapon-tertiary && !ammo-tertiary)
 		BlinkInterval: 16
@@ -646,7 +639,7 @@
 		RequiresSelection: false
 		Image: pips
 		Sequence: pip-ammo-secondary-none
-		Position: Top
+		Position: Bottom
 		Margin: 0,-5
 		RequiresCondition: ((weapon-secondary && !ammo-secondary) || (weapon-tertiary && !ammo-tertiary)) && !(weapon-primary && !ammo-primary)
 		BlinkInterval: 16

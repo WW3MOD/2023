@@ -50,6 +50,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return 0;
 
+			if (armaments.Any(a => !a.AmmoPool.HasAmmo))
+				return 0;
+
 			return armaments.Min(a =>
 				a.Weapon.ReloadDelay > 0 && a.ReloadDelay > a.BurstWait
 				? a.ReloadDelay / (float)a.Weapon.ReloadDelay

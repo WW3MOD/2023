@@ -10,6 +10,7 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Vision: ^StandardVision
+	Inherits@DamagePips: ^DamageVehiclePips
 	Health:
 		HP: 5000
 	Armor:
@@ -126,7 +127,7 @@
 ^EffectsWhenDamagedVehicles:
 	SpeedMultiplier@HeavyDamage:
 		Modifier: 50
-		RequiresCondition: heavy-damage
+		RequiresCondition: heavy-damage-attained
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage

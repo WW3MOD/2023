@@ -325,16 +325,28 @@ PortaTesla:
 
 DogJaw:
 	ValidTargets: Infantry
-	BurstWait: 10
-	Range: 2c0
-	Report: dogg5p.aud
-	TargetActorCenter: true
-	Projectile: InstantHit
+	BurstWait: 7
+	Range: 6c512
+	Report: gun27.aud
+	Projectile: Bullet
+		Speed: 512
+		Inaccuracy: 0
 	Warhead@Target: TargetDamage
-		Damage: 1000
+		Spread: 1
+		Damage: 100
 		ValidTargets: Infantry
-		InvalidTargets: Ant
-		DamageTypes: DefaultDeath
+		DamageTypes: BulletDeath
+
+	# ValidTargets: Infantry
+	# BurstWait: 10
+	# Range: 2c0
+	# Report: dogg5p.aud
+	# TargetActorCenter: true
+	# Projectile: InstantHit
+	# Warhead@Target: TargetDamage
+	# 	Damage: 1000
+	# 	ValidTargets: Infantry
+	# 	DamageTypes: DefaultDeath
 
 Heal:
 	ValidTargets: Heal

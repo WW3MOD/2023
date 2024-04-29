@@ -1,21 +1,33 @@
 
 Game thoughts
 
+    - Air, spawn at edge
+
     - Ballistics hits trees too much? Deprioritize if chance to hit is too low
         - ATGM hits trees, make it immune but needs clear line of sight (if trees not within 1-2 tiles) to fire
+
     - Civ building "base under attack"
-    - Bradley drives in forest
+
+    - Status pips / bars
+        - Health / Damage
+            - Yellow --> Red --> Blinking red
+            - Circle above? 100-75 green, 75-50 yellow, 50-25 red, 25-0 blinking red (faster and faster the closer it gets to death? Or slower? Like a heart beat)
+        - Defense
+            -
+            - Increases when moving, on different tiles or tiles with some actor or in proximity of some actors.
+        - Stealth
+            - Blue?
+
+    - Other pips / bars
+        - Reload
+
+    - Ranking up increases value of unit when it gets rotated
+    - Possible to buy any soldier as rank 1-2-3 (not 4?) as a special forces team kinda
 
     - Ammo should cost money
-    - Air
-    - TOS reduce damage
-    -
+    - North west of middle in woodland has a water tile under trees
 
 Temp
-
-    Supply Route
-
-        - Add more
 
     Supply Route
 
@@ -47,7 +59,6 @@ Temp
             - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
             - These are stored as templates, even saved between games, in a special templates tab
 
-
 Ongoing
 
     - Grad does almost no damage, was doubled
@@ -73,8 +84,6 @@ Fix
 
     Orders
         - Splice orders, check IsImmediate
-
-    - Autotarget
 
     - Bypass
         - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing

@@ -148,7 +148,7 @@
 		Condition: lowpower
 		ValidPowerStates: Low, Critical
 	GrantCondition@IDISABLE:
-		RequiresCondition: lowpower || heavy-damage
+		RequiresCondition: lowpower || heavy-damage-attained
 		Condition: disabled
 ^DisableOnPowerDown:
 	WithColoredOverlay@IDISABLE:
@@ -1182,7 +1182,7 @@ AFLD:
 # 	ProvidesPrerequisite@BuildingName:
 # 	Radar:
 # 		Range: 55c0
-# 		RequiresCondition: !heavy-damage && !disabled && !build-incomplete
+# 		RequiresCondition: !heavy-damage-attained && !disabled && !build-incomplete
 # 	WithRangeCircle@Radar:
 # 		Range: 55c0
 # 		Color: 000000

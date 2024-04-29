@@ -122,7 +122,7 @@ MISS:
 		HP: 35000
 	# Radar:
 	# 	Range: 50c0
-	# 	RequiresCondition: !heavy-damage
+	# 	RequiresCondition: !heavy-damage-attained
 	WithRangeCircle@Radar:
 		Range: 50c0
 		Color: 000000

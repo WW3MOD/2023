@@ -199,8 +199,6 @@ littlebird:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	DetectCloaked:
-		Range: 12c0
 	RenderDetectionCircle:
 
 littlebird.AI:

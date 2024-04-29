@@ -304,36 +304,63 @@ pips:
 	pip-visibility-12: pip-visibility
 		Start: 11
 		Length: 1
-	pip-Suppression-1: pip-Suppression
+	pip-suppression-1: pip-suppression
 		Start: 0
 		Length: 1
-	pip-Suppression-2: pip-Suppression
+	pip-suppression-2: pip-suppression
 		Start: 1
 		Length: 1
-	pip-Suppression-3: pip-Suppression
+	pip-suppression-3: pip-suppression
 		Start: 2
 		Length: 1
-	pip-Suppression-4: pip-Suppression
+	pip-suppression-4: pip-suppression
 		Start: 3
 		Length: 1
-	pip-Suppression-5: pip-Suppression
+	pip-suppression-5: pip-suppression
 		Start: 4
 		Length: 1
-	pip-Suppression-6: pip-Suppression
+	pip-suppression-6: pip-suppression
 		Start: 5
 		Length: 1
-	pip-Suppression-7: pip-Suppression
+	pip-suppression-7: pip-suppression
 		Start: 6
 		Length: 1
-	pip-Suppression-8: pip-Suppression
+	pip-suppression-8: pip-suppression
 		Start: 7
 		Length: 1
-	pip-Suppression-9: pip-Suppression
+	pip-suppression-9: pip-suppression
 		Start: 8
 		Length: 1
-	pip-Suppression-10: pip-Suppression
+	pip-suppression-10: pip-suppression
 		Start: 9
 		Length: 1
+	pip-damage-infantry-light: pip-damage-infantry
+		Start: 0
+		Length: 1
+	pip-damage-infantry-medium: pip-damage-infantry
+		Start: 1
+		Length: 1
+	pip-damage-infantry-heavy: pip-damage-infantry
+		Start: 2
+		Length: 1
+	pip-damage-infantry-critical: pip-damage-infantry
+		Start: 2
+		Length: 2
+		Tick: 300
+
+	pip-damage-vehicle-light: pip-damage-vehicle
+		Start: 0
+		Length: 1
+	pip-damage-vehicle-medium: pip-damage-vehicle
+		Start: 1
+		Length: 1
+	pip-damage-vehicle-heavy: pip-damage-vehicle
+		Start: 2
+		Length: 1
+	pip-damage-vehicle-critical: pip-damage-vehicle
+		Start: 2
+		Length: 2
+		Tick: 300
 
 pip-ammored:
 	oneshot:
