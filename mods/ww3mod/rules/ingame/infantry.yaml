@@ -468,70 +468,70 @@
 	WithDecoration@Suppression_1:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-1
+		Sequence: pip-suppression-1
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 	WithDecoration@Suppression_2:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-2
+		Sequence: pip-suppression-2
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 	WithDecoration@Suppression_3:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-3
+		Sequence: pip-suppression-3
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 	WithDecoration@Suppression_4:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-4
+		Sequence: pip-suppression-4
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 	WithDecoration@Suppression_5:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-5
+		Sequence: pip-suppression-5
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 	WithDecoration@Suppression_6:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-6
+		Sequence: pip-suppression-6
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 	WithDecoration@Suppression_7:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-7
+		Sequence: pip-suppression-7
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 	WithDecoration@Suppression_8:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-8
+		Sequence: pip-suppression-8
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 	WithDecoration@Suppression_9:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-9
+		Sequence: pip-suppression-9
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 	WithDecoration@Suppression_10:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-Suppression-10
+		Sequence: pip-suppression-10
 		Position: Top
 		Margin: 0,7
 		RequiresCondition: suppressed > 90 && suppressed <= 100
