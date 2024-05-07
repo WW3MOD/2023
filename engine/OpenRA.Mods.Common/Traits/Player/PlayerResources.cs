@@ -26,10 +26,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CashDropdownDescription = "The amount of cash that players start with";
 
 		[Desc("Starting cash options that are available in the lobby options.")]
-		public readonly int[] SelectableCash = { 2500, 5000, 10000, 20000 };
+		public readonly int[] SelectableCash = { 0, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000 };
 
 		[Desc("Default starting cash option: should be one of the SelectableCash options.")]
-		public readonly int DefaultCash = 5000;
+		public readonly int DefaultCash = 20000;
 
 		[Desc("Force the DefaultCash option by disabling changes in the lobby.")]
 		public readonly bool CashDropdownLocked = false;
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CashTickDownNotification = null;
 
 		[Desc("Starting cash options that are available in the lobby options.")]
-		public readonly int[] SelectablePassiveIncome = { 0, 50, 100, 150, 200, 300, 400, 500, 750, 1000 };
+		public readonly int[] SelectablePassiveIncome = { 0, 10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000 };
 
 		[Desc("Default starting cash option: should be one of the SelectableCash options.")]
 		public readonly int PassiveIncome = 100;
