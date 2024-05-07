@@ -33,28 +33,42 @@ Packages:
 	~hires1.mix
 	~desert.mix
 	~general.mix
+
 	# test
 	ra|bits
 	ra|bits/desert
 	ra|scripts
 	common|scripts
 	ra|uibits
+
 	# /test
 	ww3mod|scripts
 	common|scripts
+
 	ww3mod|bits
-	ww3mod|bits/aircraft
-	ww3mod|bits/buildings
-	ww3mod|bits/desert
-	ww3mod|bits/icons
-	ww3mod|bits/explosions
-	ww3mod|bits/classes
-	ww3mod|bits/infantry
-	ww3mod|bits/palettes
-	ww3mod|bits/music
-	ww3mod|bits/music/gla
-	ww3mod|bits/naval
-	ww3mod|bits/resources
+	ww3mod|bits/units
+	ww3mod|bits/units/
+	ww3mod|bits/units/pips
+	ww3mod|bits/units/classes
+	ww3mod|bits/units/infantry
+	ww3mod|bits/units/vehicle
+	ww3mod|bits/units/aircraft
+	ww3mod|bits/units/naval
+	ww3mod|bits/units/buildings
+	ww3mod|bits/units/objects
+
+	ww3mod|bits/weapons/
+	ww3mod|bits/weapons/explosions
+	ww3mod|bits/weapons/muzzle
+	ww3mod|bits/weapons/projectiles
+
+	ww3mod|bits/misc
+	ww3mod|bits/misc/icons
+	ww3mod|bits/misc/palettes
+	ww3mod|bits/misc/resources
+	ww3mod|bits/misc/tiles
+	ww3mod|bits/misc/ui
+
 	ww3mod|bits/sounds
 	ww3mod|bits/sounds/robot
 	ww3mod|bits/sounds/volkov
@@ -65,7 +79,9 @@ Packages:
 	ww3mod|bits/sounds/v3
 	ww3mod|bits/sounds/seal
 	ww3mod|bits/sounds/commando
-	ww3mod|bits/vehicle
+	ww3mod|bits/sounds/music
+	ww3mod|bits/sounds/music/gla
+
 	ww3mod|uibits
 
 MapFolders:
