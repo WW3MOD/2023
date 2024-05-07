@@ -760,14 +760,7 @@ namespace OpenRA.Mods.Common.Traits
 			var terrainSpeed = Locomotor.MovementSpeedForCell(cell);
 			var modifiers = speedModifiers.Value.Append(terrainSpeed);
 
-			var aa = Util.ApplyPercentageModifiers(Info.Speed, modifiers);
-
-			if (aa == 22)
-			{
-
-			}
-
-			return aa;
+			return Util.ApplyPercentageModifiers(Info.Speed, modifiers);
 		}
 
 		public CPos NearestMoveableCell(CPos target, int minRange, int maxRange)

@@ -293,13 +293,16 @@ bradley:
 		Speed: 100
 		Acceleration: 4, 3, 2, 1
 		TurnSpeed: 10
-		PauseOnCondition: firing-wgm || empdisable
+		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
 		Condition: firing-wgm
 		RevokeDelay: 100
 		PreparingRevokeDelay: 50
 		AttackingRevokeDelay: 0
+	SpeedMultiplier@FiringWGM:
+		RequiresCondition: firing-wgm
+		Modifier: 25
 	Turreted:
 		TurnSpeed: 20
 		Offset: 0,0,50
@@ -329,6 +332,7 @@ bradley:
 	Armament@2:
 		Name: secondary
 		Weapon: WGM.bradley
+		AimingDelay: 50
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100
 		Recoil: 10

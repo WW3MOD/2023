@@ -26,14 +26,15 @@
 		Type: None
 	Mobile:
 		Speed: 25
-		TurnSpeed: 200
+		TurnSpeed: 100
 		# AlwaysTurnInPlace: true
 		Locomotor: foot
 	SelectionDecorations:
+		ShowNever: true
 	WithSpriteControlGroupDecoration:
 	Selectable:
-		Bounds: 768,768,0,-256
-		DecorationBounds: 384,768,24,-256
+		Bounds: 500,700,65,-128
+		DecorationBounds: 500,700,65,-128
 	Targetable:
 		RequiresCondition: !parachute
 		TargetTypes: Ground, Infantry, Disguise
@@ -154,6 +155,12 @@
 		Palette: effect
 		Position: Top
 		Margin: 0,6
+	WithDecoration@Selected:
+		RequiresSelection: true
+		Sequence: pip-selected
+		Image: selected_infantry
+		Position: Top
+		Margin: 0,6
 	ExternalCondition@AmmoReplenish:
 		Condition: replenish-soldiers
 	GainsExperienceMultiplier@TLBoost:
@@ -166,14 +173,23 @@
 	# 	RequiresCondition: morale-boost
 	# 	Modifier: 120
 	WithDecoration@TLBoost:
-		RequiresSelection: false
+		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-morale-boost
 		Position: Top
-		Margin: -10, 0
+		Margin: 10,0
 		RequiresCondition: morale-boost
 		BlinkInterval: 32
 		BlinkPattern: Off, On
+	WithDecoration@DefenseTest:
+		RequiresSelection: true
+		RequiredModifiers: Alt
+		Image: pips
+		Sequence: pip-defense-5
+		Position: Top
+		Margin: 0,-9 #FF
+
 	WithInfantryBody@Parachute:
 		StandSequences: parachute
 		RequiresCondition: parachute
@@ -183,7 +199,7 @@
 ^CamoSoldier:
 	Inherits@Combatant: ^Combatant
 	Inherits@Soldier: ^Soldier
-	# Inherits@DetectableRangeCircles: ^DetectableRangeCircles
+	Inherits@DetectableRangeCircles: ^DetectableRangeCircles
 	Inherits@Rotting: ^RottingInfantry
 	AutoTarget:
 		ScanRadius: 25
@@ -441,99 +457,146 @@
 ^SuppressionPips:
 	WithDecoration@Suppression_1:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-1
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 	WithDecoration@Suppression_2:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-2
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 	WithDecoration@Suppression_3:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-3
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 	WithDecoration@Suppression_4:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-4
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 	WithDecoration@Suppression_5:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-5
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 	WithDecoration@Suppression_6:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-6
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 	WithDecoration@Suppression_7:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-7
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 	WithDecoration@Suppression_8:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-8
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 	WithDecoration@Suppression_9:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-9
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 	WithDecoration@Suppression_10:
 		RequiresSelection: true
+		RequiredModifiers: Alt
 		Image: pips
 		Sequence: pip-suppression-10
 		Position: Top
-		Margin: 0,-8
+		Margin: 0,0
 		RequiresCondition: suppressed > 90 && suppressed <= 100
+
+^DefensePips:
+	WithDecoration@Defense_1:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-defense-1
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: defense == 1
+	WithDecoration@Defense_2:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-defense-2
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: defense == 2
+	WithDecoration@Defense_3:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-defense-3
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: defense == 3
+	WithDecoration@Defense_4:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-defense-4
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: defense == 4
+	WithDecoration@Defense_5:
+		RequiresSelection: true
+		Image: pips
+		Sequence: pip-defense-5
+		Position: Top
+		Margin: 0,0
+		RequiresCondition: defense == 5
 
 ^DamageInfantryPips:
 	WithDecoration@DamageInfantryPips_Light:
 		Image: pips
 		Sequence: pip-damage-infantry-light
 		Position: Top
-		Margin: 0,0
+		Margin: 0,-5
 		RequiresCondition: light-damage
 	WithDecoration@DamageInfantryPips_Medium:
 		Image: pips
 		Sequence: pip-damage-infantry-medium
 		Position: Top
-		Margin: 0,0
+		Margin: 0,-5
 		RequiresCondition: medium-damage
 	WithDecoration@DamageInfantryPips_Heavy:
 		Image: pips
 		Sequence: pip-damage-infantry-heavy
 		Position: Top
-		Margin: 0,0
+		Margin: 0,-5
 		RequiresCondition: heavy-damage
 	WithDecoration@DamageInfantryPips_Critical:
 		Image: pips
 		Sequence: pip-damage-infantry-critical
 		Position: Top
-		Margin: 0,0
+		Margin: 0,-5
 		RequiresCondition: critical-damage
 
 ^RankPipsAdjustmentInfantry:
@@ -547,7 +610,7 @@
 		Margin: 10,0
 
 ^DetectableInfantryStandard:
-	# Inherits: ^VisibilityPips
+	Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
@@ -688,86 +751,86 @@
 	WithDecoration@Visibility_1:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-1
+		Sequence: pip-numbers-1
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-1
 	WithDecoration@Visibility_2:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-2
+		Sequence: pip-numbers-2
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-2
 	WithDecoration@Visibility_3:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-3
+		Sequence: pip-numbers-3
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-3
 	WithDecoration@Visibility_4:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-4
+		Sequence: pip-numbers-4
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-4
 	WithDecoration@Visibility_5:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-5
+		Sequence: pip-numbers-5
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-5
 	WithDecoration@Visibility_6:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-6
+		Sequence: pip-numbers-6
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-6
 	WithDecoration@Visibility_7:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-7
+		Sequence: pip-numbers-7
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-7
 	WithDecoration@Visibility_8:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-8
+		Sequence: pip-numbers-8
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-8
 	WithDecoration@Visibility_9:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-9
+		Sequence: pip-numbers-9
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-9
 	WithDecoration@Visibility_10:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-10
+		Sequence: pip-numbers-10
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-10
 	WithDecoration@Visibility_11:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-11
+		Sequence: pip-numbers-11
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-11
 	WithDecoration@Visibility_12:
 		RequiresSelection: true
 		Image: pips
-		Sequence: pip-visibility-12
+		Sequence: pip-numbers-12
 		Position: Top
-		Margin: 0,7
+		Margin: -15,0
 		RequiresCondition: visibility-12
 
 ^CapturesOccupiedBuildings:
@@ -906,6 +969,10 @@
 		RequiresCondition: medium-damage
 		Modifier: 200
 
+	GrantCondition@HeavyDamageProne:
+		Condition: prone
+		RequiresCondition: heavy-damage-attained
+
 	SpeedMultiplier@HeavyDamage:
 		Modifier: 25
 		RequiresCondition: heavy-damage
@@ -925,17 +992,17 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
-	VisionModifier@HeavyDamage:
-		RequiresCondition: heavy-damage
+	VisionModifier@CriticalDamage:
+		RequiresCondition: critical-damage
 		Modifier: 10
-	BurstMultiplier@HeavyDamage:
-		RequiresCondition: heavy-damage
+	BurstMultiplier@CriticalDamage:
+		RequiresCondition: critical-damage
 		Modifier: 10
-	BurstWaitMultiplier@HeavyDamage:
-		RequiresCondition: heavy-damage
+	BurstWaitMultiplier@CriticalDamage:
+		RequiresCondition: critical-damage
 		Modifier: 400
-	InaccuracyMultiplier@HeavyDamage:
-		RequiresCondition: heavy-damage
+	InaccuracyMultiplier@CriticalDamage:
+		RequiresCondition: critical-damage
 		Modifier: 400
 
 	ChangesHealth@BleedOut:
@@ -1723,12 +1790,12 @@ AA:
 	# 	Sequence: pip-ammo-none
 	# 	Position: Top
 	# 	Margin: 0,-5
-	# 	RequiresCondition: !ammo-c4
+	# 	RequiresCondition: !ammo-secondary
 	# 	BlinkInterval: 16
 	# 	BlinkPattern: On, Off
 	Rearmable:
 		RearmActors: truk, logisticscenter
-		AmmoPools: c4-ammo
+		AmmoPools: secondary-ammo
 	RepairsBridges:
 		# TODO: Add Delay
 		EnterBehaviour: Exit
@@ -1878,19 +1945,20 @@ E4:
 		Armaments: primary
 		Color: FFFF00
 	Demolition:
-		RequiresCondition: ammo-c4
+		RequiresCondition: ammo-secondary
+		UseAmmo: secondary-ammo
 		DetonationDelay: 300
 		FlashesDelay: 260
 		FlashInterval: 10
 		DamageTypes: ExplosionDeath
 		Voice: Demolish
 	AmmoPool@2:
-		Name: c4-ammo
+		Name: secondary-ammo
 		Armaments: c4
 		Ammo: 3
-		AmmoCondition: ammo-c4
+		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
-		AmmoPool: c4-ammo
+		AmmoPool: secondary-ammo
 		FullReloadTicks: 200
 		FullReloadSteps: 3
 		Sound: minelay1.aud
@@ -1901,11 +1969,11 @@ E4:
 		PipCount: 3
 		RequiresSelection: true
 		FullSequence: pip-white
-		AmmoPools: c4-ammo
-		RequiresCondition: ammo-c4
+		AmmoPools: secondary-ammo
+		RequiresCondition: ammo-secondary
 	Rearmable:
 		RearmActors: truk, logisticscenter
-		AmmoPools: primary-ammo, c4-ammo
+		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		AttackSequences:
 			primary: shoot

@@ -19,22 +19,22 @@ namespace OpenRA.Mods.Common.Traits.Render
 {
 	public abstract class SelectionDecorationsBaseInfo : TraitInfo
 	{
-		public readonly Color SelectionBoxColor = Color.Transparent; // FromArgb(50, 50, 50, 50);
+		public readonly Color SelectionBoxColor = Color.White;
+		public readonly bool ShowAlways = false;
+		public readonly bool ShowNever = false;
 	}
 
 	public abstract class SelectionDecorationsBase : ISelectionDecorations, IRenderAnnotations, INotifyCreated
 	{
 		IDecoration[] decorations;
 		IDecoration[] selectedDecorations;
-		readonly bool showStatusBarAlways = false;
 		protected readonly SelectionDecorationsBaseInfo Info;
 
 		DeveloperMode developerMode;
 
-		public SelectionDecorationsBase(SelectionDecorationsBaseInfo info, bool showStatusBar = false)
+		public SelectionDecorationsBase(SelectionDecorationsBaseInfo info)
 		{
 			Info = info;
-			showStatusBarAlways = showStatusBar;
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -80,7 +80,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			//  * status bar preference is set to "always show"
 			//  * status bar preference is set to "when damaged" and actor is damaged
 			var displayHealth = selected || (regularWorld && statusBars == StatusBarsType.AlwaysShow)
-				|| (regularWorld && statusBars == StatusBarsType.DamageShow && self.GetDamageState() != DamageState.Undamaged) || (showStatusBarAlways && self.GetDamageState() != DamageState.Undamaged);
+				|| (regularWorld && statusBars == StatusBarsType.DamageShow && self.GetDamageState() != DamageState.Undamaged) || (Info.ShowAlways && self.GetDamageState() != DamageState.Undamaged);
 
 			// Extra bars are shown when:
 			//  * actor is selected / in active drag rectangle / under the mouse
@@ -92,7 +92,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				if (self.World.Selection.RolloverContains(self))
 					displayHealth = displayExtra = true;
 
-			if (selected)
+			if (selected && !Info.ShowNever)
 				foreach (var r in RenderSelectionBox(self, wr, Info.SelectionBoxColor))
 					yield return r;
 

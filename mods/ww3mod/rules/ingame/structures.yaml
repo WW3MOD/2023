@@ -332,50 +332,53 @@ SUPPLYROUTE:
 	Armor:
 		Type: Indestructable
 	RallyPoint:
-	Exit@Infantry_1:
-		ExitCell: 0,0
-		ProductionTypes: Soldier, Infantry
-	Exit@Infantry_2:
-		ExitCell: 2,0
-		ProductionTypes: Soldier, Infantry
-	Exit@Infantry_3:
-		ExitCell: 2,2
-		ProductionTypes: Soldier, Infantry
-	Exit@Infantry_4:
-		ExitCell: 0,2
-		ProductionTypes: Soldier, Infantry
-	Exit@Vehicle_1:
-		ExitCell: 1,0
-		ProductionTypes: Vehicle, Building, Defense
-	Exit@Vehicle_2:
-		ExitCell: 2,1
-		ProductionTypes: Vehicle, Building, Defense
-	Exit@Vehicle_3:
-		ExitCell: 1,2
-		ProductionTypes: Vehicle, Building, Defense
-	Exit@Vehicle_4:
-		ExitCell: 0,1
-		ProductionTypes: Vehicle, Building, Defense
-	Exit@Airborne_1:
-		ExitCell: 1,0
-		Height: 2000
-		ProductionTypes: Aircraft, Helicopter
-	Exit@Airborne_2:
-		ExitCell: 2,1
-		Height: 2000
-		ProductionTypes: Aircraft, Helicopter
-	Exit@Airborne_3:
-		ExitCell: 1,2
-		Height: 2000
-		ProductionTypes: Aircraft, Helicopter
-	Exit@Airborne_4:
-		ExitCell: 0,1
-		Height: 2000
-		ProductionTypes: Aircraft, Helicopter
-	Production:
+	# Exit@Infantry_1:
+	# 	ExitCell: 0,0
+	# 	ProductionTypes: Soldier, Infantry
+	# Exit@Infantry_2:
+	# 	ExitCell: 2,0
+	# 	ProductionTypes: Soldier, Infantry
+	# Exit@Infantry_3:
+	# 	ExitCell: 2,2
+	# 	ProductionTypes: Soldier, Infantry
+	# Exit@Infantry_4:
+	# 	ExitCell: 0,2
+	# 	ProductionTypes: Soldier, Infantry
+	# Exit@Vehicle_1:
+	# 	ExitCell: 1,0
+	# 	ProductionTypes: Vehicle, Building, Defense
+	# Exit@Vehicle_2:
+	# 	ExitCell: 2,1
+	# 	ProductionTypes: Vehicle, Building, Defense
+	# Exit@Vehicle_3:
+	# 	ExitCell: 1,2
+	# 	ProductionTypes: Vehicle, Building, Defense
+	# Exit@Vehicle_4:
+	# 	ExitCell: 0,1
+	# 	ProductionTypes: Vehicle, Building, Defense
+	# Exit@Airborne_1:
+	# 	ExitCell: 1,0
+	# 	Height: 2000
+	# 	ProductionTypes: Aircraft, Helicopter
+	# Exit@Airborne_2:
+	# 	ExitCell: 2,1
+	# 	Height: 2000
+	# 	ProductionTypes: Aircraft, Helicopter
+	# Exit@Airborne_3:
+	# 	ExitCell: 1,2
+	# 	Height: 2000
+	# 	ProductionTypes: Aircraft, Helicopter
+	# Exit@Airborne_4:
+	# 	ExitCell: 0,1
+	# 	Height: 2000
+	# 	ProductionTypes: Aircraft, Helicopter
+	# Production:
+	# 	Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter, Building, Defense
+	# 	UseRandomExit: true
+	# 	PauseOnCondition: disabled || build-incomplete
+	ProductionFromMapEdge:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter, Building, Defense
-		UseRandomExit: true
-		PauseOnCondition: disabled || build-incomplete
+		# PauseOnCondition: disabled || build-incomplete
 	GrantExternalConditionToProduced:
 		Condition: produced
 	AcceptsDeliveredCash:

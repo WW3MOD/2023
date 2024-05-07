@@ -136,13 +136,16 @@ bmp2:
 		Speed: 100
 		Acceleration: 4, 3, 2, 1
 		TurnSpeed: 10
-		PauseOnCondition: empdisable || firing-secondary
+		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
-		Condition: firing-secondary
+		Condition: firing-wgm
 		RevokeDelay: 100
 		PreparingRevokeDelay: 50
 		AttackingRevokeDelay: 0
+	SpeedMultiplier@FiringWGM:
+		RequiresCondition: firing-wgm
+		Modifier: 25
 	Armament@1:
 		Name: primary
 		Weapon: 73mm_BMP
@@ -173,7 +176,7 @@ bmp2:
 	Armament@2:
 		Name: secondary
 		Weapon: WGM
-		# FireDelay: 50
+		AimingDelay: 50
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100
 		Recoil: 10

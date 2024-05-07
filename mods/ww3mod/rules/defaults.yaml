@@ -154,6 +154,22 @@
 			400: rank-veteran
 			800: rank-veteran
 		LevelUpImage: crate-effects
+	# ConditionModifier@Rank_1:
+	# 	RequiresCondition: rank-veteran == 1
+	# 	Condition: suppressed
+	# 	Modifier: -1
+	DetectableAddativeModifier@Rank_1:
+		RequiresCondition: rank-veteran == 1
+		VisionModifier: 1
+	DetectableAddativeModifier@Rank_2:
+		RequiresCondition: rank-veteran == 2
+		VisionModifier: 2
+	DetectableAddativeModifier@Rank_3:
+		RequiresCondition: rank-veteran == 3
+		VisionModifier: 3
+	DetectableAddativeModifier@Rank_4:
+		RequiresCondition: rank-veteran == 4
+		VisionModifier: 4
 	DamageMultiplier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		Modifier: 95

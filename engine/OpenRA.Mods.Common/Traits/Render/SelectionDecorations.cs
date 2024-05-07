@@ -19,7 +19,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 {
 	public class SelectionDecorationsInfo : SelectionDecorationsBaseInfo, Requires<InteractableInfo>
 	{
-		public readonly bool ShowStatusBarAlways = false;
 		public override object Create(ActorInitializer init) { return new SelectionDecorations(init.Self, this); }
 	}
 
@@ -28,7 +27,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		readonly Interactable interactable;
 
 		public SelectionDecorations(Actor self, SelectionDecorationsInfo info)
-			: base(info, info.ShowStatusBarAlways)
+			: base(info)
 		{
 			interactable = self.Trait<Interactable>();
 		}

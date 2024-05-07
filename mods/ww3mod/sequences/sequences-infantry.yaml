@@ -101,6 +101,11 @@
 		Length: 6
 		Facings: 8
 
+selected_infantry:
+	pip-selected: pip-selected
+		Start: 0
+		Length: 1
+
 class:
 	empty_class: empty_class
 		Start: 0

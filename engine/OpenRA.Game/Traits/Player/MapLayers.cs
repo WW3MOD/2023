@@ -139,7 +139,7 @@ namespace OpenRA.Traits
 			}
 		}
 
-		public byte ShadowModify { get; set;}
+		public byte ShadowModify { get; set; }
 
 		bool fogEnabled;
 		public bool FogEnabled => !Disabled && fogEnabled;
@@ -321,7 +321,7 @@ namespace OpenRA.Traits
 				{
 					var shadowModify = 0;
 
-					if(map.ShadowLayer != null)
+					if (map.ShadowLayer != null)
 						shadowModify = map.ShadowLayer[selfLocation][(MPos)puv];
 
 					var modifiedStrength = strength - shadowModify;
@@ -547,8 +547,8 @@ namespace OpenRA.Traits
 					return (byte)resolved;
 
 					// For modifying based on cell type, but removed since shadow caster was implemented.
-					/* byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
-					return (byte)Normalize((byte)(resolved - modify)); */
+					byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+					return (byte)Normalize((byte)(resolved - modify));
 				}
 			}
 
@@ -562,6 +562,13 @@ namespace OpenRA.Traits
 			}
 
 			return 0;
+		}
+
+		public byte GetDefense(PPos puv)
+		{
+			byte modify = (byte)map.DefenseLayer[(MPos)puv];
+
+			return modify;
 		}
 	}
 }

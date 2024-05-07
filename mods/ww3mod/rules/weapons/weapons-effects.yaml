@@ -145,39 +145,46 @@
 
 ^MinimalSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 50
 		Range: 32
 		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 64
 		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 128
 		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 256
 	Warhead@Suppression_5: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 512
 	Warhead@Suppression_6: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 1c0
 	Warhead@Suppression_7: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
@@ -185,42 +192,49 @@
 
 ^SmallSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 50
 		Range: 96
 		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 192
 		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 384
 		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 768
 		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 1c512
 		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 2c256
 		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
@@ -229,42 +243,49 @@
 
 ^MediumSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 50
 		Range: 128
 		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 256
 		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 512
 		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 1c0
 		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 2c0
 		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 3c0
 		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
@@ -273,42 +294,49 @@
 
 ^LargeSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 50
 		Range: 192
 		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 384
 		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 768
 		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 1c512
 		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 3c0
 		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 4c512
 		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
@@ -317,42 +345,49 @@
 
 ^HugeSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 50
 		Range: 256
 		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 512
 		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 1c0
 		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 2c0
 		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 4c0
 		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 6c0
 		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
+		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
@@ -543,30 +578,35 @@
 
 ^LargeThermobaricEffects:
 	Warhead@Fire1: GrantExternalCondition
+		Delay: 5
 		Range: 1c768
 		Amount: 1
 		Duration: 20
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Fire2: GrantExternalCondition
+		Delay: 5
 		Range: 1c512
 		Amount: 1
 		Duration: 40
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Fire3: GrantExternalCondition
+		Delay: 5
 		Range: 1c256
 		Amount: 1
 		Duration: 80
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Fire4: GrantExternalCondition
+		Delay: 5
 		Range: 1c0
 		Amount: 1
 		Duration: 120
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Fire5: GrantExternalCondition
+		Delay: 5
 		Range: 768
 		Amount: 1
 		Duration: 200

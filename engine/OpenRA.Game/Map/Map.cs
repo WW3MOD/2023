@@ -240,6 +240,7 @@ namespace OpenRA
 		public CellLayer<byte> Ramp { get; private set; }
 		public CellLayer<byte> CustomTerrain { get; private set; }
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
+		public CellLayer<byte> DefenseLayer { get; private set; }
 		public CellLayer<byte> DensityLayer { get; set; }
 		public CellLayer<CellLayer<byte>> ShadowLayer { get; set; }
 
@@ -506,6 +507,15 @@ namespace OpenRA
 
 			Translation = new Translation(Game.Settings.Player.Language, Translations, this);
 
+			// Was commented out but couldn't create new maps so added back in, not sure why it was removed.
+			var tl = new MPos(0, 0).ToCPos(this);
+			var br = new MPos(MapSize.X - 1, MapSize.Y - 1).ToCPos(this);
+			AllCells = new CellRegion(Grid.Type, tl, br);
+
+			var btl = new PPos(Bounds.Left, Bounds.Top);
+			var bbr = new PPos(Bounds.Right - 1, Bounds.Bottom - 1);
+			SetBounds(btl, bbr);
+
 			CustomTerrain = new CellLayer<byte>(this);
 			foreach (var uv in AllCells.MapCoords)
 				CustomTerrain[uv] = byte.MaxValue;
@@ -526,12 +536,11 @@ namespace OpenRA
 
 			// Read terrain type and set layer of adjusted visual for the coordiate.
 			// Used before shadow caster were implemented but code works and might prove useful
-			/* ModifyVisualLayer = new CellLayer<byte>(this);
+			ModifyVisualLayer = new CellLayer<byte>(this);
 			foreach (var uv in AllCells.MapCoords)
 			{
 				var tile = Tiles[uv];
 				var terrainType = GetTerrainInfo(uv.ToCPos(this)).Type;
-
 				byte terrainTypeModifier = 0;
 				switch (terrainType)
 				{
@@ -542,9 +551,8 @@ namespace OpenRA
 						terrainTypeModifier = 0;
 						break;
 				}
-
 				ModifyVisualLayer[uv] = terrainTypeModifier;
-			} */
+			}
 
 			AllEdgeCells = UpdateEdgeCells();
 
@@ -865,7 +873,7 @@ namespace OpenRA
 					if (total > byte.MaxValue)
 						shadowLayer[toUV] = byte.MaxValue;
 					else
-						shadowLayer[toUV] = (byte) Math.Ceiling(total);
+						shadowLayer[toUV] = (byte)Math.Ceiling(total);
 				}
 
 				ShadowLayer[fromUV] = shadowLayer;

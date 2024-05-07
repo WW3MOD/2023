@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA;
 using OpenRA.Graphics;
 using OpenRA.Support;
 using OpenRA.Traits;
@@ -30,6 +31,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[Desc("Should this be visible only when selected?")]
 		public readonly bool RequiresSelection = false;
+
+
+		[Desc("Should this be visible only when a set of modifiers are held?")]
+		public readonly string[] RequiredModifiers = { };
 
 		[Desc("Offset sprite center position from the selection box edge.")]
 		public readonly int2 Margin = int2.Zero;
@@ -92,6 +97,15 @@ namespace OpenRA.Mods.Common.Traits.Render
 			{
 				var relationship = self.Owner.RelationshipWith(self.World.RenderPlayer);
 				if (!Info.ValidRelationships.HasRelationship(relationship))
+					return false;
+			}
+
+			// Improve by making it possible to demand specific modifiers, now any will work
+			if (Info.RequiredModifiers.Length > 0)
+			{
+				var modifiers = Game.GetModifierKeys();
+
+				if (modifiers == Modifiers.None)
 					return false;
 			}
 

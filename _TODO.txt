@@ -1,6 +1,8 @@
 
 Game thoughts
 
+    - Remove morale boost pip for now, its not good
+
     - Air, spawn at edge
 
     - Ballistics hits trees too much? Deprioritize if chance to hit is too low
@@ -8,15 +10,19 @@ Game thoughts
 
     - Civ building "base under attack"
 
-    - Status pips / bars
-        - Health / Damage
-            - Yellow --> Red --> Blinking red
-            - Circle above? 100-75 green, 75-50 yellow, 50-25 red, 25-0 blinking red (faster and faster the closer it gets to death? Or slower? Like a heart beat)
-        - Defense
-            -
-            - Increases when moving, on different tiles or tiles with some actor or in proximity of some actors.
+    - Infantry status pips & bars
         - Stealth
             - Blue?
+        - Defense
+            - Introduce concept of Defense.
+            - Increases when moving, on different tiles or tiles with some actor or in proximity of some actors.
+        - Health
+            - Yellow --> Red --> Blinking red
+            - Circle above? 100-75 green, 75-50 yellow, 50-25 red, 25-0 blinking red (faster and faster the closer it gets to death? Or slower? Like a heart beat)
+        - Suppression
+        - Class
+        - Rank
+        -
 
     - Other pips / bars
         - Reload

@@ -29,7 +29,7 @@
 	# AppearsOnMapPreview:
 	# 	Terrain: Tree
 	Health:
-		HP: 250
+		HP: 2500
 	Armor:
 		Type: Wood
 	Targetable:
