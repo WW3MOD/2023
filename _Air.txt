@@ -16,16 +16,10 @@ Fly (Activity)
 
     Tick()
 
-
-
         # Banking
 
         # Sliding
 
-
-
-
 Land (Activity)
-
 
 FlyOffMap

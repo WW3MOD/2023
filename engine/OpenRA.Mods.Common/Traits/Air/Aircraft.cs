@@ -57,10 +57,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle? IdleTurnSpeed = null;
 
 		[Desc("Maximum flight speed when cruising.")]
-		public readonly int Speed = 1;
+		public readonly int Speed = 150;
+
+		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
+		public readonly int[] Acceleration = { 3, 2, 1 };
 
 		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
-		public readonly int IdleSpeed = -1;
+		public readonly int IdleSpeed = 0;
+
+		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
+		public readonly int TurnSpeedLoss = 10;
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
 		public readonly WAngle Pitch = WAngle.Zero;
@@ -235,6 +241,12 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyCenterPositionChanged[] notifyCenterPositionChanged;
 		IOverrideAircraftLanding overrideAircraftLanding;
 
+		public int[] AccelerationSteps;
+		public int DesiredSpeed { get; set; }
+		public int CurrentSpeed { get; set; }
+		public WVec CurrentMovement { get; set; }
+		public WAngle LastDesiredFacing;
+
 		WRot orientation;
 
 		[Sync]
@@ -272,7 +284,8 @@ namespace OpenRA.Mods.Common.Traits
 			if ((isIdleTurn && IdleMovementSpeed == 0) || MovementSpeed == 0)
 				return WAngle.Zero;
 
-			var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
+			// var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
+			var turnSpeed = new WAngle(CurrentSpeed < Info.Speed / 5 ? Info.TurnSpeed.Angle : TurnSpeed.Angle * Info.Speed / CurrentSpeed);
 
 			return new WAngle(Util.ApplyPercentageModifiers(turnSpeed.Angle, speedModifiers).Clamp(1, 1024));
 		}
@@ -280,6 +293,8 @@ namespace OpenRA.Mods.Common.Traits
 		public Actor ReservedActor { get; private set; }
 		public bool MayYieldReservation { get; private set; }
 		public bool ForceLanding { get; private set; }
+		public bool IsSliding { get; set; }
+		public List<Target> Targets = new List<Target>();
 
 		(CPos, SubCell)[] landingCells = Array.Empty<(CPos, SubCell)>();
 		bool requireForceMove;
@@ -291,6 +306,16 @@ namespace OpenRA.Mods.Common.Traits
 		public static WPos GroundPosition(Actor self)
 		{
 			return self.CenterPosition - new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(self.CenterPosition));
+		}
+
+		public bool ShouldSlide(WAngle? desiredFacing = null)
+		{
+			if (Facing.Angle - CurrentMovement.Yaw.Angle == 0)
+				IsSliding = false;
+
+			var sliding = Info.CanSlide && (IsSliding || (CurrentSpeed == 0));
+			IsSliding = sliding;
+			return sliding;
 		}
 
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
@@ -308,6 +333,8 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			self = init.Self;
+			AccelerationSteps = Info.Acceleration;
+			DesiredSpeed = Info.Speed;
 
 			var locationInit = init.GetOrDefault<LocationInit>();
 			if (locationInit != null)
@@ -617,7 +644,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public int MovementSpeed => !IsTraitDisabled && !IsTraitPaused ? Util.ApplyPercentageModifiers(Info.Speed, speedModifiers) : 0;
-		public int IdleMovementSpeed => Info.IdleSpeed < 0 ? MovementSpeed :
+		public int IdleMovementSpeed => Info.IdleSpeed <= 0 ? MovementSpeed :
 			!IsTraitDisabled && !IsTraitPaused ? Util.ApplyPercentageModifiers(Info.IdleSpeed, speedModifiers) : 0;
 
 		public (CPos Cell, SubCell SubCell)[] OccupiedCells()
@@ -740,6 +767,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void OnBecomingIdle(Actor self)
 		{
+			CurrentSpeed = Info.IdleSpeed;
 			if (Info.IdleBehavior == IdleBehaviorType.LeaveMap)
 			{
 				self.QueueActivity(new FlyOffMap(self));

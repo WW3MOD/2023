@@ -89,6 +89,12 @@ namespace OpenRA
 			return new WVec(ret.X, ret.Y, ret.Z + offset);
 		}
 
+		public static WVec FromSpeedAndAngle(int speed, WAngle angle)
+		{
+			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(angle));
+			return speed * dir / 1024;
+		}
+
 		// Sampled a N-sample probability density function in the range [-1024..1024, -1024..1024]
 		// 1 sample produces a rectangular probability
 		// 2 samples produces a triangular probability

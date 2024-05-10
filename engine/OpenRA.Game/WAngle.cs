@@ -78,7 +78,7 @@ namespace OpenRA
 			return new WAngle(Angle - 512).Tan();
 		}
 
-		public static WAngle Lerp(WAngle a, WAngle b, int mul, int div)
+		public static WAngle Lerp(WAngle a, WAngle b, int mul = 1, int div = 1)
 		{
 			// Map 1024 <-> 0 wrapping into linear space
 			var aa = a.Angle;
