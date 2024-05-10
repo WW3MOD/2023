@@ -22,7 +22,7 @@ Game thoughts
         - Suppression
         - Class
         - Rank
-        -
+        - 
 
     - Other pips / bars
         - Reload

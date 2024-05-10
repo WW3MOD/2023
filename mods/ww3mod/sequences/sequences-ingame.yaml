@@ -218,6 +218,9 @@ explosion:
 	explosion_large: frag1
 		Offset: -2,0
 	flak_explosion_ground: flak
+	flak_small: flak_small
+	flak_medium: flak_medium
+	flak_large: flak_large
 	shrapnel_small: shrapnel_small
 	shrapnel_medium: shrapnel_medium
 	shrapnel_large: shrapnel_large

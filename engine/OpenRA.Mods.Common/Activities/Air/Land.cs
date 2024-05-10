@@ -250,7 +250,7 @@ namespace OpenRA.Mods.Common.Activities
 			var move = aircraft.FlyStep(aircraft.Facing);
 			if (d.HorizontalLengthSquared < move.HorizontalLengthSquared)
 			{
-				var landingAltVec = new WVec(WDist.Zero, WDist.Zero, aircraft.LandAltitude);
+				var landingAltVec = new WVec(aircraft.CurrentMovement.X, aircraft.CurrentMovement.Y, aircraft.LandAltitude.Length);
 				aircraft.SetPosition(self, targetPosition + landingAltVec);
 				return true;
 			}

@@ -2,30 +2,39 @@
 
 Aircraft (Trait)
 
-    Speed (MaxSpeed)
-    IdleSpeed
-    Acceleration
-    TurnSpeedLoss
+    Info
+        Speed (MaxSpeed)
+        IdleSpeed
+        Acceleration { }
+        TurnSpeedLoss
+        CanHover
+        CanSlide
+        VTOL
 
-    CanHover
-    CanSlide
-    VTOL
+    Properties
+
+        Momentum
+
+        CurrentFacing
+
+    Methods
+
+        ChangeSpeed // Returns the maximal possible speed based on previous Momentum and Acceleration
+                    // If momentum sidewayse is neglectable, neglect it completely to avoid always sliding slightly
 
 
 Fly (Activity)
 
+    // If changing altitude, change acceleration to match
+    // Break When needed to not overshoot target
+    // Fly toward target at maximum possible speed
+
     Tick()
-
-
 
         # Banking
 
         # Sliding
 
-
-
-
 Land (Activity)
-
 
 FlyOffMap

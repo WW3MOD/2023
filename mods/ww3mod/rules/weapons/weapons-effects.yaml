@@ -613,7 +613,7 @@
 		Condition: onfire
 		ValidTargets: Infantry
 	Warhead@Effect_1: CreateEffect
-		Explosions: napalm_medium
+		Explosions: flak_large
 		ImpactSounds: firebl3.aud
 		ImpactActors: false
 	Warhead@Effect: CreateEffect
