@@ -1,3 +1,11 @@
+Idea
+
+when holding different modifiers
+- Nothing held, default to attack move
+- Shift, add small white dot or something to the closest targetable tile, possible make the grid visible around the mouse slightly in a circle.
+- Ctrl, force-move
+- Alt, add attack-move mode and change cursor
+
 
 Game thoughts
 
@@ -22,7 +30,7 @@ Game thoughts
         - Suppression
         - Class
         - Rank
-        - 
+        -
 
     - Other pips / bars
         - Reload

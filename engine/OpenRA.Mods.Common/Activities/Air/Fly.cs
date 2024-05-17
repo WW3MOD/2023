@@ -62,43 +62,47 @@ namespace OpenRA.Mods.Common.Activities
 			this.minRange = minRange;
 		}
 
-
 		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
-			var movementSpeed = aircraft.MovementSpeed;
-
-			// Maximum speed reached
-			if (aircraft.CurrentSpeed >= movementSpeed)
-			{
-				aircraft.CurrentSpeed = movementSpeed;
-			}
-
-			// Accelerate
-			else
-			{
-				var currentAcceleration = (float)aircraft.CurrentSpeed / (float)movementSpeed * (float)aircraft.AccelerationSteps.Length;
-				var flooredValue = (int)Math.Floor((double)currentAcceleration);
-				aircraft.CurrentSpeed += aircraft.AccelerationSteps[flooredValue];
-			}
-
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 
-			WVec move;
-			if (aircraft.Info.CanSlide && (aircraft.LastDesiredFacing == desiredFacing || aircraft.CurrentSpeed == 0))
-				move = aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
-			else
-				move = aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
+			// This aircraft should move towards its target
+			var move = aircraft.Info.CanSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing); // new WVec();
 
-			if (aircraft.CurrentSpeed < 0) aircraft.CurrentSpeed = 0;
+			// The aircraft stores its current movement (momentum) and in here we determine how it affects its movement towards the target
+			var momentum = aircraft.Momentum;
+			// Maximum speed after modifiers
+			var maxSpeed = aircraft.MovementSpeed;
 
-			if (aircraft.ShouldSlide(desiredFacing))
+			if (true || aircraft.ShouldSlide())
 			{
-				// var aa = aircraft.CurrentSpeed * (float)(1 - movementAngle.Angle / 1024); // Half speed if going backwards, 75% sideways
-				// aircraft.CurrentSpeed = (int)aa;
-				aircraft.CurrentMovement = aircraft.FlyStep(aircraft.CurrentSpeed, desiredFacing);
+				// We can, and should, slide towards target. So add the correct acceleration towards target.
+				// Problem: Acceleration / Deceleration mechanic,
+				// var acceleration = WVec.FromSpeedAndAngle(moveSum, desiredFacing);
+
+				move = aircraft.FlyStep(5, desiredFacing) + momentum;
 			}
-			else
-				aircraft.CurrentMovement = aircraft.FlyStep(aircraft.CurrentSpeed, aircraft.Facing);
+			else if (false)
+			{
+				// // Using the turn rate, compute a hypothetical circle traced by a continuous turn.
+				// // If it contains the destination point, it's unreachable without more complex maneuvering.
+				// var turnRadius = CalculateTurnRadius(aircraft.DesiredSpeed, aircraft.TurnSpeed);
+
+				// // The current facing is a tangent of the minimal turn circle.
+				// // Make a perpendicular vector, and use it to locate the turn's center.
+				// var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
+
+				// var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing));
+				// turnCenterDir *= turnRadius;
+				// turnCenterDir /= 1024;
+
+				// var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
+
+				// // Compare with the target point, and keep flying away if it's inside the circle.
+				// var turnCenter = aircraft.CenterPosition + turnCenterDir;
+				// if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
+				// 	desiredFacing = aircraft.Facing;
+			}
 
 			if (moveOverride != WVec.Zero)
 				move = moveOverride;
@@ -130,7 +134,6 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			aircraft.LastDesiredFacing = desiredFacing;
-
 			aircraft.SetPosition(self, aircraft.CenterPosition + move);
 		}
 
@@ -138,6 +141,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
 		}
+
 		// Should only be used for vertical-only movement, usually VTOL take-off or land. Terrain-induced altitude changes should always be handled by FlyTick.
 		public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
 		{
@@ -163,16 +167,16 @@ namespace OpenRA.Mods.Common.Activities
 		public override bool Tick(Actor self)
 		{
 			// Refuse to take off if it would land immediately again.
-			if (aircraft.ForceLanding) Cancel(self);
+			if (aircraft.ForceLanding)
+				Cancel(self);
 
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 			var isLanded = dat <= aircraft.LandAltitude;
 
-			if (isLanded) aircraft.CurrentSpeed = 0;
-
 			// HACK: Prevent paused (for example, EMP'd) aircraft from taking off.
 			// This is necessary until the TODOs in the IsCanceling block below are addressed.
-			if (isLanded && aircraft.IsTraitPaused) return false;
+			if (isLanded && aircraft.IsTraitPaused)
+				return false;
 
 			if (IsCanceling)
 			{
@@ -219,193 +223,89 @@ namespace OpenRA.Mods.Common.Activities
 			// Inside the target annulus, so we're done
 			var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
 			var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
-
 			if (insideMaxRange && !insideMinRange)
 				return true;
 
 			var isSlider = aircraft.Info.CanSlide;
+			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+			var move = isSlider ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
 
-			if (aircraft.Info.CanSlide)
+			// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
+			if (insideMinRange)
 			{
-				// idea: Make it possible to rotate towards target if weapons are slaved to body, strafing runs
-				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-
-				// Maximum speed reached
-				if (aircraft.CurrentSpeed >= aircraft.DesiredSpeed) aircraft.CurrentSpeed = aircraft.DesiredSpeed;
-				else // Accelerate
-				{
-					var CurrentSpeedStep = (float)aircraft.CurrentSpeed / (float)aircraft.DesiredSpeed * (float)aircraft.AccelerationSteps.Length;
-					var flooredValue = (int)Math.Floor((double)CurrentSpeedStep);
-					aircraft.CurrentSpeed += aircraft.AccelerationSteps[flooredValue];
-				}
-
-				// TODO: A theory is that CurrentMovement is not reset when idle, so first move is based on previous speed thats why it jumps at first frame
-				var moveSum = aircraft.CurrentMovement.Length;
-
-				var move = isSlider ? WVec.FromSpeedAndAngle(moveSum, desiredFacing) : aircraft.FlyStep(aircraft.Facing);
-
-				// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
-				if (insideMinRange)
-				{
-					// TODO: we cannot just reverse? New move
-					if (isSlider) FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
-					else FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
-					return false;
-				}
-
-				// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
-				// Stop if we are blocked and close enough
-				if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-					delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
-					return true;
-
-				// The next move would overshoot, so consider it close enough or set final position if we CanSlide
-				if (delta.HorizontalLengthSquared < move.HorizontalLengthSquared)
-				{
-					// For VTOL landing to succeed, it must reach the exact target position,
-					// so for the final move it needs to behave as if it had CanSlide.
-					if (isSlider || aircraft.Info.VTOL)
-					{
-						// Set final (horizontal) position
-						if (delta.HorizontalLengthSquared != 0)
-						{
-							// Ensure we don't include a non-zero vertical component here that would move us away from CruiseAltitude
-							var deltaMove = new WVec(delta.X, delta.Y, 0);
-							FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
-						}
-
-						// Move to CruiseAltitude, if not already there
-						if (dat != aircraft.Info.CruiseAltitude)
-						{
-							Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-							return false;
-						}
-					}
-
-					return true;
-				}
-
-				if (!isSlider)
-				{
-					// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
-					// If it contains the destination point, it's unreachable without more complex maneuvering.
-					var turnRadius = CalculateTurnRadius(aircraft.DesiredSpeed, aircraft.TurnSpeed);
-
-					// The current facing is a tangent of the minimal turn circle.
-					// Make a perpendicular vector, and use it to locate the turn's center.
-					var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
-
-					var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing));
-					turnCenterDir *= turnRadius;
-					turnCenterDir /= 1024;
-
-					// Compare with the target point, and keep flying away if it's inside the circle.
-					var turnCenter = aircraft.CenterPosition + turnCenterDir;
-					if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
-						desiredFacing = aircraft.Facing;
-				}
-
-				positionBuffer.Add(self.CenterPosition);
-				if (positionBuffer.Count > 5)
-					positionBuffer.RemoveAt(0);
-
 				if (isSlider)
-					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, move);
+					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
 				else
-					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
+				{
+					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
+				}
 
 				return false;
 			}
-			else
+
+			// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
+			// Stop if we are blocked and close enough
+			if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
+				delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
+				return true;
+
+			// The next move would overshoot, so consider it close enough or set final position if we CanSlide
+			if (delta.HorizontalLengthSquared < move.HorizontalLengthSquared)
 			{
-				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-
-				// Maximum speed reached
-				if (aircraft.CurrentSpeed >= aircraft.DesiredSpeed) aircraft.CurrentSpeed = aircraft.DesiredSpeed;
-				else // Accelerate
+				// For VTOL landing to succeed, it must reach the exact target position,
+				// so for the final move it needs to behave as if it had CanSlide.
+				if (isSlider || aircraft.Info.VTOL)
 				{
-					var CurrentSpeedStep = (float)aircraft.CurrentSpeed / (float)aircraft.DesiredSpeed * (float)aircraft.AccelerationSteps.Length;
-					var flooredValue = (int)Math.Floor((double)CurrentSpeedStep);
-					aircraft.CurrentSpeed += aircraft.AccelerationSteps[flooredValue];
-				}
-
-				var moveSum = aircraft.CurrentMovement.Length;
-
-				var move = isSlider ? WVec.FromSpeedAndAngle(moveSum, desiredFacing) : aircraft.FlyStep(aircraft.Facing);
-
-				// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
-				if (insideMinRange)
-				{
-					// TODO: we cannot just reverse? New move
-					if (isSlider) FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
-					else FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
-					return false;
-				}
-
-				// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
-				// Stop if we are blocked and close enough
-				if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-					delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
-					return true;
-
-				// The next move would overshoot, so consider it close enough or set final position if we CanSlide
-				if (delta.HorizontalLengthSquared < move.HorizontalLengthSquared)
-				{
-					// For VTOL landing to succeed, it must reach the exact target position,
-					// so for the final move it needs to behave as if it had CanSlide.
-					if (isSlider || aircraft.Info.VTOL)
+					// Set final (horizontal) position
+					if (delta.HorizontalLengthSquared != 0)
 					{
-						// Set final (horizontal) position
-						if (delta.HorizontalLengthSquared != 0)
-						{
-							// Ensure we don't include a non-zero vertical component here that would move us away from CruiseAltitude
-							var deltaMove = new WVec(delta.X, delta.Y, 0);
-							FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
-						}
-
-						// Move to CruiseAltitude, if not already there
-						if (dat != aircraft.Info.CruiseAltitude)
-						{
-							Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-							return false;
-						}
+						// Ensure we don't include a non-zero vertical component here that would move us away from CruiseAltitude
+						var deltaMove = new WVec(delta.X, delta.Y, 0);
+						FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
 					}
 
-					return true;
+					// Move to CruiseAltitude, if not already there
+					if (dat != aircraft.Info.CruiseAltitude)
+					{
+						Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+						return false;
+					}
 				}
 
-				if (!isSlider)
-				{
-					// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
-					// If it contains the destination point, it's unreachable without more complex maneuvering.
-					var turnRadius = CalculateTurnRadius(aircraft.DesiredSpeed, aircraft.TurnSpeed);
-
-					// The current facing is a tangent of the minimal turn circle.
-					// Make a perpendicular vector, and use it to locate the turn's center.
-					var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
-
-					var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing));
-					turnCenterDir *= turnRadius;
-					turnCenterDir /= 1024;
-
-					// Compare with the target point, and keep flying away if it's inside the circle.
-					var turnCenter = aircraft.CenterPosition + turnCenterDir;
-					if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
-						desiredFacing = aircraft.Facing;
-				}
-
-				positionBuffer.Add(self.CenterPosition);
-				if (positionBuffer.Count > 5)
-					positionBuffer.RemoveAt(0);
-
-				if (isSlider)
-					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, move);
-				else
-					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
-
-				return false;
-
+				return true;
 			}
+
+			if (!aircraft.ShouldSlide())
+			{
+				// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
+				// If it contains the destination point, it's unreachable without more complex maneuvering.
+				var turnRadius = CalculateTurnRadius(aircraft.DesiredSpeed, aircraft.TurnSpeed);
+
+				// The current facing is a tangent of the minimal turn circle.
+				// Make a perpendicular vector, and use it to locate the turn's center.
+				var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
+
+				var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing));
+				turnCenterDir *= turnRadius;
+				turnCenterDir /= 1024;
+
+				// Compare with the target point, and keep flying away if it's inside the circle.
+				var turnCenter = aircraft.CenterPosition + turnCenterDir;
+				if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
+					desiredFacing = aircraft.Facing;
+			}
+
+			positionBuffer.Add(self.CenterPosition);
+			if (positionBuffer.Count > 5)
+				positionBuffer.RemoveAt(0);
+
+			// if (aircraft.ShouldSlide())
+			// 	FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, move);
+			// else
+
+			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
+
+			return false;
 		}
 
 		public void RemoveTarget(Aircraft aircraft)

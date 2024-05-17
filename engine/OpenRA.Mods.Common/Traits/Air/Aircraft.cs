@@ -244,7 +244,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int[] AccelerationSteps;
 		public int DesiredSpeed { get; set; }
 		public int CurrentSpeed { get; set; }
-		public WVec CurrentMovement { get; set; }
+		public WVec Momentum { get; set; }
 		public WAngle LastDesiredFacing;
 
 		WRot orientation;
@@ -293,7 +293,10 @@ namespace OpenRA.Mods.Common.Traits
 		public Actor ReservedActor { get; private set; }
 		public bool MayYieldReservation { get; private set; }
 		public bool ForceLanding { get; private set; }
-		public bool IsSliding { get; set; }
+		public bool IsSliding
+		{
+			get => Facing.Angle - Momentum.Yaw.Angle != 0;
+		}
 		public List<Target> Targets = new List<Target>();
 
 		(CPos, SubCell)[] landingCells = Array.Empty<(CPos, SubCell)>();
@@ -310,12 +313,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool ShouldSlide(WAngle? desiredFacing = null)
 		{
-			if (Facing.Angle - CurrentMovement.Yaw.Angle == 0)
-				IsSliding = false;
-
-			var sliding = Info.CanSlide && (IsSliding || (CurrentSpeed == 0));
-			IsSliding = sliding;
-			return sliding;
+			return Info.CanSlide && (IsSliding || (CurrentSpeed <= 100));
 		}
 
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
@@ -335,6 +333,7 @@ namespace OpenRA.Mods.Common.Traits
 			self = init.Self;
 			AccelerationSteps = Info.Acceleration;
 			DesiredSpeed = Info.Speed;
+			Momentum = new WVec();
 
 			var locationInit = init.GetOrDefault<LocationInit>();
 			if (locationInit != null)
@@ -767,7 +766,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void OnBecomingIdle(Actor self)
 		{
-			CurrentSpeed = Info.IdleSpeed;
+			DesiredSpeed = Info.IdleSpeed;
 			if (Info.IdleBehavior == IdleBehaviorType.LeaveMap)
 			{
 				self.QueueActivity(new FlyOffMap(self));
