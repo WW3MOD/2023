@@ -490,7 +490,7 @@ namespace OpenRA.Mods.Common.Traits
 			// HACK: Prevent updating visibility twice per tick. We really shouldn't be
 			// moving twice in a tick in the first place.
 			notify = false;
-			SetPosition(self, CenterPosition + FlyStep(speed, repulsionForce.Yaw));
+			SetPosition(self, CenterPosition + GetVector(speed, repulsionForce.Yaw));
 			notify = true;
 		}
 
@@ -537,7 +537,7 @@ namespace OpenRA.Mods.Common.Traits
 				return repulsionForce;
 
 			// Non-hovering actors mush always keep moving forward, so they need extra calculations.
-			var currentDir = FlyStep(Facing);
+			var currentDir = GetVector(Facing);
 			var length = currentDir.HorizontalLength * repulsionForce.HorizontalLength;
 			if (length == 0)
 				return WVec.Zero;
@@ -651,12 +651,12 @@ namespace OpenRA.Mods.Common.Traits
 			return landingCells;
 		}
 
-		public WVec FlyStep(WAngle facing)
+		public WVec GetVector(WAngle facing)
 		{
-			return FlyStep(MovementSpeed, facing);
+			return GetVector(MovementSpeed, facing);
 		}
 
-		public WVec FlyStep(int speed, WAngle facing)
+		public WVec GetVector(int speed, WAngle facing)
 		{
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
 			return speed * dir / 1024;

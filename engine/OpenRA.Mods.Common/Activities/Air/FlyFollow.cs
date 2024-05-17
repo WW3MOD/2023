@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Activities
 			// The target may become hidden between the initial order request and the first tick (e.g. if queued)
 			// Moving to any position (even if quite stale) is still better than immediately giving up
 			if ((target.Type == TargetType.Actor && target.Actor.CanBeViewedByPlayer(self.Owner))
-			    || target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
+				|| target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
 				lastVisibleTarget = Target.FromPos(target.CenterPosition);
 			else if (initialTargetPosition.HasValue)
 				lastVisibleTarget = Target.FromPos(initialTargetPosition.Value);
@@ -80,7 +80,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange))
 			{
 				if (!aircraft.Info.CanHover)
-					Fly.FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+					Fly.FlyTowardsTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 
 				return useLastVisibleTarget;
 			}

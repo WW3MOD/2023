@@ -1,6 +1,31 @@
 
 
+
+
+
+
+HOW DO AIRPLANES WORK
+
+
+Land units have the Move trait, airplanes have the Fly trait
+
+The Airplane trait is responsible for storing properties about the Aircraft
+
+It uses the Fly trait to move each tick
+
+The FlyTick function can be called from other traits such as 
+
+
+
+
+
+
+
+
+
 Aircraft (Trait)
+
+
 
     Speed (MaxSpeed)
     IdleSpeed
@@ -15,8 +40,8 @@ Fly
 
     Tick()
 
-    Aircraft.FlyStep
-        public WVec FlyStep(int speed, WAngle facing)
+    Aircraft.Vector
+        public WVec Vector(int speed, WAngle facing)
         {
             var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
             return speed * dir / 1024;

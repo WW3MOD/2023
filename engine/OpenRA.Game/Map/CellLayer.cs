@@ -97,8 +97,8 @@ namespace OpenRA
 			at OpenRA.Mods.Common.Traits.AffectsMapLayer.UpdateCells(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AffectsMapLayer.cs:line 150
 			at OpenRA.Mods.Common.Traits.AffectsMapLayer.OpenRA.Mods.Common.Traits.INotifyCenterPositionChanged.CenterPositionChanged(Actor self, Byte oldLayer, Byte newLayer) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AffectsMapLayer.cs:line 117
 			at OpenRA.Mods.Common.Traits.Aircraft.SetPosition(Actor self, WPos pos) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 837
-			at OpenRA.Mods.Common.Activities.Fly.FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, WVec& moveOverride, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 96
-			at OpenRA.Mods.Common.Activities.Fly.FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 101
+			at OpenRA.Mods.Common.Activities.Fly.FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, WVec& moveOverride, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 96
+			at OpenRA.Mods.Common.Activities.Fly.FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 101
 			at OpenRA.Mods.Common.Activities.Fly.Tick(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 260
 			at OpenRA.Activities.Activity.TickOuter(Actor self) in  */
 			get => Entries[Index(uv)];
