@@ -247,7 +247,7 @@ namespace OpenRA.Mods.Common.Activities
 			var d = targetPosition - pos;
 
 			// The next move would overshoot, so just set the final position
-			var move = aircraft.FlyStep(aircraft.Facing);
+			var move = aircraft.GetVector(aircraft.Facing);
 			if (d.HorizontalLengthSquared < move.HorizontalLengthSquared)
 			{
 				var landingAltVec = new WVec(aircraft.Momentum.X, aircraft.Momentum.Y, aircraft.LandAltitude.Length);
@@ -256,7 +256,7 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			var landingAlt = self.World.Map.DistanceAboveTerrain(targetPosition) + aircraft.LandAltitude;
-			Fly.FlyTick(self, aircraft, d.Yaw, landingAlt);
+			Fly.FlyTowardsTick(self, aircraft, d.Yaw, landingAlt);
 
 			return false;
 		}

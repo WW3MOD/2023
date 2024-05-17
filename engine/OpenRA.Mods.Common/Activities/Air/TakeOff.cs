@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Activities
 					return false;
 				}
 
-				Fly.FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+				Fly.FlyTowardsTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 				return false;
 			}
 

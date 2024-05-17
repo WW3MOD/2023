@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common.Activities
 			var d = targetPos - self.CenterPosition;
 
 			// The next move would overshoot, so consider it close enough
-			var move = sbm.FlyStep(sbm.Facing);
+			var move = sbm.GetVector(sbm.Facing);
 
 			// Destruct so that Explodes will be called
 			if (d.HorizontalLengthSquared < move.HorizontalLengthSquared)
