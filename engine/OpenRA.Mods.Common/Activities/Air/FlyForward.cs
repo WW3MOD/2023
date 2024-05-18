@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || (flyTicks > 0 && ticks++ >= flyTicks) || (flyTicks == 0 && remainingDistance <= 0))
 				return true;
 
-			// FlyTick moves the aircraft while GetVector calculates how far we are moving
+			// FlyTowardsTick moves the aircraft while GetVector calculates how far we are moving
 			if (remainingDistance != 0)
 				remainingDistance -= aircraft.GetVector(aircraft.Facing).HorizontalLength;
 

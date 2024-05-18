@@ -57,8 +57,8 @@ namespace OpenRA.Mods.Common.Activities
 				aircraft.Facing = new WAngle(aircraft.Facing.Angle + spin);
 			}
 
-			var move = info.Moves ? aircraft.GetVector(aircraft.Facing) : WVec.Zero;
-			move -= new WVec(WDist.Zero, WDist.Zero, info.Velocity);
+			var move = info.Moves ? aircraft.Momentum : WVec.Zero;
+			aircraft.Momentum = move;
 			aircraft.SetPosition(self, aircraft.CenterPosition + move);
 
 			return false;

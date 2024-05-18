@@ -13,7 +13,7 @@ The Airplane trait is responsible for storing properties about the Aircraft
 
 It uses the Fly trait to move each tick
 
-The FlyTick function can be called from other traits such as 
+The FlyTowardsTick function can be called from other traits such as
 
 
 
