@@ -649,6 +649,11 @@ namespace OpenRA.Mods.Common.Traits
 			return landingCells;
 		}
 
+		public WVec GetAcceleration(WAngle facing)
+		{
+			return GetVector(5, facing);
+		}
+
 		public WVec GetVector(WVec acceleration)
 		{
 			return Momentum + acceleration;

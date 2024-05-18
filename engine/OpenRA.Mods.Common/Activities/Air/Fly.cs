@@ -64,10 +64,8 @@ namespace OpenRA.Mods.Common.Activities
 
 		public static void FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
-			var acceleration = aircraft.GetVector(1, desiredFacing);
-
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			var move = aircraft.Info.CanSlide ? aircraft.GetVector(acceleration) : aircraft.GetVector(aircraft.Facing);
+			var move = aircraft.Info.CanSlide ? aircraft.GetVector(aircraft.GetAcceleration(desiredFacing)) : aircraft.GetVector(aircraft.Facing);
 			if (moveOverride != WVec.Zero)
 				move = moveOverride;
 
@@ -194,8 +192,7 @@ namespace OpenRA.Mods.Common.Activities
 			var isSlider = aircraft.Info.CanSlide;
 			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
 
-			var acceleration = aircraft.GetVector(5, desiredFacing);
-			var move = isSlider ? aircraft.GetVector(acceleration) : aircraft.GetVector(aircraft.Facing);
+			var move = isSlider ? aircraft.GetVector(aircraft.GetAcceleration(desiredFacing)) : aircraft.GetVector(aircraft.Facing);
 
 			// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
 			if (insideMinRange)
