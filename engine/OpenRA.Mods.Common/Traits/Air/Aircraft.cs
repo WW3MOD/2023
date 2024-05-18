@@ -249,7 +249,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int[] AccelerationSteps;
 		public int DesiredSpeed { get; set; }
-		public int CurrentSpeed { get; set; }
 		public WVec Momentum { get; set; }
 		public WAngle LastDesiredFacing;
 
@@ -290,8 +289,7 @@ namespace OpenRA.Mods.Common.Traits
 			if ((isIdleTurn && IdleMovementSpeed == 0) || MovementSpeed == 0)
 				return WAngle.Zero;
 
-			// var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
-			var turnSpeed = new WAngle(CurrentSpeed < Info.Speed / 5 ? Info.TurnSpeed.Angle : TurnSpeed.Angle * Info.Speed / CurrentSpeed);
+			var turnSpeed = new WAngle(Momentum.Length < Info.Speed / 5 ? Info.TurnSpeed.Angle : TurnSpeed.Angle * Info.Speed / Momentum.Length);
 
 			return new WAngle(Util.ApplyPercentageModifiers(turnSpeed.Angle, speedModifiers).Clamp(1, 1024));
 		}
@@ -319,7 +317,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool ShouldSlide(WAngle? desiredFacing = null)
 		{
-			return Info.CanSlide && (IsSliding || (CurrentSpeed <= 100));
+			return Info.CanSlide && (IsSliding || (Momentum.Length <= 100));
 		}
 
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
@@ -696,6 +694,11 @@ namespace OpenRA.Mods.Common.Traits
 			return landingCells;
 		}
 
+		public WVec GetVector(WVec acceleration)
+		{
+			return Momentum + acceleration;
+		}
+
 		public WVec GetVector(WAngle facing)
 		{
 			return GetVector(MovementSpeed, facing);
@@ -811,7 +814,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void OnBecomingIdle(Actor self)
 		{
-			DesiredSpeed = Info.IdleSpeed;
+			// DesiredSpeed = Info.IdleSpeed;
 			if (Info.IdleBehavior == IdleBehaviorType.LeaveMap)
 			{
 				self.QueueActivity(new FlyOffMap(self));
