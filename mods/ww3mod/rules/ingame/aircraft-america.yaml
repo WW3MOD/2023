@@ -199,7 +199,6 @@ littlebird:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	RenderDetectionCircle:
 
 littlebird.AI:
 	Inherits: littlebird
