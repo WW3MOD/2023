@@ -77,7 +77,8 @@ MP5:
 
 ^5.56mm:
 	Inherits@HitEffects: ^SmallCaliberEffects
-	ValidTargets: Infantry, Unarmored, Helicopter
+	ValidTargets: Infantry, Vehicle, Helicopter
+	InvalidTargets: Light, Medium, Heavy
 	Range: 14c0
 	Report: gun11.aud
 	Projectile: Bullet
@@ -91,7 +92,8 @@ MP5:
 		Damage: 200
 		DamageAtMaxRange: 50
 		Penetration: 4
-		ValidTargets: Infantry, Unarmored, Helicopter
+		ValidTargets: Infantry, Vehicle, Helicopter
+		InvalidTargets: Light, Medium, Heavy
 		DamageTypes: BulletDeath
 
 5.56mm.E3:
