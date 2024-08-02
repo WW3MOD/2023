@@ -59,6 +59,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			var move = info.Moves ? aircraft.Momentum : WVec.Zero;
 			aircraft.Momentum = move;
+			move -= new WVec(WDist.Zero, WDist.Zero, info.Velocity);
 			aircraft.SetPosition(self, aircraft.CenterPosition + move);
 
 			return false;
