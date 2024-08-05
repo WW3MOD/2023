@@ -1,4 +1,8 @@
 #region Copyright & License Information
+using System.IO.Enumeration;
+using System.IO;
+using System.Security.AccessControl;
+using System.Text.RegularExpressions;
 /*
  * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
@@ -57,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle? IdleTurnSpeed = null;
 
 		[Desc("Maximum flight speed when cruising.")]
-		public readonly int Speed = 150;
+		public readonly int Speed = 1;
 
 		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
 		public readonly int[] Acceleration = { 3, 2, 1 };
@@ -66,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int IdleSpeed = 0;
 
 		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
-		public readonly int TurnSpeedLoss = 10;
+		public readonly int TurnSpeedLoss = 1;
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
 		public readonly WAngle Pitch = WAngle.Zero;
@@ -84,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle RollSpeed = WAngle.Zero;
 
 		[Desc("Minimum altitude where this aircraft is considered airborne.")]
-		public readonly int MinAirborneAltitude = 1;
+		public readonly int MinAirborneAltitude = 256;
 
 		public readonly HashSet<string> LandableTerrainTypes = new HashSet<string>();
 
@@ -142,7 +146,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle MaximumPitch = WAngle.FromDegrees(10);
 
 		[Desc("How fast this actor ascends or descends when moving vertically only (vertical take off/landing or hovering towards CruiseAltitude).")]
-		public readonly WDist AltitudeVelocity = new WDist(43);
+		public readonly WDist AltitudeVelocity = new WDist(10);
 
 		[Desc("Sounds to play when the actor is taking off.")]
 		public readonly string[] TakeoffSounds = Array.Empty<string>();
@@ -311,7 +315,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool ShouldSlide(WAngle? desiredFacing = null)
 		{
-			return Info.CanSlide && (IsSliding || (Momentum.Length <= 100));
+			return Info.CanSlide && Momentum.Length <= 50;
+			// return Info.CanSlide && (IsSliding || (Momentum.Length <= 50));
 		}
 
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
@@ -364,6 +369,19 @@ namespace OpenRA.Mods.Common.Traits
 				pos += offset.PositionOffset;
 
 			return pos;
+		}
+
+		public int GetDeceleratedMomentum(int momentum)
+		{
+			var deceleration = 5;
+
+			if (System.Math.Abs(momentum) <= deceleration)
+				return 0;
+
+			if (momentum > 0)
+				return momentum - deceleration;
+			else
+				return momentum + deceleration;
 		}
 
 		public override IEnumerable<VariableObserver> GetVariableObservers()
@@ -430,6 +448,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void Tick(Actor self)
 		{
+			// Momentum *= 0.9;
+
 			// Add land activity if Aircraft trait is paused and the actor can land at the current location.
 			if (!ForceLanding && IsTraitPaused && airborne && CanLand(self.Location)
 				&& !((self.CurrentActivity is Land) || self.CurrentActivity is Turn))
@@ -651,7 +671,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public WVec GetAcceleration(WAngle facing)
 		{
-			return GetVector(5, facing);
+			return GetVector(10, facing);
 		}
 
 		public WVec GetVector(WVec acceleration)

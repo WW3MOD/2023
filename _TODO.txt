@@ -1,3 +1,22 @@
+Aircraft / Fly
+
+FlyTowards
+
+- Turn towards Location
+    - ShouldSlide && not ForceMove
+        - Turn towards current Target instead while sliding towards Location
+
+- ShouldSlide
+    - Change momentum towards target
+
+- NotSlider
+    -
+
+TakeOff
+
+Land
+
+
 Idea
 
 when holding different modifiers
