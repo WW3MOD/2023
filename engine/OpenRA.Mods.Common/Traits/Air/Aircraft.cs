@@ -61,16 +61,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle? IdleTurnSpeed = null;
 
 		[Desc("Maximum flight speed when cruising.")]
-		public readonly int Speed = 1;
+		public readonly int Speed = 100;
 
 		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
 		public readonly int[] Acceleration = { 3, 2, 1 };
 
 		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
-		public readonly int IdleSpeed = 0;
-
-		[Desc("Speed lost every tick that the unit is turning. Combines with acceleration falloff, so at low speeds units can still accelerate through a turn.")]
-		public readonly int TurnSpeedLoss = 1;
+		public readonly int IdleSpeed = -1;
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
 		public readonly WAngle Pitch = WAngle.Zero;
@@ -88,7 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle RollSpeed = WAngle.Zero;
 
 		[Desc("Minimum altitude where this aircraft is considered airborne.")]
-		public readonly int MinAirborneAltitude = 256;
+		public readonly int MinAirborneAltitude = 1;
 
 		public readonly HashSet<string> LandableTerrainTypes = new HashSet<string>();
 
@@ -244,7 +241,6 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyMoving[] notifyMoving;
 		INotifyCenterPositionChanged[] notifyCenterPositionChanged;
 		IOverrideAircraftLanding overrideAircraftLanding;
-
 		public int[] AccelerationSteps;
 		public int DesiredSpeed { get; set; }
 		public WVec Momentum { get; set; }
@@ -287,7 +283,8 @@ namespace OpenRA.Mods.Common.Traits
 			if ((isIdleTurn && IdleMovementSpeed == 0) || MovementSpeed == 0)
 				return WAngle.Zero;
 
-			var turnSpeed = new WAngle(Momentum.Length < Info.Speed / 5 ? Info.TurnSpeed.Angle : TurnSpeed.Angle * Info.Speed / Momentum.Length);
+			// var turnSpeed = new WAngle(Momentum.Length < Info.Speed / 5 ? Info.TurnSpeed.Angle : TurnSpeed.Angle * Info.Speed / Momentum.Length);
+			var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
 
 			return new WAngle(Util.ApplyPercentageModifiers(turnSpeed.Angle, speedModifiers).Clamp(1, 1024));
 		}
@@ -335,7 +332,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			self = init.Self;
 			AccelerationSteps = Info.Acceleration;
-			DesiredSpeed = Info.Speed;
 			Momentum = new WVec();
 
 			var locationInit = init.GetOrDefault<LocationInit>();
@@ -369,19 +365,6 @@ namespace OpenRA.Mods.Common.Traits
 				pos += offset.PositionOffset;
 
 			return pos;
-		}
-
-		public int GetDeceleratedMomentum(int momentum)
-		{
-			var deceleration = 5;
-
-			if (System.Math.Abs(momentum) <= deceleration)
-				return 0;
-
-			if (momentum > 0)
-				return momentum - deceleration;
-			else
-				return momentum + deceleration;
 		}
 
 		public override IEnumerable<VariableObserver> GetVariableObservers()
@@ -448,8 +431,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void Tick(Actor self)
 		{
-			// Momentum *= 0.9;
-
 			// Add land activity if Aircraft trait is paused and the actor can land at the current location.
 			if (!ForceLanding && IsTraitPaused && airborne && CanLand(self.Location)
 				&& !((self.CurrentActivity is Land) || self.CurrentActivity is Turn))
@@ -673,7 +654,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			return GetVector(10, facing);
 		}
-
 		public WVec GetVector(WVec acceleration)
 		{
 			return Momentum + acceleration;
@@ -794,7 +774,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void OnBecomingIdle(Actor self)
 		{
-			// DesiredSpeed = Info.IdleSpeed;
 			if (Info.IdleBehavior == IdleBehaviorType.LeaveMap)
 			{
 				self.QueueActivity(new FlyOffMap(self));

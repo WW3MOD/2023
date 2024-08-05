@@ -151,9 +151,7 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				// We must return the actor to a sensible height before continuing.
 				// If the aircraft is on the ground we queue TakeOff to manage the influence reservation and takeoff sounds etc.
-				// TODO: It would be better to not take off at all, but we lack the plumbing to detect current airborne/landed state.
 				// If the aircraft lands when idle and is idle, we let the default idle handler manage this.
-				// TODO: Remove this after fixing all activities to work properly with arbitrary starting altitudes.
 				var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
 				var skipHeightAdjustment = landWhenIdle && self.CurrentActivity.IsCanceling && self.CurrentActivity.NextActivity == null;
 				if (aircraft.Info.CanHover && !skipHeightAdjustment && dat != aircraft.Info.CruiseAltitude)
@@ -268,24 +266,20 @@ namespace OpenRA.Mods.Common.Activities
 
 			FlyTowardsTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
 
-			// Adjust speed based on distance to target
-			var distanceToTarget = delta.HorizontalLength;
-			var maxSpeed = aircraft.Info.Speed;
-			var minSpeed = aircraft.Info.MinSpeed;
-			var speedFactor = Math.Min(distanceToTarget / (2 * move.HorizontalLength), 1.0);
-			aircraft.DesiredSpeed = (WDist)(minSpeed.Length + (maxSpeed.Length - minSpeed.Length) * speedFactor);
+			// TODO
 
-			if (positionBuffer.Count == 5)
-				positionBuffer.RemoveAt(0);
-			positionBuffer.Add(aircraft.GetPosition());
+			// // Adjust speed based on distance to target
+			// var distanceToTarget = delta.HorizontalLength;
+			// var maxSpeed = aircraft.Info.Speed;
+			// var minSpeed = aircraft.Info.IdleSpeed;
+			// var speedFactor = Math.Min(distanceToTarget / (2 * move.HorizontalLength), 1.0);
+			// aircraft.DesiredSpeed = (WDist)(minSpeed.Length + (maxSpeed.Length - minSpeed.Length) * speedFactor);
+
+			// if (positionBuffer.Count == 5)
+			// 	positionBuffer.RemoveAt(0);
+			// positionBuffer.Add(aircraft.GetPosition());
 
 			return false;
-		}
-
-		public void RemoveTarget(Aircraft aircraft)
-		{
-			if (aircraft.Targets.Count > 0)
-				aircraft.Targets.RemoveAt(0);
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)
