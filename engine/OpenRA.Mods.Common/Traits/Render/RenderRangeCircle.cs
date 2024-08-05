@@ -51,6 +51,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Range circle border width.")]
 		public readonly float BorderWidth = 0;
 
+		[Desc("Require Shift to be pressed to render circle.")]
+		public readonly bool RequireShift = true;
+
 		// Computed range
 		Lazy<WDist> range;
 
@@ -119,7 +122,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			get
 			{
-				if (IsTraitDisabled)
+				if (IsTraitDisabled || (Info.RequireShift && !Game.GetModifierKeys().HasModifier(Modifiers.Shift)))
 					return false;
 
 				return true;

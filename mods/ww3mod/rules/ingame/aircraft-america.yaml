@@ -250,6 +250,7 @@ HELI:
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
 	RenderRangeCircle@1:
+		Armament: primary
 		Width: 3
 		Color: FFFF00
 	WithMuzzleOverlay:
@@ -277,6 +278,7 @@ HELI:
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
 	RenderRangeCircle@2:
+		Armament: secondary
 		Width: 3
 		Color: 00FFBB
 	AmmoPool@2:
