@@ -47,6 +47,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			"Valid values are combinations of `None`, `Ally`, `Enemy` and `Neutral`.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
 
+		[Desc("Require Shift to be pressed to render circle.")]
+		public readonly bool RequireShift = true;
+
 		[Desc("When to show the range circle. Valid values are `Always`, and `WhenSelected`")]
 		public readonly RangeCircleVisibility Visible = RangeCircleVisibility.WhenSelected;
 
@@ -96,7 +99,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			get
 			{
-				if (IsTraitDisabled)
+				if (IsTraitDisabled || (Info.RequireShift && !Game.GetModifierKeys().HasModifier(Modifiers.Shift)))
 					return false;
 
 				var p = self.World.RenderPlayer;
