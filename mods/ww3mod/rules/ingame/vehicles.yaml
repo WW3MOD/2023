@@ -155,7 +155,7 @@ TRUK:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
 		Prerequisites: ~techlevel.low
-		Description: Resupplies soldiers
+		Description: -A resupply vehicle designed to replenish\n soldiers on the battlefield.\n-Unarmed.
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -217,7 +217,7 @@ MSAR:
 		IconPalette: chrometd
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
-		Description: When deployed, detects enemies within a large radius.
+		Description: -Equipped with radar to detect enemies\n within a large radius when deployed.\n-Light armor.
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:

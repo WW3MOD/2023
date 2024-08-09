@@ -16,7 +16,7 @@ btr:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Amphibious transport. Can transport 8 infantry
+		Description: -Amphibious carrier with a 12.7mm machine gun.\n-Transports up to 8 infantry.\n-Light armor. 
 		IconPalette: chrome
 	RenderSprites:
 		Scale: 0.9
@@ -115,7 +115,7 @@ bmp2:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.low
-		Description: IFV Troop Carrier armed with a 73mm cannon and ATGM
+		Description: -IFV Troop Carrier with a 73mm cannon and ATGM.\n-Medium Armor. 
 	Valued:
 		Cost: 1000
 	Health:
@@ -255,7 +255,7 @@ t90:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Main Battle Tank
+		Description: -Russian Main Battle Tank equipped with a 125mm gun.\n-Heavy armor.
 	Valued:
 		Cost: 2000
 	Health:
@@ -342,7 +342,7 @@ giatsint:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: 152-mm self-propelled howitzer
+		Description: -152-mm self-propelled howitzer with\n powerful indirect fire capabilities.\n-Light armor.
 		IconPalette: chrome
 	Tooltip:
 		Name: 2S5 Giatsint-S
@@ -443,7 +443,7 @@ grad:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: BM-21 Grad long-range rocket artillery.
+		Description: -Long-range rocket artillery system with high explosive payload.\n-Light armor.
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -543,7 +543,7 @@ tos:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Thermobaric Multiple Launch Rocket System
+		Description: -Thermobaric Multiple Launch Rocket System.\n-Designed for high-explosive area attacks.
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -778,7 +778,7 @@ iskander:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.high
-		Description: 9K720 Iskander ballistic missile launcher.
+		Description: -Ballistic missile launcher with high-impact\n missiles for long-range assaults.\n-Features a targeting system for precise strikes.\n-Light armor.
 	Valued:
 		Cost: 3500
 	Tooltip:

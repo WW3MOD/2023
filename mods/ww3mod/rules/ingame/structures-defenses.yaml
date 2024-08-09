@@ -137,7 +137,7 @@ PBOX:
 		Queue: Defense
 		BuildPaletteOrder: 1
 		Prerequisites: ~disabled
-		Description: Reinforced static defense
+		Description: -Reinforced static defense.\n-Can hold up to 2 infantry units.
 	Tooltip:
 		Name: Bunker
 	Valued:
