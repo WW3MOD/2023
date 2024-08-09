@@ -11,7 +11,6 @@
 
 /* Could add Crush Damage, and give that much damage instead of just killing instantly */
 
-using System;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -118,7 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 					return self.Owner.AlliedPlayersMask;
 			else
 				if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
-					return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+				return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
 
 			return self.World.NoPlayersMask;
 

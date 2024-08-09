@@ -236,7 +236,6 @@ namespace OpenRA.Traits
 				// TEST
 				if (visibility != oldResolvedVisibility || disabledChanged)
 				{
-
 					ResolvedVisibility[index] = visibility;
 
 					var puv = touched.PPosFromIndex(index);
@@ -296,11 +295,11 @@ namespace OpenRA.Traits
 			if (sources.ContainsKey(mapLayer))
 				throw new InvalidOperationException("Attempting to add duplicate mapLayer");
 
-			MPos selfLocation = MPos.Zero;
+			var selfLocation = MPos.Zero;
 			if (self != null)
 				selfLocation = self.Location.ToMPos(map);
 
-			VisionSourceNode[] visionSourceNodes = new VisionSourceNode[projectedCells.Length];
+			var visionSourceNodes = new VisionSourceNode[projectedCells.Length];
 
 			var i = 0;
 			foreach (var puv in projectedCells)
@@ -525,10 +524,9 @@ namespace OpenRA.Traits
 			{
 				return check <= 1 ? (byte)1 : check >= 10 ? (byte)10 : check;
 			}
-			else if (Disabled) // ??
-			{
-
-			}
+			/* // ??
+			else if (Disabled)
+			{ } */
 
 			return (byte)5;
 		}

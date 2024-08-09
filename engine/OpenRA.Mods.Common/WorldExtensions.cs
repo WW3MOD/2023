@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common
 		{
 			var actors = FindActorsOnLine(world, start, end, width).ToList();
 
-			return actors.Where(a => a.TraitsImplementing<IBlocksSight>().Count() > 0).ToList();
+			return actors.Where(a => a.TraitsImplementing<IBlocksSight>().Any()).ToList();
 		}
 
 		/// <summary>
