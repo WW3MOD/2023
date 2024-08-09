@@ -36,7 +36,7 @@ namespace OpenRA.Traits
 	{
 		public readonly PPos[] Footprint;
 		public readonly WPos CenterPosition;
-		public readonly Actor actor;
+		public readonly Actor Actor;
 		readonly ICreatesFrozenActors frozenTrait;
 		readonly Player viewer;
 		readonly MapLayers shroud;
@@ -84,7 +84,7 @@ namespace OpenRA.Traits
 
 		public FrozenActor(Actor actor, ICreatesFrozenActors frozenTrait, PPos[] footprint, Player viewer, bool startsRevealed)
 		{
-			this.actor = actor;
+			this.Actor = actor;
 			this.frozenTrait = frozenTrait;
 			this.viewer = viewer;
 			shroud = viewer.MapLayers;
@@ -115,18 +115,18 @@ namespace OpenRA.Traits
 			UpdateVisibility();
 		}
 
-		public uint ID => actor.ActorID;
+		public uint ID => Actor.ActorID;
 		public bool IsValid => Owner != null;
-		public ActorInfo Info => actor.Info;
-		public Actor Actor => !actor.IsDead ? actor : null;
+		public ActorInfo Info => Actor.Info;
+		public Actor Actor => !Actor.IsDead ? Actor : null;
 		public Player Viewer => viewer;
 
 		public void RefreshState()
 		{
-			Owner = actor.Owner;
-			TargetTypes = actor.GetEnabledTargetTypes();
+			Owner = Actor.Owner;
+			TargetTypes = Actor.GetEnabledTargetTypes();
 			targetablePositions.Clear();
-			targetablePositions.AddRange(actor.GetTargetablePositions());
+			targetablePositions.AddRange(Actor.GetTargetablePositions());
 
 			if (health != null)
 			{
@@ -147,7 +147,7 @@ namespace OpenRA.Traits
 			Hidden = false;
 			foreach (var shouldHideModifier in shouldHideModifiers)
 			{
-				if (shouldHideModifier.ShouldHide(actor, viewer))
+				if (shouldHideModifier.ShouldHide(Actor, viewer))
 				{
 					Hidden = true;
 					break;

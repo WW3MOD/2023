@@ -31,9 +31,9 @@ namespace OpenRA.Mods.Common.Warheads
 
 		public readonly WDist[] Range = { WDist.FromCells(1) };
 
-		WDist[] effectiveRange;
+		/* WDist[] effectiveRange;
 
-		/* void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
+		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
 			if (Range != null)
 			{
