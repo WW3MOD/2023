@@ -96,7 +96,7 @@ LCCV:
 # 		Queue: Vehicle
 # 		BuildPaletteOrder: 102
 # 		Prerequisites: ~disabled, ~!aitoodumb, ~techlevel.medium
-# 		Description: Deploys into Field Base
+# 		Description: -Deploys into Field Base.\n-Explodes on destruction.
 # 	Tooltip:
 # 		Name: Mobile Field Base
 # 	Transforms:

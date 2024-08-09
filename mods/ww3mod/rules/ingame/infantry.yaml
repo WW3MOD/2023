@@ -1099,7 +1099,7 @@ E1R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: Rifleman\n Semi automatic rifle\n Single-shot unguided AT weapon
+		Description: -Semi automatic rifle.\n-Single-shot unguided rocket launcher.
 	Valued:
 		Cost: 100
 	AttackFrontal:
@@ -1211,7 +1211,7 @@ E3R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Pins down large groups of enemy soldiers and deals high damage.
+		Description: -Suppresses large enemy groups.\n-Inflicts high damage using a 5.56mm Assault Rifle.
 	Valued:
 		Cost: 100
 	Armament@1:
@@ -1273,7 +1273,7 @@ AR:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: Grenadier\n - Grenade launcher
+		Description: -Uses a 5-round grenade launcher to deliver\n explosive firepower.
 	Valued:
 		Cost: 100
 	Armament@1:
@@ -1341,7 +1341,7 @@ E2R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
-		Description: Team leader. Boosts morale of nearby soldiers.
+		Description: -Boosts morale of nearby soldiers.\n-Equipped with a 7.62mm Designated Rifle and\n a grenade launcher.
 	Valued:
 		Cost: 200
 	ProximityExternalCondition@TLBoost:
@@ -1424,7 +1424,11 @@ TL:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
-		Description: 60mm mortar
+		Description: -Armed with a 60mm mortar.\n-Provides indirect fire support with explosive shells.
+
+
+
+
 	Valued:
 		Cost: 300
 	UpdatesPlayerStatistics:
@@ -1492,7 +1496,7 @@ MT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: Elite sniper infantry unit.\n
+		Description: -Equipped with a 7.62mm sniper rifle.\n-Excels in long-range precision shooting.
 	Valued:
 		Cost: 400
 	UpdatesPlayerStatistics:
@@ -1559,7 +1563,7 @@ SN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: Anti-tank Specialist
+		Description: -Equipped with an ATGM.\n-Targets high-priority threats.
 	Tooltip:
 		Name: AT Specialist
 	Valued:
@@ -1691,7 +1695,7 @@ AA:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: - Can repair damaged buildings and bridges.\n- Carries 3 C4 charges/mines.
+		Description: -Can repair damaged buildings and bridges.\n-Equipped with an MP5.\n-Carries 3 C4 charges and mines.
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
@@ -1832,7 +1836,7 @@ E6:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 11
 		Prerequisites: ~disabled
-		Description: Close-range anti-structure unit.\nMay explode on death.
+		Description: -Close-range anti-structure unit.\n-May explode on death.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1910,7 +1914,7 @@ E4:
 		Prerequisites: ~disabled
 		Queue: Infantry
 		IconPalette: chrome
-		Description: Infiltration unit that can swim and climb. Uses suppressor to reduce detection when firing and carries 3 C4 charges.
+		Description: -Skilled in swimming and climbing.\n-Equipped with a silenced 5.56mm DMR for stealth.\n-3 C4 charges for demolition.
 	Mobile:
 		Speed: 32
 		Locomotor: foot-amphibious-mountainer
@@ -2006,7 +2010,7 @@ SF:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 13
 		Prerequisites: ~disabled
-		Description: - Heals wounded soldiers.\n- Unarmed
+		Description: -Heals wounded soldiers.\n-Unarmed.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -2066,7 +2070,7 @@ MEDI:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 16
 		Prerequisites: ~disabled
-		Description: Operates buildings
+		Description: -Operates buildings and captures neutral structures.
 	Valued:
 		Cost: 250
 	Passenger:
@@ -2097,7 +2101,7 @@ TECN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 70
 		Prerequisites: ~disabled
-		Description: Drone operator
+		Description: -Operates drones with targeting and jamming capabilities.\n-Specialized in indirect fire and reconnaissance.
 	Valued:
 		Cost: 150
 	AutoTarget:
@@ -2291,7 +2295,7 @@ PILOTR4:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 15
 		Prerequisites: ~disabled
-		Description: Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
+		Description: -Woof wooffff. Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
 	Tooltip:
 		Name: Attack Dog
 		GenericName: Dog
