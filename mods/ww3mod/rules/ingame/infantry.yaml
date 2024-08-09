@@ -1777,7 +1777,7 @@ AA:
 		Range: 2c0
 		DetectionTypes: Mine
 	MineImmune:
-		RequiresCondition: deployed
+		# RequiresCondition: deployed # refers to a trait field `RequiresCondition` that does not exist on `MineImmune`.
 	ExternalCondition@MineProximity:
 		Condition: mine-proximity
 	GrantCondition:

@@ -290,10 +290,10 @@ SUPPLYROUTE:
 	# 	TicksBetweenNotifications: 100
 	Detectable:
 		Vision: 1
+	# FrozenUnderFog: 
+	# FrozenUnderFogUpdatedByGps:
 	Guardable:
 		Range: 20c0
-	FrozenUnderFog:
-	FrozenUnderFogUpdatedByGps:
 	MapEditorData:
 		Categories: Building
 	CommandBarBlacklist:
@@ -487,9 +487,6 @@ HPAD:
 		HP: 15000
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate
-	InfiltrateForSupportPower:
-		Proxy: aircraft.upgraded
-		Types: SpyInfiltrate
 	Armor:
 		Type: Concrete
 	Production:
@@ -562,9 +559,6 @@ AFLD:
 		HP: 20000
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, SpyInfiltrate
-	InfiltrateForSupportPower:
-		Proxy: aircraft.upgraded
-		Types: SpyInfiltrate
 	Armor:
 		Type: Concrete
 	Production:

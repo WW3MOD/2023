@@ -900,7 +900,7 @@ IskanderMissile:
 		Image: smokey2
 		Palette: effect_ts
 		MovingInterval: 1
-		Position: Center
+		# Position: Center # refers to a trait field `Position` that does not exist on `LeavesTrailsCA`.
 		Offsets: -200, 0, 0
 	MissileSpawnerSlave:
 	SpawnedExplodes:

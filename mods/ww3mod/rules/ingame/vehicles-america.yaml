@@ -379,12 +379,10 @@ bradley:
 		CustomPipType: pip-green
 	RenderRangeCircle@1:
 		Armament: primary
-		Range: 21c0
 		Color: FFFF00
 		Alpha: 100
 	RenderRangeCircle@2:
 		Armament: secondary
-		Range: 25c0
 		Color: 00FF00
 		Alpha: 100
 	WithDamageOverlay:
