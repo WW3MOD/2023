@@ -109,7 +109,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public RenderRangeCircle(Actor self, RenderRangeCircleInfo info)
 			: base(info)
 		{
-			this.Info = info;
+			Info = info;
 			this.self = self;
 		}
 

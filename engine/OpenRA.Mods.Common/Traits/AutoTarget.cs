@@ -477,7 +477,6 @@ namespace OpenRA.Mods.Common.Traits
 					chosenTargetSuppression = priorityCondition ?? 0;
 					chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
 				}
-
 			}
 
 			if (chosenTarget.Actor != null)

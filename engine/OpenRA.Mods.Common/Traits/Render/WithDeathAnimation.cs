@@ -109,10 +109,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses) { }
 
-		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
-		{
-
-		}
+		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses) { }
 
 		void INotifyBeingPassed.OnBeingCrushed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{

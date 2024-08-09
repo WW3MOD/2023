@@ -194,6 +194,7 @@ namespace OpenRA
 					err -= dy;
 					startX += sx;
 				}
+
 				if (e2 < dx)
 				{
 					err += dx;
