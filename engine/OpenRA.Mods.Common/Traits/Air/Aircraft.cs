@@ -1,8 +1,4 @@
 #region Copyright & License Information
-using System.IO.Enumeration;
-using System.IO;
-using System.Security.AccessControl;
-using System.Text.RegularExpressions;
 /*
  * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
@@ -67,10 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] Acceleration = { 1, 3, 1 };
 
 		[Desc("Maximum flight speed when cruising.")]
-		public readonly int Speed = 100;
-
-		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
-		public readonly int[] Acceleration = { 3, 2, 1 };
+		public readonly int Speed = 1;
 
 		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
 		public readonly int IdleSpeed = -1;
@@ -149,7 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle MaximumPitch = WAngle.FromDegrees(10);
 
 		[Desc("How fast this actor ascends or descends when moving vertically only (vertical take off/landing or hovering towards CruiseAltitude).")]
-		public readonly WDist AltitudeVelocity = new WDist(10);
+		public readonly WDist AltitudeVelocity = new WDist(43);
 
 		[Desc("Sounds to play when the actor is taking off.")]
 		public readonly string[] TakeoffSounds = Array.Empty<string>();
@@ -247,10 +240,6 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyMoving[] notifyMoving;
 		INotifyCenterPositionChanged[] notifyCenterPositionChanged;
 		IOverrideAircraftLanding overrideAircraftLanding;
-		public int[] AccelerationSteps;
-		public int DesiredSpeed { get; set; }
-		public WVec Momentum { get; set; }
-		public WAngle LastDesiredFacing;
 
 		WRot orientation;
 
@@ -289,7 +278,6 @@ namespace OpenRA.Mods.Common.Traits
 			if ((isIdleTurn && IdleMovementSpeed == 0) || MovementSpeed == 0)
 				return WAngle.Zero;
 
-			// var turnSpeed = new WAngle(Momentum.Length < Info.Speed / 5 ? Info.TurnSpeed.Angle : TurnSpeed.Angle * Info.Speed / Momentum.Length);
 			var turnSpeed = isIdleTurn ? IdleTurnSpeed ?? TurnSpeed : TurnSpeed;
 
 			return new WAngle(Util.ApplyPercentageModifiers(turnSpeed.Angle, speedModifiers).Clamp(1, 1024));
@@ -298,11 +286,6 @@ namespace OpenRA.Mods.Common.Traits
 		public Actor ReservedActor { get; private set; }
 		public bool MayYieldReservation { get; private set; }
 		public bool ForceLanding { get; private set; }
-		public bool IsSliding
-		{
-			get => Facing.Angle - Momentum.Yaw.Angle != 0;
-		}
-		public List<Target> Targets = new List<Target>();
 
 		(CPos, SubCell)[] landingCells = Array.Empty<(CPos, SubCell)>();
 		bool requireForceMove;
@@ -314,12 +297,6 @@ namespace OpenRA.Mods.Common.Traits
 		public static WPos GroundPosition(Actor self)
 		{
 			return self.CenterPosition - new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(self.CenterPosition));
-		}
-
-		public bool ShouldSlide(WAngle? desiredFacing = null)
-		{
-			return Info.CanSlide && Momentum.Length <= 50;
-			// return Info.CanSlide && (IsSliding || (Momentum.Length <= 50));
 		}
 
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
@@ -337,8 +314,6 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			self = init.Self;
-			AccelerationSteps = Info.Acceleration;
-			Momentum = new WVec();
 
 			var locationInit = init.GetOrDefault<LocationInit>();
 			if (locationInit != null)
@@ -530,7 +505,7 @@ namespace OpenRA.Mods.Common.Traits
 			// HACK: Prevent updating visibility twice per tick. We really shouldn't be
 			// moving twice in a tick in the first place.
 			notify = false;
-			SetPosition(self, CenterPosition + GetVector(speed, repulsionForce.Yaw));
+			SetPosition(self, CenterPosition + FlyStep(speed, repulsionForce.Yaw));
 			notify = true;
 		}
 
@@ -577,7 +552,7 @@ namespace OpenRA.Mods.Common.Traits
 				return repulsionForce;
 
 			// Non-hovering actors mush always keep moving forward, so they need extra calculations.
-			var currentDir = GetVector(Facing);
+			var currentDir = FlyStep(Facing);
 			var length = currentDir.HorizontalLength * repulsionForce.HorizontalLength;
 			if (length == 0)
 				return WVec.Zero;
@@ -687,7 +662,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public int MovementSpeed => !IsTraitDisabled && !IsTraitPaused ? Util.ApplyPercentageModifiers(Info.Speed, speedModifiers) : 0;
-		public int IdleMovementSpeed => Info.IdleSpeed <= 0 ? MovementSpeed :
+		public int IdleMovementSpeed => Info.IdleSpeed < 0 ? MovementSpeed :
 			!IsTraitDisabled && !IsTraitPaused ? Util.ApplyPercentageModifiers(Info.IdleSpeed, speedModifiers) : 0;
 
 		public (CPos Cell, SubCell SubCell)[] OccupiedCells()
@@ -695,21 +670,12 @@ namespace OpenRA.Mods.Common.Traits
 			return landingCells;
 		}
 
-		public WVec GetAcceleration(WAngle facing)
+		public WVec FlyStep(WAngle facing)
 		{
-			return GetVector(10, facing);
-		}
-		public WVec GetVector(WVec acceleration)
-		{
-			return Momentum + acceleration;
+			return FlyStep(MovementSpeed, facing);
 		}
 
-		public WVec GetVector(WAngle facing)
-		{
-			return GetVector(MovementSpeed, facing);
-		}
-
-		public WVec GetVector(int speed, WAngle facing)
+		public WVec FlyStep(int speed, WAngle facing)
 		{
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
 			return speed * dir / 1024;

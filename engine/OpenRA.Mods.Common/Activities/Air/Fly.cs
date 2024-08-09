@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -32,30 +31,27 @@ namespace OpenRA.Mods.Common.Activities
 		bool useLastVisibleTarget;
 		readonly List<WPos> positionBuffer = new List<WPos>();
 
-		// Constructor with nearEnough parameter
 		public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
 			: this(self, t, initialTargetPosition, targetLineColor)
 		{
 			this.nearEnough = nearEnough;
 		}
 
-		// Main constructor
 		public Fly(Actor self, in Target t, WPos? initialTargetPosition = null, Color? targetLineColor = null)
 		{
 			aircraft = self.Trait<Aircraft>();
-			aircraft.DesiredSpeed = aircraft.Info.Speed; // Set initial desired speed to max speed
 			target = t;
 			this.targetLineColor = targetLineColor;
 
-			// Determine initial last visible target
+			// The target may become hidden between the initial order request and the first tick (e.g. if queued)
+			// Moving to any position (even if quite stale) is still better than immediately giving up
 			if ((target.Type == TargetType.Actor && target.Actor.CanBeViewedByPlayer(self.Owner))
-				|| target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
+			    || target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
 				lastVisibleTarget = Target.FromPos(target.CenterPosition);
 			else if (initialTargetPosition.HasValue)
 				lastVisibleTarget = Target.FromPos(initialTargetPosition.Value);
 		}
 
-		// Constructor with range parameters
 		public Fly(Actor self, in Target t, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
 			: this(self, t, initialTargetPosition, targetLineColor)
@@ -64,22 +60,17 @@ namespace OpenRA.Mods.Common.Activities
 			this.minRange = minRange;
 		}
 
-		// Core function for moving the aircraft towards the target position
-		public static void FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
+		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			var move = aircraft.ShouldSlide() ? aircraft.GetVector(aircraft.GetAcceleration(desiredFacing)) : aircraft.GetVector(aircraft.Facing);
+			var move = aircraft.Info.CanSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
 			if (moveOverride != WVec.Zero)
-			{
-				aircraft.Momentum = new WVec();
 				move = moveOverride;
-			}
 
 			var oldFacing = aircraft.Facing;
 			var turnSpeed = aircraft.GetTurnSpeed(idleTurn);
 			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
-			// Handle roll for turning
 			var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
 			if (roll != WAngle.Zero)
 			{
@@ -89,11 +80,11 @@ namespace OpenRA.Mods.Common.Activities
 				aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
 			}
 
-			// Handle pitch for ascending or descending
 			if (aircraft.Info.Pitch != WAngle.Zero)
 				aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
 
-			// Adjust altitude if needed
+			// Note: we assume that if move.Z is not zero, it's intentional and we want to move in that vertical direction instead of towards desiredAltitude.
+			// If that is not desired, the place that calls this should make sure moveOverride.Z is zero.
 			if (dat != desiredAltitude || move.Z != 0)
 			{
 				var maxDelta = move.HorizontalLength * aircraft.Info.MaximumPitch.Tan() / 1024;
@@ -102,17 +93,15 @@ namespace OpenRA.Mods.Common.Activities
 				move = new WVec(move.X, move.Y, deltaZ);
 			}
 
-			aircraft.Momentum = move;
 			aircraft.SetPosition(self, aircraft.CenterPosition + move);
 		}
 
-		// Overloaded function without moveOverride
-		public static void FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
+		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
 		{
-			FlyTowardsTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
+			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
 		}
 
-		// Function for handling vertical take-off or landing
+		// Should only be used for vertical-only movement, usually VTOL take-off or land. Terrain-induced altitude changes should always be handled by FlyTick.
 		public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
@@ -134,16 +123,17 @@ namespace OpenRA.Mods.Common.Activities
 			return true;
 		}
 
-		// Main tick function that gets called each frame
 		public override bool Tick(Actor self)
 		{
+			// Refuse to take off if it would land immediately again.
 			if (aircraft.ForceLanding)
 				Cancel(self);
 
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 			var isLanded = dat <= aircraft.LandAltitude;
 
-			// Prevent paused aircraft from taking off
+			// HACK: Prevent paused (for example, EMP'd) aircraft from taking off.
+			// This is necessary until the TODOs in the IsCanceling block below are addressed.
 			if (isLanded && aircraft.IsTraitPaused)
 				return false;
 
@@ -151,7 +141,9 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				// We must return the actor to a sensible height before continuing.
 				// If the aircraft is on the ground we queue TakeOff to manage the influence reservation and takeoff sounds etc.
+				// TODO: It would be better to not take off at all, but we lack the plumbing to detect current airborne/landed state.
 				// If the aircraft lands when idle and is idle, we let the default idle handler manage this.
+				// TODO: Remove this after fixing all activities to work properly with arbitrary starting altitudes.
 				var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
 				var skipHeightAdjustment = landWhenIdle && self.CurrentActivity.IsCanceling && self.CurrentActivity.NextActivity == null;
 				if (aircraft.Info.CanHover && !skipHeightAdjustment && dat != aircraft.Info.CruiseAltitude)
@@ -166,8 +158,7 @@ namespace OpenRA.Mods.Common.Activities
 
 				return true;
 			}
-
-			if (isLanded)
+			else if (isLanded)
 			{
 				QueueChild(new TakeOff(self));
 				return false;
@@ -198,23 +189,22 @@ namespace OpenRA.Mods.Common.Activities
 
 			var isSlider = aircraft.Info.CanSlide;
 			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+			var move = isSlider ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
 
-			// Calculate move vector based on acceleration
-			var move = isSlider ? aircraft.GetVector(aircraft.GetAcceleration(desiredFacing)) : aircraft.GetVector(aircraft.Facing);
-
-			// Handle reversing if inside minimum range
+			// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
 			if (insideMinRange)
 			{
 				if (isSlider)
-					FlyTowardsTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
+					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
 				else
 				{
-					FlyTowardsTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
+					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
 				}
 
 				return false;
 			}
 
+			// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
 			// Stop if we are blocked and close enough
 			if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
 				delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
@@ -225,29 +215,32 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				// For VTOL landing to succeed, it must reach the exact target position,
 				// so for the final move it needs to behave as if it had CanSlide.
-				if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
+				if (isSlider || aircraft.Info.VTOL)
 				{
 					// Set final (horizontal) position
 					if (delta.HorizontalLengthSquared != 0)
 					{
 						// Ensure we don't include a non-zero vertical component here that would move us away from CruiseAltitude
 						var deltaMove = new WVec(delta.X, delta.Y, 0);
-						FlyTowardsTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, deltaMove);
+						FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
 					}
-					else
-						VerticalTakeOffOrLandTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
-				}
-				else
-					FlyTowardsTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, delta);
 
-				return false;
+					// Move to CruiseAltitude, if not already there
+					if (dat != aircraft.Info.CruiseAltitude)
+					{
+						Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+						return false;
+					}
+				}
+
+				return true;
 			}
 
-			if (!aircraft.ShouldSlide())
+			if (!isSlider)
 			{
 				// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
 				// If it contains the destination point, it's unreachable without more complex maneuvering.
-				var turnRadius = CalculateTurnRadius(aircraft.DesiredSpeed, aircraft.TurnSpeed);
+				var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
 
 				// The current facing is a tangent of the minimal turn circle.
 				// Make a perpendicular vector, and use it to locate the turn's center.
@@ -267,20 +260,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (positionBuffer.Count > 5)
 				positionBuffer.RemoveAt(0);
 
-			FlyTowardsTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
-
-			// TODO
-
-			// // Adjust speed based on distance to target
-			// var distanceToTarget = delta.HorizontalLength;
-			// var maxSpeed = aircraft.Info.Speed;
-			// var minSpeed = aircraft.Info.IdleSpeed;
-			// var speedFactor = Math.Min(distanceToTarget / (2 * move.HorizontalLength), 1.0);
-			// aircraft.DesiredSpeed = (WDist)(minSpeed.Length + (maxSpeed.Length - minSpeed.Length) * speedFactor);
-
-			// if (positionBuffer.Count == 5)
-			// 	positionBuffer.RemoveAt(0);
-			// positionBuffer.Add(aircraft.GetPosition());
+			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
 
 			return false;
 		}
