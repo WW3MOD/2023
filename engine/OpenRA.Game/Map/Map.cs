@@ -445,7 +445,6 @@ namespace OpenRA
 			{
 				if (s != null)
 				{
-
 					DensityLayer = new CellLayer<byte>(this);
 					ShadowLayer = new CellLayer<CellLayer<byte>>(this);
 
@@ -468,25 +467,25 @@ namespace OpenRA
 			Uid = ComputeUID(Package, MapFormat);
 		}
 
-		// MapCoordsRegion ValidCellsAround(MPos from, byte size)
-		// {
-		// 	int topLeftX = from.U - size;
-		// 	int topLeftY = from.V - size;
-		// 	int bottomRightX = from.U + size;
-		// 	int bottomRightY = from.V + size;
+		/* MapCoordsRegion ValidCellsAround(MPos from, byte size)
+		{
+			int topLeftX = from.U - size;
+			int topLeftY = from.V - size;
+			int bottomRightX = from.U + size;
+			int bottomRightY = from.V + size;
 
-		// 	if (topLeftX < 0)
-		// 		topLeftX = 0;
-		// 	if (topLeftY < 0)
-		// 		topLeftY = 0;
+			if (topLeftX < 0)
+				topLeftX = 0;
+			if (topLeftY < 0)
+				topLeftY = 0;
 
-		// 	if (bottomRightX + 1 > AllCells.Size.Width)
-		// 		bottomRightX = 0;
-		// 	if (bottomRightY + 1 > AllCells.Size.Height)
-		// 		bottomRightY = 0;
+			if (bottomRightX + 1 > AllCells.Size.Width)
+				bottomRightX = 0;
+			if (bottomRightY + 1 > AllCells.Size.Height)
+				bottomRightY = 0;
 
-		// 	return new MapCoordsRegion(new MPos(topLeftX, topLeftY), new MPos(bottomRightX, bottomRightY));
-		// }
+			return new MapCoordsRegion(new MPos(topLeftX, topLeftY), new MPos(bottomRightX, bottomRightY));
+		} */
 
 		void PostInit()
 		{
@@ -551,6 +550,7 @@ namespace OpenRA
 						terrainTypeModifier = 0;
 						break;
 				}
+
 				ModifyVisualLayer[uv] = terrainTypeModifier;
 			}
 
@@ -814,9 +814,7 @@ namespace OpenRA
 					{
 						writer.Write(ShadowLayer[fromUV][toUV]);
 					}
-
 				}
-
 			}
 
 			return dataStream.ToArray();
@@ -1206,7 +1204,6 @@ namespace OpenRA
 			return projectedHeight[(MPos)puv];
 		}
 
-
 		public WAngle FacingBetween(CPos cell, CPos towards, WAngle fallbackfacing)
 		{
 			var delta = CenterOfCell(towards) - CenterOfCell(cell);
@@ -1573,4 +1570,3 @@ namespace OpenRA
 		}
 	}
 }
-

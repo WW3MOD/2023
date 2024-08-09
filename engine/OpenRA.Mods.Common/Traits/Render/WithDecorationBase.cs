@@ -32,7 +32,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Should this be visible only when selected?")]
 		public readonly bool RequiresSelection = false;
 
-
 		[Desc("Should this be visible only when a set of modifiers are held?")]
 		public readonly string[] RequiredModifiers = { };
 

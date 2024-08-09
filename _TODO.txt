@@ -3,7 +3,6 @@ BETA release 0.1
 
 - Update unit texts
 
-- Revert aircraft
 - Remove air / AA units from game (Remove Air support from starting units and AA units from others)
 
 - Port removal failed: Error 714: NoSuchEntryInArray

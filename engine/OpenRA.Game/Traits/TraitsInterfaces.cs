@@ -53,7 +53,6 @@ namespace OpenRA.Traits
 		int MaxHP { get; }
 		int DisplayHP { get; }
 		bool IsDead { get; }
-
 		void InflictDamage(Actor self, Actor attacker, Damage damage, bool ignoreModifiers);
 		void Kill(Actor self, Actor attacker, BitSet<DamageType> damageTypes);
 	}

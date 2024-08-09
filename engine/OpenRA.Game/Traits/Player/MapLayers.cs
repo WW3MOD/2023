@@ -354,7 +354,8 @@ namespace OpenRA.Traits
 
 			foreach (var node in source.VisionSourceNodes)
 			{
-				if (node == null) // Temp solution, the last 10 or so entries are null because the position formats are weird.
+				// Temp solution, the last 10 or so entries are null because the position formats are weird.
+				if (node == null)
 					break;
 
 				var puv = node.Cell;
@@ -547,8 +548,8 @@ namespace OpenRA.Traits
 					return (byte)resolved;
 
 					// For modifying based on cell type, but removed since shadow caster was implemented.
-					byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
-					return (byte)Normalize((byte)(resolved - modify));
+					// byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+					// return (byte)Normalize((byte)(resolved - modify));
 				}
 			}
 
