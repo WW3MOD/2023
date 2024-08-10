@@ -13,7 +13,7 @@ humvee:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Fast scout with MG and TOW Missiles
+		Description: The High Mobility Multipurpose Wheeled Vehicle (HMMWV), commonly known as the Humvee, is a light utility vehicle for transporting infantry while providing direct fire support.\n\n - 7.62mm medium machine gun\n-Light armor.\n-Carries 8 infantry.
 	Valued:
 		Cost: 700
 	Tooltip:
@@ -164,7 +164,7 @@ m113:
 		Queue: Vehicle
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Amphibious transport. Can transport 12 infantry
+		Description: The M113 is an amphibious fully tracked armored personnel carrier.\n\n - 12.7mm heavy machine gun\n - Transports 12 infantry.\n - Light armor
 		IconPalette: chrome
 	RenderSprites:
 		Image: m113
@@ -270,7 +270,7 @@ bradley:
 		Queue: Vehicle
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Troop Carrier Infantry Fighting Vehicle
+		Description: The Bradley Fighting Vehicle is a tracked armored fighting vehicle designed to transport infantry or scouts with armor protection, while providing covering fire to suppress enemy troops and armored vehicles.\n\n -25mm chaingun\n - 2× wire-guided anti-tank missiles.\n - Carries 6 infantry.\n - Medium armor.
 	Valued:
 		Cost: 1600
 	UpdatesPlayerStatistics:
@@ -413,7 +413,7 @@ abrams:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: American Main Battle tank
+		Description: Main battle tank conceived for modern armored ground warfare - 120mm gun.\n-Heavy armor.
 	Valued:
 		Cost: 2000
 	Health:
@@ -670,7 +670,7 @@ m109:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: M109 Paladin, long range howitzer
+		Description: Self-propelled turreted howitzer for long range sustained artillery bombardment with quick deployment and moderate accuracy. \n\n - 155mm cannon\n - Must be stationary to fire\n - Light armor
 	Tooltip:
 		Name: Paladin
 	AnnounceOnSeen:
@@ -776,7 +776,7 @@ m270:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Long-range rocket artillery with hight area of effect.
+		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 12× 227mm rockets\n - Light armor
 	Valued:
 		Cost: 2000
 	Tooltip:

@@ -6,7 +6,7 @@ MNLY:
 		Queue: Defense
 		BuildPaletteOrder: 104
 		Prerequisites: ~techlevel.medium
-		Description: Carries and lays up to 10 Land Mines\nto destroy unwary enemy units.\nCan detect mines.
+		Description: Carries 10 land mines effective against vehicles and infantry.
 	Valued:
 		Cost: 600
 	Tooltip:

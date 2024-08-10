@@ -155,7 +155,7 @@ TRUK:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
 		Prerequisites: ~techlevel.low
-		Description: Resupplies soldiers
+		Description: Carries ammunition to resupply soldiers on the battlefield.\n\n - Unarmed.\n - Unarmored.\n - Only replenishes infantry.
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -168,7 +168,7 @@ TRUK:
 	Armor:
 		Type: Unarmored
 	Targetable:
-		TargetTypes: Ground, Vehicle, DemoDisguise, Unarmored
+		TargetTypes: Ground, Vehicle, Unarmored
 		RequiresCondition: !parachute
 	Mobile:
 		Locomotor: wheeled
@@ -205,19 +205,19 @@ MSAR:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
 	Tooltip:
-		Name: Mobile Radar
+		Name: Ranging system
 	ActorLostNotification:
-		TextNotification: Lost: Mobile Radar
+		TextNotification: Lost: Ranging system
 	AnnounceOnSeen:
 		Type: SupportVehicle
-		TextNotification: Spotted: Mobile Radar
+		TextNotification: Spotted: Ranging system
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 99
 		IconPalette: chrometd
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
-		Description: When deployed, detects enemies within a large radius.
+		Description: The ranging system is intended to locate artillery batteries from the sound of gunfire to facilitate effective counter artillery fire.\n\n - Deploys\n - Light armor.
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:

@@ -6,7 +6,7 @@ LCCV:
 		Queue: Building
 		BuildPaletteOrder: 1
 		Prerequisites: ~techlevel.low
-		Description: Deploys into Logistics Center
+		Description: Deploys into a Logistics Center, capable of rearming vehicles and infantry on the field.
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -96,7 +96,7 @@ LCCV:
 # 		Queue: Vehicle
 # 		BuildPaletteOrder: 102
 # 		Prerequisites: ~disabled, ~!aitoodumb, ~techlevel.medium
-# 		Description: Deploys into Field Base
+# 		Description: -Deploys into Field Base.\n-Explodes on destruction.
 # 	Tooltip:
 # 		Name: Mobile Field Base
 # 	Transforms:
