@@ -168,7 +168,7 @@ production-icons:
 		aircraft: 68, 68, 16, 16
 		aircraft-disabled: 68, 85, 16, 16
 		aircraft-alert: 68, 102, 16, 16
-		ship: 187, 68, 16, 16
+		# ship: 187, 68, 16, 16
 		ship-disabled: 187, 85, 16, 16
 		ship-alert: 187, 102, 16, 16
 		fakestructure: 171, 51, 16, 16

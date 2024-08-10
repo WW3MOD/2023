@@ -1,9 +1,9 @@
-
-BETA release 0.1
+Done:
 
 - Update unit texts
-
 - Remove air / AA units from game (Remove Air support from starting units and AA units from others)
+
+BETA release 0.1
 
 - Port removal failed: Error 714: NoSuchEntryInArray
 Exception of type `System.IndexOutOfRangeException`: Index was outside the bounds of the array.
