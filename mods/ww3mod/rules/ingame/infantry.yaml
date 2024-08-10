@@ -1099,7 +1099,7 @@ E1R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: -Semi automatic rifle.\n-Single-shot unguided rocket launcher.
+		Description: Provides the baseline standard for all infantry soldiers and is an integral part of the fire team.\n\n - 5.56mm rifle\n - One-shot disposable anti-tank weapon.
 	Valued:
 		Cost: 100
 	AttackFrontal:
@@ -1211,7 +1211,7 @@ E3R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: -Suppresses large enemy groups.\n-Inflicts high damage using a 5.56mm Assault Rifle.
+		Description: Provides the unit with a high volume of sustained suppressive direct fires of area targets.\n\n - 5.56mm light machine gun
 	Valued:
 		Cost: 100
 	Armament@1:
@@ -1273,7 +1273,7 @@ AR:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: -Uses a 5-round grenade launcher to deliver\n explosive firepower.
+		Description: Provides the fire team with a high explosive capability to suppress and destroy enemy infantry and lightly armored vehicles.\n\n - Grenade launcher\n
 	Valued:
 		Cost: 100
 	Armament@1:
@@ -1341,7 +1341,7 @@ E2R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
-		Description: -Boosts morale of nearby soldiers.\n-Equipped with a 7.62mm Designated Rifle and\n a grenade launcher.
+		Description: Leads his team members by personal example. During combat he takes on the role of designated marksman for the fire team and can launch grenades for added effect.\n\n - 7.62mm designated marksman rifle\n - Underslung 40mm grenade launcher\n - Boosts morale of nearby soldiers
 	Valued:
 		Cost: 200
 	ProximityExternalCondition@TLBoost:
@@ -1424,11 +1424,7 @@ TL:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
-		Description: -Armed with a 60mm mortar.\n-Provides indirect fire support with explosive shells.
-
-
-
-
+		Description: - Provides long range capabilities to the assigned unit, suppressing and destroying enemy infantry and light vehicles with HE shells.\n\n - 60mm mortar
 	Valued:
 		Cost: 300
 	UpdatesPlayerStatistics:
@@ -1496,7 +1492,7 @@ MT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: -Equipped with a 7.62mm sniper rifle.\n-Excels in long-range precision shooting.
+		Description: Adept in stealth, camouflage, infiltration, and observation techniques. Engages targets from distances exceeding the target's detection capabilities. \n - 7.62mm high-precision rifle.\n - Prioritizes high value targets.\n- Trained to avoid detection (-2 visibility).
 	Valued:
 		Cost: 400
 	UpdatesPlayerStatistics:
@@ -1563,7 +1559,7 @@ SN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: -Equipped with an ATGM.\n-Targets high-priority threats.
+		Description: Provides medium and heavy anti-armor fire in support of the infantry unit.\n - Anti-tank guided missile launcher.\n - Carries 3 missiles.\n- Top attack mode.
 	Tooltip:
 		Name: AT Specialist
 	Valued:
@@ -1628,7 +1624,7 @@ AT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 9
 		Prerequisites: ~disabled
-		Description: Anti-air Specialist
+		Description: Provides short range anti-air capabilities the infantry unit.\n - Anti-air missile launcher.\n - Carries 3 missiles.
 	Tooltip:
 		Name: AA Specialist
 	Valued:
@@ -1689,13 +1685,13 @@ AA:
 	Inherits@Type: ^CamoSoldier
 	# Inherits@Selection: ^SelectableSupportUnit
 	Tooltip:
-		Name: Engineer
+		Name: Combat Engineer
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: -Can repair damaged buildings and bridges.\n-Equipped with an MP5.\n-Carries 3 C4 charges and mines.
+		Description: Explosives expert that can clear and lay mines, as well as repair or demolish structures.\n\n - 9mm sub machine gun.\n - Carries 3 explosives for demolition or to place as mines.
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
@@ -1836,7 +1832,7 @@ E6:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 11
 		Prerequisites: ~disabled
-		Description: -Close-range anti-structure unit.\n-May explode on death.
+		Description: Provides a wide area of destruction on both infantry and light vehicles, causing clusters of enemy soldiers to panic.\n\n - Flamethrower.\n - Volitile.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1914,7 +1910,7 @@ E4:
 		Prerequisites: ~disabled
 		Queue: Infantry
 		IconPalette: chrome
-		Description: -Skilled in swimming and climbing.\n-Equipped with a silenced 5.56mm DMR for stealth.\n-3 C4 charges for demolition.
+		Description: Infiltration unit able to conduct offensive raids, demolitions and reconnaissance missions in support of the battalion.\n\n - 5.56mm suppressed rifle.\n- 3 C4 charges with delayed fuse. \n- Operates on any terrain.
 	Mobile:
 		Speed: 32
 		Locomotor: foot-amphibious-mountainer
@@ -2010,7 +2006,7 @@ SF:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 13
 		Prerequisites: ~disabled
-		Description: -Heals wounded soldiers.\n-Unarmed.
+		Description: Administers emergency medical care in the field.\n\n - Heals wounded soldiers.\n - Unarmed.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -2101,7 +2097,7 @@ TECN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 70
 		Prerequisites: ~disabled
-		Description: -Operates drones with targeting and jamming capabilities.\n-Specialized in indirect fire and reconnaissance.
+		Description: Specialist in operating and countering drones.\n\n - Reconnaisance drone\n - Drone jammer weapon
 	Valued:
 		Cost: 150
 	AutoTarget:
@@ -2295,9 +2291,10 @@ PILOTR4:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 15
 		Prerequisites: ~disabled
-		Description: -Woof wooffff. Anti-infantry detection unit.\nGains lost life back whenever Eating. Can smell hidden units from afar
+		# TODO: Implement this, and fix the broken LeapAttack that does no damage
+		Description: Provides a unique capability for search teams to find and engage hidden infantry. \n\n The military working dog listens to verbal commands by your infantry which means it must be close to your infantry. Commands will be performed before it returns back, and during the time it is far away it cannot recieve any new commands.
 	Tooltip:
-		Name: Attack Dog
+		Name: Military K-9
 		GenericName: Dog
 	Valued:
 		Cost: 100

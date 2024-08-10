@@ -137,7 +137,7 @@ PBOX:
 		Queue: Defense
 		BuildPaletteOrder: 1
 		Prerequisites: ~disabled
-		Description: -Reinforced static defense.\n-Can hold up to 2 infantry units.
+		Description: Reinforced static defense with room for 2 soldiers.
 	Tooltip:
 		Name: Bunker
 	Valued:
@@ -187,7 +187,7 @@ HBOX:
 		Queue: Defense
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: Camouflaged emplacement
+		Description: Camouflaged defense emplacement with room for 2 soldiers.
 	Tooltip:
 		Name: Camo Pillbox
 	Valued:
@@ -225,7 +225,7 @@ SBAG:
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
+		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.
 	Valued:
 		Cost: 50
 	CustomSellValue:
@@ -254,7 +254,7 @@ FENC:
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.\nBuilds further than Concrete walls.
+		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.
 	Valued:
 		Cost: 50
 	CustomSellValue:
