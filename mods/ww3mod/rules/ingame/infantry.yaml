@@ -1615,70 +1615,70 @@ SN:
 AT:
 	Inherits: ^AT
 
-# Anti Air
-^AA:
-	Inherits@Type: ^CamoSoldier
-	Inherits@AutoTarget: ^AutoTargetAir
-	Buildable:
-		Queue: Infantry
-		BuildAtProductionType: Soldier
-		BuildPaletteOrder: 9
-		Prerequisites: ~disabled
-		Description: Provides short range anti-air capabilities the infantry unit.\n - Anti-air missile launcher.\n - Carries 3 missiles.
-	Tooltip:
-		Name: AA Specialist
-	Valued:
-		Cost: 300
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	SpeedMultiplier:
-		Modifier: 90
-	Armament@1:
-		Name: primary
-		Weapon: MANPAD
-		PauseOnCondition: !ammo-primary
-	AmmoPool@1:
-		Name: primary-ammo
-		Armaments: primary
-		Ammo: 3
-		AmmoCondition: ammo-primary
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
-		Sound: minelay1.aud
-		RequiresCondition: replenish-soldiers
-	WithAmmoPipsDecoration@1:
-		Position: Bottom
-		Margin: 4, 3
-		PipCount: 3
-		RequiresSelection: true
-		FullSequence: pip-blue
-		AmmoPools: primary-ammo
-		RequiresCondition: ammo-primary
-	RenderRangeCircle@1:
-		Armament: primary
-		Alpha: 80
-		Color: 66B2FF
-	NextBurstBar@1:
-		Armaments: primary
-		Color: 66B2FF
-	Rearmable:
-		RearmActors: truk, logisticscenter
-		AmmoPools: primary-ammo
-	WithInfantryBody:
-		DefaultAttackSequence: shoot
-		RequiresCondition: !parachute
-	Passenger:
-		CustomPipType: aa_class
-	WithDecoration@Class:
-		Sequence: aa_class
-	Selectable:
-		Class: AA
-	RenderSprites:
-		Scale: 0.5
-AA:
-	Inherits: ^AA
+# # Anti Air
+# ^AA:
+# 	Inherits@Type: ^CamoSoldier
+# 	Inherits@AutoTarget: ^AutoTargetAir
+# 	Buildable:
+# 		Queue: Infantry
+# 		BuildAtProductionType: Soldier
+# 		BuildPaletteOrder: 9
+# 		Prerequisites: ~disabled
+# 		Description: Provides short range anti-air capabilities the infantry unit.\n - Anti-air missile launcher.\n - Carries 3 missiles.
+# 	Tooltip:
+# 		Name: AA Specialist
+# 	Valued:
+# 		Cost: 300
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	SpeedMultiplier:
+# 		Modifier: 90
+# 	Armament@1:
+# 		Name: primary
+# 		Weapon: MANPAD
+# 		PauseOnCondition: !ammo-primary
+# 	AmmoPool@1:
+# 		Name: primary-ammo
+# 		Armaments: primary
+# 		Ammo: 3
+# 		AmmoCondition: ammo-primary
+# 	ReloadAmmoPool@1:
+# 		AmmoPool: primary-ammo
+# 		FullReloadTicks: 200
+# 		FullReloadSteps: 3
+# 		Sound: minelay1.aud
+# 		RequiresCondition: replenish-soldiers
+# 	WithAmmoPipsDecoration@1:
+# 		Position: Bottom
+# 		Margin: 4, 3
+# 		PipCount: 3
+# 		RequiresSelection: true
+# 		FullSequence: pip-blue
+# 		AmmoPools: primary-ammo
+# 		RequiresCondition: ammo-primary
+# 	RenderRangeCircle@1:
+# 		Armament: primary
+# 		Alpha: 80
+# 		Color: 66B2FF
+# 	NextBurstBar@1:
+# 		Armaments: primary
+# 		Color: 66B2FF
+# 	Rearmable:
+# 		RearmActors: truk, logisticscenter
+# 		AmmoPools: primary-ammo
+# 	WithInfantryBody:
+# 		DefaultAttackSequence: shoot
+# 		RequiresCondition: !parachute
+# 	Passenger:
+# 		CustomPipType: aa_class
+# 	WithDecoration@Class:
+# 		Sequence: aa_class
+# 	Selectable:
+# 		Class: AA
+# 	RenderSprites:
+# 		Scale: 0.5
+# AA:
+# 	Inherits: ^AA
 
 # Engineer
 ^E6:
@@ -2275,91 +2275,91 @@ PILOTR4:
 	UpdatesPlayerStatistics:
 		OverrideActor: PILOT
 
-# Attack Dog
-^DOG:
-	Inherits@Soldier: ^Soldier
-	-AttackFrontal:
-	-ExternalCondition@Suppression:
-	-WithDecoration@AmmoNone:
-	-WithDecoration@AmmoPrimaryNone:
-	-WithDecoration@AmmoReplenishing:
-	-WithDecoration@Class:
-	-HitShape@Cover:
-	-WithInfantryBody@Parachute:
-	Buildable:
-		Queue: Infantry
-		BuildAtProductionType: Soldier
-		BuildPaletteOrder: 15
-		Prerequisites: ~disabled
-		# TODO: Implement this, and fix the broken LeapAttack that does no damage
-		Description: Provides a unique capability for search teams to find and engage hidden infantry. \n\n The military working dog listens to verbal commands by your infantry which means it must be close to your infantry. Commands will be performed before it returns back, and during the time it is far away it cannot recieve any new commands.
-	Tooltip:
-		Name: Military K-9
-		GenericName: Dog
-	Valued:
-		Cost: 100
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Health:
-		HP: 100
-	Mobile:
-		Speed: 80
-		Voice: Move
-		PauseOnCondition: attack-cooldown || eating
-	HitShape@Dog:
-		RequiresCondition: deployed || !moving
-		Type: Circle
-			Radius: 12
-	HitShape@Moving:
-		RequiresCondition: moving
-		Type: Circle
-			Radius: 6
-	AutoTarget:
-		InitialStance: AttackAnything
-		ScanRadius: 25
-		MinimumScanTimeInterval: 16
-		MaximumScanTimeInterval: 32
-	AutoTargetPriority@Infantry:
-		ValidTargets: Infantry
-	Guard:
-		Voice: Move
-	IgnoresDisguise:
-	Armament:
-		Weapon: DogJaw
-		ReloadingCondition: attack-cooldown
-	AttackLeap:
-		Speed: 120
-		Voice: Attack
-		PauseOnCondition: attacking || attack-cooldown
-	AttackMove:
-		Voice: Move
-	GrantConditionOnAttack:
-		Condition: eating
-		RevokeDelay: 45
-	GrantConditionWhileAiming:
-		Condition: run
-	Targetable:
-		TargetTypes: Ground, Infantry
-	WithInfantryBody:
-		MoveSequence: walk
-		StandSequences: stand
-		DefaultAttackSequence: eat
-		RequiresCondition: !run
-	WithInfantryBody@RUN:
-		MoveSequence: run
-		RequiresCondition: run
-	SpeedMultiplier:
-		Modifier: 150
-		RequiresCondition: run
-	Voiced:
-		VoiceSet: DogVoice
-	Passenger:
-		Voice: Move
-		CustomPipType: dog_class
-	RenderSprites:
-		Scale: 0.6
-DOG:
-	Inherits: ^DOG
+# # Attack Dog
+# ^DOG:
+# 	Inherits@Soldier: ^Soldier
+# 	-AttackFrontal:
+# 	-ExternalCondition@Suppression:
+# 	-WithDecoration@AmmoNone:
+# 	-WithDecoration@AmmoPrimaryNone:
+# 	-WithDecoration@AmmoReplenishing:
+# 	-WithDecoration@Class:
+# 	-HitShape@Cover:
+# 	-WithInfantryBody@Parachute:
+# 	Buildable:
+# 		Queue: Infantry
+# 		BuildAtProductionType: Soldier
+# 		BuildPaletteOrder: 15
+# 		Prerequisites: ~disabled
+# 		# TODO: Implement this, and fix the broken LeapAttack that does no damage
+# 		Description: Provides a unique capability for search teams to find and engage hidden infantry. \n\n The military working dog listens to verbal commands by your infantry which means it must be close to your infantry. Commands will be performed before it returns back, and during the time it is far away it cannot recieve any new commands.
+# 	Tooltip:
+# 		Name: Military K-9
+# 		GenericName: Dog
+# 	Valued:
+# 		Cost: 100
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Health:
+# 		HP: 100
+# 	Mobile:
+# 		Speed: 80
+# 		Voice: Move
+# 		PauseOnCondition: attack-cooldown || eating
+# 	HitShape@Dog:
+# 		RequiresCondition: deployed || !moving
+# 		Type: Circle
+# 			Radius: 12
+# 	HitShape@Moving:
+# 		RequiresCondition: moving
+# 		Type: Circle
+# 			Radius: 6
+# 	AutoTarget:
+# 		InitialStance: AttackAnything
+# 		ScanRadius: 25
+# 		MinimumScanTimeInterval: 16
+# 		MaximumScanTimeInterval: 32
+# 	AutoTargetPriority@Infantry:
+# 		ValidTargets: Infantry
+# 	Guard:
+# 		Voice: Move
+# 	IgnoresDisguise:
+# 	Armament:
+# 		Weapon: DogJaw
+# 		ReloadingCondition: attack-cooldown
+# 	AttackLeap:
+# 		Speed: 120
+# 		Voice: Attack
+# 		PauseOnCondition: attacking || attack-cooldown
+# 	AttackMove:
+# 		Voice: Move
+# 	GrantConditionOnAttack:
+# 		Condition: eating
+# 		RevokeDelay: 45
+# 	GrantConditionWhileAiming:
+# 		Condition: run
+# 	Targetable:
+# 		TargetTypes: Ground, Infantry
+# 	WithInfantryBody:
+# 		MoveSequence: walk
+# 		StandSequences: stand
+# 		DefaultAttackSequence: eat
+# 		RequiresCondition: !run
+# 	WithInfantryBody@RUN:
+# 		MoveSequence: run
+# 		RequiresCondition: run
+# 	SpeedMultiplier:
+# 		Modifier: 150
+# 		RequiresCondition: run
+# 	Voiced:
+# 		VoiceSet: DogVoice
+# 	Passenger:
+# 		Voice: Move
+# 		CustomPipType: dog_class
+# 	RenderSprites:
+# 		Scale: 0.6
+# DOG:
+# 	Inherits: ^DOG
 
 # Infiltrating Spy
 # ^SPY:

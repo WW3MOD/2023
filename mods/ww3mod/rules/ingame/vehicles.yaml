@@ -148,59 +148,6 @@
 		RequiresCondition: moving
 		Modifier: 150
 
-TRUK:
-	Inherits@Type: ^WheeledVehicle
-	Inherits@Selection: ^SelectableSupportUnit
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 103
-		Prerequisites: ~techlevel.low
-		Description: Carries ammunition to resupply soldiers on the battlefield.\n\n - Unarmed.\n - Unarmored.\n - Only replenishes infantry.
-	Valued:
-		Cost: 600
-	Tooltip:
-		Name: Supply Truck
-	AnnounceOnSeen:
-		Type: SupportVehicle
-		TextNotification: Spotted: Supply truck
-	ActorLostNotification:
-		TextNotification: Lost: Supply Truck
-	Armor:
-		Type: Unarmored
-	Targetable:
-		TargetTypes: Ground, Vehicle, Unarmored
-		RequiresCondition: !parachute
-	Mobile:
-		Locomotor: wheeled
-		Speed: 75
-		Acceleration: 7, 6, 5, 4, 3, 2, 1
-	Carryable:
-		LocalOffset: 0,0,100
-	Passenger:
-		CustomPipType: pip-blue
-	RearmsUnits:
-		CloseEnough: 1c0
-	ProximityExternalCondition@ReplenishSoldiers:
-		Condition: replenish-soldiers
-		Range: 4c0
-		RequiresCondition: !disabled && !mobile
-		ValidRelationships: Ally
-	Armament@ReplenishSoldiersTargeter:
-		Name: replenish
-		Weapon: ReplenishSoldiersTargeter
-		Cursor: guard
-		OutsideRangeCursor: guard
-	AttackTurreted:
-		Armaments: replenish
-	Turreted:
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
-	SpawnActorOnDeath:
-		Actor: TRUK.husk
-
 MSAR:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
@@ -279,6 +226,242 @@ MSAR:
 	# RangedGpsMiniMapProvider:
 	# 	Range: 50c0
 	# 	RequiresCondition: deployed && !empdisable
+
+MNLY:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 98
+		Prerequisites: ~techlevel.medium
+		Description: Carries 10 land mines effective against vehicles and infantry.
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Minelayer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 85
+	Minelayer:
+		Mine: MINV
+		AmmoPoolName: mines-ammo
+		TileUnknownName: build-valid
+		TerrainTypes: Clear, Road, Beach, Rough, Bridge
+	# MineImmune: # if friendly mines?
+	AmmoPool:
+		Name: mines-ammo
+		Ammo: 10
+		AmmoCondition: ammo-mines
+		FullReloadTicks: 200
+		FullReloadSteps: 5
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration:
+		Position: Bottom
+		Margin: 7,3
+		PipCount: 5
+		RequiresSelection: true
+		FullSequence: pip-white
+		AmmoPools: mines-ammo
+		RequiresCondition: ammo-mines
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: mines-ammo
+	# DetectCloaked:
+	# 	Range: 4c0
+	# 	DetectionTypes: Mine
+	Passenger:
+		CustomPipType: pip-blue
+	RenderSprites:
+		Image: MNLY
+	Carryable:
+		LocalOffset: 0,0,100
+	WithDecoration@AMMO_MINES_NONE:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-ammo-none
+		Position: Top
+		Margin: 0,-5
+		RequiresCondition: !ammo-mines
+		BlinkInterval: 16
+		BlinkPattern: Off,On
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: MNLY.husk
+
+TRUK:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 103
+		Prerequisites: ~techlevel.low
+		Description: Carries ammunition to resupply soldiers on the battlefield.\n\n - Unarmed.\n - Unarmored.\n - Only replenishes infantry.
+	Valued:
+		Cost: 600
+	Tooltip:
+		Name: Supply Truck
+	AnnounceOnSeen:
+		Type: SupportVehicle
+		TextNotification: Spotted: Supply truck
+	ActorLostNotification:
+		TextNotification: Lost: Supply Truck
+	Armor:
+		Type: Unarmored
+	Targetable:
+		TargetTypes: Ground, Vehicle, Unarmored
+		RequiresCondition: !parachute
+	Mobile:
+		Locomotor: wheeled
+		Speed: 75
+		Acceleration: 7, 6, 5, 4, 3, 2, 1
+	Carryable:
+		LocalOffset: 0,0,100
+	Passenger:
+		CustomPipType: pip-blue
+	RearmsUnits:
+		CloseEnough: 1c0
+	ProximityExternalCondition@ReplenishSoldiers:
+		Condition: replenish-soldiers
+		Range: 4c0
+		RequiresCondition: !disabled && !mobile
+		ValidRelationships: Ally
+	Armament@ReplenishSoldiersTargeter:
+		Name: replenish
+		Weapon: ReplenishSoldiersTargeter
+		Cursor: guard
+		OutsideRangeCursor: guard
+	AttackTurreted:
+		Armaments: replenish
+	Turreted:
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: TRUK.husk
+
+LCCV:
+	Inherits@Type: ^WheeledVehicle
+	Inherits@Selection: ^SelectableSupportUnit
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 150
+		Prerequisites: ~techlevel.low
+		Description: Deploys into a Logistics Center, capable of rearming vehicles and infantry on the field.
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: Logistics Center MCV
+	Selectable:
+		DecorationBounds: 1792,1792
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	Mobile:
+		Speed: 71
+		Locomotor: heavywheeled
+	Transforms:
+		IntoActor: logisticscenter
+		Offset: -1,-1
+		Facing: 384
+		TransformSounds: placbldg.aud, build5.aud
+		NoTransformNotification: BuildingCannotPlaceAudio
+		PauseOnCondition: empdisable
+	MustBeDestroyed:
+		RequiredForShortGame: true
+	SpawnActorOnDeath:
+		Actor: MCV.Husk
+	Passenger:
+		Weight: 30
+		CustomPipType: pip-blue
+	GpsDot:
+		String: MCV
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	RenderSprites:
+		Image: mcv
+		Scale: 0.8
+
+# SandBagLayer:
+# 	Inherits@Type: ^TrackedVehicle
+# 	Inherits@Selection: ^SelectableSupportUnit
+# 	Buildable:
+# 		Queue: Defense
+# 		BuildPaletteOrder: 104
+# 		Prerequisites: ~techlevel.medium
+# 		Description: Can deploy sandbags
+# 	Valued:
+# 		Cost: 600
+# 	Tooltip:
+# 		Name: Sandbag-layer
+# 	UpdatesPlayerStatistics:
+# 		AddToArmyValue: true
+# 	Armor:
+# 		Type: Light
+# 	Targetable:
+# 		TargetTypes: Ground,Vehicle,Light
+# 	Mobile:
+# 		Speed: 85
+# 	Minelayer:
+# 		Mine: SBAG
+# 		AmmoPoolName: mines-ammo
+# 		TileUnknownName: build-valid
+# 		TerrainTypes: Clear,Road,Beach,Rough,Bridge
+# 	AmmoPool:
+# 		Name: mines-ammo
+# 		Ammo: 5
+# 		AmmoCondition: ammo-mines
+# 		FullReloadTicks: 200
+# 		FullReloadSteps: 5
+# 		RearmSound: minelay1.aud
+# 	WithAmmoPipsDecoration:
+# 		Position: Bottom
+# 		Margin: 7,3
+# 		PipCount: 5
+# 		RequiresSelection: true
+# 		FullSequence: pip-white
+# 		AmmoPools: mines-ammo
+# 		RequiresCondition: ammo-mines
+# 	Rearmable:
+# 		RearmActors: logisticscenter
+# 		AmmoPools: mines-ammo
+# 	Passenger:
+# 		CustomPipType: pip-blue
+# 	RenderSprites:
+# 		Image: MNLY
+# 	Carryable:
+# 		LocalOffset: 0,0,100
+# 	WithDecoration@AMMO_MINES_NONE:
+# 		RequiresSelection: false
+# 		Image: pips
+# 		Sequence: pip-ammo-none
+# 		Position: Top
+# 		Margin: 0,-5
+# 		RequiresCondition: !ammo-mines
+# 		BlinkInterval: 16
+# 		BlinkPattern: Off,On
+# 	WithDamageOverlay:
+# 		Image: smoke_mtd
+# 		Palette: temptd
+# 	Explodes:
+# 		Weapon: ArtilleryExplode
+# 	SpawnActorOnDeath:
+# 		Actor: MNLY.husk
+
 
 # timberwolf:
 # 	Inherits@Type: ^Walker

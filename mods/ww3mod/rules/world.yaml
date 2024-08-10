@@ -348,7 +348,7 @@ World:
 		ClassName: Platoon
 		Factions: america
 		BaseActor: supplyroute
-		SupportActors: TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
+		SupportActors: TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, MT.america,AT.america,DR.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
 	StartingUnits@platoon_russia:
@@ -356,7 +356,7 @@ World:
 		ClassName: Platoon
 		Factions: russia
 		BaseActor: supplyroute
-		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
+		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, MT.russia,AT.russia,DR.russia,SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
 
@@ -365,7 +365,7 @@ World:
 		ClassName: Motorized
 		Factions: america
 		BaseActor: supplyroute
-		SupportActors: abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
+		SupportActors: abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,DR.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 	StartingUnits@Motorized_russia:
@@ -373,26 +373,26 @@ World:
 		ClassName: Motorized
 		Factions: russia
 		BaseActor: supplyroute
-		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
+		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,DR.russia,DSN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-	StartingUnits@AirSupport_america:
-		Class: air
-		ClassName: Air support
-		Factions: america
-		BaseActor: supplyroute
-		SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
-		InnerSupportRadius: 5
-		OuterSupportRadius: 7
-	StartingUnits@AirSupport_russia:
-		Class: air
-		ClassName: Air support
-		Factions: russia
-		BaseActor: supplyroute
-		SupportActors: t90,bmp2,tunguska, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia, HIND,HIND,HALO
-		InnerSupportRadius: 5
-		OuterSupportRadius: 7
+	# StartingUnits@AirSupport_america:
+	# 	Class: air
+	# 	ClassName: Air support
+	# 	Factions: america
+	# 	BaseActor: supplyroute
+	# 	SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
+	# 	InnerSupportRadius: 5
+	# 	OuterSupportRadius: 7
+	# StartingUnits@AirSupport_russia:
+	# 	Class: air
+	# 	ClassName: Air support
+	# 	Factions: russia
+	# 	BaseActor: supplyroute
+	# 	SupportActors: t90,bmp2,tunguska, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia, HIND,HIND,HALO
+	# 	InnerSupportRadius: 5
+	# 	OuterSupportRadius: 7
 
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
