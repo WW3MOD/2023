@@ -16,7 +16,7 @@ btr:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: -Amphibious carrier with a 12.7mm machine gun.\n-Transports up to 8 infantry.\n-Light armor. 
+		Description: 8×8 wheeled amphibious armoured personnel carrier.\n\n - 14.5mm machine gun.\n - Transports up to 8 infantry.\n-Light armor.
 		IconPalette: chrome
 	RenderSprites:
 		Scale: 0.9
@@ -115,9 +115,9 @@ bmp2:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.low
-		Description: -IFV Troop Carrier with a 73mm cannon and ATGM.\n-Medium Armor. 
+		Description: Amphibious infantry fighting vehicle capable of engaging both infantry and armored targets at long range.\n\n - 30mm autocannon\n - Wire-guided anti-tank misslile\n - Medium Armor.
 	Valued:
-		Cost: 1000
+		Cost: 1300
 	Health:
 		HP: 7000
 	Armor:
@@ -148,7 +148,7 @@ bmp2:
 		Modifier: 25
 	Armament@1:
 		Name: primary
-		Weapon: 73mm_BMP
+		Weapon: 30mm.BMP2
 		Recoil: 85
 		RecoilRecovery: 25
 		LocalOffset: 500,0,100
@@ -255,7 +255,7 @@ t90:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: -Russian Main Battle Tank equipped with a 125mm gun.\n-Heavy armor.
+		Description: Fills the role of armour-protected direct fire and maneuver in the army. - 125mm gun\n - Heavy armor
 	Valued:
 		Cost: 2000
 	Health:
@@ -342,7 +342,7 @@ giatsint:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: -152-mm self-propelled howitzer with\n powerful indirect fire capabilities.\n-Light armor.
+		Description: Self-propelled howitzer for sustained long range artillery bombardment with quick deployment and moderate accuracy.\n\n - 152mm cannon\n - Must be stationary to fire\n - Light armor
 		IconPalette: chrome
 	Tooltip:
 		Name: 2S5 Giatsint-S
@@ -443,7 +443,7 @@ grad:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: -Long-range rocket artillery system with high explosive payload.\n-Light armor.
+		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 40× 122mm rockets\n - Light armor
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -543,7 +543,7 @@ tos:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: -Thermobaric Multiple Launch Rocket System.\n-Designed for high-explosive area attacks.
+		Description: Medium-range tracked multiple launch rocket system with good protection. Thermobaric rockets cause extreme casualties to infantry and light vehicles with less effect on armored targets.\n\n - 24× 220mm thermobaric rockets\n - Medium armor
 	Valued:
 		Cost: 2000
 	Tooltip:

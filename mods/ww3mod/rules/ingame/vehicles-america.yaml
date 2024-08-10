@@ -670,7 +670,7 @@ m109:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Self-propelled turreted howitzer for long range sustained artillery bombardment with quick deployment time.\n\n - 155mm cannon\n - Light armor
+		Description: Self-propelled turreted howitzer for long range sustained artillery bombardment with quick deployment and moderate accuracy. \n\n - 155mm cannon\n - Must be stationary to fire\n - Light armor
 	Tooltip:
 		Name: Paladin
 	AnnounceOnSeen:
@@ -776,7 +776,7 @@ m270:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 227mm unguided rockets\n - Light armor
+		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 12× 227mm rockets\n - Light armor
 	Valued:
 		Cost: 2000
 	Tooltip:

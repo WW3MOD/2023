@@ -380,12 +380,35 @@ AACannon:
 	ReloadDelay: 250
 	Burst: 4
 	BurstRandomize: 2
-	BurstDelays: 4
-	BurstWait: 15
+	BurstDelays: 3
+	BurstWait: 20
 	Report: cannon2.aud
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 0c312
+	Warhead@Target: TargetDamage
+		Damage: 500
+		Penetration: 60
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 24
+		Damage: 100
+		DamageTypes: SmallExplosionDeath
+
+30mm.BMP2:
+	Inherits@Caliber: ^30mm
+	Range: 19c0
+	MinRange: 1c512
+	Magazine: 300
+	ReloadDelay: 250
+	Burst: 6
+	BurstRandomize: 2
+	BurstDelays: 2
+	BurstWait: 15
+	Report: cannon2.aud
+	Projectile: Bullet
+		Speed: 900
+		Inaccuracy: 0c392
 	Warhead@Target: TargetDamage
 		Damage: 500
 		Penetration: 60
