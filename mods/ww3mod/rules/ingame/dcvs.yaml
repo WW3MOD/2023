@@ -6,7 +6,7 @@ MNLY:
 		Queue: Defense
 		BuildPaletteOrder: 104
 		Prerequisites: ~techlevel.medium
-		Description: -Can deploy 10 Land Mines.
+		Description: Carries 10 land mines effective against vehicles and infantry.
 	Valued:
 		Cost: 600
 	Tooltip:
