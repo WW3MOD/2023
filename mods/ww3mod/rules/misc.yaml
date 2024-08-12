@@ -8,9 +8,7 @@
 	WithSpriteBody:
 	RenderSprites:
 		Scale: 0.5
-	Detectable:
-		Vision: 1
-		AlwaysVisibleRelationships: Ally
+	FrozenUnderFog:
 	Passable:
 		PassClasses: mine
 		CrushedByRelationships: Enemy, Neutral
