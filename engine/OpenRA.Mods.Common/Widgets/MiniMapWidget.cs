@@ -254,7 +254,7 @@ namespace OpenRA.Mods.Common.Widgets
 				color = Color.Black.ToArgb();
 			else
 			{
-				var alpha = 250 - cv * 25;
+				var alpha = 200 - cv * 20;
 				color = Color.FromArgb(alpha, Color.Black).ToArgb();
 			}
 
