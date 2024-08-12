@@ -2,6 +2,9 @@ Done:
 
 - Update unit texts
 - Remove air / AA units from game (Remove Air support from starting units and AA units from others)
+- Remove Iskander and Himars
+- Remove Dog
+- Remove sandbag layer
 
 BETA release 0.1
 
@@ -39,10 +42,6 @@ Exception of type `System.IndexOutOfRangeException`: Index was outside the bound
     - Drop down for army upkeep
     - Fix tech levels
     - Disable Debug by default
-
-- Remove Iskander and Himars
-- Remove Dog
-- Remove sandbag layer
 
 - Minimap too dark under fog
 

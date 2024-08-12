@@ -288,10 +288,10 @@ SUPPLYROUTE:
 		AreaTypes: building
 	# CaptureNotification:
 	# 	TicksBetweenNotifications: 100
-	Detectable:
-		Vision: 1
-	# FrozenUnderFog: 
-	# FrozenUnderFogUpdatedByGps:
+	# Detectable:
+	# 	Vision: 1
+	FrozenUnderFog:
+	FrozenUnderFogUpdatedByGps:
 	Guardable:
 		Range: 20c0
 	MapEditorData:

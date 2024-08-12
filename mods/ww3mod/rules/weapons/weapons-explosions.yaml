@@ -100,6 +100,7 @@ BarrelExplode:
 
 ATMine:
 	BottomAttack: true
+	Inherits@HitEffects: ^HugeExplosionEffects
 	Warhead@Spread: TargetDamage
 		Damage: 10000
 		Spread: 512
@@ -114,12 +115,6 @@ ATMine:
 		AffectsParent: true
 		InvalidTargets: Mine
 		DamageTypes: ExplosionDeath
-	Warhead@Effect: CreateEffect
-		Explosions: explosion_large
-		ImpactSounds: kaboom25.aud
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Structure, Wall, Trees
 
 OreExplosion:
 	Warhead@Spread: SpreadDamage
