@@ -1,4 +1,3 @@
-
 ^Mine:
 	Inherits: ^SpriteActor
 	Tooltip:
@@ -8,6 +7,11 @@
 	WithSpriteBody:
 	RenderSprites:
 		Scale: 0.5
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+		TerrainTypes: Clear, Road, Beach, Rough, Bridge
+		DontAttackedNotify: true
 	FrozenUnderFog:
 	Passable:
 		PassClasses: mine
@@ -29,11 +33,10 @@
 		UncloakSound:
 		Palette:
 		DetectionTypes: Mine
+		CloakDelay: 2147483647 # Once discovered, stays uncloaked
 		InitialDelay: 0
 	Targetable:
 		TargetTypes: Mine
-	Immobile:
-		OccupiesSpace: true
 	HitShape:
 	MapEditorData:
 		Categories: System
