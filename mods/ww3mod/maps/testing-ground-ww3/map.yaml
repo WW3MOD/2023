@@ -26,7 +26,7 @@ Players:
 		Name: Creeps
 		NonCombatant: True
 		Faction: Random
-		Enemies: Multi0
+		Enemies: NATO, Russia, Multi0, Multi1
 	PlayerReference@NATO:
 		Name: NATO
 		Faction: america
@@ -42,6 +42,11 @@ Players:
 		Playable: True
 		Faction: Random
 		Enemies: Creeps, NATO, Russia
+	PlayerReference@Multi1:
+		Name: Multi1
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
 
 Actors:
 	Actor0: mpspawn
@@ -877,3 +882,45 @@ Actors:
 		Facing: 384
 		Location: 70,69
 		SubCell: 3
+	Actor256: mpspawn
+		Owner: Neutral
+		Location: 128,63
+	Actor257: minv
+		Owner: Multi1
+		Location: 25,64
+	Actor258: minv
+		Owner: Multi1
+		Location: 24,64
+	Actor259: minv
+		Owner: Multi1
+		Location: 23,64
+	Actor260: minv
+		Owner: Multi1
+		Location: 22,64
+	Actor261: minv
+		Owner: Multi1
+		Location: 21,64
+	Actor262: minv
+		Owner: Multi1
+		Location: 20,64
+	Actor263: minv
+		Owner: Multi1
+		Location: 19,64
+	Actor264: minv
+		Owner: Multi1
+		Location: 18,64
+	Actor265: minv
+		Owner: Multi1
+		Location: 17,64
+	Actor266: minv
+		Owner: Multi1
+		Location: 15,64
+	Actor267: minv
+		Owner: Multi1
+		Location: 16,64
+	Actor268: minv
+		Owner: Multi1
+		Location: 14,64
+	Actor269: minv
+		Owner: Multi1
+		Location: 13,64
