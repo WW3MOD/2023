@@ -210,13 +210,13 @@ Player:
 		Prerequisite: brics.or.russia
 	ProvidesPrerequisite@IsPlaying:
 		Prerequisite: player.online
-	LobbyPrerequisiteCheckbox@NAVYDISABLER:
-		ID: disablenavy
-		Label: Disable Navy
-		Description: Use this to fix spamming Cruisers in ponds
-		Enabled: True
-		DisplayOrder: 12
-		Prerequisites: global-disablenavy
+	# LobbyPrerequisiteCheckbox@NAVYDISABLER:
+	# 	ID: disablenavy
+	# 	Label: Disable Navy
+	# 	Description: Use this to fix spamming Cruisers in ponds
+	# 	Enabled: True
+	# 	DisplayOrder: 12
+	# 	Prerequisites: global-disablenavy
 	GameSaveViewportManager:
 	PlayerMiniMapTerrain:
 	# LobbyPrerequisiteCheckbox@GlobalPenalty:
@@ -226,13 +226,13 @@ Player:
 	# 	Enabled: False
 	# 	DisplayOrder: 99
 	# 	Prerequisites: global-penalty
-	LobbyPrerequisiteCheckbox@NuclearAllowed:
-		ID: nuclearallowed
-		Label: Nuclear
-		Description: The conflict has escallated to nuclear warfare.
-		Enabled: False
-		DisplayOrder: 300
-		Prerequisites: global-nuclear
+	# LobbyPrerequisiteCheckbox@NuclearAllowed:
+	# 	ID: nuclearallowed
+	# 	Label: Nuclear
+	# 	Description: The conflict has escallated to nuclear warfare.
+	# 	Enabled: False
+	# 	DisplayOrder: 300
+	# 	Prerequisites: global-nuclear
 	# ParatroopersPower@RUSSIAParatroopers:
 	# 	OrderName: RussiaParatroopers
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted

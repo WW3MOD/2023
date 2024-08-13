@@ -87,7 +87,6 @@ namespace OpenRA.Mods.Common.Traits
 			GoDonateCash(self, order.Target, order.Queued);
 		}
 
-
 		public void GoDonateCash(Actor self, Target target, bool queued)
 		{
 			var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();

@@ -373,7 +373,7 @@ World:
 		ClassName: Motorized
 		Factions: russia
 		BaseActor: supplyroute
-		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,DR.russia,DSN.russia,MEDI.russia
+		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,DR.russia, SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 

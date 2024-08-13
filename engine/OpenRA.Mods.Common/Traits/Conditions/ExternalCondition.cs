@@ -204,7 +204,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.ReduceTicks > 0 && worldTick % Info.ReduceTicks == 0)
 			{
 				// Reduce the permanent tokens
-
 				foreach (var kvp in permanentTokens)
 				{
 					foreach (var token in kvp.Value)
@@ -217,18 +216,15 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				// while (count < permanentTokens.Count)
-				// {
-				// 	if (count >= Info.ReduceAmount)
-				// 		break;
-
-				// 	var token = permanentTokens[count];
-
-				// 	// if (self.TokenValid(token))
-				// 	// 	self.RevokeCondition(token);
-
-				// 	count++;
-				// }
+				/* while (count < permanentTokens.Count)
+				{
+					if (count >= Info.ReduceAmount)
+						break;
+					var token = permanentTokens[count];
+					// if (self.TokenValid(token))
+					// 	self.RevokeCondition(token);
+					count++;
+				} */
 			}
 
 			if (timedTokens.Count == 0)

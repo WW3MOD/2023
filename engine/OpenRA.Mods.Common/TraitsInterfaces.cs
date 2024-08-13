@@ -54,7 +54,6 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface IBlocksSightInfo : ITraitInfoInterface { }
 
-
 	[RequireExplicitImplementation]
 	public interface IBlocksProjectiles
 	{

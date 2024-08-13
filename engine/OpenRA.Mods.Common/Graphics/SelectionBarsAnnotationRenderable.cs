@@ -153,8 +153,7 @@ namespace OpenRA.Mods.Common.Graphics
 			var start = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Left + 1, decorationBounds.Bottom));
 			var end = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Right - 1, decorationBounds.Bottom));
 
-			// if (DisplayHealth)
-			// 	DrawHealthBar(health, start, end);
+			// if (DisplayHealth) DrawHealthBar(health, start, end);
 
 			if (DisplayExtra)
 				DrawExtraBars(start, end);

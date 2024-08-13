@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public readonly bool RequiresSelection = false;
 
 		[Desc("Should this be visible only when a set of modifiers are held?")]
-		public readonly string[] RequiredModifiers = { };
+		public readonly string[] RequiredModifiers = Array.Empty<string>();
 
 		[Desc("Offset sprite center position from the selection box edge.")]
 		public readonly int2 Margin = int2.Zero;
