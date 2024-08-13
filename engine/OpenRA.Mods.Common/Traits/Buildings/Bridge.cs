@@ -359,11 +359,33 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		private void RemoveActorsFromFootprint(Actor self)
+		{
+			foreach (var cell in footprint.Keys)
+			{
+				var actorsInCell = self.World.ActorMap.GetActorsAt(cell);
+				foreach (var actor in actorsInCell)
+				{
+					// Check if the actor is not a bridge
+					if (actor != self)
+					{
+						// Kill the actor
+						actor.Kill(self);
+					}
+				}
+			}
+		}
+
 		void INotifyDamageStateChanged.DamageStateChanged(Actor self, AttackInfo e)
 		{
+			if (e.DamageState == DamageState.Dead)
+			{
+				RemoveActorsFromFootprint(self);
+			}
+
 			Do((b, d) => b.UpdateState());
 
-			// Need to update the neighbours neighbour to correctly
+			// Need to update the neighbour's neighbour to correctly
 			// display the broken shore hack
 			if (info.ShorePieces.Contains(type))
 				for (var d = 0; d <= 1; d++)

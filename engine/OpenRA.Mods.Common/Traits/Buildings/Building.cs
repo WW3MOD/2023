@@ -64,6 +64,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly string[] UndeploySounds = Array.Empty<string>();
 
+		public readonly bool DontAttackedNotify = false;
+
 		public override object Create(ActorInitializer init) { return new Building(init, this); }
 
 		protected static object LoadFootprint(MiniYaml yaml)

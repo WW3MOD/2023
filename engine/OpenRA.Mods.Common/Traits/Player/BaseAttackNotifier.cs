@@ -76,7 +76,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// Only track last hit against our base
-			if (!self.Info.HasTraitInfo<BuildingInfo>())
+			if (!self.Info.HasTraitInfo<BuildingInfo>() || self.Info.TraitInfo<BuildingInfo>().DontAttackedNotify)
 				return;
 
 			if (e.Attacker.Owner.IsAlliedWith(self.Owner) && e.Damage.Value <= 0)
