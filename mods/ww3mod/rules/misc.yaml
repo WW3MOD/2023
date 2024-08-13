@@ -33,8 +33,9 @@
 		UncloakSound:
 		Palette:
 		DetectionTypes: Mine
-		CloakDelay: 2147483647 # Once discovered, stays uncloaked
+		RevealedDelay: 200 # 2147483647 # Once discovered, stays uncloaked
 		InitialDelay: 0
+		UpdateFrequency: 20
 	Targetable:
 		TargetTypes: Mine
 	HitShape:

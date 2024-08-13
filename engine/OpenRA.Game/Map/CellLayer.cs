@@ -159,10 +159,10 @@ namespace OpenRA
 
 		public System.Collections.Generic.IEnumerable<MPos> TilesIntersectingLine(MPos from, MPos to)
 		{
-			int startX = from.U;
-			int startY = from.V;
-			int endX = to.U;
-			int endY = to.V;
+			var startX = from.U;
+			var startY = from.V;
+			var endX = to.U;
+			var endY = to.V;
 
 			// Validate input coordinates
 			if (!IsValidCoordinate(startX, startY) || !IsValidCoordinate(endX, endY))
@@ -171,11 +171,11 @@ namespace OpenRA
 			}
 
 			// Use Bresenham's line algorithm to find the coordinates of the line
-			int dx = Math.Abs(endX - startX);
-			int dy = Math.Abs(endY - startY);
-			int sx = startX < endX ? 1 : -1;
-			int sy = startY < endY ? 1 : -1;
-			int err = dx - dy;
+			var dx = Math.Abs(endX - startX);
+			var dy = Math.Abs(endY - startY);
+			var sx = startX < endX ? 1 : -1;
+			var sy = startY < endY ? 1 : -1;
+			var err = dx - dy;
 
 			while (true)
 			{
@@ -188,7 +188,7 @@ namespace OpenRA
 				if (startX == endX && startY == endY)
 					yield break;
 
-				int e2 = 2 * err;
+				var e2 = 2 * err;
 				if (e2 > -dy)
 				{
 					err -= dy;

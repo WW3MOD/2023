@@ -858,7 +858,7 @@ namespace OpenRA
 
 				foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 				{
-					MPos toUV = tilePos.ToMPos(this);
+					var toUV = tilePos.ToMPos(this);
 
 					var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
 
@@ -877,7 +877,7 @@ namespace OpenRA
 				ShadowLayer[fromUV] = shadowLayer;
 			}
 
-			this.ShadowLayer = ShadowLayer;
+			// ShadowLayer = ShadowLayer;
 		}
 
 		public (Color Left, Color Right) GetTerrainColorPair(MPos uv)

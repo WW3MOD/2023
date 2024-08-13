@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var state = frozenStates[playerIndex];
 					var frozen = state.FrozenActor;
-					if (startsRevealed || state.IsVisible)
+					if ((startsRevealed && self.TraitOrDefault<Cloak>() == null) || state.IsVisible)
 						UpdateFrozenActor(frozen, playerIndex);
 
 					frozen.RefreshHidden();
@@ -128,8 +128,25 @@ namespace OpenRA.Mods.Common.Traits
 			if (byPlayer == null)
 				return true;
 
+			var playerIndex = self.World.Players.IndexOf(byPlayer);
+			var frozen = frozenStates[playerIndex].FrozenActor;
+
+			var cloak = self.TraitOrDefault<Cloak>();
+			var shouldHide = false;
+			if (cloak != null)
+			{
+				shouldHide = (cloak != null && cloak.ShouldHide(self, byPlayer));
+			}
+
+			if (self.Info.Name == "minv" && !shouldHide)
+			{
+				//
+			}
+
 			var relationship = self.Owner.RelationshipWith(byPlayer);
-			return info.AlwaysVisibleRelationships.HasRelationship(relationship) || IsVisibleInner(byPlayer);
+			return true;
+
+			// info.AlwaysVisibleRelationships.HasRelationship(relationship) || (!test && IsVisibleInner(byPlayer)); // TODO
 		}
 
 		void ITickRender.TickRender(WorldRenderer wr, Actor self)
