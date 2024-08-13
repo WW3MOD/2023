@@ -415,9 +415,6 @@ Actors:
 	Actor130: pris
 		Owner: Neutral
 		Location: 18,38
-	Actor131: hsam
-		Owner: Neutral
-		Location: 13,42
 	Actor132: sam
 		Owner: Neutral
 		Location: 18,42

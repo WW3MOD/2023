@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CarrierMaster(init, this); }
 	}
 
-	public class CarrierMaster : BaseSpawnerMaster, ITick, IResolveOrder, INotifyAttack //, INotifyMoving
+	public class CarrierMaster : BaseSpawnerMaster, ITick, IResolveOrder, INotifyAttack // , INotifyMoving
 	{
 		class CarrierSlaveEntry : BaseSpawnerSlaveEntry
 		{

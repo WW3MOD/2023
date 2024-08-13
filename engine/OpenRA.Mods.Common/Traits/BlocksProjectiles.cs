@@ -61,12 +61,11 @@ namespace OpenRA.Mods.Common.Traits
 	public class BlocksProjectiles : ConditionalTrait<BlocksProjectilesInfo>, IBlocksProjectiles
 	{
 		// readonly BlocksProjectilesInfo info;
-
 		public BlocksProjectiles(BlocksProjectilesInfo info)
 			: base(info)
-			{
-				// this.info = info;
-			}
+		{
+			// this.info = info;
+		}
 
 		// The result of the expression is always 'true' since a value of type 'WDist' is never equal to 'null' of type 'WDist?'
 		// WDist IBlocksProjectiles.BlockingHeight => Info.HitShapeHeight.Value;
