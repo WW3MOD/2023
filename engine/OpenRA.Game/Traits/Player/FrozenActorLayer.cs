@@ -323,7 +323,7 @@ namespace OpenRA.Traits
 				if (dirtyFrozenActorIds.Contains(id))
 					frozenActor.UpdateVisibility();
 
-				if (frozenActor.Visible)
+				if (frozenActor.Visible && !frozenActor.Hidden)
 					VisibilityHash += hash;
 				else if (frozenActor.Actor == null)
 					frozenActorsToRemove.Add(frozenActor);

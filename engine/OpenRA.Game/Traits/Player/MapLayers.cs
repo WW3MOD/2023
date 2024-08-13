@@ -109,7 +109,7 @@ namespace OpenRA.Traits
 		readonly Dictionary<object, VisionSource> sources = new Dictionary<object, VisionSource>();
 
 		// Per-cell count of each source type, used to resolve the final cell type
-		ProjectedCellLayer<short[]> visibilityCount;
+		readonly ProjectedCellLayer<short[]> visibilityCount;
 		readonly ProjectedCellLayer<short> radarCount;
 
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
@@ -225,7 +225,7 @@ namespace OpenRA.Traits
 						}
 					}
 
-					// Tick function. TODO
+					/* Tick function. TODO */
 
 					if (visibility <= 0)
 						visibility = 1;
@@ -233,7 +233,7 @@ namespace OpenRA.Traits
 
 				// PERF: Most cells are unchanged
 				var oldResolvedVisibility = ResolvedVisibility[index];
-				// TEST
+
 				if (visibility != oldResolvedVisibility || disabledChanged)
 				{
 					ResolvedVisibility[index] = visibility;
@@ -524,6 +524,7 @@ namespace OpenRA.Traits
 			{
 				return check <= 1 ? (byte)1 : check >= 10 ? (byte)10 : check;
 			}
+
 			/* // ??
 			else if (Disabled)
 			{ } */
@@ -542,7 +543,7 @@ namespace OpenRA.Traits
 			{
 				if (ResolvedVisibility.Contains(puv))
 				{
-					byte resolved = (byte)ResolvedVisibility[puv];
+					var resolved = (byte)ResolvedVisibility[puv];
 					return (byte)resolved;
 
 					// For modifying based on cell type, but removed since shadow caster was implemented.
@@ -565,7 +566,7 @@ namespace OpenRA.Traits
 
 		public byte GetDefense(PPos puv)
 		{
-			byte modify = (byte)map.DefenseLayer[(MPos)puv];
+			var modify = (byte)map.DefenseLayer[(MPos)puv];
 
 			return modify;
 		}
