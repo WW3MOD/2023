@@ -138,10 +138,10 @@ namespace OpenRA.Mods.Common.Traits
 				shouldHide = (cloak != null && cloak.ShouldHide(self, byPlayer));
 			}
 
-			if (self.Info.Name == "minv" && !shouldHide)
+			/* if (self.Info.Name == "minv" && !shouldHide)
 			{
-				//
-			}
+				// test
+			} */
 
 			var relationship = self.Owner.RelationshipWith(byPlayer);
 			return true;
