@@ -298,8 +298,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool ShouldHide(Actor self, Player viewer)
 		{
-			return true;
-
+			// return true; // TODO
 			if (self.Owner.IsAlliedWith(viewer))
 				return false;
 

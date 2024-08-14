@@ -537,10 +537,10 @@ namespace OpenRA.Mods.Common.Activities
 
 			protected override MovePart OnComplete(Actor self, Mobile mobile, Move parent)
 			{
-				/// Checks if the next path cell requires turning, creates a MoveFirstHalf
-				/// to reach the midpoint between current and next cell while turning to
-				/// face the next cell, finishes moving to current cell, updates location
-				/// to next cell, and returns the MoveFirstHalf.
+				// Checks if the next path cell requires turning, creates a MoveFirstHalf
+				// to reach the midpoint between current and next cell while turning to
+				// face the next cell, finishes moving to current cell, updates location
+				// to next cell, and returns the MoveFirstHalf.
 				var map = self.World.Map;
 				var fromSubcellOffset = map.Grid.OffsetOfSubCell(mobile.FromSubCell);
 				var toSubcellOffset = map.Grid.OffsetOfSubCell(mobile.ToSubCell);
