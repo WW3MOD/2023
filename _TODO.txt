@@ -9,9 +9,11 @@ BETA release 0.1
 
 - Frozen mines
 
+- Pips
+    - Suppression
+    - Morale
+
 - Options
-    - Remove Nuclear
-    - Remove Disable Navy
     - Change Short game, add "Terms of surrender" or similar as drop down % of army value when you lose if you dont have any possibility to reinforce (lost SR)
     - Kill bounties as drop down
     - Drop down for army upkeep
@@ -35,7 +37,7 @@ BETA release 0.1
 
 - Flametrooper should be more effective against unarmored, like grad
 
-- Update unit description box size
+- Unit description box size
 
 - Solve errors and make sure all tests passes
 

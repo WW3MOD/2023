@@ -856,51 +856,51 @@
 		RequiresCondition: onfire == 1
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 8
+		Delay: 10
 	ChangesHealth@BurnDamage_2:
 		RequiresCondition: onfire == 2
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 7
+		Delay: 9
 	ChangesHealth@BurnDamage_3:
 		RequiresCondition: onfire == 3
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 6
+		Delay: 8
 	ChangesHealth@BurnDamage_4:
 		RequiresCondition: onfire == 4
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 5
+		Delay: 7
 	ChangesHealth@BurnDamage_5:
 		RequiresCondition: onfire == 5
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 4
+		Delay: 6
 	ChangesHealth@BurnDamage_6:
 		RequiresCondition: onfire == 6
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 3
+		Delay: 5
 	ChangesHealth@BurnDamage_7:
 		RequiresCondition: onfire == 7
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 2
+		Delay: 4
 	ChangesHealth@BurnDamage_8:
 		RequiresCondition: onfire == 8
 		DamageTypes: FireDeath
 		PercentageStep: -1
-		Delay: 1
+		Delay: 3
 	ChangesHealth@BurnDamage_9:
 		RequiresCondition: onfire == 9
 		DamageTypes: FireDeath
-		PercentageStep: -2
-		Delay: 1
+		PercentageStep: -1
+		Delay: 2
 	ChangesHealth@BurnDamage_10:
 		RequiresCondition: onfire == 10
 		DamageTypes: FireDeath
-		PercentageStep: -3
+		PercentageStep: -1
 		Delay: 1
 
 	# Causes 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 "infantry-burn-1" - 'Object reference not set to an instance of an object.' - Animation.cs:line 96 - AnimationWithOffset.cs:line 52 - RenderSprites.cs:line 204 for infantry-burn-1
@@ -1878,7 +1878,7 @@ E6:
 		ProneOffset: 160,0,-288
 	Explodes:
 		RequiresCondition: ammo-primary
-		Weapon: NapalmExplosion
+		Weapon: FlamethrowerExplosion
 		DamageSource: Killer
 		Chance: 50
 	WithInfantryBody:

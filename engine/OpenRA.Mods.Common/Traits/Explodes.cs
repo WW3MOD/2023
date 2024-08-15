@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[WeaponReference]
 		[Desc("Fallback weapon to use for explosion if empty (no ammo/payload).")]
-		public readonly string EmptyWeapon = "UnitExplode";
+		public readonly string EmptyWeapon = "";
 
 		[Desc("Chance that the explosion will use Weapon instead of EmptyWeapon when exploding, provided the actor has ammo/payload.")]
 		public readonly int LoadedChance = 100;
