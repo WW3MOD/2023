@@ -212,6 +212,7 @@ RAILMINE:
 		Categories: Civilian building
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
+
 DRILLMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:

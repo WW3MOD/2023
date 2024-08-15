@@ -166,18 +166,6 @@ resources:
 	scrap19: scrap19
 	scrap20: scrap20
 
-mine:
-	idle:
-		UseTilesetExtension: true
-		ZOffset: -1024
-
-gmine:
-	idle:
-		ZOffset: -1024
-		UseTilesetExtension: true
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
-
 railmine:
 	idle:
 		ZOffset: -512
