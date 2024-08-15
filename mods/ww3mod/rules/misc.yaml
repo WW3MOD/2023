@@ -195,59 +195,6 @@ FLARE:
 	MapEditorData:
 		Categories: Decoration
 
-MINE:
-	Inherits@1: ^SpriteActor
-	Interactable:
-	AlwaysVisible:
-	Tooltip:
-		Name: Ore Mine
-	RenderSprites:
-		Palette: terrain
-	WithSpriteBody:
-	Building:
-		Footprint: x
-		Dimensions: 1,1
-	# AppearsOnMiniMap:
-	# MiniMapColorFromTerrain:
-	# 	Terrain: Ore
-	# AppearsOnMapPreview:
-	# 	Terrain: Ore
-	SeedsResource:
-		Interval: 200
-	MapEditorData:
-		Categories: Resource spawn
-	RequiresSpecificOwners:
-		ValidOwnerNames: Neutral
-	ActorSpawner:
-	RenderSprites:
-		Image: DRILLMINE
-GMINE:
-	Inherits@1: ^SpriteActor
-	Interactable:
-	AlwaysVisible:
-	Tooltip:
-		Name: Gem Mine
-	RenderSprites:
-		Palette: player
-	WithSpriteBody:
-	Building:
-		Footprint: x
-		Dimensions: 1,1
-	# AppearsOnMiniMap:
-	# MiniMapColorFromTerrain:
-	# 	Terrain: Gems
-	# AppearsOnMapPreview:
-	# 	Terrain: Gems
-	SeedsResource:
-		ResourceType: Gems
-		Interval: 300
-	MapEditorData:
-		Categories: Resource spawn
-	RequiresSpecificOwners:
-		ValidOwnerNames: Neutral
-	ActorSpawner:
-	RenderSprites:
-		Image: MINE
 RAILMINE:
 	Inherits@1: ^SpriteActor
 	Interactable:
