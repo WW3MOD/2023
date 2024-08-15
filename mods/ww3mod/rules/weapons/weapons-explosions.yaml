@@ -1,3 +1,71 @@
+FlamethrowerExplosion:
+	ValidTargets: Ground, Water, Trees
+	Warhead@Spread: SpreadDamage
+		Damage: 50
+		Spread: 256
+		ValidTargets: Ground, Water, Trees
+		DamageTypes: FireDeath
+		InvalidTargets: Air
+	Warhead@Fire_0: GrantExternalCondition
+		Range: 1536
+		Duration: 25
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_1: GrantExternalCondition
+		Range: 1280
+		Amount: 2
+		Duration: 50
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_2: GrantExternalCondition
+		Range: 1024
+		Amount: 4
+		Duration: 75
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_3: GrantExternalCondition
+		Range: 768
+		Amount: 5
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_4: GrantExternalCondition
+		Range: 512
+		Amount: 7
+		Duration: 150
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Fire_5: GrantExternalCondition
+		Range: 256
+		Amount: 10
+		Duration: 200
+		Condition: onfire
+		ValidTargets: Infantry, Vehicles
+		ValidRelationships: Ally, Enemy, Neutral
+	Warhead@Effect: CreateEffect
+		Explosions: napalm_medium
+		ImpactSounds: firebl3.aud
+		ImpactActors: false
+	Warhead@FireCluster: FireCluster
+		Weapon: BurnFx
+		Dimensions: 3,3
+		Footprint: _x_ xxx _x_
+		ValidTargets: Ground
+		InvalidTargets: Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Scorch
+		InvalidTargets: Structure, Wall
+	Warhead@StructureFire: GrantExternalCondition
+		Range: 1c0
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Structure, Trees
+		ValidRelationships: Ally, Enemy, Neutral
 
 
 UnitExplode:
