@@ -17,7 +17,7 @@ Player:
 		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
 		Type: Building
-		DisplayOrder: 0
+		DisplayOrder: 1
 		# ReadyTextNotification: MCV reporting.
 		# BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
@@ -29,7 +29,7 @@ Player:
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Defense:
 		Type: Defense
-		DisplayOrder: 1
+		DisplayOrder: 3
 		# BlockedAudio: NoBuild
 		# ReadyTextNotification: MCV delivered.
 		# LimitedAudio: BuildingInProgress
@@ -76,7 +76,7 @@ Player:
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
-		DisplayOrder: 5
+		DisplayOrder: 0
 		# ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
