@@ -80,12 +80,12 @@ HIND:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		# Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
-		Cost: 2500
+		Cost: 1
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -96,7 +96,7 @@ HIND:
 		Type: Heavy
 		Thickness: 10
 	Aircraft:
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 195
 		InitialFacing: 192
 	AttackAircraft:
