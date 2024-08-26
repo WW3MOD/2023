@@ -41,7 +41,14 @@ Terrain:
 		Type: Cliffs
 		TargetTypes: Ground
 		Color: 44443C
-
+	TerrainType@Tree:
+		Type: Tree
+		TargetTypes: Ground
+		Color: 004400
+	TerrainType@Field:
+		Type: Field
+		TargetTypes: Ground
+		Color: 8E8E32
 	TerrainType@River:
 		Type: River
 		TargetTypes: Ground
@@ -59,7 +66,6 @@ Terrain:
 		TargetTypes: Water
 		Color: 5C74A4
 		RestrictPlayerColor: true
-
 	TerrainType@Wall:
 		Type: Wall
 		TargetTypes: Ground

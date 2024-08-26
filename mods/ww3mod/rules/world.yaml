@@ -13,6 +13,8 @@
 	DebugVisualizations:
 	Locomotor@TerrainSpeedsTemplate:
 		Name: template
+		Passes: field
+		Crushes: mine, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -25,7 +27,7 @@
 			Shallow: 20
 	Locomotor@FOOT:
 		Name: foot
-		Passes: tree, sandbag, fence
+		Passes: field, tree, sandbag, fence
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -40,7 +42,7 @@
 			Shallow: 30
 	Locomotor@FOOT_AMPHIBIOUS:
 		Name: foot-amphibious
-		Passes: tree, sandbag, fence
+		Passes: field, tree, sandbag, fence
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -57,7 +59,7 @@
 			Water: 40
 	Locomotor@FOOT_MOUNTAINER:
 		Name: foot-mountainer
-		Passes: tree, sandbag, fence
+		Passes: field, tree, sandbag, fence
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -73,7 +75,7 @@
 			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
-		Passes: tree, sandbag, fence
+		Passes: field, tree, sandbag, fence
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -91,6 +93,7 @@
 			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled
+		Passes: field
 		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
@@ -100,6 +103,7 @@
 			Rough: 35
 	Locomotor@WHEELED:
 		Name: wheeled
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -110,6 +114,7 @@
 			Debris: 20
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
+		Passes: field
 		Crushes: mine, infantry, sandbag, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -120,6 +125,7 @@
 			Debris: 40
 	Locomotor@LIGHTTRACKED:
 		Name: lighttracked
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -131,6 +137,7 @@
 			RiverShallow: 75
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
 		Name: lighttracked-amphibious
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -145,6 +152,7 @@
 			River: 25
 	Locomotor@TRACKED:
 		Name: tracked
+		Passes: field
 		Crushes: mine, infantry, sandbag, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -157,6 +165,7 @@
 			River: 10
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
+		Passes: field
 		Crushes: mine, infantry, sandbag, fence, barbedwire, crate
 		TerrainSpeeds:
 			Road: 100
@@ -169,6 +178,7 @@
 			River: 5
 	Locomotor@TRACKED_AMPHIBIOUS:
 		Name: tracked-amphibious
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -182,6 +192,7 @@
 			River: 10
 	Locomotor@Walker:
 		Name: walker
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -243,16 +254,6 @@
 		Name: Russia
 		InternalName: russia
 		Description: Russia\n
-	# ResourceRenderer:
-	# 	ResourceTypes:
-	# 		Ore:
-	# 			Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
-	# 			Palette: player
-	# 			Name: Valuable Minerals
-	# 		Gems:
-	# 			Sequences: gold01, gold02, gold03, gold04
-	# 			Palette: player
-	# 			Name: Valuable Minerals
 	# JumpjetActorLayer:
 	# 	HeightOffset: 1c460
 

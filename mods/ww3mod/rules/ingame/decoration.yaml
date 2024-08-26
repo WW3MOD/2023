@@ -23,11 +23,11 @@
 		Footprint: x
 		Density: 10
 		Dimensions: 1,1
-	# AppearsOnMiniMap:
-	# MiniMapColorFromTerrain:
-	# 	Terrain: Tree
-	# AppearsOnMapPreview:
-	# 	Terrain: Tree
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
+		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
 	Health:
 		HP: 2500
 	Armor:
