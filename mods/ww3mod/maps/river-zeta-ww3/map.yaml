@@ -4,7 +4,7 @@ RequiresMod: ww3mod
 
 Title: River Zeta WW3
 
-Author: Medium Tank, ZxGanon
+Author: Medium Tank, ZxGanon, Xavier
 
 Tileset: TEMPERAT
 
@@ -26,7 +26,7 @@ Players:
 		Name: Creeps
 		NonCombatant: True
 		Faction: america
-		Enemies: Multi0, Multi1
+		Enemies: Multi0, Multi1, Multi2
 	PlayerReference@Multi0:
 		Name: Multi0
 		Playable: True
@@ -37,14 +37,13 @@ Players:
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
+	PlayerReference@Multi2:
+		Name: Multi2
+		Playable: True
+		Faction: Random
+		Enemies: Creeps
 
 Actors:
-	Actor233: v06
-		Owner: Neutral
-		Location: 78,71
-	Actor288: oilb.husk
-		Owner: Neutral
-		Location: 85,73
 	Actor107: t10
 		Owner: Neutral
 		Location: 24,44
@@ -60,9 +59,6 @@ Actors:
 	Actor164: utilpol2
 		Owner: Neutral
 		Location: 29,54
-	Actor120: mpspawn
-		Owner: Neutral
-		Location: 8,80
 	Actor121: v16
 		Owner: Neutral
 		Location: 27,59
@@ -3192,9 +3188,6 @@ Actors:
 	Actor2163: v17
 		Owner: Neutral
 		Location: 15,50
-	Actor145: mpspawn
-		Owner: Neutral
-		Location: 1,46
 	Actor1748: v17
 		Owner: Neutral
 		Location: 16,50
@@ -6399,9 +6392,6 @@ Actors:
 	Actor3131: hbox
 		Owner: Neutral
 		Location: 38,38
-	Actor3132: hbox
-		Owner: Neutral
-		Location: 55,77
 	Actor3133: hbox
 		Owner: Neutral
 		Location: 27,6
@@ -7587,3 +7577,15 @@ Actors:
 	Actor3488: tanktrap2
 		Owner: Neutral
 		Location: 49,47
+	Actor3440: hbox
+		Owner: Neutral
+		Location: 55,80
+	Actor3132: mpspawn
+		Owner: Neutral
+		Location: 8,1
+	Actor3366: mpspawn
+		Owner: Neutral
+		Location: 1,46
+	Actor3377: mpspawn
+		Owner: Neutral
+		Location: 8,80
