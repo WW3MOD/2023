@@ -225,15 +225,13 @@ DRILLMINE:
 		Dimensions: 1,1
 	AppearsOnMiniMap:
 	MiniMapColorFromTerrain:
-		Terrain: Ore
-	SeedsResource:
-		Interval: 50
+		Terrain: Rock
 	# WithIdleAnimation:
 	# 	Interval: 175
 	RenderSprites:
 		Palette: player
 	MapEditorData:
-		Categories: Resource spawn
+		Categories: Decoration
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 
@@ -298,43 +296,6 @@ CTFLAG:
 	MapEditorData:
 		Categories: Decoration
 	Interactable:
-
-QUEE:
-	Inherits@1: ^SpriteActor
-	Inherits@Shape: ^2x1Shape
-	Interactable:
-	AlwaysVisible:
-	Tooltip:
-		Name: Queen Ant
-	Building:
-		Footprint: xx
-		Dimensions: 2,1
-	WithSpriteBody:
-	AppearsOnMiniMap:
-	MapEditorData:
-		RequireTilesets: INTERIOR
-		Categories: Critter
-LAR1:
-	Inherits@1: ^SpriteActor
-	Inherits@Shape: ^1x1Shape
-	Interactable:
-	AlwaysVisible:
-	Tooltip:
-		Name: Ant Larva
-	Building:
-		Footprint: x
-		Dimensions: 1,1
-	RenderSprites:
-		Palette: terrain
-	WithSpriteBody:
-	AppearsOnMiniMap:
-	MapEditorData:
-		RequireTilesets: INTERIOR
-		Categories: Critter
-LAR2:
-	Inherits@1: LAR1
-	Tooltip:
-		Name: Ant Larvae
 
 # powerproxy.parabombs:
 # 	AlwaysVisible:
