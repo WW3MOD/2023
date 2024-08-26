@@ -299,6 +299,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool cruising;
 		int airborneToken = Actor.InvalidConditionToken;
 		int cruisingToken = Actor.InvalidConditionToken;
+		public WVec momentum = new WVec(0, 0, 0);
 
 		MovementType movementTypes;
 		WPos cachedPosition;
@@ -632,6 +633,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public WVec FlyStep(int speed, WAngle facing)
 		{
+			// TODO
+
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
 			return speed * dir / 1024;
 		}
@@ -796,6 +799,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void SetPosition(Actor self, WPos pos)
 		{
+
 			CenterPosition = pos;
 
 			if (!self.IsInWorld)
