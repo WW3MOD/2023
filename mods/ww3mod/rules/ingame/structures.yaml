@@ -141,83 +141,6 @@
 		Image: pips
 		Sequence: tag-primary
 
-^DisableOnLowPower:
-	WithColoredOverlay@IDISABLE:
-		RequiresCondition: disabled
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
-	GrantCondition@IDISABLE:
-		RequiresCondition: lowpower || heavy-damage-attained
-		Condition: disabled
-^DisableOnPowerDown:
-	WithColoredOverlay@IDISABLE:
-		RequiresCondition: disabled
-	GrantCondition@IDISABLE:
-		RequiresCondition: powerdown
-		Condition: disabled
-	ToggleConditionOnOrder:
-		DisabledSound: EnablePower
-		EnabledSound: DisablePower
-		Condition: powerdown
-		OrderName: PowerDown
-	WithDecoration@POWERDOWN:
-		Image: poweroff
-		Sequence: offline
-		Palette: chrome
-		RequiresCondition: powerdown
-		Position: Center
-		Offsets:
-			repairing: 10, 0
-	PowerMultiplier@POWERDOWN:
-		RequiresCondition: powerdown
-		Modifier: 0
-	# RepairableBuilding:
-	# 	RepairCondition: repairing
-	# 	RepairingNotification: Repairing
-	# WithBuildingRepairDecoration:
-	# 	Offsets:
-	# 		powerdown: -10, 0
-^DisableOnLowPowerOrPowerDown:
-	Inherits: ^DisableOnLowPower
-	GrantCondition@IDISABLE:
-		RequiresCondition: lowpower || powerdown
-		Condition: disabled
-	ToggleConditionOnOrder:
-		DisabledSound: EnablePower
-		EnabledSound: DisablePower
-		Condition: powerdown
-		OrderName: PowerDown
-	WithDecoration@POWERDOWN:
-		Image: poweroff
-		Sequence: offline
-		Palette: chrome
-		RequiresCondition: powerdown
-		Position: Center
-		Offsets:
-			repairing: 10, 0
-	PowerMultiplier@POWERDOWN:
-		RequiresCondition: powerdown
-		Modifier: 0
-	# RepairableBuilding:
-	# 	RepairCondition: repairing
-	# WithBuildingRepairDecoration:
-	# 	Offsets:
-	# 		powerdown: -10, 0
-^DisabledByPowerOutage:
-	WithColoredOverlay@IDISABLE:
-		RequiresCondition: disabled
-		Color: 000000B4
-	GrantCondition@IDISABLE:
-		RequiresCondition: power-outage
-		Condition: disabled
-	AffectedByPowerOutage:
-		Condition: power-outage
-	InfiltrateForPowerOutage:
-		Types: SpyInfiltrate, ThiefInfiltrate
-	Power:
-		RequiresCondition: !disabled
-
 ^NeutralOrOccupiedCapturable:
 	CaptureManager:
 		BeingCapturedCondition: being-captured
@@ -269,9 +192,6 @@
 		RequiresCondition: empdisable
 	ExternalCondition@EMP:
 		Condition: empdisable
-	PowerMultiplier@EMP:
-		RequiresCondition: empdisable
-		Modifier: 0
 	GrantCondition@EMP:
 		RequiresCondition: empdisable
 		Condition: disabled
@@ -594,9 +514,6 @@ AFLD:
 	ProvidesPrerequisite@russiastructure:
 		RequiresPrerequisites: structures.russia
 		Prerequisite: aircraft.russia
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
 	WithDeathAnimation:
 		DeathSequence: dead
 		UseDeathTypeSuffix: false
@@ -805,7 +722,6 @@ AFLD:
 # 	Inherits: ^Building
 # 	Inherits@Shape: ^3x2Shape
 # 	Inherits@PRIMARY: ^PrimaryBuilding
-# 	Inherits@RequiresPower: ^DisableOnPowerDown
 # 	-ActorPreviewPlaceBuildingPreview:
 # 	SequencePlaceBuildingPreview:
 # 		Sequence: place
@@ -887,7 +803,6 @@ AFLD:
 # 		RequiresCondition: maintenance
 # FIX:
 # 	Inherits: ^Building
-# 	Inherits@RequiresPower: ^DisableOnPowerDown
 # 	Selectable:
 # 		DecorationBounds: 3072,3072
 # 	HitShape:
@@ -939,7 +854,6 @@ AFLD:
 
 # POWR:
 # 	Inherits: ^Building
-# 	Inherits@POWER_OUTAGE: ^DisabledByPowerOutage
 # 	Inherits@Shape: ^2x2Shape
 # 	-ActorPreviewPlaceBuildingPreview:
 # 	SequencePlaceBuildingPreview:
@@ -992,7 +906,6 @@ AFLD:
 # 		String: Power
 # APWR:
 # 	Inherits: ^Building
-# 	Inherits@POWER_OUTAGE: ^DisabledByPowerOutage
 # 	Inherits@Shape: ^3x2Shape
 # 	-ActorPreviewPlaceBuildingPreview:
 # 	SequencePlaceBuildingPreview:
@@ -1095,16 +1008,6 @@ AFLD:
 # 		RequiresSelection: true
 # 		PipCount: 17
 # 		FullSequence: pip-yellow
-# 	ResourcePurifier@incomeplayerboost:
-# 		Modifier: 20
-# 		RequiresCondition: ore-purifier-on && !orecasting-on
-# 		ShowTicks: False
-# 	GrantConditionOnPrerequisite@incomeplayerboost:
-# 		Condition: ore-purifier-on
-# 		Prerequisites: orep
-# 	GrantConditionOnPrerequisite@incomeplayerboost2:
-# 		Condition: orecasting-on
-# 		Prerequisites: orecasting
 # 	GrantConditionOnPlayerResources:
 # 		Condition: contains-resources
 # 	ExternalCondition@DOCKED:
@@ -1148,7 +1051,6 @@ AFLD:
 
 # DOME:
 # 	Inherits: ^Building
-# 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 # 	Inherits@Shape: ^2x2Shape
 # 	Buildable:
 # 		Queue: Building
@@ -1272,9 +1174,6 @@ AFLD:
 # 		Facing: 32
 # 		ExitCell: 2,0
 # 		ProductionTypes: Ship, Boat
-# 	GrantConditionOnPowerState@LOWPOWER:
-# 		Condition: lowpower
-# 		ValidPowerStates: Low, Critical
 # 	ProvidesPrerequisite@BuildingName:
 # 	ProvidesPrerequisite@america:
 # 		Factions: america
@@ -1342,9 +1241,6 @@ AFLD:
 # 	GrantConditionOnPrerequisite@incomeplayerboost2:
 # 		Condition: orecasting-on
 # 		Prerequisites: orecasting
-# 	GrantConditionOnPowerState@LOWPOWER:
-# 		Condition: lowpower
-# 		ValidPowerStates: Low, Critical
 # 	SpawnActorOnDeath:
 # 		Actor: silo.husk
 # 	Explodes:
@@ -1398,9 +1294,6 @@ AFLD:
 # 		Actor: ateknew.husk
 # 	Sellable:
 # 		RequiresCondition: !build-incomplete && !being-captured && !being-demolished && !disabled
-# 	GrantConditionOnPowerState@LOWPOWER:
-# 		Condition: lowpower
-# 		ValidPowerStates: Low, Critical
 # 	RenderSprites:
 # 		Image: ateknew
 # 	GpsDot:
@@ -1445,9 +1338,6 @@ AFLD:
 # 	InfiltrateForSupportPower:
 # 		Proxy: tech.stolen
 # 		Types: SpyInfiltrate, ThiefInfiltrate
-# 	GrantConditionOnPowerState@LOWPOWER:
-# 		Condition: lowpower
-# 		ValidPowerStates: Low, Critical
 # 	RenderSprites:
 # 		Image: stek
 # 	GpsDot:
@@ -1560,7 +1450,6 @@ AFLD:
 
 # GAP:
 # 	Inherits: ^Building
-# 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 # 	-AcceptsDeliveredCash:
 # 	-ActorPreviewPlaceBuildingPreview:
 # 	SequencePlaceBuildingPreview:
@@ -1773,9 +1662,6 @@ AFLD:
 # 		Facing: 32
 # 		ExitCell: 2,0
 # 		ProductionTypes: Ship
-# 	GrantConditionOnPowerState@LOWPOWER:
-# 		Condition: lowpower
-# 		ValidPowerStates: Low, Critical
 # 	ProvidesPrerequisite@BuildingName:
 # 	ProvidesPrerequisite@russia:
 # 		Factions: russia
@@ -1797,7 +1683,6 @@ AFLD:
 # 		String: Naval
 # SPRO:
 # 	Inherits: ^Building
-# 	Inherits@RequiresPower: ^DisableOnLowPower
 # 	Inherits@Shape: ^2x2Shape
 # 	Selectable:
 # 		Bounds: 2048,2048
@@ -1820,7 +1705,7 @@ AFLD:
 # 		Type: Concrete
 # 	WithBuildingBib:
 # 	GpsPower@Normal:
-# 		PauseOnCondition: disabled || lowpower
+# 		PauseOnCondition: disabled
 # 		Icon: gps
 # 		OneShot: true
 # 		ChargeInterval: 12000
@@ -1832,7 +1717,7 @@ AFLD:
 # 		SupportPowerPaletteOrder: 9
 # 	#	Works but crashes, and can bug out when on lowpower
 # 	#	GrantPrerequisiteChargeDrainPower@SpySattelite:
-# 	#	PauseOnCondition: disabled || lowpower
+# 	#	PauseOnCondition: disabled
 # 	#	RequiresCondition: america.player
 # 	#	Prerequisite: sattelitescan
 # 	#	OrderName: SpySatteliteActive
@@ -1849,8 +1734,6 @@ AFLD:
 # 	#	GrantConditionOnPrerequisite@SpySattelite:
 # 	#	Prerequisites: sattelitescan
 # 	#	Condition: satscan-on
-# 	#	PowerMultiplier@SpySattelite:
-# 	#	Modifier: 200
 # 	#	RequiresCondition: satscan-on
 # 	#	GrantConditionOnFaction@GPSReplacer:
 # 	#	Condition: america.player
@@ -1872,7 +1755,6 @@ AFLD:
 # OREP:
 # 	Inherits: ^Building
 # 	Inherits@Shape: ^3x2Shape
-# 	Inherits@RequiresPower: ^DisableOnLowPower
 # 	Selectable:
 # 		Bounds: 3072,2390
 # 		DecorationBounds: 3096,3072
@@ -1903,7 +1785,7 @@ AFLD:
 # 		DeathSequence: dead
 # 		UseDeathTypeSuffix: false
 # 	GrantPrerequisiteChargeDrainPower@OreCasting:
-# 		PauseOnCondition: disabled || lowpower
+# 		PauseOnCondition: disabled
 # 		Prerequisites: proc
 # 		Prerequisite: orecasting
 # 		OrderName: OreCastingActive
@@ -1918,67 +1800,9 @@ AFLD:
 # 	GrantConditionOnPrerequisite@OreCasting:
 # 		Condition: orecasting.on
 # 		Prerequisites: orecasting
-# 	PowerMultiplier@OreCasting:
-# 		Modifier: 150
-# 		RequiresCondition: orecasting.on
-# INDP:
-# 	Inherits: ^Building
-# 	Inherits@RequiresPower: ^DisableOnLowPower
-# 	Inherits@Shape: ^3x2Shape
-# 	-ActorPreviewPlaceBuildingPreview:
-# 	SequencePlaceBuildingPreview:
-# 		Sequence: place
-# 	Selectable:
-# 		Bounds: 3072,2390
-# 		DecorationBounds: 3096,3072
-# 	HitShape:
-# 		UseTargetableCellsOffsets: false
-# 		TargetableOffsets: 0,0,0, 640,-384,0, 640,512,0, -710,-512,0, -710,512,0
-# 	# Buildable:
-# 	# 	Queue: Building
-# 	# 	BuildPaletteOrder: 15
-# 	# 	Prerequisites: ~structures.russia, ~techlevel.high
-# 	# 	Description: Industrial production facility.\nReduces cost of Vehicle, Ship and Aircraft by 20%\nand increases production speed by 10%\nMaximum one can be built.\nRequires Power to operate.\n  Special Ability: Maintenance\nDisables all War Factories, letting them provide income instead.\nWar Factories generate 30$ every 3 seconds.\nLasts for up to 1 minute.
-# 	Valued:
-# 		Cost: 2500
-# 	Tooltip:
-# 		Name: Industrial Plant
-# 	Building:
-# 		Footprint: XxX XxX
-# 		Dimensions: 3,2
-# 		LocalCenterOffset: 0,-512,0
-# 	Health:
-# 		HP: 45000
-# 	Armor:
-# 		Type: Concrete
-# 	WithBuildingBib:
-# 	ProvidesPrerequisite@BuildingName:
-# 	ProvidesPrerequisite@disabled:
-# 		Prerequisite: indplowpower
-# 		RequiresCondition: disabled || empdisable
-# 	WithDeathAnimation:
-# 		DeathSequence: dead
-# 		UseDeathTypeSuffix: false
-# 	WithSpriteBody:
-# 		PauseOnCondition: disabled
-# 	RenderSprites:
-# 		Image: indp
-# 	GrantPrerequisiteChargeDrainPower@Maintenance:
-# 		PauseOnCondition: disabled || lowpower
-# 		Prerequisite: maintenance
-# 		OrderName: MaintenanceActive
-# 		DischargeModifier: 300
-# 		ActiveText: ACTIVE
-# 		AvailableText: READY
-# 		ChargeInterval: 1500
-# 		Icon: mainten
-# 		Name: Maintenance
-# 		Description: Disables all War Factories, letting them provide income instead.\nWar Factories generate 30$ every 3 seconds.\nLasts for up to 1 minute.
-# 		SupportPowerPaletteOrder: 8
 
 # PDOX:
 # 	Inherits: ^Building
-# 	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
 # 	Inherits@shape: ^2x2Shape
 # 	Selectable:
 # 		Bounds: 2048, 2048

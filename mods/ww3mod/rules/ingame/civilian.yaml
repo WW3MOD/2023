@@ -92,7 +92,7 @@
 	ScriptTriggers:
 	MapEditorData:
 		ExcludeTilesets: INTERIOR
-		Categories: Tree
+		Categories: Decoration
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	RenderSprites:

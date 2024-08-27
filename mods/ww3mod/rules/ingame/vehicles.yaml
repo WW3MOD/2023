@@ -94,7 +94,6 @@
 		Categories: Vehicle
 	DeliversCash@Rotation:
 		Type: Rotation
-		AdjustForHandicap: True
 	InfersUpkeep:
 		PermilleCost: 5
 
