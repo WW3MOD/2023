@@ -299,7 +299,17 @@ namespace OpenRA.Mods.Common.Traits
 		bool cruising;
 		int airborneToken = Actor.InvalidConditionToken;
 		int cruisingToken = Actor.InvalidConditionToken;
-		public WVec momentum = new WVec(0, 0, 0);
+		public WVec momentum = WVec.Zero;
+
+		public bool ShouldSlide
+		{
+			get
+			{
+				return Info.CanSlide &&
+						((momentum == WVec.Zero) ||
+						(WAngle.AngleDiff(momentum.Yaw, Facing).Angle > TurnSpeed.Angle * 2));
+			}
+		}
 
 		MovementType movementTypes;
 		WPos cachedPosition;
@@ -444,6 +454,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
 			{
+				if (!CurrentMovementTypes.HasMovementType(MovementType.Vertical))
+					momentum = WVec.Zero;
+
 				if (Info.Roll != WAngle.Zero && Roll != WAngle.Zero)
 					Roll = Util.TickFacing(Roll, WAngle.Zero, Info.RollSpeed);
 

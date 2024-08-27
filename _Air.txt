@@ -1,5 +1,8 @@
-
-
+Todo list
+ - acceleration x, y, z
+ - take-off/Land
+   - dont go vertical only
+ - var for ShouldSlide?
 
 
 

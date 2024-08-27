@@ -64,15 +64,9 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 
-			var angleDiff = WAngle.AngleDiff(aircraft.momentum.Yaw, aircraft.Facing).Angle;
-			var angleTolerance = aircraft.TurnSpeed.Angle * 2;
-
-			if (!(angleDiff <= angleTolerance)) {
-				var a = 0;
-			}
-
-			var move = aircraft.Info.CanSlide && !(angleDiff <= angleTolerance) ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing); // TODO
+			var move = aircraft.ShouldSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
 			aircraft.momentum = move;
+
 			if (moveOverride != WVec.Zero)
 				move = moveOverride;
 
@@ -193,14 +187,13 @@ namespace OpenRA.Mods.Common.Activities
 			if (insideMaxRange && !insideMinRange)
 				return true;
 
-			var isSlider = aircraft.Info.CanSlide;
 			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-			var move = isSlider && !(aircraft.Facing == desiredFacing) ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
+			var move = aircraft.ShouldSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
 
 			// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
 			if (insideMinRange)
 			{
-				if (isSlider)
+				if (aircraft.ShouldSlide)
 					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
 				else
 				{
@@ -221,7 +214,7 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				// For VTOL landing to succeed, it must reach the exact target position,
 				// so for the final move it needs to behave as if it had CanSlide.
-				if (isSlider || aircraft.Info.VTOL)
+				if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
 				{
 					// Set final (horizontal) position
 					if (delta.HorizontalLengthSquared != 0)
@@ -242,10 +235,7 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			var angleDiff = WAngle.AngleDiff(aircraft.momentum.Yaw, aircraft.Facing).Angle;
-			var angleTolerance = aircraft.TurnSpeed.Angle * 2;
-
-			if (!isSlider || angleDiff <= angleTolerance)
+			if (!aircraft.ShouldSlide)
 			{
 				// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
 				// If it contains the destination point, it's unreachable without more complex maneuvering.
