@@ -1,12 +1,5 @@
 Done:
 
-- Remove air / AA units from game (Remove Air support from starting units and AA units from others)
-- Remove Iskander and Himars
-- Remove Dog
-- Remove sandbag layer
-
-BETA release 0.1
-
 - Frozen mines
 
 - Pips
