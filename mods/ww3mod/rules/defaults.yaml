@@ -631,6 +631,10 @@
 # 		RequiresCondition: stance-attackanything
 # 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 # 		InvalidTargets: NoAutoTarget
+^AutoTargetDrone:
+	AutoTarget:
+	AutoTargetPriority@Default:
+		ValidTargets: Drone
 
 ^AmmoDecoration:
 	WithDecoration@AmmoNone:
