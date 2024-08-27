@@ -347,7 +347,7 @@ Container@EDITOR_WORLD_ROOT:
 			Height: 290
 			Background: panel-gray
 			Children:
-				MiniMap@INGAME_RADAR:
+				MiniMap@INGAME_MINIMAP:
 					X: 1
 					Y: 1
 					Width: PARENT_RIGHT - 2

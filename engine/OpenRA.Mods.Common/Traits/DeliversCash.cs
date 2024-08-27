@@ -27,9 +27,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The amount of experience the donating player receives.")]
 		public readonly int PlayerExperience = 0;
 
-		[Desc("Should the amount be multiplied by the handicap to give the proportional value back? E.g. Used for rotating units off map.")]
-		public readonly bool AdjustForHandicap = false;
-
 		[Desc("Identifier checked against AcceptsDeliveredCash.ValidTypes. Only needed if the latter is not empty.")]
 		public readonly string Type = null;
 
@@ -93,7 +90,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			var amount = info.Payload == -1 && valued != null ? valued.Cost : info.Payload;
 
-			if (info.AdjustForHandicap)
+			// When rotating units out of the battlefield, adjust value for handicap
+			if (info.Type == "Rotation")
 			{
 				var handicap = self.Owner.Handicap;
 				if (handicap > 0)

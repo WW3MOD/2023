@@ -59,7 +59,7 @@ Container@OBSERVER_WIDGETS:
 			Width: 250
 			Height: 250
 			Children:
-				MiniMap@INGAME_RADAR:
+				MiniMap@INGAME_MINIMAP:
 					X: 10
 					Y: 10
 					Width: PARENT_RIGHT - 19

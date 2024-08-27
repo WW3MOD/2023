@@ -151,7 +151,7 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 72
 							Height: 25
 							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipText: A handicap decreases the combat effectiveness of the player's forces
+							TooltipText: Increase unit cost for the player. The selected value determines the reduction in unit generation.
 						DropDownButton@SPAWN_DROPDOWN:
 							X: 560
 							Width: 48

@@ -126,7 +126,6 @@ PBOX:
 	-TimedConditionBar@EMP:
 	-WithIdleOverlay@EMP:
 	-ExternalCondition@EMP:
-	-PowerMultiplier@EMP:
 	-GrantCondition@EMP:
 	-QuantizeFacingsFromSequence:
 	-SpawnActorsOnSell:
@@ -175,7 +174,6 @@ HBOX:
 	-TimedConditionBar@EMP:
 	-WithIdleOverlay@EMP:
 	-ExternalCondition@EMP:
-	-PowerMultiplier@EMP:
 	-GrantCondition@EMP:
 	-SpawnActorsOnSell:
 	-MustBeDestroyed:
@@ -478,7 +476,6 @@ VGATE:
 
 CRAM:
 	Inherits@Type: ^Defense
-	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@AutoTarget: ^AutoTargetAirICBM
 	-WithSpriteBody:
 	-ActorPreviewPlaceBuildingPreview:
@@ -559,7 +556,6 @@ CRAM:
 
 AGUN:
 	Inherits@Type: ^Defense
-	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@AutoTarget: ^AutoTargetAirICBM
 	-WithSpriteBody:
 	-ActorPreviewPlaceBuildingPreview:
@@ -633,7 +629,6 @@ AGUN:
 
 SAM:
 	Inherits@Type: ^Defense
-	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@AutoTarget: ^AutoTargetAirICBM
 	Inherits@Shape: ^2x1Shape
 	-WithSpriteBody:
@@ -725,7 +720,6 @@ HSAM:
 # PATRIOT:
 # 	Inherits@Type: ^Defense
 # 	Inherits@AutoTarget: ^AutoTargetAirICBM
-# 	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 # 	Valued:
 # 		Cost: 3500
 # 	Tooltip:
@@ -753,7 +747,7 @@ HSAM:
 # 		LocalYaw: -100, 100
 # 		Recoil: 10
 # 	AttackTurreted:
-# 		PauseOnCondition: disabled || lowpower
+# 		PauseOnCondition: disabled
 # 	BodyOrientation:
 # 		QuantizedFacings: 8
 # 	RenderSprites:
@@ -762,7 +756,6 @@ HSAM:
 FTUR:
 	Inherits@Type: ^Defense
 	Inherits@AutoTarget: ^AutoTargetGround
-	Inherits@RequiresPower: ^DisableOnPowerDown
 	-QuantizeFacingsFromSequence:
 	BodyOrientation:
 		QuantizedFacings: 8
@@ -828,7 +821,6 @@ FTUR:
 
 TSLA:
 	Inherits@Type: ^Defense
-	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
 	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
 	Selectable:
@@ -862,7 +854,7 @@ TSLA:
 	WithTeslaChargeAnimation:
 	Targetable@ChargeTargeting:
 		TargetTypes: Charge
-		RequiresCondition: !TeslaHasCharge && lowpower
+		RequiresCondition: !TeslaHasCharge
 	GrantCondition@Overcharge:
 		Condition: TeslaHasCharge
 		RequiresCondition: TeslaChargeApplied
@@ -876,12 +868,8 @@ TSLA:
 	TimedConditionBar@Charged:
 		Condition: TeslaChargeApplied
 		Color: f4f442
-	GrantConditionOnPowerState@LOWPOWER:
-		Condition: lowpower
-		ValidPowerStates: Low, Critical
-		RequiresCondition: !TeslaChargeApplied
 	GrantCondition@IDISABLE:
-		RequiresCondition: lowpower || powerdown && !TeslaHasCharge && !empdisable
+		RequiresCondition: powerdown && !TeslaHasCharge && !empdisable
 		Condition: disabled
 	ToggleConditionOnOrder:
 		DisabledSound: EnablePower
@@ -897,7 +885,6 @@ TSLA:
 
 PRIS:
 	Inherits@Type: ^Defense
-	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
 	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
 	Buildable:
@@ -952,7 +939,6 @@ PRIS:
 
 MSLO:
 	Inherits: ^Building
-	Inherits@RequiresPower: ^DisableOnLowPowerOrPowerDown
 	Inherits@Shape: ^2x1Shape
 	-BlocksProjectiles:
 	Selectable:

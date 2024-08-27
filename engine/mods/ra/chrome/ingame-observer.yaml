@@ -77,7 +77,7 @@ Container@OBSERVER_WIDGETS:
 							Width: 222
 							Height: 222
 							Color: 000000
-						MiniMap@INGAME_RADAR:
+						MiniMap@INGAME_MINIMAP:
 							WorldInteractionController: INTERACTION_CONTROLLER
 							X: 9
 							Y: 41
