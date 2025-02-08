@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] Acceleration = { 1, 3, 1 };
 
 		[Desc("Maximum flight speed when cruising.")]
-		public readonly int Speed = 1;
+		public readonly int Speed = 150;
 
 		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
 		public readonly int IdleSpeed = -1;
