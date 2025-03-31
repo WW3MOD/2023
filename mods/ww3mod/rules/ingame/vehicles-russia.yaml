@@ -117,7 +117,7 @@ bmp2:
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.low
 		Description: Amphibious infantry fighting vehicle capable of engaging both infantry and armored targets at long range.\n\n - 30mm autocannon\n - Wire-guided anti-tank misslile\n - Medium Armor.
 	Valued:
-		Cost: 1600
+		Cost: 1300
 	Health:
 		HP: 7000
 	Armor:
@@ -257,7 +257,7 @@ t90:
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Fills the role of armour-protected direct fire and maneuver in the army. - 125mm gun\n - Heavy armor
 	Valued:
-		Cost: 2200
+		Cost: 2400
 	Health:
 		HP: 12000
 	Armor:
@@ -445,7 +445,7 @@ grad:
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
 		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 40× 122mm rockets\n - Light armor
 	Valued:
-		Cost: 1800
+		Cost: 1500
 	Tooltip:
 		Name: BM-21 Grad
 	AnnounceOnSeen:
