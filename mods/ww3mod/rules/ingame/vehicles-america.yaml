@@ -15,7 +15,7 @@ humvee:
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: The High Mobility Multipurpose Wheeled Vehicle (HMMWV), commonly known as the Humvee, is a light utility vehicle for transporting infantry while providing direct fire support.\n\n - 7.62mm medium machine gun\n-Light armor.\n-Carries 8 infantry.
 	Valued:
-		Cost: 700
+		Cost: 600
 	Tooltip:
 		Name: Humvee
 	AnnounceOnSeen:
@@ -272,7 +272,7 @@ bradley:
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: The Bradley Fighting Vehicle is a tracked armored fighting vehicle designed to transport infantry or scouts with armor protection, while providing covering fire to suppress enemy troops and armored vehicles.\n\n -25mm chaingun\n - 2× wire-guided anti-tank missiles.\n - Carries 6 infantry.\n - Medium armor.
 	Valued:
-		Cost: 1600
+		Cost: 1500
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -415,7 +415,7 @@ abrams:
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Main battle tank conceived for modern armored ground warfare - 120mm gun.\n-Heavy armor.
 	Valued:
-		Cost: 2200
+		Cost: 2500
 	Health:
 		HP: 14000
 	Armor:
@@ -434,7 +434,7 @@ abrams:
 	# 	Range: 2c0
 	Mobile:
 		Locomotor: heavytracked
-		Speed: 100
+		Speed: 90
 		Acceleration: 3, 2, 1
 		TurnSpeed: 10
 		PauseOnCondition: empdisable
@@ -607,7 +607,7 @@ m270:
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 12× 227mm rockets\n - Light armor
 	Valued:
-		Cost: 2000
+		Cost: 1800
 	Tooltip:
 		Name: M270 MLRS
 	AnnounceOnSeen:

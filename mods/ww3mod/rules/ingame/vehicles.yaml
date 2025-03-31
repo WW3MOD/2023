@@ -165,7 +165,7 @@ MSAR:
 		BuildDurationModifier: 50
 		Description: The ranging system is intended to locate artillery batteries from the sound of gunfire to facilitate effective counter artillery fire.\n\n - Deploys\n - Light armor.
 	Valued:
-		Cost: 1500
+		Cost: 1600
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Armor:
@@ -358,7 +358,7 @@ LCCV:
 		Prerequisites: ~techlevel.low
 		Description: Deploys into a Logistics Center, capable of rearming vehicles and infantry on the field.
 	Valued:
-		Cost: 2000
+		Cost: 1200
 	Tooltip:
 		Name: Logistics Center MCV
 	Selectable:
@@ -460,7 +460,6 @@ LCCV:
 # 		Weapon: ArtilleryExplode
 # 	SpawnActorOnDeath:
 # 		Actor: MNLY.husk
-
 
 # timberwolf:
 # 	Inherits@Type: ^Walker

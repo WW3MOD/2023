@@ -80,7 +80,7 @@ HIND:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		# Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
 	Tooltip:
 		Name: Mi-24 Hind
