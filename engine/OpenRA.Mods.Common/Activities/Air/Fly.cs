@@ -20,7 +20,8 @@ namespace OpenRA.Mods.Common.Activities
         Target lastVisibleTarget;
         bool useLastVisibleTarget;
         readonly List<WPos> positionBuffer = new List<WPos>();
-        const int StopThreshold = 128; // Small distance to snap to target (unnoticeable to player)
+        const int StopThreshold = 128; // Small distance to snap to target at final waypoint
+        const int WaypointThreshold = 1024; // Larger distance to proceed to next waypoint
 
         public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
             : this(self, t, initialTargetPosition, targetLineColor)
@@ -173,31 +174,34 @@ namespace OpenRA.Mods.Common.Activities
 
             var desiredFacing = deltaLengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
             var stoppingDistance = aircraft.CalculateStoppingDistance();
-            var isFinalWaypoint = NextActivity == null; // Only stop if this is the last activity in the queue
+            var isFinalWaypoint = NextActivity == null;
 
-            // Only snap and stop if it's the final waypoint
-            if (isFinalWaypoint && deltaLengthSquared <= StopThreshold * StopThreshold)
+            // Check if close enough to proceed to next waypoint (intermediate) or stop (final)
+            if (deltaLengthSquared <= (isFinalWaypoint ? StopThreshold : WaypointThreshold) * (isFinalWaypoint ? StopThreshold : WaypointThreshold))
             {
-                var targetPosAtCruise = new WPos(checkTarget.CenterPosition.X, checkTarget.CenterPosition.Y, pos.Z); // Keep Z at cruise altitude
-                aircraft.SetPosition(self, targetPosAtCruise);
-                aircraft.CurrentMomentum = WVec.Zero;
-                aircraft.CurrentSpeed = 0;
-                return true;
+                if (isFinalWaypoint)
+                {
+                    var targetPosAtCruise = new WPos(checkTarget.CenterPosition.X, checkTarget.CenterPosition.Y, pos.Z); // Keep Z at cruise altitude
+                    aircraft.SetPosition(self, targetPosAtCruise);
+                    aircraft.CurrentMomentum = WVec.Zero;
+                    aircraft.CurrentSpeed = 0;
+                }
+                return true; // Proceed to next activity (or stop if final)
             }
 
-            // Calculate desired move based on distance and stopping requirements
+            // Calculate desired move
             WVec desiredMove;
             if (isFinalWaypoint && deltaLength <= stoppingDistance + nearEnough.Length)
             {
-                // Decelerate: Target speed decreases linearly with distance
-                var targetSpeed = Math.Min(aircraft.MovementSpeed, (deltaLength - nearEnough.Length) * aircraft.Info.DecelerationRate / 2);
-                targetSpeed = Math.Max(targetSpeed, aircraft.CurrentSpeed - aircraft.Info.DecelerationRate); // Smoothly reduce speed
-                targetSpeed = Math.Max(0, targetSpeed); // Ensure non-negative
+                // Decelerate for final waypoint
+                var remainingDistance = Math.Max(0, deltaLength - nearEnough.Length);
+                var targetSpeed = Math.Min(aircraft.MovementSpeed, remainingDistance * aircraft.Info.DecelerationRate / 2);
+                targetSpeed = Math.Max(targetSpeed, Math.Min(aircraft.CurrentSpeed - aircraft.Info.DecelerationRate, aircraft.Info.AccelerationRate));
                 desiredMove = deltaLengthSquared > 0 ? deltaHorizontal * targetSpeed / deltaLength : WVec.Zero;
             }
             else
             {
-                // Accelerate or maintain max speed
+                // Full speed for intermediate waypoints or when far from final
                 desiredMove = aircraft.FlyStep(aircraft.MovementSpeed, desiredFacing);
             }
 
