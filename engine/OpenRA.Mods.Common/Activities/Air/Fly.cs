@@ -156,7 +156,8 @@ namespace OpenRA.Mods.Common.Activities
             var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
             var pos = aircraft.GetPosition();
             var delta = checkTarget.CenterPosition - pos;
-            var deltaLengthSquared = delta.HorizontalLengthSquared;
+            var deltaHorizontal = new WVec(delta.X, delta.Y, 0); // Ignore Z for stopping distance
+            var deltaLengthSquared = deltaHorizontal.LengthSquared;
             var deltaLength = (int)Math.Sqrt(deltaLengthSquared);
 
             var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
@@ -170,34 +171,35 @@ namespace OpenRA.Mods.Common.Activities
                 return false;
             }
 
-            var desiredFacing = deltaLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+            var desiredFacing = deltaLengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
             var stoppingDistance = aircraft.CalculateStoppingDistance();
 
-            // Check if within stopping threshold to snap to target
+            // Snap to target if within threshold
             if (deltaLengthSquared <= StopThreshold * StopThreshold)
             {
-                aircraft.SetPosition(self, checkTarget.CenterPosition);
+                var targetPosAtCruise = new WPos(checkTarget.CenterPosition.X, checkTarget.CenterPosition.Y, pos.Z); // Keep Z at cruise altitude
+                aircraft.SetPosition(self, targetPosAtCruise);
                 aircraft.CurrentMomentum = WVec.Zero;
-                aircraft.currentSpeed = 0;
+                aircraft.CurrentSpeed = 0;
                 return true;
             }
 
-            // Check if we need to start decelerating
+            // Calculate desired move based on distance and stopping requirements
+            WVec desiredMove;
             if (deltaLength <= stoppingDistance + nearEnough.Length)
             {
-                // Decelerate towards target
-                var desiredMove = deltaLengthSquared > 0 ? delta * aircraft.MovementSpeed / deltaLength : WVec.Zero;
-                var moveMagnitude = Math.Min(desiredMove.Length, aircraft.currentSpeed); // Don't exceed current speed
-                desiredMove = desiredMove * moveMagnitude / Math.Max(1, desiredMove.Length);
-
-                FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, desiredMove);
-                if (aircraft.CurrentMomentum.LengthSquared < 64)
-                    return true;
-
-                return false;
+                // Decelerate: Scale speed based on remaining distance
+                var targetSpeed = Math.Max(0, deltaLength - nearEnough.Length) * aircraft.Info.DecelerationRate;
+                targetSpeed = Math.Min(targetSpeed, aircraft.CurrentSpeed); // Don't exceed current speed
+                desiredMove = deltaLengthSquared > 0 ? deltaHorizontal * targetSpeed / deltaLength : WVec.Zero;
+            }
+            else
+            {
+                // Accelerate or maintain max speed
+                desiredMove = aircraft.FlyStep(aircraft.MovementSpeed, desiredFacing);
             }
 
-            // Full speed towards target, accounting for turn radius
+            // Apply turn radius only when far from target
             var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
             var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
             var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
@@ -211,7 +213,7 @@ namespace OpenRA.Mods.Common.Activities
             if (positionBuffer.Count > 5)
                 positionBuffer.RemoveAt(0);
 
-            FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
+            FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, desiredMove);
             return false;
         }
 

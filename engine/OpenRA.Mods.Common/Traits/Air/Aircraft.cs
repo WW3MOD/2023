@@ -293,8 +293,9 @@ namespace OpenRA.Mods.Common.Traits
         int cruisingToken = Actor.InvalidConditionToken;
 
         [Sync]
-        public WVec CurrentMomentum { get; set; } = WVec.Zero; // Current velocity vector
-        public int currentSpeed; // Current speed magnitude
+        public WVec CurrentMomentum { get; set; } = WVec.Zero; // Current velocity vector (made public for Fly.cs)
+        [Sync]
+        public int CurrentSpeed; // Current speed magnitude (made public for Fly.cs, and proper naming convention)
 
         MovementType movementTypes;
         WPos cachedPosition;
@@ -315,7 +316,7 @@ namespace OpenRA.Mods.Common.Traits
 
             Facing = init.GetValue<FacingInit, WAngle>(Info.InitialFacing);
             creationActivityDelay = init.GetValue<CreationActivityDelayInit, int>(0);
-            currentSpeed = 0;
+            CurrentSpeed = 0;
         }
 
         public WDist LandAltitude
@@ -444,12 +445,12 @@ namespace OpenRA.Mods.Common.Traits
                 if (Info.Pitch != WAngle.Zero && Pitch != WAngle.Zero)
                     Pitch = Util.TickFacing(Pitch, WAngle.Zero, Info.PitchSpeed);
 
-                // Decelerate when not moving horizontally
-                if (currentSpeed > 0)
+                // Decelerate when not moving horizontally (outside Fly activity)
+                if (CurrentSpeed > 0)
                 {
-                    currentSpeed = Math.Max(0, currentSpeed - Info.DecelerationRate);
+                    CurrentSpeed = Math.Max(0, CurrentSpeed - Info.DecelerationRate);
                     CurrentMomentum = CurrentMomentum.Length > 0 ?
-                        CurrentMomentum * currentSpeed / CurrentMomentum.Length : WVec.Zero;
+                        CurrentMomentum * CurrentSpeed / CurrentMomentum.Length : WVec.Zero;
                 }
             }
 
@@ -620,7 +621,7 @@ namespace OpenRA.Mods.Common.Traits
 
         public WVec FlyStep(WAngle facing)
         {
-            return FlyStep(currentSpeed, facing);
+            return FlyStep(CurrentSpeed, facing);
         }
 
         public WVec FlyStep(int speed, WAngle facing)
@@ -650,23 +651,22 @@ namespace OpenRA.Mods.Common.Traits
                     newDir = newDir * 1024 / magnitude;
 
                 // Adjust speed
-                currentSpeed = Math.Min(currentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
-                CurrentMomentum = newDir * currentSpeed / 1024;
+                CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
+                CurrentMomentum = newDir * CurrentSpeed / 1024;
             }
             else
             {
                 // Decelerate to stop
-                currentSpeed = Math.Max(currentSpeed - Info.DecelerationRate, 0);
+                CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, 0);
                 CurrentMomentum = CurrentMomentum.Length > 0 ?
-                    CurrentMomentum * currentSpeed / CurrentMomentum.Length : WVec.Zero;
+                    CurrentMomentum * CurrentSpeed / CurrentMomentum.Length : WVec.Zero;
             }
         }
 
         public int CalculateStoppingDistance()
         {
-            // Stopping distance = (currentSpeed^2) / (2 * DecelerationRate)
-            // This is derived from v^2 = u^2 + 2as, where v = 0 (final speed), u = currentSpeed, a = -DecelerationRate
-            return currentSpeed * currentSpeed / (2 * Math.Max(1, Info.DecelerationRate));
+            // Stopping distance = (CurrentSpeed^2) / (2 * DecelerationRate)
+            return CurrentSpeed * CurrentSpeed / (2 * Math.Max(1, Info.DecelerationRate));
         }
 
         public CPos? FindLandingLocation(CPos targetCell, WDist maxSearchDistance)
