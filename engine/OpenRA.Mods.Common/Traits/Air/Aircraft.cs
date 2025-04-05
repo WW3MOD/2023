@@ -634,16 +634,34 @@ namespace OpenRA.Mods.Common.Traits
 		public void AdjustMomentum(WVec desiredMove)
 		{
 			var targetSpeed = desiredMove.Length;
-			var targetDir = desiredMove.Length > 0 ? desiredMove / targetSpeed : WVec.Zero;
+			var maxSpeed = MovementSpeed;
 
-			// Accelerate or decelerate towards target speed
-			if (targetSpeed > currentSpeed)
-				currentSpeed = Math.Min(currentSpeed + Info.AccelerationRate, targetSpeed);
-			else if (targetSpeed < currentSpeed)
-				currentSpeed = Math.Max(currentSpeed - Info.AccelerationRate, targetSpeed);
+			if (targetSpeed > 0)
+			{
+				// Interpolate momentum toward desired move
+				var desiredDir = desiredMove * 1024 / targetSpeed; // Scale to avoid precision loss
+				var currentDir = CurrentMomentum.Length > 0 ? CurrentMomentum * 1024 / CurrentMomentum.Length : WVec.Zero;
 
-			// Update momentum based on current speed and direction
-			CurrentMomentum = targetDir * currentSpeed;
+				// Gradually adjust direction
+				var newDir = currentDir == WVec.Zero ? desiredDir :
+					(currentDir + (desiredDir - currentDir) * Info.AccelerationRate / 32);
+
+				// Clamp magnitude to 1024 manually
+				var magnitude = newDir.Length;
+				if (magnitude > 1024)
+					newDir = newDir * 1024 / magnitude;
+
+				// Adjust speed
+				currentSpeed = Math.Min(currentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
+				CurrentMomentum = newDir * currentSpeed / 1024;
+			}
+			else
+			{
+				// Decelerate to stop
+				currentSpeed = Math.Max(currentSpeed - Info.AccelerationRate, 0);
+				CurrentMomentum = CurrentMomentum.Length > 0 ?
+					CurrentMomentum * currentSpeed / CurrentMomentum.Length : WVec.Zero;
+			}
 		}
 
 		public CPos? FindLandingLocation(CPos targetCell, WDist maxSearchDistance)

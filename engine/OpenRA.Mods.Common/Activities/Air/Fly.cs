@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -18,233 +7,229 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
-	public class Fly : Activity
-	{
-		readonly Aircraft aircraft;
-		readonly WDist maxRange;
-		readonly WDist minRange;
-		readonly Color? targetLineColor;
-		readonly WDist nearEnough;
+    public class Fly : Activity
+    {
+        readonly Aircraft aircraft;
+        readonly WDist maxRange;
+        readonly WDist minRange;
+        readonly Color? targetLineColor;
+        readonly WDist nearEnough;
 
-		Target target;
-		Target lastVisibleTarget;
-		bool useLastVisibleTarget;
-		readonly List<WPos> positionBuffer = new List<WPos>();
+        Target target;
+        Target lastVisibleTarget;
+        bool useLastVisibleTarget;
+        readonly List<WPos> positionBuffer = new List<WPos>();
 
-		public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
-			: this(self, t, initialTargetPosition, targetLineColor)
-		{
-			this.nearEnough = nearEnough;
-		}
+        public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
+            : this(self, t, initialTargetPosition, targetLineColor)
+        {
+            this.nearEnough = nearEnough;
+        }
 
-		public Fly(Actor self, in Target t, WPos? initialTargetPosition = null, Color? targetLineColor = null)
-		{
-			aircraft = self.Trait<Aircraft>();
-			target = t;
-			this.targetLineColor = targetLineColor;
+        public Fly(Actor self, in Target t, WPos? initialTargetPosition = null, Color? targetLineColor = null)
+        {
+            aircraft = self.Trait<Aircraft>();
+            target = t;
+            this.targetLineColor = targetLineColor;
 
-			if ((target.Type == TargetType.Actor && target.Actor.CanBeViewedByPlayer(self.Owner))
-			    || target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
-				lastVisibleTarget = Target.FromPos(target.CenterPosition);
-			else if (initialTargetPosition.HasValue)
-				lastVisibleTarget = Target.FromPos(initialTargetPosition.Value);
-		}
+            if ((target.Type == TargetType.Actor && target.Actor.CanBeViewedByPlayer(self.Owner))
+                || target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
+                lastVisibleTarget = Target.FromPos(target.CenterPosition);
+            else if (initialTargetPosition.HasValue)
+                lastVisibleTarget = Target.FromPos(initialTargetPosition.Value);
+        }
 
-		public Fly(Actor self, in Target t, WDist minRange, WDist maxRange,
-			WPos? initialTargetPosition = null, Color? targetLineColor = null)
-			: this(self, t, initialTargetPosition, targetLineColor)
-		{
-			this.maxRange = maxRange;
-			this.minRange = minRange;
-		}
+        public Fly(Actor self, in Target t, WDist minRange, WDist maxRange,
+            WPos? initialTargetPosition = null, Color? targetLineColor = null)
+            : this(self, t, initialTargetPosition, targetLineColor)
+        {
+            this.maxRange = maxRange;
+            this.minRange = minRange;
+        }
 
-		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
-		{
-			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
+        public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
+        {
+            var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 
-			// Calculate desired move based on facing and max speed
-			var desiredMove = aircraft.FlyStep(aircraft.MovementSpeed, desiredFacing);
-			if (moveOverride != WVec.Zero)
-				desiredMove = moveOverride;
+            // Calculate desired move based on facing and max speed
+            var desiredMove = moveOverride != WVec.Zero ? moveOverride : aircraft.FlyStep(aircraft.MovementSpeed, desiredFacing);
 
-			// Adjust momentum towards desired move
-			aircraft.AdjustMomentum(desiredMove);
+            // Adjust momentum towards desired move
+            aircraft.AdjustMomentum(desiredMove);
 
-			// Update facing
-			var oldFacing = aircraft.Facing;
-			var turnSpeed = aircraft.GetTurnSpeed(idleTurn);
-			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
+            // Update facing
+            var oldFacing = aircraft.Facing;
+            var turnSpeed = aircraft.GetTurnSpeed(idleTurn);
+            aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
-			// Update roll
-			var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
-			if (roll != WAngle.Zero)
-			{
-				var desiredRoll = aircraft.Facing == desiredFacing ? WAngle.Zero :
-					new WAngle(roll.Angle * Util.GetTurnDirection(aircraft.Facing, oldFacing));
-				aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
-			}
+            // Update roll
+            var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
+            if (roll != WAngle.Zero)
+            {
+                var desiredRoll = aircraft.Facing == desiredFacing ? WAngle.Zero :
+                    new WAngle(roll.Angle * Util.GetTurnDirection(aircraft.Facing, oldFacing));
+                aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
+            }
 
-			// Update pitch
-			if (aircraft.Info.Pitch != WAngle.Zero)
-				aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
+            // Update pitch
+            if (aircraft.Info.Pitch != WAngle.Zero)
+                aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
 
-			// Adjust vertical movement
-			var move = aircraft.CurrentMomentum;
-			if (dat != desiredAltitude || move.Z != 0)
-			{
-				var maxDelta = move.HorizontalLength * aircraft.Info.MaximumPitch.Tan() / 1024;
-				var moveZ = move.Z != 0 ? move.Z : (desiredAltitude.Length - dat.Length);
-				var deltaZ = moveZ.Clamp(-maxDelta, maxDelta);
-				move = new WVec(move.X, move.Y, deltaZ);
-			}
+            // Adjust vertical movement
+            var move = aircraft.CurrentMomentum;
+            if (dat != desiredAltitude || move.Z != 0)
+            {
+                var maxDelta = move.HorizontalLength * aircraft.Info.MaximumPitch.Tan() / 1024;
+                var moveZ = move.Z != 0 ? move.Z : (desiredAltitude.Length - dat.Length);
+                var deltaZ = moveZ.Clamp(-maxDelta, maxDelta);
+                move = new WVec(move.X, move.Y, deltaZ);
+            }
 
-			aircraft.SetPosition(self, aircraft.CenterPosition + move);
-		}
+            aircraft.SetPosition(self, aircraft.CenterPosition + move);
+        }
 
-		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
-		{
-			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
-		}
+        public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
+        {
+            FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
+        }
 
-		public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
-		{
-			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			var move = WVec.Zero;
+        public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
+        {
+            var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
+            var move = WVec.Zero;
 
-			var turnSpeed = idleTurn ? aircraft.IdleTurnSpeed ?? aircraft.TurnSpeed : aircraft.TurnSpeed;
-			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
+            var turnSpeed = idleTurn ? aircraft.IdleTurnSpeed ?? aircraft.TurnSpeed : aircraft.TurnSpeed;
+            aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
-			if (dat != desiredAltitude)
-			{
-				var maxDelta = aircraft.Info.AltitudeVelocity.Length;
-				var deltaZ = (desiredAltitude.Length - dat.Length).Clamp(-maxDelta, maxDelta);
-				move += new WVec(0, 0, deltaZ);
-			}
-			else
-				return false;
+            if (dat != desiredAltitude)
+            {
+                var maxDelta = aircraft.Info.AltitudeVelocity.Length;
+                var deltaZ = (desiredAltitude.Length - dat.Length).Clamp(-maxDelta, maxDelta);
+                move += new WVec(0, 0, deltaZ);
+            }
+            else
+                return false;
 
-			aircraft.SetPosition(self, self.CenterPosition + move);
-			return true;
-		}
+            aircraft.SetPosition(self, self.CenterPosition + move);
+            return true;
+        }
 
-		public override bool Tick(Actor self)
-		{
-			if (aircraft.ForceLanding)
-				Cancel(self);
+        public override bool Tick(Actor self)
+        {
+            if (aircraft.ForceLanding)
+                Cancel(self);
 
-			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			var isLanded = dat <= aircraft.LandAltitude;
+            var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
+            var isLanded = dat <= aircraft.LandAltitude;
 
-			if (isLanded && aircraft.IsTraitPaused)
-				return false;
+            if (isLanded && aircraft.IsTraitPaused)
+                return false;
 
-			if (IsCanceling)
-			{
-				var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
-				var skipHeightAdjustment = landWhenIdle && self.CurrentActivity.IsCanceling && self.CurrentActivity.NextActivity == null;
-				if (aircraft.Info.CanHover && !skipHeightAdjustment && dat != aircraft.Info.CruiseAltitude)
-				{
-					if (isLanded)
-						QueueChild(new TakeOff(self));
-					else
-						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-					return false;
-				}
-				return true;
-			}
-			else if (isLanded)
-			{
-				QueueChild(new TakeOff(self));
-				return false;
-			}
+            if (IsCanceling)
+            {
+                var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
+                var skipHeightAdjustment = landWhenIdle && self.CurrentActivity.IsCanceling && self.CurrentActivity.NextActivity == null;
+                if (aircraft.Info.CanHover && !skipHeightAdjustment && dat != aircraft.Info.CruiseAltitude)
+                {
+                    if (isLanded)
+                        QueueChild(new TakeOff(self));
+                    else
+                        VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+                    return false;
+                }
+                return true;
+            }
+            else if (isLanded)
+            {
+                QueueChild(new TakeOff(self));
+                return false;
+            }
 
-			target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
-			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
-				lastVisibleTarget = Target.FromTargetPositions(target);
+            target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
+            if (!targetIsHiddenActor && target.Type == TargetType.Actor)
+                lastVisibleTarget = Target.FromTargetPositions(target);
 
-			useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
+            useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
 
-			if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self))
-				return true;
+            if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self))
+                return true;
 
-			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
-			var pos = aircraft.GetPosition();
-			var delta = checkTarget.CenterPosition - pos;
+            var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
+            var pos = aircraft.GetPosition();
+            var delta = checkTarget.CenterPosition - pos;
 
-			var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
-			var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
-			if (insideMaxRange && !insideMinRange)
-			{
-				// Decelerate to stop when within range
-				aircraft.AdjustMomentum(WVec.Zero);
-				if (aircraft.CurrentMomentum.LengthSquared < 64) // Small threshold to consider stopped
-					return true;
-				FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-				return false;
-			}
+            var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
+            var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
+            if (insideMaxRange && !insideMinRange)
+            {
+                aircraft.AdjustMomentum(WVec.Zero);
+                if (aircraft.CurrentMomentum.LengthSquared < 64)
+                    return true;
+                FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+                return false;
+            }
 
-			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+            var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
 
-			// Handle turning and movement
-			if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-				delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
-			{
-				aircraft.AdjustMomentum(WVec.Zero);
-				if (aircraft.CurrentMomentum.LengthSquared < 64)
-					return true;
-				FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-				return false;
-			}
+            if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
+                delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
+            {
+                aircraft.AdjustMomentum(WVec.Zero);
+                if (aircraft.CurrentMomentum.LengthSquared < 64)
+                    return true;
+                FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+                return false;
+            }
 
-			if (delta.HorizontalLengthSquared < aircraft.CurrentMomentum.HorizontalLengthSquared)
-			{
-				if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
-				{
-					if (delta.HorizontalLengthSquared != 0)
-					{
-						var deltaMove = new WVec(delta.X, delta.Y, 0);
-						FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
-					}
+            if (delta.HorizontalLengthSquared < aircraft.CurrentMomentum.HorizontalLengthSquared)
+            {
+                if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
+                {
+                    if (delta.HorizontalLengthSquared != 0)
+                    {
+                        var deltaMove = new WVec(delta.X, delta.Y, 0);
+                        FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
+                    }
 
-					if (dat != aircraft.Info.CruiseAltitude)
-					{
-						Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-						return false;
-					}
-				}
-				return true;
-			}
+                    if (dat != aircraft.Info.CruiseAltitude)
+                    {
+                        Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+                        return false;
+                    }
+                }
+                return true;
+            }
 
-			var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
-			var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
-			var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
-			var turnCenter = aircraft.CenterPosition + turnCenterDir;
+            var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
+            var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
+            var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
+            var turnCenter = aircraft.CenterPosition + turnCenterDir;
 
-			if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
-				desiredFacing = aircraft.Facing;
+            if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
+                desiredFacing = aircraft.Facing;
 
-			positionBuffer.Add(self.CenterPosition);
-			if (positionBuffer.Count > 5)
-				positionBuffer.RemoveAt(0);
+            positionBuffer.Add(self.CenterPosition);
+            if (positionBuffer.Count > 5)
+                positionBuffer.RemoveAt(0);
 
-			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
-			return false;
-		}
+            FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
+            return false;
+        }
 
-		public override IEnumerable<Target> GetTargets(Actor self)
-		{
-			yield return target;
-		}
+        public override IEnumerable<Target> GetTargets(Actor self)
+        {
+            yield return target;
+        }
 
-		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
-		{
-			if (targetLineColor.HasValue)
-				yield return new TargetLineNode(useLastVisibleTarget ? lastVisibleTarget : target, targetLineColor.Value);
-		}
+        public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
+        {
+            if (targetLineColor.HasValue)
+                yield return new TargetLineNode(useLastVisibleTarget ? lastVisibleTarget : target, targetLineColor.Value);
+        }
 
-		public static int CalculateTurnRadius(int speed, WAngle turnSpeed)
-		{
-			return turnSpeed.Angle > 0 ? 180 * speed / turnSpeed.Angle : 0;
-		}
-	}
+        public static int CalculateTurnRadius(int speed, WAngle turnSpeed)
+        {
+            return turnSpeed.Angle > 0 ? 180 * speed / turnSpeed.Angle : 0;
+        }
+    }
 }
