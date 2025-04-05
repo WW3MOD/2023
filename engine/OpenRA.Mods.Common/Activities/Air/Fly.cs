@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Activities
         bool useLastVisibleTarget;
         readonly List<WPos> positionBuffer = new List<WPos>();
         const int StopThreshold = 128; // Small distance to snap to target at final waypoint
-        const int WaypointThreshold = 1024; // Larger distance to proceed to next waypoint
+        const int WaypointThreshold = 512; // Larger distance to proceed to next waypoint
 
         public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
             : this(self, t, initialTargetPosition, targetLineColor)
@@ -176,7 +176,7 @@ namespace OpenRA.Mods.Common.Activities
             var stoppingDistance = aircraft.CalculateStoppingDistance();
             var isFinalWaypoint = NextActivity == null;
 
-            // Check if close enough to proceed to next waypoint (intermediate) or stop (final)
+            // Check if close enough to proceed to next waypoint or stop
             if (deltaLengthSquared <= (isFinalWaypoint ? StopThreshold : WaypointThreshold) * (isFinalWaypoint ? StopThreshold : WaypointThreshold))
             {
                 if (isFinalWaypoint)
@@ -186,17 +186,17 @@ namespace OpenRA.Mods.Common.Activities
                     aircraft.CurrentMomentum = WVec.Zero;
                     aircraft.CurrentSpeed = 0;
                 }
-                return true; // Proceed to next activity (or stop if final)
+                return true; // Proceed to next activity or stop if final
             }
 
             // Calculate desired move
             WVec desiredMove;
             if (isFinalWaypoint && deltaLength <= stoppingDistance + nearEnough.Length)
             {
-                // Decelerate for final waypoint
+                // Decelerate for final waypoint with smoother scaling
                 var remainingDistance = Math.Max(0, deltaLength - nearEnough.Length);
-                var targetSpeed = Math.Min(aircraft.MovementSpeed, remainingDistance * aircraft.Info.DecelerationRate / 2);
-                targetSpeed = Math.Max(targetSpeed, Math.Min(aircraft.CurrentSpeed - aircraft.Info.DecelerationRate, aircraft.Info.AccelerationRate));
+                var targetSpeed = aircraft.MovementSpeed * remainingDistance / Math.Max(1, stoppingDistance + nearEnough.Length);
+                targetSpeed = Math.Max(targetSpeed, aircraft.Info.AccelerationRate); // Ensure movement continues
                 desiredMove = deltaLengthSquared > 0 ? deltaHorizontal * targetSpeed / deltaLength : WVec.Zero;
             }
             else

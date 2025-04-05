@@ -295,7 +295,7 @@ namespace OpenRA.Mods.Common.Traits
         [Sync]
         public WVec CurrentMomentum { get; set; } = WVec.Zero; // Current velocity vector (made public for Fly.cs)
         [Sync]
-        public int CurrentSpeed; // Current speed magnitude (made public for Fly.cs, and proper naming convention)
+        public int CurrentSpeed; // Current speed magnitude (made public for Fly.cs, PascalCase)
 
         MovementType movementTypes;
         WPos cachedPosition;
@@ -650,7 +650,7 @@ namespace OpenRA.Mods.Common.Traits
                 if (magnitude > 1024)
                     newDir = newDir * 1024 / magnitude;
 
-                // Adjust speed
+                // Adjust speed smoothly
                 CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
                 CurrentMomentum = newDir * CurrentSpeed / 1024;
             }
@@ -665,7 +665,7 @@ namespace OpenRA.Mods.Common.Traits
 
         public int CalculateStoppingDistance()
         {
-            // Stopping distance = (CurrentSpeed^2) / (2 * DecelerationRate)
+            // Adjusted stopping distance: currentSpeed^2 / (2 * DecelerationRate)
             return CurrentSpeed * CurrentSpeed / (2 * Math.Max(1, Info.DecelerationRate));
         }
 
