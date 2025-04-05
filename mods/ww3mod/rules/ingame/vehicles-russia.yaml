@@ -631,144 +631,144 @@ tos:
 	SpawnActorOnDeath:
 		Actor: tos.husk
 
-# tunguska:
-# 	Inherits@Type: ^TrackedVehicle
-# 	Inherits@GainsExperience: ^GainsExperience
-# 	Inherits@AutoTarget: ^AutoTargetAAIFV
-# 	Tooltip:
-# 		Name: 2K22 Tunguska
-# 		GenericName: Mobile AA
-# 	AnnounceOnSeen:
-# 		Type: Vehicle
-# 		TextNotification: Spotted: Tunguska
-# 	ActorLostNotification:
-# 		TextNotification: Lost: Tunguska
-# 	RenderSprites:
-# 		Scale: 1.25
-# 	Buildable:
-# 		Queue: Vehicle
-# 		BuildPaletteOrder: 70
-# 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-# 		Description: Mobile AA
-# 	Valued:
-# 		Cost: 1700
-# 	Health:
-# 		HP: 7000
-# 	Armor:
-# 		Type: Medium
-# 		Thickness: 19
-# 		Distribution: 100,80,80,80,60
-# 	Targetable:
-# 		TargetTypes: Ground, Vehicle, Heavy
-# 	HitShape:
-# 		Type: Rectangle
-# 			VerticalTopOffset: 550
-# 			TopLeft: -400, -550
-# 			BottomRight: 400, 550
-# 	Health:
-# 		HP: 4000
-# 	Mobile:
-# 		Locomotor: heavytracked
-# 		Speed: 100
-# 		Acceleration: 4, 3, 2, 1
-# 		TurnSpeed: 10
-# 		PauseOnCondition: firing-secondary || empdisable
-# 	Radar:
-# 		Range: 30c0
-# 	WithRangeCircle@Radar:
-# 		Range: 30c0
-# 		Color: 000000
-# 		Width: 5
-# 		Alpha: 50
-# 	Turreted:
-# 		TurnSpeed: 20
-# 		Offset: -30,0,50
-# 	Armament@1:
-# 		Name: primary
-# 		Weapon: 30mm.Tunguska.AG
-# 		Recoil: 30
-# 		RecoilRecovery: 30
-# 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
-# 		MuzzleSequence: muzzle
-# 		PauseOnCondition: !ammo-primary || empdisable
-# 	Armament@1_Air:
-# 		Name: primary-air
-# 		Weapon: 30mm.Tunguska.AA
-# 		Recoil: 30
-# 		RecoilRecovery: 30
-# 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
-# 		LocalYaw: 0, 100
-# 		MuzzleSequence: muzzle
-# 		PauseOnCondition: !ammo-primary || empdisable
-# 	GrantConditionOnPreparingAttack@1:
-# 		ArmamentNames: primary
-# 		Condition: firing-primary
-# 	AmmoPool@1:
-# 		Name: primary-ammo
-# 		Armaments: primary, tertiary
-# 		Ammo: 180
-# 		AmmoCondition: ammo-primary
-# 		FullReloadTicks: 300
-# 		FullReloadSteps: 6
-# 		RearmSound: minelay1.aud
-# 	WithAmmoPipsDecoration@1:
-# 		Position: Bottom
-# 		Margin: 9, 6
-# 		PipCount: 6
-# 		RequiresSelection: true
-# 		FullSequence: pip-yellow
-# 		AmmoPools: primary-ammo
-# 	RenderRangeCircle@1:
-# 		Armament: primary
-# 		Color: FFFF00
-# 		Width: 1
-# 		Alpha: 100
-# 	Armament@2:
-# 		Name: secondary
-# 		Weapon: 9M311
-# 		LocalOffset: 500,240,120, 500,-240,120
-# 		PauseOnCondition: !ammo-secondary || firing-primary || empdisable
-# 	GrantConditionOnPreparingAttack@2:
-# 		ArmamentNames: secondary
-# 		Condition: firing-secondary
-# 	AmmoPool@2:
-# 		Name: secondary-ammo
-# 		Armaments: secondary
-# 		Ammo: 8
-# 		AmmoCondition: ammo-secondary
-# 		FullReloadTicks: 300
-# 		FullReloadSteps: 6
-# 		RearmSound: minelay1.aud
-# 	NextBurstBar@2:
-# 		Armaments: secondary
-# 		Color: 66B2FF
-# 	WithAmmoPipsDecoration@2:
-# 		Position: Bottom
-# 		Margin: 5, 3
-# 		PipCount: 4
-# 		RequiresSelection: true
-# 		FullSequence: pip-blue
-# 		AmmoPools: secondary-ammo
-# 	RenderRangeCircle@2:
-# 		Armament: secondary
-# 		Color: 66B2FF
-# 		Width: 1
-# 		Alpha: 100
-# 	Rearmable:
-# 		RearmActors: logisticscenter
-# 		AmmoPools: primary-ammo, secondary-ammo
-# 	AttackTurreted:
-# 		Armaments: primary, primary-air, secondary
-# 		PauseOnCondition: empdisable || unit.docked
-# 	WithSpriteTurret:
-# 	WithMuzzleOverlay:
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
-# 	SpawnActorOnDeath:
-# 		Actor: tunguska.husk
+tunguska:
+	Inherits@Type: ^TrackedVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetAAIFV
+	Tooltip:
+		Name: 2K22 Tunguska
+		GenericName: Mobile AA
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: Tunguska
+	ActorLostNotification:
+		TextNotification: Lost: Tunguska
+	RenderSprites:
+		Scale: 1.25
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 70
+		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
+		Description: Mobile AA
+	Valued:
+		Cost: 1700
+	Health:
+		HP: 7000
+	Armor:
+		Type: Medium
+		Thickness: 19
+		Distribution: 100,80,80,80,60
+	Targetable:
+		TargetTypes: Ground, Vehicle, Heavy
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 550
+			TopLeft: -400, -550
+			BottomRight: 400, 550
+	Health:
+		HP: 4000
+	Mobile:
+		Locomotor: heavytracked
+		Speed: 100
+		Acceleration: 4, 3, 2, 1
+		TurnSpeed: 10
+		PauseOnCondition: firing-secondary || empdisable
+	Radar:
+		Range: 30c0
+	WithRangeCircle@Radar:
+		Range: 30c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+	Turreted:
+		TurnSpeed: 20
+		Offset: -30,0,50
+	Armament@1:
+		Name: primary
+		Weapon: 30mm.Tunguska.AG
+		Recoil: 30
+		RecoilRecovery: 30
+		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	Armament@1_Air:
+		Name: primary-air
+		Weapon: 30mm.Tunguska.AA
+		Recoil: 30
+		RecoilRecovery: 30
+		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
+		LocalYaw: 0, 100
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary || empdisable
+	GrantConditionOnPreparingAttack@1:
+		ArmamentNames: primary
+		Condition: firing-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary, tertiary
+		Ammo: 180
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 9, 6
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Color: FFFF00
+		Width: 1
+		Alpha: 100
+	Armament@2:
+		Name: secondary
+		Weapon: 9M311
+		LocalOffset: 500,240,120, 500,-240,120
+		PauseOnCondition: !ammo-secondary || firing-primary || empdisable
+	GrantConditionOnPreparingAttack@2:
+		ArmamentNames: secondary
+		Condition: firing-secondary
+	AmmoPool@2:
+		Name: secondary-ammo
+		Armaments: secondary
+		Ammo: 8
+		AmmoCondition: ammo-secondary
+		FullReloadTicks: 300
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	NextBurstBar@2:
+		Armaments: secondary
+		Color: 66B2FF
+	WithAmmoPipsDecoration@2:
+		Position: Bottom
+		Margin: 5, 3
+		PipCount: 4
+		RequiresSelection: true
+		FullSequence: pip-blue
+		AmmoPools: secondary-ammo
+	RenderRangeCircle@2:
+		Armament: secondary
+		Color: 66B2FF
+		Width: 1
+		Alpha: 100
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo, secondary-ammo
+	AttackTurreted:
+		Armaments: primary, primary-air, secondary
+		PauseOnCondition: empdisable || unit.docked
+	WithSpriteTurret:
+	WithMuzzleOverlay:
+	WithDamageOverlay:
+		Image: smoke_mtd
+		Palette: temptd
+	Explodes:
+		Weapon: ArtilleryExplode
+	SpawnActorOnDeath:
+		Actor: tunguska.husk
 
 # iskander:
 # 	Inherits@Type: ^WheeledVehicle
