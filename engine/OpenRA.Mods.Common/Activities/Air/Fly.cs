@@ -173,9 +173,10 @@ namespace OpenRA.Mods.Common.Activities
 
             var desiredFacing = deltaLengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
             var stoppingDistance = aircraft.CalculateStoppingDistance();
+            var isFinalWaypoint = NextActivity == null; // Only stop if this is the last activity in the queue
 
-            // Snap to target if within threshold
-            if (deltaLengthSquared <= StopThreshold * StopThreshold)
+            // Only snap and stop if it's the final waypoint
+            if (isFinalWaypoint && deltaLengthSquared <= StopThreshold * StopThreshold)
             {
                 var targetPosAtCruise = new WPos(checkTarget.CenterPosition.X, checkTarget.CenterPosition.Y, pos.Z); // Keep Z at cruise altitude
                 aircraft.SetPosition(self, targetPosAtCruise);
@@ -186,11 +187,12 @@ namespace OpenRA.Mods.Common.Activities
 
             // Calculate desired move based on distance and stopping requirements
             WVec desiredMove;
-            if (deltaLength <= stoppingDistance + nearEnough.Length)
+            if (isFinalWaypoint && deltaLength <= stoppingDistance + nearEnough.Length)
             {
-                // Decelerate: Scale speed based on remaining distance
-                var targetSpeed = Math.Max(0, deltaLength - nearEnough.Length) * aircraft.Info.DecelerationRate;
-                targetSpeed = Math.Min(targetSpeed, aircraft.CurrentSpeed); // Don't exceed current speed
+                // Decelerate: Target speed decreases linearly with distance
+                var targetSpeed = Math.Min(aircraft.MovementSpeed, (deltaLength - nearEnough.Length) * aircraft.Info.DecelerationRate / 2);
+                targetSpeed = Math.Max(targetSpeed, aircraft.CurrentSpeed - aircraft.Info.DecelerationRate); // Smoothly reduce speed
+                targetSpeed = Math.Max(0, targetSpeed); // Ensure non-negative
                 desiredMove = deltaLengthSquared > 0 ? deltaHorizontal * targetSpeed / deltaLength : WVec.Zero;
             }
             else
