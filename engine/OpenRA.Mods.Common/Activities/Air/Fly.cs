@@ -14,7 +14,7 @@ namespace OpenRA.Mods.Common.Activities
         readonly WDist maxRange;
         readonly WDist minRange;
         readonly Color? targetLineColor;
-        readonly WDist nearEnough;
+        readonly WDist nearEnough; // Kept for constructor compatibility, but not used in deceleration
 
         Target target;
         Target lastVisibleTarget;
@@ -191,11 +191,10 @@ namespace OpenRA.Mods.Common.Activities
 
             // Calculate desired move
             WVec desiredMove;
-            if (isFinalWaypoint && deltaLength <= stoppingDistance + nearEnough.Length)
+            if (isFinalWaypoint && deltaLength <= stoppingDistance)
             {
-                // Decelerate for final waypoint with smoother scaling
-                var remainingDistance = Math.Max(0, deltaLength - nearEnough.Length);
-                var targetSpeed = aircraft.MovementSpeed * remainingDistance / Math.Max(1, stoppingDistance + nearEnough.Length);
+                // Decelerate based solely on stoppingDistance
+                var targetSpeed = aircraft.MovementSpeed * deltaLength / Math.Max(1, stoppingDistance);
                 targetSpeed = Math.Max(targetSpeed, aircraft.Info.AccelerationRate); // Ensure movement continues
                 desiredMove = deltaLengthSquared > 0 ? deltaHorizontal * targetSpeed / deltaLength : WVec.Zero;
             }
