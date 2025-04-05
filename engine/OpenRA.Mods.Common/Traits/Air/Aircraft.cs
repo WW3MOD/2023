@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle? IdleTurnSpeed = null;
 
 		[Desc("Acceleration rate when speeding up or slowing down (in units per tick).")]
-		public readonly int AccelerationRate = 5;
+		public readonly int AccelerationRate = 4;
 
 		[Desc("Maximum flight speed when cruising.")]
 		public readonly int Speed = 150;
@@ -651,14 +651,18 @@ namespace OpenRA.Mods.Common.Traits
 				if (magnitude > 1024)
 					newDir = newDir * 1024 / magnitude;
 
-				// Adjust speed
-				currentSpeed = Math.Min(currentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
+				// Adjust speed, decelerate faster when target speed is lower than current
+				if (targetSpeed < currentSpeed)
+					currentSpeed = Math.Max(currentSpeed - Info.AccelerationRate * 2, targetSpeed); // Faster deceleration
+				else
+					currentSpeed = Math.Min(currentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
+
 				CurrentMomentum = newDir * currentSpeed / 1024;
 			}
 			else
 			{
 				// Decelerate to stop
-				currentSpeed = Math.Max(currentSpeed - Info.AccelerationRate, 0);
+				currentSpeed = Math.Max(currentSpeed - Info.AccelerationRate * 2, 0); // Faster deceleration
 				CurrentMomentum = CurrentMomentum.Length > 0 ?
 					CurrentMomentum * currentSpeed / CurrentMomentum.Length : WVec.Zero;
 			}

@@ -157,6 +157,7 @@ namespace OpenRA.Mods.Common.Activities
             var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
             var pos = aircraft.GetPosition();
             var delta = checkTarget.CenterPosition - pos;
+            var deltaLengthSquared = delta.HorizontalLengthSquared;
 
             var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
             var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
@@ -169,10 +170,10 @@ namespace OpenRA.Mods.Common.Activities
                 return false;
             }
 
-            var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+            var desiredFacing = deltaLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
 
             if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-                delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
+                deltaLengthSquared <= nearEnough.LengthSquared)
             {
                 aircraft.AdjustMomentum(WVec.Zero);
                 if (aircraft.CurrentMomentum.LengthSquared < 64)
@@ -181,23 +182,34 @@ namespace OpenRA.Mods.Common.Activities
                 return false;
             }
 
-            if (delta.HorizontalLengthSquared < aircraft.CurrentMomentum.HorizontalLengthSquared)
+            var momentumLengthSquared = aircraft.CurrentMomentum.HorizontalLengthSquared;
+            if (deltaLengthSquared < momentumLengthSquared * 2) // Increased threshold to start slowing earlier
             {
-                if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
+                if (deltaLengthSquared < 1024) // Close enough to snap to position
                 {
-                    if (delta.HorizontalLengthSquared != 0)
+                    if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
                     {
-                        var deltaMove = new WVec(delta.X, delta.Y, 0);
-                        FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
-                    }
+                        if (deltaLengthSquared != 0)
+                        {
+                            var deltaMove = new WVec(delta.X, delta.Y, 0);
+                            FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
+                        }
 
-                    if (dat != aircraft.Info.CruiseAltitude)
-                    {
-                        Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-                        return false;
+                        if (dat != aircraft.Info.CruiseAltitude)
+                        {
+                            Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+                            return false;
+                        }
                     }
+                    return true;
                 }
-                return true;
+                else
+                {
+                    // Slow down more aggressively when close
+                    var slowedMove = aircraft.FlyStep(aircraft.MovementSpeed / 2, desiredFacing);
+                    FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, slowedMove);
+                    return false;
+                }
             }
 
             var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
@@ -205,7 +217,9 @@ namespace OpenRA.Mods.Common.Activities
             var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
             var turnCenter = aircraft.CenterPosition + turnCenterDir;
 
-            if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
+            // Only apply turn radius check if far from target
+            if (deltaLengthSquared > turnRadius * turnRadius &&
+                (checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
                 desiredFacing = aircraft.Facing;
 
             positionBuffer.Add(self.CenterPosition);
