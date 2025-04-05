@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,21 +15,20 @@ namespace OpenRA.Mods.Common.Traits
 		None,
 		Land,
 		ReturnToBase,
-		LeaveMap, // TODO: Should leave map only close to supply route (controlled airspace)
+		LeaveMap,
 		LeaveMapAtClosestEdge
 	}
 
 	public class AircraftInfo : PausableConditionalTraitInfo, IPositionableInfo, IFacingInfo, IMoveInfo, ICruiseAltitudeInfo,
 		IActorPreviewInitInfo, IEditorActorOptions
 	{
-		[Desc("Behavior when aircraft becomes idle. Options are Land, ReturnToBase, LeaveMap, and None.",
-			"'Land' will behave like 'None' (hover or circle) if a suitable landing site is not available.")]
-		public readonly IdleBehaviorType IdleBehavior = IdleBehaviorType.None; // Future-proof for more automatic behaviours that depends on stance
+		[Desc("Behavior when aircraft becomes idle. Options are Land, ReturnToBase, LeaveMap, and None.")]
+		public readonly IdleBehaviorType IdleBehavior = IdleBehaviorType.None;
 
-		public readonly WDist CruiseAltitude = new WDist(1280); // Change altitude dynamically? Probably for all controls? Is it too crazy hm..
+		public readonly WDist CruiseAltitude = new WDist(1280);
 
 		[Desc("Whether the aircraft can be repulsed.")]
-		public readonly bool Repulsable = true; // Instead calculate flight path completely from whats ahead even vertically
+		public readonly bool Repulsable = true;
 
 		[Desc("The distance it tries to maintain from other aircraft if repulsable.")]
 		public readonly WDist IdleSeparation = new WDist(3072);
@@ -49,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist MinSeparation = new WDist(1536);
 
 		[Desc("The speed at which the aircraft is repulsed from other aircraft. Specify -1 for max movement speed.")]
-		public readonly int RepulsionSpeed = 140; // Changed as test. Less "Bumpy" would be great
+		public readonly int RepulsionSpeed = 140;
 
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
@@ -59,13 +47,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Turn speed to apply when aircraft flies in circles while idle. Defaults to TurnSpeed if undefined.")]
 		public readonly WAngle? IdleTurnSpeed = null;
 
-		[Desc("Acceleration falloff relative max speed. Use one value to have constant acceleration")]
-		public readonly int[] Acceleration = { 1, 3, 1 };
+		[Desc("Acceleration rate when speeding up or slowing down (in units per tick).")]
+		public readonly int AccelerationRate = 5;
 
 		[Desc("Maximum flight speed when cruising.")]
 		public readonly int Speed = 150;
 
-		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
+		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move).")]
 		public readonly int IdleSpeed = -1;
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
@@ -111,10 +99,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The condition to grant to self while at cruise altitude.")]
 		public readonly string CruisingCondition = null;
 
-		[Desc("Can the actor hover in place mid-air? If not, then the actor will have to remain in motion (circle around).")]
+		[Desc("Can the actor hover in place mid-air? If not, then the actor will have to remain in motion.")]
 		public readonly bool CanHover = false;
 
-		[Desc("Can the actor immediately change direction without turning first (doesn't need to fly in a curve)?")]
+		[Desc("Can the actor immediately change direction without turning first?")]
 		public readonly bool CanSlide = false;
 
 		[Desc("Does the actor land and take off vertically?")]
@@ -141,7 +129,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How fast this actor ascends or descends during horizontal movement.")]
 		public readonly WAngle MaximumPitch = WAngle.FromDegrees(10);
 
-		[Desc("How fast this actor ascends or descends when moving vertically only (vertical take off/landing or hovering towards CruiseAltitude).")]
+		[Desc("How fast this actor ascends or descends when moving vertically only.")]
 		public readonly WDist AltitudeVelocity = new WDist(43);
 
 		[Desc("Sounds to play when the actor is taking off.")]
@@ -305,7 +293,10 @@ namespace OpenRA.Mods.Common.Traits
 		bool cruising;
 		int airborneToken = Actor.InvalidConditionToken;
 		int cruisingToken = Actor.InvalidConditionToken;
-		public WVec momentum = new WVec(0, 0, 0);
+
+		[Sync]
+		public WVec CurrentMomentum { get; private set; } = WVec.Zero; // Current velocity vector
+		int currentSpeed; // Current speed magnitude
 
 		MovementType movementTypes;
 		WPos cachedPosition;
@@ -326,6 +317,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			Facing = init.GetValue<FacingInit, WAngle>(Info.InitialFacing);
 			creationActivityDelay = init.GetValue<CreationActivityDelayInit, int>(0);
+			currentSpeed = 0;
 		}
 
 		public WDist LandAltitude
@@ -411,44 +403,9 @@ namespace OpenRA.Mods.Common.Traits
 			Tick(self);
 		}
 
-		public WVec Momentum { get; set; }
-		public List<WVec> Forces { get; set; } = new List<WVec>();
-
-		public int Acceleration()
-		{
-			if (Momentum.Length >= MovementSpeed) return Info.Acceleration.Last();
-
-			return Info.Acceleration[(int)Math.Floor((double)((float)Momentum.Length / (float)MovementSpeed * (float)Info.Acceleration.Length))];
-		}
-
-		public int ChangeSpeed(WAngle direction, bool ignoreOther)
-		{
-			if (Momentum.Length >= MovementSpeed) return Info.Acceleration.Last();
-
-			return Info.Acceleration[(int)Math.Floor((double)((float)Momentum.Length / (float)MovementSpeed * (float)Info.Acceleration.Length))];
-
-			if (Momentum != WVec.Zero || Forces.Any())
-			{
-				var force = Momentum;
-
-				for (int i = 0; i < Forces.Count; i++)
-				{
-					force += Forces[i];
-				}
-
-				var acceleration = FlyStep(Acceleration(), force.Yaw);
-
-				SetPosition(self, self.CenterPosition + Momentum + acceleration);
-				Momentum += acceleration;
-
-				Forces.Clear();
-			}
-
-		}
-
 		protected virtual void Tick(Actor self)
 		{
-			// Add land activity if Aircraft trait is paused and the actor can land at the current location.
+			// Handle landing/takeoff logic when paused
 			if (!ForceLanding && IsTraitPaused && airborne && CanLand(self.Location)
 				&& !((self.CurrentActivity is Land) || self.CurrentActivity is Turn))
 			{
@@ -456,11 +413,9 @@ namespace OpenRA.Mods.Common.Traits
 				ForceLanding = true;
 			}
 
-			// Add takeoff activity if Aircraft trait is not paused and the actor should not land when idle.
 			if (ForceLanding && !IsTraitPaused && !cruising && !(self.CurrentActivity is TakeOff))
 			{
 				ForceLanding = false;
-
 				if (Info.IdleBehavior != IdleBehaviorType.Land)
 					self.QueueActivity(false, new TakeOff(self));
 			}
@@ -490,6 +445,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (Info.Pitch != WAngle.Zero && Pitch != WAngle.Zero)
 					Pitch = Util.TickFacing(Pitch, WAngle.Zero, Info.PitchSpeed);
+
+				// Decelerate when not moving horizontally
+				if (currentSpeed > 0)
+				{
+					currentSpeed = Math.Max(0, currentSpeed - Info.AccelerationRate);
+					CurrentMomentum = CurrentMomentum.Length > 0 ?
+						CurrentMomentum * currentSpeed / CurrentMomentum.Length : WVec.Zero;
+				}
 			}
 
 			Repulse();
@@ -502,17 +465,16 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var speed = Info.RepulsionSpeed != -1 ? Info.RepulsionSpeed : MovementSpeed;
-
-			// HACK: Prevent updating visibility twice per tick. We really shouldn't be
-			// moving twice in a tick in the first place.
+			var move = FlyStep(speed, repulsionForce.Yaw);
+			AdjustMomentum(move);
 			notify = false;
-			SetPosition(self, CenterPosition + FlyStep(speed, repulsionForce.Yaw));
+			SetPosition(self, CenterPosition + CurrentMomentum);
 			notify = true;
 		}
 
 		public virtual WVec GetRepulsionForce()
 		{
-			if (!Info.Repulsable)
+			if (!Info.Repulsable || !cruising)
 				return WVec.Zero;
 
 			if (reservation != null)
@@ -522,11 +484,6 @@ namespace OpenRA.Mods.Common.Traits
 					return WVec.Zero;
 			}
 
-			// Repulsion only applies when we're flying at CruiseAltitude!
-			if (!cruising)
-				return WVec.Zero;
-
-			// PERF: Avoid LINQ.
 			var repulsionForce = WVec.Zero;
 			foreach (var actor in self.World.FindActorsInCircle(self.CenterPosition, Info.IdleSeparation))
 			{
@@ -540,11 +497,8 @@ namespace OpenRA.Mods.Common.Traits
 				repulsionForce += GetRepulsionForce(actor);
 			}
 
-			// Actors outside the map bounds receive an extra nudge towards the center of the map
 			if (!self.World.Map.Contains(self.Location))
 			{
-				// The map bounds are in projected coordinates, which is technically wrong for this,
-				// but we avoid the issues in practice by guessing the middle of the map instead of the edge
 				var center = WPos.Lerp(self.World.Map.ProjectedTopLeft, self.World.Map.ProjectedBottomRight, 1, 2);
 				repulsionForce += new WVec(0, 1024, 0).Rotate(WRot.FromYaw((self.CenterPosition - center).Yaw));
 			}
@@ -552,15 +506,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.CanSlide)
 				return repulsionForce;
 
-			// Non-hovering actors mush always keep moving forward, so they need extra calculations.
 			var currentDir = FlyStep(Facing);
 			var length = currentDir.HorizontalLength * repulsionForce.HorizontalLength;
 			if (length == 0)
 				return WVec.Zero;
 
 			var dot = WVec.Dot(currentDir, repulsionForce) / length;
-
-			// avoid stalling the plane
 			return dot >= 0 ? repulsionForce : WVec.Zero;
 		}
 
@@ -590,10 +541,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public Actor GetActorBelow()
 		{
-			// Map.DistanceAboveTerrain(WPos pos) is called directly because Aircraft is an IPositionable trait
-			// and all calls occur in Tick methods.
 			if (self.World.Map.DistanceAboveTerrain(CenterPosition) != LandAltitude)
-				return null; // Not on the resupplier.
+				return null;
 
 			return self.World.ActorMap.GetActorsAt(self.Location)
 				.FirstOrDefault(a => a.Info.HasTraitInfo<ReservableInfo>());
@@ -673,20 +622,32 @@ namespace OpenRA.Mods.Common.Traits
 
 		public WVec FlyStep(WAngle facing)
 		{
-			return FlyStep(MovementSpeed, facing);
+			return FlyStep(currentSpeed, facing);
 		}
 
 		public WVec FlyStep(int speed, WAngle facing)
 		{
-			// TODO
-
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
 			return speed * dir / 1024;
 		}
 
+		public void AdjustMomentum(WVec desiredMove)
+		{
+			var targetSpeed = desiredMove.Length;
+			var targetDir = desiredMove.Length > 0 ? desiredMove / targetSpeed : WVec.Zero;
+
+			// Accelerate or decelerate towards target speed
+			if (targetSpeed > currentSpeed)
+				currentSpeed = Math.Min(currentSpeed + Info.AccelerationRate, targetSpeed);
+			else if (targetSpeed < currentSpeed)
+				currentSpeed = Math.Max(currentSpeed - Info.AccelerationRate, targetSpeed);
+
+			// Update momentum based on current speed and direction
+			CurrentMomentum = targetDir * currentSpeed;
+		}
+
 		public CPos? FindLandingLocation(CPos targetCell, WDist maxSearchDistance)
 		{
-			// The easy case
 			if (CanLand(targetCell, blockedByMobile: false))
 				return targetCell;
 
@@ -723,7 +684,6 @@ namespace OpenRA.Mods.Common.Traits
 				if (IsBlockedBy(self, otherActor, dockingActor, blockedByMobile))
 					return false;
 
-			// Terrain type is ignored when docking with an actor
 			if (dockingActor != null)
 				return true;
 
@@ -733,31 +693,23 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsBlockedBy(Actor self, Actor otherActor, Actor ignoreActor, bool blockedByMobile = true)
 		{
-			// We are not blocked by the actor we are ignoring.
 			if (otherActor == self || otherActor == ignoreActor)
 				return false;
 
-			// We are not blocked by actors we can nudge out of the way
-			// TODO: Generalize blocker checks and handling here and in Locomotor
 			if (!blockedByMobile && self.Owner.RelationshipWith(otherActor.Owner) == PlayerRelationship.Ally &&
 				otherActor.TraitOrDefault<Mobile>() != null && otherActor.CurrentActivity == null)
 				return false;
 
-			// PERF: Only perform ITemporaryBlocker trait look-up if mod/map rules contain any actors that are temporary blockers
 			if (self.World.RulesContainTemporaryBlocker)
 			{
-				// If there is a temporary blocker in our path, but we can remove it, we are not blocked.
 				var temporaryBlocker = otherActor.TraitOrDefault<ITemporaryBlocker>();
 				if (temporaryBlocker != null && temporaryBlocker.CanRemoveBlockage(otherActor, self))
 					return false;
 			}
 
-			// If we cannot crush the other actor in our way, we are blocked.
 			if (Info.Crushes.IsEmpty)
 				return true;
 
-			// If the other actor in our way cannot be crushed, we are blocked.
-			// PERF: Avoid LINQ.
 			var passables = otherActor.TraitsImplementing<IPassable>();
 			foreach (var passable in passables)
 				if (passable.PassableBy(otherActor, self, Info.Crushes))
@@ -808,8 +760,6 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (!CanLand(self.Location) && ReservedActor == null)
 						self.QueueActivity(new TakeOff(self));
-
-					// All remaining idle behaviors rely on not being at LandAltitude, so unconditionally return
 					return;
 				}
 
@@ -825,18 +775,16 @@ namespace OpenRA.Mods.Common.Traits
 		#region Implement IPositionable
 
 		public bool CanExistInCell(CPos cell) { return true; }
-		public bool IsLeavingCell(CPos location, SubCell subCell = SubCell.Any) { return false; } // TODO: Handle landing
+		public bool IsLeavingCell(CPos location, SubCell subCell = SubCell.Any) { return false; }
 		public bool CanEnterCell(CPos cell, Actor ignoreActor = null, BlockedByActor check = BlockedByActor.All) { return true; }
 		public SubCell GetValidSubCell(SubCell preferred) { return SubCell.Invalid; }
 		public SubCell GetAvailableSubCell(CPos a, SubCell preferredSubCell = SubCell.Any, Actor ignoreActor = null, BlockedByActor check = BlockedByActor.All)
 		{
-			// Does not use any subcell
 			return SubCell.Invalid;
 		}
 
 		public void SetCenterPosition(Actor self, WPos pos) { SetPosition(self, pos); }
 
-		// Changes position, but not altitude
 		public void SetPosition(Actor self, CPos cell, SubCell subCell = SubCell.Any)
 		{
 			SetPosition(self, self.World.Map.CenterOfCell(cell) + new WVec(0, 0, CenterPosition.Z));
@@ -844,7 +792,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void SetPosition(Actor self, WPos pos)
 		{
-
 			CenterPosition = pos;
 
 			if (!self.IsInWorld)
@@ -852,13 +799,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			var altitude = self.World.Map.DistanceAboveTerrain(CenterPosition);
 
-			// LandingCells define OccupiedCells, so we need to keep current position with LandindCells in sync.
-			// Though we don't want to update LandingCells when the unit is airborn, as when non-VTOL units reserve
-			// their landing position it is expected for their landing cell to not match their current position.
 			if (HasInfluence() && altitude.Length <= Info.MinAirborneAltitude)
 			{
 				var currentPos = new[] { (TopLeft, SubCell.FullCell) };
-				if (landingCells.SequenceEqual(currentPos))
+				if (!landingCells.SequenceEqual(currentPos))
 				{
 					self.World.ActorMap.RemoveInfluence(self, this);
 					landingCells = currentPos;
@@ -880,7 +824,6 @@ namespace OpenRA.Mods.Common.Traits
 			else if (!isCruising && cruising)
 				OnCruisingAltitudeLeft();
 
-			// NB: This can be called from the constructor before notifyCenterPositionChanged is assigned.
 			if (notify && notifyCenterPositionChanged != null)
 				foreach (var n in notifyCenterPositionChanged)
 					n.CenterPositionChanged(self, 0, 0);
@@ -890,7 +833,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void FinishedMoving(Actor self)
 		{
-			// Only crush actors on having landed
 			if (!self.IsAtGroundLevel())
 				return;
 
@@ -907,7 +849,6 @@ namespace OpenRA.Mods.Common.Traits
 			var passables = self.World.ActorMap.GetActorsAt(TopLeft).Where(a => a != self)
 				.SelectMany(a => a.TraitsImplementing<IPassable>().Select(t => new TraitPair<IPassable>(a, t)));
 
-			// Only crush actors that are on the ground level
 			foreach (var passable in passables)
 				if (passable.Trait.PassableBy(passable.Actor, self, Info.Crushes) && passable.Actor.IsAtGroundLevel())
 					foreach (var notifyCrushed in passable.Actor.TraitsImplementing<INotifyBeingPassed>())
@@ -961,15 +902,13 @@ namespace OpenRA.Mods.Common.Traits
 		public Activity MoveWithinRange(in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
 		{
-			return new Fly(self, target, minRange, maxRange,
-				initialTargetPosition, targetLineColor);
+			return new Fly(self, target, minRange, maxRange, initialTargetPosition, targetLineColor);
 		}
 
 		public Activity MoveFollow(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
 		{
-			return new FlyFollow(self, target, minRange, maxRange,
-				initialTargetPosition, targetLineColor);
+			return new FlyFollow(self, target, minRange, maxRange, initialTargetPosition, targetLineColor);
 		}
 
 		public Activity ReturnToCell(Actor self) { return null; }
@@ -987,7 +926,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public Activity LocalMove(Actor self, WPos fromPos, WPos toPos)
 		{
-			// TODO: Ignore repulsion when moving
 			var activities = new CallFunc(() => SetCenterPosition(self, fromPos));
 			activities.Queue(new Fly(self, Target.FromPos(toPos)));
 			return activities;
@@ -1004,7 +942,6 @@ namespace OpenRA.Mods.Common.Traits
 		public MovementType CurrentMovementTypes
 		{
 			get => movementTypes;
-
 			set
 			{
 				var oldValue = movementTypes;
@@ -1017,7 +954,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanEnterTargetNow(Actor self, in Target target)
 		{
-			// Lambdas can't use 'in' variables, so capture a copy for later
 			var targetActor = target;
 			if (target.Positions.Any(p => self.World.ActorMap.GetActorsAt(self.World.Map.CellContaining(p)).Any(a => a != self && a != targetActor.Actor)))
 				return false;
@@ -1117,8 +1053,6 @@ namespace OpenRA.Mods.Common.Traits
 					UnReserve();
 
 				var target = Target.FromCell(self.World, cell);
-
-				// TODO: this should scale with unit selection group size.
 				self.QueueActivity(order.Queued, new Fly(self, target, WDist.FromCells(8), targetLineColor: Info.TargetLineColor));
 				self.ShowTargetLines();
 			}
@@ -1132,14 +1066,11 @@ namespace OpenRA.Mods.Common.Traits
 					UnReserve();
 
 				var target = Target.FromCell(self.World, cell);
-
 				self.QueueActivity(order.Queued, new Land(self, target, targetLineColor: Info.TargetLineColor));
 				self.ShowTargetLines();
 			}
 			else if (orderString == "Enter" || orderString == "ForceEnter" || orderString == "Repair")
 			{
-				// Enter, ForceEnter and Repair orders are only valid for own/allied actors,
-				// which are guaranteed to never be frozen.
 				if (order.Target.Type != TargetType.Actor)
 					return;
 
@@ -1147,25 +1078,18 @@ namespace OpenRA.Mods.Common.Traits
 				var isForceEnter = orderString == "ForceEnter";
 				var canResupplyAt = AircraftCanResupplyAt(targetActor, isForceEnter || !Info.TakeOffOnResupply);
 
-				// This is what the order targeter checks to display the correct cursor, so we need to make sure
-				// the behavior matches the cursor if the player clicks despite a "blocked" cursor.
 				if (!canResupplyAt || !Reservable.IsAvailableFor(targetActor, self))
 					return;
 
 				if (!order.Queued)
 					UnReserve();
 
-				// Aircraft with TakeOffOnResupply would immediately take off again, so there's no point in automatically forcing
-				// them to land on a resupplier. For aircraft without it, it makes more sense to land than to idle above a
-				// free resupplier.
 				var forceLand = isForceEnter || !Info.TakeOffOnResupply;
 				self.QueueActivity(order.Queued, new ReturnToBase(self, targetActor, forceLand));
 				self.ShowTargetLines();
 			}
 			else if (orderString == "Stop")
 			{
-				// We don't want the Stop order to cancel a running Resupply activity.
-				// Resupply is always either the main activity or a child of ReturnToBase.
 				if (self.CurrentActivity is Resupply ||
 					(self.CurrentActivity is ReturnToBase && GetActorBelow() != null))
 					return;
@@ -1175,15 +1099,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (orderString == "ReturnToBase")
 			{
-				// Do nothing if not rearmable and don't restart activity every time deploy hotkey is triggered
 				if (rearmable == null || rearmable.Info.RearmActors.Count == 0 || self.CurrentActivity is ReturnToBase || GetActorBelow() != null)
 					return;
 
 				if (!order.Queued)
 					UnReserve();
 
-				// Aircraft with TakeOffOnResupply would immediately take off again, so there's no point in forcing them to land
-				// on a resupplier. For aircraft without it, it makes more sense to land than to idle above a free resupplier.
 				self.QueueActivity(order.Queued, new ReturnToBase(self, null, !Info.TakeOffOnResupply));
 				self.ShowTargetLines();
 			}
@@ -1195,11 +1116,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void Nudge(Actor self)
 		{
-			if (IsTraitDisabled || IsTraitPaused || requireForceMove)
-				return;
-
-			// Disable nudging if the aircraft is outside the map
-			if (!self.World.Map.Contains(self.Location))
+			if (IsTraitDisabled || IsTraitPaused || requireForceMove || !self.World.Map.Contains(self.Location))
 				return;
 
 			var offset = new WVec(0, -self.World.SharedRandom.Next(512, 2048), 0)
@@ -1275,7 +1192,7 @@ namespace OpenRA.Mods.Common.Traits
 			return new AssociateWithAirfieldActivity(self, creationActivityDelay);
 		}
 
-		class AssociateWithAirfieldActivity : Activity
+		public class AssociateWithAirfieldActivity : Activity
 		{
 			readonly Aircraft aircraft;
 			readonly int delay;
@@ -1301,7 +1218,6 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (!aircraft.Info.TakeOffOnCreation)
 				{
-					// Freshly created aircraft shouldn't block the exit, so we allow them to yield their reservation
 					aircraft.AllowYieldingReservation();
 					return true;
 				}
@@ -1330,7 +1246,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers)
 			{
-				// Always prioritise orders over selecting other peoples actors or own actors that are already selected
 				if (target.Type == TargetType.Actor && (target.Actor.Owner != self.Owner || self.World.Selection.Contains(target.Actor)))
 					return true;
 
@@ -1344,9 +1259,6 @@ namespace OpenRA.Mods.Common.Traits
 
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 
-				// Aircraft can be force-landed by issuing a force-move order on a clear terrain cell
-				// Cells that contain a blocking building are treated as regular force move orders, overriding
-				// selection for left-mouse orders
 				if (modifiers.HasModifier(TargetModifiers.ForceMove) && aircraft.Info.CanForceLand)
 				{
 					var buildingAtLocation = self.World.ActorMap.GetActorsAt(location)
