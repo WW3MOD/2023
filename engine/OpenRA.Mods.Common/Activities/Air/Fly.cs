@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -19,6 +20,7 @@ namespace OpenRA.Mods.Common.Activities
         Target lastVisibleTarget;
         bool useLastVisibleTarget;
         readonly List<WPos> positionBuffer = new List<WPos>();
+        const int StopThreshold = 128; // Small distance to snap to target (unnoticeable to player)
 
         public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
             : this(self, t, initialTargetPosition, targetLineColor)
@@ -47,12 +49,9 @@ namespace OpenRA.Mods.Common.Activities
             this.minRange = minRange;
         }
 
-        public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
+        public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec desiredMove, bool idleTurn = false)
         {
             var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-
-            // Calculate desired move based on facing and max speed
-            var desiredMove = moveOverride != WVec.Zero ? moveOverride : aircraft.FlyStep(aircraft.MovementSpeed, desiredFacing);
 
             // Adjust momentum towards desired move
             aircraft.AdjustMomentum(desiredMove);
@@ -90,7 +89,7 @@ namespace OpenRA.Mods.Common.Activities
 
         public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
         {
-            FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
+            FlyTick(self, aircraft, desiredFacing, desiredAltitude, aircraft.FlyStep(aircraft.MovementSpeed, desiredFacing), idleTurn);
         }
 
         public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
@@ -158,6 +157,7 @@ namespace OpenRA.Mods.Common.Activities
             var pos = aircraft.GetPosition();
             var delta = checkTarget.CenterPosition - pos;
             var deltaLengthSquared = delta.HorizontalLengthSquared;
+            var deltaLength = (int)Math.Sqrt(deltaLengthSquared);
 
             var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
             var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
@@ -171,54 +171,39 @@ namespace OpenRA.Mods.Common.Activities
             }
 
             var desiredFacing = deltaLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+            var stoppingDistance = aircraft.CalculateStoppingDistance();
 
-            if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-                deltaLengthSquared <= nearEnough.LengthSquared)
+            // Check if within stopping threshold to snap to target
+            if (deltaLengthSquared <= StopThreshold * StopThreshold)
             {
-                aircraft.AdjustMomentum(WVec.Zero);
+                aircraft.SetPosition(self, checkTarget.CenterPosition);
+                aircraft.CurrentMomentum = WVec.Zero;
+                aircraft.currentSpeed = 0;
+                return true;
+            }
+
+            // Check if we need to start decelerating
+            if (deltaLength <= stoppingDistance + nearEnough.Length)
+            {
+                // Decelerate towards target
+                var desiredMove = deltaLengthSquared > 0 ? delta * aircraft.MovementSpeed / deltaLength : WVec.Zero;
+                var moveMagnitude = Math.Min(desiredMove.Length, aircraft.currentSpeed); // Don't exceed current speed
+                desiredMove = desiredMove * moveMagnitude / Math.Max(1, desiredMove.Length);
+
+                FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, desiredMove);
                 if (aircraft.CurrentMomentum.LengthSquared < 64)
                     return true;
-                FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+
                 return false;
             }
 
-            var momentumLengthSquared = aircraft.CurrentMomentum.HorizontalLengthSquared;
-            if (deltaLengthSquared < momentumLengthSquared * 2) // Increased threshold to start slowing earlier
-            {
-                if (deltaLengthSquared < 1024) // Close enough to snap to position
-                {
-                    if (aircraft.Info.CanSlide || aircraft.Info.VTOL)
-                    {
-                        if (deltaLengthSquared != 0)
-                        {
-                            var deltaMove = new WVec(delta.X, delta.Y, 0);
-                            FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
-                        }
-
-                        if (dat != aircraft.Info.CruiseAltitude)
-                        {
-                            Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-                else
-                {
-                    // Slow down more aggressively when close
-                    var slowedMove = aircraft.FlyStep(aircraft.MovementSpeed / 2, desiredFacing);
-                    FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, slowedMove);
-                    return false;
-                }
-            }
-
+            // Full speed towards target, accounting for turn radius
             var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
             var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
             var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
             var turnCenter = aircraft.CenterPosition + turnCenterDir;
 
-            // Only apply turn radius check if far from target
-            if (deltaLengthSquared > turnRadius * turnRadius &&
+            if (deltaLengthSquared > (stoppingDistance + turnRadius) * (stoppingDistance + turnRadius) &&
                 (checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
                 desiredFacing = aircraft.Facing;
 
