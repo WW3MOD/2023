@@ -17,10 +17,12 @@ HALO:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 600
+		HP: 1200
 	Armor:
 		Type: Light
 		Thickness: 6
+	Targetable@Armor:
+		TargetTypes: Light
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 240
@@ -85,16 +87,18 @@ HIND:
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
-		Cost: 1
+		Cost: 2800
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
 		DecorationBounds: 1620,1360
 	Health:
-		HP: 800
+		HP: 1600
 	Armor:
 		Type: Heavy
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 12
 		Speed: 195
@@ -205,6 +209,7 @@ HIND:
 
 MI28:
 	Inherits@Type: ^Helicopter
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	AutoTarget:
 		InitialStance: Defend
@@ -224,10 +229,12 @@ MI28:
 	Selectable:
 		DecorationBounds: 1070,1200
 	Health:
-		HP: 800
+		HP: 1600
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 245
@@ -330,6 +337,7 @@ MI28:
 
 FROG:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Inherits@GainsExperience: ^GainsExperience
 	Buildable:
@@ -343,10 +351,12 @@ FROG:
 	Tooltip:
 		Name: Su-25 Frogfoot
 	Health:
-		HP: 700
+		HP: 1400
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	AttackAircraft:
 		Armaments: primary
 		FacingTolerance: 5
@@ -442,6 +452,7 @@ FROG:
 
 MIG:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Buildable:
 		Queue: Aircraft
@@ -459,9 +470,11 @@ MIG:
 		Bounds: 1070,1200,0,48
 		DecorationBounds: 1700,1240,0,24
 	Health:
-		HP: 550
+		HP: 1100
 	Armor:
 		Type: Medium
+	Targetable@Armor:
+		TargetTypes: Medium
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192

@@ -221,18 +221,22 @@ MANPAD:
 	Projectile: Missile
 		MaximumLaunchSpeed: 20
 		Acceleration: 25
-		Speed: 550
-		Inaccuracy: 400
-		CloseEnough: 400
+		Speed: 450
+		Inaccuracy: 192
+		CloseEnough: 192
 		RangeLimit: 24c0
-		HorizontalRateOfTurn: 35
+		HorizontalRateOfTurn: 25
 		Arm: 5
 		Blockable: false
 		ExplodeWhenEmpty: true
 		Image: dragon
+		TrailImage: smokey
+		TrailScalePercent: 50
+		TrailDeactivation: 10
 	Warhead@Spread: SpreadDamage
-		Damage: 1000
-		Spread: 96
+		Damage: 2000
+		Penetration: 15
+		Spread: 192
 		ValidTargets: Air
 
 Stinger:
@@ -242,22 +246,24 @@ Stinger:
 	BurstWait: 250
 	Report: missile1.aud
 	Projectile: Missile
-		Inaccuracy: 400
-		CloseEnough: 400
+		Inaccuracy: 256
+		CloseEnough: 256
 		RangeLimit: 30c0
-		Speed: 550
+		Speed: 600
 		Acceleration: 35
 		MaximumLaunchSpeed: 50
-		HorizontalRateOfTurn: 35
+		HorizontalRateOfTurn: 25
 		Arm: 5
 		Blockable: false
 		ExplodeWhenEmpty: true
 		Image: missile
 		TrailImage: smokey
 		TrailScalePercent: 75
+		TrailDeactivation: 10
 	Warhead@Spread: SpreadDamage
-		Damage: 1000
-		Spread: 96
+		Damage: 4000
+		Penetration: 20
+		Spread: 256
 		ValidTargets: Air
 
 Stinger.quad:

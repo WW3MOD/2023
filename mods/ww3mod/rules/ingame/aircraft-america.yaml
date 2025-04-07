@@ -19,6 +19,8 @@ TRAN:
 	Armor:
 		Type: Light
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Light
 	Selectable:
 		DecorationBounds: 1700,1536
 	Aircraft:
@@ -95,6 +97,8 @@ littlebird:
 	Armor:
 		Type: Light
 		Thickness: 5
+	Targetable@Armor:
+		TargetTypes: Light
 	Aircraft:
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
@@ -212,6 +216,7 @@ littlebird.AI:
 HELI:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Inherits@AirRadar: ^AirRadar
 	AutoTarget:
 		InitialStance: Defend
 		InitialStanceAI: Defend
@@ -234,6 +239,8 @@ HELI:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 245
@@ -336,6 +343,7 @@ HELI:
 
 A10:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	RenderSprites:
 		PlayerPalette: playertd
@@ -355,6 +363,8 @@ A10:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
@@ -449,6 +459,7 @@ A10:
 
 F16:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
@@ -464,6 +475,8 @@ F16:
 	Armor:
 		Type: Medium
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Medium
 	AttackAircraft:
 		FacingTolerance: 30
 		PersistentTargeting: false
