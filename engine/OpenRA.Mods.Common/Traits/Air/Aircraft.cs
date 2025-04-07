@@ -307,7 +307,7 @@ namespace OpenRA.Mods.Common.Traits
         WPos cachedPosition;
         WAngle cachedFacing;
 
-        public Aircraft(ActorInitializer init, AircraftInfo info)
+		public Aircraft(ActorInitializer init, AircraftInfo info)
             : base(info)
         {
             self = init.Self;
@@ -321,7 +321,7 @@ namespace OpenRA.Mods.Common.Traits
                 SetPosition(self, centerPositionInit.Value);
 
             Facing = init.GetValue<FacingInit, WAngle>(Info.InitialFacing);
-            CurrentSpeed = 0;
+            CurrentSpeed = Info.Speed; // Initialize at full speed
         }
 
         public void AdjustMomentum(WVec desiredMove)
@@ -340,7 +340,12 @@ namespace OpenRA.Mods.Common.Traits
                 if (magnitude > 1024)
                     newDir = newDir * 1024 / magnitude;
 
-                CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
+                // Accelerate faster toward target speed
+                if (CurrentSpeed < targetSpeed)
+                    CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate * 2, Math.Min(targetSpeed, maxSpeed));
+                else if (CurrentSpeed > targetSpeed)
+                    CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, targetSpeed);
+
                 CurrentMomentum = newDir * CurrentSpeed / 1024;
             }
             else
