@@ -307,7 +307,7 @@ namespace OpenRA.Mods.Common.Traits
         WPos cachedPosition;
         WAngle cachedFacing;
 
-		public Aircraft(ActorInitializer init, AircraftInfo info)
+        public Aircraft(ActorInitializer init, AircraftInfo info)
             : base(info)
         {
             self = init.Self;
@@ -321,7 +321,7 @@ namespace OpenRA.Mods.Common.Traits
                 SetPosition(self, centerPositionInit.Value);
 
             Facing = init.GetValue<FacingInit, WAngle>(Info.InitialFacing);
-            CurrentSpeed = Info.Speed; // Initialize at full speed
+            CurrentSpeed = 0; // Start at 0 speed, will accelerate on takeoff
         }
 
         public void AdjustMomentum(WVec desiredMove)
@@ -340,9 +340,9 @@ namespace OpenRA.Mods.Common.Traits
                 if (magnitude > 1024)
                     newDir = newDir * 1024 / magnitude;
 
-                // Accelerate faster toward target speed
+                // Gradually accelerate or decelerate to target speed
                 if (CurrentSpeed < targetSpeed)
-                    CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate * 2, Math.Min(targetSpeed, maxSpeed));
+                    CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
                 else if (CurrentSpeed > targetSpeed)
                     CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, targetSpeed);
 
@@ -985,11 +985,11 @@ namespace OpenRA.Mods.Common.Traits
         public bool CanEnterTargetNow(Actor self, in Target target)
         {
 			var targetActor = target;
-            if (target.Positions.Any(p => self.World.ActorMap.GetActorsAt(self.World.Map.CellContaining(p)).Any(a => a != self && a != targetActor.Actor)))
+			if (target.Positions.Any(p => self.World.ActorMap.GetActorsAt(self.World.Map.CellContaining(p)).Any(a => a != self && a != targetActor.Actor)))
                 return false;
 
-            MakeReservation(target.Actor);
-            return true;
+			MakeReservation(target.Actor);
+			return true;
         }
 
         #endregion
