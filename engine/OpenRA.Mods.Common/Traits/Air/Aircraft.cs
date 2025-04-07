@@ -34,7 +34,7 @@ namespace OpenRA.Mods.Common.Traits
         public readonly WDist IdleSeparation = new WDist(3072);
 
         [Desc("The distance it must maintain from other aircraft if repulsable.")]
-        public readonly WDist MinSeparation = new WDist(1536);
+        public readonly WDist MinSeparation = new WDist(256);
 
         [Desc("The speed at which the aircraft is repulsed from other aircraft. Specify -1 for max movement speed.")]
         public readonly int RepulsionSpeed = 140;
@@ -107,6 +107,12 @@ namespace OpenRA.Mods.Common.Traits
 
         [Desc("Can the actor immediately change direction without turning first?")]
         public readonly bool CanSlide = false;
+
+		[Desc("Speed threshold below which helicopters can slide (in units/tick). Above this, they turn like airplanes.")]
+        public readonly int SlideSpeedThreshold = 30;
+
+        [Desc("Maximum angle helicopters can slide relative to facing (in degrees).")]
+        public readonly int MaxSlideAngle = 45;
 
         [Desc("Does the actor land and take off vertically?")]
         public readonly bool VTOL = false;
@@ -315,8 +321,49 @@ namespace OpenRA.Mods.Common.Traits
                 SetPosition(self, centerPositionInit.Value);
 
             Facing = init.GetValue<FacingInit, WAngle>(Info.InitialFacing);
-            creationActivityDelay = init.GetValue<CreationActivityDelayInit, int>(0);
             CurrentSpeed = 0;
+        }
+
+        public void AdjustMomentum(WVec desiredMove)
+        {
+            var targetSpeed = desiredMove.Length;
+            var maxSpeed = Info.Speed;
+
+            if (targetSpeed > 0)
+            {
+                var desiredDir = desiredMove * 1024 / targetSpeed;
+                var currentDir = CurrentMomentum.Length > 0 ? CurrentMomentum * 1024 / CurrentMomentum.Length : WVec.Zero;
+
+                var newDir = currentDir == WVec.Zero ? desiredDir :
+                    (currentDir + (desiredDir - currentDir) * Info.AccelerationRate / 32);
+                var magnitude = newDir.Length;
+                if (magnitude > 1024)
+                    newDir = newDir * 1024 / magnitude;
+
+                CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
+                CurrentMomentum = newDir * CurrentSpeed / 1024;
+            }
+            else
+            {
+                CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, 0);
+                CurrentMomentum = CurrentMomentum.Length > 0 ?
+                    CurrentMomentum * CurrentSpeed / CurrentMomentum.Length : WVec.Zero;
+            }
+        }
+
+        public int CalculateTurnRadius()
+        {
+            return Info.TurnSpeed.Angle > 0 ? 180 * CurrentSpeed / Info.TurnSpeed.Angle : 0;
+        }
+
+        public int CalculateStoppingDistance()
+        {
+            return CurrentSpeed * CurrentSpeed / (2 * Math.Max(1, Info.DecelerationRate));
+        }
+
+        public WVec FlyStep(int speed, WAngle facing)
+        {
+            return new WVec(0, -speed, 0).Rotate(WRot.FromYaw(facing));
         }
 
         public WDist LandAltitude
@@ -622,51 +669,6 @@ namespace OpenRA.Mods.Common.Traits
         public WVec FlyStep(WAngle facing)
         {
             return FlyStep(CurrentSpeed, facing);
-        }
-
-        public WVec FlyStep(int speed, WAngle facing)
-        {
-            var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
-            return speed * dir / 1024;
-        }
-
-        public void AdjustMomentum(WVec desiredMove)
-        {
-            var targetSpeed = desiredMove.Length;
-            var maxSpeed = MovementSpeed;
-
-            if (targetSpeed > 0)
-            {
-                // Interpolate momentum toward desired move
-                var desiredDir = desiredMove * 1024 / targetSpeed; // Scale to avoid precision loss
-                var currentDir = CurrentMomentum.Length > 0 ? CurrentMomentum * 1024 / CurrentMomentum.Length : WVec.Zero;
-
-                // Gradually adjust direction
-                var newDir = currentDir == WVec.Zero ? desiredDir :
-                    (currentDir + (desiredDir - currentDir) * Info.AccelerationRate / 32);
-
-                // Clamp magnitude to 1024 manually
-                var magnitude = newDir.Length;
-                if (magnitude > 1024)
-                    newDir = newDir * 1024 / magnitude;
-
-                // Adjust speed smoothly
-                CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
-                CurrentMomentum = newDir * CurrentSpeed / 1024;
-            }
-            else
-            {
-                // Decelerate to stop
-                CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, 0);
-                CurrentMomentum = CurrentMomentum.Length > 0 ?
-                    CurrentMomentum * CurrentSpeed / CurrentMomentum.Length : WVec.Zero;
-            }
-        }
-
-        public int CalculateStoppingDistance()
-        {
-            // Adjusted stopping distance: currentSpeed^2 / (2 * DecelerationRate)
-            return CurrentSpeed * CurrentSpeed / (2 * Math.Max(1, Info.DecelerationRate));
         }
 
         public CPos? FindLandingLocation(CPos targetCell, WDist maxSearchDistance)
