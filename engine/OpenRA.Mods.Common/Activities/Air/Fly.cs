@@ -132,6 +132,16 @@ namespace OpenRA.Mods.Common.Activities
                         VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
                     return false;
                 }
+
+				// If we are still moving, we need to decelerate before fully canceling
+                if (self.CurrentActivity.NextActivity == null && aircraft.CurrentMomentum.LengthSquared > 64)
+				{
+					aircraft.AdjustMomentum(WVec.Zero);
+					FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+
+					return false;
+            	}
+
                 return true;
             }
             else if (isLanded)
