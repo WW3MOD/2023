@@ -59,7 +59,17 @@ namespace OpenRA.Mods.Common.Activities
             var turnSpeed = idleTurn ? aircraft.IdleTurnSpeed ?? aircraft.TurnSpeed : aircraft.TurnSpeed;
             aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
-            // Roll and pitch logic can be added here if necessary
+            // Roll and pitch logic for voxels
+            // var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
+            // if (roll != WAngle.Zero)
+            // {
+            //     var desiredRoll = aircraft.Facing == desiredFacing ? WAngle.Zero :
+            //         new WAngle(roll.Angle * Util.GetTurnDirection(aircraft.Facing, oldFacing));
+            //     aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
+            // }
+
+            // if (aircraft.Info.Pitch != WAngle.Zero)
+            //     aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
 
             var move = aircraft.CurrentMomentum;
             if (dat != desiredAltitude || move.Z != 0)
