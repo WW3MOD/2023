@@ -19,9 +19,8 @@ namespace OpenRA.Mods.Common.Activities
         Target target;
         Target lastVisibleTarget;
         bool useLastVisibleTarget;
-        readonly List<WPos> positionBuffer = new List<WPos>();
-        const int StopThreshold = 128; // Snap distance for final waypoint
-        const int WaypointThreshold = 512; // Distance to proceed to next waypoint
+        const int StopThreshold = 128;
+        const int WaypointThreshold = 512;
 
         public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
             : this(self, t, initialTargetPosition, targetLineColor)
@@ -57,19 +56,10 @@ namespace OpenRA.Mods.Common.Activities
             aircraft.AdjustMomentum(desiredMove);
 
             var oldFacing = aircraft.Facing;
-            var turnSpeed = aircraft.Info.TurnSpeed;
+            var turnSpeed = idleTurn ? aircraft.IdleTurnSpeed ?? aircraft.TurnSpeed : aircraft.TurnSpeed;
             aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
-            var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
-            if (roll != WAngle.Zero)
-            {
-                var desiredRoll = aircraft.Facing == desiredFacing ? WAngle.Zero :
-                    new WAngle(roll.Angle * Util.GetTurnDirection(aircraft.Facing, oldFacing));
-                aircraft.Roll = Util.TickFacing(aircraft.Roll, desiredRoll, aircraft.Info.RollSpeed);
-            }
-
-            if (aircraft.Info.Pitch != WAngle.Zero)
-                aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
+            // Roll and pitch logic can be added here if necessary
 
             var move = aircraft.CurrentMomentum;
             if (dat != desiredAltitude || move.Z != 0)
@@ -93,7 +83,7 @@ namespace OpenRA.Mods.Common.Activities
             var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
             var move = WVec.Zero;
 
-            var turnSpeed = idleTurn ? aircraft.Info.IdleTurnSpeed ?? aircraft.Info.TurnSpeed : aircraft.Info.TurnSpeed;
+            var turnSpeed = idleTurn ? aircraft.IdleTurnSpeed ?? aircraft.TurnSpeed : aircraft.TurnSpeed;
             aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
             if (dat != desiredAltitude)
@@ -115,7 +105,7 @@ namespace OpenRA.Mods.Common.Activities
                 Cancel(self);
 
             var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-            var isLanded = dat <= aircraft.Info.LandAltitude;
+            var isLanded = dat <= aircraft.LandAltitude;
 
             if (isLanded && aircraft.IsTraitPaused)
                 return false;
@@ -156,22 +146,44 @@ namespace OpenRA.Mods.Common.Activities
             var deltaLengthSquared = deltaHorizontal.LengthSquared;
             var deltaLength = (int)Math.Sqrt(deltaLengthSquared);
 
+            var isFinalWaypoint = NextActivity == null;
+
+            // Range checks
             var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
             var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
-            if (insideMaxRange && !insideMinRange)
+
+            if (insideMaxRange && !insideMinRange && isFinalWaypoint)
             {
+                // Decelerate to stop
                 aircraft.AdjustMomentum(WVec.Zero);
                 if (aircraft.CurrentMomentum.LengthSquared < 64)
                     return true;
                 FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
                 return false;
             }
+            else if (insideMinRange)
+            {
+                var isSlider = aircraft.Info.CanSlide;
+                var speed = aircraft.MovementSpeed;
+                var move = isSlider ? aircraft.FlyStep(speed, deltaHorizontal.Yaw) : aircraft.FlyStep(speed, aircraft.Facing);
+                if (isSlider)
+                    FlyTick(self, aircraft, deltaHorizontal.Yaw, aircraft.Info.CruiseAltitude, -move);
+                else
+                    FlyTick(self, aircraft, deltaHorizontal.Yaw + new WAngle(512), aircraft.Info.CruiseAltitude, move);
+                return false;
+            }
 
+            // Normal movement
+            var desiredFacing = deltaHorizontal.LengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
+
+            var targetSpeed = aircraft.MovementSpeed;
+            var turnSpeed = aircraft.TurnSpeed;
+
+            // Calculate stopping distance
             var stoppingDistance = aircraft.CalculateStoppingDistance();
-            var isFinalWaypoint = NextActivity == null;
 
-            // Check if close enough to proceed (normal waypoint clearing)
-            if (deltaLengthSquared <= (isFinalWaypoint ? StopThreshold : WaypointThreshold) * (isFinalWaypoint ? StopThreshold : WaypointThreshold))
+            // Check if close enough
+            if (deltaLengthSquared <= (isFinalWaypoint ? StopThreshold * StopThreshold : WaypointThreshold * WaypointThreshold))
             {
                 if (isFinalWaypoint)
                 {
@@ -179,110 +191,74 @@ namespace OpenRA.Mods.Common.Activities
                     aircraft.SetPosition(self, targetPosAtCruise);
                     aircraft.CurrentMomentum = WVec.Zero;
                     aircraft.CurrentSpeed = 0;
+                    return true;
                 }
-                return true;
+                else
+                {
+                    return true; // Proceed to next waypoint
+                }
             }
 
-            // Determine desired facing for the current waypoint
-            WAngle desiredFacing = deltaHorizontal.LengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
-            WAngle nextYaw = WAngle.Zero;
-            int nextDistance = int.MaxValue;
+            // Calculate turn radius
+            var turnRadius = CalculateTurnRadius(aircraft.CurrentSpeed, turnSpeed);
+
+            // Check for early turn
             bool shouldTurn = false;
-
-            // Calculate turn radius and turn distance if there's a next waypoint
-            int targetSpeed = aircraft.Info.Speed; // Use max speed as base
-            var turnRadius = CalculateTurnRadius(targetSpeed, aircraft.Info.TurnSpeed);
-            var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
-            var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
-            var turnCenter = pos + turnCenterDir;
-
             if (!isFinalWaypoint && NextActivity is Fly nextFly)
             {
                 var nextTarget = nextFly.target;
                 var nextDelta = nextTarget.CenterPosition - checkTarget.CenterPosition;
                 var nextDeltaHorizontal = new WVec(nextDelta.X, nextDelta.Y, 0);
-                nextYaw = nextDeltaHorizontal.LengthSquared != 0 ? nextDeltaHorizontal.Yaw : aircraft.Facing;
-                nextDistance = nextDeltaHorizontal.Length;
+                var nextYaw = nextDeltaHorizontal.Yaw;
+                var nextDistance = nextDeltaHorizontal.Length;
 
-                // Calculate the angle difference to the next segment's direction
-                var currentYaw = aircraft.CurrentMomentum.LengthSquared > 0 ? aircraft.CurrentMomentum.Yaw : aircraft.Facing;
-                var angleDiff = WAngle.FromDegrees(Math.Abs((nextYaw - currentYaw).Angle) % 360);
+                var angleDiff = Math.Abs((nextYaw - desiredFacing).Angle % 1024);
+                if (angleDiff > 512) angleDiff = 1024 - angleDiff;
 
-                // Only consider a turn if the angle difference is significant (e.g., > 5 degrees)
-                var turnAngle = angleDiff.Angle >= 14 ? angleDiff.Angle * 4 : 0; // 14 in 1024-scale ≈ 5 degrees
-                var turnTicks = turnAngle > 0 ? turnAngle / aircraft.Info.TurnSpeed.Angle : 0;
-                var turnDistance = targetSpeed * turnTicks;
+                var turnTicks = (angleDiff + turnSpeed.Angle - 1) / turnSpeed.Angle;
+                var turnDistance = aircraft.CurrentSpeed * turnTicks;
 
-                // Start turning when the distance to the current waypoint is less than or equal to the turn distance
                 shouldTurn = deltaLength <= turnDistance;
 
                 if (shouldTurn)
                 {
-                    desiredFacing = nextYaw; // Face toward the next segment
-                    // Clear the current waypoint since we've started turning
+                    desiredFacing = nextYaw;
+                    // Return true to clear current waypoint
                     return true;
                 }
+
+                // Speed reduction for tight turns (helicopters only)
+                if (aircraft.Info.CanSlide && nextDistance <= 2 * turnRadius)
+                {
+                    var speedReductionFactor = Math.Max(0.5f, (float)nextDistance / (2 * turnRadius));
+                    targetSpeed = (int)(aircraft.MovementSpeed * speedReductionFactor);
+                    targetSpeed = Math.Max(targetSpeed, aircraft.Info.AccelerationRate * 2);
+                }
             }
 
-            // Calculate desired move
-            WVec desiredMove;
+            // For final waypoint, adjust speed if within stopping distance
             if (isFinalWaypoint && deltaLength <= stoppingDistance)
             {
-                targetSpeed = aircraft.Info.Speed * deltaLength / Math.Max(1, stoppingDistance);
+                targetSpeed = (int)(aircraft.MovementSpeed * (float)deltaLength / stoppingDistance);
                 targetSpeed = Math.Max(targetSpeed, aircraft.Info.AccelerationRate);
-                desiredMove = deltaLengthSquared > 0 ? deltaHorizontal * targetSpeed / deltaLength : WVec.Zero;
             }
-            else
+
+            // Prevent orbiting for non-sliders
+            if (!aircraft.Info.CanSlide)
             {
-                var currentYaw = aircraft.CurrentMomentum.LengthSquared > 0 ? aircraft.CurrentMomentum.Yaw : aircraft.Facing;
-                var angleDiff = WAngle.FromDegrees(Math.Abs((desiredFacing - currentYaw).Angle) % 360);
-
-                // Check if the target is inside the turn circle (to prevent orbiting)
-                var targetInsideTurnCircle = (checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius;
-                var nextInsideTurnCircle = !isFinalWaypoint && nextDistance <= turnRadius * 2 && nextDistance > 0;
-
-                if (targetInsideTurnCircle || nextInsideTurnCircle)
-                {
-                    // Adjust speed if next waypoint is too close
-                    if (nextInsideTurnCircle)
-                    {
-                        // Slow down to tighten turn radius
-                        var speedReductionFactor = Math.Max(0.5f, (float)nextDistance / (turnRadius * 2));
-                        targetSpeed = (int)(aircraft.Info.Speed * speedReductionFactor);
-                        targetSpeed = Math.Max(targetSpeed, aircraft.Info.AccelerationRate * 2); // Ensure minimum speed
-                        turnRadius = CalculateTurnRadius(targetSpeed, aircraft.Info.TurnSpeed);
-                    }
-
-                    if (targetInsideTurnCircle && deltaLength > WaypointThreshold)
-                    {
-                        // Prevent orbiting by maintaining current facing
-                        desiredFacing = aircraft.Facing;
-                        desiredMove = aircraft.FlyStep(targetSpeed, desiredFacing);
-                    }
-                    else if (aircraft.Info.CanSlide && aircraft.CurrentSpeed <= aircraft.Info.SlideSpeedThreshold)
-                    {
-                        // Helicopter sliding at low speed
-                        var slideAngle = WAngle.FromDegrees(aircraft.Info.MaxSlideAngle);
-                        if (angleDiff <= slideAngle)
-                            desiredMove = deltaHorizontal * targetSpeed / Math.Max(1, deltaLength);
-                        else
-                            desiredMove = deltaHorizontal * targetSpeed / Math.Max(1, deltaLength);
-                    }
-                    else
-                    {
-                        // Forward flight with adjusted facing
-                        desiredFacing = Util.TickFacing(aircraft.Facing, desiredFacing, aircraft.Info.TurnSpeed);
-                        desiredMove = aircraft.FlyStep(targetSpeed, desiredFacing);
-                    }
-                }
-                else
-                {
-                    // Full speed toward current waypoint
-                    desiredMove = aircraft.FlyStep(targetSpeed, deltaHorizontal.Yaw);
-                }
+                var turnCenterFacing = aircraft.Facing + new WAngle(Util.GetTurnDirection(aircraft.Facing, desiredFacing) * 256);
+                var turnCenterDir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(turnCenterFacing)) * turnRadius / 1024;
+                var turnCenter = pos + turnCenterDir;
+                if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
+                    desiredFacing = aircraft.Facing;
             }
 
+            // Set desired move
+            var desiredMove = aircraft.FlyStep(targetSpeed, desiredFacing);
+
+            // Call FlyTick
             FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, desiredMove);
+
             return false;
         }
 

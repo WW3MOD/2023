@@ -108,7 +108,7 @@ namespace OpenRA.Mods.Common.Traits
         [Desc("Can the actor immediately change direction without turning first?")]
         public readonly bool CanSlide = false;
 
-		[Desc("Speed threshold below which helicopters can slide (in units/tick). Above this, they turn like airplanes.")]
+        [Desc("Speed threshold below which helicopters can slide (in units/tick). Above this, they turn like airplanes.")]
         public readonly int SlideSpeedThreshold = 30;
 
         [Desc("Maximum angle helicopters can slide relative to facing (in degrees).")]
@@ -299,9 +299,9 @@ namespace OpenRA.Mods.Common.Traits
         int cruisingToken = Actor.InvalidConditionToken;
 
         [Sync]
-        public WVec CurrentMomentum { get; set; } = WVec.Zero; // Current velocity vector (made public for Fly.cs)
+        public WVec CurrentMomentum { get; set; } = WVec.Zero;
         [Sync]
-        public int CurrentSpeed; // Current speed magnitude (made public for Fly.cs, PascalCase)
+        public int CurrentSpeed;
 
         MovementType movementTypes;
         WPos cachedPosition;
@@ -321,7 +321,7 @@ namespace OpenRA.Mods.Common.Traits
                 SetPosition(self, centerPositionInit.Value);
 
             Facing = init.GetValue<FacingInit, WAngle>(Info.InitialFacing);
-            CurrentSpeed = 0; // Start at 0 speed, will accelerate on takeoff
+            CurrentSpeed = 0;
         }
 
         public void AdjustMomentum(WVec desiredMove)
@@ -340,7 +340,6 @@ namespace OpenRA.Mods.Common.Traits
                 if (magnitude > 1024)
                     newDir = newDir * 1024 / magnitude;
 
-                // Gradually accelerate or decelerate to target speed
                 if (CurrentSpeed < targetSpeed)
                     CurrentSpeed = Math.Min(CurrentSpeed + Info.AccelerationRate, Math.Min(targetSpeed, maxSpeed));
                 else if (CurrentSpeed > targetSpeed)
@@ -1309,3 +1308,4 @@ namespace OpenRA.Mods.Common.Traits
         }
     }
 }
+
