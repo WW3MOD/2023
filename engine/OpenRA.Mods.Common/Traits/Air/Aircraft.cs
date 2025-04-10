@@ -57,7 +57,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("maximum speed at which sliding takes place")]
 		public readonly int MaxSlidingSpeed = 50;
 
-
 		public readonly WDist CruiseAltitude = new WDist(1280);
 
 		[Desc("Minimum altitude where this aircraft is considered airborne.")]
@@ -78,8 +77,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
-
-
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
 		public readonly WAngle Pitch = WAngle.Zero;
 
@@ -94,7 +91,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Roll steps to apply each tick when turning.")]
 		public readonly WAngle RollSpeed = WAngle.Zero;
-
 
 		[Desc("Can the actor be ordered to move in to shroud?")]
 		public readonly bool MoveIntoShroud = true;
