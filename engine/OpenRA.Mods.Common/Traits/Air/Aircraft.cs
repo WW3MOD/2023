@@ -26,48 +26,42 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Behavior when aircraft becomes idle. Options are Land, ReturnToBase, LeaveMap, and None.")]
 		public readonly IdleBehaviorType IdleBehavior = IdleBehaviorType.None;
 
-
 		[Desc("Speed when idle, 0 means it can hover, -1 for MaxSpeed.")]
 		public readonly int MinSpeed = -1;
 
 		[Desc("Maximum flight speed when cruising.")]
 		public readonly int MaxSpeed = 150;
 
-		[Desc("Acceleration rate when speeding up (in units per tick).")]
-		public readonly int AccelerationRate = 3;
+		[Desc("Thrust force when moving horizontally.")]
+		public readonly int ThrustForce = 3;
 
-		[Desc("Deceleration rate when slowing down (in units per tick).")]
-		public readonly int DecelerationRate = 5;
+		[Desc("Breaking force when moving horizontally.")]
+		public readonly int BreakingForce = 5;
 
-
-
-
-
-
-		[Desc("How fast this actor ascends or descends when moving vertically only.")]
+		[Desc("Force applied when ascending, and turning while above the MaxSlidingSpeed.")]
 		public readonly int LiftForce = 10;
-
-		public readonly WDist CruiseAltitude = new WDist(1280);
-
-		[Desc("Minimum altitude where this aircraft is considered airborne.")]
-		public readonly int MinAirborneAltitude = 100;
-
 
 		[Desc("Speed at which the actor turns.")]
 		public readonly WAngle TurnSpeed = new WAngle(512);
 
-
-		[Desc("Can the actor immediately change direction without turning first?")]
-		public readonly bool CanSlide = false;
-
-		[Desc("Speed threshold below which helicopters can slide (in units/tick). Above this, they turn like airplanes.")]
-		public readonly int SlideSpeedThreshold = 30;
-
-		[Desc("Maximum angle helicopters can slide relative to facing (in degrees).")]
-		public readonly int MaxSlideAngle = 45;
+		[Desc("Turn speed to apply when aircraft flies in circles while idle. Defaults to TurnSpeed if undefined.")]
+		public readonly WAngle? IdleTurnSpeed = null;
 
 		[Desc("Does the actor land and take off vertically?")]
 		public readonly bool VTOL = false;
+		public readonly HashSet<string> LandableTerrainTypes = new HashSet<string>();
+
+		[Desc("Can apply Thrust in any direction.")]
+		public readonly bool CanSlide = false;
+
+		[Desc("maximum speed at which sliding takes place")]
+		public readonly int MaxSlidingSpeed = 50;
+
+
+		public readonly WDist CruiseAltitude = new WDist(1280);
+
+		[Desc("Minimum altitude where this aircraft is considered airborne.")]
+		public readonly int MinAirborneAltitude = 1;
 
 
 		[Desc("Whether the aircraft can be repulsed.")]
@@ -82,14 +76,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The speed at which the aircraft is repulsed from other aircraft. Specify -1 for max movement speed.")]
 		public readonly int RepulsionSpeed = 140;
 
-
-
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
-
-
-		[Desc("Turn speed to apply when aircraft flies in circles while idle. Defaults to TurnSpeed if undefined.")]
-		public readonly WAngle? IdleTurnSpeed = null;
 
 
 		[Desc("Body pitch when flying forwards. Only relevant for voxel aircraft.")]
@@ -107,8 +95,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Roll steps to apply each tick when turning.")]
 		public readonly WAngle RollSpeed = WAngle.Zero;
 
-
-		public readonly HashSet<string> LandableTerrainTypes = new HashSet<string>();
 
 		[Desc("Can the actor be ordered to move in to shroud?")]
 		public readonly bool MoveIntoShroud = true;
@@ -321,7 +307,7 @@ namespace OpenRA.Mods.Common.Traits
 		WPos cachedPosition;
 		WAngle cachedFacing;
 
-		public int GetAcceleration => Info.AccelerationRate + Info.DecelerationRate;
+		public int GetAcceleration => Info.ThrustForce + Info.BreakingForce;
 
 		public Aircraft(ActorInitializer init, AircraftInfo info)
 			: base(info)
@@ -359,13 +345,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (CurrentSpeed < targetSpeed)
 					CurrentSpeed = Math.Min(CurrentSpeed + GetAcceleration, Math.Min(targetSpeed, maxSpeed));
 				else if (CurrentSpeed > targetSpeed)
-					CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, targetSpeed);
+					CurrentSpeed = Math.Max(CurrentSpeed - Info.BreakingForce, targetSpeed);
 
 				CurrentMomentum = newDir * CurrentSpeed / 1024;
 			}
 			else
 			{
-				CurrentSpeed = Math.Max(CurrentSpeed - Info.DecelerationRate, 0);
+				CurrentSpeed = Math.Max(CurrentSpeed - Info.BreakingForce, 0);
 				CurrentMomentum = CurrentMomentum.Length > 0 ?
 					CurrentMomentum * CurrentSpeed / CurrentMomentum.Length : WVec.Zero;
 			}
@@ -378,7 +364,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int CalculateStoppingDistance()
 		{
-			return CurrentSpeed * CurrentSpeed / (2 * Math.Max(1, Info.DecelerationRate));
+			return CurrentSpeed * CurrentSpeed / (2 * Math.Max(1, Info.BreakingForce));
 		}
 
 		public WVec FlyStep(int speed, WAngle facing)
@@ -515,7 +501,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Decelerate when not moving horizontally (outside Fly activity)
 				if (CurrentSpeed > 0)
 				{
-					CurrentSpeed = Math.Max(0, CurrentSpeed - Info.DecelerationRate);
+					CurrentSpeed = Math.Max(0, CurrentSpeed - Info.BreakingForce);
 					CurrentMomentum = CurrentMomentum.Length > 0 ?
 						CurrentMomentum * CurrentSpeed / CurrentMomentum.Length : WVec.Zero;
 				}

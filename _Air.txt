@@ -1,5 +1,100 @@
 
 
+An aircraft can be Helicopter or Airplane
+
+Aircraft General
+
+    Thrust:  Apply ThrustForce forward, and a % of that to cancel out sideways momentum
+    Break:   Apply BreakForce opposite travel direction.
+    Ascend:  Apply LiftForce upwards
+    Descend: TBD
+
+    LiftForce: Amount of force that can be applied up or sideways in normal flight
+    RotationForce: Amount of force that can be applied for rotation during sliding
+
+Aircraft Fly Tick
+
+    Canceling?
+        Decelerate
+
+    Climb? If target is above Craft
+        Increase delta Z until MaxAltitude
+
+    Decend? If target is below Craft, and
+        Decrease delta Z
+
+    Decelerate? If we are close enough, with no further waypoints
+        Apply Breaks
+
+    Accelerate? If Facing the target
+        Apply Thrust
+
+    Else: Turn?
+        Should Slide?
+            Apply Thrust
+
+        No Slide?
+            Apply Lift perpendicular to travel direction
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Helicopter lifecycle
+    - takeoff
+    - slide
+    - fly forward
+    - decelerate if approaching waypoint too fast
+    - turn ahead of waypoint 1 to align with waypoint 2 direction
+    - decelerate at last waypoint
+    - land
+
+
+
+
+
+
+
+
 
 
 

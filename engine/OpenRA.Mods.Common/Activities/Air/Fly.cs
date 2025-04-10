@@ -103,7 +103,7 @@ namespace OpenRA.Mods.Common.Activities
 				move += new WVec(0, 0, deltaZ);
 			}
 			else
-				return false;
+				return false; // Tick
 
 			aircraft.SetPosition(self, self.CenterPosition + move);
 			return true;
@@ -125,9 +125,11 @@ namespace OpenRA.Mods.Common.Activities
 				aircraft.CurrentMomentum.Z > 0 ? Math.Max(aircraft.CurrentMomentum.Z - d, 0) : Math.Min(aircraft.CurrentMomentum.Z + d, 0)
 			);
 
+			// Check if aircraft is in the air
 			if (isLanded && aircraft.IsTraitPaused)
-				return false;
+				return false; // Tick
 
+			// Handle Canceling
 			if (IsCanceling)
 			{
 				var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
@@ -138,23 +140,24 @@ namespace OpenRA.Mods.Common.Activities
 						QueueChild(new TakeOff(self));
 					else
 						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-					return false;
+					return false; // Tick
 				}
 
 				// If we are still moving, we need to decelerate before fully canceling
 				if (self.CurrentActivity.NextActivity == null && aircraft.CurrentMomentum.LengthSquared > 64)
 				{
+					// If we are in the air, we need to decelerate before canceling
 					FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 
-					return false;
+					return false; // Tick
 				}
 
-				return true;
+				return true; // Exit
 			}
 			else if (isLanded)
 			{
 				QueueChild(new TakeOff(self));
-				return false;
+				return false; // Tick
 			}
 
 			target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
@@ -163,8 +166,9 @@ namespace OpenRA.Mods.Common.Activities
 
 			useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
 
+			// No valid target
 			if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self))
-				return true;
+				return true; // Exit
 
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 			var pos = aircraft.GetPosition();
@@ -172,22 +176,27 @@ namespace OpenRA.Mods.Common.Activities
 			var deltaHorizontal = new WVec(delta.X, delta.Y, 0);
 			var deltaLengthSquared = deltaHorizontal.LengthSquared;
 			var deltaLength = (int)Math.Sqrt(deltaLengthSquared);
-
 			var isFinalWaypoint = NextActivity == null;
 
 			// Range checks
 			var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
 			var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
 
+			// Check if we are in range
 			if (insideMaxRange && !insideMinRange && isFinalWaypoint)
 			{
 				// Decelerate to stop
 				aircraft.AdjustMomentum(WVec.Zero);
+
+				// Check if we are stopped
 				if (aircraft.CurrentMomentum.LengthSquared < 64)
-					return true;
+					return true; // Exit
+
+				// Still decelerating
 				FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-				return false;
+				return false; // Tick
 			}
+			// Check if we need to reverse
 			else if (insideMinRange)
 			{
 				var isSlider = aircraft.Info.CanSlide;
@@ -197,7 +206,7 @@ namespace OpenRA.Mods.Common.Activities
 					FlyTick(self, aircraft, deltaHorizontal.Yaw, aircraft.Info.CruiseAltitude, -move);
 				else
 					FlyTick(self, aircraft, deltaHorizontal.Yaw + new WAngle(512), aircraft.Info.CruiseAltitude, move);
-				return false;
+				return false; // Tick
 			}
 
 			// Normal movement
@@ -212,17 +221,18 @@ namespace OpenRA.Mods.Common.Activities
 			// Check if close enough
 			if (deltaLengthSquared <= (isFinalWaypoint ? StopThreshold * StopThreshold : WaypointThreshold * WaypointThreshold))
 			{
+				// Check if we are close enough to stop
 				if (isFinalWaypoint)
 				{
 					var targetPosAtCruise = new WPos(checkTarget.CenterPosition.X, checkTarget.CenterPosition.Y, pos.Z);
 					aircraft.SetPosition(self, targetPosAtCruise);
 					aircraft.CurrentMomentum = WVec.Zero;
 					aircraft.CurrentSpeed = 0;
-					return true;
+					return true; // Exit
 				}
 				else
 				{
-					return true; // Proceed to next waypoint
+					return true; // Exit (Proceed to next waypoint)
 				}
 			}
 
@@ -250,8 +260,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (shouldTurn)
 				{
 					desiredFacing = nextYaw;
-					// Return true to clear current waypoint
-					return true;
+					return true; // Exit (Proceed to next waypoint)
 				}
 
 				// Speed reduction for tight turns (helicopters only)
@@ -286,7 +295,7 @@ namespace OpenRA.Mods.Common.Activities
 			// Call FlyTick
 			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, desiredMove);
 
-			return false;
+			return false; // Tick
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)
