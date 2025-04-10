@@ -26,7 +26,6 @@ TRAN:
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 240
-		AltitudeVelocity: 0c58
 	WithIdleOverlay@Rotor1Air:
 		Offset: 597,0,213
 		Sequence: rotor

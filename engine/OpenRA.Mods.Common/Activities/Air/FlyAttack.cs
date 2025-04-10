@@ -181,7 +181,7 @@ namespace OpenRA.Mods.Common.Activities
 			// The aircraft must keep moving forward even if it is already in an ideal position.
 			else if (attackAircraft.Info.AttackType == AirAttackType.Strafe)
 				QueueChild(new StrafeAttackRun(attackAircraft, aircraft, target, strafeDistance != WDist.Zero ? strafeDistance : lastVisibleMaximumRange));
-			else if (attackAircraft.Info.AttackType == AirAttackType.Default && !aircraft.Info.CanHover)
+			else if (attackAircraft.Info.AttackType == AirAttackType.Default && aircraft.Info.MinSpeed > 0)
 				QueueChild(new FlyAttackRun(target, lastVisibleMaximumRange, attackAircraft));
 
 			// Turn to face the target if required.
@@ -297,7 +297,7 @@ namespace OpenRA.Mods.Common.Activities
 				QueueChild(new FlyForward(self, exitRange));
 
 				// Exit the range and then fly enough to turn towards the target for another run
-				var distanceToTurn = new WDist(aircraft.Info.Speed * 256 / aircraft.Info.TurnSpeed.Angle);
+				var distanceToTurn = new WDist(aircraft.Info.MaxSpeed * 256 / aircraft.Info.TurnSpeed.Angle);
 				QueueChild(new Fly(self, target, exitRange + distanceToTurn, WDist.MaxValue, target.CenterPosition));
 			}
 			else

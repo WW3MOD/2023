@@ -103,7 +103,7 @@ DSHP:
 		LandingSounds: dropdwn1.aud
 		IdealSeparation: 1275
 		CruiseAltitude: 12c512
-		AltitudeVelocity: 256
+		LiftForce: 256
 		MoveIntoShroud: true
 	Health:
 		HP: 20000
@@ -142,7 +142,7 @@ ORCA:
 		Speed: 186
 		TakeoffSounds: orcaup1.aud
 		LandingSounds: orcadwn1.aud
-		AltitudeVelocity: 128
+		LiftForce: 128
 		CanSlide: false
 		TakeOffOnResupply: true
 	Health:

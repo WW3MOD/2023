@@ -28,7 +28,7 @@
 	Tooltip:
 		GenericName: Destroyed Helicopter
 	Aircraft:
-		CanHover: True
+		MinSpeed: 0
 		VTOL: true
 		CanSlide: True
 	FallsToEarth:

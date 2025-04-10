@@ -903,7 +903,7 @@
 		AirborneCondition: airborne
 		CruisingCondition: cruising
 		CruiseAltitude: 4c704
-		AltitudeVelocity: 96
+		LiftForce: 96
 		Voice: Move
 		IdealSeparation: 853
 		MaximumPitch: 120

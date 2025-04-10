@@ -131,7 +131,7 @@
 	Tooltip:
 		GenericName: Helicopter
 	Aircraft:
-		CanHover: True
+		MinSpeed: 0
 		CanSlide: True
 		VTOL: True
 		CruisingCondition: cruising
@@ -161,7 +161,7 @@
 		Condition: dronedisable
 	Aircraft:
 		PauseOnCondition: dronedisable
-		CanHover: True
+		MinSpeed: 0
 		CruisingCondition: cruising
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
@@ -226,7 +226,7 @@ quadcopterdrone:
 		Speed: 100
 		IdleTurnSpeed: 16
 		IdleSpeed: 25
-		AltitudeVelocity: 100
+		LiftForce: 100
 		RepulsionSpeed: 10
 		VTOL: true
 		AirborneCondition: airborne

@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (nearestResupplier != null)
 				{
-					if (aircraft.Info.CanHover)
+					if (aircraft.Info.MinSpeed == 0)
 					{
 						var distanceFromResupplier = (nearestResupplier.CenterPosition - self.CenterPosition).HorizontalLength;
 						var distanceLength = aircraft.Info.WaitDistanceFromResupplyBase.Length;
