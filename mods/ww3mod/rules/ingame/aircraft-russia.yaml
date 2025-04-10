@@ -25,7 +25,7 @@ HALO:
 		TargetTypes: Light
 	Aircraft:
 		TurnSpeed: 8
-		Speed: 240
+		MaxSpeed: 240
 	Cargo:
 		Types: Infantry
 		MaxWeight: 24
@@ -100,7 +100,7 @@ HIND:
 		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 12
-		Speed: 195
+		MaxSpeed: 195
 		InitialFacing: 192
 	AttackAircraft:
 		Armaments: primary, secondary #, secondary-air
@@ -236,7 +236,7 @@ MI28:
 		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 8
-		Speed: 245
+		MaxSpeed: 245
 	AttackAircraft:
 		FacingTolerance: 60
 		Armaments: primary, secondary, secondary-air
@@ -363,7 +363,7 @@ FROG:
 		CruiseAltitude: 1560
 		InitialFacing: 192
 		TurnSpeed: 8
-		Speed: 420
+		MaxSpeed: 420
 		RepulsionSpeed: 27
 		MaximumPitch: 56
 		TakeoffSounds: migtoff1.aud
@@ -478,7 +478,7 @@ MIG:
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 8
-		Speed: 525
+		MaxSpeed: 525
 		IdleSpeed: 200
 		RepulsionSpeed: 27
 		MaximumPitch: 56
