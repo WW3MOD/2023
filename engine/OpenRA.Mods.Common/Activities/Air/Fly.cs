@@ -117,6 +117,14 @@ namespace OpenRA.Mods.Common.Activities
             var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
             var isLanded = dat <= aircraft.LandAltitude;
 
+			// Decelerate on each tick
+			var d = 2;
+			aircraft.CurrentMomentum = new WVec(
+				aircraft.CurrentMomentum.X > 0 ? Math.Max(aircraft.CurrentMomentum.X - d, 0) : Math.Min(aircraft.CurrentMomentum.X + d, 0),
+				aircraft.CurrentMomentum.Y > 0 ? Math.Max(aircraft.CurrentMomentum.Y - d, 0) : Math.Min(aircraft.CurrentMomentum.Y + d, 0),
+				aircraft.CurrentMomentum.Z > 0 ? Math.Max(aircraft.CurrentMomentum.Z - d, 0) : Math.Min(aircraft.CurrentMomentum.Z + d, 0)
+			);
+
             if (isLanded && aircraft.IsTraitPaused)
                 return false;
 
@@ -136,7 +144,6 @@ namespace OpenRA.Mods.Common.Activities
 				// If we are still moving, we need to decelerate before fully canceling
                 if (self.CurrentActivity.NextActivity == null && aircraft.CurrentMomentum.LengthSquared > 64)
 				{
-					aircraft.AdjustMomentum(WVec.Zero);
 					FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 
 					return false;

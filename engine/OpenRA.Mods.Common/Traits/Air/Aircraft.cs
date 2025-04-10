@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits
         public readonly WAngle? IdleTurnSpeed = null;
 
         [Desc("Acceleration rate when speeding up (in units per tick).")]
-        public readonly int AccelerationRate = 3;
+        public readonly int AccelerationRate = 10;
 
         [Desc("Deceleration rate when slowing down (in units per tick).")]
         public readonly int DecelerationRate = 8;

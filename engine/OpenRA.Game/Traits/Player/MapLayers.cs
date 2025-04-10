@@ -320,7 +320,8 @@ namespace OpenRA.Traits
 				{
 					var shadowModify = 0;
 
-					if (map.ShadowLayer != null)
+					// selfLocation quick fix IndexOutOfRangeException when aircraft goes out of bounds
+					if (map.ShadowLayer != null && selfLocation.U >= 0 && selfLocation.U < map.MapSize.X && selfLocation.V >= 0 && selfLocation.V < map.MapSize.Y)
 						shadowModify = map.ShadowLayer[selfLocation][(MPos)puv];
 
 					var modifiedStrength = strength - shadowModify;
