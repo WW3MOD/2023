@@ -3,10 +3,12 @@ Aircraft General
     Thrust:  Apply ThrustForce forward, and a % of that to cancel out sideways momentum
     Break:   Apply BreakForce opposite travel direction.
     Ascend:  Apply LiftForce upwards
-    Descend: TBD
+    Descend: Apply LiftForce downwards
 
     LiftForce: Amount of force that can be applied up or sideways in normal flight
     RotationForce: Amount of force that can be applied for rotation during sliding
+
+
 
 Aircraft Fly Tick
 

@@ -47,6 +47,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Turn speed to apply when aircraft flies in circles while idle. Defaults to TurnSpeed if undefined.")]
 		public readonly WAngle? IdleTurnSpeed = null;
 
+		[Desc("Maximum rotational speed for facing adjustments (defaults to TurnSpeed if not set).")]
+		public readonly WAngle MaxRotationalVelocity = new WAngle(512);
+
 		[Desc("Does the actor land and take off vertically?")]
 		public readonly bool VTOL = false;
 		public readonly HashSet<string> LandableTerrainTypes = new HashSet<string>();
@@ -298,6 +301,9 @@ namespace OpenRA.Mods.Common.Traits
 		public WVec CurrentMomentum { get; set; } = WVec.Zero;
 		[Sync]
 		public int CurrentSpeed;
+
+		[Sync]
+		public WAngle CurrentRotationalVelocity { get; set; } = WAngle.Zero;
 
 		MovementType movementTypes;
 		WPos cachedPosition;

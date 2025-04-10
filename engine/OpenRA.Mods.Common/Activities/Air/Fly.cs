@@ -147,7 +147,7 @@ namespace OpenRA.Mods.Common.Activities
 					var brakeMagnitude = brakeDirection.Length;
 					if (brakeMagnitude > 0)
 					{
-						brakeDirection = brakeDirection * aircraft.Info.BrakeForce / brakeMagnitude; // Assumed BrakeForce property (e.g., 5 units/tick²)
+						brakeDirection = brakeDirection * aircraft.Info.BreakingForce / brakeMagnitude;
 						aircraft.CurrentMomentum += brakeDirection;
 					}
 				}
@@ -201,7 +201,7 @@ namespace OpenRA.Mods.Common.Activities
 					var brakeMagnitude = brakeDirection.Length;
 					if (brakeMagnitude > 0)
 					{
-						brakeDirection = brakeDirection * aircraft.Info.BrakeForce / brakeMagnitude;
+						brakeDirection = brakeDirection * aircraft.Info.BreakingForce / brakeMagnitude;
 						aircraft.CurrentMomentum += brakeDirection;
 					}
 				}
@@ -217,7 +217,7 @@ namespace OpenRA.Mods.Common.Activities
 			else if (insideMinRange)
 			{
 				var isSlider = aircraft.Info.CanSlide;
-				var speed = aircraft.MovementSpeed; // Assumed MovementSpeed property (e.g., 150 units/tick)
+				var speed = aircraft.Info.MaxSpeed;
 				var move = isSlider ? aircraft.FlyStep(speed, deltaHorizontal.Yaw) : aircraft.FlyStep(speed, aircraft.Facing);
 				if (isSlider)
 					FlyTick(self, aircraft, deltaHorizontal.Yaw, aircraft.Info.CruiseAltitude, -move);
@@ -254,11 +254,11 @@ namespace OpenRA.Mods.Common.Activities
 				var nextYaw = nextDeltaHorizontal.Yaw;
 				var nextDistance = nextDeltaHorizontal.Length;
 
-				var angleDiff = Math.Abs((nextYaw - desiredFacing).Angle % 1024);
-				if (angleDiff > 512) angleDiff = 1024 - angleDiff;
+				var earlyTurnAngleDiff = Math.Abs((nextYaw - desiredFacing).Angle % 1024);
+				if (earlyTurnAngleDiff > 512) earlyTurnAngleDiff = 1024 - earlyTurnAngleDiff;
 
-				var turnSpeed = aircraft.TurnSpeed; // Assumed TurnSpeed property (e.g., 512 units/tick)
-				var turnTicks = (angleDiff + turnSpeed.Angle - 1) / turnSpeed.Angle;
+				var turnSpeed = aircraft.TurnSpeed;
+				var turnTicks = (earlyTurnAngleDiff + turnSpeed.Angle - 1) / turnSpeed.Angle;
 				var turnDistance = aircraft.CurrentSpeed * turnTicks;
 
 				shouldTurn = deltaLength <= turnDistance;
@@ -266,7 +266,6 @@ namespace OpenRA.Mods.Common.Activities
 				if (shouldTurn)
 				{
 					desiredFacing = nextYaw;
-					return true; // Proceed to next waypoint
 				}
 			}
 
@@ -278,15 +277,17 @@ namespace OpenRA.Mods.Common.Activities
 				var deltaZ = targetAltitude - pos.Z;
 				if (deltaZ != 0)
 				{
-					var liftForce = aircraft.Info.LiftForce; // Assumed LiftForce property (e.g., 5 units/tick²)
+					var liftForce = aircraft.Info.LiftForce;
 					var liftAdjustment = deltaZ > 0 ? Math.Min(deltaZ, liftForce) : Math.Max(deltaZ, -liftForce);
 					momentumAdjustment += new WVec(0, 0, liftAdjustment);
 				}
 			}
 
 			// Compute angle difference to determine if we need to turn
-			var angleDiff = WAngle.FromDegrees(Math.Abs((desiredFacing - aircraft.Facing).Angle) % 360);
-			var stoppingDistance = aircraft.CalculateStoppingDistance(); // Assumed method to calculate stopping distance
+			// Use CurrentMomentum.Yaw instead of Facing to determine movement direction
+			var currentYaw = aircraft.CurrentMomentum.LengthSquared > 0 ? aircraft.CurrentMomentum.Yaw : desiredFacing;
+			var angleDiff = WAngle.FromDegrees(Math.Abs((desiredFacing - currentYaw).Angle) % 360);
+			var stoppingDistance = aircraft.CalculateStoppingDistance();
 
 			// Decelerate if at final waypoint and within stopping distance
 			if (isFinalWaypoint && deltaLength <= stoppingDistance)
@@ -297,7 +298,7 @@ namespace OpenRA.Mods.Common.Activities
 					var brakeMagnitude = brakeDirection.Length;
 					if (brakeMagnitude > 0)
 					{
-						brakeDirection = brakeDirection * aircraft.Info.BrakeForce / brakeMagnitude;
+						brakeDirection = brakeDirection * aircraft.Info.BreakingForce / brakeMagnitude;
 						momentumAdjustment += brakeDirection;
 					}
 				}
@@ -305,36 +306,44 @@ namespace OpenRA.Mods.Common.Activities
 			else
 			{
 				// Determine if we should accelerate or turn
-				if (angleDiff.Angle < 14) // Facing the target (within ~5 degrees)
+				if (angleDiff.Angle < 14) // Moving toward the target (within ~5 degrees)
 				{
-					// Apply thrust forward
-					var thrustForce = aircraft.Info.ThrustForce; // Assumed ThrustForce property (e.g., 10 units/tick²)
-					var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(aircraft.Facing));
+					// Apply thrust in the direction of the target
+					var thrustForce = aircraft.Info.ThrustForce;
+					var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing)); // Use desiredFacing (target direction)
 					thrustDirection = thrustDirection * thrustForce / 1024;
 					momentumAdjustment += thrustDirection;
 
 					// Cancel sideways momentum to prevent orbiting
-					var sidewaysMomentumDampeningFactor = aircraft.Info.SidewaysMomentumDampeningFactor; // Assumed property (e.g., 0.5)
-					var forwardDirection = thrustDirection.LengthSquared > 0 ? thrustDirection : new WVec(0, -1024, 0).Rotate(WRot.FromYaw(aircraft.Facing));
-					var sidewaysMomentum = aircraft.CurrentMomentum - WVec.Project(aircraft.CurrentMomentum, forwardDirection);
-					momentumAdjustment -= sidewaysMomentum * sidewaysMomentumDampeningFactor;
+					var sidewaysMomentumDampeningFactor = 0.5f; // Hardcoded: Suggest adding SidewaysMomentumDampeningFactor to AircraftInfo (e.g., 0.5)
+					var forwardDirection = thrustDirection.LengthSquared > 0 ? thrustDirection : new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing));
+					var forwardMagnitude = forwardDirection.Length;
+					if (forwardMagnitude > 0)
+					{
+						// Project momentum onto forward direction: (momentum · forward) / |forward|^2 * forward
+						var dotProduct = aircraft.CurrentMomentum.X * forwardDirection.X + aircraft.CurrentMomentum.Y * forwardDirection.Y;
+						var forwardComponent = forwardDirection * dotProduct / (forwardMagnitude * forwardMagnitude);
+						var sidewaysMomentum = aircraft.CurrentMomentum - forwardComponent;
+						// Scale sidewaysMomentum by the dampening factor manually
+						var scaledSidewaysMomentum = new WVec(
+							(int)(sidewaysMomentum.X * sidewaysMomentumDampeningFactor),
+							(int)(sidewaysMomentum.Y * sidewaysMomentumDampeningFactor),
+							sidewaysMomentum.Z
+						);
+						momentumAdjustment -= scaledSidewaysMomentum;
+					}
 				}
 				else
 				{
 					// Determine if we should slide (helicopters at low speed)
 					var isSlider = aircraft.Info.CanSlide;
-					var shouldSlide = isSlider && aircraft.CurrentSpeed < aircraft.Info.SlideSpeedThreshold; // Assumed SlideSpeedThreshold property (e.g., 30 units/tick)
+					var shouldSlide = isSlider && aircraft.CurrentSpeed < aircraft.Info.MaxSlidingSpeed;
 
 					if (shouldSlide)
 					{
-						// Apply rotation force to turn toward the target
-						var rotationForce = aircraft.Info.RotationForce; // Assumed RotationForce property (e.g., 10 units/tick²)
-						var turnDirection = Util.GetTurnDirection(aircraft.Facing, desiredFacing);
-						aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, new WAngle((int)(rotationForce * turnDirection)));
-
-						// Apply thrust forward to maintain movement
+						// Apply thrust toward the target to maintain movement
 						var thrustForce = aircraft.Info.ThrustForce;
-						var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(aircraft.Facing));
+						var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing)); // Use desiredFacing (target direction)
 						thrustDirection = thrustDirection * thrustForce / 1024;
 						momentumAdjustment += thrustDirection;
 					}
@@ -342,24 +351,17 @@ namespace OpenRA.Mods.Common.Activities
 					{
 						// Apply lift force sideways to turn (airplane-like turning)
 						var liftForce = aircraft.Info.LiftForce;
-						var turnDirection = Util.GetTurnDirection(aircraft.Facing, desiredFacing);
-						var liftDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(aircraft.Facing + new WAngle(turnDirection * 256)));
+						var turnDirection = Util.GetTurnDirection(currentYaw, desiredFacing);
+						var liftDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(currentYaw + new WAngle(turnDirection * 256))); // Use currentYaw (momentum direction)
 						liftDirection = liftDirection * liftForce / 1024;
 
-						// Limit sideways acceleration to MaxTurnAcceleration
-						var maxTurnAcceleration = aircraft.Info.MaxTurnAcceleration; // Assumed MaxTurnAcceleration property (e.g., 20 units/tick²)
+						// Limit sideways acceleration
+						var maxTurnAcceleration = 20; // Hardcoded: Suggest adding MaxTurnAcceleration to AircraftInfo (e.g., 20 units/tick²)
 						var currentSidewaysAcceleration = liftDirection.Length;
 						if (currentSidewaysAcceleration > maxTurnAcceleration)
 							liftDirection = liftDirection * maxTurnAcceleration / currentSidewaysAcceleration;
 
 						momentumAdjustment += liftDirection;
-
-						// Update facing based on the new momentum
-						if (aircraft.CurrentMomentum.LengthSquared > 0)
-						{
-							var turnSpeed = aircraft.TurnSpeed;
-							aircraft.Facing = Util.TickFacing(aircraft.Facing, aircraft.CurrentMomentum.Yaw, turnSpeed);
-						}
 					}
 				}
 			}
@@ -369,6 +371,53 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Update speed based on momentum
 			aircraft.CurrentSpeed = aircraft.CurrentMomentum.HorizontalLength; // Update CurrentSpeed based on horizontal momentum
+
+			// Update Facing at the end (cosmetic)
+			if (aircraft.CurrentMomentum.LengthSquared > 0)
+			{
+				var targetFacing = aircraft.CurrentMomentum.Yaw; // Face the direction of travel
+				var facingAngleDiff = (targetFacing - aircraft.Facing).Angle;
+				if (facingAngleDiff != 0)
+				{
+					// Determine the direction of rotation
+					var rotationDirection = facingAngleDiff > 0 ? 1 : -1;
+					if (facingAngleDiff > 512) rotationDirection = -1;
+					else if (facingAngleDiff < -512) rotationDirection = 1;
+
+					// Apply rotational force (using TurnSpeed as the acceleration)
+					var rotationalForce = aircraft.TurnSpeed.Angle; // Use TurnSpeed as the rotational force (e.g., 512 units/tick²)
+					var maxRotationalVelocity = aircraft.Info.MaxRotationalVelocity.Angle; // Use the new MaxRotationalVelocity property
+
+					// Adjust CurrentRotationalVelocity
+					var currentRotationalVelocity = aircraft.CurrentRotationalVelocity.Angle;
+					currentRotationalVelocity += rotationDirection * rotationalForce;
+
+					// Clamp rotational velocity
+					if (currentRotationalVelocity > maxRotationalVelocity)
+						currentRotationalVelocity = maxRotationalVelocity;
+					else if (currentRotationalVelocity < -maxRotationalVelocity)
+						currentRotationalVelocity = -maxRotationalVelocity;
+
+					// If we're close to the target facing, slow down rotational velocity
+					if (Math.Abs(facingAngleDiff) < Math.Abs(currentRotationalVelocity))
+					{
+						currentRotationalVelocity = facingAngleDiff; // Snap to target to prevent overshooting
+					}
+
+					// Update the CurrentRotationalVelocity field
+					aircraft.CurrentRotationalVelocity = new WAngle(currentRotationalVelocity);
+
+					// Apply rotational velocity to Facing
+					var newFacingAngle = (aircraft.Facing.Angle + currentRotationalVelocity) % 1024;
+					if (newFacingAngle < 0) newFacingAngle += 1024;
+					aircraft.Facing = new WAngle(newFacingAngle);
+				}
+				else
+				{
+					// If aligned, stop rotating
+					aircraft.CurrentRotationalVelocity = WAngle.Zero;
+				}
+			}
 
 			// Call FlyTick with no additional move (momentum is handled above)
 			FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude, WVec.Zero);
