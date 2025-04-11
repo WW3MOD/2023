@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenRA.Traits
 {
@@ -322,7 +323,12 @@ namespace OpenRA.Traits
 
 					// selfLocation quick fix IndexOutOfRangeException when aircraft goes out of bounds
 					if (map.ShadowLayer != null && selfLocation.U >= 0 && selfLocation.U < map.MapSize.X && selfLocation.V >= 0 && selfLocation.V < map.MapSize.Y)
-						shadowModify = map.ShadowLayer[selfLocation][(MPos)puv];
+					{
+						var (groundShadow, airborneShadow) = map.ShadowLayer[selfLocation][(MPos)puv];
+						shadowModify = self != null && self.TraitsImplementing<IAirborneVisibility>().Any(trait => trait.IsAirborne)
+							? airborneShadow // Apply airborne shadows
+							: groundShadow; // Use ground shadows for non-aircraft
+					}
 
 					var modifiedStrength = strength - shadowModify;
 

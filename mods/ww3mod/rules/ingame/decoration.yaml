@@ -1,9 +1,15 @@
 
 ^Tree:
 	Inherits@1: ^SpriteActor
-	Inherits@Shape: ^1x1Shape
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	CombatDebugOverlay:
+	# Inherits@Shape: ^1x1Shape
+	HitShape:
+		UseTargetableCellsOffsets: true
+		Type: Rectangle
+			VerticalTopOffset: 1024
+			TopLeft: -512, -512
+			BottomRight: 512, 512
 	BlocksProjectiles:
 		MaxBypass: 4
 		BypassChance: 80

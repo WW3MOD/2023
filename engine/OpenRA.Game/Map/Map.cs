@@ -242,7 +242,7 @@ namespace OpenRA
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
 		public CellLayer<byte> DefenseLayer { get; private set; }
 		public CellLayer<byte> DensityLayer { get; set; }
-		public CellLayer<CellLayer<byte>> ShadowLayer { get; set; }
+		public CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>> ShadowLayer { get; set; } // Changed to store tuple
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
@@ -446,17 +446,24 @@ namespace OpenRA
 				if (s != null)
 				{
 					DensityLayer = new CellLayer<byte>(this);
-					ShadowLayer = new CellLayer<CellLayer<byte>>(this);
+					ShadowLayer = new CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>>(this);
 
+					// Read DensityLayer
 					foreach (var fromUV in AllCells.MapCoords)
 					{
 						DensityLayer[fromUV] = s.ReadUInt8();
+					}
 
-						ShadowLayer[fromUV] = new CellLayer<byte>(this);
-
+					// Read ShadowLayer
+					foreach (var fromUV in AllCells.MapCoords)
+					{
+						ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
 						foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 						{
-							ShadowLayer[fromUV][toUV] = s.ReadUInt8();
+							ushort combined = s.ReadUInt16();
+							byte groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
+							byte airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
+							ShadowLayer[fromUV][toUV] = (groundShadow, airShadow);
 						}
 					}
 				}
@@ -799,20 +806,27 @@ namespace OpenRA
 
 		public byte[] SaveShadowsBinaryData()
 		{
-			// Was moved into constructor for reason I don't remember, but caused error with shellmap because it doesn't have shadowlayer? Not sure
 			SetDensityLayer();
 			SetShadowLayer();
 
 			var dataStream = new MemoryStream();
 			using (var writer = new BinaryWriter(dataStream))
 			{
+				// Write DensityLayer
 				foreach (var fromUV in AllCells.MapCoords)
 				{
 					writer.Write(DensityLayer[fromUV]);
+				}
 
+				// Write ShadowLayer with ground and airborne shadows (8 bits each)
+				foreach (var fromUV in AllCells.MapCoords)
+				{
 					foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 					{
-						writer.Write(ShadowLayer[fromUV][toUV]);
+						var (groundShadow, airborneShadow) = ShadowLayer[fromUV][toUV];
+
+						ushort combined = (ushort)((groundShadow << 8) | airborneShadow);
+						writer.Write(combined);
 					}
 				}
 			}
@@ -850,36 +864,66 @@ namespace OpenRA
 
 		public void SetShadowLayer()
 		{
-			ShadowLayer = new CellLayer<CellLayer<byte>>(this);
+			ShadowLayer = new CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>>(this);
 
 			foreach (var fromUV in AllCells.MapCoords)
 			{
-				var shadowLayer = new CellLayer<byte>(this);
+				var shadowLayer = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
 
 				foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 				{
 					var toUV = tilePos.ToMPos(this);
-
 					var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
 
-					var total = 0f;
+					var totalGround = 0f;
+					var totalAirborne = 0f;
+
+					// Define aircraft height (adjustable)
+					var z_a = 2048; // In world units, e.g., WDist
+
+					// Get world positions
+					var fromCenter = CenterOfCell(fromUV.ToCPos(this));
+					var toCenter = CenterOfCell(toUV.ToCPos(this));
+					var P0 = new WPos(fromCenter.X, fromCenter.Y, z_a); // Aircraft position
+					var P1 = new WPos(toCenter.X, toCenter.Y, 0);      // Target ground position
+					var delta = P1 - P0;
+
+					// Horizontal distance in world units
+					var deltaXY = new WVec(delta.X, delta.Y, 0);
+					var D_h = deltaXY.Length / 1024f; // Convert to cell-like units (approx)
+
 					foreach (var tile in tiles)
 					{
-						total += DensityLayer[tile] / 10f;
+						// Ground shadow: accumulate density as before
+						totalGround += DensityLayer[tile] / 10f;
+
+						// Airborne shadow: check height-based blocking
+						var tileCenter = CenterOfCell(tile.ToCPos(this));
+						var vecToTile = new WVec(tileCenter.X - P0.X, tileCenter.Y - P0.Y, 0);
+						var dot = vecToTile.X * delta.X + vecToTile.Y * delta.Y;
+						var deltaLengthSquared = delta.X * delta.X + delta.Y * delta.Y;
+						var t = dot / (float)deltaLengthSquared;
+						t = Math.Max(0, Math.Min(1, t)); // Clamp t to [0,1]
+						var d_h = t * D_h; // Distance along path in cell units
+						var z_los = z_a * (1 - t); // Height of line of sight above tile
+
+						var obstacleHeight = 1024; // In world units
+
+						if (obstacleHeight > z_los)
+						{
+							totalAirborne += DensityLayer[tile] / 10f; // Add density if blocked
+						}
 					}
 
-					if (total > byte.MaxValue)
-						shadowLayer[toUV] = byte.MaxValue;
-					else
-						shadowLayer[toUV] = (byte)Math.Ceiling(total);
+					byte groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
+					byte airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
+
+					shadowLayer[toUV] = (groundShadow, airborneShadow);
 				}
 
 				ShadowLayer[fromUV] = shadowLayer;
 			}
-
-			// ShadowLayer = ShadowLayer;
 		}
-
 		public (Color Left, Color Right) GetTerrainColorPair(MPos uv)
 		{
 			var terrainInfo = Rules.TerrainInfo;
