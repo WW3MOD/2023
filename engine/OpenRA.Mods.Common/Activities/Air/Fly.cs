@@ -10,18 +10,18 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public class Fly : Activity
 	{
+		const int StopThreshold = 128;
+		const int WaypointThreshold = 512;
 		readonly Aircraft aircraft;
 		readonly WDist maxRange;
 		readonly WDist minRange;
 		readonly Color? targetLineColor;
 		readonly WDist nearEnough;
-
 		Target target;
 		Target lastVisibleTarget;
 		bool useLastVisibleTarget;
-		const int StopThreshold = 128;
-		const int WaypointThreshold = 512;
 		bool justTakenOff;
+		WPos? lastTargetPosition; // Store the last known target position to detect changes
 
 		public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
 			: this(self, t, initialTargetPosition, targetLineColor)
@@ -42,6 +42,7 @@ namespace OpenRA.Mods.Common.Activities
 				lastVisibleTarget = Target.FromPos(initialTargetPosition.Value);
 
 			justTakenOff = false;
+			lastTargetPosition = null; // Initialize last target position
 		}
 
 		public Fly(Actor self, in Target t, WDist minRange, WDist maxRange,
@@ -154,70 +155,9 @@ namespace OpenRA.Mods.Common.Activities
 				justTakenOff = true;
 			}
 
-			// Handle canceling: decelerate and return to cruise altitude
-			if (IsCanceling)
-			{
-				var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
-				var skipHeightAdjustment = landWhenIdle && self.CurrentActivity.IsCanceling && self.CurrentActivity.NextActivity == null;
-
-				// If can hover and not at cruise altitude, adjust height
-				if (aircraft.Info.MinSpeed == 0 && !skipHeightAdjustment && dat != aircraft.Info.CruiseAltitude)
-				{
-					VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-					return false; // Tick
-				}
-
-				// If we just took off, ignore canceling and proceed to the next waypoint if there is one
-				if (justTakenOff && NextActivity != null)
-				{
-					justTakenOff = false;
-					return true; // Proceed to next activity
-				}
-
-				// Initialize total momentum adjustment
-				var momentumAdjustment = WVec.Zero;
-
-				// Apply braking force to decelerate
-				momentumAdjustment += ComputeBrakingForce();
-
-				// Apply the total momentum adjustment
-				aircraft.CurrentMomentum += momentumAdjustment;
-				aircraft.CurrentSpeed = aircraft.CurrentMomentum.HorizontalLength;
-
-				// Clamp the speed to MaxSpeed
-				if (aircraft.CurrentSpeed > aircraft.Info.MaxSpeed)
-				{
-					var currentDirection = aircraft.CurrentMomentum.LengthSquared > 0 ? aircraft.CurrentMomentum : WVec.Zero;
-					var magnitude = currentDirection.Length;
-					if (magnitude > 0)
-					{
-						aircraft.CurrentMomentum = currentDirection * aircraft.Info.MaxSpeed / magnitude;
-						aircraft.CurrentSpeed = aircraft.Info.MaxSpeed;
-					}
-				}
-
-				// Update facing
-				UpdateFacing();
-
-				// Move the aircraft (no vertical momentum adjustment needed here)
-				ApplyMomentumAndMove(self, aircraft, aircraft.Info.CruiseAltitude, WVec.Zero);
-
-				// If stopped and at cruise altitude, check if we should exit or proceed
-				if (aircraft.CurrentMomentum.LengthSquared < 64 && dat == aircraft.Info.CruiseAltitude)
-				{
-					if (self.CurrentActivity.NextActivity != null)
-					{
-						return true; // Proceed to next activity
-					}
-
-					return true; // Exit
-				}
-
-				return false; // Tick
-			}
-
 			// Reset justTakenOff flag if we're not canceling
-			justTakenOff = false;
+			if (!IsCanceling)
+				justTakenOff = false;
 
 			// Validate and update target
 			if (ValidateAndUpdateTarget(self))
@@ -226,40 +166,56 @@ namespace OpenRA.Mods.Common.Activities
 			// Compute position, delta, and range checks
 			var (checkTarget, pos, delta, deltaHorizontal, deltaLengthSquared, deltaLength, isFinalWaypoint, insideMaxRange, insideMinRange) = ComputeTargetDeltaAndRanges(self);
 
-			// If within target range and at final waypoint, decelerate to stop
-			if (insideMaxRange && !insideMinRange && isFinalWaypoint)
+			// Check if the target has changed
+			var currentTargetPosition = checkTarget.CenterPosition;
+			var targetChanged = lastTargetPosition.HasValue && lastTargetPosition != currentTargetPosition;
+			lastTargetPosition = currentTargetPosition;
+
+			// Check if we should start turning to the next waypoint (and clear the current waypoint)
+			var desiredFacing = deltaHorizontal.LengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
+			var turnInfo = CheckEarlyTurn(self, deltaHorizontal, deltaLength, desiredFacing, isFinalWaypoint);
+			desiredFacing = turnInfo.desiredFacing;
+			if (turnInfo.shouldStartTurning && !isFinalWaypoint)
 			{
-				// Initialize total momentum adjustment
-				var momentumAdjustment = WVec.Zero;
+				return true; // Proceed to next waypoint immediately
+			}
 
-				// Apply braking force to stop
+			// Step 1: Check if we should apply braking
+			var momentumAdjustment = WVec.Zero;
+			var shouldBrake = ShouldApplyBraking(self, deltaLength, isFinalWaypoint, deltaHorizontal, desiredFacing);
+			if (shouldBrake)
+			{
 				momentumAdjustment += ComputeBrakingForce();
-
-				// Apply the total momentum adjustment
 				aircraft.CurrentMomentum += momentumAdjustment;
 				aircraft.CurrentSpeed = aircraft.CurrentMomentum.HorizontalLength;
 
-				// Clamp the speed to MaxSpeed
-				if (aircraft.CurrentSpeed > aircraft.Info.MaxSpeed)
-				{
-					var currentDirection = aircraft.CurrentMomentum.LengthSquared > 0 ? aircraft.CurrentMomentum : WVec.Zero;
-					var magnitude = currentDirection.Length;
-					if (magnitude > 0)
-					{
-						aircraft.CurrentMomentum = currentDirection * aircraft.Info.MaxSpeed / magnitude;
-						aircraft.CurrentSpeed = aircraft.Info.MaxSpeed;
-					}
-				}
-
 				// Update facing
-				UpdateFacing();
+				UpdateFacing(desiredFacing, targetChanged);
 
 				// Move the aircraft (no vertical momentum adjustment needed here)
 				ApplyMomentumAndMove(self, aircraft, aircraft.Info.CruiseAltitude, WVec.Zero);
 
-				// If stopped, exit
-				if (aircraft.CurrentMomentum.LengthSquared < 64)
-					return true; // Exit
+				// If stopped and at cruise altitude, check if we should exit
+				if (aircraft.CurrentMomentum.LengthSquared < 64 && dat == aircraft.Info.CruiseAltitude)
+				{
+					if (IsCanceling && self.CurrentActivity.NextActivity != null)
+					{
+						return true; // Proceed to next activity
+					}
+					else if (IsCanceling)
+					{
+						return true; // Exit
+					}
+					else if (isFinalWaypoint)
+					{
+						var finalZ = aircraft.Info.CruiseAltitude.Length;
+						var targetPosAtCruise = new WPos(checkTarget.CenterPosition.X, checkTarget.CenterPosition.Y, finalZ);
+						aircraft.SetPosition(self, targetPosAtCruise);
+						aircraft.CurrentMomentum = WVec.Zero;
+						aircraft.CurrentSpeed = 0;
+						return true; // Exit
+					}
+				}
 
 				return false; // Tick
 			}
@@ -271,7 +227,7 @@ namespace OpenRA.Mods.Common.Activities
 				return false; // Tick
 			}
 
-			// Check if close enough to the waypoint
+			// Check if close enough to the waypoint (for final waypoint or if we missed the early turn)
 			if (deltaLengthSquared <= (isFinalWaypoint ? (long)StopThreshold * StopThreshold : (long)WaypointThreshold * WaypointThreshold))
 			{
 				if (isFinalWaypoint)
@@ -286,18 +242,16 @@ namespace OpenRA.Mods.Common.Activities
 				return true; // Proceed to next waypoint
 			}
 
-			// Initialize total momentum adjustment
+			// Step 2: Compute movement forces (no braking here)
 			var totalMomentumAdjustment = WVec.Zero;
 
-			// Step 1: Compute vertical momentum adjustment separately
+			// Compute vertical momentum adjustment separately
 			var verticalMomentum = ComputeAltitudeAdjustment(self, dat, delta, isFinalWaypoint);
 
-			// Step 2: Compute horizontal momentum adjustment
-			var desiredFacing = deltaHorizontal.LengthSquared != 0 ? deltaHorizontal.Yaw : aircraft.Facing;
-			desiredFacing = CheckEarlyTurn(self, deltaHorizontal, deltaLength, desiredFacing, isFinalWaypoint);
-			totalMomentumAdjustment += ComputeHorizontalMovementForces(self, deltaHorizontal, desiredFacing, deltaLength, isFinalWaypoint);
+			// Compute horizontal momentum adjustment
+			totalMomentumAdjustment += ComputeHorizontalMovementForces(self, deltaHorizontal, desiredFacing, deltaLength, isFinalWaypoint, targetChanged);
 
-			// Step 3: Apply the horizontal momentum adjustment
+			// Step 3: Apply the momentum adjustment
 			aircraft.CurrentMomentum += totalMomentumAdjustment;
 			aircraft.CurrentSpeed = aircraft.CurrentMomentum.HorizontalLength;
 
@@ -314,7 +268,7 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			// Step 5: Update facing
-			UpdateFacing();
+			UpdateFacing(desiredFacing, targetChanged);
 
 			// Step 6: Move the aircraft, applying the vertical momentum separately
 			ApplyMomentumAndMove(self, aircraft, aircraft.Info.CruiseAltitude, verticalMomentum);
@@ -336,6 +290,91 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			return WVec.Zero;
+		}
+
+		bool ShouldApplyBraking(Actor self, long deltaLength, bool isFinalWaypoint, WVec deltaHorizontal, WAngle desiredFacing)
+		{
+			// Condition 1: Canceling (but only brake if there's no next Fly activity)
+			if (IsCanceling && !(NextActivity is Fly))
+				return true;
+
+			// Condition 2: Close to the final waypoint
+			var stoppingDistance = (long)aircraft.CalculateStoppingDistance();
+			if (isFinalWaypoint && deltaLength <= stoppingDistance)
+				return true;
+
+			// Condition 3: Approaching a turn where we need to slow down
+			if (!isFinalWaypoint && NextActivity is Fly nextFly)
+			{
+				var nextTarget = nextFly.target;
+				var nextDelta = nextTarget.CenterPosition - (useLastVisibleTarget ? lastVisibleTarget : target).CenterPosition;
+				var nextDeltaHorizontal = new WVec(nextDelta.X, nextDelta.Y, 0);
+				var nextYaw = nextDeltaHorizontal.Yaw;
+
+				var earlyTurnAngleDiff = Math.Abs((nextYaw.Angle - desiredFacing.Angle) % 1024);
+				if (earlyTurnAngleDiff > 512) earlyTurnAngleDiff = 1024 - earlyTurnAngleDiff;
+
+				var turnSpeed = aircraft.TurnSpeed;
+				var turnTicks = (earlyTurnAngleDiff + turnSpeed.Angle - 1) / turnSpeed.Angle;
+				var turnDistance = (long)aircraft.CurrentSpeed * turnTicks;
+
+				if (deltaLength <= turnDistance)
+				{
+					// Calculate the distance to the next waypoint
+					var distanceToNextWaypoint = (long)nextDeltaHorizontal.Length;
+
+					// Calculate the target speed to make the turn without overshooting
+					var targetSpeed = CalculateTargetTurnSpeed(earlyTurnAngleDiff, turnSpeed, distanceToNextWaypoint);
+
+					// Brake if the current speed is too high to make the turn
+					if (aircraft.CurrentSpeed > targetSpeed)
+						return true;
+				}
+			}
+
+			return false;
+		}
+
+		int CalculateTargetTurnSpeed(int turnAngleDiff, WAngle turnSpeed, long distanceToNextWaypoint)
+		{
+			// Scale the target speed based on the turn angle (sharper turns require slower speeds)
+			var angleFactor = turnAngleDiff / 1024.0; // Normalize to [0, 0.5]
+			var minSpeedFactor = 0.2; // Minimum speed as a fraction of MaxSpeed (e.g., 20%)
+			var speedReduction = minSpeedFactor + (1 - minSpeedFactor) * (1 - angleFactor); // Reduce speed more for sharper turns
+
+			// Base target speed on the turn radius required to make the turn
+			var targetTurnRadius = Math.Max(distanceToNextWaypoint / 2, 512); // Ensure a minimum turn radius
+			var targetSpeed = turnSpeed.Angle > 0 ? (int)(180 * targetTurnRadius / turnSpeed.Angle) : aircraft.Info.MaxSpeed;
+
+			// Apply the angle-based speed reduction
+			targetSpeed = (int)(targetSpeed * speedReduction);
+
+			// Ensure the target speed doesn’t exceed MaxSpeed or fall below a minimum
+			var minSpeed = (int)(aircraft.Info.MaxSpeed * minSpeedFactor);
+			return Math.Max(minSpeed, Math.Min(targetSpeed, aircraft.Info.MaxSpeed));
+		}
+
+		(WAngle desiredFacing, bool shouldStartTurning) CheckEarlyTurn(Actor self, WVec deltaHorizontal, long deltaLength, WAngle desiredFacing, bool isFinalWaypoint)
+		{
+			if (isFinalWaypoint || !(NextActivity is Fly nextFly))
+				return (desiredFacing, false);
+
+			var nextTarget = nextFly.target;
+			var nextDelta = nextTarget.CenterPosition - (useLastVisibleTarget ? lastVisibleTarget : target).CenterPosition;
+			var nextDeltaHorizontal = new WVec(nextDelta.X, nextDelta.Y, 0);
+			var nextYaw = nextDeltaHorizontal.Yaw;
+
+			var earlyTurnAngleDiff = Math.Abs((nextYaw.Angle - desiredFacing.Angle) % 1024);
+			if (earlyTurnAngleDiff > 512) earlyTurnAngleDiff = 1024 - earlyTurnAngleDiff;
+
+			var turnSpeed = aircraft.TurnSpeed;
+			var turnTicks = (earlyTurnAngleDiff + turnSpeed.Angle - 1) / turnSpeed.Angle;
+			var turnDistance = (long)aircraft.CurrentSpeed * turnTicks;
+
+			if (deltaLength <= turnDistance)
+				return (nextYaw, true);
+
+			return (desiredFacing, false);
 		}
 
 		void HandleTooClose(Actor self, Target checkTarget, WPos pos)
@@ -378,29 +417,6 @@ namespace OpenRA.Mods.Common.Activities
 			return (checkTarget, pos, delta, deltaHorizontal, deltaLengthSquared, deltaLength, isFinalWaypoint, insideMaxRange, insideMinRange);
 		}
 
-		WAngle CheckEarlyTurn(Actor self, WVec deltaHorizontal, long deltaLength, WAngle desiredFacing, bool isFinalWaypoint)
-		{
-			if (isFinalWaypoint || !(NextActivity is Fly nextFly))
-				return desiredFacing;
-
-			var nextTarget = nextFly.target;
-			var nextDelta = nextTarget.CenterPosition - (useLastVisibleTarget ? lastVisibleTarget : target).CenterPosition;
-			var nextDeltaHorizontal = new WVec(nextDelta.X, nextDelta.Y, 0);
-			var nextYaw = nextDeltaHorizontal.Yaw;
-
-			var earlyTurnAngleDiff = Math.Abs((nextYaw - desiredFacing).Angle % 1024);
-			if (earlyTurnAngleDiff > 512) earlyTurnAngleDiff = 1024 - earlyTurnAngleDiff;
-
-			var turnSpeed = aircraft.TurnSpeed;
-			var turnTicks = (earlyTurnAngleDiff + turnSpeed.Angle - 1) / turnSpeed.Angle;
-			var turnDistance = (long)aircraft.CurrentSpeed * turnTicks;
-
-			if (deltaLength <= turnDistance)
-				return nextYaw;
-
-			return desiredFacing;
-		}
-
 		WVec ComputeAltitudeAdjustment(Actor self, WDist dat, WVec delta, bool isFinalWaypoint)
 		{
 			var momentumAdjustment = WVec.Zero;
@@ -419,111 +435,81 @@ namespace OpenRA.Mods.Common.Activities
 			return momentumAdjustment;
 		}
 
-		WVec ComputeHorizontalMovementForces(Actor self, WVec deltaHorizontal, WAngle desiredFacing, long deltaLength, bool isFinalWaypoint)
+		WVec ComputeHorizontalMovementForces(Actor self, WVec deltaHorizontal, WAngle desiredFacing, long deltaLength, bool isFinalWaypoint, bool targetChanged)
 		{
 			var momentumAdjustment = WVec.Zero;
 			var currentYaw = aircraft.CurrentMomentum.LengthSquared > 0 ? aircraft.CurrentMomentum.Yaw : desiredFacing;
-			var angleDiff = WAngle.FromDegrees(Math.Abs((desiredFacing - currentYaw).Angle) % 360);
-			var stoppingDistance = (long)aircraft.CalculateStoppingDistance();
+			var angleDiff = WAngle.AngleDiff(desiredFacing, currentYaw);
 
-			if (isFinalWaypoint && deltaLength <= stoppingDistance)
+			// If the target has changed, adjust the momentum to align with the new desired facing
+			if (targetChanged && aircraft.CurrentMomentum.LengthSquared > 0)
 			{
-				momentumAdjustment += ComputeBrakingForce();
+				var currentSpeed = aircraft.CurrentSpeed;
+				var newMomentumDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing));
+				aircraft.CurrentMomentum = newMomentumDirection * currentSpeed / 1024;
+				aircraft.CurrentSpeed = currentSpeed; // Preserve the speed
+				currentYaw = desiredFacing; // Update currentYaw to match the new momentum
+				angleDiff = WAngle.Zero; // Reset angle difference since we've aligned the momentum
 			}
-			else
-			{
-				if (angleDiff.Angle < 14)
-				{
-					var thrustForce = aircraft.Info.ThrustForce;
-					var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing));
-					thrustDirection = thrustDirection * thrustForce / 1024;
-					momentumAdjustment += thrustDirection;
 
-					// Only apply sideways dampening if the speed is significantly above MaxSpeed (which shouldn't happen after speed clamping)
-					// Removed excessive dampening to allow the helicopter to reach MaxSpeed
+			// Always apply forward thrust to ensure we reach MaxSpeed
+			var thrustForce = aircraft.Info.ThrustForce;
+			var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing));
+			thrustDirection = thrustDirection * thrustForce / 1024;
+			momentumAdjustment += thrustDirection;
+
+			// Apply turning force if the angle difference is significant or if the target has changed
+			// 14 in 1024-based system is approximately 5 degrees (14/1024 * 360 ≈ 5)
+			if (angleDiff.Angle >= 14 || targetChanged)
+			{
+				var isSlider = aircraft.Info.CanSlide;
+				var shouldSlide = isSlider && aircraft.CurrentSpeed < aircraft.Info.MaxSlidingSpeed;
+
+				if (shouldSlide)
+				{
+					// Already applied thrust above
 				}
 				else
 				{
-					var isSlider = aircraft.Info.CanSlide;
-					var shouldSlide = isSlider && aircraft.CurrentSpeed < aircraft.Info.MaxSlidingSpeed;
+					var liftForce = aircraft.Info.LiftForce;
+					var turnDirection = Util.GetTurnDirection(currentYaw, desiredFacing);
+					var liftDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(currentYaw + new WAngle(turnDirection * 256)));
+					liftDirection = liftDirection * liftForce / 1024;
 
-					if (shouldSlide)
-					{
-						var thrustForce = aircraft.Info.ThrustForce;
-						var thrustDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(desiredFacing));
-						thrustDirection = thrustDirection * thrustForce / 1024;
-						momentumAdjustment += thrustDirection;
-					}
-					else
-					{
-						var liftForce = aircraft.Info.LiftForce;
-						var turnDirection = Util.GetTurnDirection(currentYaw, desiredFacing);
-						var liftDirection = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(currentYaw + new WAngle(turnDirection * 256)));
-						liftDirection = liftDirection * liftForce / 1024;
+					var maxTurnAcceleration = 20;
+					var currentSidewaysAcceleration = liftDirection.Length;
+					if (currentSidewaysAcceleration > maxTurnAcceleration)
+						liftDirection = liftDirection * maxTurnAcceleration / currentSidewaysAcceleration;
 
-						var maxTurnAcceleration = 20;
-						var currentSidewaysAcceleration = liftDirection.Length;
-						if (currentSidewaysAcceleration > maxTurnAcceleration)
-							liftDirection = liftDirection * maxTurnAcceleration / currentSidewaysAcceleration;
-
-						momentumAdjustment += liftDirection;
-					}
+					momentumAdjustment += liftDirection;
 				}
 			}
 
 			return momentumAdjustment;
 		}
 
-		void UpdateFacing()
+		void UpdateFacing(WAngle desiredFacing, bool targetChanged)
 		{
 			if (aircraft.CurrentMomentum.LengthSquared == 0)
+			{
+				aircraft.Facing = desiredFacing;
+				aircraft.CurrentRotationalVelocity = WAngle.Zero;
 				return;
+			}
 
-			// Directly set the facing to the current momentum's yaw
-			var targetFacing = aircraft.CurrentMomentum.Yaw;
-			aircraft.Facing = targetFacing;
-			aircraft.CurrentRotationalVelocity = WAngle.Zero; // Reset rotational velocity since we're directly setting the facingvar rawTargetFacing = aircraft.CurrentMomentum.Yaw;
-
-			// var rawTargetFacing = aircraft.CurrentMomentum.Yaw;
-			// var facingDiff = (rawTargetFacing - smoothedTargetFacing).Angle;
-			// if (facingDiff > 512) facingDiff -= 1024;
-			// else if (facingDiff < -512) facingDiff += 1024;
-
-			// var maxFacingChange = aircraft.TurnSpeed.Angle / 2;
-			// var facingChange = facingDiff.Clamp(-maxFacingChange, maxFacingChange);
-			// smoothedTargetFacing = new WAngle((smoothedTargetFacing.Angle + facingChange) % 1024);
-			// if (smoothedTargetFacing.Angle < 0) smoothedTargetFacing = new WAngle(smoothedTargetFacing.Angle + 1024);
-
-			// var facingAngleDiff = (smoothedTargetFacing - aircraft.Facing).Angle;
-			// if (facingAngleDiff == 0)
-			// {
-			// 	aircraft.CurrentRotationalVelocity = WAngle.Zero;
-			// 	return;
-			// }
-
-			// var rotationDirection = facingAngleDiff > 0 ? 1 : -1;
-			// if (facingAngleDiff > 512) rotationDirection = -1;
-			// else if (facingAngleDiff < -512) rotationDirection = 1;
-
-			// var rotationalForce = aircraft.TurnSpeed.Angle;
-			// var maxRotationalVelocity = aircraft.Info.MaxRotationalVelocity.Angle;
-
-			// var currentRotationalVelocity = aircraft.CurrentRotationalVelocity.Angle;
-			// currentRotationalVelocity += rotationDirection * rotationalForce;
-
-			// if (currentRotationalVelocity > maxRotationalVelocity)
-			// 	currentRotationalVelocity = maxRotationalVelocity;
-			// else if (currentRotationalVelocity < -maxRotationalVelocity)
-			// 	currentRotationalVelocity = -maxRotationalVelocity;
-
-			// if (Math.Abs(facingAngleDiff) < Math.Abs(currentRotationalVelocity))
-			// 	currentRotationalVelocity = facingAngleDiff;
-
-			// aircraft.CurrentRotationalVelocity = new WAngle(currentRotationalVelocity);
-
-			// var newFacingAngle = (aircraft.Facing.Angle + currentRotationalVelocity) % 1024;
-			// if (newFacingAngle < 0) newFacingAngle += 1024;
-			// aircraft.Facing = new WAngle(newFacingAngle);
+			// If the target has changed, immediately set the facing to the desired facing
+			if (targetChanged)
+			{
+				aircraft.Facing = desiredFacing;
+				aircraft.CurrentRotationalVelocity = WAngle.Zero;
+			}
+			else
+			{
+				// Otherwise, set the facing to the current momentum's yaw
+				var targetFacing = aircraft.CurrentMomentum.Yaw;
+				aircraft.Facing = targetFacing;
+				aircraft.CurrentRotationalVelocity = WAngle.Zero; // Reset rotational velocity since we're directly setting the facing
+			}
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)
