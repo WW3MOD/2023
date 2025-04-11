@@ -15,6 +15,7 @@ TRAN:
 	Aircraft:
 		TurnSpeed: 20
 		Speed: 150
+		AltitudeVelocity: 100
 	Health:
 		HP: 12500
 	Armor:
