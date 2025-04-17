@@ -619,4 +619,9 @@ namespace OpenRA.Traits
 	{
 		MapLayers.Type Type { get; }
 	}
+
+	public interface IAirborneVisibility
+	{
+		bool IsAirborne { get; set; }
+	}
 }

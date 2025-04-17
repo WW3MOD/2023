@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,34 +14,12 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Sequence = "shroud";
 		[SequenceReference(nameof(Sequence))]
 		public readonly string[] ShroudVariants = { "shroud" };
-
 		[SequenceReference(nameof(Sequence))]
 		public readonly string[] FogVariants = { "shroud" };
-
 		[PaletteReference]
 		public readonly string ShroudPalette = "shroud";
-
 		[PaletteReference]
 		public readonly string FogPalette = "fog";
-		[Desc("Bitfield of shroud directions for each frame. Lower four bits are",
-			"corners clockwise from TL; upper four are edges clockwise from top")]
-		public readonly int[] Index = { 12, 9, 8, 3, 1, 6, 4, 2, 13, 11, 7, 14 };
-
-		[Desc("Use the upper four bits when calculating frame")]
-		public readonly bool UseExtendedIndex = false;
-
-		[SequenceReference(nameof(Sequence))]
-		[Desc("Override for source art that doesn't define a fully shrouded tile")]
-		public readonly string OverrideFullShroud = null;
-
-		public readonly int OverrideShroudIndex = 15;
-
-		[SequenceReference(nameof(Sequence))]
-		[Desc("Override for source art that doesn't define a fully fogged tile")]
-		public readonly string OverrideFullFog = null;
-
-		public readonly int OverrideFogIndex = 15;
-
 		public readonly BlendMode ShroudBlend = BlendMode.Alpha;
 		public override object Create(ActorInitializer init) { return new ShroudRenderer(init.World, this); }
 	}
@@ -63,41 +30,25 @@ namespace OpenRA.Mods.Common.Traits
 		enum Edges : byte
 		{
 			None = 0,
-			TopLeft = 0x01,
-			TopRight = 0x02,
-			BottomRight = 0x04,
-			BottomLeft = 0x08,
-			AllCorners = TopLeft | TopRight | BottomRight | BottomLeft,
-			TopSide = 0x10,
-			RightSide = 0x20,
-			BottomSide = 0x40,
-			LeftSide = 0x80,
-			AllSides = TopSide | RightSide | BottomSide | LeftSide,
-			Top = TopSide | TopLeft | TopRight,
-			Right = RightSide | TopRight | BottomRight,
-			Bottom = BottomSide | BottomRight | BottomLeft,
-			Left = LeftSide | TopLeft | BottomLeft,
-			All = Top | Right | Bottom | Left
+			Top = 0x01,
+			Right = 0x02,
+			Bottom = 0x04,
+			Left = 0x08,
+			AllSides = Top | Right | Bottom | Left // 0x0F (15)
 		}
 
-		// Index into neighbors array.
 		enum Neighbor
 		{
 			Top = 0,
 			Right,
 			Bottom,
-			Left,
-			TopLeft,
-			TopRight,
-			BottomRight,
-			BottomLeft
+			Left
 		}
 
 		readonly struct TileInfo
 		{
 			public readonly float3 ScreenPosition;
 			public readonly byte Variant;
-
 			public TileInfo(in float3 screenPosition, byte variant)
 			{
 				ScreenPosition = screenPosition;
@@ -109,20 +60,14 @@ namespace OpenRA.Mods.Common.Traits
 		readonly World world;
 		readonly Map map;
 		readonly Edges notVisibleEdges;
-		readonly byte variantStride;
-		readonly byte[] edgesToSpriteIndexOffset;
-
-		// PERF: Allocate once.
-		readonly byte[] neighbors = new byte[8];
-
+		readonly byte frameCount;
+		readonly (Sprite Sprite, float Scale, float Alpha)[] fogSprites, shroudSprites;
+		readonly byte[] neighbors = new byte[4];
 		readonly CellLayer<TileInfo> tileInfos;
 		readonly CellLayer<bool> cellsDirty;
 		bool anyCellDirty;
-		readonly (Sprite Sprite, float Scale, float Alpha)[] fogSprites, shroudSprites;
-
 		MapLayers shroud;
 		Func<PPos, byte> cellVisibility;
-
 		readonly Layer[] layers = new Layer[MapLayers.VisionLayers];
 
 		class Layer
@@ -130,7 +75,6 @@ namespace OpenRA.Mods.Common.Traits
 			public (Sprite, float, float)[] Sprites;
 			public TerrainSpriteLayer TerrainSpriteLayer;
 			public PaletteReference PaletteReference;
-
 			public Layer() { }
 		}
 
@@ -141,81 +85,43 @@ namespace OpenRA.Mods.Common.Traits
 			if (info.ShroudVariants.Length != info.FogVariants.Length)
 				throw new ArgumentException("ShroudRenderer must define the same number of shroud and fog variants!", nameof(info));
 
-			if ((info.OverrideFullFog == null) ^ (info.OverrideFullShroud == null))
-				throw new ArgumentException("ShroudRenderer cannot define overrides for only one of shroud or fog!", nameof(info));
-
-			if (info.ShroudVariants.Length > byte.MaxValue)
-				throw new ArgumentException("ShroudRenderer cannot define this many shroud and fog variants.", nameof(info));
-
-			if (info.Index.Length >= byte.MaxValue)
-				throw new ArgumentException("ShroudRenderer cannot define this many indexes for shroud directions.", nameof(info));
-
 			this.info = info;
 			this.world = world;
 			map = world.Map;
-
 			tileInfos = new CellLayer<TileInfo>(map);
-
 			cellsDirty = new CellLayer<bool>(map);
 			anyCellDirty = true;
 
-			// Load sprite variants
 			var variantCount = info.ShroudVariants.Length;
-			variantStride = (byte)(info.Index.Length + (info.OverrideFullShroud != null ? 1 : 0));
-			shroudSprites = new (Sprite, float, float)[variantCount * variantStride];
-			fogSprites = new (Sprite, float, float)[variantCount * variantStride];
+			frameCount = 16;
+			shroudSprites = new (Sprite, float, float)[variantCount * frameCount];
+			fogSprites = new (Sprite, float, float)[variantCount * frameCount];
 
 			var sequenceProvider = map.Rules.Sequences;
 			for (var j = 0; j < variantCount; j++)
 			{
 				var shroudSequence = sequenceProvider.GetSequence(info.Sequence, info.ShroudVariants[j]);
 				var fogSequence = sequenceProvider.GetSequence(info.Sequence, info.FogVariants[j]);
-				for (var i = 0; i < info.Index.Length; i++)
-				{
-					shroudSprites[j * variantStride + i] = (shroudSequence.GetSprite(i), shroudSequence.Scale, shroudSequence.GetAlpha(i));
-					fogSprites[j * variantStride + i] = (fogSequence.GetSprite(i), fogSequence.Scale, fogSequence.GetAlpha(i));
-				}
+				if (shroudSequence.Length < frameCount || fogSequence.Length < frameCount)
+					throw new InvalidOperationException($"Sequence {info.ShroudVariants[j]} or {info.FogVariants[j]} has fewer than {frameCount} frames.");
 
-				if (info.OverrideFullShroud != null)
+				for (var i = 0; i < frameCount; i++)
 				{
-					var i = (j + 1) * variantStride - 1;
-					shroudSequence = sequenceProvider.GetSequence(info.Sequence, info.OverrideFullShroud);
-					fogSequence = sequenceProvider.GetSequence(info.Sequence, info.OverrideFullFog);
-					shroudSprites[i] = (shroudSequence.GetSprite(0), shroudSequence.Scale, shroudSequence.GetAlpha(0));
-					fogSprites[i] = (fogSequence.GetSprite(0), fogSequence.Scale, fogSequence.GetAlpha(0));
+					var index = j * frameCount + i;
+					shroudSprites[index] = (shroudSequence.GetSprite(i), shroudSequence.Scale, shroudSequence.GetAlpha(i));
+					fogSprites[index] = (fogSequence.GetSprite(i), fogSequence.Scale, fogSequence.GetAlpha(i));
 				}
 			}
 
 			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
 				layers[i] = new Layer();
 
-			int spriteCount;
-			if (info.UseExtendedIndex)
-			{
-				notVisibleEdges = Edges.AllSides;
-				spriteCount = (int)Edges.All;
-			}
-			else
-			{
-				notVisibleEdges = Edges.AllCorners;
-				spriteCount = (int)Edges.AllCorners;
-			}
-
-			// Mapping of shrouded directions -> sprite index
-			edgesToSpriteIndexOffset = new byte[spriteCount + 1];
-			for (var i = 0; i < info.Index.Length; i++)
-				edgesToSpriteIndexOffset[info.Index[i]] = (byte)i;
-
-			if (info.OverrideFullShroud != null)
-				edgesToSpriteIndexOffset[info.OverrideShroudIndex] = (byte)(variantStride - 1);
-
+			notVisibleEdges = Edges.AllSides;
 			world.RenderPlayerChanged += WorldOnRenderPlayerChanged;
 		}
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
-			// Initialize tile cache
-			// This includes the region outside the visible area to cover any sprites peeking outside the map
 			foreach (var uv in w.Map.AllCells.MapCoords)
 			{
 				var pos = w.Map.CenterOfCell(uv.ToCPos(map));
@@ -224,7 +130,6 @@ namespace OpenRA.Mods.Common.Traits
 				tileInfos[uv] = new TileInfo(screen, variant);
 			}
 
-			// All tiles are visible in the editor
 			if (w.Type == WorldType.Editor)
 				cellVisibility = puv => (byte)(map.Contains(puv) ? 10 : 0);
 			else
@@ -267,36 +172,37 @@ namespace OpenRA.Mods.Common.Traits
 			neighbors[(int)Neighbor.Bottom] = cellVisibility((PPos)(cell + new CVec(0, 1)).ToMPos(map));
 			neighbors[(int)Neighbor.Left] = cellVisibility((PPos)(cell + new CVec(-1, 0)).ToMPos(map));
 
-			neighbors[(int)Neighbor.TopLeft] = cellVisibility((PPos)(cell + new CVec(-1, -1)).ToMPos(map));
-			neighbors[(int)Neighbor.TopRight] = cellVisibility((PPos)(cell + new CVec(1, -1)).ToMPos(map));
-			neighbors[(int)Neighbor.BottomRight] = cellVisibility((PPos)(cell + new CVec(1, 1)).ToMPos(map));
-			neighbors[(int)Neighbor.BottomLeft] = cellVisibility((PPos)(cell + new CVec(-1, 1)).ToMPos(map));
+			// var cell = ((MPos)puv).ToCPos(map);
+			// var topPos = (PPos)(cell + new CVec(0, -1)).ToMPos(map);
+			// var rightPos = (PPos)(cell + new CVec(1, 0)).ToMPos(map);
+			// var bottomPos = (PPos)(cell + new CVec(0, 1)).ToMPos(map);
+			// var leftPos = (PPos)(cell + new CVec(-1, 0)).ToMPos(map);
+
+			// neighbors[(int)Neighbor.Top] = map.Contains(topPos) ? cellVisibility(topPos) : (byte)5;
+			// neighbors[(int)Neighbor.Right] = map.Contains(rightPos) ? cellVisibility(rightPos) : (byte)5;
+			// neighbors[(int)Neighbor.Bottom] = map.Contains(bottomPos) ? cellVisibility(bottomPos) : (byte)5;
+			// neighbors[(int)Neighbor.Left] = map.Contains(leftPos) ? cellVisibility(leftPos) : (byte)5;
 
 			return neighbors;
 		}
 
-		Edges GetEdges(byte[] neighbors, byte cellVisibility)
+		Edges GetEdges(byte[] neighbors, byte cellVisibility, byte max)
 		{
-			// If a side is shrouded then we also count the corners.
 			var edges = Edges.None;
-			if (neighbors[(int)Neighbor.Top] < cellVisibility) edges |= Edges.Top;
-			if (neighbors[(int)Neighbor.Right] < cellVisibility) edges |= Edges.Right;
-			if (neighbors[(int)Neighbor.Bottom] < cellVisibility) edges |= Edges.Bottom;
-			if (neighbors[(int)Neighbor.Left] < cellVisibility) edges |= Edges.Left;
 
-			var ucorner = edges & Edges.AllCorners;
-			if (neighbors[(int)Neighbor.TopLeft] < cellVisibility) edges |= Edges.TopLeft;
-			if (neighbors[(int)Neighbor.TopRight] < cellVisibility) edges |= Edges.TopRight;
-			if (neighbors[(int)Neighbor.BottomRight] < cellVisibility) edges |= Edges.BottomRight;
-			if (neighbors[(int)Neighbor.BottomLeft] < cellVisibility) edges |= Edges.BottomLeft;
+			if (cellVisibility > neighbors[(int)Neighbor.Top] && neighbors[(int)Neighbor.Top] <= max)
+				edges |= Edges.Top;
+			if (cellVisibility > neighbors[(int)Neighbor.Right] && neighbors[(int)Neighbor.Right] <= max)
+				edges |= Edges.Right;
+			if (cellVisibility > neighbors[(int)Neighbor.Bottom] && neighbors[(int)Neighbor.Bottom] <= max)
+				edges |= Edges.Bottom;
+			if (cellVisibility > neighbors[(int)Neighbor.Left] && neighbors[(int)Neighbor.Left] <= max)
+				edges |= Edges.Left;
 
-			// RA provides a set of frames for tiles with shrouded
-			// corners but unshrouded edges. We want to detect this
-			// situation without breaking the edge -> corner enabling
-			// in other combinations. The XOR turns off the corner
-			// bits that are enabled twice, which gives the sprite offset
-			// we want here.
-			return info.UseExtendedIndex ? edges ^ ucorner : edges & Edges.AllCorners;
+			// if ((byte)edges > (byte)Edges.AllSides)
+			// 	edges = Edges.None;
+
+			return edges;
 		}
 
 		void WorldOnRenderPlayerChanged(Player player)
@@ -311,23 +217,18 @@ namespace OpenRA.Mods.Common.Traits
 				if (newShroud != null)
 				{
 					cellVisibility = puv => newShroud.GetVisibility(puv);
-
 					newShroud.OnShroudChanged += UpdateShroudCell;
 				}
 				else
 				{
-					// Visible under shroud: Explored. Visible under fog: Visible.
 					cellVisibility = puv => (byte)(map.Contains(puv) ? 1 : 0);
 				}
 
 				shroud = newShroud;
 			}
 
-			// Dirty the full projected space so the cells outside
-			// the map bounds can be initialized as fully shrouded.
 			cellsDirty.Clear(true);
 			anyCellDirty = true;
-
 			UpdateShroud(new ProjectedCellRegion(map, new PPos(0, 0), new PPos(map.MapSize.X - 1, map.MapSize.Y - 1)));
 		}
 
@@ -359,41 +260,35 @@ namespace OpenRA.Mods.Common.Traits
 
 					cellsDirty[uv] = false;
 
-					var cv = cellVisibility(puv);
+					var cellVisibility = this.cellVisibility(puv);
 					var tileInfo = tileInfos[uv];
 					var pos = tileInfo.ScreenPosition;
 
-					for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
+					for (var vLayerIndex = MapLayers.VisionLayers - 2; vLayerIndex >= 0; vLayerIndex--)
+						layers[vLayerIndex].TerrainSpriteLayer.Clear(uv.ToCPos(map));
+
+					for (var vLayerIndex = MapLayers.VisionLayers - 2; vLayerIndex >= 0; vLayerIndex--)
 					{
-						if (cv <= i)
-							UpdateLayer(true, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
-
-						// Dont render over tiles with higher visibility, reset tile for layer
-						else if (cv >= i + 2)
-							UpdateLayer(false, true, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
-
-						// Handle edges
-						else if (cv == i + 1)
+						if (cellVisibility <= vLayerIndex)
 						{
-							// Use Shroud if it is on the edge
-							if (cv == 1 && i == 0)
-							{
-								UpdateLayer(false, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
-							}
-							else
-								UpdateLayer(false, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+							UpdateLayer(true, false, Alpha(vLayerIndex), layers[vLayerIndex].TerrainSpriteLayer, uv, puv, pos, layers[vLayerIndex].PaletteReference, tileInfo.Variant, layers[vLayerIndex].Sprites, (byte)vLayerIndex);
 						}
 						else
 						{
-							var ncv = GetNeighborsVisbility(puv);
-
-							if (ncv.All(n => n >= i))
+							var neighbors = GetNeighborsVisbility(puv);
+							var neighborsCheck = false;
+							for (var i = 0; i <= 3; i++)
 							{
-								UpdateLayer(true, false, Alpha(i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+								if (neighbors[i] <= vLayerIndex)
+								{
+									neighborsCheck = true;
+									break;
+								}
 							}
-							else
+
+							if (neighborsCheck)
 							{
-								UpdateLayer(false, false, Alpha(i > 0 ? i - 1 : i), layers[i].TerrainSpriteLayer, uv, puv, pos, layers[i].PaletteReference, tileInfo.Variant, layers[i].Sprites);
+								UpdateLayer(false, false, Alpha(vLayerIndex), layers[vLayerIndex].TerrainSpriteLayer, uv, puv, pos, layers[vLayerIndex].PaletteReference, tileInfo.Variant, layers[vLayerIndex].Sprites, (byte)vLayerIndex);
 							}
 						}
 					}
@@ -403,7 +298,7 @@ namespace OpenRA.Mods.Common.Traits
 			anyCellDirty = false;
 		}
 
-		void UpdateLayer(bool allEdges, bool reset, float alpha, TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, PaletteReference paletteReference, byte tileVariant, (Sprite, float, float)[] sprites)
+		void UpdateLayer(bool allEdges, bool reset, float alpha, TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, PaletteReference paletteReference, byte tileVariant, (Sprite, float, float)[] sprites, byte visionLayerIndex)
 		{
 			var cv = cellVisibility(puv);
 
@@ -412,7 +307,8 @@ namespace OpenRA.Mods.Common.Traits
 				sprite = null;
 			else
 			{
-				var gotSprite = GetSprite(sprites, allEdges ? notVisibleEdges : GetEdges(GetNeighborsVisbility(puv), cv), tileVariant);
+				var edges = allEdges ? Edges.None : GetEdges(GetNeighborsVisbility(puv), cv, visionLayerIndex);
+				var gotSprite = GetSprite(sprites, edges, tileVariant);
 
 				if (gotSprite.Sprite != null) pos += gotSprite.Sprite.Offset - 0.5f * gotSprite.Sprite.Size;
 
@@ -445,10 +341,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		(Sprite Sprite, float Scale, float Alpha) GetSprite((Sprite, float, float)[] sprites, Edges edges, int variant)
 		{
-			if (edges == Edges.None)
-				return (null, 1f, 1f);
-
-			return sprites[variant * variantStride + edgesToSpriteIndexOffset[(byte)edges]];
+			var edgeIndex = (byte)edges;
+			return sprites[edgeIndex];
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)

@@ -250,3 +250,21 @@ Actors:
 	Actor78: t10
 		Owner: Neutral
 		Location: 15,10
+	Actor79: t10
+		Owner: Neutral
+		Location: 2,18
+	Actor80: t10
+		Owner: Neutral
+		Location: 3,18
+	Actor81: t10
+		Owner: Neutral
+		Location: 4,18
+	Actor82: t10
+		Owner: Neutral
+		Location: 3,19
+	Actor83: t10
+		Owner: Neutral
+		Location: 4,19
+	Actor84: t10
+		Owner: Neutral
+		Location: 5,19

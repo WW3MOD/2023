@@ -601,7 +601,7 @@ gpsdot:
 		Start: 32
 
 shroud:
-	shroud: shadow
+	shroud: shroud
 		Length: *
 
 scorches:

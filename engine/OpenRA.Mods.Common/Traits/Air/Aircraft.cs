@@ -222,7 +222,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class Aircraft : PausableConditionalTrait<AircraftInfo>, ITick, ISync, IFacing, IPositionable, IMove,
 		INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyActorDisposing, INotifyBecomingIdle, ICreationActivity,
-		IActorPreviewInitModifier, IDeathActorInitModifier, IIssueDeployOrder, IIssueOrder, IResolveOrder, IOrderVoice
+		IActorPreviewInitModifier, IDeathActorInitModifier, IIssueDeployOrder, IIssueOrder, IResolveOrder, IOrderVoice, IAirborneVisibility
 	{
 		readonly Actor self;
 
@@ -296,6 +296,8 @@ namespace OpenRA.Mods.Common.Traits
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
 
 		bool airborne;
+		bool IAirborneVisibility.IsAirborne { get => airborne; set => airborne = value; }
+
 		bool cruising;
 		int airborneToken = Actor.InvalidConditionToken;
 		int cruisingToken = Actor.InvalidConditionToken;
@@ -799,7 +801,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void SetPosition(Actor self, WPos pos)
 		{
-
 			CenterPosition = pos;
 
 			if (!self.IsInWorld)
