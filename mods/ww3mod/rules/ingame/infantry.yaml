@@ -21,7 +21,7 @@
 		DeathTypes: DefaultDeath
 	DrawLineToTarget:
 	Health:
-		HP: 100
+		HP: 200
 	Armor:
 		Type: None
 	Mobile:

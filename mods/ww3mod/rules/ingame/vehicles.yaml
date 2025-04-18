@@ -12,7 +12,7 @@
 	Inherits@Vision: ^StandardVision
 	Inherits@DamagePips: ^DamageVehiclePips
 	Health:
-		HP: 5000
+		HP: 10000
 	Armor:
 		Distribution: 100,50,25,10,10
 	# BlocksProjectiles:

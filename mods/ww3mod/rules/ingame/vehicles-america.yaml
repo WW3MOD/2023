@@ -26,7 +26,7 @@ humvee:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 4000
+		HP: 8000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -174,7 +174,7 @@ m113:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 6000
+		HP: 12000
 	Armor:
 		Type: Light
 		Thickness: 15
@@ -276,7 +276,7 @@ bradley:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 7000
+		HP: 14000
 	Armor:
 		Type: Medium
 		Thickness: 15
@@ -417,7 +417,7 @@ abrams:
 	Valued:
 		Cost: 2500
 	Health:
-		HP: 14000
+		HP: 28000
 	Armor:
 		Type: Heavy
 		Thickness: 700
@@ -512,7 +512,7 @@ m109:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 7000
+		HP: 14000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -618,7 +618,7 @@ m270:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 5000
+		HP: 10000
 	Armor:
 		Type: Light
 		Thickness: 8
@@ -718,7 +718,7 @@ m270:
 # 	UpdatesPlayerStatistics:
 # 		AddToArmyValue: true
 # 	Health:
-# 		HP: 7000
+# 		HP: 14000
 # 	Armor:
 # 		Type: Medium
 # 		Thickness: 15
@@ -890,7 +890,7 @@ m270:
 # 	UpdatesPlayerStatistics:
 # 		AddToArmyValue: true
 # 	Health:
-# 		HP: 2000
+# 		HP: 6000
 # 	# Armor@Loaded:
 # 	# 	RequiresCondition: loaded
 # 	# 	Type: Unarmored
@@ -999,7 +999,7 @@ m270:
 # 	UpdatesPlayerStatistics:
 # 		AddToArmyValue: true
 # 	Health:
-# 		HP: 5000
+# 		HP: 10000
 # 	Armor:
 # 		Type: Light
 # 		Thickness: 8

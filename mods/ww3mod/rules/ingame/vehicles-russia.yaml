@@ -25,7 +25,7 @@ btr:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 7000
+		HP: 14000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -119,7 +119,7 @@ bmp2:
 	Valued:
 		Cost: 1300
 	Health:
-		HP: 7000
+		HP: 14000
 	Armor:
 		Type: Medium
 		Thickness: 15
@@ -259,7 +259,7 @@ t90:
 	Valued:
 		Cost: 2400
 	Health:
-		HP: 12000
+		HP: 24000
 	Armor:
 		Type: Heavy
 		Thickness: 280
@@ -356,7 +356,7 @@ giatsint:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 7000
+		HP: 14000
 	Armor:
 		Type: Light
 		Thickness: 19
@@ -456,7 +456,7 @@ grad:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 5000
+		HP: 10000
 	Armor:
 		Type: Light
 		Thickness: 5
@@ -558,7 +558,7 @@ tos:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 10000
+		HP: 20000
 	Armor:
 		Type: Medium
 		Thickness: 19
@@ -653,7 +653,7 @@ tos:
 # 	Valued:
 # 		Cost: 1700
 # 	Health:
-# 		HP: 7000
+# 		HP: 14000
 # 	Armor:
 # 		Type: Medium
 # 		Thickness: 19
@@ -666,7 +666,7 @@ tos:
 # 			TopLeft: -400, -550
 # 			BottomRight: 400, 550
 # 	Health:
-# 		HP: 4000
+# 		HP: 8000
 # 	Mobile:
 # 		Locomotor: heavytracked
 # 		Speed: 100
@@ -796,7 +796,7 @@ tos:
 # 		RequiresCondition: loaded
 # 		Modifier: 1000
 # 	Health:
-# 		HP: 5000
+# 		HP: 10000
 # 	Armor:
 # 		Type: Light
 # 		Thickness: 15
@@ -937,7 +937,7 @@ tos:
 # 	Selectable:
 # 		DecorationBounds: 1024,1024
 # 	Health:
-# 		HP: 5000
+# 		HP: 10000
 # 	Armor:
 # 		Type: Light
 # 		Thickness: 19
