@@ -1,3 +1,16 @@
+2025 prio
+
+Aircraft
+SupplyRoute fixes: Primary selection, SpawnAtEdge, LeaveMap, start with multiple? chainlink?
+Trees, off-centre for shadows and
+Tree bypassing, WGM especially
+Maps, release with 10
+Generate shadows on first run? Checkbox, deacticate shadow caster
+Critical damage, Evacuate, Re-Targeting
+Unit Description/Icons
+Sounds
+
+
 Done:
 
 - Frozen mines
