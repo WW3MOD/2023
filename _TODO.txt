@@ -1,120 +1,71 @@
 2025 prio
 
-Aircraft
-SupplyRoute fixes: Primary selection, SpawnAtEdge, LeaveMap, start with multiple? chainlink?
-Trees, off-centre for shadows and
-Tree bypassing, WGM especially
-Maps, release with 10
-Generate shadows on first run? Checkbox, deacticate shadow caster
-Critical damage, Evacuate, Re-Targeting
-Unit Description/Icons
-Sounds
+Units
 
-
-Done:
-
-- Frozen mines
-
-- Pips
-    - Suppression
-    - Morale
-
-- Options
-    - Change Short game, add "Terms of surrender" or similar as drop down % of army value when you lose if you dont have any possibility to reinforce (lost SR)
-    - Kill bounties as drop down
-    - Drop down for army upkeep
-    - Fix tech levels
-    - Disable Debug by default
+- Aircraft
+    - Spawn/leave at edge
+- Infantry
+    - Variable defense?
+    - Make infantry fire on the move
+        - Force move is sprint
+        - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
 
 - Mobile sensor, doesnt work
-
-- Tree blocking
-    - WGM should not fire unless its going to hit
-    - Tanks should shoot through trees if able to fire, but possibly lose some damage for each tree it passes
-    - Always pass 1-2 trees?
-
 - DR
     - Animations wrong, prepare drone runs periodically when idle. Also drone launches before prep animation is finished.
-    - Doesnt move around in circle when idle
     - Autotarget of other drones not working
     - Anti drone weapon too effective, maybe freeze it in mid air and when it runs out of battery it falls?
     - When drone dies it just disappears
     - When EMPd it starts drifting strangely but kinda like it?
-
 - Flametrooper should be more effective against unarmored, like grad
+- Unit Description/Icons
+    - Description box size
+- Sounds
 
-- Unit description box size
+- SupplyRoute fixes: Primary selection, SpawnAtEdge, LeaveMap, start with multiple? chainlink?
+
+- Enter civ buildings mechanics
+    - Civ building "base under attack", (might be fixed already)
+
+Trees
+
+- Off-centre for shadows
+- Bypassing
+    - WGM should not fire unless its going to hit
+    - Ballistics hits trees too much? Deprioritize if chance to hit is too low
+    - ATGM hits trees, make it immune but needs clear line of sight (if trees not within 1-2 tiles) to fire
+    - Tanks should shoot through trees if able to fire, but possibly lose some damage for each tree it passes
+    - Always pass 1-2 trees?
+    - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing
+
+
+- Maps
+- Generate shadows on first run? Checkbox, deacticate shadow caster
+
+- Options
+    - Change Short game to a drop down % of army value when you lose if you dont have any possibility to reinforce (lost SR)
+    - Kill bounties as drop down
+    - Drop down for army upkeep
+    - Fix tech levels
+
+Hotkeys & modifier keys etc
+- Default move order should stop and return fire periodically unless force move?
+- Alt, add attack-move mode and change cursor
+- Ctrl, force-move
+- Ctrl+Alt, force Attack
+- Shift, add small white dot or something to the closest targetable tile, possible make the grid visible around the mouse slightly in a circle.
 
 - Solve errors and make sure all tests passes
 
 
+Other, low prio
 
-
-
-
-Aircraft / Fly
-
-FlyTowards
-
-- Turn towards Location
-    - ShouldSlide && not ForceMove
-        - Turn towards current Target instead while sliding towards Location
-
-- ShouldSlide
-    - Change momentum towards target
-
-- NotSlider
-    -
-
-TakeOff
-
-Land
-
-
-Idea
-
-when holding different modifiers
-- Nothing held, default to attack move
-- Shift, add small white dot or something to the closest targetable tile, possible make the grid visible around the mouse slightly in a circle.
-- Ctrl, force-move
-- Alt, add attack-move mode and change cursor
-
-
-Game thoughts
-
-    - Remove morale boost pip for now, its not good
-
-    - Air, spawn at edge
-
-    - Ballistics hits trees too much? Deprioritize if chance to hit is too low
-        - ATGM hits trees, make it immune but needs clear line of sight (if trees not within 1-2 tiles) to fire
-
-    - Civ building "base under attack"
-
-    - Infantry status pips & bars
-        - Stealth
-            - Blue?
-        - Defense
-            - Introduce concept of Defense.
-            - Increases when moving, on different tiles or tiles with some actor or in proximity of some actors.
-        - Health
-            - Yellow --> Red --> Blinking red
-            - Circle above? 100-75 green, 75-50 yellow, 50-25 red, 25-0 blinking red (faster and faster the closer it gets to death? Or slower? Like a heart beat)
-        - Suppression
-        - Class
-        - Rank
-        -
-
-    - Other pips / bars
-        - Reload
-
-    - Ranking up increases value of unit when it gets rotated
-    - Possible to buy any soldier as rank 1-2-3 (not 4?) as a special forces team kinda
-
-    - Ammo should cost money
-    - North west of middle in woodland has a water tile under trees
-
-Temp
+    Ammo
+        - Units out of ammo should reject attack orders
+        - Costs money
+        - Trucks need to be sent back
+        - Logistics centres needs delivery from supply trucks
+        - Widget for auto rearm
 
     Supply Route
 
@@ -146,17 +97,6 @@ Temp
             - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
             - These are stored as templates, even saved between games, in a special templates tab
 
-Ongoing
-
-    - Grad does almost no damage, was doubled
-    - Artillery gets revealed when firing even without radar
-    - A bit less bypass of trees, also make them protect by % just like sand bags should do still?
-    - Passed units should resume their queue after being nudged
-    - Artillery too effective vs infantry
-
-    - Move / Mobile
-        - Now uses Immovable to check if path is blocked, not All.
-
 Fix
 
     - Resupply
@@ -172,14 +112,6 @@ Fix
     Orders
         - Splice orders, check IsImmediate
 
-    - Bypass
-        - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing
-        - Tanks fire through forests and just hits trees
-        - AT soldier (and other missiles?) can fire through forests but doesnt risk hitting trees
-
-    - Vehicles passes but doesnt crush fence on Woodland warfare
-
-    - Upkeep percent modifier dropdown option
 
     - Passable
         - Fence can not be crushed by tanks
@@ -221,71 +153,14 @@ Fix
         - Create custom using conditions? Set the condition directly, not using repeat?
         - a getter, updates when the warhead makes impact
 
-    - Protection based on tile / proximity. Show pips
-        - Kinda done, do more testing
-        - Remove object-proximity / merge with layer check.
-
-    - Getting rank gives more bonuses, like becoming like a team leader. Team leader ranking up should get even more bonuses.
-
     - Iskander missile acceleration + balancing
     - New Himars missile, similar to Iskander but smaller and shorter range + balancing
-
-Units
-
-    - Humvee in two versions, MG & TOW
-    - Add HandGrenade, IndirectFire
-
-Bugs
-
-Ideas
 
     Lobby options
         - Load previous settings
         - Load from list of previous games
         - Consider default options and shown order
         - Add more options for range, firepower etc?
-
-    Supply Route
-
-        - ! Possibly make maps with a bit of space around, reducing the map bounds to be less than -1 of map
-            - ! Just makes map smaller, with black around
-            - Spawned units spawn beyond bounds and rejects orders until they have moved inside bounds
-            - Spawn units randomly along the edge instead of all around the SR
-                - Determine when map loads if it is on the vertical or horizontal edge
-        - Captured SR gives access to spawn, how to deal with this?
-        - Make maps with more spawns as default
-        - Add neutral SRs in between that can be captured
-        - Link SRs at game start to the closest player spawn to determine who controls what is beyond border, only those can give spawn
-        - Add checkbox to give all linked spawn points to closest player
-        - Checkbox that only allows your side of the map to be spawnable points
-        - Make each spawn have a different queue, done in CA
-        - Game mode where there is a brief period of queueing up units before game starts
-        - Only give access if a coherent line of control from original spawn is established
-        - Otherwise just turn neutral and deny access for enemy
-        - Determine which spawn is original for player
-        - Give each original spawn around the map a letter A, B, C etc
-        - Give each non original spawn a number, like A1, A2, A3 etc
-
-        - Time to "build" could be removed, instead there is a "call-up time" from the moment unit is ordered no matter how many there are
-
-        - Possible to build loaded vehicles, how?
-            - Special queue or modifyer hotkey that puts soldiers into next vehicle? But no.
-            - Select a vehicle to load, then select the soldiers to put inside.
-            - When enough are build to fill it, they become unbuildable and it switches to vehicles "tab"
-            - These are stored as templates, even saved between games, in a special templates tab
-
-    Ammo
-        - Units out of ammo should reject attack orders
-        - Costs money
-        - Trucks need to be sent back
-        - Logistics centres needs delivery from supply trucks
-        - Widget for auto rearm
-
-    - Make infantry fire on the move
-        - Force move is sprint
-        - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
-
-    - Attack move as default?
 
     Game modes
 
@@ -482,8 +357,6 @@ Infantry
 Vehicles
     - Fix opening sequence for btr80
     - Change M113 to AAVP7A1
-    - Humvee can drive in forests now? Same size as infantry, uses subcells. Why?
-    - Mines should not completely destroy heavy vehicles
     - Kamikaze drones
 
 Aircraft
@@ -659,7 +532,4 @@ Other Mods
 
 
 Div
-
     Add scores.mix
-
-    if (modifiers.HasModifier(TargetModifiers.ForceMove))
