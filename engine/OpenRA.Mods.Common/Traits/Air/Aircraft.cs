@@ -635,8 +635,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public WVec FlyStep(int speed, WAngle facing)
 		{
-			// TODO
-
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(facing));
 			return speed * dir / 1024;
 		}

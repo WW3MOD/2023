@@ -192,27 +192,3 @@ recn226m: Recon
 	VolumeModifier: 0.8
 voic226m: Voice Rhythm
 	VolumeModifier: 0.8
-
-#	Generals GLA Tracks
-gla_01: Dawn Of Courage
-	#	VolumeModifier: 0.8
-gla_02: One Path To Freedom
-	VolumeModifier: 0.9
-gla_03: Unlisted GLA 03
-	#	VolumeModifier: 0.8
-gla_04: The Sacrifice
-	#	VolumeModifier: 0.8
-gla_05: Unlisted GLA 05
-	#	VolumeModifier: 0.8
-gla_06: Glory
-	#	VolumeModifier: 0.8
-gla_07: Tides of Wrath
-	#	VolumeModifier: 0.8
-gla_08: Our Day Has Come
-	#	VolumeModifier: 0.8
-gla_09: Uprising
-	#	VolumeModifier: 0.8
-gla_10: Resistance
-	#	VolumeModifier: 0.8
-gla_11: GLA Anthem
-	VolumeModifier: 0.8

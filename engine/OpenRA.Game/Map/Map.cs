@@ -907,11 +907,11 @@ namespace OpenRA
 						var d_h = t * D_h; // Distance along path in cell units
 						var z_los = z_a * (1 - t); // Height of line of sight above tile
 
-						var obstacleHeight = 1024; // In world units
+						var obstacleHeight = 512; // In world units
 
 						if (obstacleHeight > z_los)
 						{
-							totalAirborne += DensityLayer[tile] / 10f; // Add density if blocked
+							totalAirborne += DensityLayer[tile] / 5f; // Add density if blocked (doubled, due to foliage)
 						}
 					}
 

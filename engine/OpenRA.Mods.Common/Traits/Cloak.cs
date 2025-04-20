@@ -176,7 +176,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (remainingTime > 0 || IsTraitDisabled || IsTraitPaused) { }
 			return r;
 
-			if (ShouldHide(self, self.World.RenderPlayer))
+			/* if (ShouldHide(self, self.World.RenderPlayer))
 				return SpriteRenderable.None;
 			else
 			{
@@ -185,7 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 					return r;
 				else
 					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable ? ((IPalettedRenderable)a).WithPalette(palette) : a);
-			}
+			} */
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)
@@ -271,30 +271,30 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void TraitDisabled(Actor self) { Uncloak(); }
 
-		// // Test to solve CPU Expensive
-		// public bool cachedShouldHide = false;
-		// public int cachedShouldHideTicks = -1;
-		// public bool ShouldHide(Actor self, Player viewer)
-		// {
-		// 	if (self.Owner.IsAlliedWith(viewer))
-		// 		return false;
+		/* // Test to solve CPU Expensive
+		public bool cachedShouldHide = false;
+		public int cachedShouldHideTicks = -1;
+		public bool ShouldHide(Actor self, Player viewer)
+		{
+			if (self.Owner.IsAlliedWith(viewer))
+				return false;
 
-		// 	cachedShouldHideTicks++;
+			cachedShouldHideTicks++;
 
-		// 	if (cachedShouldHideTicks % Info.UpdateFrequency == 0)
-		// 	{
-		// 		cachedShouldHide = Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
-		// 			&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
-		// 			&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+			if (cachedShouldHideTicks % Info.UpdateFrequency == 0)
+			{
+				cachedShouldHide = Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+					&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+					&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 
-		// 		if (!cachedShouldHide)
-		// 			Reveal(Info.RevealedDelay);
+				if (!cachedShouldHide)
+					Reveal(Info.RevealedDelay);
 
-		// 		return cachedShouldHide;
-		// 	}
-		// 	else
-		// 		return cachedShouldHide;
-		// }
+				return cachedShouldHide;
+			}
+			else
+				return cachedShouldHide;
+		} */
 
 		public bool ShouldHide(Actor self, Player viewer)
 		{

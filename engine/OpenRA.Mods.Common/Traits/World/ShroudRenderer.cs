@@ -59,7 +59,6 @@ namespace OpenRA.Mods.Common.Traits
 		readonly ShroudRendererInfo info;
 		readonly World world;
 		readonly Map map;
-		readonly Edges notVisibleEdges;
 		readonly byte frameCount;
 		readonly (Sprite Sprite, float Scale, float Alpha)[] fogSprites, shroudSprites;
 		readonly byte[] neighbors = new byte[4];
@@ -116,7 +115,6 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = 0; i < MapLayers.VisionLayers - 1; i++)
 				layers[i] = new Layer();
 
-			notVisibleEdges = Edges.AllSides;
 			world.RenderPlayerChanged += WorldOnRenderPlayerChanged;
 		}
 
@@ -172,16 +170,18 @@ namespace OpenRA.Mods.Common.Traits
 			neighbors[(int)Neighbor.Bottom] = cellVisibility((PPos)(cell + new CVec(0, 1)).ToMPos(map));
 			neighbors[(int)Neighbor.Left] = cellVisibility((PPos)(cell + new CVec(-1, 0)).ToMPos(map));
 
-			// var cell = ((MPos)puv).ToCPos(map);
-			// var topPos = (PPos)(cell + new CVec(0, -1)).ToMPos(map);
-			// var rightPos = (PPos)(cell + new CVec(1, 0)).ToMPos(map);
-			// var bottomPos = (PPos)(cell + new CVec(0, 1)).ToMPos(map);
-			// var leftPos = (PPos)(cell + new CVec(-1, 0)).ToMPos(map);
+			/*
+				var cell = ((MPos)puv).ToCPos(map);
+				var topPos = (PPos)(cell + new CVec(0, -1)).ToMPos(map);
+				var rightPos = (PPos)(cell + new CVec(1, 0)).ToMPos(map);
+				var bottomPos = (PPos)(cell + new CVec(0, 1)).ToMPos(map);
+				var leftPos = (PPos)(cell + new CVec(-1, 0)).ToMPos(map);
 
-			// neighbors[(int)Neighbor.Top] = map.Contains(topPos) ? cellVisibility(topPos) : (byte)5;
-			// neighbors[(int)Neighbor.Right] = map.Contains(rightPos) ? cellVisibility(rightPos) : (byte)5;
-			// neighbors[(int)Neighbor.Bottom] = map.Contains(bottomPos) ? cellVisibility(bottomPos) : (byte)5;
-			// neighbors[(int)Neighbor.Left] = map.Contains(leftPos) ? cellVisibility(leftPos) : (byte)5;
+				neighbors[(int)Neighbor.Top] = map.Contains(topPos) ? cellVisibility(topPos) : (byte)5;
+				neighbors[(int)Neighbor.Right] = map.Contains(rightPos) ? cellVisibility(rightPos) : (byte)5;
+				neighbors[(int)Neighbor.Bottom] = map.Contains(bottomPos) ? cellVisibility(bottomPos) : (byte)5;
+				neighbors[(int)Neighbor.Left] = map.Contains(leftPos) ? cellVisibility(leftPos) : (byte)5;
+			*/
 
 			return neighbors;
 		}
@@ -198,9 +198,10 @@ namespace OpenRA.Mods.Common.Traits
 				edges |= Edges.Bottom;
 			if (cellVisibility > neighbors[(int)Neighbor.Left] && neighbors[(int)Neighbor.Left] <= max)
 				edges |= Edges.Left;
-
-			// if ((byte)edges > (byte)Edges.AllSides)
-			// 	edges = Edges.None;
+			/*
+				if ((byte)edges > (byte)Edges.AllSides)
+					edges = Edges.None;
+			*/
 
 			return edges;
 		}
