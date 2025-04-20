@@ -1615,70 +1615,70 @@ SN:
 AT:
 	Inherits: ^AT
 
-# # Anti Air
-# ^AA:
-# 	Inherits@Type: ^CamoSoldier
-# 	Inherits@AutoTarget: ^AutoTargetAir
-# 	Buildable:
-# 		Queue: Infantry
-# 		BuildAtProductionType: Soldier
-# 		BuildPaletteOrder: 9
-# 		Prerequisites: ~disabled
-# 		Description: Provides short range anti-air capabilities the infantry unit.\n - Anti-air missile launcher.\n - Carries 3 missiles.
-# 	Tooltip:
-# 		Name: AA Specialist
-# 	Valued:
-# 		Cost: 300
-# 	UpdatesPlayerStatistics:
-# 		AddToArmyValue: true
-# 	SpeedMultiplier:
-# 		Modifier: 90
-# 	Armament@1:
-# 		Name: primary
-# 		Weapon: MANPAD
-# 		PauseOnCondition: !ammo-primary
-# 	AmmoPool@1:
-# 		Name: primary-ammo
-# 		Armaments: primary
-# 		Ammo: 3
-# 		AmmoCondition: ammo-primary
-# 	ReloadAmmoPool@1:
-# 		AmmoPool: primary-ammo
-# 		FullReloadTicks: 200
-# 		FullReloadSteps: 3
-# 		Sound: minelay1.aud
-# 		RequiresCondition: replenish-soldiers
-# 	WithAmmoPipsDecoration@1:
-# 		Position: Bottom
-# 		Margin: 4, 3
-# 		PipCount: 3
-# 		RequiresSelection: true
-# 		FullSequence: pip-blue
-# 		AmmoPools: primary-ammo
-# 		RequiresCondition: ammo-primary
-# 	RenderRangeCircle@1:
-# 		Armament: primary
-# 		Alpha: 80
-# 		Color: 66B2FF
-# 	NextBurstBar@1:
-# 		Armaments: primary
-# 		Color: 66B2FF
-# 	Rearmable:
-# 		RearmActors: truk, logisticscenter
-# 		AmmoPools: primary-ammo
-# 	WithInfantryBody:
-# 		DefaultAttackSequence: shoot
-# 		RequiresCondition: !parachute
-# 	Passenger:
-# 		CustomPipType: aa_class
-# 	WithDecoration@Class:
-# 		Sequence: aa_class
-# 	Selectable:
-# 		Class: AA
-# 	RenderSprites:
-# 		Scale: 0.5
-# AA:
-# 	Inherits: ^AA
+# Anti Air
+^AA:
+	Inherits@Type: ^CamoSoldier
+	Inherits@AutoTarget: ^AutoTargetAir
+	Buildable:
+		Queue: Infantry
+		BuildAtProductionType: Soldier
+		BuildPaletteOrder: 9
+		Prerequisites: ~disabled
+		Description: Provides short range anti-air capabilities the infantry unit.\n - Anti-air missile launcher.\n - Carries 3 missiles.
+	Tooltip:
+		Name: AA Specialist
+	Valued:
+		Cost: 300
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	SpeedMultiplier:
+		Modifier: 90
+	Armament@1:
+		Name: primary
+		Weapon: MANPAD
+		PauseOnCondition: !ammo-primary
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 3
+		AmmoCondition: ammo-primary
+	ReloadAmmoPool@1:
+		AmmoPool: primary-ammo
+		FullReloadTicks: 200
+		FullReloadSteps: 3
+		Sound: minelay1.aud
+		RequiresCondition: replenish-soldiers
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 4, 3
+		PipCount: 3
+		RequiresSelection: true
+		FullSequence: pip-blue
+		AmmoPools: primary-ammo
+		RequiresCondition: ammo-primary
+	RenderRangeCircle@1:
+		Armament: primary
+		Alpha: 80
+		Color: 66B2FF
+	NextBurstBar@1:
+		Armaments: primary
+		Color: 66B2FF
+	Rearmable:
+		RearmActors: truk, logisticscenter
+		AmmoPools: primary-ammo
+	WithInfantryBody:
+		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	Passenger:
+		CustomPipType: aa_class
+	WithDecoration@Class:
+		Sequence: aa_class
+	Selectable:
+		Class: AA
+	RenderSprites:
+		Scale: 0.5
+AA:
+	Inherits: ^AA
 
 # Engineer
 ^E6:

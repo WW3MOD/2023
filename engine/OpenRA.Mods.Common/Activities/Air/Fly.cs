@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -63,12 +52,7 @@ namespace OpenRA.Mods.Common.Activities
 		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-
-			var angleDiff = WAngle.AngleDiff(aircraft.momentum.Yaw, aircraft.Facing).Angle;
-			var angleTolerance = aircraft.TurnSpeed.Angle * 2;
-
-			var move = aircraft.Info.CanSlide && !(angleDiff <= angleTolerance) ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing); // TODO
-			aircraft.momentum = move;
+			var move = aircraft.Info.CanSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
 			if (moveOverride != WVec.Zero)
 				move = moveOverride;
 
@@ -191,13 +175,19 @@ namespace OpenRA.Mods.Common.Activities
 
 			var isSlider = aircraft.Info.CanSlide;
 			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-			var move = isSlider && !(aircraft.Facing == desiredFacing) ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
+
+			// Calculate acceleration and update CurrentVelocity
+			var isFinalWaypoint = NextActivity == null;
+			var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, isFinalWaypoint);
+			aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
+
+			var move = isSlider ? aircraft.CurrentVelocity : aircraft.FlyStep(aircraft.Facing);
 
 			// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
 			if (insideMinRange)
 			{
 				if (isSlider)
-					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
+					aircraft.RequestedAcceleration = new WVec(-acceleration.X, -acceleration.Y, 0);
 				else
 				{
 					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
@@ -238,10 +228,7 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			var angleDiff = WAngle.AngleDiff(aircraft.momentum.Yaw, aircraft.Facing).Angle;
-			var angleTolerance = aircraft.TurnSpeed.Angle * 2;
-
-			if (!isSlider || angleDiff <= angleTolerance)
+			if (!isSlider)
 			{
 				// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
 				// If it contains the destination point, it's unreachable without more complex maneuvering.
@@ -264,8 +251,6 @@ namespace OpenRA.Mods.Common.Activities
 			positionBuffer.Add(self.CenterPosition);
 			if (positionBuffer.Count > 5)
 				positionBuffer.RemoveAt(0);
-
-			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
 
 			return false;
 		}

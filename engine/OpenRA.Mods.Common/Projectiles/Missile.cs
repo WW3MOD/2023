@@ -65,6 +65,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("How many ticks before this missile is armed and can explode.")]
 		public readonly int Arm = 0;
 
+		[Desc("If the missile misses, it will not try to turn around.")]
+		public readonly bool FlyStraightIfMiss = true;
+
 		[Desc("Is the missile blocked by actors with BlocksProjectiles: trait.")]
 		public readonly bool Blockable = true;
 
@@ -221,7 +224,6 @@ namespace OpenRA.Mods.Common.Projectiles
 		readonly string trailPalette;
 
 		States state;
-		bool targetPassedBy;
 		readonly bool lockOn;
 		bool allowPassBy; // TODO: use this also with high minimum launch angle settings
 
@@ -582,7 +584,7 @@ namespace OpenRA.Mods.Common.Projectiles
 						&& (predClfDist <= loopRadius * (1024 - WAngle.FromFacing(vFacing).Sin()) / 1024
 
 							// When evaluating this the incline will be *not* be hit before vertical facing attains 64
-				// At current speed target too close to hit without passing it by
+							// At current speed target too close to hit without passing it by
 							|| relTarHorDist <= 2 * loopRadius * (2048 - WAngle.FromFacing(vFacing).Sin()) / 1024 - predClfDist))
 
 					|| (desiredVFacing == 0 // Upper part of incline surmounting manoeuvre
@@ -640,7 +642,7 @@ namespace OpenRA.Mods.Common.Projectiles
 						desiredVFacing = desiredVFacing.Clamp(-info.VerticalRateOfTurn.Facing, info.VerticalRateOfTurn.Facing);
 					else if (lastHt == 0)
 					{ // Before the target is passed by, missile speed should be changed
-						// Target's height above loop's center
+					  // Target's height above loop's center
 						var tarHgt = (loopRadius * WAngle.FromFacing(vFacing).Cos() / 1024 - System.Math.Abs(relTarHgt)).Clamp(0, loopRadius);
 
 						// Target's horizontal distance from loop's center
@@ -767,6 +769,9 @@ namespace OpenRA.Mods.Common.Projectiles
 			return desiredVFacing;
 		}
 
+		WDist minDistanceToTarget = WDist.FromCells(10000); // Track closest approach to target
+		bool flyStraight; // Explicitly track when missile should fly straight
+
 		WVec HomingTick(World world, in WVec tarDistVec, int relTarHorDist)
 		{
 			var predClfHgt = 0;
@@ -777,36 +782,28 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (info.TerrainHeightAware)
 				InclineLookahead(world, relTarHorDist, out predClfHgt, out predClfDist, out lastHtChg, out lastHt);
 
-			// Height difference between the incline height and missile height
 			var diffClfMslHgt = predClfHgt - pos.Z;
-
-			// Get underestimate of distance from target in next tick
-			var nxtRelTarHorDist = (relTarHorDist - speed - info.Acceleration.Length).Clamp(0, relTarHorDist);
-
-			// Target height relative to the missile
 			var relTarHgt = tarDistVec.Z;
 
-			// Compute which direction the projectile should be facing
+			// Update minimum distance to target
+			var currentDistance = new WDist(relTarHorDist);
+			if (currentDistance < minDistanceToTarget)
+				minDistanceToTarget = currentDistance;
+
+			// Detect if missile has missed: distance is increasing and was once close
+			if (info.FlyStraightIfMiss && !flyStraight && state == States.Hitting && currentDistance > minDistanceToTarget + info.CloseEnough && currentDistance > info.CloseEnough)
+				flyStraight = true;
+
+			// Resume homing if target comes close again
+			if (flyStraight && currentDistance < info.CloseEnough)
+				flyStraight = false;
+
 			var velVec = tarDistVec + predVel;
-			var desiredHFacing = velVec.HorizontalLengthSquared != 0 ? velVec.Yaw.Facing : hFacing;
+			var desiredHFacing = flyStraight ? hFacing : (velVec.HorizontalLengthSquared != 0 ? velVec.Yaw.Facing : hFacing);
+			var desiredVFacing = flyStraight
+				? vFacing
+				: HomingInnerTick(predClfDist, diffClfMslHgt, relTarHorDist, lastHtChg, lastHt, relTarHgt, vFacing, false);
 
-			var delta = Util.NormalizeFacing(hFacing - desiredHFacing);
-			if (allowPassBy && delta > 64 && delta < 192)
-			{
-				desiredHFacing = (desiredHFacing + 128) & 0xFF;
-				targetPassedBy = true;
-			}
-			else
-				targetPassedBy = false;
-
-			var desiredVFacing = HomingInnerTick(predClfDist, diffClfMslHgt, relTarHorDist, lastHtChg, lastHt,
-				relTarHgt, vFacing, targetPassedBy);
-
-			// The target has been passed by
-			if (tarDistVec.HorizontalLength < speed * WAngle.FromFacing(vFacing).Cos() / 1024)
-				targetPassedBy = true;
-
-			// Check whether the homing mechanism is jammed
 			var jammingActor = world.ActorsWithTrait<JamsMissiles>().FirstOrDefault(JammedBy);
 			var jammed = info.Jammable && jammingActor.Actor != null;
 			if (jammed)
@@ -820,13 +817,13 @@ namespace OpenRA.Mods.Common.Projectiles
 				}
 			}
 			else if (!args.GuidedTarget.IsValidFor(args.SourceActor))
+			{
 				desiredHFacing = hFacing;
+			}
 
-			// Compute new direction the projectile will be facing
 			hFacing = Util.TickFacing(hFacing, desiredHFacing, info.HorizontalRateOfTurn.Facing);
 			vFacing = Util.TickFacing(vFacing, desiredVFacing, info.VerticalRateOfTurn.Facing);
 
-			// Compute the projectile's guided displacement
 			return new WVec(0, -1024 * speed, 0)
 				.Rotate(new WRot(WAngle.FromFacing(vFacing), WAngle.Zero, WAngle.Zero))
 				.Rotate(new WRot(WAngle.Zero, WAngle.Zero, WAngle.FromFacing(hFacing)))

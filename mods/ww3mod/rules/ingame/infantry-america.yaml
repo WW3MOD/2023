@@ -70,13 +70,13 @@ AT.america:
 		Prerequisites: ~player.america, ~techlevel.infonly
 	RenderSprites:
 		Image: at.america
-# # Anti Air
-# AA.america:
-# 	Inherits: ^AA
-# 	Buildable:
-# 		Prerequisites: ~player.america, ~techlevel.infonly
-# 	RenderSprites:
-# 		Image: aa.america
+# Anti Air
+AA.america:
+	Inherits: ^AA
+	Buildable:
+		Prerequisites: ~player.america, ~techlevel.infonly
+	RenderSprites:
+		Image: aa.america
 # Medic
 MEDI.america:
 	Inherits: ^MEDI

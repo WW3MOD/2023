@@ -6,10 +6,10 @@ HALO:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.medium
 		Description: Mil Mi-26 (Halo) Infantry Transport Helicopter.\n  - Unarmed
 	Valued:
-		Cost: 1000
+		Cost: 2000
 	Tooltip:
 		Name: Halo
 	RenderSprites:
@@ -80,12 +80,12 @@ HIND:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
-		Cost: 1
+		Cost: 4000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -213,12 +213,12 @@ MI28:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.
 	Tooltip:
 		Name: Mi-28
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -336,10 +336,10 @@ FROG:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 4
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia,
+		Prerequisites: ~player.russia, ~aircraft.russia,
 		Description: Ground-Attack Plane
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	Tooltip:
 		Name: Su-25 Frogfoot
 	Health:
@@ -447,12 +447,12 @@ MIG:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 5
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Fast Multi-Role Attack Plane.
 	Tooltip:
 		Name: MiG-29 Falcrum
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:

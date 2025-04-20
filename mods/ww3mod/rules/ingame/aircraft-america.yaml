@@ -6,10 +6,10 @@ TRAN:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
 		Description: Fast Infantry Transport Helicopter.\n  Unarmed
 	Valued:
-		Cost: 1200
+		Cost: 2000
 	Tooltip:
 		Name: Chinook
 	UpdatesPlayerStatistics:
@@ -82,12 +82,12 @@ littlebird:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
 		Description: Light helicopter armed with dual chainguns.
 	Tooltip:
 		Name: Littlebird
 	Valued:
-		Cost: 1500
+		Cost: 3000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -203,7 +203,7 @@ littlebird:
 littlebird.AI:
 	Inherits: littlebird
 	Buildable:
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
 		Description: Light helicopter armed with dual chainguns.\n
 	AttackAircraft:
 		Armaments: primary, secondary
@@ -219,12 +219,12 @@ HELI:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.\n  Strong vs Everything\n  Weak vs Anti-Air, Aircraft
 	Tooltip:
 		Name: Apache
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -343,11 +343,11 @@ A10:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 52
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 		IconPalette: temptd
 		Description: Fast Ground-Attack Plane.
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	Tooltip:
 		Name: Attack Aircraft
 	Health:
@@ -453,9 +453,9 @@ F16:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 51
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	Tooltip:
 		Name: F-16
 		GenericName: F-16
