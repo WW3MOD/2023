@@ -390,6 +390,9 @@ namespace OpenRA.Mods.Common.Traits
 	public interface ISpeedModifier { int GetSpeedModifier(); }
 
 	[RequireExplicitImplementation]
+	public interface ITurretTurnSpeedModifier { int GetTurretTurnSpeedModifier(); }
+
+	[RequireExplicitImplementation]
 	public interface IFirepowerModifier { int GetFirepowerModifier(); }
 
 	[RequireExplicitImplementation]

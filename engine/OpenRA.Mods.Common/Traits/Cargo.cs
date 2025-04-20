@@ -419,29 +419,33 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDamage.Damaged(OpenRA.Actor self, OpenRA.Traits.AttackInfo e)
 		{
-			var damageThreshold = self.Trait<Health>().MaxHP / 4;
-
-			// Heavy hits deals damage to soldiers
-			// if (e.Damage.Value > damageThreshold)
-			// 	foreach (var passenger in Passengers)
-			// 	{
-			// 		var random = self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
-			// 		int damage = e.Damage.Value;
-			// 		if (damage > 0)
-			// 		{
-			// 			int damageToDeal = passenger.Trait<Health>().MaxHP * damage / self.Trait<Health>().MaxHP;
-			// 			damageToDeal += random;
-			// 			passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
-			// 		}
-			// 	}
-
-			// Unload when low health
-			if (self.Trait<Health>().HP < damageThreshold)
+			if (!IsEmpty())
 			{
-				var currentActivityType = self.CurrentActivity?.GetType();
+				var healthTrait = self.Trait<Health>();
+				var damageDealt = e.Damage.Value;
+				var damageThreshold = healthTrait.GetDamageStateThreshold(DamageState.Critical);
 
-				if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
-					self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
+				// Heavy hits deal damage to passengers
+				if (damageDealt > damageThreshold)
+				{
+					// Create a copy of Passengers to avoid enumeration issues
+					var passengersCopy = Passengers.ToList();
+					foreach (var passenger in passengersCopy)
+					{
+						var damageToDeal = passenger.Trait<Health>().MaxHP * (damageDealt - damageThreshold) / self.Trait<Health>().MaxHP;
+						damageToDeal += self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
+						passenger.InflictDamage(e.Attacker, new Damage((int)damageToDeal));
+					}
+				}
+
+				// Unload when low health
+				if (healthTrait.DamageState == DamageState.Critical)
+				{
+					var currentActivityType = self.CurrentActivity?.GetType();
+
+					if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
+						self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
+				}
 			}
 		}
 

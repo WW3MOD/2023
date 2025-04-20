@@ -9,6 +9,8 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -20,11 +22,13 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Mobile mobile;
 		readonly IFacing facing;
 		readonly WAngle desiredFacing;
+		readonly IEnumerable<int> speedModifiers; // Using speed modifier for turn as well
 
 		public Turn(Actor self, WAngle desiredFacing)
 		{
 			mobile = self.TraitOrDefault<Mobile>();
 			facing = self.Trait<IFacing>();
+			speedModifiers = self.TraitsImplementing<ISpeedModifier>().ToArray().Select(m => m.GetSpeedModifier());
 			this.desiredFacing = desiredFacing;
 		}
 
@@ -33,13 +37,14 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			if (mobile != null && (mobile.IsTraitDisabled || mobile.IsTraitPaused))
+			if ((mobile != null && (mobile.IsTraitDisabled || mobile.IsTraitPaused)) || speedModifiers.Any(v => v == 0))
 				return false;
 
 			if (desiredFacing == facing.Facing)
 				return true;
 
-			facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
+			var turnSpeed = new WAngle(Util.ApplyPercentageModifiers(facing.TurnSpeed.Angle, speedModifiers.ToArray()));
+			facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, turnSpeed);
 
 			return false;
 		}

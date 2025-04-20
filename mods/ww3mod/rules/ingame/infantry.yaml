@@ -172,23 +172,23 @@
 	# SpeedMultiplier@TLBoost:
 	# 	RequiresCondition: morale-boost
 	# 	Modifier: 120
-	WithDecoration@TLBoost:
-		RequiresSelection: true
-		RequiredModifiers: Alt
-		Image: pips
-		Sequence: pip-morale-boost
-		Position: Top
-		Margin: 10,0
-		RequiresCondition: morale-boost
-		BlinkInterval: 32
-		BlinkPattern: Off, On
-	WithDecoration@DefenseTest:
-		RequiresSelection: true
-		RequiredModifiers: Alt
-		Image: pips
-		Sequence: pip-defense-5
-		Position: Top
-		Margin: 0,-9 #FF
+	# WithDecoration@TLBoost: # TODO?
+	# 	RequiresSelection: true
+	# 	RequiredModifiers: Alt
+	# 	Image: pips
+	# 	Sequence: pip-morale-boost
+	# 	Position: Top
+	# 	Margin: 10,0
+	# 	RequiresCondition: morale-boost
+	# 	BlinkInterval: 32
+	# 	BlinkPattern: Off, On
+	# WithDecoration@DefenseTest:
+	# 	RequiresSelection: true
+	# 	RequiredModifiers: Alt
+	# 	Image: pips
+	# 	Sequence: pip-defense-5
+	# 	Position: Top
+	# 	Margin: 0,-9 #FF
 
 	WithInfantryBody@Parachute:
 		StandSequences: parachute
@@ -1006,9 +1006,9 @@
 		Modifier: 400
 
 	ChangesHealth@BleedOut:
-		Step: -1
+		PercentageStep: -1
 		Delay: 50
-		StartIfBelow: 25
+		StartIfBelow: 50
 		DamageTypes: BleedOutDeath
 
 ^RottingInfantry:

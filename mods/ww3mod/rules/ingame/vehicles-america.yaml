@@ -138,11 +138,6 @@ humvee:
 	# 	RequiresCondition: wgm_missile
 	RenderSprites:
 		Image: humvee
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: humvee.husk
 
@@ -241,11 +236,6 @@ m113:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: m113.husk
 
@@ -385,11 +375,6 @@ bradley:
 		Armament: secondary
 		Color: 00FF00
 		Alpha: 100
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: bradley.husk
 
@@ -482,11 +467,6 @@ abrams:
 	WithMuzzleOverlay:
 	Selectable:
 		Class: MBT
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: abrams.husk
 
@@ -585,11 +565,6 @@ m109:
 	WithSpriteTurret:
 	Selectable:
 		Class: ARTILLERY
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: m109.husk
 
@@ -686,8 +661,6 @@ m270:
 		Recoils: false
 	Selectable:
 		Class: MLRS
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: m270.husk
 
@@ -854,11 +827,6 @@ m270:
 # 	WithCargoPipsDecoration:
 # 	Passenger:
 # 		CustomPipType: pip-green
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 # 	SpawnActorOnDeath:
 # 		Actor: strykershorad.husk
 
@@ -965,8 +933,6 @@ m270:
 # 		Actors: IskanderMissile
 # 		LoadedCondition: loaded
 # 		LaunchingCondition: firing-primary
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 # 	Explodes@Loaded:
 # 		RequiresCondition: loaded
 # 		Weapon: IskanderExplosion
@@ -1079,7 +1045,5 @@ m270:
 # 	RenderRangeCircle:
 # 		Width: 3
 # 		Alpha: 120
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 # 	SpawnActorOnDeath:
 # 		Actor: PRSM.husk

@@ -90,11 +90,6 @@ btr:
 		RequiresCondition: !loaded
 	Passenger:
 		CustomPipType: pip-green
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: btr.husk
 
@@ -228,11 +223,6 @@ bmp2:
 	WithCargoPipsDecoration:
 	Passenger:
 		CustomPipType: pip-green
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: bmp2.husk
 
@@ -322,11 +312,6 @@ t90:
 
 	Selectable:
 		Class: MBT
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: t90.husk
 
@@ -413,9 +398,6 @@ giatsint:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
@@ -424,11 +406,6 @@ giatsint:
 		# StopAndWait: 100
 	Selectable:
 		Class: ARTILLERY
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: giatsint.husk
 
@@ -524,11 +501,6 @@ grad:
 		AmmoPools: primary-ammo
 	Selectable:
 		Class: MLRS
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: grad.husk
 
@@ -623,11 +595,6 @@ tos:
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: tos.husk
 
@@ -762,11 +729,6 @@ tos:
 # 		PauseOnCondition: empdisable || unit.docked
 # 	WithSpriteTurret:
 # 	WithMuzzleOverlay:
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 # 	SpawnActorOnDeath:
 # 		Actor: tunguska.husk
 
@@ -870,9 +832,6 @@ tos:
 # 		VoiceSet: IskanderVoice
 # 	Exit:
 # 		SpawnOffset: 0,-128,0
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
 # 	Explodes:
 # 		RequiresCondition: !loaded
 # 		Weapon: ArtilleryExplode
@@ -1014,11 +973,6 @@ tos:
 # 	RenderRangeCircle:
 # 		Width: 1
 # 		Color: FFFFFF # White, Tesla weaponry
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 # 	SpawnActorOnDeath:
 # 		Actor: TTNK.husk
 

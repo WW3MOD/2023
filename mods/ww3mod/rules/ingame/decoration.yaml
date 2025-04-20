@@ -21,7 +21,6 @@
 	WithSpriteBody:
 	Building:
 		Footprint: x
-		Density: 10
 		Dimensions: 1,1
 	AppearsOnMiniMap:
 	MiniMapColorFromTerrain:

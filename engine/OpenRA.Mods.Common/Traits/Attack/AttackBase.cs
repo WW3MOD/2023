@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,6 +43,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tolerance for attack angle. Range [0, 512], 512 covers 360 degrees.")]
 		public readonly WAngle FacingTolerance = new WAngle(512);
+
+		[Desc("Health percentage below which to retarget (e.g., 50 for 50%).")]
+		public readonly int CriticalHealthThreshold = 50;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -141,7 +133,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (target.Type == TargetType.Invalid || (self.TraitOrDefault<IndirectFire>() == null &&
 				BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out _)))
-					return false;
+				return false;
 
 			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw, facingTolerance);
 		}
@@ -164,16 +156,120 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
+		// Evaluate and potentially switch targets
+		protected virtual Target EvaluateTarget(in Target currentTarget, bool forceAttack)
+		{
+			// If the current target is invalid or not critically damaged, keep it
+			if (!currentTarget.IsValidFor(self) || !IsTargetCriticallyDamaged(currentTarget))
+				return currentTarget;
+
+			// Scan for a new target
+			var newTarget = ScanForNewTarget(currentTarget, forceAttack);
+			/* 	if (newTarget.IsValidFor(self))
+					Console.WriteLine($"Unit {self} retargeted from {currentTarget.Actor} to {newTarget.Actor}"); */
+			return newTarget.IsValidFor(self) ? newTarget : currentTarget;
+		}
+
+		// Check if the target is below the critical health threshold
+		protected bool IsTargetCriticallyDamaged(in Target target)
+		{
+			if (!target.IsValidFor(self))
+				return false;
+
+			Actor targetActor = null;
+			targetActor = target.Type == TargetType.Actor ? target.Actor : target.Type == TargetType.FrozenActor ? target.FrozenActor.Actor : null;
+
+			if (targetActor == null || targetActor.IsDead)
+				return false;
+
+			var health = targetActor.TraitOrDefault<Health>();
+			if (health == null)
+				return false;
+
+			return health.HP < (health.MaxHP * Info.CriticalHealthThreshold / 100);
+		}
+
+		// Scan for a new target within range, prioritizing healthy targets
+		protected Target ScanForNewTarget(in Target currentTarget, bool forceAttack)
+		{
+			var maxRange = GetMaximumRange();
+			var currentTargetActor = currentTarget.Type == TargetType.Actor ? currentTarget.Actor : currentTarget.Type == TargetType.FrozenActor ? currentTarget.FrozenActor.Actor : null;
+			var candidates = self.World.FindActorsInCircle(self.CenterPosition, maxRange)
+				.Where(a => a != self && !a.IsDead && a != currentTargetActor && CanTargetActor(a, forceAttack));
+
+			// Prioritize healthy targets (not critically damaged)
+			var validTargets = candidates
+				.Where(a =>
+				{
+					var health = a.TraitOrDefault<Health>();
+					return health != null && health.HP >= (health.MaxHP * Info.CriticalHealthThreshold / 100);
+				})
+				.ToList();
+
+			// If no healthy targets, return invalid target to stick with current target
+			if (!validTargets.Any())
+				return Target.Invalid;
+
+			// Choose the closest valid target
+			return Target.FromActor(validTargets.OrderBy(a => (a.CenterPosition - self.CenterPosition).LengthSquared).First());
+		}
+
+		// Helper method to check if an actor is a valid target
+		protected bool CanTargetActor(Actor targetActor, bool forceAttack)
+		{
+			var target = Target.FromActor(targetActor);
+			if (!target.IsValidFor(self))
+				return false;
+
+			// Check if we have valid weapons for this target
+			if (!HasAnyValidWeapons(target))
+				return false;
+
+			// Check relationship and force-attack rules
+			var armaments = ChooseArmamentsForTarget(target, forceAttack);
+			return armaments.Any();
+		}
+
 		public virtual void DoAttack(Actor self, in Target target)
 		{
 			if (!CanAttack(self, target))
 				return;
 
+			// Evaluate the target to see if we should switch to a new one
+			var evaluatedTarget = EvaluateTarget(target, false);
+
 			foreach (var a in Armaments)
 			{
 				if (a.Info.AllowIndirectFire) // TODO FF, Unimplemented
-					a.CheckFire(self, facing, target);
+					a.CheckFire(self, facing, evaluatedTarget);
 			}
+		}
+
+		// Modified to avoid CS1628 by copying the target to a local variable
+		public IEnumerable<Armament> ChooseArmamentsForTarget(in Target t, bool forceAttack)
+		{
+			// Copy the target to a local variable to avoid capturing 'in' parameter in lambda
+			var target = t;
+
+			// If force-fire is not used, and the target requires force-firing or the target is
+			// terrain or invalid, no armaments can be used
+			if (!forceAttack && (target.Type == TargetType.Terrain || target.Type == TargetType.Invalid || target.RequiresForceFire))
+				return Enumerable.Empty<Armament>();
+
+			// Get target's owner; in case of terrain or invalid target there will be no problems
+			// with owner == null since forceFire will have to be true in this part of the method
+			// (short-circuiting in the logical expression below)
+			Player owner = null;
+			if (target.Type == TargetType.FrozenActor)
+				owner = target.FrozenActor.Owner;
+			else if (target.Type == TargetType.Actor)
+				owner = target.Actor.Owner;
+
+			// FF TODO Check ammo?
+			return Armaments.Where(a =>
+				!a.IsTraitDisabled
+				&& (owner == null || (forceAttack ? a.Info.ForceTargetRelationships : a.Info.TargetRelationships).HasRelationship(self.Owner.RelationshipWith(owner)))
+				&& a.Weapon.IsValidAgainst(target, self.World, self));
 		}
 
 		IEnumerable<IOrderTargeter> IIssueOrder.Orders
@@ -366,30 +462,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return max != WDist.Zero ? max : maxFallback;
-		}
-
-		// Enumerates all armaments, that this actor possesses, that can be used against Target t
-		public IEnumerable<Armament> ChooseArmamentsForTarget(Target t, bool forceAttack)
-		{
-			// If force-fire is not used, and the target requires force-firing or the target is
-			// terrain or invalid, no armaments can be used
-			if (!forceAttack && (t.Type == TargetType.Terrain || t.Type == TargetType.Invalid || t.RequiresForceFire))
-				return Enumerable.Empty<Armament>();
-
-			// Get target's owner; in case of terrain or invalid target there will be no problems
-			// with owner == null since forceFire will have to be true in this part of the method
-			// (short-circuiting in the logical expression below)
-			Player owner = null;
-			if (t.Type == TargetType.FrozenActor)
-				owner = t.FrozenActor.Owner;
-			else if (t.Type == TargetType.Actor)
-				owner = t.Actor.Owner;
-
-			// FF TODO Check ammo?
-			return Armaments.Where(a =>
-				!a.IsTraitDisabled
-				&& (owner == null || (forceAttack ? a.Info.ForceTargetRelationships : a.Info.TargetRelationships).HasRelationship(self.Owner.RelationshipWith(owner)))
-				&& a.Weapon.IsValidAgainst(t, self.World, self));
 		}
 
 		public void AttackTarget(in Target target, AttackSource source, bool queued, bool allowMove, bool forceAttack = false, Color? targetLineColor = null)

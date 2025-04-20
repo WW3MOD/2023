@@ -6,7 +6,6 @@ OILB.Husk:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 10
 	Tooltip:
 		Name: Oil Derrick (Destroyed)
 	InfiltrateForTransform:
@@ -19,7 +18,6 @@ MISS.Husk:
 	Building:
 		Footprint: XxX XxX ===
 		Dimensions: 3,3
-		Density: 10,10,10, 10,10,5, 0,0,0
 		LocalCenterOffset: 0,-512,0
 	Tooltip:
 		Name: Communications Center (Destroyed)
@@ -33,7 +31,6 @@ HOSP.Husk:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 10
 	Tooltip:
 		Name: Hospital (Destroyed)
 	InfiltrateForTransform:
@@ -46,7 +43,6 @@ BIO.Husk:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 10
 	Tooltip:
 		Name: Nuclear Reactor (Destroyed)
 	InfiltrateForTransform:
@@ -60,7 +56,6 @@ FCOM.Husk:
 	Building:
 		Footprint: xx xx ==
 		Dimensions: 2,3
-		Density: 10
 		LocalCenterOffset: 0,-512,0
 	Tooltip:
 		Name: Forward Command (Destroyed)

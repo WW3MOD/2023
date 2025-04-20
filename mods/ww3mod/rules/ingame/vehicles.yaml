@@ -15,7 +15,6 @@
 		HP: 10000
 	Armor:
 		Distribution: 100,50,25,10,10
-	# BlocksProjectiles:
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 420
@@ -60,7 +59,6 @@
 		Types: Vehicle
 	GpsDot:
 		String: Vehicle
-	WithDamageOverlay:
 	Guard:
 	Guardable:
 	Tooltip:
@@ -127,20 +125,27 @@
 	SpeedMultiplier@HeavyDamage:
 		Modifier: 50
 		RequiresCondition: heavy-damage-attained
+	ChangesHealth@CriticalDamage:
+		PercentageStep: -1
+		Delay: 5
+		StartIfBelow: 50
+		# DamageTypes: BurnoutOutDeath
+	Targetable@CriticalDamage:
+		RequiresCondition: !parachute
+		TargetTypes: CriticalDamage
+	WithSequentialAnimation@CriticalDamage:
+		RequiresCondition: critical-damage
+		Image: smoke_mtd
+		Palette: temptd
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
-	ChangesHealth@Burning:
-		PercentageStep: -1
-		Delay: 5
-		StartIfBelow: 25
-		# DamageTypes: BurnoutOutDeath
-
-	# BurstWaitMultiplier@CriticalDamage:
-	# 	Modifier: 0
-	# 	RequiresCondition: critical-damage
-	# Turreted:
-	# 	TurnSpeed: 0w
+	BurstWaitMultiplier@CriticalDamage:
+		Modifier: 0
+		RequiresCondition: critical-damage
+	TurretTurnSpeedMultiplier@CriticalDamage:
+		Modifier: 0
+		RequiresCondition: critical-damage
 
 ^EffectsWhenMovingVehicles:
 	InaccuracyMultiplier@Moving:
@@ -288,11 +293,6 @@ MNLY:
 		RequiresCondition: !ammo-mines
 		BlinkInterval: 16
 		BlinkPattern: Off,On
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: MNLY.husk
 
@@ -341,11 +341,6 @@ TRUK:
 	AttackTurreted:
 		Armaments: replenish
 	Turreted:
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: TRUK.husk
 
@@ -386,11 +381,6 @@ LCCV:
 		CustomPipType: pip-blue
 	GpsDot:
 		String: MCV
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	RenderSprites:
 		Image: mcv
 		Scale: 0.8
@@ -453,11 +443,6 @@ LCCV:
 # 		RequiresCondition: !ammo-mines
 # 		BlinkInterval: 16
 # 		BlinkPattern: Off,On
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 # 	SpawnActorOnDeath:
 # 		Actor: MNLY.husk
 
@@ -566,11 +551,6 @@ LCCV:
 # 		Bounds: 1200,1680,0,-240
 # 		DecorationBounds: 1200,1680,0,-240
 # 		Class: timberwolf
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
-# 	Explodes:
-# 		Weapon: ArtilleryExplode
 
 # HARV:
 # 	Inherits@Type: ^WheeledVehicle
@@ -641,9 +621,7 @@ LCCV:
 # 		Condition: docked
 # 	RejectsOrders:
 # 		RequiresCondition: docked
-# 	WithDamageOverlay:
-# 		Image: smoke_mtd
-# 		Palette: temptd
+
 # HARV.Crate:
 # 	Inherits: HARV
 # 	-Buildable:

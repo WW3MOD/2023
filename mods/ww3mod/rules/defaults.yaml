@@ -107,7 +107,6 @@
 		Margin: 0,0
 		RequiresCondition: critical-damage
 
-
 # ^DetectionProximity:
 # 	VisionModifier@1:
 # 		RequiresCondition: object-proximity == 1

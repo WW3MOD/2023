@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -67,6 +68,7 @@ namespace OpenRA.Mods.Common.Activities
 				target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
 
 				// Cancel the current move activity and queue attack activities if we find a new target.
+				// if (target.Type != TargetType.Invalid && target.Actor.GetEnabledTargetTypes().Any(t => t == "CriticalDamage"))
 				if (target.Type != TargetType.Invalid)
 				{
 					checkTick = 0;

@@ -132,6 +132,7 @@ namespace OpenRA.Mods.Common.Traits
 		AttackTurreted attack;
 		IFacing facing;
 		BodyOrientation body;
+		IEnumerable<int> turretTurnSpeedModifiers;
 
 		[Sync]
 		public int QuantizedFacings = 0;
@@ -173,6 +174,7 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 			attack = self.TraitsImplementing<AttackTurreted>().SingleOrDefault(at => ((AttackTurretedInfo)at.Info).Turrets.Contains(Info.Turret));
 			facing = self.TraitOrDefault<IFacing>();
+			turretTurnSpeedModifiers = self.TraitsImplementing<ITurretTurnSpeedModifier>().ToArray().Select(m => m.GetTurretTurnSpeedModifier());
 			body = self.Trait<BodyOrientation>();
 		}
 
@@ -241,7 +243,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (desired == LocalOrientation.Yaw)
 				return;
 
-			LocalOrientation = LocalOrientation.WithYaw(Util.TickFacing(LocalOrientation.Yaw, desired, Info.TurnSpeed));
+			var turnSpeed = new WAngle(Util.ApplyPercentageModifiers(Info.TurnSpeed.Angle, turretTurnSpeedModifiers.ToArray()));
+			LocalOrientation = LocalOrientation.WithYaw(Util.TickFacing(LocalOrientation.Yaw, desired, turnSpeed));
 
 			if (desired == LocalOrientation.Yaw)
 			{
@@ -252,7 +255,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool FaceTarget(Actor self, in Target target)
 		{
-			if (Info.TurnSpeed == WAngle.Zero)
+			if (Info.TurnSpeed == WAngle.Zero || turretTurnSpeedModifiers.Any(v => v == 0))
 				return false;
 
 			if (IsTraitDisabled || IsTraitPaused || attack == null || attack.IsTraitDisabled || attack.IsTraitPaused)

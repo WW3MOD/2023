@@ -80,10 +80,5 @@ t72:
 		Width: 2
 	Selectable:
 		Class: MBT
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 	SpawnActorOnDeath:
 		Actor: t72.husk
