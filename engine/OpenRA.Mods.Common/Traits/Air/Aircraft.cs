@@ -8,6 +8,7 @@ using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
 
+
 namespace OpenRA.Mods.Common.Traits
 {
 	public enum IdleBehaviorType
@@ -460,14 +461,12 @@ namespace OpenRA.Mods.Common.Traits
 					CurrentVelocity = new WVec((int)(CurrentVelocity.X * ratio), (int)(CurrentVelocity.Y * ratio), CurrentVelocity.Z);
 				}
 			}
-
-			// Apply deceleration if no acceleration requested
 			else if (CurrentVelocity != WVec.Zero)
 			{
 				if (CurrentVelocity.HorizontalLength < Info.MaxAcceleration)
 					CurrentVelocity = WVec.Zero;
-				else
-					CurrentVelocity -= new WVec(0, -Info.MaxAcceleration, 0).Rotate(WRot.FromYaw(CurrentVelocity.Yaw));
+				else // Reduce speed
+					CurrentVelocity += new WVec(0, Info.MaxAcceleration, 0).Rotate(WRot.FromYaw(CurrentVelocity.Yaw));
 			}
 
 			if (CurrentVelocity != WVec.Zero)
@@ -509,6 +508,35 @@ namespace OpenRA.Mods.Common.Traits
 			RequestedAcceleration = WVec.Zero;
 
 			// Repulse();
+		}
+
+		// New method to calculate the position where the aircraft will stop if orders are canceled
+		public WPos CalculateStopPosition()
+		{
+			var pos = CenterPosition;
+			var vel = CurrentVelocity;
+
+			if (vel == WVec.Zero)
+				return pos;
+
+			var speed = vel.HorizontalLength;
+			var a = Info.MaxAcceleration;
+
+			if (speed < a)
+				return pos;
+
+			// Number of ticks where velocity >= MaxAcceleration
+			var ticks = speed / a;
+			// Total displacement = sum of velocities (speed - i*a) for i=1 to ticks
+			var totalDisplacement = ticks * (speed - (ticks - 1) * a / 2);
+			// Scale velocity vector by displacement
+			var delta = new WVec(
+				(int)((long)vel.X * totalDisplacement / speed),
+				(int)((long)vel.Y * totalDisplacement / speed),
+				(int)((long)vel.Z * totalDisplacement / speed)
+			);
+
+			return pos + delta;
 		}
 
 		public void Repulse()

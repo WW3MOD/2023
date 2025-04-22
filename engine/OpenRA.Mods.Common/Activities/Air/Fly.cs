@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly List<WPos> positionBuffer = new List<WPos>();
 
 		public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
-			: this(self, t, initialTargetPosition, targetLineColor)
+				: this(self, t, initialTargetPosition, targetLineColor)
 		{
 			this.nearEnough = nearEnough;
 		}
@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		public Fly(Actor self, in Target t, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
-			: this(self, t, initialTargetPosition, targetLineColor)
+				: this(self, t, initialTargetPosition, targetLineColor)
 		{
 			this.maxRange = maxRange;
 			this.minRange = minRange;
@@ -72,8 +72,6 @@ namespace OpenRA.Mods.Common.Activities
 			if (aircraft.Info.Pitch != WAngle.Zero)
 				aircraft.Pitch = Util.TickFacing(aircraft.Pitch, aircraft.Info.Pitch, aircraft.Info.PitchSpeed);
 
-			// Note: we assume that if move.Z is not zero, it's intentional and we want to move in that vertical direction instead of towards desiredAltitude.
-			// If that is not desired, the place that calls this should make sure moveOverride.Z is zero.
 			if (dat != desiredAltitude || move.Z != 0)
 			{
 				var maxDelta = move.HorizontalLength * aircraft.Info.MaximumPitch.Tan() / 1024;
@@ -90,7 +88,6 @@ namespace OpenRA.Mods.Common.Activities
 			FlyTick(self, aircraft, desiredFacing, desiredAltitude, WVec.Zero, idleTurn);
 		}
 
-		// Should only be used for vertical-only movement, usually VTOL take-off or land. Terrain-induced altitude changes should always be handled by FlyTick.
 		public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
@@ -114,25 +111,17 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override bool Tick(Actor self)
 		{
-			// Refuse to take off if it would land immediately again.
 			if (aircraft.ForceLanding)
 				Cancel(self);
 
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
 			var isLanded = dat <= aircraft.LandAltitude;
 
-			// HACK: Prevent paused (for example, EMP'd) aircraft from taking off.
-			// This is necessary until the TODOs in the IsCanceling block below are addressed.
 			if (isLanded && aircraft.IsTraitPaused)
 				return false;
 
 			if (IsCanceling)
 			{
-				// We must return the actor to a sensible height before continuing.
-				// If the aircraft is on the ground we queue TakeOff to manage the influence reservation and takeoff sounds etc.
-				// TODO: It would be better to not take off at all, but we lack the plumbing to detect current airborne/landed state.
-				// If the aircraft lands when idle and is idle, we let the default idle handler manage this.
-				// TODO: Remove this after fixing all activities to work properly with arbitrary starting altitudes.
 				var landWhenIdle = aircraft.Info.IdleBehavior == IdleBehaviorType.Land;
 				var skipHeightAdjustment = landWhenIdle && self.CurrentActivity.IsCanceling && self.CurrentActivity.NextActivity == null;
 				if (aircraft.Info.CanHover && !skipHeightAdjustment && dat != aircraft.Info.CruiseAltitude)
@@ -159,13 +148,22 @@ namespace OpenRA.Mods.Common.Activities
 
 			useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
 
-			// Target is hidden or dead, and we don't have a fallback position to move towards
 			if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self))
 				return true;
 
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 			var pos = aircraft.GetPosition();
 			var delta = checkTarget.CenterPosition - pos;
+
+			var stopPos = aircraft.CalculateStopPosition();
+			var stopDelta = checkTarget.CenterPosition - stopPos;
+
+			// Check if trajectory will pass within 512 WDist of the current waypoint
+			if (stopDelta.HorizontalLengthSquared < 512 * 512)
+			{
+				// We are already close enough to the target, decelerate from here or proceed to next activity
+				return true;
+			}
 
 			// Inside the target annulus, so we're done
 			var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
