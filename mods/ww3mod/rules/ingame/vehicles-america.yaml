@@ -504,8 +504,9 @@ m109:
 			VerticalTopOffset: 620
 			TopLeft: -315, -900
 			BottomRight: 315, 900
-	Detectable:
-		RadarDetectableCondition: firing
+	Detectable@CounterBatteryRadar:
+		CounterBatteryRadarDetectableCondition: firing
+		CounterBatteryRadar: 1
 		Position: Ground
 	Mobile:
 		Speed: 80

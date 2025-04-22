@@ -186,12 +186,15 @@ MSAR:
 	Radar:
 		Range: 42c0
 		RequiresCondition: deployed
+	CounterBatteryRadar:
+		Range: 48c0
+		# RequiresCondition: deployed
 	WithRangeCircle@Radar:
 		Range: 42c0
 		Color: 000000
 		Width: 5
 		Alpha: 50
-		RequiresCondition: deployed
+		# RequiresCondition: deployed
 	Repairable:
 		RequireForceMoveCondition: !undeployed
 	Passenger:
