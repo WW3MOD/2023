@@ -1,31 +1,19 @@
+In Progresss
+
+- Mobile sensor, doesnt work
+    - CounterBatteryRadar
+
+
 2025 prio
 
 Units
 
+- Dont remember but probably TECH or DR has wrong palette for some animation, think it was death anim
+
 - Aircraft
     - Spawn/leave at edge
-- Infantry
-    - Variable defense?
-    - Make infantry fire on the move
-        - Force move is sprint
-        - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
-
-- Mobile sensor, doesnt work
-- DR
-    - Animations wrong, prepare drone runs periodically when idle. Also drone launches before prep animation is finished.
-    - Autotarget of other drones not working
-    - Anti drone weapon too effective, maybe freeze it in mid air and when it runs out of battery it falls?
-    - When drone dies it just disappears
-    - When EMPd it starts drifting strangely but kinda like it?
-- Flametrooper should be more effective against unarmored, like grad
-- Unit Description/Icons
-    - Description box size
-- Sounds
 
 - SupplyRoute fixes: Primary selection, SpawnAtEdge, LeaveMap, start with multiple? chainlink?
-
-- Enter civ buildings mechanics
-    - Civ building "base under attack", (might be fixed already)
 
 Trees
 
@@ -38,15 +26,15 @@ Trees
     - Always pass 1-2 trees?
     - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing
 
-
-- Maps
-- Generate shadows on first run? Checkbox, deacticate shadow caster
-
 - Options
     - Change Short game to a drop down % of army value when you lose if you dont have any possibility to reinforce (lost SR)
     - Kill bounties as drop down
     - Drop down for army upkeep
     - Fix tech levels
+
+- Maps
+
+- Generate shadows on first run? Checkbox, deacticate shadow caster
 
 Hotkeys & modifier keys etc
 - Default move order should stop and return fire periodically unless force move?
@@ -54,6 +42,30 @@ Hotkeys & modifier keys etc
 - Ctrl, force-move
 - Ctrl+Alt, force Attack
 - Shift, add small white dot or something to the closest targetable tile, possible make the grid visible around the mouse slightly in a circle.
+
+- Infantry
+    - Variable defense?
+    - Make infantry fire on the move
+        - Force move is sprint
+        - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
+
+- DR
+    - Animations wrong, prepare drone runs periodically when idle. Also drone launches before prep animation is finished.
+    - Autotarget of other drones not working
+    - Anti drone weapon too effective, maybe freeze it in mid air and when it runs out of battery it falls?
+    - When drone dies it just disappears
+    - When EMPd it starts drifting strangely but kinda like it?
+
+- Flametrooper should be more effective against unarmored, like grad
+
+- Unit Description/Icons
+    - Description box size
+
+- Sounds
+
+- Enter civ buildings mechanics
+    - Civ building "base under attack", (might be fixed already)
+
 
 - Solve errors and make sure all tests passes
 
