@@ -8,7 +8,6 @@ using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
 
-
 namespace OpenRA.Mods.Common.Traits
 {
 	public enum IdleBehaviorType
@@ -169,6 +168,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum acceleration for the aircraft.")]
 		public readonly int MaxAcceleration = 10;
 
+		[Desc("Acceleration for rotation, in WAngle per tick squared.")]
+		public readonly WAngle RotationAcceleration = new WAngle(10);
+
+		[Desc("Maximum rotation speed, in WAngle per tick.")]
+		public readonly WAngle MaxRotationSpeed = new WAngle(100);
+
 		public WAngle GetInitialFacing() { return InitialFacing; }
 		public WDist GetCruiseAltitude() { return CruiseAltitude; }
 		public Color GetTargetLineColor() { return TargetLineColor; }
@@ -283,6 +288,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Sync]
 		public WVec CurrentVelocity { get; set; } = WVec.Zero;
+
+		[Sync]
+		public WAngle CurrentRotationSpeed { get; private set; } = WAngle.Zero;
 
 		public static WPos GroundPosition(Actor self)
 		{
@@ -429,6 +437,21 @@ namespace OpenRA.Mods.Common.Traits
 			return velocityDelta * accelerationMagnitude / Math.Max(1, velocityDelta.Length);
 		}
 
+		WAngle CalculateIdealRotationSpeed(WAngle currentFacing, WAngle desiredFacing, WAngle maxRotationSpeed)
+		{
+			var delta = (desiredFacing - currentFacing).Angle;
+			if (delta > 512)
+				delta -= 1024;
+			else if (delta < -512)
+				delta += 1024;
+
+			// If the delta is small, slow down to match it
+			if (Math.Abs(delta) < maxRotationSpeed.Angle)
+				return new WAngle(delta);
+			else
+				return delta > 0 ? maxRotationSpeed : -maxRotationSpeed;
+		}
+
 		protected virtual void Tick(Actor self)
 		{
 			// Add land activity if Aircraft trait is paused and the actor can land at the current location.
@@ -474,9 +497,26 @@ namespace OpenRA.Mods.Common.Traits
 				// Update position
 				SetPosition(self, CenterPosition + CurrentVelocity);
 
-				// Update facing
+				// Update facing with inertia
 				var targetFacing = CurrentVelocity.Yaw;
-				Facing = Util.TickFacing(Facing, targetFacing, Info.TurnSpeed);
+				var idealRotationSpeed = CalculateIdealRotationSpeed(Facing, targetFacing, Info.MaxRotationSpeed);
+
+				// Adjust current rotation speed towards ideal rotation speed
+				var speedDelta = idealRotationSpeed - CurrentRotationSpeed;
+				var acceleration = Info.RotationAcceleration;
+				if (speedDelta.Angle > 0)
+					CurrentRotationSpeed += new WAngle(Math.Min(speedDelta.Angle, acceleration.Angle));
+				else if (speedDelta.Angle < 0)
+					CurrentRotationSpeed += new WAngle(Math.Max(speedDelta.Angle, -acceleration.Angle));
+
+				// Update facing
+				Facing += CurrentRotationSpeed;
+
+				// Normalize Facing to [0, 1024)
+				if (Facing.Angle < 0)
+					Facing += new WAngle(1024);
+				else if (Facing.Angle >= 1024)
+					Facing -= new WAngle(1024);
 
 				var oldCachedFacing = cachedFacing;
 				cachedFacing = Facing;
@@ -506,11 +546,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			RequestedAcceleration = WVec.Zero;
-
-			// Repulse();
 		}
 
-		// New method to calculate the position where the aircraft will stop if orders are canceled
 		public WPos CalculateStopPosition()
 		{
 			var pos = CenterPosition;
@@ -527,14 +564,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Number of ticks where velocity >= MaxAcceleration
 			var ticks = speed / a;
+
 			// Total displacement = sum of velocities (speed - i*a) for i=1 to ticks
 			var totalDisplacement = ticks * (speed - (ticks - 1) * a / 2);
+
 			// Scale velocity vector by displacement
 			var delta = new WVec(
 				(int)((long)vel.X * totalDisplacement / speed),
 				(int)((long)vel.Y * totalDisplacement / speed),
-				(int)((long)vel.Z * totalDisplacement / speed)
-			);
+				(int)((long)vel.Z * totalDisplacement / speed));
 
 			return pos + delta;
 		}
@@ -1312,7 +1350,7 @@ namespace OpenRA.Mods.Common.Traits
 			return new AssociateWithAirfieldActivity(self, creationActivityDelay);
 		}
 
-		class AssociateWithAirfieldActivity : Activity
+		public class AssociateWithAirfieldActivity : Activity
 		{
 			readonly Aircraft aircraft;
 			readonly int delay;
@@ -1367,7 +1405,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers)
 			{
-				// Always prioritise orders over selecting other peoples Wactors or own actors that are already selected
+				// Always prioritise orders over selecting other peoples actors or own actors that are already selected
 				if (target.Type == TargetType.Actor && (target.Actor.Owner != self.Owner || self.World.Selection.Contains(target.Actor)))
 					return true;
 

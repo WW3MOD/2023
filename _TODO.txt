@@ -4,6 +4,7 @@ Units
 
 - Aircraft
     - Spawn/leave at edge
+
 - Infantry
     - Variable defense?
     - Make infantry fire on the move
@@ -11,6 +12,7 @@ Units
         - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
 
 - Mobile sensor, doesnt work
+
 - DR
     - Animations wrong, prepare drone runs periodically when idle. Also drone launches before prep animation is finished.
     - Autotarget of other drones not working
@@ -18,8 +20,10 @@ Units
     - When drone dies it just disappears
     - When EMPd it starts drifting strangely but kinda like it?
 - Flametrooper should be more effective against unarmored, like grad
+
 - Unit Description/Icons
     - Description box size
+
 - Sounds
 
 - SupplyRoute fixes: Primary selection, SpawnAtEdge, LeaveMap, start with multiple? chainlink?
@@ -38,8 +42,8 @@ Trees
     - Always pass 1-2 trees?
     - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing
 
-
 - Maps
+
 - Generate shadows on first run? Checkbox, deacticate shadow caster
 
 - Options

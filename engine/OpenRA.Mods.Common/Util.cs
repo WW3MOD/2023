@@ -19,15 +19,16 @@ using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
-
 namespace OpenRA.Mods.Common
 {
 	public enum InaccuracyType { Maximum, PerCellIncrement, Absolute }
 
 	public static class Util
 	{
+		// Original TickFacing for integer facing (backward compatibility)
 		public static int TickFacing(int facing, int desiredFacing, int rot)
 		{
+			Console.WriteLine("Using old TickFacing behavior for integer facing");
 			var leftTurn = (facing - desiredFacing) & 0xFF;
 			var rightTurn = (desiredFacing - facing) & 0xFF;
 			if (Math.Min(leftTurn, rightTurn) < rot)
@@ -38,19 +39,57 @@ namespace OpenRA.Mods.Common
 				return (facing - rot) & 0xFF;
 		}
 
-		/// <summary>
-		/// Adds step angle units to facing in the direction that takes it closer to desiredFacing.
-		/// If facing is already within step of desiredFacing then desiredFacing is returned.
-		/// Step is given as an integer to allow negative values (step away from the desired facing)
-		/// </summary>
+		// Overloaded TickFacing with inertia for integer facing
+		public static int TickFacing(int facing, int desiredFacing, int rot, int currentRotationSpeed, int rotationAcceleration, int maxRotationSpeed, out int newRotationSpeed)
+		{
+			var delta = (desiredFacing - facing) & 0xFF;
+			if (delta > 128)
+				delta -= 256;
+
+			var target_ω = Math.Max(Math.Min(delta, maxRotationSpeed), -maxRotationSpeed);
+			var ω = currentRotationSpeed;
+			var α = rotationAcceleration;
+			var ω_new = ω + Math.Max(Math.Min(target_ω - ω, α), -α);
+			newRotationSpeed = ω_new;
+			var newFacing = (facing + ω_new) & 0xFF;
+			return newFacing;
+		}
+
+		// Original TickFacing for WAngle (backward compatibility)
 		public static WAngle TickFacing(WAngle facing, WAngle desiredFacing, WAngle step)
 		{
+			Console.WriteLine("Using old TickFacing behavior for WAngle");
 			var leftTurn = (facing - desiredFacing).Angle;
 			var rightTurn = (desiredFacing - facing).Angle;
-			if (leftTurn < step.Angle || rightTurn < step.Angle)
+			if (Math.Min(leftTurn, rightTurn) < step.Angle)
 				return desiredFacing;
 
 			return rightTurn < leftTurn ? facing + step : facing - step;
+		}
+
+		// Overloaded TickFacing with inertia for WAngle
+		public static WAngle TickFacing(WAngle facing, WAngle desiredFacing, WAngle step, WAngle currentRotationSpeed, WAngle rotationAcceleration, WAngle maxRotationSpeed, out WAngle newRotationSpeed)
+		{
+			var delta = (desiredFacing - facing).Angle;
+			if (delta > 512)
+				delta -= 1024;
+			else if (delta < -512)
+				delta += 1024;
+
+			var target_ω = Math.Max(Math.Min(delta, maxRotationSpeed.Angle), -maxRotationSpeed.Angle);
+			var ω = currentRotationSpeed.Angle;
+			var α = rotationAcceleration.Angle;
+			var ω_new = ω + Math.Max(Math.Min(target_ω - ω, α), -α);
+			newRotationSpeed = new WAngle(ω_new);
+			var newFacing = facing + new WAngle(ω_new);
+
+			// Normalize facing
+			if (newFacing.Angle < 0)
+				newFacing += new WAngle(1024);
+			else if (newFacing.Angle >= 1024)
+				newFacing -= new WAngle(1024);
+
+			return newFacing;
 		}
 
 		/// <summary>

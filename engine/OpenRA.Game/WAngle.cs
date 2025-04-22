@@ -52,7 +52,7 @@ namespace OpenRA
 		public static WAngle AngleDiff(WAngle a, WAngle b)
 		{
 			// Calculate the difference between the angles
-			int diff = Math.Abs(a.Angle - b.Angle);
+			var diff = Math.Abs(a.Angle - b.Angle); // Changed from 'int diff' to 'var diff' for IDE0007
 
 			// Normalize the difference to always be positive and within the range [0, 512]
 			return new WAngle(diff > 512 ? 1024 - diff : diff);
