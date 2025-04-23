@@ -19,6 +19,7 @@ using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
+
 namespace OpenRA.Mods.Common
 {
 	public enum InaccuracyType { Maximum, PerCellIncrement, Absolute }

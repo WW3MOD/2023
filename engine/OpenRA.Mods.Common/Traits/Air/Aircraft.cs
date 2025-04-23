@@ -39,6 +39,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
+		[Desc("Acceleration for rotation, in WAngle per tick squared.")]
+		public readonly WAngle RotationAcceleration = new WAngle(10);
+
 		[Desc("Speed at which the actor turns.")]
 		public readonly WAngle TurnSpeed = new WAngle(512);
 
@@ -167,12 +170,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Maximum acceleration for the aircraft.")]
 		public readonly int MaxAcceleration = 10;
-
-		[Desc("Acceleration for rotation, in WAngle per tick squared.")]
-		public readonly WAngle RotationAcceleration = new WAngle(10);
-
-		[Desc("Maximum rotation speed, in WAngle per tick.")]
-		public readonly WAngle MaxRotationSpeed = new WAngle(100);
 
 		public WAngle GetInitialFacing() { return InitialFacing; }
 		public WDist GetCruiseAltitude() { return CruiseAltitude; }
@@ -437,21 +434,6 @@ namespace OpenRA.Mods.Common.Traits
 			return velocityDelta * accelerationMagnitude / Math.Max(1, velocityDelta.Length);
 		}
 
-		WAngle CalculateIdealRotationSpeed(WAngle currentFacing, WAngle desiredFacing, WAngle maxRotationSpeed)
-		{
-			var delta = (desiredFacing - currentFacing).Angle;
-			if (delta > 512)
-				delta -= 1024;
-			else if (delta < -512)
-				delta += 1024;
-
-			// If the delta is small, slow down to match it
-			if (Math.Abs(delta) < maxRotationSpeed.Angle)
-				return new WAngle(delta);
-			else
-				return delta > 0 ? maxRotationSpeed : -maxRotationSpeed;
-		}
-
 		protected virtual void Tick(Actor self)
 		{
 			// Add land activity if Aircraft trait is paused and the actor can land at the current location.
@@ -497,26 +479,9 @@ namespace OpenRA.Mods.Common.Traits
 				// Update position
 				SetPosition(self, CenterPosition + CurrentVelocity);
 
-				// Update facing with inertia
-				var targetFacing = CurrentVelocity.Yaw;
-				var idealRotationSpeed = CalculateIdealRotationSpeed(Facing, targetFacing, Info.MaxRotationSpeed);
-
-				// Adjust current rotation speed towards ideal rotation speed
-				var speedDelta = idealRotationSpeed - CurrentRotationSpeed;
-				var acceleration = Info.RotationAcceleration;
-				if (speedDelta.Angle > 0)
-					CurrentRotationSpeed += new WAngle(Math.Min(speedDelta.Angle, acceleration.Angle));
-				else if (speedDelta.Angle < 0)
-					CurrentRotationSpeed += new WAngle(Math.Max(speedDelta.Angle, -acceleration.Angle));
-
 				// Update facing
-				Facing += CurrentRotationSpeed;
-
-				// Normalize Facing to [0, 1024)
-				if (Facing.Angle < 0)
-					Facing += new WAngle(1024);
-				else if (Facing.Angle >= 1024)
-					Facing -= new WAngle(1024);
+				var targetFacing = CurrentVelocity.Yaw;
+				Facing = Util.TickFacing(Facing, targetFacing, Info.TurnSpeed);
 
 				var oldCachedFacing = cachedFacing;
 				cachedFacing = Facing;

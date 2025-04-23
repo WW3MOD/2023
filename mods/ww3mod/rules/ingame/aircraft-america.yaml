@@ -9,7 +9,7 @@ TRAN:
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
 		Description: Fast Infantry Transport Helicopter.\n  Unarmed
 	Valued:
-		Cost: 2000
+		Cost: 1 #2000
 	Tooltip:
 		Name: Chinook
 	UpdatesPlayerStatistics:
@@ -87,7 +87,7 @@ littlebird:
 	Tooltip:
 		Name: Littlebird
 	Valued:
-		Cost: 3000
+		Cost: 1 #3000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -224,7 +224,7 @@ HELI:
 	Tooltip:
 		Name: Apache
 	Valued:
-		Cost: 6000
+		Cost: 1 #6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -347,7 +347,7 @@ A10:
 		IconPalette: temptd
 		Description: Fast Ground-Attack Plane.
 	Valued:
-		Cost: 6000
+		Cost: 1 #6000
 	Tooltip:
 		Name: Attack Aircraft
 	Health:
@@ -455,7 +455,7 @@ F16:
 		BuildPaletteOrder: 51
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 	Valued:
-		Cost: 6000
+		Cost: 1 #6000
 	Tooltip:
 		Name: F-16
 		GenericName: F-16

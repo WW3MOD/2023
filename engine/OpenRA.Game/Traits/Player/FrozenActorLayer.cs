@@ -147,7 +147,7 @@ namespace OpenRA.Traits
 			Hidden = false;
 			foreach (var shouldHideModifier in shouldHideModifiers)
 			{
-				if (shouldHideModifier.ShouldHide(BackingActor, viewer)) // Updated from 'Actor'
+				if (shouldHideModifier.ShouldHide(BackingActor, viewer))
 				{
 					Hidden = true;
 					break;
