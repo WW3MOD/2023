@@ -99,7 +99,7 @@ littlebird:
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
 		InitialFacing: 224
-		TurnSpeed: 8
+		TurnSpeed: 15
 		Speed: 265
 		LandableTerrainTypes: Clear,Rough,Road,Beach
 	AttackAircraft:
@@ -235,7 +235,7 @@ HELI:
 		Type: Heavy
 		Thickness: 20
 	Aircraft:
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 245
 	AttackAircraft:
 		FacingTolerance: 60
@@ -358,7 +358,7 @@ A10:
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 390
 		RepulsionSpeed: 27
 		MaximumPitch: 65
@@ -471,7 +471,7 @@ F16:
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 525
 		IdleSpeed: 220
 		RepulsionSpeed: 27

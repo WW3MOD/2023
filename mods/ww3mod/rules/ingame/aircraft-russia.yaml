@@ -96,7 +96,7 @@ HIND:
 		Type: Heavy
 		Thickness: 10
 	Aircraft:
-		TurnSpeed: 12
+		TurnSpeed: 10
 		Speed: 195
 		InitialFacing: 192
 	AttackAircraft:
@@ -229,7 +229,7 @@ MI28:
 		Type: Heavy
 		Thickness: 20
 	Aircraft:
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 245
 	AttackAircraft:
 		FacingTolerance: 60
@@ -353,7 +353,7 @@ FROG:
 	Aircraft:
 		CruiseAltitude: 1560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 420
 		RepulsionSpeed: 27
 		MaximumPitch: 56
@@ -465,7 +465,7 @@ MIG:
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 525
 		IdleSpeed: 200
 		RepulsionSpeed: 27
