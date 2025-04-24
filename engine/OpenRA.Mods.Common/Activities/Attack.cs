@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
+using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -64,7 +65,7 @@ namespace OpenRA.Mods.Common.Activities
 			// The target may become hidden between the initial order request and the first tick (e.g. if queued)
 			// Moving to any position (even if quite stale) is still better than immediately giving up
 			if ((target.Type == TargetType.Actor && target.Actor.CanBeViewedByPlayer(self.Owner))
-			    || target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
+				|| target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
 			{
 				lastVisibleTarget = Target.FromPos(target.CenterPosition);
 
@@ -172,61 +173,88 @@ namespace OpenRA.Mods.Common.Activities
 				attack.IsAiming = false;
 		}
 
+		// Only showing the modified TickAttack method. Replace this in your Attack.cs.
 		protected virtual AttackStatus TickAttack(Actor self, AttackFrontal attack)
 		{
-			if (!target.IsValidFor(self))
-				return AttackStatus.UnableToAttack;
-
-			if (attack.Info.AttackRequiresEnteringCell && !positionable.CanEnterCell(target.Actor.Location, null, BlockedByActor.None))
+			if (!target.IsValidFor(self) || (attack.Info.AttackRequiresEnteringCell && !positionable.CanEnterCell(target.Actor.Location, null, BlockedByActor.None)))
 				return AttackStatus.UnableToAttack;
 
 			if (!attack.Info.TargetFrozenActors && !forceAttack && target.Type == TargetType.FrozenActor)
 			{
-				// Try to move within range, drop the target otherwise
-				if (move == null)
-					return AttackStatus.UnableToAttack;
-
-				var rs = vision
-					.Where(t => !t.IsTraitDisabled)
-					.MaxByOrDefault(s => s.Range);
-
-				// Default to 2 cells if there are no active traits
-				var sightRange = rs != null ? rs.Range : WDist.FromCells(2);
-
+				if (move == null) return AttackStatus.UnableToAttack;
+				var rs = vision.Where(t => !t.IsTraitDisabled).MaxByOrDefault(s => s.Range);
+				var sightRange = rs?.Range ?? WDist.FromCells(2);
 				attackStatus |= AttackStatus.NeedsToMove;
 				QueueChild(move.MoveWithinRange(target, sightRange, target.CenterPosition, Color.Red));
 				return AttackStatus.NeedsToMove;
 			}
 
-			// Drop the target once none of the weapons are effective against it
 			var armaments = attack.ChooseArmamentsForTarget(target, forceAttack).ToList();
-			if (armaments.Count == 0)
-				return AttackStatus.UnableToAttack;
+			if (armaments.Count == 0) return AttackStatus.UnableToAttack;
 
-			// Update ranges
 			minRange = armaments.Max(a => a.Weapon.MinRange);
 			maxRange = armaments.Min(a => a.MaxRange());
-
 			var pos = self.CenterPosition;
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
-			if (!target.IsInRange(pos, maxRange)
-				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
-				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
-				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
-					&& checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
+			// var cumulativeBypass = BlocksProjectiles.GetCumulativeBypassProbability(self.World, self.Owner, pos, target.CenterPosition, new WDist(1), self, true);
+			// Console.WriteLine($"Target at {target.CenterPosition}: CumulativeBypass={cumulativeBypass}");
+
+			// var canFire = false;
+			// foreach (var a in armaments)
+			// {
+			// 	var bulletInfo = a.Weapon.Projectile as BulletInfo;
+			// 	var missileInfo = a.Weapon.Projectile as MissileInfo;
+			// 	var minBypass = bulletInfo?.MinBypassProbabilityForTargeting ?? missileInfo?.MinBypassProbabilityForTargeting ?? 0;
+			// 	var meetsBypass = minBypass <= cumulativeBypass;
+			// 	Console.WriteLine($"Armament {a.Weapon.ToString()}: MinBypass={minBypass}, CumulativeBypass={cumulativeBypass}, CanFire={meetsBypass}");
+			// 	if (meetsBypass) canFire = true;
+			// }
+
+			var canFire = false;
+			foreach (var a in armaments)
 			{
-				// Try to move within range, drop the target otherwise
-				if (move == null)
-					return AttackStatus.UnableToAttack;
+				// Get the projectile's width (default to WDist(1) if not specified)
+				var projectileWidth = (a.Weapon.Projectile as BulletInfo)?.Width
+					?? (a.Weapon.Projectile as MissileInfo)?.Width
+					?? new WDist(1);
 
+				// Calculate cumulative bypass probability using the projectile's width
+				var cumulativeBypass = BlocksProjectiles.GetCumulativeBypassProbability(
+					self.World,
+					self.Owner,
+					pos,
+					target.CenterPosition,
+					projectileWidth,
+					self,
+					true);
+
+				// Get the minimum bypass probability required for targeting
+				var minBypass = (a.Weapon.Projectile as BulletInfo)?.MinBypassProbabilityForTargeting
+					?? (a.Weapon.Projectile as MissileInfo)?.MinBypassProbabilityForTargeting
+					?? 0;
+
+				// Check if the cumulative bypass meets the minimum requirement
+				var meetsBypass = minBypass <= cumulativeBypass;
+
+				// Log for debugging
+				Console.WriteLine($"Armament {a.Weapon.ToString()}: Width={projectileWidth}, CumulativeBypass={cumulativeBypass}, MinBypass={minBypass}, CanFire={meetsBypass}");
+
+				if (meetsBypass)
+					canFire = true;
+			}
+
+			// Return UnableToAttack or move closer if conditions aren’t met
+			if (!target.IsInRange(pos, maxRange) ||
+				(minRange.Length != 0 && target.IsInRange(pos, minRange)) ||
+				(move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self)) ||
+				(self.TraitOrDefault<IndirectFire>() == null && checkTarget.Type != TargetType.Invalid && !canFire))
+			{
+				if (move == null) return AttackStatus.UnableToAttack;
 				attackStatus |= AttackStatus.NeedsToMove;
-
 				if (checkTarget.Type != TargetType.Invalid)
 				{
 					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
-
-					// Standard should be to attackmove towards target, unless force firing?
 					return AttackStatus.NeedsToMove;
 				}
 			}
@@ -234,11 +262,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
 			{
 				var desiredFacing = (attack.GetTargetPosition(pos, target) - pos).Yaw;
-
-				// Don't queue a turn activity: Executing a child takes an additional tick during which the target may have moved again
 				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
-
-				// Check again if we turned enough and directly continue attacking if we did
 				if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
 				{
 					attackStatus |= AttackStatus.NeedsToTurn;
@@ -248,7 +272,6 @@ namespace OpenRA.Mods.Common.Activities
 
 			attackStatus |= AttackStatus.Attacking;
 			DoAttack(self, attack, armaments);
-
 			return AttackStatus.Attacking;
 		}
 

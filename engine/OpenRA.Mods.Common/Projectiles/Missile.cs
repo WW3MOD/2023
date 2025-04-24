@@ -50,6 +50,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Maximum vertical launch angle (pitch).")]
 		public readonly WAngle MaximumLaunchAngle = new WAngle(128);
 
+		[Desc("Launch speed in WDist / tick. Defaults to Speed if -1. Overrides Minimum and Maximum Launch Speed.")]
+		public readonly WDist LaunchSpeed = new WDist(-1);
+
 		[Desc("Minimum launch speed in WDist / tick. Defaults to Speed if -1.")]
 		public readonly WDist MinimumLaunchSpeed = new WDist(-1);
 
@@ -187,10 +190,19 @@ namespace OpenRA.Mods.Common.Projectiles
 			"not trigger fast enough, causing the missile to fly past the target.")]
 		public readonly WDist CloseEnough = new WDist(298);
 
+		// Existing properties remain unchanged. Add these new ones:
+		[Desc("Minimum cumulative bypass probability required for targeting, in percent.")]
+		public readonly int MinBypassProbabilityForTargeting = 0;
+
+		[Desc("Modifier for bypass chance during projectile flight, in percent.")]
+		public readonly int BypassModifier = 100;
+
+		[Desc("Distance from shooter where bypass chance is 100%.")]
+		public readonly WDist FullBypassDistance = WDist.Zero;
+
 		public IProjectile Create(ProjectileArgs args) { return new Missile(this, args); }
 	}
 
-	// TODO: double check square roots!!!
 	public class Missile : IProjectile, ISync
 	{
 		enum States
@@ -259,8 +271,9 @@ namespace OpenRA.Mods.Common.Projectiles
 			targetPosition = args.PassiveTarget;
 			var limit = info.RangeLimit != WDist.Zero ? info.RangeLimit : args.Weapon.Range;
 			rangeLimit = new WDist(Util.ApplyPercentageModifiers(limit.Length, args.RangeModifiers));
-			minLaunchSpeed = info.MinimumLaunchSpeed.Length > -1 ? info.MinimumLaunchSpeed.Length : info.Speed.Length;
-			maxLaunchSpeed = info.MaximumLaunchSpeed.Length > -1 ? info.MaximumLaunchSpeed.Length : info.Speed.Length;
+			var launchSpeedOverride = info.LaunchSpeed.Length > -1;
+			minLaunchSpeed = launchSpeedOverride ? info.LaunchSpeed.Length : info.MinimumLaunchSpeed.Length > -1 ? info.MinimumLaunchSpeed.Length : info.Speed.Length;
+			maxLaunchSpeed = launchSpeedOverride ? info.LaunchSpeed.Length : info.MaximumLaunchSpeed.Length > -1 ? info.MaximumLaunchSpeed.Length : info.Speed.Length;
 			maxSpeed = info.Speed.Length;
 			minLaunchAngle = info.MinimumLaunchAngle;
 			maxLaunchAngle = info.MaximumLaunchAngle;
@@ -582,7 +595,7 @@ namespace OpenRA.Mods.Common.Projectiles
 						&& (predClfDist <= loopRadius * (1024 - WAngle.FromFacing(vFacing).Sin()) / 1024
 
 							// When evaluating this the incline will be *not* be hit before vertical facing attains 64
-				// At current speed target too close to hit without passing it by
+							// At current speed target too close to hit without passing it by
 							|| relTarHorDist <= 2 * loopRadius * (2048 - WAngle.FromFacing(vFacing).Sin()) / 1024 - predClfDist))
 
 					|| (desiredVFacing == 0 // Upper part of incline surmounting manoeuvre
@@ -640,7 +653,7 @@ namespace OpenRA.Mods.Common.Projectiles
 						desiredVFacing = desiredVFacing.Clamp(-info.VerticalRateOfTurn.Facing, info.VerticalRateOfTurn.Facing);
 					else if (lastHt == 0)
 					{ // Before the target is passed by, missile speed should be changed
-						// Target's height above loop's center
+					  // Target's height above loop's center
 						var tarHgt = (loopRadius * WAngle.FromFacing(vFacing).Cos() / 1024 - System.Math.Abs(relTarHgt)).Clamp(0, loopRadius);
 
 						// Target's horizontal distance from loop's center
@@ -906,7 +919,10 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			// Check for walls or other blocking obstacles
 			var shouldExplode = false;
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true))
+
+			// Fix: Use total distance to target for targeting check, but current position for bypass check
+			var totalTargetDist = (targetPosition - args.SourceActor.CenterPosition).Length;
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true, info.BypassModifier, args.SourceActor.CenterPosition, totalTargetDist, info.FullBypassDistance.Length))
 			{
 				pos = blockedPos;
 				shouldExplode = true;

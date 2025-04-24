@@ -15,7 +15,7 @@ ATGM:
 		HorizontalRateOfTurn: 20
 		AirburstAltitude: 32
 		Blockable: false
-		MaximumLaunchSpeed: 20
+		LaunchSpeed: 20
 		CruiseAltitude: 10c0
 		ContrailLength: 5
 		Image: dragon
@@ -42,7 +42,7 @@ WGM:
 		RangeLimit: 25c0
 		Speed: 300
 		Acceleration: 30
-		MaximumLaunchSpeed: 50
+		LaunchSpeed: 50
 		HorizontalRateOfTurn: 10
 		Arm: 2
 		ManualGuidance: true
@@ -52,6 +52,9 @@ WGM:
 		Image: dragon
 		TrailImage: smokey
 		TrailScalePercent: 75
+		MinBypassProbabilityForTargeting: 100  # Requires clear line of sight to fire
+		# BypassModifier: 50              # 50% of normal bypass chance during flight
+		FullBypassDistance: 5c0         # Always bypass trees within 2 cells
 	Warhead@Target: TargetDamage
 		Damage: 10000
 		Penetration: 800
@@ -76,7 +79,7 @@ Hellfire:
 	Report: missile6.aud
 	Projectile: Missile
 		Speed: 500
-		MaximumLaunchSpeed: 100
+		LaunchSpeed: 100
 		Acceleration: 30
 		Inaccuracy: 512
 		HorizontalRateOfTurn: 30
@@ -105,7 +108,7 @@ Hellfire.strykershorad:
 	MinRange: 5c0
 	Report: missile6.aud
 	Projectile: Missile
-		MaximumLaunchSpeed: 50
+		LaunchSpeed: 50
 		Speed: 400
 
 TimerWolf_Missiles:
@@ -118,7 +121,7 @@ TimerWolf_Missiles:
 	MinRange: 5c0
 	Report: missile6.aud
 	Projectile: Missile
-		MaximumLaunchSpeed: 50
+		LaunchSpeed: 50
 		Acceleration: 30
 		Speed: 850
 		Inaccuracy: 1c0
@@ -162,7 +165,7 @@ SurfaceToAirMissile:
 	Report: missile1.aud
 	ValidTargets: Air, ICBM
 	Projectile: Missile
-		MaximumLaunchSpeed: 50
+		LaunchSpeed: 50
 		Acceleration: 35
 		Speed: 800
 		Inaccuracy: 400
@@ -195,7 +198,7 @@ AirToAirMissile:
 	BurstWait: 30
 	Report: missile7.aud
 	Projectile: Missile
-		MaximumLaunchSpeed: 400
+		LaunchSpeed: 400
 		Acceleration: 35
 		Speed: 800
 		Inaccuracy: 400
@@ -219,7 +222,7 @@ MANPAD:
 	BurstWait: 200
 	Report: missile1.aud
 	Projectile: Missile
-		MaximumLaunchSpeed: 20
+		LaunchSpeed: 20
 		Acceleration: 25
 		Speed: 550
 		Inaccuracy: 400
@@ -247,7 +250,7 @@ Stinger:
 		RangeLimit: 30c0
 		Speed: 550
 		Acceleration: 35
-		MaximumLaunchSpeed: 50
+		LaunchSpeed: 50
 		HorizontalRateOfTurn: 35
 		Arm: 5
 		Blockable: false

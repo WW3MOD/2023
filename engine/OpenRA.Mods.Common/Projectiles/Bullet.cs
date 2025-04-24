@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using OpenRA.GameRules;
@@ -126,7 +115,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly WDist ContrailWidth = new WDist(1);
 
 		[Desc("RGB color at the contrail start.")]
-		public readonly Color ContrailStartColor = Color.DarkGray; // 169,169,169
+		public readonly Color ContrailStartColor = Color.DarkGray;
 
 		[Desc("Use player remap color instead of a custom color at the contrail the start.")]
 		public readonly bool ContrailStartColorUsePlayerColor = false;
@@ -135,13 +124,22 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly int ContrailStartColorAlpha = 150;
 
 		[Desc("RGB color at the contrail end. Set to start color if undefined")]
-		public readonly Color? ContrailEndColor = Color.Gray; // 128,128,128
+		public readonly Color? ContrailEndColor = Color.Gray;
 
 		[Desc("Use player remap color instead of a custom color at the contrail end.")]
 		public readonly bool ContrailEndColorUsePlayerColor = false;
 
 		[Desc("The alpha value [from 0 to 255] of color at the contrail end.")]
 		public readonly int ContrailEndColorAlpha = 60;
+
+		[Desc("Minimum cumulative bypass probability required for targeting, in percent.")]
+		public readonly int MinBypassProbabilityForTargeting = 0;
+
+		[Desc("Modifier for bypass chance during projectile flight, in percent.")]
+		public readonly int BypassModifier = 100;
+
+		[Desc("Distance from shooter where bypass chance is 100%.")]
+		public readonly WDist FullBypassDistance = WDist.Zero;
 
 		public IProjectile Create(ProjectileArgs args) { return new Bullet(this, args); }
 	}
@@ -168,6 +166,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		int length;
 		int ticks, smokeTicks;
 		int remainingBounces;
+		int targetDist;
 
 		public Bullet(BulletInfo info, ProjectileArgs args)
 		{
@@ -175,15 +174,14 @@ namespace OpenRA.Mods.Common.Projectiles
 			this.args = args;
 			pos = args.CurrentSource();
 			source = args.CurrentSource();
+			targetDist = (args.PassiveTarget - source).Length;
 
 			var world = args.SourceActor.World;
 
-			// If two LaunchAngle values are provided, the first is angle at MinRange, second at MaxRange
 			if (info.LaunchAngle.Length > 1)
 			{
 				var targetRange = pos - args.PassiveTarget;
 				var rangePercent = (float)(targetRange.Length - args.Weapon.MinRange.Length) / (float)(args.Weapon.Range.Length - args.Weapon.MinRange.Length);
-
 				angle = new WAngle((int)(info.LaunchAngle[0].Angle + rangePercent * (info.LaunchAngle[1].Angle - info.LaunchAngle[0].Angle)));
 			}
 			else
@@ -197,8 +195,6 @@ namespace OpenRA.Mods.Common.Projectiles
 			target = args.PassiveTarget;
 			if (info.Inaccuracy.Length > 0)
 			{
-				/* if (args.SourceActor) */
-
 				var maxInaccuracyOffset = Util.GetProjectileInaccuracy(info.Inaccuracy.Length, info.InaccuracyType, args);
 				if (info.MinInaccuracy != WDist.Zero)
 				{
@@ -294,12 +290,7 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		bool ShouldExplode(World world)
 		{
-			/* // TODO
-			var aaa = (args.SourceActor.CenterPosition - lastPos).Length;
-			var bbb = (args.SourceActor.CenterPosition - lastPos); */
-
-			// Check for walls or other blocking obstacles
-			if (info.Blockable && (args.SourceActor.CenterPosition - lastPos).Length > 2048 && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true))
+			if (info.Blockable && (args.SourceActor.CenterPosition - lastPos).Length > 2048 && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true, info.BypassModifier, source, targetDist, info.FullBypassDistance.Length))
 			{
 				pos = blockedPos;
 				return true;
@@ -331,15 +322,12 @@ namespace OpenRA.Mods.Common.Projectiles
 				remainingBounces--;
 			}
 
-			// Flight length reached / exceeded
 			if (flightLengthReached && !shouldBounce)
 				return true;
 
-			// Driving into cell with higher height level
 			if (world.Map.DistanceAboveTerrain(pos).Length < 0)
 				return true;
 
-			// After first bounce, check for targets each tick
 			if (remainingBounces < info.BounceCount && AnyValidTargetsInRadius(world, pos, info.Width, args.SourceActor, true))
 				return true;
 
@@ -404,8 +392,6 @@ namespace OpenRA.Mods.Common.Projectiles
 				if (!info.ValidBounceBlockerRelationships.HasRelationship(firedBy.Owner.RelationshipWith(victim.Owner)))
 					continue;
 
-				// If the impact position is within any actor's HitShape, we have a direct hit
-				// PERF: Avoid using TraitsImplementing<HitShape> that needs to find the actor in the trait dictionary.
 				foreach (var targetPos in victim.EnabledTargetablePositions)
 					if (targetPos is HitShape h)
 						if (h.DistanceFromEdge(victim, pos).Length <= 0)

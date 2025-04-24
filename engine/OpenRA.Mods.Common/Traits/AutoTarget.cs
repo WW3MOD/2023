@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -337,6 +338,7 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
+		// Only showing the modified ChooseTarget method. Replace this in your AutoTarget.cs.
 		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn)
 		{
 			var chosenTarget = Target.Invalid;
@@ -368,14 +370,9 @@ namespace OpenRA.Mods.Common.Traits
 				Player owner;
 				if (target.Type == TargetType.Actor)
 				{
-					// PERF: Most units can only attack enemy units. If this is the case but the target is not an enemy, we
-					// can bail early and avoid the more expensive targeting checks and armament selection. For groups of
-					// allied units, this helps significantly reduce the cost of auto target scans. This is important as
-					// these groups will continuously rescan their allies until an enemy finally comes into range.
 					if (attackStances == PlayerRelationship.Enemy && !target.Actor.AppearsHostileTo(self))
 						continue;
 
-					// Check whether we can auto-target this actor
 					targetTypes = target.Actor.GetEnabledTargetTypes();
 
 					if (PreventsAutoTarget(self, target.Actor) || !target.Actor.CanBeViewedByPlayer(self.Owner))
@@ -396,15 +393,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				var validPriorities = activePriorities.Where(ati =>
 				{
-					// // Already have a higher priority target
-					// if (ati.Priority < chosenTargetPriority)
-					// 	return false;
-
-					// Incompatible relationship
 					if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
 						return false;
 
-					// Incompatible target types
 					if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
 						return false;
 
@@ -414,7 +405,6 @@ namespace OpenRA.Mods.Common.Traits
 				if (validPriorities.Count == 0)
 					continue;
 
-				// Make sure that we can actually fire on the actor
 				var armaments = ab.ChooseArmamentsForTarget(target, false);
 				if (!allowMove)
 					armaments = armaments.Where(arm =>
@@ -427,15 +417,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (!allowTurn && !ab.TargetInFiringArc(self, target, ab.Info.FacingTolerance))
 					continue;
 
-				if (target.Type != TargetType.Invalid)
-				{
-					if (self.TraitOrDefault<IndirectFire>() == null)
-						if (BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out var blockedPos, true, true))
-						{
-							// Already checked in TargetInFiringArc, might be unneccesary/inefficient
-							continue;
-						}
-				}
+				var cumulativeBypass = BlocksProjectiles.GetCumulativeBypassProbability(self.World, self.Owner, self.CenterPosition, target.CenterPosition, new WDist(1), self, true);
+				if (self.TraitOrDefault<IndirectFire>() == null && !armaments.Any(a =>
+					(a.Weapon.Projectile as BulletInfo)?.MinBypassProbabilityForTargeting <= cumulativeBypass ||
+					(a.Weapon.Projectile as MissileInfo)?.MinBypassProbabilityForTargeting <= cumulativeBypass))
+					continue;
 
 				if (target.Actor == null)
 					continue;
@@ -444,7 +430,6 @@ namespace OpenRA.Mods.Common.Traits
 
 				var priorityValue = 0;
 
-				// Evaluate whether we want to target this actor
 				foreach (var ati in validPriorities)
 				{
 					priorityValue = 0;
@@ -455,21 +440,16 @@ namespace OpenRA.Mods.Common.Traits
 					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
 						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
 
-					// Shorter range has higher priority
 					priorityValue += targetRange;
 
-					// Don't overkill
 					if (target.Actor.AverageDamagePercent > 200)
 						priorityValue *= target.Actor.AverageDamagePercent - 100;
 
-					// Optionally: Prioritize targets with the priorityCondition
 					if (ati.ConditionalPriority > 0)
 						priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
 
-					// Divide by the original Priority value, lower Priority is more prioritized
 					priorityValue /= ati.Priority;
 
-					// Reversed from original OpenRA, lower value is higher priority. If we have no chosen target this is the first and should be added directly.
 					if (priorityValue >= chosenTargetValue && chosenTarget.Type != TargetType.Invalid)
 						continue;
 
