@@ -1,7 +1,11 @@
 In Progresss
 
-- Mobile sensor, doesnt work
+- air
+
+- counterbattery
     - CounterBatteryRadar
+
+- bypass
 
 
 2025 prio
