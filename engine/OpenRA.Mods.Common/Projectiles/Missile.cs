@@ -74,9 +74,6 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Is the missile aware of terrain height levels. Only needed for mods with real, non-visual height levels.")]
 		public readonly bool TerrainHeightAware = false;
 
-		[Desc("Width of projectile (used for finding blocking actors).")]
-		public readonly WDist Width = new WDist(1);
-
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
@@ -189,6 +186,9 @@ namespace OpenRA.Mods.Common.Projectiles
 			"Note: If this value is lower than the missile speed, this check might",
 			"not trigger fast enough, causing the missile to fly past the target.")]
 		public readonly WDist CloseEnough = new WDist(298);
+
+		[Desc("Width of projectile (used for finding blocking actors).")]
+		public readonly WDist Width = new WDist(1);
 
 		// Existing properties remain unchanged. Add these new ones:
 		[Desc("Minimum cumulative bypass probability required for targeting, in percent.")]

@@ -74,9 +74,6 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Is this blocked by actors with BlocksProjectiles trait.")]
 		public readonly bool Blockable = true;
 
-		[Desc("Width of projectile (used for finding blocking actors).")]
-		public readonly WDist Width = new WDist(1);
-
 		[Desc("Arc in WAngles, two values indicate variable arc.")]
 		public readonly WAngle[] LaunchAngle = { WAngle.Zero };
 
@@ -131,6 +128,9 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		[Desc("The alpha value [from 0 to 255] of color at the contrail end.")]
 		public readonly int ContrailEndColorAlpha = 60;
+
+		[Desc("Width of projectile (used for finding blocking actors).")]
+		public readonly WDist Width = new WDist(1);
 
 		[Desc("Minimum cumulative bypass probability required for targeting, in percent.")]
 		public readonly int MinBypassProbabilityForTargeting = 0;
