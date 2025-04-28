@@ -98,8 +98,6 @@ namespace OpenRA.Widgets
 
 		public static bool HandleInput(MouseInput mi)
 		{
-			// WW3MOD: Log input polling for delay diagnostics
-			Console.WriteLine("Ui.HandleInput: Modifiers={0}, Button={1}, Event={2}", mi.Modifiers, mi.Button, mi.Event);
 			var wasMouseOver = MouseOverWidget;
 
 			if (mi.Event == MouseInputEvent.Move)
@@ -602,15 +600,10 @@ namespace OpenRA.Widgets
 	public class ContainerWidget : Widget
 	{
 		public readonly bool ClickThrough = true;
-		public int2 ButtonStride = int2.Zero; // WW3MOD: Added for settings panel button spacing
 
 		public ContainerWidget() { IgnoreMouseOver = true; }
 		public ContainerWidget(ContainerWidget other)
-			: base(other)
-		{
-			IgnoreMouseOver = true;
-			ButtonStride = other.ButtonStride;
-		}
+			: base(other) { IgnoreMouseOver = true; }
 
 		public override string GetCursor(int2 pos) { return null; }
 		public override Widget Clone() { return new ContainerWidget(this); }

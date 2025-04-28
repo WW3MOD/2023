@@ -1,4 +1,14 @@
-using System.Collections.Generic;
+#region Copyright & License Information
+/*
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
 using OpenRA.Primitives;
 using OpenRA.Widgets;
 
@@ -9,8 +19,6 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly bool ClickThrough = false;
 		public readonly bool Draggable = false;
 		public string Background = "dialog";
-		public Dictionary<string, string> Panels = new Dictionary<string, string>(); // WW3MOD: Added to support Panels field
-		public int2 ButtonStride = int2.Zero; // Added for WW3MOD settings panel button spacing
 
 		public override void Draw()
 		{
@@ -57,10 +65,8 @@ namespace OpenRA.Mods.Common.Widgets
 			: base(other)
 		{
 			Background = other.Background;
-			Panels = new Dictionary<string, string>(other.Panels);
 			ClickThrough = other.ClickThrough;
 			Draggable = other.Draggable;
-			ButtonStride = other.ButtonStride;
 		}
 
 		public override Widget Clone() { return new BackgroundWidget(this); }
