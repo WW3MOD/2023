@@ -59,6 +59,8 @@
 	Voiced:
 		VoiceSet: GenericVoice
 	HitShape:
+		Type: Circle
+			Radius: 32
 	MapEditorData:
 		Categories: Aircraft
 	Explodes:
@@ -74,18 +76,16 @@
 		RepairActors: afld
 	Aircraft:
 		TakeOffOnCreation: False
+^AirRadar:
 	Radar:
-		Range: 42c0
+		Range: 24c0
 		RequiresCondition: airborne
 	WithRangeCircle@Radar:
-		Range: 42c0
+		Range: 24c0
 		Color: 000000
 		Width: 5
 		Alpha: 50
 		RequiresCondition: airborne
-	SpeedMultiplier@Rank_4:
-		RequiresCondition: rank-veteran == 4
-		Modifier: 120
 
 ^Aircraft:
 	Inherits@Type: ^Airborne

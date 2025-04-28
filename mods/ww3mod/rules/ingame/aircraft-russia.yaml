@@ -21,6 +21,8 @@ HALO:
 	Armor:
 		Type: Light
 		Thickness: 6
+	Targetable@Armor:
+		TargetTypes: Light
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 240
@@ -95,6 +97,8 @@ HIND:
 	Armor:
 		Type: Heavy
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 10
 		Speed: 195
@@ -205,6 +209,7 @@ HIND:
 
 MI28:
 	Inherits@Type: ^Helicopter
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	AutoTarget:
 		InitialStance: Defend
@@ -228,6 +233,8 @@ MI28:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 12
 		Speed: 245
@@ -330,6 +337,7 @@ MI28:
 
 FROG:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Inherits@GainsExperience: ^GainsExperience
 	Buildable:
@@ -347,6 +355,8 @@ FROG:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	AttackAircraft:
 		Armaments: primary
 		FacingTolerance: 5
@@ -442,6 +452,7 @@ FROG:
 
 MIG:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Buildable:
 		Queue: Aircraft
@@ -462,6 +473,8 @@ MIG:
 		HP: 550
 	Armor:
 		Type: Medium
+	Targetable@Armor:
+		TargetTypes: Medium
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
