@@ -592,6 +592,7 @@ namespace OpenRA.Mods.Common.Traits
 						return false;
 				}
 			}
+
 			public bool IsQueued { get; protected set; }
 		}
 	}
