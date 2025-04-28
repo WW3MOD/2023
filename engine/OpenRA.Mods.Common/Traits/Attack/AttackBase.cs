@@ -511,7 +511,7 @@ namespace OpenRA.Mods.Common.Traits
 			public int OrderPriority { get; }
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
-			bool CanTargetActor(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			bool CanTargetActor(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
@@ -522,11 +522,8 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				// Disguised actors are revealed by the attack cursor
-				// HACK: works around limitations in the targeting code that force the
-				// targeting and attacking logic (which should be logically separate)
-				// to use the same code
 				if (target.Type == TargetType.Actor && target.Actor.EffectiveOwner != null &&
-						target.Actor.EffectiveOwner.Disguised && self.Owner.RelationshipWith(target.Actor.Owner) == PlayerRelationship.Enemy)
+					target.Actor.EffectiveOwner.Disguised && self.Owner.RelationshipWith(target.Actor.Owner) == PlayerRelationship.Enemy)
 					modifiers |= TargetModifiers.ForceAttack;
 
 				var forceAttack = modifiers.HasModifier(TargetModifiers.ForceAttack);
@@ -535,15 +532,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (!armaments.Any())
 					return false;
 
-				// Use valid armament with highest range out of those that have ammo
-				// If all are out of ammo, just use valid armament with highest range
 				armaments = armaments.OrderByDescending(x => x.MaxRange());
-				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused);
+				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
 
-				if (a == null)
-					a = armaments.First();
-
-				// FF TODO, What if unit has both arm with and without ammopool? Seems to work
 				if (armaments.All(armament => armament.AmmoPool != null && !armament.AmmoPool.HasAmmo))
 					return false;
 
@@ -562,14 +553,13 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			bool CanTargetLocation(Actor self, CPos location, TargetModifiers modifiers, ref string cursor)
+			bool CanTargetLocation(Actor self, CPos location, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (!self.World.Map.Contains(location))
 					return false;
 
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				// Targeting the terrain is only possible with force-attack modifier
 				if (modifiers.HasModifier(TargetModifiers.ForceMove) || !modifiers.HasModifier(TargetModifiers.ForceAttack))
 					return false;
 
@@ -578,12 +568,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (!armaments.Any())
 					return false;
 
-				// Use valid armament with highest range out of those that have ammo
-				// If all are out of ammo, just use valid armament with highest range
 				armaments = armaments.OrderByDescending(x => x.MaxRange());
-				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused);
-				if (a == null)
-					a = armaments.First();
+				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
 
 				cursor = !target.IsInRange(self.CenterPosition, a.MaxRange())
 					? ab.Info.OutsideRangeCursor ?? a.Info.OutsideRangeCursor
@@ -593,20 +579,19 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				switch (target.Type)
 				{
 					case TargetType.Actor:
 					case TargetType.FrozenActor:
-						return CanTargetActor(self, target, ref modifiers, ref cursor);
+						return CanTargetActor(self, target, othersAtTarget, xy, modifiers, ref cursor);
 					case TargetType.Terrain:
-						return CanTargetLocation(self, self.World.Map.CellContaining(target.CenterPosition), modifiers, ref cursor);
+						return CanTargetLocation(self, self.World.Map.CellContaining(target.CenterPosition), othersAtTarget, xy, modifiers, ref cursor);
 					default:
 						return false;
 				}
 			}
-
 			public bool IsQueued { get; protected set; }
 		}
 	}

@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
@@ -191,24 +180,18 @@ namespace OpenRA.Mods.Cnc.Traits
 		public bool IsQueued { get; protected set; }
 		public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
-		public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+		public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 		{
-			if (modifiers.HasModifier(TargetModifiers.ForceMove))
-			{
-				var xy = self.World.Map.CellContaining(target.CenterPosition);
-
-				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
-
-				if (self.IsInWorld && self.Owner.MapLayers.IsExplored(xy))
-				{
-					cursor = targetCursor;
-					return true;
-				}
-
+			if (!modifiers.HasModifier(TargetModifiers.ForceMove))
 				return false;
-			}
 
-			return false;
+			IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
+
+			if (!self.IsInWorld || !self.Owner.MapLayers.IsExplored(xy))
+				return false;
+
+			cursor = targetCursor;
+			return true;
 		}
 	}
 
@@ -234,7 +217,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			}
 
 			if (self.IsInWorld && self.Location != cell
-				&& self.Trait<PortableChrono>().CanTeleport && self.Owner.MapLayers.IsExplored(cell))
+				&& portableChrono.CanTeleport && self.Owner.MapLayers.IsExplored(cell))
 			{
 				world.CancelInputMode();
 				yield return new Order("PortableChronoTeleport", self, Target.FromCell(world, cell), mi.Modifiers.HasModifier(Modifiers.Shift));

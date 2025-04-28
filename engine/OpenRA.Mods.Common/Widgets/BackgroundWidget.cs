@@ -19,6 +19,7 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly bool ClickThrough = false;
 		public readonly bool Draggable = false;
 		public string Background = "dialog";
+		public int2 ButtonStride = int2.Zero; // Added for WW3MOD settings panel button spacing
 
 		public override void Draw()
 		{
@@ -67,6 +68,7 @@ namespace OpenRA.Mods.Common.Widgets
 			Background = other.Background;
 			ClickThrough = other.ClickThrough;
 			Draggable = other.Draggable;
+			ButtonStride = other.ButtonStride;
 		}
 
 		public override Widget Clone() { return new BackgroundWidget(this); }

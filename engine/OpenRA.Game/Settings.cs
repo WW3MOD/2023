@@ -289,6 +289,19 @@ namespace OpenRA
 		public bool EnableDiscordService = true;
 
 		public TextNotificationPoolFilters TextNotificationPoolFilters = TextNotificationPoolFilters.Feedback | TextNotificationPoolFilters.Transients;
+
+		// WW3MOD: Added for configurable key bindings
+		[Desc("Mouse button for attack move (Left, Right, Middle).")]
+		public MouseButton AttackMoveButton = MouseButton.Right;
+
+		[Desc("Modifiers for attack move (None, Alt, Ctrl, Shift).")]
+		public Modifiers AttackMoveModifiers = Modifiers.Alt;
+
+		[Desc("Modifiers for force move (None, Alt, Ctrl, Shift).")]
+		public Modifiers ForceMoveModifiers = Modifiers.Ctrl;
+
+		[Desc("Modifiers for force attack (None, Alt, Ctrl, Shift, Ctrl+Alt).")]
+		public Modifiers ForceAttackModifiers = Modifiers.Ctrl | Modifiers.Alt;
 	}
 
 	public class Settings
@@ -305,9 +318,6 @@ namespace OpenRA
 
 		public readonly Dictionary<string, object> Sections;
 
-		// A direct clone of the file loaded from disk.
-		// Any changed settings will be merged over this on save,
-		// allowing us to persist any unknown configuration keys
 		readonly List<MiniYamlNode> yamlCache = new List<MiniYamlNode>();
 
 		public Settings(string file, Arguments args)
@@ -323,7 +333,6 @@ namespace OpenRA
 				{ "Debug", Debug },
 			};
 
-			// Override fieldloader to ignore invalid entries
 			var err1 = FieldLoader.UnknownFieldAction;
 			var err2 = FieldLoader.InvalidValueAction;
 			try
@@ -346,7 +355,6 @@ namespace OpenRA
 								Keys[node.Key] = FieldLoader.GetValue<Hotkey>(node.Key, node.Value.Value);
 				}
 
-				// Override with commandline args
 				foreach (var kv in Sections)
 					foreach (var f in kv.Value.GetType().GetFields())
 						if (args.Contains(kv.Key + "." + f.Name))
@@ -377,13 +385,10 @@ namespace OpenRA
 					var serialized = FieldSaver.FormatValue(kv.Value, fli.Field);
 					var defaultSerialized = FieldSaver.FormatValue(defaultValues, fli.Field);
 
-					// Fields with their default value are not saved in the settings yaml
-					// Make sure that we erase any previously defined custom values
 					if (serialized == defaultSerialized)
 						sectionYaml.Value.Nodes.RemoveAll(n => n.Key == fli.YamlName);
 					else
 					{
-						// Update or add the custom value
 						var fieldYaml = sectionYaml.Value.Nodes.FirstOrDefault(n => n.Key == fli.YamlName);
 						if (fieldYaml != null)
 							fieldYaml.Value.Value = serialized;
@@ -414,7 +419,6 @@ namespace OpenRA
 
 			var clean = dirty;
 
-			// reserved characters for MiniYAML and JSON
 			var disallowedChars = new char[] { '#', '@', ':', '\n', '\t', '[', ']', '{', '}', '"', '`' };
 			foreach (var disallowedChar in disallowedChars)
 				clean = clean.Replace(disallowedChar.ToString(), string.Empty);
@@ -441,7 +445,6 @@ namespace OpenRA
 			if (string.IsNullOrWhiteSpace(clean) || forbiddenNames.Contains(clean) || botNames.Contains(clean))
 				clean = new PlayerSettings().Name;
 
-			// avoid UI glitches
 			if (clean.Length > 16)
 				clean = clean.Substring(0, 16);
 

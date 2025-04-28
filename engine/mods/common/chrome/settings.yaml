@@ -1,17 +1,18 @@
 Background@SETTINGS_PANEL:
 	Logic: SettingsLogic
-		ButtonStride: 0, 35
-		Panels:
-			DISPLAY_PANEL: Display
-			AUDIO_PANEL: Audio
-			INPUT_PANEL: Input
-			HOTKEYS_PANEL: Hotkeys
-			ADVANCED_PANEL: Advanced
+	ButtonStride: 0, 35
+	Panels:
+		DISPLAY_PANEL: Display
+		AUDIO_PANEL: Audio
+		INPUT_PANEL: Input
+		HOTKEYS_PANEL: Hotkeys
+		ADVANCED_PANEL: Advanced
 	X: (WINDOW_RIGHT - WIDTH) / 2
-	Y: (WINDOW_BOTTOM -  HEIGHT) / 2
+	Y: (WINDOW_BOTTOM - HEIGHT) / 2
 	Width: 900
 	Height: 600
 	Children:
+		# ... other widgets ...
 		Label@SETTINGS_LABEL_TITLE:
 			Y: 20
 			Width: PARENT_RIGHT
@@ -44,7 +45,7 @@ Background@SETTINGS_PANEL:
 					Width: 160
 					Height: 25
 					Font: Bold
-		Container@PANEL_CONTAINER:
+			Container@PANEL_CONTAINER:
 			Width: PARENT_RIGHT
 			Height: PARENT_BOTTOM
 			Children:
@@ -53,4 +54,38 @@ Background@SETTINGS_PANEL:
 					Y: 50
 					Width: PARENT_RIGHT - 190 - 20
 					Height: PARENT_BOTTOM - 105
+				Container@INPUT_PANEL:
+					X: 190
+					Y: 50
+					Width: PARENT_RIGHT - 190 - 20
+					Height: PARENT_BOTTOM - 105
+					Children:
+						DropDownButton@ATTACK_MOVE_BUTTON:
+							X: 0
+							Y: 0
+							Width: 150
+							Height: 25
+							Text: Attack Move Button
+							Font: Regular
+						DropDownButton@ATTACK_MOVE_MODIFIERS:
+							X: 0
+							Y: 35
+							Width: 150
+							Height: 25
+							Text: Attack Move Modifiers
+							Font: Regular
+						DropDownButton@FORCE_MOVE_MODIFIERS:
+							X: 0
+							Y: 70
+							Width: 150
+							Height: 25
+							Text: Force Move Modifiers
+							Font: Regular
+						DropDownButton@FORCE_ATTACK_MODIFIERS:
+							X: 0
+							Y: 105
+							Width: 150
+							Height: 25
+							Text: Force Attack Modifiers
+							Font: Regular
 		TooltipContainer@SETTINGS_TOOLTIP_CONTAINER:

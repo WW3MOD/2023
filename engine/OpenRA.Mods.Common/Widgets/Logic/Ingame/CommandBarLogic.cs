@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -61,13 +50,10 @@ namespace OpenRA.Mods.Common.Widgets
 
 				Action<bool> toggle = allowCancel =>
 				{
-					if (attackMoveButton.IsHighlighted())
-					{
-						if (allowCancel)
-							world.CancelInputMode();
-					}
+					if (attackMoveButton.IsHighlighted() && allowCancel)
+						world.CancelInputMode();
 					else
-						world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors, Game.Settings.Game.MouseButtonPreference.Action);
+						world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors);
 				};
 
 				attackMoveButton.OnClick = () => toggle(true);
@@ -80,13 +66,13 @@ namespace OpenRA.Mods.Common.Widgets
 				WidgetUtils.BindButtonIcon(forceMoveButton);
 
 				forceMoveButton.IsDisabled = () => { UpdateStateIfNecessary(); return forceMoveDisabled; };
-				forceMoveButton.IsHighlighted = () => !forceMoveButton.IsDisabled() && IsForceModifiersActive(Modifiers.Alt);
+				forceMoveButton.IsHighlighted = () => !forceMoveButton.IsDisabled() && IsForceModifiersActive(Game.Settings.Game.ForceMoveModifiers, Game.Settings.Game.ForceAttackModifiers) && !(world.OrderGenerator is AttackMoveOrderGenerator);
 				forceMoveButton.OnClick = () =>
 				{
 					if (forceMoveButton.IsHighlighted())
 						world.CancelInputMode();
 					else
-						world.OrderGenerator = new ForceModifiersOrderGenerator(Modifiers.Alt, true);
+						world.OrderGenerator = new ForceModifiersOrderGenerator(Game.Settings.Game.ForceMoveModifiers, true);
 				};
 			}
 
@@ -96,15 +82,14 @@ namespace OpenRA.Mods.Common.Widgets
 				WidgetUtils.BindButtonIcon(forceAttackButton);
 
 				forceAttackButton.IsDisabled = () => { UpdateStateIfNecessary(); return forceAttackDisabled; };
-				forceAttackButton.IsHighlighted = () => !forceAttackButton.IsDisabled() && IsForceModifiersActive(Modifiers.Ctrl)
-					&& !(world.OrderGenerator is AttackMoveOrderGenerator);
+				forceAttackButton.IsHighlighted = () => !forceAttackButton.IsDisabled() && IsForceModifiersActive(Game.Settings.Game.ForceAttackModifiers, Modifiers.None);
 
 				forceAttackButton.OnClick = () =>
 				{
 					if (forceAttackButton.IsHighlighted())
 						world.CancelInputMode();
 					else
-						world.OrderGenerator = new ForceModifiersOrderGenerator(Modifiers.Ctrl, true);
+						world.OrderGenerator = new ForceModifiersOrderGenerator(Game.Settings.Game.ForceAttackModifiers, true);
 				};
 			}
 
@@ -226,7 +211,7 @@ namespace OpenRA.Mods.Common.Widgets
 				WidgetUtils.BindButtonIcon(queueOrdersButton);
 
 				queueOrdersButton.IsDisabled = () => { UpdateStateIfNecessary(); return waypointModeDisabled; };
-				queueOrdersButton.IsHighlighted = () => !queueOrdersButton.IsDisabled() && IsForceModifiersActive(Modifiers.Shift);
+				queueOrdersButton.IsHighlighted = () => !queueOrdersButton.IsDisabled() && IsForceModifiersActive(Modifiers.Shift, Modifiers.None);
 				queueOrdersButton.OnClick = () =>
 				{
 					if (queueOrdersButton.IsHighlighted())
@@ -251,15 +236,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 						foreach (var b in noShiftButtons)
 						{
-							// Button is not used by this mod
-							if (b == null)
+							if (b == null || b.IsDisabled() || !b.Key.IsActivatedBy(eNoShift))
 								continue;
 
-							// Button is not valid for this event
-							if (b.IsDisabled() || !b.Key.IsActivatedBy(eNoShift))
-								continue;
-
-							// Event is not valid for this button
 							if (!(b.DisableKeyRepeat ^ e.IsRepeat) || (e.Event == KeyInputEvent.Up && !keyUpButtons.Contains(b)))
 								continue;
 
@@ -268,15 +247,31 @@ namespace OpenRA.Mods.Common.Widgets
 						}
 					}
 
-					// HACK: Attack move can be triggered if the ctrl (assault move modifier)
-					// or shift (queue order modifier) keys are pressed, on both key down and key up
-					var eNoMods = e;
-					eNoMods.Modifiers &= ~(Modifiers.Ctrl | Modifiers.Shift);
-
-					if (attackMoveButton != null && !attackMoveDisabled && attackMoveButton.Key.IsActivatedBy(eNoMods))
+					// WW3MOD: Assault Move is disabled; only AttackMove is triggered
+					if (attackMoveButton != null && !attackMoveDisabled)
 					{
-						attackMoveButton.OnKeyPress(e);
-						return true;
+						// Prioritize ForceAttack (Ctrl + Alt) over AttackMove (Alt)
+						var currentModifiers = Game.GetModifierKeys();
+						if (currentModifiers == Game.Settings.Game.ForceAttackModifiers)
+						{
+							if (e.Event == KeyInputEvent.Down)
+								world.OrderGenerator = new ForceModifiersOrderGenerator(Game.Settings.Game.ForceAttackModifiers, true);
+							else if (e.Event == KeyInputEvent.Up)
+								world.CancelInputMode();
+							return true;
+						}
+						// AttackMove requires Alt alone (or with Shift for queuing)
+						else if (currentModifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) && !currentModifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
+						{
+							if (e.Event == KeyInputEvent.Down)
+							{
+								UpdateStateIfNecessary(); // Ensure immediate selection update
+								world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors);
+							}
+							else if (e.Event == KeyInputEvent.Up)
+								world.CancelInputMode();
+							return true;
+						}
 					}
 
 					return false;
@@ -298,12 +293,15 @@ namespace OpenRA.Mods.Common.Widgets
 			base.Tick();
 		}
 
-		bool IsForceModifiersActive(Modifiers modifiers)
+		bool IsForceModifiersActive(Modifiers primaryModifier, Modifiers conflictingModifier)
 		{
-			if (world.OrderGenerator is ForceModifiersOrderGenerator fmog && fmog.Modifiers.HasFlag(modifiers))
+			if (world.OrderGenerator is ForceModifiersOrderGenerator fmog && fmog.Modifiers == primaryModifier)
 				return true;
 
-			return world.OrderGenerator is UnitOrderGenerator && Game.GetModifierKeys().HasFlag(modifiers);
+			var currentModifiers = Game.GetModifierKeys();
+			return (world.OrderGenerator is UnitOrderGenerator || world.OrderGenerator is null)
+				&& currentModifiers == primaryModifier
+				&& (conflictingModifier == Modifiers.None || !currentModifiers.HasFlag(conflictingModifier));
 		}
 
 		void UpdateStateIfNecessary()
@@ -355,7 +353,6 @@ namespace OpenRA.Mods.Common.Widgets
 			var undeployed = selectedDeploys
 				.Where(pair => pair.Actor.UnDeployed());
 
-			// If any units are undeployed, those should deploy. Only undeploy if all are deployed.
 			var unitsToIssueOrderTo = undeployed.Any() ? undeployed : selectedDeploys;
 
 			var orders = unitsToIssueOrderTo
