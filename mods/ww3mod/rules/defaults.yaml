@@ -754,15 +754,6 @@
 		Prerequisites: global-bounty
 	GivesBounty:
 		RequiresCondition: global-bounty
-# ^GlobalPenalty:
-# 	GrantConditionOnPrerequisite@GlobalPenalty:
-# 		Condition: global-penalty
-# 		Prerequisites: global-penalty
-# 	GivesBounty:
-# 		RequiresCondition: global-penalty
-# 		Fixed: -1000
-# 		Percentage: 0
-# 		# Promote: 1
 
 ^PlayerHandicaps:
 	HandicapProductionMultiplier:
@@ -770,7 +761,6 @@
 	# HandicapDamageMultiplier:
 	# HandicapProductionTimeMultiplier:
 
-# Use with extendable radar?
 ^DisguiseableTree:
 	Targetable:
 		TargetTypes: Trees, TreeDisguise
@@ -854,7 +844,6 @@
 		DecorationBounds: 1,1
 	SelectionDecorations:
 	RejectsOrders:
-# TODO: Check this for use with crater "summoning" for nuke
 unit.summoner:
 	Inherits@System: ^SummonerDummy
 	RenderSprites:
