@@ -42,6 +42,9 @@ namespace OpenRA.Mods.Common.Orders
 
 		public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 		{
+			if (target == null || target.Actor == null || target.Actor.IsDead)
+				return false;
+
 			// Allied actors are never frozen
 			if ((!self.Owner.IsAlliedWith(target.Actor.Owner) && !self.Owner.IsNeutralWith(target.Actor.Owner)) || !target.Actor.Info.HasTraitInfo<T>() || !canTarget(target.Actor, modifiers))
 				return false;

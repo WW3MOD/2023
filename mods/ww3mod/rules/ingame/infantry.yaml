@@ -2054,7 +2054,6 @@ MEDI:
 ^TECN:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
-	Inherits@CapturesNeutralBuildings: ^CapturesNeutralBuildings
 	-Wanders:
 	Tooltip:
 		Name: Technician

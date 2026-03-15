@@ -4,36 +4,50 @@ Player:
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
 		UnitsToBuild:
-			tecn.russia: 1000
-			e2.russia: 100
-			e3.russia: 100
+			# Conscripts -- low priority, mainly for capturing
+			tecn.russia: 500
+
+			# Core infantry -- high priority mix
+			e3.russia: 120
 			ar.russia: 100
-			tl.russia: 100
-			at.russia: 30
-			mt.russia: 30
-			medi.russia: 30
-			aa.russia: 20
-			sn.russia: 20
+			tl.russia: 80
+			e2.russia: 60
+
+			# Support infantry
+			at.russia: 50
+			mt.russia: 40
+			medi.russia: 40
+			aa.russia: 30
+			sn.russia: 25
 			e6.russia: 20
 
-			truk: 10
-			t90: 10
-			bmp2: 10
-			btr: 10
-			giatsint: 10
+			# Vehicles -- balanced force composition
+			btr: 30
+			bmp2: 25
+			t90: 20
+			giatsint: 15
+			tunguska: 10
+			grad: 10
+
+			# Supply trucks for resupply
+			truk: 15
 
 		UnitLimits:
 			truk: 3
 			tecn.russia: 3
 			e6.russia: 2
+			giatsint: 3
+			grad: 2
+			tunguska: 2
+			sn.russia: 3
 
 	SquadManagerBotModule@russia.land:
 		RequiresCondition: enable-ai-player && player.brics
-		SquadSize: 5
-		SquadSizeRandomBonus: 20
-		RushInterval: 100
+		SquadSize: 6
+		SquadSizeRandomBonus: 14
+		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 

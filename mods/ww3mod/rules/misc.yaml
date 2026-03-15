@@ -226,6 +226,8 @@ DRILLMINE:
 	AppearsOnMiniMap:
 	MiniMapColorFromTerrain:
 		Terrain: Rock
+	# SeedsResource:
+	# 	Interval: 50
 	# WithIdleAnimation:
 	# 	Interval: 175
 	RenderSprites:

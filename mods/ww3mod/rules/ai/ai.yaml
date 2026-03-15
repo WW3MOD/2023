@@ -26,44 +26,57 @@ Player:
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
 
-	# HarvesterBotModule@aiplayer:
-	# 	RequiresCondition: enable-ai-player
-	# 	HarvesterTypes: harv
-	# 	RefineryTypes: proc
-	# BuildingRepairBotModule@aiplayer:
-	# 	RequiresCondition: enable-ai-player
-	# McvManagerBotModule@aiplayer:
-	# 	RequiresCondition: enable-ai-player
-	# 	McvTypes: mcv,mcv2,mcv.ai
-	# 	ConstructionYardTypes: fact
-	# 	McvFactoryTypes: weap
-	# 	MaxBaseRadius: 40
+	BuildingRepairBotModule@aiplayer:
+		RequiresCondition: enable-ai-player
 
+	# Capture enemy logistics centers to deny resupply
+	CaptureManagerBotModule@captureenemystructures:
+		RequiresCondition: enable-ai-player
+		CapturingActorTypes: tecn,tecn.russia,tecn.america
+		CapturableActorTypes: logisticscenter
+		CheckCaptureTargetsForVisibility: true
+		MaximumCaptureTargetOptions: 10
 
-	# CaptureManagerBotModule@captureenemystructures:
-	# 	RequiresCondition: enable-ai-player && player.nato
-	# 	CapturingActorTypes: e1.america
-	# 	CapturableActorTypes: logisticscenter
-	# 	CheckCaptureTargetsForVisibility: true
-	# 	MaximumCaptureTargetOptions: 100
+	# AI builds aircraft -- Russia
+	UnitBuilderBotModule@russia.air:
+		RequiresCondition: enable-ai-player && player.brics
+		IdleBaseUnitsMaximum: 0
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			HIND: 100
+			MI28: 60
+			MIG: 30
+		UnitLimits:
+			HIND: 4
+			MI28: 3
+			MIG: 2
 
+	SquadManagerBotModule@russia.air:
+		RequiresCondition: enable-ai-player && player.brics
+		SquadSize: 2
+		SquadSizeRandomBonus: 2
+		RushInterval: 600
+		AttackScanRadius: 48
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
-	# UnitBuilderBotModule@russia.air:
-	# 	RequiresCondition: enable-ai-player && player.brics
-	# 	IdleBaseUnitsMaximum: 0
-	# 	UnitQueues: Aircraft
-	# 	UnitsToBuild:
-	# 		yak.ai: 60
-	# 		yak.belarus.ai: 60
-	# 		mig: 40
-	# 		hind: 100
-	# 	UnitLimits:
+	# AI builds aircraft -- America
+	UnitBuilderBotModule@america.air:
+		RequiresCondition: enable-ai-player && player.nato
+		IdleBaseUnitsMaximum: 0
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			HELI: 100
+			A10: 40
+			F16: 30
+		UnitLimits:
+			HELI: 4
+			A10: 2
+			F16: 2
 
-	# SquadManagerBotModule@russia.air:
-	# 	RequiresCondition: enable-ai-player && player.brics
-	# 	SquadSize: 2
-	# 	SquadSizeRandomBonus: 4
-	# 	RushInterval: 800
-	# 	AttackScanRadius: 48
-	# 	ExcludeFromSquadsTypes: # FF TODO
-	# 	IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+	SquadManagerBotModule@america.air:
+		RequiresCondition: enable-ai-player && player.nato
+		SquadSize: 2
+		SquadSizeRandomBonus: 2
+		RushInterval: 600
+		AttackScanRadius: 48
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
