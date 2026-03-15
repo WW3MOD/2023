@@ -1,11 +1,7 @@
 In Progresss
 
-- air
-
-- counterbattery
+- Mobile sensor, doesnt work
     - CounterBatteryRadar
-
-- bypass
 
 
 2025 prio
@@ -16,6 +12,27 @@ Units
 
 - Aircraft
     - Spawn/leave at edge
+
+- Infantry
+    - Variable defense?
+    - Make infantry fire on the move
+        - Force move is sprint
+        - Normal move prioritizes moving in covered areas. Change pathfinder to prioritize cells with higher cover.
+
+- Mobile sensor, doesnt work
+
+- DR
+    - Animations wrong, prepare drone runs periodically when idle. Also drone launches before prep animation is finished.
+    - Autotarget of other drones not working
+    - Anti drone weapon too effective, maybe freeze it in mid air and when it runs out of battery it falls?
+    - When drone dies it just disappears
+    - When EMPd it starts drifting strangely but kinda like it?
+- Flametrooper should be more effective against unarmored, like grad
+
+- Unit Description/Icons
+    - Description box size
+
+- Sounds
 
 - SupplyRoute fixes: Primary selection, SpawnAtEdge, LeaveMap, start with multiple? chainlink?
 
@@ -29,6 +46,10 @@ Trees
     - Tanks should shoot through trees if able to fire, but possibly lose some damage for each tree it passes
     - Always pass 1-2 trees?
     - Check distance to enemy and if close, it should be higher chance of hitting object, and if closer to shooter it should have higher chance of bypassing
+
+- Maps
+
+- Generate shadows on first run? Checkbox, deacticate shadow caster
 
 - Options
     - Change Short game to a drop down % of army value when you lose if you dont have any possibility to reinforce (lost SR)

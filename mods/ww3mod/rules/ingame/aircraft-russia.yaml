@@ -6,10 +6,10 @@ HALO:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.medium
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.medium
 		Description: Mil Mi-26 (Halo) Infantry Transport Helicopter.\n  - Unarmed
 	Valued:
-		Cost: 1000
+		Cost: 2000
 	Tooltip:
 		Name: Halo
 	RenderSprites:
@@ -21,6 +21,8 @@ HALO:
 	Armor:
 		Type: Light
 		Thickness: 6
+	Targetable@Armor:
+		TargetTypes: Light
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 240
@@ -80,12 +82,12 @@ HIND:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
-		Cost: 1
+		Cost: 4000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -95,8 +97,10 @@ HIND:
 	Armor:
 		Type: Heavy
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
-		TurnSpeed: 12
+		TurnSpeed: 10
 		Speed: 195
 		InitialFacing: 192
 	AttackAircraft:
@@ -205,6 +209,7 @@ HIND:
 
 MI28:
 	Inherits@Type: ^Helicopter
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	AutoTarget:
 		InitialStance: Defend
@@ -213,12 +218,12 @@ MI28:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.
 	Tooltip:
 		Name: Mi-28
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -228,8 +233,10 @@ MI28:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 245
 	AttackAircraft:
 		FacingTolerance: 60
@@ -330,16 +337,17 @@ MI28:
 
 FROG:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Inherits@GainsExperience: ^GainsExperience
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 4
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia,
+		Prerequisites: ~player.russia, ~aircraft.russia,
 		Description: Ground-Attack Plane
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	Tooltip:
 		Name: Su-25 Frogfoot
 	Health:
@@ -347,13 +355,15 @@ FROG:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	AttackAircraft:
 		Armaments: primary
 		FacingTolerance: 5
 	Aircraft:
 		CruiseAltitude: 1560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 420
 		RepulsionSpeed: 27
 		MaximumPitch: 56
@@ -442,17 +452,18 @@ FROG:
 
 MIG:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 5
-		Prerequisites: ~disabled, ~player.russia, ~aircraft.russia, ~techlevel.high
+		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
 		Description: Fast Multi-Role Attack Plane.
 	Tooltip:
 		Name: MiG-29 Falcrum
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -462,10 +473,12 @@ MIG:
 		HP: 550
 	Armor:
 		Type: Medium
+	Targetable@Armor:
+		TargetTypes: Medium
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 525
 		IdleSpeed: 200
 		RepulsionSpeed: 27

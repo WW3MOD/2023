@@ -6,10 +6,10 @@ TRAN:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
 		Description: Fast Infantry Transport Helicopter.\n  Unarmed
 	Valued:
-		Cost: 1200
+		Cost: 2000
 	Tooltip:
 		Name: Chinook
 	UpdatesPlayerStatistics:
@@ -19,6 +19,8 @@ TRAN:
 	Armor:
 		Type: Light
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Light
 	Selectable:
 		DecorationBounds: 1700,1536
 	Aircraft:
@@ -82,12 +84,12 @@ littlebird:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
 		Description: Light helicopter armed with dual chainguns.
 	Tooltip:
 		Name: Littlebird
 	Valued:
-		Cost: 1500
+		Cost: 3000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
@@ -95,11 +97,13 @@ littlebird:
 	Armor:
 		Type: Light
 		Thickness: 5
+	Targetable@Armor:
+		TargetTypes: Light
 	Aircraft:
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
 		InitialFacing: 224
-		TurnSpeed: 8
+		TurnSpeed: 15
 		Speed: 265
 		LandableTerrainTypes: Clear,Rough,Road,Beach
 	AttackAircraft:
@@ -203,7 +207,7 @@ littlebird:
 littlebird.AI:
 	Inherits: littlebird
 	Buildable:
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
 		Description: Light helicopter armed with dual chainguns.\n
 	AttackAircraft:
 		Armaments: primary, secondary
@@ -212,6 +216,7 @@ littlebird.AI:
 HELI:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	Inherits@AirRadar: ^AirRadar
 	AutoTarget:
 		InitialStance: Defend
 		InitialStanceAI: Defend
@@ -219,12 +224,12 @@ HELI:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.\n  Strong vs Everything\n  Weak vs Anti-Air, Aircraft
 	Tooltip:
 		Name: Apache
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Selectable:
@@ -234,8 +239,10 @@ HELI:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 245
 	AttackAircraft:
 		FacingTolerance: 60
@@ -336,6 +343,7 @@ HELI:
 
 A10:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	RenderSprites:
 		PlayerPalette: playertd
@@ -343,11 +351,11 @@ A10:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 52
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 		IconPalette: temptd
 		Description: Fast Ground-Attack Plane.
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	Tooltip:
 		Name: Attack Aircraft
 	Health:
@@ -355,10 +363,12 @@ A10:
 	Armor:
 		Type: Heavy
 		Thickness: 20
+	Targetable@Armor:
+		TargetTypes: Heavy
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 390
 		RepulsionSpeed: 27
 		MaximumPitch: 65
@@ -449,13 +459,14 @@ A10:
 
 F16:
 	Inherits@Type: ^Aircraft
+	Inherits@AirRadar: ^AirRadar
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 51
-		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 	Valued:
-		Cost: 4000
+		Cost: 6000
 	Tooltip:
 		Name: F-16
 		GenericName: F-16
@@ -464,6 +475,8 @@ F16:
 	Armor:
 		Type: Medium
 		Thickness: 10
+	Targetable@Armor:
+		TargetTypes: Medium
 	AttackAircraft:
 		FacingTolerance: 30
 		PersistentTargeting: false
@@ -471,7 +484,7 @@ F16:
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
-		TurnSpeed: 8
+		TurnSpeed: 12
 		Speed: 525
 		IdleSpeed: 220
 		RepulsionSpeed: 27

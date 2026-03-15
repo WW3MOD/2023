@@ -74,7 +74,6 @@ MP5:
 		ValidTargets: Infantry
 		DamageTypes: BulletDeath
 
-
 ^5.56mm:
 	Inherits@HitEffects: ^SmallCaliberEffects
 	ValidTargets: Infantry, Vehicle, Helicopter

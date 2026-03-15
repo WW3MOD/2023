@@ -36,7 +36,7 @@ namespace OpenRA.Traits
 	{
 		public readonly PPos[] Footprint;
 		public readonly WPos CenterPosition;
-		public readonly Actor actor;
+		public readonly Actor BackingActor; // Renamed from 'Actor' to avoid conflict with property
 		readonly ICreatesFrozenActors frozenTrait;
 		readonly Player viewer;
 		readonly MapLayers shroud;
@@ -84,7 +84,7 @@ namespace OpenRA.Traits
 
 		public FrozenActor(Actor actor, ICreatesFrozenActors frozenTrait, PPos[] footprint, Player viewer, bool startsRevealed)
 		{
-			this.actor = actor;
+			BackingActor = actor; // Updated from 'Actor'
 			this.frozenTrait = frozenTrait;
 			this.viewer = viewer;
 			shroud = viewer.MapLayers;
@@ -101,32 +101,32 @@ namespace OpenRA.Traits
 					"Actor Location: {1}\n" +
 					"Input footprint: [{2}]\n" +
 					"Input footprint (after shroud.Contains): [{3}]")
-					.F(actor.Info.Name,
-					actor.Location.ToString(),
+					.F(BackingActor.Info.Name, // Updated from 'Actor'
+					BackingActor.Location.ToString(), // Updated from 'Actor'
 					footprint.Select(p => p.ToString()).JoinWith("|"),
 					footprint.Select(p => shroud.Contains(p).ToString()).JoinWith("|")));
 
-			CenterPosition = actor.CenterPosition;
+			CenterPosition = BackingActor.CenterPosition; // Updated from 'Actor'
 
-			tooltips = actor.TraitsImplementing<ITooltip>().ToArray();
-			health = actor.TraitOrDefault<IHealth>();
-			shouldHideModifiers = actor.TraitsImplementing<IShouldHideModifier>().ToArray();
+			tooltips = BackingActor.TraitsImplementing<ITooltip>().ToArray(); // Updated from 'Actor'
+			health = BackingActor.TraitOrDefault<IHealth>(); // Updated from 'Actor'
+			shouldHideModifiers = BackingActor.TraitsImplementing<IShouldHideModifier>().ToArray(); // Updated from 'Actor'
 
 			UpdateVisibility();
 		}
 
-		public uint ID => actor.ActorID;
+		public uint ID => BackingActor.ActorID; // Updated from 'Actor'
 		public bool IsValid => Owner != null;
-		public ActorInfo Info => actor.Info;
-		public Actor Actor => !actor.IsDead ? actor : null;
+		public ActorInfo Info => BackingActor.Info; // Updated from 'Actor'
+		public Actor Actor => !BackingActor.IsDead ? BackingActor : null; // Updated from 'Actor'
 		public Player Viewer => viewer;
 
 		public void RefreshState()
 		{
-			Owner = actor.Owner;
-			TargetTypes = actor.GetEnabledTargetTypes();
+			Owner = BackingActor.Owner; // Updated from 'Actor'
+			TargetTypes = BackingActor.GetEnabledTargetTypes(); // Updated from 'Actor'
 			targetablePositions.Clear();
-			targetablePositions.AddRange(actor.GetTargetablePositions());
+			targetablePositions.AddRange(BackingActor.GetTargetablePositions()); // Updated from 'Actor'
 
 			if (health != null)
 			{
@@ -147,7 +147,7 @@ namespace OpenRA.Traits
 			Hidden = false;
 			foreach (var shouldHideModifier in shouldHideModifiers)
 			{
-				if (shouldHideModifier.ShouldHide(actor, viewer))
+				if (shouldHideModifier.ShouldHide(BackingActor, viewer))
 				{
 					Hidden = true;
 					break;

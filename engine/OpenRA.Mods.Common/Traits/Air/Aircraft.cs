@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,6 +38,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int RepulsionSpeed = -1;
 
 		public readonly WAngle InitialFacing = WAngle.Zero;
+
+		[Desc("Acceleration for rotation, in WAngle per tick squared.")]
+		public readonly WAngle RotationAcceleration = new WAngle(10);
 
 		[Desc("Speed at which the actor turns.")]
 		public readonly WAngle TurnSpeed = new WAngle(512);
@@ -176,6 +168,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor to display when unable to land at target building.")]
 		public readonly string EnterBlockedCursor = "enter-blocked";
 
+		[Desc("Maximum acceleration for the aircraft.")]
+		public readonly int MaxAcceleration = 10;
+
 		public WAngle GetInitialFacing() { return InitialFacing; }
 		public WDist GetCruiseAltitude() { return CruiseAltitude; }
 		public Color GetTargetLineColor() { return TargetLineColor; }
@@ -288,6 +283,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool notify = true;
 
+		[Sync]
+		public WVec CurrentVelocity { get; set; } = WVec.Zero;
+
+		[Sync]
+		public WAngle CurrentRotationSpeed { get; private set; } = WAngle.Zero;
+
 		public static WPos GroundPosition(Actor self)
 		{
 			return self.CenterPosition - new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(self.CenterPosition));
@@ -296,16 +297,17 @@ namespace OpenRA.Mods.Common.Traits
 		public bool AtLandAltitude => self.World.Map.DistanceAboveTerrain(GetPosition()) == LandAltitude;
 
 		bool airborne;
+
 		bool IAirborneVisibility.IsAirborne { get => airborne; set => airborne = value; }
 
 		bool cruising;
 		int airborneToken = Actor.InvalidConditionToken;
 		int cruisingToken = Actor.InvalidConditionToken;
-		public WVec momentum = new WVec(0, 0, 0);
 
 		MovementType movementTypes;
 		WPos cachedPosition;
 		WAngle cachedFacing;
+		public WVec RequestedAcceleration { get; set; } = WVec.Zero;
 
 		public Aircraft(ActorInitializer init, AircraftInfo info)
 			: base(info)
@@ -407,6 +409,31 @@ namespace OpenRA.Mods.Common.Traits
 			Tick(self);
 		}
 
+		public WVec CalculateAccelerationToWaypoint(WPos waypoint, bool stopAtWaypoint = false)
+		{
+			var positionDelta = waypoint - CenterPosition;
+			var horizontalDelta = new WVec(positionDelta.X, positionDelta.Y, 0);
+			var distance = horizontalDelta.Length;
+
+			if (distance == 0)
+				return WVec.Zero;
+
+			var direction = horizontalDelta * 1024 / distance;
+			var desiredVelocity = direction * Info.Speed / 1024;
+
+			if (stopAtWaypoint)
+			{
+				var currentSpeed = CurrentVelocity.HorizontalLength;
+				var stoppingDistance = (currentSpeed * currentSpeed) / (2 * Info.MaxAcceleration);
+				if (distance < stoppingDistance)
+					desiredVelocity = WVec.Zero;
+			}
+
+			var velocityDelta = desiredVelocity - CurrentVelocity;
+			var accelerationMagnitude = Math.Min(Info.MaxAcceleration, velocityDelta.Length);
+			return velocityDelta * accelerationMagnitude / Math.Max(1, velocityDelta.Length);
+		}
+
 		protected virtual void Tick(Actor self)
 		{
 			// Add land activity if Aircraft trait is paused and the actor can land at the current location.
@@ -426,34 +453,121 @@ namespace OpenRA.Mods.Common.Traits
 					self.QueueActivity(false, new TakeOff(self));
 			}
 
-			var oldCachedFacing = cachedFacing;
-			cachedFacing = Facing;
-
-			var oldCachedPosition = cachedPosition;
-			cachedPosition = self.CenterPosition;
-
-			var newMovementTypes = MovementType.None;
-			if (oldCachedFacing != Facing)
-				newMovementTypes |= MovementType.Turn;
-
-			if ((oldCachedPosition - cachedPosition).HorizontalLengthSquared != 0)
-				newMovementTypes |= MovementType.Horizontal;
-
-			if ((oldCachedPosition - cachedPosition).VerticalLengthSquared != 0)
-				newMovementTypes |= MovementType.Vertical;
-
-			CurrentMovementTypes = newMovementTypes;
-
-			if (!CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
+			// Apply Requested Acceleration
+			if (RequestedAcceleration != WVec.Zero)
 			{
-				if (Info.Roll != WAngle.Zero && Roll != WAngle.Zero)
-					Roll = Util.TickFacing(Roll, WAngle.Zero, Info.RollSpeed);
+				CurrentVelocity += RequestedAcceleration;
 
-				if (Info.Pitch != WAngle.Zero && Pitch != WAngle.Zero)
-					Pitch = Util.TickFacing(Pitch, WAngle.Zero, Info.PitchSpeed);
+				// Enforce maximum speed
+				var horizontalSpeed = new WVec(CurrentVelocity.X, CurrentVelocity.Y, 0).Length;
+				if (horizontalSpeed > Info.Speed)
+				{
+					var ratio = (float)Info.Speed / horizontalSpeed;
+					CurrentVelocity = new WVec((int)(CurrentVelocity.X * ratio), (int)(CurrentVelocity.Y * ratio), CurrentVelocity.Z);
+				}
+			}
+			else if (CurrentVelocity != WVec.Zero)
+			{
+				var currentSpeed = CurrentVelocity.HorizontalLength;
+				if (currentSpeed <= Info.MaxAcceleration)
+					CurrentVelocity = WVec.Zero;
+				else
+				{
+					// Decelerate: reduce speed in the direction of travel
+					var deceleration = CurrentVelocity * Info.MaxAcceleration / currentSpeed;
+					CurrentVelocity -= deceleration;
+				}
 			}
 
+			if (CurrentVelocity != WVec.Zero)
+			{
+				// Update position
+				SetPosition(self, CenterPosition + CurrentVelocity);
+
+				// Update facing
+				var targetFacing = CurrentVelocity.Yaw;
+				Facing = Util.TickFacing(Facing, targetFacing, Info.TurnSpeed);
+
+				var oldCachedFacing = cachedFacing;
+				cachedFacing = Facing;
+
+				var oldCachedPosition = cachedPosition;
+				cachedPosition = self.CenterPosition;
+
+				var newMovementTypes = MovementType.None;
+				if (oldCachedFacing != Facing)
+					newMovementTypes |= MovementType.Turn;
+
+				if ((oldCachedPosition - cachedPosition).HorizontalLengthSquared != 0)
+					newMovementTypes |= MovementType.Horizontal;
+
+				if ((oldCachedPosition - cachedPosition).VerticalLengthSquared != 0)
+					newMovementTypes |= MovementType.Vertical;
+				CurrentMovementTypes = newMovementTypes;
+
+				if (!CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
+				{
+					if (Info.Roll != WAngle.Zero && Roll != WAngle.Zero)
+						Roll = Util.TickFacing(Roll, WAngle.Zero, Info.RollSpeed);
+
+					if (Info.Pitch != WAngle.Zero && Pitch != WAngle.Zero)
+						Pitch = Util.TickFacing(Pitch, WAngle.Zero, Info.PitchSpeed);
+				}
+			}
+
+			// Track movement for stationary aircraft (facing changes, etc.)
+			if (CurrentVelocity == WVec.Zero)
+			{
+				var oldCachedFacing = cachedFacing;
+				cachedFacing = Facing;
+
+				var oldCachedPosition = cachedPosition;
+				cachedPosition = self.CenterPosition;
+
+				var newMovementTypes = MovementType.None;
+				if (oldCachedFacing != Facing)
+					newMovementTypes |= MovementType.Turn;
+
+				if ((oldCachedPosition - cachedPosition).HorizontalLengthSquared != 0)
+					newMovementTypes |= MovementType.Horizontal;
+
+				if ((oldCachedPosition - cachedPosition).VerticalLengthSquared != 0)
+					newMovementTypes |= MovementType.Vertical;
+
+				CurrentMovementTypes = newMovementTypes;
+			}
+
+			RequestedAcceleration = WVec.Zero;
 			Repulse();
+		}
+
+		public WPos CalculateStopPosition()
+		{
+			var pos = CenterPosition;
+			var vel = CurrentVelocity;
+
+			if (vel == WVec.Zero)
+				return pos;
+
+			var speed = vel.HorizontalLength;
+			var a = Info.MaxAcceleration;
+
+			if (speed < a)
+				return pos;
+
+			// Number of ticks where velocity >= MaxAcceleration
+			var ticks = speed / a;
+
+			// Total displacement = sum of velocities (speed - i*a) for i=1 to ticks
+			var totalDisplacement = ticks * (speed - (ticks - 1) * a / 2);
+
+			// Scale velocity vector by displacement
+			var delta = new WVec(
+				(int)((long)vel.X * totalDisplacement / speed),
+				(int)((long)vel.Y * totalDisplacement / speed),
+				(int)((long)vel.Z * totalDisplacement / speed));
+
+			return pos + delta;
 		}
 
 		public void Repulse()
@@ -1229,7 +1343,7 @@ namespace OpenRA.Mods.Common.Traits
 			return new AssociateWithAirfieldActivity(self, creationActivityDelay);
 		}
 
-		class AssociateWithAirfieldActivity : Activity
+		public class AssociateWithAirfieldActivity : Activity
 		{
 			readonly Aircraft aircraft;
 			readonly int delay;

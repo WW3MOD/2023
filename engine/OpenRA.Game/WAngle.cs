@@ -41,13 +41,18 @@ namespace OpenRA
 		public static WAngle operator -(WAngle a, WAngle b) { return new WAngle(a.Angle - b.Angle); }
 		public static WAngle operator -(WAngle a) { return new WAngle(-a.Angle); }
 
+		public static bool operator >(WAngle a, WAngle b) { return a.Angle > b.Angle; }
+		public static bool operator <(WAngle a, WAngle b) { return a.Angle < b.Angle; }
+		public static bool operator >=(WAngle a, WAngle b) { return a.Angle >= b.Angle; }
+		public static bool operator <=(WAngle a, WAngle b) { return a.Angle <= b.Angle; }
+
 		public static bool operator ==(WAngle me, WAngle other) { return me.Angle == other.Angle; }
 		public static bool operator !=(WAngle me, WAngle other) { return !(me == other); }
 
 		public static WAngle AngleDiff(WAngle a, WAngle b)
 		{
 			// Calculate the difference between the angles
-			int diff = Math.Abs(a.Angle - b.Angle);
+			var diff = Math.Abs(a.Angle - b.Angle); // Changed from 'int diff' to 'var diff' for IDE0007
 
 			// Normalize the difference to always be positive and within the range [0, 512]
 			return new WAngle(diff > 512 ? 1024 - diff : diff);

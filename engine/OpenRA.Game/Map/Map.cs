@@ -242,7 +242,7 @@ namespace OpenRA
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
 		public CellLayer<byte> DefenseLayer { get; private set; }
 		public CellLayer<byte> DensityLayer { get; set; }
-		public CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>> ShadowLayer { get; set; } // Changed to store tuple
+		public CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>> ShadowLayer { get; set; }
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
@@ -460,9 +460,9 @@ namespace OpenRA
 						ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
 						foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 						{
-							ushort combined = s.ReadUInt16();
-							byte groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
-							byte airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
+							var combined = s.ReadUInt16();
+							var groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
+							var airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
 							ShadowLayer[fromUV][toUV] = (groundShadow, airShadow);
 						}
 					}
@@ -476,10 +476,10 @@ namespace OpenRA
 
 		/* MapCoordsRegion ValidCellsAround(MPos from, byte size)
 		{
-			int topLeftX = from.U - size;
-			int topLeftY = from.V - size;
-			int bottomRightX = from.U + size;
-			int bottomRightY = from.V + size;
+			var topLeftX = from.U - size;
+			var topLeftY = from.V - size;
+			var bottomRightX = from.U + size;
+			var bottomRightY = from.V + size;
 
 			if (topLeftX < 0)
 				topLeftX = 0;
@@ -547,7 +547,7 @@ namespace OpenRA
 			{
 				var tile = Tiles[uv];
 				var terrainType = GetTerrainInfo(uv.ToCPos(this)).Type;
-				byte terrainTypeModifier = 0;
+				var terrainTypeModifier = 0;
 				switch (terrainType)
 				{
 					case "Rock":
@@ -558,7 +558,7 @@ namespace OpenRA
 						break;
 				}
 
-				ModifyVisualLayer[uv] = terrainTypeModifier;
+				ModifyVisualLayer[uv] = (byte)terrainTypeModifier; // Explicit cast for clarity
 			}
 
 			AllEdgeCells = UpdateEdgeCells();
@@ -825,7 +825,7 @@ namespace OpenRA
 					{
 						var (groundShadow, airborneShadow) = ShadowLayer[fromUV][toUV];
 
-						ushort combined = (ushort)((groundShadow << 8) | airborneShadow);
+						var combined = (ushort)((groundShadow << 8) | airborneShadow);
 						writer.Write(combined);
 					}
 				}
@@ -884,13 +884,13 @@ namespace OpenRA
 					// Get world positions
 					var fromCenter = CenterOfCell(fromUV.ToCPos(this));
 					var toCenter = CenterOfCell(toUV.ToCPos(this));
-					var P0 = new WPos(fromCenter.X, fromCenter.Y, z_a); // Airborne position
-					var P1 = new WPos(toCenter.X, toCenter.Y, 0);      // Target ground position
-					var delta = P1 - P0;
+					var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
+					var p1 = new WPos(toCenter.X, toCenter.Y, 0);
+					var delta = p1 - p0;
 
 					// Horizontal distance in world units
 					var deltaXY = new WVec(delta.X, delta.Y, 0);
-					var D_h = deltaXY.Length / 1024f; // Convert to cell-like units (approx)
+					var dH = deltaXY.Length / 1024f;
 
 					foreach (var tile in tiles)
 					{
@@ -899,12 +899,12 @@ namespace OpenRA
 
 						// Airborne shadow: check height-based blocking
 						var tileCenter = CenterOfCell(tile.ToCPos(this));
-						var vecToTile = new WVec(tileCenter.X - P0.X, tileCenter.Y - P0.Y, 0);
+						var vecToTile = new WVec(tileCenter.X - p0.X, tileCenter.Y - p0.Y, 0);
 						var dot = vecToTile.X * delta.X + vecToTile.Y * delta.Y;
 						var deltaLengthSquared = delta.X * delta.X + delta.Y * delta.Y;
 						var t = dot / (float)deltaLengthSquared;
 						t = Math.Max(0, Math.Min(1, t)); // Clamp t to [0,1]
-						var d_h = t * D_h; // Distance along path in cell units
+						var d_h = t * dH; // Distance along path in cell units
 						var z_los = z_a * (1 - t); // Height of line of sight above tile
 
 						var obstacleHeight = 512; // In world units
@@ -915,8 +915,8 @@ namespace OpenRA
 						}
 					}
 
-					byte groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
-					byte airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
+					var groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
+					var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
 
 					shadowLayer[toUV] = (groundShadow, airborneShadow);
 				}
