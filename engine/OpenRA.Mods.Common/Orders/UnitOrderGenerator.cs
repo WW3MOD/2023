@@ -54,8 +54,6 @@ namespace OpenRA.Mods.Common.Orders
 			if (!actorsInvolved.Any())
 				yield break;
 
-			// HACK: This is required by the hacky player actions-per-minute calculation
-			// TODO: Reimplement APM properly and then remove this
 			yield return new Order("CreateGroup", actorsInvolved.First().Owner.PlayerActor, false, actorsInvolved.ToArray());
 
 			foreach (var o in orders)
@@ -95,7 +93,6 @@ namespace OpenRA.Mods.Common.Orders
 
 		bool IOrderGenerator.HandleKeyPress(KeyInput e) { return false; }
 
-		// Used for classic mouse orders, determines whether or not action at xy is move or select
 		public virtual bool InputOverridesSelection(World world, int2 xy, MouseInput mi)
 		{
 			var actor = world.ScreenMap.ActorsAtMouse(xy)
@@ -109,14 +106,16 @@ namespace OpenRA.Mods.Common.Orders
 			var cell = world.Map.CellContaining(target.CenterPosition);
 			var actorsAt = world.ActorMap.GetActorsAt(cell).ToList();
 
-			// FF TODO: Add as hotkeys?
-			var modifiers = TargetModifiers.None;
-			if (mi.Modifiers.HasModifier(Modifiers.Ctrl))
+			var modifiers = OpenRA.Traits.TargetModifiers.None;
+			var settings = Game.Settings.Game;
+			if (mi.Modifiers == settings.ForceAttackModifiers)
 				modifiers |= TargetModifiers.ForceAttack;
 			if (mi.Modifiers.HasModifier(Modifiers.Shift))
 				modifiers |= TargetModifiers.ForceQueue;
-			if (mi.Modifiers.HasModifier(Modifiers.Alt))
+			if (mi.Modifiers == settings.ForceMoveModifiers)
 				modifiers |= TargetModifiers.ForceMove;
+			if (mi.Modifiers == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
+				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
 			foreach (var a in world.Selection.Actors)
 			{
@@ -130,14 +129,10 @@ namespace OpenRA.Mods.Common.Orders
 
 		public virtual void SelectionChanged(World world, IEnumerable<Actor> selected) { }
 
-		/// <summary>
-		/// Returns the most appropriate order for a given actor and target.
-		/// First priority is given to orders that interact with the given actors.
-		/// Second priority is given to actors in the given cell.
-		/// </summary>
 		static UnitOrderResult OrderForUnit(Actor self, Target target, CPos xy, MouseInput mi)
 		{
-			if (mi.Button != Game.Settings.Game.MouseButtonPreference.Action)
+			if (mi.Button != Game.Settings.Game.MouseButtonPreference.Action &&
+				!(mi.Button == Game.Settings.Game.AttackMoveButton && mi.Modifiers == Game.Settings.Game.AttackMoveModifiers))
 				return null;
 
 			if (self.Owner != self.World.LocalPlayer)
@@ -149,36 +144,31 @@ namespace OpenRA.Mods.Common.Orders
 			if (self.Disposed || !target.IsValidFor(self))
 				return null;
 
+			var settings = Game.Settings.Game;
 			var modifiers = TargetModifiers.None;
-			if (mi.Modifiers.HasModifier(Modifiers.Ctrl))
+			if (mi.Modifiers == settings.ForceAttackModifiers)
 				modifiers |= TargetModifiers.ForceAttack;
 			if (mi.Modifiers.HasModifier(Modifiers.Shift))
 				modifiers |= TargetModifiers.ForceQueue;
-			if (mi.Modifiers.HasModifier(Modifiers.Alt))
+			if (mi.Modifiers == settings.ForceMoveModifiers)
 				modifiers |= TargetModifiers.ForceMove;
+			if (mi.Modifiers == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
+				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
-			// The Select(x => x) is required to work around an issue on mono 5.0
-			// where calling OrderBy* on SelectManySingleSelectorIterator can in some
-			// circumstances (which we were unable to identify) replace entries in the
-			// enumeration with duplicates of other entries.
-			// Other action that replace the SelectManySingleSelectorIterator with a
-			// different enumerator type (e.g. .Where(true) or .ToList()) also work.
+			var actorsAt = self.World.ActorMap.GetActorsAt(xy).ToList();
 			var orders = self.TraitsImplementing<IIssueOrder>()
 				.SelectMany(trait => trait.Orders.Select(x => new { Trait = trait, Order = x }))
-				.Select(x => x)
 				.OrderByDescending(x => x.Order.OrderPriority);
 
 			for (var i = 0; i < 2; i++)
 			{
 				foreach (var o in orders)
 				{
-					var localModifiers = modifiers;
 					string cursor = null;
-					if (o.Order.CanTarget(self, target, ref localModifiers, ref cursor))
+					if (o.Order.CanTarget(self, target, actorsAt, xy, modifiers, ref cursor))
 						return new UnitOrderResult(self, o.Order, o.Trait, cursor, target);
 				}
 
-				// No valid orders, so check for orders against the cell
 				target = Target.FromCell(self.World, xy);
 			}
 

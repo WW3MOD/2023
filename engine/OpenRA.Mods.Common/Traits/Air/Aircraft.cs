@@ -1405,7 +1405,7 @@ namespace OpenRA.Mods.Common.Traits
 				return modifiers.HasModifier(TargetModifiers.ForceMove);
 			}
 
-			public virtual bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (target.Type != TargetType.Terrain || (aircraft.requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove)))
 					return false;

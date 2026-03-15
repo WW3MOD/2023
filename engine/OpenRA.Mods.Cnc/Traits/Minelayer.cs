@@ -1,14 +1,3 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -148,9 +137,9 @@ namespace OpenRA.Mods.Cnc.Traits
 				var movement = self.Trait<IPositionable>();
 
 				var minefield = GetMinefieldCells(minefieldStart, cell, Info.MinefieldDepth)
-                    .Where(c => IsCellAcceptable(self, c) && self.Owner.MapLayers.IsExplored(c)
-                        && movement.CanEnterCell(c, null, BlockedByActor.Immovable) && (movement is Mobile mobile && mobile.CanStayInCell(c)))
-                    .OrderBy(c => (c - minefieldStart).LengthSquared).ToList();
+					.Where(c => IsCellAcceptable(self, c) && self.Owner.MapLayers.IsExplored(c)
+						&& movement.CanEnterCell(c, null, BlockedByActor.Immovable) && (movement is Mobile mobile && mobile.CanStayInCell(c)))
+					.OrderBy(c => (c - minefieldStart).LengthSquared).ToList();
 
 				self.QueueActivity(order.Queued, new LayMines(self, minefield));
 				self.ShowTargetLines();
@@ -359,17 +348,12 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
-				if (target.Type != TargetType.Terrain)
-					return false;
-
-				var location = self.World.Map.CellContaining(target.CenterPosition);
-				if (!self.World.Map.Contains(location))
+				if (target.Type != TargetType.Terrain || !self.World.Map.Contains(xy))
 					return false;
 
 				cursor = this.cursor;
-
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
 				return modifiers.HasModifier(TargetModifiers.ForceAttack);

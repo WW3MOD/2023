@@ -122,7 +122,7 @@ namespace OpenRA.Traits
 	}
 
 	[Flags]
-	public enum TargetModifiers { None = 0, ForceAttack = 1, ForceQueue = 2, ForceMove = 4 }
+	public enum TargetModifiers { None = 0, ForceAttack = 1, ForceQueue = 2, ForceMove = 4, AttackMove = 8 }
 
 	public static class TargetModifiersExts
 	{
@@ -137,9 +137,9 @@ namespace OpenRA.Traits
 	{
 		string OrderID { get; }
 		int OrderPriority { get; }
-		bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor);
+		bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor);
 		bool IsQueued { get; }
-		bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers);
+		bool TargetOverridesSelection(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers);
 	}
 
 	public interface IResolveOrder { void ResolveOrder(Actor self, Order order); }

@@ -189,7 +189,7 @@ namespace OpenRA.Mods.Common.Traits
 			public int OrderPriority => 4;
 			public bool IsQueued { get; protected set; }
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (rejectMove || target.Type != TargetType.Terrain || (mobile.Info.RequiresForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove)))
 					return false;
@@ -199,9 +199,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				var explored = self.Owner.MapLayers.IsExplored(location);
 				if (!self.World.Map.Contains(location) ||
-				    !(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused))
-				    || (!explored && !mobile.locomotor.Info.MoveIntoShroud)
-				    || (explored && !CanEnterCell(self, location)))
+					!(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused)) ||
+					(!explored && !mobile.locomotor.Info.MoveIntoShroud) ||
+					(explored && !CanEnterCell(self, location)))
 					cursor = mobile.Info.BlockedCursor;
 				else if (!explored || !mobile.Info.TerrainCursors.TryGetValue(self.World.Map.GetTerrainInfo(location).Type, out cursor))
 					cursor = mobile.Info.Cursor;

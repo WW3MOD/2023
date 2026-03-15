@@ -1021,7 +1021,7 @@ namespace OpenRA.Mods.Common.Traits
 			public int OrderPriority => 4;
 			public bool IsQueued { get; protected set; }
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (rejectMove || target.Type != TargetType.Terrain || (mobile.requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove)))
 					return false;

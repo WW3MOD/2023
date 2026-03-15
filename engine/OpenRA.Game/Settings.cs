@@ -289,6 +289,19 @@ namespace OpenRA
 		public bool EnableDiscordService = true;
 
 		public TextNotificationPoolFilters TextNotificationPoolFilters = TextNotificationPoolFilters.Feedback | TextNotificationPoolFilters.Transients;
+
+		// WW3MOD: Added for configurable key bindings
+		[Desc("Mouse button for attack move (Left, Right, Middle).")]
+		public MouseButton AttackMoveButton = MouseButton.Right;
+
+		[Desc("Modifiers for attack move (None, Alt, Ctrl, Shift).")]
+		public Modifiers AttackMoveModifiers = Modifiers.Alt;
+
+		[Desc("Modifiers for force move (None, Alt, Ctrl, Shift).")]
+		public Modifiers ForceMoveModifiers = Modifiers.Ctrl;
+
+		[Desc("Modifiers for force attack (None, Alt, Ctrl, Shift, Ctrl+Alt).")]
+		public Modifiers ForceAttackModifiers = Modifiers.Ctrl | Modifiers.Alt;
 	}
 
 	public class Settings

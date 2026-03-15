@@ -428,7 +428,7 @@ namespace OpenRA.Mods.Common.Traits
 			public bool IsQueued { get; protected set; }
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (target.Type != TargetType.Terrain)
 					return false;

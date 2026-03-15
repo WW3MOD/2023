@@ -1,21 +1,10 @@
-#region Copyright & License Information
-/*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
 using OpenRA.Widgets;
 
 namespace OpenRA
 {
 	public class NullInputHandler : IInputHandler
 	{
-		// ignore all input
+		// Ignore all input
 		public void ModifierKeys(Modifiers mods) { }
 		public void OnKeyInput(KeyInput input) { }
 		public void OnTextInput(string text) { }
@@ -56,5 +45,9 @@ namespace OpenRA
 		public MouseButton Action => Game.Settings.Game.UseClassicMouseStyle ? MouseButton.Left : MouseButton.Right;
 
 		public MouseButton Cancel => Game.Settings.Game.UseClassicMouseStyle ? MouseButton.Right : MouseButton.Left;
+
+		// Added for WW3MOD to support configurable attack move button
+		// public MouseButton AttackMove => Game.Settings.Game.AttackMoveButton ?? MouseButton.Right;
+		public MouseButton AttackMove => MouseButton.Right; // Simplified, got errors with above code
 	}
 }

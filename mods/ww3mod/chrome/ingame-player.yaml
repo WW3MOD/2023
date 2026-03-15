@@ -146,9 +146,10 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: deploy
+				# TODO
 				Button@RESUPPLY:
 					Logic: AddFactionSuffixLogic
-					X: 272
+					X: 400
 					Width: 10
 					Height: 26
 					VisualHeight: 0

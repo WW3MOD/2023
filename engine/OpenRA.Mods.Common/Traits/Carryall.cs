@@ -431,14 +431,14 @@ namespace OpenRA.Mods.Common.Traits
 				this.info = info;
 			}
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (!info.AllowDropOff || !modifiers.HasModifier(TargetModifiers.ForceMove))
 					return false;
 
 				var type = target.Type;
-				if ((type == TargetType.Actor && target.Actor.Info.HasTraitInfo<BuildingInfo>())
-					|| (target.Type == TargetType.FrozenActor && target.FrozenActor.Info.HasTraitInfo<BuildingInfo>()))
+				if ((type == TargetType.Actor && target.Actor.Info.HasTraitInfo<BuildingInfo>()) ||
+					(type == TargetType.FrozenActor && target.FrozenActor.Info.HasTraitInfo<BuildingInfo>()))
 				{
 					cursor = info.DropOffBlockedCursor;
 					return true;

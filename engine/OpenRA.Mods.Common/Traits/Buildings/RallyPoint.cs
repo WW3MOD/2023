@@ -153,7 +153,7 @@ namespace OpenRA.Mods.Common.Traits
 			public bool ForceSet { get; private set; }
 			public bool IsQueued { get; protected set; }
 
-			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
 				if (target.Type != TargetType.Terrain)
 					return false;
@@ -165,7 +165,6 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					cursor = info.Cursor;
 
-					// Notify force-set 'RallyPoint' order watchers with Ctrl
 					if (modifiers.HasModifier(TargetModifiers.ForceAttack) && !string.IsNullOrEmpty(info.ForceSetType))
 					{
 						var closest = self.World.Selection.Actors
