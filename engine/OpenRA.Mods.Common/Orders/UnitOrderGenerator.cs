@@ -109,6 +109,7 @@ namespace OpenRA.Mods.Common.Orders
 			var cell = world.Map.CellContaining(target.CenterPosition);
 			var actorsAt = world.ActorMap.GetActorsAt(cell).ToList();
 
+			// FF TODO: Add as hotkeys?
 			var modifiers = TargetModifiers.None;
 			if (mi.Modifiers.HasModifier(Modifiers.Ctrl))
 				modifiers |= TargetModifiers.ForceAttack;

@@ -101,6 +101,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			return ret;
 		}
+
 		public BitSet<PassClass> PassableClasses { get; private set; }
 
 		public void RulesetLoaded(Ruleset rules, ActorInfo ai)

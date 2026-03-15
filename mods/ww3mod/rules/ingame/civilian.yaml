@@ -61,27 +61,60 @@
 	MapEditorData:
 		RequireTilesets: DESERT
 ^CivField:
-	Inherits: ^CivBuilding
-	-HitShape:
-	-Health:
-	-Explodes:
-	-Explodes@CIVPANIC:
-	-Selectable:
-	-SelectionDecorations:
-	-Targetable:
-	-Demolishable:
-	-ChangesHealth@BurnDamage:
-	-ExternalCondition@BurnDamage:
-	-WithDamageOverlay@SmallBurn:
-	-WithDamageOverlay@MediumBurn:
-	-WithDamageOverlay@LargeBurn:
+	Inherits@1: ^SpriteActor
+	Inherits@Shape: ^1x1Shape
+	# Inherits@FireMechanic: ^BuildingAffectedByFire
+	CombatDebugOverlay:
+	Passable:
+		PassClasses: field
+		PassedByRelationships: Ally, Neutral, Enemy
+	Interactable:
 	Tooltip:
 		Name: Field
+		ShowOwnerRow: false
+	RenderSprites:
+		Palette: terrain
+	WithSpriteBody:
+	Building:
+		Footprint: x
+		Dimensions: 1,1
+	AppearsOnMiniMap:
+	MiniMapColorFromTerrain:
+		Terrain: Field
+	AppearsOnMapPreview:
+		Terrain: Field
+	# Health:
+	# 	HP: 2500
+	# Targetable:
+	# 	TargetTypes:
+	AlwaysVisible:
+	ScriptTriggers:
 	MapEditorData:
 		ExcludeTilesets: INTERIOR
-	Interactable:
+		Categories: Decoration
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
 	RenderSprites:
 		Scale: 1.2
+
+	# Inherits: ^CivBuilding
+	# -HitShape:
+	# -Health:
+	# -Explodes:
+	# -Explodes@CIVPANIC:
+	# -Selectable:
+	# -SelectionDecorations:
+	# -Targetable:
+	# -Demolishable:
+	# -ChangesHealth@BurnDamage:
+	# -ExternalCondition@BurnDamage:
+	# -WithDamageOverlay@SmallBurn:
+	# -WithDamageOverlay@MediumBurn:
+	# -WithDamageOverlay@LargeBurn:
+	# MapEditorData:
+	# 	ExcludeTilesets: INTERIOR
+	# Interactable:
+
 ^Bridge:
 	Inherits@Shape: ^1x1Shape
 	AlwaysVisible:

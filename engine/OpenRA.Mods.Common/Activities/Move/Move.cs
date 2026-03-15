@@ -518,27 +518,29 @@ namespace OpenRA.Mods.Common.Activities
 				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool movingOnGroundLayer)
 				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, movingOnGroundLayer) { }
 
-			static bool IsTurn(Mobile mobile, CPos nextCell, Map map)
+			// static bool IsTurn(Mobile mobile, CPos nextCell, Map map)
+			static bool IsTurn(Mobile mobile, CPos nextCell)
 			{
 				// Some actors with a limited number of sprite facings should never move along curved trajectories.
 				if (mobile.Info.AlwaysTurnInPlace)
 					return false;
 
+				// TODO: Check this, it works but not sure what the difference is from before
 				return true;
 
 				// Tight U-turns should be done in place instead of making silly looking loops.
-				var nextFacing = map.FacingBetween(nextCell, mobile.ToCell, mobile.Facing);
-				var currentFacing = map.FacingBetween(mobile.ToCell, mobile.FromCell, mobile.Facing);
-				var delta = (nextFacing - currentFacing).Angle;
-				return delta != 0 && (delta < 384 || delta > 640);
+				// var nextFacing = map.FacingBetween(nextCell, mobile.ToCell, mobile.Facing);
+				// var currentFacing = map.FacingBetween(mobile.ToCell, mobile.FromCell, mobile.Facing);
+				// var delta = (nextFacing - currentFacing).Angle;
+				// return delta != 0 && (delta < 384 || delta > 640);
 			}
 
 			protected override MovePart OnComplete(Actor self, Mobile mobile, Move parent)
 			{
-				/// Checks if the next path cell requires turning, creates a MoveFirstHalf
-				/// to reach the midpoint between current and next cell while turning to
-				/// face the next cell, finishes moving to current cell, updates location
-				/// to next cell, and returns the MoveFirstHalf.
+				// Checks if the next path cell requires turning, creates a MoveFirstHalf
+				// to reach the midpoint between current and next cell while turning to
+				// face the next cell, finishes moving to current cell, updates location
+				// to next cell, and returns the MoveFirstHalf.
 				var map = self.World.Map;
 				var fromSubcellOffset = map.Grid.OffsetOfSubCell(mobile.FromSubCell);
 				var toSubcellOffset = map.Grid.OffsetOfSubCell(mobile.ToSubCell);
@@ -547,7 +549,8 @@ namespace OpenRA.Mods.Common.Activities
 				var nextCell = parent.PopPath(self);
 				if (nextCell != null)
 				{
-					if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(mobile, nextCell.Value.Cell, map))
+					// if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(mobile, nextCell.Value.Cell, map))
+					if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(mobile, nextCell.Value.Cell))
 					{
 						// If we are moving along a curved trajectory, we need to turn in place.
 						var nextSubcellOffset = map.Grid.OffsetOfSubCell(nextCell.Value.SubCell);

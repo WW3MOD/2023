@@ -175,6 +175,7 @@ namespace OpenRA.Mods.Common.Traits
 					else if (Self.Owner != enemyCaptor.Owner && isClear)
 						ChangeOwnership(Self, enemyCaptor);
 				}
+
 				// if (Self.Owner != enemyCaptor.Owner)
 				else
 				{

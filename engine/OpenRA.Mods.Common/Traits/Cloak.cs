@@ -46,6 +46,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Measured in game ticks.")]
 		public readonly int CloakDelay = 50;
 
+		[Desc("If set > 0, unit will delay this many ticks before it is cloaked again after it is not within detection range.")]
+		public readonly int RevealedDelay = 0;
+
 		[Desc("Events leading to the actor getting uncloaked. Possible values are: Attack, Move, Unload, Infiltrate, Demolish, Dock, Damage, Heal and SelfHeal.",
 			"'Dock' is triggered when docking to a refinery or resupplying.")]
 		public readonly UncloakType UncloakOn = UncloakType.None;
@@ -86,6 +89,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Should the effect track the actor.")]
 		public readonly bool EffectTracksActor = true;
+
+		public readonly int UpdateFrequency = 1;
 
 		public override object Create(ActorInitializer init) { return new Cloak(this); }
 	}
@@ -136,9 +141,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool Cloaked => !IsTraitDisabled && !IsTraitPaused && remainingTime <= 0;
 
-		public void Uncloak() { Uncloak(Info.CloakDelay); }
+		public void Uncloak()
+		{
+			Uncloak(Info.CloakDelay);
+		}
 
 		public void Uncloak(int time) { remainingTime = Math.Max(remainingTime, time); }
+
+		public void Reveal()
+		{
+			Reveal(Info.RevealedDelay);
+		}
+
+		public void Reveal(int time) { remainingTime = Math.Max(remainingTime, time); }
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel) { if (Info.UncloakOn.HasFlag(UncloakType.Attack)) Uncloak(); }
 
@@ -158,10 +173,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
-			if (remainingTime > 0 || IsTraitDisabled || IsTraitPaused)
-				return r;
+			if (remainingTime > 0 || IsTraitDisabled || IsTraitPaused) { }
+			return r;
 
-			if (ShouldHide(self, self.World.RenderPlayer))
+			/* if (ShouldHide(self, self.World.RenderPlayer))
 				return SpriteRenderable.None;
 			else
 			{
@@ -170,7 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 					return r;
 				else
 					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable ? ((IPalettedRenderable)a).WithPalette(palette) : a);
-			}
+			} */
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)
@@ -256,15 +271,45 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void TraitDisabled(Actor self) { Uncloak(); }
 
-		// CPU Expensive!
+		/* // Test to solve CPU Expensive
+		public bool cachedShouldHide = false;
+		public int cachedShouldHideTicks = -1;
 		public bool ShouldHide(Actor self, Player viewer)
 		{
 			if (self.Owner.IsAlliedWith(viewer))
 				return false;
 
-			return Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+			cachedShouldHideTicks++;
+
+			if (cachedShouldHideTicks % Info.UpdateFrequency == 0)
+			{
+				cachedShouldHide = Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
+					&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+					&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+
+				if (!cachedShouldHide)
+					Reveal(Info.RevealedDelay);
+
+				return cachedShouldHide;
+			}
+			else
+				return cachedShouldHide;
+		} */
+
+		public bool ShouldHide(Actor self, Player viewer)
+		{
+			// return true; // TODO
+			if (self.Owner.IsAlliedWith(viewer))
+				return false;
+
+			var shouldHide = Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
+
+			if (!shouldHide)
+				Reveal(Info.RevealedDelay);
+
+			return shouldHide;
 		}
 
 		// Desynced, hence uncommented

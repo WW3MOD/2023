@@ -64,6 +64,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly string[] UndeploySounds = Array.Empty<string>();
 
+		public readonly bool DontAttackedNotify = false;
+
 		public override object Create(ActorInitializer init) { return new Building(init, this); }
 
 		protected static object LoadFootprint(MiniYaml yaml)
@@ -126,7 +128,7 @@ namespace OpenRA.Mods.Common.Traits
 				for (var x = 0; x < dim.X; x++)
 				{
 					var c = d.Length == 1 ? d[0] : d[index++];
-					if (!byte.TryParse(c, out byte parsed) || parsed < 0 || parsed > 100)
+					if (!byte.TryParse(c, out var parsed) || parsed < 0 || parsed > 100)
 						throw new YamlException($"Invalid density cell type '{c}', should be 0-100");
 
 					ret[new CVec(x, y)] = parsed;

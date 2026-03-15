@@ -17,7 +17,7 @@ Player:
 		Types: Infantry, Vehicle, Plane, Ship
 	ClassicProductionQueue@Building:
 		Type: Building
-		DisplayOrder: 0
+		DisplayOrder: 1
 		# ReadyTextNotification: MCV reporting.
 		# BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
@@ -29,7 +29,7 @@ Player:
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10
 	ClassicProductionQueue@Defense:
 		Type: Defense
-		DisplayOrder: 1
+		DisplayOrder: 3
 		# BlockedAudio: NoBuild
 		# ReadyTextNotification: MCV delivered.
 		# LimitedAudio: BuildingInProgress
@@ -76,7 +76,7 @@ Player:
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
-		DisplayOrder: 5
+		DisplayOrder: 0
 		# ReadyTextNotification: Unit ready.
 		BlockedAudio: NoBuild
 		BlockedTextNotification: Unable to build more.
@@ -109,15 +109,15 @@ Player:
 		LoseNotification: Lose
 		LeaveNotification: Leave
 	ConquestVictoryConditions:
-	PowerManager: # TODO Remove
+	# PowerManager:
 	AllyRepair:
 	PlayerResources:
-		SelectableCash: 0, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000
-		DefaultCash: 1000
-		SelectablePassiveIncome: 0, 10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000
-		PassiveIncome: 100
-		PassiveIncomeInterval: 50
-		PassiveIncomeInitialDelay: 50
+		# SelectableCash: 0, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000, 50000
+		# DefaultCash: 20000
+		# SelectablePassiveIncome: 0, 10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000
+		# PassiveIncome: 100
+		# PassiveIncomeInterval: 50
+		# PassiveIncomeInitialDelay: 50
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:
@@ -210,13 +210,13 @@ Player:
 		Prerequisite: brics.or.russia
 	ProvidesPrerequisite@IsPlaying:
 		Prerequisite: player.online
-	LobbyPrerequisiteCheckbox@NAVYDISABLER:
-		ID: disablenavy
-		Label: Disable Navy
-		Description: Use this to fix spamming Cruisers in ponds
-		Enabled: True
-		DisplayOrder: 12
-		Prerequisites: global-disablenavy
+	# LobbyPrerequisiteCheckbox@NAVYDISABLER:
+	# 	ID: disablenavy
+	# 	Label: Disable Navy
+	# 	Description: Use this to fix spamming Cruisers in ponds
+	# 	Enabled: True
+	# 	DisplayOrder: 12
+	# 	Prerequisites: global-disablenavy
 	GameSaveViewportManager:
 	PlayerMiniMapTerrain:
 	# LobbyPrerequisiteCheckbox@GlobalPenalty:
@@ -226,13 +226,13 @@ Player:
 	# 	Enabled: False
 	# 	DisplayOrder: 99
 	# 	Prerequisites: global-penalty
-	LobbyPrerequisiteCheckbox@NuclearAllowed:
-		ID: nuclearallowed
-		Label: Nuclear
-		Description: The conflict has escallated to nuclear warfare.
-		Enabled: False
-		DisplayOrder: 300
-		Prerequisites: global-nuclear
+	# LobbyPrerequisiteCheckbox@NuclearAllowed:
+	# 	ID: nuclearallowed
+	# 	Label: Nuclear
+	# 	Description: The conflict has escallated to nuclear warfare.
+	# 	Enabled: False
+	# 	DisplayOrder: 300
+	# 	Prerequisites: global-nuclear
 	# ParatroopersPower@RUSSIAParatroopers:
 	# 	OrderName: RussiaParatroopers
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
@@ -252,7 +252,6 @@ Player:
 	# 	ArrowSequence: arrow
 	# 	ClockSequence: clock
 	# 	CircleSequence: circles
-	# 	PauseOnCondition: lowpower
 	# 	Cursor: airdrop
 	# 	UseDirectionalTarget: True
 	# 	DirectionArrowAnimation: paradirection
@@ -277,7 +276,6 @@ Player:
 	# 	ArrowSequence: arrow
 	# 	ClockSequence: clock
 	# 	CircleSequence: circles
-	# 	PauseOnCondition: lowpower
 	# 	Cursor: airdrop
 	# 	UseDirectionalTarget: True
 	# 	DirectionArrowAnimation: paradirection
@@ -300,13 +298,12 @@ Player:
 	# 	ArrowSequence: arrow
 	# 	ClockSequence: clock
 	# 	CircleSequence: circles
-	# 	PauseOnCondition: lowpower
 	# 	Cursor: airdrop
 	# 	UseDirectionalTarget: True
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 4
 	# ParatroopersPower@GrenParadrop:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: GrenParadrop
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
 	# 	Icon: paragren
@@ -329,7 +326,7 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 4
 	# ParatroopersPower@ParaMines:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: RussiaParaMines
 	# 	Prerequisites: aircraft.russia, player.russia, ~techlevel.unrestricted
 	# 	Icon: paramines
@@ -352,7 +349,7 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 4
 	# ParatroopersPower@ParaJeeps:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: AmericaParaScouts
 	# 	Prerequisites: aircraft.america, player.america, ~techlevel.unrestricted
 	# 	Icon: parajeep
@@ -376,7 +373,7 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 4
 	# ParatroopersPower@AmericaParaScouts:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: AmericaParaTanks
 	# 	Prerequisites: aircraft.america, fix, player.america, ~techlevel.unrestricted
 	# 	Icon: paratanks
@@ -400,7 +397,6 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 4
 	# AirstrikePower@Spyplane:
-	# 	PauseOnCondition: lowpower
 	# 	OrderName: RussiaSpyPlane
 	# 	Prerequisites:
 	# 	Icon: spyplane
@@ -421,7 +417,6 @@ Player:
 	# 	Cursor: chrono-select
 	# 	SupportPowerPaletteOrder: 5
 	# AirstrikePower@SpyplaneExtra:
-	# 	PauseOnCondition: lowpower
 	# 	OrderName: RussiaSpyPlaneExtra
 	# 	Prerequisites:
 	# 	Icon: spyplane
@@ -464,7 +459,7 @@ Player:
 	# 	SupportPowerPaletteOrder: 5
 	# B2 STRIKE
 	# AirstrikePower@PrecisionStrike:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: PrecisionStrike
 	# 	Prerequisites:
 	# 	Icon: precicon
@@ -486,7 +481,7 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 3
 	# AirstrikePower@Parabombs:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: RussiaParabombs
 	# 	Prerequisites:
 	# 	Icon: parabombs
@@ -510,7 +505,7 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 3
 	# AirstrikePower@EMPBomb:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: EMPBomb
 	# 	Prerequisites: ~tech.stolen
 	# 	Icon: empbomb
@@ -532,7 +527,7 @@ Player:
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 3
 	# AirstrikePower@V2Strike:
-	# 	PauseOnCondition: disabled || lowpower
+	# 	PauseOnCondition: disabled
 	# 	OrderName: V2Strike
 	# 	Prerequisites:
 	# 	Icon: v2bdgricon

@@ -367,21 +367,21 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: order-icons
-						Button@POWER_BUTTON:
-							Logic: PowerdownOrderButtonLogic, AddFactionSuffixLogic
-							X: 64
-							Width: 28
-							Height: 28
-							Background: sidebar-button
-							Key: PowerDown
-							TooltipText: Power Down
-							TooltipContainer: TOOLTIP_CONTAINER
-							VisualHeight: 0
-							Children:
-								Image@ICON:
-									X: 6
-									Y: 6
-									ImageCollection: order-icons
+						# Button@POWER_BUTTON:
+						# 	Logic: PowerdownOrderButtonLogic, AddFactionSuffixLogic
+						# 	X: 64
+						# 	Width: 28
+						# 	Height: 28
+						# 	Background: sidebar-button
+						# 	Key: PowerDown
+						# 	TooltipText: Power Down
+						# 	TooltipContainer: TOOLTIP_CONTAINER
+						# 	VisualHeight: 0
+						# 	Children:
+						# 		Image@ICON:
+						# 			X: 6
+						# 			Y: 6
+						# 			ImageCollection: order-icons
 						Button@REPAIR_BUTTON:
 							Logic: RepairOrderButtonLogic, AddFactionSuffixLogic
 							X: 96
@@ -414,7 +414,7 @@ Container@PLAYER_WIDGETS:
 									Y: 6
 									ImageCollection: order-icons
 									ImageName: options
-				Image@RADAR:
+				Image@MINIMAP_IMAGE:
 					Logic: AddFactionSuffixLogic, IngameMiniMapDisplayLogic
 					X: 8
 					Y: 40

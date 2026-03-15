@@ -84,23 +84,42 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsDead => hp <= 0;
 		public bool RemoveOnDeath = true;
 
+		public long GetDamageStateThreshold(DamageState damageState)
+		{
+			switch (damageState)
+			{
+				case DamageState.Undamaged:
+					return MaxHP;
+				case DamageState.Critical:
+					return MaxHP * 50L;
+				case DamageState.Heavy:
+					return MaxHP * 65 / 100L;
+				case DamageState.Medium:
+					return MaxHP * 85 / 100L;
+				case DamageState.Light:
+					return MaxHP;
+				default:
+					return MaxHP;
+			}
+		}
+
 		public DamageState DamageState
 		{
 			get
 			{
-				if (hp == MaxHP)
+				if (hp == GetDamageStateThreshold(DamageState.Undamaged))
 					return DamageState.Undamaged;
 
 				if (hp <= 0)
 					return DamageState.Dead;
 
-				if (hp * 100L < MaxHP * 25L)
+				if (hp * 100L < GetDamageStateThreshold(DamageState.Critical))
 					return DamageState.Critical;
 
-				if (hp * 100L < MaxHP * 50L)
+				if (hp * 100L < GetDamageStateThreshold(DamageState.Heavy))
 					return DamageState.Heavy;
 
-				if (hp * 100L < MaxHP * 75L)
+				if (hp * 100L < GetDamageStateThreshold(DamageState.Medium))
 					return DamageState.Medium;
 
 				return DamageState.Light;

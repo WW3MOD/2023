@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenRA.Traits
 {
@@ -109,7 +110,7 @@ namespace OpenRA.Traits
 		readonly Dictionary<object, VisionSource> sources = new Dictionary<object, VisionSource>();
 
 		// Per-cell count of each source type, used to resolve the final cell type
-		ProjectedCellLayer<short[]> visibilityCount;
+		readonly ProjectedCellLayer<short[]> visibilityCount;
 		readonly ProjectedCellLayer<short> radarCount;
 
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
@@ -139,7 +140,7 @@ namespace OpenRA.Traits
 			}
 		}
 
-		public byte ShadowModify { get; set;}
+		public byte ShadowModify { get; set; }
 
 		bool fogEnabled;
 		public bool FogEnabled => !Disabled && fogEnabled;
@@ -225,7 +226,7 @@ namespace OpenRA.Traits
 						}
 					}
 
-					// Tick function. TODO
+					/* Tick function. TODO */
 
 					if (visibility <= 0)
 						visibility = 1;
@@ -233,10 +234,9 @@ namespace OpenRA.Traits
 
 				// PERF: Most cells are unchanged
 				var oldResolvedVisibility = ResolvedVisibility[index];
-				// TEST
+
 				if (visibility != oldResolvedVisibility || disabledChanged)
 				{
-
 					ResolvedVisibility[index] = visibility;
 
 					var puv = touched.PPosFromIndex(index);
@@ -296,11 +296,11 @@ namespace OpenRA.Traits
 			if (sources.ContainsKey(mapLayer))
 				throw new InvalidOperationException("Attempting to add duplicate mapLayer");
 
-			MPos selfLocation = MPos.Zero;
+			var selfLocation = MPos.Zero;
 			if (self != null)
 				selfLocation = self.Location.ToMPos(map);
 
-			VisionSourceNode[] visionSourceNodes = new VisionSourceNode[projectedCells.Length];
+			var visionSourceNodes = new VisionSourceNode[projectedCells.Length];
 
 			var i = 0;
 			foreach (var puv in projectedCells)
@@ -321,8 +321,14 @@ namespace OpenRA.Traits
 				{
 					var shadowModify = 0;
 
-					if(map.ShadowLayer != null)
-						shadowModify = map.ShadowLayer[selfLocation][(MPos)puv];
+					// selfLocation quick fix IndexOutOfRangeException when aircraft goes out of bounds
+					if (map.ShadowLayer != null && selfLocation.U >= 0 && selfLocation.U < map.MapSize.X && selfLocation.V >= 0 && selfLocation.V < map.MapSize.Y)
+					{
+						var (groundShadow, airborneShadow) = map.ShadowLayer[selfLocation][(MPos)puv];
+						shadowModify = self != null && self.TraitsImplementing<IAirborneVisibility>().Any(trait => trait.IsAirborne)
+							? airborneShadow // Apply airborne shadows
+							: groundShadow; // Use ground shadows for non-aircraft
+					}
 
 					var modifiedStrength = strength - shadowModify;
 
@@ -354,7 +360,8 @@ namespace OpenRA.Traits
 
 			foreach (var node in source.VisionSourceNodes)
 			{
-				if (node == null) // Temp solution, the last 10 or so entries are null because the position formats are weird.
+				// Temp solution, the last 10 or so entries are null because the position formats are weird.
+				if (node == null)
 					break;
 
 				var puv = node.Cell;
@@ -524,10 +531,10 @@ namespace OpenRA.Traits
 			{
 				return check <= 1 ? (byte)1 : check >= 10 ? (byte)10 : check;
 			}
-			else if (Disabled) // ??
-			{
 
-			}
+			/* // ??
+			else if (Disabled)
+			{ } */
 
 			return (byte)5;
 		}
@@ -543,12 +550,12 @@ namespace OpenRA.Traits
 			{
 				if (ResolvedVisibility.Contains(puv))
 				{
-					byte resolved = (byte)ResolvedVisibility[puv];
+					var resolved = (byte)ResolvedVisibility[puv];
 					return (byte)resolved;
 
 					// For modifying based on cell type, but removed since shadow caster was implemented.
-					/* byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
-					return (byte)Normalize((byte)(resolved - modify)); */
+					// byte modify = (byte)map.ModifyVisualLayer[(MPos)puv];
+					// return (byte)Normalize((byte)(resolved - modify));
 				}
 			}
 
@@ -562,6 +569,13 @@ namespace OpenRA.Traits
 			}
 
 			return 0;
+		}
+
+		public byte GetDefense(PPos puv)
+		{
+			var modify = (byte)map.DefenseLayer[(MPos)puv];
+
+			return modify;
 		}
 	}
 }

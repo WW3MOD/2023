@@ -51,7 +51,9 @@ namespace OpenRA.Mods.Common.Activities
 			// Make sure we can still demolish the target before entering
 			// (but not before, because this may stop the actor in the middle of nowhere)
 			var useAmmo = self.TraitsImplementing<Demolition>().First().Info.UseAmmo;
-			if (!enterDemolishables.Any(i => i.IsValidTarget(enterActor, self)) || !self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo).HasAmmo)
+
+			// Think this is right, added () around last 2. <-- C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Demolish.cs(55,8): warning SA1408: Conditional expressions should declare precedence (https://github.com/DotNetAnalyzers/StyleCopAnalyzers/bl
+			if (useAmmo != null && (!enterDemolishables.Any(i => i.IsValidTarget(enterActor, self)) || !self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo).HasAmmo))
 			{
 				Cancel(self, true);
 				return false;

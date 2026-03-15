@@ -13,7 +13,6 @@ OILB:
 		# LocalCenterOffset: 512,512,0
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 10
 	Health:
 		HP: 50000
 	EngineerRepairable:
@@ -43,7 +42,6 @@ FCOM:
 		Footprint: xx xx ==
 		Dimensions: 2,3
 		LocalCenterOffset: 0,-512,0
-		Density: 10
 	Health:
 		HP: 25000
 	Armor:
@@ -79,7 +77,6 @@ BIO:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 10
 	Health:
 		HP: 55000
 	EngineerRepairable:
@@ -116,13 +113,12 @@ MISS:
 		Footprint: xxx xxx ===
 		Dimensions: 3,3
 		LocalCenterOffset: 0,-512,0
-		Density: 10,10,10, 10,10,5, 0,0,0
 		# LocalCenterOffset: 0,-512,0
 	Health:
 		HP: 35000
 	# Radar:
 	# 	Range: 50c0
-	# 	RequiresCondition: !heavy-damage
+	# 	RequiresCondition: !heavy-damage-attained
 	WithRangeCircle@Radar:
 		Range: 50c0
 		Color: 000000
@@ -157,7 +153,6 @@ HOSP:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-		Density: 10
 	Health:
 		HP: 55000
 	EngineerRepairable:

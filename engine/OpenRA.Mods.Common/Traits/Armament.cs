@@ -168,6 +168,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int AimInitialTicksBefore { get; protected set; }
 		public Target? Target { get; protected set; }
 		Target? oldTarget = null;
+		int lastFiredTick = -1;
 
 		public Armament(Actor self, ArmamentInfo info)
 			: base(info)
@@ -335,6 +336,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (!CanFire(self, target))
 				return null;
 
+			if (lastFiredTick != -1 && self.World.WorldTick - lastFiredTick > Weapon.BurstWait)
+			{
+				// Reset burst if idle time exceeds Weapon.BurstWait
+				UpdateBurst(self, target);
+			}
+
 			// If Weapon.Burst == 1, cycle through all LocalOffsets, otherwise use the offset corresponding to current Burst
 			currentBarrel %= barrelCount;
 			var barrel = Weapon.Burst == 1 ? Barrels[currentBarrel] : Barrels[Burst % Barrels.Length];
@@ -351,6 +358,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected virtual void FireBarrel(Actor self, IFacing facing, in Target target, Barrel barrel)
 		{
 			Target = target;
+			lastFiredTick = self.World.WorldTick;
 
 			if (target.Type != TargetType.Invalid)
 			{
@@ -476,43 +484,41 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void UpdateBurst(Actor self, in Target target)
 		{
-			try
+			if (Weapon.BurstWait > 0)
 			{
-				if (Weapon.BurstWait > 0)
+				if (--Burst < 1)
 				{
-					if (--Burst < 1)
-					{
-						var burstWaitmodifiers = burstWaitModifiers.ToArray();
-						SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers), true);
+					var burstWaitmodifiers = burstWaitModifiers.ToArray();
+					SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers), true);
 
-						var burstmodifiers = burstModifiers.ToArray();
+					ResetBurst(self);
 
-						if (Weapon.BurstRandomize > 0)
-						{
-							Burst = self.World.SharedRandom.Next(Weapon.Burst - Weapon.BurstRandomize / 2, (Weapon.Burst + Weapon.BurstRandomize / 2) + Weapon.Burst % 2);
-						}
+					if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Any())
+						ScheduleDelayedAction(Weapon.AfterFireSoundDelay, Burst, (burst) => Game.Sound.Play(SoundType.World, Weapon.AfterFireSound, self.World, self.CenterPosition));
 
-						Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
-
-						if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Any())
-							ScheduleDelayedAction(Weapon.AfterFireSoundDelay, Burst, (burst) => Game.Sound.Play(SoundType.World, Weapon.AfterFireSound, self.World, self.CenterPosition));
-
-						foreach (var nbc in notifyBurstComplete)
-							nbc.FiredBurst(self, target, this);
-					}
+					foreach (var nbc in notifyBurstComplete)
+						nbc.FiredBurst(self, target, this);
+				}
+				else
+				{
+					if (Weapon.BurstDelays.Length == 1)
+						SetBurstWait(Weapon.BurstDelays[0]);
 					else
-					{
-						if (Weapon.BurstDelays.Length == 1)
-							SetBurstWait(Weapon.BurstDelays[0]);
-						else
-							SetBurstWait(Weapon.BurstDelays[Weapon.Burst - (Burst + 1)]);
-					}
+						SetBurstWait(Weapon.BurstDelays[Weapon.Burst - (Burst + 1)]);
 				}
 			}
-			catch
+		}
+
+		protected virtual void ResetBurst(Actor self)
+		{
+			var burstmodifiers = burstModifiers.ToArray();
+
+			if (Weapon.BurstRandomize > 0)
 			{
-				throw new Exception("Error in UpdateBurst for: {0}".F(self.Info.Name));
+				Burst = self.World.SharedRandom.Next(Weapon.Burst - Weapon.BurstRandomize / 2, (Weapon.Burst + Weapon.BurstRandomize / 2) + Weapon.Burst % 2);
 			}
+
+			Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
 		}
 
 		void SetBurstWait(int delay, bool isBurstWait = false)

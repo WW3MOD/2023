@@ -294,9 +294,10 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		bool ShouldExplode(World world)
 		{
-			// TODO
+			/* // TODO
 			var aaa = (args.SourceActor.CenterPosition - lastPos).Length;
-			var bbb = (args.SourceActor.CenterPosition - lastPos);
+			var bbb = (args.SourceActor.CenterPosition - lastPos); */
+
 			// Check for walls or other blocking obstacles
 			if (info.Blockable && (args.SourceActor.CenterPosition - lastPos).Length > 2048 && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true))
 			{

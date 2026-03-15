@@ -13,6 +13,8 @@
 	DebugVisualizations:
 	Locomotor@TerrainSpeedsTemplate:
 		Name: template
+		Passes: field
+		Crushes: mine, crate
 		TerrainSpeeds:
 			Road: 100
 			Bridge: 100
@@ -25,39 +27,7 @@
 			Shallow: 20
 	Locomotor@FOOT:
 		Name: foot
-		Passes: tree, sandbag, fence
-		Crushes: mine, crate
-		SharesCell: true
-		TerrainSpeeds:
-			Road: 100
-			Bridge: 100
-			Clear: 90
-			Rough: 70
-			Debris: 40
-			Rock: 30
-			Beach: 70
-			RiverShallow: 30
-			Shallow: 15
-	Locomotor@FOOT_AMPHIBIOUS:
-		Name: foot-amphibious
-		Passes: tree, sandbag, fence
-		Crushes: mine, crate
-		SharesCell: true
-		TerrainSpeeds:
-			Road: 100
-			Bridge: 100
-			Clear: 90
-			Rough: 70
-			Debris: 40
-			Rock: 30
-			Beach: 70
-			RiverShallow: 40
-			Shallow: 25
-			River: 20
-			Water: 25
-	Locomotor@FOOT_MOUNTAINER:
-		Name: foot-mountainer
-		Passes: tree, sandbag, fence
+		Passes: field, tree, sandbag, fence
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -67,13 +37,45 @@
 			Rough: 70
 			Debris: 60
 			Rock: 50
-			Beach: 70
+			Beach: 80
 			RiverShallow: 40
-			Shallow: 25
+			Shallow: 30
+	Locomotor@FOOT_AMPHIBIOUS:
+		Name: foot-amphibious
+		Passes: field, tree, sandbag, fence
+		Crushes: mine, crate
+		SharesCell: true
+		TerrainSpeeds:
+			Road: 100
+			Bridge: 100
+			Clear: 90
+			Rough: 70
+			Debris: 60
+			Rock: 50
+			Beach: 80
+			RiverShallow: 50
+			Shallow: 50
+			River: 40
+			Water: 40
+	Locomotor@FOOT_MOUNTAINER:
+		Name: foot-mountainer
+		Passes: field, tree, sandbag, fence
+		Crushes: mine, crate
+		SharesCell: true
+		TerrainSpeeds:
+			Road: 100
+			Bridge: 100
+			Clear: 90
+			Rough: 70
+			Debris: 60
+			Rock: 50
+			Beach: 80
+			RiverShallow: 40
+			Shallow: 20
 			Cliffs: 15
 	Locomotor@FOOT_AMPHIBIOUS_MOUNTAINER:
 		Name: foot-amphibious-mountainer
-		Passes: tree, sandbag, fence
+		Passes: field, tree, sandbag, fence
 		Crushes: mine, crate
 		SharesCell: true
 		TerrainSpeeds:
@@ -83,14 +85,15 @@
 			Rough: 70
 			Debris: 60
 			Rock: 50
-			Beach: 70
-			RiverShallow: 40
-			Shallow: 25
-			River: 25
-			Water: 20
+			Beach: 80
+			RiverShallow: 50
+			Shallow: 50
+			River: 40
+			Water: 40
 			Cliffs: 15
 	Locomotor@LIGHTWHEELED:
 		Name: lightwheeled
+		Passes: field
 		Crushes: mine, infantry, crate
 		TerrainSpeeds:
 			Road: 100
@@ -100,6 +103,7 @@
 			Rough: 35
 	Locomotor@WHEELED:
 		Name: wheeled
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -110,6 +114,7 @@
 			Debris: 20
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
+		Passes: field
 		Crushes: mine, infantry, sandbag, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -120,6 +125,7 @@
 			Debris: 40
 	Locomotor@LIGHTTRACKED:
 		Name: lighttracked
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -131,6 +137,7 @@
 			RiverShallow: 75
 	Locomotor@LIGHTTRACKEDAMPHIBIOUS:
 		Name: lighttracked-amphibious
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -145,6 +152,7 @@
 			River: 25
 	Locomotor@TRACKED:
 		Name: tracked
+		Passes: field
 		Crushes: mine, infantry, sandbag, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -157,6 +165,7 @@
 			River: 10
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
+		Passes: field
 		Crushes: mine, infantry, sandbag, fence, barbedwire, crate
 		TerrainSpeeds:
 			Road: 100
@@ -169,6 +178,7 @@
 			River: 5
 	Locomotor@TRACKED_AMPHIBIOUS:
 		Name: tracked-amphibious
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -182,6 +192,7 @@
 			River: 10
 	Locomotor@Walker:
 		Name: walker
+		Passes: field
 		Crushes: mine, infantry, fence, crate
 		TerrainSpeeds:
 			Road: 100
@@ -222,7 +233,6 @@
 			Beach: 1
 	TerrainRenderer:
 	ShroudRenderer:
-		Index: 255, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 20, 40, 56, 65, 97, 130, 148, 194, 24, 33, 66, 132, 28, 41, 67, 134, 1, 2, 4, 8, 3, 6, 12, 9, 7, 14, 13, 11, 5, 10, 15, 255
 		UseExtendedIndex: true
 	Faction@randomside:
 		Name: Any Side
@@ -243,16 +253,6 @@
 		Name: Russia
 		InternalName: russia
 		Description: Russia\n
-	# ResourceRenderer:
-	# 	ResourceTypes:
-	# 		Ore:
-	# 			Sequences: scrap01,scrap02,scrap03,scrap04,scrap05,scrap06,scrap07,scrap08,scrap09,scrap10,scrap11,scrap12,scrap13,scrap14,scrap15,scrap16,scrap17,scrap18,scrap19,scrap20
-	# 			Palette: player
-	# 			Name: Valuable Minerals
-	# 		Gems:
-	# 			Sequences: gold01, gold02, gold03, gold04
-	# 			Palette: player
-	# 			Name: Valuable Minerals
 	# JumpjetActorLayer:
 	# 	HeightOffset: 1c460
 
@@ -293,20 +293,6 @@ World:
 		SmokeChance: 25
 		SmokeImage: smoke_m
 		SmokeSequences: idle
-	# ResourceLayer:
-	# 	RecalculateResourceDensity: true
-	# 	ResourceTypes:
-	# 		Ore:
-	# 			ResourceIndex: 1
-	# 			TerrainType: Ore
-	# 			AllowedTerrainTypes: Clear, Road
-	# 			MaxDensity: 12
-	# 		Gems:
-	# 			ResourceIndex: 2
-	# 			TerrainType: Gems
-	# 			AllowedTerrainTypes: Clear, Road
-	# 			MaxDensity: 12
-	# ResourceClaimLayer:
 	WarheadDebugOverlay:
 	SpawnMapActors:
 	MapBuildRadius:
@@ -348,7 +334,7 @@ World:
 		ClassName: Platoon
 		Factions: america
 		BaseActor: supplyroute
-		SupportActors: TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
+		SupportActors: TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, TL.america,E3.america,E2.america,AR.america,E3.america, MT.america,AT.america,DR.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
 	StartingUnits@platoon_russia:
@@ -356,7 +342,7 @@ World:
 		ClassName: Platoon
 		Factions: russia
 		BaseActor: supplyroute
-		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
+		SupportActors: TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, TL.russia,E3.russia,E2.russia,AR.russia,E3.russia, MT.russia,AT.russia,DR.russia,SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 6
 
@@ -365,7 +351,7 @@ World:
 		ClassName: Motorized
 		Factions: america
 		BaseActor: supplyroute
-		SupportActors: abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america
+		SupportActors: abrams,bradley,humvee, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,DR.america,SN.america,MEDI.america
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 	StartingUnits@Motorized_russia:
@@ -373,26 +359,26 @@ World:
 		ClassName: Motorized
 		Factions: russia
 		BaseActor: supplyroute
-		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia
+		SupportActors: t90,bmp2,bmp2, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,DR.russia, SN.russia,MEDI.russia
 		InnerSupportRadius: 5
 		OuterSupportRadius: 7
 
-	StartingUnits@AirSupport_america:
-		Class: air
-		ClassName: Air support
-		Factions: america
-		BaseActor: supplyroute
-		SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
-		InnerSupportRadius: 5
-		OuterSupportRadius: 7
-	StartingUnits@AirSupport_russia:
-		Class: air
-		ClassName: Air support
-		Factions: russia
-		BaseActor: supplyroute
-		SupportActors: t90,bmp2,tunguska, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia, HIND,HIND,HALO
-		InnerSupportRadius: 5
-		OuterSupportRadius: 7
+	# StartingUnits@AirSupport_america:
+	# 	Class: air
+	# 	ClassName: Air support
+	# 	Factions: america
+	# 	BaseActor: supplyroute
+	# 	SupportActors: abrams,bradley,strykershorad, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, TL.america,E3.america,E2.america,AR.america, MT.america,AT.america,AA.america,SN.america,MEDI.america, littlebird,heli,tran
+	# 	InnerSupportRadius: 5
+	# 	OuterSupportRadius: 7
+	# StartingUnits@AirSupport_russia:
+	# 	Class: air
+	# 	ClassName: Air support
+	# 	Factions: russia
+	# 	BaseActor: supplyroute
+	# 	SupportActors: t90,bmp2,tunguska, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, TL.russia,E3.russia,E2.russia,AR.russia, MT.russia,AT.russia,AA.russia,SN.russia,MEDI.russia, HIND,HIND,HALO
+	# 	InnerSupportRadius: 5
+	# 	OuterSupportRadius: 7
 
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
@@ -453,26 +439,11 @@ World:
 	# 		3: WarningThreeMinutesRemaining
 	# 		2: WarningTwoMinutesRemaining
 	# 		1: WarningOneMinuteRemaining
-	# ResourceRenderer:
-	# 	RenderTypes:  Gems, Scraps
 
 EditorWorld:
 	Inherits: ^BaseWorld
 	EditorActorLayer:
 	EditorCursorLayer:
-	# EditorResourceLayer:
-	# 	RecalculateResourceDensity: true
-	# 	ResourceTypes:
-	# 		Ore:
-	# 			ResourceIndex: 1
-	# 			TerrainType: Ore
-	# 			AllowedTerrainTypes: Clear, Road
-	# 			MaxDensity: 12
-	# 		Gems:
-	# 			ResourceIndex: 2
-	# 			TerrainType: Gems
-	# 			AllowedTerrainTypes: Clear, Road
-	# 			MaxDensity: 12
 	EditorSelectionLayer:
 	LoadWidgetAtGameStart:
 	EditorActionManager:

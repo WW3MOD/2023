@@ -70,13 +70,13 @@ AT.russia:
 		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: at.russia
-# Anti Air
-AA.russia:
-	Inherits@BaseUnit: ^AA
-	Buildable:
-		Prerequisites: ~player.russia, ~techlevel.infonly
-	RenderSprites:
-		Image: aa.russia
+# # Anti Air
+# AA.russia:
+# 	Inherits@BaseUnit: ^AA
+# 	Buildable:
+# 		Prerequisites: ~player.russia, ~techlevel.infonly
+# 	RenderSprites:
+# 		Image: aa.russia
 # Medic
 MEDI.russia:
 	Inherits@BaseUnit: ^MEDI
@@ -126,6 +126,14 @@ E4.russia:
 		Prerequisites: ~player.russia, ~techlevel.infonly
 	RenderSprites:
 		Image: e4.russia
+
+# # Attack Dog
+# DOG.russia:
+# 	Inherits@BaseUnit: ^DOG
+# 	Buildable:
+# 		Prerequisites: ~player.russia, ~techlevel.infonly
+# 	RenderSprites:
+# 		Image: dog
 
 # Tesla Trooper
 SHOK:
@@ -183,6 +191,7 @@ SHOKR1:
 	-Buildable:
 	-MapEditorData:
 
+
 # Infiltrating Spy
 # SPY.russia:
 # 	Inherits@BaseUnit: ^SPY
@@ -190,10 +199,3 @@ SHOKR1:
 # 		Prerequisites: ~player.russia, ~techlevel.infonly
 # 	RenderSprites:
 # 		Image: spy.russia
-# Attack Dog
-# DOG.russia:
-# 	Inherits@BaseUnit: ^DOG
-# 	Buildable:
-# 		Prerequisites: ~player.russia, ~techlevel.infonly
-# 	RenderSprites:
-# 		Image: dog

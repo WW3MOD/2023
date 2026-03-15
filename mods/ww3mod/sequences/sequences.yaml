@@ -469,13 +469,17 @@ timberwolf:
 	icon: timberwolficon
 
 smoke_mtd:
-	idle: smoke_mtd
+	idle:
 		Length: *
 		Offset: 2, -5
 		ZOffset: 512
+	start: smoke_mtd
+		Length: 26
+		Offset: 2, -5
+		ZOffset: 512
 	loop: smoke_mtd
-		Start: 49
-		Length: 42
+		Start: 26
+		Length: 65
 		Offset: 2, -5
 		ZOffset: 512
 	end: smoke_mtd

@@ -166,18 +166,6 @@ resources:
 	scrap19: scrap19
 	scrap20: scrap20
 
-mine:
-	idle:
-		UseTilesetExtension: true
-		ZOffset: -1024
-
-gmine:
-	idle:
-		ZOffset: -1024
-		UseTilesetExtension: true
-		TilesetOverrides:
-			INTERIOR: TEMPERAT
-
 railmine:
 	idle:
 		ZOffset: -512
@@ -304,6 +292,44 @@ pips:
 	pip-visibility-12: pip-visibility
 		Start: 11
 		Length: 1
+
+	pip-numbers-1: pip-numbers
+		Start: 0
+		Length: 1
+	pip-numbers-2: pip-numbers
+		Start: 1
+		Length: 1
+	pip-numbers-3: pip-numbers
+		Start: 2
+		Length: 1
+	pip-numbers-4: pip-numbers
+		Start: 3
+		Length: 1
+	pip-numbers-5: pip-numbers
+		Start: 4
+		Length: 1
+	pip-numbers-6: pip-numbers
+		Start: 5
+		Length: 1
+	pip-numbers-7: pip-numbers
+		Start: 6
+		Length: 1
+	pip-numbers-8: pip-numbers
+		Start: 7
+		Length: 1
+	pip-numbers-9: pip-numbers
+		Start: 8
+		Length: 1
+	pip-numbers-10: pip-numbers
+		Start: 9
+		Length: 1
+	pip-numbers-11: pip-numbers
+		Start: 10
+		Length: 1
+	pip-numbers-12: pip-numbers
+		Start: 11
+		Length: 1
+
 	pip-suppression-1: pip-suppression
 		Start: 0
 		Length: 1
@@ -334,6 +360,48 @@ pips:
 	pip-suppression-10: pip-suppression
 		Start: 9
 		Length: 1
+	pip-damage-infantry-light: pip-damage-infantry
+		Start: 0
+		Length: 1
+	pip-damage-infantry-medium: pip-damage-infantry
+		Start: 1
+		Length: 1
+	pip-damage-infantry-heavy: pip-damage-infantry
+		Start: 2
+		Length: 1
+	pip-damage-infantry-critical: pip-damage-infantry
+		Start: 2
+		Length: 2
+		Tick: 300
+	pip-defense-1: pip-defense
+		Start: 0
+		Length: 1
+	pip-defense-2: pip-defense
+		Start: 1
+		Length: 1
+	pip-defense-3: pip-defense
+		Start: 2
+		Length: 1
+	pip-defense-4: pip-defense
+		Start: 3
+		Length: 1
+	pip-defense-5: pip-defense
+		Start: 4
+		Length: 1
+
+	pip-damage-vehicle-light: pip-damage-vehicle
+		Start: 0
+		Length: 1
+	pip-damage-vehicle-medium: pip-damage-vehicle
+		Start: 1
+		Length: 1
+	pip-damage-vehicle-heavy: pip-damage-vehicle
+		Start: 2
+		Length: 1
+	pip-damage-vehicle-critical: pip-damage-vehicle
+		Start: 2
+		Length: 2
+		Tick: 300
 
 pip-ammored:
 	oneshot:
@@ -533,7 +601,7 @@ gpsdot:
 		Start: 32
 
 shroud:
-	shroud: shadow
+	shroud: shroud
 		Length: *
 
 scorches:

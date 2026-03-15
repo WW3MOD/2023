@@ -6,7 +6,7 @@ TRAN:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
-		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
+		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.medium
 		Description: Fast Infantry Transport Helicopter.\n  Unarmed
 	Valued:
 		Cost: 1200
@@ -82,7 +82,7 @@ littlebird:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
+		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
 		Description: Light helicopter armed with dual chainguns.
 	Tooltip:
 		Name: Littlebird
@@ -199,14 +199,11 @@ littlebird:
 		RequiresCondition: !airborne
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
-	DetectCloaked:
-		Range: 12c0
-	RenderDetectionCircle:
 
 littlebird.AI:
 	Inherits: littlebird
 	Buildable:
-		Prerequisites: ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
+		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
 		Description: Light helicopter armed with dual chainguns.\n
 	AttackAircraft:
 		Armaments: primary, secondary
@@ -222,7 +219,7 @@ HELI:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
-		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
 		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.\n  Strong vs Everything\n  Weak vs Anti-Air, Aircraft
 	Tooltip:
 		Name: Apache
@@ -253,6 +250,7 @@ HELI:
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
 	RenderRangeCircle@1:
+		Armament: primary
 		Width: 3
 		Color: FFFF00
 	WithMuzzleOverlay:
@@ -280,6 +278,7 @@ HELI:
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
 	RenderRangeCircle@2:
+		Armament: secondary
 		Width: 3
 		Color: 00FFBB
 	AmmoPool@2:
@@ -344,7 +343,7 @@ A10:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 52
-		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
 		IconPalette: temptd
 		Description: Fast Ground-Attack Plane.
 	Valued:
@@ -454,7 +453,7 @@ F16:
 		Queue: Aircraft
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 51
-		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
+		Prerequisites: ~disabled, ~player.america, ~aircraft.america, ~techlevel.high
 	Valued:
 		Cost: 4000
 	Tooltip:

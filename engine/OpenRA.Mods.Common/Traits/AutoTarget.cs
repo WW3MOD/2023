@@ -449,6 +449,9 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					priorityValue = 0;
 
+					if (target.Actor.GetEnabledTargetTypes().Any(t => t == "CriticalDamage"))
+						priorityValue += 50000;
+
 					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
 						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
 
@@ -464,7 +467,7 @@ namespace OpenRA.Mods.Common.Traits
 						priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
 
 					// Divide by the original Priority value, lower Priority is more prioritized
-					priorityValue /= (ati.Priority);
+					priorityValue /= ati.Priority;
 
 					// Reversed from original OpenRA, lower value is higher priority. If we have no chosen target this is the first and should be added directly.
 					if (priorityValue >= chosenTargetValue && chosenTarget.Type != TargetType.Invalid)
@@ -477,7 +480,6 @@ namespace OpenRA.Mods.Common.Traits
 					chosenTargetSuppression = priorityCondition ?? 0;
 					chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;
 				}
-
 			}
 
 			if (chosenTarget.Actor != null)

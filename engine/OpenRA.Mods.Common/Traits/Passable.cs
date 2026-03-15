@@ -11,7 +11,6 @@
 
 /* Could add Crush Damage, and give that much damage instead of just killing instantly */
 
-using System;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -67,8 +66,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			// if (!PassableInner(self, passer, passClasses))
-			// 	return;
+			/* if (!PassableInner(self, passer, passClasses))
+				return; */
 
 			Game.Sound.Play(SoundType.World, Info.CrushSound, passer.CenterPosition);
 
@@ -118,7 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 					return self.Owner.AlliedPlayersMask;
 			else
 				if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
-					return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
+				return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
 
 			return self.World.NoPlayersMask;
 
@@ -165,7 +164,6 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.ActorMap.UpdateOccupiedCells(self.OccupiesSpace);
 		}
 	}
-
 
 	[Desc("Tag trait for stuff that should not trigger mines.")]
 	class MineImmuneInfo : TraitInfo<MineImmune> { }

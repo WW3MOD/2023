@@ -39,11 +39,6 @@ MCV:
 		CustomPipType: pip-blue
 	GpsDot:
 		String: MCV
-	WithDamageOverlay:
-		Image: smoke_mtd
-		Palette: temptd
-	Explodes:
-		Weapon: ArtilleryExplode
 MCV2:
 	Inherits: MCV
 	Buildable:

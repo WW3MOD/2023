@@ -31,24 +31,24 @@ namespace OpenRA.Mods.Common.Warheads
 
 		public readonly WDist[] Range = { WDist.FromCells(1) };
 
-		WDist[] effectiveRange;
+		/* WDist[] effectiveRange;
 
-		// void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
-		// {
-		// 	if (Range != null)
-		// 	{
-		// 		if (Range.Length != 1 && Range.Length != Amount.Length)
-		// 			throw new YamlException("Number of range values must be 1 or equal to the number of Amount values.");
+		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
+		{
+			if (Range != null)
+			{
+				if (Range.Length != 1 && Range.Length != Amount.Length)
+					throw new YamlException("Number of range values must be 1 or equal to the number of Amount values.");
 
-		// 		for (var i = 0; i < Range.Length - 1; i++)
-		// 			if (Range[i] > Range[i + 1])
-		// 				throw new YamlException("Range values must be specified in an increasing order.");
+				for (var i = 0; i < Range.Length - 1; i++)
+					if (Range[i] > Range[i + 1])
+						throw new YamlException("Range values must be specified in an increasing order.");
 
-		// 		effectiveRange = Range;
-		// 	}
-		// 	else
-		// 		effectiveRange = Exts.MakeArray(Amount.Length, i => i * Spread);
-		// }
+				effectiveRange = Range;
+			}
+			else
+				effectiveRange = Exts.MakeArray(Amount.Length, i => i * Spread);
+		}*/
 
 		public override void DoImpact(in Target target, WarheadArgs args)
 		{

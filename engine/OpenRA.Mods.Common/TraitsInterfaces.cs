@@ -54,7 +54,6 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface IBlocksSightInfo : ITraitInfoInterface { }
 
-
 	[RequireExplicitImplementation]
 	public interface IBlocksProjectiles
 	{
@@ -389,6 +388,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	[RequireExplicitImplementation]
 	public interface ISpeedModifier { int GetSpeedModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface ITurretTurnSpeedModifier { int GetTurretTurnSpeedModifier(); }
 
 	[RequireExplicitImplementation]
 	public interface IFirepowerModifier { int GetFirepowerModifier(); }

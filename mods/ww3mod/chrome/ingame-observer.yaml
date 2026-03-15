@@ -69,7 +69,7 @@ Container@OBSERVER_WIDGETS:
 									Y: 6
 									ImageCollection: order-icons
 									ImageName: options
-				Container@RADAR:
+				Container@MINIMAP:
 					Children:
 						ColorBlock:
 							X: 8
@@ -77,7 +77,7 @@ Container@OBSERVER_WIDGETS:
 							Width: 222
 							Height: 222
 							Color: 000000
-						MiniMap@INGAME_RADAR:
+						MiniMap@INGAME_MINIMAP:
 							WorldInteractionController: INTERACTION_CONTROLLER
 							X: 9
 							Y: 41
@@ -286,15 +286,6 @@ Container@OBSERVER_WIDGETS:
 									Font: Bold
 									Text: Cash
 									Align: Right
-									Shadow: True
-								Label@POWER_HEADER:
-									X: 240
-									Y: 0
-									Width: 80
-									Height: PARENT_BOTTOM
-									Font: Bold
-									Text: Power
-									Align: Center
 									Shadow: True
 								Label@KILLS_HEADER:
 									X: 320
@@ -716,13 +707,6 @@ Container@OBSERVER_WIDGETS:
 									Width: 80
 									Height: PARENT_BOTTOM
 									Align: Right
-									Shadow: True
-								Label@POWER:
-									X: 240
-									Y: 0
-									Width: 80
-									Height: PARENT_BOTTOM
-									Align: Center
 									Shadow: True
 								Label@KILLS:
 									X: 320

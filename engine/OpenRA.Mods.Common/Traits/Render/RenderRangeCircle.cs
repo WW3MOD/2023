@@ -51,6 +51,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Range circle border width.")]
 		public readonly float BorderWidth = 0;
 
+		[Desc("Require Shift to be pressed to render circle.")]
+		public readonly bool RequireShift = true;
+
 		// Computed range
 		Lazy<WDist> range;
 
@@ -99,27 +102,27 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 	class RenderRangeCircle : ConditionalTrait<RenderRangeCircleInfo>, INotifyCreated, IRenderAnnotationsWhenSelected
 	{
-		public readonly RenderRangeCircleInfo Info;
+		public readonly RenderRangeCircleInfo RenderRangeCircleInfo;
 		readonly Actor self;
 		public Armament armament;
 
 		public RenderRangeCircle(Actor self, RenderRangeCircleInfo info)
 			: base(info)
 		{
-			this.Info = info;
+			RenderRangeCircleInfo = info;
 			this.self = self;
 		}
 
 		void INotifyCreated.Created(Actor self)
 		{
-			armament = self.TraitsImplementing<Armament>().FirstOrDefault(a => a.Info.Name == Info.Armament);
+			armament = self.TraitsImplementing<Armament>().FirstOrDefault(a => a.Info.Name == RenderRangeCircleInfo.Armament);
 		}
 
 		bool Visible
 		{
 			get
 			{
-				if (IsTraitDisabled)
+				if (IsTraitDisabled || (RenderRangeCircleInfo.RequireShift && !Game.GetModifierKeys().HasModifier(Modifiers.Shift)))
 					return false;
 
 				return true;
@@ -136,7 +139,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 					yield break;
 
-				var range = Info.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
+				var range = RenderRangeCircleInfo.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
 				if (range == WDist.Zero)
 					yield break;
 
@@ -144,10 +147,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 					self.CenterPosition,
 					range,
 					0,
-					Info.Color,
-					Info.Width,
-					Info.BorderColor,
-					Info.BorderWidth);
+					RenderRangeCircleInfo.Color,
+					RenderRangeCircleInfo.Width,
+					RenderRangeCircleInfo.BorderColor,
+					RenderRangeCircleInfo.BorderWidth);
 			}
 		}
 

@@ -55,10 +55,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		// FF Not sure
 		public IReadOnlyDictionary<CPos, SubCell> OccupiedCells(ActorInfo info, CPos location, SubCell subCell = SubCell.Any)
-        {
+		{
 			return new Dictionary<CPos, SubCell>();
-        }
-    }
+		}
+	}
 
 	public class BallisticMissile : ISync, IFacing, IMove, IPositionable,
 		INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld, IOccupySpace
@@ -144,12 +144,12 @@ namespace OpenRA.Mods.Common.Traits
 			get { return Util.ApplyPercentageModifiers(Info.Speed, speedModifiers); }
 		}
 
-		public WVec FlyStep(WAngle facing)
+		public WVec GetVector(WAngle facing)
 		{
-			return FlyStep(MovementSpeed, facing);
+			return GetVector(MovementSpeed, facing);
 		}
 
-		public static WVec FlyStep(int speed, WAngle facing)
+		public static WVec GetVector(int speed, WAngle facing)
 		{
 			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromFacing(facing.Facing));
 			return speed * dir / 1024;

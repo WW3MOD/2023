@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		[FieldLoader.Require]
 		[Desc("Amount of money to give each time.")]
-		public readonly int Amount = 15;
+		public readonly int Amount = 0;
 
 		[Desc("Number of ticks to wait between giving money.")]
 		public readonly int Interval = 60;

@@ -88,19 +88,17 @@ namespace OpenRA
 		/// <summary>Gets or sets the layer contents using raw map coordinates (not CPos!)</summary>
 		public T this[MPos uv]
 		{
-			/* TODO, Aircraft flying outside of map
-			Exception has occurred: CLR/System.IndexOutOfRangeException
-			An unhandled exception of type 'System.IndexOutOfRangeException' occurred in OpenRA.Game.dll: 'Index was outside the bounds of the array.'
-			at OpenRA.CellLayer`1.get_Item(MPos uv) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Map\CellLayer.cs:line 91
-			at OpenRA.Traits.MapLayers.AddSource(IAffectsMapLayer mapLayer, Int32 strength, PPos[] projectedCells, Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Traits\Player\MapLayers.cs:line 315
-			at OpenRA.Mods.Common.Traits.Vision.AddCellsToPlayerMapLayer(Actor self, Player p, PPos[] uv) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Vision.cs:line 53
-			at OpenRA.Mods.Common.Traits.AffectsMapLayer.UpdateCells(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AffectsMapLayer.cs:line 150
-			at OpenRA.Mods.Common.Traits.AffectsMapLayer.OpenRA.Mods.Common.Traits.INotifyCenterPositionChanged.CenterPositionChanged(Actor self, Byte oldLayer, Byte newLayer) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AffectsMapLayer.cs:line 117
-			at OpenRA.Mods.Common.Traits.Aircraft.SetPosition(Actor self, WPos pos) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 837
-			at OpenRA.Mods.Common.Activities.Fly.FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, WVec& moveOverride, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 96
-			at OpenRA.Mods.Common.Activities.Fly.FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 101
-			at OpenRA.Mods.Common.Activities.Fly.Tick(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 260
-			at OpenRA.Activities.Activity.TickOuter(Actor self) in  */
+			// Exception has occurred: CLR/System.IndexOutOfRangeException
+			// An unhandled exception of type 'System.IndexOutOfRangeException' occurred in OpenRA.Game.dll: 'Index was outside the bounds of the array.'
+			// at OpenRA.CellLayer`1.get_Item(MPos uv) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Map\CellLayer.cs:line 104
+			// at OpenRA.Traits.MapLayers.AddSource(IAffectsMapLayer mapLayer, Int32 strength, PPos[] projectedCells, Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Traits\Player\MapLayers.cs:line 325
+			// at OpenRA.Mods.Common.Traits.Vision.AddCellsToPlayerMapLayer(Actor self, Player p, PPos[] uv) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Vision.cs:line 53
+			// at OpenRA.Mods.Common.Traits.AffectsMapLayer.UpdateCells(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AffectsMapLayer.cs:line 150
+			// at OpenRA.Mods.Common.Traits.AffectsMapLayer.OpenRA.Mods.Common.Traits.INotifyCenterPositionChanged.CenterPositionChanged(Actor self, Byte oldLayer, Byte newLayer) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\AffectsMapLayer.cs:line 117
+			// at OpenRA.Mods.Common.Traits.Aircraft.SetPosition(Actor self, WPos pos) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 867
+			// at OpenRA.Mods.Common.Activities.Fly.FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, WVec& moveOverride, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 101
+			// at OpenRA.Mods.Common.Activities.Fly.FlyTowardsTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, Boolean idleTurn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 106
+			// at OpenRA.Mods.Common.Activities.Fly.Tick(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Activities\Air\Fly.cs:line 269
 			get => Entries[Index(uv)];
 
 			set
@@ -161,10 +159,10 @@ namespace OpenRA
 
 		public System.Collections.Generic.IEnumerable<MPos> TilesIntersectingLine(MPos from, MPos to)
 		{
-			int startX = from.U;
-			int startY = from.V;
-			int endX = to.U;
-			int endY = to.V;
+			var startX = from.U;
+			var startY = from.V;
+			var endX = to.U;
+			var endY = to.V;
 
 			// Validate input coordinates
 			if (!IsValidCoordinate(startX, startY) || !IsValidCoordinate(endX, endY))
@@ -173,11 +171,11 @@ namespace OpenRA
 			}
 
 			// Use Bresenham's line algorithm to find the coordinates of the line
-			int dx = Math.Abs(endX - startX);
-			int dy = Math.Abs(endY - startY);
-			int sx = startX < endX ? 1 : -1;
-			int sy = startY < endY ? 1 : -1;
-			int err = dx - dy;
+			var dx = Math.Abs(endX - startX);
+			var dy = Math.Abs(endY - startY);
+			var sx = startX < endX ? 1 : -1;
+			var sy = startY < endY ? 1 : -1;
+			var err = dx - dy;
 
 			while (true)
 			{
@@ -190,12 +188,13 @@ namespace OpenRA
 				if (startX == endX && startY == endY)
 					yield break;
 
-				int e2 = 2 * err;
+				var e2 = 2 * err;
 				if (e2 > -dy)
 				{
 					err -= dy;
 					startX += sx;
 				}
+
 				if (e2 < dx)
 				{
 					err += dx;
