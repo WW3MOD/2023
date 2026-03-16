@@ -31,6 +31,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Determines what projectiles to block based on their allegiance to the wall owner.")]
 		public readonly PlayerRelationship ExplodesOn = PlayerRelationship.Enemy;
 
+		[Desc("Obstacles closer than this to the projectile source are automatically bypassed.",
+			"Simulates the operator aiming around nearby obstacles. Default 4 cells.")]
+		public static readonly int ProximityBypassRange = 4096;
+
+		[Desc("Obstacles between ProximityBypassRange and this distance get a boosted bypass chance.",
+			"Creates a smooth transition zone. Default 7 cells.")]
+		public static readonly int ProximityFalloffRange = 7168;
+
 		public WDist? HitShapeHeight;
 
 		public override object Create(ActorInitializer init) { return new BlocksProjectiles(this); }
@@ -87,10 +95,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static bool AnyBlockingActorsBetween(Actor self, WPos end, WDist width, out WPos hit, bool checkRelationships = false, bool checkBypassChance = false)
 		{
-			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships, checkBypassChance); // , self.CenterPosition + new WVec(0, 0, 1000) - Tested, didnt seem to do anytning
+			return AnyBlockingActorsBetween(self.World, self.Owner, self.CenterPosition, end, width, out hit, self, checkRelationships, checkBypassChance, self.CenterPosition);
 		}
 
-		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false, bool checkBypassChance = false)
+		public static bool AnyBlockingActorsBetween(World world, Player owner, WPos start, WPos end, WDist width, out WPos hit, Actor self = null, bool checkRelationships = false, bool checkBypassChance = false, WPos? sourceOrigin = null)
 		{
 			var actors = world.FindBlockingActorsOnLine(start, end, width);
 			var length = (end - start).Length;
@@ -112,6 +120,36 @@ namespace OpenRA.Mods.Common.Traits
 				var dat = world.Map.DistanceAboveTerrain(hitPos);
 
 				var isBlocking = blockers.Find(t => t.BlockingHeight > dat);
+
+				// Proximity-based bypass: obstacles close to the source are easy to aim around.
+				// An operator can line up a shot to avoid trees right next to them.
+				if (isBlocking != null && sourceOrigin.HasValue)
+				{
+					var distFromSource = (hitPos - sourceOrigin.Value).HorizontalLength;
+
+					// Within inner zone: always bypass (operator easily avoids nearby obstacles)
+					if (distFromSource < BlocksProjectilesInfo.ProximityBypassRange)
+					{
+						totalBypassed += 1;
+						continue;
+					}
+
+					// Transition zone: boosted bypass chance (linear falloff)
+					if (distFromSource < BlocksProjectilesInfo.ProximityFalloffRange)
+					{
+						var falloffRange = BlocksProjectilesInfo.ProximityFalloffRange - BlocksProjectilesInfo.ProximityBypassRange;
+						var distIntoFalloff = distFromSource - BlocksProjectilesInfo.ProximityBypassRange;
+
+						// 100% bypass at inner edge, scales down to base BypassChance at outer edge
+						var boostedChance = 100 - (100 - isBlocking.BypassChance) * distIntoFalloff / falloffRange;
+						if (boostedChance >= 100 || boostedChance > world.SharedRandom.Next(100))
+						{
+							totalBypassed += 1;
+							continue;
+						}
+					}
+				}
+
 				if ((isBlocking != null && isBlocking.MaxBypass > 0 && totalBypassed < isBlocking.MaxBypass)
 					&& (!checkBypassChance || isBlocking.BypassChance == 100 || isBlocking.BypassChance > world.SharedRandom.Next(100)))
 				{

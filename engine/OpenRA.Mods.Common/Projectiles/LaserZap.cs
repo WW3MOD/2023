@@ -163,7 +163,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			// Check for blocking actors
 			// if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, tailPos, headPos, info.Width, out var blockedPos))
 			// if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, source, target, info.Width, out var blockedPos)) // From 2022 ??
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, args.SourceActor.CenterPosition, source, info.Width, out var blockedPos))
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, args.SourceActor.CenterPosition, source, info.Width, out var blockedPos, sourceOrigin: args.Source))
 			{
 				target = blockedPos;
 			}
