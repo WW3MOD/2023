@@ -15,81 +15,38 @@
 	# 	Length: *
 	# 	Tick: 80
 	# 	BlendMode: Additive
-	die-crushed: corpse1
-		Length: 6
+	die-crushed: e1
+		Start: 293
+		Length: 3
 		Tick: 1600
 		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-			JUNGLE: TEMPERAT
-			WINTER: TEMPERAT
-			DUNE: TEMPERAT
+# Rot sequences use generic e1 corpse frames (last frames of death animations)
+# These display a corpse decaying on the ground after bleedout death
 ^Rot:
-	rot1: rot1
-		Combine:
-			minigun:
-				Start: 1
-				Length: 1
-			corpse1:
-				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
-		Length: 7
-		Tick: 2000
+	rot1: e1
+		Start: 293
+		Length: 3
+		Tick: 2500
 		ZOffset: -511
-	rot2: rot2
-		Combine:
-			minigun:
-				Start: 1
-				Length: 1
-			corpse2:
-				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
-		Length: 7
-		Tick: 2000
+	rot2: e1
+		Start: 301
+		Length: 3
+		Tick: 2500
 		ZOffset: -511
-	rot3: rot3
-		Combine:
-			minigun:
-				Start: 1
-				Length: 1
-			corpse3:
-				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
-		Length: 7
-		Tick: 2000
+	rot3: e1
+		Start: 309
+		Length: 3
+		Tick: 2500
 		ZOffset: -511
-	rot4: rot4
-		Combine:
-			minigun:
-				Start: 1
-				Length: 1
-			corpse1:
-				Length: 6
-				UseTilesetExtension: true
-				TilesetOverrides:
-					DESERT: TEMPERAT
-					INTERIOR: TEMPERAT
-		Length: 7
+	rot4: e1
+		Start: 320
+		Length: 4
 		Tick: 3000
-		Offset: -10, 0
 		ZOffset: -511
 	rot5: e1
 		Start: 291
 		Length: 5
 		Tick: 3000
-		# Offset: -10, 0
-		# ZOffset: -511
 # Unused. Could be nice to add custom panic sequence to soldiers, but it's not really necessary when burn image is overlayed
 ^Panic:
 	panic-stand: tecn
