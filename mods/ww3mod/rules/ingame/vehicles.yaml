@@ -98,6 +98,10 @@
 
 ^WheeledVehicle:
 	Inherits@Type: ^Vehicle
+	Mobile:
+		CanMoveBackward: true
+		BackwardDuration: 30
+		BackwardSpeedModifier: 60
 	Passenger:
 		Weight: 15
 		CargoType: Vehicle
@@ -105,6 +109,9 @@
 	Inherits@Type: ^Vehicle
 	Mobile:
 		Locomotor: tracked
+		CanMoveBackward: true
+		BackwardDuration: 50
+		BackwardSpeedModifier: 40
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle

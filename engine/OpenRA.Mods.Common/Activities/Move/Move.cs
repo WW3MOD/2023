@@ -131,6 +131,7 @@ namespace OpenRA.Mods.Common.Activities
 		public override bool Tick(Actor self)
 		{
 			mobile.TurnToMove = false;
+			mobile.MovingBackward = false;
 
 			if (IsCanceling && mobile.CanStayInCell(mobile.ToCell))
 			{
@@ -160,7 +161,10 @@ namespace OpenRA.Mods.Common.Activities
 			var firstFacing = self.World.Map.FacingBetween(mobile.FromCell, nextCell.Value.Cell, mobile.Facing);
 
 			if (mobile.Info.CanMoveBackward && self.World.WorldTick - startTicks < mobile.Info.BackwardDuration && Math.Abs(firstFacing.Angle - mobile.Facing.Angle) > 256)
+			{
 				firstFacing = new WAngle(firstFacing.Angle + 512);
+				mobile.MovingBackward = true;
+			}
 
 			if (firstFacing != mobile.Facing)
 			{
@@ -423,6 +427,10 @@ namespace OpenRA.Mods.Common.Activities
 				if (Move.lastMovePartCompletedTick < self.World.WorldTick)
 				{
 					var movementSpeedForCell = mobile.MovementSpeedForCell(mobile.ToCell);
+
+					// Apply backward speed modifier when reversing
+					if (mobile.MovingBackward)
+						movementSpeedForCell = movementSpeedForCell * mobile.Info.BackwardSpeedModifier / 100;
 
 					// Exceeding movementSpeedForCell
 					if (mobile.CurrentSpeed > movementSpeedForCell)

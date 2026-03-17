@@ -266,7 +266,6 @@ t90:
 		Speed: 100
 		Acceleration: 3, 2, 1
 		TurnSpeed: 10
-		# CanMoveBackward: true
 		PauseOnCondition: empdisable
 	Turreted:
 		TurnSpeed: 20
