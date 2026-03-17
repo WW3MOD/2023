@@ -292,13 +292,13 @@ SUPPLYROUTE:
 		ExitCell: 0,1
 		Height: 2000
 		ProductionTypes: Aircraft, Helicopter
-	Production:
-		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter, Building, Defense
+	Production@Local:
+		Produces: Building, Defense
 		UseRandomExit: true
 		PauseOnCondition: disabled || build-incomplete
-	# ProductionFromMapEdge:
-	# 	Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter, Building, Defense
-	# 	# PauseOnCondition: disabled || build-incomplete
+	ProductionFromMapEdge:
+		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter
+		PauseOnCondition: disabled || build-incomplete
 	GrantExternalConditionToProduced:
 		Condition: produced
 	AcceptsDeliveredCash:
