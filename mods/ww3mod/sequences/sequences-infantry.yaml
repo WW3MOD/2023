@@ -204,14 +204,6 @@ class:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -300,14 +292,6 @@ e1.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -404,14 +388,6 @@ e2.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -503,14 +479,6 @@ e3.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: e4
 		Start: 208
 		Stride: 4
@@ -585,14 +553,6 @@ e4.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: e6
 		Start: 82
 		Stride: 4
@@ -663,14 +623,6 @@ e6.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: medi
 		Start: 130
 		Stride: 4
@@ -758,14 +710,6 @@ medi.russia:
 		Length: 18
 	die6: electro
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
@@ -859,14 +803,6 @@ sn.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -930,14 +866,6 @@ ar.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: mt
 		Start: 240
 		Stride: 4
@@ -1015,14 +943,6 @@ mt.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: at
 		Start: 144
 		Stride: 4
@@ -1100,14 +1020,6 @@ at.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: aa
 		Start: 144
 		Stride: 4
@@ -1172,14 +1084,6 @@ aa.russia:
 		Length: 18
 	die6: electro
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
@@ -1405,14 +1309,6 @@ tl.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand: spy
 		Start: 144
 		Stride: 4
@@ -1499,14 +1395,6 @@ spy.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-        TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -1611,14 +1499,6 @@ tecn.russia:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	garrison-muzzle: minigun
 		Length: 6
 		Facings: 8
@@ -1677,14 +1557,6 @@ dog:
 		Length: *
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	jump: dogbullt
 		Length: 4
 		Facings: 8
@@ -1735,14 +1607,6 @@ mech:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Start: 130
 		Stride: 4
@@ -1829,14 +1693,6 @@ shok:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	parachute:
 		Start: 528
 	icon: shokicon
@@ -1874,14 +1730,6 @@ e9:
 		Length: 18
 	die6: electro
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
@@ -2134,14 +1982,6 @@ terr:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-        TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	parachute:
 		Start: 0
 	icon: terricon
@@ -2182,14 +2022,6 @@ thf:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	prone-stand:
 		Start: 72
 		Stride: 4
@@ -2238,14 +2070,6 @@ c1:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2288,14 +2112,6 @@ c2:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2338,14 +2154,6 @@ c3:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2389,14 +2197,6 @@ c4:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2440,14 +2240,6 @@ c5:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2491,14 +2283,6 @@ c6:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2542,14 +2326,6 @@ c7:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2593,14 +2369,6 @@ c8:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2644,14 +2412,6 @@ c9:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2695,14 +2455,6 @@ c10:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: *
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 	run:
 		Start: 56
 		Length: 6
@@ -2745,14 +2497,6 @@ einstein:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 delphi:
 	stand:
 		Facings: 8
@@ -2789,14 +2533,6 @@ delphi:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 chan:
 	stand:
 		Facings: 8
@@ -2829,14 +2565,6 @@ chan:
 	die6: electro
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
 		UseTilesetExtension: true
 		TilesetOverrides:
 			DESERT: TEMPERAT
@@ -2899,12 +2627,4 @@ gnrl:
 			INTERIOR: TEMPERAT
 	die7: poisondeath
 		Length: *
-	die-crushed: corpse1
-		Length: 6
-		Tick: 1600
-		ZOffset: -511
-		UseTilesetExtension: true
-		TilesetOverrides:
-			DESERT: TEMPERAT
-			INTERIOR: TEMPERAT
 
