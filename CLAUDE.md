@@ -174,21 +174,23 @@ OpenRA uses `WDist` (World Distance) units throughout. The notation is `NcXXX`:
 - `0c512` = 0.5 cells
 - Plain numbers like `512` = 512 WDist units (half a cell)
 
-## Suppression System (~80% complete)
+## Suppression System (Complete)
 
-The suppression system is nearly done and is the highest priority gameplay feature remaining:
-
-**What exists:**
+**Infantry suppression (10-tier, cap 100, decay 1/5 ticks):**
 - `GrantExternalCondition` warheads with Amount/Range for graduated suppression
-- `ExternalCondition` with TotalCap/ReduceTicks for decay
-- 10-tier pip display (pip-suppression-1 through pip-suppression-10)
-- Speed/vision/burst/inaccuracy multipliers at different thresholds
+- Speed/vision/burst/inaccuracy multipliers (90%→0% across tiers)
 - InfantryStates triggers prone at suppression > 30
+- 10-tier pip display (pip-suppression-1 through pip-suppression-10)
 
-**What's missing:**
-- Fine-tuning of suppression values per weapon
-- Vehicle suppression/stun mechanic
-- Testing and balancing
+**Vehicle suppression (5-tier, cap 50, decay 1/3 ticks):**
+- Only medium caliber (12.7mm+) and explosions suppress vehicles
+- Turret turn speed reduced (85%→25%), inaccuracy increased (115%→200%)
+- Burst wait increased (105%→150%), NO speed reduction
+- Defined in `^VehicleSuppressionEffects` template in vehicles.yaml
+
+**Stances system (5 stances):**
+- HoldFire, Ambush (50% scan radius), ReturnFire, Defend, AttackAnything
+- Ambush added to UnitStance enum, UI button (Alt+G), condition support
 
 ## YAML Conventions
 
@@ -229,13 +231,16 @@ Each unit type has a base template file and two faction files:
 - Modifiers branch merged (attack-move modifier keys)
 - AI improved (balanced builds, aircraft enabled, repair/capture modules)
 - Aircraft costs restored (were all set to 1 for testing)
+- **Suppression system completed** — vehicle suppression added (turret slow + inaccuracy, medium/large/huge caliber only), infantry suppression tuned
+- **Stances system implemented** — 5 stances: HoldFire, Ambush, ReturnFire, Defend, AttackAnything. Ambush = 50% scan radius, fires when close
+- **Vehicle reverse movement** — tracked (50 ticks, 40% speed) and wheeled (30 ticks, 60% speed) can reverse instead of 180° turns
+- **Supply Route edge spawning** — units now spawn at map edge and march to rally point; buildings/defenses still spawn locally
+- **Bleedout animation fixed** — rot sequences now use existing e1 sprite frames instead of missing rot1-4/corpse1-3 files
 
 ### Next Priorities
-1. **Suppression system completion** — tune values, add vehicle suppression
-2. **Stances system** — Hold Fire, Ambush, Return Fire, Fire at Will (minimum)
-3. **Vehicle reverse movement** — tanks always turn to face direction, need reverse gear
-4. **Supply Route improvements** — edge spawning, per-SR queues
-5. **Bleedout animation** — death sequence doesn't show (art pipeline issue, needs per-unit rot sprites)
+1. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
+2. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
+3. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
 
 ### Remaining Branches
 - `skane`/`xavi` — cherry-pick useful parts (map data, sprites)
