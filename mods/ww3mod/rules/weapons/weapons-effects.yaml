@@ -105,43 +105,52 @@
 		Condition: suppressed
 		Amount: 50
 		Range: 20
-		# Duration: 100
 	Warhead@Suppression_2: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 40
-		# Duration: 50
 	Warhead@Suppression_3: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 80
-		# Duration: 25
 	Warhead@Suppression_4: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 160
-		# Duration: 50
 	Warhead@Suppression_5: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 320
-		# Duration: 100
 	Warhead@Suppression_6: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 640
-		# Duration: 150
 	Warhead@Suppression_7: GrantExternalCondition
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
 		Range: 960
-		# Duration: 200
+	# Vehicle suppression from large caliber (12.7mm+)
+	Warhead@VehicleSuppression_1: GrantExternalCondition
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 8
+		Range: 10
+	Warhead@VehicleSuppression_2: GrantExternalCondition
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 4
+		Range: 20
+	Warhead@VehicleSuppression_3: GrantExternalCondition
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 2
+		Range: 40
 
 ^MinimalSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
@@ -248,49 +257,61 @@
 		Condition: suppressed
 		Amount: 50
 		Range: 128
-		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 256
-		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 512
-		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 1c0
-		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 2c0
-		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 3c0
-		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
 		Range: 4c0
-		# Duration: 256
+	# Vehicle suppression from medium explosions (25mm+)
+	Warhead@VehicleSuppression_1: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 12
+		Range: 128
+	Warhead@VehicleSuppression_2: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 6
+		Range: 256
+	Warhead@VehicleSuppression_3: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 3
+		Range: 512
 
 ^LargeSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
@@ -299,49 +320,61 @@
 		Condition: suppressed
 		Amount: 50
 		Range: 192
-		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 384
-		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 768
-		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 1c512
-		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 3c0
-		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 4c512
-		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
 		Range: 6c0
-		# Duration: 256
+	# Vehicle suppression from large explosions
+	Warhead@VehicleSuppression_1: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 18
+		Range: 192
+	Warhead@VehicleSuppression_2: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 10
+		Range: 384
+	Warhead@VehicleSuppression_3: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 5
+		Range: 768
 
 ^HugeSuppressionEffects:
 	Warhead@Suppression_1: GrantExternalCondition
@@ -350,49 +383,67 @@
 		Condition: suppressed
 		Amount: 50
 		Range: 256
-		# Duration: 150
 	Warhead@Suppression_2: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 25
 		Range: 512
-		# Duration: 75
 	Warhead@Suppression_3: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 12
 		Range: 1c0
-		# Duration: 32
 	Warhead@Suppression_4: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 6
 		Range: 2c0
-		# Duration: 64
 	Warhead@Suppression_5: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 3
 		Range: 4c0
-		# Duration: 128
 	Warhead@Suppression_6: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 2
 		Range: 6c0
-		# Duration: 172
 	Warhead@Suppression_7: GrantExternalCondition
 		Delay: 5
 		ValidTargets: Infantry
 		Condition: suppressed
 		Amount: 1
 		Range: 8c0
-		# Duration: 256
+	# Vehicle suppression from huge explosions (artillery, naval)
+	Warhead@VehicleSuppression_1: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 25
+		Range: 256
+	Warhead@VehicleSuppression_2: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 15
+		Range: 512
+	Warhead@VehicleSuppression_3: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 8
+		Range: 1c0
+	Warhead@VehicleSuppression_4: GrantExternalCondition
+		Delay: 5
+		ValidTargets: Vehicle
+		Condition: suppressed
+		Amount: 3
+		Range: 2c0
 
 ^MinimalExplosionEffects:
 	Inherits@MinimalSuppressionEffects: ^MinimalSuppressionEffects

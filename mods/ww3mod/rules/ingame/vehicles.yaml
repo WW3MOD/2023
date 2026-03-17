@@ -11,6 +11,7 @@
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Vision: ^StandardVision
 	Inherits@DamagePips: ^DamageVehiclePips
+	Inherits@VehicleSuppression: ^VehicleSuppressionEffects
 	Health:
 		HP: 10000
 	Armor:
@@ -150,6 +151,64 @@
 ^EffectsWhenMovingVehicles:
 	InaccuracyMultiplier@Moving:
 		RequiresCondition: moving
+		Modifier: 150
+
+# Vehicle suppression — crew is buttoned up, turret slows, accuracy degrades
+# No speed reduction (armored vehicles keep moving), milder effects than infantry
+^VehicleSuppressionEffects:
+	ExternalCondition@VehicleSuppression:
+		Condition: suppressed
+		TotalCap: 50
+		ReduceTicks: 3
+		ReduceAmount: 1
+	Inherits@VehSuppressionPips: ^SuppressionPips
+	# Turret slows as crew buttons up (5 tiers, 50 cap)
+	TurretTurnSpeedMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 85
+	TurretTurnSpeedMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 70
+	TurretTurnSpeedMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 55
+	TurretTurnSpeedMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 40
+	TurretTurnSpeedMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 25
+	# Accuracy degrades as crew is rattled
+	InaccuracyMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 115
+	InaccuracyMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 130
+	InaccuracyMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 150
+	InaccuracyMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 175
+	InaccuracyMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
+		Modifier: 200
+	# Burst rate slows slightly
+	BurstWaitMultiplier@Suppression_1:
+		RequiresCondition: suppressed > 0 && suppressed <= 10
+		Modifier: 105
+	BurstWaitMultiplier@Suppression_2:
+		RequiresCondition: suppressed > 10 && suppressed <= 20
+		Modifier: 110
+	BurstWaitMultiplier@Suppression_3:
+		RequiresCondition: suppressed > 20 && suppressed <= 30
+		Modifier: 120
+	BurstWaitMultiplier@Suppression_4:
+		RequiresCondition: suppressed > 30 && suppressed <= 40
+		Modifier: 130
+	BurstWaitMultiplier@Suppression_5:
+		RequiresCondition: suppressed > 40 && suppressed <= 50
 		Modifier: 150
 
 MSAR:
