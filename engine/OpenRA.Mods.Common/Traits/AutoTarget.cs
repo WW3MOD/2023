@@ -60,8 +60,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The condition to grant to self while in the Ambush stance.")]
 		public readonly string AmbushCondition = null;
 
-		[Desc("Scan radius multiplier when in Ambush stance (percentage of weapon range). Units only fire when enemies get close.")]
-		public readonly int AmbushScanRadiusPercent = 50;
+		[Desc("Range in cells within which ambush units coordinate — when one is spotted, nearby allies in Ambush also engage.")]
+		public readonly int AmbushCoordinationRadius = 10;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the ReturnFire stance.")]
@@ -153,10 +153,15 @@ namespace OpenRA.Mods.Common.Traits
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public UnitStance PredictedStance;
 
+		// Ambush system: track pre-aimed target and spotted state
+		Target ambushPreAimTarget = Target.Invalid;
+		bool ambushTriggered;
+
 		UnitStance stance;
 		IOverrideAutoTarget[] overrideAutoTarget;
 		INotifyStanceChanged[] notifyStanceChanged;
 		IEnumerable<AutoTargetPriorityInfo> activeTargetPriorities;
+		Turreted[] turretedTraits;
 		int conditionToken = Actor.InvalidConditionToken;
 
 		public void SetStance(Actor self, UnitStance value)
@@ -167,6 +172,10 @@ namespace OpenRA.Mods.Common.Traits
 			var oldStance = stance;
 			stance = value;
 			ApplyStanceCondition(self);
+
+			// Reset ambush tracking when leaving Ambush stance
+			if (oldStance == UnitStance.Ambush && value != UnitStance.Ambush)
+				ResetAmbushState();
 
 			foreach (var nsc in notifyStanceChanged)
 				nsc.StanceChanged(self, this, oldStance, stance);
@@ -209,6 +218,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			overrideAutoTarget = self.TraitsImplementing<IOverrideAutoTarget>().ToArray();
 			notifyStanceChanged = self.TraitsImplementing<INotifyStanceChanged>().ToArray();
+			turretedTraits = self.TraitsImplementing<Turreted>().ToArray();
 			ApplyStanceCondition(self);
 
 			base.Created(self);
@@ -268,6 +278,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			Aggressor = attacker;
 
+			// If in Ambush, trigger self and coordinate nearby allies
+			if (Stance == UnitStance.Ambush)
+			{
+				ambushTriggered = true;
+				TriggerNearbyAmbushAllies(self, Target.FromActor(attacker));
+			}
+
 			Attack(Target.FromActor(Aggressor), allowMove);
 		}
 
@@ -276,9 +293,88 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || !Info.ScanOnIdle || (Stance < UnitStance.Ambush))
 				return;
 
+			if (Stance == UnitStance.Ambush)
+			{
+				AmbushTickIdle(self);
+				return;
+			}
+
 			var allowMove = allowMovement && Stance > UnitStance.Defend;
 			var allowTurn = Info.AllowTurning && Stance > UnitStance.HoldFire;
 			ScanAndAttack(self, allowMove, allowTurn);
+		}
+
+		void AmbushTickIdle(Actor self)
+		{
+			// Scan at full range — ambush doesn't reduce scan radius
+			var target = ScanForTarget(self, false, true);
+
+			if (target.Type == TargetType.Invalid)
+			{
+				ambushPreAimTarget = Target.Invalid;
+				ambushTriggered = false;
+				return;
+			}
+
+			// Pre-aim: rotate turrets toward target WITHOUT firing
+			ambushPreAimTarget = target;
+			PreAimAtTarget(self, target);
+
+			// Check if we've been spotted by the enemy — if so, open fire
+			var targetOwner = target.Type == TargetType.Actor ? target.Actor.Owner : target.FrozenActor.Owner;
+			var isSpotted = self.CanBeViewedByPlayer(targetOwner);
+
+			if (isSpotted || ambushTriggered)
+			{
+				ambushTriggered = true;
+
+				// Coordinate: trigger nearby allies in Ambush to also fire
+				if (isSpotted)
+					TriggerNearbyAmbushAllies(self, target);
+
+				Attack(target, false);
+			}
+		}
+
+		void PreAimAtTarget(Actor self, in Target target)
+		{
+			// Rotate turrets toward target silently (no firing)
+			if (turretedTraits != null)
+				foreach (var turret in turretedTraits)
+					turret.FaceTarget(self, target);
+
+			// For non-turreted units (infantry), face the body toward the target
+			if (turretedTraits == null || turretedTraits.Length == 0)
+			{
+				var facing = self.TraitOrDefault<IFacing>();
+				if (facing != null)
+				{
+					var delta = target.CenterPosition - self.CenterPosition;
+					var desiredFacing = delta.Yaw;
+					facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
+				}
+			}
+		}
+
+		void TriggerNearbyAmbushAllies(Actor self, in Target target)
+		{
+			var coordRadius = WDist.FromCells(Info.AmbushCoordinationRadius);
+			var nearbyAllies = self.World.FindActorsInCircle(self.CenterPosition, coordRadius)
+				.Where(a => a != self && a.Owner == self.Owner && a.IsInWorld && !a.IsDead);
+
+			foreach (var ally in nearbyAllies)
+			{
+				var allyAutoTarget = ally.TraitOrDefault<AutoTarget>();
+				if (allyAutoTarget != null && allyAutoTarget.Stance == UnitStance.Ambush && !allyAutoTarget.ambushTriggered)
+					allyAutoTarget.ambushTriggered = true;
+			}
+		}
+
+		/// <summary>Called externally when stance changes away from Ambush to reset state.</summary>
+		void ResetAmbushState()
+		{
+			ambushPreAimTarget = Target.Invalid;
+			ambushTriggered = false;
 		}
 
 		void ITick.Tick(Actor self)
@@ -308,11 +404,6 @@ namespace OpenRA.Mods.Common.Traits
 					if (attackStances != PlayerRelationship.None)
 					{
 						var range = Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange();
-
-						// Ambush: reduced scan radius — only engage enemies that get close
-						if (stance == UnitStance.Ambush)
-							range = new WDist(range.Length * Info.AmbushScanRadiusPercent / 100);
-
 						return ChooseTarget(self, ab, attackStances, range, allowMove, allowTurn);
 					}
 				}

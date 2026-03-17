@@ -296,7 +296,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Ambush Stance
-					TooltipDesc: Set the selected units to Ambush stance:\n - Units hold fire until enemies enter close range\n - Fires at reduced scan radius for surprise attacks\n - Units will not move or pursue enemies
+					TooltipDesc: Set the selected units to Ambush stance:\n - Units pre-aim at targets but hold fire until spotted\n - When one unit is spotted, nearby allies in Ambush all engage\n - Zero aim delay — turrets are already aimed when firing begins
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
