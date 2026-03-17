@@ -256,7 +256,17 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			pos = args.Source;
 			lastPos = pos;
-			hFacing = args.Facing.Facing;
+
+			// Calculate initial facing directly from source to target position
+			// rather than using turret muzzle facing. This ensures the missile always
+			// launches toward the actual target, even if the turret was tracking a
+			// different target or hasn't fully aligned.
+			var toTarget = args.PassiveTarget - args.Source;
+			if (toTarget.HorizontalLengthSquared != 0)
+				hFacing = toTarget.Yaw.Facing;
+			else
+				hFacing = args.Facing.Facing;
+
 			gravity = new WVec(0, 0, -info.Gravity);
 			targetPosition = args.PassiveTarget;
 			var limit = info.RangeLimit != WDist.Zero ? info.RangeLimit : args.Weapon.Range;
