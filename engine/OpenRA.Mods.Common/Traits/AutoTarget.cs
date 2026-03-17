@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum UnitStance { HoldFire, ReturnFire, Defend, AttackAnything }
+	public enum UnitStance { HoldFire, Ambush, ReturnFire, Defend, AttackAnything }
 
 	[RequireExplicitImplementation]
 	public interface IActivityNotifyStanceChanged : IActivityInterface
@@ -45,16 +45,23 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Set to a value >1 to override weapons maximum range for this.")]
 		public readonly int ScanRadius = -1;
 
-		[Desc("Possible values are HoldFire, ReturnFire, Defend and AttackAnything.",
+		[Desc("Possible values are HoldFire, Ambush, ReturnFire, Defend and AttackAnything.",
 			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
 		public readonly UnitStance InitialStanceAI = UnitStance.AttackAnything;
 
-		[Desc("Possible values are HoldFire, ReturnFire, Defend and AttackAnything. Used for human players.")]
+		[Desc("Possible values are HoldFire, Ambush, ReturnFire, Defend and AttackAnything. Used for human players.")]
 		public readonly UnitStance InitialStance = UnitStance.Defend;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the HoldFire stance.")]
 		public readonly string HoldFireCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while in the Ambush stance.")]
+		public readonly string AmbushCondition = null;
+
+		[Desc("Scan radius multiplier when in Ambush stance (percentage of weapon range). Units only fire when enemies get close.")]
+		public readonly int AmbushScanRadiusPercent = 50;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the ReturnFire stance.")]
@@ -91,6 +98,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (HoldFireCondition != null)
 				ConditionByStance[UnitStance.HoldFire] = HoldFireCondition;
 
+			if (AmbushCondition != null)
+				ConditionByStance[UnitStance.Ambush] = AmbushCondition;
+
 			if (ReturnFireCondition != null)
 				ConditionByStance[UnitStance.ReturnFire] = ReturnFireCondition;
 
@@ -104,11 +114,12 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<EditorActorOption> IEditorActorOptions.ActorOptions(ActorInfo ai, World world)
 		{
 			// Indexed by UnitStance
-			var stances = new[] { "holdfire", "returnfire", "defend", "attackanything" };
+			var stances = new[] { "holdfire", "ambush", "returnfire", "defend", "attackanything" };
 
 			var labels = new Dictionary<string, string>()
 			{
 				{ "holdfire", "Hold Fire" },
+				{ "ambush", "Ambush" },
 				{ "returnfire", "Return Fire" },
 				{ "defend", "Defend" },
 				{ "attackanything", "Attack Anything" },
@@ -217,7 +228,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (IsTraitDisabled || !self.IsIdle || Stance < UnitStance.ReturnFire)
+			if (IsTraitDisabled || !self.IsIdle || Stance < UnitStance.Ambush)
 				return;
 
 			// Don't retaliate against healers
@@ -262,7 +273,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyIdle.TickIdle(Actor self)
 		{
-			if (IsTraitDisabled || !Info.ScanOnIdle || Stance < UnitStance.Defend)
+			if (IsTraitDisabled || !Info.ScanOnIdle || (Stance < UnitStance.Ambush))
 				return;
 
 			var allowMove = allowMovement && Stance > UnitStance.Defend;
@@ -297,6 +308,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (attackStances != PlayerRelationship.None)
 					{
 						var range = Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange();
+
+						// Ambush: reduced scan radius — only engage enemies that get close
+						if (stance == UnitStance.Ambush)
+							range = new WDist(range.Length * Info.AmbushScanRadiusPercent / 100);
+
 						return ChooseTarget(self, ab, attackStances, range, allowMove, allowTurn);
 					}
 				}
@@ -320,7 +336,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool HasValidTargetPriority(Actor self, Player owner, BitSet<TargetableType> targetTypes)
 		{
-			if (owner == null || Stance <= UnitStance.ReturnFire)
+			if (owner == null || Stance <= UnitStance.HoldFire)
 				return false;
 
 			return activeTargetPriorities.Any(ati =>
@@ -341,7 +357,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var chosenTarget = Target.Invalid;
 
-			if (stance <= UnitStance.ReturnFire)
+			if (stance <= UnitStance.HoldFire)
 				return chosenTarget;
 
 			var activePriorities = activeTargetPriorities.ToList();

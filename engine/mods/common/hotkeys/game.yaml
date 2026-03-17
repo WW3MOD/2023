@@ -114,6 +114,11 @@ StanceReturnFire: D Alt
 	Types: Stance
 	Contexts: Player
 
+StanceAmbush: G Alt
+	Description: Ambush
+	Types: Stance
+	Contexts: Player
+
 StanceHoldFire: F Alt
 	Description: Hold fire
 	Types: Stance

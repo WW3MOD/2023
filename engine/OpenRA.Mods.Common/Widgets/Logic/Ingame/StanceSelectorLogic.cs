@@ -32,6 +32,10 @@ namespace OpenRA.Mods.Common.Widgets
 			if (holdFireButton != null)
 				BindStanceButton(holdFireButton, UnitStance.HoldFire);
 
+			var ambushButton = widget.GetOrNull<ButtonWidget>("STANCE_AMBUSH");
+			if (ambushButton != null)
+				BindStanceButton(ambushButton, UnitStance.Ambush);
+
 			var returnFireButton = widget.GetOrNull<ButtonWidget>("STANCE_RETURNFIRE");
 			if (returnFireButton != null)
 				BindStanceButton(returnFireButton, UnitStance.ReturnFire);
