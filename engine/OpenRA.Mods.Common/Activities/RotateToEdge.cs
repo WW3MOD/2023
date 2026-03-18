@@ -20,18 +20,37 @@ namespace OpenRA.Mods.Common.Activities
 	class RotateToEdge : Activity
 	{
 		readonly IHealth health;
-		readonly SellableInfo sellableInfo;
 		readonly PlayerResources playerResources;
 		readonly bool showTicks;
+		readonly int refundPercent;
+		readonly int? fixedRefund;
 		CPos? edgeCell;
 		bool movingToEdge;
 
+		/// <summary>
+		/// Constructor for Sellable trait (existing behavior).
+		/// </summary>
 		public RotateToEdge(Actor self, bool showTicks)
 		{
 			this.showTicks = showTicks;
 			health = self.TraitOrDefault<IHealth>();
-			sellableInfo = self.Info.TraitInfo<SellableInfo>();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
+
+			var sellableInfo = self.Info.TraitInfoOrDefault<SellableInfo>();
+			refundPercent = sellableInfo?.RefundPercent ?? 100;
+			fixedRefund = null;
+		}
+
+		/// <summary>
+		/// Constructor for rotation (DeliversCash) — fixed refund amount, no Sellable needed.
+		/// </summary>
+		public RotateToEdge(Actor self, bool showTicks, int refundAmount)
+		{
+			this.showTicks = showTicks;
+			health = self.TraitOrDefault<IHealth>();
+			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
+			refundPercent = 100;
+			fixedRefund = refundAmount;
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -114,11 +133,24 @@ namespace OpenRA.Mods.Common.Activities
 
 		void DoSell(Actor self)
 		{
-			var sellValue = self.GetSellValue();
+			int refund;
 
-			var hp = health != null ? (long)health.HP : 1L;
-			var maxHP = health != null ? (long)health.MaxHP : 1L;
-			var refund = (int)((sellValue * sellableInfo.RefundPercent * hp) / (100 * maxHP));
+			if (fixedRefund.HasValue)
+			{
+				// Rotation: use pre-calculated amount, scale by HP
+				var hp = health != null ? (long)health.HP : 1L;
+				var maxHP = health != null ? (long)health.MaxHP : 1L;
+				refund = (int)(fixedRefund.Value * hp / maxHP);
+			}
+			else
+			{
+				// Sellable: use sell value and refund percent
+				var sellValue = self.GetSellValue();
+				var hp = health != null ? (long)health.HP : 1L;
+				var maxHP = health != null ? (long)health.MaxHP : 1L;
+				refund = (int)((sellValue * refundPercent * hp) / (100 * maxHP));
+			}
+
 			refund = playerResources.ChangeCash(refund);
 
 			foreach (var ns in self.TraitsImplementing<INotifySold>())
@@ -126,9 +158,6 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (showTicks && refund > 0 && self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				self.World.AddFrameEndTask(w => w.Add(new FloatingText(self.CenterPosition, self.Owner.Color, FloatingText.FormatCashTick(refund), 30)));
-
-			Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", sellableInfo.Notification, self.Owner.Faction.InternalName);
-			TextNotificationsManager.AddTransientLine(sellableInfo.TextNotification, self.Owner);
 
 			self.Dispose();
 		}

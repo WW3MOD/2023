@@ -99,6 +99,11 @@ namespace OpenRA.Mods.Common.Traits
 					var div = 100F / (100 - handicap);
 					amount = (int)(amount * div);
 				}
+
+				// Rotation: walk to map edge (not to the Supply Route) and refund
+				self.QueueActivity(queued, new RotateToEdge(self, true, amount));
+				self.ShowTargetLines();
+				return;
 			}
 
 			self.QueueActivity(queued, new DonateCash(self, target, amount, info.PlayerExperience, info.TargetLineColor));
