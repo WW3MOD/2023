@@ -14972,3 +14972,21 @@ Actors:
 	Actor6021: mpspawn
 		Owner: Neutral
 		Location: 80,35
+	Actor6022: spawnarea
+		Owner: Neutral
+		Location: 7,81
+	Actor6023: spawnarea
+		Owner: Neutral
+		Location: 0,46
+	Actor6024: spawnarea
+		Owner: Neutral
+		Location: 8,0
+	Actor6025: spawnarea
+		Owner: Neutral
+		Location: 87,0
+	Actor6026: spawnarea
+		Owner: Neutral
+		Location: 97,34
+	Actor6027: spawnarea
+		Owner: Neutral
+		Location: 87,81
