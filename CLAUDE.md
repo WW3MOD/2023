@@ -245,11 +245,16 @@ Each unit type has a base template file and two faction files:
 - **Supply Route edge spawning** — units now spawn at map edge and march to rally point; buildings/defenses still spawn locally
 - **Bleedout animation fixed** — rot sequences now use existing e1 sprite frames instead of missing rot1-4/corpse1-3 files
 - **Helicopter movement precision fixed** — corrected physics formulas (semi-implicit Euler), eliminated double movement in Land/FlyIdle, precise position snapping on arrival, velocity zeroing on all Fly exit paths, maintenance acceleration to prevent speed oscillation
+- **Supply Route defeat behavior fixed** — SR turns neutral on owner defeat instead of being killed; ProximityCapturable no longer permanently locks when owner is defeated
+- **Rotate/sell to map edge** — units ordered to rotate via Supply Route now walk to the map edge (biased toward SpawnArea), not to the SR building. SR acts as a proxy target
+- **Vehicle reverse sliding fixed** — reverse condition re-evaluated at each cell transition; stops reversing when path curves away from behind the unit
+- **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
 
 ### Next Priorities
 1. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 2. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
 3. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
+4. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
 
 ### Remaining Branches
 - `skane`/`xavi` — cherry-pick useful parts (map data, sprites)
