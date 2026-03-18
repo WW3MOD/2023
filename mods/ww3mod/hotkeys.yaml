@@ -28,7 +28,7 @@ ProductionTypeNaval: # I
 	Types: Production
 	Contexts: Player
 
-GroupScatter: Alt+S
+GroupScatter: G Ctrl
 	Description: Scatter queued waypoints among selected units
 	Types: World
 	Contexts: Player
