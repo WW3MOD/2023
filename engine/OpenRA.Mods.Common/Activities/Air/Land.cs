@@ -120,8 +120,26 @@ namespace OpenRA.Mods.Common.Activities
 					var speed = aircraft.CurrentVelocity.HorizontalLength;
 					var altRange = aircraft.Info.CruiseAltitude.Length - aircraft.LandAltitude.Length;
 
+					// Kill lateral velocity drift: project velocity onto target direction.
+					// Without this, sideways momentum causes orbiting around the landing point.
+					if (horizontalDistance > 0 && speed > 0)
+					{
+						var dirX = (long)delta.X * 1024 / horizontalDistance;
+						var dirY = (long)delta.Y * 1024 / horizontalDistance;
+						var forwardComponent = (int)((aircraft.CurrentVelocity.X * dirX + aircraft.CurrentVelocity.Y * dirY) / 1024);
+						if (forwardComponent > 0)
+							aircraft.CurrentVelocity = new WVec(
+								(int)(dirX * forwardComponent / 1024),
+								(int)(dirY * forwardComponent / 1024),
+								aircraft.CurrentVelocity.Z);
+						else
+							aircraft.CurrentVelocity = new WVec(0, 0, aircraft.CurrentVelocity.Z);
+
+						speed = aircraft.CurrentVelocity.HorizontalLength;
+					}
+
 					// Phase 1: Decelerating approach with proportional descent
-					if (horizontalDistance > aircraft.Info.MaxAcceleration * 3 || speed > aircraft.Info.MaxAcceleration)
+					if (horizontalDistance > aircraft.Info.MaxAcceleration * 6 || speed > aircraft.Info.MaxAcceleration * 2)
 					{
 						// Use velocity system for horizontal braking toward landing position
 						var acceleration = aircraft.CalculateAccelerationToWaypoint(targetPosition, true);
@@ -146,11 +164,12 @@ namespace OpenRA.Mods.Common.Activities
 						return false;
 					}
 
-					// Phase 2: Nearly stopped — snap horizontal, gentle vertical descent
+					// Phase 2: Close and slow — snap to target center, gentle vertical descent
 					if (horizontalDistance > 1)
 						aircraft.SetPosition(self, new WPos(targetPosition.X, targetPosition.Y, pos.Z));
 
 					aircraft.CurrentVelocity = WVec.Zero;
+					aircraft.RequestedAcceleration = WVec.Zero;
 
 					if (dat.Length > aircraft.LandAltitude.Length)
 					{

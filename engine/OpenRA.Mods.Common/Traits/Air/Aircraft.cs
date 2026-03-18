@@ -423,14 +423,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (stopAtWaypoint)
 			{
-				var currentSpeed = CurrentVelocity.HorizontalLength;
-
-				// Use discrete stopping distance matching semi-implicit Euler in Aircraft.Tick.
-				// Matches CalculateStopPosition: k = (speed - 1) / a, d = k*v - a*k*(k+1)/2.
-				var k = currentSpeed > Info.MaxAcceleration ? (currentSpeed - 1) / Info.MaxAcceleration : 0;
-				var stoppingDistance = k * currentSpeed - Info.MaxAcceleration * k * (k + 1) / 2;
-				if (distance <= stoppingDistance)
+				// Proportional braking: desired speed = sqrt(2 * a * distance) toward the target.
+				// This always points the desired velocity AT the target, which automatically
+				// corrects lateral drift that causes orbiting/wobbling during landing approach.
+				var idealSpeed = (int)Math.Sqrt(2.0 * Info.MaxAcceleration * distance);
+				if (idealSpeed < Info.MaxAcceleration)
 					desiredVelocity = WVec.Zero;
+				else
+					desiredVelocity = direction * Math.Min(idealSpeed, Info.Speed) / 1024;
 			}
 
 			var velocityDelta = desiredVelocity - CurrentVelocity;
