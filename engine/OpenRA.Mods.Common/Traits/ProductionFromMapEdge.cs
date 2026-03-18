@@ -45,7 +45,8 @@ namespace OpenRA.Mods.Common.Traits
 			rp = self.TraitOrDefault<RallyPoint>();
 		}
 
-		CPos? FindSpawnAreaLocation(Actor self)
+		/// <summary>Find the closest SpawnArea actor to this building.</summary>
+		static CPos? FindClosestSpawnArea(Actor self)
 		{
 			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
 				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
@@ -55,7 +56,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (spawnAreas.Count == 0)
 				return null;
 
-			// Find the closest SpawnArea to this production building
 			Actor closest = null;
 			var closestDist = int.MaxValue;
 			foreach (var sa in spawnAreas)
@@ -79,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 			var aircraftInfo = producee.TraitInfoOrDefault<AircraftInfo>();
 			var mobileInfo = producee.TraitInfoOrDefault<MobileInfo>();
 
-			var destinations = rp != null && rp.Path.Count > 0 ? rp.Path : new List<CPos> { self.Location };
+			var hasRallyPoint = rp != null && rp.Path.Count > 0;
 
 			var location = spawnLocation;
 			if (!location.HasValue)
@@ -88,16 +88,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (aircraftInfo != null)
 					location = self.World.Map.ChooseClosestEdgeCell(self.Location);
 
-				// Ground units use SpawnArea if available, otherwise map edge
+				// Ground units: use SpawnArea as a hint for which edge to spawn near
 				if (mobileInfo != null)
 				{
-					location = FindSpawnAreaLocation(self);
-					if (!location.HasValue)
-					{
-						var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
-						location = self.World.Map.ChooseClosestMatchingEdgeCell(self.Location,
-							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, destinations[0]));
-					}
+					var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
+					var spawnAreaHint = FindClosestSpawnArea(self);
+
+					// The first destination the unit needs to reach (for path validation)
+					var firstDest = hasRallyPoint ? rp.Path[0] : self.Location;
+
+					// Find the closest valid edge cell near the SpawnArea (or near the building if no SpawnArea)
+					var searchOrigin = spawnAreaHint ?? self.Location;
+					location = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
+						c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
 				}
 			}
 
@@ -110,6 +113,11 @@ namespace OpenRA.Mods.Common.Traits
 			// If aircraft, spawn at cruise altitude
 			if (aircraftInfo != null)
 				pos += new WVec(0, 0, aircraftInfo.CruiseAltitude.Length);
+
+			// Build the movement destination list:
+			// - Rally point set: go directly to rally point waypoints
+			// - No rally point: go to supply route building
+			var destinations = hasRallyPoint ? rp.Path : new List<CPos> { self.Location };
 
 			var initialFacing = self.World.Map.FacingBetween(location.Value, destinations[0], WAngle.Zero);
 

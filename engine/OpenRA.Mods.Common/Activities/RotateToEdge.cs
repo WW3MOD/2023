@@ -46,54 +46,38 @@ namespace OpenRA.Mods.Common.Activities
 			}
 			else if (mobileInfo != null)
 			{
-				// Ground units: route through SpawnArea if one exists (road routing),
-				// then to map edge from there
-				var spawnAreaCell = FindSpawnAreaLocation(self);
-				if (spawnAreaCell.HasValue)
+				// Find nearest valid edge cell, biased toward SpawnArea if one exists
+				var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
+					.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
+					.Select(a => a.Actor)
+					.ToList();
+
+				CPos? spawnAreaHint = null;
+				if (spawnAreas.Count > 0)
 				{
-					// Move to spawn area first (follows road), then to edge from there
-					var move = self.TraitOrDefault<IMove>();
-					if (move != null)
-						QueueChild(move.MoveTo(spawnAreaCell.Value, 2, evaluateNearestMovableCell: true));
+					var closestDist = int.MaxValue;
+					foreach (var sa in spawnAreas)
+					{
+						var dist = (self.Location - sa.Location).LengthSquared;
+						if (dist < closestDist)
+						{
+							closestDist = dist;
+							spawnAreaHint = sa.Location;
+						}
+					}
 				}
 
-				// Find edge cell for final destination
 				var pathFinder = self.World.WorldActor.Trait<IPathFinder>();
 				var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
-				var origin = spawnAreaCell ?? self.Location;
-				edgeCell = self.World.Map.ChooseClosestMatchingEdgeCell(origin,
-					c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, origin));
+				var searchOrigin = spawnAreaHint ?? self.Location;
+				edgeCell = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
+					c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, self.Location));
 			}
 			else
 			{
 				// No movement capability, sell immediately
 				edgeCell = null;
 			}
-		}
-
-		CPos? FindSpawnAreaLocation(Actor self)
-		{
-			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
-				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
-				.Select(a => a.Actor)
-				.ToList();
-
-			if (spawnAreas.Count == 0)
-				return null;
-
-			Actor closest = null;
-			var closestDist = int.MaxValue;
-			foreach (var sa in spawnAreas)
-			{
-				var dist = (self.Location - sa.Location).LengthSquared;
-				if (dist < closestDist)
-				{
-					closestDist = dist;
-					closest = sa;
-				}
-			}
-
-			return closest?.Location;
 		}
 
 		public override bool Tick(Actor self)
@@ -108,7 +92,7 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			// Wait for child activities (moving to spawn area) to complete
+			// Wait for child activities to complete
 			if (ChildActivity != null)
 				return false;
 
