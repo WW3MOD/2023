@@ -15,14 +15,14 @@
 	# 	Length: *
 	# 	Tick: 80
 	# 	BlendMode: Additive
+# Rot sequences use generic e1 corpse frames (last frames of death animations)
+# These display a corpse decaying on the ground after bleedout death
+^Rot:
 	die-crushed: e1
 		Start: 293
 		Length: 3
 		Tick: 1600
 		ZOffset: -511
-# Rot sequences use generic e1 corpse frames (last frames of death animations)
-# These display a corpse decaying on the ground after bleedout death
-^Rot:
 	rot1: e1
 		Start: 293
 		Length: 3
