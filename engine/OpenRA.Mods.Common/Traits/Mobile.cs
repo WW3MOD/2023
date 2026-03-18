@@ -80,8 +80,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Can move backward if possible")]
 		public readonly bool CanMoveBackward = false;
 
-		[Desc("After how many ticks the actor will turn forward during backoff")]
-		public readonly int BackwardDuration = 40;
+		[Desc("Maximum distance in cells to reverse instead of turning around. Only reverses if target is behind the actor and within this range.")]
+		public readonly int BackwardMaxCells = 4;
 
 		[Desc("Speed modifier when moving backward (percentage of forward speed)")]
 		public readonly int BackwardSpeedModifier = 50;

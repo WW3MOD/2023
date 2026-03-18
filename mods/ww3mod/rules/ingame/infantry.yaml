@@ -2054,6 +2054,7 @@ MEDI:
 ^TECN:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
+	Inherits@Capture: ^CapturesNeutralBuildings
 	-Wanders:
 	Tooltip:
 		Name: Technician
@@ -2076,6 +2077,12 @@ MEDI:
 		Palette: effect
 		Position: Top
 		Margin: 0,7
+	WithDecoration@Selected:
+		RequiresSelection: true
+		Sequence: pip-selected
+		Image: selected_infantry
+		Position: Top
+		Margin: 0,6
 	Selectable:
 		Class: TECN
 	RenderSprites:

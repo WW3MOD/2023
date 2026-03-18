@@ -160,10 +160,19 @@ namespace OpenRA.Mods.Common.Activities
 
 			var firstFacing = self.World.Map.FacingBetween(mobile.FromCell, nextCell.Value.Cell, mobile.Facing);
 
-			if (mobile.Info.CanMoveBackward && self.World.WorldTick - startTicks < mobile.Info.BackwardDuration && Math.Abs(firstFacing.Angle - mobile.Facing.Angle) > 256)
+			// Reverse movement: keep current facing and move backward if target is close and behind
+			if (mobile.Info.CanMoveBackward && destination.HasValue)
 			{
-				firstFacing = new WAngle(firstFacing.Angle + 512);
-				mobile.MovingBackward = true;
+				var maxCells = mobile.Info.BackwardMaxCells;
+				var distSq = (mobile.FromCell - destination.Value).LengthSquared;
+				var rawDiff = Math.Abs(firstFacing.Angle - mobile.Facing.Angle);
+				var angleDiff = rawDiff > 512 ? 1024 - rawDiff : rawDiff;
+
+				if (distSq <= maxCells * maxCells && angleDiff > 256)
+				{
+					firstFacing = mobile.Facing;
+					mobile.MovingBackward = true;
+				}
 			}
 
 			if (firstFacing != mobile.Facing)

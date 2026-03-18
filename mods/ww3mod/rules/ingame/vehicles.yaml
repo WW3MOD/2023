@@ -100,7 +100,7 @@
 	Inherits@Type: ^Vehicle
 	Mobile:
 		CanMoveBackward: true
-		BackwardDuration: 30
+		BackwardMaxCells: 4
 		BackwardSpeedModifier: 60
 	Passenger:
 		Weight: 15
@@ -110,7 +110,7 @@
 	Mobile:
 		Locomotor: tracked
 		CanMoveBackward: true
-		BackwardDuration: 50
+		BackwardMaxCells: 4
 		BackwardSpeedModifier: 40
 	Passenger:
 		Weight: 20
