@@ -80,10 +80,14 @@ WW3MOD/
 │   ├── chrome/                     # UI layouts
 │   ├── sequences/                  # Animation definitions
 │   └── mod.yaml                    # Mod manifest
-├── _TODO.txt                       # Feature backlog (~570 lines)
-├── _BUGS.txt                       # Known bugs with stack traces
-├── _RELEASE.txt                    # Release notes
-├── DOCS/PROJECT_ASSESSMENT.md      # Comprehensive project assessment (March 2026)
+├── DOCS/                           # Documentation
+│   ├── TODO.md                     # Prioritized v1 release TODO (Tier 1/2/3)
+│   ├── KNOWN_BUGS.md               # Active and fixed bugs
+│   ├── IDEAS.md                    # Feature ideas (collected from old notes)
+│   ├── CLAUDE_IDEAS.md             # Claude's own feature suggestions
+│   ├── SPRITE_REFERENCES.md        # Asset references from other OpenRA mods
+│   ├── UnitManagement.md           # Group Scatter docs and unit control ideas
+│   └── PROJECT_ASSESSMENT.md       # Comprehensive project assessment (March 2026)
 ├── CLAUDE.md                       # This file
 ├── WW3MOD.sln                      # Visual Studio solution
 ├── Makefile / make.ps1             # Build system
