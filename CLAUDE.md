@@ -136,9 +136,12 @@ The air branch introduced a **dual movement system** that is important to unders
 Use velocity-based movement with acceleration/deceleration:
 - `Aircraft.CurrentVelocity` — current movement vector
 - `Aircraft.RequestedAcceleration` — set by Fly activity each tick
-- `Aircraft.CalculateAccelerationToWaypoint()` — computes acceleration toward target
-- `Aircraft.CalculateStopPosition()` — predicts where unit will stop given current velocity
-- Movement applied in `Aircraft.Tick()` via `CurrentVelocity`
+- `Aircraft.CalculateAccelerationToWaypoint()` — computes acceleration toward target, includes maintenance accel to prevent speed oscillation
+- `Aircraft.CalculateStopPosition()` — predicts stop position using discrete semi-implicit Euler formula
+- Movement applied in `Aircraft.Tick()` via `CurrentVelocity` (decel THEN move)
+- `Fly.Tick()` has a **fully separate CanSlide code path** — only sets RequestedAcceleration, never calls FlyTick
+- On arrival: snaps to exact target position, zeros CurrentVelocity
+- **CRITICAL**: Never use FlyTick for CanSlide without zeroing CurrentVelocity first (double movement)
 
 ### Fixed-Wing (CanSlide = false)
 Use traditional step-based movement:
@@ -236,6 +239,7 @@ Each unit type has a base template file and two faction files:
 - **Vehicle reverse movement** — tracked (50 ticks, 40% speed) and wheeled (30 ticks, 60% speed) can reverse instead of 180° turns
 - **Supply Route edge spawning** — units now spawn at map edge and march to rally point; buildings/defenses still spawn locally
 - **Bleedout animation fixed** — rot sequences now use existing e1 sprite frames instead of missing rot1-4/corpse1-3 files
+- **Helicopter movement precision fixed** — corrected physics formulas (semi-implicit Euler), eliminated double movement in Land/FlyIdle, precise position snapping on arrival, velocity zeroing on all Fly exit paths, maintenance acceleration to prevent speed oscillation
 
 ### Next Priorities
 1. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
@@ -263,7 +267,7 @@ Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` 
 
 1. **Don't leave Console.WriteLine in engine code** — fires every tick, causes massive log spam
 2. **Aircraft Cost: 1** — test values left in YAML. Always verify costs after air branch changes
-3. **CanSlide vs non-CanSlide** — movement code must handle both paths. Fixed-wing uses FlyTick, helicopters use CurrentVelocity
+3. **CanSlide vs non-CanSlide** — Fly.Tick has fully separate code paths. CanSlide sets RequestedAcceleration only (Aircraft.Tick moves via CurrentVelocity). Fixed-wing uses FlyTick (step-based). NEVER use FlyTick for CanSlide without zeroing CurrentVelocity first — causes double movement
 4. **SeedsResource on maps without IResourceLayer** — causes crashes. Disable or remove SeedsResource actors
 5. **FrozenActor.Actor can be null** — always null-check before accessing after superweapons
 6. **YAML blank lines matter** — templates must be separated by blank lines
