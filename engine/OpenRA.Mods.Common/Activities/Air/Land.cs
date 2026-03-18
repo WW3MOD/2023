@@ -110,37 +110,80 @@ namespace OpenRA.Mods.Common.Activities
 				var delta = targetPosition - pos;
 				var horizontalDistance = delta.HorizontalLength;
 				var dat = self.World.Map.DistanceAboveTerrain(pos);
-				var h = aircraft.Info.CruiseAltitude.Length - aircraft.LandAltitude.Length;
-				var halfwayAltitude = new WDist(aircraft.Info.CruiseAltitude.Length - h / 2);
+				var landFacing = desiredFacing ?? aircraft.Facing;
 
-				// Phase 1: Approach at cruising altitude
-				if (horizontalDistance > 512)
+				if (aircraft.Info.CanSlide)
 				{
-					var desiredFacingMove = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-					Fly.FlyTick(self, aircraft, desiredFacingMove, aircraft.Info.CruiseAltitude);
-					return false;
+					// CanSlide (helicopter) VTOL landing: zero residual velocity to prevent
+					// double movement (FlyTick + Aircraft.Tick both moving the helicopter).
+					if (aircraft.CurrentVelocity != WVec.Zero)
+						aircraft.CurrentVelocity = WVec.Zero;
+
+					// Phase 1: Center over landing position using step-based movement
+					// (velocity is zeroed above, so no double-movement conflict)
+					if (horizontalDistance > 1)
+					{
+						var desiredFacingMove = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+						var move = aircraft.FlyStep(desiredFacingMove);
+
+						if (horizontalDistance <= move.HorizontalLength)
+						{
+							// Close enough to snap to exact position
+							aircraft.SetPosition(self, new WPos(targetPosition.X, targetPosition.Y, pos.Z));
+						}
+						else
+						{
+							Fly.FlyTick(self, aircraft, desiredFacingMove, aircraft.Info.CruiseAltitude);
+						}
+
+						return false;
+					}
+
+					// Phase 2: Descend vertically while turning to desired landing facing
+					if (dat.Length > aircraft.LandAltitude.Length)
+					{
+						Fly.VerticalTakeOffOrLandTick(self, aircraft, landFacing, aircraft.LandAltitude);
+						return false;
+					}
+				}
+				else
+				{
+					// Non-CanSlide VTOL (original phased approach)
+					var h = aircraft.Info.CruiseAltitude.Length - aircraft.LandAltitude.Length;
+					var halfwayAltitude = new WDist(aircraft.Info.CruiseAltitude.Length - h / 2);
+
+					// Phase 1: Approach at cruising altitude
+					if (horizontalDistance > 512)
+					{
+						var desiredFacingMove = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+						Fly.FlyTick(self, aircraft, desiredFacingMove, aircraft.Info.CruiseAltitude);
+						return false;
+					}
+
+					// Phase 2: Descent while moving horizontally
+					if (dat.Length > halfwayAltitude.Length && horizontalDistance > 128)
+					{
+						var desiredFacingMove = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+						Fly.FlyTick(self, aircraft, desiredFacingMove, halfwayAltitude);
+						return false;
+					}
+
+					// Phase 3: Vertical descent
+					if (dat.Length > aircraft.LandAltitude.Length)
+					{
+						Fly.VerticalTakeOffOrLandTick(self, aircraft, landFacing, aircraft.LandAltitude);
+						return false;
+					}
 				}
 
-				// Phase 2: Descent while moving horizontally
-				if (dat.Length > halfwayAltitude.Length && horizontalDistance > 128)
-				{
-					var desiredFacingMove = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-					Fly.FlyTick(self, aircraft, desiredFacingMove, halfwayAltitude);
-					return false;
-				}
-
-				// Phase 3: Vertical descent
-				if (dat.Length > aircraft.LandAltitude.Length)
-				{
-					Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.LandAltitude);
-					return false;
-				}
-
-				// Landed
+				// Landed — shared by both CanSlide and non-CanSlide VTOL
 				if (!landingInitiated)
 				{
 					if (aircraft.CanLand(new[] { landingCell }, target.Actor))
 					{
+						// Snap to exact landing position for pixel-perfect alignment
+						aircraft.SetPosition(self, new WPos(targetPosition.X, targetPosition.Y, pos.Z));
+
 						if (aircraft.Info.LandingSounds.Length > 0)
 							Game.Sound.Play(SoundType.World, aircraft.Info.LandingSounds, self.World, aircraft.CenterPosition);
 						foreach (var notify in self.TraitsImplementing<INotifyLanding>())

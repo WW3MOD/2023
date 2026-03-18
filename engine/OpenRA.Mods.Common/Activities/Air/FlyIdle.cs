@@ -52,6 +52,11 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (isIdleTurner)
 			{
+				// Zero residual velocity for CanSlide aircraft to prevent double movement
+				// (FlyTick step movement + Aircraft.Tick velocity movement in same tick)
+				if (aircraft.Info.CanSlide && aircraft.CurrentVelocity != WVec.Zero)
+					aircraft.CurrentVelocity = WVec.Zero;
+
 				// This override is necessary, otherwise aircraft with CanSlide would circle sideways
 				var move = aircraft.FlyStep(aircraft.IdleMovementSpeed, aircraft.Facing);
 

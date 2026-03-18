@@ -154,80 +154,148 @@ namespace OpenRA.Mods.Common.Activities
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 			var pos = aircraft.GetPosition();
 			var delta = checkTarget.CenterPosition - pos;
-
-			var stopPos = aircraft.CalculateStopPosition();
-			var stopDelta = checkTarget.CenterPosition - stopPos;
-
-			// Check if trajectory will pass within 512 WDist of the current waypoint
-			if (stopDelta.HorizontalLengthSquared < 512 * 512)
-			{
-				// We are already close enough to the target, decelerate from here or proceed to next activity
-				return true;
-			}
-
-			// Inside the target annulus, so we're done
-			var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
-			var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
-			if (insideMaxRange && !insideMinRange)
-				return true;
-
 			var isSlider = aircraft.Info.CanSlide;
-			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
 
-			// Calculate acceleration and update CurrentVelocity
-			var isFinalWaypoint = NextActivity == null;
-			var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, isFinalWaypoint);
-			aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
-
-			var move = isSlider ? aircraft.CurrentVelocity : aircraft.FlyStep(aircraft.Facing);
-
-			// Inside the minimum range, so reverse if we CanSlide, otherwise face away from the target.
-			if (insideMinRange)
+			if (isSlider)
 			{
-				if (isSlider)
-					aircraft.RequestedAcceleration = new WVec(-acceleration.X, -acceleration.Y, 0);
-				else
+				// CanSlide (helicopter) path: velocity-based movement with precise arrival.
+				// All movement happens in Aircraft.Tick via CurrentVelocity — we only set RequestedAcceleration here.
+				var speed = aircraft.CurrentVelocity.HorizontalLength;
+				var distToTarget = delta.HorizontalLength;
+
+				// Precise arrival: when slow enough and close enough, snap to exact target and stop
+				if (speed <= aircraft.Info.MaxAcceleration && distToTarget <= aircraft.Info.MaxAcceleration * 3)
 				{
-					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
-				}
+					var targetPos = checkTarget.CenterPosition;
+					aircraft.SetPosition(self, new WPos(targetPos.X, targetPos.Y, aircraft.CenterPosition.Z));
+					aircraft.CurrentVelocity = WVec.Zero;
 
-				return false;
-			}
-
-			// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
-			// Stop if we are blocked and close enough
-			if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
-				delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
-				return true;
-
-			// The next move would overshoot, so consider it close enough or set final position if we CanSlide
-			if (delta.HorizontalLengthSquared < move.HorizontalLengthSquared)
-			{
-				// For VTOL landing to succeed, it must reach the exact target position,
-				// so for the final move it needs to behave as if it had CanSlide.
-				if (isSlider || aircraft.Info.VTOL)
-				{
-					// Set final (horizontal) position
-					if (delta.HorizontalLengthSquared != 0)
-					{
-						// Ensure we don't include a non-zero vertical component here that would move us away from CruiseAltitude
-						var deltaMove = new WVec(delta.X, delta.Y, 0);
-						FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
-					}
-
-					// Move to CruiseAltitude, if not already there
 					if (dat != aircraft.Info.CruiseAltitude)
 					{
-						Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 						return false;
 					}
+
+					return true;
 				}
 
-				return true;
-			}
+				// Inside the target annulus (weapon range), stop here
+				var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
+				var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
+				if (insideMaxRange && !insideMinRange)
+				{
+					aircraft.CurrentVelocity = WVec.Zero;
+					return true;
+				}
 
-			if (!isSlider)
+				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+				var isFinalWaypoint = NextActivity == null;
+				var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, isFinalWaypoint);
+				aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
+
+				// Inside the minimum range, reverse
+				if (insideMinRange)
+				{
+					aircraft.RequestedAcceleration = new WVec(-acceleration.X, -acceleration.Y, 0);
+					return false;
+				}
+
+				// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
+				if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
+					delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
+				{
+					aircraft.CurrentVelocity = WVec.Zero;
+					return true;
+				}
+
+				// Predict next frame's movement (current velocity + acceleration we just set)
+				// to detect overshoot before it happens
+				var predictedVel = new WVec(
+					aircraft.CurrentVelocity.X + acceleration.X,
+					aircraft.CurrentVelocity.Y + acceleration.Y,
+					0);
+				var predictedSpeed = predictedVel.Length;
+				if (predictedSpeed > aircraft.Info.Speed)
+					predictedVel = predictedVel * aircraft.Info.Speed / predictedSpeed;
+
+				if (delta.HorizontalLengthSquared < predictedVel.HorizontalLengthSquared)
+				{
+					// Next move would overshoot — snap to exact target position and stop
+					var targetPos = checkTarget.CenterPosition;
+					aircraft.SetPosition(self, new WPos(targetPos.X, targetPos.Y, aircraft.CenterPosition.Z));
+					aircraft.CurrentVelocity = WVec.Zero;
+					aircraft.RequestedAcceleration = WVec.Zero;
+
+					if (dat != aircraft.Info.CruiseAltitude)
+					{
+						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+						return false;
+					}
+
+					return true;
+				}
+
+				positionBuffer.Add(self.CenterPosition);
+				if (positionBuffer.Count > 5)
+					positionBuffer.RemoveAt(0);
+
+				// CanSlide movement is applied in Aircraft.Tick via CurrentVelocity
+				return false;
+			}
+			else
 			{
+				// Fixed-wing path: step-based movement (unchanged from original logic)
+				var stopPos = aircraft.CalculateStopPosition();
+				var stopDelta = checkTarget.CenterPosition - stopPos;
+
+				if (stopDelta.HorizontalLengthSquared < 512 * 512)
+					return true;
+
+				var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
+				var insideMinRange = minRange.Length > 0 && checkTarget.IsInRange(pos, minRange);
+				if (insideMaxRange && !insideMinRange)
+					return true;
+
+				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
+				var isFinalWaypoint = NextActivity == null;
+				var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, isFinalWaypoint);
+				aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
+
+				var move = aircraft.FlyStep(aircraft.Facing);
+
+				if (insideMinRange)
+				{
+					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
+					return false;
+				}
+
+				// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
+				if (positionBuffer.Count >= 5 && (positionBuffer.Last() - positionBuffer[0]).LengthSquared < 4096 &&
+					delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
+					return true;
+
+				// The next move would overshoot
+				if (delta.HorizontalLengthSquared < move.HorizontalLengthSquared)
+				{
+					// For VTOL landing to succeed, it must reach the exact target position
+					if (aircraft.Info.VTOL)
+					{
+						if (delta.HorizontalLengthSquared != 0)
+						{
+							var deltaMove = new WVec(delta.X, delta.Y, 0);
+							FlyTick(self, aircraft, desiredFacing, dat, deltaMove);
+						}
+
+						if (dat != aircraft.Info.CruiseAltitude)
+						{
+							Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+							return false;
+						}
+					}
+
+					return true;
+				}
+
 				// Using the turn rate, compute a hypothetical circle traced by a continuous turn.
 				// If it contains the destination point, it's unreachable without more complex maneuvering.
 				var turnRadius = CalculateTurnRadius(aircraft.MovementSpeed, aircraft.TurnSpeed);
@@ -244,17 +312,14 @@ namespace OpenRA.Mods.Common.Activities
 				var turnCenter = aircraft.CenterPosition + turnCenterDir;
 				if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
 					desiredFacing = aircraft.Facing;
-			}
 
-			positionBuffer.Add(self.CenterPosition);
-			if (positionBuffer.Count > 5)
-				positionBuffer.RemoveAt(0);
+				positionBuffer.Add(self.CenterPosition);
+				if (positionBuffer.Count > 5)
+					positionBuffer.RemoveAt(0);
 
-			// For non-slider aircraft (fixed-wing), use the traditional FlyTick movement
-			if (!isSlider)
 				FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
-
-			return false;
+				return false;
+			}
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)

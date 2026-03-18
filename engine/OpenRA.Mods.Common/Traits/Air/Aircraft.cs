@@ -424,14 +424,35 @@ namespace OpenRA.Mods.Common.Traits
 			if (stopAtWaypoint)
 			{
 				var currentSpeed = CurrentVelocity.HorizontalLength;
-				var stoppingDistance = (currentSpeed * currentSpeed) / (2 * Info.MaxAcceleration);
-				if (distance < stoppingDistance)
+
+				// Use discrete stopping distance matching semi-implicit Euler in Aircraft.Tick.
+				// Matches CalculateStopPosition: k = (speed - 1) / a, d = k*v - a*k*(k+1)/2.
+				var k = currentSpeed > Info.MaxAcceleration ? (currentSpeed - 1) / Info.MaxAcceleration : 0;
+				var stoppingDistance = k * currentSpeed - Info.MaxAcceleration * k * (k + 1) / 2;
+				if (distance <= stoppingDistance)
 					desiredVelocity = WVec.Zero;
 			}
 
 			var velocityDelta = desiredVelocity - CurrentVelocity;
-			var accelerationMagnitude = Math.Min(Info.MaxAcceleration, velocityDelta.Length);
-			return velocityDelta * accelerationMagnitude / Math.Max(1, velocityDelta.Length);
+			var velocityDeltaLength = velocityDelta.Length;
+
+			// When close to desired velocity and not braking, return maintenance acceleration
+			// in the desired direction. This counteracts the natural deceleration in Aircraft.Tick
+			// that would otherwise reduce speed every other tick, causing velocity oscillation.
+			if (velocityDeltaLength <= Info.MaxAcceleration && desiredVelocity != WVec.Zero)
+			{
+				var desiredSpeed = desiredVelocity.Length;
+				if (desiredSpeed > 0)
+					return desiredVelocity * Info.MaxAcceleration / desiredSpeed;
+
+				return WVec.Zero;
+			}
+
+			if (velocityDeltaLength == 0)
+				return WVec.Zero;
+
+			var accelerationMagnitude = Math.Min(Info.MaxAcceleration, velocityDeltaLength);
+			return velocityDelta * accelerationMagnitude / velocityDeltaLength;
 		}
 
 		protected virtual void Tick(Actor self)
@@ -552,14 +573,19 @@ namespace OpenRA.Mods.Common.Traits
 			var speed = vel.HorizontalLength;
 			var a = Info.MaxAcceleration;
 
-			if (speed < a)
+			if (speed <= a)
 				return pos;
 
-			// Number of ticks where velocity >= MaxAcceleration
-			var ticks = speed / a;
+			// Semi-implicit Euler: Aircraft.Tick decelerates velocity THEN moves by new velocity.
+			// Each tick moves (speed - i*a) for i = 1..k, where k = (speed - 1) / a.
+			// When post-decel speed <= a, velocity is zeroed with no movement that tick.
+			var k = (speed - 1) / a;
 
-			// Total displacement = sum of velocities (speed - i*a) for i=1 to ticks
-			var totalDisplacement = ticks * (speed - (ticks - 1) * a / 2);
+			// Total displacement = sum from i=1 to k of (speed - i*a) = k*speed - a*k*(k+1)/2
+			var totalDisplacement = k * speed - a * k * (k + 1) / 2;
+
+			if (totalDisplacement <= 0)
+				return pos;
 
 			// Scale velocity vector by displacement
 			var delta = new WVec(
