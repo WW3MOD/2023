@@ -576,10 +576,20 @@ namespace OpenRA.Mods.Common.Activities
 						if (margin >= 0)
 							nextToTerrainOrientation = WRot.SLerp(map.TerrainOrientation(mobile.ToCell), map.TerrainOrientation(nextCell.Value.Cell), 1, 2);
 
-						// When reversing, keep current facing instead of turning toward the next cell
+						// Re-evaluate reverse condition for each chained cell
+						// Check if the next cell is still "behind" the unit
+						var nextFacing = map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing);
+						if (mobile.MovingBackward)
+						{
+							var rawDiff = Math.Abs(nextFacing.Angle - mobile.Facing.Angle);
+							var angleDiff = rawDiff > 512 ? 1024 - rawDiff : rawDiff;
+							if (angleDiff <= 256)
+								mobile.MovingBackward = false;
+						}
+
 						var toFacing = mobile.MovingBackward
 							? mobile.Facing
-							: map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing);
+							: nextFacing;
 
 						var ret = new MoveFirstHalf(
 							Move,
