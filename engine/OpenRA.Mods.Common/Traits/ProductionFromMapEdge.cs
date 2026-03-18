@@ -45,6 +45,32 @@ namespace OpenRA.Mods.Common.Traits
 			rp = self.TraitOrDefault<RallyPoint>();
 		}
 
+		CPos? FindSpawnAreaLocation(Actor self)
+		{
+			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
+				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
+				.Select(a => a.Actor)
+				.ToList();
+
+			if (spawnAreas.Count == 0)
+				return null;
+
+			// Find the closest SpawnArea to this production building
+			Actor closest = null;
+			var closestDist = int.MaxValue;
+			foreach (var sa in spawnAreas)
+			{
+				var dist = (self.Location - sa.Location).LengthSquared;
+				if (dist < closestDist)
+				{
+					closestDist = dist;
+					closest = sa;
+				}
+			}
+
+			return closest?.Location;
+		}
+
 		public override bool Produce(Actor self, ActorInfo producee, string productionType, TypeDictionary inits, int refundableValue)
 		{
 			if (IsTraitDisabled || IsTraitPaused)
@@ -56,6 +82,12 @@ namespace OpenRA.Mods.Common.Traits
 			var destinations = rp != null && rp.Path.Count > 0 ? rp.Path : new List<CPos> { self.Location };
 
 			var location = spawnLocation;
+			if (!location.HasValue)
+			{
+				// Check for a SpawnArea actor first
+				location = FindSpawnAreaLocation(self);
+			}
+
 			if (!location.HasValue)
 			{
 				if (aircraftInfo != null)

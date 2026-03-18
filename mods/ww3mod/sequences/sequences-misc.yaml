@@ -529,6 +529,11 @@ waypoint:
 	idle:
 		Length: *
 
+spawnarea:
+	idle:
+		waypoint:
+		Length: *
+
 camera:
 	idle:
 		Length: *

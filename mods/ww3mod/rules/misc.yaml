@@ -253,6 +253,23 @@ mpspawn:
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 
+spawnarea:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (spawn area for supply route units)
+	AlwaysVisible:
+	Immobile:
+		OccupiesSpace: false
+	SpawnArea:
+	BodyOrientation:
+		QuantizedFacings: 1
+	WithSpriteBody:
+	RenderSpritesEditorOnly:
+	MapEditorData:
+		Categories: System
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+
 waypoint:
 	Interactable:
 	EditorOnlyTooltip:

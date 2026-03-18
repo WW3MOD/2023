@@ -6533,15 +6533,6 @@ Actors:
 	Actor3440: hbox
 		Owner: Neutral
 		Location: 55,80
-	Actor3132: mpspawn
-		Owner: Neutral
-		Location: 8,1
-	Actor3366: mpspawn
-		Owner: Neutral
-		Location: 1,46
-	Actor3377: mpspawn
-		Owner: Neutral
-		Location: 8,80
 	Actor3135: oilb
 		Owner: Neutral
 		Location: 15,3
@@ -12419,21 +12410,12 @@ Actors:
 	Actor5171: asianhut
 		Owner: Neutral
 		Location: 68,43
-	Actor5172: mpspawn
-		Owner: Neutral
-		Location: 87,0
-	Actor5173: mpspawn
-		Owner: Neutral
-		Location: 94,34
 	Actor5174: oilb
 		Owner: Neutral
 		Location: 74,58
 	Actor5175: oilb
 		Owner: Neutral
 		Location: 79,78
-	Actor5176: mpspawn
-		Owner: Neutral
-		Location: 86,80
 	Actor5177: v11
 		Owner: Neutral
 		Location: 71,27
@@ -12899,9 +12881,6 @@ Actors:
 	Actor5331: utilpol1
 		Owner: Neutral
 		Location: 88,35
-	Actor5332: utilpol1
-		Owner: Neutral
-		Location: 94,35
 	Actor5333: t13
 		Owner: Neutral
 		Location: 78,35
@@ -14975,3 +14954,21 @@ Actors:
 	Actor6019: tc03
 		Owner: Neutral
 		Location: 97,80
+	Actor5172: mpspawn
+		Owner: Neutral
+		Location: 15,6
+	Actor5173: mpspawn
+		Owner: Neutral
+		Location: 80,76
+	Actor5176: mpspawn
+		Owner: Neutral
+		Location: 73,5
+	Actor5332: mpspawn
+		Owner: Neutral
+		Location: 22,75
+	Actor6020: mpspawn
+		Owner: Neutral
+		Location: 14,45
+	Actor6021: mpspawn
+		Owner: Neutral
+		Location: 80,35
