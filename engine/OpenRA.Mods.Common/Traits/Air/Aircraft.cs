@@ -526,7 +526,14 @@ namespace OpenRA.Mods.Common.Traits
 					newMovementTypes |= MovementType.Vertical;
 				CurrentMovementTypes = newMovementTypes;
 
-				if (!CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
+				if (CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
+				{
+					// CanSlide aircraft use velocity-based movement and never call FlyTick,
+					// so pitch must be applied here. Nose pitches forward when flying.
+					if (Info.CanSlide && Info.Pitch != WAngle.Zero)
+						Pitch = Util.TickFacing(Pitch, Info.Pitch, Info.PitchSpeed);
+				}
+				else
 				{
 					if (Info.Roll != WAngle.Zero && Roll != WAngle.Zero)
 						Roll = Util.TickFacing(Roll, WAngle.Zero, Info.RollSpeed);

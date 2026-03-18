@@ -114,35 +114,57 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (aircraft.Info.CanSlide)
 				{
-					// CanSlide (helicopter) VTOL landing: zero residual velocity to prevent
-					// double movement (FlyTick + Aircraft.Tick both moving the helicopter).
-					if (aircraft.CurrentVelocity != WVec.Zero)
-						aircraft.CurrentVelocity = WVec.Zero;
+					// CanSlide (helicopter) VTOL landing: smooth decelerating descent.
+					// Uses velocity system for horizontal approach with gradual altitude descent
+					// tied to speed — fast = high, slow = low, creating a natural landing curve.
+					var speed = aircraft.CurrentVelocity.HorizontalLength;
+					var altRange = aircraft.Info.CruiseAltitude.Length - aircraft.LandAltitude.Length;
 
-					// Phase 1: Center over landing position using step-based movement
-					// (velocity is zeroed above, so no double-movement conflict)
-					if (horizontalDistance > 1)
+					// Phase 1: Decelerating approach with proportional descent
+					if (horizontalDistance > aircraft.Info.MaxAcceleration * 3 || speed > aircraft.Info.MaxAcceleration)
 					{
-						var desiredFacingMove = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-						var move = aircraft.FlyStep(desiredFacingMove);
+						// Use velocity system for horizontal braking toward landing position
+						var acceleration = aircraft.CalculateAccelerationToWaypoint(targetPosition, true);
+						aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
 
-						if (horizontalDistance <= move.HorizontalLength)
+						// Descend proportionally to speed: fast = stay high, slow = go low
+						// This creates a natural descending approach curve
+						var speedRatio = aircraft.Info.Speed > 0 ? speed * 1024 / aircraft.Info.Speed : 0;
+						var targetAltLength = aircraft.LandAltitude.Length + altRange * speedRatio / 1024;
+						var targetAlt = new WDist(targetAltLength);
+
+						if (dat != targetAlt)
 						{
-							// Close enough to snap to exact position
-							aircraft.SetPosition(self, new WPos(targetPosition.X, targetPosition.Y, pos.Z));
-						}
-						else
-						{
-							Fly.FlyTick(self, aircraft, desiredFacingMove, aircraft.Info.CruiseAltitude);
+							var maxAltDelta = aircraft.Info.AltitudeVelocity.Length;
+							var altDiff = targetAlt.Length - dat.Length;
+							var deltaZ = altDiff > 0
+								? Math.Min(altDiff, maxAltDelta)
+								: Math.Max(altDiff, -maxAltDelta);
+							aircraft.SetPosition(self, aircraft.CenterPosition + new WVec(0, 0, deltaZ));
 						}
 
 						return false;
 					}
 
-					// Phase 2: Descend vertically while turning to desired landing facing
+					// Phase 2: Nearly stopped — snap horizontal, gentle vertical descent
+					if (horizontalDistance > 1)
+						aircraft.SetPosition(self, new WPos(targetPosition.X, targetPosition.Y, pos.Z));
+
+					aircraft.CurrentVelocity = WVec.Zero;
+
 					if (dat.Length > aircraft.LandAltitude.Length)
 					{
-						Fly.VerticalTakeOffOrLandTick(self, aircraft, landFacing, aircraft.LandAltitude);
+						// Gentle touchdown: reduce descent speed near the ground
+						var remainingAlt = dat.Length - aircraft.LandAltitude.Length;
+						var maxAltDelta = aircraft.Info.AltitudeVelocity.Length;
+						if (remainingAlt < maxAltDelta * 4)
+							maxAltDelta = Math.Max(1, remainingAlt / 4);
+
+						var deltaZ = Math.Max(-maxAltDelta, aircraft.LandAltitude.Length - dat.Length);
+						aircraft.SetPosition(self, aircraft.CenterPosition + new WVec(0, 0, deltaZ));
+
+						// Turn to desired landing facing during final descent
+						aircraft.Facing = Util.TickFacing(aircraft.Facing, landFacing, aircraft.TurnSpeed);
 						return false;
 					}
 				}

@@ -54,15 +54,32 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
+
+			// CanSlide VTOL (helicopters): rise to halfway altitude, then complete TakeOff.
+			// The next activity (Fly) will climb the rest while moving forward —
+			// like a real pilot clearing obstacles before transitioning to forward flight.
+			if (aircraft.Info.VTOL && aircraft.Info.CanSlide)
+			{
+				var halfwayAlt = new WDist(aircraft.Info.CruiseAltitude.Length / 2);
+				if (dat < halfwayAlt)
+				{
+					Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, halfwayAlt);
+					return false;
+				}
+
+				return true;
+			}
+
 			if (dat < aircraft.Info.CruiseAltitude)
 			{
-				// If we're a VTOL, rise before flying forward
+				// Non-CanSlide VTOL: rise fully before flying forward
 				if (aircraft.Info.VTOL)
 				{
 					Fly.VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 					return false;
 				}
 
+				// Fixed-wing: climb while moving forward
 				Fly.FlyTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 				return false;
 			}

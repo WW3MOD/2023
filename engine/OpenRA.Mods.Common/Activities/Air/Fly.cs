@@ -159,7 +159,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (isSlider)
 			{
 				// CanSlide (helicopter) path: velocity-based movement with precise arrival.
-				// All movement happens in Aircraft.Tick via CurrentVelocity — we only set RequestedAcceleration here.
+				// All horizontal movement happens in Aircraft.Tick via CurrentVelocity.
 				var speed = aircraft.CurrentVelocity.HorizontalLength;
 				var distToTarget = delta.HorizontalLength;
 
@@ -170,7 +170,8 @@ namespace OpenRA.Mods.Common.Activities
 					aircraft.SetPosition(self, new WPos(targetPos.X, targetPos.Y, aircraft.CenterPosition.Z));
 					aircraft.CurrentVelocity = WVec.Zero;
 
-					if (dat != aircraft.Info.CruiseAltitude)
+					// Don't climb to CruiseAltitude if we're about to land — go straight to landing
+					if (dat != aircraft.Info.CruiseAltitude && !(NextActivity is Land))
 					{
 						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
 						return false;
@@ -189,8 +190,11 @@ namespace OpenRA.Mods.Common.Activities
 				}
 
 				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-				var isFinalWaypoint = NextActivity == null;
-				var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, isFinalWaypoint);
+
+				// Helicopters always decelerate toward their target — even when activities are
+				// queued after (like Land). This prevents the jarring instant-stop snap that occurs
+				// when isFinalWaypoint is false and the helicopter flies at full speed until overshoot.
+				var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, true);
 				aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
 
 				// Inside the minimum range, reverse
@@ -220,24 +224,43 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (delta.HorizontalLengthSquared < predictedVel.HorizontalLengthSquared)
 				{
-					// Next move would overshoot — snap to exact target position and stop
-					var targetPos = checkTarget.CenterPosition;
-					aircraft.SetPosition(self, new WPos(targetPos.X, targetPos.Y, aircraft.CenterPosition.Z));
-					aircraft.CurrentVelocity = WVec.Zero;
-					aircraft.RequestedAcceleration = WVec.Zero;
-
-					if (dat != aircraft.Info.CruiseAltitude)
+					// Would overshoot — only snap if speed is low enough for an invisible correction
+					if (speed <= aircraft.Info.MaxAcceleration * 2)
 					{
-						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-						return false;
+						var targetPos = checkTarget.CenterPosition;
+						aircraft.SetPosition(self, new WPos(targetPos.X, targetPos.Y, aircraft.CenterPosition.Z));
+						aircraft.CurrentVelocity = WVec.Zero;
+						aircraft.RequestedAcceleration = WVec.Zero;
+
+						if (dat != aircraft.Info.CruiseAltitude && !(NextActivity is Land))
+						{
+							VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
+							return false;
+						}
+
+						return true;
 					}
 
-					return true;
+					// At high speed: emergency brake instead of snapping (visually jarring)
+					var brakeDir = aircraft.CurrentVelocity.HorizontalLength > 0
+						? aircraft.CurrentVelocity * (-aircraft.Info.MaxAcceleration) / aircraft.CurrentVelocity.HorizontalLength
+						: WVec.Zero;
+					aircraft.RequestedAcceleration = new WVec(brakeDir.X, brakeDir.Y, 0);
 				}
 
 				positionBuffer.Add(self.CenterPosition);
 				if (positionBuffer.Count > 5)
 					positionBuffer.RemoveAt(0);
+
+				// Gradually climb/descend toward CruiseAltitude while flying
+				// This allows helicopters to start flying before reaching full altitude (after halfway takeoff)
+				if (dat != aircraft.Info.CruiseAltitude)
+				{
+					var maxAltDelta = aircraft.Info.AltitudeVelocity.Length;
+					var altDiff = aircraft.Info.CruiseAltitude.Length - dat.Length;
+					var deltaZ = altDiff > 0 ? System.Math.Min(altDiff, maxAltDelta) : System.Math.Max(altDiff, -maxAltDelta);
+					aircraft.SetPosition(self, aircraft.CenterPosition + new WVec(0, 0, deltaZ));
+				}
 
 				// CanSlide movement is applied in Aircraft.Tick via CurrentVelocity
 				return false;
