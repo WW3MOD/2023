@@ -140,7 +140,12 @@ Use velocity-based movement with acceleration/deceleration:
 - `Aircraft.CalculateStopPosition()` — predicts stop position using discrete semi-implicit Euler formula
 - Movement applied in `Aircraft.Tick()` via `CurrentVelocity` (decel THEN move)
 - `Fly.Tick()` has a **fully separate CanSlide code path** — only sets RequestedAcceleration, never calls FlyTick
-- On arrival: snaps to exact target position, zeros CurrentVelocity
+- Always brakes toward target (stopAtWaypoint=true), even when activities queued after
+- Altitude adjustment during flight: gradually climbs/descends toward CruiseAltitude while flying
+- On arrival: snaps to exact target position, zeros CurrentVelocity. Skips climb if next is Land
+- Landing: smooth speed-proportional descent (fast=high, slow=low), gentle touchdown near ground
+- Takeoff: rise to halfway CruiseAltitude, then start moving forward while climbing rest
+- Pitch applied during horizontal movement in Aircraft.Tick (FlyTick isn't called for CanSlide)
 - **CRITICAL**: Never use FlyTick for CanSlide without zeroing CurrentVelocity first (double movement)
 
 ### Fixed-Wing (CanSlide = false)
