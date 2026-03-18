@@ -28,7 +28,7 @@ ProductionTypeNaval: # I
 	Types: Production
 	Contexts: Player
 
-GroupScatter: G Ctrl
+GroupScatter: G Shift
 	Description: Scatter queued waypoints among selected units
 	Types: World
 	Contexts: Player
