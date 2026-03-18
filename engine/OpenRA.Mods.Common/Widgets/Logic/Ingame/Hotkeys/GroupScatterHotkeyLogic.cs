@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -33,11 +34,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			this.world = world;
 		}
 
-		// Tracks a waypoint and what order type it was (Move vs AttackMove)
 		struct Waypoint
 		{
 			public CPos Cell;
-			public string OrderType; // "Move" or "AttackMove"
+			public Target Target;
+			public string OrderType; // "Move", "AttackMove", "Attack", "ForceAttack"
+			public bool IsActorTarget; // true for Attack/ForceAttack on specific actors
+		}
+
+		// A segment is a run of consecutive same-type orders
+		struct Segment
+		{
+			public string OrderType;
+			public bool IsActorTarget;
+			public List<Waypoint> Waypoints;
 		}
 
 		protected override bool OnHotkeyActivated(KeyInput e)
@@ -52,8 +62,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (selectedActors.Count == 0)
 				return false;
 
-			// Collect waypoints from the first selected actor's activity queue
-			// (all selected units share the same queued orders from shift-clicking)
 			var waypoints = CollectWaypoints(selectedActors.First());
 
 			if (waypoints.Count < 2)
@@ -62,12 +70,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				return true;
 			}
 
-			// Distribute: assign each unit exactly one waypoint
-			// If more units than waypoints, multiple units share waypoints (spread evenly)
-			// If more waypoints than units, each unit still gets one (closest unassigned)
-			DistributeWaypoints(selectedActors, waypoints);
+			// Split waypoints into segments of consecutive same-type orders
+			var segments = BuildSegments(waypoints);
 
-			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units across {waypoints.Count} waypoints.");
+			// Stop all units first
+			foreach (var unit in selectedActors)
+				world.IssueOrder(new Order("Stop", unit, false));
+
+			// Process each segment in order, queuing after the previous
+			var isFirstSegment = true;
+			foreach (var segment in segments)
+			{
+				if (segment.IsActorTarget)
+				{
+					// Actor-targeted orders (Attack/ForceAttack): ALL units get ALL targets, shuffled per unit
+					IssueActorTargetSegment(selectedActors, segment, !isFirstSegment);
+				}
+				else
+				{
+					// Position-targeted orders (Move/AttackMove): distribute among units
+					IssuePositionSegment(selectedActors, segment, !isFirstSegment);
+				}
+
+				isFirstSegment = false;
+			}
+
+			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units across {waypoints.Count} waypoints in {segments.Count} segments.");
 			return true;
 		}
 
@@ -92,70 +120,136 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 		{
 			// Direct Move activity
 			if (activity is Move move && move.Destination.HasValue)
-				return new Waypoint { Cell = move.Destination.Value, OrderType = "Move" };
+				return new Waypoint
+				{
+					Cell = move.Destination.Value,
+					Target = Target.FromCell(world, move.Destination.Value),
+					OrderType = "Move",
+					IsActorTarget = false
+				};
 
 			// AttackMove wraps a Move in its child
 			if (activity is AttackMoveActivity)
 			{
-				// Get target from the activity's GetTargets
 				var targets = activity.GetTargets(actor);
 				foreach (var t in targets)
 				{
 					if (t.Type == TargetType.Terrain)
-						return new Waypoint { Cell = world.Map.CellContaining(t.CenterPosition), OrderType = "AttackMove" };
+						return new Waypoint
+						{
+							Cell = world.Map.CellContaining(t.CenterPosition),
+							Target = t,
+							OrderType = "AttackMove",
+							IsActorTarget = false
+						};
 				}
 
-				// If no child target yet, check TargetLineNodes for the destination
+				// Fallback: check TargetLineNodes
 				var lineNodes = activity.TargetLineNodes(actor);
 				foreach (var node in lineNodes)
 				{
 					if (node.Target.Type == TargetType.Terrain)
-						return new Waypoint { Cell = world.Map.CellContaining(node.Target.CenterPosition), OrderType = "AttackMove" };
+						return new Waypoint
+						{
+							Cell = world.Map.CellContaining(node.Target.CenterPosition),
+							Target = node.Target,
+							OrderType = "AttackMove",
+							IsActorTarget = false
+						};
 				}
 			}
 
-			// Fly activity (aircraft)
-			if (activity.GetType().Name == "Fly")
+			// Attack activity (force-attack or auto-attack on an actor)
+			if (activity is Attack)
+			{
+				var targets = activity.GetTargets(actor);
+				foreach (var t in targets)
+				{
+					if (t.Type == TargetType.Actor && t.Actor != null && !t.Actor.IsDead)
+						return new Waypoint
+						{
+							Cell = t.Actor.Location,
+							Target = t,
+							OrderType = "ForceAttack",
+							IsActorTarget = true
+						};
+
+					if (t.Type == TargetType.Terrain)
+						return new Waypoint
+						{
+							Cell = world.Map.CellContaining(t.CenterPosition),
+							Target = t,
+							OrderType = "ForceAttack",
+							IsActorTarget = false
+						};
+				}
+			}
+
+			// Fly activity (aircraft move)
+			if (activity is Fly)
 			{
 				var targets = activity.GetTargets(actor);
 				foreach (var t in targets)
 				{
 					if (t.Type == TargetType.Terrain)
-						return new Waypoint { Cell = world.Map.CellContaining(t.CenterPosition), OrderType = "Move" };
+						return new Waypoint
+						{
+							Cell = world.Map.CellContaining(t.CenterPosition),
+							Target = t,
+							OrderType = "Move",
+							IsActorTarget = false
+						};
 				}
 			}
 
 			return null;
 		}
 
-		void DistributeWaypoints(List<Actor> units, List<Waypoint> waypoints)
+		List<Segment> BuildSegments(List<Waypoint> waypoints)
 		{
-			if (units.Count == 0 || waypoints.Count == 0)
-				return;
+			var segments = new List<Segment>();
 
-			// Stop all units first
-			foreach (var unit in units)
-				world.IssueOrder(new Order("Stop", unit, false));
+			string currentType = null;
+			List<Waypoint> currentWps = null;
+			var currentIsActor = false;
 
-			// Greedy nearest-waypoint assignment:
-			// Each unit gets exactly one waypoint. Assignments minimize crossing paths.
-			var remainingUnits = new List<Actor>(units);
-			var waypointAssignments = new Dictionary<int, List<Actor>>(); // waypoint index -> units
+			foreach (var wp in waypoints)
+			{
+				if (wp.OrderType != currentType)
+				{
+					if (currentWps != null && currentWps.Count > 0)
+						segments.Add(new Segment { OrderType = currentType, IsActorTarget = currentIsActor, Waypoints = currentWps });
 
-			for (var i = 0; i < waypoints.Count; i++)
-				waypointAssignments[i] = new List<Actor>();
+					currentType = wp.OrderType;
+					currentIsActor = wp.IsActorTarget;
+					currentWps = new List<Waypoint>();
+				}
+
+				currentWps.Add(wp);
+			}
+
+			if (currentWps != null && currentWps.Count > 0)
+				segments.Add(new Segment { OrderType = currentType, IsActorTarget = currentIsActor, Waypoints = currentWps });
+
+			return segments;
+		}
+
+		// Position-based orders: distribute waypoints among units (each unit gets one per segment)
+		void IssuePositionSegment(List<Actor> units, Segment segment, bool queued)
+		{
+			var waypoints = segment.Waypoints;
 
 			if (units.Count <= waypoints.Count)
 			{
 				// More waypoints than units: each unit gets the closest unassigned waypoint
-				var availableWaypoints = new List<int>(Enumerable.Range(0, waypoints.Count));
+				var available = new List<int>(Enumerable.Range(0, waypoints.Count));
 
 				foreach (var unit in units)
 				{
 					var bestWp = -1;
 					var bestDist = int.MaxValue;
 
-					foreach (var wpIdx in availableWaypoints)
+					foreach (var wpIdx in available)
 					{
 						var dist = (unit.Location - waypoints[wpIdx].Cell).LengthSquared;
 						if (dist < bestDist)
@@ -167,27 +261,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 					if (bestWp >= 0)
 					{
-						waypointAssignments[bestWp].Add(unit);
-						availableWaypoints.Remove(bestWp);
+						var target = Target.FromCell(world, waypoints[bestWp].Cell);
+						world.IssueOrder(new Order(segment.OrderType, unit, target, queued));
+						available.Remove(bestWp);
 					}
 				}
 			}
 			else
 			{
-				// More units than waypoints: distribute units evenly across waypoints
-				// Use greedy nearest assignment, allowing multiple units per waypoint
+				// More units than waypoints: spread units evenly across waypoints
 				var wpCapacity = new int[waypoints.Count];
 				var baseCount = units.Count / waypoints.Count;
 				var remainder = units.Count % waypoints.Count;
 
-				// Set capacity for each waypoint
 				for (var i = 0; i < waypoints.Count; i++)
 					wpCapacity[i] = baseCount + (i < remainder ? 1 : 0);
 
-				// Sort units by position for stable assignment
-				var sortedUnits = units.OrderBy(a => a.ActorID).ToList();
-
-				foreach (var unit in sortedUnits)
+				foreach (var unit in units)
 				{
 					var bestWp = -1;
 					var bestDist = int.MaxValue;
@@ -207,20 +297,31 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 					if (bestWp >= 0)
 					{
-						waypointAssignments[bestWp].Add(unit);
+						var target = Target.FromCell(world, waypoints[bestWp].Cell);
+						world.IssueOrder(new Order(segment.OrderType, unit, target, queued));
 						wpCapacity[bestWp]--;
 					}
 				}
 			}
+		}
 
-			// Issue orders
-			foreach (var kvp in waypointAssignments)
+		// Actor-targeted orders (Attack): all units get all targets, shuffled per unit
+		void IssueActorTargetSegment(List<Actor> units, Segment segment, bool queued)
+		{
+			var rng = new Random();
+			var waypoints = segment.Waypoints;
+
+			foreach (var unit in units)
 			{
-				var wp = waypoints[kvp.Key];
-				var target = Target.FromCell(world, wp.Cell);
+				// Shuffle order of targets per unit so they don't all focus the same one first
+				var shuffled = waypoints.OrderBy(_ => rng.Next()).ToList();
+				var first = true;
 
-				foreach (var unit in kvp.Value)
-					world.IssueOrder(new Order(wp.OrderType, unit, target, false));
+				foreach (var wp in shuffled)
+				{
+					world.IssueOrder(new Order(wp.OrderType, unit, wp.Target, queued || !first));
+					first = false;
+				}
 			}
 		}
 	}
