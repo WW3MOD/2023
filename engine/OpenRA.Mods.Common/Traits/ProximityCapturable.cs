@@ -140,7 +140,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateOwnership()
 		{
-			if (Captured && (Info.Permanent || OriginalOwner.WinState == OpenRA.WinState.Lost))
+			if (Captured && Info.Permanent)
 			{
 				// This area has been captured and cannot ever be re-captured, so we get rid of the
 				// ProximityTrigger and ensure that it won't be recreated in AddedToWorld.

@@ -218,7 +218,8 @@ SUPPLYROUTE:
 		Categories: Building
 	CommandBarBlacklist:
 	OwnerLostAction:
-		Action: Kill
+		Action: ChangeOwner
+		Owner: Neutral
 	GpsDot:
 		String: Structure
 	MustBeDestroyed:
