@@ -84,20 +84,20 @@ namespace OpenRA.Mods.Common.Traits
 			var location = spawnLocation;
 			if (!location.HasValue)
 			{
-				// Check for a SpawnArea actor first
-				location = FindSpawnAreaLocation(self);
-			}
-
-			if (!location.HasValue)
-			{
+				// Aircraft always spawn at map edge (fly in directly)
 				if (aircraftInfo != null)
 					location = self.World.Map.ChooseClosestEdgeCell(self.Location);
 
+				// Ground units use SpawnArea if available, otherwise map edge
 				if (mobileInfo != null)
 				{
-					var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
-					location = self.World.Map.ChooseClosestMatchingEdgeCell(self.Location,
-						c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, destinations[0]));
+					location = FindSpawnAreaLocation(self);
+					if (!location.HasValue)
+					{
+						var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
+						location = self.World.Map.ChooseClosestMatchingEdgeCell(self.Location,
+							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, destinations[0]));
+					}
 				}
 			}
 

@@ -530,8 +530,9 @@ waypoint:
 		Length: *
 
 spawnarea:
+	Defaults: waypoint.shp
+		AddExtension: False
 	idle:
-		waypoint:
 		Length: *
 
 camera:

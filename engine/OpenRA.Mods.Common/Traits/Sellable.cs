@@ -82,6 +82,15 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var ns in self.TraitsImplementing<INotifySold>())
 				ns.Selling(self);
 
+			// Mobile units walk to map edge before being sold (rotation)
+			var mobile = self.TraitOrDefault<IMove>();
+			if (mobile != null)
+			{
+				self.QueueActivity(false, new RotateToEdge(self, info.ShowTicks));
+				return;
+			}
+
+			// Buildings sell in place (with make animation if available)
 			if (!info.SkipMakeAnimation)
 			{
 				var makeAnimation = self.TraitOrDefault<WithMakeAnimation>();
