@@ -38,8 +38,9 @@ namespace OpenRA.Mods.Common.Activities
 		int carryoverProgress;
 		int lastMovePartCompletedTick;
 
-		List<CPos> path;
+		internal List<CPos> path;
 		CPos? destination;
+		public CPos? Destination => destination;
 		int startTicks;
 
 		// For dealing with blockers

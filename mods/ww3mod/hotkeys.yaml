@@ -28,6 +28,11 @@ ProductionTypeNaval: # I
 	Types: Production
 	Contexts: Player
 
+GroupScatter: Alt+S
+	Description: Scatter queued waypoints among selected units
+	Types: World
+	Contexts: Player
+
 PowerDown: # X
 	Description: Power-down mode
 	Types: OrderGenerator
