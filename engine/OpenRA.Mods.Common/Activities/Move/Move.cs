@@ -576,13 +576,17 @@ namespace OpenRA.Mods.Common.Activities
 						if (margin >= 0)
 							nextToTerrainOrientation = WRot.SLerp(map.TerrainOrientation(mobile.ToCell), map.TerrainOrientation(nextCell.Value.Cell), 1, 2);
 
-						// Creates a new MoveFirstHalf to reach the midpoint between current and next cell while turning to face the next cell.
+						// When reversing, keep current facing instead of turning toward the next cell
+						var toFacing = mobile.MovingBackward
+							? mobile.Facing
+							: map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing);
+
 						var ret = new MoveFirstHalf(
 							Move,
 							Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
 							Util.BetweenCells(self.World, mobile.ToCell, nextCell.Value.Cell) + (toSubcellOffset + nextSubcellOffset) / 2,
 							mobile.Facing,
-							map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing),
+							toFacing,
 							ToTerrainOrientation,
 							nextToTerrainOrientation,
 							margin,
