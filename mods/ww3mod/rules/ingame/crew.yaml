@@ -6,8 +6,6 @@
 	Inherits: ^Soldier
 	Valued:
 		Cost: 100
-	Health:
-		HP: 500
 	Mobile:
 		Speed: 70
 		Locomotor: foot
