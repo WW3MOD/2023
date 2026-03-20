@@ -45,6 +45,12 @@ make test               # Note: requires .NET 6 runtime specifically
 
 The solution file is `WW3MOD.sln`. The engine compiles to `engine/bin/`. Mod DLL is `OpenRA.Mods.WW3MOD.dll` (referenced in mod.config but not yet a separate project).
 
+### MCP Map Server
+```bash
+cd tools/map-mcp && npm install && npx tsc   # Build
+```
+Configured in `.mcp.json`. Provides 14 tools for map creation/editing: `create_map`, `read_map`, `list_maps`, `fill_terrain`, `paint_terrain`, `get_tileset_info`, `place_actors`, `remove_actors`, `list_actor_types`, `set_players`, `set_spawn_points`, `set_map_rules`, `write_lua_script`, `generate_preview`.
+
 ## Project Architecture
 
 ```
@@ -88,6 +94,13 @@ WW3MOD/
 │   ├── SPRITE_REFERENCES.md        # Asset references from other OpenRA mods
 │   ├── UnitManagement.md           # Group Scatter docs and unit control ideas
 │   └── PROJECT_ASSESSMENT.md       # Comprehensive project assessment (March 2026)
+├── tools/                          # Development tools
+│   └── map-mcp/                    # MCP Map Creation Server (TypeScript/Node.js)
+│       ├── src/index.ts            # MCP server with 14 map editing tools
+│       ├── src/map-bin.ts          # Binary map.bin reader/writer (format 2)
+│       ├── src/map-yaml.ts         # MiniYaml map.yaml reader/writer
+│       └── src/tileset.ts          # Tileset definition parser
+├── .mcp.json                       # MCP server configuration
 ├── CLAUDE.md                       # This file
 ├── WW3MOD.sln                      # Visual Studio solution
 ├── Makefile / make.ps1             # Build system
