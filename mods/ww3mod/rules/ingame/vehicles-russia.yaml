@@ -401,7 +401,7 @@ giatsint:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
 		FacingTolerance: 0
-		PauseOnCondition: empdisable || unit.docked
+		PauseOnCondition: empdisable || unit.docked || critical-damage
 		# StopAndWait: 100
 	Selectable:
 		Class: ARTILLERY

@@ -148,9 +148,9 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
-	BurstWaitMultiplier@CriticalDamage:
-		Modifier: 500
-		RequiresCondition: critical-damage
+	# Note: No BurstWaitMultiplier at critical — firing is prevented by
+	# TurretTurnSpeedMultiplier: 0 for turreted vehicles, and per-unit
+	# AttackFrontal PauseOnCondition for turretless vehicles (e.g. giatsint).
 	TurretTurnSpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
