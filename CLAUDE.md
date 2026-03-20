@@ -120,7 +120,8 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | GarrisonManager.cs | Named fire ports, per-port targeting, reload swapping, order handling |
 | WithGarrisonDecoration.cs | Unit icons + ammo pips at garrison port positions |
 | GarrisonPanelLogic.cs | Sidebar panel for garrison management |
-| SupplyProvider.cs | Targeted single-unit resupply with distance-based speed, limited supply capacity |
+| SupplyProvider.cs | Greatest-need resupply: 1 pip per cycle, cycles to unit with most need, limited supply capacity |
+| QuickRearm.cs | Enter-truck instant rearm: infantry enters Cargo, auto-ejected after delay with full ammo |
 
 ### Heavily Modified Systems
 | File | Key Changes |
