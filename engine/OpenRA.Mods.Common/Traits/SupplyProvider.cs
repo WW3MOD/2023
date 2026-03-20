@@ -301,7 +301,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.RestockActors.Count == 0)
 				return;
 
-			var restockTarget = self.World.ActorsHavingTrait<RearmsUnits>()
+			// Find nearest restock target by actor name (no RearmsUnits dependency)
+			var restockTarget = self.World.Actors
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& a.Owner == self.Owner
 					&& Info.RestockActors.Contains(a.Info.Name))
@@ -310,12 +311,27 @@ namespace OpenRA.Mods.Common.Traits
 			if (restockTarget != null)
 			{
 				restocking = true;
-				self.QueueActivity(false, new Resupply(self, restockTarget, restockTarget.Trait<RearmsUnits>().Info.CloseEnough));
+				var move = self.Trait<IMove>();
+
+				// Drive to the logistics center
+				var targetCell = self.World.Map.CellContaining(restockTarget.CenterPosition);
+				self.QueueActivity(false, move.MoveTo(targetCell, ignoreActor: restockTarget));
+
+				// Wait briefly to simulate restocking
+				self.QueueActivity(new Wait(25));
+
+				// Refill supply
 				self.QueueActivity(new CallFunc(() =>
 				{
 					currentSupply = Info.TotalSupply;
 					restocking = false;
 				}));
+
+				// Follow rally point if the restock target has one
+				var rp = restockTarget.TraitOrDefault<RallyPoint>();
+				if (rp != null && rp.Path.Count > 0)
+					foreach (var cell in rp.Path)
+						self.QueueActivity(move.MoveTo(cell, 1));
 			}
 		}
 

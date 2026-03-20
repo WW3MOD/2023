@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (passenger.IsDead || !cargo.Passengers.Contains(passenger))
 					continue;
 
-				// Eject the passenger
+				// Eject the passenger (follows UnloadCargo pattern for correct SubCell placement)
 				self.World.AddFrameEndTask(w =>
 				{
 					if (self.IsDead || passenger.IsDead)
@@ -93,18 +93,34 @@ namespace OpenRA.Mods.Common.Traits
 
 					cargo.Unload(self, passenger);
 
-					// Place the passenger in the world near the transport
-					var exitPos = self.Location;
-					var mobile = passenger.TraitOrDefault<Mobile>();
-					if (mobile != null)
+					var pos = passenger.Trait<IPositionable>();
+
+					// Find a valid exit cell + SubCell (same cell first, then adjacent)
+					(CPos Cell, SubCell SubCell)? exitSubCell = null;
+					var adjacentCells = self.World.Map.FindTilesInAnnulus(self.Location, 0, 1);
+					foreach (var c in adjacentCells)
 					{
-						var nearbyCell = self.World.Map.FindTilesInAnnulus(exitPos, 1, 2)
-							.FirstOrDefault(c => mobile.CanStayInCell(c));
-						if (nearbyCell != default)
-							exitPos = nearbyCell;
+						var sub = pos.GetAvailableSubCell(c);
+						if (sub != SubCell.Invalid)
+						{
+							exitSubCell = (c, sub);
+							break;
+						}
 					}
 
-					passenger.Trait<IPositionable>().SetPosition(passenger, exitPos);
+					// Fallback: use transport's cell with any available SubCell
+					if (exitSubCell == null)
+					{
+						var sub = pos.GetAvailableSubCell(self.Location);
+						if (sub != SubCell.Invalid)
+							exitSubCell = (self.Location, sub);
+						else
+							exitSubCell = (self.Location, SubCell.First);
+					}
+
+					pos.SetPosition(passenger, exitSubCell.Value.Cell, exitSubCell.Value.SubCell);
+					pos.SetCenterPosition(passenger, self.CenterPosition);
+					passenger.CancelActivity();
 					w.Add(passenger);
 				});
 			}
