@@ -149,7 +149,7 @@
 		Modifier: 0
 		RequiresCondition: critical-damage
 	BurstWaitMultiplier@CriticalDamage:
-		Modifier: 0
+		Modifier: 500
 		RequiresCondition: critical-damage
 	TurretTurnSpeedMultiplier@CriticalDamage:
 		Modifier: 0
