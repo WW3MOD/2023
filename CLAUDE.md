@@ -122,6 +122,8 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | GarrisonPanelLogic.cs | Sidebar panel for garrison management |
 | SupplyProvider.cs | Greatest-need resupply: 1 pip per cycle, cycles to unit with most need, limited supply capacity |
 | QuickRearm.cs | Enter-truck instant rearm: infantry enters Cargo, auto-ejected after delay with full ammo |
+| HealerClaimLayer.cs | World trait: prevents multiple medics targeting same patient (healer→patient 1:1 claims) |
+| HealerAutoTarget.cs | IOverrideAutoTarget: smart healer targeting — HP% scoring, critical priority, stabilize-and-switch |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -261,6 +263,7 @@ Each unit type has a base template file and two faction files:
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
 - **Garrison system redesign** — GarrisonManager trait with named fire ports, per-port independent targeting, weapon-role-aware scoring (AT→vehicles, MG→infantry), overkill prevention, ammo conservation, reload swapping, sidebar panel with per-unit eject controls, WithGarrisonDecoration for visual port indicators
 - **Supply truck rework** — SupplyProvider trait replaces ProximityExternalCondition. Targeted single-unit resupply (closest first), distance-based reload speed, 500 supply capacity with auto-restock at logistics center. AmmoPool.SupplyValue for per-ammo-type cost balancing. Truck deploys into SUPPLYCACHE via Transforms
+- **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
 
 ### Next Priorities
 1. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
