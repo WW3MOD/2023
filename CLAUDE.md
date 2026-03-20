@@ -141,6 +141,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | VehicleCrew.cs | Vehicle crew slots (Driver/Gunner/Commander), eject on critical damage, re-entry, commander substitution |
 | CrewMember.cs | Crew infantry trait: IIssueOrder for re-entering vehicles with matching empty slots |
 | EnterAsCrew.cs | Activity: crew walks to vehicle, fills slot, gets removed from world |
+| SmartMove.cs | IWrapMove + INotifyDamage: wraps Move orders so units selectively fire while moving (self-defense or unsaturated targets). Overkill check via AverageDamagePercent |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -283,9 +284,11 @@ Each unit type has a base template file and two faction files:
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
+- **Three-mode move system** — Move (right-click): SmartMove wrapping fires only in self-defense (under fire) or when target isn't already saturated with incoming damage (overkill check via AverageDamagePercent). Attack-Move (A+click): unchanged, fires at everything. Force-Move (Ctrl+click): pure movement via "ForceMove" order string, bypasses SmartMove wrapping entirely
 
 ### Next Priorities
-1. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
+1. **Three-mode move playtesting** — tune OverkillThreshold (100), UnderFireDuration (75 ticks), verify Force-Move never fires, verify regular move lets some units peel off while rest keep moving
+2. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
 2. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
 2. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
 3. **Garrison shelter/port playtesting** — verify soldiers deploy to ports when enemies appear, pips visible at port positions, direct selection works, force-move ejects, building death frees port soldiers, HoldFire prevents deployment, reload swap works between shelter and port
