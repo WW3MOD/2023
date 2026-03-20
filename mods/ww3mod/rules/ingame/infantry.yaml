@@ -48,7 +48,6 @@
 	QuantizeFacingsFromSequence:
 		Sequence: stand
 	WithInfantryBody:
-		RequiresCondition: !garrisoned-at-port
 	ExternalCondition@GarrisonPort:
 		Condition: garrisoned-at-port
 	WithDeathAnimation:
@@ -110,7 +109,7 @@
 		Sequence: idle
 		OpeningSequence: open
 		Offset: 0,0,427
-		RequiresCondition: parachute
+		RequiresCondition: parachute && !garrisoned-at-port
 	GrantConditionOnMovement:
 		Condition: moving
 		ConditionWhenStill: dugin

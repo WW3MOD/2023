@@ -186,23 +186,30 @@ namespace OpenRA.Mods.Common.Traits
 			cargo.Unload(self, soldier);
 			suppressNotifications = false;
 
-			// Get port world position
-			var coords = self.Trait<BodyOrientation>();
-			var portWorldPos = self.CenterPosition + GetPortWorldOffset(portIndex, coords);
-
 			// Add to world at port position
 			self.World.AddFrameEndTask(w =>
 			{
 				if (self.IsDead || soldier.IsDead)
 					return;
 
+				// Grant garrisoned condition BEFORE adding to world to prevent
+				// one-frame visual glitches (parachute, wrong animation, etc)
+				PortStates[portIndex].ConditionToken = soldier.GrantCondition(Info.GarrisonedCondition);
+
+				// Position at port: use building cell for pathfinding, port offset for visual
+				var coords = self.Trait<BodyOrientation>();
+				var portOffset = GetPortWorldOffset(portIndex, coords);
+
+				// Clamp Z to terrain level to prevent the engine thinking soldier is airborne
+				var terrainZ = self.World.Map.CenterOfCell(self.Location).Z;
+				var portWorldPos = self.CenterPosition + portOffset;
+				portWorldPos = new WPos(portWorldPos.X, portWorldPos.Y, terrainZ);
+
 				var positionable = soldier.Trait<IPositionable>();
 				positionable.SetPosition(soldier, self.Location);
 				positionable.SetCenterPosition(soldier, portWorldPos);
-				w.Add(soldier);
 
-				// Grant garrisoned condition (hides sprite, pauses movement/attack)
-				PortStates[portIndex].ConditionToken = soldier.GrantCondition(Info.GarrisonedCondition);
+				w.Add(soldier);
 			});
 
 			// Assign to port
@@ -387,8 +394,23 @@ namespace OpenRA.Mods.Common.Traits
 				// Update deployed soldier position each tick (in case building moves/rotates)
 				if (ps.DeployedSoldier != null)
 				{
+					// Check if soldier received an order (queued activity = player wants them to leave)
+					if (ps.DeployedSoldier.CurrentActivity != null)
+					{
+						// Eject from port: revoke condition, clear port, soldier executes queued activity
+						RevokePortCondition(i);
+						ps.DeployedSoldier = null;
+						ps.CurrentTarget = Target.Invalid;
+						ps.TargetLockTicks = 0;
+						ps.PlayerOverride = false;
+						continue;
+					}
+
 					var coords = self.Trait<BodyOrientation>();
-					var portWorldPos = self.CenterPosition + GetPortWorldOffset(i, coords);
+					var portOffset = GetPortWorldOffset(i, coords);
+					var terrainZ = self.World.Map.CenterOfCell(self.Location).Z;
+					var portWorldPos = self.CenterPosition + portOffset;
+					portWorldPos = new WPos(portWorldPos.X, portWorldPos.Y, terrainZ);
 					var positionable = ps.DeployedSoldier.Trait<IPositionable>();
 					positionable.SetCenterPosition(ps.DeployedSoldier, portWorldPos);
 				}
@@ -823,6 +845,29 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			switch (order.OrderString)
 			{
+				case "Unload":
+				{
+					// When building is ordered to unload, eject ALL soldiers (port + shelter)
+					// Port soldiers: revoke condition, they're already in world
+					for (var i = 0; i < PortStates.Length; i++)
+					{
+						var soldier = PortStates[i].DeployedSoldier;
+						if (soldier == null || soldier.IsDead)
+							continue;
+
+						RevokePortCondition(i);
+						PortStates[i].DeployedSoldier = null;
+						PortStates[i].CurrentTarget = Target.Invalid;
+						PortStates[i].TargetLockTicks = 0;
+						PortStates[i].PlayerOverride = false;
+
+						// Soldier is already in world at port position — just needs to scatter
+					}
+
+					// Shelter soldiers will be ejected by Cargo's normal Unload handling
+					break;
+				}
+
 				case "EjectGarrisonPassenger":
 				{
 					var passengerID = order.ExtraData;
