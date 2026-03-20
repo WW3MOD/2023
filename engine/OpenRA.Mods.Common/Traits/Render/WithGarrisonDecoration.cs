@@ -82,8 +82,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 				yield break;
 
 			var selected = self.World.Selection.Contains(self);
-			var scale = selected ? 1f : 0.5f;
-			var alpha = selected ? 0.3f : 0.1f;
+			var scale = selected ? 1f : 0.75f;
+			var alpha = selected ? 1f : 0.7f;
 			var palette = wr.Palette(info.Palette);
 			var coords = self.Trait<BodyOrientation>();
 
@@ -124,17 +124,17 @@ namespace OpenRA.Mods.Common.Traits.Render
 								ammoAnim.PlayRepeating(seq);
 								yield return new UISpriteRenderable(
 									ammoAnim.Image, portWorldPos, pipScreenPos + new int2(p * 6, 0),
-									0, palette, 0.5f, alpha);
+									0, palette, 0.5f, 1f);
 							}
 						}
 					}
 				}
-				else
+				else if (selected)
 				{
-					// Draw empty port indicator
+					// Draw empty port indicator only when selected
 					iconAnim.PlayRepeating(info.EmptySequence);
 					yield return new UISpriteRenderable(
-						iconAnim.Image, portWorldPos, portScreenPos, 0, palette, scale * 0.7f, alpha * 0.5f);
+						iconAnim.Image, portWorldPos, portScreenPos, 0, palette, 0.7f, 0.5f);
 				}
 			}
 		}

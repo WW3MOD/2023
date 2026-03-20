@@ -51,30 +51,36 @@
 	Inherits@CargoPips: ^CargoPips
 	GarrisonManager:
 		Ports:
-			- Name: north
-			  Offset: -100,0,128
-			  Yaw: 0
-			  Cone: 170
-			- Name: northeast
-			  Offset: -500,-241,128
-			  Yaw: 176
-			  Cone: 170
-			- Name: southeast
-			  Offset: -900,-241,128
-			  Yaw: 341
-			  Cone: 170
-			- Name: south
-			  Offset: -1100,0,128
-			  Yaw: 512
-			  Cone: 170
-			- Name: southwest
-			  Offset: -900,241,128
-			  Yaw: 682
-			  Cone: 170
-			- Name: northwest
-			  Offset: -500,241,128
-			  Yaw: 853
-			  Cone: 170
+			north:
+				Name: north
+				Offset: -100,0,128
+				Yaw: 0
+				Cone: 170
+			northeast:
+				Name: northeast
+				Offset: -500,-241,128
+				Yaw: 176
+				Cone: 170
+			southeast:
+				Name: southeast
+				Offset: -900,-241,128
+				Yaw: 341
+				Cone: 170
+			south:
+				Name: south
+				Offset: -1100,0,128
+				Yaw: 512
+				Cone: 170
+			southwest:
+				Name: southwest
+				Offset: -900,241,128
+				Yaw: 682
+				Cone: 170
+			northwest:
+				Name: northwest
+				Offset: -500,241,128
+				Yaw: 853
+				Cone: 170
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
