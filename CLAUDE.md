@@ -130,10 +130,10 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | ShockwaveDamageWarhead.cs | Explosive blast wave effects |
 | InfantryStates.cs | Infantry states replacing TakeCover |
 | EjectOnHusk.cs | Crew ejection from destroyed vehicles |
-| GarrisonManager.cs | Named fire ports, per-port targeting, reload swapping, order handling |
-| GarrisonProtection.cs | Damage pass-through: building absorbs 80-90% at full HP, 30-50% at critical, remainder hits random occupant |
-| WithGarrisonDecoration.cs | Unit icons + ammo pips + health bars + click-to-select at garrison port positions |
-| GarrisonPanelLogic.cs | Sidebar panel for garrison management |
+| GarrisonManager.cs | Shelter/port deployment model: soldiers enter shelter (Cargo), deploy to ports in-world when targets appear. DeployToPort/RecallToShelter, suppress flag, condition granting, INotifyKilled |
+| GarrisonProtection.cs | Damage pass-through to shelter occupants only (port soldiers have DamageMultiplier via garrisoned-at-port condition) |
+| WithGarrisonDecoration.cs | Empty port indicators only (deployed soldiers have their own in-world pips/decorations) |
+| GarrisonPanelLogic.cs | Sidebar panel for garrison management (shows deployed + shelter soldiers) |
 | SupplyProvider.cs | Greatest-need resupply: 1 pip per cycle, cycles to unit with most need, limited supply capacity |
 | QuickRearm.cs | Enter-truck instant rearm: infantry enters Cargo, auto-ejected after delay with full ammo |
 | HealerClaimLayer.cs | World trait: prevents multiple medics targeting same patient (healer→patient 1:1 claims) |
@@ -278,8 +278,7 @@ Each unit type has a base template file and two faction files:
 - **Rotate/sell to map edge** — units ordered to rotate via Supply Route now walk to the map edge (biased toward SpawnArea), not to the SR building. SR acts as a proxy target
 - **Vehicle reverse sliding fixed** — reverse condition re-evaluated at each cell transition; stops reversing when path curves away from behind the unit
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
-- **Garrison system redesign** — GarrisonManager trait with named fire ports, per-port independent targeting, weapon-role-aware scoring (AT→vehicles, MG→infantry), overkill prevention, ammo conservation, reload swapping, sidebar panel with per-unit eject controls, WithGarrisonDecoration for visual port indicators
-- **Garrison visual & interaction upgrade** — Bigger icons (1.5x/2.25x scale), health bars per occupant, click-to-select port icons with green highlight, GarrisonProtection trait for scaled damage pass-through (80-90% absorbed at full HP, 30-50% at critical), civilian building HP increased 2.5x, debug logging removed
+- **Garrison system: shelter/port deployment** — Infantry enter building shelter (Cargo), GarrisonManager deploys best-matched soldier to port in-world when targets appear. Deployed soldiers are in-world with garrisoned-at-port condition (sprite hidden, pips visible, selectable, targetable). Port soldiers get 80% damage reduction via DamageMultiplier. GarrisonProtection passes damage only to shelter soldiers. WithGarrisonDecoration simplified to empty port indicators. Building death: port soldiers become free infantry, shelter soldiers ejected by Cargo
 - **Supply truck rework** — SupplyProvider trait replaces ProximityExternalCondition. Targeted single-unit resupply (closest first), distance-based reload speed, 500 supply capacity with auto-restock at logistics center. AmmoPool.SupplyValue for per-ammo-type cost balancing. Truck deploys into SUPPLYCACHE via Transforms
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
@@ -289,7 +288,7 @@ Each unit type has a base template file and two faction files:
 1. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
 2. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
 2. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
-3. **Garrison system playtesting** — verify health bars display, click-to-select works, damage pass-through feels balanced, port spacing looks good
+3. **Garrison shelter/port playtesting** — verify soldiers deploy to ports when enemies appear, pips visible at port positions, direct selection works, force-move ejects, building death frees port soldiers, HoldFire prevents deployment, reload swap works between shelter and port
 4. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 5. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
 6. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
