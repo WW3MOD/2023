@@ -1,0 +1,129 @@
+Container@GARRISON_PANEL:
+	Logic: GarrisonPanelLogic
+	X: 5
+	Y: WINDOW_BOTTOM - 220
+	Width: 160
+	Height: 200
+	Children:
+		LogicTicker@GARRISON_TICKER:
+		Label@GARRISON_HEADER:
+			Width: 150
+			Height: 14
+			Font: TinyBold
+			Align: Center
+			Contrast: true
+		Label@PORT_LABEL_0:
+			Y: 16
+			Width: 130
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_0:
+			X: 132
+			Y: 16
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_1:
+			Y: 30
+			Width: 130
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_1:
+			X: 132
+			Y: 30
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_2:
+			Y: 44
+			Width: 130
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_2:
+			X: 132
+			Y: 44
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_3:
+			Y: 58
+			Width: 130
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_3:
+			X: 132
+			Y: 58
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_4:
+			Y: 72
+			Width: 130
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_4:
+			X: 132
+			Y: 72
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_5:
+			Y: 86
+			Width: 130
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_5:
+			X: 132
+			Y: 86
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@RESERVE_LABEL_0:
+			Y: 105
+			Width: 150
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Label@RESERVE_LABEL_1:
+			Y: 119
+			Width: 150
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Label@RESERVE_LABEL_2:
+			Y: 133
+			Width: 150
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Label@RESERVE_LABEL_3:
+			Y: 147
+			Width: 150
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_ALL:
+			Y: 165
+			Width: 150
+			Height: 20
+			Font: Tiny
+			Text: Eject All
+			VisualHeight: 0

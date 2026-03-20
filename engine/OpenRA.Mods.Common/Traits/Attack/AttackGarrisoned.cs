@@ -189,27 +189,23 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Tick(Actor self)
 		{
+			// Always call base.Tick for AttackFollow target management and AttackBase aiming notifications.
+			// In GarrisonManager mode, DoAttack is a no-op so base.Tick's DoAttack calls are harmless.
+			base.Tick(self);
+
 			if (useGarrisonManager)
 			{
-				// GarrisonManager handles per-port targeting in its own Tick.
-				// We handle force-attack integration here.
+				// Forward force-attack target to GarrisonManager
 				if (RequestedTarget.IsValidFor(self))
 					garrisonManager.SetForceTarget(RequestedTarget);
-				else if (OpportunityTarget.IsValidFor(self))
-				{
-					// Don't override per-port targeting with opportunity target
-				}
 				else
-				{
 					garrisonManager.ClearForceTarget();
-				}
 
-				// Per-port firing
+				// Per-port firing (independent of AttackFollow's single-target system)
 				DoGarrisonedAttack(self);
 
-				// Still call base for muzzle animation ticking and IsAiming updates
-				// but skip base.Tick's DoAttack calls by managing IsAiming ourselves
-				IsAiming = false;
+				// Override IsAiming based on whether any port has an active target
+				// (AttackFollow.Tick may have set it to false since it doesn't see per-port targets)
 				for (var i = 0; i < garrisonManager.PortStates.Length; i++)
 				{
 					var ps = garrisonManager.PortStates[i];
@@ -219,20 +215,9 @@ namespace OpenRA.Mods.Common.Traits
 						break;
 					}
 				}
-
-				// Tick muzzle animations (from base.Tick chain)
-				foreach (var m in muzzles.ToArray())
-					m.Animation.Tick();
-
-				// Call grandparent Tick for IsAiming notifications
-				// We need to call AttackBase.Tick but NOT AttackFollow.Tick
-				// Since we can't skip intermediate, we handle aiming notifications manually
-				return;
 			}
 
-			// Legacy mode: original behavior
-			base.Tick(self);
-
+			// Tick muzzle animations
 			foreach (var m in muzzles.ToArray())
 				m.Animation.Tick();
 		}

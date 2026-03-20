@@ -80,6 +80,8 @@
 		AmmoConservation: true
 		ReloadSwapping: true
 	WithCargoPipsDecoration:
+	WithGarrisonDecoration:
+		RequiresSelection: false
 	AttackGarrisoned:
 		PortOffsets: -100,0,128, -500,-241,128, -900,-241,128, -1100,0,128, -900,241,128, -500,241,128
 		PortYaws: 0, 176, 341, 512, 682, 853

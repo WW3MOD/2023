@@ -135,6 +135,8 @@ GTWR:
 		AmmoConservation: true
 		ReloadSwapping: true
 	WithCargoPipsDecoration:
+	WithGarrisonDecoration:
+		RequiresSelection: false
 	AttackGarrisoned:
 		PortOffsets: 0,-300,300, 300,0,300, 0,300,300, -300,0,300
 		PortYaws: 0, 256, 512, 768
@@ -197,6 +199,8 @@ PBOX:
 		AmmoConservation: true
 		ReloadSwapping: true
 	WithCargoPipsDecoration:
+	WithGarrisonDecoration:
+		RequiresSelection: false
 	AttackGarrisoned:
 		PortOffsets: 300,0,200, -300,0,200
 		PortYaws: 256, 768
@@ -264,6 +268,8 @@ HBOX:
 		AmmoConservation: true
 		ReloadSwapping: true
 	WithCargoPipsDecoration:
+	WithGarrisonDecoration:
+		RequiresSelection: false
 	AttackGarrisoned:
 		PortOffsets: 300,0,200, -300,0,200
 		PortYaws: 256, 768
