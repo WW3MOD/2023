@@ -7,7 +7,7 @@ TRAN:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
-		Description: Fast Infantry Transport Helicopter.\n  Unarmed
+		Description: Fast transport helicopter.\n\n - Carries infantry\n - Unarmed\n - Armor: Light
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -85,7 +85,7 @@ littlebird:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
-		Description: Light helicopter armed with dual chainguns.
+		Description: Light scout helicopter with dual chainguns.\n\n - 2x 7.62mm miniguns\n - Fast and agile\n - Armor: Light
 	Tooltip:
 		Name: Littlebird
 	Valued:
@@ -208,7 +208,7 @@ littlebird.AI:
 	Inherits: littlebird
 	Buildable:
 		Prerequisites: ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
-		Description: Light helicopter armed with dual chainguns.\n
+		Description: Light scout helicopter with dual chainguns.\n\n - 2x 7.62mm miniguns\n - Fast and agile\n - Armor: Light
 	AttackAircraft:
 		Armaments: primary, secondary
 	-MapEditorData:
@@ -225,7 +225,7 @@ HELI:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
-		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.\n  Strong vs Everything\n  Weak vs Anti-Air, Aircraft
+		Description: Heavy attack helicopter with multi-role armament.\n\n - Chaingun + anti-tank missiles\n - Can engage aircraft\n - Armor: Medium
 	Tooltip:
 		Name: Apache
 	Valued:
@@ -353,7 +353,7 @@ A10:
 		BuildPaletteOrder: 52
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
 		IconPalette: temptd
-		Description: Fast Ground-Attack Plane.
+		Description: Fast fixed-wing ground attack aircraft.\n\n - Air-to-ground ordnance\n - High speed, single pass\n - Armor: Light
 	Valued:
 		Cost: 6000
 	Tooltip:

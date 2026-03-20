@@ -85,7 +85,7 @@ GTWR:
 		BuildPaletteOrder: 0
 		Prerequisites: ~disabled
 		IconPalette: chrometd
-		Description: Anti-infantry base defense.
+		Description: Static defense effective against infantry.\n\n - Machine gun emplacement
 	Valued:
 		Cost: 200
 	Tooltip:
@@ -165,7 +165,7 @@ PBOX:
 		Queue: Defense
 		BuildPaletteOrder: 1
 		Prerequisites: ~disabled
-		Description: Reinforced static defense with room for 2 soldiers.
+		Description: Reinforced bunker emplacement.\n\n - Garrisons 2 soldiers\n - Soldiers fire from inside
 	Tooltip:
 		Name: Bunker
 	Valued:
@@ -233,7 +233,7 @@ HBOX:
 		Queue: Defense
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: Camouflaged defense emplacement with room for 2 soldiers.
+		Description: Hidden bunker, hard to detect.\n\n - Garrisons 2 soldiers\n - Camouflaged
 	Tooltip:
 		Name: Camo Pillbox
 	Valued:
@@ -290,7 +290,7 @@ SBAG:
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.
+		Description: Blocks infantry and light vehicles. Crushable by tanks.
 	Valued:
 		Cost: 50
 	CustomSellValue:
@@ -319,7 +319,7 @@ FENC:
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Stops infantry and light vehicles.\nCan be crushed by tanks.
+		Description: Blocks infantry and light vehicles. Crushable by tanks.
 	Valued:
 		Cost: 50
 	CustomSellValue:
@@ -348,7 +348,7 @@ BARB:
 		Queue: Defense
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Stops infantry and light vehicles.\nCan be crushed by tracked vehicles.
+		Description: Blocks infantry and light vehicles. Crushable by tracked vehicles.
 	Valued:
 		Cost: 50
 	CustomSellValue:
@@ -411,7 +411,7 @@ BRIK:
 		Queue: Defense
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
-		Description: Reinforced concrete wall
+		Description: Reinforced concrete wall. Heavy protection.
 	Valued:
 		Cost: 200
 	CustomSellValue:
@@ -497,7 +497,7 @@ HGATE:
 		Queue: Defense
 		BuildPaletteOrder: 9
 		Prerequisites: ~disabled
-		Description: Places an horizontal gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
+		Description: Horizontal gate. Opens for allies, blocks enemies.
 	Passable:
 		PassClasses: heavywall
 		PassedByRelationships: Ally, Neutral, Enemy
@@ -529,7 +529,7 @@ VGATE:
 		Queue: Defense
 		BuildPaletteOrder: 12
 		Prerequisites: ~disabled
-		Description: Places an vertical gate.\nThe gate automatically opens for friendly units.\nBlocks enemy access into your base.
+		Description: Vertical gate. Opens for allies, blocks enemies.
 	Passable:
 		PassClasses: heavywall
 		PassedByRelationships: Ally, Neutral, Enemy
@@ -557,7 +557,7 @@ CRAM:
 		Queue: Defense
 		Prerequisites: ~disabled
 		BuildPaletteOrder: 7
-		Description: Anti-Air base defense.
+		Description: Static anti-aircraft defense emplacement.
 		IconPalette: chrometd
 	# Radar:
 	# 	Range: 25c0
@@ -637,7 +637,7 @@ AGUN:
 		Queue: Defense
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: Anti-Air base defense.
+		Description: Static anti-aircraft defense emplacement.
 	Valued:
 		Cost: 800
 	Tooltip:
@@ -718,7 +718,7 @@ SAM:
 		Queue: Defense
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: Anti-Air base defense.
+		Description: Static anti-aircraft defense emplacement.
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -757,7 +757,7 @@ HSAM:
 		Queue: Defense
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: Anti-Air missile launcher.
+		Description: Guided anti-air missile defense system.
 	Tooltip:
 		Name: SAM Site
 	Valued:
@@ -831,7 +831,7 @@ FTUR:
 		Queue: Defense
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: Anti-Infantry base defense.
+		Description: Static defense effective against infantry.
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -897,7 +897,7 @@ TSLA:
 		Queue: Defense
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
-		Description: Advanced base defense.\nTesla briefly short-circuits Vehicle and Ships.
+		Description: Advanced defense. Tesla disrupts vehicles.\n\n - EMP effect on hit\n - Strong vs vehicles
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -958,7 +958,7 @@ PRIS:
 		Queue: Defense
 		BuildPaletteOrder: 80
 		Prerequisites: ~disabled
-		Description: Advanced experimental base defense.
+		Description: Experimental high-tech defense system.
 	Valued:
 		Cost: 4000
 	Tooltip:
@@ -1018,7 +1018,7 @@ MSLO:
 		Queue: Defense
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Fires a nuclear missile
+		Description: Strategic nuclear missile silo.\n\n - Fires a nuclear missile\n - Devastating area of effect
 	Tooltip:
 		Name: Nuclear Missile Silo
 	Valued:
@@ -1087,7 +1087,7 @@ GUN:
 		Queue: Defense
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: Anti-Armor base defense.
+		Description: Static anti-armor defense emplacement.
 	Valued:
 		Cost: 1000
 	Tooltip:

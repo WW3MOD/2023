@@ -27,7 +27,7 @@ humvee:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: The High Mobility Multipurpose Wheeled Vehicle (HMMWV), commonly known as the Humvee, is a light utility vehicle for transporting infantry while providing direct fire support.\n\n - 7.62mm medium machine gun\n-Light armor.\n-Carries 8 infantry.
+		Description: Fast wheeled transport with mounted gun.\n\n - 7.62mm machine gun\n - Carries 8 infantry\n - Armor: Light
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -187,7 +187,7 @@ m113:
 		Queue: Vehicle
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: The M113 is an amphibious fully tracked armored personnel carrier.\n\n - 12.7mm heavy machine gun\n - Transports 12 infantry.\n - Light armor
+		Description: Amphibious tracked APC with heavy machine gun.\n\n - 12.7mm HMG\n - Carries 12 infantry\n - Armor: Light
 		IconPalette: chrome
 	RenderSprites:
 		Image: m113
@@ -304,7 +304,7 @@ bradley:
 		Queue: Vehicle
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: The Bradley Fighting Vehicle is a tracked armored fighting vehicle designed to transport infantry or scouts with armor protection, while providing covering fire to suppress enemy troops and armored vehicles.\n\n -25mm chaingun\n - 2× wire-guided anti-tank missiles.\n - Carries 6 infantry.\n - Medium armor.
+		Description: Tracked IFV with anti-armor capability.\n\n - 25mm chaingun\n - 2x wire-guided ATGMs\n - Carries 6 infantry\n - Armor: Medium
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:
@@ -458,7 +458,7 @@ abrams:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Main battle tank conceived for modern armored ground warfare - 120mm gun.\n-Heavy armor.
+		Description: Main battle tank for armored ground warfare.\n\n - 120mm main gun\n - Armor: Heavy
 	Valued:
 		Cost: 2500
 	Health:
@@ -553,7 +553,7 @@ m109:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Self-propelled turreted howitzer for long range sustained artillery bombardment with quick deployment and moderate accuracy. \n\n - 155mm cannon\n - Must be stationary to fire\n - Light armor
+		Description: Self-propelled howitzer for long-range bombardment.\n\n - 155mm cannon\n - Must deploy to fire\n - Armor: Light
 	Tooltip:
 		Name: Paladin
 	AnnounceOnSeen:
@@ -668,7 +668,7 @@ m270:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 12× 227mm rockets\n - Light armor
+		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - Devastating area damage\n - Armor: Light
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -789,7 +789,7 @@ strykershorad:
 		Queue: Vehicle
 		BuildPaletteOrder: 5
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Troop Carrier Infantry Fighting Vehicle
+		Description: Wheeled IFV for rapid troop transport.\n\n - Autocannon\n - Carries infantry\n - Armor: Medium
 	Valued:
 		Cost: 2500
 	UpdatesPlayerStatistics:

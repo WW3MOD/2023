@@ -273,7 +273,7 @@ MSAR:
 		IconPalette: chrometd
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
-		Description: The ranging system is intended to locate artillery batteries from the sound of gunfire to facilitate effective counter artillery fire.\n\n - Deploys\n - Light armor.
+		Description: Locates enemy artillery by sound. Deploys for counter-battery targeting.\n\n - Passive detection system\n - Must deploy to operate\n - Armor: Light
 	Valued:
 		Cost: 1600
 	UpdatesPlayerStatistics:
@@ -343,7 +343,7 @@ MNLY:
 		Queue: Vehicle
 		BuildPaletteOrder: 98
 		Prerequisites: ~techlevel.medium
-		Description: Carries 10 land mines effective against vehicles and infantry.
+		Description: Deploys anti-vehicle and anti-personnel mines.\n\n - 10 land mines\n - Unarmed\n - Armor: None
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -408,7 +408,7 @@ TRUK:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
 		Prerequisites: ~techlevel.low
-		Description: Carries ammunition to resupply soldiers on the battlefield.\n\n - Unarmed.\n - Unarmored.\n - Only replenishes infantry.
+		Description: Resupplies nearby infantry ammunition automatically.\n\n - 500 supply capacity\n - Unarmed\n - Armor: None
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -472,7 +472,7 @@ LCCV:
 		Queue: Vehicle
 		BuildPaletteOrder: 150
 		Prerequisites: ~techlevel.low
-		Description: Deploys into a Logistics Center, capable of rearming vehicles and infantry on the field.
+		Description: Deploys into a Logistics Center for field resupply of vehicles and infantry.\n\n - Unarmed\n - Armor: None
 	Valued:
 		Cost: 1200
 	Tooltip:

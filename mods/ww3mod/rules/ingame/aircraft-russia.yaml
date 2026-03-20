@@ -7,7 +7,7 @@ HALO:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.medium
-		Description: Mil Mi-26 (Halo) Infantry Transport Helicopter.\n  - Unarmed
+		Description: Heavy transport helicopter.\n\n - Carries infantry\n - Unarmed\n - Armor: Light
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -83,7 +83,7 @@ HIND:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Slow helicopter gunship armed with dual chainguns\nand anti-ground rockets.
+		Description: Armored gunship with chainguns and rockets.\n\n - Dual chainguns\n - Anti-ground rockets\n - Slow but durable\n - Armor: Medium
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
@@ -219,7 +219,7 @@ MI28:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Helicopter gunship with multi-purpose\nChainguns and Missiles.\nCan attack enemy Aircraft.
+		Description: Heavy attack helicopter with multi-role armament.\n\n - Chaingun + anti-tank missiles\n - Can engage aircraft\n - Armor: Medium
 	Tooltip:
 		Name: Mi-28
 	Valued:
@@ -345,7 +345,7 @@ FROG:
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 4
 		Prerequisites: ~player.russia, ~aircraft.russia,
-		Description: Ground-Attack Plane
+		Description: Fixed-wing ground attack aircraft.\n\n - Air-to-ground ordnance\n - Armor: Light
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -459,7 +459,7 @@ MIG:
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 5
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Fast Multi-Role Attack Plane.
+		Description: Fast multi-role fighter-bomber.\n\n - Air-to-ground and air-to-air\n - High speed\n - Armor: Light
 	Tooltip:
 		Name: MiG-29 Falcrum
 	Valued:

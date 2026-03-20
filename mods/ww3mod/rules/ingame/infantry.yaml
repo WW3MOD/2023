@@ -1034,7 +1034,7 @@
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 1
 		Prerequisites: ~disabled
-		Description: Conscript.
+		Description: Basic militia infantry with minimal training.\n\n - 5.56mm assault rifle\n - No armor
 	Valued:
 		Cost: 50
 	Armament@1:
@@ -1100,7 +1100,7 @@ E1R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: Provides the baseline standard for all infantry soldiers and is an integral part of the fire team.\n\n - 5.56mm rifle\n - One-shot disposable anti-tank weapon.
+		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket (supply: 25)\n - No armor
 	Valued:
 		Cost: 100
 	AttackFrontal:
@@ -1214,7 +1214,7 @@ E3R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Provides the unit with a high volume of sustained suppressive direct fires of area targets.\n\n - 5.56mm light machine gun
+		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun\n - High ammo capacity\n - No armor
 	Valued:
 		Cost: 100
 	Armament@1:
@@ -1277,7 +1277,7 @@ AR:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: Provides the fire team with a high explosive capability to suppress and destroy enemy infantry and lightly armored vehicles.\n\n - Grenade launcher\n
+		Description: High-explosive specialist effective against infantry and light vehicles.\n\n - Grenade launcher (supply: 3/rnd)\n - 30 round magazine\n - No armor
 	Valued:
 		Cost: 100
 	Armament@1:
@@ -1346,7 +1346,7 @@ E2R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
-		Description: Leads his team members by personal example. During combat he takes on the role of designated marksman for the fire team and can launch grenades for added effect.\n\n - 7.62mm designated marksman rifle\n - Underslung 40mm grenade launcher\n - Boosts morale of nearby soldiers
+		Description: Squad leader and designated marksman. Boosts morale of nearby soldiers.\n\n - 7.62mm DMR\n - 40mm grenade launcher (supply: 10/rnd)\n - Morale boost aura (4 cells)\n - No armor
 	Valued:
 		Cost: 200
 	ProximityExternalCondition@TLBoost:
@@ -1430,7 +1430,7 @@ TL:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
-		Description: - Provides long range capabilities to the assigned unit, suppressing and destroying enemy infantry and light vehicles with HE shells.\n\n - 60mm mortar
+		Description: Indirect fire support unit with long range HE shells.\n\n - 60mm mortar (supply: 5/rnd)\n - 25 round capacity\n - Must stop to fire\n - No armor
 	Valued:
 		Cost: 300
 	UpdatesPlayerStatistics:
@@ -1499,7 +1499,7 @@ MT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: Adept in stealth, camouflage, infiltration, and observation techniques. Engages targets from distances exceeding the target's detection capabilities. \n - 7.62mm high-precision rifle.\n - Prioritizes high value targets.\n- Trained to avoid detection (-2 visibility).
+		Description: Long-range precision shooter. Hard to detect, prioritizes high-value targets.\n\n - 7.62mm sniper rifle (supply: 2/rnd)\n - Low visibility (-2 detection)\n - No armor
 	Valued:
 		Cost: 400
 	UpdatesPlayerStatistics:
@@ -1568,7 +1568,7 @@ SN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: Provides medium and heavy anti-armor fire in support of the infantry unit.\n - Anti-tank guided missile launcher.\n - Carries 3 missiles.\n- Top attack mode.
+		Description: Heavy anti-armor specialist with guided missiles.\n\n - ATGM launcher (supply: 25/missile)\n - 3 missiles, top-attack mode\n - Suppressed when under fire\n - No armor
 	Tooltip:
 		Name: AT Specialist
 	Valued:
@@ -1635,7 +1635,7 @@ AT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 9
 		Prerequisites: ~disabled
-		Description: Provides short range anti-air capabilities the infantry unit.\n - Anti-air missile launcher.\n - Carries 3 missiles.
+		Description: Short-range anti-air defense for infantry formations.\n\n - MANPAD launcher (supply: 25/missile)\n - 3 missiles\n - No armor
 	Tooltip:
 		Name: AA Specialist
 	Valued:
@@ -1704,7 +1704,7 @@ AA:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Explosives expert that can clear and lay mines, as well as repair or demolish structures.\n\n - 9mm sub machine gun.\n - Carries 3 explosives for demolition or to place as mines.
+		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG\n - 3 explosives (supply: 25 each)\n - Repairs, captures, clears mines\n - No armor
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
@@ -1851,7 +1851,7 @@ E6:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 11
 		Prerequisites: ~disabled
-		Description: Provides a wide area of destruction on both infantry and light vehicles, causing clusters of enemy soldiers to panic.\n\n - Flamethrower.\n - Volitile.
+		Description: Close-range area denial. Devastating against infantry clusters.\n\n - Flamethrower\n - Causes panic and fire damage\n - Volatile — explodes on death\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1929,7 +1929,7 @@ E4:
 		Prerequisites: ~disabled
 		Queue: Infantry
 		IconPalette: chrome
-		Description: Infiltration unit able to conduct offensive raids, demolitions and reconnaissance missions in support of the battalion.\n\n - 5.56mm suppressed rifle.\n- 3 C4 charges with delayed fuse. \n- Operates on any terrain.
+		Description: Elite infiltration and demolition specialist.\n\n - 5.56mm suppressed rifle\n - 3 C4 charges (supply: 25 each)\n - Low visibility, all-terrain\n - No armor
 	Mobile:
 		Speed: 32
 		Locomotor: foot-amphibious-mountainer
@@ -2026,7 +2026,7 @@ SF:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 13
 		Prerequisites: ~disabled
-		Description: Administers emergency medical care in the field.\n\n - Heals wounded soldiers.\n - Unarmed.
+		Description: Field medic that auto-heals nearby wounded soldiers.\n\n - Heals infantry automatically\n - Prioritizes critical casualties\n - Unarmed\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -2092,7 +2092,7 @@ MEDI:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 16
 		Prerequisites: ~disabled
-		Description: -Operates buildings and captures neutral structures.
+		Description: Operates buildings and captures neutral structures.\n\n - Unarmed\n - No armor
 	Valued:
 		Cost: 250
 	Passenger:
@@ -2129,7 +2129,7 @@ TECN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 70
 		Prerequisites: ~disabled
-		Description: Specialist in operating and countering drones.\n\n - Reconnaisance drone\n - Drone jammer weapon
+		Description: Deploys recon drones and jams enemy drones.\n\n - Reconnaissance drone (supply: 50)\n - Drone jammer weapon\n - No armor
 	Valued:
 		Cost: 150
 	AutoTarget:

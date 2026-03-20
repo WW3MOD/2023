@@ -238,7 +238,7 @@ SUPPLYROUTE:
 		Queue: Building
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
-		Description: Provides reinforcements
+		Description: Delivers reinforcements from off-map.\n\n - Units spawn at map edge\n - Walk to rally point
 	Tooltip:
 		Name: Supply Route
 	Health:
@@ -344,7 +344,7 @@ LOGISTICSCENTER:
 		Queue: Building
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
-		Description: Rearms and repairs units
+		Description: Service depot for vehicle repair and rearming.\n\n - Repairs damaged vehicles\n - Restocks ammunition
 	Tooltip:
 		Name: Logistics Center
 	Valued:
@@ -398,7 +398,7 @@ HPAD:
 		Queue: Building
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled, ~techlevel.medium
-		Description: Produces and reloads Helicopters.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.
+		Description: Produces and rearms helicopters.\n\n - Helicopter production\n - Vulnerable to infiltration
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -466,7 +466,7 @@ AFLD:
 		Queue: Building
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled, ~techlevel.medium
-		Description: Produces, repairs and reloads Airplanes.\nCan be Infiltrated by an Spy resulting\nin Veterancy for enemy Aircraft.\nCan be Infiltrated by an Saboteur\nresulting in its Destruction.\n  Special Ability: Paratroopers\nA Plane drops a squad of\nVeteran infantry anywhere on the map.
+		Description: Produces and rearms fixed-wing aircraft.\n\n - Airplane production\n - Special: Paratroopers\n - Vulnerable to infiltration
 	Valued:
 		Cost: 1500
 	Tooltip:

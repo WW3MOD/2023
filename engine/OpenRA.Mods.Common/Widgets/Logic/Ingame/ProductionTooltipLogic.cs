@@ -52,6 +52,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var lastPowerState = pm?.PowerState ?? PowerState.Normal;
 			var descLabelY = descLabel.Bounds.Y;
 			var descLabelPadding = descLabel.Bounds.Height;
+			const int MaxTooltipWidth = 350;
 
 			tooltipContainer.BeforeRender = () =>
 			{
@@ -135,11 +136,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var costSize = font.Measure(costLabel.Text);
 
 				descLabel.Text = buildable.Description.Replace("\\n", "\n");
+				descLabel.Text = WidgetUtils.WrapText(descLabel.Text, MaxTooltipWidth, descFont);
 				var descSize = descFont.Measure(descLabel.Text);
 				descLabel.Bounds.Width = descSize.X;
 				descLabel.Bounds.Height = descSize.Y + descLabelPadding;
 
-				var leftWidth = new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max);
+				var leftWidth = Math.Min(
+					new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
+					MaxTooltipWidth);
 				var rightWidth = new[] { powerSize.X, timeSize.X, costSize.X }.Aggregate(Math.Max);
 
 				timeIcon.Bounds.X = powerIcon.Bounds.X = costIcon.Bounds.X = leftWidth + 2 * nameLabel.Bounds.X;

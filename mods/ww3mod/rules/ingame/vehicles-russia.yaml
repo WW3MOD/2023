@@ -30,7 +30,7 @@ btr:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: 8×8 wheeled amphibious armoured personnel carrier.\n\n - 14.5mm machine gun.\n - Transports up to 8 infantry.\n-Light armor.
+		Description: Wheeled amphibious APC.\n\n - 14.5mm machine gun\n - Carries 8 infantry\n - Armor: Light
 		IconPalette: chrome
 	RenderSprites:
 		Scale: 0.9
@@ -140,7 +140,7 @@ bmp2:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.low
-		Description: Amphibious infantry fighting vehicle capable of engaging both infantry and armored targets at long range.\n\n - 30mm autocannon\n - Wire-guided anti-tank misslile\n - Medium Armor.
+		Description: Amphibious tracked IFV with anti-armor capability.\n\n - 30mm autocannon\n - Wire-guided ATGM\n - Armor: Medium
 	Valued:
 		Cost: 1300
 	Health:
@@ -291,7 +291,7 @@ t90:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Fills the role of armour-protected direct fire and maneuver in the army. - 125mm gun\n - Heavy armor
+		Description: Main battle tank for armored ground warfare.\n\n - 125mm main gun\n - Armor: Heavy
 	Valued:
 		Cost: 2400
 	Health:
@@ -386,7 +386,7 @@ giatsint:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Self-propelled howitzer for sustained long range artillery bombardment with quick deployment and moderate accuracy.\n\n - 152mm cannon\n - Must be stationary to fire\n - Light armor
+		Description: Self-propelled howitzer for long-range bombardment.\n\n - 152mm cannon\n - Must deploy to fire\n - Armor: Light
 		IconPalette: chrome
 	Tooltip:
 		Name: 2S5 Giatsint-S
@@ -493,7 +493,7 @@ grad:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Long-range multiple launch rocket system, able to blanket an area with massive destruction in a very short timeframe.\n\n - 40× 122mm rockets\n - Light armor
+		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - Devastating area damage\n - Armor: Light
 	Valued:
 		Cost: 1500
 	Tooltip:
@@ -602,7 +602,7 @@ tos:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Medium-range tracked multiple launch rocket system with good protection. Thermobaric rockets cause extreme casualties to infantry and light vehicles with less effect on armored targets.\n\n - 24× 220mm thermobaric rockets\n - Medium armor
+		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - Less effective vs heavy armor\n - Armor: Medium
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -719,7 +719,7 @@ tunguska:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Mobile AA
+		Description: Mobile anti-aircraft platform.\n\n - AA autocannon\n - Armor: Medium
 	Valued:
 		Cost: 1700
 	Health:
