@@ -215,8 +215,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-				yield return new DeployOrderTargeter("Unload", 10,
-					() => CanUnload() ? Info.UnloadCursor : Info.UnloadBlockedCursor);
+				if (!IsEmpty())
+					yield return new DeployOrderTargeter("Unload", 10,
+						() => CanUnload() ? Info.UnloadCursor : Info.UnloadBlockedCursor);
 			}
 		}
 
@@ -233,7 +234,7 @@ namespace OpenRA.Mods.Common.Traits
 			return new Order("Unload", self, queued);
 		}
 
-		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return true; }
+		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return !IsEmpty(); }
 
 		public void ResolveOrder(Actor self, Order order)
 		{
@@ -402,8 +403,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void Load(Actor cargoActor, Actor passengerActor)
 		{
-			GarrisonDebug.Log($"[Cargo.Load] {passengerActor.Info.Name} into {cargoActor.Info.Name}, initialised={initialised}");
-
 			if (cargoActor.Owner != passengerActor.Owner)
 				cargoActor.ChangeOwnerSync(passengerActor.Owner, false);
 
@@ -443,6 +442,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!IsEmpty())
 			{
+				// Skip legacy damage forwarding when GarrisonProtection handles it
+				if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
+					return;
+
 				var healthTrait = self.Trait<Health>();
 				var damageDealt = e.Damage.Value;
 				var damageThreshold = healthTrait.GetDamageStateThreshold(DamageState.Critical);

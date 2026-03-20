@@ -58,12 +58,12 @@
 				Cone: 170
 			northeast:
 				Name: northeast
-				Offset: -500,-241,128
+				Offset: -500,-360,128
 				Yaw: 176
 				Cone: 170
 			southeast:
 				Name: southeast
-				Offset: -900,-241,128
+				Offset: -900,-360,128
 				Yaw: 341
 				Cone: 170
 			south:
@@ -73,23 +73,27 @@
 				Cone: 170
 			southwest:
 				Name: southwest
-				Offset: -900,241,128
+				Offset: -900,360,128
 				Yaw: 682
 				Cone: 170
 			northwest:
 				Name: northwest
-				Offset: -500,241,128
+				Offset: -500,360,128
 				Yaw: 853
 				Cone: 170
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	GarrisonProtection:
+		BaseProtection: 80
+		CriticalProtection: 30
+		MinPassThrough: 5
 	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: -100,0,128, -500,-241,128, -900,-241,128, -1100,0,128, -900,241,128, -500,241,128
+		PortOffsets: -100,0,128, -500,-360,128, -900,-360,128, -1100,0,128, -900,360,128, -500,360,128
 		PortYaws: 0, 176, 341, 512, 682, 853
 		PortCones: 170, 170, 170, 170, 170, 170
 		MuzzlePalette: effect
@@ -185,7 +189,7 @@ V01:
 	Tooltip:
 		Name: Church
 	Health:
-		HP: 30000
+		HP: 75000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -205,7 +209,7 @@ V02:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Health:
-		HP: 30000
+		HP: 75000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -224,7 +228,7 @@ V03:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Health:
-		HP: 35000
+		HP: 90000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -243,7 +247,7 @@ V04:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Health:
-		HP: 25000
+		HP: 65000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -263,7 +267,7 @@ V05:
 		Footprint: xx
 		Dimensions: 2,1
 	Health:
-		HP: 20000
+		HP: 50000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -276,7 +280,7 @@ V06:
 		Footprint: xx
 		Dimensions: 2,1
 	Health:
-		HP: 25000
+		HP: 65000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -289,7 +293,7 @@ V07:
 		Footprint: xx
 		Dimensions: 2,1
 	Health:
-		HP: 20000
+		HP: 50000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -298,7 +302,7 @@ V07:
 V08:
 	Inherits: ^CivBuilding
 	Health:
-		HP: 15000
+		HP: 40000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -308,7 +312,7 @@ V08:
 V09:
 	Inherits: ^CivBuilding
 	Health:
-		HP: 10000
+		HP: 25000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -317,7 +321,7 @@ V09:
 V10:
 	Inherits: ^CivBuilding
 	Health:
-		HP: 20000
+		HP: 50000
 	Armor:
 		Type: Medium
 		Thickness: 30
@@ -326,7 +330,7 @@ V10:
 V11:
 	Inherits: ^CivBuilding
 	Health:
-		HP: 10000
+		HP: 25000
 	Armor:
 		Type: Medium
 		Thickness: 10
@@ -524,7 +528,7 @@ RUSHOUSE:
 		Footprint: x x
 		Dimensions: 1,2
 	Health:
-		HP: 50000
+		HP: 120000
 	Armor:
 		Type: Heavy
 		Thickness: 50
@@ -535,7 +539,7 @@ ASIANHUT:
 	MapEditorData:
 		RequireTilesets: TEMPERAT
 	Health:
-		HP: 10000
+		HP: 25000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -547,7 +551,7 @@ SNOWHUT:
 		Footprint: x x
 		Dimensions: 1,2
 	Health:
-		HP: 10000
+		HP: 25000
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -567,7 +571,7 @@ LHUS:
 		Footprint: x
 		Dimensions: 1,1
 	Health:
-		HP: 20000
+		HP: 50000
 	Armor:
 		Type: Medium
 		Thickness: 30
@@ -584,7 +588,7 @@ WINDMILL:
 		Footprint: x
 		Dimensions: 1,1
 	Health:
-		HP: 10000
+		HP: 25000
 	Armor:
 		Type: Light
 		Thickness: 10

@@ -116,33 +116,37 @@ GTWR:
 		Ports:
 			north:
 				Name: north
-				Offset: 0,-300,300
+				Offset: 0,-450,300
 				Yaw: 0
 				Cone: 170
 			east:
 				Name: east
-				Offset: 300,0,300
+				Offset: 450,0,300
 				Yaw: 256
 				Cone: 170
 			south:
 				Name: south
-				Offset: 0,300,300
+				Offset: 0,450,300
 				Yaw: 512
 				Cone: 170
 			west:
 				Name: west
-				Offset: -300,0,300
+				Offset: -450,0,300
 				Yaw: 768
 				Cone: 170
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	GarrisonProtection:
+		BaseProtection: 90
+		CriticalProtection: 50
+		MinPassThrough: 5
 	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: 0,-300,300, 300,0,300, 0,300,300, -300,0,300
+		PortOffsets: 0,-450,300, 450,0,300, 0,450,300, -450,0,300
 		PortYaws: 0, 256, 512, 768
 		PortCones: 170, 170, 170, 170
 		MuzzlePalette: effect
@@ -192,23 +196,27 @@ PBOX:
 		Ports:
 			front:
 				Name: front
-				Offset: 300,0,200
+				Offset: 450,0,200
 				Yaw: 256
 				Cone: 256
 			back:
 				Name: back
-				Offset: -300,0,200
+				Offset: -450,0,200
 				Yaw: 768
 				Cone: 256
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	GarrisonProtection:
+		BaseProtection: 90
+		CriticalProtection: 50
+		MinPassThrough: 5
 	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: 300,0,200, -300,0,200
+		PortOffsets: 450,0,200, -450,0,200
 		PortYaws: 256, 768
 		PortCones: 256, 256
 		MuzzlePalette: effect
@@ -263,23 +271,27 @@ HBOX:
 		Ports:
 			front:
 				Name: front
-				Offset: 300,0,200
+				Offset: 450,0,200
 				Yaw: 256
 				Cone: 256
 			back:
 				Name: back
-				Offset: -300,0,200
+				Offset: -450,0,200
 				Yaw: 768
 				Cone: 256
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	GarrisonProtection:
+		BaseProtection: 85
+		CriticalProtection: 40
+		MinPassThrough: 5
 	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: 300,0,200, -300,0,200
+		PortOffsets: 450,0,200, -450,0,200
 		PortYaws: 256, 768
 		PortCones: 256, 256
 		MuzzlePalette: effect

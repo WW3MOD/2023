@@ -14,6 +14,7 @@ using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
@@ -107,6 +108,14 @@ namespace OpenRA.Mods.Common.Widgets
 
 			if (mi.Button == MouseButton.Left && mi.Event == MouseInputEvent.Up)
 			{
+				// Check if click hits a garrison port icon on a selected building
+				if (!IsValidDragbox && !multiClick && TrySelectGarrisonPort(mousePos))
+				{
+					isDragging = false;
+					YieldMouseFocus(mi);
+					return true;
+				}
+
 				if (useClassicMouseStyle && HasMouseFocus)
 				{
 					if (!IsValidDragbox && World.Selection.Actors.Any() && !multiClick && uog.InputOverridesSelection(World, mousePos, mi))
@@ -203,6 +212,35 @@ namespace OpenRA.Mods.Common.Widgets
 
 				world.IssueOrder(o);
 			}
+		}
+
+		bool TrySelectGarrisonPort(int2 worldPixel)
+		{
+			// Check selected actors for garrison decorations
+			foreach (var actor in World.Selection.Actors)
+			{
+				if (actor.IsDead || !actor.IsInWorld)
+					continue;
+
+				var decoration = actor.TraitOrDefault<WithGarrisonDecoration>();
+				if (decoration == null)
+					continue;
+
+				var viewPx = worldRenderer.Viewport.WorldToViewPx(worldPixel);
+				var port = decoration.GetPortAtScreenPosition(viewPx);
+				if (port.HasValue)
+				{
+					// Toggle: click same port again to deselect
+					decoration.SelectedPortIndex = decoration.SelectedPortIndex == port.Value ? -1 : port.Value;
+					return true;
+				}
+
+				// Clicked somewhere else — clear port selection
+				if (decoration.SelectedPortIndex >= 0)
+					decoration.SelectedPortIndex = -1;
+			}
+
+			return false;
 		}
 
 		public override string GetCursor(int2 screenPos)
