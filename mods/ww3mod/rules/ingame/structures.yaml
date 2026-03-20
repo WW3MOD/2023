@@ -213,7 +213,7 @@ SUPPLYROUTE:
 	FrozenUnderFog:
 	FrozenUnderFogUpdatedByGps:
 	Guardable:
-		Range: 20c0
+		Range: 14c0
 	MapEditorData:
 		Categories: Building
 	CommandBarBlacklist:
@@ -245,11 +245,9 @@ SUPPLYROUTE:
 		HP: 50000
 	Targetable:
 		TargetTypes: NoAutoTarget
-	ProximityCapturable:
-		TurnNeutral: true
-		ReturnToOriginalOwner: true
-		Dominance: 100
-		Range: 20c0
+	ProximityContestable:
+		Condition: contested
+		Range: 14c0
 	Armor:
 		Type: Indestructable
 	RallyPoint:
@@ -296,10 +294,10 @@ SUPPLYROUTE:
 	Production@Local:
 		Produces: Building, Defense
 		UseRandomExit: true
-		PauseOnCondition: disabled || build-incomplete
+		PauseOnCondition: disabled || build-incomplete || contested
 	ProductionFromMapEdge:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter
-		PauseOnCondition: disabled || build-incomplete
+		PauseOnCondition: disabled || build-incomplete || contested
 	GrantExternalConditionToProduced:
 		Condition: produced
 	AcceptsDeliveredCash:
