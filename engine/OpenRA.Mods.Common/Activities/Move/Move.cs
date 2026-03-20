@@ -623,7 +623,7 @@ namespace OpenRA.Mods.Common.Activities
 						}
 
 						var toFacing = mobile.MovingBackward
-							? mobile.Facing
+							? new WAngle(nextFacing.Angle + 512)
 							: nextFacing;
 
 						var ret = new MoveFirstHalf(
