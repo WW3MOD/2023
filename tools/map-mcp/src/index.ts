@@ -16,7 +16,7 @@ import { PNG } from 'pngjs';
 
 import { readMapBin, writeMapBin, createEmptyMapBin, type MapBinData } from './map-bin.js';
 import { readMapYaml, writeMapYaml, writeRulesYaml, type MapYamlData, type PlayerReference, type MapActor } from './map-yaml.js';
-import { parseTileset, findTemplateForTerrainType, hexToRgb, type TilesetData } from './tileset.js';
+import { parseTileset, findTemplateForTerrainType, hexToRgb, type TilesetData, type TilesetTemplate } from './tileset.js';
 
 // ── Paths ──────────────────────────────────────────────────────────────────
 
@@ -843,6 +843,309 @@ server.tool(
 		fs.writeFileSync(path.join(mapPath, 'map.png'), pngBuf);
 
 		return { content: [{ type: 'text', text: `Generated map.png for "${mapName}" (${bin.width}x${bin.height}, ${pngBuf.length} bytes)` }] };
+	}
+);
+
+// ── Tool: place_template ───────────────────────────────────────────────
+
+server.tool(
+	'place_template',
+	'Place a specific tileset template by ID at a position. Multi-cell templates write multiple cells.',
+	{
+		mapName: z.string().describe('Map directory name'),
+		templateId: z.number().int().describe('Template ID from the tileset'),
+		x: z.number().int().describe('X coordinate for top-left corner of the template'),
+		y: z.number().int().describe('Y coordinate for top-left corner of the template'),
+	},
+	async ({ mapName, templateId, x, y }) => {
+		const { yaml, bin } = loadMap(mapName);
+		const tileset = loadTileset(yaml.tileset);
+
+		const tmpl = tileset.templates.get(templateId);
+		if (!tmpl) {
+			return { content: [{ type: 'text', text: `Error: Template ${templateId} not found in tileset ${yaml.tileset}` }] };
+		}
+
+		const [tw, th] = tmpl.size;
+		let placed = 0;
+		let skipped = 0;
+
+		for (const [tileIndex, _terrainType] of tmpl.tiles) {
+			const cellX = x + (tileIndex % tw);
+			const cellY = y + Math.floor(tileIndex / tw);
+
+			if (cellX < 0 || cellX >= bin.width || cellY < 0 || cellY >= bin.height) {
+				skipped++;
+				continue;
+			}
+
+			bin.tiles[cellX][cellY] = { type: templateId, index: tileIndex };
+			placed++;
+		}
+
+		saveMap(mapName, yaml, bin);
+
+		return {
+			content: [{
+				type: 'text',
+				text: `Placed template ${templateId} (${tw}x${th}) at (${x},${y}): ${placed} cells written, ${skipped} skipped (out of bounds)`,
+			}],
+		};
+	}
+);
+
+// ── Tool: draw_road ────────────────────────────────────────────────────
+
+/** Compute cells along a line between two points using Bresenham's algorithm. */
+function bresenhamLine(x0: number, y0: number, x1: number, y1: number): [number, number][] {
+	const points: [number, number][] = [];
+	let dx = Math.abs(x1 - x0);
+	let dy = Math.abs(y1 - y0);
+	const sx = x0 < x1 ? 1 : -1;
+	const sy = y0 < y1 ? 1 : -1;
+	let err = dx - dy;
+
+	let cx = x0;
+	let cy = y0;
+
+	while (true) {
+		points.push([cx, cy]);
+		if (cx === x1 && cy === y1) break;
+		const e2 = 2 * err;
+		if (e2 > -dy) { err -= dy; cx += sx; }
+		if (e2 < dx) { err += dx; cy += sy; }
+	}
+
+	return points;
+}
+
+/** Expand a set of path cells to the given width by adding neighboring cells. */
+function expandPath(cells: Set<string>, width: number): Set<string> {
+	if (width <= 1) return cells;
+	const expanded = new Set(cells);
+	const halfW = Math.floor((width - 1) / 2);
+
+	for (const key of cells) {
+		const [cx, cy] = key.split(',').map(Number);
+		for (let dx = -halfW; dx <= halfW; dx++) {
+			for (let dy = -halfW; dy <= halfW; dy++) {
+				expanded.add(`${cx + dx},${cy + dy}`);
+			}
+		}
+	}
+
+	return expanded;
+}
+
+server.tool(
+	'draw_road',
+	'Draw a road path between waypoints using road templates. Alternates between available 1x1 road templates for variety, and upgrades 2x2 regions where possible.',
+	{
+		mapName: z.string().describe('Map directory name'),
+		waypoints: z.array(z.object({
+			x: z.number().int(),
+			y: z.number().int(),
+		})).min(2).describe('Array of waypoint positions defining the road path'),
+		width: z.number().int().min(1).max(6).default(2).describe('Road width in cells (default 2)'),
+	},
+	async ({ mapName, waypoints, width }) => {
+		const { yaml, bin } = loadMap(mapName);
+		const tileset = loadTileset(yaml.tileset);
+
+		// Collect all 1x1 road templates for variety
+		const road1x1Templates: TilesetTemplate[] = [];
+		for (const tmpl of tileset.templates.values()) {
+			if (tmpl.size[0] === 1 && tmpl.size[1] === 1) {
+				for (const [, terrainType] of tmpl.tiles) {
+					if (terrainType === 'Road') {
+						road1x1Templates.push(tmpl);
+						break;
+					}
+				}
+			}
+		}
+
+		if (road1x1Templates.length === 0) {
+			return { content: [{ type: 'text', text: `Error: No 1x1 Road templates found in tileset ${yaml.tileset}` }] };
+		}
+
+		// Collect 2x2 all-road templates for variety upgrades
+		const road2x2Templates: TilesetTemplate[] = [];
+		for (const tmpl of tileset.templates.values()) {
+			if (tmpl.size[0] === 2 && tmpl.size[1] === 2) {
+				let allRoad = true;
+				let roadCount = 0;
+				for (const [, terrainType] of tmpl.tiles) {
+					roadCount++;
+					if (terrainType !== 'Road') { allRoad = false; break; }
+				}
+				if (allRoad && roadCount === 4) {
+					road2x2Templates.push(tmpl);
+				}
+			}
+		}
+
+		// 1. Compute path cells between consecutive waypoints
+		const pathCells = new Set<string>();
+		for (let i = 0; i < waypoints.length - 1; i++) {
+			const line = bresenhamLine(waypoints[i].x, waypoints[i].y, waypoints[i + 1].x, waypoints[i + 1].y);
+			for (const [px, py] of line) {
+				pathCells.add(`${px},${py}`);
+			}
+		}
+
+		// 2. Expand to desired width
+		const roadCells = expandPath(pathCells, width);
+
+		// 3. Place 1x1 road tiles, alternating templates for variety
+		let placed = 0;
+		const roadCellList: [number, number][] = [];
+
+		for (const key of roadCells) {
+			const [cx, cy] = key.split(',').map(Number);
+			if (cx < 0 || cx >= bin.width || cy < 0 || cy >= bin.height) continue;
+
+			const tmpl = road1x1Templates[Math.floor(Math.random() * road1x1Templates.length)];
+			const maxIdx = Math.max(...tmpl.tiles.keys());
+			const tileIdx = tmpl.pickAny ? Math.floor(Math.random() * (maxIdx + 1)) : 0;
+			bin.tiles[cx][cy] = { type: tmpl.id, index: tileIdx };
+			placed++;
+			roadCellList.push([cx, cy]);
+		}
+
+		// 4. Upgrade 2x2 blocks for variety where possible
+		let upgraded = 0;
+		if (road2x2Templates.length > 0) {
+			const usedFor2x2 = new Set<string>();
+			for (const [cx, cy] of roadCellList) {
+				// Check if this cell can be the top-left of a 2x2 block
+				if (usedFor2x2.has(`${cx},${cy}`)) continue;
+				const neighbors = [
+					`${cx},${cy}`, `${cx + 1},${cy}`,
+					`${cx},${cy + 1}`, `${cx + 1},${cy + 1}`,
+				];
+				if (neighbors.every(n => roadCells.has(n) && !usedFor2x2.has(n))) {
+					if (cx + 1 >= bin.width || cy + 1 >= bin.height) continue;
+					// ~30% chance to upgrade to 2x2
+					if (Math.random() < 0.3) {
+						const tmpl2 = road2x2Templates[Math.floor(Math.random() * road2x2Templates.length)];
+						for (const [tileIndex] of tmpl2.tiles) {
+							const tx = cx + (tileIndex % 2);
+							const ty = cy + Math.floor(tileIndex / 2);
+							bin.tiles[tx][ty] = { type: tmpl2.id, index: tileIndex };
+						}
+						for (const n of neighbors) usedFor2x2.add(n);
+						upgraded++;
+					}
+				}
+			}
+		}
+
+		saveMap(mapName, yaml, bin);
+
+		return {
+			content: [{
+				type: 'text',
+				text: `Drew road with ${waypoints.length} waypoints, width ${width}:\n` +
+					`  ${placed} cells painted with road tiles (${road1x1Templates.length} template variants)\n` +
+					`  ${upgraded} regions upgraded to 2x2 templates (${road2x2Templates.length} variants available)\n` +
+					`  Path: ${waypoints.map(w => `(${w.x},${w.y})`).join(' → ')}`,
+			}],
+		};
+	}
+);
+
+// ── Tool: auto_shore ───────────────────────────────────────────────────
+
+server.tool(
+	'auto_shore',
+	'Automatically add shore/beach transitions around water tiles. Replaces land cells adjacent to water with Rough terrain as a transition band.',
+	{
+		mapName: z.string().describe('Map directory name'),
+	},
+	async ({ mapName }) => {
+		const { yaml, bin } = loadMap(mapName);
+		const tileset = loadTileset(yaml.tileset);
+
+		// Find a 1x1 Rough template for shore transitions
+		let roughTemplate: TilesetTemplate | undefined;
+		for (const tmpl of tileset.templates.values()) {
+			if (tmpl.size[0] === 1 && tmpl.size[1] === 1) {
+				for (const [, terrainType] of tmpl.tiles) {
+					if (terrainType === 'Rough') {
+						roughTemplate = tmpl;
+						break;
+					}
+				}
+				if (roughTemplate) break;
+			}
+		}
+
+		if (!roughTemplate) {
+			return { content: [{ type: 'text', text: `Error: No 1x1 Rough template found in tileset ${yaml.tileset} for shore transitions` }] };
+		}
+
+		// Build water mask
+		const waterMask: boolean[][] = [];
+		for (let x = 0; x < bin.width; x++) {
+			waterMask[x] = [];
+			for (let y = 0; y < bin.height; y++) {
+				const tile = bin.tiles[x]?.[y];
+				if (tile) {
+					const typeName = getTerrainTypeName(tileset, tile.type, tile.index);
+					waterMask[x][y] = typeName === 'Water';
+				} else {
+					waterMask[x][y] = false;
+				}
+			}
+		}
+
+		// Find shore cells: non-water cells adjacent to at least one water cell
+		const shoreCells: [number, number][] = [];
+		const cardinals: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+		const diagonals: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+		const allNeighbors = [...cardinals, ...diagonals];
+
+		for (let x = 0; x < bin.width; x++) {
+			for (let y = 0; y < bin.height; y++) {
+				if (waterMask[x][y]) continue; // Skip water cells
+
+				let adjacentToWater = false;
+				for (const [dx, dy] of allNeighbors) {
+					const nx = x + dx;
+					const ny = y + dy;
+					if (nx >= 0 && nx < bin.width && ny >= 0 && ny < bin.height && waterMask[nx][ny]) {
+						adjacentToWater = true;
+						break;
+					}
+				}
+
+				if (adjacentToWater) {
+					shoreCells.push([x, y]);
+				}
+			}
+		}
+
+		// Place rough terrain on shore cells
+		const maxIdx = Math.max(...roughTemplate.tiles.keys());
+		let placed = 0;
+
+		for (const [sx, sy] of shoreCells) {
+			const tileIdx = roughTemplate.pickAny ? Math.floor(Math.random() * (maxIdx + 1)) : 0;
+			bin.tiles[sx][sy] = { type: roughTemplate.id, index: tileIdx };
+			placed++;
+		}
+
+		saveMap(mapName, yaml, bin);
+
+		return {
+			content: [{
+				type: 'text',
+				text: `Auto-shore complete for "${mapName}":\n` +
+					`  ${placed} shore transition cells placed (Rough, template ${roughTemplate.id})\n` +
+					`  Scanned ${bin.width * bin.height} total cells`,
+			}],
+		};
 	}
 );
 

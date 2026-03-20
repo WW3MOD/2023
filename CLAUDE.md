@@ -49,7 +49,7 @@ The solution file is `WW3MOD.sln`. The engine compiles to `engine/bin/`. Mod DLL
 ```bash
 cd tools/map-mcp && npm install && npx tsc   # Build
 ```
-Configured in `.mcp.json`. Provides 14 tools for map creation/editing: `create_map`, `read_map`, `list_maps`, `fill_terrain`, `paint_terrain`, `get_tileset_info`, `place_actors`, `remove_actors`, `list_actor_types`, `set_players`, `set_spawn_points`, `set_map_rules`, `write_lua_script`, `generate_preview`.
+Configured in `.mcp.json`. Provides 17 tools for map creation/editing: `create_map`, `read_map`, `list_maps`, `fill_terrain`, `paint_terrain`, `get_tileset_info`, `place_actors`, `remove_actors`, `list_actor_types`, `set_players`, `set_spawn_points`, `set_map_rules`, `write_lua_script`, `generate_preview`, `place_template`, `draw_road`, `auto_shore`.
 
 ## Project Architecture
 
