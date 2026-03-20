@@ -379,6 +379,7 @@ SUPPLYCACHE:
 	Building:
 		Dimensions: 1,1
 		Footprint: x
+		TerrainTypes: Clear,Road,Beach,Rough
 	FrozenUnderFog:
 	Health:
 		HP: 5000
