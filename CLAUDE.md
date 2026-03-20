@@ -283,9 +283,11 @@ Each unit type has a base template file and two faction files:
 - **Supply truck rework** — SupplyProvider trait replaces ProximityExternalCondition. Targeted single-unit resupply (closest first), distance-based reload speed, 500 supply capacity with auto-restock at logistics center. AmmoPool.SupplyValue for per-ammo-type cost balancing. Truck deploys into SUPPLYCACHE via Transforms
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
+- **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
 
 ### Next Priorities
-1. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
+1. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
+2. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
 2. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
 3. **Garrison system playtesting** — verify health bars display, click-to-select works, damage pass-through feels balanced, port spacing looks good
 4. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
