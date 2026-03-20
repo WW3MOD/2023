@@ -2,8 +2,8 @@
 
 ## Implemented
 
-### Group Scatter (Alt+S)
-Inspired by Supreme Commander FAF's Group Scatter mod. Select units, shift-click multiple waypoints, then press Alt+S to distribute the waypoints among selected units instead of having everyone go to every waypoint.
+### Group Scatter (Shift+G)
+Inspired by Supreme Commander FAF's Group Scatter mod. Select units, shift-click multiple waypoints, then press Shift+G to distribute the waypoints among selected units instead of having everyone go to every waypoint.
 
 **Behavior:**
 - Collects all queued move waypoints from the selected group

@@ -62,11 +62,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (selectedActors.Count == 0)
 				return false;
 
-			var waypoints = CollectWaypoints(selectedActors.First());
+			// Try all selected actors and use the one with the most waypoints.
+			// Different actors may be at different points in their order chain
+			// (e.g., a faster unit may have completed its first order already).
+			var waypoints = new List<Waypoint>();
+			foreach (var actor in selectedActors)
+			{
+				var actorWaypoints = CollectWaypoints(actor);
+				if (actorWaypoints.Count > waypoints.Count)
+					waypoints = actorWaypoints;
+			}
 
 			if (waypoints.Count < 2)
 			{
-				TextNotificationsManager.AddFeedbackLine("Group Scatter requires at least 2 queued waypoints.");
+				TextNotificationsManager.AddFeedbackLine($"Group Scatter requires at least 2 queued waypoints (found {waypoints.Count}).");
 				return true;
 			}
 
