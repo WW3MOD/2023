@@ -120,6 +120,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | GarrisonManager.cs | Named fire ports, per-port targeting, reload swapping, order handling |
 | WithGarrisonDecoration.cs | Unit icons + ammo pips at garrison port positions |
 | GarrisonPanelLogic.cs | Sidebar panel for garrison management |
+| SupplyProvider.cs | Targeted single-unit resupply with distance-based speed, limited supply capacity |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -127,7 +128,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | DamageWarhead.cs | Suppression hooks, damage falloff, bypass integration |
 | AutoTarget.cs | Value-based targeting priorities |
 | Armament.cs | Multi-weapon, reload timing, ammo integration |
-| AmmoPool.cs | Extended ammo/resupply mechanics |
+| AmmoPool.cs | Extended ammo/resupply mechanics, SupplyValue per-ammo cost |
 | Bullet.cs | Projectile bypass through obstacles (BlocksProjectiles) |
 | Aircraft.cs | Velocity-based movement for helicopters (see Aircraft section) |
 | Fly.cs | Acceleration/deceleration for CanSlide aircraft |
@@ -258,10 +259,12 @@ Each unit type has a base template file and two faction files:
 - **Vehicle reverse sliding fixed** — reverse condition re-evaluated at each cell transition; stops reversing when path curves away from behind the unit
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
 - **Garrison system redesign** — GarrisonManager trait with named fire ports, per-port independent targeting, weapon-role-aware scoring (AT→vehicles, MG→infantry), overkill prevention, ammo conservation, reload swapping, sidebar panel with per-unit eject controls, WithGarrisonDecoration for visual port indicators
+- **Supply truck rework** — SupplyProvider trait replaces ProximityExternalCondition. Targeted single-unit resupply (closest first), distance-based reload speed, 500 supply capacity with auto-restock at logistics center. AmmoPool.SupplyValue for per-ammo-type cost balancing. Truck deploys into SUPPLYCACHE via Transforms
 
 ### Next Priorities
-1. **Garrison system polish** — playtest port assignments, targeting, reload swapping. Tune port positions, arc cones, scan intervals
-2. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
+1. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
+2. **Garrison system polish** — playtest port assignments, targeting, reload swapping. Tune port positions, arc cones, scan intervals
+3. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 3. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
 4. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
 5. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
