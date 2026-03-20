@@ -253,8 +253,8 @@ namespace OpenRA.Mods.Common.Widgets
 					// WW3MOD: Assault Move is disabled; only AttackMove is triggered
 					if (attackMoveButton != null && !attackMoveDisabled)
 					{
-						// Prioritize ForceAttack (Ctrl + Alt)
-						if (currentModifiers == Game.Settings.Game.ForceAttackModifiers)
+						// Prioritize ForceAttack (Ctrl + Alt), strip Shift so queued force-attack works
+						if ((currentModifiers & ~Modifiers.Shift) == Game.Settings.Game.ForceAttackModifiers)
 						{
 							if (e.Event == KeyInputEvent.Down)
 							{

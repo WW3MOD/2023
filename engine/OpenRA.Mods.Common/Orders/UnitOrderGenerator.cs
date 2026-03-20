@@ -108,13 +108,14 @@ namespace OpenRA.Mods.Common.Orders
 
 			var modifiers = OpenRA.Traits.TargetModifiers.None;
 			var settings = Game.Settings.Game;
-			if (mi.Modifiers == settings.ForceAttackModifiers)
+			var modsNoShift = mi.Modifiers & ~Modifiers.Shift;
+			if (modsNoShift == settings.ForceAttackModifiers)
 				modifiers |= TargetModifiers.ForceAttack;
 			if (mi.Modifiers.HasModifier(Modifiers.Shift))
 				modifiers |= TargetModifiers.ForceQueue;
-			if (mi.Modifiers == settings.ForceMoveModifiers)
+			if (modsNoShift == settings.ForceMoveModifiers)
 				modifiers |= TargetModifiers.ForceMove;
-			if (mi.Modifiers == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
+			if (modsNoShift == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
 				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
 			foreach (var a in world.Selection.Actors)
@@ -132,7 +133,7 @@ namespace OpenRA.Mods.Common.Orders
 		static UnitOrderResult OrderForUnit(Actor self, Target target, CPos xy, MouseInput mi)
 		{
 			if (mi.Button != Game.Settings.Game.MouseButtonPreference.Action &&
-				!(mi.Button == Game.Settings.Game.AttackMoveButton && mi.Modifiers == Game.Settings.Game.AttackMoveModifiers))
+				!(mi.Button == Game.Settings.Game.AttackMoveButton && (mi.Modifiers & ~Modifiers.Shift) == Game.Settings.Game.AttackMoveModifiers))
 				return null;
 
 			if (self.Owner != self.World.LocalPlayer)
@@ -146,13 +147,14 @@ namespace OpenRA.Mods.Common.Orders
 
 			var settings = Game.Settings.Game;
 			var modifiers = TargetModifiers.None;
-			if (mi.Modifiers == settings.ForceAttackModifiers)
+			var modsNoShift = mi.Modifiers & ~Modifiers.Shift;
+			if (modsNoShift == settings.ForceAttackModifiers)
 				modifiers |= TargetModifiers.ForceAttack;
 			if (mi.Modifiers.HasModifier(Modifiers.Shift))
 				modifiers |= TargetModifiers.ForceQueue;
-			if (mi.Modifiers == settings.ForceMoveModifiers)
+			if (modsNoShift == settings.ForceMoveModifiers)
 				modifiers |= TargetModifiers.ForceMove;
-			if (mi.Modifiers == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
+			if (modsNoShift == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
 				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
 			var actorsAt = self.World.ActorMap.GetActorsAt(xy).ToList();

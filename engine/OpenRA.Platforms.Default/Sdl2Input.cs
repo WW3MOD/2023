@@ -195,6 +195,11 @@ namespace OpenRA.Platforms.Default
 					case SDL.SDL_EventType.SDL_KEYDOWN:
 					case SDL.SDL_EventType.SDL_KEYUP:
 						{
+							// Update modifier state from this event so the keydown
+							// for a modifier key (e.g. Alt) carries the new state immediately
+							mods = MakeModifiers((int)e.key.keysym.mod);
+							inputHandler.ModifierKeys(mods);
+
 							var keyCode = (Keycode)e.key.keysym.sym;
 							var type = e.type == SDL.SDL_EventType.SDL_KEYDOWN ?
 								KeyInputEvent.Down : KeyInputEvent.Up;

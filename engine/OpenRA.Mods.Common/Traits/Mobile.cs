@@ -56,6 +56,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor to display when a move order can be issued at target location.")]
 		public readonly string Cursor = "move";
 
+		[CursorReference]
+		[Desc("Cursor to display when force-move modifier is held.")]
+		public readonly string ForceMoveCursor = "ability";
+
 		[CursorReference(dictionaryReference: LintDictionaryReference.Values)]
 		[Desc("Cursor overrides to display for specific terrain types.",
 			"A dictionary of [terrain type]: [cursor name].")]
@@ -1059,6 +1063,8 @@ namespace OpenRA.Mods.Common.Traits
 					|| (!explored && !locomotorInfo.MoveIntoShroud)
 					|| (explored && mobile.Locomotor.MovementCostForCell(location) == PathGraph.MovementCostForUnreachableCell))
 					cursor = mobile.Info.BlockedCursor;
+				else if (IsForceMove)
+					cursor = mobile.Info.ForceMoveCursor;
 				else if (!explored || !mobile.Info.TerrainCursors.TryGetValue(self.World.Map.GetTerrainInfo(location).Type, out cursor))
 					cursor = mobile.Info.Cursor;
 
