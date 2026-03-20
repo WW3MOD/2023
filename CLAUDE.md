@@ -117,6 +117,9 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | ShockwaveDamageWarhead.cs | Explosive blast wave effects |
 | InfantryStates.cs | Infantry states replacing TakeCover |
 | EjectOnHusk.cs | Crew ejection from destroyed vehicles |
+| GarrisonManager.cs | Named fire ports, per-port targeting, reload swapping, order handling |
+| WithGarrisonDecoration.cs | Unit icons + ammo pips at garrison port positions |
+| GarrisonPanelLogic.cs | Sidebar panel for garrison management |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -131,6 +134,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | Missile.cs | FlyStraightIfMiss (missiles fly straight after passing target) |
 | PlayerResources.cs | Economy/upkeep modifications |
 | Map.cs | Map loading, bounds, layer support |
+| AttackGarrisoned.cs | Rewritten: per-port firing via GarrisonManager, legacy fallback preserved |
 
 ## Aircraft Movement System
 
@@ -253,12 +257,14 @@ Each unit type has a base template file and two faction files:
 - **Rotate/sell to map edge** — units ordered to rotate via Supply Route now walk to the map edge (biased toward SpawnArea), not to the SR building. SR acts as a proxy target
 - **Vehicle reverse sliding fixed** — reverse condition re-evaluated at each cell transition; stops reversing when path curves away from behind the unit
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
+- **Garrison system redesign** — GarrisonManager trait with named fire ports, per-port independent targeting, weapon-role-aware scoring (AT→vehicles, MG→infantry), overkill prevention, ammo conservation, reload swapping, sidebar panel with per-unit eject controls, WithGarrisonDecoration for visual port indicators
 
 ### Next Priorities
-1. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
-2. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
-3. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
-4. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
+1. **Garrison system polish** — playtest port assignments, targeting, reload swapping. Tune port positions, arc cones, scan intervals
+2. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
+3. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
+4. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
+5. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
 
 ### Remaining Branches
 - `skane`/`xavi` — cherry-pick useful parts (map data, sprites)
