@@ -104,7 +104,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				isFirstSegment = false;
 			}
 
-			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units across {waypoints.Count} waypoints in {segments.Count} segments.");
+			var segmentDesc = string.Join(" → ", segments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
+			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units: {segmentDesc}");
 			return true;
 		}
 
@@ -137,9 +138,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					IsActorTarget = false
 				};
 
+			// SmartMoveActivity wraps Move via IWrapMove (SmartMove trait)
+			// The inner Move isn't directly accessible, but TargetLineNodes delegates to it
+			if (activity is SmartMoveActivity)
+				return ExtractFromTargetLineNodes(activity, actor, "Move");
+
 			// AttackMove wraps a Move in its child
 			if (activity is AttackMoveActivity)
 			{
+				// First try GetTargets (works when child is a Move, not attacking)
 				var targets = activity.GetTargets(actor);
 				foreach (var t in targets)
 				{
@@ -153,19 +160,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 						};
 				}
 
-				// Fallback: check TargetLineNodes
-				var lineNodes = activity.TargetLineNodes(actor);
-				foreach (var node in lineNodes)
-				{
-					if (node.Target.Type == TargetType.Terrain)
-						return new Waypoint
-						{
-							Cell = world.Map.CellContaining(node.Target.CenterPosition),
-							Target = node.Target,
-							OrderType = "AttackMove",
-							IsActorTarget = false
-						};
-				}
+				// Fallback: TargetLineNodes (works even when engaging enemies)
+				return ExtractFromTargetLineNodes(activity, actor, "AttackMove");
 			}
 
 			// Attack activity (force-attack or auto-attack on an actor)
@@ -209,6 +205,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 							IsActorTarget = false
 						};
 				}
+			}
+
+			// General fallback: try TargetLineNodes for any unrecognized wrapper activities
+			return ExtractFromTargetLineNodes(activity, actor, "Move");
+		}
+
+		Waypoint? ExtractFromTargetLineNodes(Activity activity, Actor actor, string orderType)
+		{
+			foreach (var node in activity.TargetLineNodes(actor))
+			{
+				if (node.Target.Type == TargetType.Terrain)
+					return new Waypoint
+					{
+						Cell = world.Map.CellContaining(node.Target.CenterPosition),
+						Target = node.Target,
+						OrderType = orderType,
+						IsActorTarget = false
+					};
 			}
 
 			return null;
