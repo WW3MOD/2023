@@ -40,6 +40,11 @@ namespace OpenRA.Platforms.Default
 				 | ((raw & (int)SDL.SDL_Keymod.KMOD_SHIFT) != 0 ? Modifiers.Shift : 0);
 		}
 
+		public static Modifiers GetCurrentModifiers()
+		{
+			return MakeModifiers((int)SDL.SDL_GetModState());
+		}
+
 		int2 EventPosition(Sdl2PlatformWindow device, int x, int y)
 		{
 			// On Windows and Linux (X11) events are given in surface coordinates

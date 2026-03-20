@@ -711,6 +711,9 @@ namespace OpenRA
 							Cursor.SetCursor(null);
 						else
 						{
+							// Update modifier keys before cursor evaluation so the cursor
+							// reflects current keyboard state without a 1-frame delay
+							HandleModifierKeys(Renderer.Window.GetModifierKeys());
 							Cursor.SetCursor(Ui.Root.GetCursorOuter(Viewport.LastMousePos) ?? "default");
 							Cursor.Render(Renderer);
 						}

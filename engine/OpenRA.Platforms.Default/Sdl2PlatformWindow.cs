@@ -496,6 +496,11 @@ namespace OpenRA.Platforms.Default
 				SDL.SDL_WarpMouseInWindow(window, lockedMousePosition.Value.X, lockedMousePosition.Value.Y);
 		}
 
+		public Modifiers GetModifierKeys()
+		{
+			return Sdl2Input.GetCurrentModifiers();
+		}
+
 		public string GetClipboardText()
 		{
 			VerifyThreadAffinity();
