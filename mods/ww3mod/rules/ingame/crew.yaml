@@ -7,7 +7,7 @@
 	Valued:
 		Cost: 100
 	Health:
-		HP: 1500
+		HP: 500
 	Mobile:
 		Speed: 70
 		Locomotor: foot
@@ -67,6 +67,7 @@ crew.driver.america:
 		Name: Driver
 	RenderSprites:
 		Image: e1.america
+		Scale: 0.6
 	CrewMember:
 		Role: Driver
 
@@ -76,6 +77,7 @@ crew.gunner.america:
 		Name: Gunner
 	RenderSprites:
 		Image: e1.america
+		Scale: 0.6
 	CrewMember:
 		Role: Gunner
 
@@ -85,6 +87,7 @@ crew.commander.america:
 		Name: Commander
 	RenderSprites:
 		Image: e1.america
+		Scale: 0.6
 	CrewMember:
 		Role: Commander
 
@@ -96,6 +99,7 @@ crew.driver.russia:
 		Name: Driver
 	RenderSprites:
 		Image: e1.russia
+		Scale: 0.6
 	CrewMember:
 		Role: Driver
 
@@ -105,6 +109,7 @@ crew.gunner.russia:
 		Name: Gunner
 	RenderSprites:
 		Image: e1.russia
+		Scale: 0.6
 	CrewMember:
 		Role: Gunner
 
@@ -114,5 +119,6 @@ crew.commander.russia:
 		Name: Commander
 	RenderSprites:
 		Image: e1.russia
+		Scale: 0.6
 	CrewMember:
 		Role: Commander
