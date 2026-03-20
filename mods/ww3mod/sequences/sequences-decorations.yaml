@@ -685,6 +685,9 @@ ammobox2:
 ammobox3:
 	idle:
 
+supplycache:
+	idle: ammobox1
+
 tanktrap1:
 	idle:
 
