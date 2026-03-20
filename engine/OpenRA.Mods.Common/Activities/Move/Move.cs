@@ -161,7 +161,8 @@ namespace OpenRA.Mods.Common.Activities
 
 			var firstFacing = self.World.Map.FacingBetween(mobile.FromCell, nextCell.Value.Cell, mobile.Facing);
 
-			// Reverse movement: keep current facing and move backward if target is close and behind
+			// Reverse movement: turn to face away from target and move backward if target is close and behind
+			// 120° cone behind the unit (60° each side of directly behind = angleDiff > 341)
 			if (mobile.Info.CanMoveBackward && destination.HasValue)
 			{
 				var maxCells = mobile.Info.BackwardMaxCells;
@@ -169,9 +170,10 @@ namespace OpenRA.Mods.Common.Activities
 				var rawDiff = Math.Abs(firstFacing.Angle - mobile.Facing.Angle);
 				var angleDiff = rawDiff > 512 ? 1024 - rawDiff : rawDiff;
 
-				if (distSq <= maxCells * maxCells && angleDiff > 256)
+				if (distSq <= maxCells * maxCells && angleDiff > 341)
 				{
-					firstFacing = mobile.Facing;
+					// Face directly away from the movement direction, then reverse
+					firstFacing = new WAngle(firstFacing.Angle + 512);
 					mobile.MovingBackward = true;
 				}
 			}
@@ -573,13 +575,13 @@ namespace OpenRA.Mods.Common.Activities
 							nextToTerrainOrientation = WRot.SLerp(map.TerrainOrientation(mobile.ToCell), map.TerrainOrientation(nextCell.Value.Cell), 1, 2);
 
 						// Re-evaluate reverse condition for each chained cell
-						// Check if the next cell is still "behind" the unit
+						// Stop reversing if the next cell is outside the 120° cone behind the unit
 						var nextFacing = map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing);
 						if (mobile.MovingBackward)
 						{
 							var rawDiff = Math.Abs(nextFacing.Angle - mobile.Facing.Angle);
 							var angleDiff = rawDiff > 512 ? 1024 - rawDiff : rawDiff;
-							if (angleDiff <= 256)
+							if (angleDiff <= 341)
 								mobile.MovingBackward = false;
 						}
 
