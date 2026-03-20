@@ -29,6 +29,7 @@
 		TurnSpeed: 100
 		# AlwaysTurnInPlace: true
 		Locomotor: foot
+	SmartMove:
 	SelectionDecorations:
 		ShowNever: true
 	WithSpriteControlGroupDecoration:
@@ -1181,6 +1182,7 @@ E1R1:
 		RequiresCondition: preparing-secondary
 	Passenger:
 		CustomPipType: e3_class
+		GarrisonRole: AntiTank
 	WithDecoration@Class:
 		Sequence: e3_class
 	Selectable:
@@ -1253,6 +1255,7 @@ E3R1:
 		RequiresCondition: !parachute
 	Passenger:
 		CustomPipType: ar_class
+		GarrisonRole: MachineGunner
 	WithDecoration@Class:
 		Sequence: ar_class
 	Selectable:
@@ -1539,6 +1542,7 @@ MT:
 		DefaultAttackSequence: shoot
 	Passenger:
 		CustomPipType: sn_class
+		GarrisonRole: Sniper
 	RenderSprites:
 		Scale: 0.45
 	Selectable:
@@ -1606,6 +1610,7 @@ SN:
 		RequiresCondition: !parachute
 	Passenger:
 		CustomPipType: at_class
+		GarrisonRole: AntiTank
 	WithDecoration@Class:
 		Sequence: at_class
 	Selectable:
@@ -1671,6 +1676,7 @@ AT:
 		RequiresCondition: !parachute
 	Passenger:
 		CustomPipType: aa_class
+		GarrisonRole: AntiAir
 	WithDecoration@Class:
 		Sequence: aa_class
 	Selectable:
@@ -2039,6 +2045,7 @@ SF:
 		VoiceSet: MedicVoice
 	Passenger:
 		CustomPipType: medi_class
+		GarrisonRole: Support
 	GpsDot:
 		String: Healer
 	WithDecoration@Class:
