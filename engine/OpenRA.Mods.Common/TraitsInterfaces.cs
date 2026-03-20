@@ -218,6 +218,9 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyPassengerExited { void OnPassengerExited(Actor self, Actor passenger); }
 
 	[RequireExplicitImplementation]
+	public interface ICargoCanLoadFilter { bool CanLoadPassenger(Actor self, Actor passenger); }
+
+	[RequireExplicitImplementation]
 	public interface INotifyEnteredCargo { void OnEnteredCargo(Actor self, Actor cargo); }
 
 	[RequireExplicitImplementation]

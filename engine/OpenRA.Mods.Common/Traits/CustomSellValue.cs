@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -27,12 +28,23 @@ namespace OpenRA.Mods.Common.Traits
 		public static int GetSellValue(this Actor a)
 		{
 			var csv = a.Info.TraitInfoOrDefault<CustomSellValueInfo>();
-			if (csv != null) return csv.Value;
+			var baseValue = csv != null ? csv.Value
+				: a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
 
-			var valued = a.Info.TraitInfoOrDefault<ValuedInfo>();
-			if (valued != null) return valued.Cost;
+			// Deduct value of missing ammo
+			var missingAmmoValue = 0;
+			foreach (var pool in a.TraitsImplementing<AmmoPool>())
+			{
+				if (pool.Info.CreditValue > 0)
+					missingAmmoValue += (pool.Info.Ammo - pool.CurrentAmmoCount) * pool.Info.CreditValue;
+			}
 
-			return 0;
+			// Deduct value of missing supply (for supply trucks)
+			var supplyProvider = a.TraitOrDefault<SupplyProvider>();
+			if (supplyProvider != null)
+				missingAmmoValue += supplyProvider.MissingSupplyValue;
+
+			return System.Math.Max(0, baseValue - missingAmmoValue);
 		}
 	}
 }

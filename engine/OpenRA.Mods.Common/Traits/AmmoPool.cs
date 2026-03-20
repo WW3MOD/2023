@@ -53,6 +53,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Supply cost per ammo unit when rearmed by a SupplyProvider.")]
 		public readonly int SupplyValue = 1;
 
+		[Desc("Credit value per ammo unit. Missing ammo reduces sell/rotation value.")]
+		public readonly int CreditValue = 0;
+
 		[Desc("Sound to play for each reloaded ammo magazine.")]
 		public readonly string RearmSound = null;
 

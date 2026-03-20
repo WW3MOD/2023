@@ -449,6 +449,7 @@ TRUK:
 		RestockThreshold: 50
 		RestockActors: logisticscenter
 		RearmCondition: replenish-soldiers
+		SupplyCreditValue: 400
 		PauseOnCondition: disabled || mobile
 	RenderRangeCircle@Supply:
 		FallbackRange: 5c0

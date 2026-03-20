@@ -106,6 +106,7 @@ namespace OpenRA.Mods.Common.Traits
 		int totalWeight = 0;
 		int reservedWeight = 0;
 		Aircraft aircraft;
+		ICargoCanLoadFilter[] loadFilters;
 		int loadingToken = Actor.InvalidConditionToken;
 		readonly Stack<int> loadedTokens = new Stack<int>();
 		bool takeOffAfterLoad;
@@ -178,6 +179,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			aircraft = self.TraitOrDefault<Aircraft>();
+			loadFilters = self.TraitsImplementing<ICargoCanLoadFilter>().ToArray();
 
 			if (cargo.Count > 0)
 			{
@@ -260,6 +262,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanLoad(Actor a)
 		{
+			if (loadFilters != null)
+				foreach (var f in loadFilters)
+					if (!f.CanLoadPassenger(self, a))
+						return false;
+
 			return reserves.Contains(a) || HasSpace(GetWeight(a));
 		}
 
@@ -267,6 +274,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (reserves.Contains(a))
 				return true;
+
+			if (loadFilters != null)
+				foreach (var f in loadFilters)
+					if (!f.CanLoadPassenger(self, a))
+						return false;
 
 			var w = GetWeight(a);
 			if (!HasSpace(w))
@@ -337,7 +349,15 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.UnloadVoice;
 		}
 
-		public bool HasSpace(int weight) { return totalWeight + reservedWeight + weight <= Info.MaxWeight; }
+		public bool HasSpace(int weight)
+		{
+			if (loadFilters != null)
+				foreach (var f in loadFilters)
+					if (!f.CanLoadPassenger(self, null))
+						return false;
+
+			return totalWeight + reservedWeight + weight <= Info.MaxWeight;
+		}
 		public bool IsEmpty() { return cargo.Count == 0; }
 
 		public Actor Peek() { return cargo.Last(); }
@@ -382,6 +402,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void Load(Actor cargoActor, Actor passengerActor)
 		{
+			GarrisonDebug.Log($"[Cargo.Load] {passengerActor.Info.Name} into {cargoActor.Info.Name}, initialised={initialised}");
+
 			if (cargoActor.Owner != passengerActor.Owner)
 				cargoActor.ChangeOwnerSync(passengerActor.Owner, false);
 

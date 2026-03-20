@@ -86,9 +86,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void GoDonateCash(Actor self, Target target, bool queued)
 		{
-			var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();
-
-			var amount = info.Payload == -1 && valued != null ? valued.Cost : info.Payload;
+			var amount = info.Payload == -1 ? self.GetSellValue() : info.Payload;
 
 			// When rotating units out of the battlefield, adjust value for handicap
 			if (info.Type == "Rotation")

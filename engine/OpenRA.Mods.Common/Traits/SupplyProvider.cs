@@ -47,11 +47,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Relationships of actors that can be resupplied.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
 
+		[Desc("Total credit value of a full supply load. Missing supply reduces sell/rotation value proportionally.")]
+		public readonly int SupplyCreditValue = 0;
+
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
 
 	public class SupplyProvider : PausableConditionalTrait<SupplyProviderInfo>, ITick,
-		INotifyCreated, ITransformActorInitModifier, ISelectionBar
+		INotifyCreated, ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter
 	{
 		readonly Actor self;
 		int currentSupply;
@@ -356,6 +359,24 @@ namespace OpenRA.Mods.Common.Traits
 		bool ISelectionBar.DisplayWhenEmpty => true;
 
 		Color ISelectionBar.GetColor() { return Color.FromArgb(255, 255, 200, 0); }
+
+		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
+		{
+			return currentSupply > 0;
+		}
+
+		/// <summary>Credit value of missing supply, proportional to SupplyCreditValue.</summary>
+		public int MissingSupplyValue
+		{
+			get
+			{
+				if (Info.SupplyCreditValue <= 0 || Info.TotalSupply <= 0)
+					return 0;
+
+				var missing = Info.TotalSupply - currentSupply;
+				return (int)((long)Info.SupplyCreditValue * missing / Info.TotalSupply);
+			}
+		}
 	}
 
 	public class SupplyInit : ValueActorInit<int>
