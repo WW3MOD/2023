@@ -16,7 +16,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Wraps regular Move orders in SmartMoveActivity so units pause to fire at targets in weapon range while moving.",
-		"Units only fire when under attack or when targets are very close (good shot opportunity).")]
+		"Units only fire in self-defense or when the target isn't already saturated with enough incoming damage.")]
 	public class SmartMoveInfo : ConditionalTraitInfo
 	{
 		[Desc("How often to scan for targets (in ticks).")]
@@ -25,8 +25,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks after being hit by an enemy where the unit will return fire while moving (~3 sec at 25 tps).")]
 		public readonly int UnderFireDuration = 75;
 
-		[Desc("Percentage of max weapon range within which a target counts as 'close' (good shot opportunity).")]
-		public readonly int CloseRangeFraction = 50;
+		[Desc("AverageDamagePercent threshold on target above which a moving unit skips it (someone else has it covered).",
+			"100 = target already has its HP worth of damage incoming.")]
+		public readonly int OverkillThreshold = 100;
 
 		public override object Create(ActorInitializer init) { return new SmartMove(this); }
 	}

@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Activities
 	/// Wraps a Move activity to selectively fire at targets while moving.
 	/// Unlike AttackMoveActivity, this does NOT chase targets. It only fires when:
 	/// - The unit was recently damaged (return fire / self-defense)
-	/// - A target is within close range (good shot opportunity)
+	/// - The target isn't already saturated with enough incoming damage (needs our firepower)
 	/// </summary>
 	public class SmartMoveActivity : Activity
 	{
@@ -65,25 +65,20 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (target.Type != TargetType.Invalid)
 				{
-					// Find the max weapon range for the in-range check
-					var maxRange = autoTarget.ActiveAttackBases
-						.Select(ab => ab.GetMaximumRange())
-						.DefaultIfEmpty(WDist.Zero)
-						.Max();
-
 					var inRange = autoTarget.ActiveAttackBases
 						.Any(ab => target.IsInRange(self.CenterPosition, ab.GetMaximumRange()));
 
 					if (inRange)
 					{
-						// Check if we should fire: under fire OR target is close
+						// Self-defense: always return fire when under attack
 						var underFire = smartMove != null &&
 							(self.World.WorldTick - smartMove.LastDamagedTick) < info.UnderFireDuration;
 
-						var distToTarget = (target.CenterPosition - self.CenterPosition).Length;
-						var closeRange = distToTarget < maxRange.Length * info.CloseRangeFraction / 100;
+						// Overkill check: skip targets that already have enough damage incoming
+						var targetSaturated = target.Type == TargetType.Actor &&
+							target.Actor.AverageDamagePercent >= info.OverkillThreshold;
 
-						if (underFire || closeRange)
+						if (underFire || !targetSaturated)
 						{
 							checkTick = 0;
 							runningMoveActivity = false;
