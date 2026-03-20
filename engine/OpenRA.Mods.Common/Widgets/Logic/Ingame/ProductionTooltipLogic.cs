@@ -141,9 +141,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				descLabel.Bounds.Width = descSize.X;
 				descLabel.Bounds.Height = descSize.Y + descLabelPadding;
 
-				var leftWidth = Math.Min(
+				var leftWidth = Math.Clamp(
 					new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
-					MaxTooltipWidth);
+					MaxTooltipWidth, MaxTooltipWidth);
 				var rightWidth = new[] { powerSize.X, timeSize.X, costSize.X }.Aggregate(Math.Max);
 
 				timeIcon.Bounds.X = powerIcon.Bounds.X = costIcon.Bounds.X = leftWidth + 2 * nameLabel.Bounds.X;
