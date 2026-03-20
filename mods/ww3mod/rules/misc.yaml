@@ -387,20 +387,33 @@ SUPPLYCACHE:
 		Type: Light
 	Targetable:
 		TargetTypes: Ground, Structure
-	RenderSprites:
-		Image: ammobox1
-	WithSpriteBody:
 	HitShape:
 		Type: Circle
 			Radius: 512
+	RenderSprites:
+	WithSpriteBody@Full:
+		Image: ammobox1
+		RequiresCondition: supply-high
+	WithSpriteBody@Mid:
+		Image: ammobox2
+		RequiresCondition: supply-medium
+	WithSpriteBody@Low:
+		Image: ammobox3
+		RequiresCondition: !supply-high && !supply-medium
 	SupplyProvider:
 		Range: 4c0
 		RearmDelay: 25
 		TotalSupply: 500
 		RearmCondition: replenish-soldiers
+		SupplyCreditValue: 400
+		SupplyHighCondition: supply-high
+		SupplyMediumCondition: supply-medium
+		SupplyLowCondition: supply-low
 	RenderRangeCircle@Supply:
 		FallbackRange: 4c0
 		Color: 808080
 		Width: 1
 		Alpha: 60
 		RequireShift: false
+	Sellable:
+		RefundPercent: 50

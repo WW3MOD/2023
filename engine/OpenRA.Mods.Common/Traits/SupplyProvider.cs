@@ -50,6 +50,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Total credit value of a full supply load. Missing supply reduces sell/rotation value proportionally.")]
 		public readonly int SupplyCreditValue = 0;
 
+		[GrantedConditionReference]
+		[Desc("Condition granted when supply is above 66%.")]
+		public readonly string SupplyHighCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("Condition granted when supply is between 33% and 66%.")]
+		public readonly string SupplyMediumCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("Condition granted when supply is at or below 33%.")]
+		public readonly string SupplyLowCondition = null;
+
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
 
@@ -66,6 +78,10 @@ namespace OpenRA.Mods.Common.Traits
 		int conditionToken = Actor.InvalidConditionToken;
 		bool restocking;
 
+		int supplyHighToken = Actor.InvalidConditionToken;
+		int supplyMediumToken = Actor.InvalidConditionToken;
+		int supplyLowToken = Actor.InvalidConditionToken;
+
 		public int CurrentSupply => currentSupply;
 
 		public SupplyProvider(ActorInitializer init, SupplyProviderInfo info)
@@ -75,7 +91,10 @@ namespace OpenRA.Mods.Common.Traits
 			currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply);
 		}
 
-		void INotifyCreated.Created(Actor self) { }
+		void INotifyCreated.Created(Actor self)
+		{
+			UpdateSupplyConditions();
+		}
 
 		void ITransformActorInitModifier.ModifyTransformActorInit(Actor self, TypeDictionary init)
 		{
@@ -288,6 +307,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (bestPool != null && bestPool.GiveAmmo(currentTarget, 1))
 			{
 				currentSupply -= bestPool.Info.SupplyValue;
+				UpdateSupplyConditions();
 
 				if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
 					Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
@@ -328,6 +348,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					currentSupply = Info.TotalSupply;
 					restocking = false;
+					UpdateSupplyConditions();
 				}));
 
 				// Follow rally point if the restock target has one
@@ -345,7 +366,44 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			currentSupply -= amount;
+			UpdateSupplyConditions();
 			return true;
+		}
+
+		/// <summary>Sets supply to an exact amount (e.g., for DropsCrate zeroing out).</summary>
+		public void SetSupply(int amount)
+		{
+			currentSupply = amount.Clamp(0, Info.TotalSupply);
+			UpdateSupplyConditions();
+		}
+
+		void UpdateSupplyConditions()
+		{
+			var ratio = Info.TotalSupply > 0 ? (float)currentSupply / Info.TotalSupply : 0f;
+
+			if (!string.IsNullOrEmpty(Info.SupplyHighCondition))
+			{
+				if (ratio > 0.66f && supplyHighToken == Actor.InvalidConditionToken)
+					supplyHighToken = self.GrantCondition(Info.SupplyHighCondition);
+				else if (ratio <= 0.66f && supplyHighToken != Actor.InvalidConditionToken)
+					supplyHighToken = self.RevokeCondition(supplyHighToken);
+			}
+
+			if (!string.IsNullOrEmpty(Info.SupplyMediumCondition))
+			{
+				if (ratio > 0.33f && ratio <= 0.66f && supplyMediumToken == Actor.InvalidConditionToken)
+					supplyMediumToken = self.GrantCondition(Info.SupplyMediumCondition);
+				else if ((ratio <= 0.33f || ratio > 0.66f) && supplyMediumToken != Actor.InvalidConditionToken)
+					supplyMediumToken = self.RevokeCondition(supplyMediumToken);
+			}
+
+			if (!string.IsNullOrEmpty(Info.SupplyLowCondition))
+			{
+				if (ratio <= 0.33f && supplyLowToken == Actor.InvalidConditionToken)
+					supplyLowToken = self.GrantCondition(Info.SupplyLowCondition);
+				else if (ratio > 0.33f && supplyLowToken != Actor.InvalidConditionToken)
+					supplyLowToken = self.RevokeCondition(supplyLowToken);
+			}
 		}
 
 		float ISelectionBar.GetValue()
