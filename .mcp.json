@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ww3mod-map": {
+      "command": "node",
+      "args": ["tools/map-mcp/build/index.js"],
+      "cwd": "C:\\Users\\fredr\\Desktop\\WW3MOD"
+    }
+  }
+}

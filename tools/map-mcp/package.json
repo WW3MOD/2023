@@ -1,0 +1,20 @@
+{
+  "name": "ww3mod-map-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for WW3MOD map creation and editing",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.7.0"
+  }
+}
