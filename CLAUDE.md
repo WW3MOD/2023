@@ -137,6 +137,9 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | QuickRearm.cs | Enter-truck instant rearm: infantry enters Cargo, auto-ejected after delay with full ammo |
 | HealerClaimLayer.cs | World trait: prevents multiple medics targeting same patient (healer→patient 1:1 claims) |
 | HealerAutoTarget.cs | IOverrideAutoTarget: smart healer targeting — HP% scoring, critical priority, stabilize-and-switch |
+| VehicleCrew.cs | Vehicle crew slots (Driver/Gunner/Commander), eject on critical damage, re-entry, commander substitution |
+| CrewMember.cs | Crew infantry trait: IIssueOrder for re-entering vehicles with matching empty slots |
+| EnterAsCrew.cs | Activity: crew walks to vehicle, fills slot, gets removed from world |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -277,14 +280,16 @@ Each unit type has a base template file and two faction files:
 - **Garrison system redesign** — GarrisonManager trait with named fire ports, per-port independent targeting, weapon-role-aware scoring (AT→vehicles, MG→infantry), overkill prevention, ammo conservation, reload swapping, sidebar panel with per-unit eject controls, WithGarrisonDecoration for visual port indicators
 - **Supply truck rework** — SupplyProvider trait replaces ProximityExternalCondition. Targeted single-unit resupply (closest first), distance-based reload speed, 500 supply capacity with auto-restock at logistics center. AmmoPool.SupplyValue for per-ammo-type cost balancing. Truck deploys into SUPPLYCACHE via Transforms
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
+- **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
 
 ### Next Priorities
-1. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
-2. **Garrison system polish** — playtest port assignments, targeting, reload swapping. Tune port positions, arc cones, scan intervals
-3. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
-3. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
-4. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
-5. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
+1. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
+2. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
+3. **Garrison system polish** — playtest port assignments, targeting, reload swapping. Tune port positions, arc cones, scan intervals
+4. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
+5. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
+6. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
+7. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
 
 ### Remaining Branches
 - `skane`/`xavi` — cherry-pick useful parts (map data, sprites)
