@@ -1,0 +1,106 @@
+
+# Crew member actors — ejected from vehicles at critical damage
+# These are non-buildable infantry with pistols and the vehicle's rank
+
+^CrewMember:
+	Inherits: ^Soldier
+	Valued:
+		Cost: 0
+	Health:
+		HP: 1500
+	Mobile:
+		Speed: 70
+		Locomotor: foot
+	Passenger:
+		CargoType: Infantry
+		Weight: 1
+	Armament@1:
+		Name: primary
+		Weapon: Pistol
+		PauseOnCondition: empdisable
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 24
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 200
+		FullReloadSteps: 4
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 7, 3
+		PipCount: 4
+		RequiresSelection: true
+		FullSequence: pip-yellow
+		AmmoPools: primary-ammo
+	AttackFrontal:
+		FacingTolerance: 50
+		TargetFrozenActors: True
+		PauseOnCondition: empdisable
+	GainsExperience:
+		ExperienceModifier: 1
+		Conditions:
+			100: rank-veteran
+			200: rank-elite
+			400: rank-heroic
+			800: rank-legendary
+	DeliversCash@Rotation:
+		Type: Rotation
+	WithDeathAnimation:
+		DeathTypes:
+			DefaultDeath: 1
+			BulletDeath: 2
+			SmallExplosionDeath: 3
+			ExplosionDeath: 4
+			FireDeath: 5
+	WithDecoration@Class:
+		Sequence: empty_class
+		Image: class
+		Palette: effect
+		Position: Top
+		Margin: 0,6
+
+# === America crew ===
+
+crew.driver.america:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Driver
+	RenderSprites:
+		Image: e1.america
+
+crew.gunner.america:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Gunner
+	RenderSprites:
+		Image: e1.america
+
+crew.commander.america:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Commander
+	RenderSprites:
+		Image: e1.america
+
+# === Russia crew ===
+
+crew.driver.russia:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Driver
+	RenderSprites:
+		Image: e1.russia
+
+crew.gunner.russia:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Gunner
+	RenderSprites:
+		Image: e1.russia
+
+crew.commander.russia:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Commander
+	RenderSprites:
+		Image: e1.russia

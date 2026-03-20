@@ -1,9 +1,23 @@
 
 btr:
 	Inherits@Type: ^WheeledVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetHMG
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 20
+		EjectionDelayVariance: 8
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: BTR-80
 		GenericName: Armoured Personnel Carrier
@@ -95,9 +109,25 @@ btr:
 
 bmp2:
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle3
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetIFV
+	VehicleCrew:
+		CrewSlots: Driver, Gunner, Commander
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+			Commander: crew.commander.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+			Commander: has-commander
+		EjectionOrder: Commander, Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: BPM-2
 		GenericName: IFV Troop Carrier
@@ -228,8 +258,24 @@ bmp2:
 
 t90:
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle3
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetMBT
+	VehicleCrew:
+		CrewSlots: Driver, Gunner, Commander
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+			Commander: crew.commander.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+			Commander: has-commander
+		EjectionOrder: Commander, Gunner, Driver
+		EjectionDelay: 30
+		EjectionDelayVariance: 15
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: T-90
 		GenericName: MBT
@@ -316,8 +362,22 @@ t90:
 
 giatsint:
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtillery
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	RenderSprites:
 		Image: giatsint
 		Scale: 1.25
@@ -401,7 +461,7 @@ giatsint:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
 		FacingTolerance: 0
-		PauseOnCondition: empdisable || unit.docked || critical-damage
+		PauseOnCondition: empdisable || unit.docked || !has-gunner
 		# StopAndWait: 100
 	Selectable:
 		Class: ARTILLERY
@@ -410,8 +470,22 @@ giatsint:
 
 grad:
 	Inherits@Type: ^WheeledVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtillery
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
@@ -505,8 +579,22 @@ grad:
 
 tos:
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtilleryInfantry
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
@@ -599,8 +687,24 @@ tos:
 
 tunguska:
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle3
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetAAIFV
+	VehicleCrew:
+		CrewSlots: Driver, Gunner, Commander
+		CrewActors:
+			Driver: crew.driver.russia
+			Gunner: crew.gunner.russia
+			Commander: crew.commander.russia
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+			Commander: has-commander
+		EjectionOrder: Commander, Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: 2K22 Tunguska
 		GenericName: Mobile AA

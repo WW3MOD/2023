@@ -155,6 +155,26 @@
 		Modifier: 0
 		RequiresCondition: critical-damage
 
+# Crew-condition-driven vehicle disability — used by vehicles with VehicleCrew trait
+# Replaces blanket SpeedMultiplier@CriticalDamage / TurretTurnSpeedMultiplier@CriticalDamage
+# Use ^CrewedVehicle2 for Driver+Gunner, ^CrewedVehicle3 for Driver+Gunner+Commander
+^CrewedVehicle2:
+	# No driver = can't move
+	SpeedMultiplier@NoDriver:
+		Modifier: 0
+		RequiresCondition: !has-driver
+	# No gunner = turret frozen
+	TurretTurnSpeedMultiplier@NoGunner:
+		Modifier: 0
+		RequiresCondition: !has-gunner
+
+^CrewedVehicle3:
+	Inherits@Crew2: ^CrewedVehicle2
+	# No commander = reduced accuracy
+	InaccuracyMultiplier@NoCommander:
+		Modifier: 150
+		RequiresCondition: !has-commander
+
 ^EffectsWhenMovingVehicles:
 	InaccuracyMultiplier@Moving:
 		RequiresCondition: moving

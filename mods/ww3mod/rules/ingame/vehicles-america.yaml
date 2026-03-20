@@ -2,9 +2,23 @@
 humvee:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@CargoPips: ^CargoPips
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetLMG
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 15
+		EjectionDelayVariance: 5
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-attackanything && !assault-move
 	RenderSprites:
@@ -144,9 +158,23 @@ humvee:
 m113:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetHMG
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 20
+		EjectionDelayVariance: 8
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: M113 APC
 		GenericName: Armoured Personnel Carrier
@@ -242,9 +270,25 @@ m113:
 bradley:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle3
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetIFV
+	VehicleCrew:
+		CrewSlots: Driver, Gunner, Commander
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+			Commander: crew.commander.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+			Commander: has-commander
+		EjectionOrder: Commander, Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: Bradley
 		GenericName: IFV Troop Carrier
@@ -381,8 +425,24 @@ bradley:
 abrams:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle3
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetMBT
+	VehicleCrew:
+		CrewSlots: Driver, Gunner, Commander
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+			Commander: crew.commander.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+			Commander: has-commander
+		EjectionOrder: Commander, Gunner, Driver
+		EjectionDelay: 30
+		EjectionDelayVariance: 15
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: Abrams M1A2
 		GenericName: Abrams
@@ -473,8 +533,22 @@ abrams:
 m109:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtillery
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
@@ -571,8 +645,22 @@ m109:
 m270:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
+	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetArtillery
+	VehicleCrew:
+		CrewSlots: Driver, Gunner
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+		EjectionOrder: Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: Defend
@@ -667,9 +755,25 @@ m270:
 strykershorad:
 	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
+	Inherits@Crew: ^CrewedVehicle3
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetAAIFV
+	VehicleCrew:
+		CrewSlots: Driver, Gunner, Commander
+		CrewActors:
+			Driver: crew.driver.america
+			Gunner: crew.gunner.america
+			Commander: crew.commander.america
+		SlotConditions:
+			Driver: has-driver
+			Gunner: has-gunner
+			Commander: has-commander
+		EjectionOrder: Commander, Gunner, Driver
+		EjectionDelay: 25
+		EjectionDelayVariance: 10
+	-SpeedMultiplier@CriticalDamage:
+	-TurretTurnSpeedMultiplier@CriticalDamage:
 	Tooltip:
 		Name: Stryker SHORAD
 		GenericName: Stryker Short Range Air Defense
