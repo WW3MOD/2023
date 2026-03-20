@@ -169,8 +169,27 @@
 		RequiresCondition: !has-gunner
 
 ^CrewedVehicle3:
-	Inherits@Crew2: ^CrewedVehicle2
-	# No commander = reduced accuracy
+	# No driver AND no commander = can't move at all
+	SpeedMultiplier@NoDriver:
+		Modifier: 0
+		RequiresCondition: !has-driver && !has-commander
+	# Driver gone but commander present = crawl at 40% speed
+	SpeedMultiplier@CommanderDrives:
+		Modifier: 40
+		RequiresCondition: !has-driver && has-commander
+	# No gunner AND no commander = turret frozen
+	TurretTurnSpeedMultiplier@NoGunner:
+		Modifier: 0
+		RequiresCondition: !has-gunner && !has-commander
+	# Gunner gone but commander present = 50% turret speed
+	TurretTurnSpeedMultiplier@CommanderGuns:
+		Modifier: 50
+		RequiresCondition: !has-gunner && has-commander
+	# Commander gunning = worse accuracy
+	InaccuracyMultiplier@CommanderGuns:
+		Modifier: 200
+		RequiresCondition: !has-gunner && has-commander
+	# No commander = reduced accuracy (commander normally provides oversight)
 	InaccuracyMultiplier@NoCommander:
 		Modifier: 150
 		RequiresCondition: !has-commander

@@ -5,7 +5,7 @@
 ^CrewMember:
 	Inherits: ^Soldier
 	Valued:
-		Cost: 0
+		Cost: 100
 	Health:
 		HP: 1500
 	Mobile:
