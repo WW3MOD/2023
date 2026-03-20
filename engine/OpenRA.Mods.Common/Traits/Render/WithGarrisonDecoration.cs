@@ -35,11 +35,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[SequenceReference(nameof(AmmoImage))]
 		[Desc("Sequence for full ammo pips.")]
-		public readonly string AmmoFullSequence = "pip-ammo-full";
+		public readonly string AmmoFullSequence = "pip-green";
 
 		[SequenceReference(nameof(AmmoImage))]
 		[Desc("Sequence for empty ammo pips.")]
-		public readonly string AmmoEmptySequence = "pip-ammo-empty";
+		public readonly string AmmoEmptySequence = "pip-empty";
 
 		[Desc("Screen-space vertical offset from port world position for the icon.")]
 		public readonly int IconVerticalOffset = -20;
