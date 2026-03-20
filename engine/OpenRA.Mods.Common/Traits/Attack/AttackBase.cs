@@ -157,8 +157,12 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Evaluate and potentially switch targets
-		protected virtual Target EvaluateTarget(in Target currentTarget, bool forceAttack)
+		protected virtual Target EvaluateTarget(in Target currentTarget, bool forceAttack, bool isManualTarget = false)
 		{
+			// Never override manually ordered targets — the player explicitly chose this target
+			if (isManualTarget)
+				return currentTarget;
+
 			// If the current target is invalid or not critically damaged, keep it
 			if (!currentTarget.IsValidFor(self) || !IsTargetCriticallyDamaged(currentTarget))
 				return currentTarget;
@@ -230,13 +234,14 @@ namespace OpenRA.Mods.Common.Traits
 			return armaments.Any();
 		}
 
-		public virtual void DoAttack(Actor self, in Target target)
+		public virtual void DoAttack(Actor self, in Target target, bool isManualTarget = false)
 		{
 			if (!CanAttack(self, target))
 				return;
 
 			// Evaluate the target to see if we should switch to a new one
-			var evaluatedTarget = EvaluateTarget(target, false);
+			// Manual targets (player-ordered) are never overridden by auto-retargeting
+			var evaluatedTarget = EvaluateTarget(target, false, isManualTarget);
 
 			foreach (var a in Armaments)
 			{

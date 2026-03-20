@@ -298,7 +298,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public override void DoAttack(Actor self, in Target target)
+		public override void DoAttack(Actor self, in Target target, bool isManualTarget = false)
 		{
 			if (useGarrisonManager)
 			{
