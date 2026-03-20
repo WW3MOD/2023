@@ -367,3 +367,35 @@ CTFLAG:
 # 		ArrowSequence: arrow
 # 		ClockSequence: clock
 # 		CircleSequence: circles
+
+SUPPLYCACHE:
+	Inherits: ^SpriteActor
+	Interactable:
+		Bounds: 1024, 1024
+	Selectable:
+		Bounds: 1024, 1024
+	Tooltip:
+		Name: Supply Cache
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+	FrozenUnderFog:
+	Health:
+		HP: 5000
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Structure
+	RenderSprites:
+		Image: ammobox1
+	WithSpriteBody:
+	HitShape:
+		Type: Circle
+			Radius: 512
+	SupplyProvider:
+		Range: 4c0
+		MinRange: 0c512
+		BaseDelay: 20
+		MaxDelayMultiplier: 3
+		TotalSupply: 500
+		RearmCondition: replenish-soldiers

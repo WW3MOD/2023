@@ -1142,6 +1142,7 @@ E1R1:
 		Armaments: secondary
 		Ammo: 1
 		AmmoCondition: ammo-secondary
+		SupplyValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		FullReloadTicks: 200
@@ -1288,6 +1289,7 @@ AR:
 		Armaments: primary
 		Ammo: 30
 		AmmoCondition: ammo-primary
+		SupplyValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		FullReloadTicks: 200
@@ -1384,6 +1386,7 @@ E2R1:
 		Armaments: secondary
 		Ammo: 6
 		AmmoCondition: ammo-secondary
+		SupplyValue: 10
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		FullReloadTicks: 200
@@ -1448,6 +1451,7 @@ TL:
 		Armaments: primary
 		Ammo: 25
 		AmmoCondition: ammo-primary
+		SupplyValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		FullReloadTicks: 200
@@ -1511,6 +1515,7 @@ MT:
 		Armaments: primary
 		Ammo: 50
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		FullReloadTicks: 200
@@ -1581,6 +1586,7 @@ SN:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
+		SupplyValue: 25
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		FullReloadTicks: 200
@@ -1647,6 +1653,7 @@ AT:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
+		SupplyValue: 25
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		FullReloadTicks: 200
@@ -1752,6 +1759,7 @@ AA:
 		Armaments: secondary
 		Ammo: 3
 		AmmoCondition: ammo-secondary
+		SupplyValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		FullReloadTicks: 200
@@ -1963,6 +1971,7 @@ E4:
 		Armaments: c4
 		Ammo: 3
 		AmmoCondition: ammo-secondary
+		SupplyValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		FullReloadTicks: 200
@@ -2136,6 +2145,7 @@ TECN:
 		Armaments: primary
 		Ammo: 1
 		AmmoCondition: ammo-primary
+		SupplyValue: 50
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		FullReloadTicks: 200

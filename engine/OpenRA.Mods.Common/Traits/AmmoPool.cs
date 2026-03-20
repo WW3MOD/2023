@@ -50,6 +50,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Should actor automatically move to rearm when out of ammo.")]
 		public readonly string AutoRearmCondition = null;
 
+		[Desc("Supply cost per ammo unit when rearmed by a SupplyProvider.")]
+		public readonly int SupplyValue = 1;
+
 		[Desc("Sound to play for each reloaded ammo magazine.")]
 		public readonly string RearmSound = null;
 

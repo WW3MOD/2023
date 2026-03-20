@@ -394,19 +394,21 @@ TRUK:
 		CustomPipType: pip-blue
 	RearmsUnits:
 		CloseEnough: 1c0
-	ProximityExternalCondition@ReplenishSoldiers:
-		Condition: replenish-soldiers
-		Range: 4c0
-		RequiresCondition: !disabled && !mobile
-		ValidRelationships: Ally
-	Armament@ReplenishSoldiersTargeter:
-		Name: replenish
-		Weapon: ReplenishSoldiersTargeter
-		Cursor: guard
-		OutsideRangeCursor: guard
-	AttackTurreted:
-		Armaments: replenish
-	Turreted:
+	SupplyProvider:
+		Range: 6c0
+		MinRange: 1c0
+		BaseDelay: 15
+		MaxDelayMultiplier: 4
+		TotalSupply: 500
+		RestockThreshold: 50
+		RestockActors: logisticscenter
+		RearmCondition: replenish-soldiers
+		PauseOnCondition: disabled || mobile
+	Transforms:
+		IntoActor: supplycache
+		Facing: 512
+		TransformSounds: build5.aud
+		PauseOnCondition: empdisable
 	SpawnActorOnDeath:
 		Actor: TRUK.husk
 
