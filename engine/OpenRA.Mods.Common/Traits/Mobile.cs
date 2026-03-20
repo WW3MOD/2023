@@ -1043,7 +1043,7 @@ namespace OpenRA.Mods.Common.Traits
 				rejectMove = !self.AcceptsOrder("Move");
 			}
 
-			public string OrderID => "Move";
+			public string OrderID => IsForceMove ? "ForceMove" : "Move";
 			public int OrderPriority => 4;
 			public bool IsQueued { get; protected set; }
 
