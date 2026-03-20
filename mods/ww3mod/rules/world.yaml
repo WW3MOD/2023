@@ -258,6 +258,7 @@
 
 World:
 	Inherits: ^BaseWorld
+	HealerClaimLayer:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:

@@ -1723,6 +1723,11 @@ AA:
 	AutoTargetPriority@Mine:
 		ValidTargets: Mine
 		Priority: 2
+	HealerAutoTarget@Repair:
+		StabilizeThreshold: 0
+		ClaimTargets: false
+		ScanInterval: 8
+		ValidTargetTypes: VehicleRepair, BuildingRepair
 	Armament@1:
 		Name: primary
 		Weapon: MP5
@@ -2031,6 +2036,11 @@ SF:
 		InitialStanceAI: AttackAnything
 	AutoTargetPriority@Default:
 		ValidTargets: Heal
+	HealerAutoTarget:
+		StabilizeThreshold: 50
+		ClaimTargets: true
+		ScanInterval: 8
+		ValidTargetTypes: Heal
 	Armament@1:
 		Name: primary
 		Weapon: Heal
