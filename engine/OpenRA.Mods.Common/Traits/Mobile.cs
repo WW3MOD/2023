@@ -86,6 +86,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speed modifier when moving backward (percentage of forward speed)")]
 		public readonly int BackwardSpeedModifier = 50;
 
+		[Desc("If true, unit can change direction mid-cell instead of finishing current cell transition. Ideal for infantry.")]
+		public readonly bool CanRedirectMidCell = false;
+
+		[Desc("Percentage of current speed retained when redirecting mid-cell with a sharp direction change (>90 degrees). 100 = no penalty.")]
+		public readonly int RedirectSpeedPenalty = 50;
+
 		[ConsumedConditionReference]
 		[Desc("Boolean expression defining the condition under which the regular (non-force) move cursor is disabled.")]
 		public readonly BooleanExpression RequireForceMoveCondition = null;
@@ -943,8 +949,8 @@ namespace OpenRA.Mods.Common.Traits
 		// Note: Returns a valid order even if the unit can't move to the target
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{
-			if (order is MoveOrderTargeter)
-				return new Order("Move", self, target, queued);
+			if (order is MoveOrderTargeter mot)
+				return new Order(mot.IsForceMove ? "ForceMove" : "Move", self, target, queued);
 
 			return null;
 		}
@@ -963,6 +969,16 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor)));
 				self.ShowTargetLines();
 			}
+			else if (order.OrderString == "ForceMove")
+			{
+				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
+				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
+					return;
+
+				// Force-move bypasses WrapMove — pure movement, no SmartMove wrapping
+				self.QueueActivity(order.Queued, new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor));
+				self.ShowTargetLines();
+			}
 
 			// TODO: This should only cancel activities queued by this trait
 			else if (order.OrderString == "Stop")
@@ -979,6 +995,7 @@ namespace OpenRA.Mods.Common.Traits
 			switch (order.OrderString)
 			{
 				case "Move":
+				case "ForceMove":
 					if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
@@ -1005,6 +1022,7 @@ namespace OpenRA.Mods.Common.Traits
 			readonly Mobile mobile;
 			readonly LocomotorInfo locomotorInfo;
 			readonly bool rejectMove;
+			public bool IsForceMove { get; private set; }
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers)
 			{
 				// Always prioritise orders over selecting other peoples actors or own actors that are already selected
@@ -1032,6 +1050,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
+				IsForceMove = modifiers.HasModifier(TargetModifiers.ForceMove);
 
 				var explored = self.Owner.MapLayers.IsExplored(location);
 

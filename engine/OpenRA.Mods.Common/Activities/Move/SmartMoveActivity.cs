@@ -18,29 +18,32 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Activities
 {
 	/// <summary>
-	/// Wraps a Move activity to pause and fire at targets within weapon range,
-	/// then resume movement. Unlike AttackMoveActivity, this does NOT chase
-	/// targets — it only engages what's already in range.
+	/// Wraps a Move activity to selectively fire at targets while moving.
+	/// Unlike AttackMoveActivity, this does NOT chase targets. It only fires when:
+	/// - The unit was recently damaged (return fire / self-defense)
+	/// - A target is within close range (good shot opportunity)
 	/// </summary>
 	public class SmartMoveActivity : Activity
 	{
 		readonly Activity moveInner;
+		readonly SmartMoveInfo info;
 		AutoTarget autoTarget;
-		readonly int scanInterval;
+		SmartMove smartMove;
 
 		bool runningMoveActivity;
 		int checkTick;
 
-		public SmartMoveActivity(Activity moveInner, int scanInterval)
+		public SmartMoveActivity(Activity moveInner, SmartMoveInfo info)
 		{
 			this.moveInner = moveInner;
-			this.scanInterval = scanInterval;
+			this.info = info;
 			ChildHasPriority = false;
 		}
 
 		protected override void OnFirstRun(Actor self)
 		{
 			autoTarget = self.TraitOrDefault<AutoTarget>();
+			smartMove = self.TraitOrDefault<SmartMove>();
 
 			// If no AutoTarget trait or on HoldFire stance, just run the plain move
 			if (autoTarget == null || autoTarget.Stance <= UnitStance.HoldFire)
@@ -58,23 +61,37 @@ namespace OpenRA.Mods.Common.Activities
 			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
 				// Scan for targets but don't allow moving toward them (allowMove = false)
-				// This means only targets already within weapon range will be returned
 				var target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
 
 				if (target.Type != TargetType.Invalid)
 				{
-					// Only engage if target is within weapon range (don't chase)
+					// Find the max weapon range for the in-range check
+					var maxRange = autoTarget.ActiveAttackBases
+						.Select(ab => ab.GetMaximumRange())
+						.DefaultIfEmpty(WDist.Zero)
+						.Max();
+
 					var inRange = autoTarget.ActiveAttackBases
 						.Any(ab => target.IsInRange(self.CenterPosition, ab.GetMaximumRange()));
 
 					if (inRange)
 					{
-						checkTick = 0;
-						runningMoveActivity = false;
-						ChildActivity?.Cancel(self);
+						// Check if we should fire: under fire OR target is close
+						var underFire = smartMove != null &&
+							(self.World.WorldTick - smartMove.LastDamagedTick) < info.UnderFireDuration;
 
-						foreach (var ab in autoTarget.ActiveAttackBases)
-							QueueChild(ab.GetAttackActivity(self, AttackSource.AutoTarget, target, false, false));
+						var distToTarget = (target.CenterPosition - self.CenterPosition).Length;
+						var closeRange = distToTarget < maxRange.Length * info.CloseRangeFraction / 100;
+
+						if (underFire || closeRange)
+						{
+							checkTick = 0;
+							runningMoveActivity = false;
+							ChildActivity?.Cancel(self);
+
+							foreach (var ab in autoTarget.ActiveAttackBases)
+								QueueChild(ab.GetAttackActivity(self, AttackSource.AutoTarget, target, false, false));
+						}
 					}
 				}
 
@@ -83,7 +100,7 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					runningMoveActivity = true;
 					QueueChild(moveInner);
-					checkTick = scanInterval;
+					checkTick = info.ScanInterval;
 				}
 			}
 

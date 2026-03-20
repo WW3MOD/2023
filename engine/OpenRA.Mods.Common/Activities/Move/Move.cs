@@ -114,6 +114,23 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			startTicks = self.World.WorldTick;
 
+			// Apply speed penalty when redirecting mid-cell with a sharp direction change.
+			// The penalty scales with the angle: no penalty for <90°, full penalty at 180°.
+			if (mobile.Info.CanRedirectMidCell && mobile.CurrentSpeed > 0 && destination.HasValue)
+			{
+				var destFacing = self.World.Map.FacingBetween(mobile.ToCell, destination.Value, mobile.Facing);
+				var rawDiff = Math.Abs(destFacing.Angle - mobile.Facing.Angle);
+				var angleDiff = rawDiff > 512 ? 1024 - rawDiff : rawDiff;
+
+				// Apply penalty for turns > 90° (angleDiff > 256). Scales linearly from 100% to RedirectSpeedPenalty%.
+				if (angleDiff > 256)
+				{
+					var turnFraction = (angleDiff - 256) / 256f; // 0.0 at 90°, 1.0 at 180°
+					var speedRetained = 100 - (int)(turnFraction * (100 - mobile.Info.RedirectSpeedPenalty));
+					mobile.CurrentSpeed = mobile.CurrentSpeed * speedRetained / 100;
+				}
+			}
+
 			if (evaluateNearestMovableCell && destination.HasValue)
 			{
 				var movableDestination = mobile.NearestMoveableCell(destination.Value);
@@ -189,9 +206,15 @@ namespace OpenRA.Mods.Common.Activities
 			mobile.SetLocation(mobile.FromCell, mobile.FromSubCell, nextCell.Value.Cell, nextCell.Value.SubCell);
 
 			var map = self.World.Map;
-			var from = (mobile.FromCell.Layer == 0 ? map.CenterOfCell(mobile.FromCell) :
+			var cellCenter = (mobile.FromCell.Layer == 0 ? map.CenterOfCell(mobile.FromCell) :
 				self.World.GetCustomMovementLayers()[mobile.FromCell.Layer].CenterOfCell(mobile.FromCell)) +
 				map.Grid.OffsetOfSubCell(mobile.FromSubCell);
+
+			// For units that can redirect mid-cell, use their actual position instead of cell center
+			// to avoid a visual snap when starting a new move after a mid-cell cancellation.
+			var from = mobile.Info.CanRedirectMidCell && mobile.CenterPosition != cellCenter
+				? mobile.CenterPosition
+				: cellCenter;
 
 			var to = Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) +
 				(map.Grid.OffsetOfSubCell(mobile.FromSubCell) + map.Grid.OffsetOfSubCell(mobile.ToSubCell)) / 2;
@@ -345,6 +368,13 @@ namespace OpenRA.Mods.Common.Activities
 			if (path != null && (forceClearPath || mobile.CanStayInCell(mobile.ToCell)))
 				path.Clear();
 
+			// For units that can redirect mid-cell, revert cell location to FromCell so the unit
+			// has a stable logical position. The visual position stays at CenterPosition (handled by
+			// the new Move using actual WPos). Without this, the new Move would pathfind from ToCell
+			// which the unit hasn't actually reached yet.
+			if (mobile.Info.CanRedirectMidCell && mobile.IsMovingBetweenCells)
+				mobile.SetLocation(mobile.FromCell, mobile.FromSubCell, mobile.FromCell, mobile.FromSubCell);
+
 			base.Cancel(self, keepQueue);
 		}
 
@@ -396,7 +426,9 @@ namespace OpenRA.Mods.Common.Activities
 				this.terrainOrientationMargin = Math.Min(terrainOrientationMargin, Distance / 2);
 				MovingOnGroundLayer = movingOnGroundLayer;
 
-				IsInterruptible = false; // See comments in Move.Cancel()
+				// Allow mid-cell interruption for units with CanRedirectMidCell (e.g. infantry).
+			// Other units must finish their cell transition before responding to new orders.
+			IsInterruptible = move.mobile.Info.CanRedirectMidCell;
 
 				// Calculate an elliptical arc that joins from and to
 				var delta = (fromFacing - toFacing).Angle;
@@ -433,6 +465,11 @@ namespace OpenRA.Mods.Common.Activities
 			public override bool Tick(Actor self)
 			{
 				var mobile = Move.mobile;
+
+				// For units with CanRedirectMidCell, stop immediately when cancelled
+				// so they can start their new move from the current position.
+				if (IsCanceling)
+					return true;
 
 				// Only move by a full speed step if we didn't already move this tick.
 				// If we did, we limit the move to any carried-over leftover progress.

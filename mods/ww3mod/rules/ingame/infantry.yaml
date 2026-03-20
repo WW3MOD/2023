@@ -29,6 +29,8 @@
 		TurnSpeed: 100
 		# AlwaysTurnInPlace: true
 		Locomotor: foot
+		CanRedirectMidCell: true
+		RedirectSpeedPenalty: 50
 	SmartMove:
 	SelectionDecorations:
 		ShowNever: true
