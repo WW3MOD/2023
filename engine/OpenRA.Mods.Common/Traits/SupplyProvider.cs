@@ -18,20 +18,15 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Provides targeted single-unit resupply to nearby allied units with AmmoPool. Distance-based reload speed, limited supply capacity.")]
+	[Desc("Provides targeted single-unit resupply to nearby allied units with AmmoPool.",
+		"Picks the unit with greatest need (lowest ammo %), gives 1 pip, then re-evaluates.")]
 	public class SupplyProviderInfo : PausableConditionalTraitInfo
 	{
 		[Desc("Maximum resupply range.")]
-		public readonly WDist Range = new WDist(6144);
+		public readonly WDist Range = new WDist(5120);
 
-		[Desc("Distance for fastest resupply speed.")]
-		public readonly WDist MinRange = new WDist(1024);
-
-		[Desc("Ticks between ammo increments at MinRange distance.")]
-		public readonly int BaseDelay = 15;
-
-		[Desc("At max range, delay is BaseDelay * MaxDelayMultiplier.")]
-		public readonly int MaxDelayMultiplier = 4;
+		[Desc("Ticks between ammo increments (one pip per cycle).")]
+		public readonly int RearmDelay = 25;
 
 		[Desc("Total supply capacity.")]
 		public readonly int TotalSupply = 500;
@@ -74,8 +69,6 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			self = init.Self;
-
-			// Read transferred supply from SupplyInit (when deployed from truck to cache)
 			currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply);
 		}
 
@@ -95,7 +88,6 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			// Handle restocking
 			if (restocking)
 				return;
 
@@ -111,7 +103,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			// Periodic scan for targets
+			// Periodic scan — always re-evaluate greatest need
 			if (--scanTicks <= 0)
 			{
 				scanTicks = Info.ScanInterval;
@@ -122,52 +114,75 @@ namespace OpenRA.Mods.Common.Traits
 			if (currentTarget != null)
 			{
 				if (--rearmTicks <= 0)
+				{
 					ResupplyTarget();
+					// After giving 1 pip, immediately re-evaluate who needs it most
+					scanTicks = 0;
+				}
 			}
 		}
 
 		void UpdateTarget()
 		{
-			// Check if current target is still valid
-			if (currentTarget != null)
+			// Always re-evaluate — pick unit with greatest need
+			var bestTarget = FindGreatestNeedTarget();
+
+			if (bestTarget == null)
 			{
-				if (!IsValidTarget(currentTarget))
+				if (currentTarget != null)
 				{
 					RevokeTargetCondition();
 					currentTarget = null;
 				}
-				else
-					return; // Keep current target
-			}
 
-			// Find closest valid target
-			var bestTarget = FindClosestTarget();
-			if (bestTarget == null)
 				return;
+			}
 
 			SetTarget(bestTarget);
 		}
 
-		Actor FindClosestTarget()
+		Actor FindGreatestNeedTarget()
 		{
-			var range = Info.Range;
-			Actor closest = null;
-			var closestDist = long.MaxValue;
+			Actor best = null;
+			var bestNeed = 0f;
 
-			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, range))
+			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.Range))
 			{
 				if (!IsValidTarget(a))
 					continue;
 
-				var dist = (a.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
-				if (dist < closestDist)
+				var need = CalculateNeed(a);
+				if (need > bestNeed)
 				{
-					closestDist = dist;
-					closest = a;
+					bestNeed = need;
+					best = a;
 				}
 			}
 
-			return closest;
+			return best;
+		}
+
+		float CalculateNeed(Actor a)
+		{
+			var rearmable = a.TraitOrDefault<Rearmable>();
+			if (rearmable == null)
+				return 0f;
+
+			// Need = total missing ammo weighted by SupplyValue
+			// Higher = more need
+			var totalMissing = 0f;
+			var totalCapacity = 0f;
+			foreach (var pool in rearmable.RearmableAmmoPools)
+			{
+				var weight = pool.Info.SupplyValue;
+				totalMissing += (pool.Info.Ammo - pool.CurrentAmmoCount) * weight;
+				totalCapacity += pool.Info.Ammo * weight;
+			}
+
+			if (totalCapacity <= 0)
+				return 0f;
+
+			return totalMissing / totalCapacity;
 		}
 
 		bool IsValidTarget(Actor a)
@@ -178,12 +193,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner)))
 				return false;
 
-			// Must have Rearmable trait
 			var rearmable = a.TraitOrDefault<Rearmable>();
 			if (rearmable == null)
 				return false;
 
-			// Must need ammo in at least one pool
 			if (rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
 				return false;
 
@@ -221,8 +234,7 @@ namespace OpenRA.Mods.Common.Traits
 					conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
 			}
 
-			// Calculate initial delay based on distance
-			rearmTicks = CalculateDelay();
+			rearmTicks = Info.RearmDelay;
 		}
 
 		void RevokeTargetCondition()
@@ -235,22 +247,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			conditionToken = Actor.InvalidConditionToken;
 			targetConditionTrait = null;
-		}
-
-		int CalculateDelay()
-		{
-			if (currentTarget == null)
-				return Info.BaseDelay;
-
-			var dist = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLength;
-			var minDist = Info.MinRange.Length;
-			if (minDist <= 0)
-				minDist = 1;
-
-			var multiplier = (float)dist / minDist;
-			multiplier = multiplier.Clamp(1f, Info.MaxDelayMultiplier);
-
-			return (int)(Info.BaseDelay * multiplier);
 		}
 
 		void ResupplyTarget()
@@ -270,38 +266,34 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			var gaveSomething = false;
+			// Find the pool with the greatest need (lowest ammo %)
+			AmmoPool bestPool = null;
+			var bestNeed = 0f;
 			foreach (var pool in rearmable.RearmableAmmoPools)
 			{
-				if (pool.HasFullAmmo || currentSupply <= 0)
+				if (pool.HasFullAmmo || currentSupply < pool.Info.SupplyValue)
 					continue;
 
-				var supplyNeeded = pool.Info.SupplyValue;
-				if (currentSupply < supplyNeeded)
-					continue;
-
-				if (pool.GiveAmmo(currentTarget, 1))
+				var need = 1f - ((float)pool.CurrentAmmoCount / pool.Info.Ammo);
+				if (need > bestNeed)
 				{
-					currentSupply -= supplyNeeded;
-					gaveSomething = true;
-
-					if (!string.IsNullOrEmpty(pool.Info.RearmSound))
-						Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, pool.Info.RearmSound, currentTarget.CenterPosition);
-
-					break; // One ammo increment per tick cycle
+					bestNeed = need;
+					bestPool = pool;
 				}
 			}
 
-			if (!gaveSomething || rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
+			if (bestPool != null && bestPool.GiveAmmo(currentTarget, 1))
 			{
-				// Target is full or we couldn't give anything — drop it
-				RevokeTargetCondition();
-				currentTarget = null;
-				scanTicks = 0; // Immediate rescan
+				currentSupply -= bestPool.Info.SupplyValue;
+
+				if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
+					Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
 			}
 
-			// Recalculate delay (distance may have changed)
-			rearmTicks = CalculateDelay();
+			// After giving 1 pip, drop target to re-evaluate on next scan
+			RevokeTargetCondition();
+			currentTarget = null;
+			rearmTicks = Info.RearmDelay;
 		}
 
 		void TryRestock()
@@ -325,6 +317,16 @@ namespace OpenRA.Mods.Common.Traits
 					restocking = false;
 				}));
 			}
+		}
+
+		/// <summary>Deducts supply when ammo is given directly (e.g., by QuickRearm).</summary>
+		public bool DeductSupply(int amount)
+		{
+			if (currentSupply < amount)
+				return false;
+
+			currentSupply -= amount;
+			return true;
 		}
 
 		float ISelectionBar.GetValue()

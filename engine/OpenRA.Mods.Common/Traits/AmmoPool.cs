@@ -191,7 +191,21 @@ namespace OpenRA.Mods.Common.Traits
 			var nearestResupplier = ChooseResupplier(self);
 
 			if (nearestResupplier != null)
+			{
+				// If the resupplier has Cargo (supply truck), enter it for quick rearm
+				var cargo = nearestResupplier.TraitOrDefault<Cargo>();
+				if (cargo != null && self.Info.HasTraitInfo<PassengerInfo>())
+				{
+					var passenger = self.TraitOrDefault<Passenger>();
+					if (passenger != null && cargo.HasSpace(self.Info.TraitInfo<PassengerInfo>().Weight))
+					{
+						self.QueueActivity(false, new RideTransport(self, Target.FromActor(nearestResupplier), null));
+						return;
+					}
+				}
+
 				self.QueueActivity(false, new Resupply(self, nearestResupplier, nearestResupplier.Trait<RearmsUnits>().Info.CloseEnough));
+			}
 			else
 			{
 				var deliversCash = self.TraitOrDefault<DeliversCash>();
