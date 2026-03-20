@@ -61,9 +61,9 @@ Tick = function()
 		RussiaT90Tank4.Patrol({EastEntry4_1.Location, EastEntry4_2.Location }, false, 0)
 	end
 
-	if ticks == 10000 then
-		MSLO1.ActivateNukePower(CPos.New(50, 55))
-	end
+	-- if ticks == 10000 then
+	-- 	MSLO1.ActivateNukePower(CPos.New(50, 55))
+	-- end
 end
 
 WorldLoaded = function()
