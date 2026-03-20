@@ -49,11 +49,42 @@
 		LoadedCondition: loaded
 		EjectOnDeath: True
 	Inherits@CargoPips: ^CargoPips
+	GarrisonManager:
+		Ports:
+			- Name: north
+			  Offset: -100,0,128
+			  Yaw: 0
+			  Cone: 170
+			- Name: northeast
+			  Offset: -500,-241,128
+			  Yaw: 176
+			  Cone: 170
+			- Name: southeast
+			  Offset: -900,-241,128
+			  Yaw: 341
+			  Cone: 170
+			- Name: south
+			  Offset: -1100,0,128
+			  Yaw: 512
+			  Cone: 170
+			- Name: southwest
+			  Offset: -900,241,128
+			  Yaw: 682
+			  Cone: 170
+			- Name: northwest
+			  Offset: -500,241,128
+			  Yaw: 853
+			  Cone: 170
+		SwapCooldown: 20
+		TargetScanInterval: 8
+		AmmoConservation: true
+		ReloadSwapping: true
 	WithCargoPipsDecoration:
 	AttackGarrisoned:
 		PortOffsets: -100,0,128, -500,-241,128, -900,-241,128, -1100,0,128, -900,241,128, -500,241,128
 		PortYaws: 0, 176, 341, 512, 682, 853
-		PortCones: 88, 88, 88, 88, 88, 88
+		PortCones: 170, 170, 170, 170, 170, 170
+		MuzzlePalette: effect
 ^DesertCivBuilding:
 	Inherits: ^CivBuilding
 	RenderSprites:

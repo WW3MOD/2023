@@ -30,16 +30,13 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Cargo can fire their weapons out of fire ports.")]
 	public class AttackGarrisonedInfo : AttackFollowInfo, IRulesetLoaded, Requires<CargoInfo>
 	{
-		[FieldLoader.Require]
-		[Desc("Fire port offsets in local coordinates.")]
+		[Desc("Fire port offsets in local coordinates. Used as fallback when no GarrisonManager is present.")]
 		public readonly WVec[] PortOffsets = null;
 
-		[FieldLoader.Require]
-		[Desc("Fire port yaw angles.")]
+		[Desc("Fire port yaw angles. Used as fallback when no GarrisonManager is present.")]
 		public readonly WAngle[] PortYaws = null;
 
-		[FieldLoader.Require]
-		[Desc("Fire port yaw cone angle.")]
+		[Desc("Fire port yaw cone angle. Used as fallback when no GarrisonManager is present.")]
 		public readonly WAngle[] PortCones = null;
 
 		public FirePort[] Ports { get; private set; }
@@ -52,25 +49,37 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new AttackGarrisoned(init.Self, this); }
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
-			if (PortOffsets.Length == 0)
-				throw new YamlException("PortOffsets must have at least one entry.");
+			// If GarrisonManager is present, PortOffsets/Yaws/Cones are optional
+			var hasGarrisonManager = ai.HasTraitInfo<GarrisonManagerInfo>();
 
-			if (PortYaws.Length != PortOffsets.Length)
-				throw new YamlException("PortYaws must define an angle for each port.");
-
-			if (PortCones.Length != PortOffsets.Length)
-				throw new YamlException("PortCones must define an angle for each port.");
-
-			Ports = new FirePort[PortOffsets.Length];
-
-			for (var i = 0; i < PortOffsets.Length; i++)
+			if (!hasGarrisonManager)
 			{
-				Ports[i] = new FirePort
+				if (PortOffsets == null || PortOffsets.Length == 0)
+					throw new YamlException("PortOffsets must have at least one entry when no GarrisonManager is present.");
+
+				if (PortYaws == null || PortYaws.Length != PortOffsets.Length)
+					throw new YamlException("PortYaws must define an angle for each port.");
+
+				if (PortCones == null || PortCones.Length != PortOffsets.Length)
+					throw new YamlException("PortCones must define an angle for each port.");
+			}
+
+			if (PortOffsets != null && PortOffsets.Length > 0)
+			{
+				Ports = new FirePort[PortOffsets.Length];
+				for (var i = 0; i < PortOffsets.Length; i++)
 				{
-					Offset = PortOffsets[i],
-					Yaw = PortYaws[i],
-					Cone = PortCones[i],
-				};
+					Ports[i] = new FirePort
+					{
+						Offset = PortOffsets[i],
+						Yaw = PortYaws[i],
+						Cone = PortCones[i],
+					};
+				}
+			}
+			else
+			{
+				Ports = Array.Empty<FirePort>();
 			}
 
 			base.RulesetLoaded(rules, ai);
@@ -81,37 +90,60 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public new readonly AttackGarrisonedInfo Info;
 		readonly Lazy<BodyOrientation> coords;
-		readonly List<Armament> armaments;
 		readonly List<AnimationWithOffset> muzzles;
+
+		// Legacy mode (no GarrisonManager): flat armament list
+		readonly List<Armament> legacyArmaments;
 		readonly Dictionary<Actor, IFacing> paxFacing;
 		readonly Dictionary<Actor, IPositionable> paxPos;
 		readonly Dictionary<Actor, RenderSprites> paxRender;
+
+		// New mode: GarrisonManager handles targeting
+		GarrisonManager garrisonManager;
+		bool useGarrisonManager;
 
 		public AttackGarrisoned(Actor self, AttackGarrisonedInfo info)
 			: base(self, info)
 		{
 			Info = info;
 			coords = Exts.Lazy(() => self.Trait<BodyOrientation>());
-			armaments = new List<Armament>();
 			muzzles = new List<AnimationWithOffset>();
+			legacyArmaments = new List<Armament>();
 			paxFacing = new Dictionary<Actor, IFacing>();
 			paxPos = new Dictionary<Actor, IPositionable>();
 			paxRender = new Dictionary<Actor, RenderSprites>();
 		}
 
+		protected override void Created(Actor self)
+		{
+			garrisonManager = self.TraitOrDefault<GarrisonManager>();
+			useGarrisonManager = garrisonManager != null;
+			base.Created(self);
+		}
+
 		protected override Func<IEnumerable<Armament>> InitializeGetArmaments(Actor self)
 		{
-			return () => armaments;
+			return () =>
+			{
+				if (useGarrisonManager)
+					return garrisonManager.GetAllArmaments();
+
+				return legacyArmaments;
+			};
 		}
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
 		{
-			paxFacing.Add(passenger, passenger.Trait<IFacing>());
-			paxPos.Add(passenger, passenger.Trait<IPositionable>());
-			paxRender.Add(passenger, passenger.Trait<RenderSprites>());
-			armaments.AddRange(
-				passenger.TraitsImplementing<Armament>()
-				.Where(a => Info.Armaments.Contains(a.Info.Name)));
+			paxFacing[passenger] = passenger.Trait<IFacing>();
+			paxPos[passenger] = passenger.Trait<IPositionable>();
+			paxRender[passenger] = passenger.Trait<RenderSprites>();
+
+			if (!useGarrisonManager)
+			{
+				legacyArmaments.AddRange(
+					passenger.TraitsImplementing<Armament>()
+					.Where(a => Info.Armaments.Contains(a.Info.Name)));
+			}
 		}
 
 		void INotifyPassengerExited.OnPassengerExited(Actor self, Actor passenger)
@@ -119,12 +151,17 @@ namespace OpenRA.Mods.Common.Traits
 			paxFacing.Remove(passenger);
 			paxPos.Remove(passenger);
 			paxRender.Remove(passenger);
-			armaments.RemoveAll(a => a.Actor == passenger);
+
+			if (!useGarrisonManager)
+				legacyArmaments.RemoveAll(a => a.Actor == passenger);
 		}
 
 		FirePort SelectFirePort(Actor self, WAngle targetYaw)
 		{
-			// Pick a random port that faces the target
+			// Legacy mode only
+			if (Info.Ports == null || Info.Ports.Length == 0)
+				return null;
+
 			var bodyYaw = facing != null ? facing.Facing : WAngle.Zero;
 			var indices = Enumerable.Range(0, Info.Ports.Length).Shuffle(self.World.SharedRandom);
 			foreach (var i in indices)
@@ -145,8 +182,147 @@ namespace OpenRA.Mods.Common.Traits
 			return coords.Value.LocalToWorld(p.Offset.Rotate(bodyOrientation));
 		}
 
+		WVec GarrisonPortOffset(int portIndex)
+		{
+			return garrisonManager.GetPortWorldOffset(portIndex, coords.Value);
+		}
+
+		protected override void Tick(Actor self)
+		{
+			if (useGarrisonManager)
+			{
+				// GarrisonManager handles per-port targeting in its own Tick.
+				// We handle force-attack integration here.
+				if (RequestedTarget.IsValidFor(self))
+					garrisonManager.SetForceTarget(RequestedTarget);
+				else if (OpportunityTarget.IsValidFor(self))
+				{
+					// Don't override per-port targeting with opportunity target
+				}
+				else
+				{
+					garrisonManager.ClearForceTarget();
+				}
+
+				// Per-port firing
+				DoGarrisonedAttack(self);
+
+				// Still call base for muzzle animation ticking and IsAiming updates
+				// but skip base.Tick's DoAttack calls by managing IsAiming ourselves
+				IsAiming = false;
+				for (var i = 0; i < garrisonManager.PortStates.Length; i++)
+				{
+					var ps = garrisonManager.PortStates[i];
+					if (ps.Occupant != null && ps.CurrentTarget.IsValidFor(self))
+					{
+						IsAiming = true;
+						break;
+					}
+				}
+
+				// Tick muzzle animations (from base.Tick chain)
+				foreach (var m in muzzles.ToArray())
+					m.Animation.Tick();
+
+				// Call grandparent Tick for IsAiming notifications
+				// We need to call AttackBase.Tick but NOT AttackFollow.Tick
+				// Since we can't skip intermediate, we handle aiming notifications manually
+				return;
+			}
+
+			// Legacy mode: original behavior
+			base.Tick(self);
+
+			foreach (var m in muzzles.ToArray())
+				m.Animation.Tick();
+		}
+
+		void DoGarrisonedAttack(Actor self)
+		{
+			if (!self.IsInWorld || IsTraitDisabled || IsTraitPaused)
+				return;
+
+			var pos = self.CenterPosition;
+
+			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
+			{
+				var ps = garrisonManager.PortStates[i];
+				if (ps.Occupant == null || ps.Occupant.IsDead)
+					continue;
+
+				if (!ps.CurrentTarget.IsValidFor(self))
+					continue;
+
+				var target = ps.CurrentTarget;
+				var targetedPosition = GetTargetPosition(pos, target);
+				var targetYaw = (targetedPosition - pos).Yaw;
+
+				// Check if target is in port's firing arc
+				if (!garrisonManager.IsTargetInPortArc(i, target))
+					continue;
+
+				var portOffset = GarrisonPortOffset(i);
+
+				// Position and face the passenger
+				if (!paxFacing.ContainsKey(ps.Occupant) || !paxPos.ContainsKey(ps.Occupant))
+					continue;
+
+				paxFacing[ps.Occupant].Facing = targetYaw;
+				paxPos[ps.Occupant].SetCenterPosition(ps.Occupant, pos + portOffset);
+
+				// Fire each of the occupant's armaments
+				foreach (var a in ps.Occupant.TraitsImplementing<Armament>())
+				{
+					if (a.IsTraitDisabled)
+						continue;
+
+					// Check if weapon is valid against this target
+					if (!a.Weapon.IsValidAgainst(target, self.World, self))
+						continue;
+
+					// Check range
+					if (!target.IsInRange(pos, a.MaxRange()))
+						continue;
+
+					var barrel = a.CheckFire(a.Actor, facing, target);
+					if (barrel == null)
+						continue;
+
+					if (a.Info.MuzzleSequence != null && paxRender.ContainsKey(ps.Occupant))
+					{
+						var muzzleAnim = new Animation(self.World, paxRender[ps.Occupant].GetImage(ps.Occupant), () => targetYaw);
+						var sequence = a.Info.MuzzleSequence;
+						var muzzleFlash = new AnimationWithOffset(muzzleAnim,
+							() => portOffset,
+							() => false,
+							p => RenderUtils.ZOffsetFromCenter(self, p, 1024));
+
+						muzzles.Add(muzzleFlash);
+						muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
+					}
+
+					if (Info.FlashOnAttack)
+						self.World.AddFrameEndTask(w =>
+						{
+							w.Add(new Effects.FlashTarget(self, Color.Orange, 0.1f));
+						});
+
+					foreach (var npa in self.TraitsImplementing<INotifyAttack>())
+						npa.Attacking(self, target, a, barrel);
+				}
+			}
+		}
+
 		public override void DoAttack(Actor self, in Target target)
 		{
+			if (useGarrisonManager)
+			{
+				// In GarrisonManager mode, DoAttack from AttackFollow is a no-op.
+				// Firing is handled by DoGarrisonedAttack called from Tick.
+				return;
+			}
+
+			// Legacy mode: original behavior
 			if (!CanAttack(self, target))
 				return;
 
@@ -209,15 +385,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Muzzle flashes don't contribute to actor bounds
 			yield break;
-		}
-
-		protected override void Tick(Actor self)
-		{
-			base.Tick(self);
-
-			// Take a copy so that Tick() can remove animations
-			foreach (var m in muzzles.ToArray())
-				m.Animation.Tick();
 		}
 	}
 }

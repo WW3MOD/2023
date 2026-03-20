@@ -54,6 +54,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		readonly int pipCount;
 
 		readonly Actor self;
+		bool hasGarrisonDecoration;
 
 		int PipCount { get => self.Trait<Cargo>().PassengerCount; }
 
@@ -64,6 +65,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			cargo = self.Trait<Cargo>();
 			pipCount = info.PipCount > 0 ? info.PipCount : cargo.Info.MaxWeight;
 			pips = new Animation(self.World, info.Image);
+
+			// Skip rendering when WithGarrisonDecoration handles the display
+			hasGarrisonDecoration = self.Info.HasTraitInfo<WithGarrisonDecorationInfo>();
 		}
 
 		string GetPipSequence(int i)
@@ -89,6 +93,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		protected override IEnumerable<IRenderable> RenderDecoration(Actor self, WorldRenderer wr, int2 screenPos)
 		{
+			// Defer to WithGarrisonDecoration when present
+			if (hasGarrisonDecoration)
+				yield break;
+
 			var selected = self.World.Selection.Contains(self);
 			var scale = selected ? 1f : 0.5f;
 			var alpha = selected ? 0.2f : 0.05f;

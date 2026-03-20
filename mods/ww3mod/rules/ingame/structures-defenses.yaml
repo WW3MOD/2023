@@ -106,17 +106,40 @@ GTWR:
 	Cargo:
 		Types: Infantry
 		Neutral: True
-		MaxWeight: 2
+		MaxWeight: 6
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
+	GarrisonManager:
+		Ports:
+			- Name: north
+			  Offset: 0,-300,300
+			  Yaw: 0
+			  Cone: 170
+			- Name: east
+			  Offset: 300,0,300
+			  Yaw: 256
+			  Cone: 170
+			- Name: south
+			  Offset: 0,300,300
+			  Yaw: 512
+			  Cone: 170
+			- Name: west
+			  Offset: -300,0,300
+			  Yaw: 768
+			  Cone: 170
+		SwapCooldown: 20
+		TargetScanInterval: 8
+		AmmoConservation: true
+		ReloadSwapping: true
 	WithCargoPipsDecoration:
 	AttackGarrisoned:
-		PortOffsets: 300,300,300
-		PortYaws: 0
-		PortCones: 512
+		PortOffsets: 0,-300,300, 300,0,300, 0,300,300, -300,0,300
+		PortYaws: 0, 256, 512, 768
+		PortCones: 170, 170, 170, 170
+		MuzzlePalette: effect
 
 PBOX:
 	Inherits@Type: ^Defense
@@ -153,17 +176,32 @@ PBOX:
 	Cargo:
 		Types: Infantry
 		Neutral: True
-		MaxWeight: 2
+		MaxWeight: 4
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
+	GarrisonManager:
+		Ports:
+			- Name: front
+			  Offset: 300,0,200
+			  Yaw: 256
+			  Cone: 256
+			- Name: back
+			  Offset: -300,0,200
+			  Yaw: 768
+			  Cone: 256
+		SwapCooldown: 20
+		TargetScanInterval: 8
+		AmmoConservation: true
+		ReloadSwapping: true
 	WithCargoPipsDecoration:
 	AttackGarrisoned:
-		PortOffsets: 300,300,300
-		PortYaws: 0
-		PortCones: 512
+		PortOffsets: 300,0,200, -300,0,200
+		PortYaws: 256, 768
+		PortCones: 256, 256
+		MuzzlePalette: effect
 
 HBOX:
 	Inherits@Type: ^Defense
@@ -205,17 +243,32 @@ HBOX:
 	Cargo:
 		Types: Infantry
 		Neutral: True
-		MaxWeight: 2
+		MaxWeight: 4
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
+	GarrisonManager:
+		Ports:
+			- Name: front
+			  Offset: 300,0,200
+			  Yaw: 256
+			  Cone: 256
+			- Name: back
+			  Offset: -300,0,200
+			  Yaw: 768
+			  Cone: 256
+		SwapCooldown: 20
+		TargetScanInterval: 8
+		AmmoConservation: true
+		ReloadSwapping: true
 	WithCargoPipsDecoration:
 	AttackGarrisoned:
-		PortOffsets: 300,300,300
-		PortYaws: 0
-		PortCones: 512
+		PortOffsets: 300,0,200, -300,0,200
+		PortYaws: 256, 768
+		PortCones: 256, 256
+		MuzzlePalette: effect
 
 SBAG:
 	Inherits: ^Wall

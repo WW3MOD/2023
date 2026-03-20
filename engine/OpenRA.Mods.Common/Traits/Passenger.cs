@@ -50,6 +50,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Boolean expression defining the condition under which the regular (non-force) enter cursor is disabled.")]
 		public readonly BooleanExpression RequireForceMoveCondition = null;
 
+		[Desc("Role hint for garrison targeting: General, MachineGunner, AntiTank, AntiAir, Sniper, Support.")]
+		public readonly string GarrisonRole = "General";
+
 		[CursorReference]
 		[Desc("Cursor to display when able to enter target actor.")]
 		public readonly string EnterCursor = "enter";
