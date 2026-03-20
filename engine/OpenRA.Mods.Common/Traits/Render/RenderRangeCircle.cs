@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public enum RangeCircleMode { Maximum, Minimum }
 
 	[Desc("Draw a circle indicating my weapon's range.")]
-	class RenderRangeCircleInfo : ConditionalTraitInfo, IPlaceBuildingDecorationInfo, IRulesetLoaded, Requires<AttackBaseInfo>
+	class RenderRangeCircleInfo : ConditionalTraitInfo, IPlaceBuildingDecorationInfo, IRulesetLoaded
 	{
 		[Desc("Which armament to draw circle for.")]
 		public readonly string Armament = "primary";
@@ -139,7 +139,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 				if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 					yield break;
 
-				var range = RenderRangeCircleInfo.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
+				WDist range;
+				if (armament != null)
+					range = RenderRangeCircleInfo.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
+				else
+					range = RenderRangeCircleInfo.FallbackRange;
+
 				if (range == WDist.Zero)
 					yield break;
 
