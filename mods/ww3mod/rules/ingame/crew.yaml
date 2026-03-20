@@ -67,6 +67,8 @@ crew.driver.america:
 		Name: Driver
 	RenderSprites:
 		Image: e1.america
+	CrewMember:
+		Role: Driver
 
 crew.gunner.america:
 	Inherits: ^CrewMember
@@ -74,6 +76,8 @@ crew.gunner.america:
 		Name: Gunner
 	RenderSprites:
 		Image: e1.america
+	CrewMember:
+		Role: Gunner
 
 crew.commander.america:
 	Inherits: ^CrewMember
@@ -81,6 +85,8 @@ crew.commander.america:
 		Name: Commander
 	RenderSprites:
 		Image: e1.america
+	CrewMember:
+		Role: Commander
 
 # === Russia crew ===
 
@@ -90,6 +96,8 @@ crew.driver.russia:
 		Name: Driver
 	RenderSprites:
 		Image: e1.russia
+	CrewMember:
+		Role: Driver
 
 crew.gunner.russia:
 	Inherits: ^CrewMember
@@ -97,6 +105,8 @@ crew.gunner.russia:
 		Name: Gunner
 	RenderSprites:
 		Image: e1.russia
+	CrewMember:
+		Role: Gunner
 
 crew.commander.russia:
 	Inherits: ^CrewMember
@@ -104,3 +114,5 @@ crew.commander.russia:
 		Name: Commander
 	RenderSprites:
 		Image: e1.russia
+	CrewMember:
+		Role: Commander
