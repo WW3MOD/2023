@@ -286,6 +286,22 @@ AI is configured entirely via YAML in `mods/ww3mod/rules/ai/`:
 
 Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` (how to attack), `CaptureManagerBotModule` (what to capture), `BuildingRepairBotModule` (auto-repair).
 
+## Testing
+
+Unit tests live in `engine/OpenRA.Test/` (NUnit 3). Run with:
+```bash
+dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release
+```
+
+**WW3MOD-specific tests** (added March 2026):
+- `AmmoPoolTest.cs` — GiveAmmo/TakeAmmo clamping, initial ammo, SupplyValue, FullReloadTicks math
+- `SupplyProviderMathTest.cs` — distance-based delay formula, supply deduction, selection bar
+- `SuppressionMathTest.cs` — infantry/vehicle tier progressions, decay timing, caps, prone threshold
+
+**Dev helper script:** `./ww3-dev.ps1` — build, run, test, pre-flight checks, debug log cleanup
+
+**Note:** Game must be closed before building/testing (DLLs are locked while running).
+
 ## Common Pitfalls
 
 1. **Don't leave Console.WriteLine in engine code** — fires every tick, causes massive log spam
