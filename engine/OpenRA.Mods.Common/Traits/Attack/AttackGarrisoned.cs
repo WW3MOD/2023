@@ -134,12 +134,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
 		{
-			paxFacing[passenger] = passenger.Trait<IFacing>();
-			paxPos[passenger] = passenger.Trait<IPositionable>();
-			paxRender[passenger] = passenger.Trait<RenderSprites>();
-
+			// In GarrisonManager mode, pax dictionaries are managed when soldiers deploy/recall
+			// For legacy mode, track them on enter
 			if (!useGarrisonManager)
 			{
+				paxFacing[passenger] = passenger.Trait<IFacing>();
+				paxPos[passenger] = passenger.Trait<IPositionable>();
+				paxRender[passenger] = passenger.Trait<RenderSprites>();
+
 				legacyArmaments.AddRange(
 					passenger.TraitsImplementing<Armament>()
 					.Where(a => Info.Armaments.Contains(a.Info.Name)));
@@ -148,12 +150,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyPassengerExited.OnPassengerExited(Actor self, Actor passenger)
 		{
-			paxFacing.Remove(passenger);
-			paxPos.Remove(passenger);
-			paxRender.Remove(passenger);
-
 			if (!useGarrisonManager)
+			{
+				paxFacing.Remove(passenger);
+				paxPos.Remove(passenger);
+				paxRender.Remove(passenger);
 				legacyArmaments.RemoveAll(a => a.Actor == passenger);
+			}
+		}
+
+		// Ensure pax dictionaries have entries for a deployed soldier
+		void EnsurePaxTracking(Actor soldier)
+		{
+			if (!paxFacing.ContainsKey(soldier))
+				paxFacing[soldier] = soldier.Trait<IFacing>();
+			if (!paxPos.ContainsKey(soldier))
+				paxPos[soldier] = soldier.Trait<IPositionable>();
+			if (!paxRender.ContainsKey(soldier))
+				paxRender[soldier] = soldier.Trait<RenderSprites>();
 		}
 
 		FirePort SelectFirePort(Actor self, WAngle targetYaw)
@@ -205,11 +219,10 @@ namespace OpenRA.Mods.Common.Traits
 				DoGarrisonedAttack(self);
 
 				// Override IsAiming based on whether any port has an active target
-				// (AttackFollow.Tick may have set it to false since it doesn't see per-port targets)
 				for (var i = 0; i < garrisonManager.PortStates.Length; i++)
 				{
 					var ps = garrisonManager.PortStates[i];
-					if (ps.Occupant != null && ps.CurrentTarget.IsValidFor(self))
+					if (ps.DeployedSoldier != null && ps.CurrentTarget.IsValidFor(self))
 					{
 						IsAiming = true;
 						break;
@@ -232,7 +245,7 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
 			{
 				var ps = garrisonManager.PortStates[i];
-				if (ps.Occupant == null || ps.Occupant.IsDead)
+				if (ps.DeployedSoldier == null || ps.DeployedSoldier.IsDead)
 					continue;
 
 				if (!ps.CurrentTarget.IsValidFor(self))
@@ -248,15 +261,17 @@ namespace OpenRA.Mods.Common.Traits
 
 				var portOffset = GarrisonPortOffset(i);
 
-				// Position and face the passenger
-				if (!paxFacing.ContainsKey(ps.Occupant) || !paxPos.ContainsKey(ps.Occupant))
+				// Ensure we're tracking this deployed soldier
+				EnsurePaxTracking(ps.DeployedSoldier);
+
+				if (!paxFacing.ContainsKey(ps.DeployedSoldier) || !paxPos.ContainsKey(ps.DeployedSoldier))
 					continue;
 
-				paxFacing[ps.Occupant].Facing = targetYaw;
-				paxPos[ps.Occupant].SetCenterPosition(ps.Occupant, pos + portOffset);
+				paxFacing[ps.DeployedSoldier].Facing = targetYaw;
+				paxPos[ps.DeployedSoldier].SetCenterPosition(ps.DeployedSoldier, pos + portOffset);
 
 				// Fire each of the occupant's armaments
-				foreach (var a in ps.Occupant.TraitsImplementing<Armament>())
+				foreach (var a in ps.DeployedSoldier.TraitsImplementing<Armament>())
 				{
 					if (a.IsTraitDisabled)
 						continue;
@@ -273,9 +288,9 @@ namespace OpenRA.Mods.Common.Traits
 					if (barrel == null)
 						continue;
 
-					if (a.Info.MuzzleSequence != null && paxRender.ContainsKey(ps.Occupant))
+					if (a.Info.MuzzleSequence != null && paxRender.ContainsKey(ps.DeployedSoldier))
 					{
-						var muzzleAnim = new Animation(self.World, paxRender[ps.Occupant].GetImage(ps.Occupant), () => targetYaw);
+						var muzzleAnim = new Animation(self.World, paxRender[ps.DeployedSoldier].GetImage(ps.DeployedSoldier), () => targetYaw);
 						var sequence = a.Info.MuzzleSequence;
 						var muzzleFlash = new AnimationWithOffset(muzzleAnim,
 							() => portOffset,

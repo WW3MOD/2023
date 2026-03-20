@@ -53,7 +53,7 @@ namespace OpenRA.Mods.D2k.Traits
 			Info = info;
 		}
 
-		public override void DoAttack(Actor self, in Target target)
+		public override void DoAttack(Actor self, in Target target, bool isManualTarget = false)
 		{
 			// This is so that the worm does not launch an attack against a target that has reached solid rock
 			if (target.Type != TargetType.Actor || !CanAttack(self, target))

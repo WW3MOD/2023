@@ -38,7 +38,8 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly HashSet<string> PreferredRoles = new HashSet<string>();
 	}
 
-	[Desc("Manages garrison port assignments, intelligent targeting, and reload swapping for garrisoned buildings.")]
+	[Desc("Manages garrison port assignments with shelter/port deployment model. " +
+		"Soldiers enter shelter (Cargo) and deploy to ports (in-world) when targets appear.")]
 	public class GarrisonManagerInfo : TraitInfo, Requires<CargoInfo>
 	{
 		[FieldLoader.LoadUsing(nameof(LoadPorts))]
@@ -56,6 +57,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("If true, reloading port occupants are auto-swapped with reserve passengers that have ammo.")]
 		public readonly bool ReloadSwapping = true;
+
+		[Desc("Condition name to grant to soldiers deployed at ports.")]
+		public readonly string GarrisonedCondition = "garrisoned-at-port";
 
 		static object LoadPorts(MiniYaml yaml)
 		{
@@ -80,7 +84,13 @@ namespace OpenRA.Mods.Common.Traits
 	public class PortState
 	{
 		public readonly GarrisonPortInfo Port;
-		public Actor Occupant;
+
+		// Deployed soldier: in-world at port position (sprite hidden, pips visible, targetable)
+		public Actor DeployedSoldier;
+
+		// Condition token for the garrisoned-at-port condition on the deployed soldier
+		public int ConditionToken = Actor.InvalidConditionToken;
+
 		public Target CurrentTarget;
 		public int TargetLockTicks;
 		public bool PlayerOverride;
@@ -94,19 +104,22 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class GarrisonManager : INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
-		ITick, IResolveOrder
+		ITick, IResolveOrder, INotifyKilled
 	{
 		public readonly GarrisonManagerInfo Info;
 		readonly Actor self;
 
 		public PortState[] PortStates { get; private set; }
 
-		// Reserve passengers (loaded but not assigned to a port)
-		readonly List<Actor> reservePassengers = new List<Actor>();
+		// Shelter passengers: soldiers inside Cargo waiting to deploy
+		readonly List<Actor> shelterPassengers = new List<Actor>();
 
 		Cargo cargo;
 		AutoTarget autoTarget;
 		int tickOffset;
+
+		// Suppress flag: prevents OnPassengerEntered/Exited from running during internal transitions
+		bool suppressNotifications;
 
 		// Force attack target set by player
 		Target forceTarget = Target.Invalid;
@@ -130,124 +143,208 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
 		{
-			AssignPassengerToPort(passenger);
+			if (suppressNotifications)
+				return;
+
+			// New passenger enters → goes to shelter
+			shelterPassengers.Add(passenger);
 		}
 
 		void INotifyPassengerExited.OnPassengerExited(Actor self, Actor passenger)
 		{
-			RemovePassengerFromPort(passenger);
-		}
-
-		void AssignPassengerToPort(Actor passenger)
-		{
-			// Check if passenger has a weapon — weaponless passengers go to reserve
-			var armaments = passenger.TraitsImplementing<Armament>().ToArray();
-			if (armaments.Length == 0)
-			{
-				reservePassengers.Add(passenger);
+			if (suppressNotifications)
 				return;
-			}
 
-			// Find the best empty port for this passenger
-			var role = GetGarrisonRole(passenger);
-			var bestPort = -1;
-			var bestScore = int.MinValue;
-
+			// Player-initiated eject: check if soldier was deployed at a port
 			for (var i = 0; i < PortStates.Length; i++)
 			{
-				if (PortStates[i].Occupant != null)
-					continue;
-
-				var score = PortStates[i].Port.Priority;
-
-				// Bonus if port prefers this role
-				if (PortStates[i].Port.PreferredRoles.Count > 0 && PortStates[i].Port.PreferredRoles.Contains(role))
-					score += 100;
-
-				if (score > bestScore)
+				if (PortStates[i].DeployedSoldier == passenger)
 				{
-					bestScore = score;
-					bestPort = i;
-				}
-			}
-
-			if (bestPort >= 0)
-			{
-				PortStates[bestPort].Occupant = passenger;
-				PortStates[bestPort].CurrentTarget = Target.Invalid;
-				PortStates[bestPort].TargetLockTicks = 0;
-				PortStates[bestPort].PlayerOverride = false;
-			}
-			else
-			{
-				// All ports full, go to reserve
-				reservePassengers.Add(passenger);
-			}
-		}
-
-		void RemovePassengerFromPort(Actor passenger)
-		{
-			// Check ports first
-			for (var i = 0; i < PortStates.Length; i++)
-			{
-				if (PortStates[i].Occupant == passenger)
-				{
-					PortStates[i].Occupant = null;
+					// Soldier was at port but is being ejected via Cargo
+					// Revoke condition so they become normal infantry
+					RevokePortCondition(i);
+					PortStates[i].DeployedSoldier = null;
 					PortStates[i].CurrentTarget = Target.Invalid;
 					PortStates[i].TargetLockTicks = 0;
 					PortStates[i].PlayerOverride = false;
-
-					// Auto-promote from reserve
-					PromoteFromReserve(i);
 					return;
 				}
 			}
 
-			// Check reserve
-			reservePassengers.Remove(passenger);
+			// Was in shelter
+			shelterPassengers.Remove(passenger);
 		}
 
-		void PromoteFromReserve(int portIndex)
+		// Deploy a shelter soldier to a port (shelter → port)
+		void DeployToPort(int portIndex, Actor soldier)
 		{
-			if (reservePassengers.Count == 0)
+			// Remove from shelter list
+			shelterPassengers.Remove(soldier);
+
+			// Remove from Cargo (suppress notifications so we don't trigger OnPassengerExited)
+			suppressNotifications = true;
+			cargo.Unload(self, soldier);
+			suppressNotifications = false;
+
+			// Get port world position
+			var coords = self.Trait<BodyOrientation>();
+			var portWorldPos = self.CenterPosition + GetPortWorldOffset(portIndex, coords);
+
+			// Add to world at port position
+			self.World.AddFrameEndTask(w =>
+			{
+				if (self.IsDead || soldier.IsDead)
+					return;
+
+				var positionable = soldier.Trait<IPositionable>();
+				positionable.SetPosition(soldier, self.Location);
+				positionable.SetCenterPosition(soldier, portWorldPos);
+				w.Add(soldier);
+
+				// Grant garrisoned condition (hides sprite, pauses movement/attack)
+				PortStates[portIndex].ConditionToken = soldier.GrantCondition(Info.GarrisonedCondition);
+			});
+
+			// Assign to port
+			PortStates[portIndex].DeployedSoldier = soldier;
+			PortStates[portIndex].CurrentTarget = Target.Invalid;
+			PortStates[portIndex].TargetLockTicks = 0;
+			PortStates[portIndex].PlayerOverride = false;
+		}
+
+		// Recall a deployed soldier from port to shelter (port → shelter)
+		void RecallToShelter(int portIndex)
+		{
+			var soldier = PortStates[portIndex].DeployedSoldier;
+			if (soldier == null || soldier.IsDead)
 				return;
 
-			var portInfo = PortStates[portIndex].Port;
-			Actor bestReserve = null;
+			// Clear port assignment
+			var soldierRef = soldier;
+			PortStates[portIndex].DeployedSoldier = null;
+			PortStates[portIndex].CurrentTarget = Target.Invalid;
+			PortStates[portIndex].TargetLockTicks = 0;
+			PortStates[portIndex].PlayerOverride = false;
+
+			// Revoke garrisoned condition
+			RevokePortCondition(portIndex);
+
+			// Remove from world and add back to Cargo
+			self.World.AddFrameEndTask(w =>
+			{
+				if (self.IsDead || soldierRef.IsDead)
+					return;
+
+				w.Remove(soldierRef);
+
+				// Add back to Cargo (suppress notifications)
+				suppressNotifications = true;
+				cargo.Load(self, soldierRef);
+				suppressNotifications = false;
+
+				// Add to shelter list
+				shelterPassengers.Add(soldierRef);
+			});
+		}
+
+		void RevokePortCondition(int portIndex)
+		{
+			var token = PortStates[portIndex].ConditionToken;
+			var soldier = PortStates[portIndex].DeployedSoldier;
+			if (token != Actor.InvalidConditionToken && soldier != null && !soldier.IsDead && soldier.TokenValid(token))
+			{
+				soldier.RevokeCondition(token);
+				PortStates[portIndex].ConditionToken = Actor.InvalidConditionToken;
+			}
+		}
+
+		// Find the best shelter soldier to deploy at a given port for a given target
+		Actor FindBestShelterSoldier(int portIndex, in Target target)
+		{
+			Actor bestSoldier = null;
 			var bestScore = int.MinValue;
 
-			foreach (var r in reservePassengers)
+			foreach (var soldier in shelterPassengers)
 			{
-				// Only promote passengers with weapons
-				if (!r.TraitsImplementing<Armament>().Any())
+				if (soldier.IsDead)
 					continue;
 
-				var score = 0;
-				var role = GetGarrisonRole(r);
+				// Must have weapons
+				var armaments = soldier.TraitsImplementing<Armament>().ToArray();
+				if (armaments.Length == 0)
+					continue;
 
-				if (portInfo.PreferredRoles.Count > 0 && portInfo.PreferredRoles.Contains(role))
-					score += 100;
+				// Must have ammo
+				var ammo = soldier.TraitsImplementing<AmmoPool>().FirstOrDefault();
+				if (ammo != null && ammo.CurrentAmmoCount == 0)
+					continue;
 
-				// Prefer passengers with ammo
-				var ammo = r.TraitsImplementing<AmmoPool>().FirstOrDefault();
-				if (ammo != null && ammo.CurrentAmmoCount > 0)
-					score += 50;
+				// Check if weapon is valid against this target
+				var canHit = false;
+				foreach (var a in armaments)
+				{
+					if (!a.IsTraitDisabled && a.Weapon.IsValidAgainst(target, self.World, self))
+					{
+						canHit = true;
+						break;
+					}
+				}
 
+				if (!canHit)
+					continue;
+
+				var score = ScoreSoldierForDeployment(soldier, portIndex, target);
 				if (score > bestScore)
 				{
 					bestScore = score;
-					bestReserve = r;
+					bestSoldier = soldier;
 				}
 			}
 
-			if (bestReserve != null)
+			return bestSoldier;
+		}
+
+		int ScoreSoldierForDeployment(Actor soldier, int portIndex, in Target target)
+		{
+			var score = 1000;
+			var role = GetGarrisonRole(soldier);
+			var portInfo = PortStates[portIndex].Port;
+
+			// Role preference for this port
+			if (portInfo.PreferredRoles.Count > 0 && portInfo.PreferredRoles.Contains(role))
+				score += 100;
+
+			// Weapon effectiveness vs target type
+			if (target.Type == TargetType.Actor)
 			{
-				reservePassengers.Remove(bestReserve);
-				PortStates[portIndex].Occupant = bestReserve;
-				PortStates[portIndex].CurrentTarget = Target.Invalid;
-				PortStates[portIndex].TargetLockTicks = 0;
-				PortStates[portIndex].PlayerOverride = false;
+				var candidate = target.Actor;
+				var targetTypes = candidate.GetEnabledTargetTypes();
+				var isInfantry = targetTypes.Overlaps(new BitSet<TargetableType>("Infantry"));
+				var isVehicle = targetTypes.Overlaps(new BitSet<TargetableType>("Vehicle"))
+					|| targetTypes.Overlaps(new BitSet<TargetableType>("Heavy"));
+
+				switch (role)
+				{
+					case "AntiTank":
+						if (isVehicle) score += 500;
+						if (isInfantry) score -= 300;
+						break;
+					case "MachineGunner":
+						if (isInfantry) score += 400;
+						if (isVehicle) score -= 200;
+						break;
+					case "Sniper":
+						if (isInfantry) score += 300;
+						break;
+				}
 			}
+
+			// Prefer soldiers with more ammo
+			var ammo = soldier.TraitsImplementing<AmmoPool>().FirstOrDefault();
+			if (ammo != null)
+				score += ammo.CurrentAmmoCount * 20;
+
+			return score;
 		}
 
 		public static string GetGarrisonRole(Actor passenger)
@@ -268,38 +365,96 @@ namespace OpenRA.Mods.Common.Traits
 				if (PortStates[i].SwapCooldownRemaining > 0)
 					PortStates[i].SwapCooldownRemaining--;
 
-			// Per-port targeting (staggered)
+			// Per-port management: deploy/recall/target
 			for (var i = 0; i < PortStates.Length; i++)
 			{
 				var ps = PortStates[i];
-				if (ps.Occupant == null || ps.Occupant.IsDead)
-				{
-					if (ps.Occupant != null)
-					{
-						ps.Occupant = null;
-						ps.CurrentTarget = Target.Invalid;
-						PromoteFromReserve(i);
-					}
 
+				// Handle dead deployed soldiers
+				if (ps.DeployedSoldier != null && ps.DeployedSoldier.IsDead)
+				{
+					ps.DeployedSoldier = null;
+					ps.ConditionToken = Actor.InvalidConditionToken;
+					ps.CurrentTarget = Target.Invalid;
+					ps.TargetLockTicks = 0;
+					ps.PlayerOverride = false;
+
+					// Try to promote a shelter soldier to this port
+					PromoteFromShelter(i);
 					continue;
+				}
+
+				// Update deployed soldier position each tick (in case building moves/rotates)
+				if (ps.DeployedSoldier != null)
+				{
+					var coords = self.Trait<BodyOrientation>();
+					var portWorldPos = self.CenterPosition + GetPortWorldOffset(i, coords);
+					var positionable = ps.DeployedSoldier.Trait<IPositionable>();
+					positionable.SetCenterPosition(ps.DeployedSoldier, portWorldPos);
 				}
 
 				// Stagger target scanning across ports
 				if ((tickOffset + i) % Info.TargetScanInterval != 0)
 				{
-					// Still decrement lock ticks even on non-scan ticks
 					if (ps.TargetLockTicks > 0)
 						ps.TargetLockTicks--;
-
 					continue;
 				}
 
-				UpdatePortTarget(i);
-			}
+				// Port has a deployed soldier — update its target
+				if (ps.DeployedSoldier != null)
+				{
+					UpdatePortTarget(i);
 
-			// Reload swapping
-			if (Info.ReloadSwapping)
-				TryReloadSwap();
+					// If deployed soldier has no valid target and no ammo, recall for reload swap
+					if (!ps.CurrentTarget.IsValidFor(self) && Info.ReloadSwapping)
+					{
+						var ammoPools = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().ToArray();
+						if (ammoPools.Length > 0 && ammoPools.All(a => a.CurrentAmmoCount == 0))
+						{
+							// Check if there's a shelter soldier with ammo to take this port
+							var replacement = FindBestShelterSoldier(i, Target.Invalid);
+							if (replacement != null)
+							{
+								RecallToShelter(i);
+								// Replacement will be deployed next tick when PromoteFromShelter runs
+							}
+						}
+					}
+				}
+				else
+				{
+					// Port is empty — check if there's a target that warrants deployment
+					var target = ScanForTarget(i);
+					if (target.IsValidFor(self))
+					{
+						var soldier = FindBestShelterSoldier(i, target);
+						if (soldier != null)
+						{
+							DeployToPort(i, soldier);
+							ps.CurrentTarget = target;
+							ps.TargetLockTicks = Info.TargetScanInterval * 2;
+						}
+					}
+				}
+			}
+		}
+
+		// Promote the best shelter soldier to fill an empty port
+		void PromoteFromShelter(int portIndex)
+		{
+			// Scan for a target first — only deploy if there's something to shoot at
+			var target = ScanForTarget(portIndex);
+			if (!target.IsValidFor(self))
+				return;
+
+			var soldier = FindBestShelterSoldier(portIndex, target);
+			if (soldier != null)
+			{
+				DeployToPort(portIndex, soldier);
+				PortStates[portIndex].CurrentTarget = target;
+				PortStates[portIndex].TargetLockTicks = Info.TargetScanInterval * 2;
+			}
 		}
 
 		void UpdatePortTarget(int portIndex)
@@ -332,27 +487,48 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// Scan for best target
-			ps.CurrentTarget = ScanForBestTarget(portIndex);
+			ps.CurrentTarget = ScanForTarget(portIndex);
 			ps.TargetLockTicks = Info.TargetScanInterval;
 		}
 
-		Target ScanForBestTarget(int portIndex)
+		// Scan for best target visible from a port. Uses deployed soldier's armaments if present,
+		// otherwise checks what shelter soldiers could handle.
+		Target ScanForTarget(int portIndex)
 		{
-			var ps = PortStates[portIndex];
-			if (ps.Occupant == null)
-				return Target.Invalid;
-
-			// Get max range from occupant's armaments
+			// Determine max range from the deployed soldier or from shelter soldiers
 			var maxRange = WDist.Zero;
-			var armaments = ps.Occupant.TraitsImplementing<Armament>().ToArray();
-			foreach (var a in armaments)
-			{
-				if (a.IsTraitDisabled)
-					continue;
+			Armament[] armaments = null;
 
-				var range = a.MaxRange();
-				if (range > maxRange)
-					maxRange = range;
+			var ps = PortStates[portIndex];
+			if (ps.DeployedSoldier != null && !ps.DeployedSoldier.IsDead)
+			{
+				armaments = ps.DeployedSoldier.TraitsImplementing<Armament>().ToArray();
+				foreach (var a in armaments)
+				{
+					if (a.IsTraitDisabled)
+						continue;
+					var range = a.MaxRange();
+					if (range > maxRange)
+						maxRange = range;
+				}
+			}
+			else
+			{
+				// For empty ports, estimate range from shelter soldiers
+				foreach (var soldier in shelterPassengers)
+				{
+					if (soldier.IsDead)
+						continue;
+
+					foreach (var a in soldier.TraitsImplementing<Armament>())
+					{
+						if (a.IsTraitDisabled)
+							continue;
+						var range = a.MaxRange();
+						if (range > maxRange)
+							maxRange = range;
+					}
+				}
 			}
 
 			if (maxRange == WDist.Zero)
@@ -361,6 +537,7 @@ namespace OpenRA.Mods.Common.Traits
 			var pos = self.CenterPosition;
 			var candidates = self.World.FindActorsInCircle(pos, maxRange)
 				.Where(a => a != self && !a.IsDead && a.IsInWorld
+					&& !IsDeployedSoldierOf(a)
 					&& self.Owner.RelationshipWith(a.Owner).HasRelationship(PlayerRelationship.Enemy));
 
 			var bestScore = int.MinValue;
@@ -374,19 +551,22 @@ namespace OpenRA.Mods.Common.Traits
 				if (!IsTargetInPortArc(portIndex, target))
 					continue;
 
-				// Check if any armament can actually hit this target
-				var canHit = false;
-				foreach (var a in armaments)
+				// If we have a deployed soldier, check weapon validity
+				if (armaments != null)
 				{
-					if (!a.IsTraitDisabled && a.Weapon.IsValidAgainst(target, self.World, self))
+					var canHit = false;
+					foreach (var a in armaments)
 					{
-						canHit = true;
-						break;
+						if (!a.IsTraitDisabled && a.Weapon.IsValidAgainst(target, self.World, self))
+						{
+							canHit = true;
+							break;
+						}
 					}
-				}
 
-				if (!canHit)
-					continue;
+					if (!canHit)
+						continue;
+				}
 
 				var score = ScoreTarget(portIndex, candidate, target);
 				if (score > bestScore)
@@ -399,10 +579,20 @@ namespace OpenRA.Mods.Common.Traits
 			return bestTarget;
 		}
 
+		// Check if an actor is one of our deployed soldiers (to avoid targeting them)
+		bool IsDeployedSoldierOf(Actor a)
+		{
+			for (var i = 0; i < PortStates.Length; i++)
+				if (PortStates[i].DeployedSoldier == a)
+					return true;
+			return false;
+		}
+
 		int ScoreTarget(int portIndex, Actor candidate, in Target target)
 		{
 			var ps = PortStates[portIndex];
-			var role = GetGarrisonRole(ps.Occupant);
+			var occupant = ps.DeployedSoldier;
+			var role = occupant != null ? GetGarrisonRole(occupant) : "General";
 			var score = 1000;
 
 			// Weapon effectiveness based on role vs target type
@@ -422,7 +612,6 @@ namespace OpenRA.Mods.Common.Traits
 					if (isVehicle) score -= 200;
 					break;
 				case "AntiAir":
-					// AA soldiers prefer aircraft but can shoot ground
 					break;
 				case "Sniper":
 					if (isInfantry) score += 300;
@@ -435,14 +624,14 @@ namespace OpenRA.Mods.Common.Traits
 				var hasMGInPort = false;
 				for (var i = 0; i < PortStates.Length; i++)
 				{
-					if (i == portIndex || PortStates[i].Occupant == null)
+					if (i == portIndex || PortStates[i].DeployedSoldier == null)
 						continue;
 
-					var otherRole = GetGarrisonRole(PortStates[i].Occupant);
+					var otherRole = GetGarrisonRole(PortStates[i].DeployedSoldier);
 					if ((otherRole == "MachineGunner" || otherRole == "General") &&
 						IsTargetInPortArc(i, target))
 					{
-						var otherAmmo = PortStates[i].Occupant.TraitsImplementing<AmmoPool>().FirstOrDefault();
+						var otherAmmo = PortStates[i].DeployedSoldier.TraitsImplementing<AmmoPool>().FirstOrDefault();
 						if (otherAmmo == null || otherAmmo.CurrentAmmoCount > 0)
 						{
 							hasMGInPort = true;
@@ -456,9 +645,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Low ammo penalty
-			if (Info.AmmoConservation)
+			if (Info.AmmoConservation && occupant != null)
 			{
-				var ammo = ps.Occupant.TraitsImplementing<AmmoPool>().FirstOrDefault();
+				var ammo = occupant.TraitsImplementing<AmmoPool>().FirstOrDefault();
 				if (ammo != null && ammo.CurrentAmmoCount <= 1)
 					score -= 200;
 			}
@@ -517,67 +706,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			var targetYaw = delta.Yaw;
 
-			// Get body orientation for rotating port yaw
-			var bodyOrientation = self.TraitOrDefault<BodyOrientation>();
 			var bodyYaw = self.TraitOrDefault<IFacing>()?.Facing ?? WAngle.Zero;
 			var portYaw = bodyYaw + port.Yaw;
 
 			var leftTurn = (portYaw - targetYaw).Angle;
 			var rightTurn = (targetYaw - portYaw).Angle;
 			return Math.Min(leftTurn, rightTurn) <= port.Cone.Angle;
-		}
-
-		void TryReloadSwap()
-		{
-			for (var i = 0; i < PortStates.Length; i++)
-			{
-				var ps = PortStates[i];
-				if (ps.Occupant == null)
-					continue;
-
-				// Check if occupant is out of ammo
-				var ammoPools = ps.Occupant.TraitsImplementing<AmmoPool>().ToArray();
-				if (ammoPools.Length == 0)
-					continue;
-
-				var allEmpty = ammoPools.All(a => a.CurrentAmmoCount == 0);
-				if (!allEmpty)
-					continue;
-
-				// Find a reserve passenger with ammo and compatible role
-				var currentRole = GetGarrisonRole(ps.Occupant);
-				Actor bestReserve = null;
-
-				foreach (var r in reservePassengers)
-				{
-					if (r.IsDead || !r.TraitsImplementing<Armament>().Any())
-						continue;
-
-					var reserveAmmo = r.TraitsImplementing<AmmoPool>().FirstOrDefault();
-					if (reserveAmmo != null && reserveAmmo.CurrentAmmoCount == 0)
-						continue;
-
-					var reserveRole = GetGarrisonRole(r);
-					if (reserveRole == currentRole || reserveRole == "General")
-					{
-						bestReserve = r;
-						break;
-					}
-				}
-
-				if (bestReserve == null)
-					continue;
-
-				// Swap
-				var oldOccupant = ps.Occupant;
-				ps.Occupant = bestReserve;
-				ps.CurrentTarget = Target.Invalid;
-				ps.TargetLockTicks = 0;
-				ps.SwapCooldownRemaining = Info.SwapCooldown;
-
-				reservePassengers.Remove(bestReserve);
-				reservePassengers.Add(oldOccupant);
-			}
 		}
 
 		// Called by AttackGarrisoned when player issues force-attack
@@ -590,7 +724,18 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				for (var i = 0; i < PortStates.Length; i++)
 				{
-					if (PortStates[i].Occupant == null)
+					if (PortStates[i].DeployedSoldier == null)
+					{
+						// Try to deploy a shelter soldier for this target
+						if (IsTargetInPortArc(i, target))
+						{
+							var soldier = FindBestShelterSoldier(i, target);
+							if (soldier != null)
+								DeployToPort(i, soldier);
+						}
+					}
+
+					if (PortStates[i].DeployedSoldier == null)
 						continue;
 
 					if (IsTargetInPortArc(i, target))
@@ -618,26 +763,60 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		// Used by AttackGarrisoned to get all armaments from occupied ports
+		// Used by AttackGarrisoned to get all armaments from deployed port soldiers
 		public IEnumerable<Armament> GetAllArmaments()
 		{
 			for (var i = 0; i < PortStates.Length; i++)
 			{
-				if (PortStates[i].Occupant == null)
+				if (PortStates[i].DeployedSoldier == null || PortStates[i].DeployedSoldier.IsDead)
 					continue;
 
-				foreach (var a in PortStates[i].Occupant.TraitsImplementing<Armament>())
+				foreach (var a in PortStates[i].DeployedSoldier.TraitsImplementing<Armament>())
 					yield return a;
 			}
 		}
 
-		public IEnumerable<Actor> ReservePassengers => reservePassengers;
+		public IEnumerable<Actor> ShelterPassengers => shelterPassengers;
 		public int PortCount => PortStates.Length;
 
 		public WVec GetPortWorldOffset(int portIndex, BodyOrientation coords)
 		{
 			var bodyOrientation = coords.QuantizeOrientation(self.Orientation);
 			return coords.LocalToWorld(PortStates[portIndex].Port.Offset.Rotate(bodyOrientation));
+		}
+
+		// Building destroyed: deployed soldiers become free infantry, shelter soldiers ejected by Cargo
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			for (var i = 0; i < PortStates.Length; i++)
+			{
+				var soldier = PortStates[i].DeployedSoldier;
+				if (soldier == null || soldier.IsDead)
+					continue;
+
+				// Revoke garrisoned condition — sprite appears, movement enabled
+				RevokePortCondition(i);
+				PortStates[i].DeployedSoldier = null;
+
+				// They're already in world at port position, so they can scatter
+				// Apply some damage from building destruction
+				if (!soldier.IsDead)
+				{
+					var damage = e.Damage.Value;
+					if (damage > 0)
+					{
+						var soldierHealth = soldier.TraitOrDefault<Health>();
+						if (soldierHealth != null)
+						{
+							var damageToDeal = soldierHealth.MaxHP * damage / self.Trait<Health>().MaxHP;
+							damageToDeal += self.World.SharedRandom.Next(soldierHealth.MaxHP / 5);
+							soldier.InflictDamage(e.Attacker, new Damage(damageToDeal));
+						}
+					}
+				}
+			}
+
+			// Shelter soldiers are in Cargo and will be handled by Cargo.EjectOnDeath
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
@@ -651,7 +830,25 @@ namespace OpenRA.Mods.Common.Traits
 					if (passenger == null)
 						return;
 
-					// Check if passenger is in this building
+					// Check if passenger is deployed at a port
+					for (var i = 0; i < PortStates.Length; i++)
+					{
+						if (PortStates[i].DeployedSoldier == passenger)
+						{
+							// Revoke condition and clear port
+							RevokePortCondition(i);
+							PortStates[i].DeployedSoldier = null;
+							PortStates[i].CurrentTarget = Target.Invalid;
+							PortStates[i].TargetLockTicks = 0;
+							PortStates[i].PlayerOverride = false;
+
+							// Soldier is already in world, just needs to become normal infantry
+							// (condition revoked above enables sprite/movement/attack)
+							return;
+						}
+					}
+
+					// Check if passenger is in shelter (Cargo)
 					if (!cargo.Passengers.Contains(passenger))
 						return;
 
@@ -690,11 +887,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (targetPortIndex < 0)
 						return;
 
-					// Remove passenger from current position
+					// Find where the passenger currently is
 					var fromPort = -1;
 					for (var i = 0; i < PortStates.Length; i++)
 					{
-						if (PortStates[i].Occupant == passenger)
+						if (PortStates[i].DeployedSoldier == passenger)
 						{
 							fromPort = i;
 							break;
@@ -703,34 +900,45 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (fromPort >= 0)
 					{
-						// Swap if target port is occupied
-						if (PortStates[targetPortIndex].Occupant != null)
+						// Swap deployed soldiers between ports
+						if (PortStates[targetPortIndex].DeployedSoldier != null)
 						{
-							var otherOccupant = PortStates[targetPortIndex].Occupant;
-							PortStates[fromPort].Occupant = otherOccupant;
+							var otherSoldier = PortStates[targetPortIndex].DeployedSoldier;
+							var otherToken = PortStates[targetPortIndex].ConditionToken;
+							PortStates[fromPort].DeployedSoldier = otherSoldier;
+							PortStates[fromPort].ConditionToken = otherToken;
 							PortStates[fromPort].CurrentTarget = Target.Invalid;
 							PortStates[fromPort].TargetLockTicks = 0;
 						}
 						else
 						{
-							PortStates[fromPort].Occupant = null;
+							PortStates[fromPort].DeployedSoldier = null;
+							PortStates[fromPort].ConditionToken = Actor.InvalidConditionToken;
 							PortStates[fromPort].CurrentTarget = Target.Invalid;
 						}
 					}
 					else
 					{
-						// From reserve
-						reservePassengers.Remove(passenger);
+						// From shelter — deploy to port
+						if (shelterPassengers.Contains(passenger))
+						{
+							// If target port occupied, recall current occupant
+							if (PortStates[targetPortIndex].DeployedSoldier != null)
+								RecallToShelter(targetPortIndex);
 
-						// If target port occupied, move current occupant to reserve
-						if (PortStates[targetPortIndex].Occupant != null)
-							reservePassengers.Add(PortStates[targetPortIndex].Occupant);
+							DeployToPort(targetPortIndex, passenger);
+							return;
+						}
 					}
 
-					PortStates[targetPortIndex].Occupant = passenger;
-					PortStates[targetPortIndex].CurrentTarget = Target.Invalid;
-					PortStates[targetPortIndex].TargetLockTicks = 0;
-					PortStates[targetPortIndex].PlayerOverride = false;
+					if (fromPort >= 0)
+					{
+						PortStates[targetPortIndex].DeployedSoldier = passenger;
+						PortStates[targetPortIndex].ConditionToken = PortStates[fromPort >= 0 ? fromPort : targetPortIndex].ConditionToken;
+						PortStates[targetPortIndex].CurrentTarget = Target.Invalid;
+						PortStates[targetPortIndex].TargetLockTicks = 0;
+						PortStates[targetPortIndex].PlayerOverride = false;
+					}
 
 					break;
 				}
@@ -744,9 +952,12 @@ namespace OpenRA.Mods.Common.Traits
 						dstPortIdx < 0 || dstPortIdx >= PortStates.Length)
 						return;
 
-					var temp = PortStates[srcPortIdx].Occupant;
-					PortStates[srcPortIdx].Occupant = PortStates[dstPortIdx].Occupant;
-					PortStates[dstPortIdx].Occupant = temp;
+					var tempSoldier = PortStates[srcPortIdx].DeployedSoldier;
+					var tempToken = PortStates[srcPortIdx].ConditionToken;
+					PortStates[srcPortIdx].DeployedSoldier = PortStates[dstPortIdx].DeployedSoldier;
+					PortStates[srcPortIdx].ConditionToken = PortStates[dstPortIdx].ConditionToken;
+					PortStates[dstPortIdx].DeployedSoldier = tempSoldier;
+					PortStates[dstPortIdx].ConditionToken = tempToken;
 
 					// Reset targeting for both
 					PortStates[srcPortIdx].CurrentTarget = Target.Invalid;

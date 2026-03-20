@@ -70,15 +70,15 @@ namespace OpenRA.Mods.Common.Widgets
 				}
 			}
 
-			// Reserve info labels (RESERVE_LABEL_0 through RESERVE_LABEL_3)
+			// Shelter info labels (RESERVE_LABEL_0 through RESERVE_LABEL_3)
 			for (var i = 0; i < 4; i++)
 			{
-				var reserveIndex = i;
+				var shelterIndex = i;
 				var reserveLabel = panel.GetOrNull<LabelWidget>($"RESERVE_LABEL_{i}");
 				if (reserveLabel != null)
 				{
-					reserveLabel.GetText = () => GetReserveText(reserveIndex);
-					reserveLabel.IsVisible = () => IsReserveVisible(reserveIndex);
+					reserveLabel.GetText = () => GetShelterText(shelterIndex);
+					reserveLabel.IsVisible = () => IsShelterVisible(shelterIndex);
 				}
 			}
 
@@ -121,7 +121,13 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var gm = selected[0].TraitOrDefault<GarrisonManager>();
 			var c = selected[0].TraitOrDefault<Cargo>();
-			if (gm == null || c == null || c.IsEmpty())
+			if (gm == null || c == null)
+				return;
+
+			// Show panel if there are any soldiers (deployed or in shelter)
+			var hasDeployed = gm.PortStates.Any(ps => ps.DeployedSoldier != null);
+			var hasShelter = gm.ShelterPassengers.Any();
+			if (!hasDeployed && !hasShelter && c.IsEmpty())
 				return;
 
 			selectedGarrison = selected[0];
@@ -137,15 +143,15 @@ namespace OpenRA.Mods.Common.Widgets
 			var ps = garrisonManager.PortStates[portIndex];
 			var portName = ps.Port.Name;
 
-			if (ps.Occupant == null || ps.Occupant.IsDead)
+			if (ps.DeployedSoldier == null || ps.DeployedSoldier.IsDead)
 				return $"{portName}: (empty)";
 
-			var tooltip = ps.Occupant.TraitOrDefault<Tooltip>();
-			var unitName = tooltip?.Info.Name ?? ps.Occupant.Info.Name;
-			var role = GarrisonManager.GetGarrisonRole(ps.Occupant);
+			var tooltip = ps.DeployedSoldier.TraitOrDefault<Tooltip>();
+			var unitName = tooltip?.Info.Name ?? ps.DeployedSoldier.Info.Name;
+			var role = GarrisonManager.GetGarrisonRole(ps.DeployedSoldier);
 
 			var ammoStr = "";
-			var ammo = ps.Occupant.TraitsImplementing<AmmoPool>().FirstOrDefault();
+			var ammo = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().FirstOrDefault();
 			if (ammo != null)
 				ammoStr = $" [{ammo.CurrentAmmoCount}/{ammo.Info.Ammo}]";
 
@@ -162,7 +168,7 @@ namespace OpenRA.Mods.Common.Widgets
 			if (garrisonManager == null || portIndex >= garrisonManager.PortStates.Length)
 				return false;
 
-			return garrisonManager.PortStates[portIndex].Occupant != null;
+			return garrisonManager.PortStates[portIndex].DeployedSoldier != null;
 		}
 
 		void EjectPortOccupant(int portIndex)
@@ -170,36 +176,36 @@ namespace OpenRA.Mods.Common.Widgets
 			if (garrisonManager == null || portIndex >= garrisonManager.PortStates.Length)
 				return;
 
-			var occ = garrisonManager.PortStates[portIndex].Occupant;
-			if (occ == null || selectedGarrison == null)
+			var soldier = garrisonManager.PortStates[portIndex].DeployedSoldier;
+			if (soldier == null || selectedGarrison == null)
 				return;
 
-			world.IssueOrder(new Order("EjectGarrisonPassenger", selectedGarrison, false) { ExtraData = occ.ActorID });
+			world.IssueOrder(new Order("EjectGarrisonPassenger", selectedGarrison, false) { ExtraData = soldier.ActorID });
 		}
 
-		string GetReserveText(int reserveIndex)
+		string GetShelterText(int shelterIndex)
 		{
 			if (garrisonManager == null)
 				return "";
 
-			var reserves = garrisonManager.ReservePassengers.ToArray();
-			if (reserveIndex >= reserves.Length)
+			var shelter = garrisonManager.ShelterPassengers.ToArray();
+			if (shelterIndex >= shelter.Length)
 				return "";
 
-			var pax = reserves[reserveIndex];
+			var pax = shelter[shelterIndex];
 			if (pax == null || pax.IsDead)
-				return "[R] (dead)";
+				return "[S] (dead)";
 
 			var tooltip = pax.TraitOrDefault<Tooltip>();
-			return $"[R] {tooltip?.Info.Name ?? pax.Info.Name}";
+			return $"[S] {tooltip?.Info.Name ?? pax.Info.Name}";
 		}
 
-		bool IsReserveVisible(int reserveIndex)
+		bool IsShelterVisible(int shelterIndex)
 		{
 			if (garrisonManager == null)
 				return false;
 
-			return reserveIndex < garrisonManager.ReservePassengers.Count();
+			return shelterIndex < garrisonManager.ShelterPassengers.Count();
 		}
 	}
 }

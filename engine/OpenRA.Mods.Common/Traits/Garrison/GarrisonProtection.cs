@@ -14,10 +14,11 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Scales damage pass-through to garrisoned occupants based on building health state.")]
+	[Desc("Scales damage pass-through to shelter occupants (inside Cargo) based on building health state. " +
+		"Port soldiers (deployed in-world) are NOT affected — they have their own DamageMultiplier via condition.")]
 	public class GarrisonProtectionInfo : TraitInfo, Requires<GarrisonManagerInfo>, Requires<CargoInfo>
 	{
-		[Desc("Percentage of damage absorbed by the building at full HP (0-100). Remainder passes to a random occupant.")]
+		[Desc("Percentage of damage absorbed by the building at full HP (0-100). Remainder passes to a random shelter occupant.")]
 		public readonly int BaseProtection = 80;
 
 		[Desc("Percentage of damage absorbed at critical damage state (0-100).")]
@@ -54,12 +55,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (garrisonManager == null || health == null || health.IsDead)
 				return;
 
-			// Find occupied ports
-			var occupiedPorts = garrisonManager.PortStates
-				.Where(ps => ps.Occupant != null && !ps.Occupant.IsDead)
+			// Only pass damage to shelter soldiers (those inside Cargo, not deployed at ports)
+			var shelterSoldiers = garrisonManager.ShelterPassengers
+				.Where(s => s != null && !s.IsDead)
 				.ToArray();
 
-			if (occupiedPorts.Length == 0)
+			if (shelterSoldiers.Length == 0)
 				return;
 
 			// Interpolate protection based on building HP percentage
@@ -75,11 +76,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (passThrough < info.MinPassThrough)
 				return;
 
-			// Pick a random occupied port deterministically
-			var targetIndex = self.World.SharedRandom.Next(occupiedPorts.Length);
-			var targetOccupant = occupiedPorts[targetIndex].Occupant;
+			// Pick a random shelter soldier deterministically
+			var targetIndex = self.World.SharedRandom.Next(shelterSoldiers.Length);
+			var targetSoldier = shelterSoldiers[targetIndex];
 
-			targetOccupant.InflictDamage(e.Attacker, new Damage(passThrough, e.Damage.DamageTypes));
+			targetSoldier.InflictDamage(e.Attacker, new Damage(passThrough, e.Damage.DamageTypes));
 		}
 	}
 }

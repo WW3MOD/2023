@@ -31,6 +31,7 @@
 		Locomotor: foot
 		CanRedirectMidCell: true
 		RedirectSpeedPenalty: 50
+		PauseOnCondition: garrisoned-at-port
 	SmartMove:
 	SelectionDecorations:
 		ShowNever: true
@@ -47,6 +48,9 @@
 	QuantizeFacingsFromSequence:
 		Sequence: stand
 	WithInfantryBody:
+		RequiresCondition: !garrisoned-at-port
+	ExternalCondition@GarrisonPort:
+		Condition: garrisoned-at-port
 	WithDeathAnimation:
 		DeathTypes:
 			DefaultDeath: 1
@@ -145,6 +149,12 @@
 	AttackFrontal:
 		FacingTolerance: 50
 		TargetFrozenActors: True
+		PauseOnCondition: garrisoned-at-port
+	AutoTarget:
+		PauseOnCondition: garrisoned-at-port
+	DamageMultiplier@GarrisonCover:
+		Modifier: 20
+		RequiresCondition: garrisoned-at-port
 	WithDecoration@AmmoReplenishing:
 		RequiresSelection: false
 		Image: pips
