@@ -29,10 +29,6 @@ Tick = function()
 		T90_3.AttackMove(CPos.New(24, 18), 0)
 	end
 
-	-- Slow camera pan right across the battlefield
-	if ticks > 30 and ticks < 1200 then
-		Camera.Position = Camera.Position + WVec.New(20, 0, 0)
-	end
 end
 
 WorldLoaded = function()
@@ -41,6 +37,6 @@ WorldLoaded = function()
 	usa = Player.GetPlayer("USA")
 	russia = Player.GetPlayer("Russia")
 
-	-- Center camera on USA side to see them advance
-	Camera.Position = WPos.New(1024 * 12, 1024 * 16, 0)
+	-- Center camera on the map (cell 32, 16)
+	Camera.Position = WPos.New(1024 * 32, 1024 * 16, 0)
 end
