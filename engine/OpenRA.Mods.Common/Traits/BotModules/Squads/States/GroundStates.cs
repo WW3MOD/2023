@@ -55,7 +55,13 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				// Set Hunt stance so units chase targets during attack
 				SetSquadEngagementStance(owner, EngagementStance.Hunt);
-				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: owner.Units.ToArray()));
+
+				// If squad has an approach waypoint (multi-axis attack), move there first
+				var attackTarget = owner.ApproachWaypoint ?? owner.TargetActor.Location;
+				if (owner.ApproachWaypoint.HasValue)
+					owner.ApproachWaypoint = null; // Consume the waypoint
+
+				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, attackTarget), false, groupedActors: owner.Units.ToArray()));
 
 				// We have gathered sufficient units. Attack the nearest enemy unit.
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState(), true);

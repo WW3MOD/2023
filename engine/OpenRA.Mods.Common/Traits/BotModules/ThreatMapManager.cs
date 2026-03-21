@@ -340,6 +340,80 @@ namespace OpenRA.Mods.Common.Traits
 			return world.WorldTick - lastTick;
 		}
 
+		/// <summary>Find multiple enemy clusters for multi-axis attacks.
+		/// Returns up to maxTargets map cells with enemy presence, sorted by vulnerability
+		/// (weakest first), spread apart by at least minSpacing cells.</summary>
+		public List<CPos> FindAttackTargets(Player perspective, int maxTargets = 3, int minSpacing = 12)
+		{
+			var candidates = new List<(CPos Cell, float EnemyValue, float FriendlyValue)>();
+
+			for (var gx = 0; gx < gridWidth; gx++)
+			{
+				for (var gy = 0; gy < gridHeight; gy++)
+				{
+					var mapCell = GridToMapCell(gx, gy);
+					if (!world.Map.Contains(mapCell))
+						continue;
+
+					var worldPos = world.Map.CenterOfCell(mapCell);
+					var enemyValue = 0f;
+					var friendlyValue = 0f;
+					var hasEnemy = false;
+
+					foreach (var actor in world.FindActorsInCircle(worldPos, WDist.FromCells(info.CellSize)))
+					{
+						if (actor.IsDead || !actor.IsInWorld || actor.Owner == null || actor.Owner.NonCombatant)
+							continue;
+
+						var valuedInfo = actor.Info.TraitInfoOrDefault<ValuedInfo>();
+						if (valuedInfo == null)
+							continue;
+
+						var rel = perspective.RelationshipWith(actor.Owner);
+						if (rel == PlayerRelationship.Enemy)
+						{
+							hasEnemy = true;
+							enemyValue += valuedInfo.Cost;
+						}
+						else if (rel == PlayerRelationship.Ally || actor.Owner == perspective)
+						{
+							friendlyValue += valuedInfo.Cost;
+						}
+					}
+
+					if (hasEnemy)
+						candidates.Add((mapCell, enemyValue, friendlyValue));
+				}
+			}
+
+			// Sort by vulnerability: low enemy value and high friendly value = easy target
+			candidates.Sort((a, b) => (a.EnemyValue - a.FriendlyValue * 0.5f)
+				.CompareTo(b.EnemyValue - b.FriendlyValue * 0.5f));
+
+			// Select targets with minimum spacing between them
+			var results = new List<CPos>();
+			foreach (var candidate in candidates)
+			{
+				if (results.Count >= maxTargets)
+					break;
+
+				var tooClose = false;
+				foreach (var existing in results)
+				{
+					if ((candidate.Cell - existing).Length < minSpacing)
+					{
+						tooClose = true;
+						break;
+					}
+				}
+
+				if (!tooClose)
+					results.Add(candidate.Cell);
+			}
+
+			return results;
+		}
+
 		/// <summary>Get grid dimensions for debugging/iteration.</summary>
 		public int GridWidth => gridWidth;
 		public int GridHeight => gridHeight;

@@ -31,6 +31,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		internal Target Target;
 		internal StateMachine FuzzyStateMachine;
 
+		/// <summary>Optional waypoint hint for multi-axis attacks. Squad will attack-move
+		/// toward this cell before engaging the main target.</summary>
+		internal CPos? ApproachWaypoint;
+
 		public Squad(IBot bot, SquadManagerBotModule squadManager, SquadType type)
 			: this(bot, squadManager, type, null) { }
 

@@ -313,17 +313,57 @@ namespace OpenRA.Mods.Common.Traits
 			// (don't bother leaving any behind for defense)
 			var randomizedSquadSize = Info.SquadSize + World.LocalRandom.Next(Info.SquadSizeRandomBonus);
 
-			if (unitsHangingAroundTheBase.Count >= randomizedSquadSize)
+			if (unitsHangingAroundTheBase.Count < randomizedSquadSize)
+				return;
+
+			// Try multi-axis attack: if we have 2x squad size, split into two squads
+			// attacking different targets for a pincer effect
+			var threatMap = World.WorldActor.TraitOrDefault<ThreatMapManager>();
+			var canSplit = unitsHangingAroundTheBase.Count >= randomizedSquadSize * 1.5
+				&& threatMap != null
+				&& World.LocalRandom.Next(100) < 60; // 60% chance to split when able
+
+			if (canSplit)
 			{
-				var attackForce = RegisterNewSquad(bot, SquadType.Assault);
+				var targets = threatMap.FindAttackTargets(Player, 2, 12);
+				if (targets.Count >= 2)
+				{
+					// Split units roughly in half, with some randomness
+					var splitPoint = unitsHangingAroundTheBase.Count / 2 + World.LocalRandom.Next(-2, 3);
+					splitPoint = Math.Clamp(splitPoint, Info.SquadSize, unitsHangingAroundTheBase.Count - Info.SquadSize);
 
-				foreach (var a in unitsHangingAroundTheBase)
-					attackForce.Units.Add(a);
+					var squad1 = RegisterNewSquad(bot, SquadType.Assault);
+					var squad2 = RegisterNewSquad(bot, SquadType.Assault);
 
-				unitsHangingAroundTheBase.Clear();
-				foreach (var n in notifyIdleBaseUnits)
-					n.UpdatedIdleBaseUnits(unitsHangingAroundTheBase);
+					// Give each squad a different approach waypoint for flanking
+					squad1.ApproachWaypoint = targets[0];
+					squad2.ApproachWaypoint = targets[1];
+
+					for (var i = 0; i < unitsHangingAroundTheBase.Count; i++)
+					{
+						if (i < splitPoint)
+							squad1.Units.Add(unitsHangingAroundTheBase[i]);
+						else
+							squad2.Units.Add(unitsHangingAroundTheBase[i]);
+					}
+
+					unitsHangingAroundTheBase.Clear();
+					foreach (var n in notifyIdleBaseUnits)
+						n.UpdatedIdleBaseUnits(unitsHangingAroundTheBase);
+
+					return;
+				}
 			}
+
+			// Default: single squad attack
+			var attackForce = RegisterNewSquad(bot, SquadType.Assault);
+
+			foreach (var a in unitsHangingAroundTheBase)
+				attackForce.Units.Add(a);
+
+			unitsHangingAroundTheBase.Clear();
+			foreach (var n in notifyIdleBaseUnits)
+				n.UpdatedIdleBaseUnits(unitsHangingAroundTheBase);
 		}
 
 		void TryToRushAttack(IBot bot)
