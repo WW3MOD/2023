@@ -50,6 +50,9 @@ namespace OpenRA.Mods.Common.Activities
 		// To work around queued activity issues while minimizing changes to legacy behaviour
 		readonly bool evaluateNearestMovableCell;
 
+		// When true, the unit will never reverse — always turns and drives forward
+		public bool NoReverse { get; set; }
+
 		// Scriptable move order
 		// Ignores lane bias
 		public Move(Actor self, CPos destination, Color? targetLineColor = null)
@@ -180,7 +183,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Reverse movement: turn to face away from target and move backward if target is close and behind
 			// 120° cone behind the unit (60° each side of directly behind = angleDiff > 341)
-			if (mobile.Info.CanMoveBackward && destination.HasValue)
+			if (!NoReverse && mobile.Info.CanMoveBackward && destination.HasValue)
 			{
 				var maxCells = mobile.Info.BackwardMaxCells;
 				var distSq = (mobile.FromCell - destination.Value).LengthSquared;

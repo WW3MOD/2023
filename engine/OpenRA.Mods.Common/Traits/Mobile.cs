@@ -980,7 +980,8 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 
 				// Force-move bypasses WrapMove — pure movement, no SmartMove wrapping
-				self.QueueActivity(order.Queued, new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor));
+				// Force-move also disables reversing — the player wants the unit to drive forward to the target
+				self.QueueActivity(order.Queued, new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor) { NoReverse = true });
 				self.ShowTargetLines();
 			}
 
