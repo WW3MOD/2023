@@ -16,6 +16,7 @@ WW3MOD is a **total conversion** of OpenRA Red Alert into a modern World War 3 R
 - Create descriptive commit messages. No need to ask before committing.
 
 ### Communication Format
+- **Start every response with a short Red Alert / C&C quote, reference, or joke.** One line max. It should connect to what you're about to do — not random. No repeats within a session. Draw from the full C&C universe: Red Alert 1/2/3, Tiberium series, Generals — unit lines, advisor quotes, cutscenes, loading screen tips. Assume deep franchise knowledge. Occasionally roast the user or go dark-humor. When the user quotes C&C, answer in-character from the same game.
 - Every response MUST end with exactly two lines:
   ```
   TASK: <one-line description of what was tasked>
