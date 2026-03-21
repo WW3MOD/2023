@@ -60,6 +60,23 @@ Player:
 	# TODO: LCCV deployment needs custom strategic logic (evaluate need, find safe location, escort)
 	# Disabled until we have proper decision-making infrastructure for it.
 
+	# Scouting — sends fast units to explore the map and report enemy positions
+	ScoutBotModule@america:
+		RequiresCondition: enable-ai-any && player.nato
+		ScoutTypes: humvee
+		MaxScouts: 2
+		ScanInterval: 200
+		MinScoutDistance: 15
+		ScoutVisionRadius: 8
+
+	ScoutBotModule@russia:
+		RequiresCondition: enable-ai-any && player.brics
+		ScoutTypes: btr
+		MaxScouts: 2
+		ScanInterval: 200
+		MinScoutDistance: 15
+		ScoutVisionRadius: 8
+
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-any
