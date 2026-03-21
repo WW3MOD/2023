@@ -1,15 +1,22 @@
 -- Arena Shellmap: Tank Duel - 3 Abrams vs 3 T-90
 -- Uses tick-based commands (matching working shellmap pattern)
 
+print("arena.lua: Script loaded")
+
 ticks = 0
 moved = false
 
 Tick = function()
 	ticks = ticks + 1
 
+	if ticks == 1 then
+		print("arena.lua: First tick running")
+	end
+
 	-- Issue move commands at tick 50 (give actors time to initialize)
 	if ticks == 50 and not moved then
 		moved = true
+		print("arena.lua: Issuing move commands at tick 50")
 
 		-- USA tanks advance right toward center
 		Abrams1.AttackMove(CPos.New(40, 14), 0)
@@ -29,11 +36,11 @@ Tick = function()
 end
 
 WorldLoaded = function()
+	print("arena.lua: WorldLoaded called")
+
 	usa = Player.GetPlayer("USA")
 	russia = Player.GetPlayer("Russia")
 
 	-- Center camera on USA side to see them advance
 	Camera.Position = WPos.New(1024 * 12, 1024 * 16, 0)
-
-	Media.DisplayMessage("Arena: Tank Duel loaded", "Debug")
 end
