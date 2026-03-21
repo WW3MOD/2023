@@ -94,6 +94,25 @@ Player:
 		MaxFollowDistance: 35
 		MinNearbyFriendlies: 4
 
+	# Adaptive production — counter enemy composition
+	AdaptiveProductionBotModule@america:
+		RequiresCondition: enable-ai-any && player.nato
+		EvaluationInterval: 600
+		MaxRequestsPerCycle: 2
+		AntiVehicleUnits: at.america, abrams, bradley
+		AntiInfantryUnits: e3.america, ar.america, humvee
+		AntiAirUnits: aa.america, strykershorad
+		MinEnemySightings: 3
+
+	AdaptiveProductionBotModule@russia:
+		RequiresCondition: enable-ai-any && player.brics
+		EvaluationInterval: 600
+		MaxRequestsPerCycle: 2
+		AntiVehicleUnits: at.russia, t90, bmp2
+		AntiInfantryUnits: e3.russia, ar.russia, btr
+		AntiAirUnits: aa.russia, tunguska
+		MinEnemySightings: 3
+
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-any
