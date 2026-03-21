@@ -53,6 +53,8 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			if (AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemyUnits))
 			{
+				// Set Hunt stance so units chase targets during attack
+				SetSquadEngagementStance(owner, EngagementStance.Hunt);
 				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: owner.Units.ToArray()));
 
 				// We have gathered sufficient units. Attack the nearest enemy unit.
@@ -218,8 +220,26 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 
 			foreach (var a in owner.Units)
-				if (!BusyAttack(a))
-					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
+			{
+				if (BusyAttack(a))
+					continue;
+
+				// Send units with no ammo to resupply instead of uselessly attacking
+				var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
+				{
+					if (IsRearming(a))
+						continue;
+
+					if (!HasAmmo(ammoPools))
+					{
+						owner.Bot.QueueOrder(new Order("ReturnToBase", a, false));
+						continue;
+					}
+				}
+
+				owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
+			}
 
 			if (ShouldFlee(owner))
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
@@ -230,7 +250,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 	class GroundUnitsFleeState : GroundStateBase, IState
 	{
-		public void Activate(Squad owner) { }
+		public void Activate(Squad owner)
+		{
+			// Reset to Defensive stance when retreating
+			SetSquadEngagementStance(owner, EngagementStance.Defensive);
+		}
 
 		public void Tick(Squad owner)
 		{

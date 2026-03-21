@@ -150,5 +150,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			return true;
 		}
+
+		protected static void SetSquadEngagementStance(Squad squad, EngagementStance stance)
+		{
+			foreach (var a in squad.Units)
+				squad.Bot.QueueOrder(new Order("SetEngagementStance", a, false) { ExtraData = (uint)stance });
+		}
 	}
 }
