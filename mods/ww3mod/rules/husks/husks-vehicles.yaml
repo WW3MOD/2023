@@ -3,17 +3,21 @@
 	Inherits: ^BasicHusk
 	Inherits@2: ^ClassicFacingSpriteActor
 	Husk:
-		AllowedTerrain: Clear,Rough,Road,Beach
+		AllowedTerrain: Clear,Rough,Road,Beach,Water
 	WithAddedAnimation:
 		Image: huskdeath
 		Sequence: fuelburn
 		Palette: gensmkexploj
 		Offset: 0,-550,0
 	WithDamageOverlay:
-	ChangesHealth:
-		Step: -100
-		StartIfBelow: 101
-		Delay: 8
+	HuskDecay:
+		Delay: 2240
+		SinkDuration: 250
+		SinkDistance: 1c0
+		FadeDuration: 250
+		WaterDelay: 25
+		WaterSinkDuration: 200
+		WaterSinkDistance: 3c0
 	OwnerLostAction:
 		Action: ChangeOwner
 	CaptureManager:
