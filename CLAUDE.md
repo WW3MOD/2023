@@ -313,18 +313,19 @@ OpenRA uses `WDist` (World Distance) units throughout. The notation is `NcXXX`:
 - Burst wait increased (105%→150%), NO speed reduction
 - Defined in `^VehicleSuppressionEffects` template in vehicles.yaml
 
-**Fire stances (5 stances — controls WHEN to fire):**
-- HoldFire, Ambush (50% scan radius), ReturnFire, Defend, AttackAnything
-- Ambush added to UnitStance enum, UI button (Alt+G), condition support
+**Fire discipline (3 stances — controls WHEN to fire):**
+- HoldFire, Ambush, FireAtWill (default)
+- Ambush: pre-aim at targets, hold fire until spotted or damaged, coordinate with nearby allies
+- FireAtWill: fire at any valid target in range
+- Conditions: `stance-fireatwill`, `stance-ambush`, `stance-holdfire`
 
-**Engagement stances (4 stances — controls WHERE to position):**
-- HoldPosition, Defensive, Balanced (default), Hunt
-- Separate from fire stances — two independent UI bars
-- Hunt: chase targets aggressively (like old AttackAnything movement)
-- Balanced: fire from current position, reposition only if LOS blocked
-- Defensive: seek covered positions (Phase 2: uses ShadowLayer data)
+**Engagement stances (3 stances — controls WHERE to position):**
+- HoldPosition, Defensive (default), Hunt
+- Separate from fire stances — two independent UI bars (3 buttons each)
+- Hunt: chase targets aggressively, even out of range
+- Defensive: fire from current position, reposition only if LOS blocked (Phase 2: cover-seeking via ShadowLayer)
 - HoldPosition: never auto-reposition, only fire from current cell
-- Hotkeys: Ctrl+Alt+A/S/D/F (placeholder, subject to change)
+- Hotkeys: Alt+A/G/F (fire), Ctrl+Alt+A/D/F (engagement)
 - Engagement stance drives `allowMove` in AutoTarget scanning and movement decisions in Attack activity
 
 ## YAML Conventions
@@ -367,7 +368,7 @@ Each unit type has a base template file and two faction files:
 - AI improved (balanced builds, aircraft enabled, repair/capture modules)
 - Aircraft costs restored (were all set to 1 for testing)
 - **Suppression system completed** — vehicle suppression added (turret slow + inaccuracy, medium/large/huge caliber only), infantry suppression tuned
-- **Stances system implemented** — 5 stances: HoldFire, Ambush, ReturnFire, Defend, AttackAnything. Ambush = 50% scan radius, fires when close
+- **Stances system implemented** — 3+3 system: Fire discipline (HoldFire, Ambush, FireAtWill) + Engagement (HoldPosition, Defensive, Hunt). Ambush pre-aims and coordinates nearby allies
 - **Vehicle reverse movement** — tracked (50 ticks, 40% speed) and wheeled (30 ticks, 60% speed) can reverse instead of 180° turns
 - **Supply Route edge spawning** — units now spawn at map edge and march to rally point; buildings/defenses still spawn locally
 - **Bleedout animation fixed** — rot sequences now use existing e1 sprite frames instead of missing rot1-4/corpse1-3 files
@@ -382,10 +383,10 @@ Each unit type has a base template file and two faction files:
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
 - **Three-mode move system** — Move (right-click): SmartMove wrapping fires only in self-defense (under fire) or when target isn't already saturated with incoming damage (overkill check via AverageDamagePercent). Attack-Move (A+click): unchanged, fires at everything. Force-Move (Ctrl+click): pure movement via "ForceMove" order string, bypasses SmartMove wrapping entirely
-- **Engagement stances system** — 4 engagement stances (Hunt/Balanced/Defensive/HoldPosition) separate from fire stances. Controls positioning behavior: Hunt chases targets, Balanced fires from position (repositions only if LOS blocked), HoldPosition never auto-moves. Integrated with Attack activity, SmartMove, and AttackMove. UI bar + hotkeys (Ctrl+Alt+A/S/D/F). Phase 2 (shadow-based cover seeking for Defensive) planned in `DOCS/SHADOW_LOS_PLAN.md`
+- **Stance system consolidated to 3+3** — Removed redundant stances (ReturnFire, Defend, AttackAnything, Balanced). Fire discipline: HoldFire/Ambush/FireAtWill. Engagement: HoldPosition/Defensive/Hunt. 6 total buttons (was 9). All enums, conditions, UI, hotkeys, and YAML updated across engine and all mods. Phase 2 (shadow-based cover seeking for Defensive) planned in `DOCS/SHADOW_LOS_PLAN.md`
 
 ### Next Priorities
-1. **Engagement stance playtesting** — verify Hunt chases targets, Balanced repositions only on LOS block, HoldPosition never moves, fire stance + engagement stance combos work correctly, AI defaults to Balanced
+1. **Stance system playtesting** — verify 3+3 system works: Hunt chases targets, Defensive repositions only on LOS block, HoldPosition never moves, all fire+engagement combos work, AI defaults to FireAtWill+Defensive
 2. **Shadow falloff + firing LOS (Phase 2)** — distance-based shadow falloff from viewer, per-unit ClearSightThreshold for firing, Defensive stance cover-seeking using ShadowLayer. See `DOCS/SHADOW_LOS_PLAN.md`
 3. **Three-mode move playtesting** — tune OverkillThreshold (100), UnderFireDuration (75 ticks), verify Force-Move never fires, verify regular move lets some units peel off while rest keep moving
 4. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
