@@ -763,6 +763,9 @@ SAM:
 		Color: 66B2FF
 HSAM:
 	Inherits: SAM
+	OwnerLostAction:
+		Action: ChangeOwner
+		Owner: Neutral
 	-AttackTurreted:
 	-SpawnActorOnDeath:
 	Buildable:

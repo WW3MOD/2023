@@ -331,6 +331,9 @@ SUPPLYROUTE:
 
 LOGISTICSCENTER:
 	Inherits: ^Building
+	OwnerLostAction:
+		Action: ChangeOwner
+		Owner: Neutral
 	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
 		Condition: mcv-undeploys
 		Prerequisites: global-mcv-undeploys
