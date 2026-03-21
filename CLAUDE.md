@@ -313,9 +313,19 @@ OpenRA uses `WDist` (World Distance) units throughout. The notation is `NcXXX`:
 - Burst wait increased (105%→150%), NO speed reduction
 - Defined in `^VehicleSuppressionEffects` template in vehicles.yaml
 
-**Stances system (5 stances):**
+**Fire stances (5 stances — controls WHEN to fire):**
 - HoldFire, Ambush (50% scan radius), ReturnFire, Defend, AttackAnything
 - Ambush added to UnitStance enum, UI button (Alt+G), condition support
+
+**Engagement stances (4 stances — controls WHERE to position):**
+- HoldPosition, Defensive, Balanced (default), Hunt
+- Separate from fire stances — two independent UI bars
+- Hunt: chase targets aggressively (like old AttackAnything movement)
+- Balanced: fire from current position, reposition only if LOS blocked
+- Defensive: seek covered positions (Phase 2: uses ShadowLayer data)
+- HoldPosition: never auto-reposition, only fire from current cell
+- Hotkeys: Ctrl+Alt+A/S/D/F (placeholder, subject to change)
+- Engagement stance drives `allowMove` in AutoTarget scanning and movement decisions in Attack activity
 
 ## YAML Conventions
 
@@ -372,17 +382,17 @@ Each unit type has a base template file and two faction files:
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
 - **Three-mode move system** — Move (right-click): SmartMove wrapping fires only in self-defense (under fire) or when target isn't already saturated with incoming damage (overkill check via AverageDamagePercent). Attack-Move (A+click): unchanged, fires at everything. Force-Move (Ctrl+click): pure movement via "ForceMove" order string, bypasses SmartMove wrapping entirely
+- **Engagement stances system** — 4 engagement stances (Hunt/Balanced/Defensive/HoldPosition) separate from fire stances. Controls positioning behavior: Hunt chases targets, Balanced fires from position (repositions only if LOS blocked), HoldPosition never auto-moves. Integrated with Attack activity, SmartMove, and AttackMove. UI bar + hotkeys (Ctrl+Alt+A/S/D/F). Phase 2 (shadow-based cover seeking for Defensive) planned in `DOCS/SHADOW_LOS_PLAN.md`
 
 ### Next Priorities
-1. **Three-mode move playtesting** — tune OverkillThreshold (100), UnderFireDuration (75 ticks), verify Force-Move never fires, verify regular move lets some units peel off while rest keep moving
-2. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
-2. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
-2. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
-3. **Garrison shelter/port playtesting** — verify soldiers deploy to ports when enemies appear, pips visible at port positions, direct selection works, force-move ejects, building death frees port soldiers, HoldFire prevents deployment, reload swap works between shelter and port
-4. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
-5. **Per-Supply-Route production queues** — each SR should have independent build queues (requires engine changes)
-6. **Per-unit rot sprites** — bleedout uses generic e1 frames; ideally each unit type has its own corpse sprites
-7. **Group Scatter polish** — test with mixed unit types, consider UI feedback (target lines showing distribution)
+1. **Engagement stance playtesting** — verify Hunt chases targets, Balanced repositions only on LOS block, HoldPosition never moves, fire stance + engagement stance combos work correctly, AI defaults to Balanced
+2. **Shadow falloff + firing LOS (Phase 2)** — distance-based shadow falloff from viewer, per-unit ClearSightThreshold for firing, Defensive stance cover-seeking using ShadowLayer. See `DOCS/SHADOW_LOS_PLAN.md`
+3. **Three-mode move playtesting** — tune OverkillThreshold (100), UnderFireDuration (75 ticks), verify Force-Move never fires, verify regular move lets some units peel off while rest keep moving
+4. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
+5. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
+6. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
+7. **Garrison shelter/port playtesting** — verify soldiers deploy to ports when enemies appear, pips visible at port positions, direct selection works, force-move ejects, building death frees port soldiers, HoldFire prevents deployment, reload swap works between shelter and port
+8. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 
 ### Remaining Branches
 - `skane`/`xavi` — cherry-pick useful parts (map data, sprites)
