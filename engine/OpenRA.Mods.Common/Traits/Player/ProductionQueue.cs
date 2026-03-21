@@ -510,6 +510,12 @@ namespace OpenRA.Mods.Common.Traits
 				case "CancelProduction":
 					CancelProduction(order.TargetString, order.ExtraData);
 					break;
+				case "PauseAllProduction":
+					PauseAllProduction(order.ExtraData != 0);
+					break;
+				case "CancelAllProduction":
+					ClearQueue();
+					break;
 			}
 		}
 
@@ -545,6 +551,17 @@ namespace OpenRA.Mods.Common.Traits
 		protected void PauseProduction(string itemName, bool paused)
 		{
 			Queue.FirstOrDefault(a => a.Item == itemName)?.Pause(paused);
+		}
+
+		protected void PauseAllProduction(bool paused)
+		{
+			foreach (var item in Queue)
+				item.Pause(paused);
+		}
+
+		public bool IsAllPaused()
+		{
+			return Queue.Count > 0 && Queue.All(i => i.Paused);
 		}
 
 		protected void CancelProduction(string itemName, uint numberToCancel)

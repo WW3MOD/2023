@@ -282,6 +282,16 @@ namespace OpenRA
 			return new Order("CancelProduction", subject, false) { ExtraData = (uint)count, TargetString = item };
 		}
 
+		public static Order PauseAllProduction(Actor subject, bool pause)
+		{
+			return new Order("PauseAllProduction", subject, false) { ExtraData = pause ? 1u : 0u };
+		}
+
+		public static Order CancelAllProduction(Actor subject)
+		{
+			return new Order("CancelAllProduction", subject, false);
+		}
+
 		// For scripting special powers
 		public Order()
 			: this(null, null, Target.Invalid, null, false, null, CPos.Zero, 0) { }

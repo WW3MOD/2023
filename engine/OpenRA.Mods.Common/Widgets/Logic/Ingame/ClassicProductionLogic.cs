@@ -48,10 +48,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			button.OnClick = () => SelectTab(false);
 			button.IsHighlighted = () => queues.Contains(palette.CurrentQueue);
 
+			// Right-click: toggle pause/resume all items in this category
+			button.OnRightClick = () =>
+			{
+				var anyActive = queues.Any(q => q.AllQueued().Any() && !q.IsAllPaused());
+				foreach (var q in queues.Where(q => q.Enabled && q.AllQueued().Any()))
+					world.IssueOrder(Order.PauseAllProduction(q.Actor, anyActive));
+			};
+
+			// Middle-click: cancel all items in this category
+			button.OnMiddleClick = () =>
+			{
+				foreach (var q in queues.Where(q => q.Enabled && q.AllQueued().Any()))
+					world.IssueOrder(Order.CancelAllProduction(q.Actor));
+			};
+
 			var chromeName = button.ProductionGroup.ToLowerInvariant();
 			var icon = button.Get<ImageWidget>("ICON");
-			icon.GetImageName = () => button.IsDisabled() ? chromeName + "-disabled" :
-				queues.Any(q => q.AllQueued().Any(i => i.Done)) ? chromeName + "-alert" : chromeName;
+			icon.GetImageName = () =>
+			{
+				if (button.IsDisabled())
+					return chromeName + "-disabled";
+
+				if (queues.Any(q => q.AllQueued().Any(i => i.Done)))
+					return chromeName + "-alert";
+
+				if (queues.Any(q => q.IsAllPaused()))
+					return chromeName + "-disabled";
+
+				return chromeName;
+			};
 		}
 
 		[ObjectCreator.UseCtor]
