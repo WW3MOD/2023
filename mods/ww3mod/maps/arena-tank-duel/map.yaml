@@ -58,3 +58,5 @@ Actors:
 		Owner: Russia
 		Location: 52,18
 		Facing: 256
+
+Rules: rules.yaml
