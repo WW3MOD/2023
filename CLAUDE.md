@@ -27,6 +27,92 @@ WW3MOD is a **total conversion** of OpenRA Red Alert into a modern World War 3 R
 - Do this without asking first.
 - After updating, write a condensed summary of what changed at the end of the response (before TASK/TLDR).
 
+### Session Workflow
+On session start:
+1. Read `CLAUDE/HOTBOARD.md` and scan `CLAUDE/DISCOVERIES.md` for recent entries
+2. Glob `CLAUDE/sessions/active_*.md` — if any exist, read them (may be a parallel agent). Note their intended files to avoid conflicts
+3. Write `CLAUDE/sessions/active_<YYMMDD_HHMM>_<topic>.md` before making code changes (task summary, intended files, status: in-progress)
+
+During session:
+- Unrelated bugs found → append to `CLAUDE/bugs/discovered.md`
+- Non-obvious insights → append to `CLAUDE/DISCOVERIES.md` (dated)
+- Stable patterns that apply broadly → also add to this CLAUDE.md
+
+### Completion Bell
+Ring the terminal bell (`printf "\a"`) when a significant task is complete, so the user knows to check back.
+
+## Commands
+
+User can type these keywords to trigger specific workflows. Commands are **uppercase** for clarity.
+
+### PLAN
+Enter planning mode for a new feature or change.
+1. Ask the user clarifying questions — keep asking until the user says the plan is sufficient
+2. During planning, research relevant code (read files, grep for patterns, check existing systems)
+3. Write the final plan to `CLAUDE/plans/<YYMMDD>_<topic>.md` with:
+   - Goal, constraints, affected files, step-by-step implementation, risks/open questions
+4. Summarize the plan in chat and wait for approval before implementing
+
+### FINALIZE
+Mandatory wrap-up routine. Run after completing any feature/fix.
+1. `printf "\a"` — ring the bell
+2. Double-check work against `CLAUDE/DISCOVERIES.md` — ensure nothing was violated
+3. Update `CLAUDE/HOTBOARD.md` — refresh active concerns, recent wins, stats
+4. Promote session file: rename `active_*.md` → `CLAUDE/sessions/<YYMMDD>_<topic>.md`
+5. Update `CLAUDE/BACKLOG.md` — add deferred items, mark completed with `[x]`
+6. Auto-commit all changes (descriptive message)
+7. Review this CLAUDE.md — new pattern? Structural change? Recurring gotcha? Update if yes
+
+### TESTING
+Prepare for a playtest session.
+1. Build the project (`./make.ps1 all`)
+2. List what to test — pull from HOTBOARD active concerns and recent changes
+3. Write a testing checklist to `CLAUDE/plans/<YYMMDD>_testing_<topic>.md` with:
+   - What to test, expected behavior, edge cases to try, what to look for
+4. After user reports results, capture findings (bugs → `CLAUDE/bugs/discovered.md`, tuning notes → HOTBOARD)
+
+### STATUS
+Quick orientation on where things stand.
+1. Read `CLAUDE/HOTBOARD.md`, recent git log (5 commits), and any `active_*.md` sessions
+2. Print a concise summary: what was last worked on, what's active now, what's next
+
+### BUGFIX <description>
+Structured bug investigation.
+1. Reproduce understanding — ask user for repro steps if not provided
+2. Research: grep for relevant code, read related files, check DISCOVERIES.md for known patterns
+3. Form hypothesis, implement fix
+4. Add to `CLAUDE/bugs/discovered.md` if found while working on something else
+5. If the bug reveals a new gotcha, add to DISCOVERIES.md and consider adding to Common Pitfalls in CLAUDE.md
+
+### REVIEW
+Review recent changes for quality.
+1. `git diff HEAD~N` (ask user for range, default last commit)
+2. Check for: common pitfalls (see below), leftover debug code, YAML formatting issues, missing condition wiring
+3. Report findings, fix issues with user approval
+
+## CLAUDE/ Folder
+
+Claude's workspace for session tracking, plans, discoveries, and notes. Primarily for Claude's use across sessions, secondarily for user reference.
+
+```
+CLAUDE/
+├── HOTBOARD.md          # Live dashboard (max 40 lines, rotate old items)
+├── BACKLOG.md           # Deferred tasks & ideas ([ ]/[x]/[dropped])
+├── DISCOVERIES.md       # Dated gotchas and insights
+├── plans/               # Plan documents (from PLAN command)
+├── sessions/            # Session logs (active_* = in-progress)
+└── bugs/
+    └── discovered.md    # Bugs found incidentally
+```
+
+**Rules:**
+- HOTBOARD.md stays under 40 lines — rotate oldest items out
+- Session files: write `active_*` on start, promote to dated file on FINALIZE
+- Never delete another agent's `active_*` file
+- DISCOVERIES.md entries are always dated
+- BACKLOG.md uses `[ ]` pending, `[x]` done, `[dropped]` irrelevant
+- No duplication between CLAUDE/ files and auto-memory (`.claude/projects/`)
+
 ## Build & Run
 
 ```bash

@@ -45,3 +45,7 @@ _ReSharper.*/
 
 # IntelliJ files
 .idea
+
+# Claude session files (ephemeral, not for git)
+CLAUDE/sessions/active_*
+garrison_debug.log
