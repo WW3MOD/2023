@@ -192,6 +192,11 @@ namespace OpenRA.Mods.Common.Activities
 					// Face directly away from the movement direction, then reverse
 					firstFacing = new WAngle(firstFacing.Angle + 512);
 					mobile.MovingBackward = true;
+
+					// Kill forward momentum — a vehicle must stop before reversing.
+					// Without this, forward speed carries into the reverse move causing a visual bounce.
+					if (mobile.CurrentSpeed > 0)
+						mobile.CurrentSpeed = 0;
 				}
 			}
 
