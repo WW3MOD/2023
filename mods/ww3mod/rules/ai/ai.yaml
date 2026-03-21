@@ -85,6 +85,15 @@ Player:
 		MaxOrdersPerTick: 2
 		PrioritizeExposed: true
 
+	# Supply trucks follow the army to resupply in the field
+	SupplyFollowerBotModule@supply:
+		RequiresCondition: enable-ai-any
+		SupplyTruckTypes: truk
+		ScanInterval: 150
+		SafeFollowDistance: 5
+		MaxFollowDistance: 35
+		MinNearbyFriendlies: 4
+
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-any
