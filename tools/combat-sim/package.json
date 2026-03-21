@@ -1,0 +1,20 @@
+{
+  "name": "ww3mod-combat-sim",
+  "version": "1.0.0",
+  "description": "Combat balance simulator for WW3MOD - tick-by-tick combat analysis",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "combat-sim": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "sim": "node build/index.js",
+    "test": "node --test build/test/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
