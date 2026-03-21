@@ -58,6 +58,8 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || attackMove == null || autoTarget == null)
 				return TickChild(self);
 
+			var engStance = autoTarget.EngagementStanceValue;
+
 			// CPU improvement - Only check every 10 ticks
 			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
@@ -68,7 +70,19 @@ namespace OpenRA.Mods.Common.Activities
 				target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
 
 				// Cancel the current move activity and queue attack activities if we find a new target.
-				// if (target.Type != TargetType.Invalid && target.Actor.GetEnabledTargetTypes().Any(t => t == "CriticalDamage"))
+				if (target.Type != TargetType.Invalid)
+				{
+					// HoldPosition during attack-move: only fire at targets in range without stopping
+					if (engStance == EngagementStance.HoldPosition)
+					{
+						var inRange = autoTarget.ActiveAttackBases
+							.Any(ab => target.IsInRange(self.CenterPosition, ab.GetMaximumRange()));
+
+						if (!inRange)
+							target = Target.Invalid;
+					}
+				}
+
 				if (target.Type != TargetType.Invalid)
 				{
 					checkTick = 0;

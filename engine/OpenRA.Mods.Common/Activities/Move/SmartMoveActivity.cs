@@ -58,6 +58,8 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || autoTarget == null || autoTarget.Stance <= UnitStance.HoldFire)
 				return TickChild(self);
 
+			var engStance = autoTarget.EngagementStanceValue;
+
 			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
 				// Scan for targets but don't allow moving toward them (allowMove = false)
@@ -78,7 +80,11 @@ namespace OpenRA.Mods.Common.Activities
 						var targetSaturated = target.Type == TargetType.Actor &&
 							target.Actor.AverageDamagePercent >= info.OverkillThreshold;
 
-						if (underFire || !targetSaturated)
+						// HoldPosition during SmartMove: don't stop to engage, keep moving
+						// (fire stance still controls IF they fire while passing)
+						var holdingPosition = engStance == EngagementStance.HoldPosition;
+
+						if (!holdingPosition && (underFire || !targetSaturated))
 						{
 							checkTick = 0;
 							runningMoveActivity = false;
