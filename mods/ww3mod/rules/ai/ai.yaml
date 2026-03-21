@@ -1,36 +1,78 @@
 Player:
-	ModularBot@aiplayer:
-		Name: AI Player
+	# ===== Bot Types =====
+	ModularBot@normal:
+		Name: Normal AI
 		Type: normal
-	GrantConditionOnBotOwner@aiplayer:
+	ModularBot@rush:
+		Name: Rush AI
+		Type: rush
+	ModularBot@turtle:
+		Name: Turtle AI
+		Type: turtle
+
+	GrantConditionOnBotOwner@normal:
 		Condition: enable-ai-player
 		Bots: normal
+	GrantConditionOnBotOwner@rush:
+		Condition: enable-ai-rush
+		Bots: rush
+	GrantConditionOnBotOwner@turtle:
+		Condition: enable-ai-turtle
+		Bots: turtle
+
+	# Unified condition for any AI type (used by shared modules)
+	GrantConditionOnBotOwner@anyai:
+		Condition: enable-ai-any
+		Bots: normal, rush, turtle
+
 	ProvidesPrerequisite@AIRESTRICTOR:
 		Prerequisite: aitoodumb
-		RequiresCondition: enable-ai-player
+		RequiresCondition: enable-ai-any
 	GrantConditionOnPrerequisite@NAVYDISABLER:
 		Condition: global-disablenavy
 		Prerequisites: global-disablenavy
 
+	# ===== Shared Modules (all AI types) =====
+
 	CaptureManagerBotModule@tecn:
-		RequiresCondition: enable-ai-player
+		RequiresCondition: enable-ai-any
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
 
 	CaptureManagerBotModule@engineer:
-		RequiresCondition: enable-ai-player
+		RequiresCondition: enable-ai-any
 		CapturingActorTypes: e6,e6.russia,e6.america
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
 
 	BuildingRepairBotModule@aiplayer:
-		RequiresCondition: enable-ai-player
+		RequiresCondition: enable-ai-any
 
-	# AI builds structures and defenses
-	BaseBuilderBotModule@aiplayer:
+	# AI deploys LCCVs into logistics centers near base
+	McvManagerBotModule@lccv:
+		RequiresCondition: enable-ai-any
+		McvTypes: lccv
+		ConstructionYardTypes: logisticscenter
+		McvFactoryTypes: supplyroute
+		MinimumConstructionYardCount: 1
+		ScanForNewMcvInterval: 50
+		MinBaseRadius: 3
+		MaxBaseRadius: 15
+		RestrictMCVDeploymentFallbackToBase: true
+
+	# Capture enemy logistics centers to deny resupply
+	CaptureManagerBotModule@captureenemystructures:
+		RequiresCondition: enable-ai-any
+		CapturingActorTypes: tecn,tecn.russia,tecn.america
+		CapturableActorTypes: logisticscenter
+		CheckCaptureTargetsForVisibility: true
+		MaximumCaptureTargetOptions: 10
+
+	# ===== Base Builder — Normal =====
+	BaseBuilderBotModule@normal:
 		RequiresCondition: enable-ai-player
 		ConstructionYardTypes: supplyroute
 		VehiclesFactoryTypes: supplyroute
@@ -63,29 +105,74 @@ Player:
 			sam: 2
 			hsam: 2
 
-	# AI deploys LCCVs into logistics centers near base
-	McvManagerBotModule@lccv:
-		RequiresCondition: enable-ai-player
-		McvTypes: lccv
-		ConstructionYardTypes: logisticscenter
-		McvFactoryTypes: supplyroute
-		MinimumConstructionYardCount: 1
-		ScanForNewMcvInterval: 50
-		MinBaseRadius: 3
-		MaxBaseRadius: 15
-		RestrictMCVDeploymentFallbackToBase: true
+	# ===== Base Builder — Rush (minimal defenses, fast logistics) =====
+	BaseBuilderBotModule@rush:
+		RequiresCondition: enable-ai-rush
+		ConstructionYardTypes: supplyroute
+		VehiclesFactoryTypes: supplyroute
+		BarracksTypes: supplyroute
+		HeliTypes: hpad
+		AirfieldTypes: afld
+		ProductionTypes: supplyroute, hpad, afld
+		DefenseTypes: gtwr, pbox, agun
+		BuildingQueues: Building
+		DefenseQueues: Defense
+		MinBaseRadius: 2
+		MaxBaseRadius: 20
+		PlaceDefenseTowardsEnemyChance: 60
+		MinimumDefenseRadius: 3
+		MaximumDefenseRadius: 10
+		NewProductionCashThreshold: 3000
+		RallyPointScanRadius: 10
+		BuildingLimits:
+			logisticscenter: 1
+			hpad: 2
+			afld: 1
+		BuildingFractions:
+			logisticscenter: 15
+			hpad: 3
+			afld: 3
+			gtwr: 4
+			pbox: 2
+			agun: 2
 
-	# Capture enemy logistics centers to deny resupply
-	CaptureManagerBotModule@captureenemystructures:
-		RequiresCondition: enable-ai-player
-		CapturingActorTypes: tecn,tecn.russia,tecn.america
-		CapturableActorTypes: logisticscenter
-		CheckCaptureTargetsForVisibility: true
-		MaximumCaptureTargetOptions: 10
+	# ===== Base Builder — Turtle (heavy defenses, full infrastructure) =====
+	BaseBuilderBotModule@turtle:
+		RequiresCondition: enable-ai-turtle
+		ConstructionYardTypes: supplyroute
+		VehiclesFactoryTypes: supplyroute
+		BarracksTypes: supplyroute
+		HeliTypes: hpad
+		AirfieldTypes: afld
+		ProductionTypes: supplyroute, hpad, afld
+		DefenseTypes: gtwr, pbox, hbox, agun, sam, hsam
+		BuildingQueues: Building
+		DefenseQueues: Defense
+		MinBaseRadius: 2
+		MaxBaseRadius: 20
+		PlaceDefenseTowardsEnemyChance: 100
+		MinimumDefenseRadius: 5
+		MaximumDefenseRadius: 20
+		NewProductionCashThreshold: 8000
+		RallyPointScanRadius: 10
+		BuildingLimits:
+			logisticscenter: 3
+			hpad: 4
+			afld: 3
+		BuildingFractions:
+			logisticscenter: 25
+			hpad: 6
+			afld: 6
+			gtwr: 12
+			pbox: 8
+			hbox: 5
+			agun: 6
+			sam: 4
+			hsam: 3
 
-	# AI builds aircraft -- Russia
+	# ===== Aircraft — Russia =====
 	UnitBuilderBotModule@russia.air:
-		RequiresCondition: enable-ai-player && player.brics
+		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 0
 		UnitQueues: Aircraft
 		UnitsToBuild:
@@ -98,16 +185,16 @@ Player:
 			MIG: 2
 
 	SquadManagerBotModule@russia.air:
-		RequiresCondition: enable-ai-player && player.brics
+		RequiresCondition: enable-ai-any && player.brics
 		SquadSize: 2
 		SquadSizeRandomBonus: 2
 		RushInterval: 600
 		AttackScanRadius: 48
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
-	# AI builds aircraft -- America
+	# ===== Aircraft — America =====
 	UnitBuilderBotModule@america.air:
-		RequiresCondition: enable-ai-player && player.nato
+		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 0
 		UnitQueues: Aircraft
 		UnitsToBuild:
@@ -120,7 +207,7 @@ Player:
 			F16: 2
 
 	SquadManagerBotModule@america.air:
-		RequiresCondition: enable-ai-player && player.nato
+		RequiresCondition: enable-ai-any && player.nato
 		SquadSize: 2
 		SquadSizeRandomBonus: 2
 		RushInterval: 600

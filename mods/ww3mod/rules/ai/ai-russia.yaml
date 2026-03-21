@@ -1,5 +1,6 @@
 Player:
-	UnitBuilderBotModule@russia:
+	# ===== Normal AI — Russia (balanced, steady pressure) =====
+	UnitBuilderBotModule@russia.normal:
 		RequiresCondition: enable-ai-player && player.brics
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
@@ -30,7 +31,7 @@ Player:
 			tunguska: 10
 			grad: 10
 
-			# Logistics -- supply trucks and LCCV for field logistics center
+			# Logistics
 			truk: 20
 			lccv: 10
 
@@ -44,7 +45,7 @@ Player:
 			tunguska: 2
 			sn.russia: 3
 
-	SquadManagerBotModule@russia.land:
+	SquadManagerBotModule@russia.normal:
 		RequiresCondition: enable-ai-player && player.brics
 		SquadSize: 6
 		SquadSizeRandomBonus: 14
@@ -54,3 +55,96 @@ Player:
 		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 
+	# ===== Rush AI — Russia (fast, aggressive, smaller squads) =====
+	UnitBuilderBotModule@russia.rush:
+		RequiresCondition: enable-ai-rush && player.brics
+		UnitQueues: Vehicle, Infantry
+		UnitsToBuild:
+			# Heavy infantry focus for early aggression
+			e3.russia: 150
+			ar.russia: 120
+			tl.russia: 80
+			e2.russia: 70
+
+			# Minimal support
+			at.russia: 40
+			mt.russia: 30
+			medi.russia: 20
+
+			# Fast vehicles for early strikes
+			btr: 50
+			bmp2: 30
+
+			# Minimal logistics
+			truk: 10
+
+		UnitLimits:
+			truk: 2
+			tecn.russia: 2
+			e6.russia: 1
+
+	SquadManagerBotModule@russia.rush:
+		RequiresCondition: enable-ai-rush && player.brics
+		SquadSize: 4
+		SquadSizeRandomBonus: 6
+		RushInterval: 80
+		AttackScanRadius: 40
+		DangerScanRadius: 20
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
+		IgnoredEnemyTargetTypes: IgnoreThis
+
+	# ===== Turtle AI — Russia (builds up, large squads, combined arms) =====
+	UnitBuilderBotModule@russia.turtle:
+		RequiresCondition: enable-ai-turtle && player.brics
+		UnitQueues: Vehicle, Infantry
+		UnitDelays:
+			lccv: 1000
+		UnitsToBuild:
+			# Conscripts for capturing
+			tecn.russia: 500
+
+			# Infantry -- more balanced with support emphasis
+			e3.russia: 100
+			ar.russia: 80
+			tl.russia: 60
+			e2.russia: 50
+
+			# Strong support roster
+			at.russia: 60
+			mt.russia: 50
+			medi.russia: 50
+			aa.russia: 40
+			sn.russia: 35
+			e6.russia: 25
+
+			# Heavy vehicle emphasis
+			btr: 20
+			bmp2: 35
+			t90: 40
+			giatsint: 25
+			tunguska: 15
+			grad: 15
+
+			# Strong logistics
+			truk: 25
+			lccv: 15
+
+		UnitLimits:
+			truk: 5
+			lccv: 3
+			tecn.russia: 3
+			e6.russia: 3
+			giatsint: 4
+			grad: 3
+			tunguska: 3
+			sn.russia: 4
+
+	SquadManagerBotModule@russia.turtle:
+		RequiresCondition: enable-ai-turtle && player.brics
+		SquadSize: 10
+		SquadSizeRandomBonus: 15
+		RushInterval: 300
+		AttackScanRadius: 35
+		DangerScanRadius: 30
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
+		IgnoredEnemyTargetTypes: IgnoreThis
