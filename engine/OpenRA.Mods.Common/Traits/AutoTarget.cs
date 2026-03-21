@@ -326,6 +326,39 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
+			// Apply per-type defaults from UnitDefaultsManager (player-set overrides that persist across games)
+			if (self.Owner.Playable && !self.Owner.IsBot)
+			{
+				var mgr = self.World.WorldActor.TraitOrDefault<UnitDefaultsManager>();
+				var defaults = mgr?.GetDefaults(self.Info.Name);
+				if (defaults != null)
+				{
+					if (defaults.FireStance.HasValue)
+					{
+						stance = defaults.FireStance.Value;
+						PredictedStance = stance;
+					}
+
+					if (defaults.Engagement.HasValue)
+					{
+						engagementStance = defaults.Engagement.Value;
+						PredictedEngagementStance = engagementStance;
+					}
+
+					if (defaults.Cohesion.HasValue)
+					{
+						cohesion = defaults.Cohesion.Value;
+						PredictedCohesion = cohesion;
+					}
+
+					if (defaults.Resupply.HasValue)
+					{
+						resupplyBehavior = defaults.Resupply.Value;
+						PredictedResupplyBehavior = resupplyBehavior;
+					}
+				}
+			}
+
 			// AutoTargetPriority and their Priorities are fixed - so we can safely cache them with ToArray.
 			// IsTraitEnabled can change over time, and so must appear after the ToArray so it gets re-evaluated each time.
 			activeTargetPriorities =

@@ -48,7 +48,16 @@ namespace OpenRA.Mods.Common.Widgets
 			button.IsDisabled = () => { UpdateStateIfNecessary(); return actorStances.Length == 0; };
 			button.IsHighlighted = () => actorStances.Any(
 				at => !at.Trait.IsTraitDisabled && at.Trait.PredictedResupplyBehavior == behavior);
-			button.OnClick = () => SetSelectionResupplyBehavior(behavior);
+			button.OnClick = () =>
+			{
+				var mods = Game.GetModifierKeys();
+				if (mods.HasModifier(Modifiers.Alt))
+					SetTypeDefault(behavior);
+				else if (mods.HasModifier(Modifiers.Ctrl))
+					SetUnitDefault(behavior);
+				else
+					SetSelectionResupplyBehavior(behavior);
+			};
 		}
 
 		void UpdateStateIfNecessary()
@@ -77,6 +86,23 @@ namespace OpenRA.Mods.Common.Widgets
 
 				world.IssueOrder(new Order("SetResupplyBehavior", at.Actor, false) { ExtraData = (uint)behavior });
 			}
+		}
+
+		void SetUnitDefault(ResupplyBehavior behavior)
+		{
+			SetSelectionResupplyBehavior(behavior);
+		}
+
+		void SetTypeDefault(ResupplyBehavior behavior)
+		{
+			var mgr = world.WorldActor.TraitOrDefault<UnitDefaultsManager>();
+			if (mgr != null)
+			{
+				foreach (var actorType in actorStances.Select(at => at.Actor.Info.Name).Distinct())
+					mgr.SetResupply(actorType, behavior);
+			}
+
+			SetSelectionResupplyBehavior(behavior);
 		}
 	}
 }

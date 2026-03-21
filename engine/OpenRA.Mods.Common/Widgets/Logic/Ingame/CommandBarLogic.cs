@@ -23,11 +23,15 @@ namespace OpenRA.Mods.Common.Widgets
 		bool resupplyDisabled = true;
 		bool stopDisabled = true;
 		bool waypointModeDisabled = true;
+		bool patrolDisabled = true;
+		bool evacuateDisabled = true;
 
 		int deployHighlighted;
 		int scatterHighlighted;
 		int resupplyHighlighted;
 		int stopHighlighted;
+		int patrolHighlighted;
+		int evacuateHighlighted;
 
 		TraitPair<IIssueDeployOrder>[] selectedDeploys = Array.Empty<TraitPair<IIssueDeployOrder>>();
 
@@ -189,6 +193,40 @@ namespace OpenRA.Mods.Common.Widgets
 				resupplyButton.OnKeyPress = ki => { resupplyHighlighted = 2; resupplyButton.OnClick(); };
 			}
 
+			var patrolButton = widget.GetOrNull<ButtonWidget>("PATROL");
+			if (patrolButton != null)
+			{
+				WidgetUtils.BindButtonIcon(patrolButton);
+				patrolButton.IsDisabled = () => { UpdateStateIfNecessary(); return patrolDisabled; };
+				patrolButton.IsHighlighted = () => patrolHighlighted > 0;
+				patrolButton.OnClick = () =>
+				{
+					if (highlightOnButtonPress)
+						patrolHighlighted = 2;
+
+					// Dummy Phase 1: just flash the button
+				};
+
+				patrolButton.OnKeyPress = ki => { patrolHighlighted = 2; patrolButton.OnClick(); };
+			}
+
+			var evacuateButton = widget.GetOrNull<ButtonWidget>("EVACUATE");
+			if (evacuateButton != null)
+			{
+				WidgetUtils.BindButtonIcon(evacuateButton);
+				evacuateButton.IsDisabled = () => { UpdateStateIfNecessary(); return evacuateDisabled; };
+				evacuateButton.IsHighlighted = () => evacuateHighlighted > 0;
+				evacuateButton.OnClick = () =>
+				{
+					if (highlightOnButtonPress)
+						evacuateHighlighted = 2;
+
+					// Dummy Phase 1: just flash the button
+				};
+
+				evacuateButton.OnKeyPress = ki => { evacuateHighlighted = 2; evacuateButton.OnClick(); };
+			}
+
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
 			if (stopButton != null)
 			{
@@ -304,6 +342,12 @@ namespace OpenRA.Mods.Common.Widgets
 			if (stopHighlighted > 0)
 				stopHighlighted--;
 
+			if (patrolHighlighted > 0)
+				patrolHighlighted--;
+
+			if (evacuateHighlighted > 0)
+				evacuateHighlighted--;
+
 			base.Tick();
 		}
 
@@ -334,6 +378,8 @@ namespace OpenRA.Mods.Common.Widgets
 			forceAttackDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AttackBaseInfo>());
 			scatterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 			resupplyDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AmmoPoolInfo>());
+			patrolDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
+			evacuateDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()

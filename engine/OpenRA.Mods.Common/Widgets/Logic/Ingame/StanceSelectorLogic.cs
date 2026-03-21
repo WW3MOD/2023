@@ -48,7 +48,16 @@ namespace OpenRA.Mods.Common.Widgets
 			button.IsDisabled = () => { UpdateStateIfNecessary(); return actorStances.Length == 0; };
 			button.IsHighlighted = () => actorStances.Any(
 				at => !at.Trait.IsTraitDisabled && at.Trait.PredictedStance == stance);
-			button.OnClick = () => SetSelectionStance(stance);
+			button.OnClick = () =>
+			{
+				var mods = Game.GetModifierKeys();
+				if (mods.HasModifier(Modifiers.Alt))
+					SetTypeDefault(stance);
+				else if (mods.HasModifier(Modifiers.Ctrl))
+					SetUnitDefault(stance);
+				else
+					SetSelectionStance(stance);
+			};
 		}
 
 		void UpdateStateIfNecessary()
@@ -75,6 +84,23 @@ namespace OpenRA.Mods.Common.Widgets
 
 				world.IssueOrder(new Order("SetUnitStance", at.Actor, false) { ExtraData = (uint)stance });
 			}
+		}
+
+		void SetUnitDefault(UnitStance stance)
+		{
+			SetSelectionStance(stance);
+		}
+
+		void SetTypeDefault(UnitStance stance)
+		{
+			var mgr = world.WorldActor.TraitOrDefault<UnitDefaultsManager>();
+			if (mgr != null)
+			{
+				foreach (var actorType in actorStances.Select(at => at.Actor.Info.Name).Distinct())
+					mgr.SetFireStance(actorType, stance);
+			}
+
+			SetSelectionStance(stance);
 		}
 	}
 }

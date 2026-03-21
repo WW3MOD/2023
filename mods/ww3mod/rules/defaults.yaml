@@ -254,6 +254,10 @@
 ^AutoTarget:
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
+		InitialCohesion: Loose
+		InitialCohesionAI: Loose
+		InitialResupplyBehavior: Seek
+		InitialResupplyBehaviorAI: Seek
 	AutoTargetPriority@FireAtWill:
 		Priority: 1
 
