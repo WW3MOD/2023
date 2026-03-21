@@ -77,6 +77,14 @@ Player:
 		MinScoutDistance: 15
 		ScoutVisionRadius: 8
 
+	# Garrison defense structures with infantry for base defense
+	GarrisonBotModule@defenses:
+		RequiresCondition: enable-ai-any
+		ScanInterval: 200
+		MaxGarrisonRadius: 25
+		MaxOrdersPerTick: 2
+		PrioritizeExposed: true
+
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-any
