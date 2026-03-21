@@ -65,9 +65,9 @@ namespace OpenRA.Mods.Common.Activities
 			}
 			else if (mobileInfo != null)
 			{
-				// Find nearest valid edge cell, biased toward SpawnArea if one exists
+				// Find nearest valid edge cell, biased toward own SpawnArea if one exists
 				var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
-					.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
+					.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld && self.Owner.IsAlliedWith(a.Actor.Owner))
 					.Select(a => a.Actor)
 					.ToList();
 

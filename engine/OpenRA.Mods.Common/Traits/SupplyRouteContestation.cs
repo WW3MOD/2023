@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -19,7 +20,9 @@ namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Graduated contestation system for Supply Routes.",
 		"Tracks enemy vs friendly unit values in range to fill/deplete a control bar.",
-		"Production speed scales with bar level below the slowdown threshold.")]
+		"Production speed scales with bar level below the slowdown threshold.",
+		"When control bar is fully depleted, a defeat bar fills. At 100% defeat bar,",
+		"the player is defeated (no allies) or becomes passive (has allies).")]
 	public class SupplyRouteContestationInfo : TraitInfo
 	{
 		[Desc("Range to detect enemy and friendly forces.")]
@@ -59,10 +62,23 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Text notification when contestation begins.")]
 		public readonly string ContestationTextNotification = "Supply Route contested!";
 
+		[NotificationReference("Speech")]
+		[Desc("Speech notification when defeat bar starts filling.")]
+		public readonly string DefeatWarningNotification = "BaseAttack";
+
+		[Desc("Text notification when defeat bar starts filling.")]
+		public readonly string DefeatWarningTextNotification = "Supply Route lost! Defeat imminent!";
+
+		[Desc("Text notification when player becomes passive.")]
+		public readonly string PassiveTextNotification = "Supply Route overrun! Production and income frozen.";
+
+		[Desc("Text notification when player is reinstated from passive.")]
+		public readonly string ReinstatedTextNotification = "Supply Route reclaimed! Production resuming.";
+
 		[Desc("Minimum duration (in milliseconds) between notifications.")]
 		public readonly int NotifyInterval = 30000;
 
-		[Desc("Ticks between building flashes while bar is below slowdown threshold.")]
+		[Desc("Ticks between building flashes while contested.")]
 		public readonly int FlashInterval = 100;
 
 		[Desc("Minimap ping duration (ticks).")]
@@ -83,11 +99,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		int proximityTrigger;
 		int controlBar;
+		int defeatBar;
 		int cachedNetEnemySurplus;
 		int cachedNetFriendlySurplus;
 		int scanTick;
 		long lastNotifyTime;
+		long lastDefeatNotifyTime;
 		bool wasContested;
+		bool wasInDefeatPhase;
+		bool isPassive;
 		MiniMapPings radarPings;
 
 		public SupplyRouteContestation(Actor self, SupplyRouteContestationInfo info)
@@ -96,6 +116,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.self = self;
 			controlBar = info.BarMax;
 			lastNotifyTime = -info.NotifyInterval;
+			lastDefeatNotifyTime = -info.NotifyInterval;
 		}
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
@@ -120,14 +141,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (rel == PlayerRelationship.Enemy)
 			{
-				// Enemies must have ProximityCaptor with matching types
 				var pc = a.Info.TraitInfoOrDefault<ProximityCaptorInfo>();
 				return pc != null && pc.Types.Overlaps(info.CaptorTypes);
 			}
 
 			if (rel == PlayerRelationship.Ally)
 			{
-				// Friendlies just need a cost value
 				var valued = a.Info.TraitInfoOrDefault<ValuedInfo>();
 				return valued != null && valued.Cost > 0;
 			}
@@ -172,8 +191,19 @@ namespace OpenRA.Mods.Common.Traits
 			cachedNetFriendlySurplus = Math.Max(0, friendlyValue - enemyValue);
 		}
 
+		int CalculateTickRate(int valueSurplus)
+		{
+			var ticksToFull = Math.Max(info.MinTicks,
+				(long)info.BaseTicks * info.ReferenceValue / valueSurplus);
+			return Math.Max(1, info.BarMax / (int)Math.Max(1, ticksToFull));
+		}
+
 		void ITick.Tick(Actor self)
 		{
+			// Player already defeated — nothing to do
+			if (self.Owner.WinState != WinState.Undefined)
+				return;
+
 			if (++scanTick >= info.ScanInterval)
 			{
 				scanTick = 0;
@@ -182,38 +212,78 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (cachedNetEnemySurplus > 0)
 			{
-				// Depletion
-				var ticksToDeplete = Math.Max(info.MinTicks,
-					(long)info.BaseTicks * info.ReferenceValue / cachedNetEnemySurplus);
-				var depletion = Math.Max(1, info.BarMax / (int)Math.Max(1, ticksToDeplete));
-				controlBar = Math.Max(0, controlBar - depletion);
+				// Enemy has value surplus — depleting
+				var rate = CalculateTickRate(cachedNetEnemySurplus);
 
-				// Trigger notification on transition to contested
-				if (!wasContested)
+				if (controlBar > 0)
 				{
-					wasContested = true;
-					OnContestationStarted();
+					// Phase 1: Deplete control bar (green → yellow → empty)
+					controlBar = Math.Max(0, controlBar - rate);
+
+					if (!wasContested)
+					{
+						wasContested = true;
+						OnContestationStarted();
+					}
+				}
+				else
+				{
+					// Phase 2: Fill defeat bar (red fills up)
+					defeatBar = Math.Min(info.BarMax, defeatBar + rate);
+
+					if (!wasInDefeatPhase)
+					{
+						wasInDefeatPhase = true;
+						OnDefeatPhaseStarted();
+					}
+
+					// Check for defeat/passive when defeat bar is full
+					if (defeatBar >= info.BarMax)
+						OnDefeatBarFull();
 				}
 
-				// Periodic flash while bar is below slowdown threshold
-				var barPercent = controlBar * 100 / info.BarMax;
-				if (barPercent < info.SlowdownThreshold && self.World.WorldTick % info.FlashInterval == 0)
+				// Flash while being contested (any phase)
+				if (self.World.WorldTick % info.FlashInterval == 0)
 				{
+					var flashColor = controlBar > 0 ? Color.Orange : Color.Red;
 					self.World.AddFrameEndTask(w =>
-						w.Add(new FlashTarget(self, Color.Red, 0.5f, 3, 4, 0)));
+						w.Add(new FlashTarget(self, flashColor, 0.5f, 3, 4, 0)));
 				}
 			}
-			else if (controlBar < info.BarMax)
+			else
 			{
-				// Recovery
-				var baseRecovery = Math.Max(1, info.BarMax / info.BaseRecoveryTicks);
-				var friendlyBoost = cachedNetFriendlySurplus > 0
-					? info.FriendlyRecoveryMultiplier : 1;
-				controlBar = Math.Min(info.BarMax, controlBar + baseRecovery * friendlyBoost);
+				// No enemy surplus — recovery phase
+				if (defeatBar > 0)
+				{
+					// Drain defeat bar first
+					var recoveryRate = Math.Max(1, info.BarMax / info.BaseRecoveryTicks);
+					var friendlyBoost = cachedNetFriendlySurplus > 0
+						? info.FriendlyRecoveryMultiplier : 1;
+					defeatBar = Math.Max(0, defeatBar - recoveryRate * friendlyBoost);
 
-				// Clear contested state when bar is full
-				if (controlBar >= info.BarMax)
-					wasContested = false;
+					if (defeatBar <= 0)
+					{
+						wasInDefeatPhase = false;
+
+						// Reinstate passive player
+						if (isPassive)
+						{
+							isPassive = false;
+							OnReinstated();
+						}
+					}
+				}
+				else if (controlBar < info.BarMax)
+				{
+					// Then recover control bar
+					var recoveryRate = Math.Max(1, info.BarMax / info.BaseRecoveryTicks);
+					var friendlyBoost = cachedNetFriendlySurplus > 0
+						? info.FriendlyRecoveryMultiplier : 1;
+					controlBar = Math.Min(info.BarMax, controlBar + recoveryRate * friendlyBoost);
+
+					if (controlBar >= info.BarMax)
+						wasContested = false;
+				}
 			}
 		}
 
@@ -230,8 +300,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner))
 			{
-				var rules = self.World.Map.Rules;
-				Game.Sound.PlayNotification(rules, self.Owner, "Speech",
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
 					info.ContestationNotification, self.Owner.Faction.InternalName);
 				TextNotificationsManager.AddTransientLine(info.ContestationTextNotification, self.Owner);
 			}
@@ -239,14 +308,97 @@ namespace OpenRA.Mods.Common.Traits
 			radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer),
 				self.CenterPosition, info.MiniMapPingColor, info.MiniMapPingDuration);
 
-			// Flash the building
 			self.World.AddFrameEndTask(w =>
-				w.Add(new FlashTarget(self, Color.Red, 0.5f, 5, 4, 0)));
+				w.Add(new FlashTarget(self, Color.Orange, 0.5f, 5, 4, 0)));
+		}
+
+		void OnDefeatPhaseStarted()
+		{
+			if (Game.RunTime <= lastDefeatNotifyTime + info.NotifyInterval)
+				return;
+
+			lastDefeatNotifyTime = Game.RunTime;
+
+			var localPlayer = self.World.LocalPlayer;
+			if (localPlayer == null || localPlayer.Spectating)
+				return;
+
+			if (self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner))
+			{
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
+					info.DefeatWarningNotification, self.Owner.Faction.InternalName);
+				TextNotificationsManager.AddTransientLine(info.DefeatWarningTextNotification, self.Owner);
+			}
+
+			radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer),
+				self.CenterPosition, Color.Red, info.MiniMapPingDuration);
+
+			self.World.AddFrameEndTask(w =>
+				w.Add(new FlashTarget(self, Color.Red, 0.5f, 8, 3, 0)));
+		}
+
+		void OnDefeatBarFull()
+		{
+			// Already handled
+			if (isPassive || self.Owner.WinState != WinState.Undefined)
+				return;
+
+			// Check if player has living allies
+			var hasAllies = self.World.Players.Any(p =>
+				p != self.Owner &&
+				!p.NonCombatant &&
+				p.Playable &&
+				p.IsAlliedWith(self.Owner) &&
+				p.WinState != WinState.Lost);
+
+			if (hasAllies)
+			{
+				// Become passive — production stays at 0, allies can reinstate
+				isPassive = true;
+				TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + " has lost their Supply Route! Production and income frozen.");
+
+				var localPlayer = self.World.LocalPlayer;
+				if (localPlayer != null && !localPlayer.Spectating &&
+					(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
+				{
+					TextNotificationsManager.AddTransientLine(info.PassiveTextNotification, self.Owner);
+				}
+			}
+			else
+			{
+				// No allies — player is defeated
+				var mo = self.Owner.PlayerActor.TraitOrDefault<MissionObjectives>();
+				if (mo != null)
+				{
+					// Find the conquest objective and mark it failed
+					// This triggers the standard defeat flow (WinState.Lost, notifications, etc.)
+					var objectiveId = mo.Add(self.Owner, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
+					mo.MarkFailed(self.Owner, objectiveId);
+				}
+			}
+		}
+
+		void OnReinstated()
+		{
+			TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + "'s Supply Route has been reclaimed!");
+
+			var localPlayer = self.World.LocalPlayer;
+			if (localPlayer != null && !localPlayer.Spectating &&
+				(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
+			{
+				TextNotificationsManager.AddTransientLine(info.ReinstatedTextNotification, self.Owner);
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
+					"BuildingCaptured", self.Owner.Faction.InternalName);
+			}
 		}
 
 		// IProductionSpeedModifier: 100 = normal, 0 = halted
 		int IProductionSpeedModifier.GetProductionSpeedModifier()
 		{
+			// Passive or defeat bar filling = fully halted
+			if (isPassive || controlBar <= 0)
+				return 0;
+
 			var barPercent = controlBar * 100 / info.BarMax;
 			if (barPercent >= info.SlowdownThreshold)
 				return 100;
@@ -256,14 +408,29 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// ISelectionBar: visible to all players
+		// Shows control bar (green/yellow) or defeat bar (red)
 		float ISelectionBar.GetValue()
 		{
-			return (float)controlBar / info.BarMax;
+			if (controlBar > 0)
+				return (float)controlBar / info.BarMax;
+
+			// In defeat phase: show defeat bar filling up
+			return (float)defeatBar / info.BarMax;
 		}
 
 		Color ISelectionBar.GetColor()
 		{
-			return self.Owner.Color;
+			if (controlBar > 0)
+			{
+				var barPercent = controlBar * 100 / info.BarMax;
+				if (barPercent > info.SlowdownThreshold)
+					return Color.LimeGreen;
+
+				return Color.Yellow;
+			}
+
+			// Defeat phase: red bar
+			return Color.Red;
 		}
 
 		bool ISelectionBar.DisplayWhenEmpty => true;
