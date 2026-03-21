@@ -3,7 +3,7 @@ Player:
 		RequiresCondition: enable-ai-player && player.nato
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
-			lccv.ai: 1000
+			lccv: 1500
 		UnitsToBuild:
 			# Conscripts -- low priority, mainly for capturing
 			tecn.america: 500
@@ -30,11 +30,13 @@ Player:
 			m109: 15
 			strykershorad: 10
 
-			# Supply trucks for resupply
-			truk: 15
+			# Logistics -- supply trucks and LCCV for field logistics center
+			truk: 20
+			lccv: 10
 
 		UnitLimits:
-			truk: 3
+			truk: 4
+			lccv: 2
 			tecn.america: 3
 			e6.america: 2
 			m109: 3
@@ -48,5 +50,5 @@ Player:
 		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.america, e6.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, lccv, medi.america
 		IgnoredEnemyTargetTypes: IgnoreThis

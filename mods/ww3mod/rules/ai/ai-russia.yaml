@@ -3,6 +3,7 @@ Player:
 		RequiresCondition: enable-ai-player && player.brics
 		UnitQueues: Vehicle, Infantry
 		UnitDelays:
+			lccv: 1500
 		UnitsToBuild:
 			# Conscripts -- low priority, mainly for capturing
 			tecn.russia: 500
@@ -29,11 +30,13 @@ Player:
 			tunguska: 10
 			grad: 10
 
-			# Supply trucks for resupply
-			truk: 15
+			# Logistics -- supply trucks and LCCV for field logistics center
+			truk: 20
+			lccv: 10
 
 		UnitLimits:
-			truk: 3
+			truk: 4
+			lccv: 2
 			tecn.russia: 3
 			e6.russia: 2
 			giatsint: 3
@@ -48,6 +51,6 @@ Player:
 		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 

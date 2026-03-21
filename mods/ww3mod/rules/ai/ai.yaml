@@ -29,6 +29,52 @@ Player:
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-player
 
+	# AI builds structures and defenses
+	BaseBuilderBotModule@aiplayer:
+		RequiresCondition: enable-ai-player
+		ConstructionYardTypes: supplyroute
+		VehiclesFactoryTypes: supplyroute
+		BarracksTypes: supplyroute
+		HeliTypes: hpad
+		AirfieldTypes: afld
+		ProductionTypes: supplyroute, hpad, afld
+		DefenseTypes: gtwr, pbox, hbox, agun, sam, hsam
+		BuildingQueues: Building
+		DefenseQueues: Defense
+		MinBaseRadius: 2
+		MaxBaseRadius: 20
+		PlaceDefenseTowardsEnemyChance: 80
+		MinimumDefenseRadius: 5
+		MaximumDefenseRadius: 15
+		NewProductionCashThreshold: 5000
+		RallyPointScanRadius: 10
+		BuildingLimits:
+			logisticscenter: 2
+			hpad: 3
+			afld: 2
+		BuildingFractions:
+			logisticscenter: 20
+			hpad: 5
+			afld: 5
+			gtwr: 8
+			pbox: 5
+			hbox: 3
+			agun: 4
+			sam: 2
+			hsam: 2
+
+	# AI deploys LCCVs into logistics centers near base
+	McvManagerBotModule@lccv:
+		RequiresCondition: enable-ai-player
+		McvTypes: lccv
+		ConstructionYardTypes: logisticscenter
+		McvFactoryTypes: supplyroute
+		MinimumConstructionYardCount: 1
+		ScanForNewMcvInterval: 50
+		MinBaseRadius: 3
+		MaxBaseRadius: 15
+		RestrictMCVDeploymentFallbackToBase: true
+
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
 		RequiresCondition: enable-ai-player
