@@ -1,31 +1,39 @@
 -- Arena Shellmap: Tank Duel - 3 Abrams vs 3 T-90
--- AutoTarget with AttackAnything + ScanRadius 40 handles targeting
--- Lua just moves them toward each other; AutoTarget does the shooting
+-- Uses tick-based commands (matching working shellmap pattern)
 
 ticks = 0
+moved = false
 
 Tick = function()
 	ticks = ticks + 1
 
+	-- Issue move commands at tick 50 (give actors time to initialize)
+	if ticks == 50 and not moved then
+		moved = true
+
+		-- USA tanks advance right toward center
+		Abrams1.AttackMove(CPos.New(40, 14), 0)
+		Abrams2.AttackMove(CPos.New(40, 16), 0)
+		Abrams3.AttackMove(CPos.New(40, 18), 0)
+
+		-- Russia tanks advance left toward center
+		T90_1.AttackMove(CPos.New(24, 14), 0)
+		T90_2.AttackMove(CPos.New(24, 16), 0)
+		T90_3.AttackMove(CPos.New(24, 18), 0)
+	end
+
 	-- Slow camera pan right across the battlefield
-	if ticks > 100 and ticks < 1500 then
-		Camera.Position = Camera.Position + WVec.New(18, 0, 0)
+	if ticks > 30 and ticks < 1200 then
+		Camera.Position = Camera.Position + WVec.New(20, 0, 0)
 	end
 end
 
 WorldLoaded = function()
-	-- Center camera on USA side
+	usa = Player.GetPlayer("USA")
+	russia = Player.GetPlayer("Russia")
+
+	-- Center camera on USA side to see them advance
 	Camera.Position = WPos.New(1024 * 12, 1024 * 16, 0)
 
-	-- Move both sides toward each other using Patrol
-	-- Patrol keeps them moving and AutoTarget fires when in range
-	Trigger.AfterDelay(DateTime.Seconds(1), function()
-		Abrams1.Patrol({ CPos.New(40, 14), CPos.New(52, 14) }, false, 0)
-		Abrams2.Patrol({ CPos.New(40, 16), CPos.New(52, 16) }, false, 0)
-		Abrams3.Patrol({ CPos.New(40, 18), CPos.New(52, 18) }, false, 0)
-
-		T90_1.Patrol({ CPos.New(24, 14), CPos.New(12, 14) }, false, 0)
-		T90_2.Patrol({ CPos.New(24, 16), CPos.New(12, 16) }, false, 0)
-		T90_3.Patrol({ CPos.New(24, 18), CPos.New(12, 18) }, false, 0)
-	end)
+	Media.DisplayMessage("Arena: Tank Duel loaded", "Debug")
 end
