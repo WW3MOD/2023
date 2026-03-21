@@ -43,7 +43,7 @@ Container@PLAYER_WIDGETS:
 		Image@COMMAND_BAR_BACKGROUND:
 			X: 5
 			Y: WINDOW_BOTTOM - HEIGHT - 5
-			Width: 520
+			Width: 940
 			Height: 44
 			ImageCollection: commandbar
 			ImageName: background
@@ -297,7 +297,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: queue-orders
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
-			X: 540
+			X: 473
 			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -363,8 +363,8 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
-			X: 540
-			Y: WINDOW_BOTTOM - HEIGHT - 42
+			X: 592
+			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
@@ -429,8 +429,8 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@COHESION_BAR:
 			Logic: CohesionSelectorLogic
-			X: 540
-			Y: WINDOW_BOTTOM - HEIGHT - 70
+			X: 711
+			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
@@ -495,8 +495,8 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@RESUPPLY_BEHAVIOR_BAR:
 			Logic: ResupplyBehaviorSelectorLogic
-			X: 540
-			Y: WINDOW_BOTTOM - HEIGHT - 98
+			X: 830
+			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
