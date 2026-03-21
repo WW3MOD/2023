@@ -329,8 +329,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (targets.Count >= 2)
 				{
 					// Split units roughly in half, with some randomness
+					var minPerSquad = Math.Max(2, Info.SquadSize / 2);
+					var maxSplit = unitsHangingAroundTheBase.Count - minPerSquad;
 					var splitPoint = unitsHangingAroundTheBase.Count / 2 + World.LocalRandom.Next(-2, 3);
-					splitPoint = Math.Clamp(splitPoint, Info.SquadSize, unitsHangingAroundTheBase.Count - Info.SquadSize);
+					splitPoint = Math.Clamp(splitPoint, minPerSquad, Math.Max(minPerSquad, maxSplit));
 
 					var squad1 = RegisterNewSquad(bot, SquadType.Assault);
 					var squad2 = RegisterNewSquad(bot, SquadType.Assault);
