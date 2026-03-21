@@ -57,17 +57,8 @@ Player:
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-any
 
-	# AI deploys LCCVs into logistics centers near base
-	McvManagerBotModule@lccv:
-		RequiresCondition: enable-ai-any
-		McvTypes: lccv
-		ConstructionYardTypes: logisticscenter
-		McvFactoryTypes: supplyroute
-		MinimumConstructionYardCount: 1
-		ScanForNewMcvInterval: 50
-		MinBaseRadius: 3
-		MaxBaseRadius: 15
-		RestrictMCVDeploymentFallbackToBase: true
+	# TODO: LCCV deployment needs custom strategic logic (evaluate need, find safe location, escort)
+	# Disabled until we have proper decision-making infrastructure for it.
 
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
@@ -97,11 +88,9 @@ Player:
 		NewProductionCashThreshold: 5000
 		RallyPointScanRadius: 10
 		BuildingLimits:
-			logisticscenter: 2
 			hpad: 3
 			afld: 2
 		BuildingFractions:
-			logisticscenter: 20
 			hpad: 5
 			afld: 5
 			gtwr: 8
@@ -131,11 +120,9 @@ Player:
 		NewProductionCashThreshold: 3000
 		RallyPointScanRadius: 10
 		BuildingLimits:
-			logisticscenter: 1
 			hpad: 2
 			afld: 1
 		BuildingFractions:
-			logisticscenter: 15
 			hpad: 3
 			afld: 3
 			gtwr: 4
@@ -162,11 +149,9 @@ Player:
 		NewProductionCashThreshold: 8000
 		RallyPointScanRadius: 10
 		BuildingLimits:
-			logisticscenter: 3
 			hpad: 4
 			afld: 3
 		BuildingFractions:
-			logisticscenter: 25
 			hpad: 6
 			afld: 6
 			gtwr: 12

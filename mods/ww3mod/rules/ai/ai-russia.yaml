@@ -3,8 +3,6 @@ Player:
 	UnitBuilderBotModule@russia.normal:
 		RequiresCondition: enable-ai-player && player.brics
 		UnitQueues: Vehicle, Infantry
-		UnitDelays:
-			lccv: 1500
 		UnitsToBuild:
 			# Conscripts -- low priority, mainly for capturing
 			tecn.russia: 500
@@ -31,13 +29,11 @@ Player:
 			tunguska: 10
 			grad: 10
 
-			# Logistics
+			# Supply trucks for field resupply
 			truk: 20
-			lccv: 10
 
 		UnitLimits:
 			truk: 4
-			lccv: 2
 			tecn.russia: 3
 			e6.russia: 2
 			giatsint: 3
@@ -52,7 +48,7 @@ Player:
 		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Rush AI — Russia (fast, aggressive, smaller squads) =====
@@ -90,15 +86,13 @@ Player:
 		RushInterval: 80
 		AttackScanRadius: 40
 		DangerScanRadius: 20
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Turtle AI — Russia (builds up, large squads, combined arms) =====
 	UnitBuilderBotModule@russia.turtle:
 		RequiresCondition: enable-ai-turtle && player.brics
 		UnitQueues: Vehicle, Infantry
-		UnitDelays:
-			lccv: 1000
 		UnitsToBuild:
 			# Conscripts for capturing
 			tecn.russia: 500
@@ -125,13 +119,11 @@ Player:
 			tunguska: 15
 			grad: 15
 
-			# Strong logistics
+			# Supply trucks
 			truk: 25
-			lccv: 15
 
 		UnitLimits:
 			truk: 5
-			lccv: 3
 			tecn.russia: 3
 			e6.russia: 3
 			giatsint: 4
@@ -146,5 +138,5 @@ Player:
 		RushInterval: 300
 		AttackScanRadius: 35
 		DangerScanRadius: 30
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, lccv, medi.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia
 		IgnoredEnemyTargetTypes: IgnoreThis

@@ -3,8 +3,6 @@ Player:
 	UnitBuilderBotModule@america.normal:
 		RequiresCondition: enable-ai-player && player.nato
 		UnitQueues: Vehicle, Infantry
-		UnitDelays:
-			lccv: 1500
 		UnitsToBuild:
 			# Conscripts -- low priority, mainly for capturing
 			tecn.america: 500
@@ -31,13 +29,11 @@ Player:
 			m109: 15
 			strykershorad: 10
 
-			# Logistics
+			# Supply trucks for field resupply
 			truk: 20
-			lccv: 10
 
 		UnitLimits:
 			truk: 4
-			lccv: 2
 			tecn.america: 3
 			e6.america: 2
 			m109: 3
@@ -51,7 +47,7 @@ Player:
 		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, lccv, medi.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Rush AI — America (fast, aggressive, smaller squads) =====
@@ -89,15 +85,13 @@ Player:
 		RushInterval: 80
 		AttackScanRadius: 40
 		DangerScanRadius: 20
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, lccv, medi.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Turtle AI — America (builds up, large squads, combined arms) =====
 	UnitBuilderBotModule@america.turtle:
 		RequiresCondition: enable-ai-turtle && player.nato
 		UnitQueues: Vehicle, Infantry
-		UnitDelays:
-			lccv: 1000
 		UnitsToBuild:
 			# Conscripts for capturing
 			tecn.america: 500
@@ -124,13 +118,11 @@ Player:
 			m109: 25
 			strykershorad: 15
 
-			# Strong logistics
+			# Supply trucks
 			truk: 25
-			lccv: 15
 
 		UnitLimits:
 			truk: 5
-			lccv: 3
 			tecn.america: 3
 			e6.america: 3
 			m109: 4
@@ -144,5 +136,5 @@ Player:
 		RushInterval: 300
 		AttackScanRadius: 35
 		DangerScanRadius: 30
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, lccv, medi.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america
 		IgnoredEnemyTargetTypes: IgnoreThis
