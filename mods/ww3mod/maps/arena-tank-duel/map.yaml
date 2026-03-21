@@ -1,0 +1,68 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Arena: Tank Duel (3v3 Abrams vs T-90)
+
+Author: Combat Sim
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: Lobby
+
+Categories: Conquest
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: Random
+	PlayerReference@Multi0:
+		Name: Multi0
+		Playable: True
+		Faction: america
+		Color: 0000FF
+		Enemies: Multi1
+	PlayerReference@Multi1:
+		Name: Multi1
+		Playable: True
+		Faction: russia
+		Color: FF0000
+		Enemies: Multi0
+
+Actors:
+	Actor2: abrams
+		Owner: Multi0
+		Location: 12,14
+		Facing: East
+	Actor3: abrams
+		Owner: Multi0
+		Location: 12,16
+		Facing: East
+	Actor4: abrams
+		Owner: Multi0
+		Location: 12,18
+		Facing: East
+	Actor5: t90
+		Owner: Multi1
+		Location: 52,14
+		Facing: West
+	Actor6: t90
+		Owner: Multi1
+		Location: 52,16
+		Facing: West
+	Actor7: t90
+		Owner: Multi1
+		Location: 52,18
+		Facing: West
+	Actor8: mpspawn
+		Owner: Multi0
+		Location: 10,16
+	Actor9: mpspawn
+		Owner: Multi1
+		Location: 54,16

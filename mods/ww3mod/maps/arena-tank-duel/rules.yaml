@@ -1,0 +1,10 @@
+
+World:
+	LuaScript:
+		Scripts: arena.lua
+
+Player:
+	-PlayerResources:
+	-SupplyRoute:
+	-BaseBuilderBotModule:
+	-UnitBuilderBotModule:
