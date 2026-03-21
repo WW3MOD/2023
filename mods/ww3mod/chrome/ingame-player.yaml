@@ -312,7 +312,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Fire at Will
-					TooltipDesc: Units fire at any valid target in range
+					TooltipDesc: Units fire at any valid target in range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -331,7 +331,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Ambush
-					TooltipDesc: Units pre-aim at targets but hold fire until spotted\nWhen one unit is spotted, nearby allies in Ambush all engage\nZero aim delay — turrets are already aimed when firing begins
+					TooltipDesc: Units pre-aim at targets but hold fire until spotted\nWhen one unit is spotted, nearby allies in Ambush all engage\nZero aim delay — turrets are already aimed when firing begins\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -350,7 +350,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hold Fire
-					TooltipDesc: Units will not fire under any circumstances
+					TooltipDesc: Units will not fire under any circumstances\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -375,7 +375,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hunt
-					TooltipDesc: Units aggressively chase targets, even out of range
+					TooltipDesc: Units aggressively chase targets, even out of range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -394,7 +394,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Defensive
-					TooltipDesc: Fire from current position, reposition only if line of sight is blocked
+					TooltipDesc: Fire from current position, reposition only if line of sight is blocked\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -413,7 +413,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hold Position
-					TooltipDesc: Units never auto-reposition, only fire from current cell
+					TooltipDesc: Units never auto-reposition, only fire from current cell\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
