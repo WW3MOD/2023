@@ -241,6 +241,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | EnterAsCrew.cs | Activity: crew walks to vehicle, fills slot, gets removed from world |
 | SmartMove.cs | IWrapMove + INotifyDamage: wraps Move orders so units selectively fire while moving (self-defense or unsaturated targets). Overkill check via AverageDamagePercent |
 | SupplyRouteContestation.cs | Graduated SR control bar: enemy vs friendly value comparison, depletion/recovery, IProductionSpeedModifier for dynamic production slowdown, visual/audio feedback |
+| UnitDefaultsManager.cs | World trait: per-type stance defaults persisted to `Platform.SupportDir/ww3mod/unit-defaults.yaml`. Alt+Click stance buttons sets type default for all future units |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -340,6 +341,22 @@ OpenRA uses `WDist` (World Distance) units throughout. The notation is `NcXXX`:
 - Hotkeys: Alt+A/G/F (fire), Ctrl+Alt+A/D/F (engagement)
 - Engagement stance drives `allowMove` in AutoTarget scanning and movement decisions in Attack activity
 
+**Cohesion stances (3 stances — controls HOW close together, dummy Phase 1):**
+- Tight, Loose (default), Spread
+- Hotkeys: Ctrl+Alt+1/2/3
+- Phase 2 will modify repulsion/scatter distances
+
+**Resupply behavior (3 stances — controls WHAT to do when out of ammo, dummy Phase 1):**
+- Hold (wait for mobile supply), Seek (move to resupply point, default), Rotate (seek or leave via SR)
+- Only shown for units with AmmoPool trait
+- Hotkeys: Ctrl+Alt+4/5/6
+- Phase 2 will drive AmmoPool/resupply activity behavior
+
+**Click-modifier meta-system (all 4 stance bars):**
+- Click: Set stance for current selection (immediate)
+- Ctrl+Click: Set per-unit default (unit remembers even after resets)
+- Alt+Click: Set per-type default — all future units of this type spawn with this. Persisted to disk via UnitDefaultsManager
+
 ## YAML Conventions
 
 ### Templates (prefixed with ^)
@@ -396,6 +413,7 @@ Each unit type has a base template file and two faction files:
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
 - **Three-mode move system** — Move (right-click): SmartMove wrapping fires only in self-defense (under fire) or when target isn't already saturated with incoming damage (overkill check via AverageDamagePercent). Attack-Move (A+click): unchanged, fires at everything. Force-Move (Ctrl+click): pure movement via "ForceMove" order string, bypasses SmartMove wrapping entirely
 - **Stance system consolidated to 3+3** — Removed redundant stances (ReturnFire, Defend, AttackAnything, Balanced). Fire discipline: HoldFire/Ambush/FireAtWill. Engagement: HoldPosition/Defensive/Hunt. 6 total buttons (was 9). All enums, conditions, UI, hotkeys, and YAML updated across engine and all mods. Phase 2 (shadow-based cover seeking for Defensive) planned in `DOCS/SHADOW_LOS_PLAN.md`
+- **Control bar overhaul** — Added Cohesion (Tight/Loose/Spread) and Resupply Behavior (Hold/Seek/Rotate) stance bars. Click-modifier meta-system on all 4 bars: Click=immediate, Ctrl+Click=per-unit default, Alt+Click=per-type default (persisted across games via UnitDefaultsManager). BarToggleLogic for collapsible bars. Dummy Patrol/Evacuate command buttons added
 - **Supply Route contestation system** — Replaced binary ProximityContestable with graduated SupplyRouteContestation trait. Control bar (0-100%) depleted by net enemy value surplus in 10-cell range: 5 infantry (~2500 value) depletes in 60s, full company in 20s min. Production speed scales linearly below 50% bar (100%→0%), halts at 0%. Auto-recovery when enemies leave, 3x faster with friendlies. Full feedback: player-colored selection bar visible to all, building flash, EVA "BaseAttack" notification, text log, minimap ping. New IProductionSpeedModifier interface with accumulator pattern in ProductionQueue for dynamic per-tick speed control. SR is indestructible — enemies can only deny, never capture
 
 ### Next Priorities
