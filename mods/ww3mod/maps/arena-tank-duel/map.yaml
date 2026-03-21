@@ -36,33 +36,33 @@ Players:
 		Enemies: Multi0
 
 Actors:
-	Actor2: abrams
-		Owner: Multi0
-		Location: 12,14
-		Facing: East
-	Actor3: abrams
-		Owner: Multi0
-		Location: 12,16
-		Facing: East
-	Actor4: abrams
-		Owner: Multi0
-		Location: 12,18
-		Facing: East
-	Actor5: t90
-		Owner: Multi1
-		Location: 52,14
-		Facing: West
-	Actor6: t90
-		Owner: Multi1
-		Location: 52,16
-		Facing: West
-	Actor7: t90
-		Owner: Multi1
-		Location: 52,18
-		Facing: West
 	Actor8: mpspawn
 		Owner: Multi0
 		Location: 10,16
 	Actor9: mpspawn
 		Owner: Multi1
 		Location: 54,16
+	Actor10: abrams
+		Owner: Multi0
+		Location: 12,14
+		Facing: 256
+	Actor11: abrams
+		Owner: Multi0
+		Location: 12,16
+		Facing: 256
+	Actor12: abrams
+		Owner: Multi0
+		Location: 12,18
+		Facing: 256
+	Actor13: t90
+		Owner: Multi1
+		Location: 52,14
+		Facing: 768
+	Actor14: t90
+		Owner: Multi1
+		Location: 52,16
+		Facing: 768
+	Actor15: t90
+		Owner: Multi1
+		Location: 52,18
+		Facing: 768
