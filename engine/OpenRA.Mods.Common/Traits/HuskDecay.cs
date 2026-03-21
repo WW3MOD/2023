@@ -10,42 +10,39 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Gradually sinks and fades a husk before removing it. On water terrain, sinks immediately.")]
+	[Desc("Fades out a husk before removing it. On water terrain, plays a splash and disposes immediately.")]
 	public class HuskDecayInfo : TraitInfo
 	{
-		[Desc("Ticks to wait before decay begins on land.")]
+		[Desc("Ticks to wait before fade begins on land.")]
 		public readonly int Delay = 2240;
 
-		[Desc("Ticks for the sinking phase on land.")]
-		public readonly int SinkDuration = 250;
-
-		[Desc("Distance to sink on land.")]
-		public readonly WDist SinkDistance = new WDist(1024);
-
-		[Desc("Ticks for the fade-out phase on land (after sinking).")]
+		[Desc("Ticks for the fade-out phase on land.")]
 		public readonly int FadeDuration = 250;
 
-		[Desc("Ticks to wait before sinking on water.")]
-		public readonly int WaterDelay = 25;
-
-		[Desc("Ticks for the sinking phase on water.")]
-		public readonly int WaterSinkDuration = 200;
-
-		[Desc("Distance to sink on water.")]
-		public readonly WDist WaterSinkDistance = new WDist(3072);
-
-		[Desc("Terrain types considered water.")]
+		[Desc("Terrain types considered water. Husks on water get a splash effect instead of fading.")]
 		public readonly HashSet<string> WaterTerrainTypes = new HashSet<string> { "Water" };
 
+		[Desc("Image to use for the water splash effect.")]
+		public readonly string WaterSplashImage = "explosion";
+
+		[Desc("Sequence to play for the water splash effect.")]
+		public readonly string WaterSplashSequence = "splash_large";
+
+		[Desc("Palette for the water splash effect.")]
+		public readonly string WaterSplashPalette = "effect";
+
+		[Desc("Ticks to wait before disposing on water (splash plays first).")]
+		public readonly int WaterDelay = 25;
+
 		[GrantedConditionReference]
-		[Desc("Condition granted when decay (sink/fade) begins.")]
+		[Desc("Condition granted when fade begins.")]
 		public readonly string DecayCondition = "husk-decaying";
 
 		public override object Create(ActorInitializer init) { return new HuskDecay(this); }
@@ -56,15 +53,11 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HuskDecayInfo info;
 
 		int ticks;
-		int delay;
-		int sinkDuration;
-		int sinkDistance;
-		int fadeDuration;
 		bool onWater;
 		bool decayStarted;
-		int conditionToken = Actor.InvalidConditionToken;
+		bool splashSpawned;
 
-		enum Phase { Waiting, Sinking, Fading, Done }
+		enum Phase { Waiting, Fading, Done }
 		Phase currentPhase = Phase.Waiting;
 
 		public HuskDecay(HuskDecayInfo info)
@@ -76,22 +69,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var terrainType = self.World.Map.GetTerrainInfo(self.Location).Type;
 			onWater = info.WaterTerrainTypes.Contains(terrainType);
-
-			if (onWater)
-			{
-				delay = info.WaterDelay;
-				sinkDuration = info.WaterSinkDuration;
-				sinkDistance = info.WaterSinkDistance.Length;
-				fadeDuration = 0;
-			}
-			else
-			{
-				delay = info.Delay;
-				sinkDuration = info.SinkDuration;
-				sinkDistance = info.SinkDistance.Length;
-				fadeDuration = info.FadeDuration;
-			}
-
 			ticks = 0;
 			currentPhase = Phase.Waiting;
 		}
@@ -103,30 +80,34 @@ namespace OpenRA.Mods.Common.Traits
 
 			ticks++;
 
-			if (currentPhase == Phase.Waiting && ticks >= delay)
+			if (onWater)
 			{
-				currentPhase = Phase.Sinking;
+				if (!splashSpawned)
+				{
+					self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(
+						self.CenterPosition, self.World,
+						info.WaterSplashImage, info.WaterSplashSequence, info.WaterSplashPalette)));
+					splashSpawned = true;
+				}
+
+				if (ticks >= info.WaterDelay)
+					self.World.AddFrameEndTask(w => { if (!self.IsDead) self.Dispose(); });
+
+				return;
+			}
+
+			if (currentPhase == Phase.Waiting && ticks >= info.Delay)
+			{
+				currentPhase = Phase.Fading;
 				ticks = 0;
 
 				if (!decayStarted && !string.IsNullOrEmpty(info.DecayCondition))
 				{
-					conditionToken = self.GrantCondition(info.DecayCondition);
+					self.GrantCondition(info.DecayCondition);
 					decayStarted = true;
 				}
 			}
-			else if (currentPhase == Phase.Sinking && ticks >= sinkDuration)
-			{
-				if (fadeDuration > 0)
-				{
-					currentPhase = Phase.Fading;
-					ticks = 0;
-				}
-				else
-				{
-					currentPhase = Phase.Done;
-				}
-			}
-			else if (currentPhase == Phase.Fading && ticks >= fadeDuration)
+			else if (currentPhase == Phase.Fading && ticks >= info.FadeDuration)
 			{
 				currentPhase = Phase.Done;
 			}
@@ -135,26 +116,12 @@ namespace OpenRA.Mods.Common.Traits
 				self.World.AddFrameEndTask(w => { if (!self.IsDead) self.Dispose(); });
 		}
 
-		float CurrentSinkOffset
-		{
-			get
-			{
-				if (currentPhase == Phase.Sinking)
-					return (float)ticks / sinkDuration * sinkDistance;
-
-				if (currentPhase == Phase.Fading || currentPhase == Phase.Done)
-					return sinkDistance;
-
-				return 0;
-			}
-		}
-
 		float CurrentAlpha
 		{
 			get
 			{
 				if (currentPhase == Phase.Fading)
-					return 1f - (float)ticks / fadeDuration;
+					return 1f - (float)ticks / info.FadeDuration;
 
 				if (currentPhase == Phase.Done)
 					return 0f;
@@ -165,7 +132,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
-			if (currentPhase == Phase.Waiting)
+			if (currentPhase != Phase.Fading && currentPhase != Phase.Done)
 				return r;
 
 			return ModifiedRender(r);
@@ -173,19 +140,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> ModifiedRender(IEnumerable<IRenderable> r)
 		{
-			var sinkOffset = (int)CurrentSinkOffset;
 			var alpha = CurrentAlpha;
 
 			foreach (var renderable in r)
 			{
 				if (renderable is IModifyableRenderable mr)
-				{
-					var modified = mr.OffsetBy(new WVec(0, 0, -sinkOffset));
-					if (alpha < 1f)
-						modified = (IModifyableRenderable)((IModifyableRenderable)modified).WithAlpha(mr.Alpha * alpha);
-
-					yield return (IRenderable)modified;
-				}
+					yield return (IRenderable)mr.WithAlpha(mr.Alpha * alpha);
 				else
 					yield return renderable;
 			}

@@ -12,12 +12,8 @@
 	WithDamageOverlay:
 	HuskDecay:
 		Delay: 2240
-		SinkDuration: 250
-		SinkDistance: 1c0
 		FadeDuration: 250
 		WaterDelay: 25
-		WaterSinkDuration: 200
-		WaterSinkDistance: 3c0
 	OwnerLostAction:
 		Action: ChangeOwner
 	CaptureManager:
