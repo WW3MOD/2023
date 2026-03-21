@@ -138,6 +138,17 @@ cd tools/map-mcp && npm install && npx tsc   # Build
 ```
 Configured in `.mcp.json`. Provides 17 tools for map creation/editing: `create_map`, `read_map`, `list_maps`, `fill_terrain`, `paint_terrain`, `get_tileset_info`, `place_actors`, `remove_actors`, `list_actor_types`, `set_players`, `set_spawn_points`, `set_map_rules`, `write_lua_script`, `generate_preview`, `place_template`, `draw_road`, `auto_shore`.
 
+### Combat Balance Simulator
+```bash
+cd tools/combat-sim && npm install && npx tsc   # Build
+node build/index.js run <scenario>               # Run scenario
+node build/index.js duel abrams t90 --range 18c0 # Quick 1v1
+node build/index.js list                          # List scenarios
+node build/index.js units                         # List units
+node build/index.js stats <unitId>                # Unit details
+```
+Tick-by-tick combat simulator for balance analysis. Models damage (penetration, directional armor, range falloff, AoE), weapon firing cycles, suppression (infantry 10-tier/vehicle 5-tier), and formations. Phase 1 uses hardcoded stats; Phase 2 will auto-load from YAML. Phase 5 will export scenarios as playable maps via MCP.
+
 ## Project Architecture
 
 ```
