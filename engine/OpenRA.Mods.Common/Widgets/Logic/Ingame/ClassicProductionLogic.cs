@@ -53,14 +53,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				var anyActive = queues.Any(q => q.AllQueued().Any() && !q.IsAllPaused());
 				foreach (var q in queues.Where(q => q.Enabled && q.AllQueued().Any()))
-					world.IssueOrder(Order.PauseAllProduction(q.Actor, anyActive));
+					world.IssueOrder(Order.PauseAllProduction(q.Actor, q.Info.Type, anyActive));
 			};
 
 			// Middle-click: cancel all items in this category
 			button.OnMiddleClick = () =>
 			{
 				foreach (var q in queues.Where(q => q.Enabled && q.AllQueued().Any()))
-					world.IssueOrder(Order.CancelAllProduction(q.Actor));
+					world.IssueOrder(Order.CancelAllProduction(q.Actor, q.Info.Type));
 			};
 
 			var chromeName = button.ProductionGroup.ToLowerInvariant();

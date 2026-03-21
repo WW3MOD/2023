@@ -282,14 +282,14 @@ namespace OpenRA
 			return new Order("CancelProduction", subject, false) { ExtraData = (uint)count, TargetString = item };
 		}
 
-		public static Order PauseAllProduction(Actor subject, bool pause)
+		public static Order PauseAllProduction(Actor subject, string queueType, bool pause)
 		{
-			return new Order("PauseAllProduction", subject, false) { ExtraData = pause ? 1u : 0u };
+			return new Order("PauseAllProduction", subject, false) { ExtraData = pause ? 1u : 0u, TargetString = queueType };
 		}
 
-		public static Order CancelAllProduction(Actor subject)
+		public static Order CancelAllProduction(Actor subject, string queueType)
 		{
-			return new Order("CancelAllProduction", subject, false);
+			return new Order("CancelAllProduction", subject, false) { TargetString = queueType };
 		}
 
 		// For scripting special powers

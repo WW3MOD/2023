@@ -511,10 +511,12 @@ namespace OpenRA.Mods.Common.Traits
 					CancelProduction(order.TargetString, order.ExtraData);
 					break;
 				case "PauseAllProduction":
-					PauseAllProduction(order.ExtraData != 0);
+					if (order.TargetString == Info.Type)
+						PauseAllProduction(order.ExtraData != 0);
 					break;
 				case "CancelAllProduction":
-					ClearQueue();
+					if (order.TargetString == Info.Type)
+						ClearQueue();
 					break;
 			}
 		}
