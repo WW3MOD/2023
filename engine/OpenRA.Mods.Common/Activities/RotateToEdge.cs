@@ -65,19 +65,25 @@ namespace OpenRA.Mods.Common.Activities
 			}
 			else if (mobileInfo != null)
 			{
-				// Find nearest valid edge cell, biased toward own SpawnArea if one exists
+				// Find the SpawnArea closest to the player's own Supply Route building,
+				// so units always retreat toward their own map edge (not the nearest one)
 				var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
-					.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld && self.Owner.IsAlliedWith(a.Actor.Owner))
+					.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
 					.Select(a => a.Actor)
 					.ToList();
 
 				CPos? spawnAreaHint = null;
 				if (spawnAreas.Count > 0)
 				{
+					// Find this player's Supply Route building to anchor the search
+					var ownSR = self.World.ActorsHavingTrait<ProductionFromMapEdge>()
+						.FirstOrDefault(a => !a.IsDead && a.IsInWorld && a.Owner == self.Owner);
+					var anchor = ownSR?.Location ?? self.Location;
+
 					var closestDist = int.MaxValue;
 					foreach (var sa in spawnAreas)
 					{
-						var dist = (self.Location - sa.Location).LengthSquared;
+						var dist = (anchor - sa.Location).LengthSquared;
 						if (dist < closestDist)
 						{
 							closestDist = dist;

@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Traits
 		static CPos? FindClosestSpawnArea(Actor self)
 		{
 			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
-				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld && self.Owner.IsAlliedWith(a.Actor.Owner))
+				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
 				.Select(a => a.Actor)
 				.ToList();
 
