@@ -314,6 +314,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Fire at Will
 					TooltipDesc: Units fire at any valid target in range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -333,6 +334,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Ambush
 					TooltipDesc: Units pre-aim at targets but hold fire until spotted\nWhen one unit is spotted, nearby allies in Ambush all engage\nZero aim delay — turrets are already aimed when firing begins\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -352,6 +354,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Hold Fire
 					TooltipDesc: Units will not fire under any circumstances\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -377,6 +380,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Hunt
 					TooltipDesc: Units aggressively chase targets, even out of range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -396,6 +400,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Defensive
 					TooltipDesc: Fire from current position, reposition only if line of sight is blocked\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -415,6 +420,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Hold Position
 					TooltipDesc: Units never auto-reposition, only fire from current cell\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -440,6 +446,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Tight
 					TooltipDesc: Units cluster close together (squad spacing)\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -459,6 +466,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Loose
 					TooltipDesc: Default spacing — one cell gap between units\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -478,6 +486,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Spread
 					TooltipDesc: Two cell gaps between units — optimal for surviving AoE\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -503,6 +512,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Hold
 					TooltipDesc: Stay in position when out of ammo — wait for mobile resupply\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -522,6 +532,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Seek
 					TooltipDesc: Move to nearest resupply point when out of ammo, return after\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
@@ -541,6 +552,7 @@ Container@PLAYER_WIDGETS:
 					TooltipText: Rotate
 					TooltipDesc: Seek resupply — if none available, leave via Supply Route\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
 					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
 							X: 9
