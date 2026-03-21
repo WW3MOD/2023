@@ -55,6 +55,15 @@ namespace OpenRA.Mods.Common.Traits
 		// Units that the bot already knows about and has given a capture order. Any unit not on this list needs to be given a new order.
 		readonly List<Actor> activeCapturers = new List<Actor>();
 
+		// Targets that are currently being captured by this module's capturers.
+		readonly Dictionary<Actor, Actor> captureTargets = new Dictionary<Actor, Actor>();
+
+		/// <summary>Returns true if the given actor is an active capture target for this bot player.</summary>
+		public bool IsActiveCaptureTarget(Actor target)
+		{
+			return captureTargets.ContainsKey(target) && !captureTargets[target].IsDead && captureTargets[target].IsInWorld;
+		}
+
 		public CaptureManagerBotModule(Actor self, CaptureManagerBotModuleInfo info)
 			: base(info)
 		{
@@ -120,6 +129,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
 
+			// Clean up stale capture targets (capturer died, completed, or went idle)
+			var staleTargets = captureTargets.Where(kvp => kvp.Value.IsDead || !kvp.Value.IsInWorld || kvp.Value.IsIdle).Select(kvp => kvp.Key).ToList();
+			foreach (var target in staleTargets)
+				captureTargets.Remove(target);
+
 			var newUnits = world.ActorsHavingTrait<IPositionable>()
 				.Where(a => a.Owner == player && !activeCapturers.Contains(a));
 
@@ -166,6 +180,7 @@ namespace OpenRA.Mods.Common.Traits
 				bot.QueueOrder(new Order("CaptureActor", capturer.Actor, Target.FromActor(targetActor), true));
 				AIUtils.BotDebug("AI ({0}): Ordered {1} to capture {2}", player.ClientIndex, capturer.Actor, targetActor);
 				activeCapturers.Add(capturer.Actor);
+				captureTargets[targetActor] = capturer.Actor;
 			}
 		}
 	}

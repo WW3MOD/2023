@@ -121,6 +121,7 @@ namespace OpenRA.Mods.Common.Traits
 		IBot bot;
 		IBotPositionsUpdated[] notifyPositionsUpdated;
 		IBotNotifyIdleBaseUnits[] notifyIdleBaseUnits;
+		CaptureManagerBotModule[] captureModules;
 
 		CPos initialBaseCenter;
 
@@ -145,7 +146,16 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			var targetTypes = a.GetEnabledTargetTypes();
-			return !targetTypes.IsEmpty && !targetTypes.Overlaps(Info.IgnoredEnemyTargetTypes);
+			if (targetTypes.IsEmpty || targetTypes.Overlaps(Info.IgnoredEnemyTargetTypes))
+				return false;
+
+			// Don't attack buildings that our capture modules are actively targeting
+			if (captureModules != null)
+				foreach (var cm in captureModules)
+					if (!cm.IsTraitDisabled && cm.IsActiveCaptureTarget(a))
+						return false;
+
+			return true;
 		}
 
 		public bool IsNotHiddenUnit(Actor a)
@@ -167,6 +177,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			notifyPositionsUpdated = self.Owner.PlayerActor.TraitsImplementing<IBotPositionsUpdated>().ToArray();
 			notifyIdleBaseUnits = self.Owner.PlayerActor.TraitsImplementing<IBotNotifyIdleBaseUnits>().ToArray();
+			captureModules = self.Owner.PlayerActor.TraitsImplementing<CaptureManagerBotModule>().ToArray();
 		}
 
 		protected override void TraitEnabled(Actor self)
