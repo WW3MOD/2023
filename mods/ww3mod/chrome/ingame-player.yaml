@@ -40,13 +40,12 @@ Container@PLAYER_WIDGETS:
 			X: 80
 			Y: 10
 			Order: Descending
-		Image@COMMAND_BAR_BACKGROUND:
+		Background@COMMAND_BAR_BACKGROUND:
 			X: 5
 			Y: WINDOW_BOTTOM - HEIGHT - 5
 			Width: 940
 			Height: 44
-			ImageCollection: commandbar
-			ImageName: background
+			Background: commandbar-background
 		Container@COMMAND_BAR:
 			Logic: CommandBarLogic
 			X: 14

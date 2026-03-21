@@ -148,7 +148,11 @@ sidebar-bits:
 commandbar:
 	Inherits: ^Sidebar
 	Regions:
-		background: 0, 0, 940, 44
+		background: 0, 0, 434, 44
+
+commandbar-background:
+	Inherits: ^Sidebar
+	PanelRegion: 0, 0, 9, 9, 416, 26, 9, 9
 
 production-icons:
 	Inherits: ^Glyphs
