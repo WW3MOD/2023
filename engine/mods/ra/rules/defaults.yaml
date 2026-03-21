@@ -176,22 +176,22 @@
 
 ^AutoTargetGround:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Ship, Underwater, Defense, Mine
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Ship, Underwater, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 
 ^AutoTargetGroundAssaultMove:
 	Inherits: ^AutoTargetGround
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 
@@ -203,22 +203,22 @@
 
 ^AutoTargetAll:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Ship, Underwater, AirborneActor, Defense, Mine
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Ship, Underwater, AirborneActor, Structure, Defense, Mine
 		InvalidTargets: NoAutoTarget
 
 ^AutoTargetAllAssaultMove:
 	Inherits: ^AutoTargetAll
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 

@@ -78,8 +78,8 @@ littlebird:
 		PlayerPalette: playertd
 		Scale: 0.6
 	AutoTarget:
-		InitialStance: Defend
-		InitialStanceAI: Defend
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
@@ -218,8 +218,8 @@ HELI:
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@AirRadar: ^AirRadar
 	AutoTarget:
-		InitialStance: Defend
-		InitialStanceAI: Defend
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
@@ -433,8 +433,8 @@ A10:
 		RearmActors: afld
 		AmmoPools: primary-ammo, secondary-ammo
 	AutoTarget:
-		InitialStance: Defend
-		InitialStanceAI: Defend
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
 	# ReturnOnIdle:
 	Selectable:
 		Bounds: 1070,1200,0,48

@@ -123,13 +123,13 @@
 
 ^AutoTargetGround:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Structure, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@CREEPS:
@@ -138,9 +138,9 @@
 ^AutoTargetGroundAssaultMove:
 	Inherits: ^AutoTargetGround
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: stance-fireatwill || assault-move
 	GrantConditionOnBotOwner@BOTOWNER:
 		Condition: bot-owned
 		Bots: omnius, vidious, gladius
@@ -155,13 +155,13 @@
 
 ^AutoTargetAll:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Air, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Air, Structure, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@CREEPS:
@@ -170,9 +170,9 @@
 ^AutoTargetAllAssaultMove:
 	Inherits: ^AutoTargetAll
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: stance-fireatwill || assault-move
 	GrantConditionOnBotOwner@BOTOWNER:
 		Condition: bot-owned
 		Bots: omnius, vidious, gladius

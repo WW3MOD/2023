@@ -212,7 +212,7 @@ namespace OpenRA.Mods.Common.Activities
 			var pos = self.CenterPosition;
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
-			var engStance = autoTarget?.EngagementStanceValue ?? EngagementStance.Balanced;
+			var engStance = autoTarget?.EngagementStanceValue ?? EngagementStance.Defensive;
 
 			var outOfRange = !target.IsInRange(pos, maxRange);
 			var tooClose = minRange.Length != 0 && target.IsInRange(pos, minRange);
@@ -229,11 +229,8 @@ namespace OpenRA.Mods.Common.Activities
 				if (engStance == EngagementStance.HoldPosition)
 					return AttackStatus.UnableToAttack;
 
-				// Balanced: only reposition if LOS is blocked or too close, not if simply out of range
-				if (engStance == EngagementStance.Balanced && outOfRange && !tooClose && !losBlocked)
-					return AttackStatus.UnableToAttack;
-
-				// Defensive: same as Balanced for now (cover-seeking comes in Phase 2 with shadow data)
+				// Defensive: only reposition if LOS is blocked or too close, not if simply out of range
+				// Phase 2 with shadow data will add cover-seeking behavior
 				if (engStance == EngagementStance.Defensive && outOfRange && !tooClose && !losBlocked)
 					return AttackStatus.UnableToAttack;
 

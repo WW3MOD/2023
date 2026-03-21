@@ -139,22 +139,22 @@
 
 ^AutoTargetGround:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Creep, Water, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Creep, Water, Building, Defense
 		InvalidTargets: NoAutoTarget
 
 ^AutoTargetGroundAssaultMove:
 	Inherits: ^AutoTargetGround
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 
@@ -166,22 +166,22 @@
 
 ^AutoTargetAll:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Creep, Water, Air, Defense
 		InvalidTargets: NoAutoTarget
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Creep, Water, Air, Building, Defense
 		InvalidTargets: NoAutoTarget
 
 ^AutoTargetAllAssaultMove:
 	Inherits: ^AutoTargetAll
 	AutoTargetPriority@DEFAULT:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@ATTACKANYTHING:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 

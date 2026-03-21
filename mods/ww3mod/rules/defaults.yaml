@@ -253,8 +253,8 @@
 
 ^AutoTarget:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
-	AutoTargetPriority@AttackAnything:
+		FireAtWillCondition: stance-fireatwill
+	AutoTargetPriority@FireAtWill:
 		Priority: 1
 
 ^AutoTargetMBT:
@@ -455,28 +455,28 @@
 		ValidTargets: Infantry
 		Priority: 2
 	AutoTargetPriority@Lower:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 		ValidTargets: Vehicle, Defense, Water, Underwater, Mine
 		Priority: 1
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		Priority: 2
 
 ^AutoTargetGround:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 
 ^AutoTargetGroundAssaultMove:
 	Inherits: ^AutoTargetGround
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything && !assault-move
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetGroundAntiInf:
@@ -485,17 +485,17 @@
 		ValidTargets: Infantry
 		Priority: 2
 	AutoTargetPriority@Lower:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 		ValidTargets: Vehicle, Defense, Water, Underwater, Mine
 		Priority: 1
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		Priority: 2
 ^AutoTargetGroundAntiInfandAir:
 	Inherits: ^AutoTargetGroundAntiInf
 	AutoTargetPriority@Default:
 		ValidTargets: Air, Infantry
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 ^AutoTargetGroundAntiTank:
 	Inherits: ^AutoTargetGroundAssaultMove
@@ -503,10 +503,10 @@
 		ValidTargets: Vehicle, Defense, Water, Underwater
 		Priority: 3
 	AutoTargetPriority@Lower:
-		# RequiresCondition: !stance-attackanything && !assault-move
+		# RequiresCondition: !stance-fireatwill && !assault-move
 		ValidTargets: Infantry, Defense, Mine
 		Priority: 2
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		Priority: 1
 ^AutoTargetGroundAntiTankandAir:
 	Inherits: ^AutoTargetGroundAntiTank
@@ -514,8 +514,8 @@
 		ValidTargets: Air, Vehicle, Water
 	AutoTargetPriority@Lower:
 		ValidTargets: Infantry, Defense, Mine, Underwater
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 ^AutoTargetGroundAntiStructure:
 	Inherits: ^AutoTargetGroundAssaultMove
@@ -523,25 +523,25 @@
 		ValidTargets: Defense
 		Priority: 3
 	AutoTargetPriority@Higher:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 		ValidTargets: Vehicle, Water
 		Priority: 2
 	AutoTargetPriority@Lower:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 		ValidTargets: Infantry, Underwater, Mine
 		Priority: 1
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		Priority: 3
 ^AutoTargetNaval:
 	Inherits: ^AutoTargetGround
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense
 ^AutoTargetNavalAssaultMove:
 	Inherits: ^AutoTargetGroundAssaultMove
 	AutoTargetPriority@Default:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 ^AutoTargetAir:
 	AutoTarget:
@@ -554,28 +554,28 @@
 ^AutoTargetAirAssaultMove:
 	Inherits: ^AutoTargetAir
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything && !assault-move
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetAll:
 	AutoTarget:
-		AttackAnythingCondition: stance-attackanything
+		FireAtWillCondition: stance-fireatwill
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 ^AutoTargetAllAssaultMove:
 	Inherits: ^AutoTargetAll
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything && !assault-move
-	AutoTargetPriority@AttackAnything:
-		RequiresCondition: stance-attackanything || assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
+	AutoTargetPriority@FireAtWill:
+		RequiresCondition: stance-fireatwill || assault-move
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetGroundAntiInfDefense:
@@ -584,10 +584,10 @@
 		ValidTargets: Infantry
 		Priority: 2
 	AutoTargetPriority@Lower:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Vehicle, Water, Underwater, Defense, Mine
 		Priority: 1
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		Priority: 2
 ^AutoTargetGroundAntiInfandAirDefense:
 	Inherits: ^AutoTargetGroundAntiInfDefense
@@ -595,7 +595,7 @@
 		ValidTargets: Air, Infantry
 	AutoTargetPriority@Lower:
 		ValidTargets: Vehicle, Water, Underwater, Defense, Mine
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		Priority: 2
 ^AutoTargetGroundAntiTankDefense:
@@ -604,30 +604,30 @@
 		ValidTargets: Vehicle
 		Priority: 2
 	AutoTargetPriority@Lower:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Water, Underwater, Defense, Mine
 		Priority: 1
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		Priority: 2
 ^AutoTargetGroundAntiTankandAirDefense:
 	Inherits: ^AutoTargetGroundAntiTankDefense
 	AutoTargetPriority@Default:
 		ValidTargets: Air, Vehicle
 	AutoTargetPriority@Lower:
-		RequiresCondition: !stance-attackanything
+		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Water, Underwater, Defense, Mine
-	AutoTargetPriority@AttackAnything:
+	AutoTargetPriority@FireAtWill:
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
 		Priority: 2
 # ^AutoTargetAttackHelicopters:
 # 	AutoTarget:
-# 		AttackAnythingCondition: stance-attackanything
+# 		FireAtWillCondition: stance-fireatwill
 # 	AutoTargetPriority@Default:
-# 		RequiresCondition: !stance-attackanything
+# 		RequiresCondition: !stance-fireatwill
 # 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 # 		InvalidTargets: NoAutoTarget
-# 	AutoTargetPriority@AttackAnything:
-# 		RequiresCondition: stance-attackanything
+# 	AutoTargetPriority@FireAtWill:
+# 		RequiresCondition: stance-fireatwill
 # 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 # 		InvalidTargets: NoAutoTarget
 ^AutoTargetDrone:

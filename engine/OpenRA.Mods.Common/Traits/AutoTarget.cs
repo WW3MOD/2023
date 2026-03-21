@@ -16,9 +16,9 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum UnitStance { HoldFire, Ambush, ReturnFire, Defend, AttackAnything }
+	public enum UnitStance { HoldFire, Ambush, FireAtWill }
 
-	public enum EngagementStance { HoldPosition, Defensive, Balanced, Hunt }
+	public enum EngagementStance { HoldPosition, Defensive, Hunt }
 
 	[RequireExplicitImplementation]
 	public interface IActivityNotifyStanceChanged : IActivityInterface
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("The actor will automatically engage the enemy when it is in range.")]
 	public class AutoTargetInfo : ConditionalTraitInfo, Requires<AttackBaseInfo>, IEditorActorOptions
 	{
-		[Desc("It will try to hunt down the enemy if it is set to AttackAnything.")]
+		[Desc("It will try to hunt down the enemy if engagement stance is set to Hunt.")]
 		public readonly bool AllowMovement = true;
 
 		[Desc("It will try to pivot to face the enemy if stance is not HoldFire.")]
@@ -59,12 +59,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Set to a value >1 to override weapons maximum range for this.")]
 		public readonly int ScanRadius = -1;
 
-		[Desc("Possible values are HoldFire, Ambush, ReturnFire, Defend and AttackAnything.",
+		[Desc("Possible values are HoldFire, Ambush and FireAtWill.",
 			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
-		public readonly UnitStance InitialStanceAI = UnitStance.AttackAnything;
+		public readonly UnitStance InitialStanceAI = UnitStance.FireAtWill;
 
-		[Desc("Possible values are HoldFire, Ambush, ReturnFire, Defend and AttackAnything. Used for human players.")]
-		public readonly UnitStance InitialStance = UnitStance.Defend;
+		[Desc("Possible values are HoldFire, Ambush and FireAtWill. Used for human players.")]
+		public readonly UnitStance InitialStance = UnitStance.FireAtWill;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the HoldFire stance.")]
@@ -78,16 +78,8 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int AmbushCoordinationRadius = 10;
 
 		[GrantedConditionReference]
-		[Desc("The condition to grant to self while in the ReturnFire stance.")]
-		public readonly string ReturnFireCondition = null;
-
-		[GrantedConditionReference]
-		[Desc("The condition to grant to self while in the Defend stance.")]
-		public readonly string DefendCondition = null;
-
-		[GrantedConditionReference]
-		[Desc("The condition to grant to self while in the AttackAnything stance.")]
-		public readonly string AttackAnythingCondition = null;
+		[Desc("The condition to grant to self while in the FireAtWill stance.")]
+		public readonly string FireAtWillCondition = null;
 
 		[FieldLoader.Ignore]
 		public readonly Dictionary<UnitStance, string> ConditionByStance = new Dictionary<UnitStance, string>();
@@ -95,12 +87,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Allow the player to change the unit stance.")]
 		public readonly bool EnableStances = true;
 
-		[Desc("Possible values are HoldPosition, Defensive, Balanced and Hunt.",
+		[Desc("Possible values are HoldPosition, Defensive and Hunt.",
 			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
-		public readonly EngagementStance InitialEngagementStanceAI = EngagementStance.Balanced;
+		public readonly EngagementStance InitialEngagementStanceAI = EngagementStance.Defensive;
 
-		[Desc("Possible values are HoldPosition, Defensive, Balanced and Hunt. Used for human players.")]
-		public readonly EngagementStance InitialEngagementStance = EngagementStance.Balanced;
+		[Desc("Possible values are HoldPosition, Defensive and Hunt. Used for human players.")]
+		public readonly EngagementStance InitialEngagementStance = EngagementStance.Defensive;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the HoldPosition engagement stance.")]
@@ -109,10 +101,6 @@ namespace OpenRA.Mods.Common.Traits
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the Defensive engagement stance.")]
 		public readonly string DefensiveCondition = null;
-
-		[GrantedConditionReference]
-		[Desc("The condition to grant to self while in the Balanced engagement stance.")]
-		public readonly string BalancedCondition = null;
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the Hunt engagement stance.")]
@@ -141,23 +129,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (AmbushCondition != null)
 				ConditionByStance[UnitStance.Ambush] = AmbushCondition;
 
-			if (ReturnFireCondition != null)
-				ConditionByStance[UnitStance.ReturnFire] = ReturnFireCondition;
-
-			if (DefendCondition != null)
-				ConditionByStance[UnitStance.Defend] = DefendCondition;
-
-			if (AttackAnythingCondition != null)
-				ConditionByStance[UnitStance.AttackAnything] = AttackAnythingCondition;
+			if (FireAtWillCondition != null)
+				ConditionByStance[UnitStance.FireAtWill] = FireAtWillCondition;
 
 			if (HoldPositionCondition != null)
 				ConditionByEngagementStance[EngagementStance.HoldPosition] = HoldPositionCondition;
 
 			if (DefensiveCondition != null)
 				ConditionByEngagementStance[EngagementStance.Defensive] = DefensiveCondition;
-
-			if (BalancedCondition != null)
-				ConditionByEngagementStance[EngagementStance.Balanced] = BalancedCondition;
 
 			if (HuntCondition != null)
 				ConditionByEngagementStance[EngagementStance.Hunt] = HuntCondition;
@@ -166,15 +145,13 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<EditorActorOption> IEditorActorOptions.ActorOptions(ActorInfo ai, World world)
 		{
 			// Indexed by UnitStance
-			var stances = new[] { "holdfire", "ambush", "returnfire", "defend", "attackanything" };
+			var stances = new[] { "holdfire", "ambush", "fireatwill" };
 
 			var labels = new Dictionary<string, string>()
 			{
 				{ "holdfire", "Hold Fire" },
 				{ "ambush", "Ambush" },
-				{ "returnfire", "Return Fire" },
-				{ "defend", "Defend" },
-				{ "attackanything", "Attack Anything" },
+				{ "fireatwill", "Fire at Will" },
 			};
 
 			yield return new EditorActorDropdown("Stance", EditorStanceDisplayOrder, labels,

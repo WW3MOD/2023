@@ -20,7 +20,7 @@ humvee:
 	-SpeedMultiplier@CriticalDamage:
 	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTargetPriority@Default:
-		RequiresCondition: !stance-attackanything && !assault-move
+		RequiresCondition: !stance-fireatwill && !assault-move
 	RenderSprites:
 		Scale: 0.9
 	Buildable:
@@ -663,7 +663,7 @@ m270:
 	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTarget:
 		InitialStance: HoldFire
-		InitialStanceAI: Defend
+		InitialStanceAI: FireAtWill
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
@@ -995,7 +995,7 @@ strykershorad:
 # 	IndirectFire:
 # 	AutoTarget:
 # 		InitialStance: HoldFire
-# 		InitialStanceAI: Defend
+# 		InitialStanceAI: FireAtWill
 # 	Armament@1:
 # 		Weapon: IskanderTargeter
 # 		LocalOffset: 192,-64,176, 192,64,176
@@ -1090,7 +1090,7 @@ strykershorad:
 # 	Selectable:
 # 		DecorationBounds: 2048,2048
 # 	AutoTarget:
-# 		AttackAnythingCondition: stance-attackanything
+# 		FireAtWillCondition: stance-fireatwill
 # 	AutoTargetPriority@4:
 # 		ValidTargets: Medium, Heavy
 # 		Priority: 4

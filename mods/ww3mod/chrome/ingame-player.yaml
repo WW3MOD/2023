@@ -226,20 +226,20 @@ Container@PLAYER_WIDGETS:
 			Logic: StanceSelectorLogic
 			X: 294
 			Y: WINDOW_BOTTOM - HEIGHT - 14
-			Width: 172
+			Width: 102
 			Height: 26
 			Children:
-				Button@STANCE_ATTACKANYTHING:
+				Button@STANCE_FIREATWILL:
 					Logic: AddFactionSuffixLogic
 					Width: 34
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
-					Key: StanceAttackAnything
+					Key: StanceFireAtWill
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Attack Anything Stance
-					TooltipDesc: Set the selected units to Attack Anything stance:\n - Units will attack enemy units and structures on sight\n - Units will pursue attackers across the battlefield
+					TooltipText: Fire at Will
+					TooltipDesc: Units fire at any valid target in range
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -247,47 +247,9 @@ Container@PLAYER_WIDGETS:
 							Y: 5
 							ImageCollection: stance-icons
 							ImageName: attack-anything
-				Button@STANCE_DEFEND:
-					Logic: AddFactionSuffixLogic
-					X: 34
-					Width: 34
-					Height: 26
-					VisualHeight: 0
-					Background: command-button
-					Key: StanceDefend
-					DisableKeyRepeat: true
-					DisableKeySound: true
-					TooltipText: Defend Stance
-					TooltipDesc: Set the selected units to Defend stance:\n - Units will attack enemy units on sight\n - Units will not move or pursue enemies
-					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 9
-							Y: 5
-							ImageCollection: stance-icons
-							ImageName: defend
-				Button@STANCE_RETURNFIRE:
-					Logic: AddFactionSuffixLogic
-					X: 68
-					Width: 34
-					Height: 26
-					VisualHeight: 0
-					Background: command-button
-					Key: StanceReturnFire
-					DisableKeyRepeat: true
-					DisableKeySound: true
-					TooltipText: Return Fire Stance
-					TooltipDesc: Set the selected units to Return Fire stance:\n - Units will retaliate against enemies that attack them\n - Units will not move or pursue enemies
-					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 9
-							Y: 5
-							ImageCollection: stance-icons
-							ImageName: return-fire
 				Button@STANCE_AMBUSH:
 					Logic: AddFactionSuffixLogic
-					X: 102
+					X: 34
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -295,8 +257,8 @@ Container@PLAYER_WIDGETS:
 					Key: StanceAmbush
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Ambush Stance
-					TooltipDesc: Set the selected units to Ambush stance:\n - Units pre-aim at targets but hold fire until spotted\n - When one unit is spotted, nearby allies in Ambush all engage\n - Zero aim delay — turrets are already aimed when firing begins
+					TooltipText: Ambush
+					TooltipDesc: Units pre-aim at targets but hold fire until spotted\nWhen one unit is spotted, nearby allies in Ambush all engage\nZero aim delay — turrets are already aimed when firing begins
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -306,7 +268,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: defend
 				Button@STANCE_HOLDFIRE:
 					Logic: AddFactionSuffixLogic
-					X: 136
+					X: 68
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -314,8 +276,8 @@ Container@PLAYER_WIDGETS:
 					Key: StanceHoldFire
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Hold Fire Stance
-					TooltipDesc: Set the selected units to Hold Fire stance:\n - Units will not fire upon enemies\n - Units will not move or pursue enemies
+					TooltipText: Hold Fire
+					TooltipDesc: Units will not fire under any circumstances
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -327,7 +289,7 @@ Container@PLAYER_WIDGETS:
 			Logic: EngagementStanceSelectorLogic
 			X: 294
 			Y: WINDOW_BOTTOM - HEIGHT - 42
-			Width: 140
+			Width: 102
 			Height: 26
 			Children:
 				Button@ENGAGEMENT_HUNT:
@@ -339,8 +301,8 @@ Container@PLAYER_WIDGETS:
 					Key: EngagementHunt
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Hunt Enemies
-					TooltipDesc: Set the selected units to Hunt engagement stance:\n - Units aggressively move toward targets\n - Units will chase fleeing enemies
+					TooltipText: Hunt
+					TooltipDesc: Units aggressively chase targets, even out of range
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -348,28 +310,9 @@ Container@PLAYER_WIDGETS:
 							Y: 5
 							ImageCollection: stance-icons
 							ImageName: attack-anything
-				Button@ENGAGEMENT_BALANCED:
-					Logic: AddFactionSuffixLogic
-					X: 34
-					Width: 34
-					Height: 26
-					VisualHeight: 0
-					Background: command-button
-					Key: EngagementBalanced
-					DisableKeyRepeat: true
-					DisableKeySound: true
-					TooltipText: Balanced Engagement
-					TooltipDesc: Set the selected units to Balanced engagement stance:\n - Units fire from current position\n - Units reposition only if line of sight is blocked
-					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 9
-							Y: 5
-							ImageCollection: stance-icons
-							ImageName: defend
 				Button@ENGAGEMENT_DEFENSIVE:
 					Logic: AddFactionSuffixLogic
-					X: 68
+					X: 34
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -377,18 +320,18 @@ Container@PLAYER_WIDGETS:
 					Key: EngagementDefensive
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Defensive Positioning
-					TooltipDesc: Set the selected units to Defensive engagement stance:\n - Units seek covered positions near trees and buildings\n - Units prefer positions that reduce enemy visibility
+					TooltipText: Defensive
+					TooltipDesc: Fire from current position, reposition only if line of sight is blocked
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
 							X: 9
 							Y: 5
 							ImageCollection: stance-icons
-							ImageName: return-fire
+							ImageName: defend
 				Button@ENGAGEMENT_HOLDPOSITION:
 					Logic: AddFactionSuffixLogic
-					X: 102
+					X: 68
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -397,7 +340,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hold Position
-					TooltipDesc: Set the selected units to Hold Position engagement stance:\n - Units never auto-reposition\n - Units only fire from their current cell
+					TooltipDesc: Units never auto-reposition, only fire from current cell
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:

@@ -138,7 +138,7 @@ namespace OpenRA.Mods.Common.Traits
 					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack);
 
 				if (!IsAiming && Info.OpportunityFire && autoTarget != null &&
-				    !autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.Defend)
+				    !autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.FireAtWill)
 				{
 					OpportunityTarget = autoTarget.ScanForTarget(self, false, false);
 					opportunityForceAttack = false;

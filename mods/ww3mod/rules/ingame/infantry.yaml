@@ -1721,8 +1721,8 @@ AA:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	AutoTarget:
-		InitialStance: AttackAnything
-		InitialStanceAI: AttackAnything
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
 	AutoTargetPriority@Infantry:
 		ValidTargets: Infantry
 		PriorityCondition: suppression
@@ -2043,8 +2043,8 @@ SF:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	AutoTarget:
-		InitialStance: AttackAnything
-		InitialStanceAI: AttackAnything
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
 	AutoTargetPriority@Default:
 		ValidTargets: Heal
 	HealerAutoTarget:
@@ -2359,7 +2359,7 @@ PILOTR4:
 # 		Type: Circle
 # 			Radius: 6
 # 	AutoTarget:
-# 		InitialStance: AttackAnything
+# 		InitialStance: FireAtWill
 # 		ScanRadius: 25
 # 		MinimumScanTimeInterval: 16
 # 		MaximumScanTimeInterval: 32
@@ -2415,7 +2415,7 @@ PILOTR4:
 # 	-WithInfantryBody:
 # 	AutoTarget:
 # 		InitialStance: HoldFire
-# 		InitialStanceAI: Defend
+# 		InitialStanceAI: FireAtWill
 # 		ScanRadius: 10
 # 	Buildable:
 # 		Queue: Infantry

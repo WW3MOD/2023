@@ -32,10 +32,6 @@ namespace OpenRA.Mods.Common.Widgets
 			if (huntButton != null)
 				BindEngagementStanceButton(huntButton, EngagementStance.Hunt);
 
-			var balancedButton = widget.GetOrNull<ButtonWidget>("ENGAGEMENT_BALANCED");
-			if (balancedButton != null)
-				BindEngagementStanceButton(balancedButton, EngagementStance.Balanced);
-
 			var defensiveButton = widget.GetOrNull<ButtonWidget>("ENGAGEMENT_DEFENSIVE");
 			if (defensiveButton != null)
 				BindEngagementStanceButton(defensiveButton, EngagementStance.Defensive);

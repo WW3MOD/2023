@@ -151,7 +151,9 @@ Keys:
 	StatisticsArmy: F8 None
 	ObserverCombinedView: F1 None
 	ObserverWorldView: F2 None
-	StanceDefend: A None
-	StanceAttackAnything: A Alt
-	StanceReturnFire: A Shift
-	StanceHoldFire: A Ctrl
+	StanceFireAtWill: A Alt
+	StanceAmbush: G Alt
+	StanceHoldFire: F Alt
+	EngagementHunt: A Ctrl, Alt
+	EngagementDefensive: D Ctrl, Alt
+	EngagementHoldPosition: F Ctrl, Alt

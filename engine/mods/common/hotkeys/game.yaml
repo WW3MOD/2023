@@ -99,18 +99,8 @@ Guard: D
 	Types: Unit
 	Contexts: Player
 
-StanceAttackAnything: A Alt
-	Description: Attack anything
-	Types: Stance
-	Contexts: Player
-
-StanceDefend: S Alt
-	Description: Defend
-	Types: Stance
-	Contexts: Player
-
-StanceReturnFire: D Alt
-	Description: Return fire
+StanceFireAtWill: A Alt
+	Description: Fire at will
 	Types: Stance
 	Contexts: Player
 
@@ -126,11 +116,6 @@ StanceHoldFire: F Alt
 
 EngagementHunt: A Ctrl, Alt
 	Description: Hunt enemies
-	Types: EngagementStance
-	Contexts: Player
-
-EngagementBalanced: S Ctrl, Alt
-	Description: Balanced engagement
 	Types: EngagementStance
 	Contexts: Player
 

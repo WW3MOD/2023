@@ -647,8 +647,8 @@
 # 			PointA: 0, -576
 # 			PointB: 0, 576
 # 	AutoTarget:
-# 		InitialStance: ReturnFire
-# 		InitialStanceAI: ReturnFire
+# 		InitialStance: Ambush
+# 		InitialStanceAI: FireAtWill
 # 	GpsDot:
 # 		String: Nuke
 
@@ -695,11 +695,11 @@
 # 		PauseOnCondition: empdisable
 # 	WithMuzzleOverlay:
 # 	AutoTarget:
-# 		InitialStance: Defend
-# 		InitialStanceAI: ReturnFire
+# 		InitialStance: FireAtWill
+# 		InitialStanceAI: FireAtWill
 # 	AutoTargetPriority@Default:
 # 		ValidTargets: Water, Underwater
-# 	AutoTargetPriority@AttackAnything:
+# 	AutoTargetPriority@FireAtWill:
 # 		ValidTargets: Water, Underwater
 # 	RenderSprites:
 # 		Image: ss
@@ -775,7 +775,7 @@
 # 		DecorationBounds: 1536,1536
 # 	AutoTarget:
 # 		InitialStance: HoldFire
-# 		InitialStanceAI: ReturnFire
+# 		InitialStanceAI: FireAtWill
 # 	WithMoveAnimation:
 # 		MoveSequence: move
 # 		RequiresCondition: !underwater

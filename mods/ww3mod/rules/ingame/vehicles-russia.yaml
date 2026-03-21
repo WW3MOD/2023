@@ -488,7 +488,7 @@ grad:
 	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTarget:
 		InitialStance: HoldFire
-		InitialStanceAI: Defend
+		InitialStanceAI: FireAtWill
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
@@ -597,7 +597,7 @@ tos:
 	-TurretTurnSpeedMultiplier@CriticalDamage:
 	AutoTarget:
 		InitialStance: HoldFire
-		InitialStanceAI: Defend
+		InitialStanceAI: FireAtWill
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
@@ -888,7 +888,7 @@ tunguska:
 # 	IndirectFire:
 # 	AutoTarget:
 # 		InitialStance: HoldFire
-# 		InitialStanceAI: Defend
+# 		InitialStanceAI: FireAtWill
 # 	Passenger:
 # 		Voice: Move
 # 	Armament@1:
@@ -1016,7 +1016,7 @@ tunguska:
 # 		TurnSpeed: 15
 # 		PauseOnCondition: !(!being-captured) || empdisable
 # 	AutoTarget:
-# 		AttackAnythingCondition: stance-attackanything
+# 		FireAtWillCondition: stance-fireatwill
 # 	AutoTargetPriority@4:
 # 		ValidTargets: EmpTargetable
 # 		InvalidTargets: NoAutoTarget, Unarmored, Light
