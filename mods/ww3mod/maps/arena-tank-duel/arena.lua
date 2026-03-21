@@ -1,35 +1,33 @@
--- Arena: Tank Duel - 3 Abrams vs 3 T-90
--- Both sides attack-move toward each other on game start
+-- Arena Shellmap: Tank Duel - 3 Abrams vs 3 T-90
+-- AutoTarget with AttackAnything handles targeting automatically
+-- Lua handles camera and attack-move orders
+
+ticks = 0
+
+Tick = function()
+	ticks = ticks + 1
+
+	-- Slow camera pan across the battlefield
+	if ticks > 50 then
+		Camera.Position = Camera.Position + WVec.New(15, 0, 0)
+	end
+end
 
 WorldLoaded = function()
-	USA = Player.GetPlayer("Multi0")
-	Russia = Player.GetPlayer("Multi1")
+	local usa = Player.GetPlayer("USA")
+	local russia = Player.GetPlayer("Russia")
 
-	-- Get all units for each side
-	local usaTanks = USA.GetActorsByType("abrams")
-	local rusTanks = Russia.GetActorsByType("t90")
+	-- Center camera on the battlefield
+	Camera.Position = WPos.New(1024 * 32, 1024 * 16, 0)
 
-	-- Attack-move USA tanks toward Russian side
-	for _, tank in ipairs(usaTanks) do
-		tank.AttackMove(CPos.New(52, 16))
-	end
+	-- After 2 seconds, attack-move both sides toward each other
+	Trigger.AfterDelay(DateTime.Seconds(2), function()
+		Abrams1.AttackMove(CPos.New(52, 16))
+		Abrams2.AttackMove(CPos.New(52, 16))
+		Abrams3.AttackMove(CPos.New(52, 16))
 
-	-- Attack-move Russian tanks toward USA side
-	for _, tank in ipairs(rusTanks) do
-		tank.AttackMove(CPos.New(12, 16))
-	end
-
-	-- Check for victory every second
-	Trigger.OnInterval(25, function()
-		local usaAlive = #USA.GetActorsByType("abrams")
-		local rusAlive = #Russia.GetActorsByType("t90")
-
-		if usaAlive == 0 and rusAlive == 0 then
-			Media.DisplayMessage("Draw! Both sides eliminated.", "Arena")
-		elseif usaAlive == 0 then
-			Media.DisplayMessage("Russia wins! All Abrams destroyed.", "Arena")
-		elseif rusAlive == 0 then
-			Media.DisplayMessage("USA wins! All T-90s destroyed.", "Arena")
-		end
+		T90_1.AttackMove(CPos.New(12, 16))
+		T90_2.AttackMove(CPos.New(12, 16))
+		T90_3.AttackMove(CPos.New(12, 16))
 	end)
 end

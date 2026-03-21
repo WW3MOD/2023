@@ -12,57 +12,49 @@ MapSize: 66,34
 
 Bounds: 1,1,64,32
 
-Visibility: Lobby
+Visibility: Shellmap
 
-Categories: Conquest
+Categories: Shellmap
 
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Faction: Random
-	PlayerReference@Multi0:
-		Name: Multi0
-		Playable: True
 		Faction: america
-		Color: 0000FF
-		Enemies: Multi1
-	PlayerReference@Multi1:
-		Name: Multi1
-		Playable: True
+	PlayerReference@USA:
+		Name: USA
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
 		Faction: russia
-		Color: FF0000
-		Enemies: Multi0
+		Color: FF4444
+		Enemies: USA
 
 Actors:
-	Actor8: mpspawn
-		Owner: Multi0
-		Location: 10,16
-	Actor9: mpspawn
-		Owner: Multi1
-		Location: 54,16
-	Actor10: abrams
-		Owner: Multi0
+	Abrams1: abrams
+		Owner: USA
 		Location: 12,14
-		Facing: 256
-	Actor11: abrams
-		Owner: Multi0
+		Facing: 768
+	Abrams2: abrams
+		Owner: USA
 		Location: 12,16
-		Facing: 256
-	Actor12: abrams
-		Owner: Multi0
+		Facing: 768
+	Abrams3: abrams
+		Owner: USA
 		Location: 12,18
-		Facing: 256
-	Actor13: t90
-		Owner: Multi1
+		Facing: 768
+	T90_1: t90
+		Owner: Russia
 		Location: 52,14
-		Facing: 768
-	Actor14: t90
-		Owner: Multi1
+		Facing: 256
+	T90_2: t90
+		Owner: Russia
 		Location: 52,16
-		Facing: 768
-	Actor15: t90
-		Owner: Multi1
+		Facing: 256
+	T90_3: t90
+		Owner: Russia
 		Location: 52,18
-		Facing: 768
+		Facing: 256
