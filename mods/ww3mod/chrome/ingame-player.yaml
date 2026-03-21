@@ -40,17 +40,47 @@ Container@PLAYER_WIDGETS:
 			X: 80
 			Y: 10
 			Order: Descending
-		Background@COMMAND_BAR_BACKGROUND:
+		Background@CMD_BG_A:
 			X: 5
 			Y: WINDOW_BOTTOM - HEIGHT - 5
-			Width: 940
+			Width: 290
+			Height: 44
+			Background: commandbar-background
+		Background@CMD_BG_B:
+			X: 295
+			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Width: 188
+			Height: 44
+			Background: commandbar-background
+		Background@FIRE_BG:
+			X: 483
+			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Width: 120
+			Height: 44
+			Background: commandbar-background
+		Background@ENGAGE_BG:
+			X: 603
+			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Width: 120
+			Height: 44
+			Background: commandbar-background
+		Background@COHESION_BG:
+			X: 723
+			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Width: 120
+			Height: 44
+			Background: commandbar-background
+		Background@RESUPPLY_BG:
+			X: 843
+			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Container@COMMAND_BAR:
 			Logic: CommandBarLogic
 			X: 14
 			Y: WINDOW_BOTTOM - HEIGHT - 14
-			Width: 510
+			Width: 470
 			Height: 26
 			Children:
 				LogicKeyListener@MODIFIER_OVERRIDES:
@@ -147,7 +177,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: deploy
 				Button@RESUPPLY:
 					Logic: AddFactionSuffixLogic
-					X: 272
+					X: 290
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -166,7 +196,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: resupply
 				Button@PATROL:
 					Logic: AddFactionSuffixLogic
-					X: 306
+					X: 324
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -185,7 +215,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: guard
 				Button@EVACUATE:
 					Logic: AddFactionSuffixLogic
-					X: 340
+					X: 358
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -204,7 +234,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: force-move
 				Button@TAKE_COVER:
 					Logic: AddFactionSuffixLogic
-					X: 374
+					X: 392
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -222,7 +252,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: deploy
 				Button@AUTO_ENTER:
 					Logic: AddFactionSuffixLogic
-					X: 408
+					X: 426
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -296,7 +326,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: queue-orders
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
-			X: 473
+			X: 492
 			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -362,7 +392,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
-			X: 592
+			X: 612
 			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -428,7 +458,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@COHESION_BAR:
 			Logic: CohesionSelectorLogic
-			X: 711
+			X: 732
 			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -494,7 +524,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@RESUPPLY_BEHAVIOR_BAR:
 			Logic: ResupplyBehaviorSelectorLogic
-			X: 830
+			X: 852
 			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
