@@ -245,9 +245,16 @@ SUPPLYROUTE:
 		HP: 50000
 	Targetable:
 		TargetTypes: NoAutoTarget
-	ProximityContestable:
-		Condition: contested
-		Range: 14c0
+	SupplyRouteContestation:
+		Range: 10c0
+		ReferenceValue: 2500
+		BaseTicks: 1500
+		MinTicks: 500
+		BaseRecoveryTicks: 3000
+		FriendlyRecoveryMultiplier: 3
+		SlowdownThreshold: 50
+		ContestationNotification: BaseAttack
+		ContestationTextNotification: Supply Route contested!
 	Armor:
 		Type: Indestructable
 	RallyPoint:
@@ -294,10 +301,10 @@ SUPPLYROUTE:
 	Production@Local:
 		Produces: Building, Defense
 		UseRandomExit: true
-		PauseOnCondition: disabled || build-incomplete || contested
+		PauseOnCondition: disabled || build-incomplete
 	ProductionFromMapEdge:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter
-		PauseOnCondition: disabled || build-incomplete || contested
+		PauseOnCondition: disabled || build-incomplete
 	GrantExternalConditionToProduced:
 		Condition: produced
 	AcceptsDeliveredCash:

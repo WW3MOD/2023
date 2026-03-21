@@ -88,6 +88,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (item == null)
 				return;
 
+			// Check speed modifier from contestation (inherited helper)
+			var speedModifier = GetProductionSpeedModifier();
+			if (speedModifier <= 0)
+				return;
+
+			if (speedModifier < 100)
+			{
+				speedAccumulator += speedModifier;
+				if (speedAccumulator < 100)
+					return;
+
+				speedAccumulator -= 100;
+			}
+
 			var parallelBuilds = Queue.FindAll(i => !i.Paused && !i.Done)
 				.GroupBy(i => i.Item)
 				.ToList()

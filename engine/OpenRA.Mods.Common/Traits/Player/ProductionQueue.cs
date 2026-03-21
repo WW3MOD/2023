@@ -135,6 +135,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly IEnumerable<ActorInfo> buildableProducibles;
 
 		protected Production[] productionTraits;
+		protected int speedAccumulator;
 
 		// Will change if the owner changes
 		PowerManager playerPower;
@@ -330,7 +331,40 @@ namespace OpenRA.Mods.Common.Traits
 			CancelUnbuildableItems();
 
 			if (Queue.Count > 0 && !allProductionPaused)
-				Queue[0].Tick(playerResources);
+			{
+				var speedModifier = GetProductionSpeedModifier();
+				if (speedModifier >= 100)
+				{
+					Queue[0].Tick(playerResources);
+				}
+				else if (speedModifier > 0)
+				{
+					speedAccumulator += speedModifier;
+					if (speedAccumulator >= 100)
+					{
+						speedAccumulator -= 100;
+						Queue[0].Tick(playerResources);
+					}
+				}
+
+				// speedModifier == 0: fully halted, don't tick
+			}
+		}
+
+		protected int GetProductionSpeedModifier()
+		{
+			var min = 100;
+			foreach (var x in self.World.ActorsWithTrait<Production>())
+			{
+				if (x.Trait.IsTraitDisabled || x.Trait.IsTraitPaused)
+					continue;
+				if (x.Actor.Owner != self.Owner || !x.Trait.Info.Produces.Contains(Info.Type))
+					continue;
+				foreach (var sm in x.Actor.TraitsImplementing<IProductionSpeedModifier>())
+					min = Math.Min(min, sm.GetProductionSpeedModifier());
+			}
+
+			return min;
 		}
 
 		protected void CancelUnbuildableItems()
