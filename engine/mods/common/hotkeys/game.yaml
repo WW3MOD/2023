@@ -129,6 +129,46 @@ EngagementHoldPosition: F Ctrl, Alt
 	Types: EngagementStance
 	Contexts: Player
 
+CohesionTight: 1 Ctrl, Alt
+	Description: Tight spacing
+	Types: CohesionStance
+	Contexts: Player
+
+CohesionLoose: 2 Ctrl, Alt
+	Description: Loose spacing
+	Types: CohesionStance
+	Contexts: Player
+
+CohesionSpread: 3 Ctrl, Alt
+	Description: Spread spacing
+	Types: CohesionStance
+	Contexts: Player
+
+ResupplyHold: 4 Ctrl, Alt
+	Description: Hold when out of ammo
+	Types: ResupplyBehavior
+	Contexts: Player
+
+ResupplySeek: 5 Ctrl, Alt
+	Description: Auto-resupply
+	Types: ResupplyBehavior
+	Contexts: Player
+
+ResupplyRotate: 6 Ctrl, Alt
+	Description: Resupply or rotate out
+	Types: ResupplyBehavior
+	Contexts: Player
+
+Patrol: P
+	Description: Patrol
+	Types: Unit
+	Contexts: Player
+
+Evacuate: V
+	Description: Evacuate via Supply Route
+	Types: Unit
+	Contexts: Player
+
 StopMusic: AUDIOSTOP
 	Description: Stop
 	Types: Music

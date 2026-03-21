@@ -157,3 +157,11 @@ Keys:
 	EngagementHunt: A Ctrl, Alt
 	EngagementDefensive: D Ctrl, Alt
 	EngagementHoldPosition: F Ctrl, Alt
+	CohesionTight: 1 Ctrl, Alt
+	CohesionLoose: 2 Ctrl, Alt
+	CohesionSpread: 3 Ctrl, Alt
+	ResupplyHold: 4 Ctrl, Alt
+	ResupplySeek: 5 Ctrl, Alt
+	ResupplyRotate: 6 Ctrl, Alt
+	Patrol: P None
+	Evacuate: V None

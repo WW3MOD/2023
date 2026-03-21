@@ -20,6 +20,10 @@ namespace OpenRA.Mods.Common.Traits
 
 	public enum EngagementStance { HoldPosition, Defensive, Hunt }
 
+	public enum CohesionMode { Tight, Loose, Spread }
+
+	public enum ResupplyBehavior { Hold, Seek, Rotate }
+
 	[RequireExplicitImplementation]
 	public interface IActivityNotifyStanceChanged : IActivityInterface
 	{
@@ -109,6 +113,20 @@ namespace OpenRA.Mods.Common.Traits
 		[FieldLoader.Ignore]
 		public readonly Dictionary<EngagementStance, string> ConditionByEngagementStance = new Dictionary<EngagementStance, string>();
 
+		[Desc("Possible values are Tight, Loose and Spread.",
+			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
+		public readonly CohesionMode InitialCohesionAI = CohesionMode.Loose;
+
+		[Desc("Possible values are Tight, Loose and Spread. Used for human players.")]
+		public readonly CohesionMode InitialCohesion = CohesionMode.Loose;
+
+		[Desc("Possible values are Hold, Seek and Rotate.",
+			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
+		public readonly ResupplyBehavior InitialResupplyBehaviorAI = ResupplyBehavior.Seek;
+
+		[Desc("Possible values are Hold, Seek and Rotate. Used for human players.")]
+		public readonly ResupplyBehavior InitialResupplyBehavior = ResupplyBehavior.Seek;
+
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MinimumScanTimeInterval = 3;
 
@@ -178,6 +196,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public EngagementStance EngagementStanceValue => engagementStance;
 
+		public CohesionMode CohesionValue => cohesion;
+
+		public ResupplyBehavior ResupplyBehaviorValue => resupplyBehavior;
+
 		[Sync]
 		public Actor Aggressor;
 
@@ -187,12 +209,20 @@ namespace OpenRA.Mods.Common.Traits
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public EngagementStance PredictedEngagementStance;
 
+		// NOT SYNCED: do not refer to this anywhere other than UI code
+		public CohesionMode PredictedCohesion;
+
+		// NOT SYNCED: do not refer to this anywhere other than UI code
+		public ResupplyBehavior PredictedResupplyBehavior;
+
 		// Ambush system: track pre-aimed target and spotted state
 		Target ambushPreAimTarget = Target.Invalid;
 		bool ambushTriggered;
 
 		UnitStance stance;
 		EngagementStance engagementStance;
+		CohesionMode cohesion;
+		ResupplyBehavior resupplyBehavior;
 		IOverrideAutoTarget[] overrideAutoTarget;
 		INotifyStanceChanged[] notifyStanceChanged;
 		INotifyEngagementStanceChanged[] notifyEngagementStanceChanged;
@@ -239,6 +269,22 @@ namespace OpenRA.Mods.Common.Traits
 					a.EngagementStanceChanged(self, this, oldStance, engagementStance);
 		}
 
+		public void SetCohesion(Actor self, CohesionMode value)
+		{
+			if (cohesion == value)
+				return;
+
+			cohesion = value;
+		}
+
+		public void SetResupplyBehavior(Actor self, ResupplyBehavior value)
+		{
+			if (resupplyBehavior == value)
+				return;
+
+			resupplyBehavior = value;
+		}
+
 		void ApplyStanceCondition(Actor self)
 		{
 			if (conditionToken != Actor.InvalidConditionToken)
@@ -267,8 +313,13 @@ namespace OpenRA.Mods.Common.Traits
 			engagementStance = init.GetValue<EngagementStanceInit, EngagementStance>(
 				self.Owner.IsBot || !self.Owner.Playable ? info.InitialEngagementStanceAI : info.InitialEngagementStance);
 
+			cohesion = self.Owner.IsBot || !self.Owner.Playable ? info.InitialCohesionAI : info.InitialCohesion;
+			resupplyBehavior = self.Owner.IsBot || !self.Owner.Playable ? info.InitialResupplyBehaviorAI : info.InitialResupplyBehavior;
+
 			PredictedStance = stance;
 			PredictedEngagementStance = engagementStance;
+			PredictedCohesion = cohesion;
+			PredictedResupplyBehavior = resupplyBehavior;
 
 			allowMovement = Info.AllowMovement && self.TraitOrDefault<IMove>() != null;
 		}
@@ -299,6 +350,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			PredictedEngagementStance = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialEngagementStanceAI : Info.InitialEngagementStance;
 			SetEngagementStance(self, PredictedEngagementStance);
+
+			PredictedCohesion = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialCohesionAI : Info.InitialCohesion;
+			SetCohesion(self, PredictedCohesion);
+
+			PredictedResupplyBehavior = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialResupplyBehaviorAI : Info.InitialResupplyBehavior;
+			SetResupplyBehavior(self, PredictedResupplyBehavior);
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
@@ -308,6 +365,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (order.OrderString == "SetEngagementStance" && Info.EnableStances)
 				SetEngagementStance(self, (EngagementStance)order.ExtraData);
+
+			if (order.OrderString == "SetCohesion" && Info.EnableStances)
+				SetCohesion(self, (CohesionMode)order.ExtraData);
+
+			if (order.OrderString == "SetResupplyBehavior" && Info.EnableStances)
+				SetResupplyBehavior(self, (ResupplyBehavior)order.ExtraData);
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)

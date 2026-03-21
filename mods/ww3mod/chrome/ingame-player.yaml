@@ -43,7 +43,7 @@ Container@PLAYER_WIDGETS:
 		Image@COMMAND_BAR_BACKGROUND:
 			X: 5
 			Y: WINDOW_BOTTOM - HEIGHT - 5
-			Width: 416
+			Width: 520
 			Height: 44
 			ImageCollection: commandbar
 			ImageName: background
@@ -51,7 +51,7 @@ Container@PLAYER_WIDGETS:
 			Logic: CommandBarLogic
 			X: 14
 			Y: WINDOW_BOTTOM - HEIGHT - 14
-			Width: 275
+			Width: 510
 			Height: 26
 			Children:
 				LogicKeyListener@MODIFIER_OVERRIDES:
@@ -146,11 +146,10 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: deploy
-				# TODO
 				Button@RESUPPLY:
 					Logic: AddFactionSuffixLogic
-					X: 400
-					Width: 10
+					X: 272
+					Width: 34
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
@@ -158,7 +157,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Resupply
-					TooltipDesc: Selected units will perform their default resupply activity
+					TooltipDesc: Selected units will move to the nearest resupply point
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
@@ -166,6 +165,80 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: resupply
+				Button@PATROL:
+					Logic: AddFactionSuffixLogic
+					X: 306
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: Patrol
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Patrol
+					TooltipDesc: Selected units will patrol between waypoints in a loop
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: guard
+				Button@EVACUATE:
+					Logic: AddFactionSuffixLogic
+					X: 340
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: Evacuate
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Evacuate
+					TooltipDesc: Selected units will retreat via the nearest Supply Route
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: force-move
+				Button@TAKE_COVER:
+					Logic: AddFactionSuffixLogic
+					X: 374
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Take Cover
+					TooltipDesc: Selected infantry will seek the nearest cover position
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: deploy
+				Button@AUTO_ENTER:
+					Logic: AddFactionSuffixLogic
+					X: 408
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Auto-Enter
+					TooltipDesc: Infantry enter nearest transport, or transport calls nearby infantry
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: guard
 				Button@SCATTER:
 					Logic: AddFactionSuffixLogic
 					X: 170
@@ -224,7 +297,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: queue-orders
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
-			X: 294
+			X: 540
 			Y: WINDOW_BOTTOM - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -287,7 +360,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
-			X: 294
+			X: 540
 			Y: WINDOW_BOTTOM - HEIGHT - 42
 			Width: 102
 			Height: 26
@@ -348,6 +421,132 @@ Container@PLAYER_WIDGETS:
 							Y: 5
 							ImageCollection: stance-icons
 							ImageName: hold-fire
+		Container@COHESION_BAR:
+			Logic: CohesionSelectorLogic
+			X: 540
+			Y: WINDOW_BOTTOM - HEIGHT - 70
+			Width: 102
+			Height: 26
+			Children:
+				Button@COHESION_TIGHT:
+					Logic: AddFactionSuffixLogic
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: CohesionTight
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Tight
+					TooltipDesc: Units cluster close together (squad spacing)\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: attack-anything
+				Button@COHESION_LOOSE:
+					Logic: AddFactionSuffixLogic
+					X: 34
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: CohesionLoose
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Loose
+					TooltipDesc: Default spacing — one cell gap between units\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: defend
+				Button@COHESION_SPREAD:
+					Logic: AddFactionSuffixLogic
+					X: 68
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: CohesionSpread
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Spread
+					TooltipDesc: Two cell gaps between units — optimal for surviving AoE\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: hold-fire
+		Container@RESUPPLY_BEHAVIOR_BAR:
+			Logic: ResupplyBehaviorSelectorLogic
+			X: 540
+			Y: WINDOW_BOTTOM - HEIGHT - 98
+			Width: 102
+			Height: 26
+			Children:
+				Button@RESUPPLY_HOLD:
+					Logic: AddFactionSuffixLogic
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: ResupplyHold
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Hold
+					TooltipDesc: Stay in position when out of ammo — wait for mobile resupply\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: hold-fire
+				Button@RESUPPLY_SEEK:
+					Logic: AddFactionSuffixLogic
+					X: 34
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: ResupplySeek
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Seek
+					TooltipDesc: Move to nearest resupply point when out of ammo, return after\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: attack-anything
+				Button@RESUPPLY_ROTATE:
+					Logic: AddFactionSuffixLogic
+					X: 68
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: ResupplyRotate
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Rotate
+					TooltipDesc: Seek resupply — if none available, leave via Supply Route\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: defend
 		Container@GARRISON_PANEL:
 			Logic: GarrisonPanelLogic
 			X: 5

@@ -302,6 +302,13 @@ namespace OpenRA
 
 		[Desc("Modifiers for force attack (None, Alt, Ctrl, Shift, Ctrl+Alt).")]
 		public Modifiers ForceAttackModifiers = Modifiers.Ctrl | Modifiers.Alt;
+
+		// WW3MOD: Bar visibility (persisted between games)
+		public bool CommandBarVisible = true;
+		public bool FireStanceBarVisible = true;
+		public bool EngagementBarVisible = true;
+		public bool CohesionBarVisible = true;
+		public bool ResupplyBarVisible = true;
 	}
 
 	public class Settings
