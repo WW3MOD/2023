@@ -17,7 +17,9 @@ World:
 ^Combatant:
 	AutoTarget:
 		ScanRadius: 40
-		InitialStance: AttackAnything
-		InitialStanceAI: AttackAnything
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
 		MinimumScanTimeInterval: 16
 		MaximumScanTimeInterval: 32
