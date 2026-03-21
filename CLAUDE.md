@@ -240,6 +240,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | CrewMember.cs | Crew infantry trait: IIssueOrder for re-entering vehicles with matching empty slots |
 | EnterAsCrew.cs | Activity: crew walks to vehicle, fills slot, gets removed from world |
 | SmartMove.cs | IWrapMove + INotifyDamage: wraps Move orders so units selectively fire while moving (self-defense or unsaturated targets). Overkill check via AverageDamagePercent |
+| SupplyRouteContestation.cs | Graduated SR control bar: enemy vs friendly value comparison, depletion/recovery, IProductionSpeedModifier for dynamic production slowdown, visual/audio feedback |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -395,11 +396,13 @@ Each unit type has a base template file and two faction files:
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
 - **Three-mode move system** — Move (right-click): SmartMove wrapping fires only in self-defense (under fire) or when target isn't already saturated with incoming damage (overkill check via AverageDamagePercent). Attack-Move (A+click): unchanged, fires at everything. Force-Move (Ctrl+click): pure movement via "ForceMove" order string, bypasses SmartMove wrapping entirely
 - **Stance system consolidated to 3+3** — Removed redundant stances (ReturnFire, Defend, AttackAnything, Balanced). Fire discipline: HoldFire/Ambush/FireAtWill. Engagement: HoldPosition/Defensive/Hunt. 6 total buttons (was 9). All enums, conditions, UI, hotkeys, and YAML updated across engine and all mods. Phase 2 (shadow-based cover seeking for Defensive) planned in `DOCS/SHADOW_LOS_PLAN.md`
+- **Supply Route contestation system** — Replaced binary ProximityContestable with graduated SupplyRouteContestation trait. Control bar (0-100%) depleted by net enemy value surplus in 10-cell range: 5 infantry (~2500 value) depletes in 60s, full company in 20s min. Production speed scales linearly below 50% bar (100%→0%), halts at 0%. Auto-recovery when enemies leave, 3x faster with friendlies. Full feedback: player-colored selection bar visible to all, building flash, EVA "BaseAttack" notification, text log, minimap ping. New IProductionSpeedModifier interface with accumulator pattern in ProductionQueue for dynamic per-tick speed control. SR is indestructible — enemies can only deny, never capture
 
 ### Next Priorities
-1. **Stance system playtesting** — verify 3+3 system works: Hunt chases targets, Defensive repositions only on LOS block, HoldPosition never moves, all fire+engagement combos work, AI defaults to FireAtWill+Defensive
-2. **Shadow falloff + firing LOS (Phase 2)** — distance-based shadow falloff from viewer, per-unit ClearSightThreshold for firing, Defensive stance cover-seeking using ShadowLayer. See `DOCS/SHADOW_LOS_PLAN.md`
-3. **Three-mode move playtesting** — tune OverkillThreshold (100), UnderFireDuration (75 ticks), verify Force-Move never fires, verify regular move lets some units peel off while rest keep moving
+1. **Supply Route contestation playtesting** — verify bar appears and depletes with enemy presence, production slows below 50%, halts at 0%, notification/flash/ping work, recovery when enemies leave, friendly units counter enemy value
+2. **Stance system playtesting** — verify 3+3 system works: Hunt chases targets, Defensive repositions only on LOS block, HoldPosition never moves, all fire+engagement combos work, AI defaults to FireAtWill+Defensive
+3. **Shadow falloff + firing LOS (Phase 2)** — distance-based shadow falloff from viewer, per-unit ClearSightThreshold for firing, Defensive stance cover-seeking using ShadowLayer. See `DOCS/SHADOW_LOS_PLAN.md`
+4. **Three-mode move playtesting** — tune OverkillThreshold (100), UnderFireDuration (75 ticks), verify Force-Move never fires, verify regular move lets some units peel off while rest keep moving
 4. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches on sharp redirects, test with garrison enter/attack orders
 5. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
 6. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
