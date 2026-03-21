@@ -18,6 +18,8 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public enum UnitStance { HoldFire, Ambush, ReturnFire, Defend, AttackAnything }
 
+	public enum EngagementStance { HoldPosition, Defensive, Balanced, Hunt }
+
 	[RequireExplicitImplementation]
 	public interface IActivityNotifyStanceChanged : IActivityInterface
 	{
@@ -28,6 +30,18 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyStanceChanged
 	{
 		void StanceChanged(Actor self, AutoTarget autoTarget, UnitStance oldStance, UnitStance newStance);
+	}
+
+	[RequireExplicitImplementation]
+	public interface IActivityNotifyEngagementStanceChanged : IActivityInterface
+	{
+		void EngagementStanceChanged(Actor self, AutoTarget autoTarget, EngagementStance oldStance, EngagementStance newStance);
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyEngagementStanceChanged
+	{
+		void EngagementStanceChanged(Actor self, AutoTarget autoTarget, EngagementStance oldStance, EngagementStance newStance);
 	}
 
 	[Desc("The actor will automatically engage the enemy when it is in range.")]
@@ -81,6 +95,32 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Allow the player to change the unit stance.")]
 		public readonly bool EnableStances = true;
 
+		[Desc("Possible values are HoldPosition, Defensive, Balanced and Hunt.",
+			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
+		public readonly EngagementStance InitialEngagementStanceAI = EngagementStance.Balanced;
+
+		[Desc("Possible values are HoldPosition, Defensive, Balanced and Hunt. Used for human players.")]
+		public readonly EngagementStance InitialEngagementStance = EngagementStance.Balanced;
+
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while in the HoldPosition engagement stance.")]
+		public readonly string HoldPositionCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while in the Defensive engagement stance.")]
+		public readonly string DefensiveCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while in the Balanced engagement stance.")]
+		public readonly string BalancedCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while in the Hunt engagement stance.")]
+		public readonly string HuntCondition = null;
+
+		[FieldLoader.Ignore]
+		public readonly Dictionary<EngagementStance, string> ConditionByEngagementStance = new Dictionary<EngagementStance, string>();
+
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MinimumScanTimeInterval = 3;
 
@@ -109,6 +149,18 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (AttackAnythingCondition != null)
 				ConditionByStance[UnitStance.AttackAnything] = AttackAnythingCondition;
+
+			if (HoldPositionCondition != null)
+				ConditionByEngagementStance[EngagementStance.HoldPosition] = HoldPositionCondition;
+
+			if (DefensiveCondition != null)
+				ConditionByEngagementStance[EngagementStance.Defensive] = DefensiveCondition;
+
+			if (BalancedCondition != null)
+				ConditionByEngagementStance[EngagementStance.Balanced] = BalancedCondition;
+
+			if (HuntCondition != null)
+				ConditionByEngagementStance[EngagementStance.Hunt] = HuntCondition;
 		}
 
 		IEnumerable<EditorActorOption> IEditorActorOptions.ActorOptions(ActorInfo ai, World world)
@@ -147,22 +199,30 @@ namespace OpenRA.Mods.Common.Traits
 
 		public UnitStance Stance => stance;
 
+		public EngagementStance EngagementStanceValue => engagementStance;
+
 		[Sync]
 		public Actor Aggressor;
 
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public UnitStance PredictedStance;
 
+		// NOT SYNCED: do not refer to this anywhere other than UI code
+		public EngagementStance PredictedEngagementStance;
+
 		// Ambush system: track pre-aimed target and spotted state
 		Target ambushPreAimTarget = Target.Invalid;
 		bool ambushTriggered;
 
 		UnitStance stance;
+		EngagementStance engagementStance;
 		IOverrideAutoTarget[] overrideAutoTarget;
 		INotifyStanceChanged[] notifyStanceChanged;
+		INotifyEngagementStanceChanged[] notifyEngagementStanceChanged;
 		IEnumerable<AutoTargetPriorityInfo> activeTargetPriorities;
 		Turreted[] turretedTraits;
 		int conditionToken = Actor.InvalidConditionToken;
+		int engagementConditionToken = Actor.InvalidConditionToken;
 
 		public void SetStance(Actor self, UnitStance value)
 		{
@@ -185,6 +245,23 @@ namespace OpenRA.Mods.Common.Traits
 					a.StanceChanged(self, this, oldStance, stance);
 		}
 
+		public void SetEngagementStance(Actor self, EngagementStance value)
+		{
+			if (engagementStance == value)
+				return;
+
+			var oldStance = engagementStance;
+			engagementStance = value;
+			ApplyEngagementStanceCondition(self);
+
+			foreach (var nsc in notifyEngagementStanceChanged)
+				nsc.EngagementStanceChanged(self, this, oldStance, engagementStance);
+
+			if (self.CurrentActivity != null)
+				foreach (var a in self.CurrentActivity.ActivitiesImplementing<IActivityNotifyEngagementStanceChanged>())
+					a.EngagementStanceChanged(self, this, oldStance, engagementStance);
+		}
+
 		void ApplyStanceCondition(Actor self)
 		{
 			if (conditionToken != Actor.InvalidConditionToken)
@@ -194,6 +271,15 @@ namespace OpenRA.Mods.Common.Traits
 				conditionToken = self.GrantCondition(condition);
 		}
 
+		void ApplyEngagementStanceCondition(Actor self)
+		{
+			if (engagementConditionToken != Actor.InvalidConditionToken)
+				engagementConditionToken = self.RevokeCondition(engagementConditionToken);
+
+			if (Info.ConditionByEngagementStance.TryGetValue(engagementStance, out var condition))
+				engagementConditionToken = self.GrantCondition(condition);
+		}
+
 		public AutoTarget(ActorInitializer init, AutoTargetInfo info)
 			: base(info)
 		{
@@ -201,8 +287,11 @@ namespace OpenRA.Mods.Common.Traits
 			ActiveAttackBases = self.TraitsImplementing<AttackBase>().ToArray().Where(t => !t.IsTraitDisabled);
 
 			stance = init.GetValue<StanceInit, UnitStance>(self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
+			engagementStance = init.GetValue<EngagementStanceInit, EngagementStance>(
+				self.Owner.IsBot || !self.Owner.Playable ? info.InitialEngagementStanceAI : info.InitialEngagementStance);
 
 			PredictedStance = stance;
+			PredictedEngagementStance = engagementStance;
 
 			allowMovement = Info.AllowMovement && self.TraitOrDefault<IMove>() != null;
 		}
@@ -218,8 +307,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			overrideAutoTarget = self.TraitsImplementing<IOverrideAutoTarget>().ToArray();
 			notifyStanceChanged = self.TraitsImplementing<INotifyStanceChanged>().ToArray();
+			notifyEngagementStanceChanged = self.TraitsImplementing<INotifyEngagementStanceChanged>().ToArray();
 			turretedTraits = self.TraitsImplementing<Turreted>().ToArray();
 			ApplyStanceCondition(self);
+			ApplyEngagementStanceCondition(self);
 
 			base.Created(self);
 		}
@@ -228,12 +319,18 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			PredictedStance = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialStanceAI : Info.InitialStance;
 			SetStance(self, PredictedStance);
+
+			PredictedEngagementStance = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialEngagementStanceAI : Info.InitialEngagementStance;
+			SetEngagementStance(self, PredictedEngagementStance);
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
 			if (order.OrderString == "SetUnitStance" && Info.EnableStances)
 				SetStance(self, (UnitStance)order.ExtraData);
+
+			if (order.OrderString == "SetEngagementStance" && Info.EnableStances)
+				SetEngagementStance(self, (EngagementStance)order.ExtraData);
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
@@ -263,7 +360,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Don't fire at an invisible enemy when we can't move to reveal it
-			var allowMove = allowMovement && Stance > UnitStance.Defend;
+			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
 			if (!allowMove && !attacker.CanBeViewedByPlayer(self.Owner))
 				return;
 
@@ -299,7 +396,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			var allowMove = allowMovement && Stance > UnitStance.Defend;
+			// Hunt: actively chase targets. Balanced: allow moving to clear LOS only (handled in Attack activity).
+			// Defensive/HoldPosition: no auto-move toward targets.
+			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
 			var allowTurn = Info.AllowTurning && Stance > UnitStance.HoldFire;
 			ScanAndAttack(self, allowMove, allowTurn);
 		}
@@ -628,6 +727,12 @@ namespace OpenRA.Mods.Common.Traits
 	public class StanceInit : ValueActorInit<UnitStance>, ISingleInstanceInit
 	{
 		public StanceInit(TraitInfo info, UnitStance value)
+			: base(info, value) { }
+	}
+
+	public class EngagementStanceInit : ValueActorInit<EngagementStance>, ISingleInstanceInit
+	{
+		public EngagementStanceInit(TraitInfo info, EngagementStance value)
 			: base(info, value) { }
 	}
 }

@@ -20,7 +20,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Activities
 {
 	/* non-turreted attack */
-	public class Attack : Activity, IActivityNotifyStanceChanged
+	public class Attack : Activity, IActivityNotifyStanceChanged, IActivityNotifyEngagementStanceChanged
 	{
 		[Flags]
 		protected enum AttackStatus { UnableToAttack, NeedsToTurn, NeedsToMove, Attacking }
@@ -32,6 +32,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IPositionable positionable;
 		readonly bool forceAttack;
 		readonly Color? targetLineColor;
+		readonly AutoTarget autoTarget;
 
 		protected Target target;
 		Target lastVisibleTarget;
@@ -58,6 +59,7 @@ namespace OpenRA.Mods.Common.Activities
 			vision = self.TraitsImplementing<Vision>().ToArray();
 			facing = self.Trait<IFacing>();
 			positionable = self.Trait<IPositionable>();
+			autoTarget = self.TraitOrDefault<AutoTarget>();
 
 			move = allowMovement ? self.TraitOrDefault<IMove>() : null;
 
@@ -210,12 +212,31 @@ namespace OpenRA.Mods.Common.Activities
 			var pos = self.CenterPosition;
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
-			if (!target.IsInRange(pos, maxRange)
-				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
-				|| (move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
-				|| (self.TraitOrDefault<IndirectFire>() == null // Can not fire over blocking actors
-					&& checkTarget.Type != TargetType.Invalid && BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
+			var engStance = autoTarget?.EngagementStanceValue ?? EngagementStance.Balanced;
+
+			var outOfRange = !target.IsInRange(pos, maxRange);
+			var tooClose = minRange.Length != 0 && target.IsInRange(pos, minRange);
+			var cantInteract = move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self);
+			var losBlocked = self.TraitOrDefault<IndirectFire>() == null
+				&& checkTarget.Type != TargetType.Invalid
+				&& BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos);
+
+			var needsToMove = outOfRange || tooClose || cantInteract || losBlocked;
+
+			if (needsToMove)
 			{
+				// HoldPosition: never auto-reposition — give up on this target
+				if (engStance == EngagementStance.HoldPosition)
+					return AttackStatus.UnableToAttack;
+
+				// Balanced: only reposition if LOS is blocked or too close, not if simply out of range
+				if (engStance == EngagementStance.Balanced && outOfRange && !tooClose && !losBlocked)
+					return AttackStatus.UnableToAttack;
+
+				// Defensive: same as Balanced for now (cover-seeking comes in Phase 2 with shadow data)
+				if (engStance == EngagementStance.Defensive && outOfRange && !tooClose && !losBlocked)
+					return AttackStatus.UnableToAttack;
+
 				// Try to move within range, drop the target otherwise
 				if (move == null)
 					return AttackStatus.UnableToAttack;
@@ -225,8 +246,6 @@ namespace OpenRA.Mods.Common.Activities
 				if (checkTarget.Type != TargetType.Invalid)
 				{
 					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
-
-					// Standard should be to attackmove towards target, unless force firing?
 					return AttackStatus.NeedsToMove;
 				}
 			}
@@ -267,6 +286,13 @@ namespace OpenRA.Mods.Common.Activities
 
 			// If lastVisibleTarget is invalid we could never view the target in the first place, so we just drop it here too
 			if (!lastVisibleTarget.IsValidFor(self) || !autoTarget.HasValidTargetPriority(self, lastVisibleOwner, lastVisibleTargetTypes))
+				target = Target.Invalid;
+		}
+
+		void IActivityNotifyEngagementStanceChanged.EngagementStanceChanged(Actor self, AutoTarget autoTarget, EngagementStance oldStance, EngagementStance newStance)
+		{
+			// When switching to HoldPosition, cancel any auto-movement toward targets
+			if (newStance == EngagementStance.HoldPosition && !forceAttack && wasMovingWithinRange)
 				target = Target.Invalid;
 		}
 

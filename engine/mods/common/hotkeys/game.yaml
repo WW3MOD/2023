@@ -124,6 +124,26 @@ StanceHoldFire: F Alt
 	Types: Stance
 	Contexts: Player
 
+EngagementHunt: A Ctrl+Alt
+	Description: Hunt enemies
+	Types: EngagementStance
+	Contexts: Player
+
+EngagementBalanced: S Ctrl+Alt
+	Description: Balanced engagement
+	Types: EngagementStance
+	Contexts: Player
+
+EngagementDefensive: D Ctrl+Alt
+	Description: Defensive positioning
+	Types: EngagementStance
+	Contexts: Player
+
+EngagementHoldPosition: F Ctrl+Alt
+	Description: Hold position
+	Types: EngagementStance
+	Contexts: Player
+
 StopMusic: AUDIOSTOP
 	Description: Stop
 	Types: Music

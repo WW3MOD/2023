@@ -323,6 +323,88 @@ Container@PLAYER_WIDGETS:
 							Y: 5
 							ImageCollection: stance-icons
 							ImageName: hold-fire
+		Container@ENGAGEMENT_STANCE_BAR:
+			Logic: EngagementStanceSelectorLogic
+			X: 294
+			Y: WINDOW_BOTTOM - HEIGHT - 42
+			Width: 140
+			Height: 26
+			Children:
+				Button@ENGAGEMENT_HUNT:
+					Logic: AddFactionSuffixLogic
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: EngagementHunt
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Hunt Enemies
+					TooltipDesc: Set the selected units to Hunt engagement stance:\n - Units aggressively move toward targets\n - Units will chase fleeing enemies
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: attack-anything
+				Button@ENGAGEMENT_BALANCED:
+					Logic: AddFactionSuffixLogic
+					X: 34
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: EngagementBalanced
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Balanced Engagement
+					TooltipDesc: Set the selected units to Balanced engagement stance:\n - Units fire from current position\n - Units reposition only if line of sight is blocked
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: defend
+				Button@ENGAGEMENT_DEFENSIVE:
+					Logic: AddFactionSuffixLogic
+					X: 68
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: EngagementDefensive
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Defensive Positioning
+					TooltipDesc: Set the selected units to Defensive engagement stance:\n - Units seek covered positions near trees and buildings\n - Units prefer positions that reduce enemy visibility
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: return-fire
+				Button@ENGAGEMENT_HOLDPOSITION:
+					Logic: AddFactionSuffixLogic
+					X: 102
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					Key: EngagementHoldPosition
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Hold Position
+					TooltipDesc: Set the selected units to Hold Position engagement stance:\n - Units never auto-reposition\n - Units only fire from their current cell
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: hold-fire
 		Container@GARRISON_PANEL:
 			Logic: GarrisonPanelLogic
 			X: 5
