@@ -25,6 +25,12 @@ Player:
 		Condition: enable-ai-any
 		Bots: normal, rush, turtle
 
+	# Shared blackboard for inter-module coordination
+	BotBlackboard@ai:
+		RequiresCondition: enable-ai-any
+		TaskStaleTicks: 1500
+		CleanupInterval: 300
+
 	ProvidesPrerequisite@AIRESTRICTOR:
 		Prerequisite: aitoodumb
 		RequiresCondition: enable-ai-any
