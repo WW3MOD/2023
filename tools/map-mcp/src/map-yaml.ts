@@ -216,6 +216,11 @@ export function writeMapYaml(data: MapYamlData): string {
 	}
 	lines.push('');
 
+	// Write extra top-level keys (e.g. Rules: rules.yaml)
+	for (const [key, value] of data.extra) {
+		lines.push(`${key}: ${value}`);
+	}
+
 	return lines.join('\n');
 }
 

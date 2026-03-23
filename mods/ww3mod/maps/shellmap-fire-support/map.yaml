@@ -262,3 +262,5 @@ Actors:
 	Actor34: tc01
 		Owner: Neutral
 		Location: 41,26
+
+Rules: rules.yaml

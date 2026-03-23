@@ -292,3 +292,5 @@ Actors:
 	Actor16: tc03
 		Owner: Neutral
 		Location: 40,23
+
+Rules: rules.yaml

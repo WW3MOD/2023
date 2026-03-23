@@ -771,6 +771,13 @@ server.tool(
 		const mapPath = ensureMapExists(mapName);
 		fs.writeFileSync(path.join(mapPath, 'rules.yaml'), rulesContent);
 
+		// Ensure map.yaml references rules.yaml (required for OpenRA to load it)
+		const { yaml, bin } = loadMap(mapName);
+		if (!yaml.extra.has('Rules')) {
+			yaml.extra.set('Rules', 'rules.yaml');
+			saveMap(mapName, yaml, bin);
+		}
+
 		return { content: [{ type: 'text', text: `Wrote rules.yaml for map "${mapName}" (${rulesContent.length} bytes)` }] };
 	}
 );
