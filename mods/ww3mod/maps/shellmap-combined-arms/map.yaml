@@ -14,7 +14,7 @@ Bounds: 1,1,80,50
 
 Visibility: Shellmap
 
-Categories: Conquest
+Categories: Shellmap
 
 Players:
 	PlayerReference@Neutral:
@@ -39,12 +39,6 @@ Players:
 		Enemies: NATO
 
 Actors:
-	Actor0: mpspawn
-		Owner: Neutral
-		Location: 8,8
-	Actor1: mpspawn
-		Owner: Neutral
-		Location: 72,42
 	NatoAbrams1: abrams
 		Owner: NATO
 		Location: 12,20
@@ -298,27 +292,3 @@ Actors:
 	Actor16: tc03
 		Owner: Neutral
 		Location: 40,23
-	NatoRally: waypoint
-		Owner: Neutral
-		Location: 40,24
-	RussiaRally: waypoint
-		Owner: Neutral
-		Location: 40,24
-	NatoFlankN: waypoint
-		Owner: Neutral
-		Location: 35,15
-	NatoFlankS: waypoint
-		Owner: Neutral
-		Location: 35,33
-	RussiaFlankN: waypoint
-		Owner: Neutral
-		Location: 45,15
-	RussiaFlankS: waypoint
-		Owner: Neutral
-		Location: 45,33
-	NatoCenter: waypoint
-		Owner: Neutral
-		Location: 30,24
-	RussiaCenter: waypoint
-		Owner: Neutral
-		Location: 50,24
