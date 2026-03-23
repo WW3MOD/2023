@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -221,8 +222,14 @@ namespace OpenRA.Mods.Common.Widgets
 					if (highlightOnButtonPress)
 						evacuateHighlighted = 2;
 
+					UpdateStateIfNecessary();
 					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
-					PerformKeyboardOrderOnSelection(a => new Order("Evacuate", a, queued));
+					foreach (var a in selectedActors)
+					{
+						var amount = a.GetSellValue();
+						a.QueueActivity(queued, new RotateToEdge(a, true, amount));
+						a.ShowTargetLines();
+					}
 				};
 
 				evacuateButton.OnKeyPress = ki => { evacuateHighlighted = 2; evacuateButton.OnClick(); };
@@ -325,11 +332,24 @@ namespace OpenRA.Mods.Common.Widgets
 						}
 					}
 
-					// Cancel AttackMove on key release even when Alt is already cleared from GetModifierKeys()
-					if (e.Event == KeyInputEvent.Up && world.OrderGenerator is AttackMoveOrderGenerator)
+					// Cancel modifier-driven order generators on key release when the required
+					// modifiers are no longer held. GetModifierKeys() already reflects the
+					// released key, so the condition checks above won't match — handle it here.
+					if (e.Event == KeyInputEvent.Up)
 					{
-						world.CancelInputMode();
-						return true;
+						if (world.OrderGenerator is AttackMoveOrderGenerator)
+						{
+							world.CancelInputMode();
+							return true;
+						}
+
+						// ForceAttack (Ctrl+Alt) → if either modifier is released, cancel
+						if (world.OrderGenerator is ForceModifiersOrderGenerator
+							&& (currentModifiers & ~Modifiers.Shift) != Game.Settings.Game.ForceAttackModifiers)
+						{
+							world.CancelInputMode();
+							return true;
+						}
 					}
 
 					return false;
