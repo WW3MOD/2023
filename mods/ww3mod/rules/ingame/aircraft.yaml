@@ -137,6 +137,8 @@
 		LandableTerrainTypes: Clear, Rough, Road, Beach
 		Crushes: crate, mine, infantry
 		InitialFacing: 224
+	AttackAircraft:
+		AlignBodyToTarget: true
 	GrantConditionOnMovement:
 		Condition: moving
 	GpsDot:

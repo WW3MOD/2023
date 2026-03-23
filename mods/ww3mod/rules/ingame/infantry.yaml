@@ -147,6 +147,7 @@
 		StandSequences: stand,stand2
 	AttackFrontal:
 		FacingTolerance: 50
+		AlignBodyToTarget: true
 		TargetFrozenActors: True
 		PauseOnCondition: garrisoned-at-port
 	AutoTarget:

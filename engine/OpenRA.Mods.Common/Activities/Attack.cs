@@ -247,10 +247,10 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
+			var desiredFacing = (attack.GetTargetPosition(pos, target) - pos).Yaw;
+
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
 			{
-				var desiredFacing = (attack.GetTargetPosition(pos, target) - pos).Yaw;
-
 				// Don't queue a turn activity: Executing a child takes an additional tick during which the target may have moved again
 				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
 
@@ -260,6 +260,11 @@ namespace OpenRA.Mods.Common.Activities
 					attackStatus |= AttackStatus.NeedsToTurn;
 					return AttackStatus.NeedsToTurn;
 				}
+			}
+			else if (attack.Info.AlignBodyToTarget)
+			{
+				// Already in firing arc but keep refining aim toward exact facing
+				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
 			}
 
 			attackStatus |= AttackStatus.Attacking;

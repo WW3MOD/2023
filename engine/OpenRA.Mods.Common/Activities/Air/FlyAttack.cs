@@ -188,6 +188,10 @@ namespace OpenRA.Mods.Common.Activities
 			else if (!attackAircraft.TargetInFiringArc(self, target, attackAircraft.Info.FacingTolerance))
 				aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, aircraft.TurnSpeed);
 
+			// In firing arc but keep refining aim toward exact target facing.
+			else if (attackAircraft.Info.AlignBodyToTarget)
+				aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, aircraft.TurnSpeed);
+
 			return false;
 		}
 

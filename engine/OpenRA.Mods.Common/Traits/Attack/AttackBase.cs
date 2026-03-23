@@ -44,6 +44,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Tolerance for attack angle. Range [0, 512], 512 covers 360 degrees.")]
 		public readonly WAngle FacingTolerance = new WAngle(512);
 
+		[Desc("If true, the unit continues turning to face the target after entering the firing arc, " +
+			"while still allowing firing within FacingTolerance.")]
+		public readonly bool AlignBodyToTarget = false;
+
 		[Desc("Health percentage below which to retarget (e.g., 50 for 50%).")]
 		public readonly int CriticalHealthThreshold = 50;
 
