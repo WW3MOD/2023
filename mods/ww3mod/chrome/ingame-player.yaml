@@ -913,7 +913,9 @@ Container@PLAYER_WIDGETS:
 							VisualHeight: 0
 							Background: sidebar-button
 							TooltipText: Infantry
+							TooltipDesc: Right-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
 							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 							ProductionGroup: Infantry
 							Key: ProductionTypeInfantry
 							Children:
@@ -929,7 +931,9 @@ Container@PLAYER_WIDGETS:
 							VisualHeight: 0
 							Background: sidebar-button
 							TooltipText: Vehicles
+							TooltipDesc: Right-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
 							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 							ProductionGroup: Vehicle
 							Key: ProductionTypeVehicle
 							Children:
@@ -945,7 +949,9 @@ Container@PLAYER_WIDGETS:
 							VisualHeight: 0
 							Background: sidebar-button
 							TooltipText: Aircraft
+							TooltipDesc: Right-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
 							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 							ProductionGroup: Aircraft
 							Key: ProductionTypeAircraft
 							Children:
@@ -977,7 +983,9 @@ Container@PLAYER_WIDGETS:
 							VisualHeight: 0
 							Background: sidebar-button
 							TooltipText: Buildings
+							TooltipDesc: Right-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
 							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 							ProductionGroup: Building
 							Key: ProductionTypeBuilding
 							Children:
@@ -993,7 +1001,9 @@ Container@PLAYER_WIDGETS:
 							VisualHeight: 0
 							Background: sidebar-button
 							TooltipText: Defense
+							TooltipDesc: Right-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
 							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 							ProductionGroup: Defense
 							Key: ProductionTypeDefense
 							Children:

@@ -11,6 +11,7 @@
 
 using System;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -22,6 +23,13 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public int2 CursorOffset = new int2(0, 20);
 		public int BottomEdgeYOffset = -5;
+
+		/// <summary>
+		/// When set, the tooltip is anchored to the left of this rectangle
+		/// instead of following the mouse cursor.
+		/// </summary>
+		public Rectangle? AnchorBounds;
+		public int AnchorGap = 4;
 
 		public Action BeforeRender = Nothing;
 		public int TooltipDelayMilliseconds = 200;
@@ -71,6 +79,7 @@ namespace OpenRA.Mods.Common.Widgets
 			tooltip = null;
 			id = null;
 			widgetArgs = null;
+			AnchorBounds = null;
 
 			RemoveChildren();
 			BeforeRender = Nothing;
@@ -92,6 +101,9 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			get
 			{
+				if (AnchorBounds.HasValue && tooltip != null)
+					return GetAnchoredPosition();
+
 				var scale = graphicSettings.CursorDouble ? 2 : 1;
 				var pos = Viewport.LastMousePos + scale * CursorOffset;
 				if (tooltip != null)
@@ -107,6 +119,31 @@ namespace OpenRA.Mods.Common.Widgets
 
 				return pos;
 			}
+		}
+
+		int2 GetAnchoredPosition()
+		{
+			var anchor = AnchorBounds.Value;
+			var tooltipWidth = tooltip.Bounds.Right;
+			var tooltipHeight = tooltip.Bounds.Bottom;
+
+			// Position to the left of the anchor widget
+			var x = anchor.X - tooltipWidth - AnchorGap;
+
+			// Vertically center on the anchor
+			var y = anchor.Y + (anchor.Height - tooltipHeight) / 2;
+
+			// If it goes off the left edge, flip to the right side
+			if (x < 0)
+				x = anchor.Right + AnchorGap;
+
+			// Clamp to screen bounds vertically
+			if (y < 0)
+				y = 0;
+			else if (y + tooltipHeight > Game.Renderer.Resolution.Height)
+				y = Game.Renderer.Resolution.Height - tooltipHeight;
+
+			return new int2(x, y);
 		}
 
 		public override string GetCursor(int2 pos) { return null; }

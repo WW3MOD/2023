@@ -33,6 +33,24 @@ namespace OpenRA.Mods.Common.Widgets
 			OnMiddleClick = other.OnMiddleClick;
 		}
 
+		public override void MouseEntered()
+		{
+			if (TooltipContainer == null || GetTooltipText() == null)
+				return;
+
+			var tc = tooltipContainer.Value;
+			tc.AnchorBounds = RenderBounds;
+			base.MouseEntered();
+		}
+
+		public override void MouseExited()
+		{
+			if (TooltipContainer != null && tooltipContainer.IsValueCreated)
+				tooltipContainer.Value.AnchorBounds = null;
+
+			base.MouseExited();
+		}
+
 		public override bool HandleMouseInput(MouseInput mi)
 		{
 			if (mi.Button == MouseButton.Left)
@@ -59,5 +77,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			return false;
 		}
+
+		public override Widget Clone() { return new ProductionTypeButtonWidget(this); }
 	}
 }
