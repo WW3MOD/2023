@@ -9,11 +9,6 @@ ticks = 0
 Tick = function()
 	ticks = ticks + 1
 
-	-- Camera pans from south toward center
-	if ticks < 600 then
-		Camera.Position = Camera.Position + WVec.New(20, -25, 0)
-	end
-
 	-- Phase 1 (tick 50): NATO armor advances as tight group
 	if ticks == 50 then
 		print("glass-cannon.lua: Phase 1 - NATO armor")
@@ -99,5 +94,5 @@ WorldLoaded = function()
 	print("glass-cannon.lua: WorldLoaded called")
 	nato = Player.GetPlayer("NATO")
 	russia = Player.GetPlayer("Russia")
-	Camera.Position = WPos.New(1024 * 30, 1024 * 42, 0)
+	Camera.Position = WPos.New(1024 * 41, 1024 * 26, 0)
 end

@@ -9,11 +9,6 @@ ticks = 0
 Tick = function()
 	ticks = ticks + 1
 
-	-- Camera pans from southwest toward center
-	if ticks < 600 then
-		Camera.Position = Camera.Position + WVec.New(30, -20, 0)
-	end
-
 	-- Phase 1 (tick 50): Armor pushes to center
 	if ticks == 50 then
 		print("combined-arms.lua: Phase 1 - Armor advance")
@@ -91,5 +86,5 @@ WorldLoaded = function()
 	print("combined-arms.lua: WorldLoaded called")
 	nato = Player.GetPlayer("NATO")
 	russia = Player.GetPlayer("Russia")
-	Camera.Position = WPos.New(1024 * 15, 1024 * 40, 0)
+	Camera.Position = WPos.New(1024 * 41, 1024 * 26, 0)
 end

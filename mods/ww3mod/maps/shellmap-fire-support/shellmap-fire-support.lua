@@ -9,11 +9,6 @@ ticks = 0
 Tick = function()
 	ticks = ticks + 1
 
-	-- Camera pans from bottom-left across battlefield
-	if ticks < 700 then
-		Camera.Position = Camera.Position + WVec.New(28, -15, 0)
-	end
-
 	-- Phase 1 (tick 50): IFV screen advances
 	if ticks == 50 then
 		print("fire-support.lua: Phase 1 - IFV screen")
@@ -98,5 +93,5 @@ WorldLoaded = function()
 	print("fire-support.lua: WorldLoaded called")
 	nato = Player.GetPlayer("NATO")
 	russia = Player.GetPlayer("Russia")
-	Camera.Position = WPos.New(1024 * 12, 1024 * 40, 0)
+	Camera.Position = WPos.New(1024 * 41, 1024 * 26, 0)
 end
