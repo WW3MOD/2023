@@ -12,6 +12,7 @@
 using System;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Network;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -43,10 +44,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			button.IsDisabled = () => !queues.Any(q => q.BuildableItems().Any());
-			button.OnMouseUp = mi => SelectTab(mi.Modifiers.HasModifier(Modifiers.Shift));
+			button.OnMouseUp = mi =>
+			{
+				// Alt+click: toggle repeat mode for this production category
+				if (mi.Modifiers.HasModifier(Modifiers.Alt))
+				{
+					foreach (var q in queues.Where(q => q.Enabled))
+						world.IssueOrder(Order.ToggleRepeatProduction(q.Actor, q.Info.Type));
+					return;
+				}
+
+				SelectTab(mi.Modifiers.HasModifier(Modifiers.Shift));
+			};
+
 			button.OnKeyPress = e => SelectTab(e.Modifiers.HasModifier(Modifiers.Shift));
 			button.OnClick = () => SelectTab(false);
 			button.IsHighlighted = () => queues.Contains(palette.CurrentQueue);
+			button.RepeatModeActive = () => queues.Any(q => q.Enabled && q.RepeatMode);
 
 			// Right-click: toggle pause/resume all items in this category
 			button.OnRightClick = () =>

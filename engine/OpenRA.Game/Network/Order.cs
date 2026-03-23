@@ -292,6 +292,11 @@ namespace OpenRA
 			return new Order("CancelAllProduction", subject, false) { TargetString = queueType };
 		}
 
+		public static Order ToggleRepeatProduction(Actor subject, string queueType)
+		{
+			return new Order("ToggleRepeatProduction", subject, false) { TargetString = queueType };
+		}
+
 		// For scripting special powers
 		public Order()
 			: this(null, null, Target.Invalid, null, false, null, CPos.Zero, 0) { }

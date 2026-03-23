@@ -153,6 +153,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public bool IsValidFaction { get; private set; }
 
+		[Sync]
+		public bool RepeatMode { get; set; }
+
 		public ProductionQueue(ActorInitializer init, ProductionQueueInfo info)
 		{
 			self = init.Self;
@@ -518,6 +521,27 @@ namespace OpenRA.Mods.Common.Traits
 					if (order.TargetString == Info.Type)
 						ClearQueue();
 					break;
+				case "ToggleRepeatProduction":
+					if (order.TargetString == Info.Type)
+					{
+						RepeatMode = !RepeatMode;
+
+						// When enabling, mark the currently building item as infinite
+						if (RepeatMode)
+						{
+							var current = Queue.FirstOrDefault();
+							if (current != null && !current.Infinite)
+								current.Infinite = true;
+						}
+						else
+						{
+							// When disabling, clear infinite on all items so they finish normally
+							foreach (var item in Queue)
+								item.Infinite = false;
+						}
+					}
+
+					break;
 			}
 		}
 
@@ -610,6 +634,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Queue.Any(i => i.Item == item.Item && i.Infinite))
 				return;
+
+			// Auto-set infinite when repeat mode is active
+			if (RepeatMode)
+				item.Infinite = true;
 
 			if (hasPriority && Queue.Count > 1)
 				Queue.Insert(1, item);

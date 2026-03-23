@@ -10,6 +10,8 @@
 #endregion
 
 using System;
+using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -17,13 +19,20 @@ namespace OpenRA.Mods.Common.Widgets
 	public class ProductionTypeButtonWidget : WorldButtonWidget
 	{
 		public readonly string ProductionGroup;
+		public readonly string RepeatSymbolsFont = "Symbols";
 
 		public Action OnRightClick = () => { };
 		public Action OnMiddleClick = () => { };
+		public Func<bool> RepeatModeActive = () => false;
+
+		SpriteFont symbolFont;
 
 		[ObjectCreator.UseCtor]
 		public ProductionTypeButtonWidget(ModData modData, World world)
-			: base(modData, world) { }
+			: base(modData, world)
+		{
+			Game.Renderer.Fonts.TryGetValue(RepeatSymbolsFont, out symbolFont);
+		}
 
 		protected ProductionTypeButtonWidget(ProductionTypeButtonWidget other)
 			: base(other)
@@ -31,6 +40,8 @@ namespace OpenRA.Mods.Common.Widgets
 			ProductionGroup = other.ProductionGroup;
 			OnRightClick = other.OnRightClick;
 			OnMiddleClick = other.OnMiddleClick;
+			RepeatModeActive = other.RepeatModeActive;
+			symbolFont = other.symbolFont;
 		}
 
 		public override void MouseEntered()
@@ -52,10 +63,28 @@ namespace OpenRA.Mods.Common.Widgets
 			base.MouseExited();
 		}
 
+		public override void Draw()
+		{
+			base.Draw();
+
+			if (symbolFont != null && RepeatModeActive())
+			{
+				var rb = RenderBounds;
+				var symbol = "\u221E"; // ∞
+				var size = symbolFont.Measure(symbol);
+				var pos = new float2(rb.X + (rb.Width - size.X) / 2, rb.Y + (rb.Height - size.Y) / 2);
+				symbolFont.DrawTextWithContrast(symbol, pos, Color.LimeGreen, Color.Black, 1);
+			}
+		}
+
 		public override bool HandleMouseInput(MouseInput mi)
 		{
 			if (mi.Button == MouseButton.Left)
+			{
+				// Alt+left-click is handled by OnMouseUp for repeat mode toggle
+				// Pass through to base which fires OnMouseUp with modifiers
 				return base.HandleMouseInput(mi);
+			}
 
 			if (IsDisabled())
 				return false;
