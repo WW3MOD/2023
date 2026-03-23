@@ -127,21 +127,22 @@ namespace OpenRA.Mods.Common.Widgets
 			var tooltipWidth = tooltip.Bounds.Right;
 			var tooltipHeight = tooltip.Bounds.Bottom;
 
-			// Position to the left of the anchor widget
+			// Position to the left of the anchor widget, flush with its right edge
 			var x = anchor.X - tooltipWidth - AnchorGap;
 
-			// Vertically center on the anchor
-			var y = anchor.Y + (anchor.Height - tooltipHeight) / 2;
+			// Top-align with the button, tooltip expands downward
+			var y = anchor.Y;
 
 			// If it goes off the left edge, flip to the right side
 			if (x < 0)
 				x = anchor.Right + AnchorGap;
 
 			// Clamp to screen bounds vertically
+			if (y + tooltipHeight > Game.Renderer.Resolution.Height)
+				y = Game.Renderer.Resolution.Height - tooltipHeight;
+
 			if (y < 0)
 				y = 0;
-			else if (y + tooltipHeight > Game.Renderer.Resolution.Height)
-				y = Game.Renderer.Resolution.Height - tooltipHeight;
 
 			return new int2(x, y);
 		}

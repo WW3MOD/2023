@@ -38,9 +38,10 @@ namespace OpenRA.Mods.Common.Widgets
 			if (TooltipContainer == null || GetTooltipText() == null)
 				return;
 
-			var tc = tooltipContainer.Value;
-			tc.AnchorBounds = RenderBounds;
+			// Must set anchor AFTER base.MouseEntered because SetTooltip
+			// calls RemoveTooltip which clears AnchorBounds.
 			base.MouseEntered();
+			tooltipContainer.Value.AnchorBounds = RenderBounds;
 		}
 
 		public override void MouseExited()
