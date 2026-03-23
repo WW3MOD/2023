@@ -30,6 +30,9 @@ namespace OpenRA.Mods.Common.Activities
 		Target target = Target.Invalid;
 		int checkTick = 0;
 
+		/// <summary>The original destination cell, cached at construction time for reliable group scatter extraction.</summary>
+		public readonly CPos? OriginalDestination;
+
 		public AttackMoveActivity(Actor self, Func<Activity> getMove, bool assaultMoving = false)
 		{
 			this.getMove = getMove;
@@ -37,6 +40,13 @@ namespace OpenRA.Mods.Common.Activities
 			attackMove = self.TraitOrDefault<AttackMove>();
 			isAssaultMove = assaultMoving;
 			ChildHasPriority = false;
+
+			// Cache the destination before any ticks can modify it (for group scatter)
+			var tempActivity = getMove();
+			if (tempActivity is SmartMoveActivity sma)
+				OriginalDestination = sma.OriginalDestination;
+			else if (tempActivity is Move m)
+				OriginalDestination = m.Destination;
 		}
 
 		protected override void OnFirstRun(Actor self)

@@ -38,8 +38,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 		{
 			public CPos Cell;
 			public Target Target;
-			public string OrderType; // "Move", "AttackMove", "Attack", "ForceAttack"
-			public bool IsActorTarget; // true for Attack/ForceAttack on specific actors
+			public string OrderType; // "Move", "AttackMove", "ForceAttack", "CaptureActor", etc.
+			public bool IsActorTarget; // true for orders targeting specific actors
 		}
 
 		// A segment is a run of consecutive same-type orders
@@ -82,27 +82,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			// Split waypoints into segments of consecutive same-type orders
 			var segments = BuildSegments(waypoints);
 
-			// Stop all units first
+			// Stop all units first — clears all existing activities
 			foreach (var unit in selectedActors)
 				world.IssueOrder(new Order("Stop", unit, false));
 
-			// Process each segment in order, queuing after the previous
-			var isFirstSegment = true;
+			// Process each segment in order, always queuing (Stop already cleared activities)
 			foreach (var segment in segments)
-			{
-				if (segment.IsActorTarget)
-				{
-					// Actor-targeted orders (Attack/ForceAttack): ALL units get ALL targets, shuffled per unit
-					IssueActorTargetSegment(selectedActors, segment, !isFirstSegment);
-				}
-				else
-				{
-					// Position-targeted orders (Move/AttackMove): distribute among units
-					IssuePositionSegment(selectedActors, segment, !isFirstSegment);
-				}
-
-				isFirstSegment = false;
-			}
+				DistributeSegment(selectedActors, segment);
 
 			var segmentDesc = string.Join(" → ", segments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
 			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units: {segmentDesc}");
@@ -128,19 +114,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 		Waypoint? ExtractWaypoint(Activity activity, Actor actor)
 		{
-			// Direct Move activity
-			if (activity is Move move && move.Destination.HasValue)
-				return new Waypoint
-				{
-					Cell = move.Destination.Value,
-					Target = Target.FromCell(world, move.Destination.Value),
-					OrderType = "Move",
-					IsActorTarget = false
-				};
+			// AttackMoveActivity — use cached OriginalDestination (most reliable)
+			if (activity is AttackMoveActivity attackMove)
+			{
+				if (attackMove.OriginalDestination.HasValue)
+					return new Waypoint
+					{
+						Cell = attackMove.OriginalDestination.Value,
+						Target = Target.FromCell(world, attackMove.OriginalDestination.Value),
+						OrderType = "AttackMove",
+						IsActorTarget = false
+					};
+
+				// Fallback: TargetLineNodes (shouldn't be needed but just in case)
+				return ExtractFromTargetLineNodes(activity, actor, "AttackMove");
+			}
 
 			// SmartMoveActivity wraps Move via IWrapMove (SmartMove trait)
 			// Use the cached original destination — more reliable than TargetLineNodes
-			// which can fail if the inner Move's destination was modified during execution
 			if (activity is SmartMoveActivity smartMove)
 			{
 				if (smartMove.OriginalDestination.HasValue)
@@ -155,28 +146,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				return ExtractFromTargetLineNodes(activity, actor, "Move");
 			}
 
-			// AttackMove wraps a Move in its child
-			if (activity is AttackMoveActivity)
-			{
-				// First try GetTargets (works when child is a Move, not attacking)
-				var targets = activity.GetTargets(actor);
-				foreach (var t in targets)
+			// Direct Move activity
+			if (activity is Move move && move.Destination.HasValue)
+				return new Waypoint
 				{
-					if (t.Type == TargetType.Terrain)
-						return new Waypoint
-						{
-							Cell = world.Map.CellContaining(t.CenterPosition),
-							Target = t,
-							OrderType = "AttackMove",
-							IsActorTarget = false
-						};
-				}
+					Cell = move.Destination.Value,
+					Target = Target.FromCell(world, move.Destination.Value),
+					OrderType = "Move",
+					IsActorTarget = false
+				};
 
-				// Fallback: TargetLineNodes (works even when engaging enemies)
-				return ExtractFromTargetLineNodes(activity, actor, "AttackMove");
-			}
-
-			// Attack activity (force-attack or auto-attack on an actor)
+			// Attack activity (force-attack on an actor or ground)
 			if (activity is Attack)
 			{
 				var targets = activity.GetTargets(actor);
@@ -219,8 +199,56 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				}
 			}
 
-			// General fallback: try TargetLineNodes for any unrecognized wrapper activities
+			// CaptureActor (extends Enter) — capture/infiltrate orders
+			if (activity is CaptureActor)
+				return ExtractActorTargetFromActivity(activity, actor, "CaptureActor");
+
+			// Generic Enter-derived activities (RideTransport, EnterAsCrew, etc.)
+			// Try to infer the order type from the activity class
+			if (activity is RideTransport)
+				return ExtractActorTargetFromActivity(activity, actor, "EnterTransport");
+
+			if (activity is EnterAsCrew)
+				return ExtractActorTargetFromActivity(activity, actor, "EnterAsCrewMember");
+
+			// Any other Enter-derived activity — extract target but skip re-issuance
+			// (we can't reliably infer the order string for unknown Enter subclasses)
+			if (activity is Enter)
+				return ExtractActorTargetFromActivity(activity, actor, null);
+
+			// General fallback: try TargetLineNodes for any unrecognized activities
 			return ExtractFromTargetLineNodes(activity, actor, "Move");
+		}
+
+		Waypoint? ExtractActorTargetFromActivity(Activity activity, Actor actor, string orderType)
+		{
+			// Try TargetLineNodes first (Enter.TargetLineNodes returns the target actor)
+			foreach (var node in activity.TargetLineNodes(actor))
+			{
+				if (node.Target.Type == TargetType.Actor && node.Target.Actor != null && !node.Target.Actor.IsDead)
+					return new Waypoint
+					{
+						Cell = node.Target.Actor.Location,
+						Target = node.Target,
+						OrderType = orderType,
+						IsActorTarget = true
+					};
+			}
+
+			// Try GetTargets as fallback
+			foreach (var t in activity.GetTargets(actor))
+			{
+				if (t.Type == TargetType.Actor && t.Actor != null && !t.Actor.IsDead)
+					return new Waypoint
+					{
+						Cell = t.Actor.Location,
+						Target = t,
+						OrderType = orderType,
+						IsActorTarget = true
+					};
+			}
+
+			return null;
 		}
 
 		Waypoint? ExtractFromTargetLineNodes(Activity activity, Actor actor, string orderType)
@@ -250,6 +278,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 			foreach (var wp in waypoints)
 			{
+				// Skip waypoints with null order type (unknown Enter subclasses)
+				if (wp.OrderType == null)
+					continue;
+
 				if (wp.OrderType != currentType)
 				{
 					if (currentWps != null && currentWps.Count > 0)
@@ -269,8 +301,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			return segments;
 		}
 
-		// Position-based orders: distribute waypoints among units (each unit gets one per segment)
-		void IssuePositionSegment(List<Actor> units, Segment segment, bool queued)
+		// Distribute waypoints among units — works for both terrain and actor targets
+		void DistributeSegment(List<Actor> units, Segment segment)
 		{
 			var waypoints = segment.Waypoints;
 
@@ -296,8 +328,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 					if (bestWp >= 0)
 					{
-						var target = Target.FromCell(world, waypoints[bestWp].Cell);
-						world.IssueOrder(new Order(segment.OrderType, unit, target, queued));
+						world.IssueOrder(new Order(segment.OrderType, unit, waypoints[bestWp].Target, true));
 						available.Remove(bestWp);
 					}
 				}
@@ -332,30 +363,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 					if (bestWp >= 0)
 					{
-						var target = Target.FromCell(world, waypoints[bestWp].Cell);
-						world.IssueOrder(new Order(segment.OrderType, unit, target, queued));
+						world.IssueOrder(new Order(segment.OrderType, unit, waypoints[bestWp].Target, true));
 						wpCapacity[bestWp]--;
 					}
-				}
-			}
-		}
-
-		// Actor-targeted orders (Attack): all units get all targets, shuffled per unit
-		void IssueActorTargetSegment(List<Actor> units, Segment segment, bool queued)
-		{
-			var rng = new Random();
-			var waypoints = segment.Waypoints;
-
-			foreach (var unit in units)
-			{
-				// Shuffle order of targets per unit so they don't all focus the same one first
-				var shuffled = waypoints.OrderBy(_ => rng.Next()).ToList();
-				var first = true;
-
-				foreach (var wp in shuffled)
-				{
-					world.IssueOrder(new Order(wp.OrderType, unit, wp.Target, queued || !first));
-					first = false;
 				}
 			}
 		}
