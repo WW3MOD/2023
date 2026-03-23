@@ -24,10 +24,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Delay = 2400;
 
 		[Desc("Width (in pixels) of the target lines.")]
-		public readonly int LineWidth = 1;
+		public readonly int LineWidth = 2;
 
 		[Desc("Width (in pixels) of the queued target lines.")]
-		public readonly int QueuedLineWidth = 1;
+		public readonly int QueuedLineWidth = 2;
 
 		[Desc("Width (in pixels) of the end node markers.")]
 		public readonly int MarkerWidth = 2;
