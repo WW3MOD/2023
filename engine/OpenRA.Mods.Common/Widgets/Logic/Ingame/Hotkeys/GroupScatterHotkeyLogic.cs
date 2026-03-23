@@ -139,9 +139,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				};
 
 			// SmartMoveActivity wraps Move via IWrapMove (SmartMove trait)
-			// The inner Move isn't directly accessible, but TargetLineNodes delegates to it
-			if (activity is SmartMoveActivity)
+			// Use the cached original destination — more reliable than TargetLineNodes
+			// which can fail if the inner Move's destination was modified during execution
+			if (activity is SmartMoveActivity smartMove)
+			{
+				if (smartMove.OriginalDestination.HasValue)
+					return new Waypoint
+					{
+						Cell = smartMove.OriginalDestination.Value,
+						Target = Target.FromCell(world, smartMove.OriginalDestination.Value),
+						OrderType = "Move",
+						IsActorTarget = false
+					};
+
 				return ExtractFromTargetLineNodes(activity, actor, "Move");
+			}
 
 			// AttackMove wraps a Move in its child
 			if (activity is AttackMoveActivity)

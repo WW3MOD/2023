@@ -33,11 +33,18 @@ namespace OpenRA.Mods.Common.Activities
 		bool runningMoveActivity;
 		int checkTick;
 
+		/// <summary>The original destination cell, cached at construction time before any ticks can modify the inner Move.</summary>
+		public readonly CPos? OriginalDestination;
+
 		public SmartMoveActivity(Activity moveInner, SmartMoveInfo info)
 		{
 			this.moveInner = moveInner;
 			this.info = info;
 			ChildHasPriority = false;
+
+			// Cache the original destination before any execution modifies it
+			if (moveInner is Move move)
+				OriginalDestination = move.Destination;
 		}
 
 		protected override void OnFirstRun(Actor self)
