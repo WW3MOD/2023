@@ -58,6 +58,9 @@ namespace OpenRA.Mods.Common.Commands
 		static readonly string DevCheatAllDescription = "dev-cheat-all";
 
 		[TranslationReference]
+		static readonly string CinematicViewDescription = "cinematic-view";
+
+		[TranslationReference]
 		static readonly string DevCrashDescription = "dev-crash";
 
 		[TranslationReference]
@@ -85,6 +88,7 @@ namespace OpenRA.Mods.Common.Commands
 			{ "unlimited-power", (UnlimitedPowerDescription, UnlimitedPower) },
 			{ "enable-tech", (EnableTechDescription, EnableTech) },
 			{ "fast-charge", (FastChargeDescription, FastCharge) },
+			{ "cview", (CinematicViewDescription, CinematicView) },
 			{ "all", (DevCheatAllDescription, All) },
 			{ "crash", (DevCrashDescription, Crash) },
 			{ "levelup", (LevelUpActorDescription, LevelUp) },
@@ -189,6 +193,11 @@ namespace OpenRA.Mods.Common.Commands
 		static void All(string arg, World world)
 		{
 			IssueDevCommand(world, "DevAll");
+		}
+
+		static void CinematicView(string arg, World world)
+		{
+			IssueDevCommand(world, "DevCinematicView");
 		}
 
 		static void Crash(string arg, World world)

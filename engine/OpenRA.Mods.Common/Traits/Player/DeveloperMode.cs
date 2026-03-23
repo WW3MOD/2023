@@ -216,6 +216,21 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 				}
 
+				case "DevCinematicView":
+				{
+					if (self.World.LocalPlayer == self.Owner)
+					{
+						// Toggle visual-only map reveal — does NOT affect gameplay vision,
+						// auto-targeting, or MapLayers. Units still behave as if fog exists.
+						if (self.World.RenderPlayer == null)
+							self.World.RenderPlayer = self.Owner;
+						else
+							self.World.RenderPlayer = null;
+					}
+
+					break;
+				}
+
 				case "DevPathDebug":
 				{
 					pathDebug ^= true;

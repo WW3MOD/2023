@@ -625,6 +625,7 @@ actor-tags-overlay-description = toggles actor tags overlay.
 cheats-disabled = Cheats are disabled.
 invalid-cash-amount = Invalid amount of cash.
 toggle-visibility = toggles visibility checks and minimap.
+cinematic-view = toggles cinematic map reveal (visual only, does not affect gameplay).
 give-cash = gives the default or specified amount of money.
 give-cash-all = gives the default or specified amount of money to all players and ai.
 instant-building = toggles instant building.
