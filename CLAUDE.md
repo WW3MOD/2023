@@ -312,6 +312,22 @@ OpenRA uses `WDist` (World Distance) units throughout. The notation is `NcXXX`:
 - `0c512` = 0.5 cells
 - Plain numbers like `512` = 512 WDist units (half a cell)
 
+## WAngle Facing Convention
+
+OpenRA uses `WAngle` for facings with **counterclockwise** rotation (0–1024 range). This is the OPPOSITE of typical clockwise conventions — easy to get wrong!
+
+| WAngle | Direction | Screen Direction (top-down) |
+|--------|-----------|---------------------------|
+| 0      | North     | Up                        |
+| 256    | **West**  | **Left**                  |
+| 512    | South     | Down                      |
+| 768    | **East**  | **Right**                 |
+
+**Quick reference for map placement:**
+- Units on the LEFT side facing right: `Facing: 768` (East)
+- Units on the RIGHT side facing left: `Facing: 256` (West)
+- Conversion: `WAngle.FromFacing(oldFacing)` where old RA facing × 4 = WAngle
+
 ## Suppression System (Complete)
 
 **Infantry suppression (10-tier, cap 100, decay 1/5 ticks):**
