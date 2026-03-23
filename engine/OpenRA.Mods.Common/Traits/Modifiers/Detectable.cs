@@ -170,7 +170,26 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
 			// TODO Modify to GPS dot when barely visible?
-			return IsVisible(self, self.World.RenderPlayer) ? r : SpriteRenderable.None;
+			if (IsVisible(self, self.World.RenderPlayer))
+				return r;
+
+			// Cosmetic reveal: render non-visible actors as semi-transparent ghosts
+			var devMode = self.World.LocalPlayer?.PlayerActor.TraitOrDefault<DeveloperMode>();
+			if (devMode != null && devMode.CosmeticReveal)
+				return ApplyCosmeticRevealAlpha(r);
+
+			return SpriteRenderable.None;
+		}
+
+		static IEnumerable<IRenderable> ApplyCosmeticRevealAlpha(IEnumerable<IRenderable> renderables)
+		{
+			foreach (var renderable in renderables)
+			{
+				if (renderable is IModifyableRenderable mr)
+					yield return mr.WithAlpha(mr.Alpha * 0.35f);
+				else
+					yield return renderable;
+			}
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)

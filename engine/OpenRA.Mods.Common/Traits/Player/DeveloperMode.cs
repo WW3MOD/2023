@@ -59,6 +59,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Enable the build anywhere cheat by default.")]
 		public readonly bool BuildAnywhere;
 
+		[Desc("Enable the cosmetic reveal cheat by default (see all units without affecting gameplay).")]
+		public readonly bool CosmeticReveal;
+
 		[Desc("Enable the path debug overlay by default.")]
 		public readonly bool PathDebug;
 
@@ -98,6 +101,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		bool buildAnywhere;
 
+		[Sync]
+		bool cosmeticReveal;
+
 		public bool FastCharge => Enabled && fastCharge;
 		public bool AllTech => Enabled && allTech;
 		public bool FastBuild => Enabled && fastBuild;
@@ -105,6 +111,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool PathDebug => Enabled && pathDebug;
 		public bool UnlimitedPower => Enabled && unlimitedPower;
 		public bool BuildAnywhere => Enabled && buildAnywhere;
+		public bool CosmeticReveal => Enabled && cosmeticReveal;
 
 		bool enableAll;
 
@@ -120,6 +127,7 @@ namespace OpenRA.Mods.Common.Traits
 			pathDebug = info.PathDebug;
 			unlimitedPower = info.UnlimitedPower;
 			buildAnywhere = info.BuildAnywhere;
+			cosmeticReveal = info.CosmeticReveal;
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -139,7 +147,7 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevAll":
 				{
 					enableAll ^= true;
-					allTech = fastCharge = fastBuild = disableShroud = unlimitedPower = buildAnywhere = enableAll;
+					allTech = fastCharge = fastBuild = disableShroud = unlimitedPower = buildAnywhere = cosmeticReveal = enableAll;
 
 					if (enableAll)
 					{
@@ -258,6 +266,12 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevBuildAnywhere":
 				{
 					buildAnywhere ^= true;
+					break;
+				}
+
+				case "DevCosmeticReveal":
+				{
+					cosmeticReveal ^= true;
 					break;
 				}
 

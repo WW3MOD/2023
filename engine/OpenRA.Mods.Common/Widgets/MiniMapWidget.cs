@@ -411,9 +411,12 @@ namespace OpenRA.Mods.Common.Widgets
 					{
 						var colors = (int*)colorBytes;
 
+						var cosmeticRevealDev = world.LocalPlayer?.PlayerActor.TraitOrDefault<DeveloperMode>();
+						var cosmeticRevealActive = cosmeticRevealDev != null && cosmeticRevealDev.CosmeticReveal;
+
 						foreach (var t in world.ActorsWithTrait<IMiniMapSignature>())
 						{
-							if (!t.Actor.IsInWorld || world.FogObscures(t.Actor))
+							if (!t.Actor.IsInWorld || (!cosmeticRevealActive && world.FogObscures(t.Actor)))
 								continue;
 
 							cells.Clear();
