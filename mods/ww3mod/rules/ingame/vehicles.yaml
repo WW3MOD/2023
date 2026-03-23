@@ -456,7 +456,7 @@ TRUK:
 		SupplyLowCondition: supply-low
 	RenderRangeCircle@Supply:
 		FallbackRange: 5c0
-		Color: 40FF40
+		Color: C0C0C0
 		Width: 1.5
 		Alpha: 100
 		RequireShift: false
