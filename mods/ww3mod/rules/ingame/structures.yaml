@@ -245,6 +245,11 @@ SUPPLYROUTE:
 		HP: 50000
 	Targetable:
 		TargetTypes: NoAutoTarget
+	WithRangeCircle@Contestation:
+		Range: 10c0
+		UsePlayerColor: true
+		ValidRelationships: Ally, Enemy, Neutral
+		RequireShift: false
 	SupplyRouteContestation:
 		Range: 10c0
 		ReferenceValue: 2500
