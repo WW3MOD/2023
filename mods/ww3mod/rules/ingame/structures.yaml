@@ -247,7 +247,7 @@ SUPPLYROUTE:
 		TargetTypes: NoAutoTarget
 	WithRangeCircle@Contestation:
 		Range: 10c0
-		UsePlayerColor: true
+		UsePlayerColor: false
 		ValidRelationships: Ally, Enemy, Neutral
 		RequireShift: false
 	SupplyRouteContestation:
