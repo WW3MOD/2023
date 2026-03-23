@@ -147,7 +147,7 @@ namespace OpenRA.Mods.Common.Traits
 		void UpdateTarget()
 		{
 			// Always re-evaluate — pick unit with greatest need
-			var bestTarget = FindGreatestNeedTarget();
+			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets);
 
 			if (bestTarget == null)
 			{
@@ -157,21 +157,34 @@ namespace OpenRA.Mods.Common.Traits
 					currentTarget = null;
 				}
 
+				// We have supply but can't afford to help anyone nearby → restock
+				if (hasUnaffordableTargets && Info.RestockActors.Count > 0 && !restocking)
+					TryRestock();
+
 				return;
 			}
 
 			SetTarget(bestTarget);
 		}
 
-		Actor FindGreatestNeedTarget()
+		Actor FindGreatestNeedTarget(out bool hasUnaffordableTargets)
 		{
 			Actor best = null;
 			var bestNeed = 0f;
+			hasUnaffordableTargets = false;
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.Range))
 			{
 				if (!IsValidTarget(a))
 					continue;
+
+				// Check if we can afford any of this target's non-full ammo pools
+				var rearmable = a.Trait<Rearmable>();
+				if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+				{
+					hasUnaffordableTargets = true;
+					continue;
+				}
 
 				var need = CalculateNeed(a);
 				if (need > bestNeed)
