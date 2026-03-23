@@ -221,7 +221,8 @@ namespace OpenRA.Mods.Common.Widgets
 					if (highlightOnButtonPress)
 						evacuateHighlighted = 2;
 
-					// Dummy Phase 1: just flash the button
+					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
+					PerformKeyboardOrderOnSelection(a => new Order("Evacuate", a, queued));
 				};
 
 				evacuateButton.OnKeyPress = ki => { evacuateHighlighted = 2; evacuateButton.OnClick(); };
@@ -309,6 +310,8 @@ namespace OpenRA.Mods.Common.Widgets
 						}
 
 						// AttackMove requires Alt alone (or with Shift)
+						// On KeyUp, Game.GetModifierKeys() already has Alt removed, so we
+						// also check if we're currently in AttackMove mode below
 						else if (currentModifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) && !currentModifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
 						{
 							if (e.Event == KeyInputEvent.Down)
@@ -317,13 +320,16 @@ namespace OpenRA.Mods.Common.Widgets
 								UpdateStateIfNecessary();
 								world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors);
 							}
-							else if (e.Event == KeyInputEvent.Up)
-							{
-								world.CancelInputMode();
-							}
 
 							return true;
 						}
+					}
+
+					// Cancel AttackMove on key release even when Alt is already cleared from GetModifierKeys()
+					if (e.Event == KeyInputEvent.Up && world.OrderGenerator is AttackMoveOrderGenerator)
+					{
+						world.CancelInputMode();
+						return true;
 					}
 
 					return false;

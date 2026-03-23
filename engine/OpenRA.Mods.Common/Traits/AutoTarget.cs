@@ -133,6 +133,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MaximumScanTimeInterval = 8;
 
+		[Desc("Skip targets whose AverageDamagePercent exceeds this threshold.",
+			"Prevents overkill — idle units won't fire at targets that already have enough incoming damage to destroy them.",
+			"Set to -1 to disable overkill prevention.")]
+		public readonly int OverkillThreshold = 100;
+
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
 		public override object Create(ActorInitializer init) { return new AutoTarget(init, this); }
@@ -719,6 +724,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (target.Actor == null)
 					continue;
 
+				// Don't overkill — skip targets that already have enough incoming damage to destroy them
+				if (Info.OverkillThreshold >= 0 && target.Actor.AverageDamagePercent >= Info.OverkillThreshold)
+					continue;
+
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 
 				var priorityValue = 0;
@@ -737,9 +746,9 @@ namespace OpenRA.Mods.Common.Traits
 					// Shorter range has higher priority
 					priorityValue += targetRange;
 
-					// Don't overkill
-					if (target.Actor.AverageDamagePercent > 200)
-						priorityValue *= target.Actor.AverageDamagePercent - 100;
+					// Deprioritize targets with significant incoming damage (soft penalty before hard skip)
+					if (target.Actor.AverageDamagePercent > 50)
+						priorityValue += targetRange * target.Actor.AverageDamagePercent / 50;
 
 					// Optionally: Prioritize targets with the priorityCondition
 					if (ati.ConditionalPriority > 0)

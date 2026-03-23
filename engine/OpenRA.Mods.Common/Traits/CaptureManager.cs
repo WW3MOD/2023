@@ -48,7 +48,11 @@ namespace OpenRA.Mods.Common.Traits
 			// TODO: FrozenActors don't yet have a way of caching conditions, so we can't filter disabled traits
 			// This therefore assumes that all Capturable traits are enabled, which is probably wrong.
 			// Actors with FrozenUnderFog should therefore not disable the Capturable trait.
-			var stance = captor.Owner.RelationshipWith(frozenActor.Owner);
+
+			// Prefer live actor's owner — frozen actor's owner can be stale (e.g. after
+			// OwnerLostAction returns a captured building to Neutral while it's in fog)
+			var owner = frozenActor.Actor != null ? frozenActor.Actor.Owner : frozenActor.Owner;
+			var stance = captor.Owner.RelationshipWith(owner);
 			return frozenActor.Info.TraitInfos<CapturableInfo>()
 				.Any(c => c.ValidRelationships.HasRelationship(stance) && captures.Info.CaptureTypes.Overlaps(c.Types));
 		}

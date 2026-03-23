@@ -78,6 +78,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void ResolveOrder(Actor self, Order order)
 		{
+			// "Evacuate" keyboard order triggers rotation (walk to map edge + refund)
+			if (order.OrderString == "Evacuate" && info.Type == "Rotation")
+			{
+				GoDonateCash(self, order.Target, order.Queued);
+				return;
+			}
+
 			if (order.OrderString != "DeliverCash")
 				return;
 

@@ -450,7 +450,7 @@ TRUK:
 		RestockActors: logisticscenter
 		RearmCondition: replenish-soldiers
 		SupplyCreditValue: 400
-		PauseOnCondition: disabled || mobile
+		PauseOnCondition: disabled
 		SupplyHighCondition: supply-high
 		SupplyMediumCondition: supply-medium
 		SupplyLowCondition: supply-low
