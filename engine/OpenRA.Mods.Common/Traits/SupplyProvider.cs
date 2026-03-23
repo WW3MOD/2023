@@ -28,6 +28,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks between ammo increments (one pip per cycle).")]
 		public readonly int RearmDelay = 25;
 
+		[Desc("Minimum ammo need percentage (0-1) to consider a unit for resupply. Units above this % full are skipped.")]
+		public readonly float MinNeedThreshold = 0.05f;
+
 		[Desc("Total supply capacity.")]
 		public readonly int TotalSupply = 500;
 
@@ -187,6 +190,11 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var need = CalculateNeed(a);
+
+				// Skip units that are nearly full (e.g., 499/500 ammo)
+				if (need < Info.MinNeedThreshold)
+					continue;
+
 				if (need > bestNeed)
 				{
 					bestNeed = need;
@@ -317,16 +325,28 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			if (bestPool != null && bestPool.GiveAmmo(currentTarget, 1))
+			if (bestPool != null)
 			{
-				currentSupply -= bestPool.Info.SupplyValue;
-				UpdateSupplyConditions();
+				// Scale ammo per cycle by pool capacity — large pools get more per tick
+				// Targets ~50 cycles to fill from empty (e.g., 500-pool gets 10 per cycle)
+				var missing = bestPool.Info.Ammo - bestPool.CurrentAmmoCount;
+				var giveAmount = System.Math.Max(1, bestPool.Info.Ammo / 50);
 
-				if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
-					Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
+				// Don't give more than what's missing or what we can afford
+				giveAmount = System.Math.Min(giveAmount, missing);
+				giveAmount = System.Math.Min(giveAmount, currentSupply / System.Math.Max(1, bestPool.Info.SupplyValue));
+
+				if (giveAmount > 0 && bestPool.GiveAmmo(currentTarget, giveAmount))
+				{
+					currentSupply -= bestPool.Info.SupplyValue * giveAmount;
+					UpdateSupplyConditions();
+
+					if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
+						Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
+				}
 			}
 
-			// After giving 1 pip, drop target to re-evaluate on next scan
+			// After giving ammo, drop target to re-evaluate on next scan
 			RevokeTargetCondition();
 			currentTarget = null;
 			rearmTicks = Info.RearmDelay;

@@ -411,9 +411,9 @@ SUPPLYCACHE:
 		SupplyLowCondition: supply-low
 	RenderRangeCircle@Supply:
 		FallbackRange: 4c0
-		Color: 808080
-		Width: 1
-		Alpha: 60
+		Color: 40FF40
+		Width: 1.5
+		Alpha: 100
 		RequireShift: false
 	Sellable:
 		RefundPercent: 50

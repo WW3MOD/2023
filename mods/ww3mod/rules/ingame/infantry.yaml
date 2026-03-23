@@ -160,7 +160,7 @@
 		Sequence: pip-ammo-replenishing
 		Position: Bottom
 		Margin: 0,-8
-		RequiresCondition: replenish-soldiers # Doesn't work, needs "ammo-primary-not-full" && ( !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) )
+		RequiresCondition: replenish-soldiers
 	WithDecoration@Class:
 		Sequence: empty_class # Required here but should be replaced for each unit
 		Image: class
