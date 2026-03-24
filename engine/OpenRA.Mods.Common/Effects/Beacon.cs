@@ -27,6 +27,7 @@ namespace OpenRA.Mods.Common.Effects
 		readonly string beaconPalette, posterPalette;
 		readonly Animation arrow, beacon, circles, clock, poster;
 		readonly int duration;
+		readonly Func<float> clockFraction;
 
 		int delay;
 		int arrowHeight = MaxArrowHeight;
@@ -75,6 +76,7 @@ namespace OpenRA.Mods.Common.Effects
 				poster = new Animation(owner.World, posterCollection);
 				poster.Play(posterType);
 
+				this.clockFraction = clockFraction;
 				if (clockFraction != null)
 				{
 					clock = new Animation(owner.World, posterCollection);
@@ -102,6 +104,10 @@ namespace OpenRA.Mods.Common.Effects
 			clock?.Tick();
 
 			if (duration > 0 && duration <= tick++)
+				owner.World.AddFrameEndTask(w => w.Remove(this));
+
+			// Support power beacons: remove when the clock fills up (aircraft arrived)
+			if (clockFraction != null && clockFraction() >= 1f)
 				owner.World.AddFrameEndTask(w => w.Remove(this));
 		}
 

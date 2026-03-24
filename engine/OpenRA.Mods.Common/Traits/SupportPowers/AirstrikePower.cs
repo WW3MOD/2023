@@ -148,7 +148,9 @@ namespace OpenRA.Mods.Common.Traits
 						Info.ArrowSequence,
 						Info.CircleSequence,
 						Info.ClockSequence,
-						() => 1 - ((distanceTestActor.CenterPosition - targetWithAlt).HorizontalLength - info.BeaconDistanceOffset.Length) * 1f / distance,
+						() => distanceTestActor.IsDead || distanceTestActor.Disposed
+						? 1f
+						: 1 - ((distanceTestActor.CenterPosition - targetWithAlt).HorizontalLength - info.BeaconDistanceOffset.Length) * 1f / distance,
 						Info.BeaconDelay);
 
 					w.Add(beacon);
