@@ -13,11 +13,10 @@ using System;
 using System.Collections.Generic;
 using OpenRA.Effects;
 using OpenRA.Graphics;
-using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.Effects
 {
-	public class SpriteEffect : IEffect, ISpatiallyPartitionable
+	public class SpriteEffect : IEffect
 	{
 		readonly World world;
 		readonly string palette;
@@ -58,11 +57,6 @@ namespace OpenRA.Mods.Common.Effects
 			anim = new Animation(world, image, facingFunc);
 		}
 
-		Size ScaledSize(Sprite sprite)
-		{
-			return new Size((int)(sprite.Size.X * scale), (int)(sprite.Size.Y * scale));
-		}
-
 		public void Tick(World world)
 		{
 			if (delay-- > 0)
@@ -70,16 +64,13 @@ namespace OpenRA.Mods.Common.Effects
 
 			if (!initialized)
 			{
-				anim.PlayThen(sequence, () => world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); }));
-				world.ScreenMap.Add(this, pos, ScaledSize(anim.Image));
+				anim.PlayThen(sequence, () => world.AddFrameEndTask(w => w.Remove(this)));
 				initialized = true;
 			}
 			else
 			{
 				anim.Tick();
-
 				pos = posFunc();
-				world.ScreenMap.Update(this, pos, ScaledSize(anim.Image));
 			}
 		}
 
