@@ -83,7 +83,6 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 		}
 
-		/// <summary>Actor can be viewed, is within min/max range, is not blocked, and TargetInFiringArc </summary>
 		protected bool CanAimAtTarget(Actor self, in Target target, bool forceAttack)
 		{
 			if (target.Type == TargetType.Actor && !target.Actor.CanBeViewedByPlayer(self.Owner))
@@ -95,16 +94,10 @@ namespace OpenRA.Mods.Common.Traits
 			var pos = self.CenterPosition;
 			var armaments = ChooseArmamentsForTarget(target, forceAttack);
 			foreach (var a in armaments)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				if (target.IsInRange(pos, a.MaxRange()) && (a.Weapon.MinRange == WDist.Zero || !target.IsInRange(pos, a.Weapon.MinRange)))
-					if (TargetInFiringArc(self, target, Info.FacingTolerance)) // Make sure target is valid or there can be an error in target.CenterPosition ?
-						return true;
-=======
 				if (target.IsInRange(pos, a.MaxRange()) &&
 					(a.Weapon.MinRange == WDist.Zero || !target.IsInRange(pos, a.Weapon.MinRange)) &&
 					TargetInFiringArc(self, target, Info.FacingTolerance))
 					return true;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			return false;
 		}
@@ -139,7 +132,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				IsAiming = CanAimAtTarget(self, RequestedTarget, requestedForceAttack);
 				if (IsAiming)
-					DoAttack(self, RequestedTarget, isManualTarget: true);
+					DoAttack(self, RequestedTarget);
 			}
 			else
 			{
@@ -149,11 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack);
 
 				if (!IsAiming && Info.OpportunityFire && autoTarget != null &&
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				    !autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.FireAtWill)
-=======
 					!autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.Defend)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					OpportunityTarget = autoTarget.ScanForTarget(self, false, false);
 					opportunityForceAttack = false;
@@ -164,7 +153,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				if (IsAiming)
-					DoAttack(self, OpportunityTarget, isManualTarget: false);
+					DoAttack(self, OpportunityTarget);
 			}
 
 			base.Tick(self);
@@ -242,7 +231,7 @@ namespace OpenRA.Mods.Common.Traits
 		sealed class AttackActivity : Activity, IActivityNotifyStanceChanged
 		{
 			readonly AttackFollow attack;
-			readonly Vision[] vision;
+			readonly AffectsMapLayer[] revealsShroud;
 			readonly IMove move;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
@@ -265,13 +254,9 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				attack = self.Trait<AttackFollow>();
 				move = allowMove ? self.TraitOrDefault<IMove>() : null;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				vision = self.TraitsImplementing<Vision>().ToArray();
-=======
-				revealsShroud = self.TraitsImplementing<RevealsShroud>().ToArray();
+				revealsShroud = self.TraitsImplementing<AffectsMapLayer>().ToArray();
 				rearmable = self.TraitOrDefault<Rearmable>();
 				moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile) { RetryIfDestinationBlocked = true };
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				this.target = target;
 				this.forceAttack = forceAttack;
@@ -355,7 +340,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Most actors want to be able to see their target before shooting
 				if (target.Type == TargetType.FrozenActor && !attack.Info.TargetFrozenActors && !forceAttack)
 				{
-					var rs = vision
+					var rs = revealsShroud
 						.Where(t => !t.IsTraitDisabled)
 						.MaxByOrDefault(s => s.Range);
 
@@ -410,10 +395,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// We've reached the required range - if the target is visible and valid then we wait
 				// otherwise if it is hidden or dead we give up
-				if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange)
-					&& checkTarget.Type != TargetType.Invalid
-					&& (self.TraitOrDefault<IndirectFire>() != null
-						|| !BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
+				if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange))
 				{
 					if (useLastVisibleTarget)
 						return true;

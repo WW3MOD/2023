@@ -211,7 +211,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public UnitStance PredictedStance;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public EngagementStance PredictedEngagementStance;
@@ -230,8 +229,6 @@ namespace OpenRA.Mods.Common.Traits
 		EngagementStance engagementStance;
 		CohesionMode cohesion;
 		ResupplyBehavior resupplyBehavior;
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		IOverrideAutoTarget[] overrideAutoTarget;
 		INotifyStanceChanged[] notifyStanceChanged;
 		INotifyEngagementStanceChanged[] notifyEngagementStanceChanged;
@@ -318,7 +315,6 @@ namespace OpenRA.Mods.Common.Traits
 			var self = init.Self;
 			ActiveAttackBases = self.TraitsImplementing<AttackBase>().ToArray().Where(t => !t.IsTraitDisabled);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			stance = init.GetValue<StanceInit, UnitStance>(self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
 			engagementStance = init.GetValue<EngagementStanceInit, EngagementStance>(
 				self.Owner.IsBot || !self.Owner.Playable ? info.InitialEngagementStanceAI : info.InitialEngagementStance);
@@ -330,11 +326,6 @@ namespace OpenRA.Mods.Common.Traits
 			PredictedEngagementStance = engagementStance;
 			PredictedCohesion = cohesion;
 			PredictedResupplyBehavior = resupplyBehavior;
-=======
-			Stance = init.GetValue<StanceInit, UnitStance>(self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
-
-			PredictedStance = Stance;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			allowMovement = Info.AllowMovement && self.TraitOrDefault<IMove>() != null;
 		}
@@ -393,7 +384,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			PredictedStance = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialStanceAI : Info.InitialStance;
 			SetStance(self, PredictedStance);
 
@@ -405,9 +395,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			PredictedResupplyBehavior = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialResupplyBehaviorAI : Info.InitialResupplyBehavior;
 			SetResupplyBehavior(self, PredictedResupplyBehavior);
-=======
-			SetStance(self, self.Owner.IsBot || !self.Owner.Playable ? Info.InitialStanceAI : Info.InitialStance);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
@@ -452,12 +439,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Don't fire at an invisible enemy when we can't move to reveal it
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
 			if (!allowMove && !attacker.CanBeViewedByPlayer(self.Owner))
-=======
-			if (!AllowMove && !attacker.CanBeViewedByPlayer(self.Owner))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				return;
 
 			// Not a lot we can do about things we can't hurt... although maybe we should automatically run away?
@@ -480,7 +463,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			Aggressor = attacker;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// If in Ambush, trigger self and coordinate nearby allies
 			if (Stance == UnitStance.Ambush)
 			{
@@ -489,9 +471,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			Attack(Target.FromActor(Aggressor), allowMove);
-=======
-			Attack(Target.FromActor(Aggressor), AllowMove);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -499,7 +478,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || !Info.ScanOnIdle || (Stance < UnitStance.Ambush))
 				return;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (Stance == UnitStance.Ambush)
 			{
 				AmbushTickIdle(self);
@@ -509,8 +487,6 @@ namespace OpenRA.Mods.Common.Traits
 			// Hunt: actively chase targets. Balanced: allow moving to clear LOS only (handled in Attack activity).
 			// Defensive/HoldPosition: no auto-move toward targets.
 			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			var allowTurn = Info.AllowTurning && Stance > UnitStance.HoldFire;
 			ScanAndAttack(self, AllowMove, allowTurn);
 		}

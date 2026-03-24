@@ -22,20 +22,13 @@ namespace OpenRA.Mods.Common.Warheads
 	public class SpreadDamageWarhead : DamageWarhead, IRulesetLoaded<WeaponInfo>
 	{
 		[Desc("Range between falloff steps.")]
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		public readonly WDist Spread = new WDist(16);
-=======
 		public readonly WDist Spread = new(43);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Damage percentage at each range step")]
-		public readonly int[] Falloff = { 100, 50, 25, 12, 6, 3, 1 };
+		public readonly int[] Falloff = { 100, 37, 14, 5, 0 };
 
 		[Desc("Ranges at which each Falloff step is defined. Overrides Spread.")]
 		public readonly WDist[] Range = null;
-
-		[Desc("Ranges at which each Falloff step is defined. Overrides Spread.")]
-		public readonly WDist[] RangeSteps = null;
 
 		[Desc("Controls the way damage is calculated. Possible values are 'HitShape', 'ClosestTargetablePosition' and 'CenterPosition'.")]
 		public readonly DamageCalculationType DamageCalculationType = DamageCalculationType.HitShape;
@@ -49,18 +42,11 @@ namespace OpenRA.Mods.Common.Warheads
 				if (Range.Length != 1 && Range.Length != Falloff.Length)
 					throw new YamlException("Number of range values must be 1 or equal to the number of Falloff values.");
 
-				if (RangeSteps == null)
-					effectiveRange = Range;
-				else
-				{
-					var currentTotal = WDist.Zero;
-					effectiveRange = new WDist[Falloff.Length];
-					for (var i = 0; i < Falloff.Length; i++)
-					{
-						effectiveRange[i] = currentTotal + RangeSteps[i];
-						currentTotal += RangeSteps[i];
-					}
-				}
+				for (var i = 0; i < Range.Length - 1; i++)
+					if (Range[i] > Range[i + 1])
+						throw new YamlException("Range values must be specified in an increasing order.");
+
+				effectiveRange = Range;
 			}
 			else
 				effectiveRange = Exts.MakeArray(Falloff.Length, i => i * Spread);

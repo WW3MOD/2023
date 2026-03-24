@@ -55,7 +55,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var lastPowerState = pm?.PowerState ?? PowerState.Normal;
 			var descLabelY = descLabel.Bounds.Y;
 			var descLabelPadding = descLabel.Bounds.Height;
-			const int MaxTooltipWidth = 350;
 
 			tooltipContainer.BeforeRender = () =>
 			{
@@ -134,19 +133,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var buildTime = tooltipIcon.ProductionQueue?.GetBuildTime(actor, buildable) ?? 0;
 				var timeModifier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerModifier : 100;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				timeLabel.Text = formatBuildTime.Update((buildTime * timeModifier) / 100);
-				timeLabel.TextColor = (pm != null && pm.PowerState != PowerState.Normal && tooltipIcon.ProductionQueue.Info.LowPowerModifier > 100) ? Color.Red : Color.White;
-				var timeSize = font.Measure(timeLabel.Text);
-
-				costLabel.Text = cost.ToString();
-				costLabel.GetColor = () => pr.Cash + pr.Resources >= cost ? Color.White : Color.Red;
-				var costSize = font.Measure(costLabel.Text);
-
-				descLabel.Text = buildable.Description.Replace("\\n", "\n");
-				descLabel.Text = WidgetUtils.WrapText(descLabel.Text, MaxTooltipWidth, descFont);
-				var descSize = descFont.Measure(descLabel.Text);
-=======
 				var timeText = formatBuildTime.Update(buildTime * timeModifier / 100);
 				timeLabel.GetText = () => timeText;
 				timeLabel.TextColor =
@@ -163,13 +149,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var desc = string.IsNullOrEmpty(buildable.Description) ? "" : FluentProvider.GetMessage(buildable.Description);
 				descLabel.GetText = () => desc;
 				var descSize = descFont.Measure(desc);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				descLabel.Bounds.Width = descSize.X;
 				descLabel.Bounds.Height = descSize.Y + descLabelPadding;
 
-				var leftWidth = Math.Clamp(
-					new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
-					MaxTooltipWidth, MaxTooltipWidth);
+				var leftWidth = new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max);
 				var rightWidth = new[] { powerSize.X, timeSize.X, costSize.X }.Aggregate(Math.Max);
 
 				timeIcon.Bounds.X = powerIcon.Bounds.X = costIcon.Bounds.X = leftWidth + 2 * nameLabel.Bounds.X;

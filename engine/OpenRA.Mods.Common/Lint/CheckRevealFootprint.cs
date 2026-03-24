@@ -36,19 +36,15 @@ namespace OpenRA.Mods.Common.Lint
 				try
 				{
 					var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
-					foreach (var rsi in actorInfo.Value.TraitInfos<VisionInfo>())
+					foreach (var rsi in actorInfo.Value.TraitInfos<AffectsMapLayerInfo>())
 					{
 						if (rsi.Position != DetectablePosition.Footprint)
 							continue;
 
 						if (ios == null)
-							emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{rsi.GetType()}` but has no IOccupySpace traits.");
+							emitError($"Actor type `{actorInfo.Key}` defines DetectablePosition.Footprint in `{rsi.GetType()}` but has no IOccupySpace traits.");
 						else if (ios.OccupiedCells(actorInfo.Value, CPos.Zero).Count == 0)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-							emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{rsi.GetType()}` but does not have any footprint cells!!");
-=======
-							emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{rsi.GetType()}` but does not have any footprint cells.");
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
+							emitError($"Actor type `{actorInfo.Key}` defines DetectablePosition.Footprint in `{rsi.GetType()}` but does not have any footprint cells.");
 					}
 				}
 				catch (InvalidOperationException e)

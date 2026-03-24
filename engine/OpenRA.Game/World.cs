@@ -102,10 +102,9 @@ namespace OpenRA
 			}
 		}
 
-		// TODO Shroud
 		public bool FogObscures(Actor a) { return RenderPlayer != null && !a.CanBeViewedByPlayer(RenderPlayer); }
-		public bool FogObscures(CPos p, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsVisible(p, visibility); }
-		public bool FogObscures(WPos pos, int visibility = 1) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsVisible(pos, visibility); }
+		public bool FogObscures(CPos p) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsVisible(p, 1); }
+		public bool FogObscures(WPos pos) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsVisible(pos, 1); }
 		public bool ShroudObscures(CPos p) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsExplored(p); }
 		public bool ShroudObscures(MPos uv) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsExplored(uv); }
 		public bool ShroudObscures(WPos pos) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsExplored(pos); }
@@ -189,13 +188,7 @@ namespace OpenRA
 
 		bool wasLoadingGameSave;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		readonly bool syncOption;
-
-		internal World(ModData modData, Map map, OrderManager orderManager, WorldType type)
-=======
 		internal World(string mapUID, ModData modData, OrderManager orderManager, WorldType type)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			this.modData = modData;
 			Type = type;
@@ -216,8 +209,6 @@ namespace OpenRA
 			var gameSpeedName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("gamespeed", gameSpeeds.DefaultSpeed);
 			GameSpeed = gameSpeeds.Speeds[gameSpeedName];
 			Timestep = ReplayTimestep = GameSpeed.Timestep;
-
-			syncOption = LobbyInfo.GlobalSettings.OptionOrDefault("sync", true);
 
 			SharedRandom = new MersenneTwister(orderManager.LobbyInfo.GlobalSettings.RandomSeed);
 			LocalRandom = new MersenneTwister();
@@ -502,9 +493,6 @@ namespace OpenRA
 		{
 			// using (new PerfSample("synchash"))
 			{
-				if (!syncOption)
-					return 0;
-
 				var n = 0;
 				var ret = 0;
 
@@ -513,7 +501,6 @@ namespace OpenRA
 					ret += n++ * (int)(1 + a.ActorID) * Sync.HashActor(a);
 
 				// Hash fields marked with the ISync interface.
-				// CPU Expensive!
 				foreach (var actor in ActorsHavingTrait<ISync>())
 					foreach (var syncHash in actor.SyncHashes)
 						ret += n++ * (int)(1 + actor.ActorID) * syncHash.Hash();

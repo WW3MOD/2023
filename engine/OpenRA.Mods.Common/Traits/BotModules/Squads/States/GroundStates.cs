@@ -59,17 +59,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return ShouldFlee(owner, enemies => !AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemies));
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		protected static Actor FindClosestEnemy(Squad owner)
-=======
-		protected (Actor Actor, WVec Offset) NewLeaderAndFindClosestEnemy(Squad owner)
-		{
-			leader = null; // Force a new leader to be elected, useful if we are targeting a new enemy.
-			return owner.SquadManager.FindClosestEnemy(Leader(owner));
-		}
-
-		protected IEnumerable<(Actor Actor, WVec Offset)> FindEnemies(Squad owner, IEnumerable<Actor> actors)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			return owner.SquadManager.FindEnemies(
 				actors,
@@ -110,7 +100,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			if (AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemyUnits))
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// Set Hunt stance so units chase targets during attack
 				SetSquadEngagementStance(owner, EngagementStance.Hunt);
 
@@ -120,15 +109,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.ApproachWaypoint = null; // Consume the waypoint
 
 				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, attackTarget), false, groupedActors: owner.Units.ToArray()));
-=======
-				owner.Bot.QueueOrder(new Order("AttackMove", null, owner.Target, false, groupedActors: owner.Units.ToArray()));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				// We have gathered sufficient units. Attack the nearest enemy unit.
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState());
 			}
 			else
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
 
 			foreach (var a in owner.Units)
@@ -152,9 +137,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (CanAttackTarget(a, owner.TargetActor))
 					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
 			}
-=======
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -284,7 +266,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 
 			foreach (var a in owner.Units)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			{
 				if (BusyAttack(a))
 					continue;
@@ -305,10 +286,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 				owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
 			}
-=======
-				if (!BusyAttack(a))
-					owner.Bot.QueueOrder(new Order("AttackMove", a, owner.Target, false));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			if (ShouldFlee(owner))
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
@@ -371,7 +348,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (!owner.IsValid)
 				return;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			regroupTicks++;
 
 			// Check if most of the squad has regrouped (units close together)
@@ -437,12 +413,5 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (regroupTicks >= MaxRegroupTicks)
 				owner.Units.Clear();
 		}
-=======
-			GoToRandomOwnBuilding(owner);
-			owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState());
-		}
-
-		public void Deactivate(Squad owner) { owner.SquadManager.UnregisterSquad(owner); }
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 }

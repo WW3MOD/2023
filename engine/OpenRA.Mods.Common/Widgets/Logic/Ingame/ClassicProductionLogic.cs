@@ -43,7 +43,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				palette.PickUpCompletedBuilding();
 			}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			button.IsDisabled = () => !queues.Any(q => q.BuildableItems().Any());
 			button.OnMouseUp = mi =>
 			{
@@ -58,10 +57,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				SelectTab(mi.Modifiers.HasModifier(Modifiers.Shift));
 			};
 
-=======
-			button.IsDisabled = () => !queues.Any(q => q.AnyItemsToBuild());
-			button.OnMouseUp = mi => SelectTab(mi.Modifiers.HasModifier(Modifiers.Shift));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			button.OnKeyPress = e => SelectTab(e.Modifiers.HasModifier(Modifiers.Shift));
 			button.OnClick = () => SelectTab(false);
 			button.IsHighlighted = () => queues.Contains(palette.CurrentQueue);

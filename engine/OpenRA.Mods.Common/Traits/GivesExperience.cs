@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
@@ -34,11 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GivesExperience(this); }
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-	class GivesExperience : INotifyDamage, INotifyKilled, INotifyCreated
-=======
 	sealed class GivesExperience : INotifyKilled, INotifyCreated
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		readonly GivesExperienceInfo info;
 
@@ -74,35 +69,6 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var killerExperienceModifier = e.Attacker.TraitsImplementing<IGainsExperienceModifier>()
 					.Select(x => x.GetGainsExperienceModifier()).Append(info.ActorExperienceModifier);
-				killer.GiveExperience(Util.ApplyPercentageModifiers(exp, killerExperienceModifier));
-			}
-
-			e.Attacker.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()
-				?.GiveExperience(Util.ApplyPercentageModifiers(exp, new[] { info.PlayerExperienceModifier }));
-		}
-
-		// FF: Add experience from damaging enemies & healing friendlies
-		void INotifyDamage.Damaged(Actor self, AttackInfo e)
-		{
-			if (exp == 0 || e.Attacker == null || e.Attacker.Disposed)
-				return;
-
-			if (!info.ValidRelationships.HasRelationship(e.Attacker.Owner.RelationshipWith(self.Owner)))
-				return;
-
-			exp = Util.ApplyPercentageModifiers(exp, experienceModifiers);
-
-			exp = (exp * e.Damage.Value) / self.Trait<Health>().MaxHP;
-
-			if (exp < 0)
-				exp = Math.Abs(exp);
-
-			var killer = e.Attacker.TraitOrDefault<GainsExperience>();
-			if (killer != null)
-			{
-				var killerExperienceModifier = e.Attacker.TraitsImplementing<IGainsExperienceModifier>()
-					.Select(x => x.GetGainsExperienceModifier()).Append(info.ActorExperienceModifier);
-
 				killer.GiveExperience(Util.ApplyPercentageModifiers(exp, killerExperienceModifier));
 			}
 

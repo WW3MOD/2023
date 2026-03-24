@@ -66,7 +66,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		readonly World world;
-		/* readonly Player player; */
+		readonly Player player;
 		readonly Func<Actor, bool> unitCannotBeOrdered;
 		readonly Dictionary<Actor, HarvesterTraitWrapper> harvesters = new();
 		readonly Stack<HarvesterTraitWrapper> harvestersNeedingOrders = new();
@@ -83,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			world = self.World;
-			/* player = self.Owner; */
+			player = self.Owner;
 			unitCannotBeOrdered = a => a.Owner != self.Owner || a.IsDead || !a.IsInWorld;
 			refineries = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.RefineryTypes, player);
 			harvestersIndex = new ActorIndex.OwnerAndNamesAndTrait<HarvesterInfo>(world, info.HarvesterTypes, player);
@@ -183,19 +183,6 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 			}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			// Less harvesters than refineries - build a new harvester
-			var unitBuilder = requestUnitProduction.FirstEnabledTraitOrDefault();
-
-			// FF TODO: look this up, lots of changes here 2023 and this was the only one from 2022
-			// if (unitBuilder != null && Info.HarvesterTypes.Count > 0)
-			// {
-			// 	var harvInfo = AIUtils.GetInfoByCommonName(Info.HarvesterTypes, player);
-			// 	var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player);
-			// 	if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) == 0)
-			// 		unitBuilder.RequestUnitProduction(bot, harvInfo.Name);
-			// }
-=======
 			if (h.NoResourcesCooldown > 1)
 			{
 				h.NoResourcesCooldown--;
@@ -214,22 +201,10 @@ namespace OpenRA.Mods.Common.Traits
 				h.NoResourcesCooldown = Info.ScanIntervalMultiplerWhenNoResources;
 
 			return true;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		Target FindNextResource(Actor actor, HarvesterTraitWrapper harv)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			bool IsValidResource(CPos cell) =>
-				harv.Harvester.CanHarvestCell(cell) &&
-				claimLayer.CanClaimCell(actor, cell);
-
-			var path = harv.Mobile.PathFinder.FindPathToTargetCellByPredicate(
-				actor, new[] { actor.Location }, IsValidResource, BlockedByActor.Stationary,
-				loc => world.FindActorsInCircle(world.Map.CenterOfCell(loc), Info.HarvesterEnemyAvoidanceRadius)
-					.Where(u => !u.IsDead && actor.Owner.RelationshipWith(u.Owner) == PlayerRelationship.Enemy)
-					.Sum(u => Math.Max(WDist.Zero.Length, Info.HarvesterEnemyAvoidanceRadius.Length - (world.Map.CenterOfCell(loc) - u.CenterPosition).Length)));
-=======
 			// Prefer resource nearby to the nearest drop off point, otherwise scan from the current location.
 			var scanFromActor = harv.DockClientManager.ClosestDock(null, ignoreOccupancy: true)?.Actor ?? actor;
 
@@ -283,7 +258,6 @@ namespace OpenRA.Mods.Common.Traits
 					avoidanceCostForBin.Add(bin, avoidanceCost);
 					return avoidanceCost;
 				});
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			if (path.Count == 0)
 				return Target.Invalid;

@@ -383,28 +383,11 @@ namespace OpenRA.Network
 					break;
 				}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-						if (order.GroupedActors == null)
-							ResolveOrder(order, world, orderManager, clientId);
-						else
-						{
-							var modifiers = world.WorldActor.TraitsImplementing<IModifyGroupOrder>().ToArray();
-							foreach (var subject in order.GroupedActors)
-							{
-								var individualOrder = Order.FromGroupedOrder(order, subject);
-								foreach (var modifier in modifiers)
-									individualOrder = modifier.ModifyGroupOrder(individualOrder, subject, order.GroupedActors);
-
-								ResolveOrder(individualOrder, world, orderManager, clientId);
-							}
-						}
-=======
 				case "SyncMapPool":
 				{
 					orderManager.ServerMapPool = FieldLoader.GetValue<HashSet<string>>("SyncMapPool", order.TargetString);
 					break;
 				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				default:
 				{

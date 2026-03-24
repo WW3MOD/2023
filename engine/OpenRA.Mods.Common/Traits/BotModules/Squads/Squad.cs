@@ -29,11 +29,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		internal MersenneTwister Random;
 		internal StateMachine FuzzyStateMachine;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		/// <summary>Optional waypoint hint for multi-axis attacks. Squad will attack-move
-		/// toward this cell before engaging the main target.</summary>
-		internal CPos? ApproachWaypoint;
-=======
 		/// <summary>
 		/// Target location to attack. This will be either the targeted actor,
 		/// or a position close to that actor sufficient to get within weapons range.
@@ -44,7 +39,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		/// Actor that is targeted, for any actor based checks. Use <see cref="Target"/> for a targeting location.
 		/// </summary>
 		internal Actor TargetActor;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public Squad(IBot bot, SquadManagerBotModule squadManager, SquadType type)
 			: this(bot, squadManager, type, default) { }

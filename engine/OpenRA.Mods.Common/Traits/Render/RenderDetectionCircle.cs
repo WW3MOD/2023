@@ -22,41 +22,28 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 	public class RenderDetectionCircleInfo : TraitInfo, Requires<DetectCloakedInfo>
 	{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		[Desc("WAngle the MiniMap update line advances per tick.")]
-		public readonly WAngle UpdateLineTick = new WAngle(-1);
-=======
 		[Desc("WAngle the Radar update line advances per tick.")]
 		public readonly WAngle UpdateLineTick = new(-1);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
-		[Desc("Number of trailing MiniMap update lines.")]
+		[Desc("Number of trailing Radar update lines.")]
 		public readonly int TrailCount = 0;
 
 		[Desc("Color of the circle and scanner update line.")]
-		public Color Color = Color.FromArgb(128, Color.LimeGreen);
-
-		[Desc("Alpha of the circle and scanner update line.")]
-		public readonly int Alpha = 60;
+		public readonly Color Color = Color.FromArgb(128, Color.LimeGreen);
 
 		[Desc("Range circle line width.")]
 		public readonly float Width = 1;
 
 		[Desc("Border color of the circle and scanner update line.")]
-		public readonly Color BorderColor = Color.FromArgb(50, Color.Black);
+		public readonly Color BorderColor = Color.FromArgb(96, Color.Black);
 
 		[Desc("Range circle border width.")]
-		public readonly float BorderWidth = 0;
+		public readonly float BorderWidth = 3;
 
 		[Desc("When to show the detection circle. Valid values are `Always`, and `WhenSelected`")]
 		public readonly DetectionCircleVisibility Visible = DetectionCircleVisibility.WhenSelected;
 
-		public override object Create(ActorInitializer init)
-		{
-			Color = Color.FromArgb(Alpha, Color);
-
-			return new RenderDetectionCircle(init.Self, this);
-		}
+		public override object Create(ActorInitializer init) { return new RenderDetectionCircle(init.Self, this); }
 	}
 
 	public class RenderDetectionCircle : ITick, IRenderAnnotationsWhenSelected, IRenderAnnotations

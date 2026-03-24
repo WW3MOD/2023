@@ -33,13 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly HashSet<string> PowerTypes = new();
 
 		[Desc("Tells the AI what building types are considered infantry production facilities.")]
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		public readonly HashSet<string> BarracksTypes = new HashSet<string>();
-		public readonly HashSet<string> HeliTypes = new HashSet<string>();
-		public readonly HashSet<string> AirfieldTypes = new HashSet<string>();
-=======
 		public readonly HashSet<string> BarracksTypes = new();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Tells the AI what building types are considered production facilities.")]
 		public readonly HashSet<string> ProductionTypes = new();

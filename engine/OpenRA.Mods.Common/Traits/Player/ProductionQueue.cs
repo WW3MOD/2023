@@ -623,7 +623,6 @@ namespace OpenRA.Mods.Common.Traits
 			Queue.FirstOrDefault(a => a.Item == itemName)?.Pause(paused);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		protected void PauseAllProduction(bool paused)
 		{
 			foreach (var item in Queue)
@@ -636,9 +635,6 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		protected void CancelProduction(string itemName, uint numberToCancel)
-=======
-		protected virtual void CancelProduction(string itemName, uint numberToCancel)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			for (var i = 0; i < numberToCancel; i++)
 				if (!CancelProductionInner(itemName))
@@ -699,14 +695,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Queue.Any(i => i.Item == item.Item && i.Infinite))
 				return;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 
 			// Auto-set infinite when repeat mode is active
 			if (RepeatMode)
 				item.Infinite = true;
 
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			if (hasPriority && Queue.Count > 1)
 				Queue.Insert(1, item);
 			else
@@ -744,17 +737,9 @@ namespace OpenRA.Mods.Common.Traits
 		// Returns the actor/trait that is most likely (but not necessarily guaranteed) to produce something in this queue
 		public virtual TraitPair<Production> MostLikelyProducer()
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var traits = productionTraits.Where(p => !p.IsTraitDisabled && p.Info.Produces.Contains(Info.Type));
 			var unpaused = traits.FirstOrDefault(a => !a.IsTraitPaused);
 			return new TraitPair<Production>(self, unpaused ?? traits.FirstOrDefault());
-=======
-			var trait = productionTraits
-				.Where(p => !p.IsTraitDisabled && p.Info.Produces.Contains(Info.Type))
-				.OrderBy(p => p.IsTraitPaused)
-				.FirstOrDefault();
-			return new TraitPair<Production>(Actor, trait);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		// Builds a unit from the actor that holds this queue (1 queue per building)

@@ -36,11 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle InitialFacing = WAngle.Zero;
 
 		[Desc("Speed at which the actor turns.")]
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public readonly WAngle TurnSpeed = new WAngle(10);
-=======
-		public readonly WAngle TurnSpeed = new(512);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public readonly int Speed = 1;
 
@@ -91,7 +87,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Can move backward if possible")]
 		public readonly bool CanMoveBackward = false;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Maximum distance in cells to reverse instead of turning around. Only reverses if target is behind the actor and within this range.")]
 		public readonly int BackwardMaxCells = 4;
 
@@ -103,11 +98,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Percentage of current speed retained when redirecting mid-cell with a sharp direction change (>90 degrees). 100 = no penalty.")]
 		public readonly int RedirectSpeedPenalty = 50;
-=======
-		[Desc("After how many ticks the actor will turn forward during backoff.",
-			"If set to -1 the unit will be allowed to move backwards without time limit.")]
-		public readonly int BackwardDuration = 40;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Actor will only try to move backwards when the path (in cells) is shorter than this value.",
 			"If set to -1 the unit will be allowed to move backwards without range limit.")]
@@ -619,13 +609,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void PassAction(Actor self, Func<INotifyBeingPassed, Action<Actor, Actor, BitSet<PassClass>>> action)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var passables = self.World.ActorMap.GetActorsAt(ToCell, ToSubCell).Where(a => a != self)
 				.SelectMany(a => a.TraitsImplementing<IPassable>().Select(t => new TraitPair<IPassable>(a, t)));
-=======
-			var crushables = self.World.ActorMap.GetActorsAt(ToCell, ToSubCell).Where(a => a != self)
-				.SelectMany(a => a.Crushables.Select(t => new TraitPair<ICrushable>(a, t)));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			// Only crush actors that are on the ground level
 			foreach (var passable in passables)

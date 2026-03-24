@@ -45,24 +45,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Amount of time to keep the camera alive after the aircraft have finished attacking.")]
 		public readonly int CameraRemoveDelay = 25;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		[Desc("Enables the player directional targeting")]
-		public readonly bool UseDirectionalTarget = false;
-
-		[Desc("Animation used to render the direction arrows.")]
-		public readonly string DirectionArrowAnimation = null;
-
-		[Desc("Palette for direction cursor animation.")]
-		public readonly string DirectionArrowPalette = "chrome";
-
-		[Desc("If true, aircraft will U-turn and exit back through the entry edge " +
-			"instead of flying out through the opposite edge.")]
-		public readonly bool ReturnToStart = false;
-
-		[Desc("Weapon range offset to apply during the beacon clock calculation")]
-=======
 		[Desc("Weapon range offset to apply during the beacon clock calculation.")]
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public readonly WDist BeaconDistanceOffset = WDist.FromCells(6);
 
 		public override object Create(ActorInitializer init) { return new AirstrikePower(init.Self, this); }
@@ -92,7 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!facing.HasValue)
 				facing = new WAngle(1024 * self.World.SharedRandom.Next(info.QuantizedFacings) / info.QuantizedFacings);
 
-			var altitude = self.World.Map.Rules.Actors[info.UnitType.ToLowerInvariant()].TraitInfo<AircraftInfo>().CruiseAltitude.Length;
+			var altitude = self.World.Map.Rules.Actors[info.UnitType].TraitInfo<AircraftInfo>().CruiseAltitude.Length;
 			var attackRotation = WRot.FromYaw(facing.Value);
 			var delta = new WVec(0, -1024, 0).Rotate(attackRotation);
 			target += new WVec(0, 0, altitude);
@@ -194,8 +177,7 @@ namespace OpenRA.Mods.Common.Traits
 					w.Add(a);
 
 					a.QueueActivity(new Fly(a, Target.FromPos(target + spawnOffset)));
-					var exitEdge = info.ReturnToStart ? startEdge : finishEdge;
-					a.QueueActivity(new Fly(a, Target.FromPos(exitEdge + spawnOffset)));
+					a.QueueActivity(new Fly(a, Target.FromPos(finishEdge + spawnOffset)));
 					a.QueueActivity(new RemoveSelf());
 					distanceTestActor = a;
 				}

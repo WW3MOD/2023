@@ -12,7 +12,7 @@
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits.Radar
+namespace OpenRA.Mods.Common.Traits
 {
 	public class RadarColorFromTerrainInfo : TraitInfo
 	{
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits.Radar
 		public override object Create(ActorInitializer init) { return new RadarColorFromTerrain(init.Self, this); }
 	}
 
-	public class RadarColorFromTerrain : IRadarColorModifier
+	public class RadarColorFromTerrain : IMiniMapColorModifier
 	{
 		readonly Color c;
 
@@ -37,6 +37,6 @@ namespace OpenRA.Mods.Common.Traits.Radar
 			c = info.GetColorFromTerrain(self.World);
 		}
 
-		public Color RadarColorOverride(Actor self, Color color) { return c; }
+		public Color MiniMapColorOverride(Actor self, Color color) { return c; }
 	}
 }

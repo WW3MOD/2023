@@ -306,15 +306,10 @@ namespace OpenRA.Traits
 		int2 GetDecorationOrigin(Actor self, WorldRenderer wr, string pos, int2 margin);
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	public interface IDensityInfo : ITraitInfoInterface
 	{
 		Dictionary<CVec, byte> Density();
 	}
-=======
-	public interface IEditorSelectionLayer : ITraitInfoInterface { }
-	public interface IEditorPasteLayer : ITraitInfoInterface { }
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 	public interface IMapPreviewSignatureInfo : ITraitInfoInterface
 	{
@@ -600,7 +595,6 @@ namespace OpenRA.Traits
 		public readonly bool IsVisible;
 		public readonly int DisplayOrder;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public LobbyOption(string id, string name, string description, bool visible, int displayorder,
 			IReadOnlyDictionary<string, string> values, string defaultValue, bool locked, string category = "")
 		{
@@ -608,17 +602,9 @@ namespace OpenRA.Traits
 			Name = name;
 			Description = description;
 			Category = category ?? "";
-=======
-		public LobbyOption(MapPreview map, string id, string name, string description, bool visible, int displayorder,
-			IReadOnlyDictionary<string, string> values, string defaultValue, bool locked)
-		{
-			Id = id;
-			Name = map.GetMessage(name);
-			Description = description != null ? map.GetMessage(description).Replace(@"\n", "\n") : null;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			IsVisible = visible;
 			DisplayOrder = displayorder;
-			Values = values.ToDictionary(v => v.Key, v => map.GetMessage(v.Value));
+			Values = values;
 			DefaultValue = defaultValue;
 			IsLocked = locked;
 		}
@@ -637,13 +623,8 @@ namespace OpenRA.Traits
 			{ false.ToString(), "Disabled" }
 		};
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public LobbyBooleanOption(string id, string name, string description, bool visible, int displayorder, bool defaultValue, bool locked, string category = "")
 			: base(id, name, description, visible, displayorder, new ReadOnlyDictionary<string, string>(BoolValues), defaultValue.ToString(), locked, category) { }
-=======
-		public LobbyBooleanOption(MapPreview map, string id, string name, string description, bool visible, int displayorder, bool defaultValue, bool locked)
-			: base(map, id, name, description, visible, displayorder, new ReadOnlyDictionary<string, string>(BoolValues), defaultValue.ToString(), locked) { }
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public override string Label(string newValue)
 		{
@@ -683,7 +664,6 @@ namespace OpenRA.Traits
 		void PlayerDisconnected(Actor self, Player p);
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	public interface IAffectsMapLayer
 	{
 		MapLayers.Type Type { get; }
@@ -692,15 +672,5 @@ namespace OpenRA.Traits
 	public interface IAirborneVisibility
 	{
 		bool IsAirborne { get; set; }
-=======
-	// Type tag for crush class bits
-	public class CrushClass { }
-
-	[RequireExplicitImplementation]
-	public interface ICrushable
-	{
-		bool CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
-		LongBitSet<PlayerBitMask> CrushableBy(Actor self, BitSet<CrushClass> crushClasses);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 }

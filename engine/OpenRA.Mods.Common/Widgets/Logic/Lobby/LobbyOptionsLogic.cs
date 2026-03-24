@@ -106,19 +106,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					optionsContainer.AddChild(header);
 				}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				Widget row = null;
 				var checkboxColumns = new Queue<CheckboxWidget>();
 				var dropdownColumns = new Queue<DropDownButtonWidget>();
-=======
-				checkbox.GetText = () => option.Name;
-				if (option.Description != null)
-				{
-					var (text, desc) = LobbyUtils.SplitOnFirstToken(option.Description);
-					checkbox.GetTooltipText = () => text;
-					checkbox.GetTooltipDesc = () => desc;
-				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				foreach (var option in category.Where(o => o is LobbyBooleanOption))
 				{
@@ -156,7 +146,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					};
 				}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				foreach (var option in category.Where(o => !(o is LobbyBooleanOption)))
 				{
 					if (dropdownColumns.Count == 0)
@@ -167,42 +156,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						foreach (var child in row.Children)
 							if (child is DropDownButtonWidget dropDown)
 								dropdownColumns.Enqueue(dropDown);
-=======
-			foreach (var option in allOptions.Where(o => o is not LobbyBooleanOption))
-			{
-				if (dropdownColumns.Count == 0)
-				{
-					row = dropdownRowTemplate.Clone();
-					row.Bounds.Y = optionsContainer.Bounds.Height;
-					optionsContainer.Bounds.Height += row.Bounds.Height;
-					foreach (var child in row.Children)
-						if (child is DropDownButtonWidget dropDown)
-							dropdownColumns.Enqueue(dropDown);
-
-					optionsContainer.AddChild(row);
-				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 						optionsContainer.AddChild(row);
 					}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					var dropdown = dropdownColumns.Dequeue();
 					var optionValue = new CachedTransform<Session.Global, Session.LobbyOptionState>(
 						gs => gs.LobbyOptions[option.Id]);
-=======
-				var getOptionLabel = new CachedTransform<string, string>(id =>
-				{
-					if (id == null || !option.Values.TryGetValue(id, out var value))
-						return FluentProvider.GetMessage(NotAvailable);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 					var getOptionLabel = new CachedTransform<string, string>(id =>
 					{
 						if (id == null || !option.Values.TryGetValue(id, out var value))
 							return modData.Translation.GetString(NotAvailable);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 						return value;
 					});
 
@@ -227,34 +193,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 						dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", option.Values.Count * 30, option.Values, setupItem);
 					};
-=======
-				dropdown.GetText = () => getOptionLabel.Update(optionValue.Update(orderManager.LobbyInfo.GlobalSettings).Value);
-				if (option.Description != null)
-				{
-					var (text, desc) = LobbyUtils.SplitOnFirstToken(option.Description);
-					dropdown.GetTooltipText = () => text;
-					dropdown.GetTooltipDesc = () => desc;
-				}
-
-				dropdown.IsVisible = () => true;
-				dropdown.IsDisabled = () => configurationDisabled() ||
-					optionValue.Update(orderManager.LobbyInfo.GlobalSettings).IsLocked;
-
-				dropdown.OnMouseDown = _ =>
-				{
-					ScrollItemWidget SetupItem(KeyValuePair<string, string> c, ScrollItemWidget template)
-					{
-						bool IsSelected() => optionValue.Update(orderManager.LobbyInfo.GlobalSettings).Value == c.Key;
-						void OnClick() => orderManager.IssueOrder(Order.Command($"option {option.Id} {c.Key}"));
-
-						var item = ScrollItemWidget.Setup(template, IsSelected, OnClick);
-						item.Get<LabelWidget>("LABEL").GetText = () => c.Value;
-						return item;
-					}
-
-					dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", option.Values.Count * 30, option.Values, SetupItem);
-				};
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 					var label = row.GetOrNull<LabelWidget>(dropdown.Id + "_DESC");
 					if (label != null)

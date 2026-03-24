@@ -26,13 +26,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types that are valid for naval squads.")]
 		public readonly HashSet<string> NavalUnitsTypes = new();
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Actor types that should be included in attack squad.")]
 		public readonly HashSet<string> IncludeInSquadTypes = new HashSet<string>();
 
-=======
-		[ActorReference]
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		[Desc("Actor types that are excluded from ground attacks.")]
 		public readonly HashSet<string> AirUnitsTypes = new();
 
@@ -166,7 +162,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (targetTypes.IsEmpty || targetTypes.Overlaps(Info.IgnoredEnemyTargetTypes))
 				return false;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// Don't attack buildings that our capture modules are actively targeting
 			if (captureModules != null)
 				foreach (var cm in captureModules)
@@ -174,9 +169,6 @@ namespace OpenRA.Mods.Common.Traits
 						return false;
 
 			return true;
-=======
-			return IsNotHiddenUnit(a);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		bool IsNotHiddenUnit(Actor a)
@@ -437,16 +429,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (unitsHangingAroundTheBase.Count < randomizedSquadSize)
 				return;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// Try multi-axis attack: if we have 2x squad size, split into two squads
 			// attacking different targets for a pincer effect
 			var threatMap = World.WorldActor.TraitOrDefault<ThreatMapManager>();
 			var canSplit = unitsHangingAroundTheBase.Count >= randomizedSquadSize * 1.5
 				&& threatMap != null
 				&& World.LocalRandom.Next(100) < 60; // 60% chance to split when able
-=======
-				attackForce.Units.UnionWith(unitsHangingAroundTheBase);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			if (canSplit)
 			{

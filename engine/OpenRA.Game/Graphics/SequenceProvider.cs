@@ -18,36 +18,6 @@ using UnitSequences = System.Lazy<System.Collections.Generic.IReadOnlyDictionary
 
 namespace OpenRA.Graphics
 {
-	public interface ISpriteSequence
-	{
-		string Name { get; }
-		int Start { get; }
-		int Length { get; }
-		int Stride { get; }
-		int Facings { get; }
-		int InterpolatedFacings { get; }
-		int Tick { get; }
-		int[] ChangeTick { get; }
-		int ZOffset { get; }
-		int ShadowStart { get; }
-		int ShadowZOffset { get; }
-		int[] Frames { get; }
-		Rectangle Bounds { get; }
-		bool IgnoreWorldTint { get; }
-		float Scale { get; }
-
-		Sprite GetSprite(int frame);
-		Sprite GetSprite(int frame, WAngle facing);
-		(Sprite, WAngle) GetSpriteWithRotation(int frame, WAngle facing);
-		Sprite GetShadow(int frame, WAngle facing);
-		float GetAlpha(int frame);
-	}
-
-	public interface ISpriteSequenceLoader
-	{
-		IReadOnlyDictionary<string, ISpriteSequence> ParseSequences(ModData modData, string tileSet, SpriteCache cache, MiniYamlNode node);
-	}
-
 	public class SequenceProvider : IDisposable
 	{
 		readonly ModData modData;
@@ -68,7 +38,7 @@ namespace OpenRA.Graphics
 					return Load(fileSystem, additionalSequences);
 			});
 
-			spriteCache = Exts.Lazy(() => new SpriteCache(fileSystem, modData.SpriteLoaders));
+			spriteCache = Exts.Lazy(() => new SpriteCache(fileSystem, modData.SpriteLoaders, modData.SpriteSequenceLoader.BgraSheetSize, modData.SpriteSequenceLoader.IndexedSheetSize));
 		}
 
 		public ISpriteSequence GetSequence(string unitName, string sequenceName)
@@ -112,7 +82,7 @@ namespace OpenRA.Graphics
 			foreach (var node in nodes)
 			{
 				// Nodes starting with ^ are inheritable but never loaded directly
-				if (node.Key.StartsWith(ActorInfo.AbstractActorPrefix, StringComparison.Ordinal))
+				if (node.Key.StartsWith(ActorInfo.AbstractActorPrefix))
 					continue;
 
 				var key = node.Value.ToLines(node.Key).JoinWith("|");

@@ -1,17 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
-#region Copyright & License Information
-/*
- * Copyright (c) The OpenRA Developers and Contributors
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -113,34 +99,16 @@ namespace OpenRA.Mods.Common.Traits
 			var sequences = map.Sequences;
 			for (var j = 0; j < variantCount; j++)
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var shroudSequence = sequenceProvider.GetSequence(info.Sequence, info.ShroudVariants[j]);
 				var fogSequence = sequenceProvider.GetSequence(info.Sequence, info.FogVariants[j]);
 				if (shroudSequence.Length < frameCount || fogSequence.Length < frameCount)
 					throw new InvalidOperationException($"Sequence {info.ShroudVariants[j]} or {info.FogVariants[j]} has fewer than {frameCount} frames.");
-=======
-				var shroudSequence = sequences.GetSequence(info.Sequence, info.ShroudVariants[j]);
-				var fogSequence = sequences.GetSequence(info.Sequence, info.FogVariants[j]);
-				for (var i = 0; i < info.Index.Length; i++)
-				{
-					shroudSprites[j * variantStride + i] = (shroudSequence.GetSprite(i), shroudSequence.Scale, shroudSequence.GetAlpha(i));
-					fogSprites[j * variantStride + i] = (fogSequence.GetSprite(i), fogSequence.Scale, fogSequence.GetAlpha(i));
-				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				for (var i = 0; i < frameCount; i++)
 				{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					var index = j * frameCount + i;
 					shroudSprites[index] = (shroudSequence.GetSprite(i), shroudSequence.Scale, shroudSequence.GetAlpha(i));
 					fogSprites[index] = (fogSequence.GetSprite(i), fogSequence.Scale, fogSequence.GetAlpha(i));
-=======
-					var i = (j + 1) * variantStride - 1;
-					shroudSequence = sequences.GetSequence(info.Sequence, info.OverrideFullShroud);
-					fogSequence = sequences.GetSequence(info.Sequence, info.OverrideFullFog);
-					shroudSprites[i] = (shroudSequence.GetSprite(0), shroudSequence.Scale, shroudSequence.GetAlpha(0));
-					fogSprites[i] = (fogSequence.GetSprite(0), fogSequence.Scale, fogSequence.GetAlpha(0));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				}
 			}
 
@@ -161,15 +129,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (w.Type == WorldType.Editor)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				cellVisibility = puv => (byte)(map.Contains(puv) ? 10 : 0);
 			else
 				cellVisibility = puv => world.RenderPlayer.MapLayers.GetVisibility(puv);
-=======
-				cellVisibility = puv => map.Contains(puv) ? Shroud.CellVisibility.Visible | Shroud.CellVisibility.Explored : Shroud.CellVisibility.Explored;
-			else
-				cellVisibility = puv => map.Contains(puv) ? Shroud.CellVisibility.Visible | Shroud.CellVisibility.Explored : Shroud.CellVisibility.Hidden;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			var shroudBlend = shroudSprites[0].Sprite.BlendMode;
 			if (shroudSprites.Any(s => s.Sprite.BlendMode != shroudBlend))
@@ -227,7 +189,6 @@ namespace OpenRA.Mods.Common.Traits
 		Edges GetEdges(byte[] neighbors, byte cellVisibility, byte max)
 		{
 			var edges = Edges.None;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 
 			if (cellVisibility > neighbors[(int)Neighbor.Top] && neighbors[(int)Neighbor.Top] <= max)
 				edges |= Edges.Top;
@@ -243,43 +204,6 @@ namespace OpenRA.Mods.Common.Traits
 			*/
 
 			return edges;
-=======
-			if ((neighbors[(int)Neighbor.Top] & visibleMask) == 0) edges |= Edges.Top;
-			if ((neighbors[(int)Neighbor.Right] & visibleMask) == 0) edges |= Edges.Right;
-			if ((neighbors[(int)Neighbor.Bottom] & visibleMask) == 0) edges |= Edges.Bottom;
-			if ((neighbors[(int)Neighbor.Left] & visibleMask) == 0) edges |= Edges.Left;
-
-			var ucorner = edges & Edges.AllCorners;
-			if ((neighbors[(int)Neighbor.TopLeft] & visibleMask) == 0) edges |= Edges.TopLeft;
-			if ((neighbors[(int)Neighbor.TopRight] & visibleMask) == 0) edges |= Edges.TopRight;
-			if ((neighbors[(int)Neighbor.BottomRight] & visibleMask) == 0) edges |= Edges.BottomRight;
-			if ((neighbors[(int)Neighbor.BottomLeft] & visibleMask) == 0) edges |= Edges.BottomLeft;
-
-			// RA provides a set of frames for tiles with shrouded
-			// corners but unshrouded edges. We want to detect this
-			// situation without breaking the edge -> corner enabling
-			// in other combinations. The XOR turns off the corner
-			// bits that are enabled twice, which gives the sprite offset
-			// we want here.
-			return info.UseExtendedIndex ? edges ^ ucorner : edges & Edges.AllCorners;
-		}
-
-		(Edges EdgesShroud, Edges EdgesFog) GetEdges(PPos puv)
-		{
-			var cv = cellVisibility(puv);
-
-			// If a cell is covered by shroud, then all neighbors are covered by shroud and fog.
-			if (!cv.HasFlag(Shroud.CellVisibility.Explored))
-				return notVisibleEdgesPair;
-
-			var ncv = GetNeighborsVisbility(puv);
-
-			// If a cell is covered by fog, then all neighbors are as well.
-			var edgesFog = cv.HasFlag(Shroud.CellVisibility.Visible) ? GetEdges(ncv, Shroud.CellVisibility.Visible) : notVisibleEdgesPair.Item2;
-
-			var edgesShroud = GetEdges(ncv, Shroud.CellVisibility.Explored);
-			return (edgesShroud, edgesFog);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void WorldOnRenderPlayerChanged(Player player)
@@ -298,12 +222,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 				else
 				{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					cellVisibility = puv => (byte)(map.Contains(puv) ? 1 : 0);
-=======
-					// Visible under shroud: Explored. Visible under fog: Visible.
-					cellVisibility = puv => map.Contains(puv) ? Shroud.CellVisibility.Visible | Shroud.CellVisibility.Explored : Shroud.CellVisibility.Hidden;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				}
 
 				shroud = newShroud;

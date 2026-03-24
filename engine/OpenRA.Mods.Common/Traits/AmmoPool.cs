@@ -69,7 +69,6 @@ namespace OpenRA.Mods.Common.Traits
 	public class AmmoPool : INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync
 	{
 		public readonly AmmoPoolInfo Info;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		readonly Stack<int> tokens = new Stack<int>();
 		IReloadAmmoModifier[] modifiers;
 
@@ -78,9 +77,6 @@ namespace OpenRA.Mods.Common.Traits
 		/// Supply trucks with Hunt stance should seek out these units.
 		/// </summary>
 		public bool NeedsResupply { get; private set; }
-=======
-		readonly Stack<int> tokens = new();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Sync]
 		public int RemainingTicks;

@@ -9,7 +9,7 @@
  */
 #endregion
 
-namespace OpenRA.Mods.Common.Traits.Radar
+namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor enables the radar minimap.")]
 	public class ProvidesRadarInfo : ConditionalTraitInfo

@@ -159,14 +159,9 @@ namespace OpenRA
 
 		public virtual void Initialize(T value)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			var field = typeof(ValueActorInit<T>).GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			field?.SetValue(this, value);
-=======
 			typeof(ValueActorInit<T>)
 				.GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance)
 				?.SetValue(this, value);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public override MiniYaml Save()
@@ -250,26 +245,16 @@ namespace OpenRA
 
 		public void Initialize(MiniYaml yaml)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			var field = typeof(OwnerInit).GetField(nameof(InternalName), BindingFlags.Public | BindingFlags.Instance);
-			field?.SetValue(this, yaml.Value);
-=======
 			typeof(OwnerInit)
 				.GetField(nameof(InternalName), BindingFlags.Public | BindingFlags.Instance)
 				?.SetValue(this, yaml.Value);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public void Initialize(Player player)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			var field = typeof(OwnerInit).GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			field?.SetValue(this, player);
-=======
 			typeof(OwnerInit)
 				.GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance)
 				?.SetValue(this, player);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public override MiniYaml Save()

@@ -69,14 +69,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			yield return new LobbyBooleanOption("cheats", CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
 			yield return new LobbyBooleanOption("sync", "Sync", "Sync game code to detect errors with other players. Lowers performance.",
 				true, 5, false, false);
-=======
-			yield return new LobbyBooleanOption(map, "cheats",
-				CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public override object Create(ActorInitializer init) { return new DeveloperMode(this); }
@@ -162,7 +157,6 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (enableAll)
 					{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 						self.Owner.MapLayers.ExploreAll();
 
 						var amount = order.ExtraData != 0 ? (int)order.ExtraData : info.Cash;
@@ -170,11 +164,6 @@ namespace OpenRA.Mods.Common.Traits
 					}
 					else
 						self.Owner.MapLayers.ResetExploration();
-=======
-						var amount = order.ExtraData != 0 ? (int)order.ExtraData : info.Cash;
-						self.Trait<PlayerResources>().ChangeCash(amount);
-					}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 					self.Owner.MapLayers.Disabled = DisableShroud;
 					if (self.World.LocalPlayer == self.Owner)

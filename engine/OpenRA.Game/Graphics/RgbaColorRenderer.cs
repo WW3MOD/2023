@@ -194,43 +194,6 @@ namespace OpenRA.Graphics
 			DrawPolygon(new[] { tl, tr, br, bl }, width, color, blendMode);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		// Just copied from RangeCircle but with some modifications... todo, for radar ping
-		/* const int RangeCircleSegments = 32;
-		static readonly Int32Matrix4x4[] RangeCircleStartRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i).AsMatrix());
-		static readonly Int32Matrix4x4[] RangeCircleEndRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i + 6).AsMatrix());
-		public static void DrawCircle(WorldRenderer wr, WPos centerPosition, WDist radius,
-			float width, Color color, float borderWidth, Color borderColor)
-		{
-			var cr = Game.Renderer.RgbaColorRenderer;
-			var offset = new WVec(radius.Length, 0, 0);
-			for (var i = 0; i < RangeCircleSegments; i++)
-			{
-				var a = wr.Viewport.WorldToViewPx(wr.ScreenPosition(centerPosition + offset.Rotate(ref RangeCircleStartRotations[i])));
-				var b = wr.Viewport.WorldToViewPx(wr.ScreenPosition(centerPosition + offset.Rotate(ref RangeCircleEndRotations[i])));
-				if (borderWidth > 0)
-					cr.DrawLine(a, b, borderWidth, borderColor);
-				if (width > 0)
-					cr.DrawLine(a, b, width, color);
-			}
-		} */
-
-		public void FillTriangle(in float3 a, in float3 b, in float3 c, Color color, BlendMode blendMode = BlendMode.Alpha)
-		{
-			color = Util.PremultiplyAlpha(color);
-			var cr = color.R / 255.0f;
-			var cg = color.G / 255.0f;
-			var cb = color.B / 255.0f;
-			var ca = color.A / 255.0f;
-
-			vertices[0] = new Vertex(a + Offset, cr, cg, cb, ca, 0, 0);
-			vertices[1] = new Vertex(b + Offset, cr, cg, cb, ca, 0, 0);
-			vertices[2] = new Vertex(c + Offset, cr, cg, cb, ca, 0, 0);
-			parent.DrawRGBAVertices(vertices, blendMode);
-		}
-
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public void FillRect(in float3 tl, in float3 br, Color color, BlendMode blendMode = BlendMode.Alpha)
 		{
 			var tr = new float3(br.X, tl.Y, tl.Z);

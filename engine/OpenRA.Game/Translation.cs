@@ -37,7 +37,7 @@ namespace OpenRA
 
 	public class Translation
 	{
-		readonly FluentBundle bundle;
+		readonly Linguini.Bundle.FluentBundle bundle;
 
 		public Translation(string language, string[] translations, IReadOnlyFileSystem fileSystem)
 		{
@@ -104,7 +104,7 @@ namespace OpenRA
 
 			try
 			{
-				var result = bundle.TryGetAttrMsg(key, fluentArguments, out var errors, out value);
+				var result = bundle.TryGetAttrMessage(key, fluentArguments, out var errors, out value);
 				foreach (var error in errors)
 					Log.Write("debug", $"Translation of {key}: {error}");
 

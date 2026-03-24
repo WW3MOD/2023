@@ -17,14 +17,8 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	[Desc("Requires `GpsWatcher` on the player actor.")]
 	sealed class GpsPowerInfo : SupportPowerInfo
-=======
-	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
-	[Desc("Adds the hard-coded shroud palette to the game")]
-	sealed class ShroudPaletteInfo : TraitInfo
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		[Desc("Delay in ticks between launching and revealing the map.")]
 		public readonly int RevealDelay = 0;
@@ -59,11 +53,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new GpsPower(init.Self, this); }
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	sealed class GpsPower : SupportPower, INotifyKilled, INotifySold, INotifyOwnerChanged, ITick
-=======
-	sealed class ShroudPalette : ILoadsPalettes, IProvidesAssetBrowserPalettes
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		readonly Actor self;
 		readonly GpsPowerInfo info;
@@ -102,13 +92,8 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		void RemoveGps(Actor self)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// Extra function just in case something needs to be added later
 			owner.GpsRemove(self);
-=======
-			var c = info.Fog ? Fog : Shroud;
-			wr.AddPalette(info.Name, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => c[i % 8].ToArgb())));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)

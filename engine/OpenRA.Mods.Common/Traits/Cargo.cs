@@ -90,13 +90,9 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cargo(init, this); }
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	public class Cargo : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated, INotifyKilled, INotifyDamage,
-=======
-	public class Cargo : ConditionalTrait<CargoInfo>, IIssueOrder, IResolveOrder, IOrderVoice,
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
-		INotifyCreated, INotifyKilled, ITransformActorInitModifier
+		ITransformActorInitModifier
 	{
 		readonly Actor self;
 		readonly List<Actor> cargo = new();
@@ -161,7 +157,6 @@ namespace OpenRA.Mods.Common.Traits
 			facing = Exts.Lazy(self.TraitOrDefault<IFacing>);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		/* // Request the closest actorst that are cargoable to enter the transport
 		bool PickUpClosestActors(Actor self)
 		{
@@ -171,9 +166,6 @@ namespace OpenRA.Mods.Common.Traits
 		} */
 
 		void INotifyCreated.Created(Actor self)
-=======
-		protected override void Created(Actor self)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			base.Created(self);
 			aircraft = self.TraitOrDefault<Aircraft>();
@@ -213,17 +205,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (!IsEmpty())
 					yield return new DeployOrderTargeter("Unload", 10,
 						() => CanUnload() ? Info.UnloadCursor : Info.UnloadBlockedCursor);
-=======
-				if (IsTraitDisabled)
-					yield break;
-
-				yield return new DeployOrderTargeter("Unload", 10,
-					() => CanUnload() ? Info.UnloadCursor : Info.UnloadBlockedCursor);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 
@@ -278,16 +262,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanLoad(Actor a)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (loadFilters != null)
 				foreach (var f in loadFilters)
 					if (!f.CanLoadPassenger(self, a))
 						return false;
 
 			return reserves.Contains(a) || HasSpace(GetWeight(a));
-=======
-			return !IsTraitDisabled && (reserves.Contains(a) || HasSpace(GetWeight(a)));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		internal bool ReserveSpace(Actor a)
@@ -495,7 +475,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (Info.EjectOnDeath)
 			{
 				while (!IsEmpty() && CanUnload(BlockedByActor.All))
@@ -532,36 +511,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else
 			{
-=======
-			// IsAtGroundLevel contains Map.Contains(self.Location) check.
-			if (Info.EjectOnDeath &&
-				self.IsAtGroundLevel() &&
-				(!checkTerrainType || Info.UnloadTerrainTypes.Contains(self.World.Map.GetTerrainInfo(self.Location).Type)))
-			{
-				while (!IsEmpty())
-				{
-					var passenger = Unload(self);
-					self.World.AddFrameEndTask(w =>
-					{
-						var positionable = passenger.Trait<IPositionable>();
-						if (positionable.CanEnterCell(self.Location, self, BlockedByActor.All))
-						{
-							positionable.SetPosition(passenger, self.Location);
-							w.Add(passenger);
-
-							var nbms = passenger.TraitsImplementing<INotifyBlockingMove>();
-							foreach (var nbm in nbms)
-								nbm.OnNotifyBlockingMove(passenger, passenger);
-
-							passenger.Trait<Passenger>().OnEjectedFromKilledCargo(passenger);
-						}
-						else
-							passenger.Kill(e.Attacker);
-					});
-				}
-			}
-			else
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				foreach (var c in cargo)
 					c.Kill(e.Attacker);
 

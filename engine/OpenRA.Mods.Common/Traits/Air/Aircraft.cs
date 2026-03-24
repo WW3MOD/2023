@@ -1,17 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
-#region Copyright & License Information
-/*
- * Copyright (c) The OpenRA Developers and Contributors
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -881,14 +867,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// If the other actor in our way cannot be crushed, we are blocked.
 			// PERF: Avoid LINQ.
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var passables = otherActor.TraitsImplementing<IPassable>();
 			foreach (var passable in passables)
 				if (passable.PassableBy(otherActor, self, Info.Crushes))
-=======
-			foreach (var crushable in otherActor.Crushables)
-				if (crushable.CrushableBy(otherActor, self, Info.Crushes))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return false;
 
 			return true;
@@ -1029,13 +1010,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void PassAction(Actor self, Func<INotifyBeingPassed, Action<Actor, Actor, BitSet<PassClass>>> action)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var passables = self.World.ActorMap.GetActorsAt(TopLeft).Where(a => a != self)
 				.SelectMany(a => a.TraitsImplementing<IPassable>().Select(t => new TraitPair<IPassable>(a, t)));
-=======
-			var crushables = self.World.ActorMap.GetActorsAt(TopLeft).Where(a => a != self)
-				.SelectMany(a => a.Crushables.Select(t => new TraitPair<ICrushable>(a, t)));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			// Only crush actors that are on the ground level
 			foreach (var passable in passables)
@@ -1405,11 +1381,7 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public class AssociateWithAirfieldActivity : Activity
-=======
-		sealed class AssociateWithAirfieldActivity : Activity
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			readonly Aircraft aircraft;
 			readonly int delay;

@@ -38,15 +38,10 @@ namespace OpenRA.Mods.Common.Traits
 		public IReadOnlyDictionary<CPos, SubCell> Footprint { get; private set; }
 		public Rectangle Bounds { get; private set; }
 		public bool Selected { get; set; }
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		public Color MiniMapColor { get; private set; }
-		readonly MiniMapColorFromTerrainInfo terrainMiniMapColorInfo;
-=======
 		public Color RadarColor { get; private set; }
 		public CPos Location { get; private set; }
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
-		readonly RadarColorFromTerrainInfo terrainRadarColorInfo;
+		readonly MiniMapColorFromTerrainInfo terrainRadarColorInfo;
 		readonly WorldRenderer worldRenderer;
 		readonly TooltipInfoBase tooltip;
 		readonly ActorReference reference;
@@ -81,15 +76,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			DescriptiveName = tooltip != null ? tooltip.Name : Info.Name;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			GeneratePreviews();
-
-			terrainMiniMapColorInfo = Info.TraitInfoOrDefault<MiniMapColorFromTerrainInfo>();
-			UpdateMiniMapColor();
-=======
-			terrainRadarColorInfo = Info.TraitInfoOrDefault<RadarColorFromTerrainInfo>();
+			terrainRadarColorInfo = Info.TraitInfoOrDefault<MiniMapColorFromTerrainInfo>();
 			UpdateRadarColor();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			onCellEntryChanged = cell => UpdateFromCellChange(cell);
 		}
@@ -250,7 +238,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			reference.Add(init);
 			GeneratePreviews();
-			UpdateMiniMapColor();
+			UpdateRadarColor();
 		}
 
 		public void RemoveInit<T>() where T : ActorInit, ISingleInstanceInit
@@ -261,11 +249,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public MiniYaml Save()
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			bool SaveInit(object init)
-=======
 			bool SaveInit(ActorInit init)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				if (init is FactionInit factionInit && factionInit.Value == Owner.Faction)
 					return false;
@@ -278,11 +262,7 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			return reference.Save((Func<object, bool>)SaveInit);
-=======
 			return reference.Save(SaveInit);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		WPos PreviewPosition(World world, ActorReference actor)
@@ -311,21 +291,9 @@ namespace OpenRA.Mods.Common.Traits
 				throw new InvalidDataException($"Actor {ID} must define Location or CenterPosition");
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		void GeneratePreviews()
-		{
-			var init = new ActorPreviewInitializer(reference, worldRenderer);
-			previews = Info.TraitInfos<IRenderActorPreviewInfo>()
-				.SelectMany(rpi => rpi.RenderPreview(init))
-				.ToArray();
-		}
-
-		void UpdateMiniMapColor()
-=======
 		void UpdateRadarColor()
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
-			MiniMapColor = terrainMiniMapColorInfo == null ? Owner.Color : terrainMiniMapColorInfo.GetColorFromTerrain(worldRenderer.World);
+			RadarColor = terrainRadarColorInfo == null ? Owner.Color : terrainRadarColorInfo.GetColorFromTerrain(worldRenderer.World);
 		}
 
 		public ActorReference Export()

@@ -1,18 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
-#region Copyright & License Information
-/*
- * Copyright (c) The OpenRA Developers and Contributors
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
-using System;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System.Collections.Generic;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
@@ -160,27 +145,9 @@ namespace OpenRA.Mods.Common.Activities
 			var pos = aircraft.GetPosition();
 			var delta = checkTarget.CenterPosition - pos;
 			var isSlider = aircraft.Info.CanSlide;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
-
-			var desiredFacing = aircraft.Facing;
-			if (delta.HorizontalLengthSquared != 0)
-			{
-				var facing = delta.Yaw;
-
-				// Prevent jittering.
-				var diff = Math.Abs(facing.Angle - desiredFacing.Angle);
-				var deadzone = aircraft.Info.TurnDeadzone.Angle;
-				if (diff > deadzone && diff < 1024 - deadzone)
-					desiredFacing = facing;
-			}
-
-			var move = isSlider ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			if (isSlider)
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// CanSlide (helicopter) path: velocity-based movement with precise arrival.
 				// All horizontal movement happens in Aircraft.Tick via CurrentVelocity.
 				var speed = aircraft.CurrentVelocity.HorizontalLength;
@@ -202,12 +169,6 @@ namespace OpenRA.Mods.Common.Activities
 
 					return true;
 				}
-=======
-				if (isSlider)
-					FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, -move);
-				else
-					FlyTick(self, aircraft, desiredFacing + new WAngle(512), aircraft.Info.CruiseAltitude, move);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				// Inside the target annulus (weapon range), stop here
 				var insideMaxRange = maxRange.Length > 0 && checkTarget.IsInRange(pos, maxRange);
@@ -218,16 +179,7 @@ namespace OpenRA.Mods.Common.Activities
 					return true;
 				}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
-=======
-			// HACK: Consider ourselves blocked if we have moved by less than 64 WDist in the last five ticks
-			// Stop if we are blocked and close enough
-			if (previousPositions.Count == previousPositions.Capacity &&
-				(previousPositions.First() - previousPositions.Last()).LengthSquared < 4096 &&
-				delta.HorizontalLengthSquared <= nearEnough.LengthSquared)
-				return true;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				// Helicopters always decelerate toward their target — even when activities are
 				// queued after (like Land). This prevents the jarring instant-stop snap that occurs
@@ -265,7 +217,6 @@ namespace OpenRA.Mods.Common.Activities
 					// Would overshoot — only snap if speed is low enough for an invisible correction
 					if (speed <= aircraft.Info.MaxAcceleration * 2)
 					{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 						var targetPos = checkTarget.CenterPosition;
 						aircraft.SetPosition(self, new WPos(targetPos.X, targetPos.Y, aircraft.CenterPosition.Z));
 						aircraft.CurrentVelocity = WVec.Zero;
@@ -278,10 +229,6 @@ namespace OpenRA.Mods.Common.Activities
 						}
 
 						return true;
-=======
-						VerticalTakeOffOrLandTick(self, aircraft, aircraft.Facing, aircraft.Info.CruiseAltitude);
-						return false;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					}
 
 					// At high speed: emergency brake instead of snapping (visually jarring)
@@ -379,7 +326,6 @@ namespace OpenRA.Mods.Common.Activities
 				if ((checkTarget.CenterPosition - turnCenter).HorizontalLengthSquared < turnRadius * turnRadius)
 					desiredFacing = aircraft.Facing;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				positionBuffer.Add(self.CenterPosition);
 				if (positionBuffer.Count > 5)
 					positionBuffer.RemoveAt(0);
@@ -387,12 +333,6 @@ namespace OpenRA.Mods.Common.Activities
 				FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude);
 				return false;
 			}
-=======
-			previousPositions.Add(self.CenterPosition);
-			FlyTick(self, aircraft, desiredFacing, aircraft.Info.CruiseAltitude, WVec.Zero);
-
-			return false;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)

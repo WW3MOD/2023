@@ -117,12 +117,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			garrisonManager = self.TraitOrDefault<GarrisonManager>();
 			useGarrisonManager = garrisonManager != null;
-=======
-			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			base.Created(self);
 		}
 
@@ -139,7 +135,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// In GarrisonManager mode, pax dictionaries are managed when soldiers deploy/recall
 			// For legacy mode, track them on enter
 			if (!useGarrisonManager)
@@ -151,25 +146,11 @@ namespace OpenRA.Mods.Common.Traits
 				legacyArmaments.AddRange(
 					passenger.TraitsImplementing<Armament>()
 					.Where(a => Info.Armaments.Contains(a.Info.Name)));
-=======
-			paxFacing.Add(passenger, passenger.Trait<IFacing>());
-			paxPos.Add(passenger, passenger.Trait<IPositionable>());
-			paxRender.Add(passenger, passenger.Trait<RenderSprites>());
-
-			foreach (var a in passenger.TraitsImplementing<Armament>())
-			{
-				if (Info.Armaments.Contains(a.Info.Name))
-				{
-					a.AddNotifyAttacks(self, notifyAttacks);
-					armaments.Add(a);
-				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 
 		void INotifyPassengerExited.OnPassengerExited(Actor self, Actor passenger)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (!useGarrisonManager)
 			{
 				paxFacing.Remove(passenger);
@@ -188,20 +169,6 @@ namespace OpenRA.Mods.Common.Traits
 				paxPos[soldier] = soldier.Trait<IPositionable>();
 			if (!paxRender.ContainsKey(soldier))
 				paxRender[soldier] = soldier.Trait<RenderSprites>();
-=======
-			paxFacing.Remove(passenger);
-			paxPos.Remove(passenger);
-			paxRender.Remove(passenger);
-
-			foreach (var a in armaments.ToList())
-			{
-				if (a.Actor == passenger)
-				{
-					a.RemoveNotifyAttacks(notifyAttacks);
-					armaments.Remove(a);
-				}
-			}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		FirePort SelectFirePort(Actor self, WAngle targetYaw)
@@ -392,7 +359,6 @@ namespace OpenRA.Mods.Common.Traits
 					muzzles.Add(muzzleFlash);
 					muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
 				}
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 
 				if (Info.FlashOnAttack)
 					self.World.AddFrameEndTask(w =>
@@ -402,8 +368,6 @@ namespace OpenRA.Mods.Common.Traits
 
 				foreach (var npa in self.TraitsImplementing<INotifyAttack>())
 					npa.Attacking(self, target, a, barrel);
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 

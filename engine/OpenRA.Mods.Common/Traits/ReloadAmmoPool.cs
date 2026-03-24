@@ -20,12 +20,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Reload ammo pool with this name.")]
 		public readonly string AmmoPool = "primary";
 
-		[Desc("Time in ticks to fully reload ammopool.")]
-		public readonly int FullReloadTicks = 0;
-
-		[Desc("How many reloads should take place before unit is fully reloaded (based on reloading from 0).")]
-		public readonly int FullReloadSteps = 0;
-
 		[Desc("Reload time in ticks per Count.")]
 		public readonly int Delay = 50;
 
@@ -54,10 +48,11 @@ namespace OpenRA.Mods.Common.Traits
 		AmmoPool ammoPool;
 		IReloadAmmoModifier[] modifiers;
 
-		// readonly ReloadAmmoPoolInfo info;
-		// int remainingTicks;
+		[Sync]
+		int remainingTicks;
+
 		public ReloadAmmoPool(ReloadAmmoPoolInfo info)
-			: base(info) { /* this.info = info; */ }
+			: base(info) { }
 
 		protected override void Created(Actor self)
 		{
@@ -65,21 +60,14 @@ namespace OpenRA.Mods.Common.Traits
 			modifiers = self.TraitsImplementing<IReloadAmmoModifier>().ToArray();
 			base.Created(self);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			// self.World.AddFrameEndTask(w =>
-			// {
-			// 	remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
-			// });
-=======
 			self.World.AddFrameEndTask(w =>
 				remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier())));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
 		{
 			if (Info.ResetOnFire)
-				ammoPool.RemainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+				remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }
@@ -89,7 +77,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitPaused || IsTraitDisabled)
 				return;
 
-			ammoPool.Reload(self, Info.Delay, Info.Count);
+			Reload(self, Info.Delay, Info.Count, Info.Sound);
+		}
+
+		protected virtual void Reload(Actor self, int reloadDelay, int reloadCount, string sound)
+		{
+			if (!ammoPool.HasFullAmmo && --remainingTicks == 0)
+			{
+				remainingTicks = Util.ApplyPercentageModifiers(reloadDelay, modifiers.Select(m => m.GetReloadAmmoModifier()));
+				if (!string.IsNullOrEmpty(sound))
+					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, sound, self.CenterPosition);
+
+				ammoPool.GiveAmmo(self, reloadCount);
+			}
 		}
 	}
 }

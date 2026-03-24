@@ -71,17 +71,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 
 			rootMenu = widget;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			rootMenu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
-			{
-				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
-				{
-					{ "onExit", (Action)(() => { }) },
-					{ "shellmapName", world.Map.Title ?? "" }
-				});
-			};
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			// Menu buttons
 			var mainMenu = widget.Get("MAIN_MENU");

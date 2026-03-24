@@ -187,18 +187,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			mpe = world.WorldActor.TraitOrDefault<MenuPostProcessEffect>();
 			mpe?.Fade(mpe.Info.MenuEffect);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			menu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
-			{
-				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
-				{
-					{ "onExit", (Action)(() => { }) },
-					{ "shellmapName", "" }
-				});
-			};
-
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			buttonContainer = menu.Get("MENU_BUTTONS");
 			buttonTemplate = buttonContainer.Get<ButtonWidget>("BUTTON_TEMPLATE");
 			buttonContainer.RemoveChild(buttonTemplate);

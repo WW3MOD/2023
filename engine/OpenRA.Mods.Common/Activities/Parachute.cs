@@ -23,32 +23,8 @@ namespace OpenRA.Mods.Common.Activities
 
 		public Parachute(Actor self)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			pos = self.TraitOrDefault<IPositionable>();
-
-			var actor = self.World.Map.Rules.Actors[self.Info.Name.ToLowerInvariant()];
-			var actorPositionable = actor.TraitInfo<IPositionableInfo>();
-
-			var fallRate = self.Info.TraitInfo<ParachutableInfo>().FallRate;
-			fallVector = new WVec(0, 0, fallRate);
-
-			// Horizontal movement
-			var mobile = self.TraitOrDefault<Mobile>();
-			if (mobile != null)
-			{
-				var cell = mobile.GetAdjacentCell(self.Location).Value;
-				var horizontalDiff = cell - self.Location;
-
-				fallVector += new WVec(
-					horizontalDiff.X * 1024 / (self.CenterPosition.Z / fallRate),
-					horizontalDiff.Y * 1024 / (self.CenterPosition.Z / fallRate),
-					0);
-			}
-
-=======
 			pos = self.OccupiesSpace as IPositionable;
 			fallVector = new WVec(0, 0, self.Info.TraitInfo<ParachutableInfo>().FallRate);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			IsInterruptible = false;
 		}
 

@@ -1,5 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
 #region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
@@ -11,7 +9,6 @@
  */
 #endregion
 
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
 using System.Collections.Generic;
 

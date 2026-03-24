@@ -36,17 +36,8 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			var target = targets.ClosestTo(self);
-
-			// FF TODO: 'Collection must not be empty.'
-			/* var target = targets.Random(new Support.MersenneTwister(self.World.LobbyInfo.GlobalSettings.RandomSeed)); */
-
-			if (target == null)
-=======
 			var targetActor = targets.ClosestToWithPathFrom(self);
 			if (targetActor == null)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				return false;
 
 			// We want to keep 2 cells of distance from the target to prevent the pathfinder from thinking the target position is blocked.

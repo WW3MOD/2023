@@ -46,20 +46,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.MapLayers.AddSource(this, 0, uv);
+			p.MapLayers.AddSource(this, 1, uv);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayers.RemoveSource(this); }
-=======
-		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p)
+		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p)
 		{
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
 
-			p.Shroud.RemoveSource(this);
+			p.MapLayers.RemoveSource(this);
 		}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public override WDist Range
 		{

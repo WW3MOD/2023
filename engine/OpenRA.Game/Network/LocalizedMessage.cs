@@ -13,43 +13,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Linguini.Shared.Types.Bundle;
 
 namespace OpenRA.Network
 {
-	public class FluentArgument
-	{
-		public enum FluentArgumentType
-		{
-			String = 0,
-			Number = 1,
-		}
-
-		public readonly string Key;
-		public readonly string Value;
-		public readonly FluentArgumentType Type;
-
-		public FluentArgument() { }
-
-		public FluentArgument(string key, object value)
-		{
-			Key = key;
-			Value = value.ToString();
-			Type = GetFluentArgumentType(value);
-		}
-
-		static FluentArgumentType GetFluentArgumentType(object value)
-		{
-			switch (value.ToFluentType())
-			{
-				case FluentNumber _:
-					return FluentArgumentType.Number;
-				default:
-					return FluentArgumentType.String;
-			}
-		}
-	}
-
 	public class LocalizedMessage
 	{
 		public const int ProtocolVersion = 1;
@@ -81,21 +47,22 @@ namespace OpenRA.Network
 			// Let the FieldLoader do the dirty work of loading the public fields.
 			FieldLoader.Load(this, yaml);
 
-			var argumentDictionary = new Dictionary<string, object>();
+			var args = new List<object>();
 			foreach (var argument in Arguments)
 			{
+				args.Add(argument.Key);
 				if (argument.Type == FluentArgument.FluentArgumentType.Number)
 				{
 					if (!double.TryParse(argument.Value, out var number))
 						Log.Write("debug", $"Failed to parse {argument.Value}");
 
-					argumentDictionary.Add(argument.Key, number);
+					args.Add(number);
 				}
 				else
-					argumentDictionary.Add(argument.Key, argument.Value);
+					args.Add(argument.Value);
 			}
 
-			TranslatedText = modData.Translation.GetString(Key, argumentDictionary);
+			TranslatedText = FluentProvider.GetMessage(Key, args.ToArray());
 		}
 
 		public static string Serialize(string key, Dictionary<string, object> arguments = null)

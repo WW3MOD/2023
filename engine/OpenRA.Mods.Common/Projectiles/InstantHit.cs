@@ -75,12 +75,8 @@ namespace OpenRA.Mods.Common.Projectiles
 				target = Target.FromPos(args.PassiveTarget);
 
 			// Check for blocking actors
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, args.Source, target.CenterPosition, info.Width, out var blockedPos, sourceOrigin: args.Source))
-=======
 			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(
 				world, args.SourceActor.Owner, args.Source, target.CenterPosition, info.Width, out var blockedPos))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				target = Target.FromPos(blockedPos);
 
 			var warheadArgs = new WarheadArgs(args)

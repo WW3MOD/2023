@@ -41,15 +41,9 @@ namespace OpenRA.Mods.Common.Traits
 			else
 			{
 				var owner = map.PlayerDefinitions.Single(p => s.Get<OwnerInit>().InternalName == p.Value.Nodes.Last(k => k.Key == "Name").Value.Value);
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				var colorValue = owner.Value.Nodes.Where(n => n.Key == "Color");
-				var ownerColor = colorValue.Any() ? colorValue.First().Value.Value : "FFFFFF";
-				_ = Color.TryParse(ownerColor, out color);
-=======
 				var colorValue = owner.Value.NodeWithKeyOrDefault("Color");
 				var ownerColor = colorValue?.Value.Value ?? "FFFFFF";
 				Color.TryParse(ownerColor, out color);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 
 			var ios = ai.TraitInfo<IOccupySpaceInfo>();

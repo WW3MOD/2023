@@ -14,7 +14,7 @@ using System.Linq;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits.Radar
+namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Provides a signature on the minimap.")]
 	public class AppearsOnRadarInfo : ConditionalTraitInfo
@@ -28,9 +28,9 @@ namespace OpenRA.Mods.Common.Traits.Radar
 		public override object Create(ActorInitializer init) { return new AppearsOnRadar(this); }
 	}
 
-	public class AppearsOnRadar : ConditionalTrait<AppearsOnRadarInfo>, IRadarSignature
+	public class AppearsOnRadar : ConditionalTrait<AppearsOnRadarInfo>, IMiniMapSignature
 	{
-		IRadarColorModifier modifier;
+		IMiniMapColorModifier modifier;
 
 		public AppearsOnRadar(AppearsOnRadarInfo info)
 			: base(info) { }
@@ -38,10 +38,10 @@ namespace OpenRA.Mods.Common.Traits.Radar
 		protected override void Created(Actor self)
 		{
 			base.Created(self);
-			modifier = self.TraitsImplementing<IRadarColorModifier>().FirstOrDefault();
+			modifier = self.TraitsImplementing<IMiniMapColorModifier>().FirstOrDefault();
 		}
 
-		public void PopulateRadarSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
+		public void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
 		{
 			var viewer = self.World.RenderPlayer ?? self.World.LocalPlayer;
 			if (IsTraitDisabled || (viewer != null && !Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(viewer))))
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Traits.Radar
 
 			var color = self.OwnerColor();
 			if (modifier != null)
-				color = modifier.RadarColorOverride(self, color);
+				color = modifier.MiniMapColorOverride(self, color);
 
 			if (Info.UseLocation)
 			{

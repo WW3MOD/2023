@@ -99,7 +99,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var startingCash = SelectableCash.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
 			var passiveIncome = SelectablePassiveIncome.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
 			var incomeModifier = SelectableIncomeModifier.ToDictionary(c => c.ToString(), c => c.ToString() + "%");
@@ -113,14 +112,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			yield return new LobbyOption("incomemodifier", "Income Modifier", "Modify income from buildings", CashDropdownVisible, 2,
 				incomeModifier, DefaultIncomeModifier.ToString(), CashDropdownLocked);
-=======
-			var startingCash = SelectableCash.ToDictionary(c => c.ToStringInvariant(), c => "$" + c.ToString(NumberFormatInfo.CurrentInfo));
-
-			if (startingCash.Count > 0)
-				yield return new LobbyOption(map, "startingcash",
-					DefaultCashDropdownLabel, DefaultCashDropdownDescription, DefaultCashDropdownVisible, DefaultCashDropdownDisplayOrder,
-					startingCash, DefaultCash.ToStringInvariant(), DefaultCashDropdownLocked);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public override object Create(ActorInitializer init) { return new PlayerResources(init.Self, this); }
@@ -329,7 +320,6 @@ namespace OpenRA.Mods.Common.Traits
 				Resources = ResourceCapacity;
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public IncomeEntry AddIncome(string actorType, string name, float amountPerInterval)
 		{
 			var entry = new IncomeEntry
@@ -399,11 +389,6 @@ namespace OpenRA.Mods.Common.Traits
 		int ICashTricklerModifier.GetCashTricklerModifier()
 		{
 			return IncomeModifier;
-=======
-		public int GetCashAndResources()
-		{
-			return Cash + Resources;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 	}
 }

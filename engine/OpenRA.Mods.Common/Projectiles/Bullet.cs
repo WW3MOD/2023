@@ -30,7 +30,6 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("The minimum inaccuracy regardless of distance to target.")]
 		public readonly WDist MinInaccuracy = WDist.Zero;
 
@@ -38,12 +37,6 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly WVec InaccuracyPerProjectile = WVec.Zero;
 
 		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value regardless of range.")]
-=======
-		[Desc("Controls the way inaccuracy is calculated. Possible values are " +
-			"'Maximum' - scale from 0 to max with range, " +
-			"'PerCellIncrement' - scale from 0 with range, " +
-			"'Absolute' - use set value regardless of range.")]
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Maximum;
 
 		[Desc("Image to display.")]
@@ -129,16 +122,8 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ContrailZOffset = 2047;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Thickness of the emitted line.")]
 		public readonly WDist ContrailWidth = new WDist(1);
-=======
-		[Desc("Thickness of the emitted line at the start of the contrail.")]
-		public readonly WDist ContrailStartWidth = new(64);
-
-		[Desc("Thickness of the emitted line at the end of the contrail. Will default to " + nameof(ContrailStartWidth) + " if left undefined")]
-		public readonly WDist? ContrailEndWidth = null;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("RGB color at the contrail start.")]
 		public readonly Color ContrailStartColor = Color.DarkGray; // 169,169,169
@@ -149,13 +134,8 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
 		public readonly int ContrailStartColorAlpha = 150;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("RGB color at the contrail end. Set to start color if undefined")]
 		public readonly Color? ContrailEndColor = Color.Gray; // 128,128,128
-=======
-		[Desc("RGB color at the contrail end. Will default to " + nameof(ContrailStartColor) + " if left undefined")]
-		public readonly Color? ContrailEndColor;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Use player remap color instead of a custom color at the contrail end.")]
 		public readonly bool ContrailEndColorUsePlayerColor = false;
@@ -194,15 +174,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		public Bullet(BulletInfo info, ProjectileArgs args)
 		{
 			this.info = info;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			this.args = args;
 			pos = args.CurrentSource();
 			source = args.CurrentSource();
-=======
-			Args = args;
-			pos = args.Source;
-			source = args.Source;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			var world = args.SourceActor.World;
 
@@ -296,13 +270,9 @@ namespace OpenRA.Mods.Common.Projectiles
 			return new WAngle(effective);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		int activeTicksCount = 0;
 
 		public void Tick(World world)
-=======
-		public virtual void Tick(World world)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			Animation?.Tick();
 
@@ -323,18 +293,10 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (ShouldExplode(world))
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				Explode(world);
 			}
 
 			activeTicksCount++;
-=======
-				if (info.ContrailLength > 0)
-					world.AddFrameEndTask(w => w.Add(new ContrailFader(pos, contrail)));
-
-				Explode(world);
-			}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		bool ShouldExplode(World world)
@@ -344,11 +306,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			var bbb = (args.SourceActor.CenterPosition - lastPos); */
 
 			// Check for walls or other blocking obstacles
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true, args.Source))
-=======
-			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, Args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				pos = blockedPos;
 				return true;

@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public abstract class WithDecorationBaseInfo : ConditionalTraitInfo
 	{
 		[Desc("Position in the actor's selection box to draw the decoration.")]
-		public readonly string Position = "Bottom";
+		public readonly string Position = "TopLeft";
 
 		[Desc("Player relationships who can view the decoration.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
@@ -31,13 +31,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Should this be visible only when selected?")]
 		public readonly bool RequiresSelection = false;
 
-		[Desc("Should this be visible only when a set of modifiers are held?")]
-		public readonly string[] RequiredModifiers = Array.Empty<string>();
-
 		[Desc("Offset sprite center position from the selection box edge.")]
 		public readonly int2 Margin = int2.Zero;
-		public readonly int? MarginX = null;
-		public readonly int? MarginY = null;
 
 		[Desc("Screen-space offsets to apply when defined conditions are enabled.",
 			"A dictionary of [condition string]: [x, y offset].")]
@@ -66,21 +61,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 		int2 conditionalOffset;
 		BlinkState[] blinkPattern;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		public int2 Margin { get; set; }
-
-		public WithDecorationBase(Actor self, InfoType info)
-=======
 		protected WithDecorationBase(Actor self, InfoType info)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			: base(info)
 		{
 			Self = self;
 			blinkPattern = info.BlinkPattern;
-
-			Margin = new int2(
-				Info.MarginX != null ? Info.MarginX.Value : Info.Margin.X,
-				Info.MarginY != null ? Info.MarginY.Value : Info.Margin.Y);
 		}
 
 		protected virtual bool ShouldRender(Actor self)
@@ -102,15 +87,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 					return false;
 			}
 
-			// Improve by making it possible to demand specific modifiers, now any will work
-			if (Info.RequiredModifiers.Length > 0)
-			{
-				var modifiers = Game.GetModifierKeys();
-
-				if (modifiers == Modifiers.None)
-					return false;
-			}
-
 			return true;
 		}
 
@@ -123,7 +99,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (IsTraitDisabled || self.IsDead || !self.IsInWorld || !ShouldRender(self))
 				return Enumerable.Empty<IRenderable>();
 
-			var screenPos = container.GetDecorationOrigin(self, wr, Info.Position, Margin) + conditionalOffset;
+			var screenPos = container.GetDecorationOrigin(self, wr, Info.Position, Info.Margin) + conditionalOffset;
 			return RenderDecoration(self, wr, screenPos);
 		}
 

@@ -21,15 +21,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("HitPoints")]
 		public readonly int HP = 0;
 
-		[Desc("Percentage of max HP below which the unit enters Medium damage state.")]
-		public readonly int MediumDamageThreshold = 85;
-
-		[Desc("Percentage of max HP below which the unit enters Heavy damage state.")]
-		public readonly int HeavyDamageThreshold = 65;
-
-		[Desc("Percentage of max HP below which the unit enters Critical damage state.")]
-		public readonly int CriticalDamageThreshold = 50;
-
 		[Desc("Trigger interfaces such as AnnounceOnKill?")]
 		public readonly bool NotifyAppliedDamage = true;
 
@@ -91,47 +82,16 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsDead => HP <= 0;
 		public bool RemoveOnDeath = true;
 
-		public long GetDamageStateThreshold(DamageState damageState)
-		{
-			switch (damageState)
-			{
-				case DamageState.Critical:
-					return MaxHP * (long)Info.CriticalDamageThreshold;
-				case DamageState.Heavy:
-					return MaxHP * (long)Info.HeavyDamageThreshold;
-				case DamageState.Medium:
-					return MaxHP * (long)Info.MediumDamageThreshold;
-				case DamageState.Undamaged:
-					return MaxHP;
-				case DamageState.Light:
-				default:
-					return MaxHP * 100L;
-			}
-		}
-
 		public DamageState DamageState
 		{
 			get
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				if (hp == GetDamageStateThreshold(DamageState.Undamaged))
-=======
 				if (HP == MaxHP)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return DamageState.Undamaged;
 
 				if (HP <= 0)
 					return DamageState.Dead;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				if (hp * 100L < GetDamageStateThreshold(DamageState.Critical))
-					return DamageState.Critical;
-
-				if (hp * 100L < GetDamageStateThreshold(DamageState.Heavy))
-					return DamageState.Heavy;
-
-				if (hp * 100L < GetDamageStateThreshold(DamageState.Medium))
-=======
 				if (HP * 100L < MaxHP * 25L)
 					return DamageState.Critical;
 
@@ -139,7 +99,6 @@ namespace OpenRA.Mods.Common.Traits
 					return DamageState.Heavy;
 
 				if (HP * 100L < MaxHP * 75L)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return DamageState.Medium;
 
 				return DamageState.Light;

@@ -124,11 +124,6 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				SearchCells.Clear();
 				searchCellsTick = self.World.WorldTick;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				foreach (var cell in CandidateMovementCells(self))
-					if (Mobile.CanEnterCell(cell, check: BlockedByActor.Immovable))
-						searchCells.Add(cell);
-=======
 				foreach (var cell in Util.AdjacentCells(self.World, Target))
 				{
 					if (Mobile.CanStayInCell(cell) && Mobile.CanEnterCell(cell))
@@ -139,7 +134,6 @@ namespace OpenRA.Mods.Common.Activities
 						SearchCells.Add(cell);
 					}
 				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 
 			if (SearchCells.Count == 0)

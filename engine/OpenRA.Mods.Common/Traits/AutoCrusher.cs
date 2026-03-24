@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int MaximumScanTimeInterval = 15;
 
 		[Desc("The crush class(es) that can be automatically crushed.")]
-		public readonly BitSet<CrushClass> CrushClasses = default;
+		public readonly BitSet<PassClass> CrushClasses = default;
 
 		[Desc("Player relationships the owner of the actor needs to get targeted.")]
 		public readonly PlayerRelationship TargetRelationships = PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
@@ -92,7 +92,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (target.TraitsImplementing<Cloak>().Any(c => !c.IsTraitDisabled && !c.IsVisible(target, self.Owner)))
 				return false;
 
-			return target.Crushables.Any(c => c.CrushableBy(target, self, Info.CrushClasses));
+			return target.TraitsImplementing<IPassable>().Any(c => c.PassableBy(target, self, Info.CrushClasses));
 		}
 
 		protected override void TraitEnabled(Actor self)

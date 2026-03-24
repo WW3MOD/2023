@@ -74,42 +74,6 @@ namespace OpenRA.Mods.Common.Graphics
 		}
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-	public class FileNotFoundSequence : ISpriteSequence
-	{
-		readonly FileNotFoundException exception;
-
-		public FileNotFoundSequence(FileNotFoundException exception)
-		{
-			this.exception = exception;
-		}
-
-		public string Filename => exception.FileName;
-
-		string ISpriteSequence.Name => throw exception;
-		int ISpriteSequence.Start => throw exception;
-		int ISpriteSequence.Length => throw exception;
-		int ISpriteSequence.Stride => throw exception;
-		int ISpriteSequence.Facings => throw exception;
-		int ISpriteSequence.InterpolatedFacings => throw exception;
-		int ISpriteSequence.Tick => throw exception;
-		int[] ISpriteSequence.ChangeTick => throw exception;
-		int ISpriteSequence.ZOffset => throw exception;
-		int ISpriteSequence.ShadowStart => throw exception;
-		int ISpriteSequence.ShadowZOffset => throw exception;
-		int[] ISpriteSequence.Frames => throw exception;
-		Rectangle ISpriteSequence.Bounds => throw exception;
-		bool ISpriteSequence.IgnoreWorldTint => throw exception;
-		float ISpriteSequence.Scale => throw exception;
-		Sprite ISpriteSequence.GetSprite(int frame) { throw exception; }
-		Sprite ISpriteSequence.GetSprite(int frame, WAngle facing) { throw exception; }
-		(Sprite, WAngle) ISpriteSequence.GetSpriteWithRotation(int frame, WAngle facing) { throw exception; }
-		Sprite ISpriteSequence.GetShadow(int frame, WAngle facing) { throw exception; }
-		float ISpriteSequence.GetAlpha(int frame) { throw exception; }
-	}
-
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	public struct SpriteSequenceField<T>
 	{
 		public string Key;
@@ -180,11 +144,6 @@ namespace OpenRA.Mods.Common.Graphics
 
 		[Desc("Time (in milliseconds at default game speed) to wait until playing the next frame in the animation.")]
 		protected static readonly SpriteSequenceField<int> Tick = new(nameof(Tick), 40);
-
-		[Desc("Change the tick rate to y after x ticks. Format: { x, y, x, y, ... }")]
-		static readonly SpriteSequenceField<int[]> ChangeTick = new SpriteSequenceField<int[]>(nameof(ChangeTick), null);
-		int[] ISpriteSequence.ChangeTick => changeTick;
-		readonly int[] changeTick;
 
 		[Desc("Value controlling the Z-order. A higher values means rendering on top of other sprites at the same position. " +
 			"Use power of 2 values to avoid glitches.")]
@@ -358,33 +317,8 @@ namespace OpenRA.Mods.Common.Graphics
 			var usedFrames = new List<int>();
 			for (var facing = 0; facing < facings; facing++)
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				start = LoadField(d, Start);
-				shadowStart = LoadField(d, ShadowStart);
-				shadowZOffset = LoadField(d, ShadowZOffset).Length;
-				zOffset = LoadField(d, ZOffset).Length;
-				tick = LoadField(d, Tick);
-				changeTick = LoadField(d, ChangeTick);
-				transpose = LoadField(d, Transpose);
-				frames = LoadField(d, Frames);
-				ignoreWorldTint = LoadField(d, IgnoreWorldTint);
-				scale = LoadField(d, Scale);
-
-				var flipX = LoadField(d, FlipX);
-				var flipY = LoadField(d, FlipY);
-				var zRamp = LoadField(d, ZRamp);
-
-				facings = LoadField(d, Facings);
-				interpolatedFacings = LoadField(d, nameof(InterpolatedFacings), -1);
-				if (interpolatedFacings != -1 && (interpolatedFacings <= 1 || interpolatedFacings <= Math.Abs(facings) || interpolatedFacings > 1024
-					|| !Exts.IsPowerOf2(interpolatedFacings)))
-					throw new YamlException($"InterpolatedFacings must be greater than Facings, within the range of 2 to 1024, and a power of 2.");
-
-				if (facings < 0)
-=======
 				var facingInner = reverseFacings ? (facings - facing) % facings : facing;
 				for (var frame = 0; frame < length.Value; frame++)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					var i = transpose ? frame * facings + facingInner :
 						facingInner * stride + frame;
@@ -401,17 +335,8 @@ namespace OpenRA.Mods.Common.Graphics
 					usedFrames.Add(usedFrames[i] + shadowOffset);
 			}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				IEnumerable<int> GetUsedFrames(int frameCount)
-				{
-					if (d.TryGetValue(Length.Key, out var lengthYaml) && lengthYaml.Value == "*")
-						length = frames?.Length ?? frameCount - start;
-					else
-						length = LoadField(d, Length);
-=======
 			return usedFrames;
 		}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		protected virtual IEnumerable<ReservationInfo> ParseFilenames(ModData modData, string tileset, int[] frames, MiniYaml data, MiniYaml defaults)
 		{
@@ -462,42 +387,6 @@ namespace OpenRA.Mods.Common.Graphics
 			facings = LoadField(Facings, data, defaults, out var facingsLocation);
 			interpolatedFacings = LoadField(InterpolatedFacings, data, defaults, out var interpolatedFacingsLocation);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-					return usedFrames;
-				}
-
-				if (d.TryGetValue(Combine.Key, out var combine))
-				{
-					var combined = Enumerable.Empty<Sprite>();
-					foreach (var sub in combine.Nodes)
-					{
-						var sd = sub.Value.ToDictionary();
-
-						// Allow per-sprite offset, flipping, start, and length
-						// These shouldn't inherit Start/Offset/etc from the main definition
-						var subStart = LoadField(sd, Start);
-						var subOffset = LoadField(sd, Offset);
-						var subFlipX = LoadField(sd, FlipX);
-						var subFlipY = LoadField(sd, FlipY);
-						var subFrames = LoadField(sd, Frames);
-						var subLength = 0;
-
-						IEnumerable<int> SubGetUsedFrames(int subFrameCount)
-						{
-							if (sd.TryGetValue(Length.Key, out var subLengthYaml) && subLengthYaml.Value == "*")
-								subLength = subFrames != null ? subFrames.Length : subFrameCount - subStart;
-							else
-								subLength = LoadField(sd, Length);
-
-							return subFrames != null ? subFrames.Skip(subStart).Take(subLength) : Enumerable.Range(subStart, subLength);
-						}
-
-						var subSrc = GetSpriteSrc(modData, tileSet, sequence, animation, sub.Key, sd);
-						var subSprites = cache[subSrc, SubGetUsedFrames].Select(s =>
-						{
-							if (s == null)
-								return null;
-=======
 			tick = LoadField(Tick, data, defaults);
 			zOffset = LoadField(ZOffset, data, defaults).Length;
 
@@ -511,7 +400,6 @@ namespace OpenRA.Mods.Common.Graphics
 			transpose = LoadField(Transpose, data, defaults);
 			alpha = LoadField(Alpha, data, defaults);
 			alphaFade = LoadField(AlphaFade, data, defaults, out var alphaFadeLocation);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			var depthSprite = LoadField(DepthSprite, data, defaults, out var depthSpriteLocation);
 			if (!string.IsNullOrEmpty(depthSprite))
@@ -525,20 +413,6 @@ namespace OpenRA.Mods.Common.Graphics
 				facings = -facings;
 			}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-					sprites = combined.ToArray();
-					GetUsedFrames(sprites.Length);
-				}
-				else
-				{
-					// Apply offset to each sprite in the sequence
-					// Different sequences may apply different offsets to the same frame
-					var src = GetSpriteSrc(modData, tileSet, sequence, animation, info.Value, d);
-					sprites = cache[src, GetUsedFrames].Select(s =>
-					{
-						if (s == null)
-							return null;
-=======
 			// Facings must be an integer factor of 1024 (i.e. 1024 / facings is an integer) to allow the frames to be
 			// mapped uniformly over the full rotation range. This implies that it is a power of 2.
 			if (facings == 0 || facings > 1024 || !Exts.IsPowerOf2(facings))
@@ -563,7 +437,6 @@ namespace OpenRA.Mods.Common.Graphics
 			if (alphaFade && alpha != null)
 				throw new YamlException($"{alphaFadeLocation}: {AlphaFade.Key} cannot be used with {Alpha.Key}.");
 		}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public virtual void ReserveSprites(ModData modData, string tileset, SpriteCache cache, MiniYaml data, MiniYaml defaults)
 		{

@@ -130,16 +130,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void Unregister()
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (registeredEntry == null)
 				return;
 
 			resources.RemoveIncome(registeredEntry);
 			registeredEntry = null;
-=======
-			self.World.AddFrameEndTask(w => w.Add(
-				new FloatingText(self.CenterPosition, self.OwnerColor(), FloatingText.FormatCashTick(amount), info.DisplayDuration)));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void ITick.Tick(Actor self)

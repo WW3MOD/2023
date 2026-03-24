@@ -120,11 +120,7 @@ namespace OpenRA
 			var fs = modData.DefaultFileSystem;
 
 			Ruleset ruleset = null;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			void F()
-=======
 			void LoadRuleset()
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				var actors = MergeOrDefault("Manifest,Rules", fs, m.Rules, null, null,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k.Value),
@@ -145,24 +141,15 @@ namespace OpenRA
 				var modelSequences = MergeOrDefault("Manifest,ModelSequences", fs, m.ModelSequences, null, null,
 					k => k);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				// The default ruleset does not include a preferred tileset or sequence set
-				ruleset = new Ruleset(actors, weapons, voices, notifications, music, null, null, modelSequences);
-=======
 				// The default ruleset does not include a preferred tileset
 				ruleset = new Ruleset(actors, weapons, voices, notifications, music, null, modelSequences);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 
 			if (modData.IsOnMainThread)
 			{
 				modData.HandleLoadingProgress();
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				var loader = new Task(F);
-=======
 				var loader = new Task(LoadRuleset);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				loader.Start();
 
 				// Animate the loadscreen while we wait
@@ -170,11 +157,7 @@ namespace OpenRA
 					modData.HandleLoadingProgress();
 			}
 			else
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				F();
-=======
 				LoadRuleset();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			return ruleset;
 		}
@@ -195,11 +178,7 @@ namespace OpenRA
 			var dr = modData.DefaultRules;
 
 			Ruleset ruleset = null;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			void F()
-=======
 			void LoadRuleset()
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				var actors = MergeOrDefault("Rules", fileSystem, m.Rules, mapRules, dr.Actors,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k.Value),
@@ -225,22 +204,14 @@ namespace OpenRA
 					modelSequences = MergeOrDefault("ModelSequences", fileSystem, m.ModelSequences, mapModelSequences, dr.ModelSequences,
 						k => k);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				ruleset = new Ruleset(actors, weapons, voices, notifications, music, terrainInfo, sequences, modelSequences);
-=======
 				ruleset = new Ruleset(actors, weapons, voices, notifications, music, terrainInfo, modelSequences);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 
 			if (modData.IsOnMainThread)
 			{
 				modData.HandleLoadingProgress();
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				var loader = new Task(F);
-=======
 				var loader = new Task(LoadRuleset);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				loader.Start();
 
 				// Animate the loadscreen while we wait
@@ -248,11 +219,7 @@ namespace OpenRA
 					modData.HandleLoadingProgress();
 			}
 			else
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				F();
-=======
 				LoadRuleset();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			return ruleset;
 		}

@@ -99,13 +99,8 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new Disguise(init.Self, this); }
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-	class Disguise : IEffectiveOwner, IIssueOrder, IResolveOrder, IOrderVoice, IMiniMapColorModifier, INotifyAttack,
-		INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration, ITick
-=======
 	sealed class Disguise : IEffectiveOwner, IIssueOrder, IResolveOrder, IOrderVoice, INotifyAttack,
 		INotifyDamage, INotifyLoadCargo, INotifyUnloadCargo, INotifyDemolition, INotifyInfiltration, ITick
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		public ActorInfo AsActor { get; private set; }
 		public Player AsPlayer { get; private set; }
@@ -163,17 +158,6 @@ namespace OpenRA.Mods.Cnc.Traits
 			return order.OrderString == "Disguise" ? info.Voice : null;
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		Color IMiniMapColorModifier.MiniMapColorOverride(Actor self, Color color)
-		{
-			if (!Disguised || self.Owner.IsAlliedWith(self.World.RenderPlayer))
-				return color;
-
-			return Game.Settings.Game.UsePlayerStanceColors ? AsPlayer.PlayerRelationshipColor(self) : AsPlayer.Color;
-		}
-
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public void DisguiseAs(Actor target)
 		{
 			var oldEffectiveActor = AsActor;

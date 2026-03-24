@@ -340,15 +340,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void PopulateMiniMapSignatureCells(Actor self, List<(CPos Cell, Color Color)> destinationBuffer)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			foreach (var previewsForCell in cellMap)
-				foreach (var preview in previewsForCell.Value)
-					destinationBuffer.Add((previewsForCell.Key, preview.MiniMapColor));
-=======
 			foreach (var preview in cellMap.Items)
 				foreach (var cell in Footprint(preview))
 					destinationBuffer.Add((cell, preview.RadarColor));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public EditorActorPreview this[string id]

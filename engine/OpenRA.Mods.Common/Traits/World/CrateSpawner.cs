@@ -30,13 +30,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CheckboxDescription = "checkbox-crates.description";
 
 		[Desc("Default value of the crates checkbox in the lobby.")]
-		public readonly bool CheckboxEnabled = false;
+		public readonly bool CheckboxEnabled = true;
 
 		[Desc("Prevent the crates state from being changed in the lobby.")]
 		public readonly bool CheckboxLocked = false;
 
 		[Desc("Whether to display the crates checkbox in the lobby.")]
-		public readonly bool CheckboxVisible = false;
+		public readonly bool CheckboxVisible = true;
 
 		[Desc("Display order for the crates checkbox in the lobby.")]
 		public readonly int CheckboxDisplayOrder = 0;
@@ -54,11 +54,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int InitialSpawnDelay = 0;
 
 		[Desc("Which terrain types can we drop on?")]
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Beach" };
-=======
 		public readonly HashSet<string> ValidGround = new() { "Clear", "Rough", "Road", "Ore", "Beach" };
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Which terrain types count as water?")]
 		public readonly HashSet<string> ValidWater = new() { "Water" };

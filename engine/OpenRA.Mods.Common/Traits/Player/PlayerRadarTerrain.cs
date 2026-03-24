@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	public class PlayerRadarTerrainInfo : TraitInfo, Requires<ShroudInfo>
+	public class PlayerRadarTerrainInfo : TraitInfo, Requires<MapLayersInfo>
 	{
 		public override object Create(ActorInitializer init)
 		{
@@ -30,16 +30,16 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsInitialized { get; private set; }
 
 		readonly World world;
-		IRadarTerrainLayer[] radarTerrainLayers;
+		IMiniMapTerrainLayer[] radarTerrainLayers;
 		CellLayer<(uint, uint)> terrainColor;
-		readonly Shroud shroud;
+		readonly MapLayers shroud;
 
 		public event Action<MPos> CellTerrainColorChanged = null;
 
 		public PlayerRadarTerrain(Actor self)
 		{
 			world = self.World;
-			shroud = self.Trait<Shroud>();
+			shroud = self.Trait<MapLayers>();
 			shroud.OnShroudChanged += UpdateShroudCell;
 		}
 
@@ -65,7 +65,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
-			radarTerrainLayers = w.WorldActor.TraitsImplementing<IRadarTerrainLayer>().ToArray();
+			radarTerrainLayers = w.WorldActor.TraitsImplementing<IMiniMapTerrainLayer>().ToArray();
 			terrainColor = new CellLayer<(uint, uint)>(w.Map);
 
 			w.AddFrameEndTask(_ =>
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public (uint Left, uint Right) this[MPos uv] => terrainColor[uv];
 
-		public static (uint Left, uint Right) GetColor(Map map, IRadarTerrainLayer[] radarTerrainLayers, MPos uv)
+		public static (uint Left, uint Right) GetColor(Map map, IMiniMapTerrainLayer[] radarTerrainLayers, MPos uv)
 		{
 			foreach (var rtl in radarTerrainLayers)
 				if (rtl.TryGetTerrainColorPair(uv, out var c))

@@ -38,16 +38,11 @@ namespace OpenRA.Traits
 		public readonly WPos CenterPosition;
 		public readonly Actor BackingActor; // Renamed from 'Actor' to avoid conflict with property
 		readonly ICreatesFrozenActors frozenTrait;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		readonly Player viewer;
 		readonly MapLayers shroud;
 		readonly List<WPos> targetablePositions = new List<WPos>();
-=======
-		readonly Shroud shroud;
-		readonly List<WPos> targetablePositions = new();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
-		public Player Viewer { get; }
+		public Player Viewer => viewer;
 		public Player Owner { get; private set; }
 		public BitSet<TargetableType> TargetTypes { get; private set; }
 		public IEnumerable<WPos> TargetablePositions => targetablePositions;
@@ -93,13 +88,8 @@ namespace OpenRA.Traits
 		{
 			BackingActor = actor; // Updated from 'Actor'
 			this.frozenTrait = frozenTrait;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			this.viewer = viewer;
 			shroud = viewer.MapLayers;
-=======
-			Viewer = viewer;
-			shroud = viewer.Shroud;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			NeedRenderables = startsRevealed;
 
 			// Consider all cells inside the map area (ignoring the current map bounds)
@@ -108,23 +98,11 @@ namespace OpenRA.Traits
 				.ToArray();
 
 			if (Footprint.Length == 0)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				throw new ArgumentException(("This frozen actor has no footprint.\n" +
-					"Actor Name: {0}\n" +
-					"Actor Location: {1}\n" +
-					"Input footprint: [{2}]\n" +
-					"Input footprint (after shroud.Contains): [{3}]")
-					.F(BackingActor.Info.Name, // Updated from 'Actor'
-					BackingActor.Location.ToString(), // Updated from 'Actor'
-					footprint.Select(p => p.ToString()).JoinWith("|"),
-					footprint.Select(p => shroud.Contains(p).ToString()).JoinWith("|")));
-=======
-				throw new ArgumentException("This frozen actor has no footprint.\n" +
-					$"Actor Name: {actor.Info.Name}\n" +
-					$"Actor Location: {actor.Location}\n" +
+				throw new ArgumentException($"This frozen actor has no footprint.\n" +
+					$"Actor Name: {BackingActor.Info.Name}\n" +
+					$"Actor Location: {BackingActor.Location}\n" +
 					$"Input footprint: [{footprint.Select(p => p.ToString()).JoinWith("|")}]\n" +
 					$"Input footprint (after shroud.Contains): [{footprint.Select(p => shroud.Contains(p).ToString()).JoinWith("|")}]");
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			CenterPosition = BackingActor.CenterPosition; // Updated from 'Actor'
 
@@ -137,14 +115,8 @@ namespace OpenRA.Traits
 
 		public uint ID => BackingActor.ActorID; // Updated from 'Actor'
 		public bool IsValid => Owner != null;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public ActorInfo Info => BackingActor.Info; // Updated from 'Actor'
 		public Actor Actor => !BackingActor.IsDead ? BackingActor : null; // Updated from 'Actor'
-		public Player Viewer => viewer;
-=======
-		public ActorInfo Info => actor.Info;
-		public Actor Actor => !actor.IsDead ? actor : null;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public void RefreshState()
 		{
@@ -172,11 +144,7 @@ namespace OpenRA.Traits
 			Hidden = false;
 			foreach (var shouldHideModifier in shouldHideModifiers)
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (shouldHideModifier.ShouldHide(BackingActor, viewer))
-=======
-				if (!visibilityModifier.IsVisible(actor, Viewer))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					Hidden = true;
 					break;
@@ -288,6 +256,8 @@ namespace OpenRA.Traits
 		readonly Player owner;
 		readonly Dictionary<uint, FrozenActor> frozenActorsById;
 		readonly SpatiallyPartitioned<FrozenActor> partitionedFrozenActors;
+		readonly SpatiallyPartitioned<uint> partitionedFrozenActorIds;
+		readonly HashSet<uint> dirtyFrozenActorIds = new HashSet<uint>();
 
 		public FrozenActorLayer(Actor self, FrozenActorLayerInfo info)
 		{
@@ -299,15 +269,10 @@ namespace OpenRA.Traits
 			partitionedFrozenActors = new SpatiallyPartitioned<FrozenActor>(
 				world.Map.MapSize.X, world.Map.MapSize.Y, binSize);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+			partitionedFrozenActorIds = new SpatiallyPartitioned<uint>(
+				world.Map.MapSize.X, world.Map.MapSize.Y, binSize);
+
 			self.Trait<MapLayers>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
-=======
-			self.Trait<Shroud>().OnShroudChanged += uv =>
-			{
-				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
-					fa.UpdateVisibilityNextTick = true;
-			};
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public void Add(FrozenActor fa)

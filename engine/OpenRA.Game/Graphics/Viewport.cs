@@ -66,18 +66,9 @@ namespace OpenRA.Graphics
 		WorldViewport lastViewportDistance;
 
 		float zoom = 1f;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		float minZoom = 1f;
-		float maxZoom = 4f;
-
-		bool unlockMinZoom = true;
-		float unlockedMinZoomScale = 0.25f;
-		float unlockedMinZoom = 0.25f;
-=======
 		bool unlockMinZoom;
 		float unlockedMinZoomScale;
 		float unlockedMinZoom = 1f;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public float Zoom
 		{

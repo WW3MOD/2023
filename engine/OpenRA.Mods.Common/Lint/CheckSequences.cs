@@ -85,25 +85,6 @@ namespace OpenRA.Mods.Common.Lint
 								sequenceImages = new[] { imageOverride.ToLowerInvariant() };
 							}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-							// foreach (var sequence in LintExts.GetFieldValues(traitInfo, field, sequenceReference.DictionaryReference))
-							// {
-							// 	if (string.IsNullOrEmpty(sequence))
-							// 		continue;
-
-							// 	foreach (var i in sequenceImages)
-							// 	{
-							// 		if (sequenceReference.Prefix)
-							// 		{
-							// 			// TODO: Remove prefixed sequence references and instead use explicit lists of lintable references
-							// 			if (!sequences.Sequences(i).Any(s => s.StartsWith(sequence)))
-							// 				emitWarning($"Actor type `{actorInfo.Value.Name}` trait `{traitName}` field `{field.Name}` defines a prefix `{sequence}` that does not match any sequences on image `{i}`.");
-							// 		}
-							// 		else if (!sequences.HasSequence(i, sequence))
-							// 			emitError($"Actor type `{actorInfo.Value.Name}` trait `{traitName}` field `{field.Name}` references an undefined sequence `{sequence}` on image `{i}`.");
-							// 	}
-							// }
-=======
 							foreach (var sequence in LintExts.GetFieldValues(traitInfo, field, sequenceReference.DictionaryReference))
 							{
 								if (string.IsNullOrEmpty(sequence))
@@ -125,7 +106,6 @@ namespace OpenRA.Mods.Common.Lint
 											$"references an undefined sequence `{sequence}` on image `{i}`.");
 								}
 							}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 						}
 					}
 				}

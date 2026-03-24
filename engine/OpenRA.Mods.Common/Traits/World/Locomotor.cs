@@ -144,11 +144,7 @@ namespace OpenRA.Mods.Common.Traits
 			public readonly LongBitSet<PlayerBitMask> Passable;
 			public readonly CellFlag CellFlag;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			public CellCache(LongBitSet<PlayerBitMask> immovable, CellFlag cellFlag, LongBitSet<PlayerBitMask> passable = default)
-=======
-			public CellCache(LongBitSet<PlayerBitMask> immovable, CellFlag cellFlag, LongBitSet<PlayerBitMask> crushable)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				Immovable = immovable;
 				Passable = passable;
@@ -391,15 +387,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// If the other actor in our way cannot be crushed, we are blocked.
 			// PERF: Avoid LINQ.
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var passables = otherActor.TraitsImplementing<IPassable>();
 			foreach (var passable in passables)
 				if (passable.PassableBy(otherActor, actor, Info.PassableClasses))
-=======
-			var crushables = otherActor.Crushables;
-			foreach (var crushable in crushables)
-				if (crushable.CrushableBy(otherActor, actor, Info.Crushes))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return false;
 
 			return true;
@@ -505,23 +495,15 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var cellImmovablePlayers = default(LongBitSet<PlayerBitMask>);
 				var cellPassablePlayers = world.AllPlayersMask;
 
 				foreach (var actor in actors)
-=======
-				foreach (var actor in actorMap.GetActorsAt(cell))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					var actorImmovablePlayers = world.AllPlayersMask;
 					var actorPassablePlayers = world.NoPlayersMask;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					var passables = actor.TraitsImplementing<IPassable>();
-=======
-					var crushables = actor.Crushables;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					var mobile = actor.OccupiesSpace as Mobile;
 					var isMovable = mobile != null && !mobile.IsTraitDisabled && !mobile.IsTraitPaused && !mobile.IsImmovable;
 					var isMoving = isMovable && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal);
@@ -531,18 +513,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (isTransitOnly)
 						cellFlag |= CellFlag.HasTransitOnlyActor;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					if (passables.Any())
 					{
 						cellFlag |= CellFlag.HasPassableActor;
 						foreach (var passable in passables)
 							actorPassablePlayers = actorPassablePlayers.Union(passable.PassableBy(actor, Info.PassableClasses));
-=======
-					foreach (var crushable in crushables)
-					{
-						cellFlag |= CellFlag.HasCrushableActor;
-						actorCrushablePlayers = actorCrushablePlayers.Union(crushable.CrushableBy(actor, Info.Crushes));
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					}
 
 					if (isMoving)

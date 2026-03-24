@@ -665,14 +665,8 @@ namespace OpenRA.Mods.Common.Projectiles
 					if (targetPassedBy)
 						desiredVFacing = desiredVFacing.Clamp(-info.VerticalRateOfTurn.Facing, info.VerticalRateOfTurn.Facing);
 					else if (lastHt == 0)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					{ // Before the target is passed by, missile speed should be changed
 					  // Target's height above loop's center
-=======
-					{
-						// Before the target is passed by, missile speed should be changed
-						// Target's height above loop's center
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 						var tarHgt = (loopRadius * WAngle.FromFacing(vFacing).Cos() / 1024 - System.Math.Abs(relTarHgt)).Clamp(0, loopRadius);
 
 						// Target's horizontal distance from loop's center

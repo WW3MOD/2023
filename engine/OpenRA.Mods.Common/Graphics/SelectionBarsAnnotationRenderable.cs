@@ -83,7 +83,6 @@ namespace OpenRA.Mods.Common.Graphics
 
 		static Color GetHealthColor(IHealth health)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (Game.Settings.Game.UsePlayerStanceColors)
 				return actor.Owner.PlayerRelationshipColor(actor);
 
@@ -106,10 +105,6 @@ namespace OpenRA.Mods.Common.Graphics
 			}
 
 			return Color.FromArgb(255, r, g, 0);
-=======
-			return health.DamageState == DamageState.Critical ? Color.Red :
-				health.DamageState == DamageState.Heavy ? Color.Yellow : Color.LimeGreen;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		static void DrawHealthBar(IHealth health, float2 start, float2 end)

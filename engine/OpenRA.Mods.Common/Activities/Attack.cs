@@ -33,11 +33,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IPositionable positionable;
 		readonly bool forceAttack;
 		readonly Color? targetLineColor;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		readonly AutoTarget autoTarget;
-=======
-		readonly MoveCooldownHelper moveCooldownHelper;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		protected Target target;
 		Target lastVisibleTarget;
@@ -224,7 +220,6 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			var pos = self.CenterPosition;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
 			var engStance = autoTarget?.EngagementStanceValue ?? EngagementStance.Defensive;
@@ -239,11 +234,6 @@ namespace OpenRA.Mods.Common.Activities
 			var needsToMove = outOfRange || tooClose || cantInteract || losBlocked;
 
 			if (needsToMove)
-=======
-			if (!target.IsInRange(pos, maxRange)
-				|| (minRange.Length != 0 && target.IsInRange(pos, minRange))
-				|| (mobile != null && !mobile.CanInteractWithGroundLayer(self)))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				// HoldPosition: never auto-reposition — give up on this target
 				if (engStance == EngagementStance.HoldPosition)
@@ -259,47 +249,23 @@ namespace OpenRA.Mods.Common.Activities
 					return AttackStatus.UnableToAttack;
 
 				attackStatus |= AttackStatus.NeedsToMove;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 
 				if (checkTarget.Type != TargetType.Invalid)
 				{
 					QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
 					return AttackStatus.NeedsToMove;
 				}
-=======
-				moveCooldownHelper.NotifyMoveQueued();
-				var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
-				QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition, Color.Red));
-				return AttackStatus.NeedsToMove;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 
 			var desiredFacing = (attack.GetTargetPosition(pos, target) - pos).Yaw;
 
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// Don't queue a turn activity: Executing a child takes an additional tick during which the target may have moved again
 				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
 
 				// Check again if we turned enough and directly continue attacking if we did
 				if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
-=======
-				// Mirror Turn activity checks.
-				if (mobile == null || (!mobile.IsTraitDisabled && !mobile.IsTraitPaused))
-				{
-					// Don't queue a Turn activity: Executing a child takes an additional tick during which the target may have moved again.
-					facing.Facing = Util.TickFacing(facing.Facing, (attack.GetTargetPosition(pos, target) - pos).Yaw, facing.TurnSpeed);
-
-					// Check again if we turned enough and directly continue attacking if we did.
-					if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
-					{
-						attackStatus |= AttackStatus.NeedsToTurn;
-						return AttackStatus.NeedsToTurn;
-					}
-				}
-				else
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					attackStatus |= AttackStatus.NeedsToTurn;
 					return AttackStatus.NeedsToTurn;

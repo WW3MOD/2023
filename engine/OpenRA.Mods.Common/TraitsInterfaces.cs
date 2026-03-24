@@ -113,7 +113,6 @@ namespace OpenRA.Mods.Common.Traits
 		void Demolish(Actor self, Actor saboteur, int delay, BitSet<DamageType> damageTypes);
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	// Type tag for crush class bits
 	public class PassClass { }
 
@@ -124,8 +123,6 @@ namespace OpenRA.Mods.Common.Traits
 		LongBitSet<PlayerBitMask> PassableBy(Actor self, BitSet<PassClass> passClasses);
 	}
 
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	[RequireExplicitImplementation]
 	public interface INotifyBeingPassed
 	{
@@ -329,6 +326,15 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyUnloadCargo
 	{
 		void Unloading(Actor self);
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyHarvesterAction
+	{
+		void MovingToRefinery(Actor self, Actor refineryActor);
+		void MovementCancelled(Actor self);
+		void Docked();
+		void Undocked();
 	}
 
 	[RequireExplicitImplementation]

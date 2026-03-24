@@ -43,7 +43,6 @@ namespace OpenRA.Mods.Common
 			return (facing - rot) & 0xFF;
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		// Overloaded TickFacing with inertia for integer facing
 		public static int TickFacing(int facing, int desiredFacing, int rot, int currentRotationSpeed, int rotationAcceleration, int maxRotationSpeed, out int newRotationSpeed)
 		{
@@ -61,13 +60,6 @@ namespace OpenRA.Mods.Common
 		}
 
 		// Original TickFacing for WAngle (backward compatibility)
-=======
-		/// <summary>
-		/// Adds step angle units to facing in the direction that takes it closer to desiredFacing.
-		/// If facing is already within step of desiredFacing then desiredFacing is returned.
-		/// Step is given as an integer to allow negative values (step away from the desired facing).
-		/// </summary>
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public static WAngle TickFacing(WAngle facing, WAngle desiredFacing, WAngle step)
 		{
 			var leftTurn = (facing - desiredFacing).Angle;
@@ -75,11 +67,7 @@ namespace OpenRA.Mods.Common
 				return desiredFacing;
 
 			var rightTurn = (desiredFacing - facing).Angle;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (Math.Min(leftTurn, rightTurn) < step.Angle)
-=======
-			if (rightTurn < step.Angle)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				return desiredFacing;
 
 			return rightTurn < leftTurn ? facing + step : facing - step;

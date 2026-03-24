@@ -56,7 +56,6 @@ namespace OpenRA.Mods.Common.Orders
 			if (actorsInvolved.Length == 0)
 				yield break;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// Use LocalPlayer for CreateGroup when available (handles mixed-owner selections in control-all mode)
 			var groupOwner = world.LocalPlayer?.PlayerActor ?? actorsInvolved.First().Owner.PlayerActor;
 			yield return new Order("CreateGroup", groupOwner, false, actorsInvolved.ToArray());
@@ -69,11 +68,6 @@ namespace OpenRA.Mods.Common.Orders
 					if (a.Owner != world.LocalPlayer)
 						controlAllManager.MarkPlayerControlled(a);
 			}
-=======
-			// HACK: This is required by the hacky player actions-per-minute calculation
-			// TODO: Reimplement APM properly and then remove this
-			yield return new Order("CreateGroup", actorsInvolved[0].Owner.PlayerActor, false, actorsInvolved);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			foreach (var o in orders)
 				yield return CheckSameOrder(o.Order, o.Trait.IssueOrder(o.Actor, o.Order, o.Target, mi.Modifiers.HasModifier(Modifiers.Shift)));
@@ -116,14 +110,7 @@ namespace OpenRA.Mods.Common.Orders
 		{
 			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
 			var actor = world.ScreenMap.ActorsAtMouse(xy)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || a.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(a.Actor)))
-=======
-				.Where(a =>
-					!a.Actor.IsDead &&
-					a.Actor.Info.HasTraitInfo<ISelectableInfo>() &&
-					(a.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(a.Actor)))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				.WithHighestSelectionPriority(xy, mi.Modifiers);
 
 			if (actor == null)
@@ -157,16 +144,7 @@ namespace OpenRA.Mods.Common.Orders
 
 		public virtual void SelectionChanged(World world, IEnumerable<Actor> selected) { }
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		static UnitOrderResult OrderForUnit(Actor self, Target target, CPos xy, MouseInput mi)
-=======
-		/// <summary>
-		/// Returns the most appropriate order for a given actor and target.
-		/// First priority is given to orders that interact with the given actors.
-		/// Second priority is given to actors in the given cell.
-		/// </summary>
-		protected static UnitOrderResult OrderForUnit(Actor self, Target target, CPos xy, MouseInput mi)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			if (mi.Button != Game.Settings.Game.MouseButtonPreference.Action &&
 				!(mi.Button == Game.Settings.Game.AttackMoveButton && (mi.Modifiers & ~Modifiers.Shift) == Game.Settings.Game.AttackMoveModifiers))
@@ -196,13 +174,7 @@ namespace OpenRA.Mods.Common.Orders
 			var actorsAt = self.World.ActorMap.GetActorsAt(xy).ToList();
 			var orders = self.TraitsImplementing<IIssueOrder>()
 				.SelectMany(trait => trait.Orders.Select(x => new { Trait = trait, Order = x }))
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				.OrderByDescending(x => x.Order.OrderPriority);
-=======
-				.Select(x => x)
-				.OrderByDescending(x => x.Order.OrderPriority)
-				.ToList();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			for (var i = 0; i < 2; i++)
 			{

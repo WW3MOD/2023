@@ -57,16 +57,8 @@ namespace OpenRA.Mods.Common.Commands
 		[FluentReference]
 		const string DevCheatAllDescription = "description-dev-cheat-all";
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		[TranslationReference]
-		static readonly string CinematicViewDescription = "cinematic-view";
-
-		[TranslationReference]
-		static readonly string DevCrashDescription = "dev-crash";
-=======
 		[FluentReference]
 		const string DevCrashDescription = "description-dev-crash";
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[FluentReference]
 		const string LevelUpActorDescription = "description-levelup-actor";
@@ -93,7 +85,6 @@ namespace OpenRA.Mods.Common.Commands
 			{ "unlimited-power", (UnlimitedPowerDescription, UnlimitedPower) },
 			{ "enable-tech", (EnableTechDescription, EnableTech) },
 			{ "fast-charge", (FastChargeDescription, FastCharge) },
-			{ "cview", (CinematicViewDescription, CinematicView) },
 			{ "all", (DevCheatAllDescription, All) },
 			{ "crash", (DevCrashDescription, Crash) },
 			{ "levelup", (LevelUpActorDescription, LevelUp) },
@@ -198,11 +189,6 @@ namespace OpenRA.Mods.Common.Commands
 		static void All(string arg, World world)
 		{
 			IssueDevCommand(world, "DevAll");
-		}
-
-		static void CinematicView(string arg, World world)
-		{
-			IssueDevCommand(world, "DevCinematicView");
 		}
 
 		static void Crash(string arg, World world)

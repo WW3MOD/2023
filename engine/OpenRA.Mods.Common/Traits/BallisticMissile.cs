@@ -236,6 +236,12 @@ namespace OpenRA.Mods.Common.Traits
 			return new BallisticMissileFly(self, target, this);
 		}
 
+		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset,
+			WAngle? facing, Color? targetLineColor = null)
+		{
+			return null;
+		}
+
 		public Activity LocalMove(Actor self, WPos fromPos, WPos toPos)
 		{
 			return null;

@@ -20,17 +20,12 @@ namespace OpenRA.Mods.Common.LoadScreens
 {
 	public sealed class LogoStripeLoadScreen : SheetLoadScreen
 	{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		Rectangle stripeRectLeft;
-		Rectangle stripeRectRight;
-=======
 		[FluentReference]
 		const string Loading = "loadscreen-loading";
 
 		Rectangle stripeRect;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		float2 logoPos;
-		Sprite stripeLeft, stripeRight, logo;
+		Sprite stripe, logo;
 
 		Sheet lastSheet;
 		int lastDensity;
@@ -52,20 +47,18 @@ namespace OpenRA.Mods.Common.LoadScreens
 				lastSheet = s;
 				lastDensity = density;
 				logo = CreateSprite(s, density, new Rectangle(0, 0, 256, 256));
-				stripeLeft = CreateSprite(s, density, new Rectangle(256, 0, 128, 256));
-				stripeRight = CreateSprite(s, density, new Rectangle(512, 0, 128, 256));
+				stripe = CreateSprite(s, density, new Rectangle(258, 0, 253, 256));
 			}
 
 			if (r.Resolution != lastResolution)
 			{
 				lastResolution = r.Resolution;
-				stripeRectLeft = new Rectangle(0, lastResolution.Height / 2 - 128, lastResolution.Width / 2, 256);
-				stripeRectRight = new Rectangle(lastResolution.Width / 2, lastResolution.Height / 2 - 128, lastResolution.Width / 2, 256);
+				stripeRect = new Rectangle(0, lastResolution.Height / 2 - 128, lastResolution.Width, 256);
 				logoPos = new float2(lastResolution.Width / 2 - 128, lastResolution.Height / 2 - 128);
 			}
 
-			WidgetUtils.FillRectWithSprite(stripeRectLeft, stripeLeft);
-			WidgetUtils.FillRectWithSprite(stripeRectRight, stripeRight);
+			if (stripe != null)
+				WidgetUtils.FillRectWithSprite(stripeRect, stripe);
 
 			if (logo != null)
 				r.RgbaSpriteRenderer.DrawSprite(logo, logoPos);

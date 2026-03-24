@@ -1,17 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
-#region Copyright & License Information
-/*
- * Copyright (c) The OpenRA Developers and Contributors
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
@@ -58,11 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new AttackMove(init.Self, this); }
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	class AttackMove : IResolveOrder, IOrderVoice, IIssueOrder
-=======
-	sealed class AttackMove : IResolveOrder, IOrderVoice
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		public readonly AttackMoveInfo Info;
 		readonly IMove move;
@@ -188,18 +170,10 @@ namespace OpenRA.Mods.Common.Traits
 			var modifiers = mi.Modifiers;
 			if (mi.Button == Game.Settings.Game.AttackMoveButton && modifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) && !modifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				world.CancelInputMode();
 
 				var queued = modifiers.HasModifier(Modifiers.Shift);
 				var orderName = "AttackMove"; // WW3MOD: AssaultMove disabled
-=======
-				var queued = mi.Modifiers.HasModifier(Modifiers.Shift);
-				if (!queued)
-					world.CancelInputMode();
-
-				var orderName = mi.Modifiers.HasModifier(Modifiers.Ctrl) ? "AssaultMove" : "AttackMove";
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				cell = world.Map.Clamp(cell);
 				yield return new Order(orderName, null, Target.FromCell(world, cell), queued, null, subjects.Select(s => s.Actor).ToArray());

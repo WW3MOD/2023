@@ -17,11 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-	class CheckDefaultDetectability : ILintRulesPass, ILintServerMapPass
-=======
 	sealed class CheckDefaultVisibility : ILintRulesPass, ILintServerMapPass
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		void ILintRulesPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Ruleset rules)
 		{
@@ -57,16 +53,12 @@ namespace OpenRA.Mods.Common.Lint
 							var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
 							if (ios == null)
 								emitError(
-									$"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType().Name}` " +
+									$"Actor type `{actorInfo.Key}` defines DetectablePosition.Footprint in `{vis.GetType().Name}` " +
 									"but has no IOccupySpace traits.");
 							else if (ios.OccupiedCells(actorInfo.Value, CPos.Zero).Count == 0)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but does not have any footprint cells");
-=======
 								emitError(
-									$"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType().Name}` " +
+									$"Actor type `{actorInfo.Key}` defines DetectablePosition.Footprint in `{vis.GetType().Name}` " +
 									"but does not have any footprint cells.");
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 						}
 					}
 				}

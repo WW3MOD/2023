@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public enum ExplosionType { Footprint, CenterPosition }
 
-	public enum DamageSource { Self, Killer }
+	// DamageSource enum is defined in Explodes.cs
 
 	[Desc("This actor fires warheads when killed.")]
 	public class FireWarheadsOnDeathInfo : ConditionalTraitInfo, Requires<IHealthInfo>

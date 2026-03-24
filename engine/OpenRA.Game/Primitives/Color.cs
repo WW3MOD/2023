@@ -164,21 +164,12 @@ namespace OpenRA.Primitives
 
 			byte alpha = 255;
 			if (!byte.TryParse(value.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var red)
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			    || !byte.TryParse(value.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var green)
-			    || !byte.TryParse(value.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var blue))
-				return false;
-
-			if (value.Length == 8
-			    && !byte.TryParse(value.AsSpan(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out alpha))
-=======
 				|| !byte.TryParse(value.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var green)
 				|| !byte.TryParse(value.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var blue))
 				return false;
 
 			if (value.Length == 8
 				&& !byte.TryParse(value.AsSpan(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out alpha))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				return false;
 
 			color = FromArgb(alpha, red, green, blue);

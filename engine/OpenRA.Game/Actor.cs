@@ -72,12 +72,6 @@ namespace OpenRA
 		public IOccupySpace OccupiesSpace { get; }
 		public ITargetable[] Targetables { get; }
 		public IEnumerable<ITargetablePositions> EnabledTargetablePositions { get; }
-		readonly ICrushable[] crushables;
-		public ICrushable[] Crushables
-		{
-			get => crushables ?? throw new InvalidOperationException($"Crushables for {Info.Name} are not initialized.");
-		}
-
 		public bool IsIdle => CurrentActivity == null;
 		public bool IsDead => Disposed || (health != null && health.IsDead);
 
@@ -86,7 +80,6 @@ namespace OpenRA
 
 		public WRot Orientation => facing?.Orientation ?? WRot.None;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public int AverageDamagePercent = 0;
 
 		public void MarkForDestruction(int percentDamage)
@@ -94,13 +87,7 @@ namespace OpenRA
 			AverageDamagePercent += percentDamage;
 		}
 
-		/// <summary>Value used to represent an invalid token.</summary>
-		public static readonly int InvalidConditionToken = -1;
-
 		public class ConditionState
-=======
-		sealed class ConditionState
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			/// <summary>Delegates that have registered to be notified when this condition changes.</summary>
 			public readonly List<VariableObserverNotifier> Notifiers = new();
@@ -109,11 +96,7 @@ namespace OpenRA
 			public readonly HashSet<int> Tokens = new();
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public readonly Dictionary<string, ConditionState> ConditionStates = new Dictionary<string, ConditionState>();
-=======
-		readonly Dictionary<string, ConditionState> conditionStates = new();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		/// <summary>Each granted condition receives a unique token that is used when revoking.</summary>
 		readonly Dictionary<int, string> conditionTokens = new();
@@ -194,7 +177,7 @@ namespace OpenRA
 				var targetablesList = new List<ITargetable>();
 				var targetablePositionsList = new List<ITargetablePositions>();
 				var syncHashesList = new List<SyncHash>();
-				var crushablesList = new List<ICrushable>();
+				// ICrushable/IPassable caching removed — interface lives in Mods.Common
 
 				foreach (var traitInfo in Info.TraitsInConstructOrder())
 				{
@@ -221,7 +204,6 @@ namespace OpenRA
 					{ if (trait is ITargetable t) targetablesList.Add(t); }
 					{ if (trait is ITargetablePositions t) targetablePositionsList.Add(t); }
 					{ if (trait is ISync t) syncHashesList.Add(new SyncHash(t)); }
-					{ if (trait is ICrushable t) crushablesList.Add(t); }
 				}
 
 				resolveOrders = resolveOrdersList.ToArray();
@@ -236,7 +218,6 @@ namespace OpenRA
 				EnabledTargetablePositions = targetablePositions.Where(Exts.IsTraitEnabled);
 				enabledTargetableWorldPositions = EnabledTargetablePositions.SelectMany(tp => tp.TargetablePositions(this));
 				SyncHashes = syncHashesList.ToArray();
-				crushables = crushablesList.ToArray();
 			}
 
 			DOT = new List<DamageOverTime>();

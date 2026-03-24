@@ -46,30 +46,11 @@ namespace OpenRA.Mods.Common.Traits
 			p.MapLayers.AddSource(this, 10, uv);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		protected void RemoveCellsFromPlayerShroud(Player p) { p.MapLayers.RemoveSource(this); }
-=======
-		protected void RemoveCellsFromPlayerShroud(Actor self, Player p)
-		{
-			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
-				return;
+		protected void RemoveCellsFromPlayerShroud(Actor self, Player p) { p.MapLayers.RemoveSource(this); }
 
-			p.Shroud.RemoveSource(this);
-		}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
-
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		protected PPos[] ProjectedCells(Actor self)
 		{
 			return self.World.Map.ProjectedCells;
-=======
-		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p)
-		{
-			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
-				return;
-
-			p.Shroud.RemoveSource(this);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)

@@ -53,19 +53,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If set > 0, unit will delay this many ticks before it is cloaked again after it is not within detection range.")]
 		public readonly int RevealedDelay = 0;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Events leading to the actor getting uncloaked. Possible values are: Attack, Move, Unload, Infiltrate, Demolish, Dock, Damage, Heal and SelfHeal.",
 			"'Dock' is triggered when docking to a refinery or resupplying.")]
 		public readonly UncloakType UncloakOn = UncloakType.None;
-=======
-		[Desc(
-			"Events leading to the actor getting uncloaked. " +
-			"Possible values are: Attack, Move, Unload, Infiltrate, Demolish, Dock, Damage, Heal, SelfHeal and SupportPower.",
-			"'Dock' is triggered when docking to a refinery or resupplying.",
-			"'SupportPower' is triggered when using a support power.")]
-		public readonly UncloakType UncloakOn = UncloakType.Attack
-			| UncloakType.Unload | UncloakType.Infiltrate | UncloakType.Demolish | UncloakType.Dock;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public readonly string CloakSound = null;
 		public readonly string UncloakSound = null;
@@ -121,14 +111,9 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cloak(this); }
 	}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
-		INotifyAttack, ITick, IShouldHideModifier, IMiniMapColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
-=======
-	public class Cloak : PausableConditionalTrait<CloakInfo>,
-		IRenderModifier, INotifyDamage, INotifyUnloadCargo, INotifyLoadCargo, INotifyDemolition, INotifyInfiltration,
-		INotifyAttack, ITick, IVisibilityModifier, IRadarColorModifier, INotifyDockClient, INotifyDockHost, INotifySupportPower
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
+	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyDemolition, INotifyInfiltration,
+		INotifyAttack, ITick, IShouldHideModifier, IMiniMapColorModifier, INotifyCreated,
+		INotifyDockClient, INotifyDockHost, INotifyLoadCargo, INotifyUnloadCargo, INotifySupportPower
 	{
 		readonly float3 cloakedColor;
 		readonly float cloakedColorAlpha;
@@ -217,37 +202,12 @@ namespace OpenRA.Mods.Common.Traits
 				return SpriteRenderable.None;
 			else
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var palette = string.IsNullOrEmpty(Info.Palette) ? null : Info.IsPlayerPalette ? wr.Palette(Info.Palette + self.Owner.InternalName) : wr.Palette(Info.Palette);
 				if (palette == null)
 					return r;
 				else
 					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable ? ((IPalettedRenderable)a).WithPalette(palette) : a);
 			} */
-=======
-				switch (Info.CloakStyle)
-				{
-					case CloakStyle.Alpha:
-						return r.Select(a => !a.IsDecoration && a is IModifyableRenderable mr ? mr.WithAlpha(Info.CloakedAlpha) : a);
-
-					case CloakStyle.Color:
-						return r.Select(a => !a.IsDecoration && a is IModifyableRenderable mr ?
-							mr.WithTint(cloakedColor, mr.TintModifiers | TintModifiers.ReplaceColor).WithAlpha(cloakedColorAlpha) :
-							a);
-
-					case CloakStyle.Palette:
-					{
-						var palette = wr.Palette(Info.IsPlayerPalette ? Info.CloakedPalette + self.Owner.InternalName : Info.CloakedPalette);
-						return r.Select(a => !a.IsDecoration && a is IPalettedRenderable pr ? pr.WithPalette(palette) : a);
-					}
-
-					default:
-						return r;
-				}
-			}
-
-			return SpriteRenderable.None;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)
@@ -349,7 +309,6 @@ namespace OpenRA.Mods.Common.Traits
 					&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
 					&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (!cachedShouldHide)
 					Reveal(Info.RevealedDelay);
 
@@ -367,10 +326,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			var shouldHide = Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
-=======
-			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.IsInWorld
-				&& a.Actor.Owner.IsAlliedWith(viewer) && Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 
 			if (!shouldHide)

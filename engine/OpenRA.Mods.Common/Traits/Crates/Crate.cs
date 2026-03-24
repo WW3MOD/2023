@@ -128,26 +128,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				anyOtherActors = true;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			var collector = landedOn.FirstOrDefault(a =>
-			{
 				// Mobile is (currently) the only trait that supports passing
-				var mi = a.Info.TraitInfoOrDefault<MobileInfo>();
-=======
-				// Mobile is (currently) the only trait that supports crushing
 				var mi = otherActor.Info.TraitInfoOrDefault<MobileInfo>();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				if (mi == null)
 					continue;
 
 				// Make sure that the actor can collect this crate type
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// Crate can only be passed if it is not in the air.
-				return self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.PassClass);
-			});
-=======
-				// Crate can only be crushed if it is not in the air.
-				if (self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.CrushClass))
+				if (self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.PassClass))
 				{
 					collector = otherActor;
 					break;
@@ -157,7 +145,6 @@ namespace OpenRA.Mods.Common.Traits
 			// The crate can land unhindered.
 			if (!anyOtherActors)
 				return;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			// Destroy the crate if none of the units in the cell are valid collectors
 			if (collector != null)
@@ -177,15 +164,10 @@ namespace OpenRA.Mods.Common.Traits
 			collected = true;
 
 			var shares = crateActions
-				.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(crusher)))
+				.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(passer)))
 				.ToList();
 			if (shares.Count != 0)
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				var shares = crateActions.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(passer)));
-
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				var totalShares = shares.Sum(a => a.Shares);
 				var n = self.World.SharedRandom.Next(totalShares);
 
@@ -193,11 +175,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (n < share)
 					{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-						s.Action.Activate(passer);
-=======
-						action.Activate(crusher);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
+						action.Activate(passer);
 						return;
 					}
 

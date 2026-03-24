@@ -750,16 +750,10 @@ namespace OpenRA
 				UpdatePackage("map.png", SavePreview());
 
 			// Update the package with the new map data
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var s = root.WriteToString();
 			toPackage.Update("map.yaml", Encoding.UTF8.GetBytes(s));
 			toPackage.Update("map.bin", SaveBinaryData());
 			toPackage.Update("shadows.bin", SaveShadowsBinaryData());
-=======
-			UpdatePackage("map.yaml", Encoding.UTF8.GetBytes(root.WriteToString()));
-			UpdatePackage("map.bin", SaveBinaryData());
-
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			Package = toPackage;
 
 			// Update UID to match the newly saved data
@@ -991,7 +985,6 @@ namespace OpenRA
 
 			if (Grid.MaximumTerrainHeight > 0)
 			{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// The minimap is drawn in cell space, so we need to
 				// unproject the PPos bounds to find the MPos boundaries.
 				// This matches the calculation in MiniMapWidget that is used ingame
@@ -1001,9 +994,10 @@ namespace OpenRA
 					var allBottom = Unproject(new PPos(x, Bounds.Bottom));
 					if (allTop.Count > 0)
 						top = Math.Min(top, allTop.MinBy(uv => uv.V).V);
-=======
-				(top, bottom) = GetCellSpaceBounds();
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
+
+					if (allBottom.Count > 0)
+						bottom = Math.Max(bottom, allBottom.MaxBy(uv => uv.V).V);
+				}
 
 				if (top == int.MaxValue || bottom == int.MinValue)
 					throw new InvalidDataException("The map has invalid boundaries");

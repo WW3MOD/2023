@@ -51,11 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.IsLoadingGameSave)
 			{
 				Game.Sound.PlayNotification(world.Map.Rules, null, "Speech", info.Notification, world.RenderPlayer?.Faction.InternalName);
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				TextNotificationsManager.AddTransientLine(info.TextNotification, null);
-=======
 				TextNotificationsManager.AddTransientLine(null, info.TextNotification);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 
@@ -64,11 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.IsReplay)
 			{
 				Game.Sound.PlayNotification(world.Map.Rules, null, "Speech", info.LoadedNotification, world.RenderPlayer?.Faction.InternalName);
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				TextNotificationsManager.AddTransientLine(info.LoadedTextNotification, null);
-=======
 				TextNotificationsManager.AddTransientLine(null, info.LoadedTextNotification);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 
@@ -77,11 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.IsReplay)
 			{
 				Game.Sound.PlayNotification(world.Map.Rules, null, "Speech", info.SavedNotification, world.RenderPlayer?.Faction.InternalName);
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				TextNotificationsManager.AddTransientLine(info.SavedTextNotification, null);
-=======
 				TextNotificationsManager.AddTransientLine(null, info.SavedTextNotification);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 	}

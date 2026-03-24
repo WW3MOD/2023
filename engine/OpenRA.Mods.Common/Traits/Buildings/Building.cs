@@ -36,15 +36,11 @@ namespace OpenRA.Mods.Common.Traits
 		[FieldLoader.LoadUsing(nameof(LoadFootprint))]
 		public readonly Dictionary<CVec, FootprintCellType> Footprint;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Density in percent, for each cell in footprint.")]
 		[FieldLoader.LoadUsing(nameof(LoadDensity))]
 		public readonly Dictionary<CVec, byte> Density;
 
 		public readonly CVec Dimensions = new CVec(1, 1);
-=======
-		public readonly CVec Dimensions = new(1, 1);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Shift center of the actor by this offset.")]
 		public readonly WVec LocalCenterOffset = WVec.Zero;

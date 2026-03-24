@@ -116,7 +116,7 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 
 				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
-				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
+				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
 					return;
 
 				var currentTransform = self.CurrentActivity as Transform;
@@ -159,7 +159,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
 					{
 						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.MapLayers.IsExplored(cell))
+						if (!self.Owner.Shroud.IsExplored(cell))
 							return null;
 					}
 
@@ -202,17 +202,11 @@ namespace OpenRA.Mods.Common.Traits
 				var location = self.World.Map.CellContaining(target.CenterPosition);
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
-				var explored = self.Owner.MapLayers.IsExplored(location);
+				var explored = self.Owner.Shroud.IsExplored(location);
 				if (!self.World.Map.Contains(location) ||
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-					!(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused)) ||
-					(!explored && !mobile.locomotor.Info.MoveIntoShroud) ||
-					(explored && !CanEnterCell(self, location)))
-=======
 					!(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused))
 					|| (!explored && !mobile.locomotor.Info.MoveIntoShroud)
 					|| (explored && !CanEnterCell(self, location)))
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					cursor = mobile.Info.BlockedCursor;
 				else if (!explored || !mobile.Info.TerrainCursors.TryGetValue(self.World.Map.GetTerrainInfo(location).Type, out cursor))
 					cursor = mobile.Info.Cursor;

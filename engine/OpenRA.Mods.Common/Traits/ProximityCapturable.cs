@@ -9,9 +9,12 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
@@ -21,7 +24,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum range at which a " + nameof(ProximityCaptor) + " actor can initiate the capture.")]
 		public readonly WDist Range = WDist.FromCells(5);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Allowed ProximityCaptor actors to capture this actor.")]
 		public readonly BitSet<CaptureType> CaptorTypes = new BitSet<CaptureType>("Player", "Vehicle", "Tank", "Infantry");
 
@@ -51,28 +53,21 @@ namespace OpenRA.Mods.Common.Traits
 				throw new YamlException("ProximityCapturable requires the `Player` actor to have the ProximityCaptor trait.");
 		}
 
-		public override object Create(ActorInitializer init) { return new ProximityCapturable(init.Self, this); }
-=======
 		public override object Create(ActorInitializer init) { return new ProximityCapturable(init, this); }
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 
-	public class ProximityCapturable : ProximityCapturableBase
+	public class ProximityCapturable : ProximityCapturableBase, ITick
 	{
 		public new readonly ProximityCapturableInfo Info;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		readonly List<Actor> friendlyActorsInRange = new List<Actor>();
 		readonly List<Actor> enemyActorsInRange = new List<Actor>();
 		int proximityTrigger;
 		WPos prevPosition;
 		bool skipTriggerUpdate;
 
-		public ProximityCapturable(Actor self, ProximityCapturableInfo info)
-=======
 		public ProximityCapturable(ActorInitializer init, ProximityCapturableInfo info)
 			: base(init, info)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			Info = info;
 		}
@@ -84,7 +79,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void RemoveTrigger(Actor self, int trigger)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (skipTriggerUpdate)
 				return;
 
@@ -112,14 +106,10 @@ namespace OpenRA.Mods.Common.Traits
 				enemyActorsInRange.Add(other);
 
 			UpdateOwnership();
-=======
-			self.World.ActorMap.RemoveProximityTrigger(trigger);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
-		protected override void TickInner(Actor self)
+		void ActorLeft(Actor other)
 		{
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (skipTriggerUpdate || !CanBeCapturedBy(other))
 				return;
 
@@ -129,6 +119,11 @@ namespace OpenRA.Mods.Common.Traits
 				enemyActorsInRange.Remove(other);
 
 			UpdateOwnership();
+		}
+
+		protected override void TickInner(Actor self)
+		{
+			// Tick updates are handled by the explicit ITick.Tick override above
 		}
 
 		bool CanBeCapturedBy(Actor a)
@@ -228,9 +223,6 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var t in self.TraitsImplementing<INotifyCapture>())
 					t.OnCapture(self, captor, previousOwner, changeTo, pc.Types);
 			});
-=======
-			self.World.ActorMap.UpdateProximityTrigger(trigger, self.CenterPosition, Info.Range, WDist.Zero);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		protected override IRenderable GetRenderable(Actor self, WorldRenderer wr)

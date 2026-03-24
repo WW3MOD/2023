@@ -1,5 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
 #region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
@@ -11,14 +9,13 @@
  */
 #endregion
 
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using OpenRA.Widgets;
 
 namespace OpenRA
 {
 	public class NullInputHandler : IInputHandler
 	{
-		// Ignore all input
+		// ignore all input
 		public void ModifierKeys(Modifiers mods) { }
 		public void OnKeyInput(KeyInput input) { }
 		public void OnTextInput(string text) { }
@@ -59,9 +56,5 @@ namespace OpenRA
 		public MouseButton Action => Game.Settings.Game.UseClassicMouseStyle ? MouseButton.Left : MouseButton.Right;
 
 		public MouseButton Cancel => Game.Settings.Game.UseClassicMouseStyle ? MouseButton.Right : MouseButton.Left;
-
-		// Added for WW3MOD to support configurable attack move button
-		// public MouseButton AttackMove => Game.Settings.Game.AttackMoveButton ?? MouseButton.Right;
-		public MouseButton AttackMove => MouseButton.Right; // Simplified, got errors with above code
 	}
 }

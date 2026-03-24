@@ -39,12 +39,7 @@ namespace OpenRA.Mods.Common.Activities
 		int carryoverProgress;
 		int lastMovePartCompletedTick;
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		internal List<CPos> path;
-=======
-		bool alreadyAtDestination;
-		List<CPos> path;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		CPos? destination;
 		public CPos? Destination => destination;
 		int startTicks;
@@ -219,7 +214,6 @@ namespace OpenRA.Mods.Common.Activities
 
 			var firstFacing = self.World.Map.FacingBetween(mobile.FromCell, nextCell.Value.Cell, mobile.Facing);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// Reverse movement: turn to face away from target and move backward if target is close and behind
 			// 120° cone behind the unit (60° each side of directly behind = angleDiff > 341)
 			if (!NoReverse && mobile.Info.CanMoveBackward && destination.HasValue)
@@ -241,18 +235,6 @@ namespace OpenRA.Mods.Common.Activities
 						mobile.CurrentSpeed = 0;
 				}
 			}
-=======
-			if (mobile.Info.CanMoveBackward
-				&& (mobile.Info.MaxBackwardCells < 0 || path.Count < mobile.Info.MaxBackwardCells)
-				&& (mobile.Info.BackwardDuration < 0 || self.World.WorldTick - startTicks < mobile.Info.BackwardDuration)
-				&& Math.Abs(firstFacing.Angle - mobile.Facing.Angle) > 256)
-			{
-				ActorFacingModifier = new WAngle(512);
-				firstFacing += ActorFacingModifier;
-			}
-			else
-				ActorFacingModifier = WAngle.Zero;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			if (!mobile.Info.TurnsWhileMoving && firstFacing != mobile.Facing)
 			{
@@ -679,12 +661,8 @@ namespace OpenRA.Mods.Common.Activities
 				var fromSubcellOffset = map.Grid.OffsetOfSubCell(mobile.FromSubCell);
 				var toSubcellOffset = map.Grid.OffsetOfSubCell(mobile.ToSubCell);
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// If we are not already facing the next cell, we need to turn.
 				var nextCell = parent.PopPath(self);
-=======
-				var (nextCell, _) = parent.PopPath(self);
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				if (nextCell != null)
 				{
 					if (!mobile.IsTraitPaused && !mobile.IsTraitDisabled && IsTurn(self, mobile, nextCell.Value.Cell, map))
@@ -716,11 +694,7 @@ namespace OpenRA.Mods.Common.Activities
 							Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
 							Util.BetweenCells(self.World, mobile.ToCell, nextCell.Value.Cell) + (toSubcellOffset + nextSubcellOffset) / 2,
 							mobile.Facing,
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 							toFacing,
-=======
-							map.FacingBetween(mobile.ToCell, nextCell.Value.Cell, mobile.Facing) + Move.ActorFacingModifier,
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 							ToTerrainOrientation,
 							nextToTerrainOrientation,
 							margin,

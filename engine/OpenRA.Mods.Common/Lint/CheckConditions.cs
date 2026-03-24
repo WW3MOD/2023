@@ -29,11 +29,7 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, emitWarning, mapRules);
 		}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-		void Run(Action<string> _1/* emitError */, Action<string> _2/* emitWarning */, Ruleset rules)
-=======
 		static void Run(Action<string> emitError, Action<string> emitWarning, Ruleset rules)
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
@@ -70,21 +66,6 @@ namespace OpenRA.Mods.Common.Lint
 							granted.Add(g);
 				}
 
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-				// FF TODO
-
-				/*
-				// var unconsumed = granted.Except(consumed);
-				// if (unconsumed.Any())
-				// 	emitWarning($"Actor type `{actorInfo.Key}` grants conditions that are not consumed: {unconsumed.JoinWith(", ")}");
-				*/
-
-				/*
-				// var ungranted = consumed.Except(granted);
-				// if (ungranted.Any())
-				// 	emitError($"Actor type `{actorInfo.Key}` consumes conditions that are not granted: {ungranted.JoinWith(", ")}");
-				*/
-=======
 				var unconsumed = granted.Except(consumed).ToList();
 				if (unconsumed.Count != 0)
 					emitWarning($"Actor type `{actorInfo.Key}` grants conditions that are not consumed: {unconsumed.JoinWith(", ")}.");
@@ -92,7 +73,6 @@ namespace OpenRA.Mods.Common.Lint
 				var ungranted = consumed.Except(granted).ToList();
 				if (ungranted.Count != 0)
 					emitError($"Actor type `{actorInfo.Key}` consumes conditions that are not granted: {ungranted.JoinWith(", ")}.");
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 	}

@@ -1,17 +1,3 @@
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-=======
-#region Copyright & License Information
-/*
- * Copyright (c) The OpenRA Developers and Contributors
- * This file is part of OpenRA, which is free software. It is made
- * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version. For more
- * information, see COPYING.
- */
-#endregion
-
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,13 +58,8 @@ namespace OpenRA.Mods.Common.Widgets
 					if (attackMoveButton.IsHighlighted() && allowCancel)
 						world.CancelInputMode();
 					else
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 						world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors);
 				};
-=======
-						world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors, Game.Settings.Game.MouseButtonPreference.Action);
-				}
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				attackMoveButton.OnClick = () => Toggle(true);
 				attackMoveButton.OnKeyPress = _ => Toggle(false);
@@ -107,13 +88,8 @@ namespace OpenRA.Mods.Common.Widgets
 				WidgetUtils.BindButtonIcon(forceAttackButton);
 
 				forceAttackButton.IsDisabled = () => { UpdateStateIfNecessary(); return forceAttackDisabled; };
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				forceAttackButton.IsHighlighted = () =>
 					!forceAttackButton.IsDisabled() && IsForceModifiersActive(Game.Settings.Game.ForceAttackModifiers, Modifiers.None);
-=======
-				forceAttackButton.IsHighlighted = () => !forceAttackButton.IsDisabled() && IsForceModifiersActive(Modifiers.Ctrl)
-					&& world.OrderGenerator is not AttackMoveOrderGenerator;
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				forceAttackButton.OnClick = () =>
 				{

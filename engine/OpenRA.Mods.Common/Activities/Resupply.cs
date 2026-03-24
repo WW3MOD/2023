@@ -295,11 +295,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (remainingTicks == 0)
 			{
-				var percentageStep = repairable != null && repairable.Info.PercentageStep > 0 ? repairable.Info.PercentageStep : repairsUnits.Info.PercentageStep;
-				var selfHealth = self.TraitOrDefault<Health>().Info.HP;
-
 				var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0 ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
-				hpToRepair += repairable.Info.PercentageStep * selfHealth / 100;
 
 				// Cast to long to avoid overflow when multiplying by the health
 				var value = (long)unitCost * repairsUnits.Info.ValuePercentage;
@@ -324,25 +320,5 @@ namespace OpenRA.Mods.Common.Activities
 			else
 				--remainingTicks;
 		}
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-
-		void RearmTick(Actor self)
-		{
-			var rearmComplete = true;
-			foreach (var ammoPool in rearmable.RearmableAmmoPools)
-			{
-				if (!ammoPool.HasFullAmmo)
-				{
-					ammoPool.Reload(self);
-
-					rearmComplete = false;
-				}
-			}
-
-			if (rearmComplete)
-				activeResupplyTypes &= ~ResupplyType.Rearm;
-		}
-=======
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 }

@@ -85,11 +85,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				return;
 
 			if (isSmoking) return;
-<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
-			if (e.Damage.Value < 0) return; // Healing
-=======
 			if (e.Damage.Value < 0) return; /* getting healed */
->>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			if (e.DamageState < info.MinimumDamageState) return;
 			if (e.DamageState > info.MaximumDamageState) return;
 
