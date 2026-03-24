@@ -353,7 +353,8 @@ A10:
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	RenderSprites:
 		PlayerPalette: playertd
-	-Buildable:
+	Buildable:
+		Prerequisites: ~disabled
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -460,7 +461,8 @@ A10:
 F16:
 	Inherits@Type: ^Aircraft
 	Inherits@AirRadar: ^AirRadar
-	-Buildable:
+	Buildable:
+		Prerequisites: ~disabled
 	Valued:
 		Cost: 6000
 	Tooltip:

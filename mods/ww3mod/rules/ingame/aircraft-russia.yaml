@@ -348,7 +348,8 @@ FROG:
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Inherits@GainsExperience: ^GainsExperience
-	-Buildable:
+	Buildable:
+		Prerequisites: ~disabled
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -457,7 +458,8 @@ MIG:
 	Inherits@Type: ^Aircraft
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
-	-Buildable:
+	Buildable:
+		Prerequisites: ~disabled
 	Tooltip:
 		Name: MiG-29 Falcrum
 	Valued:
