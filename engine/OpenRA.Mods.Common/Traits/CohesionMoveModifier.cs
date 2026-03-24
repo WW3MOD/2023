@@ -16,20 +16,27 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	[Desc("Offsets group move targets based on each unit's CohesionMode, so units spread out instead of converging.")]
+	[Desc("Offsets group move targets based on each unit's CohesionMode.",
+		"Tight: converge on target. Loose: 2 staggered rows. Spread: single wide line.")]
 	public class CohesionMoveModifierInfo : TraitInfo
 	{
-		[Desc("Number of spread slots (determines granularity of spread positions).")]
-		public readonly int SpreadSlots = 16;
+		[Desc("Percentage of perpendicular offset to preserve for Loose mode.")]
+		public readonly int LooseScalePercent = 50;
 
-		[Desc("Spread radius in cells for Tight mode.")]
-		public readonly int TightSpreadCells = 0;
+		[Desc("Percentage of perpendicular offset to preserve for Spread mode.")]
+		public readonly int SpreadScalePercent = 100;
 
-		[Desc("Spread radius in cells for Loose mode.")]
+		[Desc("Max perpendicular half-width in cells for Loose mode.")]
 		public readonly int LooseSpreadCells = 2;
 
-		[Desc("Spread radius in cells for Spread mode.")]
+		[Desc("Max perpendicular half-width in cells for Spread mode.")]
 		public readonly int SpreadSpreadCells = 4;
+
+		[Desc("Depth between front and back row in cells (Loose stagger).")]
+		public readonly int LooseRowDepth = 2;
+
+		[Desc("Minimum move distance in cells below which cohesion offset is skipped.")]
+		public readonly int MinMoveCells = 2;
 
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
@@ -45,9 +52,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// Apply cohesion offset to a move target for an individual unit.
-		/// Spreads units in a ring around the target based on their ActorID.
-		/// Each unit gets a deterministic position on a circle around the target,
-		/// so different units go to different cells even though they share the same order.
+		/// Uses perpendicular projection: each unit's left/right offset from the
+		/// movement axis is preserved, creating a natural line formation.
+		/// Loose mode adds 2-row stagger with depth offset.
 		/// </summary>
 		public static CPos ApplyCohesionOffset(Actor self, CPos targetCell)
 		{
@@ -65,35 +72,92 @@ namespace OpenRA.Mods.Common.Traits
 
 			var mInfo = modifier.info;
 
-			int spreadCells;
+			int scalePct, maxHalfWidthWDist;
 			switch (mode)
 			{
 				case CohesionMode.Loose:
-					spreadCells = mInfo.LooseSpreadCells;
+					scalePct = mInfo.LooseScalePercent;
+					maxHalfWidthWDist = mInfo.LooseSpreadCells * 1024;
 					break;
 				case CohesionMode.Spread:
-					spreadCells = mInfo.SpreadSpreadCells;
+					scalePct = mInfo.SpreadScalePercent;
+					maxHalfWidthWDist = mInfo.SpreadSpreadCells * 1024;
 					break;
 				default:
 					return targetCell;
 			}
 
-			if (spreadCells == 0)
+			if (maxHalfWidthWDist == 0)
 				return targetCell;
 
-			// Use ActorID to deterministically assign a position on a ring around the target.
-			// Different units get different slots so they spread out.
-			var slots = mInfo.SpreadSlots;
-			var slot = (int)(self.ActorID % (uint)slots);
-			var angle = slot * 2.0 * Math.PI / slots;
-
-			// Calculate offset in WDist (1 cell = 1024)
-			var radius = spreadCells * 1024;
-			var offsetX = (int)(Math.Cos(angle) * radius);
-			var offsetY = (int)(Math.Sin(angle) * radius);
-
-			// Apply offset to target
 			var targetPos = self.World.Map.CenterOfCell(targetCell);
+			var unitPos = self.CenterPosition;
+
+			// Movement direction vector (target - unit)
+			var moveDirX = targetPos.X - unitPos.X;
+			var moveDirY = targetPos.Y - unitPos.Y;
+
+			// If too close, perpendicular is unreliable — skip
+			var minDist = mInfo.MinMoveCells * 1024;
+			var moveLenSq = (long)moveDirX * moveDirX + (long)moveDirY * moveDirY;
+			if (moveLenSq < (long)minDist * minDist)
+				return targetCell;
+
+			// Perpendicular direction (90° CCW rotation of moveDir)
+			var perpX = -moveDirY;
+			var perpY = moveDirX;
+
+			// |perpDir| == |moveDir|
+			var perpLen = (int)Exts.ISqrt(moveLenSq);
+			if (perpLen == 0)
+				return targetCell;
+
+			// Project unit's offset from target onto perpendicular axis
+			// dot(unitPos - targetPos, perpDir)
+			var toUnitX = unitPos.X - targetPos.X;
+			var toUnitY = unitPos.Y - targetPos.Y;
+			var dot = (long)toUnitX * perpX + (long)toUnitY * perpY;
+
+			// Signed perpendicular component in WDist
+			var perpComponent = (int)(dot / perpLen);
+
+			// Scale by cohesion factor
+			var scaled = perpComponent * scalePct / 100;
+
+			// Clamp to max half-width
+			if (scaled > maxHalfWidthWDist)
+				scaled = maxHalfWidthWDist;
+			else if (scaled < -maxHalfWidthWDist)
+				scaled = -maxHalfWidthWDist;
+
+			// Depth stagger for Loose mode: alternate units into back row
+			var depthWDist = 0;
+			if (mode == CohesionMode.Loose && self.ActorID % 2 == 1)
+			{
+				// Back row: push behind front row along negative movement direction
+				depthWDist = -(mInfo.LooseRowDepth * 1024);
+
+				// Stagger sideways by half a cell for the checkerboard pattern
+				scaled += 512;
+			}
+
+			// Compute final offset vector
+			// Perpendicular component: along normalized perpDir
+			// Depth component: along normalized moveDir (negative = behind)
+			var offsetX = (int)((long)scaled * perpX / perpLen);
+			var offsetY = (int)((long)scaled * perpY / perpLen);
+
+			if (depthWDist != 0)
+			{
+				// moveDir normalized = (moveDirX, moveDirY) / perpLen (same length)
+				offsetX += (int)((long)depthWDist * moveDirX / perpLen);
+				offsetY += (int)((long)depthWDist * moveDirY / perpLen);
+			}
+
+			// If offset is negligible, skip
+			if (Math.Abs(offsetX) < 256 && Math.Abs(offsetY) < 256)
+				return targetCell;
+
 			var newPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
 			var newCell = self.World.Map.CellContaining(newPos);
 			return self.World.Map.Clamp(newCell);
