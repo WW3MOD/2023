@@ -21,6 +21,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("HitPoints")]
 		public readonly int HP = 0;
 
+		[Desc("Percentage of max HP below which the unit enters Medium damage state.")]
+		public readonly int MediumDamageThreshold = 85;
+
+		[Desc("Percentage of max HP below which the unit enters Heavy damage state.")]
+		public readonly int HeavyDamageThreshold = 65;
+
+		[Desc("Percentage of max HP below which the unit enters Critical damage state.")]
+		public readonly int CriticalDamageThreshold = 50;
+
 		[Desc("Trigger interfaces such as AnnounceOnKill?")]
 		public readonly bool NotifyAppliedDamage = true;
 
@@ -88,18 +97,17 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			switch (damageState)
 			{
+				case DamageState.Critical:
+					return MaxHP * (long)Info.CriticalDamageThreshold;
+				case DamageState.Heavy:
+					return MaxHP * (long)Info.HeavyDamageThreshold;
+				case DamageState.Medium:
+					return MaxHP * (long)Info.MediumDamageThreshold;
 				case DamageState.Undamaged:
 					return MaxHP;
-				case DamageState.Critical:
-					return MaxHP * 50L;
-				case DamageState.Heavy:
-					return MaxHP * 65 / 100L;
-				case DamageState.Medium:
-					return MaxHP * 85 / 100L;
 				case DamageState.Light:
-					return MaxHP;
 				default:
-					return MaxHP;
+					return MaxHP * 100L;
 			}
 		}
 

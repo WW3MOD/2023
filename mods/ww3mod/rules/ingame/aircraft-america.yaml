@@ -17,7 +17,7 @@ TRAN:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 1200 # TESTING: doubled from 600
+		HP: 600
 	Armor:
 		Type: Light
 		Thickness: 10
@@ -96,7 +96,7 @@ littlebird:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 600 # TESTING: doubled from 300
+		HP: 300
 	Armor:
 		Type: Light
 		Thickness: 5
@@ -239,7 +239,7 @@ HELI:
 	Selectable:
 		DecorationBounds: 1070,1200
 	Health:
-		HP: 1600 # TESTING: doubled from 800
+		HP: 800
 	Armor:
 		Type: Heavy
 		Thickness: 20

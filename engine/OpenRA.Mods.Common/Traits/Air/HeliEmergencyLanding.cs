@@ -104,6 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly IHealth health;
 
 		public EmergencyState State { get; private set; } = EmergencyState.None;
+		public bool IsDisabledOnGround => disabledToken != Actor.InvalidConditionToken;
 
 		int autorotationToken = Actor.InvalidConditionToken;
 		int crashLandingToken = Actor.InvalidConditionToken;
@@ -161,6 +162,9 @@ namespace OpenRA.Mods.Common.Traits
 				CancelAutorotation(self);
 				return;
 			}
+
+			// If repaired out of heavy damage while disabled on ground, allow takeoff
+			CheckDisabledRecovery(self);
 		}
 
 		void StartAutorotation(Actor self)

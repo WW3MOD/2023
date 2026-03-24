@@ -89,13 +89,25 @@ namespace OpenRA.Mods.Common.Graphics
 			if (Game.Settings.Game.UsePlayerStanceColors)
 				return actor.Owner.PlayerRelationshipColor(actor);
 
-			// var red = (int)((float)(health.MaxHP - health.HP) / 100f * 255);
-			var yellow = 255 - (int)((float)(health.MaxHP - health.HP) / 100f * 255);
+			var hpFraction = (float)health.HP / health.MaxHP;
 
-			return Color.FromArgb(255, 255, yellow, 0);
+			int r, g;
+			if (hpFraction > 0.5f)
+			{
+				// Green → Yellow as HP goes from 100% → 50%
+				var t = (hpFraction - 0.5f) * 2f;
+				r = (int)(255 * (1f - t));
+				g = 255;
+			}
+			else
+			{
+				// Yellow → Red as HP goes from 50% → 0%
+				var t = hpFraction * 2f;
+				r = 255;
+				g = (int)(255 * t);
+			}
 
-			// return health.DamageState == DamageState.Critical ? Color.Red :
-			// 	health.DamageState == DamageState.Heavy ? Color.Yellow : Color.LimeGreen;
+			return Color.FromArgb(255, r, g, 0);
 		}
 
 		void DrawHealthBar(IHealth health, float2 start, float2 end)
@@ -116,7 +128,7 @@ namespace OpenRA.Mods.Common.Graphics
 				healthColor.G / 2,
 				healthColor.B / 2);
 
-			var z = float3.Lerp(start, end, (float)(health.MaxHP - health.HP) / 100f);
+			var z = float3.Lerp(start, end, (float)health.HP / health.MaxHP);
 
 			var cr = Game.Renderer.RgbaColorRenderer;
 			cr.DrawLine(start + p, end + p, 1, c);

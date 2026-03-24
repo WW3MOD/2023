@@ -26,6 +26,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly HeliEmergencyLandingInfo info;
 		readonly Aircraft aircraft;
 		readonly int forwardSpeed;
+		bool landed;
 
 		public HeliAutorotate(Actor self, HeliEmergencyLanding emergencyLanding,
 			HeliEmergencyLandingInfo info, Aircraft aircraft, int forwardSpeed)
@@ -41,6 +42,15 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override bool Tick(Actor self)
 		{
+			// Post-landing: stay grounded to prevent Aircraft idle takeoff behavior.
+			// End activity only when crash-disabled is revoked (helicopter repaired).
+			if (landed)
+			{
+				aircraft.CurrentVelocity = WVec.Zero;
+				aircraft.RequestedAcceleration = WVec.Zero;
+				return !emergencyLanding.IsDisabledOnGround;
+			}
+
 			// If we're already at ground level, handle landing
 			if (self.World.Map.DistanceAboveTerrain(self.CenterPosition).Length <= 0)
 			{
@@ -50,11 +60,16 @@ namespace OpenRA.Mods.Common.Activities
 				aircraft.CurrentVelocity = WVec.Zero;
 
 				if (emergencyLanding.IsSuitableTerrain(self))
+				{
 					emergencyLanding.OnSafeLanding(self);
+					landed = true;
+					return false;
+				}
 				else
+				{
 					emergencyLanding.OnUnsafeLanding(self);
-
-				return true;
+					return true;
+				}
 			}
 
 			// Calculate forward movement based on current facing
