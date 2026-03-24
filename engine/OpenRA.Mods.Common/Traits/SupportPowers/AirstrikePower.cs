@@ -124,16 +124,10 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					w.Add(a);
 
-					// Attack-move to target area — plane fires at targets of opportunity along the way
-					var attackTrait = a.TraitOrDefault<AttackAircraft>();
-					if (attackTrait != null)
-						a.QueueActivity(new FlyAttack(a, AttackSource.AttackMove, Target.FromPos(targetWithAlt), true, Color.Red));
-					else
-						a.QueueActivity(new Fly(a, Target.FromPos(targetWithAlt)));
-
-					// Return to spawn edge and despawn
-					a.QueueActivity(new Fly(a, Target.FromPos(exitPos)));
-					a.QueueActivity(new RemoveSelf());
+					// Fly to target area — once arrived, plane enters FlyIdle (circles for
+					// fixed-wing) and AutoTarget engages enemies automatically.
+					// Player can select and redirect at any time.
+					a.QueueActivity(new Fly(a, Target.FromPos(targetWithAlt)));
 
 					distanceTestActor = a;
 				}
