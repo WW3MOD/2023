@@ -52,101 +52,95 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		Order IModifyGroupOrder.ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors)
+		/// <summary>
+		/// Apply cohesion offset to a move target for an individual unit.
+		/// Called from Mobile.ResolveOrder and AttackMove.ResolveOrder.
+		/// The offset pushes the target away from the unit's current position toward
+		/// where the unit "should be" to maintain formation spread.
+		/// </summary>
+		public static CPos ApplyCohesionOffset(Actor self, CPos targetCell)
 		{
-			// Guard against null/dead actors
-			if (subject == null || subject.IsDead || !subject.IsInWorld)
-				return individualOrder;
-
-			// Only modify move-type orders
-			if (!info.AffectedOrders.Contains(individualOrder.OrderString))
-				return individualOrder;
-
-			// Check if this unit has a cohesion mode set
-			var autoTarget = subject.TraitOrDefault<AutoTarget>();
+			var autoTarget = self.TraitOrDefault<AutoTarget>();
 			if (autoTarget == null)
-				return individualOrder;
+				return targetCell;
 
 			var mode = autoTarget.CohesionValue;
+			if (mode == CohesionMode.Tight)
+				return targetCell;
 
-			// Tight with factor 0 means no offset — default behavior
-			var factor = GetFactor(mode);
-			if (factor == 0)
-				return individualOrder;
+			var modifier = self.World.WorldActor.TraitOrDefault<CohesionMoveModifier>();
+			if (modifier == null)
+				return targetCell;
 
-			// Only compute offsets for groups of 2+
-			var validActors = allGroupedActors.Where(a => a != null && !a.IsDead && a.IsInWorld).ToArray();
-			if (validActors.Length < 2)
-				return individualOrder;
+			var info = modifier.info;
 
-			// Calculate group centroid
-			var centroidX = 0L;
-			var centroidY = 0L;
-			foreach (var actor in validActors)
+			int factor, maxCells;
+			switch (mode)
 			{
-				centroidX += actor.CenterPosition.X;
-				centroidY += actor.CenterPosition.Y;
+				case CohesionMode.Loose:
+					factor = info.LooseFactor;
+					maxCells = info.LooseMaxCells;
+					break;
+				case CohesionMode.Spread:
+					factor = info.SpreadFactor;
+					maxCells = info.SpreadMaxCells;
+					break;
+				default:
+					return targetCell;
 			}
 
-			centroidX /= validActors.Length;
-			centroidY /= validActors.Length;
+			if (factor == 0)
+				return targetCell;
 
-			// Calculate this unit's offset from centroid
-			var offsetX = subject.CenterPosition.X - (int)centroidX;
-			var offsetY = subject.CenterPosition.Y - (int)centroidY;
+			// Calculate offset: vector from target to unit's current position
+			// This preserves the unit's "side" of the formation
+			var targetPos = self.World.Map.CenterOfCell(targetCell);
+			var offsetX = self.CenterPosition.X - targetPos.X;
+			var offsetY = self.CenterPosition.Y - targetPos.Y;
 
-			// Scale offset by cohesion factor
+			// Scale by factor
 			offsetX = offsetX * factor / 100;
 			offsetY = offsetY * factor / 100;
 
 			// Cap to max distance
-			var maxDist = GetMaxDistance(mode);
+			var maxDist = maxCells * 1024;
 			var offsetLengthSq = (long)offsetX * offsetX + (long)offsetY * offsetY;
 			var maxDistSq = (long)maxDist * maxDist;
 
 			if (offsetLengthSq > maxDistSq && offsetLengthSq > 0)
 			{
-				var scale = (int)(maxDist * 1024 / (int)Math.Sqrt(offsetLengthSq));
-				offsetX = offsetX * scale / 1024;
-				offsetY = offsetY * scale / 1024;
+				var len = (int)Math.Sqrt(offsetLengthSq);
+				offsetX = offsetX * maxDist / len;
+				offsetY = offsetY * maxDist / len;
 			}
 
 			// If offset is negligible (less than half a cell), skip
 			if (Math.Abs(offsetX) < 512 && Math.Abs(offsetY) < 512)
+				return targetCell;
+
+			// Apply offset
+			var newPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
+			var newCell = self.World.Map.CellContaining(newPos);
+			return self.World.Map.Clamp(newCell);
+		}
+
+		// IModifyGroupOrder: for AI grouped orders (SquadManager etc.)
+		Order IModifyGroupOrder.ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors)
+		{
+			if (subject == null || subject.IsDead || !subject.IsInWorld)
 				return individualOrder;
 
-			// Apply offset to target position
+			if (!info.AffectedOrders.Contains(individualOrder.OrderString))
+				return individualOrder;
+
 			var targetPos = individualOrder.Target.CenterPosition;
-			var newPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
+			var targetCell = subject.World.Map.CellContaining(targetPos);
+			var newCell = ApplyCohesionOffset(subject, targetCell);
 
-			// Clamp to map bounds
-			var world = subject.World;
-			var newCell = world.Map.CellContaining(newPos);
-			newCell = world.Map.Clamp(newCell);
+			if (newCell == targetCell)
+				return individualOrder;
 
-			return individualOrder.WithTarget(Target.FromCell(world, newCell));
-		}
-
-		int GetFactor(CohesionMode mode)
-		{
-			switch (mode)
-			{
-				case CohesionMode.Tight: return info.TightFactor;
-				case CohesionMode.Loose: return info.LooseFactor;
-				case CohesionMode.Spread: return info.SpreadFactor;
-				default: return info.LooseFactor;
-			}
-		}
-
-		int GetMaxDistance(CohesionMode mode)
-		{
-			switch (mode)
-			{
-				case CohesionMode.Tight: return info.TightMaxCells * 1024;
-				case CohesionMode.Loose: return info.LooseMaxCells * 1024;
-				case CohesionMode.Spread: return info.SpreadMaxCells * 1024;
-				default: return info.LooseMaxCells * 1024;
-			}
+			return individualOrder.WithTarget(Target.FromCell(subject.World, newCell));
 		}
 	}
 }
