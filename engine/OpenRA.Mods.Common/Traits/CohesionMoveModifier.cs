@@ -75,7 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 				return individualOrder;
 
 			// Only compute offsets for groups of 2+
-			var validActors = allGroupedActors.Where(a => !a.IsDead && a.IsInWorld).ToArray();
+			var validActors = allGroupedActors.Where(a => a != null && !a.IsDead && a.IsInWorld).ToArray();
 			if (validActors.Length < 2)
 				return individualOrder;
 
