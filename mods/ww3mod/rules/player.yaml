@@ -119,7 +119,7 @@ Player:
 		Name: A-10 Airstrike
 		Description: Call in an A-10 Warthog for a\nstrafing run on the target area.
 		SelectTargetSpeechNotification: SelectTarget
-		UnitType: A10.Airstrike
+		UnitType: a10.airstrike
 		CameraActor: camera.paradrop
 		CameraRemoveDelay: 100
 		QuantizedFacings: 8
@@ -144,7 +144,7 @@ Player:
 		Name: Su-25 Airstrike
 		Description: Call in a Su-25 Frogfoot for a\nrocket attack on the target area.
 		SelectTargetSpeechNotification: SelectTarget
-		UnitType: FROG.Airstrike
+		UnitType: frog.airstrike
 		CameraActor: camera.paradrop
 		CameraRemoveDelay: 100
 		QuantizedFacings: 8
