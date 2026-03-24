@@ -214,46 +214,83 @@ Player:
 			sam: 4
 			hsam: 3
 
-	# ===== Aircraft — Russia =====
-	UnitBuilderBotModule@russia.air:
+	# ===== Fixed-Wing Aircraft — Russia =====
+	UnitBuilderBotModule@russia.fixedwing:
+		RequiresCondition: enable-ai-any && player.brics
+		IdleBaseUnitsMaximum: 0
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			MIG: 30
+			FROG: 20
+		UnitLimits:
+			MIG: 2
+			FROG: 2
+
+	SquadManagerBotModule@russia.fixedwing:
+		RequiresCondition: enable-ai-any && player.brics
+		SquadSize: 2
+		SquadSizeRandomBonus: 1
+		RushInterval: 600
+		AttackScanRadius: 48
+		AirUnitsTypes: MIG, FROG
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
+	# ===== Helicopters — Russia =====
+	UnitBuilderBotModule@russia.heli:
 		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 0
 		UnitQueues: Aircraft
 		UnitsToBuild:
 			HIND: 100
 			MI28: 60
-			MIG: 30
+			HALO: 20
 		UnitLimits:
 			HIND: 4
 			MI28: 3
-			MIG: 2
+			HALO: 2
 
-	SquadManagerBotModule@russia.air:
-		RequiresCondition: enable-ai-any && player.brics
+	# ===== Fixed-Wing Aircraft — America =====
+	UnitBuilderBotModule@america.fixedwing:
+		RequiresCondition: enable-ai-any && player.nato
+		IdleBaseUnitsMaximum: 0
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			A10: 40
+			F16: 30
+		UnitLimits:
+			A10: 2
+			F16: 2
+
+	SquadManagerBotModule@america.fixedwing:
+		RequiresCondition: enable-ai-any && player.nato
 		SquadSize: 2
-		SquadSizeRandomBonus: 2
+		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
+		AirUnitsTypes: A10, F16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
-	# ===== Aircraft — America =====
-	UnitBuilderBotModule@america.air:
+	# ===== Helicopters — America =====
+	UnitBuilderBotModule@america.heli:
 		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 0
 		UnitQueues: Aircraft
 		UnitsToBuild:
 			HELI: 100
-			A10: 40
-			F16: 30
+			littlebird: 50
+			TRAN: 20
 		UnitLimits:
 			HELI: 4
-			A10: 2
-			F16: 2
+			littlebird: 2
+			TRAN: 2
 
-	SquadManagerBotModule@america.air:
-		RequiresCondition: enable-ai-any && player.nato
-		SquadSize: 2
-		SquadSizeRandomBonus: 2
-		RushInterval: 600
-		AttackScanRadius: 48
-		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+	# ===== Helicopter Squad Manager (shared, all factions) =====
+	HelicopterSquadBotModule:
+		RequiresCondition: enable-ai-any
+		AttackSquadSize: 2
+		AttackSquadSizeBonus: 1
+		AttackCooldown: 900
+		ScoutInterval: 400
+		TransportInterval: 600
+		TransportMinInfantry: 4
+		MaxActiveSquads: 3

@@ -2,6 +2,13 @@
 TRAN:
 	Inherits@Type: ^Helicopter
 	Inherits@CargoPips: ^CargoPips
+	AIHelicopterRole:
+		Role: Transport
+		FleeHealthPercent: 60
+		ReEngageHealthPercent: 90
+		PreferSoftTargets: true
+		AIBuildPriority: 30
+		AIBuildLimit: 2
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
 	Buildable:
@@ -84,6 +91,16 @@ littlebird:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@CargoPips: ^CargoPips
+	AIHelicopterRole:
+		Role: Scout
+		EngagementRange: 5
+		FleeHealthPercent: 50
+		ReEngageHealthPercent: 80
+		HitAndRunCooldown: 100
+		PreferSoftTargets: true
+		AvoidAntiAirRange: 8
+		AIBuildPriority: 40
+		AIBuildLimit: 2
 	RenderSprites:
 		Image: littlebird
 		PlayerPalette: playertd
@@ -225,6 +242,16 @@ HELI:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@AirRadar: ^AirRadar
+	AIHelicopterRole:
+		Role: AttackHeavy
+		EngagementRange: 7
+		FleeHealthPercent: 35
+		ReEngageHealthPercent: 75
+		HitAndRunCooldown: 200
+		PreferSoftTargets: false
+		AvoidAntiAirRange: 5
+		AIBuildPriority: 80
+		AIBuildLimit: 4
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill

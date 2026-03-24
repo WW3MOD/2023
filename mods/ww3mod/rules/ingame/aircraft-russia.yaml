@@ -2,6 +2,13 @@
 HALO:
 	Inherits@Type: ^Helicopter
 	Inherits@CargoPips: ^CargoPips
+	AIHelicopterRole:
+		Role: Transport
+		FleeHealthPercent: 60
+		ReEngageHealthPercent: 90
+		PreferSoftTargets: true
+		AIBuildPriority: 30
+		AIBuildLimit: 2
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
 	Buildable:
@@ -74,6 +81,16 @@ HIND:
 	Inherits@Type: ^Helicopter
 	# Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@CargoPips: ^CargoPips
+	AIHelicopterRole:
+		Role: AttackHeavy
+		EngagementRange: 6
+		FleeHealthPercent: 35
+		ReEngageHealthPercent: 75
+		HitAndRunCooldown: 175
+		PreferSoftTargets: false
+		AvoidAntiAirRange: 5
+		AIBuildPriority: 70
+		AIBuildLimit: 4
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
@@ -226,6 +243,16 @@ MI28:
 	Inherits@Type: ^Helicopter
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	AIHelicopterRole:
+		Role: AttackHeavy
+		EngagementRange: 7
+		FleeHealthPercent: 35
+		ReEngageHealthPercent: 75
+		HitAndRunCooldown: 200
+		PreferSoftTargets: false
+		AvoidAntiAirRange: 5
+		AIBuildPriority: 80
+		AIBuildLimit: 3
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill

@@ -48,7 +48,7 @@ Player:
 		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia, HALO, HIND, MI28
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Rush AI — Russia (fast, aggressive, smaller squads) =====
@@ -86,7 +86,7 @@ Player:
 		RushInterval: 80
 		AttackScanRadius: 40
 		DangerScanRadius: 20
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia, HALO, HIND, MI28
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Turtle AI — Russia (builds up, large squads, combined arms) =====
@@ -138,5 +138,5 @@ Player:
 		RushInterval: 300
 		AttackScanRadius: 35
 		DangerScanRadius: 30
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia
+		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia, HALO, HIND, MI28
 		IgnoredEnemyTargetTypes: IgnoreThis
