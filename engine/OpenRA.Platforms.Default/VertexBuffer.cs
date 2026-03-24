@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,10 +14,10 @@ using System.Runtime.InteropServices;
 
 namespace OpenRA.Platforms.Default
 {
-	sealed class VertexBuffer<T> : ThreadAffine, IVertexBuffer<T>
+	sealed class VertexBuffer<T> : ThreadAffine, IDisposable, IVertexBuffer<T>
 			where T : struct
 	{
-		static readonly int VertexSize = Marshal.SizeOf(typeof(T));
+		static readonly int VertexSize = Marshal.SizeOf<T>();
 		uint buffer;
 		bool disposed;
 
@@ -89,15 +89,6 @@ namespace OpenRA.Platforms.Default
 		{
 			VerifyThreadAffinity();
 			OpenGL.glBindBuffer(OpenGL.GL_ARRAY_BUFFER, buffer);
-			OpenGL.CheckGLError();
-			OpenGL.glVertexAttribPointer(Shader.VertexPosAttributeIndex, 3, OpenGL.GL_FLOAT, false, VertexSize, IntPtr.Zero);
-			OpenGL.CheckGLError();
-			OpenGL.glVertexAttribPointer(Shader.TexCoordAttributeIndex, 4, OpenGL.GL_FLOAT, false, VertexSize, new IntPtr(12));
-			OpenGL.CheckGLError();
-			OpenGL.glVertexAttribPointer(Shader.TexMetadataAttributeIndex, 2, OpenGL.GL_FLOAT, false, VertexSize, new IntPtr(28));
-			OpenGL.CheckGLError();
-			OpenGL.glVertexAttribPointer(Shader.TintAttributeIndex, 4, OpenGL.GL_FLOAT, false, VertexSize, new IntPtr(36));
-			OpenGL.CheckGLError();
 		}
 
 		public void Dispose()

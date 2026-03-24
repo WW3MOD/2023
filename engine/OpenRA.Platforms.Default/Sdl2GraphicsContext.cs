@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System;
-using OpenRA.Graphics;
 using OpenRA.Primitives;
 using SDL2;
 
@@ -19,8 +18,9 @@ namespace OpenRA.Platforms.Default
 	sealed class Sdl2GraphicsContext : ThreadAffine, IGraphicsContext
 	{
 		readonly Sdl2PlatformWindow window;
-		bool disposed;
 		IntPtr context;
+
+		public string GLVersion => OpenGL.Version;
 
 		public Sdl2GraphicsContext(Sdl2PlatformWindow window)
 		{
@@ -40,37 +40,31 @@ namespace OpenRA.Platforms.Default
 			if (SDL.SDL_GL_MakeCurrent(window.Window, context) < 0)
 				throw new InvalidOperationException($"Can not bind OpenGL context. (Error: {SDL.SDL_GetError()})");
 
-			OpenGL.Initialize(window.GLProfile == GLProfile.Legacy);
+			OpenGL.Initialize();
 			OpenGL.CheckGLError();
 
-			if (OpenGL.Profile != GLProfile.Legacy)
-			{
-				OpenGL.glGenVertexArrays(1, out var vao);
-				OpenGL.CheckGLError();
-				OpenGL.glBindVertexArray(vao);
-				OpenGL.CheckGLError();
-			}
-
-			OpenGL.glEnableVertexAttribArray(Shader.VertexPosAttributeIndex);
+			OpenGL.glGenVertexArrays(1, out var vao);
 			OpenGL.CheckGLError();
-			OpenGL.glEnableVertexAttribArray(Shader.TexCoordAttributeIndex);
-			OpenGL.CheckGLError();
-			OpenGL.glEnableVertexAttribArray(Shader.TexMetadataAttributeIndex);
-			OpenGL.CheckGLError();
-			OpenGL.glEnableVertexAttribArray(Shader.TintAttributeIndex);
+			OpenGL.glBindVertexArray(vao);
 			OpenGL.CheckGLError();
 		}
 
-		public IVertexBuffer<Vertex> CreateVertexBuffer(int size)
+		public IVertexBuffer<T> CreateVertexBuffer<T>(int size) where T : struct
 		{
 			VerifyThreadAffinity();
-			return new VertexBuffer<Vertex>(size);
+			return new VertexBuffer<T>(size);
 		}
 
-		public Vertex[] CreateVertices(int size)
+		public IIndexBuffer CreateIndexBuffer(uint[] indices)
 		{
 			VerifyThreadAffinity();
-			return new Vertex[size];
+			return new StaticIndexBuffer(indices);
+		}
+
+		public T[] CreateVertices<T>(int size) where T : struct
+		{
+			VerifyThreadAffinity();
+			return new T[size];
 		}
 
 		public ITexture CreateTexture()
@@ -97,10 +91,10 @@ namespace OpenRA.Platforms.Default
 			return new FrameBuffer(s, texture, clearColor);
 		}
 
-		public IShader CreateShader(string name)
+		public IShader CreateShader(IShaderBindings bindings)
 		{
 			VerifyThreadAffinity();
-			return new Shader(name);
+			return new Shader(bindings);
 		}
 
 		public void EnableScissor(int x, int y, int width, int height)
@@ -160,6 +154,13 @@ namespace OpenRA.Platforms.Default
 		{
 			VerifyThreadAffinity();
 			OpenGL.glDrawArrays(ModeFromPrimitiveType(pt), firstVertex, numVertices);
+			OpenGL.CheckGLError();
+		}
+
+		public void DrawElements(int numIndices, int offset)
+		{
+			VerifyThreadAffinity();
+			OpenGL.glDrawElements(OpenGL.GL_TRIANGLES, numIndices, OpenGL.GL_UNSIGNED_INT, new IntPtr(offset));
 			OpenGL.CheckGLError();
 		}
 
@@ -269,10 +270,12 @@ namespace OpenRA.Platforms.Default
 
 		public void Dispose()
 		{
-			if (disposed)
-				return;
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
 
-			disposed = true;
+		void Dispose(bool _)
+		{
 			if (context != IntPtr.Zero)
 			{
 				SDL.SDL_GL_DeleteContext(context);
@@ -280,6 +283,9 @@ namespace OpenRA.Platforms.Default
 			}
 		}
 
-		public string GLVersion => OpenGL.Version;
+		~Sdl2GraphicsContext()
+		{
+			Dispose(false);
+		}
 	}
 }
