@@ -196,7 +196,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var renderable in renderables)
 			{
 				if (renderable is IModifyableRenderable mr)
-					yield return mr.WithAlpha(mr.Alpha * 0.6f);
+					yield return mr.WithAlpha(mr.Alpha * 0.5f);
 				else
 					yield return renderable;
 			}
