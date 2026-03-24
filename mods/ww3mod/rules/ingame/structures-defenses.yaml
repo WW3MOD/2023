@@ -142,7 +142,6 @@ GTWR:
 		BaseProtection: 90
 		CriticalProtection: 50
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
@@ -212,7 +211,6 @@ PBOX:
 		BaseProtection: 90
 		CriticalProtection: 50
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
@@ -287,7 +285,6 @@ HBOX:
 		BaseProtection: 85
 		CriticalProtection: 40
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:

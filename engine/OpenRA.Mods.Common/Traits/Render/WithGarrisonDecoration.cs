@@ -134,8 +134,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var pipCount = maxSlots > 0 ? maxSlots : totalCount;
 
 			var selected = self.World.Selection.Contains(self);
-			var scale = selected ? 1f : 0.5f;
-			var alpha = selected ? 0.2f : 0.05f;
+			var scale = selected ? 1f : 0.7f;
+			var alpha = selected ? 0.8f : 0.35f;
 
 			var palette = wr.Palette(Info.Palette);
 			pips.PlayRepeating(Info.EmptySequence);

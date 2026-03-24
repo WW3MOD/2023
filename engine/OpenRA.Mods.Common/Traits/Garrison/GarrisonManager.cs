@@ -61,6 +61,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition name to grant to soldiers deployed at ports.")]
 		public readonly string GarrisonedCondition = "garrisoned-at-port";
 
+		[Desc("Ticks a deployed soldier must be idle (no valid target) before being recalled to shelter. 0 disables.")]
+		public readonly int IdleRecallTicks = 125;
+
 		static object LoadPorts(MiniYaml yaml)
 		{
 			var ports = new List<GarrisonPortInfo>();
@@ -95,6 +98,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int TargetLockTicks;
 		public bool PlayerOverride;
 		public int SwapCooldownRemaining;
+		public int IdleTicks;
 
 		public PortState(GarrisonPortInfo port)
 		{
@@ -217,6 +221,7 @@ namespace OpenRA.Mods.Common.Traits
 			PortStates[portIndex].CurrentTarget = Target.Invalid;
 			PortStates[portIndex].TargetLockTicks = 0;
 			PortStates[portIndex].PlayerOverride = false;
+			PortStates[portIndex].IdleTicks = 0;
 		}
 
 		// Recall a deployed soldier from port to shelter (port → shelter)
@@ -394,18 +399,6 @@ namespace OpenRA.Mods.Common.Traits
 				// Update deployed soldier position each tick (in case building moves/rotates)
 				if (ps.DeployedSoldier != null)
 				{
-					// Check if soldier received an order (queued activity = player wants them to leave)
-					if (ps.DeployedSoldier.CurrentActivity != null)
-					{
-						// Eject from port: revoke condition, clear port, soldier executes queued activity
-						RevokePortCondition(i);
-						ps.DeployedSoldier = null;
-						ps.CurrentTarget = Target.Invalid;
-						ps.TargetLockTicks = 0;
-						ps.PlayerOverride = false;
-						continue;
-					}
-
 					var coords = self.Trait<BodyOrientation>();
 					var portOffset = GetPortWorldOffset(i, coords);
 					var terrainZ = self.World.Map.CenterOfCell(self.Location).Z;
@@ -428,18 +421,30 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					UpdatePortTarget(i);
 
-					// If deployed soldier has no valid target and no ammo, recall for reload swap
-					if (!ps.CurrentTarget.IsValidFor(self) && Info.ReloadSwapping)
+					if (ps.CurrentTarget.IsValidFor(self))
 					{
-						var ammoPools = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().ToArray();
-						if (ammoPools.Length > 0 && ammoPools.All(a => a.CurrentAmmoCount == 0))
+						// Active target — reset idle timer
+						ps.IdleTicks = 0;
+					}
+					else
+					{
+						// No valid target — increment idle timer and recall if threshold reached
+						ps.IdleTicks += Info.TargetScanInterval;
+						if (Info.IdleRecallTicks > 0 && ps.IdleTicks >= Info.IdleRecallTicks)
 						{
-							// Check if there's a shelter soldier with ammo to take this port
-							var replacement = FindBestShelterSoldier(i, Target.Invalid);
-							if (replacement != null)
+							RecallToShelter(i);
+							continue;
+						}
+
+						// Reload swap: if also out of ammo, swap with shelter soldier that has ammo
+						if (Info.ReloadSwapping)
+						{
+							var ammoPools = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().ToArray();
+							if (ammoPools.Length > 0 && ammoPools.All(a => a.CurrentAmmoCount == 0))
 							{
-								RecallToShelter(i);
-								// Replacement will be deployed next tick when PromoteFromShelter runs
+								var replacement = FindBestShelterSoldier(i, Target.Invalid);
+								if (replacement != null)
+									RecallToShelter(i);
 							}
 						}
 					}

@@ -89,7 +89,6 @@
 		BaseProtection: 80
 		CriticalProtection: 30
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:

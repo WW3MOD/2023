@@ -155,6 +155,9 @@
 	DamageMultiplier@GarrisonCover:
 		Modifier: 20
 		RequiresCondition: garrisoned-at-port
+	WithAlphaCondition@GarrisonGhost:
+		Alpha: 0.4
+		RequiresCondition: garrisoned-at-port
 	WithDecoration@AmmoReplenishing:
 		RequiresSelection: false
 		Image: pips
