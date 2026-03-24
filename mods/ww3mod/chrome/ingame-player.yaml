@@ -90,6 +90,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: AttackMove
 					DisableKeySound: true
 					TooltipText: Attack Move
@@ -109,6 +110,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					DisableKeySound: true
 					TooltipText: Force Move
 					TooltipDesc: Selected units will move to the desired location\n - Default activity for the target is suppressed\n - Vehicles will attempt to crush enemies at the target location\n - Helicopters will land at the target location\n - Chrono Tanks will teleport towards the target location\n\nLeft-click icon then right-click on target.\nHold {(Alt)} to activate temporarily while commanding units.
@@ -127,6 +129,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					DisableKeySound: true
 					TooltipText: Force Attack
 					TooltipDesc: Selected units will attack the targeted unit or location\n - Default activity for the target is suppressed\n - Allows targeting of own or ally forces\n - Long-range artillery units will always target the\n   location, ignoring units and buildings\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
@@ -145,6 +148,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: Guard
 					DisableKeySound: true
 					TooltipText: Guard
@@ -163,6 +167,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: Deploy
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -182,6 +187,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: Resupply
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -201,6 +207,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: Patrol
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -220,6 +227,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Take Cover
@@ -256,6 +264,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: Scatter
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -275,6 +284,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: Stop
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -294,6 +304,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					DisableKeySound: true
 					TooltipText: Waypoint Mode
 					TooltipDesc: Use Waypoint Mode to give multiple linking commands\nto the selected units. Units will execute the commands\nimmediately upon receiving them.\n\nLeft-click icon then give commands in the game world.\nHold {(Shift)} to activate temporarily while commanding units.
