@@ -575,31 +575,6 @@ F16:
 A10.Airstrike:
 	Inherits: A10
 	-Buildable:
-	-Valued:
-	-AutoTarget:
-	-AutoTargetPriority@Default:
-	-AutoTargetPriority@Lower:
-	-AutoTargetPriority@FireAtWill:
-	-AttackMove:
-	-Selectable:
-	-SelectionDecorations:
-	-Rearmable:
-	-ReloadAmmoPool@1:
-	-WithAmmoPipsDecoration@1:
-	-WithAmmoPipsDecoration@2:
-	-RenderRangeCircle@1:
-	-RenderRangeCircle@2:
-	-GrantConditionOnAttack:
-	-SpawnActorOnDeath:
-	-Radar:
-	-WithRangeCircle@Radar:
 	-AttackAircraft:
-	-EjectOnDeath@Rank0:
-	-EjectOnDeath@Rank1:
-	-EjectOnDeath@Rank2:
-	-EjectOnDeath@Rank_3:
-	-EjectOnDeath@Rank4:
-	-DeliversCash@Rotation:
-	-ActorLostNotification:
 	AttackBomber:
 		FacingTolerance: 128

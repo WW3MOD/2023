@@ -579,28 +579,6 @@ MIG:
 FROG.Airstrike:
 	Inherits: FROG
 	-Buildable:
-	-Valued:
-	-AutoTarget:
-	-AutoTargetPriority@Default:
-	-AutoTargetPriority@Lower:
-	-AutoTargetPriority@FireAtWill:
-	-AttackMove:
-	-GainsExperience:
-	-Selectable:
-	-Rearmable:
-	-ReloadAmmoPool@1:
-	-WithAmmoPipsDecoration@1:
-	-SpawnActorOnDeath:
-	-SpawnActorOnDeath@EMP:
-	-Radar:
-	-WithRangeCircle@Radar:
 	-AttackAircraft:
-	-EjectOnDeath@Rank0:
-	-EjectOnDeath@Rank1:
-	-EjectOnDeath@Rank2:
-	-EjectOnDeath@Rank_3:
-	-EjectOnDeath@Rank4:
-	-DeliversCash@Rotation:
-	-ActorLostNotification:
 	AttackBomber:
 		FacingTolerance: 128
