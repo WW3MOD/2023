@@ -19,26 +19,17 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Offsets group move targets based on each unit's CohesionMode, so units spread out instead of converging.")]
 	public class CohesionMoveModifierInfo : TraitInfo
 	{
-		[Desc("Fraction of relative offset preserved for Tight mode (0-100).")]
-		public readonly int TightFactor = 20;
+		[Desc("Number of spread slots (determines granularity of spread positions).")]
+		public readonly int SpreadSlots = 16;
 
-		[Desc("Fraction of relative offset preserved for Loose mode (0-100).")]
-		public readonly int LooseFactor = 50;
+		[Desc("Spread radius in cells for Tight mode.")]
+		public readonly int TightSpreadCells = 0;
 
-		[Desc("Fraction of relative offset preserved for Spread mode (0-100).")]
-		public readonly int SpreadFactor = 100;
+		[Desc("Spread radius in cells for Loose mode.")]
+		public readonly int LooseSpreadCells = 2;
 
-		[Desc("Maximum offset distance in cells for Tight mode.")]
-		public readonly int TightMaxCells = 1;
-
-		[Desc("Maximum offset distance in cells for Loose mode.")]
-		public readonly int LooseMaxCells = 3;
-
-		[Desc("Maximum offset distance in cells for Spread mode.")]
-		public readonly int SpreadMaxCells = 5;
-
-		[Desc("Order strings to apply cohesion offsets to.")]
-		public readonly string[] AffectedOrders = { "Move", "AttackMove" };
+		[Desc("Spread radius in cells for Spread mode.")]
+		public readonly int SpreadSpreadCells = 4;
 
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
@@ -54,9 +45,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// Apply cohesion offset to a move target for an individual unit.
-		/// Called from Mobile.ResolveOrder and AttackMove.ResolveOrder.
-		/// The offset pushes the target away from the unit's current position toward
-		/// where the unit "should be" to maintain formation spread.
+		/// Spreads units in a ring around the target based on their ActorID.
+		/// Each unit gets a deterministic position on a circle around the target,
+		/// so different units go to different cells even though they share the same order.
 		/// </summary>
 		public static CPos ApplyCohesionOffset(Actor self, CPos targetCell)
 		{
@@ -72,53 +63,37 @@ namespace OpenRA.Mods.Common.Traits
 			if (modifier == null)
 				return targetCell;
 
-			var info = modifier.info;
+			var mInfo = modifier.info;
 
-			int factor, maxCells;
+			int spreadCells;
 			switch (mode)
 			{
 				case CohesionMode.Loose:
-					factor = info.LooseFactor;
-					maxCells = info.LooseMaxCells;
+					spreadCells = mInfo.LooseSpreadCells;
 					break;
 				case CohesionMode.Spread:
-					factor = info.SpreadFactor;
-					maxCells = info.SpreadMaxCells;
+					spreadCells = mInfo.SpreadSpreadCells;
 					break;
 				default:
 					return targetCell;
 			}
 
-			if (factor == 0)
+			if (spreadCells == 0)
 				return targetCell;
 
-			// Calculate offset: vector from target to unit's current position
-			// This preserves the unit's "side" of the formation
+			// Use ActorID to deterministically assign a position on a ring around the target.
+			// Different units get different slots so they spread out.
+			var slots = mInfo.SpreadSlots;
+			var slot = (int)(self.ActorID % (uint)slots);
+			var angle = slot * 2.0 * Math.PI / slots;
+
+			// Calculate offset in WDist (1 cell = 1024)
+			var radius = spreadCells * 1024;
+			var offsetX = (int)(Math.Cos(angle) * radius);
+			var offsetY = (int)(Math.Sin(angle) * radius);
+
+			// Apply offset to target
 			var targetPos = self.World.Map.CenterOfCell(targetCell);
-			var offsetX = self.CenterPosition.X - targetPos.X;
-			var offsetY = self.CenterPosition.Y - targetPos.Y;
-
-			// Scale by factor
-			offsetX = offsetX * factor / 100;
-			offsetY = offsetY * factor / 100;
-
-			// Cap to max distance
-			var maxDist = maxCells * 1024;
-			var offsetLengthSq = (long)offsetX * offsetX + (long)offsetY * offsetY;
-			var maxDistSq = (long)maxDist * maxDist;
-
-			if (offsetLengthSq > maxDistSq && offsetLengthSq > 0)
-			{
-				var len = (int)Math.Sqrt(offsetLengthSq);
-				offsetX = offsetX * maxDist / len;
-				offsetY = offsetY * maxDist / len;
-			}
-
-			// If offset is negligible (less than half a cell), skip
-			if (Math.Abs(offsetX) < 512 && Math.Abs(offsetY) < 512)
-				return targetCell;
-
-			// Apply offset
 			var newPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
 			var newCell = self.World.Map.CellContaining(newPos);
 			return self.World.Map.Clamp(newCell);
@@ -130,7 +105,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (subject == null || subject.IsDead || !subject.IsInWorld)
 				return individualOrder;
 
-			if (!info.AffectedOrders.Contains(individualOrder.OrderString))
+			var orderString = individualOrder.OrderString;
+			if (orderString != "Move" && orderString != "AttackMove")
 				return individualOrder;
 
 			var targetPos = individualOrder.Target.CenterPosition;
