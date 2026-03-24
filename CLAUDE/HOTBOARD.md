@@ -3,19 +3,18 @@
 > Live dashboard. Max 40 lines. Oldest items rotate out.
 
 ## Active Concerns
+- **Helicopter emergency landing needs playtesting** — autorotation descent rate, crash spin, crew ejection, safe landing repair flow
 - **Stance system rework in progress** — Phase 1 done (modifiers, enums, defaults, tooltips). Phase 2-4 next
 - **AI overhaul needs playtesting** — Tiers 0-3.1 implemented, major new capabilities
 - **Supply Route contestation needs playtesting** — bar depletion/recovery, production slowdown
 - Three-mode move system needs playtesting (OverkillThreshold, UnderFireDuration tuning)
-- Infantry mid-cell redirect needs playtesting (RedirectSpeedPenalty tuning)
 - Vehicle crew system needs playtesting (ejection delays, commander substitution)
-- Garrison shelter/port system needs playtesting
 - Tank frontal armor vs tank guns = near-stalemate (sim shows pen 50 vs 700 thickness = 7% dmg)
 - **Capture bug partially fixed** — frozen actor staleness addressed, monitor next playtest
 
 ## Recent Wins
+- **Helicopter emergency landing system** — Two-tier: heavy=autorotation (steerable, safe landing, repairable), critical=crash (spinning, destroyed). Crew survives ground landing only
 - **Stance Phase 1 complete** — Modifier rework (Ctrl+Alt=type default, Alt=Do Now), ResupplyBehavior renamed (Auto/Evacuate), Evacuate button removed, medic/engineer default to Hunt, tooltips anchored above buttons
-- **5 playtest bugs fixed** — AT overkill skip, supply truck resupply, evacuate button, attack-move cursor, capture staleness
 - **AI overhaul Tiers 0-3.1** — 5 new C# bot modules, multi-axis attacks, adaptive production
 - **Supply Route contestation system** — graduated control bar replaces binary contest
 
