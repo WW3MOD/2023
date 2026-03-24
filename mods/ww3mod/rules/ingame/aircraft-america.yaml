@@ -576,8 +576,11 @@ A10.Airstrike:
 	Inherits: A10
 	-Buildable:
 	-Valued:
-	-Inherits@AutoTarget:
 	-AutoTarget:
+	-AutoTargetPriority@Default:
+	-AutoTargetPriority@Lower:
+	-AutoTargetPriority@FireAtWill:
+	-AttackMove:
 	-Selectable:
 	-SelectionDecorations:
 	-Rearmable:
@@ -588,7 +591,8 @@ A10.Airstrike:
 	-RenderRangeCircle@2:
 	-GrantConditionOnAttack:
 	-SpawnActorOnDeath:
-	-Inherits@AirRadar:
+	-Radar:
+	-WithRangeCircle@Radar:
 	-AttackAircraft:
 	-EjectOnDeath@Rank0:
 	-EjectOnDeath@Rank1:
