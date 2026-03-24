@@ -22,107 +22,109 @@ namespace OpenRA.Mods.Common.Activities
 		readonly BallisticMissile sbm;
 		readonly WPos initPos;
 		readonly WPos targetPos;
-
-		// Arc shape parameter: how many arc-steps the LerpQuadratic curve has.
-		// This determines the shape of the parabola, independent of flight time.
-		readonly int arcLength;
-
-		// Total flight duration in game ticks.
-		// With acceleration this is longer than arcLength because the missile starts slow.
 		readonly int totalFlightTicks;
-
-		int ticks;
-		readonly WAngle facing;
+		readonly WAngle horizontalFacing;
 		readonly bool useAcceleration;
+		int ticks;
+
+		// High-precision denominator for LerpQuadratic to avoid integer truncation
+		const int ArcPrecision = 10000;
 
 		public BallisticMissileFly(Actor self, Target t, BallisticMissile sbm = null)
 		{
-			if (sbm == null)
-				this.sbm = self.Trait<BallisticMissile>();
-			else
-				this.sbm = sbm;
+			this.sbm = sbm ?? self.Trait<BallisticMissile>();
 
 			initPos = self.CenterPosition;
-			targetPos = t.CenterPosition; // fixed position == no homing
-			arcLength = Math.Max((targetPos - initPos).Length / this.sbm.Info.Speed, 1);
-			facing = (targetPos - initPos).Yaw;
+			targetPos = t.CenterPosition;
+			horizontalFacing = (targetPos - initPos).Yaw;
+
+			var distance = (targetPos - initPos).Length;
+			var baseFlightTicks = Math.Max(distance / this.sbm.Info.Speed, 1);
 
 			useAcceleration = this.sbm.Info.Acceleration > 0;
 			if (useAcceleration)
 			{
 				// With acceleration from rest, average speed is lower so flight takes longer.
-				// Acceleration value scales how much longer: higher accel = closer to constant-speed time.
-				// At Acceleration=1, flight takes ~2x longer. At Acceleration=100, nearly instant accel.
-				// Formula: totalTicks = arcLength * (1 + 1024 / (1024 + Acceleration * 64))
-				// This gives a smooth range from ~2x (Accel=1) to ~1.05x (Accel=100+)
+				// Higher Acceleration value = faster ramp-up = shorter extension.
+				// Accel=8: ~1.66x base time. Accel=16: ~1.5x. Accel=100+: ~1.05x.
 				var accelFactor = 1024 + this.sbm.Info.Acceleration * 64;
-				totalFlightTicks = arcLength + arcLength * 1024 / accelFactor;
+				totalFlightTicks = baseFlightTicks + baseFlightTicks * 1024 / accelFactor;
 			}
 			else
 			{
-				totalFlightTicks = arcLength;
+				totalFlightTicks = baseFlightTicks;
 			}
 		}
 
-		// Maps real ticks (0..totalFlightTicks) to arc progress (0..arcLength).
-		// With acceleration, uses ease-in (quadratic) so missile starts slow and accelerates.
-		int GetArcTick()
-		{
-			if (!useAcceleration || totalFlightTicks <= 1)
-				return ticks;
-
-			// Quadratic ease-in: t^2 curve. Missile starts at 0 speed, accelerates smoothly.
-			// progress = (ticks / totalFlightTicks)^2 mapped to arcLength range
-			var t = (long)ticks * ticks;
-			var total = (long)totalFlightTicks * totalFlightTicks;
-			return (int)(t * arcLength / total);
-		}
-
-		// Get the arc progress as a 0..1 float for facing calculation
+		// Maps game ticks to arc progress (0.0 to 1.0).
+		// With acceleration, uses quadratic ease-in so missile starts slow.
 		float GetArcProgress()
 		{
-			var arcTick = GetArcTick();
-			return arcLength > 1 ? (float)arcTick / (arcLength - 1) : 0f;
+			if (totalFlightTicks <= 1)
+				return 1f;
+
+			var t = (float)ticks / totalFlightTicks;
+			if (useAcceleration)
+				return t * t;
+
+			return t;
 		}
 
+		// Get a position on the parabolic arc at a given progress (0.0 to 1.0)
+		WPos GetArcPosition(float progress)
+		{
+			progress = Math.Clamp(progress, 0f, 1f);
+			var mul = (int)(progress * ArcPrecision);
+			return WPos.LerpQuadratic(initPos, targetPos, sbm.Info.LaunchAngle, mul, ArcPrecision);
+		}
+
+		// Compute facing from the actual arc tangent direction.
+		// Samples two nearby points on the arc to get the movement vector,
+		// then applies a clamped pitch influence to the horizontal facing.
+		// This replaces the old analytical formula that broke at steep angles.
 		WAngle GetEffectiveFacing()
 		{
-			var at = GetArcProgress();
-			var attitude = sbm.Info.LaunchAngle.Tan() * (1 - 2 * at) / (4 * 1024);
+			var progress = GetArcProgress();
 
-			// HACK HACK HACK
-			// BodyOrientation does a 90° rotation on isometric worlds.
-			// This calculation needs to be updated to accomodate that.
-			var u = (facing.Angle % 512) / 512f;
+			// Sample two points slightly apart to compute tangent
+			var eps = 1f / ArcPrecision;
+			var p1 = GetArcPosition(Math.Max(0f, progress - eps));
+			var p2 = GetArcPosition(Math.Min(1f, progress + eps));
+			var delta = p2 - p1;
+
+			var hDist = delta.HorizontalLength;
+			if (hDist < 1)
+				return horizontalFacing;
+
+			// Compute pitch influence: vertical movement relative to horizontal.
+			// Clamp to ±0.4 to prevent extreme facing shifts at steep launch angles.
+			// Positive = climbing, negative = diving.
+			var pitchFactor = Math.Clamp((float)delta.Z / (hDist * 4), -0.4f, 0.4f);
+
+			// Apply pitch as a facing offset using the isometric projection hack.
+			// This makes the sprite visually tilt when climbing/diving.
+			var u = (horizontalFacing.Angle % 512) / 512f;
 			var scale = 2048 * u * (1 - u);
 
-			var effective = (int)(facing.Angle < 512
-				? facing.Angle - scale * attitude
-				: facing.Angle + scale * attitude);
+			var effective = (int)(horizontalFacing.Angle < 512
+				? horizontalFacing.Angle - scale * pitchFactor
+				: horizontalFacing.Angle + scale * pitchFactor);
 
 			return new WAngle(effective);
 		}
 
-		public void FlyToward(Actor self, BallisticMissile sbm)
-		{
-			var arcTick = GetArcTick();
-			var pos = WPos.LerpQuadratic(initPos, targetPos, sbm.Info.LaunchAngle, arcTick, arcLength);
-			sbm.SetPosition(self, pos);
-			sbm.Facing = GetEffectiveFacing();
-		}
-
 		public override bool Tick(Actor self)
 		{
-			// Terminate when we've completed the flight
 			if (ticks >= totalFlightTicks)
 			{
-				// Snap to target and detonate
 				sbm.SetPosition(self, targetPos);
 				Queue(new CallFunc(() => self.Kill(self)));
 				return true;
 			}
 
-			FlyToward(self, sbm);
+			var pos = GetArcPosition(GetArcProgress());
+			sbm.SetPosition(self, pos);
+			sbm.Facing = GetEffectiveFacing();
 			ticks++;
 			return false;
 		}
