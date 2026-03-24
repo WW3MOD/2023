@@ -256,8 +256,8 @@
 		FireAtWillCondition: stance-fireatwill
 		InitialCohesion: Loose
 		InitialCohesionAI: Loose
-		InitialResupplyBehavior: Seek
-		InitialResupplyBehaviorAI: Seek
+		InitialResupplyBehavior: Auto
+		InitialResupplyBehaviorAI: Auto
 	AutoTargetPriority@FireAtWill:
 		Priority: 1
 

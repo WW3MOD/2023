@@ -11,6 +11,7 @@
 
 using System;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Widgets;
 
@@ -32,13 +33,13 @@ namespace OpenRA.Mods.Common.Widgets
 			if (holdButton != null)
 				BindResupplyButton(holdButton, ResupplyBehavior.Hold);
 
-			var seekButton = widget.GetOrNull<ButtonWidget>("RESUPPLY_SEEK");
-			if (seekButton != null)
-				BindResupplyButton(seekButton, ResupplyBehavior.Seek);
+			var autoButton = widget.GetOrNull<ButtonWidget>("RESUPPLY_AUTO");
+			if (autoButton != null)
+				BindResupplyButton(autoButton, ResupplyBehavior.Auto);
 
-			var rotateButton = widget.GetOrNull<ButtonWidget>("RESUPPLY_ROTATE");
-			if (rotateButton != null)
-				BindResupplyButton(rotateButton, ResupplyBehavior.Rotate);
+			var evacuateButton = widget.GetOrNull<ButtonWidget>("RESUPPLY_EVACUATE");
+			if (evacuateButton != null)
+				BindResupplyButton(evacuateButton, ResupplyBehavior.Evacuate);
 		}
 
 		void BindResupplyButton(ButtonWidget button, ResupplyBehavior behavior)
@@ -51,8 +52,10 @@ namespace OpenRA.Mods.Common.Widgets
 			button.OnClick = () =>
 			{
 				var mods = Game.GetModifierKeys();
-				if (mods.HasModifier(Modifiers.Alt))
+				if (mods.HasModifier(Modifiers.Ctrl) && mods.HasModifier(Modifiers.Alt))
 					SetTypeDefault(behavior);
+				else if (mods.HasModifier(Modifiers.Alt))
+					DoNow(behavior);
 				else if (mods.HasModifier(Modifiers.Ctrl))
 					SetUnitDefault(behavior);
 				else
@@ -103,6 +106,37 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 
 			SetSelectionResupplyBehavior(behavior);
+		}
+
+		void DoNow(ResupplyBehavior behavior)
+		{
+			SetSelectionResupplyBehavior(behavior);
+
+			switch (behavior)
+			{
+				case ResupplyBehavior.Auto:
+					// Go resupply NOW (even with ammo left)
+					foreach (var at in actorStances)
+						world.IssueOrder(new Order("Resupply", at.Actor, false));
+					break;
+
+				case ResupplyBehavior.Hold:
+					// Cancel any resupply movement, stop and wait for truck
+					foreach (var at in actorStances)
+						world.IssueOrder(new Order("Stop", at.Actor, false));
+					break;
+
+				case ResupplyBehavior.Evacuate:
+					// Evacuate NOW via Supply Route
+					foreach (var at in actorStances)
+					{
+						var amount = at.Actor.GetSellValue();
+						at.Actor.QueueActivity(false, new RotateToEdge(at.Actor, true, amount));
+						at.Actor.ShowTargetLines();
+					}
+
+					break;
+			}
 		}
 	}
 }

@@ -149,13 +149,13 @@ ResupplyHold: 4 Ctrl, Alt
 	Types: ResupplyBehavior
 	Contexts: Player
 
-ResupplySeek: 5 Ctrl, Alt
+ResupplyAuto: 5 Ctrl, Alt
 	Description: Auto-resupply
 	Types: ResupplyBehavior
 	Contexts: Player
 
-ResupplyRotate: 6 Ctrl, Alt
-	Description: Resupply or rotate out
+ResupplyEvacuate: 6 Ctrl, Alt
+	Description: Evacuate when out of ammo
 	Types: ResupplyBehavior
 	Contexts: Player
 
@@ -164,10 +164,6 @@ Patrol: P
 	Types: Unit
 	Contexts: Player
 
-Evacuate: V
-	Description: Evacuate via Supply Route
-	Types: Unit
-	Contexts: Player
 
 StopMusic: AUDIOSTOP
 	Description: Stop

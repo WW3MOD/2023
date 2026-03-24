@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public enum CohesionMode { Tight, Loose, Spread }
 
-	public enum ResupplyBehavior { Hold, Seek, Rotate }
+	public enum ResupplyBehavior { Hold, Auto, Evacuate }
 
 	[RequireExplicitImplementation]
 	public interface IActivityNotifyStanceChanged : IActivityInterface
@@ -122,10 +122,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Possible values are Hold, Seek and Rotate.",
 			"Used for computer-controlled players, both Lua-scripted and regular Skirmish AI alike.")]
-		public readonly ResupplyBehavior InitialResupplyBehaviorAI = ResupplyBehavior.Seek;
+		public readonly ResupplyBehavior InitialResupplyBehaviorAI = ResupplyBehavior.Auto;
 
 		[Desc("Possible values are Hold, Seek and Rotate. Used for human players.")]
-		public readonly ResupplyBehavior InitialResupplyBehavior = ResupplyBehavior.Seek;
+		public readonly ResupplyBehavior InitialResupplyBehavior = ResupplyBehavior.Auto;
 
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MinimumScanTimeInterval = 3;

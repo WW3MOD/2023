@@ -25,14 +25,14 @@ namespace OpenRA.Mods.Common.Widgets
 		bool stopDisabled = true;
 		bool waypointModeDisabled = true;
 		bool patrolDisabled = true;
-		bool evacuateDisabled = true;
+
 
 		int deployHighlighted;
 		int scatterHighlighted;
 		int resupplyHighlighted;
 		int stopHighlighted;
 		int patrolHighlighted;
-		int evacuateHighlighted;
+
 
 		TraitPair<IIssueDeployOrder>[] selectedDeploys = Array.Empty<TraitPair<IIssueDeployOrder>>();
 
@@ -211,30 +211,6 @@ namespace OpenRA.Mods.Common.Widgets
 				patrolButton.OnKeyPress = ki => { patrolHighlighted = 2; patrolButton.OnClick(); };
 			}
 
-			var evacuateButton = widget.GetOrNull<ButtonWidget>("EVACUATE");
-			if (evacuateButton != null)
-			{
-				WidgetUtils.BindButtonIcon(evacuateButton);
-				evacuateButton.IsDisabled = () => { UpdateStateIfNecessary(); return evacuateDisabled; };
-				evacuateButton.IsHighlighted = () => evacuateHighlighted > 0;
-				evacuateButton.OnClick = () =>
-				{
-					if (highlightOnButtonPress)
-						evacuateHighlighted = 2;
-
-					UpdateStateIfNecessary();
-					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
-					foreach (var a in selectedActors)
-					{
-						var amount = a.GetSellValue();
-						a.QueueActivity(queued, new RotateToEdge(a, true, amount));
-						a.ShowTargetLines();
-					}
-				};
-
-				evacuateButton.OnKeyPress = ki => { evacuateHighlighted = 2; evacuateButton.OnClick(); };
-			}
-
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
 			if (stopButton != null)
 			{
@@ -371,9 +347,6 @@ namespace OpenRA.Mods.Common.Widgets
 			if (patrolHighlighted > 0)
 				patrolHighlighted--;
 
-			if (evacuateHighlighted > 0)
-				evacuateHighlighted--;
-
 			base.Tick();
 		}
 
@@ -405,7 +378,6 @@ namespace OpenRA.Mods.Common.Widgets
 			scatterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 			resupplyDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AmmoPoolInfo>());
 			patrolDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
-			evacuateDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()

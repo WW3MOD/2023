@@ -51,8 +51,10 @@ namespace OpenRA.Mods.Common.Widgets
 			button.OnClick = () =>
 			{
 				var mods = Game.GetModifierKeys();
-				if (mods.HasModifier(Modifiers.Alt))
+				if (mods.HasModifier(Modifiers.Ctrl) && mods.HasModifier(Modifiers.Alt))
 					SetTypeDefault(mode);
+				else if (mods.HasModifier(Modifiers.Alt))
+					DoNow(mode);
 				else if (mods.HasModifier(Modifiers.Ctrl))
 					SetUnitDefault(mode);
 				else
@@ -100,6 +102,12 @@ namespace OpenRA.Mods.Common.Widgets
 					mgr.SetCohesion(actorType, mode);
 			}
 
+			SetSelectionCohesion(mode);
+		}
+
+		void DoNow(CohesionMode mode)
+		{
+			// Phase 3: will add immediate reposition order
 			SetSelectionCohesion(mode);
 		}
 	}

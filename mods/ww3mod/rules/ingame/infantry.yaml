@@ -1724,6 +1724,8 @@ AA:
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
 	AutoTargetPriority@Infantry:
 		ValidTargets: Infantry
 		PriorityCondition: suppression
@@ -2046,6 +2048,8 @@ SF:
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
 	AutoTargetPriority@Default:
 		ValidTargets: Heal
 	HealerAutoTarget:

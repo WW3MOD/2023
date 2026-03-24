@@ -51,8 +51,10 @@ namespace OpenRA.Mods.Common.Widgets
 			button.OnClick = () =>
 			{
 				var mods = Game.GetModifierKeys();
-				if (mods.HasModifier(Modifiers.Alt))
+				if (mods.HasModifier(Modifiers.Ctrl) && mods.HasModifier(Modifiers.Alt))
 					SetTypeDefault(stance);
+				else if (mods.HasModifier(Modifiers.Alt))
+					DoNow(stance);
 				else if (mods.HasModifier(Modifiers.Ctrl))
 					SetUnitDefault(stance);
 				else
@@ -101,6 +103,15 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 
 			SetSelectionStance(stance);
+		}
+
+		void DoNow(UnitStance stance)
+		{
+			SetSelectionStance(stance);
+
+			// Hard stop: cancel all current orders
+			foreach (var at in actorStances)
+				world.IssueOrder(new Order("Stop", at.Actor, false));
 		}
 	}
 }

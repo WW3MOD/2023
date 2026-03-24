@@ -161,7 +161,7 @@ Keys:
 	CohesionLoose: 2 Ctrl, Alt
 	CohesionSpread: 3 Ctrl, Alt
 	ResupplyHold: 4 Ctrl, Alt
-	ResupplySeek: 5 Ctrl, Alt
-	ResupplyRotate: 6 Ctrl, Alt
+	ResupplyAuto: 5 Ctrl, Alt
+	ResupplyEvacuate: 6 Ctrl, Alt
 	Patrol: P None
-	Evacuate: V None
+

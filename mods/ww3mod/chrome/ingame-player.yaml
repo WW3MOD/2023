@@ -213,25 +213,6 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: guard
-				Button@EVACUATE:
-					Logic: AddFactionSuffixLogic
-					X: 358
-					Width: 34
-					Height: 26
-					VisualHeight: 0
-					Background: command-button
-					Key: Evacuate
-					DisableKeyRepeat: true
-					DisableKeySound: true
-					TooltipText: Evacuate
-					TooltipDesc: Selected units will retreat via the nearest Supply Route
-					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 5
-							Y: 1
-							ImageCollection: command-icons
-							ImageName: force-move
 				Button@TAKE_COVER:
 					Logic: AddFactionSuffixLogic
 					X: 392
@@ -341,7 +322,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Fire at Will
-					TooltipDesc: Units fire at any valid target in range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Units fire at any valid target in range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -361,7 +342,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Ambush
-					TooltipDesc: Units pre-aim at targets but hold fire until spotted\nWhen one unit is spotted, nearby allies in Ambush all engage\nZero aim delay — turrets are already aimed when firing begins\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Units pre-aim at targets but hold fire until spotted\nWhen one unit is spotted, nearby allies in Ambush all engage\nZero aim delay — turrets are already aimed when firing begins\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -381,7 +362,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hold Fire
-					TooltipDesc: Units will not fire under any circumstances\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Units will not fire under any circumstances\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -407,7 +388,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hunt
-					TooltipDesc: Units aggressively chase targets, even out of range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Units aggressively chase targets, even out of range\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -427,7 +408,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Defensive
-					TooltipDesc: Fire from current position, reposition only if line of sight is blocked\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Fire from current position, reposition only if line of sight is blocked\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -447,7 +428,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hold Position
-					TooltipDesc: Units never auto-reposition, only fire from current cell\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Units never auto-reposition, only fire from current cell\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -473,7 +454,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Tight
-					TooltipDesc: Units cluster close together (squad spacing)\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Units cluster close together (squad spacing)\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -493,7 +474,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Loose
-					TooltipDesc: Default spacing — one cell gap between units\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Default spacing — one cell gap between units\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -513,7 +494,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Spread
-					TooltipDesc: Two cell gaps between units — optimal for surviving AoE\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Two cell gaps between units — optimal for surviving AoE\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Do Now (set + cancel orders)
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -539,7 +520,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Hold
-					TooltipDesc: Stay in position when out of ammo — wait for mobile resupply\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipDesc: Stay in position when out of ammo — wait for supply truck\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Stop and wait for resupply
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -548,18 +529,18 @@ Container@PLAYER_WIDGETS:
 							Y: 5
 							ImageCollection: stance-icons
 							ImageName: hold-fire
-				Button@RESUPPLY_SEEK:
+				Button@RESUPPLY_AUTO:
 					Logic: AddFactionSuffixLogic
 					X: 34
 					Width: 34
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
-					Key: ResupplySeek
+					Key: ResupplyAuto
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Seek
-					TooltipDesc: Move to nearest resupply point when out of ammo, return after\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipText: Auto
+					TooltipDesc: Auto-seek nearest supply point when out of ammo\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Go resupply NOW
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -568,18 +549,18 @@ Container@PLAYER_WIDGETS:
 							Y: 5
 							ImageCollection: stance-icons
 							ImageName: attack-anything
-				Button@RESUPPLY_ROTATE:
+				Button@RESUPPLY_EVACUATE:
 					Logic: AddFactionSuffixLogic
 					X: 68
 					Width: 34
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
-					Key: ResupplyRotate
+					Key: ResupplyEvacuate
 					DisableKeyRepeat: true
 					DisableKeySound: true
-					TooltipText: Rotate
-					TooltipDesc: Seek resupply — if none available, leave via Supply Route\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nAlt+Click: Set as type default (persists)
+					TooltipText: Evacuate
+					TooltipDesc: Leave via Supply Route when out of ammo\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Evacuate NOW
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
