@@ -104,6 +104,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		bool cosmeticReveal;
 
+		[Sync]
+		bool controlAllUnits;
+
 		public bool FastCharge => Enabled && fastCharge;
 		public bool AllTech => Enabled && allTech;
 		public bool FastBuild => Enabled && fastBuild;
@@ -112,6 +115,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool UnlimitedPower => Enabled && unlimitedPower;
 		public bool BuildAnywhere => Enabled && buildAnywhere;
 		public bool CosmeticReveal => Enabled && cosmeticReveal;
+		public bool ControlAllUnits => Enabled && controlAllUnits;
 
 		bool enableAll;
 
@@ -147,7 +151,7 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevAll":
 				{
 					enableAll ^= true;
-					allTech = fastCharge = fastBuild = disableShroud = unlimitedPower = buildAnywhere = cosmeticReveal = enableAll;
+					allTech = fastCharge = fastBuild = disableShroud = unlimitedPower = buildAnywhere = cosmeticReveal = controlAllUnits = enableAll;
 
 					if (enableAll)
 					{
@@ -275,6 +279,12 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 				}
 
+				case "DevControlAllUnits":
+				{
+					controlAllUnits ^= true;
+					break;
+				}
+
 				case "DevPlayerExperience":
 				{
 					self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience((int)order.ExtraData);
@@ -312,5 +322,19 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		bool IUnlocksRenderPlayer.RenderPlayerUnlocked => Enabled;
+
+		public static bool IsControlAllUnitsActive(World world)
+		{
+			// Always active on shellmaps (LocalPlayer is null on shellmaps)
+			if (world.Type == WorldType.Shellmap)
+				return true;
+
+			var localPlayer = world.LocalPlayer;
+			if (localPlayer == null)
+				return false;
+
+			var devMode = localPlayer.PlayerActor.TraitOrDefault<DeveloperMode>();
+			return devMode != null && devMode.ControlAllUnits;
+		}
 	}
 }

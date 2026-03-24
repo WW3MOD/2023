@@ -97,8 +97,17 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var ordersToIssueThisTick = Math.Min((orders.Count + info.MinOrderQuotientPerTick - 1) / info.MinOrderQuotientPerTick, orders.Count);
+			var controlAllManager = world.WorldActor.TraitOrDefault<ControlAllUnitsManager>();
 			for (var i = 0; i < ordersToIssueThisTick; i++)
-				world.IssueOrder(orders.Dequeue());
+			{
+				var order = orders.Dequeue();
+
+				// Skip bot orders for actors currently under player control
+				if (controlAllManager != null && order.Subject != null && controlAllManager.IsPlayerControlled(order.Subject))
+					continue;
+
+				world.IssueOrder(order);
+			}
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)

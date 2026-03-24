@@ -32,6 +32,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (cosmeticRevealCheckbox != null)
 				BindOrderCheckbox(cosmeticRevealCheckbox, world, "DevCosmeticReveal", () => devTrait.CosmeticReveal);
 
+			var controlAllCheckbox = widget.GetOrNull<CheckboxWidget>("CONTROL_ALL_UNITS");
+			if (controlAllCheckbox != null)
+				BindOrderCheckbox(controlAllCheckbox, world, "DevControlAllUnits", () => devTrait.ControlAllUnits);
+
 			var pathCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_UNIT_PATHS");
 			if (pathCheckbox != null)
 				BindOrderCheckbox(pathCheckbox, world, "DevPathDebug", () => devTrait.PathDebug);

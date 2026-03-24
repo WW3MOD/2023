@@ -392,6 +392,7 @@ World:
 	SpawnStartingUnits:
 	PathFinder:
 	ValidateOrder:
+	ControlAllUnitsManager:
 	DebugPauseState:
 	MiniMapPings:
 	StartGameNotification:

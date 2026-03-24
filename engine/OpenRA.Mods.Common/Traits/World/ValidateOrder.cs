@@ -40,7 +40,11 @@ namespace OpenRA.Mods.Common.Traits
 			// This may be because the owner changed within the last net tick,
 			// or, less likely, the client may be trying to do something malicious.
 			if (subjectClientId != clientId && !isBotOrder)
-				return false;
+			{
+				// Allow cross-player orders when Control All Units debug mode is active
+				if (!DeveloperMode.IsControlAllUnitsActive(world))
+					return false;
+			}
 
 			return order.Subject.AcceptsOrder(order.OrderString);
 		}

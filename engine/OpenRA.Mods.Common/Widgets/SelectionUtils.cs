@@ -47,8 +47,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public static IEnumerable<Actor> SelectHighestPriorityActorAtPoint(World world, int2 a, Modifiers modifiers)
 		{
+			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
 			var selected = world.ScreenMap.ActorsAtMouse(a)
-				.Where(x => x.Actor.Info.HasTraitInfo<ISelectableInfo>() && (x.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x.Actor)))
+				.Where(x => x.Actor.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || x.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x.Actor)))
 				.WithHighestSelectionPriority(a, modifiers);
 
 			if (selected != null)
@@ -64,14 +65,18 @@ namespace OpenRA.Mods.Common.Widgets
 			if (a == b)
 				return SelectHighestPriorityActorAtPoint(world, a, modifiers);
 
+			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
 			return world.ScreenMap.ActorsInMouseBox(a, b)
 				.Select(x => x.Actor)
-				.Where(x => x.Info.HasTraitInfo<ISelectableInfo>() && (x.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x)))
+				.Where(x => x.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || x.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x)))
 				.SubsetWithHighestSelectionPriority(modifiers);
 		}
 
 		public static Player[] GetPlayersToIncludeInSelection(World world)
 		{
+			if (DeveloperMode.IsControlAllUnitsActive(world))
+				return world.Players;
+
 			// Players to be included in the selection (the viewer or all players in "Disable shroud" / "All players" mode)
 			var viewer = world.RenderPlayer ?? world.LocalPlayer;
 			var isShroudDisabled = viewer == null || (world.RenderPlayer == null && world.LocalPlayer.Spectating);

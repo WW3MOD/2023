@@ -164,7 +164,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			var removed = actors.RemoveWhere(a => !a.IsInWorld || (!a.Owner.IsAlliedWith(world.RenderPlayer) && world.FogObscures(a)));
+			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
+			var removed = actors.RemoveWhere(a => !a.IsInWorld || (!controlAll && !a.Owner.IsAlliedWith(world.RenderPlayer) && world.FogObscures(a)));
 			if (removed > 0)
 			{
 				UpdateHash();

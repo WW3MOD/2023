@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Orders;
 using OpenRA.Traits;
 using OpenRA.Widgets;
@@ -25,8 +26,9 @@ namespace OpenRA.Mods.Common.Orders
 
 		static Target TargetForInput(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
+			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
 			var actor = world.ScreenMap.ActorsAtMouse(mi)
-				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ITargetableInfo>() && !world.FogObscures(a.Actor))
+				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ITargetableInfo>() && (controlAll || !world.FogObscures(a.Actor)))
 				.WithHighestSelectionPriority(worldPixel, mi.Modifiers);
 
 			if (actor != null)
@@ -54,7 +56,18 @@ namespace OpenRA.Mods.Common.Orders
 			if (!actorsInvolved.Any())
 				yield break;
 
-			yield return new Order("CreateGroup", actorsInvolved.First().Owner.PlayerActor, false, actorsInvolved.ToArray());
+			// Use LocalPlayer for CreateGroup when available (handles mixed-owner selections in control-all mode)
+			var groupOwner = world.LocalPlayer?.PlayerActor ?? actorsInvolved.First().Owner.PlayerActor;
+			yield return new Order("CreateGroup", groupOwner, false, actorsInvolved.ToArray());
+
+			// Mark non-owned actors as player-controlled so bots don't override our orders
+			var controlAllManager = world.WorldActor.TraitOrDefault<ControlAllUnitsManager>();
+			if (controlAllManager != null && DeveloperMode.IsControlAllUnitsActive(world))
+			{
+				foreach (var a in actorsInvolved)
+					if (a.Owner != world.LocalPlayer)
+						controlAllManager.MarkPlayerControlled(a);
+			}
 
 			foreach (var o in orders)
 				yield return CheckSameOrder(o.Order, o.Trait.IssueOrder(o.Actor, o.Order, o.Target, mi.Modifiers.HasModifier(Modifiers.Shift)));
@@ -95,8 +108,9 @@ namespace OpenRA.Mods.Common.Orders
 
 		public virtual bool InputOverridesSelection(World world, int2 xy, MouseInput mi)
 		{
+			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
 			var actor = world.ScreenMap.ActorsAtMouse(xy)
-				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ISelectableInfo>() && (a.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(a.Actor)))
+				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || a.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(a.Actor)))
 				.WithHighestSelectionPriority(xy, mi.Modifiers);
 
 			if (actor == null)
@@ -136,7 +150,7 @@ namespace OpenRA.Mods.Common.Orders
 				!(mi.Button == Game.Settings.Game.AttackMoveButton && (mi.Modifiers & ~Modifiers.Shift) == Game.Settings.Game.AttackMoveModifiers))
 				return null;
 
-			if (self.Owner != self.World.LocalPlayer)
+			if (self.Owner != self.World.LocalPlayer && !DeveloperMode.IsControlAllUnitsActive(self.World))
 				return null;
 
 			if (self.World.IsGameOver)

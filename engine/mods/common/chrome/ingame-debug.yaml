@@ -59,6 +59,13 @@ Container@DEBUG_PANEL:
 			Width: 200
 			Font: Regular
 			Text: Cosmetic Reveal (see all)
+		Checkbox@CONTROL_ALL_UNITS:
+			X: 290
+			Y: 135
+			Height: 20
+			Width: 200
+			Font: Regular
+			Text: Control All Units
 		Button@GIVE_CASH:
 			X: 90
 			Y: 180
