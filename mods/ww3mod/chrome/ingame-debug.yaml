@@ -135,3 +135,17 @@ Container@DEBUG_PANEL:
 			Width: 200
 			Font: Regular
 			Text: Show Screen Map
+		Button@SAVE_PRESET:
+			X: 90
+			Y: 405
+			Width: 140
+			Height: 30
+			Font: Bold
+			Text: Save Preset
+		Button@LOAD_PRESET:
+			X: 271
+			Y: 405
+			Width: 140
+			Height: 30
+			Font: Bold
+			Text: Load Preset

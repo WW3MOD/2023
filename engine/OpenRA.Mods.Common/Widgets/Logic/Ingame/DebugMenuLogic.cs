@@ -10,6 +10,8 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 using OpenRA.Widgets;
@@ -18,11 +20,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class DebugMenuLogic : ChromeLogic
 	{
+		static readonly string PresetPath = Path.Combine(Platform.SupportDir, "ww3mod", "debug-preset.yaml");
+
+		// Tracked locally so save/load can read and set it
+		int fastBuildState;
+
 		[ObjectCreator.UseCtor]
 		public DebugMenuLogic(Widget widget, World world)
 		{
 			var devTrait = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
 			var debugVis = world.WorldActor.TraitOrDefault<DebugVisualizations>();
+			var terrainGeometryTrait = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
+			var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
 
 			var visibilityCheckbox = widget.GetOrNull<CheckboxWidget>("DISABLE_VISIBILITY_CHECKS");
 			if (visibilityCheckbox != null)
@@ -53,8 +62,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				giveCashAllButton.OnClick = () => IssueOrder(world, "DevGiveCashAll");
 
 			// Instant Build: 3-state button (Off → Me → All, right-click resets)
-			// 0 = Off, 1 = Me only, 2 = All players
-			var fastBuildState = 0;
 			var fastBuildButton = widget.GetOrNull<ButtonWidget>("INSTANT_BUILD");
 			if (fastBuildButton != null)
 			{
@@ -73,17 +80,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					switch (fastBuildState)
 					{
 						case 0:
-							// Off → Me: toggle on for local player
 							fastBuildState = 1;
 							IssueOrder(world, "DevFastBuild");
 							break;
 						case 1:
-							// Me → All: enable for all players
 							fastBuildState = 2;
 							IssueOrder(world, "DevFastBuildAll");
 							break;
 						case 2:
-							// All → Off: reset everyone
 							fastBuildState = 0;
 							IssueOrder(world, "DevFastBuildReset");
 							break;
@@ -92,7 +96,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				fastBuildButton.OnRightClick = () =>
 				{
-					// Right-click: reset to Off from any state
 					if (fastBuildState != 0)
 					{
 						fastBuildState = 0;
@@ -129,7 +132,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				showScreenMapCheckbox.OnClick = () => debugVis.ScreenMap ^= true;
 			}
 
-			var terrainGeometryTrait = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
 			var showTerrainGeometryCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_TERRAIN_OVERLAY");
 			if (showTerrainGeometryCheckbox != null && terrainGeometryTrait != null)
 			{
@@ -176,7 +178,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var showCustomTerrainCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_CUSTOMTERRAIN_OVERLAY");
 			if (showCustomTerrainCheckbox != null)
 			{
-				var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
 				showCustomTerrainCheckbox.Disabled = customTerrainDebugTrait == null;
 				if (customTerrainDebugTrait != null)
 				{
@@ -184,6 +185,196 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					showCustomTerrainCheckbox.OnClick = () => customTerrainDebugTrait.Enabled ^= true;
 				}
 			}
+
+			// Save/Load preset buttons
+			var saveButton = widget.GetOrNull<ButtonWidget>("SAVE_PRESET");
+			if (saveButton != null)
+				saveButton.OnClick = () => SavePreset(devTrait, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
+
+			var loadButton = widget.GetOrNull<ButtonWidget>("LOAD_PRESET");
+			if (loadButton != null)
+				loadButton.OnClick = () => LoadPreset(world, devTrait, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
+		}
+
+		void SavePreset(DeveloperMode devTrait, DebugVisualizations debugVis,
+			TerrainGeometryOverlay terrainOverlay, CustomTerrainDebugOverlay customTerrainOverlay)
+		{
+			try
+			{
+				var dir = Path.GetDirectoryName(PresetPath);
+				if (!Directory.Exists(dir))
+					Directory.CreateDirectory(dir);
+
+				var nodes = new List<MiniYamlNode>();
+
+				// DeveloperMode toggles
+				var devNodes = new List<MiniYamlNode>
+				{
+					new MiniYamlNode("FastBuild", fastBuildState.ToString()),
+					new MiniYamlNode("FastCharge", devTrait.FastCharge.ToString()),
+					new MiniYamlNode("AllTech", devTrait.AllTech.ToString()),
+					new MiniYamlNode("BuildAnywhere", devTrait.BuildAnywhere.ToString()),
+					new MiniYamlNode("DisableShroud", devTrait.DisableShroud.ToString()),
+					new MiniYamlNode("UnlimitedPower", devTrait.UnlimitedPower.ToString()),
+					new MiniYamlNode("CosmeticReveal", devTrait.CosmeticReveal.ToString()),
+					new MiniYamlNode("ControlAllUnits", devTrait.ControlAllUnits.ToString()),
+					new MiniYamlNode("PathDebug", devTrait.PathDebug.ToString()),
+				};
+				nodes.Add(new MiniYamlNode("DeveloperMode", new MiniYaml("", devNodes)));
+
+				// Visualization toggles
+				if (debugVis != null)
+				{
+					var visNodes = new List<MiniYamlNode>
+					{
+						new MiniYamlNode("CombatGeometry", debugVis.CombatGeometry.ToString()),
+						new MiniYamlNode("RenderGeometry", debugVis.RenderGeometry.ToString()),
+						new MiniYamlNode("ScreenMap", debugVis.ScreenMap.ToString()),
+						new MiniYamlNode("ActorTags", debugVis.ActorTags.ToString()),
+						new MiniYamlNode("DepthBuffer", debugVis.DepthBuffer.ToString()),
+					};
+
+					if (terrainOverlay != null)
+						visNodes.Add(new MiniYamlNode("TerrainGeometry", terrainOverlay.Enabled.ToString()));
+
+					if (customTerrainOverlay != null)
+						visNodes.Add(new MiniYamlNode("CustomTerrain", customTerrainOverlay.Enabled.ToString()));
+
+					nodes.Add(new MiniYamlNode("Visualizations", new MiniYaml("", visNodes)));
+				}
+
+				nodes.WriteToFile(PresetPath);
+				TextNotificationsManager.Debug("Debug preset saved.");
+			}
+			catch (Exception e)
+			{
+				TextNotificationsManager.Debug($"Failed to save debug preset: {e.Message}");
+			}
+		}
+
+		void LoadPreset(World world, DeveloperMode devTrait, DebugVisualizations debugVis,
+			TerrainGeometryOverlay terrainOverlay, CustomTerrainDebugOverlay customTerrainOverlay)
+		{
+			if (!File.Exists(PresetPath))
+			{
+				TextNotificationsManager.Debug("No debug preset found.");
+				return;
+			}
+
+			try
+			{
+				var yaml = MiniYaml.FromFile(PresetPath);
+				foreach (var section in yaml)
+				{
+					if (section.Key == "DeveloperMode")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							switch (node.Key)
+							{
+								case "FastBuild":
+								{
+									if (!int.TryParse(node.Value.Value, out var targetState))
+										break;
+
+									// Reset first, then apply target state
+									if (fastBuildState != 0)
+									{
+										IssueOrder(world, "DevFastBuildReset");
+										fastBuildState = 0;
+									}
+
+									if (targetState == 1)
+									{
+										IssueOrder(world, "DevFastBuild");
+										fastBuildState = 1;
+									}
+									else if (targetState == 2)
+									{
+										IssueOrder(world, "DevFastBuildAll");
+										fastBuildState = 2;
+									}
+
+									break;
+								}
+
+								case "FastCharge":
+									ToggleIfNeeded(world, "DevFastCharge", devTrait.FastCharge, node.Value.Value);
+									break;
+								case "AllTech":
+									ToggleIfNeeded(world, "DevEnableTech", devTrait.AllTech, node.Value.Value);
+									break;
+								case "BuildAnywhere":
+									ToggleIfNeeded(world, "DevBuildAnywhere", devTrait.BuildAnywhere, node.Value.Value);
+									break;
+								case "DisableShroud":
+									ToggleIfNeeded(world, "DevVisibility", devTrait.DisableShroud, node.Value.Value);
+									break;
+								case "UnlimitedPower":
+									ToggleIfNeeded(world, "DevUnlimitedPower", devTrait.UnlimitedPower, node.Value.Value);
+									break;
+								case "CosmeticReveal":
+									ToggleIfNeeded(world, "DevCosmeticReveal", devTrait.CosmeticReveal, node.Value.Value);
+									break;
+								case "ControlAllUnits":
+									ToggleIfNeeded(world, "DevControlAllUnits", devTrait.ControlAllUnits, node.Value.Value);
+									break;
+								case "PathDebug":
+									ToggleIfNeeded(world, "DevPathDebug", devTrait.PathDebug, node.Value.Value);
+									break;
+							}
+						}
+					}
+					else if (section.Key == "Visualizations")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!bool.TryParse(node.Value.Value, out var val))
+								continue;
+
+							switch (node.Key)
+							{
+								case "CombatGeometry":
+									if (debugVis != null) debugVis.CombatGeometry = val;
+									break;
+								case "RenderGeometry":
+									if (debugVis != null) debugVis.RenderGeometry = val;
+									break;
+								case "ScreenMap":
+									if (debugVis != null) debugVis.ScreenMap = val;
+									break;
+								case "ActorTags":
+									if (debugVis != null) debugVis.ActorTags = val;
+									break;
+								case "DepthBuffer":
+									if (debugVis != null) debugVis.DepthBuffer = val;
+									break;
+								case "TerrainGeometry":
+									if (terrainOverlay != null) terrainOverlay.Enabled = val;
+									break;
+								case "CustomTerrain":
+									if (customTerrainOverlay != null) customTerrainOverlay.Enabled = val;
+									break;
+							}
+						}
+					}
+				}
+
+				TextNotificationsManager.Debug("Debug preset loaded.");
+			}
+			catch (Exception e)
+			{
+				TextNotificationsManager.Debug($"Failed to load debug preset: {e.Message}");
+			}
+		}
+
+		static void ToggleIfNeeded(World world, string order, bool currentState, string savedValue)
+		{
+			if (!bool.TryParse(savedValue, out var target))
+				return;
+
+			if (currentState != target)
+				IssueOrder(world, order);
 		}
 
 		static void BindOrderCheckbox(CheckboxWidget checkbox, World world, string order, Func<bool> getValue)
