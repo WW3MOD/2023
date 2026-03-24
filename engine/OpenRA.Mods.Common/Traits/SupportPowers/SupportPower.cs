@@ -20,6 +20,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Measured in ticks.")]
 		public readonly int ChargeInterval = 0;
 
+		[Desc("If set, overrides ChargeInterval with the value from this lobby option ID. " +
+			"Expects values like '2min', '3min', etc. Parsed at 25 ticks/second.")]
+		public readonly string LobbyChargeIntervalId = null;
+
 		public readonly string IconImage = "icon";
 
 		[SequenceReference(nameof(IconImage))]

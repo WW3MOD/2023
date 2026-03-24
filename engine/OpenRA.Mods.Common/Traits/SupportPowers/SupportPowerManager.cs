@@ -173,10 +173,33 @@ namespace OpenRA.Mods.Common.Traits
 		public SupportPowerInstance(string key, SupportPowerInfo info, SupportPowerManager manager)
 		{
 			Key = key;
-			TotalTicks = info.ChargeInterval;
+			TotalTicks = GetChargeInterval(info, manager);
 			remainingSubTicks = info.StartFullyCharged ? 0 : TotalTicks * 100;
 
 			Manager = manager;
+		}
+
+		static int GetChargeInterval(SupportPowerInfo info, SupportPowerManager manager)
+		{
+			if (string.IsNullOrEmpty(info.LobbyChargeIntervalId))
+				return info.ChargeInterval;
+
+			var lobbyValue = manager.Self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault(info.LobbyChargeIntervalId, "");
+
+			if (string.IsNullOrEmpty(lobbyValue))
+				return info.ChargeInterval;
+
+			return ParseMinutesToTicks(lobbyValue, info.ChargeInterval);
+		}
+
+		static int ParseMinutesToTicks(string value, int fallback)
+		{
+			// Parse values like "2min", "3min", "8min"
+			if (value.EndsWith("min") && int.TryParse(value.Replace("min", ""), out var minutes))
+				return minutes * 60 * 25; // 25 ticks per second
+
+			return fallback;
 		}
 
 		public virtual void PrerequisitesAvailable(bool available)

@@ -45,6 +45,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Palette for direction cursor animation.")]
 		public readonly string DirectionArrowPalette = "chrome";
 
+		[Desc("If true, aircraft will U-turn and exit back through the entry edge " +
+			"instead of flying out through the opposite edge.")]
+		public readonly bool ReturnToStart = false;
+
 		[Desc("Weapon range offset to apply during the beacon clock calculation")]
 		public readonly WDist BeaconDistanceOffset = WDist.FromCells(6);
 
@@ -185,7 +189,8 @@ namespace OpenRA.Mods.Common.Traits
 					w.Add(a);
 
 					a.QueueActivity(new Fly(a, Target.FromPos(target + spawnOffset)));
-					a.QueueActivity(new Fly(a, Target.FromPos(finishEdge + spawnOffset)));
+					var exitEdge = info.ReturnToStart ? startEdge : finishEdge;
+					a.QueueActivity(new Fly(a, Target.FromPos(exitEdge + spawnOffset)));
 					a.QueueActivity(new RemoveSelf());
 					distanceTestActor = a;
 				}

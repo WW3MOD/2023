@@ -103,6 +103,60 @@ Player:
 		NewOptionsTextNotification: New construction options.
 		CannotPlaceTextNotification: Cannot deploy here.
 	SupportPowerManager:
+	GrantConditionOnLobbyOption@airstrikes:
+		Option: airstrikes
+		Condition: airstrikes-disabled
+		GrantWhenOptionDisabled: true
+	AirstrikePower@America:
+		PauseOnCondition: airstrikes-disabled
+		OrderName: AmericaAirstrike
+		Prerequisites: player.america
+		Icon: icon
+		IconImage: a10
+		ChargeInterval: 6000
+		LobbyChargeIntervalId: airstrike-cooldown
+		SquadSize: 1
+		Name: A-10 Airstrike
+		Description: Call in an A-10 Warthog for a\nstrafing run on the target area.
+		SelectTargetSpeechNotification: SelectTarget
+		UnitType: A10.Airstrike
+		CameraActor: camera.paradrop
+		CameraRemoveDelay: 100
+		QuantizedFacings: 8
+		DisplayBeacon: true
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		Cursor: ability
+		UseDirectionalTarget: true
+		DirectionArrowAnimation: paradirection
+		SupportPowerPaletteOrder: 1
+		ReturnToStart: true
+	AirstrikePower@Russia:
+		PauseOnCondition: airstrikes-disabled
+		OrderName: RussiaAirstrike
+		Prerequisites: player.russia
+		Icon: icon
+		IconImage: frog
+		ChargeInterval: 6000
+		LobbyChargeIntervalId: airstrike-cooldown
+		SquadSize: 1
+		Name: Su-25 Airstrike
+		Description: Call in a Su-25 Frogfoot for a\nrocket attack on the target area.
+		SelectTargetSpeechNotification: SelectTarget
+		UnitType: FROG.Airstrike
+		CameraActor: camera.paradrop
+		CameraRemoveDelay: 100
+		QuantizedFacings: 8
+		DisplayBeacon: true
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		Cursor: ability
+		UseDirectionalTarget: true
+		DirectionArrowAnimation: paradirection
+		SupportPowerPaletteOrder: 1
+		ReturnToStart: true
 	ScriptTriggers:
 	MissionObjectives:
 		WinNotification: Win
