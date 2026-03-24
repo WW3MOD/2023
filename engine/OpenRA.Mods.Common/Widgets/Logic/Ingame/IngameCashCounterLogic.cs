@@ -45,10 +45,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		string GetBreakdownText()
 		{
-			var sb = new StringBuilder();
+			var lines = new StringBuilder();
 
-			sb.AppendLine("--- INCOME ---");
-			sb.AppendLine("Passive: +$" + playerResources.PassiveIncomeAmount);
+			lines.Append("--- INCOME ---\n");
+			lines.Append("Passive: +$" + playerResources.PassiveIncomeAmount + "\n");
 
 			var incomeByType = playerResources.IncomeEntries
 				.GroupBy(e => e.ActorType)
@@ -59,15 +59,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var name = group.First().Name;
 				var count = group.Count();
 				var total = (int)group.Sum(e => e.AmountPerInterval);
+				if (total <= 0)
+					continue;
+
 				if (count > 1)
-					sb.AppendLine(name + " x" + count + ": +$" + total);
+					lines.Append(name + " x" + count + ": +$" + total + "\n");
 				else
-					sb.AppendLine(name + ": +$" + total);
+					lines.Append(name + ": +$" + total + "\n");
 			}
 
-			sb.AppendLine("Total: +$" + playerResources.TotalIncome);
-			sb.AppendLine();
-			sb.AppendLine("--- UPKEEP ---");
+			lines.Append("Total: +$" + playerResources.TotalIncome + "\n");
+			lines.Append("\n");
+			lines.Append("--- UPKEEP ---\n");
 
 			var upkeepByType = playerResources.UpkeepEntries
 				.GroupBy(e => e.ActorType)
@@ -78,20 +81,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var name = group.First().Name;
 				var count = group.Count();
 				var total = (int)group.Sum(e => e.Cost);
+				if (total <= 0)
+					continue;
+
 				if (count > 1)
-					sb.AppendLine(name + " x" + count + ": -$" + total);
+					lines.Append(name + " x" + count + ": -$" + total + "\n");
 				else
-					sb.AppendLine(name + ": -$" + total);
+					lines.Append(name + ": -$" + total + "\n");
 			}
 
-			sb.AppendLine("Total: -$" + (int)playerResources.Upkeep);
-			sb.AppendLine();
+			lines.Append("Total: -$" + (int)playerResources.Upkeep + "\n");
+			lines.Append("\n");
 
 			var net = playerResources.NetChange;
 			var sign = net >= 0 ? "+" : "";
-			sb.Append("Net: " + sign + "$" + net + " / interval");
+			lines.Append("Net: " + sign + "$" + net + " / interval");
 
-			return sb.ToString();
+			return lines.ToString();
 		}
 
 		public override void Tick()

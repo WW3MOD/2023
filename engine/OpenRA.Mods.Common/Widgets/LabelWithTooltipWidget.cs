@@ -55,7 +55,12 @@ namespace OpenRA.Mods.Common.Widgets
 				tooltipContainer.Value.SetTooltip(TooltipTemplate, new WidgetArgs() { { "getText", GetTooltipText } });
 
 			if (AnchorTooltip)
-				tooltipContainer.Value.AnchorBounds = RenderBounds;
+			{
+				// Anchor to parent's bounds so the tooltip appears to the left of the
+				// containing panel (e.g. sidebar) rather than overlapping it.
+				var anchor = Parent != null ? Parent.RenderBounds : RenderBounds;
+				tooltipContainer.Value.AnchorBounds = anchor;
+			}
 		}
 
 		public override void MouseExited()
