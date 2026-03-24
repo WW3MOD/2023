@@ -1494,11 +1494,27 @@ namespace OpenRA
 		/// </summary>
 		public CPos ChooseClosestMatchingEdgeCellOnSameEdge(CPos hint, Func<CPos, bool> match)
 		{
+			var candidates = GetSameEdgeCells(hint);
+			return candidates.OrderBy(c => (hint - c).Length).FirstOrDefault(c => match(c));
+		}
+
+		/// <summary>
+		/// Get the N closest edge cells on the same map edge as the hint cell, sorted by distance.
+		/// Used to constrain spawn locations to a small area around the spawn point.
+		/// </summary>
+		public CPos[] GetSpawnCandidatesOnSameEdge(CPos hint, int count)
+		{
+			var candidates = GetSameEdgeCells(hint);
+			return candidates.OrderBy(c => (hint - c).Length).Take(count).ToArray();
+		}
+
+		IEnumerable<CPos> GetSameEdgeCells(CPos hint)
+		{
 			// Determine which edge the hint is closest to
 			var mpos = hint.ToMPos(Grid.Type);
 			var allProjected = ProjectedCellsCovering(mpos);
 			if (allProjected.Length == 0)
-				return default;
+				return Enumerable.Empty<CPos>();
 
 			var puv = allProjected.First();
 			var distLeft = Math.Abs(puv.U - Bounds.Left);
@@ -1509,7 +1525,7 @@ namespace OpenRA
 			var minDist = Math.Min(Math.Min(distLeft, distRight), Math.Min(distTop, distBottom));
 
 			// Filter edge cells to only those on the same edge
-			var sameEdgeCells = AllEdgeCells.Where(c =>
+			return AllEdgeCells.Where(c =>
 			{
 				var cmpos = c.ToMPos(Grid.Type);
 				var cp = ProjectedCellsCovering(cmpos);
@@ -1525,8 +1541,6 @@ namespace OpenRA
 					return Math.Abs(cpuv.V - Bounds.Top) <= 1;
 				return Math.Abs(cpuv.V - (Bounds.Bottom - 1)) <= 1;
 			});
-
-			return sameEdgeCells.OrderBy(c => (hint - c).Length).FirstOrDefault(c => match(c));
 		}
 
 		List<CPos> UpdateEdgeCells()
