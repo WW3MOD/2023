@@ -229,7 +229,7 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				fixed (byte* colorBytes = &radarData[0])
 				{
-					var colors = (int*)colorBytes;
+					var colors = (uint*)colorBytes;
 					if (isRectangularIsometric)
 					{
 						// Odd rows are shifted right by 1px
@@ -248,7 +248,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		void UpdateShroudCell(PPos puv)
 		{
-			var color = 0;
+			uint color = 0;
 			var cv = currentPlayer.MapLayers.GetVisibility(puv);
 			if (cv == 0)
 				color = Color.Black.ToArgb();
@@ -263,7 +263,7 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				fixed (byte* colorBytes = &radarData[0])
 				{
-					var colors = (int*)colorBytes;
+					var colors = (uint*)colorBytes;
 					foreach (var iuv in world.Map.Unproject(puv))
 					{
 						if (isRectangularIsometric)
@@ -409,7 +409,7 @@ namespace OpenRA.Mods.Common.Widgets
 				{
 					fixed (byte* colorBytes = &radarData[0])
 					{
-						var colors = (int*)colorBytes;
+						var colors = (uint*)colorBytes;
 
 						var cosmeticRevealDev = world.LocalPlayer?.PlayerActor.TraitOrDefault<DeveloperMode>();
 						var cosmeticRevealActive = cosmeticRevealDev != null && cosmeticRevealDev.CosmeticReveal;

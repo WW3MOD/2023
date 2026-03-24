@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Widgets;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	sealed class ProductionQueueFromSelectionInfo : TraitInfo
+	class ProductionQueueFromSelectionInfo : TraitInfo
 	{
 		public readonly string ProductionTabsWidget = null;
 		public readonly string ProductionPaletteWidget = null;
@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new ProductionQueueFromSelection(init.World, this); }
 	}
 
-	sealed class ProductionQueueFromSelection : INotifySelection
+	class ProductionQueueFromSelection : INotifySelection
 	{
 		readonly World world;
 		readonly Lazy<ProductionTabsWidget> tabsWidget;
@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 					.FirstOrDefault(q => q.Enabled && types.Contains(q.Info.Type));
 			}
 
-			if (queue == null || !queue.AnyItemsToBuild())
+			if (queue == null || !queue.BuildableItems().Any())
 				return;
 
 			if (tabsWidget.Value != null)

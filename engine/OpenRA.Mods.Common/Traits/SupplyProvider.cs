@@ -192,7 +192,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner))
 					&& a.TraitsImplementing<AmmoPool>().Any(ap => ap.NeedsResupply)
 					&& a.TraitOrDefault<Rearmable>() != null)
-				.ClosestTo(self);
+				.ClosestToIgnoringPath(self);
 		}
 
 		Actor FindGreatestNeedTarget(out bool hasUnaffordableTargets)
@@ -402,7 +402,7 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& a.Owner == self.Owner
 					&& Info.RestockActors.Contains(a.Info.Name))
-				.ClosestTo(self);
+				.ClosestToIgnoringPath(self);
 
 			if (restockTarget != null)
 			{

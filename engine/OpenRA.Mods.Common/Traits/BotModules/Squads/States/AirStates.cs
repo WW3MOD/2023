@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,17 +11,20 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 {
 	abstract class AirStateBase : StateBase
 	{
+		static readonly BitSet<TargetableType> AirTargetTypes = new BitSet<TargetableType>("Air");
+
 		protected const int MissileUnitMultiplier = 3;
 
-		protected static int CountAntiAirUnits(Squad owner, IReadOnlyCollection<Actor> units)
+		protected static int CountAntiAirUnits(IEnumerable<Actor> units)
 		{
-			if (units.Count == 0)
+			if (!units.Any())
 				return 0;
 
 			var missileUnitsCount = 0;
@@ -37,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 					foreach (var a in ab.Armaments)
 					{
-						if (a.Weapon.IsValidTarget(owner.SquadManager.Info.AircraftTargetType))
+						if (a.Weapon.IsValidTarget(AirTargetTypes))
 						{
 							missileUnitsCount++;
 							break;
@@ -67,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			var checkIndices = Exts.MakeArray(columnCount * rowCount, i => i).Shuffle(owner.World.LocalRandom);
 			foreach (var i in checkIndices)
 			{
-				var pos = new MPos(i % columnCount * dangerRadius + dangerRadius / 2, i / columnCount * dangerRadius + dangerRadius / 2).ToCPos(map);
+				var pos = new MPos((i % columnCount) * dangerRadius + dangerRadius / 2, (i / columnCount) * dangerRadius + dangerRadius / 2).ToCPos(map);
 
 				if (NearToPosSafely(owner, map.CenterOfCell(pos), out detectedEnemyTarget))
 				{
@@ -96,7 +99,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (unitsAroundPos.Count == 0)
 				return true;
 
-			if (CountAntiAirUnits(owner, unitsAroundPos) * MissileUnitMultiplier < owner.Units.Count)
+			if (CountAntiAirUnits(unitsAroundPos) * MissileUnitMultiplier < owner.Units.Count)
 			{
 				detectedEnemyTarget = unitsAroundPos.Random(owner.Random);
 				return true;
@@ -108,11 +111,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		// Checks the number of anti air enemies around units
 		protected virtual bool ShouldFlee(Squad owner)
 		{
-			return ShouldFlee(owner, enemies => CountAntiAirUnits(owner, enemies) * MissileUnitMultiplier > owner.Units.Count);
+			return ShouldFlee(owner, enemies => CountAntiAirUnits(enemies) * MissileUnitMultiplier > owner.Units.Count);
 		}
 	}
 
-	sealed class AirIdleState : AirStateBase, IState
+	class AirIdleState : AirStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 
@@ -123,7 +126,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			if (ShouldFlee(owner))
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new AirFleeState());
+				owner.FuzzyStateMachine.ChangeState(owner, new AirFleeState(), true);
 				return;
 			}
 
@@ -131,14 +134,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (e == null)
 				return;
 
-			owner.SetActorToTarget((e, WVec.Zero));
-			owner.FuzzyStateMachine.ChangeState(owner, new AirAttackState());
+			owner.TargetActor = e;
+			owner.FuzzyStateMachine.ChangeState(owner, new AirAttackState(), true);
 		}
 
 		public void Deactivate(Squad owner) { }
 	}
 
-	sealed class AirAttackState : AirStateBase, IState
+	class AirAttackState : AirStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 
@@ -147,21 +150,22 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (!owner.IsValid)
 				return;
 
-			var leader = owner.CenterUnit();
-			if (!owner.IsTargetValid(leader))
+			if (!owner.IsTargetValid)
 			{
-				var closestEnemy = owner.SquadManager.FindClosestEnemy(leader);
-				owner.SetActorToTarget(closestEnemy);
-				if (closestEnemy.Actor == null)
+				var a = owner.Units.Random(owner.Random);
+				var closestEnemy = owner.SquadManager.FindClosestEnemy(a.CenterPosition);
+				if (closestEnemy != null)
+					owner.TargetActor = closestEnemy;
+				else
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new AirFleeState());
+					owner.FuzzyStateMachine.ChangeState(owner, new AirFleeState(), true);
 					return;
 				}
 			}
 
-			if (!NearToPosSafely(owner, owner.Target.CenterPosition))
+			if (!NearToPosSafely(owner, owner.TargetActor.CenterPosition))
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new AirFleeState());
+				owner.FuzzyStateMachine.ChangeState(owner, new AirFleeState(), true);
 				return;
 			}
 
@@ -184,14 +188,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				}
 
 				if (CanAttackTarget(a, owner.TargetActor))
-					owner.Bot.QueueOrder(new Order("Attack", a, owner.Target, false));
+					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
 			}
 		}
 
 		public void Deactivate(Squad owner) { }
 	}
 
-	sealed class AirFleeState : AirStateBase, IState
+	class AirFleeState : AirStateBase, IState
 	{
 		public void Activate(Squad owner) { }
 
@@ -215,7 +219,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				owner.Bot.QueueOrder(new Order("Move", a, Target.FromCell(owner.World, RandomBuildingLocation(owner)), false));
 			}
 
-			owner.FuzzyStateMachine.ChangeState(owner, new AirIdleState());
+			owner.FuzzyStateMachine.ChangeState(owner, new AirIdleState(), true);
 		}
 
 		public void Deactivate(Squad owner) { }

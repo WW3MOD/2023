@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init)
 		{
-			var sequenceProvider = init.World.Map.Rules.Sequences;
+			var sequenceProvider = init.World.Map.Sequences;
 			var faction = init.GetValue<FactionInit, string>(this);
 			var ownerName = init.Get<OwnerInit>().InternalName;
 			var image = GetImage(init.Actor, faction);

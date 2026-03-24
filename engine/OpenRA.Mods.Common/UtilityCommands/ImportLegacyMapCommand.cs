@@ -118,7 +118,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 		{
 			var iniFormat = basicSection.GetValue("NewINIFormat", "0");
 
-			Exts.TryParseIntegerInvariant(iniFormat, out var iniFormatVersion);
+			Exts.TryParseInt32Invariant(iniFormat, out var iniFormatVersion);
 
 			return iniFormatVersion;
 		}
@@ -160,10 +160,10 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 		static void SetBounds(Map map, IniSection mapSection)
 		{
-			var offsetX = Exts.ParseIntegerInvariant(mapSection.GetValue("X", "0"));
-			var offsetY = Exts.ParseIntegerInvariant(mapSection.GetValue("Y", "0"));
-			var width = Exts.ParseIntegerInvariant(mapSection.GetValue("Width", "0"));
-			var height = Exts.ParseIntegerInvariant(mapSection.GetValue("Height", "0"));
+			var offsetX = Exts.ParseInt32Invariant(mapSection.GetValue("X", "0"));
+			var offsetY = Exts.ParseInt32Invariant(mapSection.GetValue("Y", "0"));
+			var width = Exts.ParseInt32Invariant(mapSection.GetValue("Width", "0"));
+			var height = Exts.ParseInt32Invariant(mapSection.GetValue("Height", "0"));
 
 			var tl = new PPos(offsetX, offsetY);
 			var br = new PPos(offsetX + width - 1, offsetY + height - 1);
@@ -250,9 +250,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 		{
 			var actorCount = Map.ActorDefinitions.Count;
 			var wps = waypointSection
-				.Where(kv => Exts.ParseIntegerInvariant(kv.Value) > 0)
-				.Select(kv => (WaypointNumber: Exts.ParseIntegerInvariant(kv.Key),
-					Location: LocationFromMapOffset(Exts.ParseIntegerInvariant(kv.Value), MapSize)));
+				.Where(kv => Exts.ParseInt32Invariant(kv.Value) > 0)
+				.Select(kv => (WaypointNumber: Exts.ParseInt32Invariant(kv.Key),
+					Location: LocationFromMapOffset(Exts.ParseInt32Invariant(kv.Value), MapSize)));
 
 			// Add waypoint actors skipping duplicate entries
 			foreach (var kv in wps.DistinctBy(location => location.Location))
@@ -295,7 +295,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			{
 				// loc=type,loc,depth
 				var parts = s.Value.Split(',');
-				var loc = Exts.ParseIntegerInvariant(parts[1]);
+				var loc = Exts.ParseInt32Invariant(parts[1]);
 				var type = parts[0].ToLowerInvariant();
 				var key = $"{loc % MapSize},{loc / MapSize}";
 				var value = $"{type},{parts[2]}";
@@ -394,9 +394,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					if (!players.Contains(parts[0]))
 						players.Add(parts[0]);
 
-					var loc = Exts.ParseIntegerInvariant(parts[3]);
-					var health = Exts.ParseIntegerInvariant(parts[2]) * 100 / 256;
-					var facing = (section == "INFANTRY") ? Exts.ParseIntegerInvariant(parts[6]) : Exts.ParseIntegerInvariant(parts[4]);
+					var loc = Exts.ParseInt32Invariant(parts[3]);
+					var health = Exts.ParseInt32Invariant(parts[2]) * 100 / 256;
+					var facing = (section == "INFANTRY") ? Exts.ParseInt32Invariant(parts[6]) : Exts.ParseInt32Invariant(parts[4]);
 
 					var actorType = parts[1].ToLowerInvariant();
 
@@ -412,7 +412,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 						actor.Add(new FacingInit(new WAngle(1024 - 4 * facing)));
 
 					if (section == "INFANTRY")
-						actor.Add(new SubCellInit((SubCell)Exts.ParseByte(parts[4])));
+						actor.Add(new SubCellInit((SubCell)Exts.ParseByteInvariant(parts[4])));
 
 					var actorCount = map.ActorDefinitions.Count;
 
@@ -438,7 +438,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			foreach (var kv in terrain)
 			{
-				var loc = Exts.ParseIntegerInvariant(kv.Key);
+				var loc = Exts.ParseInt32Invariant(kv.Key);
 				var treeActor = ParseTreeActor(kv.Value);
 
 				var ar = new ActorReference(treeActor)

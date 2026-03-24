@@ -205,12 +205,12 @@ namespace OpenRA.Mods.Common.Traits
 		internal Actor FindClosestEnemy(WPos pos)
 		{
 			var units = World.Actors.Where(IsPreferredEnemyUnit);
-			return units.Where(IsNotHiddenUnit).ClosestTo(pos) ?? units.ClosestTo(pos);
+			return units.Where(IsNotHiddenUnit).ClosestToIgnoringPath(pos) ?? units.ClosestToIgnoringPath(pos);
 		}
 
 		internal Actor FindClosestEnemy(WPos pos, WDist radius)
 		{
-			return World.FindActorsInCircle(pos, radius).Where(a => IsPreferredEnemyUnit(a) && IsNotHiddenUnit(a)).ClosestTo(pos);
+			return World.FindActorsInCircle(pos, radius).Where(a => IsPreferredEnemyUnit(a) && IsNotHiddenUnit(a)).ClosestToIgnoringPath(pos);
 		}
 
 		void CleanSquads()

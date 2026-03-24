@@ -113,7 +113,7 @@ namespace OpenRA.Mods.Common.Traits
 				throw new YamlException($"Weapon '{weaponToLower}' has an invalid number of BurstDelays, must be single entry or Burst - 1.");
 
 			if (WeaponInfo.BurstWait == 0)
-				throw new YamlException("Weapons must define BurstWait: '{0}'".F(weaponToLower));
+				throw new YamlException($"Weapons must define BurstWait: '{weaponToLower}'");
 
 			base.RulesetLoaded(rules, ai);
 		}
@@ -372,7 +372,7 @@ namespace OpenRA.Mods.Common.Traits
 			WAngle MuzzleFacing() => MuzzleOrientation(self, barrel).Yaw;
 			var muzzleOrientation = WRot.FromYaw(MuzzleFacing());
 
-			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.PositionClosestTo(MuzzlePosition());
+			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.ClosestToIgnoringPath(MuzzlePosition());
 			var initialOffset = Weapon.FirstBurstTargetOffset;
 			var targetingVector = WVec.Zero;
 

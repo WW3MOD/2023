@@ -283,7 +283,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& rearmActor.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(rearmActor.Info.Name));
 
-			return rearmActors.ClosestTo(self);
+			return rearmActors.ClosestToIgnoringPath(self);
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }

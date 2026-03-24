@@ -118,7 +118,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var net = playerResources.NetChange;
 			var sign = net >= 0 ? "+" : "";
-			cashLabel.Text = cashTemplate.F(displayResources) + " (" + sign + cashTemplate.F(net) + ")";
+			cashLabel.Text = string.Format(cashTemplate, displayResources) + " (" + sign + string.Format(cashTemplate, net) + ")";
 		}
 	}
 }

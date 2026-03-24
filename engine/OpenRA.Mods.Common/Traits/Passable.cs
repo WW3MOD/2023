@@ -61,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var mobile = self.TraitOrDefault<Mobile>();
 			if (mobile != null && self.World.SharedRandom.Next(100) <= Info.WarnProbability)
-				mobile.Nudge(passer);
+				self.QueueActivity(false, new Nudge(passer));
 		}
 
 		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)

@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			if (navalProductions.Any())
 			{
-				var nearest = navalProductions.ClosestTo(first);
+				var nearest = navalProductions.ClosestToIgnoringPath(first);
 
 				// Return nearest when it is FAR enough.
 				// If the naval production is within MaxBaseRadius, it implies that
@@ -114,7 +114,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				}
 			}
 
-			var leader = owner.Units.ClosestTo(owner.TargetActor.CenterPosition);
+			var leader = owner.Units.ClosestToIgnoringPath(owner.TargetActor.CenterPosition);
 			if (leader == null)
 				return;
 
@@ -155,7 +155,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				var enemies = owner.World.FindActorsInCircle(leader.CenterPosition, WDist.FromCells(owner.SquadManager.Info.AttackScanRadius))
 					.Where(owner.SquadManager.IsPreferredEnemyUnit);
-				var target = enemies.ClosestTo(leader.CenterPosition);
+				var target = enemies.ClosestToIgnoringPath(leader.CenterPosition);
 				if (target != null)
 				{
 					owner.TargetActor = target;
@@ -197,7 +197,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				}
 			}
 
-			var leader = owner.Units.ClosestTo(owner.TargetActor.CenterPosition);
+			var leader = owner.Units.ClosestToIgnoringPath(owner.TargetActor.CenterPosition);
 			if (leader.Location != lastLeaderLocation)
 			{
 				lastLeaderLocation = leader.Location;

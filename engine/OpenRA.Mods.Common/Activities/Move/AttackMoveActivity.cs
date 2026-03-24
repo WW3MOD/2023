@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -27,6 +28,10 @@ namespace OpenRA.Mods.Common.Activities
 		bool runningMoveActivity = false;
 		int token = Actor.InvalidConditionToken;
 		Target target = Target.Invalid;
+		int checkTick = 0;
+
+		/// <summary>The original destination cell, cached at construction time for reliable group scatter extraction.</summary>
+		public readonly CPos? OriginalDestination;
 
 		public AttackMoveActivity(Actor self, Func<Activity> getMove, bool assaultMoving = false)
 		{
@@ -35,6 +40,13 @@ namespace OpenRA.Mods.Common.Activities
 			attackMove = self.TraitOrDefault<AttackMove>();
 			isAssaultMove = assaultMoving;
 			ChildHasPriority = false;
+
+			// Cache the destination before any ticks can modify it (for group scatter)
+			var tempActivity = getMove();
+			if (tempActivity is SmartMoveActivity sma)
+				OriginalDestination = sma.OriginalDestination;
+			else if (tempActivity is Move m)
+				OriginalDestination = m.Destination;
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -56,21 +68,40 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || attackMove == null || autoTarget == null)
 				return TickChild(self);
 
-			// We are currently not attacking, so scan for new targets.
-			if (ChildActivity == null || runningMoveActivity)
+			var engStance = autoTarget.EngagementStanceValue;
+
+			// CPU improvement - Only check every 10 ticks
+			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
+				// We are currently not attacking, so scan for new targets.
 				// Use the standard ScanForTarget rate limit while we are running the move activity to save performance.
 				// Override the rate limit if our attack activity has completed so we can immediately acquire a new target instead of moving.
-				target = autoTarget.ScanForTarget(self, autoTarget.AllowMove, true, !runningMoveActivity);
+				// CPU Expensive!
+				target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
 
 				// Cancel the current move activity and queue attack activities if we find a new target.
 				if (target.Type != TargetType.Invalid)
 				{
+					// HoldPosition during attack-move: only fire at targets in range without stopping
+					if (engStance == EngagementStance.HoldPosition)
+					{
+						var inRange = autoTarget.ActiveAttackBases
+							.Any(ab => target.IsInRange(self.CenterPosition, ab.GetMaximumRange()));
+
+						if (!inRange)
+							target = Target.Invalid;
+					}
+				}
+
+				if (target.Type != TargetType.Invalid)
+				{
+					checkTick = 0;
+
 					runningMoveActivity = false;
 					ChildActivity?.Cancel(self);
 
 					foreach (var ab in autoTarget.ActiveAttackBases)
-						QueueChild(ab.GetAttackActivity(self, AttackSource.AttackMove, target, autoTarget.AllowMove, false));
+						QueueChild(ab.GetAttackActivity(self, AttackSource.AttackMove, target, false, false));
 				}
 
 				// Continue with the move activity (or queue a new one) when there are no targets.
@@ -78,6 +109,7 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					runningMoveActivity = true;
 					QueueChild(getMove());
+					checkTick = 10;
 				}
 			}
 
@@ -103,6 +135,8 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			foreach (var n in getMove().TargetLineNodes(self))
 				yield return n;
+
+			yield break;
 		}
 	}
 }
