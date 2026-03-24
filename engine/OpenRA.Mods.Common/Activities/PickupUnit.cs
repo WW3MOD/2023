@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -33,6 +33,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		enum PickupState { Intercept, LockCarryable, Pickup }
 		PickupState state = PickupState.Intercept;
+		bool reserveFailed;
 
 		public PickupUnit(Actor self, Actor cargo, int delay, Color? targetLineColor)
 		{
@@ -51,8 +52,11 @@ namespace OpenRA.Mods.Common.Activities
 		protected override void OnFirstRun(Actor self)
 		{
 			// The cargo might have become invalid while we were moving towards it.
-			if (cargo.IsDead || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
+			if (cargo.IsDead || carryable.IsTraitDisabled || carryall.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
+			{
+				reserveFailed = true;
 				return;
+			}
 
 			if (carryall.ReserveCarryable(self, cargo))
 			{
@@ -61,37 +65,23 @@ namespace OpenRA.Mods.Common.Activities
 				QueueChild(new Fly(self, Target.FromActor(cargo)));
 				QueueChild(new FlyIdle(self, idleTurn: false));
 			}
+			else
+				reserveFailed = true;
 		}
 
 		public override bool Tick(Actor self)
 		{
-			if (IsCanceling || cargo != carryall.Carryable)
-			{
-				if (carryall.State == Carryall.CarryallState.Reserved)
-					carryall.UnreserveCarryable(self);
-
-				// Make sure we run the TakeOff activity if we are/have landed
-				if (self.Trait<Aircraft>().HasInfluence())
-				{
-					ChildHasPriority = true;
-					IsInterruptible = false;
-					QueueChild(new TakeOff(self));
-					return false;
-				}
-
+			if (IsCanceling || reserveFailed)
 				return true;
-			}
 
-			if (cargo.IsDead || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
+			if (cargo.IsDead || carryable.IsTraitDisabled || carryall.IsTraitDisabled || !cargo.AppearsFriendlyTo(self) || cargo != carryall.Carryable)
 			{
-				carryall.UnreserveCarryable(self);
 				Cancel(self, true);
 				return false;
 			}
 
 			// Wait until we are near the target before we try to lock it
-			var distSq = (cargo.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
-			if (state == PickupState.Intercept && distSq <= targetLockRange.LengthSquared)
+			if (state == PickupState.Intercept && (cargo.CenterPosition - self.CenterPosition).HorizontalLengthSquared <= targetLockRange.LengthSquared)
 				state = PickupState.LockCarryable;
 
 			if (state == PickupState.LockCarryable)
@@ -122,12 +112,36 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
-			// We don't want to allow TakeOff to be cancelled
-			if (ChildActivity is TakeOff)
-				ChildHasPriority = true;
-
-			// Return once we are in the pickup state and the pickup activities have completed
+			// Return once we are in the pickup state and the pickup activities have completed.
 			return TickChild(self) && state == PickupState.Pickup;
+		}
+
+		public override void Cancel(Actor self, bool keepQueue = false)
+		{
+			base.Cancel(self, keepQueue);
+
+			// We are safe to bail here as base won't set IsCanceling to true if not interruptible.
+			if (!IsInterruptible)
+				return;
+
+			// This nulls caryall storage, so to avoid deleting units make sure it is not called while carrying one.
+			if (carryall.State == Carryall.CarryallState.Reserved)
+				carryall.UnreserveCarryable(self);
+
+			// TakeOff is not interruptible, but this activity is. To deal with it we bail. We transfer
+			// priority both to dispose of this activity and to make sure TakeOff is not disposed with it.
+			if (ChildActivity is TakeOff)
+			{
+				ChildHasPriority = true;
+				return;
+			}
+
+			// Make sure we run the TakeOff activity if we are / have landed.
+			if (self.Trait<Aircraft>().HasInfluence())
+			{
+				ChildHasPriority = true;
+				QueueChild(new TakeOff(self));
+			}
 		}
 
 		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
@@ -136,7 +150,7 @@ namespace OpenRA.Mods.Common.Activities
 				yield return new TargetLineNode(Target.FromActor(cargo), targetLineColor.Value);
 		}
 
-		class AttachUnit : Activity
+		sealed class AttachUnit : Activity
 		{
 			readonly Actor cargo;
 			readonly Carryable carryable;
@@ -152,13 +166,13 @@ namespace OpenRA.Mods.Common.Activities
 			protected override void OnFirstRun(Actor self)
 			{
 				// The cargo might have become invalid while we were moving towards it.
-				if (cargo == null || cargo.IsDead || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
+				if (cargo == null || cargo.IsDead || carryable.IsTraitDisabled || carryall.IsTraitDisabled || carryall.Carryable != cargo || !cargo.AppearsFriendlyTo(self))
 					return;
 
 				self.World.AddFrameEndTask(w =>
 				{
 					cargo.World.Remove(cargo);
-					carryable.Attached(cargo);
+					carryable.Attached(cargo, self);
 					carryall.AttachCarryable(self, cargo);
 				});
 			}

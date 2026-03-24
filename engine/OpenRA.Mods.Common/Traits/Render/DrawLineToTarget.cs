@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,13 +35,17 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Width (in pixels) of the queued end node markers.")]
 		public readonly int QueuedMarkerWidth = 2;
 
+		[PaletteReference]
+		[Desc("Palette used for rendering sprites.")]
+		public readonly string Palette = TileSet.TerrainPaletteInternalName;
+
 		public override object Create(ActorInitializer init) { return new DrawLineToTarget(this); }
 	}
 
 	public class DrawLineToTarget : IRenderAboveShroud, IRenderAnnotationsWhenSelected, INotifySelected
 	{
 		readonly DrawLineToTargetInfo info;
-		readonly List<IRenderable> renderableCache = new List<IRenderable>();
+		readonly List<IRenderable> renderableCache = new();
 		long lifetime;
 
 		public DrawLineToTarget(DrawLineToTargetInfo info)
@@ -84,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		static IEnumerable<IRenderable> RenderAboveShroud(Actor self, WorldRenderer wr)
 		{
-			var pal = wr.Palette(TileSet.TerrainPaletteInternalName);
+			var pal = wr.Palette(info.Palette);
 			var a = self.CurrentActivity;
 			for (; a != null; a = a.NextActivity)
 				if (!a.IsCanceling)

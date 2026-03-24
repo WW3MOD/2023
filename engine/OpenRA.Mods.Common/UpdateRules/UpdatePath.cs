@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using OpenRA.Mods.Common.UpdateRules.Rules;
 
 namespace OpenRA.Mods.Common.UpdateRules
 {
-	public class UpdatePath
+	public sealed class UpdatePath
 	{
 		// Define known update paths from stable tags to the current bleed tip
 		//
@@ -31,50 +31,8 @@ namespace OpenRA.Mods.Common.UpdateRules
 		// release-to-bleed path.
 		static readonly UpdatePath[] Paths =
 		{
-			new UpdatePath("release-20200202", "release-20200503", new UpdateRule[]
+			new("release-20210321", "release-20230225", new UpdateRule[]
 			{
-				new RemoveYesNo(),
-				new RemoveInitialFacingHardcoding(),
-				new RemoveAirdropActorTypeDefault(),
-				new RenameProneTime(),
-				new RemoveWithPermanentInjury(),
-				new AddResourceRenderer(),
-				new ReformatChromeProvider(),
-				new RenameSpins(),
-				new CreateScreenShakeWarhead(),
-				new RenameRallyPointPath(),
-			}),
-
-			new UpdatePath("release-20200503", "release-20210321", new UpdateRule[]
-			{
-				new AddPipDecorationTraits(),
-				new ModernizeDecorationTraits(),
-				new RenameHealCrateAction(),
-				new RenameInfiltrationNotifications(),
-				new MoveClassicFacingFudge(),
-				new RenameWithNukeLaunch(),
-				new SpawnActorPowerDefaultEffect(),
-				new RemoveConditionManager(),
-				new ConvertSupportPowerRangesToFootprint(),
-				new UpdateTilesetColors(),
-				new UpdateMapInits(),
-				new CreateFlashPaletteEffectWarhead(),
-				new ChangeTargetLineDelayToMilliseconds(),
-				new ReplaceFacingAngles(),
-				new RenameSelfHealing(),
-				new ReplaceBurns(),
-				new RemoveMuzzleSplitFacings(),
-				new RenameStances(),
-				new RemoveTurnToDock(),
-				new RenameSmudgeSmokeFields(),
-				new RenameCircleContrast(),
-				new SplitDamagedByTerrain(),
-				new RemoveLaysTerrain(),
-			}),
-
-			new UpdatePath("release-20210321", new UpdateRule[]
-			{
-				// Bleed only changes here
 				new RenameMPTraits(),
 				new RemovePlayerHighlightPalette(),
 				new ReplaceWithColoredOverlayPalette(),
@@ -87,30 +45,68 @@ namespace OpenRA.Mods.Common.UpdateRules
 				new RemoveSmokeTrailWhenDamaged(),
 				new ReplaceCrateSecondsWithTicks(),
 				new UseMillisecondsForSounds(),
-				new UnhardcodeSquadManager(),
 				new RenameSupportPowerDescription(),
 				new AttackBomberFacingTolerance(),
 				new AttackFrontalFacingTolerance(),
 				new RenameCloakTypes(),
 				new SplitNukePowerMissileImage(),
 				new ReplaceSequenceEmbeddedPalette(),
-				new UnhardcodeBaseBuilderBotModule(),
 				new UnhardcodeVeteranProductionIconOverlay(),
 				new RenameContrailProperties(),
 				new RemoveDomainIndex(),
 				new AddControlGroups(),
-			})
+
+				// Execute these rules last to avoid premature yaml merge crashes.
+				new UnhardcodeSquadManager(),
+				new UnhardcodeBaseBuilderBotModule(),
+			}),
+
+			new("release-20230225", "release-20231010", new UpdateRule[]
+			{
+				new TextNotificationsDisplayWidgetRemoveTime(),
+				new RenameEngineerRepair(),
+				new ProductionTabsWidgetAddTabButtonCollection(),
+				new RemoveTSRefinery(),
+				new RenameMcvCrateAction(),
+				new RenameContrailWidth(),
+				new RemoveExperienceFromInfiltrates(),
+				new AddColorPickerValueRange(),
+
+				// Execute these rules last to avoid premature yaml merge crashes.
+				new ExplicitSequenceFilenames(),
+				new RemoveSequenceHasEmbeddedPalette(),
+				new RemoveNegativeSequenceLength(),
+			}),
+
+			new("release-20231010", new UpdateRule[]
+			{
+				// bleed only changes here.
+				new RemoveValidRelationsFromCapturable(),
+				new ExtractResourceStorageFromHarvester(),
+				new ReplacePaletteModifiers(),
+				new RemoveConyardChronoReturnAnimation(),
+				new RemoveEditorSelectionLayerProperties(),
+				new AddMarkerLayerOverlay(),
+				new AddSupportPowerBlockedCursor(),
+				new MovePreviewFacing(),
+				new RenameOnDeath(),
+				new RemoveParentTopParentLeftSubstitutions(),
+				new RenameWidgetSubstitutions(),
+
+				// Execute these rules last to avoid premature yaml merge crashes.
+				new ReplaceCloakPalette(),
+				new AbstractDocking(),
+			}),
 		};
 
-		public static IEnumerable<UpdateRule> FromSource(ObjectCreator objectCreator, string source, bool chain = true)
+		public static IReadOnlyCollection<UpdateRule> FromSource(ObjectCreator objectCreator, string source, bool chain = true)
 		{
 			// Use reflection to identify types
 			var namedType = objectCreator.FindType(source);
 			if (namedType != null && namedType.IsSubclassOf(typeof(UpdateRule)))
 				return new[] { (UpdateRule)objectCreator.CreateBasic(namedType) };
 
-			var namedPath = Paths.FirstOrDefault(p => p.source == source);
-			return namedPath != null ? namedPath.Rules(chain) : null;
+			return Paths.FirstOrDefault(p => p.source == source)?.Rules(chain);
 		}
 
 		public static IEnumerable<string> KnownPaths { get { return Paths.Select(p => p.source); } }
@@ -132,12 +128,12 @@ namespace OpenRA.Mods.Common.UpdateRules
 			this.chainToSource = chainToSource;
 		}
 
-		IEnumerable<UpdateRule> Rules(bool chain = true)
+		IReadOnlyCollection<UpdateRule> Rules(bool chain = true)
 		{
 			if (chainToSource != null && chain)
 			{
 				var child = Paths.First(p => p.source == chainToSource);
-				return rules.Concat(child.Rules(chain));
+				return rules.Concat(child.Rules(chain)).ToList();
 			}
 
 			return rules;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,7 +20,6 @@ namespace OpenRA.Mods.Common.Terrain
 {
 	public class DefaultTerrainLoader : ITerrainLoader
 	{
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "IDE0060:Remove unused parameter", Justification = "Load game API")]
 		public DefaultTerrainLoader(ModData modData) { }
 
 		public ITerrainInfo ParseTerrain(IReadOnlyFileSystem fileSystem, string path)
@@ -83,7 +82,7 @@ namespace OpenRA.Mods.Common.Terrain
 
 		[FieldLoader.Ignore]
 		public readonly TerrainTypeInfo[] TerrainInfo;
-		readonly Dictionary<string, byte> terrainIndexByType = new Dictionary<string, byte>();
+		readonly Dictionary<string, byte> terrainIndexByType = new();
 		readonly byte defaultWalkableTerrainIndex;
 
 		public DefaultTerrain(IReadOnlyFileSystem fileSystem, string filepath)
@@ -164,25 +163,22 @@ namespace OpenRA.Mods.Common.Terrain
 		IEnumerable<Color> ITerrainInfo.RestrictedPlayerColors { get { return TerrainInfo.Where(ti => ti.RestrictPlayerColor).Select(ti => ti.Color); } }
 		float ITerrainInfo.MinHeightColorBrightness => MinHeightColorBrightness;
 		float ITerrainInfo.MaxHeightColorBrightness => MaxHeightColorBrightness;
-		TerrainTile ITerrainInfo.DefaultTerrainTile => new TerrainTile(Templates.First().Key, 0);
+		TerrainTile ITerrainInfo.DefaultTerrainTile => new(Templates.First().Key, 0);
 
 		string[] ITemplatedTerrainInfo.EditorTemplateOrder => EditorTemplateOrder;
 		IReadOnlyDictionary<ushort, TerrainTemplateInfo> ITemplatedTerrainInfo.Templates => Templates;
 
 		void ITerrainInfoNotifyMapCreated.MapCreated(Map map)
 		{
-			// Randomize PickAny tile variants
+			// Randomize PickAny tile variants.
 			var r = new MersenneTwister();
-			for (var j = map.Bounds.Top; j < map.Bounds.Bottom; j++)
+			foreach (var uv in map.AllCells.MapCoords)
 			{
-				for (var i = map.Bounds.Left; i < map.Bounds.Right; i++)
-				{
-					var type = map.Tiles[new MPos(i, j)].Type;
-					if (!Templates.TryGetValue(type, out var template) || !template.PickAny)
-						continue;
+				var type = map.Tiles[uv].Type;
+				if (!Templates.TryGetValue(type, out var template) || !template.PickAny)
+					continue;
 
-					map.Tiles[new MPos(i, j)] = new TerrainTile(type, (byte)r.Next(0, template.TilesCount));
-				}
+				map.Tiles[uv] = new TerrainTile(type, (byte)r.Next(0, template.TilesCount));
 			}
 		}
 	}

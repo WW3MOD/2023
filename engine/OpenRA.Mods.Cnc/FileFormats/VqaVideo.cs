@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -68,13 +68,13 @@ namespace OpenRA.Mods.Cnc.FileFormats
 			// Decode FORM chunk
 			if (stream.ReadASCII(4) != "FORM")
 				throw new InvalidDataException("Invalid vqa (invalid FORM section)");
-			/*var length = */stream.ReadUInt32();
+			stream.ReadUInt32(); // length
 
 			if (stream.ReadASCII(8) != "WVQAVQHD")
 				throw new InvalidDataException("Invalid vqa (not WVQAVQHD)");
-			/*var length2 = */stream.ReadUInt32();
+			stream.ReadUInt32(); // length2
 
-			/*var version = */stream.ReadUInt16();
+			stream.ReadUInt16(); // version
 			videoFlags = stream.ReadUInt16();
 			FrameCount = stream.ReadUInt16();
 			Width = stream.ReadUInt16();
@@ -87,20 +87,20 @@ namespace OpenRA.Mods.Cnc.FileFormats
 			blocks = new int2(Width / blockWidth, Height / blockHeight);
 
 			numColors = stream.ReadUInt16();
-			/*var maxBlocks = */stream.ReadUInt16();
-			/*var unknown1 = */stream.ReadUInt16();
-			/*var unknown2 = */stream.ReadUInt32();
+			stream.ReadUInt16(); // maxBlocks
+			stream.ReadUInt16(); // unknown1
+			stream.ReadUInt32(); // unknown2
 
 			// Audio
 			SampleRate = stream.ReadUInt16();
-			AudioChannels = stream.ReadByte();
-			SampleBits = stream.ReadByte();
+			AudioChannels = stream.ReadUInt8();
+			SampleBits = stream.ReadUInt8();
 
-			/*var unknown3 =*/stream.ReadUInt32();
-			/*var unknown4 =*/stream.ReadUInt16();
-			/*maxCbfzSize =*/stream.ReadUInt32(); // Unreliable
+			stream.ReadUInt32(); // unknown3
+			stream.ReadUInt16(); // unknown4
+			stream.ReadUInt32(); // maxCbfzSize, unreliable
 
-			/*var unknown5 =*/stream.ReadUInt32();
+			stream.ReadUInt32(); // unknown5
 
 			if (IsHqVqa)
 			{
@@ -131,8 +131,8 @@ namespace OpenRA.Mods.Cnc.FileFormats
 					throw new NotSupportedException($"Vqa uses unknown Subtype: {type}");
 			}
 
-			/*var length = */stream.ReadUInt16();
-			/*var unknown4 = */stream.ReadUInt16();
+			stream.ReadUInt16(); // length
+			stream.ReadUInt16(); // unknown4
 
 			// Frame offsets
 			offsets = new uint[FrameCount];
@@ -199,16 +199,16 @@ namespace OpenRA.Mods.Cnc.FileFormats
 							else if (AudioChannels == 1)
 							{
 								var rawAudio = stream.ReadBytes((int)length);
-								audio1.WriteArray(rawAudio);
+								audio1.Write(rawAudio);
 							}
 							else
 							{
 								var rawAudio = stream.ReadBytes((int)length / 2);
-								audio1.WriteArray(rawAudio);
+								audio1.Write(rawAudio);
 								rawAudio = stream.ReadBytes((int)length / 2);
-								audio2.WriteArray(rawAudio);
+								audio2.Write(rawAudio);
 								if (length % 2 != 0)
-									stream.ReadBytes(2);
+									stream.Position += 2;
 							}
 
 							compressed = type == "SND2";
@@ -216,12 +216,12 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						default:
 							if (length + stream.Position > stream.Length)
 								throw new NotSupportedException($"Vqa uses unknown Subtype: {type}");
-							stream.ReadBytes((int)length);
+							stream.Position += length;
 							break;
 					}
 
 					// Chunks are aligned on even bytes; advance by a byte if the next one is null
-					if (stream.Peek() == 0) stream.ReadByte();
+					if (stream.Peek() == 0) stream.ReadUInt8();
 				}
 			}
 
@@ -300,7 +300,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						DecodeVQFR(stream);
 						break;
 					case "\0VQF":
-						stream.ReadByte();
+						stream.ReadUInt8();
 						DecodeVQFR(stream);
 						break;
 					case "VQFL":
@@ -308,12 +308,12 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						break;
 					default:
 						// Don't parse sound here.
-						stream.ReadBytes((int)length);
+						stream.Position += length;
 						break;
 				}
 
 				// Chunks are aligned on even bytes; advance by a byte if the next one is null
-				if (stream.Peek() == 0) stream.ReadByte();
+				if (stream.Peek() == 0) stream.ReadUInt8();
 			}
 
 			// Now that the frame data has been loaded (in the relevant private fields), decode it into CurrentFrameData.
@@ -332,7 +332,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 				if (!cbpIsCompressed)
 					cbf = (byte[])cbp.Clone();
 				else
-					LCWDecodeInto(cbp, cbf);
+					LCWCompression.DecodeInto(cbp, cbf);
 
 				chunkBufferOffset = currentChunkBuffer = 0;
 			}
@@ -340,7 +340,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 			while (true)
 			{
 				// Chunks are aligned on even bytes; may be padded with a single null
-				if (s.Peek() == 0) s.ReadByte();
+				if (s.Peek() == 0) s.ReadUInt8();
 				var type = s.ReadASCII(4);
 				var subchunkLength = (int)int2.Swap(s.ReadUInt32());
 
@@ -352,7 +352,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						s.ReadBytes(fileBuffer, 0, subchunkLength);
 						Array.Clear(cbf, 0, cbf.Length);
 						Array.Clear(cbfBuffer, 0, cbfBuffer.Length);
-						var decodeCount = LCWDecodeInto(fileBuffer, cbfBuffer, decodeMode ? 1 : 0, decodeMode);
+						var decodeCount = LCWCompression.DecodeInto(fileBuffer, cbfBuffer, decodeMode ? 1 : 0, decodeMode);
 						if ((videoFlags & 0x10) == 16)
 						{
 							var p = 0;
@@ -382,8 +382,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 					// frame-modifier chunk
 					case "CBP0":
 					case "CBPZ":
-						var bytes = s.ReadBytes(subchunkLength);
-						bytes.CopyTo(cbp, chunkBufferOffset);
+						s.ReadBytes(cbp, chunkBufferOffset, subchunkLength);
 						chunkBufferOffset += subchunkLength;
 						currentChunkBuffer++;
 						cbpIsCompressed = type == "CBPZ";
@@ -406,7 +405,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 
 					// Frame data
 					case "VPTZ":
-						LCWDecodeInto(s.ReadBytes(subchunkLength), origData);
+						LCWCompression.DecodeInto(s.ReadBytes(subchunkLength), origData);
 
 						// This is the last subchunk
 						return;
@@ -414,9 +413,9 @@ namespace OpenRA.Mods.Cnc.FileFormats
 						Array.Clear(origData, 0, origData.Length);
 						s.ReadBytes(fileBuffer, 0, subchunkLength);
 						if (fileBuffer[0] != 0)
-							vtprSize = LCWDecodeInto(fileBuffer, origData);
+							vtprSize = LCWCompression.DecodeInto(fileBuffer, origData);
 						else
-							LCWDecodeInto(fileBuffer, origData, 1, true);
+							LCWCompression.DecodeInto(fileBuffer, origData, 1, true);
 						return;
 					case "VPTR":
 						Array.Clear(origData, 0, origData.Length);
@@ -538,76 +537,6 @@ namespace OpenRA.Mods.Cnc.FileFormats
 					y++;
 					if (y >= blocks.Y && i != count - 1)
 						throw new IndexOutOfRangeException();
-				}
-			}
-		}
-
-		// TODO: Maybe replace this with LCWCompression.DecodeInto again later
-		public static int LCWDecodeInto(byte[] src, byte[] dest, int srcOffset = 0, bool reverse = false)
-		{
-			var ctx = new FastByteReader(src, srcOffset);
-			var destIndex = 0;
-			while (true)
-			{
-				var i = ctx.ReadByte();
-				if ((i & 0x80) == 0)
-				{
-					// case 2
-					var secondByte = ctx.ReadByte();
-					var count = ((i & 0x70) >> 4) + 3;
-					var rpos = ((i & 0xf) << 8) + secondByte;
-
-					if (destIndex + count > dest.Length)
-						return destIndex;
-
-					// Replicate previous
-					var srcIndex = destIndex - rpos;
-					if (srcIndex > destIndex)
-						throw new NotImplementedException($"srcIndex > destIndex {srcIndex} {destIndex}");
-
-					for (var j = 0; j < count; j++)
-					{
-						if (destIndex - srcIndex == 1)
-							dest[destIndex + j] = dest[destIndex - 1];
-						else
-							dest[destIndex + j] = dest[srcIndex + j];
-					}
-
-					destIndex += count;
-				}
-				else if ((i & 0x40) == 0)
-				{
-					// case 1
-					var count = i & 0x3F;
-					if (count == 0)
-						return destIndex;
-
-					ctx.CopyTo(dest, destIndex, count);
-					destIndex += count;
-				}
-				else
-				{
-					var count3 = i & 0x3F;
-					if (count3 == 0x3E)
-					{
-						// case 4
-						var count = ctx.ReadWord();
-						var color = ctx.ReadByte();
-
-						for (var end = destIndex + count; destIndex < end; destIndex++)
-							dest[destIndex] = color;
-					}
-					else
-					{
-						// If count3 == 0x3F it's case 5, else case 3
-						var count = count3 == 0x3F ? ctx.ReadWord() : count3 + 3;
-						var srcIndex = reverse ? destIndex - ctx.ReadWord() : ctx.ReadWord();
-						if (srcIndex >= destIndex)
-							throw new NotImplementedException($"srcIndex >= destIndex {srcIndex} {destIndex}");
-
-						for (var end = destIndex + count; destIndex < end; destIndex++)
-							dest[destIndex] = dest[srcIndex++];
-					}
 				}
 			}
 		}

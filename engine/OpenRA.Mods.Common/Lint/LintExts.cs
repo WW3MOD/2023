@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	public class LintExts
+	public static class LintExts
 	{
 		public static IEnumerable<string> GetFieldValues(object ruleInfo, FieldInfo fieldInfo,
 			LintDictionaryReference dictionaryReference = LintDictionaryReference.None)
@@ -37,9 +37,11 @@ namespace OpenRA.Mods.Common.Lint
 				return expr != null ? expr.Variables : Enumerable.Empty<string>();
 			}
 
-			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+			if (type.IsGenericType &&
+				(type.GetGenericTypeDefinition() == typeof(Dictionary<,>) ||
+				type.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)))
 			{
-				// Use an intermediate list to cover the unlikely case where both keys and values are lintable
+				// Use an intermediate list to cover the unlikely case where both keys and values are lintable.
 				var dictionaryValues = new List<string>();
 				if (dictionaryReference.HasFlag(LintDictionaryReference.Keys) && type.GenericTypeArguments[0] == typeof(string))
 					dictionaryValues.AddRange((IEnumerable<string>)((IDictionary)fieldInfo.GetValue(ruleInfo)).Keys);
@@ -60,10 +62,15 @@ namespace OpenRA.Mods.Common.Lint
 				"Dictionary<string, T> (LintDictionaryReference.Keys)",
 				"Dictionary<T, string> (LintDictionaryReference.Values)",
 				"Dictionary<T, IEnumerable<string>> (LintDictionaryReference.Values)",
+				"IReadOnlyDictionary<string, T> (LintDictionaryReference.Keys)",
+				"IReadOnlyDictionary<T, string> (LintDictionaryReference.Values)",
+				"IReadOnlyDictionary<T, IEnumerable<string>> (LintDictionaryReference.Values)",
 				"BooleanExpression", "IntegerExpression"
 			};
 
-			throw new InvalidOperationException($"Bad type for reference on {ruleInfo.GetType().Name}.{fieldInfo.Name}. Supported types: {supportedTypes.JoinWith(", ")}");
+			throw new InvalidOperationException(
+				$"Bad type for reference on `{ruleInfo.GetType().Name}.{fieldInfo.Name}`. " +
+				$"Supported types: {supportedTypes.JoinWith(", ")}.");
 		}
 
 		public static IEnumerable<string> GetPropertyValues(object ruleInfo, PropertyInfo propertyInfo,
@@ -84,7 +91,7 @@ namespace OpenRA.Mods.Common.Lint
 
 			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
 			{
-				// Use an intermediate list to cover the unlikely case where both keys and values are lintable
+				// Use an intermediate list to cover the unlikely case where both keys and values are lintable.
 				var dictionaryValues = new List<string>();
 				if (dictionaryReference.HasFlag(LintDictionaryReference.Keys) && type.GenericTypeArguments[0] == typeof(string))
 					dictionaryValues.AddRange((IEnumerable<string>)((IDictionary)propertyInfo.GetValue(ruleInfo)).Keys);
@@ -108,7 +115,9 @@ namespace OpenRA.Mods.Common.Lint
 				"BooleanExpression", "IntegerExpression"
 			};
 
-			throw new InvalidOperationException($"Bad type for reference on {ruleInfo.GetType().Name}.{propertyInfo.Name}. Supported types: {supportedTypes.JoinWith(", ")}");
+			throw new InvalidOperationException(
+				$"Bad type for reference on `{ruleInfo.GetType().Name}.{propertyInfo.Name}`." +
+				$"Supported types: {supportedTypes.JoinWith(", ")}.");
 		}
 	}
 }

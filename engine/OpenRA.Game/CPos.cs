@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,8 @@ using OpenRA.Scripting;
 
 namespace OpenRA
 {
-	public readonly struct CPos : IScriptBindable, ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, ILuaTableBinding, IEquatable<CPos>
+	public readonly struct CPos : IEquatable<CPos>, IScriptBindable,
+		ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, ILuaTableBinding, ILuaToStringBinding
 	{
 		// Coordinates are packed in a 32 bit signed int
 		// X and Y are 12 bits (signed): -2048...2047
@@ -41,7 +42,7 @@ namespace OpenRA
 			Bits = (x & 0xFFF) << 20 | (y & 0xFFF) << 8 | layer;
 		}
 
-		public static readonly CPos Zero = new CPos(0, 0, 0);
+		public static readonly CPos Zero = new(0, 0, 0);
 
 		public static explicit operator CPos(int2 a) { return new CPos(a.X, a.Y); }
 
@@ -56,7 +57,11 @@ namespace OpenRA
 		public override int GetHashCode() { return Bits.GetHashCode(); }
 
 		public bool Equals(CPos other) { return Bits == other.Bits; }
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public override bool Equals(object obj) { return obj is CPos pos && Equals(pos); }
+=======
+		public override bool Equals(object obj) { return obj is CPos cell && Equals(cell); }
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public override string ToString()
 		{
@@ -101,7 +106,8 @@ namespace OpenRA
 		public LuaValue Add(LuaRuntime runtime, LuaValue left, LuaValue right)
 		{
 			if (!left.TryGetClrValue(out CPos a) || !right.TryGetClrValue(out CVec b))
-				throw new LuaException($"Attempted to call CPos.Add(CPos, CVec) with invalid arguments ({left.WrappedClrType().Name}, {right.WrappedClrType().Name})");
+				throw new LuaException("Attempted to call CPos.Add(CPos, CVec) with invalid arguments " +
+					$"({left.WrappedClrType().Name}, {right.WrappedClrType().Name})");
 
 			return new LuaCustomClrObject(a + b);
 		}
@@ -110,7 +116,8 @@ namespace OpenRA
 		{
 			var rightType = right.WrappedClrType();
 			if (!left.TryGetClrValue(out CPos a))
-				throw new LuaException($"Attempted to call CPos.Subtract(CPos, (CPos|CVec)) with invalid arguments ({left.WrappedClrType().Name}, {rightType.Name})");
+				throw new LuaException("Attempted to call CPos.Subtract(CPos, (CPos|CVec)) with invalid arguments " +
+					$"({left.WrappedClrType().Name}, {rightType.Name})");
 
 			if (rightType == typeof(CPos))
 			{
@@ -123,7 +130,8 @@ namespace OpenRA
 				return new LuaCustomClrObject(a - b);
 			}
 
-			throw new LuaException($"Attempted to call CPos.Subtract(CPos, (CPos|CVec)) with invalid arguments ({left.WrappedClrType().Name}, {rightType.Name})");
+			throw new LuaException("Attempted to call CPos.Subtract(CPos, (CPos|CVec)) with invalid arguments " +
+				$"({left.WrappedClrType().Name}, {rightType.Name})");
 		}
 
 		public LuaValue Equals(LuaRuntime runtime, LuaValue left, LuaValue right)
@@ -149,6 +157,8 @@ namespace OpenRA
 
 			set => throw new LuaException("CPos is read-only. Use CPos.New to create a new value");
 		}
+
+		public LuaValue ToString(LuaRuntime runtime) => ToString();
 
 		#endregion
 	}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,18 +24,21 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
-		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value regardless of range.")]
+		[Desc("Controls the way inaccuracy is calculated. Possible values are " +
+			"'Maximum' - scale from 0 to max with range, " +
+			"'PerCellIncrement' - scale from 0 with range, " +
+			"'Absolute' - use set value regardless of range.")]
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Maximum;
 
 		[Desc("Projectile can be blocked.")]
 		public readonly bool Blockable = false;
 
 		[Desc("The width of the projectile.")]
-		public readonly WDist Width = new WDist(1);
+		public readonly WDist Width = new(1);
 
 		[Desc("Scan radius for actors with projectile-blocking trait. If set to a negative value (default), it will automatically scale",
 			"to the blocker with the largest health shape. Only set custom values if you know what you're doing.")]
-		public readonly WDist BlockerScanRadius = new WDist(-1);
+		public readonly WDist BlockerScanRadius = new(-1);
 
 		public IProjectile Create(ProjectileArgs args) { return new InstantHit(this, args); }
 	}
@@ -72,7 +75,12 @@ namespace OpenRA.Mods.Common.Projectiles
 				target = Target.FromPos(args.PassiveTarget);
 
 			// Check for blocking actors
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, args.Source, target.CenterPosition, info.Width, out var blockedPos, sourceOrigin: args.Source))
+=======
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(
+				world, args.SourceActor.Owner, args.Source, target.CenterPosition, info.Width, out var blockedPos))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				target = Target.FromPos(blockedPos);
 
 			var warheadArgs = new WarheadArgs(args)

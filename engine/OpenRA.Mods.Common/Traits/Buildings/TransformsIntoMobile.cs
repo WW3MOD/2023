@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -33,7 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		[CursorReference(dictionaryReference: LintDictionaryReference.Values)]
 		[Desc("Cursor overrides to display for specific terrain types.",
 			"A dictionary of [terrain type]: [cursor name].")]
-		public readonly Dictionary<string, string> TerrainCursors = new Dictionary<string, string>();
+		public readonly Dictionary<string, string> TerrainCursors = new();
 
 		[CursorReference]
 		[Desc("Cursor to display when a move order cannot be issued at target location.")]
@@ -54,12 +54,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
-			var locomotorInfos = rules.Actors[SystemActors.World].TraitInfos<LocomotorInfo>();
-			LocomotorInfo = locomotorInfos.FirstOrDefault(li => li.Name == Locomotor);
-			if (LocomotorInfo == null)
+			var locomotorInfos = rules.Actors[SystemActors.World].TraitInfos<LocomotorInfo>()
+				.Where(li => li.Name == Locomotor).ToList();
+			if (locomotorInfos.Count == 0)
 				throw new YamlException($"A locomotor named '{Locomotor}' doesn't exist.");
-			else if (locomotorInfos.Count(li => li.Name == Locomotor) > 1)
+			else if (locomotorInfos.Count > 1)
 				throw new YamlException($"There is more than one locomotor named '{Locomotor}'.");
+
+			LocomotorInfo = locomotorInfos[0];
 
 			base.RulesetLoaded(rules, ai);
 		}
@@ -110,6 +112,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (order.OrderString == "Move")
 			{
+				if (!order.Target.IsValidFor(self))
+					return;
+
 				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
@@ -166,7 +171,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class MoveOrderTargeter : IOrderTargeter
+		sealed class MoveOrderTargeter : IOrderTargeter
 		{
 			readonly TransformsIntoMobile mobile;
 			readonly bool rejectMove;
@@ -187,7 +192,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public string OrderID => "Move";
 			public int OrderPriority => 4;
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 
 			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
@@ -199,9 +204,15 @@ namespace OpenRA.Mods.Common.Traits
 
 				var explored = self.Owner.MapLayers.IsExplored(location);
 				if (!self.World.Map.Contains(location) ||
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					!(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused)) ||
 					(!explored && !mobile.locomotor.Info.MoveIntoShroud) ||
 					(explored && !CanEnterCell(self, location)))
+=======
+					!(self.CurrentActivity is Transform || mobile.transforms.Any(t => !t.IsTraitDisabled && !t.IsTraitPaused))
+					|| (!explored && !mobile.locomotor.Info.MoveIntoShroud)
+					|| (explored && !CanEnterCell(self, location)))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					cursor = mobile.Info.BlockedCursor;
 				else if (!explored || !mobile.Info.TerrainCursors.TryGetValue(self.World.Map.GetTerrainInfo(location).Type, out cursor))
 					cursor = mobile.Info.Cursor;

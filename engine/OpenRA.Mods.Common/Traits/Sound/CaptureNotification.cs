@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,6 +20,7 @@ namespace OpenRA.Mods.Common.Traits.Sound
 		[Desc("Speech notification to play to the new owner.")]
 		public readonly string Notification = "BuildingCaptured";
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display to the new owner.")]
 		public readonly string TextNotification = null;
 
@@ -33,6 +34,7 @@ namespace OpenRA.Mods.Common.Traits.Sound
 		[Desc("Speech notification to play to the old owner.")]
 		public readonly string LoseNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display to the old owner.")]
 		public readonly string LoseTextNotification = null;
 
@@ -69,11 +71,11 @@ namespace OpenRA.Mods.Common.Traits.Sound
 
 			var faction = info.NewOwnerVoice ? newOwner.Faction.InternalName : oldOwner.Faction.InternalName;
 			Game.Sound.PlayNotification(self.World.Map.Rules, newOwner, "Speech", info.Notification, faction);
-			TextNotificationsManager.AddTransientLine(info.TextNotification, newOwner);
+			TextNotificationsManager.AddTransientLine(newOwner, info.TextNotification);
 
 			var loseFaction = info.LoseNewOwnerVoice ? newOwner.Faction.InternalName : oldOwner.Faction.InternalName;
 			Game.Sound.PlayNotification(self.World.Map.Rules, oldOwner, "Speech", info.LoseNotification, loseFaction);
-			TextNotificationsManager.AddTransientLine(info.LoseTextNotification, oldOwner);
+			TextNotificationsManager.AddTransientLine(oldOwner, info.LoseTextNotification);
 		}
 	}
 }

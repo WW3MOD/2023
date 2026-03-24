@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class SupportPowerManager : ITick, IResolveOrder, ITechTreeElement
 	{
 		public readonly Actor Self;
-		public readonly Dictionary<string, SupportPowerInstance> Powers = new Dictionary<string, SupportPowerInstance>();
+		public readonly Dictionary<string, SupportPowerInstance> Powers = new();
 
 		public readonly DeveloperMode DevMode;
 		public readonly TechTree TechTree;
@@ -39,7 +39,11 @@ namespace OpenRA.Mods.Common.Traits
 			Self = init.Self;
 			DevMode = Self.Trait<DeveloperMode>();
 			TechTree = Self.Trait<TechTree>();
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			MiniMapPings = Exts.Lazy(() => init.World.WorldActor.TraitOrDefault<MiniMapPings>());
+=======
+			RadarPings = Exts.Lazy(() => Self.World.WorldActor.TraitOrDefault<RadarPings>());
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			init.World.ActorAdded += ActorAdded;
 			init.World.ActorRemoved += ActorRemoved;
@@ -59,9 +63,9 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var key = MakeKey(t);
 
-				if (!Powers.ContainsKey(key))
+				if (!Powers.TryGetValue(key, out var spi))
 				{
-					Powers.Add(key, t.CreateInstance(key, this));
+					Powers.Add(key, spi = t.CreateInstance(key, this));
 
 					if (t.Info.Prerequisites.Length > 0)
 					{
@@ -70,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				Powers[key].Instances.Add(t);
+				spi.Instances.Add(t);
 			}
 		}
 
@@ -102,8 +106,8 @@ namespace OpenRA.Mods.Common.Traits
 		public void ResolveOrder(Actor self, Order order)
 		{
 			// order.OrderString is the key of the support power
-			if (Powers.ContainsKey(order.OrderString))
-				Powers[order.OrderString].Activate(order);
+			if (Powers.TryGetValue(order.OrderString, out var sp))
+				sp.Activate(order);
 		}
 
 		static readonly SupportPowerInstance[] NoInstances = Array.Empty<SupportPowerInstance>();
@@ -144,7 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly string Key;
 
-		public readonly List<SupportPower> Instances = new List<SupportPower>();
+		public readonly List<SupportPower> Instances = new();
 		public readonly int TotalTicks;
 
 		protected int remainingSubTicks;
@@ -157,6 +161,8 @@ namespace OpenRA.Mods.Common.Traits
 			oneShotFired;
 
 		public SupportPowerInfo Info { get { return Instances.Select(i => i.Info).FirstOrDefault(); } }
+		public readonly string Name;
+		public readonly string Description;
 		public bool Ready => Active && RemainingTicks == 0;
 
 		bool instancesEnabled;
@@ -175,6 +181,8 @@ namespace OpenRA.Mods.Common.Traits
 			Key = key;
 			TotalTicks = GetChargeInterval(info, manager);
 			remainingSubTicks = info.StartFullyCharged ? 0 : TotalTicks * 100;
+			Name = info.Name == null ? string.Empty : FluentProvider.GetMessage(info.Name);
+			Description = info.Description == null ? string.Empty : FluentProvider.GetMessage(info.Description);
 
 			Manager = manager;
 		}
@@ -220,7 +228,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Active)
 				return;
 
-			var power = Instances.First();
+			var power = Instances[0];
 			if (Manager.DevMode.FastCharge && remainingSubTicks > 2500)
 				remainingSubTicks = 2500;
 
@@ -254,7 +262,7 @@ namespace OpenRA.Mods.Common.Traits
 			Game.Sound.PlayNotification(power.Self.World.Map.Rules, power.Self.Owner, "Speech",
 				Info.SelectTargetSpeechNotification, power.Self.Owner.Faction.InternalName);
 
-			TextNotificationsManager.AddTransientLine(Info.SelectTargetTextNotification, power.Self.Owner);
+			TextNotificationsManager.AddTransientLine(power.Self.Owner, Info.SelectTargetTextNotification);
 
 			power.SelectTarget(power.Self, Key, Manager);
 		}
@@ -302,21 +310,20 @@ namespace OpenRA.Mods.Common.Traits
 	public class SelectGenericPowerTarget : OrderGenerator
 	{
 		readonly SupportPowerManager manager;
-		readonly string order;
-		readonly string cursor;
+		readonly SupportPowerInfo info;
 		readonly MouseButton expectedButton;
 
-		public string OrderKey => order;
+		public string OrderKey { get; }
 
-		public SelectGenericPowerTarget(string order, SupportPowerManager manager, string cursor, MouseButton button)
+		public SelectGenericPowerTarget(string order, SupportPowerManager manager, SupportPowerInfo info, MouseButton button)
 		{
 			// Clear selection if using Left-Click Orders
 			if (Game.Settings.Game.UseClassicMouseStyle)
 				manager.Self.World.Selection.Clear();
 
 			this.manager = manager;
-			this.order = order;
-			this.cursor = cursor;
+			OrderKey = order;
+			this.info = info;
 			expectedButton = button;
 		}
 
@@ -324,13 +331,13 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			world.CancelInputMode();
 			if (mi.Button == expectedButton && world.Map.Contains(cell))
-				yield return new Order(order, manager.Self, Target.FromCell(world, cell), false) { SuppressVisualFeedback = true };
+				yield return new Order(OrderKey, manager.Self, Target.FromCell(world, cell), false) { SuppressVisualFeedback = true };
 		}
 
 		protected override void Tick(World world)
 		{
 			// Cancel the OG if we can't use the power
-			if (!manager.Powers.TryGetValue(order, out var p) || !p.Active || !p.Ready)
+			if (!manager.Powers.TryGetValue(OrderKey, out var p) || !p.Active || !p.Ready)
 				world.CancelInputMode();
 		}
 
@@ -339,7 +346,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override IEnumerable<IRenderable> RenderAnnotations(WorldRenderer wr, World world) { yield break; }
 		protected override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
-			return world.Map.Contains(cell) ? cursor : "generic-blocked";
+			return world.Map.Contains(cell) ? info.Cursor : info.BlockedCursor;
 		}
 	}
 }

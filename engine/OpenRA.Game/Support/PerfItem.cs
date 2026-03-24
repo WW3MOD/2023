@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -71,6 +71,13 @@ namespace OpenRA.Support
 				if (--n < 0) n = samples.Length - 1;
 				return samples[n];
 			}
+		}
+
+		public void ResetSamples()
+		{
+			head = 1;
+			tail = 0;
+			Val = 0.0;
 		}
 	}
 }

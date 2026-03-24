@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,173 +11,185 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets.Logic;
 using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Server;
+using OpenRA.Support;
 using OpenRA.Traits;
 using S = OpenRA.Server.Server;
 
 namespace OpenRA.Mods.Common.Server
 {
-	public class LobbyCommands : ServerTrait, IInterpretCommand, INotifyServerStart, INotifyServerEmpty, IClientJoined
+	public class LobbyCommands : ServerTrait, IInterpretCommand, INotifyServerStart, INotifyServerEmpty, IClientJoined, OpenRA.Server.ITick
 	{
-		[TranslationReference]
-		static readonly string CustomRules = "custom-rules";
+		[FluentReference]
+		const string CustomRules = "notification-custom-rules";
 
-		[TranslationReference]
-		static readonly string OnlyHostStartGame = "only-only-host-start-game";
+		[FluentReference]
+		const string OnlyHostStartGame = "notification-admin-start-game";
 
-		[TranslationReference]
-		static readonly string NoStartUntilRequiredSlotsFull = "no-start-until-required-slots-full";
+		[FluentReference]
+		const string NoStartUntilRequiredSlotsFull = "notification-no-start-until-required-slots-full";
 
-		[TranslationReference]
-		static readonly string NoStartWithoutPlayers = "no-start-without-players";
+		[FluentReference]
+		const string NoStartWithoutPlayers = "notification-no-start-without-players";
 
-		[TranslationReference]
-		static readonly string TwoHumansRequired = "two-humans-required";
+		[FluentReference]
+		const string TwoHumansRequired = "notification-two-humans-required";
 
-		[TranslationReference]
-		static readonly string InsufficientEnabledSpawnPoints = "insufficient-enabled-spawnPoints";
+		[FluentReference]
+		const string InsufficientEnabledSpawnPoints = "notification-insufficient-enabled-spawn-points";
 
-		[TranslationReference("command")]
-		static readonly string MalformedCommand = "malformed-command";
+		[FluentReference("command")]
+		const string MalformedCommand = "notification-malformed-command";
 
-		[TranslationReference]
-		static readonly string KickNone = "kick-none";
+		[FluentReference]
+		const string KickNone = "notification-kick-none";
 
-		[TranslationReference]
-		static readonly string NoKickGameStarted = "no-kick-game-started";
+		[FluentReference]
+		const string NoKickSelf = "notification-kick-self";
 
-		[TranslationReference("admin", "player")]
-		static readonly string Kicked = "kicked";
+		[FluentReference]
+		const string NoKickGameStarted = "notification-no-kick-game-started";
 
-		[TranslationReference("admin", "player")]
-		static readonly string TempBan = "temp-ban";
+		[FluentReference("admin", "player")]
+		const string AdminKicked = "notification-admin-kicked";
 
-		[TranslationReference]
-		static readonly string NoTransferAdmin = "only-host-transfer-admin";
+		[FluentReference("player")]
+		const string Kicked = "notification-kicked";
 
-		[TranslationReference]
-		static readonly string EmptySlot = "empty-slot";
+		[FluentReference("admin", "player")]
+		const string TempBan = "notification-temp-ban";
 
-		[TranslationReference("admin", "player")]
-		static readonly string MoveSpectators = "move-spectators";
+		[FluentReference]
+		const string NoTransferAdmin = "notification-admin-transfer-admin";
 
-		[TranslationReference("player", "name")]
-		static readonly string Nick = "nick";
+		[FluentReference]
+		const string EmptySlot = "notification-empty-slot";
 
-		[TranslationReference]
-		static readonly string StateUnchangedReady = "state-unchanged-ready";
+		[FluentReference("admin", "player")]
+		const string MoveSpectators = "notification-move-spectators";
 
-		[TranslationReference("command")]
-		static readonly string StateUnchangedGameStarted = "state-unchanged-game-started";
+		[FluentReference("player", "name")]
+		const string Nick = "notification-nick-changed";
 
-		[TranslationReference("faction")]
-		static readonly string InvalidFactionSelected = "invalid-faction-selected";
+		[FluentReference]
+		const string StateUnchangedReady = "notification-state-unchanged-ready";
 
-		[TranslationReference("factions")]
-		static readonly string SupportedFactions = "supported-factions";
+		[FluentReference("command")]
+		const string StateUnchangedGameStarted = "notification-state-unchanged-game-started";
 
-		[TranslationReference]
-		static readonly string RequiresHost = "requires-host";
+		[FluentReference("faction")]
+		const string InvalidFactionSelected = "notification-invalid-faction-selected";
 
-		[TranslationReference]
-		static readonly string InvalidBotSlot = "invalid-bot-slot";
+		[FluentReference]
+		const string RequiresHost = "notification-requires-host";
 
-		[TranslationReference]
-		static readonly string InvalidBotType = "invalid-bot-type";
+		[FluentReference]
+		const string InvalidBotSlot = "notification-invalid-bot-slot";
 
-		[TranslationReference]
-		static readonly string HostChangeMap = "only-host-change-map";
+		[FluentReference]
+		const string InvalidBotType = "notification-invalid-bot-type";
 
-		[TranslationReference]
-		static readonly string UnknownMap = "unknown-map";
+		[FluentReference]
+		const string HostChangeMap = "notification-admin-change-map";
 
-		[TranslationReference]
-		static readonly string SearchingMap = "searching-map";
+		[FluentReference]
+		const string UnknownMap = "notification-unknown-map";
 
-		[TranslationReference]
-		static readonly string NotAdmin = "only-host-change-configuration";
+		[FluentReference]
+		const string SearchingMap = "notification-searching-map";
 
-		[TranslationReference]
-		static readonly string InvalidConfigurationCommand = "invalid-configuration-command";
+		[FluentReference]
+		const string NotAdmin = "notification-admin-change-configuration";
 
-		[TranslationReference("option")]
-		static readonly string OptionLocked = "option-locked";
+		[FluentReference]
+		const string InvalidConfigurationCommand = "notification-invalid-configuration-command";
 
-		[TranslationReference("player", "map")]
-		static readonly string ChangedMap = "changed-map";
+		[FluentReference("option")]
+		const string OptionLocked = "notification-option-locked";
 
-		[TranslationReference]
-		static readonly string MapBotsDisabled = "map-bots-disabled";
+		[FluentReference("player", "map")]
+		const string ChangedMap = "notification-changed-map";
 
-		[TranslationReference("player", "name", "value")]
-		static readonly string ValueChanged = "value-changed";
+		[FluentReference]
+		const string MapBotsDisabled = "notification-map-bots-disabled";
 
-		[TranslationReference]
-		static readonly string NoMoveSpectators = "only-host-move-spectators";
+		[FluentReference("player", "name", "value")]
+		const string ValueChanged = "notification-option-changed";
 
-		[TranslationReference]
-		static readonly string AdminOption = "admin-option";
+		[FluentReference]
+		const string NoMoveSpectators = "notification-admin-move-spectators";
 
-		[TranslationReference("raw")]
-		static readonly string NumberTeams = "number-teams";
+		[FluentReference]
+		const string AdminOption = "notification-admin-option";
 
-		[TranslationReference]
-		static readonly string AdminClearSpawn = "admin-clear-spawn";
+		[FluentReference("raw")]
+		const string NumberTeams = "notification-error-number-teams";
 
-		[TranslationReference]
-		static readonly string SpawnOccupied = "spawn-occupied";
+		[FluentReference]
+		const string AdminClearSpawn = "notification-admin-clear-spawn";
 
-		[TranslationReference]
-		static readonly string SpawnLocked = "spawn-locked";
+		[FluentReference]
+		const string SpawnOccupied = "notification-spawn-occupied";
 
-		[TranslationReference]
-		static readonly string AdminLobbyInfo = "admin-lobby-info";
+		[FluentReference]
+		const string SpawnLocked = "notification-spawn-locked";
 
-		[TranslationReference]
-		static readonly string InvalidLobbyInfo = "invalid-lobby-info";
+		[FluentReference]
+		const string AdminLobbyInfo = "notification-admin-lobby-info";
 
-		[TranslationReference]
-		static readonly string AdminKick = "admin-kick";
+		[FluentReference]
+		const string InvalidLobbyInfo = "notification-invalid-lobby-info";
 
-		[TranslationReference]
-		static readonly string SlotClosed = "slot-closed";
+		[FluentReference]
+		const string AdminKick = "notification-admin-kick";
 
-		[TranslationReference("player")]
-		public static readonly string NewAdmin = "new-admin";
+		[FluentReference]
+		const string SlotClosed = "notification-slot-closed";
 
-		[TranslationReference]
-		static readonly string YouWereKicked = "you-were-kicked";
+		[FluentReference("player")]
+		const string NewAdmin = "notification-new-admin";
 
-		readonly IDictionary<string, Func<S, Connection, Session.Client, string, bool>> commandHandlers = new Dictionary<string, Func<S, Connection, Session.Client, string, bool>>
-		{
-			{ "state", State },
-			{ "startgame", StartGame },
-			{ "slot", Slot },
-			{ "allow_spectators", AllowSpectators },
-			{ "spectate", Specate },
-			{ "slot_close", SlotClose },
-			{ "slot_open", SlotOpen },
-			{ "slot_bot", SlotBot },
-			{ "map", Map },
-			{ "option", Option },
-			{ "assignteams", AssignTeams },
-			{ "kick", Kick },
-			{ "make_admin", MakeAdmin },
-			{ "make_spectator", MakeSpectator },
-			{ "name", Name },
-			{ "faction", Faction },
-			{ "team", Team },
-			{ "handicap", Handicap },
-			{ "spawn", Spawn },
-			{ "clear_spawn", ClearPlayerSpawn },
-			{ "color", PlayerColor },
-			{ "sync_lobby", SyncLobby }
-		};
+		[FluentReference]
+		const string YouWereKicked = "notification-you-were-kicked";
+
+		[FluentReference]
+		const string VoteKickDisabled = "notification-vote-kick-disabled";
+
+		readonly IDictionary<string, Func<S, Connection, Session.Client, string, bool>> commandHandlers =
+			new Dictionary<string, Func<S, Connection, Session.Client, string, bool>>
+			{
+				{ "state", State },
+				{ "startgame", StartGame },
+				{ "slot", Slot },
+				{ "allow_spectators", AllowSpectators },
+				{ "spectate", Specate },
+				{ "slot_close", SlotClose },
+				{ "slot_open", SlotOpen },
+				{ "slot_bot", SlotBot },
+				{ "map", Map },
+				{ "option", Option },
+				{ "reset_options", ResetOptions },
+				{ "assignteams", AssignTeams },
+				{ "kick", Kick },
+				{ "vote_kick", VoteKick },
+				{ "make_admin", MakeAdmin },
+				{ "make_spectator", MakeSpectator },
+				{ "name", Name },
+				{ "faction", Faction },
+				{ "team", Team },
+				{ "handicap", Handicap },
+				{ "spawn", Spawn },
+				{ "clear_spawn", ClearPlayerSpawn },
+				{ "color", PlayerColor },
+				{ "sync_lobby", SyncLobby }
+			};
 
 		static bool ValidateSlotCommand(S server, Connection conn, Session.Client client, string arg, bool requiresHost)
 		{
@@ -191,7 +203,7 @@ namespace OpenRA.Mods.Common.Server
 
 				if (requiresHost && !client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, RequiresHost);
+					server.SendFluentMessageTo(conn, RequiresHost);
 					return false;
 				}
 
@@ -204,17 +216,17 @@ namespace OpenRA.Mods.Common.Server
 			lock (server.LobbyInfo)
 			{
 				// Kick command is always valid for the host
-				if (command.StartsWith("kick "))
+				if (command.StartsWith("kick ", StringComparison.Ordinal) || command.StartsWith("vote_kick ", StringComparison.Ordinal))
 					return true;
 
 				if (server.State == ServerState.GameStarted)
 				{
-					server.SendLocalizedMessageTo(conn, StateUnchangedGameStarted, Translation.Arguments("command", command));
+					server.SendFluentMessageTo(conn, StateUnchangedGameStarted, new object[] { "command", command });
 					return false;
 				}
-				else if (client.State == Session.ClientState.Ready && !(command.StartsWith("state") || command == "startgame"))
+				else if (client.State == Session.ClientState.Ready && !(command.StartsWith("state", StringComparison.Ordinal) || command == "startgame"))
 				{
-					server.SendLocalizedMessageTo(conn, StateUnchangedReady);
+					server.SendFluentMessageTo(conn, StateUnchangedReady);
 					return false;
 				}
 
@@ -288,7 +300,7 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!Enum<Session.ClientState>.TryParse(s, false, out var state))
 				{
-					server.SendLocalizedMessageTo(conn, MalformedCommand, Translation.Arguments("command", "state"));
+					server.SendFluentMessageTo(conn, MalformedCommand, new object[] { "command", "state" });
 
 					return true;
 				}
@@ -309,13 +321,13 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, OnlyHostStartGame);
+					server.SendFluentMessageTo(conn, OnlyHostStartGame);
 					return true;
 				}
 
 				if (server.LobbyInfo.Slots.Any(sl => sl.Value.Required && server.LobbyInfo.ClientInSlot(sl.Key) == null))
 				{
-					server.SendLocalizedMessageTo(conn, NoStartUntilRequiredSlotsFull);
+					server.SendFluentMessageTo(conn, NoStartUntilRequiredSlotsFull);
 					return true;
 				}
 
@@ -327,13 +339,13 @@ namespace OpenRA.Mods.Common.Server
 
 				if (!server.LobbyInfo.GlobalSettings.EnableSingleplayer && server.LobbyInfo.NonBotPlayers.Count() < 2)
 				{
-					server.SendLocalizedMessageTo(conn, TwoHumansRequired);
+					server.SendFluentMessageTo(conn, TwoHumansRequired);
 					return true;
 				}
 
 				if (LobbyUtils.InsufficientEnabledSpawnPoints(server.Map, server.LobbyInfo))
 				{
-					server.SendLocalizedMessageTo(conn, InsufficientEnabledSpawnPoints);
+					server.SendFluentMessageTo(conn, InsufficientEnabledSpawnPoints);
 					return true;
 				}
 
@@ -347,13 +359,11 @@ namespace OpenRA.Mods.Common.Server
 		{
 			lock (server.LobbyInfo)
 			{
-				if (!server.LobbyInfo.Slots.ContainsKey(s))
+				if (!server.LobbyInfo.Slots.TryGetValue(s, out var slot))
 				{
 					Log.Write("server", $"Invalid slot: {s}");
 					return false;
 				}
-
-				var slot = server.LobbyInfo.Slots[s];
 
 				if (slot.Closed || server.LobbyInfo.ClientInSlot(s) != null)
 					return false;
@@ -386,7 +396,7 @@ namespace OpenRA.Mods.Common.Server
 					return true;
 				}
 
-				server.SendLocalizedMessageTo(conn, MalformedCommand, Translation.Arguments("command", "allow_spectate"));
+				server.SendFluentMessageTo(conn, MalformedCommand, new object[] { "command", "allow_spectate" });
 
 				return true;
 			}
@@ -475,7 +485,7 @@ namespace OpenRA.Mods.Common.Server
 				var parts = s.Split(' ');
 				if (parts.Length < 3)
 				{
-					server.SendLocalizedMessageTo(conn, MalformedCommand, Translation.Arguments("command", "slot_bot"));
+					server.SendFluentMessageTo(conn, MalformedCommand, new object[] { "command", "slot_bot" });
 					return true;
 				}
 
@@ -484,7 +494,7 @@ namespace OpenRA.Mods.Common.Server
 
 				var slot = server.LobbyInfo.Slots[parts[0]];
 				var bot = server.LobbyInfo.ClientInSlot(parts[0]);
-				if (!Exts.TryParseIntegerInvariant(parts[1], out var controllerClientIndex))
+				if (!Exts.TryParseInt32Invariant(parts[1], out var controllerClientIndex))
 				{
 					Log.Write("server", $"Invalid bot controller client index: {parts[1]}");
 					return false;
@@ -493,7 +503,7 @@ namespace OpenRA.Mods.Common.Server
 				// Invalid slot
 				if (bot != null && bot.Bot == null)
 				{
-					server.SendLocalizedMessageTo(conn, InvalidBotSlot);
+					server.SendFluentMessageTo(conn, InvalidBotSlot);
 					return true;
 				}
 
@@ -503,7 +513,7 @@ namespace OpenRA.Mods.Common.Server
 
 				if (botInfo == null)
 				{
-					server.SendLocalizedMessageTo(conn, InvalidBotType);
+					server.SendFluentMessageTo(conn, InvalidBotType);
 					return true;
 				}
 
@@ -526,10 +536,11 @@ namespace OpenRA.Mods.Common.Server
 					};
 
 					// Pick a random color for the bot
-					var colorManager = server.ModData.DefaultRules.Actors[SystemActors.World].TraitInfo<ColorPickerManagerInfo>();
-					var terrainColors = server.ModData.DefaultTerrainInfo[server.Map.TileSet].RestrictedPlayerColors;
+					var colorManager = server.ModData.DefaultRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
+					var terrainColors = server.ModData.DefaultTerrainInfo[server.Map.TileSet].RestrictedPlayerColors.ToList();
 					var playerColors = server.LobbyInfo.Clients.Select(c => c.Color)
-						.Concat(server.Map.Players.Players.Values.Select(p => p.Color));
+						.Concat(server.Map.Players.Players.Values.Select(p => p.Color)).ToList();
+
 					bot.Color = bot.PreferredColor = colorManager.RandomPresetColor(server.Random, terrainColors, playerColors);
 
 					server.LobbyInfo.Clients.Add(bot);
@@ -555,12 +566,18 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, HostChangeMap);
+					server.SendFluentMessageTo(conn, HostChangeMap);
+					return true;
+				}
+
+				if (server.MapPool != null && !server.MapPool.Contains(s))
+				{
+					QueryFailed();
 					return true;
 				}
 
 				var lastMap = server.LobbyInfo.GlobalSettings.Map;
-				Action<MapPreview> selectMap = map =>
+				void SelectMap(MapPreview map)
 				{
 					lock (server.LobbyInfo)
 					{
@@ -589,9 +606,8 @@ namespace OpenRA.Mods.Common.Server
 
 						foreach (var c in server.LobbyInfo.Clients)
 						{
+							c.Faction = SanitizePlayerFaction(server, c.Faction, selectableFactions);
 							c.State = Session.ClientState.Invalid;
-							if (!selectableFactions.Contains(c.Faction))
-								c.Faction = "Random";
 						}
 
 						// Reassign players into new slots based on their old slots:
@@ -632,45 +648,45 @@ namespace OpenRA.Mods.Common.Server
 
 						server.SyncLobbyInfo();
 
-						server.SendLocalizedMessage(ChangedMap, Translation.Arguments("player", client.Name, "map", server.Map.Title));
+						server.SendFluentMessage(ChangedMap, "player", client.Name, "map", server.Map.Title);
 
 						if ((server.LobbyInfo.GlobalSettings.MapStatus & Session.MapStatus.UnsafeCustomRules) != 0)
-							server.SendLocalizedMessage(CustomRules);
+							server.SendFluentMessage(CustomRules);
 
 						if (!server.LobbyInfo.GlobalSettings.EnableSingleplayer)
-							server.SendLocalizedMessage(TwoHumansRequired);
+							server.SendFluentMessage(TwoHumansRequired);
 						else if (server.Map.Players.Players.Where(p => p.Value.Playable).All(p => !p.Value.AllowBots))
-							server.SendLocalizedMessage(MapBotsDisabled);
+							server.SendFluentMessage(MapBotsDisabled);
 
 						var briefing = MissionBriefingOrDefault(server);
 						if (briefing != null)
 							server.SendMessage(briefing);
 					}
-				};
-
-				Action queryFailed = () => server.SendLocalizedMessageTo(conn, UnknownMap);
+				}
 
 				var m = server.ModData.MapCache[s];
 				if (m.Status == MapStatus.Available || m.Status == MapStatus.DownloadAvailable)
-					selectMap(m);
+					SelectMap(m);
 				else if (server.Settings.QueryMapRepository)
 				{
-					server.SendLocalizedMessageTo(conn, SearchingMap);
+					server.SendFluentMessageTo(conn, SearchingMap);
 					var mapRepository = server.ModData.Manifest.Get<WebServices>().MapRepository;
 					var reported = false;
-					server.ModData.MapCache.QueryRemoteMapDetails(mapRepository, new[] { s }, selectMap, _ =>
+					server.ModData.MapCache.QueryRemoteMapDetails(mapRepository, new[] { s }, SelectMap, _ =>
 					{
 						if (!reported)
-							queryFailed();
+							QueryFailed();
 
 						reported = true;
 					});
 				}
 				else
-					queryFailed();
+					QueryFailed();
 
 				return true;
 			}
+
+			void QueryFailed() => server.SendFluentMessageTo(conn, UnknownMap);
 		}
 
 		static bool Option(S server, Connection conn, Session.Client client, string s)
@@ -679,7 +695,7 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, NotAdmin);
+					server.SendFluentMessageTo(conn, NotAdmin);
 					return true;
 				}
 
@@ -696,13 +712,13 @@ namespace OpenRA.Mods.Common.Server
 				if (split.Length < 2 || !options.TryGetValue(split[0], out var option) ||
 					!option.Values.ContainsKey(split[1]))
 				{
-					server.SendLocalizedMessageTo(conn, InvalidConfigurationCommand);
+					server.SendFluentMessageTo(conn, InvalidConfigurationCommand);
 					return true;
 				}
 
 				if (option.IsLocked)
 				{
-					server.SendLocalizedMessageTo(conn, OptionLocked, Translation.Arguments("option", option.Name));
+					server.SendFluentMessageTo(conn, OptionLocked, new object[] { "option", option.Name });
 					return true;
 				}
 
@@ -710,10 +726,59 @@ namespace OpenRA.Mods.Common.Server
 				if (oo.Value == split[1])
 					return true;
 
+				if (!option.Values.ContainsKey(split[1]))
+				{
+					server.SendFluentMessageTo(conn, InvalidConfigurationCommand);
+					return true;
+				}
+
 				oo.Value = oo.PreferredValue = split[1];
 
 				server.SyncLobbyGlobalSettings();
-				server.SendLocalizedMessage(ValueChanged, Translation.Arguments("player", client.Name, "name", option.Name, "value", option.Label(split[1])));
+				server.SendFluentMessage(ValueChanged, "player", client.Name, "name", option.Name, "value", option.Label(split[1]));
+
+				foreach (var c in server.LobbyInfo.Clients)
+					c.State = Session.ClientState.NotReady;
+
+				server.SyncLobbyClients();
+
+				return true;
+			}
+		}
+
+		static bool ResetOptions(S server, Connection conn, Session.Client client, string s)
+		{
+			lock (server.LobbyInfo)
+			{
+				if (!client.IsAdmin)
+				{
+					server.SendFluentMessageTo(conn, NotAdmin);
+					return true;
+				}
+
+				var allOptions = server.Map.PlayerActorInfo.TraitInfos<ILobbyOptions>()
+					.Concat(server.Map.WorldActorInfo.TraitInfos<ILobbyOptions>())
+					.SelectMany(t => t.LobbyOptions(server.Map));
+
+				var options = new Dictionary<string, Session.LobbyOptionState>();
+				foreach (var o in allOptions)
+				{
+					if (o.DefaultValue != server.LobbyInfo.GlobalSettings.LobbyOptions[o.Id].Value)
+						server.SendFluentMessage(ValueChanged,
+							"player", client.Name,
+							"name", o.Name,
+							"value", o.Label(o.DefaultValue));
+
+					options[o.Id] = new Session.LobbyOptionState
+					{
+						IsLocked = o.IsLocked,
+						Value = o.DefaultValue,
+						PreferredValue = o.DefaultValue
+					};
+				}
+
+				server.LobbyInfo.GlobalSettings.LobbyOptions = options;
+				server.SyncLobbyGlobalSettings();
 
 				foreach (var c in server.LobbyInfo.Clients)
 					c.State = Session.ClientState.NotReady;
@@ -730,13 +795,13 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, AdminOption);
+					server.SendFluentMessageTo(conn, AdminOption);
 					return true;
 				}
 
-				if (!Exts.TryParseIntegerInvariant(raw, out var teamCount))
+				if (!Exts.TryParseInt32Invariant(raw, out var teamCount))
 				{
-					server.SendLocalizedMessageTo(conn, NumberTeams, Translation.Arguments("raw", raw));
+					server.SendFluentMessageTo(conn, NumberTeams, new object[] { "raw", raw });
 					return true;
 				}
 
@@ -744,10 +809,11 @@ namespace OpenRA.Mods.Common.Server
 				teamCount = teamCount.Clamp(0, maxTeams);
 				var clients = server.LobbyInfo.Slots
 					.Select(slot => server.LobbyInfo.ClientInSlot(slot.Key))
-					.Where(c => c != null && !server.LobbyInfo.Slots[c.Slot].LockTeam);
+					.Where(c => c != null && !server.LobbyInfo.Slots[c.Slot].LockTeam)
+					.ToList();
 
 				var assigned = 0;
-				var clientCount = clients.Count();
+				var clientCount = clients.Count;
 				foreach (var player in clients)
 				{
 					// Free for all
@@ -773,42 +839,48 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, AdminKick);
+					server.SendFluentMessageTo(conn, AdminKick);
 					return true;
 				}
 
 				var split = s.Split(' ');
 				if (split.Length < 2)
 				{
-					server.SendLocalizedMessageTo(conn, MalformedCommand, Translation.Arguments("command", "kick"));
+					server.SendFluentMessageTo(conn, MalformedCommand, new object[] { "command", "kick" });
 					return true;
 				}
 
-				Exts.TryParseIntegerInvariant(split[0], out var kickClientID);
+				var kickConn = Exts.TryParseInt32Invariant(split[0], out var kickClientID)
+					? server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == kickClientID) : null;
 
-				var kickConn = server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == kickClientID);
 				if (kickConn == null)
 				{
-					server.SendLocalizedMessageTo(conn, KickNone);
+					server.SendFluentMessageTo(conn, KickNone);
 					return true;
 				}
 
 				var kickClient = server.GetClient(kickConn);
-				if (server.State == ServerState.GameStarted && !kickClient.IsObserver)
+				if (client == kickClient)
 				{
-					server.SendLocalizedMessageTo(conn, NoKickGameStarted);
+					server.SendFluentMessageTo(conn, NoKickSelf);
+					return true;
+				}
+
+				if (server.State == ServerState.GameStarted && !kickClient.IsObserver && !server.HasClientWonOrLost(kickClient))
+				{
+					server.SendFluentMessageTo(conn, NoKickGameStarted);
 					return true;
 				}
 
 				Log.Write("server", $"Kicking client {kickClientID}.");
-				server.SendLocalizedMessage(Kicked, Translation.Arguments("admin", client.Name, "player", kickClient.Name));
+				server.SendFluentMessage(AdminKicked, "admin", client.Name, "player", kickClient.Name);
 				server.SendOrderTo(kickConn, "ServerError", YouWereKicked);
 				server.DropClient(kickConn);
 
 				if (bool.TryParse(split[1], out var tempBan) && tempBan)
 				{
 					Log.Write("server", $"Temporarily banning client {kickClientID} ({kickClient.IPAddress}).");
-					server.SendLocalizedMessage(TempBan, Translation.Arguments("admin", client.Name, "player", kickClient.Name));
+					server.SendFluentMessage(TempBan, "admin", client.Name, "player", kickClient.Name);
 					server.TempBans.Add(kickClient.IPAddress);
 				}
 
@@ -819,22 +891,78 @@ namespace OpenRA.Mods.Common.Server
 			}
 		}
 
+		static bool VoteKick(S server, Connection conn, Session.Client client, string s)
+		{
+			lock (server.LobbyInfo)
+			{
+				var split = s.Split(' ');
+				if (split.Length != 2)
+				{
+					server.SendFluentMessageTo(conn, MalformedCommand, new object[] { "command", "vote_kick" });
+					return true;
+				}
+
+				if (!server.Settings.EnableVoteKick)
+				{
+					server.SendFluentMessageTo(conn, VoteKickDisabled);
+					return true;
+				}
+
+				var kickConn = Exts.TryParseInt32Invariant(split[0], out var kickClientID)
+					? server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == kickClientID) : null;
+
+				if (kickConn == null)
+				{
+					server.SendFluentMessageTo(conn, KickNone);
+					return true;
+				}
+
+				var kickClient = server.GetClient(kickConn);
+				if (client == kickClient)
+				{
+					server.SendFluentMessageTo(conn, NoKickSelf);
+					return true;
+				}
+
+				if (!bool.TryParse(split[1], out var vote))
+				{
+					server.SendFluentMessageTo(conn, MalformedCommand, new object[] { "command", "vote_kick" });
+					return true;
+				}
+
+				if (server.VoteKickTracker.VoteKick(conn, client, kickConn, kickClient, kickClientID, vote))
+				{
+					Log.Write("server", $"Kicking client {kickClientID}.");
+					server.SendFluentMessage(Kicked, "player", kickClient.Name);
+					server.SendOrderTo(kickConn, "ServerError", YouWereKicked);
+					server.DropClient(kickConn);
+
+					server.SyncLobbyClients();
+					server.SyncLobbySlots();
+				}
+
+				return true;
+			}
+		}
+
+		void OpenRA.Server.ITick.Tick(S server) => server.VoteKickTracker.Tick();
+
 		static bool MakeAdmin(S server, Connection conn, Session.Client client, string s)
 		{
 			lock (server.LobbyInfo)
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, NoTransferAdmin);
+					server.SendFluentMessageTo(conn, NoTransferAdmin);
 					return true;
 				}
 
-				Exts.TryParseIntegerInvariant(s, out var newAdminId);
-				var newAdminConn = server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == newAdminId);
+				var newAdminConn = Exts.TryParseInt32Invariant(s, out var newAdminId)
+					? server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == newAdminId) : null;
 
 				if (newAdminConn == null)
 				{
-					server.SendLocalizedMessageTo(conn, EmptySlot);
+					server.SendFluentMessageTo(conn, EmptySlot);
 					return true;
 				}
 
@@ -848,7 +976,7 @@ namespace OpenRA.Mods.Common.Server
 				foreach (var b in bots)
 					b.BotControllerClientIndex = newAdminId;
 
-				server.SendLocalizedMessage(NewAdmin, Translation.Arguments("player", newAdminClient.Name));
+				server.SendFluentMessage(NewAdmin, "player", newAdminClient.Name);
 				Log.Write("server", $"{newAdminClient.Name} is now the admin.");
 				server.SyncLobbyClients();
 
@@ -862,15 +990,16 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, NoMoveSpectators);
+					server.SendFluentMessageTo(conn, NoMoveSpectators);
 					return true;
 				}
 
-				Exts.TryParseIntegerInvariant(s, out var targetId);
-				var targetConn = server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == targetId);
+				var targetConn = Exts.TryParseInt32Invariant(s, out var targetId)
+					? server.Conns.SingleOrDefault(c => server.GetClient(c)?.Index == targetId) : null;
+
 				if (targetConn == null)
 				{
-					server.SendLocalizedMessageTo(conn, EmptySlot);
+					server.SendFluentMessageTo(conn, EmptySlot);
 					return true;
 				}
 
@@ -881,7 +1010,7 @@ namespace OpenRA.Mods.Common.Server
 				targetClient.Handicap = 0;
 				targetClient.Color = Color.White;
 				targetClient.State = Session.ClientState.NotReady;
-				server.SendLocalizedMessage(MoveSpectators, Translation.Arguments("admin", client.Name, "player", targetClient.Name));
+				server.SendFluentMessage(MoveSpectators, "admin", client.Name, "player", targetClient.Name);
 				Log.Write("server", $"{client.Name} moved {targetClient.Name} to spectators.");
 				server.SyncLobbyClients();
 				CheckAutoStart(server);
@@ -899,7 +1028,7 @@ namespace OpenRA.Mods.Common.Server
 					return true;
 
 				Log.Write("server", $"Player@{conn.EndPoint} is now known as {sanitizedName}.");
-				server.SendLocalizedMessage(Nick, Translation.Arguments("player", client.Name, "name", sanitizedName));
+				server.SendFluentMessage(Nick, "player", client.Name, "name", sanitizedName);
 				client.Name = sanitizedName;
 				server.SyncLobbyClients();
 
@@ -912,7 +1041,7 @@ namespace OpenRA.Mods.Common.Server
 			lock (server.LobbyInfo)
 			{
 				var parts = s.Split(' ');
-				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseIntegerInvariant(parts[0]));
+				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseInt32Invariant(parts[0]));
 
 				// Only the host can change other client's info
 				if (targetClient.Index != client.Index && !client.IsAdmin)
@@ -922,14 +1051,13 @@ namespace OpenRA.Mods.Common.Server
 				if (server.LobbyInfo.Slots[targetClient.Slot].LockFaction)
 					return true;
 
-				var factions = server.Map.WorldActorInfo.TraitInfos<FactionInfo>()
-					.Where(f => f.Selectable).Select(f => f.InternalName);
-
 				var faction = parts[1];
-				if (!factions.Contains(faction))
+				var isValidFaction = server.Map.WorldActorInfo.TraitInfos<FactionInfo>()
+					.Any(f => f.Selectable && f.InternalName == client.Faction);
+
+				if (!isValidFaction)
 				{
-					server.SendLocalizedMessageTo(conn, InvalidFactionSelected, Translation.Arguments("faction", faction));
-					server.SendLocalizedMessageTo(conn, SupportedFactions, Translation.Arguments("factions", factions.JoinWith(", ")));
+					server.SendFluentMessageTo(conn, InvalidFactionSelected, new object[] { "faction", faction });
 					return true;
 				}
 
@@ -945,7 +1073,7 @@ namespace OpenRA.Mods.Common.Server
 			lock (server.LobbyInfo)
 			{
 				var parts = s.Split(' ');
-				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseIntegerInvariant(parts[0]));
+				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseInt32Invariant(parts[0]));
 
 				// Only the host can change other client's info
 				if (targetClient.Index != client.Index && !client.IsAdmin)
@@ -955,9 +1083,9 @@ namespace OpenRA.Mods.Common.Server
 				if (server.LobbyInfo.Slots[targetClient.Slot].LockTeam)
 					return true;
 
-				if (!Exts.TryParseIntegerInvariant(parts[1], out var team))
+				if (!Exts.TryParseInt32Invariant(parts[1], out var team))
 				{
-					Log.Write("server", "Invalid team: {0}", s);
+					Log.Write("server", $"Invalid team: {s}");
 					return false;
 				}
 
@@ -973,7 +1101,7 @@ namespace OpenRA.Mods.Common.Server
 			lock (server.LobbyInfo)
 			{
 				var parts = s.Split(' ');
-				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseIntegerInvariant(parts[0]));
+				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseInt32Invariant(parts[0]));
 
 				// Only the host can change other client's info
 				if (targetClient.Index != client.Index && !client.IsAdmin)
@@ -983,9 +1111,9 @@ namespace OpenRA.Mods.Common.Server
 				if (server.LobbyInfo.Slots[targetClient.Slot].LockHandicap)
 					return true;
 
-				if (!Exts.TryParseIntegerInvariant(parts[1], out var handicap))
+				if (!Exts.TryParseInt32Invariant(parts[1], out var handicap))
 				{
-					Log.Write("server", "Invalid handicap: {0}", s);
+					Log.Write("server", $"Invalid handicap: {s}");
 					return false;
 				}
 
@@ -993,7 +1121,7 @@ namespace OpenRA.Mods.Common.Server
 				var options = Enumerable.Range(0, 20).Select(i => 5 * i);
 				if (!options.Contains(handicap))
 				{
-					Log.Write("server", "Invalid handicap: {0}", s);
+					Log.Write("server", $"Invalid handicap: {s}");
 					return false;
 				}
 
@@ -1006,14 +1134,14 @@ namespace OpenRA.Mods.Common.Server
 
 		static bool ClearPlayerSpawn(S server, Connection conn, Session.Client client, string s)
 		{
-			var spawnPoint = Exts.ParseIntegerInvariant(s);
+			var spawnPoint = Exts.ParseInt32Invariant(s);
 			if (spawnPoint == 0)
 				return true;
 
 			var existingClient = server.LobbyInfo.Clients.FirstOrDefault(cc => cc.SpawnPoint == spawnPoint);
 			if (client != existingClient && !client.IsAdmin)
 			{
-				server.SendLocalizedMessageTo(conn, AdminClearSpawn);
+				server.SendFluentMessageTo(conn, AdminClearSpawn);
 				return true;
 			}
 
@@ -1034,9 +1162,7 @@ namespace OpenRA.Mods.Common.Server
 
 			// Clearing an empty spawn point prevents it from being selected
 			// Clearing a disabled spawn restores it for use
-			if (!server.LobbyInfo.DisabledSpawnPoints.Contains(spawnPoint))
-				server.LobbyInfo.DisabledSpawnPoints.Add(spawnPoint);
-			else
+			if (!server.LobbyInfo.DisabledSpawnPoints.Add(spawnPoint))
 				server.LobbyInfo.DisabledSpawnPoints.Remove(spawnPoint);
 
 			server.SyncLobbyInfo();
@@ -1048,7 +1174,7 @@ namespace OpenRA.Mods.Common.Server
 			lock (server.LobbyInfo)
 			{
 				var parts = s.Split(' ');
-				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseIntegerInvariant(parts[0]));
+				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseInt32Invariant(parts[0]));
 
 				// Only the host can change other client's info
 				if (targetClient.Index != client.Index && !client.IsAdmin)
@@ -1062,16 +1188,16 @@ namespace OpenRA.Mods.Common.Server
 				if (server.LobbyInfo.Slots[targetClient.Slot].LockSpawn)
 					return true;
 
-				if (!Exts.TryParseIntegerInvariant(parts[1], out var spawnPoint)
-				    || spawnPoint < 0 || spawnPoint > server.Map.SpawnPoints.Length)
+				if (!Exts.TryParseInt32Invariant(parts[1], out var spawnPoint)
+					|| spawnPoint < 0 || spawnPoint > server.Map.SpawnPoints.Length)
 				{
 					Log.Write("server", $"Invalid spawn point: {parts[1]}");
 					return true;
 				}
 
-				if (server.LobbyInfo.Clients.Where(cc => cc != client).Any(cc => (cc.SpawnPoint == spawnPoint) && (cc.SpawnPoint != 0)))
+				if (server.LobbyInfo.Clients.Any(cc => cc != client && (cc.SpawnPoint == spawnPoint) && (cc.SpawnPoint != 0)))
 				{
-					server.SendLocalizedMessageTo(conn, SpawnOccupied);
+					server.SendFluentMessageTo(conn, SpawnOccupied);
 					return true;
 				}
 
@@ -1086,7 +1212,7 @@ namespace OpenRA.Mods.Common.Server
 
 					if (spawnLockedByAnotherSlot)
 					{
-						server.SendLocalizedMessageTo(conn, SpawnLocked);
+						server.SendFluentMessageTo(conn, SpawnLocked);
 						return true;
 					}
 				}
@@ -1103,7 +1229,7 @@ namespace OpenRA.Mods.Common.Server
 			lock (server.LobbyInfo)
 			{
 				var parts = s.Split(' ');
-				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseIntegerInvariant(parts[0]));
+				var targetClient = server.LobbyInfo.ClientWithIndex(Exts.ParseInt32Invariant(parts[0]));
 
 				// Only the host can change other client's info
 				if (targetClient.Index != client.Index && !client.IsAdmin)
@@ -1133,34 +1259,94 @@ namespace OpenRA.Mods.Common.Server
 			{
 				if (!client.IsAdmin)
 				{
-					server.SendLocalizedMessageTo(conn, AdminLobbyInfo);
+					server.SendFluentMessageTo(conn, AdminLobbyInfo);
 					return true;
 				}
 
 				try
 				{
-					server.LobbyInfo = Session.Deserialize(s);
+					server.LobbyInfo = Session.Deserialize(s, nameof(SyncLobby));
 					server.SyncLobbyInfo();
 				}
 				catch (Exception)
 				{
-					server.SendLocalizedMessageTo(conn, InvalidLobbyInfo);
+					server.SendFluentMessageTo(conn, InvalidLobbyInfo);
 				}
 
 				return true;
 			}
 		}
 
+		static void InitializeMapPool(S server)
+		{
+			if (server.Type != ServerType.Dedicated)
+				return;
+
+			var mapCache = server.ModData.MapCache;
+			if (server.Settings.MapPool.Length > 0)
+				server.MapPool = server.Settings.MapPool.ToHashSet();
+			else if (!server.Settings.QueryMapRepository)
+				server.MapPool = mapCache
+					.Where(p => p.Status == MapStatus.Available && p.Visibility.HasFlag(MapVisibility.Lobby))
+					.Select(p => p.Uid)
+					.ToHashSet();
+			else
+				return;
+
+			var unknownMaps = server.MapPool.Where(server.MapIsUnknown).ToList();
+			if (unknownMaps.Count == 0)
+				return;
+
+			if (server.Settings.QueryMapRepository)
+			{
+				Log.Write("server", $"Querying Resource Center for information on {unknownMaps.Count} maps...");
+
+				// Query any missing maps and wait up to 10 seconds for a response
+				// Maps that have not resolved will not be valid for the initial map choice
+				var mapRepository = server.ModData.Manifest.Get<WebServices>().MapRepository;
+				mapCache.QueryRemoteMapDetails(mapRepository, unknownMaps);
+
+				var searchingMaps = server.MapPool.Where(uid => mapCache[uid].Status == MapStatus.Searching);
+				var stopwatch = Stopwatch.StartNew();
+
+				// Each time we check, some map statuses may have updated.
+#pragma warning disable CA1851 // Possible multiple enumerations of 'IEnumerable' collection
+				while (searchingMaps.Any() && stopwatch.ElapsedMilliseconds < 10000)
+					Thread.Sleep(100);
+#pragma warning restore CA1851
+			}
+
+			var stillUnknownMaps = server.MapPool.Where(server.MapIsUnknown).ToList();
+			if (stillUnknownMaps.Count != 0)
+				Log.Write("server", "Failed to resolve maps: " + stillUnknownMaps.JoinWith(", "));
+		}
+
+		static string ChooseInitialMap(S server)
+		{
+			if (server.MapIsKnown(server.Settings.Map))
+				return server.Settings.Map;
+
+			if (server.MapPool == null)
+				return server.ModData.MapCache.ChooseInitialMap(server.Settings.Map, new MersenneTwister());
+
+			return server.MapPool
+				.Where(server.MapIsKnown)
+				.RandomOrDefault(new MersenneTwister());
+		}
+
 		public void ServerStarted(S server)
 		{
 			lock (server.LobbyInfo)
 			{
-				// Remote maps are not supported for the initial map
-				var uid = server.LobbyInfo.GlobalSettings.Map;
-				server.Map = server.ModData.MapCache[uid];
-				if (server.Map.Status != MapStatus.Available)
-					throw new InvalidOperationException($"Map {uid} not found");
+				InitializeMapPool(server);
 
+				var uid = ChooseInitialMap(server);
+				if (string.IsNullOrEmpty(uid))
+					throw new InvalidOperationException("Unable to resolve a valid initial map");
+
+				server.LobbyInfo.GlobalSettings.Map = server.Settings.Map = uid;
+				server.Map = server.ModData.MapCache[uid];
+				server.LobbyInfo.GlobalSettings.MapStatus = server.MapStatusCache[server.Map];
 				server.LobbyInfo.Slots = server.Map.Players.Players
 					.Select(p => MakeSlotFromPlayerReference(p.Value))
 					.Where(s => s != null)
@@ -1225,25 +1411,30 @@ namespace OpenRA.Mods.Common.Server
 			}
 		}
 
-		static Color SanitizePlayerColor(S server, Color askedColor, int playerIndex, Connection connectionToEcho = null)
+		public static Color SanitizePlayerColor(S server, Color askedColor, int playerIndex, Connection connectionToEcho = null)
 		{
 			lock (server.LobbyInfo)
 			{
-				var colorManager = server.ModData.DefaultRules.Actors[SystemActors.World].TraitInfo<ColorPickerManagerInfo>();
+				var colorManager = server.ModData.DefaultRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 				var askColor = askedColor;
 
-				Action<string> onError = message =>
+				void OnError(string message)
 				{
 					if (connectionToEcho != null && message != null)
-						server.SendLocalizedMessageTo(connectionToEcho, message);
-				};
+						server.SendFluentMessageTo(connectionToEcho, message);
+				}
 
-				var terrainColors = server.ModData.DefaultTerrainInfo[server.Map.TileSet].RestrictedPlayerColors;
+				var terrainColors = server.ModData.DefaultTerrainInfo[server.Map.TileSet].RestrictedPlayerColors.ToList();
 				var playerColors = server.LobbyInfo.Clients.Where(c => c.Index != playerIndex).Select(c => c.Color)
 					.Concat(server.Map.Players.Players.Values.Select(p => p.Color)).ToList();
 
-				return colorManager.MakeValid(askColor, server.Random, terrainColors, playerColors, onError);
+				return colorManager.MakeValid(askColor, server.Random, terrainColors, playerColors, OnError);
 			}
+		}
+
+		public static string SanitizePlayerFaction(S server, string askedFaction, IEnumerable<string> validFactions)
+		{
+			return !validFactions.Contains(askedFaction) ? "Random" : askedFaction;
 		}
 
 		static string MissionBriefingOrDefault(S server)
@@ -1259,6 +1450,9 @@ namespace OpenRA.Mods.Common.Server
 		{
 			lock (server.LobbyInfo)
 			{
+				if (server.MapPool != null)
+					server.SendOrderTo(conn, "SyncMapPool", FieldSaver.FormatValue(server.MapPool));
+
 				var client = server.GetClient(conn);
 
 				// Validate whether color is allowed and get an alternative if it isn't

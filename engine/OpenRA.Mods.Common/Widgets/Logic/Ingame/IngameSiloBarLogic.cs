@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,8 +17,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class IngameSiloBarLogic : ChromeLogic
 	{
-		[TranslationReference("usage", "capacity")]
-		static readonly string SiloUsage = "silo-usage";
+		[FluentReference("usage", "capacity")]
+		const string SiloUsage = "label-silo-usage";
 
 		[ObjectCreator.UseCtor]
 		public IngameSiloBarLogic(Widget widget, ModData modData, World world)
@@ -28,12 +28,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			siloBar.GetProvided = () => playerResources.ResourceCapacity;
 			siloBar.GetUsed = () => playerResources.Resources;
-			siloBar.TooltipTextCached = new CachedTransform<(float Current, float Capacity), string>(usage =>
-			{
-				return modData.Translation.GetString(
-					SiloUsage,
-					Translation.Arguments("usage", usage.Current, "capacity", usage.Capacity));
-			});
+			siloBar.TooltipTextCached = new CachedTransform<(float Current, float Capacity), string>(
+				usage => FluentProvider.GetMessage(SiloUsage, "usage", usage.Current, "capacity", usage.Capacity));
 			siloBar.GetBarColor = () =>
 			{
 				if (playerResources.Resources == playerResources.ResourceCapacity)

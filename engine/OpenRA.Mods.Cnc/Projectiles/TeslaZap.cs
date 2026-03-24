@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -79,7 +79,7 @@ namespace OpenRA.Mods.Cnc.Projectiles
 
 			// Zap tracks target
 			if (info.TrackTarget && args.GuidedTarget.IsValidFor(args.SourceActor))
-				target = args.Weapon.TargetActorCenter ? args.GuidedTarget.CenterPosition : args.GuidedTarget.Positions.PositionClosestTo(args.Source);
+				target = args.Weapon.TargetActorCenter ? args.GuidedTarget.CenterPosition : args.GuidedTarget.Positions.ClosestToIgnoringPath(args.Source);
 
 			if (damageDuration-- > 0)
 				args.Weapon.Impact(Target.FromPos(target), new WarheadArgs(args));

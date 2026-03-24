@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -56,18 +56,23 @@ namespace OpenRA.Mods.Common.Widgets
 			var isDisabled = IsDisabled();
 			var isHover = Ui.MouseOverWidget == this || Children.Any(c => c == Ui.MouseOverWidget);
 
-			if (getMarkerImage == null)
-				getMarkerImage = WidgetUtils.GetCachedStatefulImage(Decorations, DecorationMarker);
+			getMarkerImage ??= WidgetUtils.GetCachedStatefulImage(Decorations, DecorationMarker);
 
 			var arrowImage = getMarkerImage.Update((isDisabled, Depressed, isHover, false, IsHighlighted()));
-			WidgetUtils.DrawSprite(arrowImage, stateOffset + new float2(rb.Right - (int)((rb.Height + arrowImage.Size.X) / 2), rb.Top + (int)((rb.Height - arrowImage.Size.Y) / 2)));
+			WidgetUtils.DrawSprite(
+				arrowImage,
+				stateOffset + new float2(
+					rb.Right - (int)((rb.Height + arrowImage.Size.X) / 2),
+					rb.Top + (int)((rb.Height - arrowImage.Size.Y) / 2)));
 
-			if (getSeparatorImage == null)
-				getSeparatorImage = WidgetUtils.GetCachedStatefulImage(Separators, SeparatorImage);
+			getSeparatorImage ??= WidgetUtils.GetCachedStatefulImage(Separators, SeparatorImage);
 
 			var separatorImage = getSeparatorImage.Update((isDisabled, Depressed, isHover, false, IsHighlighted()));
 			if (separatorImage != null)
-				WidgetUtils.DrawSprite(separatorImage, stateOffset + new float2(-3, 0) + new float2(rb.Right - rb.Height + 4, rb.Top + (int)((rb.Height - separatorImage.Size.Y) / 2)));
+				WidgetUtils.DrawSprite(
+					separatorImage,
+					stateOffset + new float2(-3, 0) + new float2(rb.Right - rb.Height + 4,
+					rb.Top + (int)((rb.Height - separatorImage.Size.Y) / 2)));
 		}
 
 		public override Widget Clone() { return new DropDownButtonWidget(this); }
@@ -109,7 +114,7 @@ namespace OpenRA.Mods.Common.Widgets
 			// Mask to prevent any clicks from being sent to other widgets
 			fullscreenMask = new MaskWidget
 			{
-				Bounds = new Rectangle(0, 0, Game.Renderer.Resolution.Width, Game.Renderer.Resolution.Height)
+				Bounds = new WidgetBounds(0, 0, Game.Renderer.Resolution.Width, Game.Renderer.Resolution.Height)
 			};
 
 			fullscreenMask.OnMouseDown += mi => { Game.Sound.PlayNotification(ModRules, null, "Sounds", ClickSound, null); RemovePanel(); };
@@ -129,9 +134,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var panelY = RenderOrigin.Y + Bounds.Height - panelRoot.RenderOrigin.Y;
 			if (panelY + oldBounds.Height > Game.Renderer.Resolution.Height)
-				panelY -= (Bounds.Height + oldBounds.Height);
+				panelY -= Bounds.Height + oldBounds.Height;
 
-			panel.Bounds = new Rectangle(
+			panel.Bounds = new WidgetBounds(
 				panelX,
 				panelY,
 				oldBounds.Width,
@@ -141,7 +146,8 @@ namespace OpenRA.Mods.Common.Widgets
 			(panel as ScrollPanelWidget)?.ScrollToSelectedItem();
 		}
 
-		public void ShowDropDown<T>(string panelTemplate, int maxHeight, IEnumerable<T> options, Func<T, ScrollItemWidget, ScrollItemWidget> setupItem)
+		public void ShowDropDown<T>(
+			string panelTemplate, int maxHeight, IEnumerable<T> options, Func<T, ScrollItemWidget, ScrollItemWidget> setupItem)
 		{
 			var substitutions = new Dictionary<string, int>() { { "DROPDOWN_WIDTH", Bounds.Width } };
 			var panel = (ScrollPanelWidget)Ui.LoadWidget(panelTemplate, null, new WidgetArgs() { { "substitutions", substitutions } });
@@ -163,7 +169,8 @@ namespace OpenRA.Mods.Common.Widgets
 			AttachPanel(panel);
 		}
 
-		public void ShowDropDown<T>(string panelTemplate, int height, Dictionary<string, IEnumerable<T>> groups, Func<T, ScrollItemWidget, ScrollItemWidget> setupItem)
+		public void ShowDropDown<T>(
+			string panelTemplate, int height, Dictionary<string, IEnumerable<T>> groups, Func<T, ScrollItemWidget, ScrollItemWidget> setupItem)
 		{
 			var substitutions = new Dictionary<string, int>() { { "DROPDOWN_WIDTH", Bounds.Width } };
 			var panel = (ScrollPanelWidget)Ui.LoadWidget(panelTemplate, null, new WidgetArgs() { { "substitutions", substitutions } });

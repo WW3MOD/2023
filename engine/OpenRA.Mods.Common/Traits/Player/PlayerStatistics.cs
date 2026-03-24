@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
@@ -35,11 +36,11 @@ namespace OpenRA.Mods.Common.Traits
 		public int Experience => experience != null ? experience.Experience : 0;
 
 		// Low resolution (every 30 seconds) record of earnings, covering the entire game
-		public List<int> IncomeSamples = new List<int>(100);
+		public List<int> IncomeSamples = new(100);
 		public int Income;
 		public int DisplayIncome;
 
-		public List<int> ArmySamples = new List<int>(100);
+		public List<int> ArmySamples = new(100);
 
 		public int KillsCost;
 		public int DeathsCost;
@@ -54,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int AssetsValue;
 
 		// High resolution (every second) record of earnings, limited to the last minute
-		readonly Queue<int> earnedSeconds = new Queue<int>(60);
+		readonly Queue<int> earnedSeconds = new(60);
 
 		int lastIncome;
 		int lastIncomeTick;
@@ -116,7 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void ResolveOrder(Actor self, Order order)
 		{
-			if (order.OrderString.StartsWith("Dev"))
+			if (order.OrderString.StartsWith("Dev", StringComparison.Ordinal))
 				return;
 
 			OrderCount++;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,47 +19,47 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class SettingsLogic : ChromeLogic
 	{
-		[TranslationReference]
-		static readonly string SettingsSaveTitle = "settings-save-title";
+		[FluentReference]
+		const string SettingsSaveTitle = "dialog-settings-save.title";
 
-		[TranslationReference]
-		static readonly string SettingsSavePrompt = "settings-save-prompt";
+		[FluentReference]
+		const string SettingsSavePrompt = "dialog-settings-save.prompt";
 
-		[TranslationReference]
-		static readonly string SettingsSaveCancel = "settings-save-cancel";
+		[FluentReference]
+		const string SettingsSaveCancel = "dialog-settings-save.cancel";
 
-		[TranslationReference]
-		static readonly string RestartTitle = "restart-title";
+		[FluentReference]
+		const string RestartTitle = "dialog-settings-restart.title";
 
-		[TranslationReference]
-		static readonly string RestartPrompt = "restart-prompt";
+		[FluentReference]
+		const string RestartPrompt = "dialog-settings-restart.prompt";
 
-		[TranslationReference]
-		static readonly string RestartAccept = "restart-accept";
+		[FluentReference]
+		const string RestartAccept = "dialog-settings-restart.confirm";
 
-		[TranslationReference]
-		static readonly string RestartCancel = "restart-cancel";
+		[FluentReference]
+		const string RestartCancel = "dialog-settings-restart.cancel";
 
-		[TranslationReference("panel")]
-		static readonly string ResetTitle = "reset-title";
+		[FluentReference("panel")]
+		const string ResetTitle = "dialog-settings-reset.title";
 
-		[TranslationReference]
-		static readonly string ResetPrompt = "reset-prompt";
+		[FluentReference]
+		const string ResetPrompt = "dialog-settings-reset.prompt";
 
-		[TranslationReference]
-		static readonly string ResetAccept = "reset-accept";
+		[FluentReference]
+		const string ResetAccept = "dialog-settings-reset.confirm";
 
-		[TranslationReference]
-		static readonly string ResetCancel = "reset-cancel";
+		[FluentReference]
+		const string ResetCancel = "dialog-settings-reset.cancel";
 
-		readonly Dictionary<string, Func<bool>> leavePanelActions = new Dictionary<string, Func<bool>>();
-		readonly Dictionary<string, Action> resetPanelActions = new Dictionary<string, Action>();
+		readonly Dictionary<string, Func<bool>> leavePanelActions = new();
+		readonly Dictionary<string, Action> resetPanelActions = new();
 
 		readonly Widget panelContainer, tabContainer;
 		readonly ButtonWidget tabTemplate;
 		readonly int2 buttonStride;
-		readonly List<ButtonWidget> buttons = new List<ButtonWidget>();
-		readonly Dictionary<string, string> panels = new Dictionary<string, string>();
+		readonly List<ButtonWidget> buttons = new();
+		readonly Dictionary<string, string> panels = new();
 		string activePanel;
 
 		bool needsRestart = false;
@@ -105,48 +105,48 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var current = Game.Settings;
 				current.Save();
 
-				Action closeAndExit = () => { Ui.CloseWindow(); onExit(); };
+				void CloseAndExit() { Ui.CloseWindow(); onExit(); }
 				if (needsRestart)
 				{
-					Action noRestart = () => ConfirmationDialogs.ButtonPrompt(modData,
+					void NoRestart() => ConfirmationDialogs.ButtonPrompt(modData,
 						title: SettingsSaveTitle,
 						text: SettingsSavePrompt,
-						onCancel: closeAndExit,
+						onCancel: CloseAndExit,
 						cancelText: SettingsSaveCancel);
 
 					if (!Game.ExternalMods.TryGetValue(ExternalMod.MakeKey(Game.ModData.Manifest), out var external))
 					{
-						noRestart();
+						NoRestart();
 						return;
 					}
 
 					ConfirmationDialogs.ButtonPrompt(modData,
 						title: RestartTitle,
 						text: RestartPrompt,
-						onConfirm: () => Game.SwitchToExternalMod(external, null, noRestart),
-						onCancel: closeAndExit,
+						onConfirm: () => Game.SwitchToExternalMod(external, null, NoRestart),
 						confirmText: RestartAccept,
+						onCancel: CloseAndExit,
 						cancelText: RestartCancel);
 				}
 				else
-					closeAndExit();
+					CloseAndExit();
 			};
 
 			widget.Get<ButtonWidget>("RESET_BUTTON").OnClick = () =>
 			{
-				Action reset = () =>
+				void Reset()
 				{
 					resetPanelActions[activePanel]();
 					Game.Settings.Save();
-				};
+				}
 
 				ConfirmationDialogs.ButtonPrompt(modData,
 					title: ResetTitle,
-					titleArguments: Translation.Arguments("panel", panels[activePanel]),
 					text: ResetPrompt,
-					onConfirm: reset,
-					onCancel: () => { },
+					titleArguments: new object[] { "panel", panels[activePanel] },
+					onConfirm: Reset,
 					confirmText: ResetAccept,
+					onCancel: () => { },
 					cancelText: ResetCancel);
 			};
 		}
@@ -155,8 +155,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			var panel = panelContainer.Get(panelID);
 
-			if (activePanel == null)
-				activePanel = panelID;
+			activePanel ??= panelID;
 
 			panel.IsVisible = () => activePanel == panelID;
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Cnc.FileFormats
 	public class WsaVideo : IVideo
 	{
 		public ushort FrameCount { get; }
-		public byte Framerate => 1;
+		public byte Framerate => 15;
 		public ushort Width { get; }
 		public ushort Height { get; }
 
@@ -45,13 +45,13 @@ namespace OpenRA.Mods.Cnc.FileFormats
 
 			FrameCount = stream.ReadUInt16();
 
-			/*var x = */stream.ReadUInt16();
-			/*var y = */stream.ReadUInt16();
+			stream.ReadUInt16(); // x
+			stream.ReadUInt16(); // y
 
 			Width = stream.ReadUInt16();
 			Height = stream.ReadUInt16();
 
-			/*var delta = */stream.ReadUInt16(); /* + 37*/
+			stream.ReadUInt16(); // delta (+37)
 			var flags = stream.ReadUInt16();
 
 			frameOffsets = new uint[FrameCount + 2];
@@ -63,9 +63,9 @@ namespace OpenRA.Mods.Cnc.FileFormats
 				paletteBytes = new byte[1024];
 				for (var i = 0; i < paletteBytes.Length;)
 				{
-					var r = (byte)(stream.ReadByte() << 2);
-					var g = (byte)(stream.ReadByte() << 2);
-					var b = (byte)(stream.ReadByte() << 2);
+					var r = (byte)(stream.ReadUInt8() << 2);
+					var g = (byte)(stream.ReadUInt8() << 2);
+					var b = (byte)(stream.ReadUInt8() << 2);
 
 					// Replicate high bits into the (currently zero) low bits.
 					r |= (byte)(r >> 6);

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -38,6 +38,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Should units friendly to the capturing actor auto-target this actor while it is being captured?")]
 		public readonly bool PreventsAutoTarget = true;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public override object Create(ActorInitializer init) { return new CaptureManager(this); }
 
 		public bool CanBeTargetedBy(FrozenActor frozenActor, Actor captor, Captures captures)
@@ -56,18 +57,23 @@ namespace OpenRA.Mods.Common.Traits
 			return frozenActor.Info.TraitInfos<CapturableInfo>()
 				.Any(c => c.ValidRelationships.HasRelationship(stance) && captures.Info.CaptureTypes.Overlaps(c.Types));
 		}
+=======
+		public override object Create(ActorInitializer init) { return new CaptureManager(init.Self, this); }
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 
 	public class CaptureManager : INotifyCreated, INotifyCapture, ITick, IDisableEnemyAutoTarget
 	{
+		readonly Actor self;
 		readonly CaptureManagerInfo info;
+
 		IMove move;
 		ICaptureProgressWatcher[] progressWatchers;
 
-		BitSet<CaptureType> allyCapturableTypes;
-		BitSet<CaptureType> neutralCapturableTypes;
-		BitSet<CaptureType> enemyCapturableTypes;
-		BitSet<CaptureType> capturesTypes;
+		BitSet<CaptureType> allyCapturesTypes;
+		BitSet<CaptureType> neutralCapturesTypes;
+		BitSet<CaptureType> enemyCapturesTypes;
+		BitSet<CaptureType> capturableTypes;
 
 		IEnumerable<Capturable> enabledCapturable;
 		IEnumerable<Captures> enabledCaptures;
@@ -81,12 +87,13 @@ namespace OpenRA.Mods.Common.Traits
 		int beingCapturedToken = Actor.InvalidConditionToken;
 		bool enteringCurrentTarget;
 
-		readonly HashSet<Actor> currentCaptors = new HashSet<Actor>();
+		readonly HashSet<Actor> currentCaptors = new();
 
 		public bool BeingCaptured { get; private set; }
 
-		public CaptureManager(CaptureManagerInfo info)
+		public CaptureManager(Actor self, CaptureManagerInfo info)
 		{
+			this.self = self;
 			this.info = info;
 		}
 
@@ -107,69 +114,74 @@ namespace OpenRA.Mods.Common.Traits
 			RefreshCapturable();
 		}
 
-		public void RefreshCapturable()
+		public void RefreshCaptures()
 		{
-			allyCapturableTypes = neutralCapturableTypes = enemyCapturableTypes = default;
-			foreach (var c in enabledCapturable)
+			allyCapturesTypes = neutralCapturesTypes = enemyCapturesTypes = default;
+			foreach (var c in enabledCaptures)
 			{
 				if (c.Info.ValidRelationships.HasRelationship(PlayerRelationship.Ally))
-					allyCapturableTypes = allyCapturableTypes.Union(c.Info.Types);
+					allyCapturesTypes = allyCapturesTypes.Union(c.Info.CaptureTypes);
 
 				if (c.Info.ValidRelationships.HasRelationship(PlayerRelationship.Neutral))
-					neutralCapturableTypes = neutralCapturableTypes.Union(c.Info.Types);
+					neutralCapturesTypes = neutralCapturesTypes.Union(c.Info.CaptureTypes);
 
 				if (c.Info.ValidRelationships.HasRelationship(PlayerRelationship.Enemy))
-					enemyCapturableTypes = enemyCapturableTypes.Union(c.Info.Types);
+					enemyCapturesTypes = enemyCapturesTypes.Union(c.Info.CaptureTypes);
 			}
 		}
 
-		public void RefreshCaptures()
+		public void RefreshCapturable()
 		{
-			capturesTypes = enabledCaptures.Aggregate(
+			capturableTypes = enabledCapturable.Aggregate(
 				default(BitSet<CaptureType>),
-				(a, b) => a.Union(b.Info.CaptureTypes));
+				(a, b) => a.Union(b.Info.Types));
 		}
 
-		public bool CanBeTargetedBy(Actor self, Actor captor, CaptureManager captorManager)
+		/// <summary>Should only be called from the captor's CaptureManager.</summary>
+		public bool CanTarget(CaptureManager target)
 		{
-			var relationship = captor.Owner.RelationshipWith(self.Owner);
-			if (relationship.HasRelationship(PlayerRelationship.Enemy))
-				return captorManager.capturesTypes.Overlaps(enemyCapturableTypes);
-
-			if (relationship.HasRelationship(PlayerRelationship.Neutral))
-				return captorManager.capturesTypes.Overlaps(neutralCapturableTypes);
-
-			if (relationship.HasRelationship(PlayerRelationship.Ally))
-				return captorManager.capturesTypes.Overlaps(allyCapturableTypes);
-
-			return false;
+			return CanTarget(target.self.Owner, target.capturableTypes);
 		}
 
-		public bool CanBeTargetedBy(Actor self, Actor captor, Captures captures)
+		/// <summary>Should only be called from the captor CaptureManager.</summary>
+		public bool CanTarget(FrozenActor target)
 		{
-			if (captures.IsTraitDisabled)
+			if (!target.Info.HasTraitInfo<CaptureManagerInfo>())
 				return false;
 
-			var relationship = captor.Owner.RelationshipWith(self.Owner);
+			// TODO: FrozenActors don't yet have a way of caching conditions, so we can't filter disabled traits
+			// This therefore assumes that all Capturable traits are enabled, which is probably wrong.
+			// Actors with FrozenUnderFog should therefore not disable the Capturable trait.
+			var targetTypes = target.Info.TraitInfos<CapturableInfo>().Aggregate(
+				default(BitSet<CaptureType>),
+				(a, b) => a.Union(b.Types));
+
+			return CanTarget(target.Owner, targetTypes);
+		}
+
+		bool CanTarget(Player target, BitSet<CaptureType> captureTypes)
+		{
+			var relationship = self.Owner.RelationshipWith(target);
 			if (relationship.HasRelationship(PlayerRelationship.Enemy))
-				return captures.Info.CaptureTypes.Overlaps(enemyCapturableTypes);
+				return captureTypes.Overlaps(enemyCapturesTypes);
 
 			if (relationship.HasRelationship(PlayerRelationship.Neutral))
-				return captures.Info.CaptureTypes.Overlaps(neutralCapturableTypes);
+				return captureTypes.Overlaps(neutralCapturesTypes);
 
 			if (relationship.HasRelationship(PlayerRelationship.Ally))
-				return captures.Info.CaptureTypes.Overlaps(allyCapturableTypes);
+				return captureTypes.Overlaps(allyCapturesTypes);
 
 			return false;
 		}
 
-		public Captures ValidCapturesWithLowestSabotageThreshold(Actor self, Actor captee, CaptureManager capteeManager)
+		public Captures ValidCapturesWithLowestSabotageThreshold(CaptureManager target)
 		{
-			if (captee.IsDead)
+			if (target.self.IsDead)
 				return null;
 
-			foreach (var c in enabledCaptures.OrderBy(c => c.Info.SabotageThreshold))
-				if (capteeManager.CanBeTargetedBy(captee, self, c))
+			var relationship = self.Owner.RelationshipWith(target.self.Owner);
+			foreach (var c in enabledCaptures.OrderBy(c => c.Info.SabotageThreshold).ThenBy(c => c.Info.CaptureDelay))
+				if (c.Info.ValidRelationships.HasRelationship(relationship) && target.capturableTypes.Overlaps(c.Info.CaptureTypes))
 					return c;
 
 			return null;
@@ -186,7 +198,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// This method grants the capturing conditions on the captor and target and returns
 		/// true if the captor is able to start entering or false if it needs to wait.
 		/// </summary>
-		public bool StartCapture(Actor self, Actor target, CaptureManager targetManager, out Captures captures)
+		public bool StartCapture(CaptureManager targetManager, out Captures captures)
 		{
 			captures = null;
 
@@ -194,10 +206,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.WillDispose)
 				return false;
 
+			var target = targetManager.self;
 			if (target != currentTarget)
 			{
-				if (currentTarget != null)
-					CancelCapture(self, currentTarget, currentTargetManager);
+				if (currentTargetManager != null)
+					CancelCapture(currentTarget, currentTargetManager);
 
 				targetManager.currentCaptors.Add(self);
 				currentTarget = target;
@@ -205,7 +218,7 @@ namespace OpenRA.Mods.Common.Traits
 				currentTargetDelay = 0;
 			}
 			else
-				currentTargetDelay += 1;
+				currentTargetDelay++;
 
 			if (capturingToken == Actor.InvalidConditionToken)
 				capturingToken = self.GrantCondition(info.CapturingCondition);
@@ -213,10 +226,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (targetManager.beingCapturedToken == Actor.InvalidConditionToken)
 				targetManager.beingCapturedToken = target.GrantCondition(targetManager.info.BeingCapturedCondition);
 
-			captures = enabledCaptures
-				.OrderBy(c => c.Info.CaptureDelay)
-				.FirstOrDefault(c => targetManager.CanBeTargetedBy(target, self, c));
-
+			captures = ValidCapturesWithLowestSabotageThreshold(targetManager);
 			if (captures == null)
 				return false;
 
@@ -230,7 +240,7 @@ namespace OpenRA.Mods.Common.Traits
 				currentTargetTotal = captures.Info.CaptureDelay;
 				if (move != null && captures.Info.ConsumedByCapture)
 				{
-					var pos = target.GetTargetablePositions().PositionClosestTo(self.CenterPosition);
+					var pos = target.GetTargetablePositions().ClosestToIgnoringPath(self.CenterPosition);
 					currentTargetTotal += move.EstimatedMoveDuration(self, self.CenterPosition, pos);
 				}
 
@@ -250,7 +260,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// This method revokes the capturing conditions on the captor and target
 		/// and resets any capturing progress.
 		/// </summary>
-		public void CancelCapture(Actor self, Actor target, CaptureManager targetManager)
+		public void CancelCapture(Actor target, CaptureManager targetManager)
 		{
 			if (currentTarget == null)
 				return;

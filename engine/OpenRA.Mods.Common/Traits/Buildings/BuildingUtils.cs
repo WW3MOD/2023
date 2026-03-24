@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -45,8 +45,7 @@ namespace OpenRA.Mods.Common.Traits
 						if (r.IsTraitDisabled)
 							continue;
 
-						if (acceptedReplacements == null)
-							acceptedReplacements = new HashSet<string>();
+						acceptedReplacements ??= new HashSet<string>();
 
 						acceptedReplacements.UnionWith(r.Info.Types);
 					}
@@ -94,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 		public static IEnumerable<(CPos Cell, Actor Actor)> GetLineBuildCells(World world, CPos cell, ActorInfo ai, BuildingInfo bi, Player owner)
 		{
 			var lbi = ai.TraitInfo<LineBuildInfo>();
-			var topLeft = cell;	// 1x1 assumption!
+			var topLeft = cell; // 1x1 assumption!
 
 			if (world.IsCellBuildable(topLeft, ai, bi))
 				yield return (topLeft, null);

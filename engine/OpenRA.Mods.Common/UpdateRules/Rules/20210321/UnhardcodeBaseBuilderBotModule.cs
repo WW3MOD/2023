@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,12 +14,25 @@ using System.Linq;
 
 namespace OpenRA.Mods.Common.UpdateRules.Rules
 {
-	public class UnhardcodeBaseBuilderBotModule : UpdateRule
+	public class UnhardcodeBaseBuilderBotModule : UpdateRule, IBeforeUpdateActors
 	{
-		MiniYamlNode defences;
+		MiniYamlNodeBuilder defenses;
 
 		// Excludes AttackBomber and AttackTDGunboatTurreted as actors with these AttackBase traits aren't supposed to be controlled.
-		readonly string[] attackBase = { "AttackLeap", "AttackPopupTurreted", "AttackAircraft", "AttackTesla", "AttackCharges", "AttackFollow", "AttackTurreted", "AttackFrontal", "AttackGarrisoned", "AttackOmni", "AttackSwallow" };
+		readonly string[] attackBase =
+		{
+			"AttackLeap",
+			"AttackPopupTurreted",
+			"AttackAircraft",
+			"AttackTesla",
+			"AttackCharges",
+			"AttackFollow",
+			"AttackTurreted",
+			"AttackFrontal",
+			"AttackGarrisoned",
+			"AttackOmni",
+			"AttackSwallow"
+		};
 		readonly string[] buildings = { "Building", "EnergyWall", "D2kBuilding" };
 
 		bool anyAdded;
@@ -28,9 +41,9 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 		public override string Description => "DefenseTypes were added.";
 
-		public override IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors)
+		public IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNodeBuilder> resolvedActors)
 		{
-			var defences = new List<string>();
+			var defenses = new List<string>();
 
 			foreach (var actor in resolvedActors)
 			{
@@ -64,13 +77,13 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 				if (isBuildable && isBuilding && canAttack)
 				{
-					var name = actor.Key.ToLower();
-					if (!defences.Contains(name))
-						defences.Add(name);
+					var name = actor.Key.ToLowerInvariant();
+					if (!defenses.Contains(name))
+						defenses.Add(name);
 				}
 			}
 
-			this.defences = new MiniYamlNode("DefenseTypes", FieldSaver.FormatValue(defences));
+			this.defenses = new MiniYamlNodeBuilder("DefenseTypes", FieldSaver.FormatValue(defenses));
 
 			yield break;
 		}
@@ -83,13 +96,13 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			anyAdded = false;
 		}
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			foreach (var squadManager in actorNode.ChildrenMatching("BaseBuilderBotModule", includeRemovals: false))
 			{
-				if (!squadManager.ChildrenMatching(defences.Key, includeRemovals: false).Any())
+				if (!squadManager.ChildrenMatching(defenses.Key, includeRemovals: false).Any())
 				{
-					squadManager.AddNode(defences);
+					squadManager.AddNode(defenses);
 					anyAdded = true;
 				}
 			}

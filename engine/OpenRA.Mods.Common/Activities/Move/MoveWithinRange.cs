@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,10 @@
 #endregion
 
 using System.Collections.Generic;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 using System.Linq;
+=======
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -66,13 +69,34 @@ namespace OpenRA.Mods.Common.Activities
 				|| !Mobile.CanInteractWithGroundLayer(self) || !Mobile.CanStayInCell(self.Location));
 		}
 
-		protected override IEnumerable<CPos> CandidateMovementCells(Actor self)
+		protected override (bool AlreadyAtDestination, List<CPos> Path) CalculatePathToTarget(Actor self, BlockedByActor check)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (target.Type != TargetType.Invalid && lastVisibleTargetLocation != new CPos(target.CenterPosition.X, target.CenterPosition.Y) && (!AtCorrectRange(self.CenterPosition)))
 				return map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells)
 					.Where(c => Mobile.CanStayInCell(c) && AtCorrectRange(map.CenterOfSubCell(c, Mobile.FromSubCell)));
 
 			return base.CandidateMovementCells(self);
+=======
+			if (lastVisibleTargetLocation == self.Location)
+				return (true, PathFinder.NoPath);
+
+			// PERF: Assume that candidate cells don't change within a tick to avoid repeated queries
+			// when Move enumerates different BlockedByActor values.
+			if (searchCellsTick != self.World.WorldTick)
+			{
+				SearchCells.Clear();
+				searchCellsTick = self.World.WorldTick;
+				foreach (var cell in map.FindTilesInAnnulus(lastVisibleTargetLocation, minCells, maxCells))
+					if (Mobile.CanStayInCell(cell) && Mobile.CanEnterCell(cell) && AtCorrectRange(map.CenterOfSubCell(cell, Mobile.FromSubCell)))
+						SearchCells.Add(cell);
+			}
+
+			if (SearchCells.Count == 0)
+				return (false, PathFinder.NoPath);
+
+			return (false, Mobile.PathFinder.FindPathToTargetCells(self, self.Location, SearchCells, check));
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		bool AtCorrectRange(WPos origin)

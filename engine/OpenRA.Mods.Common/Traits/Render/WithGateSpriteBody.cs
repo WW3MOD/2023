@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	[Desc("This actor visually connects to walls and changes appearance when actors walk through it.")]
-	class WithGateSpriteBodyInfo : WithSpriteBodyInfo, IWallConnectorInfo, Requires<GateInfo>
+	sealed class WithGateSpriteBodyInfo : WithSpriteBodyInfo, IWallConnectorInfo, Requires<GateInfo>
 	{
 		[Desc("Cells (outside the gate footprint) that contain wall cells that can connect to the gate")]
 		public readonly CVec[] WallConnections = Array.Empty<CVec>();
@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	class WithGateSpriteBody : WithSpriteBody, INotifyRemovedFromWorld, IWallConnector, ITick
+	sealed class WithGateSpriteBody : WithSpriteBody, INotifyRemovedFromWorld, IWallConnector, ITick
 	{
 		readonly WithGateSpriteBodyInfo gateBodyInfo;
 		readonly Gate gate;

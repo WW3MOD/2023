@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Traits
 			// The DeployTransform order does not have a position associated with it,
 			// so we can only queue a new transformation if something else has
 			// already triggered the undeploy.
-			if (!order.Queued || !(self.CurrentActivity is Transform currentTransform))
+			if (!order.Queued || self.CurrentActivity is not Transform currentTransform)
 				return;
 
 			currentTransform.Queue(new IssueOrderAfterTransform("DeployTransform", order.Target));

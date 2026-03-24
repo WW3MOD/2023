@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,6 +27,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum number of actors.")]
 		public readonly int Maximum = 4;
 
+		[Desc("Initial delay before first actor is spawn")]
+		public readonly int InitialDelay = 0;
+
 		[Desc("Time (in ticks) between actor spawn. Supports 1 or 2 values.",
 			"If 2 values are provided they are used as a range from which a value is randomly selected.")]
 		public readonly int[] SpawnInterval = { 6000 };
@@ -39,7 +42,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Owner = "Creeps";
 
 		[Desc("Type of ActorSpawner with which it connects.")]
-		public readonly HashSet<string> Types = new HashSet<string>() { };
+		public readonly HashSet<string> Types = new();
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -64,6 +67,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool enabled;
 		int spawnCountdown;
+		int initialDelay;
 		int actorsPresent;
 
 		public ActorSpawnManager(ActorSpawnManagerInfo info)
@@ -78,9 +82,18 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 		}
 
+		protected override void TraitEnabled(Actor self)
+		{
+			initialDelay = info.InitialDelay;
+			spawnCountdown = 0;
+		}
+
 		void ITick.Tick(Actor self)
 		{
 			if (IsTraitDisabled || !enabled)
+				return;
+
+			if (--initialDelay > 0)
 				return;
 
 			if (info.Maximum < 1 || actorsPresent >= info.Maximum)
@@ -101,6 +114,9 @@ namespace OpenRA.Mods.Common.Traits
 				// Always spawn at least one actor, plus
 				// however many needed to reach the minimum.
 				SpawnActor(self, spawnPoint);
+
+				// choose new random SpawnPoint for each actor
+				spawnPoint = GetRandomSpawnPoint(self.World, self.World.SharedRandom);
 			}
 			while (actorsPresent < info.Minimum);
 		}

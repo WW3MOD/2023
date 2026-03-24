@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,58 +11,41 @@
 
 using System;
 using System.Collections.Generic;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class InputSettingsLogic : ChromeLogic
 	{
-		[TranslationReference]
-		static readonly string Classic = "classic";
-		readonly string classic;
+		[FluentReference]
+		const string Classic = "options-control-scheme.classic";
 
-		[TranslationReference]
-		static readonly string Modern = "modern";
-		readonly string modern;
+		[FluentReference]
+		const string Modern = "options-control-scheme.modern";
 
-		[TranslationReference]
-		static readonly string Disabled = "disabled";
+		[FluentReference]
+		const string Disabled = "options-mouse-scroll-type.disabled";
 
-		[TranslationReference]
-		static readonly string Standard = "standard";
+		[FluentReference]
+		const string Standard = "options-mouse-scroll-type.standard";
 
-		[TranslationReference]
-		static readonly string Inverted = "inverted";
+		[FluentReference]
+		const string Inverted = "options-mouse-scroll-type.inverted";
 
-		[TranslationReference]
-		static readonly string Joystick = "joystick";
-
-		[TranslationReference]
-		static readonly string Alt = "alt";
-
-		[TranslationReference]
-		static readonly string Ctrl = "ctrl";
-
-		[TranslationReference]
-		static readonly string Meta = "meta";
-
-		[TranslationReference]
-		static readonly string Shift = "shift";
-
-		[TranslationReference]
-		static readonly string None = "none";
+		[FluentReference]
+		const string Joystick = "options-mouse-scroll-type.joystick";
 
 		static InputSettingsLogic() { }
 
-		readonly ModData modData;
+		readonly string classic;
+		readonly string modern;
 
 		[ObjectCreator.UseCtor]
-		public InputSettingsLogic(Action<string, string, Func<Widget, Func<bool>>, Func<Widget, Action>> registerPanel, string panelID, string label, ModData modData)
+		public InputSettingsLogic(Action<string, string, Func<Widget, Func<bool>>, Func<Widget, Action>> registerPanel, string panelID, string label)
 		{
-			this.modData = modData;
-
-			classic = modData.Translation.GetString(Classic);
-			modern = modData.Translation.GetString(Modern);
+			classic = FluentProvider.GetMessage(Classic);
+			modern = FluentProvider.GetMessage(Modern);
 
 			registerPanel(panelID, label, InitPanel, ResetPanel);
 		}
@@ -80,11 +63,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SettingsUtils.BindSliderPref(panel, "UI_SCROLLSPEED_SLIDER", gs, "UIScrollSpeed");
 
 			var mouseControlDropdown = panel.Get<DropDownButtonWidget>("MOUSE_CONTROL_DROPDOWN");
-			mouseControlDropdown.OnMouseDown = _ => ShowMouseControlDropdown(modData, mouseControlDropdown, gs);
+			mouseControlDropdown.OnMouseDown = _ => ShowMouseControlDropdown(mouseControlDropdown, gs);
 			mouseControlDropdown.GetText = () => gs.UseClassicMouseStyle ? classic : modern;
 
 			var mouseScrollDropdown = panel.Get<DropDownButtonWidget>("MOUSE_SCROLL_TYPE_DROPDOWN");
-			mouseScrollDropdown.OnMouseDown = _ => ShowMouseScrollDropdown(modData, mouseScrollDropdown, gs);
+			mouseScrollDropdown.OnMouseDown = _ => ShowMouseScrollDropdown(mouseScrollDropdown, gs);
 			mouseScrollDropdown.GetText = () => gs.MouseScroll.ToString();
 
 			var mouseControlDescClassic = panel.Get("MOUSE_CONTROL_DESC_CLASSIC");
@@ -107,7 +90,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var zoomDescModifier = container.Get<LabelWidget>("DESC_ZOOM_MODIFIER");
 				zoomDescModifier.IsVisible = () => gs.ZoomModifier != Modifiers.None;
 
-				var zoomDescModifierTemplate = zoomDescModifier.Text;
+				var zoomDescModifierTemplate = zoomDescModifier.GetText();
 				var zoomDescModifierLabel = new CachedTransform<Modifiers, string>(
 					mod => zoomDescModifierTemplate.Replace("MODIFIER", mod.ToString()));
 				zoomDescModifier.GetText = () => zoomDescModifierLabel.Update(gs.ZoomModifier);
@@ -129,7 +112,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			};
 
 			var zoomModifierDropdown = panel.Get<DropDownButtonWidget>("ZOOM_MODIFIER");
-			zoomModifierDropdown.OnMouseDown = _ => ShowZoomModifierDropdown(modData, zoomModifierDropdown, gs);
+			zoomModifierDropdown.OnMouseDown = _ => ShowZoomModifierDropdown(zoomModifierDropdown, gs);
 			zoomModifierDropdown.GetText = () => gs.ZoomModifier.ToString();
 
 			SettingsUtils.AdjustSettingsScrollPanelLayout(scrollPanel);
@@ -161,69 +144,69 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			};
 		}
 
-		public static void ShowMouseControlDropdown(ModData modData, DropDownButtonWidget dropdown, GameSettings s)
+		public static void ShowMouseControlDropdown(DropDownButtonWidget dropdown, GameSettings s)
 		{
 			var options = new Dictionary<string, bool>()
 			{
-				{ modData.Translation.GetString(Classic), true },
-				{ modData.Translation.GetString(Modern), false },
+				{ FluentProvider.GetMessage(Classic), true },
+				{ FluentProvider.GetMessage(Modern), false },
 			};
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.UseClassicMouseStyle == options[o],
 					() => s.UseClassicMouseStyle = options[o]);
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 
-		static void ShowMouseScrollDropdown(ModData modData, DropDownButtonWidget dropdown, GameSettings s)
+		static void ShowMouseScrollDropdown(DropDownButtonWidget dropdown, GameSettings s)
 		{
 			var options = new Dictionary<string, MouseScrollType>()
 			{
-				{ modData.Translation.GetString(Disabled), MouseScrollType.Disabled },
-				{ modData.Translation.GetString(Standard), MouseScrollType.Standard },
-				{ modData.Translation.GetString(Inverted), MouseScrollType.Inverted },
-				{ modData.Translation.GetString(Joystick), MouseScrollType.Joystick },
+				{ FluentProvider.GetMessage(Disabled), MouseScrollType.Disabled },
+				{ FluentProvider.GetMessage(Standard), MouseScrollType.Standard },
+				{ FluentProvider.GetMessage(Inverted), MouseScrollType.Inverted },
+				{ FluentProvider.GetMessage(Joystick), MouseScrollType.Joystick },
 			};
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.MouseScroll == options[o],
 					() => s.MouseScroll = options[o]);
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 
-		static void ShowZoomModifierDropdown(ModData modData, DropDownButtonWidget dropdown, GameSettings s)
+		static void ShowZoomModifierDropdown(DropDownButtonWidget dropdown, GameSettings s)
 		{
 			var options = new Dictionary<string, Modifiers>()
 			{
-				{ modData.Translation.GetString(Alt), Modifiers.Alt },
-				{ modData.Translation.GetString(Ctrl), Modifiers.Ctrl },
-				{ modData.Translation.GetString(Meta), Modifiers.Meta },
-				{ modData.Translation.GetString(Shift), Modifiers.Shift },
-				{ modData.Translation.GetString(None), Modifiers.None }
+				{ ModifiersExts.DisplayString(Modifiers.Alt), Modifiers.Alt },
+				{ ModifiersExts.DisplayString(Modifiers.Ctrl), Modifiers.Ctrl },
+				{ ModifiersExts.DisplayString(Modifiers.Meta), Modifiers.Meta },
+				{ ModifiersExts.DisplayString(Modifiers.Shift), Modifiers.Shift },
+				{ ModifiersExts.DisplayString(Modifiers.None), Modifiers.None }
 			};
 
-			Func<string, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			ScrollItemWidget SetupItem(string o, ScrollItemWidget itemTemplate)
 			{
 				var item = ScrollItemWidget.Setup(itemTemplate,
 					() => s.ZoomModifier == options[o],
 					() => s.ZoomModifier = options[o]);
 				item.Get<LabelWidget>("LABEL").GetText = () => o;
 				return item;
-			};
+			}
 
-			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, setupItem);
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 500, options.Keys, SetupItem);
 		}
 
 		static void MakeMouseFocusSettingsLive()

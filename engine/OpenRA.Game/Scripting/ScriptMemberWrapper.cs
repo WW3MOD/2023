@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -50,7 +50,7 @@ namespace OpenRA.Scripting
 			try
 			{
 				if (!IsMethod)
-					throw new LuaException("Trying to invoke a ScriptMemberWrapper that isn't a method!");
+					throw new LuaException($"Trying to invoke a {nameof(ScriptMemberWrapper)} that isn't a method!");
 
 				var mi = (MethodInfo)Member;
 				var pi = mi.GetParameters();
@@ -87,7 +87,7 @@ namespace OpenRA.Scripting
 				{
 					foreach (var arg in clrArgs)
 					{
-						if (!(arg is LuaValue[] table))
+						if (arg is not LuaValue[] table)
 							continue;
 
 						foreach (var value in table)
@@ -114,7 +114,7 @@ namespace OpenRA.Scripting
 			{
 				var pi = (PropertyInfo)Member;
 				if (!value.TryGetClrValue(pi.PropertyType, out var clrValue))
-					throw new LuaException($"Unable to convert '{value.WrappedClrType().Name}' to Clr type '{pi.PropertyType}'");
+					throw new LuaException($"Unable to convert '{value.WrappedClrType().Name}' to CLR type '{pi.PropertyType}'");
 
 				pi.SetValue(Target, clrValue, null);
 			}
@@ -125,8 +125,8 @@ namespace OpenRA.Scripting
 		public static IEnumerable<MemberInfo> WrappableMembers(Type t)
 		{
 			// Only expose defined public non-static methods that were explicitly declared by the author
-			var flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
-			foreach (var mi in t.GetMembers(flags))
+			const BindingFlags Flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+			foreach (var mi in t.GetMembers(Flags))
 			{
 				// Properties are always wrappable
 				if (mi is PropertyInfo)
@@ -149,8 +149,8 @@ namespace OpenRA.Scripting
 
 			// Remove the namespace and the trailing "Info"
 			return types.SelectMany(i => i.GetGenericArguments())
-				.Select(g => g.Name.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault())
-				.Select(s => s.EndsWith("Info") ? s.Remove(s.Length - 4, 4) : s)
+				.Select(g => g.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault())
+				.Select(s => s.EndsWith("Info", StringComparison.Ordinal) ? s.Remove(s.Length - 4, 4) : s)
 				.ToArray();
 		}
 	}

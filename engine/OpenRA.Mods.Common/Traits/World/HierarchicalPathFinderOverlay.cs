@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Commands;
@@ -36,8 +37,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		const string CommandName = "hpf";
 
-		[TranslationReference]
-		const string CommandDescription = "hpf-overlay-description";
+		[FluentReference]
+		const string CommandDescription = "description-hpf-debug-overlay";
 
 		readonly HierarchicalPathFinderOverlayInfo info;
 		readonly SpriteFont font;
@@ -133,7 +134,7 @@ namespace OpenRA.Mods.Common.Traits
 							(cost.Destination.X + nodeCell.X) / 2,
 							(cost.Destination.Y + nodeCell.Y) / 2);
 						var centerPos = self.World.Map.CenterOfSubCell(centerCell, SubCell.FullCell);
-						yield return new TextAnnotationRenderable(font, centerPos, 0, lineColor, cost.Cost.ToString());
+						yield return new TextAnnotationRenderable(font, centerPos, 0, lineColor, cost.Cost.ToString(NumberFormatInfo.CurrentInfo));
 					}
 				}
 

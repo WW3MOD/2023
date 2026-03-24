@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public class WithProductionOverlayInfo : PausableConditionalTraitInfo, Requires<RenderSpritesInfo>, Requires<BodyOrientationInfo>, Requires<ProductionInfo>
 	{
 		[Desc("Queues that should be producing for this overlay to render.")]
-		public readonly HashSet<string> Queues = new HashSet<string>();
+		public readonly HashSet<string> Queues = new();
 
 		[SequenceReference]
 		[Desc("Sequence name to use")]
@@ -76,16 +76,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			// Per-actor production
 			queues = self.TraitsImplementing<ProductionQueue>()
-				.Where(q => productionInfos.Any(p => p.Produces.Contains(q.Info.Type)))
-				.Where(q => Info.Queues.Count == 0 || Info.Queues.Contains(q.Info.Type))
+				.Where(q =>
+					productionInfos.Any(p => p.Produces.Contains(q.Info.Type)) &&
+					(Info.Queues.Count == 0 || Info.Queues.Contains(q.Info.Type)))
 				.ToArray();
 
 			if (queues.Length == 0)
 			{
 				// Player-wide production
 				queues = self.Owner.PlayerActor.TraitsImplementing<ProductionQueue>()
-					.Where(q => productionInfos.Any(p => p.Produces.Contains(q.Info.Type)))
-					.Where(q => Info.Queues.Count == 0 || Info.Queues.Contains(q.Info.Type))
+					.Where(q =>
+						productionInfos.Any(p => p.Produces.Contains(q.Info.Type)) &&
+						(Info.Queues.Count == 0 || Info.Queues.Contains(q.Info.Type)))
 					.ToArray();
 			}
 		}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using OpenRA.Scripting;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
-	class ExtractLuaDocsCommand : IUtilityCommand
+	sealed class ExtractLuaDocsCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--lua-docs";
 
@@ -66,7 +66,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			foreach (var t in tables)
 			{
-				var name = t.GetCustomAttributes<ScriptGlobalAttribute>(true).First().Name;
+				var name = Utility.GetCustomAttributes<ScriptGlobalAttribute>(t, true).First().Name;
 				var members = ScriptMemberWrapper.WrappableMembers(t);
 
 				Console.WriteLine();
@@ -74,10 +74,18 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				Console.WriteLine();
 				Console.WriteLine("| Function | Description |");
 				Console.WriteLine("|---------:|-------------|");
+
 				foreach (var m in members.OrderBy(m => m.Name))
 				{
-					var desc = m.HasAttribute<DescAttribute>() ? m.GetCustomAttributes<DescAttribute>(true).First().Lines.JoinWith("<br />") : "";
-					Console.WriteLine($"| **{m.LuaDocString()}** | {desc} |");
+					var memberString = m.LuaDocString();
+					var desc = Utility.HasAttribute<DescAttribute>(m) ? Utility.GetCustomAttributes<DescAttribute>(m, true).First().Lines.JoinWith("<br />") : "";
+					if (Utility.HasAttribute<ObsoleteAttribute>(m))
+					{
+						memberString = $"<s>{memberString}</s>";
+						desc += $"<br />**Deprecated: {Utility.GetCustomAttributes<ObsoleteAttribute>(m, true).First().Message}**";
+					}
+
+					Console.WriteLine($"| **{memberString}** | {desc} |");
 				}
 			}
 
@@ -87,12 +95,12 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			var actorCategories = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptActorProperties>().SelectMany(cg =>
 			{
-				var catAttr = cg.GetCustomAttributes<ScriptPropertyGroupAttribute>(false).FirstOrDefault();
+				var catAttr = Utility.GetCustomAttributes<ScriptPropertyGroupAttribute>(cg, false).FirstOrDefault();
 				var category = catAttr != null ? catAttr.Category : "Unsorted";
 
 				var required = ScriptMemberWrapper.RequiredTraitNames(cg);
 				return ScriptMemberWrapper.WrappableMembers(cg).Select(mi => (category, mi, required));
-			}).GroupBy(g => g.Item1).OrderBy(g => g.Key);
+			}).GroupBy(g => g.category).OrderBy(g => g.Key);
 
 			foreach (var kv in actorCategories)
 			{
@@ -102,15 +110,20 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				Console.WriteLine("| Function | Description |");
 				Console.WriteLine("|---------:|-------------|");
 
-				foreach (var property in kv.OrderBy(p => p.Item2.Name))
+				foreach (var property in kv.OrderBy(p => p.mi.Name))
 				{
-					var mi = property.Item2;
-					var required = property.Item3;
-					var hasDesc = mi.HasAttribute<DescAttribute>();
+					var mi = property.mi;
+					var memberString = mi.LuaDocString();
+					var required = property.required;
+					var hasDesc = Utility.HasAttribute<DescAttribute>(mi);
 					var hasRequires = required.Length > 0;
-					var isActivity = mi.HasAttribute<ScriptActorPropertyActivityAttribute>();
+					var isActivity = Utility.HasAttribute<ScriptActorPropertyActivityAttribute>(mi);
+					var isDeprecated = Utility.HasAttribute<ObsoleteAttribute>(mi);
 
-					Console.Write($"| **{mi.LuaDocString()}**");
+					if (isDeprecated)
+						Console.Write($"| **<s>{memberString}</s>**");
+					else
+						Console.Write($"| **{memberString}**");
 
 					if (isActivity)
 						Console.Write("<br />*Queued Activity*");
@@ -118,13 +131,16 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					Console.Write(" | ");
 
 					if (hasDesc)
-						Console.Write(mi.GetCustomAttributes<DescAttribute>(false).First().Lines.JoinWith("<br />"));
+						Console.Write(Utility.GetCustomAttributes<DescAttribute>(mi, false).First().Lines.JoinWith("<br />"));
 
 					if (hasDesc && hasRequires)
 						Console.Write("<br />");
 
 					if (hasRequires)
 						Console.Write($"**Requires {(required.Length == 1 ? "Trait" : "Traits")}:** {required.JoinWith(", ")}");
+
+					if (isDeprecated)
+						Console.Write($"**Deprecated: {Utility.GetCustomAttributes<ObsoleteAttribute>(mi, true).First().Message}**");
 
 					Console.WriteLine(" |");
 				}
@@ -136,12 +152,12 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			var playerCategories = utility.ModData.ObjectCreator.GetTypesImplementing<ScriptPlayerProperties>().SelectMany(cg =>
 			{
-				var catAttr = cg.GetCustomAttributes<ScriptPropertyGroupAttribute>(false).FirstOrDefault();
+				var catAttr = Utility.GetCustomAttributes<ScriptPropertyGroupAttribute>(cg, false).FirstOrDefault();
 				var category = catAttr != null ? catAttr.Category : "Unsorted";
 
 				var required = ScriptMemberWrapper.RequiredTraitNames(cg);
 				return ScriptMemberWrapper.WrappableMembers(cg).Select(mi => (category, mi, required));
-			}).GroupBy(g => g.Item1).OrderBy(g => g.Key);
+			}).GroupBy(g => g.category).OrderBy(g => g.Key);
 
 			foreach (var kv in playerCategories)
 			{
@@ -151,15 +167,20 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				Console.WriteLine("| Function | Description |");
 				Console.WriteLine("|---------:|-------------|");
 
-				foreach (var property in kv.OrderBy(p => p.Item2.Name))
+				foreach (var property in kv.OrderBy(p => p.mi.Name))
 				{
-					var mi = property.Item2;
-					var required = property.Item3;
-					var hasDesc = mi.HasAttribute<DescAttribute>();
+					var mi = property.mi;
+					var memberString = mi.LuaDocString();
+					var required = property.required;
+					var hasDesc = Utility.HasAttribute<DescAttribute>(mi);
 					var hasRequires = required.Length > 0;
-					var isActivity = mi.HasAttribute<ScriptActorPropertyActivityAttribute>();
+					var isActivity = Utility.HasAttribute<ScriptActorPropertyActivityAttribute>(mi);
+					var isDeprecated = Utility.HasAttribute<ObsoleteAttribute>(mi);
 
-					Console.Write($"| **{mi.LuaDocString()}**");
+					if (isDeprecated)
+						Console.Write($"| **<s>{memberString}</s>**");
+					else
+						Console.Write($"| **{memberString}**");
 
 					if (isActivity)
 						Console.Write("<br />*Queued Activity*");
@@ -167,13 +188,16 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					Console.Write(" | ");
 
 					if (hasDesc)
-						Console.Write(mi.GetCustomAttributes<DescAttribute>(false).First().Lines.JoinWith("<br />"));
+						Console.Write(Utility.GetCustomAttributes<DescAttribute>(mi, false).First().Lines.JoinWith("<br />"));
 
 					if (hasDesc && hasRequires)
 						Console.Write("<br />");
 
 					if (hasRequires)
 						Console.Write($"**Requires {(required.Length == 1 ? "Trait" : "Traits")}:** {required.JoinWith(", ")}");
+
+					if (isDeprecated)
+						Console.Write($"**Deprecated: {Utility.GetCustomAttributes<ObsoleteAttribute>(mi, true).First().Message}**");
 
 					Console.WriteLine(" |");
 				}

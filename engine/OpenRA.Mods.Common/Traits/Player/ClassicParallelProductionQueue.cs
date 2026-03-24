@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -147,15 +147,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		public override TraitPair<Production> MostLikelyProducer()
 		{
-			var productionActors = self.World.ActorsWithTrait<Production>()
+			var productionActor = self.World.ActorsWithTrait<Production>()
 				.Where(x => x.Actor.Owner == self.Owner
 					&& !x.Trait.IsTraitDisabled && x.Trait.Info.Produces.Contains(Info.Type))
-				.OrderByDescending(x => x.Actor.IsPrimaryBuilding())
+				.OrderBy(x => x.Trait.IsTraitPaused)
+				.ThenByDescending(x => x.Actor.IsPrimaryBuilding())
 				.ThenByDescending(x => x.Actor.ActorID)
-				.ToList();
+				.FirstOrDefault();
 
-			var unpaused = productionActors.FirstOrDefault(a => !a.Trait.IsTraitPaused);
-			return unpaused.Trait != null ? unpaused : productionActors.FirstOrDefault();
+			return productionActor;
 		}
 
 		protected override bool BuildUnit(ActorInfo unit)
@@ -173,14 +173,10 @@ namespace OpenRA.Mods.Common.Traits
 				.OrderByDescending(x => x.Actor.IsPrimaryBuilding())
 				.ThenByDescending(x => x.Actor.ActorID);
 
-			if (!producers.Any())
-			{
-				CancelProduction(unit.Name, 1);
-				return false;
-			}
-
+			var anyProducers = false;
 			foreach (var p in producers)
 			{
+				anyProducers = true;
 				if (p.Trait.IsTraitPaused)
 					continue;
 
@@ -198,6 +194,9 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			if (!anyProducers)
+				CancelProduction(unit.Name, 1);
+
 			return false;
 		}
 
@@ -205,6 +204,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Ignore `hasPriority` as it's not relevant in parallel production context.
 			base.BeginProduction(item, false);
+		}
+
+		protected override void PauseProduction(string itemName, bool paused)
+		{
+			foreach (var item in Queue.Where(a => a.Item == itemName))
+				item.Pause(paused);
 		}
 
 		public override int GetBuildTime(ActorInfo unit, BuildableInfo bi)
@@ -234,7 +239,9 @@ namespace OpenRA.Mods.Common.Traits
 				.GroupBy(i => i.Item)
 				.ToList()
 				.Count;
-			return item.RemainingTimeActual * parallelBuilds * info.ParallelPenaltyBuildTimeMultipliers[Math.Min(parallelBuilds - 1, info.ParallelPenaltyBuildTimeMultipliers.Length - 1)] / 100;
+			return item.RemainingTimeActual *
+				parallelBuilds *
+				info.ParallelPenaltyBuildTimeMultipliers[Math.Min(parallelBuilds - 1, info.ParallelPenaltyBuildTimeMultipliers.Length - 1)] / 100;
 		}
 	}
 }

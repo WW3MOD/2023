@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -42,7 +42,7 @@ namespace OpenRA.Mods.Common.Orders
 	{
 		readonly string worldDefaultCursor = ChromeMetrics.Get<string>("WorldDefaultCursor");
 
-		class VariantWrapper
+		sealed class VariantWrapper
 		{
 			public readonly ActorInfo ActorInfo;
 			public readonly BuildingInfo BuildingInfo;
@@ -107,7 +107,7 @@ namespace OpenRA.Mods.Common.Orders
 
 			var variants = new List<VariantWrapper>()
 			{
-				new VariantWrapper(worldRenderer, queue, world.Map.Rules.Actors[name])
+				new(worldRenderer, queue, world.Map.Rules.Actors[name])
 			};
 
 			foreach (var v in variants[0].ActorInfo.TraitInfos<PlaceBuildingVariantsInfo>())
@@ -117,7 +117,7 @@ namespace OpenRA.Mods.Common.Orders
 			this.variants = variants.ToArray();
 		}
 
-		PlaceBuildingCellType MakeCellType(bool valid, bool lineBuild = false)
+		static PlaceBuildingCellType MakeCellType(bool valid, bool lineBuild = false)
 		{
 			var cell = valid ? PlaceBuildingCellType.Valid : PlaceBuildingCellType.Invalid;
 			if (lineBuild)
@@ -182,7 +182,7 @@ namespace OpenRA.Mods.Common.Orders
 					if (!AcceptsPlug(topLeft, plugInfo))
 					{
 						Game.Sound.PlayNotification(world.Map.Rules, owner, "Speech", notification, owner.Faction.InternalName);
-						TextNotificationsManager.AddTransientLine(placeBuildingInfo.CannotPlaceTextNotification, owner);
+						TextNotificationsManager.AddTransientLine(owner, placeBuildingInfo.CannotPlaceTextNotification);
 
 						yield break;
 					}
@@ -192,11 +192,11 @@ namespace OpenRA.Mods.Common.Orders
 					if (!world.CanPlaceBuilding(topLeft, ai, bi, null)
 						|| !bi.IsCloseEnoughToBase(world, owner, ai, topLeft))
 					{
-						foreach (var order in ClearBlockersOrders(world, topLeft))
+						foreach (var order in ClearBlockersOrders(topLeft))
 							yield return order;
 
 						Game.Sound.PlayNotification(world.Map.Rules, owner, "Speech", notification, owner.Faction.InternalName);
-						TextNotificationsManager.AddTransientLine(placeBuildingInfo.CannotPlaceTextNotification, owner);
+						TextNotificationsManager.AddTransientLine(owner, placeBuildingInfo.CannotPlaceTextNotification);
 
 						yield break;
 					}
@@ -294,7 +294,12 @@ namespace OpenRA.Mods.Common.Orders
 			{
 				var isCloseEnough = buildingInfo.IsCloseEnoughToBase(world, world.LocalPlayer, actorInfo, topLeft);
 				foreach (var t in buildingInfo.Tiles(topLeft))
-					footprint.Add(t, MakeCellType(isCloseEnough && world.IsCellBuildable(t, actorInfo, buildingInfo) && (resourceLayer == null || resourceLayer.GetResource(t).Type == null)));
+					footprint.Add(
+						t,
+						MakeCellType(
+							isCloseEnough &&
+							world.IsCellBuildable(t, actorInfo, buildingInfo) &&
+							(resourceLayer == null || resourceLayer.GetResource(t).Type == null)));
 			}
 
 			return preview?.Render(wr, topLeft, footprint) ?? Enumerable.Empty<IRenderable>();
@@ -326,38 +331,9 @@ namespace OpenRA.Mods.Common.Orders
 
 		void IOrderGenerator.Deactivate() { }
 
-		IEnumerable<Order> ClearBlockersOrders(World world, CPos topLeft)
+		IEnumerable<Order> ClearBlockersOrders(CPos topLeft)
 		{
-			var allTiles = variants[variant].BuildingInfo.Tiles(topLeft).ToArray();
-			var adjacentTiles = Util.ExpandFootprint(allTiles, true).Except(allTiles)
-				.Where(world.Map.Contains).ToList();
-
-			var blockers = allTiles.SelectMany(world.ActorMap.GetActorsAt)
-				.Where(a => a.Owner == Queue.Actor.Owner && a.IsIdle)
-				.Select(a => new TraitPair<IMove>(a, a.TraitOrDefault<IMove>()))
-				.Where(x => x.Trait != null);
-
-			foreach (var blocker in blockers)
-			{
-				CPos moveCell;
-				if (blocker.Trait is Mobile mobile)
-				{
-					var availableCells = adjacentTiles.Where(t => mobile.CanEnterCell(t)).ToList();
-					if (availableCells.Count == 0)
-						continue;
-
-					moveCell = blocker.Actor.ClosestCell(availableCells);
-				}
-				else if (blocker.Trait is Aircraft)
-					moveCell = blocker.Actor.Location;
-				else
-					continue;
-
-				yield return new Order("Move", blocker.Actor, Target.FromCell(world, moveCell), false)
-				{
-					SuppressVisualFeedback = true
-				};
-			}
+			return AIUtils.ClearBlockersOrders(variants[variant].BuildingInfo.Tiles(topLeft).ToList(), Queue.Actor.Owner);
 		}
 	}
 }

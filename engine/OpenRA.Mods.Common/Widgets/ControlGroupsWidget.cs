@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
 using OpenRA.Traits;
@@ -47,27 +46,27 @@ namespace OpenRA.Mods.Common.Widgets
 				yield break;
 
 			var selectPrefix = "";
-			var selectPrefixNode = widgetNode.Value.Nodes.FirstOrDefault(n => n.Key == "SelectGroupKeyPrefix");
+			var selectPrefixNode = widgetNode.Value.NodeWithKeyOrDefault("SelectGroupKeyPrefix");
 			if (selectPrefixNode != null)
 				selectPrefix = selectPrefixNode.Value.Value;
 
 			var createPrefix = "";
-			var createPrefixNode = widgetNode.Value.Nodes.FirstOrDefault(n => n.Key == "CreateGroupKeyPrefix");
+			var createPrefixNode = widgetNode.Value.NodeWithKeyOrDefault("CreateGroupKeyPrefix");
 			if (createPrefixNode != null)
 				createPrefix = createPrefixNode.Value.Value;
 
 			var addToPrefix = "";
-			var addToPrefixNode = widgetNode.Value.Nodes.FirstOrDefault(n => n.Key == "AddToGroupKeyPrefix");
+			var addToPrefixNode = widgetNode.Value.NodeWithKeyOrDefault("AddToGroupKeyPrefix");
 			if (addToPrefixNode != null)
 				addToPrefix = addToPrefixNode.Value.Value;
 
 			var combineWithPrefix = "";
-			var combineWithPrefixNode = widgetNode.Value.Nodes.FirstOrDefault(n => n.Key == "CombineWithGroupKeyPrefix");
+			var combineWithPrefixNode = widgetNode.Value.NodeWithKeyOrDefault("CombineWithGroupKeyPrefix");
 			if (combineWithPrefixNode != null)
 				combineWithPrefix = combineWithPrefixNode.Value.Value;
 
 			var jumpToPrefix = "";
-			var jumpToPrefixNode = widgetNode.Value.Nodes.FirstOrDefault(n => n.Key == "JumpToGroupKeyPrefix");
+			var jumpToPrefixNode = widgetNode.Value.NodeWithKeyOrDefault("JumpToGroupKeyPrefix");
 			if (jumpToPrefixNode != null)
 				jumpToPrefix = jumpToPrefixNode.Value.Value;
 
@@ -88,7 +87,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			for (var i = 0; i < count; i++)
 			{
-				var suffix = (i + 1).ToString("D2");
+				var suffix = (i + 1).ToStringInvariant("D2");
 				yield return selectPrefix + suffix;
 				yield return createPrefix + suffix;
 				yield return addToPrefix + suffix;
@@ -111,19 +110,19 @@ namespace OpenRA.Mods.Common.Widgets
 			base.Initialize(args);
 
 			selectGroupHotkeys = Exts.MakeArray(hotkeyCount,
-				i => modData.Hotkeys[SelectGroupKeyPrefix + (i + 1).ToString("D2")]);
+				i => modData.Hotkeys[SelectGroupKeyPrefix + (i + 1).ToStringInvariant("D2")]);
 
 			createGroupHotkeys = Exts.MakeArray(hotkeyCount,
-				i => modData.Hotkeys[CreateGroupKeyPrefix + (i + 1).ToString("D2")]);
+				i => modData.Hotkeys[CreateGroupKeyPrefix + (i + 1).ToStringInvariant("D2")]);
 
 			addToGroupHotkeys = Exts.MakeArray(hotkeyCount,
-				i => modData.Hotkeys[AddToGroupKeyPrefix + (i + 1).ToString("D2")]);
+				i => modData.Hotkeys[AddToGroupKeyPrefix + (i + 1).ToStringInvariant("D2")]);
 
 			combineWithGroupHotkeys = Exts.MakeArray(hotkeyCount,
-				i => modData.Hotkeys[CombineWithGroupKeyPrefix + (i + 1).ToString("D2")]);
+				i => modData.Hotkeys[CombineWithGroupKeyPrefix + (i + 1).ToStringInvariant("D2")]);
 
 			jumpToGroupHotkeys = Exts.MakeArray(hotkeyCount,
-				i => modData.Hotkeys[JumpToGroupKeyPrefix + (i + 1).ToString("D2")]);
+				i => modData.Hotkeys[JumpToGroupKeyPrefix + (i + 1).ToStringInvariant("D2")]);
 		}
 
 		public override bool HandleKeyPress(KeyInput e)

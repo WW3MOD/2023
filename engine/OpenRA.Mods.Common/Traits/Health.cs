@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -69,28 +69,26 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyKilled[] notifyKilled;
 		INotifyKilled[] notifyKilledPlayer;
 
-		[Sync]
-		int hp;
-
 		public int DisplayHP { get; private set; }
 
 		public Health(ActorInitializer init, HealthInfo info)
 		{
 			Info = info;
-			MaxHP = hp = info.HP > 0 ? info.HP : 1;
+			MaxHP = HP = info.HP > 0 ? info.HP : 1;
 
 			// Cast to long to avoid overflow when multiplying by the health
 			var healthInit = init.GetOrDefault<HealthInit>();
 			if (healthInit != null)
-				hp = (int)(healthInit.Value * (long)MaxHP / 100);
+				HP = (int)(healthInit.Value * (long)MaxHP / 100);
 
-			DisplayHP = hp;
+			DisplayHP = HP;
 		}
 
-		public int HP => hp;
+		[Sync]
+		public int HP { get; private set; }
 		public int MaxHP { get; }
 
-		public bool IsDead => hp <= 0;
+		public bool IsDead => HP <= 0;
 		public bool RemoveOnDeath = true;
 
 		public long GetDamageStateThreshold(DamageState damageState)
@@ -115,12 +113,17 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (hp == GetDamageStateThreshold(DamageState.Undamaged))
+=======
+				if (HP == MaxHP)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return DamageState.Undamaged;
 
-				if (hp <= 0)
+				if (HP <= 0)
 					return DamageState.Dead;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (hp * 100L < GetDamageStateThreshold(DamageState.Critical))
 					return DamageState.Critical;
 
@@ -128,6 +131,15 @@ namespace OpenRA.Mods.Common.Traits
 					return DamageState.Heavy;
 
 				if (hp * 100L < GetDamageStateThreshold(DamageState.Medium))
+=======
+				if (HP * 100L < MaxHP * 25L)
+					return DamageState.Critical;
+
+				if (HP * 100L < MaxHP * 50L)
+					return DamageState.Heavy;
+
+				if (HP * 100L < MaxHP * 75L)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return DamageState.Medium;
 
 				return DamageState.Light;
@@ -157,7 +169,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!IsDead)
 				return;
 
-			hp = MaxHP;
+			HP = MaxHP;
 
 			var ai = new AttackInfo
 			{
@@ -215,7 +227,7 @@ namespace OpenRA.Mods.Common.Traits
 				damage = new Damage((int)appliedDamage, damage.DamageTypes);
 			}
 
-			hp = (hp - damage.Value).Clamp(0, MaxHP);
+			HP = (HP - damage.Value).Clamp(0, MaxHP);
 
 			var ai = new AttackInfo
 			{
@@ -242,7 +254,7 @@ namespace OpenRA.Mods.Common.Traits
 					nd.AppliedDamage(attacker, self, ai);
 			}
 
-			if (hp == 0)
+			if (HP == 0)
 			{
 				foreach (var nd in notifyKilled)
 					nd.Killed(self, ai);
@@ -261,10 +273,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			if (hp >= DisplayHP)
-				DisplayHP = hp;
+			if (HP >= DisplayHP)
+				DisplayHP = HP;
 			else
-				DisplayHP = (2 * DisplayHP + hp) / 3;
+				DisplayHP = (2 * DisplayHP + HP) / 3;
 		}
 	}
 

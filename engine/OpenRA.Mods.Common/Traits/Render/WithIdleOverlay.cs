@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -51,10 +51,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				yield break;
 
 			if (Palette != null)
-			{
-				var ownerName = init.Get<OwnerInit>().InternalName;
-				p = init.WorldRenderer.Palette(IsPlayerPalette ? Palette + ownerName : Palette);
-			}
+				p = init.WorldRenderer.Palette(IsPlayerPalette ? Palette + init.Get<OwnerInit>().InternalName : Palette);
 
 			Func<WAngle> facing;
 			var dynamicfacingInit = init.GetOrDefault<DynamicFacingInit>();
@@ -74,15 +71,15 @@ namespace OpenRA.Mods.Common.Traits.Render
 			anim.PlayRepeating(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), Sequence));
 
 			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
-			Func<WRot> orientation = () => body.QuantizeOrientation(WRot.FromYaw(facing()), facings);
-			Func<WVec> offset = () => body.LocalToWorld(Offset.Rotate(orientation()));
-			Func<int> zOffset = () =>
+			WRot Orientation() => body.QuantizeOrientation(WRot.FromYaw(facing()), facings);
+			WVec Offset() => body.LocalToWorld(this.Offset.Rotate(Orientation()));
+			int ZOffset()
 			{
-				var tmpOffset = offset();
+				var tmpOffset = Offset();
 				return tmpOffset.Y + tmpOffset.Z + 1;
-			};
+			}
 
-			yield return new SpriteActorPreview(anim, offset, zOffset, p);
+			yield return new SpriteActorPreview(anim, Offset, ZOffset, p);
 		}
 	}
 
@@ -95,9 +92,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			var rs = self.Trait<RenderSprites>();
 			var body = self.Trait<BodyOrientation>();
+			var facing = self.TraitOrDefault<IFacing>();
 
 			var image = info.Image ?? rs.GetImage(self);
-			overlay = new Animation(self.World, image, () => IsTraitPaused)
+			overlay = new Animation(self.World, image,
+				facing == null ? () => WAngle.Zero : (body == null ? () => facing.Facing : () => body.QuantizeFacing(facing.Facing)),
+				() => IsTraitPaused)
 			{
 				IsDecoration = info.IsDecoration
 			};

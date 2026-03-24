@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,20 +9,19 @@
  */
 #endregion
 
-using System.Collections.Generic;
-using System.Linq;
-using OpenRA.Mods.Common.Effects;
+using OpenRA.Graphics;
+using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
-using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Actor can be captured by units in a specified proximity.")]
-	public class ProximityCapturableInfo : TraitInfo, IRulesetLoaded
+	[Desc("Actor can be captured by units within a certain range.")]
+	public class ProximityCapturableInfo : ProximityCapturableBaseInfo
 	{
-		[Desc("Maximum range at which a ProximityCaptor actor can initiate the capture.")]
+		[Desc("Maximum range at which a " + nameof(ProximityCaptor) + " actor can initiate the capture.")]
 		public readonly WDist Range = WDist.FromCells(5);
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Allowed ProximityCaptor actors to capture this actor.")]
 		public readonly BitSet<CaptureType> CaptorTypes = new BitSet<CaptureType>("Player", "Vehicle", "Tank", "Infantry");
 
@@ -53,16 +52,16 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public override object Create(ActorInitializer init) { return new ProximityCapturable(init.Self, this); }
+=======
+		public override object Create(ActorInitializer init) { return new ProximityCapturable(init, this); }
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 
-	public class ProximityCapturable : ITick, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyOwnerChanged
+	public class ProximityCapturable : ProximityCapturableBase
 	{
-		public readonly Player OriginalOwner;
-		public bool Captured => Self.Owner != OriginalOwner;
+		public new readonly ProximityCapturableInfo Info;
 
-		public ProximityCapturableInfo Info;
-		public Actor Self;
-
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		readonly List<Actor> friendlyActorsInRange = new List<Actor>();
 		readonly List<Actor> enemyActorsInRange = new List<Actor>();
 		int proximityTrigger;
@@ -70,23 +69,22 @@ namespace OpenRA.Mods.Common.Traits
 		bool skipTriggerUpdate;
 
 		public ProximityCapturable(Actor self, ProximityCapturableInfo info)
+=======
+		public ProximityCapturable(ActorInitializer init, ProximityCapturableInfo info)
+			: base(init, info)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			Info = info;
-			Self = self;
-			OriginalOwner = self.Owner;
 		}
 
-		void INotifyAddedToWorld.AddedToWorld(Actor self)
+		protected override int CreateTrigger(Actor self)
 		{
-			if (skipTriggerUpdate)
-				return;
-
-			// TODO: Eventually support CellTriggers as well
-			proximityTrigger = self.World.ActorMap.AddProximityTrigger(self.CenterPosition, Info.Range, WDist.Zero, ActorEntered, ActorLeft);
+			return self.World.ActorMap.AddProximityTrigger(self.CenterPosition, Info.Range, WDist.Zero, ActorEntered, ActorLeft);
 		}
 
-		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
+		protected override void RemoveTrigger(Actor self, int trigger)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (skipTriggerUpdate)
 				return;
 
@@ -114,10 +112,14 @@ namespace OpenRA.Mods.Common.Traits
 				enemyActorsInRange.Add(other);
 
 			UpdateOwnership();
+=======
+			self.World.ActorMap.RemoveProximityTrigger(trigger);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
-		void ActorLeft(Actor other)
+		protected override void TickInner(Actor self)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (skipTriggerUpdate || !CanBeCapturedBy(other))
 				return;
 
@@ -226,11 +228,14 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var t in self.TraitsImplementing<INotifyCapture>())
 					t.OnCapture(self, captor, previousOwner, changeTo, pc.Types);
 			});
+=======
+			self.World.ActorMap.UpdateProximityTrigger(trigger, self.CenterPosition, Info.Range, WDist.Zero);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
-		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		protected override IRenderable GetRenderable(Actor self, WorldRenderer wr)
 		{
-			Game.RunAfterTick(() => skipTriggerUpdate = false);
+			return new RangeCircleAnnotationRenderable(self.CenterPosition, Info.Range, 0, self.Owner.Color, 1, Color.Black, 3);
 		}
 	}
 }

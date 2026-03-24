@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Globalization;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Widgets;
@@ -17,11 +18,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class IngamePowerBarLogic : ChromeLogic
 	{
-		[TranslationReference("usage", "capacity")]
-		static readonly string PowerUsage = "power-usage";
+		[FluentReference("usage", "capacity")]
+		const string PowerUsage = "label-power-usage";
 
-		[TranslationReference]
-		static readonly string Infinite = "infinite-power";
+		[FluentReference]
+		const string Infinite = "label-infinite-power";
 
 		[ObjectCreator.UseCtor]
 		public IngamePowerBarLogic(Widget widget, ModData modData, World world)
@@ -35,12 +36,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			powerBar.TooltipTextCached = new CachedTransform<(float Current, float Capacity), string>(usage =>
 			{
 				var capacity = developerMode.UnlimitedPower ?
-					modData.Translation.GetString(Infinite) :
-					powerManager.PowerProvided.ToString();
+					FluentProvider.GetMessage(Infinite) :
+					powerManager.PowerProvided.ToString(NumberFormatInfo.CurrentInfo);
 
-				return modData.Translation.GetString(
-					PowerUsage,
-					Translation.Arguments("usage", usage.Current, "capacity", capacity));
+				return FluentProvider.GetMessage(PowerUsage, "usage", usage.Current, "capacity", capacity);
 			});
 
 			powerBar.GetBarColor = () =>

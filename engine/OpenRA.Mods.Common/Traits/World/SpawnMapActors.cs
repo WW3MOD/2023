@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class SpawnMapActors : IWorldLoaded
 	{
-		public Dictionary<string, Actor> Actors = new Dictionary<string, Actor>();
+		public Dictionary<string, Actor> Actors = new();
 		public uint LastMapActorID { get; private set; }
 
 		public void WorldLoaded(World world, WorldRenderer wr)
@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				actorReference.Add(new SkipMakeAnimsInit());
-				actorReference.Add(new SpawnedByMapInit(kv.Key));
+				actorReference.Add(new SpawnedByMapInit());
 
 				if (PreventMapSpawn(world, actorReference, preventMapSpawns))
 					continue;
@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		bool PreventMapSpawn(World world, ActorReference actorReference, IEnumerable<IPreventMapSpawn> preventMapSpawns)
+		static bool PreventMapSpawn(World world, ActorReference actorReference, IEnumerable<IPreventMapSpawn> preventMapSpawns)
 		{
 			foreach (var pms in preventMapSpawns)
 				if (pms.PreventMapSpawn(world, actorReference))
@@ -66,9 +66,13 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class SkipMakeAnimsInit : RuntimeFlagInit { }
-	public class SpawnedByMapInit : ValueActorInit<string>, ISuppressInitExport, ISingleInstanceInit
+	public class SpawnedByMapInit : ActorInit, ISuppressInitExport, ISingleInstanceInit
 	{
-		public SpawnedByMapInit(string value)
-			: base(value) { }
+		protected SpawnedByMapInit(string instanceName)
+			: base(instanceName) { }
+
+		public SpawnedByMapInit() { }
+
+		public override MiniYaml Save() => null;
 	}
 }

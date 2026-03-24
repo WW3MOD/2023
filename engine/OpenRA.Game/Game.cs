@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,6 +29,9 @@ namespace OpenRA
 {
 	public static class Game
 	{
+		[FluentReference("filename")]
+		const string SavedScreenshot = "notification-saved-screenshot";
+
 		public const int TimestepJankThreshold = 250; // Don't catch up for delays larger than 250ms
 
 		public static InstalledMods Mods { get; private set; }
@@ -45,7 +48,7 @@ namespace OpenRA
 		internal static OrderManager OrderManager;
 		static Server.Server server;
 
-		public static MersenneTwister CosmeticRandom = new MersenneTwister(); // not synced
+		public static MersenneTwister CosmeticRandom = new(); // not synced
 
 		public static Renderer Renderer;
 		public static Sound Sound;
@@ -62,7 +65,7 @@ namespace OpenRA
 		{
 			var newConnection = new NetworkConnection(endpoint);
 			if (recordReplay)
-				newConnection.StartRecording(() => { return TimestampedFilename(); });
+				newConnection.StartRecording(() => TimestampedFilename());
 
 			var om = new OrderManager(newConnection);
 			JoinInner(om);
@@ -83,8 +86,9 @@ namespace OpenRA
 
 		static void JoinInner(OrderManager om)
 		{
-			// Refresh TextNotificationsManager before the game starts.
+			// Refresh static classes before the game starts.
 			TextNotificationsManager.Clear();
+			UnitOrders.Clear();
 
 			// HACK: The shellmap World and OrderManager are owned by the main menu's WorldRenderer instead of Game.
 			// This allows us to switch Game.OrderManager from the shellmap to the new network connection when joining
@@ -176,6 +180,7 @@ namespace OpenRA
 		}
 
 		public static event Action BeforeGameStart = () => { };
+		public static event Action AfterGameStart = () => { };
 		internal static void StartGame(string mapUID, WorldType type)
 		{
 			// Dispose of the old world before creating a new one.
@@ -184,13 +189,8 @@ namespace OpenRA
 			Cursor.SetCursor(null);
 			BeforeGameStart();
 
-			Map map;
-
-			using (new PerfTimer("PrepareMap"))
-				map = ModData.PrepareMap(mapUID);
-
 			using (new PerfTimer("NewWorld"))
-				OrderManager.World = new World(ModData, map, OrderManager, type);
+				OrderManager.World = new World(mapUID, ModData, OrderManager, type);
 
 			OrderManager.World.GameOver += FinishBenchmark;
 
@@ -224,6 +224,12 @@ namespace OpenRA
 			//   Much better to clean up now then to drop frames during gameplay for GC pauses.
 			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
 			GC.Collect();
+
+			// PostLoadComplete is designed for anything that should trigger at the very end of loading.
+			// e.g. audio notifications that the game is starting.
+			OrderManager.World.PostLoadComplete(worldRenderer);
+
+			AfterGameStart();
 		}
 
 		public static void RestartGame()
@@ -267,15 +273,14 @@ namespace OpenRA
 		{
 			OrderManager om = null;
 
-			Action lobbyReady = null;
-			lobbyReady = () =>
+			void LobbyReady()
 			{
-				LobbyInfoChanged -= lobbyReady;
+				LobbyInfoChanged -= LobbyReady;
 				foreach (var o in setupOrders)
 					om.IssueOrder(o);
-			};
+			}
 
-			LobbyInfoChanged += lobbyReady;
+			LobbyInfoChanged += LobbyReady;
 
 			om = JoinServer(CreateLocalServer(mapUID), "");
 		}
@@ -363,22 +368,7 @@ namespace OpenRA
 				Settings.Game.Platform = p;
 				try
 				{
-					var rendererPath = Path.Combine(Platform.BinDir, "OpenRA.Platforms." + p + ".dll");
-
-#if NET5_0_OR_GREATER
-					var loader = new AssemblyLoader(rendererPath);
-					var platformType = loader.LoadDefaultAssembly().GetTypes().SingleOrDefault(t => typeof(IPlatform).IsAssignableFrom(t));
-
-#else
-					// NOTE: This is currently the only use of System.Reflection in this file, so would give an unused using error if we import it above
-					var assembly = System.Reflection.Assembly.LoadFile(rendererPath);
-					var platformType = assembly.GetTypes().SingleOrDefault(t => typeof(IPlatform).IsAssignableFrom(t));
-#endif
-
-					if (platformType == null)
-						throw new InvalidOperationException("Platform dll must include exactly one IPlatform implementation.");
-
-					var platform = (IPlatform)platformType.GetConstructor(Type.EmptyTypes).Invoke(null);
+					var platform = CreatePlatform(p);
 					Renderer = new Renderer(platform, Settings.Graphics);
 					Sound = new Sound(platform, Settings.Sound);
 
@@ -405,7 +395,7 @@ namespace OpenRA
 			Mods = new InstalledMods(modSearchPaths, explicitModPaths);
 			Console.WriteLine("Internal mods:");
 			foreach (var mod in Mods)
-				Console.WriteLine($"\t{mod.Key}: {mod.Value.Metadata.Title} ({mod.Value.Metadata.Version})");
+				Console.WriteLine($"\t{mod.Key} ({mod.Value.Metadata.Version})");
 
 			modLaunchWrapper = args.GetValue("Engine.LaunchWrapper", null);
 
@@ -418,8 +408,8 @@ namespace OpenRA
 
 				// Sanitize input from platform-specific launchers
 				// Process.Start requires paths to not be quoted, even if they contain spaces
-				if (launchPath != null && launchPath.First() == '"' && launchPath.Last() == '"')
-					launchPath = launchPath.Substring(1, launchPath.Length - 2);
+				if (launchPath != null && launchPath[0] == '"' && launchPath.Last() == '"')
+					launchPath = launchPath[1..^1];
 
 				// Metadata registration requires an explicit launch path
 				if (launchPath != null)
@@ -430,9 +420,29 @@ namespace OpenRA
 
 			Console.WriteLine("External mods:");
 			foreach (var mod in ExternalMods)
-				Console.WriteLine($"\t{mod.Key}: {mod.Value.Title} ({mod.Value.Version})");
+				Console.WriteLine($"\t{mod.Key} ({mod.Value.Version})");
 
 			InitializeMod(modID, args);
+		}
+
+		public static IPlatform CreatePlatform(string platformName)
+		{
+			var rendererPath = Path.Combine(Platform.BinDir, "OpenRA.Platforms." + platformName + ".dll");
+
+#if NET5_0_OR_GREATER
+			var loader = new AssemblyLoader(rendererPath);
+			var platformType = loader.LoadDefaultAssembly().GetTypes().SingleOrDefault(t => typeof(IPlatform).IsAssignableFrom(t));
+
+#else
+			// NOTE: This is currently the only use of System.Reflection in this file, so would give an unused using error if we import it above
+			var assembly = System.Reflection.Assembly.LoadFile(rendererPath);
+			var platformType = assembly.GetTypes().SingleOrDefault(t => typeof(IPlatform).IsAssignableFrom(t));
+#endif
+
+			if (platformType == null)
+				throw new InvalidOperationException("Platform dll must include exactly one IPlatform implementation.");
+
+			return (IPlatform)platformType.GetConstructor(Type.EmptyTypes).Invoke(null);
 		}
 
 		public static void InitializeMod(string mod, Arguments args)
@@ -486,11 +496,11 @@ namespace OpenRA
 			Renderer.InitializeDepthBuffer(grid);
 
 			Cursor?.Dispose();
-			Cursor = new CursorManager(ModData.CursorProvider);
+			Cursor = new CursorManager(ModData.CursorProvider, ModData.Manifest.CursorSheetSize);
 
 			var metadata = ModData.Manifest.Metadata;
-			if (!string.IsNullOrEmpty(metadata.WindowTitle))
-				Renderer.Window.SetWindowTitle(metadata.WindowTitle);
+			if (!string.IsNullOrEmpty(metadata.WindowTitleTranslated))
+				Renderer.Window.SetWindowTitle(metadata.WindowTitleTranslated);
 
 			PerfHistory.Items["render"].HasNormalTick = false;
 			PerfHistory.Items["batches"].HasNormalTick = false;
@@ -526,10 +536,11 @@ namespace OpenRA
 				.Where(m => m.Status == MapStatus.Available && m.Visibility.HasFlag(MapVisibility.Shellmap))
 				.Select(m => m.Uid);
 
-			if (!shellmaps.Any())
+			var shellmap = shellmaps.RandomOrDefault(CosmeticRandom);
+			if (shellmap == null)
 				throw new InvalidDataException("No valid shellmaps available");
 
-			return shellmaps.Random(CosmeticRandom);
+			return shellmap;
 		}
 
 		public static void SwitchToExternalMod(ExternalMod mod, string[] launchArguments = null, Action onFailed = null)
@@ -566,13 +577,10 @@ namespace OpenRA
 
 		// Note: These delayed actions should only be used by widgets or disposing objects
 		// - things that depend on a particular world should be queuing them on the world actor.
-		static volatile ActionQueue delayedActions = new ActionQueue();
+		static volatile ActionQueue delayedActions = new();
 
 		public static void RunAfterTick(Action a) { delayedActions.Add(a, RunTime); }
 		public static void RunAfterDelay(int delayMilliseconds, Action a) { delayedActions.Add(a, RunTime + delayMilliseconds); }
-
-		[TranslationReference("filename")]
-		static readonly string SavedScreenshot = "saved-screenshot";
 
 		static void TakeScreenshotInner()
 		{
@@ -587,7 +595,7 @@ namespace OpenRA
 				Log.Write("debug", "Taking screenshot " + path);
 
 				Renderer.SaveScreenshot(path);
-				TextNotificationsManager.Debug(ModData.Translation.GetString(SavedScreenshot, Translation.Arguments("filename", filename)));
+				TextNotificationsManager.Debug(FluentProvider.GetMessage(SavedScreenshot, "filename", filename));
 			}
 		}
 
@@ -606,7 +614,10 @@ namespace OpenRA
 
 			if (orderManager.LastTickTime.ShouldAdvance(tick))
 			{
-				using (new PerfSample("tick_time"))
+				if (orderManager.GameStarted && orderManager.LocalFrameNumber == 0)
+					PerfHistory.Reset(); // Remove history that occurred whilst the new game was loading.
+
+				using (var sample = new PerfSample("tick_time"))
 				{
 					orderManager.LastTickTime.AdvanceTickTime(tick);
 
@@ -615,14 +626,15 @@ namespace OpenRA
 					Sync.RunUnsynced(world, orderManager.TickImmediate);
 
 					if (world == null)
+					{
+						if (orderManager.GameStarted)
+							PerfHistory.Reset(); // Remove old history when a new game starts.
 						return;
+					}
 
 					if (orderManager.TryTick())
 					{
-						Sync.RunUnsynced(world, () =>
-						{
-							world.OrderGenerator.Tick(world);
-						});
+						Sync.RunUnsynced(world, () => world.OrderGenerator.Tick(world));
 
 						world.Tick();
 
@@ -672,7 +684,7 @@ namespace OpenRA
 				// Prepare renderables (i.e. render voxels) before calling BeginFrame
 				using (new PerfSample("render_prepare"))
 				{
-					Renderer.WorldModelRenderer.BeginFrame();
+					worldRenderer?.BeginFrame();
 
 					// World rendering is disabled while the loading screen is displayed
 					if (worldRenderer != null && !worldRenderer.World.IsLoadingGameSave)
@@ -682,7 +694,7 @@ namespace OpenRA
 					}
 
 					Ui.PrepareRenderables();
-					Renderer.WorldModelRenderer.EndFrame();
+					worldRenderer?.EndFrame();
 				}
 
 				// worldRenderer is null during the initial install/download screen
@@ -789,7 +801,7 @@ namespace OpenRA
 				var logicWorld = worldRenderer?.World;
 
 				// ReplayTimestep = 0 means the replay is paused: we need to keep logicInterval as UI.Timestep to avoid breakage
-				if (logicWorld != null && !(logicWorld.IsReplay && logicWorld.ReplayTimestep == 0))
+				if (logicWorld != null && (!logicWorld.IsReplay || logicWorld.ReplayTimestep != 0))
 					logicInterval = logicWorld == OrderManager.World ? OrderManager.SuggestedTimestep : logicWorld.Timestep;
 
 				// Ideal time between screen updates
@@ -924,15 +936,15 @@ namespace OpenRA
 		{
 			var endpoints = new List<IPEndPoint>
 			{
-				new IPEndPoint(IPAddress.IPv6Any, settings.ListenPort),
-				new IPEndPoint(IPAddress.Any, settings.ListenPort)
+				new(IPAddress.IPv6Any, settings.ListenPort),
+				new(IPAddress.Any, settings.ListenPort)
 			};
 			server = new Server.Server(endpoints, settings, ModData, ServerType.Multiplayer);
 
 			return server.GetEndpointForLocalConnection();
 		}
 
-		public static ConnectionTarget CreateLocalServer(string map)
+		public static ConnectionTarget CreateLocalServer(string map, bool isSkirmish = false)
 		{
 			var settings = new ServerSettings()
 			{
@@ -946,9 +958,9 @@ namespace OpenRA
 			// This would break the Restart button, which relies on the PlayerIndex always being the same for local servers
 			var endpoints = new List<IPEndPoint>
 			{
-				new IPEndPoint(IPAddress.Loopback, 0)
+				new(IPAddress.Loopback, 0)
 			};
-			server = new Server.Server(endpoints, settings, ModData, ServerType.Local);
+			server = new Server.Server(endpoints, settings, ModData, isSkirmish ? ServerType.Skirmish : ServerType.Local);
 
 			return server.GetEndpointForLocalConnection();
 		}
@@ -976,7 +988,7 @@ namespace OpenRA
 				Order.Command($"state {Session.ClientState.Ready}")
 			};
 
-			var map = ModData.MapCache.SingleOrDefault(m => m.Uid == launchMap || Path.GetFileName(m.Package.Name) == launchMap);
+			var map = ModData.MapCache.SingleOrDefault(m => m.Uid == launchMap || Path.GetFileName(m.PackageName) == launchMap);
 			if (map == null)
 				throw new ArgumentException($"Could not find map '{launchMap}'.");
 

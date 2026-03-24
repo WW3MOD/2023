@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,11 +20,11 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 		public override string Description => "A new trait ControlGroups was added, splitting logic away from Selection.";
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			if (actorNode.ChildrenMatching("Selection").Any(x => !x.IsRemoval())
-			    && !actorNode.ChildrenMatching("ControlGroups").Any())
-				actorNode.AddNode(new MiniYamlNode("ControlGroups", ""));
+				&& !actorNode.ChildrenMatching("ControlGroups").Any())
+				actorNode.AddNode(new MiniYamlNodeBuilder("ControlGroups", ""));
 
 			yield break;
 		}

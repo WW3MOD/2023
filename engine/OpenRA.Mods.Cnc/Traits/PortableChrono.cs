@@ -1,3 +1,17 @@
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
@@ -10,7 +24,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-	class PortableChronoInfo : PausableConditionalTraitInfo, Requires<IMoveInfo>
+	sealed class PortableChronoInfo : PausableConditionalTraitInfo, Requires<IMoveInfo>
 	{
 		[Desc("Cooldown in ticks until the unit can teleport.")]
 		public readonly int ChargeDelay = 500;
@@ -67,7 +81,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new PortableChrono(init.Self, this); }
 	}
 
-	class PortableChrono : PausableConditionalTrait<PortableChronoInfo>, IIssueOrder, IResolveOrder, ITick, ISelectionBar, IOrderVoice, ISync
+	sealed class PortableChrono : PausableConditionalTrait<PortableChronoInfo>, IIssueOrder, IResolveOrder, ITick, ISelectionBar, IOrderVoice, ISync
 	{
 		readonly IMove move;
 		[Sync]
@@ -166,7 +180,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		}
 	}
 
-	class PortableChronoOrderTargeter : IOrderTargeter
+	sealed class PortableChronoOrderTargeter : IOrderTargeter
 	{
 		readonly string targetCursor;
 
@@ -177,7 +191,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		public string OrderID => "PortableChronoTeleport";
 		public int OrderPriority => 5;
-		public bool IsQueued { get; protected set; }
+		public bool IsQueued { get; private set; }
 		public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 
 		public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
@@ -185,17 +199,26 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (!modifiers.HasModifier(TargetModifiers.ForceMove))
 				return false;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
 			if (!self.IsInWorld || !self.Owner.MapLayers.IsExplored(xy))
 				return false;
+=======
+				if (self.IsInWorld && self.Owner.Shroud.IsExplored(xy))
+				{
+					cursor = targetCursor;
+					return true;
+				}
+			}
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			cursor = targetCursor;
 			return true;
 		}
 	}
 
-	class PortableChronoOrderGenerator : OrderGenerator
+	sealed class PortableChronoOrderGenerator : OrderGenerator
 	{
 		readonly Actor self;
 		readonly PortableChrono portableChrono;
@@ -235,7 +258,6 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (portableChrono.IsTraitDisabled || portableChrono.IsTraitPaused)
 			{
 				world.CancelInputMode();
-				return;
 			}
 		}
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,9 +11,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using OpenRA.Mods.Common.FileSystem;
 using OpenRA.Network;
 using OpenRA.Support;
 using OpenRA.Widgets;
@@ -22,6 +24,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class MainMenuLogic : ChromeLogic
 	{
+		[FluentReference]
+		const string LoadingNews = "label-loading-news";
+
+		[FluentReference("message")]
+		const string NewsRetrivalFailed = "label-news-retrieval-failed";
+
+		[FluentReference("message")]
+		const string NewsParsingFailed = "label-news-parsing-failed";
+
+		[FluentReference("author", "datetime")]
+		const string AuthorDateTime = "label-author-datetime";
+
 		protected enum MenuType { Main, Singleplayer, Extras, MapEditor, StartupPrompts, None }
 
 		protected enum MenuPanel { None, Missions, Skirmish, Multiplayer, MapEditor, Replays, GameSaves }
@@ -29,18 +43,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		protected MenuType menuType = MenuType.Main;
 		readonly Widget rootMenu;
 		readonly ScrollPanelWidget newsPanel;
+		readonly int maxNewsHeight;
 		readonly Widget newsTemplate;
 		readonly LabelWidget newsStatus;
 		readonly ModData modData;
-
-		[TranslationReference]
-		static readonly string LoadingNews = "loading-news";
-
-		[TranslationReference("message")]
-		static readonly string NewsRetrivalFailed = "news-retrival-failed";
-
-		[TranslationReference("message")]
-		static readonly string NewsParsingFailed = "news-parsing-failed";
 
 		// Update news once per game launch
 		static bool fetchedNews;
@@ -65,6 +71,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 
 			rootMenu = widget;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			rootMenu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
 			{
 				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
@@ -73,6 +80,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{ "shellmapName", world.Map.Title ?? "" }
 				});
 			};
+=======
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			// Menu buttons
 			var mainMenu = widget.Get("MAIN_MENU");
@@ -82,16 +91,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			mainMenu.Get<ButtonWidget>("MULTIPLAYER_BUTTON").OnClick = OpenMultiplayerPanel;
 
-			mainMenu.Get<ButtonWidget>("CONTENT_BUTTON").OnClick = () =>
+			var contentButton = mainMenu.GetOrNull<ButtonWidget>("CONTENT_BUTTON");
+			if (contentButton != null)
 			{
-				// Switching mods changes the world state (by disposing it),
-				// so we can't do this inside the input handler.
-				Game.RunAfterTick(() =>
+				var contentInstaller = modData.FileSystemLoader as ContentInstallerFileSystemLoader;
+				contentButton.Disabled = contentInstaller == null;
+				contentButton.OnClick = () =>
 				{
-					var content = modData.Manifest.Get<ModContent>();
-					Game.InitializeMod(content.ContentInstallerMod, new Arguments(new[] { "Content.Mod=" + modData.Manifest.Id }));
-				});
-			};
+					// Switching mods changes the world state (by disposing it),
+					// so we can't do this inside the input handler.
+					Game.RunAfterTick(() =>
+					{
+						if (contentInstaller != null)
+							Game.InitializeMod(contentInstaller.ContentInstallerMod, new Arguments());
+					});
+				};
+			}
 
 			mainMenu.Get<ButtonWidget>("SETTINGS_BUTTON").OnClick = () =>
 			{
@@ -207,6 +222,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				Game.OpenWindow("MAPCHOOSER_PANEL", new WidgetArgs()
 				{
 					{ "initialMap", null },
+					{ "remoteMapPool", null },
 					{ "initialTab", MapClassification.User },
 					{ "onExit", () => SwitchMenu(MenuType.MapEditor) },
 					{ "onSelect", onSelect },
@@ -226,9 +242,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				newsPanel = Ui.LoadWidget<ScrollPanelWidget>("NEWS_PANEL", null, new WidgetArgs());
 				newsTemplate = newsPanel.Get("NEWS_ITEM_TEMPLATE");
 				newsPanel.RemoveChild(newsTemplate);
+				maxNewsHeight = newsPanel.Bounds.Height;
 
 				newsStatus = newsPanel.Get<LabelWidget>("NEWS_STATUS");
-				SetNewsStatus(modData.Translation.GetString(LoadingNews));
+				SetNewsStatus(FluentProvider.GetMessage(LoadingNews));
 			}
 
 			Game.OnRemoteDirectConnect += OnRemoteDirectConnect;
@@ -244,46 +261,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					menuType != MenuType.StartupPrompts &&
 					webServices.ModVersionStatus == ModVersionStatus.Outdated;
 
-			var playerProfile = widget.GetOrNull("PLAYER_PROFILE_CONTAINER");
-			if (playerProfile != null)
-			{
-				Func<bool> minimalProfile = () => Ui.CurrentWindow() != null;
-				Game.LoadWidget(world, "LOCAL_PROFILE_PANEL", playerProfile, new WidgetArgs()
-				{
-					{ "minimalProfile", minimalProfile }
-				});
-			}
-
 			menuType = MenuType.StartupPrompts;
 
-			Action onIntroductionComplete = () =>
+			void OnIntroductionComplete()
 			{
-				Action onSysInfoComplete = () =>
+				void OnSysInfoComplete()
 				{
 					LoadAndDisplayNews(webServices, newsBG);
 					SwitchMenu(MenuType.Main);
-				};
+				}
 
 				if (SystemInfoPromptLogic.ShouldShowPrompt())
 				{
 					Ui.OpenWindow("MAINMENU_SYSTEM_INFO_PROMPT", new WidgetArgs
 					{
-						{ "onComplete", onSysInfoComplete }
+						{ "onComplete", OnSysInfoComplete }
 					});
 				}
 				else
-					onSysInfoComplete();
-			};
+					OnSysInfoComplete();
+			}
 
 			if (IntroductionPromptLogic.ShouldShowPrompt())
 			{
 				Game.OpenWindow("MAINMENU_INTRODUCTION_PROMPT", new WidgetArgs
 				{
-					{ "onComplete", onIntroductionComplete }
+					{ "onComplete", OnIntroductionComplete }
 				});
 			}
 			else
-				onIntroductionComplete();
+				OnIntroductionComplete();
 
 			Game.OnShellmapLoaded += OpenMenuBasedOnLastGame;
 
@@ -340,9 +347,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							catch (Exception e)
 							{
 								Game.RunAfterTick(() => // run on the main thread
-								{
-									SetNewsStatus(modData.Translation.GetString(NewsRetrivalFailed, Translation.Arguments("message", e.Message)));
-								});
+									SetNewsStatus(FluentProvider.GetMessage(NewsRetrivalFailed, "message", e.Message)));
 							}
 						});
 					}
@@ -384,7 +389,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			newsStatus.GetText = () => message;
 		}
 
-		class NewsItem
+		sealed class NewsItem
 		{
 			public string Title;
 			public string Author;
@@ -413,7 +418,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 			catch (Exception ex)
 			{
-				SetNewsStatus(modData.Translation.GetString(NewsParsingFailed, Translation.Arguments("message", ex.Message)));
+				SetNewsStatus(FluentProvider.GetMessage(NewsParsingFailed, "message", ex.Message));
 			}
 
 			return null;
@@ -424,17 +429,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			newsPanel.RemoveChildren();
 			SetNewsStatus("");
 
-			foreach (var i in newsItems)
+			foreach (var item in newsItems)
 			{
-				var item = i;
-
 				var newsItem = newsTemplate.Clone();
 
 				var titleLabel = newsItem.Get<LabelWidget>("TITLE");
 				titleLabel.GetText = () => item.Title;
 
 				var authorDateTimeLabel = newsItem.Get<LabelWidget>("AUTHOR_DATETIME");
-				var authorDateTime = authorDateTimeLabel.Text.F(item.Author, item.DateTime.ToLocalTime());
+				var authorDateTime = FluentProvider.GetMessage(AuthorDateTime,
+					"author", item.Author,
+					"datetime", item.DateTime.ToLocalTime().ToString(CultureInfo.CurrentCulture));
+
 				authorDateTimeLabel.GetText = () => authorDateTime;
 
 				var contentLabel = newsItem.Get<LabelWidget>("CONTENT");
@@ -446,6 +452,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				newsPanel.AddChild(newsItem);
 				newsPanel.Layout.AdjustChildren();
+				newsPanel.Bounds.Height = Math.Min(newsPanel.ContentHeight, maxNewsHeight);
 			}
 		}
 
@@ -456,11 +463,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void StartSkirmishGame()
 		{
+			SwitchMenu(MenuType.None);
+
 			var map = modData.MapCache.ChooseInitialMap(modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? Game.Settings.Server.Map, Game.CosmeticRandom);
 			Game.Settings.Server.Map = map;
 			Game.Settings.Save();
 
-			ConnectionLogic.Connect(Game.CreateLocalServer(map),
+			ConnectionLogic.Connect(Game.CreateLocalServer(map, isSkirmish: true),
 				"",
 				OpenSkirmishLobbyPanel,
 				() => { Game.CloseServer(); SwitchMenu(MenuType.Main); });
@@ -471,7 +480,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SwitchMenu(MenuType.None);
 			Game.OpenWindow("MISSIONBROWSER_PANEL", new WidgetArgs
 			{
-				{ "onExit", () => SwitchMenu(MenuType.Singleplayer) },
+				{ "onExit", () => { Game.Disconnect(); SwitchMenu(MenuType.Singleplayer); } },
 				{ "onStart", () => { RemoveShellmapUI(); lastGameState = MenuPanel.Missions; } },
 				{ "initialMap", map }
 			});

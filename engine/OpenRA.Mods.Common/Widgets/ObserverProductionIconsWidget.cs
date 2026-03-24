@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
@@ -41,8 +42,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		readonly Dictionary<ProductionQueue, Animation> clocks;
 		readonly Lazy<TooltipContainerWidget> tooltipContainer;
-		readonly List<ProductionIcon> productionIcons = new List<ProductionIcon>();
-		readonly List<Rectangle> productionIconsBounds = new List<Rectangle>();
+		readonly List<ProductionIcon> productionIcons = new();
+		readonly List<Rectangle> productionIconsBounds = new();
 
 		readonly float2 iconSize;
 		int lastIconIdx;
@@ -101,14 +102,15 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var queues = world.ActorsWithTrait<ProductionQueue>()
 				.Where(a => a.Actor.Owner == player)
-				.Select((a, i) => new { a.Trait, i });
+				.Select(a => a.Trait)
+				.ToList();
 
 			foreach (var queue in queues)
-				if (!clocks.ContainsKey(queue.Trait))
-					clocks.Add(queue.Trait, new Animation(world, ClockAnimation));
+				if (!clocks.ContainsKey(queue))
+					clocks.Add(queue, new Animation(world, ClockAnimation));
 
 			var currentItemsByItem = queues
-					.Select(a => a.Trait.CurrentItem())
+					.Select(q => q.CurrentItem())
 					.Where(pi => pi != null)
 					.GroupBy(pr => pr.Item)
 					.OrderBy(g => g.First().Queue.Info.DisplayOrder)
@@ -125,7 +127,7 @@ namespace OpenRA.Mods.Common.Widgets
 					.ThenBy(q => q.RemainingTimeActual)
 					.ToList();
 
-				var current = queued.First();
+				var current = queued[0];
 				var queue = current.Queue;
 
 				var faction = queue.Actor.Owner.Faction.InternalName;
@@ -193,7 +195,7 @@ namespace OpenRA.Mods.Common.Widgets
 			var bold = Game.Renderer.Fonts["Small"];
 			foreach (var icon in productionIcons)
 			{
-				var current = icon.Queued.First();
+				var current = icon.Queued[0];
 				var text = GetOverlayForItem(current, world.Timestep);
 				tiny.DrawTextWithContrast(text,
 					icon.Pos + new float2(16, 12) - new float2(tiny.Measure(text).X / 2, 0),
@@ -201,7 +203,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 				if (icon.Queued.Count > 1)
 				{
-					text = icon.Queued.Count.ToString();
+					text = icon.Queued.Count.ToString(NumberFormatInfo.CurrentInfo);
 					bold.DrawTextWithContrast(text, icon.Pos + new float2(16, 0) - new float2(bold.Measure(text).X / 2, 0),
 						Color.White, Color.Black, 1);
 				}
@@ -254,7 +256,10 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 			}
 
-			if (TooltipIcon != null && productionIconsBounds.Count > lastIconIdx && productionIcons[lastIconIdx].Actor == TooltipIcon.Actor && productionIconsBounds[lastIconIdx].Contains(Viewport.LastMousePos))
+			if (TooltipIcon != null &&
+				productionIconsBounds.Count > lastIconIdx &&
+				productionIcons[lastIconIdx].Actor == TooltipIcon.Actor &&
+				productionIconsBounds[lastIconIdx].Contains(Viewport.LastMousePos))
 				return;
 
 			for (var i = 0; i < productionIconsBounds.Count; i++)
@@ -264,7 +269,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 				lastIconIdx = i;
 				TooltipIcon = productionIcons[i];
-				currentTooltipToken = tooltipContainer.Value.SetTooltip(TooltipTemplate, new WidgetArgs { { "player", GetPlayer() }, { "getTooltipIcon", GetTooltipIcon } });
+				currentTooltipToken = tooltipContainer.Value.SetTooltip(
+					TooltipTemplate,
+					new WidgetArgs { { "player", GetPlayer() }, { "getTooltipIcon", GetTooltipIcon } });
 				return;
 			}
 

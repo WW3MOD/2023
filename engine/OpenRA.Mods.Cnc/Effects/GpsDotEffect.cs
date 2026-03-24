@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Effects
 {
-	class GpsDotEffect : IEffect, IEffectAnnotation
+	sealed class GpsDotEffect : IEffect, IEffectAnnotation
 	{
 		readonly Actor actor;
 		readonly GpsDotInfo info;
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Cnc.Effects
 		readonly PlayerDictionary<DotState> dotStates;
 		readonly IShouldHideModifier[] shouldHideModifiers;
 
-		class DotState
+		sealed class DotState
 		{
 			public readonly GpsWatcher Watcher;
 			public readonly bool FrozenActorWithRenderables;
@@ -39,7 +39,7 @@ namespace OpenRA.Mods.Cnc.Effects
 				if (frozenLayer != null)
 				{
 					var frozenActor = frozenLayer.FromID(a.ActorID);
-					FrozenActorWithRenderables = frozenActor != null ? frozenActor.HasRenderables : false;
+					FrozenActorWithRenderables = frozenActor != null && frozenActor.HasRenderables;
 				}
 			}
 		}

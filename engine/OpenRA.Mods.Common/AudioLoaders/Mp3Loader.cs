@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,12 +18,37 @@ namespace OpenRA.Mods.Common.AudioLoaders
 {
 	public class Mp3Loader : ISoundLoader
 	{
+		static bool IsMp3(Stream s)
+		{
+			var start = s.Position;
+
+			// First try: MP3 may have ID3 meta data in front.
+			var idTag = s.ReadASCII(3);
+			s.Position = start;
+
+			if (idTag == "ID3")
+				return true;
+
+			// Second try: MP3 without metadata, starts with MPEG chunk.
+			var frameSync = s.ReadUInt16();
+			s.Position = start;
+
+			if (frameSync == 0xfbff)
+				return true;
+
+			// Neither found, not an MP3!
+			return false;
+		}
+
 		bool ISoundLoader.TryParseSound(Stream stream, out ISoundFormat sound)
 		{
 			try
 			{
-				sound = new Mp3Format(stream);
-				return true;
+				if (IsMp3(stream))
+				{
+					sound = new Mp3Format(stream);
+					return true;
+				}
 			}
 			catch
 			{
@@ -72,20 +97,19 @@ namespace OpenRA.Mods.Common.AudioLoaders
 			}
 		}
 
-		Stream Clone(Mp3Format cloneFrom)
+		static Stream Clone(Mp3Format cloneFrom)
 		{
 			return SegmentStream.CreateWithoutOwningStream(cloneFrom.stream, 0, (int)cloneFrom.stream.Length);
 		}
 
 		public class StreamAbstraction : TagLib.File.IFileAbstraction
 		{
-			readonly Stream s;
 			public StreamAbstraction(Stream s)
 			{
-				this.s = s;
+				ReadStream = s;
 			}
 
-			public Stream ReadStream => s;
+			public Stream ReadStream { get; }
 
 			public Stream WriteStream => throw new NotImplementedException();
 

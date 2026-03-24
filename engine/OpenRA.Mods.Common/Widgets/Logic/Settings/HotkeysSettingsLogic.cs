@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,6 +19,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class HotkeysSettingsLogic : ChromeLogic
 	{
+		[FluentReference("key")]
+		const string OriginalNotice = "label-original-notice";
+
+		[FluentReference("key", "context")]
+		const string DuplicateNotice = "label-duplicate-notice";
+
+		[FluentReference]
+		const string AnyContext = HotkeyDefinition.ContextFluentPrefix + "-any";
+
 		readonly ModData modData;
 		readonly Dictionary<string, MiniYaml> logicArgs;
 
@@ -31,9 +40,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		bool isHotkeyValid;
 		bool isHotkeyDefault;
 
-		string currentContext = "Any";
-		readonly HashSet<string> contexts = new HashSet<string>() { "Any" };
-		readonly Dictionary<string, HashSet<string>> hotkeyGroups = new Dictionary<string, HashSet<string>>();
+		string currentContext = AnyContext;
+		readonly HashSet<string> contexts = new() { AnyContext };
+		readonly Dictionary<string, HashSet<string>> hotkeyGroups = new();
 		TextFieldWidget filterInput;
 
 		Widget headerTemplate;
@@ -44,7 +53,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static HotkeysSettingsLogic() { }
 
 		[ObjectCreator.UseCtor]
-		public HotkeysSettingsLogic(Action<string, string, Func<Widget, Func<bool>>, Func<Widget, Action>> registerPanel, string panelID, string label, ModData modData, Dictionary<string, MiniYaml> logicArgs)
+		public HotkeysSettingsLogic(
+			Action<string, string, Func<Widget, Func<bool>>, Func<Widget, Action>> registerPanel,
+			string panelID, string label, ModData modData, Dictionary<string, MiniYaml> logicArgs)
 		{
 			this.modData = modData;
 			this.logicArgs = logicArgs;
@@ -58,7 +69,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			key.Id = hd.Name;
 			key.IsVisible = () => true;
 
-			key.Get<LabelWidget>("FUNCTION").GetText = () => hd.Description + ":";
+			var desc = FluentProvider.GetMessage(hd.Description) + ":";
+			key.Get<LabelWidget>("FUNCTION").GetText = () => desc;
 
 			var remapButton = key.Get<ButtonWidget>("HOTKEY");
 			WidgetUtils.TruncateButtonToTooltip(remapButton, modData.Hotkeys[hd.Name].GetValue().DisplayString());
@@ -68,10 +80,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var hotkeyValidColor = ChromeMetrics.Get<Color>("HotkeyColor");
 			var hotkeyInvalidColor = ChromeMetrics.Get<Color>("HotkeyColorInvalid");
 
-			remapButton.GetColor = () =>
-			{
-				return hd.HasDuplicates ? hotkeyInvalidColor : hotkeyValidColor;
-			};
+			remapButton.GetColor = () => hd.HasDuplicates ? hotkeyInvalidColor : hotkeyValidColor;
 
 			if (selectedHotkeyDefinition == hd)
 			{
@@ -135,7 +144,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				foreach (var hg in hotkeyGroupsYaml.Nodes)
 				{
-					var typesNode = hg.Value.Nodes.FirstOrDefault(n => n.Key == "Types");
+					var typesNode = hg.Value.NodeWithKeyOrDefault("Types");
 					if (typesNode != null)
 						hotkeyGroups.Add(hg.Key, FieldLoader.GetValue<HashSet<string>>("Types", typesNode.Value.Value));
 				}
@@ -164,7 +173,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				foreach (var hd in modData.Hotkeys.Definitions)
 				{
 					modData.Hotkeys.Set(hd.Name, hd.Default);
-					WidgetUtils.TruncateButtonToTooltip(panel.Get(hd.Name).Get<ButtonWidget>("HOTKEY"), hd.Default.DisplayString());
+					var hotkeyButton = panel.GetOrNull(hd.Name)?.Get<ButtonWidget>("HOTKEY");
+					if (hotkeyButton != null)
+						WidgetUtils.TruncateButtonToTooltip(hotkeyButton, hd.Default.DisplayString());
 				}
 			};
 		}
@@ -178,13 +189,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				var typesInGroup = hg.Value;
 				var keysInGroup = modData.Hotkeys.Definitions
-					.Where(hd => IsHotkeyVisibleInFilter(hd) && hd.Types.Overlaps(typesInGroup));
+					.Where(hd => IsHotkeyVisibleInFilter(hd) && hd.Types.Overlaps(typesInGroup))
+					.ToList();
 
-				if (!keysInGroup.Any())
+				if (keysInGroup.Count == 0)
 					continue;
 
 				var header = headerTemplate.Clone();
-				header.Get<LabelWidget>("LABEL").GetText = () => hg.Key;
+				var groupName = FluentProvider.GetMessage(hg.Key);
+				header.Get<LabelWidget>("LABEL").GetText = () => groupName;
 				hotkeyList.AddChild(header);
 
 				var added = new HashSet<HotkeyDefinition>();
@@ -195,8 +208,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{
 						if (added.Add(hd))
 						{
-							if (selectedHotkeyDefinition == null)
-								selectedHotkeyDefinition = hd;
+							selectedHotkeyDefinition ??= hd;
 
 							BindHotkeyPref(hd, template);
 						}
@@ -213,7 +225,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void InitHotkeyRemapDialog(Widget panel)
 		{
 			var label = panel.Get<LabelWidget>("HOTKEY_LABEL");
-			var labelText = new CachedTransform<HotkeyDefinition, string>(hd => hd?.Description + ":");
+			var labelText = new CachedTransform<HotkeyDefinition, string>(
+				hd => (hd != null ? FluentProvider.GetMessage(hd.Description) : "") + ":");
 			label.IsVisible = () => selectedHotkeyDefinition != null;
 			label.GetText = () => labelText.Update(selectedHotkeyDefinition);
 
@@ -221,15 +234,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			duplicateNotice.TextColor = ChromeMetrics.Get<Color>("NoticeErrorColor");
 			duplicateNotice.IsVisible = () => !isHotkeyValid;
 			var duplicateNoticeText = new CachedTransform<HotkeyDefinition, string>(hd =>
-				hd != null ?
-				duplicateNotice.Text.F(hd.Description, hd.Contexts.First(c => selectedHotkeyDefinition.Contexts.Contains(c))) :
-				"");
+				hd != null
+					? FluentProvider.GetMessage(
+						DuplicateNotice,
+						"key", FluentProvider.GetMessage(hd.Description),
+						"context", FluentProvider.GetMessage(hd.Contexts.First(c => selectedHotkeyDefinition.Contexts.Contains(c))))
+					: "");
 			duplicateNotice.GetText = () => duplicateNoticeText.Update(duplicateHotkeyDefinition);
 
 			var originalNotice = panel.Get<LabelWidget>("ORIGINAL_NOTICE");
 			originalNotice.TextColor = ChromeMetrics.Get<Color>("NoticeInfoColor");
 			originalNotice.IsVisible = () => isHotkeyValid && !isHotkeyDefault;
-			var originalNoticeText = new CachedTransform<HotkeyDefinition, string>(hd => originalNotice.Text.F(hd?.Default.DisplayString()));
+			var originalNoticeText = new CachedTransform<HotkeyDefinition, string>(hd =>
+				FluentProvider.GetMessage(OriginalNotice, "key", hd?.Default.DisplayString()));
 			originalNotice.GetText = () => originalNoticeText.Update(selectedHotkeyDefinition);
 
 			var readonlyNotice = panel.Get<LabelWidget>("READONLY_NOTICE");
@@ -253,9 +270,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			hotkeyEntryWidget.IsValid = () => isHotkeyValid;
 			hotkeyEntryWidget.OnLoseFocus = ValidateHotkey;
 			hotkeyEntryWidget.OnEscKey = _ =>
-			{
 				hotkeyEntryWidget.Key = modData.Hotkeys[selectedHotkeyDefinition.Name].GetValue();
-			};
 			hotkeyEntryWidget.IsDisabled = () => selectedHotkeyDefinition.Readonly;
 
 			validHotkeyEntryWidth = hotkeyEntryWidget.Bounds.Width;
@@ -269,7 +284,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			duplicateHotkeyDefinition = modData.Hotkeys.GetFirstDuplicate(selectedHotkeyDefinition, hotkeyEntryWidget.Key);
 			isHotkeyValid = duplicateHotkeyDefinition == null || selectedHotkeyDefinition.Readonly;
-			isHotkeyDefault = hotkeyEntryWidget.Key == selectedHotkeyDefinition.Default || (!hotkeyEntryWidget.Key.IsValid() && !selectedHotkeyDefinition.Default.IsValid());
+			isHotkeyDefault =
+				hotkeyEntryWidget.Key == selectedHotkeyDefinition.Default ||
+				(!hotkeyEntryWidget.Key.IsValid() && !selectedHotkeyDefinition.Default.IsValid());
 
 			if (isHotkeyValid)
 			{
@@ -307,8 +324,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void OverrideHotkey()
 		{
-			var duplicateHotkeyButton = hotkeyList.Get<ContainerWidget>(duplicateHotkeyDefinition.Name).Get<ButtonWidget>("HOTKEY");
-			WidgetUtils.TruncateButtonToTooltip(duplicateHotkeyButton, Hotkey.Invalid.DisplayString());
+			var duplicateHotkeyButton = hotkeyList.GetOrNull<ContainerWidget>(duplicateHotkeyDefinition.Name)?.Get<ButtonWidget>("HOTKEY");
+			if (duplicateHotkeyButton != null)
+				WidgetUtils.TruncateButtonToTooltip(duplicateHotkeyButton, Hotkey.Invalid.DisplayString());
 			modData.Hotkeys.Set(duplicateHotkeyDefinition.Name, Hotkey.Invalid);
 			Game.Settings.Save();
 			hotkeyEntryWidget.YieldKeyboardFocus();
@@ -317,8 +335,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		bool IsHotkeyVisibleInFilter(HotkeyDefinition hd)
 		{
 			var filter = filterInput.Text;
-			var isFilteredByName = string.IsNullOrWhiteSpace(filter) || hd.Description.Contains(filter, StringComparison.OrdinalIgnoreCase);
-			var isFilteredByContext = currentContext == "Any" || hd.Contexts.Contains(currentContext);
+			var isFilteredByName = string.IsNullOrWhiteSpace(filter) ||
+				FluentProvider.GetMessage(hd.Description).Contains(filter, StringComparison.CurrentCultureIgnoreCase);
+			var isFilteredByContext = currentContext == AnyContext || hd.Contexts.Contains(currentContext);
 
 			return isFilteredByName && isFilteredByContext;
 		}
@@ -346,9 +365,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static string GetContextDisplayName(string context)
 		{
 			if (string.IsNullOrEmpty(context))
-				return "Any";
+				context = AnyContext;
 
-			return context;
+			return FluentProvider.GetMessage(context);
 		}
 	}
 }

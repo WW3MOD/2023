@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,7 +22,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			"by multiplying with 25 internally. Converted to use ticks like everything else.\n" +
 			"Also renamed Lifetime to Duration and ScaredyCat.PanicLength to PanicDuration to match other places.";
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			foreach (var crateNode in actorNode.ChildrenMatching("Crate"))
 			{
@@ -35,9 +35,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			}
 
 			foreach (var scNode in actorNode.ChildrenMatching("ScaredyCat"))
-			{
 				scNode.RenameChildrenMatching("PanicLength", "PanicDuration");
-			}
 
 			yield break;
 		}

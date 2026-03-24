@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -49,6 +49,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play when setting a new rallypoint.")]
 		public readonly string Notification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display when setting a new rallypoint.")]
 		public readonly string TextNotification = null;
 
@@ -58,16 +59,16 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new RallyPoint(init.Self, this); }
 	}
 
-	public class RallyPoint : IIssueOrder, IResolveOrder, INotifyOwnerChanged, INotifyCreated
+	public class RallyPoint : IIssueOrder, IResolveOrder, INotifyOwnerChanged, INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		const string OrderID = "SetRallyPoint";
+		const uint ForceSet = 1;
 
 		public List<CPos> Path;
 
 		public RallyPointInfo Info;
 		public string PaletteName { get; private set; }
-
-		const uint ForceSet = 1;
+		RallyPointIndicator effect;
 
 		public void ResetPath(Actor self)
 		{
@@ -83,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCreated.Created(Actor self)
 		{
-			self.World.Add(new RallyPointIndicator(self, this));
+			effect = new RallyPointIndicator(self, this);
 		}
 
 		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
@@ -104,7 +105,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderID == OrderID)
 			{
 				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.Notification, self.Owner.Faction.InternalName);
-				TextNotificationsManager.AddTransientLine(Info.TextNotification, self.Owner);
+				TextNotificationsManager.AddTransientLine(self.Owner, Info.TextNotification);
 
 				return new Order(order.OrderID, self, target, queued)
 				{
@@ -127,6 +128,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != OrderID)
 				return;
 
+			if (!order.Target.IsValidFor(self))
+				return;
+
 			if (!order.Queued)
 				Path.Clear();
 
@@ -138,7 +142,17 @@ namespace OpenRA.Mods.Common.Traits
 			return order.OrderString == OrderID && order.ExtraData == ForceSet;
 		}
 
-		class RallyPointOrderTargeter : IOrderTargeter
+		void INotifyAddedToWorld.AddedToWorld(Actor self)
+		{
+			self.World.AddFrameEndTask(w => w.Add(effect));
+		}
+
+		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
+		{
+			self.World.AddFrameEndTask(w => w.Remove(effect));
+		}
+
+		sealed class RallyPointOrderTargeter : IOrderTargeter
 		{
 			readonly RallyPointInfo info;
 
@@ -151,7 +165,7 @@ namespace OpenRA.Mods.Common.Traits
 			public int OrderPriority => 0;
 			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers) { return true; }
 			public bool ForceSet { get; private set; }
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 
 			public bool CanTarget(Actor self, in Target target, List<Actor> othersAtTarget, CPos xy, TargetModifiers modifiers, ref string cursor)
 			{
@@ -168,10 +182,8 @@ namespace OpenRA.Mods.Common.Traits
 					if (modifiers.HasModifier(TargetModifiers.ForceAttack) && !string.IsNullOrEmpty(info.ForceSetType))
 					{
 						var closest = self.World.Selection.Actors
-							.Select<Actor, (Actor Actor, RallyPoint RallyPoint)>(a => (a, a.TraitOrDefault<RallyPoint>()))
-							.Where(x => x.RallyPoint != null && x.RallyPoint.Info.ForceSetType == info.ForceSetType)
-							.OrderBy(x => (location - x.Actor.Location).LengthSquared)
-							.FirstOrDefault().Actor;
+							.Where(a => !a.IsDead && a.IsInWorld && a.TraitOrDefault<RallyPoint>()?.Info.ForceSetType == info.ForceSetType)
+							.ClosestToIgnoringPath(target.CenterPosition);
 
 						ForceSet = closest == self;
 					}

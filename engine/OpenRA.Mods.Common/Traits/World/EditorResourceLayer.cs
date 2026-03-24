@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected static object LoadResourceTypes(MiniYaml yaml)
 		{
 			var ret = new Dictionary<string, ResourceLayerInfo.ResourceTypeInfo>();
-			var resources = yaml.Nodes.FirstOrDefault(n => n.Key == "ResourceTypes");
+			var resources = yaml.NodeWithKeyOrDefault("ResourceTypes");
 			if (resources != null)
 				foreach (var r in resources.Value.Nodes)
 					ret[r.Key] = new ResourceLayerInfo.ResourceTypeInfo(r.Value);
@@ -174,35 +174,57 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateNetWorth(string oldResourceType, int oldDensity, string newResourceType, int newDensity)
 		{
-			// Density + 1 as workaround for fixing ResourceLayer.Harvest as it would be very disruptive to balancing
 			if (oldResourceType != null && oldDensity > 0 && resourceValues.TryGetValue(oldResourceType, out var oldResourceValue))
-				NetWorth -= (oldDensity + 1) * oldResourceValue;
+				NetWorth -= oldDensity * oldResourceValue;
 
 			if (newResourceType != null && newDensity > 0 && resourceValues.TryGetValue(newResourceType, out var newResourceValue))
-				NetWorth += (newDensity + 1) * newResourceValue;
+				NetWorth += newDensity * newResourceValue;
 		}
 
-		protected virtual int CalculateCellDensity(ResourceLayerContents contents, CPos c)
+		public int CalculateRegionValue(CellRegion sourceRegion)
+		{
+			var resourceValueInRegion = 0;
+			foreach (var cell in sourceRegion.CellCoords)
+			{
+				var mcell = cell.ToMPos(Map);
+				if (!Map.Resources.Contains(mcell))
+					continue;
+
+				var resource = Map.Resources[mcell].Type;
+				if (resource != 0
+					&& ResourceTypesByIndex.TryGetValue(resource, out var resourceType)
+					&& resourceValues.TryGetValue(resourceType, out var resourceValuePerUnit))
+					resourceValueInRegion += Tiles[mcell].Density * resourceValuePerUnit;
+			}
+
+			return resourceValueInRegion;
+		}
+
+		/// <summary>
+		/// Matches the logic in <see cref="ResourceLayer"/> trait.
+		/// </summary>
+		protected virtual int CalculateCellDensity(ResourceLayerContents contents, CPos cell)
 		{
 			var resources = Map.Resources;
-			if (contents.Type == null || !info.ResourceTypes.TryGetValue(contents.Type, out var resourceInfo) || resources[c].Type != resourceInfo.ResourceIndex)
+			if (contents.Type == null || !info.ResourceTypes.TryGetValue(contents.Type, out var resourceInfo) || resources[cell].Type != resourceInfo.ResourceIndex)
 				return 0;
 
 			if (!info.RecalculateResourceDensity)
 				return contents.Density.Clamp(1, resourceInfo.MaxDensity);
 
-			// Set density based on the number of neighboring resources
+			// Set density based on the number of neighboring resources.
 			var adjacent = 0;
-			for (var u = -1; u < 2; u++)
+			var directions = CVec.Directions;
+			for (var i = 0; i < directions.Length; i++)
 			{
-				for (var v = -1; v < 2; v++)
-				{
-					var cell = c + new CVec(u, v);
-					if (resources.Contains(cell) && resources[cell].Type == resourceInfo.ResourceIndex)
-						adjacent++;
-				}
+				var c = cell + directions[i];
+				if (resources.Contains(c) && resources[c].Type == resourceInfo.ResourceIndex)
+					++adjacent;
 			}
 
+			// We need to have at least one resource in the cell.
+			// HACK: we should not be lerping to 9, as maximum adjacent resources is 8.
+			// HACK: it's too disruptive to fix.
 			return Math.Max(int2.Lerp(0, resourceInfo.MaxDensity, adjacent, 9), 1);
 		}
 
@@ -253,7 +275,7 @@ namespace OpenRA.Mods.Common.Traits
 			var content = resources[cell];
 			var oldDensity = content.Type == resourceInfo.ResourceIndex ? content.Index : 0;
 			var density = (byte)Math.Min(resourceInfo.MaxDensity, oldDensity + amount);
-			Map.Resources[cell] = new ResourceTile((byte)resourceInfo.ResourceIndex, density);
+			Map.Resources[cell] = new ResourceTile(resourceInfo.ResourceIndex, density);
 
 			return density - oldDensity;
 		}

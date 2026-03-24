@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,14 +17,14 @@ namespace OpenRA.GameRules
 {
 	public class SoundInfo
 	{
-		public readonly Dictionary<string, string[]> Variants = new Dictionary<string, string[]>();
-		public readonly Dictionary<string, string[]> Prefixes = new Dictionary<string, string[]>();
-		public readonly Dictionary<string, string[]> Voices = new Dictionary<string, string[]>();
-		public readonly Dictionary<string, string[]> Notifications = new Dictionary<string, string[]>();
+		public readonly Dictionary<string, string[]> Variants = new();
+		public readonly Dictionary<string, string[]> Prefixes = new();
+		public readonly Dictionary<string, string[]> Voices = new();
+		public readonly Dictionary<string, string[]> Notifications = new();
 		public readonly string DefaultVariant = ".aud";
 		public readonly string DefaultPrefix = "";
-		public readonly HashSet<string> DisableVariants = new HashSet<string>();
-		public readonly HashSet<string> DisablePrefixes = new HashSet<string>();
+		public readonly HashSet<string> DisableVariants = new();
+		public readonly HashSet<string> DisablePrefixes = new();
 
 		public readonly Lazy<Dictionary<string, SoundPool>> VoicePools;
 		public readonly Lazy<Dictionary<string, SoundPool>> NotificationsPools;
@@ -40,16 +40,16 @@ namespace OpenRA.GameRules
 		static Dictionary<string, SoundPool> ParseSoundPool(MiniYaml y, string key)
 		{
 			var ret = new Dictionary<string, SoundPool>();
-			var classifiction = y.Nodes.First(x => x.Key == key);
+			var classifiction = y.NodeWithKey(key);
 			foreach (var t in classifiction.Value.Nodes)
 			{
 				var volumeModifier = 1f;
-				var volumeModifierNode = t.Value.Nodes.FirstOrDefault(x => x.Key == nameof(SoundPool.VolumeModifier));
+				var volumeModifierNode = t.Value.NodeWithKeyOrDefault(nameof(SoundPool.VolumeModifier));
 				if (volumeModifierNode != null)
 					volumeModifier = FieldLoader.GetValue<float>(volumeModifierNode.Key, volumeModifierNode.Value.Value);
 
 				var interruptType = SoundPool.DefaultInterruptType;
-				var interruptTypeNode = t.Value.Nodes.FirstOrDefault(x => x.Key == nameof(SoundPool.InterruptType));
+				var interruptTypeNode = t.Value.NodeWithKeyOrDefault(nameof(SoundPool.InterruptType));
 				if (interruptTypeNode != null)
 					interruptType = FieldLoader.GetValue<SoundPool.InterruptType>(interruptTypeNode.Key, interruptTypeNode.Value.Value);
 
@@ -69,7 +69,7 @@ namespace OpenRA.GameRules
 		public readonly float VolumeModifier;
 		public readonly InterruptType Type;
 		readonly string[] clips;
-		readonly List<string> liveclips = new List<string>();
+		readonly List<string> liveclips = new();
 
 		public SoundPool(float volumeModifier, InterruptType interruptType, params string[] clips)
 		{

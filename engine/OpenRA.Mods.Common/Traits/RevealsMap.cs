@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -46,7 +46,17 @@ namespace OpenRA.Mods.Common.Traits
 			p.MapLayers.AddSource(this, 10, uv);
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		protected void RemoveCellsFromPlayerShroud(Player p) { p.MapLayers.RemoveSource(this); }
+=======
+		protected void RemoveCellsFromPlayerShroud(Actor self, Player p)
+		{
+			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
+				return;
+
+			p.Shroud.RemoveSource(this);
+		}
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		protected PPos[] ProjectedCells(Actor self)
 		{
@@ -60,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits
 				var cells = ProjectedCells(self);
 				foreach (var player in self.World.Players)
 				{
-					RemoveCellsFromPlayerShroud(player);
+					RemoveCellsFromPlayerShroud(self, player);
 					AddCellsToPlayerShroud(self, player, cells);
 				}
 			}
@@ -69,13 +79,13 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
 			foreach (var player in self.World.Players)
-				RemoveCellsFromPlayerShroud(player);
+				RemoveCellsFromPlayerShroud(self, player);
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			foreach (var player in self.World.Players)
-				RemoveCellsFromPlayerShroud(player);
+				RemoveCellsFromPlayerShroud(self, player);
 		}
 
 		protected override void TraitEnabled(Actor self)
@@ -88,7 +98,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void TraitDisabled(Actor self)
 		{
 			foreach (var player in self.World.Players)
-				RemoveCellsFromPlayerShroud(player);
+				RemoveCellsFromPlayerShroud(self, player);
 		}
 	}
 }

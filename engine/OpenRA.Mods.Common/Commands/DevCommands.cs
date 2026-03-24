@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,59 +24,64 @@ namespace OpenRA.Mods.Common.Commands
 
 	public class DevCommands : IChatCommand, IWorldLoaded
 	{
-		[TranslationReference]
-		static readonly string CheatsDisabled = "cheats-disabled";
+		[FluentReference]
+		const string CheatsDisabled = "notification-cheats-disabled";
 
-		[TranslationReference]
-		static readonly string InvalidCashAmount = "invalid-cash-amount";
+		[FluentReference]
+		const string InvalidCashAmount = "notification-invalid-cash-amount";
 
-		[TranslationReference]
-		static readonly string ToggleVisiblityDescription = "toggle-visibility";
+		[FluentReference]
+		const string ToggleVisiblityDescription = "description-toggle-visibility";
 
-		[TranslationReference]
-		static readonly string GiveCashDescription = "give-cash";
+		[FluentReference]
+		const string GiveCashDescription = "description-give-cash";
 
-		[TranslationReference]
-		static readonly string GiveCashAllDescription = "give-cash-all";
+		[FluentReference]
+		const string GiveCashAllDescription = "description-give-cash-all";
 
-		[TranslationReference]
-		static readonly string InstantBuildingDescription = "instant-building";
+		[FluentReference]
+		const string InstantBuildingDescription = "description-instant-building";
 
-		[TranslationReference]
-		static readonly string BuildAnywhereDescription = "build-anywhere";
+		[FluentReference]
+		const string BuildAnywhereDescription = "description-build-anywhere";
 
-		[TranslationReference]
-		static readonly string UnlimitedPowerDescription = "unlimited-power";
+		[FluentReference]
+		const string UnlimitedPowerDescription = "description-unlimited-power";
 
-		[TranslationReference]
-		static readonly string EnableTechDescription = "enable-tech";
+		[FluentReference]
+		const string EnableTechDescription = "description-enable-tech";
 
-		[TranslationReference]
-		static readonly string FastChargeDescription = "fast-charge";
+		[FluentReference]
+		const string FastChargeDescription = "description-fast-charge";
 
-		[TranslationReference]
-		static readonly string DevCheatAllDescription = "dev-cheat-all";
+		[FluentReference]
+		const string DevCheatAllDescription = "description-dev-cheat-all";
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[TranslationReference]
 		static readonly string CinematicViewDescription = "cinematic-view";
 
 		[TranslationReference]
 		static readonly string DevCrashDescription = "dev-crash";
+=======
+		[FluentReference]
+		const string DevCrashDescription = "description-dev-crash";
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
-		[TranslationReference]
-		static readonly string LevelUpActorDescription = "levelup-actor";
+		[FluentReference]
+		const string LevelUpActorDescription = "description-levelup-actor";
 
-		[TranslationReference]
-		static readonly string PlayerExperienceDescription = "player-experience";
+		[FluentReference]
+		const string PlayerExperienceDescription = "description-player-experience";
 
-		[TranslationReference]
-		static readonly string PowerOutageDescription = "power-outage";
+		[FluentReference]
+		const string PowerOutageDescription = "description-power-outage";
 
-		[TranslationReference]
-		static readonly string KillSelectedActorsDescription = "kill-selected-actors";
+		[FluentReference]
+		const string KillSelectedActorsDescription = "description-kill-selected-actors";
 
-		[TranslationReference]
-		static readonly string DisposeSelectedActorsDescription = "dispose-selected-actors";
+		[FluentReference]
+		const string DisposeSelectedActorsDescription = "description-dispose-selected-actors";
 
 		readonly IDictionary<string, (string Description, Action<string, World> Handler)> commandHandlers = new Dictionary<string, (string, Action<string, World>)>
 		{
@@ -125,7 +130,7 @@ namespace OpenRA.Mods.Common.Commands
 
 			if (!developerMode.Enabled)
 			{
-				TextNotificationsManager.Debug(Game.ModData.Translation.GetString(CheatsDisabled));
+				TextNotificationsManager.Debug(FluentProvider.GetMessage(CheatsDisabled));
 				return;
 			}
 
@@ -153,7 +158,7 @@ namespace OpenRA.Mods.Common.Commands
 				giveCashOrder.ExtraData = (uint)cash;
 			else
 			{
-				TextNotificationsManager.Debug(Game.ModData.Translation.GetString(InvalidCashAmount));
+				TextNotificationsManager.Debug(FluentProvider.GetMessage(InvalidCashAmount));
 				return;
 			}
 
@@ -264,6 +269,6 @@ namespace OpenRA.Mods.Common.Commands
 		}
 
 		[Serializable]
-		class DevException : Exception { }
+		public class DevException : Exception { }
 	}
 }

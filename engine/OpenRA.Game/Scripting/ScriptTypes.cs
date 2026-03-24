@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -40,13 +40,10 @@ namespace OpenRA.Scripting
 				t = nullable;
 
 			// Value wraps a CLR object
-			if (value.TryGetClrObject(out var temp))
+			if (value.TryGetClrObject(out var temp) && temp.GetType() == t)
 			{
-				if (temp.GetType() == t)
-				{
-					clrObject = temp;
-					return true;
-				}
+				clrObject = temp;
+				return true;
 			}
 
 			if (value is LuaNil && !t.IsValueType)
@@ -109,10 +106,9 @@ namespace OpenRA.Scripting
 			}
 
 			// Translate LuaTable<int, object> -> object[]
-			if (value is LuaTable && t.IsArray)
+			if (value is LuaTable table && t.IsArray)
 			{
 				var innerType = t.GetElementType();
-				var table = (LuaTable)value;
 				var array = Array.CreateInstance(innerType, table.Count);
 				var i = 0;
 
@@ -126,7 +122,7 @@ namespace OpenRA.Scripting
 						else
 						{
 							var elementHasClrValue = kv.Value.TryGetClrValue(innerType, out element);
-							if (!elementHasClrValue || !(element is LuaValue))
+							if (!elementHasClrValue || element is not LuaValue)
 								kv.Value.Dispose();
 							if (!elementHasClrValue)
 								throw new LuaException($"Unable to convert table value of type {kv.Value.WrappedClrType()} to type {innerType}");
@@ -149,23 +145,25 @@ namespace OpenRA.Scripting
 
 		public static LuaValue ToLuaValue(this object obj, ScriptContext context)
 		{
-			if (obj is LuaValue)
-				return (LuaValue)obj;
+			{
+				if (obj is LuaValue v)
+					return v;
 
-			if (obj == null)
-				return LuaNil.Instance;
+				if (obj == null)
+					return LuaNil.Instance;
 
-			if (obj is double)
-				return (double)obj;
+				if (obj is double d)
+					return d;
 
-			if (obj is int)
-				return (int)obj;
+				if (obj is int i)
+					return i;
 
-			if (obj is bool)
-				return (bool)obj;
+				if (obj is bool b)
+					return b;
 
-			if (obj is string)
-				return (string)obj;
+				if (obj is string s)
+					return s;
+			}
 
 			if (obj is IScriptBindable)
 			{
@@ -176,9 +174,8 @@ namespace OpenRA.Scripting
 				return new LuaCustomClrObject(obj);
 			}
 
-			if (obj is Array)
+			if (obj is Array array)
 			{
-				var array = (Array)obj;
 				var i = 1;
 				var table = context.CreateTable();
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -24,16 +23,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("e.g. Infantry, Vehicles, Aircraft, Buildings")]
 		public readonly string[] Produces = Array.Empty<string>();
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public readonly bool UseRandomExit = false;
+=======
+		[Desc("When owner is changed, should the Faction be updated to the new owner's faction?")]
+		public readonly bool UpdateFactionOnOwnerChange = false;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public override object Create(ActorInitializer init) { return new Production(init, this); }
 	}
 
-	public class Production : PausableConditionalTrait<ProductionInfo>
+	public class Production : PausableConditionalTrait<ProductionInfo>, INotifyOwnerChanged
 	{
 		RallyPoint rp;
 
-		public string Faction { get; }
+		public string Faction { get; private set; }
 
 		public Production(ActorInitializer init, ProductionInfo info)
 			: base(info)
@@ -110,18 +114,15 @@ namespace OpenRA.Mods.Common.Traits
 				td.Add(new FacingInit(initialFacing));
 
 				if (exitinfo != null)
+				{
 					td.Add(new CreationActivityDelayInit(exitinfo.ExitDelay));
+					td.Add(new RallyPointInit(exitLocations.ToArray()));
+				}
 			}
 
 			self.World.AddFrameEndTask(w =>
 			{
 				var newUnit = self.World.CreateActor(producee.Name, td);
-
-				var move = newUnit.TraitOrDefault<IMove>();
-				if (exitinfo != null && move != null)
-					foreach (var cell in exitLocations)
-						newUnit.QueueActivity(new AttackMoveActivity(newUnit, () => move.MoveTo(cell, 1, evaluateNearestMovableCell: true, targetLineColor: Color.OrangeRed)));
-
 				if (!self.IsDead)
 					foreach (var t in self.TraitsImplementing<INotifyProduction>())
 						t.UnitProduced(self, newUnit, exit);
@@ -170,5 +171,17 @@ namespace OpenRA.Mods.Common.Traits
 			return mobileInfo == null ||
 				mobileInfo.CanEnterCell(self.World, self, self.Location + s.ExitCell, ignoreActor: self);
 		}
+
+		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		{
+			if (Info.UpdateFactionOnOwnerChange)
+				Faction = self.Owner.Faction.InternalName;
+		}
+	}
+
+	public class RallyPointInit : ValueActorInit<CPos[]>, ISingleInstanceInit
+	{
+		public RallyPointInit(CPos[] value)
+			: base(value) { }
 	}
 }

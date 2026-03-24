@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public virtual void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
-			if (rules.Actors[SystemActors.Player].TraitInfos<ProductionIconOverlayManagerInfo>().Where(piom => piom != this && piom.Type == Type).Any())
+			if (rules.Actors[SystemActors.Player].TraitInfos<ProductionIconOverlayManagerInfo>().Any(piom => piom != this && piom.Type == Type))
 				throw new YamlException($"Multiple 'ProductionIconOverlayManager's with type '{Type}' exist.");
 		}
 
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		// This makes sure that the keys are unique with respect to the registering ITechTreeElement.
 		readonly string prefix;
 
-		readonly Dictionary<ActorInfo, bool> overlayActive = new Dictionary<ActorInfo, bool>();
+		readonly Dictionary<ActorInfo, bool> overlayActive = new();
 
 		public ProductionIconOverlayManager(ActorInitializer init, ProductionIconOverlayManagerInfo info)
 		{
@@ -104,7 +104,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		string GetName(string key)
 		{
-			return key.Substring(prefix.Length);
+			return key[prefix.Length..];
 		}
 
 		public void PrerequisitesAvailable(string key)

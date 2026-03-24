@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,8 +41,8 @@ namespace OpenRA.Server
 
 		long lastReceivedTime = 0;
 
-		readonly BlockingCollection<byte[]> sendQueue = new BlockingCollection<byte[]>();
-		readonly Queue<int> pingHistory = new Queue<int>();
+		readonly BlockingCollection<byte[]> sendQueue = new();
+		readonly Queue<int> pingHistory = new();
 
 		public Connection(Server server, Socket socket, string authToken)
 		{
@@ -60,17 +60,17 @@ namespace OpenRA.Server
 		static byte[] CreatePingFrame()
 		{
 			var ms = new MemoryStream(21);
-			ms.WriteArray(BitConverter.GetBytes(13));
-			ms.WriteArray(BitConverter.GetBytes(0));
-			ms.WriteArray(BitConverter.GetBytes(0));
+			ms.Write(13);
+			ms.Write(0);
+			ms.Write(0);
 			ms.WriteByte((byte)OrderType.Ping);
-			ms.WriteArray(BitConverter.GetBytes(Game.RunTime));
+			ms.Write(Game.RunTime);
 			return ms.GetBuffer();
 		}
 
 		void SendReceiveLoop(object s)
 		{
-			var (server, socket) = (ValueTuple<Server, Socket>)s;
+			var (server, socket) = ((Server, Socket))s;
 			socket.Blocking = false;
 			socket.NoDelay = true;
 
@@ -115,7 +115,7 @@ namespace OpenRA.Server
 									frame = BitConverter.ToInt32(bytes, 4);
 									state = ReceiveState.Data;
 
-									if (expectLength < 0 || (server.Type != ServerType.Local && expectLength > MaxOrderLength))
+									if (expectLength < 0 || (server.IsMultiplayer && expectLength > MaxOrderLength))
 									{
 										Log.Write("server", $"Closing socket connection to {EndPoint} because of excessive order length: {expectLength}");
 										return;
@@ -153,9 +153,8 @@ namespace OpenRA.Server
 						return;
 
 					// Regularly check player ping
-					if (lastPingSent.ElapsedMilliseconds > 1000)
-						if (TrySendData(CreatePingFrame()))
-							lastPingSent.Restart();
+					if (lastPingSent.ElapsedMilliseconds > 1000 && TrySendData(CreatePingFrame()))
+						lastPingSent.Restart();
 
 					// Send all data immediately, we will block again on read
 					while (sendQueue.TryTake(out var data, 0))

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Traits;
 
@@ -21,16 +22,16 @@ namespace OpenRA.Mods.Common.Commands
 
 	public class HelpCommand : IChatCommand, IWorldLoaded
 	{
+		[FluentReference]
+		const string AvailableCommands = "notification-available-commands";
+
+		[FluentReference]
+		const string NoDescription = "description-no-description";
+
+		[FluentReference]
+		const string HelpDescription = "description-help-description";
+
 		readonly Dictionary<string, string> helpDescriptions;
-
-		[TranslationReference]
-		static readonly string AvailableCommands = "available-commands";
-
-		[TranslationReference]
-		static readonly string NoDescription = "no-description";
-
-		[TranslationReference]
-		static readonly string HelpDescription = "help-description";
 
 		World world;
 		ChatCommands console;
@@ -51,12 +52,12 @@ namespace OpenRA.Mods.Common.Commands
 
 		public void InvokeCommand(string name, string arg)
 		{
-			TextNotificationsManager.Debug(Game.ModData.Translation.GetString(AvailableCommands));
+			TextNotificationsManager.Debug(FluentProvider.GetMessage(AvailableCommands));
 
-			foreach (var key in console.Commands.Keys)
+			foreach (var key in console.Commands.Keys.OrderBy(k => k))
 			{
 				if (!helpDescriptions.TryGetValue(key, out var description))
-					description = Game.ModData.Translation.GetString(NoDescription);
+					description = FluentProvider.GetMessage(NoDescription);
 
 				TextNotificationsManager.Debug($"{key}: {description}");
 			}
@@ -64,7 +65,7 @@ namespace OpenRA.Mods.Common.Commands
 
 		public void RegisterHelp(string name, string description)
 		{
-			helpDescriptions[name] = Game.ModData.Translation.GetString(description);
+			helpDescriptions[name] = FluentProvider.GetMessage(description);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -44,10 +45,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play when the player does not have any funds.")]
 		public readonly string InsufficientFundsNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display when the player does not have any funds.")]
 		public readonly string InsufficientFundsTextNotification = null;
 
-		[Desc("Delay (in ticks) during which warnings will be muted.")]
+		[Desc("Delay (in milliseconds) during which warnings will be muted.")]
 		public readonly int InsufficientFundsNotificationInterval = 30000;
 
 		[NotificationReference("Sounds")]
@@ -93,10 +95,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int IncomeModifierDropdownDisplayOrder = 2;
 
 		[Desc("Monetary value of each resource type.", "Dictionary of [resource type]: [value per unit].")]
-		public readonly Dictionary<string, int> ResourceValues = new Dictionary<string, int>();
+		public readonly Dictionary<string, int> ResourceValues = new();
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var startingCash = SelectableCash.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
 			var passiveIncome = SelectablePassiveIncome.ToDictionary(c => c.ToString(), c => "$" + c.ToString());
 			var incomeModifier = SelectableIncomeModifier.ToDictionary(c => c.ToString(), c => c.ToString() + "%");
@@ -110,6 +113,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			yield return new LobbyOption("incomemodifier", "Income Modifier", "Modify income from buildings", CashDropdownVisible, 2,
 				incomeModifier, DefaultIncomeModifier.ToString(), CashDropdownLocked);
+=======
+			var startingCash = SelectableCash.ToDictionary(c => c.ToStringInvariant(), c => "$" + c.ToString(NumberFormatInfo.CurrentInfo));
+
+			if (startingCash.Count > 0)
+				yield return new LobbyOption(map, "startingcash",
+					DefaultCashDropdownLabel, DefaultCashDropdownDescription, DefaultCashDropdownVisible, DefaultCashDropdownDisplayOrder,
+					startingCash, DefaultCash.ToStringInvariant(), DefaultCashDropdownLocked);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		public override object Create(ActorInitializer init) { return new PlayerResources(init.Self, this); }
@@ -156,7 +167,7 @@ namespace OpenRA.Mods.Common.Traits
 			owner = self.Owner;
 
 			var startingCash = self.World.LobbyInfo.GlobalSettings
-				.OptionOrDefault("startingcash", info.DefaultCash.ToString());
+				.OptionOrDefault("startingcash", info.DefaultCash.ToStringInvariant());
 
 			if (!int.TryParse(startingCash, out Cash))
 				Cash = info.DefaultCash;
@@ -212,7 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 			else
 			{
 				// Don't put the player into negative funds
-				amount = Math.Max(-(Cash + Resources), amount);
+				amount = Math.Max(-GetCashAndResources(), amount);
 
 				TakeCash(-amount);
 			}
@@ -281,13 +292,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool TakeCash(int num, bool notifyLowFunds = false)
 		{
-			if (Cash + Resources < num)
+			if (GetCashAndResources() < num)
 			{
 				if (notifyLowFunds && Game.RunTime > lastNotificationTime + Info.InsufficientFundsNotificationInterval)
 				{
 					lastNotificationTime = Game.RunTime;
 					Game.Sound.PlayNotification(owner.World.Map.Rules, owner, "Speech", Info.InsufficientFundsNotification, owner.Faction.InternalName);
-					TextNotificationsManager.AddTransientLine(Info.InsufficientFundsTextNotification, owner);
+					TextNotificationsManager.AddTransientLine(owner, Info.InsufficientFundsTextNotification);
 				}
 
 				return false;
@@ -305,12 +316,12 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		public void AddStorage(int capacity)
+		public void AddStorageCapacity(int capacity)
 		{
 			ResourceCapacity += capacity;
 		}
 
-		public void RemoveStorage(int capacity)
+		public void RemoveStorageCapacity(int capacity)
 		{
 			ResourceCapacity -= capacity;
 
@@ -318,6 +329,7 @@ namespace OpenRA.Mods.Common.Traits
 				Resources = ResourceCapacity;
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public IncomeEntry AddIncome(string actorType, string name, float amountPerInterval)
 		{
 			var entry = new IncomeEntry
@@ -387,6 +399,11 @@ namespace OpenRA.Mods.Common.Traits
 		int ICashTricklerModifier.GetCashTricklerModifier()
 		{
 			return IncomeModifier;
+=======
+		public int GetCashAndResources()
+		{
+			return Cash + Resources;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 	}
 }

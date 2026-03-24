@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -29,6 +30,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Range to stay away from min and max ranges to give some leeway if the target starts moving.")]
 		public readonly WDist RangeMargin = WDist.FromCells(1);
+
+		[Desc("Does this actor cancel its attack activity when it needs to resupply? Setting this to 'false' will make the actor resume attack after reloading.")]
+		public readonly bool AbortOnResupply = true;
 
 		public override object Create(ActorInitializer init) { return new AttackFollow(init.Self, this); }
 	}
@@ -91,9 +95,16 @@ namespace OpenRA.Mods.Common.Traits
 			var pos = self.CenterPosition;
 			var armaments = ChooseArmamentsForTarget(target, forceAttack);
 			foreach (var a in armaments)
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (target.IsInRange(pos, a.MaxRange()) && (a.Weapon.MinRange == WDist.Zero || !target.IsInRange(pos, a.Weapon.MinRange)))
 					if (TargetInFiringArc(self, target, Info.FacingTolerance)) // Make sure target is valid or there can be an error in target.CenterPosition ?
 						return true;
+=======
+				if (target.IsInRange(pos, a.MaxRange()) &&
+					(a.Weapon.MinRange == WDist.Zero || !target.IsInRange(pos, a.Weapon.MinRange)) &&
+					TargetInFiringArc(self, target, Info.FacingTolerance))
+					return true;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			return false;
 		}
@@ -138,7 +149,11 @@ namespace OpenRA.Mods.Common.Traits
 					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack);
 
 				if (!IsAiming && Info.OpportunityFire && autoTarget != null &&
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				    !autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.FireAtWill)
+=======
+					!autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.Defend)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					OpportunityTarget = autoTarget.ScanForTarget(self, false, false);
 					opportunityForceAttack = false;
@@ -155,13 +170,14 @@ namespace OpenRA.Mods.Common.Traits
 			base.Tick(self);
 		}
 
-		public override Activity GetAttackActivity(Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null)
+		public override Activity GetAttackActivity(
+			Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 		{
 			// HACK: Manually set force attacking if we persisted an opportunity target that required force attacking
 			if (opportunityTargetIsPersistentTarget && opportunityForceAttack && newTarget == OpportunityTarget)
 				forceAttack = true;
 
-			return new AttackActivity(self, newTarget, allowMove, forceAttack, targetLineColor);
+			return new AttackActivity(self, source, newTarget, allowMove, forceAttack, targetLineColor);
 		}
 
 		public override void OnResolveAttackOrder(Actor self, Activity activity, in Target target, bool queued, bool forceAttack)
@@ -223,13 +239,17 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class AttackActivity : Activity, IActivityNotifyStanceChanged
+		sealed class AttackActivity : Activity, IActivityNotifyStanceChanged
 		{
 			readonly AttackFollow attack;
 			readonly Vision[] vision;
 			readonly IMove move;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
+			readonly Rearmable rearmable;
+			readonly AttackSource source;
+			readonly bool isAircraft;
+			readonly MoveCooldownHelper moveCooldownHelper;
 
 			Target target;
 			Target lastVisibleTarget;
@@ -238,23 +258,31 @@ namespace OpenRA.Mods.Common.Traits
 			WDist lastVisibleMinimumRange;
 			BitSet<TargetableType> lastVisibleTargetTypes;
 			Player lastVisibleOwner;
-			bool wasMovingWithinRange;
 			bool hasTicked;
+			bool returnToBase = false;
 
-			public AttackActivity(Actor self, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
+			public AttackActivity(Actor self, AttackSource source, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 			{
 				attack = self.Trait<AttackFollow>();
 				move = allowMove ? self.TraitOrDefault<IMove>() : null;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				vision = self.TraitsImplementing<Vision>().ToArray();
+=======
+				revealsShroud = self.TraitsImplementing<RevealsShroud>().ToArray();
+				rearmable = self.TraitOrDefault<Rearmable>();
+				moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile) { RetryIfDestinationBlocked = true };
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				this.target = target;
 				this.forceAttack = forceAttack;
 				this.targetLineColor = targetLineColor;
+				this.source = source;
+				isAircraft = self.Info.HasTraitInfo<AircraftInfo>();
 
 				// The target may become hidden between the initial order request and the first tick (e.g. if queued)
 				// Moving to any position (even if quite stale) is still better than immediately giving up
 				if ((target.Type == TargetType.Actor && target.Actor.CanBeViewedByPlayer(self.Owner))
-				    || target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
+					|| target.Type == TargetType.FrozenActor || target.Type == TargetType.Terrain)
 				{
 					lastVisibleTarget = Target.FromPos(target.CenterPosition);
 					lastVisibleMaximumRange = attack.GetMaximumRangeVersusTarget(target);
@@ -275,6 +303,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool Tick(Actor self)
 			{
+				returnToBase = false;
+
 				if (IsCanceling)
 					return true;
 
@@ -335,14 +365,45 @@ namespace OpenRA.Mods.Common.Traits
 						maxRange = sightRange;
 				}
 
-				// If we are ticking again after previously sequencing a MoveWithRange then that move must have completed
-				// Either we are in range and can see the target, or we've lost track of it and should give up
-				if (wasMovingWithinRange && targetIsHiddenActor)
-					return true;
+				var result = moveCooldownHelper.Tick(targetIsHiddenActor);
+				if (result != null)
+					return result.Value;
 
 				// Target is hidden or dead, and we don't have a fallback position to move towards
 				if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self))
 					return true;
+
+				// If all valid weapons have depleted their ammo and Rearmable trait exists, return to RearmActor to reload
+				// and resume the activity after reloading if AbortOnResupply is set to 'false'
+				if (rearmable != null && !useLastVisibleTarget && attack.Armaments.All(x => x.IsTraitPaused || !x.Weapon.IsValidAgainst(target, self.World, self)))
+				{
+					// Attack moves never resupply
+					if (source == AttackSource.AttackMove)
+						return true;
+
+					// AbortOnResupply cancels the current activity (after resupplying) plus any queued activities
+					if (attack.Info.AbortOnResupply)
+						NextActivity?.Cancel(self);
+
+					if (isAircraft)
+						QueueChild(new ReturnToBase(self));
+					else
+					{
+						var target = self.World.ActorsHavingTrait<Reservable>()
+							.Where(a => !a.IsDead && a.IsInWorld
+								&& a.Owner.IsAlliedWith(self.Owner) &&
+								rearmable.Info.RearmActors.Contains(a.Info.Name))
+							.OrderBy(a => a.Owner == self.Owner ? 0 : 1)
+							.ThenBy(p => (self.Location - p.Location).LengthSquared)
+							.FirstOrDefault();
+
+						if (target != null)
+							QueueChild(new Resupply(self, target, new WDist(512)));
+					}
+
+					returnToBase = true;
+					return attack.Info.AbortOnResupply;
+				}
 
 				var pos = self.CenterPosition;
 				var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
@@ -364,7 +425,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (move == null || maxRange == WDist.Zero || maxRange < minRange)
 					return true;
 
-				wasMovingWithinRange = true;
+				moveCooldownHelper.NotifyMoveQueued();
 				QueueChild(move.MoveWithinRange(target, minRange, maxRange, checkTarget.CenterPosition));
 				return false;
 			}
@@ -389,7 +450,13 @@ namespace OpenRA.Mods.Common.Traits
 			public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
 			{
 				if (targetLineColor != null)
-					yield return new TargetLineNode(useLastVisibleTarget ? lastVisibleTarget : target, targetLineColor.Value);
+				{
+					if (returnToBase)
+						foreach (var n in ChildActivity.TargetLineNodes(self))
+							yield return n;
+					if (!returnToBase || !attack.Info.AbortOnResupply)
+						yield return new TargetLineNode(useLastVisibleTarget ? lastVisibleTarget : target, targetLineColor.Value);
+				}
 			}
 		}
 	}

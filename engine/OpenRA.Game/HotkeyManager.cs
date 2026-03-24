@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,8 +18,8 @@ namespace OpenRA
 	public sealed class HotkeyManager
 	{
 		readonly Dictionary<string, Hotkey> settings;
-		readonly Dictionary<string, HotkeyDefinition> definitions = new Dictionary<string, HotkeyDefinition>();
-		readonly Dictionary<string, Hotkey> keys = new Dictionary<string, Hotkey>();
+		readonly Dictionary<string, HotkeyDefinition> definitions = new();
+		readonly Dictionary<string, Hotkey> keys = new();
 
 		public HotkeyManager(IReadOnlyFileSystem fileSystem, Dictionary<string, Hotkey> settings, Manifest manifest)
 		{
@@ -35,7 +35,7 @@ namespace OpenRA
 
 			foreach (var kv in settings)
 			{
-				if (definitions.ContainsKey(kv.Key) && !definitions[kv.Key].Readonly)
+				if (definitions.TryGetValue(kv.Key, out var definition) && !definition.Readonly)
 					keys[kv.Key] = kv.Value;
 			}
 
@@ -43,6 +43,9 @@ namespace OpenRA
 				hd.Value.HasDuplicates = GetFirstDuplicate(hd.Value, this[hd.Value.Name].GetValue()) != null;
 		}
 
+		[System.Diagnostics.CodeAnalysis.SuppressMessage(
+			"Performance", "CA1854:Prefer the 'IDictionary.TryGetValue(TKey, out TValue)' method",
+			Justification = "Func must perform a live lookup in the collection, as the lookup value can change.")]
 		internal Func<Hotkey> GetHotkeyReference(string name)
 		{
 			// Is this a mod-defined hotkey?
@@ -102,7 +105,7 @@ namespace OpenRA
 			return null;
 		}
 
-		public HotkeyReference this[string name] => new HotkeyReference(GetHotkeyReference(name));
+		public HotkeyReference this[string name] => new(GetHotkeyReference(name));
 
 		public IEnumerable<HotkeyDefinition> Definitions => definitions.Values;
 	}

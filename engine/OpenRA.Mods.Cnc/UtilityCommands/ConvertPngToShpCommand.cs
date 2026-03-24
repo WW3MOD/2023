@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,7 +20,7 @@ using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Cnc.UtilityCommands
 {
-	class ConvertPngToShpCommand : IUtilityCommand
+	sealed class ConvertPngToShpCommand : IUtilityCommand
 	{
 		string IUtilityCommand.Name => "--shp";
 
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			var inputFiles = GlobArgs(args).OrderBy(a => a).ToList();
 			var dest = inputFiles[0].Split('-').First() + ".shp";
 
-			var frames = inputFiles.Select(a => new Png(File.OpenRead(a))).ToList();
+			var frames = inputFiles.ConvertAll(a => new Png(File.OpenRead(a)));
 			if (frames.Any(f => f.Type != SpriteFrameType.Indexed8))
 				throw new InvalidOperationException("All frames must be paletted");
 

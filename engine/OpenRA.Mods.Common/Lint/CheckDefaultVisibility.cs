@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,11 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	class CheckDefaultDetectability : ILintRulesPass, ILintServerMapPass
+=======
+	sealed class CheckDefaultVisibility : ILintRulesPass, ILintServerMapPass
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
 		void ILintRulesPass.Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Ruleset rules)
 		{
@@ -33,15 +37,18 @@ namespace OpenRA.Mods.Common.Lint
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
-				// Catch TypeDictionary errors
+				// Catch TypeDictionary errors.
 				try
 				{
-					var count = actorInfo.Value.TraitInfos<IDefaultVisibilityInfo>().Count();
+					var visibilityTypes = actorInfo.Value.TraitInfos<IDefaultVisibilityInfo>();
+					var count = visibilityTypes.Count;
 
 					if (count == 0)
-						emitError($"Actor type `{actorInfo.Key}` does not define a default visibility type!");
+						emitError($"Actor type `{actorInfo.Key}` does not define a default visibility type.");
 					else if (count > 1)
-						emitError($"Actor type `{actorInfo.Key}` defines multiple default visibility types!");
+						emitError(
+							$"Actor type `{actorInfo.Key}` defines multiple default visibility types: " +
+							$"{string.Join(", ", visibilityTypes.Select(vis => vis.GetType().Name))}.");
 					else
 					{
 						var vis = actorInfo.Value.TraitInfoOrDefault<DetectableInfo>();
@@ -49,15 +56,23 @@ namespace OpenRA.Mods.Common.Lint
 						{
 							var ios = actorInfo.Value.TraitInfoOrDefault<IOccupySpaceInfo>();
 							if (ios == null)
-								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but has no IOccupySpace traits!");
+								emitError(
+									$"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType().Name}` " +
+									"but has no IOccupySpace traits.");
 							else if (ios.OccupiedCells(actorInfo.Value, CPos.Zero).Count == 0)
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 								emitError($"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType()}` but does not have any footprint cells");
+=======
+								emitError(
+									$"Actor type `{actorInfo.Key}` defines VisibilityType.Footprint in `{vis.GetType().Name}` " +
+									"but does not have any footprint cells.");
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 						}
 					}
 				}
 				catch (InvalidOperationException e)
 				{
-					emitError($"{e.Message} (Actor type `{actorInfo.Key}`)");
+					emitError($"{e.Message} (Actor type `{actorInfo.Key}`).");
 				}
 			}
 		}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Server;
 using S = OpenRA.Server.Server;
@@ -18,21 +17,21 @@ namespace OpenRA.Mods.Common.Server
 {
 	public class PlayerPinger : ServerTrait, ITick
 	{
-		static readonly int PingInterval = 5000; // Ping every 5 seconds
-		static readonly int ConnReportInterval = 20000; // Report every 20 seconds
-		static readonly int ConnTimeout = 60000; // Drop unresponsive clients after 60 seconds
+		[FluentReference]
+		const string PlayerDropped = "notification-player-dropped";
 
-		[TranslationReference]
-		static readonly string PlayerDropped = "player-dropped";
+		[FluentReference("player")]
+		const string ConnectionProblems = "notification-connection-problems";
 
-		[TranslationReference("player")]
-		static readonly string ConnectionProblems = "connection-problems";
+		[FluentReference("player")]
+		const string Timeout = "notification-timeout-dropped";
 
-		[TranslationReference("player")]
-		static readonly string Timeout = "timeout";
+		[FluentReference("player", "timeout")]
+		const string TimeoutIn = "notification-timeout-dropped-in";
 
-		[TranslationReference("player", "timeout")]
-		static readonly string TimeoutIn = "timeout-in";
+		const int PingInterval = 5000; // Ping every 5 seconds
+		const int ConnReportInterval = 20000; // Report every 20 seconds
+		const int ConnTimeout = 60000; // Drop unresponsive clients after 60 seconds
 
 		long lastPing = 0;
 		long lastConnReport = 0;
@@ -61,7 +60,7 @@ namespace OpenRA.Mods.Common.Server
 						if (client == null)
 						{
 							server.DropClient(c);
-							server.SendLocalizedMessage(PlayerDropped);
+							server.SendFluentMessage(PlayerDropped);
 							continue;
 						}
 
@@ -69,13 +68,13 @@ namespace OpenRA.Mods.Common.Server
 						{
 							if (!c.TimeoutMessageShown && c.TimeSinceLastResponse > PingInterval * 2)
 							{
-								server.SendLocalizedMessage(ConnectionProblems, Translation.Arguments("player", client.Name));
+								server.SendFluentMessage(ConnectionProblems, "player", client.Name);
 								c.TimeoutMessageShown = true;
 							}
 						}
 						else
 						{
-							server.SendLocalizedMessage(Timeout, Translation.Arguments("player", client.Name));
+							server.SendFluentMessage(Timeout, "player", client.Name);
 							server.DropClient(c);
 						}
 					}
@@ -94,11 +93,7 @@ namespace OpenRA.Mods.Common.Server
 							if (client != null)
 							{
 								var timeout = (ConnTimeout - c.TimeSinceLastResponse) / 1000;
-								server.SendLocalizedMessage(TimeoutIn, new Dictionary<string, object>()
-								{
-									{ "player", client.Name },
-									{ "timeout", timeout }
-								});
+								server.SendFluentMessage(TimeoutIn, "player", client.Name, "timeout", timeout);
 							}
 						}
 					}

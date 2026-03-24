@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,6 +12,7 @@
 using System;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -21,18 +22,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Increment the version number when adding new stats
 		const int IntroductionVersion = 1;
 
+		[FluentReference]
+		const string Classic = "options-control-scheme.classic";
+
+		[FluentReference]
+		const string Modern = "options-control-scheme.modern";
+
+		readonly string classic;
+		readonly string modern;
+
 		public static bool ShouldShowPrompt()
 		{
 			return Game.Settings.Game.IntroductionPromptVersion < IntroductionVersion;
 		}
-
-		[TranslationReference]
-		static readonly string Classic = "classic";
-		readonly string classic;
-
-		[TranslationReference]
-		static readonly string Modern = "modern";
-		readonly string modern;
 
 		[ObjectCreator.UseCtor]
 		public IntroductionPromptLogic(Widget widget, ModData modData, WorldRenderer worldRenderer, Action onComplete)
@@ -41,13 +43,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var ds = Game.Settings.Graphics;
 			var gs = Game.Settings.Game;
 
-			classic = modData.Translation.GetString(Classic);
-			modern = modData.Translation.GetString(Modern);
+			classic = FluentProvider.GetMessage(Classic);
+			modern = FluentProvider.GetMessage(Modern);
 
 			var escPressed = false;
 			var nameTextfield = widget.Get<TextFieldWidget>("PLAYERNAME");
 			nameTextfield.IsDisabled = () => worldRenderer.World.Type != WorldType.Shellmap;
 			nameTextfield.Text = Settings.SanitizedPlayerName(ps.Name);
+
+			var itchIntegration = modData.Manifest.Get<ItchIntegration>();
+			itchIntegration.GetPlayerName(name => nameTextfield.Text = Settings.SanitizedPlayerName(name));
+
 			nameTextfield.OnLoseFocus = () =>
 			{
 				if (escPressed)
@@ -75,9 +81,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return true;
 			};
 
-			var colorManager = modData.DefaultRules.Actors[SystemActors.World].TraitInfo<ColorPickerManagerInfo>();
-			colorManager.Color = ps.Color;
-
 			var mouseControlDescClassic = widget.Get("MOUSE_CONTROL_DESC_CLASSIC");
 			mouseControlDescClassic.IsVisible = () => gs.UseClassicMouseStyle;
 
@@ -85,7 +88,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			mouseControlDescModern.IsVisible = () => !gs.UseClassicMouseStyle;
 
 			var mouseControlDropdown = widget.Get<DropDownButtonWidget>("MOUSE_CONTROL_DROPDOWN");
-			mouseControlDropdown.OnMouseDown = _ => InputSettingsLogic.ShowMouseControlDropdown(modData, mouseControlDropdown, gs);
+			mouseControlDropdown.OnMouseDown = _ => InputSettingsLogic.ShowMouseControlDropdown(mouseControlDropdown, gs);
 			mouseControlDropdown.GetText = () => gs.UseClassicMouseStyle ? classic : modern;
 
 			foreach (var container in new[] { mouseControlDescClassic, mouseControlDescModern })
@@ -102,7 +105,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var zoomDescModifier = container.Get<LabelWidget>("DESC_ZOOM_MODIFIER");
 				zoomDescModifier.IsVisible = () => gs.ZoomModifier != Modifiers.None;
 
-				var zoomDescModifierTemplate = zoomDescModifier.Text;
+				var zoomDescModifierTemplate = zoomDescModifier.GetText();
 				var zoomDescModifierLabel = new CachedTransform<Modifiers, string>(
 					mod => zoomDescModifierTemplate.Replace("MODIFIER", mod.ToString()));
 				zoomDescModifier.GetText = () => zoomDescModifierLabel.Update(gs.ZoomModifier);
@@ -113,11 +116,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			SettingsUtils.BindCheckboxPref(widget, "EDGESCROLL_CHECKBOX", gs, "ViewportEdgeScroll");
 
+			var colorManager = modData.DefaultRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
+
 			var colorDropdown = widget.Get<DropDownButtonWidget>("PLAYERCOLOR");
 			colorDropdown.IsDisabled = () => worldRenderer.World.Type != WorldType.Shellmap;
-			colorDropdown.OnMouseDown = _ => ColorPickerLogic.ShowColorDropDown(colorDropdown, colorManager, worldRenderer, () =>
+			colorDropdown.OnMouseDown = _ => colorManager.ShowColorDropDown(colorDropdown, ps.Color, null, worldRenderer, color =>
 			{
-				Game.Settings.Player.Color = colorManager.Color;
+				ps.Color = color;
 				Game.Settings.Save();
 			});
 			colorDropdown.Get<ColorBlockWidget>("COLORBLOCK").GetColor = () => ps.Color;

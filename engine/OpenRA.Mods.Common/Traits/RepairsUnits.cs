@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -33,6 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification played when starting to repair a unit.")]
 		public readonly string StartRepairingNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification displayed when starting to repair a unit.")]
 		public readonly string StartRepairingTextNotification = null;
 
@@ -40,6 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification played when repairing a unit is done.")]
 		public readonly string FinishRepairingNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification displayed when repairing a unit is done.")]
 		public readonly string FinishRepairingTextNotification = null;
 

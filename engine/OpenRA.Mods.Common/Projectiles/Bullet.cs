@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,11 +25,12 @@ namespace OpenRA.Mods.Common.Projectiles
 	public class BulletInfo : IProjectileInfo
 	{
 		[Desc("Projectile speed in WDist / tick, two values indicate variable velocity.")]
-		public readonly WDist[] Speed = { new WDist(17) };
+		public readonly WDist[] Speed = { new(17) };
 
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("The minimum inaccuracy regardless of distance to target.")]
 		public readonly WDist MinInaccuracy = WDist.Zero;
 
@@ -37,6 +38,12 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly WVec InaccuracyPerProjectile = WVec.Zero;
 
 		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value regardless of range.")]
+=======
+		[Desc("Controls the way inaccuracy is calculated. Possible values are " +
+			"'Maximum' - scale from 0 to max with range, " +
+			"'PerCellIncrement' - scale from 0 with range, " +
+			"'Absolute' - use set value regardless of range.")]
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Maximum;
 
 		[Desc("Image to display.")]
@@ -86,7 +93,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly bool Blockable = true;
 
 		[Desc("Width of projectile (used for finding blocking actors).")]
-		public readonly WDist Width = new WDist(1);
+		public readonly WDist Width = new(1);
 
 		[Desc("Arc in WAngles, two values indicate variable arc.")]
 		public readonly WAngle[] LaunchAngle = { WAngle.Zero };
@@ -102,7 +109,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		public readonly string BounceSound = null;
 
 		[Desc("Terrain where the projectile explodes instead of bouncing.")]
-		public readonly HashSet<string> InvalidBounceTerrain = new HashSet<string>();
+		public readonly HashSet<string> InvalidBounceTerrain = new();
 
 		[Desc("Trigger the explosion if the projectile touches an actor thats owner has these player relationships.")]
 		public readonly PlayerRelationship ValidBounceBlockerRelationships = PlayerRelationship.Enemy | PlayerRelationship.Neutral;
@@ -122,8 +129,16 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ContrailZOffset = 2047;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Thickness of the emitted line.")]
 		public readonly WDist ContrailWidth = new WDist(1);
+=======
+		[Desc("Thickness of the emitted line at the start of the contrail.")]
+		public readonly WDist ContrailStartWidth = new(64);
+
+		[Desc("Thickness of the emitted line at the end of the contrail. Will default to " + nameof(ContrailStartWidth) + " if left undefined")]
+		public readonly WDist? ContrailEndWidth = null;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("RGB color at the contrail start.")]
 		public readonly Color ContrailStartColor = Color.DarkGray; // 169,169,169
@@ -134,8 +149,13 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
 		public readonly int ContrailStartColorAlpha = 150;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("RGB color at the contrail end. Set to start color if undefined")]
 		public readonly Color? ContrailEndColor = Color.Gray; // 128,128,128
+=======
+		[Desc("RGB color at the contrail end. Will default to " + nameof(ContrailStartColor) + " if left undefined")]
+		public readonly Color? ContrailEndColor;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Desc("Use player remap color instead of a custom color at the contrail end.")]
 		public readonly bool ContrailEndColorUsePlayerColor = false;
@@ -143,14 +163,14 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The alpha value [from 0 to 255] of color at the contrail end.")]
 		public readonly int ContrailEndColorAlpha = 60;
 
-		public IProjectile Create(ProjectileArgs args) { return new Bullet(this, args); }
+		public virtual IProjectile Create(ProjectileArgs args) { return new Bullet(this, args); }
 	}
 
 	public class Bullet : IProjectile, ISync
 	{
 		readonly BulletInfo info;
-		readonly ProjectileArgs args;
-		readonly Animation anim;
+		protected readonly ProjectileArgs Args;
+		protected readonly Animation Animation;
 		readonly WAngle facing;
 		readonly WAngle angle;
 		readonly WDist speed;
@@ -162,19 +182,27 @@ namespace OpenRA.Mods.Common.Projectiles
 		readonly ContrailRenderable contrail;
 
 		[Sync]
-		WPos pos, lastPos, target, source;
+		protected WPos pos, lastPos, target, source;
 
 		readonly bool lastPosIsSet = false;
 		int length;
 		int ticks, smokeTicks;
 		int remainingBounces;
 
+		protected bool FlightLengthReached => ticks >= length;
+
 		public Bullet(BulletInfo info, ProjectileArgs args)
 		{
 			this.info = info;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			this.args = args;
 			pos = args.CurrentSource();
 			source = args.CurrentSource();
+=======
+			Args = args;
+			pos = args.Source;
+			source = args.Source;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			var world = args.SourceActor.World;
 
@@ -226,15 +254,20 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (!string.IsNullOrEmpty(info.Image))
 			{
-				anim = new Animation(world, info.Image, new Func<WAngle>(GetEffectiveFacing));
-				anim.PlayRepeating(info.Sequences.Random(world.SharedRandom));
+				Animation = new Animation(world, info.Image, new Func<WAngle>(GetEffectiveFacing));
+				Animation.PlayRepeating(info.Sequences.Random(world.SharedRandom));
 			}
 
 			if (info.ContrailLength > 0)
 			{
-				var startcolor = info.ContrailStartColorUsePlayerColor ? Color.FromArgb(info.ContrailStartColorAlpha, args.SourceActor.Owner.Color) : Color.FromArgb(info.ContrailStartColorAlpha, info.ContrailStartColor);
-				var endcolor = info.ContrailEndColorUsePlayerColor ? Color.FromArgb(info.ContrailEndColorAlpha, args.SourceActor.Owner.Color) : Color.FromArgb(info.ContrailEndColorAlpha, info.ContrailEndColor ?? startcolor);
-				contrail = new ContrailRenderable(world, startcolor, endcolor, info.ContrailWidth, info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
+				var startcolor = Color.FromArgb(info.ContrailStartColorAlpha, info.ContrailStartColor);
+				var endcolor = Color.FromArgb(info.ContrailEndColorAlpha, info.ContrailEndColor ?? startcolor);
+				contrail = new ContrailRenderable(world, args.SourceActor,
+					startcolor, info.ContrailStartColorUsePlayerColor,
+					endcolor, info.ContrailEndColor == null ? info.ContrailStartColorUsePlayerColor : info.ContrailEndColorUsePlayerColor,
+					info.ContrailStartWidth,
+					info.ContrailEndWidth ?? info.ContrailStartWidth,
+					info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
 			}
 
 			trailPalette = info.TrailPalette;
@@ -253,7 +286,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			var at = (float)ticks / (length - 1);
 			var attitude = angle.Tan() * (1 - 2 * at) / (4 * 1024);
 
-			var u = (facing.Angle % 512) / 512f;
+			var u = facing.Angle % 512 / 512f;
 			var scale = 2048 * u * (1 - u);
 
 			var effective = (int)(facing.Angle < 512
@@ -263,11 +296,15 @@ namespace OpenRA.Mods.Common.Projectiles
 			return new WAngle(effective);
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		int activeTicksCount = 0;
 
 		public void Tick(World world)
+=======
+		public virtual void Tick(World world)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
-			anim?.Tick();
+			Animation?.Tick();
 
 			lastPos = pos;
 			pos = WPos.LerpQuadratic(source, target, angle, ticks, length);
@@ -286,10 +323,18 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (ShouldExplode(world))
 			{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				Explode(world);
 			}
 
 			activeTicksCount++;
+=======
+				if (info.ContrailLength > 0)
+					world.AddFrameEndTask(w => w.Add(new ContrailFader(pos, contrail)));
+
+				Explode(world);
+			}
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		bool ShouldExplode(World world)
@@ -299,7 +344,11 @@ namespace OpenRA.Mods.Common.Projectiles
 			var bbb = (args.SourceActor.CenterPosition - lastPos); */
 
 			// Check for walls or other blocking obstacles
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos, args.SourceActor, true, true, args.Source))
+=======
+			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, Args.SourceActor.Owner, lastPos, pos, info.Width, out var blockedPos))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				pos = blockedPos;
 				return true;
@@ -317,7 +366,7 @@ namespace OpenRA.Mods.Common.Projectiles
 				if (info.InvalidBounceTerrain.Contains(world.Map.GetTerrainInfo(cell).Type))
 					return true;
 
-				if (AnyValidTargetsInRadius(world, pos, info.Width, args.SourceActor, true))
+				if (AnyValidTargetsInRadius(world, pos, info.Width, Args.SourceActor, true))
 					return true;
 
 				target += (pos - source) * info.BounceRangeModifier / 100;
@@ -340,26 +389,35 @@ namespace OpenRA.Mods.Common.Projectiles
 				return true;
 
 			// After first bounce, check for targets each tick
-			if (remainingBounces < info.BounceCount && AnyValidTargetsInRadius(world, pos, info.Width, args.SourceActor, true))
+			if (remainingBounces < info.BounceCount && AnyValidTargetsInRadius(world, pos, info.Width, Args.SourceActor, true))
 				return true;
 
 			return false;
 		}
 
-		public IEnumerable<IRenderable> Render(WorldRenderer wr)
+		public virtual IEnumerable<IRenderable> Render(WorldRenderer wr)
 		{
 			if (info.ContrailLength > 0)
 				yield return contrail;
 
-			if (anim == null || ticks >= length)
+			if (FlightLengthReached)
 				yield break;
 
-			var world = args.SourceActor.World;
+			foreach (var r in RenderAnimation(wr))
+				yield return r;
+		}
+
+		protected IEnumerable<IRenderable> RenderAnimation(WorldRenderer wr)
+		{
+			if (Animation == null)
+				yield break;
+
+			var world = Args.SourceActor.World;
 			if (!world.FogObscures(pos))
 			{
 				var paletteName = info.Palette;
 				if (paletteName != null && info.IsPlayerPalette)
-					paletteName += args.SourceActor.Owner.InternalName;
+					paletteName += Args.SourceActor.Owner.InternalName;
 
 				var palette = wr.Palette(paletteName);
 
@@ -367,31 +425,28 @@ namespace OpenRA.Mods.Common.Projectiles
 				{
 					var dat = world.Map.DistanceAboveTerrain(pos);
 					var shadowPos = pos - new WVec(0, 0, dat.Length);
-					foreach (var r in anim.Render(shadowPos, palette))
+					foreach (var r in Animation.Render(shadowPos, palette))
 						yield return ((IModifyableRenderable)r)
 							.WithTint(shadowColor, ((IModifyableRenderable)r).TintModifiers | TintModifiers.ReplaceColor)
 							.WithAlpha(shadowAlpha);
 				}
 
-				foreach (var r in anim.Render(pos, palette))
+				foreach (var r in Animation.Render(pos, palette))
 					yield return r;
 			}
 		}
 
-		void Explode(World world)
+		protected virtual void Explode(World world)
 		{
-			if (info.ContrailLength > 0)
-				world.AddFrameEndTask(w => w.Add(new ContrailFader(pos, contrail)));
-
 			world.AddFrameEndTask(w => w.Remove(this));
 
-			var warheadArgs = new WarheadArgs(args)
+			var warheadArgs = new WarheadArgs(Args)
 			{
-				ImpactOrientation = new WRot(WAngle.Zero, Util.GetVerticalAngle(lastPos, pos), args.Facing),
+				ImpactOrientation = new WRot(WAngle.Zero, Util.GetVerticalAngle(lastPos, pos), Args.Facing),
 				ImpactPosition = pos,
 			};
 
-			args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
+			Args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
 		}
 
 		bool AnyValidTargetsInRadius(World world, WPos pos, WDist radius, Actor firedBy, bool checkTargetType)
@@ -401,15 +456,14 @@ namespace OpenRA.Mods.Common.Projectiles
 				if (checkTargetType && !Target.FromActor(victim).IsValidFor(firedBy))
 					continue;
 
-				if (!info.ValidBounceBlockerRelationships.HasRelationship(firedBy.Owner.RelationshipWith(victim.Owner)))
+				if (victim != Args.GuidedTarget.Actor && !info.ValidBounceBlockerRelationships.HasRelationship(firedBy.Owner.RelationshipWith(victim.Owner)))
 					continue;
 
 				// If the impact position is within any actor's HitShape, we have a direct hit
 				// PERF: Avoid using TraitsImplementing<HitShape> that needs to find the actor in the trait dictionary.
 				foreach (var targetPos in victim.EnabledTargetablePositions)
-					if (targetPos is HitShape h)
-						if (h.DistanceFromEdge(victim, pos).Length <= 0)
-							return true;
+					if (targetPos is HitShape h && h.DistanceFromEdge(victim, pos).Length <= 0)
+						return true;
 			}
 
 			return false;

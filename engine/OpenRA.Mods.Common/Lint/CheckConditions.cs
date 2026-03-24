@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,7 +29,11 @@ namespace OpenRA.Mods.Common.Lint
 			Run(emitError, emitWarning, mapRules);
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		void Run(Action<string> _1/* emitError */, Action<string> _2/* emitWarning */, Ruleset rules)
+=======
+		static void Run(Action<string> emitError, Action<string> emitWarning, Ruleset rules)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			foreach (var actorInfo in rules.Actors)
 			{
@@ -38,20 +42,23 @@ namespace OpenRA.Mods.Common.Lint
 
 				foreach (var trait in actorInfo.Value.TraitInfos<TraitInfo>())
 				{
-					var fieldConsumed = trait.GetType().GetFields()
-						.Where(x => x.HasAttribute<ConsumedConditionReferenceAttribute>())
+					var fields = Utility.GetFields(trait.GetType());
+					var properties = trait.GetType().GetProperties();
+
+					var fieldConsumed = fields
+						.Where(x => Utility.HasAttribute<ConsumedConditionReferenceAttribute>(x))
 						.SelectMany(f => LintExts.GetFieldValues(trait, f));
 
-					var propertyConsumed = trait.GetType().GetProperties()
-						.Where(x => x.HasAttribute<ConsumedConditionReferenceAttribute>())
+					var propertyConsumed = properties
+						.Where(x => Utility.HasAttribute<ConsumedConditionReferenceAttribute>(x))
 						.SelectMany(p => LintExts.GetPropertyValues(trait, p));
 
-					var fieldGranted = trait.GetType().GetFields()
-						.Where(x => x.HasAttribute<GrantedConditionReferenceAttribute>())
+					var fieldGranted = fields
+						.Where(x => Utility.HasAttribute<GrantedConditionReferenceAttribute>(x))
 						.SelectMany(f => LintExts.GetFieldValues(trait, f));
 
-					var propertyGranted = trait.GetType().GetProperties()
-						.Where(x => x.HasAttribute<GrantedConditionReferenceAttribute>())
+					var propertyGranted = properties
+						.Where(x => Utility.HasAttribute<GrantedConditionReferenceAttribute>(x))
 						.SelectMany(f => LintExts.GetPropertyValues(trait, f));
 
 					foreach (var c in fieldConsumed.Concat(propertyConsumed))
@@ -63,6 +70,7 @@ namespace OpenRA.Mods.Common.Lint
 							granted.Add(g);
 				}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// FF TODO
 
 				/*
@@ -76,6 +84,15 @@ namespace OpenRA.Mods.Common.Lint
 				// if (ungranted.Any())
 				// 	emitError($"Actor type `{actorInfo.Key}` consumes conditions that are not granted: {ungranted.JoinWith(", ")}");
 				*/
+=======
+				var unconsumed = granted.Except(consumed).ToList();
+				if (unconsumed.Count != 0)
+					emitWarning($"Actor type `{actorInfo.Key}` grants conditions that are not consumed: {unconsumed.JoinWith(", ")}.");
+
+				var ungranted = consumed.Except(granted).ToList();
+				if (ungranted.Count != 0)
+					emitError($"Actor type `{actorInfo.Key}` consumes conditions that are not granted: {ungranted.JoinWith(", ")}.");
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			}
 		}
 	}

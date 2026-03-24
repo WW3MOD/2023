@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,14 +18,14 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Sets a custom terrain type for cells that are obscured by back-facing cliffs.",
 		"This trait replicates the default CliffBackImpassability=2 behaviour from the TS/RA2 rules.ini.")]
 	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
-	class CliffBackImpassabilityLayerInfo : TraitInfo
+	sealed class CliffBackImpassabilityLayerInfo : TraitInfo
 	{
 		public readonly string TerrainType = "Impassable";
 
 		public override object Create(ActorInitializer init) { return new CliffBackImpassabilityLayer(this); }
 	}
 
-	class CliffBackImpassabilityLayer : IWorldLoaded
+	sealed class CliffBackImpassabilityLayer : IWorldLoaded
 	{
 		readonly CliffBackImpassabilityLayerInfo info;
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits.Sound
 {
 	[Desc("Plays a looping audio file at the actor position. Attach this to the `World` actor to cover the whole map.")]
-	class AmbientSoundInfo : ConditionalTraitInfo
+	sealed class AmbientSoundInfo : ConditionalTraitInfo
 	{
 		[FieldLoader.Require]
 		public readonly string[] SoundFiles = null;
@@ -31,10 +31,10 @@ namespace OpenRA.Mods.Common.Traits.Sound
 		public override object Create(ActorInitializer init) { return new AmbientSound(init.Self, this); }
 	}
 
-	class AmbientSound : ConditionalTrait<AmbientSoundInfo>, ITick, INotifyRemovedFromWorld
+	sealed class AmbientSound : ConditionalTrait<AmbientSoundInfo>, ITick, INotifyRemovedFromWorld
 	{
 		readonly bool loop;
-		readonly HashSet<ISound> currentSounds = new HashSet<ISound>();
+		readonly HashSet<ISound> currentSounds = new();
 		WPos cachedPosition;
 		int delay;
 

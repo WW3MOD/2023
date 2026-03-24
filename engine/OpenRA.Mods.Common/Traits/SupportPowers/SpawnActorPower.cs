@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -43,11 +43,10 @@ namespace OpenRA.Mods.Common.Traits
 		[SequenceReference(nameof(EffectImage))]
 		public readonly string EffectSequence = null;
 
-		[PaletteReference]
+		[PaletteReference(nameof(EffectPaletteIsPlayerPalette))]
 		public readonly string EffectPalette = null;
 
-		[Desc("Cursor to display when the location is unsuitable.")]
-		public readonly string BlockedCursor = "move-blocked";
+		public readonly bool EffectPaletteIsPlayerPalette = false;
 
 		public override object Create(ActorInitializer init) { return new SpawnActorPower(init.Self, this); }
 	}
@@ -74,7 +73,13 @@ namespace OpenRA.Mods.Common.Traits
 				Game.Sound.Play(SoundType.World, info.DeploySound, position);
 
 				if (!string.IsNullOrEmpty(info.EffectSequence) && !string.IsNullOrEmpty(info.EffectPalette))
-					w.Add(new SpriteEffect(position, w, info.EffectImage, info.EffectSequence, info.EffectPalette));
+				{
+					var palette = info.EffectPalette;
+					if (info.EffectPaletteIsPlayerPalette)
+						palette += self.Owner.InternalName;
+
+					w.Add(new SpriteEffect(position, w, info.EffectImage, info.EffectSequence, palette));
+				}
 
 				var actor = w.CreateActor(info.Actor, new TypeDictionary
 				{
@@ -96,7 +101,7 @@ namespace OpenRA.Mods.Common.Traits
 			Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
 				Info.SelectTargetSpeechNotification, self.Owner.Faction.InternalName);
 
-			TextNotificationsManager.AddTransientLine(Info.SelectTargetTextNotification, manager.Self.Owner);
+			TextNotificationsManager.AddTransientLine(manager.Self.Owner, Info.SelectTargetTextNotification);
 
 			self.World.OrderGenerator = new SelectSpawnActorPowerTarget(order, manager, this, MouseButton.Left);
 		}
@@ -121,10 +126,9 @@ namespace OpenRA.Mods.Common.Traits
 		readonly SpawnActorPower power;
 		readonly SpawnActorPowerInfo info;
 		readonly SupportPowerManager manager;
-		readonly string order;
 		readonly MouseButton expectedButton;
 
-		public string OrderKey { get { return order; } }
+		public string OrderKey { get; }
 
 		public SelectSpawnActorPowerTarget(string order, SupportPowerManager manager, SpawnActorPower power, MouseButton button)
 		{
@@ -134,7 +138,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			this.manager = manager;
 			this.power = power;
-			this.order = order;
+			OrderKey = order;
 			expectedButton = button;
 
 			info = (SpawnActorPowerInfo)power.Info;
@@ -148,13 +152,13 @@ namespace OpenRA.Mods.Common.Traits
 				yield break;
 
 			if (mi.Button == expectedButton)
-				yield return new Order(order, manager.Self, Target.FromCell(world, cell), false) { SuppressVisualFeedback = true };
+				yield return new Order(OrderKey, manager.Self, Target.FromCell(world, cell), false) { SuppressVisualFeedback = true };
 		}
 
 		protected override void Tick(World world)
 		{
 			// Cancel the OG if we can't use the power
-			if (!manager.Powers.ContainsKey(order))
+			if (!manager.Powers.ContainsKey(OrderKey))
 				world.CancelInputMode();
 		}
 

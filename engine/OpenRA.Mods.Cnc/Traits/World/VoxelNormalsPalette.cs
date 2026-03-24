@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -59,7 +59,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			wr.AddPalette(info.Name, new ImmutablePalette(data));
 		}
 
-		// Normal vector tables from http://www.sleipnirstuff.com/forum/viewtopic.php?t=8048
+		// Normal vector tables from https://web.archive.org/web/20041022134721/https://www.sleipnirstuff.com/forum/viewtopic.php?t=8048
 		static readonly float[] TSNormals =
 		{
 			0.671214f,  0.198492f, -0.714194f,

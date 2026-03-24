@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -148,35 +148,23 @@ namespace OpenRA.Mods.Common.Activities
 			var pos = self.CenterPosition;
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;
 
-			// We don't know where the target actually is, so move to where we last saw it
-			if (useLastVisibleTarget)
-			{
-				// HACK: Bot players ignore the standard visibility checks in target.Recalculate,
-				// which means that targetIsHiddenActor is always false, allowing lastVisibleMaximumRange
-				// to be assigned zero range by attackAircraft.GetMaximumRangeVersusTarget for e.g. cloaked actors.
-				// Catch and cancel this edge case to avoid the aircraft stopping mid-air!
-				if (self.Owner.IsBot && lastVisibleMaximumRange == WDist.Zero)
-					return true;
+			var minimumRange = attackAircraft.Info.AttackType == AirAttackType.Strafe ? WDist.Zero : attackAircraft.GetMinimumRangeVersusTarget(target);
 
-				// We've reached the assumed position but it is not there - give up
-				if (checkTarget.IsInRange(pos, lastVisibleMaximumRange))
-					return true;
-
-				// Fly towards the last known position
-				QueueChild(new Fly(self, target, WDist.Zero, lastVisibleMaximumRange, checkTarget.CenterPosition, Color.Red));
-				return false;
-			}
+			if (lastVisibleMaximumRange == WDist.Zero || lastVisibleMaximumRange < minimumRange)
+				return true;
 
 			var delta = attackAircraft.GetTargetPosition(pos, target) - pos;
 			var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
 
 			QueueChild(new TakeOff(self));
 
-			var minimumRange = attackAircraft.Info.AttackType == AirAttackType.Strafe ? WDist.Zero : attackAircraft.GetMinimumRangeVersusTarget(target);
-
 			// Move into range of the target.
-			if (!target.IsInRange(pos, lastVisibleMaximumRange) || target.IsInRange(pos, minimumRange))
-				QueueChild(aircraft.MoveWithinRange(target, minimumRange, lastVisibleMaximumRange, target.CenterPosition, Color.Red));
+			if (!checkTarget.IsInRange(pos, lastVisibleMaximumRange) || checkTarget.IsInRange(pos, minimumRange))
+				QueueChild(aircraft.MoveWithinRange(target, minimumRange, lastVisibleMaximumRange, checkTarget.CenterPosition, Color.Red));
+
+			// We've reached the assumed position but it is not there - give up
+			else if (useLastVisibleTarget)
+				return true;
 
 			// The aircraft must keep moving forward even if it is already in an ideal position.
 			else if (attackAircraft.Info.AttackType == AirAttackType.Strafe)
@@ -225,7 +213,7 @@ namespace OpenRA.Mods.Common.Activities
 		}
 	}
 
-	class FlyAttackRun : Activity
+	sealed class FlyAttackRun : Activity
 	{
 		readonly AttackAircraft attack;
 		readonly WDist exitRange;
@@ -274,7 +262,7 @@ namespace OpenRA.Mods.Common.Activities
 		}
 	}
 
-	class StrafeAttackRun : Activity
+	sealed class StrafeAttackRun : Activity
 	{
 		readonly AttackAircraft attackAircraft;
 		readonly Aircraft aircraft;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,6 +20,12 @@ namespace OpenRA.Mods.Common
 	public class FacingInit : ValueActorInit<WAngle>, ISingleInstanceInit
 	{
 		public FacingInit(WAngle value)
+			: base(value) { }
+	}
+
+	public class TerrainOrientationInit : ValueActorInit<WRot>, ISingleInstanceInit, ISuppressInitExport
+	{
+		public TerrainOrientationInit(WRot value)
 			: base(value) { }
 	}
 
@@ -48,14 +54,14 @@ namespace OpenRA.Mods.Common
 
 		public void Initialize(MiniYaml yaml)
 		{
-			Initialize((int)FieldLoader.GetValue(nameof(value), typeof(int), yaml.Value));
+			Initialize(FieldLoader.GetValue<int>(nameof(value), yaml.Value));
 		}
 
 		public void Initialize(int value)
 		{
-			var field = GetType().GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance);
-			if (field != null)
-				field.SetValue(this, value);
+			GetType()
+				.GetField(nameof(value), BindingFlags.NonPublic | BindingFlags.Instance)
+				?.SetValue(this, value);
 		}
 
 		public override MiniYaml Save()
@@ -83,7 +89,7 @@ namespace OpenRA.Mods.Common
 			: base(value) { }
 	}
 
-	class ActorInitLoader : TypeConverter
+	sealed class ActorInitLoader : TypeConverter
 	{
 		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
 		{

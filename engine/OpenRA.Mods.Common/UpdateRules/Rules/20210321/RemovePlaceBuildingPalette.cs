@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,20 +22,21 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			"SequencePlaceBuildingPreview, and D2kActorPreviewPlaceBuildingPreview traits have been removed.\n" +
 			"New Alpha and LineBuildSegmentAlpha properties have been added in their place.";
 
-		readonly List<string> locations = new List<string>();
+		readonly List<string> locations = new();
 
 		public override IEnumerable<string> AfterUpdate(ModData modData)
 		{
 			if (locations.Count > 0)
-				yield return "The *Palette fields have been removed from the *PlaceBuildingPreview traits.\n" +
-				             "You may wish to inspect the following definitions and define new Alpha or\n" +
-				             "LineBuildSegmentAlpha properties as appropriate to recreate transparency effects:\n" +
-				             UpdateUtils.FormatMessageList(locations);
+				yield return
+					"The *Palette fields have been removed from the *PlaceBuildingPreview traits.\n" +
+					"You may wish to inspect the following definitions and define new Alpha or\n" +
+					"LineBuildSegmentAlpha properties as appropriate to recreate transparency effects:\n" +
+					UpdateUtils.FormatMessageList(locations);
 
 			locations.Clear();
 		}
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			var removed = 0;
 			foreach (var node in actorNode.ChildrenMatching("ActorPreviewPlaceBuildingPreview"))
@@ -63,7 +64,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			}
 
 			if (removed > 0)
-				locations.Add($"{actorNode.Key} ({actorNode.Location.Filename})");
+				locations.Add($"{actorNode.Key} ({actorNode.Location.Name})");
 
 			yield break;
 		}

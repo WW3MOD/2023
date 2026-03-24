@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -33,10 +33,10 @@ namespace OpenRA
 		public readonly ISpriteLoader[] SpriteLoaders;
 		public readonly ITerrainLoader TerrainLoader;
 		public readonly ISpriteSequenceLoader SpriteSequenceLoader;
-		public readonly IModelSequenceLoader ModelSequenceLoader;
 		public readonly IVideoLoader[] VideoLoaders;
 		public readonly HotkeyManager Hotkeys;
-		public readonly Translation Translation;
+		public readonly IFileSystemLoader FileSystemLoader;
+
 		public ILoadScreen LoadScreen { get; }
 		public CursorProvider CursorProvider { get; private set; }
 		public FS ModFiles;
@@ -48,9 +48,6 @@ namespace OpenRA
 		readonly Lazy<IReadOnlyDictionary<string, ITerrainInfo>> defaultTerrainInfo;
 		public IReadOnlyDictionary<string, ITerrainInfo> DefaultTerrainInfo => defaultTerrainInfo.Value;
 
-		readonly Lazy<IReadOnlyDictionary<string, SequenceProvider>> defaultSequences;
-		public IReadOnlyDictionary<string, SequenceProvider> DefaultSequences => defaultSequences.Value;
-
 		public ModData(Manifest mod, InstalledMods mods, bool useLoadScreen = false)
 		{
 			Languages = Array.Empty<string>();
@@ -59,10 +56,16 @@ namespace OpenRA
 			Manifest = new Manifest(mod.Id, mod.Package);
 			ObjectCreator = new ObjectCreator(Manifest, mods);
 			PackageLoaders = ObjectCreator.GetLoaders<IPackageLoader>(Manifest.PackageFormats, "package");
-
 			ModFiles = new FS(mod.Id, mods, PackageLoaders);
-			ModFiles.LoadFromManifest(Manifest);
+
+			FileSystemLoader = ObjectCreator.GetLoader<IFileSystemLoader>(Manifest.FileSystem.Value, "filesystem");
+			FieldLoader.Load(FileSystemLoader, Manifest.FileSystem);
+			FileSystemLoader.Mount(ModFiles, ObjectCreator);
+			ModFiles.TrimExcess();
+
 			Manifest.LoadCustomData(ObjectCreator);
+
+			FluentProvider.Initialize(this, DefaultFileSystem);
 
 			if (useLoadScreen)
 			{
@@ -94,18 +97,7 @@ namespace OpenRA
 
 			SpriteSequenceLoader = (ISpriteSequenceLoader)sequenceCtor.Invoke(new[] { this });
 
-			var modelFormat = Manifest.Get<ModelSequenceFormat>();
-			var modelLoader = ObjectCreator.FindType(modelFormat.Type + "Loader");
-			var modelCtor = modelLoader?.GetConstructor(new[] { typeof(ModData) });
-			if (modelLoader == null || !modelLoader.GetInterfaces().Contains(typeof(IModelSequenceLoader)) || modelCtor == null)
-				throw new InvalidOperationException($"Unable to find a model loader for type '{modelFormat.Type}'.");
-
-			ModelSequenceLoader = (IModelSequenceLoader)modelCtor.Invoke(new[] { this });
-			ModelSequenceLoader.OnMissingModelError = s => Log.Write("debug", s);
-
 			Hotkeys = new HotkeyManager(ModFiles, Game.Settings.Keys, Manifest);
-
-			Translation = new Translation(Game.Settings.Player.Language, Manifest.Translations, DefaultFileSystem);
 
 			defaultRules = Exts.Lazy(() => Ruleset.LoadDefaults(this));
 			defaultTerrainInfo = Exts.Lazy(() =>
@@ -118,13 +110,7 @@ namespace OpenRA
 					items.Add(t.Id, t);
 				}
 
-				return (IReadOnlyDictionary<string, ITerrainInfo>)(new ReadOnlyDictionary<string, ITerrainInfo>(items));
-			});
-
-			defaultSequences = Exts.Lazy(() =>
-			{
-				var items = DefaultTerrainInfo.ToDictionary(t => t.Key, t => new SequenceProvider(DefaultFileSystem, this, t.Key, null));
-				return (IReadOnlyDictionary<string, SequenceProvider>)(new ReadOnlyDictionary<string, SequenceProvider>(items));
+				return (IReadOnlyDictionary<string, ITerrainInfo>)new ReadOnlyDictionary<string, ITerrainInfo>(items);
 			});
 
 			initialThreadId = Environment.CurrentManagedThreadId;
@@ -146,6 +132,7 @@ namespace OpenRA
 			// horribly when you use ModData in unexpected ways.
 			ChromeMetrics.Initialize(this);
 			ChromeProvider.Initialize(this);
+			FluentProvider.Initialize(this, fileSystem);
 
 			Game.Sound.Initialize(SoundLoaders, fileSystem);
 
@@ -167,6 +154,7 @@ namespace OpenRA
 
 			// Reinitialize all our assets
 			InitializeLoaders(map);
+			map.Sequences.LoadSprites();
 
 			// Load music with map assets mounted
 			using (new Support.PerfTimer("Map.Music"))
@@ -174,6 +162,12 @@ namespace OpenRA
 					entry.Value.Load(map);
 
 			return map;
+		}
+
+		public List<MiniYamlNode>[] GetRulesYaml()
+		{
+			var stringPool = new HashSet<string>(); // Reuse common strings in YAML
+			return Manifest.Rules.Select(s => MiniYaml.FromStream(DefaultFileSystem.Open(s), s, stringPool: stringPool)).ToArray();
 		}
 
 		public void Dispose()
@@ -203,5 +197,10 @@ namespace OpenRA
 
 		/// <summary>Called when the engine expects to connect to a server/replay or load the shellmap.</summary>
 		void StartGame(Arguments args);
+	}
+
+	public interface IFileSystemLoader
+	{
+		void Mount(FS fileSystem, ObjectCreator objectCreator);
 	}
 }

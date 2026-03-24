@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,6 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
-using OpenRA.Mods.Common.Widgets;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -45,20 +44,16 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public override object Create(ActorInitializer init) { return new WithTextControlGroupDecoration(init.Self, this); }
 	}
 
-	public class WithTextControlGroupDecoration : IDecoration, INotifyOwnerChanged
+	public class WithTextControlGroupDecoration : IDecoration
 	{
 		readonly WithTextControlGroupDecorationInfo info;
 		readonly SpriteFont font;
 		readonly CachedTransform<int, string> label;
 
-		Color color;
-
 		public WithTextControlGroupDecoration(Actor self, WithTextControlGroupDecorationInfo info)
 		{
 			this.info = info;
 			font = Game.Renderer.Fonts[info.Font];
-			color = info.UsePlayerColor ? self.Owner.Color : info.Color;
-
 			label = new CachedTransform<int, string>(g => self.World.ControlGroups.Groups[g]);
 		}
 
@@ -74,14 +69,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var screenPos = container.GetDecorationOrigin(self, wr, info.Position, info.Margin);
 			return new IRenderable[]
 			{
-				new UITextRenderable(font, self.CenterPosition, screenPos, 0, color, text)
+				new UITextRenderable(font, self.CenterPosition, screenPos, 0, info.UsePlayerColor ? self.OwnerColor() : info.Color, text)
 			};
-		}
-
-		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
-		{
-			if (info.UsePlayerColor)
-				color = newOwner.Color;
 		}
 	}
 }

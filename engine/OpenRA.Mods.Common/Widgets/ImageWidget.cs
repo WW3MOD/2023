@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -27,19 +28,21 @@ namespace OpenRA.Mods.Common.Widgets
 		public Func<string> GetImageCollection;
 		public Func<Sprite> GetSprite;
 
+		[FluentReference]
 		public string TooltipText;
 
 		readonly Lazy<TooltipContainerWidget> tooltipContainer;
 		public Func<string> GetTooltipText;
 
-		readonly CachedTransform<(string, string), Sprite> getImageCache = new CachedTransform<(string, string), Sprite>(
-			((string collection, string image) args) => ChromeProvider.GetImage(args.collection, args.image));
+		readonly CachedTransform<(string, string), Sprite> getImageCache = new(
+			((string Collection, string Image) args) => ChromeProvider.GetImage(args.Collection, args.Image));
 
 		public ImageWidget()
 		{
 			GetImageName = () => ImageName;
 			GetImageCollection = () => ImageCollection;
-			GetTooltipText = () => TooltipText;
+			var tooltipCache = new CachedTransform<string, string>(s => !string.IsNullOrEmpty(s) ? FluentProvider.GetMessage(s) : "");
+			GetTooltipText = () => tooltipCache.Update(TooltipText);
 			tooltipContainer = Exts.Lazy(() =>
 				Ui.Root.Get<TooltipContainerWidget>(TooltipContainer));
 

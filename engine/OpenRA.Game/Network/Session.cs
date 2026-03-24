@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,14 +20,14 @@ namespace OpenRA.Network
 {
 	public class Session
 	{
-		public List<Client> Clients = new List<Client>();
+		public List<Client> Clients = new();
 
 		// Keyed by the PlayerReference id that the slot corresponds to
-		public Dictionary<string, Slot> Slots = new Dictionary<string, Slot>();
+		public Dictionary<string, Slot> Slots = new();
 
-		public HashSet<int> DisabledSpawnPoints = new HashSet<int>();
+		public HashSet<int> DisabledSpawnPoints = new();
 
-		public Global GlobalSettings = new Global();
+		public Global GlobalSettings = new();
 
 		public static string AnonymizeIP(IPAddress ip)
 		{
@@ -41,13 +41,13 @@ namespace OpenRA.Network
 			return null;
 		}
 
-		public static Session Deserialize(string data)
+		public static Session Deserialize(string data, string name)
 		{
 			try
 			{
 				var session = new Session();
 
-				var nodes = MiniYaml.FromString(data);
+				var nodes = MiniYaml.FromString(data, name);
 				foreach (var node in nodes)
 				{
 					var strings = node.Key.Split('@');
@@ -221,13 +221,13 @@ namespace OpenRA.Network
 			public int NetFrameInterval = 3;
 
 			[FieldLoader.Ignore]
-			public Dictionary<string, LobbyOptionState> LobbyOptions = new Dictionary<string, LobbyOptionState>();
+			public Dictionary<string, LobbyOptionState> LobbyOptions = new();
 
 			public static Global Deserialize(MiniYaml data)
 			{
 				var gs = FieldLoader.Load<Global>(data);
 
-				var optionsNode = data.Nodes.FirstOrDefault(n => n.Key == "Options");
+				var optionsNode = data.NodeWithKeyOrDefault("Options");
 				if (optionsNode != null)
 					foreach (var n in optionsNode.Value.Nodes)
 						gs.LobbyOptions[n.Key] = FieldLoader.Load<LobbyOptionState>(n.Value);
@@ -238,8 +238,9 @@ namespace OpenRA.Network
 			public MiniYamlNode Serialize()
 			{
 				var data = new MiniYamlNode("GlobalSettings", FieldSaver.Save(this));
-				var options = LobbyOptions.Select(kv => new MiniYamlNode(kv.Key, FieldSaver.Save(kv.Value))).ToList();
-				data.Value.Nodes.Add(new MiniYamlNode("Options", new MiniYaml(null, options)));
+				var options = LobbyOptions.Select(kv => new MiniYamlNode(kv.Key, FieldSaver.Save(kv.Value)));
+				data = data.WithValue(data.Value.WithNodesAppended(
+					new[] { new MiniYamlNode("Options", new MiniYaml(null, options)) }));
 				return data;
 			}
 
@@ -264,7 +265,7 @@ namespace OpenRA.Network
 		{
 			var sessionData = new List<MiniYamlNode>()
 			{
-				new MiniYamlNode("DisabledSpawnPoints", FieldSaver.FormatValue(DisabledSpawnPoints))
+				new("DisabledSpawnPoints", FieldSaver.FormatValue(DisabledSpawnPoints))
 			};
 
 			foreach (var client in Clients)

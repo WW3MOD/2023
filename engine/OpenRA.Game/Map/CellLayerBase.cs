@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,10 +24,10 @@ namespace OpenRA
 		protected readonly T[] Entries;
 		protected readonly Rectangle Bounds;
 
-		public CellLayerBase(Map map)
+		protected CellLayerBase(Map map)
 			: this(map.Grid.Type, new Size(map.MapSize.X, map.MapSize.Y)) { }
 
-		public CellLayerBase(MapGridType gridType, Size size)
+		protected CellLayerBase(MapGridType gridType, Size size)
 		{
 			Size = size;
 			Bounds = new Rectangle(0, 0, Size.Width, Size.Height);
@@ -43,13 +43,13 @@ namespace OpenRA
 			Array.Copy(anotherLayer.Entries, Entries, Entries.Length);
 		}
 
-		/// <summary>Clears the layer contents with their default value</summary>
+		/// <summary>Clears the layer contents with their default value.</summary>
 		public virtual void Clear()
 		{
 			Array.Clear(Entries, 0, Entries.Length);
 		}
 
-		/// <summary>Clears the layer contents with a known value</summary>
+		/// <summary>Clears the layer contents with a known value.</summary>
 		public virtual void Clear(T clearValue)
 		{
 			Array.Fill(Entries, clearValue);

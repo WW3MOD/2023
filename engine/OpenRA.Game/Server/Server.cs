@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -40,115 +40,120 @@ namespace OpenRA.Server
 	public enum ServerType
 	{
 		Local = 0,
-		Multiplayer = 1,
-		Dedicated = 2
+		Skirmish = 1,
+		Multiplayer = 2,
+		Dedicated = 3
 	}
 
 	public sealed class Server
 	{
-		public readonly MersenneTwister Random = new MersenneTwister();
-		public readonly ServerType Type;
+		[FluentReference]
+		const string CustomRules = "notification-custom-rules";
 
-		public readonly List<Connection> Conns = new List<Connection>();
+		[FluentReference]
+		const string BotsDisabled = "notification-map-bots-disabled";
+
+		[FluentReference]
+		const string TwoHumansRequired = "notification-two-humans-required";
+
+		[FluentReference]
+		const string ErrorGameStarted = "notification-error-game-started";
+
+		[FluentReference]
+		const string RequiresPassword = "notification-requires-password";
+
+		[FluentReference]
+		const string IncorrectPassword = "notification-incorrect-password";
+
+		[FluentReference]
+		const string IncompatibleMod = "notification-incompatible-mod";
+
+		[FluentReference]
+		const string IncompatibleVersion = "notification-incompatible-version";
+
+		[FluentReference]
+		const string IncompatibleProtocol = "notification-incompatible-protocol";
+
+		[FluentReference]
+		const string Banned = "notification-you-were-banned";
+
+		[FluentReference]
+		const string TempBanned = "notification-you-were-temp-banned";
+
+		[FluentReference]
+		const string Full = "notification-game-full";
+
+		[FluentReference("player")]
+		const string Joined = "notification-joined";
+
+		[FluentReference]
+		const string RequiresAuthentication = "notification-requires-authentication";
+
+		[FluentReference]
+		const string NoPermission = "notification-no-permission-to-join";
+
+		[FluentReference("command")]
+		const string UnknownServerCommand = "notification-unknown-server-command";
+
+		[FluentReference("player")]
+		const string LobbyDisconnected = "notification-lobby-disconnected";
+
+		[FluentReference("player")]
+		const string PlayerDisconnected = "notification-player-disconnected";
+
+		[FluentReference("player", "team")]
+		const string PlayerTeamDisconnected = "notification-team-player-disconnected";
+
+		[FluentReference("player")]
+		const string ObserverDisconnected = "notification-observer-disconnected";
+
+		[FluentReference("player")]
+		const string NewAdmin = "notification-new-admin";
+
+		[FluentReference]
+		const string YouWereKicked = "notification-you-were-kicked";
+
+		[FluentReference]
+		const string GameStarted = "notification-game-started";
+
+		public readonly MersenneTwister Random = new();
+		public readonly ServerType Type;
+		public bool IsMultiplayer => Type == ServerType.Dedicated || Type == ServerType.Multiplayer;
+
+		public readonly List<Connection> Conns = new();
 
 		public Session LobbyInfo;
 		public ServerSettings Settings;
 		public ModData ModData;
-		public List<string> TempBans = new List<string>();
+		public List<string> TempBans = new();
 
 		// Managed by LobbyCommands
 		public MapPreview Map;
 		public readonly MapStatusCache MapStatusCache;
-		public GameSave GameSave = null;
+		public GameSave GameSave;
+		public HashSet<string> MapPool;
 
 		// Default to the next frame for ServerType.Local - MP servers take the value from the selected GameSpeed.
 		public int OrderLatency = 1;
 
 		readonly int randomSeed;
-		readonly List<TcpListener> listeners = new List<TcpListener>();
-		readonly TypeDictionary serverTraits = new TypeDictionary();
+		readonly List<TcpListener> listeners = new();
+		readonly TypeDictionary serverTraits = new();
 		readonly PlayerDatabase playerDatabase;
 
 		OrderBuffer orderBuffer;
 
 		volatile ServerState internalState = ServerState.WaitingPlayers;
 
-		readonly BlockingCollection<IServerEvent> events = new BlockingCollection<IServerEvent>();
+		readonly BlockingCollection<IServerEvent> events = new();
 
 		ReplayRecorder recorder;
 		GameInformation gameInfo;
-		readonly List<GameInformation.Player> worldPlayers = new List<GameInformation.Player>();
+		readonly List<GameInformation.Player> worldPlayers = new();
 		readonly Stopwatch pingUpdated = Stopwatch.StartNew();
+
+		public readonly VoteKickTracker VoteKickTracker;
 		readonly PlayerMessageTracker playerMessageTracker;
-
-		[TranslationReference]
-		static readonly string CustomRules = "custom-rules";
-
-		[TranslationReference]
-		static readonly string BotsDisabled = "bots-disabled";
-
-		[TranslationReference]
-		static readonly string TwoHumansRequired = "two-humans-required";
-
-		[TranslationReference]
-		static readonly string ErrorGameStarted = "error-game-started";
-
-		[TranslationReference]
-		static readonly string RequiresPassword = "requires-password";
-
-		[TranslationReference]
-		static readonly string IncorrectPassword = "incorrect-password";
-
-		[TranslationReference]
-		static readonly string IncompatibleMod = "incompatible-mod";
-
-		[TranslationReference]
-		static readonly string IncompatibleVersion = "incompatible-version";
-
-		[TranslationReference]
-		static readonly string IncompatibleProtocol = "incompatible-protocol";
-
-		[TranslationReference]
-		static readonly string Banned = "banned";
-
-		[TranslationReference]
-		static readonly string TempBanned = "temp-banned";
-
-		[TranslationReference]
-		static readonly string Full = "full";
-
-		[TranslationReference("player")]
-		static readonly string Joined = "joined";
-
-		[TranslationReference]
-		static readonly string RequiresForumAccount = "requires-forum-account";
-
-		[TranslationReference]
-		static readonly string NoPermission = "no-permission";
-
-		[TranslationReference("command")]
-		static readonly string UnknownServerCommand = "unknown-server-command";
-
-		[TranslationReference("player")]
-		static readonly string LobbyDisconnected = "lobby-disconnected";
-
-		[TranslationReference("player")]
-		static readonly string PlayerDisconnected = "player-disconnected";
-
-		[TranslationReference("player", "team")]
-		static readonly string PlayerTeamDisconnected = "player-team-disconnected";
-
-		[TranslationReference("player")]
-		static readonly string ObserverDisconnected = "observer-disconnected";
-
-		[TranslationReference("player")]
-		public static readonly string NewAdmin = "new-admin";
-
-		[TranslationReference]
-		static readonly string YouWereKicked = "you-were-kicked";
-
-		[TranslationReference]
-		public static readonly string GameStarted = "game-started";
 
 		public ServerState State
 		{
@@ -245,12 +250,9 @@ namespace OpenRA.Server
 					{
 						listener.Server.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, 1);
 					}
-					catch (Exception ex)
+					catch (Exception ex) when (ex is SocketException || ex is ArgumentException)
 					{
-						if (ex is SocketException || ex is ArgumentException)
-							Log.Write("server", $"Failed to set socket option on {endpoint}: {ex.Message}");
-						else
-							throw;
+						Log.Write("server", $"Failed to set socket option on {endpoint}: {ex.Message}");
 					}
 
 					listener.Start();
@@ -280,7 +282,8 @@ namespace OpenRA.Server
 								}
 							}
 						}
-					}) { Name = $"Connection listener ({listener.LocalEndpoint})", IsBackground = true }.Start();
+					})
+					{ Name = $"Connection listener ({listener.LocalEndpoint})", IsBackground = true }.Start();
 				}
 				catch (SocketException ex)
 				{
@@ -303,10 +306,10 @@ namespace OpenRA.Server
 
 			randomSeed = (int)DateTime.Now.ToBinary();
 
-			if (type != ServerType.Local && settings.EnableGeoIP)
+			if (IsMultiplayer && settings.EnableGeoIP)
 				GeoIP.Initialize();
 
-			if (type != ServerType.Local)
+			if (IsMultiplayer)
 				Nat.TryForwardPort(Settings.ListenPort, Settings.ListenPort);
 
 			foreach (var trait in modData.Manifest.ServerTraits)
@@ -314,18 +317,16 @@ namespace OpenRA.Server
 
 			serverTraits.TrimExcess();
 
-			Map = ModData.MapCache[settings.Map];
 			MapStatusCache = new MapStatusCache(modData, MapStatusChanged, type == ServerType.Dedicated && settings.EnableLintChecks);
 
-			playerMessageTracker = new PlayerMessageTracker(this, DispatchOrdersToClient, SendLocalizedMessageTo);
+			playerMessageTracker = new PlayerMessageTracker(this, DispatchOrdersToClient, SendFluentMessageTo);
+			VoteKickTracker = new VoteKickTracker(this);
 
 			LobbyInfo = new Session
 			{
 				GlobalSettings =
 				{
 					RandomSeed = randomSeed,
-					Map = Map.Uid,
-					MapStatus = Session.MapStatus.Unknown,
 					ServerName = settings.Name,
 					EnableSingleplayer = settings.EnableSingleplayer || Type != ServerType.Dedicated,
 					EnableSyncReports = settings.EnableSyncReports,
@@ -336,7 +337,7 @@ namespace OpenRA.Server
 
 			if (Settings.RecordReplays && Type == ServerType.Dedicated)
 			{
-				recorder = new ReplayRecorder(() => { return Game.TimestampedFilename(extra: "-Server"); });
+				recorder = new ReplayRecorder(() => Game.TimestampedFilename(extra: "-Server"));
 
 				// We only need one handshake to initialize the replay.
 				// Add it now, then ignore the redundant handshakes from each client
@@ -345,8 +346,7 @@ namespace OpenRA.Server
 
 			new Thread(_ =>
 			{
-				// Initial status is set off the main thread to avoid triggering a load screen when joining a skirmish game
-				LobbyInfo.GlobalSettings.MapStatus = MapStatusCache[Map];
+				// Note: at least one of these is required to set the initial LobbyInfo.Map and MapStatus
 				foreach (var t in serverTraits.WithInterface<INotifyServerStart>())
 					t.ServerStarted(this);
 
@@ -383,7 +383,7 @@ namespace OpenRA.Server
 					if (State == ServerState.ShuttingDown)
 					{
 						EndGame();
-						if (type != ServerType.Local)
+						if (IsMultiplayer)
 							Nat.TryRemovePortForward();
 						break;
 					}
@@ -436,8 +436,8 @@ namespace OpenRA.Server
 			{
 				// Send handshake and client index.
 				var ms = new MemoryStream(8);
-				ms.WriteArray(BitConverter.GetBytes(ProtocolVersion.Handshake));
-				ms.WriteArray(BitConverter.GetBytes(newConn.PlayerIndex));
+				ms.Write(ProtocolVersion.Handshake);
+				ms.Write(newConn.PlayerIndex);
 				newConn.TrySendData(ms.ToArray());
 
 				// Dispatch a handshake order
@@ -463,7 +463,7 @@ namespace OpenRA.Server
 			Conns.Add(newConn);
 		}
 
-		void ValidateClient(Connection newConn, string data)
+		void ValidateClient(Connection newConn, string data, string name)
 		{
 			try
 			{
@@ -476,7 +476,7 @@ namespace OpenRA.Server
 					return;
 				}
 
-				var handshake = HandshakeResponse.Deserialize(data);
+				var handshake = HandshakeResponse.Deserialize(data, name);
 
 				if (!string.IsNullOrEmpty(Settings.Password) && handshake.Password != Settings.Password)
 				{
@@ -491,7 +491,7 @@ namespace OpenRA.Server
 				{
 					Name = OpenRA.Settings.SanitizedPlayerName(handshake.Client.Name),
 					IPAddress = ipAddress.ToString(),
-					AnonymizedIPAddress = Type != ServerType.Local && Settings.ShareAnonymizedIPs ? Session.AnonymizeIP(ipAddress) : null,
+					AnonymizedIPAddress = IsMultiplayer && Settings.ShareAnonymizedIPs ? Session.AnonymizeIP(ipAddress) : null,
 					Location = GeoIP.LookupCountry(ipAddress),
 					Index = newConn.PlayerIndex,
 					PreferredColor = handshake.Client.PreferredColor,
@@ -541,7 +541,7 @@ namespace OpenRA.Server
 					return;
 				}
 
-				Action completeConnection = () =>
+				void CompleteConnection()
 				{
 					lock (LobbyInfo)
 					{
@@ -580,8 +580,7 @@ namespace OpenRA.Server
 
 						Log.Write("server", $"{client.Name} ({newConn.EndPoint}) has joined the game.");
 
-						if (Type != ServerType.Local)
-							SendLocalizedMessage(Joined, Translation.Arguments("player", client.Name));
+						SendFluentMessage(Joined, "player", client.Name);
 
 						if (Type == ServerType.Dedicated)
 						{
@@ -595,20 +594,20 @@ namespace OpenRA.Server
 						}
 
 						if ((LobbyInfo.GlobalSettings.MapStatus & Session.MapStatus.UnsafeCustomRules) != 0)
-							SendLocalizedMessageTo(newConn, CustomRules);
+							SendFluentMessageTo(newConn, CustomRules);
 
 						if (!LobbyInfo.GlobalSettings.EnableSingleplayer)
-							SendLocalizedMessageTo(newConn, TwoHumansRequired);
+							SendFluentMessageTo(newConn, TwoHumansRequired);
 						else if (Map.Players.Players.Where(p => p.Value.Playable).All(p => !p.Value.AllowBots))
-							SendLocalizedMessageTo(newConn, BotsDisabled);
+							SendFluentMessageTo(newConn, BotsDisabled);
 					}
-				};
+				}
 
-				if (Type == ServerType.Local)
+				if (!IsMultiplayer)
 				{
 					// Local servers can only be joined by the local client, so we can trust their identity without validation
 					client.Fingerprint = handshake.Fingerprint;
-					completeConnection();
+					CompleteConnection();
 				}
 				else if (!string.IsNullOrEmpty(handshake.Fingerprint) && !string.IsNullOrEmpty(handshake.AuthSignature))
 				{
@@ -619,10 +618,11 @@ namespace OpenRA.Server
 						try
 						{
 							var httpClient = HttpClientFactory.Create();
-							var httpResponseMessage = await httpClient.GetAsync(playerDatabase.Profile + handshake.Fingerprint);
+							var url = playerDatabase.Profile + handshake.Fingerprint;
+							var httpResponseMessage = await httpClient.GetAsync(url);
 							var result = await httpResponseMessage.Content.ReadAsStreamAsync();
 
-							var yaml = MiniYaml.FromStream(result).First();
+							var yaml = MiniYaml.FromStream(result, url).First();
 							if (yaml.Key == "Player")
 							{
 								profile = FieldLoader.Load<PlayerProfile>(yaml.Value);
@@ -664,7 +664,7 @@ namespace OpenRA.Server
 							if (notAuthenticated)
 							{
 								Log.Write("server", $"Rejected connection from {newConn.EndPoint}; Not authenticated.");
-								SendOrderTo(newConn, "ServerError", RequiresForumAccount);
+								SendOrderTo(newConn, "ServerError", RequiresAuthentication);
 								DropClient(newConn);
 							}
 							else if (blacklisted || notWhitelisted)
@@ -678,7 +678,7 @@ namespace OpenRA.Server
 								DropClient(newConn);
 							}
 							else
-								completeConnection();
+								CompleteConnection();
 						}));
 					});
 				}
@@ -687,11 +687,11 @@ namespace OpenRA.Server
 					if (Type == ServerType.Dedicated && (Settings.RequireAuthentication || Settings.ProfileIDWhitelist.Length > 0))
 					{
 						Log.Write("server", $"Rejected connection from {newConn.EndPoint}; Not authenticated.");
-						SendOrderTo(newConn, "ServerError", RequiresForumAccount);
+						SendOrderTo(newConn, "ServerError", RequiresAuthentication);
 						DropClient(newConn);
 					}
 					else
-						completeConnection();
+						CompleteConnection();
 				}
 			}
 			catch (Exception ex)
@@ -702,33 +702,33 @@ namespace OpenRA.Server
 			}
 		}
 
-		byte[] CreateFrame(int client, int frame, byte[] data)
+		static byte[] CreateFrame(int client, int frame, byte[] data)
 		{
 			var ms = new MemoryStream(data.Length + 12);
-			ms.WriteArray(BitConverter.GetBytes(data.Length + 4));
-			ms.WriteArray(BitConverter.GetBytes(client));
-			ms.WriteArray(BitConverter.GetBytes(frame));
-			ms.WriteArray(data);
+			ms.Write(data.Length + 4);
+			ms.Write(client);
+			ms.Write(frame);
+			ms.Write(data);
 			return ms.GetBuffer();
 		}
 
-		byte[] CreateAckFrame(int frame, byte count)
+		static byte[] CreateAckFrame(int frame, byte count)
 		{
 			var ms = new MemoryStream(14);
-			ms.WriteArray(BitConverter.GetBytes(6));
-			ms.WriteArray(BitConverter.GetBytes(0));
-			ms.WriteArray(BitConverter.GetBytes(frame));
+			ms.Write(6);
+			ms.Write(0);
+			ms.Write(frame);
 			ms.WriteByte((byte)OrderType.Ack);
 			ms.WriteByte(count);
 			return ms.GetBuffer();
 		}
 
-		byte[] CreateTickScaleFrame(float scale)
+		static byte[] CreateTickScaleFrame(float scale)
 		{
 			var ms = new MemoryStream(17);
-			ms.WriteArray(BitConverter.GetBytes(9));
-			ms.WriteArray(BitConverter.GetBytes(0));
-			ms.WriteArray(BitConverter.GetBytes(0));
+			ms.Write(9);
+			ms.Write(0);
+			ms.Write(0);
 			ms.WriteByte((byte)OrderType.TickScale);
 			ms.Write(scale);
 			return ms.GetBuffer();
@@ -791,15 +791,18 @@ namespace OpenRA.Server
 
 			// Make sure the written file is not valid
 			// TODO: storing a serverside replay on desync would be extremely useful
-			recorder.Metadata = null;
+			if (recorder != null)
+			{
+				recorder.Metadata = null;
 
-			recorder.Dispose();
+				recorder.Dispose();
+			}
 
 			// Stop the recording
 			recorder = null;
 		}
 
-		readonly Dictionary<int, byte[]> syncForFrame = new Dictionary<int, byte[]>();
+		readonly Dictionary<int, byte[]> syncForFrame = new();
 		int lastDefeatStateFrame;
 		ulong lastDefeatState;
 
@@ -856,17 +859,14 @@ namespace OpenRA.Server
 
 		void RecordOrder(int frame, byte[] data, int from)
 		{
-			if (recorder != null)
-			{
-				recorder.ReceiveFrame(from, frame, data);
+			recorder?.ReceiveFrame(from, frame, data);
 
-				if (data.Length > 0 && data[0] == (byte)OrderType.SyncHash)
-				{
-					if (data.Length == Order.SyncHashOrderLength)
-						HandleSyncOrder(frame, data);
-					else
-						Log.Write("server", $"Dropped sync order with length {data.Length} from client {from}. Expected length {Order.SyncHashOrderLength}.");
-				}
+			if (data.Length > 0 && data[0] == (byte)OrderType.SyncHash)
+			{
+				if (data.Length == Order.SyncHashOrderLength)
+					HandleSyncOrder(frame, data);
+				else
+					Log.Write("server", $"Dropped sync order with length {data.Length} from client {from}. Expected length {Order.SyncHashOrderLength}.");
 			}
 		}
 
@@ -877,13 +877,13 @@ namespace OpenRA.Server
 
 		public void DispatchServerOrdersToClients(byte[] data, int frame = 0)
 		{
-			var from = 0;
-			var frameData = CreateFrame(from, frame, data);
+			const int From = 0;
+			var frameData = CreateFrame(From, frame, data);
 			foreach (var c in Conns.ToList())
 				if (c.Validated)
-					DispatchFrameToClient(c, from, frameData);
+					DispatchFrameToClient(c, From, frameData);
 
-			RecordOrder(frame, data, from);
+			RecordOrder(frame, data, From);
 		}
 
 		public void ReceiveOrders(Connection conn, int frame, byte[] data)
@@ -952,24 +952,24 @@ namespace OpenRA.Server
 				WriteLineWithTimeStamp(text);
 		}
 
-		public void SendLocalizedMessage(string key, Dictionary<string, object> arguments = null)
+		public void SendFluentMessage(string key, params object[] args)
 		{
-			var text = LocalizedMessage.Serialize(key, arguments);
-			DispatchServerOrdersToClients(Order.FromTargetString("LocalizedMessage", text, true));
+			var text = FluentMessage.Serialize(key, args);
+			DispatchServerOrdersToClients(Order.FromTargetString("FluentMessage", text, true));
 
 			if (Type == ServerType.Dedicated)
-				WriteLineWithTimeStamp(ModData.Translation.GetString(key, arguments));
+				WriteLineWithTimeStamp(FluentProvider.GetMessage(key, args));
 		}
 
-		public void SendLocalizedMessageTo(Connection conn, string key, Dictionary<string, object> arguments = null)
+		public void SendFluentMessageTo(Connection conn, string key, object[] args = null)
 		{
-			var text = LocalizedMessage.Serialize(key, arguments);
-			DispatchOrdersToClient(conn, 0, 0, Order.FromTargetString("LocalizedMessage", text, true).Serialize());
+			var text = FluentMessage.Serialize(key, args);
+			DispatchOrdersToClient(conn, 0, 0, Order.FromTargetString("FluentMessage", text, true).Serialize());
 		}
 
 		void WriteLineWithTimeStamp(string line)
 		{
-			Console.WriteLine($"[{DateTime.Now.ToString(Settings.TimestampFormat)}] {line}");
+			Console.WriteLine($"[{DateTime.Now.ToString(Settings.TimestampFormat, CultureInfo.CurrentCulture)}] {line}");
 		}
 
 		void InterpretServerOrder(Connection conn, Order o)
@@ -981,7 +981,7 @@ namespace OpenRA.Server
 				if (!conn.Validated)
 				{
 					if (o.OrderString == "HandshakeResponse")
-						ValidateClient(conn, o.TargetString);
+						ValidateClient(conn, o.TargetString, o.OrderString);
 					else
 					{
 						Log.Write("server", $"Rejected connection from {conn.EndPoint}; Order `{o.OrderString}` is not a `HandshakeResponse`.");
@@ -994,70 +994,39 @@ namespace OpenRA.Server
 				switch (o.OrderString)
 				{
 					case "Command":
+					{
+						if (!InterpretCommand(o.TargetString, conn))
 						{
-							var handledBy = serverTraits.WithInterface<IInterpretCommand>()
-								.FirstOrDefault(t => t.InterpretCommand(this, conn, GetClient(conn), o.TargetString));
-
-							if (handledBy == null)
-							{
-								Log.Write("server", $"Unknown server command: {o.TargetString}");
-								SendLocalizedMessageTo(conn, UnknownServerCommand, Translation.Arguments("command", o.TargetString));
-							}
-
-							break;
+							Log.Write("server", $"Unknown server command: {o.TargetString}");
+							SendFluentMessageTo(conn, UnknownServerCommand, new object[] { "command", o.TargetString });
 						}
+
+						break;
+					}
 
 					case "Chat":
-						{
-							if (Type == ServerType.Local || !playerMessageTracker.IsPlayerAtFloodLimit(conn))
-								DispatchOrdersToClients(conn, 0, o.Serialize());
+					{
+						if (!IsMultiplayer || !playerMessageTracker.IsPlayerAtFloodLimit(conn))
+							DispatchOrdersToClients(conn, 0, o.Serialize());
 
-							break;
-						}
+						break;
+					}
 
 					case "GameSaveTraitData":
+					{
+						if (GameSave != null)
 						{
-							if (GameSave != null)
-							{
-								var data = MiniYaml.FromString(o.TargetString)[0];
-								GameSave.AddTraitData(int.Parse(data.Key), data.Value);
-							}
-
-							break;
+							var data = MiniYaml.FromString(o.TargetString, o.OrderString)[0];
+							GameSave.AddTraitData(OpenRA.Exts.ParseInt32Invariant(data.Key), data.Value);
 						}
+
+						break;
+					}
 
 					case "CreateGameSave":
+					{
+						if (GameSave != null)
 						{
-							if (GameSave != null)
-							{
-								// Sanitize potentially malicious input
-								var filename = o.TargetString;
-								var invalidIndex = -1;
-								var invalidChars = Path.GetInvalidFileNameChars();
-								while ((invalidIndex = filename.IndexOfAny(invalidChars)) != -1)
-									filename = filename.Remove(invalidIndex, 1);
-
-								var baseSavePath = Path.Combine(
-									Platform.SupportDir,
-									"Saves",
-									ModData.Manifest.Id,
-									ModData.Manifest.Metadata.Version);
-
-								if (!Directory.Exists(baseSavePath))
-									Directory.CreateDirectory(baseSavePath);
-
-								GameSave.Save(Path.Combine(baseSavePath, filename));
-								DispatchServerOrdersToClients(Order.FromTargetString("GameSaved", filename, true));
-							}
-
-							break;
-						}
-
-					case "LoadGameSave":
-						{
-							if (Type == ServerType.Dedicated || State >= ServerState.GameStarted)
-								break;
-
 							// Sanitize potentially malicious input
 							var filename = o.TargetString;
 							var invalidIndex = -1;
@@ -1065,62 +1034,90 @@ namespace OpenRA.Server
 							while ((invalidIndex = filename.IndexOfAny(invalidChars)) != -1)
 								filename = filename.Remove(invalidIndex, 1);
 
-							var savePath = Path.Combine(
+							var baseSavePath = Path.Combine(
 								Platform.SupportDir,
 								"Saves",
 								ModData.Manifest.Id,
-								ModData.Manifest.Metadata.Version,
-								filename);
+								ModData.Manifest.Metadata.Version);
 
-							GameSave = new GameSave(savePath);
-							LobbyInfo.GlobalSettings = GameSave.GlobalSettings;
-							LobbyInfo.Slots = GameSave.Slots;
+							if (!Directory.Exists(baseSavePath))
+								Directory.CreateDirectory(baseSavePath);
 
-							// Reassign clients to slots
-							//  - Bot ordering is preserved
-							//  - Humans are assigned on a first-come-first-serve basis
-							//  - Leftover humans become spectators
-
-							// Start by removing all bots and assigning all players as spectators
-							foreach (var c in LobbyInfo.Clients)
-							{
-								if (c.Bot != null)
-									LobbyInfo.Clients.Remove(c);
-								else
-									c.Slot = null;
-							}
-
-							// Rebuild/remap the saved client state
-							// TODO: Multiplayer saves should leave all humans as spectators so they can manually pick slots
-							var adminClientIndex = LobbyInfo.Clients.First(c => c.IsAdmin).Index;
-							foreach (var kv in GameSave.SlotClients)
-							{
-								if (kv.Value.Bot != null)
-								{
-									var bot = new Session.Client()
-									{
-										Index = ChooseFreePlayerIndex(),
-										State = Session.ClientState.NotReady,
-										BotControllerClientIndex = adminClientIndex
-									};
-
-									kv.Value.ApplyTo(bot);
-									LobbyInfo.Clients.Add(bot);
-								}
-								else
-								{
-									// This will throw if the server doesn't have enough human clients to fill all player slots
-									// See TODO above - this isn't a problem in practice because MP saves won't use this
-									var client = LobbyInfo.Clients.First(c => c.Slot == null);
-									kv.Value.ApplyTo(client);
-								}
-							}
-
-							SyncLobbyInfo();
-							SyncLobbyClients();
-
-							break;
+							GameSave.Save(Path.Combine(baseSavePath, filename));
+							DispatchServerOrdersToClients(Order.FromTargetString("GameSaved", filename, true));
 						}
+
+						break;
+					}
+
+					case "LoadGameSave":
+					{
+						if (Type == ServerType.Dedicated || State >= ServerState.GameStarted)
+							break;
+
+						// Sanitize potentially malicious input
+						var filename = o.TargetString;
+						var invalidIndex = -1;
+						var invalidChars = Path.GetInvalidFileNameChars();
+						while ((invalidIndex = filename.IndexOfAny(invalidChars)) != -1)
+							filename = filename.Remove(invalidIndex, 1);
+
+						var savePath = Path.Combine(
+							Platform.SupportDir,
+							"Saves",
+							ModData.Manifest.Id,
+							ModData.Manifest.Metadata.Version,
+							filename);
+
+						GameSave = new GameSave(savePath);
+						LobbyInfo.GlobalSettings = GameSave.GlobalSettings;
+						LobbyInfo.Slots = GameSave.Slots;
+
+						// Reassign clients to slots
+						//  - Bot ordering is preserved
+						//  - Humans are assigned on a first-come-first-serve basis
+						//  - Leftover humans become spectators
+
+						// Start by removing all bots and assigning all players as spectators
+						foreach (var c in LobbyInfo.Clients)
+						{
+							if (c.Bot != null)
+								LobbyInfo.Clients.Remove(c);
+							else
+								c.Slot = null;
+						}
+
+						// Rebuild/remap the saved client state
+						// TODO: Multiplayer saves should leave all humans as spectators so they can manually pick slots
+						var adminClientIndex = LobbyInfo.Clients.First(c => c.IsAdmin).Index;
+						foreach (var kv in GameSave.SlotClients)
+						{
+							if (kv.Value.Bot != null)
+							{
+								var bot = new Session.Client()
+								{
+									Index = ChooseFreePlayerIndex(),
+									State = Session.ClientState.NotReady,
+									BotControllerClientIndex = adminClientIndex
+								};
+
+								kv.Value.ApplyTo(bot);
+								LobbyInfo.Clients.Add(bot);
+							}
+							else
+							{
+								// This will throw if the server doesn't have enough human clients to fill all player slots
+								// See TODO above - this isn't a problem in practice because MP saves won't use this
+								var client = LobbyInfo.Clients.First(c => c.Slot == null);
+								kv.Value.ApplyTo(client);
+							}
+						}
+
+						SyncLobbyInfo();
+						SyncLobbyClients();
+
+						break;
+					}
 				}
 			}
 		}
@@ -1163,6 +1160,9 @@ namespace OpenRA.Server
 			return LobbyInfo.ClientWithIndex(conn.PlayerIndex);
 		}
 
+		public bool HasClientWonOrLost(Session.Client client) =>
+			worldPlayers.FirstOrDefault(p => p?.ClientIndex == client.Index)?.Outcome != WinState.Undefined;
+
 		public void DropClient(Connection toDrop)
 		{
 			lock (LobbyInfo)
@@ -1180,14 +1180,14 @@ namespace OpenRA.Server
 				if (State == ServerState.GameStarted)
 				{
 					if (dropClient.IsObserver)
-						SendLocalizedMessage(ObserverDisconnected, Translation.Arguments("player", dropClient.Name));
+						SendFluentMessage(ObserverDisconnected, "player", dropClient.Name);
 					else if (dropClient.Team > 0)
-						SendLocalizedMessage(PlayerTeamDisconnected, Translation.Arguments("player", dropClient.Name, "team", dropClient.Team));
+						SendFluentMessage(PlayerTeamDisconnected, "player", dropClient.Name, "team", dropClient.Team);
 					else
-						SendLocalizedMessage(PlayerDisconnected, Translation.Arguments("player", dropClient.Name));
+						SendFluentMessage(PlayerDisconnected, "player", dropClient.Name);
 				}
 				else
-					SendLocalizedMessage(LobbyDisconnected, Translation.Arguments("player", dropClient.Name));
+					SendFluentMessage(LobbyDisconnected, "player", dropClient.Name);
 
 				LobbyInfo.Clients.RemoveAll(c => c.Index == toDrop.PlayerIndex);
 
@@ -1204,7 +1204,7 @@ namespace OpenRA.Server
 					if (nextAdmin != null)
 					{
 						nextAdmin.IsAdmin = true;
-						SendLocalizedMessage(NewAdmin, Translation.Arguments("player", nextAdmin.Name));
+						SendFluentMessage(NewAdmin, "player", nextAdmin.Name);
 					}
 				}
 
@@ -1252,7 +1252,7 @@ namespace OpenRA.Server
 			lock (LobbyInfo)
 			{
 				// TODO: Only need to sync the specific client that has changed to avoid conflicts!
-				var clientData = LobbyInfo.Clients.Select(client => client.Serialize()).ToList();
+				var clientData = LobbyInfo.Clients.ConvertAll(client => client.Serialize());
 
 				DispatchServerOrdersToClients(Order.FromTargetString("SyncLobbyClients", clientData.WriteToString(), true));
 
@@ -1302,7 +1302,7 @@ namespace OpenRA.Server
 		{
 			lock (LobbyInfo)
 			{
-				WriteLineWithTimeStamp(ModData.Translation.GetString(GameStarted));
+				WriteLineWithTimeStamp(FluentProvider.GetMessage(GameStarted));
 
 				// Drop any players who are not ready
 				foreach (var c in Conns.Where(c => !c.Validated || GetClient(c).IsInvalid).ToArray())
@@ -1323,24 +1323,22 @@ namespace OpenRA.Server
 				foreach (var cmpi in Map.WorldActorInfo.TraitInfos<ICreatePlayersInfo>())
 					cmpi.CreateServerPlayers(Map, LobbyInfo, worldPlayers, playerRandom);
 
-				if (recorder != null)
+				gameInfo = new GameInformation()
 				{
-					gameInfo = new GameInformation
-					{
-						Mod = Game.ModData.Manifest.Id,
-						Version = Game.ModData.Manifest.Metadata.Version,
-						MapUid = Map.Uid,
-						MapTitle = Map.Title,
-						StartTimeUtc = DateTime.UtcNow,
-					};
+					Mod = Game.ModData.Manifest.Id,
+					Version = Game.ModData.Manifest.Metadata.Version,
+					MapUid = Map.Uid,
+					MapTitle = Map.Title,
+					StartTimeUtc = DateTime.UtcNow,
+				};
 
-					// Replay metadata should only include the playable players
-					foreach (var p in worldPlayers)
-						if (p != null)
-							gameInfo.Players.Add(p);
+				// Replay metadata should only include the playable players
+				foreach (var p in worldPlayers)
+					if (p != null)
+						gameInfo.Players.Add(p);
 
+				if (recorder != null)
 					recorder.Metadata = new ReplayMetadata(gameInfo);
-				}
 
 				SyncLobbyInfo();
 
@@ -1354,7 +1352,7 @@ namespace OpenRA.Server
 
 				State = ServerState.GameStarted;
 
-				if (Type != ServerType.Local)
+				if (IsMultiplayer)
 					OrderLatency = gameSpeed.OrderLatency;
 
 				if (GameSave == null && LobbyInfo.GlobalSettings.GameSavesEnabled)
@@ -1368,8 +1366,8 @@ namespace OpenRA.Server
 					{
 						startGameData = new List<MiniYamlNode>()
 						{
-							new MiniYamlNode("SaveLastOrdersFrame", GameSave.LastOrdersFrame.ToString()),
-							new MiniYamlNode("SaveSyncFrame", GameSave.LastSyncFrame.ToString())
+							new("SaveLastOrdersFrame", GameSave.LastOrdersFrame.ToStringInvariant()),
+							new("SaveSyncFrame", GameSave.LastSyncFrame.ToStringInvariant())
 						}.WriteToString();
 					}
 				}
@@ -1414,6 +1412,15 @@ namespace OpenRA.Server
 			}
 		}
 
+		public bool InterpretCommand(string command, Connection conn)
+		{
+			foreach (var t in serverTraits.WithInterface<IInterpretCommand>())
+				if (t.InterpretCommand(this, conn, GetClient(conn), command))
+					return true;
+
+			return false;
+		}
+
 		public ConnectionTarget GetEndpointForLocalConnection()
 		{
 			var endpoints = new List<DnsEndPoint>();
@@ -1431,9 +1438,30 @@ namespace OpenRA.Server
 			return new ConnectionTarget(endpoints);
 		}
 
+		public bool MapIsUnknown(string uid)
+		{
+			if (string.IsNullOrEmpty(uid))
+				return true;
+
+			var status = ModData.MapCache[uid].Status;
+			return status != MapStatus.Available && status != MapStatus.DownloadAvailable;
+		}
+
+		public bool MapIsKnown(string uid)
+		{
+			if (string.IsNullOrEmpty(uid))
+				return false;
+
+			if (MapPool != null && !MapPool.Contains(uid))
+				return false;
+
+			var status = ModData.MapCache[uid].Status;
+			return status == MapStatus.Available || status == MapStatus.DownloadAvailable;
+		}
+
 		interface IServerEvent { void Invoke(Server server); }
 
-		class ConnectionConnectEvent : IServerEvent
+		sealed class ConnectionConnectEvent : IServerEvent
 		{
 			readonly Socket socket;
 			public ConnectionConnectEvent(Socket socket)
@@ -1447,7 +1475,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class ConnectionDisconnectEvent : IServerEvent
+		sealed class ConnectionDisconnectEvent : IServerEvent
 		{
 			readonly Connection connection;
 			public ConnectionDisconnectEvent(Connection connection)
@@ -1461,7 +1489,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class ConnectionPacketEvent : IServerEvent
+		sealed class ConnectionPacketEvent : IServerEvent
 		{
 			readonly Connection connection;
 			readonly int frame;
@@ -1480,15 +1508,15 @@ namespace OpenRA.Server
 			}
 		}
 
-		class ConnectionPingEvent : IServerEvent
+		sealed class ConnectionPingEvent : IServerEvent
 		{
 			readonly Connection connection;
 			readonly int[] pingHistory;
 
 			// TODO: future net code changes
-			#pragma warning disable IDE0052
+#pragma warning disable IDE0052
 			readonly byte queueLength;
-			#pragma warning restore IDE0052
+#pragma warning restore IDE0052
 
 			public ConnectionPingEvent(Connection connection, int[] pingHistory, byte queueLength)
 			{
@@ -1503,7 +1531,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		class CallbackEvent : IServerEvent
+		sealed class CallbackEvent : IServerEvent
 		{
 			readonly Action action;
 

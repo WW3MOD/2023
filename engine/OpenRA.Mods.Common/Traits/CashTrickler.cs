@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -130,11 +130,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		void Unregister()
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (registeredEntry == null)
 				return;
 
 			resources.RemoveIncome(registeredEntry);
 			registeredEntry = null;
+=======
+			self.World.AddFrameEndTask(w => w.Add(
+				new FloatingText(self.CenterPosition, self.OwnerColor(), FloatingText.FormatCashTick(amount), info.DisplayDuration)));
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void ITick.Tick(Actor self)

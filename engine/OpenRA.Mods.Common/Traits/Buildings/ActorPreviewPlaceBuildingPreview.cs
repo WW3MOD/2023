@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -32,6 +32,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Footprint types to draw above the actor preview.")]
 		public readonly PlaceBuildingCellType FootprintOverPreview = PlaceBuildingCellType.Invalid;
+
+		[Desc("Custom ZOffset of the rendered building preview.")]
+		public readonly int ZOffset = 0;
 
 		protected override IPlaceBuildingPreview CreatePreview(WorldRenderer wr, ActorInfo ai, TypeDictionary init)
 		{
@@ -82,10 +85,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var r in previewRenderables.OrderBy(WorldRenderer.RenderableZPositionComparisonKey))
 			{
+				var renderable = r;
 				if (info.PreviewAlpha < 1f && r is IModifyableRenderable mr)
-					yield return mr.WithAlpha(mr.Alpha * info.PreviewAlpha);
-				else
-					yield return r;
+					renderable = mr.WithAlpha(mr.Alpha * info.PreviewAlpha);
+
+				if (info.ZOffset != 0)
+					renderable = renderable.WithZOffset(info.ZOffset);
+
+				yield return renderable;
 			}
 
 			if (info.FootprintOverPreview != PlaceBuildingCellType.None)

@@ -1,5 +1,20 @@
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -102,6 +117,9 @@ namespace OpenRA.Mods.Common.Activities
 					target = Target.FromCell(self.World, newLocation.Value);
 					targetPosition = target.CenterPosition + offset;
 					landingCell = self.World.Map.CellContaining(targetPosition);
+
+					if ((targetPosition - pos).LengthSquared == 0)
+						return true;
 				}
 			}
 
@@ -145,11 +163,17 @@ namespace OpenRA.Mods.Common.Activities
 						var acceleration = aircraft.CalculateAccelerationToWaypoint(targetPosition, true);
 						aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 						// Descend proportionally to speed: fast = stay high, slow = go low
 						// This creates a natural descending approach curve
 						var speedRatio = aircraft.Info.Speed > 0 ? speed * 1024 / aircraft.Info.Speed : 0;
 						var targetAltLength = aircraft.LandAltitude.Length + altRange * speedRatio / 1024;
 						var targetAlt = new WDist(targetAltLength);
+=======
+			if (!landingInitiated)
+			{
+				var blockingCells = clearCells.Append(landingCell).ToList();
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 						if (dat != targetAlt)
 						{

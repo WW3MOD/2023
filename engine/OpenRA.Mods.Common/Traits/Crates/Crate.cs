@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Duration = 0;
 
 		[Desc("Allowed to land on.")]
-		public readonly HashSet<string> TerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> TerrainTypes = new();
 
 		[Desc("Define actors that can collect crates by setting this into the Passes field from the Mobile trait.")]
 		public readonly string PassClass = "crate";
@@ -39,7 +39,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IOccupySpaceInfo.SharesCell => false;
 
-		public bool CanEnterCell(World world, Actor self, CPos cell, SubCell subCell = SubCell.FullCell, Actor ignoreActor = null, BlockedByActor check = BlockedByActor.All)
+		public bool CanEnterCell(World world, Actor self, CPos cell,
+			SubCell subCell = SubCell.FullCell, Actor ignoreActor = null, BlockedByActor check = BlockedByActor.All)
 		{
 			// Since crates don't share cells and GetAvailableSubCell only returns SubCell.Full or SubCell.Invalid, we ignore the subCell parameter
 			return GetAvailableSubCell(world, cell, ignoreActor, check) != SubCell.Invalid;
@@ -91,11 +92,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			var locationInit = init.GetOrDefault<LocationInit>();
 			if (locationInit != null)
-				SetPosition(self, locationInit.Value);
+				Location = locationInit.Value;
 		}
 
 		void INotifyCreated.Created(Actor self)
 		{
+			SetPosition(self, Location);
 			notifyCenterPositionChanged = self.TraitsImplementing<INotifyCenterPositionChanged>().ToArray();
 		}
 
@@ -117,23 +119,45 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyParachute.OnLanded(Actor self)
 		{
 			// Check whether the crate landed on anything
-			var landedOn = self.World.ActorMap.GetActorsAt(self.Location)
-				.Where(a => a != self);
+			var anyOtherActors = false;
+			Actor collector = null;
+			foreach (var otherActor in self.World.ActorMap.GetActorsAt(self.Location))
+			{
+				if (self == otherActor)
+					continue;
 
-			if (!landedOn.Any())
-				return;
+				anyOtherActors = true;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var collector = landedOn.FirstOrDefault(a =>
 			{
 				// Mobile is (currently) the only trait that supports passing
 				var mi = a.Info.TraitInfoOrDefault<MobileInfo>();
+=======
+				// Mobile is (currently) the only trait that supports crushing
+				var mi = otherActor.Info.TraitInfoOrDefault<MobileInfo>();
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				if (mi == null)
-					return false;
+					continue;
 
 				// Make sure that the actor can collect this crate type
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				// Crate can only be passed if it is not in the air.
 				return self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.PassClass);
 			});
+=======
+				// Crate can only be crushed if it is not in the air.
+				if (self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.CrushClass))
+				{
+					collector = otherActor;
+					break;
+				}
+			}
+
+			// The crate can land unhindered.
+			if (!anyOtherActors)
+				return;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			// Destroy the crate if none of the units in the cell are valid collectors
 			if (collector != null)
@@ -152,22 +176,32 @@ namespace OpenRA.Mods.Common.Traits
 			self.Dispose();
 			collected = true;
 
-			if (crateActions.Any())
+			var shares = crateActions
+				.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(crusher)))
+				.ToList();
+			if (shares.Count != 0)
 			{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var shares = crateActions.Select(a => (Action: a, Shares: a.GetSelectionSharesOuter(passer)));
 
+=======
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				var totalShares = shares.Sum(a => a.Shares);
 				var n = self.World.SharedRandom.Next(totalShares);
 
-				foreach (var s in shares)
+				foreach (var (action, share) in shares)
 				{
-					if (n < s.Shares)
+					if (n < share)
 					{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 						s.Action.Activate(passer);
+=======
+						action.Activate(crusher);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 						return;
 					}
 
-					n -= s.Shares;
+					n -= share;
 				}
 			}
 		}

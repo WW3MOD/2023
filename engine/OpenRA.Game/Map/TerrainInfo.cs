@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -60,7 +60,7 @@ namespace OpenRA
 	{
 		public readonly string Type;
 		public readonly BitSet<TargetableType> TargetTypes;
-		public readonly HashSet<string> AcceptsSmudgeType = new HashSet<string>();
+		public readonly HashSet<string> AcceptsSmudgeType = new();
 		public readonly Color Color;
 		public readonly bool RestrictPlayerColor = false;
 
@@ -69,7 +69,7 @@ namespace OpenRA
 
 	// HACK: Temporary placeholder to avoid having to change all the traits that reference this constant.
 	// This can be removed after the palette references have been moved from traits to sequences.
-	public class TileSet
+	public static class TileSet
 	{
 		public const string TerrainPaletteInternalName = "terrain";
 	}

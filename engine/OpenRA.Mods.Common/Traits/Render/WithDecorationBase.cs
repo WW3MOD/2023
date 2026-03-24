@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[Desc("Screen-space offsets to apply when defined conditions are enabled.",
 			"A dictionary of [condition string]: [x, y offset].")]
-		public readonly Dictionary<BooleanExpression, int2> Offsets = new Dictionary<BooleanExpression, int2>();
+		public readonly Dictionary<BooleanExpression, int2> Offsets = new();
 
 		[Desc("The number of ticks that each step in the blink pattern in active.")]
 		public readonly int BlinkInterval = 5;
@@ -51,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[Desc("Override blink conditions to use when defined conditions are enabled.",
 			"A dictionary of [condition string]: [pattern].")]
-		public readonly Dictionary<BooleanExpression, BlinkState[]> BlinkPatterns = new Dictionary<BooleanExpression, BlinkState[]>();
+		public readonly Dictionary<BooleanExpression, BlinkState[]> BlinkPatterns = new();
 
 		[ConsumedConditionReference]
 		public IEnumerable<string> ConsumedConditions
@@ -66,9 +66,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 		int2 conditionalOffset;
 		BlinkState[] blinkPattern;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public int2 Margin { get; set; }
 
 		public WithDecorationBase(Actor self, InfoType info)
+=======
+		protected WithDecorationBase(Actor self, InfoType info)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			: base(info)
 		{
 			Self = self;
@@ -86,7 +90,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			if (blinkPattern != null && blinkPattern.Length > 0)
 			{
-				var i = (self.World.WorldTick / Info.BlinkInterval) % blinkPattern.Length;
+				var i = self.World.WorldTick / Info.BlinkInterval % blinkPattern.Length;
 				if (blinkPattern[i] != BlinkState.On)
 					return false;
 			}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,7 @@
 #endregion
 
 using System;
-using System.Linq;
+using System.Globalization;
 using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Widgets;
@@ -19,45 +19,45 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ServerCreationLogic : ChromeLogic
 	{
-		[TranslationReference]
-		static readonly string InternetServerNatA = "internet-server-nat-A";
+		[FluentReference]
+		const string InternetServerNatA = "label-internet-server-nat-A";
 
-		[TranslationReference]
-		static readonly string InternetServerNatBenabled = "internet-server-nat-B-enabled";
+		[FluentReference]
+		const string InternetServerNatBenabled = "label-internet-server-nat-B-enabled";
 
-		[TranslationReference]
-		static readonly string InternetServerNatBnotSupported = "internet-server-nat-B-not-supported";
+		[FluentReference]
+		const string InternetServerNatBnotSupported = "label-internet-server-nat-B-not-supported";
 
-		[TranslationReference]
-		static readonly string InternetServerNatBdisabled = "internet-server-nat-B-disabled";
+		[FluentReference]
+		const string InternetServerNatBdisabled = "label-internet-server-nat-B-disabled";
 
-		[TranslationReference]
-		static readonly string InternetServerNatC = "internet-server-nat-C";
+		[FluentReference]
+		const string InternetServerNatC = "label-internet-server-nat-C";
 
-		[TranslationReference]
-		static readonly string LocalServer = "local-server";
+		[FluentReference]
+		const string LocalServer = "label-local-server";
 
-		[TranslationReference("port")]
-		static readonly string ServerCreationFailedPrompt = "server-creation-failed-prompt";
+		[FluentReference("port")]
+		const string ServerCreationFailedPrompt = "dialog-server-creation-failed.prompt";
 
-		[TranslationReference]
-		static readonly string ServerCreationFailedPortUsed = "server-creation-failed-port-used";
+		[FluentReference]
+		const string ServerCreationFailedPortUsed = "dialog-server-creation-failed.prompt-port-used";
 
-		[TranslationReference("message", "code")]
-		static readonly string ServerCreationFailedError = "server-creation-failed-error";
+		[FluentReference("message", "code")]
+		const string ServerCreationFailedError = "dialog-server-creation-failed.prompt-error";
 
-		[TranslationReference]
-		static readonly string ServerCreationFailedTitle = "server-creation-failed-title";
+		[FluentReference]
+		const string ServerCreationFailedTitle = "dialog-server-creation-failed.title";
 
-		[TranslationReference]
-		static readonly string ServerCreationFailedCancel = "server-creation-failed-cancel";
+		[FluentReference]
+		const string ServerCreationFailedCancel = "dialog-server-creation-failed.cancel";
 
 		readonly Widget panel;
 		readonly ModData modData;
 		readonly LabelWidget noticesLabelA, noticesLabelB, noticesLabelC;
 		readonly Action onCreate;
 		readonly Action onExit;
-		MapPreview preview = MapCache.UnknownMap;
+		MapPreview map = MapCache.UnknownMap;
 		bool advertiseOnline;
 
 		[ObjectCreator.UseCtor]
@@ -69,7 +69,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.onExit = onExit;
 
 			var settings = Game.Settings;
-			preview = modData.MapCache[modData.MapCache.ChooseInitialMap(modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? Game.Settings.Server.Map, Game.CosmeticRandom)];
+
+			map = modData.MapCache[
+				modData.MapCache.ChooseInitialMap(
+					modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? Game.Settings.Server.Map,
+					Game.CosmeticRandom)];
+
+			Ui.LoadWidget("MAP_PREVIEW", panel.Get("MAP_PREVIEW_ROOT"), new WidgetArgs
+			{
+				{ "orderManager", null },
+				{ "getMap", (Func<(MapPreview, Session.MapStatus)>)(() => (map, Session.MapStatus.Playable)) },
+				{ "onMouseDown", null },
+				{ "getSpawnOccupants", null },
+				{ "getDisabledSpawnPoints", null },
+				{ "showUnoccupiedSpawnpoints", false },
+				{ "mapUpdatesEnabled", true },
+				{ "onMapUpdate", (Action<string>)(uid => map = modData.MapCache[uid]) },
+			});
 
 			panel.Get<ButtonWidget>("BACK_BUTTON").OnClick = () => { Ui.CloseWindow(); onExit(); };
 			panel.Get<ButtonWidget>("CREATE_BUTTON").OnClick = CreateAndJoin;
@@ -81,50 +97,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					Ui.OpenWindow("MAPCHOOSER_PANEL", new WidgetArgs()
 					{
-						{ "initialMap", preview.Uid },
+						{ "initialMap", map.Uid },
+						{ "remoteMapPool", null },
 						{ "initialTab", MapClassification.System },
-						{ "onExit", () => { } },
-						{ "onSelect", (Action<string>)(uid => preview = modData.MapCache[uid]) },
+						{ "onExit", () => modData.MapCache.UpdateMaps() },
+						{ "onSelect", (Action<string>)(uid => map = modData.MapCache[uid]) },
 						{ "filter", MapVisibility.Lobby },
 						{ "onStart", () => { } }
 					});
 				};
-
-				panel.Get<MapPreviewWidget>("MAP_PREVIEW").Preview = () => preview;
-
-				var titleLabel = panel.GetOrNull<LabelWithTooltipWidget>("MAP_TITLE");
-				if (titleLabel != null)
-				{
-					var font = Game.Renderer.Fonts[titleLabel.Font];
-					var title = new CachedTransform<MapPreview, string>(m =>
-					{
-						var truncated = WidgetUtils.TruncateText(m.Title, titleLabel.Bounds.Width, font);
-
-						if (m.Title != truncated)
-							titleLabel.GetTooltipText = () => m.Title;
-						else
-							titleLabel.GetTooltipText = null;
-
-						return truncated;
-					});
-					titleLabel.GetText = () => title.Update(preview);
-				}
-
-				var typeLabel = panel.GetOrNull<LabelWidget>("MAP_TYPE");
-				if (typeLabel != null)
-				{
-					var type = new CachedTransform<MapPreview, string>(m => m.Categories.FirstOrDefault() ?? "");
-					typeLabel.GetText = () => type.Update(preview);
-				}
-
-				var authorLabel = panel.GetOrNull<LabelWidget>("MAP_AUTHOR");
-				if (authorLabel != null)
-				{
-					var font = Game.Renderer.Fonts[authorLabel.Font];
-					var author = new CachedTransform<MapPreview, string>(
-						m => WidgetUtils.TruncateText($"Created by {m.Author}", authorLabel.Bounds.Width, font));
-					authorLabel.GetText = () => author.Update(preview);
-				}
 			}
 
 			var serverName = panel.Get<TextFieldWidget>("SERVER_NAME");
@@ -136,7 +117,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				settings.Server.Name = serverName.Text;
 			};
 
-			panel.Get<TextFieldWidget>("LISTEN_PORT").Text = settings.Server.ListenPort.ToString();
+			panel.Get<TextFieldWidget>("LISTEN_PORT").Text = settings.Server.ListenPort.ToString(NumberFormatInfo.CurrentInfo);
 
 			advertiseOnline = Game.Settings.Server.AdvertiseOnline;
 
@@ -189,30 +170,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			if (advertiseOnline)
 			{
-				noticesLabelA.Text = modData.Translation.GetString(InternetServerNatA) + " ";
-				var aWidth = Game.Renderer.Fonts[noticesLabelA.Font].Measure(noticesLabelA.Text).X;
+				var noticesLabelAText = FluentProvider.GetMessage(InternetServerNatA) + " ";
+				noticesLabelA.GetText = () => noticesLabelAText;
+				var aWidth = Game.Renderer.Fonts[noticesLabelA.Font].Measure(noticesLabelAText).X;
 				noticesLabelA.Bounds.Width = aWidth;
 
-				noticesLabelB.Text = Nat.Status == NatStatus.Enabled ? modData.Translation.GetString(InternetServerNatBenabled) :
-					Nat.Status == NatStatus.NotSupported ? modData.Translation.GetString(InternetServerNatBnotSupported)
-						: modData.Translation.GetString(InternetServerNatBdisabled);
+				var noticesLabelBText =
+					Nat.Status == NatStatus.Enabled ? FluentProvider.GetMessage(InternetServerNatBenabled) :
+					Nat.Status == NatStatus.NotSupported ? FluentProvider.GetMessage(InternetServerNatBnotSupported) :
+					FluentProvider.GetMessage(InternetServerNatBdisabled);
+				noticesLabelB.GetText = () => noticesLabelBText;
 
-				noticesLabelB.TextColor = Nat.Status == NatStatus.Enabled ? ChromeMetrics.Get<Color>("NoticeSuccessColor") :
+				noticesLabelB.TextColor =
+					Nat.Status == NatStatus.Enabled ? ChromeMetrics.Get<Color>("NoticeSuccessColor") :
 					Nat.Status == NatStatus.NotSupported ? ChromeMetrics.Get<Color>("NoticeErrorColor") :
 					ChromeMetrics.Get<Color>("NoticeInfoColor");
 
-				var bWidth = Game.Renderer.Fonts[noticesLabelB.Font].Measure(noticesLabelB.Text).X;
+				var bWidth = Game.Renderer.Fonts[noticesLabelB.Font].Measure(noticesLabelBText).X;
 				noticesLabelB.Bounds.X = noticesLabelA.Bounds.Right;
 				noticesLabelB.Bounds.Width = bWidth;
 				noticesLabelB.Visible = true;
 
-				noticesLabelC.Text = modData.Translation.GetString(InternetServerNatC);
+				var noticesLabelCText = FluentProvider.GetMessage(InternetServerNatC);
+				noticesLabelC.GetText = () => noticesLabelCText;
 				noticesLabelC.Bounds.X = noticesLabelB.Bounds.Right;
 				noticesLabelC.Visible = true;
 			}
 			else
 			{
-				noticesLabelA.Text = modData.Translation.GetString(LocalServer);
+				var noticesLabelAText = FluentProvider.GetMessage(LocalServer);
+				noticesLabelA.GetText = () => noticesLabelAText;
 				noticesLabelB.Visible = false;
 				noticesLabelC.Visible = false;
 			}
@@ -220,25 +207,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void CreateAndJoin()
 		{
+			// Refresh MapCache.
+			if (modData.MapCache[map.Uid].Status != MapStatus.Available)
+				return;
+
 			var name = Game.Settings.SanitizedServerName(panel.Get<TextFieldWidget>("SERVER_NAME").Text);
-			if (!Exts.TryParseIntegerInvariant(panel.Get<TextFieldWidget>("LISTEN_PORT").Text, out var listenPort))
+			if (!int.TryParse(panel.Get<TextFieldWidget>("LISTEN_PORT").Text, NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out var listenPort))
 				listenPort = 1234;
 
 			var passwordField = panel.GetOrNull<PasswordFieldWidget>("PASSWORD");
 			var password = passwordField != null ? passwordField.Text : "";
 
-			// Save new settings
+			// Save new settings.
 			Game.Settings.Server.Name = name;
 			Game.Settings.Server.ListenPort = listenPort;
 			Game.Settings.Server.AdvertiseOnline = advertiseOnline;
-			Game.Settings.Server.Map = preview.Uid;
+			Game.Settings.Server.Map = map.Uid;
 			Game.Settings.Server.Password = password;
 			Game.Settings.Save();
 
-			// Take a copy so that subsequent changes don't affect the server
+			// Take a copy so that subsequent changes don't affect the server.
 			var settings = Game.Settings.Server.Clone();
 
-			// Create and join the server
+			// Create and join the server.
 			try
 			{
 				var endpoint = Game.CreateServer(settings);
@@ -248,14 +239,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 			catch (System.Net.Sockets.SocketException e)
 			{
-				var message = modData.Translation.GetString(ServerCreationFailedPrompt, Translation.Arguments("port", Game.Settings.Server.ListenPort));
+				var message = FluentProvider.GetMessage(ServerCreationFailedPrompt, "port", Game.Settings.Server.ListenPort);
 
 				// AddressAlreadyInUse (WSAEADDRINUSE)
 				if (e.ErrorCode == 10048)
-					message += "\n" + modData.Translation.GetString(ServerCreationFailedPortUsed);
+					message += "\n" + FluentProvider.GetMessage(ServerCreationFailedPortUsed);
 				else
-					message += $"\n" + modData.Translation.GetString(ServerCreationFailedError,
-						Translation.Arguments("message", e.Message, "code", e.ErrorCode));
+					message += "\n" + FluentProvider.GetMessage(ServerCreationFailedError, "message", e.Message, "code", e.ErrorCode);
 
 				ConfirmationDialogs.ButtonPrompt(modData, ServerCreationFailedTitle, message,
 					onCancel: () => { }, cancelText: ServerCreationFailedCancel);

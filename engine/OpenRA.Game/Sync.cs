@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -28,7 +28,7 @@ namespace OpenRA
 	public static class Sync
 	{
 		static readonly ConcurrentCache<Type, Func<object, int>> HashFunctions =
-			new ConcurrentCache<Type, Func<object, int>>(GenerateHashFunc);
+			new(GenerateHashFunc);
 
 		internal static Func<object, int> GetHashFunction(ISync sync)
 		{
@@ -40,7 +40,7 @@ namespace OpenRA
 			return GetHashFunction(sync)(sync);
 		}
 
-		static readonly Dictionary<Type, MethodInfo> CustomHashFunctions = new Dictionary<Type, MethodInfo>()
+		static readonly Dictionary<Type, MethodInfo> CustomHashFunctions = new()
 		{
 			{ typeof(int2), ((Func<int2, int>)HashInt2).Method },
 			{ typeof(CPos), ((Func<CPos, int>)HashCPos).Method },
@@ -57,8 +57,8 @@ namespace OpenRA
 
 		static void EmitSyncOpcodes(Type type, ILGenerator il)
 		{
-			if (CustomHashFunctions.ContainsKey(type))
-				il.EmitCall(OpCodes.Call, CustomHashFunctions[type], null);
+			if (CustomHashFunctions.TryGetValue(type, out var hashFunction))
+				il.EmitCall(OpCodes.Call, hashFunction, null);
 			else if (type == typeof(bool))
 			{
 				var l = il.DefineLabel();
@@ -151,8 +151,8 @@ namespace OpenRA
 				case TargetType.Terrain:
 					return HashUsingHashCode(t.CenterPosition);
 
-				default:
 				case TargetType.Invalid:
+				default:
 					return 0;
 			}
 		}
@@ -172,7 +172,7 @@ namespace OpenRA
 			RunUnsynced(checkSyncHash, world, () => { fn(); return true; });
 		}
 
-		static bool inUnsyncedCode = false;
+		static int unsyncCount = 0;
 
 		public static T RunUnsynced<T>(World world, Func<T> fn)
 		{
@@ -181,32 +181,30 @@ namespace OpenRA
 
 		public static T RunUnsynced<T>(bool checkSyncHash, World world, Func<T> fn)
 		{
-			// PERF: Detect sync changes in top level entry point only. Do not recalculate sync hash during reentry.
-			if (inUnsyncedCode || world == null)
-				return fn();
+			unsyncCount++;
 
-			var sync = checkSyncHash ? world.SyncHash() : 0;
-			inUnsyncedCode = true;
+			// Detect sync changes in top level entry point only. Do not recalculate sync hash during reentry.
+			var sync = unsyncCount == 1 && checkSyncHash && world != null ? world.SyncHash() : 0;
 
-			// Running this inside a try with a finally statement means isUnsyncedCode is set to false again as soon as fn completes
+			// Running this inside a try with a finally statement means unsyncCount is decremented as soon as fn completes
 			try
 			{
 				return fn();
 			}
 			finally
 			{
-				inUnsyncedCode = false;
+				unsyncCount--;
 
 				// When the world is disposing all actors and effects have been removed
 				// So do not check the hash for a disposing world since it definitively has changed
-				if (checkSyncHash && !world.Disposing && sync != world.SyncHash())
+				if (unsyncCount == 0 && checkSyncHash && world != null && !world.Disposing && sync != world.SyncHash())
 					throw new InvalidOperationException("RunUnsynced: sync-changing code may not run here");
 			}
 		}
 
 		public static void AssertUnsynced(string message)
 		{
-			if (!inUnsyncedCode)
+			if (unsyncCount == 0)
 				throw new InvalidOperationException(message);
 		}
 	}

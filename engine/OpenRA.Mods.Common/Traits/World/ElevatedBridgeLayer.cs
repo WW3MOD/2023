@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Map map;
 		readonly CellLayer<WPos> cellCenters;
 		readonly CellLayer<byte> terrainIndices;
-		readonly HashSet<CPos> ends = new HashSet<CPos>();
+		readonly HashSet<CPos> ends = new();
 		bool enabled;
 
 		public ElevatedBridgeLayer(Actor self, ElevatedBridgeLayerInfo info)

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -38,6 +38,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Chance of smoke rising from the ground")]
 		public readonly int SmokeChance = 0;
 
+		[Desc("By how much (in each direction) can the smoke appearance offset stray from the center of the cell?",
+			"Note: Limit this to half a cell for square and 1/3 a cell for isometric cells to avoid straying into neighbour cells.")]
+		public readonly WDist MaxSmokeOffsetDistance = WDist.Zero;
+
 		[Desc("Smoke sprite image name")]
 		public readonly string SmokeImage = null;
 
@@ -56,11 +60,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static object LoadInitialSmudges(MiniYaml yaml)
 		{
-			var nd = yaml.ToDictionary();
 			var smudges = new Dictionary<CPos, MapSmudge>();
-			if (nd.TryGetValue("InitialSmudges", out var smudgeYaml))
+			var smudgeYaml = yaml.NodeWithKeyOrDefault("InitialSmudges");
+			if (smudgeYaml != null)
 			{
-				foreach (var node in smudgeYaml.Nodes)
+				foreach (var node in smudgeYaml.Value.Nodes)
 				{
 					try
 					{
@@ -90,9 +94,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public readonly SmudgeLayerInfo Info;
-		readonly Dictionary<CPos, Smudge> tiles = new Dictionary<CPos, Smudge>();
-		readonly Dictionary<CPos, Smudge> dirty = new Dictionary<CPos, Smudge>();
-		readonly Dictionary<string, ISpriteSequence> smudges = new Dictionary<string, ISpriteSequence>();
+		readonly Dictionary<CPos, Smudge> tiles = new();
+		readonly Dictionary<CPos, Smudge> dirty = new();
+		readonly Dictionary<string, ISpriteSequence> smudges = new();
 		readonly World world;
 		readonly bool hasSmoke;
 
@@ -106,10 +110,10 @@ namespace OpenRA.Mods.Common.Traits
 			world = self.World;
 			hasSmoke = !string.IsNullOrEmpty(info.SmokeImage) && info.SmokeSequences.Length > 0;
 
-			var sequenceProvider = world.Map.Rules.Sequences;
-			var types = sequenceProvider.Sequences(Info.Sequence);
+			var sequences = world.Map.Sequences;
+			var types = sequences.Sequences(Info.Sequence);
 			foreach (var t in types)
-				smudges.Add(t, sequenceProvider.GetSequence(Info.Sequence, t));
+				smudges.Add(t, sequences.GetSequence(Info.Sequence, t));
 		}
 
 		public void WorldLoaded(World w, WorldRenderer wr)
@@ -152,8 +156,18 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (hasSmoke && Game.CosmeticRandom.Next(0, 100) <= Info.SmokeChance)
+			{
+				var position = world.Map.CenterOfCell(loc);
+				var maxOffsetDistance = Info.MaxSmokeOffsetDistance.Length;
+				if (maxOffsetDistance != 0)
+				{
+					position += new WVec(Game.CosmeticRandom.Next(-maxOffsetDistance, maxOffsetDistance), Game.CosmeticRandom.Next(-maxOffsetDistance, maxOffsetDistance), 0);
+					position = new WPos(position.X, position.Y, position.Z - world.Map.DistanceAboveTerrain(position).Length);
+				}
+
 				world.AddFrameEndTask(w => w.Add(new SpriteEffect(
-					w.Map.CenterOfCell(loc), w, Info.SmokeImage, Info.SmokeSequences.Random(w.SharedRandom), Info.SmokePalette)));
+					position, w, Info.SmokeImage, Info.SmokeSequences.Random(Game.CosmeticRandom), Info.SmokePalette)));
+			}
 
 			// A null Sequence indicates a deleted smudge.
 			if ((!dirty.ContainsKey(loc) || dirty[loc].Sequence == null) && !tiles.ContainsKey(loc))
@@ -166,7 +180,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// Existing smudge; make it deeper
 				// A null Sequence indicates a deleted smudge.
-				var tile = dirty.ContainsKey(loc) && dirty[loc].Sequence != null ? dirty[loc] : tiles[loc];
+				var tile = dirty.TryGetValue(loc, out var d) && d.Sequence != null ? d : tiles[loc];
 				var maxDepth = smudges[tile.Type].Length;
 				if (tile.Depth < maxDepth - 1)
 					tile.Depth++;
@@ -180,7 +194,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.Map.Contains(loc))
 				return;
 
-			var tile = dirty.ContainsKey(loc) ? dirty[loc] : default;
+			var tile = dirty.TryGetValue(loc, out var d) ? d : default;
 
 			// Setting Sequence to null to indicate a deleted smudge.
 			tile.Sequence = null;

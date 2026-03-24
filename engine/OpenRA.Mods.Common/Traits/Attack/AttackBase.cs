@@ -1,3 +1,17 @@
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +56,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Voice = "Action";
 
 		[Desc("Tolerance for attack angle. Range [0, 512], 512 covers 360 degrees.")]
-		public readonly WAngle FacingTolerance = new WAngle(512);
+		public readonly WAngle FacingTolerance = new(512);
+
+		[Desc("When enabled, show the target cursor on terrain cells even without force-fire.")]
+		public readonly bool TargetTerrainWithoutForceFire = false;
 
 		[Desc("If true, the unit continues turning to face the target after entering the firing arc, " +
 			"while still allowing firing within FacingTolerance.")]
@@ -81,7 +98,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool wasAiming;
 
-		public AttackBase(Actor self, AttackBaseInfo info)
+		protected AttackBase(Actor self, AttackBaseInfo info)
 			: base(info)
 		{
 			this.self = self;
@@ -90,7 +107,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			facing = self.TraitOrDefault<IFacing>();
-			positionable = self.TraitOrDefault<IPositionable>();
+			positionable = self.OccupiesSpace as IPositionable;
 			notifyAiming = self.TraitsImplementing<INotifyAiming>().ToArray();
 
 			getArmaments = InitializeGetArmaments(self);
@@ -335,7 +352,8 @@ namespace OpenRA.Mods.Common.Traits
 			return order.OrderString == attackOrderName || order.OrderString == forceAttackOrderName ? Info.Voice : null;
 		}
 
-		public abstract Activity GetAttackActivity(Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null);
+		public abstract Activity GetAttackActivity(
+			Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null);
 
 		public bool HasAnyValidWeapons(in Target t, bool checkForCenterTargetingWeapons = false, bool reloadingIsInvalid = false)
 		{
@@ -359,7 +377,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual WPos GetTargetPosition(WPos pos, in Target target)
 		{
-			return HasAnyValidWeapons(target, true) ? target.CenterPosition : target.Positions.PositionClosestTo(pos);
+			return HasAnyValidWeapons(target, true) ? target.CenterPosition : target.Positions.ClosestToIgnoringPath(pos);
 		}
 
 		public virtual WPos GetCurrentTarget(WPos pos, in Target target)
@@ -473,6 +491,32 @@ namespace OpenRA.Mods.Common.Traits
 			return max != WDist.Zero ? max : maxFallback;
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+		// Enumerates all armaments, that this actor possesses, that can be used against Target t
+		public IEnumerable<Armament> ChooseArmamentsForTarget(Target t, bool forceAttack)
+		{
+			// If force-fire is not used, and the target requires force-firing or the target is
+			// terrain or invalid, no armaments can be used
+			if (!forceAttack && ((t.Type == TargetType.Terrain && !Info.TargetTerrainWithoutForceFire) || t.Type == TargetType.Invalid || t.RequiresForceFire))
+				return Enumerable.Empty<Armament>();
+
+			// Get target's owner; in case of terrain or invalid target there will be no problems
+			// with owner == null since forceFire will have to be true in this part of the method
+			// (short-circuiting in the logical expression below)
+			Player owner = null;
+			if (t.Type == TargetType.FrozenActor)
+				owner = t.FrozenActor.Owner;
+			else if (t.Type == TargetType.Actor)
+				owner = t.Actor.Owner;
+
+			return Armaments.Where(a =>
+				!a.IsTraitDisabled
+				&& (owner == null || (forceAttack ? a.Info.ForceTargetRelationships : a.Info.TargetRelationships).HasRelationship(self.Owner.RelationshipWith(owner)))
+				&& a.Weapon.IsValidAgainst(t, self.World, self));
+		}
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		public void AttackTarget(in Target target, AttackSource source, bool queued, bool allowMove, bool forceAttack = false, Color? targetLineColor = null)
 		{
 			if (IsTraitDisabled)
@@ -505,7 +549,7 @@ namespace OpenRA.Mods.Common.Traits
 			return stances;
 		}
 
-		class AttackOrderTargeter : IOrderTargeter
+		sealed class AttackOrderTargeter : IOrderTargeter
 		{
 			readonly AttackBase ab;
 
@@ -536,6 +580,7 @@ namespace OpenRA.Mods.Common.Traits
 					modifiers |= TargetModifiers.ForceAttack;
 
 				var forceAttack = modifiers.HasModifier(TargetModifiers.ForceAttack);
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var armaments = ab.ChooseArmamentsForTarget(target, forceAttack);
 
 				if (!armaments.Any())
@@ -545,6 +590,16 @@ namespace OpenRA.Mods.Common.Traits
 				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
 
 				if (armaments.All(armament => armament.AmmoPool != null && !armament.AmmoPool.HasAmmo))
+=======
+
+				// Use valid armament with highest range out of those that have ammo
+				// If all are out of ammo, just use valid armament with highest range
+				var a = ab.ChooseArmamentsForTarget(target, forceAttack)
+					.OrderBy(x => x.IsTraitPaused)
+					.ThenByDescending(x => x.MaxRange())
+					.FirstOrDefault();
+				if (a == null)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return false;
 
 				var outOfRange = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
@@ -569,16 +624,30 @@ namespace OpenRA.Mods.Common.Traits
 
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (modifiers.HasModifier(TargetModifiers.ForceMove) || !modifiers.HasModifier(TargetModifiers.ForceAttack))
+=======
+				// Targeting the terrain is only possible with force-attack modifier or when TargetTerrainWithoutForceFire is set
+				if (modifiers.HasModifier(TargetModifiers.ForceMove) ||
+					!(ab.Info.TargetTerrainWithoutForceFire || modifiers.HasModifier(TargetModifiers.ForceAttack)))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return false;
 
 				var target = Target.FromCell(self.World, location);
-				var armaments = ab.ChooseArmamentsForTarget(target, true);
-				if (!armaments.Any())
-					return false;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				armaments = armaments.OrderByDescending(x => x.MaxRange());
 				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
+=======
+				// Use valid armament with highest range out of those that have ammo
+				// If all are out of ammo, just use valid armament with highest range
+				var a = ab.ChooseArmamentsForTarget(target, true)
+					.OrderBy(x => x.IsTraitPaused)
+					.ThenByDescending(x => x.MaxRange())
+					.FirstOrDefault();
+				if (a == null)
+					return false;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 				cursor = !target.IsInRange(self.CenterPosition, a.MaxRange())
 					? ab.Info.OutsideRangeCursor ?? a.Info.OutsideRangeCursor
@@ -602,7 +671,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			public bool IsQueued { get; protected set; }
+			public bool IsQueued { get; private set; }
 		}
 	}
 }

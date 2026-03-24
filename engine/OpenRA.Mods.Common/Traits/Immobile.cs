@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	class ImmobileInfo : TraitInfo, IOccupySpaceInfo
+	sealed class ImmobileInfo : TraitInfo, IOccupySpaceInfo
 	{
 		public readonly bool OccupiesSpace = true;
 		public override object Create(ActorInitializer init) { return new Immobile(init, this); }
@@ -29,20 +29,14 @@ namespace OpenRA.Mods.Common.Traits
 		bool IOccupySpaceInfo.SharesCell => false;
 	}
 
-	class Immobile : IOccupySpace, ISync, INotifyAddedToWorld, INotifyRemovedFromWorld
+	sealed class Immobile : IOccupySpace, ISync, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
-		[Sync]
-		readonly CPos location;
-
-		[Sync]
-		readonly WPos position;
-
 		readonly (CPos, SubCell)[] occupied;
 
 		public Immobile(ActorInitializer init, ImmobileInfo info)
 		{
-			location = init.GetValue<LocationInit, CPos>();
-			position = init.World.Map.CenterOfCell(location);
+			TopLeft = init.GetValue<LocationInit, CPos>();
+			CenterPosition = init.World.Map.CenterOfCell(TopLeft);
 
 			if (info.OccupiesSpace)
 				occupied = new[] { (TopLeft, SubCell.FullCell) };
@@ -50,8 +44,10 @@ namespace OpenRA.Mods.Common.Traits
 				occupied = Array.Empty<(CPos, SubCell)>();
 		}
 
-		public CPos TopLeft => location;
-		public WPos CenterPosition => position;
+		[Sync]
+		public CPos TopLeft { get; }
+		[Sync]
+		public WPos CenterPosition { get; }
 		public (CPos, SubCell)[] OccupiedCells() { return occupied; }
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)

@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,11 +24,11 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 		readonly string[] traits = { "Interactable", "Selectable", "IsometricSelectable" };
 		readonly string[] fields = { "Bounds", "DecorationBounds" };
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			var grid = modData.Manifest.Get<MapGrid>();
 			var tileSize = grid.TileSize;
-			var tileScale = grid.Type == MapGridType.RectangularIsometric ? 1448 : 1024;
+			var tileScale = grid.TileScale;
 
 			foreach (var trait in traits)
 			{

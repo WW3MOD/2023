@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,6 +23,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		public Parachute(Actor self)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			pos = self.TraitOrDefault<IPositionable>();
 
 			var actor = self.World.Map.Rules.Actors[self.Info.Name.ToLowerInvariant()];
@@ -44,6 +45,10 @@ namespace OpenRA.Mods.Common.Activities
 					0);
 			}
 
+=======
+			pos = self.OccupiesSpace as IPositionable;
+			fallVector = new WVec(0, 0, self.Info.TraitInfo<ParachutableInfo>().FallRate);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			IsInterruptible = false;
 		}
 

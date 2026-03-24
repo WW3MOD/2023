@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,21 +11,21 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Eluant;
 using Eluant.ObjectBinding;
 using OpenRA.Scripting;
 
 namespace OpenRA
 {
-	public readonly struct WPos : IScriptBindable, ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, ILuaTableBinding, IEquatable<WPos>
+	public readonly struct WPos : IEquatable<WPos>, IScriptBindable,
+		ILuaAdditionBinding, ILuaSubtractionBinding, ILuaEqualityBinding, ILuaTableBinding, ILuaToStringBinding
 	{
 		public readonly int X, Y, Z;
 
 		public WPos(int x, int y, int z) { X = x; Y = y; Z = z; }
 		public WPos(WDist x, WDist y, WDist z) { X = x.Length; Y = y.Length; Z = z.Length; }
 
-		public static readonly WPos Zero = new WPos(0, 0, 0);
+		public static readonly WPos Zero = new(0, 0, 0);
 
 		public static explicit operator WVec(in WPos a) { return new WVec(a.X, a.Y, a.Z); }
 
@@ -42,12 +42,12 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// Returns the linear interpolation between points 'a' and 'b'
+		/// Returns the linear interpolation between points 'a' and 'b'.
 		/// </summary>
 		public static WPos Lerp(in WPos a, in WPos b, int mul, int div) { return a + (b - a) * mul / div; }
 
 		/// <summary>
-		/// Returns the linear interpolation between points 'a' and 'b'
+		/// Returns the linear interpolation between points 'a' and 'b'.
 		/// </summary>
 		public static WPos Lerp(in WPos a, in WPos b, long mul, long div)
 		{
@@ -71,7 +71,7 @@ namespace OpenRA
 			// Add an additional quadratic variation to height
 			// Uses decimal to avoid integer overflow
 			var offset = (decimal)(b - a).Length * pitch.Tan() * mul * (div - mul) / (1024 * div * div);
-			var clampedOffset = (int)(offset + (decimal)ret.Z).Clamp<decimal>((decimal)int.MinValue, (decimal)int.MaxValue);
+			var clampedOffset = (int)(offset + ret.Z).Clamp(int.MinValue, int.MaxValue);
 
 			return new WPos(ret.X, ret.Y, clampedOffset);
 		}
@@ -88,7 +88,8 @@ namespace OpenRA
 		public LuaValue Add(LuaRuntime runtime, LuaValue left, LuaValue right)
 		{
 			if (!left.TryGetClrValue(out WPos a) || !right.TryGetClrValue(out WVec b))
-				throw new LuaException($"Attempted to call WPos.Add(WPos, WVec) with invalid arguments ({left.WrappedClrType().Name}, {right.WrappedClrType().Name})");
+				throw new LuaException("Attempted to call WPos.Add(WPos, WVec) with invalid arguments " +
+					$"({left.WrappedClrType().Name}, {right.WrappedClrType().Name})");
 
 			return new LuaCustomClrObject(a + b);
 		}
@@ -97,7 +98,8 @@ namespace OpenRA
 		{
 			var rightType = right.WrappedClrType();
 			if (!left.TryGetClrValue(out WPos a))
-				throw new LuaException($"Attempted to call WPos.Subtract(WPos, (WPos|WVec)) with invalid arguments ({left.WrappedClrType().Name}, {rightType.Name})");
+				throw new LuaException("Attempted to call WPos.Subtract(WPos, (WPos|WVec)) with invalid arguments " +
+					$"({left.WrappedClrType().Name}, {rightType.Name})");
 
 			if (rightType == typeof(WPos))
 			{
@@ -110,7 +112,8 @@ namespace OpenRA
 				return new LuaCustomClrObject(a - b);
 			}
 
-			throw new LuaException($"Attempted to call WPos.Subtract(WPos, (WPos|WVec)) with invalid arguments ({left.WrappedClrType().Name}, {rightType.Name})");
+			throw new LuaException("Attempted to call WPos.Subtract(WPos, (WPos|WVec)) with invalid arguments " +
+				$"({left.WrappedClrType().Name}, {rightType.Name})");
 		}
 
 		public LuaValue Equals(LuaRuntime runtime, LuaValue left, LuaValue right)
@@ -137,6 +140,8 @@ namespace OpenRA
 			set => throw new LuaException("WPos is read-only. Use WPos.New to create a new value");
 		}
 
+		public LuaValue ToString(LuaRuntime runtime) => ToString();
+
 		#endregion
 	}
 
@@ -144,19 +149,20 @@ namespace OpenRA
 	{
 		public static WPos Average(this IEnumerable<WPos> source)
 		{
-			var length = source.Count();
-			if (length == 0)
-				return WPos.Zero;
-
+			var length = 0;
 			var x = 0L;
 			var y = 0L;
 			var z = 0L;
 			foreach (var pos in source)
 			{
+				length++;
 				x += pos.X;
 				y += pos.Y;
 				z += pos.Z;
 			}
+
+			if (length == 0)
+				return WPos.Zero;
 
 			x /= length;
 			y /= length;

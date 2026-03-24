@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -30,8 +30,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play.")]
 		public readonly string Notification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display.")]
-		public string TextNotification = null;
+		public readonly string TextNotification = null;
 
 		[Desc("Whether to show the cash tick indicators rising from the actor.")]
 		public readonly bool ShowTicks = true;
@@ -118,9 +119,9 @@ namespace OpenRA.Mods.Common.Traits
 				var sellValue = self.GetSellValue();
 
 				// Cast to long to avoid overflow when multiplying by the health
-				var hp = health != null ? (long)health.Value.HP : 1L;
-				var maxHP = health != null ? (long)health.Value.MaxHP : 1L;
-				var refund = (int)((sellValue * info.RefundPercent * hp) / (100 * maxHP));
+				var hp = health != null ? health.Value.HP : 1L;
+				var maxHP = health != null ? health.Value.MaxHP : 1L;
+				var refund = (int)(sellValue * info.RefundPercent * hp / (100 * maxHP));
 
 				return "Refund: $" + refund;
 			}

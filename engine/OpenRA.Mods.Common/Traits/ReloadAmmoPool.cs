@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -65,10 +65,15 @@ namespace OpenRA.Mods.Common.Traits
 			modifiers = self.TraitsImplementing<IReloadAmmoModifier>().ToArray();
 			base.Created(self);
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// self.World.AddFrameEndTask(w =>
 			// {
 			// 	remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier()));
 			// });
+=======
+			self.World.AddFrameEndTask(w =>
+				remainingTicks = Util.ApplyPercentageModifiers(Info.Delay, modifiers.Select(m => m.GetReloadAmmoModifier())));
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System;
-using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Cnc.Traits;
 using OpenRA.Mods.Common.Traits;
@@ -102,7 +101,7 @@ namespace OpenRA.Mods.Cnc.Activities
 
 			// Trigger screen desaturate effect
 			if (screenFlash)
-				foreach (var a in self.World.ActorsWithTrait<ChronoshiftPaletteEffect>())
+				foreach (var a in self.World.ActorsWithTrait<ChronoshiftPostProcessEffect>())
 					a.Trait.Enable();
 
 			if (teleporter != null && self != teleporter && !teleporter.Disposed)
@@ -120,7 +119,7 @@ namespace OpenRA.Mods.Cnc.Activities
 			if (teleporter == null)
 				return null;
 
-			var restrictTo = maximumDistance == null ? null : self.World.Map.FindTilesInCircle(self.Location, maximumDistance.Value);
+			var restrictTo = maximumDistance == null ? null : self.World.Map.FindTilesInCircle(self.Location, maximumDistance.Value).ToHashSet();
 
 			if (maximumDistance != null)
 				destination = restrictTo.MinBy(x => (x - destination).LengthSquared);
@@ -129,7 +128,7 @@ namespace OpenRA.Mods.Cnc.Activities
 			if (pos.CanEnterCell(destination) && teleporter.Owner.MapLayers.IsExplored(destination))
 				return destination;
 
-			var max = maximumDistance != null ? maximumDistance.Value : teleporter.World.Map.Grid.MaximumTileSearchRange;
+			var max = maximumDistance ?? teleporter.World.Map.Grid.MaximumTileSearchRange;
 			foreach (var tile in self.World.Map.FindTilesInCircle(destination, max))
 			{
 				if (teleporter.Owner.MapLayers.IsExplored(tile)

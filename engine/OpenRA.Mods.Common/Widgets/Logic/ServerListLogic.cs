@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BeaconLib;
+using OpenRA.Graphics;
 using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Server;
@@ -25,73 +26,77 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ServerListLogic : ChromeLogic
 	{
-		[TranslationReference]
-		static readonly string SearchStatusFailed = "search-status-failed";
+		[FluentReference]
+		const string SearchStatusFailed = "label-search-status-failed";
 
-		[TranslationReference]
-		static readonly string SearchStatusNoGames = "search-status-no-games";
+		[FluentReference]
+		const string SearchStatusNoGames = "label-search-status-no-games";
 
-		[TranslationReference("players")]
-		static readonly string PlayersOnline = "players-online";
+		[FluentReference("players")]
+		const string PlayersOnline = "label-players-online-count";
 
-		[TranslationReference]
-		static readonly string NoServerSelected = "no-server-selected";
+		[FluentReference]
+		const string NoServerSelected = "label-no-server-selected";
+
+		[FluentReference]
+		const string MapStatusSearching = "label-map-status-searching";
+
+		[FluentReference]
+		const string MapClassificationUnknown = "label-map-classification-unknown";
+
+		[FluentReference("players")]
+		const string PlayersLabel = "label-players-count";
+
+		[FluentReference("bots")]
+		const string BotsLabel = "label-bots-count";
+
+		[FluentReference]
+		const string BotPlayer = "label-bot-player";
+
+		[FluentReference("spectators")]
+		const string SpectatorsLabel = "label-spectators-count";
+
+		[FluentReference]
+		const string Players = "label-players";
+
+		[FluentReference("team")]
+		const string TeamNumber = "label-team-name";
+
+		[FluentReference]
+		const string NoTeam = "label-no-team";
+
+		[FluentReference]
+		const string Spectators = "label-spectators";
+
+		[FluentReference("players")]
+		const string OtherPlayers = "label-other-players-count";
+
+		[FluentReference]
+		const string Playing = "label-playing";
+
+		[FluentReference]
+		const string Waiting = "label-waiting";
+
+		[FluentReference("minutes")]
+		const string InProgress = "label-in-progress-for";
+
+		[FluentReference]
+		const string PasswordProtected = "label-password-protected";
+
+		[FluentReference]
+		const string WaitingForPlayers = "label-waiting-for-players";
+
+		[FluentReference]
+		const string ServerShuttingDown = "label-server-shutting-down";
+
+		[FluentReference]
+		const string UnknownServerState = "label-unknown-server-state";
+
 		readonly string noServerSelected;
-
-		[TranslationReference]
-		static readonly string MapStatusSearching = "map-status-searching";
 		readonly string mapStatusSearching;
-
-		[TranslationReference]
-		static readonly string MapClassificationUnknown = "map-classification-unknown";
 		readonly string mapClassificationUnknown;
-
-		[TranslationReference("players")]
-		static readonly string PlayersLabel = "players-label";
-
-		[TranslationReference("bots")]
-		static readonly string BotsLabel = "bots-label";
-
-		[TranslationReference("spectators")]
-		static readonly string SpectatorsLabel = "spectators-label";
-
-		[TranslationReference]
-		static readonly string Players = "players";
-
-		[TranslationReference("team")]
-		static readonly string TeamNumber = "team-number";
-
-		[TranslationReference]
-		static readonly string NoTeam = "no-team";
-
-		[TranslationReference]
-		static readonly string Spectators = "spectators";
-
-		[TranslationReference("players")]
-		static readonly string OtherPlayers = "n-other-players";
-
-		[TranslationReference]
-		static readonly string Playing = "playing";
 		readonly string playing;
-
-		[TranslationReference]
-		static readonly string Waiting = "waiting";
 		readonly string waiting;
-
-		[TranslationReference("minutes")]
-		static readonly string InProgress = "in-progress-for";
-
-		[TranslationReference]
-		static readonly string PasswordProtected = "password-protected";
-
-		[TranslationReference]
-		static readonly string WaitingForPlayers = "waiting-for-players";
-
-		[TranslationReference]
-		static readonly string ServerShuttingDown = "server-shutting-down";
-
-		[TranslationReference]
-		static readonly string UnknownServerState = "unknown-server-state";
 
 		readonly Color incompatibleVersionColor;
 		readonly Color incompatibleProtectedGameColor;
@@ -144,8 +149,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			switch (searchStatus)
 			{
-				case SearchStatus.Failed: return modData.Translation.GetString(SearchStatusFailed);
-				case SearchStatus.NoGames: return modData.Translation.GetString(SearchStatusNoGames);
+				case SearchStatus.Failed: return FluentProvider.GetMessage(SearchStatusFailed);
+				case SearchStatus.NoGames: return FluentProvider.GetMessage(SearchStatusNoGames);
 				default: return "";
 			}
 		}
@@ -156,22 +161,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 			this.onJoin = onJoin;
 
-			playing = modData.Translation.GetString(Playing);
-			waiting = modData.Translation.GetString(Waiting);
+			playing = FluentProvider.GetMessage(Playing);
+			waiting = FluentProvider.GetMessage(Waiting);
 
-			noServerSelected = modData.Translation.GetString(NoServerSelected);
-			mapStatusSearching = modData.Translation.GetString(MapStatusSearching);
-			mapClassificationUnknown = modData.Translation.GetString(MapClassificationUnknown);
+			noServerSelected = FluentProvider.GetMessage(NoServerSelected);
+			mapStatusSearching = FluentProvider.GetMessage(MapStatusSearching);
+			mapClassificationUnknown = FluentProvider.GetMessage(MapClassificationUnknown);
 
-			players = new CachedTransform<int, string>(i => modData.Translation.GetString(PlayersLabel, Translation.Arguments("players", i)));
-			bots = new CachedTransform<int, string>(i => modData.Translation.GetString(BotsLabel, Translation.Arguments("bots", i)));
-			spectators = new CachedTransform<int, string>(i => modData.Translation.GetString(SpectatorsLabel, Translation.Arguments("spectators", i)));
+			players = new CachedTransform<int, string>(i => FluentProvider.GetMessage(PlayersLabel, "players", i));
+			bots = new CachedTransform<int, string>(i => FluentProvider.GetMessage(BotsLabel, "bots", i));
+			spectators = new CachedTransform<int, string>(i => FluentProvider.GetMessage(SpectatorsLabel, "spectators", i));
 
-			minutes = new CachedTransform<double, string>(i => modData.Translation.GetString(InProgress, Translation.Arguments("minutes", i)));
-			passwordProtected = modData.Translation.GetString(PasswordProtected);
-			waitingForPlayers = modData.Translation.GetString(WaitingForPlayers);
-			serverShuttingDown = modData.Translation.GetString(ServerShuttingDown);
-			unknownServerState = modData.Translation.GetString(UnknownServerState);
+			minutes = new CachedTransform<double, string>(i => FluentProvider.GetMessage(InProgress, "minutes", i));
+			passwordProtected = FluentProvider.GetMessage(PasswordProtected);
+			waitingForPlayers = FluentProvider.GetMessage(WaitingForPlayers);
+			serverShuttingDown = FluentProvider.GetMessage(ServerShuttingDown);
+			unknownServerState = FluentProvider.GetMessage(UnknownServerState);
 
 			services = modData.Manifest.Get<WebServices>();
 
@@ -230,19 +235,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			progressText.GetText = ProgressLabelText;
 
 			var gs = Game.Settings.Game;
-			Action<MPGameFilters> toggleFilterFlag = f =>
+			void ToggleFilterFlag(MPGameFilters f)
 			{
 				gs.MPGameFilters ^= f;
 				Game.Settings.Save();
 				RefreshServerList();
-			};
+			}
 
 			var filtersButton = widget.GetOrNull<DropDownButtonWidget>("FILTERS_DROPDOWNBUTTON");
 			if (filtersButton != null)
 			{
 				// HACK: MULTIPLAYER_FILTER_PANEL doesn't follow our normal procedure for dropdown creation
 				// but we still need to be able to set the dropdown width based on the parent
-				// The yaml should use PARENT_RIGHT instead of DROPDOWN_WIDTH
+				// The yaml should use PARENT_WIDTH instead of DROPDOWN_WIDTH
 				var filtersPanel = Ui.LoadWidget("MULTIPLAYER_FILTER_PANEL", filtersButton, new WidgetArgs());
 				filtersButton.Children.Remove(filtersPanel);
 
@@ -250,35 +255,35 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (showWaitingCheckbox != null)
 				{
 					showWaitingCheckbox.IsChecked = () => gs.MPGameFilters.HasFlag(MPGameFilters.Waiting);
-					showWaitingCheckbox.OnClick = () => toggleFilterFlag(MPGameFilters.Waiting);
+					showWaitingCheckbox.OnClick = () => ToggleFilterFlag(MPGameFilters.Waiting);
 				}
 
 				var showEmptyCheckbox = filtersPanel.GetOrNull<CheckboxWidget>("EMPTY");
 				if (showEmptyCheckbox != null)
 				{
 					showEmptyCheckbox.IsChecked = () => gs.MPGameFilters.HasFlag(MPGameFilters.Empty);
-					showEmptyCheckbox.OnClick = () => toggleFilterFlag(MPGameFilters.Empty);
+					showEmptyCheckbox.OnClick = () => ToggleFilterFlag(MPGameFilters.Empty);
 				}
 
 				var showAlreadyStartedCheckbox = filtersPanel.GetOrNull<CheckboxWidget>("ALREADY_STARTED");
 				if (showAlreadyStartedCheckbox != null)
 				{
 					showAlreadyStartedCheckbox.IsChecked = () => gs.MPGameFilters.HasFlag(MPGameFilters.Started);
-					showAlreadyStartedCheckbox.OnClick = () => toggleFilterFlag(MPGameFilters.Started);
+					showAlreadyStartedCheckbox.OnClick = () => ToggleFilterFlag(MPGameFilters.Started);
 				}
 
 				var showProtectedCheckbox = filtersPanel.GetOrNull<CheckboxWidget>("PASSWORD_PROTECTED");
 				if (showProtectedCheckbox != null)
 				{
 					showProtectedCheckbox.IsChecked = () => gs.MPGameFilters.HasFlag(MPGameFilters.Protected);
-					showProtectedCheckbox.OnClick = () => toggleFilterFlag(MPGameFilters.Protected);
+					showProtectedCheckbox.OnClick = () => ToggleFilterFlag(MPGameFilters.Protected);
 				}
 
 				var showIncompatibleCheckbox = filtersPanel.GetOrNull<CheckboxWidget>("INCOMPATIBLE_VERSION");
 				if (showIncompatibleCheckbox != null)
 				{
 					showIncompatibleCheckbox.IsChecked = () => gs.MPGameFilters.HasFlag(MPGameFilters.Incompatible);
-					showIncompatibleCheckbox.OnClick = () => toggleFilterFlag(MPGameFilters.Incompatible);
+					showIncompatibleCheckbox.OnClick = () => ToggleFilterFlag(MPGameFilters.Incompatible);
 				}
 
 				filtersButton.IsDisabled = () => searchStatus == SearchStatus.Fetching;
@@ -299,7 +304,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (reloadIcon != null)
 				{
 					var disabledFrame = 0;
-					var disabledImage = "disabled-" + disabledFrame.ToString();
+					var disabledImage = "disabled-" + disabledFrame.ToStringInvariant();
 					reloadIcon.GetImageName = () => searchStatus == SearchStatus.Fetching ? disabledImage : reloadIcon.ImageName;
 
 					var reloadTicker = reloadIcon.Get<LogicTickerWidget>("ANIMATION");
@@ -308,7 +313,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						reloadTicker.OnTick = () =>
 						{
 							disabledFrame = searchStatus == SearchStatus.Fetching ? (disabledFrame + 1) % 12 : 0;
-							disabledImage = "disabled-" + disabledFrame.ToString();
+							disabledImage = "disabled-" + disabledFrame.ToStringInvariant();
 						};
 					}
 				}
@@ -317,7 +322,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var playersLabel = widget.GetOrNull<LabelWidget>("PLAYER_COUNT");
 			if (playersLabel != null)
 			{
-				var playersText = new CachedTransform<int, string>(p => modData.Translation.GetString(PlayersOnline, Translation.Arguments("players", p)));
+				var playersText = new CachedTransform<int, string>(p => FluentProvider.GetMessage(PlayersOnline, "players", p));
 				playersLabel.IsVisible = () => playerCount != 0;
 				playersLabel.GetText = () => playersText.Update(playerCount);
 			}
@@ -455,7 +460,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var httpResponseMessage = await client.GetAsync(queryURL);
 					var result = await httpResponseMessage.Content.ReadAsStreamAsync();
 
-					var yaml = MiniYaml.FromStream(result);
+					var yaml = MiniYaml.FromStream(result, queryURL);
 					games = new List<GameServer>();
 					foreach (var node in yaml)
 					{
@@ -478,6 +483,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 
 				var lanGames = new List<GameServer>();
+				var stringPool = new HashSet<string>(); // Reuse common strings in YAML
 				foreach (var bl in lanGameLocations)
 				{
 					try
@@ -485,8 +491,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						if (string.IsNullOrEmpty(bl.Data))
 							continue;
 
-						var game = MiniYaml.FromString(bl.Data)[0].Value;
-						var idNode = game.Nodes.FirstOrDefault(n => n.Key == "Id");
+						var game = new MiniYamlBuilder(MiniYaml.FromString(
+							bl.Data, $"BeaconLocation_{bl.Address}_{bl.LastAdvertised:s}", stringPool: stringPool)[0].Value);
+						var idNode = game.NodeWithKeyOrDefault("Id");
 
 						// Skip beacons created by this instance and replace Id by expected int value
 						if (idNode != null && idNode.Value.Value != Platform.SessionGUID.ToString())
@@ -494,13 +501,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							idNode.Value.Value = "-1";
 
 							// Rewrite the server address with the correct IP
-							var addressNode = game.Nodes.FirstOrDefault(n => n.Key == "Address");
+							var addressNode = game.NodeWithKeyOrDefault("Address");
 							if (addressNode != null)
 								addressNode.Value.Value = bl.Address.ToString().Split(':')[0] + ":" + addressNode.Value.Value.Split(':')[1];
 
-							game.Nodes.Add(new MiniYamlNode("Location", "Local Network"));
+							game.Nodes.Add(new MiniYamlNodeBuilder("Location", "Local Network"));
 
-							lanGames.Add(new GameServer(game));
+							lanGames.Add(new GameServer(game.Build()));
 						}
 					}
 					catch
@@ -571,20 +578,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var players = server.Clients
 				.Where(c => !c.IsSpectator)
 				.GroupBy(p => p.Team)
-				.OrderBy(g => g.Key);
+				.OrderBy(g => g.Key)
+				.ToList();
 
 			var teams = new Dictionary<string, IEnumerable<GameClient>>();
-			var noTeams = players.Count() == 1;
+			var noTeams = players.Count == 1;
 			foreach (var p in players)
 			{
-				var label = noTeams ? modData.Translation.GetString(Players) : p.Key > 0
-					? modData.Translation.GetString(TeamNumber, Translation.Arguments("team", p.Key))
-					: modData.Translation.GetString(NoTeam);
+				var label = noTeams ? FluentProvider.GetMessage(Players) : p.Key > 0
+					? FluentProvider.GetMessage(TeamNumber, "team", p.Key)
+					: FluentProvider.GetMessage(NoTeam);
 				teams.Add(label, p);
 			}
 
 			if (server.Clients.Any(c => c.IsSpectator))
-				teams.Add(modData.Translation.GetString(Spectators), server.Clients.Where(c => c.IsSpectator));
+				teams.Add(FluentProvider.GetMessage(Spectators), server.Clients.Where(c => c.IsSpectator));
 
 			var factionInfo = modData.DefaultRules.Actors[SystemActors.World].TraitInfos<FactionInfo>();
 			foreach (var kv in teams)
@@ -600,14 +608,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				foreach (var option in kv.Value)
 				{
 					var o = option;
+					var playerName = new CachedTransform<(MapStatus, int, SpriteFont), string>(s =>
+					{
+						var name = o.IsBot
+							? currentMap.TryGetMessage(o.Name, out var msg) ? msg : FluentProvider.GetMessage(BotPlayer)
+							: o.Name;
+
+						return WidgetUtils.TruncateText(name, s.Item2, s.Item3);
+					});
 
 					var item = ScrollItemWidget.Setup(clientTemplate, () => false, () => { });
 					if (!o.IsSpectator && server.Mod == modData.Manifest.Id)
 					{
 						var label = item.Get<LabelWidget>("LABEL");
 						var font = Game.Renderer.Fonts[label.Font];
-						var name = WidgetUtils.TruncateText(o.Name, label.Bounds.Width, font);
-						label.GetText = () => name;
+						label.GetText = () => playerName.Update((currentMap.Status, label.Bounds.Width, font));
 						label.GetColor = () => o.Color;
 
 						var flag = item.Get<ImageWidget>("FLAG");
@@ -619,11 +634,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{
 						var label = item.Get<LabelWidget>("NOFLAG_LABEL");
 						var font = Game.Renderer.Fonts[label.Font];
-						var name = WidgetUtils.TruncateText(o.Name, label.Bounds.Width, font);
 
 						// Force spectator color to prevent spoofing by the server
 						var color = o.IsSpectator ? Color.White : o.Color;
-						label.GetText = () => name;
+						label.GetText = () => playerName.Update((currentMap.Status, label.Bounds.Width, font));
 						label.GetColor = () => color;
 					}
 
@@ -691,7 +705,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				header.Get<LabelWidget>("LABEL").GetText = () => headerTitle;
 				rows.Add(header);
 
-				Func<GameServer, int> listOrder = g =>
+				static int ListOrder(GameServer g)
 				{
 					// Servers waiting for players are always first
 					if (g.State == (int)ServerState.WaitingPlayers && g.Players > 0)
@@ -708,9 +722,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					// Empty servers are shown at the end because a flood of empty servers
 					// at the top of the game list make the community look dead
 					return 3;
-				};
+				}
 
-				foreach (var modGamesByState in modGames.GroupBy(listOrder).OrderBy(g => g.Key))
+				foreach (var modGamesByState in modGames.GroupBy(ListOrder).OrderBy(g => g.Key))
 				{
 					// Sort 'Playing' games by Started, others by number of players
 					foreach (var game in modGamesByState.Key == 2 ? modGamesByState.OrderByDescending(g => g.Started) : modGamesByState.OrderByDescending(g => g.Players))
@@ -747,8 +761,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						var players = item.GetOrNull<LabelWithTooltipWidget>("PLAYERS");
 						if (players != null)
 						{
-							var label = $"{game.Players + game.Bots} / {game.MaxPlayers + game.Bots}"
-							            + (game.Spectators > 0 ? $" + {game.Spectators}" : "");
+							var label =
+								$"{game.Players + game.Bots} / {game.MaxPlayers + game.Bots}"
+								+ (game.Spectators > 0 ? $" + {game.Spectators}" : "");
 
 							var color = canJoin ? players.TextColor : incompatibleGameColor;
 							players.GetText = () => label;
@@ -756,14 +771,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 							if (game.Clients.Length > 0)
 							{
-								var displayClients = game.Clients.Select(c => c.Name);
-								if (game.Clients.Length > 10)
-									displayClients = displayClients
-										.Take(9)
-										.Append(modData.Translation.GetString(OtherPlayers, Translation.Arguments("players", game.Clients.Length - 9)));
+								var preview = modData.MapCache[game.Map];
+								var tooltip = new CachedTransform<MapStatus, string>(s =>
+								{
+									var displayClients = game.Clients.Select(c => c.IsBot
+										? preview.TryGetMessage(c.Name, out var msg) ? msg : FluentProvider.GetMessage(BotPlayer)
+										: c.Name);
 
-								var tooltip = displayClients.JoinWith("\n");
-								players.GetTooltipText = () => tooltip;
+									if (game.Clients.Length > 10)
+										displayClients = displayClients
+											.Take(9)
+											.Append(FluentProvider.GetMessage(OtherPlayers, "players", game.Clients.Length - 9));
+
+									return displayClients.JoinWith("\n");
+								});
+
+								players.GetTooltipText = () => tooltip.Update(preview.Status);
 							}
 							else
 								players.GetTooltipText = null;
@@ -839,10 +862,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (game.State == (int)ServerState.GameStarted && !filters.HasFlag(MPGameFilters.Started))
 				return true;
 
-			if (game.State == (int)ServerState.WaitingPlayers && !filters.HasFlag(MPGameFilters.Waiting) && game.Players != 0)
+			if (game.State == (int)ServerState.WaitingPlayers && !filters.HasFlag(MPGameFilters.Waiting) && game.Players + game.Spectators != 0)
 				return true;
 
-			if ((game.Players + game.Spectators) == 0 && !filters.HasFlag(MPGameFilters.Empty))
+			if (game.Players + game.Spectators == 0 && !filters.HasFlag(MPGameFilters.Empty))
 				return true;
 
 			if (!game.IsCompatible && !filters.HasFlag(MPGameFilters.Incompatible))

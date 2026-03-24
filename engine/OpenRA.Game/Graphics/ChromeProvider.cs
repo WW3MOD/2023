@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -49,7 +49,7 @@ namespace OpenRA.Graphics
 
 			public readonly int[] PanelRegion = null;
 			public readonly PanelSides PanelSides = PanelSides.All;
-			public readonly Dictionary<string, Rectangle> Regions = new Dictionary<string, Rectangle>();
+			public readonly Dictionary<string, Rectangle> Regions = new();
 		}
 
 		public static IReadOnlyDictionary<string, Collection> Collections => collections;
@@ -77,11 +77,12 @@ namespace OpenRA.Graphics
 			cachedPanelSprites = new Dictionary<string, Sprite[]>();
 			cachedCollectionSheets = new Dictionary<Collection, (Sheet, int)>();
 
+			var stringPool = new HashSet<string>(); // Reuse common strings in YAML
 			var chrome = MiniYaml.Merge(modData.Manifest.Chrome
-				.Select(s => MiniYaml.FromStream(fileSystem.Open(s), s)));
+				.Select(s => MiniYaml.FromStream(fileSystem.Open(s), s, stringPool: stringPool)));
 
 			foreach (var c in chrome)
-				if (!c.Key.StartsWith("^", StringComparison.Ordinal))
+				if (!c.Key.StartsWith('^'))
 					LoadCollection(c.Key, c.Value);
 		}
 
@@ -100,9 +101,7 @@ namespace OpenRA.Graphics
 
 		static void LoadCollection(string name, MiniYaml yaml)
 		{
-			if (Game.ModData.LoadScreen != null)
-				Game.ModData.LoadScreen.Display();
-
+			Game.ModData.LoadScreen?.Display();
 			collections.Add(name, FieldLoader.Load<Collection>(yaml));
 		}
 
@@ -229,14 +228,18 @@ namespace OpenRA.Graphics
 					(PanelSides.Bottom | PanelSides.Right, new Rectangle(pr[0] + pr[2] + pr[4], pr[1] + pr[3] + pr[5], pr[6], pr[7]))
 				};
 
-				sprites = sides.Select(x => ps.HasSide(x.PanelSides) ? new Sprite(sheetDensity.Sheet, sheetDensity.Density * x.Bounds, TextureChannel.RGBA, 1f / sheetDensity.Density) : null)
+				sprites = sides
+					.Select(x =>
+						ps.HasSide(x.PanelSides)
+							? new Sprite(sheetDensity.Sheet, sheetDensity.Density * x.Bounds, TextureChannel.RGBA, 1f / sheetDensity.Density)
+							: null)
 					.ToArray();
 			}
 			else
 			{
 				// PERF: We don't need to search for images if there are no definitions.
 				// PERF: It's more efficient to send an empty array rather than an array of 9 nulls.
-				if (!collection.Regions.Any())
+				if (collection.Regions.Count == 0)
 					return Array.Empty<Sprite>();
 
 				// Support manual definitions for unusual dialog layouts
@@ -265,13 +268,13 @@ namespace OpenRA.Graphics
 
 			if (!collections.TryGetValue(collectionName, out var collection))
 			{
-				Log.Write("debug", "Could not find collection '{0}'", collectionName);
+				Log.Write("debug", $"Could not find collection '{collectionName}'");
 				return new Size(0, 0);
 			}
 
 			if (collection.PanelRegion == null || collection.PanelRegion.Length != 8)
 			{
-				Log.Write("debug", "Collection '{0}' does not define a valid PanelRegion", collectionName);
+				Log.Write("debug", $"Collection '{collectionName}' does not define a valid PanelRegion");
 				return new Size(0, 0);
 			}
 

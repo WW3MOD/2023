@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Traits;
@@ -33,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Attack sequence to use for each armament.",
 			"A dictionary of [armament name]: [sequence name(s)].",
 			"Multiple sequence names can be defined to specify per-burst animations.")]
-		public readonly Dictionary<string, string[]> AttackSequences = new Dictionary<string, string[]>();
+		public readonly Dictionary<string, string[]> AttackSequences = new();
 
 		[SequenceReference]
 		public readonly string[] IdleSequences = Array.Empty<string>();
@@ -56,7 +55,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				yield break;
 
 			var anim = new Animation(init.World, image, init.GetFacing());
-			anim.PlayRepeating(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), StandSequences.First()));
+			anim.PlayRepeating(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), StandSequences[0]));
 
 			if (IsPlayerPalette)
 				p = init.WorldRenderer.Palette(Palette + init.Get<OwnerInit>().InternalName);

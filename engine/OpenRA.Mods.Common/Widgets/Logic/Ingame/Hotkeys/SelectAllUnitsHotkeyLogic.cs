@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,6 +27,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 		public readonly string ClickSound = ChromeMetrics.Get<string>("ClickSound");
 
+		[FluentReference("units")]
+		const string SelectedUnitsAcrossScreen = "selected-units-across-screen";
+
+		[FluentReference("units")]
+		const string SelectedUnitsAcrossMap = "selected-units-across-map";
+
 		[ObjectCreator.UseCtor]
 		public SelectAllUnitsHotkeyLogic(Widget widget, ModData modData, WorldRenderer worldRenderer, World world, Dictionary<string, MiniYaml> logicArgs)
 			: base(widget, modData, "SelectAllUnitsKey", "WORLD_KEYHANDLER", logicArgs)
@@ -47,22 +53,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			var newSelection = SelectionUtils.SelectActorsOnScreen(world, worldRenderer, null, eligiblePlayers).SubsetWithHighestSelectionPriority(e.Modifiers).ToList();
 
 			// Check if selecting actors on the screen has selected new units
-			if (newSelection.Count > selection.Actors.Count())
-			{
-				if (newSelection.Count > 1)
-					TextNotificationsManager.AddFeedbackLine($"Selected {newSelection.Count} units across screen.");
-				else
-					TextNotificationsManager.AddFeedbackLine("Selected one unit across screen.");
-			}
+			if (newSelection.Count > selection.Actors.Count)
+				TextNotificationsManager.AddFeedbackLine(SelectedUnitsAcrossScreen, "units", newSelection.Count);
 			else
 			{
 				// Select actors in the world that have highest selection priority
 				newSelection = SelectionUtils.SelectActorsInWorld(world, null, eligiblePlayers).SubsetWithHighestSelectionPriority(e.Modifiers).ToList();
-
-				if (newSelection.Count > 1)
-					TextNotificationsManager.AddFeedbackLine($"Selected {newSelection.Count} units across map.");
-				else
-					TextNotificationsManager.AddFeedbackLine("Selected one unit across map.");
+				TextNotificationsManager.AddFeedbackLine(SelectedUnitsAcrossMap, "units", newSelection.Count);
 			}
 
 			selection.Combine(world, newSelection, false, false);

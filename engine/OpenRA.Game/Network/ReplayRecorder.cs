@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA.Network
 		public ReplayMetadata Metadata;
 		BinaryWriter writer;
 		readonly Func<string> chooseFilename;
-		MemoryStream preStartBuffer = new MemoryStream();
+		MemoryStream preStartBuffer = new();
 
 		static bool IsGameStart(byte[] data)
 		{
@@ -67,7 +67,7 @@ namespace OpenRA.Network
 				}
 			}
 
-			file.WriteArray(initialContent);
+			file.Write(initialContent);
 			writer = new BinaryWriter(file);
 		}
 
@@ -92,8 +92,8 @@ namespace OpenRA.Network
 		public void ReceiveFrame(int clientID, int frame, byte[] data)
 		{
 			var ms = new MemoryStream(4 + data.Length);
-			ms.WriteArray(BitConverter.GetBytes(frame));
-			ms.WriteArray(data);
+			ms.Write(frame);
+			ms.Write(data);
 			Receive(clientID, ms.GetBuffer());
 		}
 

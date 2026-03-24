@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,16 +31,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification type to play.")]
 		public readonly string Notification = "BaseAttack";
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display.")]
-		public string TextNotification = null;
+		public readonly string TextNotification = null;
 
 		[NotificationReference("Speech")]
 		[Desc("Speech notification to play to allies when under attack.",
 			"Won't play a notification to allies if this is null.")]
 		public readonly string AllyNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display to allies when under attack.")]
-		public string AllyTextNotification = null;
+		public readonly string AllyTextNotification = null;
 
 		public override object Create(ActorInitializer init) { return new BaseAttackNotifier(init.Self, this); }
 	}
@@ -89,12 +91,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (self.Owner == localPlayer)
 				{
 					Game.Sound.PlayNotification(rules, self.Owner, "Speech", info.Notification, self.Owner.Faction.InternalName);
-					TextNotificationsManager.AddTransientLine(info.TextNotification, self.Owner);
+					TextNotificationsManager.AddTransientLine(self.Owner, info.TextNotification);
 				}
 				else if (localPlayer.IsAlliedWith(self.Owner) && localPlayer != e.Attacker.Owner)
 				{
 					Game.Sound.PlayNotification(rules, localPlayer, "Speech", info.AllyNotification, localPlayer.Faction.InternalName);
-					TextNotificationsManager.AddTransientLine(info.AllyTextNotification, localPlayer);
+					TextNotificationsManager.AddTransientLine(localPlayer, info.AllyTextNotification);
 				}
 
 				radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer), self.CenterPosition, info.MiniMapPingColor, info.MiniMapPingDuration);

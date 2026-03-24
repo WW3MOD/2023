@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -65,20 +65,21 @@ namespace OpenRA.Mods.Common.Traits
 			topLeftScreenOffset = -wr.ScreenPxOffset(CenterOffset);
 
 			var tileset = world.Map.Tileset.ToLowerInvariant();
-			if (world.Map.Rules.Sequences.HasSequence("overlay", $"build-valid-{tileset}"))
+			var sequences = world.Map.Sequences;
+			if (sequences.HasSequence("overlay", $"build-valid-{tileset}"))
 			{
-				var validSequence = world.Map.Rules.Sequences.GetSequence("overlay", $"build-valid-{tileset}");
+				var validSequence = sequences.GetSequence("overlay", $"build-valid-{tileset}");
 				validTile = validSequence.GetSprite(0);
 				validAlpha = validSequence.GetAlpha(0);
 			}
 			else
 			{
-				var validSequence = world.Map.Rules.Sequences.GetSequence("overlay", "build-valid");
+				var validSequence = sequences.GetSequence("overlay", "build-valid");
 				validTile = validSequence.GetSprite(0);
 				validAlpha = validSequence.GetAlpha(0);
 			}
 
-			var blockedSequence = world.Map.Rules.Sequences.GetSequence("overlay", "build-invalid");
+			var blockedSequence = sequences.GetSequence("overlay", "build-invalid");
 			blockedTile = blockedSequence.GetSprite(0);
 			blockedAlpha = blockedSequence.GetAlpha(0);
 		}

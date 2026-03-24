@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -85,20 +85,22 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected static object LoadSpeeds(MiniYaml y)
 		{
-			var ret = new Dictionary<string, TerrainInfo>();
-			foreach (var t in y.ToDictionary()["TerrainSpeeds"].Nodes)
+			var speeds = y.NodeWithKey("TerrainSpeeds").Value.Nodes;
+			var ret = new Dictionary<string, TerrainInfo>(speeds.Length);
+			foreach (var t in speeds)
 			{
 				var speed = FieldLoader.GetValue<int>("speed", t.Value.Value);
 				if (speed > 0)
 				{
-					var nodesDict = t.Value.ToDictionary();
-					var cost = (nodesDict.ContainsKey("PathingCost")
-						? FieldLoader.GetValue<short>("cost", nodesDict["PathingCost"].Value)
-						: 10000 / speed);
+					var pathingCost = t.Value.NodeWithKeyOrDefault("PathingCost");
+					var cost = pathingCost != null
+						? FieldLoader.GetValue<short>("cost", pathingCost.Value.Value)
+						: 10000 / speed;
 					ret.Add(t.Key, new TerrainInfo(speed, (short)cost));
 				}
 			}
 
+			ret.TrimExcess();
 			return ret;
 		}
 
@@ -111,7 +113,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public class TerrainInfo
 		{
-			public static readonly TerrainInfo Impassable = new TerrainInfo();
+			public static readonly TerrainInfo Impassable = new();
 
 			public readonly short Cost;
 			public readonly int Speed;
@@ -142,7 +144,11 @@ namespace OpenRA.Mods.Common.Traits
 			public readonly LongBitSet<PlayerBitMask> Passable;
 			public readonly CellFlag CellFlag;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			public CellCache(LongBitSet<PlayerBitMask> immovable, CellFlag cellFlag, LongBitSet<PlayerBitMask> passable = default)
+=======
+			public CellCache(LongBitSet<PlayerBitMask> immovable, CellFlag cellFlag, LongBitSet<PlayerBitMask> crushable)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			{
 				Immovable = immovable;
 				Passable = passable;
@@ -151,7 +157,6 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public readonly LocomotorInfo Info;
-		public readonly uint MovementClass;
 
 		/// <summary>
 		/// Raised when the movement cost for a cell changes, providing the old and new costs.
@@ -160,7 +165,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly LocomotorInfo.TerrainInfo[] terrainInfos;
 		readonly World world;
-		readonly HashSet<CPos> dirtyCells = new HashSet<CPos>();
+		readonly HashSet<CPos> dirtyCells = new();
 		readonly bool sharesCell;
 
 		CellLayer<short>[] cellsCost;
@@ -179,8 +184,6 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = 0; i < terrainInfos.Length; i++)
 				if (!info.TerrainSpeeds.TryGetValue(terrainInfo.TerrainTypes[i].Type, out terrainInfos[i]))
 					terrainInfos[i] = LocomotorInfo.TerrainInfo.Impassable;
-
-			MovementClass = (uint)terrainInfos.Select(ti => ti.Cost != PathGraph.MovementCostForUnreachableCell).ToBits();
 		}
 
 		public short MovementCostForCell(CPos cell)
@@ -212,30 +215,32 @@ namespace OpenRA.Mods.Common.Traits
 			return terrainInfos[index].Speed;
 		}
 
-		public short MovementCostToEnterCell(Actor actor, CPos destNode, BlockedByActor check, Actor ignoreActor, SubCell subCell = SubCell.FullCell)
+		public short MovementCostToEnterCell(
+			Actor actor, CPos destNode, BlockedByActor check, Actor ignoreActor, bool ignoreSelf = false, SubCell subCell = SubCell.FullCell)
 		{
 			var cellCost = MovementCostForCell(destNode);
 
 			if (cellCost == PathGraph.MovementCostForUnreachableCell ||
-				!CanMoveFreelyInto(actor, destNode, subCell, check, ignoreActor))
+				!CanMoveFreelyInto(actor, destNode, subCell, check, ignoreActor, ignoreSelf))
 				return PathGraph.MovementCostForUnreachableCell;
 
 			return cellCost;
 		}
 
-		public short MovementCostToEnterCell(Actor actor, CPos srcNode, CPos destNode, BlockedByActor check, Actor ignoreActor)
+		public short MovementCostToEnterCell(
+			Actor actor, CPos srcNode, CPos destNode, BlockedByActor check, Actor ignoreActor, bool ignoreSelf = false)
 		{
 			var cellCost = MovementCostForCell(destNode, srcNode);
 
 			if (cellCost == PathGraph.MovementCostForUnreachableCell ||
-				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor))
+				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor, ignoreSelf))
 				return PathGraph.MovementCostForUnreachableCell;
 
 			return cellCost;
 		}
 
 		// Determines whether the actor is blocked by other Actors
-		bool CanMoveFreelyInto(Actor actor, CPos cell, SubCell subCell, BlockedByActor check, Actor ignoreActor)
+		bool CanMoveFreelyInto(Actor actor, CPos cell, SubCell subCell, BlockedByActor check, Actor ignoreActor, bool ignoreSelf)
 		{
 			// If the check allows: We are not blocked by other actors.
 			if (check == BlockedByActor.None)
@@ -268,7 +273,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Cache doesn't account for ignored actors, subcells, temporary blockers or transit only actors.
 			// These must use the slow path.
-			if (ignoreActor == null && subCell == SubCell.FullCell &&
+			if (ignoreActor == null && !ignoreSelf && subCell == SubCell.FullCell &&
 				!cellFlag.HasCellFlag(CellFlag.HasTemporaryBlocker) && !cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor))
 			{
 				// We already know there are unpassable actors in the cell so we are always blocked.
@@ -289,11 +294,30 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var otherActors = subCell == SubCell.FullCell ? world.ActorMap.GetActorsAt(cell) : world.ActorMap.GetActorsAt(cell, subCell);
-			foreach (var otherActor in otherActors)
-				if (IsBlockedBy(actor, otherActor, ignoreActor, cell, check, cellFlag))
-					return false;
 
-			return true;
+			if (ignoreSelf)
+			{
+				// Any actor blocking us will prevent our movement, *unless* we are one of those actors.
+				var isBlocked = false;
+				foreach (var otherActor in otherActors)
+				{
+					if (actor == otherActor)
+						return true;
+
+					isBlocked = isBlocked || IsBlockedBy(actor, otherActor, ignoreActor, cell, check, cellFlag);
+				}
+
+				return !isBlocked;
+			}
+			else
+			{
+				// Any actor blocking us will prevent our movement.
+				foreach (var otherActor in otherActors)
+					if (IsBlockedBy(actor, otherActor, ignoreActor, cell, check, cellFlag))
+						return false;
+
+				return true;
+			}
 		}
 
 		public bool CanStayInCell(CPos cell)
@@ -311,12 +335,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (check > BlockedByActor.None)
 			{
-				Func<Actor, bool> checkTransient = otherActor => IsBlockedBy(self, otherActor, ignoreActor, cell, check, GetCache(cell).CellFlag);
+				bool CheckTransient(Actor otherActor) => IsBlockedBy(self, otherActor, ignoreActor, cell, check, GetCache(cell).CellFlag);
 
 				if (!sharesCell)
-					return world.ActorMap.AnyActorsAt(cell, SubCell.FullCell, checkTransient) ? SubCell.Invalid : SubCell.FullCell;
+					return world.ActorMap.AnyActorsAt(cell, SubCell.FullCell, CheckTransient) ? SubCell.Invalid : SubCell.FullCell;
 
-				return world.ActorMap.FreeSubCell(cell, preferredSubCell, checkTransient);
+				return world.ActorMap.FreeSubCell(cell, preferredSubCell, CheckTransient);
 			}
 
 			if (!sharesCell)
@@ -367,9 +391,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			// If the other actor in our way cannot be crushed, we are blocked.
 			// PERF: Avoid LINQ.
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var passables = otherActor.TraitsImplementing<IPassable>();
 			foreach (var passable in passables)
 				if (passable.PassableBy(otherActor, actor, Info.PassableClasses))
+=======
+			var crushables = otherActor.Crushables;
+			foreach (var crushable in crushables)
+				if (crushable.CrushableBy(otherActor, actor, Info.Crushes))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					return false;
 
 			return true;
@@ -465,31 +495,33 @@ namespace OpenRA.Mods.Common.Traits
 			using (new PerfSample("locomotor_cache"))
 			{
 				var cache = blockingCache[cell.Layer];
-
-				var actors = actorMap.GetActorsAt(cell);
 				var cellFlag = CellFlag.HasFreeSpace;
-
-				if (!actors.Any())
-				{
-					cache[cell] = new CellCache(default, cellFlag);
-					return;
-				}
+				var cellImmovablePlayers = default(LongBitSet<PlayerBitMask>);
+				var cellCrushablePlayers = world.AllPlayersMask;
 
 				if (sharesCell && actorMap.HasFreeSubCell(cell))
 				{
-					cache[cell] = new CellCache(default, cellFlag);
+					cache[cell] = new CellCache(cellImmovablePlayers, cellFlag, cellCrushablePlayers);
 					return;
 				}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var cellImmovablePlayers = default(LongBitSet<PlayerBitMask>);
 				var cellPassablePlayers = world.AllPlayersMask;
 
 				foreach (var actor in actors)
+=======
+				foreach (var actor in actorMap.GetActorsAt(cell))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				{
 					var actorImmovablePlayers = world.AllPlayersMask;
 					var actorPassablePlayers = world.NoPlayersMask;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					var passables = actor.TraitsImplementing<IPassable>();
+=======
+					var crushables = actor.Crushables;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					var mobile = actor.OccupiesSpace as Mobile;
 					var isMovable = mobile != null && !mobile.IsTraitDisabled && !mobile.IsTraitPaused && !mobile.IsImmovable;
 					var isMoving = isMovable && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal);
@@ -499,11 +531,18 @@ namespace OpenRA.Mods.Common.Traits
 					if (isTransitOnly)
 						cellFlag |= CellFlag.HasTransitOnlyActor;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 					if (passables.Any())
 					{
 						cellFlag |= CellFlag.HasPassableActor;
 						foreach (var passable in passables)
 							actorPassablePlayers = actorPassablePlayers.Union(passable.PassableBy(actor, Info.PassableClasses));
+=======
+					foreach (var crushable in crushables)
+					{
+						cellFlag |= CellFlag.HasCrushableActor;
+						actorCrushablePlayers = actorCrushablePlayers.Union(crushable.CrushableBy(actor, Info.Crushes));
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 					}
 
 					if (isMoving)

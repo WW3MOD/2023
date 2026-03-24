@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.Traits
 		[ActorReference(dictionaryReference: LintDictionaryReference.Keys)]
 		[Desc("Conditions to grant when this actor is loaded inside specified transport.",
 			"A dictionary of [actor name]: [condition].")]
-		public readonly Dictionary<string, string> CargoConditions = new Dictionary<string, string>();
+		public readonly Dictionary<string, string> CargoConditions = new();
 
 		[GrantedConditionReference]
 		public IEnumerable<string> LinterCargoConditions => CargoConditions.Values;
@@ -64,7 +64,8 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Passenger(this); }
 	}
 
-	public class Passenger : IIssueOrder, IResolveOrder, IOrderVoice, INotifyRemovedFromWorld, INotifyEnteredCargo, INotifyExitedCargo, INotifyKilled, IObservesVariables
+	public class Passenger : IIssueOrder, IResolveOrder, IOrderVoice,
+		INotifyRemovedFromWorld, INotifyEnteredCargo, INotifyExitedCargo, INotifyKilled, IObservesVariables
 	{
 		public readonly PassengerInfo Info;
 		public Actor Transport;
@@ -112,13 +113,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsCorrectCargoType(Actor target)
 		{
-			var ci = target.Info.TraitInfo<CargoInfo>();
-			return ci.Types.Contains(Info.CargoType);
+			var cargo = target.Trait<Cargo>();
+			return !cargo.IsTraitDisabled && cargo.Info.Types.Contains(Info.CargoType);
 		}
 
 		bool CanEnter(Cargo cargo)
 		{
-			return cargo != null && cargo.HasSpace(Info.Weight);
+			return cargo != null && !cargo.IsTraitDisabled && cargo.HasSpace(Info.Weight);
 		}
 
 		bool CanEnter(Actor target)
@@ -213,6 +214,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			ReservedCargo.UnreserveSpace(self);
 			ReservedCargo = null;
+		}
+
+		public virtual void OnBeforeAddedToWorld(Actor actor)
+		{
+			actor.CancelActivity();
+		}
+
+		public virtual void OnEjectedFromKilledCargo(Actor self)
+		{
+			// Cancel all other activities to keep consistent behavior with the one in UnloadCargo.
+			self.CurrentActivity?.Cancel(self);
+
+			self.QueueActivity(new Nudge(self));
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)

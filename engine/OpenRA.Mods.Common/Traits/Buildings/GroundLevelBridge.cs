@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Bridge actor that can't be passed underneath.")]
-	class GroundLevelBridgeInfo : TraitInfo, IRulesetLoaded, Requires<BuildingInfo>, Requires<IHealthInfo>
+	sealed class GroundLevelBridgeInfo : TraitInfo, IRulesetLoaded, Requires<BuildingInfo>, Requires<IHealthInfo>
 	{
 		public readonly string TerrainType = "Bridge";
 
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GroundLevelBridge(init.Self, this); }
 	}
 
-	class GroundLevelBridge : IBridgeSegment, INotifyAddedToWorld, INotifyRemovedFromWorld
+	sealed class GroundLevelBridge : IBridgeSegment, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		public readonly GroundLevelBridgeInfo Info;
 		readonly Actor self;

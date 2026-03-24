@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -78,7 +78,8 @@ namespace OpenRA
 		readonly Target target;
 		readonly Target visualFeedbackTarget;
 
-		Order(string orderString, Actor subject, in Target target, string targetString, bool queued, Actor[] extraActors, CPos extraLocation, uint extraData, Actor[] groupedActors = null)
+		Order(string orderString, Actor subject, in Target target, string targetString, bool queued,
+			Actor[] extraActors, CPos extraLocation, uint extraData, Actor[] groupedActors = null)
 		{
 			OrderString = orderString ?? "";
 			Subject = subject;
@@ -156,7 +157,18 @@ namespace OpenRA
 									else
 									{
 										var pos = new WPos(r.ReadInt32(), r.ReadInt32(), r.ReadInt32());
-										target = Target.FromPos(pos);
+
+										var numberOfTerrainPositions = r.ReadInt16();
+										if (numberOfTerrainPositions == -1)
+											target = Target.FromPos(pos);
+										else
+										{
+											var terrainPositions = new WPos[numberOfTerrainPositions];
+											for (var i = 0; i < numberOfTerrainPositions; i++)
+												terrainPositions[i] = new WPos(r.ReadInt32(), r.ReadInt32(), r.ReadInt32());
+
+											target = Target.FromSerializedTerrainPosition(pos, terrainPositions);
+										}
 									}
 
 									break;
@@ -209,7 +221,7 @@ namespace OpenRA
 
 					default:
 					{
-						Log.Write("debug", "Received unknown order with type {0}", type);
+						Log.Write("debug", $"Received unknown order with type {type}");
 						return null;
 					}
 				}
@@ -217,7 +229,7 @@ namespace OpenRA
 			catch (Exception e)
 			{
 				Log.Write("debug", "Caught exception while processing order");
-				Log.Write("debug", e.ToString());
+				Log.Write("debug", e);
 
 				// HACK: this can hopefully go away in the future
 				TextNotificationsManager.Debug("Ignoring malformed order that would have crashed the game");
@@ -259,7 +271,15 @@ namespace OpenRA
 
 		public static Order FromGroupedOrder(Order grouped, Actor subject)
 		{
-			return new Order(grouped.OrderString, subject, grouped.Target, grouped.TargetString, grouped.Queued, grouped.ExtraActors, grouped.ExtraLocation, grouped.ExtraData);
+			return new Order(
+				grouped.OrderString,
+				subject,
+				grouped.Target,
+				grouped.TargetString,
+				grouped.Queued,
+				grouped.ExtraActors,
+				grouped.ExtraLocation,
+				grouped.ExtraData);
 		}
 
 		/// <summary>Creates a copy of this order with a different target position.</summary>
@@ -350,6 +370,8 @@ namespace OpenRA
 
 				case OrderType.Fields:
 				{
+					var targetState = Target.SerializableState;
+
 					var fields = OrderFields.None;
 					if (Subject != null)
 						fields |= OrderFields.Subject;
@@ -360,7 +382,7 @@ namespace OpenRA
 					if (ExtraData != 0)
 						fields |= OrderFields.ExtraData;
 
-					if (Target.SerializableType != TargetType.Invalid)
+					if (targetState.Type != TargetType.Invalid)
 						fields |= OrderFields.Target;
 
 					if (Queued)
@@ -375,7 +397,7 @@ namespace OpenRA
 					if (ExtraLocation != CPos.Zero)
 						fields |= OrderFields.ExtraLocation;
 
-					if (Target.SerializableCell != null)
+					if (targetState.Cell != null)
 						fields |= OrderFields.TargetIsCell;
 
 					w.Write((short)fields);
@@ -385,12 +407,12 @@ namespace OpenRA
 
 					if (fields.HasField(OrderFields.Target))
 					{
-						w.Write((byte)Target.SerializableType);
-						switch (Target.SerializableType)
+						w.Write((byte)targetState.Type);
+						switch (targetState.Type)
 						{
 							case TargetType.Actor:
-								w.Write(UIntFromActor(Target.SerializableActor));
-								w.Write(Target.SerializableGeneration);
+								w.Write(UIntFromActor(targetState.Actor));
+								w.Write(targetState.Generation);
 								break;
 							case TargetType.FrozenActor:
 								w.Write(Target.FrozenActor.Viewer.PlayerActor.ActorID);
@@ -399,14 +421,29 @@ namespace OpenRA
 							case TargetType.Terrain:
 								if (fields.HasField(OrderFields.TargetIsCell))
 								{
-									w.Write(Target.SerializableCell.Value.Bits);
-									w.Write((byte)Target.SerializableSubCell);
+									w.Write(targetState.Cell.Value.Bits);
+									w.Write((byte)targetState.SubCell);
 								}
 								else
 								{
-									w.Write(Target.SerializablePos.X);
-									w.Write(Target.SerializablePos.Y);
-									w.Write(Target.SerializablePos.Z);
+									w.Write(targetState.Pos.X);
+									w.Write(targetState.Pos.Y);
+									w.Write(targetState.Pos.Z);
+
+									// Don't send extra data over the network that will be restored by the Target ctor
+									var terrainPositions = targetState.TerrainPositions.Length;
+									if (terrainPositions == 1 && targetState.TerrainPositions[0] == targetState.Pos)
+										w.Write((short)-1);
+									else
+									{
+										w.Write((short)terrainPositions);
+										foreach (var position in targetState.TerrainPositions)
+										{
+											w.Write(position.X);
+											w.Write(position.Y);
+											w.Write(position.Z);
+										}
+									}
 								}
 
 								break;
@@ -449,7 +486,7 @@ namespace OpenRA
 		public override string ToString()
 		{
 			return $"OrderString: \"{OrderString}\" \n\t Type: \"{Type}\".  \n\t Subject: \"{Subject}\". \n\t Target: \"{Target}\"." +
-					$"\n\t TargetString: \"{TargetString}\".\n\t IsImmediate: {IsImmediate}.\n\t Player(PlayerName): {Player?.PlayerName}\n";
+					$"\n\t TargetString: \"{TargetString}\".\n\t IsImmediate: {IsImmediate}.\n\t Player(PlayerName): {Player?.ResolvedPlayerName}\n";
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,17 +19,24 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class ParatroopersPowerInfo : SupportPowerInfo
+	[Desc("Support power that spawns and delivers units to the desired location via aircraft.")]
+	public class ParatroopersPowerInfo : DirectionalSupportPowerInfo
 	{
 		[ActorReference(typeof(AircraftInfo))]
+		[Desc("Aircraft used to deliver the drop.")]
 		public readonly string UnitType = "badr";
+
+		[Desc("Number of aircraft to use in the formation.")]
 		public readonly int SquadSize = 1;
-		public readonly WVec SquadOffset = new WVec(-1536, 1536, 0);
+
+		[Desc("Distance between the aircraft in a formation.")]
+		public readonly WVec SquadOffset = new(-1536, 1536, 0);
 
 		[NotificationReference("Speech")]
 		[Desc("Speech notification to play when entering the drop zone.")]
 		public readonly string ReinforcementsArrivedSpeechNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display when entering the drop zone.")]
 		public readonly string ReinforcementsArrivedTextNotification = null;
 
@@ -37,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int QuantizedFacings = 32;
 
 		[Desc("Spawn and remove the plane this far outside the map.")]
-		public readonly WDist Cordon = new WDist(5120);
+		public readonly WDist Cordon = new(5120);
 
 		[ActorReference(typeof(PassengerInfo))]
 		[Desc("Troops to be delivered.  They will be distributed between the planes if SquadSize > 1.")]
@@ -53,22 +60,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Amount of time (in ticks) to keep the camera alive while the passengers drop.")]
 		public readonly int CameraRemoveDelay = 85;
 
-		[Desc("Enables the player directional targeting")]
-		public readonly bool UseDirectionalTarget = false;
-
-		[Desc("Animation used to render the direction arrows.")]
-		public readonly string DirectionArrowAnimation = null;
-
-		[Desc("Palette for direction cursor animation.")]
-		public readonly string DirectionArrowPalette = "chrome";
-
 		[Desc("Weapon range offset to apply during the beacon clock calculation.")]
 		public readonly WDist BeaconDistanceOffset = WDist.FromCells(4);
 
 		public override object Create(ActorInitializer init) { return new ParatroopersPower(init.Self, this); }
 	}
 
-	public class ParatroopersPower : SupportPower
+	public class ParatroopersPower : DirectionalSupportPower
 	{
 		readonly ParatroopersPowerInfo info;
 
@@ -76,14 +74,6 @@ namespace OpenRA.Mods.Common.Traits
 			: base(self, info)
 		{
 			this.info = info;
-		}
-
-		public override void SelectTarget(Actor self, string order, SupportPowerManager manager)
-		{
-			if (info.UseDirectionalTarget)
-				self.World.OrderGenerator = new SelectDirectionalTarget(self.World, order, manager, Info.Cursor, info.DirectionArrowAnimation, info.DirectionArrowPalette);
-			else
-				base.SelectTarget(self, order, manager);
 		}
 
 		public override void Activate(Actor self, Order order, SupportPowerManager manager)
@@ -98,8 +88,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var aircraft = new List<Actor>();
 			var units = new List<Actor>();
-
-			var info = Info as ParatroopersPowerInfo;
 
 			if (!facing.HasValue)
 				facing = new WAngle(1024 * self.World.SharedRandom.Next(info.QuantizedFacings) / info.QuantizedFacings);
@@ -119,7 +107,7 @@ namespace OpenRA.Mods.Common.Traits
 			Beacon beacon = null;
 			var aircraftInRange = new Dictionary<Actor, bool>();
 
-			Action<Actor> onEnterRange = a =>
+			void OnEnterRange(Actor a)
 			{
 				// Spawn a camera and remove the beacon when the first plane enters the target area
 				if (info.CameraActor != null && camera == null && !aircraftInRange.Any(kv => kv.Value))
@@ -141,22 +129,22 @@ namespace OpenRA.Mods.Common.Traits
 					Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
 						info.ReinforcementsArrivedSpeechNotification, self.Owner.Faction.InternalName);
 
-					TextNotificationsManager.AddTransientLine(info.ReinforcementsArrivedTextNotification, self.Owner);
+					TextNotificationsManager.AddTransientLine(self.Owner, info.ReinforcementsArrivedTextNotification);
 				}
 
 				aircraftInRange[a] = true;
-			};
+			}
 
-			Action<Actor> onExitRange = a =>
+			void OnExitRange(Actor a)
 			{
 				aircraftInRange[a] = false;
 
 				// Remove the camera when the final plane leaves the target area
 				if (!aircraftInRange.Any(kv => kv.Value))
 					RemoveCamera(camera);
-			};
+			}
 
-			Action<Actor> onRemovedFromWorld = a =>
+			void OnRemovedFromWorld(Actor a)
 			{
 				aircraftInRange[a] = false;
 
@@ -168,7 +156,7 @@ namespace OpenRA.Mods.Common.Traits
 					RemoveCamera(camera);
 					RemoveBeacon(beacon);
 				}
-			};
+			}
 
 			// Create the actors immediately so they can be returned
 			for (var i = -info.SquadSize / 2; i <= info.SquadSize / 2; i++)
@@ -221,9 +209,9 @@ namespace OpenRA.Mods.Common.Traits
 
 					var drop = a.Trait<ParaDrop>();
 					drop.SetLZ(w.Map.CellContaining(target + targetOffset), !info.AllowImpassableCells);
-					drop.OnEnteredDropRange += onEnterRange;
-					drop.OnExitedDropRange += onExitRange;
-					drop.OnRemovedFromWorld += onRemovedFromWorld;
+					drop.OnEnteredDropRange += OnEnterRange;
+					drop.OnExitedDropRange += OnExitRange;
+					drop.OnRemovedFromWorld += OnRemovedFromWorld;
 
 					var cargo = a.Trait<Cargo>();
 					foreach (var unit in units.Skip(added).Take(passengersPerPlane))
@@ -283,10 +271,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (beacon == null)
 				return;
 
-			Self.World.AddFrameEndTask(w =>
-			{
-				w.Remove(beacon);
-			});
+			Self.World.AddFrameEndTask(w => w.Remove(beacon));
 		}
 	}
 }

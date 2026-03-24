@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -27,7 +27,8 @@ namespace OpenRA.Mods.Common.Activities
 		readonly BodyOrientation body;
 		readonly IMove move;
 		readonly CPos targetCell;
-		readonly INotifyHarvesterAction[] notifyHarvesterActions;
+		readonly INotifyHarvestAction[] notifyHarvestActions;
+		readonly MoveCooldownHelper moveCooldownHelper;
 
 		public HarvestResource(Actor self, CPos targetCell)
 		{
@@ -39,7 +40,8 @@ namespace OpenRA.Mods.Common.Activities
 			claimLayer = self.World.WorldActor.Trait<ResourceClaimLayer>();
 			resourceLayer = self.World.WorldActor.Trait<IResourceLayer>();
 			this.targetCell = targetCell;
-			notifyHarvesterActions = self.TraitsImplementing<INotifyHarvesterAction>().ToArray();
+			notifyHarvestActions = self.TraitsImplementing<INotifyHarvestAction>().ToArray();
+			moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile);
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -58,12 +60,17 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || harv.IsFull)
 				return true;
 
+			var result = moveCooldownHelper.Tick(false);
+			if (result != null)
+				return result.Value;
+
 			// Move towards the target cell
 			if (self.Location != targetCell)
 			{
-				foreach (var n in notifyHarvesterActions)
+				foreach (var n in notifyHarvestActions)
 					n.MovingToResources(self, targetCell);
 
+				moveCooldownHelper.NotifyMoveQueued();
 				QueueChild(move.MoveTo(targetCell, 0));
 				return false;
 			}
@@ -87,9 +94,9 @@ namespace OpenRA.Mods.Common.Activities
 			if (resource.Type == null || resourceLayer.RemoveResource(resource.Type, self.Location) != 1)
 				return true;
 
-			harv.AcceptResource(self, resource.Type);
+			harv.AddResource(self, resource.Type);
 
-			foreach (var t in notifyHarvesterActions)
+			foreach (var t in notifyHarvestActions)
 				t.Harvested(self, resource.Type);
 
 			QueueChild(new Wait(harvInfo.BaleLoadDelay));
@@ -103,7 +110,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override void Cancel(Actor self, bool keepQueue = false)
 		{
-			foreach (var n in notifyHarvesterActions)
+			foreach (var n in notifyHarvestActions)
 				n.MovementCancelled(self);
 
 			base.Cancel(self, keepQueue);

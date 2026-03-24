@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public struct ResourceLayerContents
+	public readonly struct ResourceLayerContents
 	{
 		public static readonly ResourceLayerContents Empty = default;
 		public readonly string Type;
@@ -67,7 +67,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected static object LoadResourceTypes(MiniYaml yaml)
 		{
 			var ret = new Dictionary<string, ResourceTypeInfo>();
-			var resources = yaml.Nodes.FirstOrDefault(n => n.Key == "ResourceTypes");
+			var resources = yaml.NodeWithKeyOrDefault("ResourceTypes");
 			if (resources != null)
 				foreach (var r in resources.Value.Nodes)
 					ret[r.Key] = new ResourceTypeInfo(r.Value);
@@ -159,7 +159,9 @@ namespace OpenRA.Mods.Common.Traits
 						++adjacent;
 				}
 
-				// Adjacent includes the current cell, so is always >= 1
+				// We need to have at least one resource in the cell.
+				// HACK: we should not be lerping to 9, as maximum adjacent resources is 8.
+				// HACK: it's too disruptive to fix.
 				var density = Math.Max(int2.Lerp(0, resourceInfo.MaxDensity, adjacent, 9), 1);
 				Content[cell] = new ResourceLayerContents(resource.Type, density);
 			}

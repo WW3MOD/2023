@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -49,7 +49,17 @@ namespace OpenRA.Mods.Common.Traits
 			p.MapLayers.AddSource(this, 0, uv);
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		protected override void RemoveCellsFromPlayerMapLayer(Actor self, Player p) { p.MapLayers.RemoveSource(this); }
+=======
+		protected override void RemoveCellsFromPlayerShroud(Actor self, Player p)
+		{
+			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
+				return;
+
+			p.Shroud.RemoveSource(this);
+		}
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public override WDist Range
 		{

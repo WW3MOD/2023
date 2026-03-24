@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -31,8 +31,8 @@ namespace OpenRA.Server
 		Stopwatch gameTimer;
 		long nextUpdate = 0;
 
-		readonly ConcurrentDictionary<int, long> timestamps = new ConcurrentDictionary<int, long>();
-		readonly ConcurrentDictionary<int, Queue<long>> deltas = new ConcurrentDictionary<int, Queue<long>>();
+		readonly ConcurrentDictionary<int, long> timestamps = new();
+		readonly ConcurrentDictionary<int, Queue<long>> deltas = new();
 
 		int timestep;
 		int ticksPerInterval;
@@ -68,7 +68,7 @@ namespace OpenRA.Server
 			ticksPerInterval = Interval / timestep;
 
 			this.players = players.ToList();
-			baselinePlayer = this.players.First();
+			baselinePlayer = this.players[0];
 
 			foreach (var player in this.players)
 			{
@@ -112,7 +112,7 @@ namespace OpenRA.Server
 			}
 		}
 
-		long Median(long[] a)
+		static long Median(long[] a)
 		{
 			Array.Sort(a);
 			var n = a.Length;
@@ -128,7 +128,7 @@ namespace OpenRA.Server
 			players.Remove(player);
 			if (player == baselinePlayer && players.Count > 0)
 			{
-				var newBaseline = players.First();
+				var newBaseline = players[0];
 				Interlocked.Exchange(ref baselinePlayer, newBaseline);
 			}
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,17 +25,21 @@ namespace OpenRA.Mods.Common.Traits
 		None = 0,
 		Attack = 1,
 		Move = 2,
-		Unload = 4,
-		Infiltrate = 8,
-		Demolish = 16,
-		Damage = 32,
-		Heal = 64,
-		SelfHeal = 128,
-		Dock = 256
+		Load = 4,
+		Unload = 8,
+		Infiltrate = 16,
+		Demolish = 32,
+		Damage = 64,
+		Heal = 128,
+		SelfHeal = 256,
+		Dock = 512,
+		SupportPower = 1024,
 	}
 
 	// Type tag for DetectionTypes
 	public class DetectionType { }
+
+	public enum CloakStyle { None, Alpha, Color, Palette }
 
 	[Desc("This unit can cloak and uncloak in specific situations.")]
 	public class CloakInfo : PausableConditionalTraitInfo
@@ -49,18 +53,24 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If set > 0, unit will delay this many ticks before it is cloaked again after it is not within detection range.")]
 		public readonly int RevealedDelay = 0;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		[Desc("Events leading to the actor getting uncloaked. Possible values are: Attack, Move, Unload, Infiltrate, Demolish, Dock, Damage, Heal and SelfHeal.",
 			"'Dock' is triggered when docking to a refinery or resupplying.")]
 		public readonly UncloakType UncloakOn = UncloakType.None;
+=======
+		[Desc(
+			"Events leading to the actor getting uncloaked. " +
+			"Possible values are: Attack, Move, Unload, Infiltrate, Demolish, Dock, Damage, Heal, SelfHeal and SupportPower.",
+			"'Dock' is triggered when docking to a refinery or resupplying.",
+			"'SupportPower' is triggered when using a support power.")]
+		public readonly UncloakType UncloakOn = UncloakType.Attack
+			| UncloakType.Unload | UncloakType.Infiltrate | UncloakType.Demolish | UncloakType.Dock;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public readonly string CloakSound = null;
 		public readonly string UncloakSound = null;
 
-		[PaletteReference(nameof(IsPlayerPalette))]
-		public readonly string Palette = "cloak";
-		public readonly bool IsPlayerPalette = false;
-
-		public readonly BitSet<DetectionType> DetectionTypes = new BitSet<DetectionType>("Cloak");
+		public readonly BitSet<DetectionType> DetectionTypes = new("Cloak");
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while cloaked.")]
@@ -68,6 +78,22 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("The type of cloak. Same type of cloaks won't trigger cloaking and uncloaking sound and effect.")]
 		public readonly string CloakType = null;
+
+		[Desc("Render effect to use when cloaked.")]
+		public readonly CloakStyle CloakStyle = CloakStyle.Alpha;
+
+		[Desc("The alpha level to use when cloaked when using Alpha CloakStyle.")]
+		public readonly float CloakedAlpha = 0.55f;
+
+		[Desc("The color to use when cloaked when using Color CloakStyle.")]
+		public readonly Color CloakedColor = Color.FromArgb(140, 0, 0, 0);
+
+		[PaletteReference(nameof(IsPlayerPalette))]
+		[Desc("The palette to use when cloaked when using Palette CloakStyle.")]
+		public readonly string CloakedPalette = null;
+
+		[Desc("Indicates that CloakedPalette is a player palette when using Palette CloakStyle.")]
+		public readonly bool IsPlayerPalette = false;
 
 		[Desc("Which image to use for the effect played when cloaking or uncloaking.")]
 		public readonly string EffectImage = null;
@@ -95,9 +121,18 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cloak(this); }
 	}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
 		INotifyAttack, ITick, IShouldHideModifier, IMiniMapColorModifier, INotifyCreated, INotifyHarvesterAction, INotifyBeingResupplied
+=======
+	public class Cloak : PausableConditionalTrait<CloakInfo>,
+		IRenderModifier, INotifyDamage, INotifyUnloadCargo, INotifyLoadCargo, INotifyDemolition, INotifyInfiltration,
+		INotifyAttack, ITick, IVisibilityModifier, IRadarColorModifier, INotifyDockClient, INotifyDockHost, INotifySupportPower
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	{
+		readonly float3 cloakedColor;
+		readonly float cloakedColorAlpha;
+
 		[Sync]
 		int remainingTime;
 
@@ -118,6 +153,8 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			remainingTime = info.InitialDelay;
+			cloakedColor = new float3(info.CloakedColor.R, info.CloakedColor.G, info.CloakedColor.B) / 255f;
+			cloakedColorAlpha = info.CloakedColor.A / 255f;
 		}
 
 		protected override void Created(Actor self)
@@ -180,12 +217,37 @@ namespace OpenRA.Mods.Common.Traits
 				return SpriteRenderable.None;
 			else
 			{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				var palette = string.IsNullOrEmpty(Info.Palette) ? null : Info.IsPlayerPalette ? wr.Palette(Info.Palette + self.Owner.InternalName) : wr.Palette(Info.Palette);
 				if (palette == null)
 					return r;
 				else
 					return r.Select(a => !a.IsDecoration && a is IPalettedRenderable ? ((IPalettedRenderable)a).WithPalette(palette) : a);
 			} */
+=======
+				switch (Info.CloakStyle)
+				{
+					case CloakStyle.Alpha:
+						return r.Select(a => !a.IsDecoration && a is IModifyableRenderable mr ? mr.WithAlpha(Info.CloakedAlpha) : a);
+
+					case CloakStyle.Color:
+						return r.Select(a => !a.IsDecoration && a is IModifyableRenderable mr ?
+							mr.WithTint(cloakedColor, mr.TintModifiers | TintModifiers.ReplaceColor).WithAlpha(cloakedColorAlpha) :
+							a);
+
+					case CloakStyle.Palette:
+					{
+						var palette = wr.Palette(Info.IsPlayerPalette ? Info.CloakedPalette + self.Owner.InternalName : Info.CloakedPalette);
+						return r.Select(a => !a.IsDecoration && a is IPalettedRenderable pr ? pr.WithPalette(palette) : a);
+					}
+
+					default:
+						return r;
+				}
+			}
+
+			return SpriteRenderable.None;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)
@@ -242,7 +304,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!(firstTick && Info.InitialDelay == 0) && (otherCloaks == null || !otherCloaks.Any(a => a.Cloaked)))
 				{
 					var pos = self.CenterPosition;
-					Game.Sound.Play(SoundType.World, Info.CloakSound, pos);
+					Game.Sound.Play(SoundType.World, Info.UncloakSound, pos);
 
 					Func<WPos> posfunc = () => self.CenterPosition + Info.EffectOffset;
 					if (!Info.EffectTracksActor)
@@ -287,6 +349,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
 					&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 				if (!cachedShouldHide)
 					Reveal(Info.RevealedDelay);
 
@@ -304,6 +367,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			var shouldHide = Cloaked && !self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+=======
+			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.IsInWorld
+				&& a.Actor.Owner.IsAlliedWith(viewer) && Info.DetectionTypes.Overlaps(a.Trait.Info.DetectionTypes)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 
 			if (!shouldHide)
@@ -343,15 +410,7 @@ namespace OpenRA.Mods.Common.Traits
 			return color;
 		}
 
-		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell) { }
-
-		void INotifyHarvesterAction.MovingToRefinery(Actor self, Actor refineryActor) { }
-
-		void INotifyHarvesterAction.MovementCancelled(Actor self) { }
-
-		void INotifyHarvesterAction.Harvested(Actor self, string resourceType) { }
-
-		void INotifyHarvesterAction.Docked()
+		void INotifyDockClient.Docked(Actor self, Actor host)
 		{
 			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
 			{
@@ -360,12 +419,34 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		void INotifyHarvesterAction.Undocked()
+		void INotifyDockClient.Undocked(Actor self, Actor host)
 		{
-			isDocking = false;
+			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
+				isDocking = false;
 		}
 
-		void INotifyUnload.Unloading(Actor self)
+		void INotifyDockHost.Docked(Actor self, Actor client)
+		{
+			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
+			{
+				isDocking = true;
+				Uncloak();
+			}
+		}
+
+		void INotifyDockHost.Undocked(Actor self, Actor client)
+		{
+			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
+				isDocking = false;
+		}
+
+		void INotifyLoadCargo.Loading(Actor self)
+		{
+			if (Info.UncloakOn.HasFlag(UncloakType.Load))
+				Uncloak();
+		}
+
+		void INotifyUnloadCargo.Unloading(Actor self)
 		{
 			if (Info.UncloakOn.HasFlag(UncloakType.Unload))
 				Uncloak();
@@ -383,19 +464,12 @@ namespace OpenRA.Mods.Common.Traits
 				Uncloak();
 		}
 
-		void INotifyBeingResupplied.StartingResupply(Actor self, Actor host)
-		{
-			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
-			{
-				isDocking = true;
-				Uncloak();
-			}
-		}
+		void INotifySupportPower.Charged(Actor self) { }
 
-		void INotifyBeingResupplied.StoppingResupply(Actor self, Actor host)
+		void INotifySupportPower.Activated(Actor self)
 		{
-			if (Info.UncloakOn.HasFlag(UncloakType.Dock))
-				isDocking = false;
+			if (Info.UncloakOn.HasFlag(UncloakType.SupportPower))
+				Uncloak();
 		}
 	}
 }

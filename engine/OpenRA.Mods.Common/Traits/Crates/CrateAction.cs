@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -39,6 +39,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play when the crate is collected.")]
 		public readonly string Notification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display when the crate is collected.")]
 		public readonly string TextNotification = null;
 
@@ -95,7 +96,7 @@ namespace OpenRA.Mods.Common.Traits
 				Game.Sound.PlayNotification(self.World.Map.Rules, collector.Owner, "Speech",
 					Info.Notification, collector.Owner.Faction.InternalName);
 
-			TextNotificationsManager.AddTransientLine(Info.TextNotification, collector.Owner);
+			TextNotificationsManager.AddTransientLine(collector.Owner, Info.TextNotification);
 
 			if (Info.Image != null && Info.Sequence != null)
 				collector.World.AddFrameEndTask(w => w.Add(new SpriteEffect(collector, w, Info.Image, Info.Sequence, Info.Palette)));

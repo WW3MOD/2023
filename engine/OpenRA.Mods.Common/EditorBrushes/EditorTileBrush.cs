@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,6 +20,7 @@ namespace OpenRA.Mods.Common.Widgets
 {
 	public sealed class EditorTileBrush : IEditorBrush
 	{
+		public readonly TerrainTemplateInfo TerrainTemplate;
 		public readonly ushort Template;
 
 		readonly WorldRenderer worldRenderer;
@@ -28,10 +28,13 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly ITemplatedTerrainInfo terrainInfo;
 		readonly EditorViewportControllerWidget editorWidget;
 		readonly EditorActionManager editorActionManager;
-		readonly EditorCursorLayer editorCursor;
-		readonly int cursorToken;
 
 		bool painting;
+
+		readonly ITiledTerrainRenderer terrainRenderer;
+
+		CPos cell;
+		readonly List<IRenderable> preview = new();
 
 		public EditorTileBrush(EditorViewportControllerWidget editorWidget, ushort id, WorldRenderer wr)
 		{
@@ -43,14 +46,12 @@ namespace OpenRA.Mods.Common.Widgets
 				throw new InvalidDataException("EditorTileBrush can only be used with template-based tilesets");
 
 			editorActionManager = world.WorldActor.Trait<EditorActionManager>();
-			editorCursor = world.WorldActor.Trait<EditorCursorLayer>();
+			terrainRenderer = world.WorldActor.Trait<ITiledTerrainRenderer>();
 
 			Template = id;
-			worldRenderer = wr;
-			world = wr.World;
-
-			var template = terrainInfo.Templates.First(t => t.Value.Id == id).Value;
-			cursorToken = editorCursor.SetTerrainTemplate(wr, template);
+			TerrainTemplate = terrainInfo.Templates.First(t => t.Value.Id == id).Value;
+			cell = wr.Viewport.ViewToWorld(wr.Viewport.WorldToViewPx(Viewport.LastMousePos));
+			UpdatePreview();
 		}
 
 		public bool HandleMouseInput(MouseInput mi)
@@ -83,9 +84,6 @@ namespace OpenRA.Mods.Common.Widgets
 
 			if (mi.Event != MouseInputEvent.Down && mi.Event != MouseInputEvent.Move)
 				return true;
-
-			if (editorCursor.CurrentToken != cursorToken)
-				return false;
 
 			var cell = worldRenderer.Viewport.ViewToWorld(mi.Location);
 			var isMoving = mi.Event == MouseInputEvent.Move;
@@ -146,23 +144,44 @@ namespace OpenRA.Mods.Common.Widgets
 			return false;
 		}
 
+		void UpdatePreview()
+		{
+			var pos = world.Map.CenterOfCell(cell);
+
+			preview.Clear();
+			preview.AddRange(terrainRenderer.RenderPreview(worldRenderer, TerrainTemplate, pos));
+		}
+
+		void IEditorBrush.TickRender(WorldRenderer wr, Actor self)
+		{
+			var currentCell = wr.Viewport.ViewToWorld(Viewport.LastMousePos);
+			if (cell != currentCell)
+			{
+				cell = currentCell;
+				UpdatePreview();
+			}
+		}
+
+		IEnumerable<IRenderable> IEditorBrush.RenderAboveShroud(Actor self, WorldRenderer wr) { return preview; }
+		IEnumerable<IRenderable> IEditorBrush.RenderAnnotations(Actor self, WorldRenderer wr) { yield break; }
+
 		public void Tick() { }
 
-		public void Dispose()
-		{
-			editorCursor.Clear(cursorToken);
-		}
+		public void Dispose() { }
 	}
 
-	class PaintTileEditorAction : IEditorAction
+	sealed class PaintTileEditorAction : IEditorAction
 	{
+		[FluentReference("id")]
+		const string AddedTile = "notification-added-tile";
+
 		public string Text { get; }
 
 		readonly ushort template;
 		readonly Map map;
 		readonly CPos cell;
 
-		readonly Queue<UndoTile> undoTiles = new Queue<UndoTile>();
+		readonly Queue<UndoTile> undoTiles = new();
 		readonly TerrainTemplateInfo terrainTemplate;
 
 		public PaintTileEditorAction(ushort template, Map map, CPos cell)
@@ -173,7 +192,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var terrainInfo = (ITemplatedTerrainInfo)map.Rules.TerrainInfo;
 			terrainTemplate = terrainInfo.Templates[template];
-			Text = $"Added tile {terrainTemplate.Id}";
+			Text = FluentProvider.GetMessage(AddedTile, "id", terrainTemplate.Id);
 		}
 
 		public void Execute()
@@ -223,15 +242,18 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 	}
 
-	class FloodFillEditorAction : IEditorAction
+	sealed class FloodFillEditorAction : IEditorAction
 	{
+		[FluentReference("id")]
+		const string FilledTile = "notification-filled-tile";
+
 		public string Text { get; }
 
 		readonly ushort template;
 		readonly Map map;
 		readonly CPos cell;
 
-		readonly Queue<UndoTile> undoTiles = new Queue<UndoTile>();
+		readonly Queue<UndoTile> undoTiles = new();
 		readonly TerrainTemplateInfo terrainTemplate;
 
 		public FloodFillEditorAction(ushort template, Map map, CPos cell)
@@ -242,7 +264,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var terrainInfo = (ITemplatedTerrainInfo)map.Rules.TerrainInfo;
 			terrainTemplate = terrainInfo.Templates[template];
-			Text = $"Filled with tile {terrainTemplate.Id}";
+			Text = FluentProvider.GetMessage(FilledTile, "id", terrainTemplate.Id);
 		}
 
 		public void Execute()
@@ -257,16 +279,16 @@ namespace OpenRA.Mods.Common.Widgets
 			var mapTiles = map.Tiles;
 			var replace = mapTiles[cell];
 
-			Action<CPos> maybeEnqueue = newCell =>
+			void MaybeEnqueue(CPos newCell)
 			{
 				if (map.Contains(cell) && !touched[newCell])
 				{
 					queue.Enqueue(newCell);
 					touched[newCell] = true;
 				}
-			};
+			}
 
-			Func<CPos, bool> shouldPaint = cellToCheck =>
+			bool ShouldPaint(CPos cellToCheck)
 			{
 				for (var y = 0; y < terrainTemplate.Size.Y; y++)
 				{
@@ -279,39 +301,39 @@ namespace OpenRA.Mods.Common.Widgets
 				}
 
 				return true;
-			};
+			}
 
-			Func<CPos, CVec, CPos> findEdge = (refCell, direction) =>
+			CPos FindEdge(CPos refCell, CVec direction)
 			{
 				while (true)
 				{
 					var newCell = refCell + direction;
-					if (!shouldPaint(newCell))
+					if (!ShouldPaint(newCell))
 						return refCell;
 					refCell = newCell;
 				}
-			};
+			}
 
 			queue.Enqueue(cell);
 			while (queue.Count > 0)
 			{
 				var queuedCell = queue.Dequeue();
-				if (!shouldPaint(queuedCell))
+				if (!ShouldPaint(queuedCell))
 					continue;
 
-				var previousCell = findEdge(queuedCell, new CVec(-1 * terrainTemplate.Size.X, 0));
-				var nextCell = findEdge(queuedCell, new CVec(1 * terrainTemplate.Size.X, 0));
+				var previousCell = FindEdge(queuedCell, new CVec(-1 * terrainTemplate.Size.X, 0));
+				var nextCell = FindEdge(queuedCell, new CVec(1 * terrainTemplate.Size.X, 0));
 
 				for (var x = previousCell.X; x <= nextCell.X; x += terrainTemplate.Size.X)
 				{
 					PaintSingleCell(new CPos(x, queuedCell.Y));
-					var upperCell = new CPos(x, queuedCell.Y - (1 * terrainTemplate.Size.Y));
-					var lowerCell = new CPos(x, queuedCell.Y + (1 * terrainTemplate.Size.Y));
+					var upperCell = new CPos(x, queuedCell.Y - 1 * terrainTemplate.Size.Y);
+					var lowerCell = new CPos(x, queuedCell.Y + 1 * terrainTemplate.Size.Y);
 
-					if (shouldPaint(upperCell))
-						maybeEnqueue(upperCell);
-					if (shouldPaint(lowerCell))
-						maybeEnqueue(lowerCell);
+					if (ShouldPaint(upperCell))
+						MaybeEnqueue(upperCell);
+					if (ShouldPaint(lowerCell))
+						MaybeEnqueue(lowerCell);
 				}
 			}
 		}
@@ -358,7 +380,7 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 	}
 
-	class UndoTile
+	sealed class UndoTile
 	{
 		public CPos Cell { get; }
 		public TerrainTile MapTile { get; }

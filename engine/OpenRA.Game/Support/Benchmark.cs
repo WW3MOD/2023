@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,13 +10,14 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace OpenRA.Support
 {
-	class Benchmark
+	sealed class Benchmark
 	{
 		readonly string prefix;
-		readonly Dictionary<string, List<BenchmarkPoint>> samples = new Dictionary<string, List<BenchmarkPoint>>();
+		readonly Dictionary<string, List<BenchmarkPoint>> samples = new();
 
 		public Benchmark(string prefix)
 		{
@@ -29,7 +30,7 @@ namespace OpenRA.Support
 				samples.GetOrAdd(item.Key).Add(new BenchmarkPoint(localTick, item.Value.LastValue));
 		}
 
-		class BenchmarkPoint
+		sealed class BenchmarkPoint
 		{
 			public int Tick { get; }
 			public double Value { get; }
@@ -50,7 +51,7 @@ namespace OpenRA.Support
 				Log.Write(name, "tick,time [ms]");
 
 				foreach (var point in sample.Value)
-					Log.Write(name, $"{point.Tick},{point.Value}");
+					Log.Write(name, $"{point.Tick},{point.Value.ToString(CultureInfo.InvariantCulture)}");
 			}
 		}
 

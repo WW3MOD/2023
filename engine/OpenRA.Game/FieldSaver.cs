@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,6 +15,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using OpenRA.Primitives;
 
 namespace OpenRA
@@ -58,7 +59,7 @@ namespace OpenRA
 
 			return new MiniYaml(
 				null,
-				fields.Select(info => new MiniYamlNode(info.YamlName, FormatValue(o, info.Field))).ToList());
+				fields.Select(info => new MiniYamlNode(info.YamlName, FormatValue(o, info.Field))));
 		}
 
 		public static MiniYamlNode SaveField(object o, string field)
@@ -84,7 +85,7 @@ namespace OpenRA
 			// This is only for documentation generation
 			if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Dictionary<,>))
 			{
-				var result = "";
+				var result = new StringBuilder();
 				var dict = (System.Collections.IDictionary)v;
 				foreach (var kvp in dict)
 				{
@@ -94,10 +95,10 @@ namespace OpenRA
 					var formattedKey = FormatValue(key);
 					var formattedValue = FormatValue(value);
 
-					result += $"{formattedKey}: {formattedValue}{Environment.NewLine}";
+					result.Append($"{formattedKey}: {formattedValue}{Environment.NewLine}");
 				}
 
-				return result;
+				return result.ToString();
 			}
 
 			if (v is DateTime d)

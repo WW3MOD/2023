@@ -1,4 +1,19 @@
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using System;
+using System.Collections.Generic;
 
 namespace OpenRA
 {
@@ -48,6 +63,33 @@ namespace OpenRA
 		Alt = 2,
 		Ctrl = 4,
 		Meta = 8,
+	}
+
+	public static class ModifiersExts
+	{
+		[FluentReference]
+		public const string Cmd = "keycode-modifier.cmd";
+
+		[FluentReference(Traits.LintDictionaryReference.Values)]
+		public static readonly IReadOnlyDictionary<Modifiers, string> ModifierFluentKeys = new Dictionary<Modifiers, string>()
+		{
+			{ Modifiers.None, "keycode-modifier.none" },
+			{ Modifiers.Shift, "keycode-modifier.shift" },
+			{ Modifiers.Alt, "keycode-modifier.alt" },
+			{ Modifiers.Ctrl, "keycode-modifier.ctrl" },
+			{ Modifiers.Meta, "keycode-modifier.meta" },
+		};
+
+		public static string DisplayString(Modifiers m)
+		{
+			if (m == Modifiers.Meta && Platform.CurrentPlatform == PlatformType.OSX)
+				return FluentProvider.GetMessage(Cmd);
+
+			if (!ModifierFluentKeys.TryGetValue(m, out var fluentKey))
+				return m.ToString();
+
+			return FluentProvider.GetMessage(fluentKey);
+		}
 	}
 
 	public enum KeyInputEvent { Down, Up }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,12 +14,25 @@ using System.Linq;
 
 namespace OpenRA.Mods.Common.UpdateRules.Rules
 {
-	public class UnhardcodeSquadManager : UpdateRule
+	public class UnhardcodeSquadManager : UpdateRule, IBeforeUpdateActors
 	{
-		readonly List<MiniYamlNode> addNodes = new List<MiniYamlNode>();
+		readonly List<MiniYamlNodeBuilder> addNodes = new();
 
 		// Excludes AttackBomber and AttackTDGunboatTurreted as actors with these AttackBase traits aren't supposed to be controlled.
-		readonly string[] attackBase = { "AttackLeap", "AttackPopupTurreted", "AttackAircraft", "AttackTesla", "AttackCharges", "AttackFollow", "AttackTurreted", "AttackFrontal", "AttackGarrisoned", "AttackOmni", "AttackSwallow" };
+		readonly string[] attackBase =
+		{
+			"AttackLeap",
+			"AttackPopupTurreted",
+			"AttackAircraft",
+			"AttackTesla",
+			"AttackCharges",
+			"AttackFollow",
+			"AttackTurreted",
+			"AttackFrontal",
+			"AttackGarrisoned",
+			"AttackOmni",
+			"AttackSwallow"
+		};
 		readonly string[] vipsNames = { "Harvester", "BaseBuilding" };
 		readonly string[] buildings = { "Building", "EnergyWall", "D2kBuilding" };
 		readonly string[] excludedBuildings = { "LineBuild", "Plug" };
@@ -28,7 +41,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 		public override string Description => "AirUnitsTypes and ProtectionTypes were added.";
 
-		public override IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNode> resolvedActors)
+		public IEnumerable<string> BeforeUpdateActors(ModData modData, List<MiniYamlNodeBuilder> resolvedActors)
 		{
 			var aircraft = new List<string>();
 			var vips = new List<string>();
@@ -93,28 +106,28 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 				if (isAircraft && isBuildable && canAttack && isKillable)
 				{
-					var name = actor.Key.ToLower();
+					var name = actor.Key.ToLowerInvariant();
 					if (!aircraft.Contains(name))
 						aircraft.Add(name);
 				}
 
 				if (isBuildable && isKillable && (isVip || (isBuilding && !isExcluded)))
 				{
-					var name = actor.Key.ToLower();
+					var name = actor.Key.ToLowerInvariant();
 					if (!vips.Contains(name))
 						vips.Add(name);
 				}
 			}
 
-			addNodes.Add(new MiniYamlNode("AirUnitsTypes", FieldSaver.FormatValue(aircraft)));
-			addNodes.Add(new MiniYamlNode("ProtectionTypes", FieldSaver.FormatValue(vips)));
+			addNodes.Add(new MiniYamlNodeBuilder("AirUnitsTypes", FieldSaver.FormatValue(aircraft)));
+			addNodes.Add(new MiniYamlNodeBuilder("ProtectionTypes", FieldSaver.FormatValue(vips)));
 
 			yield break;
 		}
 
 		bool anyAdded = false;
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			foreach (var squadManager in actorNode.ChildrenMatching("SquadManagerBotModule", includeRemovals: false))
 			{

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,16 +22,16 @@ namespace OpenRA.Mods.Cnc.Traits
 	public class TSTiberiumRendererInfo : ResourceRendererInfo
 	{
 		[Desc("Sequences to use for ramp type 1.", "Dictionary of [resource type]: [list of sequences].")]
-		public readonly Dictionary<string, string[]> Ramp1Sequences = new Dictionary<string, string[]>();
+		public readonly Dictionary<string, string[]> Ramp1Sequences = new();
 
 		[Desc("Sequences to use for ramp type 2.", "Dictionary of [resource type]: [list of sequences].")]
-		public readonly Dictionary<string, string[]> Ramp2Sequences = new Dictionary<string, string[]>();
+		public readonly Dictionary<string, string[]> Ramp2Sequences = new();
 
 		[Desc("Sequences to use for ramp type 3.", "Dictionary of [resource type]: [list of sequences].")]
-		public readonly Dictionary<string, string[]> Ramp3Sequences = new Dictionary<string, string[]>();
+		public readonly Dictionary<string, string[]> Ramp3Sequences = new();
 
 		[Desc("Sequences to use for ramp type 4.", "Dictionary of [resource type]: [list of sequences].")]
-		public readonly Dictionary<string, string[]> Ramp4Sequences = new Dictionary<string, string[]>();
+		public readonly Dictionary<string, string[]> Ramp4Sequences = new();
 
 		public override object Create(ActorInitializer init) { return new TSTiberiumRenderer(init.Self, this); }
 	}
@@ -40,10 +40,10 @@ namespace OpenRA.Mods.Cnc.Traits
 	{
 		readonly TSTiberiumRendererInfo info;
 		readonly World world;
-		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp1Variants = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
-		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp2Variants = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
-		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp3Variants = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
-		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp4Variants = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
+		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp1Variants = new();
+		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp2Variants = new();
+		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp3Variants = new();
+		readonly Dictionary<string, Dictionary<string, ISpriteSequence>> ramp4Variants = new();
 
 		public TSTiberiumRenderer(Actor self, TSTiberiumRendererInfo info)
 			: base(self, info)
@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		void LoadVariants(Dictionary<string, string[]> rampSequences, Dictionary<string, Dictionary<string, ISpriteSequence>> rampVariants)
 		{
-			var sequences = world.Map.Rules.Sequences;
+			var sequences = world.Map.Sequences;
 			foreach (var kv in rampSequences)
 			{
 				if (!Info.ResourceTypes.TryGetValue(kv.Key, out var resourceInfo))

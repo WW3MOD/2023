@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.FileSystem;
 using OpenRA.GameRules;
@@ -23,6 +24,7 @@ using OpenRA.Support;
 
 namespace OpenRA.Traits
 {
+	[AttributeUsage(AttributeTargets.Interface)]
 	public sealed class RequireExplicitImplementationAttribute : Attribute { }
 
 	[Flags]
@@ -37,7 +39,7 @@ namespace OpenRA.Traits
 	}
 
 	/// <summary>
-	/// Type tag for DamageTypes <see cref="Primitives.BitSet{T}"/>.
+	/// Type tag for DamageTypes <see cref="BitSet{T}"/>.
 	/// </summary>
 	public sealed class DamageType { DamageType() { } }
 
@@ -180,7 +182,31 @@ namespace OpenRA.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface IStoreResources { int Capacity { get; } }
+	public interface IStoresResourcesInfo : ITraitInfoInterface
+	{
+		string[] ResourceTypes { get; }
+	}
+
+	public interface IStoresResources
+	{
+		bool HasType(string resourceType);
+
+		/// <summary>The amount of resources that can be stored.</summary>
+		int Capacity { get; }
+
+		/// <summary>Stored resources.</summary>
+		/// <remarks>Dictionary key refers to resourceType, value refers to resource amount.</remarks>
+		IReadOnlyDictionary<string, int> Contents { get; }
+
+		/// <summary>A performance cheap method of getting the total sum of contents.</summary>
+		int ContentsSum { get; }
+
+		/// <summary>Returns the amount of <paramref name="value"/> that was not added.</summary>
+		int AddResource(string resourceType, int value);
+
+		/// <summary>Returns the amount of <paramref name="value"/> that was not removed.</summary>
+		int RemoveResource(string resourceType, int value);
+	}
 
 	public interface IEffectiveOwner
 	{
@@ -280,14 +306,19 @@ namespace OpenRA.Traits
 		int2 GetDecorationOrigin(Actor self, WorldRenderer wr, string pos, int2 margin);
 	}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	public interface IDensityInfo : ITraitInfoInterface
 	{
 		Dictionary<CVec, byte> Density();
 	}
+=======
+	public interface IEditorSelectionLayer : ITraitInfoInterface { }
+	public interface IEditorPasteLayer : ITraitInfoInterface { }
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 	public interface IMapPreviewSignatureInfo : ITraitInfoInterface
 	{
-		void PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos, Color)> destinationBuffer);
+		void PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<(MPos Uv, Color Color)> destinationBuffer);
 	}
 
 	public interface IOccupySpaceInfo : ITraitInfoInterface
@@ -355,6 +386,7 @@ namespace OpenRA.Traits
 	public interface INotifySelection { void SelectionChanged(); }
 
 	public interface IWorldLoaded { void WorldLoaded(World w, WorldRenderer wr); }
+	public interface IPostWorldLoaded { void PostWorldLoaded(World w, WorldRenderer wr); }
 	public interface INotifyGameLoading { void GameLoading(World w); }
 	public interface INotifyGameLoaded { void GameLoaded(World w); }
 	public interface INotifyGameSaved { void GameSaved(World w); }
@@ -362,7 +394,7 @@ namespace OpenRA.Traits
 	public interface IGameSaveTraitData
 	{
 		List<MiniYamlNode> IssueTraitData(Actor self);
-		void ResolveTraitData(Actor self, List<MiniYamlNode> data);
+		void ResolveTraitData(Actor self, MiniYaml data);
 	}
 
 	[RequireExplicitImplementation]
@@ -448,6 +480,16 @@ namespace OpenRA.Traits
 		bool SpatiallyPartitionable { get; }
 	}
 
+	public enum PostProcessPassType { AfterShroud, AfterWorld, AfterActors }
+
+	[RequireExplicitImplementation]
+	public interface IRenderPostProcessPass
+	{
+		PostProcessPassType Type { get; }
+		bool Enabled { get; }
+		void Draw(WorldRenderer wr);
+	}
+
 	[Flags]
 	public enum SelectionPriorityModifiers
 	{
@@ -467,7 +509,7 @@ namespace OpenRA.Traits
 	public interface ISelection
 	{
 		int Hash { get; }
-		IEnumerable<Actor> Actors { get; }
+		IReadOnlyCollection<Actor> Actors { get; }
 
 		void Add(Actor a);
 		void Remove(Actor a);
@@ -498,7 +540,7 @@ namespace OpenRA.Traits
 	}
 
 	/// <summary>
-	/// Indicates target types as defined on <see cref="Traits.ITargetable"/> are present in a <see cref="Primitives.BitSet{T}"/>.
+	/// Indicates target types as defined on <see cref="ITargetable"/> are present in a <see cref="BitSet{T}"/>.
 	/// </summary>
 	public sealed class TargetableType { TargetableType() { } }
 
@@ -558,6 +600,7 @@ namespace OpenRA.Traits
 		public readonly bool IsVisible;
 		public readonly int DisplayOrder;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public LobbyOption(string id, string name, string description, bool visible, int displayorder,
 			IReadOnlyDictionary<string, string> values, string defaultValue, bool locked, string category = "")
 		{
@@ -565,9 +608,17 @@ namespace OpenRA.Traits
 			Name = name;
 			Description = description;
 			Category = category ?? "";
+=======
+		public LobbyOption(MapPreview map, string id, string name, string description, bool visible, int displayorder,
+			IReadOnlyDictionary<string, string> values, string defaultValue, bool locked)
+		{
+			Id = id;
+			Name = map.GetMessage(name);
+			Description = description != null ? map.GetMessage(description).Replace(@"\n", "\n") : null;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			IsVisible = visible;
 			DisplayOrder = displayorder;
-			Values = values;
+			Values = values.ToDictionary(v => v.Key, v => map.GetMessage(v.Value));
 			DefaultValue = defaultValue;
 			IsLocked = locked;
 		}
@@ -580,14 +631,19 @@ namespace OpenRA.Traits
 
 	public class LobbyBooleanOption : LobbyOption
 	{
-		static readonly Dictionary<string, string> BoolValues = new Dictionary<string, string>()
+		static readonly Dictionary<string, string> BoolValues = new()
 		{
 			{ true.ToString(), "Enabled" },
 			{ false.ToString(), "Disabled" }
 		};
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		public LobbyBooleanOption(string id, string name, string description, bool visible, int displayorder, bool defaultValue, bool locked, string category = "")
 			: base(id, name, description, visible, displayorder, new ReadOnlyDictionary<string, string>(BoolValues), defaultValue.ToString(), locked, category) { }
+=======
+		public LobbyBooleanOption(MapPreview map, string id, string name, string description, bool visible, int displayorder, bool defaultValue, bool locked)
+			: base(map, id, name, description, visible, displayorder, new ReadOnlyDictionary<string, string>(BoolValues), defaultValue.ToString(), locked) { }
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		public override string Label(string newValue)
 		{
@@ -627,6 +683,7 @@ namespace OpenRA.Traits
 		void PlayerDisconnected(Actor self, Player p);
 	}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 	public interface IAffectsMapLayer
 	{
 		MapLayers.Type Type { get; }
@@ -635,5 +692,15 @@ namespace OpenRA.Traits
 	public interface IAirborneVisibility
 	{
 		bool IsAirborne { get; set; }
+=======
+	// Type tag for crush class bits
+	public class CrushClass { }
+
+	[RequireExplicitImplementation]
+	public interface ICrushable
+	{
+		bool CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses);
+		LongBitSet<PlayerBitMask> CrushableBy(Actor self, BitSet<CrushClass> crushClasses);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 	}
 }

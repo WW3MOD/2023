@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -29,6 +29,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play after building placement if new construction options are available.")]
 		public readonly string NewOptionsNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display after building placement if new construction options are available.")]
 		public readonly string NewOptionsTextNotification = null;
 
@@ -36,11 +37,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play if building placement is not possible.")]
 		public readonly string CannotPlaceNotification = null;
 
+		[FluentReference(optional: true)]
 		[Desc("Text notification to display if building placement is not possible.")]
 		public readonly string CannotPlaceTextNotification = null;
 
 		[Desc("Hotkey to toggle between PlaceBuildingVariants when placing a structure.")]
-		public readonly HotkeyReference ToggleVariantKey = new HotkeyReference();
+		public readonly HotkeyReference ToggleVariantKey = new();
 
 		public override object Create(ActorInitializer init) { return new PlaceBuilding(this); }
 	}
@@ -230,7 +232,7 @@ namespace OpenRA.Mods.Common.Traits
 		void PlayNotification(Actor self)
 		{
 			Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", info.NewOptionsNotification, self.Owner.Faction.InternalName);
-			TextNotificationsManager.AddTransientLine(info.NewOptionsTextNotification, self.Owner);
+			TextNotificationsManager.AddTransientLine(self.Owner, info.NewOptionsTextNotification);
 
 			triggerNotification = false;
 			tick = 0;

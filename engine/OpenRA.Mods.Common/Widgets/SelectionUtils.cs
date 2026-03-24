@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -20,18 +20,21 @@ namespace OpenRA.Mods.Common.Widgets
 {
 	public static class SelectionUtils
 	{
-		public static IEnumerable<Actor> SelectActorsOnScreen(World world, WorldRenderer wr, IEnumerable<string> selectionClasses, IEnumerable<Player> players)
+		public static IEnumerable<Actor> SelectActorsOnScreen(
+			World world, WorldRenderer wr, IEnumerable<string> selectionClasses, IEnumerable<Player> players)
 		{
 			var actors = world.ScreenMap.ActorsInMouseBox(wr.Viewport.TopLeft, wr.Viewport.BottomRight).Select(a => a.Actor);
 			return SelectActorsByOwnerAndSelectionClass(actors, players, selectionClasses);
 		}
 
-		public static IEnumerable<Actor> SelectActorsInWorld(World world, IEnumerable<string> selectionClasses, IEnumerable<Player> players)
+		public static IEnumerable<Actor> SelectActorsInWorld(
+			World world, IEnumerable<string> selectionClasses, IEnumerable<Player> players)
 		{
 			return SelectActorsByOwnerAndSelectionClass(world.Actors.Where(a => a.IsInWorld), players, selectionClasses);
 		}
 
-		public static IEnumerable<Actor> SelectActorsByOwnerAndSelectionClass(IEnumerable<Actor> actors, IEnumerable<Player> owners, IEnumerable<string> selectionClasses)
+		public static IEnumerable<Actor> SelectActorsByOwnerAndSelectionClass(
+			IEnumerable<Actor> actors, IEnumerable<Player> owners, IEnumerable<string> selectionClasses)
 		{
 			return actors.Where(a =>
 			{

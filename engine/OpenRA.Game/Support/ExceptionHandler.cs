@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,13 +26,10 @@ namespace OpenRA
 			if (Game.EngineVersion != null)
 				Log.Write("exception", $"OpenRA engine version {Game.EngineVersion}");
 
-			if (Game.Settings != null && Game.Settings.Player != null && Game.Settings.Player.Language != null)
-				Log.Write("exception", $"OpenRA Language: {Game.Settings.Player.Language}");
-
 			if (Game.ModData != null)
 			{
-				var mod = Game.ModData.Manifest.Metadata;
-				Log.Write("exception", $"{mod.Title} mod version {mod.Version}");
+				var manifest = Game.ModData.Manifest;
+				Log.Write("exception", $"{manifest.Id} mod version {manifest.Metadata.Version}");
 			}
 
 			if (Game.OrderManager != null && Game.OrderManager.World != null && Game.OrderManager.World.Map != null)
@@ -43,8 +40,12 @@ namespace OpenRA
 
 			Log.Write("exception", $"Date: {DateTime.UtcNow:u}");
 			Log.Write("exception", $"Operating System: {Platform.CurrentPlatform} ({Platform.CurrentArchitecture}, {Environment.OSVersion})");
-			Log.Write("exception", $"Runtime Version: {Platform.RuntimeVersion}", Platform.RuntimeVersion);
-			Log.Write("exception", $"Installed Language: {CultureInfo.InstalledUICulture.TwoLetterISOLanguageName} (Installed) {CultureInfo.CurrentCulture.TwoLetterISOLanguageName} (Current) {CultureInfo.CurrentUICulture.TwoLetterISOLanguageName} (Current UI)");
+			Log.Write("exception", $"Runtime Version: {Platform.RuntimeVersion}");
+			Log.Write("exception",
+				"Installed Language: " +
+				$"{CultureInfo.InstalledUICulture.TwoLetterISOLanguageName} (Installed) " +
+				$"{CultureInfo.CurrentCulture.TwoLetterISOLanguageName} (Current) " +
+				$"{CultureInfo.CurrentUICulture.TwoLetterISOLanguageName} (Current UI)");
 
 			var rpt = BuildExceptionReport(ex).ToString();
 			Log.Write("exception", rpt);

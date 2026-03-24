@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,17 +11,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 
-namespace OpenRA
+namespace OpenRA.Mods.Common
 {
 	public class ModContent : IGlobalModData
 	{
-		public enum SourceType { Disc, RegistryDirectory, RegistryDirectoryFromFile }
 		public class ModPackage
 		{
+			[FluentReference]
 			public readonly string Title;
+			public readonly string Identifier;
 			public readonly string[] TestFiles = Array.Empty<string>();
 			public readonly string[] Sources = Array.Empty<string>();
 			public readonly bool Required;
@@ -29,7 +31,6 @@ namespace OpenRA
 
 			public ModPackage(MiniYaml yaml)
 			{
-				Title = yaml.Value;
 				FieldLoader.Load(this, yaml);
 			}
 
@@ -41,7 +42,8 @@ namespace OpenRA
 
 		public class ModSource
 		{
-			public readonly SourceType Type = SourceType.Disc;
+			[FieldLoader.Ignore]
+			public readonly MiniYaml Type;
 
 			// Used to find installation locations for SourceType.Install
 			public readonly string[] RegistryPrefixes = { string.Empty };
@@ -54,17 +56,23 @@ namespace OpenRA
 			public readonly MiniYaml IDFiles;
 
 			[FieldLoader.Ignore]
-			public readonly List<MiniYamlNode> Install;
+			public readonly ImmutableArray<MiniYamlNode> Install;
+
+			public readonly string TooltipText;
 
 			public ModSource(MiniYaml yaml)
 			{
 				Title = yaml.Value;
 
-				var idFiles = yaml.Nodes.FirstOrDefault(n => n.Key == "IDFiles");
+				var type = yaml.NodeWithKeyOrDefault("Type");
+				if (type != null)
+					Type = type.Value;
+
+				var idFiles = yaml.NodeWithKeyOrDefault("IDFiles");
 				if (idFiles != null)
 					IDFiles = idFiles.Value;
 
-				var installNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Install");
+				var installNode = yaml.NodeWithKeyOrDefault("Install");
 				if (installNode != null)
 					Install = installNode.Value.Nodes;
 
@@ -78,6 +86,7 @@ namespace OpenRA
 			public readonly string URL;
 			public readonly string MirrorList;
 			public readonly string SHA1;
+			public readonly string Type;
 			public readonly Dictionary<string, string> Extract;
 
 			public ModDownload(MiniYaml yaml)
@@ -87,18 +96,18 @@ namespace OpenRA
 			}
 		}
 
-		public readonly string InstallPromptMessage;
 		public readonly string QuickDownload;
-		public readonly string HeaderMessage;
-		public readonly string ContentInstallerMod = "modcontent";
+
+		[FieldLoader.Require]
+		public readonly string Mod;
 
 		[FieldLoader.LoadUsing(nameof(LoadPackages))]
-		public readonly Dictionary<string, ModPackage> Packages = new Dictionary<string, ModPackage>();
+		public readonly Dictionary<string, ModPackage> Packages = new();
 
 		static object LoadPackages(MiniYaml yaml)
 		{
 			var packages = new Dictionary<string, ModPackage>();
-			var packageNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Packages");
+			var packageNode = yaml.NodeWithKeyOrDefault("Packages");
 			if (packageNode != null)
 				foreach (var node in packageNode.Value.Nodes)
 					packages.Add(node.Key, new ModPackage(node.Value));
@@ -111,7 +120,7 @@ namespace OpenRA
 
 		static object LoadDownloads(MiniYaml yaml)
 		{
-			var downloadNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Downloads");
+			var downloadNode = yaml.NodeWithKeyOrDefault("Downloads");
 			return downloadNode != null ? downloadNode.Value.Nodes.Select(n => n.Key).ToArray() : Array.Empty<string>();
 		}
 
@@ -120,7 +129,7 @@ namespace OpenRA
 
 		static object LoadSources(MiniYaml yaml)
 		{
-			var sourceNode = yaml.Nodes.FirstOrDefault(n => n.Key == "Sources");
+			var sourceNode = yaml.NodeWithKeyOrDefault("Sources");
 			return sourceNode != null ? sourceNode.Value.Nodes.Select(n => n.Key).ToArray() : Array.Empty<string>();
 		}
 	}

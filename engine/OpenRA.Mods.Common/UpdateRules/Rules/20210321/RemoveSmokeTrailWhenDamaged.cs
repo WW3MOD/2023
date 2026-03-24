@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			}
 		}
 
-		readonly Dictionary<string, List<string>> locations = new Dictionary<string, List<string>>();
+		readonly Dictionary<string, List<string>> locations = new();
 
 		public override IEnumerable<string> AfterUpdate(ModData modData)
 		{
@@ -38,9 +38,9 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 			locations.Clear();
 		}
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
-			var locationKey = $"{actorNode.Key} ({actorNode.Location.Filename})";
+			var locationKey = $"{actorNode.Key} ({actorNode.Location.Name})";
 			var anyConditionalSmokeTrail = false;
 
 			foreach (var smokeTrail in actorNode.ChildrenMatching("SmokeTrailWhenDamaged"))
@@ -94,7 +94,7 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 			if (anyConditionalSmokeTrail)
 			{
-				var grantCondition = new MiniYamlNode("GrantConditionOnDamageState@SmokeTrail", "");
+				var grantCondition = new MiniYamlNodeBuilder("GrantConditionOnDamageState@SmokeTrail", "");
 				grantCondition.AddNode("Condition", FieldSaver.FormatValue("enable-smoke"));
 				actorNode.AddNode(grantCondition);
 			}

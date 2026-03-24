@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -69,6 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class AmmoPool : INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync
 	{
 		public readonly AmmoPoolInfo Info;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		readonly Stack<int> tokens = new Stack<int>();
 		IReloadAmmoModifier[] modifiers;
 
@@ -77,6 +78,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// Supply trucks with Hunt stance should seek out these units.
 		/// </summary>
 		public bool NeedsResupply { get; private set; }
+=======
+		readonly Stack<int> tokens = new();
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		[Sync]
 		public int RemainingTicks;

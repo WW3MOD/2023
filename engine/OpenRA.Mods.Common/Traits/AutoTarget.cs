@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -86,7 +86,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string FireAtWillCondition = null;
 
 		[FieldLoader.Ignore]
-		public readonly Dictionary<UnitStance, string> ConditionByStance = new Dictionary<UnitStance, string>();
+		public readonly Dictionary<UnitStance, string> ConditionByStance = new();
 
 		[Desc("Allow the player to change the unit stance.")]
 		public readonly bool EnableStances = true;
@@ -177,8 +177,8 @@ namespace OpenRA.Mods.Common.Traits
 				{ "fireatwill", "Fire at Will" },
 			};
 
-			yield return new EditorActorDropdown("Stance", EditorStanceDisplayOrder, labels,
-				actor =>
+			yield return new EditorActorDropdown("Stance", EditorStanceDisplayOrder, _ => labels,
+				(actor, _) =>
 				{
 					var init = actor.GetInitOrDefault<StanceInit>(this);
 					var stance = init?.Value ?? InitialStance;
@@ -197,7 +197,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		int nextScanTime = 0;
 
-		public UnitStance Stance => stance;
+		public UnitStance Stance { get; private set; }
+		public bool AllowMove => allowMovement && Stance > UnitStance.Defend;
 
 		public EngagementStance EngagementStanceValue => engagementStance;
 
@@ -210,6 +211,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public UnitStance PredictedStance;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 
 		// NOT SYNCED: do not refer to this anywhere other than UI code
 		public EngagementStance PredictedEngagementStance;
@@ -228,6 +230,8 @@ namespace OpenRA.Mods.Common.Traits
 		EngagementStance engagementStance;
 		CohesionMode cohesion;
 		ResupplyBehavior resupplyBehavior;
+=======
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		IOverrideAutoTarget[] overrideAutoTarget;
 		INotifyStanceChanged[] notifyStanceChanged;
 		INotifyEngagementStanceChanged[] notifyEngagementStanceChanged;
@@ -238,11 +242,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void SetStance(Actor self, UnitStance value)
 		{
-			if (stance == value)
+			if (Stance == value)
 				return;
 
-			var oldStance = stance;
-			stance = value;
+			var oldStance = Stance;
+			Stance = PredictedStance = value;
 			ApplyStanceCondition(self);
 
 			// Reset ambush tracking when leaving Ambush stance
@@ -250,11 +254,11 @@ namespace OpenRA.Mods.Common.Traits
 				ResetAmbushState();
 
 			foreach (var nsc in notifyStanceChanged)
-				nsc.StanceChanged(self, this, oldStance, stance);
+				nsc.StanceChanged(self, this, oldStance, Stance);
 
 			if (self.CurrentActivity != null)
 				foreach (var a in self.CurrentActivity.ActivitiesImplementing<IActivityNotifyStanceChanged>())
-					a.StanceChanged(self, this, oldStance, stance);
+					a.StanceChanged(self, this, oldStance, Stance);
 		}
 
 		public void SetEngagementStance(Actor self, EngagementStance value)
@@ -295,7 +299,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (conditionToken != Actor.InvalidConditionToken)
 				conditionToken = self.RevokeCondition(conditionToken);
 
-			if (Info.ConditionByStance.TryGetValue(stance, out var condition))
+			if (Info.ConditionByStance.TryGetValue(Stance, out var condition))
 				conditionToken = self.GrantCondition(condition);
 		}
 
@@ -314,6 +318,7 @@ namespace OpenRA.Mods.Common.Traits
 			var self = init.Self;
 			ActiveAttackBases = self.TraitsImplementing<AttackBase>().ToArray().Where(t => !t.IsTraitDisabled);
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			stance = init.GetValue<StanceInit, UnitStance>(self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
 			engagementStance = init.GetValue<EngagementStanceInit, EngagementStance>(
 				self.Owner.IsBot || !self.Owner.Playable ? info.InitialEngagementStanceAI : info.InitialEngagementStance);
@@ -325,6 +330,11 @@ namespace OpenRA.Mods.Common.Traits
 			PredictedEngagementStance = engagementStance;
 			PredictedCohesion = cohesion;
 			PredictedResupplyBehavior = resupplyBehavior;
+=======
+			Stance = init.GetValue<StanceInit, UnitStance>(self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
+
+			PredictedStance = Stance;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			allowMovement = Info.AllowMovement && self.TraitOrDefault<IMove>() != null;
 		}
@@ -383,6 +393,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			PredictedStance = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialStanceAI : Info.InitialStance;
 			SetStance(self, PredictedStance);
 
@@ -394,6 +405,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			PredictedResupplyBehavior = self.Owner.IsBot || !self.Owner.Playable ? Info.InitialResupplyBehaviorAI : Info.InitialResupplyBehavior;
 			SetResupplyBehavior(self, PredictedResupplyBehavior);
+=======
+			SetStance(self, self.Owner.IsBot || !self.Owner.Playable ? Info.InitialStanceAI : Info.InitialStance);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
@@ -438,8 +452,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Don't fire at an invisible enemy when we can't move to reveal it
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
 			if (!allowMove && !attacker.CanBeViewedByPlayer(self.Owner))
+=======
+			if (!AllowMove && !attacker.CanBeViewedByPlayer(self.Owner))
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				return;
 
 			// Not a lot we can do about things we can't hurt... although maybe we should automatically run away?
@@ -451,8 +469,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (attacker.AppearsFriendlyTo(self))
 				return;
 
+			// Respect AutoAttack priorities.
+			if (Stance > UnitStance.ReturnFire)
+			{
+				var autoTarget = ScanForTarget(self, AllowMove, true);
+
+				if (autoTarget.Type != TargetType.Invalid)
+					attacker = autoTarget.Actor;
+			}
+
 			Aggressor = attacker;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			// If in Ambush, trigger self and coordinate nearby allies
 			if (Stance == UnitStance.Ambush)
 			{
@@ -461,6 +489,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			Attack(Target.FromActor(Aggressor), allowMove);
+=======
+			Attack(Target.FromActor(Aggressor), AllowMove);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -468,6 +499,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || !Info.ScanOnIdle || (Stance < UnitStance.Ambush))
 				return;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (Stance == UnitStance.Ambush)
 			{
 				AmbushTickIdle(self);
@@ -477,8 +509,10 @@ namespace OpenRA.Mods.Common.Traits
 			// Hunt: actively chase targets. Balanced: allow moving to clear LOS only (handled in Attack activity).
 			// Defensive/HoldPosition: no auto-move toward targets.
 			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
+=======
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			var allowTurn = Info.AllowTurning && Stance > UnitStance.HoldFire;
-			ScanAndAttack(self, allowMove, allowTurn);
+			ScanAndAttack(self, AllowMove, allowTurn);
 		}
 
 		void AmbushTickIdle(Actor self)
@@ -581,7 +615,9 @@ namespace OpenRA.Mods.Common.Traits
 					if (attackStances != PlayerRelationship.None)
 					{
 						var range = Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange();
-						return ChooseTarget(self, ab, attackStances, range, allowMove, allowTurn);
+						var target = ChooseTarget(self, ab, attackStances, range, allowMove, allowTurn);
+						if (target.Type != TargetType.Invalid)
+							return target;
 					}
 				}
 			}
@@ -670,6 +706,12 @@ namespace OpenRA.Mods.Common.Traits
 				else if (target.Type == TargetType.FrozenActor)
 				{
 					if (attackStances == PlayerRelationship.Enemy && self.Owner.RelationshipWith(target.FrozenActor.Owner) == PlayerRelationship.Ally)
+						continue;
+
+					// Bot-controlled units aren't yet capable of understanding visibility changes
+					// Prevent that bot-controlled units endlessly fire at frozen actors.
+					// TODO: Teach the AI to support long range artillery units with units that provide line of sight
+					if (self.Owner.IsBot && target.FrozenActor.Actor == null)
 						continue;
 
 					targetTypes = target.FrozenActor.TargetTypes;

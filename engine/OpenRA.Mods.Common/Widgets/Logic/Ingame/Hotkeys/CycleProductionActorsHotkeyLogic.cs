@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			var facilities = world.ActorsHavingTrait<Production>()
 				.Where(a => a.Owner == player && a.OccupiesSpace != null && !a.Info.HasTraitInfo<BaseBuildingInfo>()
 					&& a.TraitsImplementing<Production>().Any(t => !t.IsTraitDisabled))
-				.OrderBy(f => f.TraitsImplementing<Production>().First(t => !t.IsTraitDisabled).Info.Produces.First())
+				.OrderBy(f => f.TraitsImplementing<Production>().First(t => !t.IsTraitDisabled).Info.Produces[0])
 				.ToList();
 
 			if (facilities.Count == 0)
@@ -58,8 +58,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				.Skip(1)
 				.FirstOrDefault();
 
-			if (next == null)
-				next = facilities.First();
+			next ??= facilities[0];
 
 			Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", clickSound, null);
 

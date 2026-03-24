@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 using OpenRA.Mods.Common.Projectiles;
+=======
+using OpenRA.Mods.Common.Traits.Render;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -58,7 +62,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist Recoil = WDist.Zero;
 
 		[Desc("Recoil recovery per-frame")]
-		public readonly WDist RecoilRecovery = new WDist(9);
+		public readonly WDist RecoilRecovery = new(9);
 
 		[SequenceReference]
 		[Desc("Muzzle flash sequence to render")]
@@ -112,8 +116,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstDelays.Length > 1 && (WeaponInfo.BurstDelays.Length != WeaponInfo.Burst - 1))
 				throw new YamlException($"Weapon '{weaponToLower}' has an invalid number of BurstDelays, must be single entry or Burst - 1.");
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (WeaponInfo.BurstWait == 0)
 				throw new YamlException("Weapons must define BurstWait: '{0}'".F(weaponToLower));
+=======
+			if (WeaponInfo.ReloadDelay <= 0)
+				throw new YamlException($"Weapon '{weaponToLower}' ReloadDelay value must not be equal to or lower than 0");
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			base.RulesetLoaded(rules, ai);
 		}
@@ -123,13 +132,17 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly WeaponInfo Weapon;
 		public readonly Barrel[] Barrels;
-
-		readonly Actor self;
 		Turreted turret;
+		Hovers hovers;
+
 		BodyOrientation coords;
 		INotifyBurstComplete[] notifyBurstComplete;
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		INotifyMagazineComplete[] notifyMagazineComplete;
 		INotifyAttack[] notifyAttacks;
+=======
+		List<(Actor NotifyActor, INotifyAttack Notify)> notifyAttacks;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 		int conditionToken = Actor.InvalidConditionToken;
 
@@ -144,7 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 		int currentBarrel;
 		readonly int barrelCount;
 
-		readonly List<(int Ticks, int Burst, Action<int> Func)> delayedActions = new List<(int, int, Action<int>)>();
+		readonly List<(int Ticks, int Burst, Action<int> Func)> delayedActions = new();
 
 		public WDist Recoil;
 		public int Magazine { get; protected set; }
@@ -173,8 +186,12 @@ namespace OpenRA.Mods.Common.Traits
 		public Armament(Actor self, ArmamentInfo info)
 			: base(info)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			this.self = self;
 			AimInitialTargetPosition = new List<WPos>();
+=======
+			Actor = self;
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			Weapon = info.WeaponInfo;
 			Burst = Weapon.Burst;
@@ -226,10 +243,15 @@ namespace OpenRA.Mods.Common.Traits
 			Burst = Weapon.Burst;
 
 			turret = self.TraitsImplementing<Turreted>().FirstOrDefault(t => t.Name == Info.Turret);
+			hovers = self.TraitOrDefault<Hovers>();
 			coords = self.Trait<BodyOrientation>();
 			notifyBurstComplete = self.TraitsImplementing<INotifyBurstComplete>().ToArray();
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			notifyMagazineComplete = self.TraitsImplementing<INotifyMagazineComplete>().ToArray();
 			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
+=======
+			notifyAttacks = self.TraitsImplementing<INotifyAttack>().Select(a => (self, a)).ToList();
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			rangeModifiers = self.TraitsImplementing<IRangeModifier>().ToArray().Select(m => m.GetRangeModifier());
 			burstWaitModifiers = self.TraitsImplementing<IBurstWaitModifier>().ToArray().Select(m => m.GetBurstWaitModifier());
@@ -243,7 +265,21 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 		}
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		void UpdateReloadingCondition(Actor self)
+=======
+		public void AddNotifyAttacks(Actor attacker, INotifyAttack[] notifyAttacks)
+		{
+			this.notifyAttacks.AddRange(notifyAttacks.Select(a => (attacker, a)));
+		}
+
+		public void RemoveNotifyAttacks(INotifyAttack[] notifyAttacks)
+		{
+			this.notifyAttacks.RemoveAll(pair => notifyAttacks.Any(notify => notify == pair.Notify));
+		}
+
+		void UpdateCondition(Actor self)
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 		{
 			if (string.IsNullOrEmpty(Info.ReloadingCondition))
 				return;
@@ -323,7 +359,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Note: facing is only used by the legacy positioning code
 		// The world coordinate model uses Actor.Orientation
-		public virtual Barrel CheckFire(Actor self, IFacing facing, in Target target)
+		public virtual bool CheckFire(Actor self, IFacing facing, in Target target)
 		{
 			if (!target.Equals(oldTarget))
 			{
@@ -334,8 +370,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (!CanFire(self, target))
-				return null;
+				return false;
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			if (lastFiredTick != -1 && self.World.WorldTick - lastFiredTick > Weapon.BurstWait)
 			{
 				// Reset burst if idle time exceeds Weapon.BurstWait
@@ -351,12 +388,30 @@ namespace OpenRA.Mods.Common.Traits
 
 			UpdateMagazine(self, target);
 			UpdateBurst(self, target);
+=======
+			if (ticksSinceLastShot >= Weapon.ReloadDelay)
+				Burst = Weapon.Burst;
 
-			return barrel;
+			ticksSinceLastShot = 0;
+			do
+			{
+				// If Weapon.Burst == 1, cycle through all LocalOffsets, otherwise use the offset corresponding to current Burst
+				currentBarrel %= barrelCount;
+				var barrel = Weapon.Burst == 1 ? Barrels[currentBarrel] : Barrels[Burst % Barrels.Length];
+				currentBarrel++;
+
+				FireBarrel(self, facing, target, barrel);
+				UpdateBurst(self, target);
+			}
+			while (FireDelay == 0 && CanFire(self, target));
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
+
+			return true;
 		}
 
 		protected virtual void FireBarrel(Actor self, IFacing facing, in Target target, Barrel barrel)
 		{
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			Target = target;
 			lastFiredTick = self.World.WorldTick;
 
@@ -367,12 +422,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var na in notifyAttacks)
 				na.PreparingAttack(self, target, this, barrel);
+=======
+			foreach (var (notifyActor, notify) in notifyAttacks)
+				notify.PreparingAttack(notifyActor, target, this, barrel);
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			WPos MuzzlePosition() => self.CenterPosition + MuzzleOffset(self, barrel);
 			WAngle MuzzleFacing() => MuzzleOrientation(self, barrel).Yaw;
 			var muzzleOrientation = WRot.FromYaw(MuzzleFacing());
 
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.PositionClosestTo(MuzzlePosition());
+=======
+			var passiveTarget = Weapon.TargetActorCenter ? target.CenterPosition : target.Positions.ClosestToIgnoringPath(MuzzlePosition());
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 			var initialOffset = Weapon.FirstBurstTargetOffset;
 			var targetingVector = WVec.Zero;
 
@@ -400,9 +463,17 @@ namespace OpenRA.Mods.Common.Traits
 				Weapon = Weapon,
 				Facing = MuzzleFacing(),
 				CurrentMuzzleFacing = MuzzleFacing,
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				DamageModifiers = damageModifiers.ToArray(),
 				InaccuracyModifiers = inaccuracyModifiers.ToArray(),
 				RangeModifiers = rangeModifiers.ToArray(),
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
+=======
+
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 				Source = MuzzlePosition(),
 				CurrentSource = MuzzlePosition,
 				SourceActor = self,
@@ -457,11 +528,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (burst == args.Weapon.Burst && args.Weapon.StartBurstReport != null && args.Weapon.StartBurstReport.Length > 0)
 						Game.Sound.Play(SoundType.World, args.Weapon.StartBurstReport, self.World, self.CenterPosition);
 
-					foreach (var na in notifyAttacks)
-						na.Attacking(self, delayedTarget, this, barrel);
-
 					Recoil = Info.Recoil;
 				}
+
+				foreach (var (notifyActor, notify) in notifyAttacks)
+					notify.Attacking(notifyActor, delayedTarget, this, barrel);
 			});
 		}
 
@@ -507,11 +578,28 @@ namespace OpenRA.Mods.Common.Traits
 						SetBurstWait(Weapon.BurstDelays[Weapon.Burst - (Burst + 1)]);
 				}
 			}
+<<<<<<< C:/Users/fredr/AppData/Local/Temp/mo.tmp
 		}
 
 		protected virtual void ResetBurst(Actor self)
 		{
 			var burstmodifiers = burstModifiers.ToArray();
+=======
+			else
+			{
+				var modifiers = reloadModifiers.ToArray();
+				FireDelay = Util.ApplyPercentageModifiers(Weapon.ReloadDelay, modifiers);
+				if (FireDelay <= 0)
+					FireDelay = 1;
+
+				Burst = Weapon.Burst;
+
+				if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Length > 0)
+					ScheduleDelayedAction(
+						Weapon.AfterFireSoundDelay,
+						Burst,
+						burst => Game.Sound.Play(SoundType.World, Weapon.AfterFireSound, self.World, self.CenterPosition));
+>>>>>>> C:/Users/fredr/AppData/Local/Temp/mu.tmp
 
 			if (Weapon.BurstRandomize > 0)
 			{
@@ -541,6 +629,9 @@ namespace OpenRA.Mods.Common.Traits
 			// Weapon offset in turret coordinates
 			var localOffset = b.Offset + new WVec(-Recoil, WDist.Zero, WDist.Zero);
 
+			if (hovers != null)
+				localOffset += hovers.WorldVisualOffset;
+
 			// Turret coordinates to body coordinates
 			var bodyOrientation = coords.QuantizeOrientation(self.Orientation);
 			if (turret != null)
@@ -562,6 +653,6 @@ namespace OpenRA.Mods.Common.Traits
 			return WRot.FromYaw(b.Yaw).Rotate(turret?.WorldOrientation ?? self.Orientation);
 		}
 
-		public Actor Actor => self;
+		public Actor Actor { get; }
 	}
 }

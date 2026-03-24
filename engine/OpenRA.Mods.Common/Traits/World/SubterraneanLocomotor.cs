@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -22,13 +22,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly short SubterraneanTransitionCost = 0;
 
 		[Desc("The terrain types that this actor can transition on. Leave empty to allow any.")]
-		public readonly HashSet<string> SubterraneanTransitionTerrainTypes = new HashSet<string>();
+		public readonly HashSet<string> SubterraneanTransitionTerrainTypes = new();
 
 		[Desc("Can this actor transition on slopes?")]
 		public readonly bool SubterraneanTransitionOnRamps = false;
 
 		[Desc("Depth at which the subterranean condition is applied.")]
-		public readonly WDist SubterraneanTransitionDepth = new WDist(-1024);
+		public readonly WDist SubterraneanTransitionDepth = new(-1024);
 
 		public override bool DisableDomainPassabilityCheck => true;
 

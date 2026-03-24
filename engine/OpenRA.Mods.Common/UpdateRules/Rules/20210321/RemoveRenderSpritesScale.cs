@@ -1,6 +1,6 @@
 ﻿#region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,11 +19,11 @@ namespace OpenRA.Mods.Common.UpdateRules.Rules
 
 		public override string Description => "The Scale option was removed from RenderSprites. Scale can now be defined on individual sequence definitions.";
 
-		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNode actorNode)
+		public override IEnumerable<string> UpdateActorNode(ModData modData, MiniYamlNodeBuilder actorNode)
 		{
 			foreach (var renderSprites in actorNode.ChildrenMatching("RenderSprites"))
 				if (renderSprites.RemoveNodes("Scale") > 0)
-					yield return $"The actor-level scaling has been removed from {actorNode.Key} ({actorNode.Location.Filename}).\n" +
+					yield return $"The actor-level scaling has been removed from {actorNode.Key} ({actorNode.Location.Name}).\n" +
 						"You must manually define Scale on its sequences instead.";
 		}
 	}

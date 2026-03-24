@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,8 +24,7 @@ namespace OpenRA.Mods.Common.Widgets
 		public Func<bool> IsChecked = () => false;
 
 		readonly CachedTransform<(string, bool), CachedTransform<(bool, bool, bool, bool, bool), Sprite>> getCheckmarkImageCache
-			= new CachedTransform<(string, bool), CachedTransform<(bool, bool, bool, bool, bool), Sprite>>(
-			((string CheckType, bool Checked) args) =>
+			= new(((string CheckType, bool Checked) args) =>
 			{
 				var variantImageCollection = "checkmark-" + args.CheckType;
 				var variantBaseName = args.Checked ? "checked" : "unchecked";
@@ -79,7 +78,11 @@ namespace OpenRA.Mods.Common.Widgets
 			var checkmarkImage = getCheckmarkImageCache
 				.Update((GetCheckmark(), IsChecked()))
 				.Update((disabled, Depressed, hover, false, IsHighlighted()));
-			WidgetUtils.DrawSprite(checkmarkImage, new float2(rect.Right - (int)((rect.Height + checkmarkImage.Size.X) / 2), rect.Top + (int)((rect.Height - checkmarkImage.Size.Y) / 2)));
+			WidgetUtils.DrawSprite(
+				checkmarkImage,
+				new float2(
+					rect.Right - (int)((rect.Height + checkmarkImage.Size.X) / 2),
+					rect.Top + (int)((rect.Height - checkmarkImage.Size.Y) / 2)));
 		}
 
 		public override Widget Clone() { return new CheckboxWidget(this); }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -49,10 +49,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Sequence to play for granting actor when activated.",
 			"This requires the actor to have the WithSpriteBody trait or one of its derivatives.")]
 		public readonly string Sequence = "active";
-
-		[CursorReference]
-		[Desc("Cursor to display when there are no units to apply the condition in range.")]
-		public readonly string BlockedCursor = "move-blocked";
 
 		public readonly string FootprintImage = "overlay";
 
@@ -104,11 +100,12 @@ namespace OpenRA.Mods.Common.Traits
 		public IEnumerable<Actor> UnitsInRange(CPos xy)
 		{
 			var tiles = CellsMatching(xy, footprint, info.Dimensions);
-			var units = new List<Actor>();
+			var units = new HashSet<Actor>();
 			foreach (var t in tiles)
-				units.AddRange(Self.World.ActorMap.GetActorsAt(t));
+				foreach (var a in Self.World.ActorMap.GetActorsAt(t))
+					units.Add(a);
 
-			return units.Distinct().Where(a =>
+			return units.Where(a =>
 			{
 				if (!info.ValidRelationships.HasRelationship(Self.Owner.RelationshipWith(a.Owner)))
 					return false;
@@ -118,7 +115,7 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
-		class SelectConditionTarget : OrderGenerator
+		sealed class SelectConditionTarget : OrderGenerator
 		{
 			readonly GrantExternalConditionPower power;
 			readonly char[] footprint;
@@ -140,7 +137,7 @@ namespace OpenRA.Mods.Common.Traits
 				footprint = power.info.Footprint.Where(c => !char.IsWhiteSpace(c)).ToArray();
 				dimensions = power.info.Dimensions;
 
-				var sequence = world.Map.Rules.Sequences.GetSequence(power.info.FootprintImage, power.info.FootprintSequence);
+				var sequence = world.Map.Sequences.GetSequence(power.info.FootprintImage, power.info.FootprintSequence);
 				tile = sequence.GetSprite(0);
 				alpha = sequence.GetAlpha(0);
 			}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Widgets;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -21,17 +22,19 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This trait allows setting a time limit on matches. Attach this to the World actor.")]
 	public class TimeLimitManagerInfo : TraitInfo, ILobbyOptions, IRulesetLoaded
 	{
+		[FluentReference]
 		[Desc("Label that will be shown for the time limit option in the lobby.")]
-		public readonly string TimeLimitLabel = "Time Limit";
+		public readonly string TimeLimitLabel = "dropdown-time-limit.label";
 
+		[FluentReference]
 		[Desc("Tooltip description that will be shown for the time limit option in the lobby.")]
-		public readonly string TimeLimitDescription = "Player or team with the highest score after this time wins";
+		public readonly string TimeLimitDescription = "dropdown-time-limit.description";
 
 		[Desc("Time Limit options that will be shown in the lobby dropdown. Values are in minutes.")]
 		public readonly int[] TimeLimitOptions = { 0, 10, 20, 30, 40, 60, 90 };
 
 		[Desc("List of remaining minutes of game time when a text and optional speech notification should be made to players.")]
-		public readonly Dictionary<int, string> TimeLimitWarnings = new Dictionary<int, string>
+		public readonly Dictionary<int, string> TimeLimitWarnings = new()
 		{
 			{ 1, null },
 			{ 2, null },
@@ -74,18 +77,24 @@ namespace OpenRA.Mods.Common.Traits
 				throw new YamlException("TimeLimitDefault must be a value from TimeLimitOptions");
 		}
 
+		[FluentReference]
+		const string NoTimeLimit = "options-time-limit.no-limit";
+
+		[FluentReference("minutes")]
+		const string TimeLimitOption = "options-time-limit.options";
+
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			var timelimits = TimeLimitOptions.ToDictionary(c => c.ToString(), c =>
+			var timelimits = TimeLimitOptions.ToDictionary(m => m.ToStringInvariant(), m =>
 			{
-				if (c == 0)
-					return "No limit";
+				if (m == 0)
+					return FluentProvider.GetMessage(NoTimeLimit);
 				else
-					return c.ToString() + $" minute{(c > 1 ? "s" : null)}";
+					return FluentProvider.GetMessage(TimeLimitOption, "minutes", m);
 			});
 
-			yield return new LobbyOption("timelimit", TimeLimitLabel, TimeLimitDescription, TimeLimitDropdownVisible, TimeLimitDisplayOrder,
-				timelimits, TimeLimitDefault.ToString(), TimeLimitLocked);
+			yield return new LobbyOption(map, "timelimit", TimeLimitLabel, TimeLimitDescription, TimeLimitDropdownVisible, TimeLimitDisplayOrder,
+				timelimits, TimeLimitDefault.ToStringInvariant(), TimeLimitLocked);
 		}
 
 		public override object Create(ActorInitializer init) { return new TimeLimitManager(init.Self, this); }
@@ -93,6 +102,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class TimeLimitManager : INotifyTimeLimit, ITick, IWorldLoaded
 	{
+		[FluentReference]
+		const string TimeLimitExpired = "notification-time-limit-expired";
+
 		readonly TimeLimitManagerInfo info;
 		readonly int ticksPerSecond;
 		LabelWidget countdownLabel;
@@ -108,7 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 			Notification = info.Notification;
 			ticksPerSecond = 1000 / self.World.Timestep;
 
-			var tl = self.World.LobbyInfo.GlobalSettings.OptionOrDefault("timelimit", info.TimeLimitDefault.ToString());
+			var tl = self.World.LobbyInfo.GlobalSettings.OptionOrDefault("timelimit", info.TimeLimitDefault.ToStringInvariant());
 			if (!int.TryParse(tl, out TimeLimit))
 				TimeLimit = info.TimeLimitDefault;
 
@@ -125,7 +137,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (countdownLabel != null)
 			{
 				countdown = new CachedTransform<int, string>(t =>
-					info.CountdownText.F(WidgetUtils.FormatTime(t, true, w.Timestep)));
+					info.CountdownText.FormatCurrent(WidgetUtils.FormatTime(t, w.Timestep)));
 				countdownLabel.GetText = () => TimeLimit > 0 ? countdown.Update(ticksRemaining) : "";
 			}
 		}
@@ -156,7 +168,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (ticksRemaining == m * 60 * ticksPerSecond)
 				{
-					TextNotificationsManager.AddSystemLine(Notification.F(m, m > 1 ? "s" : null));
+					TextNotificationsManager.AddSystemLine(Notification.FormatCurrent(m, m > 1 ? "s" : null));
 
 					var faction = self.World.LocalPlayer?.Faction.InternalName;
 					Game.Sound.PlayNotification(self.World.Map.Rules, self.World.LocalPlayer, "Speech", info.TimeLimitWarnings[m], faction);
@@ -170,7 +182,7 @@ namespace OpenRA.Mods.Common.Traits
 				countdownLabel.GetText = () => null;
 
 			if (!info.SkipTimerExpiredNotification)
-				TextNotificationsManager.AddSystemLine("Time limit has expired.");
+				TextNotificationsManager.AddSystemLine(FluentProvider.GetMessage(TimeLimitExpired));
 		}
 	}
 }

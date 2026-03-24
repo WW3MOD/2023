@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,70 +10,69 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using OpenRA.FileFormats;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public static class ReplayUtils
 	{
-		[TranslationReference]
-		static readonly string IncompatibleReplayTitle = "incompatible-replay-title";
+		[FluentReference]
+		const string IncompatibleReplayTitle = "dialog-incompatible-replay.title";
 
-		[TranslationReference]
-		static readonly string IncompatibleReplayPrompt = "incompatible-replay-prompt";
+		[FluentReference]
+		const string IncompatibleReplayPrompt = "dialog-incompatible-replay.prompt";
 
-		[TranslationReference]
-		static readonly string IncompatibleReplayAccept = "incompatible-replay-accept";
+		[FluentReference]
+		const string IncompatibleReplayAccept = "dialog-incompatible-replay.confirm";
 
-		[TranslationReference]
-		static readonly string UnknownVersion = "incompatible-replay-unknown-version";
+		[FluentReference]
+		const string UnknownVersion = "dialog-incompatible-replay.prompt-unknown-version";
 
-		[TranslationReference]
-		static readonly string UnknownMod = "incompatible-replay-unknown-mod";
+		[FluentReference]
+		const string UnknownMod = "dialog-incompatible-replay.prompt-unknown-mod";
 
-		[TranslationReference("mod")]
-		static readonly string UnvailableMod = "incompatible-replay-unavailable-mod";
+		[FluentReference("mod")]
+		const string UnvailableMod = "dialog-incompatible-replay.prompt-unavailable-mod";
 
-		[TranslationReference("version")]
-		static readonly string IncompatibleVersion = "incompatible-replay-incompatible-version";
+		[FluentReference("version")]
+		const string IncompatibleVersion = "dialog-incompatible-replay.prompt-incompatible-version";
 
-		[TranslationReference("map")]
-		static readonly string UnvailableMap = "incompatible-replay-unavailable-map";
+		[FluentReference("map")]
+		const string UnvailableMap = "dialog-incompatible-replay.prompt-unavailable-map";
 
 		static readonly Action DoNothing = () => { };
 
 		public static bool PromptConfirmReplayCompatibility(ReplayMetadata replayMeta, ModData modData, Action onCancel = null)
 		{
-			if (onCancel == null)
-				onCancel = DoNothing;
+			onCancel ??= DoNothing;
 
 			if (replayMeta == null)
-				return IncompatibleReplayDialog(IncompatibleReplayPrompt, null, modData, onCancel);
+				return IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
 
 			var version = replayMeta.GameInfo.Version;
 			if (version == null)
-				return IncompatibleReplayDialog(UnknownVersion, null, modData, onCancel);
+				return IncompatibleReplayDialog(modData, onCancel, UnknownVersion);
 
 			var mod = replayMeta.GameInfo.Mod;
 			if (mod == null)
-				return IncompatibleReplayDialog(UnknownMod, null, modData, onCancel);
+				return IncompatibleReplayDialog(modData, onCancel, UnknownMod);
 
 			if (!Game.Mods.ContainsKey(mod))
-				return IncompatibleReplayDialog(UnvailableMod, Translation.Arguments("mod", mod), modData, onCancel);
+				return IncompatibleReplayDialog(modData, onCancel, UnvailableMod, "mod", mod);
 
 			if (Game.Mods[mod].Metadata.Version != version)
-				return IncompatibleReplayDialog(IncompatibleVersion, Translation.Arguments("version", version), modData, onCancel);
+				return IncompatibleReplayDialog(modData, onCancel, IncompatibleVersion, "version", version);
 
 			if (replayMeta.GameInfo.MapPreview.Status != MapStatus.Available)
-				return IncompatibleReplayDialog(UnvailableMap, Translation.Arguments("map", replayMeta.GameInfo.MapUid), modData, onCancel);
+				return IncompatibleReplayDialog(modData, onCancel, UnvailableMap, "map", replayMeta.GameInfo.MapUid);
 
 			return true;
 		}
 
-		static bool IncompatibleReplayDialog(string text, Dictionary<string, object> textArguments, ModData modData, Action onCancel)
+		static bool IncompatibleReplayDialog(ModData modData, Action onCancel, string text, params object[] args)
 		{
-			ConfirmationDialogs.ButtonPrompt(modData, IncompatibleReplayTitle, text, textArguments: textArguments, onCancel: onCancel, cancelText: IncompatibleReplayAccept);
+			ConfirmationDialogs.ButtonPrompt(
+				modData, IncompatibleReplayTitle, text, textArguments: args, onCancel: onCancel, cancelText: IncompatibleReplayAccept);
 			return false;
 		}
 	}

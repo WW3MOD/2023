@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -48,14 +48,12 @@ namespace OpenRA.Mods.Common.Traits
 		int carriedToken = Actor.InvalidConditionToken;
 		int lockedToken = Actor.InvalidConditionToken;
 
-		Mobile mobile;
 		IDelayCarryallPickup[] delayPickups;
 
 		public Actor Carrier { get; private set; }
 		public bool Reserved => state != State.Free;
-		public CPos? Destination { get; protected set; }
-		public bool WantsTransport => Destination != null && !IsTraitDisabled;
 
+		protected Mobile Mobile { get; private set; }
 		protected enum State { Free, Reserved, Locked }
 		protected State state = State.Free;
 		protected bool attached;
@@ -65,18 +63,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
-			mobile = self.TraitOrDefault<Mobile>();
+			Mobile = self.TraitOrDefault<Mobile>();
 			delayPickups = self.TraitsImplementing<IDelayCarryallPickup>().ToArray();
 
 			base.Created(self);
 		}
 
-		public virtual void Attached(Actor self)
+		public virtual void Attached(Actor self, Actor carrier)
 		{
 			if (attached)
 				return;
 
 			attached = true;
+			Carrier = carrier;
 
 			if (carriedToken == Actor.InvalidConditionToken)
 				carriedToken = self.GrantCondition(Info.CarriedCondition);
@@ -129,7 +128,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (delayPickups.Any(d => d.IsTraitEnabled() && !d.TryLockForPickup(self, carrier)))
 				return LockResponse.Pending;
 
-			if (mobile != null && !mobile.CanStayInCell(self.Location))
+			if (Mobile != null && !Mobile.CanStayInCell(self.Location))
 				return LockResponse.Pending;
 
 			if (state != State.Locked)
@@ -142,7 +141,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Make sure we are not moving and at our normal position with respect to the cell grid
-			if (mobile != null && mobile.IsMovingBetweenCells)
+			if (Mobile != null && Mobile.IsMovingBetweenCells)
 				return LockResponse.Pending;
 
 			return LockResponse.Success;

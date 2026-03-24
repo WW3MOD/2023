@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Traits;
 
@@ -34,12 +33,12 @@ namespace OpenRA.Mods.Common.Traits
 			// TODO: This won't make sense for MP saves
 			var localPlayer = worldRenderer.World.LocalPlayer;
 			if ((localPlayer != null && localPlayer.PlayerActor != self) ||
-			    (localPlayer == null && self.Owner != self.World.Players.FirstOrDefault(p => p.IsBot)))
+				(localPlayer == null && self.Owner != self.World.Players.FirstOrDefault(p => p.IsBot)))
 				return null;
 
 			var nodes = new List<MiniYamlNode>()
 			{
-				new MiniYamlNode("Viewport", FieldSaver.FormatValue(worldRenderer.Viewport.CenterPosition))
+				new("Viewport", FieldSaver.FormatValue(worldRenderer.Viewport.CenterPosition))
 			};
 
 			var renderPlayer = worldRenderer.World.RenderPlayer;
@@ -49,13 +48,13 @@ namespace OpenRA.Mods.Common.Traits
 			return nodes;
 		}
 
-		void IGameSaveTraitData.ResolveTraitData(Actor self, List<MiniYamlNode> data)
+		void IGameSaveTraitData.ResolveTraitData(Actor self, MiniYaml data)
 		{
-			var viewportNode = data.FirstOrDefault(n => n.Key == "Viewport");
+			var viewportNode = data.NodeWithKeyOrDefault("Viewport");
 			if (viewportNode != null)
 				worldRenderer.Viewport.Center(FieldLoader.GetValue<WPos>("Viewport", viewportNode.Value.Value));
 
-			var renderPlayerNode = data.FirstOrDefault(n => n.Key == "RenderPlayer");
+			var renderPlayerNode = data.NodeWithKeyOrDefault("RenderPlayer");
 			if (renderPlayerNode != null)
 			{
 				var renderPlayerActorID = FieldLoader.GetValue<uint>("RenderPlayer", renderPlayerNode.Value.Value);
