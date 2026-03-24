@@ -284,6 +284,11 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
 
+			// WW3MOD: Draw fog overlay on the beyond-map area so it doesn't appear
+			// fully bright. Effects (nukes, missiles) still show through dimly.
+			if (World.Type != WorldType.Editor)
+				DrawBeyondMapFog();
+
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
 
@@ -294,6 +299,40 @@ namespace OpenRA.Graphics
 			foreach (var g in groupedOverlayRenderables)
 				foreach (var r in g)
 					r.Render(this);
+
+			Game.Renderer.Flush();
+		}
+
+		void DrawBeyondMapFog()
+		{
+			var map = World.Map;
+			var mapTL = ScreenPxPosition(map.ProjectedTopLeft);
+			var mapBR = ScreenPxPosition(map.ProjectedBottomRight);
+			var vpTL = Viewport.TopLeft;
+			var vpBR = Viewport.BottomRight;
+
+			// Semi-transparent black overlay — matches fog darkness while allowing
+			// effects (nukes, missiles) to show through dimly
+			var fogColor = Color.FromArgb(200, 0, 0, 0);
+			var cr = Game.Renderer.WorldRgbaColorRenderer;
+
+			// Top strip (full width)
+			if (vpTL.Y < mapTL.Y)
+				cr.FillRect(new float3(vpTL.X, vpTL.Y, 0), new float3(vpBR.X, mapTL.Y, 0), fogColor);
+
+			// Bottom strip (full width)
+			if (vpBR.Y > mapBR.Y)
+				cr.FillRect(new float3(vpTL.X, mapBR.Y, 0), new float3(vpBR.X, vpBR.Y, 0), fogColor);
+
+			// Left strip (between map top and bottom only)
+			if (vpTL.X < mapTL.X)
+				cr.FillRect(new float3(vpTL.X, Math.Max(vpTL.Y, mapTL.Y), 0),
+					new float3(mapTL.X, Math.Min(vpBR.Y, mapBR.Y), 0), fogColor);
+
+			// Right strip (between map top and bottom only)
+			if (vpBR.X > mapBR.X)
+				cr.FillRect(new float3(mapBR.X, Math.Max(vpTL.Y, mapTL.Y), 0),
+					new float3(vpBR.X, Math.Min(vpBR.Y, mapBR.Y), 0), fogColor);
 
 			Game.Renderer.Flush();
 		}
