@@ -54,6 +54,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		Order IModifyGroupOrder.ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors)
 		{
+			// Guard against null/dead actors
+			if (subject == null || subject.IsDead || !subject.IsInWorld)
+				return individualOrder;
+
 			// Only modify move-type orders
 			if (!info.AffectedOrders.Contains(individualOrder.OrderString))
 				return individualOrder;
