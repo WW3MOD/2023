@@ -30,6 +30,7 @@ namespace OpenRA.GameRules
 		public Func<WPos> CurrentSource;
 		public Actor SourceActor;
 		public WPos PassiveTarget;
+		public WVec TargetingVector;
 		public Target GuidedTarget;
 	}
 
@@ -93,11 +94,20 @@ namespace OpenRA.GameRules
 		[Desc("Delay in ticks to play reloading sound.")]
 		public readonly int AfterFireSoundDelay = 0;
 
-		[Desc("Delay in ticks between reloading ammo magazines.")]
-		public readonly int ReloadDelay = 1;
+		[Desc("Number of shots before reloading. Leaving it makes unit shoot bursts always until ammo is depleted.")]
+		public readonly int Magazine = 1;
+
+		[Desc("Delay in ticks between switching magazine. Must be set if Magazine is set.")]
+		public readonly int ReloadDelay = 0;
+
+		[Desc("Delay in ticks between bursts.")]
+		public readonly int BurstWait = 0;
 
 		[Desc("Number of shots in a single ammo magazine.")]
 		public readonly int Burst = 1;
+
+		[Desc("Randomize burst by +/- this much for irregular shooting")]
+		public readonly int BurstRandomize = 0;
 
 		[Desc("Can this weapon target the attacker itself?")]
 		public readonly bool CanTargetSelf = false;
@@ -118,11 +128,20 @@ namespace OpenRA.GameRules
 			"If multiple entries, their number needs to match Burst - 1.")]
 		public readonly int[] BurstDelays = { 5 };
 
+		[Desc("Randomize burst delay by +/- this much for irregular shooting")]
+		public readonly int BurstDelayRandomize = 0;
+
 		[Desc("The minimum range the weapon can fire.")]
 		public readonly WDist MinRange = WDist.Zero;
 
 		[Desc("Does this weapon aim at the target's center regardless of other targetable offsets?")]
 		public readonly bool TargetActorCenter = false;
+
+		[Desc("Weapon does damage from above.")]
+		public readonly bool TopAttack = false;
+
+		[Desc("Weapon does damage from below.")]
+		public readonly bool BottomAttack = false;
 
 		[FieldLoader.LoadUsing(nameof(LoadProjectile))]
 		public readonly IProjectileInfo Projectile;

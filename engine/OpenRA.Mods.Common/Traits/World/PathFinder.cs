@@ -123,6 +123,26 @@ namespace OpenRA.Mods.Common.Traits
 				self, sourcesList, target, check, DefaultHeuristicWeightPercentage, customCost, ignoreActor, laneBias, pathFinderOverlay);
 		}
 
+		public List<CPos> FindPathToTargetCells(
+			Actor self, CPos source, IEnumerable<CPos> targets, BlockedByActor check,
+			Func<CPos, int> customCost = null,
+			Actor ignoreActor = null,
+			bool laneBias = true)
+		{
+			// Simplified implementation: try each target and return shortest path
+			var targetsList = targets.ToList();
+			if (targetsList.Count == 0)
+				return NoPath;
+
+			if (targetsList.Count == 1)
+				return FindPathToTargetCell(self, new[] { source }, targetsList[0], check, customCost, ignoreActor, laneBias);
+
+			// For multiple targets, swap source/targets and use FindPathToTargetCell (multiple sources to single target)
+			var path = FindPathToTargetCell(self, targetsList, source, check, customCost, ignoreActor, laneBias);
+			path.Reverse();
+			return path;
+		}
+
 		HierarchicalPathFinder GetHierarchicalPathFinder(Locomotor locomotor, BlockedByActor check, Actor ignoreActor)
 		{
 			// If there is an actor to ignore, we cannot use an HPF that accounts for any blocking actors.
@@ -164,6 +184,11 @@ namespace OpenRA.Mods.Common.Traits
 		public bool PathExistsForLocomotor(Locomotor locomotor, CPos source, CPos target)
 		{
 			return hierarchicalPathFindersBlockedByNoneByLocomotor[locomotor].PathExists(source, target);
+		}
+
+		public bool PathMightExistForLocomotorBlockedByImmovable(Locomotor locomotor, CPos source, CPos target)
+		{
+			return hierarchicalPathFindersBlockedByImmovableByLocomotor[locomotor].PathExists(source, target);
 		}
 
 		static Locomotor GetActorLocomotor(Actor self)

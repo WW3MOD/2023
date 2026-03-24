@@ -302,7 +302,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
 					info.ContestationNotification, self.Owner.Faction.InternalName);
-				TextNotificationsManager.AddTransientLine(info.ContestationTextNotification, self.Owner);
+				TextNotificationsManager.AddTransientLine(self.Owner, info.ContestationTextNotification);
 			}
 
 			radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer),
@@ -327,7 +327,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
 					info.DefeatWarningNotification, self.Owner.Faction.InternalName);
-				TextNotificationsManager.AddTransientLine(info.DefeatWarningTextNotification, self.Owner);
+				TextNotificationsManager.AddTransientLine(self.Owner, info.DefeatWarningTextNotification);
 			}
 
 			radarPings?.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer),
@@ -361,7 +361,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (localPlayer != null && !localPlayer.Spectating &&
 					(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
 				{
-					TextNotificationsManager.AddTransientLine(info.PassiveTextNotification, self.Owner);
+					TextNotificationsManager.AddTransientLine(self.Owner, info.PassiveTextNotification);
 				}
 			}
 			else
@@ -386,7 +386,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (localPlayer != null && !localPlayer.Spectating &&
 				(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
 			{
-				TextNotificationsManager.AddTransientLine(info.ReinstatedTextNotification, self.Owner);
+				TextNotificationsManager.AddTransientLine(self.Owner, info.ReinstatedTextNotification);
 				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
 					"BuildingCaptured", self.Owner.Faction.InternalName);
 			}

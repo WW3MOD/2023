@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var radarEnabled = false;
 			var cachedRadarEnabled = false;
 			var blockColor = Color.Transparent;
-			var radar = widget.Get<RadarWidget>("RADAR_MINIMAP");
+			var radar = widget.Get<MiniMapWidget>("RADAR_MINIMAP");
 			radar.IsEnabled = () => radarEnabled;
 			var devMode = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
 

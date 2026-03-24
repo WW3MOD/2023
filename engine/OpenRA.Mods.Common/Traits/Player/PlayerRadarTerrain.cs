@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsInitialized { get; private set; }
 
 		readonly World world;
-		IMiniMapTerrainLayer[] radarTerrainLayers;
+		IRadarTerrainLayer[] radarTerrainLayers;
 		CellLayer<(uint, uint)> terrainColor;
 		readonly MapLayers shroud;
 
@@ -40,10 +40,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			world = self.World;
 			shroud = self.Trait<MapLayers>();
-			shroud.OnShroudChanged += UpdateShroudCell;
+			shroud.OnMapLayersChanged += UpdateMapLayersCell;
 		}
 
-		void UpdateShroudCell(PPos puv)
+		void UpdateMapLayersCell(PPos puv)
 		{
 			var uvs = world.Map.Unproject(puv);
 			foreach (var uv in uvs)
@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateTerrainCell(MPos uv)
 		{
-			if (shroud.IsVisible(uv))
+			if (shroud.IsVisible(uv, 1))
 				UpdateTerrainCellColor(uv);
 		}
 
@@ -65,7 +65,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
-			radarTerrainLayers = w.WorldActor.TraitsImplementing<IMiniMapTerrainLayer>().ToArray();
+			radarTerrainLayers = w.WorldActor.TraitsImplementing<IRadarTerrainLayer>().ToArray();
 			terrainColor = new CellLayer<(uint, uint)>(w.Map);
 
 			w.AddFrameEndTask(_ =>
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public (uint Left, uint Right) this[MPos uv] => terrainColor[uv];
 
-		public static (uint Left, uint Right) GetColor(Map map, IMiniMapTerrainLayer[] radarTerrainLayers, MPos uv)
+		public static (uint Left, uint Right) GetColor(Map map, IRadarTerrainLayer[] radarTerrainLayers, MPos uv)
 		{
 			foreach (var rtl in radarTerrainLayers)
 				if (rtl.TryGetTerrainColorPair(uv, out var c))

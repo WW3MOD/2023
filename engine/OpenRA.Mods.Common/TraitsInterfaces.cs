@@ -207,6 +207,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	[RequireExplicitImplementation]
 	public interface INotifyResourceAccepted { void OnResourceAccepted(Actor self, Actor refinery, string resourceType, int count, int value); }
+	public interface INotifyDocking { void Docked(Actor self, Actor harvester); void Undocked(Actor self, Actor harvester); }
 	public interface INotifyParachute { void OnParachute(Actor self); void OnLanded(Actor self); }
 
 	[RequireExplicitImplementation]
@@ -394,9 +395,13 @@ namespace OpenRA.Mods.Common.Traits
 		void Undeploy(Actor self, bool skipMakeAnim);
 	}
 
+	public interface IAcceptResourcesInfo : ITraitInfoInterface { }
 	public interface IAcceptResources
 	{
-		int AcceptResources(Actor self, string resourceType, int count = 1);
+		void OnDock(Actor harv, DeliverResources dockOrder);
+		int AcceptResources(string resourceType, int count = 1);
+		CVec DeliveryOffset { get; }
+		bool AllowDocking { get; }
 	}
 
 	public interface IDockClientBody
@@ -628,6 +633,12 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public interface IMiniMapColorModifier { Color MiniMapColorOverride(Actor self, Color color); }
+
+	public interface IRadarTerrainLayer
+	{
+		event Action<CPos> CellEntryChanged;
+		bool TryGetTerrainColorPair(MPos uv, out (Color Left, Color Right) value);
+	}
 
 	public interface IObjectivesPanel
 	{

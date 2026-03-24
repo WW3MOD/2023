@@ -154,7 +154,7 @@ namespace OpenRA.Mods.Common.Activities
 						string.Equals(a.Info.Name, minelayer.Info.Mine, System.StringComparison.OrdinalIgnoreCase)
 						&& a.CanBeViewedByPlayer(self.Owner)) ||
 						((!positionable.CanEnterCell(c, null, BlockedByActor.Immovable) || (mobile != null && !mobile.CanStayInCell(c)))
-						&& self.Owner.Shroud.IsVisible(c)));
+						&& self.Owner.MapLayers.IsVisible(c, 1)));
 			}
 		}
 
