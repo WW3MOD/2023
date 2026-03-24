@@ -159,6 +159,7 @@
 	ChronoshiftPaletteEffect:
 	FlashPaletteEffect@NUKE:
 		Type: Nuke
+		Length: 30
 	IndexedPalette@CIV2:
 		Name: civilian2
 		BasePalette: player

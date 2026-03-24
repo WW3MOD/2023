@@ -44,19 +44,19 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Controls the way damage is calculated. Possible values are 'HitShape', 'ClosestTargetablePosition' and 'CenterPosition'.")]
 		public readonly DamageCalculationType DamageCalculationType = DamageCalculationType.HitShape;
 
-		[Desc("Color of the shockwave ring visual. Set alpha to 0 to disable.")]
-		public readonly Color ShockwaveColor = Color.FromArgb(180, 255, 255, 255);
+		[Desc("Base color of the shockwave ring (RGB only, alpha controlled separately). Set A to 0 to disable visual.")]
+		public readonly Color ShockwaveColor = Color.FromArgb(255, 255, 255, 255);
 
-		[Desc("Width of the shockwave ring line in pixels.")]
-		public readonly float ShockwaveWidth = 3f;
+		[Desc("Thickness of the shockwave ring band in WDist.")]
+		public readonly WDist ShockwaveThickness = new WDist(768);
 
-		[Desc("Width of the shockwave ring border in pixels. 0 = no border.")]
-		public readonly float ShockwaveBorderWidth = 1f;
+		[Desc("Alpha at the outer (leading) edge of the shockwave ring, 0-100.")]
+		public readonly int ShockwaveOuterAlpha = 70;
 
-		[Desc("Color of the shockwave ring border.")]
-		public readonly Color ShockwaveBorderColor = Color.FromArgb(100, 200, 200, 200);
+		[Desc("Alpha at the inner (trailing/dust) edge of the shockwave ring, 0-100.")]
+		public readonly int ShockwaveInnerAlpha = 25;
 
-		[Desc("Alpha of the shockwave ring at MaxRadius, as fraction of initial alpha (0-100).")]
+		[Desc("Alpha of the shockwave ring at MaxRadius, as percentage of initial alpha (0-100).")]
 		public readonly int ShockwaveEndAlphaPercent = 15;
 
 		WDist[] effectiveRange;

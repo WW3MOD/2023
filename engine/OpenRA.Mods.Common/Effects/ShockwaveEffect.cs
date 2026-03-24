@@ -106,32 +106,30 @@ namespace OpenRA.Mods.Common.Effects
 
 			// Fade alpha as the ring expands
 			var progress = (float)currentRadius.Length / warhead.MaxRadius.Length;
-			var startAlpha = warhead.ShockwaveColor.A;
-			var endAlpha = startAlpha * warhead.ShockwaveEndAlphaPercent / 100;
-			var currentAlpha = (int)(startAlpha + (endAlpha - startAlpha) * progress);
+			var startOuterAlpha = warhead.ShockwaveOuterAlpha / 100f;
+			var startInnerAlpha = warhead.ShockwaveInnerAlpha / 100f;
+			var fadeFactor = 1f - progress * (1f - warhead.ShockwaveEndAlphaPercent / 100f);
 
-			var color = Color.FromArgb(currentAlpha,
-				warhead.ShockwaveColor.R,
-				warhead.ShockwaveColor.G,
-				warhead.ShockwaveColor.B);
+			var outerAlpha = startOuterAlpha * fadeFactor;
+			var innerAlpha = startInnerAlpha * fadeFactor;
 
-			var borderColor = Color.FromArgb(
-				currentAlpha * warhead.ShockwaveBorderColor.A / 255,
-				warhead.ShockwaveBorderColor.R,
-				warhead.ShockwaveBorderColor.G,
-				warhead.ShockwaveBorderColor.B);
+			// Scale thickness with radius — starts thin, grows as the ring expands
+			var thicknessScale = System.Math.Min(1f, progress * 3f);
+			var currentThickness = new WDist((int)(warhead.ShockwaveThickness.Length * thicknessScale));
 
-			// Use ground-level center for the ring (project blast center down to ground)
+			// Use ground-level center for the ring
 			var groundCenter = new WPos(center.X, center.Y, world.Map.CenterOfCell(world.Map.CellContaining(center)).Z);
 
-			yield return new RangeCircleAnnotationRenderable(
+			var color = Color.FromArgb(255, warhead.ShockwaveColor.R, warhead.ShockwaveColor.G, warhead.ShockwaveColor.B);
+
+			yield return new ExpandingShockwaveRenderable(
 				groundCenter,
 				currentRadius,
+				currentThickness,
 				0,
 				color,
-				warhead.ShockwaveWidth,
-				borderColor,
-				warhead.ShockwaveBorderWidth);
+				outerAlpha,
+				innerAlpha);
 		}
 	}
 }

@@ -52,43 +52,44 @@ Atomic:
 
 	# ===== PHASE 1: THERMAL RADIATION (Tick 0-2) — Speed of Light =====
 	# Thermal pulse arrives essentially instantly. This is the FIRST damage.
-	# Ground zero (0-3 cells): Everything vaporized
+	# Ground zero (0-1 cells): Vaporization — only the very center
 	Warhead@ThermalVaporize: SpreadDamage
 		Spread: 1c0
 		Damage: 200000
 		Penetration: 10000
-		Falloff: 100, 80, 40, 10
+		Falloff: 100, 20
 		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Close thermal (3-8 cells): Lethal burns, heavy damage
+	# Close thermal (1-5 cells): Heavy burns but survivable briefly — fire does the killing
 	Warhead@ThermalClose: SpreadDamage
 		Spread: 1c0
-		Damage: 50000
-		Penetration: 3000
-		Falloff: 0, 0, 0, 100, 80, 60, 40, 20, 5
+		Damage: 15000
+		Penetration: 2000
+		Falloff: 0, 100, 80, 50, 25, 8
 		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Medium thermal (8-15 cells): Severe burns
+	# Medium thermal (5-12 cells): Burns, not immediately lethal
 	Warhead@ThermalMedium: SpreadDamage
 		Spread: 1c0
-		Damage: 8000
+		Damage: 4000
 		Penetration: 500
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 100, 80, 60, 40, 25, 15, 8, 3
+		Falloff: 0, 0, 0, 0, 0, 100, 70, 45, 25, 15, 8, 3, 1
 		Delay: 2
 		ValidTargets: Ground, Trees, Water, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
 	# Fire condition grants — graduated by range, all near-instant (thermal speed)
-	# 0-3 cells: onfire x10 (maximum, kills infantry in seconds)
+	# The fire is what creates the horror: soldiers burning alive at different intensities
+	# 0-2 cells: onfire x10 (maximum, kills infantry fast but they burn visibly first)
 	Warhead@FireGZ: GrantExternalCondition
-		Range: 3c0
+		Range: 10c0
 		Amount: 10
 		Duration: 750
 		Condition: onfire
@@ -96,19 +97,29 @@ Atomic:
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 3-6 cells: onfire x7
-	Warhead@FireClose: GrantExternalCondition
-		Range: 6c0
-		Amount: 7
-		Duration: 500
+	# 2-5 cells: onfire x8
+	Warhead@FireClose1: GrantExternalCondition
+		Range: 12c0
+		Amount: 8
+		Duration: 600
 		Condition: onfire
 		Delay: 1
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 6-10 cells: onfire x4
+	# 5-8 cells: onfire x6
+	Warhead@FireClose2: GrantExternalCondition
+		Range: 15c0
+		Amount: 6
+		Duration: 400
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	# 8-12 cells: onfire x4
 	Warhead@FireMedium: GrantExternalCondition
-		Range: 10c0
+		Range: 17c0
 		Amount: 4
 		Duration: 250
 		Condition: onfire
@@ -116,9 +127,9 @@ Atomic:
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 10-15 cells: onfire x2
+	# 12-16 cells: onfire x2
 	Warhead@FireFar: GrantExternalCondition
-		Range: 15c0
+		Range: 19c0
 		Amount: 2
 		Duration: 100
 		Condition: onfire
@@ -126,9 +137,9 @@ Atomic:
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 15-20 cells: onfire x1 (light burns, survivable)
+	# 16-22 cells: onfire x1 (light burns, survivable)
 	Warhead@FireOuter: GrantExternalCondition
-		Range: 20c0
+		Range: 22c0
 		Amount: 1
 		Duration: 50
 		Condition: onfire
@@ -155,11 +166,12 @@ Atomic:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 3
 		WaveSpeed: 7
-		MaxRadius: 25c0
+		MaxRadius: 30c0
 		Damage: 100000
 		Penetration: 5000
 		Spread: 1c0
-		Falloff: 500, 450, 400, 350, 300, 250, 200, 160, 130, 100, 80, 60, 45, 35, 25, 18, 12, 8, 5, 3, 2, 1, 1, 1, 1
+		# 30 entries = 30 cells. Inner cells devastating, progressively less, last 5 cells minimal
+		Falloff: 500, 450, 400, 350, 300, 250, 200, 160, 130, 100, 80, 60, 45, 35, 25, 18, 12, 8, 5, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0
 		Versus:
 			Light: 80
 			Wood: 600
@@ -170,11 +182,6 @@ Atomic:
 		AffectsParent: true
 		DamageTypes: ExplosionDeath
 		AirThreshold: 10c0
-		ShockwaveColor: B4FFFFFF
-		ShockwaveWidth: 3
-		ShockwaveBorderWidth: 1
-		ShockwaveBorderColor: 64C8C8C8
-		ShockwaveEndAlphaPercent: 15
 
 	# ===== PHASE 4: BLAST SUPPRESSION (Staggered with blast wave) =====
 	# Suppression arrives with the blast wave at each range band
@@ -208,13 +215,23 @@ Atomic:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 30 cells (~tick 220): light suppression at extreme range
-	Warhead@SuppressionOuter: GrantExternalCondition
-		Range: 35c0
-		Amount: 2
-		Duration: 50
+	# 25 cells (~tick 187): moderate suppression, strong winds
+	Warhead@SuppressionWind: GrantExternalCondition
+		Range: 28c0
+		Amount: 3
+		Duration: 75
 		Condition: suppression-1
-		Delay: 220
+		Delay: 187
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	# 30 cells (~tick 213): light suppression, soldiers take cover from wind
+	Warhead@SuppressionOuter: GrantExternalCondition
+		Range: 32c0
+		Amount: 1
+		Duration: 40
+		Condition: suppression-1
+		Delay: 213
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
