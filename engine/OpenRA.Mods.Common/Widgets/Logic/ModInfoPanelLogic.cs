@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		public ModInfoPanelLogic(Widget widget, ModData modData, Action onExit, string shellmapName)
 		{
 			widget.Get<LabelWidget>("MOD_VERSION").Text = "Version: Pre-Alpha";
-			widget.Get<LabelWidget>("ENGINE_VERSION").Text = "Engine: OpenRA " + modData.Manifest.Metadata.Version;
+			widget.Get<LabelWidget>("ENGINE_VERSION").Text = "Fork: " + modData.Manifest.Metadata.Version;
 			widget.Get<LabelWidget>("BUILD_DATE").Text = "Built: " + DateTime.Now.ToString("yyyy-MM-dd");
 			widget.Get<LabelWidget>("AUTHORS").Text = "By: FreadyFish & CmdrBambi";
 

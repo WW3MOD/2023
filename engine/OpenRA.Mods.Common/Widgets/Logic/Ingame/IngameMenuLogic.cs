@@ -164,10 +164,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			menu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
 			{
-				hideMenu = true;
 				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
 				{
-					{ "onExit", (Action)(() => hideMenu = false) },
+					{ "onExit", (Action)(() => { }) },
 					{ "shellmapName", "" }
 				});
 			};
