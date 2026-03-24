@@ -1,6 +1,9 @@
 Container@MAINMENU:
 	Logic: MainMenuLogic
 	Children:
+		WorldInteractionController@SHELLMAP_INTERACTION:
+			Width: WINDOW_RIGHT
+			Height: WINDOW_BOTTOM
 		LogicKeyListener@GLOBAL_KEYHANDLER:
 			Logic: MusicHotkeyLogic, ScreenshotHotkeyLogic, MuteHotkeyLogic
 				StopMusicKey: StopMusic
