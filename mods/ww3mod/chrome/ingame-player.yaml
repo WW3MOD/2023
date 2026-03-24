@@ -318,6 +318,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: StanceFireAtWill
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -338,6 +339,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: StanceAmbush
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -358,6 +360,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: StanceHoldFire
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -384,6 +387,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: EngagementHunt
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -404,6 +408,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: EngagementDefensive
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -424,6 +429,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: EngagementHoldPosition
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -450,6 +456,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: CohesionTight
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -470,6 +477,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: CohesionLoose
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -490,6 +498,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: CohesionSpread
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -516,6 +525,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: ResupplyHold
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -536,6 +546,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: ResupplyAuto
 					DisableKeyRepeat: true
 					DisableKeySound: true
@@ -556,6 +567,7 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
 					Key: ResupplyEvacuate
 					DisableKeyRepeat: true
 					DisableKeySound: true

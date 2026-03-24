@@ -25,10 +25,11 @@ namespace OpenRA.Mods.Common.Widgets
 		public int BottomEdgeYOffset = -5;
 
 		/// <summary>
-		/// When set, the tooltip is anchored to the left of this rectangle
+		/// When set, the tooltip is anchored relative to this rectangle
 		/// instead of following the mouse cursor.
 		/// </summary>
 		public Rectangle? AnchorBounds;
+		public bool AnchorAbove;
 		public int AnchorGap = 4;
 
 		public Action BeforeRender = Nothing;
@@ -80,6 +81,7 @@ namespace OpenRA.Mods.Common.Widgets
 			id = null;
 			widgetArgs = null;
 			AnchorBounds = null;
+			AnchorAbove = false;
 
 			RemoveChildren();
 			BeforeRender = Nothing;
@@ -127,22 +129,44 @@ namespace OpenRA.Mods.Common.Widgets
 			var tooltipWidth = tooltip.Bounds.Right;
 			var tooltipHeight = tooltip.Bounds.Bottom;
 
-			// Position to the left of the anchor widget, flush with its right edge
-			var x = anchor.X - tooltipWidth - AnchorGap;
+			int x, y;
 
-			// Top-align with the button, tooltip expands downward
-			var y = anchor.Y;
+			if (AnchorAbove)
+			{
+				// Center horizontally above the anchor widget
+				x = anchor.X + anchor.Width / 2 - tooltipWidth / 2;
+				y = anchor.Y - tooltipHeight - AnchorGap;
 
-			// If it goes off the left edge, flip to the right side
-			if (x < 0)
-				x = anchor.Right + AnchorGap;
+				// If it goes off the top, flip below
+				if (y < 0)
+					y = anchor.Bottom + AnchorGap;
 
-			// Clamp to screen bounds vertically
-			if (y + tooltipHeight > Game.Renderer.Resolution.Height)
-				y = Game.Renderer.Resolution.Height - tooltipHeight;
+				// Clamp to screen bounds horizontally
+				if (x + tooltipWidth > Game.Renderer.Resolution.Width)
+					x = Game.Renderer.Resolution.Width - tooltipWidth;
 
-			if (y < 0)
-				y = 0;
+				if (x < 0)
+					x = 0;
+			}
+			else
+			{
+				// Position to the left of the anchor widget, flush with its right edge
+				x = anchor.X - tooltipWidth - AnchorGap;
+
+				// Top-align with the button, tooltip expands downward
+				y = anchor.Y;
+
+				// If it goes off the left edge, flip to the right side
+				if (x < 0)
+					x = anchor.Right + AnchorGap;
+
+				// Clamp to screen bounds vertically
+				if (y + tooltipHeight > Game.Renderer.Resolution.Height)
+					y = Game.Renderer.Resolution.Height - tooltipHeight;
+
+				if (y < 0)
+					y = 0;
+			}
 
 			return new int2(x, y);
 		}

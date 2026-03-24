@@ -60,6 +60,12 @@ namespace OpenRA.Mods.Common.Widgets
 		public string TooltipDesc;
 		public Func<string> GetTooltipDesc;
 
+		/// <summary>
+		/// When set to "Left" or "Above", anchors the tooltip relative to the button
+		/// instead of following the mouse cursor.
+		/// </summary>
+		public string AnchorTooltipDirection;
+
 		// Equivalent to OnMouseUp, but without an input arg
 		public Action OnClick = () => { };
 		public Action OnDoubleClick = null;
@@ -208,6 +214,13 @@ namespace OpenRA.Mods.Common.Widgets
 
 			if (GetTooltipText != null)
 				tooltipContainer.Value.SetTooltip(TooltipTemplate, new WidgetArgs { { "button", this }, { "getText", GetTooltipText }, { "getDesc", GetTooltipDesc } });
+
+			// Set anchor after SetTooltip (which clears AnchorBounds via RemoveTooltip)
+			if (!string.IsNullOrEmpty(AnchorTooltipDirection))
+			{
+				tooltipContainer.Value.AnchorBounds = RenderBounds;
+				tooltipContainer.Value.AnchorAbove = string.Equals(AnchorTooltipDirection, "Above", StringComparison.OrdinalIgnoreCase);
+			}
 		}
 
 		public override void MouseExited()
@@ -215,6 +228,8 @@ namespace OpenRA.Mods.Common.Widgets
 			if (TooltipContainer == null || !tooltipContainer.IsValueCreated)
 				return;
 
+			tooltipContainer.Value.AnchorBounds = null;
+			tooltipContainer.Value.AnchorAbove = false;
 			tooltipContainer.Value.RemoveTooltip();
 		}
 
