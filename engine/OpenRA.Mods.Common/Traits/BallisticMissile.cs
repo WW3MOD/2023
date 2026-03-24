@@ -26,6 +26,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("In angle. Missile is launched at this pitch and the initial tangential line of the ballistic path will be this.")]
 		public readonly WAngle LaunchAngle = WAngle.Zero;
 
+		[Desc("If > 0, missile accelerates from rest along its arc instead of flying at constant speed.",
+			"Value controls how quickly max speed is reached (higher = faster acceleration).",
+			"The arc shape is unchanged — only the speed along it varies.")]
+		public readonly int Acceleration = 0;
+
 		[Desc("Minimum altitude where this missile is considered airborne")]
 		public readonly int MinAirborneAltitude = 5;
 

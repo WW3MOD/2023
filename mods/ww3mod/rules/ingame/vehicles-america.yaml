@@ -1051,8 +1051,9 @@ HIMARSMissile:
 	Health:
 		HP: 50
 	BallisticMissile:
-		LaunchAngle: 96
+		LaunchAngle: 180
 		Speed: 500
+		Acceleration: 12
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

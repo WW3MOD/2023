@@ -958,8 +958,9 @@ IskanderMissile:
 	Health:
 		HP: 100
 	BallisticMissile:
-		LaunchAngle: 128
+		LaunchAngle: 220
 		Speed: 400
+		Acceleration: 8
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts
