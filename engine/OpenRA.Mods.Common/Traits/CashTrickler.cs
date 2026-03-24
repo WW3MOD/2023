@@ -115,23 +115,16 @@ namespace OpenRA.Mods.Common.Traits
 			return Util.ApplyPercentageModifiers(info.Amount, modifiers);
 		}
 
-		float NormalizeToInterval(int modifiedAmount)
-		{
-			var passiveInterval = resources.Info.PassiveIncomeInterval;
-			return (float)modifiedAmount * passiveInterval / info.Interval;
-		}
-
 		void Register(Actor self)
 		{
 			if (registeredEntry != null || !isInWorld || IsTraitDisabled || IsTraitPaused)
 				return;
 
 			var modifiedAmount = GetModifiedAmount(self);
-			var normalized = NormalizeToInterval(modifiedAmount);
 			var tooltip = self.Info.TraitInfoOrDefault<TooltipInfo>();
 			var name = tooltip?.Name ?? self.Info.Name;
 
-			registeredEntry = resources.AddIncome(self.Info.Name, name, normalized);
+			registeredEntry = resources.AddIncome(self.Info.Name, name, modifiedAmount);
 			lastModifiedAmount = modifiedAmount;
 		}
 
@@ -153,8 +146,7 @@ namespace OpenRA.Mods.Common.Traits
 			var modifiedAmount = GetModifiedAmount(self);
 			if (modifiedAmount != lastModifiedAmount)
 			{
-				var normalized = NormalizeToInterval(modifiedAmount);
-				resources.UpdateIncome(registeredEntry, normalized);
+				resources.UpdateIncome(registeredEntry, modifiedAmount);
 				lastModifiedAmount = modifiedAmount;
 			}
 		}
