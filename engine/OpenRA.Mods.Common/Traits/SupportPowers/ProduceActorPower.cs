@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				foreach (var name in info.Actors)
 				{
-					var ai = self.World.Map.Rules.Actors[name];
+					var ai = self.World.Map.Rules.Actors[name.ToLowerInvariant()];
 					var inits = new TypeDictionary
 					{
 						new OwnerInit(self.Owner),
