@@ -413,8 +413,8 @@ giatsint:
 			TopLeft: -330, -800
 			BottomRight: 330, 800
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Locomotor: lighttracked
@@ -520,8 +520,8 @@ grad:
 			TopLeft: -240, -730
 			BottomRight: 240, 730
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Speed: 110
@@ -632,8 +632,8 @@ tos:
 			TopLeft: -360, -950
 			BottomRight: 360, 950
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Speed: 80

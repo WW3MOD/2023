@@ -73,7 +73,7 @@ namespace OpenRA.Traits
 	public class MapLayers : ISync, INotifyCreated, ITick
 	{
 		public static readonly int VisionLayers = 11;
-		public enum Type : byte { Vision, Radar, PassiveVisibility }
+		public enum Type : byte { Vision, Radar, CounterBatteryRadar, PassiveVisibility }
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 
@@ -112,6 +112,7 @@ namespace OpenRA.Traits
 		// Per-cell count of each source type, used to resolve the final cell type
 		readonly ProjectedCellLayer<short[]> visibilityCount;
 		readonly ProjectedCellLayer<short> radarCount;
+		readonly ProjectedCellLayer<short> counterBatteryRadarCount;
 
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
 		readonly ProjectedCellLayer<short> visibleCount;
@@ -156,6 +157,7 @@ namespace OpenRA.Traits
 
 			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
+			counterBatteryRadarCount = new ProjectedCellLayer<short>(map);
 
 			passiveVisibleCount = new ProjectedCellLayer<short>(map);
 			visibleCount = new ProjectedCellLayer<short>(map);
@@ -346,6 +348,10 @@ namespace OpenRA.Traits
 				{
 					radarCount[index]++;
 				}
+				else if (mapLayer.Type == Type.CounterBatteryRadar)
+				{
+					counterBatteryRadarCount[index]++;
+				}
 
 				i++;
 			}
@@ -380,6 +386,10 @@ namespace OpenRA.Traits
 					else if (mapLayer.Type == Type.Radar)
 					{
 						radarCount[index]--;
+					}
+					else if (mapLayer.Type == Type.CounterBatteryRadar)
+					{
+						counterBatteryRadarCount[index]--;
 					}
 				}
 			}
@@ -487,6 +497,16 @@ namespace OpenRA.Traits
 		public bool RadarCover(PPos puv)
 		{
 			return radarCount.Contains(puv) && radarCount[puv] > 0;
+		}
+
+		public bool CounterBatteryRadarCover(WPos pos)
+		{
+			return CounterBatteryRadarCover(map.ProjectedCellCovering(pos));
+		}
+
+		public bool CounterBatteryRadarCover(PPos puv)
+		{
+			return counterBatteryRadarCount.Contains(puv) && counterBatteryRadarCount[puv] > 0;
 		}
 
 		public bool IsVisible(WPos pos, int visibility)

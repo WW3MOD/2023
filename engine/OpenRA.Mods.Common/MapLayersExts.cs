@@ -64,5 +64,15 @@ namespace OpenRA.Mods.Common
 
 			return false;
 		}
+
+		public static bool AnyVisibleOnCounterBatteryRadar(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var cell in cells)
+				if (mapLayers.CounterBatteryRadarCover(cell.Cell.ToWPos()))
+					return true;
+
+			return false;
+		}
 	}
 }

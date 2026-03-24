@@ -291,6 +291,9 @@ MSAR:
 	Radar:
 		Range: 42c0
 		RequiresCondition: deployed
+	CounterBatteryRadar:
+		Range: 42c0
+		RequiresCondition: deployed
 	WithRangeCircle@Radar:
 		Range: 42c0
 		Color: 000000
