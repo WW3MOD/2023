@@ -10,6 +10,8 @@
 #endregion
 
 using System;
+using System.Linq;
+using System.Text;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Widgets;
 
@@ -23,16 +25,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Player player;
 		readonly PlayerResources playerResources;
 		readonly LabelWithTooltipWidget cashLabel;
-		readonly CachedTransform<(int Resources, int Capacity), string> cashflowTooltipCache;
 		readonly string cashTemplate;
 
 		int displayResources;
-		int displayUpkeep;
-
-		string cashflowTooltip = "";
-
-		[TranslationReference("cash", "upkeep")]
-		static readonly string Cashflow = "cashflow";
 
 		[ObjectCreator.UseCtor]
 		public IngameCashCounterLogic(Widget widget, ModData modData, World world)
@@ -42,15 +37,61 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			displayResources = playerResources.Cash + playerResources.Resources;
 
-			displayUpkeep = (int)playerResources.Upkeep; // Doesn't change anything?
-
-			cashflowTooltipCache = new CachedTransform<(int Cash, int Upkeep), string>(x =>
-				modData.Translation.GetString(Cashflow, Translation.Arguments("cash", displayResources, "upkeep", displayUpkeep)));
-
 			cashLabel = widget.Get<LabelWithTooltipWidget>("CASH");
-			cashLabel.GetTooltipText = () => cashflowTooltip;
+			cashLabel.GetTooltipText = GetBreakdownText;
 
 			cashTemplate = cashLabel.Text;
+		}
+
+		string GetBreakdownText()
+		{
+			var sb = new StringBuilder();
+
+			sb.AppendLine("--- INCOME ---");
+			sb.AppendLine("Passive: +$" + playerResources.PassiveIncomeAmount);
+
+			var incomeByType = playerResources.IncomeEntries
+				.GroupBy(e => e.ActorType)
+				.OrderByDescending(g => g.Sum(e => e.AmountPerInterval));
+
+			foreach (var group in incomeByType)
+			{
+				var name = group.First().Name;
+				var count = group.Count();
+				var total = (int)group.Sum(e => e.AmountPerInterval);
+				if (count > 1)
+					sb.AppendLine(name + " x" + count + ": +$" + total);
+				else
+					sb.AppendLine(name + ": +$" + total);
+			}
+
+			sb.AppendLine("Total: +$" + playerResources.TotalIncome);
+			sb.AppendLine();
+			sb.AppendLine("--- UPKEEP ---");
+
+			var upkeepByType = playerResources.UpkeepEntries
+				.GroupBy(e => e.ActorType)
+				.OrderByDescending(g => g.Sum(e => e.Cost));
+
+			foreach (var group in upkeepByType)
+			{
+				var name = group.First().Name;
+				var count = group.Count();
+				var total = (int)group.Sum(e => e.Cost);
+				if (count > 1)
+					sb.AppendLine(name + " x" + count + ": -$" + total);
+				else
+					sb.AppendLine(name + ": -$" + total);
+			}
+
+			sb.AppendLine("Total: -$" + (int)playerResources.Upkeep);
+			sb.AppendLine();
+
+			var net = playerResources.NetChange;
+			var sign = net >= 0 ? "+" : "";
+			sb.Append("Net: " + sign + "$" + net + " / interval");
+
+			return sb.ToString();
 		}
 
 		public override void Tick()
@@ -69,11 +110,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				displayResources -= move;
 			}
 
-			displayUpkeep = (int)playerResources.Upkeep;
-
-			cashflowTooltip = cashflowTooltipCache.Update((displayResources, displayUpkeep));
-
-			cashLabel.Text = cashTemplate.F(displayResources) + " (-" + cashTemplate.F(displayUpkeep) + ")";
+			var net = playerResources.NetChange;
+			var sign = net >= 0 ? "+" : "";
+			cashLabel.Text = cashTemplate.F(displayResources) + " (" + sign + cashTemplate.F(net) + ")";
 		}
 	}
 }

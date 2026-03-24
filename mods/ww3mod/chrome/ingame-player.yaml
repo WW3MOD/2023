@@ -1067,6 +1067,7 @@ Container@PLAYER_WIDGETS:
 					Text: {0}
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: SIMPLE_TOOLTIP
+					AnchorTooltip: true
 					Children:
 						Image@CASH_ICON:
 							X: 0-21

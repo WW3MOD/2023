@@ -28,6 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Actor self;
 		readonly InfersUpkeepInfo info;
 		PlayerResources player;
+		UpkeepEntry registeredEntry;
 
 		public InfersUpkeep(Actor self, InfersUpkeepInfo info)
 		{
@@ -49,6 +50,15 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		string DisplayName
+		{
+			get
+			{
+				var tooltip = self.Info.TraitInfoOrDefault<TooltipInfo>();
+				return tooltip?.Name ?? self.Info.Name;
+			}
+		}
+
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
 			player = newOwner.PlayerActor.Trait<PlayerResources>();
@@ -56,18 +66,27 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCapture.OnCapture(Actor self, Actor captor, Player oldOwner, Player newOwner, BitSet<CaptureType> captureTypes)
 		{
-			oldOwner.PlayerActor.Trait<PlayerResources>().RemoveFromUpkeep(Cost);
-			newOwner.PlayerActor.Trait<PlayerResources>().AddToUpkeep(Cost);
+			var oldResources = oldOwner.PlayerActor.Trait<PlayerResources>();
+			var newResources = newOwner.PlayerActor.Trait<PlayerResources>();
+
+			if (registeredEntry != null)
+				oldResources.RemoveFromUpkeep(registeredEntry);
+
+			registeredEntry = newResources.AddToUpkeep(Cost, self.Info.Name, DisplayName);
 		}
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
-			player.AddToUpkeep(Cost);
+			registeredEntry = player.AddToUpkeep(Cost, self.Info.Name, DisplayName);
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
-			player.RemoveFromUpkeep(Cost);
+			if (registeredEntry != null)
+			{
+				player.RemoveFromUpkeep(registeredEntry);
+				registeredEntry = null;
+			}
 		}
 	}
 }

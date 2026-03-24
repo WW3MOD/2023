@@ -115,6 +115,20 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new PlayerResources(init.Self, this); }
 	}
 
+	public class IncomeEntry
+	{
+		public string ActorType;
+		public string Name;
+		public float AmountPerInterval;
+	}
+
+	public class UpkeepEntry
+	{
+		public string ActorType;
+		public string Name;
+		public float Cost;
+	}
+
 	public class PlayerResources : ISync, ITick, ICashTricklerModifier
 	{
 		public readonly PlayerResourcesInfo Info;
@@ -124,6 +138,17 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int PassiveIncomeAmount;
 		public int IncomeModifier;
+
+		readonly List<IncomeEntry> incomeEntries = new List<IncomeEntry>();
+		readonly List<UpkeepEntry> upkeepEntries = new List<UpkeepEntry>();
+
+		public IReadOnlyList<IncomeEntry> IncomeEntries => incomeEntries;
+		public IReadOnlyList<UpkeepEntry> UpkeepEntries => upkeepEntries;
+
+		public float TotalBuildingIncome;
+
+		public int TotalIncome => PassiveIncomeAmount + (int)TotalBuildingIncome;
+		public int NetChange => TotalIncome - (int)Upkeep;
 
 		public PlayerResources(Actor self, PlayerResourcesInfo info)
 		{
@@ -174,7 +199,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (--PassiveIncomeTicks <= 0)
 			{
 				if (self.Owner.Playable)
-					ChangeCash(PassiveIncomeAmount - (int)Upkeep);
+					ChangeCash(PassiveIncomeAmount + (int)TotalBuildingIncome - (int)Upkeep);
 
 				PassiveIncomeTicks = Info.PassiveIncomeInterval;
 			}
@@ -293,6 +318,39 @@ namespace OpenRA.Mods.Common.Traits
 				Resources = ResourceCapacity;
 		}
 
+		public IncomeEntry AddIncome(string actorType, string name, float amountPerInterval)
+		{
+			var entry = new IncomeEntry
+			{
+				ActorType = actorType,
+				Name = name,
+				AmountPerInterval = amountPerInterval
+			};
+
+			incomeEntries.Add(entry);
+			TotalBuildingIncome += amountPerInterval;
+			return entry;
+		}
+
+		public void RemoveIncome(IncomeEntry entry)
+		{
+			if (entry == null)
+				return;
+
+			incomeEntries.Remove(entry);
+			TotalBuildingIncome -= entry.AmountPerInterval;
+		}
+
+		public void UpdateIncome(IncomeEntry entry, float newAmountPerInterval)
+		{
+			if (entry == null)
+				return;
+
+			TotalBuildingIncome -= entry.AmountPerInterval;
+			entry.AmountPerInterval = newAmountPerInterval;
+			TotalBuildingIncome += newAmountPerInterval;
+		}
+
 		public void AddToUpkeep(float upkeep)
 		{
 			Upkeep += upkeep;
@@ -301,6 +359,29 @@ namespace OpenRA.Mods.Common.Traits
 		public void RemoveFromUpkeep(float upkeep)
 		{
 			Upkeep -= upkeep;
+		}
+
+		public UpkeepEntry AddToUpkeep(float upkeep, string actorType, string name)
+		{
+			Upkeep += upkeep;
+			var entry = new UpkeepEntry
+			{
+				ActorType = actorType,
+				Name = name,
+				Cost = upkeep
+			};
+
+			upkeepEntries.Add(entry);
+			return entry;
+		}
+
+		public void RemoveFromUpkeep(UpkeepEntry entry)
+		{
+			if (entry == null)
+				return;
+
+			Upkeep -= entry.Cost;
+			upkeepEntries.Remove(entry);
 		}
 
 		int ICashTricklerModifier.GetCashTricklerModifier()

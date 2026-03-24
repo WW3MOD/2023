@@ -10,7 +10,6 @@
 #endregion
 
 using System.Linq;
-using OpenRA.Mods.Common.Effects;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -22,7 +21,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Amount of money to give each time.")]
 		public readonly int Amount = 0;
 
-		[Desc("Number of ticks to wait between giving money.")]
+		[Desc("Number of ticks to wait between giving money.",
+			"Used to normalize the income rate when registering with the unified economy tick.")]
 		public readonly int Interval = 60;
 
 		[Desc("Number of ticks to wait before giving first money.")]
@@ -40,17 +40,22 @@ namespace OpenRA.Mods.Common.Traits
 				throw new YamlException($"CashTrickler is defined with ShowTicks 'true' but actor '{info.Name}' occupies no space.");
 		}
 
-		public override object Create(ActorInitializer init) { return new CashTrickler(this); }
+		public override object Create(ActorInitializer init) { return new CashTrickler(init, this); }
 	}
 
-	public class CashTrickler : PausableConditionalTrait<CashTricklerInfo>, ITick, ISync, INotifyCreated, INotifyOwnerChanged
+	public class CashTrickler : PausableConditionalTrait<CashTricklerInfo>, ITick, ISync,
+		INotifyCreated, INotifyOwnerChanged, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		readonly CashTricklerInfo info;
 		PlayerResources resources;
+		IncomeEntry registeredEntry;
+		int lastModifiedAmount;
+		bool isInWorld;
+
 		[Sync]
 		public int Ticks { get; private set; }
 
-		public CashTrickler(CashTricklerInfo info)
+		public CashTrickler(ActorInitializer init, CashTricklerInfo info)
 			: base(info)
 		{
 			this.info = info;
@@ -60,44 +65,98 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			resources = self.Owner.PlayerActor.Trait<PlayerResources>();
-
 			base.Created(self);
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
+			Unregister();
 			resources = newOwner.PlayerActor.Trait<PlayerResources>();
+			Register(self);
+		}
+
+		void INotifyAddedToWorld.AddedToWorld(Actor self)
+		{
+			isInWorld = true;
+			Register(self);
+		}
+
+		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
+		{
+			isInWorld = false;
+			Unregister();
+		}
+
+		protected override void TraitEnabled(Actor self)
+		{
+			Register(self);
+		}
+
+		protected override void TraitDisabled(Actor self)
+		{
+			Unregister();
+		}
+
+		protected override void TraitResumed(Actor self)
+		{
+			Register(self);
+		}
+
+		protected override void TraitPaused(Actor self)
+		{
+			Unregister();
+		}
+
+		int GetModifiedAmount(Actor self)
+		{
+			var modifiers = self.TraitsImplementing<ICashTricklerModifier>()
+				.Concat(self.Owner.PlayerActor.TraitsImplementing<ICashTricklerModifier>())
+				.Select(x => x.GetCashTricklerModifier());
+			return Util.ApplyPercentageModifiers(info.Amount, modifiers);
+		}
+
+		float NormalizeToInterval(int modifiedAmount)
+		{
+			var passiveInterval = resources.Info.PassiveIncomeInterval;
+			return (float)modifiedAmount * passiveInterval / info.Interval;
+		}
+
+		void Register(Actor self)
+		{
+			if (registeredEntry != null || !isInWorld || IsTraitDisabled || IsTraitPaused)
+				return;
+
+			var modifiedAmount = GetModifiedAmount(self);
+			var normalized = NormalizeToInterval(modifiedAmount);
+			var tooltip = self.Info.TraitInfoOrDefault<TooltipInfo>();
+			var name = tooltip?.Name ?? self.Info.Name;
+
+			registeredEntry = resources.AddIncome(self.Info.Name, name, normalized);
+			lastModifiedAmount = modifiedAmount;
+		}
+
+		void Unregister()
+		{
+			if (registeredEntry == null)
+				return;
+
+			resources.RemoveIncome(registeredEntry);
+			registeredEntry = null;
 		}
 
 		void ITick.Tick(Actor self)
 		{
-			if (IsTraitDisabled)
-				Ticks = info.Interval;
-
-			if (IsTraitPaused || IsTraitDisabled)
+			if (registeredEntry == null)
 				return;
 
-			if (--Ticks < 0)
+			// Check if modifiers changed (e.g. CashTricklerMultiplier condition toggled)
+			var modifiedAmount = GetModifiedAmount(self);
+			if (modifiedAmount != lastModifiedAmount)
 			{
-				var cashTrickerModifier = self.Owner.PlayerActor.TraitsImplementing<ICashTricklerModifier>().Select(x => x.GetCashTricklerModifier());
-
-				Ticks = info.Interval;
-				ModifyCash(self, Util.ApplyPercentageModifiers(info.Amount, cashTrickerModifier));
+				var normalized = NormalizeToInterval(modifiedAmount);
+				resources.UpdateIncome(registeredEntry, normalized);
+				lastModifiedAmount = modifiedAmount;
 			}
-		}
-
-		void AddCashTick(Actor self, int amount)
-		{
-			self.World.AddFrameEndTask(w => w.Add(
-				new FloatingText(self.CenterPosition, self.Owner.Color, FloatingText.FormatCashTick(amount), info.DisplayDuration)));
-		}
-
-		void ModifyCash(Actor self, int amount)
-		{
-			amount = resources.ChangeCash(amount);
-
-			if (info.ShowTicks && amount != 0)
-				AddCashTick(self, amount);
 		}
 	}
 }

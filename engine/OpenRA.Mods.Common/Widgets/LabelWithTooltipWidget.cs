@@ -18,6 +18,7 @@ namespace OpenRA.Mods.Common.Widgets
 	{
 		public readonly string TooltipTemplate;
 		public readonly string TooltipContainer;
+		public readonly bool AnchorTooltip;
 		protected Lazy<TooltipContainerWidget> tooltipContainer;
 
 		public Func<string> GetTooltipText = () => "";
@@ -35,6 +36,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			TooltipTemplate = other.TooltipTemplate;
 			TooltipContainer = other.TooltipContainer;
+			AnchorTooltip = other.AnchorTooltip;
 
 			tooltipContainer = Exts.Lazy(() =>
 				Ui.Root.Get<TooltipContainerWidget>(TooltipContainer));
@@ -51,6 +53,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 			if (GetTooltipText != null)
 				tooltipContainer.Value.SetTooltip(TooltipTemplate, new WidgetArgs() { { "getText", GetTooltipText } });
+
+			if (AnchorTooltip)
+				tooltipContainer.Value.AnchorBounds = RenderBounds;
 		}
 
 		public override void MouseExited()
@@ -58,7 +63,10 @@ namespace OpenRA.Mods.Common.Widgets
 			// Only try to remove the tooltip if we know it has been created
 			// This avoids a crash if the widget (and the container it refers to) are being removed
 			if (TooltipContainer != null && tooltipContainer.IsValueCreated)
+			{
+				tooltipContainer.Value.AnchorBounds = null;
 				tooltipContainer.Value.RemoveTooltip();
+			}
 		}
 	}
 }
