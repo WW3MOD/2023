@@ -152,6 +152,30 @@
 		TargetTypes: Helicopter
 	DeliversCash@Rotation:
 		Type: Rotation
+	HeliEmergencyLanding:
+		AutorotationDescentRate: 20
+		CrashDescentRate: 50
+		AutorotationSpeedPercent: 60
+		SpinsOnCrash: true
+		MaxSpinRate: 80
+		SpinAcceleration: 4
+		AutorotationCondition: autorotation
+		CrashLandingCondition: crash-landing
+		DisabledCondition: crash-disabled
+		SuppressEjectCondition: suppress-eject
+		EjectPassengersOnSafeLanding: true
+		EjectPassengersOnCrash: true
+		CrashExplosion: UnitExplode
+	SpeedMultiplier@CrashDisabled:
+		Modifier: 0
+		RequiresCondition: crash-disabled
+	FirepowerMultiplier@CrashDisabled:
+		Modifier: 0
+		RequiresCondition: crash-disabled
+	RepairableBuilding@CrashDisabled:
+		RequiresCondition: crash-disabled
+		RepairStep: 400
+		RepairInterval: 20
 
 ^Drone:
 	Inherits: ^Airborne

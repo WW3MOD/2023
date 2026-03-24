@@ -2,6 +2,8 @@
 TRAN:
 	Inherits@Type: ^Helicopter
 	Inherits@CargoPips: ^CargoPips
+	HeliEmergencyLanding:
+		SpinsOnCrash: false
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
@@ -321,6 +323,8 @@ HELI:
 		PilotActor: E1R1
 		SuccessRate: 80
 		EjectOnGround: true
+		AllowUnsuitableCell: false
+		RequiresCondition: !suppress-eject
 	SpawnActorOnDeath@Hovering:
 		Actor: HELI.Husk
 		RequiresCondition: airborne && !moving && !empdisable
