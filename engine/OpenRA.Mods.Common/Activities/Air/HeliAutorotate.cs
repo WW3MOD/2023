@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 
@@ -18,6 +19,7 @@ namespace OpenRA.Mods.Common.Activities
 	/// Controlled autorotation descent for helicopters at heavy damage.
 	/// The helicopter glides forward, slowly losing altitude.
 	/// Player can steer (turn) but cannot gain altitude or stop.
+	/// Features: gradual acceleration, player steering, flare before touchdown.
 	/// On landing: safe terrain = disabled + repairable, unsafe = destroyed.
 	/// </summary>
 	public class HeliAutorotate : Activity
@@ -25,10 +27,13 @@ namespace OpenRA.Mods.Common.Activities
 		readonly HeliEmergencyLanding emergencyLanding;
 		readonly HeliEmergencyLandingInfo info;
 		readonly Aircraft aircraft;
-		readonly int forwardSpeed;
+		readonly int targetForwardSpeed;
 		bool landed;
 		int landedTicks;
 		bool rotorsStopped;
+
+		// Acceleration: ramp up from 0 to targetForwardSpeed
+		int currentSpeed;
 
 		public HeliAutorotate(Actor self, HeliEmergencyLanding emergencyLanding,
 			HeliEmergencyLandingInfo info, Aircraft aircraft, int forwardSpeed)
@@ -36,9 +41,9 @@ namespace OpenRA.Mods.Common.Activities
 			this.emergencyLanding = emergencyLanding;
 			this.info = info;
 			this.aircraft = aircraft;
-			this.forwardSpeed = forwardSpeed;
+			this.targetForwardSpeed = forwardSpeed;
 
-			// Player can issue turn orders but not cancel the autorotation
+			// Player can issue steering orders but not cancel the autorotation
 			IsInterruptible = false;
 		}
 
@@ -86,16 +91,50 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
+			// --- Steering: turn toward player-designated facing ---
+			var desiredFacing = emergencyLanding.DesiredAutorotationFacing;
+			if (desiredFacing.HasValue)
+			{
+				var turnSpeed = aircraft.Info.TurnSpeed;
+				aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing.Value, turnSpeed);
+			}
+
+			// --- Acceleration: gradually ramp up speed ---
+			if (currentSpeed < targetForwardSpeed)
+			{
+				currentSpeed = Math.Min(currentSpeed + info.AutorotationAcceleration, targetForwardSpeed);
+			}
+
+			// --- Flare: reduce descent rate and speed near ground ---
+			var altitude = self.World.Map.DistanceAboveTerrain(self.CenterPosition).Length;
+			var flareAltitude = info.FlareAltitude.Length;
+			var effectiveSpeed = currentSpeed;
+			var descentRate = info.AutorotationDescentRate.Length;
+
+			if (flareAltitude > 0 && altitude < flareAltitude)
+			{
+				// Linear interpolation: at flareAltitude = 100%, at ground = FlarePercent%
+				var flareFraction = (float)altitude / flareAltitude;
+
+				// Descent: lerp from FlareDescentPercent% to 100%
+				var descentPercent = info.FlareDescentPercent + (int)((100 - info.FlareDescentPercent) * flareFraction);
+				descentRate = descentRate * descentPercent / 100;
+
+				// Speed: lerp from FlareSpeedPercent% to 100%
+				var speedPercent = info.FlareSpeedPercent + (int)((100 - info.FlareSpeedPercent) * flareFraction);
+				effectiveSpeed = effectiveSpeed * speedPercent / 100;
+			}
+
 			// Calculate forward movement based on current facing
 			var forward = aircraft.FlyStep(aircraft.Facing);
 
-			// Scale to autorotation speed
+			// Scale to effective autorotation speed
 			var forwardLength = forward.Length;
 			if (forwardLength > 0)
-				forward = forward * forwardSpeed / forwardLength;
+				forward = forward * effectiveSpeed / forwardLength;
 
 			// Apply descent
-			var descent = new WVec(0, 0, -info.AutorotationDescentRate.Length);
+			var descent = new WVec(0, 0, -descentRate);
 			var move = forward + descent;
 
 			// For CanSlide aircraft, we bypass the velocity system and move directly
@@ -106,10 +145,6 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Move the aircraft
 			aircraft.SetPosition(self, self.CenterPosition + move);
-
-			// Allow player steering: accept facing changes from queued move orders
-			// The activity is non-interruptible, but we process facing from child activities
-			// This is handled by the player issuing move orders that get converted to facing
 
 			return false;
 		}

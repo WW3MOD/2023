@@ -31,6 +31,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Forward speed during autorotation as percentage of normal Aircraft.Speed.")]
 		public readonly int AutorotationSpeedPercent = 60;
 
+		[Desc("Forward speed acceleration per tick during autorotation (WDist units).",
+			"Helicopter gradually ramps up to AutorotationSpeedPercent instead of instant speed.")]
+		public readonly int AutorotationAcceleration = 3;
+
+		[Desc("Altitude above terrain at which autorotation flare begins (descent rate reduction before touchdown).",
+			"Set to 0 to disable flare.")]
+		public readonly WDist FlareAltitude = new WDist(512);
+
+		[Desc("Descent rate percentage at ground level during flare. Linearly interpolated from 100% at FlareAltitude to this at ground.",
+			"Lower = gentler touchdown.")]
+		public readonly int FlareDescentPercent = 30;
+
+		[Desc("Forward speed percentage at ground level during flare. Linearly interpolated from 100% at FlareAltitude to this at ground.",
+			"Lower = slower approach to landing.")]
+		public readonly int FlareSpeedPercent = 60;
+
 		[Desc("Whether the helicopter spins during uncontrolled crash (tail rotor loss simulation).",
 			"Set to false for dual-rotor aircraft like Chinook.")]
 		public readonly bool SpinsOnCrash = true;
@@ -102,7 +118,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class HeliEmergencyLanding : INotifyDamageStateChanged, INotifyCreated, INotifyKilled
+	public class HeliEmergencyLanding : INotifyDamageStateChanged, INotifyCreated, INotifyKilled, IResolveOrder
 	{
 		public enum EmergencyState { None, Autorotation, Crashing }
 
@@ -112,6 +128,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		public EmergencyState State { get; private set; } = EmergencyState.None;
 		public bool IsDisabledOnGround => disabledToken != Actor.InvalidConditionToken;
+
+		/// <summary>
+		/// Desired facing set by player right-click during autorotation.
+		/// HeliAutorotate reads this to steer the helicopter.
+		/// </summary>
+		public WAngle? DesiredAutorotationFacing { get; set; }
 
 		int autorotationToken = Actor.InvalidConditionToken;
 		int crashLandingToken = Actor.InvalidConditionToken;
@@ -354,6 +376,24 @@ namespace OpenRA.Mods.Common.Traits
 				if (rotorStoppedToken != Actor.InvalidConditionToken)
 					rotorStoppedToken = self.RevokeCondition(rotorStoppedToken);
 			}
+		}
+
+		void IResolveOrder.ResolveOrder(Actor self, Order order)
+		{
+			// During autorotation, intercept Move orders and convert them to steering input
+			if (State != EmergencyState.Autorotation)
+				return;
+
+			if (order.OrderString != "Move")
+				return;
+
+			if (order.Target.Type == TargetType.Invalid)
+				return;
+
+			// Calculate desired facing from current position to click target
+			var delta = order.Target.CenterPosition - self.CenterPosition;
+			if (delta.HorizontalLengthSquared != 0)
+				DesiredAutorotationFacing = delta.Yaw;
 		}
 	}
 }
