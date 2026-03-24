@@ -95,7 +95,7 @@ littlebird:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
-		Prerequisites: ~player.america, ~aircraft.america, ~!aitoodumb, ~techlevel.medium
+		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
 		Description: Light scout helicopter with dual chainguns.\n\n - 2x 7.62mm miniguns\n - Fast and agile\n - Armor: Light
 	Tooltip:
 		Name: Littlebird
@@ -220,14 +220,6 @@ littlebird:
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 
-littlebird.AI:
-	Inherits: littlebird
-	Buildable:
-		Prerequisites: ~player.america, ~aircraft.america, ~aitoodumb, ~techlevel.medium
-		Description: Light scout helicopter with dual chainguns.\n\n - 2x 7.62mm miniguns\n - Fast and agile\n - Armor: Light
-	AttackAircraft:
-		Armaments: primary, secondary
-	-MapEditorData:
 
 HELI:
 	Inherits@Type: ^Helicopter
