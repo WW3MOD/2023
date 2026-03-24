@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -22,8 +23,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	{
 		static readonly string PresetPath = Path.Combine(Platform.SupportDir, "ww3mod", "debug-preset.yaml");
 
-		// Tracked locally so save/load can read and set it
-		int fastBuildState;
+		// Color scheme: OFF = red, ME = green, ALL = blue
+		static readonly Color ColorOff = Color.FromArgb(255, 80, 80);
+		static readonly Color ColorMe = Color.FromArgb(80, 220, 80);
+		static readonly Color ColorAll = Color.FromArgb(80, 160, 255);
+
+		// 3-state tracking for each cheat (0=Off, 1=Me, 2=All)
+		readonly Dictionary<string, int> cheatStates = new Dictionary<string, int>();
 
 		[ObjectCreator.UseCtor]
 		public DebugMenuLogic(Widget widget, World world)
@@ -33,22 +39,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var terrainGeometryTrait = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
 			var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
 
-			var visibilityCheckbox = widget.GetOrNull<CheckboxWidget>("DISABLE_VISIBILITY_CHECKS");
-			if (visibilityCheckbox != null)
-				BindOrderCheckbox(visibilityCheckbox, world, "DevVisibility", () => devTrait.DisableShroud);
+			// --- 3-state cheat buttons ---
+			// Each takes: widget ID, display label, toggle order, all order, reset order
+			Bind3StateButton(widget, world, "INSTANT_BUILD", "Instant Build",
+				"DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
 
-			var cosmeticRevealCheckbox = widget.GetOrNull<CheckboxWidget>("COSMETIC_REVEAL");
-			if (cosmeticRevealCheckbox != null)
-				BindOrderCheckbox(cosmeticRevealCheckbox, world, "DevCosmeticReveal", () => devTrait.CosmeticReveal);
+			Bind3StateButton(widget, world, "INSTANT_CHARGE", "Instant Charge",
+				"DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
 
-			var controlAllCheckbox = widget.GetOrNull<CheckboxWidget>("CONTROL_ALL_UNITS");
-			if (controlAllCheckbox != null)
-				BindOrderCheckbox(controlAllCheckbox, world, "DevControlAllUnits", () => devTrait.ControlAllUnits);
+			Bind3StateButton(widget, world, "ENABLE_TECH", "Build Everything",
+				"DevEnableTech", "DevEnableTechAll", "DevEnableTechReset");
 
-			var pathCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_UNIT_PATHS");
-			if (pathCheckbox != null)
-				BindOrderCheckbox(pathCheckbox, world, "DevPathDebug", () => devTrait.PathDebug);
+			Bind3StateButton(widget, world, "UNLIMITED_POWER", "Unlimited Power",
+				"DevUnlimitedPower", "DevUnlimitedPowerAll", "DevUnlimitedPowerReset");
 
+			Bind3StateButton(widget, world, "BUILD_ANYWHERE", "Build Anywhere",
+				"DevBuildAnywhere", "DevBuildAnywhereAll", "DevBuildAnywhereReset");
+
+			Bind3StateButton(widget, world, "DISABLE_SHROUD", "No Shroud",
+				"DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
+
+			Bind3StateButton(widget, world, "COSMETIC_REVEAL", "Reveal All",
+				"DevCosmeticReveal", "DevCosmeticRevealAll", "DevCosmeticRevealReset");
+
+			Bind3StateButton(widget, world, "CONTROL_ALL_UNITS", "Control All",
+				"DevControlAllUnits", "DevControlAllUnitsAll", "DevControlAllUnitsReset");
+
+			Bind3StateButton(widget, world, "SHOW_UNIT_PATHS", "Show Paths",
+				"DevPathDebug", "DevPathDebugAll", "DevPathDebugReset");
+
+			// --- Action buttons ---
 			var cashButton = widget.GetOrNull<ButtonWidget>("GIVE_CASH");
 			if (cashButton != null)
 				cashButton.OnClick = () => IssueOrder(world, "DevGiveCash");
@@ -61,53 +81,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (giveCashAllButton != null)
 				giveCashAllButton.OnClick = () => IssueOrder(world, "DevGiveCashAll");
 
-			// Instant Build: 3-state button (Off → Me → All, right-click resets)
-			var fastBuildButton = widget.GetOrNull<ButtonWidget>("INSTANT_BUILD");
-			if (fastBuildButton != null)
-			{
-				fastBuildButton.GetText = () =>
-				{
-					switch (fastBuildState)
-					{
-						case 1: return "Instant Build: ME";
-						case 2: return "Instant Build: ALL";
-						default: return "Instant Build: OFF";
-					}
-				};
+			var explorationButton = widget.GetOrNull<ButtonWidget>("GIVE_EXPLORATION");
+			if (explorationButton != null)
+				explorationButton.OnClick = () => IssueOrder(world, "DevGiveExploration");
 
-				fastBuildButton.OnClick = () =>
-				{
-					switch (fastBuildState)
-					{
-						case 0:
-							fastBuildState = 1;
-							IssueOrder(world, "DevFastBuild");
-							break;
-						case 1:
-							fastBuildState = 2;
-							IssueOrder(world, "DevFastBuildAll");
-							break;
-						case 2:
-							fastBuildState = 0;
-							IssueOrder(world, "DevFastBuildReset");
-							break;
-					}
-				};
+			var noexplorationButton = widget.GetOrNull<ButtonWidget>("RESET_EXPLORATION");
+			if (noexplorationButton != null)
+				noexplorationButton.OnClick = () => IssueOrder(world, "DevResetExploration");
 
-				fastBuildButton.OnRightClick = () =>
-				{
-					if (fastBuildState != 0)
-					{
-						fastBuildState = 0;
-						IssueOrder(world, "DevFastBuildReset");
-					}
-				};
-			}
-
-			var fastChargeCheckbox = widget.GetOrNull<CheckboxWidget>("INSTANT_CHARGE");
-			if (fastChargeCheckbox != null)
-				BindOrderCheckbox(fastChargeCheckbox, world, "DevFastCharge", () => devTrait.FastCharge);
-
+			// --- Visualization checkboxes (local only, no 3-state) ---
 			var showCombatCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_COMBATOVERLAY");
 			if (showCombatCheckbox != null)
 			{
@@ -147,26 +129,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				showDepthPreviewCheckbox.OnClick = () => debugVis.DepthBuffer ^= true;
 			}
 
-			var allTechCheckbox = widget.GetOrNull<CheckboxWidget>("ENABLE_TECH");
-			if (allTechCheckbox != null)
-				BindOrderCheckbox(allTechCheckbox, world, "DevEnableTech", () => devTrait.AllTech);
-
-			var powerCheckbox = widget.GetOrNull<CheckboxWidget>("UNLIMITED_POWER");
-			if (powerCheckbox != null)
-				BindOrderCheckbox(powerCheckbox, world, "DevUnlimitedPower", () => devTrait.UnlimitedPower);
-
-			var buildAnywhereCheckbox = widget.GetOrNull<CheckboxWidget>("BUILD_ANYWHERE");
-			if (buildAnywhereCheckbox != null)
-				BindOrderCheckbox(buildAnywhereCheckbox, world, "DevBuildAnywhere", () => devTrait.BuildAnywhere);
-
-			var explorationButton = widget.GetOrNull<ButtonWidget>("GIVE_EXPLORATION");
-			if (explorationButton != null)
-				explorationButton.OnClick = () => IssueOrder(world, "DevGiveExploration");
-
-			var noexplorationButton = widget.GetOrNull<ButtonWidget>("RESET_EXPLORATION");
-			if (noexplorationButton != null)
-				noexplorationButton.OnClick = () => IssueOrder(world, "DevResetExploration");
-
 			var showActorTagsCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_ACTOR_TAGS");
 			if (showActorTagsCheckbox != null)
 			{
@@ -186,17 +148,78 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 			}
 
-			// Save/Load preset buttons
+			// --- Save/Load preset buttons ---
 			var saveButton = widget.GetOrNull<ButtonWidget>("SAVE_PRESET");
 			if (saveButton != null)
-				saveButton.OnClick = () => SavePreset(devTrait, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
+				saveButton.OnClick = () => SavePreset(debugVis, terrainGeometryTrait, customTerrainDebugTrait);
 
 			var loadButton = widget.GetOrNull<ButtonWidget>("LOAD_PRESET");
 			if (loadButton != null)
-				loadButton.OnClick = () => LoadPreset(world, devTrait, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
+				loadButton.OnClick = () => LoadPreset(world, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
 		}
 
-		void SavePreset(DeveloperMode devTrait, DebugVisualizations debugVis,
+		void Bind3StateButton(Widget widget, World world, string widgetId, string label,
+			string toggleOrder, string allOrder, string resetOrder)
+		{
+			var button = widget.GetOrNull<ButtonWidget>(widgetId);
+			if (button == null)
+				return;
+
+			cheatStates[widgetId] = 0;
+
+			button.GetText = () =>
+			{
+				var state = cheatStates[widgetId];
+				switch (state)
+				{
+					case 1: return label + ": ME";
+					case 2: return label + ": ALL";
+					default: return label + ": OFF";
+				}
+			};
+
+			button.GetColor = () =>
+			{
+				var state = cheatStates[widgetId];
+				switch (state)
+				{
+					case 1: return ColorMe;
+					case 2: return ColorAll;
+					default: return ColorOff;
+				}
+			};
+
+			button.OnClick = () =>
+			{
+				var state = cheatStates[widgetId];
+				switch (state)
+				{
+					case 0:
+						cheatStates[widgetId] = 1;
+						IssueOrder(world, toggleOrder);
+						break;
+					case 1:
+						cheatStates[widgetId] = 2;
+						IssueOrder(world, allOrder);
+						break;
+					case 2:
+						cheatStates[widgetId] = 0;
+						IssueOrder(world, resetOrder);
+						break;
+				}
+			};
+
+			button.OnRightClick = () =>
+			{
+				if (cheatStates[widgetId] != 0)
+				{
+					cheatStates[widgetId] = 0;
+					IssueOrder(world, resetOrder);
+				}
+			};
+		}
+
+		void SavePreset(DebugVisualizations debugVis,
 			TerrainGeometryOverlay terrainOverlay, CustomTerrainDebugOverlay customTerrainOverlay)
 		{
 			try
@@ -207,20 +230,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				var nodes = new List<MiniYamlNode>();
 
-				// DeveloperMode toggles
-				var devNodes = new List<MiniYamlNode>
-				{
-					new MiniYamlNode("FastBuild", fastBuildState.ToString()),
-					new MiniYamlNode("FastCharge", devTrait.FastCharge.ToString()),
-					new MiniYamlNode("AllTech", devTrait.AllTech.ToString()),
-					new MiniYamlNode("BuildAnywhere", devTrait.BuildAnywhere.ToString()),
-					new MiniYamlNode("DisableShroud", devTrait.DisableShroud.ToString()),
-					new MiniYamlNode("UnlimitedPower", devTrait.UnlimitedPower.ToString()),
-					new MiniYamlNode("CosmeticReveal", devTrait.CosmeticReveal.ToString()),
-					new MiniYamlNode("ControlAllUnits", devTrait.ControlAllUnits.ToString()),
-					new MiniYamlNode("PathDebug", devTrait.PathDebug.ToString()),
-				};
-				nodes.Add(new MiniYamlNode("DeveloperMode", new MiniYaml("", devNodes)));
+				// Cheat states
+				var cheatNodes = new List<MiniYamlNode>();
+				foreach (var kv in cheatStates)
+					cheatNodes.Add(new MiniYamlNode(kv.Key, kv.Value.ToString()));
+				nodes.Add(new MiniYamlNode("Cheats", new MiniYaml("", cheatNodes)));
 
 				// Visualization toggles
 				if (debugVis != null)
@@ -252,7 +266,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		void LoadPreset(World world, DeveloperMode devTrait, DebugVisualizations debugVis,
+		void LoadPreset(World world, DebugVisualizations debugVis,
 			TerrainGeometryOverlay terrainOverlay, CustomTerrainDebugOverlay customTerrainOverlay)
 		{
 			if (!File.Exists(PresetPath))
@@ -266,62 +280,40 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var yaml = MiniYaml.FromFile(PresetPath);
 				foreach (var section in yaml)
 				{
-					if (section.Key == "DeveloperMode")
+					if (section.Key == "Cheats")
 					{
 						foreach (var node in section.Value.Nodes)
 						{
-							switch (node.Key)
+							if (!int.TryParse(node.Value.Value, out var targetState))
+								continue;
+
+							var widgetId = node.Key;
+							if (!cheatStates.ContainsKey(widgetId))
+								continue;
+
+							// Find the matching orders by reading the button config
+							// We stored widget IDs as keys, so we can look up the orders
+							var orders = GetOrdersForWidget(widgetId);
+							if (orders == null)
+								continue;
+
+							// Reset first if currently active
+							if (cheatStates[widgetId] != 0)
 							{
-								case "FastBuild":
-								{
-									if (!int.TryParse(node.Value.Value, out var targetState))
-										break;
+								IssueOrder(world, orders.Value.reset);
+								cheatStates[widgetId] = 0;
+							}
 
-									// Reset first, then apply target state
-									if (fastBuildState != 0)
-									{
-										IssueOrder(world, "DevFastBuildReset");
-										fastBuildState = 0;
-									}
-
-									if (targetState == 1)
-									{
-										IssueOrder(world, "DevFastBuild");
-										fastBuildState = 1;
-									}
-									else if (targetState == 2)
-									{
-										IssueOrder(world, "DevFastBuildAll");
-										fastBuildState = 2;
-									}
-
-									break;
-								}
-
-								case "FastCharge":
-									ToggleIfNeeded(world, "DevFastCharge", devTrait.FastCharge, node.Value.Value);
-									break;
-								case "AllTech":
-									ToggleIfNeeded(world, "DevEnableTech", devTrait.AllTech, node.Value.Value);
-									break;
-								case "BuildAnywhere":
-									ToggleIfNeeded(world, "DevBuildAnywhere", devTrait.BuildAnywhere, node.Value.Value);
-									break;
-								case "DisableShroud":
-									ToggleIfNeeded(world, "DevVisibility", devTrait.DisableShroud, node.Value.Value);
-									break;
-								case "UnlimitedPower":
-									ToggleIfNeeded(world, "DevUnlimitedPower", devTrait.UnlimitedPower, node.Value.Value);
-									break;
-								case "CosmeticReveal":
-									ToggleIfNeeded(world, "DevCosmeticReveal", devTrait.CosmeticReveal, node.Value.Value);
-									break;
-								case "ControlAllUnits":
-									ToggleIfNeeded(world, "DevControlAllUnits", devTrait.ControlAllUnits, node.Value.Value);
-									break;
-								case "PathDebug":
-									ToggleIfNeeded(world, "DevPathDebug", devTrait.PathDebug, node.Value.Value);
-									break;
+							// Apply target state
+							if (targetState == 1)
+							{
+								IssueOrder(world, orders.Value.toggle);
+								cheatStates[widgetId] = 1;
+							}
+							else if (targetState == 2)
+							{
+								IssueOrder(world, orders.Value.all);
+								cheatStates[widgetId] = 2;
 							}
 						}
 					}
@@ -368,24 +360,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		static void ToggleIfNeeded(World world, string order, bool currentState, string savedValue)
+		// Maps widget IDs to their order strings for save/load
+		static (string toggle, string all, string reset)? GetOrdersForWidget(string widgetId)
 		{
-			if (!bool.TryParse(savedValue, out var target))
-				return;
-
-			if (currentState != target)
-				IssueOrder(world, order);
-		}
-
-		static void BindOrderCheckbox(CheckboxWidget checkbox, World world, string order, Func<bool> getValue)
-		{
-			var isChecked = new PredictedCachedTransform<bool, bool>(state => state);
-			checkbox.IsChecked = () => isChecked.Update(getValue());
-			checkbox.OnClick = () =>
+			switch (widgetId)
 			{
-				isChecked.Predict(!getValue());
-				IssueOrder(world, order);
-			};
+				case "INSTANT_BUILD": return ("DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
+				case "INSTANT_CHARGE": return ("DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
+				case "ENABLE_TECH": return ("DevEnableTech", "DevEnableTechAll", "DevEnableTechReset");
+				case "UNLIMITED_POWER": return ("DevUnlimitedPower", "DevUnlimitedPowerAll", "DevUnlimitedPowerReset");
+				case "BUILD_ANYWHERE": return ("DevBuildAnywhere", "DevBuildAnywhereAll", "DevBuildAnywhereReset");
+				case "DISABLE_SHROUD": return ("DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
+				case "COSMETIC_REVEAL": return ("DevCosmeticReveal", "DevCosmeticRevealAll", "DevCosmeticRevealReset");
+				case "CONTROL_ALL_UNITS": return ("DevControlAllUnits", "DevControlAllUnitsAll", "DevControlAllUnitsReset");
+				case "SHOW_UNIT_PATHS": return ("DevPathDebug", "DevPathDebugAll", "DevPathDebugReset");
+				default: return null;
+			}
 		}
 
 		public static void IssueOrder(World world, string order)

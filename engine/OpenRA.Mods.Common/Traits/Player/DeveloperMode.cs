@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Primitives;
@@ -140,6 +141,16 @@ namespace OpenRA.Mods.Common.Traits
 				.OptionOrDefault("cheats", info.CheckboxEnabled);
 		}
 
+		void SetFieldForAll(Actor self, Action<DeveloperMode> setter)
+		{
+			foreach (var player in self.World.Players.Where(p => p.Playable))
+			{
+				var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
+				if (dm != null)
+					setter(dm);
+			}
+		}
+
 		public void ResolveOrder(Actor self, Order order)
 		{
 			if (!Enabled)
@@ -170,50 +181,83 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 				}
 
-				case "DevEnableTech":
+				// --- Toggle (Me only) ---
+				case "DevEnableTech": allTech ^= true; break;
+				case "DevFastCharge": fastCharge ^= true; break;
+				case "DevFastBuild": fastBuild ^= true; break;
+				case "DevUnlimitedPower": unlimitedPower ^= true; break;
+				case "DevBuildAnywhere": buildAnywhere ^= true; break;
+				case "DevCosmeticReveal": cosmeticReveal ^= true; break;
+				case "DevControlAllUnits": controlAllUnits ^= true; break;
+				case "DevPathDebug": pathDebug ^= true; break;
+
+				case "DevVisibility":
 				{
-					allTech ^= true;
+					disableShroud ^= true;
+					self.Owner.MapLayers.Disabled = DisableShroud;
+					if (self.World.LocalPlayer == self.Owner)
+						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
+
 					break;
 				}
 
-				case "DevFastCharge":
-				{
-					fastCharge ^= true;
-					break;
-				}
+				// --- Enable All players ---
+				case "DevFastBuildAll": SetFieldForAll(self, dm => dm.fastBuild = true); break;
+				case "DevFastChargeAll": SetFieldForAll(self, dm => dm.fastCharge = true); break;
+				case "DevEnableTechAll": SetFieldForAll(self, dm => dm.allTech = true); break;
+				case "DevUnlimitedPowerAll": SetFieldForAll(self, dm => dm.unlimitedPower = true); break;
+				case "DevBuildAnywhereAll": SetFieldForAll(self, dm => dm.buildAnywhere = true); break;
+				case "DevCosmeticRevealAll": SetFieldForAll(self, dm => dm.cosmeticReveal = true); break;
+				case "DevControlAllUnitsAll": SetFieldForAll(self, dm => dm.controlAllUnits = true); break;
+				case "DevPathDebugAll": SetFieldForAll(self, dm => dm.pathDebug = true); break;
 
-				case "DevFastBuild":
+				case "DevVisibilityAll":
 				{
-					fastBuild ^= true;
-					break;
-				}
-
-				case "DevFastBuildAll":
-				{
-					// Enable fast build for ALL players
 					foreach (var player in self.World.Players.Where(p => p.Playable))
 					{
 						var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
 						if (dm != null)
-							dm.fastBuild = true;
+						{
+							dm.disableShroud = true;
+							player.MapLayers.Disabled = dm.DisableShroud;
+						}
 					}
+
+					if (self.World.LocalPlayer != null)
+						self.World.RenderPlayer = null;
 
 					break;
 				}
 
-				case "DevFastBuildReset":
+				// --- Reset All players ---
+				case "DevFastBuildReset": SetFieldForAll(self, dm => dm.fastBuild = false); break;
+				case "DevFastChargeReset": SetFieldForAll(self, dm => dm.fastCharge = false); break;
+				case "DevEnableTechReset": SetFieldForAll(self, dm => dm.allTech = false); break;
+				case "DevUnlimitedPowerReset": SetFieldForAll(self, dm => dm.unlimitedPower = false); break;
+				case "DevBuildAnywhereReset": SetFieldForAll(self, dm => dm.buildAnywhere = false); break;
+				case "DevCosmeticRevealReset": SetFieldForAll(self, dm => dm.cosmeticReveal = false); break;
+				case "DevControlAllUnitsReset": SetFieldForAll(self, dm => dm.controlAllUnits = false); break;
+				case "DevPathDebugReset": SetFieldForAll(self, dm => dm.pathDebug = false); break;
+
+				case "DevVisibilityReset":
 				{
-					// Disable fast build for ALL players
 					foreach (var player in self.World.Players.Where(p => p.Playable))
 					{
 						var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
 						if (dm != null)
-							dm.fastBuild = false;
+						{
+							dm.disableShroud = false;
+							player.MapLayers.Disabled = false;
+						}
 					}
+
+					if (self.World.LocalPlayer != null)
+						self.World.RenderPlayer = self.World.LocalPlayer;
 
 					break;
 				}
 
+				// --- Actions ---
 				case "DevGiveCash":
 				{
 					var amount = order.ExtraData != 0 ? (int)order.ExtraData : info.Cash;
@@ -244,34 +288,16 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 				}
 
-				case "DevVisibility":
-				{
-					disableShroud ^= true;
-					self.Owner.MapLayers.Disabled = DisableShroud;
-					if (self.World.LocalPlayer == self.Owner)
-						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
-
-					break;
-				}
-
 				case "DevCinematicView":
 				{
 					if (self.World.LocalPlayer == self.Owner)
 					{
-						// Toggle visual-only map reveal — does NOT affect gameplay vision,
-						// auto-targeting, or MapLayers. Units still behave as if fog exists.
 						if (self.World.RenderPlayer == null)
 							self.World.RenderPlayer = self.Owner;
 						else
 							self.World.RenderPlayer = null;
 					}
 
-					break;
-				}
-
-				case "DevPathDebug":
-				{
-					pathDebug ^= true;
 					break;
 				}
 
@@ -284,30 +310,6 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevResetExploration":
 				{
 					self.Owner.MapLayers.ResetExploration();
-					break;
-				}
-
-				case "DevUnlimitedPower":
-				{
-					unlimitedPower ^= true;
-					break;
-				}
-
-				case "DevBuildAnywhere":
-				{
-					buildAnywhere ^= true;
-					break;
-				}
-
-				case "DevCosmeticReveal":
-				{
-					cosmeticReveal ^= true;
-					break;
-				}
-
-				case "DevControlAllUnits":
-				{
-					controlAllUnits ^= true;
 					break;
 				}
 
