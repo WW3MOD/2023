@@ -3,7 +3,7 @@
 > Live dashboard. Max 40 lines. Oldest items rotate out.
 
 ## Active Concerns
-- **Helicopter emergency landing needs playtesting** — autorotation descent rate, crash spin, crew ejection, safe landing repair flow
+- **Helicopter emergency landing needs playtesting** — autorotation stay-grounded fix applied, damage states fixed, needs full test cycle
 - **Stance system rework complete** — All 4 phases done, needs playtesting
 - **AI overhaul needs playtesting** — Tiers 0-3.1 implemented, major new capabilities
 - **Supply Route contestation needs playtesting** — bar depletion/recovery, production slowdown
@@ -13,6 +13,7 @@
 - **Capture bug partially fixed** — frozen actor staleness addressed, monitor next playtest
 
 ## Recent Wins
+- **Damage state threshold fix** — Heavy/Medium were unreachable (math bug), now configurable per-actor. Health bar gradient: green→yellow→orange→red
 - **Helicopter emergency landing system** — Two-tier: heavy=autorotation (steerable, safe landing, repairable), critical=crash (spinning, destroyed). Crew survives ground landing only
 - **Stance rework Phases 1-4 complete** — Modifiers, enums, tooltips, resupply behavior, cohesion distribution, patrol system
 - **AI overhaul Tiers 0-3.1** — 5 new C# bot modules, multi-axis attacks, adaptive production
