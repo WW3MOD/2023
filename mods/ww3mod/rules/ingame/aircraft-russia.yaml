@@ -348,12 +348,7 @@ FROG:
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	Inherits@GainsExperience: ^GainsExperience
-	Buildable:
-		Queue: Aircraft
-		BuildAtProductionType: Plane
-		BuildPaletteOrder: 4
-		Prerequisites: ~player.russia, ~aircraft.russia,
-		Description: Fixed-wing ground attack aircraft.\n\n - Air-to-ground ordnance\n - Armor: Light
+	-Buildable:
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -462,12 +457,7 @@ MIG:
 	Inherits@Type: ^Aircraft
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
-	Buildable:
-		Queue: Aircraft
-		BuildAtProductionType: Plane
-		BuildPaletteOrder: 5
-		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Fast multi-role fighter-bomber.\n\n - Air-to-ground and air-to-air\n - High speed\n - Armor: Light
+	-Buildable:
 	Tooltip:
 		Name: MiG-29 Falcrum
 	Valued:
