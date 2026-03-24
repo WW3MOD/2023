@@ -52,9 +52,54 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (giveCashAllButton != null)
 				giveCashAllButton.OnClick = () => IssueOrder(world, "DevGiveCashAll");
 
-			var fastBuildCheckbox = widget.GetOrNull<CheckboxWidget>("INSTANT_BUILD");
-			if (fastBuildCheckbox != null)
-				BindOrderCheckbox(fastBuildCheckbox, world, "DevFastBuild", () => devTrait.FastBuild);
+			// Instant Build: 3-state button (Off → Me → All, right-click resets)
+			// 0 = Off, 1 = Me only, 2 = All players
+			var fastBuildState = 0;
+			var fastBuildButton = widget.GetOrNull<ButtonWidget>("INSTANT_BUILD");
+			if (fastBuildButton != null)
+			{
+				fastBuildButton.GetText = () =>
+				{
+					switch (fastBuildState)
+					{
+						case 1: return "Instant Build: ME";
+						case 2: return "Instant Build: ALL";
+						default: return "Instant Build: OFF";
+					}
+				};
+
+				fastBuildButton.OnClick = () =>
+				{
+					switch (fastBuildState)
+					{
+						case 0:
+							// Off → Me: toggle on for local player
+							fastBuildState = 1;
+							IssueOrder(world, "DevFastBuild");
+							break;
+						case 1:
+							// Me → All: enable for all players
+							fastBuildState = 2;
+							IssueOrder(world, "DevFastBuildAll");
+							break;
+						case 2:
+							// All → Off: reset everyone
+							fastBuildState = 0;
+							IssueOrder(world, "DevFastBuildReset");
+							break;
+					}
+				};
+
+				fastBuildButton.OnRightClick = () =>
+				{
+					// Right-click: reset to Off from any state
+					if (fastBuildState != 0)
+					{
+						fastBuildState = 0;
+						IssueOrder(world, "DevFastBuildReset");
+					}
+				};
+			}
 
 			var fastChargeCheckbox = widget.GetOrNull<CheckboxWidget>("INSTANT_CHARGE");
 			if (fastChargeCheckbox != null)

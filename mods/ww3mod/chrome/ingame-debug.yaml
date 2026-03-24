@@ -10,13 +10,13 @@ Container@DEBUG_PANEL:
 			Text: Debug Options
 			Align: Center
 			Width: PARENT_RIGHT
-		Checkbox@INSTANT_BUILD:
+		Button@INSTANT_BUILD:
 			X: 45
 			Y: 45
 			Width: 200
-			Height: 20
+			Height: 25
 			Font: Regular
-			Text: Instant Build Speed
+			Text: Instant Build: OFF
 		Checkbox@ENABLE_TECH:
 			X: 45
 			Y: 75

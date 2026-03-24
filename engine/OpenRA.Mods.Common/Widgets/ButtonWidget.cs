@@ -68,6 +68,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		// Equivalent to OnMouseUp, but without an input arg
 		public Action OnClick = () => { };
+		public Action OnRightClick = null;
 		public Action OnDoubleClick = null;
 		public Action<KeyInput> OnKeyPress = _ => { };
 
@@ -120,6 +121,7 @@ namespace OpenRA.Mods.Common.Widgets
 			GetContrastColorDark = other.GetContrastColorDark;
 			GetContrastColorLight = other.GetContrastColorLight;
 			OnMouseDown = other.OnMouseDown;
+			OnRightClick = other.OnRightClick;
 			Disabled = other.Disabled;
 			Highlighted = other.Highlighted;
 			IsHighlighted = other.IsHighlighted;
@@ -162,6 +164,17 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public override bool HandleMouseInput(MouseInput mi)
 		{
+			if (mi.Button == MouseButton.Right && OnRightClick != null)
+			{
+				if (mi.Event == MouseInputEvent.Up && !IsDisabled())
+				{
+					OnRightClick();
+					Game.Sound.PlayNotification(ModRules, null, "Sounds", ClickSound, null);
+				}
+
+				return true;
+			}
+
 			if (mi.Button != MouseButton.Left)
 				return false;
 

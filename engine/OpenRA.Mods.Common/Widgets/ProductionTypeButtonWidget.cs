@@ -21,7 +21,7 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string ProductionGroup;
 		public readonly string RepeatSymbolsFont = "Symbols";
 
-		public Action OnRightClick = () => { };
+		public new Action OnRightClick = () => { };
 		public Action OnMiddleClick = () => { };
 		public Func<bool> RepeatModeActive = () => false;
 

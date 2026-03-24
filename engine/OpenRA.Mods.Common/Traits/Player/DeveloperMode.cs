@@ -188,6 +188,32 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 				}
 
+				case "DevFastBuildAll":
+				{
+					// Enable fast build for ALL players
+					foreach (var player in self.World.Players.Where(p => p.Playable))
+					{
+						var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
+						if (dm != null)
+							dm.fastBuild = true;
+					}
+
+					break;
+				}
+
+				case "DevFastBuildReset":
+				{
+					// Disable fast build for ALL players
+					foreach (var player in self.World.Players.Where(p => p.Playable))
+					{
+						var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
+						if (dm != null)
+							dm.fastBuild = false;
+					}
+
+					break;
+				}
+
 				case "DevGiveCash":
 				{
 					var amount = order.ExtraData != 0 ? (int)order.ExtraData : info.Cash;
