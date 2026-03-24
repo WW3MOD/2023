@@ -579,6 +579,7 @@ m109:
 			TopLeft: -315, -900
 			BottomRight: 315, 900
 	Detectable:
+		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
@@ -694,7 +695,7 @@ m270:
 			TopLeft: -360, -530
 			BottomRight: 360, 530
 	Detectable:
-		# Radar: 1 # TODO this should be removed, but check if it works as intended or fixes needed
+		Radar: 1
 		RadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
