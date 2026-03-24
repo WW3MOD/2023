@@ -56,8 +56,9 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				// In control-all mode, boost enemy unit priority above neutral:
 				// Own > Enemy > Allied > Neutral (instead of default Own > Allied > Neutral > Enemy)
-				selected = candidates
+				var best = candidates
 					.MaxByOrDefault(x => CalculateControlAllPriority(x, a, modifiers, world));
+				selected = best.Actor;
 			}
 			else
 				selected = candidates.WithHighestSelectionPriority(a, modifiers);
