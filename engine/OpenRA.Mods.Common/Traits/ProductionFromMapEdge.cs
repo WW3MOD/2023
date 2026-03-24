@@ -99,8 +99,16 @@ namespace OpenRA.Mods.Common.Traits
 
 					// Find the closest valid edge cell near the SpawnArea (or near the building if no SpawnArea)
 					var searchOrigin = spawnAreaHint ?? self.Location;
-					location = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
-						c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
+
+					// If we have a SpawnArea hint, only search on the same map edge to prevent
+					// units spawning on the wrong side of the map when the area is congested.
+					// Falls back to any edge if no SpawnArea exists (legacy behavior).
+					if (spawnAreaHint.HasValue)
+						location = self.World.Map.ChooseClosestMatchingEdgeCellOnSameEdge(searchOrigin,
+							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
+					else
+						location = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
+							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
 				}
 			}
 

@@ -1488,6 +1488,47 @@ namespace OpenRA
 			return AllEdgeCells.OrderBy(c => (cell - c).Length).FirstOrDefault(c => match(c));
 		}
 
+		/// <summary>
+		/// Find the closest matching edge cell on the same map edge as the hint cell.
+		/// The hint should be on or near a map edge. Only cells on that same edge are considered.
+		/// </summary>
+		public CPos ChooseClosestMatchingEdgeCellOnSameEdge(CPos hint, Func<CPos, bool> match)
+		{
+			// Determine which edge the hint is closest to
+			var mpos = hint.ToMPos(Grid.Type);
+			var allProjected = ProjectedCellsCovering(mpos);
+			if (allProjected.Length == 0)
+				return default;
+
+			var puv = allProjected.First();
+			var distLeft = Math.Abs(puv.U - Bounds.Left);
+			var distRight = Math.Abs(puv.U - (Bounds.Right - 1));
+			var distTop = Math.Abs(puv.V - Bounds.Top);
+			var distBottom = Math.Abs(puv.V - (Bounds.Bottom - 1));
+
+			var minDist = Math.Min(Math.Min(distLeft, distRight), Math.Min(distTop, distBottom));
+
+			// Filter edge cells to only those on the same edge
+			var sameEdgeCells = AllEdgeCells.Where(c =>
+			{
+				var cmpos = c.ToMPos(Grid.Type);
+				var cp = ProjectedCellsCovering(cmpos);
+				if (cp.Length == 0)
+					return false;
+				var cpuv = cp.First();
+
+				if (minDist == distLeft)
+					return Math.Abs(cpuv.U - Bounds.Left) <= 1;
+				if (minDist == distRight)
+					return Math.Abs(cpuv.U - (Bounds.Right - 1)) <= 1;
+				if (minDist == distTop)
+					return Math.Abs(cpuv.V - Bounds.Top) <= 1;
+				return Math.Abs(cpuv.V - (Bounds.Bottom - 1)) <= 1;
+			});
+
+			return sameEdgeCells.OrderBy(c => (hint - c).Length).FirstOrDefault(c => match(c));
+		}
+
 		List<CPos> UpdateEdgeCells()
 		{
 			var edgeCells = new List<CPos>();
