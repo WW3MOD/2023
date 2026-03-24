@@ -48,12 +48,54 @@ namespace OpenRA.Mods.Common.Widgets
 		public static IEnumerable<Actor> SelectHighestPriorityActorAtPoint(World world, int2 a, Modifiers modifiers)
 		{
 			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
-			var selected = world.ScreenMap.ActorsAtMouse(a)
-				.Where(x => x.Actor.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || x.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x.Actor)))
-				.WithHighestSelectionPriority(a, modifiers);
+			var candidates = world.ScreenMap.ActorsAtMouse(a)
+				.Where(x => x.Actor.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || x.Actor.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x.Actor)));
+
+			Actor selected;
+			if (controlAll)
+			{
+				// In control-all mode, boost enemy unit priority above neutral:
+				// Own > Enemy > Allied > Neutral (instead of default Own > Allied > Neutral > Enemy)
+				selected = candidates
+					.MaxByOrDefault(x => CalculateControlAllPriority(x, a, modifiers, world));
+			}
+			else
+				selected = candidates.WithHighestSelectionPriority(a, modifiers);
 
 			if (selected != null)
 				yield return selected;
+		}
+
+		static long CalculateControlAllPriority(ActorBoundsPair abp, int2 selectionPixel, Modifiers modifiers, World world)
+		{
+			var info = abp.Actor.Info.TraitInfoOrDefault<ISelectableInfo>();
+			var basePriority = info != null ? info.Priority : int.MinValue;
+
+			var viewer = world.LocalPlayer ?? world.RenderPlayer;
+
+			// Priority order: Own (0) > Enemy (-1) > Allied (-2) > Neutral (-3)
+			const int PriorityRange = 30;
+			if (viewer != null && abp.Actor.Owner != viewer)
+			{
+				switch (viewer.RelationshipWith(abp.Actor.Owner))
+				{
+					case PlayerRelationship.Enemy: basePriority -= PriorityRange; break;
+					case PlayerRelationship.Ally: basePriority -= 2 * PriorityRange; break;
+					case PlayerRelationship.Neutral: basePriority -= 3 * PriorityRange; break;
+				}
+			}
+
+			if (!abp.Bounds.IsEmpty)
+			{
+				var br = abp.Bounds.BoundingRect;
+				var centerPixel = new int2(
+					br.Left + br.Size.Width / 2,
+					br.Top + br.Size.Height / 2);
+				var pixelDistance = (centerPixel - selectionPixel).Length;
+				return basePriority - (long)pixelDistance << 16;
+			}
+
+			return basePriority;
 		}
 
 		public static IEnumerable<Actor> SelectActorsInBoxWithDeadzone(World world, int2 a, int2 b, Modifiers modifiers)
@@ -66,10 +108,23 @@ namespace OpenRA.Mods.Common.Widgets
 				return SelectHighestPriorityActorAtPoint(world, a, modifiers);
 
 			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
-			return world.ScreenMap.ActorsInMouseBox(a, b)
+			var allInBox = world.ScreenMap.ActorsInMouseBox(a, b)
 				.Select(x => x.Actor)
-				.Where(x => x.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || x.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x)))
-				.SubsetWithHighestSelectionPriority(modifiers);
+				.Where(x => x.Info.HasTraitInfo<ISelectableInfo>() && (controlAll || x.Owner.IsAlliedWith(world.RenderPlayer) || !world.FogObscures(x)));
+
+			if (controlAll)
+			{
+				// In control-all box select: if any own units are in the box, select only own units
+				var viewer = world.LocalPlayer ?? world.RenderPlayer;
+				if (viewer != null)
+				{
+					var ownUnits = allInBox.Where(x => x.Owner == viewer).ToList();
+					if (ownUnits.Count > 0)
+						return ownUnits.SubsetWithHighestSelectionPriority(modifiers);
+				}
+			}
+
+			return allInBox.SubsetWithHighestSelectionPriority(modifiers);
 		}
 
 		public static Player[] GetPlayersToIncludeInSelection(World world)

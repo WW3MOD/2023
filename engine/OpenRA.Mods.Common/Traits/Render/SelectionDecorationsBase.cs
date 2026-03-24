@@ -61,7 +61,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		IEnumerable<IRenderable> IRenderAnnotations.RenderAnnotations(Actor self, WorldRenderer wr)
 		{
-			if (self.World.FogObscures(self))
+			// Always show decorations for selected actors (e.g. enemy units selected via Control All Units mode)
+			if (self.World.FogObscures(self) && !self.World.Selection.Contains(self))
 				return Enumerable.Empty<IRenderable>();
 
 			return DrawDecorations(self, wr);
