@@ -65,7 +65,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 
 			rootMenu = widget;
-			rootMenu.Get<LabelWidget>("VERSION_LABEL").Text = modData.Manifest.Metadata.Version;
+			rootMenu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
+			{
+				SwitchMenu(MenuType.None);
+				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
+				{
+					{ "onExit", (Action)(() => SwitchMenu(MenuType.Main)) },
+					{ "shellmapName", world.Map.Title ?? "" }
+				});
+			};
 
 			// Menu buttons
 			var mainMenu = widget.Get("MAIN_MENU");

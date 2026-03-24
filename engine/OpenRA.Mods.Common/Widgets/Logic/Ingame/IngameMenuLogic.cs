@@ -162,7 +162,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			mpe = world.WorldActor.TraitOrDefault<MenuPaletteEffect>();
 			mpe?.Fade(mpe.Info.MenuEffect);
 
-			menu.Get<LabelWidget>("VERSION_LABEL").Text = modData.Manifest.Metadata.Version;
+			menu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
+			{
+				hideMenu = true;
+				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
+				{
+					{ "onExit", (Action)(() => hideMenu = false) },
+					{ "shellmapName", "" }
+				});
+			};
 
 			buttonContainer = menu.Get("MENU_BUTTONS");
 			buttonTemplate = buttonContainer.Get<ButtonWidget>("BUTTON_TEMPLATE");

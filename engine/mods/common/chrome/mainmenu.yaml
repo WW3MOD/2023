@@ -20,14 +20,13 @@ Container@MAINMENU:
 		# 	Y: 30
 		# 	ImageCollection: logos
 		# 	ImageName: logo
-		Label@VERSION_LABEL:
-			X: WINDOW_RIGHT - 25
-			Y: 25
-			# Width: 296 - 20
-			# Height: 25
-			Align: Right
-			Font: Regular
-			Shadow: true
+		Button@INFO_BUTTON:
+			X: WINDOW_RIGHT - 40
+			Y: 10
+			Width: 25
+			Height: 25
+			Text: i
+			Font: Bold
 		Container@MENUS:
 			X: 0
 			Y: WINDOW_BOTTOM / 2 - HEIGHT / 2
@@ -222,6 +221,26 @@ Container@MAINMENU:
 							Height: 30
 							Text: Back
 							Font: Bold
+		Container@MUTE_INDICATOR:
+			Logic: MuteIndicatorLogic
+			X: WINDOW_RIGHT - WIDTH - 30
+			Y: WINDOW_BOTTOM - 40
+			Width: 200
+			Height: 25
+			Children:
+				Image@ICON:
+					X: PARENT_RIGHT - WIDTH
+					Y: 1
+					Width: 24
+					Height: 24
+					ImageCollection: sidebar-bits
+					ImageName: indicator-muted
+				Label@LABEL:
+					Width: PARENT_RIGHT - 30
+					Height: 25
+					Align: Right
+					Text: Audio Muted
+					Contrast: true
 		Container@PERFORMANCE_INFO:
 			Logic: PerfDebugLogic
 			Children:

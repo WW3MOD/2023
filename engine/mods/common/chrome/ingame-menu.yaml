@@ -16,14 +16,13 @@ Container@INGAME_MENU:
 			Y: 30
 			ImageCollection: logos
 			ImageName: logo
-		Label@VERSION_LABEL:
-			X: WINDOW_RIGHT - 296
-			Y: 296 - 19
-			Width: 296 - 20
+		Button@INFO_BUTTON:
+			X: WINDOW_RIGHT - 40
+			Y: 10
+			Width: 25
 			Height: 25
-			Align: Center
-			Font: Regular
-			Contrast: True
+			Text: i
+			Font: Bold
 		Container@PANEL_ROOT:
 		Background@MENU_BUTTONS:
 			X: 13 + (WINDOW_RIGHT - 522) / 4 - WIDTH / 2
