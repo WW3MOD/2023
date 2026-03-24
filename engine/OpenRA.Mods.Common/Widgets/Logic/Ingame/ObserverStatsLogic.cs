@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
@@ -24,50 +23,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public enum ObserverStatsPanel { None, Basic, Economy, Production, SupportPowers, Combat, Army, Graph, ArmyGraph }
 
-	[ChromeLogicArgsHotkeys(
-		"StatisticsBasicKey",
-		"StatisticsEconomyKey",
-		"StatisticsProductionKey",
-		"StatisticsSupportPowersKey",
-		"StatisticsCombatKey",
-		"StatisticsArmyKey",
-		"StatisticsGraphKey",
+	[ChromeLogicArgsHotkeys("StatisticsBasicKey", "StatisticsEconomyKey", "StatisticsProductionKey", "StatisticsSupportPowersKey", "StatisticsCombatKey", "StatisticsArmyKey", "StatisticsGraphKey",
 		"StatisticsArmyGraphKey")]
 	public class ObserverStatsLogic : ChromeLogic
 	{
-		[FluentReference]
-		const string InformationNone = "options-observer-stats.none";
-
-		[FluentReference]
-		const string Basic = "options-observer-stats.basic";
-
-		[FluentReference]
-		const string Economy = "options-observer-stats.economy";
-
-		[FluentReference]
-		const string Production = "options-observer-stats.production";
-
-		[FluentReference]
-		const string SupportPowers = "options-observer-stats.support-powers";
-
-		[FluentReference]
-		const string Combat = "options-observer-stats.combat";
-
-		[FluentReference]
-		const string Army = "options-observer-stats.army";
-
-		[FluentReference]
-		const string EarningsGraph = "options-observer-stats.earnings-graph";
-
-		[FluentReference]
-		const string ArmyGraph = "options-observer-stats.army-graph";
-
-		[FluentReference("team")]
-		const string TeamNumber = "label-team-name";
-
-		[FluentReference]
-		const string NoTeam = "label-no-team";
-
 		readonly ContainerWidget basicStatsHeaders;
 		readonly ContainerWidget economyStatsHeaders;
 		readonly ContainerWidget productionStatsHeaders;
@@ -86,14 +45,47 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly LineGraphWidget incomeGraph;
 		readonly LineGraphWidget armyValueGraph;
 		readonly ScrollItemWidget teamTemplate;
-		readonly Player[] players;
-		readonly IGrouping<int, Player>[] teams;
+		readonly IEnumerable<Player> players;
+		readonly IOrderedEnumerable<IGrouping<int, Player>> teams;
 		readonly bool hasTeams;
 		readonly World world;
 		readonly WorldRenderer worldRenderer;
 
 		readonly string clickSound = ChromeMetrics.Get<string>("ClickSound");
 		ObserverStatsPanel activePanel;
+
+		[TranslationReference]
+		static readonly string InformationNone = "information-none";
+
+		[TranslationReference]
+		static readonly string Basic = "basic";
+
+		[TranslationReference]
+		static readonly string Economy = "economy";
+
+		[TranslationReference]
+		static readonly string Production = "production";
+
+		[TranslationReference]
+		static readonly string SupportPowers = "support-powers";
+
+		[TranslationReference]
+		static readonly string Combat = "combat";
+
+		[TranslationReference]
+		static readonly string Army = "army";
+
+		[TranslationReference]
+		static readonly string EarningsGraph = "earnings-graph";
+
+		[TranslationReference]
+		static readonly string ArmyGraph = "army-graph";
+
+		[TranslationReference("team")]
+		static readonly string TeamNumber = "team-number";
+
+		[TranslationReference]
+		static readonly string NoTeam = "no-team";
 
 		[ObjectCreator.UseCtor]
 		public ObserverStatsLogic(World world, ModData modData, WorldRenderer worldRenderer, Widget widget, Dictionary<string, MiniYaml> logicArgs)
@@ -107,12 +99,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			for (var i = 0; i < keyNames.Length; i++)
 				statsHotkeys[i] = logicArgs.TryGetValue("Statistics" + keyNames[i] + "Key", out yaml) ? modData.Hotkeys[yaml.Value] : new HotkeyReference();
 
-			players = world.Players.Where(p => !p.NonCombatant && p.Playable).ToArray();
-			teams = players
-				.GroupBy(p => (world.LobbyInfo.ClientWithIndex(p.ClientIndex) ?? new Session.Client()).Team)
-				.OrderBy(g => g.Key)
-				.ToArray();
-			hasTeams = !(teams.Length == 1 && teams[0].Key == 0);
+			players = world.Players.Where(p => !p.NonCombatant && p.Playable);
+			teams = players.GroupBy(p => (world.LobbyInfo.ClientWithIndex(p.ClientIndex) ?? new Session.Client()).Team).OrderBy(g => g.Key);
+			hasTeams = !(teams.Count() == 1 && teams.First().Key == 0);
 
 			basicStatsHeaders = widget.Get<ContainerWidget>("BASIC_STATS_HEADERS");
 			economyStatsHeaders = widget.Get<ContainerWidget>("ECONOMY_STATS_HEADERS");
@@ -153,12 +142,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			teamTemplate = playerStatsPanel.Get<ScrollItemWidget>("TEAM_TEMPLATE");
 
 			var statsDropDown = widget.Get<DropDownButtonWidget>("STATS_DROPDOWN");
-			StatsDropDownOption CreateStatsOption(string title, ObserverStatsPanel panel, ScrollItemWidget template, Action a)
+			Func<string, ObserverStatsPanel, ScrollItemWidget, Action, StatsDropDownOption> createStatsOption = (title, panel, template, a) =>
 			{
-				title = FluentProvider.GetMessage(title);
+				title = modData.Translation.GetString(title);
 				return new StatsDropDownOption
 				{
-					Title = FluentProvider.GetMessage(title),
+					Title = modData.Translation.GetString(title),
 					IsSelected = () => activePanel == panel,
 					OnClick = () =>
 					{
@@ -173,43 +162,43 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						Ui.ResetTooltips();
 					}
 				};
-			}
+			};
 
 			var statsDropDownOptions = new StatsDropDownOption[]
 			{
-				new()
+				new StatsDropDownOption
 				{
-					Title = FluentProvider.GetMessage(InformationNone),
+					Title = modData.Translation.GetString(InformationNone),
 					IsSelected = () => activePanel == ObserverStatsPanel.None,
 					OnClick = () =>
 					{
-						var informationNone = FluentProvider.GetMessage(InformationNone);
+						var informationNone = modData.Translation.GetString(InformationNone);
 						statsDropDown.GetText = () => informationNone;
 						playerStatsPanel.Visible = false;
 						ClearStats();
 						activePanel = ObserverStatsPanel.None;
 					}
 				},
-				CreateStatsOption(Basic, ObserverStatsPanel.Basic, basicPlayerTemplate, () => DisplayStats(BasicStats)),
-				CreateStatsOption(Economy, ObserverStatsPanel.Economy, economyPlayerTemplate, () => DisplayStats(EconomyStats)),
-				CreateStatsOption(Production, ObserverStatsPanel.Production, productionPlayerTemplate, () => DisplayStats(ProductionStats)),
-				CreateStatsOption(SupportPowers, ObserverStatsPanel.SupportPowers, supportPowersPlayerTemplate, () => DisplayStats(SupportPowerStats)),
-				CreateStatsOption(Combat, ObserverStatsPanel.Combat, combatPlayerTemplate, () => DisplayStats(CombatStats)),
-				CreateStatsOption(Army, ObserverStatsPanel.Army, armyPlayerTemplate, () => DisplayStats(ArmyStats)),
-				CreateStatsOption(EarningsGraph, ObserverStatsPanel.Graph, null, () => IncomeGraph()),
-				CreateStatsOption(ArmyGraph, ObserverStatsPanel.ArmyGraph, null, () => ArmyValueGraph()),
+				createStatsOption(Basic, ObserverStatsPanel.Basic, basicPlayerTemplate, () => DisplayStats(BasicStats, modData)),
+				createStatsOption(Economy, ObserverStatsPanel.Economy, economyPlayerTemplate, () => DisplayStats(EconomyStats, modData)),
+				createStatsOption(Production, ObserverStatsPanel.Production, productionPlayerTemplate, () => DisplayStats(ProductionStats, modData)),
+				createStatsOption(SupportPowers, ObserverStatsPanel.SupportPowers, supportPowersPlayerTemplate, () => DisplayStats(SupportPowerStats, modData)),
+				createStatsOption(Combat, ObserverStatsPanel.Combat, combatPlayerTemplate, () => DisplayStats(CombatStats, modData)),
+				createStatsOption(Army, ObserverStatsPanel.Army, armyPlayerTemplate, () => DisplayStats(ArmyStats, modData)),
+				createStatsOption(EarningsGraph, ObserverStatsPanel.Graph, null, () => IncomeGraph()),
+				createStatsOption(ArmyGraph, ObserverStatsPanel.ArmyGraph, null, () => ArmyValueGraph()),
 			};
 
-			ScrollItemWidget SetupItem(StatsDropDownOption option, ScrollItemWidget template)
+			Func<StatsDropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
 			{
 				var item = ScrollItemWidget.Setup(template, option.IsSelected, option.OnClick);
 				item.Get<LabelWidget>("LABEL").GetText = () => option.Title;
 				return item;
-			}
+			};
 
 			var statsDropDownPanelTemplate = logicArgs.TryGetValue("StatsDropDownPanelTemplate", out yaml) ? yaml.Value : "LABEL_DROPDOWN_TEMPLATE";
 
-			statsDropDown.OnMouseDown = _ => statsDropDown.ShowDropDown(statsDropDownPanelTemplate, 230, statsDropDownOptions, SetupItem);
+			statsDropDown.OnMouseDown = _ => statsDropDown.ShowDropDown(statsDropDownPanelTemplate, 230, statsDropDownOptions, setupItem);
 			statsDropDownOptions[0].OnClick();
 
 			var keyListener = statsDropDown.Get<LogicKeyListenerWidget>("STATS_DROPDOWN_KEYHANDLER");
@@ -259,7 +248,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			incomeGraph.GetSeries = () =>
 				players.Select(p => new LineGraphSeries(
-					p.ResolvedPlayerName,
+					p.PlayerName,
 					p.Color,
 					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).IncomeSamples.Select(s => (float)s)));
 		}
@@ -271,12 +260,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			armyValueGraph.GetSeries = () =>
 				players.Select(p => new LineGraphSeries(
-					p.ResolvedPlayerName,
+					p.PlayerName,
 					p.Color,
 					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).ArmySamples.Select(s => (float)s)));
 		}
 
-		void DisplayStats(Func<Player, ScrollItemWidget> createItem)
+		void DisplayStats(Func<Player, ScrollItemWidget> createItem, ModData modData)
 		{
 			foreach (var team in teams)
 			{
@@ -286,8 +275,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					tt.IgnoreMouseOver = true;
 
 					var teamLabel = tt.Get<LabelWidget>("TEAM");
-					var teamText = team.Key > 0 ? FluentProvider.GetMessage(TeamNumber, "team", team.Key)
-						: FluentProvider.GetMessage(NoTeam);
+					var teamText = team.Key > 0 ? modData.Translation.GetString(TeamNumber, Translation.Arguments("team", team.Key))
+						: modData.Translation.GetString(NoTeam);
 					teamLabel.GetText = () => teamText;
 					tt.Bounds.Width = teamLabel.Bounds.Width = Game.Renderer.Fonts[tt.Font].Measure(teamText).X;
 
@@ -331,25 +320,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (stats == null)
 				return template;
 
-			var destroyedText = new CachedTransform<int, string>(i => "$" + i.ToString(NumberFormatInfo.CurrentInfo));
+			var destroyedText = new CachedTransform<int, string>(i => "$" + i);
 			template.Get<LabelWidget>("ASSETS_DESTROYED").GetText = () => destroyedText.Update(stats.KillsCost);
 
-			var lostText = new CachedTransform<int, string>(i => "$" + i.ToString(NumberFormatInfo.CurrentInfo));
+			var lostText = new CachedTransform<int, string>(i => "$" + i);
 			template.Get<LabelWidget>("ASSETS_LOST").GetText = () => lostText.Update(stats.DeathsCost);
 
-			var unitsKilledText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var unitsKilledText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("UNITS_KILLED").GetText = () => unitsKilledText.Update(stats.UnitsKilled);
 
-			var unitsDeadText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var unitsDeadText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("UNITS_DEAD").GetText = () => unitsDeadText.Update(stats.UnitsDead);
 
-			var buildingsKilledText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var buildingsKilledText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("BUILDINGS_KILLED").GetText = () => buildingsKilledText.Update(stats.BuildingsKilled);
 
-			var buildingsDeadText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var buildingsDeadText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("BUILDINGS_DEAD").GetText = () => buildingsDeadText.Update(stats.BuildingsDead);
 
-			var armyText = new CachedTransform<int, string>(i => "$" + i.ToString(NumberFormatInfo.CurrentInfo));
+			var armyText = new CachedTransform<int, string>(i => "$" + i);
 			template.Get<LabelWidget>("ARMY_VALUE").GetText = () => armyText.Update(stats.ArmyValue);
 
 			var visionText = new CachedTransform<int, string>(i => Vision(i));
@@ -442,7 +431,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var res = player.PlayerActor.Trait<PlayerResources>();
 			var cashText = new CachedTransform<int, string>(i => "$" + i);
-			template.Get<LabelWidget>("CASH").GetText = () => cashText.Update(res.GetCashAndResources());
+			template.Get<LabelWidget>("CASH").GetText = () => cashText.Update(res.Cash + res.Resources);
 
 			var incomeText = new CachedTransform<int, string>(i => "$" + i);
 			template.Get<LabelWidget>("INCOME").GetText = () => incomeText.Update(stats.DisplayIncome);
@@ -457,18 +446,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			template.Get<LabelWidget>("ASSETS").GetText = () => assetsText.Update(stats.AssetsValue);
 
 			var harvesters = template.Get<LabelWidget>("HARVESTERS");
-			harvesters.GetText = () => world.ActorsWithTrait<Harvester>()
-				.Count(a => a.Actor.Owner == player && !a.Actor.IsDead && !a.Trait.IsTraitDisabled).ToString(NumberFormatInfo.CurrentInfo);
+			harvesters.GetText = () => world.ActorsWithTrait<Harvester>().Count(a => a.Actor.Owner == player && !a.Actor.IsDead && !a.Trait.IsTraitDisabled).ToString();
 
 			var carryalls = template.GetOrNull<LabelWidget>("CARRYALLS");
 			if (carryalls != null)
-				carryalls.GetText = () => world.ActorsWithTrait<AutoCarryall>()
-					.Count(a => a.Actor.Owner == player && !a.Actor.IsDead).ToString(NumberFormatInfo.CurrentInfo);
+				carryalls.GetText = () => world.ActorsWithTrait<AutoCarryall>().Count(a => a.Actor.Owner == player && !a.Actor.IsDead).ToString();
 
 			var derricks = template.GetOrNull<LabelWidget>("DERRICKS");
 			if (derricks != null)
-				derricks.GetText = () => world.ActorsHavingTrait<UpdatesDerrickCount>()
-					.Count(a => a.Owner == player && !a.IsDead).ToString(NumberFormatInfo.CurrentInfo);
+				derricks.GetText = () => world.ActorsHavingTrait<UpdatesDerrickCount>().Count(a => a.Owner == player && !a.IsDead).ToString();
 
 			return template;
 		}
@@ -490,7 +476,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var res = player.PlayerActor.Trait<PlayerResources>();
 			var cashText = new CachedTransform<int, string>(i => "$" + i);
-			template.Get<LabelWidget>("CASH").GetText = () => cashText.Update(res.GetCashAndResources());
+			template.Get<LabelWidget>("CASH").GetText = () => cashText.Update(res.Cash + res.Resources);
 
 			var powerRes = player.PlayerActor.TraitOrDefault<PowerManager>();
 			if (powerRes != null)
@@ -505,19 +491,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (stats == null)
 				return template;
 
-			var killsText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var killsText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("KILLS").GetText = () => killsText.Update(stats.UnitsKilled + stats.BuildingsKilled);
 
-			var deathsText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var deathsText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("DEATHS").GetText = () => deathsText.Update(stats.UnitsDead + stats.BuildingsDead);
 
-			var destroyedText = new CachedTransform<int, string>(i => "$" + i.ToString(NumberFormatInfo.CurrentInfo));
+			var destroyedText = new CachedTransform<int, string>(i => "$" + i);
 			template.Get<LabelWidget>("ASSETS_DESTROYED").GetText = () => destroyedText.Update(stats.KillsCost);
 
-			var lostText = new CachedTransform<int, string>(i => "$" + i.ToString(NumberFormatInfo.CurrentInfo));
+			var lostText = new CachedTransform<int, string>(i => "$" + i);
 			template.Get<LabelWidget>("ASSETS_LOST").GetText = () => lostText.Update(stats.DeathsCost);
 
-			var experienceText = new CachedTransform<int, string>(i => i.ToString(NumberFormatInfo.CurrentInfo));
+			var experienceText = new CachedTransform<int, string>(i => i.ToString());
 			template.Get<LabelWidget>("EXPERIENCE").GetText = () => experienceText.Update(stats.Experience);
 
 			var actionsText = new CachedTransform<double, string>(d => AverageOrdersPerMinute(d));
@@ -528,9 +514,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		static void SetupPlayerColor(Player player, ScrollItemWidget template, ColorBlockWidget colorBlockWidget, GradientColorBlockWidget gradientColorBlockWidget)
 		{
-			var pColor = player.Color;
-			var color = Color.FromArgb(128, pColor.R, pColor.G, pColor.B);
-			var hoverColor = Color.FromArgb(192, pColor.R, pColor.G, pColor.B);
+			var color = Color.FromArgb(128, player.Color.R, player.Color.G, player.Color.B);
+			var hoverColor = Color.FromArgb(192, player.Color.R, player.Color.G, player.Color.B);
 
 			var isMouseOver = new CachedTransform<Widget, bool>(w => w == template || template.Children.Contains(w));
 
@@ -588,12 +573,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		string AverageOrdersPerMinute(double orders)
 		{
-			return (world.WorldTick == 0 ? 0 : orders / (world.WorldTick / 1500.0)).ToString("F1", NumberFormatInfo.CurrentInfo);
+			return (world.WorldTick == 0 ? 0 : orders / (world.WorldTick / 1500.0)).ToString("F1");
 		}
 
 		string Vision(int revealedCells)
 		{
-			return (Math.Ceiling(revealedCells * 100d / world.Map.ProjectedCells.Length) / 100).ToString("P0", NumberFormatInfo.CurrentInfo);
+			return Math.Ceiling(revealedCells / (float)world.Map.ProjectedCells.Length * 100).ToString("F0") + "%";
 		}
 
 		static Color GetPowerColor(PowerState state)
@@ -608,9 +593,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 
 		// HACK The height of the templates and the scrollpanel needs to be kept in synch
-		bool ShowScrollBar => players.Length + (hasTeams ? teams.Length : 0) > 10;
+		bool ShowScrollBar => players.Count() + (hasTeams ? teams.Count() : 0) > 10;
 
-		sealed class StatsDropDownOption
+		class StatsDropDownOption
 		{
 			public string Title;
 			public Func<bool> IsSelected;

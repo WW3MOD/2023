@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,13 +14,14 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Mods.Common.Widgets;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor can transport Passenger actors.")]
-	public class CargoInfo : ConditionalTraitInfo, Requires<IOccupySpaceInfo>
+	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>
 	{
 		[Desc("Should this actor turn nutral when not loaded? For civilian buildings.")]
 		public readonly bool Neutral = false;
@@ -29,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int MaxWeight = 0;
 
 		[Desc("`Passenger.CargoType`s that can be loaded into this actor.")]
-		public readonly HashSet<string> Types = new();
+		public readonly HashSet<string> Types = new HashSet<string>();
 
 		[Desc("A list of actor types that are initially spawned into this actor.")]
 		public readonly string[] InitialUnits = Array.Empty<string>();
@@ -41,7 +42,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool EjectOnDeath = true;
 
 		[Desc("Terrain types that this actor is allowed to eject actors onto. Leave empty for all terrain types.")]
-		public readonly HashSet<string> UnloadTerrainTypes = new();
+		public readonly HashSet<string> UnloadTerrainTypes = new HashSet<string>();
 
 		[VoiceReference]
 		[Desc("Voice to play when ordered to unload the passengers.")]
@@ -51,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist LoadRange = WDist.FromCells(5);
 
 		[Desc("Which direction the passenger will face (relative to the transport) when unloading.")]
-		public readonly WAngle PassengerFacing = new(512);
+		public readonly WAngle PassengerFacing = new WAngle(512);
 
 		[Desc("Delay (in ticks) before continuing after loading a passenger.")]
 		public readonly int AfterLoadDelay = 8;
@@ -82,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 		[ActorReference(dictionaryReference: LintDictionaryReference.Keys)]
 		[Desc("Conditions to grant when specified actors are loaded inside the transport.",
 			"A dictionary of [actor name]: [condition].")]
-		public readonly Dictionary<string, string> PassengerConditions = new();
+		public readonly Dictionary<string, string> PassengerConditions = new Dictionary<string, string>();
 
 		[GrantedConditionReference]
 		public IEnumerable<string> LinterPassengerConditions => PassengerConditions.Values;
@@ -94,10 +95,11 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
 		ITransformActorInitModifier
 	{
+		public readonly CargoInfo Info;
 		readonly Actor self;
-		readonly List<Actor> cargo = new();
-		readonly HashSet<Actor> reserves = new();
-		readonly Dictionary<string, Stack<int>> passengerTokens = new();
+		readonly List<Actor> cargo = new List<Actor>();
+		readonly HashSet<Actor> reserves = new HashSet<Actor>();
+		readonly Dictionary<string, Stack<int>> passengerTokens = new Dictionary<string, Stack<int>>();
 		readonly Lazy<IFacing> facing;
 		readonly bool checkTerrainType;
 
@@ -106,9 +108,13 @@ namespace OpenRA.Mods.Common.Traits
 		Aircraft aircraft;
 		ICargoCanLoadFilter[] loadFilters;
 		int loadingToken = Actor.InvalidConditionToken;
-		readonly Stack<int> loadedTokens = new();
+		readonly Stack<int> loadedTokens = new Stack<int>();
 		bool takeOffAfterLoad;
 		bool initialised;
+
+		readonly CachedTransform<CPos, IEnumerable<CPos>> currentAdjacentCells;
+
+		public IEnumerable<CPos> CurrentAdjacentCells => currentAdjacentCells.Update(self.Location);
 
 		public IEnumerable<Actor> Passengers => cargo;
 		public int PassengerCount => cargo.Count;
@@ -117,10 +123,15 @@ namespace OpenRA.Mods.Common.Traits
 		State state = State.Free;
 
 		public Cargo(ActorInitializer init, CargoInfo info)
-			: base(info)
 		{
 			self = init.Self;
+			Info = info;
 			checkTerrainType = info.UnloadTerrainTypes.Count > 0;
+
+			currentAdjacentCells = new CachedTransform<CPos, IEnumerable<CPos>>(loc =>
+			{
+				return Util.AdjacentCells(self.World, Target.FromActor(self)).Where(c => loc != c);
+			});
 
 			var runtimeCargoInit = init.GetOrDefault<RuntimeCargoInit>(info);
 			var cargoInit = init.GetOrDefault<CargoInit>(info);
@@ -167,7 +178,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCreated.Created(Actor self)
 		{
-			base.Created(self);
 			aircraft = self.TraitOrDefault<Aircraft>();
 			loadFilters = self.TraitsImplementing<ICargoCanLoadFilter>().ToArray();
 
@@ -237,27 +247,18 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public IEnumerable<CPos> CurrentAdjacentCells()
-		{
-			return Util.AdjacentCells(self.World, Target.FromActor(self)).Where(c => self.Location != c);
-		}
-
 		public bool CanUnload(BlockedByActor check = BlockedByActor.None)
 		{
-			if (IsTraitDisabled)
-				return false;
-
 			if (checkTerrainType)
 			{
-				if (!self.World.Map.Contains(self.Location))
-					return false;
+				var terrainType = self.World.Map.GetTerrainInfo(self.Location).Type;
 
-				if (!Info.UnloadTerrainTypes.Contains(self.World.Map.GetTerrainInfo(self.Location).Type))
+				if (!Info.UnloadTerrainTypes.Contains(terrainType))
 					return false;
 			}
 
 			return !IsEmpty() && (aircraft == null || aircraft.CanLand(self.Location, blockedByMobile: false))
-				&& CurrentAdjacentCells().Any(c => Passengers.Any(p => !p.IsDead && p.Trait<IPositionable>().CanEnterCell(c, null, check)));
+				&& CurrentAdjacentCells != null && CurrentAdjacentCells.Any(c => Passengers.Any(p => !p.IsDead && p.Trait<IPositionable>().CanEnterCell(c, null, check)));
 		}
 
 		public bool CanLoad(Actor a)
@@ -364,7 +365,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public Actor Unload(Actor self, Actor passenger = null)
 		{
-			passenger ??= cargo.Last();
+			passenger = passenger ?? cargo.Last();
 			if (!cargo.Remove(passenger))
 				throw new ArgumentException("Attempted to unload an actor that is not a passenger.");
 

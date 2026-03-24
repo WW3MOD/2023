@@ -96,7 +96,7 @@ namespace OpenRA.Mods.Common.Traits
 			shroudSprites = new (Sprite, float, float)[variantCount * frameCount];
 			fogSprites = new (Sprite, float, float)[variantCount * frameCount];
 
-			var sequences = map.Sequences;
+			var sequenceProvider = map.Rules.Sequences;
 			for (var j = 0; j < variantCount; j++)
 			{
 				var shroudSequence = sequenceProvider.GetSequence(info.Sequence, info.ShroudVariants[j]);

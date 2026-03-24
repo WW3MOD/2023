@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -45,11 +44,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speech notification to play when the player does not have any funds.")]
 		public readonly string InsufficientFundsNotification = null;
 
-		[FluentReference(optional: true)]
 		[Desc("Text notification to display when the player does not have any funds.")]
 		public readonly string InsufficientFundsTextNotification = null;
 
-		[Desc("Delay (in milliseconds) during which warnings will be muted.")]
+		[Desc("Delay (in ticks) during which warnings will be muted.")]
 		public readonly int InsufficientFundsNotificationInterval = 30000;
 
 		[NotificationReference("Sounds")]
@@ -95,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int IncomeModifierDropdownDisplayOrder = 2;
 
 		[Desc("Monetary value of each resource type.", "Dictionary of [resource type]: [value per unit].")]
-		public readonly Dictionary<string, int> ResourceValues = new();
+		public readonly Dictionary<string, int> ResourceValues = new Dictionary<string, int>();
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
@@ -158,7 +156,7 @@ namespace OpenRA.Mods.Common.Traits
 			owner = self.Owner;
 
 			var startingCash = self.World.LobbyInfo.GlobalSettings
-				.OptionOrDefault("startingcash", info.DefaultCash.ToStringInvariant());
+				.OptionOrDefault("startingcash", info.DefaultCash.ToString());
 
 			if (!int.TryParse(startingCash, out Cash))
 				Cash = info.DefaultCash;
@@ -214,7 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 			else
 			{
 				// Don't put the player into negative funds
-				amount = Math.Max(-GetCashAndResources(), amount);
+				amount = Math.Max(-(Cash + Resources), amount);
 
 				TakeCash(-amount);
 			}
@@ -283,13 +281,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool TakeCash(int num, bool notifyLowFunds = false)
 		{
-			if (GetCashAndResources() < num)
+			if (Cash + Resources < num)
 			{
 				if (notifyLowFunds && Game.RunTime > lastNotificationTime + Info.InsufficientFundsNotificationInterval)
 				{
 					lastNotificationTime = Game.RunTime;
 					Game.Sound.PlayNotification(owner.World.Map.Rules, owner, "Speech", Info.InsufficientFundsNotification, owner.Faction.InternalName);
-					TextNotificationsManager.AddTransientLine(owner, Info.InsufficientFundsTextNotification);
+					TextNotificationsManager.AddTransientLine(Info.InsufficientFundsTextNotification, owner);
 				}
 
 				return false;
@@ -307,12 +305,12 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		public void AddStorageCapacity(int capacity)
+		public void AddStorage(int capacity)
 		{
 			ResourceCapacity += capacity;
 		}
 
-		public void RemoveStorageCapacity(int capacity)
+		public void RemoveStorage(int capacity)
 		{
 			ResourceCapacity -= capacity;
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,7 +14,7 @@ using OpenRA.Mods.Common.Effects;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Gives cash to the collector.")]
-	sealed class GiveCashCrateActionInfo : CrateActionInfo
+	class GiveCashCrateActionInfo : CrateActionInfo
 	{
 		[Desc("Amount of cash to give.")]
 		public readonly int Amount = 2000;
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GiveCashCrateAction(init.Self, this); }
 	}
 
-	sealed class GiveCashCrateAction : CrateAction
+	class GiveCashCrateAction : CrateAction
 	{
 		readonly GiveCashCrateActionInfo info;
 		public GiveCashCrateAction(Actor self, GiveCashCrateActionInfo info)
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 				var amount = collector.Owner.PlayerActor.Trait<PlayerResources>().ChangeCash(info.Amount);
 
 				if (info.UseCashTick)
-					w.Add(new FloatingText(collector.CenterPosition, collector.OwnerColor(), FloatingText.FormatCashTick(amount), 30));
+					w.Add(new FloatingText(collector.CenterPosition, collector.Owner.Color, FloatingText.FormatCashTick(amount), 30));
 			});
 
 			base.Activate(collector);
@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override int GetSelectionShares(Actor collector)
 		{
 			var pr = collector.Owner.PlayerActor.Trait<PlayerResources>();
-			if (info.Amount < 0 && pr.GetCashAndResources() == 0)
+			if (info.Amount < 0 && (pr.Cash + pr.Resources) == 0)
 				return 0;
 
 			return base.GetSelectionShares(collector);

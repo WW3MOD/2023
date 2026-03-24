@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,22 +21,20 @@ namespace OpenRA.Mods.Common.Traits
 	[TraitLocation(SystemActors.World)]
 	public class CrateSpawnerInfo : TraitInfo, ILobbyOptions
 	{
-		[FluentReference]
 		[Desc("Descriptive label for the crates checkbox in the lobby.")]
-		public readonly string CheckboxLabel = "checkbox-crates.label";
+		public readonly string CheckboxLabel = "Crates";
 
-		[FluentReference]
 		[Desc("Tooltip description for the crates checkbox in the lobby.")]
-		public readonly string CheckboxDescription = "checkbox-crates.description";
+		public readonly string CheckboxDescription = "Collect crates with units to receive random bonuses or penalties";
 
 		[Desc("Default value of the crates checkbox in the lobby.")]
-		public readonly bool CheckboxEnabled = true;
+		public readonly bool CheckboxEnabled = false;
 
 		[Desc("Prevent the crates state from being changed in the lobby.")]
 		public readonly bool CheckboxLocked = false;
 
 		[Desc("Whether to display the crates checkbox in the lobby.")]
-		public readonly bool CheckboxVisible = true;
+		public readonly bool CheckboxVisible = false;
 
 		[Desc("Display order for the crates checkbox in the lobby.")]
 		public readonly int CheckboxDisplayOrder = 0;
@@ -54,10 +52,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int InitialSpawnDelay = 0;
 
 		[Desc("Which terrain types can we drop on?")]
-		public readonly HashSet<string> ValidGround = new() { "Clear", "Rough", "Road", "Ore", "Beach" };
+		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Beach" };
 
 		[Desc("Which terrain types count as water?")]
-		public readonly HashSet<string> ValidWater = new() { "Water" };
+		public readonly HashSet<string> ValidWater = new HashSet<string> { "Water" };
 
 		[Desc("Chance of generating a water crate instead of a land crate.")]
 		public readonly int WaterChance = 20;
@@ -77,12 +75,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int QuantizedFacings = 32;
 
 		[Desc("Spawn and remove the plane this far outside the map.")]
-		public readonly WDist Cordon = new(5120);
+		public readonly WDist Cordon = new WDist(5120);
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			yield return new LobbyBooleanOption(map, "crates",
-				CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
+			yield return new LobbyBooleanOption("crates", CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
 		}
 
 		public override object Create(ActorInitializer init) { return new CrateSpawner(init.Self, this); }

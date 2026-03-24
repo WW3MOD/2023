@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,7 +14,6 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Projectiles;
-using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -59,7 +58,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist Recoil = WDist.Zero;
 
 		[Desc("Recoil recovery per-frame")]
-		public readonly WDist RecoilRecovery = new(9);
+		public readonly WDist RecoilRecovery = new WDist(9);
 
 		[SequenceReference]
 		[Desc("Muzzle flash sequence to render")]
@@ -124,9 +123,9 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly WeaponInfo Weapon;
 		public readonly Barrel[] Barrels;
-		Turreted turret;
-		Hovers hovers;
 
+		readonly Actor self;
+		Turreted turret;
 		BodyOrientation coords;
 		INotifyBurstComplete[] notifyBurstComplete;
 		INotifyMagazineComplete[] notifyMagazineComplete;
@@ -145,7 +144,7 @@ namespace OpenRA.Mods.Common.Traits
 		int currentBarrel;
 		readonly int barrelCount;
 
-		readonly List<(int Ticks, int Burst, Action<int> Func)> delayedActions = new();
+		readonly List<(int Ticks, int Burst, Action<int> Func)> delayedActions = new List<(int, int, Action<int>)>();
 
 		public WDist Recoil;
 		public int Magazine { get; protected set; }
@@ -227,7 +226,6 @@ namespace OpenRA.Mods.Common.Traits
 			Burst = Weapon.Burst;
 
 			turret = self.TraitsImplementing<Turreted>().FirstOrDefault(t => t.Name == Info.Turret);
-			hovers = self.TraitOrDefault<Hovers>();
 			coords = self.Trait<BodyOrientation>();
 			notifyBurstComplete = self.TraitsImplementing<INotifyBurstComplete>().ToArray();
 			notifyMagazineComplete = self.TraitsImplementing<INotifyMagazineComplete>().ToArray();
@@ -325,7 +323,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Note: facing is only used by the legacy positioning code
 		// The world coordinate model uses Actor.Orientation
-		public virtual bool CheckFire(Actor self, IFacing facing, in Target target)
+		public virtual Barrel CheckFire(Actor self, IFacing facing, in Target target)
 		{
 			if (!target.Equals(oldTarget))
 			{
@@ -336,7 +334,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (!CanFire(self, target))
-				return false;
+				return null;
 
 			if (lastFiredTick != -1 && self.World.WorldTick - lastFiredTick > Weapon.BurstWait)
 			{
@@ -354,7 +352,7 @@ namespace OpenRA.Mods.Common.Traits
 			UpdateMagazine(self, target);
 			UpdateBurst(self, target);
 
-			return true;
+			return barrel;
 		}
 
 		protected virtual void FireBarrel(Actor self, IFacing facing, in Target target, Barrel barrel)
@@ -459,11 +457,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (burst == args.Weapon.Burst && args.Weapon.StartBurstReport != null && args.Weapon.StartBurstReport.Length > 0)
 						Game.Sound.Play(SoundType.World, args.Weapon.StartBurstReport, self.World, self.CenterPosition);
 
+					foreach (var na in notifyAttacks)
+						na.Attacking(self, delayedTarget, this, barrel);
+
 					Recoil = Info.Recoil;
 				}
-
-				foreach (var (notifyActor, notify) in notifyAttacks)
-					notify.Attacking(notifyActor, delayedTarget, this, barrel);
 			});
 		}
 
@@ -543,9 +541,6 @@ namespace OpenRA.Mods.Common.Traits
 			// Weapon offset in turret coordinates
 			var localOffset = b.Offset + new WVec(-Recoil, WDist.Zero, WDist.Zero);
 
-			if (hovers != null)
-				localOffset += hovers.WorldVisualOffset;
-
 			// Turret coordinates to body coordinates
 			var bodyOrientation = coords.QuantizeOrientation(self.Orientation);
 			if (turret != null)
@@ -567,6 +562,6 @@ namespace OpenRA.Mods.Common.Traits
 			return WRot.FromYaw(b.Yaw).Rotate(turret?.WorldOrientation ?? self.Orientation);
 		}
 
-		public Actor Actor { get; }
+		public Actor Actor => self;
 	}
 }

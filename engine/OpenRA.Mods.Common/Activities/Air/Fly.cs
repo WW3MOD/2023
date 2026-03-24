@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -17,7 +18,7 @@ namespace OpenRA.Mods.Common.Activities
 		Target target;
 		Target lastVisibleTarget;
 		bool useLastVisibleTarget;
-		readonly RingBuffer<WPos> previousPositions = new(5);
+		readonly List<WPos> positionBuffer = new List<WPos>();
 
 		public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
 				: this(self, t, initialTargetPosition, targetLineColor)
@@ -51,10 +52,13 @@ namespace OpenRA.Mods.Common.Activities
 		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			var move = moveOverride != WVec.Zero ? moveOverride : (aircraft.Info.CanSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing));
+			var move = aircraft.Info.CanSlide ? aircraft.FlyStep(desiredFacing) : aircraft.FlyStep(aircraft.Facing);
+			if (moveOverride != WVec.Zero)
+				move = moveOverride;
 
 			var oldFacing = aircraft.Facing;
-			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, aircraft.GetTurnSpeed(idleTurn));
+			var turnSpeed = aircraft.GetTurnSpeed(idleTurn);
+			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
 			var roll = idleTurn ? aircraft.Info.IdleRoll ?? aircraft.Info.Roll : aircraft.Info.Roll;
 			if (roll != WAngle.Zero)
@@ -86,16 +90,22 @@ namespace OpenRA.Mods.Common.Activities
 
 		public static bool VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, bool idleTurn = false)
 		{
+			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
+			var move = WVec.Zero;
+
 			var turnSpeed = idleTurn ? aircraft.IdleTurnSpeed ?? aircraft.TurnSpeed : aircraft.TurnSpeed;
 			aircraft.Facing = Util.TickFacing(aircraft.Facing, desiredFacing, turnSpeed);
 
-			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);
-			if (dat == desiredAltitude)
+			if (dat != desiredAltitude)
+			{
+				var maxDelta = aircraft.Info.AltitudeVelocity.Length;
+				var deltaZ = (desiredAltitude.Length - dat.Length).Clamp(-maxDelta, maxDelta);
+				move += new WVec(0, 0, deltaZ);
+			}
+			else
 				return false;
 
-			var maxDelta = aircraft.Info.AltitudeVelocity.Length;
-			var deltaZ = (desiredAltitude.Length - dat.Length).Clamp(-maxDelta, maxDelta);
-			aircraft.SetPosition(self, aircraft.CenterPosition + new WVec(0, 0, deltaZ));
+			aircraft.SetPosition(self, aircraft.CenterPosition + move);
 			return true;
 		}
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Network;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -21,9 +20,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class LobbyOptionsLogic : ChromeLogic
 	{
-		[FluentReference]
-		const string NotAvailable = "label-not-available";
-
+		readonly ModData modData;
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
 		readonly Widget categoryHeaderTemplate;
@@ -36,9 +33,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<bool> configurationDisabled;
 		MapPreview mapPreview;
 
+		[TranslationReference]
+		static readonly string NotAvailable = "not-available";
+
 		[ObjectCreator.UseCtor]
-		internal LobbyOptionsLogic(Widget widget, OrderManager orderManager, Func<MapPreview> getMap, Func<bool> configurationDisabled)
+		internal LobbyOptionsLogic(ModData modData, Widget widget, OrderManager orderManager, Func<MapPreview> getMap, Func<bool> configurationDisabled)
 		{
+			this.modData = modData;
 			this.getMap = getMap;
 			this.orderManager = orderManager;
 			this.configurationDisabled = configurationDisabled;

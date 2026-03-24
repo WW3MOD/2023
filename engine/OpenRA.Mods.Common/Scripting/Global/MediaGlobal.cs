@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright (c) The OpenRA Developers and Contributors
+ * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[Desc("Play track defined in music.yaml or map.yaml, or keep track empty for playing a random song.")]
-		public void PlayMusic(string track = null, [ScriptEmmyTypeOverride("fun()")] LuaFunction onPlayComplete = null)
+		public void PlayMusic(string track = null, LuaFunction onPlayComplete = null)
 		{
 			if (!playlist.IsMusicAvailable)
 				return;
@@ -94,20 +94,20 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[Desc("Play a video fullscreen. File name has to include the file extension.")]
-		public void PlayMovieFullscreen(string videoFileName, [ScriptEmmyTypeOverride("fun()")] LuaFunction onPlayComplete = null)
+		public void PlayMovieFullscreen(string videoFileName, LuaFunction onPlayComplete = null)
 		{
 			var onComplete = WrapOnPlayComplete(onPlayComplete);
 			Media.PlayFMVFullscreen(world, videoFileName, onComplete);
 		}
 
 		[Desc("Play a video in the radar window. File name has to include the file extension.")]
-		public void PlayMovieInRadar(string videoFileName, [ScriptEmmyTypeOverride("fun()")] LuaFunction onPlayComplete = null)
+		public void PlayMovieInMiniMap(string videoFileName, LuaFunction onPlayComplete = null)
 		{
 			var onComplete = WrapOnPlayComplete(onPlayComplete);
-			Media.PlayFMVInRadar(videoFileName, onComplete);
+			Media.PlayFMVInMiniMap(videoFileName, onComplete);
 		}
 
-		[Desc("Display a text message to all players.")]
+		[Desc("Display a text message to the player.")]
 		public void DisplayMessage(string text, string prefix = "Mission", Color? color = null)
 		{
 			if (string.IsNullOrEmpty(text))
@@ -115,15 +115,6 @@ namespace OpenRA.Mods.Common.Scripting
 
 			var c = color ?? Color.White;
 			TextNotificationsManager.AddMissionLine(prefix, text, c);
-		}
-
-		[Desc("Display a text message only to this player.")]
-		public void DisplayMessageToPlayer(Player player, string text, string prefix = "Mission", Color? color = null)
-		{
-			if (world.LocalPlayer != player)
-				return;
-
-			DisplayMessage(text, prefix, color);
 		}
 
 		[Desc("Display a system message to the player. If 'prefix' is nil the default system prefix is used.")]
@@ -139,12 +130,12 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[Desc("Displays a debug message to the player, if \"Show Map Debug Messages\" is checked in the settings.")]
-		public void Debug(string format)
+		public void Debug(string text)
 		{
-			if (string.IsNullOrEmpty(format) || !Game.Settings.Debug.LuaDebug)
+			if (string.IsNullOrEmpty(text) || !Game.Settings.Debug.LuaDebug)
 				return;
 
-			TextNotificationsManager.Debug(format);
+			TextNotificationsManager.Debug(text);
 		}
 
 		[Desc("Display a text message at the specified location.")]
@@ -159,10 +150,11 @@ namespace OpenRA.Mods.Common.Scripting
 
 		Action WrapOnPlayComplete(LuaFunction onPlayComplete)
 		{
+			Action onComplete;
 			if (onPlayComplete != null)
 			{
 				var f = (LuaFunction)onPlayComplete.CopyReference();
-				return () =>
+				onComplete = () =>
 				{
 					try
 					{
@@ -171,12 +163,14 @@ namespace OpenRA.Mods.Common.Scripting
 					}
 					catch (LuaException e)
 					{
-						Context.FatalError(e);
+						Context.FatalError(e.Message);
 					}
 				};
 			}
 			else
-				return () => { };
+				onComplete = () => { };
+
+			return onComplete;
 		}
 	}
 }

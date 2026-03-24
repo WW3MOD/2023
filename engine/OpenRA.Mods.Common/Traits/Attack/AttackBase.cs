@@ -42,10 +42,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Voice = "Action";
 
 		[Desc("Tolerance for attack angle. Range [0, 512], 512 covers 360 degrees.")]
-		public readonly WAngle FacingTolerance = new(512);
-
-		[Desc("When enabled, show the target cursor on terrain cells even without force-fire.")]
-		public readonly bool TargetTerrainWithoutForceFire = false;
+		public readonly WAngle FacingTolerance = new WAngle(512);
 
 		[Desc("If true, the unit continues turning to face the target after entering the firing arc, " +
 			"while still allowing firing within FacingTolerance.")]
@@ -84,7 +81,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool wasAiming;
 
-		protected AttackBase(Actor self, AttackBaseInfo info)
+		public AttackBase(Actor self, AttackBaseInfo info)
 			: base(info)
 		{
 			this.self = self;
@@ -93,7 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			facing = self.TraitOrDefault<IFacing>();
-			positionable = self.OccupiesSpace as IPositionable;
+			positionable = self.TraitOrDefault<IPositionable>();
 			notifyAiming = self.TraitsImplementing<INotifyAiming>().ToArray();
 
 			getArmaments = InitializeGetArmaments(self);
@@ -338,8 +335,7 @@ namespace OpenRA.Mods.Common.Traits
 			return order.OrderString == attackOrderName || order.OrderString == forceAttackOrderName ? Info.Voice : null;
 		}
 
-		public abstract Activity GetAttackActivity(
-			Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null);
+		public abstract Activity GetAttackActivity(Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null);
 
 		public bool HasAnyValidWeapons(in Target t, bool checkForCenterTargetingWeapons = false, bool reloadingIsInvalid = false)
 		{
@@ -363,7 +359,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual WPos GetTargetPosition(WPos pos, in Target target)
 		{
-			return HasAnyValidWeapons(target, true) ? target.CenterPosition : target.Positions.ClosestToIgnoringPath(pos);
+			return HasAnyValidWeapons(target, true) ? target.CenterPosition : target.Positions.PositionClosestTo(pos);
 		}
 
 		public virtual WPos GetCurrentTarget(WPos pos, in Target target)
@@ -509,7 +505,7 @@ namespace OpenRA.Mods.Common.Traits
 			return stances;
 		}
 
-		sealed class AttackOrderTargeter : IOrderTargeter
+		class AttackOrderTargeter : IOrderTargeter
 		{
 			readonly AttackBase ab;
 
@@ -577,6 +573,9 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				var target = Target.FromCell(self.World, location);
+				var armaments = ab.ChooseArmamentsForTarget(target, true);
+				if (!armaments.Any())
+					return false;
 
 				armaments = armaments.OrderByDescending(x => x.MaxRange());
 				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
@@ -603,7 +602,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			public bool IsQueued { get; private set; }
+			public bool IsQueued { get; protected set; }
 		}
 	}
 }
