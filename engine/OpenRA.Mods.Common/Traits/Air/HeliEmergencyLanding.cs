@@ -272,34 +272,21 @@ namespace OpenRA.Mods.Common.Traits
 			if (info.CrashExplosionWeapon != null)
 				info.CrashExplosionWeapon.Impact(Target.FromPos(self.CenterPosition), self);
 
-			// Revoke suppress-eject BEFORE killing so EjectOnDeath can fire if on ground
-			if (suppressEjectToken != Actor.InvalidConditionToken)
-				suppressEjectToken = self.RevokeCondition(suppressEjectToken);
+			var suitableTerrain = IsSuitableTerrain(self);
 
-			// Eject passengers before killing (if on suitable terrain)
-			if (info.EjectPassengersOnCrash && cargo != null && cargo.PassengerCount > 0)
+			// Only allow crew/passenger ejection on suitable terrain
+			if (suitableTerrain)
 			{
-				var cell = self.World.Map.CellContaining(self.CenterPosition);
-				if (self.World.Map.Contains(cell))
-				{
-					var passengers = cargo.Passengers.ToList();
-					foreach (var passenger in passengers)
-					{
-						var positionable = passenger.TraitOrDefault<IPositionable>();
-						if (positionable != null && positionable.CanEnterCell(cell, null, BlockedByActor.None))
-						{
-							cargo.Unload(self, passenger);
-							self.World.AddFrameEndTask(w =>
-							{
-								positionable.SetPosition(passenger, cell);
-								w.Add(passenger);
-								var mobile = passenger.TraitOrDefault<Mobile>();
-								mobile?.Nudge(passenger);
-							});
-						}
-					}
-				}
+				// Revoke suppress-eject BEFORE killing so EjectOnDeath can fire on ground
+				if (suppressEjectToken != Actor.InvalidConditionToken)
+					suppressEjectToken = self.RevokeCondition(suppressEjectToken);
+
+				// Eject passengers before killing
+				if (info.EjectPassengersOnCrash && cargo != null && cargo.PassengerCount > 0)
+					EjectAllPassengers(self);
 			}
+
+			// suppress-eject stays active on unsuitable terrain → crew dies with helicopter
 
 			// Kill the helicopter
 			self.Kill(self);

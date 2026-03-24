@@ -19,7 +19,7 @@ HALO:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 600
+		HP: 1200 # TESTING: doubled from 600
 	Armor:
 		Type: Light
 		Thickness: 6
@@ -33,6 +33,7 @@ HALO:
 		Types: Infantry
 		MaxWeight: 24
 		AfterUnloadDelay: 40
+		EjectOnDeath: false
 	WithCargoPipsDecoration:
 		PipCount: 24
 	Selectable:
@@ -95,7 +96,7 @@ HIND:
 	Selectable:
 		DecorationBounds: 1620,1360
 	Health:
-		HP: 800
+		HP: 1600 # TESTING: doubled from 800
 	Armor:
 		Type: Heavy
 		Thickness: 10
@@ -207,6 +208,7 @@ HIND:
 		Types: Infantry
 		MaxWeight: 8
 		AfterUnloadDelay: 40
+		EjectOnDeath: false
 	WithCargoPipsDecoration:
 	RenderSprites:
 		Scale: 1.3
@@ -233,7 +235,7 @@ MI28:
 	Selectable:
 		DecorationBounds: 1070,1200
 	Health:
-		HP: 800
+		HP: 1600 # TESTING: doubled from 800
 	Armor:
 		Type: Heavy
 		Thickness: 20
