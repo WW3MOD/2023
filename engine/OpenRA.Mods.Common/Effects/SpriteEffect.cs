@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using OpenRA.Effects;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.Effects
 {
@@ -57,6 +58,11 @@ namespace OpenRA.Mods.Common.Effects
 			anim = new Animation(world, image, facingFunc);
 		}
 
+		Size ScaledSize(Sprite sprite)
+		{
+			return new Size((int)(sprite.Size.X * scale), (int)(sprite.Size.Y * scale));
+		}
+
 		public void Tick(World world)
 		{
 			if (delay-- > 0)
@@ -65,7 +71,7 @@ namespace OpenRA.Mods.Common.Effects
 			if (!initialized)
 			{
 				anim.PlayThen(sequence, () => world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); }));
-				world.ScreenMap.Add(this, pos, anim.Image);
+				world.ScreenMap.Add(this, pos, ScaledSize(anim.Image));
 				initialized = true;
 			}
 			else
@@ -73,7 +79,7 @@ namespace OpenRA.Mods.Common.Effects
 				anim.Tick();
 
 				pos = posFunc();
-				world.ScreenMap.Update(this, pos, anim.Image);
+				world.ScreenMap.Update(this, pos, ScaledSize(anim.Image));
 			}
 		}
 

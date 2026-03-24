@@ -51,6 +51,9 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Whether to consider actors in determining whether the explosion should happen. If false, only terrain will be considered.")]
 		public readonly bool ImpactActors = true;
 
+		[Desc("Should the effect be visible through fog of war.")]
+		public readonly bool VisibleThroughFog = false;
+
 		[Desc("The maximum inaccuracy of the effect spawn position relative to actual impact position.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 		public WVec Offset = new WVec(0, 0, 0);
@@ -131,7 +134,7 @@ namespace OpenRA.Mods.Common.Warheads
 				if (UsePlayerPalette)
 					palette += firedBy.Owner.InternalName;
 
-				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, scale: (float)ScalePercent / 100)));
+				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, visibleThroughFog: VisibleThroughFog, scale: (float)ScalePercent / 100)));
 			}
 
 			var impactSound = ImpactSounds.RandomOrDefault(world.LocalRandom);

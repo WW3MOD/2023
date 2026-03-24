@@ -34,6 +34,7 @@ Atomic:
 		Palette: effect_ts
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
+		VisibleThroughFog: true
 		ValidTargets: Ground, Water, Air
 
 	# Warhead@CreateActor: CreateActor
