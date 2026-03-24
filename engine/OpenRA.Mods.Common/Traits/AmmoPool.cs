@@ -72,6 +72,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Stack<int> tokens = new Stack<int>();
 		IReloadAmmoModifier[] modifiers;
 
+		/// <summary>
+		/// Set when unit is out of ammo and ResupplyBehavior is Hold.
+		/// Supply trucks with Hunt stance should seek out these units.
+		/// </summary>
+		public bool NeedsResupply { get; private set; }
+
 		[Sync]
 		public int RemainingTicks;
 
@@ -94,6 +100,9 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			CurrentAmmoCount = (CurrentAmmoCount + count).Clamp(0, Info.Ammo);
+			if (CurrentAmmoCount > 0)
+				NeedsResupply = false;
+
 			UpdateCondition(self);
 			return true;
 		}
@@ -117,8 +126,39 @@ namespace OpenRA.Mods.Common.Traits
 		public void AutoRearmIfAllEmpty(Actor self)
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();
-			if (ammoPools.Any() && ammoPools.All(a => !a.HasAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
-				AutoRearm(self);
+			if (!ammoPools.Any() || !ammoPools.All(a => !a.HasAmmo) || self.Info.HasTraitInfo<AircraftInfo>())
+				return;
+
+			// Check resupply behavior stance
+			var autoTarget = self.TraitOrDefault<AutoTarget>();
+			var behavior = autoTarget?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
+
+			switch (behavior)
+			{
+				case ResupplyBehavior.Auto:
+					// Clear flag and seek resupply
+					foreach (var ap in ammoPools)
+						ap.NeedsResupply = false;
+
+					AutoRearm(self);
+					break;
+
+				case ResupplyBehavior.Hold:
+					// Stay put, flag for supply truck pickup
+					foreach (var ap in ammoPools)
+						ap.NeedsResupply = true;
+
+					break;
+
+				case ResupplyBehavior.Evacuate:
+					// Leave the battlefield via Supply Route
+					foreach (var ap in ammoPools)
+						ap.NeedsResupply = false;
+
+					var amount = self.GetSellValue();
+					self.QueueActivity(false, new RotateToEdge(self, true, amount));
+					break;
+			}
 		}
 
 		public void AutoRearmIfAnyNotFull(Actor self)

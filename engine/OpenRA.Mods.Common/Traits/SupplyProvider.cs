@@ -154,6 +154,17 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (bestTarget == null)
 			{
+				// When in Hunt stance and no nearby targets, seek out units flagged as needing resupply
+				if (bestTarget == null)
+				{
+					var autoTarget = self.TraitOrDefault<AutoTarget>();
+					if (autoTarget != null && autoTarget.EngagementStanceValue >= EngagementStance.Hunt)
+						bestTarget = FindNeedsResupplyTarget();
+				}
+			}
+
+			if (bestTarget == null)
+			{
 				if (currentTarget != null)
 				{
 					RevokeTargetCondition();
@@ -168,6 +179,20 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			SetTarget(bestTarget);
+		}
+
+		/// <summary>
+		/// Find a friendly unit anywhere on the map that has NeedsResupply flag set.
+		/// Used when the supply truck is in Hunt stance.
+		/// </summary>
+		Actor FindNeedsResupplyTarget()
+		{
+			return self.World.ActorsHavingTrait<AmmoPool>()
+				.Where(a => !a.IsDead && a.IsInWorld && a != self
+					&& Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner))
+					&& a.TraitsImplementing<AmmoPool>().Any(ap => ap.NeedsResupply)
+					&& a.TraitOrDefault<Rearmable>() != null)
+				.ClosestTo(self);
 		}
 
 		Actor FindGreatestNeedTarget(out bool hasUnaffordableTargets)
@@ -267,6 +292,21 @@ namespace OpenRA.Mods.Common.Traits
 
 			RevokeTargetCondition();
 			currentTarget = target;
+
+			// If target is out of range (Hunt mode found a distant flagged unit), move toward it
+			if (currentTarget != null)
+			{
+				var dist = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLength;
+				if (dist > Info.Range.Length)
+				{
+					var move = self.TraitOrDefault<IMove>();
+					if (move != null)
+					{
+						var targetCell = self.World.Map.CellContaining(currentTarget.CenterPosition);
+						self.QueueActivity(false, move.MoveTo(targetCell, 2));
+					}
+				}
+			}
 
 			// Grant condition to new target
 			if (!string.IsNullOrEmpty(Info.RearmCondition) && currentTarget != null)
