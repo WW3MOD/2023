@@ -199,16 +199,22 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				WidgetUtils.BindButtonIcon(patrolButton);
 				patrolButton.IsDisabled = () => { UpdateStateIfNecessary(); return patrolDisabled; };
-				patrolButton.IsHighlighted = () => patrolHighlighted > 0;
+				patrolButton.IsHighlighted = () => world.OrderGenerator is PatrolOrderGenerator;
 				patrolButton.OnClick = () =>
 				{
-					if (highlightOnButtonPress)
-						patrolHighlighted = 2;
-
-					// Dummy Phase 1: just flash the button
+					if (world.OrderGenerator is PatrolOrderGenerator pg)
+					{
+						// Second click confirms the patrol route
+						pg.Confirm(world);
+					}
+					else
+					{
+						// First click enters patrol waypoint mode
+						world.OrderGenerator = new PatrolOrderGenerator(selectedActors);
+					}
 				};
 
-				patrolButton.OnKeyPress = ki => { patrolHighlighted = 2; patrolButton.OnClick(); };
+				patrolButton.OnKeyPress = ki => patrolButton.OnClick();
 			}
 
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
