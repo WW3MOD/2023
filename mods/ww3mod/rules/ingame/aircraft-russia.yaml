@@ -41,9 +41,15 @@ HALO:
 	WithIdleOverlay@Rotor1Air:
 		Offset: 260,0,343
 		Sequence: rotor
+		RequiresCondition: airborne
 	WithIdleOverlay@Rotor1Ground:
 		Offset: 260,0,343
 		Sequence: slow-rotor
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@Rotor1Stopped:
+		Offset: 260,0,343
+		Sequence: still-rotor
+		RequiresCondition: rotor-stopped
 	SpawnActorOnDeath@Hovering:
 		Actor: HALO.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -186,7 +192,10 @@ HIND:
 		RequiresCondition: airborne
 	WithIdleOverlay@ROTORGROUND:
 		Sequence: slow-rotor
-		RequiresCondition: !airborne
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@ROTORSTOPPED:
+		Sequence: still-rotor
+		RequiresCondition: rotor-stopped
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 	SpawnActorOnDeath@Hovering:
@@ -316,7 +325,11 @@ MI28:
 	WithIdleOverlay@ROTORGROUND:
 		Offset: 0,0,85
 		Sequence: slow-rotor
-		RequiresCondition: !airborne
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@ROTORSTOPPED:
+		Offset: 0,0,85
+		Sequence: still-rotor
+		RequiresCondition: rotor-stopped
 	EjectOnDeath@Copilot:
 		PilotActor: E1R1
 		SuccessRate: 80
@@ -561,3 +574,29 @@ MIG:
 		RequiresCondition: airborne && ammo-primary && empdisable
 	RenderSprites:
 		Scale: 1.25
+
+# Disposable airstrike flyover variant — spawned by AirstrikePower, fires on flyover, self-removes
+FROG.Airstrike:
+	Inherits: FROG
+	-Buildable:
+	-Valued:
+	-Inherits@AutoTarget:
+	-Inherits@GainsExperience:
+	-AutoTarget:
+	-Selectable:
+	-Rearmable:
+	-ReloadAmmoPool@1:
+	-WithAmmoPipsDecoration@1:
+	-SpawnActorOnDeath:
+	-SpawnActorOnDeath@EMP:
+	-Inherits@AirRadar:
+	-AttackAircraft:
+	-EjectOnDeath@Rank0:
+	-EjectOnDeath@Rank1:
+	-EjectOnDeath@Rank2:
+	-EjectOnDeath@Rank_3:
+	-EjectOnDeath@Rank4:
+	-DeliversCash@Rotation:
+	-ActorLostNotification:
+	AttackBomber:
+		FacingTolerance: 128

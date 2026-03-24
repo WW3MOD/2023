@@ -36,7 +36,11 @@ TRAN:
 	WithIdleOverlay@Rotor1Ground:
 		Offset: 597,0,213
 		Sequence: slow-rotor
-		RequiresCondition: !airborne
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@Rotor1Stopped:
+		Offset: 597,0,213
+		Sequence: still-rotor
+		RequiresCondition: rotor-stopped
 	WithIdleOverlay@ROTOR2AIR:
 		Offset: -597,0,341
 		Sequence: rotor2
@@ -44,7 +48,11 @@ TRAN:
 	WithIdleOverlay@ROTOR2GROUND:
 		Offset: -597,0,341
 		Sequence: slow-rotor2
-		RequiresCondition: !airborne
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@ROTOR2Stopped:
+		Offset: -597,0,341
+		Sequence: still-rotor2
+		RequiresCondition: rotor-stopped
 	Cargo:
 		Types: Infantry
 		MaxWeight: 36
@@ -204,7 +212,11 @@ littlebird:
 	WithIdleOverlay@ROTORGROUND:
 		Offset: 0,0,85
 		Sequence: slow-rotor
-		RequiresCondition: !airborne
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@ROTORSTOPPED:
+		Offset: 0,0,85
+		Sequence: still-rotor
+		RequiresCondition: rotor-stopped
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -427,0,0
 
@@ -320,7 +332,11 @@ HELI:
 	WithIdleOverlay@ROTORGROUND:
 		Offset: 0,0,85
 		Sequence: slow-rotor
-		RequiresCondition: !airborne
+		RequiresCondition: !airborne && !rotor-stopped
+	WithIdleOverlay@ROTORSTOPPED:
+		Offset: 0,0,85
+		Sequence: still-rotor
+		RequiresCondition: rotor-stopped
 	EjectOnDeath@Copilot:
 		PilotActor: E1R1
 		SuccessRate: 80
@@ -554,3 +570,32 @@ F16:
 	RenderSprites:
 		Image: f16
 		Scale: 1.1
+
+# Disposable airstrike flyover variant — spawned by AirstrikePower, fires on flyover, self-removes
+A10.Airstrike:
+	Inherits: A10
+	-Buildable:
+	-Valued:
+	-Inherits@AutoTarget:
+	-AutoTarget:
+	-Selectable:
+	-SelectionDecorations:
+	-Rearmable:
+	-ReloadAmmoPool@1:
+	-WithAmmoPipsDecoration@1:
+	-WithAmmoPipsDecoration@2:
+	-RenderRangeCircle@1:
+	-RenderRangeCircle@2:
+	-GrantConditionOnAttack:
+	-SpawnActorOnDeath:
+	-Inherits@AirRadar:
+	-AttackAircraft:
+	-EjectOnDeath@Rank0:
+	-EjectOnDeath@Rank1:
+	-EjectOnDeath@Rank2:
+	-EjectOnDeath@Rank_3:
+	-EjectOnDeath@Rank4:
+	-DeliversCash@Rotation:
+	-ActorLostNotification:
+	AttackBomber:
+		FacingTolerance: 128

@@ -27,6 +27,8 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Aircraft aircraft;
 		readonly int forwardSpeed;
 		bool landed;
+		int landedTicks;
+		bool rotorsStopped;
 
 		public HeliAutorotate(Actor self, HeliEmergencyLanding emergencyLanding,
 			HeliEmergencyLandingInfo info, Aircraft aircraft, int forwardSpeed)
@@ -48,6 +50,18 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				aircraft.CurrentVelocity = WVec.Zero;
 				aircraft.RequestedAcceleration = WVec.Zero;
+
+				// Wind down rotors after landing
+				if (!rotorsStopped)
+				{
+					landedTicks++;
+					if (landedTicks >= info.RotorWindDownTicks)
+					{
+						emergencyLanding.OnRotorsStopped(self);
+						rotorsStopped = true;
+					}
+				}
+
 				return !emergencyLanding.IsDisabledOnGround;
 			}
 

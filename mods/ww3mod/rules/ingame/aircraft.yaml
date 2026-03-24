@@ -172,6 +172,9 @@
 	FirepowerMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
+	FirepowerMultiplier@EmergencyDescent:
+		Modifier: 0
+		RequiresCondition: autorotation || crash-landing
 	RepairableBuilding@CrashDisabled:
 		RequiresCondition: crash-disabled
 		RepairStep: 400

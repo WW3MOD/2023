@@ -58,6 +58,13 @@ namespace OpenRA.Mods.Common.Traits
 			"Use this to gate EjectOnDeath with !suppress-eject.")]
 		public readonly string SuppressEjectCondition = "suppress-eject";
 
+		[GrantedConditionReference]
+		[Desc("Condition granted when rotors have wound down after safe landing.")]
+		public readonly string RotorStoppedCondition = "rotor-stopped";
+
+		[Desc("Ticks after safe landing before rotors fully stop spinning.")]
+		public readonly int RotorWindDownTicks = 60;
+
 		[Desc("Terrain types where autorotation can land safely without destroying the helicopter.",
 			"If empty, falls back to Aircraft.LandableTerrainTypes.")]
 		public readonly HashSet<string> SuitableLandingTerrains = new HashSet<string>();
@@ -110,6 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 		int crashLandingToken = Actor.InvalidConditionToken;
 		int disabledToken = Actor.InvalidConditionToken;
 		int suppressEjectToken = Actor.InvalidConditionToken;
+		int rotorStoppedToken = Actor.InvalidConditionToken;
 
 		Cargo cargo;
 		HashSet<string> suitableTerrains;
@@ -330,13 +338,21 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		public void OnRotorsStopped(Actor self)
+		{
+			if (rotorStoppedToken == Actor.InvalidConditionToken && !string.IsNullOrEmpty(info.RotorStoppedCondition))
+				rotorStoppedToken = self.GrantCondition(info.RotorStoppedCondition);
+		}
+
 		// Called by DamageStateChanged when helicopter is repaired out of disabled state
 		public void CheckDisabledRecovery(Actor self)
 		{
 			if (disabledToken != Actor.InvalidConditionToken && health.DamageState < info.AutorotationDamageState)
 			{
 				disabledToken = self.RevokeCondition(disabledToken);
-				// Helicopter can now take off again
+
+				if (rotorStoppedToken != Actor.InvalidConditionToken)
+					rotorStoppedToken = self.RevokeCondition(rotorStoppedToken);
 			}
 		}
 	}
