@@ -2,7 +2,7 @@ Background@MOD_INFO_PANEL:
 	Logic: ModInfoPanelLogic
 	X: 0
 	Y: 0
-	Width: WINDOW_RIGHT
+	Width: WINDOW_RIGHT - 50
 	Height: 35
 	Children:
 		Label@INFO_TITLE:
@@ -12,67 +12,39 @@ Background@MOD_INFO_PANEL:
 			Height: 20
 			Font: Bold
 			Text: WW3MOD
-		Label@SEPARATOR_1:
-			X: 105
-			Y: 8
-			Width: 10
-			Height: 20
-			Font: Regular
-			Text: |
 		Label@MOD_VERSION:
-			X: 125
+			X: 110
 			Y: 8
-			Width: 100
+			Width: 110
 			Height: 20
 			Font: Regular
-		Label@SEPARATOR_2:
+		Label@ENGINE_VERSION:
 			X: 230
 			Y: 8
-			Width: 10
+			Width: 180
 			Height: 20
 			Font: Regular
-			Text: |
-		Label@ENGINE_VERSION:
-			X: 250
-			Y: 8
-			Width: 170
-			Height: 20
-			Font: Regular
-		Label@SEPARATOR_3:
-			X: 425
-			Y: 8
-			Width: 10
-			Height: 20
-			Font: Regular
-			Text: |
 		Label@BUILD_DATE:
-			X: 445
+			X: 420
 			Y: 8
-			Width: 140
+			Width: 150
 			Height: 20
 			Font: Regular
-		Label@SEPARATOR_4:
-			X: 590
-			Y: 8
-			Width: 10
-			Height: 20
-			Font: Regular
-			Text: |
 		Label@AUTHORS:
-			X: 610
+			X: 580
 			Y: 8
-			Width: 200
+			Width: 210
 			Height: 20
 			Font: Regular
 		Label@SHELLMAP_NAME:
-			X: 815
+			X: 800
 			Y: 8
 			Width: 250
 			Height: 20
 			Font: Regular
 		Button@CLOSE_BUTTON:
-			X: PARENT_RIGHT - 35
-			Y: 5
+			X: PARENT_RIGHT + 10
+			Y: 15
 			Width: 25
 			Height: 25
 			Text: x

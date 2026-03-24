@@ -25,7 +25,7 @@ Container@MAINMENU:
 		# 	ImageName: logo
 		Button@INFO_BUTTON:
 			X: WINDOW_RIGHT - 40
-			Y: 10
+			Y: 15
 			Width: 25
 			Height: 25
 			Text: i
