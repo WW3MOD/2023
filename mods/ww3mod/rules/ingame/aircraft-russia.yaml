@@ -579,8 +579,9 @@ MIG:
 FROG.Airstrike:
 	Inherits: FROG
 	-Buildable:
-	-AttackAircraft:
-	AttackBomber:
-		FacingTolerance: 128
+	-Rearmable:
+	-ReloadAmmoPool@1:
 	RenderSprites:
 		Image: frog
+	Aircraft:
+		Speed: 300

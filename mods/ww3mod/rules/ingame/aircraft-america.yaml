@@ -575,8 +575,9 @@ F16:
 A10.Airstrike:
 	Inherits: A10
 	-Buildable:
-	-AttackAircraft:
-	AttackBomber:
-		FacingTolerance: 128
+	-Rearmable:
+	-ReloadAmmoPool@1:
 	RenderSprites:
 		Image: a10
+	Aircraft:
+		Speed: 300
