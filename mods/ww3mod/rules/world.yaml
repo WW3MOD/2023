@@ -260,6 +260,7 @@ World:
 	Inherits: ^BaseWorld
 	HealerClaimLayer:
 	UnitDefaultsManager:
+	CohesionMoveModifier:
 	ThreatMapManager:
 		CellSize: 8
 		UpdateInterval: 90

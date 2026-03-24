@@ -262,6 +262,12 @@ namespace OpenRA
 			return new Order(grouped.OrderString, subject, grouped.Target, grouped.TargetString, grouped.Queued, grouped.ExtraActors, grouped.ExtraLocation, grouped.ExtraData);
 		}
 
+		/// <summary>Creates a copy of this order with a different target position.</summary>
+		public Order WithTarget(in Target newTarget)
+		{
+			return new Order(OrderString, Subject, newTarget, TargetString, Queued, ExtraActors, ExtraLocation, ExtraData);
+		}
+
 		public static Order Command(string text)
 		{
 			return new Order("Command", null, false) { IsImmediate = true, TargetString = text };

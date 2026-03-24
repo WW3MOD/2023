@@ -349,8 +349,17 @@ namespace OpenRA.Network
 						if (order.GroupedActors == null)
 							ResolveOrder(order, world, orderManager, clientId);
 						else
+						{
+							var modifiers = world.WorldActor.TraitsImplementing<IModifyGroupOrder>().ToArray();
 							foreach (var subject in order.GroupedActors)
-								ResolveOrder(Order.FromGroupedOrder(order, subject), world, orderManager, clientId);
+							{
+								var individualOrder = Order.FromGroupedOrder(order, subject);
+								foreach (var modifier in modifiers)
+									individualOrder = modifier.ModifyGroupOrder(individualOrder, subject, order.GroupedActors);
+
+								ResolveOrder(individualOrder, world, orderManager, clientId);
+							}
+						}
 
 						break;
 					}

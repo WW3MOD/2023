@@ -146,6 +146,16 @@ namespace OpenRA.Traits
 	public interface IValidateOrder { bool OrderValidation(OrderManager orderManager, World world, int clientId, Order order); }
 	public interface IOrderVoice { string VoicePhraseForOrder(Actor self, Order order); }
 
+	/// <summary>
+	/// World trait hook called when a grouped order is being split into individual orders.
+	/// Allows modifying each actor's order (e.g., offsetting move targets for cohesion).
+	/// </summary>
+	[RequireExplicitImplementation]
+	public interface IModifyGroupOrder
+	{
+		Order ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors);
+	}
+
 	[RequireExplicitImplementation]
 	public interface INotifyCreated { void Created(Actor self); }
 

@@ -12,6 +12,7 @@
 using System;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -107,8 +108,34 @@ namespace OpenRA.Mods.Common.Widgets
 
 		void DoNow(CohesionMode mode)
 		{
-			// Phase 3: will add immediate reposition order
 			SetSelectionCohesion(mode);
+
+			// Issue a group move to centroid so units immediately redistribute
+			var validActors = actorStances
+				.Where(at => !at.Trait.IsTraitDisabled && at.Actor.IsInWorld)
+				.Select(at => at.Actor)
+				.ToArray();
+
+			if (validActors.Length < 2)
+				return;
+
+			// Calculate centroid
+			var centroidX = 0L;
+			var centroidY = 0L;
+			foreach (var a in validActors)
+			{
+				centroidX += a.CenterPosition.X;
+				centroidY += a.CenterPosition.Y;
+			}
+
+			centroidX /= validActors.Length;
+			centroidY /= validActors.Length;
+
+			var centroid = new WPos((int)centroidX, (int)centroidY, 0);
+			var centroidCell = world.Map.CellContaining(centroid);
+
+			// Issue grouped move order — CohesionMoveModifier will offset each unit's target
+			world.IssueOrder(new Order("Move", null, Target.FromCell(world, centroidCell), false, null, validActors));
 		}
 	}
 }
