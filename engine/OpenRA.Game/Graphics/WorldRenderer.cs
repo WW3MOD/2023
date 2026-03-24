@@ -254,7 +254,10 @@ namespace OpenRA.Graphics
 
 			debugVis.Value?.UpdateDepthBuffer();
 
-			var bounds = Viewport.GetScissorBounds(World.Type != WorldType.Editor);
+			// WW3MOD: Use full viewport bounds (not clamped to map edges) so that
+			// actors, projectiles, and effects near/beyond map edges still render
+			// (e.g. missiles at altitude, nuke mushroom clouds, aircraft flying off-map).
+			var bounds = Viewport.GetScissorBounds(false);
 			Game.Renderer.EnableScissor(bounds);
 
 			if (enableDepthBuffer)

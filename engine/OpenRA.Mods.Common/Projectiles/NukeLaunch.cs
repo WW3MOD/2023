@@ -18,7 +18,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Effects
 {
-	public class NukeLaunch : IProjectile, ISpatiallyPartitionable
+	public class NukeLaunch : IProjectile
 	{
 		readonly Player firedBy;
 		readonly Animation anim;
@@ -95,10 +95,7 @@ namespace OpenRA.Mods.Common.Effects
 					Game.Sound.Play(SoundType.World, weapon.Report, world, pos);
 
 				if (anim != null)
-				{
 					anim.PlayRepeating(upSequence);
-					world.ScreenMap.Add(this, pos, anim.Image);
-				}
 
 				isLaunched = true;
 			}
@@ -132,16 +129,13 @@ namespace OpenRA.Mods.Common.Effects
 			if (ticks == impactDelay || (isDescending && dat <= detonationAltitude))
 				Explode(world, ticks == impactDelay || removeOnDetonation);
 
-			if (anim != null)
-				world.ScreenMap.Update(this, pos, anim.Image);
-
 			ticks++;
 		}
 
 		void Explode(World world, bool removeProjectile)
 		{
 			if (removeProjectile)
-				world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); });
+				world.AddFrameEndTask(w => w.Remove(this));
 
 			if (detonated)
 				return;
