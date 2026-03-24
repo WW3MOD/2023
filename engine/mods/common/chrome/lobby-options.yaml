@@ -18,6 +18,17 @@ Container@LOBBY_OPTIONS_BIN:
 					Y: 10
 					Width: PARENT_RIGHT - 24
 					Children:
+						Container@CATEGORY_HEADER_TEMPLATE:
+							Width: PARENT_RIGHT
+							Height: 30
+							Children:
+								Label@LABEL:
+									X: 10
+									Y: 8
+									Width: PARENT_RIGHT - 20
+									Height: 20
+									Font: Bold
+									Visible: False
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_RIGHT
 							Height: 30
