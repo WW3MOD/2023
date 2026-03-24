@@ -355,6 +355,12 @@ iskandermissile:
 		ZOffset: 1023
 		Scale: 0.8
 
+himarsmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.6
+
 shootableshipmissile:
 	idle: iskander-missile
 		Facings: 32

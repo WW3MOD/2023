@@ -935,116 +935,137 @@ strykershorad:
 	SpawnActorOnDeath:
 		Actor: strykershorad.husk
 
-# HIMARS:
-# 	Inherits@Type: ^WheeledVehicle
-# 	Inherits@GainsExperience: ^GainsExperience
-# 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
-# 	Buildable:
-# 		Queue: Vehicle
-# 		BuildPaletteOrder: 8
-# 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
-# 		Description: HIMARS for commanderbambi
-# 	Valued:
-# 		Cost: 3500
-# 	Tooltip:
-# 		Name: HIMARS
-# 	AnnounceOnSeen:
-# 		Type: Vehicle
-# 		TextNotification: Spotted: HIMARS
-# 	ActorLostNotification:
-# 		TextNotification: Lost: HIMARS
-# 	RenderSprites:
-# 		Scale: 1.25
-# 	UpdatesPlayerStatistics:
-# 		AddToArmyValue: true
-# 	DamageMultiplier@Loaded:
-# 		RequiresCondition: loaded
-# 		Modifier: 1000
-# 	UpdatesPlayerStatistics:
-# 		AddToArmyValue: true
-# 	Health:
-# 		HP: 6000
-# 	# Armor@Loaded:
-# 	# 	RequiresCondition: loaded
-# 	# 	Type: Unarmored
-# 	Armor:
-# 		# RequiresCondition: !loaded
-# 		Type: Light
-# 	Targetable@Loaded:
-# 		RequiresCondition: loaded
-# 		TargetTypes: Ground, Vehicle, Light
-# 	Targetable@empty:
-# 		RequiresCondition: !loaded
-# 		TargetTypes: Ground, Vehicle, Medium
-# 	HitShape:
-# 		Type: Rectangle
-# 			VerticalTopOffset: 620
-# 			TopLeft: -240, -700
-# 			BottomRight: 240, 700
-# 	Detectable:
-# 		RadarDetectableCondition: firing
-# 		Position: Ground
-# 	Mobile:
-# 		Locomotor: lighttracked
-# 		Speed: 70
-# 		TurnSpeed: 8
-# 		PauseOnCondition: firing-primary || being-captured || empdisable || notmobile
-# 	GrantConditionOnPreparingAttack:
-# 		Condition: firing
-# 		ArmamentNames: primary
-# 		RevokeDelay: 160
-# 	IndirectFire:
-# 	AutoTarget:
-# 		InitialStance: HoldFire
-# 		InitialStanceAI: FireAtWill
-# 	Armament@1:
-# 		Weapon: IskanderTargeter
-# 		LocalOffset: 192,-64,176, 192,64,176
-# 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
-# 	AmmoPool@1:
-# 		Name: primary-ammo
-# 		Armaments: primary
-# 		Ammo: 6
-# 		AmmoCondition: ammo-primary
-# 		FullReloadTicks: 600
-# 		FullReloadSteps: 6
-# 		RearmSound: minelay1.aud
-# 	WithAmmoPipsDecoration@1:
-# 		Position: Bottom
-# 		Margin: 8, 3
-# 		PipCount: 6
-# 		RequiresSelection: true
-# 		FullSequence: pip-red
-# 		AmmoPools: primary-ammo
-# 	RenderRangeCircle@1:
-# 		Armament: primary
-# 		Width: 2
-# 		Color: FF0000
-# 	Turreted:
-# 		TurnSpeed: 10
-# 		Offset: -300,0,150
-# 	AttackTurreted:
-# 		TargetFrozenActors: True
-# 		ForceFireIgnoresActors: True
-# 		PersistentTargeting: False
-# 		PauseOnCondition: empdisable || unit.docked
-# 	Rearmable:
-# 		RearmActors: logisticscenter
-# 		AmmoPools: primary-ammo
-# 	WithMuzzleOverlay:
-# 	WithSpriteTurret:
-# 		Recoils: false
-# 	MissileSpawnerMaster:
-# 		Actors: IskanderMissile
-# 		LoadedCondition: loaded
-# 		LaunchingCondition: firing-primary
-# 	Explodes@Loaded:
-# 		RequiresCondition: loaded
-# 		Weapon: IskanderExplosion
-# 	Selectable:
-# 		DecorationBounds: 2048,2048
-# 	SpawnActorOnDeath:
-# 		Actor: HIMARS.husk
+HIMARS:
+	Inherits@Combatant: ^Combatant
+	Inherits@Type: ^WheeledVehicle
+	Inherits@GainsExperience: ^GainsExperience
+	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 8
+		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
+		Description: High Mobility Artillery Rocket System.\n\n - 6x GMLRS guided rockets\n - Long-range precision strikes\n - Armor: Light
+	Valued:
+		Cost: 3500
+	Tooltip:
+		Name: HIMARS
+	AnnounceOnSeen:
+		Type: Vehicle
+		TextNotification: Spotted: HIMARS
+	ActorLostNotification:
+		TextNotification: Lost: HIMARS
+	RenderSprites:
+		Scale: 1.25
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	DamageMultiplier@Loaded:
+		RequiresCondition: loaded
+		Modifier: 1000
+	Health:
+		HP: 6000
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Ground, Vehicle, Light
+	HitShape:
+		Type: Rectangle
+			VerticalTopOffset: 620
+			TopLeft: -240, -700
+			BottomRight: 240, 700
+	Detectable:
+		RadarDetectableCondition: firing
+		Position: Ground
+	Mobile:
+		Locomotor: lighttracked
+		Speed: 70
+		TurnSpeed: 8
+		PauseOnCondition: firing || being-captured || empdisable || notmobile
+	GrantConditionOnPreparingAttack:
+		Condition: firing
+		ArmamentNames: primary
+		RevokeDelay: 160
+	IndirectFire:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: FireAtWill
+	Armament@1:
+		Weapon: IskanderTargeter
+		LocalOffset: 192,-64,176, 192,64,176
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+	AmmoPool@1:
+		Name: primary-ammo
+		Armaments: primary
+		Ammo: 6
+		AmmoCondition: ammo-primary
+		FullReloadTicks: 600
+		FullReloadSteps: 6
+		RearmSound: minelay1.aud
+	WithAmmoPipsDecoration@1:
+		Position: Bottom
+		Margin: 8, 3
+		PipCount: 6
+		RequiresSelection: true
+		FullSequence: pip-red
+		AmmoPools: primary-ammo
+	RenderRangeCircle@1:
+		Armament: primary
+		Width: 2
+		Color: FF0000
+	Turreted:
+		TurnSpeed: 10
+		Offset: -300,0,150
+	AttackTurreted:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		PersistentTargeting: False
+		PauseOnCondition: empdisable || unit.docked
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+		Recoils: false
+	MissileSpawnerMaster:
+		Actors: HIMARSMissile
+		LoadedCondition: loaded
+		LaunchingCondition: firing
+	Explodes:
+		RequiresCondition: !loaded
+		Weapon: ArtilleryExplode
+	Explodes@Loaded:
+		RequiresCondition: loaded
+		Weapon: HIMARSExplosion
+	Selectable:
+		DecorationBounds: 2048,2048
+	SpawnActorOnDeath:
+		Actor: HIMARS.husk
+
+HIMARSMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 30
+	Tooltip:
+		Name: GMLRS Rocket
+	RenderSprites:
+		Scale: 0.8
+	Health:
+		HP: 50
+	BallisticMissile:
+		LaunchAngle: 96
+		Speed: 500
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Offsets: -200, 0, 0
+	MissileSpawnerSlave:
+	SpawnedExplodes:
+		Weapon: HIMARSExplosion
+		EmptyWeapon: VisualExplodeHusk
+		RequiresCondition: !airborne
+	Explodes:
+		Weapon: HIMARSExplosion
+		RequiresCondition: airborne
 
 # PRSM:
 # 	Inherits@Type: ^TrackedVehicle

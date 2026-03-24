@@ -459,6 +459,22 @@ IskanderExplosion:
 		AffectsParent: true
 		DamageTypes: ExplosionDeath
 
+HIMARSExplosion:
+	Inherits@HitEffects: ^HugeExplosionEffects
+	ValidTargets: Ground, Trees, Water
+	Warhead@Target: TargetDamage
+		Damage: 5000
+		DamageAtMaxRange: 50
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread_impact: SpreadDamage
+		Spread: 512
+		Damage: 8000
+		Penetration: 1500
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+
 IskanderExplosionAirborne:
 	Inherits: IskanderExplosion
 	# Warhead@Spread: SpreadDamage
