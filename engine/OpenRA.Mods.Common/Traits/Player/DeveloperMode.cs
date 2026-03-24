@@ -205,7 +205,6 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevFastBuildAll": SetFieldForAll(self, dm => dm.fastBuild = true); break;
 				case "DevFastChargeAll": SetFieldForAll(self, dm => dm.fastCharge = true); break;
 				case "DevEnableTechAll": SetFieldForAll(self, dm => dm.allTech = true); break;
-				case "DevUnlimitedPowerAll": SetFieldForAll(self, dm => dm.unlimitedPower = true); break;
 				case "DevBuildAnywhereAll": SetFieldForAll(self, dm => dm.buildAnywhere = true); break;
 				case "DevCosmeticRevealAll": SetFieldForAll(self, dm => dm.cosmeticReveal = true); break;
 				case "DevControlAllUnitsAll": SetFieldForAll(self, dm => dm.controlAllUnits = true); break;
@@ -233,7 +232,6 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevFastBuildReset": SetFieldForAll(self, dm => dm.fastBuild = false); break;
 				case "DevFastChargeReset": SetFieldForAll(self, dm => dm.fastCharge = false); break;
 				case "DevEnableTechReset": SetFieldForAll(self, dm => dm.allTech = false); break;
-				case "DevUnlimitedPowerReset": SetFieldForAll(self, dm => dm.unlimitedPower = false); break;
 				case "DevBuildAnywhereReset": SetFieldForAll(self, dm => dm.buildAnywhere = false); break;
 				case "DevCosmeticRevealReset": SetFieldForAll(self, dm => dm.cosmeticReveal = false); break;
 				case "DevControlAllUnitsReset": SetFieldForAll(self, dm => dm.controlAllUnits = false); break;

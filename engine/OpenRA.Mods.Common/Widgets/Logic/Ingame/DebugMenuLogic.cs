@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -28,8 +29,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static readonly Color ColorMe = Color.FromArgb(80, 220, 80);
 		static readonly Color ColorAll = Color.FromArgb(80, 160, 255);
 
-		// 3-state tracking for each cheat (0=Off, 1=Me, 2=All)
-		readonly Dictionary<string, int> cheatStates = new Dictionary<string, int>();
+		// Static so state persists across panel open/close within the same game
+		static readonly Dictionary<string, int> CheatStates = new Dictionary<string, int>();
 
 		[ObjectCreator.UseCtor]
 		public DebugMenuLogic(Widget widget, World world)
@@ -39,31 +40,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var terrainGeometryTrait = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
 			var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
 
+			// Sync button states from actual DeveloperMode trait values on panel open
+			SyncStatesFromTrait(world, devTrait);
+
 			// --- 3-state cheat buttons ---
-			// Each takes: widget ID, display label, toggle order, all order, reset order
+			// Left column
 			Bind3StateButton(widget, world, "INSTANT_BUILD", "Instant Build",
 				"DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
-
-			Bind3StateButton(widget, world, "INSTANT_CHARGE", "Instant Charge",
-				"DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
 
 			Bind3StateButton(widget, world, "ENABLE_TECH", "Build Everything",
 				"DevEnableTech", "DevEnableTechAll", "DevEnableTechReset");
 
-			Bind3StateButton(widget, world, "UNLIMITED_POWER", "Unlimited Power",
-				"DevUnlimitedPower", "DevUnlimitedPowerAll", "DevUnlimitedPowerReset");
-
 			Bind3StateButton(widget, world, "BUILD_ANYWHERE", "Build Anywhere",
 				"DevBuildAnywhere", "DevBuildAnywhereAll", "DevBuildAnywhereReset");
 
-			Bind3StateButton(widget, world, "DISABLE_SHROUD", "No Shroud",
-				"DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
+			Bind3StateButton(widget, world, "INSTANT_CHARGE", "Instant Charge",
+				"DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
 
+			// Right column
 			Bind3StateButton(widget, world, "COSMETIC_REVEAL", "Reveal All",
 				"DevCosmeticReveal", "DevCosmeticRevealAll", "DevCosmeticRevealReset");
 
 			Bind3StateButton(widget, world, "CONTROL_ALL_UNITS", "Control All",
 				"DevControlAllUnits", "DevControlAllUnitsAll", "DevControlAllUnitsReset");
+
+			Bind3StateButton(widget, world, "DISABLE_SHROUD", "No Shroud",
+				"DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
 
 			Bind3StateButton(widget, world, "SHOW_UNIT_PATHS", "Show Paths",
 				"DevPathDebug", "DevPathDebugAll", "DevPathDebugReset");
@@ -158,6 +160,46 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				loadButton.OnClick = () => LoadPreset(world, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
 		}
 
+		/// <summary>
+		/// Reads the actual DeveloperMode trait state and determines whether each cheat
+		/// is OFF (0), ME only (1), or ALL players (2). Called every time the panel opens
+		/// so the buttons always reflect reality.
+		/// </summary>
+		static void SyncStatesFromTrait(World world, DeveloperMode localDev)
+		{
+			SyncOneCheat(world, "INSTANT_BUILD", localDev.FastBuild, dm => dm.FastBuild);
+			SyncOneCheat(world, "INSTANT_CHARGE", localDev.FastCharge, dm => dm.FastCharge);
+			SyncOneCheat(world, "ENABLE_TECH", localDev.AllTech, dm => dm.AllTech);
+			SyncOneCheat(world, "BUILD_ANYWHERE", localDev.BuildAnywhere, dm => dm.BuildAnywhere);
+			SyncOneCheat(world, "DISABLE_SHROUD", localDev.DisableShroud, dm => dm.DisableShroud);
+			SyncOneCheat(world, "COSMETIC_REVEAL", localDev.CosmeticReveal, dm => dm.CosmeticReveal);
+			SyncOneCheat(world, "CONTROL_ALL_UNITS", localDev.ControlAllUnits, dm => dm.ControlAllUnits);
+			SyncOneCheat(world, "SHOW_UNIT_PATHS", localDev.PathDebug, dm => dm.PathDebug);
+		}
+
+		static void SyncOneCheat(World world, string widgetId, bool localValue, Func<DeveloperMode, bool> getter)
+		{
+			if (!localValue)
+			{
+				CheatStates[widgetId] = 0;
+				return;
+			}
+
+			// Local is on — check if ALL other playable players also have it on
+			var allOn = true;
+			foreach (var player in world.Players.Where(p => p.Playable && p != world.LocalPlayer))
+			{
+				var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
+				if (dm == null || !getter(dm))
+				{
+					allOn = false;
+					break;
+				}
+			}
+
+			CheatStates[widgetId] = allOn && world.Players.Any(p => p.Playable && p != world.LocalPlayer) ? 2 : 1;
+		}
+
 		void Bind3StateButton(Widget widget, World world, string widgetId, string label,
 			string toggleOrder, string allOrder, string resetOrder)
 		{
@@ -165,11 +207,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (button == null)
 				return;
 
-			cheatStates[widgetId] = 0;
+			// Ensure key exists (SyncStatesFromTrait may not have set it if widget wasn't in the sync list)
+			if (!CheatStates.ContainsKey(widgetId))
+				CheatStates[widgetId] = 0;
 
 			button.GetText = () =>
 			{
-				var state = cheatStates[widgetId];
+				var state = CheatStates[widgetId];
 				switch (state)
 				{
 					case 1: return label + ": ME";
@@ -180,7 +224,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			button.GetColor = () =>
 			{
-				var state = cheatStates[widgetId];
+				var state = CheatStates[widgetId];
 				switch (state)
 				{
 					case 1: return ColorMe;
@@ -191,19 +235,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			button.OnClick = () =>
 			{
-				var state = cheatStates[widgetId];
+				var state = CheatStates[widgetId];
 				switch (state)
 				{
 					case 0:
-						cheatStates[widgetId] = 1;
+						CheatStates[widgetId] = 1;
 						IssueOrder(world, toggleOrder);
 						break;
 					case 1:
-						cheatStates[widgetId] = 2;
+						CheatStates[widgetId] = 2;
 						IssueOrder(world, allOrder);
 						break;
 					case 2:
-						cheatStates[widgetId] = 0;
+						CheatStates[widgetId] = 0;
 						IssueOrder(world, resetOrder);
 						break;
 				}
@@ -211,9 +255,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			button.OnRightClick = () =>
 			{
-				if (cheatStates[widgetId] != 0)
+				if (CheatStates[widgetId] != 0)
 				{
-					cheatStates[widgetId] = 0;
+					CheatStates[widgetId] = 0;
 					IssueOrder(world, resetOrder);
 				}
 			};
@@ -232,7 +276,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				// Cheat states
 				var cheatNodes = new List<MiniYamlNode>();
-				foreach (var kv in cheatStates)
+				foreach (var kv in CheatStates)
 					cheatNodes.Add(new MiniYamlNode(kv.Key, kv.Value.ToString()));
 				nodes.Add(new MiniYamlNode("Cheats", new MiniYaml("", cheatNodes)));
 
@@ -288,32 +332,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								continue;
 
 							var widgetId = node.Key;
-							if (!cheatStates.ContainsKey(widgetId))
+							if (!CheatStates.ContainsKey(widgetId))
 								continue;
 
-							// Find the matching orders by reading the button config
-							// We stored widget IDs as keys, so we can look up the orders
 							var orders = GetOrdersForWidget(widgetId);
 							if (orders == null)
 								continue;
 
 							// Reset first if currently active
-							if (cheatStates[widgetId] != 0)
+							if (CheatStates[widgetId] != 0)
 							{
 								IssueOrder(world, orders.Value.reset);
-								cheatStates[widgetId] = 0;
+								CheatStates[widgetId] = 0;
 							}
 
 							// Apply target state
 							if (targetState == 1)
 							{
 								IssueOrder(world, orders.Value.toggle);
-								cheatStates[widgetId] = 1;
+								CheatStates[widgetId] = 1;
 							}
 							else if (targetState == 2)
 							{
 								IssueOrder(world, orders.Value.all);
-								cheatStates[widgetId] = 2;
+								CheatStates[widgetId] = 2;
 							}
 						}
 					}
@@ -360,7 +402,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		// Maps widget IDs to their order strings for save/load
 		static (string toggle, string all, string reset)? GetOrdersForWidget(string widgetId)
 		{
 			switch (widgetId)
@@ -368,7 +409,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				case "INSTANT_BUILD": return ("DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
 				case "INSTANT_CHARGE": return ("DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
 				case "ENABLE_TECH": return ("DevEnableTech", "DevEnableTechAll", "DevEnableTechReset");
-				case "UNLIMITED_POWER": return ("DevUnlimitedPower", "DevUnlimitedPowerAll", "DevUnlimitedPowerReset");
 				case "BUILD_ANYWHERE": return ("DevBuildAnywhere", "DevBuildAnywhereAll", "DevBuildAnywhereReset");
 				case "DISABLE_SHROUD": return ("DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
 				case "COSMETIC_REVEAL": return ("DevCosmeticReveal", "DevCosmeticRevealAll", "DevCosmeticRevealReset");
