@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// --- 3-state cheat buttons ---
 			// Left column
-			Bind3StateButton(widget, world, "INSTANT_BUILD", "Instant Build",
+			Bind3StateButton(widget, world, "INSTANT_BUILD", "Quick Build",
 				"DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
 
 			Bind3StateButton(widget, world, "ENABLE_TECH", "Build Everything",
