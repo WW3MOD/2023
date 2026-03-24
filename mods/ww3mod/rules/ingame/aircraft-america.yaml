@@ -578,3 +578,5 @@ A10.Airstrike:
 	-AttackAircraft:
 	AttackBomber:
 		FacingTolerance: 128
+	RenderSprites:
+		Image: a10

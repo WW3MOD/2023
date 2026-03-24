@@ -582,3 +582,5 @@ FROG.Airstrike:
 	-AttackAircraft:
 	AttackBomber:
 		FacingTolerance: 128
+	RenderSprites:
+		Image: frog
