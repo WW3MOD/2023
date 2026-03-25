@@ -27,24 +27,25 @@ namespace OpenRA.Mods.Common.Effects
 		WPos pos;
 		int delay;
 		readonly float scale;
+		readonly int zOffset;
 		bool initialized;
 
 		// Facing is last on these overloads partially for backwards compatibility with previous main ctor revision
 		// and partially because most effects don't need it. The latter is also the reason for placement of 'delay'.
 		public SpriteEffect(WPos pos, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
-			: this(() => pos, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0)
+			: this(() => pos, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset) { }
 
 		public SpriteEffect(Actor actor, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
-			: this(() => actor.CenterPosition, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0)
+			: this(() => actor.CenterPosition, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset) { }
 
 		public SpriteEffect(WPos pos, WAngle facing, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
-			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay, scale) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0)
+			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset) { }
 
 		public SpriteEffect(Func<WPos> posFunc, Func<WAngle> facingFunc, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f)
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0)
 		{
 			this.world = world;
 			this.posFunc = posFunc;
@@ -53,6 +54,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.visibleThroughFog = visibleThroughFog;
 			this.delay = delay;
 			this.scale = scale;
+			this.zOffset = zOffset;
 			pos = posFunc();
 			anim = new Animation(world, image, facingFunc);
 		}
@@ -79,7 +81,7 @@ namespace OpenRA.Mods.Common.Effects
 			if (!initialized || (!visibleThroughFog && world.FogObscures(pos)))
 				return SpriteRenderable.None;
 
-			return anim.Render(pos, WVec.Zero, 0, wr.Palette(palette), scale);
+			return anim.Render(pos, WVec.Zero, zOffset, wr.Palette(palette), scale);
 		}
 	}
 }

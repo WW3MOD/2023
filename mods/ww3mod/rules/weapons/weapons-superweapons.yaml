@@ -58,6 +58,7 @@ Atomic:
 		ScalePercent: 300
 		Offset: 0,-1900,0
 		Palette: effect_ts
+		ZOffset: 4096
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
