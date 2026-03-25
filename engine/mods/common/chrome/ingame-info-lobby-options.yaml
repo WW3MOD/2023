@@ -13,17 +13,6 @@ Container@LOBBY_OPTIONS_PANEL:
 					Y: 10
 					Width: PARENT_WIDTH - 24
 					Children:
-						Container@CATEGORY_HEADER_TEMPLATE:
-							Width: PARENT_WIDTH
-							Height: 30
-							Children:
-								Label@LABEL:
-									X: 10
-									Y: 8
-									Width: PARENT_WIDTH - 20
-									Height: 20
-									Font: Bold
-									Visible: False
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH
 							Height: 30

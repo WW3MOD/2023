@@ -167,6 +167,7 @@ ChromeLayout:
 	ww3mod|chrome/ingame-player.yaml
 	common|chrome/ingame-perf.yaml
 	ww3mod|chrome/ingame-debug.yaml
+	common|chrome/ingame-debug-hpf.yaml
 	common|chrome/ingame-debuginfo.yaml
 	common|chrome/ingame-infochat.yaml
 	common|chrome/mainmenu.yaml
@@ -207,6 +208,10 @@ ChromeLayout:
 	common|chrome/text-notifications.yaml
 
 FluentMessages:
+	common|fluent/common.ftl
+	common|fluent/chrome.ftl
+	common|fluent/hotkeys.ftl
+	common|fluent/rules.ftl
 	ww3mod|languages/en.ftl
 	# ww3mod|languages/english.yaml
 
