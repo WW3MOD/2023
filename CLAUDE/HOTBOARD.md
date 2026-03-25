@@ -3,7 +3,7 @@
 > Live dashboard. Max 40 lines. Oldest items rotate out.
 
 ## Active Concerns
-- **Unified Transport & Supply System** — Phase 1 done, Phase 2A done (CargoSupply trait, TRUK→pure transport). Next: Phase 2B (individual cargo unload panel), 2C (supply→SUPPLYCACHE), 2D-E (waypoint unload), Phase 3 (template sidebar). Plan: `CLAUDE/plans/purrfect-munching-balloon.md`
+- **Unified Transport & Supply System** — Phases 1, 2A-C done. Next: Phase 2D (waypoint selective unload), 2E (pre-queued ejection orders), Phase 3 (template sidebar). Plan: `CLAUDE/plans/purrfect-munching-balloon.md`
 - **Helicopter emergency landing needs playtesting** — autorotation now has steering, acceleration ramp, and flare before touchdown
 - **Stance system rework complete** — All 4 phases done, needs playtesting
 - **AI overhaul needs playtesting** — Tiers 0-3.1 implemented, major new capabilities
@@ -14,7 +14,7 @@
 - **Upstream merge in progress** — BACKUP/WW3MOD branch `upstream-merge-2025`. 1226 safe files + 294 manual merge. Plan: `CLAUDE/plans/260324_upstream_merge.md`
 
 ## Recent Wins
-- **CargoSupply Phase 2A** — New CargoSupply trait: supply as numeric cargo weight, auto-rearm aura on any transport. TRUK→pure transport (no more SupplyProvider/QuickRearm/DropsCrate). Chinook/HALO/HIND can carry supply
+- **Cargo system Phases 2A-C** — CargoSupply trait, TRUK→pure transport, cargo panel with individual eject, supply unload→SUPPLYCACHE with merge
 - **SUPPLYCACHE Phase 1** — NoAutoTarget (manual attack only) + ProximityCapturable (1.5 cell range, sticky ownership transfer)
 - **Damage state threshold fix** — Heavy/Medium were unreachable (math bug), now configurable per-actor. Health bar gradient: green→yellow→orange→red
 - **Helicopter emergency landing system** — Two-tier: heavy=autorotation (steering+acceleration+flare, safe landing, repairable), critical=crash (spinning, destroyed). Crew survives ground landing only
