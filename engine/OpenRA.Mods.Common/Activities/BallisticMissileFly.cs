@@ -22,13 +22,17 @@ namespace OpenRA.Mods.Common.Activities
 		readonly BallisticMissile sbm;
 		readonly WPos initPos;
 		readonly WPos targetPos;
-		readonly int totalFlightTicks;
-		readonly WAngle horizontalFacing;
-		readonly bool useAcceleration;
-		int ticks;
 
-		// High-precision denominator for LerpQuadratic to avoid integer truncation
-		const int ArcPrecision = 10000;
+		// Arc shape parameter passed to LerpQuadratic. Kept small (distance/speed)
+		// to avoid integer overflow in WPos arithmetic.
+		readonly int length;
+
+		// Actual game ticks for the flight.
+		readonly int totalFlightTicks;
+
+		int ticks;
+		readonly WAngle facing;
+		readonly bool useAcceleration;
 
 		public BallisticMissileFly(Actor self, Target t, BallisticMissile sbm = null)
 		{
@@ -36,79 +40,44 @@ namespace OpenRA.Mods.Common.Activities
 
 			initPos = self.CenterPosition;
 			targetPos = t.CenterPosition;
-			horizontalFacing = (targetPos - initPos).Yaw;
-
-			var distance = (targetPos - initPos).Length;
-			var baseFlightTicks = Math.Max(distance / this.sbm.Info.Speed, 1);
+			length = Math.Max((targetPos - initPos).Length / this.sbm.Info.Speed, 1);
+			facing = (targetPos - initPos).Yaw;
 
 			useAcceleration = this.sbm.Info.Acceleration > 0;
-			if (useAcceleration)
-			{
-				// With acceleration from rest, average speed is lower so flight takes longer.
-				// Higher Acceleration value = faster ramp-up = shorter extension.
-				// Accel=8: ~1.66x base time. Accel=16: ~1.5x. Accel=100+: ~1.05x.
-				var accelFactor = 1024 + this.sbm.Info.Acceleration * 64;
-				totalFlightTicks = baseFlightTicks + baseFlightTicks * 1024 / accelFactor;
-			}
-			else
-			{
-				totalFlightTicks = baseFlightTicks;
-			}
+
+			// No flight time extension needed — the blended acceleration curve
+			// (0.4*t + 0.6*t²) has an average progress rate of 1.0, so the missile
+			// reaches the target in exactly 'length' ticks at its stated average speed.
+			totalFlightTicks = length;
 		}
 
-		// Maps game ticks to arc progress (0.0 to 1.0).
-		// With acceleration, uses quadratic ease-in so missile starts slow.
+		// Maps real ticks to arc progress (0.0 to 1.0).
+		// With acceleration, blends linear + quadratic so the missile starts
+		// at 40% of average speed and ends at 160%, instead of the old t²
+		// which started at zero speed (causing missiles to appear frozen at launch).
 		float GetArcProgress()
 		{
-			if (totalFlightTicks <= 1)
-				return 1f;
-
-			var t = (float)ticks / totalFlightTicks;
-			if (useAcceleration)
-				return t * t;
-
-			return t;
+			var t = Math.Clamp((float)ticks / Math.Max(totalFlightTicks, 1), 0f, 1f);
+			return useAcceleration ? 0.4f * t + 0.6f * t * t : t;
 		}
 
-		// Get a position on the parabolic arc at a given progress (0.0 to 1.0)
-		WPos GetArcPosition(float progress)
+		// Compute the facing with pitch-tilt visual effect.
+		// Uses the original analytical formula with a clamp to prevent
+		// extreme offsets at steep launch angles.
+		WAngle GetEffectiveFacing(float arcProgress)
 		{
-			progress = Math.Clamp(progress, 0f, 1f);
-			var mul = (int)(progress * ArcPrecision);
-			return WPos.LerpQuadratic(initPos, targetPos, sbm.Info.LaunchAngle, mul, ArcPrecision);
-		}
+			var at = Math.Clamp(arcProgress, 0f, 1f);
+			var attitude = sbm.Info.LaunchAngle.Tan() * (1 - 2 * at) / (4 * 1024);
 
-		// Compute facing from the actual arc tangent direction.
-		// Samples two nearby points on the arc to get the movement vector,
-		// then applies a clamped pitch influence to the horizontal facing.
-		// This replaces the old analytical formula that broke at steep angles.
-		WAngle GetEffectiveFacing()
-		{
-			var progress = GetArcProgress();
+			// Clamp attitude to prevent sprite flipping at steep angles
+			attitude = Math.Clamp(attitude, -0.5f, 0.5f);
 
-			// Sample two points slightly apart to compute tangent
-			var eps = 1f / ArcPrecision;
-			var p1 = GetArcPosition(Math.Max(0f, progress - eps));
-			var p2 = GetArcPosition(Math.Min(1f, progress + eps));
-			var delta = p2 - p1;
-
-			var hDist = delta.HorizontalLength;
-			if (hDist < 1)
-				return horizontalFacing;
-
-			// Compute pitch influence: vertical movement relative to horizontal.
-			// Clamp to ±0.4 to prevent extreme facing shifts at steep launch angles.
-			// Positive = climbing, negative = diving.
-			var pitchFactor = Math.Clamp((float)delta.Z / (hDist * 4), -0.4f, 0.4f);
-
-			// Apply pitch as a facing offset using the isometric projection hack.
-			// This makes the sprite visually tilt when climbing/diving.
-			var u = (horizontalFacing.Angle % 512) / 512f;
+			var u = (facing.Angle % 512) / 512f;
 			var scale = 2048 * u * (1 - u);
 
-			var effective = (int)(horizontalFacing.Angle < 512
-				? horizontalFacing.Angle - scale * pitchFactor
-				: horizontalFacing.Angle + scale * pitchFactor);
+			var effective = (int)(facing.Angle < 512
+				? facing.Angle - scale * attitude
+				: facing.Angle + scale * attitude);
 
 			return new WAngle(effective);
 		}
@@ -122,9 +91,24 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			var pos = GetArcPosition(GetArcProgress());
+			var progress = GetArcProgress();
+
+			// Map progress to a float position along the arc, then interpolate
+			// between two adjacent integer arc points for smooth sub-tick movement.
+			// We use the original small 'length' for LerpQuadratic to avoid overflow.
+			var arcTickF = progress * length;
+			var arcTick0 = Math.Min((int)arcTickF, length);
+			var arcTick1 = Math.Min(arcTick0 + 1, length);
+			var frac = arcTickF - arcTick0;
+
+			var pos0 = WPos.LerpQuadratic(initPos, targetPos, sbm.Info.LaunchAngle, arcTick0, length);
+			var pos1 = WPos.LerpQuadratic(initPos, targetPos, sbm.Info.LaunchAngle, arcTick1, length);
+
+			// Lerp between the two points using the fractional part (scaled to 0-1024)
+			var pos = WPos.Lerp(pos0, pos1, (int)(frac * 1024), 1024);
+
 			sbm.SetPosition(self, pos);
-			sbm.Facing = GetEffectiveFacing();
+			sbm.Facing = GetEffectiveFacing(progress);
 			ticks++;
 			return false;
 		}
