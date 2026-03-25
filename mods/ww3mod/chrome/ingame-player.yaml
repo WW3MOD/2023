@@ -49,7 +49,7 @@ Container@PLAYER_WIDGETS:
 		Background@CMD_BG_B:
 			X: 295
 			Y: WINDOW_BOTTOM - HEIGHT - 5
-			Width: 188
+			Width: 172
 			Height: 44
 			Background: commandbar-background
 		Background@FIRE_BG:
@@ -80,7 +80,7 @@ Container@PLAYER_WIDGETS:
 			Logic: CommandBarLogic
 			X: 14
 			Y: WINDOW_BOTTOM - HEIGHT - 14
-			Width: 470
+			Width: 454
 			Height: 26
 			Children:
 				LogicKeyListener@MODIFIER_OVERRIDES:
@@ -222,7 +222,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: guard
 				Button@TAKE_COVER:
 					Logic: AddFactionSuffixLogic
-					X: 392
+					X: 376
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -241,7 +241,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: deploy
 				Button@AUTO_ENTER:
 					Logic: AddFactionSuffixLogic
-					X: 426
+					X: 410
 					Width: 34
 					Height: 26
 					VisualHeight: 0
