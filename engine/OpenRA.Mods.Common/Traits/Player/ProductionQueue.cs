@@ -560,7 +560,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Quick Build: 25x faster instead of instant, so spawn points have time to clear
 			if (developerMode.FastBuild)
-				return Math.Max(result / 25, 1);
+				return Math.Max(result / 10, 1);
 
 			return result;
 		}
