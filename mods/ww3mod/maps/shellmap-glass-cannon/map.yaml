@@ -10,7 +10,7 @@ Tileset: TEMPERAT
 
 MapSize: 82,52
 
-Bounds: 1,1,80,50
+Bounds: 0,0,82,52
 
 Visibility: Shellmap
 

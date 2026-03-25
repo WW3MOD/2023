@@ -10,7 +10,7 @@ Tileset: TEMPERAT
 
 MapSize: 130,130
 
-Bounds: 1,1,128,128
+Bounds: 0,0,130,130
 
 Visibility: Lobby
 
