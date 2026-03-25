@@ -7,81 +7,81 @@ Metadata:
 
 PackageFormats: Mix
 
-Packages:
-	~^SupportDir|Content/ra/v2/
-	~^SupportDir|Content/ra/v2/expand
-	~^SupportDir|Content/ra/v2/cnc
-	# ~^SupportDir|Content/ra/v2/movies
-	^EngineDir
-	$ra: ra
-	$ww3mod: ww3mod
-	^EngineDir|mods/common: common
-	~main.mix
-	~conquer.mix
-	~lores.mix: lores
-	~hires.mix
-	~local.mix
-	~sounds.mix
-	~speech.mix
-	~allies.mix
-	~russian.mix
-	~temperat.mix
-	~snow.mix
-	~interior.mix
-	~scores.mix
-	~expand2.mix
-	~hires1.mix
-	~desert.mix
-	~general.mix
+FileSystem: DefaultFileSystem
+	Packages:
+		~^SupportDir|Content/ra/v2/
+		~^SupportDir|Content/ra/v2/expand
+		~^SupportDir|Content/ra/v2/cnc
+		# ~^SupportDir|Content/ra/v2/movies
+		^EngineDir
+		$ra: ra
+		$ww3mod: ww3mod
+		^EngineDir|mods/common: common
+		~main.mix
+		~conquer.mix
+		~lores.mix: lores
+		~hires.mix
+		~local.mix
+		~sounds.mix
+		~speech.mix
+		~allies.mix
+		~russian.mix
+		~temperat.mix
+		~snow.mix
+		~interior.mix
+		~scores.mix
+		~expand2.mix
+		~hires1.mix
+		~desert.mix
+		~general.mix
 
-	# test
-	ra|bits
-	ra|bits/desert
-	ra|scripts
-	common|scripts
-	ra|uibits
+		# test
+		ra|bits
+		ra|bits/desert
+		ra|scripts
+		ra|uibits
 
-	# /test
-	ww3mod|scripts
-	common|scripts
+		# /test
+		ww3mod|scripts
+		common|scripts
 
-	ww3mod|bits
-	ww3mod|bits/units
-	ww3mod|bits/units/
-	ww3mod|bits/units/pips
-	ww3mod|bits/units/classes
-	ww3mod|bits/units/infantry
-	ww3mod|bits/units/vehicle
-	ww3mod|bits/units/aircraft
-	ww3mod|bits/units/naval
-	ww3mod|bits/units/buildings
-	ww3mod|bits/units/objects
+		ww3mod|bits
+		ww3mod|bits/units
+		ww3mod|bits/units/
+		ww3mod|bits/units/pips
+		ww3mod|bits/units/classes
+		ww3mod|bits/units/infantry
+		ww3mod|bits/units/vehicle
+		ww3mod|bits/units/aircraft
+		ww3mod|bits/units/naval
+		ww3mod|bits/units/buildings
+		ww3mod|bits/units/objects
 
-	ww3mod|bits/weapons/
-	ww3mod|bits/weapons/explosions
-	ww3mod|bits/weapons/muzzle
-	ww3mod|bits/weapons/projectiles
+		ww3mod|bits/weapons/
+		ww3mod|bits/weapons/explosions
+		ww3mod|bits/weapons/muzzle
+		ww3mod|bits/weapons/projectiles
 
-	ww3mod|bits/misc
-	ww3mod|bits/misc/icons
-	ww3mod|bits/misc/palettes
-	ww3mod|bits/misc/resources
-	ww3mod|bits/misc/tiles
-	ww3mod|bits/misc/ui
+		ww3mod|bits/misc
+		ww3mod|bits/misc/icons
+		ww3mod|bits/misc/palettes
+		ww3mod|bits/misc/resources
+		ww3mod|bits/misc/tiles
+		ww3mod|bits/misc/ui
 
-	ww3mod|bits/sounds
-	ww3mod|bits/sounds/robot
-	ww3mod|bits/sounds/volkov
-	ww3mod|bits/sounds/chem
-	ww3mod|bits/sounds/terroist
-	ww3mod|bits/sounds/glabike
-	ww3mod|bits/sounds/informan
-	ww3mod|bits/sounds/v3
-	ww3mod|bits/sounds/seal
-	ww3mod|bits/sounds/commando
-	ww3mod|bits/sounds/music
+		ww3mod|bits/sounds
+		ww3mod|bits/sounds/robot
+		ww3mod|bits/sounds/volkov
+		ww3mod|bits/sounds/chem
+		ww3mod|bits/sounds/terroist
+		ww3mod|bits/sounds/glabike
+		ww3mod|bits/sounds/informan
+		ww3mod|bits/sounds/v3
+		ww3mod|bits/sounds/seal
+		ww3mod|bits/sounds/commando
+		ww3mod|bits/sounds/music
 
-	ww3mod|uibits
+		ww3mod|uibits
 
 MapFolders:
 	ww3mod|maps: System
@@ -149,9 +149,7 @@ Cursors:
 Chrome:
 	ww3mod|chrome.yaml
 
-Assemblies:
-	^BinDir|OpenRA.Mods.Common.dll
-	^BinDir|OpenRA.Mods.Cnc.dll
+Assemblies: OpenRA.Mods.Common.dll, OpenRA.Mods.Cnc.dll
 
 ChromeLayout:
 	common|chrome/ingame.yaml
@@ -208,7 +206,7 @@ ChromeLayout:
 	common|chrome/playerprofile.yaml
 	common|chrome/text-notifications.yaml
 
-Translations:
+FluentMessages:
 	ww3mod|languages/en.ftl
 	# ww3mod|languages/english.yaml
 
@@ -317,7 +315,6 @@ SpriteSequenceFormat: ClassicTilesetSpecificSpriteSequence
 		INTERIOR: .int
 		DESERT: .des
 
-ModelSequenceFormat: PlaceholderModelSequence
 
 AssetBrowser:
 	SpriteExtensions: .shp, .tmp, .tem, .des, .sno, .int
@@ -373,6 +370,7 @@ GameSpeeds:
 			OrderLatency: 2
 
 ModContent:
+	Mod: ww3mod
 	InstallPromptMessage: Red Alert requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without music\nor videos) from a mirror of the 2008 Red Alert freeware release.\n\nAdvanced Install includes options for copying the music, videos, and\nother content from an original game disc or digital installation.
 	QuickDownload: quickinstall
 	HeaderMessage: Game content may be extracted from the original game discs or an\nexisting digital install. OpenRA can also download the base game\nfiles from an online mirror of the 2008 freeware release of RA.
