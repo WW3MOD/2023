@@ -14,6 +14,7 @@ WW3MOD is a **total conversion** of OpenRA Red Alert into a modern World War 3 R
 - **NEVER push to remote.** The user will push manually.
 - **Commit regularly without asking.** Frequent small commits are preferred over batched changes.
 - Create descriptive commit messages. No need to ask before committing.
+- **ALWAYS commit before ending a session.** Never leave uncommitted changes behind. If you made code changes, commit them — even if you didn't run FINALIZE. This is the #1 most important workflow rule.
 
 ### Communication Format
 - **Start every response with a short Red Alert / C&C quote, reference, or joke.** One line max. It should connect to what you're about to do — not random. No repeats within a session. Draw from the full C&C universe: Red Alert 1/2/3, Tiberium series, Generals — unit lines, advisor quotes, cutscenes, loading screen tips. Assume deep franchise knowledge. Occasionally roast the user or go dark-humor. When the user quotes C&C, answer in-character from the same game.
