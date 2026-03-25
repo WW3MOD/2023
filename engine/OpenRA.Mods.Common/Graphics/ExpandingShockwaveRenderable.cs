@@ -77,14 +77,18 @@ namespace OpenRA.Mods.Common.Graphics
 			var outerR = radius.Length;
 			var innerR = Math.Max(0, outerR - thickness.Length);
 
-			// Build three concentric rings for feathering:
-			// Inner edge (transparent) -> mid-inner (peak inner alpha) -> mid-outer (peak outer alpha) -> outer edge (sharp then fade)
-			// Simplified to: inner transparent -> center of band (peak) -> outer (sharp leading edge)
-			var midR = (outerR + innerR) / 2;
+			// Four concentric rings for soft feathering:
+			// outerFade (transparent) → outerPeak (leading edge glow) → innerPeak (core) → innerFade (transparent dust trail)
+			// The peak zone is narrow (30% of band), with wide fades on both sides
+			var bandWidth = outerR - innerR;
+			var peakOuterR = innerR + (int)(bandWidth * 0.75f);  // Peak near outer edge (leading front)
+			var peakInnerR = innerR + (int)(bandWidth * 0.55f);  // Peak slightly behind leading front
+			var outerFadeR = outerR + (int)(bandWidth * 0.15f);  // Extend slightly beyond for soft outer fade
 
-			var outerColor = Color.FromArgb((int)(outerAlpha * 255), color.R, color.G, color.B);
-			var midColor = Color.FromArgb((int)(Math.Max(outerAlpha, innerAlpha) * 0.8f * 255), color.R, color.G, color.B);
-			var innerColor = Color.FromArgb((int)(innerAlpha * 255), color.R, color.G, color.B);
+			var peakAlpha = Math.Max(outerAlpha, innerAlpha);
+			var peakColor = Color.FromArgb((int)(peakAlpha * 255), color.R, color.G, color.B);
+			var outerPeakColor = Color.FromArgb((int)(outerAlpha * 255), color.R, color.G, color.B);
+			var innerPeakColor = Color.FromArgb((int)(innerAlpha * 0.6f * 255), color.R, color.G, color.B);
 			var fadeColor = Color.FromArgb(0, color.R, color.G, color.B);
 
 			for (var i = 0; i < Segments; i++)
@@ -97,22 +101,26 @@ namespace OpenRA.Mods.Common.Graphics
 				var cos2 = (float)Math.Cos(angle2);
 				var sin2 = (float)Math.Sin(angle2);
 
-				// Four points per segment at each ring boundary
-				var outerPos1 = WorldToScreen(wr, center, outerR, cos1, sin1);
-				var outerPos2 = WorldToScreen(wr, center, outerR, cos2, sin2);
-				var midPos1 = WorldToScreen(wr, center, midR, cos1, sin1);
-				var midPos2 = WorldToScreen(wr, center, midR, cos2, sin2);
+				var outerFadePos1 = WorldToScreen(wr, center, outerFadeR, cos1, sin1);
+				var outerFadePos2 = WorldToScreen(wr, center, outerFadeR, cos2, sin2);
+				var peakOuterPos1 = WorldToScreen(wr, center, peakOuterR, cos1, sin1);
+				var peakOuterPos2 = WorldToScreen(wr, center, peakOuterR, cos2, sin2);
+				var peakInnerPos1 = WorldToScreen(wr, center, peakInnerR, cos1, sin1);
+				var peakInnerPos2 = WorldToScreen(wr, center, peakInnerR, cos2, sin2);
 				var innerPos1 = WorldToScreen(wr, center, innerR, cos1, sin1);
 				var innerPos2 = WorldToScreen(wr, center, innerR, cos2, sin2);
 
-				// Inner band: inner edge (fade) -> mid (peak)
-				// Gradual trailing edge (dust settling behind the shockwave)
-				cr.FillRect(innerPos1, innerPos2, midPos2, midPos1,
-					fadeColor, fadeColor, midColor, midColor);
+				// Band 1: Inner fade (transparent → inner peak) — long gradual dust trail
+				cr.FillRect(innerPos1, innerPos2, peakInnerPos2, peakInnerPos1,
+					fadeColor, fadeColor, innerPeakColor, innerPeakColor);
 
-				// Outer band: mid (peak) -> outer edge (sharp leading front)
-				cr.FillRect(midPos1, midPos2, outerPos2, outerPos1,
-					midColor, midColor, outerColor, outerColor);
+				// Band 2: Core (inner peak → outer peak) — the densest part of the shockwave
+				cr.FillRect(peakInnerPos1, peakInnerPos2, peakOuterPos2, peakOuterPos1,
+					innerPeakColor, innerPeakColor, outerPeakColor, outerPeakColor);
+
+				// Band 3: Outer fade (outer peak → transparent) — soft leading edge
+				cr.FillRect(peakOuterPos1, peakOuterPos2, outerFadePos2, outerFadePos1,
+					outerPeakColor, outerPeakColor, fadeColor, fadeColor);
 			}
 		}
 

@@ -104,17 +104,27 @@ namespace OpenRA.Mods.Common.Effects
 			if (currentRadius.Length <= 0)
 				yield break;
 
-			// Fade alpha as the ring expands
+			// Progress 0→1 as ring expands from center to max radius
 			var progress = (float)currentRadius.Length / warhead.MaxRadius.Length;
+
+			// Fade in: shockwave originates from fireball edge, not center
+			// Fully transparent at start, reaches full opacity after FadeInTicks
+			var fadeIn = warhead.ShockwaveFadeInTicks > 0
+				? System.Math.Min(1f, (float)ticks / warhead.ShockwaveFadeInTicks)
+				: 1f;
+
+			// Fade out: smoothly reaches zero at max radius (never disappears abruptly)
+			var endAlphaFrac = warhead.ShockwaveEndAlphaPercent / 100f;
+			var fadeOut = 1f - progress * (1f - endAlphaFrac);
+
 			var startOuterAlpha = warhead.ShockwaveOuterAlpha / 100f;
 			var startInnerAlpha = warhead.ShockwaveInnerAlpha / 100f;
-			var fadeFactor = 1f - progress * (1f - warhead.ShockwaveEndAlphaPercent / 100f);
 
-			var outerAlpha = startOuterAlpha * fadeFactor;
-			var innerAlpha = startInnerAlpha * fadeFactor;
+			var outerAlpha = startOuterAlpha * fadeIn * fadeOut;
+			var innerAlpha = startInnerAlpha * fadeIn * fadeOut;
 
 			// Scale thickness with radius — starts thin, grows as the ring expands
-			var thicknessScale = System.Math.Min(1f, progress * 3f);
+			var thicknessScale = System.Math.Min(1f, progress * 2.5f);
 			var currentThickness = new WDist((int)(warhead.ShockwaveThickness.Length * thicknessScale));
 
 			// Use ground-level center for the ring

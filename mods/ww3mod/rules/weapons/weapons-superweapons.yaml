@@ -34,10 +34,23 @@ Atomic:
 		Duration: 30
 		FlashType: Nuke
 
-	# Screen shake persists through entire blast wave (~8 seconds)
-	Warhead@Shake: ShakeScreen
-		Duration: 200
+	# Screen shake: progressive decay — massive initial impact, then fading rumble
+	# Total coverage: 0→210 ticks (matches blast wave duration)
+	Warhead@Shake1: ShakeScreen
+		Duration: 25
 		Intensity: 80
+	Warhead@Shake2: ShakeScreen
+		Duration: 50
+		Intensity: 40
+		Delay: 25
+	Warhead@Shake3: ShakeScreen
+		Duration: 75
+		Intensity: 15
+		Delay: 75
+	Warhead@Shake4: ShakeScreen
+		Duration: 60
+		Intensity: 5
+		Delay: 150
 
 	# Fireball visual — mushroom cloud sprite at 300% scale
 	Warhead@Fireball: CreateEffect
@@ -52,96 +65,130 @@ Atomic:
 
 	# ===== PHASE 1: THERMAL RADIATION (Tick 0-2) — Speed of Light =====
 	# Thermal pulse arrives essentially instantly. This is the FIRST damage.
-	# Ground zero (0-1 cells): Vaporization — only the very center
+	# Ground zero (0-2 cells): Vaporization — only the very center
 	Warhead@ThermalVaporize: SpreadDamage
 		Spread: 1c0
 		Damage: 200000
-		Penetration: 10000
+		Penetration: 3000
 		Falloff: 100, 20
 		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Close thermal (1-5 cells): Heavy burns but survivable briefly — fire does the killing
+	# Close thermal (2-10 cells): Wounds but doesn't kill — fire does the real killing
 	Warhead@ThermalClose: SpreadDamage
-		Spread: 1c0
-		Damage: 15000
-		Penetration: 2000
+		Spread: 2c0
+		Damage: 800
+		Penetration: 200
 		Falloff: 0, 100, 80, 50, 25, 8
 		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Medium thermal (5-12 cells): Burns, not immediately lethal
+	# Medium thermal (10-20 cells): Light burns, weakens for fire
 	Warhead@ThermalMedium: SpreadDamage
-		Spread: 1c0
-		Damage: 4000
-		Penetration: 500
-		Falloff: 0, 0, 0, 0, 0, 100, 70, 45, 25, 15, 8, 3, 1
+		Spread: 3c0
+		Damage: 300
+		Penetration: 100
+		Falloff: 0, 0, 0, 0, 100, 70, 45, 25, 10
 		Delay: 2
 		ValidTargets: Ground, Trees, Water, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Fire condition grants — graduated by range, all near-instant (thermal speed)
-	# The fire is what creates the horror: soldiers burning alive at different intensities
-	# 0-2 cells: onfire x10 (maximum, kills infantry fast but they burn visibly first)
-	Warhead@FireGZ: GrantExternalCondition
+	# ===== FIRE: Stacking overlapping rings =====
+	# 10 warheads, each Amount: 1, with overlapping ranges.
+	# All 10 cover 0-10 cells = 10 stacks at ground zero (full fire).
+	# Each extends 2 cells further, so fire drops by 1 stack per 2 cells:
+	# 0-10c: 10 stacks | 10-12c: 9 | 12-14c: 8 | 14-16c: 7 | 16-18c: 6
+	# 18-20c: 5 | 20-22c: 4 | 22-24c: 3 | 24-26c: 2 | 26-28c: 1
+	Warhead@Fire1: GrantExternalCondition
 		Range: 10c0
-		Amount: 10
+		Amount: 1
 		Duration: 750
 		Condition: onfire
 		Delay: 1
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 2-5 cells: onfire x8
-	Warhead@FireClose1: GrantExternalCondition
+	Warhead@Fire2: GrantExternalCondition
 		Range: 12c0
-		Amount: 8
+		Amount: 1
+		Duration: 700
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 14c0
+		Amount: 1
+		Duration: 650
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 16c0
+		Amount: 1
 		Duration: 600
 		Condition: onfire
 		Delay: 1
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 5-8 cells: onfire x6
-	Warhead@FireClose2: GrantExternalCondition
-		Range: 15c0
-		Amount: 6
-		Duration: 400
+	Warhead@Fire5: GrantExternalCondition
+		Range: 18c0
+		Amount: 1
+		Duration: 550
 		Condition: onfire
 		Delay: 1
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 8-12 cells: onfire x4
-	Warhead@FireMedium: GrantExternalCondition
-		Range: 17c0
-		Amount: 4
-		Duration: 250
+	Warhead@Fire6: GrantExternalCondition
+		Range: 20c0
+		Amount: 1
+		Duration: 500
 		Condition: onfire
 		Delay: 2
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 12-16 cells: onfire x2
-	Warhead@FireFar: GrantExternalCondition
-		Range: 19c0
-		Amount: 2
-		Duration: 100
-		Condition: onfire
-		Delay: 2
-		ValidTargets: Structure, Infantry, Trees
-		ValidRelationships: Ally, Neutral, Enemy
-		AirThreshold: 10c0
-	# 16-22 cells: onfire x1 (light burns, survivable)
-	Warhead@FireOuter: GrantExternalCondition
+	Warhead@Fire7: GrantExternalCondition
 		Range: 22c0
 		Amount: 1
-		Duration: 50
+		Duration: 450
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 24c0
+		Amount: 1
+		Duration: 400
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 26c0
+		Amount: 1
+		Duration: 350
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 28c0
+		Amount: 1
+		Duration: 300
 		Condition: onfire
 		Delay: 2
 		ValidTargets: Structure, Infantry, Trees

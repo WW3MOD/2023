@@ -48,16 +48,19 @@ namespace OpenRA.Mods.Common.Warheads
 		public readonly Color ShockwaveColor = Color.FromArgb(255, 255, 255, 255);
 
 		[Desc("Thickness of the shockwave ring band in WDist.")]
-		public readonly WDist ShockwaveThickness = new WDist(768);
+		public readonly WDist ShockwaveThickness = new WDist(1536);
 
 		[Desc("Alpha at the outer (leading) edge of the shockwave ring, 0-100.")]
-		public readonly int ShockwaveOuterAlpha = 70;
+		public readonly int ShockwaveOuterAlpha = 8;
 
 		[Desc("Alpha at the inner (trailing/dust) edge of the shockwave ring, 0-100.")]
-		public readonly int ShockwaveInnerAlpha = 25;
+		public readonly int ShockwaveInnerAlpha = 3;
 
 		[Desc("Alpha of the shockwave ring at MaxRadius, as percentage of initial alpha (0-100).")]
-		public readonly int ShockwaveEndAlphaPercent = 15;
+		public readonly int ShockwaveEndAlphaPercent = 0;
+
+		[Desc("Ticks for the shockwave ring to fade in from fully transparent. Simulates fireball origin.")]
+		public readonly int ShockwaveFadeInTicks = 25;
 
 		WDist[] effectiveRange;
 
