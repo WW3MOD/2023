@@ -190,12 +190,3 @@ SHOKR1:
 		OverrideActor: shok
 	-Buildable:
 	-MapEditorData:
-
-
-# Infiltrating Spy
-# SPY.russia:
-# 	Inherits@BaseUnit: ^SPY
-# 	Buildable:
-# 		Prerequisites: ~player.russia, ~techlevel.infonly
-# 	RenderSprites:
-# 		Image: spy.russia

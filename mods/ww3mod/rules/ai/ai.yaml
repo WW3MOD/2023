@@ -215,9 +215,11 @@ Player:
 			hsam: 3
 
 	# ===== Fixed-Wing Aircraft — Russia =====
+	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
 	UnitBuilderBotModule@russia.fixedwing:
 		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 0
+		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
 			MIG: 30
@@ -256,9 +258,11 @@ Player:
 			HALO: 2500
 
 	# ===== Fixed-Wing Aircraft — America =====
+	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
 	UnitBuilderBotModule@america.fixedwing:
 		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 0
+		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
 			A10: 40
