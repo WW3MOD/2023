@@ -602,13 +602,30 @@ MIG:
 	RenderSprites:
 		Scale: 1.25
 
-# Disposable airstrike flyover variant — spawned by AirstrikePower, fires on flyover, self-removes
+# Disposable airstrike flyover variant — spawned by AirstrikePower, single strafe pass then exit
 FROG.Airstrike:
 	Inherits: FROG
 	-Buildable:
 	-Rearmable:
 	-ReloadAmmoPool@1:
+	-SpawnActorOnDeath:
+	-SpawnActorOnDeath@EMP:
+	-EjectOnDeath@Rank0:
+	-EjectOnDeath@Rank1:
+	-EjectOnDeath@Rank2:
+	-EjectOnDeath@Rank_3:
+	-EjectOnDeath@Rank4:
 	RenderSprites:
 		Image: frog
 	Aircraft:
-		Speed: 300
+		Speed: 200
+		TurnSpeed: 8
+		CruiseAltitude: 1c512
+	AttackAircraft:
+		Armaments: primary
+		FacingTolerance: 60
+		AttackType: Strafe
+		StrafeRunLength: 12c0
+		OpportunityFire: true
+	AmmoPool@1:
+		Ammo: 30

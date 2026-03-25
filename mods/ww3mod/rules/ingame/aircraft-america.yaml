@@ -590,13 +590,30 @@ F16:
 		Image: f16
 		Scale: 1.1
 
-# Disposable airstrike flyover variant — spawned by AirstrikePower, fires on flyover, self-removes
+# Disposable airstrike flyover variant — spawned by AirstrikePower, single strafe pass then exit
 A10.Airstrike:
 	Inherits: A10
 	-Buildable:
 	-Rearmable:
 	-ReloadAmmoPool@1:
+	-SpawnActorOnDeath:
+	-EjectOnDeath@Rank0:
+	-EjectOnDeath@Rank1:
+	-EjectOnDeath@Rank2:
+	-EjectOnDeath@Rank_3:
+	-EjectOnDeath@Rank4:
 	RenderSprites:
 		Image: a10
 	Aircraft:
-		Speed: 300
+		Speed: 200
+		TurnSpeed: 8
+		CruiseAltitude: 2c0
+	AttackAircraft:
+		FacingTolerance: 80
+		AttackType: Strafe
+		StrafeRunLength: 10c0
+		OpportunityFire: true
+	AmmoPool@1:
+		Ammo: 40
+	AmmoPool@2:
+		Ammo: 2

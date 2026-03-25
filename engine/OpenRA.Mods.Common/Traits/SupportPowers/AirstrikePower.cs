@@ -77,8 +77,8 @@ namespace OpenRA.Mods.Common.Traits
 			var spawnFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : WAngle.Zero;
 			var attackRotation = WRot.FromYaw(spawnFacing);
 
-			// Exit back through spawn edge
-			var exitPos = spawnPos;
+			// Distance from spawn to target — used for exit calculation
+			var distanceToTarget = delta.HorizontalLength;
 
 			// Create the actors immediately so they can be returned
 			for (var i = -info.SquadSize / 2; i <= info.SquadSize / 2; i++)
@@ -124,17 +124,23 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					w.Add(a);
 
-					// Fly to target area — once arrived, plane enters FlyIdle (circles for
-					// fixed-wing) and AutoTarget engages enemies automatically.
-					// Player can select and redirect at any time.
+					// Single-pass strafe run: fly to target, continue straight through
+					// (OpportunityFire handles shooting during the pass), then exit map.
+					// Player can still select and redirect — queued activities cancel normally.
 					a.QueueActivity(new Fly(a, Target.FromPos(targetWithAlt)));
+
+					// Fly forward past the target for the same distance it took to reach it,
+					// plus cordon — guarantees the aircraft exits past the far map edge.
+					var exitDistance = new WDist(distanceToTarget + info.Cordon.Length * 2);
+					a.QueueActivity(new FlyForward(a, exitDistance));
+					a.QueueActivity(new RemoveSelf());
 
 					distanceTestActor = a;
 				}
 
 				if (Info.DisplayBeacon && distanceTestActor != null)
 				{
-					var distance = (targetWithAlt - spawnPos).HorizontalLength;
+					var distance = distanceToTarget;
 
 					var beacon = new Beacon(
 						self.Owner,
