@@ -450,6 +450,13 @@ namespace OpenRA.Mods.Common.Traits
 			UpdateSupplyConditions();
 		}
 
+		/// <summary>Adds supply (e.g., merging a dropped supply crate into existing cache). Can exceed TotalSupply if needed.</summary>
+		public void AddSupply(int amount)
+		{
+			currentSupply += amount;
+			UpdateSupplyConditions();
+		}
+
 		void UpdateSupplyConditions()
 		{
 			var ratio = Info.TotalSupply > 0 ? (float)currentSupply / Info.TotalSupply : 0f;

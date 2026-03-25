@@ -752,9 +752,9 @@ Container@PLAYER_WIDGETS:
 		Container@CARGO_PANEL:
 			Logic: CargoPanelLogic
 			X: WINDOW_RIGHT - 240
-			Y: WINDOW_BOTTOM - 280
+			Y: WINDOW_BOTTOM - 310
 			Width: 228
-			Height: 260
+			Height: 290
 			Children:
 				LogicTicker@CARGO_TICKER:
 				Label@CARGO_HEADER:
@@ -909,8 +909,23 @@ Container@PLAYER_WIDGETS:
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@DROP_ONE_SUPPLY:
+					Y: 180
+					Width: 105
+					Height: 18
+					Font: Tiny
+					Text: Drop 1
+					VisualHeight: 0
+				Button@DROP_SUPPLY:
+					X: 110
+					Y: 180
+					Width: 110
+					Height: 18
+					Font: Tiny
+					Text: Drop All Supply
+					VisualHeight: 0
 				Button@UNLOAD_ALL_TROOPS:
-					Y: 184
+					Y: 202
 					Width: 220
 					Height: 20
 					Font: Tiny

@@ -107,6 +107,34 @@ namespace OpenRA.Mods.Common.Widgets
 				supplyLabel.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
 			}
 
+			// Drop Supply button — unloads all supply as SUPPLYCACHE
+			var dropSupplyButton = panel.GetOrNull<ButtonWidget>("DROP_SUPPLY");
+			if (dropSupplyButton != null)
+			{
+				dropSupplyButton.OnClick = () =>
+				{
+					if (selectedTransport != null && cargoSupply != null && cargoSupply.SupplyCount > 0)
+						world.IssueOrder(new Order("UnloadCargoSupply", selectedTransport, false)
+							{ ExtraData = (uint)cargoSupply.SupplyCount });
+				};
+				dropSupplyButton.IsDisabled = () => selectedTransport == null || cargoSupply == null || cargoSupply.SupplyCount <= 0;
+				dropSupplyButton.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
+			}
+
+			// Drop 1 Supply button — unloads a single supply unit
+			var dropOneSupplyButton = panel.GetOrNull<ButtonWidget>("DROP_ONE_SUPPLY");
+			if (dropOneSupplyButton != null)
+			{
+				dropOneSupplyButton.OnClick = () =>
+				{
+					if (selectedTransport != null && cargoSupply != null && cargoSupply.SupplyCount > 0)
+						world.IssueOrder(new Order("UnloadCargoSupply", selectedTransport, false)
+							{ ExtraData = 1 });
+				};
+				dropOneSupplyButton.IsDisabled = () => selectedTransport == null || cargoSupply == null || cargoSupply.SupplyCount <= 0;
+				dropOneSupplyButton.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
+			}
+
 			// Panel visibility ticker
 			var ticker = panel.GetOrNull<LogicTickerWidget>("CARGO_TICKER");
 			if (ticker != null)

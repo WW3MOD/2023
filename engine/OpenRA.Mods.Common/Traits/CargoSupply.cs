@@ -54,10 +54,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Credit value per supply unit (for sell/value calculations).")]
 		public readonly int CreditValuePerUnit = 50;
 
+		[Desc("Actor to create when supply is unloaded onto the ground.")]
+		public readonly string SupplyCacheActor = "supplycache";
+
 		public override object Create(ActorInitializer init) { return new CargoSupply(init, this); }
 	}
 
-	public class CargoSupply : ITick, INotifyCreated, ISelectionBar, ITransformActorInitModifier
+	public class CargoSupply : ITick, INotifyCreated, ISelectionBar, ITransformActorInitModifier, IResolveOrder
 	{
 		public readonly CargoSupplyInfo Info;
 		readonly Actor self;
@@ -454,6 +457,59 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Credit value of current supply.</summary>
 		public int SupplyCreditValue => supplyCount * Info.CreditValuePerUnit;
+
+		void IResolveOrder.ResolveOrder(Actor self, Order order)
+		{
+			if (order.OrderString != "UnloadCargoSupply")
+				return;
+
+			var amount = (int)order.ExtraData;
+			if (amount <= 0 || supplyCount <= 0)
+				return;
+
+			amount = System.Math.Min(amount, supplyCount);
+			DropSupplyCache(amount);
+		}
+
+		/// <summary>Drop supply units as a SUPPLYCACHE at the transport's current location.</summary>
+		void DropSupplyCache(int unitsToDrop)
+		{
+			var supplyAmount = unitsToDrop * Info.SupplyPerUnit;
+
+			// Check if there's already a SUPPLYCACHE on this cell — merge if so
+			var existingCache = self.World.ActorMap.GetActorsAt(self.Location)
+				.FirstOrDefault(a => !a.IsDead && a.Info.Name == Info.SupplyCacheActor);
+
+			if (existingCache != null)
+			{
+				var existingProvider = existingCache.TraitOrDefault<SupplyProvider>();
+				if (existingProvider != null)
+				{
+					existingProvider.AddSupply(supplyAmount);
+					RemoveSupply(unitsToDrop);
+					return;
+				}
+			}
+
+			// Create new SUPPLYCACHE
+			var supplyProviderInfo = self.World.Map.Rules.Actors[Info.SupplyCacheActor]
+				.TraitInfoOrDefault<SupplyProviderInfo>();
+
+			if (supplyProviderInfo == null)
+				return;
+
+			RemoveSupply(unitsToDrop);
+
+			self.World.AddFrameEndTask(w =>
+			{
+				var cache = w.CreateActor(Info.SupplyCacheActor, new TypeDictionary
+				{
+					new LocationInit(self.Location),
+					new OwnerInit(self.Owner),
+					new SupplyInit(supplyProviderInfo, supplyAmount),
+				});
+			});
+		}
 	}
 
 	public class CargoSupplyInit : ValueActorInit<int>
