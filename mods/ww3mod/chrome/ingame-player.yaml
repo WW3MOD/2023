@@ -42,44 +42,44 @@ Container@PLAYER_WIDGETS:
 			Order: Descending
 		Background@CMD_BG_A:
 			X: 5
-			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 290
 			Height: 44
 			Background: commandbar-background
 		Background@CMD_BG_B:
 			X: 295
-			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 188
 			Height: 44
 			Background: commandbar-background
 		Background@FIRE_BG:
 			X: 483
-			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@ENGAGE_BG:
 			X: 603
-			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@COHESION_BG:
 			X: 723
-			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@RESUPPLY_BG:
 			X: 843
-			Y: WINDOW_BOTTOM - HEIGHT - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Container@COMMAND_BAR:
 			Logic: CommandBarLogic
 			X: 14
-			Y: WINDOW_BOTTOM - HEIGHT - 14
+			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 470
 			Height: 26
 			Children:
@@ -319,7 +319,7 @@ Container@PLAYER_WIDGETS:
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
 			X: 492
-			Y: WINDOW_BOTTOM - HEIGHT - 14
+			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
@@ -388,7 +388,7 @@ Container@PLAYER_WIDGETS:
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
 			X: 612
-			Y: WINDOW_BOTTOM - HEIGHT - 14
+			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
@@ -457,7 +457,7 @@ Container@PLAYER_WIDGETS:
 		Container@COHESION_BAR:
 			Logic: CohesionSelectorLogic
 			X: 732
-			Y: WINDOW_BOTTOM - HEIGHT - 14
+			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
@@ -526,7 +526,7 @@ Container@PLAYER_WIDGETS:
 		Container@RESUPPLY_BEHAVIOR_BAR:
 			Logic: ResupplyBehaviorSelectorLogic
 			X: 852
-			Y: WINDOW_BOTTOM - HEIGHT - 14
+			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
 			Children:
@@ -595,7 +595,7 @@ Container@PLAYER_WIDGETS:
 		Container@GARRISON_PANEL:
 			Logic: GarrisonPanelLogic
 			X: 5
-			Y: WINDOW_BOTTOM - 280
+			Y: WINDOW_HEIGHT - 280
 			Width: 160
 			Height: 200
 			Children:
@@ -723,27 +723,27 @@ Container@PLAYER_WIDGETS:
 					VisualHeight: 0
 		Container@MUTE_INDICATOR:
 			Logic: MuteIndicatorLogic
-			X: WINDOW_RIGHT - WIDTH - 260
+			X: WINDOW_WIDTH - WIDTH - 260
 			Y: 10
 			Width: 200
 			Height: 25
 			Children:
 				Image@ICON:
-					X: PARENT_RIGHT - WIDTH
+					X: PARENT_WIDTH - WIDTH
 					Y: 1
 					Width: 24
 					Height: 24
 					ImageCollection: sidebar-bits
 					ImageName: indicator-muted
 				Label@LABEL:
-					Width: PARENT_RIGHT - 30
+					Width: PARENT_WIDTH - 30
 					Height: 25
 					Align: Right
 					Text: Audio Muted
 					Contrast: true
 		Image@SIDEBAR_BACKGROUND_TOP:
 			Logic: AddFactionSuffixLogic
-			X: WINDOW_RIGHT - 250
+			X: WINDOW_WIDTH - 250
 			Y: 10
 			Width: 238
 			Height: 262
@@ -860,7 +860,7 @@ Container@PLAYER_WIDGETS:
 							Skippable: false
 		Container@SIDEBAR_PRODUCTION:
 			Logic: ClassicProductionLogic
-			X: WINDOW_RIGHT - 250
+			X: WINDOW_WIDTH - 250
 			Y: 300
 			Width: 238
 			Height: 250
@@ -1049,7 +1049,7 @@ Container@PLAYER_WIDGETS:
 						# 			ImageName: down
 		Image@SIDEBAR_MONEYBIN:
 			Logic: AddFactionSuffixLogic
-			X: WINDOW_RIGHT - 250
+			X: WINDOW_WIDTH - 250
 			Y: 272
 			Width: 238
 			Height: 28
@@ -1076,7 +1076,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: cash-normal
 				Label@GAME_TIMER:
 					Logic: GameTimerLogic
-					X: PARENT_RIGHT - WIDTH - 5
+					X: PARENT_WIDTH - WIDTH - 5
 					Y: 3
 					Width: 50
 					Height: 23
@@ -1085,7 +1085,7 @@ Container@PLAYER_WIDGETS:
 
 				# LabelWithTooltip@UPKEEP:
 				# 	Logic: IngamePowerCounterLogic
-				# 	X: PARENT_RIGHT - WIDTH - 30
+				# 	X: PARENT_WIDTH - WIDTH - 30
 				# 	Y: 2
 				# 	Width: 50
 				# 	Height: 23
@@ -1096,26 +1096,26 @@ Container@PLAYER_WIDGETS:
 				# 	TooltipTemplate: SIMPLE_TOOLTIP
 				# 	Children:
 				# 		Image@POWER_ICON:
-				# 			X: PARENT_RIGHT + 4
+				# 			X: PARENT_WIDTH + 4
 				# 			Y: 4
 				# 			ImageCollection: power-icons
 				# 			ImageName: power-normal
 		Container@HPF_OVERLAY:
 			Logic: HierarchicalPathFinderOverlayLogic
-			X: WINDOW_RIGHT - WIDTH - 260
+			X: WINDOW_WIDTH - WIDTH - 260
 			Y: 40
 			Width: 175
 			Height: 60
 			Children:
 				DropDownButton@HPF_OVERLAY_LOCOMOTOR:
 					Y: PARENT_TOP
-					Width: PARENT_RIGHT
+					Width: PARENT_WIDTH
 					Height: 25
 					Text: Select Locomotor
 					Font: Regular
 				DropDownButton@HPF_OVERLAY_CHECK:
 					Y: PARENT_TOP + 35
-					Width: PARENT_RIGHT
+					Width: PARENT_WIDTH
 					Height: 25
 					Text: Select BlockedByActor
 					Font: Regular

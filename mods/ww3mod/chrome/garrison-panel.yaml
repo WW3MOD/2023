@@ -1,7 +1,7 @@
 Container@GARRISON_PANEL:
 	Logic: GarrisonPanelLogic
 	X: 5
-	Y: WINDOW_BOTTOM - 220
+	Y: WINDOW_HEIGHT - 220
 	Width: 160
 	Height: 200
 	Children:

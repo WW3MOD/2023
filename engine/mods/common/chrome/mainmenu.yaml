@@ -2,8 +2,8 @@ Container@MAINMENU:
 	Logic: MainMenuLogic
 	Children:
 		WorldInteractionController@SHELLMAP_INTERACTION:
-			Width: WINDOW_RIGHT
-			Height: WINDOW_BOTTOM
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
 		LogicKeyListener@GLOBAL_KEYHANDLER:
 			Logic: MusicHotkeyLogic, ScreenshotHotkeyLogic, MuteHotkeyLogic
 				StopMusicKey: StopMusic
@@ -16,15 +16,15 @@ Container@MAINMENU:
 		# 	Background: mainmenu-border
 		# 	X: 0 - 15
 		# 	Y: 0 - 15
-		# 	Width: WINDOW_RIGHT + 30
-		# 	Height: WINDOW_BOTTOM + 30
+		# 	Width: WINDOW_WIDTH + 30
+		# 	Height: WINDOW_HEIGHT + 30
 		# Image@LOGO:
-		# 	X: WINDOW_RIGHT - 296
+		# 	X: WINDOW_WIDTH - 296
 		# 	Y: 30
 		# 	ImageCollection: logos
 		# 	ImageName: logo
 		Button@INFO_BUTTON:
-			X: WINDOW_RIGHT - 40
+			X: WINDOW_WIDTH - 40
 			Y: 15
 			Width: 25
 			Height: 25
@@ -32,13 +32,13 @@ Container@MAINMENU:
 			Font: Bold
 		Container@MENUS:
 			X: 0
-			Y: WINDOW_BOTTOM / 2 - HEIGHT / 2
+			Y: WINDOW_HEIGHT / 2 - HEIGHT / 2
 			Width: 200
 			Height: 320
 			Children:
 				Background@MAIN_MENU:
-					Width: PARENT_RIGHT
-					Height: PARENT_BOTTOM
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
 					Background:
 					Children:
 						Label@MAINMENU_LABEL_TITLE:
@@ -50,50 +50,50 @@ Container@MAINMENU:
 							Align: Center
 							Font: Bold
 						Button@SINGLEPLAYER_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 60
 							Width: 140
 							Height: 30
 							Text: Singleplayer
 							Font: Bold
 						Button@MULTIPLAYER_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 100
 							Width: 140
 							Height: 30
 							Text: Multiplayer
 							Font: Bold
 						Button@SETTINGS_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 140
 							Width: 140
 							Height: 30
 							Text: Settings
 							Font: Bold
 						Button@EXTRAS_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 180
 							Width: 140
 							Height: 30
 							Text: Extras
 							Font: Bold
 						Button@CONTENT_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 220
 							Width: 140
 							Height: 30
 							Text: Manage Content
 							Font: Bold
 						Button@QUIT_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 260
 							Width: 140
 							Height: 30
 							Text: Quit
 							Font: Bold
 				Background@SINGLEPLAYER_MENU:
-					Width: PARENT_RIGHT
-					Height: PARENT_BOTTOM
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
 					Background:
 					Children:
 						Label@SINGLEPLAYER_MENU_TITLE:
@@ -105,28 +105,28 @@ Container@MAINMENU:
 							Align: Center
 							Font: Bold
 						Button@SKIRMISH_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 60
 							Width: 140
 							Height: 30
 							Text: Skirmish
 							Font: Bold
 						Button@MISSIONS_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 100
 							Width: 140
 							Height: 30
 							Text: Missions
 							Font: Bold
 						Button@LOAD_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 140
 							Width: 140
 							Height: 30
 							Text: Load
 							Font: Bold
 						Button@BACK_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Key: escape
 							Y: 260
 							Width: 140
@@ -134,8 +134,8 @@ Container@MAINMENU:
 							Text: Back
 							Font: Bold
 				Background@EXTRAS_MENU:
-					Width: PARENT_RIGHT
-					Height: PARENT_BOTTOM
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
 					Background:
 					Children:
 						Label@EXTRAS_MENU_TITLE:
@@ -147,42 +147,42 @@ Container@MAINMENU:
 							Align: Center
 							Font: Bold
 						Button@REPLAYS_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 60
 							Width: 140
 							Height: 30
 							Text: Replays
 							Font: Bold
 						Button@MUSIC_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 100
 							Width: 140
 							Height: 30
 							Text: Music
 							Font: Bold
 						Button@MAP_EDITOR_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 140
 							Width: 140
 							Height: 30
 							Text: Map Editor
 							Font: Bold
 						Button@ASSETBROWSER_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 180
 							Width: 140
 							Height: 30
 							Text: Asset Browser
 							Font: Bold
 						Button@CREDITS_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 220
 							Width: 140
 							Height: 30
 							Text: Credits
 							Font: Bold
 						Button@BACK_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Key: escape
 							Y: 260
 							Width: 140
@@ -190,8 +190,8 @@ Container@MAINMENU:
 							Text: Back
 							Font: Bold
 				Background@MAP_EDITOR_MENU:
-					Width: PARENT_RIGHT
-					Height: PARENT_BOTTOM
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
 					Background:
 					Children:
 						Label@MAP_EDITOR_MENU_TITLE:
@@ -203,21 +203,21 @@ Container@MAINMENU:
 							Align: Center
 							Font: Bold
 						Button@NEW_MAP_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 60
 							Width: 140
 							Height: 30
 							Text: New Map
 							Font: Bold
 						Button@LOAD_MAP_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 100
 							Width: 140
 							Height: 30
 							Text: Load Map
 							Font: Bold
 						Button@BACK_BUTTON:
-							X: PARENT_RIGHT / 2 - WIDTH / 2
+							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Key: escape
 							Y: 260
 							Width: 140
@@ -226,20 +226,20 @@ Container@MAINMENU:
 							Font: Bold
 		Container@MUTE_INDICATOR:
 			Logic: MuteIndicatorLogic
-			X: WINDOW_RIGHT - WIDTH - 30
-			Y: WINDOW_BOTTOM - 40
+			X: WINDOW_WIDTH - WIDTH - 30
+			Y: WINDOW_HEIGHT - 40
 			Width: 200
 			Height: 25
 			Children:
 				Image@ICON:
-					X: PARENT_RIGHT - WIDTH
+					X: PARENT_WIDTH - WIDTH
 					Y: 1
 					Width: 24
 					Height: 24
 					ImageCollection: sidebar-bits
 					ImageName: indicator-muted
 				Label@LABEL:
-					Width: PARENT_RIGHT - 30
+					Width: PARENT_WIDTH - 30
 					Height: 25
 					Align: Right
 					Text: Audio Muted
@@ -249,15 +249,15 @@ Container@MAINMENU:
 			Children:
 				Label@PERF_TEXT:
 					X: 30
-					Y: WINDOW_BOTTOM - 70
+					Y: WINDOW_HEIGHT - 70
 					Width: 170
 					Height: 40
 					Contrast: true
 				Background@GRAPH_BG:
 					ClickThrough: true
 					Background: dialog4
-					X: WINDOW_RIGHT - 240
-					Y: WINDOW_BOTTOM - 240
+					X: WINDOW_WIDTH - 240
+					Y: WINDOW_HEIGHT - 240
 					Width: 210
 					Height: 210
 					Children:
@@ -267,7 +267,7 @@ Container@MAINMENU:
 							Width: 200
 							Height: 200
 		# Background@NEWS_BG:
-		# 	X: (WINDOW_RIGHT - WIDTH) / 2
+		# 	X: (WINDOW_WIDTH - WIDTH) / 2
 		# 	Y: 35
 		# 	Width: 430
 		# 	Height: 55
@@ -281,19 +281,19 @@ Container@MAINMENU:
 		# 			Text: Battlefield News
 		# 			Font: Bold
 		# Container@UPDATE_NOTICE:
-		# 	X: (WINDOW_RIGHT - WIDTH) / 2
+		# 	X: (WINDOW_WIDTH - WIDTH) / 2
 		# 	Y: 95
 		# 	Width: 128
 		# 	Children:
 		# 		Label@A:
-		# 			Width: PARENT_RIGHT
+		# 			Width: PARENT_WIDTH
 		# 			Height: 25
 		# 			Align: Center
 		# 			Shadow: true
 		# 			Text: You are running an outdated version of OpenRA.
 		# 		Label@B:
 		# 			Y: 20
-		# 			Width: PARENT_RIGHT
+		# 			Width: PARENT_WIDTH
 		# 			Height: 25
 		# 			Align: Center
 		# 			Shadow: true
