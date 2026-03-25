@@ -558,7 +558,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var result = Util.ApplyPercentageModifiers(time, modifiers);
 
-			// Quick Build: 25x faster instead of instant, so spawn points have time to clear
+			// Quick Build: 10x faster instead of instant, so spawn points have time to clear
 			if (developerMode.FastBuild)
 				return Math.Max(result / 10, 1);
 
