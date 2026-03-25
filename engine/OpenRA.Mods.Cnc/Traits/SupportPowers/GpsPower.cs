@@ -12,7 +12,6 @@
 using System.Linq;
 using OpenRA.Mods.Cnc.Effects;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.MiniMap;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
@@ -47,8 +46,8 @@ namespace OpenRA.Mods.Cnc.Traits
 		[Desc("Custom palette is a player palette BaseName")]
 		public readonly bool SatellitePaletteIsPlayerPalette = true;
 
-		[Desc("Requires an actor with an online `ProvidesMiniMap` to show GPS dots.")]
-		public readonly bool RequiresActiveMiniMap = true;
+		[Desc("Requires an actor with an online `ProvidesRadar` to show GPS dots.")]
+		public readonly bool RequiresActiveRadar = true;
 
 		public override object Create(ActorInitializer init) { return new GpsPower(init.Self, this); }
 	}
@@ -103,17 +102,17 @@ namespace OpenRA.Mods.Cnc.Traits
 			owner.GpsAdd(self);
 		}
 
-		bool NoActiveMiniMap { get { return !self.World.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled).Any(a => a.Owner == self.Owner); } }
+		bool NoActiveRadar { get { return !self.World.ActorsHavingTrait<ProvidesRadar>(r => !r.IsTraitDisabled).Any(a => a.Owner == self.Owner); } }
 		bool wasPaused;
 
 		void ITick.Tick(Actor self)
 		{
-			if (!wasPaused && (IsTraitPaused || (info.RequiresActiveMiniMap && NoActiveMiniMap)))
+			if (!wasPaused && (IsTraitPaused || (info.RequiresActiveRadar && NoActiveRadar)))
 			{
 				wasPaused = true;
 				RemoveGps(self);
 			}
-			else if (wasPaused && !IsTraitPaused && !(info.RequiresActiveMiniMap && NoActiveMiniMap))
+			else if (wasPaused && !IsTraitPaused && !(info.RequiresActiveRadar && NoActiveRadar))
 			{
 				wasPaused = false;
 				owner.GpsAdd(self);

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,13 +18,13 @@ using OpenRA.Primitives;
 
 namespace OpenRA.Mods.D2k.UtilityCommands
 {
-	public class D2kMapImporter
+	public sealed class D2kMapImporter
 	{
 		const int MapCordonWidth = 2;
 
 		// PlayerReference colors in D2k missions only affect chat text and minimap colors because actors use specific palette colors.
 		// So using the colors from the original game's minimap.
-		public static Dictionary<string, (string Faction, Color Color)> PlayerReferenceDataByPlayerName = new Dictionary<string, (string, Color)>
+		public static Dictionary<string, (string Faction, Color Color)> PlayerReferenceDataByPlayerName = new()
 		{
 			{ "Neutral", ("Random", Color.White) },
 			{ "Atreides", ("atreides", Color.FromArgb(90, 115, 148)) },
@@ -36,7 +36,7 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 			{ "Mercenaries", ("mercenary", Color.FromArgb(156, 132, 8)) }
 		};
 
-		public static Dictionary<int, (string Actor, string Owner)> ActorDataByActorCode = new Dictionary<int, (string, string)>
+		public static Dictionary<int, (string Actor, string Owner)> ActorDataByActorCode = new()
 		{
 			{ 20, ("wormspawner", "Creeps") },
 			{ 23, ("mpspawn", "Neutral") },
@@ -350,6 +350,8 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 
 		void FillMap()
 		{
+			var actorNodes = new List<MiniYamlNode>();
+			var playerNodes = new List<MiniYamlNode>();
 			while (stream.Position < stream.Length)
 			{
 				var tileInfo = stream.ReadUInt16();
@@ -367,9 +369,8 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 					map.Resources[locationOnMap] = new ResourceTile(1, 2);
 
 				// Actors
-				if (ActorDataByActorCode.ContainsKey(tileSpecialInfo))
+				if (ActorDataByActorCode.TryGetValue(tileSpecialInfo, out var kvp))
 				{
-					var kvp = ActorDataByActorCode[tileSpecialInfo];
 					if (!rules.Actors.ContainsKey(kvp.Actor.ToLowerInvariant()))
 						Console.WriteLine($"Ignoring unknown actor type: `{kvp.Actor.ToLowerInvariant()}`");
 					else
@@ -380,9 +381,10 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 							new OwnerInit(kvp.Owner)
 						};
 
-						map.ActorDefinitions.Add(new MiniYamlNode("Actor" + map.ActorDefinitions.Count, a.Save()));
+						actorNodes.Add(new MiniYamlNode("Actor" + (map.ActorDefinitions.Count + actorNodes.Count), a.Save()));
 
-						if (map.PlayerDefinitions.All(x => x.Value.Nodes.Single(y => y.Key == "Name").Value.Value != kvp.Owner))
+						if (map.PlayerDefinitions.Concat(playerNodes).All(
+							x => x.Value.NodeWithKey("Name").Value.Value != kvp.Owner))
 						{
 							var playerInfo = PlayerReferenceDataByPlayerName[kvp.Owner];
 							var playerReference = new PlayerReference
@@ -395,7 +397,7 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 							};
 
 							var node = new MiniYamlNode($"{nameof(PlayerReference)}@{kvp.Owner}", FieldSaver.SaveDifferences(playerReference, new PlayerReference()));
-							map.PlayerDefinitions.Add(node);
+							playerNodes.Add(node);
 						}
 
 						if (kvp.Actor == "mpspawn")
@@ -403,14 +405,17 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 					}
 				}
 			}
+
+			map.ActorDefinitions = map.ActorDefinitions.Concat(actorNodes).ToArray();
+			map.PlayerDefinitions = map.PlayerDefinitions.Concat(playerNodes).ToArray();
 		}
 
 		CPos GetCurrentTilePositionOnMap()
 		{
 			var tileIndex = (int)stream.Position / 4 - 2;
 
-			var x = (tileIndex % mapSize.Width) + MapCordonWidth;
-			var y = (tileIndex / mapSize.Width) + MapCordonWidth;
+			var x = tileIndex % mapSize.Width + MapCordonWidth;
+			var y = tileIndex / mapSize.Width + MapCordonWidth;
 
 			return new CPos(x, y);
 		}
@@ -504,17 +509,12 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 
 			// HACK: The arrakis.yaml tileset file seems to be missing some tiles, so just get a replacement for them
 			// Also used for duplicate tiles that are taken from only tileset
-			if (template == null)
+			// Just get a template that contains a tile with the same ID as requested
+			template ??= terrainInfo.Templates.FirstOrDefault(t =>
 			{
-				// Just get a template that contains a tile with the same ID as requested
-				var templates = terrainInfo.Templates.Where(t =>
-				{
-					var templateInfo = (DefaultTerrainTemplateInfo)t.Value;
-					return templateInfo.Frames != null && templateInfo.Frames.Contains(tileIndex);
-				});
-				if (templates.Any())
-					template = templates.First().Value;
-			}
+				var templateInfo = (DefaultTerrainTemplateInfo)t.Value;
+				return templateInfo.Frames != null && templateInfo.Frames.Contains(tileIndex);
+			}).Value;
 
 			if (template == null)
 			{
@@ -525,7 +525,7 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 			}
 
 			var templateIndex = template.Id;
-			var frameIndex = Array.IndexOf(((DefaultTerrainTemplateInfo)template).Frames, tileIndex);
+			var frameIndex = ((DefaultTerrainTemplateInfo)template).Frames.IndexOf(tileIndex);
 
 			return new TerrainTile(templateIndex, (byte)((frameIndex == -1) ? 0 : frameIndex));
 		}

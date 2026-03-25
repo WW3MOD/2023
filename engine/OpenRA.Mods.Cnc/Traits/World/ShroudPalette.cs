@@ -9,115 +9,62 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.Cnc.Effects;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.MiniMap;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-	[Desc("Requires `GpsWatcher` on the player actor.")]
-	sealed class GpsPowerInfo : SupportPowerInfo
+	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
+	[Desc("Adds the hard-coded shroud palette to the game")]
+	sealed class ShroudPaletteInfo : TraitInfo
 	{
-		[Desc("Delay in ticks between launching and revealing the map.")]
-		public readonly int RevealDelay = 0;
+		[PaletteDefinition]
+		[FieldLoader.Require]
+		[Desc("Internal palette name")]
+		public readonly string Name = "shroud";
 
-		public readonly string DoorImage = "atek";
+		[Desc("Palette type")]
+		public readonly bool Fog = false;
 
-		[SequenceReference(nameof(DoorImage))]
-		public readonly string DoorSequence = "active";
-
-		[PaletteReference(nameof(DoorPaletteIsPlayerPalette))]
-		[Desc("Palette to use for rendering the launch animation")]
-		public readonly string DoorPalette = "player";
-
-		[Desc("Custom palette is a player palette BaseName")]
-		public readonly bool DoorPaletteIsPlayerPalette = true;
-
-		public readonly string SatelliteImage = "sputnik";
-
-		[SequenceReference(nameof(SatelliteImage))]
-		public readonly string SatelliteSequence = "idle";
-
-		[PaletteReference(nameof(SatellitePaletteIsPlayerPalette))]
-		[Desc("Palette to use for rendering the satellite projectile")]
-		public readonly string SatellitePalette = "player";
-
-		[Desc("Custom palette is a player palette BaseName")]
-		public readonly bool SatellitePaletteIsPlayerPalette = true;
-
-		[Desc("Requires an actor with an online `ProvidesMiniMap` to show GPS dots.")]
-		public readonly bool RequiresActiveMiniMap = true;
-
-		public override object Create(ActorInitializer init) { return new GpsPower(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new ShroudPalette(this); }
 	}
 
-	sealed class GpsPower : SupportPower, INotifyKilled, INotifySold, INotifyOwnerChanged, ITick
+	sealed class ShroudPalette : ILoadsPalettes, IProvidesAssetBrowserPalettes
 	{
-		readonly Actor self;
-		readonly GpsPowerInfo info;
-		GpsWatcher owner;
+		readonly ShroudPaletteInfo info;
 
-		public GpsPower(Actor self, GpsPowerInfo info)
-			: base(self, info)
+		public ShroudPalette(ShroudPaletteInfo info) { this.info = info; }
+
+		public void LoadPalettes(WorldRenderer wr)
 		{
-			this.self = self;
-			this.info = info;
-			owner = self.Owner.PlayerActor.Trait<GpsWatcher>();
-			owner.GpsAdd(self);
+			var c = info.Fog ? Fog : Shroud;
+			wr.AddPalette(info.Name, new ImmutablePalette(Enumerable.Range(0, Palette.Size).Select(i => c[i % 8].ToArgb())));
 		}
 
-		public override void Charged(Actor self, string key)
+		static readonly Color[] Fog = new[]
 		{
-			self.Owner.PlayerActor.Trait<SupportPowerManager>().Powers[key].Activate(new Order());
-		}
+			Color.FromArgb(0, 0, 0, 0),
+			Color.Green, Color.Blue, Color.Yellow,
+			Color.FromArgb(128, 0, 0, 0),
+			Color.FromArgb(96, 0, 0, 0),
+			Color.FromArgb(64, 0, 0, 0),
+			Color.FromArgb(32, 0, 0, 0)
+		};
 
-		public override void Activate(Actor self, Order order, SupportPowerManager manager)
+		static readonly Color[] Shroud = new[]
 		{
-			base.Activate(self, order, manager);
+			Color.FromArgb(0, 0, 0, 0),
+			Color.Green, Color.Blue, Color.Yellow,
+			Color.Black,
+			Color.FromArgb(160, 0, 0, 0),
+			Color.FromArgb(128, 0, 0, 0),
+			Color.FromArgb(64, 0, 0, 0)
+		};
 
-			self.World.AddFrameEndTask(w =>
-			{
-				PlayLaunchSounds();
-
-				w.Add(new SatelliteLaunch(self, info));
-			});
-		}
-
-		void INotifyKilled.Killed(Actor self, AttackInfo e) { RemoveGps(self); }
-
-		void INotifySold.Selling(Actor self) { }
-		void INotifySold.Sold(Actor self) { RemoveGps(self); }
-
-		void RemoveGps(Actor self)
-		{
-			// Extra function just in case something needs to be added later
-			owner.GpsRemove(self);
-		}
-
-		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
-		{
-			RemoveGps(self);
-			owner = newOwner.PlayerActor.Trait<GpsWatcher>();
-			owner.GpsAdd(self);
-		}
-
-		bool NoActiveMiniMap { get { return !self.World.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled).Any(a => a.Owner == self.Owner); } }
-		bool wasPaused;
-
-		void ITick.Tick(Actor self)
-		{
-			if (!wasPaused && (IsTraitPaused || (info.RequiresActiveMiniMap && NoActiveMiniMap)))
-			{
-				wasPaused = true;
-				RemoveGps(self);
-			}
-			else if (wasPaused && !IsTraitPaused && !(info.RequiresActiveMiniMap && NoActiveMiniMap))
-			{
-				wasPaused = false;
-				owner.GpsAdd(self);
-			}
-		}
+		public IEnumerable<string> PaletteNames { get { yield return info.Name; } }
 	}
 }
