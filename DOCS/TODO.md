@@ -79,8 +79,6 @@ These are blockers or core gameplay features that define WW3MOD's identity.
 These make the game feel complete but aren't core identity features.
 
 ### Gameplay
-- [ ] Infantry fire on the move (force move = sprint, normal move = firing move)
-- [ ] Normal move prioritizes covered terrain in pathfinder
 - [ ] Default move order: stop and return fire periodically (unless force move)
 - [ ] Engineer repairs (bridge repair delay, general repair functionality)
 - [ ] Multiple soldiers capturing = faster capture; some buildings require multiple capturers
@@ -138,14 +136,16 @@ Great ideas that should wait until core game is solid.
 - [ ] Operational Module -- small squads as one, individual high-value target hunters
 - [ ] AutoAssign Actor method (usable by AI and player as "auto-assign on idle" stance)
 
-### Stances (Advanced)
+### Stances & Controls
+- [ ] Cohesion bar: implement Tight/Loose/Spread spacing behavior (UI done as dummy)
+- [ ] Resupply behavior bar: implement Hold/Seek/Rotate ammo-out behaviors (UI done as dummy)
+- [ ] Click-modifier meta-system: Click=immediate, Ctrl+Click=per-unit default, Alt+Click=per-type default (persisted)
+- [ ] Veterancy persistence on rotate: when a veteran unit rotates out via Supply Route, the next purchased unit of that type inherits the veterancy rank. Applies to infantry, vehicle crews, and aircraft pilots
 - [ ] Authorized Weapons toggles (primary/secondary/mg/tow per button)
-- [ ] Cohesion modes: Tight / Loose / Spread Out
 - [ ] Formation presets: Line / Box / Column
 - [ ] Formation structure: Infantry front / Armor front / Current
 - [ ] Ammo preservation modes: Max firepower / Preserve / Make every shot count
 - [ ] Auto ammo mode (reduce consumption when low, factor resupply distance)
-- [ ] "Use as default" -- save stance config between games
 - [ ] Sweeping fire (shoot at multiple enemies in one burst for max suppression)
 - [ ] Don't overkill (MLRS sweeps if only one target)
 - [ ] Retarget to more valid target dynamically
