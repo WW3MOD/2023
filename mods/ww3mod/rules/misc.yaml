@@ -386,7 +386,11 @@ SUPPLYCACHE:
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Ground, Structure
+		TargetTypes: Ground, Structure, NoAutoTarget
+	ProximityCapturable:
+		Range: 1c512
+		Sticky: true
+		CaptorTypes: Player, Vehicle, Tank, Infantry
 	HitShape:
 		Type: Circle
 			Radius: 512
