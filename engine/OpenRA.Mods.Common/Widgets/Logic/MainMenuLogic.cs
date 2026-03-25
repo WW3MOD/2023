@@ -74,6 +74,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 			};
 
+			// Shellmap Replay button — restarts the shellmap battle
+			var replayButton = rootMenu.GetOrNull<ButtonWidget>("REPLAY_BUTTON");
+			if (replayButton != null)
+				replayButton.OnClick = () => Game.RunAfterTick(Game.LoadShellMap);
+
+			// Shellmap Nuke button — lets user click to nuke a location
+			var nukeButton = rootMenu.GetOrNull<ButtonWidget>("NUKE_BUTTON");
+			var nukeOverlay = rootMenu.GetOrNull<ShellmapNukeOverlayWidget>("NUKE_OVERLAY");
+			if (nukeButton != null && nukeOverlay != null)
+			{
+				nukeButton.OnClick = () =>
+				{
+					if (nukeOverlay.IsNukeMode)
+						nukeOverlay.Deactivate();
+					else
+						nukeOverlay.Activate(() => { });
+				};
+			}
+
 			// Menu buttons
 			var mainMenu = widget.Get("MAIN_MENU");
 			mainMenu.IsVisible = () => menuType == MenuType.Main;

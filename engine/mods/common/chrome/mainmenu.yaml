@@ -23,6 +23,23 @@ Container@MAINMENU:
 		# 	Y: 30
 		# 	ImageCollection: logos
 		# 	ImageName: logo
+		ShellmapNukeOverlay@NUKE_OVERLAY:
+			Width: WINDOW_RIGHT
+			Height: WINDOW_BOTTOM
+		Button@NUKE_BUTTON:
+			X: WINDOW_RIGHT - 110
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: N
+			Font: Bold
+		Button@REPLAY_BUTTON:
+			X: WINDOW_RIGHT - 75
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: R
+			Font: Bold
 		Button@INFO_BUTTON:
 			X: WINDOW_RIGHT - 40
 			Y: 15
