@@ -486,7 +486,12 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		void ChangeSpeed(int sign = 1)
 		{
-			speed = (speed + sign * info.Acceleration.Length).Clamp(0, maxSpeed);
+			// Floor at 20% of max speed to prevent oscillation in the Hitting state.
+			// Without this, the loopRadius-based decel/accel feedback loop can drive
+			// speed to near-zero: small speed → small loopRadius → accel → larger
+			// loopRadius → decel → repeat, with the missile crawling at ~10% speed.
+			var minSpeed = maxSpeed / 5;
+			speed = (speed + sign * info.Acceleration.Length).Clamp(minSpeed, maxSpeed);
 
 			// Compute the vertical loop radius
 			loopRadius = LoopRadius(speed, info.VerticalRateOfTurn.Facing);
