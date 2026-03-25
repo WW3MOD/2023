@@ -31,6 +31,19 @@ namespace OpenRA.Mods.Common.Traits
 			"The arc shape is unchanged — only the speed along it varies.")]
 		public readonly int Acceleration = 0;
 
+		[Desc("Ticks the missile rises vertically before starting its parabolic arc.",
+			"Simulates a launch phase where the missile lifts off the launcher.",
+			"Uses cubic ease-in (slow ignition, accelerating rise).")]
+		public readonly int LaunchRiseTicks = 0;
+
+		[Desc("Height gained during the vertical launch rise phase.")]
+		public readonly WDist LaunchRiseHeight = WDist.Zero;
+
+		[Desc("How much the arc's vertical movement influences the sprite facing, as a percentage.",
+			"0 = pure horizontal facing (recommended for top-down). 100 = full pitch effect.",
+			"High values can make sprites look wrong since they only have horizontal facings.")]
+		public readonly int VisualPitchMultiplier = 0;
+
 		[Desc("Minimum altitude where this missile is considered airborne")]
 		public readonly int MinAirborneAltitude = 5;
 

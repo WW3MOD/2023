@@ -20,12 +20,20 @@ namespace OpenRA.Mods.Common.Activities
 	public class BallisticMissileFly : Activity
 	{
 		readonly BallisticMissile sbm;
-		readonly WPos initPos;
+		readonly WPos spawnPos;
 		readonly WPos targetPos;
-		readonly int totalFlightTicks;
 		readonly WAngle horizontalFacing;
 		readonly bool useAcceleration;
+		readonly int launchRiseTicks;
+		readonly int launchRiseHeight;
+		readonly float visualPitchMul;
+
+		// Arc phase: computed after rise completes
+		WPos arcStartPos;
+		int totalArcTicks;
+
 		int ticks;
+		bool riseComplete;
 
 		// High-precision denominator for LerpQuadratic to avoid integer truncation
 		const int ArcPrecision = 10000;
@@ -34,36 +42,63 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			this.sbm = sbm ?? self.Trait<BallisticMissile>();
 
-			initPos = self.CenterPosition;
+			spawnPos = self.CenterPosition;
 			targetPos = t.CenterPosition;
-			horizontalFacing = (targetPos - initPos).Yaw;
-
-			var distance = (targetPos - initPos).Length;
-			var baseFlightTicks = Math.Max(distance / this.sbm.Info.Speed, 1);
+			horizontalFacing = (targetPos - spawnPos).Yaw;
 
 			useAcceleration = this.sbm.Info.Acceleration > 0;
-			if (useAcceleration)
+			launchRiseTicks = this.sbm.Info.LaunchRiseTicks;
+			launchRiseHeight = this.sbm.Info.LaunchRiseHeight.Length;
+			visualPitchMul = this.sbm.Info.VisualPitchMultiplier / 100f;
+
+			if (launchRiseTicks <= 0)
 			{
-				// With acceleration from rest, average speed is lower so flight takes longer.
-				// Higher Acceleration value = faster ramp-up = shorter extension.
-				// Accel=8: ~1.66x base time. Accel=16: ~1.5x. Accel=100+: ~1.05x.
-				var accelFactor = 1024 + this.sbm.Info.Acceleration * 64;
-				totalFlightTicks = baseFlightTicks + baseFlightTicks * 1024 / accelFactor;
-			}
-			else
-			{
-				totalFlightTicks = baseFlightTicks;
+				// No rise phase — go straight to arc
+				riseComplete = true;
+				arcStartPos = spawnPos;
+				totalArcTicks = ComputeArcTicks(spawnPos, targetPos);
 			}
 		}
 
-		// Maps game ticks to arc progress (0.0 to 1.0).
-		// With acceleration, uses quadratic ease-in so missile starts slow.
+		int ComputeArcTicks(WPos from, WPos to)
+		{
+			var distance = (to - from).Length;
+			var baseFlightTicks = Math.Max(distance / sbm.Info.Speed, 1);
+
+			if (useAcceleration)
+			{
+				var accelFactor = 1024 + sbm.Info.Acceleration * 64;
+				return baseFlightTicks + baseFlightTicks * 1024 / accelFactor;
+			}
+
+			return baseFlightTicks;
+		}
+
+		// Rise phase: cubic ease-in (t³) for slow ignition, accelerating upward
+		WPos GetRisePosition()
+		{
+			if (launchRiseTicks <= 0)
+				return spawnPos;
+
+			var t = Math.Clamp((float)ticks / launchRiseTicks, 0f, 1f);
+
+			// Cubic ease-in: very slow start, accelerating
+			var progress = t * t * t;
+			var heightOffset = (int)(launchRiseHeight * progress);
+
+			return spawnPos + new WVec(0, 0, heightOffset);
+		}
+
+		// Maps arc ticks to arc progress (0.0 to 1.0).
+		// With acceleration, uses quadratic ease-in so missile starts slow on arc too.
 		float GetArcProgress()
 		{
-			if (totalFlightTicks <= 1)
+			if (totalArcTicks <= 1)
 				return 1f;
 
-			var t = (float)ticks / totalFlightTicks;
+			// arcTicks is how many ticks into the arc phase we are
+			var arcTicks = ticks - launchRiseTicks;
+			var t = (float)arcTicks / totalArcTicks;
 			if (useAcceleration)
 				return t * t;
 
@@ -75,15 +110,16 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			progress = Math.Clamp(progress, 0f, 1f);
 			var mul = (int)(progress * ArcPrecision);
-			return WPos.LerpQuadratic(initPos, targetPos, sbm.Info.LaunchAngle, mul, ArcPrecision);
+			return WPos.LerpQuadratic(arcStartPos, targetPos, sbm.Info.LaunchAngle, mul, ArcPrecision);
 		}
 
 		// Compute facing from the actual arc tangent direction.
-		// Samples two nearby points on the arc to get the movement vector,
-		// then applies a clamped pitch influence to the horizontal facing.
-		// This replaces the old analytical formula that broke at steep angles.
+		// Only applies pitch influence if VisualPitchMultiplier > 0.
 		WAngle GetEffectiveFacing()
 		{
+			if (visualPitchMul <= 0f)
+				return horizontalFacing;
+
 			var progress = GetArcProgress();
 
 			// Sample two points slightly apart to compute tangent
@@ -96,13 +132,12 @@ namespace OpenRA.Mods.Common.Activities
 			if (hDist < 1)
 				return horizontalFacing;
 
-			// Compute pitch influence: vertical movement relative to horizontal.
-			// Clamp to ±0.4 to prevent extreme facing shifts at steep launch angles.
-			// Positive = climbing, negative = diving.
-			var pitchFactor = Math.Clamp((float)delta.Z / (hDist * 4), -0.4f, 0.4f);
+			// Compute pitch influence, scaled by VisualPitchMultiplier.
+			// Clamp to prevent extreme facing shifts.
+			var maxPitch = 0.4f * visualPitchMul;
+			var pitchFactor = Math.Clamp((float)delta.Z / (hDist * 4), -maxPitch, maxPitch);
 
-			// Apply pitch as a facing offset using the isometric projection hack.
-			// This makes the sprite visually tilt when climbing/diving.
+			// Apply pitch as a facing offset using isometric projection.
 			var u = (horizontalFacing.Angle % 512) / 512f;
 			var scale = 2048 * u * (1 - u);
 
@@ -115,7 +150,32 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override bool Tick(Actor self)
 		{
-			if (ticks >= totalFlightTicks)
+			// Phase 1: Vertical launch rise
+			if (!riseComplete)
+			{
+				if (ticks >= launchRiseTicks)
+				{
+					// Rise complete — transition to arc
+					riseComplete = true;
+					arcStartPos = spawnPos + new WVec(0, 0, launchRiseHeight);
+					sbm.SetPosition(self, arcStartPos);
+					totalArcTicks = ComputeArcTicks(arcStartPos, targetPos);
+					ticks++;
+					return false;
+				}
+
+				var risePos = GetRisePosition();
+				sbm.SetPosition(self, risePos);
+
+				// During rise, keep horizontal facing (facing toward target)
+				sbm.Facing = horizontalFacing;
+				ticks++;
+				return false;
+			}
+
+			// Phase 2: Parabolic arc
+			var arcTicks = ticks - launchRiseTicks;
+			if (arcTicks >= totalArcTicks)
 			{
 				sbm.SetPosition(self, targetPos);
 				Queue(new CallFunc(() => self.Kill(self)));

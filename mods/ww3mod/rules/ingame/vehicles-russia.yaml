@@ -961,6 +961,9 @@ IskanderMissile:
 		LaunchAngle: 160
 		Speed: 400
 		Acceleration: 8
+		LaunchRiseTicks: 45
+		LaunchRiseHeight: 3c0
+		VisualPitchMultiplier: 10
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts
