@@ -26,7 +26,25 @@ namespace OpenRA
 
 		public void OnKeyInput(KeyInput input)
 		{
-			Sync.RunUnsynced(world, () => Ui.HandleKeyPress(input));
+			Sync.RunUnsynced(world, () =>
+			{
+				if (Ui.HandleKeyPress(input))
+					return;
+
+				// Global hotkeys that work regardless of which chrome window is active
+				if (input.Event == KeyInputEvent.Down)
+				{
+					var muteKey = Game.ModData?.Hotkeys["ToggleMute"];
+					if (muteKey != null && muteKey.IsActivatedBy(input))
+					{
+						Game.Settings.Sound.Mute ^= true;
+						if (Game.Settings.Sound.Mute)
+							Game.Sound.MuteAudio();
+						else
+							Game.Sound.UnmuteAudio();
+					}
+				}
+			});
 		}
 
 		public void OnTextInput(string text)
