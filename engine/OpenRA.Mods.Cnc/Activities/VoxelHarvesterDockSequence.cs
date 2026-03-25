@@ -9,27 +9,30 @@
  */
 #endregion
 
-using OpenRA.Mods.Cnc.Traits.Render;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Traits.Render;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Activities
 {
 	public class VoxelHarvesterDockSequence : HarvesterDockSequence
 	{
-		readonly WithVoxelUnloadBody body;
+		readonly IDockClientBody body;
 		readonly WithDockingOverlay spriteOverlay;
+		bool isDocked;
 
 		public VoxelHarvesterDockSequence(Actor self, Actor refinery, WAngle dockAngle, bool isDragRequired, in WVec dragOffset, int dragLength)
 			: base(self, refinery, dockAngle, isDragRequired, dragOffset, dragLength)
 		{
-			body = self.Trait<WithVoxelUnloadBody>();
+			body = self.Trait<IDockClientBody>();
 			spriteOverlay = refinery.TraitOrDefault<WithDockingOverlay>();
 		}
 
 		public override void OnStateDock(Actor self)
 		{
-			body.Docked = true;
+			isDocked = true;
+			body.PlayDockAnimation(self, () => { });
 			foreach (var trait in self.TraitsImplementing<INotifyHarvesterAction>())
 				trait.Docked();
 			foreach (var nd in Refinery.TraitsImplementing<INotifyDocking>())
@@ -50,8 +53,8 @@ namespace OpenRA.Mods.Cnc.Activities
 
 		public override void OnStateUndock(Actor self)
 		{
-			// If body.Docked wasn't set, we didn't actually dock and have to skip the undock overlay
-			if (!body.Docked)
+			// If we didn't actually dock, skip the undock overlay
+			if (!isDocked)
 				dockingState = DockingState.Complete;
 			else if (Refinery.IsInWorld && !Refinery.IsDead && spriteOverlay != null && !spriteOverlay.Visible)
 			{
@@ -60,7 +63,8 @@ namespace OpenRA.Mods.Cnc.Activities
 				spriteOverlay.WithOffset.Animation.PlayBackwardsThen(spriteOverlay.Info.Sequence, () =>
 				{
 					dockingState = DockingState.Complete;
-					body.Docked = false;
+					isDocked = false;
+					body.PlayReverseDockAnimation(self, () => { });
 					spriteOverlay.Visible = false;
 
 					foreach (var trait in self.TraitsImplementing<INotifyHarvesterAction>())
@@ -74,7 +78,8 @@ namespace OpenRA.Mods.Cnc.Activities
 			else
 			{
 				dockingState = DockingState.Complete;
-				body.Docked = false;
+				isDocked = false;
+				body.PlayReverseDockAnimation(self, () => { });
 
 				foreach (var trait in self.TraitsImplementing<INotifyHarvesterAction>())
 					trait.Undocked();

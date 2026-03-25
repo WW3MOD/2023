@@ -116,8 +116,8 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 							new OwnerInit("Neutral")
 						};
 
-						var actorCount = Map.ActorDefinitions.Count;
-						Map.ActorDefinitions.Add(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
+						var actorCount = ActorDefinitionsCount;
+						AddActorDefinition(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
 					}
 				}
 			}
@@ -247,7 +247,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			var waypointName = "waypoint" + waypointNumber;
 			if (waypointNumber == 98)
 				waypointName = "DefaultCameraPosition";
-			Map.ActorDefinitions.Add(new MiniYamlNode(waypointName, waypointReference.Save()));
+			AddActorDefinition(new MiniYamlNode(waypointName, waypointReference.Save()));
 		}
 	}
 }

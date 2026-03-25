@@ -279,16 +279,21 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				RequiresMod = utility.ModData.Manifest.Id
 			};
 
+			// Use a mutable list for actor definitions during import
+			var actorDefs = new List<MiniYamlNode>();
+
 			var fullSize = new int2(iniSize[2], iniSize[3]);
 			ReadTiles(map, file, fullSize);
-			ReadActors(map, file, "Structures", fullSize);
-			ReadActors(map, file, "Units", fullSize);
-			ReadActors(map, file, "Infantry", fullSize);
-			ReadTerrainActors(map, file, fullSize);
-			ReadWaypoints(map, file, fullSize);
-			ReadOverlay(map, file, fullSize);
+			ReadActors(map, actorDefs, file, "Structures", fullSize);
+			ReadActors(map, actorDefs, file, "Units", fullSize);
+			ReadActors(map, actorDefs, file, "Infantry", fullSize);
+			ReadTerrainActors(map, actorDefs, file, fullSize);
+			ReadWaypoints(map, actorDefs, file, fullSize);
+			ReadOverlay(map, actorDefs, file, fullSize);
 			ReadLighting(map, file);
 			ReadLamps(map, file);
+
+			map.ActorDefinitions = actorDefs.ToArray();
 
 			var spawnCount = map.ActorDefinitions.Count(n => n.Value.Value == "mpspawn");
 			var mapPlayers = new MapPlayers(map.Rules, spawnCount);
@@ -370,7 +375,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			}
 		}
 
-		static void ReadOverlay(Map map, IniFile file, int2 fullSize)
+		static void ReadOverlay(Map map, List<MiniYamlNode> actorDefs, IniFile file, int2 fullSize)
 		{
 			var overlaySection = file.GetSection("OverlayPack");
 			var overlayCompressed = Convert.FromBase64String(string.Concat(overlaySection.Select(kvp => kvp.Value)));
@@ -455,7 +460,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 							ar.Add(new HealthInit(health));
 					}
 
-					map.ActorDefinitions.Add(new MiniYamlNode("Actor" + map.ActorDefinitions.Count, ar.Save()));
+					actorDefs.Add(new MiniYamlNode("Actor" + actorDefs.Count, ar.Save()));
 
 					continue;
 				}
@@ -488,7 +493,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			}
 		}
 
-		static void ReadWaypoints(Map map, IniFile file, int2 fullSize)
+		static void ReadWaypoints(Map map, List<MiniYamlNode> actorDefs, IniFile file, int2 fullSize)
 		{
 			var waypointsSection = file.GetSection("Waypoints", true);
 			foreach (var kv in waypointsSection)
@@ -506,11 +511,11 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 					new OwnerInit("Neutral")
 				};
 
-				map.ActorDefinitions.Add(new MiniYamlNode("Actor" + map.ActorDefinitions.Count, ar.Save()));
+				actorDefs.Add(new MiniYamlNode("Actor" + actorDefs.Count, ar.Save()));
 			}
 		}
 
-		static void ReadTerrainActors(Map map, IniFile file, int2 fullSize)
+		static void ReadTerrainActors(Map map, List<MiniYamlNode> actorDefs, IniFile file, int2 fullSize)
 		{
 			var terrainSection = file.GetSection("Terrain", true);
 			foreach (var kv in terrainSection)
@@ -532,11 +537,11 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				if (!map.Rules.Actors.ContainsKey(name))
 					Console.WriteLine($"Ignoring unknown actor type: `{name}`");
 				else
-					map.ActorDefinitions.Add(new MiniYamlNode("Actor" + map.ActorDefinitions.Count, ar.Save()));
+					actorDefs.Add(new MiniYamlNode("Actor" + actorDefs.Count, ar.Save()));
 			}
 		}
 
-		static void ReadActors(Map map, IniFile file, string type, int2 fullSize)
+		static void ReadActors(Map map, List<MiniYamlNode> actorDefs, IniFile file, string type, int2 fullSize)
 		{
 			var structuresSection = file.GetSection(type, true);
 			foreach (var kv in structuresSection)
@@ -592,7 +597,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				if (!map.Rules.Actors.ContainsKey(name))
 					Console.WriteLine($"Ignoring unknown actor type: `{name}`");
 				else
-					map.ActorDefinitions.Add(new MiniYamlNode("Actor" + map.ActorDefinitions.Count, ar.Save()));
+					actorDefs.Add(new MiniYamlNode("Actor" + actorDefs.Count, ar.Save()));
 			}
 		}
 

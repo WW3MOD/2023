@@ -89,7 +89,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 
 			foreach (var kv in overlay)
 			{
-				var loc = Exts.ParseIntegerInvariant(kv.Key);
+				var loc = Exts.ParseInt32Invariant(kv.Key);
 				var cell = new CPos(loc % MapSize, loc / MapSize);
 
 				var res = (Type: (byte)0, Index: (byte)0);
@@ -106,8 +106,8 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 						new OwnerInit("Neutral")
 					};
 
-					var actorCount = Map.ActorDefinitions.Count;
-					Map.ActorDefinitions.Add(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
+					var actorCount = ActorDefinitionsCount;
+					AddActorDefinition(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
 				}
 			}
 		}
@@ -180,7 +180,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				waypointName = "DefaultCameraPosition";
 			else if (waypointNumber == 27)
 				waypointName = "DefaultChinookTarget";
-			Map.ActorDefinitions.Add(new MiniYamlNode(waypointName, waypointReference.Save()));
+			AddActorDefinition(new MiniYamlNode(waypointName, waypointReference.Save()));
 		}
 	}
 }

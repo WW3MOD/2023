@@ -117,6 +117,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			if (Map.Rules.TerrainInfo is ITerrainInfoNotifyMapCreated notifyMapCreated)
 				notifyMapCreated.MapCreated(Map);
 
+			FlushActorDefinitions();
+
 			var dest = Path.GetFileNameWithoutExtension(args[1]) + ".oramap";
 
 			Map.Save(ZipFileLoader.Create(dest));
