@@ -47,12 +47,12 @@ namespace OpenRA.Mods.Common.Orders
 		public virtual IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			var target = TargetForInput(world, cell, worldPixel, mi);
-			var orders = world.Selection.Actors
+			var orderResults = world.Selection.Actors
 				.Select(a => OrderForUnit(a, target, cell, mi))
 				.Where(o => o != null)
 				.ToList();
 
-			var actorsInvolved = orders.Select(o => o.Actor).Distinct();
+			var actorsInvolved = orderResults.Select(o => o.Actor).Distinct();
 			if (!actorsInvolved.Any())
 				yield break;
 
@@ -69,8 +69,51 @@ namespace OpenRA.Mods.Common.Orders
 						controlAllManager.MarkPlayerControlled(a);
 			}
 
-			foreach (var o in orders)
-				yield return CheckSameOrder(o.Order, o.Trait.IssueOrder(o.Actor, o.Order, o.Target, mi.Modifiers.HasModifier(Modifiers.Shift)));
+			// Issue orders, grouping Move/AttackMove into grouped orders for formation support.
+			// CohesionMoveModifier (IModifyGroupOrder) will assign box formation positions.
+			var queued = mi.Modifiers.HasModifier(Modifiers.Shift);
+			var moveActors = new List<Actor>();
+			var attackMoveActors = new List<Actor>();
+			Order moveTemplate = null;
+			Order attackMoveTemplate = null;
+
+			foreach (var o in orderResults)
+			{
+				var issued = CheckSameOrder(o.Order, o.Trait.IssueOrder(o.Actor, o.Order, o.Target, queued));
+				if (issued == null)
+					continue;
+
+				// Group terrain-targeting Move/AttackMove orders for formation processing
+				if (issued.OrderString == "Move" && issued.Target.Type == TargetType.Terrain)
+				{
+					moveActors.Add(issued.Subject);
+					if (moveTemplate == null)
+						moveTemplate = issued;
+				}
+				else if (issued.OrderString == "AttackMove" && issued.Target.Type == TargetType.Terrain)
+				{
+					attackMoveActors.Add(issued.Subject);
+					if (attackMoveTemplate == null)
+						attackMoveTemplate = issued;
+				}
+				else
+				{
+					// Non-groupable orders pass through individually
+					yield return issued;
+				}
+			}
+
+			// Yield grouped Move order (2+ units) or individual (1 unit)
+			if (moveActors.Count > 1)
+				yield return new Order("Move", null, moveTemplate.Target, moveTemplate.Queued, null, moveActors.ToArray());
+			else if (moveActors.Count == 1)
+				yield return new Order("Move", moveActors[0], moveTemplate.Target, moveTemplate.Queued);
+
+			// Yield grouped AttackMove order (2+ units) or individual (1 unit)
+			if (attackMoveActors.Count > 1)
+				yield return new Order("AttackMove", null, attackMoveTemplate.Target, attackMoveTemplate.Queued, null, attackMoveActors.ToArray());
+			else if (attackMoveActors.Count == 1)
+				yield return new Order("AttackMove", attackMoveActors[0], attackMoveTemplate.Target, attackMoveTemplate.Queued);
 		}
 
 		public virtual void Tick(World world) { }

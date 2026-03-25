@@ -970,9 +970,6 @@ namespace OpenRA.Mods.Common.Traits
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
-				// Apply cohesion offset so grouped units spread to different targets
-				cell = CohesionMoveModifier.ApplyCohesionOffset(self, cell);
-
 				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor)));
 				self.ShowTargetLines();
 			}
