@@ -115,12 +115,12 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Use a hierarchical path search, which performs a guided bidirectional search.
 				return GetHierarchicalPathFinder(locomotor, check, ignoreActor).FindPath(
-					self, source, target, check, DefaultHeuristicWeightPercentage, customCost, ignoreActor, laneBias, pathFinderOverlay);
+					self, source, target, check, DefaultHeuristicWeightPercentage, customCost, ignoreActor, false, laneBias, pathFinderOverlay);
 			}
 
 			// Use a hierarchical path search, which performs a guided unidirectional search.
 			return GetHierarchicalPathFinder(locomotor, check, ignoreActor).FindPath(
-				self, sourcesList, target, check, DefaultHeuristicWeightPercentage, customCost, ignoreActor, laneBias, pathFinderOverlay);
+				self, sourcesList, target, check, DefaultHeuristicWeightPercentage, customCost, ignoreActor, false, laneBias, pathFinderOverlay);
 		}
 
 		public List<CPos> FindPathToTargetCells(

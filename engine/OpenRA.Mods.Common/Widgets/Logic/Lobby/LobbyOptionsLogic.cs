@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -168,7 +169,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var getOptionLabel = new CachedTransform<string, string>(id =>
 					{
 						if (id == null || !option.Values.TryGetValue(id, out var value))
-							return modData.Translation.GetString(NotAvailable);
+							return FluentProvider.GetMessage(NotAvailable);
 
 						return value;
 					});

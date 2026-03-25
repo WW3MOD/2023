@@ -104,7 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 		void BuildUnit(IBot bot, string category, bool buildRandom)
 		{
 			// Pick a free queue
-			var queue = AIUtils.FindQueues(player, category).FirstOrDefault(q => !q.AllQueued().Any());
+			var queue = AIUtils.FindQueuesByCategory(player)[category].FirstOrDefault(q => !q.AllQueued().Any());
 			if (queue == null)
 				return;
 
@@ -147,7 +147,7 @@ namespace OpenRA.Mods.Common.Traits
 			ProductionQueue queue = null;
 			foreach (var pq in buildableInfo.Queue)
 			{
-				queue = AIUtils.FindQueues(player, pq).FirstOrDefault(q => !q.AllQueued().Any());
+				queue = AIUtils.FindQueuesByCategory(player)[pq].FirstOrDefault(q => !q.AllQueued().Any());
 				if (queue != null)
 					break;
 			}
@@ -201,8 +201,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (rearmableInfo == null)
 				return true;
 
-			var countOwnAir = AIUtils.CountActorsWithTrait<IPositionable>(actorInfo.Name, player);
-			var countBuildings = rearmableInfo.RearmActors.Sum(b => AIUtils.CountActorsWithTrait<Building>(b, player));
+			var countOwnAir = AIUtils.CountActorsWithNameAndTrait<IPositionable>(actorInfo.Name, player);
+			var countBuildings = rearmableInfo.RearmActors.Sum(b => AIUtils.CountActorsWithNameAndTrait<Building>(b, player));
 			if (countOwnAir >= countBuildings)
 				return false;
 

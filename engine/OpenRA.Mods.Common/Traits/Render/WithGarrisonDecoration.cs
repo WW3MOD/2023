@@ -199,7 +199,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 				var emptyAnim = new Animation(self.World, Info.PortImage);
 				emptyAnim.PlayRepeating(Info.PortEmptySequence);
-				foreach (var r in emptyAnim.Render(iconWorldPos, WVec.Zero, zOffset, portPalette, Info.PortScale * 0.7f))
+				foreach (var r in emptyAnim.Render(iconWorldPos, WVec.Zero, zOffset, portPalette))
 					yield return r;
 			}
 		}

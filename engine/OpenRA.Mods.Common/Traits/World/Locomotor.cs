@@ -212,7 +212,8 @@ namespace OpenRA.Mods.Common.Traits
 			return terrainInfos[index].Speed;
 		}
 
-		public short MovementCostToEnterCell(Actor actor, CPos destNode, BlockedByActor check, Actor ignoreActor, SubCell subCell = SubCell.FullCell)
+		public short MovementCostToEnterCell(
+			Actor actor, CPos destNode, BlockedByActor check, Actor ignoreActor, bool ignoreSelf = false, SubCell subCell = SubCell.FullCell)
 		{
 			var cellCost = MovementCostForCell(destNode);
 

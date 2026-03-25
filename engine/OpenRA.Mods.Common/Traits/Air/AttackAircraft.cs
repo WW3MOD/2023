@@ -32,6 +32,9 @@ namespace OpenRA.Mods.Common.Traits
 			"When set to WDist.Zero this defaults to the maximum armament range.")]
 		public readonly WDist StrafeRunLength = WDist.Zero;
 
+		[Desc("Does the attack activity cancel after a resupply trip?")]
+		public readonly bool AbortOnResupply = true;
+
 		public override object Create(ActorInitializer init) { return new AttackAircraft(init.Self, this); }
 	}
 

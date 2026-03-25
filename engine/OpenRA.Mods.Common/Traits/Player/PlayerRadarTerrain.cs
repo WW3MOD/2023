@@ -40,10 +40,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			world = self.World;
 			shroud = self.Trait<MapLayers>();
-			shroud.OnMapLayersChanged += UpdateMapLayersCell;
+			shroud.OnShroudChanged += UpdateShroudCell;
 		}
 
-		void UpdateMapLayersCell(PPos puv)
+		void UpdateShroudCell(PPos puv)
 		{
 			var uvs = world.Map.Unproject(puv);
 			foreach (var uv in uvs)

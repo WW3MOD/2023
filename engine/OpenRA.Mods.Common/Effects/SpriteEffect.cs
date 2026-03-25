@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Effects
 			if (!initialized || (!visibleThroughFog && world.FogObscures(pos)))
 				return SpriteRenderable.None;
 
-			return anim.Render(pos, WVec.Zero, 0, wr.Palette(palette), scale);
+			return anim.Render(pos, WVec.Zero, 0, wr.Palette(palette));
 		}
 	}
 }

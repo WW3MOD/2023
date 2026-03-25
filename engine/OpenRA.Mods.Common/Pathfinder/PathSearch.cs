@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			Actor ignoreActor = null,
 			bool laneBias = true,
 			bool inReverse = false,
-			Func<CPos, int> heuristic = null,
+			Func<CPos, bool, int> heuristic = null,
 			Grid? grid = null,
 			IRecorder recorder = null)
 		{
@@ -68,8 +68,12 @@ namespace OpenRA.Mods.Common.Pathfinder
 			else
 				graph = new MapPathGraph(LayerPoolForWorld(world), locomotor, self, world, check, customCost, ignoreActor, laneBias, inReverse);
 
-			heuristic = heuristic ?? DefaultCostEstimator(locomotor, target);
-			var search = new PathSearch(graph, heuristic, heuristicWeightPercentage, loc => loc == target, recorder);
+			Func<CPos, int> wrappedHeuristic;
+			if (heuristic != null)
+				wrappedHeuristic = c => heuristic(c, true);
+			else
+				wrappedHeuristic = DefaultCostEstimator(locomotor, target);
+			var search = new PathSearch(graph, wrappedHeuristic, heuristicWeightPercentage, loc => loc == target, recorder);
 
 			AddInitialCells(world, locomotor, froms, customCost, search);
 
@@ -169,7 +173,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			this.heuristicWeightPercentage = heuristicWeightPercentage;
 			TargetPredicate = targetPredicate;
 			this.recorder = recorder;
-			openQueue = new PriorityQueue<GraphConnection>(GraphConnection.ConnectionCostComparer);
+			openQueue = new OpenRA.Primitives.PriorityQueue<GraphConnection, GraphConnection.CostComparer>(default);
 		}
 
 		void AddInitialCell(CPos location, Func<CPos, int> customCost)
@@ -228,7 +232,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 			var currentInfo = Graph[currentMinNode];
 			Graph[currentMinNode] = new CellInfo(CellStatus.Closed, currentInfo.CostSoFar, currentInfo.EstimatedTotalCost, currentInfo.PreviousNode);
 
-			foreach (var connection in Graph.GetConnections(currentMinNode))
+			foreach (var connection in Graph.GetConnections(currentMinNode, TargetPredicate))
 			{
 				// Calculate the cost up to that point
 				var costSoFarToNeighbor = currentInfo.CostSoFar + connection.Cost;

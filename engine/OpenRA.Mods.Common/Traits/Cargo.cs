@@ -448,7 +448,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var healthTrait = self.Trait<Health>();
 				var damageDealt = e.Damage.Value;
-				var damageThreshold = healthTrait.GetDamageStateThreshold(DamageState.Critical);
+				var damageThreshold = healthTrait.MaxHP * 25 / 100; // Critical damage threshold (25% HP)
 
 				// Heavy hits deal damage to passengers
 				if (damageDealt > damageThreshold)

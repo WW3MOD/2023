@@ -86,7 +86,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return false;
 
 			var dangerRadius = squad.SquadManager.Info.DangerScanRadius;
-			var units = squad.World.FindActorsInCircle(squad.CenterPosition(), WDist.FromCells(dangerRadius)).ToList();
+			var units = squad.World.FindActorsInCircle(squad.CenterPosition, WDist.FromCells(dangerRadius)).ToList();
 
 			// If there are any own buildings within the DangerRadius, don't flee
 			// PERF: Avoid LINQ

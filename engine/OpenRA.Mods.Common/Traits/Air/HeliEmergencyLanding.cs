@@ -353,8 +353,8 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						positionable.SetPosition(passenger, cell);
 						w.Add(passenger);
-						var mobile = passenger.TraitOrDefault<Mobile>();
-						mobile?.Nudge(passenger);
+						// Nudge the ejected passenger so they scatter from the crash site
+						passenger.QueueActivity(false, new Nudge(passenger));
 					});
 				}
 			}

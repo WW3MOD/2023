@@ -484,6 +484,11 @@ namespace OpenRA.Traits
 			return RadarCover(map.ProjectedCellCovering(pos));
 		}
 
+		public bool RadarCover(CPos cell)
+		{
+			return RadarCover((PPos)cell.ToMPos(map));
+		}
+
 		public bool RadarCover(PPos puv)
 		{
 			return radarCount.Contains(puv) && radarCount[puv] > 0;

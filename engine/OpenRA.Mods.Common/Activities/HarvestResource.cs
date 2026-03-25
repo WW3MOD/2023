@@ -61,8 +61,6 @@ namespace OpenRA.Mods.Common.Activities
 			// Move towards the target cell
 			if (self.Location != targetCell)
 			{
-				foreach (var n in notifyHarvesterActions)
-					n.MovingToResources(self, targetCell);
 
 				QueueChild(move.MoveTo(targetCell, 0));
 				return false;
@@ -88,9 +86,6 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 
 			harv.AcceptResource(self, resource.Type);
-
-			foreach (var t in notifyHarvesterActions)
-				t.Harvested(self, resource.Type);
 
 			QueueChild(new Wait(harvInfo.BaleLoadDelay));
 			return false;

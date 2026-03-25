@@ -39,6 +39,21 @@ namespace OpenRA.Mods.Common.UtilityCommands
 		bool singlePlayer;
 		int spawnCount;
 
+		// Helper: mutable actor definitions list for import
+		protected List<MiniYamlNode> mutableActorDefs = new List<MiniYamlNode>();
+
+		protected void AddActorDefinition(MiniYamlNode node)
+		{
+			mutableActorDefs.Add(node);
+		}
+
+		protected int ActorDefinitionsCount => mutableActorDefs.Count;
+
+		protected void FlushActorDefinitions()
+		{
+			Map.ActorDefinitions = mutableActorDefs.ToArray();
+		}
+
 		protected bool ValidateArguments(string[] args)
 		{
 			return args.Length >= 2;
@@ -141,21 +156,32 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			if (briefing.Length == 0)
 				return;
 
+			var briefingNode = new MiniYamlNode("Briefing", briefing.Replace("\n", " ").ToString());
 			var worldNode = Map.RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == "World");
 			if (worldNode == null)
 			{
-				worldNode = new MiniYamlNode("World", new MiniYaml("", new List<MiniYamlNode>()));
-				Map.RuleDefinitions.Nodes.Add(worldNode);
+				var missionData = new MiniYamlNode("MissionData", new MiniYaml("", new[] { briefingNode }));
+				worldNode = new MiniYamlNode("World", new MiniYaml("", new[] { missionData }));
+				Map.RuleDefinitions = Map.RuleDefinitions.WithNodesAppended(new[] { worldNode });
 			}
-
-			var missionData = worldNode.Value.Nodes.FirstOrDefault(n => n.Key == "MissionData");
-			if (missionData == null)
+			else
 			{
-				missionData = new MiniYamlNode("MissionData", new MiniYaml("", new List<MiniYamlNode>()));
-				worldNode.Value.Nodes.Add(missionData);
-			}
+				var missionData = worldNode.Value.Nodes.FirstOrDefault(n => n.Key == "MissionData");
+				if (missionData == null)
+				{
+					missionData = new MiniYamlNode("MissionData", new MiniYaml("", new[] { briefingNode }));
+					worldNode = new MiniYamlNode(worldNode.Key, worldNode.Value.WithNodesAppended(new[] { missionData }));
+				}
+				else
+				{
+					missionData = new MiniYamlNode(missionData.Key, missionData.Value.WithNodesAppended(new[] { briefingNode }));
+					var updatedNodes = worldNode.Value.Nodes.Where(n => n.Key != "MissionData").Append(missionData);
+					worldNode = new MiniYamlNode(worldNode.Key, worldNode.Value.WithNodes(updatedNodes));
+				}
 
-			missionData.Value.Nodes.Add(new MiniYamlNode("Briefing", briefing.Replace("\n", " ").ToString()));
+				var ruleNodes = Map.RuleDefinitions.Nodes.Where(n => n.Key != "World").Append(worldNode);
+				Map.RuleDefinitions = Map.RuleDefinitions.WithNodes(ruleNodes);
+			}
 		}
 
 		static void SetBounds(Map map, IniSection mapSection)
@@ -203,20 +229,26 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			if (videos.Count > 0)
 			{
 				var worldNode = Map.RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == "World");
+				MiniYamlNode missionData;
 				if (worldNode == null)
 				{
-					worldNode = new MiniYamlNode("World", new MiniYaml("", new List<MiniYamlNode>()));
-					Map.RuleDefinitions.Nodes.Add(worldNode);
+					missionData = new MiniYamlNode("MissionData", new MiniYaml("", videos));
+					worldNode = new MiniYamlNode("World", new MiniYaml("", new[] { missionData }));
+					Map.RuleDefinitions = Map.RuleDefinitions.WithNodesAppended(new[] { worldNode });
 				}
-
-				var missionData = worldNode.Value.Nodes.FirstOrDefault(n => n.Key == "MissionData");
-				if (missionData == null)
+				else
 				{
-					missionData = new MiniYamlNode("MissionData", new MiniYaml("", new List<MiniYamlNode>()));
-					worldNode.Value.Nodes.Add(missionData);
-				}
+					missionData = worldNode.Value.Nodes.FirstOrDefault(n => n.Key == "MissionData");
+					if (missionData == null)
+						missionData = new MiniYamlNode("MissionData", new MiniYaml("", videos));
+					else
+						missionData = new MiniYamlNode(missionData.Key, missionData.Value.WithNodesAppended(videos));
 
-				missionData.Value.Nodes.AddRange(videos);
+					worldNode = new MiniYamlNode(worldNode.Key, worldNode.Value.WithNodes(
+						worldNode.Value.Nodes.Where(n => n.Key != "MissionData").Append(missionData)));
+					Map.RuleDefinitions = Map.RuleDefinitions.WithNodes(
+						Map.RuleDefinitions.Nodes.Where(n => n.Key != "World").Append(worldNode));
+				}
 			}
 		}
 
@@ -248,7 +280,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 		void LoadWaypoints(IniSection waypointSection)
 		{
-			var actorCount = Map.ActorDefinitions.Count;
+			var actorCount = ActorDefinitionsCount;
 			var wps = waypointSection
 				.Where(kv => Exts.ParseInt32Invariant(kv.Value) > 0)
 				.Select(kv => (WaypointNumber: Exts.ParseInt32Invariant(kv.Key),
@@ -265,7 +297,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 						new OwnerInit("Neutral")
 					};
 
-					Map.ActorDefinitions.Add(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
+					AddActorDefinition(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
 					spawnCount++;
 				}
 				else
@@ -284,7 +316,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 		public virtual void SaveWaypoint(int waypointNumber, ActorReference waypointReference)
 		{
 			var waypointName = "waypoint" + waypointNumber;
-			Map.ActorDefinitions.Add(new MiniYamlNode(waypointName, waypointReference.Save()));
+			AddActorDefinition(new MiniYamlNode(waypointName, waypointReference.Save()));
 		}
 
 		void LoadSmudges(IniFile file, string section)
@@ -306,26 +338,35 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					craters.Add(node);
 			}
 
-			var worldNode = Map.RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == "World");
-			if (worldNode == null)
-				worldNode = new MiniYamlNode("World", new MiniYaml("", new List<MiniYamlNode>()));
+			var smudgeNodes = new List<MiniYamlNode>();
 
 			if (scorches.Count > 0)
 			{
 				var initialScorches = new MiniYamlNode("InitialSmudges", new MiniYaml("", scorches));
-				var smudgeLayer = new MiniYamlNode("SmudgeLayer@SCORCH", new MiniYaml("", new List<MiniYamlNode>() { initialScorches }));
-				worldNode.Value.Nodes.Add(smudgeLayer);
+				smudgeNodes.Add(new MiniYamlNode("SmudgeLayer@SCORCH", new MiniYaml("", new[] { initialScorches })));
 			}
 
 			if (craters.Count > 0)
 			{
 				var initialCraters = new MiniYamlNode("InitialSmudges", new MiniYaml("", craters));
-				var smudgeLayer = new MiniYamlNode("SmudgeLayer@CRATER", new MiniYaml("", new List<MiniYamlNode>() { initialCraters }));
-				worldNode.Value.Nodes.Add(smudgeLayer);
+				smudgeNodes.Add(new MiniYamlNode("SmudgeLayer@CRATER", new MiniYaml("", new[] { initialCraters })));
 			}
 
-			if (worldNode.Value.Nodes.Count > 0 && !Map.RuleDefinitions.Nodes.Contains(worldNode))
-				Map.RuleDefinitions.Nodes.Add(worldNode);
+			if (smudgeNodes.Count > 0)
+			{
+				var worldNode = Map.RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == "World");
+				if (worldNode == null)
+				{
+					worldNode = new MiniYamlNode("World", new MiniYaml("", smudgeNodes));
+					Map.RuleDefinitions = Map.RuleDefinitions.WithNodesAppended(new[] { worldNode });
+				}
+				else
+				{
+					worldNode = new MiniYamlNode(worldNode.Key, worldNode.Value.WithNodesAppended(smudgeNodes));
+					Map.RuleDefinitions = Map.RuleDefinitions.WithNodes(
+						Map.RuleDefinitions.Nodes.Where(n => n.Key != "World").Append(worldNode));
+				}
+			}
 		}
 
 		// TODO: fix this -- will have bitrotted pretty badly.
@@ -414,12 +455,12 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					if (section == "INFANTRY")
 						actor.Add(new SubCellInit((SubCell)Exts.ParseByteInvariant(parts[4])));
 
-					var actorCount = map.ActorDefinitions.Count;
+					var actorCount = mutableActorDefs.Count;
 
 					if (!map.Rules.Actors.ContainsKey(parts[1].ToLowerInvariant()))
 						Console.WriteLine($"Ignoring unknown actor type: `{parts[1].ToLowerInvariant()}`");
 					else
-						map.ActorDefinitions.Add(new MiniYamlNode("Actor" + actorCount++, actor.Save()));
+						mutableActorDefs.Add(new MiniYamlNode("Actor" + actorCount++, actor.Save()));
 				}
 				catch (Exception)
 				{
@@ -447,8 +488,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					new OwnerInit("Neutral")
 				};
 
-				var actorCount = Map.ActorDefinitions.Count;
-				Map.ActorDefinitions.Add(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
+				var actorCount = ActorDefinitionsCount;
+				AddActorDefinition(new MiniYamlNode("Actor" + actorCount++, ar.Save()));
 			}
 		}
 	}

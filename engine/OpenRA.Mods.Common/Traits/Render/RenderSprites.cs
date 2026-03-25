@@ -192,7 +192,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 					a.CachePalette(wr, owner);
 				}
 
-				foreach (var r in a.Animation.Render(self, a.PaletteReference, Info.Scale))
+				foreach (var r in a.Animation.Render(self, a.PaletteReference))
 					yield return r;
 			}
 		}
@@ -201,7 +201,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			foreach (var a in anims)
 				if (a.IsVisible)
-					yield return a.Animation.ScreenBounds(self, wr, self);
+					yield return a.Animation.ScreenBounds(self, wr);
 		}
 
 		void ITick.Tick(Actor self)

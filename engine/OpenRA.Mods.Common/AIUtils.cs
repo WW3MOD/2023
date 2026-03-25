@@ -53,6 +53,25 @@ namespace OpenRA.Mods.Common
 			return actorIndex.Actors.Count(a => !a.IsDead);
 		}
 
+		// Compatibility wrappers for older bot modules
+		public static int CountBuildingByCommonName(HashSet<string> buildingTypes, Player owner)
+		{
+			return owner.World.ActorsHavingTrait<BuildingInfo>()
+				.Count(a => a.Owner == owner && !a.IsDead && buildingTypes.Contains(a.Info.Name));
+		}
+
+		public static int CountActorsWithTrait<T>(Player owner)
+		{
+			return owner.World.ActorsHavingTrait<T>().Count(a => a.Owner == owner && !a.IsDead);
+		}
+
+		public static IEnumerable<Actor> FindEnemiesByCommonName(HashSet<string> actorTypes, Player owner)
+		{
+			return owner.World.Actors.Where(a => !a.IsDead && a.IsInWorld
+				&& actorTypes.Contains(a.Info.Name)
+				&& owner.RelationshipWith(a.Owner) == PlayerRelationship.Enemy);
+		}
+
 		public static void BotDebug(string format, params object[] args)
 		{
 			if (Game.Settings.Debug.BotDebug)

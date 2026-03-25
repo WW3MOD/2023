@@ -102,7 +102,7 @@ namespace OpenRA.Mods.Common.Traits
 			minimumExcessPower = (baseBuilder.Info.MinimumExcessPower + excessPowerBonus).Clamp(baseBuilder.Info.MinimumExcessPower, baseBuilder.Info.MaximumExcessPower);
 
 			var active = false;
-			foreach (var queue in AIUtils.FindQueues(player, category))
+			foreach (var queue in AIUtils.FindQueuesByCategory(player)[category])
 				if (TickQueue(bot, queue))
 					active = true;
 

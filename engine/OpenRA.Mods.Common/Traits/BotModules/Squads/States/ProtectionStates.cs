@@ -16,7 +16,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 	class UnitsForProtectionIdleState : GroundStateBase, IState
 	{
 		public void Activate(Squad owner) { }
-		public void Tick(Squad owner) { owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionAttackState(), true); }
+		public void Tick(Squad owner) { owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionAttackState()); }
 		public void Deactivate(Squad owner) { }
 	}
 
@@ -38,7 +38,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 				if (owner.TargetActor == null)
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionFleeState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionFleeState());
 					return;
 				}
 			}
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				if (Backoff < 0)
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionFleeState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionFleeState());
 					Backoff = BackoffTicks;
 					return;
 				}
@@ -71,7 +71,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return;
 
 			GoToRandomOwnBuilding(owner);
-			owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionIdleState(), true);
+			owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionIdleState());
 		}
 
 		public void Deactivate(Squad owner) { owner.Units.Clear(); }

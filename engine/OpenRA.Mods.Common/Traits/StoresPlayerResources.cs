@@ -56,12 +56,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
-			player.AddStorageCapacity(info.Capacity);
+			player.AddStorage(info.Capacity);
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
-			player.RemoveStorageCapacity(info.Capacity);
+			player.RemoveStorage(info.Capacity);
 		}
 	}
 }

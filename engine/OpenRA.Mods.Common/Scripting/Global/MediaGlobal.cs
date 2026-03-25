@@ -163,7 +163,7 @@ namespace OpenRA.Mods.Common.Scripting
 					}
 					catch (LuaException e)
 					{
-						Context.FatalError(e.Message);
+						Context.FatalError(e);
 					}
 				};
 			}

@@ -89,7 +89,7 @@ namespace OpenRA.Mods.Common.Traits
 			else if (!Info.TargetRelationships.HasRelationship(targetRelationship))
 				return false;
 
-			if (target.TraitsImplementing<Cloak>().Any(c => !c.IsTraitDisabled && !c.IsVisible(target, self.Owner)))
+			if (target.TraitsImplementing<Cloak>().Any(c => c.Cloaked))
 				return false;
 
 			return target.TraitsImplementing<IPassable>().Any(c => c.PassableBy(target, self, Info.PassClasses));

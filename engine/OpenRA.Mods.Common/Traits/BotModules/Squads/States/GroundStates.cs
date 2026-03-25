@@ -64,10 +64,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, attackTarget), false, groupedActors: owner.Units.ToArray()));
 
 				// We have gathered sufficient units. Attack the nearest enemy unit.
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState());
 			}
 			else
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
 
 			foreach (var a in owner.Units)
 			{
@@ -115,7 +115,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.TargetActor = closestEnemy;
 				else
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
 					return;
 				}
 			}
@@ -141,7 +141,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			// that they cannot path to, generating expensive pathfinding calls each tick.
 			if (owner.World.WorldTick > lastUpdatedTick + 63)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState());
 				return;
 			}
 
@@ -165,14 +165,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (target != null)
 				{
 					owner.TargetActor = target;
-					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackState());
 				}
 				else
 					owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: owner.Units.ToArray()));
 			}
 
 			if (ShouldFlee(owner))
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -198,7 +198,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.TargetActor = closestEnemy;
 				else
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
 					return;
 				}
 			}
@@ -221,7 +221,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			// that they cannot path to, generating expensive pathfinding calls each tick.
 			if (owner.World.WorldTick > lastUpdatedTick + 63)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState());
 				return;
 			}
 
@@ -248,7 +248,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 
 			if (ShouldFlee(owner))
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState());
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -287,7 +287,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				owner.Bot.QueueOrder(new Order("Move", a, Target.FromCell(owner.World, retreatTarget), false));
 
 			// Transition to regroup state instead of dissolving
-			owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsRegroupState(), true);
+			owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsRegroupState());
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -340,7 +340,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 								// Re-engage! Set Hunt stance and attack
 								SetSquadEngagementStance(owner, EngagementStance.Hunt);
 								owner.TargetActor = closestEnemy;
-								owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState(), true);
+								owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState());
 								return;
 							}
 						}
@@ -353,7 +353,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					if (closestEnemy != null)
 					{
 						owner.TargetActor = closestEnemy;
-						owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState(), true);
+						owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState());
 						return;
 					}
 				}
@@ -362,7 +362,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			// Timeout — dissolve squad and return units to pool
 			if (regroupTicks >= MaxRegroupTicks)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsIdleState());
 				return;
 			}
 		}

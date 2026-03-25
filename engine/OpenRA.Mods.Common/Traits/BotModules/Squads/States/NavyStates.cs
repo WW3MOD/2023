@@ -80,10 +80,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: owner.Units.ToArray()));
 
 				// We have gathered sufficient units. Attack the nearest enemy unit.
-				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsAttackMoveState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsAttackMoveState());
 			}
 			else
-				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState());
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -109,7 +109,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.TargetActor = closestEnemy;
 				else
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState());
 					return;
 				}
 			}
@@ -135,7 +135,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			// that they cannot path to, generating expensive pathfinding calls each tick.
 			if (owner.World.WorldTick > lastUpdatedTick + 63)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsIdleState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsIdleState());
 				return;
 			}
 
@@ -159,14 +159,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (target != null)
 				{
 					owner.TargetActor = target;
-					owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsAttackState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsAttackState());
 				}
 				else
 					owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: owner.Units.ToArray()));
 			}
 
 			if (ShouldFlee(owner))
-				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState());
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -192,7 +192,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.TargetActor = closestEnemy;
 				else
 				{
-					owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState(), true);
+					owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState());
 					return;
 				}
 			}
@@ -215,7 +215,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			// that they cannot path to, generating expensive pathfinding calls each tick.
 			if (owner.World.WorldTick > lastUpdatedTick + 63)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsIdleState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsIdleState());
 				return;
 			}
 
@@ -224,7 +224,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
 
 			if (ShouldFlee(owner))
-				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState(), true);
+				owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsFleeState());
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -240,7 +240,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return;
 
 			GoToRandomOwnBuilding(owner);
-			owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsIdleState(), true);
+			owner.FuzzyStateMachine.ChangeState(owner, new NavyUnitsIdleState());
 		}
 
 		public void Deactivate(Squad owner) { owner.Units.Clear(); }
