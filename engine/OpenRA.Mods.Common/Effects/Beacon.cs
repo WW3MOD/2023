@@ -71,12 +71,15 @@ namespace OpenRA.Mods.Common.Effects
 		{
 			this.posterPalette = posterPalette;
 
+			// Always store the clockFraction so the beacon can self-remove
+			// even when there is no poster/clock visual (BeaconPoster = null)
+			this.clockFraction = clockFraction;
+
 			if (posterType != null)
 			{
 				poster = new Animation(owner.World, posterCollection);
 				poster.Play(posterType);
 
-				this.clockFraction = clockFraction;
 				if (clockFraction != null)
 				{
 					clock = new Animation(owner.World, posterCollection);
