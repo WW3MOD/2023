@@ -124,15 +124,16 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					w.Add(a);
 
-					// Single-pass strafe run: fly to target, continue straight through
+					// Single-pass strafe run: fly to target, then return to spawn edge.
 					// (OpportunityFire handles shooting during the pass), then exit map.
 					// Player can still select and redirect — queued activities cancel normally.
 					a.QueueActivity(new Fly(a, Target.FromPos(targetWithAlt)));
 
-					// Fly forward past the target for the same distance it took to reach it,
-					// plus cordon — guarantees the aircraft exits past the far map edge.
-					var exitDistance = new WDist(distanceToTarget + info.Cordon.Length * 2);
-					a.QueueActivity(new FlyForward(a, exitDistance));
+					// Turn around and fly back to the spawn edge (where the plane entered)
+					a.QueueActivity(new Fly(a, Target.FromPos(spawnPos)));
+
+					// Fly forward past the map edge to ensure clean exit — guarantees the aircraft exits past the far map edge.
+					a.QueueActivity(new FlyForward(a, info.Cordon));
 					a.QueueActivity(new RemoveSelf());
 
 					distanceTestActor = a;

@@ -60,8 +60,8 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (aircraftInfo != null)
 			{
-				// Aircraft fly directly to nearest map edge
-				edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Location);
+				// Aircraft evacuate toward the player's home edge (spawn area), not the nearest edge
+				edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
 			}
 			else if (mobileInfo != null)
 			{

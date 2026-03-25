@@ -49,6 +49,9 @@ namespace OpenRA.Mods.Common.Activities
 			if (aircraft.Info.VTOL && self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition) != aircraft.Info.CruiseAltitude)
 				QueueChild(new TakeOff(self));
 
+			// Fly toward player's home edge rather than just forward
+			var homeEdge = self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
+			QueueChild(new Fly(self, Target.FromCell(self.World, homeEdge)));
 			QueueChild(new FlyForward(self));
 		}
 
