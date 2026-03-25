@@ -752,9 +752,9 @@ Container@PLAYER_WIDGETS:
 		Container@CARGO_PANEL:
 			Logic: CargoPanelLogic
 			X: WINDOW_RIGHT - 240
-			Y: WINDOW_BOTTOM - 310
+			Y: WINDOW_BOTTOM - 340
 			Width: 228
-			Height: 290
+			Height: 320
 			Children:
 				LogicTicker@CARGO_TICKER:
 				Label@CARGO_HEADER:
@@ -763,9 +763,16 @@ Container@PLAYER_WIDGETS:
 					Font: TinyBold
 					Align: Center
 					Contrast: true
-				Label@CARGO_LABEL_0:
+				Button@MARK_CARGO_0:
 					Y: 18
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_0:
+					X: 22
+					Y: 18
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -777,9 +784,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_1:
+				Button@MARK_CARGO_1:
 					Y: 32
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_1:
+					X: 22
+					Y: 32
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -791,9 +805,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_2:
+				Button@MARK_CARGO_2:
 					Y: 46
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_2:
+					X: 22
+					Y: 46
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -805,9 +826,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_3:
+				Button@MARK_CARGO_3:
 					Y: 60
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_3:
+					X: 22
+					Y: 60
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -819,9 +847,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_4:
+				Button@MARK_CARGO_4:
 					Y: 74
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_4:
+					X: 22
+					Y: 74
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -833,9 +868,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_5:
+				Button@MARK_CARGO_5:
 					Y: 88
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_5:
+					X: 22
+					Y: 88
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -847,9 +889,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_6:
+				Button@MARK_CARGO_6:
 					Y: 102
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_6:
+					X: 22
+					Y: 102
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -861,9 +910,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_7:
+				Button@MARK_CARGO_7:
 					Y: 116
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_7:
+					X: 22
+					Y: 116
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -875,9 +931,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_8:
+				Button@MARK_CARGO_8:
 					Y: 130
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_8:
+					X: 22
+					Y: 130
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -889,9 +952,16 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
-				Label@CARGO_LABEL_9:
+				Button@MARK_CARGO_9:
 					Y: 144
-					Width: 200
+					Width: 20
+					Height: 12
+					Font: Tiny
+					VisualHeight: 0
+				Label@CARGO_LABEL_9:
+					X: 22
+					Y: 144
+					Width: 178
 					Height: 12
 					Font: Tiny
 					Contrast: true
@@ -903,14 +973,29 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: X
 					VisualHeight: 0
+				Button@MARK_ALL_CARGO:
+					Y: 162
+					Width: 70
+					Height: 16
+					Font: Tiny
+					Text: Mark All
+					VisualHeight: 0
+				Button@DEPLOY_MARKED:
+					X: 75
+					Y: 162
+					Width: 145
+					Height: 16
+					Font: Tiny
+					Text: Deploy Marked >>
+					VisualHeight: 0
 				Label@SUPPLY_LABEL:
-					Y: 165
+					Y: 185
 					Width: 220
 					Height: 12
 					Font: Tiny
 					Contrast: true
 				Button@DROP_ONE_SUPPLY:
-					Y: 180
+					Y: 200
 					Width: 105
 					Height: 18
 					Font: Tiny
@@ -918,14 +1003,14 @@ Container@PLAYER_WIDGETS:
 					VisualHeight: 0
 				Button@DROP_SUPPLY:
 					X: 110
-					Y: 180
+					Y: 200
 					Width: 110
 					Height: 18
 					Font: Tiny
 					Text: Drop All Supply
 					VisualHeight: 0
 				Button@UNLOAD_ALL_TROOPS:
-					Y: 202
+					Y: 224
 					Width: 220
 					Height: 20
 					Font: Tiny

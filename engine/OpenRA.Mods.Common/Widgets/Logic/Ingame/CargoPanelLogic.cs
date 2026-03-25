@@ -9,7 +9,9 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 using OpenRA.Widgets;
@@ -18,7 +20,8 @@ namespace OpenRA.Mods.Common.Widgets
 {
 	/// <summary>
 	/// Sidebar panel showing cargo contents of a selected transport.
-	/// Displays individual passengers with eject buttons and supply count.
+	/// Displays individual passengers with mark/eject buttons and supply count.
+	/// Supports waypoint-based selective unloading via CargoUnloadOrderGenerator.
 	/// </summary>
 	public class CargoPanelLogic : ChromeLogic
 	{
@@ -29,6 +32,8 @@ namespace OpenRA.Mods.Common.Widgets
 		Actor selectedTransport;
 		Cargo cargo;
 		CargoSupply cargoSupply;
+
+		readonly HashSet<uint> markedPassengerIds = new HashSet<uint>();
 
 		const int MaxDisplaySlots = 10;
 
@@ -49,13 +54,16 @@ namespace OpenRA.Mods.Common.Widgets
 
 					var passengerCount = cargo.PassengerCount;
 					var supplyCount = cargoSupply?.SupplyCount ?? 0;
+					var markedCount = CountValidMarks();
+
+					var markedSuffix = markedCount > 0 ? $" | {markedCount} marked" : "";
 
 					if (supplyCount > 0 && passengerCount > 0)
-						return $"CARGO [{passengerCount} troops, {supplyCount} supply]";
+						return $"CARGO [{passengerCount} troops, {supplyCount} supply{markedSuffix}]";
 					else if (supplyCount > 0)
-						return $"CARGO [{supplyCount} supply]";
+						return $"CARGO [{supplyCount} supply{markedSuffix}]";
 					else if (passengerCount > 0)
-						return $"CARGO [{passengerCount} troops]";
+						return $"CARGO [{passengerCount} troops{markedSuffix}]";
 					else
 						return "CARGO [empty]";
 				};
@@ -65,6 +73,17 @@ namespace OpenRA.Mods.Common.Widgets
 			for (var i = 0; i < MaxDisplaySlots; i++)
 			{
 				var slotIndex = i;
+
+				// Mark/toggle button — left side of each row
+				var markBtn = panel.GetOrNull<ButtonWidget>($"MARK_CARGO_{i}");
+				if (markBtn != null)
+				{
+					markBtn.OnClick = () => ToggleMark(slotIndex);
+					markBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
+					markBtn.GetText = () => IsPassengerMarked(slotIndex) ? "[x]" : "[ ]";
+					markBtn.IsHighlighted = () => IsPassengerMarked(slotIndex);
+				}
+
 				var label = panel.GetOrNull<LabelWidget>($"CARGO_LABEL_{i}");
 				if (label != null)
 				{
@@ -79,6 +98,59 @@ namespace OpenRA.Mods.Common.Widgets
 					ejectBtn.IsDisabled = () => !IsPassengerSlotVisible(slotIndex);
 					ejectBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
 				}
+			}
+
+			// Deploy Marked button — activates waypoint unload mode
+			var deployMarkedButton = panel.GetOrNull<ButtonWidget>("DEPLOY_MARKED");
+			if (deployMarkedButton != null)
+			{
+				deployMarkedButton.OnClick = () =>
+				{
+					if (selectedTransport == null || markedPassengerIds.Count == 0)
+						return;
+
+					// Activate waypoint unload order generator
+					world.OrderGenerator = new CargoUnloadOrderGenerator(
+						selectedTransport,
+						() => new HashSet<uint>(markedPassengerIds),
+						ids => markedPassengerIds.Clear());
+				};
+				deployMarkedButton.IsDisabled = () => CountValidMarks() == 0;
+				deployMarkedButton.IsVisible = () => selectedTransport != null && cargo != null && !cargo.IsEmpty();
+				deployMarkedButton.IsHighlighted = () => world.OrderGenerator is CargoUnloadOrderGenerator;
+			}
+
+			// Mark All / Unmark All toggle
+			var markAllButton = panel.GetOrNull<ButtonWidget>("MARK_ALL_CARGO");
+			if (markAllButton != null)
+			{
+				markAllButton.OnClick = () =>
+				{
+					if (cargo == null)
+						return;
+
+					var passengers = cargo.Passengers.ToArray();
+					if (markedPassengerIds.Count >= passengers.Length)
+					{
+						// All marked — unmark all
+						markedPassengerIds.Clear();
+					}
+					else
+					{
+						// Mark all
+						markedPassengerIds.Clear();
+						foreach (var p in passengers)
+							if (!p.IsDead)
+								markedPassengerIds.Add(p.ActorID);
+					}
+				};
+				markAllButton.IsVisible = () => selectedTransport != null && cargo != null && !cargo.IsEmpty();
+				markAllButton.GetText = () =>
+				{
+					if (cargo == null)
+						return "Mark All";
+					return markedPassengerIds.Count >= cargo.PassengerCount ? "Unmark All" : "Mark All";
+				};
 			}
 
 			// Unload All Troops button (excludes supply)
@@ -159,6 +231,7 @@ namespace OpenRA.Mods.Common.Widgets
 			selectedTransport = null;
 			cargo = null;
 			cargoSupply = null;
+			markedPassengerIds.Clear();
 
 			var selected = world.Selection.Actors
 				.Where(a => a.Owner == world.LocalPlayer && a.IsInWorld && !a.IsDead)
@@ -184,6 +257,44 @@ namespace OpenRA.Mods.Common.Widgets
 			selectedTransport = selected[0];
 			cargo = c;
 			cargoSupply = cs;
+		}
+
+		int CountValidMarks()
+		{
+			if (cargo == null)
+				return 0;
+
+			// Only count marks for passengers still in cargo
+			var passengers = cargo.Passengers.ToArray();
+			return markedPassengerIds.Count(id => passengers.Any(p => p.ActorID == id && !p.IsDead));
+		}
+
+		bool IsPassengerMarked(int slotIndex)
+		{
+			if (cargo == null)
+				return false;
+
+			var passengers = cargo.Passengers.ToArray();
+			if (slotIndex >= passengers.Length)
+				return false;
+
+			return markedPassengerIds.Contains(passengers[slotIndex].ActorID);
+		}
+
+		void ToggleMark(int slotIndex)
+		{
+			if (cargo == null)
+				return;
+
+			var passengers = cargo.Passengers.ToArray();
+			if (slotIndex >= passengers.Length)
+				return;
+
+			var id = passengers[slotIndex].ActorID;
+			if (markedPassengerIds.Contains(id))
+				markedPassengerIds.Remove(id);
+			else
+				markedPassengerIds.Add(id);
 		}
 
 		string GetPassengerText(int slotIndex)
