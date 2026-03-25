@@ -26,6 +26,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ammo supply value per supply unit (how much ammo one unit can give before being consumed).")]
 		public readonly int SupplyPerUnit = 50;
 
+		[Desc("Number of supply units loaded at spawn (before template system). 0 = none.")]
+		public readonly int InitialSupply = 0;
+
 		[Desc("Maximum resupply range when transport has supply loaded.")]
 		public readonly WDist RearmRange = WDist.FromCells(4);
 
@@ -84,8 +87,8 @@ namespace OpenRA.Mods.Common.Traits
 			Info = info;
 			self = init.Self;
 
-			// Load initial supply from init (e.g., from template system or transform)
-			var initialCount = init.GetValue<CargoSupplyInit, int>(info, 0);
+			// Load initial supply from init (e.g., from template system or transform), fallback to InitialSupply
+			var initialCount = init.GetValue<CargoSupplyInit, int>(info, info.InitialSupply);
 			supplyCount = initialCount;
 			effectiveSupply = supplyCount * info.SupplyPerUnit;
 		}

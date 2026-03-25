@@ -41,6 +41,13 @@ HALO:
 		MaxWeight: 24
 		AfterUnloadDelay: 40
 		EjectOnDeath: false
+	CargoSupply:
+		SupplyPerUnit: 50
+		RearmRange: 4c0
+		RearmDelay: 25
+		RearmCondition: replenish-soldiers
+		CargoHasSupplyCondition: cargo-has-supply
+		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
 		PipCount: 24
 	Selectable:
@@ -235,6 +242,13 @@ HIND:
 		MaxWeight: 8
 		AfterUnloadDelay: 40
 		EjectOnDeath: false
+	CargoSupply:
+		SupplyPerUnit: 50
+		RearmRange: 4c0
+		RearmDelay: 25
+		RearmCondition: replenish-soldiers
+		CargoHasSupplyCondition: cargo-has-supply
+		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
 	RenderSprites:
 		Scale: 1.3
