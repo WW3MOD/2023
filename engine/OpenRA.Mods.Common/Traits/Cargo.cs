@@ -105,6 +105,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		int totalWeight = 0;
 		int reservedWeight = 0;
+		int supplyReservedWeight = 0;
 		Aircraft aircraft;
 		ICargoCanLoadFilter[] loadFilters;
 		int loadingToken = Actor.InvalidConditionToken;
@@ -357,8 +358,24 @@ namespace OpenRA.Mods.Common.Traits
 					if (!f.CanLoadPassenger(self, null))
 						return false;
 
-			return totalWeight + reservedWeight + weight <= Info.MaxWeight;
+			return totalWeight + reservedWeight + supplyReservedWeight + weight <= Info.MaxWeight;
 		}
+
+		/// <summary>Available cargo weight after passengers, reservations, and supply.</summary>
+		public int AvailableWeight => Info.MaxWeight - totalWeight - reservedWeight - supplyReservedWeight;
+
+		/// <summary>Reserve cargo weight for supply units (called by CargoSupply).</summary>
+		public void ReserveSupplyWeight(int weight)
+		{
+			supplyReservedWeight += weight;
+		}
+
+		/// <summary>Free cargo weight previously reserved for supply (called by CargoSupply).</summary>
+		public void FreeSupplyWeight(int weight)
+		{
+			supplyReservedWeight = System.Math.Max(0, supplyReservedWeight - weight);
+		}
+
 		public bool IsEmpty() { return cargo.Count == 0; }
 
 		public Actor Peek() { return cargo.Last(); }
