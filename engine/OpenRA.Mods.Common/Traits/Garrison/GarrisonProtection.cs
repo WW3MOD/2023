@@ -50,6 +50,20 @@ namespace OpenRA.Mods.Common.Traits
 			health = self.Trait<IHealth>();
 		}
 
+		/// <summary>
+		/// Returns the current shelter protection percentage (0-100), interpolated between
+		/// BaseProtection (at full HP) and CriticalProtection (at 0 HP).
+		/// </summary>
+		public int GetCurrentProtection()
+		{
+			if (health == null || health.IsDead)
+				return 0;
+
+			var hpPct = (float)health.HP / health.MaxHP;
+			var protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
+			return protection.Clamp(0, 100);
+		}
+
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
 			if (garrisonManager == null || health == null || health.IsDead)

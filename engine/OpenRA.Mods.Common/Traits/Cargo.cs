@@ -246,6 +246,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange));
 			}
+			else if (order.OrderString == "UnloadCargoPassenger")
+			{
+				var passenger = self.World.GetActorById(order.ExtraData);
+				if (passenger == null || !cargo.Contains(passenger))
+					return;
+
+				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, passenger));
+			}
 		}
 
 		public bool CanUnload(BlockedByActor check = BlockedByActor.None)

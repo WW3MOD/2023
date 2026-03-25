@@ -107,6 +107,38 @@
 		Margin: 0,0
 		RequiresCondition: critical-damage
 
+^GarrisonProtectionPips:
+	WithDecoration@GarrisonProt_Full:
+		Image: pips
+		Sequence: pip-defense-5
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && !damaged
+	WithDecoration@GarrisonProt_Light:
+		Image: pips
+		Sequence: pip-defense-4
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && light-damage
+	WithDecoration@GarrisonProt_Medium:
+		Image: pips
+		Sequence: pip-defense-3
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && medium-damage
+	WithDecoration@GarrisonProt_Heavy:
+		Image: pips
+		Sequence: pip-defense-2
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && heavy-damage
+	WithDecoration@GarrisonProt_Critical:
+		Image: pips
+		Sequence: pip-defense-1
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && critical-damage
+
 # ^DetectionProximity:
 # 	VisionModifier@1:
 # 		RequiresCondition: object-proximity == 1

@@ -29,6 +29,7 @@ namespace OpenRA.Mods.Common.Widgets
 		int selectionHash;
 		Actor selectedGarrison;
 		GarrisonManager garrisonManager;
+		GarrisonProtection garrisonProtection;
 		Cargo cargo;
 
 		[ObjectCreator.UseCtor]
@@ -82,10 +83,24 @@ namespace OpenRA.Mods.Common.Widgets
 				}
 			}
 
-			// Garrison header label
+			// Garrison header label — includes protection percentage
 			var headerLabel = panel.GetOrNull<LabelWidget>("GARRISON_HEADER");
 			if (headerLabel != null)
-				headerLabel.GetText = () => selectedGarrison != null ? "GARRISON" : "";
+			{
+				headerLabel.GetText = () =>
+				{
+					if (selectedGarrison == null)
+						return "";
+
+					if (garrisonProtection != null)
+					{
+						var prot = garrisonProtection.GetCurrentProtection();
+						return $"GARRISON [Shield: {prot}%]";
+					}
+
+					return "GARRISON";
+				};
+			}
 
 			// Panel visibility ticker
 			var ticker = panel.GetOrNull<LogicTickerWidget>("GARRISON_TICKER");
@@ -110,6 +125,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			selectedGarrison = null;
 			garrisonManager = null;
+			garrisonProtection = null;
 			cargo = null;
 
 			var selected = world.Selection.Actors
@@ -132,6 +148,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			selectedGarrison = selected[0];
 			garrisonManager = gm;
+			garrisonProtection = selected[0].TraitOrDefault<GarrisonProtection>();
 			cargo = c;
 		}
 
@@ -148,14 +165,14 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var tooltip = ps.DeployedSoldier.TraitOrDefault<Tooltip>();
 			var unitName = tooltip?.Info.Name ?? ps.DeployedSoldier.Info.Name;
-			var role = GarrisonManager.GetGarrisonRole(ps.DeployedSoldier);
 
 			var ammoStr = "";
 			var ammo = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().FirstOrDefault();
 			if (ammo != null)
 				ammoStr = $" [{ammo.CurrentAmmoCount}/{ammo.Info.Ammo}]";
 
-			return $"{portName}: {unitName} ({role}){ammoStr}";
+			// Port soldiers always have 80% damage reduction via garrisoned-at-port condition
+			return $"{portName}: {unitName}{ammoStr} (80% cover)";
 		}
 
 		bool IsPortVisible(int portIndex)
@@ -197,7 +214,16 @@ namespace OpenRA.Mods.Common.Widgets
 				return "[S] (dead)";
 
 			var tooltip = pax.TraitOrDefault<Tooltip>();
-			return $"[S] {tooltip?.Info.Name ?? pax.Info.Name}";
+			var name = tooltip?.Info.Name ?? pax.Info.Name;
+
+			// Show current shelter protection from GarrisonProtection trait
+			if (garrisonProtection != null)
+			{
+				var prot = garrisonProtection.GetCurrentProtection();
+				return $"[S] {name} ({prot}% cover)";
+			}
+
+			return $"[S] {name}";
 		}
 
 		bool IsShelterVisible(int shelterIndex)

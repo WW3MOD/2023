@@ -172,36 +172,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 
 		// Empty port indicators (world-space, via IRender)
+		// Currently disabled — deployed soldiers are visible at 40% alpha, which is sufficient.
+		// Port indicator rendering can be re-enabled here when better sprites/icons are available.
 		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
 		{
-			if (garrisonManager == null)
-				yield break;
-
-			// Only show port indicators when building is selected
-			if (!self.World.Selection.Contains(self))
-				yield break;
-
-			var portPalette = wr.Palette(Info.Palette);
-			var coords = self.Trait<BodyOrientation>();
-
-			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
-			{
-				var ps = garrisonManager.PortStates[i];
-
-				// Only show empty port indicators
-				if (ps.DeployedSoldier != null)
-					continue;
-
-				var portWorldOffset = garrisonManager.GetPortWorldOffset(i, coords);
-				var iconOffset = portWorldOffset + new WVec(0, 0, Info.PortIconAltitudeOffset);
-				var iconWorldPos = self.CenterPosition + iconOffset;
-				var zOffset = RenderUtils.ZOffsetFromCenter(self, iconWorldPos, 1024);
-
-				var emptyAnim = new Animation(self.World, Info.PortImage);
-				emptyAnim.PlayRepeating(Info.PortEmptySequence);
-				foreach (var r in emptyAnim.Render(iconWorldPos, WVec.Zero, zOffset, portPalette, Info.PortScale * 0.7f))
-					yield return r;
-			}
+			yield break;
 		}
 
 		IEnumerable<Rectangle> IRender.ScreenBounds(Actor self, WorldRenderer wr)
