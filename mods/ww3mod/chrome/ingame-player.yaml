@@ -1070,7 +1070,7 @@ Container@PLAYER_WIDGETS:
 					AnchorTooltip: true
 					Children:
 						Image@CASH_ICON:
-							X: 0-21
+							X: 0 - 21
 							Y: 4
 							ImageCollection: cash-icons
 							ImageName: cash-normal

@@ -252,7 +252,7 @@ Background@MULTIPLAYER_CREATESERVER_PANEL:
 			Key: escape
 		Button@CREATE_BUTTON:
 			Key: return
-			X: PARENT_WIDTH - 2*WIDTH - 30
+			X: PARENT_WIDTH - 2 * WIDTH - 30
 			Y: PARENT_HEIGHT - 45
 			Width: 120
 			Height: 25
