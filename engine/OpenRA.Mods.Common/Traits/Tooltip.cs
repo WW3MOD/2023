@@ -15,9 +15,8 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public abstract class TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>
 	{
-		[FieldLoader.Require]
-		[FluentReference]
-		public readonly string Name;
+		[FluentReference(optional: true)]
+		public readonly string Name = "";
 	}
 
 	[Desc("Shown in map editor.")]

@@ -397,8 +397,9 @@ smoke_m:
 		Offset: 2, -5
 		ZOffset: 512
 	end:
-		Start: 26
-		Length: -26
+		Start: 0
+		Length: 26
+		Reverses: true
 		Offset: 2, -5
 		ZOffset: 512
 

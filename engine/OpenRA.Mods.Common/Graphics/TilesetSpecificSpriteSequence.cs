@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common.Graphics
 			return base.ParseFilenames(modData, tileset, frames, data, defaults);
 		}
 
-		protected override IEnumerable<ReservationInfo> ParseCombineFilenames(ModData modData, string tileset, int[] frames, MiniYaml data)
+		protected override IEnumerable<ReservationInfo> ParseCombineFilenames(ModData modData, string tileset, int[] frames, MiniYaml data, string subKey = null)
 		{
 			var node = data.NodeWithKeyOrDefault(TilesetFilenames.Key);
 			if (node != null)
@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Graphics
 				}
 			}
 
-			return base.ParseCombineFilenames(modData, tileset, frames, data);
+			return base.ParseCombineFilenames(modData, tileset, frames, data, subKey);
 		}
 	}
 }

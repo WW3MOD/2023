@@ -24,6 +24,9 @@ namespace OpenRA.Mods.Common.Graphics
 		public readonly int BgraSheetSize = 2048;
 		public readonly int IndexedSheetSize = 2048;
 
+		// Backward compatibility: old-format TilesetExtensions from SpriteSequenceFormat metadata
+		public readonly Dictionary<string, string> TilesetExtensions = new();
+
 		static readonly MiniYaml NoData = new(null);
 
 		public DefaultSpriteSequenceLoader(ModData modData)
@@ -34,6 +37,11 @@ namespace OpenRA.Mods.Common.Graphics
 
 			if (metadata.TryGetValue("IndexedSheetSize", out yaml))
 				IndexedSheetSize = FieldLoader.GetValue<int>("IndexedSheetSize", yaml.Value);
+
+			// Load TilesetExtensions for backward compatibility with old sequence format
+			if (metadata.TryGetValue("TilesetExtensions", out yaml))
+				foreach (var node in yaml.Nodes)
+					TilesetExtensions[node.Key] = node.Value.Value;
 		}
 
 		public virtual ISpriteSequence CreateSequence(
@@ -338,6 +346,34 @@ namespace OpenRA.Mods.Common.Graphics
 			return usedFrames;
 		}
 
+		/// <summary>Backward compatibility: infer sprite file extension from old-format AddExtension/UseTilesetExtension/TilesetOverrides fields.</summary>
+		string InferExtension(string tileset, MiniYaml data, MiniYaml defaults)
+		{
+			// AddExtension: false means the filename already has its extension
+			var addExtension = LoadField<bool>("AddExtension", true, data, defaults);
+			if (!addExtension)
+				return "";
+
+			var useTilesetExt = LoadField<bool>("UseTilesetExtension", false, data, defaults);
+			if (useTilesetExt && Loader is DefaultSpriteSequenceLoader loader && loader.TilesetExtensions.Count > 0)
+			{
+				// Apply TilesetOverrides: map one tileset to another
+				var overridesNode = data?.NodeWithKeyOrDefault("TilesetOverrides") ?? defaults?.NodeWithKeyOrDefault("TilesetOverrides");
+				var effectiveTileset = tileset;
+				if (overridesNode != null)
+				{
+					var tilesetNode = overridesNode.Value.NodeWithKeyOrDefault(tileset);
+					if (tilesetNode != null)
+						effectiveTileset = tilesetNode.Value.Value;
+				}
+
+				if (loader.TilesetExtensions.TryGetValue(effectiveTileset, out var ext))
+					return ext;
+			}
+
+			return ".shp";
+		}
+
 		protected virtual IEnumerable<ReservationInfo> ParseFilenames(ModData modData, string tileset, int[] frames, MiniYaml data, MiniYaml defaults)
 		{
 			var filenamePatternNode = data.NodeWithKeyOrDefault(FilenamePattern.Key) ?? defaults.NodeWithKeyOrDefault(FilenamePattern.Key);
@@ -352,14 +388,31 @@ namespace OpenRA.Mods.Common.Graphics
 			}
 
 			var filename = LoadField(Filename, data, defaults, out var location);
+			if (filename == null)
+			{
+				// Compatibility: old engine inferred filename from node value, defaults value, or image name
+				var baseName = !string.IsNullOrEmpty(data?.Value) ? data.Value
+					: !string.IsNullOrEmpty(defaults?.Value) ? defaults.Value
+					: image;
+				filename = baseName + InferExtension(tileset, data, defaults);
+			}
 
 			var loadFrames = CalculateFrameIndices(start, length, stride ?? length ?? 0, facings, frames, transpose, reverseFacings, shadowStart);
 			return new[] { new ReservationInfo(filename, loadFrames, frames, location) };
 		}
 
-		protected virtual IEnumerable<ReservationInfo> ParseCombineFilenames(ModData modData, string tileset, int[] frames, MiniYaml data)
+		protected virtual IEnumerable<ReservationInfo> ParseCombineFilenames(ModData modData, string tileset, int[] frames, MiniYaml data, string subKey = null)
 		{
 			var filename = LoadField(Filename, data, null, out var location);
+			if (filename == null)
+			{
+				// For Combine sub-entries, the node key is the sprite filename in old format
+				var baseName = !string.IsNullOrEmpty(data?.Value) ? data.Value
+					: !string.IsNullOrEmpty(subKey) ? subKey
+					: image;
+				filename = baseName + InferExtension(tileset, data, null);
+			}
+
 			if (frames == null && LoadField<string>(Length.Key, null, data) != "*")
 			{
 				var subStart = LoadField("Start", 0, data);
@@ -458,7 +511,7 @@ namespace OpenRA.Mods.Common.Graphics
 					var subFlipY = LoadField(FlipY, subData, NoData);
 					var subFrames = LoadField(Frames, subData);
 
-					foreach (var f in ParseCombineFilenames(modData, tileset, subFrames, subData))
+					foreach (var f in ParseCombineFilenames(modData, tileset, subFrames, subData, combineNode.Value.Nodes[i].Key))
 					{
 						spritesToLoad.Add(new SpriteReservation
 						{
@@ -498,13 +551,19 @@ namespace OpenRA.Mods.Common.Graphics
 
 			Sprite depthSprite = null;
 			if (depthSpriteReservation != null)
-				depthSprite = cache.ResolveSprites(depthSpriteReservation.Value).First(s => s != null);
+			{
+				var depthResolved = cache.ResolveSprites(depthSpriteReservation.Value);
+				depthSprite = depthResolved.FirstOrDefault(s => s != null);
+			}
 
 			var allSprites = spritesToLoad.SelectMany(r =>
 			{
 				var resolved = cache.ResolveSprites(r.Token);
+				if (resolved.Length == 0)
+					return Array.Empty<Sprite>();
+
 				if (r.Frames != null)
-					resolved = r.Frames.Select(f => resolved[f]).ToArray();
+					resolved = r.Frames.Where(f => f < resolved.Length).Select(f => resolved[f]).ToArray();
 
 				return resolved.Select(s =>
 				{
@@ -550,12 +609,24 @@ namespace OpenRA.Mods.Common.Graphics
 			}
 
 			if (index.Count == 0)
-				throw new YamlException($"Sequence {image}.{Name} does not define any frames.");
+			{
+				Log.Write("debug", $"Sequence {image}.{Name} does not define any frames.");
+				sprites = Array.Empty<Sprite>();
+				bounds = Rectangle.Empty;
+				return;
+			}
 
-			var minIndex = index.Min();
-			var maxIndex = index.Max();
+			var minIndex = index.Count > 0 ? index.Min() : 0;
+			var maxIndex = index.Count > 0 ? index.Max() : 0;
 			if (minIndex < 0 || maxIndex >= allSprites.Length)
-				throw new YamlException($"Sequence {image}.{Name} uses frames between {minIndex}..{maxIndex}, but only 0..{allSprites.Length - 1} exist.");
+			{
+				Log.Write("debug", $"Sequence {image}.{Name} uses frames between {minIndex}..{maxIndex}, but only 0..{allSprites.Length - 1} exist.");
+				// Clamp indices to available range
+				index = index.Where(i => i >= 0 && i < allSprites.Length).ToList();
+				if (index.Count == 0 && allSprites.Length > 0)
+					index = new List<int> { 0 };
+				length = index.Count > 0 ? (int?)index.Count : length;
+			}
 
 			sprites = index.Select(f => allSprites[f]).ToArray();
 			if (shadowStart >= 0)

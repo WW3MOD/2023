@@ -166,7 +166,10 @@ namespace OpenRA.Graphics
 			resolvedSprites.TrimExcess();
 
 			if (missingFiles.TryGetValue(token, out var r))
-				throw new FileNotFoundException($"{r.Location}: {r.Filename} not found", r.Filename);
+			{
+				Log.Write("debug", $"Missing sprite file: {r.Location}: {r.Filename} not found");
+				return Array.Empty<Sprite>();
+			}
 
 			return resolved;
 		}
