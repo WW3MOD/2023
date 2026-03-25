@@ -86,7 +86,20 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// Extra bars are shown when:
 			//  * actor is selected / in active drag rectangle / under the mouse
 			//  * status bar preference is set to "always show" or "when damaged"
+			//  * any trait implements IAlwaysVisibleBar and wants to show without selection
 			var displayExtra = selected || (regularWorld && statusBars != StatusBarsType.Standard);
+
+			if (!displayExtra)
+			{
+				foreach (var avb in self.TraitsImplementing<IAlwaysVisibleBar>())
+				{
+					if (avb.ShowBarWithoutSelection)
+					{
+						displayExtra = true;
+						break;
+					}
+				}
+			}
 
 			// PERF: Only search rollover enumerable if needed.
 			if (!displayHealth || !displayExtra)

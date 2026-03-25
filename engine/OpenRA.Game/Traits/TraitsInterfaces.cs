@@ -274,6 +274,9 @@ namespace OpenRA.Traits
 	[RequireExplicitImplementation]
 	public interface ISelectionBar { float GetValue(); Color GetColor(); bool DisplayWhenEmpty { get; } }
 
+	[RequireExplicitImplementation]
+	public interface IAlwaysVisibleBar { bool ShowBarWithoutSelection { get; } }
+
 	public interface ISelectionDecorations
 	{
 		IEnumerable<IRenderable> RenderSelectionAnnotations(Actor self, WorldRenderer worldRenderer, Color color);

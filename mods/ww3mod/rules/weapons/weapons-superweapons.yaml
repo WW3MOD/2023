@@ -87,16 +87,16 @@ Atomic:
 		Damage: 5000
 		Penetration: 500
 		Falloff: 100, 80, 50, 20
-		Delay: 4
+		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 	Warhead@ThermalPulse2: SpreadDamage
 		Spread: 1c0
-		Damage: 3000
+		Damage: 100
 		Penetration: 300
-		Falloff: 100, 80, 60, 40, 20, 5
-		Delay: 12
+		Falloff: 100, 80, 60, 50, 40, 30, 25, 20, 15, 10, 5
+		Delay: 5
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
@@ -105,7 +105,7 @@ Atomic:
 		Damage: 2000
 		Penetration: 200
 		Falloff: 100, 80, 60, 50, 35, 20, 10, 3
-		Delay: 22
+		Delay: 20
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
@@ -114,7 +114,7 @@ Atomic:
 		Damage: 1000
 		Penetration: 100
 		Falloff: 100, 80, 60, 50, 40, 30, 25, 20, 15, 10, 5
-		Delay: 35
+		Delay: 30
 		ValidTargets: Ground, Trees, Water, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
