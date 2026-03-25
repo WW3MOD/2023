@@ -629,7 +629,11 @@ namespace OpenRA.Mods.Common.Projectiles
 				// No longer travel at cruise altitude
 				state = States.Hitting;
 
-				if (lastHt >= targetPosition.Z)
+				// Only allow pass-by for terrain-aware missiles where lastHt is meaningful.
+				// Without TerrainHeightAware, lastHt=0 is uninitialized and falsely
+				// triggers allowPassBy when target is at ground level (Z=0), which
+				// freezes missile speed by entering a branch that skips ChangeSpeed().
+				if (info.TerrainHeightAware && lastHt >= targetPosition.Z)
 					allowPassBy = true;
 
 				if (!allowPassBy && (lastHt < targetPosition.Z || targetPassedBy))
@@ -692,7 +696,10 @@ namespace OpenRA.Mods.Common.Projectiles
 							if (d1 < 0)
 								d1 = 0;
 							if (d1 > 2 * loopRadius)
+							{
+								ChangeSpeed();
 								return 0;
+							}
 
 							// Find critical height at which the missile must be once it is at one loopRadius
 							// away from the target
@@ -703,7 +710,7 @@ namespace OpenRA.Mods.Common.Projectiles
 							else
 								desiredVFacing = 0;
 
-							// TODO: deceleration checks!!!
+							ChangeSpeed();
 						}
 						else
 						{
@@ -733,6 +740,8 @@ namespace OpenRA.Mods.Common.Projectiles
 								if (desiredVFacing < 0 && info.VerticalRateOfTurn.Facing < (sbyte)vFacing)
 									desiredVFacing = 0;
 							}
+
+							ChangeSpeed();
 						}
 					}
 					else
@@ -742,6 +751,8 @@ namespace OpenRA.Mods.Common.Projectiles
 						desiredVFacing = (sbyte)vDist.HorizontalLengthSquared != 0 ? vDist.Yaw.Facing : vFacing;
 						if (desiredVFacing < 0 && info.VerticalRateOfTurn.Facing < (sbyte)vFacing)
 							desiredVFacing = 0;
+
+						ChangeSpeed();
 					}
 				}
 				else
@@ -831,11 +842,9 @@ namespace OpenRA.Mods.Common.Projectiles
 				desiredHFacing = hFacing;
 			}
 
-			// In the Hitting state, boost turn rate as the missile closes on the target.
-			// Without this, fast missiles with low turn rates enter wide orbits around
-			// the target — appearing to fly at ~10% speed because closing rate is near
-			// zero despite actual speed being high. The boost scales from 1x at 3*loopRadius
-			// to 3x at point-blank, capped at 20 facings/tick to prevent instant snapping.
+			// In the Hitting state, boost turn rate as the missile closes on the target
+			// to prevent wide orbits. Scales from 1x at 3*loopRadius to 3x at point-blank,
+			// capped at 20 facings/tick.
 			var hRot = info.HorizontalRateOfTurn.Facing;
 			var vRot = info.VerticalRateOfTurn.Facing;
 			if (state == States.Hitting && relTarHorDist < 3 * loopRadius)
