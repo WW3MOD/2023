@@ -143,8 +143,24 @@ namespace OpenRA.Traits
 
 		public byte ShadowModify { get; set; }
 
+		[Sync]
+		bool fogDisabled;
+		public bool FogDisabled
+		{
+			get => fogDisabled;
+
+			set
+			{
+				if (fogDisabled == value)
+					return;
+
+				fogDisabled = value;
+				disabledChanged = true;
+			}
+		}
+
 		bool fogEnabled;
-		public bool FogEnabled => !Disabled && fogEnabled;
+		public bool FogEnabled => !Disabled && !FogDisabled && fogEnabled;
 		public bool ExploreMapEnabled { get; private set; }
 		public int Hash { get; private set; }
 
@@ -566,6 +582,16 @@ namespace OpenRA.Traits
 
 		public byte GetVisibility(PPos puv)
 		{
+			// Fog disabled: full visibility on explored cells, shroud still applies
+			if (FogDisabled && !Disabled)
+			{
+				if (!map.Contains(puv))
+					return 0;
+
+				var index = explored.Index(puv);
+				return explored[index] ? (byte)10 : (byte)0;
+			}
+
 			if (fogEnabled)
 			{
 				if (ResolvedVisibility.Contains(puv))

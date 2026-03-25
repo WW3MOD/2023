@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var ticker = widget.Get<LogicTickerWidget>("MINIMAP_TICKER");
 			ticker.OnTick = () =>
 			{
-				minimapEnabled = devMode.DisableShroud || world.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled)
+				minimapEnabled = devMode.DisableFog || world.ActorsHavingTrait<ProvidesMiniMap>(r => !r.IsTraitDisabled)
 					.Any(a => a.Owner == world.LocalPlayer);
 
 				if (minimapEnabled != cachedMiniMapEnabled)

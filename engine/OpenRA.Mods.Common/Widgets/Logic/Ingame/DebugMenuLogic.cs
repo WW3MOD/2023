@@ -64,7 +64,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Bind3StateButton(widget, world, "CONTROL_ALL_UNITS", "Control All",
 				"DevControlAllUnits", "DevControlAllUnitsAll", "DevControlAllUnitsReset");
 
-			Bind3StateButton(widget, world, "DISABLE_SHROUD", "No Shroud",
+			Bind3StateButton(widget, world, "DISABLE_SHROUD", "No Fog",
 				"DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
 
 			Bind3StateButton(widget, world, "SHOW_UNIT_PATHS", "Show Paths",
@@ -171,7 +171,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SyncOneCheat(world, "INSTANT_CHARGE", localDev.FastCharge, dm => dm.FastCharge);
 			SyncOneCheat(world, "ENABLE_TECH", localDev.AllTech, dm => dm.AllTech);
 			SyncOneCheat(world, "BUILD_ANYWHERE", localDev.BuildAnywhere, dm => dm.BuildAnywhere);
-			SyncOneCheat(world, "DISABLE_SHROUD", localDev.DisableShroud, dm => dm.DisableShroud);
+			SyncOneCheat(world, "DISABLE_SHROUD", localDev.DisableFog, dm => dm.DisableFog);
 			SyncOneCheat(world, "COSMETIC_REVEAL", localDev.CosmeticReveal, dm => dm.CosmeticReveal);
 			SyncOneCheat(world, "CONTROL_ALL_UNITS", localDev.ControlAllUnits, dm => dm.ControlAllUnits);
 			SyncOneCheat(world, "SHOW_UNIT_PATHS", localDev.PathDebug, dm => dm.PathDebug);

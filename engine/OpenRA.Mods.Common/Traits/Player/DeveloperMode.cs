@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool FastCharge;
 
 		[Desc("Enable the disable visibility cheat by default.")]
-		public readonly bool DisableShroud;
+		public readonly bool DisableFog;
 
 		[Desc("Enable the unlimited power cheat by default.")]
 		public readonly bool UnlimitedPower;
@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool fastBuild;
 
 		[Sync]
-		bool disableShroud;
+		bool disableFog;
 
 		[Sync]
 		bool pathDebug;
@@ -111,7 +111,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool FastCharge => Enabled && fastCharge;
 		public bool AllTech => Enabled && allTech;
 		public bool FastBuild => Enabled && fastBuild;
-		public bool DisableShroud => Enabled && disableShroud;
+		public bool DisableFog => Enabled && disableFog;
 		public bool PathDebug => Enabled && pathDebug;
 		public bool UnlimitedPower => Enabled && unlimitedPower;
 		public bool BuildAnywhere => Enabled && buildAnywhere;
@@ -128,7 +128,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			fastBuild = info.FastBuild;
 			fastCharge = info.FastCharge;
-			disableShroud = info.DisableShroud;
+			disableFog = info.DisableFog;
 			pathDebug = info.PathDebug;
 			unlimitedPower = info.UnlimitedPower;
 			buildAnywhere = info.BuildAnywhere;
@@ -162,7 +162,7 @@ namespace OpenRA.Mods.Common.Traits
 				case "DevAll":
 				{
 					enableAll ^= true;
-					allTech = fastCharge = fastBuild = disableShroud = unlimitedPower = buildAnywhere = cosmeticReveal = controlAllUnits = enableAll;
+					allTech = fastCharge = fastBuild = disableFog = unlimitedPower = buildAnywhere = cosmeticReveal = controlAllUnits = enableAll;
 
 					if (enableAll)
 					{
@@ -174,9 +174,7 @@ namespace OpenRA.Mods.Common.Traits
 					else
 						self.Owner.MapLayers.ResetExploration();
 
-					self.Owner.MapLayers.Disabled = DisableShroud;
-					if (self.World.LocalPlayer == self.Owner)
-						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
+					self.Owner.MapLayers.FogDisabled = DisableFog;
 
 					break;
 				}
@@ -193,10 +191,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				case "DevVisibility":
 				{
-					disableShroud ^= true;
-					self.Owner.MapLayers.Disabled = DisableShroud;
-					if (self.World.LocalPlayer == self.Owner)
-						self.World.RenderPlayer = DisableShroud ? null : self.Owner;
+					disableFog ^= true;
+					self.Owner.MapLayers.FogDisabled = DisableFog;
 
 					break;
 				}
@@ -217,13 +213,10 @@ namespace OpenRA.Mods.Common.Traits
 						var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
 						if (dm != null)
 						{
-							dm.disableShroud = true;
-							player.MapLayers.Disabled = dm.DisableShroud;
+							dm.disableFog = true;
+							player.MapLayers.FogDisabled = true;
 						}
 					}
-
-					if (self.World.LocalPlayer != null)
-						self.World.RenderPlayer = null;
 
 					break;
 				}
@@ -244,13 +237,10 @@ namespace OpenRA.Mods.Common.Traits
 						var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
 						if (dm != null)
 						{
-							dm.disableShroud = false;
-							player.MapLayers.Disabled = false;
+							dm.disableFog = false;
+							player.MapLayers.FogDisabled = false;
 						}
 					}
-
-					if (self.World.LocalPlayer != null)
-						self.World.RenderPlayer = self.World.LocalPlayer;
 
 					break;
 				}
