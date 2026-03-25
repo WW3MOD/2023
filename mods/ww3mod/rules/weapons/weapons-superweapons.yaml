@@ -64,9 +64,12 @@ Atomic:
 		VisibleThroughFog: true
 		ValidTargets: Ground, Water, Air
 
-	# ===== PHASE 1: THERMAL RADIATION (Tick 0-2) — Speed of Light =====
-	# Thermal pulse arrives essentially instantly. This is the FIRST damage.
-	# Ground zero (0-2 cells): Vaporization — only the very center
+	# ===== PHASE 1: THERMAL RADIATION — Sustained Fireball Pulse =====
+	# The fireball radiates intense heat for ~2 seconds (50 ticks).
+	# Close infantry is cooked by repeated thermal pulses + catches fire fast.
+	# Far infantry catches fire slowly as thermal radiation reaches them.
+
+	# Instant vaporization at ground zero (0-1 cells)
 	Warhead@ThermalVaporize: SpreadDamage
 		Spread: 1c0
 		Damage: 200000
@@ -77,34 +80,58 @@ Atomic:
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Close thermal (2-10 cells): Wounds but doesn't kill — fire does the real killing
-	Warhead@ThermalClose: SpreadDamage
-		Spread: 2c0
-		Damage: 800
-		Penetration: 200
-		Falloff: 0, 100, 80, 50, 25, 8
-		Delay: 1
+	# Repeating thermal damage pulses — expanding fireball cooks close infantry
+	# Each pulse is slightly larger (fireball expanding) and weaker (energy dissipating)
+	Warhead@ThermalPulse1: SpreadDamage
+		Spread: 1c0
+		Damage: 5000
+		Penetration: 500
+		Falloff: 100, 80, 50, 20
+		Delay: 4
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
-
-	# Medium thermal (10-20 cells): Light burns, weakens for fire
-	Warhead@ThermalMedium: SpreadDamage
-		Spread: 3c0
-		Damage: 300
+	Warhead@ThermalPulse2: SpreadDamage
+		Spread: 1c0
+		Damage: 3000
+		Penetration: 300
+		Falloff: 100, 80, 60, 40, 20, 5
+		Delay: 12
+		ValidTargets: Ground, Trees, Water, Underwater, Air
+		DamageTypes: FireDeath
+		AirThreshold: 10c0
+	Warhead@ThermalPulse3: SpreadDamage
+		Spread: 1c0
+		Damage: 2000
+		Penetration: 200
+		Falloff: 100, 80, 60, 50, 35, 20, 10, 3
+		Delay: 22
+		ValidTargets: Ground, Trees, Water, Underwater, Air
+		DamageTypes: FireDeath
+		AirThreshold: 10c0
+	Warhead@ThermalPulse4: SpreadDamage
+		Spread: 1c0
+		Damage: 1000
 		Penetration: 100
-		Falloff: 0, 0, 0, 0, 100, 70, 45, 25, 10
-		Delay: 2
+		Falloff: 100, 80, 60, 50, 40, 30, 25, 20, 15, 10, 5
+		Delay: 35
 		ValidTargets: Ground, Trees, Water, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# ===== FIRE: Stacking overlapping rings =====
-	# 10 warheads, each Amount: 1, with overlapping ranges.
-	# All 10 cover 0-10 cells = 10 stacks at ground zero (full fire).
-	# Each extends 2 cells further, so fire drops by 1 stack per 2 cells:
-	# 0-10c: 10 stacks | 10-12c: 9 | 12-14c: 8 | 14-16c: 7 | 16-18c: 6
-	# 18-20c: 5 | 20-22c: 4 | 22-24c: 3 | 24-26c: 2 | 26-28c: 1
+	# ===== FIRE: Staggered thermal ignition =====
+	# 10 warheads, each Amount: 1, with STAGGERED DELAYS.
+	# Small-range warheads fire EARLY (close stuff catches fire first).
+	# Large-range warheads fire LATE (far stuff catches fire slowly).
+	# Overlapping ranges mean close units accumulate stacks faster:
+	#
+	# At 5 cells:  gets Fire1(t1) → Fire10(t50) = 10 stacks over 2.0s
+	# At 15 cells: gets Fire3(t11) → Fire10(t50) = 8 stacks from 0.4s to 2.0s
+	# At 20 cells: gets Fire6(t26) → Fire10(t50) = 5 stacks from 1.0s to 2.0s
+	# At 25 cells: gets Fire9(t44), Fire10(t50) = 2 stacks, barely burning
+	#
+	# Close infantry: catches fire FIRST, reaches max fire FASTEST → dies from fire
+	# Far infantry: catches fire LATE and SLOWLY → mild burning when blast wave hits
 	Warhead@Fire1: GrantExternalCondition
 		Range: 10c0
 		Amount: 1
@@ -119,7 +146,7 @@ Atomic:
 		Amount: 1
 		Duration: 700
 		Condition: onfire
-		Delay: 1
+		Delay: 6
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -128,7 +155,7 @@ Atomic:
 		Amount: 1
 		Duration: 650
 		Condition: onfire
-		Delay: 1
+		Delay: 11
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -137,7 +164,7 @@ Atomic:
 		Amount: 1
 		Duration: 600
 		Condition: onfire
-		Delay: 1
+		Delay: 16
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -146,7 +173,7 @@ Atomic:
 		Amount: 1
 		Duration: 550
 		Condition: onfire
-		Delay: 1
+		Delay: 21
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -155,7 +182,7 @@ Atomic:
 		Amount: 1
 		Duration: 500
 		Condition: onfire
-		Delay: 2
+		Delay: 26
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -164,7 +191,7 @@ Atomic:
 		Amount: 1
 		Duration: 450
 		Condition: onfire
-		Delay: 2
+		Delay: 32
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -173,7 +200,7 @@ Atomic:
 		Amount: 1
 		Duration: 400
 		Condition: onfire
-		Delay: 2
+		Delay: 38
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -182,7 +209,7 @@ Atomic:
 		Amount: 1
 		Duration: 350
 		Condition: onfire
-		Delay: 2
+		Delay: 44
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -191,7 +218,7 @@ Atomic:
 		Amount: 1
 		Duration: 300
 		Condition: onfire
-		Delay: 2
+		Delay: 50
 		ValidTargets: Structure, Infantry, Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
