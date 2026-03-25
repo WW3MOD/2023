@@ -772,10 +772,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_0:
 					X: 22
 					Y: 18
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_0:
+					X: 186
+					Y: 18
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_0:
 					X: 204
 					Y: 18
@@ -793,10 +801,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_1:
 					X: 22
 					Y: 32
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_1:
+					X: 186
+					Y: 32
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_1:
 					X: 204
 					Y: 32
@@ -814,10 +830,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_2:
 					X: 22
 					Y: 46
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_2:
+					X: 186
+					Y: 46
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_2:
 					X: 204
 					Y: 46
@@ -835,10 +859,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_3:
 					X: 22
 					Y: 60
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_3:
+					X: 186
+					Y: 60
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_3:
 					X: 204
 					Y: 60
@@ -856,10 +888,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_4:
 					X: 22
 					Y: 74
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_4:
+					X: 186
+					Y: 74
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_4:
 					X: 204
 					Y: 74
@@ -877,10 +917,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_5:
 					X: 22
 					Y: 88
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_5:
+					X: 186
+					Y: 88
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_5:
 					X: 204
 					Y: 88
@@ -898,10 +946,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_6:
 					X: 22
 					Y: 102
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_6:
+					X: 186
+					Y: 102
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_6:
 					X: 204
 					Y: 102
@@ -919,10 +975,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_7:
 					X: 22
 					Y: 116
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_7:
+					X: 186
+					Y: 116
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_7:
 					X: 204
 					Y: 116
@@ -940,10 +1004,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_8:
 					X: 22
 					Y: 130
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_8:
+					X: 186
+					Y: 130
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_8:
 					X: 204
 					Y: 130
@@ -961,10 +1033,18 @@ Container@PLAYER_WIDGETS:
 				Label@CARGO_LABEL_9:
 					X: 22
 					Y: 144
-					Width: 178
+					Width: 162
 					Height: 12
 					Font: Tiny
 					Contrast: true
+				Button@RALLY_CARGO_9:
+					X: 186
+					Y: 144
+					Width: 14
+					Height: 12
+					Font: Tiny
+					Text: R
+					VisualHeight: 0
 				Button@EJECT_CARGO_9:
 					X: 204
 					Y: 144

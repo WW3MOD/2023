@@ -124,6 +124,10 @@ namespace OpenRA.Mods.Common.Activities
 					return false;
 				}
 
+				// Check for pre-queued rally point before unloading
+				var rallyTarget = cargo.GetEjectRally(actor.ActorID);
+				cargo.ClearEjectRally(actor.ActorID);
+
 				cargo.Unload(self, specificPassenger);
 				self.World.AddFrameEndTask(w =>
 				{
@@ -145,6 +149,12 @@ namespace OpenRA.Mods.Common.Activities
 
 					actor.CancelActivity();
 					w.Add(actor);
+
+					// Apply pre-queued rally point order
+					if (rallyTarget.Type != TargetType.Invalid)
+					{
+						w.IssueOrder(new Order("Move", actor, rallyTarget, false));
+					}
 				});
 			}
 

@@ -98,6 +98,16 @@ namespace OpenRA.Mods.Common.Widgets
 					ejectBtn.IsDisabled = () => !IsPassengerSlotVisible(slotIndex);
 					ejectBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
 				}
+
+				// Rally button — set post-eject move target
+				var rallyBtn = panel.GetOrNull<ButtonWidget>($"RALLY_CARGO_{i}");
+				if (rallyBtn != null)
+				{
+					rallyBtn.OnClick = () => SetPassengerRally(slotIndex);
+					rallyBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
+					rallyBtn.GetText = () => HasPassengerRally(slotIndex) ? "R!" : "R";
+					rallyBtn.IsHighlighted = () => HasPassengerRally(slotIndex);
+				}
 			}
 
 			// Deploy Marked button — activates waypoint unload mode
@@ -348,6 +358,45 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			world.IssueOrder(new Order("UnloadCargoPassenger", selectedTransport, false) { ExtraData = passenger.ActorID });
+		}
+
+		void SetPassengerRally(int slotIndex)
+		{
+			if (cargo == null || selectedTransport == null)
+				return;
+
+			var passengers = cargo.Passengers.ToArray();
+			if (slotIndex >= passengers.Length)
+				return;
+
+			var passenger = passengers[slotIndex];
+			if (passenger == null || passenger.IsDead)
+				return;
+
+			var tooltip = passenger.TraitOrDefault<Tooltip>();
+			var name = tooltip?.Info.Name ?? passenger.Info.Name;
+
+			// If already has rally, clear it (toggle)
+			if (cargo.HasEjectRally(passenger.ActorID))
+			{
+				cargo.ClearEjectRally(passenger.ActorID);
+				return;
+			}
+
+			// Enter rally target selection mode
+			world.OrderGenerator = new EjectRallyOrderGenerator(selectedTransport, passenger.ActorID, name);
+		}
+
+		bool HasPassengerRally(int slotIndex)
+		{
+			if (cargo == null)
+				return false;
+
+			var passengers = cargo.Passengers.ToArray();
+			if (slotIndex >= passengers.Length)
+				return false;
+
+			return cargo.HasEjectRally(passengers[slotIndex].ActorID);
 		}
 	}
 }
