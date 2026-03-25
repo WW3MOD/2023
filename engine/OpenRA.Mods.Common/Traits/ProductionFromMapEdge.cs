@@ -19,8 +19,8 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Produce a unit on the closest map edge cell and move into the world.")]
 	class ProductionFromMapEdgeInfo : ProductionInfo
 	{
-		[Desc("Ticks to wait for the preferred center spawn cell before trying adjacent cells.")]
-		public readonly int SpawnCenterWaitTicks = 25;
+		[Desc("Number of candidate edge cells to consider for spawning (center + sides).")]
+		public readonly int SpawnCandidateCount = 5;
 
 		public override object Create(ActorInitializer init) { return new ProductionFromMapEdge(init, this); }
 	}
@@ -32,8 +32,8 @@ namespace OpenRA.Mods.Common.Traits
 		readonly IPathFinder pathFinder;
 		RallyPoint rp;
 
-		// Track how long we've been waiting for the center spawn cell to free up
-		long centerBlockedSinceTick = -1;
+		// Round-robin index for distributing spawns across candidate cells
+		int nextCandidateIndex;
 
 		public ProductionFromMapEdge(ActorInitializer init, ProductionInfo info)
 			: base(init, info)
@@ -97,9 +97,7 @@ namespace OpenRA.Mods.Common.Traits
 					location = self.World.Map.ChooseClosestEdgeCell(self.Location);
 
 				// Ground units: use SpawnArea as a hint for which edge to spawn near.
-				// Only 3 cells are ever considered: the closest edge cell to the SpawnArea (center)
-				// and its two immediate neighbors along the edge. Center is strongly preferred —
-				// we wait up to SpawnCenterWaitTicks before trying the sides.
+				// Uses round-robin across candidate cells for fast, distributed spawning.
 				if (mobileInfo != null)
 				{
 					var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
@@ -107,10 +105,9 @@ namespace OpenRA.Mods.Common.Traits
 					var firstDest = hasRallyPoint ? rp.Path[0] : self.Location;
 					var searchOrigin = spawnAreaHint ?? self.Location;
 
-					// Get the 3 candidate spawn cells (center + 2 adjacent along the edge)
 					CPos[] candidates;
 					if (spawnAreaHint.HasValue)
-						candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, 3);
+						candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, edgeInfo.SpawnCandidateCount);
 					else
 					{
 						// No SpawnArea: legacy behavior, find closest matching edge cell (any edge)
@@ -127,44 +124,27 @@ namespace OpenRA.Mods.Common.Traits
 						var centerCell = candidates[0];
 						if (!pathFinder.PathExistsForLocomotor(locomotor, centerCell, firstDest))
 						{
-							// If center cell can't path to destination, none of the 3 adjacent cells will either
+							// If center cell can't path to destination, none of the adjacent cells will either
 							location = null;
-						}
-						else if (mobileInfo.CanEnterCell(self.World, null, centerCell))
-						{
-							// Center cell is free — use it, reset wait timer
-							location = centerCell;
-							centerBlockedSinceTick = -1;
 						}
 						else
 						{
-							// Center is blocked — start or continue waiting
-							var currentTick = self.World.WorldTick;
-							if (centerBlockedSinceTick < 0)
-								centerBlockedSinceTick = currentTick;
-
-							var waited = currentTick - centerBlockedSinceTick;
-							if (waited < edgeInfo.SpawnCenterWaitTicks)
+							// Round-robin: start from the next candidate index and wrap around.
+							// This distributes spawns evenly across all candidate cells instead of
+							// always piling onto center and waiting for it to clear.
+							location = null;
+							for (var attempt = 0; attempt < candidates.Length; attempt++)
 							{
-								// Still waiting for center to free up — don't spawn yet
-								location = null;
-							}
-							else
-							{
-								// Waited long enough — try the two side cells
-								location = null;
-								for (var i = 1; i < candidates.Length; i++)
+								var idx = (nextCandidateIndex + attempt) % candidates.Length;
+								if (mobileInfo.CanEnterCell(self.World, null, candidates[idx]))
 								{
-									if (mobileInfo.CanEnterCell(self.World, null, candidates[i]))
-									{
-										location = candidates[i];
-										centerBlockedSinceTick = -1;
-										break;
-									}
+									location = candidates[idx];
+									nextCandidateIndex = (idx + 1) % candidates.Length;
+									break;
 								}
-
-								// All 3 blocked — keep waiting, retry next tick
 							}
+
+							// All candidates blocked — will retry next tick
 						}
 					}
 				}
