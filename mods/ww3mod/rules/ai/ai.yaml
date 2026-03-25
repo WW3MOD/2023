@@ -141,11 +141,12 @@ Player:
 		NewProductionCashThreshold: 5000
 		RallyPointScanRadius: 10
 		BuildingLimits:
+			supplyroute: 2
 			hpad: 3
 			afld: 2
 		BuildingFractions:
-			hpad: 5
-			afld: 5
+			hpad: 10
+			afld: 8
 			gtwr: 8
 			pbox: 5
 			hbox: 3
@@ -173,11 +174,12 @@ Player:
 		NewProductionCashThreshold: 3000
 		RallyPointScanRadius: 10
 		BuildingLimits:
+			supplyroute: 2
 			hpad: 2
 			afld: 1
 		BuildingFractions:
-			hpad: 3
-			afld: 3
+			hpad: 6
+			afld: 4
 			gtwr: 4
 			pbox: 2
 			agun: 2
@@ -202,11 +204,12 @@ Player:
 		NewProductionCashThreshold: 8000
 		RallyPointScanRadius: 10
 		BuildingLimits:
+			supplyroute: 2
 			hpad: 4
 			afld: 3
 		BuildingFractions:
-			hpad: 6
-			afld: 6
+			hpad: 10
+			afld: 8
 			gtwr: 12
 			pbox: 8
 			hbox: 5
@@ -238,16 +241,20 @@ Player:
 	# ===== Helicopters — Russia =====
 	UnitBuilderBotModule@russia.heli:
 		RequiresCondition: enable-ai-any && player.brics
-		IdleBaseUnitsMaximum: 0
+		IdleBaseUnitsMaximum: 8
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			HIND: 100
-			MI28: 60
-			HALO: 20
+			HIND: 80
+			MI28: 50
+			HALO: 15
 		UnitLimits:
 			HIND: 4
 			MI28: 3
 			HALO: 2
+		UnitDelays:
+			HIND: 3000
+			MI28: 4500
+			HALO: 3000
 
 	# ===== Fixed-Wing Aircraft — America =====
 	UnitBuilderBotModule@america.fixedwing:
@@ -273,16 +280,20 @@ Player:
 	# ===== Helicopters — America =====
 	UnitBuilderBotModule@america.heli:
 		RequiresCondition: enable-ai-any && player.nato
-		IdleBaseUnitsMaximum: 0
+		IdleBaseUnitsMaximum: 8
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			HELI: 100
-			littlebird: 50
-			TRAN: 20
+			HELI: 80
+			littlebird: 40
+			TRAN: 15
 		UnitLimits:
 			HELI: 4
 			littlebird: 2
 			TRAN: 2
+		UnitDelays:
+			HELI: 3000
+			littlebird: 3000
+			TRAN: 3000
 
 	# ===== Helicopter Squad Manager (shared, all factions) =====
 	HelicopterSquadBotModule:

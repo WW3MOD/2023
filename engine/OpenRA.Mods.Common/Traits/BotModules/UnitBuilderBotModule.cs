@@ -201,8 +201,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (rearmableInfo == null)
 				return true;
 
-			var countOwnAir = AIUtils.CountActorsWithTrait<IPositionable>(actorInfo.Name, player);
 			var countBuildings = rearmableInfo.RearmActors.Sum(b => AIUtils.CountActorsWithTrait<Building>(b, player));
+
+			// No rearm buildings exist — can't build aircraft without a pad/airfield
+			if (countBuildings == 0)
+				return false;
+
+			// Count ALL aircraft that share the same rearm buildings (not just this type)
+			// so we don't exceed total pad capacity across all helicopter/plane types
+			var countOwnAir = player.World.ActorsHavingTrait<Rearmable>()
+				.Count(a => a.Owner == player && !a.IsDead
+					&& a.Info.TraitInfoOrDefault<RearmableInfo>().RearmActors
+						.Intersect(rearmableInfo.RearmActors).Any());
+
 			if (countOwnAir >= countBuildings)
 				return false;
 
