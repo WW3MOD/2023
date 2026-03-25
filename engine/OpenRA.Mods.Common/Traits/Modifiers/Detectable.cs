@@ -209,9 +209,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (counterBatteryRadarDetectableConditionToken == Actor.InvalidConditionToken)
 				counterBatteryRadarDetectableConditionToken = self.GrantCondition(DetectableInfo.CounterBatteryRadarDetectableGrantsCondition);
-
-			// DEBUG: Counter-battery radar detection (remove after testing)
-			TextNotificationsManager.AddSystemLine($"[CBR DEBUG] {self.Info.Name} ({self.Owner.PlayerName}) now CB-RADAR-DETECTABLE (firing)");
 		}
 
 		protected void CounterBatteryRadarDetectableTraitDisabled(Actor self)
@@ -220,9 +217,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (counterBatteryRadarDetectableConditionToken != Actor.InvalidConditionToken)
 				counterBatteryRadarDetectableConditionToken = self.RevokeCondition(counterBatteryRadarDetectableConditionToken);
-
-			// DEBUG: Counter-battery radar detection (remove after testing)
-			TextNotificationsManager.AddSystemLine($"[CBR DEBUG] {self.Info.Name} ({self.Owner.PlayerName}) no longer CB-radar-detectable (stopped firing)");
 		}
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
