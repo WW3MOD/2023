@@ -273,6 +273,9 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | Patrol.cs (Activity) | Loops waypoints with attack-move. Circular if last≈first waypoint, otherwise bounce (A→B→C→B→A→...) |
 | HeliEmergencyLanding.cs | Helicopter emergency landing: autorotation on heavy damage (steerable, safe landing), uncontrolled crash on critical (spinning, destroyed). Crew ejection gated by terrain suitability |
 | CargoSupply.cs | Supply as numeric cargo weight: any transport with this trait auto-rearms nearby units. Supply consumes Cargo weight (1 unit = 1 weight). Replaces SupplyProvider on TRUK |
+| CargoPanelLogic.cs | Sidebar panel for transport cargo management: individual eject, mark for waypoint unload, rally points, supply drop |
+| CargoUnloadOrderGenerator.cs | Click-on-map order generator for waypoint-based selective unloading of marked passengers |
+| EjectRallyOrderGenerator.cs | Click-on-map to set per-passenger post-eject rally point (move target on ejection) |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -457,6 +460,7 @@ Each unit type has a base template file and two faction files:
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
 - **Garrison system: shelter/port deployment** — Infantry enter building shelter (Cargo), GarrisonManager deploys best-matched soldier to port in-world when targets appear. Deployed soldiers are in-world with garrisoned-at-port condition (sprite hidden, pips visible, selectable, targetable). Port soldiers get 80% damage reduction via DamageMultiplier. GarrisonProtection passes damage only to shelter soldiers. WithGarrisonDecoration simplified to empty port indicators. Building death: port soldiers become free infantry, shelter soldiers ejected by Cargo
 - **Supply truck → pure transport** — TRUK no longer has SupplyProvider/QuickRearm/DropsCrate. Now uses CargoSupply trait: supply as numeric cargo weight (1 unit = 1 weight, InitialSupply: 10). Any transport with CargoSupply (TRUK, Chinook, HALO, HIND) auto-rearms nearby units when carrying supply. SUPPLYCACHE is now NoAutoTarget + ProximityCapturable (1.5 cell, sticky ownership transfer)
+- **Cargo management system (Phases 2A-2E)** — Full transport cargo UI: individual passenger eject, mark passengers for waypoint-based selective unload (Deploy Marked → click map → transport moves+unloads), per-passenger rally points (R button → click map → passenger auto-moves there on ejection), supply unload as SUPPLYCACHE with merge at same location, Mark All/Unmark All toggle
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
@@ -474,10 +478,9 @@ Each unit type has a base template file and two faction files:
 5. **Three-mode move playtesting** — tune OverkillThreshold, UnderFireDuration, verify Force-Move never fires
 6. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches
 7. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
-8. **CargoSupply playtesting** — verify TRUK auto-rearms with new CargoSupply trait, supply pips, weight sharing with soldiers. Verify Chinook/HALO can carry supply when loaded via CargoSupplyInit
-9. **Cargo management Phase 2B** — individual cargo unload panel (sidebar), per-passenger eject orders
-10. **Cargo management Phase 2C** — supply unload → SUPPLYCACHE creation (merge at same location)
-9. **Garrison shelter/port playtesting** — verify deploy-to-port behavior, pips, building death
+8. **Cargo system playtesting (Phases 2A-2E)** — verify TRUK auto-rearms, supply bar, individual eject, mark+waypoint unload, rally points, supply drop to SUPPLYCACHE, merge at same location
+9. **Cargo management Phase 3** — template sidebar for pre-loaded transport purchasing
+10. **Garrison shelter/port playtesting** — verify deploy-to-port behavior, pips, building death
 10. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 
 ### Remaining Branches
