@@ -486,12 +486,7 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		void ChangeSpeed(int sign = 1)
 		{
-			// Floor at 20% of max speed to prevent oscillation in the Hitting state.
-			// Without this, the loopRadius-based decel/accel feedback loop can drive
-			// speed to near-zero: small speed → small loopRadius → accel → larger
-			// loopRadius → decel → repeat, with the missile crawling at ~10% speed.
-			var minSpeed = maxSpeed / 5;
-			speed = (speed + sign * info.Acceleration.Length).Clamp(minSpeed, maxSpeed);
+			speed = (speed + sign * info.Acceleration.Length).Clamp(1, maxSpeed);
 
 			// Compute the vertical loop radius
 			loopRadius = LoopRadius(speed, info.VerticalRateOfTurn.Facing);
@@ -836,8 +831,23 @@ namespace OpenRA.Mods.Common.Projectiles
 				desiredHFacing = hFacing;
 			}
 
-			hFacing = Util.TickFacing(hFacing, desiredHFacing, info.HorizontalRateOfTurn.Facing);
-			vFacing = Util.TickFacing(vFacing, desiredVFacing, info.VerticalRateOfTurn.Facing);
+			// In the Hitting state, boost turn rate as the missile closes on the target.
+			// Without this, fast missiles with low turn rates enter wide orbits around
+			// the target — appearing to fly at ~10% speed because closing rate is near
+			// zero despite actual speed being high. The boost scales from 1x at 3*loopRadius
+			// to 3x at point-blank, capped at 20 facings/tick to prevent instant snapping.
+			var hRot = info.HorizontalRateOfTurn.Facing;
+			var vRot = info.VerticalRateOfTurn.Facing;
+			if (state == States.Hitting && relTarHorDist < 3 * loopRadius)
+			{
+				var closeness = System.Math.Max(relTarHorDist, 1);
+				var boost = System.Math.Min(3 * loopRadius / closeness, 3);
+				hRot = System.Math.Min(hRot * boost, 20);
+				vRot = System.Math.Min(vRot * boost, 20);
+			}
+
+			hFacing = Util.TickFacing(hFacing, desiredHFacing, hRot);
+			vFacing = Util.TickFacing(vFacing, desiredVFacing, vRot);
 
 			return new WVec(0, -1024 * speed, 0)
 				.Rotate(new WRot(WAngle.FromFacing(vFacing), WAngle.Zero, WAngle.Zero))
