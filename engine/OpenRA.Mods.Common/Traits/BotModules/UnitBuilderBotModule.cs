@@ -36,6 +36,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("When should the AI start train specific units.")]
 		public readonly Dictionary<string, int> UnitDelays = null;
 
+		[Desc("If true, skip the rearm building capacity check for aircraft.",
+			"Use this when aircraft are produced from a generic production building (e.g. Supply Route)",
+			"and don't require a dedicated pad/airfield to be built first.")]
+		public readonly bool SkipRearmBuildingCheck = false;
+
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
 	}
 
@@ -189,9 +194,14 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
-		// For mods like RA (number of RearmActors must match the number of aircraft)
+		// For mods like RA (number of RearmActors must match the number of aircraft).
+		// WW3MOD: Aircraft are called in via Supply Route and don't need a dedicated
+		// pad to be produced — SkipRearmBuildingCheck bypasses this for reinforcement-model mods.
 		bool HasAdequateAirUnitReloadBuildings(ActorInfo actorInfo)
 		{
+			if (Info.SkipRearmBuildingCheck)
+				return true;
+
 			var aircraftInfo = actorInfo.TraitInfoOrDefault<AircraftInfo>();
 			if (aircraftInfo == null)
 				return true;
@@ -201,19 +211,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (rearmableInfo == null)
 				return true;
 
+			var countOwnAir = AIUtils.CountActorsWithTrait<IPositionable>(actorInfo.Name, player);
 			var countBuildings = rearmableInfo.RearmActors.Sum(b => AIUtils.CountActorsWithTrait<Building>(b, player));
-
-			// No rearm buildings exist — can't build aircraft without a pad/airfield
-			if (countBuildings == 0)
-				return false;
-
-			// Count ALL aircraft that share the same rearm buildings (not just this type)
-			// so we don't exceed total pad capacity across all helicopter/plane types
-			var countOwnAir = player.World.ActorsHavingTrait<Rearmable>()
-				.Count(a => a.Owner == player && !a.IsDead
-					&& a.Info.TraitInfoOrDefault<RearmableInfo>().RearmActors
-						.Intersect(rearmableInfo.RearmActors).Any());
-
 			if (countOwnAir >= countBuildings)
 				return false;
 

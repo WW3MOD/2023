@@ -8,6 +8,31 @@ WW3MOD is a **total conversion** of OpenRA Red Alert into a modern World War 3 R
 **Repository:** https://github.com/WW3MOD/2023.git
 **Factions:** NATO/America vs BRICS/Russia (Ukraine planned as third)
 
+## How WW3MOD Differs from Red Alert (CRITICAL — read before any work)
+
+WW3MOD is NOT Red Alert with new sprites. The entire gameplay model is different. **Do not assume any Red Alert mechanic still applies.** Key differences:
+
+### Reinforcement Model (no factories)
+There are **no Construction Yards, Barracks, War Factories, or Naval Yards**. Units are NOT "built" — they are **called in as reinforcements from off-map reserves** via the **Supply Route** building. Think of the Supply Route as a radio/logistics hub that requests reinforcements, not a factory that manufactures units.
+
+- **Supply Route** is the single core production building. It produces ALL unit types (infantry, vehicles, aircraft) via `ProductionFromMapEdge` — units spawn at the map edge and march/fly to the rally point.
+- **Buildings and defenses** are the exception — they spawn locally at the Supply Route via a separate `Production@Local` queue.
+- **HPAD (Helipad)** and **AFLD (Airfield)** are **rearm/repair support buildings**, not production prerequisites. Helicopters and planes CAN be produced without them. HPADs/AFLDs let aircraft rearm faster on-map instead of flying back to the map edge. Future plans include capturable HPADs on maps.
+- **"Buying" a unit** = calling in a reinforcement from reserves. **"Rotating out" a unit** = sending it back to the map edge to recover its budget cost. This is the economy loop.
+- **Unit costs represent budget allocation**, not manufacturing cost. A destroyed unit is a permanent loss of that budget.
+
+### No tech tree / building prerequisites
+There is no "build barracks → build war factory → build radar → unlock X" progression. Tech levels exist (`~techlevel.low/medium/high`) but they are granted automatically based on game time or other conditions, not by constructing specific buildings. Any unit the player's tech level allows can be called in immediately.
+
+### Map-edge spawning
+Units don't appear at the production building — they enter from the map edge nearest to the Supply Route's SpawnArea hint, then walk/fly across the map to the rally point. This means:
+- Production has inherent travel time (far Supply Route = slow reinforcements)
+- Enemy can ambush reinforcements en route
+- Supply Route position matters strategically (closer to friendly edge = safer reinforcements)
+
+### Engine code still has old RA patterns
+Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUnitReloadBuildings` checking for 1 airpad per aircraft). When you encounter these patterns, understand they may not apply. Always check how WW3MOD actually uses the system before assuming the old logic is correct. The `SkipRearmBuildingCheck` YAML property on `UnitBuilderBotModule` was added specifically to bypass one such legacy check.
+
 ## Workflow Rules
 
 ### Git & Commits
@@ -463,11 +488,13 @@ Upgrading to `release-20250330` is possible but major (estimated 12-22 sessions)
 ## AI Configuration
 
 AI is configured entirely via YAML in `mods/ww3mod/rules/ai/`:
-- `ai.yaml` — ModularBot setup, shared modules (BuildingRepairBotModule, CaptureManagerBotModule, SquadManagerBotModule for air)
+- `ai.yaml` — ModularBot setup, shared modules (BuildingRepairBotModule, CaptureManagerBotModule, SquadManagerBotModule for air, HelicopterSquadBotModule)
 - `ai-america.yaml` — America-specific build priorities, unit limits, squad composition
 - `ai-russia.yaml` — Russia-specific same
 
-Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` (how to attack), `CaptureManagerBotModule` (what to capture), `BuildingRepairBotModule` (auto-repair).
+Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` (how to attack), `HelicopterSquadBotModule` (helicopter attack/scout/transport squads), `CaptureManagerBotModule` (what to capture), `BuildingRepairBotModule` (auto-repair).
+
+**Important for aircraft modules:** Helicopter `UnitBuilderBotModule` uses `SkipRearmBuildingCheck: true` because helicopters are called in via Supply Route and don't need an HPAD to be produced. Without this flag, the old RA check (`HasAdequateAirUnitReloadBuildings`) blocks aircraft production when no rearm building exists.
 
 ## Testing
 

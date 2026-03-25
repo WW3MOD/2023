@@ -141,12 +141,11 @@ Player:
 		NewProductionCashThreshold: 5000
 		RallyPointScanRadius: 10
 		BuildingLimits:
-			supplyroute: 2
 			hpad: 3
 			afld: 2
 		BuildingFractions:
-			hpad: 10
-			afld: 8
+			hpad: 8
+			afld: 5
 			gtwr: 8
 			pbox: 5
 			hbox: 3
@@ -174,12 +173,11 @@ Player:
 		NewProductionCashThreshold: 3000
 		RallyPointScanRadius: 10
 		BuildingLimits:
-			supplyroute: 2
 			hpad: 2
 			afld: 1
 		BuildingFractions:
-			hpad: 6
-			afld: 4
+			hpad: 4
+			afld: 3
 			gtwr: 4
 			pbox: 2
 			agun: 2
@@ -204,12 +202,11 @@ Player:
 		NewProductionCashThreshold: 8000
 		RallyPointScanRadius: 10
 		BuildingLimits:
-			supplyroute: 2
 			hpad: 4
 			afld: 3
 		BuildingFractions:
-			hpad: 10
-			afld: 8
+			hpad: 8
+			afld: 6
 			gtwr: 12
 			pbox: 8
 			hbox: 5
@@ -239,9 +236,11 @@ Player:
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
 	# ===== Helicopters — Russia =====
+	# Helicopters are called in via Supply Route — no HPAD needed to produce them
 	UnitBuilderBotModule@russia.heli:
 		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 8
+		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
 			HIND: 80
@@ -252,9 +251,9 @@ Player:
 			MI28: 3
 			HALO: 2
 		UnitDelays:
-			HIND: 3000
-			MI28: 4500
-			HALO: 3000
+			HIND: 2500
+			MI28: 3500
+			HALO: 2500
 
 	# ===== Fixed-Wing Aircraft — America =====
 	UnitBuilderBotModule@america.fixedwing:
@@ -278,9 +277,11 @@ Player:
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
 	# ===== Helicopters — America =====
+	# Helicopters are called in via Supply Route — no HPAD needed to produce them
 	UnitBuilderBotModule@america.heli:
 		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 8
+		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
 			HELI: 80
@@ -291,9 +292,9 @@ Player:
 			littlebird: 2
 			TRAN: 2
 		UnitDelays:
-			HELI: 3000
-			littlebird: 3000
-			TRAN: 3000
+			HELI: 2500
+			littlebird: 2500
+			TRAN: 2500
 
 	# ===== Helicopter Squad Manager (shared, all factions) =====
 	HelicopterSquadBotModule:
