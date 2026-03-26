@@ -219,7 +219,7 @@ namespace OpenRA.Mods.Common.Traits
 			var finalColor = initialColor;
 			var colorChooser = Game.LoadWidget(worldRenderer.World, "COLOR_CHOOSER", null, new WidgetArgs()
 			{
-				{ "onChange", (Action<Color>)(c => { finalColor = c; OnColorPickerColorUpdate(c); }) },
+				{ "onChange", (Action<Color>)(c => { finalColor = c; OnColorPickerColorUpdate?.Invoke(c); }) },
 				{ "initialColor", initialColor },
 				{ "extraLogic", (Action<Widget>)AddActorPreview },
 			});
