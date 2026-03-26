@@ -132,6 +132,14 @@ namespace OpenRA.Mods.Common.Traits.Render
 			}
 		}
 
+		WDist GetRange()
+		{
+			if (armament != null)
+				return RenderRangeCircleInfo.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
+
+			return RenderRangeCircleInfo.FallbackRange;
+		}
+
 		public IEnumerable<IRenderable> RangeCircleRenderables()
 		{
 			if (Visible)
@@ -139,12 +147,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 					yield break;
 
-				WDist range;
-				if (armament != null)
-					range = RenderRangeCircleInfo.RangeCircleMode == RangeCircleMode.Minimum ? armament.MinRange() : armament.MaxRange();
-				else
-					range = RenderRangeCircleInfo.FallbackRange;
-
+				var range = GetRange();
 				if (range == WDist.Zero)
 					yield break;
 
@@ -161,7 +164,72 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		IEnumerable<IRenderable> IRenderAnnotationsWhenSelected.RenderAnnotations(Actor self, WorldRenderer wr)
 		{
-			return RangeCircleRenderables();
+			if (!Visible)
+				yield break;
+
+			if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
+				yield break;
+
+			var range = GetRange();
+			if (range == WDist.Zero)
+				yield break;
+
+			// Gather other selected units' circles with the same range for grouped rendering
+			(WPos Center, long RadiusSq)[] otherCircles = null;
+			var radiusSq = (long)range.Length * range.Length;
+			var others = new System.Collections.Generic.List<(WPos, long)>();
+			foreach (var a in self.World.Selection.Actors)
+			{
+				if (a == self || !a.IsInWorld || a.Disposed)
+					continue;
+
+				if (!a.Owner.IsAlliedWith(self.World.RenderPlayer))
+					continue;
+
+				foreach (var t in a.TraitsImplementing<RenderRangeCircle>())
+				{
+					if (t.IsTraitDisabled)
+						continue;
+
+					var r = t.GetRange();
+					if (r == range)
+						others.Add((a.CenterPosition, radiusSq));
+				}
+			}
+
+			if (others.Count > 0)
+				otherCircles = others.ToArray();
+
+			var info = RenderRangeCircleInfo;
+			if (otherCircles != null)
+			{
+				var dimAlpha = Math.Max(info.Color.A / 4, 3);
+				var dimColor = Color.FromArgb(dimAlpha, info.Color);
+				var dimBorderColor = Color.FromArgb(Math.Max(info.BorderColor.A / 4, 1), info.BorderColor);
+
+				yield return new RangeCircleAnnotationRenderable(
+					self.CenterPosition,
+					range,
+					0,
+					info.Color,
+					info.Width,
+					info.BorderColor,
+					info.BorderWidth,
+					otherCircles,
+					dimColor,
+					dimBorderColor);
+			}
+			else
+			{
+				yield return new RangeCircleAnnotationRenderable(
+					self.CenterPosition,
+					range,
+					0,
+					info.Color,
+					info.Width,
+					info.BorderColor,
+					info.BorderWidth);
+			}
 		}
 
 		bool IRenderAnnotationsWhenSelected.SpatiallyPartitionable => false;
