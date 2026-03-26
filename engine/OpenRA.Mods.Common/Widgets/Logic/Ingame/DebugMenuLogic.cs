@@ -422,5 +422,107 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			world.IssueOrder(new Order(order, world.LocalPlayer.PlayerActor, false));
 		}
+
+		/// <summary>
+		/// Loads debug preset from file without needing the debug panel open.
+		/// Called by both the debug panel Load button and the top-bar quick button.
+		/// </summary>
+		public static void QuickLoadPreset(World world)
+		{
+			var debugVis = world.WorldActor.TraitOrDefault<DebugVisualizations>();
+			var terrainOverlay = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
+			var customTerrainOverlay = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
+
+			// Sync state from traits first so CheatStates is accurate
+			var devTrait = world.LocalPlayer?.PlayerActor.TraitOrDefault<DeveloperMode>();
+			if (devTrait != null)
+				SyncStatesFromTrait(world, devTrait);
+
+			if (!File.Exists(PresetPath))
+			{
+				TextNotificationsManager.Debug("No debug preset found.");
+				return;
+			}
+
+			try
+			{
+				var yaml = MiniYaml.FromFile(PresetPath);
+				foreach (var section in yaml)
+				{
+					if (section.Key == "Cheats")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!int.TryParse(node.Value.Value, out var targetState))
+								continue;
+
+							var widgetId = node.Key;
+							if (!CheatStates.ContainsKey(widgetId))
+								CheatStates[widgetId] = 0;
+
+							var orders = GetOrdersForWidget(widgetId);
+							if (orders == null)
+								continue;
+
+							if (CheatStates[widgetId] != 0)
+							{
+								IssueOrder(world, orders.Value.reset);
+								CheatStates[widgetId] = 0;
+							}
+
+							if (targetState == 1)
+							{
+								IssueOrder(world, orders.Value.toggle);
+								CheatStates[widgetId] = 1;
+							}
+							else if (targetState == 2)
+							{
+								IssueOrder(world, orders.Value.all);
+								CheatStates[widgetId] = 2;
+							}
+						}
+					}
+					else if (section.Key == "Visualizations")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!bool.TryParse(node.Value.Value, out var val))
+								continue;
+
+							switch (node.Key)
+							{
+								case "CombatGeometry":
+									if (debugVis != null) debugVis.CombatGeometry = val;
+									break;
+								case "RenderGeometry":
+									if (debugVis != null) debugVis.RenderGeometry = val;
+									break;
+								case "ScreenMap":
+									if (debugVis != null) debugVis.ScreenMap = val;
+									break;
+								case "ActorTags":
+									if (debugVis != null) debugVis.ActorTags = val;
+									break;
+								case "DepthBuffer":
+									if (debugVis != null) debugVis.DepthBuffer = val;
+									break;
+								case "TerrainGeometry":
+									if (terrainOverlay != null) terrainOverlay.Enabled = val;
+									break;
+								case "CustomTerrain":
+									if (customTerrainOverlay != null) customTerrainOverlay.Enabled = val;
+									break;
+							}
+						}
+					}
+				}
+
+				TextNotificationsManager.Debug("Debug preset loaded.");
+			}
+			catch (Exception e)
+			{
+				TextNotificationsManager.Debug($"Failed to load debug preset: {e.Message}");
+			}
+		}
 	}
 }

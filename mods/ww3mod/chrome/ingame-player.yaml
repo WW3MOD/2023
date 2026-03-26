@@ -1145,14 +1145,35 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: order-icons
-						Button@SELL_BUTTON:
-							Logic: SellOrderButtonLogic, AddFactionSuffixLogic
-							X: 32
+						Button@SPEED_BUTTON:
+							Logic: SpeedControlButtonLogic
+							X: 42
 							Width: 28
 							Height: 28
 							Background: sidebar-button
-							Key: Sell
-							TooltipText: Sell
+							TooltipText: Game Speed
+							TooltipContainer: TOOLTIP_CONTAINER
+							Font: TinyBold
+							Contrast: true
+							VisualHeight: 0
+						Button@PAUSE_BUTTON:
+							Logic: PauseButtonLogic
+							X: 72
+							Width: 28
+							Height: 28
+							Background: sidebar-button
+							TooltipText: Pause
+							TooltipContainer: TOOLTIP_CONTAINER
+							Font: TinyBold
+							Contrast: true
+							VisualHeight: 0
+						Button@GIVE_CASH_BUTTON:
+							Logic: GiveCashButtonLogic, AddFactionSuffixLogic
+							X: 102
+							Width: 28
+							Height: 28
+							Background: sidebar-button
+							TooltipText: Give Cash
 							TooltipContainer: TOOLTIP_CONTAINER
 							VisualHeight: 0
 							Children:
@@ -1160,29 +1181,14 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: order-icons
-						# Button@POWER_BUTTON:
-						# 	Logic: PowerdownOrderButtonLogic, AddFactionSuffixLogic
-						# 	X: 64
-						# 	Width: 28
-						# 	Height: 28
-						# 	Background: sidebar-button
-						# 	Key: PowerDown
-						# 	TooltipText: Power Down
-						# 	TooltipContainer: TOOLTIP_CONTAINER
-						# 	VisualHeight: 0
-						# 	Children:
-						# 		Image@ICON:
-						# 			X: 6
-						# 			Y: 6
-						# 			ImageCollection: order-icons
-						Button@REPAIR_BUTTON:
-							Logic: RepairOrderButtonLogic, AddFactionSuffixLogic
-							X: 96
+									ImageName: sell
+						Button@LOAD_PRESET_BUTTON:
+							Logic: LoadPresetButtonLogic, AddFactionSuffixLogic
+							X: 132
 							Width: 28
 							Height: 28
 							Background: sidebar-button
-							Key: Repair
-							TooltipText: Repair
+							TooltipText: Load Debug Preset
 							TooltipContainer: TOOLTIP_CONTAINER
 							VisualHeight: 0
 							Children:
@@ -1190,6 +1196,22 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: order-icons
+									ImageName: stats
+						MenuButton@DEBUG_BUTTON:
+							Logic: AddFactionSuffixLogic
+							X: 162
+							Width: 28
+							Height: 28
+							Background: sidebar-button
+							TooltipText: Debug Menu
+							TooltipContainer: TOOLTIP_CONTAINER
+							VisualHeight: 0
+							Children:
+								Image@ICON:
+									X: 6
+									Y: 6
+									ImageCollection: order-icons
+									ImageName: repair
 						MenuButton@OPTIONS_BUTTON:
 							Logic: AddFactionSuffixLogic
 							X: 192
