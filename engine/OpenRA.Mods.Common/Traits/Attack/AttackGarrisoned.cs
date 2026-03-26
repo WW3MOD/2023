@@ -130,7 +130,7 @@ namespace OpenRA.Mods.Common.Traits
 			return () =>
 			{
 				if (useGarrisonManager)
-					return garrisonManager.GetAllArmaments();
+					return garrisonManager.GetAllPotentialArmaments();
 
 				return legacyArmaments;
 			};
