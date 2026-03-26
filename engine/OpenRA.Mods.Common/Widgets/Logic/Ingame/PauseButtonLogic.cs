@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (button == null)
 				return;
 
-			button.GetText = () => world.Paused ? "||" : "▶";
+			button.GetText = () => "[]";
 			button.GetTooltipText = () => world.Paused ? "Resume Game" : "Pause Game";
 			button.IsHighlighted = () => world.Paused;
 			button.GetColor = () => world.Paused ? PausedColor : button.TextColor;

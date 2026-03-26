@@ -1146,7 +1146,7 @@ Container@PLAYER_WIDGETS:
 									Y: 6
 									ImageCollection: order-icons
 						Button@SPEED_BUTTON:
-							Logic: SpeedControlButtonLogic
+							Logic: SpeedControlButtonLogic, AddFactionSuffixLogic
 							X: 42
 							Width: 28
 							Height: 28
@@ -1157,7 +1157,7 @@ Container@PLAYER_WIDGETS:
 							Contrast: true
 							VisualHeight: 0
 						Button@PAUSE_BUTTON:
-							Logic: PauseButtonLogic
+							Logic: PauseButtonLogic, AddFactionSuffixLogic
 							X: 72
 							Width: 28
 							Height: 28
