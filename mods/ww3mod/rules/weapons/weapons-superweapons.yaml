@@ -78,16 +78,29 @@ Atomic:
 		Penetration: 5000
 		Falloff: 100, 100, 100
 		Delay: 1
-		ValidTargets: Ground, Trees, Water, Underwater, Air
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 10c0
+
+	# Instant tree incineration at ground zero (0-3 cells) — trees vaporized, husked immediately
+	Warhead@TreeVaporize: SpreadDamage
+		Spread: 1c0
+		Damage: 200000
+		Penetration: 5000
+		Falloff: 100, 100, 100, 100
+		Delay: 1
+		ValidTargets: Trees
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
 	# Sustained thermal radiation — damage pulses every 3 ticks for 50 ticks (~17 pulses)
 	# Inverse-square-ish falloff: 100% at center, drops steeply with distance
-	# At 3 cells: ~30% per pulse — infantry cooked to death in seconds
-	# At 6 cells: ~8% per pulse — infantry visibly melting, vehicles scorched
-	# At 10 cells: ~2% per pulse — light burns, suppressed
+	# At 3 cells: ~20% per pulse — infantry cooked to death in seconds
+	# At 6 cells: ~5% per pulse — infantry visibly melting, vehicles scorched
+	# At 10 cells: ~1% per pulse — light burns, suppressed
 	# At 15+ cells: negligible — only the shockwave matters here
+	# Trees excluded — tree damage is handled entirely by fire condition duration
 	Warhead@ThermalRadiation: ThermalRadiation
 		RadiationDuration: 50
 		DamageInterval: 3
@@ -96,17 +109,17 @@ Atomic:
 		Penetration: 300
 		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
 		Delay: 1
-		ValidTargets: Ground, Trees, Water, Underwater, Air
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 		Versus:
 			Light: 120
-			Wood: 500
 			Medium: 60
 			Heavy: 30
 			Concrete: 20
 
-	# ===== FIRE: Staggered thermal ignition =====
+	# ===== FIRE: Staggered thermal ignition (structures & infantry) =====
 	# 10 warheads with staggered delays simulate the thermal radiation
 	# igniting flammable materials at different distances.
 	# Close units catch fire immediately (within the fireball shine);
@@ -123,7 +136,7 @@ Atomic:
 		Duration: 750
 		Condition: onfire
 		Delay: 1
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire2: GrantExternalCondition
@@ -132,7 +145,7 @@ Atomic:
 		Duration: 700
 		Condition: onfire
 		Delay: 6
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire3: GrantExternalCondition
@@ -141,7 +154,7 @@ Atomic:
 		Duration: 650
 		Condition: onfire
 		Delay: 11
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire4: GrantExternalCondition
@@ -150,7 +163,7 @@ Atomic:
 		Duration: 600
 		Condition: onfire
 		Delay: 16
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire5: GrantExternalCondition
@@ -159,7 +172,7 @@ Atomic:
 		Duration: 550
 		Condition: onfire
 		Delay: 21
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire6: GrantExternalCondition
@@ -168,7 +181,7 @@ Atomic:
 		Duration: 500
 		Condition: onfire
 		Delay: 26
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire7: GrantExternalCondition
@@ -177,7 +190,7 @@ Atomic:
 		Duration: 450
 		Condition: onfire
 		Delay: 32
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire8: GrantExternalCondition
@@ -186,7 +199,7 @@ Atomic:
 		Duration: 400
 		Condition: onfire
 		Delay: 38
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire9: GrantExternalCondition
@@ -195,7 +208,7 @@ Atomic:
 		Duration: 350
 		Condition: onfire
 		Delay: 44
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire10: GrantExternalCondition
@@ -204,7 +217,48 @@ Atomic:
 		Duration: 300
 		Condition: onfire
 		Delay: 50
-		ValidTargets: Structure, Infantry, Trees
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+
+	# ===== TREE FIRE: Graduated burn by distance =====
+	# Trees are handled separately from structures/infantry because we want
+	# precise control over which trees die (husk) vs survive.
+	# Tree HP: 2500, burn rate: -10 HP/tick (100 dmg per 10 ticks). Needs 250 ticks to kill.
+	#
+	# 0-3 cells: already vaporized by TreeVaporize (instant husk)
+	# 3-6 cells: burns long enough to kill (400 ticks > 250 needed) — slow visible death → husk
+	# 6-10 cells: burns but survives (180 ticks × 10 = 1800 dmg, tree at ~700 HP, Heavy state)
+	# 10-18 cells: brief singe (80 ticks × 10 = 800 dmg, tree at ~1700 HP, Light state)
+	# 18+ cells: untouched
+	#
+	# TotalCap: 1 on trees means only the FIRST fire warhead to hit determines duration.
+	# Lower delay = fires first = controls the tree's fate at that range.
+	Warhead@TreeFire_Kill: GrantExternalCondition
+		Range: 6c0
+		Amount: 1
+		Duration: 400
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@TreeFire_Burn: GrantExternalCondition
+		Range: 10c0
+		Amount: 1
+		Duration: 180
+		Condition: onfire
+		Delay: 10
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@TreeFire_Singe: GrantExternalCondition
+		Range: 18c0
+		Amount: 1
+		Duration: 80
+		Condition: onfire
+		Delay: 25
+		ValidTargets: Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 
@@ -223,6 +277,7 @@ Atomic:
 	# ===== PHASE 3: BLAST WAVE (Tick 3 → ~178) — Speed of Sound =====
 	# Expanding shockwave at ~7 ticks/cell (340 m/s at 100m/cell)
 	# Single warhead replaces 53 manual SpreadDamage warheads!
+	# Trees excluded — tree destruction is controlled by fire duration, not overpressure
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 3
 		WaveSpeed: 7
@@ -234,11 +289,11 @@ Atomic:
 		Falloff: 500, 450, 400, 350, 300, 250, 200, 160, 130, 100, 80, 60, 45, 35, 25, 18, 12, 8, 5, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0
 		Versus:
 			Light: 80
-			Wood: 600
 			Medium: 60
 			Heavy: 40
 			Concrete: 30
-		ValidTargets: Ground, Trees, Water, Underwater, Air
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
 		AffectsParent: true
 		DamageTypes: ExplosionDeath
 		AirThreshold: 10c0
