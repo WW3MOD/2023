@@ -26,6 +26,7 @@ namespace OpenRA.Mods.Common.Widgets
 		bool waypointModeDisabled = true;
 		bool patrolDisabled = true;
 		bool autoEnterDisabled = true;
+		bool takeCoverDisabled = true;
 
 
 		int deployHighlighted;
@@ -237,6 +238,14 @@ namespace OpenRA.Mods.Common.Widgets
 				autoEnterButton.OnKeyPress = ki => { autoEnterHighlighted = 2; autoEnterButton.OnClick(); };
 			}
 
+			var takeCoverButton = widget.GetOrNull<ButtonWidget>("TAKE_COVER");
+			if (takeCoverButton != null)
+			{
+				WidgetUtils.BindButtonIcon(takeCoverButton);
+
+				takeCoverButton.IsDisabled = () => { UpdateStateIfNecessary(); return takeCoverDisabled; };
+			}
+
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
 			if (stopButton != null)
 			{
@@ -408,6 +417,7 @@ namespace OpenRA.Mods.Common.Widgets
 			resupplyDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AmmoPoolInfo>());
 			patrolDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 			autoEnterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<PassengerInfo>() || a.Info.HasTraitInfo<CargoInfo>());
+			takeCoverDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<InfantryStatesInfo>());
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()
