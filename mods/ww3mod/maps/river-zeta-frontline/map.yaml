@@ -1,0 +1,214 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: River Zeta — Frontline [Scenario]
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 98,82
+
+Bounds: 0,0,98,82
+
+Visibility: Lobby
+
+Categories: Scenario
+
+LockPreview: True
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Creeps:
+		Name: Creeps
+		NonCombatant: True
+		Faction: america
+		Enemies: Multi0, Multi1, NATOGarrison, RussiaGarrison
+	PlayerReference@Multi0:
+		Name: Multi0
+		Playable: True
+		Faction: america
+		Color: 3276FF
+		Enemies: Multi1, RussiaGarrison, Creeps
+		Allies: NATOGarrison
+	PlayerReference@Multi1:
+		Name: Multi1
+		Playable: True
+		Faction: russia
+		Color: FF3232
+		Enemies: Multi0, NATOGarrison, Creeps
+		Allies: RussiaGarrison
+	PlayerReference@NATOGarrison:
+		Name: NATOGarrison
+		Playable: False
+		Faction: america
+		Color: 5A9AFF
+		Enemies: Multi1, RussiaGarrison, Creeps
+		Allies: Multi0
+	PlayerReference@RussiaGarrison:
+		Name: RussiaGarrison
+		Playable: False
+		Faction: russia
+		Color: FF6464
+		Enemies: Multi0, NATOGarrison, Creeps
+		Allies: Multi1
+
+Actors:
+	NatoSpawn: mpspawn
+		Owner: Neutral
+		Location: 5,40
+	RussiaSpawn: mpspawn
+		Owner: Neutral
+		Location: 92,40
+
+	NatoSR: SUPPLYROUTE
+		Owner: Multi0
+		Location: 10,38
+	RussiaSR: SUPPLYROUTE
+		Owner: Multi1
+		Location: 87,38
+
+	GarNatoAbrams1: abrams
+		Owner: NATOGarrison
+		Location: 30,28
+		Facing: 768
+	GarNatoAbrams2: abrams
+		Owner: NATOGarrison
+		Location: 30,48
+		Facing: 768
+	GarNatoBradley1: bradley
+		Owner: NATOGarrison
+		Location: 32,34
+		Facing: 768
+	GarNatoBradley2: bradley
+		Owner: NATOGarrison
+		Location: 32,44
+		Facing: 768
+	GarNatoHumvee: humvee
+		Owner: NATOGarrison
+		Location: 28,20
+		Facing: 768
+	GarNatoE3_1: e3.america
+		Owner: NATOGarrison
+		Location: 34,30
+		Facing: 768
+	GarNatoE3_2: e3.america
+		Owner: NATOGarrison
+		Location: 34,32
+		Facing: 768
+	GarNatoE3_3: e3.america
+		Owner: NATOGarrison
+		Location: 34,36
+		Facing: 768
+	GarNatoE3_4: e3.america
+		Owner: NATOGarrison
+		Location: 34,38
+		Facing: 768
+	GarNatoAR_1: ar.america
+		Owner: NATOGarrison
+		Location: 36,34
+		Facing: 768
+	GarNatoAR_2: ar.america
+		Owner: NATOGarrison
+		Location: 36,40
+		Facing: 768
+	GarNatoAT_1: at.america
+		Owner: NATOGarrison
+		Location: 35,42
+		Facing: 768
+	GarNatoAT_2: at.america
+		Owner: NATOGarrison
+		Location: 35,46
+		Facing: 768
+	GarNatoE1_1: e1.america
+		Owner: NATOGarrison
+		Location: 33,50
+		Facing: 768
+	GarNatoE1_2: e1.america
+		Owner: NATOGarrison
+		Location: 33,52
+		Facing: 768
+	GarNatoMedi: medi.america
+		Owner: NATOGarrison
+		Location: 30,38
+		Facing: 768
+	GarNatoSN: sn.america
+		Owner: NATOGarrison
+		Location: 32,26
+		Facing: 768
+
+	GarRussiaT90_1: t90
+		Owner: RussiaGarrison
+		Location: 66,28
+		Facing: 256
+	GarRussiaT90_2: t90
+		Owner: RussiaGarrison
+		Location: 66,48
+		Facing: 256
+	GarRussiaBMP_1: bmp2
+		Owner: RussiaGarrison
+		Location: 64,34
+		Facing: 256
+	GarRussiaBMP_2: bmp2
+		Owner: RussiaGarrison
+		Location: 64,44
+		Facing: 256
+	GarRussiaBTR: btr
+		Owner: RussiaGarrison
+		Location: 68,20
+		Facing: 256
+	GarRussiaE3_1: e3.russia
+		Owner: RussiaGarrison
+		Location: 62,30
+		Facing: 256
+	GarRussiaE3_2: e3.russia
+		Owner: RussiaGarrison
+		Location: 62,32
+		Facing: 256
+	GarRussiaE3_3: e3.russia
+		Owner: RussiaGarrison
+		Location: 62,36
+		Facing: 256
+	GarRussiaE3_4: e3.russia
+		Owner: RussiaGarrison
+		Location: 62,38
+		Facing: 256
+	GarRussiaAR_1: ar.russia
+		Owner: RussiaGarrison
+		Location: 60,34
+		Facing: 256
+	GarRussiaAR_2: ar.russia
+		Owner: RussiaGarrison
+		Location: 60,40
+		Facing: 256
+	GarRussiaAT_1: at.russia
+		Owner: RussiaGarrison
+		Location: 61,42
+		Facing: 256
+	GarRussiaAT_2: at.russia
+		Owner: RussiaGarrison
+		Location: 61,46
+		Facing: 256
+	GarRussiaE1_1: e1.russia
+		Owner: RussiaGarrison
+		Location: 63,50
+		Facing: 256
+	GarRussiaE1_2: e1.russia
+		Owner: RussiaGarrison
+		Location: 63,52
+		Facing: 256
+	GarRussiaMedi: medi.russia
+		Owner: RussiaGarrison
+		Location: 66,38
+		Facing: 256
+	GarRussiaSN: sn.russia
+		Owner: RussiaGarrison
+		Location: 64,26
+		Facing: 256
+
+Rules: rules.yaml

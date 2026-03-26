@@ -42,7 +42,8 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 - **ALWAYS commit before ending a session.** Never leave uncommitted changes behind. If you made code changes, commit them — even if you didn't run FINALIZE. This is the #1 most important workflow rule.
 
 ### Communication Format
-- **Start every response with a short Red Alert / C&C quote, reference, or joke.** One line max. It should connect to what you're about to do — not random. No repeats within a session. Draw from the full C&C universe: Red Alert 1/2/3, Tiberium series, Generals — unit lines, advisor quotes, cutscenes, loading screen tips. Assume deep franchise knowledge. Occasionally roast the user or go dark-humor. When the user quotes C&C, answer in-character from the same game.
+- **Occationally insert a seperate line with a red alert (1 or 2) in game unit phrase as if that unit was commenting on what is going on right now** It should connect to what you're about to do or what the user said — not random. No repeats within a session. Occasionally roast the user or go dark-humor.
+
 - Every response MUST end with exactly two lines:
   ```
   TASK: <one-line description of what was tasked>
@@ -230,6 +231,57 @@ WW3MOD/
 ├── Makefile / make.ps1             # Build system
 └── mod.config                      # Build configuration
 ```
+
+## Scenario System
+
+Scenarios are scripted map variants that share terrain with a base map but add different units, players, and Lua scripts. They appear in the lobby map chooser under the "Scenario" category.
+
+### How It Works
+- A scenario is a **separate map folder** that copies `map.bin` (terrain) from a base map
+- Has its own `map.yaml` (different actors, players), `rules.yaml` (LuaScript reference), and `.lua` script
+- Uses `Categories: Scenario` to appear in the Scenario filter in the map chooser
+- No engine C# changes needed — everything runs on OpenRA's existing Lua scripting API
+- Supports multiplayer + bots — human players take specific slots, bots fill the rest
+
+### Creating a Scenario
+1. Create a new map folder: `mods/ww3mod/maps/<base-map>-<scenario-name>/`
+2. Copy `map.bin`, `shadows.bin`, `map.png` from the base map
+3. Write `map.yaml` with:
+   - `Categories: Scenario` and `LockPreview: True`
+   - Custom players (human playable + non-playable garrison/AI factions)
+   - Pre-placed actors (garrison units, supply routes, objectives)
+4. Write `rules.yaml` with `LuaScript: Scripts: scenario.lua, <your-script>.lua`
+5. Write your scenario `.lua` script using the `Scenario` helper library
+
+### Scenario Lua Library (`mods/ww3mod/scripts/scenario.lua`)
+Reusable helpers for scenario scripts:
+- **Spawning**: `Scenario.SpawnUnit()`, `Scenario.SpawnGroup()`, `Scenario.ReinforceFromEdge()`
+- **Ownership Transfer**: `Scenario.TransferAll(from, to)`, `Scenario.ScheduleTransfer(from, to, delaySec)`
+- **Wave Spawning**: `Scenario.ScheduleWave(wave, delaySec)`, `Scenario.ScheduleWaves(waves, base, interval)`
+- **Patrol/Defense**: `Scenario.Patrol(actors, waypoints)`, `Scenario.DefendPosition(actors)`
+- **Messaging**: `Scenario.Message(text)`, `Scenario.SetBriefing(text)`, `Scenario.PlaySpeech(player, notif)`
+- **Objectives**: `Scenario.AddPrimaryObjective(player, desc)`, `Scenario.CompleteObjective(player, id)`
+- **Utility**: `Scenario.GetLiving(tag)`, `Scenario.CountLiving(tag)`, `Scenario.OnGroupEliminated(tag, cb)`
+
+### Example: River Zeta — Frontline (`maps/river-zeta-frontline/`)
+- 2 human player slots (NATO west, Russia east) each with a Supply Route
+- NATOGarrison / RussiaGarrison — allied non-playable players with frontline troops
+- After 3 minutes, garrison units transfer to human player control
+- Enemy reinforcement waves (5 on Normal, scaling with difficulty dropdown)
+- Difficulty dropdown: Easy (3 waves, 60% strength), Normal (5 waves), Hard (7 waves, 140% strength)
+
+### Key Lua APIs Used
+| API | Purpose |
+|---|---|
+| `actor.Owner = player` | Transfer unit ownership |
+| `Actor.Create(type, true, inits)` | Spawn new actors |
+| `Reinforcements.Reinforce(owner, types, path, interval)` | Edge reinforcements |
+| `Trigger.AfterDelay(ticks, func)` | Timed events |
+| `Trigger.OnAllKilled(actors, func)` | Group elimination triggers |
+| `player.AddPrimaryObjective(desc)` | Mission objectives |
+| `UserInterface.SetMissionText(text)` | HUD briefing text |
+| `Media.DisplayMessage(text, prefix)` | Chat log messages |
+| `Media.PlaySpeechNotification(player, notif)` | EVA voice lines |
 
 ## Key Engine Modifications
 
@@ -469,6 +521,7 @@ Each unit type has a base template file and two faction files:
 - **Control bar overhaul** — Added Cohesion (Tight/Loose/Spread) and Resupply Behavior (Hold/Auto/Evacuate) stance bars. Click-modifier meta-system on all 4 bars: Click=set stance, Ctrl+Click=per-unit default, Ctrl+Alt+Click=per-type default, Alt+Click="Do Now" order (persisted across games via UnitDefaultsManager). Evacuate command button removed (folded into Resupply bar). Tooltips anchor above buttons. Medic/Engineer default to Hunt engagement. Resupply behavior implemented: Auto seeks supply, Hold flags for truck pickup, Evacuate leaves via SR. Supply trucks in Hunt stance seek flagged units map-wide. Cohesion distributes group move targets via IModifyGroupOrder (CohesionMoveModifier). Patrol system with waypoint queuing (PatrolOrderGenerator → PatrolActivity bounce/circular loop)
 - **Supply Route contestation system** — Replaced binary ProximityContestable with graduated SupplyRouteContestation trait. Control bar (0-100%) depleted by net enemy value surplus in 10-cell range: 5 infantry (~2500 value) depletes in 60s, full company in 20s min. Production speed scales linearly below 50% bar (100%→0%), halts at 0%. Auto-recovery when enemies leave, 3x faster with friendlies. Full feedback: player-colored selection bar visible to all, building flash, EVA "BaseAttack" notification, text log, minimap ping. New IProductionSpeedModifier interface with accumulator pattern in ProductionQueue for dynamic per-tick speed control. SR is indestructible — enemies can only deny, never capture
 - **Helicopter emergency landing system** — Two-tier: Heavy damage triggers controlled autorotation (player steers, helicopter glides forward losing altitude, lands safely on suitable terrain as disabled+repairable unit, crew/passengers evacuate). Critical damage triggers uncontrolled crash (configurable spinning for tail rotor loss, always destroyed on impact, crew ejected only if on suitable ground terrain). Mid-air destruction = crew dies (suppress-eject condition gates EjectOnDeath). Chinook/HALO: SpinsOnCrash=false for dual rotors. RepairableBuilding activated on crash-disabled condition for ground repair
+- **Scenario system** — Map scenario variants sharing terrain (map.bin) with different actors/scripts. Reusable `scenario.lua` Lua library (spawn, ownership transfer, waves, patrol, objectives, messaging). First scenario: "River Zeta — Frontline" — garrison forces + timed transfer + enemy waves + difficulty dropdown. No engine C# changes — pure Lua + YAML. `Categories: Scenario` for map chooser filtering
 
 ### Next Priorities
 1. **Helicopter emergency landing playtesting** — verify autorotation descent, crash spinning, safe landing repair flow, crew ejection on suitable terrain, crew death on mid-air destruction, Chinook no-spin
@@ -516,7 +569,7 @@ dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release
 
 **Dev helper script:** `./ww3-dev.ps1` — build, run, test, pre-flight checks, debug log cleanup
 
-**Note:** Game must be closed before building/testing (DLLs are locked while running).
+**Note:** Build fails if the game is running (DLLs locked). This is normal — the user often playtests while agents work. If a build fails for this reason, just move on to other work or wait quietly. Do not speculate, alarm, or ask the user to close the game. `launch-game` auto-builds before launching, so the user will get a fresh build on next playtest.
 
 ## Common Pitfalls
 
