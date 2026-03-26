@@ -64,74 +64,59 @@ Atomic:
 		VisibleThroughFog: true
 		ValidTargets: Ground, Water, Air
 
-	# ===== PHASE 1: THERMAL RADIATION — Sustained Fireball Pulse =====
-	# The fireball radiates intense heat for ~2 seconds (50 ticks).
-	# Close infantry is cooked by repeated thermal pulses + catches fire fast.
-	# Far infantry catches fire slowly as thermal radiation reaches them.
+	# ===== PHASE 1: THERMAL RADIATION — Constant Fireball Shine =====
+	# The fireball forms in milliseconds and immediately reaches peak brightness.
+	# For ~2 seconds (50 ticks), it shines at peak thermal intensity — a constant,
+	# repeating pulse of thermal radiation cooking everything in line of sight.
+	# Inverse falloff: close units melt visibly over the 2 seconds; far units barely singed.
+	# After the thermal shine fades, the shockwave arrives to finish survivors.
 
-	# Instant vaporization at ground zero (0-1 cells)
+	# Instant vaporization at ground zero (0-2 cells) — nothing survives this close
 	Warhead@ThermalVaporize: SpreadDamage
 		Spread: 1c0
 		Damage: 200000
-		Penetration: 3000
-		Falloff: 100, 20
+		Penetration: 5000
+		Falloff: 100, 100, 100
 		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Repeating thermal damage pulses — expanding fireball cooks close infantry
-	# Each pulse is slightly larger (fireball expanding) and weaker (energy dissipating)
-	Warhead@ThermalPulse1: SpreadDamage
+	# Sustained thermal radiation — damage pulses every 3 ticks for 50 ticks (~17 pulses)
+	# Inverse-square-ish falloff: 100% at center, drops steeply with distance
+	# At 3 cells: ~30% per pulse — infantry cooked to death in seconds
+	# At 6 cells: ~8% per pulse — infantry visibly melting, vehicles scorched
+	# At 10 cells: ~2% per pulse — light burns, suppressed
+	# At 15+ cells: negligible — only the shockwave matters here
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 50
+		DamageInterval: 3
 		Spread: 1c0
-		Damage: 5000
-		Penetration: 500
-		Falloff: 100, 80, 50, 20
+		Damage: 3000
+		Penetration: 300
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
 		Delay: 1
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
-	Warhead@ThermalPulse2: SpreadDamage
-		Spread: 1c0
-		Damage: 100
-		Penetration: 300
-		Falloff: 100, 80, 60, 50, 40, 30, 25, 20, 15, 10, 5
-		Delay: 5
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		DamageTypes: FireDeath
-		AirThreshold: 10c0
-	Warhead@ThermalPulse3: SpreadDamage
-		Spread: 1c0
-		Damage: 2000
-		Penetration: 200
-		Falloff: 100, 80, 60, 50, 35, 20, 10, 3
-		Delay: 20
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		DamageTypes: FireDeath
-		AirThreshold: 10c0
-	Warhead@ThermalPulse4: SpreadDamage
-		Spread: 1c0
-		Damage: 1000
-		Penetration: 100
-		Falloff: 100, 80, 60, 50, 40, 30, 25, 20, 15, 10, 5
-		Delay: 30
-		ValidTargets: Ground, Trees, Water, Air
-		DamageTypes: FireDeath
-		AirThreshold: 10c0
+		Versus:
+			Light: 120
+			Wood: 500
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
 
 	# ===== FIRE: Staggered thermal ignition =====
-	# 10 warheads, each Amount: 1, with STAGGERED DELAYS.
-	# Small-range warheads fire EARLY (close stuff catches fire first).
-	# Large-range warheads fire LATE (far stuff catches fire slowly).
-	# Overlapping ranges mean close units accumulate stacks faster:
+	# 10 warheads with staggered delays simulate the thermal radiation
+	# igniting flammable materials at different distances.
+	# Close units catch fire immediately (within the fireball shine);
+	# far units only start burning as the thermal pulse reaches them.
+	# Overlapping ranges mean close units accumulate fire stacks faster:
 	#
 	# At 5 cells:  gets Fire1(t1) → Fire10(t50) = 10 stacks over 2.0s
 	# At 15 cells: gets Fire3(t11) → Fire10(t50) = 8 stacks from 0.4s to 2.0s
 	# At 20 cells: gets Fire6(t26) → Fire10(t50) = 5 stacks from 1.0s to 2.0s
 	# At 25 cells: gets Fire9(t44), Fire10(t50) = 2 stacks, barely burning
-	#
-	# Close infantry: catches fire FIRST, reaches max fire FASTEST → dies from fire
-	# Far infantry: catches fire LATE and SLOWLY → mild burning when blast wave hits
 	Warhead@Fire1: GrantExternalCondition
 		Range: 10c0
 		Amount: 1
