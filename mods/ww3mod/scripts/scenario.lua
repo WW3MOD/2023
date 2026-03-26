@@ -264,7 +264,11 @@ end
 -- color: optional Color (default white)
 Scenario.Message = function(text, prefix, color)
 	prefix = prefix or "SCENARIO"
-	Media.DisplayMessage(text, prefix, color)
+	if color then
+		Media.DisplayMessage(text, prefix, color)
+	else
+		Media.DisplayMessage(text, prefix)
+	end
 end
 
 -- Display a message after a delay (seconds).
@@ -276,7 +280,11 @@ end
 
 -- Set the mission text at top of screen (persistent HUD text).
 Scenario.SetBriefing = function(text, color)
-	UserInterface.SetMissionText(text, color)
+	if color then
+		UserInterface.SetMissionText(text, color)
+	else
+		UserInterface.SetMissionText(text)
+	end
 end
 
 -- Clear the mission text.
