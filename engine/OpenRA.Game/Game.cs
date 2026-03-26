@@ -520,16 +520,58 @@ namespace OpenRA
 			}
 		}
 
+		public static void LoadShellMap(string uid)
+		{
+			var available = GetAvailableShellmaps();
+			if (!available.Any(m => m.Uid == uid))
+			{
+				LoadShellMap();
+				return;
+			}
+
+			using (new PerfTimer("StartGame"))
+			{
+				StartGame(uid, WorldType.Shellmap);
+				OnShellmapLoaded();
+			}
+		}
+
+		public static MapPreview[] GetAvailableShellmaps()
+		{
+			return ModData.MapCache
+				.Where(m => m.Status == MapStatus.Available && m.Visibility.HasFlag(MapVisibility.Shellmap))
+				.ToArray();
+		}
+
 		static string ChooseShellmap()
 		{
-			var shellmaps = ModData.MapCache
-				.Where(m => m.Status == MapStatus.Available && m.Visibility.HasFlag(MapVisibility.Shellmap))
-				.Select(m => m.Uid);
+			var shellmaps = GetAvailableShellmaps();
 
-			if (!shellmaps.Any())
+			if (shellmaps.Length == 0)
 				throw new InvalidDataException("No valid shellmaps available");
 
-			return shellmaps.Random(CosmeticRandom);
+			// Respect player's shellmap order preference
+			var settings = Settings.Game;
+			if (settings.ShellmapUseOrder && settings.ShellmapOrder.Length > 0)
+			{
+				// Use first valid UID from the ordered list
+				foreach (var uid in settings.ShellmapOrder)
+				{
+					if (shellmaps.Any(m => m.Uid == uid))
+						return uid;
+				}
+			}
+
+			// Check for first-time shellmap from mod metadata
+			var firstTimeMap = ModData.Manifest.Metadata.FirstTimeShellmap;
+			if (settings.ShellmapOrder.Length == 0 && !string.IsNullOrEmpty(firstTimeMap))
+			{
+				var match = shellmaps.FirstOrDefault(m => m.Title == firstTimeMap || m.Uid == firstTimeMap);
+				if (match != null)
+					return match.Uid;
+			}
+
+			return shellmaps.Random(CosmeticRandom).Uid;
 		}
 
 		public static void SwitchToExternalMod(ExternalMod mod, string[] launchArguments = null, Action onFailed = null)

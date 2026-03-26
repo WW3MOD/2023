@@ -62,6 +62,9 @@ namespace OpenRA
 		public string WebIcon32;
 		public string WindowTitle;
 		public bool Hidden;
+
+		[Desc("Title of the shellmap to show for first-time players. Empty = random.")]
+		public string FirstTimeShellmap;
 	}
 
 	/// <summary> Describes what is to be loaded in order to run a mod. </summary>

@@ -59,6 +59,214 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Game.RunAfterTick(Ui.ResetTooltips);
 		}
 
+		void SetupShellmapSelector(Widget widget, World world)
+		{
+			var shellmaps = Game.GetAvailableShellmaps();
+			if (shellmaps.Length == 0)
+				return;
+
+			var currentUid = world.Map.Uid;
+			var currentIndex = Array.FindIndex(shellmaps, m => m.Uid == currentUid);
+
+			// Helper: get ordered list for display — preferred shellmaps first, then rest alphabetically
+			MapPreview[] GetOrderedShellmaps()
+			{
+				var settings = Game.Settings.Game;
+				var ordered = new List<MapPreview>();
+
+				// Add preferred maps in order (if they still exist)
+				foreach (var uid in settings.ShellmapOrder)
+				{
+					var match = shellmaps.FirstOrDefault(m => m.Uid == uid);
+					if (match != null)
+						ordered.Add(match);
+				}
+
+				// Add remaining maps alphabetically
+				foreach (var m in shellmaps.OrderBy(m => m.Title))
+				{
+					if (!ordered.Contains(m))
+						ordered.Add(m);
+				}
+
+				return ordered.ToArray();
+			}
+
+			// Helper: get display name for a UID
+			string GetShellmapLabel(string uid)
+			{
+				if (string.IsNullOrEmpty(uid))
+					return "Random";
+
+				var map = shellmaps.FirstOrDefault(m => m.Uid == uid);
+				return map?.Title ?? "Unknown";
+			}
+
+			// Helper: is the current mode "Random"?
+			bool IsRandomMode() => !Game.Settings.Game.ShellmapUseOrder;
+
+			// Helper: get current display text
+			string GetCurrentLabel()
+			{
+				if (IsRandomMode())
+					return "Random";
+
+				var settings = Game.Settings.Game;
+				if (settings.ShellmapOrder.Length > 0)
+					return GetShellmapLabel(settings.ShellmapOrder[0]);
+
+				return world.Map.Title ?? "Random";
+			}
+
+			// Alt+click: promote a shellmap UID to front of order list
+			void PromoteShellmap(string uid)
+			{
+				var settings = Game.Settings.Game;
+				var order = settings.ShellmapOrder.Where(u => u != uid).ToList();
+				order.Insert(0, uid);
+				settings.ShellmapOrder = order.ToArray();
+				settings.ShellmapUseOrder = true;
+				Game.Settings.Save();
+			}
+
+			// Alt+click when already #1: add to end instead (for building ordered list)
+			void AppendShellmap(string uid)
+			{
+				var settings = Game.Settings.Game;
+				if (settings.ShellmapOrder.Contains(uid))
+					return;
+
+				var order = settings.ShellmapOrder.ToList();
+				order.Add(uid);
+				settings.ShellmapOrder = order.ToArray();
+				Game.Settings.Save();
+			}
+
+			// Set to random mode
+			void SetRandomMode()
+			{
+				var settings = Game.Settings.Game;
+				settings.ShellmapUseOrder = false;
+				Game.Settings.Save();
+			}
+
+			// Navigate to next/prev shellmap
+			void NavigateShellmap(int direction)
+			{
+				var ordered = GetOrderedShellmaps();
+				if (ordered.Length <= 1)
+					return;
+
+				var idx = Array.FindIndex(ordered, m => m.Uid == currentUid);
+				if (idx < 0)
+					idx = 0;
+
+				idx = (idx + direction + ordered.Length) % ordered.Length;
+				var targetUid = ordered[idx].Uid;
+				Game.RunAfterTick(() => Game.LoadShellMap(targetUid));
+			}
+
+			// Prev button
+			var prevButton = widget.GetOrNull<ButtonWidget>("SHELLMAP_PREV");
+			if (prevButton != null)
+				prevButton.OnClick = () => NavigateShellmap(-1);
+
+			// Next button
+			var nextButton = widget.GetOrNull<ButtonWidget>("SHELLMAP_NEXT");
+			if (nextButton != null)
+				nextButton.OnClick = () => NavigateShellmap(1);
+
+			// Dropdown
+			var dropdown = widget.GetOrNull<DropDownButtonWidget>("SHELLMAP_DROPDOWN");
+			if (dropdown != null)
+			{
+				dropdown.GetText = GetCurrentLabel;
+
+				dropdown.OnMouseDown = _ =>
+				{
+					ShowShellmapDropdown(dropdown, shellmaps, IsRandomMode, SetRandomMode, PromoteShellmap, AppendShellmap, GetOrderedShellmaps);
+				};
+			}
+		}
+
+		static void ShowShellmapDropdown(
+			DropDownButtonWidget dropdown,
+			MapPreview[] shellmaps,
+			Func<bool> isRandomMode,
+			Action setRandomMode,
+			Action<string> promoteShellmap,
+			Action<string> appendShellmap,
+			Func<MapPreview[]> getOrderedShellmaps)
+		{
+			var options = new List<(string uid, string label, bool isRandom)>();
+			options.Add(("", "Random", true));
+
+			foreach (var m in getOrderedShellmaps())
+			{
+				var settings = Game.Settings.Game;
+				var rank = Array.IndexOf(settings.ShellmapOrder, m.Uid);
+				var label = rank >= 0 ? $"{rank + 1}. {m.Title}" : m.Title;
+				options.Add((m.Uid, label, false));
+			}
+
+			ScrollItemWidget SetupItem((string uid, string label, bool isRandom) option, ScrollItemWidget template)
+			{
+				var isSelected = option.isRandom
+					? (Func<bool>)isRandomMode
+					: () => !isRandomMode() && Game.Settings.Game.ShellmapOrder.Length > 0
+						&& Game.Settings.Game.ShellmapOrder[0] == option.uid;
+
+				var item = ScrollItemWidget.Setup(template, isSelected, () =>
+				{
+					var modifiers = Game.GetModifierKeys();
+					var isAlt = modifiers.HasFlag(Modifiers.Alt);
+
+					if (isAlt)
+					{
+						// Alt+click: reorder without loading
+						if (option.isRandom)
+						{
+							setRandomMode();
+							return;
+						}
+
+						var settings = Game.Settings.Game;
+						if (settings.ShellmapOrder.Contains(option.uid))
+						{
+							// Already in list — promote to front
+							promoteShellmap(option.uid);
+						}
+						else
+						{
+							// Not in list — append to end
+							appendShellmap(option.uid);
+							settings.ShellmapUseOrder = true;
+							Game.Settings.Save();
+						}
+					}
+					else
+					{
+						// Normal click: select this shellmap and load it
+						if (option.isRandom)
+						{
+							setRandomMode();
+							Game.RunAfterTick(Game.LoadShellMap);
+						}
+						else
+						{
+							promoteShellmap(option.uid);
+							Game.RunAfterTick(() => Game.LoadShellMap(option.uid));
+						}
+					}
+				});
+
+				item.Get<LabelWidget>("LABEL").GetText = () => option.label;
+				return item;
+			}
+
+			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 300, options, SetupItem);
+		}
+
 		[ObjectCreator.UseCtor]
 		public MainMenuLogic(Widget widget, World world, ModData modData)
 		{
@@ -74,10 +282,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 			};
 
-			// Shellmap Replay button — restarts the shellmap battle
+			// Shellmap selector — prev/next/dropdown with alt-click reordering
+			SetupShellmapSelector(widget, world);
+
+			// Shellmap Replay button — restarts current shellmap battle
 			var replayButton = rootMenu.GetOrNull<ButtonWidget>("REPLAY_BUTTON");
 			if (replayButton != null)
-				replayButton.OnClick = () => Game.RunAfterTick(Game.LoadShellMap);
+				replayButton.OnClick = () => Game.RunAfterTick(() => Game.LoadShellMap(world.Map.Uid));
 
 			// Shellmap Nuke button — lets user click to nuke a location
 			var nukeButton = rootMenu.GetOrNull<ButtonWidget>("NUKE_BUTTON");

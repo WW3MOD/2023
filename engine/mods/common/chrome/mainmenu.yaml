@@ -26,6 +26,27 @@ Container@MAINMENU:
 		ShellmapNukeOverlay@NUKE_OVERLAY:
 			Width: WINDOW_RIGHT
 			Height: WINDOW_BOTTOM
+		Button@SHELLMAP_PREV:
+			X: WINDOW_RIGHT - 310
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: <
+			Font: Bold
+		DropDownButton@SHELLMAP_DROPDOWN:
+			X: WINDOW_RIGHT - 280
+			Y: 15
+			Width: 130
+			Height: 25
+			Font: Bold
+			Text: Random
+		Button@SHELLMAP_NEXT:
+			X: WINDOW_RIGHT - 145
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: >
+			Font: Bold
 		Button@NUKE_BUTTON:
 			X: WINDOW_RIGHT - 110
 			Y: 15

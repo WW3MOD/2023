@@ -303,6 +303,13 @@ namespace OpenRA
 		[Desc("Modifiers for force attack (None, Alt, Ctrl, Shift, Ctrl+Alt).")]
 		public Modifiers ForceAttackModifiers = Modifiers.Ctrl | Modifiers.Alt;
 
+		// WW3MOD: Shellmap preferences
+		[Desc("Ordered list of preferred shellmap UIDs (first = default). Empty = random.")]
+		public string[] ShellmapOrder = Array.Empty<string>();
+
+		[Desc("If true, cycle shellmaps in ShellmapOrder. If false, pick random.")]
+		public bool ShellmapUseOrder = false;
+
 		// WW3MOD: Bar visibility (persisted between games)
 		public bool CommandBarVisible = true;
 		public bool FireStanceBarVisible = true;
