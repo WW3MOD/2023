@@ -212,6 +212,10 @@ FluentMessages:
 	common|fluent/chrome.ftl
 	common|fluent/hotkeys.ftl
 	common|fluent/rules.ftl
+	ra|fluent/chrome.ftl
+	ra|fluent/hotkeys.ftl
+	ra|fluent/rules.ftl
+	ra|fluent/ra.ftl
 	ww3mod|languages/en.ftl
 	# ww3mod|languages/english.yaml
 
