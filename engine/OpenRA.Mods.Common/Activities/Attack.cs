@@ -31,6 +31,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IFacing facing;
 		readonly IPositionable positionable;
 		readonly bool forceAttack;
+		readonly bool callerAllowedMove;
 		readonly Color? targetLineColor;
 		readonly AutoTarget autoTarget;
 
@@ -54,6 +55,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.target = target;
 			this.targetLineColor = targetLineColor;
 			this.forceAttack = forceAttack;
+			callerAllowedMove = allowMovement;
 
 			attackTraits = self.TraitsImplementing<AttackFrontal>().ToArray().Where(t => !t.IsTraitDisabled);
 			vision = self.TraitsImplementing<Vision>().ToArray();
@@ -225,14 +227,17 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (needsToMove)
 			{
-				// HoldPosition: never auto-reposition — give up on this target
-				if (engStance == EngagementStance.HoldPosition)
-					return AttackStatus.UnableToAttack;
+				// Engagement stance movement restrictions only apply for auto-targeted attacks.
+				// Direct player attack orders (callerAllowedMove=true) always move to range,
+				// since AutoTarget already gates allowMove based on stance before creating this activity.
+				if (!callerAllowedMove)
+				{
+					if (engStance == EngagementStance.HoldPosition)
+						return AttackStatus.UnableToAttack;
 
-				// Defensive: only reposition if LOS is blocked or too close, not if simply out of range
-				// Phase 2 with shadow data will add cover-seeking behavior
-				if (engStance == EngagementStance.Defensive && outOfRange && !tooClose && !losBlocked)
-					return AttackStatus.UnableToAttack;
+					if (engStance == EngagementStance.Defensive && outOfRange && !tooClose && !losBlocked)
+						return AttackStatus.UnableToAttack;
+				}
 
 				// Try to move within range, drop the target otherwise
 				if (move == null)

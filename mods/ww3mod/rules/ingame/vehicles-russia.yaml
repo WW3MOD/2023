@@ -963,7 +963,7 @@ IskanderMissile:
 		Acceleration: 8
 		LaunchRiseTicks: 45
 		LaunchRiseHeight: 3c0
-		VisualPitchMultiplier: 10
+		VisualPitchMultiplier: 50
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

@@ -1056,7 +1056,7 @@ HIMARSMissile:
 		Acceleration: 12
 		LaunchRiseTicks: 20
 		LaunchRiseHeight: 2c0
-		VisualPitchMultiplier: 10
+		VisualPitchMultiplier: 50
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts
