@@ -174,9 +174,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (range == WDist.Zero)
 				yield break;
 
-			// Gather other selected units' circles with the same range for grouped rendering
+			// Gather other selected units' circles with the same range for grouped rendering.
+			// Use a 3% boundary margin so segments near circle intersection points also dim,
+			// preventing outer arcs from two circles crossing each other visually.
 			(WPos Center, long RadiusSq)[] otherCircles = null;
-			var radiusSq = (long)range.Length * range.Length;
+			var expandedRadius = range.Length + range.Length * 3 / 100;
+			var expandedRadiusSq = (long)expandedRadius * expandedRadius;
 			var others = new System.Collections.Generic.List<(WPos, long)>();
 			foreach (var a in self.World.Selection.Actors)
 			{
@@ -193,7 +196,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 					var r = t.GetRange();
 					if (r == range)
-						others.Add((a.CenterPosition, radiusSq));
+						others.Add((a.CenterPosition, expandedRadiusSq));
 				}
 			}
 

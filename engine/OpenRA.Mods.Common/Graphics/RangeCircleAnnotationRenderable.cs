@@ -17,10 +17,23 @@ namespace OpenRA.Mods.Common.Graphics
 {
 	public class RangeCircleAnnotationRenderable : IRenderable, IFinalizedRenderable
 	{
-		const int RangeCircleSegments = 32;
-		static readonly Int32Matrix4x4[] RangeCircleStartRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i).AsMatrix());
-		static readonly Int32Matrix4x4[] RangeCircleEndRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i + 6).AsMatrix());
-		static readonly Int32Matrix4x4[] RangeCircleMidRotations = Exts.MakeArray(RangeCircleSegments, i => WRot.FromFacing(8 * i + 3).AsMatrix());
+		const int RangeCircleSegments = 96;
+		const int FullCircleAngle = 1024;
+
+		// Each segment covers 75% of its angular step (dash), leaving 25% as gap
+		const int SegmentArc = FullCircleAngle * 3 / (RangeCircleSegments * 4);
+
+		static Int32Matrix4x4 YawRotation(int wangle)
+		{
+			return new WRot(WAngle.Zero, WAngle.Zero, new WAngle(wangle)).AsMatrix();
+		}
+
+		static readonly Int32Matrix4x4[] RangeCircleStartRotations = Exts.MakeArray(RangeCircleSegments,
+			i => YawRotation(i * FullCircleAngle / RangeCircleSegments));
+		static readonly Int32Matrix4x4[] RangeCircleEndRotations = Exts.MakeArray(RangeCircleSegments,
+			i => YawRotation(i * FullCircleAngle / RangeCircleSegments + SegmentArc));
+		static readonly Int32Matrix4x4[] RangeCircleMidRotations = Exts.MakeArray(RangeCircleSegments,
+			i => YawRotation(i * FullCircleAngle / RangeCircleSegments + SegmentArc / 2));
 
 		readonly WPos centerPosition;
 		readonly WDist radius;
