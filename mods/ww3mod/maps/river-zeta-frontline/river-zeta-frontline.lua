@@ -137,7 +137,7 @@ WorldLoaded = function()
 	russiaObjective = russia.AddPrimaryObjective("Defend the river crossing and eliminate all enemy forces.")
 
 	-- Briefing text
-	Scenario.SetBriefing("FRONTLINE — Hold the river. Garrison reinforcements incoming in 3:00")
+	Scenario.SetBriefing("Frontline: Hold the river. Garrison reinforcements incoming in 3:00")
 	Scenario.Message("Allied garrison forces are holding the front lines.", "EVA")
 	Scenario.Message("You will gain control of them in " .. garrisonTransferTime .. " seconds.", "EVA")
 	Scenario.Message("Enemy reinforcement waves will begin in " .. firstWaveTime .. " seconds.", "EVA")
@@ -167,21 +167,21 @@ WorldLoaded = function()
 		Scenario.Message("Garrison forces are now under your command!", "EVA")
 		Media.PlaySpeechNotification(nato, "ReinforcementsArrived")
 		Media.PlaySpeechNotification(russia, "ReinforcementsArrived")
-		Scenario.SetBriefing("FRONTLINE — Garrison forces transferred. Defend the line!")
+		Scenario.SetBriefing("Frontline: Garrison forces transferred. Defend the line!")
 	end)
 
 	-- Schedule countdown messages
 	Trigger.AfterDelay(DateTime.Seconds(garrisonTransferTime - 60), function()
 		Scenario.Message("Garrison transfer in 60 seconds.", "EVA")
-		Scenario.SetBriefing("FRONTLINE — Garrison transfer in 1:00")
+		Scenario.SetBriefing("Frontline: Garrison transfer in 1:00")
 	end)
 	Trigger.AfterDelay(DateTime.Seconds(garrisonTransferTime - 30), function()
 		Scenario.Message("Garrison transfer in 30 seconds.", "EVA")
-		Scenario.SetBriefing("FRONTLINE — Garrison transfer in 0:30")
+		Scenario.SetBriefing("Frontline: Garrison transfer in 0:30")
 	end)
 	Trigger.AfterDelay(DateTime.Seconds(garrisonTransferTime - 10), function()
 		Scenario.Message("Garrison transfer in 10 seconds.", "EVA")
-		Scenario.SetBriefing("FRONTLINE — Garrison transfer in 0:10")
+		Scenario.SetBriefing("Frontline: Garrison transfer in 0:10")
 	end)
 
 	-- Schedule enemy reinforcement waves
@@ -199,10 +199,10 @@ WorldLoaded = function()
 			if i == totalWaves then
 				Trigger.AfterDelay(DateTime.Seconds(10), function()
 					Scenario.Message("Final wave deployed. Eliminate all remaining forces to win.", "EVA")
-					Scenario.SetBriefing("FRONTLINE — Final wave. Destroy all enemies!")
+					Scenario.SetBriefing("Frontline: Final wave. Destroy all enemies!")
 				end)
 			else
-				Scenario.SetBriefing("FRONTLINE — Wave " .. i .. "/" .. totalWaves .. " — Next wave in " .. waveInterval .. "s")
+				Scenario.SetBriefing("Frontline: Wave " .. i .. "/" .. totalWaves .. " — Next wave in " .. waveInterval .. "s")
 			end
 		end)
 	end
@@ -230,7 +230,7 @@ Tick = function()
 			local mins = math.floor(remaining / 60)
 			local secs = remaining % 60
 			local timeStr = string.format("%d:%02d", mins, secs)
-			Scenario.SetBriefing("FRONTLINE — Garrison transfer in " .. timeStr)
+			Scenario.SetBriefing("Frontline: Garrison transfer in " .. timeStr)
 		end
 	end
 end

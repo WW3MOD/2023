@@ -263,7 +263,10 @@ Reusable helpers for scenario scripts:
 - **Objectives**: `Scenario.AddPrimaryObjective(player, desc)`, `Scenario.CompleteObjective(player, id)`
 - **Utility**: `Scenario.GetLiving(tag)`, `Scenario.CountLiving(tag)`, `Scenario.OnGroupEliminated(tag, cb)`
 
-### Example: River Zeta — Frontline (`maps/river-zeta-frontline/`)
+### Naming Convention
+Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name first, then the base map. This lets the same scenario type apply across multiple maps (e.g., "Frontline: River Zeta WW3", "Frontline: Siberian Pass WW3"). Feels like a game mode.
+
+### Example: Frontline: River Zeta WW3 (`maps/river-zeta-frontline/`)
 - 2 human player slots (NATO west, Russia east) each with a Supply Route
 - NATOGarrison / RussiaGarrison — allied non-playable players with frontline troops
 - After 3 minutes, garrison units transfer to human player control
