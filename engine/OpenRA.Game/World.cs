@@ -217,6 +217,11 @@ namespace OpenRA
 			SharedRandom = new MersenneTwister(orderManager.LobbyInfo.GlobalSettings.RandomSeed);
 			LocalRandom = new MersenneTwister();
 
+			// Apply scenario if selected in lobby
+			var scenarioName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
+			if (scenarioName != "none" && map.Scenarios.ContainsKey(scenarioName))
+				map.ApplyScenario(scenarioName);
+
 			ModelCache = modData.ModelSequenceLoader.CacheModels(map, modData, map.Rules.ModelSequences);
 
 			var worldActorType = type == WorldType.Editor ? SystemActors.EditorWorld : SystemActors.World;

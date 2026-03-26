@@ -203,7 +203,7 @@ namespace OpenRA
 		public List<MiniYamlNode> ActorDefinitions = new List<MiniYamlNode>();
 
 		// Custom map yaml. Public for access by the map importers and lint checks
-		public readonly MiniYaml RuleDefinitions;
+		public MiniYaml RuleDefinitions;
 		public readonly MiniYaml SequenceDefinitions;
 		public readonly MiniYaml ModelSequenceDefinitions;
 		public readonly MiniYaml WeaponDefinitions;
@@ -212,6 +212,9 @@ namespace OpenRA
 		public readonly MiniYaml NotificationDefinitions;
 
 		public readonly Dictionary<CPos, TerrainTile> ReplacedInvalidTerrainTiles = new Dictionary<CPos, TerrainTile>();
+
+		// Scenario definitions loaded from scenarios.yaml
+		public Dictionary<string, ScenarioDefinition> Scenarios { get; private set; } = new Dictionary<string, ScenarioDefinition>();
 
 		// Generated data
 		public readonly MapGrid Grid;
@@ -469,6 +472,8 @@ namespace OpenRA
 				}
 			}
 
+			LoadScenarios();
+
 			PostInit();
 
 			Uid = ComputeUID(Package, MapFormat);
@@ -575,6 +580,84 @@ namespace OpenRA
 			// so other listeners to these same events will get correct data when calling GetTerrainIndex.
 			CustomTerrain.CellEntryChanged += invalidateTerrainIndex;
 			Tiles.CellEntryChanged += invalidateTerrainIndex;
+		}
+
+		void LoadScenarios()
+		{
+			if (!Package.Contains("scenarios.yaml"))
+				return;
+
+			using (var stream = Package.GetStream("scenarios.yaml"))
+			{
+				if (stream == null)
+					return;
+
+				var yaml = MiniYaml.FromStream(stream, "scenarios.yaml");
+				foreach (var node in yaml)
+					Scenarios[node.Key] = new ScenarioDefinition(node.Key, node.Value);
+			}
+		}
+
+		public void ApplyScenario(string name)
+		{
+			if (!Scenarios.TryGetValue(name, out var scenario))
+				return;
+
+			// Merge scenario players — override existing by key, add new ones
+			foreach (var player in scenario.Players)
+			{
+				var existing = PlayerDefinitions.FindIndex(p => p.Key == player.Key);
+				if (existing >= 0)
+					PlayerDefinitions[existing] = player;
+				else
+					PlayerDefinitions.Add(player);
+			}
+
+			// Merge scenario actors — override existing by key, add new ones
+			foreach (var actor in scenario.Actors)
+			{
+				var existing = ActorDefinitions.FindIndex(a => a.Key == actor.Key);
+				if (existing >= 0)
+					ActorDefinitions[existing] = actor;
+				else
+					ActorDefinitions.Add(actor);
+			}
+
+			// Merge scenario rules into map rule definitions
+			if (scenario.Rules.Count > 0)
+			{
+				if (RuleDefinitions == null)
+					RuleDefinitions = new MiniYaml(null, scenario.Rules);
+				else
+				{
+					foreach (var rule in scenario.Rules)
+					{
+						// Find existing node with same key (e.g., "World:") and merge children
+						var existing = RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == rule.Key);
+						if (existing != null)
+						{
+							foreach (var child in rule.Value.Nodes)
+								existing.Value.Nodes.Add(child);
+						}
+						else
+							RuleDefinitions.Nodes.Add(rule);
+					}
+				}
+			}
+
+			// Re-derive ruleset from merged definitions
+			try
+			{
+				Rules = Ruleset.Load(modData, this, Tileset, RuleDefinitions, WeaponDefinitions,
+					VoiceDefinitions, NotificationDefinitions, MusicDefinitions, SequenceDefinitions, ModelSequenceDefinitions);
+			}
+			catch (Exception e)
+			{
+				Log.Write("debug", "Failed to load rules for scenario {0} on {1}: {2}", name, Title, e);
+				InvalidCustomRules = true;
+				InvalidCustomRulesException = e;
+				Rules = Ruleset.LoadDefaultsForTileSet(modData, Tileset);
+			}
 		}
 
 		void UpdateRamp(CPos cell)

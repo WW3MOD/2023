@@ -258,6 +258,7 @@
 
 World:
 	Inherits: ^BaseWorld
+	ScenarioLobbyDropdown:
 	HealerClaimLayer:
 	UnitDefaultsManager:
 	CohesionMoveModifier:

@@ -247,7 +247,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var typeLabel = parent.GetOrNull<LabelWidget>("MAP_TYPE");
 			if (typeLabel != null)
 			{
-				var type = new CachedTransform<MapPreview, string>(m => m.Categories.FirstOrDefault() ?? "");
+				var type = new CachedTransform<MapPreview, string>(m =>
+				{
+					var cat = m.Categories.FirstOrDefault() ?? "";
+					if (m.ScenarioNames.Length > 0)
+						cat += $" | {m.ScenarioNames.Length} scenario{(m.ScenarioNames.Length != 1 ? "s" : "")}";
+					return cat;
+				});
 				typeLabel.GetText = () => type.Update(getMap().Map);
 			}
 

@@ -90,6 +90,8 @@ namespace OpenRA
 			public MiniYaml SequenceDefinitions;
 			public MiniYaml ModelSequenceDefinitions;
 
+			public string[] ScenarioNames = Array.Empty<string>();
+
 			public ActorInfo WorldActorInfo { get; private set; }
 			public ActorInfo PlayerActorInfo { get; private set; }
 
@@ -189,6 +191,7 @@ namespace OpenRA
 		public ActorInfo WorldActorInfo => innerData.WorldActorInfo;
 		public ActorInfo PlayerActorInfo => innerData.PlayerActorInfo;
 		public DateTime ModifiedDate => innerData.ModifiedDate;
+		public string[] ScenarioNames => innerData.ScenarioNames;
 
 		public long DownloadBytes { get; private set; }
 		public int DownloadPercentage { get; private set; }
@@ -287,6 +290,7 @@ namespace OpenRA
 				Status = MapStatus.Available,
 				Class = MapClassification.Unknown,
 				Visibility = map.Visibility,
+				ScenarioNames = map.Scenarios.Keys.ToArray(),
 			};
 
 			innerData.SetCustomRules(modData, this, new Dictionary<string, MiniYaml>()
@@ -392,6 +396,28 @@ namespace OpenRA
 			}
 
 			newData.SetCustomRules(modData, this, yaml);
+
+			// Parse scenario names from scenarios.yaml
+			if (p.Contains("scenarios.yaml"))
+			{
+				try
+				{
+					using (var scenarioStream = p.GetStream("scenarios.yaml"))
+					{
+						if (scenarioStream != null)
+						{
+							var scenarioYaml = MiniYaml.FromStream(scenarioStream, "scenarios.yaml");
+							newData.ScenarioNames = scenarioYaml.Select(n => n.Key).ToArray();
+						}
+					}
+				}
+				catch (Exception)
+				{
+					newData.ScenarioNames = Array.Empty<string>();
+				}
+			}
+			else
+				newData.ScenarioNames = Array.Empty<string>();
 
 			if (p.Contains("map.png"))
 				using (var dataStream = p.GetStream("map.png"))
