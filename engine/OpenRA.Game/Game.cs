@@ -763,7 +763,7 @@ namespace OpenRA
 				}
 
 				using (new PerfSample("render_flip"))
-					Renderer.EndFrame(new DefaultInputHandler(OrderManager.World));
+					Renderer.EndFrame(new DefaultInputHandler(worldRenderer?.World ?? OrderManager.World));
 
 				if (takeScreenshot)
 				{
