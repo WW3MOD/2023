@@ -754,6 +754,8 @@ namespace OpenRA.Platforms.Default
 			throw new InvalidOperationException(exceptionMessage);
 		}
 
+		static int glErrorCount;
+
 		static void DebugMessageHandler(int source, int type, uint id, int severity, int length, StringBuilder message, IntPtr userparam)
 		{
 			string error;
@@ -761,6 +763,10 @@ namespace OpenRA.Platforms.Default
 			switch (severity)
 			{
 				case GL_DEBUG_SEVERITY_HIGH:
+					if (glErrorCount >= 5)
+						return;
+
+					glErrorCount++;
 					error = BuildErrorText(source, type, severity, message);
 					WriteGraphicsLog(error);
 					throw new InvalidOperationException("OpenGL Error: See graphics.log for details.");
