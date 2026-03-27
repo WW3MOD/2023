@@ -636,7 +636,7 @@ namespace OpenRA.Mods.Common.Projectiles
 				if (info.TerrainHeightAware && lastHt >= targetPosition.Z)
 					allowPassBy = true;
 
-				if (!allowPassBy && (lastHt < targetPosition.Z || targetPassedBy))
+				if (!allowPassBy && (!info.TerrainHeightAware || lastHt < targetPosition.Z || targetPassedBy))
 				{
 					// Aim for the target
 					var vDist = new WVec(-relTarHgt, -relTarHorDist, 0);
