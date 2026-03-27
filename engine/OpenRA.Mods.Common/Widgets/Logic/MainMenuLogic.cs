@@ -92,30 +92,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return ordered.ToArray();
 			}
 
-			// Helper: get display name for a UID
-			string GetShellmapLabel(string uid)
-			{
-				if (string.IsNullOrEmpty(uid))
-					return "Random";
-
-				var map = shellmaps.FirstOrDefault(m => m.Uid == uid);
-				return map?.Title ?? "Unknown";
-			}
-
 			// Helper: is the current mode "Random"?
 			bool IsRandomMode() => !Game.Settings.Game.ShellmapUseOrder;
 
-			// Helper: get current display text
+			// Helper: get current display text — always shows the loaded map name
 			string GetCurrentLabel()
 			{
-				if (IsRandomMode())
-					return "Random";
-
-				var settings = Game.Settings.Game;
-				if (settings.ShellmapOrder.Length > 0)
-					return GetShellmapLabel(settings.ShellmapOrder[0]);
-
-				return world.Map.Title ?? "Random";
+				return world.Map.Title ?? "Unknown";
 			}
 
 			// Alt+click: promote a shellmap UID to front of order list
@@ -176,15 +159,41 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (nextButton != null)
 				nextButton.OnClick = () => NavigateShellmap(1);
 
-			// Dropdown
+			// Dropdown — shows current map name with truncation for long names
 			var dropdown = widget.GetOrNull<DropDownButtonWidget>("SHELLMAP_DROPDOWN");
 			if (dropdown != null)
 			{
-				dropdown.GetText = GetCurrentLabel;
+				var dropdownFont = Game.Renderer.Fonts[dropdown.Font];
+				dropdown.GetText = () =>
+				{
+					var label = GetCurrentLabel();
+					return WidgetUtils.TruncateText(label, dropdown.UsableWidth, dropdownFont);
+				};
 
 				dropdown.OnMouseDown = _ =>
 				{
-					ShowShellmapDropdown(dropdown, shellmaps, IsRandomMode, SetRandomMode, PromoteShellmap, AppendShellmap, GetOrderedShellmaps);
+					ShowShellmapDropdown(dropdown, shellmaps, PromoteShellmap, AppendShellmap, GetOrderedShellmaps);
+				};
+			}
+
+			// Random toggle button — highlighted when random mode is active
+			var randomButton = widget.GetOrNull<ButtonWidget>("RANDOM_BUTTON");
+			if (randomButton != null)
+			{
+				randomButton.IsHighlighted = IsRandomMode;
+				randomButton.OnClick = () =>
+				{
+					if (IsRandomMode())
+					{
+						// Switch to ordered mode, promote current map
+						PromoteShellmap(currentUid);
+					}
+					else
+					{
+						SetRandomMode();
+						// Load a new random shellmap
+						Game.RunAfterTick(Game.LoadShellMap);
+					}
 				};
 			}
 		}
@@ -192,29 +201,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static void ShowShellmapDropdown(
 			DropDownButtonWidget dropdown,
 			MapPreview[] shellmaps,
-			Func<bool> isRandomMode,
-			Action setRandomMode,
 			Action<string> promoteShellmap,
 			Action<string> appendShellmap,
 			Func<MapPreview[]> getOrderedShellmaps)
 		{
-			var options = new List<(string uid, string label, bool isRandom)>();
-			options.Add(("", "Random", true));
+			var options = new List<(string uid, string label)>();
 
 			foreach (var m in getOrderedShellmaps())
 			{
 				var settings = Game.Settings.Game;
 				var rank = Array.IndexOf(settings.ShellmapOrder, m.Uid);
 				var label = rank >= 0 ? $"{rank + 1}. {m.Title}" : m.Title;
-				options.Add((m.Uid, label, false));
+				options.Add((m.Uid, label));
 			}
 
-			ScrollItemWidget SetupItem((string uid, string label, bool isRandom) option, ScrollItemWidget template)
+			ScrollItemWidget SetupItem((string uid, string label) option, ScrollItemWidget template)
 			{
-				var isSelected = option.isRandom
-					? (Func<bool>)isRandomMode
-					: () => !isRandomMode() && Game.Settings.Game.ShellmapOrder.Length > 0
-						&& Game.Settings.Game.ShellmapOrder[0] == option.uid;
+				var isSelected = (Func<bool>)(() => Game.Settings.Game.ShellmapOrder.Length > 0
+					&& Game.Settings.Game.ShellmapOrder[0] == option.uid);
 
 				var item = ScrollItemWidget.Setup(template, isSelected, () =>
 				{
@@ -224,21 +228,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (isAlt)
 					{
 						// Alt+click: reorder without loading
-						if (option.isRandom)
-						{
-							setRandomMode();
-							return;
-						}
-
 						var settings = Game.Settings.Game;
 						if (settings.ShellmapOrder.Contains(option.uid))
-						{
-							// Already in list — promote to front
 							promoteShellmap(option.uid);
-						}
 						else
 						{
-							// Not in list — append to end
 							appendShellmap(option.uid);
 							settings.ShellmapUseOrder = true;
 							Game.Settings.Save();
@@ -246,17 +240,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					}
 					else
 					{
-						// Normal click: select this shellmap and load it
-						if (option.isRandom)
-						{
-							setRandomMode();
-							Game.RunAfterTick(Game.LoadShellMap);
-						}
-						else
-						{
-							promoteShellmap(option.uid);
-							Game.RunAfterTick(() => Game.LoadShellMap(option.uid));
-						}
+						// Normal click: select and load this shellmap (disables random)
+						promoteShellmap(option.uid);
+						Game.RunAfterTick(() => Game.LoadShellMap(option.uid));
 					}
 				});
 
@@ -273,13 +259,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.modData = modData;
 
 			rootMenu = widget;
+
+			// Info dropdown — inline panel toggled by info button
+			var infoDropdown = rootMenu.GetOrNull<BackgroundWidget>("INFO_DROPDOWN");
+			if (infoDropdown != null)
+			{
+				infoDropdown.Get<LabelWidget>("INFO_MOD_VERSION").Text = "WW3MOD — Pre-Alpha";
+				infoDropdown.Get<LabelWidget>("INFO_ENGINE_VERSION").Text = "Fork: " + modData.Manifest.Metadata.Version;
+				infoDropdown.Get<LabelWidget>("INFO_BUILD_DATE").Text = "Built: " + DateTime.Now.ToString("yyyy-MM-dd");
+				infoDropdown.Get<LabelWidget>("INFO_AUTHORS").Text = "By: FreadyFish & CmdrBambi";
+			}
+
 			rootMenu.Get<ButtonWidget>("INFO_BUTTON").OnClick = () =>
 			{
-				Ui.OpenWindow("MOD_INFO_PANEL", new WidgetArgs
-				{
-					{ "onExit", (Action)(() => { }) },
-					{ "shellmapName", world.Map.Title ?? "" }
-				});
+				if (infoDropdown != null)
+					infoDropdown.Visible = !infoDropdown.Visible;
 			};
 
 			// Shellmap selector — prev/next/dropdown with alt-click reordering
