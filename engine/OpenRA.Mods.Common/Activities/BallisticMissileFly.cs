@@ -28,7 +28,10 @@ namespace OpenRA.Mods.Common.Activities
 		readonly float visualPitchMul;
 		readonly int totalArcTicks;
 		readonly int arcPeakHeight;
+		readonly int hDist;
 
+		float currentSpeed;
+		float horizontalProgress;
 		int ticks;
 
 		public BallisticMissileFly(Actor self, Target t, BallisticMissile sbm = null)
@@ -43,18 +46,34 @@ namespace OpenRA.Mods.Common.Activities
 			launchRiseHeight = this.sbm.Info.LaunchRiseHeight.Length;
 			visualPitchMul = this.sbm.Info.VisualPitchMultiplier / 100f;
 
-			// Compute arc duration from horizontal distance and speed
-			var hDist = (targetPos - spawnPos).HorizontalLength;
-			var baseFlightTicks = Math.Max(hDist / this.sbm.Info.Speed, 1);
+			hDist = (targetPos - spawnPos).HorizontalLength;
+			var speed = this.sbm.Info.Speed;
 
 			if (this.sbm.Info.Acceleration > 0)
 			{
-				// With ease-in-out, average speed is lower — extend flight time
-				var accelFactor = 1024 + this.sbm.Info.Acceleration * 64;
-				totalArcTicks = baseFlightTicks + baseFlightTicks * 512 / accelFactor;
+				// Simulate velocity profile to compute total flight ticks.
+				// Missile starts at InitialSpeedPercent of Speed and accelerates by Acceleration/tick.
+				var initSpeed = speed * this.sbm.Info.InitialSpeedPercent / 100f;
+				var accel = this.sbm.Info.Acceleration;
+
+				float simDist = 0f;
+				float simSpeed = initSpeed;
+				int simTicks = 0;
+				while (simDist < hDist && simTicks < 10000)
+				{
+					simSpeed = Math.Min(simSpeed + accel, speed);
+					simDist += simSpeed;
+					simTicks++;
+				}
+
+				totalArcTicks = Math.Max(simTicks, 1);
+				currentSpeed = initSpeed;
 			}
 			else
-				totalArcTicks = baseFlightTicks;
+			{
+				totalArcTicks = Math.Max(hDist / speed, 1);
+				currentSpeed = speed;
+			}
 
 			// Peak height of the arc, derived from LaunchAngle and horizontal distance.
 			// For a parabolic arc: peak = range * tan(angle) / 4
@@ -62,20 +81,10 @@ namespace OpenRA.Mods.Common.Activities
 			arcPeakHeight = (int)((long)hDist * tan / (4 * 1024));
 		}
 
-		// Ease-in-out: slow launch, fast cruise, decelerating approach.
-		// Much smoother than pure t² which makes the descent look too fast.
-		static float EaseInOut(float t)
-		{
-			t = Math.Clamp(t, 0f, 1f);
-			if (t < 0.5f)
-				return 2f * t * t;
-			return 1f - (-2f * t + 2f) * (-2f * t + 2f) / 2f;
-		}
-
-		// Sine-curve arc height. Always >= 0, peaks at progress=0.5.
+		// Parabolic arc height: peaks at progress=0.5, zero at endpoints.
 		int GetArcHeight(float progress)
 		{
-			return (int)(arcPeakHeight * Math.Sin(Math.PI * progress));
+			return (int)(4f * arcPeakHeight * progress * (1f - progress));
 		}
 
 		// Compute facing with optional pitch tilt for isometric visual.
@@ -91,7 +100,6 @@ namespace OpenRA.Mods.Common.Activities
 			var dh = h2 - h1;
 
 			// Horizontal distance covered in the same eps range
-			var hDist = (targetPos - spawnPos).HorizontalLength;
 			var hStep = (int)(hDist * eps * 2);
 			if (hStep < 1)
 				return horizontalFacing;
@@ -100,7 +108,12 @@ namespace OpenRA.Mods.Common.Activities
 			var maxPitch = 0.4f * visualPitchMul;
 			var pitchFactor = Math.Clamp((float)dh / (hStep * 4), -maxPitch, maxPitch);
 
-			// Apply pitch as a facing offset using isometric projection
+			return ApplyIsometricPitch(pitchFactor);
+		}
+
+		// Apply pitch as a facing offset using isometric projection.
+		WAngle ApplyIsometricPitch(float pitchFactor)
+		{
 			var u = (horizontalFacing.Angle % 512) / 512f;
 			var scale = 2048 * u * (1 - u);
 
@@ -123,36 +136,59 @@ namespace OpenRA.Mods.Common.Activities
 				var riseZ = (int)(launchRiseHeight * riseProgress);
 
 				sbm.SetPosition(self, spawnPos + new WVec(0, 0, riseZ));
-				sbm.Facing = horizontalFacing;
+
+				// Erection animation: tilt from horizontal to near-vertical during rise
+				if (sbm.Info.LaunchRiseErect && visualPitchMul > 0f)
+				{
+					var erectPitch = riseT * 0.4f * visualPitchMul;
+					sbm.Facing = ApplyIsometricPitch(erectPitch);
+				}
+				else
+					sbm.Facing = horizontalFacing;
+
 				ticks++;
 				return false;
 			}
 
 			// Phase 2: Parabolic arc flight
-			var arcTick = ticks - launchRiseTicks;
-			if (arcTick >= totalArcTicks)
+			if (horizontalProgress >= 1f)
 			{
 				sbm.SetPosition(self, targetPos);
 				Queue(new CallFunc(() => self.Kill(self)));
 				return true;
 			}
 
-			// Time progress through the arc (0 to 1)
-			var timeT = Math.Clamp((float)arcTick / totalArcTicks, 0f, 1f);
+			// Update velocity: accelerate toward max speed each tick
+			if (sbm.Info.Acceleration > 0)
+				currentSpeed = Math.Min(currentSpeed + sbm.Info.Acceleration, sbm.Info.Speed);
 
-			// Apply ease-in-out if acceleration is configured
-			var progress = sbm.Info.Acceleration > 0 ? EaseInOut(timeT) : timeT;
+			// Accumulate horizontal progress based on current speed
+			if (hDist > 0)
+				horizontalProgress += currentSpeed / hDist;
+			else
+				horizontalProgress = 1f;
 
-			// Horizontal position: linear interpolation along ground path
-			var hx = spawnPos.X + (int)((long)(targetPos.X - spawnPos.X) * arcTick / totalArcTicks);
-			var hy = spawnPos.Y + (int)((long)(targetPos.Y - spawnPos.Y) * arcTick / totalArcTicks);
+			horizontalProgress = Math.Clamp(horizontalProgress, 0f, 1f);
 
-			// Vertical position: base terrain Z interpolated + sine arc + decaying rise offset
-			var baseZ = spawnPos.Z + (int)((long)(targetPos.Z - spawnPos.Z) * arcTick / totalArcTicks);
+			// Use horizontalProgress for both position and arc height —
+			// this keeps the parabolic shape correct regardless of speed variation.
+			var progress = horizontalProgress;
+
+			// Horizontal position
+			var hx = spawnPos.X + (int)((long)(targetPos.X - spawnPos.X) * (int)(progress * 1024) / 1024);
+			var hy = spawnPos.Y + (int)((long)(targetPos.Y - spawnPos.Y) * (int)(progress * 1024) / 1024);
+
+			// Vertical position: base terrain Z interpolated + parabolic arc + decaying rise offset
+			var baseZ = spawnPos.Z + (int)((long)(targetPos.Z - spawnPos.Z) * (int)(progress * 1024) / 1024);
 			var arcHeight = GetArcHeight(progress);
 			var riseDecay = launchRiseHeight > 0 ? (int)(launchRiseHeight * (1f - progress)) : 0;
 
 			var pos = new WPos(hx, hy, baseZ + arcHeight + riseDecay);
+
+			// Ensure missile never goes below terrain
+			var terrainAlt = self.World.Map.DistanceAboveTerrain(pos);
+			if (terrainAlt.Length < 0)
+				pos = new WPos(pos.X, pos.Y, pos.Z - terrainAlt.Length + 1);
 
 			sbm.SetPosition(self, pos);
 			sbm.Facing = GetFacing(progress);

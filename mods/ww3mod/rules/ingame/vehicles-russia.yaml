@@ -960,9 +960,11 @@ IskanderMissile:
 	BallisticMissile:
 		LaunchAngle: 160
 		Speed: 400
-		Acceleration: 8
+		Acceleration: 6
+		InitialSpeedPercent: 5
 		LaunchRiseTicks: 45
 		LaunchRiseHeight: 3c0
+		LaunchRiseErect: true
 		VisualPitchMultiplier: 50
 	LeavesTrailsCA:
 		Image: smokey2

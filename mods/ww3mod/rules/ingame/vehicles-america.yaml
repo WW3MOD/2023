@@ -1053,7 +1053,8 @@ HIMARSMissile:
 	BallisticMissile:
 		LaunchAngle: 128
 		Speed: 500
-		Acceleration: 12
+		Acceleration: 15
+		InitialSpeedPercent: 20
 		LaunchRiseTicks: 20
 		LaunchRiseHeight: 2c0
 		VisualPitchMultiplier: 50

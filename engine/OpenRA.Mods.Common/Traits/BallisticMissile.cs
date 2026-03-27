@@ -26,10 +26,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("In angle. Missile is launched at this pitch and the initial tangential line of the ballistic path will be this.")]
 		public readonly WAngle LaunchAngle = WAngle.Zero;
 
-		[Desc("If > 0, missile accelerates from rest along its arc instead of flying at constant speed.",
-			"Value controls how quickly max speed is reached (higher = faster acceleration).",
+		[Desc("If > 0, missile accelerates along its arc instead of flying at constant speed.",
+			"Value is the speed added per tick (in WDist/tick) until Speed is reached.",
 			"The arc shape is unchanged — only the speed along it varies.")]
 		public readonly int Acceleration = 0;
+
+		[Desc("Starting speed as a percentage of Speed when Acceleration > 0.",
+			"0 = starts from rest. 100 = no acceleration effect (constant speed).",
+			"Lower values give a more dramatic visible acceleration at launch.")]
+		public readonly int InitialSpeedPercent = 10;
 
 		[Desc("Ticks the missile rises vertically before starting its parabolic arc.",
 			"Simulates a launch phase where the missile lifts off the launcher.",
@@ -43,6 +48,11 @@ namespace OpenRA.Mods.Common.Traits
 			"0 = pure horizontal facing (recommended for top-down). 100 = full pitch effect.",
 			"High values can make sprites look wrong since they only have horizontal facings.")]
 		public readonly int VisualPitchMultiplier = 0;
+
+		[Desc("If true, during the launch rise phase the missile tilts from horizontal to vertical,",
+			"simulating a missile erector raising the missile before launch.",
+			"Only meaningful when LaunchRiseTicks > 0 and VisualPitchMultiplier > 0.")]
+		public readonly bool LaunchRiseErect = false;
 
 		[Desc("Minimum altitude where this missile is considered airborne")]
 		public readonly int MinAirborneAltitude = 5;
