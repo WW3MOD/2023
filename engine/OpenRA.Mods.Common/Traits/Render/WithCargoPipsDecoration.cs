@@ -102,6 +102,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var alpha = selected ? 0.2f : 0.05f;
 
 			var palette = wr.Palette(Info.Palette);
+			pips.PlayRepeating(Info.EmptySequence);
 			var pipImageSize = pips.Image.Size;
 			var pipSize = new int2((int)(pipImageSize.X * scale), (int)(pipImageSize.Y * scale));
 
@@ -115,8 +116,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var startPos = screenPos;
 
 			screenPos -= (currentRowCount - 1) * pipStrideX / 2;
-
-			pips.PlayRepeating(Info.EmptySequence);
 
 			for (var i = 0; i < PipCount; i++)
 			{
