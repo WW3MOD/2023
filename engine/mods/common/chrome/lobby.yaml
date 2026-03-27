@@ -10,7 +10,7 @@ Background@SERVER_LOBBY:
 	X: (WINDOW_WIDTH - WIDTH) / 2
 	Y: (WINDOW_HEIGHT - HEIGHT) / 2
 	Width: 900
-	Height: 600
+	Height: WINDOW_HEIGHT - 200
 	Children:
 		Label@SERVER_NAME:
 			Y: 16

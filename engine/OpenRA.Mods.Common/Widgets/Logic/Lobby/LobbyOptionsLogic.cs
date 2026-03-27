@@ -106,10 +106,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var optionLocked = new CachedTransform<Session.Global, bool>(
 					gs => gs.LobbyOptions[option.Id].IsLocked);
 
-				checkbox.GetText = () => option.Name;
+				var checkboxName = FluentProvider.GetMessage(option.Name);
+				checkbox.GetText = () => checkboxName;
 				if (option.Description != null)
 				{
-					var (text, desc) = LobbyUtils.SplitOnFirstToken(option.Description);
+					var resolvedCheckboxDesc = FluentProvider.GetMessage(option.Description);
+					var (text, desc) = LobbyUtils.SplitOnFirstToken(resolvedCheckboxDesc);
 					checkbox.GetTooltipText = () => text;
 					checkbox.GetTooltipDesc = () => desc;
 				}
@@ -154,7 +156,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				dropdown.GetText = () => getOptionLabel.Update(optionValue.Update(orderManager.LobbyInfo.GlobalSettings).Value);
 				if (option.Description != null)
 				{
-					var (text, desc) = LobbyUtils.SplitOnFirstToken(option.Description);
+					var resolvedDropdownDesc = FluentProvider.GetMessage(option.Description);
+					var (text, desc) = LobbyUtils.SplitOnFirstToken(resolvedDropdownDesc);
 					dropdown.GetTooltipText = () => text;
 					dropdown.GetTooltipDesc = () => desc;
 				}
@@ -181,7 +184,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var label = row.GetOrNull<LabelWidget>(dropdown.Id + "_DESC");
 				if (label != null)
 				{
-					label.GetText = () => option.Name + ":";
+					var dropdownName = FluentProvider.GetMessage(option.Name);
+				label.GetText = () => dropdownName + ":";
 					label.IsVisible = () => true;
 				}
 			}
