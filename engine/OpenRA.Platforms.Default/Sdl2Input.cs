@@ -45,6 +45,27 @@ namespace OpenRA.Platforms.Default
 			return MakeModifiers((int)SDL.SDL_GetModState());
 		}
 
+		static Modifiers KeycodeToModifier(SDL.SDL_Keycode sym)
+		{
+			switch (sym)
+			{
+				case SDL.SDL_Keycode.SDLK_LALT:
+				case SDL.SDL_Keycode.SDLK_RALT:
+					return Modifiers.Alt;
+				case SDL.SDL_Keycode.SDLK_LCTRL:
+				case SDL.SDL_Keycode.SDLK_RCTRL:
+					return Modifiers.Ctrl;
+				case SDL.SDL_Keycode.SDLK_LSHIFT:
+				case SDL.SDL_Keycode.SDLK_RSHIFT:
+					return Modifiers.Shift;
+				case SDL.SDL_Keycode.SDLK_LGUI:
+				case SDL.SDL_Keycode.SDLK_RGUI:
+					return Modifiers.Meta;
+				default:
+					return Modifiers.None;
+			}
+		}
+
 		static int2 EventPosition(Sdl2PlatformWindow device, int x, int y)
 		{
 			// On Windows and Linux (X11) events are given in surface coordinates
@@ -220,6 +241,22 @@ namespace OpenRA.Platforms.Default
 					case SDL.SDL_EventType.SDL_KEYDOWN:
 					case SDL.SDL_EventType.SDL_KEYUP:
 					{
+						// Update modifier state from this event so the keydown
+						// for a modifier key (e.g. Alt) carries the new state immediately.
+						// SDL2's keysym.mod may not include the modifier's own key on KEYDOWN,
+						// so we derive it from the key code and event type explicitly.
+						mods = MakeModifiers((int)e.key.keysym.mod);
+						var modFlag = KeycodeToModifier(e.key.keysym.sym);
+						if (modFlag != Modifiers.None)
+						{
+							if (e.type == SDL.SDL_EventType.SDL_KEYDOWN)
+								mods |= modFlag;
+							else
+								mods &= ~modFlag;
+						}
+
+						inputHandler.ModifierKeys(mods);
+
 						var keyCode = (Keycode)e.key.keysym.sym;
 						var type = e.type == SDL.SDL_EventType.SDL_KEYDOWN ?
 							KeyInputEvent.Down : KeyInputEvent.Up;
