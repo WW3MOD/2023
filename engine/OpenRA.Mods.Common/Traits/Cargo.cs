@@ -105,7 +105,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		int totalWeight = 0;
 		int reservedWeight = 0;
+		int supplyReservedWeight = 0;
 		Aircraft aircraft;
+
+		// Pre-queued rally points: passengers will move/interact here on ejection
+		readonly Dictionary<uint, Target> ejectRallyPoints = new Dictionary<uint, Target>();
 		ICargoCanLoadFilter[] loadFilters;
 		int loadingToken = Actor.InvalidConditionToken;
 		readonly Stack<int> loadedTokens = new Stack<int>();
@@ -245,6 +249,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange));
 			}
+			else if (order.OrderString == "UnloadCargoPassenger")
+			{
+				var passenger = self.World.GetActorById(order.ExtraData);
+				if (passenger == null || !cargo.Contains(passenger))
+					return;
+
+				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, passenger));
+			}
 		}
 
 		public bool CanUnload(BlockedByActor check = BlockedByActor.None)
@@ -357,8 +369,45 @@ namespace OpenRA.Mods.Common.Traits
 					if (!f.CanLoadPassenger(self, null))
 						return false;
 
-			return totalWeight + reservedWeight + weight <= Info.MaxWeight;
+			return totalWeight + reservedWeight + supplyReservedWeight + weight <= Info.MaxWeight;
 		}
+
+		/// <summary>Available cargo weight after passengers, reservations, and supply.</summary>
+		public int AvailableWeight => Info.MaxWeight - totalWeight - reservedWeight - supplyReservedWeight;
+
+		/// <summary>Reserve cargo weight for supply units (called by CargoSupply).</summary>
+		public void ReserveSupplyWeight(int weight)
+		{
+			supplyReservedWeight += weight;
+		}
+
+		/// <summary>Free cargo weight previously reserved for supply (called by CargoSupply).</summary>
+		public void FreeSupplyWeight(int weight)
+		{
+			supplyReservedWeight = System.Math.Max(0, supplyReservedWeight - weight);
+		}
+
+		/// <summary>Set a rally point for a passenger to execute on ejection.</summary>
+		public void SetEjectRally(uint passengerActorId, Target target)
+		{
+			ejectRallyPoints[passengerActorId] = target;
+		}
+
+		/// <summary>Clear the rally point for a passenger.</summary>
+		public void ClearEjectRally(uint passengerActorId)
+		{
+			ejectRallyPoints.Remove(passengerActorId);
+		}
+
+		/// <summary>Get the rally point for a passenger, if any.</summary>
+		public Target GetEjectRally(uint passengerActorId)
+		{
+			return ejectRallyPoints.TryGetValue(passengerActorId, out var target) ? target : Target.Invalid;
+		}
+
+		/// <summary>Check if a passenger has a rally point assigned.</summary>
+		public bool HasEjectRally(uint passengerActorId) => ejectRallyPoints.ContainsKey(passengerActorId);
+
 		public bool IsEmpty() { return cargo.Count == 0; }
 
 		public Actor Peek() { return cargo.Last(); }

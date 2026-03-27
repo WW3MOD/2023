@@ -57,6 +57,9 @@ namespace OpenRA
 		public readonly bool Hidden;
 #pragma warning restore IDE1006 // Naming Styles
 
+		[Desc("Title of the shellmap to show for first-time players. Empty = random.")]
+		public string FirstTimeShellmap;
+
 		public string TitleTranslated => FluentProvider.GetMessage(Title);
 		public string WindowTitleTranslated => WindowTitle != null ? FluentProvider.GetMessage(WindowTitle) : null;
 	}

@@ -12,7 +12,7 @@ World:
 	MusicPlaylist:
 		DisableWorldSounds: true
 	LuaScript:
-		Scripts: shellmap-glass-cannon.lua
+		Scripts: shellmap-river-zeta.lua
 
 ^Combatant:
 	AutoTarget:

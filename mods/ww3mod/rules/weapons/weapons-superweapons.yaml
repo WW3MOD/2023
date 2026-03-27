@@ -27,35 +27,74 @@
 
 Atomic:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
-	Warhead@Effect_impact: CreateEffect
+
+	# ===== PHASE 0: THE FLASH (Tick 0) =====
+	# Blinding white flash — arrives at speed of light
+	Warhead@Flash: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+
+	# Screen shake: progressive decay — massive initial impact, then fading rumble
+	# Total coverage: 0→210 ticks (matches blast wave duration)
+	Warhead@Shake1: ShakeScreen
+		Duration: 25
+		Intensity: 80
+	Warhead@Shake2: ShakeScreen
+		Duration: 50
+		Intensity: 40
+		Delay: 25
+	Warhead@Shake3: ShakeScreen
+		Duration: 75
+		Intensity: 15
+		Delay: 75
+	Warhead@Shake4: ShakeScreen
+		Duration: 60
+		Intensity: 5
+		Delay: 150
+
+	# Fireball visual — mushroom cloud sprite at 300% scale
+	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 300
 		Offset: 0,-1900,0
 		Palette: effect_ts
+		ZOffset: 4096
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
+		VisibleThroughFog: true
 		ValidTargets: Ground, Water, Air
 
-	# Warhead@CreateActor: CreateActor
-	# 	Actor: # ScorchWithRadiation actor?
-	# Warhead@Resource_impact: DestroyResource
-	# 	Size: 2
+	# ===== PHASE 1: THERMAL RADIATION — Constant Fireball Shine =====
+	# The fireball forms in milliseconds and immediately reaches peak brightness.
+	# For ~2 seconds (50 ticks), it shines at peak thermal intensity — a constant,
+	# repeating pulse of thermal radiation cooking everything in line of sight.
+	# Inverse falloff: close units melt visibly over the 2 seconds; far units barely singed.
+	# After the thermal shine fades, the shockwave arrives to finish survivors.
 
-	Warhead@22FlashEffect: FlashPaletteEffect
-		Duration: 20
-		FlashType: Nuke
-
-	Warhead@ShakeScreeEffect: ShakeScreen
-		Duration: 100
-		Intensity: 100
-
-	Warhead@HeatRadiation1: SpreadDamage
-		Spread: 512
-		Damage: 100
-		Penetration: 100
-		Falloff: 50000, 45000, 40000, 35000, 30000, 25000, 20000, 15000, 10000, 5000, 2500, 1000, 500, 250, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-		ValidTargets: Ground, Trees, Water, Underwater, Air
+	# Instant vaporization at ground zero (0-2 cells) — nothing survives this close
+	Warhead@ThermalVaporize: SpreadDamage
+		Spread: 1c0
+		Damage: 200000
+		Penetration: 5000
+		Falloff: 100, 100, 100
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
 		DamageTypes: FireDeath
+		AirThreshold: 10c0
+
+	# Instant tree incineration at ground zero (0-3 cells) — trees vaporized, husked immediately
+	Warhead@TreeVaporize: SpreadDamage
+		Spread: 1c0
+		Damage: 200000
+		Penetration: 5000
+		Falloff: 100, 100, 100, 100
+		Delay: 1
+		ValidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 10c0
+
+	# Repeating thermal heat radiation pulse
 	Warhead@HeatRadiation2: SpreadDamage
 		Spread: 512
 		Damage: 100
@@ -64,748 +103,285 @@ Atomic:
 		Modulus: 2
 		ValidTargets: Ground, Trees, Water, Underwater, Air
 		DamageTypes: FireDeath
+		AirThreshold: 10c0
 
-	# Warhead@Scorch1: LeaveSmudge
-	# 	Delay: 50
-	# 	Size: 1
-	# 	SmudgeType: Scorch
-	# 	AirThreshold: 10000 # Ignore
-	# 	# InvalidTargets: Vehicle, Structure, Wall
-	# Warhead@Scorch2: LeaveSmudge
-	# 	Delay: 60
-	# 	Size: 2
-	# 	SmudgeType: Scorch
-	# 	AirThreshold: 10000 # Ignore
-	# 	# InvalidTargets: Vehicle, Structure, Wall
-	# Warhead@Scorch3: LeaveSmudge
-	# 	Delay: 70
-	# 	Size: 3
-	# 	Chance: 50
-	# 	SmudgeType: Scorch
-	# 	AirThreshold: 10000 # Ignore
-	# 	# InvalidTargets: Vehicle, Structure, Wall
-	# Warhead@Scorch4: LeaveSmudge
-	# 	Delay: 80
-	# 	Size: 3
-	# 	Chance: 50
-	# 	SmudgeType: Scorch
-	# 	AirThreshold: 10000 # Ignore
-	# 	# InvalidTargets: Vehicle, Structure, Wall
-	# Warhead@Scorch5: LeaveSmudge
-	# 	Delay: 100
-	# 	Size: 5
-	# 	Chance: 50
-	# 	SmudgeType: Scorch
-	# 	AirThreshold: 10000 # Ignore
-	# 	# InvalidTargets: Vehicle, Structure, Wall
+	# Sustained thermal radiation — damage pulses every 3 ticks for 50 ticks (~17 pulses)
+	# Inverse-square-ish falloff: 100% at center, drops steeply with distance
+	# At 3 cells: ~20% per pulse — infantry cooked to death in seconds
+	# At 6 cells: ~5% per pulse — infantry visibly melting, vehicles scorched
+	# At 10 cells: ~1% per pulse — light burns, suppressed
+	# At 15+ cells: negligible — only the shockwave matters here
+	# Trees excluded — tree damage is handled entirely by fire condition duration
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 50
+		DamageInterval: 3
+		Spread: 1c0
+		Damage: 3000
+		Penetration: 300
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 10c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
 
+	# ===== FIRE: Staggered thermal ignition (structures & infantry) =====
+	# 10 warheads with staggered delays simulate the thermal radiation
+	# igniting flammable materials at different distances.
+	# Close units catch fire immediately (within the fireball shine);
+	# far units only start burning as the thermal pulse reaches them.
+	# Overlapping ranges mean close units accumulate fire stacks faster:
+	#
+	# At 5 cells:  gets Fire1(t1) → Fire10(t50) = 10 stacks over 2.0s
+	# At 15 cells: gets Fire3(t11) → Fire10(t50) = 8 stacks from 0.4s to 2.0s
+	# At 20 cells: gets Fire6(t26) → Fire10(t50) = 5 stacks from 1.0s to 2.0s
+	# At 25 cells: gets Fire9(t44), Fire10(t50) = 2 stacks, barely burning
 	Warhead@Fire1: GrantExternalCondition
-		Delay: 3
-		Range: 2c512
+		Range: 10c0
+		Amount: 1
+		Duration: 750
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 12c0
+		Amount: 1
+		Duration: 700
+		Condition: onfire
+		Delay: 6
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 14c0
+		Amount: 1
+		Duration: 650
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 16c0
+		Amount: 1
+		Duration: 600
+		Condition: onfire
+		Delay: 16
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 18c0
+		Amount: 1
+		Duration: 550
+		Condition: onfire
+		Delay: 21
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 20c0
+		Amount: 1
 		Duration: 500
 		Condition: onfire
-		ValidTargets: Structure, Infantry, Trees
-	Warhead@Fire2: GrantExternalCondition
-		Delay: 6
-		Range: 5c0
-		Duration: 200
+		Delay: 26
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 22c0
+		Amount: 1
+		Duration: 450
 		Condition: onfire
-		ValidTargets: Structure, Infantry, Trees
-	Warhead@Fire3: GrantExternalCondition
-		Delay: 9
-		Range: 7c512
+		Delay: 32
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 24c0
+		Amount: 1
+		Duration: 400
+		Condition: onfire
+		Delay: 38
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 26c0
+		Amount: 1
+		Duration: 350
+		Condition: onfire
+		Delay: 44
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 28c0
+		Amount: 1
+		Duration: 300
+		Condition: onfire
+		Delay: 50
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+
+	# ===== TREE FIRE: Graduated burn by distance =====
+	# Trees are handled separately from structures/infantry because we want
+	# precise control over which trees die (husk) vs survive.
+	# Tree HP: 2500, burn rate: -10 HP/tick (100 dmg per 10 ticks). Needs 250 ticks to kill.
+	#
+	# 0-3 cells: already vaporized by TreeVaporize (instant husk)
+	# 3-6 cells: burns long enough to kill (400 ticks > 250 needed) — slow visible death → husk
+	# 6-10 cells: burns but survives (180 ticks × 10 = 1800 dmg, tree at ~700 HP, Heavy state)
+	# 10-18 cells: brief singe (80 ticks × 10 = 800 dmg, tree at ~1700 HP, Light state)
+	# 18+ cells: untouched
+	#
+	# TotalCap: 1 on trees means only the FIRST fire warhead to hit determines duration.
+	# Lower delay = fires first = controls the tree's fate at that range.
+	Warhead@TreeFire_Kill: GrantExternalCondition
+		Range: 6c0
+		Amount: 1
+		Duration: 400
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@TreeFire_Burn: GrantExternalCondition
+		Range: 10c0
+		Amount: 1
+		Duration: 180
+		Condition: onfire
+		Delay: 10
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@TreeFire_Singe: GrantExternalCondition
+		Range: 18c0
+		Amount: 1
 		Duration: 80
 		Condition: onfire
-		ValidTargets: Structure, Infantry, Trees
-	Warhead@Fire4: GrantExternalCondition
-		Delay: 12
-		Range: 7c512
-		Duration: 30
-		Condition: onfire
-		ValidTargets: Structure, Infantry, Trees
-	Warhead@Fire5: GrantExternalCondition
-		Delay: 15
-		Range: 10c0
-		Duration: 10
-		Condition: onfire
-		ValidTargets: Structure, Infantry, Trees
-
-	Warhead@BlastWave1: SpreadDamage
-		Spread: 2c0
-		Damage: 50000
-		Falloff: 150, 100, 50, 20
-		Delay: 1
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave2: SpreadDamage
-		Spread: 2c0
-		Damage: 45000
-		Falloff: 0, 50, 100, 150, 50, 20
-		Delay: 2
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave3: SpreadDamage
-		Spread: 2c0
-		Damage: 40000
-		Falloff: 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 3
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave4: SpreadDamage
-		Spread: 2c0
-		Damage: 35000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 4
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave5: SpreadDamage
-		Spread: 2c0
-		Damage: 30000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 5
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave6: SpreadDamage
-		Spread: 2c0
-		Damage: 25000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 6
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave7: SpreadDamage
-		Spread: 2c0
-		Damage: 20000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 7
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave8: SpreadDamage
-		Spread: 2c0
-		Damage: 15000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 8
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave9: SpreadDamage
-		Spread: 2c0
-		Damage: 10000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 9
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave10: SpreadDamage
-		Spread: 2c0
-		Damage: 8000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 10
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave11: SpreadDamage
-		Spread: 2c0
-		Damage: 6000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 11
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave12: SpreadDamage
-		Spread: 2c0
-		Damage: 4000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 12
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave13: SpreadDamage
-		Spread: 2c0
-		Damage: 3000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 13
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave14: SpreadDamage
-		Spread: 2c0
-		Damage: 2000
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 14
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave15: SpreadDamage
-		Spread: 2c0
-		Damage: 1200
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 15
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave16: SpreadDamage
-		Spread: 2c0
-		Damage: 600
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 16
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave17: SpreadDamage
-		Spread: 2c0
-		Damage: 300
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 17
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave18: SpreadDamage
-		Spread: 2c0
-		Damage: 150
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 18
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave19: SpreadDamage
-		Spread: 2c0
-		Damage: 80
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 19
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave20: SpreadDamage
-		Spread: 2c0
-		Damage: 80
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 20
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave21: SpreadDamage
-		Spread: 2c0
-		Damage: 25
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 21
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave22: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 22
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave23: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 23
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave24: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 24
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave25: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
 		Delay: 25
-		ValidTargets: Ground, Trees, Water, Underwater, Air
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+
+	# ===== PHASE 2: EMP (Tick 0) — Simultaneous with Flash =====
+	# Tactical nuke EMP disables vehicles and electronics
+	Warhead@EMP: GrantExternalCondition
+		Range: 15c0
+		Duration: 375
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+
+	# ===== PHASE 3: BLAST WAVE (Tick 3 → ~178) — Speed of Sound =====
+	# Expanding shockwave at ~7 ticks/cell (340 m/s at 100m/cell)
+	# Single warhead replaces 53 manual SpreadDamage warheads!
+	# Trees excluded — tree destruction is controlled by fire duration, not overpressure
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 3
+		WaveSpeed: 7
+		MaxRadius: 30c0
+		Damage: 100000
+		Penetration: 5000
+		Spread: 1c0
+		# 30 entries = 30 cells. Inner cells devastating, progressively less, last 5 cells minimal
+		Falloff: 500, 450, 400, 350, 300, 250, 200, 160, 130, 100, 80, 60, 45, 35, 25, 18, 12, 8, 5, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0
 		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
+			Light: 80
+			Medium: 60
 			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave26: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 26
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave27: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 27
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave28: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 28
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave29: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 29
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave30: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 30
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave31: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 31
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave32: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 32
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave33: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 33
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave34: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 34
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave35: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 35
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave36: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 36
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave37: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 37
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave38: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 10c0
+
+	# ===== PHASE 4: BLAST SUPPRESSION (Staggered with blast wave) =====
+	# Suppression arrives with the blast wave at each range band
+	# 5 cells (~tick 38): maximum suppression
+	Warhead@SuppressionClose: GrantExternalCondition
+		Range: 8c0
+		Amount: 10
+		Duration: 200
+		Condition: suppression-1
 		Delay: 38
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave39: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 39
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave40: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 40
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave41: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 41
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave42: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 42
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave43: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 43
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave44: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 44
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave45: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 45
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave46: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 46
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave47: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 47
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave48: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 48
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave49: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 49
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave50: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 50
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave52: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 52
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
-	Warhead@BlastWave53: SpreadDamage
-		Spread: 2c0
-		Damage: 10
-		Falloff: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 100, 20
-		Delay: 53
-		ValidTargets: Ground, Trees, Water, Underwater, Air
-		Versus:
-			Light: 75
-			Wood: 600
-			Medium: 55
-			Heavy: 40
-			Concrete: 100
-		DamageTypes: SmallExplosionDeath
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	# 10 cells (~tick 77)
+	Warhead@SuppressionMedium: GrantExternalCondition
+		Range: 15c0
+		Amount: 7
+		Duration: 150
+		Condition: suppression-1
+		Delay: 77
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	# 20 cells (~tick 150)
+	Warhead@SuppressionFar: GrantExternalCondition
+		Range: 25c0
+		Amount: 4
+		Duration: 100
+		Condition: suppression-1
+		Delay: 150
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	# 25 cells (~tick 187): moderate suppression, strong winds
+	Warhead@SuppressionWind: GrantExternalCondition
+		Range: 28c0
+		Amount: 3
+		Duration: 75
+		Condition: suppression-1
+		Delay: 187
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	# 30 cells (~tick 213): light suppression, soldiers take cover from wind
+	Warhead@SuppressionOuter: GrantExternalCondition
+		Range: 32c0
+		Amount: 1
+		Duration: 40
+		Condition: suppression-1
+		Delay: 213
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+
+	# ===== PHASE 5: TERRAIN SCARRING =====
+	Warhead@Crater: LeaveSmudge
+		Size: 3
+		SmudgeType: Crater
+		Delay: 5
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 10c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 5
+		SmudgeType: Scorch
+		Delay: 10
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 10c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 7
+		Chance: 60
+		SmudgeType: Scorch
+		Delay: 20
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 10c0
 
 EmpBomb:
 	BurstWait: 10

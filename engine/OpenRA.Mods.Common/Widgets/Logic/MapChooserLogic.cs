@@ -459,6 +459,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						details = type + " ";
 
 					details += FluentProvider.GetMessage(Players, "players", preview.PlayerCount);
+
+					if (preview.ScenarioNames.Length > 0)
+						details += $" | {preview.ScenarioNames.Length} scenario{(preview.ScenarioNames.Length != 1 ? "s" : "")}";
+
 					detailsWidget.GetText = () => details;
 				}
 

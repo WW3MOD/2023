@@ -107,6 +107,38 @@
 		Margin: 0,0
 		RequiresCondition: critical-damage
 
+^GarrisonProtectionPips:
+	WithDecoration@GarrisonProt_Full:
+		Image: pips
+		Sequence: pip-defense-5
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && !damaged
+	WithDecoration@GarrisonProt_Light:
+		Image: pips
+		Sequence: pip-defense-4
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && light-damage
+	WithDecoration@GarrisonProt_Medium:
+		Image: pips
+		Sequence: pip-defense-3
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && medium-damage
+	WithDecoration@GarrisonProt_Heavy:
+		Image: pips
+		Sequence: pip-defense-2
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && heavy-damage
+	WithDecoration@GarrisonProt_Critical:
+		Image: pips
+		Sequence: pip-defense-1
+		Position: Top
+		Margin: 0,4
+		RequiresCondition: loaded && critical-damage
+
 # ^DetectionProximity:
 # 	VisionModifier@1:
 # 		RequiresCondition: object-proximity == 1
@@ -254,6 +286,8 @@
 ^AutoTarget:
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
+		AmbushCondition: stance-ambush
+		HoldFireCondition: stance-holdfire
 		InitialCohesion: Loose
 		InitialCohesionAI: Loose
 		InitialResupplyBehavior: Auto
@@ -468,6 +502,8 @@
 ^AutoTargetGround:
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
+		AmbushCondition: stance-ambush
+		HoldFireCondition: stance-holdfire
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
@@ -559,6 +595,8 @@
 	Inherits: ^AutoTargetAir
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
+		AmbushCondition: stance-ambush
+		HoldFireCondition: stance-holdfire
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill && !assault-move
 	AutoTargetPriority@FireAtWill:
@@ -568,6 +606,8 @@
 ^AutoTargetAll:
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
+		AmbushCondition: stance-ambush
+		HoldFireCondition: stance-holdfire
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine

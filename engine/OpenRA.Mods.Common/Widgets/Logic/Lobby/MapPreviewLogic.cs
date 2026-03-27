@@ -111,8 +111,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Widget SetupAuthorAndMapType(Widget parent)
 			{
 				var typeLabel = parent.Get<LabelWidget>("MAP_TYPE");
-				var typeCache = new CachedTransform<MapPreview, string>(
-					m => m.Categories.FirstOrDefault() ?? "");
+				var typeCache = new CachedTransform<MapPreview, string>(m =>
+				{
+					var cat = m.Categories.FirstOrDefault() ?? "";
+					if (m.ScenarioNames.Length > 0)
+						cat += $" | {m.ScenarioNames.Length} scenario{(m.ScenarioNames.Length != 1 ? "s" : "")}";
+					return cat;
+				});
 
 				typeLabel.GetText = () => typeCache.Update(getMap().Map);
 

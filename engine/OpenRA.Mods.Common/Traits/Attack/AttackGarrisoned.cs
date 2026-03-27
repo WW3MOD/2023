@@ -46,6 +46,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public readonly bool FlashOnAttack = true;
 
+		[Desc("Minimum ticks between flash effects to prevent flash spam with multiple ports firing.")]
+		public readonly int FlashCooldownTicks = 25;
+
 		public override object Create(ActorInitializer init) { return new AttackGarrisoned(init.Self, this); }
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -101,6 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 		// New mode: GarrisonManager handles targeting
 		GarrisonManager garrisonManager;
 		bool useGarrisonManager;
+		int flashCooldown;
 
 		public AttackGarrisoned(Actor self, AttackGarrisonedInfo info)
 			: base(self, info)
@@ -126,7 +130,7 @@ namespace OpenRA.Mods.Common.Traits
 			return () =>
 			{
 				if (useGarrisonManager)
-					return garrisonManager.GetAllArmaments();
+					return garrisonManager.GetAllPotentialArmaments();
 
 				return legacyArmaments;
 			};
@@ -206,6 +210,9 @@ namespace OpenRA.Mods.Common.Traits
 			// Always call base.Tick for AttackFollow target management and AttackBase aiming notifications.
 			// In GarrisonManager mode, DoAttack is a no-op so base.Tick's DoAttack calls are harmless.
 			base.Tick(self);
+
+			if (flashCooldown > 0)
+				flashCooldown--;
 
 			if (useGarrisonManager)
 			{
@@ -301,11 +308,14 @@ namespace OpenRA.Mods.Common.Traits
 						muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
 					}
 
-					if (Info.FlashOnAttack)
+					if (Info.FlashOnAttack && flashCooldown <= 0)
+					{
+						flashCooldown = Info.FlashCooldownTicks;
 						self.World.AddFrameEndTask(w =>
 						{
 							w.Add(new Effects.FlashTarget(self, Color.Orange, 0.1f));
 						});
+					}
 
 					foreach (var npa in self.TraitsImplementing<INotifyAttack>())
 						npa.Attacking(self, target, a, barrel);

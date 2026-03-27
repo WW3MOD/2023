@@ -579,8 +579,8 @@ m109:
 			TopLeft: -315, -900
 			BottomRight: 315, 900
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Speed: 80
@@ -695,8 +695,8 @@ m270:
 			TopLeft: -360, -530
 			BottomRight: 360, 530
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Locomotor: lighttracked
@@ -1051,8 +1051,13 @@ HIMARSMissile:
 	Health:
 		HP: 50
 	BallisticMissile:
-		LaunchAngle: 96
+		LaunchAngle: 128
 		Speed: 500
+		Acceleration: 15
+		InitialSpeedPercent: 20
+		LaunchRiseTicks: 20
+		LaunchRiseHeight: 2c0
+		VisualPitchMultiplier: 50
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

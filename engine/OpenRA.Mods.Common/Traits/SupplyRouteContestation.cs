@@ -90,7 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SupplyRouteContestation(init.Self, this); }
 	}
 
-	public class SupplyRouteContestation : ITick, ISelectionBar, IProductionSpeedModifier,
+	public class SupplyRouteContestation : ITick, ISelectionBar, IAlwaysVisibleBar, IProductionSpeedModifier,
 		INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		readonly SupplyRouteContestationInfo info;
@@ -434,5 +434,8 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		bool ISelectionBar.DisplayWhenEmpty => true;
+
+		// IAlwaysVisibleBar: show the bar without selection when being contested
+		bool IAlwaysVisibleBar.ShowBarWithoutSelection => controlBar < info.BarMax;
 	}
 }

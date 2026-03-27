@@ -12,7 +12,7 @@ World:
 	MusicPlaylist:
 		DisableWorldSounds: true
 	LuaScript:
-		Scripts: shellmap-fire-support.lua
+		Scripts: shellmap-open-field.lua
 
 ^Combatant:
 	AutoTarget:

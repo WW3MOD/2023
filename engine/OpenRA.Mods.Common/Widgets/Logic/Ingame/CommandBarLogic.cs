@@ -25,6 +25,8 @@ namespace OpenRA.Mods.Common.Widgets
 		bool stopDisabled = true;
 		bool waypointModeDisabled = true;
 		bool patrolDisabled = true;
+		bool autoEnterDisabled = true;
+		bool takeCoverDisabled = true;
 
 
 		int deployHighlighted;
@@ -32,6 +34,7 @@ namespace OpenRA.Mods.Common.Widgets
 		int resupplyHighlighted;
 		int stopHighlighted;
 		int patrolHighlighted;
+		int autoEnterHighlighted;
 
 
 		TraitPair<IIssueDeployOrder>[] selectedDeploys = Array.Empty<TraitPair<IIssueDeployOrder>>();
@@ -218,6 +221,32 @@ namespace OpenRA.Mods.Common.Widgets
 				patrolButton.OnKeyPress = ki => patrolButton.OnClick();
 			}
 
+			var autoEnterButton = widget.GetOrNull<ButtonWidget>("AUTO_ENTER");
+			if (autoEnterButton != null)
+			{
+				WidgetUtils.BindButtonIcon(autoEnterButton);
+
+				autoEnterButton.IsDisabled = () => { UpdateStateIfNecessary(); return autoEnterDisabled; };
+				autoEnterButton.IsHighlighted = () => autoEnterHighlighted > 0;
+				autoEnterButton.OnClick = () =>
+				{
+					if (highlightOnButtonPress)
+						autoEnterHighlighted = 2;
+
+					PerformAutoEnter();
+				};
+
+				autoEnterButton.OnKeyPress = ki => { autoEnterHighlighted = 2; autoEnterButton.OnClick(); };
+			}
+
+			var takeCoverButton = widget.GetOrNull<ButtonWidget>("TAKE_COVER");
+			if (takeCoverButton != null)
+			{
+				WidgetUtils.BindButtonIcon(takeCoverButton);
+
+				takeCoverButton.IsDisabled = () => { UpdateStateIfNecessary(); return takeCoverDisabled; };
+			}
+
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
 			if (stopButton != null)
 			{
@@ -354,6 +383,9 @@ namespace OpenRA.Mods.Common.Widgets
 			if (patrolHighlighted > 0)
 				patrolHighlighted--;
 
+			if (autoEnterHighlighted > 0)
+				autoEnterHighlighted--;
+
 			base.Tick();
 		}
 
@@ -385,6 +417,8 @@ namespace OpenRA.Mods.Common.Widgets
 			scatterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 			resupplyDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AmmoPoolInfo>());
 			patrolDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
+			autoEnterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<PassengerInfo>() || a.Info.HasTraitInfo<CargoInfo>());
+			takeCoverDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<InfantryStatesInfo>());
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()
@@ -431,6 +465,210 @@ namespace OpenRA.Mods.Common.Widgets
 				world.IssueOrder(o);
 
 			orders.PlayVoiceForOrders();
+		}
+
+		void PerformAutoEnter()
+		{
+			UpdateStateIfNecessary();
+
+			var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
+			var passengers = selectedActors.Where(a => a.Info.HasTraitInfo<PassengerInfo>() && !a.Info.HasTraitInfo<CargoInfo>()).ToArray();
+			var transports = selectedActors.Where(a => a.Info.HasTraitInfo<CargoInfo>()).ToArray();
+
+			// Actors with both Passenger and Cargo (e.g. IFV inside Chinook) treated as transports
+			var purePassengers = passengers;
+			var hasPassengers = purePassengers.Length > 0;
+			var hasTransports = transports.Length > 0;
+
+			if (hasPassengers && !hasTransports)
+				AutoEnterNearestTransports(purePassengers, queued);
+			else if (!hasPassengers && hasTransports)
+				AutoCallNearbyPassengers(transports, queued);
+			else if (hasPassengers && hasTransports)
+				AutoEnterSelectedTransports(purePassengers, transports, queued);
+		}
+
+		void AutoEnterNearestTransports(Actor[] passengers, bool queued)
+		{
+			var worldTransports = world.ActorsHavingTrait<Cargo>()
+				.Where(t => t.IsInWorld && !t.IsDead && t.Owner.IsAlliedWith(world.LocalPlayer))
+				.ToList();
+
+			if (worldTransports.Count == 0)
+				return;
+
+			var additionalWeight = new Dictionary<Actor, int>();
+			var orders = new List<Order>();
+
+			foreach (var passenger in passengers)
+			{
+				var pi = passenger.Info.TraitInfo<PassengerInfo>();
+
+				var best = worldTransports
+					.Where(t =>
+					{
+						var ci = t.Info.TraitInfo<CargoInfo>();
+						if (!ci.Types.Contains(pi.CargoType))
+							return false;
+
+						additionalWeight.TryGetValue(t, out var extra);
+						return t.Trait<Cargo>().HasSpace(pi.Weight + extra);
+					})
+					.OrderBy(t => (t.CenterPosition - passenger.CenterPosition).HorizontalLengthSquared)
+					.FirstOrDefault();
+
+				if (best == null)
+					continue;
+
+				additionalWeight.TryGetValue(best, out var current);
+				additionalWeight[best] = current + pi.Weight;
+				orders.Add(new Order("EnterTransport", passenger, Target.FromActor(best), queued));
+			}
+
+			foreach (var o in orders)
+				world.IssueOrder(o);
+
+			if (orders.Count > 0)
+				orders.ToArray().PlayVoiceForOrders();
+		}
+
+		void AutoCallNearbyPassengers(Actor[] transports, bool queued)
+		{
+			var maxRangeSq = WDist.FromCells(15).LengthSquared;
+			var worldPassengers = world.ActorsHavingTrait<Passenger>()
+				.Where(p => p.IsInWorld && !p.IsDead && p.Owner == world.LocalPlayer)
+				.ToList();
+
+			if (worldPassengers.Count == 0)
+				return;
+
+			var additionalWeight = new Dictionary<Actor, int>();
+			var orders = new List<Order>();
+			var transportPassengers = new Dictionary<Actor, List<Actor>>();
+
+			foreach (var transport in transports)
+			{
+				var cargo = transport.Trait<Cargo>();
+				var ci = transport.Info.TraitInfo<CargoInfo>();
+
+				var candidates = worldPassengers
+					.Where(p =>
+					{
+						var dist = (p.CenterPosition - transport.CenterPosition).HorizontalLengthSquared;
+						if (dist > maxRangeSq)
+							return false;
+
+						var pi = p.Info.TraitInfo<PassengerInfo>();
+						return ci.Types.Contains(pi.CargoType);
+					})
+					.OrderBy(p => (p.CenterPosition - transport.CenterPosition).HorizontalLengthSquared)
+					.ToList();
+
+				foreach (var passenger in candidates)
+				{
+					var weight = passenger.Info.TraitInfo<PassengerInfo>().Weight;
+					additionalWeight.TryGetValue(transport, out var extra);
+					if (!cargo.HasSpace(weight + extra))
+						break;
+
+					additionalWeight[transport] = extra + weight;
+					orders.Add(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
+					worldPassengers.Remove(passenger);
+
+					if (!transportPassengers.ContainsKey(transport))
+						transportPassengers[transport] = new List<Actor>();
+					transportPassengers[transport].Add(passenger);
+				}
+			}
+
+			// Move each transport toward the centroid of its assigned passengers
+			foreach (var kv in transportPassengers)
+				MoveTransportTowardPassengers(kv.Key, kv.Value, queued);
+
+			foreach (var o in orders)
+				world.IssueOrder(o);
+
+			if (orders.Count > 0)
+				orders.ToArray().PlayVoiceForOrders();
+		}
+
+		void AutoEnterSelectedTransports(Actor[] passengers, Actor[] transports, bool queued)
+		{
+			var additionalWeight = new Dictionary<Actor, int>();
+			var orders = new List<Order>();
+			var transportPassengers = new Dictionary<Actor, List<Actor>>();
+
+			foreach (var passenger in passengers)
+			{
+				var pi = passenger.Info.TraitInfo<PassengerInfo>();
+
+				var best = transports
+					.Where(t =>
+					{
+						var ci = t.Info.TraitInfo<CargoInfo>();
+						if (!ci.Types.Contains(pi.CargoType))
+							return false;
+
+						additionalWeight.TryGetValue(t, out var extra);
+						return t.Trait<Cargo>().HasSpace(pi.Weight + extra);
+					})
+					.OrderBy(t => (t.CenterPosition - passenger.CenterPosition).HorizontalLengthSquared)
+					.FirstOrDefault();
+
+				if (best == null)
+					continue;
+
+				additionalWeight.TryGetValue(best, out var current);
+				additionalWeight[best] = current + pi.Weight;
+				orders.Add(new Order("EnterTransport", passenger, Target.FromActor(best), queued));
+
+				if (!transportPassengers.ContainsKey(best))
+					transportPassengers[best] = new List<Actor>();
+				transportPassengers[best].Add(passenger);
+			}
+
+			// Move each transport toward the centroid of its assigned passengers
+			foreach (var kv in transportPassengers)
+				MoveTransportTowardPassengers(kv.Key, kv.Value, queued);
+
+			foreach (var o in orders)
+				world.IssueOrder(o);
+
+			if (orders.Count > 0)
+				orders.ToArray().PlayVoiceForOrders();
+		}
+
+		void MoveTransportTowardPassengers(Actor transport, List<Actor> passengers, bool queued)
+		{
+			if (passengers.Count == 0)
+				return;
+
+			// Don't move buildings or aircraft (they have their own landing/pickup logic)
+			if (transport.Info.HasTraitInfo<BuildingInfo>() || transport.Info.HasTraitInfo<AircraftInfo>())
+				return;
+
+			// Calculate centroid of assigned passengers
+			long sumX = 0, sumY = 0;
+			foreach (var p in passengers)
+			{
+				sumX += p.CenterPosition.X;
+				sumY += p.CenterPosition.Y;
+			}
+
+			var centroidX = (int)(sumX / passengers.Count);
+			var centroidY = (int)(sumY / passengers.Count);
+			var centroid = new WPos(centroidX, centroidY, transport.CenterPosition.Z);
+
+			// Find the cell closest to the centroid
+			var targetCell = world.Map.CellContaining(centroid);
+
+			// If the transport is already within 2 cells of the centroid, don't bother moving
+			var distSq = (transport.CenterPosition - centroid).HorizontalLengthSquared;
+			if (distSq <= WDist.FromCells(2).LengthSquared)
+				return;
+
+			// Issue move order to transport (not queued — replace current activity)
+			world.IssueOrder(new Order("Move", transport, Target.FromCell(world, targetCell), false));
 		}
 	}
 }

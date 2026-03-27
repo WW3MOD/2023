@@ -97,9 +97,6 @@ namespace OpenRA.Mods.Common.Traits
 				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
-				// Apply cohesion offset so grouped units spread to different targets
-				cell = CohesionMoveModifier.ApplyCohesionOffset(self, cell);
-
 				var targetLocation = move.NearestMoveableCell(cell);
 				var assaultMoving = false; // WW3MOD: AssaultMove disabled
 

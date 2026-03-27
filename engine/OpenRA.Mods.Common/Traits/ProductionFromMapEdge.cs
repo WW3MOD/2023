@@ -19,18 +19,26 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Produce a unit on the closest map edge cell and move into the world.")]
 	sealed class ProductionFromMapEdgeInfo : ProductionInfo
 	{
+		[Desc("Number of candidate edge cells to consider for spawning (center + sides).")]
+		public readonly int SpawnCandidateCount = 5;
+
 		public override object Create(ActorInitializer init) { return new ProductionFromMapEdge(init, this); }
 	}
 
 	sealed class ProductionFromMapEdge : Production
 	{
+		readonly ProductionFromMapEdgeInfo edgeInfo;
 		readonly CPos? spawnLocation;
 		readonly IPathFinder pathFinder;
 		RallyPoint rp;
 
+		// Round-robin index for distributing spawns across candidate cells
+		int nextCandidateIndex;
+
 		public ProductionFromMapEdge(ActorInitializer init, ProductionInfo info)
 			: base(init, info)
 		{
+			edgeInfo = (ProductionFromMapEdgeInfo)info;
 			pathFinder = init.Self.World.WorldActor.Trait<IPathFinder>();
 
 			var spawnLocationInit = init.GetOrDefault<ProductionSpawnLocationInit>(info);
@@ -88,27 +96,57 @@ namespace OpenRA.Mods.Common.Traits
 				if (aircraftInfo != null)
 					location = self.World.Map.ChooseClosestEdgeCell(self.Location);
 
-				// Ground units: use SpawnArea as a hint for which edge to spawn near
+				// Ground units: use SpawnArea as a hint for which edge to spawn near.
+				// Uses round-robin across candidate cells for fast, distributed spawning.
 				if (mobileInfo != null)
 				{
 					var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
 					var spawnAreaHint = FindClosestSpawnArea(self);
-
-					// The first destination the unit needs to reach (for path validation)
 					var firstDest = hasRallyPoint ? rp.Path[0] : self.Location;
-
-					// Find the closest valid edge cell near the SpawnArea (or near the building if no SpawnArea)
 					var searchOrigin = spawnAreaHint ?? self.Location;
 
-					// If we have a SpawnArea hint, only search on the same map edge to prevent
-					// units spawning on the wrong side of the map when the area is congested.
-					// Falls back to any edge if no SpawnArea exists (legacy behavior).
+					CPos[] candidates;
 					if (spawnAreaHint.HasValue)
-						location = self.World.Map.ChooseClosestMatchingEdgeCellOnSameEdge(searchOrigin,
-							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
+						candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, edgeInfo.SpawnCandidateCount);
 					else
-						location = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
+					{
+						// No SpawnArea: legacy behavior, find closest matching edge cell (any edge)
+						var legacyCell = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
 							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
+						if (legacyCell != default)
+							location = legacyCell;
+						candidates = null;
+					}
+
+					if (candidates != null && candidates.Length > 0)
+					{
+						// Verify path exists from center cell to destination (terrain check, done once)
+						var centerCell = candidates[0];
+						if (!pathFinder.PathExistsForLocomotor(locomotor, centerCell, firstDest))
+						{
+							// If center cell can't path to destination, none of the adjacent cells will either
+							location = null;
+						}
+						else
+						{
+							// Round-robin: start from the next candidate index and wrap around.
+							// This distributes spawns evenly across all candidate cells instead of
+							// always piling onto center and waiting for it to clear.
+							location = null;
+							for (var attempt = 0; attempt < candidates.Length; attempt++)
+							{
+								var idx = (nextCandidateIndex + attempt) % candidates.Length;
+								if (mobileInfo.CanEnterCell(self.World, null, candidates[idx]))
+								{
+									location = candidates[idx];
+									nextCandidateIndex = (idx + 1) % candidates.Length;
+									break;
+								}
+							}
+
+							// All candidates blocked — will retry next tick
+						}
+					}
 				}
 			}
 

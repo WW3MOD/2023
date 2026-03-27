@@ -47,7 +47,7 @@ Player:
 		RushInterval: 150
 		AttackScanRadius: 32
 		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america, TRAN, littlebird, HELI
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Rush AI — America (fast, aggressive, smaller squads) =====
@@ -85,7 +85,7 @@ Player:
 		RushInterval: 80
 		AttackScanRadius: 40
 		DangerScanRadius: 20
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america, TRAN, littlebird, HELI
 		IgnoredEnemyTargetTypes: IgnoreThis
 
 	# ===== Turtle AI — America (builds up, large squads, combined arms) =====
@@ -136,5 +136,5 @@ Player:
 		RushInterval: 300
 		AttackScanRadius: 35
 		DangerScanRadius: 30
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america
+		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america, TRAN, littlebird, HELI
 		IgnoredEnemyTargetTypes: IgnoreThis

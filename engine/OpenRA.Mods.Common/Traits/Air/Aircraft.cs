@@ -899,12 +899,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Info.IdleBehavior == IdleBehaviorType.LeaveMap)
 			{
-				self.QueueActivity(new FlyOffMap(self));
+				// Fly toward player's home edge, not just forward
+				var homeEdge = self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
+				self.QueueActivity(new FlyOffMap(self, Target.FromCell(self.World, homeEdge)));
 				self.QueueActivity(new RemoveSelf());
 			}
 			else if (Info.IdleBehavior == IdleBehaviorType.LeaveMapAtClosestEdge)
 			{
-				var edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Location);
+				// Use player's home edge instead of nearest edge to current position
+				var edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
 				self.QueueActivity(new FlyOffMap(self, Target.FromCell(self.World, edgeCell)));
 				self.QueueActivity(new RemoveSelf());
 			}

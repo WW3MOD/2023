@@ -500,7 +500,7 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		void ChangeSpeed(int sign = 1)
 		{
-			speed = (speed + sign * info.Acceleration.Length).Clamp(0, maxSpeed);
+			speed = (speed + sign * info.Acceleration.Length).Clamp(1, maxSpeed);
 
 			// Compute the vertical loop radius
 			loopRadius = LoopRadius(speed, info.VerticalRateOfTurn.Facing);
@@ -643,7 +643,11 @@ namespace OpenRA.Mods.Common.Projectiles
 				// No longer travel at cruise altitude
 				state = States.Hitting;
 
-				if (lastHt >= targetPosition.Z)
+				// Only allow pass-by for terrain-aware missiles where lastHt is meaningful.
+				// Without TerrainHeightAware, lastHt=0 is uninitialized and falsely
+				// triggers allowPassBy when target is at ground level (Z=0), which
+				// freezes missile speed by entering a branch that skips ChangeSpeed().
+				if (info.TerrainHeightAware && lastHt >= targetPosition.Z)
 					allowPassBy = true;
 
 				if (!allowPassBy && (lastHt < targetPosition.Z || targetPassedBy))
@@ -706,7 +710,10 @@ namespace OpenRA.Mods.Common.Projectiles
 							if (d1 < 0)
 								d1 = 0;
 							if (d1 > 2 * loopRadius)
+							{
+								ChangeSpeed();
 								return 0;
+							}
 
 							// Find critical height at which the missile must be once it is at one loopRadius
 							// away from the target
@@ -717,7 +724,7 @@ namespace OpenRA.Mods.Common.Projectiles
 							else
 								desiredVFacing = 0;
 
-							// TODO: deceleration checks!!!
+							ChangeSpeed();
 						}
 						else
 						{
@@ -747,6 +754,8 @@ namespace OpenRA.Mods.Common.Projectiles
 								if (desiredVFacing < 0 && info.VerticalRateOfTurn.Facing < (sbyte)vFacing)
 									desiredVFacing = 0;
 							}
+
+							ChangeSpeed();
 						}
 					}
 					else
@@ -756,6 +765,8 @@ namespace OpenRA.Mods.Common.Projectiles
 						desiredVFacing = (sbyte)vDist.HorizontalLengthSquared != 0 ? vDist.Yaw.Facing : vFacing;
 						if (desiredVFacing < 0 && info.VerticalRateOfTurn.Facing < (sbyte)vFacing)
 							desiredVFacing = 0;
+
+						ChangeSpeed();
 					}
 				}
 				else
@@ -845,8 +856,21 @@ namespace OpenRA.Mods.Common.Projectiles
 				desiredHFacing = hFacing;
 			}
 
-			hFacing = Util.TickFacing(hFacing, desiredHFacing, info.HorizontalRateOfTurn.Facing);
-			vFacing = Util.TickFacing(vFacing, desiredVFacing, info.VerticalRateOfTurn.Facing);
+			// In the Hitting state, boost turn rate as the missile closes on the target
+			// to prevent wide orbits. Scales from 1x at 3*loopRadius to 3x at point-blank,
+			// capped at 20 facings/tick.
+			var hRot = info.HorizontalRateOfTurn.Facing;
+			var vRot = info.VerticalRateOfTurn.Facing;
+			if (state == States.Hitting && relTarHorDist < 3 * loopRadius)
+			{
+				var closeness = System.Math.Max(relTarHorDist, 1);
+				var boost = System.Math.Min(3 * loopRadius / closeness, 3);
+				hRot = System.Math.Min(hRot * boost, 20);
+				vRot = System.Math.Min(vRot * boost, 20);
+			}
+
+			hFacing = Util.TickFacing(hFacing, desiredHFacing, hRot);
+			vFacing = Util.TickFacing(vFacing, desiredVFacing, vRot);
 
 			return new WVec(0, -1024 * speed, 0)
 				.Rotate(new WRot(WAngle.FromFacing(vFacing), WAngle.Zero, WAngle.Zero))

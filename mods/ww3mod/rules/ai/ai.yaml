@@ -144,7 +144,7 @@ Player:
 			hpad: 3
 			afld: 2
 		BuildingFractions:
-			hpad: 5
+			hpad: 8
 			afld: 5
 			gtwr: 8
 			pbox: 5
@@ -176,7 +176,7 @@ Player:
 			hpad: 2
 			afld: 1
 		BuildingFractions:
-			hpad: 3
+			hpad: 4
 			afld: 3
 			gtwr: 4
 			pbox: 2
@@ -205,7 +205,7 @@ Player:
 			hpad: 4
 			afld: 3
 		BuildingFractions:
-			hpad: 6
+			hpad: 8
 			afld: 6
 			gtwr: 12
 			pbox: 8
@@ -214,46 +214,99 @@ Player:
 			sam: 4
 			hsam: 3
 
-	# ===== Aircraft — Russia =====
-	UnitBuilderBotModule@russia.air:
+	# ===== Fixed-Wing Aircraft — Russia =====
+	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
+	UnitBuilderBotModule@russia.fixedwing:
 		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 0
+		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			HIND: 100
-			MI28: 60
 			MIG: 30
+			FROG: 20
+		UnitLimits:
+			MIG: 2
+			FROG: 2
+
+	SquadManagerBotModule@russia.fixedwing:
+		RequiresCondition: enable-ai-any && player.brics
+		SquadSize: 2
+		SquadSizeRandomBonus: 1
+		RushInterval: 600
+		AttackScanRadius: 48
+		AirUnitsTypes: MIG, FROG
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
+	# ===== Helicopters — Russia =====
+	# Helicopters are called in via Supply Route — no HPAD needed to produce them
+	UnitBuilderBotModule@russia.heli:
+		RequiresCondition: enable-ai-any && player.brics
+		IdleBaseUnitsMaximum: 8
+		SkipRearmBuildingCheck: true
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			HIND: 80
+			MI28: 50
+			HALO: 15
 		UnitLimits:
 			HIND: 4
 			MI28: 3
-			MIG: 2
+			HALO: 2
+		UnitDelays:
+			HIND: 2500
+			MI28: 3500
+			HALO: 2500
 
-	SquadManagerBotModule@russia.air:
-		RequiresCondition: enable-ai-any && player.brics
-		SquadSize: 2
-		SquadSizeRandomBonus: 2
-		RushInterval: 600
-		AttackScanRadius: 48
-		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
-
-	# ===== Aircraft — America =====
-	UnitBuilderBotModule@america.air:
+	# ===== Fixed-Wing Aircraft — America =====
+	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
+	UnitBuilderBotModule@america.fixedwing:
 		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 0
+		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			HELI: 100
 			A10: 40
 			F16: 30
 		UnitLimits:
-			HELI: 4
 			A10: 2
 			F16: 2
 
-	SquadManagerBotModule@america.air:
+	SquadManagerBotModule@america.fixedwing:
 		RequiresCondition: enable-ai-any && player.nato
 		SquadSize: 2
-		SquadSizeRandomBonus: 2
+		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
+		AirUnitsTypes: A10, F16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
+	# ===== Helicopters — America =====
+	# Helicopters are called in via Supply Route — no HPAD needed to produce them
+	UnitBuilderBotModule@america.heli:
+		RequiresCondition: enable-ai-any && player.nato
+		IdleBaseUnitsMaximum: 8
+		SkipRearmBuildingCheck: true
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			HELI: 80
+			littlebird: 40
+			TRAN: 15
+		UnitLimits:
+			HELI: 4
+			littlebird: 2
+			TRAN: 2
+		UnitDelays:
+			HELI: 2500
+			littlebird: 2500
+			TRAN: 2500
+
+	# ===== Helicopter Squad Manager (shared, all factions) =====
+	HelicopterSquadBotModule:
+		RequiresCondition: enable-ai-any
+		AttackSquadSize: 2
+		AttackSquadSizeBonus: 1
+		AttackCooldown: 900
+		ScoutInterval: 400
+		TransportInterval: 600
+		TransportMinInfantry: 4
+		MaxActiveSquads: 3

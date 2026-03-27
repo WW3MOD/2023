@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Activate the actor's Airstrike Power. Returns the aircraft that will attack.")]
 		public Actor[] TargetAirstrike(WPos target, WAngle? facing = null)
 		{
-			return ap.SendAirstrike(Self, target, facing);
+			return ap.SendAirstrike(Self, target);
 		}
 	}
 }

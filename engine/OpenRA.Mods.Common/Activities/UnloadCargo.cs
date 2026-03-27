@@ -27,6 +27,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Mobile mobile;
 		readonly bool assignTargetOnFirstRun;
 		readonly WDist unloadRange;
+		readonly Actor specificPassenger;
 
 		Target destination;
 		bool takeOffAfterUnload;
@@ -35,6 +36,14 @@ namespace OpenRA.Mods.Common.Activities
 			: this(self, Target.Invalid, unloadRange, unloadAll)
 		{
 			assignTargetOnFirstRun = true;
+		}
+
+		/// <summary>Unload a specific passenger (used by cargo panel individual eject).</summary>
+		public UnloadCargo(Actor self, WDist unloadRange, Actor specificPassenger)
+			: this(self, Target.Invalid, unloadRange, false)
+		{
+			assignTargetOnFirstRun = true;
+			this.specificPassenger = specificPassenger;
 		}
 
 		public UnloadCargo(Actor self, in Target destination, WDist unloadRange, bool unloadAll = true)
@@ -95,12 +104,16 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || cargo.IsEmpty())
 				return true;
 
+			// If specific passenger was requested but is no longer in cargo, we're done
+			if (specificPassenger != null && !cargo.Passengers.Contains(specificPassenger))
+				return true;
+
 			if (cargo.CanUnload())
 			{
 				foreach (var inu in notifiers)
 					inu.Unloading(self);
 
-				var actor = cargo.Peek();
+				var actor = specificPassenger ?? cargo.Peek();
 				var spawn = self.CenterPosition;
 
 				var exitSubCell = ChooseExitSubCell(actor);
@@ -111,7 +124,11 @@ namespace OpenRA.Mods.Common.Activities
 					return false;
 				}
 
-				cargo.Unload(self);
+				// Check for pre-queued rally point before unloading
+				var rallyTarget = cargo.GetEjectRally(actor.ActorID);
+				cargo.ClearEjectRally(actor.ActorID);
+
+				cargo.Unload(self, specificPassenger);
 				self.World.AddFrameEndTask(w =>
 				{
 					if (actor.Disposed)
@@ -132,6 +149,12 @@ namespace OpenRA.Mods.Common.Activities
 
 					actor.CancelActivity();
 					w.Add(actor);
+
+					// Apply pre-queued rally point order
+					if (rallyTarget.Type != TargetType.Invalid)
+					{
+						w.IssueOrder(new Order("Move", actor, rallyTarget, false));
+					}
 				});
 			}
 

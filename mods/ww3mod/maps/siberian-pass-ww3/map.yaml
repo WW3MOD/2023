@@ -10,7 +10,7 @@ Tileset: SNOW
 
 MapSize: 97,67
 
-Bounds: 1,1,95,65
+Bounds: 0,0,97,67
 
 Visibility: Lobby
 

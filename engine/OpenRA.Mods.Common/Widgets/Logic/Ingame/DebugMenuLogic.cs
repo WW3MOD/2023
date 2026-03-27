@@ -10,6 +10,9 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -19,28 +22,55 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class DebugMenuLogic : ChromeLogic
 	{
+		static readonly string PresetPath = Path.Combine(Platform.SupportDir, "ww3mod", "debug-preset.yaml");
+
+		// Color scheme: OFF = red, ME = green, ALL = blue
+		static readonly Color ColorOff = Color.FromArgb(255, 80, 80);
+		static readonly Color ColorMe = Color.FromArgb(80, 220, 80);
+		static readonly Color ColorAll = Color.FromArgb(80, 160, 255);
+
+		// Static so state persists across panel open/close within the same game
+		static readonly Dictionary<string, int> CheatStates = new Dictionary<string, int>();
+
 		[ObjectCreator.UseCtor]
 		public DebugMenuLogic(Widget widget, World world)
 		{
 			var devTrait = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
 			var debugVis = world.WorldActor.TraitOrDefault<DebugVisualizations>();
+			var terrainGeometryTrait = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
+			var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
 
-			var visibilityCheckbox = widget.GetOrNull<CheckboxWidget>("DISABLE_VISIBILITY_CHECKS");
-			if (visibilityCheckbox != null)
-				BindOrderCheckbox(visibilityCheckbox, world, "DevVisibility", () => devTrait.DisableShroud);
+			// Sync button states from actual DeveloperMode trait values on panel open
+			SyncStatesFromTrait(world, devTrait);
 
-			var cosmeticRevealCheckbox = widget.GetOrNull<CheckboxWidget>("COSMETIC_REVEAL");
-			if (cosmeticRevealCheckbox != null)
-				BindOrderCheckbox(cosmeticRevealCheckbox, world, "DevCosmeticReveal", () => devTrait.CosmeticReveal);
+			// --- 3-state cheat buttons ---
+			// Left column
+			Bind3StateButton(widget, world, "INSTANT_BUILD", "Quick Build",
+				"DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
 
-			var controlAllCheckbox = widget.GetOrNull<CheckboxWidget>("CONTROL_ALL_UNITS");
-			if (controlAllCheckbox != null)
-				BindOrderCheckbox(controlAllCheckbox, world, "DevControlAllUnits", () => devTrait.ControlAllUnits);
+			Bind3StateButton(widget, world, "ENABLE_TECH", "Build Everything",
+				"DevEnableTech", "DevEnableTechAll", "DevEnableTechReset");
 
-			var pathCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_UNIT_PATHS");
-			if (pathCheckbox != null)
-				BindOrderCheckbox(pathCheckbox, world, "DevPathDebug", () => devTrait.PathDebug);
+			Bind3StateButton(widget, world, "BUILD_ANYWHERE", "Build Anywhere",
+				"DevBuildAnywhere", "DevBuildAnywhereAll", "DevBuildAnywhereReset");
 
+			Bind3StateButton(widget, world, "INSTANT_CHARGE", "Instant Charge",
+				"DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
+
+			// Right column
+			Bind3StateButton(widget, world, "COSMETIC_REVEAL", "Reveal All",
+				"DevCosmeticReveal", "DevCosmeticRevealAll", "DevCosmeticRevealReset");
+
+			Bind3StateButton(widget, world, "CONTROL_ALL_UNITS", "Control All",
+				"DevControlAllUnits", "DevControlAllUnitsAll", "DevControlAllUnitsReset");
+
+			Bind3StateButton(widget, world, "DISABLE_SHROUD", "No Fog",
+				"DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
+
+			Bind3StateButton(widget, world, "SHOW_UNIT_PATHS", "Show Paths",
+				"DevPathDebug", "DevPathDebugAll", "DevPathDebugReset");
+
+			// --- Action buttons ---
 			var cashButton = widget.GetOrNull<ButtonWidget>("GIVE_CASH");
 			if (cashButton != null)
 				cashButton.OnClick = () => IssueOrder(world, "DevGiveCash");
@@ -53,59 +83,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (giveCashAllButton != null)
 				giveCashAllButton.OnClick = () => IssueOrder(world, "DevGiveCashAll");
 
-			// Instant Build: 3-state button (Off → Me → All, right-click resets)
-			// 0 = Off, 1 = Me only, 2 = All players
-			var fastBuildState = 0;
-			var fastBuildButton = widget.GetOrNull<ButtonWidget>("INSTANT_BUILD");
-			if (fastBuildButton != null)
-			{
-				fastBuildButton.GetText = () =>
-				{
-					switch (fastBuildState)
-					{
-						case 1: return "Instant Build: ME";
-						case 2: return "Instant Build: ALL";
-						default: return "Instant Build: OFF";
-					}
-				};
+			var explorationButton = widget.GetOrNull<ButtonWidget>("GIVE_EXPLORATION");
+			if (explorationButton != null)
+				explorationButton.OnClick = () => IssueOrder(world, "DevGiveExploration");
 
-				fastBuildButton.OnClick = () =>
-				{
-					switch (fastBuildState)
-					{
-						case 0:
-							// Off → Me: toggle on for local player
-							fastBuildState = 1;
-							IssueOrder(world, "DevFastBuild");
-							break;
-						case 1:
-							// Me → All: enable for all players
-							fastBuildState = 2;
-							IssueOrder(world, "DevFastBuildAll");
-							break;
-						case 2:
-							// All → Off: reset everyone
-							fastBuildState = 0;
-							IssueOrder(world, "DevFastBuildReset");
-							break;
-					}
-				};
+			var noexplorationButton = widget.GetOrNull<ButtonWidget>("RESET_EXPLORATION");
+			if (noexplorationButton != null)
+				noexplorationButton.OnClick = () => IssueOrder(world, "DevResetExploration");
 
-				fastBuildButton.OnRightClick = () =>
-				{
-					// Right-click: reset to Off from any state
-					if (fastBuildState != 0)
-					{
-						fastBuildState = 0;
-						IssueOrder(world, "DevFastBuildReset");
-					}
-				};
-			}
-
-			var fastChargeCheckbox = widget.GetOrNull<CheckboxWidget>("INSTANT_CHARGE");
-			if (fastChargeCheckbox != null)
-				BindOrderCheckbox(fastChargeCheckbox, world, "DevFastCharge", () => devTrait.FastCharge);
-
+			// --- Visualization checkboxes (local only, no 3-state) ---
 			var showCombatCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_COMBATOVERLAY");
 			if (showCombatCheckbox != null)
 			{
@@ -130,7 +116,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				showScreenMapCheckbox.OnClick = () => debugVis.ScreenMap ^= true;
 			}
 
-			var terrainGeometryTrait = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
 			var showTerrainGeometryCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_TERRAIN_OVERLAY");
 			if (showTerrainGeometryCheckbox != null && terrainGeometryTrait != null)
 			{
@@ -146,26 +131,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				showDepthPreviewCheckbox.OnClick = () => debugVis.DepthBuffer ^= true;
 			}
 
-			var allTechCheckbox = widget.GetOrNull<CheckboxWidget>("ENABLE_TECH");
-			if (allTechCheckbox != null)
-				BindOrderCheckbox(allTechCheckbox, world, "DevEnableTech", () => devTrait.AllTech);
-
-			var powerCheckbox = widget.GetOrNull<CheckboxWidget>("UNLIMITED_POWER");
-			if (powerCheckbox != null)
-				BindOrderCheckbox(powerCheckbox, world, "DevUnlimitedPower", () => devTrait.UnlimitedPower);
-
-			var buildAnywhereCheckbox = widget.GetOrNull<CheckboxWidget>("BUILD_ANYWHERE");
-			if (buildAnywhereCheckbox != null)
-				BindOrderCheckbox(buildAnywhereCheckbox, world, "DevBuildAnywhere", () => devTrait.BuildAnywhere);
-
-			var explorationButton = widget.GetOrNull<ButtonWidget>("GIVE_EXPLORATION");
-			if (explorationButton != null)
-				explorationButton.OnClick = () => IssueOrder(world, "DevGiveExploration");
-
-			var noexplorationButton = widget.GetOrNull<ButtonWidget>("RESET_EXPLORATION");
-			if (noexplorationButton != null)
-				noexplorationButton.OnClick = () => IssueOrder(world, "DevResetExploration");
-
 			var showActorTagsCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_ACTOR_TAGS");
 			if (showActorTagsCheckbox != null)
 			{
@@ -177,7 +142,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var showCustomTerrainCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_CUSTOMTERRAIN_OVERLAY");
 			if (showCustomTerrainCheckbox != null)
 			{
-				var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
 				showCustomTerrainCheckbox.Disabled = customTerrainDebugTrait == null;
 				if (customTerrainDebugTrait != null)
 				{
@@ -185,22 +149,380 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					showCustomTerrainCheckbox.OnClick = () => customTerrainDebugTrait.Enabled ^= true;
 				}
 			}
+
+			// --- Save/Load preset buttons ---
+			var saveButton = widget.GetOrNull<ButtonWidget>("SAVE_PRESET");
+			if (saveButton != null)
+				saveButton.OnClick = () => SavePreset(debugVis, terrainGeometryTrait, customTerrainDebugTrait);
+
+			var loadButton = widget.GetOrNull<ButtonWidget>("LOAD_PRESET");
+			if (loadButton != null)
+				loadButton.OnClick = () => LoadPreset(world, debugVis, terrainGeometryTrait, customTerrainDebugTrait);
 		}
 
-		static void BindOrderCheckbox(CheckboxWidget checkbox, World world, string order, Func<bool> getValue)
+		/// <summary>
+		/// Reads the actual DeveloperMode trait state and determines whether each cheat
+		/// is OFF (0), ME only (1), or ALL players (2). Called every time the panel opens
+		/// so the buttons always reflect reality.
+		/// </summary>
+		static void SyncStatesFromTrait(World world, DeveloperMode localDev)
 		{
-			var isChecked = new PredictedCachedTransform<bool, bool>(state => state);
-			checkbox.IsChecked = () => isChecked.Update(getValue());
-			checkbox.OnClick = () =>
+			SyncOneCheat(world, "INSTANT_BUILD", localDev.FastBuild, dm => dm.FastBuild);
+			SyncOneCheat(world, "INSTANT_CHARGE", localDev.FastCharge, dm => dm.FastCharge);
+			SyncOneCheat(world, "ENABLE_TECH", localDev.AllTech, dm => dm.AllTech);
+			SyncOneCheat(world, "BUILD_ANYWHERE", localDev.BuildAnywhere, dm => dm.BuildAnywhere);
+			SyncOneCheat(world, "DISABLE_SHROUD", localDev.DisableFog, dm => dm.DisableFog);
+			SyncOneCheat(world, "COSMETIC_REVEAL", localDev.CosmeticReveal, dm => dm.CosmeticReveal);
+			SyncOneCheat(world, "CONTROL_ALL_UNITS", localDev.ControlAllUnits, dm => dm.ControlAllUnits);
+			SyncOneCheat(world, "SHOW_UNIT_PATHS", localDev.PathDebug, dm => dm.PathDebug);
+		}
+
+		static void SyncOneCheat(World world, string widgetId, bool localValue, Func<DeveloperMode, bool> getter)
+		{
+			if (!localValue)
 			{
-				isChecked.Predict(!getValue());
-				IssueOrder(world, order);
+				CheatStates[widgetId] = 0;
+				return;
+			}
+
+			// Local is on — check if ALL other playable players also have it on
+			var allOn = true;
+			foreach (var player in world.Players.Where(p => p.Playable && p != world.LocalPlayer))
+			{
+				var dm = player.PlayerActor.TraitOrDefault<DeveloperMode>();
+				if (dm == null || !getter(dm))
+				{
+					allOn = false;
+					break;
+				}
+			}
+
+			CheatStates[widgetId] = allOn && world.Players.Any(p => p.Playable && p != world.LocalPlayer) ? 2 : 1;
+		}
+
+		void Bind3StateButton(Widget widget, World world, string widgetId, string label,
+			string toggleOrder, string allOrder, string resetOrder)
+		{
+			var button = widget.GetOrNull<ButtonWidget>(widgetId);
+			if (button == null)
+				return;
+
+			// Ensure key exists (SyncStatesFromTrait may not have set it if widget wasn't in the sync list)
+			if (!CheatStates.ContainsKey(widgetId))
+				CheatStates[widgetId] = 0;
+
+			button.GetText = () =>
+			{
+				var state = CheatStates[widgetId];
+				switch (state)
+				{
+					case 1: return label + ": ME";
+					case 2: return label + ": ALL";
+					default: return label + ": OFF";
+				}
 			};
+
+			button.GetColor = () =>
+			{
+				var state = CheatStates[widgetId];
+				switch (state)
+				{
+					case 1: return ColorMe;
+					case 2: return ColorAll;
+					default: return ColorOff;
+				}
+			};
+
+			button.OnClick = () =>
+			{
+				var state = CheatStates[widgetId];
+				switch (state)
+				{
+					case 0:
+						CheatStates[widgetId] = 1;
+						IssueOrder(world, toggleOrder);
+						break;
+					case 1:
+						CheatStates[widgetId] = 2;
+						IssueOrder(world, allOrder);
+						break;
+					case 2:
+						CheatStates[widgetId] = 0;
+						IssueOrder(world, resetOrder);
+						break;
+				}
+			};
+
+			button.OnRightClick = () =>
+			{
+				if (CheatStates[widgetId] != 0)
+				{
+					CheatStates[widgetId] = 0;
+					IssueOrder(world, resetOrder);
+				}
+			};
+		}
+
+		void SavePreset(DebugVisualizations debugVis,
+			TerrainGeometryOverlay terrainOverlay, CustomTerrainDebugOverlay customTerrainOverlay)
+		{
+			try
+			{
+				var dir = Path.GetDirectoryName(PresetPath);
+				if (!Directory.Exists(dir))
+					Directory.CreateDirectory(dir);
+
+				var nodes = new List<MiniYamlNode>();
+
+				// Cheat states
+				var cheatNodes = new List<MiniYamlNode>();
+				foreach (var kv in CheatStates)
+					cheatNodes.Add(new MiniYamlNode(kv.Key, kv.Value.ToString()));
+				nodes.Add(new MiniYamlNode("Cheats", new MiniYaml("", cheatNodes)));
+
+				// Visualization toggles
+				if (debugVis != null)
+				{
+					var visNodes = new List<MiniYamlNode>
+					{
+						new MiniYamlNode("CombatGeometry", debugVis.CombatGeometry.ToString()),
+						new MiniYamlNode("RenderGeometry", debugVis.RenderGeometry.ToString()),
+						new MiniYamlNode("ScreenMap", debugVis.ScreenMap.ToString()),
+						new MiniYamlNode("ActorTags", debugVis.ActorTags.ToString()),
+						new MiniYamlNode("DepthBuffer", debugVis.DepthBuffer.ToString()),
+					};
+
+					if (terrainOverlay != null)
+						visNodes.Add(new MiniYamlNode("TerrainGeometry", terrainOverlay.Enabled.ToString()));
+
+					if (customTerrainOverlay != null)
+						visNodes.Add(new MiniYamlNode("CustomTerrain", customTerrainOverlay.Enabled.ToString()));
+
+					nodes.Add(new MiniYamlNode("Visualizations", new MiniYaml("", visNodes)));
+				}
+
+				nodes.WriteToFile(PresetPath);
+				TextNotificationsManager.Debug("Debug preset saved.");
+			}
+			catch (Exception e)
+			{
+				TextNotificationsManager.Debug($"Failed to save debug preset: {e.Message}");
+			}
+		}
+
+		void LoadPreset(World world, DebugVisualizations debugVis,
+			TerrainGeometryOverlay terrainOverlay, CustomTerrainDebugOverlay customTerrainOverlay)
+		{
+			if (!File.Exists(PresetPath))
+			{
+				TextNotificationsManager.Debug("No debug preset found.");
+				return;
+			}
+
+			try
+			{
+				var yaml = MiniYaml.FromFile(PresetPath);
+				foreach (var section in yaml)
+				{
+					if (section.Key == "Cheats")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!int.TryParse(node.Value.Value, out var targetState))
+								continue;
+
+							var widgetId = node.Key;
+							if (!CheatStates.ContainsKey(widgetId))
+								continue;
+
+							var orders = GetOrdersForWidget(widgetId);
+							if (orders == null)
+								continue;
+
+							// Reset first if currently active
+							if (CheatStates[widgetId] != 0)
+							{
+								IssueOrder(world, orders.Value.reset);
+								CheatStates[widgetId] = 0;
+							}
+
+							// Apply target state
+							if (targetState == 1)
+							{
+								IssueOrder(world, orders.Value.toggle);
+								CheatStates[widgetId] = 1;
+							}
+							else if (targetState == 2)
+							{
+								IssueOrder(world, orders.Value.all);
+								CheatStates[widgetId] = 2;
+							}
+						}
+					}
+					else if (section.Key == "Visualizations")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!bool.TryParse(node.Value.Value, out var val))
+								continue;
+
+							switch (node.Key)
+							{
+								case "CombatGeometry":
+									if (debugVis != null) debugVis.CombatGeometry = val;
+									break;
+								case "RenderGeometry":
+									if (debugVis != null) debugVis.RenderGeometry = val;
+									break;
+								case "ScreenMap":
+									if (debugVis != null) debugVis.ScreenMap = val;
+									break;
+								case "ActorTags":
+									if (debugVis != null) debugVis.ActorTags = val;
+									break;
+								case "DepthBuffer":
+									if (debugVis != null) debugVis.DepthBuffer = val;
+									break;
+								case "TerrainGeometry":
+									if (terrainOverlay != null) terrainOverlay.Enabled = val;
+									break;
+								case "CustomTerrain":
+									if (customTerrainOverlay != null) customTerrainOverlay.Enabled = val;
+									break;
+							}
+						}
+					}
+				}
+
+				TextNotificationsManager.Debug("Debug preset loaded.");
+			}
+			catch (Exception e)
+			{
+				TextNotificationsManager.Debug($"Failed to load debug preset: {e.Message}");
+			}
+		}
+
+		static (string toggle, string all, string reset)? GetOrdersForWidget(string widgetId)
+		{
+			switch (widgetId)
+			{
+				case "INSTANT_BUILD": return ("DevFastBuild", "DevFastBuildAll", "DevFastBuildReset");
+				case "INSTANT_CHARGE": return ("DevFastCharge", "DevFastChargeAll", "DevFastChargeReset");
+				case "ENABLE_TECH": return ("DevEnableTech", "DevEnableTechAll", "DevEnableTechReset");
+				case "BUILD_ANYWHERE": return ("DevBuildAnywhere", "DevBuildAnywhereAll", "DevBuildAnywhereReset");
+				case "DISABLE_SHROUD": return ("DevVisibility", "DevVisibilityAll", "DevVisibilityReset");
+				case "COSMETIC_REVEAL": return ("DevCosmeticReveal", "DevCosmeticRevealAll", "DevCosmeticRevealReset");
+				case "CONTROL_ALL_UNITS": return ("DevControlAllUnits", "DevControlAllUnitsAll", "DevControlAllUnitsReset");
+				case "SHOW_UNIT_PATHS": return ("DevPathDebug", "DevPathDebugAll", "DevPathDebugReset");
+				default: return null;
+			}
 		}
 
 		public static void IssueOrder(World world, string order)
 		{
 			world.IssueOrder(new Order(order, world.LocalPlayer.PlayerActor, false));
+		}
+
+		/// <summary>
+		/// Loads debug preset from file without needing the debug panel open.
+		/// Called by both the debug panel Load button and the top-bar quick button.
+		/// </summary>
+		public static void QuickLoadPreset(World world)
+		{
+			var debugVis = world.WorldActor.TraitOrDefault<DebugVisualizations>();
+			var terrainOverlay = world.WorldActor.TraitOrDefault<TerrainGeometryOverlay>();
+			var customTerrainOverlay = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
+
+			// Sync state from traits first so CheatStates is accurate
+			var devTrait = world.LocalPlayer?.PlayerActor.TraitOrDefault<DeveloperMode>();
+			if (devTrait != null)
+				SyncStatesFromTrait(world, devTrait);
+
+			if (!File.Exists(PresetPath))
+			{
+				TextNotificationsManager.Debug("No debug preset found.");
+				return;
+			}
+
+			try
+			{
+				var yaml = MiniYaml.FromFile(PresetPath);
+				foreach (var section in yaml)
+				{
+					if (section.Key == "Cheats")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!int.TryParse(node.Value.Value, out var targetState))
+								continue;
+
+							var widgetId = node.Key;
+							if (!CheatStates.ContainsKey(widgetId))
+								CheatStates[widgetId] = 0;
+
+							var orders = GetOrdersForWidget(widgetId);
+							if (orders == null)
+								continue;
+
+							if (CheatStates[widgetId] != 0)
+							{
+								IssueOrder(world, orders.Value.reset);
+								CheatStates[widgetId] = 0;
+							}
+
+							if (targetState == 1)
+							{
+								IssueOrder(world, orders.Value.toggle);
+								CheatStates[widgetId] = 1;
+							}
+							else if (targetState == 2)
+							{
+								IssueOrder(world, orders.Value.all);
+								CheatStates[widgetId] = 2;
+							}
+						}
+					}
+					else if (section.Key == "Visualizations")
+					{
+						foreach (var node in section.Value.Nodes)
+						{
+							if (!bool.TryParse(node.Value.Value, out var val))
+								continue;
+
+							switch (node.Key)
+							{
+								case "CombatGeometry":
+									if (debugVis != null) debugVis.CombatGeometry = val;
+									break;
+								case "RenderGeometry":
+									if (debugVis != null) debugVis.RenderGeometry = val;
+									break;
+								case "ScreenMap":
+									if (debugVis != null) debugVis.ScreenMap = val;
+									break;
+								case "ActorTags":
+									if (debugVis != null) debugVis.ActorTags = val;
+									break;
+								case "DepthBuffer":
+									if (debugVis != null) debugVis.DepthBuffer = val;
+									break;
+								case "TerrainGeometry":
+									if (terrainOverlay != null) terrainOverlay.Enabled = val;
+									break;
+								case "CustomTerrain":
+									if (customTerrainOverlay != null) customTerrainOverlay.Enabled = val;
+									break;
+							}
+						}
+					}
+				}
+
+				TextNotificationsManager.Debug("Debug preset loaded.");
+			}
+			catch (Exception e)
+			{
+				TextNotificationsManager.Debug($"Failed to load debug preset: {e.Message}");
+			}
 		}
 	}
 }

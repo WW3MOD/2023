@@ -40,7 +40,7 @@ namespace OpenRA
 
 		public readonly GameSpeed GameSpeed;
 
-		public readonly int Timestep;
+		public int Timestep;
 
 		public int ReplayTimestep;
 
@@ -212,6 +212,12 @@ namespace OpenRA
 
 			SharedRandom = new MersenneTwister(orderManager.LobbyInfo.GlobalSettings.RandomSeed);
 			LocalRandom = new MersenneTwister();
+
+			// Apply scenario if selected in lobby
+			var scenarioName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
+			if (scenarioName != "none" && map.Scenarios.ContainsKey(scenarioName))
+				map.ApplyScenario(scenarioName);
+
 
 			var worldActorType = type == WorldType.Editor ? SystemActors.EditorWorld : SystemActors.World;
 			WorldActor = CreateActor(worldActorType.ToString(), new TypeDictionary());

@@ -10,33 +10,32 @@
 #endregion
 
 using System;
-using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	[Desc("Offsets group move targets based on each unit's CohesionMode.",
-		"Tight: converge on target. Loose: 2 staggered rows. Spread: single wide line.")]
+	[Desc("Creates box formations for grouped move orders based on each unit's CohesionMode.",
+		"Tight: close spacing. Loose: moderate spacing with row stagger. Spread: wide spacing.")]
 	public class CohesionMoveModifierInfo : TraitInfo
 	{
-		[Desc("Percentage of perpendicular offset to preserve for Loose mode.")]
-		public readonly int LooseScalePercent = 50;
+		[Desc("Column spacing in WDist for Tight mode.")]
+		public readonly int TightColSpacing = 1024;
 
-		[Desc("Percentage of perpendicular offset to preserve for Spread mode.")]
-		public readonly int SpreadScalePercent = 100;
+		[Desc("Row depth in WDist for Tight mode.")]
+		public readonly int TightRowSpacing = 1024;
 
-		[Desc("Max perpendicular half-width in cells for Loose mode.")]
-		public readonly int LooseSpreadCells = 2;
+		[Desc("Column spacing in WDist for Loose mode.")]
+		public readonly int LooseColSpacing = 2048;
 
-		[Desc("Max perpendicular half-width in cells for Spread mode.")]
-		public readonly int SpreadSpreadCells = 4;
+		[Desc("Row depth in WDist for Loose mode.")]
+		public readonly int LooseRowSpacing = 1536;
 
-		[Desc("Depth between front and back row in cells (Loose stagger).")]
-		public readonly int LooseRowDepth = 2;
+		[Desc("Column spacing in WDist for Spread mode.")]
+		public readonly int SpreadColSpacing = 3072;
 
-		[Desc("Minimum move distance in cells below which cohesion offset is skipped.")]
-		public readonly int MinMoveCells = 2;
+		[Desc("Row depth in WDist for Spread mode.")]
+		public readonly int SpreadRowSpacing = 2560;
 
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
@@ -50,120 +49,25 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		/// <summary>
-		/// Apply cohesion offset to a move target for an individual unit.
-		/// Uses perpendicular projection: each unit's left/right offset from the
-		/// movement axis is preserved, creating a natural line formation.
-		/// Loose mode adds 2-row stagger with depth offset.
-		/// </summary>
-		public static CPos ApplyCohesionOffset(Actor self, CPos targetCell)
+		void GetSpacing(CohesionMode mode, out int colSpacing, out int rowSpacing)
 		{
-			var autoTarget = self.TraitOrDefault<AutoTarget>();
-			if (autoTarget == null)
-				return targetCell;
-
-			var mode = autoTarget.CohesionValue;
-			if (mode == CohesionMode.Tight)
-				return targetCell;
-
-			var modifier = self.World.WorldActor.TraitOrDefault<CohesionMoveModifier>();
-			if (modifier == null)
-				return targetCell;
-
-			var mInfo = modifier.info;
-
-			int scalePct, maxHalfWidthWDist;
 			switch (mode)
 			{
-				case CohesionMode.Loose:
-					scalePct = mInfo.LooseScalePercent;
-					maxHalfWidthWDist = mInfo.LooseSpreadCells * 1024;
-					break;
+				case CohesionMode.Tight:
+					colSpacing = info.TightColSpacing;
+					rowSpacing = info.TightRowSpacing;
+					return;
 				case CohesionMode.Spread:
-					scalePct = mInfo.SpreadScalePercent;
-					maxHalfWidthWDist = mInfo.SpreadSpreadCells * 1024;
-					break;
+					colSpacing = info.SpreadColSpacing;
+					rowSpacing = info.SpreadRowSpacing;
+					return;
 				default:
-					return targetCell;
+					colSpacing = info.LooseColSpacing;
+					rowSpacing = info.LooseRowSpacing;
+					return;
 			}
-
-			if (maxHalfWidthWDist == 0)
-				return targetCell;
-
-			var targetPos = self.World.Map.CenterOfCell(targetCell);
-			var unitPos = self.CenterPosition;
-
-			// Movement direction vector (target - unit)
-			var moveDirX = targetPos.X - unitPos.X;
-			var moveDirY = targetPos.Y - unitPos.Y;
-
-			// If too close, perpendicular is unreliable — skip
-			var minDist = mInfo.MinMoveCells * 1024;
-			var moveLenSq = (long)moveDirX * moveDirX + (long)moveDirY * moveDirY;
-			if (moveLenSq < (long)minDist * minDist)
-				return targetCell;
-
-			// Perpendicular direction (90° CCW rotation of moveDir)
-			var perpX = -moveDirY;
-			var perpY = moveDirX;
-
-			// |perpDir| == |moveDir|
-			var perpLen = (int)Exts.ISqrt(moveLenSq);
-			if (perpLen == 0)
-				return targetCell;
-
-			// Project unit's offset from target onto perpendicular axis
-			// dot(unitPos - targetPos, perpDir)
-			var toUnitX = unitPos.X - targetPos.X;
-			var toUnitY = unitPos.Y - targetPos.Y;
-			var dot = (long)toUnitX * perpX + (long)toUnitY * perpY;
-
-			// Signed perpendicular component in WDist
-			var perpComponent = (int)(dot / perpLen);
-
-			// Scale by cohesion factor
-			var scaled = perpComponent * scalePct / 100;
-
-			// Clamp to max half-width
-			if (scaled > maxHalfWidthWDist)
-				scaled = maxHalfWidthWDist;
-			else if (scaled < -maxHalfWidthWDist)
-				scaled = -maxHalfWidthWDist;
-
-			// Depth stagger for Loose mode: alternate units into back row
-			var depthWDist = 0;
-			if (mode == CohesionMode.Loose && self.ActorID % 2 == 1)
-			{
-				// Back row: push behind front row along negative movement direction
-				depthWDist = -(mInfo.LooseRowDepth * 1024);
-
-				// Stagger sideways by half a cell for the checkerboard pattern
-				scaled += 512;
-			}
-
-			// Compute final offset vector
-			// Perpendicular component: along normalized perpDir
-			// Depth component: along normalized moveDir (negative = behind)
-			var offsetX = (int)((long)scaled * perpX / perpLen);
-			var offsetY = (int)((long)scaled * perpY / perpLen);
-
-			if (depthWDist != 0)
-			{
-				// moveDir normalized = (moveDirX, moveDirY) / perpLen (same length)
-				offsetX += (int)((long)depthWDist * moveDirX / perpLen);
-				offsetY += (int)((long)depthWDist * moveDirY / perpLen);
-			}
-
-			// If offset is negligible, skip
-			if (Math.Abs(offsetX) < 256 && Math.Abs(offsetY) < 256)
-				return targetCell;
-
-			var newPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
-			var newCell = self.World.Map.CellContaining(newPos);
-			return self.World.Map.Clamp(newCell);
 		}
 
-		// IModifyGroupOrder: for AI grouped orders (SquadManager etc.)
 		Order IModifyGroupOrder.ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors)
 		{
 			if (subject == null || subject.IsDead || !subject.IsInWorld)
@@ -173,12 +77,121 @@ namespace OpenRA.Mods.Common.Traits
 			if (orderString != "Move" && orderString != "AttackMove")
 				return individualOrder;
 
-			var targetPos = individualOrder.Target.CenterPosition;
-			var targetCell = subject.World.Map.CellContaining(targetPos);
-			var newCell = ApplyCohesionOffset(subject, targetCell);
+			// Count valid actors and find our index (sorted by ActorID for stable ordering)
+			var n = 0;
+			for (var i = 0; i < allGroupedActors.Length; i++)
+			{
+				var a = allGroupedActors[i];
+				if (a != null && !a.IsDead && a.IsInWorld)
+					n++;
+			}
 
-			if (newCell == targetCell)
+			// No offset for single units — this is the key fix for single-unit displacement
+			if (n <= 1)
 				return individualOrder;
+
+			// Build sorted valid actor list
+			var validActors = new Actor[n];
+			var vi = 0;
+			for (var i = 0; i < allGroupedActors.Length; i++)
+			{
+				var a = allGroupedActors[i];
+				if (a != null && !a.IsDead && a.IsInWorld)
+					validActors[vi++] = a;
+			}
+
+			Array.Sort(validActors, (a, b) => a.ActorID.CompareTo(b.ActorID));
+
+			var idx = Array.IndexOf(validActors, subject);
+			if (idx < 0)
+				return individualOrder;
+
+			var targetPos = individualOrder.Target.CenterPosition;
+
+			// Compute group centroid for formation orientation
+			var centroidX = 0L;
+			var centroidY = 0L;
+			for (var i = 0; i < n; i++)
+			{
+				centroidX += validActors[i].CenterPosition.X;
+				centroidY += validActors[i].CenterPosition.Y;
+			}
+
+			centroidX /= n;
+			centroidY /= n;
+
+			// Movement direction: centroid → target
+			var moveDirX = targetPos.X - (int)centroidX;
+			var moveDirY = targetPos.Y - (int)centroidY;
+			var moveLenSq = (long)moveDirX * moveDirX + (long)moveDirY * moveDirY;
+			int moveLen;
+
+			// For very short moves (regroup/DoNow), use North as default orientation
+			if (moveLenSq < 512L * 512L)
+			{
+				moveDirX = 0;
+				moveDirY = -1024;
+				moveLen = 1024;
+			}
+			else
+			{
+				moveLen = (int)Exts.ISqrt(moveLenSq);
+				if (moveLen == 0)
+					return individualOrder;
+			}
+
+			// Perpendicular direction (90° CCW rotation of movement direction)
+			var perpX = -moveDirY;
+			var perpY = moveDirX;
+
+			// Grid dimensions: wide box formation (~2:1 width-to-depth ratio)
+			var cols = (int)Math.Ceiling(Math.Sqrt(n * 2.0));
+			cols = Math.Min(cols, n);
+			cols = Math.Max(cols, 2);
+
+			// Grid position for this unit
+			var row = idx / cols;
+			var col = idx % cols;
+			var unitsInRow = Math.Min(cols, n - row * cols);
+
+			// Per-unit spacing based on cohesion mode
+			var autoTarget = subject.TraitOrDefault<AutoTarget>();
+			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
+			GetSpacing(mode, out var colSpacing, out var rowSpacing);
+
+			// Center the row: (2*col - (unitsInRow-1)) * spacing / 2
+			// Using integer math to avoid floating point
+			var perpOffset = (2 * col - (unitsInRow - 1)) * colSpacing / 2;
+
+			// Stagger odd rows by half column spacing for checkerboard pattern
+			if (row % 2 == 1)
+				perpOffset += colSpacing / 2;
+
+			// Depth: rows behind the front line (negative = behind target toward centroid)
+			var depthOffset = -row * rowSpacing;
+
+			if (perpOffset == 0 && depthOffset == 0)
+				return individualOrder;
+
+			// Convert formation offsets to world coordinates
+			// Perpendicular component: along perpDir (normalized by moveLen)
+			var offsetX = (int)((long)perpOffset * perpX / moveLen);
+			var offsetY = (int)((long)perpOffset * perpY / moveLen);
+
+			// Depth component: along moveDir (normalized by moveLen)
+			if (depthOffset != 0)
+			{
+				offsetX += (int)((long)depthOffset * moveDirX / moveLen);
+				offsetY += (int)((long)depthOffset * moveDirY / moveLen);
+			}
+
+			// Skip negligible offsets
+			if (Math.Abs(offsetX) < 256 && Math.Abs(offsetY) < 256)
+				return individualOrder;
+
+			var newPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
+			var newCell = subject.World.Map.CellContaining(newPos);
+			newCell = subject.World.Map.Clamp(newCell);
 
 			return individualOrder.WithTarget(Target.FromCell(subject.World, newCell));
 		}

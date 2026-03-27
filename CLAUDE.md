@@ -8,15 +8,42 @@ WW3MOD is a **total conversion** of OpenRA Red Alert into a modern World War 3 R
 **Repository:** https://github.com/WW3MOD/2023.git
 **Factions:** NATO/America vs BRICS/Russia (Ukraine planned as third)
 
+## How WW3MOD Differs from Red Alert (CRITICAL — read before any work)
+
+WW3MOD is NOT Red Alert with new sprites. The entire gameplay model is different. **Do not assume any Red Alert mechanic still applies.** Key differences:
+
+### Reinforcement Model (no factories)
+There are **no Construction Yards, Barracks, War Factories, or Naval Yards**. Units are NOT "built" — they are **called in as reinforcements from off-map reserves** via the **Supply Route** building. Think of the Supply Route as a radio/logistics hub that requests reinforcements, not a factory that manufactures units.
+
+- **Supply Route** is the single core production building. It produces ALL unit types (infantry, vehicles, aircraft) via `ProductionFromMapEdge` — units spawn at the map edge and march/fly to the rally point.
+- **Buildings and defenses** are the exception — they spawn locally at the Supply Route via a separate `Production@Local` queue.
+- **HPAD (Helipad)** and **AFLD (Airfield)** are **rearm/repair support buildings**, not production prerequisites. Helicopters and planes CAN be produced without them. HPADs/AFLDs let aircraft rearm faster on-map instead of flying back to the map edge. Future plans include capturable HPADs on maps.
+- **"Buying" a unit** = calling in a reinforcement from reserves. **"Rotating out" a unit** = sending it back to the map edge to recover its budget cost. This is the economy loop.
+- **Unit costs represent budget allocation**, not manufacturing cost. A destroyed unit is a permanent loss of that budget.
+
+### No tech tree / building prerequisites
+There is no "build barracks → build war factory → build radar → unlock X" progression. Tech levels exist (`~techlevel.low/medium/high`) but they are granted automatically based on game time or other conditions, not by constructing specific buildings. Any unit the player's tech level allows can be called in immediately.
+
+### Map-edge spawning
+Units don't appear at the production building — they enter from the map edge nearest to the Supply Route's SpawnArea hint, then walk/fly across the map to the rally point. This means:
+- Production has inherent travel time (far Supply Route = slow reinforcements)
+- Enemy can ambush reinforcements en route
+- Supply Route position matters strategically (closer to friendly edge = safer reinforcements)
+
+### Engine code still has old RA patterns
+Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUnitReloadBuildings` checking for 1 airpad per aircraft). When you encounter these patterns, understand they may not apply. Always check how WW3MOD actually uses the system before assuming the old logic is correct. The `SkipRearmBuildingCheck` YAML property on `UnitBuilderBotModule` was added specifically to bypass one such legacy check.
+
 ## Workflow Rules
 
 ### Git & Commits
 - **NEVER push to remote.** The user will push manually.
 - **Commit regularly without asking.** Frequent small commits are preferred over batched changes.
 - Create descriptive commit messages. No need to ask before committing.
+- **ALWAYS commit before ending a session.** Never leave uncommitted changes behind. If you made code changes, commit them — even if you didn't run FINALIZE. This is the #1 most important workflow rule.
 
 ### Communication Format
-- **Start every response with a short Red Alert / C&C quote, reference, or joke.** One line max. It should connect to what you're about to do — not random. No repeats within a session. Draw from the full C&C universe: Red Alert 1/2/3, Tiberium series, Generals — unit lines, advisor quotes, cutscenes, loading screen tips. Assume deep franchise knowledge. Occasionally roast the user or go dark-humor. When the user quotes C&C, answer in-character from the same game.
+- **Occationally insert a seperate line with a red alert (1 or 2) in game unit phrase as if that unit was commenting on what is going on right now** It should connect to what you're about to do or what the user said — not random. No repeats within a session. Occasionally roast the user or go dark-humor.
+
 - Every response MUST end with exactly two lines:
   ```
   TASK: <one-line description of what was tasked>
@@ -205,6 +232,60 @@ WW3MOD/
 └── mod.config                      # Build configuration
 ```
 
+## Scenario System
+
+Scenarios are scripted map variants that share terrain with a base map but add different units, players, and Lua scripts. They appear in the lobby map chooser under the "Scenario" category.
+
+### How It Works
+- A scenario is a **separate map folder** that copies `map.bin` (terrain) from a base map
+- Has its own `map.yaml` (different actors, players), `rules.yaml` (LuaScript reference), and `.lua` script
+- Uses `Categories: Scenario` to appear in the Scenario filter in the map chooser
+- No engine C# changes needed — everything runs on OpenRA's existing Lua scripting API
+- Supports multiplayer + bots — human players take specific slots, bots fill the rest
+
+### Creating a Scenario
+1. Create a new map folder: `mods/ww3mod/maps/<base-map>-<scenario-name>/`
+2. Copy `map.bin`, `shadows.bin`, `map.png` from the base map
+3. Write `map.yaml` with:
+   - `Categories: Scenario` and `LockPreview: True`
+   - Custom players (human playable + non-playable garrison/AI factions)
+   - Pre-placed actors (garrison units, supply routes, objectives)
+4. Write `rules.yaml` with `LuaScript: Scripts: scenario.lua, <your-script>.lua`
+5. Write your scenario `.lua` script using the `Scenario` helper library
+
+### Scenario Lua Library (`mods/ww3mod/scripts/scenario.lua`)
+Reusable helpers for scenario scripts:
+- **Spawning**: `Scenario.SpawnUnit()`, `Scenario.SpawnGroup()`, `Scenario.ReinforceFromEdge()`
+- **Ownership Transfer**: `Scenario.TransferAll(from, to)`, `Scenario.ScheduleTransfer(from, to, delaySec)`
+- **Wave Spawning**: `Scenario.ScheduleWave(wave, delaySec)`, `Scenario.ScheduleWaves(waves, base, interval)`
+- **Patrol/Defense**: `Scenario.Patrol(actors, waypoints)`, `Scenario.DefendPosition(actors)`
+- **Messaging**: `Scenario.Message(text)`, `Scenario.SetBriefing(text)`, `Scenario.PlaySpeech(player, notif)`
+- **Objectives**: `Scenario.AddPrimaryObjective(player, desc)`, `Scenario.CompleteObjective(player, id)`
+- **Utility**: `Scenario.GetLiving(tag)`, `Scenario.CountLiving(tag)`, `Scenario.OnGroupEliminated(tag, cb)`
+
+### Naming Convention
+Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name first, then the base map. This lets the same scenario type apply across multiple maps (e.g., "Frontline: River Zeta WW3", "Frontline: Siberian Pass WW3"). Feels like a game mode.
+
+### Example: Frontline: River Zeta WW3 (`maps/river-zeta-frontline/`)
+- 2 human player slots (NATO west, Russia east) each with a Supply Route
+- NATOGarrison / RussiaGarrison — allied non-playable players with frontline troops
+- After 3 minutes, garrison units transfer to human player control
+- Enemy reinforcement waves (5 on Normal, scaling with difficulty dropdown)
+- Difficulty dropdown: Easy (3 waves, 60% strength), Normal (5 waves), Hard (7 waves, 140% strength)
+
+### Key Lua APIs Used
+| API | Purpose |
+|---|---|
+| `actor.Owner = player` | Transfer unit ownership |
+| `Actor.Create(type, true, inits)` | Spawn new actors |
+| `Reinforcements.Reinforce(owner, types, path, interval)` | Edge reinforcements |
+| `Trigger.AfterDelay(ticks, func)` | Timed events |
+| `Trigger.OnAllKilled(actors, func)` | Group elimination triggers |
+| `player.AddPrimaryObjective(desc)` | Mission objectives |
+| `UserInterface.SetMissionText(text)` | HUD briefing text |
+| `Media.DisplayMessage(text, prefix)` | Chat log messages |
+| `Media.PlaySpeechNotification(player, notif)` | EVA voice lines |
+
 ## Key Engine Modifications
 
 These are the custom systems that set WW3MOD apart from base OpenRA. Understanding these is critical before modifying any engine code.
@@ -246,6 +327,10 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | PatrolOrderGenerator.cs | Order generator for patrol waypoint queuing mode. Click adds waypoints, click Patrol again to confirm |
 | Patrol.cs (Activity) | Loops waypoints with attack-move. Circular if last≈first waypoint, otherwise bounce (A→B→C→B→A→...) |
 | HeliEmergencyLanding.cs | Helicopter emergency landing: autorotation on heavy damage (steerable, safe landing), uncontrolled crash on critical (spinning, destroyed). Crew ejection gated by terrain suitability |
+| CargoSupply.cs | Supply as numeric cargo weight: any transport with this trait auto-rearms nearby units. Supply consumes Cargo weight (1 unit = 1 weight). Replaces SupplyProvider on TRUK |
+| CargoPanelLogic.cs | Sidebar panel for transport cargo management: individual eject, mark for waypoint unload, rally points, supply drop |
+| CargoUnloadOrderGenerator.cs | Click-on-map order generator for waypoint-based selective unloading of marked passengers |
+| EjectRallyOrderGenerator.cs | Click-on-map to set per-passenger post-eject rally point (move target on ejection) |
 
 ### Heavily Modified Systems
 | File | Key Changes |
@@ -429,7 +514,8 @@ Each unit type has a base template file and two faction files:
 - **Vehicle reverse sliding fixed** — reverse condition re-evaluated at each cell transition; stops reversing when path curves away from behind the unit
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
 - **Garrison system: shelter/port deployment** — Infantry enter building shelter (Cargo), GarrisonManager deploys best-matched soldier to port in-world when targets appear. Deployed soldiers are in-world with garrisoned-at-port condition (sprite hidden, pips visible, selectable, targetable). Port soldiers get 80% damage reduction via DamageMultiplier. GarrisonProtection passes damage only to shelter soldiers. WithGarrisonDecoration simplified to empty port indicators. Building death: port soldiers become free infantry, shelter soldiers ejected by Cargo
-- **Supply truck rework** — SupplyProvider trait replaces ProximityExternalCondition. Targeted single-unit resupply (closest first), distance-based reload speed, 500 supply capacity with auto-restock at logistics center. AmmoPool.SupplyValue for per-ammo-type cost balancing. Truck deploys into SUPPLYCACHE via Transforms
+- **Supply truck → pure transport** — TRUK no longer has SupplyProvider/QuickRearm/DropsCrate. Now uses CargoSupply trait: supply as numeric cargo weight (1 unit = 1 weight, InitialSupply: 10). Any transport with CargoSupply (TRUK, Chinook, HALO, HIND) auto-rearms nearby units when carrying supply. SUPPLYCACHE is now NoAutoTarget + ProximityCapturable (1.5 cell, sticky ownership transfer)
+- **Cargo management system (Phases 2A-2E)** — Full transport cargo UI: individual passenger eject, mark passengers for waypoint-based selective unload (Deploy Marked → click map → transport moves+unloads), per-passenger rally points (R button → click map → passenger auto-moves there on ejection), supply unload as SUPPLYCACHE with merge at same location, Mark All/Unmark All toggle
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
 - **Vehicle crew system** — VehicleCrew trait manages Driver/Gunner/Commander slots. On critical damage (<50% HP), crew eject one-by-one as infantry with vehicle's rank. Missing crew progressively disables systems (no driver=immobile, no gunner=turret frozen, no commander=inaccuracy). Commander substitutes at reduced efficiency. Crew can re-enter repaired vehicles via CrewMember trait. 14 vehicles configured (2-crew light vehicles, 3-crew MBTs/IFVs). Crew evacuated via supply route return 100 credits each
 - **Infantry mid-cell redirect** — Infantry can now change direction mid-cell instead of finishing their current cell transition before responding to new move orders. MovePart made conditionally interruptible via `CanRedirectMidCell` on MobileInfo. On cancel, reverts cell occupancy to FromCell and starts new move from actual WPos (no visual snap). Sharp direction changes (>90°) apply a speed penalty scaling from 100% to `RedirectSpeedPenalty`% at 180°. Vehicles left unchanged (finish cell transitions as before)
@@ -438,6 +524,7 @@ Each unit type has a base template file and two faction files:
 - **Control bar overhaul** — Added Cohesion (Tight/Loose/Spread) and Resupply Behavior (Hold/Auto/Evacuate) stance bars. Click-modifier meta-system on all 4 bars: Click=set stance, Ctrl+Click=per-unit default, Ctrl+Alt+Click=per-type default, Alt+Click="Do Now" order (persisted across games via UnitDefaultsManager). Evacuate command button removed (folded into Resupply bar). Tooltips anchor above buttons. Medic/Engineer default to Hunt engagement. Resupply behavior implemented: Auto seeks supply, Hold flags for truck pickup, Evacuate leaves via SR. Supply trucks in Hunt stance seek flagged units map-wide. Cohesion distributes group move targets via IModifyGroupOrder (CohesionMoveModifier). Patrol system with waypoint queuing (PatrolOrderGenerator → PatrolActivity bounce/circular loop)
 - **Supply Route contestation system** — Replaced binary ProximityContestable with graduated SupplyRouteContestation trait. Control bar (0-100%) depleted by net enemy value surplus in 10-cell range: 5 infantry (~2500 value) depletes in 60s, full company in 20s min. Production speed scales linearly below 50% bar (100%→0%), halts at 0%. Auto-recovery when enemies leave, 3x faster with friendlies. Full feedback: player-colored selection bar visible to all, building flash, EVA "BaseAttack" notification, text log, minimap ping. New IProductionSpeedModifier interface with accumulator pattern in ProductionQueue for dynamic per-tick speed control. SR is indestructible — enemies can only deny, never capture
 - **Helicopter emergency landing system** — Two-tier: Heavy damage triggers controlled autorotation (player steers, helicopter glides forward losing altitude, lands safely on suitable terrain as disabled+repairable unit, crew/passengers evacuate). Critical damage triggers uncontrolled crash (configurable spinning for tail rotor loss, always destroyed on impact, crew ejected only if on suitable ground terrain). Mid-air destruction = crew dies (suppress-eject condition gates EjectOnDeath). Chinook/HALO: SpinsOnCrash=false for dual rotors. RepairableBuilding activated on crash-disabled condition for ground repair
+- **Scenario system** — Map scenario variants sharing terrain (map.bin) with different actors/scripts. Reusable `scenario.lua` Lua library (spawn, ownership transfer, waves, patrol, objectives, messaging). First scenario: "River Zeta — Frontline" — garrison forces + timed transfer + enemy waves + difficulty dropdown. No engine C# changes — pure Lua + YAML. `Categories: Scenario` for map chooser filtering
 
 ### Next Priorities
 1. **Helicopter emergency landing playtesting** — verify autorotation descent, crash spinning, safe landing repair flow, crew ejection on suitable terrain, crew death on mid-air destruction, Chinook no-spin
@@ -447,8 +534,9 @@ Each unit type has a base template file and two faction files:
 5. **Three-mode move playtesting** — tune OverkillThreshold, UnderFireDuration, verify Force-Move never fires
 6. **Infantry mid-cell redirect playtesting** — tune RedirectSpeedPenalty (currently 50%), verify no visual glitches
 7. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
-8. **Supply truck playtesting** — tune range, delays, supply costs, restock behavior
-9. **Garrison shelter/port playtesting** — verify deploy-to-port behavior, pips, building death
+8. **Cargo system playtesting (Phases 2A-2E)** — verify TRUK auto-rearms, supply bar, individual eject, mark+waypoint unload, rally points, supply drop to SUPPLYCACHE, merge at same location
+9. **Cargo management Phase 3** — template sidebar for pre-loaded transport purchasing
+10. **Garrison shelter/port playtesting** — verify deploy-to-port behavior, pips, building death
 10. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 
 ### Remaining Branches
@@ -462,11 +550,13 @@ Upgrading to `release-20250330` is possible but major (estimated 12-22 sessions)
 ## AI Configuration
 
 AI is configured entirely via YAML in `mods/ww3mod/rules/ai/`:
-- `ai.yaml` — ModularBot setup, shared modules (BuildingRepairBotModule, CaptureManagerBotModule, SquadManagerBotModule for air)
+- `ai.yaml` — ModularBot setup, shared modules (BuildingRepairBotModule, CaptureManagerBotModule, SquadManagerBotModule for air, HelicopterSquadBotModule)
 - `ai-america.yaml` — America-specific build priorities, unit limits, squad composition
 - `ai-russia.yaml` — Russia-specific same
 
-Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` (how to attack), `CaptureManagerBotModule` (what to capture), `BuildingRepairBotModule` (auto-repair).
+Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` (how to attack), `HelicopterSquadBotModule` (helicopter attack/scout/transport squads), `CaptureManagerBotModule` (what to capture), `BuildingRepairBotModule` (auto-repair).
+
+**Important for aircraft modules:** Helicopter `UnitBuilderBotModule` uses `SkipRearmBuildingCheck: true` because helicopters are called in via Supply Route and don't need an HPAD to be produced. Without this flag, the old RA check (`HasAdequateAirUnitReloadBuildings`) blocks aircraft production when no rearm building exists.
 
 ## Testing
 
@@ -482,7 +572,7 @@ dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release
 
 **Dev helper script:** `./ww3-dev.ps1` — build, run, test, pre-flight checks, debug log cleanup
 
-**Note:** Game must be closed before building/testing (DLLs are locked while running).
+**Note:** Build fails if the game is running (DLLs locked). This is normal — the user often playtests while agents work. If a build fails for this reason, just move on to other work or wait quietly. Do not speculate, alarm, or ask the user to close the game. `launch-game` auto-builds before launching, so the user will get a fresh build on next playtest.
 
 ## Common Pitfalls
 

@@ -9,26 +9,125 @@ Container@MAINMENU:
 				NextMusicKey: NextMusic
 				TakeScreenshotKey: TakeScreenshot
 				MuteAudioKey: ToggleMute
-		Background@BORDER:
-			Background: mainmenu-border
-			X: 0 - 15
-			Y: 0 - 15
-			Width: WINDOW_WIDTH + 30
-			Height: WINDOW_HEIGHT + 30
-		Image@LOGO:
-			X: WINDOW_WIDTH - 296
-			Y: 30
-			ImageCollection: logos
-			ImageName: logo
-		Label@VERSION_LABEL:
-			Logic: VersionLabelLogic
-			X: WINDOW_WIDTH - 296
-			Y: 296 - 20
-			Width: 296 - 20
+		# Background@BORDER:
+		# 	Background: mainmenu-border
+		# 	X: 0 - 15
+		# 	Y: 0 - 15
+		# 	Width: WINDOW_RIGHT + 30
+		# 	Height: WINDOW_BOTTOM + 30
+		# Image@LOGO:
+		# 	X: WINDOW_RIGHT - 296
+		# 	Y: 30
+		# 	ImageCollection: logos
+		# 	ImageName: logo
+		ShellmapNukeOverlay@NUKE_OVERLAY:
+			Width: WINDOW_RIGHT
+			Height: WINDOW_BOTTOM
+		Button@SHELLMAP_PREV:
+			X: WINDOW_RIGHT - 415
+			Y: 15
+			Width: 25
 			Height: 25
-			Align: Center
-			Font: Regular
-			Shadow: true
+			Text: <
+			Font: Bold
+		DropDownButton@SHELLMAP_DROPDOWN:
+			X: WINDOW_RIGHT - 385
+			Y: 15
+			Width: 220
+			Height: 25
+			Font: Bold
+		Button@SHELLMAP_NEXT:
+			X: WINDOW_RIGHT - 160
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: >
+			Font: Bold
+		Button@RANDOM_BUTTON:
+			X: WINDOW_RIGHT - 125
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 4
+					Y: 4
+					Width: 16
+					Height: 16
+					ImageCollection: command-icons
+					ImageName: scatter
+		Button@NUKE_BUTTON:
+			X: WINDOW_RIGHT - 95
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 4
+					Y: 4
+					Width: 16
+					Height: 16
+					ImageCollection: order-icons
+					ImageName: power
+		Button@REPLAY_BUTTON:
+			X: WINDOW_RIGHT - 65
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 4
+					Y: 4
+					Width: 16
+					Height: 16
+					ImageCollection: reload-icon
+					ImageName: enabled
+		Button@INFO_BUTTON:
+			X: WINDOW_RIGHT - 35
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: i
+			Font: Bold
+		Background@INFO_DROPDOWN:
+			X: WINDOW_RIGHT - 415
+			Y: 45
+			Width: 400
+			Height: 95
+			Background: dialog4
+			Visible: false
+			Children:
+				Label@INFO_MOD_VERSION:
+					X: 10
+					Y: 8
+					Width: 275
+					Height: 18
+					Font: Bold
+					Contrast: true
+				Label@INFO_ENGINE_VERSION:
+					X: 10
+					Y: 28
+					Width: 275
+					Height: 18
+					Font: Small
+					Contrast: true
+				Label@INFO_BUILD_DATE:
+					X: 10
+					Y: 48
+					Width: 275
+					Height: 18
+					Font: Small
+					Contrast: true
+				Label@INFO_AUTHORS:
+					X: 10
+					Y: 68
+					Width: 275
+					Height: 18
+					Font: Small
+					Contrast: true
 		Container@MENUS:
 			X: 13 + (WINDOW_WIDTH - 522) / 4 - WIDTH / 2
 			Y: WINDOW_HEIGHT / 2 - HEIGHT / 2

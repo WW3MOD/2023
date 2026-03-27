@@ -134,8 +134,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var pipCount = maxSlots > 0 ? maxSlots : totalCount;
 
 			var selected = self.World.Selection.Contains(self);
-			var scale = selected ? 1f : 0.5f;
-			var alpha = selected ? 0.2f : 0.05f;
+			var scale = selected ? 1f : 0.7f;
+			var alpha = selected ? 0.8f : 0.35f;
 
 			var palette = wr.Palette(Info.Palette);
 			pips.PlayRepeating(Info.EmptySequence);
@@ -172,6 +172,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 
 		// Empty port indicators (world-space, via IRender)
+		// Currently disabled — deployed soldiers are visible at 40% alpha, which is sufficient.
+		// Port indicator rendering can be re-enabled here when better sprites/icons are available.
 		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
 		{
 			if (garrisonManager == null)

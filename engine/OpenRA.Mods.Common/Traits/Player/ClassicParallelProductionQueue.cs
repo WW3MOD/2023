@@ -214,9 +214,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public override int GetBuildTime(ActorInfo unit, BuildableInfo bi)
 		{
-			if (developerMode.FastBuild)
-				return 0;
-
 			var time = base.GetBuildTime(unit, bi);
 
 			if (info.SpeedUp)

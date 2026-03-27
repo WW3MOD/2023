@@ -214,6 +214,9 @@ namespace OpenRA
 
 		public readonly Dictionary<CPos, TerrainTile> ReplacedInvalidTerrainTiles = new();
 
+		// Scenario definitions loaded from scenarios.yaml
+		public Dictionary<string, ScenarioDefinition> Scenarios { get; private set; } = new Dictionary<string, ScenarioDefinition>();
+
 		// Generated data
 		public readonly MapGrid Grid;
 		public IReadOnlyPackage Package { get; private set; }
@@ -473,6 +476,8 @@ namespace OpenRA
 				}
 			}
 
+			LoadScenarios();
+
 			PostInit();
 
 			Uid = ComputeUID(Package, MapFormat);
@@ -578,6 +583,84 @@ namespace OpenRA
 			// so other listeners to these same events will get correct data when calling GetTerrainIndex.
 			CustomTerrain.CellEntryChanged += InvalidateTerrainIndex;
 			Tiles.CellEntryChanged += InvalidateTerrainIndex;
+		}
+
+		void LoadScenarios()
+		{
+			if (!Package.Contains("scenarios.yaml"))
+				return;
+
+			using (var stream = Package.GetStream("scenarios.yaml"))
+			{
+				if (stream == null)
+					return;
+
+				var yaml = MiniYaml.FromStream(stream, "scenarios.yaml");
+				foreach (var node in yaml)
+					Scenarios[node.Key] = new ScenarioDefinition(node.Key, node.Value);
+			}
+		}
+
+		public void ApplyScenario(string name)
+		{
+			if (!Scenarios.TryGetValue(name, out var scenario))
+				return;
+
+			// Merge scenario players — override existing by key, add new ones
+			foreach (var player in scenario.Players)
+			{
+				var existing = PlayerDefinitions.FindIndex(p => p.Key == player.Key);
+				if (existing >= 0)
+					PlayerDefinitions[existing] = player;
+				else
+					PlayerDefinitions.Add(player);
+			}
+
+			// Merge scenario actors — override existing by key, add new ones
+			foreach (var actor in scenario.Actors)
+			{
+				var existing = ActorDefinitions.FindIndex(a => a.Key == actor.Key);
+				if (existing >= 0)
+					ActorDefinitions[existing] = actor;
+				else
+					ActorDefinitions.Add(actor);
+			}
+
+			// Merge scenario rules into map rule definitions
+			if (scenario.Rules.Count > 0)
+			{
+				if (RuleDefinitions == null)
+					RuleDefinitions = new MiniYaml(null, scenario.Rules);
+				else
+				{
+					foreach (var rule in scenario.Rules)
+					{
+						// Find existing node with same key (e.g., "World:") and merge children
+						var existing = RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == rule.Key);
+						if (existing != null)
+						{
+							foreach (var child in rule.Value.Nodes)
+								existing.Value.Nodes.Add(child);
+						}
+						else
+							RuleDefinitions.Nodes.Add(rule);
+					}
+				}
+			}
+
+			// Re-derive ruleset from merged definitions
+			try
+			{
+				Rules = Ruleset.Load(modData, this, Tileset, RuleDefinitions, WeaponDefinitions,
+					VoiceDefinitions, NotificationDefinitions, MusicDefinitions, SequenceDefinitions, ModelSequenceDefinitions);
+			}
+			catch (Exception e)
+			{
+				Log.Write("debug", "Failed to load rules for scenario {0} on {1}: {2}", name, Title, e);
+				InvalidCustomRules = true;
+				InvalidCustomRulesException = e;
+				Rules = Ruleset.LoadDefaultsForTileSet(modData, Tileset);
+			}
 		}
 
 		void UpdateRamp(CPos cell)
@@ -1537,11 +1620,27 @@ namespace OpenRA
 		/// </summary>
 		public CPos ChooseClosestMatchingEdgeCellOnSameEdge(CPos hint, Func<CPos, bool> match)
 		{
+			var candidates = GetSameEdgeCells(hint);
+			return candidates.OrderBy(c => (hint - c).Length).FirstOrDefault(c => match(c));
+		}
+
+		/// <summary>
+		/// Get the N closest edge cells on the same map edge as the hint cell, sorted by distance.
+		/// Used to constrain spawn locations to a small area around the spawn point.
+		/// </summary>
+		public CPos[] GetSpawnCandidatesOnSameEdge(CPos hint, int count)
+		{
+			var candidates = GetSameEdgeCells(hint);
+			return candidates.OrderBy(c => (hint - c).Length).Take(count).ToArray();
+		}
+
+		IEnumerable<CPos> GetSameEdgeCells(CPos hint)
+		{
 			// Determine which edge the hint is closest to
 			var mpos = hint.ToMPos(Grid.Type);
 			var allProjected = ProjectedCellsCovering(mpos);
 			if (allProjected.Length == 0)
-				return default;
+				return Enumerable.Empty<CPos>();
 
 			var puv = allProjected.First();
 			var distLeft = Math.Abs(puv.U - Bounds.Left);
@@ -1552,7 +1651,7 @@ namespace OpenRA
 			var minDist = Math.Min(Math.Min(distLeft, distRight), Math.Min(distTop, distBottom));
 
 			// Filter edge cells to only those on the same edge
-			var sameEdgeCells = AllEdgeCells.Where(c =>
+			return AllEdgeCells.Where(c =>
 			{
 				var cmpos = c.ToMPos(Grid.Type);
 				var cp = ProjectedCellsCovering(cmpos);
@@ -1568,8 +1667,6 @@ namespace OpenRA
 					return Math.Abs(cpuv.V - Bounds.Top) <= 1;
 				return Math.Abs(cpuv.V - (Bounds.Bottom - 1)) <= 1;
 			});
-
-			return sameEdgeCells.OrderBy(c => (hint - c).Length).FirstOrDefault(c => match(c));
 		}
 
 		List<CPos> UpdateEdgeCells()

@@ -121,17 +121,13 @@ Player:
 		SelectTargetSpeechNotification: SelectTarget
 		UnitType: a10.airstrike
 		CameraActor: camera.paradrop
-		CameraRemoveDelay: 100
-		QuantizedFacings: 8
+		CameraRemoveDelay: 250
 		DisplayBeacon: true
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
 		Cursor: ability
-		UseDirectionalTarget: true
-		DirectionArrowAnimation: paradirection
 		SupportPowerPaletteOrder: 1
-		ReturnToStart: true
 	AirstrikePower@Russia:
 		PauseOnCondition: airstrikes-disabled
 		OrderName: RussiaAirstrike
@@ -146,17 +142,13 @@ Player:
 		SelectTargetSpeechNotification: SelectTarget
 		UnitType: frog.airstrike
 		CameraActor: camera.paradrop
-		CameraRemoveDelay: 100
-		QuantizedFacings: 8
+		CameraRemoveDelay: 250
 		DisplayBeacon: true
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
 		Cursor: ability
-		UseDirectionalTarget: true
-		DirectionArrowAnimation: paradirection
 		SupportPowerPaletteOrder: 1
-		ReturnToStart: true
 	ScriptTriggers:
 	MissionObjectives:
 		WinNotification: Win

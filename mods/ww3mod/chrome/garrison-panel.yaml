@@ -1,128 +1,156 @@
 Container@GARRISON_PANEL:
 	Logic: GarrisonPanelLogic
-	X: 5
-	Y: WINDOW_HEIGHT - 220
-	Width: 160
-	Height: 200
+	X: WINDOW_WIDTH - 240
+	Y: WINDOW_HEIGHT - 260
+	Width: 228
+	Height: 240
 	Children:
 		LogicTicker@GARRISON_TICKER:
 		Label@GARRISON_HEADER:
-			Width: 150
+			Width: 220
 			Height: 14
 			Font: TinyBold
 			Align: Center
 			Contrast: true
 		Label@PORT_LABEL_0:
-			Y: 16
-			Width: 130
+			Y: 18
+			Width: 200
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_PORT_0:
-			X: 132
-			Y: 16
+			X: 204
+			Y: 18
 			Width: 16
 			Height: 12
 			Font: Tiny
 			Text: X
 			VisualHeight: 0
 		Label@PORT_LABEL_1:
-			Y: 30
-			Width: 130
+			Y: 32
+			Width: 200
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_PORT_1:
-			X: 132
-			Y: 30
+			X: 204
+			Y: 32
 			Width: 16
 			Height: 12
 			Font: Tiny
 			Text: X
 			VisualHeight: 0
 		Label@PORT_LABEL_2:
-			Y: 44
-			Width: 130
+			Y: 46
+			Width: 200
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_PORT_2:
-			X: 132
-			Y: 44
+			X: 204
+			Y: 46
 			Width: 16
 			Height: 12
 			Font: Tiny
 			Text: X
 			VisualHeight: 0
 		Label@PORT_LABEL_3:
-			Y: 58
-			Width: 130
+			Y: 60
+			Width: 200
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_PORT_3:
-			X: 132
-			Y: 58
+			X: 204
+			Y: 60
 			Width: 16
 			Height: 12
 			Font: Tiny
 			Text: X
 			VisualHeight: 0
 		Label@PORT_LABEL_4:
-			Y: 72
-			Width: 130
+			Y: 74
+			Width: 200
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_PORT_4:
-			X: 132
-			Y: 72
+			X: 204
+			Y: 74
 			Width: 16
 			Height: 12
 			Font: Tiny
 			Text: X
 			VisualHeight: 0
 		Label@PORT_LABEL_5:
-			Y: 86
-			Width: 130
+			Y: 88
+			Width: 200
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_PORT_5:
-			X: 132
-			Y: 86
+			X: 204
+			Y: 88
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_6:
+			Y: 102
+			Width: 200
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_6:
+			X: 204
+			Y: 102
+			Width: 16
+			Height: 12
+			Font: Tiny
+			Text: X
+			VisualHeight: 0
+		Label@PORT_LABEL_7:
+			Y: 116
+			Width: 200
+			Height: 12
+			Font: Tiny
+			Contrast: true
+		Button@EJECT_PORT_7:
+			X: 204
+			Y: 116
 			Width: 16
 			Height: 12
 			Font: Tiny
 			Text: X
 			VisualHeight: 0
 		Label@RESERVE_LABEL_0:
-			Y: 105
-			Width: 150
+			Y: 135
+			Width: 220
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Label@RESERVE_LABEL_1:
-			Y: 119
-			Width: 150
+			Y: 149
+			Width: 220
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Label@RESERVE_LABEL_2:
-			Y: 133
-			Width: 150
+			Y: 163
+			Width: 220
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Label@RESERVE_LABEL_3:
-			Y: 147
-			Width: 150
+			Y: 177
+			Width: 220
 			Height: 12
 			Font: Tiny
 			Contrast: true
 		Button@EJECT_ALL:
-			Y: 165
-			Width: 150
+			Y: 196
+			Width: 220
 			Height: 20
 			Font: Tiny
 			Text: Eject All

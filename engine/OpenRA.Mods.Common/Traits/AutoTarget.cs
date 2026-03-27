@@ -545,6 +545,11 @@ namespace OpenRA.Mods.Common.Traits
 				var allyAutoTarget = ally.TraitOrDefault<AutoTarget>();
 				if (allyAutoTarget != null && allyAutoTarget.Stance == UnitStance.Ambush && !allyAutoTarget.ambushTriggered)
 					allyAutoTarget.ambushTriggered = true;
+
+				// Also trigger garrisoned buildings in Ambush stance
+				var gm = ally.TraitOrDefault<GarrisonManager>();
+				if (gm != null)
+					gm.TriggerAmbush();
 			}
 		}
 

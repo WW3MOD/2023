@@ -413,8 +413,8 @@ giatsint:
 			TopLeft: -330, -800
 			BottomRight: 330, 800
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Locomotor: lighttracked
@@ -520,8 +520,8 @@ grad:
 			TopLeft: -240, -730
 			BottomRight: 240, 730
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Speed: 110
@@ -632,8 +632,8 @@ tos:
 			TopLeft: -360, -950
 			BottomRight: 360, 950
 	Detectable:
-		Radar: 1
-		RadarDetectableCondition: firing
+		CounterBatteryRadar: 1
+		CounterBatteryRadarDetectableCondition: firing
 		Position: Ground
 	Mobile:
 		Speed: 80
@@ -958,8 +958,14 @@ IskanderMissile:
 	Health:
 		HP: 100
 	BallisticMissile:
-		LaunchAngle: 128
+		LaunchAngle: 160
 		Speed: 400
+		Acceleration: 6
+		InitialSpeedPercent: 5
+		LaunchRiseTicks: 45
+		LaunchRiseHeight: 3c0
+		LaunchRiseErect: true
+		VisualPitchMultiplier: 50
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

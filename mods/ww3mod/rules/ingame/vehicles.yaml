@@ -291,6 +291,9 @@ MSAR:
 	Radar:
 		Range: 42c0
 		RequiresCondition: deployed
+	CounterBatteryRadar:
+		Range: 42c0
+		RequiresCondition: deployed
 	WithRangeCircle@Radar:
 		Range: 42c0
 		Color: 000000
@@ -408,11 +411,11 @@ TRUK:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
 		Prerequisites: ~techlevel.low
-		Description: Resupplies nearby infantry ammunition automatically.\n\n - 500 supply capacity\n - Unarmed\n - Armor: None
+		Description: Transport truck that can carry soldiers and supply.\n\n - Carries 15 cargo weight\n - Supply auto-rearms nearby units\n - Unarmed\n - Armor: None
 	Valued:
 		Cost: 600
 	Tooltip:
-		Name: Supply Truck
+		Name: Transport Truck
 	AnnounceOnSeen:
 		Type: SupportVehicle
 		TextNotification: Spotted: Supply truck
@@ -431,41 +434,27 @@ TRUK:
 		LocalOffset: 0,0,100
 	Passenger:
 		CustomPipType: pip-blue
-	RearmsUnits:
-		CloseEnough: 2c0
 	Cargo:
 		Types: Infantry
-		MaxWeight: 5
+		MaxWeight: 15
 		EjectOnDeath: true
 		AfterLoadDelay: 0
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
-	QuickRearm:
-		EjectDelay: 50
-	SupplyProvider:
-		Range: 5c0
+	CargoSupply:
+		InitialSupply: 10
+		SupplyPerUnit: 50
+		RearmRange: 5c0
 		RearmDelay: 25
-		TotalSupply: 500
-		RestockThreshold: 50
-		RestockActors: logisticscenter
 		RearmCondition: replenish-soldiers
-		SupplyCreditValue: 400
-		PauseOnCondition: disabled
-		SupplyHighCondition: supply-high
-		SupplyMediumCondition: supply-medium
-		SupplyLowCondition: supply-low
+		CargoHasSupplyCondition: cargo-has-supply
+		CreditValuePerUnit: 40
 	RenderRangeCircle@Supply:
 		FallbackRange: 5c0
 		Color: C0C0C0
 		Width: 1.5
 		Alpha: 100
 		RequireShift: false
-	DropsCrate:
-		CrateActor: supplycache
-		DeployCursor: deploy
-		DeployBlockedCursor: deploy-blocked
-		Voice: Action
-		DeploySounds: build5.aud
 	SpawnActorOnDeath:
 		Actor: TRUK.husk
 

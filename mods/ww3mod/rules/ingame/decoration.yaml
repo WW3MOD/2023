@@ -19,6 +19,7 @@
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
+		ZOffset: -512
 	Building:
 		Footprint: x
 		Dimensions: 1,1

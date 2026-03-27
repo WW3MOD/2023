@@ -39,6 +39,13 @@ namespace OpenRA.Scripting
 			if (nullable != null)
 				t = nullable;
 
+			// Lua nil maps to null for nullable value types and reference types
+			if (value is LuaNil && nullable != null)
+			{
+				clrObject = null;
+				return true;
+			}
+
 			// Value wraps a CLR object
 			if (value.TryGetClrObject(out var temp) && temp.GetType() == t)
 			{

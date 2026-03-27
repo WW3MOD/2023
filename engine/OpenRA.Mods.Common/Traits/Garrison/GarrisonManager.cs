@@ -61,6 +61,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition name to grant to soldiers deployed at ports.")]
 		public readonly string GarrisonedCondition = "garrisoned-at-port";
 
+		[Desc("Ticks a deployed soldier must be idle (no valid target) before being recalled to shelter. 0 disables.")]
+		public readonly int IdleRecallTicks = 125;
+
 		static object LoadPorts(MiniYaml yaml)
 		{
 			var ports = new List<GarrisonPortInfo>();
@@ -95,6 +98,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int TargetLockTicks;
 		public bool PlayerOverride;
 		public int SwapCooldownRemaining;
+		public int IdleTicks;
 
 		public PortState(GarrisonPortInfo port)
 		{
@@ -104,7 +108,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class GarrisonManager : INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
-		ITick, IResolveOrder, INotifyKilled
+		ITick, IResolveOrder, INotifyKilled, INotifyDamage
 	{
 		public readonly GarrisonManagerInfo Info;
 		readonly Actor self;
@@ -124,6 +128,9 @@ namespace OpenRA.Mods.Common.Traits
 		// Force attack target set by player
 		Target forceTarget = Target.Invalid;
 		bool hasForceTarget;
+
+		// Ambush state: tracks whether garrison has been triggered out of ambush stance
+		bool ambushTriggered;
 
 		public GarrisonManager(Actor self, GarrisonManagerInfo info)
 		{
@@ -217,6 +224,7 @@ namespace OpenRA.Mods.Common.Traits
 			PortStates[portIndex].CurrentTarget = Target.Invalid;
 			PortStates[portIndex].TargetLockTicks = 0;
 			PortStates[portIndex].PlayerOverride = false;
+			PortStates[portIndex].IdleTicks = 0;
 		}
 
 		// Recall a deployed soldier from port to shelter (port → shelter)
@@ -367,6 +375,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			tickOffset++;
 
+			// Check building's fire discipline stance
+			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
+
 			// Decrement swap cooldowns
 			for (var i = 0; i < PortStates.Length; i++)
 				if (PortStates[i].SwapCooldownRemaining > 0)
@@ -394,18 +405,6 @@ namespace OpenRA.Mods.Common.Traits
 				// Update deployed soldier position each tick (in case building moves/rotates)
 				if (ps.DeployedSoldier != null)
 				{
-					// Check if soldier received an order (queued activity = player wants them to leave)
-					if (ps.DeployedSoldier.CurrentActivity != null)
-					{
-						// Eject from port: revoke condition, clear port, soldier executes queued activity
-						RevokePortCondition(i);
-						ps.DeployedSoldier = null;
-						ps.CurrentTarget = Target.Invalid;
-						ps.TargetLockTicks = 0;
-						ps.PlayerOverride = false;
-						continue;
-					}
-
 					var coords = self.Trait<BodyOrientation>();
 					var portOffset = GetPortWorldOffset(i, coords);
 					var terrainZ = self.World.Map.CenterOfCell(self.Location).Z;
@@ -428,25 +427,44 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					UpdatePortTarget(i);
 
-					// If deployed soldier has no valid target and no ammo, recall for reload swap
-					if (!ps.CurrentTarget.IsValidFor(self) && Info.ReloadSwapping)
+					if (ps.CurrentTarget.IsValidFor(self))
 					{
-						var ammoPools = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().ToArray();
-						if (ammoPools.Length > 0 && ammoPools.All(a => a.CurrentAmmoCount == 0))
+						// Active target — reset idle timer
+						ps.IdleTicks = 0;
+					}
+					else
+					{
+						// No valid target — increment idle timer and recall if threshold reached
+						ps.IdleTicks += Info.TargetScanInterval;
+						if (Info.IdleRecallTicks > 0 && ps.IdleTicks >= Info.IdleRecallTicks)
 						{
-							// Check if there's a shelter soldier with ammo to take this port
-							var replacement = FindBestShelterSoldier(i, Target.Invalid);
-							if (replacement != null)
+							RecallToShelter(i);
+							continue;
+						}
+
+						// Reload swap: if also out of ammo, swap with shelter soldier that has ammo
+						if (Info.ReloadSwapping)
+						{
+							var ammoPools = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().ToArray();
+							if (ammoPools.Length > 0 && ammoPools.All(a => a.CurrentAmmoCount == 0))
 							{
-								RecallToShelter(i);
-								// Replacement will be deployed next tick when PromoteFromShelter runs
+								var replacement = FindBestShelterSoldier(i, Target.Invalid);
+								if (replacement != null)
+									RecallToShelter(i);
 							}
 						}
 					}
 				}
 				else
 				{
-					// Port is empty — check if there's a target that warrants deployment
+					// Port is empty — respect fire discipline stance before auto-deploying
+					if (buildingStance == UnitStance.HoldFire)
+						continue;
+
+					if (buildingStance == UnitStance.Ambush && !ambushTriggered)
+						continue;
+
+					// Check if there's a target that warrants deployment
 					var target = ScanForTarget(i);
 					if (target.IsValidFor(self))
 					{
@@ -460,11 +478,37 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 			}
+
+			// Ambush reset: when all ports have been recalled and ambush was triggered,
+			// reset so garrison returns to hidden standby state
+			if (buildingStance == UnitStance.Ambush && ambushTriggered)
+			{
+				var anyDeployed = false;
+				for (var i = 0; i < PortStates.Length; i++)
+				{
+					if (PortStates[i].DeployedSoldier != null)
+					{
+						anyDeployed = true;
+						break;
+					}
+				}
+
+				if (!anyDeployed)
+					ambushTriggered = false;
+			}
 		}
 
 		// Promote the best shelter soldier to fill an empty port
 		void PromoteFromShelter(int portIndex)
 		{
+			// Respect fire discipline stance
+			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
+			if (buildingStance == UnitStance.HoldFire)
+				return;
+
+			if (buildingStance == UnitStance.Ambush && !ambushTriggered)
+				return;
+
 			// Scan for a target first — only deploy if there's something to shoot at
 			var target = ScanForTarget(portIndex);
 			if (!target.IsValidFor(self))
@@ -798,6 +842,56 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Returns armaments from both deployed AND shelter soldiers.
+		// Used by AttackGarrisoned for cursor/validity checks so force-attack works when soldiers are in shelter.
+		public IEnumerable<Armament> GetAllPotentialArmaments()
+		{
+			foreach (var a in GetAllArmaments())
+				yield return a;
+
+			foreach (var soldier in shelterPassengers)
+			{
+				if (soldier.IsDead)
+					continue;
+
+				foreach (var a in soldier.TraitsImplementing<Armament>())
+					yield return a;
+			}
+		}
+
+		// Called by AutoTarget.TriggerNearbyAmbushAllies to coordinate garrison buildings with ambush units
+		public void TriggerAmbush()
+		{
+			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
+			if (buildingStance != UnitStance.Ambush || ambushTriggered)
+				return;
+
+			ambushTriggered = true;
+			TriggerAmbushDeploy();
+		}
+
+		// Force-deploy shelter soldiers to all empty ports that have valid targets
+		void TriggerAmbushDeploy()
+		{
+			for (var i = 0; i < PortStates.Length; i++)
+			{
+				if (PortStates[i].DeployedSoldier != null)
+					continue;
+
+				var target = ScanForTarget(i);
+				if (!target.IsValidFor(self))
+					continue;
+
+				var soldier = FindBestShelterSoldier(i, target);
+				if (soldier != null)
+				{
+					DeployToPort(i, soldier);
+					PortStates[i].CurrentTarget = target;
+					PortStates[i].TargetLockTicks = Info.TargetScanInterval * 2;
+				}
+			}
+		}
+
 		public IEnumerable<Actor> ShelterPassengers => shelterPassengers;
 		public int PortCount => PortStates.Length;
 
@@ -839,6 +933,19 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Shelter soldiers are in Cargo and will be handled by Cargo.EjectOnDeath
+		}
+
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
+		{
+			if (e.Damage.Value <= 0)
+				return;
+
+			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
+			if (buildingStance == UnitStance.Ambush && !ambushTriggered)
+			{
+				ambushTriggered = true;
+				TriggerAmbushDeploy();
+			}
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)

@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Primitives;
@@ -64,70 +63,32 @@ namespace OpenRA.Mods.Common.Traits
 		public override void Activate(Actor self, Order order, SupportPowerManager manager)
 		{
 			base.Activate(self, order, manager);
-
-			var facing = info.UseDirectionalTarget && order.ExtraData != uint.MaxValue ? (WAngle?)WAngle.FromFacing((int)order.ExtraData) : null;
-			SendAirstrike(self, order.Target.CenterPosition, facing);
+			SendAirstrike(self, order.Target.CenterPosition);
 		}
 
-		public Actor[] SendAirstrike(Actor self, WPos target, WAngle? facing = null)
+		public Actor[] SendAirstrike(Actor self, WPos target)
 		{
 			var aircraft = new List<Actor>();
-			if (!facing.HasValue)
-				facing = new WAngle(1024 * self.World.SharedRandom.Next(info.QuantizedFacings) / info.QuantizedFacings);
+			var map = self.World.Map;
 
-			var altitude = self.World.Map.Rules.Actors[info.UnitType].TraitInfo<AircraftInfo>().CruiseAltitude.Length;
-			var attackRotation = WRot.FromYaw(facing.Value);
-			var delta = new WVec(0, -1024, 0).Rotate(attackRotation);
-			target += new WVec(0, 0, altitude);
-			var startEdge = target - (self.World.Map.DistanceToEdge(target, -delta) + info.Cordon).Length * delta / 1024;
-			var finishEdge = target + (self.World.Map.DistanceToEdge(target, delta) + info.Cordon).Length * delta / 1024;
+			var actorInfo = map.Rules.Actors[info.UnitType.ToLowerInvariant()];
+			var aircraftInfo = actorInfo.TraitInfo<AircraftInfo>();
+			var altitude = aircraftInfo.CruiseAltitude.Length;
 
-			Actor camera = null;
-			Beacon beacon = null;
-			var aircraftInRange = new Dictionary<Actor, bool>();
+			// Spawn from the closest map edge to the player's base
+			var spawnCell = map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
+			var spawnPos = map.CenterOfCell(spawnCell) + new WVec(0, 0, altitude);
 
-			void OnEnterRange(Actor a)
-			{
-				// Spawn a camera and remove the beacon when the first plane enters the target area
-				if (info.CameraActor != null && camera == null && !aircraftInRange.Any(kv => kv.Value))
-				{
-					self.World.AddFrameEndTask(w =>
-					{
-						camera = w.CreateActor(info.CameraActor, new TypeDictionary
-						{
-							new LocationInit(self.World.Map.CellContaining(target)),
-							new OwnerInit(self.Owner),
-						});
-					});
-				}
+			// Target position at cruise altitude
+			var targetWithAlt = target + new WVec(0, 0, altitude);
 
-				RemoveBeacon(beacon);
+			// Face from spawn toward target
+			var delta = targetWithAlt - spawnPos;
+			var spawnFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : WAngle.Zero;
+			var attackRotation = WRot.FromYaw(spawnFacing);
 
-				aircraftInRange[a] = true;
-			}
-
-			void OnExitRange(Actor a)
-			{
-				aircraftInRange[a] = false;
-
-				// Remove the camera when the final plane leaves the target area
-				if (!aircraftInRange.Any(kv => kv.Value))
-					RemoveCamera(camera);
-			}
-
-			void OnRemovedFromWorld(Actor a)
-			{
-				aircraftInRange[a] = false;
-
-				// Checking for attack range is not relevant here because
-				// aircraft may be shot down before entering the range.
-				// If at the map's edge, they may be removed from world before leaving.
-				if (aircraftInRange.All(kv => !kv.Key.IsInWorld))
-				{
-					RemoveCamera(camera);
-					RemoveBeacon(beacon);
-				}
-			}
+			// Distance from spawn to target — used for exit calculation
+			var distanceToTarget = delta.HorizontalLength;
 
 			// Create the actors immediately so they can be returned
 			for (var i = -info.SquadSize / 2; i <= info.SquadSize / 2; i++)
@@ -139,56 +100,62 @@ namespace OpenRA.Mods.Common.Traits
 				// Includes the 90 degree rotation between body and world coordinates
 				var so = info.SquadOffset;
 				var spawnOffset = new WVec(i * so.Y, -Math.Abs(i) * so.X, 0).Rotate(attackRotation);
-				var targetOffset = new WVec(i * so.Y, 0, 0).Rotate(attackRotation);
+
 				var a = self.World.CreateActor(false, info.UnitType, new TypeDictionary
 				{
-					new CenterPositionInit(startEdge + spawnOffset),
+					new CenterPositionInit(spawnPos + spawnOffset),
 					new OwnerInit(self.Owner),
-					new FacingInit(facing.Value),
+					new FacingInit(spawnFacing),
 				});
 
 				aircraft.Add(a);
-				aircraftInRange.Add(a, false);
-
-				var attack = a.Trait<AttackBomber>();
-				attack.SetTarget(target + targetOffset);
-				attack.OnEnteredAttackRange += OnEnterRange;
-				attack.OnExitedAttackRange += OnExitRange;
-				attack.OnRemovedFromWorld += OnRemovedFromWorld;
 			}
 
 			self.World.AddFrameEndTask(w =>
 			{
 				PlayLaunchSounds();
 
-				var j = 0;
-				Actor distanceTestActor = null;
-				for (var i = -info.SquadSize / 2; i <= info.SquadSize / 2; i++)
+				// Spawn camera at target
+				Actor camera = null;
+				if (info.CameraActor != null)
 				{
-					// Even-sized squads skip the lead plane
-					if (i == 0 && (info.SquadSize & 1) == 0)
-						continue;
+					camera = w.CreateActor(info.CameraActor, new TypeDictionary
+					{
+						new LocationInit(map.CellContaining(target)),
+						new OwnerInit(self.Owner),
+					});
 
-					// Includes the 90 degree rotation between body and world coordinates
-					var so = info.SquadOffset;
-					var spawnOffset = new WVec(i * so.Y, -Math.Abs(i) * so.X, 0).Rotate(attackRotation);
+					camera.QueueActivity(new Wait(info.CameraRemoveDelay));
+					camera.QueueActivity(new RemoveSelf());
+				}
 
-					var a = aircraft[j++];
+				Actor distanceTestActor = null;
+				foreach (var a in aircraft)
+				{
 					w.Add(a);
 
-					a.QueueActivity(new Fly(a, Target.FromPos(target + spawnOffset)));
-					a.QueueActivity(new Fly(a, Target.FromPos(finishEdge + spawnOffset)));
+					// Single-pass strafe run: fly to target, then return to spawn edge.
+					// (OpportunityFire handles shooting during the pass), then exit map.
+					// Player can still select and redirect — queued activities cancel normally.
+					a.QueueActivity(new Fly(a, Target.FromPos(targetWithAlt)));
+
+					// Turn around and fly back to the spawn edge (where the plane entered)
+					a.QueueActivity(new Fly(a, Target.FromPos(spawnPos)));
+
+					// Fly forward past the map edge to ensure clean exit — guarantees the aircraft exits past the far map edge.
+					a.QueueActivity(new FlyForward(a, info.Cordon));
 					a.QueueActivity(new RemoveSelf());
+
 					distanceTestActor = a;
 				}
 
-				if (Info.DisplayBeacon)
+				if (Info.DisplayBeacon && distanceTestActor != null)
 				{
-					var distance = (target - startEdge).HorizontalLength;
+					var distance = distanceToTarget;
 
-					beacon = new Beacon(
+					var beacon = new Beacon(
 						self.Owner,
-						target - new WVec(0, 0, altitude),
+						target,
 						Info.BeaconPaletteIsPlayerPalette,
 						Info.BeaconPalette,
 						Info.BeaconImage,
@@ -198,7 +165,9 @@ namespace OpenRA.Mods.Common.Traits
 						Info.ArrowSequence,
 						Info.CircleSequence,
 						Info.ClockSequence,
-						() => 1 - ((distanceTestActor.CenterPosition - target).HorizontalLength - info.BeaconDistanceOffset.Length) * 1f / distance,
+						() => distanceTestActor.IsDead || distanceTestActor.Disposed
+						? 1f
+						: 1 - ((distanceTestActor.CenterPosition - targetWithAlt).HorizontalLength - info.BeaconDistanceOffset.Length) * 1f / distance,
 						Info.BeaconDelay);
 
 					w.Add(beacon);
@@ -206,23 +175,6 @@ namespace OpenRA.Mods.Common.Traits
 			});
 
 			return aircraft.ToArray();
-		}
-
-		void RemoveCamera(Actor camera)
-		{
-			if (camera == null)
-				return;
-
-			camera.QueueActivity(new Wait(info.CameraRemoveDelay));
-			camera.QueueActivity(new RemoveSelf());
-		}
-
-		void RemoveBeacon(Beacon beacon)
-		{
-			if (beacon == null)
-				return;
-
-			Self.World.AddFrameEndTask(w => w.Remove(beacon));
 		}
 	}
 }

@@ -116,24 +116,24 @@ GTWR:
 		Ports:
 			north:
 				Name: north
-				Offset: 0,-450,300
+				Offset: 0,-600,384
 				Yaw: 0
-				Cone: 170
+				Cone: 200
 			east:
 				Name: east
-				Offset: 450,0,300
-				Yaw: 256
-				Cone: 170
+				Offset: 600,0,384
+				Yaw: 768
+				Cone: 200
 			south:
 				Name: south
-				Offset: 0,450,300
+				Offset: 0,600,384
 				Yaw: 512
-				Cone: 170
+				Cone: 200
 			west:
 				Name: west
-				Offset: -450,0,300
-				Yaw: 768
-				Cone: 170
+				Offset: -600,0,384
+				Yaw: 256
+				Cone: 200
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
@@ -142,13 +142,13 @@ GTWR:
 		BaseProtection: 90
 		CriticalProtection: 50
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
+	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: 0,-450,300, 450,0,300, 0,450,300, -450,0,300
-		PortYaws: 0, 256, 512, 768
-		PortCones: 170, 170, 170, 170
+		PortOffsets: 0,-600,384, 600,0,384, 0,600,384, -600,0,384
+		PortYaws: 0, 768, 512, 256
+		PortCones: 200, 200, 200, 200
 		MuzzlePalette: effect
 
 PBOX:
@@ -196,14 +196,14 @@ PBOX:
 		Ports:
 			front:
 				Name: front
-				Offset: 450,0,200
-				Yaw: 256
-				Cone: 256
+				Offset: 300,0,256
+				Yaw: 768
+				Cone: 300
 			back:
 				Name: back
-				Offset: -450,0,200
-				Yaw: 768
-				Cone: 256
+				Offset: -300,0,256
+				Yaw: 256
+				Cone: 300
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
@@ -212,13 +212,13 @@ PBOX:
 		BaseProtection: 90
 		CriticalProtection: 50
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
+	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: 450,0,200, -450,0,200
-		PortYaws: 256, 768
-		PortCones: 256, 256
+		PortOffsets: 300,0,256, -300,0,256
+		PortYaws: 768, 256
+		PortCones: 300, 300
 		MuzzlePalette: effect
 
 HBOX:
@@ -271,14 +271,14 @@ HBOX:
 		Ports:
 			front:
 				Name: front
-				Offset: 450,0,200
-				Yaw: 256
-				Cone: 256
+				Offset: 280,0,200
+				Yaw: 768
+				Cone: 300
 			back:
 				Name: back
-				Offset: -450,0,200
-				Yaw: 768
-				Cone: 256
+				Offset: -280,0,200
+				Yaw: 256
+				Cone: 300
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
@@ -287,13 +287,13 @@ HBOX:
 		BaseProtection: 85
 		CriticalProtection: 40
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
+	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: 450,0,200, -450,0,200
-		PortYaws: 256, 768
-		PortCones: 256, 256
+		PortOffsets: 280,0,200, -280,0,200
+		PortYaws: 768, 256
+		PortCones: 300, 300
 		MuzzlePalette: effect
 
 SBAG:

@@ -2,6 +2,13 @@
 HALO:
 	Inherits@Type: ^Helicopter
 	Inherits@CargoPips: ^CargoPips
+	AIHelicopterRole:
+		Role: Transport
+		FleeHealthPercent: 60
+		ReEngageHealthPercent: 90
+		PreferSoftTargets: true
+		AIBuildPriority: 30
+		AIBuildLimit: 2
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
 	Buildable:
@@ -34,6 +41,13 @@ HALO:
 		MaxWeight: 24
 		AfterUnloadDelay: 40
 		EjectOnDeath: false
+	CargoSupply:
+		SupplyPerUnit: 50
+		RearmRange: 4c0
+		RearmDelay: 25
+		RearmCondition: replenish-soldiers
+		CargoHasSupplyCondition: cargo-has-supply
+		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
 		PipCount: 24
 	Selectable:
@@ -74,6 +88,16 @@ HIND:
 	Inherits@Type: ^Helicopter
 	# Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@CargoPips: ^CargoPips
+	AIHelicopterRole:
+		Role: AttackHeavy
+		EngagementRange: 6
+		FleeHealthPercent: 35
+		ReEngageHealthPercent: 75
+		HitAndRunCooldown: 175
+		PreferSoftTargets: false
+		AvoidAntiAirRange: 5
+		AIBuildPriority: 70
+		AIBuildLimit: 4
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
@@ -218,6 +242,13 @@ HIND:
 		MaxWeight: 8
 		AfterUnloadDelay: 40
 		EjectOnDeath: false
+	CargoSupply:
+		SupplyPerUnit: 50
+		RearmRange: 4c0
+		RearmDelay: 25
+		RearmCondition: replenish-soldiers
+		CargoHasSupplyCondition: cargo-has-supply
+		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
 	RenderSprites:
 		Scale: 1.3
@@ -226,6 +257,16 @@ MI28:
 	Inherits@Type: ^Helicopter
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
+	AIHelicopterRole:
+		Role: AttackHeavy
+		EngagementRange: 7
+		FleeHealthPercent: 35
+		ReEngageHealthPercent: 75
+		HitAndRunCooldown: 200
+		PreferSoftTargets: false
+		AvoidAntiAirRange: 5
+		AIBuildPriority: 80
+		AIBuildLimit: 3
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
@@ -575,12 +616,30 @@ MIG:
 	RenderSprites:
 		Scale: 1.25
 
-# Disposable airstrike flyover variant — spawned by AirstrikePower, fires on flyover, self-removes
+# Disposable airstrike flyover variant — spawned by AirstrikePower, single strafe pass then exit
 FROG.Airstrike:
 	Inherits: FROG
 	-Buildable:
-	-AttackAircraft:
-	AttackBomber:
-		FacingTolerance: 128
+	-Rearmable:
+	-ReloadAmmoPool@1:
+	-SpawnActorOnDeath:
+	-SpawnActorOnDeath@EMP:
+	-EjectOnDeath@Rank0:
+	-EjectOnDeath@Rank1:
+	-EjectOnDeath@Rank2:
+	-EjectOnDeath@Rank_3:
+	-EjectOnDeath@Rank4:
 	RenderSprites:
 		Image: frog
+	Aircraft:
+		Speed: 200
+		TurnSpeed: 8
+		CruiseAltitude: 1c512
+	AttackAircraft:
+		Armaments: primary
+		FacingTolerance: 60
+		AttackType: Strafe
+		StrafeRunLength: 12c0
+		OpportunityFire: true
+	AmmoPool@1:
+		Ammo: 30

@@ -36,6 +36,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("When should the AI start train specific units.")]
 		public readonly Dictionary<string, int> UnitDelays = null;
 
+		[Desc("If true, skip the rearm building capacity check for aircraft.",
+			"Use this when aircraft are produced from a generic production building (e.g. Supply Route)",
+			"and don't require a dedicated pad/airfield to be built first.")]
+		public readonly bool SkipRearmBuildingCheck = false;
+
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
 	}
 
@@ -189,9 +194,14 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
-		// For mods like RA (number of RearmActors must match the number of aircraft)
+		// For mods like RA (number of RearmActors must match the number of aircraft).
+		// WW3MOD: Aircraft are called in via Supply Route and don't need a dedicated
+		// pad to be produced — SkipRearmBuildingCheck bypasses this for reinforcement-model mods.
 		bool HasAdequateAirUnitReloadBuildings(ActorInfo actorInfo)
 		{
+			if (Info.SkipRearmBuildingCheck)
+				return true;
+
 			var aircraftInfo = actorInfo.TraitInfoOrDefault<AircraftInfo>();
 			if (aircraftInfo == null)
 				return true;

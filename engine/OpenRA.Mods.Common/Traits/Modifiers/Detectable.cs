@@ -32,6 +32,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BooleanExpression RadarDetectableCondition = null;
 
 		public readonly string RadarDetectableGrantsCondition = "radar-detectable";
+
+		[Desc("0 = not detectable by counter-battery radar, 1 = is detectable. Only the MSAR's CounterBatteryRadar trait provides this coverage.")]
+		public readonly int CounterBatteryRadar = 0;
+
+		[ConsumedConditionReference]
+		[Desc("Condition that activates counter-battery radar detectability (e.g. 'firing')")]
+		public readonly BooleanExpression CounterBatteryRadarDetectableCondition = null;
+
+		public readonly string CounterBatteryRadarDetectableGrantsCondition = "counter-battery-radar-detectable";
 		public readonly string VisionDetectableConditionPrefix = "visibility-";
 
 		[Desc("Players with these relationships can always see the actor.")]
@@ -96,15 +105,24 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (DetectableInfo.Position == DetectablePosition.Footprint)
 			{
-				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), detectable) || (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()));
+				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), detectable)
+					|| (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()))
+					|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnCounterBatteryRadar(self.OccupiesSpace.OccupiedCells()));
 			}
 
-			return byPlayer.MapLayers.IsVisible(pos, detectable) || (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos));
+			return byPlayer.MapLayers.IsVisible(pos, detectable)
+				|| (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos))
+				|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.CounterBatteryRadarCover(pos));
 		}
 
 		bool RadarDetectionActive()
 		{
 			return DetectableInfo.Radar != 0 && IsRadarDetectable;
+		}
+
+		bool CounterBatteryRadarDetectionActive()
+		{
+			return DetectableInfo.CounterBatteryRadar != 0 && IsCounterBatteryRadarDetectable;
 		}
 
 		public bool IsVisible(Actor self, Player byPlayer)
@@ -123,6 +141,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (DetectableInfo.RadarDetectableCondition != null)
 				yield return new VariableObserver(RadarConditionsChanged, DetectableInfo.RadarDetectableCondition.Variables);
+
+			if (DetectableInfo.CounterBatteryRadarDetectableCondition != null)
+				yield return new VariableObserver(CounterBatteryRadarConditionsChanged, DetectableInfo.CounterBatteryRadarDetectableCondition.Variables);
 		}
 
 		[Sync]
@@ -165,6 +186,37 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (radarDetectableConditionToken != Actor.InvalidConditionToken)
 				radarDetectableConditionToken = self.RevokeCondition(radarDetectableConditionToken);
+		}
+
+		[Sync]
+		public bool IsCounterBatteryRadarDetectable { get; private set; }
+		int counterBatteryRadarDetectableConditionToken = Actor.InvalidConditionToken;
+
+		void CounterBatteryRadarConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			if (IsCounterBatteryRadarDetectable != DetectableInfo.CounterBatteryRadarDetectableCondition.Evaluate(conditions))
+			{
+				if (IsCounterBatteryRadarDetectable)
+					CounterBatteryRadarDetectableTraitDisabled(self);
+				else
+					CounterBatteryRadarDetectableTraitEnabled(self);
+			}
+		}
+
+		protected void CounterBatteryRadarDetectableTraitEnabled(Actor self)
+		{
+			IsCounterBatteryRadarDetectable = true;
+
+			if (counterBatteryRadarDetectableConditionToken == Actor.InvalidConditionToken)
+				counterBatteryRadarDetectableConditionToken = self.GrantCondition(DetectableInfo.CounterBatteryRadarDetectableGrantsCondition);
+		}
+
+		protected void CounterBatteryRadarDetectableTraitDisabled(Actor self)
+		{
+			IsCounterBatteryRadarDetectable = false;
+
+			if (counterBatteryRadarDetectableConditionToken != Actor.InvalidConditionToken)
+				counterBatteryRadarDetectableConditionToken = self.RevokeCondition(counterBatteryRadarDetectableConditionToken);
 		}
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)

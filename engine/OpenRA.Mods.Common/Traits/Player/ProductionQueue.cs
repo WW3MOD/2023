@@ -547,9 +547,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual int GetBuildTime(ActorInfo unit, BuildableInfo bi)
 		{
-			if (developerMode.FastBuild)
-				return 0;
-
 			var time = bi.BuildDuration;
 			if (time == -1)
 				time = GetProductionCost(unit) / 10;
@@ -559,7 +556,13 @@ namespace OpenRA.Mods.Common.Traits
 				.Append(bi.BuildDurationModifier)
 				.Append(Info.BuildDurationModifier);
 
-			return Util.ApplyPercentageModifiers(time, modifiers);
+			var result = Util.ApplyPercentageModifiers(time, modifiers);
+
+			// Quick Build: cap at 1 second (25 ticks) so spawn points have time to clear
+			if (developerMode.FastBuild)
+				return Math.Min(result, 25);
+
+			return result;
 		}
 
 		public virtual int GetProductionCost(ActorInfo unit)

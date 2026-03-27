@@ -1,6 +1,7 @@
 
 ^CivBuilding:
 	Inherits@TechBuilding: ^TechBuilding
+	Inherits@DamageStates: ^DamageStates
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
@@ -53,33 +54,33 @@
 		Ports:
 			north:
 				Name: north
-				Offset: -100,0,128
+				Offset: 0,-700,256
 				Yaw: 0
 				Cone: 170
 			northeast:
 				Name: northeast
-				Offset: -500,-360,128
-				Yaw: 176
+				Offset: 500,-700,256
+				Yaw: 896
 				Cone: 170
 			southeast:
 				Name: southeast
-				Offset: -900,-360,128
-				Yaw: 341
+				Offset: 700,0,256
+				Yaw: 768
 				Cone: 170
 			south:
 				Name: south
-				Offset: -1100,0,128
+				Offset: 0,700,256
 				Yaw: 512
 				Cone: 170
 			southwest:
 				Name: southwest
-				Offset: -900,360,128
-				Yaw: 682
+				Offset: -500,700,256
+				Yaw: 384
 				Cone: 170
 			northwest:
 				Name: northwest
-				Offset: -500,360,128
-				Yaw: 853
+				Offset: -700,0,256
+				Yaw: 256
 				Cone: 170
 		SwapCooldown: 20
 		TargetScanInterval: 8
@@ -89,12 +90,12 @@
 		BaseProtection: 80
 		CriticalProtection: 30
 		MinPassThrough: 5
-	WithCargoPipsDecoration:
+	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 	AttackGarrisoned:
-		PortOffsets: -100,0,128, -500,-360,128, -900,-360,128, -1100,0,128, -900,360,128, -500,360,128
-		PortYaws: 0, 176, 341, 512, 682, 853
+		PortOffsets: 0,-700,256, 500,-700,256, 700,0,256, 0,700,256, -500,700,256, -700,0,256
+		PortYaws: 0, 896, 768, 512, 384, 256
 		PortCones: 170, 170, 170, 170, 170, 170
 		MuzzlePalette: effect
 ^DesertCivBuilding:

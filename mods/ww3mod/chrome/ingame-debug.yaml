@@ -1,137 +1,198 @@
 Container@DEBUG_PANEL:
 	Logic: DebugMenuLogic
-	Y: 10
+	Y: 6
 	Width: PARENT_WIDTH
 	Height: PARENT_HEIGHT
 	Children:
 		Label@TITLE:
-			Y: 26
+			Y: 10
 			Font: Bold
-			Text: Debug Options
+			Text: Command Terminal
 			Align: Center
 			Width: PARENT_WIDTH
+
+		Label@SECTION_CHEATS:
+			X: 24
+			Y: 34
+			Font: TinyBold
+			Text: CHEATS
+			Width: 200
+
 		Button@INSTANT_BUILD:
-			X: 45
-			Y: 45
-			Width: 200
-			Height: 25
+			X: 20
+			Y: 48
+			Width: 250
+			Height: 28
 			Font: Regular
-			Text: Instant Build: OFF
-		Checkbox@ENABLE_TECH:
-			X: 45
-			Y: 75
-			Width: 200
-			Height: 20
+			Text: Quick Build: OFF
+		Button@ENABLE_TECH:
+			X: 280
+			Y: 48
+			Width: 250
+			Height: 28
 			Font: Regular
-			Text: Build Everything
-		Checkbox@BUILD_ANYWHERE:
-			X: 45
-			Y: 105
-			Width: 200
-			Height: 20
+			Text: Build Everything: OFF
+
+		Button@BUILD_ANYWHERE:
+			X: 20
+			Y: 80
+			Width: 250
+			Height: 28
 			Font: Regular
-			Text: Build Anywhere
-		Checkbox@INSTANT_CHARGE:
-			X: 290
-			Y: 45
-			Width: 200
-			Height: 20
+			Text: Build Anywhere: OFF
+		Button@INSTANT_CHARGE:
+			X: 280
+			Y: 80
+			Width: 250
+			Height: 28
 			Font: Regular
-			Text: Instant Power Charge
-		Checkbox@COSMETIC_REVEAL:
-			X: 290
-			Y: 75
-			Height: 20
-			Width: 200
+			Text: Instant Charge: OFF
+
+		Button@COSMETIC_REVEAL:
+			X: 20
+			Y: 112
+			Width: 250
+			Height: 28
 			Font: Regular
-			Text: Reveal All Units
-		Checkbox@CONTROL_ALL_UNITS:
-			X: 290
-			Y: 105
-			Height: 20
-			Width: 200
+			Text: Reveal All: OFF
+		Button@CONTROL_ALL_UNITS:
+			X: 280
+			Y: 112
+			Width: 250
+			Height: 28
 			Font: Regular
-			Text: Control All Units
+			Text: Control All: OFF
+
+		Button@DISABLE_SHROUD:
+			X: 20
+			Y: 144
+			Width: 250
+			Height: 28
+			Font: Regular
+			Text: No Fog: OFF
+		Button@SHOW_UNIT_PATHS:
+			X: 280
+			Y: 144
+			Width: 250
+			Height: 28
+			Font: Regular
+			Text: Show Paths: OFF
+
+		Label@SECTION_ACTIONS:
+			X: 24
+			Y: 182
+			Font: TinyBold
+			Text: ACTIONS
+			Width: 200
+
 		Button@GIVE_CASH:
-			X: 90
-			Y: 150
-			Width: 140
-			Height: 30
-			Font: Bold
+			X: 20
+			Y: 196
+			Width: 250
+			Height: 28
+			Font: Regular
 			Text: Give $20,000
 		Button@GIVE_CASH_ALL:
-			X: 271
-			Y: 150
-			Width: 140
-			Height: 30
-			Font: Bold
+			X: 280
+			Y: 196
+			Width: 250
+			Height: 28
+			Font: Regular
 			Text: Give $20k (All)
+
 		Button@GIVE_EXPLORATION:
-			X: 90
-			Y: 200
-			Width: 140
-			Height: 30
-			Font: Bold
+			X: 20
+			Y: 228
+			Width: 250
+			Height: 28
+			Font: Regular
 			Text: Clear Shroud
 		Button@RESET_EXPLORATION:
-			X: 271
-			Y: 200
-			Width: 140
-			Height: 30
-			Font: Bold
+			X: 280
+			Y: 228
+			Width: 250
+			Height: 28
+			Font: Regular
 			Text: Reset Shroud
-		Label@VISUALIZATIONS_TITLE:
-			Y: 256
-			Font: Bold
-			Text: Visualizations
-			Align: Center
-			Width: PARENT_WIDTH
-		Checkbox@SHOW_UNIT_PATHS:
-			X: 45
-			Y: 275
+
+		Label@SECTION_VIS:
+			X: 24
+			Y: 266
+			Font: TinyBold
+			Text: VISUALIZATIONS
 			Width: 200
-			Height: 20
-			Font: Regular
-			Text: Show Unit Paths
+
 		Checkbox@SHOW_CUSTOMTERRAIN_OVERLAY:
-			X: 45
-			Y: 305
-			Height: 20
-			Width: 200
+			X: 20
+			Y: 280
+			Height: 22
+			Width: 250
 			Font: Regular
-			Text: Show Custom Terrain
-		Checkbox@SHOW_ACTOR_TAGS:
-			X: 45
-			Y: 335
-			Height: 20
-			Width: 200
-			Font: Regular
-			Text: Show Actor Tags
+			Text: Custom Terrain
 		Checkbox@SHOW_COMBATOVERLAY:
-			X: 290
-			Y: 275
-			Height: 20
-			Width: 200
+			X: 280
+			Y: 280
+			Height: 22
+			Width: 250
 			Font: Regular
-			Text: Show Combat Geometry
+			Text: Combat Geometry
+
+		Checkbox@SHOW_ACTOR_TAGS:
+			X: 20
+			Y: 304
+			Height: 22
+			Width: 250
+			Font: Regular
+			Text: Actor Tags
 		Checkbox@SHOW_GEOMETRY:
-			X: 290
-			Y: 305
-			Height: 20
-			Width: 200
+			X: 280
+			Y: 304
+			Height: 22
+			Width: 250
 			Font: Regular
-			Text: Show Render Geometry
+			Text: Render Geometry
+
 		Checkbox@SHOW_TERRAIN_OVERLAY:
-			X: 290
-			Y: 335
-			Height: 20
-			Width: 200
+			X: 20
+			Y: 328
+			Height: 22
+			Width: 250
 			Font: Regular
-			Text: Show Terrain Geometry
+			Text: Terrain Geometry
 		Checkbox@SHOW_SCREENMAP:
-			X: 290
-			Y: 365
-			Height: 20
-			Width: 200
+			X: 280
+			Y: 328
+			Height: 22
+			Width: 250
 			Font: Regular
-			Text: Show Screen Map
+			Text: Screen Map
+
+		Checkbox@SHOW_DEPTH_PREVIEW:
+			X: 20
+			Y: 352
+			Height: 22
+			Width: 250
+			Font: Regular
+			Text: Depth Buffer
+
+		Label@SECTION_PRESET:
+			X: 24
+			Y: 382
+			Font: TinyBold
+			Text: PRESETS
+			Width: 200
+
+		Button@SAVE_PRESET:
+			X: 20
+			Y: 396
+			Width: 250
+			Height: 28
+			Font: Regular
+			Text: Save Preset
+		Button@LOAD_PRESET:
+			X: 280
+			Y: 396
+			Width: 250
+			Height: 28
+			Font: Regular
+			Text: Load Preset

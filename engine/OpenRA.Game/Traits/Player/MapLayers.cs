@@ -73,7 +73,7 @@ namespace OpenRA.Traits
 	public class MapLayers : ISync, INotifyCreated, ITick
 	{
 		public static readonly int VisionLayers = 11;
-		public enum Type : byte { Vision, Radar, PassiveVisibility }
+		public enum Type : byte { Vision, Radar, CounterBatteryRadar, PassiveVisibility }
 		public event Action<PPos> OnShroudChanged;
 		public int RevealedCells { get; private set; }
 
@@ -112,6 +112,7 @@ namespace OpenRA.Traits
 		// Per-cell count of each source type, used to resolve the final cell type
 		readonly ProjectedCellLayer<short[]> visibilityCount;
 		readonly ProjectedCellLayer<short> radarCount;
+		readonly ProjectedCellLayer<short> counterBatteryRadarCount;
 
 		readonly ProjectedCellLayer<short> passiveVisibleCount;
 		readonly ProjectedCellLayer<short> visibleCount;
@@ -142,8 +143,24 @@ namespace OpenRA.Traits
 
 		public byte ShadowModify { get; set; }
 
+		[Sync]
+		bool fogDisabled;
+		public bool FogDisabled
+		{
+			get => fogDisabled;
+
+			set
+			{
+				if (fogDisabled == value)
+					return;
+
+				fogDisabled = value;
+				disabledChanged = true;
+			}
+		}
+
 		bool fogEnabled;
-		public bool FogEnabled => !Disabled && fogEnabled;
+		public bool FogEnabled => !Disabled && !FogDisabled && fogEnabled;
 		public bool ExploreMapEnabled { get; private set; }
 		public int Hash { get; private set; }
 
@@ -156,6 +173,7 @@ namespace OpenRA.Traits
 
 			visibilityCount = new ProjectedCellLayer<short[]>(map);
 			radarCount = new ProjectedCellLayer<short>(map);
+			counterBatteryRadarCount = new ProjectedCellLayer<short>(map);
 
 			passiveVisibleCount = new ProjectedCellLayer<short>(map);
 			visibleCount = new ProjectedCellLayer<short>(map);
@@ -346,6 +364,10 @@ namespace OpenRA.Traits
 				{
 					radarCount[index]++;
 				}
+				else if (mapLayer.Type == Type.CounterBatteryRadar)
+				{
+					counterBatteryRadarCount[index]++;
+				}
 
 				i++;
 			}
@@ -380,6 +402,10 @@ namespace OpenRA.Traits
 					else if (mapLayer.Type == Type.Radar)
 					{
 						radarCount[index]--;
+					}
+					else if (mapLayer.Type == Type.CounterBatteryRadar)
+					{
+						counterBatteryRadarCount[index]--;
 					}
 				}
 			}
@@ -494,6 +520,16 @@ namespace OpenRA.Traits
 			return radarCount.Contains(puv) && radarCount[puv] > 0;
 		}
 
+		public bool CounterBatteryRadarCover(WPos pos)
+		{
+			return CounterBatteryRadarCover(map.ProjectedCellCovering(pos));
+		}
+
+		public bool CounterBatteryRadarCover(PPos puv)
+		{
+			return counterBatteryRadarCount.Contains(puv) && counterBatteryRadarCount[puv] > 0;
+		}
+
 		public bool IsVisible(WPos pos, int visibility)
 		{
 			return IsVisible(map.ProjectedCellCovering(pos), visibility);
@@ -551,6 +587,16 @@ namespace OpenRA.Traits
 
 		public byte GetVisibility(PPos puv)
 		{
+			// Fog disabled: full visibility on explored cells, shroud still applies
+			if (FogDisabled && !Disabled)
+			{
+				if (!map.Contains(puv))
+					return 0;
+
+				var index = explored.Index(puv);
+				return explored[index] ? (byte)10 : (byte)0;
+			}
+
 			if (fogEnabled)
 			{
 				if (ResolvedVisibility.Contains(puv))
