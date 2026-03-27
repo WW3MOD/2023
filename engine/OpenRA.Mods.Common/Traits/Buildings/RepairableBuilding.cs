@@ -42,6 +42,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Experience gained by a player for repairing structures of allied players.")]
 		public readonly int PlayerExperience = 0;
 
+		[Desc("Player relationships that can initiate repair. Default Ally only.",
+			"Set to Ally, Neutral, Enemy to allow anyone to repair (e.g., crashed neutral helicopter).")]
+		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
+
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while being repaired.")]
 		public readonly string RepairCondition = null;
@@ -68,7 +72,8 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			health = self.Trait<IHealth>();
-			isNotActiveAlly = player => player.WinState != WinState.Undefined || self.Owner.RelationshipWith(player) != PlayerRelationship.Ally;
+			isNotActiveAlly = player => player.WinState != WinState.Undefined
+				|| !info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(player));
 		}
 
 		[Sync]
@@ -98,7 +103,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void RepairBuilding(Actor self, Player player)
 		{
-			if (IsTraitDisabled || !self.AppearsFriendlyTo(player.PlayerActor))
+			if (IsTraitDisabled)
+				return;
+
+			var relationship = self.Owner.RelationshipWith(player);
+			if (!Info.ValidRelationships.HasRelationship(relationship))
 				return;
 
 			// Remove the player if they are already repairing

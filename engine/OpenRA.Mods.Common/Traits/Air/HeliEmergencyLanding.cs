@@ -101,6 +101,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Damage state at which uncontrolled crash begins.")]
 		public readonly DamageState CrashDamageState = DamageState.Critical;
 
+		[Desc("Whether to transfer ownership to Neutral player after safe landing (abandoned airframe).")]
+		public readonly bool TransferToNeutralOnSafeLanding = true;
+
 		public WeaponInfo CrashExplosionWeapon { get; private set; }
 
 		public override object Create(ActorInitializer init) { return new HeliEmergencyLanding(init.Self, this); }
@@ -142,6 +145,7 @@ namespace OpenRA.Mods.Common.Traits
 		int rotorStoppedToken = Actor.InvalidConditionToken;
 
 		Cargo cargo;
+		VehicleCrew vehicleCrew;
 		HashSet<string> suitableTerrains;
 
 		public HeliEmergencyLanding(Actor self, HeliEmergencyLandingInfo info)
@@ -154,6 +158,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			cargo = self.TraitOrDefault<Cargo>();
+			vehicleCrew = self.TraitOrDefault<VehicleCrew>();
 			suitableTerrains = info.SuitableLandingTerrains.Count > 0
 				? info.SuitableLandingTerrains
 				: aircraft.Info.LandableTerrainTypes;
@@ -295,9 +300,24 @@ namespace OpenRA.Mods.Common.Traits
 			// Zero velocity
 			aircraft.CurrentVelocity = WVec.Zero;
 
+			// Eject crew via VehicleCrew (spawns pilot/gunner/copilot infantry with original owner)
+			if (vehicleCrew != null)
+			{
+				vehicleCrew.EjectAllCrew();
+				vehicleCrew.AllowForeignCrew = true;
+			}
+
 			// Eject passengers
 			if (info.EjectPassengersOnSafeLanding && cargo != null && cargo.PassengerCount > 0)
 				EjectAllPassengers(self);
+
+			// Transfer to neutral — abandoned airframe, capturable by any pilot
+			if (info.TransferToNeutralOnSafeLanding)
+			{
+				var neutral = self.World.Players.FirstOrDefault(p => p.InternalName == "Neutral");
+				if (neutral != null)
+					self.ChangeOwner(neutral);
+			}
 		}
 
 		public void OnCrashImpact(Actor self)
@@ -306,23 +326,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (info.CrashExplosionWeapon != null)
 				info.CrashExplosionWeapon.Impact(Target.FromPos(self.CenterPosition), self);
 
-			var suitableTerrain = IsSuitableTerrain(self);
-
-			// Only allow crew/passenger ejection on suitable terrain
-			if (suitableTerrain)
-			{
-				// Revoke suppress-eject BEFORE killing so EjectOnDeath can fire on ground
-				if (suppressEjectToken != Actor.InvalidConditionToken)
-					suppressEjectToken = self.RevokeCondition(suppressEjectToken);
-
-				// Eject passengers before killing
-				if (info.EjectPassengersOnCrash && cargo != null && cargo.PassengerCount > 0)
-					EjectAllPassengers(self);
-			}
-
-			// suppress-eject stays active on unsuitable terrain → crew dies with helicopter
-
-			// Kill the helicopter
+			// Critical crash = total loss. suppress-eject stays active so EjectOnDeath
+			// and VehicleCrew cannot fire. Cargo passengers die inside. No survivors.
 			self.Kill(self);
 		}
 
@@ -375,6 +380,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (rotorStoppedToken != Actor.InvalidConditionToken)
 					rotorStoppedToken = self.RevokeCondition(rotorStoppedToken);
+
+				// Helicopter recovered — no longer capturable by foreign crew
+				if (vehicleCrew != null)
+					vehicleCrew.AllowForeignCrew = false;
 			}
 		}
 

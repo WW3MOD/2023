@@ -164,14 +164,27 @@
 		DisabledCondition: crash-disabled
 		SuppressEjectCondition: suppress-eject
 		EjectPassengersOnSafeLanding: true
-		EjectPassengersOnCrash: true
+		EjectPassengersOnCrash: false
 		CrashExplosion: UnitExplode
+		TransferToNeutralOnSafeLanding: true
+	VehicleCrew:
+		EjectionDamageState: Dead
+		EjectionSurvivalRate: 100
 	SpeedMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
+	SpeedMultiplier@NoPilot:
+		Modifier: 0
+		RequiresCondition: !has-pilot && !crash-disabled
+	SpeedMultiplier@NoCopilot:
+		Modifier: 75
+		RequiresCondition: !has-copilot
 	FirepowerMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
+	FirepowerMultiplier@NoGunner:
+		Modifier: 0
+		RequiresCondition: !has-gunner
 	FirepowerMultiplier@EmergencyDescent:
 		Modifier: 0
 		RequiresCondition: autorotation || crash-landing
@@ -179,6 +192,7 @@
 		RequiresCondition: crash-disabled
 		RepairStep: 400
 		RepairInterval: 20
+		ValidRelationships: Ally, Neutral, Enemy
 
 ^Drone:
 	Inherits: ^Airborne
