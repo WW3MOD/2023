@@ -37,8 +37,9 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 
 ### Git & Commits
 - **NEVER push to remote.** The user will push manually.
-- **Commit regularly without asking.** Frequent small commits are preferred over batched changes.
-- Create descriptive commit messages. No need to ask before committing.
+- **Commit after every response.** At the end of every message back to the user, all changes MUST be committed unless explicitly told not to or there is a concrete reason (e.g., mid-edit that would break compilation). Do not ask — just commit. Do not batch — commit what you have NOW.
+- **Subagents commit their own work.** Every agent (including spawned subagents) must commit changes before returning results. No agent should leave uncommitted changes for another agent or the user to clean up.
+- Frequent small commits are preferred over batched changes. Create descriptive commit messages.
 - **ALWAYS commit before ending a session.** Never leave uncommitted changes behind. If you made code changes, commit them — even if you didn't run FINALIZE. This is the #1 most important workflow rule.
 
 ### Communication Format
