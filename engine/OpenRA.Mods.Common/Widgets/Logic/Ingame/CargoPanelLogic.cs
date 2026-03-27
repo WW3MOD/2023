@@ -217,18 +217,13 @@ namespace OpenRA.Mods.Common.Widgets
 				dropOneSupplyButton.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
 			}
 
-			// Panel visibility ticker
-			var ticker = panel.GetOrNull<LogicTickerWidget>("CARGO_TICKER");
-			if (ticker != null)
+			// Panel visibility — use IsVisible function so it evaluates every frame
+			// (LogicTicker inside a hidden container never ticks, causing chicken-and-egg)
+			panel.IsVisible = () =>
 			{
-				ticker.OnTick = () =>
-				{
-					UpdateSelection();
-					panel.Visible = selectedTransport != null;
-				};
-			}
-
-			panel.Visible = false;
+				UpdateSelection();
+				return selectedTransport != null;
+			};
 		}
 
 		void UpdateSelection()
