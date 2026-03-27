@@ -71,12 +71,12 @@ Container@MAINMENU:
 			Font: Bold
 			Children:
 				Image@ICON:
-					X: 4
-					Y: 4
-					Width: 16
-					Height: 16
+					X: 5
+					Y: 5
+					Width: 14
+					Height: 14
 					ImageCollection: order-icons
-					ImageName: power
+					ImageName: nuke
 		Button@REPLAY_BUTTON:
 			X: WINDOW_RIGHT - 65
 			Y: 15

@@ -203,6 +203,7 @@ order-icons:
 		debug: 221, 51, 16, 16
 		debug-disabled: 221, 67, 16, 16
 		debug-active: 221, 83, 16, 16
+		nuke: 86, 70, 14, 14
 
 power-icons:
 	Inherits: ^Glyphs
