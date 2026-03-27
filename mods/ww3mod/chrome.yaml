@@ -204,6 +204,8 @@ order-icons:
 		debug-disabled: 221, 67, 16, 16
 		debug-active: 221, 83, 16, 16
 		nuke: 86, 70, 14, 14
+		nuke-disabled: 86, 87, 14, 14
+		nuke-active: 86, 104, 14, 14
 
 power-icons:
 	Inherits: ^Glyphs
