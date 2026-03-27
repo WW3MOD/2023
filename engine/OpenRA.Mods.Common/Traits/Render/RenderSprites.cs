@@ -192,7 +192,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 					a.CachePalette(wr, owner);
 				}
 
-				foreach (var r in a.Animation.Render(self, a.PaletteReference))
+				foreach (var r in a.Animation.Render(self, a.PaletteReference, Info.Scale))
 					yield return r;
 			}
 		}
