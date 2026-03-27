@@ -4,7 +4,7 @@
 
 ## Active Concerns
 - **Unified Transport & Supply System** — Phases 1, 2A-E done. Next: Phase 3 (template sidebar). Plan: `CLAUDE/plans/purrfect-munching-balloon.md`
-- **Helicopter emergency landing needs playtesting** — autorotation now has steering, acceleration ramp, and flare before touchdown
+- **Helicopter crash + crew overhaul needs playtesting** — VehicleCrew on all helis, critical crash kills all, safe landing evacuates crew+passengers to neutral, capture-by-pilot-entry
 - **Stance system rework complete** — All 4 phases done, needs playtesting
 - **AI overhaul needs playtesting** — Tiers 0-3.1 implemented, major new capabilities
 - **Supply Route contestation needs playtesting** — bar depletion/recovery, production slowdown
@@ -17,7 +17,7 @@
 - **Cargo system Phases 2A-E** — CargoSupply, TRUK→pure transport, cargo panel (eject/mark/rally), supply→SUPPLYCACHE merge, waypoint selective unload, pre-queued ejection rally points
 - **SUPPLYCACHE Phase 1** — NoAutoTarget (manual attack only) + ProximityCapturable (1.5 cell range, sticky ownership transfer)
 - **Damage state threshold fix** — Heavy/Medium were unreachable (math bug), now configurable per-actor. Health bar gradient: green→yellow→orange→red
-- **Helicopter emergency landing system** — Two-tier: heavy=autorotation (steering+acceleration+flare, safe landing, repairable), critical=crash (spinning, destroyed). Crew survives ground landing only
+- **Helicopter crash + crew overhaul** — VehicleCrew on all helis (Pilot+Gunner or Pilot+Copilot). Critical crash = total loss. Safe landing = crew evacuates, heli goes neutral, capturable by any pilot entering. Anyone can repair neutral helis. RepairableBuilding.ValidRelationships field added
 - **Stance rework Phases 1-4 complete** — Modifiers, enums, tooltips, resupply behavior, cohesion distribution, patrol system
 - **AI overhaul Tiers 0-3.1** — 5 new C# bot modules, multi-axis attacks, adaptive production
 - **Supply Route contestation system** — graduated control bar replaces binary contest
