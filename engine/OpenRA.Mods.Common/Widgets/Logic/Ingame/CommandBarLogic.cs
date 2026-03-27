@@ -543,6 +543,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var additionalWeight = new Dictionary<Actor, int>();
 			var orders = new List<Order>();
+			var transportPassengers = new Dictionary<Actor, List<Actor>>();
 
 			foreach (var transport in transports)
 			{
@@ -572,8 +573,16 @@ namespace OpenRA.Mods.Common.Widgets
 					additionalWeight[transport] = extra + weight;
 					orders.Add(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 					worldPassengers.Remove(passenger);
+
+					if (!transportPassengers.ContainsKey(transport))
+						transportPassengers[transport] = new List<Actor>();
+					transportPassengers[transport].Add(passenger);
 				}
 			}
+
+			// Move each transport toward the centroid of its assigned passengers
+			foreach (var kv in transportPassengers)
+				MoveTransportTowardPassengers(kv.Key, kv.Value, queued);
 
 			foreach (var o in orders)
 				world.IssueOrder(o);
@@ -586,6 +595,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var additionalWeight = new Dictionary<Actor, int>();
 			var orders = new List<Order>();
+			var transportPassengers = new Dictionary<Actor, List<Actor>>();
 
 			foreach (var passenger in passengers)
 			{
@@ -610,13 +620,54 @@ namespace OpenRA.Mods.Common.Widgets
 				additionalWeight.TryGetValue(best, out var current);
 				additionalWeight[best] = current + pi.Weight;
 				orders.Add(new Order("EnterTransport", passenger, Target.FromActor(best), queued));
+
+				if (!transportPassengers.ContainsKey(best))
+					transportPassengers[best] = new List<Actor>();
+				transportPassengers[best].Add(passenger);
 			}
+
+			// Move each transport toward the centroid of its assigned passengers
+			foreach (var kv in transportPassengers)
+				MoveTransportTowardPassengers(kv.Key, kv.Value, queued);
 
 			foreach (var o in orders)
 				world.IssueOrder(o);
 
 			if (orders.Count > 0)
 				orders.ToArray().PlayVoiceForOrders();
+		}
+
+		void MoveTransportTowardPassengers(Actor transport, List<Actor> passengers, bool queued)
+		{
+			if (passengers.Count == 0)
+				return;
+
+			// Don't move buildings or aircraft (they have their own landing/pickup logic)
+			if (transport.Info.HasTraitInfo<BuildingInfo>() || transport.Info.HasTraitInfo<AircraftInfo>())
+				return;
+
+			// Calculate centroid of assigned passengers
+			long sumX = 0, sumY = 0;
+			foreach (var p in passengers)
+			{
+				sumX += p.CenterPosition.X;
+				sumY += p.CenterPosition.Y;
+			}
+
+			var centroidX = (int)(sumX / passengers.Count);
+			var centroidY = (int)(sumY / passengers.Count);
+			var centroid = new WPos(centroidX, centroidY, transport.CenterPosition.Z);
+
+			// Find the cell closest to the centroid
+			var targetCell = world.Map.CellContaining(centroid);
+
+			// If the transport is already within 2 cells of the centroid, don't bother moving
+			var distSq = (transport.CenterPosition - centroid).HorizontalLengthSquared;
+			if (distSq <= WDist.FromCells(2).LengthSquared)
+				return;
+
+			// Issue move order to transport (not queued — replace current activity)
+			world.IssueOrder(new Order("Move", transport, Target.FromCell(world, targetCell), false));
 		}
 	}
 }
