@@ -11,6 +11,14 @@ TRAN:
 		AIBuildLimit: 2
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
+	VehicleCrew:
+		CrewSlots: Pilot, Copilot
+		CrewActors:
+			Pilot: crew.pilot.america
+			Copilot: crew.copilot.america
+		SlotConditions:
+			Pilot: has-pilot
+			Copilot: has-copilot
 	Buildable:
 		Queue: Aircraft
 		BuildAtProductionType: Helicopter
@@ -98,6 +106,12 @@ littlebird:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@CargoPips: ^CargoPips
+	VehicleCrew:
+		CrewSlots: Pilot
+		CrewActors:
+			Pilot: crew.pilot.america
+		SlotConditions:
+			Pilot: has-pilot
 	AIHelicopterRole:
 		Role: Scout
 		EngagementRange: 5
@@ -249,6 +263,14 @@ HELI:
 	Inherits@Type: ^Helicopter
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankandAir
 	Inherits@AirRadar: ^AirRadar
+	VehicleCrew:
+		CrewSlots: Pilot, Gunner
+		CrewActors:
+			Pilot: crew.pilot.america
+			Gunner: crew.gunner.america
+		SlotConditions:
+			Pilot: has-pilot
+			Gunner: has-gunner
 	AIHelicopterRole:
 		Role: AttackHeavy
 		EngagementRange: 7
@@ -363,12 +385,6 @@ HELI:
 		Offset: 0,0,85
 		Sequence: still-rotor
 		RequiresCondition: rotor-stopped
-	EjectOnDeath@Copilot:
-		PilotActor: E1R1
-		SuccessRate: 80
-		EjectOnGround: true
-		AllowUnsuitableCell: false
-		RequiresCondition: !suppress-eject
 	SpawnActorOnDeath@Hovering:
 		Actor: HELI.Husk
 		RequiresCondition: airborne && !moving && !empdisable

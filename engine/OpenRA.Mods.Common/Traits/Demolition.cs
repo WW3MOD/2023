@@ -140,7 +140,23 @@ namespace OpenRA.Mods.Common.Traits
 				if (!info.ForceTargetRelationships.HasRelationship(relationship) && modifiers.HasModifier(TargetModifiers.ForceAttack))
 					return false;
 
-				return target.TraitsImplementing<IDemolishable>().Any(i => i.IsValidTarget(target, self));
+				if (!target.TraitsImplementing<IDemolishable>().Any(i => i.IsValidTarget(target, self)))
+					return false;
+
+				// If the target is an enterable Cargo building, require force-attack to demolish
+				// so the default right-click order is to enter/garrison instead
+				if (!modifiers.HasModifier(TargetModifiers.ForceAttack))
+				{
+					var cargo = target.TraitOrDefault<Cargo>();
+					if (cargo != null)
+					{
+						var passenger = self.TraitOrDefault<Passenger>();
+						if (passenger != null && cargo.Info.Types.Contains(passenger.Info.CargoType))
+							return false;
+					}
+				}
+
+				return true;
 			}
 
 			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
@@ -152,7 +168,22 @@ namespace OpenRA.Mods.Common.Traits
 				if (!info.ForceTargetRelationships.HasRelationship(relationship) && modifiers.HasModifier(TargetModifiers.ForceAttack))
 					return false;
 
-				return target.Info.TraitInfos<IDemolishableInfo>().Any(i => i.IsValidTarget(target.Info, self));
+				if (!target.Info.TraitInfos<IDemolishableInfo>().Any(i => i.IsValidTarget(target.Info, self)))
+					return false;
+
+				// If the target is an enterable Cargo building, require force-attack to demolish
+				if (!modifiers.HasModifier(TargetModifiers.ForceAttack) && target.Info.HasTraitInfo<CargoInfo>())
+				{
+					var passenger = self.TraitOrDefault<Passenger>();
+					if (passenger != null)
+					{
+						var cargoInfo = target.Info.TraitInfo<CargoInfo>();
+						if (cargoInfo.Types.Contains(passenger.Info.CargoType))
+							return false;
+					}
+				}
+
+				return true;
 			}
 		}
 	}

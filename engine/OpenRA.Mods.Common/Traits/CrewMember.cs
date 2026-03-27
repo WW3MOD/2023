@@ -55,12 +55,12 @@ namespace OpenRA.Mods.Common.Traits
 					5,
 					info.EnterCursor,
 					info.EnterBlockedCursor,
-					(target, modifiers) => IsValidTarget(target),
+					IsValidTarget,
 					CanEnter);
 			}
 		}
 
-		bool IsValidTarget(Actor target)
+		bool IsValidTarget(Actor target, TargetModifiers modifiers)
 		{
 			var vc = target.TraitOrDefault<VehicleCrew>();
 			return vc != null && vc.HasEmptySlot(info.Role);

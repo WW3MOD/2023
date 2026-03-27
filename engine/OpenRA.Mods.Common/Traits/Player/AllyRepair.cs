@@ -24,9 +24,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "RepairBuilding" && order.Target.Type == TargetType.Actor)
 			{
 				var building = order.Target.Actor;
-				if (!building.AppearsFriendlyTo(self))
-					return;
 
+				// RepairBuilding.RepairBuilding() does its own ValidRelationships check,
+				// so we just forward the order. The old AppearsFriendlyTo check blocked
+				// repair of neutral/enemy buildings even when the trait allows it.
 				building.TraitOrDefault<RepairableBuilding>()?.RepairBuilding(building, self.Owner);
 			}
 		}

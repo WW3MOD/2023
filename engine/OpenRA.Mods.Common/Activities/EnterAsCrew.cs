@@ -54,6 +54,11 @@ namespace OpenRA.Mods.Common.Activities
 				if (vc == null || !vc.CanAcceptRole(role))
 					return;
 
+				// Capture: if entering a non-allied vehicle (neutral crashed helicopter),
+				// change its ownership to the crew member's player
+				if (!self.Owner.IsAlliedWith(targetActor.Owner))
+					targetActor.ChangeOwner(self.Owner);
+
 				vc.FillSlot(role);
 				w.Remove(self);
 			});

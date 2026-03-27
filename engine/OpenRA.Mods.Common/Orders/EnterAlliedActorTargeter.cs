@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Orders
@@ -33,8 +34,16 @@ namespace OpenRA.Mods.Common.Orders
 
 		public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 		{
-			if ((!self.Owner.IsAlliedWith(target.Owner) && !self.Owner.IsNeutralWith(target.Owner)) || !target.Info.HasTraitInfo<T>() || !canTarget(target, modifiers))
+			if (!target.Info.HasTraitInfo<T>() || !canTarget(target, modifiers))
 				return false;
+
+			// Allow allied, neutral, and enemy targets when VehicleCrew.AllowForeignCrew is set (crash-disabled)
+			if (!self.Owner.IsAlliedWith(target.Owner) && !self.Owner.IsNeutralWith(target.Owner))
+			{
+				var vc = target.TraitOrDefault<VehicleCrew>();
+				if (vc == null || !vc.AllowForeignCrew)
+					return false;
+			}
 
 			cursor = useEnterCursor(target) ? enterCursor : enterBlockedCursor;
 			return true;
@@ -45,9 +54,16 @@ namespace OpenRA.Mods.Common.Orders
 			if (target == null || target.Actor == null || target.Actor.IsDead)
 				return false;
 
-			// Allied actors are never frozen
-			if ((!self.Owner.IsAlliedWith(target.Actor.Owner) && !self.Owner.IsNeutralWith(target.Actor.Owner)) || !target.Actor.Info.HasTraitInfo<T>() || !canTarget(target.Actor, modifiers))
+			if (!target.Actor.Info.HasTraitInfo<T>() || !canTarget(target.Actor, modifiers))
 				return false;
+
+			// Same foreign crew check for frozen actors
+			if (!self.Owner.IsAlliedWith(target.Actor.Owner) && !self.Owner.IsNeutralWith(target.Actor.Owner))
+			{
+				var vc = target.Actor.TraitOrDefault<VehicleCrew>();
+				if (vc == null || !vc.AllowForeignCrew)
+					return false;
+			}
 
 			cursor = useEnterCursor(target.Actor) ? enterCursor : enterBlockedCursor;
 			return true;

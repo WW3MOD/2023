@@ -66,6 +66,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		IHealth health;
 
+		/// <summary>Whether non-allied crew can currently enter this vehicle (e.g., crash-disabled helicopter).
+		/// Set by HeliEmergencyLanding on safe landing to allow capture-by-pilot.</summary>
+		public bool AllowForeignCrew { get; set; }
+
 		[Sync]
 		int ejectionCountdown;
 
@@ -313,6 +317,94 @@ namespace OpenRA.Mods.Common.Traits
 						yield return info.CrewSlots[i];
 				}
 			}
+		}
+
+		/// <summary>Eject all occupied crew immediately with guaranteed survival.
+		/// Used by HeliEmergencyLanding on safe landing — crew walked away alive.</summary>
+		public void EjectAllCrew()
+		{
+			ejecting = false;
+			foreach (var slotName in ejectionOrder)
+			{
+				if (!slotIndexByName.TryGetValue(slotName, out var idx))
+					continue;
+
+				if (!slotOccupied[idx])
+					continue;
+
+				// Vacate slot and revoke condition
+				slotOccupied[idx] = false;
+				if (conditionTokens[idx] != Actor.InvalidConditionToken)
+					conditionTokens[idx] = self.RevokeCondition(conditionTokens[idx]);
+
+				// Spawn crew actor — guaranteed survival (no random check)
+				if (!info.CrewActors.TryGetValue(slotName, out var actorType))
+					continue;
+
+				var td = new TypeDictionary
+				{
+					new OwnerInit(self.Owner),
+					new LocationInit(self.Location),
+				};
+
+				if (info.TransferVeterancy)
+				{
+					var ge = self.TraitOrDefault<GainsExperience>();
+					if (ge != null && ge.Level > 0)
+					{
+						var levelXpMap = new[] { 0, 100, 200, 400, 800 };
+						var xpToGrant = ge.Level < levelXpMap.Length ? levelXpMap[ge.Level] : levelXpMap[levelXpMap.Length - 1];
+						var geInfo = self.Info.TraitInfoOrDefault<GainsExperienceInfo>();
+						if (geInfo != null)
+							td.Add(new ExperienceInit(geInfo, xpToGrant));
+					}
+				}
+
+				self.World.AddFrameEndTask(w =>
+				{
+					var crew = w.CreateActor(actorType, td);
+					var positionable = crew.TraitOrDefault<IPositionable>();
+					if (positionable != null)
+					{
+						positionable.SetPosition(crew, self.Location);
+
+						if (!positionable.CanEnterCell(self.Location, crew, BlockedByActor.None))
+						{
+							var placed = false;
+							foreach (var cell in w.Map.FindTilesInAnnulus(self.Location, 1, 2))
+							{
+								if (positionable.CanEnterCell(cell, crew, BlockedByActor.None))
+								{
+									positionable.SetPosition(crew, cell);
+									placed = true;
+									break;
+								}
+							}
+
+							if (!placed)
+								crew.Kill(crew);
+						}
+					}
+
+					var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
+					foreach (var nbm in nbms)
+						nbm.OnNotifyBlockingMove(crew, crew);
+				});
+			}
+		}
+
+		/// <summary>Vacate a slot without spawning a crew actor. Revokes the slot condition.</summary>
+		public void VacateSlot(string role)
+		{
+			if (!slotIndexByName.TryGetValue(role, out var idx))
+				return;
+
+			if (!slotOccupied[idx])
+				return;
+
+			slotOccupied[idx] = false;
+			if (conditionTokens[idx] != Actor.InvalidConditionToken)
+				conditionTokens[idx] = self.RevokeCondition(conditionTokens[idx]);
 		}
 	}
 }

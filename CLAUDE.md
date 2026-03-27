@@ -44,16 +44,24 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 ### Communication Format
 - **Occationally insert a seperate line with a red alert (1 or 2) in game unit phrase as if that unit was commenting on what is going on right now** It should connect to what you're about to do or what the user said — not random. No repeats within a session. Occasionally roast the user or go dark-humor.
 
-- Every response MUST end with exactly two lines:
+- Every response MUST end with a standardized footer (helps identify tabs and what happened without scrolling):
   ```
-  TASK: <one-line description of what was tasked>
-  TLDR: <one-line description of what was done>
+  SUMMARY: What was done, what was discarded, what needs input (1-2 sentences)
+
+  TASK: What was done since the last user message (3-5 words preferred, more if needed)
+
+  PROJECT: The overall project this tab is working on (2-3 words). Only include when working on a multi-prompt project where TASK alone doesn't identify the tab. Omit when redundant with TASK.
+
+  STATUS: What is expected of the user right now (e.g. "Review pending rules", "All done", "Need input on X")
   ```
 
 ### Self-Updating Instructions
 - **Continuously update this CLAUDE.md** when you receive new information that makes current content obsolete.
 - Do this without asking first.
-- After updating, write a condensed summary of what changed at the end of the response (before TASK/TLDR).
+- After updating, write a condensed summary of what changed at the end of the response (before footer).
+
+### External Rules
+Apply all confirmed rules from: `C:\Users\fredr\Desktop\ClaudeRules\confirmed\`
 
 ### Session Workflow
 On session start:
@@ -326,7 +334,7 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | CohesionMoveModifier.cs | World trait (IModifyGroupOrder): offsets group move targets based on CohesionMode (Tight/Loose/Spread). Preserves relative formation shape with capped offsets |
 | PatrolOrderGenerator.cs | Order generator for patrol waypoint queuing mode. Click adds waypoints, click Patrol again to confirm |
 | Patrol.cs (Activity) | Loops waypoints with attack-move. Circular if last≈first waypoint, otherwise bounce (A→B→C→B→A→...) |
-| HeliEmergencyLanding.cs | Helicopter emergency landing: autorotation on heavy damage (steerable, safe landing), uncontrolled crash on critical (spinning, destroyed). Crew ejection gated by terrain suitability |
+| HeliEmergencyLanding.cs | Helicopter emergency landing: autorotation on heavy damage (steerable, safe landing, crew evacuates to neutral), uncontrolled crash on critical (spinning, destroyed, everyone dies). Integrates with VehicleCrew for crew ejection and AllowForeignCrew for capture |
 | CargoSupply.cs | Supply as numeric cargo weight: any transport with this trait auto-rearms nearby units. Supply consumes Cargo weight (1 unit = 1 weight). Replaces SupplyProvider on TRUK |
 | CargoPanelLogic.cs | Sidebar panel for transport cargo management: individual eject, mark for waypoint unload, rally points, supply drop |
 | CargoUnloadOrderGenerator.cs | Click-on-map order generator for waypoint-based selective unloading of marked passengers |
@@ -523,11 +531,12 @@ Each unit type has a base template file and two faction files:
 - **Stance system consolidated to 3+3** — Removed redundant stances (ReturnFire, Defend, AttackAnything, Balanced). Fire discipline: HoldFire/Ambush/FireAtWill. Engagement: HoldPosition/Defensive/Hunt. 6 total buttons (was 9). All enums, conditions, UI, hotkeys, and YAML updated across engine and all mods. Phase 2 (shadow-based cover seeking for Defensive) planned in `DOCS/SHADOW_LOS_PLAN.md`
 - **Control bar overhaul** — Added Cohesion (Tight/Loose/Spread) and Resupply Behavior (Hold/Auto/Evacuate) stance bars. Click-modifier meta-system on all 4 bars: Click=set stance, Ctrl+Click=per-unit default, Ctrl+Alt+Click=per-type default, Alt+Click="Do Now" order (persisted across games via UnitDefaultsManager). Evacuate command button removed (folded into Resupply bar). Tooltips anchor above buttons. Medic/Engineer default to Hunt engagement. Resupply behavior implemented: Auto seeks supply, Hold flags for truck pickup, Evacuate leaves via SR. Supply trucks in Hunt stance seek flagged units map-wide. Cohesion distributes group move targets via IModifyGroupOrder (CohesionMoveModifier). Patrol system with waypoint queuing (PatrolOrderGenerator → PatrolActivity bounce/circular loop)
 - **Supply Route contestation system** — Replaced binary ProximityContestable with graduated SupplyRouteContestation trait. Control bar (0-100%) depleted by net enemy value surplus in 10-cell range: 5 infantry (~2500 value) depletes in 60s, full company in 20s min. Production speed scales linearly below 50% bar (100%→0%), halts at 0%. Auto-recovery when enemies leave, 3x faster with friendlies. Full feedback: player-colored selection bar visible to all, building flash, EVA "BaseAttack" notification, text log, minimap ping. New IProductionSpeedModifier interface with accumulator pattern in ProductionQueue for dynamic per-tick speed control. SR is indestructible — enemies can only deny, never capture
-- **Helicopter emergency landing system** — Two-tier: Heavy damage triggers controlled autorotation (player steers, helicopter glides forward losing altitude, lands safely on suitable terrain as disabled+repairable unit, crew/passengers evacuate). Critical damage triggers uncontrolled crash (configurable spinning for tail rotor loss, always destroyed on impact, crew ejected only if on suitable ground terrain). Mid-air destruction = crew dies (suppress-eject condition gates EjectOnDeath). Chinook/HALO: SpinsOnCrash=false for dual rotors. RepairableBuilding activated on crash-disabled condition for ground repair
+- **Helicopter emergency landing system** — Two-tier: Heavy damage triggers controlled autorotation (player steers, helicopter glides forward losing altitude, lands safely on suitable terrain as disabled+repairable unit, crew/passengers evacuate). Critical damage triggers uncontrolled crash (configurable spinning for tail rotor loss, always destroyed on impact, everyone dies). Mid-air destruction = crew dies (suppress-eject condition gates EjectOnDeath). Chinook/HALO: SpinsOnCrash=false for dual rotors. RepairableBuilding activated on crash-disabled condition for ground repair
+- **Helicopter crew overhaul** — VehicleCrew added to all helicopters with realistic crew slots: Pilot+Copilot (transports: TRAN, HALO), Pilot+Gunner (attack: HELI, HIND, MI28), Pilot only (littlebird). No pilot = can't fly (SpeedMultiplier 0). No copilot = 75% speed. No gunner = no weapons. Safe landing ejects crew as infantry, helicopter goes Neutral, AllowForeignCrew enables capture-by-pilot-entry (any player's pilot can enter to claim ownership). RepairableBuilding.ValidRelationships field added — neutral crashed helis repairable by anyone. Critical crash = total loss (suppress-eject stays active, self.Kill kills everyone). EnterAlliedActorTargeter extended to allow enemy targets when AllowForeignCrew is set
 - **Scenario system** — Map scenario variants sharing terrain (map.bin) with different actors/scripts. Reusable `scenario.lua` Lua library (spawn, ownership transfer, waves, patrol, objectives, messaging). First scenario: "River Zeta — Frontline" — garrison forces + timed transfer + enemy waves + difficulty dropdown. No engine C# changes — pure Lua + YAML. `Categories: Scenario` for map chooser filtering
 
 ### Next Priorities
-1. **Helicopter emergency landing playtesting** — verify autorotation descent, crash spinning, safe landing repair flow, crew ejection on suitable terrain, crew death on mid-air destruction, Chinook no-spin
+1. **Helicopter crash + crew overhaul playtesting** — verify: critical crash kills all (no crew ejects), safe landing evacuates crew+passengers to neutral, capture by entering pilot, anyone repairs neutral helis, no-pilot gate prevents flight, neutral not auto-targeted
 2. **Stance system playtesting** — verify modifier system (Click/Ctrl/Ctrl+Alt/Alt), resupply behavior (Auto seek, Hold flag, Evacuate via SR), medic/engineer Hunt default, tooltips anchored above, cohesion distribution on group moves, patrol waypoint queuing and looping
 3. **Supply Route contestation playtesting** — verify bar depletes/recovers, production slowdown, notifications
 4. **Shadow falloff + firing LOS** — distance-based shadow falloff, Defensive stance cover-seeking. See `DOCS/SHADOW_LOS_PLAN.md`

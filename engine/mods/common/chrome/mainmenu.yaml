@@ -1,6 +1,12 @@
 Container@MAINMENU:
 	Logic: MainMenuLogic
 	Children:
+		WorldInteractionController@SHELLMAP_INTERACTION:
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
+		ShellmapViewportController@SHELLMAP_VIEWPORT:
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
 		LogicKeyListener@GLOBAL_KEYHANDLER:
 			Logic: MusicHotkeyLogic, ScreenshotHotkeyLogic, MuteHotkeyLogic
 				StopMusicKey: StopMusic
@@ -13,38 +19,38 @@ Container@MAINMENU:
 		# 	Background: mainmenu-border
 		# 	X: 0 - 15
 		# 	Y: 0 - 15
-		# 	Width: WINDOW_RIGHT + 30
-		# 	Height: WINDOW_BOTTOM + 30
+		# 	Width: WINDOW_WIDTH + 30
+		# 	Height: WINDOW_HEIGHT + 30
 		# Image@LOGO:
-		# 	X: WINDOW_RIGHT - 296
+		# 	X: WINDOW_WIDTH - 296
 		# 	Y: 30
 		# 	ImageCollection: logos
 		# 	ImageName: logo
 		ShellmapNukeOverlay@NUKE_OVERLAY:
-			Width: WINDOW_RIGHT
-			Height: WINDOW_BOTTOM
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
 		Button@SHELLMAP_PREV:
-			X: WINDOW_RIGHT - 415
+			X: WINDOW_WIDTH - 415
 			Y: 15
 			Width: 25
 			Height: 25
 			Text: <
 			Font: Bold
 		DropDownButton@SHELLMAP_DROPDOWN:
-			X: WINDOW_RIGHT - 385
+			X: WINDOW_WIDTH - 385
 			Y: 15
 			Width: 220
 			Height: 25
 			Font: Bold
 		Button@SHELLMAP_NEXT:
-			X: WINDOW_RIGHT - 160
+			X: WINDOW_WIDTH - 160
 			Y: 15
 			Width: 25
 			Height: 25
 			Text: >
 			Font: Bold
 		Button@RANDOM_BUTTON:
-			X: WINDOW_RIGHT - 125
+			X: WINDOW_WIDTH - 125
 			Y: 15
 			Width: 25
 			Height: 25
@@ -58,21 +64,21 @@ Container@MAINMENU:
 					ImageCollection: command-icons
 					ImageName: scatter
 		Button@NUKE_BUTTON:
-			X: WINDOW_RIGHT - 95
+			X: WINDOW_WIDTH - 95
 			Y: 15
 			Width: 25
 			Height: 25
 			Font: Bold
 			Children:
 				Image@ICON:
-					X: 4
-					Y: 4
-					Width: 16
-					Height: 16
+					X: 5
+					Y: 5
+					Width: 14
+					Height: 14
 					ImageCollection: order-icons
-					ImageName: power
+					ImageName: nuke
 		Button@REPLAY_BUTTON:
-			X: WINDOW_RIGHT - 65
+			X: WINDOW_WIDTH - 65
 			Y: 15
 			Width: 25
 			Height: 25
@@ -86,14 +92,14 @@ Container@MAINMENU:
 					ImageCollection: reload-icon
 					ImageName: enabled
 		Button@INFO_BUTTON:
-			X: WINDOW_RIGHT - 35
+			X: WINDOW_WIDTH - 35
 			Y: 15
 			Width: 25
 			Height: 25
 			Text: i
 			Font: Bold
 		Background@INFO_DROPDOWN:
-			X: WINDOW_RIGHT - 415
+			X: WINDOW_WIDTH - 415
 			Y: 45
 			Width: 400
 			Height: 95

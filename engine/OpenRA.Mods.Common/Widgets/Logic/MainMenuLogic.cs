@@ -295,6 +295,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var nukeOverlay = rootMenu.GetOrNull<ShellmapNukeOverlayWidget>("NUKE_OVERLAY");
 			if (nukeButton != null && nukeOverlay != null)
 			{
+				var nukeIcon = nukeButton.GetOrNull<ImageWidget>("ICON");
+				if (nukeIcon != null)
+					nukeIcon.GetImageName = () => nukeOverlay.IsNukeMode ? "nuke-active" : "nuke";
+
 				nukeButton.OnClick = () =>
 				{
 					if (nukeOverlay.IsNukeMode)

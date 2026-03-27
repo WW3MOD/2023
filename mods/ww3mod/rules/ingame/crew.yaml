@@ -35,6 +35,26 @@
 
 # === America crew ===
 
+crew.pilot.america:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Pilot
+	RenderSprites:
+		Image: e1.america
+		Scale: 0.6
+	CrewMember:
+		Role: Pilot
+
+crew.copilot.america:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Copilot
+	RenderSprites:
+		Image: e1.america
+		Scale: 0.6
+	CrewMember:
+		Role: Copilot
+
 crew.driver.america:
 	Inherits: ^CrewMember
 	Tooltip:
@@ -66,6 +86,26 @@ crew.commander.america:
 		Role: Commander
 
 # === Russia crew ===
+
+crew.pilot.russia:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Pilot
+	RenderSprites:
+		Image: e1.russia
+		Scale: 0.6
+	CrewMember:
+		Role: Pilot
+
+crew.copilot.russia:
+	Inherits: ^CrewMember
+	Tooltip:
+		Name: Copilot
+	RenderSprites:
+		Image: e1.russia
+		Scale: 0.6
+	CrewMember:
+		Role: Copilot
 
 crew.driver.russia:
 	Inherits: ^CrewMember

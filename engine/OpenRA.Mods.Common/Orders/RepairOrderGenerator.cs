@@ -34,7 +34,8 @@ namespace OpenRA.Mods.Common.Orders
 
 			var underCursor = world.ScreenMap.ActorsAtMouse(mi)
 				.Select(a => a.Actor)
-				.FirstOrDefault(a => a.AppearsFriendlyTo(world.LocalPlayer.PlayerActor) && !world.FogObscures(a));
+				.FirstOrDefault(a => !world.FogObscures(a) && (a.AppearsFriendlyTo(world.LocalPlayer.PlayerActor)
+					|| CanRepairForeign(a, world.LocalPlayer)));
 
 			if (underCursor == null)
 				yield break;
@@ -72,6 +73,23 @@ namespace OpenRA.Mods.Common.Orders
 				yield break;
 
 			yield return new Order(orderId, underCursor, Target.FromActor(repairBuilding), Target.FromActor(underCursor), mi.Modifiers.HasModifier(Modifiers.Shift));
+		}
+
+		/// <summary>Check if a non-friendly actor has a RepairableBuilding that allows foreign repair.</summary>
+		static bool CanRepairForeign(Actor target, Player player)
+		{
+			var rb = target.TraitsImplementing<RepairableBuilding>();
+			foreach (var r in rb)
+			{
+				if (r.IsTraitDisabled)
+					continue;
+
+				var relationship = target.Owner.RelationshipWith(player);
+				if (r.Info.ValidRelationships.HasRelationship(relationship))
+					return true;
+			}
+
+			return false;
 		}
 
 		protected override void Tick(World world)
