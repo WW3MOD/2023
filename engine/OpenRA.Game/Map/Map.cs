@@ -607,24 +607,30 @@ namespace OpenRA
 				return;
 
 			// Merge scenario players — override existing by key, add new ones
+			var players = PlayerDefinitions.ToList();
 			foreach (var player in scenario.Players)
 			{
-				var existing = PlayerDefinitions.FindIndex(p => p.Key == player.Key);
+				var existing = players.FindIndex(p => p.Key == player.Key);
 				if (existing >= 0)
-					PlayerDefinitions[existing] = player;
+					players[existing] = player;
 				else
-					PlayerDefinitions.Add(player);
+					players.Add(player);
 			}
 
+			PlayerDefinitions = players.ToImmutableArray();
+
 			// Merge scenario actors — override existing by key, add new ones
+			var actors = ActorDefinitions.ToList();
 			foreach (var actor in scenario.Actors)
 			{
-				var existing = ActorDefinitions.FindIndex(a => a.Key == actor.Key);
+				var existing = actors.FindIndex(a => a.Key == actor.Key);
 				if (existing >= 0)
-					ActorDefinitions[existing] = actor;
+					actors[existing] = actor;
 				else
-					ActorDefinitions.Add(actor);
+					actors.Add(actor);
 			}
+
+			ActorDefinitions = actors.ToImmutableArray();
 
 			// Merge scenario rules into map rule definitions
 			if (scenario.Rules.Count > 0)
@@ -633,18 +639,19 @@ namespace OpenRA
 					RuleDefinitions = new MiniYaml(null, scenario.Rules);
 				else
 				{
+					var ruleNodes = RuleDefinitions.Nodes.ToList();
 					foreach (var rule in scenario.Rules)
 					{
 						// Find existing node with same key (e.g., "World:") and merge children
-						var existing = RuleDefinitions.Nodes.FirstOrDefault(n => n.Key == rule.Key);
-						if (existing != null)
-						{
-							foreach (var child in rule.Value.Nodes)
-								existing.Value.Nodes.Add(child);
-						}
+						var existingIdx = ruleNodes.FindIndex(n => n.Key == rule.Key);
+						if (existingIdx >= 0)
+							ruleNodes[existingIdx] = ruleNodes[existingIdx].WithValue(
+								ruleNodes[existingIdx].Value.WithNodesAppended(rule.Value.Nodes));
 						else
-							RuleDefinitions.Nodes.Add(rule);
+							ruleNodes.Add(rule);
 					}
+
+					RuleDefinitions = RuleDefinitions.WithNodes(ruleNodes);
 				}
 			}
 
@@ -652,11 +659,11 @@ namespace OpenRA
 			try
 			{
 				Rules = Ruleset.Load(modData, this, Tileset, RuleDefinitions, WeaponDefinitions,
-					VoiceDefinitions, NotificationDefinitions, MusicDefinitions, SequenceDefinitions, ModelSequenceDefinitions);
+					VoiceDefinitions, NotificationDefinitions, MusicDefinitions, ModelSequenceDefinitions);
 			}
 			catch (Exception e)
 			{
-				Log.Write("debug", "Failed to load rules for scenario {0} on {1}: {2}", name, Title, e);
+				Log.Write("debug", $"Failed to load rules for scenario {name} on {Title}: {e}");
 				InvalidCustomRules = true;
 				InvalidCustomRulesException = e;
 				Rules = Ruleset.LoadDefaultsForTileSet(modData, Tileset);

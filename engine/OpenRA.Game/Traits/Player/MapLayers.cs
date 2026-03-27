@@ -525,6 +525,11 @@ namespace OpenRA.Traits
 			return CounterBatteryRadarCover(map.ProjectedCellCovering(pos));
 		}
 
+		public bool CounterBatteryRadarCover(CPos cell)
+		{
+			return CounterBatteryRadarCover((PPos)cell.ToMPos(map));
+		}
+
 		public bool CounterBatteryRadarCover(PPos puv)
 		{
 			return counterBatteryRadarCount.Contains(puv) && counterBatteryRadarCount[puv] > 0;

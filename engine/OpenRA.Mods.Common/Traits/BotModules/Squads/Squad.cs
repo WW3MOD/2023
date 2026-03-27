@@ -64,7 +64,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					FuzzyStateMachine.ChangeState(this, new NavyUnitsIdleState());
 					break;
 				case SquadType.Helicopter:
-					FuzzyStateMachine.ChangeState(this, new HelicopterIdleState(), true);
+					FuzzyStateMachine.ChangeState(this, new HelicopterIdleState());
 					break;
 			}
 		}

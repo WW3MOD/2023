@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common
 		{
 			// PERF: Avoid LINQ.
 			foreach (var cell in cells)
-				if (mapLayers.CounterBatteryRadarCover(cell.Cell.ToWPos()))
+				if (mapLayers.CounterBatteryRadarCover(cell.Cell))
 					return true;
 
 			return false;
