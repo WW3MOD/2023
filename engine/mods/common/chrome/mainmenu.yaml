@@ -1,10 +1,10 @@
 Container@MAINMENU:
 	Logic: MainMenuLogic
 	Children:
-		ViewportController@SHELLMAP_VIEWPORT:
+		WorldInteractionController@SHELLMAP_INTERACTION:
 			Width: WINDOW_RIGHT
 			Height: WINDOW_BOTTOM
-		WorldInteractionController@SHELLMAP_INTERACTION:
+		ShellmapViewportController@SHELLMAP_VIEWPORT:
 			Width: WINDOW_RIGHT
 			Height: WINDOW_BOTTOM
 		LogicKeyListener@GLOBAL_KEYHANDLER:
