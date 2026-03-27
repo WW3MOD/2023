@@ -24,7 +24,6 @@ namespace OpenRA.Mods.Common.Activities
 		readonly WPos targetPos;
 		readonly WAngle horizontalFacing;
 		readonly int launchRiseTicks;
-		readonly int launchRiseHeight;
 		readonly float visualPitchMul;
 		readonly int totalArcTicks;
 		readonly int arcPeakHeight;
@@ -43,7 +42,6 @@ namespace OpenRA.Mods.Common.Activities
 			horizontalFacing = (targetPos - spawnPos).Yaw;
 
 			launchRiseTicks = this.sbm.Info.LaunchRiseTicks;
-			launchRiseHeight = this.sbm.Info.LaunchRiseHeight.Length;
 			visualPitchMul = this.sbm.Info.VisualPitchMultiplier / 100f;
 
 			hDist = (targetPos - spawnPos).HorizontalLength;
@@ -87,12 +85,9 @@ namespace OpenRA.Mods.Common.Activities
 			return (int)(4f * arcPeakHeight * progress * (1f - progress));
 		}
 
-		// Compute facing with optional pitch tilt for isometric visual.
-		WAngle GetFacing(float progress)
+		// Compute pitch factor from the parabolic arc derivative at a given progress.
+		float GetPitchFactor(float progress)
 		{
-			if (visualPitchMul <= 0f)
-				return horizontalFacing;
-
 			// Sample height at two nearby points to get vertical velocity direction
 			var eps = 0.005f;
 			var h1 = GetArcHeight(Math.Max(0f, progress - eps));
@@ -102,13 +97,19 @@ namespace OpenRA.Mods.Common.Activities
 			// Horizontal distance covered in the same eps range
 			var hStep = (int)(hDist * eps * 2);
 			if (hStep < 1)
+				return 0f;
+
+			var maxPitch = 0.4f * visualPitchMul;
+			return Math.Clamp((float)dh / (hStep * 4), -maxPitch, maxPitch);
+		}
+
+		// Compute facing with optional pitch tilt for isometric visual.
+		WAngle GetFacing(float progress)
+		{
+			if (visualPitchMul <= 0f)
 				return horizontalFacing;
 
-			// Pitch factor: how much the missile is climbing or diving
-			var maxPitch = 0.4f * visualPitchMul;
-			var pitchFactor = Math.Clamp((float)dh / (hStep * 4), -maxPitch, maxPitch);
-
-			return ApplyIsometricPitch(pitchFactor);
+			return ApplyIsometricPitch(GetPitchFactor(progress));
 		}
 
 		// Apply pitch as a facing offset using isometric projection.
@@ -126,22 +127,22 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override bool Tick(Actor self)
 		{
-			// Phase 1: Vertical launch rise (missile lifts off launcher)
+			// Phase 1: Pre-launch delay (stationary, optional erection animation)
+			// The missile stays at spawnPos. If LaunchRiseErect, it tilts from horizontal
+			// toward the arc's initial pitch angle, so it seamlessly connects to the arc.
 			if (launchRiseTicks > 0 && ticks < launchRiseTicks)
 			{
 				var riseT = Math.Clamp((float)ticks / launchRiseTicks, 0f, 1f);
 
-				// Cubic ease-in: slow ignition, accelerating upward
-				var riseProgress = riseT * riseT * riseT;
-				var riseZ = (int)(launchRiseHeight * riseProgress);
+				sbm.SetPosition(self, spawnPos);
 
-				sbm.SetPosition(self, spawnPos + new WVec(0, 0, riseZ));
-
-				// Erection animation: tilt from horizontal to near-vertical during rise
 				if (sbm.Info.LaunchRiseErect && visualPitchMul > 0f)
 				{
-					var erectPitch = riseT * 0.4f * visualPitchMul;
-					sbm.Facing = ApplyIsometricPitch(erectPitch);
+					// Interpolate from horizontal (0) to the arc's initial pitch at progress=0.
+					// Cubic ease-in for a smooth, accelerating tilt.
+					var erectT = riseT * riseT * riseT;
+					var targetPitch = GetPitchFactor(0f);
+					sbm.Facing = ApplyIsometricPitch(targetPitch * erectT);
 				}
 				else
 					sbm.Facing = horizontalFacing;
@@ -150,7 +151,7 @@ namespace OpenRA.Mods.Common.Activities
 				return false;
 			}
 
-			// Phase 2: Parabolic arc flight
+			// Phase 2: Parabolic arc flight — one smooth trajectory from spawn to target
 			if (horizontalProgress >= 1f)
 			{
 				sbm.SetPosition(self, targetPos);
@@ -178,12 +179,11 @@ namespace OpenRA.Mods.Common.Activities
 			var hx = spawnPos.X + (int)((long)(targetPos.X - spawnPos.X) * (int)(progress * 1024) / 1024);
 			var hy = spawnPos.Y + (int)((long)(targetPos.Y - spawnPos.Y) * (int)(progress * 1024) / 1024);
 
-			// Vertical position: base terrain Z interpolated + parabolic arc + decaying rise offset
+			// Vertical position: base terrain Z interpolated + parabolic arc
 			var baseZ = spawnPos.Z + (int)((long)(targetPos.Z - spawnPos.Z) * (int)(progress * 1024) / 1024);
 			var arcHeight = GetArcHeight(progress);
-			var riseDecay = launchRiseHeight > 0 ? (int)(launchRiseHeight * (1f - progress)) : 0;
 
-			var pos = new WPos(hx, hy, baseZ + arcHeight + riseDecay);
+			var pos = new WPos(hx, hy, baseZ + arcHeight);
 
 			// Ensure missile never goes below terrain
 			var terrainAlt = self.World.Map.DistanceAboveTerrain(pos);

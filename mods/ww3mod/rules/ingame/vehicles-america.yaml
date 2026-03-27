@@ -1056,7 +1056,6 @@ HIMARSMissile:
 		Acceleration: 15
 		InitialSpeedPercent: 20
 		LaunchRiseTicks: 20
-		LaunchRiseHeight: 2c0
 		VisualPitchMultiplier: 50
 	LeavesTrailsCA:
 		Image: smokey2
