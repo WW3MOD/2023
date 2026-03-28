@@ -70,6 +70,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// Set by HeliEmergencyLanding on safe landing to allow capture-by-pilot.</summary>
 		public bool AllowForeignCrew { get; set; }
 
+		/// <summary>When true, crew ejection is suppressed (e.g., critical crash — everyone dies).
+		/// Set by HeliEmergencyLanding when suppress-eject condition is active.</summary>
+		public bool SuppressEjection { get; set; }
+
 		[Sync]
 		int ejectionCountdown;
 
@@ -134,7 +138,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			if (!ejecting || self.IsDead)
+			if (!ejecting || self.IsDead || SuppressEjection)
 				return;
 
 			if (--ejectionCountdown > 0)
@@ -156,6 +160,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
+			// If ejection is suppressed (e.g., critical helicopter crash), crew dies with the vehicle
+			if (SuppressEjection)
+			{
+				ejecting = false;
+				return;
+			}
+
 			// Eject all remaining crew instantly on death
 			foreach (var slotName in ejectionOrder)
 			{

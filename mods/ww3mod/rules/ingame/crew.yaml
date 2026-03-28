@@ -32,6 +32,8 @@
 		ExperienceModifier: 1
 	WithDecoration@Class:
 		Sequence: empty_class
+	Passenger:
+		CustomPipType: empty_class
 
 # === America crew ===
 
@@ -44,6 +46,12 @@ crew.pilot.america:
 		Scale: 0.6
 	CrewMember:
 		Role: Pilot
+	WithDecoration@Class:
+		Sequence: pilot_class
+	Passenger:
+		CustomPipType: pilot_class
+	Selectable:
+		Class: Pilot
 
 crew.copilot.america:
 	Inherits: ^CrewMember
@@ -54,6 +62,12 @@ crew.copilot.america:
 		Scale: 0.6
 	CrewMember:
 		Role: Copilot
+	WithDecoration@Class:
+		Sequence: pilot_class
+	Passenger:
+		CustomPipType: pilot_class
+	Selectable:
+		Class: Pilot
 
 crew.driver.america:
 	Inherits: ^CrewMember
@@ -96,6 +110,12 @@ crew.pilot.russia:
 		Scale: 0.6
 	CrewMember:
 		Role: Pilot
+	WithDecoration@Class:
+		Sequence: pilot_class
+	Passenger:
+		CustomPipType: pilot_class
+	Selectable:
+		Class: Pilot
 
 crew.copilot.russia:
 	Inherits: ^CrewMember
@@ -106,6 +126,12 @@ crew.copilot.russia:
 		Scale: 0.6
 	CrewMember:
 		Role: Copilot
+	WithDecoration@Class:
+		Sequence: pilot_class
+	Passenger:
+		CustomPipType: pilot_class
+	Selectable:
+		Class: Pilot
 
 crew.driver.russia:
 	Inherits: ^CrewMember

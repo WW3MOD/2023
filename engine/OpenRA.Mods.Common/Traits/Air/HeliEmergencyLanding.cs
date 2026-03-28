@@ -213,6 +213,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (suppressEjectToken == Actor.InvalidConditionToken && !string.IsNullOrEmpty(info.SuppressEjectCondition))
 				suppressEjectToken = self.GrantCondition(info.SuppressEjectCondition);
 
+			if (vehicleCrew != null)
+				vehicleCrew.SuppressEjection = true;
+
 			// Cancel current activities and start autorotation
 			self.CancelActivity();
 
@@ -247,6 +250,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (suppressEjectToken == Actor.InvalidConditionToken && !string.IsNullOrEmpty(info.SuppressEjectCondition))
 				suppressEjectToken = self.GrantCondition(info.SuppressEjectCondition);
 
+			if (vehicleCrew != null)
+				vehicleCrew.SuppressEjection = true;
+
 			self.CancelActivity();
 			self.QueueActivity(false, new HeliCrashLand(self, this, info, aircraft));
 		}
@@ -260,6 +266,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (suppressEjectToken != Actor.InvalidConditionToken)
 				suppressEjectToken = self.RevokeCondition(suppressEjectToken);
+
+			if (vehicleCrew != null)
+				vehicleCrew.SuppressEjection = false;
 
 			self.CancelActivity();
 		}
@@ -290,6 +299,9 @@ namespace OpenRA.Mods.Common.Traits
 			// Revoke suppress-eject — crew is safe now
 			if (suppressEjectToken != Actor.InvalidConditionToken)
 				suppressEjectToken = self.RevokeCondition(suppressEjectToken);
+
+			if (vehicleCrew != null)
+				vehicleCrew.SuppressEjection = false;
 
 			State = EmergencyState.None;
 
