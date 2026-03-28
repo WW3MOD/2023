@@ -387,6 +387,43 @@ namespace OpenRA.Graphics
 			Game.Renderer.Flush();
 		}
 
+		// Pre-computed combined fog alpha per visibility level (0-10).
+		// Matches the stacked ShroudRenderer layers so the beyond-map overlay
+		// produces the same darkness as the fog on the adjacent border cell.
+		static readonly float[] fogAlphaByVisibility = ComputeFogAlphaTable();
+
+		static float[] ComputeFogAlphaTable()
+		{
+			// ShroudRenderer.Alpha formula: alpha=1; if index>1: alpha -= (index-1)/12; if index>0: alpha /= 3
+			// Layer 0 has alpha 1.0 (fully opaque shroud).
+			// For a cell with visibility v, layers 0..v-1 render full coverage.
+			// Combined opacity = 1 - product(1 - layerAlpha) for all rendered layers.
+			var table = new float[MapLayers.VisionLayers + 1]; // indices 0-10
+
+			for (var vis = 0; vis <= MapLayers.VisionLayers - 1; vis++)
+			{
+				var transmittance = 1.0f;
+				for (var layer = MapLayers.VisionLayers - 2; layer >= 0; layer--)
+				{
+					if (vis <= layer)
+					{
+						var a = 1f;
+						if (layer > 1) a -= (layer - 1) * (1f / 12);
+						if (layer > 0) a /= 3;
+						transmittance *= (1f - a);
+					}
+				}
+
+				table[vis] = 1f - transmittance;
+			}
+
+			// Visibility 10 (fully visible) = no fog overlay
+			if (table.Length > MapLayers.VisionLayers)
+				table[MapLayers.VisionLayers] = 0f;
+
+			return table;
+		}
+
 		void DrawBeyondMapFogVisibilityAware()
 		{
 			var map = World.Map;
@@ -402,110 +439,96 @@ namespace OpenRA.Graphics
 
 			var bounds = map.Bounds;
 			var cr = Game.Renderer.WorldRgbaColorRenderer;
-			var fogColor = Color.FromArgb(255, 0, 0, 0);
 			var cellPx = TileScale;
 
-			// For each border edge, iterate along the border cells.
-			// Where the border cell is NOT fully visible (visibility < VisionLayers),
-			// draw an opaque black strip extending from the map edge into the beyond-map area.
-			// Where the cell IS visible, leave it open so sprites can extend beyond.
+			// For each border edge, iterate border cells and draw a black overlay
+			// into the beyond-map area with the SAME alpha as the fog on that cell.
+			// This makes sprite overflow (trees, etc.) match the cell's fog level
+			// instead of appearing at full brightness or being fully clipped.
+
+			void DrawBorderStrip(float x1, float y1, float x2, float y2, byte visibility)
+			{
+				var alpha = visibility < fogAlphaByVisibility.Length
+					? fogAlphaByVisibility[visibility]
+					: 0f;
+
+				if (alpha <= 0.001f)
+					return;
+
+				var color = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
+				cr.FillRect(new float3(x1, y1, 0), new float3(x2, y2, 0), color);
+			}
+
+			byte GetCellVisibility(PPos puv)
+			{
+				if (!mapLayers.ResolvedVisibility.Contains(puv))
+					return 0;
+
+				return mapLayers.ResolvedVisibility[puv];
+			}
 
 			// Top border: cells at row bounds.Top, extending upward
-			if (Viewport.TopLeft.Y < ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y)
-			{
-				var edgeY = ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y;
-				var vpTop = Viewport.TopLeft.Y;
+			var vpTL = Viewport.TopLeft;
+			var vpBR = Viewport.BottomRight;
+			var mapTopScreenY = ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y;
+			var mapBotScreenY = ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y;
 
+			if (vpTL.Y < mapTopScreenY)
+			{
 				for (var x = bounds.Left; x < bounds.Right; x++)
 				{
-					var puv = new PPos(x, bounds.Top);
-					if (IsBorderCellVisible(mapLayers, puv))
-						continue;
-
+					var vis = GetCellVisibility(new PPos(x, bounds.Top));
 					var cellLeft = ScreenPxPosition(new WPos(x * cellPx, bounds.Top * cellPx, 0)).X;
 					var cellRight = ScreenPxPosition(new WPos((x + 1) * cellPx, bounds.Top * cellPx, 0)).X;
-					cr.FillRect(new float3(cellLeft, vpTop, 0), new float3(cellRight, edgeY, 0), fogColor);
+					DrawBorderStrip(cellLeft, vpTL.Y, cellRight, mapTopScreenY, vis);
 				}
 			}
 
 			// Bottom border: cells at row bounds.Bottom-1, extending downward
-			if (Viewport.BottomRight.Y > ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y)
+			if (vpBR.Y > mapBotScreenY)
 			{
-				var edgeY = ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y;
-				var vpBottom = Viewport.BottomRight.Y;
-
 				for (var x = bounds.Left; x < bounds.Right; x++)
 				{
-					var puv = new PPos(x, bounds.Bottom - 1);
-					if (IsBorderCellVisible(mapLayers, puv))
-						continue;
-
+					var vis = GetCellVisibility(new PPos(x, bounds.Bottom - 1));
 					var cellLeft = ScreenPxPosition(new WPos(x * cellPx, bounds.Bottom * cellPx, 0)).X;
 					var cellRight = ScreenPxPosition(new WPos((x + 1) * cellPx, bounds.Bottom * cellPx, 0)).X;
-					cr.FillRect(new float3(cellLeft, edgeY, 0), new float3(cellRight, vpBottom, 0), fogColor);
+					DrawBorderStrip(cellLeft, mapBotScreenY, cellRight, vpBR.Y, vis);
 				}
 			}
 
 			// Left border: cells at column bounds.Left, extending leftward
-			var mapTopY = ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y;
-			var mapBotY = ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y;
-
-			if (Viewport.TopLeft.X < ScreenPxPosition(new WPos(bounds.Left * cellPx, 0, 0)).X)
+			var mapLeftScreenX = ScreenPxPosition(new WPos(bounds.Left * cellPx, 0, 0)).X;
+			if (vpTL.X < mapLeftScreenX)
 			{
-				var edgeX = ScreenPxPosition(new WPos(bounds.Left * cellPx, 0, 0)).X;
-				var vpLeft = Viewport.TopLeft.X;
-
 				for (var y = bounds.Top; y < bounds.Bottom; y++)
 				{
-					var puv = new PPos(bounds.Left, y);
-					if (IsBorderCellVisible(mapLayers, puv))
-						continue;
-
+					var vis = GetCellVisibility(new PPos(bounds.Left, y));
 					var cellTop = ScreenPxPosition(new WPos(bounds.Left * cellPx, y * cellPx, 0)).Y;
-					var cellBottom = ScreenPxPosition(new WPos(bounds.Left * cellPx, (y + 1) * cellPx, 0)).Y;
-					var clampTop = Math.Max(cellTop, Math.Max(mapTopY, Viewport.TopLeft.Y));
-					var clampBot = Math.Min(cellBottom, Math.Min(mapBotY, Viewport.BottomRight.Y));
+					var cellBot = ScreenPxPosition(new WPos(bounds.Left * cellPx, (y + 1) * cellPx, 0)).Y;
+					var clampTop = Math.Max(cellTop, Math.Max(mapTopScreenY, vpTL.Y));
+					var clampBot = Math.Min(cellBot, Math.Min(mapBotScreenY, vpBR.Y));
 					if (clampTop < clampBot)
-						cr.FillRect(new float3(vpLeft, clampTop, 0), new float3(edgeX, clampBot, 0), fogColor);
+						DrawBorderStrip(vpTL.X, clampTop, mapLeftScreenX, clampBot, vis);
 				}
 			}
 
 			// Right border: cells at column bounds.Right-1, extending rightward
-			if (Viewport.BottomRight.X > ScreenPxPosition(new WPos(bounds.Right * cellPx, 0, 0)).X)
+			var mapRightScreenX = ScreenPxPosition(new WPos(bounds.Right * cellPx, 0, 0)).X;
+			if (vpBR.X > mapRightScreenX)
 			{
-				var edgeX = ScreenPxPosition(new WPos(bounds.Right * cellPx, 0, 0)).X;
-				var vpRight = Viewport.BottomRight.X;
-
 				for (var y = bounds.Top; y < bounds.Bottom; y++)
 				{
-					var puv = new PPos(bounds.Right - 1, y);
-					if (IsBorderCellVisible(mapLayers, puv))
-						continue;
-
+					var vis = GetCellVisibility(new PPos(bounds.Right - 1, y));
 					var cellTop = ScreenPxPosition(new WPos(bounds.Right * cellPx, y * cellPx, 0)).Y;
-					var cellBottom = ScreenPxPosition(new WPos(bounds.Right * cellPx, (y + 1) * cellPx, 0)).Y;
-					var clampTop = Math.Max(cellTop, Math.Max(mapTopY, Viewport.TopLeft.Y));
-					var clampBot = Math.Min(cellBottom, Math.Min(mapBotY, Viewport.BottomRight.Y));
+					var cellBot = ScreenPxPosition(new WPos(bounds.Right * cellPx, (y + 1) * cellPx, 0)).Y;
+					var clampTop = Math.Max(cellTop, Math.Max(mapTopScreenY, vpTL.Y));
+					var clampBot = Math.Min(cellBot, Math.Min(mapBotScreenY, vpBR.Y));
 					if (clampTop < clampBot)
-						cr.FillRect(new float3(edgeX, clampTop, 0), new float3(vpRight, clampBot, 0), fogColor);
+						DrawBorderStrip(mapRightScreenX, clampTop, vpBR.X, clampBot, vis);
 				}
 			}
 
-			// Corner regions (beyond both X and Y map bounds) are always black —
-			// already covered by the first DrawBeyondMapFog pass before actors.
-
 			Game.Renderer.Flush();
-		}
-
-		static bool IsBorderCellVisible(MapLayers mapLayers, PPos puv)
-		{
-			// VisionLayers is 11 (count), max visibility value is 10.
-			// Only allow sprite overflow beyond the map for cells that are
-			// actively visible (player has units with vision on them).
-			// Fogged cells (explored but not currently seen) block overflow
-			// so trees at fogged borders don't appear bright over the black area.
-			return mapLayers.ResolvedVisibility.Contains(puv)
-				&& mapLayers.ResolvedVisibility[puv] >= 10;
 		}
 
 		public void DrawAnnotations()
