@@ -112,6 +112,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsCorrectCargoType(Actor target)
 		{
+			var cargo = target.TraitOrDefault<Cargo>();
+			if (cargo != null && cargo.LoadingBlocked)
+				return false;
+
 			var ci = target.Info.TraitInfo<CargoInfo>();
 			return ci.Types.Contains(Info.CargoType);
 		}

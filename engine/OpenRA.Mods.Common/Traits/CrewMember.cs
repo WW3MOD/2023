@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				yield return new EnterAlliedActorTargeter<VehicleCrewInfo>(
 					"EnterAsCrewMember",
-					5,
+					6,
 					info.EnterCursor,
 					info.EnterBlockedCursor,
 					IsValidTarget,

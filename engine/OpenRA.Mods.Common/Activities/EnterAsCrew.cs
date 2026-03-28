@@ -19,7 +19,6 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		readonly string role;
 		Actor enterActor;
-		bool tryStartEnterCalled;
 
 		public EnterAsCrew(Actor self, in Target target, string role)
 			: base(self, target, Color.Green)
@@ -30,31 +29,19 @@ namespace OpenRA.Mods.Common.Activities
 		protected override bool TryStartEnter(Actor self, Actor targetActor)
 		{
 			enterActor = targetActor;
-			tryStartEnterCalled = true;
 
 			var vc = targetActor.TraitOrDefault<VehicleCrew>();
 			if (vc == null || !vc.CanAcceptRole(role))
 			{
-				Log.Write("debug",$"[EnterAsCrew] TryStartEnter FAILED: vc={vc != null}, canAccept={vc?.CanAcceptRole(role)}, role={role}, target={targetActor.Info.Name} owner={targetActor.Owner.PlayerName}");
 				Cancel(self, true);
 				return false;
 			}
 
-			Log.Write("debug",$"[EnterAsCrew] TryStartEnter OK: {self.Info.Name}({self.Owner.PlayerName}) → {targetActor.Info.Name}({targetActor.Owner.PlayerName}), role={role}, allowForeign={vc.AllowForeignCrew}");
 			return true;
-		}
-
-		protected override void TickInner(Actor self, in Target target, bool targetIsDeadOrHiddenActor)
-		{
-			// Log once after TryStartEnter to diagnose position check issues
-			if (tryStartEnterCalled && targetIsDeadOrHiddenActor)
-				Log.Write("debug",$"[EnterAsCrew] TickInner: target hidden/dead for {self.Owner.PlayerName}, targetType={target.Type}");
 		}
 
 		protected override void OnEnterComplete(Actor self, Actor targetActor)
 		{
-			Log.Write("debug",$"[EnterAsCrew] OnEnterComplete: {self.Info.Name} → {targetActor.Info.Name}({targetActor.Owner.PlayerName}), allied={self.Owner.IsAlliedWith(targetActor.Owner)}");
-
 			self.World.AddFrameEndTask(w =>
 			{
 				if (self.IsDead)
@@ -65,26 +52,15 @@ namespace OpenRA.Mods.Common.Activities
 
 				var vc = targetActor.TraitOrDefault<VehicleCrew>();
 				if (vc == null || !vc.CanAcceptRole(role))
-				{
-					Log.Write("debug",$"[EnterAsCrew] OnEnterComplete frame-end: CanAcceptRole FAILED");
 					return;
-				}
 
 				// Capture: if entering a non-allied vehicle (neutral crashed helicopter),
 				// change its ownership to the crew member's player
 				if (!self.Owner.IsAlliedWith(targetActor.Owner))
-				{
-					Log.Write("debug",$"[EnterAsCrew] CAPTURE: changing owner from {targetActor.Owner.PlayerName} to {self.Owner.PlayerName}");
 					targetActor.ChangeOwner(self.Owner);
-				}
-				else
-				{
-					Log.Write("debug",$"[EnterAsCrew] NOT capturing: already allied");
-				}
 
 				vc.FillSlot(role);
 				w.Remove(self);
-				Log.Write("debug",$"[EnterAsCrew] Slot filled: {role}, crew removed from world");
 			});
 		}
 	}
