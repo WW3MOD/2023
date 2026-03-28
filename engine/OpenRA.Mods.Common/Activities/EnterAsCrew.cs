@@ -11,7 +11,6 @@
 
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
-using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
@@ -34,48 +33,32 @@ namespace OpenRA.Mods.Common.Activities
 			var vc = targetActor.TraitOrDefault<VehicleCrew>();
 			if (vc == null || !vc.CanAcceptRole(role))
 			{
-				Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} TryStartEnter REJECTED: vc={vc != null}, canAccept={vc?.CanAcceptRole(role)}, role={role}, target={targetActor.Info.Name}");
 				Cancel(self, true);
 				return false;
 			}
 
-			Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} TryStartEnter ACCEPTED: role={role}, target={targetActor.Info.Name} (Owner={targetActor.Owner.PlayerName})");
 			return true;
 		}
 
 		protected override void OnEnterComplete(Actor self, Actor targetActor)
 		{
-			Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} OnEnterComplete called: role={role}, target={targetActor.Info.Name} (Owner={targetActor.Owner.PlayerName})");
 			self.World.AddFrameEndTask(w =>
 			{
 				if (self.IsDead)
-				{
-					Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} AddFrameEndTask: self is dead, aborting");
 					return;
-				}
 
 				if (targetActor != enterActor)
-				{
-					Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} AddFrameEndTask: targetActor changed, aborting");
 					return;
-				}
 
 				var vc = targetActor.TraitOrDefault<VehicleCrew>();
 				if (vc == null || !vc.CanAcceptRole(role))
-				{
-					Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} AddFrameEndTask: CanAcceptRole({role}) FAILED, vc={vc != null}, emptySlots=[{string.Join(",", vc?.EmptySlots ?? System.Array.Empty<string>())}]");
 					return;
-				}
 
 				// Capture: if entering a non-allied vehicle (neutral crashed helicopter),
 				// change its ownership to the crew member's player
 				if (!self.Owner.IsAlliedWith(targetActor.Owner))
-				{
-					Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} Capturing {targetActor.Info.Name} from {targetActor.Owner.PlayerName} to {self.Owner.PlayerName}");
 					targetActor.ChangeOwner(self.Owner);
-				}
 
-				Log.Write("debug", $"[EnterAsCrew] {self.Info.Name} FillSlot({role}) SUCCESS, removing crew from world");
 				vc.FillSlot(role);
 				w.Remove(self);
 			});
