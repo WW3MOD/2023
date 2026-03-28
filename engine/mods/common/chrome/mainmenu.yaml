@@ -30,13 +30,15 @@ Container@MAINMENU:
 			Width: WINDOW_WIDTH
 			Height: WINDOW_HEIGHT
 		DropDownButton@SHELLMAP_DROPDOWN:
-			X: WINDOW_WIDTH - 360
+			X: WINDOW_WIDTH - 390
 			Y: 15
 			Width: 220
 			Height: 25
 			Font: Bold
+			Background:
+			Separators:
 		Button@REPLAY_BUTTON:
-			X: WINDOW_WIDTH - 130
+			X: WINDOW_WIDTH - 160
 			Y: 15
 			Width: 25
 			Height: 25
@@ -50,7 +52,7 @@ Container@MAINMENU:
 					ImageCollection: reload-icon
 					ImageName: enabled
 		Button@NUKE_BUTTON:
-			X: WINDOW_WIDTH - 100
+			X: WINDOW_WIDTH - 130
 			Y: 15
 			Width: 25
 			Height: 25
@@ -64,14 +66,14 @@ Container@MAINMENU:
 					ImageCollection: order-icons
 					ImageName: nuke
 		Button@RANDOM_BUTTON:
-			X: WINDOW_WIDTH - 70
+			X: WINDOW_WIDTH - 100
 			Y: 15
 			Width: 25
 			Height: 25
 			Font: Bold
 			Text: ?
 		Button@SHELLMAP_PAUSE_BUTTON:
-			X: WINDOW_WIDTH - 40
+			X: WINDOW_WIDTH - 70
 			Y: 15
 			Width: 25
 			Height: 25
@@ -83,14 +85,14 @@ Container@MAINMENU:
 					ImageCollection: music
 					ImageName: pause
 		Button@INFO_BUTTON:
-			X: WINDOW_WIDTH - 10
+			X: WINDOW_WIDTH - 40
 			Y: 15
 			Width: 25
 			Height: 25
 			Text: i
 			Font: Bold
 		Background@INFO_DROPDOWN:
-			X: WINDOW_WIDTH - 370
+			X: WINDOW_WIDTH - 400
 			Y: 45
 			Width: 355
 			Height: 95
@@ -187,6 +189,7 @@ Container@MAINMENU:
 							Text: button-quit
 							Font: Bold
 				Background@SINGLEPLAYER_MENU:
+					Background:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
 					Children:
@@ -228,6 +231,7 @@ Container@MAINMENU:
 							Text: button-back
 							Font: Bold
 				Background@EXTRAS_MENU:
+					Background:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
 					Children:
@@ -283,6 +287,7 @@ Container@MAINMENU:
 							Text: button-back
 							Font: Bold
 				Background@MAP_EDITOR_MENU:
+					Background:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
 					Children:

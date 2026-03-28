@@ -110,12 +110,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		[ObjectCreator.UseCtor]
 		internal MapChooserLogic(Widget widget, ModData modData, string initialMap, HashSet<string> remoteMapPool,
-			MapClassification initialTab, Action onExit, Action<string> onSelect, MapVisibility filter)
+			MapClassification initialTab, Action onExit, Action<string> onSelect, MapVisibility filter,
+			string initialCategory = null)
 		{
 			this.widget = widget;
 			this.modData = modData;
 			this.onSelect = onSelect;
 			this.remoteMapPool = remoteMapPool;
+			category = initialCategory;
 
 			allMaps = FluentProvider.GetMessage(AllMaps);
 

@@ -262,6 +262,40 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				};
 			}
 
+			var scenarioButton = lobby.GetOrNull<ButtonWidget>("CHANGESCENARIO_BUTTON");
+			if (scenarioButton != null)
+			{
+				scenarioButton.IsVisible = () => panel != PanelType.Servers;
+				scenarioButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
+					orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
+				scenarioButton.OnClick = () =>
+				{
+					var onSelect = new Action<string>(uid =>
+					{
+						var status = modData.MapCache[uid].Status;
+						if (uid == map.Uid || (status != MapStatus.Available && status != MapStatus.DownloadAvailable))
+							return;
+
+						orderManager.IssueOrder(Order.Command("map " + uid));
+						Game.Settings.Server.Map = uid;
+						Game.Settings.Save();
+					});
+
+					modData.MapCache.UpdateMaps();
+
+					Ui.OpenWindow("MAPCHOOSER_PANEL", new WidgetArgs()
+					{
+						{ "initialMap", map.Uid },
+						{ "remoteMapPool", orderManager.ServerMapPool },
+						{ "initialTab", MapClassification.System },
+						{ "onExit", modData.MapCache.UpdateMaps },
+						{ "onSelect", Game.IsHost ? onSelect : null },
+						{ "filter", MapVisibility.Lobby },
+						{ "initialCategory", "Scenario" },
+					});
+				};
+			}
+
 			var slotsButton = lobby.GetOrNull<DropDownButtonWidget>("SLOTS_DROPDOWNBUTTON");
 			if (slotsButton != null)
 			{

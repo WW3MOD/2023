@@ -150,6 +150,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (id == null || !option.Values.TryGetValue(id, out var value))
 						return FluentProvider.GetMessage(NotAvailable);
 
+					if (FluentProvider.TryGetMessage(value, out var translated))
+						return translated;
+
 					return value;
 				});
 
@@ -174,7 +177,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						void OnClick() => orderManager.IssueOrder(Order.Command($"option {option.Id} {c.Key}"));
 
 						var item = ScrollItemWidget.Setup(template, IsSelected, OnClick);
-						item.Get<LabelWidget>("LABEL").GetText = () => c.Value;
+						var displayValue = FluentProvider.TryGetMessage(c.Value, out var msg) ? msg : c.Value;
+						item.Get<LabelWidget>("LABEL").GetText = () => displayValue;
 						return item;
 					}
 

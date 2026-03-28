@@ -170,10 +170,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (dropdown != null)
 			{
 				var dropdownFont = Game.Renderer.Fonts[dropdown.Font];
+				var dropdownRightEdge = dropdown.Bounds.Right;
 				dropdown.GetText = () =>
 				{
 					var label = GetCurrentLabel();
-					return WidgetUtils.TruncateText(label, dropdown.UsableWidth, dropdownFont);
+					var textWidth = dropdownFont.Measure(label).X + 20;
+					dropdown.Bounds.Width = Math.Max(textWidth, 80);
+					dropdown.Bounds.X = dropdownRightEdge - dropdown.Bounds.Width;
+					return label;
 				};
 
 				dropdown.OnMouseDown = _ =>
