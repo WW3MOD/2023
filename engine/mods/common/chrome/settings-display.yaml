@@ -210,6 +210,21 @@ Container@DISPLAY_PANEL:
 									Height: 20
 									Font: Regular
 									Text: checkbox-hide-replay-chat-container
+				Container@ROW:
+					Width: PARENT_WIDTH - 24
+					Height: 20
+					Children:
+						Container@SCALE_INFANTRY_CHECKBOX_CONTAINER:
+							X: 10
+							Width: PARENT_WIDTH / 2 - 10
+							Children:
+								Checkbox@SCALE_INFANTRY_CHECKBOX:
+									Width: PARENT_WIDTH
+									Height: 20
+									Font: Regular
+									Text: Scale Infantry (realistic sizes)
+									TooltipText: When disabled, infantry use original sprite sizes
+									TooltipContainer: SETTINGS_TOOLTIP_CONTAINER
 				Container@SPACER:
 				Background@VIDEO_SECTION_HEADER:
 					X: 5

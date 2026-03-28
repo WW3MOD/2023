@@ -44,6 +44,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Change the sprite image size.")]
 		public readonly float Scale = 1f;
 
+		[Desc("If true, scaling can be disabled via the ScaleInfantry game setting (for infantry).")]
+		public readonly bool ScaleControlledBySettings = false;
+
 		public override object Create(ActorInitializer init) { return new RenderSprites(init, this); }
 
 		public IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init)
@@ -181,6 +184,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public virtual IEnumerable<IRenderable> Render(Actor self, WorldRenderer wr)
 		{
+			var scale = Info.Scale;
+			if (Info.ScaleControlledBySettings && !Game.Settings.Game.ScaleInfantry)
+				scale = 1f;
+
 			foreach (var a in anims)
 			{
 				if (!a.IsVisible)
@@ -192,7 +199,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 					a.CachePalette(wr, owner);
 				}
 
-				foreach (var r in a.Animation.Render(self, a.PaletteReference, Info.Scale))
+				foreach (var r in a.Animation.Render(self, a.PaletteReference, scale))
 					yield return r;
 			}
 		}

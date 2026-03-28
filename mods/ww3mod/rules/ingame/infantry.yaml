@@ -3,6 +3,8 @@
 	Inherits@ExistsInWorld: ^ExistsInWorld
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@SpriteActor: ^SpriteActor
+	RenderSprites:
+		ScaleControlledBySettings: true
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
 	Inherits@Slowdown: ^EffectsWhenDamagedInfantry

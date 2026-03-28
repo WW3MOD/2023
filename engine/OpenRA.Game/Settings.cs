@@ -317,6 +317,10 @@ namespace OpenRA
 		[Desc("If true, cycle shellmaps in ShellmapOrder. If false, pick random.")]
 		public bool ShellmapUseOrder = false;
 
+		// WW3MOD: Infantry visual scaling
+		[Desc("Scale infantry sprites for realism. Disable to use original sprite sizes.")]
+		public bool ScaleInfantry = true;
+
 		// WW3MOD: Bar visibility (persisted between games)
 		public bool CommandBarVisible = true;
 		public bool FireStanceBarVisible = true;

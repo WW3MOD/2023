@@ -163,6 +163,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			SettingsUtils.BindCheckboxPref(panel, "HIDE_REPLAY_CHAT_CHECKBOX", gs, "HideReplayChat");
 
+			if (panel.GetOrNull<CheckboxWidget>("SCALE_INFANTRY_CHECKBOX") != null)
+				SettingsUtils.BindCheckboxPref(panel, "SCALE_INFANTRY_CHECKBOX", gs, "ScaleInfantry");
+
 			var windowModeDropdown = panel.Get<DropDownButtonWidget>("MODE_DROPDOWN");
 			windowModeDropdown.OnMouseDown = _ => ShowWindowModeDropdown(windowModeDropdown, ds, scrollPanel);
 			windowModeDropdown.GetText = () => ds.Mode == WindowMode.Windowed
