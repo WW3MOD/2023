@@ -28,6 +28,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly bool showTicks;
 		readonly int refundPercent;
 		readonly int? fixedRefund;
+		readonly bool isAircraft;
 		CPos? edgeCell;
 		bool movingToEdge;
 		int evacuatingToken = Actor.InvalidConditionToken;
@@ -40,6 +41,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.showTicks = showTicks;
 			health = self.TraitOrDefault<IHealth>();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
+			isAircraft = self.Info.HasTraitInfo<AircraftInfo>();
 
 			var sellableInfo = self.Info.TraitInfoOrDefault<SellableInfo>();
 			refundPercent = sellableInfo?.RefundPercent ?? 100;
@@ -54,6 +56,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.showTicks = showTicks;
 			health = self.TraitOrDefault<IHealth>();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
+			isAircraft = self.Info.HasTraitInfo<AircraftInfo>();
 			refundPercent = 100;
 			fixedRefund = refundAmount;
 		}
@@ -95,12 +98,13 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (aircraftInfo != null)
 			{
-				// Aircraft evacuate toward the SpawnArea edge (where reinforcements enter)
+				// Aircraft evacuate toward the closest point in a wide zone (~15 tiles each side)
+				// around the SpawnArea, then fly off-map at full speed
 				var spawnAreaHint = FindClosestSpawnAreaForOwner(self);
 				var searchOrigin = spawnAreaHint ?? self.Owner.HomeLocation;
-				var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, 5);
+				var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, 30);
 				if (candidates.Length > 0)
-					edgeCell = candidates[self.World.SharedRandom.Next(candidates.Length)];
+					edgeCell = candidates.OrderBy(c => (self.Location - c).LengthSquared).First();
 				else
 					edgeCell = self.World.Map.ChooseClosestEdgeCell(searchOrigin);
 			}
@@ -142,15 +146,34 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Wait for child activities to complete
 			if (ChildActivity != null)
+			{
+				// Aircraft: sell as soon as they leave the map (don't wait for activity completion)
+				if (isAircraft && !self.World.Map.Contains(self.Location))
+				{
+					DoSell(self);
+					return true;
+				}
+
 				return false;
+			}
 
 			// Queue move to edge if not done yet
 			if (!movingToEdge)
 			{
 				movingToEdge = true;
-				var move = self.TraitOrDefault<IMove>();
-				if (move != null)
-					QueueChild(move.MoveTo(edgeCell.Value, 2, evaluateNearestMovableCell: true));
+
+				if (isAircraft)
+				{
+					// Aircraft: fly toward edge zone then keep going off-map at full speed
+					QueueChild(new Fly(self, Target.FromCell(self.World, edgeCell.Value)));
+					QueueChild(new FlyForward(self));
+				}
+				else
+				{
+					var move = self.TraitOrDefault<IMove>();
+					if (move != null)
+						QueueChild(move.MoveTo(edgeCell.Value, 2, evaluateNearestMovableCell: true));
+				}
 
 				return false;
 			}

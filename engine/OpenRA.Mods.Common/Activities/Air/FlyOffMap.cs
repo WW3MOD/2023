@@ -50,16 +50,33 @@ namespace OpenRA.Mods.Common.Activities
 			if (aircraft.Info.VTOL && self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition) != aircraft.Info.CruiseAltitude)
 				QueueChild(new TakeOff(self));
 
-			// Fly toward the SpawnArea edge (where reinforcements enter), not just home edge
-			var edgeTarget = FindSpawnAreaEdge(self) ?? self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
+			// Fly toward closest point in the SpawnArea evacuation zone, then off-map
+			var edgeTarget = FindClosestEvacEdge(self) ?? self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
 			QueueChild(new Fly(self, Target.FromCell(self.World, edgeTarget)));
 			QueueChild(new FlyForward(self));
 		}
 
-		/// <summary>Find the edge cell nearest to the player's SpawnArea, with slight randomization.</summary>
-		static CPos? FindSpawnAreaEdge(Actor self)
+		/// <summary>
+		/// Find the edge cell in the aircraft evacuation zone (~15 tiles either side of SpawnArea)
+		/// that is closest to the aircraft, so it takes the shortest path off-map.
+		/// </summary>
+		static CPos? FindClosestEvacEdge(Actor self)
 		{
-			// Find the SpawnArea closest to this player's Supply Route
+			var spawnArea = FindOwnerSpawnArea(self);
+			if (!spawnArea.HasValue)
+				return null;
+
+			// Wide zone: ~30 edge cells around the spawn point (15 each side)
+			var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(spawnArea.Value, 30);
+			if (candidates.Length == 0)
+				return null;
+
+			// Pick the candidate closest to the aircraft for shortest exit path
+			return candidates.OrderBy(c => (self.Location - c).LengthSquared).First();
+		}
+
+		static CPos? FindOwnerSpawnArea(Actor self)
+		{
 			var ownSR = self.World.ActorsHavingTrait<ProductionFromMapEdge>()
 				.FirstOrDefault(a => !a.IsDead && a.IsInWorld && a.Owner == self.Owner);
 			var anchor = ownSR?.Location ?? self.Owner.HomeLocation;
@@ -84,15 +101,7 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
-			if (!closest.HasValue)
-				return null;
-
-			// Pick a random edge cell near the SpawnArea for variety
-			var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(closest.Value, 5);
-			if (candidates.Length > 0)
-				return candidates[self.World.SharedRandom.Next(candidates.Length)];
-
-			return self.World.Map.ChooseClosestEdgeCell(closest.Value);
+			return closest;
 		}
 
 		public override bool Tick(Actor self)
