@@ -965,6 +965,8 @@ IskanderMissile:
 		LaunchRiseTicks: 45
 		LaunchRiseErect: true
 		VisualPitchMultiplier: 50
+		TerminalSpeed: 600
+		TerminalAcceleration: 12
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

@@ -1057,6 +1057,8 @@ HIMARSMissile:
 		InitialSpeedPercent: 20
 		LaunchRiseTicks: 20
 		VisualPitchMultiplier: 50
+		TerminalSpeed: 650
+		TerminalAcceleration: 20
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

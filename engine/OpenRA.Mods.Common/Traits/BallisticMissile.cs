@@ -54,6 +54,15 @@ namespace OpenRA.Mods.Common.Traits
 			"Only meaningful when LaunchRiseTicks > 0 and VisualPitchMultiplier > 0.")]
 		public readonly bool LaunchRiseErect = false;
 
+		[Desc("Maximum speed in WDist/tick during the terminal dive phase (past apex).",
+			"0 = no terminal phase; missile keeps its cruise speed cap.",
+			"Values higher than Speed allow the missile to exceed cruise speed in the dive.")]
+		public readonly int TerminalSpeed = 0;
+
+		[Desc("Acceleration per tick during the terminal phase.",
+			"Only used when TerminalSpeed > 0. If 0, uses the regular Acceleration value.")]
+		public readonly int TerminalAcceleration = 0;
+
 		[Desc("Minimum altitude where this missile is considered airborne")]
 		public readonly int MinAirborneAltitude = 5;
 

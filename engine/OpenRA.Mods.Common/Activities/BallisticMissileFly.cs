@@ -53,13 +53,21 @@ namespace OpenRA.Mods.Common.Activities
 				// Missile starts at InitialSpeedPercent of Speed and accelerates by Acceleration/tick.
 				var initSpeed = speed * this.sbm.Info.InitialSpeedPercent / 100f;
 				var accel = this.sbm.Info.Acceleration;
+				var termSpeed = this.sbm.Info.TerminalSpeed;
+				var termAccel = this.sbm.Info.TerminalAcceleration > 0
+					? this.sbm.Info.TerminalAcceleration : accel;
 
 				float simDist = 0f;
 				float simSpeed = initSpeed;
 				int simTicks = 0;
 				while (simDist < hDist && simTicks < 10000)
 				{
-					simSpeed = Math.Min(simSpeed + accel, speed);
+					var simProgress = simDist / hDist;
+					if (simProgress >= 0.5f && termSpeed > 0)
+						simSpeed = Math.Min(simSpeed + termAccel, termSpeed);
+					else
+						simSpeed = Math.Min(simSpeed + accel, speed);
+
 					simDist += simSpeed;
 					simTicks++;
 				}
@@ -159,8 +167,16 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			// Update velocity: accelerate toward max speed each tick
-			if (sbm.Info.Acceleration > 0)
+			// Update velocity: accelerate toward max speed, with optional terminal boost past apex
+			var pastApex = horizontalProgress >= 0.5f;
+			if (pastApex && sbm.Info.TerminalSpeed > 0)
+			{
+				var termAccel = sbm.Info.TerminalAcceleration > 0
+					? sbm.Info.TerminalAcceleration : sbm.Info.Acceleration;
+				if (termAccel > 0)
+					currentSpeed = Math.Min(currentSpeed + termAccel, sbm.Info.TerminalSpeed);
+			}
+			else if (sbm.Info.Acceleration > 0)
 				currentSpeed = Math.Min(currentSpeed + sbm.Info.Acceleration, sbm.Info.Speed);
 
 			// Accumulate horizontal progress based on current speed
