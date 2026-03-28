@@ -80,7 +80,8 @@ namespace OpenRA.Mods.Common.Traits
 				at OpenRA.Mods.Common.Traits.Aircraft.FinishedMoving(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 848
 				at OpenRA.Mods.Common.Traits.Aircraft.SetPosition(Actor self, WPos pos) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Air\Aircraft.cs:line 839
 				at OpenRA.Mods.Common.Activities.Fly.VerticalTakeOffOrLandTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, Boolean idleTurn) in */
-			if (Info.CrushedByRelationships.HasRelationship(self.Owner.RelationshipWith(passer.Owner))
+			if (passerMobile != null
+				&& Info.CrushedByRelationships.HasRelationship(self.Owner.RelationshipWith(passer.Owner))
 				&& passerMobile.Info.LocomotorInfo.Crushes.Overlaps(passClasses)
 				&& self.IsAtGroundLevel())
 			{
