@@ -146,7 +146,18 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Wait for child activities to complete
 			if (ChildActivity != null)
+			{
+				// Aircraft: sell as soon as they're within 2 cells of the edge target.
+				// Don't wait for Fly to finish — CanSlide deceleration causes visible bouncing.
+				if (isAircraft && movingToEdge && edgeCell.HasValue
+					&& (self.Location - edgeCell.Value).LengthSquared <= 4)
+				{
+					DoSell(self);
+					return true;
+				}
+
 				return false;
+			}
 
 			// Queue move to edge if not done yet
 			if (!movingToEdge)
