@@ -304,8 +304,10 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
 
-			// WW3MOD: Beyond-map area is naturally black (clear color).
-			// No overlay needed — effects rendering beyond edges show against black.
+			// WW3MOD: Black out beyond-map area to cleanly hide sprite overflow
+			// from actors/trees at map edges whose visuals extend past their cell.
+			if (World.Type != WorldType.Editor)
+				DrawBeyondMapFog();
 
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
@@ -343,9 +345,9 @@ namespace OpenRA.Graphics
 			var vpTL = Viewport.TopLeft;
 			var vpBR = Viewport.BottomRight;
 
-			// Semi-transparent black overlay — matches fog darkness while allowing
-			// effects (nukes, missiles) to show through dimly
-			var fogColor = Color.FromArgb(200, 0, 0, 0);
+			// Fully opaque black overlay — hides sprite overflow from edge cells
+			// (trees, buildings whose visuals extend beyond their cell boundary)
+			var fogColor = Color.FromArgb(255, 0, 0, 0);
 			var cr = Game.Renderer.WorldRgbaColorRenderer;
 
 			// Top strip (full width)
