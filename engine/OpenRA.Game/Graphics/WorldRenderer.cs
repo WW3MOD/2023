@@ -281,6 +281,12 @@ namespace OpenRA.Graphics
 
 			terrainRenderer?.RenderTerrain(this, Viewport);
 
+			// WW3MOD: Black out beyond-map area AFTER terrain but BEFORE actors.
+			// Hides terrain tile overflow at edges, but actors/trees/projectiles
+			// render on top so tall sprites near edges remain visible.
+			if (World.Type != WorldType.Editor)
+				DrawBeyondMapFog();
+
 			Game.Renderer.Flush();
 
 			for (var i = 0; i < preparedRenderables.Count; i++)
@@ -303,11 +309,6 @@ namespace OpenRA.Graphics
 			ApplyPostProcessing(PostProcessPassType.AfterWorld);
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
-
-			// WW3MOD: Black out beyond-map area to cleanly hide sprite overflow
-			// from actors/trees at map edges whose visuals extend past their cell.
-			if (World.Type != WorldType.Editor)
-				DrawBeyondMapFog();
 
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
