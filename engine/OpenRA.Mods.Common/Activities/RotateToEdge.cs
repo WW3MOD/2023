@@ -99,7 +99,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (aircraftInfo != null)
 			{
 				// Aircraft evacuate toward the closest point in a wide zone (~15 tiles each side)
-				// around the SpawnArea, then fly off-map at full speed
+				// around the SpawnArea, sell on arrival at edge cell
 				var spawnAreaHint = FindClosestSpawnAreaForOwner(self);
 				var searchOrigin = spawnAreaHint ?? self.Owner.HomeLocation;
 				var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, 30);
@@ -146,16 +146,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Wait for child activities to complete
 			if (ChildActivity != null)
-			{
-				// Aircraft: sell as soon as they leave the map (don't wait for activity completion)
-				if (isAircraft && !self.World.Map.Contains(self.Location))
-				{
-					DoSell(self);
-					return true;
-				}
-
 				return false;
-			}
 
 			// Queue move to edge if not done yet
 			if (!movingToEdge)
@@ -164,9 +155,9 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (isAircraft)
 				{
-					// Aircraft: fly toward edge zone then keep going off-map at full speed
+					// Aircraft: fly to nearest edge cell in the spawn zone, sell on arrival.
+					// Don't try to fly off-map — repulsion force pushes aircraft back.
 					QueueChild(new Fly(self, Target.FromCell(self.World, edgeCell.Value)));
-					QueueChild(new FlyForward(self));
 				}
 				else
 				{
