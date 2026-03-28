@@ -10,12 +10,12 @@ Tick = function()
 
 	-- Phase 1 (tick 50): Armor vanguard pushes toward river, maintaining spread
 	if ticks == 50 then
-		NatoAbrams1.AttackMove(CPos.New(36, 28), 0)
-		NatoAbrams2.AttackMove(CPos.New(34, 44), 0)
-		NatoBradley1.AttackMove(CPos.New(38, 22), 0)
-		NatoBradley2.AttackMove(CPos.New(37, 36), 0)
-		NatoHumvee1.AttackMove(CPos.New(36, 14), 0)
-		NatoHumvee2.AttackMove(CPos.New(35, 52), 0)
+		NatoAbrams1.AttackMove(CPos.New(34, 28), 0)
+		NatoAbrams2.AttackMove(CPos.New(33, 44), 0)
+		NatoBradley1.AttackMove(CPos.New(34, 22), 0)
+		NatoBradley2.AttackMove(CPos.New(34, 36), 0)
+		NatoHumvee1.AttackMove(CPos.New(34, 14), 0)
+		NatoHumvee2.AttackMove(CPos.New(34, 52), 0)
 		NatoM113.AttackMove(CPos.New(33, 48), 0)
 		NatoShorad.AttackMove(CPos.New(28, 46), 0)
 
@@ -34,7 +34,7 @@ Tick = function()
 		local natoNorth = { NatoE3_1, NatoE3_2, NatoAR_1, NatoTL_1, NatoE1_1, NatoE2_1 }
 		for _, unit in ipairs(natoNorth) do
 			if not unit.IsDead then
-				unit.AttackMove(CPos.New(36, 24), 2)
+				unit.AttackMove(CPos.New(34, 24), 2)
 			end
 		end
 
@@ -42,7 +42,7 @@ Tick = function()
 		local natoCenter = { NatoE3_3, NatoAR_2, NatoTL_2, NatoE1_2, NatoSN, NatoDR }
 		for _, unit in ipairs(natoCenter) do
 			if not unit.IsDead then
-				unit.AttackMove(CPos.New(37, 36), 2)
+				unit.AttackMove(CPos.New(34, 36), 2)
 			end
 		end
 
@@ -50,7 +50,7 @@ Tick = function()
 		local natoSouth = { NatoE3_4, NatoAR_3, NatoAT_2, NatoE2_2, NatoE1_3, NatoE4 }
 		for _, unit in ipairs(natoSouth) do
 			if not unit.IsDead then
-				unit.AttackMove(CPos.New(34, 48), 2)
+				unit.AttackMove(CPos.New(33, 48), 2)
 			end
 		end
 
@@ -64,7 +64,7 @@ Tick = function()
 
 		-- SF probes forward alone
 		if not NatoSF.IsDead then
-			NatoSF.AttackMove(CPos.New(40, 44), 0)
+			NatoSF.AttackMove(CPos.New(34, 44), 0)
 		end
 
 		-- Russia north fire team
