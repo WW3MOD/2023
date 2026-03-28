@@ -49,29 +49,29 @@ Container@PLAYER_WIDGETS:
 		Background@CMD_BG_B:
 			X: 295
 			Y: WINDOW_HEIGHT - HEIGHT - 5
-			Width: 172
+			Width: 154
 			Height: 44
 			Background: commandbar-background
 		Background@FIRE_BG:
-			X: 483
+			X: 449
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@ENGAGE_BG:
-			X: 603
+			X: 569
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@COHESION_BG:
-			X: 723
+			X: 689
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@RESUPPLY_BG:
-			X: 843
+			X: 809
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
@@ -318,7 +318,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: queue-orders
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
-			X: 492
+			X: 458
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -387,7 +387,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
-			X: 612
+			X: 578
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -456,7 +456,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@COHESION_BAR:
 			Logic: CohesionSelectorLogic
-			X: 732
+			X: 698
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -525,7 +525,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@RESUPPLY_BEHAVIOR_BAR:
 			Logic: ResupplyBehaviorSelectorLogic
-			X: 852
+			X: 818
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
