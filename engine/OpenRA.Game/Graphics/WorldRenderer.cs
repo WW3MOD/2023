@@ -310,13 +310,12 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
 
-			// WW3MOD: Draw beyond-map fog a SECOND time, after shroud rendering.
-			// The first call (before actors) hides terrain overflow at edges.
-			// This second call covers actor/tree sprites that extend beyond map
-			// bounds — shroud only covers map cells, so without this pass, tall
-			// sprites near borders appear at full visibility over the black area.
+			// WW3MOD: Second pass covers actor/tree sprite overflow beyond map
+			// edges, but only where the adjacent border cell is NOT fully visible.
+			// This keeps fogged trees dark while allowing visible actors/projectiles
+			// to extend beyond the map.
 			if (World.Type != WorldType.Editor)
-				DrawBeyondMapFog();
+				DrawBeyondMapFogVisibilityAware();
 
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
@@ -386,6 +385,127 @@ namespace OpenRA.Graphics
 					new float3(vpBR.X, Math.Min(vpBR.Y, mapBR.Y), 0), fogColor);
 
 			Game.Renderer.Flush();
+		}
+
+		void DrawBeyondMapFogVisibilityAware()
+		{
+			var map = World.Map;
+			var renderPlayer = World.RenderPlayer;
+
+			// No render player (spectator/replay with no fog) — skip
+			if (renderPlayer == null)
+				return;
+
+			var mapLayers = renderPlayer.MapLayers;
+			if (mapLayers.Disabled)
+				return;
+
+			var bounds = map.Bounds;
+			var cr = Game.Renderer.WorldRgbaColorRenderer;
+			var fogColor = Color.FromArgb(255, 0, 0, 0);
+			var cellPx = TileScale;
+
+			// For each border edge, iterate along the border cells.
+			// Where the border cell is NOT fully visible (visibility < VisionLayers),
+			// draw an opaque black strip extending from the map edge into the beyond-map area.
+			// Where the cell IS visible, leave it open so sprites can extend beyond.
+
+			// Top border: cells at row bounds.Top, extending upward
+			if (Viewport.TopLeft.Y < ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y)
+			{
+				var edgeY = ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y;
+				var vpTop = Viewport.TopLeft.Y;
+
+				for (var x = bounds.Left; x < bounds.Right; x++)
+				{
+					var puv = new PPos(x, bounds.Top);
+					if (IsBorderCellVisible(mapLayers, puv))
+						continue;
+
+					var cellLeft = ScreenPxPosition(new WPos(x * cellPx, bounds.Top * cellPx, 0)).X;
+					var cellRight = ScreenPxPosition(new WPos((x + 1) * cellPx, bounds.Top * cellPx, 0)).X;
+					cr.FillRect(new float3(cellLeft, vpTop, 0), new float3(cellRight, edgeY, 0), fogColor);
+				}
+			}
+
+			// Bottom border: cells at row bounds.Bottom-1, extending downward
+			if (Viewport.BottomRight.Y > ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y)
+			{
+				var edgeY = ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y;
+				var vpBottom = Viewport.BottomRight.Y;
+
+				for (var x = bounds.Left; x < bounds.Right; x++)
+				{
+					var puv = new PPos(x, bounds.Bottom - 1);
+					if (IsBorderCellVisible(mapLayers, puv))
+						continue;
+
+					var cellLeft = ScreenPxPosition(new WPos(x * cellPx, bounds.Bottom * cellPx, 0)).X;
+					var cellRight = ScreenPxPosition(new WPos((x + 1) * cellPx, bounds.Bottom * cellPx, 0)).X;
+					cr.FillRect(new float3(cellLeft, edgeY, 0), new float3(cellRight, vpBottom, 0), fogColor);
+				}
+			}
+
+			// Left border: cells at column bounds.Left, extending leftward
+			var mapTopY = ScreenPxPosition(new WPos(0, bounds.Top * cellPx, 0)).Y;
+			var mapBotY = ScreenPxPosition(new WPos(0, bounds.Bottom * cellPx, 0)).Y;
+
+			if (Viewport.TopLeft.X < ScreenPxPosition(new WPos(bounds.Left * cellPx, 0, 0)).X)
+			{
+				var edgeX = ScreenPxPosition(new WPos(bounds.Left * cellPx, 0, 0)).X;
+				var vpLeft = Viewport.TopLeft.X;
+
+				for (var y = bounds.Top; y < bounds.Bottom; y++)
+				{
+					var puv = new PPos(bounds.Left, y);
+					if (IsBorderCellVisible(mapLayers, puv))
+						continue;
+
+					var cellTop = ScreenPxPosition(new WPos(bounds.Left * cellPx, y * cellPx, 0)).Y;
+					var cellBottom = ScreenPxPosition(new WPos(bounds.Left * cellPx, (y + 1) * cellPx, 0)).Y;
+					var clampTop = Math.Max(cellTop, Math.Max(mapTopY, Viewport.TopLeft.Y));
+					var clampBot = Math.Min(cellBottom, Math.Min(mapBotY, Viewport.BottomRight.Y));
+					if (clampTop < clampBot)
+						cr.FillRect(new float3(vpLeft, clampTop, 0), new float3(edgeX, clampBot, 0), fogColor);
+				}
+			}
+
+			// Right border: cells at column bounds.Right-1, extending rightward
+			if (Viewport.BottomRight.X > ScreenPxPosition(new WPos(bounds.Right * cellPx, 0, 0)).X)
+			{
+				var edgeX = ScreenPxPosition(new WPos(bounds.Right * cellPx, 0, 0)).X;
+				var vpRight = Viewport.BottomRight.X;
+
+				for (var y = bounds.Top; y < bounds.Bottom; y++)
+				{
+					var puv = new PPos(bounds.Right - 1, y);
+					if (IsBorderCellVisible(mapLayers, puv))
+						continue;
+
+					var cellTop = ScreenPxPosition(new WPos(bounds.Right * cellPx, y * cellPx, 0)).Y;
+					var cellBottom = ScreenPxPosition(new WPos(bounds.Right * cellPx, (y + 1) * cellPx, 0)).Y;
+					var clampTop = Math.Max(cellTop, Math.Max(mapTopY, Viewport.TopLeft.Y));
+					var clampBot = Math.Min(cellBottom, Math.Min(mapBotY, Viewport.BottomRight.Y));
+					if (clampTop < clampBot)
+						cr.FillRect(new float3(edgeX, clampTop, 0), new float3(vpRight, clampBot, 0), fogColor);
+				}
+			}
+
+			// Corner regions (beyond both X and Y map bounds) are always black —
+			// already covered by the first DrawBeyondMapFog pass before actors.
+
+			Game.Renderer.Flush();
+		}
+
+		static bool IsBorderCellVisible(MapLayers mapLayers, PPos puv)
+		{
+			// VisionLayers is 11 (count), max visibility value is 10.
+			// Only allow sprite overflow beyond the map for cells that are
+			// actively visible (player has units with vision on them).
+			// Fogged cells (explored but not currently seen) block overflow
+			// so trees at fogged borders don't appear bright over the black area.
+			return mapLayers.ResolvedVisibility.Contains(puv)
+				&& mapLayers.ResolvedVisibility[puv] >= 10;
 		}
 
 		public void DrawAnnotations()
