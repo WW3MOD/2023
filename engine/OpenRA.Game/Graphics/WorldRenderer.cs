@@ -310,6 +310,11 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
 
+			// WW3MOD: Extend fog overlay into the beyond-map area so actor sprites
+			// that extend past the map boundary get the same fog as border cells.
+			if (World.Type != WorldType.Editor)
+				DrawBeyondMapActorFog();
+
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
 
@@ -376,6 +381,233 @@ namespace OpenRA.Graphics
 			if (vpBR.X > mapBR.X)
 				cr.FillRect(new float3(mapBR.X, Math.Max(vpTL.Y, mapTL.Y), 0),
 					new float3(vpBR.X, Math.Min(vpBR.Y, mapBR.Y), 0), fogColor);
+
+			Game.Renderer.Flush();
+		}
+
+		// WW3MOD: Draw fog overlay in the beyond-map area AFTER actors and shroud,
+		// so that actor sprite pixels extending beyond the map boundary get fogged
+		// to match their border cell's visibility level.
+		void DrawBeyondMapActorFog()
+		{
+			var renderPlayer = World.RenderPlayer;
+			if (renderPlayer == null)
+				return;
+
+			var mapLayers = renderPlayer.MapLayers;
+			if (mapLayers == null)
+				return;
+
+			var map = World.Map;
+			var bounds = map.Bounds;
+			var cr = Game.Renderer.WorldRgbaColorRenderer;
+			var vpTL = Viewport.TopLeft;
+			var vpBR = Viewport.BottomRight;
+
+			// Precompute combined fog alpha for each visibility level (0-10).
+			// For visibility V, fog layers V through 9 are drawn by ShroudRenderer.
+			// Combined alpha = 1 - product of (1 - layerAlpha) for each layer.
+			var fogAlphas = new float[MapLayers.VisionLayers];
+			fogAlphas[0] = 1f;
+			fogAlphas[10] = 0f;
+			for (var v = 1; v < 10; v++)
+			{
+				var transparency = 1f;
+				for (var layer = v; layer <= 9; layer++)
+				{
+					var a = 1f;
+					if (layer > 1)
+						a -= (layer - 1) / 12f;
+					a /= 3f;
+					transparency *= 1f - a;
+				}
+
+				fogAlphas[v] = 1f - transparency;
+			}
+
+			// Map boundary in screen coordinates
+			var tl = new WPos(bounds.Left * TileScale, bounds.Top * TileScale, 0);
+			var br = new WPos(bounds.Right * TileScale, bounds.Bottom * TileScale, 0);
+			var mapTL = ScreenPxPosition(tl);
+			var mapBR = ScreenPxPosition(br);
+
+			// Cell dimensions in screen pixels
+			var mapWidth = bounds.Right - bounds.Left;
+			var mapHeight = bounds.Bottom - bounds.Top;
+			if (mapWidth <= 0 || mapHeight <= 0)
+				return;
+
+			var cellW = (mapBR.X - mapTL.X) / mapWidth;
+			var cellH = (mapBR.Y - mapTL.Y) / mapHeight;
+
+			// Draw fog strips extending beyond each map edge, one per border cell.
+			// Adjacent cells with the same visibility are batched into a single rect.
+
+			// Top edge
+			if (vpTL.Y < mapTL.Y)
+			{
+				var x = bounds.Left;
+				while (x < bounds.Right)
+				{
+					var puv = (PPos)new CPos(x, bounds.Top).ToMPos(map);
+					var vis = mapLayers.GetVisibility(puv);
+
+					// Batch adjacent cells with same visibility
+					var xEnd = x + 1;
+					while (xEnd < bounds.Right)
+					{
+						var nextPuv = (PPos)new CPos(xEnd, bounds.Top).ToMPos(map);
+						if (mapLayers.GetVisibility(nextPuv) != vis)
+							break;
+						xEnd++;
+					}
+
+					var alpha = fogAlphas[vis];
+					if (alpha > 0.01f)
+					{
+						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
+						var left = mapTL.X + (x - bounds.Left) * cellW;
+						var right = mapTL.X + (xEnd - bounds.Left) * cellW;
+						cr.FillRect(new float3(left, vpTL.Y, 0), new float3(right, mapTL.Y, 0), fogColor);
+					}
+
+					x = xEnd;
+				}
+			}
+
+			// Bottom edge
+			if (vpBR.Y > mapBR.Y)
+			{
+				var x = bounds.Left;
+				while (x < bounds.Right)
+				{
+					var puv = (PPos)new CPos(x, bounds.Bottom - 1).ToMPos(map);
+					var vis = mapLayers.GetVisibility(puv);
+
+					var xEnd = x + 1;
+					while (xEnd < bounds.Right)
+					{
+						var nextPuv = (PPos)new CPos(xEnd, bounds.Bottom - 1).ToMPos(map);
+						if (mapLayers.GetVisibility(nextPuv) != vis)
+							break;
+						xEnd++;
+					}
+
+					var alpha = fogAlphas[vis];
+					if (alpha > 0.01f)
+					{
+						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
+						var left = mapTL.X + (x - bounds.Left) * cellW;
+						var right = mapTL.X + (xEnd - bounds.Left) * cellW;
+						cr.FillRect(new float3(left, mapBR.Y, 0), new float3(right, vpBR.Y, 0), fogColor);
+					}
+
+					x = xEnd;
+				}
+			}
+
+			// Left edge (between map top and bottom)
+			if (vpTL.X < mapTL.X)
+			{
+				var y = bounds.Top;
+				while (y < bounds.Bottom)
+				{
+					var puv = (PPos)new CPos(bounds.Left, y).ToMPos(map);
+					var vis = mapLayers.GetVisibility(puv);
+
+					var yEnd = y + 1;
+					while (yEnd < bounds.Bottom)
+					{
+						var nextPuv = (PPos)new CPos(bounds.Left, yEnd).ToMPos(map);
+						if (mapLayers.GetVisibility(nextPuv) != vis)
+							break;
+						yEnd++;
+					}
+
+					var alpha = fogAlphas[vis];
+					if (alpha > 0.01f)
+					{
+						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
+						var top = mapTL.Y + (y - bounds.Top) * cellH;
+						var bottom = mapTL.Y + (yEnd - bounds.Top) * cellH;
+						cr.FillRect(new float3(vpTL.X, top, 0), new float3(mapTL.X, bottom, 0), fogColor);
+					}
+
+					y = yEnd;
+				}
+			}
+
+			// Right edge (between map top and bottom)
+			if (vpBR.X > mapBR.X)
+			{
+				var y = bounds.Top;
+				while (y < bounds.Bottom)
+				{
+					var puv = (PPos)new CPos(bounds.Right - 1, y).ToMPos(map);
+					var vis = mapLayers.GetVisibility(puv);
+
+					var yEnd = y + 1;
+					while (yEnd < bounds.Bottom)
+					{
+						var nextPuv = (PPos)new CPos(bounds.Right - 1, yEnd).ToMPos(map);
+						if (mapLayers.GetVisibility(nextPuv) != vis)
+							break;
+						yEnd++;
+					}
+
+					var alpha = fogAlphas[vis];
+					if (alpha > 0.01f)
+					{
+						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
+						var top = mapTL.Y + (y - bounds.Top) * cellH;
+						var bottom = mapTL.Y + (yEnd - bounds.Top) * cellH;
+						cr.FillRect(new float3(mapBR.X, top, 0), new float3(vpBR.X, bottom, 0), fogColor);
+					}
+
+					y = yEnd;
+				}
+			}
+
+			// Corners: use nearest corner cell's visibility
+			// Top-left
+			if (vpTL.Y < mapTL.Y && vpTL.X < mapTL.X)
+			{
+				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Left, bounds.Top).ToMPos(map));
+				var alpha = fogAlphas[vis];
+				if (alpha > 0.01f)
+					cr.FillRect(new float3(vpTL.X, vpTL.Y, 0), new float3(mapTL.X, mapTL.Y, 0),
+						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
+			}
+
+			// Top-right
+			if (vpTL.Y < mapTL.Y && vpBR.X > mapBR.X)
+			{
+				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Right - 1, bounds.Top).ToMPos(map));
+				var alpha = fogAlphas[vis];
+				if (alpha > 0.01f)
+					cr.FillRect(new float3(mapBR.X, vpTL.Y, 0), new float3(vpBR.X, mapTL.Y, 0),
+						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
+			}
+
+			// Bottom-left
+			if (vpBR.Y > mapBR.Y && vpTL.X < mapTL.X)
+			{
+				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Left, bounds.Bottom - 1).ToMPos(map));
+				var alpha = fogAlphas[vis];
+				if (alpha > 0.01f)
+					cr.FillRect(new float3(vpTL.X, mapBR.Y, 0), new float3(mapTL.X, vpBR.Y, 0),
+						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
+			}
+
+			// Bottom-right
+			if (vpBR.Y > mapBR.Y && vpBR.X > mapBR.X)
+			{
+				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Right - 1, bounds.Bottom - 1).ToMPos(map));
+				var alpha = fogAlphas[vis];
+				if (alpha > 0.01f)
+					cr.FillRect(new float3(mapBR.X, mapBR.Y, 0), new float3(vpBR.X, vpBR.Y, 0),
+						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
+			}
 
 			Game.Renderer.Flush();
 		}

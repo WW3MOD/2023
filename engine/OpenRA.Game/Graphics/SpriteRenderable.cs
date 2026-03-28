@@ -104,27 +104,6 @@ namespace OpenRA.Graphics
 			if (wr.TerrainLighting != null && (TintModifiers & TintModifiers.IgnoreWorldTint) == 0)
 				t *= wr.TerrainLighting.TintAt(pos);
 
-			// WW3MOD: Dim sprites based on fog-of-war visibility so actors
-			// blend naturally with fog instead of appearing at full brightness.
-			if ((TintModifiers & TintModifiers.IgnoreWorldTint) == 0)
-			{
-				var renderPlayer = wr.World.RenderPlayer;
-				if (renderPlayer != null)
-				{
-					var mapLayers = renderPlayer.MapLayers;
-					if (mapLayers != null)
-					{
-						var visibility = mapLayers.GetVisibility(pos);
-						if (visibility < 10)
-						{
-							const float minBrightness = 0.25f;
-							var fogDim = minBrightness + (1f - minBrightness) * (visibility / 10f);
-							t = fogDim * t;
-						}
-					}
-				}
-			}
-
 			// Shader interprets negative alpha as a flag to use the tint colour directly instead of multiplying the sprite colour
 			var a = Alpha;
 			if ((TintModifiers & TintModifiers.ReplaceColor) != 0)
