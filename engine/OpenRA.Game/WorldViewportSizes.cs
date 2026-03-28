@@ -19,9 +19,8 @@ namespace OpenRA
 		public readonly int2 MediumWindowHeights = new(600, 900);
 		public readonly int2 FarWindowHeights = new(900, 1300);
 
-		public readonly float DefaultScale = 1.0f;
-		public readonly float MaxZoomScale = 16.0f;
-		public readonly int MaxZoomWindowHeight = 240;
+		public readonly float MaxZoomScale = 20.0f;
+		public readonly int MaxZoomWindowHeight = 30;
 		public readonly bool AllowNativeZoom = true;
 
 		public readonly Size MinEffectiveResolution = new(1024, 720);
