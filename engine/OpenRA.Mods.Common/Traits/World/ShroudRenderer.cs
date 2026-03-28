@@ -165,23 +165,21 @@ namespace OpenRA.Mods.Common.Traits
 		byte[] GetNeighborsVisbility(PPos puv)
 		{
 			var cell = ((MPos)puv).ToCPos(map);
-			neighbors[(int)Neighbor.Top] = cellVisibility((PPos)(cell + new CVec(0, -1)).ToMPos(map));
-			neighbors[(int)Neighbor.Right] = cellVisibility((PPos)(cell + new CVec(1, 0)).ToMPos(map));
-			neighbors[(int)Neighbor.Bottom] = cellVisibility((PPos)(cell + new CVec(0, 1)).ToMPos(map));
-			neighbors[(int)Neighbor.Left] = cellVisibility((PPos)(cell + new CVec(-1, 0)).ToMPos(map));
+			var cv = cellVisibility(puv);
 
-			/*
-				var cell = ((MPos)puv).ToCPos(map);
-				var topPos = (PPos)(cell + new CVec(0, -1)).ToMPos(map);
-				var rightPos = (PPos)(cell + new CVec(1, 0)).ToMPos(map);
-				var bottomPos = (PPos)(cell + new CVec(0, 1)).ToMPos(map);
-				var leftPos = (PPos)(cell + new CVec(-1, 0)).ToMPos(map);
+			// WW3MOD: For neighbors outside the map, use the cell's own visibility
+			// instead of 0 (shroud). This prevents a false shroud gradient at map
+			// borders when the border cell is visible — the edge should fade into
+			// the DrawBeyondMapFog overlay, not into shroud.
+			var topPos = (PPos)(cell + new CVec(0, -1)).ToMPos(map);
+			var rightPos = (PPos)(cell + new CVec(1, 0)).ToMPos(map);
+			var bottomPos = (PPos)(cell + new CVec(0, 1)).ToMPos(map);
+			var leftPos = (PPos)(cell + new CVec(-1, 0)).ToMPos(map);
 
-				neighbors[(int)Neighbor.Top] = map.Contains(topPos) ? cellVisibility(topPos) : (byte)5;
-				neighbors[(int)Neighbor.Right] = map.Contains(rightPos) ? cellVisibility(rightPos) : (byte)5;
-				neighbors[(int)Neighbor.Bottom] = map.Contains(bottomPos) ? cellVisibility(bottomPos) : (byte)5;
-				neighbors[(int)Neighbor.Left] = map.Contains(leftPos) ? cellVisibility(leftPos) : (byte)5;
-			*/
+			neighbors[(int)Neighbor.Top] = map.Contains(topPos) ? cellVisibility(topPos) : cv;
+			neighbors[(int)Neighbor.Right] = map.Contains(rightPos) ? cellVisibility(rightPos) : cv;
+			neighbors[(int)Neighbor.Bottom] = map.Contains(bottomPos) ? cellVisibility(bottomPos) : cv;
+			neighbors[(int)Neighbor.Left] = map.Contains(leftPos) ? cellVisibility(leftPos) : cv;
 
 			return neighbors;
 		}
