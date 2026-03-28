@@ -202,6 +202,9 @@
 		RepairStep: 400
 		RepairInterval: 20
 		ValidRelationships: Ally, Neutral, Enemy
+	Targetable@VehicleRepair:
+		RequiresCondition: crash-disabled && damaged
+		TargetTypes: VehicleRepair
 
 ^Drone:
 	Inherits: ^Airborne

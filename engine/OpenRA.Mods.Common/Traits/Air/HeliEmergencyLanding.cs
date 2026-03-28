@@ -319,6 +319,11 @@ namespace OpenRA.Mods.Common.Traits
 				vehicleCrew.AllowForeignCrew = true;
 			}
 
+			// Block cargo loading on crash-disabled helicopters — prevents infantry from
+			// entering as cargo passengers. Only crew members should enter via EnterAsCrewMember.
+			if (cargo != null)
+				cargo.LoadingBlocked = true;
+
 			// Eject passengers
 			if (info.EjectPassengersOnSafeLanding && cargo != null && cargo.PassengerCount > 0)
 				EjectAllPassengers(self);
@@ -396,6 +401,10 @@ namespace OpenRA.Mods.Common.Traits
 				// Helicopter recovered — no longer capturable by foreign crew
 				if (vehicleCrew != null)
 					vehicleCrew.AllowForeignCrew = false;
+
+				// Re-enable cargo loading now that the helicopter is operational
+				if (cargo != null)
+					cargo.LoadingBlocked = false;
 			}
 		}
 

@@ -370,7 +370,7 @@ Repair:
 		Speed: 200
 	Warhead@Spread: SpreadDamage
 		ValidTargets: BuildingRepair, VehicleRepair
-		ValidRelationships: Ally
+		ValidRelationships: Ally, Neutral
 		DamagePercent: -1
 		DebugOverlayColor: 00FF00
 

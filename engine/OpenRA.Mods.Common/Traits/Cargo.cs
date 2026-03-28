@@ -98,6 +98,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly CargoInfo Info;
 		readonly Actor self;
 		readonly List<Actor> cargo = new List<Actor>();
+
+		/// <summary>When true, cargo loading is blocked entirely (e.g., crash-disabled helicopter).
+		/// Affects both targeting UI (cursor shows blocked) and actual loading.</summary>
+		public bool LoadingBlocked { get; set; }
 		readonly HashSet<Actor> reserves = new HashSet<Actor>();
 		readonly Dictionary<string, Stack<int>> passengerTokens = new Dictionary<string, Stack<int>>();
 		readonly Lazy<IFacing> facing;
@@ -275,6 +279,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanLoad(Actor a)
 		{
+			if (LoadingBlocked)
+				return false;
+
 			if (loadFilters != null)
 				foreach (var f in loadFilters)
 					if (!f.CanLoadPassenger(self, a))
@@ -285,6 +292,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		internal bool ReserveSpace(Actor a)
 		{
+			if (LoadingBlocked)
+				return false;
+
 			if (reserves.Contains(a))
 				return true;
 

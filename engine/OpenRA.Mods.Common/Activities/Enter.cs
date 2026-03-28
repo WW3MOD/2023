@@ -134,11 +134,13 @@ namespace OpenRA.Mods.Common.Activities
 				case EnterState.Entering:
 				{
 					// Check that we reached the requested position
+					// Use tolerance-based comparison (half a cell) instead of exact equality
+					// to handle sub-cell position mismatches (e.g., crash-landed aircraft not at cell center)
 					var targetPos = target.Positions.ClosestToIgnoringPath(self.CenterPosition);
-					if (!IsCanceling && self.CenterPosition == targetPos && target.Type == TargetType.Actor)
+					var positionDelta = self.CenterPosition - targetPos;
+					var withinTolerance = positionDelta.HorizontalLengthSquared <= 512 * 512;
+					if (!IsCanceling && withinTolerance && target.Type == TargetType.Actor)
 						OnEnterComplete(self, target.Actor);
-					else if (!IsCanceling && this is EnterAsCrew)
-						Log.Write("debug",$"[Enter] Position check FAILED for EnterAsCrew: self={self.CenterPosition} target={targetPos} type={target.Type} canceling={IsCanceling}");
 
 					lastState = EnterState.Exiting;
 					return false;

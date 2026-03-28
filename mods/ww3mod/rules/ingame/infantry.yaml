@@ -1812,8 +1812,8 @@ AA:
 		Weapon: Repair
 		Cursor: repair
 		OutsideRangeCursor: repair
-		TargetRelationships: Ally
-		ForceTargetRelationships: Ally, Neutral
+		TargetRelationships: Ally, Neutral
+		ForceTargetRelationships: Ally, Neutral, Enemy
 		PauseOnCondition: suppressed >= 10
 	Armament@ClearMines:
 		Name: clearmines
