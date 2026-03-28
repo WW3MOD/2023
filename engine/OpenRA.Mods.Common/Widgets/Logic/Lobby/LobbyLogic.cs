@@ -258,6 +258,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						{ "onExit", modData.MapCache.UpdateMaps },
 						{ "onSelect", Game.IsHost ? onSelect : null },
 						{ "filter", MapVisibility.Lobby },
+						{ "initialCategory", (string)null },
 					});
 				};
 			}

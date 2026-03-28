@@ -467,6 +467,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{ "onExit", () => SwitchMenu(MenuType.MapEditor) },
 					{ "onSelect", onSelect },
 					{ "filter", MapVisibility.Lobby | MapVisibility.Shellmap | MapVisibility.MissionSelector },
+					{ "initialCategory", (string)null },
 				});
 			};
 
