@@ -19,6 +19,7 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		readonly string role;
 		Actor enterActor;
+		bool reserved;
 
 		public EnterAsCrew(Actor self, in Target target, string role)
 			: base(self, target, Color.Green)
@@ -31,12 +32,13 @@ namespace OpenRA.Mods.Common.Activities
 			enterActor = targetActor;
 
 			var vc = targetActor.TraitOrDefault<VehicleCrew>();
-			if (vc == null || !vc.CanAcceptRole(role))
+			if (vc == null || !vc.ReserveSlot(role))
 			{
 				Cancel(self, true);
 				return false;
 			}
 
+			reserved = true;
 			return true;
 		}
 
@@ -45,14 +47,23 @@ namespace OpenRA.Mods.Common.Activities
 			self.World.AddFrameEndTask(w =>
 			{
 				if (self.IsDead)
+				{
+					Unreserve(targetActor);
 					return;
+				}
 
 				if (targetActor != enterActor)
+				{
+					Unreserve(targetActor);
 					return;
+				}
 
 				var vc = targetActor.TraitOrDefault<VehicleCrew>();
-				if (vc == null || !vc.CanAcceptRole(role))
+				if (vc == null)
+				{
+					Unreserve(targetActor);
 					return;
+				}
 
 				// Capture: if entering a non-allied vehicle (neutral crashed helicopter),
 				// change its ownership to the crew member's player
@@ -60,8 +71,24 @@ namespace OpenRA.Mods.Common.Activities
 					targetActor.ChangeOwner(self.Owner);
 
 				vc.FillSlot(role);
+				reserved = false;
 				w.Remove(self);
 			});
+		}
+
+		protected override void OnLastRun(Actor self)
+		{
+			Unreserve(enterActor);
+		}
+
+		void Unreserve(Actor targetActor)
+		{
+			if (!reserved || targetActor == null || targetActor.IsDead)
+				return;
+
+			var vc = targetActor.TraitOrDefault<VehicleCrew>();
+			vc?.UnreserveSlot(role);
+			reserved = false;
 		}
 	}
 }

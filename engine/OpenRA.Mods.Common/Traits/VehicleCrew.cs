@@ -61,6 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly string[] ejectionOrder;
 
 		readonly bool[] slotOccupied;
+		readonly bool[] slotReserved;
 		readonly int[] conditionTokens;
 		readonly Dictionary<string, int> slotIndexByName = new Dictionary<string, int>();
 
@@ -89,6 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 
 			slotOccupied = new bool[info.CrewSlots.Length];
+			slotReserved = new bool[info.CrewSlots.Length];
 			conditionTokens = new int[info.CrewSlots.Length];
 
 			for (var i = 0; i < info.CrewSlots.Length; i++)
@@ -293,7 +295,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanAcceptRole(string role)
 		{
-			return HasEmptySlot(role);
+			if (!slotIndexByName.TryGetValue(role, out var idx))
+				return false;
+
+			return !slotOccupied[idx] && !slotReserved[idx];
+		}
+
+		public bool ReserveSlot(string role)
+		{
+			if (!CanAcceptRole(role))
+				return false;
+
+			slotReserved[slotIndexByName[role]] = true;
+			return true;
+		}
+
+		public void UnreserveSlot(string role)
+		{
+			if (slotIndexByName.TryGetValue(role, out var idx))
+				slotReserved[idx] = false;
 		}
 
 		public void FillSlot(string role)
@@ -305,6 +325,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			slotOccupied[idx] = true;
+			slotReserved[idx] = false;
 			var slotName = info.CrewSlots[idx];
 			if (info.SlotConditions.TryGetValue(slotName, out var condition))
 				conditionTokens[idx] = self.GrantCondition(condition);
@@ -343,8 +364,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (!slotOccupied[idx])
 					continue;
 
-				// Vacate slot and revoke condition
+				// Vacate slot, clear reservation, and revoke condition
 				slotOccupied[idx] = false;
+				slotReserved[idx] = false;
 				if (conditionTokens[idx] != Actor.InvalidConditionToken)
 					conditionTokens[idx] = self.RevokeCondition(conditionTokens[idx]);
 
@@ -414,6 +436,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			slotOccupied[idx] = false;
+			slotReserved[idx] = false;
 			if (conditionTokens[idx] != Actor.InvalidConditionToken)
 				conditionTokens[idx] = self.RevokeCondition(conditionTokens[idx]);
 		}
