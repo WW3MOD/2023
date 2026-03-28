@@ -58,6 +58,36 @@ namespace OpenRA.Mods.Common.Activities
 			fixedRefund = refundAmount;
 		}
 
+		/// <summary>Find the SpawnArea closest to the player's Supply Route building.</summary>
+		static CPos? FindClosestSpawnAreaForOwner(Actor self)
+		{
+			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
+				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
+				.Select(a => a.Actor)
+				.ToList();
+
+			if (spawnAreas.Count == 0)
+				return null;
+
+			var ownSR = self.World.ActorsHavingTrait<ProductionFromMapEdge>()
+				.FirstOrDefault(a => !a.IsDead && a.IsInWorld && a.Owner == self.Owner);
+			var anchor = ownSR?.Location ?? self.Location;
+
+			CPos? closest = null;
+			var closestDist = int.MaxValue;
+			foreach (var sa in spawnAreas)
+			{
+				var dist = (anchor - sa.Location).LengthSquared;
+				if (dist < closestDist)
+				{
+					closestDist = dist;
+					closest = sa.Location;
+				}
+			}
+
+			return closest;
+		}
+
 		protected override void OnFirstRun(Actor self)
 		{
 			var aircraftInfo = self.Info.TraitInfoOrDefault<AircraftInfo>();
@@ -65,41 +95,22 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (aircraftInfo != null)
 			{
-				// Aircraft evacuate toward the player's home edge (spawn area), not the nearest edge
-				edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
+				// Aircraft evacuate toward the SpawnArea edge (where reinforcements enter)
+				var spawnAreaHint = FindClosestSpawnAreaForOwner(self);
+				var searchOrigin = spawnAreaHint ?? self.Owner.HomeLocation;
+				var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, 5);
+				if (candidates.Length > 0)
+					edgeCell = candidates[self.World.SharedRandom.Next(candidates.Length)];
+				else
+					edgeCell = self.World.Map.ChooseClosestEdgeCell(searchOrigin);
 			}
 			else if (mobileInfo != null)
 			{
-				// Find the SpawnArea closest to the player's own Supply Route building,
-				// so units always retreat toward their own map edge (not the nearest one)
-				var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
-					.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
-					.Select(a => a.Actor)
-					.ToList();
-
-				CPos? spawnAreaHint = null;
-				if (spawnAreas.Count > 0)
-				{
-					// Find this player's Supply Route building to anchor the search
-					var ownSR = self.World.ActorsHavingTrait<ProductionFromMapEdge>()
-						.FirstOrDefault(a => !a.IsDead && a.IsInWorld && a.Owner == self.Owner);
-					var anchor = ownSR?.Location ?? self.Location;
-
-					var closestDist = int.MaxValue;
-					foreach (var sa in spawnAreas)
-					{
-						var dist = (anchor - sa.Location).LengthSquared;
-						if (dist < closestDist)
-						{
-							closestDist = dist;
-							spawnAreaHint = sa.Location;
-						}
-					}
-				}
-
+				// Ground units retreat toward the SpawnArea edge
+				var spawnAreaHintGround = FindClosestSpawnAreaForOwner(self);
 				var pathFinder = self.World.WorldActor.Trait<IPathFinder>();
 				var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
-				var searchOrigin = spawnAreaHint ?? self.Location;
+				var searchOrigin = spawnAreaHintGround ?? self.Location;
 				edgeCell = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
 					c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, self.Location));
 			}

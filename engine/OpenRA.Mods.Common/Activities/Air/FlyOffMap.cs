@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -49,10 +50,49 @@ namespace OpenRA.Mods.Common.Activities
 			if (aircraft.Info.VTOL && self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition) != aircraft.Info.CruiseAltitude)
 				QueueChild(new TakeOff(self));
 
-			// Fly toward player's home edge rather than just forward
-			var homeEdge = self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
-			QueueChild(new Fly(self, Target.FromCell(self.World, homeEdge)));
+			// Fly toward the SpawnArea edge (where reinforcements enter), not just home edge
+			var edgeTarget = FindSpawnAreaEdge(self) ?? self.World.Map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
+			QueueChild(new Fly(self, Target.FromCell(self.World, edgeTarget)));
 			QueueChild(new FlyForward(self));
+		}
+
+		/// <summary>Find the edge cell nearest to the player's SpawnArea, with slight randomization.</summary>
+		static CPos? FindSpawnAreaEdge(Actor self)
+		{
+			// Find the SpawnArea closest to this player's Supply Route
+			var ownSR = self.World.ActorsHavingTrait<ProductionFromMapEdge>()
+				.FirstOrDefault(a => !a.IsDead && a.IsInWorld && a.Owner == self.Owner);
+			var anchor = ownSR?.Location ?? self.Owner.HomeLocation;
+
+			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
+				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)
+				.Select(a => a.Actor)
+				.ToList();
+
+			if (spawnAreas.Count == 0)
+				return null;
+
+			CPos? closest = null;
+			var closestDist = int.MaxValue;
+			foreach (var sa in spawnAreas)
+			{
+				var dist = (anchor - sa.Location).LengthSquared;
+				if (dist < closestDist)
+				{
+					closestDist = dist;
+					closest = sa.Location;
+				}
+			}
+
+			if (!closest.HasValue)
+				return null;
+
+			// Pick a random edge cell near the SpawnArea for variety
+			var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(closest.Value, 5);
+			if (candidates.Length > 0)
+				return candidates[self.World.SharedRandom.Next(candidates.Length)];
+
+			return self.World.Map.ChooseClosestEdgeCell(closest.Value);
 		}
 
 		public override bool Tick(Actor self)

@@ -92,9 +92,24 @@ namespace OpenRA.Mods.Common.Traits
 			var location = spawnLocation;
 			if (!location.HasValue)
 			{
-				// Aircraft always spawn at map edge (fly in directly)
+				// Aircraft spawn at map edge near the SpawnArea (with round-robin distribution).
+				// Uses SpawnArea as the edge hint so helicopters appear at the correct map edge,
+				// not the edge nearest to the SR building (which could be any edge).
 				if (aircraftInfo != null)
-					location = self.World.Map.ChooseClosestEdgeCell(self.Location);
+				{
+					var spawnAreaHint = FindClosestSpawnArea(self);
+					var searchOrigin = spawnAreaHint ?? self.Location;
+					var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, edgeInfo.SpawnCandidateCount);
+					if (candidates.Length > 0)
+					{
+						// Round-robin across candidate edge cells for distributed spawning
+						var idx = nextCandidateIndex % candidates.Length;
+						location = candidates[idx];
+						nextCandidateIndex = (idx + 1) % candidates.Length;
+					}
+					else
+						location = self.World.Map.ChooseClosestEdgeCell(searchOrigin);
+				}
 
 				// Ground units: use SpawnArea as a hint for which edge to spawn near.
 				// Uses round-robin across candidate cells for fast, distributed spawning.
