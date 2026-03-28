@@ -129,6 +129,15 @@
 		PermilleCost: 5
 	DeliversCash@Rotation:
 		Type: Rotation
+	SelectionPriorityModifier@Evacuating:
+		RequiresCondition: evacuating
+		Modifier: -20
+	WithTextDecoration@Evacuating:
+		Text: EVA
+		RequiresCondition: evacuating
+		Position: TopRight
+		Color: FFE040
+		Font: TinyBold
 
 ^Soldier:
 	Inherits: ^Infantry

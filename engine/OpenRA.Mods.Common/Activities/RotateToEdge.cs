@@ -9,16 +9,20 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
 	class RotateToEdge : Activity
 	{
+		static readonly Color EvacuateLineColor = Color.FromArgb(180, 255, 200, 80);
+
 		readonly IHealth health;
 		readonly PlayerResources playerResources;
 		readonly bool showTicks;
@@ -26,6 +30,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly int? fixedRefund;
 		CPos? edgeCell;
 		bool movingToEdge;
+		int evacuatingToken = Actor.InvalidConditionToken;
 
 		/// <summary>
 		/// Constructor for Sellable trait (existing behavior).
@@ -103,12 +108,19 @@ namespace OpenRA.Mods.Common.Activities
 				// No movement capability, sell immediately
 				edgeCell = null;
 			}
+
+			// Grant evacuating condition for selection deprioritization
+			if (evacuatingToken == Actor.InvalidConditionToken)
+				evacuatingToken = self.GrantCondition("evacuating");
 		}
 
 		public override bool Tick(Actor self)
 		{
 			if (IsCanceling)
+			{
+				RevokeEvacuating(self);
 				return true;
+			}
 
 			// If no edge cell found, sell immediately
 			if (!edgeCell.HasValue)
@@ -137,8 +149,21 @@ namespace OpenRA.Mods.Common.Activities
 			return true;
 		}
 
+		void RevokeEvacuating(Actor self)
+		{
+			if (evacuatingToken != Actor.InvalidConditionToken)
+				evacuatingToken = self.RevokeCondition(evacuatingToken);
+		}
+
+		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
+		{
+			if (edgeCell.HasValue)
+				yield return new TargetLineNode(Target.FromCell(self.World, edgeCell.Value), EvacuateLineColor);
+		}
+
 		void DoSell(Actor self)
 		{
+			RevokeEvacuating(self);
 			int refund;
 
 			if (fixedRefund.HasValue)

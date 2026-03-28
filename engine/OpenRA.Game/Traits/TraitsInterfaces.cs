@@ -504,6 +504,12 @@ namespace OpenRA.Traits
 		string Voice { get; }
 	}
 
+	[RequireExplicitImplementation]
+	public interface ISelectionPriorityModifier
+	{
+		int GetSelectionPriorityModifier();
+	}
+
 	public interface ISelection
 	{
 		int Hash { get; }

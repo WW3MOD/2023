@@ -31,6 +31,10 @@ namespace OpenRA.Traits
 			var info = a.Info.TraitInfo<ISelectableInfo>();
 			var basePriority = BaseSelectionPriority(info, modifiers);
 
+			// Apply dynamic priority modifiers (e.g., evacuating units deprioritized)
+			foreach (var m in a.TraitsImplementing<ISelectionPriorityModifier>())
+				basePriority += m.GetSelectionPriorityModifier();
+
 			var viewer = (a.World.LocalPlayer == null || a.World.LocalPlayer.Spectating) ? a.World.RenderPlayer : a.World.LocalPlayer;
 
 			if (a.Owner == viewer || viewer == null)
