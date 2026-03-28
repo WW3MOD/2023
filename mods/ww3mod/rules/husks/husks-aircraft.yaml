@@ -33,6 +33,7 @@
 		CanSlide: True
 	FallsToEarth:
 		Explosion: UnitExplodeHeli
+		MaximumSpinSpeed: 0
 	-MapEditorData:
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
