@@ -1,12 +1,11 @@
 -- River Zeta — Frontline Scenario
 -- NATO vs Russia across the river. Garrison forces hold the front lines.
--- After 3 minutes, garrison units transfer to player control.
+-- After 3 minutes, garrison units transfer to the first player on each team.
 -- Enemy reinforcement waves arrive periodically from the map edges.
 --
--- Player Multi0 = NATO (left/west side)
--- Player Multi1 = Russia (right/east side)
--- NATOGarrison = allied frontline troops (non-playable, transfer at 3min)
--- RussiaGarrison = allied frontline troops (non-playable, transfer at 3min)
+-- Teams are determined by lobby: Team 1 = west/NATO side, Team 2 = east/Russia side
+-- NATOGarrison (Team 1) and RussiaGarrison (Team 2) auto-ally via team system
+-- Supports 1v1 through 3v3
 
 -- Map geometry: 98x82, river roughly at x=48-50
 -- NATO edge: x=0 (west), Russia edge: x=97 (east)
@@ -16,9 +15,10 @@ local firstWaveTime = 120        -- seconds
 local waveInterval = 150          -- seconds between waves
 local totalWaves = 5
 
-local natoObjective
-local russiaObjective
+local objectives = {}
 local garrisonTransferred = false
+local team1Players = {}
+local team2Players = {}
 
 -- Difficulty scaling
 local waveScaling = {
@@ -35,22 +35,16 @@ local difficulty
 
 -- Russia waves: Russia-faction units come from east edge, push west across river to attack NATO
 local russiaAttackWaves = {
-	-- Wave 1: Light probe
 	{ unitTypes = { "e3.russia", "e3.russia", "e3.russia", "e1.russia", "e1.russia" },
 	  entry = { 97, 38 }, rally = { 35, 38 } },
-	-- Wave 2: Mechanized
 	{ unitTypes = { "btr", "e3.russia", "e3.russia", "ar.russia", "at.russia" },
 	  entry = { 97, 30 }, rally = { 33, 30 } },
-	-- Wave 3: Armor push
 	{ unitTypes = { "t90", "bmp2", "e3.russia", "e3.russia", "ar.russia", "ar.russia" },
 	  entry = { 97, 42 }, rally = { 32, 42 } },
-	-- Wave 4: Combined arms
 	{ unitTypes = { "t90", "t90", "bmp2", "btr", "e3.russia", "e3.russia", "at.russia", "at.russia" },
 	  entry = { 97, 35 }, rally = { 30, 35 } },
-	-- Wave 5: Full assault
 	{ unitTypes = { "t90", "t90", "bmp2", "bmp2", "btr", "e3.russia", "e3.russia", "e3.russia", "ar.russia", "ar.russia", "at.russia", "sn.russia" },
 	  entry = { 97, 40 }, rally = { 28, 40 } },
-	-- Wave 6-7 (hard only): Escalation
 	{ unitTypes = { "t90", "t90", "t90", "bmp2", "bmp2", "e3.russia", "e3.russia", "ar.russia", "at.russia", "at.russia" },
 	  entry = { 97, 32 }, rally = { 26, 32 } },
 	{ unitTypes = { "t90", "t90", "t90", "bmp2", "bmp2", "btr", "btr", "e3.russia", "e3.russia", "e3.russia", "e3.russia", "ar.russia", "ar.russia" },
@@ -59,22 +53,16 @@ local russiaAttackWaves = {
 
 -- NATO waves: NATO-faction units come from west edge, push east across river to attack Russia
 local natoAttackWaves = {
-	-- Wave 1: Light probe
 	{ unitTypes = { "e3.america", "e3.america", "e3.america", "e1.america", "e1.america" },
 	  entry = { 0, 38 }, rally = { 61, 38 } },
-	-- Wave 2: Mechanized
 	{ unitTypes = { "m113", "e3.america", "e3.america", "ar.america", "at.america" },
 	  entry = { 0, 30 }, rally = { 63, 30 } },
-	-- Wave 3: Armor push
 	{ unitTypes = { "abrams", "bradley", "e3.america", "e3.america", "ar.america", "ar.america" },
 	  entry = { 0, 42 }, rally = { 64, 42 } },
-	-- Wave 4: Combined arms
 	{ unitTypes = { "abrams", "abrams", "bradley", "m113", "e3.america", "e3.america", "at.america", "at.america" },
 	  entry = { 0, 35 }, rally = { 66, 35 } },
-	-- Wave 5: Full assault
 	{ unitTypes = { "abrams", "abrams", "bradley", "bradley", "m113", "e3.america", "e3.america", "e3.america", "ar.america", "ar.america", "at.america", "sn.america" },
 	  entry = { 0, 40 }, rally = { 68, 40 } },
-	-- Wave 6-7 (hard only)
 	{ unitTypes = { "abrams", "abrams", "abrams", "bradley", "bradley", "e3.america", "e3.america", "ar.america", "at.america", "at.america" },
 	  entry = { 0, 32 }, rally = { 70, 32 } },
 	{ unitTypes = { "abrams", "abrams", "abrams", "bradley", "bradley", "m113", "m113", "e3.america", "e3.america", "e3.america", "e3.america", "ar.america", "ar.america" },
@@ -99,7 +87,6 @@ local function SpawnWave(waveList, waveNum, ownerName)
 	local entry = CPos.New(wave.entry[1], wave.entry[2])
 	local rally = CPos.New(wave.rally[1], wave.rally[2])
 
-	-- Scale unit count by difficulty
 	local scale = waveScaling[difficulty].multiplier
 	local unitCount = math.max(1, math.floor(#wave.unitTypes * scale + 0.5))
 	local types = {}
@@ -109,6 +96,12 @@ local function SpawnWave(waveList, waveNum, ownerName)
 
 	local actors = Reinforcements.Reinforce(owner, types, { entry, rally }, 20, HuntAfterArrival)
 	return actors
+end
+
+local function NotifyAllPlayers(players, notification)
+	for _, p in ipairs(players) do
+		Media.PlaySpeechNotification(p, notification)
+	end
 end
 
 -- ============================================================
@@ -124,17 +117,31 @@ WorldLoaded = function()
 	waveInterval = waveScaling[difficulty].waveInterval
 	totalWaves = waveScaling[difficulty].totalWaves
 
-	local nato = Scenario.GetPlayer("Multi0")
-	local russia = Scenario.GetPlayer("Multi1")
 	local natoGar = Scenario.GetPlayer("NATOGarrison")
 	local russiaGar = Scenario.GetPlayer("RussiaGarrison")
 
-	-- Initialize objectives
-	InitObjectives(nato)
-	InitObjectives(russia)
+	-- Find all human players and sort by team
+	local allPlayers = Player.GetPlayers(function(p)
+		return p.InternalName:match("^Multi%d+$") and not p.IsNonCombatant
+	end)
 
-	natoObjective = nato.AddPrimaryObjective("Defend the river crossing and eliminate all enemy forces.")
-	russiaObjective = russia.AddPrimaryObjective("Defend the river crossing and eliminate all enemy forces.")
+	for _, p in ipairs(allPlayers) do
+		if p.Team == 1 then
+			table.insert(team1Players, p)
+		elseif p.Team == 2 then
+			table.insert(team2Players, p)
+		end
+	end
+
+	-- Initialize objectives for all active players
+	for _, p in ipairs(team1Players) do
+		InitObjectives(p)
+		objectives[p.InternalName] = p.AddPrimaryObjective("Defend the river crossing and eliminate all enemy forces.")
+	end
+	for _, p in ipairs(team2Players) do
+		InitObjectives(p)
+		objectives[p.InternalName] = p.AddPrimaryObjective("Defend the river crossing and eliminate all enemy forces.")
+	end
 
 	-- Briefing text
 	Scenario.SetBriefing("Frontline: Hold the river. Garrison reinforcements incoming in 3:00")
@@ -146,27 +153,31 @@ WorldLoaded = function()
 	Camera.Position = WPos.New(1024 * 49, 1024 * 38, 0)
 
 	-- Order garrison units to defend their positions
-	local natoGarUnits = natoGar.GetActors()
-	for _, unit in ipairs(natoGarUnits) do
+	for _, unit in ipairs(natoGar.GetActors()) do
 		if unit.HasProperty("Hunt") then
 			unit.Hunt()
 		end
 	end
-	local russiaGarUnits = russiaGar.GetActors()
-	for _, unit in ipairs(russiaGarUnits) do
+	for _, unit in ipairs(russiaGar.GetActors()) do
 		if unit.HasProperty("Hunt") then
 			unit.Hunt()
 		end
 	end
 
-	-- Schedule garrison transfer
+	-- Schedule garrison transfer — transfer to the first player on each team
 	Trigger.AfterDelay(DateTime.Seconds(garrisonTransferTime), function()
 		garrisonTransferred = true
-		Scenario.TransferAll("NATOGarrison", "Multi0")
-		Scenario.TransferAll("RussiaGarrison", "Multi1")
+
+		if #team1Players > 0 then
+			Scenario.TransferAll("NATOGarrison", team1Players[1].InternalName)
+		end
+		if #team2Players > 0 then
+			Scenario.TransferAll("RussiaGarrison", team2Players[1].InternalName)
+		end
+
 		Scenario.Message("Garrison forces are now under your command!", "EVA")
-		Media.PlaySpeechNotification(nato, "ReinforcementsArrived")
-		Media.PlaySpeechNotification(russia, "ReinforcementsArrived")
+		NotifyAllPlayers(team1Players, "ReinforcementsArrived")
+		NotifyAllPlayers(team2Players, "ReinforcementsArrived")
 		Scenario.SetBriefing("Frontline: Garrison forces transferred. Defend the line!")
 	end)
 
@@ -185,16 +196,17 @@ WorldLoaded = function()
 	end)
 
 	-- Schedule enemy reinforcement waves
+	-- Waves are owned by garrison players (auto-allied via team system)
 	for i = 1, totalWaves do
 		local waveDelay = firstWaveTime + (i - 1) * waveInterval
 		Trigger.AfterDelay(DateTime.Seconds(waveDelay), function()
 			Scenario.Message("Enemy reinforcement wave " .. i .. " of " .. totalWaves .. " approaching!", "EVA")
-			Media.PlaySpeechNotification(nato, "EnemyUnitsApproaching")
-			Media.PlaySpeechNotification(russia, "EnemyUnitsApproaching")
+			NotifyAllPlayers(team1Players, "EnemyUnitsApproaching")
+			NotifyAllPlayers(team2Players, "EnemyUnitsApproaching")
 
-			-- Waves attack BOTH sides — each side gets attacked by the other faction
-			SpawnWave(russiaAttackWaves, i, "Multi1")
-			SpawnWave(natoAttackWaves, i, "Multi0")
+			-- Russia waves attack west (Team 1), NATO waves attack east (Team 2)
+			SpawnWave(russiaAttackWaves, i, "RussiaGarrison")
+			SpawnWave(natoAttackWaves, i, "NATOGarrison")
 
 			if i == totalWaves then
 				Trigger.AfterDelay(DateTime.Seconds(10), function()
@@ -207,17 +219,44 @@ WorldLoaded = function()
 		end)
 	end
 
-	-- Victory/defeat conditions
-	Trigger.OnPlayerLost(nato, function()
-		if not russia.IsObjectiveCompleted(russiaObjective) then
-			russia.MarkCompletedObjective(russiaObjective)
-		end
-	end)
-	Trigger.OnPlayerLost(russia, function()
-		if not nato.IsObjectiveCompleted(natoObjective) then
-			nato.MarkCompletedObjective(natoObjective)
-		end
-	end)
+	-- Victory/defeat: when all players on one team are defeated, the other team wins
+	for _, p in ipairs(team1Players) do
+		Trigger.OnPlayerLost(p, function()
+			-- Check if all team 1 players are defeated
+			local allLost = true
+			for _, tp in ipairs(team1Players) do
+				if not tp.HasNoRequiredUnits() then
+					allLost = false
+					break
+				end
+			end
+			if allLost then
+				for _, tp in ipairs(team2Players) do
+					if objectives[tp.InternalName] and not tp.IsObjectiveCompleted(objectives[tp.InternalName]) then
+						tp.MarkCompletedObjective(objectives[tp.InternalName])
+					end
+				end
+			end
+		end)
+	end
+	for _, p in ipairs(team2Players) do
+		Trigger.OnPlayerLost(p, function()
+			local allLost = true
+			for _, tp in ipairs(team2Players) do
+				if not tp.HasNoRequiredUnits() then
+					allLost = false
+					break
+				end
+			end
+			if allLost then
+				for _, tp in ipairs(team1Players) do
+					if objectives[tp.InternalName] and not tp.IsObjectiveCompleted(objectives[tp.InternalName]) then
+						tp.MarkCompletedObjective(objectives[tp.InternalName])
+					end
+				end
+			end
+		end)
+	end
 end
 
 Tick = function()

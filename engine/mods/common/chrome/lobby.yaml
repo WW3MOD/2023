@@ -99,12 +99,11 @@ Background@SERVER_LOBBY:
 			Y: 67
 			Width: 675
 			Height: PARENT_HEIGHT - 346
-		Button@CHANGESCENARIO_BUTTON:
+		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
 			Y: 291
 			Width: 174
 			Height: 25
-			Text: Change Scenario
 			Font: Bold
 		Button@CHANGEMAP_BUTTON:
 			X: PARENT_WIDTH - WIDTH - 20

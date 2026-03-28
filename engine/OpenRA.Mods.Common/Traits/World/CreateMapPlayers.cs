@@ -170,6 +170,33 @@ namespace OpenRA.Mods.Common.Traits
 						p.EnemyPlayersMask = p.EnemyPlayersMask.Union(q.PlayerMask);
 				}
 			}
+
+			// Non-playable players with a Team set (e.g. garrison factions in scenarios)
+			// auto-ally/enemy with playable players based on lobby team matching.
+			if (!p.PlayerReference.Playable && p.PlayerReference.Team > 0 && q.PlayerReference.Playable)
+			{
+				var qc = GetClientForPlayer(q);
+				if (qc != null && qc.Team > 0)
+				{
+					if (p.PlayerReference.Team == qc.Team)
+						p.AlliedPlayersMask = p.AlliedPlayersMask.Union(q.PlayerMask);
+					else
+						p.EnemyPlayersMask = p.EnemyPlayersMask.Union(q.PlayerMask);
+				}
+			}
+
+			// Symmetric: playable player auto-allies/enemies with non-playable team players
+			if (p.PlayerReference.Playable && !q.PlayerReference.Playable && q.PlayerReference.Team > 0)
+			{
+				var pc = GetClientForPlayer(p);
+				if (pc != null && pc.Team > 0)
+				{
+					if (pc.Team == q.PlayerReference.Team)
+						p.AlliedPlayersMask = p.AlliedPlayersMask.Union(q.PlayerMask);
+					else
+						p.EnemyPlayersMask = p.EnemyPlayersMask.Union(q.PlayerMask);
+				}
+			}
 		}
 
 		static Session.Client GetClientForPlayer(Player p)

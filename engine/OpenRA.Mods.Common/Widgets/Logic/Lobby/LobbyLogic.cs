@@ -263,37 +263,48 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				};
 			}
 
-			var scenarioButton = lobby.GetOrNull<ButtonWidget>("CHANGESCENARIO_BUTTON");
-			if (scenarioButton != null)
+			var scenarioDropdown = lobby.GetOrNull<DropDownButtonWidget>("SCENARIO_DROPDOWNBUTTON");
+			if (scenarioDropdown != null)
 			{
-				scenarioButton.IsVisible = () => panel != PanelType.Servers;
-				scenarioButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
-					orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
-				scenarioButton.OnClick = () =>
+				scenarioDropdown.IsVisible = () =>
 				{
-					var onSelect = new Action<string>(uid =>
+					if (panel == PanelType.Servers)
+						return false;
+
+					var scenarios = map.ScenarioNames;
+					return scenarios != null && scenarios.Length > 0;
+				};
+
+				scenarioDropdown.IsDisabled = () => configurationDisabled() || gameStarting ||
+					panel == PanelType.Kick || panel == PanelType.ForceStart;
+
+				scenarioDropdown.GetText = () =>
+				{
+					var current = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
+					return current == "none" ? "No Scenario" : current;
+				};
+
+				scenarioDropdown.OnMouseDown = _ =>
+				{
+					var scenarios = map.ScenarioNames;
+					if (scenarios == null || scenarios.Length == 0)
+						return;
+
+					var values = new Dictionary<string, string> { { "none", "No Scenario" } };
+					foreach (var name in scenarios)
+						values[name] = name;
+
+					ScrollItemWidget SetupItem(KeyValuePair<string, string> c, ScrollItemWidget template)
 					{
-						var status = modData.MapCache[uid].Status;
-						if (uid == map.Uid || (status != MapStatus.Available && status != MapStatus.DownloadAvailable))
-							return;
+						bool IsSelected() => orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none") == c.Key;
+						void OnClick() => orderManager.IssueOrder(Order.Command($"option scenario {c.Key}"));
 
-						orderManager.IssueOrder(Order.Command("map " + uid));
-						Game.Settings.Server.Map = uid;
-						Game.Settings.Save();
-					});
+						var item = ScrollItemWidget.Setup(template, IsSelected, OnClick);
+						item.Get<LabelWidget>("LABEL").GetText = () => c.Value;
+						return item;
+					}
 
-					modData.MapCache.UpdateMaps();
-
-					Ui.OpenWindow("MAPCHOOSER_PANEL", new WidgetArgs()
-					{
-						{ "initialMap", map.Uid },
-						{ "remoteMapPool", orderManager.ServerMapPool },
-						{ "initialTab", MapClassification.System },
-						{ "onExit", modData.MapCache.UpdateMaps },
-						{ "onSelect", Game.IsHost ? onSelect : null },
-						{ "filter", MapVisibility.Lobby },
-						{ "initialCategory", "Scenario" },
-					});
+					scenarioDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", values.Count * 30, values, SetupItem);
 				};
 			}
 
