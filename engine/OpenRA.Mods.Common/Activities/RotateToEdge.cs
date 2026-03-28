@@ -144,20 +144,22 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			// Wait for child activities to complete
-			if (ChildActivity != null)
+			// Aircraft: sell as soon as they leave the map or hit an edge cell.
+			// Uses FlyOffMap which handles direction (toward SpawnArea) and off-map flight.
+			if (isAircraft && movingToEdge)
 			{
-				// Aircraft: sell as soon as they're within 2 cells of the edge target.
-				// Don't wait for Fly to finish — CanSlide deceleration causes visible bouncing.
-				if (isAircraft && movingToEdge && edgeCell.HasValue
-					&& (self.Location - edgeCell.Value).LengthSquared <= 4)
+				if (!self.World.Map.Contains(self.Location) || IsOnMapEdge(self))
 				{
 					DoSell(self);
 					return true;
 				}
 
-				return false;
+				return TickChild(self);
 			}
+
+			// Wait for child activities to complete
+			if (ChildActivity != null)
+				return false;
 
 			// Queue move to edge if not done yet
 			if (!movingToEdge)
@@ -166,9 +168,9 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (isAircraft)
 				{
-					// Aircraft: fly to nearest edge cell in the spawn zone, sell on arrival.
-					// Don't try to fly off-map — repulsion force pushes aircraft back.
-					QueueChild(new Fly(self, Target.FromCell(self.World, edgeCell.Value)));
+					// Aircraft: FlyOffMap handles flight toward spawn area edge at full speed.
+					// We intercept in Tick above to sell as soon as the aircraft reaches an edge cell.
+					QueueChild(new FlyOffMap(self));
 				}
 				else
 				{
@@ -183,6 +185,14 @@ namespace OpenRA.Mods.Common.Activities
 			// Arrived at edge (or close enough) — sell
 			DoSell(self);
 			return true;
+		}
+
+		static bool IsOnMapEdge(Actor self)
+		{
+			var map = self.World.Map;
+			var mpos = self.Location.ToMPos(map);
+			return mpos.U <= map.Bounds.Left + 1 || mpos.U >= map.Bounds.Right - 2
+				|| mpos.V <= map.Bounds.Top + 1 || mpos.V >= map.Bounds.Bottom - 2;
 		}
 
 		void RevokeEvacuating(Actor self)
