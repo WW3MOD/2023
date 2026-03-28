@@ -77,7 +77,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var allOptions = mapPreview.PlayerActorInfo.TraitInfos<ILobbyOptions>()
 					.Concat(mapPreview.WorldActorInfo.TraitInfos<ILobbyOptions>())
 					.SelectMany(t => t.LobbyOptions(mapPreview))
-					.Where(o => o.IsVisible)
+					.Where(o => o.IsVisible && o.Id != "scenario")
 					.OrderBy(o => o.DisplayOrder)
 					.ToArray();
 
