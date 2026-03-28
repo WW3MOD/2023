@@ -310,6 +310,14 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
 
+			// WW3MOD: Draw beyond-map fog a SECOND time, after shroud rendering.
+			// The first call (before actors) hides terrain overflow at edges.
+			// This second call covers actor/tree sprites that extend beyond map
+			// bounds — shroud only covers map cells, so without this pass, tall
+			// sprites near borders appear at full visibility over the black area.
+			if (World.Type != WorldType.Editor)
+				DrawBeyondMapFog();
+
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
 
