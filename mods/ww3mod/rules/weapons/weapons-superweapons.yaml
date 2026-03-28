@@ -71,16 +71,17 @@ Atomic:
 	# Inverse falloff: close units melt visibly over the 2 seconds; far units barely singed.
 	# After the thermal shine fades, the shockwave arrives to finish survivors.
 
-	# Instant vaporization at ground zero (0-2 cells) — nothing survives this close
+	# Instant vaporization at ground zero (0-3 cells) — nothing survives this close
+	# Uses ElectricityDeath to trigger electric disintegration animation on infantry
 	Warhead@ThermalVaporize: SpreadDamage
-		Spread: 1c0
+		Spread: 3c0
 		Damage: 200000
 		Penetration: 5000
-		Falloff: 100, 100, 100
+		Falloff: 100, 100, 100, 50
 		Delay: 1
 		ValidTargets: Ground, Water, Underwater, Air
 		InvalidTargets: Trees
-		DamageTypes: FireDeath
+		DamageTypes: ElectricityDeath
 		AirThreshold: 10c0
 
 	# Instant tree incineration at ground zero (0-3 cells) — trees vaporized, husked immediately
