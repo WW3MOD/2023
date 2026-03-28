@@ -6,6 +6,7 @@
 		PlayerExperienceModifier: 1
 	ScriptTriggers:
 	RenderDebugState:
+	WithHealFlash:
 ^SpriteActor:
 	BodyOrientation:
 	QuantizeFacingsFromSequence:
