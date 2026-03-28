@@ -66,9 +66,9 @@ namespace OpenRA.Graphics
 		WorldViewport lastViewportDistance;
 
 		float zoom = 1f;
-		bool unlockMinZoom;
-		float unlockedMinZoomScale;
-		float unlockedMinZoom = 1f;
+		bool unlockMinZoom = true;
+		float unlockedMinZoomScale = 0.25f;
+		float unlockedMinZoom = 0.25f;
 
 		public float Zoom
 		{
@@ -84,7 +84,7 @@ namespace OpenRA.Graphics
 		}
 
 		public float MinZoom { get; private set; } = 1f;
-		public float MaxZoom { get; private set; } = 2f;
+		public float MaxZoom { get; private set; } = 4f;
 
 		public void AdjustZoom(float dz)
 		{
@@ -208,16 +208,14 @@ namespace OpenRA.Graphics
 
 			var vd = graphicSettings.ViewportDistance;
 			if (viewportSizes.AllowNativeZoom && vd == WorldViewport.Native)
-				MinZoom = viewportSizes.DefaultScale;
+				MinZoom = 1;
 			else
 			{
 				var range = viewportSizes.GetSizeRange(vd);
-				MinZoom = CalculateMinimumZoom(range.X, range.Y) * viewportSizes.DefaultScale;
+				MinZoom = CalculateMinimumZoom(range.X, range.Y);
 			}
 
-			MaxZoom = Math.Min(
-				MinZoom * viewportSizes.MaxZoomScale,
-				Game.Renderer.NativeResolution.Height * viewportSizes.DefaultScale / viewportSizes.MaxZoomWindowHeight);
+			MaxZoom = Math.Min(MinZoom * viewportSizes.MaxZoomScale, Game.Renderer.NativeResolution.Height * 1f / viewportSizes.MaxZoomWindowHeight);
 
 			if (unlockMinZoom)
 			{
