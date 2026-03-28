@@ -1061,6 +1061,7 @@ HIMARSMissile:
 		Image: smokey2
 		Palette: effect_ts
 		MovingInterval: 1
+		Type: CenterPosition
 		Offsets: -200, 0, 0
 	MissileSpawnerSlave:
 	SpawnedExplodes:

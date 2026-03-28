@@ -10,12 +10,12 @@ ATGM:
 	Projectile: Missile
 		Inaccuracy: 512
 		Speed: 300
-		Acceleration: 15
+		Acceleration: 30
 		RangeLimit: 21c0
 		HorizontalRateOfTurn: 20
 		AirburstAltitude: 32
 		Blockable: false
-		MaximumLaunchSpeed: 20
+		MaximumLaunchSpeed: 100
 		CruiseAltitude: 10c0
 		ContrailLength: 5
 		Image: dragon
