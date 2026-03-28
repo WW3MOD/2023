@@ -74,22 +74,7 @@ namespace OpenRA.Mods.Common.Widgets
 					.Select(at => new TraitPair<AutoTarget>(a, at)))
 				.ToArray();
 
-			// DEBUG: Diagnose why garrison buildings may not show stances
-			if (actorStances.Length == 0 && world.Selection.Actors.Any())
-			{
-				foreach (var a in world.Selection.Actors)
-				{
-					var hasAT = a.TraitsImplementing<AutoTarget>().Any();
-					var hasATEnabled = a.TraitsImplementing<AutoTarget>().Any(at => at.Info.EnableStances);
-					var isLocal = a.Owner == world.LocalPlayer;
-					var inWorld = a.IsInWorld;
-					if (a.Info.HasTraitInfo<CargoInfo>()) // Only log for potential garrison buildings
-						TextNotificationsManager.Debug("[STANCE DEBUG] {0}: Owner={1} LocalPlayer={2} IsLocal={3} InWorld={4} HasAutoTarget={5} HasATEnabled={6}",
-							a.Info.Name, a.Owner.PlayerName, world.LocalPlayer?.PlayerName ?? "null", isLocal, inWorld, hasAT, hasATEnabled);
-				}
-			}
-
-			selectionHash = world.Selection.Hash;
+selectionHash = world.Selection.Hash;
 		}
 
 		void SetSelectionStance(UnitStance stance)

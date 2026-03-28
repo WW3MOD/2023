@@ -237,9 +237,9 @@ namespace OpenRA.Mods.Common.Orders
 		static Order CheckSameOrder(IOrderTargeter iot, Order order)
 		{
 			if (order == null && iot.OrderID != null)
-				TextNotificationsManager.Debug("BUG: in order targeter - decided on {0} but then didn't order", iot.OrderID);
+				Log.Write("debug", "BUG: in order targeter - decided on {0} but then didn't order", iot.OrderID);
 			else if (order != null && iot.OrderID != order.OrderString)
-				TextNotificationsManager.Debug("BUG: in order targeter - decided on {0} but ordered {1}", iot.OrderID, order.OrderString);
+				Log.Write("debug", "BUG: in order targeter - decided on {0} but ordered {1}", iot.OrderID, order.OrderString);
 			return order;
 		}
 
