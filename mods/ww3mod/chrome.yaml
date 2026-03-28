@@ -371,6 +371,12 @@ dialog5:
 	PanelRegion: 580, 388, 0, 0, 62, 62, 0, 0
 	PanelSides: Center
 
+# dark blue fill (from button-pressed interior) for lobby background
+dialog-lobby-fill:
+	Inherits: ^Dialog
+	PanelRegion: 643, 3, 0, 0, 120, 120, 0, 0
+	PanelSides: Center
+
 lobby-bits:
 	Inherits: ^Glyphs
 	Regions:
