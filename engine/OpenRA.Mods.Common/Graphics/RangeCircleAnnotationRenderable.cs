@@ -54,6 +54,7 @@ namespace OpenRA.Mods.Common.Graphics
 			Color color, float width, Color borderColor, float borderWidth,
 			(WPos Center, long RadiusSq)[] otherCircles, Color dimColor, Color dimBorderColor)
 		{
+			this.centerPosition = centerPosition;
 			Pos = centerPosition;
 			this.radius = radius;
 			ZOffset = zOffset;

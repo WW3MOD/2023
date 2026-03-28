@@ -222,7 +222,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: guard
 				Button@TAKE_COVER:
 					Logic: AddFactionSuffixLogic
-					X: 376
+					X: 358
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -241,7 +241,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: deploy
 				Button@AUTO_ENTER:
 					Logic: AddFactionSuffixLogic
-					X: 410
+					X: 392
 					Width: 34
 					Height: 26
 					VisualHeight: 0
