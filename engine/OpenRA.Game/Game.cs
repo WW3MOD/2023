@@ -539,6 +539,11 @@ namespace OpenRA
 				return;
 			}
 
+			// Reset lobby state so stale slots from the previous shellmap
+			// don't cause KeyNotFoundException in CreateMapPlayers.
+			Disconnect();
+			JoinLocal();
+
 			using (new PerfTimer("StartGame"))
 			{
 				StartGame(uid, WorldType.Shellmap);
