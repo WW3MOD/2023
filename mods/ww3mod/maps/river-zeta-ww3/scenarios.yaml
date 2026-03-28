@@ -4,19 +4,44 @@ Frontline:
 			Name: Multi0
 			Playable: True
 			Faction: america
+			LockFaction: True
 			Color: 3276FF
+			LockColor: True
+			Team: 1
+			LockTeam: True
+			Spawn: 5
+			LockSpawn: True
 			Enemies: Multi1, RussiaGarrison, Creeps
 			Allies: NATOGarrison
 		PlayerReference@Multi1:
 			Name: Multi1
 			Playable: True
 			Faction: russia
+			LockFaction: True
 			Color: FF3232
+			LockColor: True
+			Team: 2
+			LockTeam: True
+			Spawn: 6
+			LockSpawn: True
 			Enemies: Multi0, NATOGarrison, Creeps
 			Allies: RussiaGarrison
+		PlayerReference@Multi2:
+			Name: Multi2
+			Playable: False
+		PlayerReference@Multi3:
+			Name: Multi3
+			Playable: False
+		PlayerReference@Multi4:
+			Name: Multi4
+			Playable: False
+		PlayerReference@Multi5:
+			Name: Multi5
+			Playable: False
 		PlayerReference@NATOGarrison:
 			Name: NATOGarrison
 			Playable: False
+			NonCombatant: False
 			Faction: america
 			Color: 5A9AFF
 			Enemies: Multi1, RussiaGarrison, Creeps
@@ -24,6 +49,7 @@ Frontline:
 		PlayerReference@RussiaGarrison:
 			Name: RussiaGarrison
 			Playable: False
+			NonCombatant: False
 			Faction: russia
 			Color: FF6464
 			Enemies: Multi0, NATOGarrison, Creeps
