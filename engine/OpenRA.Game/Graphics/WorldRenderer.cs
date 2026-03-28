@@ -304,10 +304,8 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
 
-			// WW3MOD: Draw fog overlay on the beyond-map area so it doesn't appear
-			// fully bright. Effects (nukes, missiles) still show through dimly.
-			if (World.Type != WorldType.Editor)
-				DrawBeyondMapFog();
+			// WW3MOD: Beyond-map area is naturally black (clear color).
+			// No overlay needed — effects rendering beyond edges show against black.
 
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
