@@ -137,6 +137,8 @@ namespace OpenRA.Mods.Common.Activities
 					var targetPos = target.Positions.ClosestToIgnoringPath(self.CenterPosition);
 					if (!IsCanceling && self.CenterPosition == targetPos && target.Type == TargetType.Actor)
 						OnEnterComplete(self, target.Actor);
+					else if (!IsCanceling && this is EnterAsCrew)
+						Game.Debug($"[Enter] Position check FAILED for EnterAsCrew: self={self.CenterPosition} target={targetPos} type={target.Type} canceling={IsCanceling}");
 
 					lastState = EnterState.Exiting;
 					return false;
