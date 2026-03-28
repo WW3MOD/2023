@@ -14985,7 +14985,7 @@ Actors:
 		Facing: 768
 	NatoM113: m113
 		Owner: NATO
-		Location: 25,48
+		Location: 24,47
 		Facing: 768
 	NatoShorad: strykershorad
 		Owner: NATO
@@ -15030,7 +15030,7 @@ Actors:
 		Facing: 768
 	NatoE3_2: e3.america
 		Owner: NATO
-		Location: 29,31
+		Location: 28,32
 		Facing: 768
 	NatoE3_3: e3.america
 		Owner: NATO
@@ -15043,7 +15043,7 @@ Actors:
 	# Autoriflemen (AR) — buddy pairs with E3s
 	NatoAR_1: ar.america
 		Owner: NATO
-		Location: 31,25
+		Location: 31,26
 		Facing: 768
 	NatoAR_2: ar.america
 		Owner: NATO
@@ -15074,7 +15074,7 @@ Actors:
 	# Grenadiers — slightly forward for indirect fire
 	NatoE2_1: e2.america
 		Owner: NATO
-		Location: 32,30
+		Location: 31,29
 		Facing: 768
 	NatoE2_2: e2.america
 		Owner: NATO
@@ -15100,7 +15100,7 @@ Actors:
 		Facing: 768
 	NatoAA: aa.america
 		Owner: NATO
-		Location: 22,50
+		Location: 21,50
 		Facing: 768
 	NatoSN: sn.america
 		Owner: NATO
@@ -15108,11 +15108,11 @@ Actors:
 		Facing: 768
 	NatoSF: sf.america
 		Owner: NATO
-		Location: 35,42
+		Location: 34,41
 		Facing: 768
 	NatoE4: e4.america
 		Owner: NATO
-		Location: 31,53
+		Location: 30,52
 		Facing: 768
 	NatoE6: e6.america
 		Owner: NATO
@@ -15120,7 +15120,7 @@ Actors:
 		Facing: 768
 	NatoTecn: tecn.america
 		Owner: NATO
-		Location: 20,31
+		Location: 19,32
 		Facing: 768
 	NatoDR: dr.america
 		Owner: NATO
@@ -15128,7 +15128,7 @@ Actors:
 		Facing: 768
 	NatoMedi1: medi.america
 		Owner: NATO
-		Location: 23,30
+		Location: 22,29
 		Facing: 768
 	NatoMedi2: medi.america
 		Owner: NATO
@@ -15159,7 +15159,7 @@ Actors:
 		Facing: 256
 	RussiaBTR_2: btr
 		Owner: Russia
-		Location: 70,51
+		Location: 69,51
 		Facing: 256
 	RussiaTunguska: tunguska
 		Owner: Russia
@@ -15204,7 +15204,7 @@ Actors:
 	# Riflemen (E3) — main line
 	RussiaE3_1: e3.russia
 		Owner: Russia
-		Location: 68,23
+		Location: 68,22
 		Facing: 256
 	RussiaE3_2: e3.russia
 		Owner: Russia
@@ -15212,7 +15212,7 @@ Actors:
 		Facing: 256
 	RussiaE3_3: e3.russia
 		Owner: Russia
-		Location: 67,39
+		Location: 67,38
 		Facing: 256
 	RussiaE3_4: e3.russia
 		Owner: Russia
@@ -15234,7 +15234,7 @@ Actors:
 	# Anti-tank — covering bridge approaches
 	RussiaAT_1: at.russia
 		Owner: Russia
-		Location: 71,28
+		Location: 71,29
 		Facing: 256
 	RussiaAT_2: at.russia
 		Owner: Russia
@@ -15252,7 +15252,7 @@ Actors:
 	# Grenadiers
 	RussiaE2_1: e2.russia
 		Owner: Russia
-		Location: 66,29
+		Location: 66,30
 		Facing: 256
 	RussiaE2_2: e2.russia
 		Owner: Russia
@@ -15269,7 +15269,7 @@ Actors:
 		Facing: 256
 	RussiaE1_3: e1.russia
 		Owner: Russia
-		Location: 68,50
+		Location: 68,49
 		Facing: 256
 	# Specialists
 	RussiaMT: mt.russia
@@ -15282,7 +15282,7 @@ Actors:
 		Facing: 256
 	RussiaSN: sn.russia
 		Owner: Russia
-		Location: 64,27
+		Location: 64,26
 		Facing: 256
 	RussiaSF: sf.russia
 		Owner: Russia
@@ -15314,7 +15314,7 @@ Actors:
 		Facing: 256
 	RussiaMedi2: medi.russia
 		Owner: Russia
-		Location: 75,44
+		Location: 75,43
 		Facing: 256
 
 Rules: rules.yaml
