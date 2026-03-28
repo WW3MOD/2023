@@ -14956,337 +14956,365 @@ Actors:
 	Actor6027: spawnarea
 		Owner: Neutral
 		Location: 87,81
+	# === NATO FORCES (west side) ===
+	# -- Armor vanguard: hull-down positions covering river approaches --
 	NatoAbrams1: abrams
 		Owner: NATO
-		Location: 22,28
+		Location: 26,29
 		Facing: 768
 	NatoAbrams2: abrams
 		Owner: NATO
-		Location: 22,38
+		Location: 24,43
 		Facing: 768
 	NatoBradley1: bradley
 		Owner: NATO
-		Location: 22,32
+		Location: 28,24
 		Facing: 768
 	NatoBradley2: bradley
 		Owner: NATO
-		Location: 22,42
+		Location: 27,37
 		Facing: 768
+	# -- Screening vehicles: flanks and AA --
 	NatoHumvee1: humvee
 		Owner: NATO
-		Location: 22,24
+		Location: 30,16
 		Facing: 768
 	NatoHumvee2: humvee
 		Owner: NATO
-		Location: 22,50
+		Location: 29,52
 		Facing: 768
 	NatoM113: m113
 		Owner: NATO
-		Location: 22,46
+		Location: 25,48
 		Facing: 768
 	NatoShorad: strykershorad
 		Owner: NATO
-		Location: 22,54
+		Location: 20,46
 		Facing: 768
+	# -- Artillery battery: set back behind the line --
 	NatoM109: m109
 		Owner: NATO
-		Location: 14,30
+		Location: 12,26
 		Facing: 768
 	NatoM270: m270
 		Owner: NATO
-		Location: 14,36
+		Location: 14,38
 		Facing: 768
 	NatoHimars: himars
 		Owner: NATO
-		Location: 14,42
+		Location: 12,48
 		Facing: 768
+	# -- Logistics --
 	NatoTruk: truk
 		Owner: NATO
-		Location: 14,48
+		Location: 16,42
 		Facing: 768
+	# -- Air assets: staging area far west --
 	NatoTran: tran
 		Owner: NATO
-		Location: 8,30
+		Location: 8,34
 		Facing: 768
 	NatoLittlebird: littlebird
 		Owner: NATO
-		Location: 8,36
+		Location: 10,26
 		Facing: 768
 	NatoHeli: heli
 		Owner: NATO
-		Location: 8,42
+		Location: 10,42
 		Facing: 768
+	# -- Infantry: scattered fire teams around armor --
+	# Riflemen (E3) — main line, staggered
 	NatoE3_1: e3.america
 		Owner: NATO
-		Location: 28,20
+		Location: 30,23
 		Facing: 768
 	NatoE3_2: e3.america
 		Owner: NATO
-		Location: 28,24
+		Location: 29,31
 		Facing: 768
 	NatoE3_3: e3.america
 		Owner: NATO
-		Location: 28,28
+		Location: 31,38
 		Facing: 768
 	NatoE3_4: e3.america
 		Owner: NATO
-		Location: 28,32
+		Location: 28,46
 		Facing: 768
+	# Autoriflemen (AR) — buddy pairs with E3s
 	NatoAR_1: ar.america
 		Owner: NATO
-		Location: 28,36
+		Location: 31,25
 		Facing: 768
 	NatoAR_2: ar.america
 		Owner: NATO
-		Location: 28,40
+		Location: 30,34
 		Facing: 768
 	NatoAR_3: ar.america
 		Owner: NATO
-		Location: 28,44
+		Location: 29,44
 		Facing: 768
+	# Anti-tank — watching river crossing points
 	NatoAT_1: at.america
 		Owner: NATO
-		Location: 28,48
+		Location: 27,28
 		Facing: 768
 	NatoAT_2: at.america
 		Owner: NATO
-		Location: 28,52
+		Location: 26,45
 		Facing: 768
+	# Team leaders
 	NatoTL_1: tl.america
 		Owner: NATO
-		Location: 28,56
+		Location: 29,21
 		Facing: 768
 	NatoTL_2: tl.america
 		Owner: NATO
-		Location: 28,60
+		Location: 28,40
 		Facing: 768
+	# Grenadiers — slightly forward for indirect fire
 	NatoE2_1: e2.america
-		Owner: NATO
-		Location: 30,22
-		Facing: 768
-	NatoE2_2: e2.america
-		Owner: NATO
-		Location: 30,26
-		Facing: 768
-	NatoE1_1: e1.america
-		Owner: NATO
-		Location: 30,30
-		Facing: 768
-	NatoE1_2: e1.america
-		Owner: NATO
-		Location: 30,34
-		Facing: 768
-	NatoE1_3: e1.america
-		Owner: NATO
-		Location: 30,38
-		Facing: 768
-	NatoMT: mt.america
-		Owner: NATO
-		Location: 30,42
-		Facing: 768
-	NatoAA: aa.america
-		Owner: NATO
-		Location: 30,46
-		Facing: 768
-	NatoSN: sn.america
-		Owner: NATO
-		Location: 30,50
-		Facing: 768
-	NatoSF: sf.america
-		Owner: NATO
-		Location: 30,54
-		Facing: 768
-	NatoE4: e4.america
-		Owner: NATO
-		Location: 30,58
-		Facing: 768
-	NatoE6: e6.america
-		Owner: NATO
-		Location: 32,22
-		Facing: 768
-	NatoTecn: tecn.america
-		Owner: NATO
-		Location: 32,26
-		Facing: 768
-	NatoDR: dr.america
 		Owner: NATO
 		Location: 32,30
 		Facing: 768
+	NatoE2_2: e2.america
+		Owner: NATO
+		Location: 31,47
+		Facing: 768
+	# Basic infantry — filling gaps
+	NatoE1_1: e1.america
+		Owner: NATO
+		Location: 33,19
+		Facing: 768
+	NatoE1_2: e1.america
+		Owner: NATO
+		Location: 32,35
+		Facing: 768
+	NatoE1_3: e1.america
+		Owner: NATO
+		Location: 30,50
+		Facing: 768
+	# Specialists
+	NatoMT: mt.america
+		Owner: NATO
+		Location: 24,33
+		Facing: 768
+	NatoAA: aa.america
+		Owner: NATO
+		Location: 22,50
+		Facing: 768
+	NatoSN: sn.america
+		Owner: NATO
+		Location: 34,27
+		Facing: 768
+	NatoSF: sf.america
+		Owner: NATO
+		Location: 35,42
+		Facing: 768
+	NatoE4: e4.america
+		Owner: NATO
+		Location: 31,53
+		Facing: 768
+	NatoE6: e6.america
+		Owner: NATO
+		Location: 22,36
+		Facing: 768
+	NatoTecn: tecn.america
+		Owner: NATO
+		Location: 20,31
+		Facing: 768
+	NatoDR: dr.america
+		Owner: NATO
+		Location: 26,20
+		Facing: 768
 	NatoMedi1: medi.america
 		Owner: NATO
-		Location: 32,34
+		Location: 23,30
 		Facing: 768
 	NatoMedi2: medi.america
 		Owner: NATO
-		Location: 32,38
+		Location: 23,44
 		Facing: 768
+
+	# === RUSSIA FORCES (east side) ===
+	# -- Armor vanguard: covering river from the east --
 	RussiaT90_1: t90
 		Owner: Russia
-		Location: 76,28
+		Location: 72,30
 		Facing: 256
 	RussiaT90_2: t90
 		Owner: Russia
-		Location: 76,38
+		Location: 74,41
 		Facing: 256
 	RussiaBMP_1: bmp2
 		Owner: Russia
-		Location: 76,32
+		Location: 70,25
 		Facing: 256
 	RussiaBMP_2: bmp2
 		Owner: Russia
-		Location: 76,42
+		Location: 71,36
 		Facing: 256
 	RussiaBTR_1: btr
 		Owner: Russia
-		Location: 76,24
+		Location: 69,17
 		Facing: 256
 	RussiaBTR_2: btr
 		Owner: Russia
-		Location: 76,50
+		Location: 70,51
 		Facing: 256
 	RussiaTunguska: tunguska
 		Owner: Russia
-		Location: 76,46
+		Location: 76,47
 		Facing: 256
+	# -- Artillery: echeloned in depth --
 	RussiaGiatsint: giatsint
 		Owner: Russia
-		Location: 84,30
+		Location: 86,27
 		Facing: 256
 	RussiaGrad: grad
 		Owner: Russia
-		Location: 84,36
+		Location: 84,38
 		Facing: 256
 	RussiaTos: tos
 		Owner: Russia
-		Location: 84,42
+		Location: 86,47
 		Facing: 256
 	RussiaIskander: iskander
 		Owner: Russia
-		Location: 84,48
+		Location: 82,53
 		Facing: 256
+	# -- Logistics --
 	RussiaTruk: truk
 		Owner: Russia
-		Location: 84,54
+		Location: 82,42
 		Facing: 256
+	# -- Air assets: staging area far east --
 	RussiaHalo: halo
 		Owner: Russia
-		Location: 92,30
+		Location: 90,34
 		Facing: 256
 	RussiaHind: hind
 		Owner: Russia
-		Location: 92,36
+		Location: 88,27
 		Facing: 256
 	RussiaMi28: mi28
 		Owner: Russia
-		Location: 92,42
+		Location: 88,42
 		Facing: 256
+	# -- Infantry: fire teams scattered around armor --
+	# Riflemen (E3) — main line
 	RussiaE3_1: e3.russia
 		Owner: Russia
-		Location: 70,20
+		Location: 68,23
 		Facing: 256
 	RussiaE3_2: e3.russia
 		Owner: Russia
-		Location: 70,24
+		Location: 69,32
 		Facing: 256
 	RussiaE3_3: e3.russia
 		Owner: Russia
-		Location: 70,28
+		Location: 67,39
 		Facing: 256
 	RussiaE3_4: e3.russia
 		Owner: Russia
-		Location: 70,32
+		Location: 70,47
 		Facing: 256
+	# Autoriflemen
 	RussiaAR_1: ar.russia
 		Owner: Russia
-		Location: 70,36
+		Location: 67,25
 		Facing: 256
 	RussiaAR_2: ar.russia
 		Owner: Russia
-		Location: 70,40
+		Location: 68,34
 		Facing: 256
 	RussiaAR_3: ar.russia
 		Owner: Russia
-		Location: 70,44
+		Location: 69,43
 		Facing: 256
+	# Anti-tank — covering bridge approaches
 	RussiaAT_1: at.russia
 		Owner: Russia
-		Location: 70,48
+		Location: 71,28
 		Facing: 256
 	RussiaAT_2: at.russia
 		Owner: Russia
-		Location: 70,52
+		Location: 72,45
 		Facing: 256
+	# Team leaders
 	RussiaTL_1: tl.russia
 		Owner: Russia
-		Location: 70,56
+		Location: 69,21
 		Facing: 256
 	RussiaTL_2: tl.russia
 		Owner: Russia
-		Location: 70,60
+		Location: 70,40
 		Facing: 256
+	# Grenadiers
 	RussiaE2_1: e2.russia
 		Owner: Russia
-		Location: 68,22
+		Location: 66,29
 		Facing: 256
 	RussiaE2_2: e2.russia
 		Owner: Russia
-		Location: 68,26
+		Location: 67,48
 		Facing: 256
+	# Basic infantry
 	RussiaE1_1: e1.russia
 		Owner: Russia
-		Location: 68,30
+		Location: 65,19
 		Facing: 256
 	RussiaE1_2: e1.russia
 		Owner: Russia
-		Location: 68,34
+		Location: 66,36
 		Facing: 256
 	RussiaE1_3: e1.russia
 		Owner: Russia
-		Location: 68,38
+		Location: 68,50
 		Facing: 256
+	# Specialists
 	RussiaMT: mt.russia
 		Owner: Russia
-		Location: 68,42
+		Location: 74,34
 		Facing: 256
 	RussiaAA: aa.russia
 		Owner: Russia
-		Location: 68,46
+		Location: 76,52
 		Facing: 256
 	RussiaSN: sn.russia
 		Owner: Russia
-		Location: 68,50
+		Location: 64,27
 		Facing: 256
 	RussiaSF: sf.russia
 		Owner: Russia
-		Location: 68,54
+		Location: 63,44
 		Facing: 256
 	RussiaE4: e4.russia
 		Owner: Russia
-		Location: 68,58
+		Location: 67,53
 		Facing: 256
 	RussiaE6: e6.russia
 		Owner: Russia
-		Location: 66,22
+		Location: 76,35
 		Facing: 256
 	RussiaTecn: tecn.russia
 		Owner: Russia
-		Location: 66,26
+		Location: 78,31
 		Facing: 256
 	RussiaDR: dr.russia
 		Owner: Russia
-		Location: 66,30
+		Location: 72,21
 		Facing: 256
 	RussiaShok: shok
 		Owner: Russia
-		Location: 66,34
+		Location: 65,33
 		Facing: 256
 	RussiaMedi1: medi.russia
 		Owner: Russia
-		Location: 66,38
+		Location: 75,30
 		Facing: 256
 	RussiaMedi2: medi.russia
 		Owner: Russia
-		Location: 66,42
+		Location: 75,44
 		Facing: 256
 
 Rules: rules.yaml

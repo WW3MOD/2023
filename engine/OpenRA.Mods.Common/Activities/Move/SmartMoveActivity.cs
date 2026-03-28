@@ -74,6 +74,17 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (target.Type != TargetType.Invalid)
 				{
+					// Only interrupt movement for enemy targets — allied heal/repair targets
+					// from HealerAutoTarget should not cause stop-and-engage loops
+					var isEnemy = target.Type == TargetType.Actor &&
+						self.Owner.RelationshipWith(target.Actor.Owner).HasRelationship(PlayerRelationship.Enemy);
+
+					if (!isEnemy)
+						target = Target.Invalid;
+				}
+
+				if (target.Type != TargetType.Invalid)
+				{
 					var inRange = autoTarget.ActiveAttackBases
 						.Any(ab => target.IsInRange(self.CenterPosition, ab.GetMaximumRange()));
 
