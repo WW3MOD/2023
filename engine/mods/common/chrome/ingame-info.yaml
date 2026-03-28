@@ -1,14 +1,11 @@
 Container@GAME_INFO_PANEL:
-	X: (WINDOW_WIDTH - WIDTH) / 2
-	Y: (WINDOW_HEIGHT - HEIGHT) / 2
-	Width: 580
-	Height: 500
+	X: 0
+	Y: 0
+	Width: PARENT_WIDTH
+	Height: PARENT_HEIGHT
 	Logic: GameInfoLogic
 	Visible: False
 	Children:
-		Background@BACKGROUND:
-			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT
 		Label@TITLE:
 			Y: 21
 			Width: PARENT_WIDTH

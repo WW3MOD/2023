@@ -11,38 +11,34 @@ Container@INGAME_MENU:
 			Width: WINDOW_WIDTH + 30
 			Height: WINDOW_HEIGHT + 30
 			Background: mainmenu-border
-		Image@LOGO:
-			X: WINDOW_WIDTH - 296
-			Y: 30
-			ImageCollection: logos
-			ImageName: logo
-		Label@VERSION_LABEL:
-			Logic: VersionLabelLogic
-			X: WINDOW_WIDTH - 296
-			Y: 296 - 19
-			Width: 296 - 20
-			Height: 25
-			Align: Center
-			Font: Regular
-			Contrast: True
-		Container@PANEL_ROOT:
-		Background@MENU_BUTTONS:
-			X: 13 + (WINDOW_WIDTH - 522) / 4 - WIDTH / 2
+		Background@COMBINED_PANEL:
+			X: (WINDOW_WIDTH - WIDTH) / 2
 			Y: (WINDOW_HEIGHT - HEIGHT) / 2
-			Width: 200
-			Height: 120
+			Width: 760
+			Height: 500
 			Children:
-				Label@LABEL_TITLE:
-					X: (PARENT_WIDTH - WIDTH) / 2
-					Y: 20
-					Width: 200
-					Height: 30
-					Text: label-menu-buttons-title
-					Align: Center
-					Font: Bold
-				Button@BUTTON_TEMPLATE:
-					X: (PARENT_WIDTH - WIDTH) / 2
-					Y: 60
-					Width: 140
-					Height: 30
-					Font: Bold
+				Container@MENU_BUTTONS:
+					X: 5
+					Y: (PARENT_HEIGHT - HEIGHT) / 2
+					Width: 170
+					Height: 120
+					Children:
+						Label@LABEL_TITLE:
+							X: (PARENT_WIDTH - WIDTH) / 2
+							Y: 20
+							Width: 170
+							Height: 30
+							Text: label-menu-buttons-title
+							Align: Center
+							Font: Bold
+						Button@BUTTON_TEMPLATE:
+							X: (PARENT_WIDTH - WIDTH) / 2
+							Y: 60
+							Width: 140
+							Height: 30
+							Font: Bold
+				Container@PANEL_ROOT:
+					X: 175
+					Y: 0
+					Width: 580
+					Height: PARENT_HEIGHT
