@@ -308,6 +308,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				};
 			}
 
+			// Shellmap Pause button — toggles shellmap pause
+			var pauseButton = rootMenu.GetOrNull<ButtonWidget>("SHELLMAP_PAUSE_BUTTON");
+			if (pauseButton != null)
+			{
+				var pauseIcon = pauseButton.GetOrNull<ImageWidget>("ICON");
+				if (pauseIcon != null)
+					pauseIcon.GetImageName = () => world.Paused ? "play" : "pause";
+
+				pauseButton.OnClick = () => world.SetPauseState(!world.Paused);
+			}
+
 			// Menu buttons
 			var mainMenu = widget.Get("MAIN_MENU");
 			mainMenu.IsVisible = () => menuType == MenuType.Main;

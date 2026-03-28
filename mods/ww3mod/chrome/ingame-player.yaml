@@ -1167,6 +1167,12 @@ Container@PLAYER_WIDGETS:
 							Font: TinyBold
 							Contrast: true
 							VisualHeight: 0
+							Children:
+								Image@ICON:
+									X: 6
+									Y: 6
+									ImageCollection: music
+									ImageName: pause
 						Button@GIVE_CASH_BUTTON:
 							Logic: GiveCashButtonLogic, AddFactionSuffixLogic
 							X: 102

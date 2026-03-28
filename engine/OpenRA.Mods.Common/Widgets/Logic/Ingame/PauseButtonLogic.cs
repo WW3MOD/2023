@@ -25,10 +25,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (button == null)
 				return;
 
-			button.GetText = () => "[]";
+			button.GetText = () => "";
 			button.GetTooltipText = () => world.Paused ? "Resume Game" : "Pause Game";
 			button.IsHighlighted = () => world.Paused;
 			button.GetColor = () => world.Paused ? PausedColor : button.TextColor;
+
+			// Swap icon between pause and play
+			var icon = button.Get<ImageWidget>("ICON");
+			if (icon != null)
+				icon.GetImageName = () => world.Paused ? "play" : "pause";
 
 			button.OnClick = () =>
 			{

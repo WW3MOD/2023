@@ -70,8 +70,20 @@ Container@MAINMENU:
 			Height: 25
 			Font: Bold
 			Text: ?
-		Button@INFO_BUTTON:
+		Button@SHELLMAP_PAUSE_BUTTON:
 			X: WINDOW_WIDTH - 40
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 5
+					Y: 5
+					ImageCollection: music
+					ImageName: pause
+		Button@INFO_BUTTON:
+			X: WINDOW_WIDTH - 10
 			Y: 15
 			Width: 25
 			Height: 25
