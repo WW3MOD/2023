@@ -247,16 +247,26 @@ namespace OpenRA.Mods.Common.Widgets
 		public override void MouseExited()
 		{
 			if (TooltipContainer != null)
+			{
+				tooltipContainer.Value.AnchorBounds = null;
 				tooltipContainer.Value.RemoveTooltip();
+			}
 		}
 
 		public override bool HandleMouseInput(MouseInput mi)
 		{
-			var icon = icons.Where(i => i.Key.Contains(mi.Location))
-				.Select(i => i.Value).FirstOrDefault();
+			var iconEntry = icons.Where(i => i.Key.Contains(mi.Location)).FirstOrDefault();
+			var icon = iconEntry.Value;
 
 			if (mi.Event == MouseInputEvent.Move)
+			{
 				TooltipIcon = icon;
+				if (icon != null && TooltipContainer != null)
+				{
+					tooltipContainer.Value.AnchorBounds = iconEntry.Key;
+					tooltipContainer.Value.AnchorAbove = false;
+				}
+			}
 
 			if (mi.Event == MouseInputEvent.Scroll)
 			{
