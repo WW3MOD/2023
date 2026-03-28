@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -86,12 +87,20 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (order.Target.Type != TargetType.Actor)
+			{
+				Log.Write("debug", $"[CrewMember] {self.Info.Name} ResolveOrder rejected: Target.Type={order.Target.Type} (not Actor)");
 				return;
+			}
 
 			var targetActor = order.Target.Actor;
 			if (targetActor == null || targetActor.IsDead || !CanEnter(targetActor))
+			{
+				Log.Write("debug", $"[CrewMember] {self.Info.Name} (Role={info.Role}) ResolveOrder rejected: " +
+					$"targetNull={targetActor == null}, targetDead={targetActor?.IsDead}, canEnter={targetActor != null && !targetActor.IsDead && CanEnter(targetActor)}");
 				return;
+			}
 
+			Log.Write("debug", $"[CrewMember] {self.Info.Name} (Role={info.Role}) ResolveOrder ACCEPTED, queueing EnterAsCrew to {targetActor.Info.Name} (Owner={targetActor.Owner.PlayerName})");
 			self.QueueActivity(order.Queued, new EnterAsCrew(self, order.Target, info.Role));
 			self.ShowTargetLines();
 		}
