@@ -341,8 +341,16 @@ namespace OpenRA.Graphics
 		void DrawBeyondMapFog()
 		{
 			var map = World.Map;
-			var mapTL = ScreenPxPosition(map.ProjectedTopLeft);
-			var mapBR = ScreenPxPosition(map.ProjectedBottomRight);
+
+			// Calculate map boundaries from Bounds directly.
+			// ProjectedBottomRight.X has an off-by-one (uses br.U*scale-1 instead
+			// of (br.U+1)*scale-1), excluding the last column. We compute correct
+			// boundaries here to avoid modifying the shared Map formula.
+			var bounds = map.Bounds;
+			var tl = new WPos(bounds.Left * TileScale, bounds.Top * TileScale, 0);
+			var br = new WPos(bounds.Right * TileScale, bounds.Bottom * TileScale, 0);
+			var mapTL = ScreenPxPosition(tl);
+			var mapBR = ScreenPxPosition(br);
 			var vpTL = Viewport.TopLeft;
 			var vpBR = Viewport.BottomRight;
 
