@@ -153,6 +153,10 @@ namespace OpenRA.Mods.Common.Graphics
 		[Desc("Time (in milliseconds at default game speed) to wait until playing the next frame in the animation.")]
 		protected static readonly SpriteSequenceField<int> Tick = new(nameof(Tick), 40);
 
+		[Desc("Pairs of frame,tick values that change the animation speed at specific frames. " +
+			"Format: frame1,tick1, frame2,tick2, ... When the current frame exceeds a threshold, the tick rate changes.")]
+		protected static readonly SpriteSequenceField<int[]> ChangeTick = new(nameof(ChangeTick), null);
+
 		[Desc("Value controlling the Z-order. A higher values means rendering on top of other sprites at the same position. " +
 			"Use power of 2 values to avoid glitches.")]
 		protected static readonly SpriteSequenceField<WDist> ZOffset = new(nameof(ZOffset), WDist.Zero);
@@ -234,6 +238,7 @@ namespace OpenRA.Mods.Common.Graphics
 		protected int facings;
 		protected int? interpolatedFacings;
 		protected int tick;
+		protected int[] changeTick;
 		protected int zOffset;
 		protected int shadowZOffset;
 		protected bool ignoreWorldTint;
@@ -262,6 +267,7 @@ namespace OpenRA.Mods.Common.Graphics
 
 		int ISpriteSequence.Facings => interpolatedFacings ?? facings;
 		int ISpriteSequence.Tick => tick;
+		int[] ISpriteSequence.ChangeTick => changeTick;
 		int ISpriteSequence.ZOffset => zOffset;
 		int ISpriteSequence.ShadowZOffset => shadowZOffset;
 		bool ISpriteSequence.IgnoreWorldTint => ignoreWorldTint;
@@ -441,6 +447,7 @@ namespace OpenRA.Mods.Common.Graphics
 			interpolatedFacings = LoadField(InterpolatedFacings, data, defaults, out var interpolatedFacingsLocation);
 
 			tick = LoadField(Tick, data, defaults);
+			changeTick = LoadField(ChangeTick, data, defaults);
 			zOffset = LoadField(ZOffset, data, defaults).Length;
 
 			shadowStart = LoadField(ShadowStart, data, defaults);
