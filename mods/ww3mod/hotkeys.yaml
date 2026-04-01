@@ -33,6 +33,11 @@ GroupScatter: G Shift
 	Types: World
 	Contexts: Player
 
+ToLastEvent: BACKSPACE
+	Description: Jump to last radar event
+	Types: World
+	Contexts: Player, Spectator
+
 ShowAllOrders: Space
 	Description: Hold to show all friendly unit orders
 	Types: Viewport
