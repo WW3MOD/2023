@@ -40,6 +40,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly HotkeyReference JumpToLeftEdgeKey = new();
 		public readonly HotkeyReference JumpToRightEdgeKey = new();
 
+		public readonly HotkeyReference ShowAllOrdersKey = new();
+
 		// Note: LinterHotkeyNames assumes that these are disabled by default
 		public readonly string BookmarkSaveKeyPrefix = null;
 		public readonly string BookmarkRestoreKeyPrefix = null;
@@ -422,6 +424,14 @@ namespace OpenRA.Mods.Common.Widgets
 			if (HandleMapScrollKey(ScrollUpKey, ScrollDirection.Up) || HandleMapScrollKey(ScrollDownKey, ScrollDirection.Down)
 				|| HandleMapScrollKey(ScrollLeftKey, ScrollDirection.Left) || HandleMapScrollKey(ScrollRightKey, ScrollDirection.Right))
 				return true;
+
+			// Show all orders — hold to show, release to hide
+			var showAllOrdersHotkey = ShowAllOrdersKey.GetValue();
+			if (showAllOrdersHotkey.Key != Keycode.UNKNOWN && e.Key == showAllOrdersHotkey.Key && e.Modifiers == showAllOrdersHotkey.Modifiers)
+			{
+				worldRenderer.ShowAllOrders = e.Event == KeyInputEvent.Down;
+				return true;
+			}
 
 			if (e.Event != KeyInputEvent.Down)
 				return false;

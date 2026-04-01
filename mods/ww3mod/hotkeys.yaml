@@ -33,6 +33,11 @@ GroupScatter: G Shift
 	Types: World
 	Contexts: Player
 
+ShowAllOrders: Space
+	Description: Hold to show all friendly unit orders
+	Types: Viewport
+	Contexts: Player
+
 PowerDown: # X
 	Description: Power-down mode
 	Types: OrderGenerator

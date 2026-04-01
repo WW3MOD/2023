@@ -23,6 +23,9 @@ namespace OpenRA.Graphics
 		public static readonly Func<IRenderable, int> RenderableZPositionComparisonKey =
 			r => r.Pos.Y + r.Pos.Z + r.ZOffset;
 
+		/// <summary>When true, renders order lines for all friendly units, not just selected ones.</summary>
+		public bool ShowAllOrders { get; set; }
+
 		public readonly Size TileSize;
 		public readonly int TileScale;
 		public readonly World World;
@@ -176,6 +179,25 @@ namespace OpenRA.Graphics
 					preparedOverlayRenderables.Add(renderable.PrepareRender(this));
 			});
 
+			if (ShowAllOrders)
+			{
+				// When showing all orders, render WhenSelected overlays for all friendly actors
+				World.ApplyToActorsWithTrait<IRenderAboveShroudWhenSelected>((actor, trait) =>
+				{
+					if (!actor.IsInWorld || actor.Disposed || World.Selection.Contains(actor))
+						return;
+
+					if (!actor.Owner.IsAlliedWith(World.LocalPlayer))
+						return;
+
+					if (trait.SpatiallyPartitionable && !onScreenActors.Contains(actor))
+						return;
+
+					foreach (var renderable in trait.RenderAboveShroud(actor, this))
+						preparedOverlayRenderables.Add(renderable.PrepareRender(this));
+				});
+			}
+
 			foreach (var a in World.Selection.Actors)
 			{
 				if (!a.IsInWorld || a.Disposed)
@@ -216,6 +238,25 @@ namespace OpenRA.Graphics
 				foreach (var renderAnnotation in trait.RenderAnnotations(actor, this))
 					preparedAnnotationRenderables.Add(renderAnnotation.PrepareRender(this));
 			});
+
+			if (ShowAllOrders)
+			{
+				// When showing all orders, render WhenSelected annotations for all friendly actors
+				World.ApplyToActorsWithTrait<IRenderAnnotationsWhenSelected>((actor, trait) =>
+				{
+					if (!actor.IsInWorld || actor.Disposed || World.Selection.Contains(actor))
+						return;
+
+					if (!actor.Owner.IsAlliedWith(World.LocalPlayer))
+						return;
+
+					if (trait.SpatiallyPartitionable && !onScreenActors.Contains(actor))
+						return;
+
+					foreach (var renderAnnotation in trait.RenderAnnotations(actor, this))
+						preparedAnnotationRenderables.Add(renderAnnotation.PrepareRender(this));
+				});
+			}
 
 			foreach (var a in World.Selection.Actors)
 			{

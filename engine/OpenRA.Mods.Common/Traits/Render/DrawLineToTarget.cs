@@ -63,10 +63,14 @@ namespace OpenRA.Mods.Common.Traits
 			ShowTargetLines(self);
 		}
 
-		bool ShouldRender(Actor self)
+		bool ShouldRender(Actor self, WorldRenderer wr)
 		{
 			if (!self.Owner.IsAlliedWith(self.World.LocalPlayer) || Game.Settings.Game.TargetLines == TargetLinesType.Disabled)
 				return false;
+
+			// Show all orders mode (spacebar hold)
+			if (wr.ShowAllOrders)
+				return true;
 
 			// Players want to see the lines when in waypoint mode.
 			var force = Game.GetModifierKeys().HasModifier(Modifiers.Shift) || self.World.OrderGenerator is ForceModifiersOrderGenerator;
@@ -76,7 +80,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> IRenderAboveShroud.RenderAboveShroud(Actor self, WorldRenderer wr)
 		{
-			if (!ShouldRender(self))
+			if (!ShouldRender(self, wr))
 				return Enumerable.Empty<IRenderable>();
 
 			return RenderAboveShroud(self, wr);
@@ -97,7 +101,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> IRenderAnnotationsWhenSelected.RenderAnnotations(Actor self, WorldRenderer wr)
 		{
-			if (!ShouldRender(self))
+			if (!ShouldRender(self, wr))
 				return Enumerable.Empty<IRenderable>();
 
 			renderableCache.Clear();
