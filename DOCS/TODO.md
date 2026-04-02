@@ -123,7 +123,7 @@ Great ideas that should wait until core game is solid.
 - [ ] Ukraine as third faction
 
 ### Economy & Logistics
-- [ ] Ammo costs money; trucks must deliver to Logistics Centers
+- [ ] Ammo costs money — PROMOTED: see `CLAUDE/plans/260402_todo_batch.md` item #1 for full writeup. All ammo has SupplyValue, evacuation refund deducts spent ammo, UI shows ammo cost breakdown
 - [ ] Dynamic income based on structure health
 - [ ] Nuclear powerplant (releases radiation if destroyed)
 - [ ] Production shortage mechanic (building same unit increases price, decays over time)
