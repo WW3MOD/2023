@@ -48,7 +48,7 @@ WGM:
 		ManualGuidance: true
 		CruiseAltitude: 100
 		ContrailLength: 100
-		ContrailWidth: 8
+		ContrailStartWidth: 8
 		Image: dragon
 		TrailImage: smokey
 		TrailScalePercent: 75
@@ -234,7 +234,7 @@ MANPAD:
 		TrailImage: smokey
 		TrailScalePercent: 50
 		ContrailLength: 40
-		ContrailWidth: 8
+		ContrailStartWidth: 8
 	Warhead@Spread: SpreadDamage
 		Damage: 3000
 		Penetration: 15
@@ -263,7 +263,7 @@ Stinger:
 		TrailImage: smokey
 		TrailScalePercent: 75
 		ContrailLength: 50
-		ContrailWidth: 8
+		ContrailStartWidth: 8
 	Warhead@Spread: SpreadDamage
 		Damage: 5000
 		Penetration: 20

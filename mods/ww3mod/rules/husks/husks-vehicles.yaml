@@ -19,7 +19,6 @@
 	CaptureManager:
 	Capturable:
 		Types: husk
-		ValidRelationships: Enemy,Neutral
 	WithColoredOverlay@IDISABLE:
 		Color: 00000080
 	Targetable:

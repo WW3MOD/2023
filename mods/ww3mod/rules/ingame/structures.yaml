@@ -146,10 +146,8 @@
 		BeingCapturedCondition: being-captured
 	Capturable@neutral:
 		Types: building-neutral
-		ValidRelationships: Neutral
 	Capturable@occupied:
 		Types: building-occupied
-		ValidRelationships: Enemy
 	CapturableProgressBar:
 	CapturableProgressBlink:
 

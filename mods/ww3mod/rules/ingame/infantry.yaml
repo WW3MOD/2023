@@ -1846,7 +1846,6 @@ AA:
 		Types: TechHusk
 		ValidRelationships: Neutral
 		EnterCursor: repair
-		PlayerExperience: 0
 		EnterBehaviour: Exit
 	WithInfantryBody:
 		RequiresCondition: !parachute

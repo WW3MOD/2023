@@ -10,18 +10,12 @@ E6:
 	Captures:
 		PlayerExperience: 0
 
-SPY:
-	Infiltrates:
-		PlayerExperience: 0
-
 MECH:
 	Captures:
 		PlayerExperience: 0
 
 THF:
 	Captures:
-		PlayerExperience: 0
-	Infiltrates:
 		PlayerExperience: 0
 
 SPEN:

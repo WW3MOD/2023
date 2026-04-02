@@ -122,8 +122,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ContrailZOffset = 2047;
 
-		[Desc("Thickness of the emitted line.")]
-		public readonly WDist ContrailWidth = new WDist(1);
+		[Desc("Thickness of the emitted line at the start.")]
+		public readonly WDist ContrailStartWidth = new WDist(1);
+
+		[Desc("Thickness of the emitted line at the end. Will default to " + nameof(ContrailStartWidth) + " if left undefined.")]
+		public readonly WDist? ContrailEndWidth = null;
 
 		[Desc("RGB color at the contrail start.")]
 		public readonly Color ContrailStartColor = Color.DarkGray; // 169,169,169
@@ -237,7 +240,7 @@ namespace OpenRA.Mods.Common.Projectiles
 				contrail = new ContrailRenderable(world, args.SourceActor,
 					startcolor, info.ContrailStartColorUsePlayerColor,
 					endcolor, info.ContrailEndColorUsePlayerColor,
-					info.ContrailWidth, info.ContrailWidth,
+					info.ContrailStartWidth, info.ContrailEndWidth ?? info.ContrailStartWidth,
 					info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
 			}
 
