@@ -215,8 +215,11 @@ namespace OpenRA
 
 			// Apply scenario if selected in lobby
 			var scenarioName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
+			Log.Write("debug", $"Scenario selection: '{scenarioName}', available scenarios: [{string.Join(", ", Map.Scenarios.Keys)}]");
 			if (scenarioName != "none" && Map.Scenarios.ContainsKey(scenarioName))
 				Map.ApplyScenario(scenarioName);
+			else
+				Log.Write("debug", "No scenario applied (selection is 'none' or not found)");
 
 
 			var worldActorType = type == WorldType.Editor ? SystemActors.EditorWorld : SystemActors.World;

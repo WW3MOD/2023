@@ -606,6 +606,13 @@ namespace OpenRA
 			if (!Scenarios.TryGetValue(name, out var scenario))
 				return;
 
+			Log.Write("debug", $"ApplyScenario: applying '{name}' with {scenario.Actors.Count} actors, {scenario.Players.Count} players");
+			foreach (var actor in scenario.Actors)
+			{
+				var locNode = actor.Value.Nodes.FirstOrDefault(n => n.Key == "Location");
+				Log.Write("debug", $"  Scenario actor: {actor.Key} = {actor.Value.Value} @ {locNode?.Value.Value ?? "no-location"}");
+			}
+
 			// Merge scenario players — override existing by key, add new ones
 			var players = PlayerDefinitions.ToList();
 			foreach (var player in scenario.Players)

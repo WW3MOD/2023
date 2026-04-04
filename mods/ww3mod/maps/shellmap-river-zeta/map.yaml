@@ -14968,7 +14968,7 @@ Actors:
 		Facing: 768
 	NatoBradley1: bradley
 		Owner: NATO
-		Location: 28,24
+		Location: 22,24
 		Facing: 768
 	NatoBradley2: bradley
 		Owner: NATO
@@ -14977,7 +14977,7 @@ Actors:
 	# -- Screening vehicles: flanks and AA --
 	NatoHumvee1: humvee
 		Owner: NATO
-		Location: 27,18
+		Location: 20,18
 		Facing: 768
 	NatoHumvee2: humvee
 		Owner: NATO
@@ -15026,7 +15026,7 @@ Actors:
 	# Riflemen (E3) — main line, staggered
 	NatoE3_1: e3.america
 		Owner: NATO
-		Location: 29,23
+		Location: 22,23
 		Facing: 768
 	NatoE3_2: e3.america
 		Owner: NATO
@@ -15043,7 +15043,7 @@ Actors:
 	# Autoriflemen (AR) — buddy pairs with E3s
 	NatoAR_1: ar.america
 		Owner: NATO
-		Location: 30,26
+		Location: 23,26
 		Facing: 768
 	NatoAR_2: ar.america
 		Owner: NATO
@@ -15065,7 +15065,7 @@ Actors:
 	# Team leaders
 	NatoTL_1: tl.america
 		Owner: NATO
-		Location: 29,21
+		Location: 21,21
 		Facing: 768
 	NatoTL_2: tl.america
 		Owner: NATO
@@ -15074,7 +15074,7 @@ Actors:
 	# Grenadiers — slightly forward for indirect fire
 	NatoE2_1: e2.america
 		Owner: NATO
-		Location: 32,30
+		Location: 24,30
 		Facing: 768
 	NatoE2_2: e2.america
 		Owner: NATO
@@ -15083,7 +15083,7 @@ Actors:
 	# Basic infantry — filling gaps
 	NatoE1_1: e1.america
 		Owner: NATO
-		Location: 35,19
+		Location: 21,19
 		Facing: 768
 	NatoE1_2: e1.america
 		Owner: NATO
@@ -15104,7 +15104,7 @@ Actors:
 		Facing: 768
 	NatoSN: sn.america
 		Owner: NATO
-		Location: 31,27
+		Location: 22,27
 		Facing: 768
 	NatoSF: sf.america
 		Owner: NATO
@@ -15269,7 +15269,7 @@ Actors:
 		Facing: 256
 	RussiaE1_3: e1.russia
 		Owner: Russia
-		Location: 68,50
+		Location: 76,50
 		Facing: 256
 	# Specialists
 	RussiaMT: mt.russia
@@ -15286,11 +15286,11 @@ Actors:
 		Facing: 256
 	RussiaSF: sf.russia
 		Owner: Russia
-		Location: 63,44
+		Location: 76,44
 		Facing: 256
 	RussiaE4: e4.russia
 		Owner: Russia
-		Location: 67,53
+		Location: 76,53
 		Facing: 256
 	RussiaE6: e6.russia
 		Owner: Russia
