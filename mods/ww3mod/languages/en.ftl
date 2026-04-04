@@ -1,3 +1,26 @@
+## LogoStripeLoadScreen
+loadscreen-loading =
+    Calibrating GPS satellites...,
+    Deploying forward operating base...,
+    Intercepting enemy comms...,
+    Loading MLRS coordinates...,
+    Scrambling fighter escorts...,
+    Establishing supply routes...,
+    Briefing field commanders...,
+    Fueling up the Abrams...,
+    Warming up the T-90 turbines...,
+    Digging foxholes...,
+    Requesting air superiority...,
+    Patching into SATCOM...,
+    Arming cruise missiles...,
+    Synchronizing NATO clocks...,
+    Jamming enemy radar...,
+    Routing reinforcements...,
+    Checking rules of engagement...,
+    Unfreezing defense budgets...,
+    Spooling up rotary cannons...,
+    Polishing the nuclear football...
+
 ## MapOptions, MissionBrowserLogic
 strategical = Strategical, 50%
 tactical = Tactical, 60%

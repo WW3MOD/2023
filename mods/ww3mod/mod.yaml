@@ -254,6 +254,7 @@ LoadScreen: LogoStripeLoadScreen
 	Image2x: ww3mod|uibits/loadscreen-2x.png
 	Image3x: ww3mod|uibits/loadscreen-3x.png
 	Text: World War 3
+	CustomBar: true
 
 ServerTraits:
 	LobbyCommands

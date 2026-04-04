@@ -32,12 +32,14 @@ namespace OpenRA.Mods.Common.LoadScreens
 		Size lastResolution;
 
 		string[] messages = Array.Empty<string>();
+		bool useCustomBar;
 
 		public override void Init(ModData modData, Dictionary<string, string> info)
 		{
 			base.Init(modData, info);
 
 			messages = FluentProvider.GetMessage(Loading).Split(',').Select(x => x.Trim()).ToArray();
+			useCustomBar = info.TryGetValue("CustomBar", out var cb) && cb == "true";
 		}
 
 		public override void DisplayInner(Renderer r, Sheet s, int density)
@@ -57,17 +59,50 @@ namespace OpenRA.Mods.Common.LoadScreens
 				logoPos = new float2(lastResolution.Width / 2 - 128, lastResolution.Height / 2 - 128);
 			}
 
-			if (stripe != null)
+			if (useCustomBar)
+			{
+				// Dark gray bar instead of the red/blue stripe
+				r.RgbaColorRenderer.FillRect(
+					new float3(stripeRect.X, stripeRect.Y, 0),
+					new float3(stripeRect.Right, stripeRect.Bottom, 0),
+					Color.FromArgb(255, 35, 35, 35));
+
+				// Subtle top/bottom border lines
+				r.RgbaColorRenderer.FillRect(
+					new float3(stripeRect.X, stripeRect.Y, 0),
+					new float3(stripeRect.Right, stripeRect.Y + 1, 0),
+					Color.FromArgb(255, 60, 60, 60));
+				r.RgbaColorRenderer.FillRect(
+					new float3(stripeRect.X, stripeRect.Bottom - 1, 0),
+					new float3(stripeRect.Right, stripeRect.Bottom, 0),
+					Color.FromArgb(255, 60, 60, 60));
+			}
+			else if (stripe != null)
 				WidgetUtils.FillRectWithSprite(stripeRect, stripe);
 
 			if (logo != null)
 				r.RgbaSpriteRenderer.DrawSprite(logo, logoPos);
 
-			if (r.Fonts != null && messages.Length > 0)
+			if (r.Fonts != null)
 			{
-				var text = messages.Random(Game.CosmeticRandom);
-				var textSize = r.Fonts["Bold"].Measure(text);
-				r.Fonts["Bold"].DrawText(text, new float2(r.Resolution.Width - textSize.X - 20, r.Resolution.Height - textSize.Y - 20), Color.White);
+				if (useCustomBar)
+				{
+					// "WW3MOD" centered in the bar
+					var titleFont = r.Fonts["Title"];
+					var titleText = "WW3MOD";
+					var titleSize = titleFont.Measure(titleText);
+					var titlePos = new float2(
+						(r.Resolution.Width - titleSize.X) / 2,
+						r.Resolution.Height / 2 + 80);
+					titleFont.DrawTextWithContrast(titleText, titlePos, Color.White, Color.Black, 2);
+				}
+
+				if (messages.Length > 0)
+				{
+					var text = messages.Random(Game.CosmeticRandom);
+					var textSize = r.Fonts["Bold"].Measure(text);
+					r.Fonts["Bold"].DrawText(text, new float2(r.Resolution.Width - textSize.X - 20, r.Resolution.Height - textSize.Y - 20), Color.White);
+				}
 			}
 		}
 	}
