@@ -38,8 +38,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How often (in ticks) to scan for new targets.")]
 		public readonly int ScanInterval = 7;
 
-		[Desc("Minimum ammo need percentage (0-1) to consider a unit for resupply.")]
-		public readonly float MinNeedThreshold = 0.05f;
+		[Desc("Minimum ammo need in millipercent (0-1000) to consider a unit for resupply. 50 = 5%.")]
+		public readonly int MinNeedThreshold = 50;
 
 		[Desc("Relationships of actors that can be resupplied.")]
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
@@ -68,7 +68,9 @@ namespace OpenRA.Mods.Common.Traits
 		Cargo cargo;
 
 		// Supply tracking
+		[Sync]
 		int supplyCount;
+		[Sync]
 		int effectiveSupply; // = supplyCount * Info.SupplyPerUnit, decremented as ammo is given
 
 		// Rearm state
@@ -173,7 +175,7 @@ namespace OpenRA.Mods.Common.Traits
 		Actor FindGreatestNeedTarget()
 		{
 			Actor best = null;
-			var bestNeed = 0f;
+			var bestNeed = 0;
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.RearmRange))
 			{
@@ -198,14 +200,15 @@ namespace OpenRA.Mods.Common.Traits
 			return best;
 		}
 
-		float CalculateNeed(Actor a)
+		// Returns need as millipercent (0-1000) using integer math for multiplayer sync safety.
+		int CalculateNeed(Actor a)
 		{
 			var rearmable = a.TraitOrDefault<Rearmable>();
 			if (rearmable == null)
-				return 0f;
+				return 0;
 
-			var totalMissing = 0f;
-			var totalCapacity = 0f;
+			var totalMissing = 0;
+			var totalCapacity = 0;
 			foreach (var pool in rearmable.RearmableAmmoPools)
 			{
 				var weight = pool.Info.SupplyValue;
@@ -214,9 +217,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (totalCapacity <= 0)
-				return 0f;
+				return 0;
 
-			return totalMissing / totalCapacity;
+			return totalMissing * 1000 / totalCapacity;
 		}
 
 		bool IsValidTarget(Actor a)

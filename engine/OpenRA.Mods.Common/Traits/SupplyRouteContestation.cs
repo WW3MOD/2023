@@ -98,7 +98,9 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<Actor> actorsInRange = new List<Actor>();
 
 		int proximityTrigger;
+		[Sync]
 		int controlBar;
+		[Sync]
 		int defeatBar;
 		int cachedNetEnemySurplus;
 		int cachedNetFriendlySurplus;
@@ -107,6 +109,7 @@ namespace OpenRA.Mods.Common.Traits
 		long lastDefeatNotifyTime;
 		bool wasContested;
 		bool wasInDefeatPhase;
+		[Sync]
 		bool isPassive;
 		MiniMapPings radarPings;
 

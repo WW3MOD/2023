@@ -113,15 +113,14 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (flareAltitude > 0 && altitude < flareAltitude)
 			{
-				// Linear interpolation: at flareAltitude = 100%, at ground = FlarePercent%
-				var flareFraction = (float)altitude / flareAltitude;
-
+				// Linear interpolation using integer math (no floats for sync safety).
+				// At flareAltitude = 100%, at ground = FlarePercent%.
 				// Descent: lerp from FlareDescentPercent% to 100%
-				var descentPercent = info.FlareDescentPercent + (int)((100 - info.FlareDescentPercent) * flareFraction);
+				var descentPercent = info.FlareDescentPercent + (100 - info.FlareDescentPercent) * altitude / flareAltitude;
 				descentRate = descentRate * descentPercent / 100;
 
 				// Speed: lerp from FlareSpeedPercent% to 100%
-				var speedPercent = info.FlareSpeedPercent + (int)((100 - info.FlareSpeedPercent) * flareFraction);
+				var speedPercent = info.FlareSpeedPercent + (100 - info.FlareSpeedPercent) * altitude / flareAltitude;
 				effectiveSpeed = effectiveSpeed * speedPercent / 100;
 			}
 
