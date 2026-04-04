@@ -47,6 +47,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			panel.Bounds.Height += headerHeight;
 			panel.Bounds.Y -= headerHeight / 2;
 
+			// Clamp to stay within screen bounds
+			if (panel.Bounds.Y < 0)
+				panel.Bounds.Y = 0;
+			if (panel.Bounds.X < 0)
+				panel.Bounds.X = 0;
+
 			var advancedButton = panel.Get<ButtonWidget>("ADVANCED_BUTTON");
 			advancedButton.Bounds.Y += headerHeight;
 			advancedButton.OnClick = () =>
