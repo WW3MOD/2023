@@ -299,6 +299,10 @@ Fonts:
 		Font: ww3mod|ZoodRangmah.ttf
 		Size: 48
 		Ascender: 26
+	TitleLarge:
+		Font: ww3mod|ZoodRangmah.ttf
+		Size: 96
+		Ascender: 52
 
 Missions:
 	ww3mod|missions.yaml
