@@ -91,6 +91,9 @@ namespace OpenRA.Mods.Common.Traits
 		// Deployed soldier: in-world at port position (sprite hidden, pips visible, targetable)
 		public Actor DeployedSoldier;
 
+		// Cached armaments of deployed soldier (set on deploy, cleared on recall)
+		public Armament[] CachedArmaments;
+
 		// Condition token for the garrisoned-at-port condition on the deployed soldier
 		public int ConditionToken = Actor.InvalidConditionToken;
 
@@ -223,6 +226,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Assign to port
 			PortStates[portIndex].DeployedSoldier = soldier;
+			PortStates[portIndex].CachedArmaments = soldier.TraitsImplementing<Armament>().ToArray();
 			PortStates[portIndex].CurrentTarget = Target.Invalid;
 			PortStates[portIndex].TargetLockTicks = 0;
 			PortStates[portIndex].PlayerOverride = false;
@@ -581,7 +585,7 @@ namespace OpenRA.Mods.Common.Traits
 			var ps = PortStates[portIndex];
 			if (ps.DeployedSoldier != null && !ps.DeployedSoldier.IsDead)
 			{
-				armaments = ps.DeployedSoldier.TraitsImplementing<Armament>().ToArray();
+				armaments = ps.CachedArmaments;
 				foreach (var a in armaments)
 				{
 					if (a.IsTraitDisabled)
@@ -1003,6 +1007,7 @@ namespace OpenRA.Mods.Common.Traits
 							// Revoke condition and clear port
 							RevokePortCondition(i);
 							PortStates[i].DeployedSoldier = null;
+							PortStates[i].CachedArmaments = null;
 							PortStates[i].CurrentTarget = Target.Invalid;
 							PortStates[i].TargetLockTicks = 0;
 							PortStates[i].PlayerOverride = false;
@@ -1070,7 +1075,9 @@ namespace OpenRA.Mods.Common.Traits
 						{
 							var otherSoldier = PortStates[targetPortIndex].DeployedSoldier;
 							var otherToken = PortStates[targetPortIndex].ConditionToken;
+							var otherArmaments = PortStates[targetPortIndex].CachedArmaments;
 							PortStates[fromPort].DeployedSoldier = otherSoldier;
+							PortStates[fromPort].CachedArmaments = otherArmaments;
 							PortStates[fromPort].ConditionToken = otherToken;
 							PortStates[fromPort].CurrentTarget = Target.Invalid;
 							PortStates[fromPort].TargetLockTicks = 0;
@@ -1078,6 +1085,7 @@ namespace OpenRA.Mods.Common.Traits
 						else
 						{
 							PortStates[fromPort].DeployedSoldier = null;
+							PortStates[fromPort].CachedArmaments = null;
 							PortStates[fromPort].ConditionToken = Actor.InvalidConditionToken;
 							PortStates[fromPort].CurrentTarget = Target.Invalid;
 						}
@@ -1099,6 +1107,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (fromPort >= 0)
 					{
 						PortStates[targetPortIndex].DeployedSoldier = passenger;
+						PortStates[targetPortIndex].CachedArmaments = passenger.TraitsImplementing<Armament>().ToArray();
 						PortStates[targetPortIndex].ConditionToken = PortStates[fromPort >= 0 ? fromPort : targetPortIndex].ConditionToken;
 						PortStates[targetPortIndex].CurrentTarget = Target.Invalid;
 						PortStates[targetPortIndex].TargetLockTicks = 0;
