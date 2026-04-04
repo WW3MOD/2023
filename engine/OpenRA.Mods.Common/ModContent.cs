@@ -96,6 +96,9 @@ namespace OpenRA.Mods.Common
 			}
 		}
 
+		public readonly string InstallPromptMessage;
+		public readonly string HeaderMessage;
+		public readonly string ContentInstallerMod = "modcontent";
 		public readonly string QuickDownload;
 
 		[FieldLoader.Require]

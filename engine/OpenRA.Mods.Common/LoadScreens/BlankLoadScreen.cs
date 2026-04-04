@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using OpenRA.FileFormats;
 using OpenRA.Mods.Common.FileSystem;
 using OpenRA.Mods.Common.Widgets.Logic;
@@ -126,10 +127,24 @@ namespace OpenRA.Mods.Common.LoadScreens
 			if (graphicSettings.GLProfile != GLProfile.Automatic && graphicSettings.GLProfile != Game.Renderer.GLProfile)
 				graphicSettings.GLProfile = GLProfile.Automatic;
 
-			if (ModData.FileSystemLoader is not IFileSystemExternalContent content)
+			if (ModData.FileSystemLoader is IFileSystemExternalContent content)
+				return !content.InstallContentIfRequired(ModData);
+
+			// Fallback: if the FileSystemLoader doesn't handle content installation,
+			// check the ModContent manifest section for required content files.
+			if (!ModData.Manifest.Contains<ModContent>())
 				return true;
 
-			return !content.InstallContentIfRequired(ModData);
+			var modContent = ModData.Manifest.Get<ModContent>();
+			var contentInstalled = modContent.Packages
+				.Where(p => p.Value.Required)
+				.All(p => p.Value.TestFiles.All(f => File.Exists(Platform.ResolvePath(f))));
+
+			if (contentInstalled)
+				return true;
+
+			Game.InitializeMod(modContent.ContentInstallerMod, new Arguments(new[] { "Content.Mod=" + ModData.Manifest.Id }));
+			return false;
 		}
 	}
 }
