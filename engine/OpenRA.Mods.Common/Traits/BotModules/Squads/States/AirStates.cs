@@ -93,8 +93,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		{
 			detectedEnemyTarget = null;
 			var dangerRadius = owner.SquadManager.Info.DangerScanRadius;
-			var unitsAroundPos = owner.World.FindActorsInCircle(loc, WDist.FromCells(dangerRadius))
-				.Where(owner.SquadManager.IsPreferredEnemyUnit).ToList();
+			var unitsAroundPos = new List<Actor>();
+			foreach (var a in owner.World.FindActorsInCircle(loc, WDist.FromCells(dangerRadius)))
+				if (owner.SquadManager.IsPreferredEnemyUnit(a))
+					unitsAroundPos.Add(a);
 
 			if (unitsAroundPos.Count == 0)
 				return true;
@@ -174,7 +176,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (BusyAttack(a))
 					continue;
 
-				var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+				var ammoPools = a.TraitsImplementing<AmmoPool>();
 				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
 				{
 					if (IsRearming(a))
@@ -206,7 +208,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			foreach (var a in owner.Units)
 			{
-				var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+				var ammoPools = a.TraitsImplementing<AmmoPool>();
 				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()) && !FullAmmo(ammoPools))
 				{
 					if (IsRearming(a))

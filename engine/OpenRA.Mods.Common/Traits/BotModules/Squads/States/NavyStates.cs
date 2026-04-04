@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -69,8 +70,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				owner.TargetActor = closestEnemy;
 			}
 
-			var enemyUnits = owner.World.FindActorsInCircle(owner.TargetActor.CenterPosition, WDist.FromCells(owner.SquadManager.Info.IdleScanRadius))
-				.Where(owner.SquadManager.IsPreferredEnemyUnit).ToList();
+			var enemyUnits = new List<Actor>();
+			foreach (var a in owner.World.FindActorsInCircle(owner.TargetActor.CenterPosition, WDist.FromCells(owner.SquadManager.Info.IdleScanRadius)))
+				if (owner.SquadManager.IsPreferredEnemyUnit(a))
+					enemyUnits.Add(a);
 
 			if (enemyUnits.Count == 0)
 				return;

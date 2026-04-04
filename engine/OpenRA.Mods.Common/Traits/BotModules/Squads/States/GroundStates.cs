@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -45,8 +46,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				owner.TargetActor = closestEnemy;
 			}
 
-			var enemyUnits = owner.World.FindActorsInCircle(owner.TargetActor.CenterPosition, WDist.FromCells(owner.SquadManager.Info.IdleScanRadius))
-				.Where(owner.SquadManager.IsPreferredEnemyUnit).ToList();
+			var enemyUnits = new List<Actor>();
+			foreach (var a in owner.World.FindActorsInCircle(owner.TargetActor.CenterPosition, WDist.FromCells(owner.SquadManager.Info.IdleScanRadius)))
+				if (owner.SquadManager.IsPreferredEnemyUnit(a))
+					enemyUnits.Add(a);
 
 			if (enemyUnits.Count == 0)
 				return;
@@ -74,7 +77,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (BusyAttack(a))
 					continue;
 
-				var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+				var ammoPools = a.TraitsImplementing<AmmoPool>();
 				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
 				{
 					if (IsRearming(a))
@@ -231,7 +234,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					continue;
 
 				// Send units with no ammo to resupply instead of uselessly attacking
-				var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+				var ammoPools = a.TraitsImplementing<AmmoPool>();
 				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
 				{
 					if (IsRearming(a))
@@ -331,9 +334,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 						var closestEnemy = FindClosestEnemy(owner);
 						if (closestEnemy != null)
 						{
-							var enemyUnits = owner.World.FindActorsInCircle(closestEnemy.CenterPosition,
-								WDist.FromCells(owner.SquadManager.Info.IdleScanRadius))
-								.Where(owner.SquadManager.IsPreferredEnemyUnit).ToList();
+							var enemyUnits = new List<Actor>();
+							foreach (var a in owner.World.FindActorsInCircle(closestEnemy.CenterPosition,
+								WDist.FromCells(owner.SquadManager.Info.IdleScanRadius)))
+								if (owner.SquadManager.IsPreferredEnemyUnit(a))
+									enemyUnits.Add(a);
 
 							if (enemyUnits.Count == 0 || AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemyUnits))
 							{
