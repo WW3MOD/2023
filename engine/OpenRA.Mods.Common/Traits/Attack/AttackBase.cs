@@ -205,21 +205,27 @@ namespace OpenRA.Mods.Common.Traits
 			var candidates = self.World.FindActorsInCircle(self.CenterPosition, maxRange)
 				.Where(a => a != self && !a.IsDead && a != currentTargetActor && CanTargetActor(a, forceAttack));
 
-			// Prioritize healthy targets (not critically damaged)
-			var validTargets = candidates
-				.Where(a =>
-				{
-					var health = a.TraitOrDefault<Health>();
-					return health != null && health.HP >= (health.MaxHP * Info.CriticalHealthThreshold / 100);
-				})
-				.ToList();
+			// Single-pass: find closest healthy (not critically damaged) target
+			Actor bestTarget = null;
+			long bestDistSq = long.MaxValue;
+			foreach (var a in candidates)
+			{
+				var health = a.TraitOrDefault<Health>();
+				if (health == null || health.HP < (health.MaxHP * Info.CriticalHealthThreshold / 100))
+					continue;
 
-			// If no healthy targets, return invalid target to stick with current target
-			if (!validTargets.Any())
+				var distSq = (a.CenterPosition - self.CenterPosition).LengthSquared;
+				if (distSq < bestDistSq)
+				{
+					bestDistSq = distSq;
+					bestTarget = a;
+				}
+			}
+
+			if (bestTarget == null)
 				return Target.Invalid;
 
-			// Choose the closest valid target
-			return Target.FromActor(validTargets.OrderBy(a => (a.CenterPosition - self.CenterPosition).LengthSquared).First());
+			return Target.FromActor(bestTarget);
 		}
 
 		// Helper method to check if an actor is a valid target
