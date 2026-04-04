@@ -55,7 +55,7 @@ namespace OpenRA.Mods.Common.LoadScreens
 			if (r.Resolution != lastResolution)
 			{
 				lastResolution = r.Resolution;
-				stripeRect = new Rectangle(0, lastResolution.Height / 2 - 128, lastResolution.Width, 256);
+				stripeRect = new Rectangle(0, lastResolution.Height / 2 - 80, lastResolution.Width, 160);
 				logoPos = new float2(lastResolution.Width / 2 - 128, lastResolution.Height / 2 - 128);
 			}
 
@@ -92,9 +92,12 @@ namespace OpenRA.Mods.Common.LoadScreens
 					var titleFont = r.Fonts[fontKey];
 					var titleText = "WW3MOD";
 					var titleSize = titleFont.Measure(titleText);
+					// Center within the stripe bar, using Ascender as the visual top
+					// DrawText positions at baseline-ascender, so offset by (barH - ascender) / 2
+					var ascender = titleFont.Measure("X").Y;
 					var titlePos = new float2(
 						(r.Resolution.Width - titleSize.X) / 2,
-						(r.Resolution.Height / 2) - titleSize.Y);
+						stripeRect.Y + (stripeRect.Height - ascender) / 2);
 					titleFont.DrawTextWithContrast(titleText, titlePos, Color.White, Color.Black, 2);
 				}
 
