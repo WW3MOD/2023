@@ -173,6 +173,8 @@ MP5:
 		Speed: 1c256
 		Inaccuracy: 96
 		MinInaccuracy: 32
+	Warhead@Target: TargetDamage
+		Damage: 350
 7.62mm.MG:
 	Inherits@Caliber: ^7.62mm
 	Magazine: 100

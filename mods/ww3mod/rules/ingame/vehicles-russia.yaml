@@ -299,7 +299,7 @@ t90:
 	Armor:
 		Type: Heavy
 		Thickness: 280
-		Distribution: 100,80,80,80,60
+		Distribution: 100,60,40,15,15
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 450

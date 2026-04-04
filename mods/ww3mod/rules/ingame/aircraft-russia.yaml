@@ -527,7 +527,7 @@ MIG:
 	Buildable:
 		Prerequisites: ~disabled
 	Tooltip:
-		Name: MiG-29 Falcrum
+		Name: MiG-29 Fulcrum
 	Valued:
 		Cost: 6000
 	UpdatesPlayerStatistics:
