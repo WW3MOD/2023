@@ -250,6 +250,11 @@ namespace OpenRA
 		public CellLayer<byte> DensityLayer { get; set; }
 		public CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>> ShadowLayer { get; set; }
 
+		/// <summary>
+		/// Cells queued for deferred shadow recomputation (batched per tick).
+		/// </summary>
+		readonly HashSet<CPos> pendingShadowCells = new HashSet<CPos>();
+
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
 		public List<CPos> AllEdgeCells { get; private set; }
@@ -1101,6 +1106,29 @@ namespace OpenRA
 					ShadowLayer[fromUV][toUV] = (groundShadow, airborneShadow);
 				}
 			}
+		}
+
+		/// <summary>
+		/// Queue cells for deferred shadow recomputation instead of computing immediately.
+		/// Call FlushPendingShadowUpdates() once per tick to process the batch.
+		/// </summary>
+		public void QueueShadowUpdate(IEnumerable<CPos> cells)
+		{
+			foreach (var c in cells)
+				pendingShadowCells.Add(c);
+		}
+
+		/// <summary>
+		/// Process all queued shadow cell updates in one batch.
+		/// Should be called once per tick from the world tick loop.
+		/// </summary>
+		public void FlushPendingShadowUpdates()
+		{
+			if (pendingShadowCells.Count == 0)
+				return;
+
+			UpdateShadowForCells(pendingShadowCells);
+			pendingShadowCells.Clear();
 		}
 
 		/// <summary>

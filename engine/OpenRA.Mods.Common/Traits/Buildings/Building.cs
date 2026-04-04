@@ -371,12 +371,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Update shadow layer for newly placed buildings so they block LOS.
 			// Skip during initial map load (WorldTick == 0) — shadows.bin already has pre-cached data.
-			// The expensive UpdateShadowForCells would freeze the game if called per-actor during load.
+			// Density is updated immediately; shadow recomputation is batched per tick to avoid
+			// freezing when many buildings are placed/destroyed in the same tick (e.g., player defeat).
 			if (Info.Density.Count > 0 && self.World.WorldTick > 0)
 			{
 				var map = self.World.Map;
 				map.UpdateDensityForBuilding(self.Location, Info.Density, add: true);
-				map.UpdateShadowForCells(Info.DensityTiles(self.Location));
+				map.QueueShadowUpdate(Info.DensityTiles(self.Location));
 			}
 		}
 
@@ -385,12 +386,12 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.RemoveFromMaps(self, this);
 			influence.RemoveInfluence(self, Info.Tiles(self.Location));
 
-			// Update shadow layer when buildings are destroyed
+			// Update shadow layer when buildings are destroyed — batched per tick
 			if (Info.Density.Count > 0 && self.World.WorldTick > 0)
 			{
 				var map = self.World.Map;
 				map.UpdateDensityForBuilding(self.Location, Info.Density, add: false);
-				map.UpdateShadowForCells(Info.DensityTiles(self.Location));
+				map.QueueShadowUpdate(Info.DensityTiles(self.Location));
 			}
 		}
 

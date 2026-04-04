@@ -467,6 +467,12 @@ namespace OpenRA
 				ApplyToActorsWithTraitTimed<ITick>((actor, trait) => trait.Tick(actor), "Trait");
 
 				effects.DoTimed(e => e.Tick(this), "Effect");
+
+				// Flush batched shadow recomputations once per tick.
+				// Building additions/removals queue cells during their tick; processing
+				// them here avoids redundant work when many buildings change in one tick
+				// (e.g., player defeat killing all buildings at once).
+				Map.FlushPendingShadowUpdates();
 			}
 
 			while (frameEndActions.Count != 0)

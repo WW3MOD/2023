@@ -203,8 +203,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			// Player already defeated — nothing to do
-			if (self.Owner.WinState != WinState.Undefined)
+			// Player already defeated or SR changed to non-playable owner (e.g. Neutral after defeat) — nothing to do
+			if (self.Owner.WinState != WinState.Undefined || self.Owner.NonCombatant || !self.Owner.Playable)
 				return;
 
 			if (++scanTick >= info.ScanInterval)
