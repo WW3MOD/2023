@@ -45,13 +45,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			panel.Bounds.Height += headerHeight;
-			panel.Bounds.Y -= headerHeight / 2;
 
-			// Clamp to stay within screen bounds
-			if (panel.Bounds.Y < 0)
-				panel.Bounds.Y = 0;
-			if (panel.Bounds.X < 0)
-				panel.Bounds.X = 0;
+			// Recenter after height change
+			var windowSize = Game.Renderer.Resolution;
+			panel.Bounds.X = (windowSize.Width - panel.Bounds.Width) / 2;
+			panel.Bounds.Y = (windowSize.Height - panel.Bounds.Height) / 2;
 
 			var advancedButton = panel.Get<ButtonWidget>("ADVANCED_BUTTON");
 			advancedButton.Bounds.Y += headerHeight;
