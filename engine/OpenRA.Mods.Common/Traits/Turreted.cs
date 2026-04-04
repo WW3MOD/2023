@@ -243,7 +243,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (desired == LocalOrientation.Yaw)
 				return;
 
-			var turnSpeed = new WAngle(Util.ApplyPercentageModifiers(Info.TurnSpeed.Angle, turretTurnSpeedModifiers.ToArray()));
+			var turnSpeed = new WAngle(Util.ApplyPercentageModifiers(Info.TurnSpeed.Angle, turretTurnSpeedModifiers));
 			LocalOrientation = LocalOrientation.WithYaw(Util.TickFacing(LocalOrientation.Yaw, desired, turnSpeed));
 
 			if (desired == LocalOrientation.Yaw)
