@@ -290,41 +290,30 @@ Background@CONTENT_PROMPT_PANEL:
 	X: (WINDOW_RIGHT - WIDTH) / 2
 	Y: (WINDOW_BOTTOM - HEIGHT) / 2
 	Width: 500
-	Height: 140
+	Height: 260
 	Background: panel-bg
 	Children:
-		Background@RULE:
-			X: 30
-			Y: 50
-			Width: 440
-			Height: 150
-			Background: panel-rule
 		Label@TITLE:
 			X: 0
-			Y: 12
+			Y: 14
 			Width: PARENT_RIGHT
 			Height: 25
-			Text: Install Content
+			Text: Install Game Content
 			Align: Center
 			Font: MediumBold
-		Label@HEADER_TEMPLATE:
-			Y: 65
-			Width: PARENT_RIGHT
-			Height: 16
-			Align: Center
-		Button@ADVANCED_BUTTON:
+		Label@MESSAGE:
 			X: 30
-			Y: PARENT_BOTTOM - 52
-			Background: button-highlighted
-			Width: 140
-			Height: 32
-			Text: Advanced Install
-			Font: Bold
+			Y: 48
+			Width: PARENT_RIGHT - 60
+			Height: 150
+			Text: WW3MOD requires artwork and audio from the original Red Alert.\n\nClick Quick Install to automatically download this content from a mirror of the 2008 Red Alert freeware release.
+			Align: Center
+			WordWrap: true
 		Button@QUICK_BUTTON:
-			X: 185
+			X: (PARENT_RIGHT - WIDTH) / 2
 			Y: PARENT_BOTTOM - 52
 			Background: button-highlighted
-			Width: 110
+			Width: 150
 			Height: 32
 			Text: Quick Install
 			Font: Bold
@@ -332,7 +321,7 @@ Background@CONTENT_PROMPT_PANEL:
 			X: PARENT_RIGHT - WIDTH - 30
 			Y: PARENT_BOTTOM - 52
 			Background: button-highlighted
-			Width: 110
+			Width: 80
 			Height: 32
 			Text: Quit
 			Font: Bold

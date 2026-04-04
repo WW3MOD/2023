@@ -39,6 +39,7 @@ ChromeMetrics:
 
 FluentMessages:
 	common|languages/en.ftl
+	common|fluent/common.ftl
 
 Fonts:
 	Tiny:
