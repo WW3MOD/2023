@@ -94,7 +94,7 @@ namespace OpenRA.Mods.Common.LoadScreens
 					var titleSize = titleFont.Measure(titleText);
 					var titlePos = new float2(
 						(r.Resolution.Width - titleSize.X) / 2,
-						(r.Resolution.Height - titleSize.Y) / 2);
+						(r.Resolution.Height / 2) - titleSize.Y);
 					titleFont.DrawTextWithContrast(titleText, titlePos, Color.White, Color.Black, 2);
 				}
 
