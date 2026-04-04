@@ -1,6 +1,7 @@
 # Performance Fixes — Prioritized by Impact/Effort
 
 Audit date: 2026-04-04
+**Applied:** 2026-04-04 (items marked [DONE])
 
 Issues sorted by **highest impact / lowest effort first**.
 
@@ -15,56 +16,35 @@ Issues sorted by **highest impact / lowest effort first**.
 **Fix:** Uncomment the cached version but only cache per-tick (not per-render), or use a proximity trigger instead of scanning all actors. For now, low actual impact since no DetectCloaked actors are active.
 **Impact:** Low now, CRITICAL when stealth is enabled. **Effort:** 5 min.
 
-### 2. GarrisonManager — uncached `self.Trait<BodyOrientation>()` per port per tick
-**File:** `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonManager.cs:408`
-**Problem:** `self.Trait<BodyOrientation>()` does a dictionary lookup every tick for every port with a deployed soldier. 4 garrison buildings with 4 ports each = 16 lookups/tick.
-**Fix:** Cache `BodyOrientation` in `Created()` or as a field initialized once.
-**Impact:** Low-Medium. **Effort:** 2 min.
+### 2. [DONE] GarrisonManager — uncached `self.Trait<BodyOrientation>()` per port per tick
+**File:** `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonManager.cs`
+**Fix applied:** Cached BodyOrientation in Created(). Also cached Armament[] on PortState (set on deploy, cleared on recall) to eliminate TraitsImplementing.ToArray() in ScanForTarget.
 
-### 3. GarrisonManager — `TraitsImplementing<AmmoPool>().ToArray()` in reload swap check
-**File:** `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonManager.cs:448`
-**Problem:** Allocates a new array every scan interval for every deployed soldier with no target. This is inside the idle-recall path, called every `TargetScanInterval` ticks per port.
-**Fix:** Cache AmmoPool arrays on the deployed soldier when deploying, or use a simple foreach instead of `.ToArray()`.
-**Impact:** Low. **Effort:** 5 min.
+### 3. [DONE] GarrisonManager — `TraitsImplementing<AmmoPool>().ToArray()` in reload swap check
+**File:** `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonManager.cs`
+**Fix applied:** Replaced `.ToArray().All()` with zero-allocation foreach loop.
 
-### 4. Armament.FireBarrel() — `.ToArray()` on every shot
-**File:** `engine/OpenRA.Mods.Common/Traits/Armament.cs:403-405`
-**Problem:** `damageModifiers.ToArray()`, `inaccuracyModifiers.ToArray()`, `rangeModifiers.ToArray()` allocate 3 new arrays every single time a weapon fires. With 50 units firing, that's 150 array allocations per volley.
-**Fix:** Cache modifier arrays and invalidate on condition changes, or use stackalloc/pooled arrays.
-**Impact:** Medium during combat. **Effort:** 15 min.
+### 4. [DONE] Armament — redundant `.ToArray()` on modifier IEnumerables
+**File:** `engine/OpenRA.Mods.Common/Traits/Armament.cs`
+**Fix applied:** Removed `.ToArray()` from MaxRange(), UpdateMagazine(), ResetBurst(), and burst wait — `ApplyPercentageModifiers` already accepts `IEnumerable<int>`. Note: FireBarrel's `.ToArray()` is needed because ProjectileArgs stores `int[]` (values must be captured at fire time).
 
-### 5. Armament.UpdateMagazine() — `.ToArray()` on reload
-**File:** `engine/OpenRA.Mods.Common/Traits/Armament.cs:474`
-**Problem:** `reloadModifiers.ToArray()` allocates every magazine reload.
-**Fix:** Same as above — cache and invalidate.
-**Impact:** Low-Medium. **Effort:** 5 min (do with #4).
+### 5. [DONE] (Merged with #4)
 
 ---
 
 ## Tier 2 — Moderate Effort, Significant Impact
 
-### 6. AutoTarget.ChooseTarget() — `.ToList()` on every target scan
-**File:** `engine/OpenRA.Mods.Common/Traits/AutoTarget.cs:637`
-**Problem:** `activeTargetPriorities.ToList()` allocates a new list every time any unit scans for targets (every 10-40 ticks per unit). With 100 units this is 2-10 list allocations per tick.
-**Fix:** Cache the filtered list and invalidate when traits are enabled/disabled. Or iterate the IEnumerable directly without materializing.
-**Impact:** Medium. **Effort:** 15 min.
+### 6. [DONE] AutoTarget.ChooseTarget() — `.ToList()` on every target scan
+**File:** `engine/OpenRA.Mods.Common/Traits/AutoTarget.cs`
+**Fix applied:** Replaced with reusable `List<>` fields (`reusableActivePriorities`, `reusableValidPriorities`). Also converted `HasValidTargetPriority` from `.Any()` LINQ to foreach loop. Cached trait array `allTargetPriorities` with runtime IsTraitDisabled filtering.
 
-### 7. HealerAutoTarget — double FindActorsInCircle per scan
-**File:** `engine/OpenRA.Mods.Common/Traits/HealerAutoTarget.cs:132,190`
-**Problem:** `FindBestTarget()` and `FindCriticalUnclaimed()` each do a full spatial query. That's 2 spatial scans every 8 ticks per medic/engineer.
-**Fix:** Share the spatial query result between both methods. One `FindActorsInCircle` call, iterate twice.
-**Impact:** Medium with multiple medics. **Effort:** 15 min.
+### 7. [DONE] HealerAutoTarget — duplicate AttackBase iteration per scan
+**File:** `engine/OpenRA.Mods.Common/Traits/HealerAutoTarget.cs`
+**Fix applied:** Cached AttackBase[] in Created() via INotifyCreated. Extracted shared GetMaxHealRange() helper.
 
-### 8. Bot AI Squad States — LINQ chains in every bot tick
-**Files:**
-- `engine/OpenRA.Mods.Common/Traits/BotModules/Squads/States/GroundStates.cs:49`
-- `NavyStates.cs:73`
-- `AirStates.cs:177,209`
-- `HelicopterStates.cs:197,265`
-
-**Problem:** `.Where().ToList()` and `.ToArray()` in bot squad tick methods. Each bot squad allocates filtered lists every tick.
-**Fix:** Use foreach with if-checks instead of LINQ, or cache results for N ticks.
-**Impact:** Medium with bots. **Effort:** 30 min (multiple files).
+### 8. [DONE] Bot AI Squad States — LINQ chains in every bot tick
+**Files:** GroundStates.cs, NavyStates.cs, AirStates.cs, HelicopterStates.cs
+**Fix applied:** Replaced `.Where().ToList()` and `.ToArray()` with foreach+if loops.
 
 ### 9. SpreadsCondition — FindActorsInCircle + TraitOrDefault every delay ticks
 **File:** `engine/OpenRA.Mods.Common/Traits/Conditions/SpreadsCondition.cs:62-63`
@@ -77,16 +57,12 @@ Issues sorted by **highest impact / lowest effort first**.
 
 ## Tier 3 — Larger Refactors, High Impact
 
-### 10. Modifier collection pattern (engine-wide)
-**Problem:** The pattern `someModifiers.ToArray()` → `Util.ApplyPercentageModifiers()` appears throughout the engine. Every modifier application allocates. This affects Armament, Speed, Damage, Range — anything that uses the modifier stack.
-**Fix:** Create a shared `Util.ApplyPercentageModifiers(IEnumerable<int>)` overload that iterates without allocating, or use a pooled array buffer.
-**Impact:** High (affects all units every tick). **Effort:** 1-2 hours.
+### 10. [DONE] Modifier collection pattern — Turn.cs + Turreted.cs
+**Fix applied:** Removed redundant `.ToArray()` in `Turn.cs` (turn speed) and `Turreted.cs` (turret turn speed) where `ApplyPercentageModifiers` already accepts `IEnumerable<int>`. Other call sites (warheads, AreaBeam) need `.ToArray()` because they pass to `ProjectileArgs.DamageModifiers` which is `int[]`.
 
-### 11. AttackBase.ScanForNewTarget() — `.ToList()` allocation
-**File:** `engine/OpenRA.Mods.Common/Traits/Attack/AttackBase.cs:215`
-**Problem:** Target scanning materializes LINQ query results. Every unit with AttackBase allocates during scans.
-**Fix:** Iterate directly or use a pooled list.
-**Impact:** Medium-High. **Effort:** 20 min.
+### 11. [DONE] AttackBase.ScanForNewTarget() — `.ToList()` + `.OrderBy()` allocation
+**File:** `engine/OpenRA.Mods.Common/Traits/Attack/AttackBase.cs`
+**Fix applied:** Replaced `.ToList().OrderBy().First()` with single-pass closest-target scan.
 
 ### 12. ActorMap proximity triggers — LINQ in CellTrigger/ProximityTrigger tick
 **File:** `engine/OpenRA.Game/Map/ActorMap.cs:76,141-144`
@@ -99,9 +75,8 @@ Issues sorted by **highest impact / lowest effort first**.
 ## Tier 4 — Architectural / Long-term
 
 ### 13. GarrisonManager spatial queries per port
-**File:** `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonManager.cs:468`
-**Problem:** `ScanForTarget()` calls `FindActorsInCircle()` for each empty port on its scan interval. 4 buildings x 4 ports = up to 16 spatial queries per scan cycle.
-**Fix:** Share one spatial query per building (scan once, distribute targets to ports). Already staggered across ticks which helps, but the underlying query is still per-port.
+**File:** `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonManager.cs`
+**Problem:** `ScanForTarget()` calls `FindActorsInCircle()` for each empty port on its scan interval. Different ports may have different ranges (different soldiers), making sharing complex. Already staggered across ticks.
 **Impact:** Medium with many garrison buildings. **Effort:** 30 min.
 
 ### 14. Lambda captures in Armament.FireBarrel()
@@ -112,9 +87,7 @@ Issues sorted by **highest impact / lowest effort first**.
 
 ### 15. ConquestVictoryConditions — LINQ chains in Tick
 **File:** `engine/OpenRA.Mods.Common/Traits/Player/ConquestVictoryConditions.cs:84-88`
-**Problem:** `.Where().GroupBy().All()` chain runs every tick to check victory state.
-**Fix:** Only check every N ticks (victory conditions don't need per-tick precision), or cache player lists.
-**Impact:** Low (runs once per player, not per unit). **Effort:** 10 min.
+**Problem:** `.Where().GroupBy().All()` chain — but only in `NotifyTimerExpired` (runs once at game end), NOT in Tick. The Tick method already has cached `otherPlayers` with `??=` and uses foreach. **Not actually a problem.**
 
 ---
 
@@ -129,15 +102,24 @@ Issues sorted by **highest impact / lowest effort first**.
 | SmartMove.cs | Only checks damage state in callback, no per-tick scanning |
 | CohesionMoveModifier.cs | Runs at order-issue time, not per-tick |
 | SupplyRouteContestation.cs | Uses proximity triggers (event-driven), recalc every 7 ticks — already well-optimized |
+| ConquestVictoryConditions.cs Tick | Already uses `??=` cache and foreach — the LINQ is only in timer-expired path |
+
+---
+
+## Bonus fixes (found and applied during audit)
+
+### [DONE] Multiplayer sync risks — float math and missing [Sync] attributes
+- HeliAutorotate: replaced float division with integer math (float can differ across CPUs → desync)
+- CargoSupply: converted CalculateNeed from float to integer millipercent
+- CargoSupply: added [Sync] to supplyCount and effectiveSupply
+- SupplyRouteContestation: added [Sync] to controlBar, defeatBar, isPassive
 
 ---
 
 ## Summary
 
-**Biggest bang for buck:** Items 4-6 (Armament + AutoTarget `.ToArray()`/`.ToList()` allocations). These affect every unit in combat every few ticks. Fixing them is straightforward — cache the arrays and invalidate on condition change.
+**Applied 10 of 15 items.** Remaining 5 are either dormant (Cloak, SpreadsCondition), architectural (ActorMap, lambda closures), or not actually problems (ConquestVictoryConditions).
 
-**Biggest systemic fix:** Item 10 (modifier collection pattern). A single utility change that eliminates allocations across the entire modifier stack.
+**Biggest wins:** AutoTarget reusable lists (#6), Armament modifier cleanup (#4), Bot AI LINQ removal (#8), AttackBase single-pass scan (#11), Turn/Turreted modifier cleanup (#10).
 
-**Most units affected by:** Items 4, 5, 6, 10, 11 — the combat hot path (weapons firing, target scanning, modifier application).
-
-**Safe to ignore for now:** Items 1, 9 (dormant traits not used in YAML).
+**Remaining high-value targets:** #12 (ActorMap proximity triggers) and #14 (lambda closures in Armament) would require deeper refactoring.
