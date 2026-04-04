@@ -3,10 +3,13 @@ Metadata:
 	Version: release-20230225
 	Hidden: true
 
-Packages:
-	^EngineDir
-	^EngineDir|mods/modcontent: modcontent
-	^EngineDir|mods/common: common
+PackageFormats:
+
+FileSystem: DefaultFileSystem
+	Packages:
+		^EngineDir
+		^EngineDir|mods/modcontent: modcontent
+		^EngineDir|mods/common: common
 
 Rules:
 	modcontent|rules.yaml
