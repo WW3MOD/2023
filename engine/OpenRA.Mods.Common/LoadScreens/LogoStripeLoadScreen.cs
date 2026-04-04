@@ -92,12 +92,10 @@ namespace OpenRA.Mods.Common.LoadScreens
 					var titleFont = r.Fonts[fontKey];
 					var titleText = "WW3MOD";
 					var titleSize = titleFont.Measure(titleText);
-					// Center within the stripe bar, using Ascender as the visual top
-					// DrawText positions at baseline-ascender, so offset by (barH - ascender) / 2
-					var ascender = titleFont.Measure("X").Y;
+					// DrawText draws from top of text, so center = bar midpoint - half text height
 					var titlePos = new float2(
 						(r.Resolution.Width - titleSize.X) / 2,
-						stripeRect.Y + (stripeRect.Height - ascender) / 2);
+						stripeRect.Y + (stripeRect.Height - titleSize.Y) / 2);
 					titleFont.DrawTextWithContrast(titleText, titlePos, Color.White, Color.Black, 2);
 				}
 
