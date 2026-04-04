@@ -235,7 +235,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						{
 							using (var stream = File.OpenRead(file))
 							{
-								var packageLoader = modData.ObjectCreator.CreateObject<IPackageLoader>($"{download.Type}Loader");
+								var loaderType = string.IsNullOrEmpty(download.Type) ? "ZipFile" : download.Type;
+								var packageLoader = modData.ObjectCreator.CreateObject<IPackageLoader>($"{loaderType}Loader");
 
 								if (packageLoader.TryParsePackage(stream, file, modData.ModFiles, out var package))
 								{
