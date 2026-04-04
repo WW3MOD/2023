@@ -235,7 +235,28 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (nearestResupplier != null)
 			{
-				// If the resupplier has Cargo (supply truck), enter it for quick rearm
+				// CargoSupply host (TRUK, etc.) — passive rearm model.
+				// Walk within rearm range and idle; CargoSupply pushes ammo each tick.
+				var cargoSupply = nearestResupplier.TraitOrDefault<CargoSupply>();
+				if (cargoSupply != null)
+				{
+					// Already within rearm range? Just idle — CargoSupply will push ammo.
+					var dist = (nearestResupplier.CenterPosition - self.CenterPosition).HorizontalLength;
+					if (dist <= cargoSupply.Info.RearmRange.Length)
+						return;
+
+					var move = self.TraitOrDefault<IMove>();
+					if (move != null)
+					{
+						var target = Target.FromActor(nearestResupplier);
+						self.QueueActivity(false,
+							move.MoveWithinRange(target, cargoSupply.Info.RearmRange));
+					}
+
+					return;
+				}
+
+				// RearmsUnits host (logisticscenter, etc.) — existing dock/rearm behavior
 				var cargo = nearestResupplier.TraitOrDefault<Cargo>();
 				if (cargo != null && self.Info.HasTraitInfo<PassengerInfo>())
 				{
@@ -278,12 +299,21 @@ namespace OpenRA.Mods.Common.Traits
 			if (rearmInfo == null)
 				return null;
 
-			var rearmActors = self.World.ActorsHavingTrait<RearmsUnits>()
-				.Where(rearmActor => !rearmActor.IsDead
-					&& rearmActor.Owner == self.Owner
-					&& rearmInfo.RearmActors.Contains(rearmActor.Info.Name));
+			// Traditional RearmsUnits hosts (logisticscenter, etc.)
+			var rearmsUnitsActors = self.World.ActorsHavingTrait<RearmsUnits>()
+				.Where(a => !a.IsDead
+					&& a.Owner == self.Owner
+					&& rearmInfo.RearmActors.Contains(a.Info.Name));
 
-			return rearmActors.ClosestToIgnoringPath(self);
+			// CargoSupply hosts (TRUK, etc.) with supply remaining
+			var cargoSupplyActors = self.World.ActorsHavingTrait<CargoSupply>()
+				.Where(a => !a.IsDead
+					&& a.Owner == self.Owner
+					&& rearmInfo.RearmActors.Contains(a.Info.Name)
+					&& a.Trait<CargoSupply>().EffectiveSupply > 0);
+
+			return rearmsUnitsActors.Concat(cargoSupplyActors)
+				.ClosestToIgnoringPath(self);
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }
