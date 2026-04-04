@@ -35,31 +35,6 @@
 		Explosion: UnitExplodeHeli
 		MaximumSpinSpeed: 0
 	-MapEditorData:
-	EjectOnDeath@Rank0:
-		PilotActor: PILOT
-		RequiresCondition: !rank-veteran
-		SuccessRate: 80
-		EjectInAir: true
-	EjectOnDeath@Rank1:
-		PilotActor: PILOTR1
-		RequiresCondition: rank-veteran == 1
-		SuccessRate: 80
-		EjectInAir: true
-	EjectOnDeath@Rank2:
-		PilotActor: PILOTR2
-		RequiresCondition: rank-veteran == 2
-		SuccessRate: 80
-		EjectInAir: true
-	EjectOnDeath@Rank_3:
-		PilotActor: PILOTR3
-		RequiresCondition: rank-veteran == 3
-		SuccessRate: 80
-		EjectInAir: true
-	EjectOnDeath@Rank4:
-		PilotActor: PILOTR4
-		RequiresCondition: rank-veteran >= 4
-		SuccessRate: 80
-		EjectInAir: true
 
 BADR.Husk:
 	Inherits@Type: ^AircraftHusk
