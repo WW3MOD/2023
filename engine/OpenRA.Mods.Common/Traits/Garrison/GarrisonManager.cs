@@ -120,6 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		Cargo cargo;
 		AutoTarget autoTarget;
+		BodyOrientation cachedBodyOrientation;
 		int tickOffset;
 
 		// Suppress flag: prevents OnPassengerEntered/Exited from running during internal transitions
@@ -146,6 +147,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			cargo = self.Trait<Cargo>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
+			cachedBodyOrientation = self.Trait<BodyOrientation>();
 		}
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
@@ -204,7 +206,7 @@ namespace OpenRA.Mods.Common.Traits
 				PortStates[portIndex].ConditionToken = soldier.GrantCondition(Info.GarrisonedCondition);
 
 				// Position at port: use building cell for pathfinding, port offset for visual
-				var coords = self.Trait<BodyOrientation>();
+				var coords = cachedBodyOrientation;
 				var portOffset = GetPortWorldOffset(portIndex, coords);
 
 				// Clamp Z to terrain level to prevent the engine thinking soldier is airborne
@@ -405,7 +407,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Update deployed soldier position each tick (in case building moves/rotates)
 				if (ps.DeployedSoldier != null)
 				{
-					var coords = self.Trait<BodyOrientation>();
+					var coords = cachedBodyOrientation;
 					var portOffset = GetPortWorldOffset(i, coords);
 					var terrainZ = self.World.Map.CenterOfCell(self.Location).Z;
 					var portWorldPos = self.CenterPosition + portOffset;
@@ -445,8 +447,19 @@ namespace OpenRA.Mods.Common.Traits
 						// Reload swap: if also out of ammo, swap with shelter soldier that has ammo
 						if (Info.ReloadSwapping)
 						{
-							var ammoPools = ps.DeployedSoldier.TraitsImplementing<AmmoPool>().ToArray();
-							if (ammoPools.Length > 0 && ammoPools.All(a => a.CurrentAmmoCount == 0))
+							var hasAmmo = false;
+							var hasAmmoPools = false;
+							foreach (var ap in ps.DeployedSoldier.TraitsImplementing<AmmoPool>())
+							{
+								hasAmmoPools = true;
+								if (ap.CurrentAmmoCount > 0)
+								{
+									hasAmmo = true;
+									break;
+								}
+							}
+
+							if (hasAmmoPools && !hasAmmo)
 							{
 								var replacement = FindBestShelterSoldier(i, Target.Invalid);
 								if (replacement != null)

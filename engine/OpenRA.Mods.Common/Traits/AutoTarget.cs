@@ -232,7 +232,9 @@ namespace OpenRA.Mods.Common.Traits
 		IOverrideAutoTarget[] overrideAutoTarget;
 		INotifyStanceChanged[] notifyStanceChanged;
 		INotifyEngagementStanceChanged[] notifyEngagementStanceChanged;
-		IEnumerable<AutoTargetPriorityInfo> activeTargetPriorities;
+		AutoTargetPriority[] allTargetPriorities;
+		readonly List<AutoTargetPriorityInfo> reusableActivePriorities = new List<AutoTargetPriorityInfo>();
+		readonly List<AutoTargetPriorityInfo> reusableValidPriorities = new List<AutoTargetPriorityInfo>();
 		Turreted[] turretedTraits;
 		int conditionToken = Actor.InvalidConditionToken;
 		int engagementConditionToken = Actor.InvalidConditionToken;
@@ -366,11 +368,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// AutoTargetPriority and their Priorities are fixed - so we can safely cache them with ToArray.
-			// IsTraitEnabled can change over time, and so must appear after the ToArray so it gets re-evaluated each time.
-			activeTargetPriorities =
+			// IsTraitEnabled can change over time, so we filter at use time via GetActivePriorities().
+			allTargetPriorities =
 				self.TraitsImplementing<AutoTargetPriority>()
-					.OrderByDescending(ati => ati.Info.Priority).ToArray()
-					.Where(t => !t.IsTraitDisabled).Select(atp => atp.Info);
+					.OrderByDescending(ati => ati.Info.Priority).ToArray();
 
 			overrideAutoTarget = self.TraitsImplementing<IOverrideAutoTarget>().ToArray();
 			notifyStanceChanged = self.TraitsImplementing<INotifyStanceChanged>().ToArray();
@@ -613,18 +614,25 @@ namespace OpenRA.Mods.Common.Traits
 			if (owner == null || Stance <= UnitStance.HoldFire)
 				return false;
 
-			return activeTargetPriorities.Any(ati =>
+			foreach (var atp in allTargetPriorities)
 			{
+				if (atp.IsTraitDisabled)
+					continue;
+
+				var ati = atp.Info;
+
 				// Incompatible relationship
 				if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
-					return false;
+					continue;
 
 				// Incompatible target types
 				if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-					return false;
+					continue;
 
 				return true;
-			});
+			}
+
+			return false;
 		}
 
 		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn)
@@ -634,8 +642,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (stance <= UnitStance.HoldFire)
 				return chosenTarget;
 
-			var activePriorities = activeTargetPriorities.ToList();
-			if (activePriorities.Count == 0)
+			reusableActivePriorities.Clear();
+			foreach (var atp in allTargetPriorities)
+				if (!atp.IsTraitDisabled)
+					reusableActivePriorities.Add(atp.Info);
+
+			if (reusableActivePriorities.Count == 0)
 				return chosenTarget;
 
 			var targetsInRange = self.World.FindActorsInCircle(self.CenterPosition, scanRange)
@@ -684,24 +696,21 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					continue;
 
-				var validPriorities = activePriorities.Where(ati =>
+				reusableValidPriorities.Clear();
+				foreach (var ati in reusableActivePriorities)
 				{
-					// // Already have a higher priority target
-					// if (ati.Priority < chosenTargetPriority)
-					// 	return false;
-
 					// Incompatible relationship
 					if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
-						return false;
+						continue;
 
 					// Incompatible target types
 					if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-						return false;
+						continue;
 
-					return true;
-				}).ToList();
+					reusableValidPriorities.Add(ati);
+				}
 
-				if (validPriorities.Count == 0)
+				if (reusableValidPriorities.Count == 0)
 					continue;
 
 				// Make sure that we can actually fire on the actor
@@ -739,7 +748,7 @@ namespace OpenRA.Mods.Common.Traits
 				var priorityValue = 0;
 
 				// Evaluate whether we want to target this actor
-				foreach (var ati in validPriorities)
+				foreach (var ati in reusableValidPriorities)
 				{
 					priorityValue = 0;
 

@@ -212,7 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 		// }
 		public virtual WDist MaxRange()
 		{
-			return new WDist(Util.ApplyPercentageModifiers(Weapon.Range.Length, rangeModifiers.ToArray()));
+			return new WDist(Util.ApplyPercentageModifiers(Weapon.Range.Length, rangeModifiers));
 		}
 
 		public virtual WDist MinRange()
@@ -471,8 +471,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (--Magazine < 1)
 				{
-					var modifiers = reloadModifiers.ToArray();
-					ReloadDelay = Util.ApplyPercentageModifiers(Weapon.ReloadDelay, modifiers);
+					ReloadDelay = Util.ApplyPercentageModifiers(Weapon.ReloadDelay, reloadModifiers);
 
 					Magazine = Weapon.Magazine;
 
@@ -488,8 +487,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (--Burst < 1)
 				{
-					var burstWaitmodifiers = burstWaitModifiers.ToArray();
-					SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitmodifiers), true);
+					SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitModifiers), true);
 
 					ResetBurst(self);
 
@@ -511,14 +509,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void ResetBurst(Actor self)
 		{
-			var burstmodifiers = burstModifiers.ToArray();
-
 			if (Weapon.BurstRandomize > 0)
 			{
 				Burst = self.World.SharedRandom.Next(Weapon.Burst - Weapon.BurstRandomize / 2, (Weapon.Burst + Weapon.BurstRandomize / 2) + Weapon.Burst % 2);
 			}
 
-			Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstmodifiers);
+			Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstModifiers);
 		}
 
 		void SetBurstWait(int delay, bool isBurstWait = false)

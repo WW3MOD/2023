@@ -33,11 +33,12 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new HealerAutoTarget(init.Self, this); }
 	}
 
-	public class HealerAutoTarget : IOverrideAutoTarget, ITick, INotifyActorDisposing
+	public class HealerAutoTarget : IOverrideAutoTarget, ITick, INotifyCreated, INotifyActorDisposing
 	{
 		readonly HealerAutoTargetInfo info;
 		readonly BitSet<TargetableType> validTargetTypes;
 		HealerClaimLayer claimLayer;
+		AttackBase[] attackBases;
 		Actor currentTarget;
 		int scanTick;
 
@@ -45,6 +46,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			this.info = info;
 			validTargetTypes = info.ValidTargetTypes;
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			attackBases = self.TraitsImplementing<AttackBase>().ToArray();
 		}
 
 		void EnsureClaimLayer(Actor self)
@@ -111,17 +117,24 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		Actor FindBestTarget(Actor self)
+		WDist GetMaxHealRange()
 		{
-			// Use maximum range from attack bases
-			var attackBases = self.TraitsImplementing<AttackBase>().Where(a => !a.IsTraitDisabled);
 			var maxRange = WDist.Zero;
 			foreach (var ab in attackBases)
 			{
+				if (ab.IsTraitDisabled)
+					continue;
 				var r = ab.GetMaximumRange();
 				if (r > maxRange)
 					maxRange = r;
 			}
+
+			return maxRange;
+		}
+
+		Actor FindBestTarget(Actor self)
+		{
+			var maxRange = GetMaxHealRange();
 
 			if (maxRange == WDist.Zero)
 				return null;
@@ -172,15 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		Actor FindCriticalUnclaimed(Actor self)
 		{
-			var attackBases = self.TraitsImplementing<AttackBase>().Where(a => !a.IsTraitDisabled);
-			var maxRange = WDist.Zero;
-			foreach (var ab in attackBases)
-			{
-				var r = ab.GetMaximumRange();
-				if (r > maxRange)
-					maxRange = r;
-			}
-
+			var maxRange = GetMaxHealRange();
 			if (maxRange == WDist.Zero)
 				return null;
 
