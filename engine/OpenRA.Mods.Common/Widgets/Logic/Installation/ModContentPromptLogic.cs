@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OpenRA.Widgets;
@@ -18,28 +19,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class ModContentPromptLogic : ChromeLogic
 	{
-		[FluentReference]
-		const string Continue = "button-continue";
-
-		[FluentReference]
-		const string Quit = "button-quit";
-
 		readonly ModContent content;
 		bool requiredContentInstalled;
 
 		[ObjectCreator.UseCtor]
-		public ModContentPromptLogic(ModData modData, Widget widget, ModContent content, Action continueLoading)
+		public ModContentPromptLogic(ModData modData, Widget widget, Manifest mod, ModContent content, Action continueLoading)
 		{
 			this.content = content;
 			CheckRequiredContentInstalled();
 
-			var continueMessage = FluentProvider.GetMessage(Continue);
-			var quitMessage = FluentProvider.GetMessage(Quit);
-
 			var panel = widget.Get("CONTENT_PROMPT_PANEL");
-			var headerLabel = panel.Get<LabelWidget>("HEADER_LABEL");
-			headerLabel.IncreaseHeightToFitCurrentText();
-			var headerHeight = headerLabel.Bounds.Height;
+			var headerTemplate = panel.Get<LabelWidget>("HEADER_TEMPLATE");
+			var headerLines = !string.IsNullOrEmpty(content.InstallPromptMessage)
+				? content.InstallPromptMessage.Replace("\\n", "\n").Split('\n')
+				: Array.Empty<string>();
+			var headerHeight = 0;
+			foreach (var l in headerLines)
+			{
+				var line = (LabelWidget)headerTemplate.Clone();
+				line.GetText = () => l;
+				line.Bounds.Y += headerHeight;
+				panel.AddChild(line);
+
+				headerHeight += headerTemplate.Bounds.Height;
+			}
 
 			panel.Bounds.Height += headerHeight;
 			panel.Bounds.Y -= headerHeight / 2;
@@ -50,8 +53,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				Ui.OpenWindow("CONTENT_PANEL", new WidgetArgs
 				{
-					{ "onCancel", CheckRequiredContentInstalled },
+					{ "mod", mod },
 					{ "content", content },
+					{ "onCancel", CheckRequiredContentInstalled }
 				});
 			};
 
@@ -60,7 +64,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			quickButton.Bounds.Y += headerHeight;
 			quickButton.OnClick = () =>
 			{
-				var downloadYaml = MiniYaml.Load(modData.DefaultFileSystem, content.Downloads, null);
+				var downloadYaml = LoadYamlFromModPackage(mod, content.Downloads);
 				var download = downloadYaml.FirstOrDefault(n => n.Key == content.QuickDownload);
 				if (download == null)
 					throw new InvalidOperationException($"Mod QuickDownload `{content.QuickDownload}` definition not found.");
@@ -73,7 +77,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			};
 
 			var quitButton = panel.Get<ButtonWidget>("QUIT_BUTTON");
-			quitButton.GetText = () => requiredContentInstalled ? continueMessage : quitMessage;
+			quitButton.GetText = () => requiredContentInstalled ? "Continue" : "Quit";
 			quitButton.Bounds.Y += headerHeight;
 			quitButton.OnClick = () =>
 			{
@@ -91,6 +95,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			requiredContentInstalled = content.Packages
 				.Where(p => p.Value.Required)
 				.All(p => p.Value.TestFiles.All(f => File.Exists(Platform.ResolvePath(f))));
+		}
+
+		/// <summary>Load YAML files from the mod package, stripping the "modid|" prefix from paths.</summary>
+		internal static List<MiniYamlNode> LoadYamlFromModPackage(Manifest mod, IEnumerable<string> files)
+		{
+			var nodes = new List<MiniYamlNode>();
+			var prefix = mod.Id + "|";
+			foreach (var f in files)
+			{
+				var path = f.StartsWith(prefix) ? f[prefix.Length..] : f;
+				var stream = mod.Package.GetStream(path);
+				if (stream == null)
+					continue;
+
+				nodes.AddRange(MiniYaml.FromStream(stream, f));
+			}
+
+			return nodes;
 		}
 	}
 }
