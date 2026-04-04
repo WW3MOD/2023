@@ -314,6 +314,7 @@ RPG:
 		DamageTypes: ExplosionDeath
 
 20mm_CRAM:
+	Inherits@HitEffects: ^MinimalExplosionEffectsAir
 	Range: 22c0
 	BurstWait: 1
 	ValidTargets: Air, ICBM

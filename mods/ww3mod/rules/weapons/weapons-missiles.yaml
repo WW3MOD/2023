@@ -180,6 +180,10 @@ SurfaceToAirMissile:
 		RandomDamageAddition: 1000
 		Spread: 128
 		ValidTargets: Air, ICBM
+	Warhead@EffectGround: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Water, Trees
 
 SurfaceToAirMissile.double:
 	Inherits: SurfaceToAirMissile
@@ -211,6 +215,10 @@ AirToAirMissile:
 		RandomDamageAddition: 1000
 		Spread: 128
 		ValidTargets: Air, ICBM
+	Warhead@EffectGround: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Water, Trees
 
 MANPAD:
 	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
@@ -240,6 +248,10 @@ MANPAD:
 		Penetration: 15
 		Spread: 192
 		ValidTargets: Air
+	Warhead@EffectGround: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Water, Trees
 
 Stinger:
 	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
@@ -269,6 +281,10 @@ Stinger:
 		Penetration: 20
 		Spread: 256
 		ValidTargets: Air
+	Warhead@EffectGround: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom12.aud
+		ValidTargets: Ground, Water, Trees
 
 Stinger.quad:
 	Inherits: Stinger

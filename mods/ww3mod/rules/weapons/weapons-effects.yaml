@@ -688,13 +688,18 @@
 	Warhead@Effect: CreateEffect
 		ValidTargets: Air
 		ImpactActors: true
+		Explosions: explosion_air_small
+		ImpactSounds: kaboom12.aud
 
+# Used by: (available for light AA cannons, e.g. future 20mm AA)
 ^SmallExplosionEffectsAir:
 	Warhead@Target: TargetDamage
 		ValidTargets: Air
 	Warhead@Effect: CreateEffect
-		ValidTargets: Helicopter
-		ImpactActors: false
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_small
+		ImpactSounds: kaboom12.aud
 
 ^MediumExplosionEffectsAir:
 	Warhead@AirEffect: CreateEffect
@@ -703,16 +708,22 @@
 		Explosions: explosion_air_medium
 		ImpactSounds: kaboom25.aud
 
+# Used by: (available for heavy SAMs, large AA weapons)
 ^LargeExplosionEffectsAir:
 	Warhead@Target: TargetDamage
 		ValidTargets: Air
 	Warhead@Effect: CreateEffect
-		ValidTargets: Helicopter
-		ImpactActors: false
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom15.aud
 
+# Used by: (available for massive AA warheads, naval AA)
 ^HugeExplosionEffectsAir:
 	Warhead@Target: TargetDamage
 		ValidTargets: Air
 	Warhead@Effect: CreateEffect
-		ValidTargets: Helicopter
-		ImpactActors: false
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom22.aud
