@@ -143,6 +143,30 @@ function getTerrainTypeName(tileset: TilesetData, tileType: number, tileIndex: n
 	return tmpl.tiles.get(tileIndex) ?? tmpl.tiles.get(0) ?? 'Unknown';
 }
 
+/** Terrain types that block ground unit placement. */
+const IMPASSABLE_TERRAIN = new Set(['Water', 'River', 'Rock']);
+
+/** Check if a cell is passable for ground units. */
+function isCellPassable(bin: MapBinData, tileset: TilesetData, x: number, y: number): boolean {
+	const tile = bin.tiles[x]?.[y];
+	if (!tile) return false;
+	const name = getTerrainTypeName(tileset, tile.type, tile.index);
+	return !IMPASSABLE_TERRAIN.has(name);
+}
+
+/** Build a terrain grid: 2D array [y][x] of terrain type names. */
+function buildTerrainGrid(bin: MapBinData, tileset: TilesetData): string[][] {
+	const grid: string[][] = [];
+	for (let y = 0; y < bin.height; y++) {
+		grid[y] = [];
+		for (let x = 0; x < bin.width; x++) {
+			const tile = bin.tiles[x]?.[y];
+			grid[y][x] = tile ? getTerrainTypeName(tileset, tile.type, tile.index) : 'Unknown';
+		}
+	}
+	return grid;
+}
+
 /** Generate a simple PNG preview from tile data. */
 function generatePreviewPng(bin: MapBinData, tileset: TilesetData): Buffer {
 	// Use playable bounds (skip 1-cell border)
@@ -325,15 +349,46 @@ server.tool(
 
 		// Build terrain distribution summary
 		const terrainCounts = new Map<string, number>();
-		for (let x = 0; x < bin.width; x++) {
-			for (let y = 0; y < bin.height; y++) {
-				const tile = bin.tiles[x]?.[y];
-				if (tile) {
-					const name = getTerrainTypeName(tileset, tile.type, tile.index);
-					terrainCounts.set(name, (terrainCounts.get(name) ?? 0) + 1);
-				}
+		const terrainGrid = buildTerrainGrid(bin, tileset);
+		for (let y = 0; y < bin.height; y++) {
+			for (let x = 0; x < bin.width; x++) {
+				const name = terrainGrid[y][x];
+				terrainCounts.set(name, (terrainCounts.get(name) ?? 0) + 1);
 			}
 		}
+
+		// Build compact row-based terrain grid (each row as a string of single chars)
+		// Legend: .=Clear, W=Water, R=River/Rough, B=Beach, X=Rock, ==Road, #=Bridge, ?=Unknown
+		const compactGrid: string[] = [];
+		for (let y = 0; y < bin.height; y++) {
+			let row = '';
+			for (let x = 0; x < bin.width; x++) {
+				const t = terrainGrid[y][x];
+				if (t === 'Clear') row += '.';
+				else if (t === 'Water') row += 'W';
+				else if (t === 'River') row += 'r';
+				else if (t === 'Beach') row += 'B';
+				else if (t === 'Rock') row += 'X';
+				else if (t === 'Road') row += '=';
+				else if (t === 'Bridge') row += '#';
+				else if (t === 'Rough') row += '~';
+				else row += '?';
+			}
+			compactGrid.push(row);
+		}
+
+		// Annotate actors with terrain at their location
+		const annotatedActors = yaml.actors.map(a => {
+			const [ax, ay] = a.location.split(',').map(Number);
+			const terrain = terrainGrid[ay]?.[ax] ?? 'Unknown';
+			const passable = !IMPASSABLE_TERRAIN.has(terrain);
+			return { ...a, terrain, passable };
+		});
+
+		// Flag actors on impassable terrain
+		const warnings = annotatedActors
+			.filter(a => !a.passable)
+			.map(a => `${a.id} (${a.type}) at ${a.location} is on ${a.terrain}`);
 
 		const result = {
 			metadata: {
@@ -344,11 +399,15 @@ server.tool(
 				bounds: yaml.bounds,
 				visibility: yaml.visibility,
 				categories: yaml.categories,
+				dimensions: { width: bin.width, height: bin.height },
 			},
 			players: yaml.players,
-			actors: yaml.actors,
+			actors: annotatedActors,
 			terrainDistribution: Object.fromEntries(terrainCounts),
 			totalCells: bin.width * bin.height,
+			terrainGrid: compactGrid,
+			terrainLegend: '.=Clear W=Water r=River B=Beach X=Rock ==Road #=Bridge ~=Rough',
+			warnings: warnings.length > 0 ? warnings : undefined,
 		};
 
 		return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -535,11 +594,35 @@ server.tool(
 		const mapPath = ensureMapExists(mapName);
 		const yaml = readMapYaml(path.join(mapPath, 'map.yaml'));
 
+		// Load binary terrain data for validation
+		const binPath = path.join(mapPath, 'map.bin');
+		const hasBin = fs.existsSync(binPath);
+		let bin: MapBinData | null = null;
+		let tileset: TilesetData | null = null;
+		if (hasBin) {
+			bin = readMapBin(fs.readFileSync(binPath));
+			tileset = loadTileset(yaml.tileset);
+		}
+
 		let nextId = getNextActorId(yaml.actors);
 		const placed: string[] = [];
+		const warnings: string[] = [];
 
 		for (const a of newActors) {
 			const actorId = a.id ?? `Actor${nextId++}`;
+
+			// Terrain validation
+			if (bin && tileset) {
+				if (a.x < 0 || a.x >= bin.width || a.y < 0 || a.y >= bin.height) {
+					warnings.push(`⚠ ${actorId} at (${a.x},${a.y}): OUT OF BOUNDS (map is ${bin.width}x${bin.height})`);
+				} else {
+					const terrain = getTerrainTypeName(tileset, bin.tiles[a.x][a.y].type, bin.tiles[a.x][a.y].index);
+					if (IMPASSABLE_TERRAIN.has(terrain)) {
+						warnings.push(`⚠ ${actorId} (${a.type}) at (${a.x},${a.y}): placed on ${terrain} — unit will be stuck or destroyed!`);
+					}
+				}
+			}
+
 			const actor: MapActor = {
 				id: actorId,
 				type: a.type,
@@ -553,7 +636,11 @@ server.tool(
 
 		fs.writeFileSync(path.join(mapPath, 'map.yaml'), writeMapYaml(yaml));
 
-		return { content: [{ type: 'text', text: `Placed ${placed.length} actors:\n${placed.join('\n')}` }] };
+		let msg = `Placed ${placed.length} actors:\n${placed.join('\n')}`;
+		if (warnings.length > 0) {
+			msg += `\n\n⚠ TERRAIN WARNINGS:\n${warnings.join('\n')}`;
+		}
+		return { content: [{ type: 'text', text: msg }] };
 	}
 );
 

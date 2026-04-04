@@ -57,11 +57,11 @@ Frontline:
 			Facing: 768
 		GarNatoE3_1: e3.america
 			Owner: NATOGarrison
-			Location: 34,30
+			Location: 29,30
 			Facing: 768
 		GarNatoE3_2: e3.america
 			Owner: NATOGarrison
-			Location: 34,32
+			Location: 31,32
 			Facing: 768
 		GarNatoE3_3: e3.america
 			Owner: NATOGarrison
@@ -73,7 +73,7 @@ Frontline:
 			Facing: 768
 		GarNatoAR_1: ar.america
 			Owner: NATOGarrison
-			Location: 36,34
+			Location: 32,34
 			Facing: 768
 		GarNatoAR_2: ar.america
 			Owner: NATOGarrison
@@ -101,7 +101,7 @@ Frontline:
 			Facing: 768
 		GarNatoSN: sn.america
 			Owner: NATOGarrison
-			Location: 32,26
+			Location: 28,26
 			Facing: 768
 		GarRussiaT90_1: t90
 			Owner: RussiaGarrison
@@ -153,15 +153,15 @@ Frontline:
 			Facing: 256
 		GarRussiaAT_2: at.russia
 			Owner: RussiaGarrison
-			Location: 61,46
+			Location: 66,46
 			Facing: 256
 		GarRussiaE1_1: e1.russia
 			Owner: RussiaGarrison
-			Location: 63,50
+			Location: 69,50
 			Facing: 256
 		GarRussiaE1_2: e1.russia
 			Owner: RussiaGarrison
-			Location: 63,52
+			Location: 70,52
 			Facing: 256
 		GarRussiaMedi: medi.russia
 			Owner: RussiaGarrison
