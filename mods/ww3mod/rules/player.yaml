@@ -210,10 +210,6 @@ Player:
 		Name: Unrestricted
 		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high, techlevel.unrestricted
 		Id: unrestricted
-	ProvidesTechPrerequisite@futuristic:
-		Name: Futuristic
-		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high, techlevel.unrestricted, techlevel.futuristic
-		Id: futuristic
 	GrantConditionOnPrerequisiteManager:
 	EnemyWatcher:
 	ProductionIconOverlayManager:

@@ -3,6 +3,17 @@
 **Scope:** All combat units — infantry, vehicles, aircraft (NATO/America vs BRICS/Russia)
 **Goal:** Faction parity, realistic asymmetric balance, cost-effectiveness consistency
 
+## Changes Applied (2026-04-04)
+- [x] **Humvee cost 600 → 450, speed 130 → 150** — cheaper/faster to reflect utility vehicle role
+- [x] **SHOK Tesla Trooper disabled** — prerequisites set to `~disabled`, futuristic tech level removed from player.yaml
+- [x] **Halo (Mi-26) cargo 24 → 36, thickness 6 → 10, speed 240 → 220** — matches Chinook capacity, realistic armor, slightly slower (IRL slower)
+- [x] **Futuristic tech level removed** from lobby dropdown
+
+## Review Notes
+- **Paladin 3-burst: NOT broken** — cycle time (480 ticks for 3 shots) vs Giatsint (180 ticks for 1 shot) = only ~12% DPS difference. Burst is alpha-strike advantage, balanced by reload gap
+- **ATGM Pen 100 vs heavy armor: WORKS via top-attack** — Abrams top armor = 700 * 10% = 70 effective, so Pen 100 penetrates. T-90 top = 280 * 80% = 224, so Pen 100 does NOT penetrate T-90 top (see T-90 distribution issue below)
+- **T-90 armor distribution concern:** Distribution 100,80,80,80,60 gives T-90 224 effective top armor — infantry ATGMs can't penetrate it! Abrams (100,40,15,10,10) has only 70 top. T-90 top should be weaker (ERA provides less overhead protection IRL)
+
 ---
 
 ## Methodology

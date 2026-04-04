@@ -37,16 +37,16 @@ HALO:
 		HP: 600
 	Armor:
 		Type: Light
-		Thickness: 6
+		Thickness: 10
 	Targetable@Armor:
 		TargetTypes: Light
 	Aircraft:
 		TurnSpeed: 8
-		Speed: 240
+		Speed: 220
 		AltitudeVelocity: 0c58
 	Cargo:
 		Types: Infantry
-		MaxWeight: 24
+		MaxWeight: 36
 		AfterUnloadDelay: 40
 		EjectOnDeath: false
 	CargoSupply:
@@ -57,7 +57,7 @@ HALO:
 		CargoHasSupplyCondition: cargo-has-supply
 		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
-		PipCount: 24
+		PipCount: 36
 	Selectable:
 		DecorationBounds: 1700,1536
 	WithIdleOverlay@Rotor1Air:

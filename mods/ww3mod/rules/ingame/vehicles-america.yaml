@@ -29,7 +29,7 @@ humvee:
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
 		Description: Fast wheeled transport with mounted gun.\n\n - 7.62mm machine gun\n - Carries 8 infantry\n - Armor: Light
 	Valued:
-		Cost: 600
+		Cost: 450
 	Tooltip:
 		Name: Humvee
 	AnnounceOnSeen:
@@ -54,7 +54,7 @@ humvee:
 			BottomRight: 220, 500
 	Mobile:
 		Locomotor: lightwheeled
-		Speed: 130
+		Speed: 150
 		Acceleration: 3, 4, 5, 6, 5, 4, 3, 2, 1
 		TurnSpeed: 15
 		PauseOnCondition: empdisable

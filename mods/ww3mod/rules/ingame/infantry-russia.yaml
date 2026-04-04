@@ -146,7 +146,7 @@ SHOK:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 99
-		Prerequisites: ~player.russia, ~infantry.russia, ~techlevel.futuristic
+		Prerequisites: ~disabled
 		Description: Infantry with portable Tesla coils.
 	Tooltip:
 		Name: Tesla Trooper
