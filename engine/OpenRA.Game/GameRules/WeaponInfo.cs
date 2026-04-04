@@ -134,6 +134,11 @@ namespace OpenRA.GameRules
 		[Desc("The minimum range the weapon can fire.")]
 		public readonly WDist MinRange = WDist.Zero;
 
+		[Desc("Maximum shadow value (0-255) from the ShadowLayer that still allows this weapon to fire.",
+			"Lower values require clearer line of sight. Snipers ~2, MGs ~5, area weapons ~10.",
+			"Units with IndirectFire trait ignore this check entirely.")]
+		public readonly byte ClearSightThreshold = 5;
+
 		[Desc("Does this weapon aim at the target's center regardless of other targetable offsets?")]
 		public readonly bool TargetActorCenter = false;
 

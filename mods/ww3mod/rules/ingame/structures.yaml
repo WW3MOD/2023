@@ -30,6 +30,7 @@
 	Building:
 		Dimensions: 1,1
 		Footprint: x
+		Density: 100
 		TerrainTypes: Clear,Road,Beach,Rough
 		RequiresBaseProvider: True
 		BuildSounds: placbldg.aud, build5.aud

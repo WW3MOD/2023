@@ -728,12 +728,15 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (target.Type != TargetType.Invalid)
 				{
-					if (self.TraitOrDefault<IndirectFire>() == null)
-						if (BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out var blockedPos, true, true))
-						{
-							// Already checked in TargetInFiringArc, might be unneccesary/inefficient
-							continue;
-						}
+					// Per-unit LOS check using pre-cached ShadowLayer data.
+					// Each unit must have clear enough LOS from its own cell.
+					byte bestThreshold = 0;
+					foreach (var arm in armaments)
+						if (arm.Weapon.ClearSightThreshold > bestThreshold)
+							bestThreshold = arm.Weapon.ClearSightThreshold;
+
+					if (!FiringLOS.HasClearLOS(self, target.CenterPosition, bestThreshold))
+						continue;
 				}
 
 				if (target.Actor == null)

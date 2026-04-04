@@ -219,9 +219,9 @@ namespace OpenRA.Mods.Common.Activities
 			var outOfRange = !target.IsInRange(pos, maxRange);
 			var tooClose = minRange.Length != 0 && target.IsInRange(pos, minRange);
 			var cantInteract = move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self);
-			var losBlocked = self.TraitOrDefault<IndirectFire>() == null
-				&& checkTarget.Type != TargetType.Invalid
-				&& BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos);
+			var losThreshold = FiringLOS.GetBestThreshold(self, checkTarget);
+			var losBlocked = checkTarget.Type != TargetType.Invalid
+				&& !FiringLOS.HasClearLOS(self, checkTarget.CenterPosition, losThreshold);
 
 			var needsToMove = outOfRange || tooClose || cantInteract || losBlocked;
 

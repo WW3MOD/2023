@@ -135,8 +135,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true;
 
-			if (target.Type == TargetType.Invalid || (self.TraitOrDefault<IndirectFire>() == null &&
-				BlocksProjectiles.AnyBlockingActorsBetween(self, target.CenterPosition, new WDist(1), out _)))
+			if (target.Type == TargetType.Invalid)
+				return false;
+
+			// Per-unit LOS check using ShadowLayer
+			var losThreshold = FiringLOS.GetBestThreshold(self, target);
+			if (!FiringLOS.HasClearLOS(self, target.CenterPosition, losThreshold))
 				return false;
 
 			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw, facingTolerance);

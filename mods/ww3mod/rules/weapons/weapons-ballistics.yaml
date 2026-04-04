@@ -1,5 +1,6 @@
 ^9mm:
 	Inherits@HitEffects: ^SmallCaliberEffects
+	ClearSightThreshold: 4
 	ValidTargets: Infantry, Unarmored, Helicopter
 	Range: 14c0
 	Report: gun11.aud
@@ -136,6 +137,7 @@ MP5:
 
 ^7.62mm:
 	Inherits@HitEffects: ^MediumCaliberEffects
+	ClearSightThreshold: 6
 	ValidTargets: Infantry, Unarmored, Helicopter
 	Range: 15c0
 	Report: pillbox1.aud
@@ -164,6 +166,7 @@ MP5:
 	Report: gun5.aud
 7.62mm.Sniper:
 	Inherits@Caliber: ^7.62mm
+	ClearSightThreshold: 2
 	Range: 20c0
 	Magazine: 5
 	ReloadDelay: 200
@@ -205,6 +208,7 @@ MP5:
 
 ^12.7mm:
 	Inherits@HitEffects: ^LargeCaliberEffects
+	ClearSightThreshold: 7
 	ValidTargets: Infantry, Unarmored, Helicopter, Light
 	Range: 16c0
 	Report: gun13.aud
@@ -258,6 +262,7 @@ HandGrenade:
 		Explosions: splash_small
 GrenadeLauncher:
 	Inherits@HitEffects: ^MinimalExplosionEffects
+	ClearSightThreshold: 10
 	ValidTargets: Infantry, Unarmored, Light
 	Range: 12c0
 	MinRange: 1c512
@@ -289,6 +294,7 @@ GrenadeLauncher.5mag:
 
 RPG:
 	Inherits@HitEffects: ^MediumExplosionEffects
+	ClearSightThreshold: 4
 	ValidTargets: Ground, Vehicle, Defense, Water
 	InvalidTargets: Infantry
 	BurstWait: 150
@@ -351,6 +357,7 @@ AACannon:
 
 ^30mm:
 	Inherits@HitEffects: ^MinimalExplosionEffects
+	ClearSightThreshold: 6
 	ValidTargets: Infantry, Vehicle, Defense
 	InvalidTargets: Wall, Husk
 	Report: gun13.aud
@@ -563,6 +570,7 @@ AACannon:
 
 ^TankRound:
 	Inherits@HitEffects: ^MediumExplosionEffects
+	ClearSightThreshold: 3
 	Range: 24c0
 	MinRange: 1c512
 	BurstWait: 110
@@ -597,6 +605,7 @@ TankRound.T90:
 
 ^ArtilleryRound:
 	Inherits@HitEffects: ^LargeExplosionEffects
+	ClearSightThreshold: 255
 	ValidTargets: Ground, Trees, Water
 	Range: 40c0
 	MinRange: 10c0

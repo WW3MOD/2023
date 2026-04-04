@@ -1,6 +1,7 @@
 
 ATGM:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ClearSightThreshold: 3
 	ValidTargets: Vehicle, Defense, Water
 	TopAttack: true
 	Range: 20c0
@@ -69,6 +70,7 @@ WGM.bradley:
 
 Hellfire:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	ClearSightThreshold: 3
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
 	MinRange: 5c0
@@ -193,6 +195,7 @@ SurfaceToAirMissile.double:
 
 AirToAirMissile:
 	Inherits@ExplosionEffects: ^MediumExplosionEffectsAir
+	ClearSightThreshold: 15
 	ValidTargets: Air, ICBM
 	Range: 30c0
 	MinRange: 10c0

@@ -92,8 +92,6 @@
 	Inherits@Type: ^Airborne
 	ActorLostNotification:
 		Notification: AirUnitLost
-	IndirectFire:
-		RequiresCondition: airborne
 	EjectOnDeath@Rank0:
 		PilotActor: PILOT
 		RequiresCondition: airborne && !suppress-eject && !rank-veteran
@@ -135,8 +133,6 @@
 	Inherits@Type: ^Airborne
 	ActorLostNotification:
 		Notification: AirUnitLost
-	IndirectFire:
-		RequiresCondition: airborne
 	-BodyOrientation:
 	Tooltip:
 		GenericName: Helicopter

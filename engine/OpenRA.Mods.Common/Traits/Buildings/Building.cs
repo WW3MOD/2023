@@ -368,12 +368,28 @@ namespace OpenRA.Mods.Common.Traits
 
 			self.World.AddToMaps(self, this);
 			influence.AddInfluence(self, Info.Tiles(self.Location));
+
+			// Update shadow layer for newly placed buildings so they block LOS
+			if (Info.Density.Count > 0)
+			{
+				var map = self.World.Map;
+				map.UpdateDensityForBuilding(self.Location, Info.Density, add: true);
+				map.UpdateShadowForCells(Info.DensityTiles(self.Location));
+			}
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
 			self.World.RemoveFromMaps(self, this);
 			influence.RemoveInfluence(self, Info.Tiles(self.Location));
+
+			// Update shadow layer when buildings are destroyed
+			if (Info.Density.Count > 0)
+			{
+				var map = self.World.Map;
+				map.UpdateDensityForBuilding(self.Location, Info.Density, add: false);
+				map.UpdateShadowForCells(Info.DensityTiles(self.Location));
+			}
 		}
 
 		void INotifySold.Selling(Actor self)

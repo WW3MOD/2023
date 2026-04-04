@@ -1030,6 +1030,93 @@ namespace OpenRA
 			}
 		}
 
+		/// <summary>
+		/// Recompute shadow entries for all cell pairs whose line passes through any of the given cells.
+		/// Called when buildings are placed or destroyed to keep ShadowLayer in sync with DensityLayer.
+		/// </summary>
+		public void UpdateShadowForCells(IEnumerable<CPos> modifiedCells)
+		{
+			if (ShadowLayer == null || DensityLayer == null)
+				return;
+
+			// Collect all "from" cells within 32 range of any modified cell that need shadow recalculation
+			var affectedFromCells = new HashSet<MPos>();
+			foreach (var cell in modifiedCells)
+			{
+				foreach (var fromCell in FindTilesInAnnulus(cell, 0, 32, true))
+					affectedFromCells.Add(fromCell.ToMPos(this));
+			}
+
+			// For each affected "from" cell, recompute shadow to all cells in the 2-32 annulus
+			foreach (var fromUV in affectedFromCells)
+			{
+				if (ShadowLayer[fromUV] == null)
+					ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
+
+				foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+				{
+					var toUV = tilePos.ToMPos(this);
+					var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
+
+					var totalGround = 0f;
+					var totalAirborne = 0f;
+
+					var z_a = 2048;
+					var fromCenter = CenterOfCell(fromUV.ToCPos(this));
+					var toCenter = CenterOfCell(toUV.ToCPos(this));
+					var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
+					var p1 = new WPos(toCenter.X, toCenter.Y, 0);
+					var delta = p1 - p0;
+
+					var deltaXY = new WVec(delta.X, delta.Y, 0);
+					var dH = deltaXY.Length / 1024f;
+
+					foreach (var tile in tiles)
+					{
+						totalGround += DensityLayer[tile] / 10f;
+
+						var tileCenter = CenterOfCell(tile.ToCPos(this));
+						var vecToTile = new WVec(tileCenter.X - p0.X, tileCenter.Y - p0.Y, 0);
+						var dot = vecToTile.X * delta.X + vecToTile.Y * delta.Y;
+						var deltaLengthSquared = delta.X * delta.X + delta.Y * delta.Y;
+						var t = dot / (float)deltaLengthSquared;
+						t = Math.Max(0, Math.Min(1, t));
+						var z_los = z_a * (1 - t);
+
+						var obstacleHeight = 512;
+						if (obstacleHeight > z_los)
+							totalAirborne += DensityLayer[tile] / 5f;
+					}
+
+					var groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
+					var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
+
+					ShadowLayer[fromUV][toUV] = (groundShadow, airborneShadow);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Update density layer for a building footprint being added or removed.
+		/// </summary>
+		public void UpdateDensityForBuilding(CPos location, Dictionary<CVec, byte> density, bool add)
+		{
+			if (DensityLayer == null)
+				return;
+
+			foreach (var d in density)
+			{
+				var pos = location + d.Key;
+				if (DensityLayer.IsValidCoordinate(pos.X, pos.Y))
+				{
+					if (add)
+						DensityLayer[pos] = (byte)Math.Min(DensityLayer[pos] + d.Value, byte.MaxValue);
+					else
+						DensityLayer[pos] = (byte)Math.Max(DensityLayer[pos] - d.Value, 0);
+				}
+			}
+		}
+
 		public (Color Left, Color Right) GetTerrainColorPair(MPos uv)
 		{
 			var terrainInfo = Rules.TerrainInfo;

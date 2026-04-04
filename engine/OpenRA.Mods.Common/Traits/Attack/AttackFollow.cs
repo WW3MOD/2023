@@ -349,10 +349,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				// We've reached the required range - if the target is visible and valid then we wait
 				// otherwise if it is hidden or dead we give up
+				var losThreshold = FiringLOS.GetBestThreshold(self, checkTarget);
 				if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange)
 					&& checkTarget.Type != TargetType.Invalid
-					&& (self.TraitOrDefault<IndirectFire>() != null
-						|| !BlocksProjectiles.AnyBlockingActorsBetween(self, checkTarget.CenterPosition, new WDist(1), out var blockedPos)))
+					&& FiringLOS.HasClearLOS(self, checkTarget.CenterPosition, losThreshold))
 				{
 					if (useLastVisibleTarget)
 						return true;
