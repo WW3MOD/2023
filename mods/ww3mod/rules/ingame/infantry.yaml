@@ -134,12 +134,12 @@
 	SelectionPriorityModifier@Evacuating:
 		RequiresCondition: evacuating
 		Modifier: -20
-	WithTextDecoration@Evacuating:
-		Text: EVA
-		RequiresCondition: evacuating
+	WithDecoration@Evacuating:
+		Image: pips
+		Sequence: pip-orange
 		Position: TopRight
-		Color: FFE040
-		Font: TinyBold
+		RequiresCondition: evacuating
+		ValidRelationships: Ally
 
 ^Soldier:
 	Inherits: ^Infantry
