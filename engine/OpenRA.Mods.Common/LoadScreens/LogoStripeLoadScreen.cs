@@ -92,14 +92,14 @@ namespace OpenRA.Mods.Common.LoadScreens
 					var titleFont = r.Fonts[fontKey];
 					var titleText = "WW3MOD";
 					var titleSize = titleFont.Measure(titleText);
-					// DrawText adds `size` to Y internally (location is baseline, not top)
-					// So actual top of rendered text = location.Y + size
-					// To center: location.Y + size + size/2 = bar center
-					// => location.Y = bar center - size * 3/2
-					// => location.Y = stripeRect.Y + stripeRect.Height/2 - titleSize.Y * 3 / 2
+					// DrawText adds `size` to Y internally before rendering glyphs.
+					// Visual center of text ≈ location.Y + size (top of glyphs) - ascender/2
+					// Use barCenter - size + ascender/4 as a practical centering offset.
+					// Ascender ratio for this font ≈ 52/96 ≈ 0.54
+					var barCenterY = stripeRect.Y + stripeRect.Height / 2;
 					var titlePos = new float2(
 						(r.Resolution.Width - titleSize.X) / 2,
-						stripeRect.Y + (stripeRect.Height - titleSize.Y) / 2 - titleSize.Y);
+						barCenterY - titleSize.Y * 3 / 4);
 					titleFont.DrawTextWithContrast(titleText, titlePos, Color.White, Color.Black, 2);
 				}
 
