@@ -88,7 +88,12 @@ namespace OpenRA.Mods.Common.LoadScreens
 				if (useCustomBar)
 				{
 					// "WW3MOD" centered in the bar
-					var fontKey = r.Fonts.ContainsKey("TitleLarge") ? "TitleLarge" : "Title";
+					var fontKey = r.Fonts.ContainsKey("TitleLarge") ? "TitleLarge"
+						: r.Fonts.ContainsKey("Title") ? "Title"
+						: r.Fonts.ContainsKey("Bold") ? "Bold" : null;
+					if (fontKey == null)
+						return;
+
 					var titleFont = r.Fonts[fontKey];
 					var titleText = "WW3MOD";
 					var titleSize = titleFont.Measure(titleText);
@@ -103,7 +108,7 @@ namespace OpenRA.Mods.Common.LoadScreens
 					titleFont.DrawTextWithContrast(titleText, titlePos, Color.White, Color.Black, 2);
 				}
 
-				if (messages.Length > 0)
+				if (messages.Length > 0 && r.Fonts.ContainsKey("Bold"))
 				{
 					var text = messages.Random(Game.CosmeticRandom);
 					var textSize = r.Fonts["Bold"].Measure(text);
