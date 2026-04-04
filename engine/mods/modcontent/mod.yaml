@@ -73,5 +73,3 @@ SpriteFormats: PngSheet
 TerrainFormat: DefaultTerrain
 
 SpriteSequenceFormat: DefaultSpriteSequence
-
-ModelSequenceFormat: PlaceholderModelSequence
