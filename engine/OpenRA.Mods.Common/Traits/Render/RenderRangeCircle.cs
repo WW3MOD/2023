@@ -100,7 +100,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	class RenderRangeCircle : ConditionalTrait<RenderRangeCircleInfo>, INotifyCreated, IRenderAnnotationsWhenSelected
+	class RenderRangeCircle : ConditionalTrait<RenderRangeCircleInfo>, IRenderAnnotationsWhenSelected
 	{
 		public readonly RenderRangeCircleInfo RenderRangeCircleInfo;
 		readonly Actor self;
@@ -113,8 +113,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			this.self = self;
 		}
 
-		void INotifyCreated.Created(Actor self)
+		protected override void Created(Actor self)
 		{
+			base.Created(self);
 			armament = self.TraitsImplementing<Armament>().FirstOrDefault(a => a.Info.Name == RenderRangeCircleInfo.Armament);
 		}
 

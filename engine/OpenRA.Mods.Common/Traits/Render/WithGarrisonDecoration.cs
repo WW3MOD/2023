@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public override object Create(ActorInitializer init) { return new WithGarrisonDecoration(init.Self, this); }
 	}
 
-	public class WithGarrisonDecoration : WithDecorationBase<WithGarrisonDecorationInfo>, IRender, INotifyCreated
+	public class WithGarrisonDecoration : WithDecorationBase<WithGarrisonDecorationInfo>, IRender
 	{
 		readonly Animation pips;
 		readonly Cargo cargo;
@@ -68,8 +68,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			cargo = self.Trait<Cargo>();
 		}
 
-		void INotifyCreated.Created(Actor self)
+		protected override void Created(Actor self)
 		{
+			base.Created(self);
 			garrisonManager = self.Trait<GarrisonManager>();
 		}
 

@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class SupplyProvider : PausableConditionalTrait<SupplyProviderInfo>, ITick,
-		INotifyCreated, ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter
+		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter
 	{
 		readonly Actor self;
 		int currentSupply;
@@ -94,8 +94,9 @@ namespace OpenRA.Mods.Common.Traits
 			currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply);
 		}
 
-		void INotifyCreated.Created(Actor self)
+		protected override void Created(Actor self)
 		{
+			base.Created(self);
 			UpdateSupplyConditions();
 		}
 
