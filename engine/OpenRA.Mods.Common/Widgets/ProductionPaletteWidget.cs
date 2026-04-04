@@ -263,12 +263,12 @@ namespace OpenRA.Mods.Common.Widgets
 				TooltipIcon = icon;
 				if (icon != null && TooltipContainer != null)
 				{
-					// Anchor tooltip to the left of the palette, aligned with the hovered icon row
+					// Anchor tooltip to the left of the full sidebar, aligned with the hovered icon row
 					var iconRect = iconEntry.Key;
-					var rb = RenderBounds;
+					var sidebar = Parent?.RenderBounds ?? RenderBounds;
 					tooltipContainer.Value.AnchorBounds = new Rectangle(
-						rb.X, iconRect.Y,
-						rb.Width, iconRect.Height);
+						sidebar.X, iconRect.Y,
+						sidebar.Width, iconRect.Height);
 					tooltipContainer.Value.AnchorAbove = false;
 				}
 			}
