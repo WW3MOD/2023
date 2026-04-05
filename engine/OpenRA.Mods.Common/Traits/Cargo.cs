@@ -462,7 +462,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void Load(Actor cargoActor, Actor passengerActor)
 		{
-			if (cargoActor.Owner != passengerActor.Owner)
+			// Skip ownership change when GarrisonManager handles it via DynamicOwnership
+			// The ChangeOwnerSync here triggers expensive World.Remove/Add + shroud recalc
+			if (cargoActor.Owner != passengerActor.Owner && !cargoActor.Info.HasTraitInfo<GarrisonManagerInfo>())
 				cargoActor.ChangeOwnerSync(passengerActor.Owner, false);
 
 			cargo.Add(passengerActor);

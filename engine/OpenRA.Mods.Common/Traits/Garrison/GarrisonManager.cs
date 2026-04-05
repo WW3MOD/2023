@@ -200,7 +200,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var passengerOwner = passenger.Owner;
 				if (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral")
-					self.ChangeOwner(passengerOwner);
+					self.ChangeOwnerInPlace(passengerOwner);
 			}
 		}
 
@@ -258,12 +258,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// No soldiers left → revert to neutral
 				if (self.Owner != neutralPlayer)
-					self.ChangeOwner(neutralPlayer);
+					self.ChangeOwnerInPlace(neutralPlayer);
 			}
 			else if (!remainingOwners.Contains(self.Owner))
 			{
 				// Current owner has no soldiers left, but an ally does → transfer
-				self.ChangeOwner(remainingOwners.First());
+				self.ChangeOwnerInPlace(remainingOwners.First());
 			}
 		}
 

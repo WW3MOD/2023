@@ -482,6 +482,34 @@ namespace OpenRA
 		}
 
 		/// <summary>
+		/// Lightweight ownership change that skips World.Remove/Add cycle.
+		/// Safe for stationary actors (buildings) where spatial position doesn't change.
+		/// Avoids expensive INotifyRemovedFromWorld/INotifyAddedToWorld cascade
+		/// (shroud recalc on 10+ Vision traits per player).
+		/// </summary>
+		public void ChangeOwnerInPlace(Player newOwner)
+		{
+			World.AddFrameEndTask(_ =>
+			{
+				if (Disposed)
+					return;
+
+				var oldOwner = Owner;
+				if (oldOwner == newOwner)
+					return;
+
+				Owner = newOwner;
+				Generation++;
+
+				foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
+					t.OnOwnerChanged(this, oldOwner, newOwner);
+
+				foreach (var t in World.WorldActor.TraitsImplementing<INotifyOwnerChanged>())
+					t.OnOwnerChanged(this, oldOwner, newOwner);
+			});
+		}
+
+		/// <summary>
 		/// Change the actors owner without queuing a FrameEndTask.
 		/// This must only be called from inside an existing FrameEndTask.
 		/// </summary>
