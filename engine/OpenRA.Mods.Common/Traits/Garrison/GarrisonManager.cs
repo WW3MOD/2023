@@ -72,6 +72,18 @@ namespace OpenRA.Mods.Common.Traits
 			"and reverts to neutral when all soldiers leave.")]
 		public readonly bool DynamicOwnership = true;
 
+		[Desc("Condition name to read suppression level from deployed soldiers.")]
+		public readonly string SuppressionCondition = "suppressed";
+
+		[Desc("Suppression level at which a port soldier starts ducking (reduced fire). 0 disables.")]
+		public readonly int SuppressionDuckThreshold = 30;
+
+		[Desc("Suppression level at which a port soldier is forced to recall to shelter. 0 disables.")]
+		public readonly int SuppressionRecallThreshold = 60;
+
+		[Desc("Ticks a port stays locked after a suppression recall, preventing immediate redeployment.")]
+		public readonly int SuppressionLockoutTicks = 50;
+
 		static object LoadPorts(MiniYaml yaml)
 		{
 			var ports = new List<GarrisonPortInfo>();
@@ -110,6 +122,12 @@ namespace OpenRA.Mods.Common.Traits
 		public bool PlayerOverride;
 		public int SwapCooldownRemaining;
 		public int IdleTicks;
+
+		// Suppression lockout: ticks remaining before this port accepts redeployment after suppression recall
+		public int SuppressionLockoutRemaining;
+
+		// True if soldier is currently "ducking" due to medium suppression (still deployed but fire-impaired)
+		public bool IsDucking;
 
 		public PortState(GarrisonPortInfo port)
 		{
@@ -457,10 +475,14 @@ namespace OpenRA.Mods.Common.Traits
 			// Check building's fire discipline stance
 			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
 
-			// Decrement swap cooldowns
+			// Decrement swap cooldowns and suppression lockouts
 			for (var i = 0; i < PortStates.Length; i++)
+			{
 				if (PortStates[i].SwapCooldownRemaining > 0)
 					PortStates[i].SwapCooldownRemaining--;
+				if (PortStates[i].SuppressionLockoutRemaining > 0)
+					PortStates[i].SuppressionLockoutRemaining--;
+			}
 
 			// Per-port management: deploy/recall/target
 			for (var i = 0; i < PortStates.Length; i++)
@@ -494,6 +516,27 @@ namespace OpenRA.Mods.Common.Traits
 					portWorldPos = new WPos(portWorldPos.X, portWorldPos.Y, terrainZ);
 					var positionable = ps.DeployedSoldier.Trait<IPositionable>();
 					positionable.SetCenterPosition(ps.DeployedSoldier, portWorldPos);
+				}
+
+				// Check suppression level of deployed soldier
+				if (ps.DeployedSoldier != null && Info.SuppressionRecallThreshold > 0)
+				{
+					var suppressionLevel = ps.DeployedSoldier.GetConditionCount(Info.SuppressionCondition);
+
+					if (suppressionLevel >= Info.SuppressionRecallThreshold)
+					{
+						// Pinned: force recall and lock the port
+						ps.SuppressionLockoutRemaining = Info.SuppressionLockoutTicks;
+						ps.IsDucking = false;
+						RecallToShelter(i);
+						continue;
+					}
+
+					ps.IsDucking = Info.SuppressionDuckThreshold > 0 && suppressionLevel >= Info.SuppressionDuckThreshold;
+				}
+				else if (ps.DeployedSoldier != null)
+				{
+					ps.IsDucking = false;
 				}
 
 				// Stagger target scanning across ports
@@ -550,7 +593,11 @@ namespace OpenRA.Mods.Common.Traits
 				}
 				else
 				{
-					// Port is empty — respect fire discipline stance before auto-deploying
+					// Port is empty — skip if locked out by suppression
+					if (ps.SuppressionLockoutRemaining > 0)
+						continue;
+
+					// Respect fire discipline stance before auto-deploying
 					if (buildingStance == UnitStance.HoldFire)
 						continue;
 

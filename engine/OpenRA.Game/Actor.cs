@@ -587,6 +587,12 @@ namespace OpenRA
 			return conditionCache.Any(a => a.Key == "deployed" && a.Value == 0);
 		}
 
+		/// <summary>Returns the current count (stack level) of a named condition, or 0 if not present.</summary>
+		public int GetConditionCount(string condition)
+		{
+			return conditionCache.TryGetValue(condition, out var count) ? count : 0;
+		}
+
 		public IEnumerable<WPos> GetTargetablePositions()
 		{
 			if (EnabledTargetablePositions.Any())
