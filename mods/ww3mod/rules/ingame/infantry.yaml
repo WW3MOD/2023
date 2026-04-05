@@ -888,6 +888,7 @@
 		CaptureDelay: 20
 		ConsumedByCapture: true
 		EnterCursor: goldwrench
+		TargetLineColor: FFC850B4
 
 ^InfantryAffectedByFire:
 	ExternalCondition@BurnDamage:

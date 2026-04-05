@@ -194,8 +194,8 @@ MP5:
 	BurstWait: 5
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 1c512
-		InaccuracyPerProjectile: 64,64,0
+		Inaccuracy: 0c768
+		InaccuracyPerProjectile: 32,32,0
 		Image: tracer_large
 	Warhead@Spread: SpreadDamage
 		Spread: 32
