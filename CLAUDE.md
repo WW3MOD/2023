@@ -318,10 +318,11 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | ShockwaveDamageWarhead.cs | Explosive blast wave effects |
 | InfantryStates.cs | Infantry states replacing TakeCover |
 | EjectOnHusk.cs | Crew ejection from destroyed vehicles |
-| GarrisonManager.cs | Shelter/port deployment model: soldiers enter shelter (Cargo), deploy to ports in-world when targets appear. DeployToPort/RecallToShelter, suppress flag, condition granting, INotifyKilled |
+| GarrisonManager.cs | Shelter/port deployment model with IDamageModifier (indestructible at 1HP), dynamic ownership (enter→claim, empty→neutral), suppression-aware ports (duck at 30+, recall at 60+, lockout), ambush integration |
 | GarrisonProtection.cs | Damage pass-through to shelter occupants only (port soldiers have DamageMultiplier via garrisoned-at-port condition) |
-| WithGarrisonDecoration.cs | Empty port indicators only (deployed soldiers have their own in-world pips/decorations) |
-| GarrisonPanelLogic.cs | Sidebar panel for garrison management (shows deployed + shelter soldiers) |
+| GarrisonPortOccupant.cs | ITargetable on infantry: directional port targetability — soldiers only targetable by enemies within port's firing arc |
+| WithGarrisonDecoration.cs | Garrison pips (centered bottom) + protection % text overlay (color-coded) + empty port indicators |
+| GarrisonPanelLogic.cs | Sidebar panel for garrison management (shows deployed + shelter soldiers) — pending icon rewrite |
 | SupplyProvider.cs | Greatest-need resupply: 1 pip per cycle, cycles to unit with most need, limited supply capacity |
 | QuickRearm.cs | Enter-truck instant rearm: infantry enters Cargo, auto-ejected after delay with full ammo |
 | HealerClaimLayer.cs | World trait: prevents multiple medics targeting same patient (healer→patient 1:1 claims) |
@@ -522,7 +523,7 @@ Each unit type has a base template file and two faction files:
 - **Rotate/sell to map edge** — units ordered to rotate via Supply Route now walk to the map edge (biased toward SpawnArea), not to the SR building. SR acts as a proxy target
 - **Vehicle reverse sliding fixed** — reverse condition re-evaluated at each cell transition; stops reversing when path curves away from behind the unit
 - **Group Scatter hotkey (Alt+S)** — distributes queued waypoints among selected units by type (inspired by Supreme Commander FAF). See `DOCS/UnitManagement.md`
-- **Garrison system: shelter/port deployment** — Infantry enter building shelter (Cargo), GarrisonManager deploys best-matched soldier to port in-world when targets appear. Deployed soldiers are in-world with garrisoned-at-port condition (sprite hidden, pips visible, selectable, targetable). Port soldiers get 80% damage reduction via DamageMultiplier. GarrisonProtection passes damage only to shelter soldiers. WithGarrisonDecoration simplified to empty port indicators. Building death: port soldiers become free infantry, shelter soldiers ejected by Cargo
+- **Garrison system overhaul (Phases 1-6)** — Indestructible buildings (IDamageModifier clamps to 1HP, damaged sprite at critical), dynamic ownership (building changes to garrisoning player, reverts to neutral when empty, allies share), directional port targetability (GarrisonPortOccupant ITargetable with reverse arc check — soldiers only targetable from within port's firing arc), suppression integration (duck at 30+, force-recall at 60+, SuppressionLockoutTicks prevents feeding into suppressed ports), protection % text overlay (color-coded green/yellow/red), pips centered at bottom, force-fire-only building targeting when garrisoned. Phase 4 (sidebar icon panel) pending
 - **Supply truck → pure transport** — TRUK no longer has SupplyProvider/QuickRearm/DropsCrate. Now uses CargoSupply trait: supply as numeric cargo weight (1 unit = 1 weight, InitialSupply: 10). Any transport with CargoSupply (TRUK, Chinook, HALO, HIND) auto-rearms nearby units when carrying supply. SUPPLYCACHE is now NoAutoTarget + ProximityCapturable (1.5 cell, sticky ownership transfer)
 - **Cargo management system (Phases 2A-2E)** — Full transport cargo UI: individual passenger eject, mark passengers for waypoint-based selective unload (Deploy Marked → click map → transport moves+unloads), per-passenger rally points (R button → click map → passenger auto-moves there on ejection), supply unload as SUPPLYCACHE with merge at same location, Mark All/Unmark All toggle
 - **Medic/Engineer smart auto-targeting** — HealerClaimLayer prevents medic pile-ups (1:1 healer→patient claims). HealerAutoTarget (IOverrideAutoTarget) scores by HP%, prioritizes critical patients (<50%, bleeding out), stabilizes to 50% then switches. Engineers use same trait without claims (multiple can repair same vehicle)
@@ -546,7 +547,8 @@ Each unit type has a base template file and two faction files:
 7. **Vehicle crew playtesting** — tune ejection delays, commander substitution values, test re-entry flow
 8. **Cargo system playtesting (Phases 2A-2E)** — verify TRUK auto-rearms, supply bar, individual eject, mark+waypoint unload, rally points, supply drop to SUPPLYCACHE, merge at same location
 9. **Cargo management Phase 3** — template sidebar for pre-loaded transport purchasing
-10. **Garrison shelter/port playtesting** — verify deploy-to-port behavior, pips, building death
+10. **Garrison system overhaul playtesting** — verify: indestructible buildings (1HP min), dynamic ownership (enter→claim, neutral on empty), directional port targeting (reverse arc), suppression duck/recall/lockout, protection % text, force-fire-only building targeting
+11. **Garrison sidebar panel icon rewrite** — Phase 4 pending: full icon-based panel with click-to-select, force-fire from port, exit-move orders
 10. **Suppression tuning** — playtest and balance vehicle suppression values, per-weapon fine-tuning
 
 ### Remaining Branches
