@@ -4,7 +4,12 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	Targetable:
+		RequiresCondition: !loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+	Targetable@WhenGarrisoned:
+		RequiresCondition: loaded
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+		RequiresForceFire: true
 	RenderSprites:
 		Palette: player
 		Scale: 1.2
