@@ -195,6 +195,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 					if (t.IsTraitDisabled)
 						continue;
 
+					if (t.Info.RangeCircleType != Info.RangeCircleType)
+						continue;
+
 					var r = t.GetRange();
 					if (r == range)
 						others.Add((a.CenterPosition, expandedRadiusSq));
