@@ -1090,7 +1090,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
 		{
-			if (!Info.Indestructible || health == null || health.IsDead || damage.Value <= 0)
+			if (!Info.Indestructible || health == null || health.IsDead || damage == null || damage.Value <= 0)
 				return 100;
 
 			// Already at minimum HP — block all damage
