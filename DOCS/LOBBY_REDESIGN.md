@@ -1,7 +1,7 @@
 # Lobby Settings Redesign — Full Specification
 
 > Design document for overhauling the WW3MOD lobby options panel.
-> Status: **DESIGN PHASE** — no code changes yet.
+> Status: **MOCK UI IMPLEMENTED** — tabs, dummy options, and summary bar working. Gameplay hooks TBD.
 
 ## Goals
 1. Remove obsolete Red Alert options that don't apply to WW3MOD
@@ -15,12 +15,12 @@
 ## Layout
 
 ### Tabbed Categories
-5 tabs along the top of the options panel:
+6 tabs along the top of the options panel:
 
 ```
-┌────────┬─────────┬───────┬────────┬──────────┐
-│ COMBAT │ ECONOMY │  MAP  │ RULES  │ ADVANCED │
-└────────┴─────────┴───────┴────────┴──────────┘
+┌────────┬─────────┬───────┬───────┬────────┬─────┐
+│ COMBAT │ ECONOMY │ UNITS │  MAP  │ RULES  │ ADV │
+└────────┴─────────┴───────┴───────┴────────┴─────┘
 ```
 
 Each tab shows only its options. Clicking a tab switches the visible content. The panel height stays constant (sized to the tallest tab content, or scrollable).
@@ -52,6 +52,7 @@ Visible to ALL players in the lobby (including joiners who can't change settings
 | Creep Actors | Handled by scenario system, not a lobby toggle |
 | Limit Build Area | Already hidden, formally remove |
 | Build off Allies | Already hidden, formally remove |
+| Tech Level | Replaced by granular unit availability toggles in UNITS tab |
 
 ---
 
@@ -92,6 +93,50 @@ Controls resources, production speed, and logistics.
 - **Low:** CargoSupply InitialSupply × 50% (5 units of supply instead of 10)
 - **Normal:** No change
 - **High:** CargoSupply InitialSupply × 200% (20 units of supply)
+
+---
+
+### UNITS Tab
+
+Controls which unit archetypes are available. Replaces the old Tech Level dropdown with granular per-archetype toggles. Faction-neutral: disabling "Main Battle Tanks" disables both Abrams (NATO) and T-90 (Russia).
+
+Organized into 3 sections with headers: INFANTRY, VEHICLES, AIRCRAFT.
+
+#### Infantry
+| Option | ID | Default | Covers |
+|--------|----|---------|--------|
+| Conscripts | `unit-conscripts` | On | Light infantry |
+| Riflemen | `unit-riflemen` | On | Riflemen, Auto Riflemen, Team Leaders |
+| Grenadiers | `unit-grenadiers` | On | Grenade launchers and mortars |
+| Snipers | `unit-snipers` | On | Long-range marksmen |
+| Anti-Tank | `unit-antitank` | On | Javelin / RPG specialists |
+| MANPADS | `unit-manpads` | On | Man-portable air defense |
+| Special Forces | `unit-specops` | On | Elite special operations |
+| Flamethrowers | `unit-flamethrower` | On | Close-range incendiary |
+| Support | `unit-support-inf` | On | Engineers, Medics, Technicians |
+| Drone Operators | `unit-drone-ops` | On | Infantry drone operators |
+
+#### Vehicles
+| Option | ID | Default | Covers |
+|--------|----|---------|--------|
+| Light Vehicles | `unit-light-vehicles` | On | Humvee / BTR |
+| APCs | `unit-apcs` | On | M113 / BMP-2 |
+| IFVs | `unit-ifvs` | On | Bradley / BMP |
+| Main Battle Tanks | `unit-mbts` | On | Abrams / T-90 |
+| Artillery | `unit-artillery` | On | Paladin / Giatsint |
+| MLRS | `unit-mlrs` | On | M270 / Grad |
+| SHORAD | `unit-shorad` | On | Stryker SHORAD / Tunguska |
+| Tactical Missiles | `unit-tactical-missiles` | On | HIMARS / Iskander |
+| Thermobaric | `unit-thermobaric` | On | TOS (Russia only) |
+
+#### Aircraft
+| Option | ID | Default | Covers |
+|--------|----|---------|--------|
+| Transport Helicopters | `unit-transport-heli` | On | Chinook / Halo |
+| Scout Helicopters | `unit-scout-heli` | On | Littlebird / Mi-28 |
+| Attack Helicopters | `unit-attack-heli` | On | Apache / Hind |
+| Ground Attack | `unit-ground-attack` | On | A-10 / Su-25 |
+| Fighters | `unit-fighters` | On | F-16 / MiG-29 |
 
 ---
 

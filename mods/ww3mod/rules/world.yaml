@@ -308,7 +308,7 @@ World:
 	MapOptions:
 		ShortGameCheckboxVisible: false
 		GameSpeedDropdownDisplayOrder: 60
-		TechLevelDropdownDisplayOrder: 62
+		TechLevelDropdownVisible: false
 		GameSpeed: default
 	LobbyDummyOptions:
 	CreateMapPlayers:

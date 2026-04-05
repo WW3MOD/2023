@@ -24,34 +24,40 @@ Container@LOBBY_OPTIONS_BIN:
 			Children:
 				Button@TAB_COMBAT:
 					X: 2
-					Width: PARENT_WIDTH / 5 - 4
+					Width: PARENT_WIDTH / 6 - 4
 					Height: 25
 					Font: TinyBold
 					Text: COMBAT
 				Button@TAB_ECONOMY:
-					X: PARENT_WIDTH / 5 + 2
-					Width: PARENT_WIDTH / 5 - 4
+					X: PARENT_WIDTH / 6 + 2
+					Width: PARENT_WIDTH / 6 - 4
 					Height: 25
 					Font: TinyBold
 					Text: ECONOMY
+				Button@TAB_UNITS:
+					X: (PARENT_WIDTH / 6) * 2 + 2
+					Width: PARENT_WIDTH / 6 - 4
+					Height: 25
+					Font: TinyBold
+					Text: UNITS
 				Button@TAB_MAP:
-					X: (PARENT_WIDTH / 5) * 2 + 2
-					Width: PARENT_WIDTH / 5 - 4
+					X: (PARENT_WIDTH / 6) * 3 + 2
+					Width: PARENT_WIDTH / 6 - 4
 					Height: 25
 					Font: TinyBold
 					Text: MAP
 				Button@TAB_RULES:
-					X: (PARENT_WIDTH / 5) * 3 + 2
-					Width: PARENT_WIDTH / 5 - 4
+					X: (PARENT_WIDTH / 6) * 4 + 2
+					Width: PARENT_WIDTH / 6 - 4
 					Height: 25
 					Font: TinyBold
 					Text: RULES
 				Button@TAB_ADVANCED:
-					X: (PARENT_WIDTH / 5) * 4 + 2
-					Width: PARENT_WIDTH / 5 - 4
+					X: (PARENT_WIDTH / 6) * 5 + 2
+					Width: PARENT_WIDTH / 6 - 4
 					Height: 25
 					Font: TinyBold
-					Text: ADVANCED
+					Text: ADV
 		ScrollPanel@OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
 			Y: 50
@@ -62,6 +68,17 @@ Container@LOBBY_OPTIONS_BIN:
 					Y: 5
 					Width: PARENT_WIDTH - 24
 					Children:
+						Container@SECTION_HEADER_TEMPLATE:
+							Width: PARENT_WIDTH
+							Height: 24
+							Visible: False
+							Children:
+								Label@HEADER_LABEL:
+									X: 10
+									Width: PARENT_WIDTH - 20
+									Height: 20
+									Font: TinyBold
+									Align: Left
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH
 							Height: 30

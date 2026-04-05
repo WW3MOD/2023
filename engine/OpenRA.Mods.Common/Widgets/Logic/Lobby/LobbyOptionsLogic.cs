@@ -28,6 +28,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Widget optionsContainer;
 		readonly Widget checkboxRowTemplate;
 		readonly Widget dropdownRowTemplate;
+		readonly Widget sectionHeaderTemplate;
 		readonly int yMargin;
 
 		readonly Func<MapPreview> getMap;
@@ -55,7 +56,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// Rules
 			{ "gamespeed", "Rules" },
-			{ "techlevel", "Rules" },
 			{ "timelimit", "Rules" },
 			{ "startingunits", "Rules" },
 
@@ -67,10 +67,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "sync", "Advanced" },
 		};
 
+		// Hidden options (removed from WW3MOD)
+		static readonly HashSet<string> HiddenOptionIds = new()
+		{
+			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
+		};
+
 		// Map sub-categories to top-level tabs
 		static readonly Dictionary<string, string> CategoryAliases = new()
 		{
 			{ "Powers", "Rules" },
+			{ "Units.Infantry", "Units" },
+			{ "Units.Vehicles", "Units" },
+			{ "Units.Aircraft", "Units" },
+		};
+
+		// Section headers to insert for sub-categories within a tab
+		static readonly Dictionary<string, string[]> TabSections = new()
+		{
+			{ "Units", new[] { "Units.Infantry", "Units.Vehicles", "Units.Aircraft" } },
+		};
+
+		static readonly Dictionary<string, string> SectionLabels = new()
+		{
+			{ "Units.Infantry", "── INFANTRY ──" },
+			{ "Units.Vehicles", "── VEHICLES ──" },
+			{ "Units.Aircraft", "── AIRCRAFT ──" },
 		};
 
 		static string GetCategory(LobbyOption option)
@@ -88,6 +110,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return "Rules";
 		}
 
+		static string GetSubCategory(LobbyOption option)
+		{
+			if (!string.IsNullOrEmpty(option.Category))
+				return option.Category;
+
+			return "";
+		}
+
 		[ObjectCreator.UseCtor]
 		internal LobbyOptionsLogic(Widget widget, OrderManager orderManager, Func<MapPreview> getMap, Func<bool> configurationDisabled)
 		{
@@ -100,6 +130,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			yMargin = optionsContainer.Bounds.Y;
 			checkboxRowTemplate = optionsContainer.Get("CHECKBOX_ROW_TEMPLATE");
 			dropdownRowTemplate = optionsContainer.Get("DROPDOWN_ROW_TEMPLATE");
+			sectionHeaderTemplate = optionsContainer.GetOrNull("SECTION_HEADER_TEMPLATE");
 
 			// Look for tab buttons in parent hierarchy
 			var lobbyBin = panel.Parent;
@@ -108,7 +139,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var tabContainer = lobbyBin?.GetOrNull("TAB_BUTTONS");
 			if (tabContainer != null)
 			{
-				var tabNames = new[] { "COMBAT", "ECONOMY", "MAP", "RULES", "ADVANCED" };
+				var tabNames = new[] { "COMBAT", "ECONOMY", "UNITS", "MAP", "RULES", "ADVANCED" };
 				foreach (var name in tabNames)
 				{
 					var btn = tabContainer.GetOrNull<ButtonWidget>("TAB_" + name);
@@ -149,6 +180,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
+		void AddSectionHeader(string text)
+		{
+			if (sectionHeaderTemplate == null)
+				return;
+
+			var header = sectionHeaderTemplate.Clone();
+			header.Bounds.Y = optionsContainer.Bounds.Height;
+			header.IsVisible = () => true;
+			optionsContainer.Bounds.Height += header.Bounds.Height;
+
+			var label = header.GetOrNull<LabelWidget>("HEADER_LABEL");
+			if (label != null)
+				label.GetText = () => text;
+
+			optionsContainer.AddChild(header);
+		}
+
 		void RebuildOptions()
 		{
 			if (mapPreview == null || mapPreview.WorldActorInfo == null)
@@ -167,10 +215,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var filteredOptions = allOptions;
 			if (!string.IsNullOrEmpty(activeTab))
 			{
-				// Also hide options that should be removed
-				var hiddenIds = new HashSet<string> { "shortgame", "crates", "creeps", "buildradius", "allybuild" };
 				filteredOptions = allOptions
-					.Where(o => !hiddenIds.Contains(o.Id))
+					.Where(o => !HiddenOptionIds.Contains(o.Id))
 					.Where(o => GetCategory(o) == activeTab)
 					.ToArray();
 			}
@@ -178,11 +224,46 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Update summary label
 			UpdateSummary(allOptions);
 
+			// Check if this tab has sections
+			if (TabSections.TryGetValue(activeTab, out var sections))
+				RenderSectionedOptions(filteredOptions, sections);
+			else
+				RenderFlatOptions(filteredOptions);
+
+			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
+			optionsContainer.Bounds.Y = yMargin;
+
+			panel.ScrollToTop();
+		}
+
+		void RenderSectionedOptions(LobbyOption[] options, string[] sections)
+		{
+			foreach (var section in sections)
+			{
+				var sectionOptions = options.Where(o => GetSubCategory(o) == section).ToArray();
+				if (sectionOptions.Length == 0)
+					continue;
+
+				if (SectionLabels.TryGetValue(section, out var label))
+					AddSectionHeader(label);
+
+				RenderFlatOptions(sectionOptions);
+			}
+
+			// Render any options that don't belong to a section
+			var sectionSet = new HashSet<string>(sections);
+			var unsectioned = options.Where(o => !sectionSet.Contains(GetSubCategory(o))).ToArray();
+			if (unsectioned.Length > 0)
+				RenderFlatOptions(unsectioned);
+		}
+
+		void RenderFlatOptions(LobbyOption[] options)
+		{
 			Widget row = null;
 			var checkboxColumns = new Queue<CheckboxWidget>();
 			var dropdownColumns = new Queue<DropDownButtonWidget>();
 
-			foreach (var option in filteredOptions.Where(o => o is LobbyBooleanOption))
+			foreach (var option in options.Where(o => o is LobbyBooleanOption))
 			{
 				if (checkboxColumns.Count == 0)
 				{
@@ -228,7 +309,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				};
 			}
 
-			foreach (var option in filteredOptions.Where(o => o is not LobbyBooleanOption))
+			foreach (var option in options.Where(o => o is not LobbyBooleanOption))
 			{
 				if (dropdownColumns.Count == 0)
 				{
@@ -298,11 +379,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					label.IsVisible = () => true;
 				}
 			}
-
-			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
-			optionsContainer.Bounds.Y = yMargin;
-
-			panel.ScrollToTop();
 		}
 
 		void UpdateSummary(LobbyOption[] allOptions)
@@ -313,6 +389,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var nonDefaults = new List<string>();
 			foreach (var option in allOptions)
 			{
+				if (HiddenOptionIds.Contains(option.Id))
+					continue;
+
 				if (!orderManager.LobbyInfo.GlobalSettings.LobbyOptions.TryGetValue(option.Id, out var state))
 					continue;
 

@@ -63,7 +63,6 @@ namespace OpenRA.Mods.Common.Traits
 				"100", false, "Combat");
 
 			// ── ECONOMY TAB ──
-			// (Starting Cash, Passive Income, Income Modifier are existing options — they'll be assigned Economy category in LobbyOptionsLogic)
 
 			yield return new LobbyOption(
 				"build-speed", "Build Speed", "Scale production/call-in speed (100% = default, 200% = twice as fast)",
@@ -84,7 +83,6 @@ namespace OpenRA.Mods.Common.Traits
 				"normal", false, "Economy");
 
 			// ── MAP TAB ──
-			// (Shroud, Fog, Separate Team Spawns are existing options — assigned Map category in LobbyOptionsLogic)
 
 			yield return new LobbyOption(
 				"sight-range", "Sight Range", "Scale all unit sight ranges (simulates fog/blizzard weather)",
@@ -92,8 +90,109 @@ namespace OpenRA.Mods.Common.Traits
 				MakePercentDropdown(10, 100),
 				"100", false, "Map");
 
+			// ── UNITS TAB — Infantry ──
+
+			yield return new LobbyBooleanOption(
+				"unit-conscripts", "Conscripts", "Light infantry (Conscripts)",
+				true, 200, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-riflemen", "Riflemen", "Standard assault infantry (Riflemen, Auto Riflemen, Team Leaders)",
+				true, 201, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-grenadiers", "Grenadiers", "Grenade launchers and mortars",
+				true, 202, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-snipers", "Snipers", "Long-range marksmen",
+				true, 203, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-antitank", "Anti-Tank", "Anti-tank specialists (Javelin / RPG)",
+				true, 204, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-manpads", "MANPADS", "Man-portable air defense",
+				true, 205, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-specops", "Special Forces", "Elite special operations infantry",
+				true, 206, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-flamethrower", "Flamethrowers", "Close-range incendiary infantry",
+				true, 207, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-support-inf", "Support", "Engineers, Medics, Technicians",
+				true, 208, true, false, "Units.Infantry");
+
+			yield return new LobbyBooleanOption(
+				"unit-drone-ops", "Drone Operators", "Infantry drone operators",
+				true, 209, true, false, "Units.Infantry");
+
+			// ── UNITS TAB — Vehicles ──
+
+			yield return new LobbyBooleanOption(
+				"unit-light-vehicles", "Light Vehicles", "Humvee / BTR — fast recon and transport",
+				true, 220, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-apcs", "APCs", "M113 / BMP-2 — armored personnel carriers",
+				true, 221, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-ifvs", "IFVs", "Bradley / BMP — infantry fighting vehicles",
+				true, 222, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-mbts", "Main Battle Tanks", "Abrams / T-90 — heavy armor",
+				true, 223, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-artillery", "Artillery", "Paladin / Giatsint — self-propelled guns",
+				true, 224, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-mlrs", "MLRS", "M270 / Grad — multiple launch rocket systems",
+				true, 225, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-shorad", "SHORAD", "Stryker SHORAD / Tunguska — mobile air defense",
+				true, 226, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-tactical-missiles", "Tactical Missiles", "HIMARS / Iskander — precision strike",
+				true, 227, true, false, "Units.Vehicles");
+
+			yield return new LobbyBooleanOption(
+				"unit-thermobaric", "Thermobaric", "TOS — heavy flamethrower system (Russia)",
+				true, 228, true, false, "Units.Vehicles");
+
+			// ── UNITS TAB — Aircraft ──
+
+			yield return new LobbyBooleanOption(
+				"unit-transport-heli", "Transport Helicopters", "Chinook / Halo — heavy cargo",
+				true, 240, true, false, "Units.Aircraft");
+
+			yield return new LobbyBooleanOption(
+				"unit-scout-heli", "Scout Helicopters", "Littlebird / Mi-28 — light attack",
+				true, 241, true, false, "Units.Aircraft");
+
+			yield return new LobbyBooleanOption(
+				"unit-attack-heli", "Attack Helicopters", "Apache / Hind — heavy gunships",
+				true, 242, true, false, "Units.Aircraft");
+
+			yield return new LobbyBooleanOption(
+				"unit-ground-attack", "Ground Attack", "A-10 / Su-25 — close air support",
+				true, 243, true, false, "Units.Aircraft");
+
+			yield return new LobbyBooleanOption(
+				"unit-fighters", "Fighters", "F-16 / MiG-29 — air superiority",
+				true, 244, true, false, "Units.Aircraft");
+
 			// ── RULES TAB ──
-			// (Game Speed, Tech Level, Time Limit, Starting Units are existing — assigned Rules category)
 
 			yield return new LobbyBooleanOption(
 				"friendly-fire", "Friendly Fire", "Your own units can damage each other",
