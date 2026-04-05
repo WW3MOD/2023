@@ -31,6 +31,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly bool isAircraft;
 		CPos? edgeCell;
 		bool movingToEdge;
+		int edgeRetries;
 		int evacuatingToken = Actor.InvalidConditionToken;
 
 		/// <summary>
@@ -182,17 +183,38 @@ namespace OpenRA.Mods.Common.Activities
 				return false;
 			}
 
-			// Arrived at edge (or close enough) — sell
-			DoSell(self);
-			return true;
+			// Only sell if we actually reached the edge (or close to it).
+			// If the move was blocked (e.g. building in the way), don't sell mid-map.
+			if (IsNearMapEdge(self, 4))
+			{
+				DoSell(self);
+				return true;
+			}
+
+			// Not near edge — path was blocked. Try again with a direct edge cell.
+			if (++edgeRetries > 3)
+			{
+				// Give up after multiple retries — sell wherever we are.
+				DoSell(self);
+				return true;
+			}
+
+			movingToEdge = false;
+			edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Location);
+			return false;
 		}
 
 		static bool IsOnMapEdge(Actor self)
 		{
+			return IsNearMapEdge(self, 2);
+		}
+
+		static bool IsNearMapEdge(Actor self, int margin)
+		{
 			var map = self.World.Map;
 			var mpos = self.Location.ToMPos(map);
-			return mpos.U <= map.Bounds.Left + 1 || mpos.U >= map.Bounds.Right - 2
-				|| mpos.V <= map.Bounds.Top + 1 || mpos.V >= map.Bounds.Bottom - 2;
+			return mpos.U <= map.Bounds.Left + margin - 1 || mpos.U >= map.Bounds.Right - margin
+				|| mpos.V <= map.Bounds.Top + margin - 1 || mpos.V >= map.Bounds.Bottom - margin;
 		}
 
 		void RevokeEvacuating(Actor self)

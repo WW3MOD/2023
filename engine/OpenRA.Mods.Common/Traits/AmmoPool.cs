@@ -157,6 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					var amount = self.GetSellValue();
 					self.QueueActivity(false, new RotateToEdge(self, true, amount));
+					self.ShowTargetLines();
 					break;
 			}
 		}
