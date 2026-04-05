@@ -12,7 +12,7 @@ MapSize: 128,128
 
 Bounds: 0,0,128,128
 
-Visibility: Lobby
+Visibility: Lobby, Shellmap
 
 Categories: Conquest
 

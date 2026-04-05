@@ -23,6 +23,7 @@ using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Server;
 using OpenRA.Support;
+using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA
@@ -523,6 +524,7 @@ namespace OpenRA
 		public static void LoadShellMap()
 		{
 			var shellmap = ChooseShellmap();
+			SetupShellmapBots(shellmap);
 			using (new PerfTimer("StartGame"))
 			{
 				StartGame(shellmap, WorldType.Shellmap);
@@ -544,6 +546,7 @@ namespace OpenRA
 			Disconnect();
 			JoinLocal();
 
+			SetupShellmapBots(uid);
 			using (new PerfTimer("StartGame"))
 			{
 				StartGame(uid, WorldType.Shellmap);
@@ -551,11 +554,92 @@ namespace OpenRA
 			}
 		}
 
+		/// <summary>
+		/// Auto-inject bot clients into lobby slots for all playable players
+		/// so that maps with Playable:True players work as shellmaps.
+		/// </summary>
+		static void SetupShellmapBots(string mapUid)
+		{
+			var map = ModData.MapCache[mapUid];
+			if (map.Status != MapStatus.Available)
+				return;
+
+			var playablePlayers = map.Players.Players
+				.Where(p => p.Value.Playable)
+				.ToList();
+
+			if (playablePlayers.Count == 0)
+				return;
+
+			// Find the first available bot type from the map's player actor
+			var botType = map.PlayerActorInfo?.TraitInfos<IBotInfo>()?.FirstOrDefault()?.Type;
+			if (botType == null)
+			{
+				// Fallback: try mod default rules
+				botType = ModData.DefaultRules.Actors[SystemActors.Player]
+					.TraitInfos<IBotInfo>().FirstOrDefault()?.Type;
+			}
+
+			if (botType == null)
+			{
+				Log.Write("debug", "SetupShellmapBots: No bot type available, skipping bot injection");
+				return;
+			}
+
+			var lobbyInfo = OrderManager.LobbyInfo;
+			var nextClientIndex = lobbyInfo.Clients.Count > 0
+				? lobbyInfo.Clients.Max(c => c.Index) + 1
+				: 1;
+
+			foreach (var kv in playablePlayers)
+			{
+				var playerRef = kv.Value;
+				var slotKey = kv.Key;
+
+				// Create a lobby slot for this player reference
+				lobbyInfo.Slots[slotKey] = new Session.Slot
+				{
+					PlayerReference = slotKey,
+					AllowBots = true,
+					LockFaction = true,
+					LockColor = true,
+					LockTeam = true,
+					LockSpawn = true,
+				};
+
+				// Create a bot client for this slot
+				lobbyInfo.Clients.Add(new Session.Client
+				{
+					Index = nextClientIndex++,
+					Bot = botType,
+					BotControllerClientIndex = OrderManager.Connection.LocalClientId,
+					Name = playerRef.Name,
+					Faction = playerRef.Faction,
+					Color = playerRef.Color,
+					Team = playerRef.Team,
+					Slot = slotKey,
+					State = Session.ClientState.Ready,
+				});
+			}
+
+			Log.Write("debug", $"SetupShellmapBots: Injected {playablePlayers.Count} bots for map '{map.Title}'");
+		}
+
 		public static MapPreview[] GetAvailableShellmaps()
 		{
-			return ModData.MapCache
+			var all = ModData.MapCache
 				.Where(m => m.Status == MapStatus.Available && m.Visibility.HasFlag(MapVisibility.Shellmap))
 				.ToArray();
+
+			var settings = Settings.Game;
+			if (settings.ShellmapEnabledConfigured && settings.ShellmapEnabled.Length > 0)
+			{
+				var filtered = all.Where(m => settings.ShellmapEnabled.Contains(m.Uid)).ToArray();
+				if (filtered.Length > 0)
+					return filtered;
+			}
+
+			return all;
 		}
 
 		static string ChooseShellmap()

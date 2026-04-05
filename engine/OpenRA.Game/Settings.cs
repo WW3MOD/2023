@@ -317,6 +317,12 @@ namespace OpenRA
 		[Desc("If true, cycle shellmaps in ShellmapOrder. If false, pick random.")]
 		public bool ShellmapUseOrder = false;
 
+		[Desc("UIDs of maps enabled as shellmaps. Empty = all shellmap-visible maps.")]
+		public string[] ShellmapEnabled = Array.Empty<string>();
+
+		[Desc("Whether user has configured shellmap selection. False = use all defaults.")]
+		public bool ShellmapEnabledConfigured = false;
+
 		// WW3MOD: Infantry visual scaling
 		[Desc("Scale infantry sprites for realism. Disable to use original sprite sizes.")]
 		public bool ScaleInfantry = true;

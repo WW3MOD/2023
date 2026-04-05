@@ -62,7 +62,7 @@ Background@MAPCHOOSER_PANEL:
 							Height: PARENT_HEIGHT
 		ScrollItem@MAP_TEMPLATE:
 			Width: 208
-			Height: 266
+			Height: 286
 			X: 2
 			Visible: false
 			EnableChildMouseOver: True
@@ -76,7 +76,7 @@ Background@MAPCHOOSER_PANEL:
 					IgnoreMouseInput: true
 				LabelWithTooltip@TITLE:
 					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 39
+					Y: PARENT_HEIGHT - HEIGHT - 59
 					Width: PARENT_WIDTH - 8
 					Height: 24
 					Align: Center
@@ -86,14 +86,14 @@ Background@MAPCHOOSER_PANEL:
 					Width: PARENT_WIDTH - 8
 					Height: 12
 					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 30
+					Y: PARENT_HEIGHT - HEIGHT - 50
 					Align: Center
 					Font: Tiny
 				LabelWithTooltip@AUTHOR:
 					Width: PARENT_WIDTH - 8
 					Height: 12
 					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 18
+					Y: PARENT_HEIGHT - HEIGHT - 38
 					Align: Center
 					Font: Tiny
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -102,9 +102,16 @@ Background@MAPCHOOSER_PANEL:
 					Width: PARENT_WIDTH - 8
 					Height: 12
 					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 6
+					Y: PARENT_HEIGHT - HEIGHT - 26
 					Align: Center
 					Font: Tiny
+				Checkbox@SHELLMAP_TOGGLE:
+					X: (PARENT_WIDTH - WIDTH) / 2
+					Y: PARENT_HEIGHT - HEIGHT - 8
+					Width: 130
+					Height: 20
+					Font: Tiny
+					Text: Main Menu
 		Container@FILTER_ORDER_CONTROLS:
 			X: 20
 			Y: PARENT_HEIGHT - 80

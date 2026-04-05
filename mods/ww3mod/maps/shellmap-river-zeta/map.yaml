@@ -12,7 +12,7 @@ MapSize: 98,82
 
 Bounds: 0,0,98,82
 
-Visibility: Shellmap
+Visibility: Lobby, Shellmap
 
 Categories: Conquest
 
@@ -29,14 +29,14 @@ Players:
 		Enemies: NATO, Russia
 	PlayerReference@NATO:
 		Name: NATO
-		Playable: False
+		Playable: True
 		Faction: america
 		Color: 3276FF
 		Enemies: Russia, Creeps
 		Allies: NATO
 	PlayerReference@Russia:
 		Name: Russia
-		Playable: False
+		Playable: True
 		Faction: russia
 		Color: FF3232
 		Enemies: NATO, Creeps
@@ -15316,5 +15316,11 @@ Actors:
 		Owner: Russia
 		Location: 75,44
 		Facing: 256
+	SpawnNATO: mpspawn
+		Owner: Neutral
+		Location: 8,38
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 88,38
 
 Rules: rules.yaml

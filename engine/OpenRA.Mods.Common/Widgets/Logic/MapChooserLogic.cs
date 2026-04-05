@@ -484,6 +484,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					sizeWidget.GetText = () => size;
 				}
 
+				var shellmapToggle = item.GetOrNull<CheckboxWidget>("SHELLMAP_TOGGLE");
+				if (shellmapToggle != null)
+				{
+					var uid = preview.Uid;
+					var isShellmapVisible = preview.Visibility.HasFlag(MapVisibility.Shellmap);
+
+					// Only show toggle for maps that have Shellmap visibility
+					shellmapToggle.IsVisible = () => isShellmapVisible;
+
+					shellmapToggle.IsChecked = () => IsShellmapEnabled(uid);
+					shellmapToggle.OnClick = () => ToggleShellmapEnabled(uid);
+				}
+
 				scrollpanels[tab].AddChild(item);
 			}
 
@@ -544,6 +557,41 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				},
 				confirmText: DeleteAllMapsAccept,
 				onCancel: () => { });
+		}
+
+		static bool IsShellmapEnabled(string uid)
+		{
+			var settings = Game.Settings.Game;
+			if (!settings.ShellmapEnabledConfigured)
+				return true; // All shellmap-visible maps are enabled by default
+
+			return settings.ShellmapEnabled.Contains(uid);
+		}
+
+		static void ToggleShellmapEnabled(string uid)
+		{
+			var settings = Game.Settings.Game;
+
+			// First toggle: populate from all currently available shellmaps
+			if (!settings.ShellmapEnabledConfigured)
+			{
+				settings.ShellmapEnabled = Game.GetAvailableShellmaps()
+					.Select(m => m.Uid).ToArray();
+				settings.ShellmapEnabledConfigured = true;
+			}
+
+			var list = settings.ShellmapEnabled.ToList();
+			if (list.Contains(uid))
+				list.Remove(uid);
+			else
+				list.Add(uid);
+
+			// Safety: never allow empty list (at least one shellmap must remain)
+			if (list.Count == 0)
+				return;
+
+			settings.ShellmapEnabled = list.ToArray();
+			Game.Settings.Save();
 		}
 
 		protected override void Dispose(bool disposing)

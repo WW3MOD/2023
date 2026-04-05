@@ -12,9 +12,9 @@ MapSize: 66,34
 
 Bounds: 0,0,66,34
 
-Visibility: Shellmap
+Visibility: Lobby, Shellmap
 
-Categories: Shellmap
+Categories: Conquest
 
 Players:
 	PlayerReference@Neutral:
@@ -24,11 +24,13 @@ Players:
 		Faction: america
 	PlayerReference@USA:
 		Name: USA
+		Playable: True
 		Faction: america
 		Color: 4488FF
 		Enemies: Russia
 	PlayerReference@Russia:
 		Name: Russia
+		Playable: True
 		Faction: russia
 		Color: FF4444
 		Enemies: USA
@@ -58,5 +60,11 @@ Actors:
 		Owner: Russia
 		Location: 52,18
 		Facing: 256
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
 
 Rules: rules.yaml
