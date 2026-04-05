@@ -64,6 +64,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks a deployed soldier must be idle (no valid target) before being recalled to shelter. 0 disables.")]
 		public readonly int IdleRecallTicks = 125;
 
+		[Desc("If true, building cannot be destroyed — HP is clamped to 1 minimum. " +
+			"At 1 HP the building shows its damaged sprite and provides minimal cover.")]
+		public readonly bool Indestructible = true;
+
 		static object LoadPorts(MiniYaml yaml)
 		{
 			var ports = new List<GarrisonPortInfo>();
@@ -111,7 +115,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class GarrisonManager : INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
-		ITick, IResolveOrder, INotifyKilled, INotifyDamage
+		ITick, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
 	{
 		public readonly GarrisonManagerInfo Info;
 		readonly Actor self;
@@ -122,6 +126,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<Actor> shelterPassengers = new List<Actor>();
 
 		Cargo cargo;
+		Health health;
 		AutoTarget autoTarget;
 		BodyOrientation cachedBodyOrientation;
 		int tickOffset;
@@ -149,6 +154,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			cargo = self.Trait<Cargo>();
+			health = self.TraitOrDefault<Health>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
 			cachedBodyOrientation = self.Trait<BodyOrientation>();
 		}
@@ -963,6 +969,28 @@ namespace OpenRA.Mods.Common.Traits
 				ambushTriggered = true;
 				TriggerAmbushDeploy();
 			}
+		}
+
+		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
+		{
+			if (!Info.Indestructible || health == null || health.IsDead || damage.Value <= 0)
+				return 100;
+
+			// Already at minimum HP — block all damage
+			if (health.HP <= 1)
+				return 0;
+
+			// If this damage would kill us, reduce it so we stay at 1 HP
+			if (damage.Value >= health.HP)
+			{
+				var maxAllowedDamage = health.HP - 1;
+				if (maxAllowedDamage <= 0)
+					return 0;
+
+				return maxAllowedDamage * 100 / damage.Value;
+			}
+
+			return 100;
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
