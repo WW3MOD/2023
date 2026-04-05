@@ -889,6 +889,7 @@
 		ConsumedByCapture: true
 		EnterCursor: goldwrench
 		TargetLineColor: FFC850B4
+		OrderPriority: 4
 
 ^InfantryAffectedByFire:
 	ExternalCondition@BurnDamage:

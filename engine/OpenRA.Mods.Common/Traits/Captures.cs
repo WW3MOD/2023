@@ -67,6 +67,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Color to use for the target line.")]
 		public readonly Color TargetLineColor = Color.Crimson;
 
+		[Desc("Order priority for the capture order targeter. Lower values yield to higher-priority orders (e.g. EnterTransport at 5).")]
+		public readonly int OrderPriority = 6;
+
 		public override object Create(ActorInitializer init) { return new Captures(init.Self, this); }
 	}
 
@@ -121,7 +124,7 @@ namespace OpenRA.Mods.Common.Traits
 			readonly Captures captures;
 
 			public CaptureOrderTargeter(Captures captures)
-				: base("CaptureActor", 6, captures.Info.EnterCursor, true, true)
+				: base("CaptureActor", captures.Info.OrderPriority, captures.Info.EnterCursor, true, true)
 			{
 				this.captures = captures;
 			}
