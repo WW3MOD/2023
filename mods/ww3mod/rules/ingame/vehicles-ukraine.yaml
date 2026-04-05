@@ -55,8 +55,6 @@ t72:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom

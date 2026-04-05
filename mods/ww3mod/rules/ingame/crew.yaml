@@ -19,8 +19,6 @@
 		Armaments: primary
 		Ammo: 24
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 200
-		FullReloadSteps: 4
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 4, 3

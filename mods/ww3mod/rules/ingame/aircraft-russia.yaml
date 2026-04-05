@@ -174,8 +174,6 @@ HIND:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -203,8 +201,6 @@ HIND:
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:
@@ -331,8 +327,6 @@ MI28:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -359,8 +353,6 @@ MI28:
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:
@@ -455,8 +447,6 @@ FROG:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -482,8 +472,6 @@ FROG:
 	# 	AmmoCondition: ammo-primary
 	# ReloadAmmoPool@1:
 	# 	AmmoPool: primary-ammo
-	# 	FullReloadTicks: 400
-	# 	FullReloadSteps: 8
 	# 	Sound: minelay1.aud
 	# 	RequiresCondition: unit.docked && !airborne
 	# WithAmmoPipsDecoration@1:
@@ -498,11 +486,9 @@ FROG:
 	Contrail@1:
 		Offset: -258,-723,0
 		TrailLength: 10
-		TrailWidth: 48
 	Contrail@2:
 		Offset: -258,723,0
 		TrailLength: 10
-		TrailWidth: 48
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,0
 	# 	Interval: 2
@@ -569,8 +555,6 @@ MIG:
 		ReloadDelay: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 6
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -594,8 +578,6 @@ MIG:
 		ReloadDelay: 100
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:
@@ -611,11 +593,9 @@ MIG:
 	Contrail@1:
 		Offset: -598,-683,0
 		TrailLength: 6
-		TrailWidth: 48
 	Contrail@2:
 		Offset: -598,683,0
 		TrailLength: 6
-		TrailWidth: 48
 	# SmokeTrailWhenDamaged:
 	# 	Offset: -853,0,171
 	# 	Interval: 2

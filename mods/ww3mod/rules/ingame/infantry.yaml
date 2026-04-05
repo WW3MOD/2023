@@ -17,6 +17,10 @@
 	# Inherits@DetectionProximity: ^DetectionProximity
 	Inherits@Visibility: ^DetectableInfantryStandard
 	Inherits@RankPipsAdjustmentInfantry: ^RankPipsAdjustmentInfantry
+	ExternalCondition@Evacuating:
+		Condition: evacuating
+	ExternalCondition@Panicking:
+		Condition: panicking
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -1086,8 +1090,6 @@
 		AmmoPools: primary-ammo # grenade-ammo
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1143,8 +1145,6 @@ E1R1:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -1171,7 +1171,6 @@ E1R1:
 		SupplyValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 200
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@2:
@@ -1254,8 +1253,6 @@ E3R1:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1318,8 +1315,6 @@ AR:
 		SupplyValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -1391,8 +1386,6 @@ E2R1:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1415,8 +1408,6 @@ E2R1:
 		SupplyValue: 10
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@2:
@@ -1480,8 +1471,6 @@ TL:
 		SupplyValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -1544,8 +1533,6 @@ MT:
 		SupplyValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1615,8 +1602,6 @@ SN:
 		SupplyValue: 25
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1682,8 +1667,6 @@ AT:
 		SupplyValue: 25
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1762,8 +1745,6 @@ AA:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1790,8 +1771,6 @@ AA:
 		SupplyValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@2:
@@ -1895,8 +1874,6 @@ E6:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
@@ -1971,8 +1948,6 @@ E4:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -2001,8 +1976,6 @@ E4:
 		SupplyValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 3
 		Sound: minelay1.aud
 		RequiresCondition: replenish-soldiers
 	WithAmmoPipsDecoration@2:
@@ -2182,8 +2155,6 @@ TECN:
 		SupplyValue: 50
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 200
-		FullReloadSteps: 1
 		RequiresCondition: replenish-soldiers
 	RenderRangeCircle@1:
 		Armament: primary
@@ -2218,7 +2189,7 @@ TECN:
 		StandSequences: prepare
 		DefaultAttackSequence: prepare
 	WithInfantryBody@OperatingDrone:
-		RequiresCondition: !loaded && primary-ammo
+		RequiresCondition: !loaded && ammo-primary
 		StandSequences: operating
 		DefaultAttackSequence: operating
 	# ModifySequence@Operating:

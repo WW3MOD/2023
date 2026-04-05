@@ -23,6 +23,8 @@
 			BottomRight: 350, 500
 	ExternalCondition@UNITDOCKED:
 		Condition: unit.docked
+	ExternalCondition@Evacuating:
+		Condition: evacuating
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -378,8 +380,6 @@ MNLY:
 		Name: mines-ammo
 		Ammo: 10
 		AmmoCondition: ammo-mines
-		FullReloadTicks: 200
-		FullReloadSteps: 5
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration:
 		Position: Bottom
@@ -541,8 +541,6 @@ LCCV:
 # 		Name: mines-ammo
 # 		Ammo: 5
 # 		AmmoCondition: ammo-mines
-# 		FullReloadTicks: 200
-# 		FullReloadSteps: 5
 # 		RearmSound: minelay1.aud
 # 	WithAmmoPipsDecoration:
 # 		Position: Bottom
@@ -620,8 +618,6 @@ LCCV:
 # 		Armaments: primary
 # 		Ammo: 300
 # 		AmmoCondition: ammo-primary
-# 		FullReloadTicks: 300
-# 		FullReloadSteps: 6
 # 		RearmSound: minelay1.aud
 # 	WithAmmoPipsDecoration@1:
 # 		Position: Bottom
@@ -647,8 +643,6 @@ LCCV:
 # 		Armaments: secondary, secondary-barrage
 # 		Ammo: 30
 # 		AmmoCondition: ammo-secondary
-# 		FullReloadTicks: 300
-# 		FullReloadSteps: 6
 # 		RearmSound: minelay1.aud
 # 	WithAmmoPipsDecoration@2:
 # 		Position: Bottom

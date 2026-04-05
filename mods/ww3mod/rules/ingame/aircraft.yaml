@@ -11,6 +11,10 @@
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Vision: ^StandardVision
 	Inherits@DamagePips: ^DamageVehiclePips
+	ExternalCondition@Evacuating:
+		Condition: evacuating
+	ExternalCondition@SuppressEject:
+		Condition: suppress-eject
 	Huntable:
 	OwnerLostAction:
 		Action: Kill
@@ -318,11 +322,9 @@ BADR:
 	Contrail@1:
 		Offset: -432,560,0
 		TrailLength: 8
-		TrailWidth: 48
 	Contrail@2:
 		Offset: -432,-560,0
 		TrailLength: 8
-		TrailWidth: 48
 	SpawnActorOnDeath:
 		Actor: BADR.Husk
 		RequiresCondition: airborne && !empdisable

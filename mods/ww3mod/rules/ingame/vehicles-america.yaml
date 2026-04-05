@@ -72,8 +72,6 @@ humvee:
 		Armaments: primary
 		Ammo: 300
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -105,8 +103,6 @@ humvee:
 	# 	Armaments: secondary
 	# 	Ammo: 3
 	# 	AmmoCondition: ammo-secondary
-	# 	FullReloadTicks: 300
-	# 	FullReloadSteps: 3
 	# 	RearmSound: minelay1.aud
 	# WithAmmoPipsDecoration@WGM:
 	# 	Position: Bottom
@@ -227,8 +223,6 @@ m113:
 		Ammo: 500
 		AmmoCondition: ammo-primary
 		ReloadCount: 20
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -353,8 +347,6 @@ bradley:
 		Armaments: primary
 		Ammo: 900
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -376,8 +368,6 @@ bradley:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		FullReloadTicks: 300
-		FullReloadSteps: 8
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
@@ -501,8 +491,6 @@ abrams:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -609,8 +597,6 @@ m109:
 		Armaments: primary
 		Ammo: 39
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -719,8 +705,6 @@ m270:
 		Armaments: primary
 		Ammo: 12
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -834,8 +818,6 @@ strykershorad:
 		Armaments: primary
 		Ammo: 400
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -859,8 +841,6 @@ strykershorad:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		FullReloadTicks: 300
-		FullReloadSteps: 4
 		RearmSound: minelay1.aud
 	NextBurstBar@2:
 		Armaments: secondary
@@ -890,8 +870,6 @@ strykershorad:
 		Armaments: tertiary
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
-		FullReloadTicks: 300
-		FullReloadSteps: 4
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@3:
 		Position: Bottom
@@ -997,8 +975,6 @@ HIMARS:
 		Armaments: primary
 		Ammo: 6
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 600
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom

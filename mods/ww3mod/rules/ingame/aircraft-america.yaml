@@ -83,7 +83,7 @@ TRAN:
 		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
 		PipCount: 36
-		MarginY: -10
+		Margin: 0, -10
 	SpawnActorOnDeath@Hovering:
 		Actor: TRAN.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -174,8 +174,6 @@ littlebird:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 4
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -202,8 +200,6 @@ littlebird:
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 2
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:
@@ -332,8 +328,6 @@ HELI:
 		AmmoCondition: ammo-primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -359,8 +353,6 @@ HELI:
 		AmmoCondition: ammo-secondary
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:
@@ -445,8 +437,6 @@ A10:
 		Armaments: primary
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 6
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -473,8 +463,6 @@ A10:
 		Armaments: secondary
 	ReloadAmmoPool@1:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 4
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:
@@ -561,8 +549,6 @@ F16:
 		ReloadDelay: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 6
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
@@ -586,8 +572,6 @@ F16:
 		ReloadDelay: 100
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
-		FullReloadTicks: 400
-		FullReloadSteps: 8
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@2:

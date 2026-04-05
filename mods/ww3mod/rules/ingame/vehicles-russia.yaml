@@ -67,8 +67,6 @@ btr:
 		Armaments: primary
 		Ammo: 500
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -184,8 +182,6 @@ bmp2:
 		Armaments: primary
 		Ammo: 900
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -211,8 +207,6 @@ bmp2:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
@@ -330,8 +324,6 @@ t90:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -439,8 +431,6 @@ giatsint:
 		Armaments: primary
 		Ammo: 39
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -542,8 +532,6 @@ grad:
 		Armaments: primary
 		Ammo: 40
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -654,8 +642,6 @@ tos:
 		Armaments: primary
 		Ammo: 24
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -781,8 +767,6 @@ tunguska:
 		Armaments: primary, tertiary
 		Ammo: 180
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
@@ -809,8 +793,6 @@ tunguska:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	NextBurstBar@2:
 		Armaments: secondary
@@ -903,8 +885,6 @@ iskander:
 		Armaments: primary
 		Ammo: 2
 		AmmoCondition: ammo-primary
-		FullReloadTicks: 300
-		FullReloadSteps: 6
 		RearmSound: minelay1.aud
 	RenderRangeCircle@1:
 		Armament: primary

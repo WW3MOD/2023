@@ -681,6 +681,18 @@
 		ValidTargets: Drone
 
 ^AmmoDecoration:
+	ExternalCondition@WeaponPrimary:
+		Condition: weapon-primary
+	ExternalCondition@WeaponSecondary:
+		Condition: weapon-secondary
+	ExternalCondition@WeaponTertiary:
+		Condition: weapon-tertiary
+	ExternalCondition@AmmoPrimary:
+		Condition: ammo-primary
+	ExternalCondition@AmmoSecondary:
+		Condition: ammo-secondary
+	ExternalCondition@AmmoTertiary:
+		Condition: ammo-tertiary
 	WithDecoration@AmmoNone:
 		RequiresSelection: false
 		Image: pips
@@ -714,7 +726,7 @@
 	WithCargoPipsDecoration:
 		Position: Top
 		PipStride: 6,6
-		MarginY: -10
+		Margin: 0, -10
 		RequiresCondition: loaded
 		RequiresSelection: false
 
@@ -846,8 +858,8 @@
 		MaxWeight: 10
 	RejectsOrders:
 	Interactable:
-		Bounds: 32, 32
-		DecorationBounds: 32, 32
+		Bounds: 512, 512
+		DecorationBounds: 512, 512
 	SelectionDecorations:
 ^SummonBase:
 	Inherits@ExistsInWorld: ^ExistsInWorld
@@ -885,8 +897,8 @@
 		RequiresCondition: parachute
 	HitShape:
 	Interactable:
-		Bounds: 32, 32
-		DecorationBounds: 32, 32
+		Bounds: 512, 512
+		DecorationBounds: 512, 512
 	SelectionDecorations:
 	RejectsOrders:
 unit.summoner:
