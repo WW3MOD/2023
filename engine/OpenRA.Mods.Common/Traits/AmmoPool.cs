@@ -273,23 +273,11 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else
 			{
-				var deliversCash = self.TraitOrDefault<DeliversCash>();
-
-				if (deliversCash != null)
-				{
-					var bases = self.World.ActorsHavingTrait<BaseBuilding>()
-						.Where(a => a.Owner == self.Owner)
-						.ToList();
-
-					if (bases.Count == 0)
-						return;
-
-					deliversCash.GoDonateCash(self, Target.FromActor(bases.First()), false);
-				}
-
-				// // FF TODO Supply Route exit map / rotate unit. Should not go to rally point of SR.
-				// if (bases.Count > 0)
-				// 	self.QueueActivity(false, new Sell(self, bases.First(), new WDist(0)));
+				// No resupplier found — flag for supply truck pickup instead of evacuating.
+				// Evacuation only happens when ResupplyBehavior is explicitly set to Evacuate.
+				var ammoPools = self.TraitsImplementing<AmmoPool>();
+				foreach (var ap in ammoPools)
+					ap.NeedsResupply = true;
 			}
 		}
 
