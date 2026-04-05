@@ -274,6 +274,10 @@ namespace OpenRA
 				lastWorldViewport = worldViewport;
 			}
 
+			// WW3MOD: Enable pixel art scaling for world sprites so scaled units
+			// (e.g. infantry at 0.5x) retain crisp pixel art instead of bilinear blur
+			WorldSpriteRenderer.EnablePixelArtScaling(true);
+
 			renderType = RenderType.World;
 		}
 
