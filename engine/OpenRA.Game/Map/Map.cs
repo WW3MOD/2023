@@ -251,9 +251,20 @@ namespace OpenRA
 		public CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>> ShadowLayer { get; set; }
 
 		/// <summary>
-		/// Cells queued for deferred shadow recomputation (batched per tick).
+		/// Amortized shadow recomputation system. Dirty cells are expanded to affected
+		/// "from" cells, then processed in budget-limited chunks each tick to avoid hitches.
 		/// </summary>
-		readonly HashSet<CPos> pendingShadowCells = new HashSet<CPos>();
+		readonly HashSet<CPos> pendingShadowDirtyCells = new();
+		readonly Queue<MPos> shadowUpdateQueue = new();
+		readonly HashSet<MPos> shadowUpdateSet = new();
+
+		/// <summary>
+		/// Max "from" cells to recompute per tick. Each processes ~3200 "to" cells.
+		/// 1000/tick × 3200 = 3.2M ops/tick — well within budget at 25 tps.
+		/// Single building (~3200 from-cells) converges in ~3 ticks (0.12s).
+		/// Nuke in forest (~10K from-cells) converges in ~10 ticks (0.4s).
+		/// </summary>
+		const int ShadowUpdateBudgetPerTick = 1000;
 
 		public PPos[] ProjectedCells { get; private set; }
 		public CellRegion AllCells { get; private set; }
@@ -984,151 +995,126 @@ namespace OpenRA
 			ShadowLayer = new CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>>(this);
 
 			foreach (var fromUV in AllCells.MapCoords)
-			{
-				var shadowLayer = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
-
-				foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
-				{
-					var toUV = tilePos.ToMPos(this);
-					var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
-
-					var totalGround = 0f;
-					var totalAirborne = 0f;
-
-					// Define airborne height
-					var z_a = 2048;
-
-					// Get world positions
-					var fromCenter = CenterOfCell(fromUV.ToCPos(this));
-					var toCenter = CenterOfCell(toUV.ToCPos(this));
-					var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
-					var p1 = new WPos(toCenter.X, toCenter.Y, 0);
-					var delta = p1 - p0;
-
-					// Horizontal distance in world units
-					var deltaXY = new WVec(delta.X, delta.Y, 0);
-					var dH = deltaXY.Length / 1024f;
-
-					foreach (var tile in tiles)
-					{
-						// Ground shadow: accumulate density as before
-						totalGround += DensityLayer[tile] / 10f;
-
-						// Airborne shadow: check height-based blocking
-						var tileCenter = CenterOfCell(tile.ToCPos(this));
-						var vecToTile = new WVec(tileCenter.X - p0.X, tileCenter.Y - p0.Y, 0);
-						var dot = vecToTile.X * delta.X + vecToTile.Y * delta.Y;
-						var deltaLengthSquared = delta.X * delta.X + delta.Y * delta.Y;
-						var t = dot / (float)deltaLengthSquared;
-						t = Math.Max(0, Math.Min(1, t)); // Clamp t to [0,1]
-						var d_h = t * dH; // Distance along path in cell units
-						var z_los = z_a * (1 - t); // Height of line of sight above tile
-
-						var obstacleHeight = 512; // In world units
-
-						if (obstacleHeight > z_los)
-						{
-							totalAirborne += DensityLayer[tile] / 5f; // Add density if blocked (doubled, due to foliage)
-						}
-					}
-
-					var groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
-					var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
-
-					shadowLayer[toUV] = (groundShadow, airborneShadow);
-				}
-
-				ShadowLayer[fromUV] = shadowLayer;
-			}
+				RecomputeShadowFrom(fromUV);
 		}
 
 		/// <summary>
-		/// Recompute shadow entries for all cell pairs whose line passes through any of the given cells.
-		/// Called when buildings are placed or destroyed to keep ShadowLayer in sync with DensityLayer.
+		/// Immediately recompute shadow entries for all cell pairs affected by the given cells.
+		/// Prefer QueueShadowUpdate() for gameplay use — this synchronous version is kept for
+		/// tooling and cases where immediate correctness is required.
 		/// </summary>
 		public void UpdateShadowForCells(IEnumerable<CPos> modifiedCells)
 		{
 			if (ShadowLayer == null || DensityLayer == null)
 				return;
 
-			// Collect all "from" cells within 32 range of any modified cell that need shadow recalculation
 			var affectedFromCells = new HashSet<MPos>();
 			foreach (var cell in modifiedCells)
-			{
 				foreach (var fromCell in FindTilesInAnnulus(cell, 0, 32, true))
 					affectedFromCells.Add(fromCell.ToMPos(this));
-			}
 
-			// For each affected "from" cell, recompute shadow to all cells in the 2-32 annulus
 			foreach (var fromUV in affectedFromCells)
-			{
-				if (ShadowLayer[fromUV] == null)
-					ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
-
-				foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
-				{
-					var toUV = tilePos.ToMPos(this);
-					var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
-
-					var totalGround = 0f;
-					var totalAirborne = 0f;
-
-					var z_a = 2048;
-					var fromCenter = CenterOfCell(fromUV.ToCPos(this));
-					var toCenter = CenterOfCell(toUV.ToCPos(this));
-					var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
-					var p1 = new WPos(toCenter.X, toCenter.Y, 0);
-					var delta = p1 - p0;
-
-					var deltaXY = new WVec(delta.X, delta.Y, 0);
-					var dH = deltaXY.Length / 1024f;
-
-					foreach (var tile in tiles)
-					{
-						totalGround += DensityLayer[tile] / 10f;
-
-						var tileCenter = CenterOfCell(tile.ToCPos(this));
-						var vecToTile = new WVec(tileCenter.X - p0.X, tileCenter.Y - p0.Y, 0);
-						var dot = vecToTile.X * delta.X + vecToTile.Y * delta.Y;
-						var deltaLengthSquared = delta.X * delta.X + delta.Y * delta.Y;
-						var t = dot / (float)deltaLengthSquared;
-						t = Math.Max(0, Math.Min(1, t));
-						var z_los = z_a * (1 - t);
-
-						var obstacleHeight = 512;
-						if (obstacleHeight > z_los)
-							totalAirborne += DensityLayer[tile] / 5f;
-					}
-
-					var groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
-					var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
-
-					ShadowLayer[fromUV][toUV] = (groundShadow, airborneShadow);
-				}
-			}
+				RecomputeShadowFrom(fromUV);
 		}
 
 		/// <summary>
-		/// Queue cells for deferred shadow recomputation instead of computing immediately.
-		/// Call FlushPendingShadowUpdates() once per tick to process the batch.
+		/// Queue cells for deferred shadow recomputation. Dirty cells are expanded to
+		/// affected "from" cells and processed in budget-limited chunks each tick.
 		/// </summary>
 		public void QueueShadowUpdate(IEnumerable<CPos> cells)
 		{
 			foreach (var c in cells)
-				pendingShadowCells.Add(c);
+				pendingShadowDirtyCells.Add(c);
 		}
 
 		/// <summary>
-		/// Process all queued shadow cell updates in one batch.
-		/// Should be called once per tick from the world tick loop.
+		/// Process queued shadow updates with a per-tick budget. Called once per tick
+		/// from World.Tick(). Spreads expensive recomputation across multiple ticks
+		/// so nuking a forest or destroying many buildings causes zero frame hitches.
 		/// </summary>
 		public void FlushPendingShadowUpdates()
 		{
-			if (pendingShadowCells.Count == 0)
+			if (ShadowLayer == null || DensityLayer == null)
 				return;
 
-			UpdateShadowForCells(pendingShadowCells);
-			pendingShadowCells.Clear();
+			// Expand newly queued dirty cells into affected "from" cells
+			if (pendingShadowDirtyCells.Count > 0)
+			{
+				foreach (var cell in pendingShadowDirtyCells)
+				{
+					foreach (var fromCell in FindTilesInAnnulus(cell, 0, 32, true))
+					{
+						var mpos = fromCell.ToMPos(this);
+						if (shadowUpdateSet.Add(mpos))
+							shadowUpdateQueue.Enqueue(mpos);
+					}
+				}
+
+				pendingShadowDirtyCells.Clear();
+			}
+
+			if (shadowUpdateQueue.Count == 0)
+				return;
+
+			// Process budget-limited chunk
+			var budget = Math.Min(ShadowUpdateBudgetPerTick, shadowUpdateQueue.Count);
+			for (var i = 0; i < budget; i++)
+			{
+				var fromUV = shadowUpdateQueue.Dequeue();
+				shadowUpdateSet.Remove(fromUV);
+				RecomputeShadowFrom(fromUV);
+			}
+		}
+
+		/// <summary>
+		/// Recompute all shadow values originating from a single "from" cell.
+		/// Iterates all cells in annulus 2-32 and traces density along the line to each.
+		/// </summary>
+		void RecomputeShadowFrom(MPos fromUV)
+		{
+			if (ShadowLayer[fromUV] == null)
+				ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
+
+			foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+			{
+				var toUV = tilePos.ToMPos(this);
+				var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
+
+				var totalGround = 0f;
+				var totalAirborne = 0f;
+
+				var z_a = 2048;
+				var fromCenter = CenterOfCell(fromUV.ToCPos(this));
+				var toCenter = CenterOfCell(toUV.ToCPos(this));
+				var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
+				var p1 = new WPos(toCenter.X, toCenter.Y, 0);
+				var delta = p1 - p0;
+
+				var deltaXY = new WVec(delta.X, delta.Y, 0);
+				var dH = deltaXY.Length / 1024f;
+
+				foreach (var tile in tiles)
+				{
+					totalGround += DensityLayer[tile] / 10f;
+
+					var tileCenter = CenterOfCell(tile.ToCPos(this));
+					var vecToTile = new WVec(tileCenter.X - p0.X, tileCenter.Y - p0.Y, 0);
+					var dot = vecToTile.X * delta.X + vecToTile.Y * delta.Y;
+					var deltaLengthSquared = delta.X * delta.X + delta.Y * delta.Y;
+					var t = dot / (float)deltaLengthSquared;
+					t = Math.Max(0, Math.Min(1, t));
+					var z_los = z_a * (1 - t);
+
+					var obstacleHeight = 512;
+					if (obstacleHeight > z_los)
+						totalAirborne += DensityLayer[tile] / 5f;
+				}
+
+				var groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
+				var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
+
+				ShadowLayer[fromUV][toUV] = (groundShadow, airborneShadow);
+			}
 		}
 
 		/// <summary>
