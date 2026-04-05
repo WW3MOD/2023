@@ -306,10 +306,11 @@ World:
 		AllyBuildRadiusCheckboxVisible: false
 		BuildRadiusCheckboxVisible: false
 	MapOptions:
-		ShortGameCheckboxDisplayOrder: 2
-		TechLevelDropdownDisplayOrder: 2
-		GameSpeedDropdownDisplayOrder: 3
+		ShortGameCheckboxVisible: false
+		GameSpeedDropdownDisplayOrder: 60
+		TechLevelDropdownDisplayOrder: 62
 		GameSpeed: default
+	LobbyDummyOptions:
 	CreateMapPlayers:
 
 	StartingUnits@none:
@@ -387,8 +388,9 @@ World:
 		OuterSupportRadius: 7
 
 	MapStartingLocations:
-		SeparateTeamSpawnsCheckboxDisplayOrder: 6
+		SeparateTeamSpawnsCheckboxDisplayOrder: 54
 	SpawnStartingUnits:
+		DropdownDisplayOrder: 63
 	PathFinder:
 	ValidateOrder:
 	ControlAllUnitsManager:
@@ -401,6 +403,9 @@ World:
 	ScriptTriggers:
 	CellTriggerOverlay:
 	TimeLimitManager:
+		TimeLimitLabel: Doomsday Clock
+		TimeLimitDescription: Nuclear apocalypse when the clock runs out
+		TimeLimitDisplayOrder: 61
 		TimeLimitWarnings:
 			40: FourtyMinutesRemaining
 			30: ThirtyMinutesRemaining
@@ -414,6 +419,8 @@ World:
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
 	PowersLobbyOptions:
+		AirstrikeCheckboxDisplayOrder: 81
+		AirstrikeCooldownDisplayOrder: 82
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle

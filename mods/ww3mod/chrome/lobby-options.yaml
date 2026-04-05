@@ -1,0 +1,110 @@
+Container@LOBBY_OPTIONS_BIN:
+	Width: PARENT_WIDTH
+	Height: PARENT_HEIGHT
+	Children:
+		Label@TITLE:
+			Y: 0 - 24
+			Width: PARENT_WIDTH
+			Height: 25
+			Font: Bold
+			Align: Center
+			Text: Game Settings
+		Label@SUMMARY:
+			Y: 2
+			X: 10
+			Width: PARENT_WIDTH - 20
+			Height: 18
+			Font: TinyBold
+			Align: Left
+			Text: Settings: All default
+		Container@TAB_BUTTONS:
+			Y: 22
+			Width: PARENT_WIDTH
+			Height: 25
+			Children:
+				Button@TAB_COMBAT:
+					X: 2
+					Width: PARENT_WIDTH / 5 - 4
+					Height: 25
+					Font: TinyBold
+					Text: COMBAT
+				Button@TAB_ECONOMY:
+					X: PARENT_WIDTH / 5 + 2
+					Width: PARENT_WIDTH / 5 - 4
+					Height: 25
+					Font: TinyBold
+					Text: ECONOMY
+				Button@TAB_MAP:
+					X: (PARENT_WIDTH / 5) * 2 + 2
+					Width: PARENT_WIDTH / 5 - 4
+					Height: 25
+					Font: TinyBold
+					Text: MAP
+				Button@TAB_RULES:
+					X: (PARENT_WIDTH / 5) * 3 + 2
+					Width: PARENT_WIDTH / 5 - 4
+					Height: 25
+					Font: TinyBold
+					Text: RULES
+				Button@TAB_ADVANCED:
+					X: (PARENT_WIDTH / 5) * 4 + 2
+					Width: PARENT_WIDTH / 5 - 4
+					Height: 25
+					Font: TinyBold
+					Text: ADVANCED
+		ScrollPanel@OPTIONS_PANEL:
+			Logic: LobbyOptionsLogic
+			Y: 50
+			Width: PARENT_WIDTH
+			Height: PARENT_HEIGHT - 50
+			Children:
+				Container@LOBBY_OPTIONS:
+					Y: 5
+					Width: PARENT_WIDTH - 24
+					Children:
+						Container@CHECKBOX_ROW_TEMPLATE:
+							Width: PARENT_WIDTH
+							Height: 30
+							Children:
+								Checkbox@A:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+								Checkbox@B:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+						Container@DROPDOWN_ROW_TEMPLATE:
+							Height: 55
+							Width: PARENT_WIDTH
+							Children:
+								LabelForInput@A_DESC:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									For: A
+								DropDownButton@A:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Y: 22
+									Height: 25
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+								LabelForInput@B_DESC:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									For: B
+								DropDownButton@B:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Y: 22
+									Height: 25
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER

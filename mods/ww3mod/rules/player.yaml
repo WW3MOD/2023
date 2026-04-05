@@ -164,26 +164,30 @@ Player:
 		# PassiveIncome: 100
 		# PassiveIncomeInterval: 50
 		# PassiveIncomeInitialDelay: 50
+		CashDropdownDisplayOrder: 30
+		PassiveIncomeDropdownDisplayOrder: 31
+		IncomeModifierDropdownDisplayOrder: 32
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:
-		CheckboxDisplayOrder: 10
+		CheckboxDisplayOrder: 90
 	GpsWatcher:
 	MapLayers:
+		ExploredMapCheckboxLabel: Explored Map
+		ExploredMapCheckboxDescription: Start with the entire map revealed (no shroud)
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxDisplayOrder: 50
+		FogCheckboxLabel: Fog of War
+		FogCheckboxDescription: Units only see within their sight range
+		FogCheckboxDisplayOrder: 51
 	LobbyPrerequisiteCheckbox@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
 		Description: Players receive cash bonuses when killing enemy units
 		Enabled: False
-		DisplayOrder: 13
+		DisplayOrder: 75
 		Prerequisites: global-bounty
-	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
-		ID: mcv-undeploys
-		Label: Redeployable MCVs
-		Description: Allow undeploying Construction Yard
-		Enabled: False
-		DisplayOrder: 7
-		Prerequisites: global-mcv-undeploys
+	# Removed: Redeployable MCVs — no MCVs in WW3MOD
 	FrozenActorLayer:
 	BaseAttackNotifier:
 		TextNotification: Base under attack.
