@@ -363,7 +363,7 @@ namespace OpenRA.Mods.Common.Traits
 		sealed class BeginMinefieldOrderTargeter : IOrderTargeter
 		{
 			public string OrderID => "BeginMinefield";
-			public int OrderPriority => 5;
+			public int OrderPriority => 7;
 
 			readonly string cursor;
 
