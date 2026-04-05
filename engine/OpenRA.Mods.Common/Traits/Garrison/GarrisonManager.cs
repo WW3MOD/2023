@@ -68,6 +68,10 @@ namespace OpenRA.Mods.Common.Traits
 			"At 1 HP the building shows its damaged sprite and provides minimal cover.")]
 		public readonly bool Indestructible = true;
 
+		[Desc("If true, building changes owner to the garrisoning player on entry " +
+			"and reverts to neutral when all soldiers leave.")]
+		public readonly bool DynamicOwnership = true;
+
 		static object LoadPorts(MiniYaml yaml)
 		{
 			var ports = new List<GarrisonPortInfo>();
@@ -141,6 +145,9 @@ namespace OpenRA.Mods.Common.Traits
 		// Ambush state: tracks whether garrison has been triggered out of ambush stance
 		bool ambushTriggered;
 
+		// Dynamic ownership: track neutral player for revert-on-empty
+		Player neutralPlayer;
+
 		public GarrisonManager(Actor self, GarrisonManagerInfo info)
 		{
 			this.self = self;
@@ -157,6 +164,9 @@ namespace OpenRA.Mods.Common.Traits
 			health = self.TraitOrDefault<Health>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
 			cachedBodyOrientation = self.Trait<BodyOrientation>();
+
+			if (Info.DynamicOwnership)
+				neutralPlayer = self.World.Players.FirstOrDefault(p => p.InternalName == "Neutral");
 		}
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
@@ -166,6 +176,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			// New passenger enters → goes to shelter
 			shelterPassengers.Add(passenger);
+
+			// Dynamic ownership: claim building for the entering soldier's owner
+			if (Info.DynamicOwnership && neutralPlayer != null)
+			{
+				var passengerOwner = passenger.Owner;
+				if (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral")
+					self.ChangeOwner(passengerOwner);
+			}
 		}
 
 		void INotifyPassengerExited.OnPassengerExited(Actor self, Actor passenger)
@@ -185,12 +203,50 @@ namespace OpenRA.Mods.Common.Traits
 					PortStates[i].CurrentTarget = Target.Invalid;
 					PortStates[i].TargetLockTicks = 0;
 					PortStates[i].PlayerOverride = false;
+					CheckOwnershipAfterExit();
 					return;
 				}
 			}
 
 			// Was in shelter
 			shelterPassengers.Remove(passenger);
+			CheckOwnershipAfterExit();
+		}
+
+		/// <summary>
+		/// After a soldier exits or dies, check if we need to revert ownership to neutral
+		/// or transfer to another allied player still inside.
+		/// </summary>
+		void CheckOwnershipAfterExit()
+		{
+			if (!Info.DynamicOwnership || neutralPlayer == null)
+				return;
+
+			// Collect all living soldiers (port + shelter)
+			var remainingOwners = new HashSet<Player>();
+			foreach (var ps in PortStates)
+			{
+				if (ps.DeployedSoldier != null && !ps.DeployedSoldier.IsDead)
+					remainingOwners.Add(ps.DeployedSoldier.Owner);
+			}
+
+			foreach (var s in shelterPassengers)
+			{
+				if (!s.IsDead)
+					remainingOwners.Add(s.Owner);
+			}
+
+			if (remainingOwners.Count == 0)
+			{
+				// No soldiers left → revert to neutral
+				if (self.Owner != neutralPlayer)
+					self.ChangeOwner(neutralPlayer);
+			}
+			else if (!remainingOwners.Contains(self.Owner))
+			{
+				// Current owner has no soldiers left, but an ally does → transfer
+				self.ChangeOwner(remainingOwners.First());
+			}
 		}
 
 		// Deploy a shelter soldier to a port (shelter → port)
@@ -411,6 +467,9 @@ namespace OpenRA.Mods.Common.Traits
 
 					// Try to promote a shelter soldier to this port
 					PromoteFromShelter(i);
+
+					// Check if ownership needs to change after soldier death
+					CheckOwnershipAfterExit();
 					continue;
 				}
 
