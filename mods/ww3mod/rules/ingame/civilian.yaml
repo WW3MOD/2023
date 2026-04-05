@@ -3,6 +3,11 @@
 	Inherits@TechBuilding: ^TechBuilding
 	Inherits@DamageStates: ^DamageStates
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
+	-CaptureManager:
+	-Capturable@neutral:
+	-Capturable@occupied:
+	-CapturableProgressBar:
+	-CapturableProgressBlink:
 	Targetable:
 		RequiresCondition: !loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
