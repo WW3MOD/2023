@@ -161,8 +161,9 @@ SHOK:
 		LocalOffset: 427,0,341
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 3
+		RangeCircleType: special
 		Color: FFFFFF
+		Width: 2
 	InfantryStates:
 		ProneOffset: 227,0,-245
 	AttackFrontal:

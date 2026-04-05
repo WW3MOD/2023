@@ -461,9 +461,9 @@ TRUK:
 		CreditValuePerUnit: 40
 	RenderRangeCircle@Supply:
 		FallbackRange: 5c0
+		RangeCircleType: supply
 		Color: C0C0C0
 		Width: 1.5
-		Alpha: 100
 		RequireShift: false
 	SpawnActorOnDeath:
 		Actor: TRUK.husk

@@ -188,8 +188,9 @@ HIND:
 		RequiresSelection: true
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 2
+		RangeCircleType: kinetic
 		Color: FFFF00
+		Width: 1
 	Armament@2:
 		Name: secondary
 		Weapon: RocketPods
@@ -215,8 +216,9 @@ HIND:
 		RequiresSelection: true
 	RenderRangeCircle@2:
 		Armament: secondary
-		Width: 3
-		Color: FF0000
+		RangeCircleType: missile
+		Color: 00FFBB
+		Width: 2
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -341,8 +343,9 @@ MI28:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 3
+		RangeCircleType: kinetic
 		Color: FFFF00
+		Width: 1
 	WithMuzzleOverlay:
 	Armament@2:
 		Name: secondary
@@ -367,8 +370,9 @@ MI28:
 		AmmoPools: secondary-ammo
 	RenderRangeCircle@2:
 		Armament: secondary
-		Width: 3
+		RangeCircleType: missile
 		Color: 00FFBB
+		Width: 2
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo

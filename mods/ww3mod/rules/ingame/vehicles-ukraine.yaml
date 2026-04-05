@@ -73,8 +73,8 @@ t72:
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	RenderRangeCircle@1:
+		RangeCircleType: at
 		Color: FF0000
-		Alpha: 100
 		Width: 2
 	Selectable:
 		Class: MBT

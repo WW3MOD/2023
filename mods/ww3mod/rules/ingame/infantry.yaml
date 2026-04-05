@@ -1198,9 +1198,10 @@ E1R1:
 		Color: FF0000
 	RenderRangeCircle@2:
 		Armament: secondary
-		RangeCircleType: E3
+		RangeCircleType: at
 		RequiresCondition: ammo-secondary
 		Color: FF0000
+		Width: 2
 	GrantConditionOnPreparingAttack:
 		Condition: preparing-secondary
 		ArmamentNames: secondary
@@ -1494,8 +1495,10 @@ TL:
 		RequiresCondition: ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: arty
 		RequiresCondition: ammo-primary
-		Color: FF0000
+		Color: FF8000
+		Width: 2
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo
@@ -1560,8 +1563,10 @@ MT:
 		Color: FFFF00
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: sniper
 		RequiresCondition: ammo-primary
-		Color: FFFF00
+		Color: 00FF00
+		Width: 1
 	Armament@GARRISONED:
 		Name: garrisoned
 		Weapon: 7.62mm.Sniper
@@ -1626,8 +1631,10 @@ SN:
 		RequiresCondition: ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: at
 		RequiresCondition: ammo-primary
-		Color: 00FF00
+		Color: FF0000
+		Width: 2
 	NextBurstBar@1:
 		Armaments: primary
 		Color: 00FF00
@@ -1691,8 +1698,10 @@ AT:
 		RequiresCondition: ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
-		Alpha: 80
+		RangeCircleType: aa
 		Color: 66B2FF
+		Width: 1
+		Alpha: 80
 	NextBurstBar@1:
 		Armaments: primary
 		Color: 66B2FF
@@ -2170,15 +2179,17 @@ TECN:
 		RequiresCondition: replenish-soldiers
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 2
+		RangeCircleType: special
 		Color: FFFFFF
+		Width: 2
 	Armament@2:
 		Name: secondary
 		Weapon: DroneJammer
 	RenderRangeCircle@2:
 		Armament: secondary
-		Width: 4
+		RangeCircleType: special
 		Color: FFFFFF
+		Width: 2
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo

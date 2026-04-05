@@ -8,11 +8,11 @@
 - [~] **8. HIND anti-helicopter targeting** — Config already correct (12.7mm ValidTargets includes Helicopter, AutoTarget includes Air). Needs in-game verification — if still broken, it's a C# bug not config
 
 ### Medium Fixes (one at a time)
-- [ ] **2. TECN cargo enter cursor** — Shows wrench (capture) instead of enter icon on cargo structures
-- [ ] **4. Evacuation waypoint display** — Auto-evacuating units (out of ammo) don't show waypoint line
-- [ ] **9. Range circle standardization** — Audit all units, ensure consistent size/color grouping
+- [x] **2. TECN cargo enter cursor** — Added OrderPriority to CapturesInfo; ^CapturesNeutralBuildings set to 4 (below EnterTransport's 5). Removed dead EngineerRepairable from ^Building
+- [x] **4. Evacuation waypoint display** — Added ShowTargetLines() to AmmoPool auto-evacuate path
+- [x] **9. Range circle standardization** — 8 categories (kinetic/at/aa/missile/arty/sniper/special/supply) with consistent Color+Width+RangeCircleType across all 48 circles
 
 ### Larger Investigations
-- [ ] **3. Engineer mine-laying area selector** — Force-attack area selector not showing for engineers (works for minelayer)
-- [ ] **5. Evacuation pathing** — Units going to Supply Route instead of map edge spawn point; also getting sold near oil derricks
-- [ ] **6. Auto-rearm routing** — Units evac instead of going to nearby supply truck; should prefer closest rearm source
+- [x] **3. Engineer mine-laying area selector** — BeginMinefield order priority raised from 5 to 7 (above attack's 6). Force-attack on terrain now opens minefield selector instead of ground attack
+- [x] **5. Evacuation pathing** — RotateToEdge now checks IsNearMapEdge(4) before selling; retries with closest edge cell if blocked. Prevents mid-map sell near buildings
+- [x] **6. Auto-rearm routing** — Auto behavior now flags NeedsResupply when no resupplier found (instead of evacuating). Only Evacuate stance triggers map-edge exit

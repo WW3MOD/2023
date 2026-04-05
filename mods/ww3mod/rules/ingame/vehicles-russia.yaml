@@ -77,8 +77,9 @@ btr:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		Alpha: 100
+		RangeCircleType: kinetic
 		Color: FFFF00
+		Width: 1
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -192,8 +193,9 @@ bmp2:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: kinetic
 		Color: FFFF00
-		Alpha: 100
+		Width: 1
 	Armament@2:
 		Name: secondary
 		Weapon: WGM
@@ -217,8 +219,9 @@ bmp2:
 		AmmoPools: secondary-ammo
 	RenderRangeCircle@2:
 		Armament: secondary
-		Color: 00FF00
-		Alpha: 100
+		RangeCircleType: at
+		Color: FF0000
+		Width: 2
 	NextBurstBar:
 		Armaments: secondary
 		Color: 00FF00
@@ -334,8 +337,8 @@ t90:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: at
 		Color: FF0000
-		Alpha: 100
 		Width: 2
 	Rearmable:
 		RearmActors: logisticscenter
@@ -441,9 +444,9 @@ giatsint:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 1
-		Alpha: 100
-		Color: FF0000
+		RangeCircleType: arty
+		Color: FF8000
+		Width: 2
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -542,9 +545,9 @@ grad:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		Color: FF0000
-		Alpha: 100
-		Width: 1
+		RangeCircleType: arty
+		Color: FF8000
+		Width: 2
 	Turreted:
 		Offset: -220,0,140
 		TurnSpeed: 20
@@ -652,6 +655,7 @@ tos:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: arty
 		Color: FF8000
 		Width: 2
 	Turreted:
@@ -777,9 +781,10 @@ tunguska:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		Color: FFFF00
+		RangeCircleType: aa
+		Color: 66B2FF
 		Width: 1
-		Alpha: 100
+		Alpha: 80
 	Armament@2:
 		Name: secondary
 		Weapon: 9M311
@@ -806,9 +811,10 @@ tunguska:
 		AmmoPools: secondary-ammo
 	RenderRangeCircle@2:
 		Armament: secondary
+		RangeCircleType: aa
 		Color: 66B2FF
 		Width: 1
-		Alpha: 100
+		Alpha: 80
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
@@ -888,9 +894,9 @@ iskander:
 		RearmSound: minelay1.aud
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 3
-		Alpha: 100
-		Color: FF0000
+		RangeCircleType: arty
+		Color: FF8000
+		Width: 2
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo

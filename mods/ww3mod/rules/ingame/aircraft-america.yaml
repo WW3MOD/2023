@@ -185,8 +185,9 @@ littlebird:
 		RequiresSelection: true
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 3
+		RangeCircleType: kinetic
 		Color: FFFF00
+		Width: 1
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
@@ -211,8 +212,9 @@ littlebird:
 		RequiresSelection: true
 	RenderRangeCircle@2:
 		Armament: secondary
-		Width: 3
-		Color: 00FFFF
+		RangeCircleType: missile
+		Color: 00FFBB
+		Width: 2
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -318,8 +320,9 @@ HELI:
 		PauseOnCondition: !ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
-		Width: 3
+		RangeCircleType: kinetic
 		Color: FFFF00
+		Width: 1
 	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
@@ -344,8 +347,9 @@ HELI:
 		PauseOnCondition: !ammo-secondary
 	RenderRangeCircle@2:
 		Armament: secondary
-		Width: 3
+		RangeCircleType: missile
 		Color: 00FFBB
+		Width: 2
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -448,8 +452,9 @@ A10:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
+		RangeCircleType: kinetic
 		Color: FFFF00
-		Width: 3
+		Width: 1
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
@@ -474,8 +479,9 @@ A10:
 		AmmoPools: secondary-ammo
 	RenderRangeCircle@2:
 		Armament: secondary
-		Color: 00FF00
-		Width: 3
+		RangeCircleType: missile
+		Color: 00FFBB
+		Width: 2
 	Rearmable:
 		RearmActors: afld
 		AmmoPools: primary-ammo, secondary-ammo

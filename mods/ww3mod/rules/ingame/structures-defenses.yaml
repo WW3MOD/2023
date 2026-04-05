@@ -757,9 +757,9 @@ SAM:
 		Actor: sam.husk
 	RenderRangeCircle:
 		RangeCircleType: aa
-		Width: 3
-		Alpha: 80
 		Color: 66B2FF
+		Width: 1
+		Alpha: 80
 HSAM:
 	Inherits: SAM
 	OwnerLostAction:
@@ -896,9 +896,9 @@ FTUR:
 	RenderSprites:
 		Scale: 0.8
 	RenderRangeCircle:
-		Width: 3
-		Alpha: 70
-		Color: FF8000
+		RangeCircleType: kinetic
+		Color: FFFF00
+		Width: 1
 
 TSLA:
 	Inherits@Type: ^Defense
@@ -961,8 +961,9 @@ TSLA:
 	SpawnActorOnDeath:
 		Actor: tsla.husk
 	RenderRangeCircle:
-		Width: 3
-		Color: FFFFFF # White, Tesla weaponry
+		RangeCircleType: special
+		Color: FFFFFF
+		Width: 2
 
 PRIS:
 	Inherits@Type: ^Defense
@@ -1017,6 +1018,9 @@ PRIS:
 	ProvidesPrerequisite@BuildingName:
 	RenderRangeCircle@Support:
 		Armament: support
+		RangeCircleType: special
+		Color: FFFFFF
+		Width: 2
 
 MSLO:
 	Inherits: ^Building
@@ -1129,5 +1133,6 @@ GUN:
 	RenderSprites:
 		Scale: 0.9
 	RenderRangeCircle:
+		RangeCircleType: at
 		Color: FF0000
-		Width: 1
+		Width: 2
