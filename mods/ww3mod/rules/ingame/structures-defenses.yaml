@@ -145,6 +145,7 @@ GTWR:
 	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
+		Position: Bottom
 	AttackGarrisoned:
 		PortOffsets: 0,-600,384, 600,0,384, 0,600,384, -600,0,384
 		PortYaws: 0, 768, 512, 256
@@ -215,6 +216,7 @@ PBOX:
 	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
+		Position: Bottom
 	AttackGarrisoned:
 		PortOffsets: 300,0,256, -300,0,256
 		PortYaws: 768, 256
@@ -290,6 +292,7 @@ HBOX:
 	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
+		Position: Bottom
 	AttackGarrisoned:
 		PortOffsets: 280,0,200, -280,0,200
 		PortYaws: 768, 256

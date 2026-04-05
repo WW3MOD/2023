@@ -93,6 +93,7 @@
 	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
+		Position: Bottom
 	AttackGarrisoned:
 		PortOffsets: 0,-700,256, 500,-700,256, 700,0,256, 0,700,256, -500,700,256, -700,0,256
 		PortYaws: 0, 896, 768, 512, 384, 256
