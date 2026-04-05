@@ -846,8 +846,8 @@
 		MaxWeight: 10
 	RejectsOrders:
 	Interactable:
-		Bounds: 1,1
-		DecorationBounds: 1,1
+		Bounds: 32, 32
+		DecorationBounds: 32, 32
 	SelectionDecorations:
 ^SummonBase:
 	Inherits@ExistsInWorld: ^ExistsInWorld
@@ -885,8 +885,8 @@
 		RequiresCondition: parachute
 	HitShape:
 	Interactable:
-		Bounds: 1,1
-		DecorationBounds: 1,1
+		Bounds: 32, 32
+		DecorationBounds: 32, 32
 	SelectionDecorations:
 	RejectsOrders:
 unit.summoner:

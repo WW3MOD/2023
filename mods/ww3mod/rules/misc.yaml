@@ -370,8 +370,6 @@ CTFLAG:
 
 SUPPLYCACHE:
 	Inherits: ^SpriteActor
-	Interactable:
-		Bounds: 1024, 1024
 	Selectable:
 		Bounds: 1024, 1024
 	Tooltip:
@@ -396,12 +394,15 @@ SUPPLYCACHE:
 			Radius: 512
 	RenderSprites:
 	WithSpriteBody@Full:
+		Name: full
 		Image: ammobox1
 		RequiresCondition: supply-high
 	WithSpriteBody@Mid:
+		Name: mid
 		Image: ammobox2
 		RequiresCondition: supply-medium
 	WithSpriteBody@Low:
+		Name: low
 		Image: ammobox3
 		RequiresCondition: !supply-high && !supply-medium
 	SupplyProvider:

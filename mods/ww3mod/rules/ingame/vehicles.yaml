@@ -470,6 +470,10 @@ TRUK:
 LCCV:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
+	-WithDecoration@AmmoNone:
+	-WithDecoration@AmmoPrimaryNone:
+	-WithDecoration@AmmoSecondaryNone:
+	-AttackMove:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 150

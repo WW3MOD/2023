@@ -72,6 +72,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition to grant while reloading.")]
 		public readonly string ReloadingCondition = null;
 
+		[GrantedConditionReference]
+		public string WeaponCondition => "weapon-" + Name;
+
 		[Desc("If unit has IndirectFire trait this can be disabled for specific armaments.")]
 		public readonly bool AllowIndirectFire = true; // TODO FF, Unimplemented
 

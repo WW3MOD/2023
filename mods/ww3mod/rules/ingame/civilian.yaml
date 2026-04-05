@@ -384,6 +384,14 @@ V19.Husk:
 	-Health:
 	-Explodes:
 	-Explodes@CIVPANIC:
+	-GrantConditionOnDamageState@Damaged:
+	-GrantConditionOnDamageState@LightDamage:
+	-GrantConditionOnDamageState@LightDamageAttained:
+	-GrantConditionOnDamageState@MediumDamage:
+	-GrantConditionOnDamageState@MediumDamageAttained:
+	-GrantConditionOnDamageState@HeavyDamage:
+	-GrantConditionOnDamageState@HeavyDamageAttained:
+	-GrantConditionOnDamageState@CriticalDamage:
 	-ChangesHealth@BurnDamage:
 	-ExternalCondition@BurnDamage:
 	-WithDamageOverlay@SmallBurn:
