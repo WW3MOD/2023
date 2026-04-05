@@ -46,11 +46,14 @@
 		Bounds: 500,700,65,-128
 		DecorationBounds: 500,700,65,-128
 	Targetable:
-		RequiresCondition: !parachute
+		RequiresCondition: !parachute && !garrisoned-at-port
 		TargetTypes: Ground, Infantry, Disguise
 	Targetable@Heal:
-		RequiresCondition: !parachute && damaged
+		RequiresCondition: !parachute && damaged && !garrisoned-at-port
 		TargetTypes: Heal
+	GarrisonPortOccupant:
+		RequiresCondition: garrisoned-at-port
+		TargetTypes: Ground, Infantry
 	QuantizeFacingsFromSequence:
 		Sequence: stand
 	WithInfantryBody:

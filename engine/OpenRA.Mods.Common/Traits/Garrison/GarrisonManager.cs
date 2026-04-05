@@ -270,6 +270,10 @@ namespace OpenRA.Mods.Common.Traits
 				// one-frame visual glitches (parachute, wrong animation, etc)
 				PortStates[portIndex].ConditionToken = soldier.GrantCondition(Info.GarrisonedCondition);
 
+				// Set port info on occupant trait for directional targetability
+				var occupant = soldier.TraitOrDefault<GarrisonPortOccupant>();
+				occupant?.SetPort(self, portIndex);
+
 				// Position at port: use building cell for pathfinding, port offset for visual
 				var coords = cachedBodyOrientation;
 				var portOffset = GetPortWorldOffset(portIndex, coords);
@@ -334,10 +338,17 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var token = PortStates[portIndex].ConditionToken;
 			var soldier = PortStates[portIndex].DeployedSoldier;
-			if (token != Actor.InvalidConditionToken && soldier != null && !soldier.IsDead && soldier.TokenValid(token))
+			if (soldier != null && !soldier.IsDead)
 			{
-				soldier.RevokeCondition(token);
-				PortStates[portIndex].ConditionToken = Actor.InvalidConditionToken;
+				// Clear port info for directional targetability
+				var occupant = soldier.TraitOrDefault<GarrisonPortOccupant>();
+				occupant?.ClearPort();
+
+				if (token != Actor.InvalidConditionToken && soldier.TokenValid(token))
+				{
+					soldier.RevokeCondition(token);
+					PortStates[portIndex].ConditionToken = Actor.InvalidConditionToken;
+				}
 			}
 		}
 
