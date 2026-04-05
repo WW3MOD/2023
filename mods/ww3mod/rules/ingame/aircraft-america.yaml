@@ -185,7 +185,7 @@ littlebird:
 		RequiresSelection: true
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	Armament@2:
@@ -213,7 +213,7 @@ littlebird:
 	RenderRangeCircle@2:
 		Armament: secondary
 		RangeCircleType: missile
-		Color: 00FFBB
+		Color: 00FFFF
 		Width: 2
 	Rearmable:
 		RearmActors: hpad
@@ -320,7 +320,7 @@ HELI:
 		PauseOnCondition: !ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	WithMuzzleOverlay:
@@ -452,7 +452,7 @@ A10:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	Armament@2:
@@ -479,8 +479,8 @@ A10:
 		AmmoPools: secondary-ammo
 	RenderRangeCircle@2:
 		Armament: secondary
-		RangeCircleType: missile
-		Color: 00FFBB
+		RangeCircleType: agm
+		Color: 00FF00
 		Width: 2
 	Rearmable:
 		RearmActors: afld

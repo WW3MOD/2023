@@ -1201,7 +1201,7 @@ E1R1:
 		Color: FF0000
 	RenderRangeCircle@2:
 		Armament: secondary
-		RangeCircleType: at
+		RangeCircleType: explosive
 		RequiresCondition: ammo-secondary
 		Color: FF0000
 		Width: 2
@@ -1498,9 +1498,9 @@ TL:
 		RequiresCondition: ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: arty
+		RangeCircleType: explosive
 		RequiresCondition: ammo-primary
-		Color: FF8000
+		Color: FF0000
 		Width: 2
 	Rearmable:
 		RearmActors: truk, logisticscenter
@@ -1568,7 +1568,7 @@ MT:
 		Armament: primary
 		RangeCircleType: sniper
 		RequiresCondition: ammo-primary
-		Color: 00FF00
+		Color: FFFF00
 		Width: 1
 	Armament@GARRISONED:
 		Name: garrisoned
@@ -1634,9 +1634,9 @@ SN:
 		RequiresCondition: ammo-primary
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: at
+		RangeCircleType: agm
 		RequiresCondition: ammo-primary
-		Color: FF0000
+		Color: 00FF00
 		Width: 2
 	NextBurstBar@1:
 		Armaments: primary

@@ -82,7 +82,7 @@ humvee:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	# Turreted@WGM:
@@ -233,7 +233,7 @@ m113:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	Rearmable:
@@ -404,13 +404,13 @@ bradley:
 		CustomPipType: pip-green
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	RenderRangeCircle@2:
 		Armament: secondary
-		RangeCircleType: at
-		Color: FF0000
+		RangeCircleType: agm
+		Color: 00FF00
 		Width: 2
 	SpawnActorOnDeath:
 		Actor: bradley.husk
@@ -504,7 +504,7 @@ abrams:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: at
+		RangeCircleType: explosive
 		Color: FF0000
 		Width: 2
 	Rearmable:
@@ -610,8 +610,8 @@ m109:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: arty
-		Color: FF8000
+		RangeCircleType: explosive
+		Color: FF0000
 		Width: 2
 	WithMuzzleOverlay:
 	AttackTurreted:
@@ -718,8 +718,8 @@ m270:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: arty
-		Color: FF8000
+		RangeCircleType: explosive
+		Color: FF0000
 		Width: 2
 	Turreted:
 		Offset: -300,0,50
@@ -832,7 +832,7 @@ strykershorad:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	Armament@2:
@@ -885,8 +885,8 @@ strykershorad:
 		AmmoPools: tertiary-ammo
 	RenderRangeCircle@3:
 		Armament: tertiary
-		RangeCircleType: missile
-		Color: 00FFBB
+		RangeCircleType: agm
+		Color: 00FF00
 		Width: 2
 	NextBurstBar@3:
 		Armaments: tertiary
@@ -991,8 +991,8 @@ HIMARS:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: arty
-		Color: FF8000
+		RangeCircleType: explosive
+		Color: FF0000
 		Width: 2
 	Turreted:
 		TurnSpeed: 10

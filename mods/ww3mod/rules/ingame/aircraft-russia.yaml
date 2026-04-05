@@ -188,7 +188,7 @@ HIND:
 		RequiresSelection: true
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	Armament@2:
@@ -216,8 +216,8 @@ HIND:
 		RequiresSelection: true
 	RenderRangeCircle@2:
 		Armament: secondary
-		RangeCircleType: missile
-		Color: 00FFBB
+		RangeCircleType: explosive
+		Color: FF0000
 		Width: 2
 	Rearmable:
 		RearmActors: hpad
@@ -343,7 +343,7 @@ MI28:
 		AmmoPools: primary-ammo
 	RenderRangeCircle@1:
 		Armament: primary
-		RangeCircleType: kinetic
+		RangeCircleType: bullet
 		Color: FFFF00
 		Width: 1
 	WithMuzzleOverlay:

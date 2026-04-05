@@ -73,7 +73,7 @@ t72:
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	RenderRangeCircle@1:
-		RangeCircleType: at
+		RangeCircleType: explosive
 		Color: FF0000
 		Width: 2
 	Selectable:

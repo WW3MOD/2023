@@ -97,7 +97,12 @@ GTWR:
 		Type: Unarmored
 		Thickness: 25
 	Targetable:
+		RequiresCondition: !loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
+	Targetable@WhenGarrisoned:
+		RequiresCondition: loaded
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
+		RequiresForceFire: true
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	-BodyOrientation:
@@ -177,6 +182,13 @@ PBOX:
 		Cost: 500
 	Health:
 		HP: 40000
+	Targetable:
+		RequiresCondition: !loaded
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+	Targetable@WhenGarrisoned:
+		RequiresCondition: loaded
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+		RequiresForceFire: true
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
@@ -250,6 +262,13 @@ HBOX:
 		Cost: 300
 	Health:
 		HP: 15000
+	Targetable:
+		RequiresCondition: !loaded
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+	Targetable@WhenGarrisoned:
+		RequiresCondition: loaded
+		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+		RequiresForceFire: true
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
@@ -899,9 +918,9 @@ FTUR:
 	RenderSprites:
 		Scale: 0.8
 	RenderRangeCircle:
-		RangeCircleType: kinetic
-		Color: FFFF00
-		Width: 1
+		RangeCircleType: flame
+		Color: FF8000
+		Width: 2
 
 TSLA:
 	Inherits@Type: ^Defense
@@ -1136,6 +1155,6 @@ GUN:
 	RenderSprites:
 		Scale: 0.9
 	RenderRangeCircle:
-		RangeCircleType: at
+		RangeCircleType: explosive
 		Color: FF0000
 		Width: 2
