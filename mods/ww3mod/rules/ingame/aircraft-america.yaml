@@ -187,7 +187,7 @@ littlebird:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 2
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
@@ -214,7 +214,7 @@ littlebird:
 		Armament: secondary
 		RangeCircleType: missile
 		Color: 00FFFF
-		Width: 2
+		Width: 3
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -322,7 +322,7 @@ HELI:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 3
 	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
@@ -349,7 +349,7 @@ HELI:
 		Armament: secondary
 		RangeCircleType: missile
 		Color: 00FFBB
-		Width: 2
+		Width: 3
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -454,7 +454,7 @@ A10:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 3
 	Armament@2:
 		Name: secondary
 		Weapon: Hellfire
@@ -481,7 +481,7 @@ A10:
 		Armament: secondary
 		RangeCircleType: agm
 		Color: 00FF00
-		Width: 2
+		Width: 3
 	Rearmable:
 		RearmActors: afld
 		AmmoPools: primary-ammo, secondary-ammo

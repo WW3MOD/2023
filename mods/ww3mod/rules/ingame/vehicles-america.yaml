@@ -406,12 +406,12 @@ bradley:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 2
 	RenderRangeCircle@2:
 		Armament: secondary
 		RangeCircleType: agm
 		Color: 00FF00
-		Width: 2
+		Width: 3
 	SpawnActorOnDeath:
 		Actor: bradley.husk
 
@@ -506,7 +506,7 @@ abrams:
 		Armament: primary
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 3
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -612,7 +612,7 @@ m109:
 		Armament: primary
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 3
 	WithMuzzleOverlay:
 	AttackTurreted:
 		TargetFrozenActors: True
@@ -720,7 +720,7 @@ m270:
 		Armament: primary
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 4
 	Turreted:
 		Offset: -300,0,50
 		# Offset: -180,0,150
@@ -834,7 +834,7 @@ strykershorad:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 2
 	Armament@2:
 		Name: secondary
 		Weapon: Stinger.quad
@@ -861,7 +861,7 @@ strykershorad:
 		Armament: secondary
 		RangeCircleType: aa
 		Color: 66B2FF
-		Width: 1
+		Width: 2
 		Alpha: 80
 	Armament@3:
 		Name: tertiary
@@ -887,7 +887,7 @@ strykershorad:
 		Armament: tertiary
 		RangeCircleType: agm
 		Color: 00FF00
-		Width: 2
+		Width: 3
 	NextBurstBar@3:
 		Armaments: tertiary
 		Color: 00FF00
@@ -993,7 +993,7 @@ HIMARS:
 		Armament: primary
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 4
 	Turreted:
 		TurnSpeed: 10
 		Offset: -300,0,150

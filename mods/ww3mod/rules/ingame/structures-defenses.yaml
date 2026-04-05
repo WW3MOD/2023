@@ -652,7 +652,7 @@ CRAM:
 		RangeCircleType: aa
 		Color: 66B2FF
 		Alpha: 80
-		Width: 1
+		Width: 2
 
 AGUN:
 	Inherits@Type: ^Defense
@@ -725,7 +725,7 @@ AGUN:
 		RangeCircleType: aa
 		Color: 66B2FF
 		Alpha: 80
-		Width: 1
+		Width: 2
 
 SAM:
 	Inherits@Type: ^Defense
@@ -780,7 +780,7 @@ SAM:
 	RenderRangeCircle:
 		RangeCircleType: aa
 		Color: 66B2FF
-		Width: 1
+		Width: 3
 		Alpha: 80
 HSAM:
 	Inherits: SAM
@@ -920,7 +920,7 @@ FTUR:
 	RenderRangeCircle:
 		RangeCircleType: flame
 		Color: FF8000
-		Width: 2
+		Width: 3
 
 TSLA:
 	Inherits@Type: ^Defense
@@ -985,7 +985,7 @@ TSLA:
 	RenderRangeCircle:
 		RangeCircleType: special
 		Color: FFFFFF
-		Width: 2
+		Width: 4
 
 PRIS:
 	Inherits@Type: ^Defense
@@ -1042,7 +1042,7 @@ PRIS:
 		Armament: support
 		RangeCircleType: special
 		Color: FFFFFF
-		Width: 2
+		Width: 4
 
 MSLO:
 	Inherits: ^Building
@@ -1157,4 +1157,4 @@ GUN:
 	RenderRangeCircle:
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 3

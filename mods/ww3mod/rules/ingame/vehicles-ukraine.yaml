@@ -75,7 +75,7 @@ t72:
 	RenderRangeCircle@1:
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 3
 	Selectable:
 		Class: MBT
 	SpawnActorOnDeath:

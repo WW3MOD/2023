@@ -2192,7 +2192,7 @@ TECN:
 		Armament: secondary
 		RangeCircleType: special
 		Color: FFFFFF
-		Width: 2
+		Width: 3
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: primary-ammo

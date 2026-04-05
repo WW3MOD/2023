@@ -190,7 +190,7 @@ HIND:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 2
 	Armament@2:
 		Name: secondary
 		Weapon: RocketPods
@@ -218,7 +218,7 @@ HIND:
 		Armament: secondary
 		RangeCircleType: explosive
 		Color: FF0000
-		Width: 2
+		Width: 3
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
@@ -345,7 +345,7 @@ MI28:
 		Armament: primary
 		RangeCircleType: bullet
 		Color: FFFF00
-		Width: 1
+		Width: 3
 	WithMuzzleOverlay:
 	Armament@2:
 		Name: secondary
@@ -372,7 +372,7 @@ MI28:
 		Armament: secondary
 		RangeCircleType: missile
 		Color: 00FFBB
-		Width: 2
+		Width: 3
 	Rearmable:
 		RearmActors: hpad
 		AmmoPools: primary-ammo, secondary-ammo
