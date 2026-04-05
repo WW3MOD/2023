@@ -49,3 +49,30 @@ EditorToggleBuildableOverlay: F2
 	Description: Buildable Terrain Overlay
 	Types: Editor
 	Contexts: Editor
+
+EditorToggleMarkerOverlay: F3
+	Description: Marker Overlay
+	Types: Editor
+	Contexts: Editor
+
+EditorDeleteSelection: Delete
+	Description: Delete Selection
+	Types: Editor
+	Contexts: Editor
+
+EditorSelectTab: Q
+	Description: Select Tab
+	Types: Editor
+	Contexts: Editor
+
+EditorToolsTab: W
+	Description: Tools Tab
+	Types: Editor
+	Contexts: Editor
+
+EditorPaste: V Ctrl
+	Description: Paste
+	Types: Editor
+	Contexts: Editor
+	Platform:
+		OSX: V Meta

@@ -124,7 +124,7 @@ MISS:
 		Color: 000000
 		Width: 5
 		Alpha: 50
-		RequiresCondition: !build-incomplete
+		#RequiresCondition: !build-incomplete
 	Armor:
 		Type: Concrete
 	Tooltip:

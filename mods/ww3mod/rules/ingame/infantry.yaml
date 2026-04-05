@@ -166,7 +166,7 @@
 		TargetFrozenActors: True
 		PauseOnCondition: garrisoned-at-port
 	AutoTarget:
-		PauseOnCondition: garrisoned-at-port
+		RequiresCondition: !garrisoned-at-port
 	DamageMultiplier@GarrisonCover:
 		Modifier: 20
 		RequiresCondition: garrisoned-at-port
@@ -286,6 +286,16 @@
 	Inherits: ^Infantry
 	Inherits@Rotting: ^RottingInfantry
 	# Inherits@penalty: ^GlobalPenalty
+	-WithDeathAnimation:
+	WithDeathAnimation:
+		DeathTypes:
+			DefaultDeath: 1
+			BulletDeath: 2
+			SmallExplosionDeath: 3
+			ExplosionDeath: 4
+			FireDeath: 5
+			ElectricityDeath: 6
+			TiberiumDeath: 7
 	Selectable:
 		Class: CivInfantry
 	Valued:
@@ -488,7 +498,7 @@
 ^SuppressionPips:
 	WithDecoration@Suppression_1:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-1
 		Position: Top
@@ -496,7 +506,7 @@
 		RequiresCondition: suppressed > 0 && suppressed <= 10
 	WithDecoration@Suppression_2:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-2
 		Position: Top
@@ -504,7 +514,7 @@
 		RequiresCondition: suppressed > 10 && suppressed <= 20
 	WithDecoration@Suppression_3:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-3
 		Position: Top
@@ -512,7 +522,7 @@
 		RequiresCondition: suppressed > 20 && suppressed <= 30
 	WithDecoration@Suppression_4:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-4
 		Position: Top
@@ -520,7 +530,7 @@
 		RequiresCondition: suppressed > 30 && suppressed <= 40
 	WithDecoration@Suppression_5:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-5
 		Position: Top
@@ -528,7 +538,7 @@
 		RequiresCondition: suppressed > 40 && suppressed <= 50
 	WithDecoration@Suppression_6:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-6
 		Position: Top
@@ -536,7 +546,7 @@
 		RequiresCondition: suppressed > 50 && suppressed <= 60
 	WithDecoration@Suppression_7:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-7
 		Position: Top
@@ -544,7 +554,7 @@
 		RequiresCondition: suppressed > 60 && suppressed <= 70
 	WithDecoration@Suppression_8:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-8
 		Position: Top
@@ -552,7 +562,7 @@
 		RequiresCondition: suppressed > 70 && suppressed <= 80
 	WithDecoration@Suppression_9:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-9
 		Position: Top
@@ -560,7 +570,7 @@
 		RequiresCondition: suppressed > 80 && suppressed <= 90
 	WithDecoration@Suppression_10:
 		RequiresSelection: true
-		RequiredModifiers: Alt
+
 		Image: pips
 		Sequence: pip-suppression-10
 		Position: Top

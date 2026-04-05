@@ -117,6 +117,9 @@ HIND:
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
+		FireAtWillCondition: stance-fireatwill
+		AmbushCondition: stance-ambush
+		HoldFireCondition: stance-holdfire
 	AutoTargetPriority@Default:
 		ValidTargets: Air, Vehicle, Water
 		Priority: 3

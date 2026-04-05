@@ -957,7 +957,7 @@ HIMARS:
 		Locomotor: lighttracked
 		Speed: 70
 		TurnSpeed: 8
-		PauseOnCondition: firing || being-captured || empdisable || notmobile
+		PauseOnCondition: firing || being-captured || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
 		ArmamentNames: primary

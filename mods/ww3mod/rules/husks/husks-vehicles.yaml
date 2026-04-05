@@ -2,6 +2,8 @@
 ^Husk:
 	Inherits: ^BasicHusk
 	Inherits@2: ^ClassicFacingSpriteActor
+	ExternalCondition@AlwaysDisabled:
+		Condition: alwaysdisabled
 	Husk:
 		AllowedTerrain: Clear,Rough,Road,Beach,Water
 	WithAddedAnimation:
@@ -131,7 +133,6 @@ MSAR.deployed.husk:
 		Name: Mobile Radar
 	WithSpriteBody@deployed:
 		Sequence: idle-static
-		RequiresCondition: !undeployed && real-actor
 		Name: deployedbody
 	RenderSprites:
 		Image: msar

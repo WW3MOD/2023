@@ -32,6 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 		[ConsumedConditionReference]
 		[Desc("Conditions to activate a third custom sequence")]
 		public readonly BooleanExpression PanicCondition = null;
+		[GrantedConditionReference]
 		public readonly string PanicGrantsCondition = "panicking";
 
 		[Desc("Panic movement speed as a percentage of the normal speed.")]

@@ -865,7 +865,7 @@ iskander:
 		Speed: 80
 		TurnSpeed: 5
 		Voice: Move
-		PauseOnCondition: firing || being-captured || empdisable || notmobile
+		PauseOnCondition: firing || being-captured || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
 		ArmamentNames: primary

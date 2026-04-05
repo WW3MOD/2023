@@ -8,6 +8,8 @@
 	Inherits@Handicaps: ^PlayerHandicaps
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	Inherits@NeutralOrOccupiedCapturable: ^NeutralOrOccupiedCapturable
+	ExternalCondition@Damaged:
+		Condition: damaged
 	BlocksProjectiles:
 	Vision@3:
 		Strength: 3
@@ -199,6 +201,10 @@ SUPPLYROUTE:
 	Inherits@ExistsInWorld: ^ExistsInWorld
 	Inherits@SpriteActor: ^SpriteActor
 	Inherits@Selection: ^SelectableBuilding
+	ExternalCondition@Disabled:
+		Condition: disabled
+	ExternalCondition@BuildIncomplete:
+		Condition: build-incomplete
 	WithSpriteBody:
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
@@ -304,7 +310,6 @@ SUPPLYROUTE:
 		ProductionTypes: Aircraft, Helicopter
 	Production@Local:
 		Produces: Building, Defense
-		UseRandomExit: true
 		PauseOnCondition: disabled || build-incomplete
 	ProductionFromMapEdge:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter

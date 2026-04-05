@@ -233,7 +233,6 @@
 			Beach: 1
 	TerrainRenderer:
 	ShroudRenderer:
-		UseExtendedIndex: true
 	Faction@randomside:
 		Name: Any Side
 		InternalName: Random
@@ -414,8 +413,6 @@ World:
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
-		PresetHues: 0, 0.125, 0.22, 0.375, 0.5, 0.56, 0.8, 0.88, 0, 0.15, 0.235, 0.4, 0.47, 0.55, 0.75, 0.85
-		PresetSaturations: 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.4, 0.5, 0.4, 0.5, 0.4, 0.5, 0.4, 0.5
 	PowersLobbyOptions:
 	OrderEffects:
 		TerrainFlashImage: moveflsh

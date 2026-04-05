@@ -392,6 +392,11 @@ V19.Husk:
 	-GrantConditionOnDamageState@HeavyDamage:
 	-GrantConditionOnDamageState@HeavyDamageAttained:
 	-GrantConditionOnDamageState@CriticalDamage:
+	-WithDecoration@GarrisonProt_Full:
+	-WithDecoration@GarrisonProt_Light:
+	-WithDecoration@GarrisonProt_Medium:
+	-WithDecoration@GarrisonProt_Heavy:
+	-WithDecoration@GarrisonProt_Critical:
 	-ChangesHealth@BurnDamage:
 	-ExternalCondition@BurnDamage:
 	-WithDamageOverlay@SmallBurn:

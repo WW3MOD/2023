@@ -687,6 +687,9 @@ ammobox3:
 
 supplycache:
 	idle: ammobox1
+	idle-full: ammobox1
+	idle-mid: ammobox2
+	idle-low: ammobox3
 
 tanktrap1:
 	idle:

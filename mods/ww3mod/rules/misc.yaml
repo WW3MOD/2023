@@ -31,7 +31,6 @@
 	Cloak:
 		CloakSound:
 		UncloakSound:
-		Palette:
 		DetectionTypes: Mine
 		RevealedDelay: 200 # 2147483647 # Once discovered, stays uncloaked
 		InitialDelay: 0
@@ -395,15 +394,15 @@ SUPPLYCACHE:
 	RenderSprites:
 	WithSpriteBody@Full:
 		Name: full
-		Image: ammobox1
+		Sequence: idle-full
 		RequiresCondition: supply-high
 	WithSpriteBody@Mid:
 		Name: mid
-		Image: ammobox2
+		Sequence: idle-mid
 		RequiresCondition: supply-medium
 	WithSpriteBody@Low:
 		Name: low
-		Image: ammobox3
+		Sequence: idle-low
 		RequiresCondition: !supply-high && !supply-medium
 	SupplyProvider:
 		Range: 4c0

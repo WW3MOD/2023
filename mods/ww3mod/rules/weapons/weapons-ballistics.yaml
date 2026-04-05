@@ -526,7 +526,7 @@ AACannon:
 	Report: 60mm-mortar-firing-1.wav, 60mm-mortar-firing-2.wav, 60mm-mortar-firing-3.wav
 	Projectile: Bullet
 		Speed: 180
-		LaunchAngle: 120,95
+		LaunchAngle: 95,120
 		Inaccuracy: 2c256
 		Image: grenade_small
 		ContrailLength: 5

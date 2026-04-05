@@ -57,6 +57,7 @@
 		Weight: 10
 		CargoType: Vehicle
 	AttackMove:
+		AssaultMoveCondition: assault-move
 	Detectable:
 	ProximityCaptor:
 		Types: Vehicle
