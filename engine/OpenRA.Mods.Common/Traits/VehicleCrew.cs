@@ -42,6 +42,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Random ± variance added to ejection delay.")]
 		public readonly int EjectionDelayVariance = 10;
 
+		[Desc("Additional delay (ticks) after the vehicle comes to a full stop before the first crew member ejects.")]
+		public readonly int PostStopDelay = 40;
+
+		[Desc("Maximum ticks to wait for the vehicle to stop after entering critical. Eject anyway after this.")]
+		public readonly int StopTimeout = 150;
+
 		[Desc("Damage state that triggers crew ejection.")]
 		public readonly DamageState EjectionDamageState = DamageState.Critical;
 
@@ -50,6 +56,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Whether ejected crew inherit the vehicle's veterancy rank.")]
 		public readonly bool TransferVeterancy = true;
+
+		[Desc("Fraction of vehicle MaxHP the finishing shot must exceed before crew start taking damage. E.g. 25 = 25%.")]
+		public readonly int CrewDamageThresholdPercent = 25;
+
+		[Desc("Random variance on crew damage, as a fraction of crew MaxHP (1/N). Set to 0 to disable.")]
+		public readonly int CrewDamageVarianceDivisor = 5;
 
 		public override object Create(ActorInitializer init) { return new VehicleCrew(init.Self, this); }
 	}
@@ -66,6 +78,19 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<string, int> slotIndexByName = new Dictionary<string, int>();
 
 		IHealth health;
+		Mobile mobile;
+
+		// Damage value of the hit that pushed the vehicle into critical state.
+		// Locked in on the critical transition and used to scale crew damage.
+		int finishingDamage;
+
+		// Between entering critical and beginning the eject countdown, we wait
+		// for the vehicle to stop (or StopTimeout to expire).
+		[Sync]
+		bool waitingForStop;
+
+		[Sync]
+		int stopWaitCounter;
 
 		/// <summary>Whether non-allied crew can currently enter this vehicle (e.g., crash-disabled helicopter).
 		/// Set by HeliEmergencyLanding on safe landing to allow capture-by-pilot.</summary>
@@ -106,6 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			health = self.Trait<IHealth>();
+			mobile = self.TraitOrDefault<Mobile>();
 
 			// All crew start present — grant all conditions
 			for (var i = 0; i < info.CrewSlots.Length; i++)
@@ -125,16 +151,32 @@ namespace OpenRA.Mods.Common.Traits
 				if (!ejecting && HasOccupiedCrewToEject())
 				{
 					ejecting = true;
+					finishingDamage = e.Damage?.Value ?? 0;
 					nextEjectionIndex = 0;
 					AdvanceToNextOccupiedSlot();
 					if (ejecting)
-						ejectionCountdown = info.EjectionDelay + self.World.SharedRandom.Next(-info.EjectionDelayVariance, info.EjectionDelayVariance + 1);
+					{
+						if (mobile != null)
+						{
+							// Ground vehicle: wait until it rolls to a stop before ejecting.
+							waitingForStop = true;
+							stopWaitCounter = 0;
+						}
+						else
+						{
+							// No Mobile (e.g. aircraft routed here somehow): preserve legacy timing.
+							waitingForStop = false;
+							ejectionCountdown = info.EjectionDelay + self.World.SharedRandom.Next(-info.EjectionDelayVariance, info.EjectionDelayVariance + 1);
+						}
+					}
 				}
 			}
 			else if (e.DamageState < info.EjectionDamageState && e.PreviousDamageState >= info.EjectionDamageState)
 			{
 				// Repaired out of critical — stop ejecting
 				ejecting = false;
+				waitingForStop = false;
+				finishingDamage = 0;
 			}
 		}
 
@@ -142,6 +184,26 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!ejecting || self.IsDead || SuppressEjection)
 				return;
+
+			if (waitingForStop)
+			{
+				stopWaitCounter++;
+
+				// Vehicle is stopped when it has no horizontal or vertical velocity.
+				// If there's no Mobile trait we treat it as stopped (defensive; should have been
+				// routed through the legacy path in DamageStateChanged already).
+				var stopped = mobile == null
+					|| (mobile.CurrentMovementTypes & (MovementType.Horizontal | MovementType.Vertical)) == MovementType.None;
+
+				if (stopped || stopWaitCounter >= info.StopTimeout)
+				{
+					waitingForStop = false;
+					ejectionCountdown = info.PostStopDelay
+						+ self.World.SharedRandom.Next(-info.EjectionDelayVariance, info.EjectionDelayVariance + 1);
+				}
+
+				return;
+			}
 
 			if (--ejectionCountdown > 0)
 				return;
@@ -202,6 +264,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.CrewActors.TryGetValue(slotName, out var actorType))
 				return;
 
+			// Damage inherited from the finishing shot. Only applies to staged critical-state
+			// ejections, not onDeath (which keeps the legacy EjectionSurvivalRate behaviour).
+			var crewDamage = 0;
+			if (!onDeath && finishingDamage > 0)
+			{
+				var vehicleMaxHP = health.MaxHP;
+				var threshold = vehicleMaxHP * info.CrewDamageThresholdPercent / 100;
+				if (finishingDamage > threshold && vehicleMaxHP > 0)
+				{
+					var crewMaxHP = CrewMaxHPFromRules(actorType);
+					crewDamage = crewMaxHP * (finishingDamage - threshold) / vehicleMaxHP;
+					if (info.CrewDamageVarianceDivisor > 0 && crewMaxHP / info.CrewDamageVarianceDivisor > 0)
+						crewDamage += self.World.SharedRandom.Next(crewMaxHP / info.CrewDamageVarianceDivisor);
+
+					// Would-be-lethal: crew dies inside the vehicle, no actor spawned.
+					if (crewDamage >= crewMaxHP)
+						return;
+				}
+			}
+
 			var td = new TypeDictionary
 			{
 				new OwnerInit(self.Owner),
@@ -224,6 +306,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			var damageToApply = crewDamage;
 			self.World.AddFrameEndTask(w =>
 			{
 				var crew = w.CreateActor(actorType, td);
@@ -255,7 +338,22 @@ namespace OpenRA.Mods.Common.Traits
 				var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
 				foreach (var nbm in nbms)
 					nbm.OnNotifyBlockingMove(crew, crew);
+
+				// Apply finishing-shot damage to the ejecting crew member.
+				// Attacker is the vehicle itself — see plan: avoids holding a cross-tick
+				// reference to the original shooter which may have died/disposed.
+				if (damageToApply > 0 && !crew.IsDead)
+					crew.InflictDamage(self, new Damage(damageToApply));
 			});
+		}
+
+		int CrewMaxHPFromRules(string actorType)
+		{
+			if (!self.World.Map.Rules.Actors.TryGetValue(actorType, out var crewInfo))
+				return 1;
+
+			var hp = crewInfo.TraitInfoOrDefault<HealthInfo>();
+			return hp != null ? hp.HP : 1;
 		}
 
 		void AdvanceToNextOccupiedSlot()
