@@ -16,18 +16,18 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Tracks supply units as numeric cargo weight. Any transport with this trait and loaded supply",
-		"auto-rearms nearby allied units. Supply consumes Cargo weight (1 unit = WeightPerUnit).")]
-	public class CargoSupplyInfo : TraitInfo, Requires<CargoInfo>
+	[Desc("Tracks a numeric supply pool on a unit. When supply is loaded, passively auto-rearms nearby",
+		"allied units. Supply has its own capacity independent of Cargo.")]
+	public class CargoSupplyInfo : TraitInfo
 	{
-		[Desc("Cargo weight consumed per supply unit.")]
-		public readonly int WeightPerUnit = 1;
+		[Desc("Maximum supply units this actor can hold.")]
+		public readonly int MaxSupply = 10;
 
 		[Desc("Ammo supply value per supply unit (how much ammo one unit can give before being consumed).")]
 		public readonly int SupplyPerUnit = 50;
 
-		[Desc("Number of supply units loaded at spawn (before template system). 0 = none.")]
-		public readonly int InitialSupply = 0;
+		[Desc("Number of supply units loaded at spawn. -1 = MaxSupply (full).")]
+		public readonly int InitialSupply = -1;
 
 		[Desc("Maximum resupply range when transport has supply loaded.")]
 		public readonly WDist RearmRange = WDist.FromCells(4);
@@ -65,8 +65,6 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly CargoSupplyInfo Info;
 		readonly Actor self;
 
-		Cargo cargo;
-
 		// Supply tracking
 		[Sync]
 		int supplyCount;
@@ -85,27 +83,23 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int SupplyCount => supplyCount;
 		public int EffectiveSupply => effectiveSupply;
-		public int TotalCapacity => cargo != null ? (cargo.Info.MaxWeight / Info.WeightPerUnit) * Info.SupplyPerUnit : 0;
+		public int TotalCapacity => Info.MaxSupply * Info.SupplyPerUnit;
 
 		public CargoSupply(ActorInitializer init, CargoSupplyInfo info)
 		{
 			Info = info;
 			self = init.Self;
 
-			// Load initial supply from init (e.g., from template system or transform), fallback to InitialSupply
-			var initialCount = init.GetValue<CargoSupplyInit, int>(info, info.InitialSupply);
-			supplyCount = initialCount;
+			// Load initial supply from init (e.g., from transform), fallback to InitialSupply.
+			// InitialSupply = -1 means "full tank" (MaxSupply).
+			var defaultInitial = info.InitialSupply < 0 ? info.MaxSupply : info.InitialSupply;
+			var initialCount = init.GetValue<CargoSupplyInit, int>(info, defaultInitial);
+			supplyCount = System.Math.Min(initialCount, info.MaxSupply);
 			effectiveSupply = supplyCount * info.SupplyPerUnit;
 		}
 
 		void INotifyCreated.Created(Actor self)
 		{
-			cargo = self.Trait<Cargo>();
-
-			// Reserve weight in cargo for our supply
-			if (supplyCount > 0)
-				cargo.ReserveSupplyWeight(supplyCount * Info.WeightPerUnit);
-
 			UpdateSupplyCondition();
 		}
 
@@ -342,26 +336,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (giveAmount > 0 && bestPool.GiveAmmo(currentTarget, giveAmount))
 				{
 					effectiveSupply -= bestPool.Info.SupplyValue * giveAmount;
+					if (effectiveSupply < 0)
+						effectiveSupply = 0;
 
-					// When a supply unit's worth of ammo is depleted, free the cargo weight
-					var unitsConsumed = 0;
-					while (effectiveSupply < supplyCount * Info.SupplyPerUnit - (unitsConsumed + 1) * Info.SupplyPerUnit
-						&& supplyCount > 0)
-					{
-						// This unit is fully consumed
-						break;
-					}
-
-					// Recalculate: how many full units remain?
+					// Recalculate: how many full units remain? (ceiling division)
 					var newCount = effectiveSupply > 0
-						? (effectiveSupply + Info.SupplyPerUnit - 1) / Info.SupplyPerUnit  // ceiling division
+						? (effectiveSupply + Info.SupplyPerUnit - 1) / Info.SupplyPerUnit
 						: 0;
 
-					if (newCount < supplyCount)
+					if (newCount != supplyCount)
 					{
-						var freed = supplyCount - newCount;
 						supplyCount = newCount;
-						cargo.FreeSupplyWeight(freed * Info.WeightPerUnit);
 						UpdateSupplyCondition();
 					}
 
@@ -387,23 +372,20 @@ namespace OpenRA.Mods.Common.Traits
 				hasSupplyToken = self.RevokeCondition(hasSupplyToken);
 		}
 
-		/// <summary>Add supply units. Returns actual amount added (may be less if cargo full).</summary>
+		/// <summary>Add supply units. Returns actual amount added (clamped to MaxSupply).</summary>
 		public int AddSupply(int count)
 		{
-			if (cargo == null || count <= 0)
+			if (count <= 0)
 				return 0;
 
-			// Check available cargo weight
-			var availableWeight = cargo.AvailableWeight;
-			var maxUnits = availableWeight / Info.WeightPerUnit;
-			var actual = System.Math.Min(count, maxUnits);
+			var available = Info.MaxSupply - supplyCount;
+			var actual = System.Math.Min(count, available);
 
 			if (actual <= 0)
 				return 0;
 
 			supplyCount += actual;
 			effectiveSupply += actual * Info.SupplyPerUnit;
-			cargo.ReserveSupplyWeight(actual * Info.WeightPerUnit);
 			UpdateSupplyCondition();
 
 			return actual;
@@ -419,21 +401,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (actual <= 0)
 				return 0;
 
-			// Calculate effective supply to remove (proportional to remaining)
-			var supplyToRemove = actual * Info.SupplyPerUnit;
-			// If partially consumed, remove proportionally
-			if (effectiveSupply < supplyCount * Info.SupplyPerUnit)
-			{
-				// Remove from the "fullest" units first, so take full SupplyPerUnit per unit removed
-				supplyToRemove = System.Math.Min(supplyToRemove, effectiveSupply);
-			}
+			var supplyToRemove = System.Math.Min(actual * Info.SupplyPerUnit, effectiveSupply);
 
 			supplyCount -= actual;
 			effectiveSupply -= supplyToRemove;
 			if (effectiveSupply < 0)
 				effectiveSupply = 0;
 
-			cargo.FreeSupplyWeight(actual * Info.WeightPerUnit);
 			UpdateSupplyCondition();
 
 			return actual;
@@ -445,7 +419,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (supplyCount <= 0 && effectiveSupply <= 0)
 				return 0f;
 
-			var maxSupply = cargo != null ? (cargo.Info.MaxWeight / Info.WeightPerUnit) * Info.SupplyPerUnit : 1;
+			var maxSupply = Info.MaxSupply * Info.SupplyPerUnit;
 			return maxSupply > 0 ? (float)effectiveSupply / maxSupply : 0f;
 		}
 

@@ -49,10 +49,10 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				headerLabel.GetText = () =>
 				{
-					if (selectedTransport == null || cargo == null)
+					if (selectedTransport == null)
 						return "";
 
-					var passengerCount = cargo.PassengerCount;
+					var passengerCount = cargo?.PassengerCount ?? 0;
 					var supplyCount = cargoSupply?.SupplyCount ?? 0;
 					var markedCount = CountValidMarks();
 
@@ -246,7 +246,10 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			var c = selected[0].TraitOrDefault<Cargo>();
-			if (c == null)
+			var cs = selected[0].TraitOrDefault<CargoSupply>();
+
+			// Nothing to show if neither Cargo nor CargoSupply is present
+			if (c == null && cs == null)
 				return;
 
 			// Don't show cargo panel for garrison buildings (they have their own panel)
@@ -254,9 +257,9 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			// Only show if transport has passengers or supply
-			var cs = selected[0].TraitOrDefault<CargoSupply>();
-			var hasContent = !c.IsEmpty() || (cs != null && cs.SupplyCount > 0);
-			if (!hasContent)
+			var hasCargoContent = c != null && !c.IsEmpty();
+			var hasSupplyContent = cs != null && cs.SupplyCount > 0;
+			if (!hasCargoContent && !hasSupplyContent)
 				return;
 
 			selectedTransport = selected[0];
