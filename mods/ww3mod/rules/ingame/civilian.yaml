@@ -62,36 +62,46 @@
 	Inherits@CargoPips: ^CargoPips
 	GarrisonManager:
 		Ports:
-			north:
-				Name: north
-				Offset: 0,-700,256
-				Yaw: 0
-				Cone: 170
-			northeast:
-				Name: northeast
-				Offset: 500,-700,256
+			northeast1:
+				Name: northeast1
+				Offset: 80,-280,200
 				Yaw: 896
-				Cone: 170
-			southeast:
-				Name: southeast
-				Offset: 700,0,256
-				Yaw: 768
-				Cone: 170
-			south:
-				Name: south
-				Offset: 0,700,256
-				Yaw: 512
-				Cone: 170
-			southwest:
-				Name: southwest
-				Offset: -500,700,256
+				Cone: 140
+			northeast2:
+				Name: northeast2
+				Offset: 280,-80,200
+				Yaw: 896
+				Cone: 140
+			southeast1:
+				Name: southeast1
+				Offset: 280,80,200
+				Yaw: 640
+				Cone: 140
+			southeast2:
+				Name: southeast2
+				Offset: 80,280,200
+				Yaw: 640
+				Cone: 140
+			southwest1:
+				Name: southwest1
+				Offset: -80,280,200
 				Yaw: 384
-				Cone: 170
-			northwest:
-				Name: northwest
-				Offset: -700,0,256
-				Yaw: 256
-				Cone: 170
+				Cone: 140
+			southwest2:
+				Name: southwest2
+				Offset: -280,80,200
+				Yaw: 384
+				Cone: 140
+			northwest1:
+				Name: northwest1
+				Offset: -280,-80,200
+				Yaw: 128
+				Cone: 140
+			northwest2:
+				Name: northwest2
+				Offset: -80,-280,200
+				Yaw: 128
+				Cone: 140
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
@@ -105,9 +115,9 @@
 		RequiresSelection: false
 		Position: Bottom
 	AttackGarrisoned:
-		PortOffsets: 0,-700,256, 500,-700,256, 700,0,256, 0,700,256, -500,700,256, -700,0,256
-		PortYaws: 0, 896, 768, 512, 384, 256
-		PortCones: 170, 170, 170, 170, 170, 170
+		PortOffsets: 80,-280,200, 280,-80,200, 280,80,200, 80,280,200, -80,280,200, -280,80,200, -280,-80,200, -80,-280,200
+		PortYaws: 896, 896, 640, 640, 384, 384, 128, 128
+		PortCones: 140, 140, 140, 140, 140, 140, 140, 140
 		MuzzlePalette: effect
 ^DesertCivBuilding:
 	Inherits: ^CivBuilding
