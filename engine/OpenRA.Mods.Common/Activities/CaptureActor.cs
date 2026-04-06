@@ -118,8 +118,14 @@ namespace OpenRA.Mods.Common.Activities
 					}
 				}
 
-				// Do the capture
-				enterActor.ChangeOwnerSync(self.Owner);
+				// Do the capture.
+				// Buildings are stationary — use the in-place path so we don't
+				// trigger World.Remove/Add and the expensive shroud/vision recalc
+				// cascade on every player (causes a ~0.5s freeze on capture).
+				if (enterActor.Info.HasTraitInfo<BuildingInfo>())
+					enterActor.ChangeOwnerInPlaceSync(self.Owner);
+				else
+					enterActor.ChangeOwnerSync(self.Owner);
 
 				foreach (var t in enterActor.TraitsImplementing<INotifyCapture>())
 					t.OnCapture(enterActor, self, oldOwner, self.Owner, captures.Info.CaptureTypes);

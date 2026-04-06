@@ -489,24 +489,31 @@ namespace OpenRA
 		/// </summary>
 		public void ChangeOwnerInPlace(Player newOwner)
 		{
-			World.AddFrameEndTask(_ =>
-			{
-				if (Disposed)
-					return;
+			World.AddFrameEndTask(_ => ChangeOwnerInPlaceSync(newOwner));
+		}
 
-				var oldOwner = Owner;
-				if (oldOwner == newOwner)
-					return;
+		/// <summary>
+		/// Sync variant of <see cref="ChangeOwnerInPlace"/>. Must only be called
+		/// from inside an existing FrameEndTask. Skips the World.Remove/Add cycle
+		/// to avoid expensive shroud/vision recalc on every player.
+		/// </summary>
+		public void ChangeOwnerInPlaceSync(Player newOwner)
+		{
+			if (Disposed)
+				return;
 
-				Owner = newOwner;
-				Generation++;
+			var oldOwner = Owner;
+			if (oldOwner == newOwner)
+				return;
 
-				foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
-					t.OnOwnerChanged(this, oldOwner, newOwner);
+			Owner = newOwner;
+			Generation++;
 
-				foreach (var t in World.WorldActor.TraitsImplementing<INotifyOwnerChanged>())
-					t.OnOwnerChanged(this, oldOwner, newOwner);
-			});
+			foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
+				t.OnOwnerChanged(this, oldOwner, newOwner);
+
+			foreach (var t in World.WorldActor.TraitsImplementing<INotifyOwnerChanged>())
+				t.OnOwnerChanged(this, oldOwner, newOwner);
 		}
 
 		/// <summary>

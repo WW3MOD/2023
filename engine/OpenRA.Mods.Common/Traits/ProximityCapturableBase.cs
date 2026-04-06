@@ -183,7 +183,14 @@ namespace OpenRA.Mods.Common.Traits
 				// prevent (Added|Removed)FromWorld from firing during Actor.ChangeOwner
 				skipTriggerUpdate = true;
 				var previousOwner = self.Owner;
-				self.ChangeOwner(captor.Owner);
+
+				// Buildings are stationary — use the in-place path so we don't
+				// trigger World.Remove/Add and the expensive shroud/vision recalc
+				// cascade on every player (causes a ~0.5s freeze on capture).
+				if (self.Info.HasTraitInfo<BuildingInfo>())
+					self.ChangeOwnerInPlaceSync(captor.Owner);
+				else
+					self.ChangeOwner(captor.Owner);
 
 				if (self.Owner == self.World.LocalPlayer)
 					w.Add(new FlashTarget(self, Color.White));
