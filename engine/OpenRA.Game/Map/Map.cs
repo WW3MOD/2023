@@ -1095,6 +1095,12 @@ namespace OpenRA
 
 				foreach (var tile in tiles)
 				{
+					// Skip FROM and TO cells — only count density from obstacles BETWEEN viewer and target.
+					// Without this, buildings shadow themselves: a multi-cell building's front cells
+					// contribute density when tracing to its back cells, making the building appear dark.
+					if (tile == fromUV || tile == toUV)
+						continue;
+
 					totalGround += DensityLayer[tile] / 10f;
 
 					var tileCenter = CenterOfCell(tile.ToCPos(this));
