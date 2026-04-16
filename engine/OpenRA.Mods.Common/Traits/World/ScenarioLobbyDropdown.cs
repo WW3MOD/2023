@@ -29,8 +29,10 @@ namespace OpenRA.Mods.Common.Traits
 				yield break;
 
 			var values = new Dictionary<string, string> { { "none", "None" } };
+			var shellmapScenario = map.ShellmapScenario;
 			foreach (var name in scenarioNames)
-				values[name] = name;
+				if (name != shellmapScenario)
+					values[name] = name;
 
 			yield return new LobbyOption("scenario", "Scenario", "Select a scripted scenario for this map", true, DisplayOrder,
 				values, "none", false);

@@ -197,7 +197,7 @@ Frontline:
 				MinimumScanTimeInterval: 16
 				MaximumScanTimeInterval: 32
 
-ShellmapFrontline:
+Shellmap:
 	Players:
 		PlayerReference@NATO:
 			Name: NATO

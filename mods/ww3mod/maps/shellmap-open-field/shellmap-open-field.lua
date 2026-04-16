@@ -5,27 +5,32 @@
 
 ticks = 0
 
+-- Safe actor check: returns true if the actor exists and is alive
+local function Alive(actor)
+	return actor ~= nil and not actor.IsDead
+end
+
 Tick = function()
 	ticks = ticks + 1
 
 	-- Phase 1 (tick 50): Armor spearhead advances
 	if ticks == 50 then
-		NatoAbrams1.AttackMove(CPos.New(35, 22), 0)
-		NatoAbrams2.AttackMove(CPos.New(35, 30), 0)
-		NatoBradley1.AttackMove(CPos.New(35, 26), 0)
-		NatoBradley2.AttackMove(CPos.New(35, 34), 0)
-		NatoHumvee1.AttackMove(CPos.New(33, 14), 0)
-		NatoHumvee2.AttackMove(CPos.New(33, 46), 0)
-		NatoM113.AttackMove(CPos.New(33, 38), 0)
-		NatoShorad.AttackMove(CPos.New(30, 48), 0)
+		if Alive(NatoAbrams1) then NatoAbrams1.AttackMove(CPos.New(35, 22), 0) end
+		if Alive(NatoAbrams2) then NatoAbrams2.AttackMove(CPos.New(35, 30), 0) end
+		if Alive(NatoBradley1) then NatoBradley1.AttackMove(CPos.New(35, 26), 0) end
+		if Alive(NatoBradley2) then NatoBradley2.AttackMove(CPos.New(35, 34), 0) end
+		if Alive(NatoHumvee1) then NatoHumvee1.AttackMove(CPos.New(33, 14), 0) end
+		if Alive(NatoHumvee2) then NatoHumvee2.AttackMove(CPos.New(33, 46), 0) end
+		if Alive(NatoM113) then NatoM113.AttackMove(CPos.New(33, 38), 0) end
+		if Alive(NatoShorad) then NatoShorad.AttackMove(CPos.New(30, 48), 0) end
 
-		RussiaT90_1.AttackMove(CPos.New(55, 22), 0)
-		RussiaT90_2.AttackMove(CPos.New(55, 30), 0)
-		RussiaBMP_1.AttackMove(CPos.New(55, 26), 0)
-		RussiaBMP_2.AttackMove(CPos.New(55, 34), 0)
-		RussiaBTR_1.AttackMove(CPos.New(57, 14), 0)
-		RussiaBTR_2.AttackMove(CPos.New(57, 46), 0)
-		RussiaTunguska.AttackMove(CPos.New(58, 40), 0)
+		if Alive(RussiaT90_1) then RussiaT90_1.AttackMove(CPos.New(55, 22), 0) end
+		if Alive(RussiaT90_2) then RussiaT90_2.AttackMove(CPos.New(55, 30), 0) end
+		if Alive(RussiaBMP_1) then RussiaBMP_1.AttackMove(CPos.New(55, 26), 0) end
+		if Alive(RussiaBMP_2) then RussiaBMP_2.AttackMove(CPos.New(55, 34), 0) end
+		if Alive(RussiaBTR_1) then RussiaBTR_1.AttackMove(CPos.New(57, 14), 0) end
+		if Alive(RussiaBTR_2) then RussiaBTR_2.AttackMove(CPos.New(57, 46), 0) end
+		if Alive(RussiaTunguska) then RussiaTunguska.AttackMove(CPos.New(58, 40), 0) end
 	end
 
 	-- Phase 2 (tick 250): Infantry push behind armor
@@ -37,7 +42,7 @@ Tick = function()
 			NatoMT, NatoAA, NatoSN, NatoSF, NatoE4, NatoE6,
 			NatoTecn, NatoDR, NatoMedi1, NatoMedi2 }
 		for _, unit in ipairs(natoInf) do
-			if not unit.IsDead then
+			if Alive(unit) then
 				unit.AttackMove(CPos.New(32, 30), 2)
 			end
 		end
@@ -49,7 +54,7 @@ Tick = function()
 			RussiaMT, RussiaAA, RussiaSN, RussiaSF, RussiaE4, RussiaE6,
 			RussiaTecn, RussiaDR, RussiaShok, RussiaMedi1, RussiaMedi2 }
 		for _, unit in ipairs(russiaInf) do
-			if not unit.IsDead then
+			if Alive(unit) then
 				unit.AttackMove(CPos.New(58, 30), 2)
 			end
 		end
@@ -57,48 +62,24 @@ Tick = function()
 
 	-- Phase 3 (tick 450): Helicopters join the battle
 	if ticks == 450 then
-		if not NatoHeli.IsDead then
-			NatoHeli.AttackMove(CPos.New(40, 28), 0)
-		end
-		if not NatoLittlebird.IsDead then
-			NatoLittlebird.AttackMove(CPos.New(38, 20), 0)
-		end
-		if not NatoTran.IsDead then
-			NatoTran.Move(CPos.New(25, 32), 0)
-		end
+		if Alive(NatoHeli) then NatoHeli.AttackMove(CPos.New(40, 28), 0) end
+		if Alive(NatoLittlebird) then NatoLittlebird.AttackMove(CPos.New(38, 20), 0) end
+		if Alive(NatoTran) then NatoTran.Move(CPos.New(25, 32), 0) end
 
-		if not RussiaMi28.IsDead then
-			RussiaMi28.AttackMove(CPos.New(50, 28), 0)
-		end
-		if not RussiaHind.IsDead then
-			RussiaHind.AttackMove(CPos.New(52, 20), 0)
-		end
-		if not RussiaHalo.IsDead then
-			RussiaHalo.Move(CPos.New(65, 32), 0)
-		end
+		if Alive(RussiaMi28) then RussiaMi28.AttackMove(CPos.New(50, 28), 0) end
+		if Alive(RussiaHind) then RussiaHind.AttackMove(CPos.New(52, 20), 0) end
+		if Alive(RussiaHalo) then RussiaHalo.Move(CPos.New(65, 32), 0) end
 	end
 
 	-- Phase 4 (tick 700): Full engagement, all units hunt
 	if ticks == 700 then
-		if not NatoM109.IsDead then
-			NatoM109.Move(CPos.New(16, 24), 0)
-		end
-		if not NatoM270.IsDead then
-			NatoM270.Move(CPos.New(16, 30), 0)
-		end
-		if not NatoHimars.IsDead then
-			NatoHimars.Move(CPos.New(16, 36), 0)
-		end
+		if Alive(NatoM109) then NatoM109.Move(CPos.New(16, 24), 0) end
+		if Alive(NatoM270) then NatoM270.Move(CPos.New(16, 30), 0) end
+		if Alive(NatoHimars) then NatoHimars.Move(CPos.New(16, 36), 0) end
 
-		if not RussiaGiatsint.IsDead then
-			RussiaGiatsint.Move(CPos.New(74, 24), 0)
-		end
-		if not RussiaGrad.IsDead then
-			RussiaGrad.Move(CPos.New(74, 30), 0)
-		end
-		if not RussiaTos.IsDead then
-			RussiaTos.Move(CPos.New(74, 36), 0)
-		end
+		if Alive(RussiaGiatsint) then RussiaGiatsint.Move(CPos.New(74, 24), 0) end
+		if Alive(RussiaGrad) then RussiaGrad.Move(CPos.New(74, 30), 0) end
+		if Alive(RussiaTos) then RussiaTos.Move(CPos.New(74, 36), 0) end
 
 		local allCombat = { NatoAbrams1, NatoAbrams2, NatoBradley1, NatoBradley2,
 			NatoHumvee1, NatoHumvee2, NatoM113, NatoShorad,
@@ -119,7 +100,7 @@ Tick = function()
 			RussiaTecn, RussiaDR, RussiaShok, RussiaMedi1, RussiaMedi2,
 			RussiaMi28, RussiaHind }
 		for _, unit in ipairs(allCombat) do
-			if not unit.IsDead then
+			if Alive(unit) then
 				unit.Stop()
 				unit.Hunt()
 			end

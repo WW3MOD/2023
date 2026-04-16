@@ -14,9 +14,9 @@ Bounds: 0,0,98,82
 
 Visibility: Lobby, Shellmap
 
-ShellmapScenario: ShellmapFrontline
-
 Categories: Conquest
+
+ShellmapScenario: Shellmap
 
 Players:
 	PlayerReference@Neutral:
