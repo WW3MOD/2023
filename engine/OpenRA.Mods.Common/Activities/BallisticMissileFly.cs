@@ -106,8 +106,9 @@ namespace OpenRA.Mods.Common.Activities
 			var slope = 4f * arcPeakHeight * (1f - 2f * progress) / hDist;
 
 			// Scale by user multiplier and clamp to avoid extreme angles
-			var maxPitch = 0.9f * visualPitchMul;
-			return Math.Clamp(slope * visualPitchMul, -maxPitch, maxPitch);
+			// Tilt scaled to 75% of the analytical-derivative jump (was over-tilting)
+			var maxPitch = 0.775f * visualPitchMul;
+			return Math.Clamp(slope * visualPitchMul * 0.8125f, -maxPitch, maxPitch);
 		}
 
 		// Compute facing with optional pitch tilt for isometric visual.
