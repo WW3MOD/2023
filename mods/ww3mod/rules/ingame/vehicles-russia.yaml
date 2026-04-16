@@ -947,8 +947,8 @@ IskanderMissile:
 		InitialSpeedPercent: 5
 		LaunchRiseTicks: 45
 		LaunchRiseErect: true
-		LaunchRiseErectPivotOffset: 300
-		LaunchRiseErectPivotDown: 50
+		LaunchRiseErectPivotOffset: 150
+		LaunchRiseErectPivotDown: 200
 		PostErectionWaitTicks: 25
 		IgnitionCondition: ignited
 		VisualPitchMultiplier: 26
