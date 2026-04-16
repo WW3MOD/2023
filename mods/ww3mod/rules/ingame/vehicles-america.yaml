@@ -1038,7 +1038,7 @@ HIMARSMissile:
 		Speed: 500
 		Acceleration: 15
 		InitialSpeedPercent: 40
-		VisualPitchMultiplier: 17
+		VisualPitchMultiplier: 19
 		TerminalSpeed: 650
 		TerminalAcceleration: 20
 	LeavesTrailsCA:

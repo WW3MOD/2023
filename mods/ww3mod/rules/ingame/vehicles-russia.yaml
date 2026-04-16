@@ -951,7 +951,7 @@ IskanderMissile:
 		LaunchRiseErectPivotDown: 50
 		PostErectionWaitTicks: 25
 		IgnitionCondition: ignited
-		VisualPitchMultiplier: 22
+		VisualPitchMultiplier: 26
 		TerminalSpeed: 600
 		TerminalAcceleration: 12
 	LeavesTrailsCA:
