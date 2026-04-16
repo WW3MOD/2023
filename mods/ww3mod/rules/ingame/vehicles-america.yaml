@@ -974,7 +974,7 @@ HIMARS:
 		InitialStanceAI: FireAtWill
 	Armament@1:
 		Weapon: IskanderTargeter
-		LocalOffset: 192,-64,176, 192,64,176
+		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
 	AmmoPool@1:
 		Name: primary-ammo
@@ -1030,23 +1030,23 @@ HIMARSMissile:
 	Tooltip:
 		Name: GMLRS Rocket
 	RenderSprites:
-		Scale: 1.0
+		Scale: 1.0 #BM - Sprite size in flight. HIMARS rockets are smaller than Iskander missiles (6 per launcher vs 2), so 1.0 vs Iskander's 1.25.
 	Health:
 		HP: 50
 	BallisticMissile:
-		LaunchAngle: 70
-		Speed: 500
-		Acceleration: 15
-		InitialSpeedPercent: 40
-		VisualPitchMultiplier: 19
-		TerminalSpeed: 650
-		TerminalAcceleration: 20
+		LaunchAngle: 70 #BM - Pitch angle of the launch in WAngle units (1024 = 360°, so 70 ≈ 24.6°). Lower than Iskander — HIMARS uses a flatter trajectory. Controls the parabolic arc steepness.
+		Speed: 500 #BM - Maximum horizontal cruise speed in WDist/tick. Caps how fast the rocket can fly during the climb/cruise portion of the arc.
+		Acceleration: 15 #BM - Speed gained per tick (WDist/tick²) while accelerating up to Speed. Higher than Iskander — HIMARS rockets accelerate quickly off the rails. 0 disables acceleration.
+		InitialSpeedPercent: 40 #BM - Starting speed as a percentage of Speed when Acceleration > 0. 40% means rockets start moving fast (no slow lift-off animation — they fire straight from the tube).
+		VisualPitchMultiplier: 24 #BM - How much the rocket sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt, higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
+		TerminalSpeed: 650 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
+		TerminalAcceleration: 20 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts
 		MovingInterval: 1
 		Type: CenterPosition
-		Offsets: -200, 0, 0
+		Offsets: -200, 0, 0 #BM - Where exhaust puffs spawn relative to the rocket center, rotated by rocket facing. -200 X = 200 WDist behind the rocket (toward the tail). Increase magnitude to push the trail further behind.
 	MissileSpawnerSlave:
 	SpawnedExplodes:
 		Weapon: HIMARSExplosion
