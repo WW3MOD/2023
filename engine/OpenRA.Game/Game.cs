@@ -525,6 +525,7 @@ namespace OpenRA
 		{
 			var shellmap = ChooseShellmap();
 			SetupShellmapBots(shellmap);
+			InjectShellmapScenario(shellmap);
 			using (new PerfTimer("StartGame"))
 			{
 				StartGame(shellmap, WorldType.Shellmap);
@@ -547,6 +548,7 @@ namespace OpenRA
 			JoinLocal();
 
 			SetupShellmapBots(uid);
+			InjectShellmapScenario(uid);
 			using (new PerfTimer("StartGame"))
 			{
 				StartGame(uid, WorldType.Shellmap);
@@ -623,6 +625,22 @@ namespace OpenRA
 			}
 
 			Log.Write("debug", $"SetupShellmapBots: Injected {playablePlayers.Count} bots for map '{map.Title}'");
+		}
+
+		/// <summary>
+		/// If the shellmap has a ShellmapScenario defined, inject it as a lobby option
+		/// so the scenario system applies it during World creation.
+		/// </summary>
+		static void InjectShellmapScenario(string mapUid)
+		{
+			var map = ModData.MapCache[mapUid];
+			if (string.IsNullOrEmpty(map.ShellmapScenario))
+				return;
+
+			OrderManager.LobbyInfo.GlobalSettings.LobbyOptions["scenario"] =
+				new Session.LobbyOptionState { Value = map.ShellmapScenario };
+
+			Log.Write("debug", $"InjectShellmapScenario: Set scenario '{map.ShellmapScenario}' for shellmap '{map.Title}'");
 		}
 
 		public static MapPreview[] GetAvailableShellmaps()

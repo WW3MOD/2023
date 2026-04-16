@@ -170,6 +170,7 @@ namespace OpenRA
 			new("Visibility"),
 			new("Categories"),
 			new("LockPreview", required: false, ignoreIfValue: "False"),
+			new("ShellmapScenario", required: false),
 			new("Players", nameof(PlayerDefinitions)),
 			new("Actors", nameof(ActorDefinitions)),
 			new("Rules", nameof(RuleDefinitions), required: false),
@@ -194,6 +195,7 @@ namespace OpenRA
 		public bool LockPreview;
 		public Rectangle Bounds;
 		public MapVisibility Visibility = MapVisibility.Lobby;
+		public string ShellmapScenario;
 		public string[] Categories = { "Conquest" };
 
 		public int2 MapSize { get; private set; }

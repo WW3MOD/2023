@@ -95,6 +95,7 @@ namespace OpenRA
 			public FluentBundle FluentBundle { get; private set; }
 
 			public string[] ScenarioNames = Array.Empty<string>();
+			public string ShellmapScenario;
 
 			public ActorInfo WorldActorInfo { get; private set; }
 			public ActorInfo PlayerActorInfo { get; private set; }
@@ -243,6 +244,7 @@ namespace OpenRA
 		public ActorInfo PlayerActorInfo => innerData.PlayerActorInfo;
 		public DateTime ModifiedDate => innerData.ModifiedDate;
 		public string[] ScenarioNames => innerData.ScenarioNames;
+		public string ShellmapScenario => innerData.ShellmapScenario;
 
 		public long DownloadBytes { get; private set; }
 		public int DownloadPercentage { get; private set; }
@@ -369,6 +371,7 @@ namespace OpenRA
 				Status = MapStatus.Available,
 				Class = MapClassification.Unknown,
 				Visibility = map.Visibility,
+				ShellmapScenario = map.ShellmapScenario,
 				ScenarioNames = map.Scenarios.Keys.ToArray(),
 			};
 
@@ -428,6 +431,9 @@ namespace OpenRA
 
 			if (yaml.TryGetValue("Visibility", out temp))
 				newData.Visibility = FieldLoader.GetValue<MapVisibility>("Visibility", temp.Value);
+
+			if (yaml.TryGetValue("ShellmapScenario", out temp))
+				newData.ShellmapScenario = temp.Value;
 
 			var requiresMod = string.Empty;
 			if (yaml.TryGetValue("RequiresMod", out temp))

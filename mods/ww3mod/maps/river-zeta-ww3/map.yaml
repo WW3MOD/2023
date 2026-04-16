@@ -14,6 +14,8 @@ Bounds: 0,0,98,82
 
 Visibility: Lobby, Shellmap
 
+ShellmapScenario: ShellmapFrontline
+
 Categories: Conquest
 
 Players:
@@ -7430,9 +7432,6 @@ Actors:
 	Actor3510: t06
 		Owner: Neutral
 		Location: 16,1
-	Actor3512: barr.husk
-		Owner: Neutral
-		Location: 35,49
 	Actor3153: rushouse
 		Owner: Neutral
 		Location: 39,46
@@ -12395,9 +12394,6 @@ Actors:
 	Actor5166: logisticscenter
 		Owner: Neutral
 		Location: 62,26
-	Actor5161: barr.husk
-		Owner: Neutral
-		Location: 59,29
 	Actor5167: hsam
 		Owner: Neutral
 		Location: 63,32

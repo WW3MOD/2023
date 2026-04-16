@@ -105,6 +105,9 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Returns true if this is a shellmap and the player has paused animations.")]
 		public bool IsPausedShellmap => Context.World.Type == WorldType.Shellmap && gameSettings.PauseShellmap;
 
+		[Desc("Returns true if this map is running as a shellmap (main menu background).")]
+		public bool IsShellmap => Context.World.Type == WorldType.Shellmap;
+
 		[Desc("Returns the value of a `" + nameof(ScriptLobbyDropdown) + "` selected in the game lobby.")]
 		public string LobbyOption(string id)
 		{
