@@ -1030,7 +1030,7 @@ HIMARSMissile:
 	Tooltip:
 		Name: GMLRS Rocket
 	RenderSprites:
-		Scale: 1.25
+		Scale: 1.0
 	Health:
 		HP: 50
 	BallisticMissile:
