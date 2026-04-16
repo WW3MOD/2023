@@ -943,7 +943,7 @@ IskanderMissile:
 	Health:
 		HP: 100
 	BallisticMissile:
-		LaunchAngle: 160
+		LaunchAngle: 100
 		Speed: 400
 		Acceleration: 6
 		InitialSpeedPercent: 5
@@ -953,7 +953,7 @@ IskanderMissile:
 		LaunchRiseErectPivotDown: 100
 		PostErectionWaitTicks: 25
 		IgnitionCondition: ignited
-		VisualPitchMultiplier: 50
+		VisualPitchMultiplier: 20
 		TerminalSpeed: 600
 		TerminalAcceleration: 12
 	LeavesTrailsCA:
