@@ -1012,8 +1012,6 @@ HIMARS:
 		Actors: HIMARSMissile
 		LoadedCondition: loaded
 		LaunchingCondition: firing
-	Exit:
-		SpawnOffset: -100,0,350
 	Explodes:
 		RequiresCondition: !loaded
 		Weapon: ArtilleryExplode
@@ -1040,7 +1038,7 @@ HIMARSMissile:
 		Speed: 500
 		Acceleration: 15
 		InitialSpeedPercent: 40
-		VisualPitchMultiplier: 15
+		VisualPitchMultiplier: 17
 		TerminalSpeed: 650
 		TerminalAcceleration: 20
 	LeavesTrailsCA:

@@ -883,7 +883,7 @@ iskander:
 		Voice: Move
 	Armament@1:
 		Weapon: IskanderTargeter
-		LocalOffset: -100,120,0, -100,-120,0
+		LocalOffset: -150,120,150, -150,-100,150
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
 	AmmoPool@1:
 		Name: primary-ammo
@@ -921,8 +921,6 @@ iskander:
 		LaunchingCondition: firing
 	Voiced:
 		VoiceSet: IskanderVoice
-	Exit:
-		SpawnOffset: -150,15,150
 	Explodes:
 		RequiresCondition: !loaded
 		Weapon: ArtilleryExplode
@@ -943,17 +941,17 @@ IskanderMissile:
 	Health:
 		HP: 100
 	BallisticMissile:
-		LaunchAngle: 100
+		LaunchAngle: 110
 		Speed: 400
 		Acceleration: 6
 		InitialSpeedPercent: 5
 		LaunchRiseTicks: 45
 		LaunchRiseErect: true
-		LaunchRiseErectPivotOffset: 600
-		LaunchRiseErectPivotDown: 100
+		LaunchRiseErectPivotOffset: 300
+		LaunchRiseErectPivotDown: 50
 		PostErectionWaitTicks: 25
 		IgnitionCondition: ignited
-		VisualPitchMultiplier: 20
+		VisualPitchMultiplier: 22
 		TerminalSpeed: 600
 		TerminalAcceleration: 12
 	LeavesTrailsCA:

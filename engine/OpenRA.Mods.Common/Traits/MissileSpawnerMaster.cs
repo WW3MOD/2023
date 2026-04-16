@@ -111,7 +111,9 @@ namespace OpenRA.Mods.CA.Traits
 			var bm = se.Actor.Trait<BallisticMissile>();
 			bm.Target = Target.FromPos(target.CenterPosition);
 
-			SpawnIntoWorld(self, se.Actor, self.CenterPosition);
+			// Spawn at the firing barrel's muzzle position so the missile
+			// (and its exhaust trail) originates from the correct tube.
+			SpawnIntoWorld(self, se.Actor, self.CenterPosition + a.MuzzleOffset(self, barrel));
 
 			if (spawnContainTokens.TryGetValue(a.Info.Name, out var spawnContainToken) && spawnContainToken.Count > 0)
 				self.RevokeCondition(spawnContainToken.Pop());
