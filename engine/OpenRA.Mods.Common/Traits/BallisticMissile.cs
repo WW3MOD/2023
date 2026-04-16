@@ -54,6 +54,12 @@ namespace OpenRA.Mods.Common.Traits
 			"Only meaningful when LaunchRiseTicks > 0 and VisualPitchMultiplier > 0.")]
 		public readonly bool LaunchRiseErect = false;
 
+		[Desc("Distance from the missile sprite center to its base (tail).",
+			"During the LaunchRiseErect animation the sprite pivots around its base, not its center,",
+			"so the position is offset backward (along facing) and upward to compensate as the missile tilts.",
+			"Tune to roughly half the missile sprite's visual length. 0 disables the offset.")]
+		public readonly WDist LaunchRiseErectPivotOffset = WDist.Zero;
+
 		[Desc("Maximum speed in WDist/tick during the terminal dive phase (past apex).",
 			"0 = no terminal phase; missile keeps its cruise speed cap.",
 			"Values higher than Speed allow the missile to exceed cruise speed in the dive.")]

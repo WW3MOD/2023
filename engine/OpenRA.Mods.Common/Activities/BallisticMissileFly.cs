@@ -142,8 +142,6 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				var riseT = Math.Clamp((float)ticks / launchRiseTicks, 0f, 1f);
 
-				sbm.SetPosition(self, spawnPos);
-
 				if (sbm.Info.LaunchRiseErect && visualPitchMul > 0f)
 				{
 					// Interpolate from horizontal (0) to the arc's initial pitch at progress=0.
@@ -151,9 +149,27 @@ namespace OpenRA.Mods.Common.Activities
 					var erectT = riseT * riseT * riseT;
 					var targetPitch = GetPitchFactor(0f);
 					sbm.Facing = ApplyIsometricPitch(targetPitch * erectT);
+
+					// Sprite rotates around its center, but a real missile pivots at its base.
+					// Offset position backward (along facing) and upward so the visual base stays put.
+					var pivotLen = sbm.Info.LaunchRiseErectPivotOffset.Length;
+					if (pivotLen > 0)
+					{
+						var theta = new WAngle((int)(sbm.Info.LaunchAngle.Angle * erectT));
+						var cosMinusOne = theta.Cos() - 1024;
+						var forwardL = new WVec(0, -pivotLen, 0).Rotate(WRot.FromYaw(horizontalFacing));
+						var horizontal = forwardL * cosMinusOne / 1024;
+						var vertical = new WVec(0, 0, pivotLen * theta.Sin() / 1024);
+						sbm.SetPosition(self, spawnPos + horizontal + vertical);
+					}
+					else
+						sbm.SetPosition(self, spawnPos);
 				}
 				else
+				{
+					sbm.SetPosition(self, spawnPos);
 					sbm.Facing = horizontalFacing;
+				}
 
 				ticks++;
 				return false;

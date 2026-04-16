@@ -939,7 +939,7 @@ IskanderMissile:
 	Tooltip:
 		Name: Iskander missile
 	RenderSprites:
-		Scale: 1
+		Scale: 1.25
 	Health:
 		HP: 100
 	BallisticMissile:
@@ -949,6 +949,7 @@ IskanderMissile:
 		InitialSpeedPercent: 5
 		LaunchRiseTicks: 45
 		LaunchRiseErect: true
+		LaunchRiseErectPivotOffset: 400
 		VisualPitchMultiplier: 50
 		TerminalSpeed: 600
 		TerminalAcceleration: 12
