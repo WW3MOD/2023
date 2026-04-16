@@ -129,25 +129,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (byPlayer == null)
 				return true;
 
-			var playerIndex = self.World.Players.IndexOf(byPlayer);
-			var frozen = frozenStates[playerIndex].FrozenActor;
+			var relationship = self.Owner.RelationshipWith(byPlayer);
+			if (info.AlwaysVisibleRelationships.HasRelationship(relationship))
+				return true;
 
 			var cloak = self.TraitOrDefault<Cloak>();
-			var shouldHide = false;
-			if (cloak != null)
-			{
-				shouldHide = (cloak != null && cloak.ShouldHide(self, byPlayer));
-			}
+			if (cloak != null && cloak.ShouldHide(self, byPlayer))
+				return false;
 
-			/* if (self.Info.Name == "minv" && !shouldHide)
-			{
-				// test
-			} */
-
-			var relationship = self.Owner.RelationshipWith(byPlayer);
-			return true;
-
-			// info.AlwaysVisibleRelationships.HasRelationship(relationship) || (!test && IsVisibleInner(byPlayer)); // TODO
+			return IsVisibleInner(byPlayer);
 		}
 
 		void ITickRender.TickRender(WorldRenderer wr, Actor self)
