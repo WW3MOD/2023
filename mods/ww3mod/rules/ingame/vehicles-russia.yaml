@@ -905,6 +905,7 @@ iskander:
 		FacingTolerance: 0
 		Voice: Attack
 		PauseOnCondition: empdisable
+		FacingLockCondition: firing
 	WithFacingSpriteBody:
 		Sequence: empty-idle
 	WithWeaponOverlay@Missile_1:
@@ -951,7 +952,7 @@ IskanderMissile:
 		LaunchRiseErectPivotDown: 75 #BM - How far below the sprite center the pivot sits (in WDist). Larger pulls the missile backward and downward as it rotates, reducing the visual "rise" effect. Trade-off with PivotOffset to get the look you want.
 		PostErectionWaitTicks: 25 #BM - Ticks to wait after the erection completes before the missile ignites and flies (25 ≈ 1s). Gives a visible pause between "fully raised" and "rocket motor lights".
 		IgnitionCondition: ignited #BM - Condition granted to the missile when it ignites (used by LeavesTrailsCA below to gate the exhaust trail so it only appears after the rocket lights, not during erection).
-		VisualPitchMultiplier: 35 #BM - How much the missile sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt (sprite stays horizontal), higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
+		VisualPitchMultiplier: 40 #BM - How much the missile sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt (sprite stays horizontal), higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
 		TerminalSpeed: 600 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
 		TerminalAcceleration: 20 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
 	LeavesTrailsCA:
@@ -959,7 +960,7 @@ IskanderMissile:
 		Palette: effect_ts
 		MovingInterval: 1
 		Type: CenterPosition
-		Offsets: -200, 0, 0 #BM - Where exhaust puffs spawn relative to the missile center, rotated by missile facing. -200 X = 200 WDist behind the missile (toward the tail). Increase magnitude to push the trail further behind.
+		Offsets: -300, 0, 0 #BM - Where exhaust puffs spawn relative to the missile center, rotated by missile facing. -200 X = 200 WDist behind the missile (toward the tail). Increase magnitude to push the trail further behind.
 		RequiresCondition: ignited
 	MissileSpawnerSlave:
 	SpawnedExplodes:

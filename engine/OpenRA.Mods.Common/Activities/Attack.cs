@@ -257,7 +257,9 @@ namespace OpenRA.Mods.Common.Activities
 			if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
 			{
 				// Don't queue a turn activity: Executing a child takes an additional tick during which the target may have moved again
-				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
+				// FacingLockCondition: hold position and don't turn — the launch sequence has already committed to a heading.
+				if (!attack.IsFacingLocked)
+					facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);
 
 				// Check again if we turned enough and directly continue attacking if we did
 				if (!attack.TargetInFiringArc(self, target, attack.Info.FacingTolerance))
@@ -266,7 +268,7 @@ namespace OpenRA.Mods.Common.Activities
 					return AttackStatus.NeedsToTurn;
 				}
 			}
-			else if (attack.Info.AlignBodyToTarget)
+			else if (attack.Info.AlignBodyToTarget && !attack.IsFacingLocked)
 			{
 				// Already in firing arc but keep refining aim toward exact facing
 				facing.Facing = Util.TickFacing(facing.Facing, desiredFacing, facing.TurnSpeed);

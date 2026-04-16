@@ -4,6 +4,7 @@ using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -48,6 +49,11 @@ namespace OpenRA.Mods.Common.Traits
 			"while still allowing firing within FacingTolerance.")]
 		public readonly bool AlignBodyToTarget = false;
 
+		[ConsumedConditionReference]
+		[Desc("Body facing is locked while this condition is granted: the Attack activity will not turn",
+			"the body to track moving targets. Use to commit to a launch direction once a missile fires.")]
+		public readonly BooleanExpression FacingLockCondition = null;
+
 		[Desc("Health percentage below which to retarget (e.g., 50 for 50%).")]
 		public readonly int CriticalHealthThreshold = 50;
 
@@ -81,6 +87,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool wasAiming;
 
+		public bool IsFacingLocked { get; private set; }
+
 		public AttackBase(Actor self, AttackBaseInfo info)
 			: base(info)
 		{
@@ -96,6 +104,20 @@ namespace OpenRA.Mods.Common.Traits
 			getArmaments = InitializeGetArmaments(self);
 
 			base.Created(self);
+		}
+
+		public override IEnumerable<VariableObserver> GetVariableObservers()
+		{
+			foreach (var observer in base.GetVariableObservers())
+				yield return observer;
+
+			if (Info.FacingLockCondition != null)
+				yield return new VariableObserver(FacingLockConditionChanged, Info.FacingLockCondition.Variables);
+		}
+
+		void FacingLockConditionChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			IsFacingLocked = Info.FacingLockCondition.Evaluate(conditions);
 		}
 
 		void ITick.Tick(Actor self)
