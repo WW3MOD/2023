@@ -135,32 +135,44 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override bool Tick(Actor self)
 		{
-			// Phase 1: Pre-launch delay (stationary, optional erection animation)
-			// The missile stays at spawnPos. If LaunchRiseErect, it tilts from horizontal
-			// toward the arc's initial pitch angle, so it seamlessly connects to the arc.
-			if (launchRiseTicks > 0 && ticks < launchRiseTicks)
+			// Phase 1: Pre-launch (stationary, optional erection + post-erect wait)
+			// The missile stays at spawnPos for launchRiseTicks + PostErectionWaitTicks ticks total.
+			// During the rise: tilts from horizontal toward the arc's initial pitch angle.
+			// After the rise: holds the erected pose until the wait period ends, then ignites.
+			var totalPrelaunchTicks = launchRiseTicks + sbm.Info.PostErectionWaitTicks;
+			if (launchRiseTicks > 0 && ticks < totalPrelaunchTicks)
 			{
-				var riseT = Math.Clamp((float)ticks / launchRiseTicks, 0f, 1f);
+				// Erection clamps to 1.0 once we're past launchRiseTicks (holding the erected pose).
+				var riseT = launchRiseTicks > 0
+					? Math.Clamp((float)ticks / launchRiseTicks, 0f, 1f)
+					: 1f;
 
 				if (sbm.Info.LaunchRiseErect && visualPitchMul > 0f)
 				{
-					// Interpolate from horizontal (0) to the arc's initial pitch at progress=0.
 					// Cubic ease-in for a smooth, accelerating tilt.
 					var erectT = riseT * riseT * riseT;
 					var targetPitch = GetPitchFactor(0f);
 					sbm.Facing = ApplyIsometricPitch(targetPitch * erectT);
 
 					// Sprite rotates around its center, but a real missile pivots at its base.
-					// Offset position backward (along facing) and upward so the visual base stays put.
-					var pivotLen = sbm.Info.LaunchRiseErectPivotOffset.Length;
-					if (pivotLen > 0)
+					// Offset position backward (along facing) and upward so the pivot stays put.
+					// Pivot point is at (-pivotBack, -pivotDown) in local (forward, up) frame.
+					var pivotBack = sbm.Info.LaunchRiseErectPivotOffset.Length;
+					var pivotDown = sbm.Info.LaunchRiseErectPivotDown.Length;
+					if (pivotBack > 0 || pivotDown > 0)
 					{
 						var theta = new WAngle((int)(sbm.Info.LaunchAngle.Angle * erectT));
 						var cosMinusOne = theta.Cos() - 1024;
-						var forwardL = new WVec(0, -pivotLen, 0).Rotate(WRot.FromYaw(horizontalFacing));
-						var horizontal = forwardL * cosMinusOne / 1024;
-						var vertical = new WVec(0, 0, pivotLen * theta.Sin() / 1024);
-						sbm.SetPosition(self, spawnPos + horizontal + vertical);
+						var sin = theta.Sin();
+
+						// Forward delta: pivotBack*(cosθ-1) - pivotDown*sinθ  (both terms negative → backward)
+						var forwardDelta = (pivotBack * cosMinusOne - pivotDown * sin) / 1024;
+						var forwardL = new WVec(0, forwardDelta, 0).Rotate(WRot.FromYaw(horizontalFacing));
+
+						// Up delta: pivotBack*sinθ + pivotDown*(cosθ-1)  (down term reduces upward swing)
+						var upDelta = (pivotBack * sin + pivotDown * cosMinusOne) / 1024;
+
+						sbm.SetPosition(self, spawnPos + forwardL + new WVec(0, 0, upDelta));
 					}
 					else
 						sbm.SetPosition(self, spawnPos);
@@ -174,6 +186,9 @@ namespace OpenRA.Mods.Common.Activities
 				ticks++;
 				return false;
 			}
+
+			// Phase 1 complete — ignite the rocket motor (grants IgnitionCondition).
+			sbm.Ignite();
 
 			// Phase 2: Parabolic arc flight — one smooth trajectory from spawn to target
 			if (horizontalProgress >= 1f)

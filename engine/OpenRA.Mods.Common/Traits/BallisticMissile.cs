@@ -60,6 +60,20 @@ namespace OpenRA.Mods.Common.Traits
 			"Tune to roughly half the missile sprite's visual length. 0 disables the offset.")]
 		public readonly WDist LaunchRiseErectPivotOffset = WDist.Zero;
 
+		[Desc("Distance below the missile sprite center where the pivot point sits.",
+			"Combined with LaunchRiseErectPivotOffset to place the pivot at the back-bottom corner.",
+			"Larger values push the missile further back and reduce its upward swing during erection.")]
+		public readonly WDist LaunchRiseErectPivotDown = WDist.Zero;
+
+		[Desc("Ticks to wait after the erection animation completes before the missile ignites and flies.",
+			"Gives a visible pause between 'launcher fully raised' and 'rocket motor lights'.")]
+		public readonly int PostErectionWaitTicks = 0;
+
+		[GrantedConditionReference]
+		[Desc("Condition granted to the missile when it ignites and starts arc flight.",
+			"Use this to gate exhaust trails / muzzle effects so they only appear after launch, not during erection.")]
+		public readonly string IgnitionCondition = null;
+
 		[Desc("Maximum speed in WDist/tick during the terminal dive phase (past apex).",
 			"0 = no terminal phase; missile keeps its cruise speed cap.",
 			"Values higher than Speed allow the missile to exceed cruise speed in the dive.")]
@@ -141,6 +155,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool airborne;
 		int airborneToken = Actor.InvalidConditionToken;
+		int ignitionToken = Actor.InvalidConditionToken;
+
+		public void Ignite()
+		{
+			if (ignitionToken == Actor.InvalidConditionToken && Info.IgnitionCondition != null)
+				ignitionToken = self.GrantCondition(Info.IgnitionCondition);
+		}
 
 		public BallisticMissile(ActorInitializer init, BallisticMissileInfo info)
 		{

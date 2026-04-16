@@ -157,17 +157,16 @@ namespace OpenRA.Mods.CA.Traits
 			var exit = self.RandomExitOrDefault(self.World, null);
 			SetSpawnedFacing(slave, exit);
 
+			// Rotate the exit's SpawnOffset into world space using the launcher's orientation,
+			// so the spawn position is actor-local (matches WithWeaponOverlay positioning).
+			var rotatedOffset = exit == null ? WVec.Zero : exit.Info.SpawnOffset.Rotate(self.Orientation);
+
 			self.World.AddFrameEndTask(w =>
 			{
 				if (self.IsDead)
 					return;
 
-				var spawnOffset = exit == null ? WVec.Zero : exit.Info.SpawnOffset;
-				slave.Trait<IPositionable>().SetPosition(slave, centerPosition + spawnOffset);
-
-				/* slave.Trait<IPositionable>().SetCenterPosition(slave, centerPosition + spawnOffset); */
-
-				var location = self.World.Map.CellContaining(centerPosition + spawnOffset);
+				slave.Trait<IPositionable>().SetPosition(slave, centerPosition + rotatedOffset);
 
 				w.Add(slave);
 			});

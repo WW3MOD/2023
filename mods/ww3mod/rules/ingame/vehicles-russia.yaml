@@ -922,7 +922,7 @@ iskander:
 	Voiced:
 		VoiceSet: IskanderVoice
 	Exit:
-		SpawnOffset: 0,-128,0
+		SpawnOffset: -150,15,150
 	Explodes:
 		RequiresCondition: !loaded
 		Weapon: ArtilleryExplode
@@ -949,7 +949,10 @@ IskanderMissile:
 		InitialSpeedPercent: 5
 		LaunchRiseTicks: 45
 		LaunchRiseErect: true
-		LaunchRiseErectPivotOffset: 400
+		LaunchRiseErectPivotOffset: 600
+		LaunchRiseErectPivotDown: 100
+		PostErectionWaitTicks: 25
+		IgnitionCondition: ignited
 		VisualPitchMultiplier: 50
 		TerminalSpeed: 600
 		TerminalAcceleration: 12
@@ -959,6 +962,7 @@ IskanderMissile:
 		MovingInterval: 1
 		Type: CenterPosition
 		Offsets: -200, 0, 0
+		RequiresCondition: ignited
 	MissileSpawnerSlave:
 	SpawnedExplodes:
 		Weapon: IskanderExplosion
