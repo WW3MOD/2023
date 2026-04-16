@@ -449,8 +449,6 @@ Container@EDITOR_WORLD_ROOT:
 											Y: 6
 											Width: 26
 											Height: 26
-											ImageCollection: editor
-											ImageName: erase
 						Button@CLEAR_CURRENT_BUTTON:
 							X: 6
 							Y: 42
@@ -791,12 +789,6 @@ Container@EDITOR_WORLD_ROOT:
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-select-tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 20
-							Y: 5
-							ImageCollection: editor
-							ImageName: select
 				Button@TILES_TAB:
 					X: 49
 					Width: 49
@@ -805,12 +797,6 @@ Container@EDITOR_WORLD_ROOT:
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-tiles-tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 17
-							Y: 5
-							ImageCollection: editor
-							ImageName: tiles
 				Button@OVERLAYS_TAB:
 					X: 98
 					Width: 49
@@ -819,12 +805,6 @@ Container@EDITOR_WORLD_ROOT:
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-overlays-tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 17
-							Y: 5
-							ImageCollection: editor
-							ImageName: overlays
 				Button@ACTORS_TAB:
 					X: 147
 					Width: 48
@@ -833,12 +813,6 @@ Container@EDITOR_WORLD_ROOT:
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-actors-tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 16
-							Y: 5
-							ImageCollection: editor
-							ImageName: actors
 				Button@TOOLS_TAB:
 					X: 195
 					Width: 48
@@ -847,12 +821,6 @@ Container@EDITOR_WORLD_ROOT:
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-tools-tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 16
-							Y: 5
-							ImageCollection: editor
-							ImageName: tools
 				Button@HISTORY_TAB:
 					X: 243
 					Width: 49
@@ -861,12 +829,6 @@ Container@EDITOR_WORLD_ROOT:
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-history-tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 17
-							Y: 5
-							ImageCollection: editor
-							ImageName: history
 		MenuButton@OPTIONS_BUTTON:
 			Logic: MenuButtonsChromeLogic
 			MenuContainer: INGAME_MENU
