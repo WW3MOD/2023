@@ -94,21 +94,20 @@ namespace OpenRA.Mods.Common.Activities
 		}
 
 		// Compute pitch factor from the parabolic arc derivative at a given progress.
+		// The derivative of GetArcHeight = 4 * peak * (1 - 2*progress), so
+		// slope = dh/dx = 4 * arcPeakHeight * (1 - 2*progress) / hDist.
+		// We convert that slope to a pitch factor scaled by visualPitchMul.
 		float GetPitchFactor(float progress)
 		{
-			// Sample height at two nearby points to get vertical velocity direction
-			var eps = 0.005f;
-			var h1 = GetArcHeight(Math.Max(0f, progress - eps));
-			var h2 = GetArcHeight(Math.Min(1f, progress + eps));
-			var dh = h2 - h1;
-
-			// Horizontal distance covered in the same eps range
-			var hStep = (int)(hDist * eps * 2);
-			if (hStep < 1)
+			if (hDist < 1)
 				return 0f;
 
-			var maxPitch = 0.4f * visualPitchMul;
-			return Math.Clamp((float)dh / (hStep * 4), -maxPitch, maxPitch);
+			// Analytical derivative: slope of arc relative to horizontal
+			var slope = 4f * arcPeakHeight * (1f - 2f * progress) / hDist;
+
+			// Scale by user multiplier and clamp to avoid extreme angles
+			var maxPitch = 0.9f * visualPitchMul;
+			return Math.Clamp(slope * visualPitchMul, -maxPitch, maxPitch);
 		}
 
 		// Compute facing with optional pitch tilt for isometric visual.
