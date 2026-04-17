@@ -1030,17 +1030,17 @@ HIMARSMissile:
 	Tooltip:
 		Name: GMLRS Rocket
 	RenderSprites:
-		Scale: 1.0 #BM - Sprite size in flight. HIMARS rockets are smaller than Iskander missiles (6 per launcher vs 2), so 1.0 vs Iskander's 1.25.
+		Scale: 0.88 #BM - Sprite size in flight. HIMARS rockets are smaller than Iskander missiles (6 per launcher vs 2), so 1.0 vs Iskander's 1.25.
 	Health:
 		HP: 50
 	BallisticMissile:
-		LaunchAngle: 70 #BM - Pitch angle of the launch in WAngle units (1024 = 360°, so 70 ≈ 24.6°). Lower than Iskander — HIMARS uses a flatter trajectory. Controls the parabolic arc steepness.
+		LaunchAngle: 80 #BM - Pitch angle of the launch in WAngle units (1024 = 360°, so 80 ≈ 28.1°). Lower than Iskander — HIMARS uses a flatter trajectory. Controls the parabolic arc steepness.
 		Speed: 500 #BM - Maximum horizontal cruise speed in WDist/tick. Caps how fast the rocket can fly during the climb/cruise portion of the arc.
-		Acceleration: 15 #BM - Speed gained per tick (WDist/tick²) while accelerating up to Speed. Higher than Iskander — HIMARS rockets accelerate quickly off the rails. 0 disables acceleration.
-		InitialSpeedPercent: 40 #BM - Starting speed as a percentage of Speed when Acceleration > 0. 40% means rockets start moving fast (no slow lift-off animation — they fire straight from the tube).
-		VisualPitchMultiplier: 24 #BM - How much the rocket sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt, higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
-		TerminalSpeed: 650 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
-		TerminalAcceleration: 20 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
+		Acceleration: 4 #BM - Speed gained per tick (WDist/tick²) while accelerating up to Speed. Higher than Iskander — HIMARS rockets accelerate quickly off the rails. 0 disables acceleration.
+		InitialSpeedPercent: 3 #BM - Starting speed as a percentage of Speed when Acceleration > 0. 40% means rockets start moving fast (no slow lift-off animation — they fire straight from the tube).
+		VisualPitchMultiplier: 40 #BM - How much the rocket sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt, higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
+		TerminalSpeed: 550 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
+		TerminalAcceleration: 7 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

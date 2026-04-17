@@ -54,16 +54,13 @@ namespace OpenRA.Mods.Common.Traits
 			"Only meaningful when LaunchRiseTicks > 0 and VisualPitchMultiplier > 0.")]
 		public readonly bool LaunchRiseErect = false;
 
-		[Desc("Distance from the missile sprite center to its base (tail).",
-			"During the LaunchRiseErect animation the sprite pivots around its base, not its center,",
-			"so the position is offset backward (along facing) and upward to compensate as the missile tilts.",
-			"Tune to roughly half the missile sprite's visual length. 0 disables the offset.")]
-		public readonly WDist LaunchRiseErectPivotOffset = WDist.Zero;
-
-		[Desc("Distance below the missile sprite center where the pivot point sits.",
-			"Combined with LaunchRiseErectPivotOffset to place the pivot at the back-bottom corner.",
-			"Larger values push the missile further back and reduce its upward swing during erection.")]
-		public readonly WDist LaunchRiseErectPivotDown = WDist.Zero;
+		[Desc("Where the missile sprite center should sit at FULL erection, as an offset from spawn.",
+			"Format: forward, lateral, up (in WDist). Forward is along the launch direction (toward target).",
+			"Negative forward = sprite slides backward; positive up = sprite rises.",
+			"During erection the offset is interpolated linearly with rotation (both follow cubic ease-in).",
+			"Tune visually: at full erection the back of the missile should land where you want it.",
+			"(0,0,0) means the sprite hot-spot stays exactly at spawn while only rotating.")]
+		public readonly WVec LaunchRiseErectVisualOffset = WVec.Zero;
 
 		[Desc("Ticks to wait after the erection animation completes before the missile ignites and flies.",
 			"Gives a visible pause between 'launcher fully raised' and 'rocket motor lights'.")]

@@ -154,25 +154,21 @@ namespace OpenRA.Mods.Common.Activities
 					var targetPitch = GetPitchFactor(0f);
 					sbm.Facing = ApplyIsometricPitch(targetPitch * erectT);
 
-					// Sprite rotates around its center, but a real missile pivots at its base.
-					// Offset position backward (along facing) and upward so the pivot stays put.
-					// Pivot point is at (-pivotBack, -pivotDown) in local (forward, up) frame.
-					var pivotBack = sbm.Info.LaunchRiseErectPivotOffset.Length;
-					var pivotDown = sbm.Info.LaunchRiseErectPivotDown.Length;
-					if (pivotBack > 0 || pivotDown > 0)
+					// Direct visual offset: at full erection sprite is at spawnPos + LaunchRiseErectVisualOffset
+					// (rotated so X=forward aligns with horizontalFacing). Linear in erectT so the offset
+					// tracks the rotation curve exactly.
+					var visualOffset = sbm.Info.LaunchRiseErectVisualOffset;
+					if (visualOffset != WVec.Zero)
 					{
-						var theta = new WAngle((int)(sbm.Info.LaunchAngle.Angle * erectT));
-						var cosMinusOne = theta.Cos() - 1024;
-						var sin = theta.Sin();
-
-						// Forward delta: pivotBack*(cosθ-1) - pivotDown*sinθ  (both terms negative → backward)
-						var forwardDelta = (pivotBack * cosMinusOne - pivotDown * sin) / 1024;
-						var forwardL = new WVec(0, forwardDelta, 0).Rotate(WRot.FromYaw(horizontalFacing));
-
-						// Up delta: pivotBack*sinθ + pivotDown*(cosθ-1)  (down term reduces upward swing)
-						var upDelta = (pivotBack * sin + pivotDown * cosMinusOne) / 1024;
-
-						sbm.SetPosition(self, spawnPos + forwardL + new WVec(0, 0, upDelta));
+						// X is forward (along facing), Y is lateral (right of facing), Z is up.
+						// Rotate the local (X,Y) into world space by horizontalFacing; Z is already world-up.
+						var localXY = new WVec(visualOffset.Y, -visualOffset.X, 0).Rotate(WRot.FromYaw(horizontalFacing));
+						var rotated = new WVec(localXY.X, localXY.Y, visualOffset.Z);
+						var scaled = new WVec(
+							(int)(rotated.X * erectT),
+							(int)(rotated.Y * erectT),
+							(int)(rotated.Z * erectT));
+						sbm.SetPosition(self, spawnPos + scaled);
 					}
 					else
 						sbm.SetPosition(self, spawnPos);
