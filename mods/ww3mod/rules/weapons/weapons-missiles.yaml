@@ -154,6 +154,11 @@ IskanderTargeter:
 			Heavy: 0
 			Brick: 0
 
+HIMARSTargeter:
+	Inherits: IskanderTargeter
+	# Same stats as IskanderTargeter (Phase 1). Dedicated weapon so HIMARS-specific tuning
+	# can diverge later without affecting Iskander.
+
 SurfaceToAirMissile:
 	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir
 	ValidTargets: Air

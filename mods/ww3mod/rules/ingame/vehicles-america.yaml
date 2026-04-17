@@ -928,9 +928,9 @@ HIMARS:
 		Queue: Vehicle
 		BuildPaletteOrder: 8
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
-		Description: High Mobility Artillery Rocket System.\n\n - 6x GMLRS guided rockets\n - Long-range precision strikes\n - Armor: Light
+		Description: High Mobility Artillery Rocket System.\n\n - 2x PrSM precision missiles\n - Long-range precision strikes\n - Armor: Light
 	Valued:
-		Cost: 3500
+		Cost: 6000
 	Tooltip:
 		Name: HIMARS
 	AnnounceOnSeen:
@@ -973,19 +973,21 @@ HIMARS:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
 	Armament@1:
-		Weapon: IskanderTargeter
+		Weapon: HIMARSTargeter
 		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 6
+		Ammo: 2
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 1500
+		CreditValue: 1500
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
-		PipCount: 6
+		PipCount: 2
 		RequiresSelection: true
 		FullSequence: pip-red
 		AmmoPools: primary-ammo
@@ -1002,10 +1004,12 @@ HIMARS:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
-		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all 6 loaded rockets at the original target position.
+		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all loaded missiles at the original target position.
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
+	ExternalCondition@VehicleReplenish:
+		Condition: replenish-vehicles
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false

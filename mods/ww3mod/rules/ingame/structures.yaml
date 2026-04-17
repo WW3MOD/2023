@@ -364,12 +364,11 @@ LOGISTICSCENTER:
 	Tooltip:
 		Name: Logistics Center
 	Valued:
-		Cost: 2000
+		Cost: 3500
 	Health:
 		HP: 40000
 	Armor:
 		Type: Concrete
-	RearmsUnits:
 	RepairsUnits:
 		StartRepairingNotification: Repairing
 		FinishRepairingNotification: UnitRepaired
@@ -380,6 +379,16 @@ LOGISTICSCENTER:
 		Range: 4c0
 		RequiresCondition: !build-incomplete && !disabled
 		ValidRelationships: Ally
+	SupplyProvider:
+		TotalSupply: 3000
+		InitialSupply: 3000
+		SupplyCreditValue: 3000
+		Range: 3c0
+		RearmDelay: 25
+		RearmCondition: replenish-vehicles
+	AbsorbsSupplyCache:
+		Range: 2c512
+		TransferRate: 50
 	RallyPoint:
 	ProximityExternalCondition@UNITDOCKED:
 		Condition: unit.docked

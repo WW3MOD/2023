@@ -447,14 +447,14 @@ IskanderExplosion:
 	Inherits@HitEffects: ^HugeExplosionEffects
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
-		Damage: 10000
-		DamageAtMaxRange: 50
+		Damage: 18000
+		DamageAtMaxRange: 100
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread_impact: SpreadDamage
-		Spread: 768
-		Damage: 15000
-		Penetration: 2000
+		Spread: 1024
+		Damage: 8000
+		Penetration: 2500
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
 		DamageTypes: ExplosionDeath
@@ -463,14 +463,14 @@ HIMARSExplosion:
 	Inherits@HitEffects: ^HugeExplosionEffects
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
-		Damage: 5000
-		DamageAtMaxRange: 50
+		Damage: 12000
+		DamageAtMaxRange: 80
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread_impact: SpreadDamage
-		Spread: 512
-		Damage: 8000
-		Penetration: 1500
+		Spread: 768
+		Damage: 5000
+		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
 		DamageTypes: ExplosionDeath

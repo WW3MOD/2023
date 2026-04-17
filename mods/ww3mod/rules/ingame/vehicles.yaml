@@ -423,7 +423,7 @@ TRUK:
 		Prerequisites: ~techlevel.low
 		Description: Dedicated supply truck.\n\n - Passively resupplies nearby units\n - Can drop supplies as a ground cache\n - Unarmed\n - Armor: None
 	Valued:
-		Cost: 600
+		Cost: 1000
 	Tooltip:
 		Name: Supply Truck
 	AnnounceOnSeen:
@@ -443,14 +443,14 @@ TRUK:
 	Carryable:
 		LocalOffset: 0,0,100
 	CargoSupply:
-		MaxSupply: 10
-		InitialSupply: 10
+		MaxSupply: 15
+		InitialSupply: 15
 		SupplyPerUnit: 50
 		RearmRange: 5c0
 		RearmDelay: 6
 		RearmCondition: replenish-soldiers
 		CargoHasSupplyCondition: cargo-has-supply
-		CreditValuePerUnit: 40
+		CreditValuePerUnit: 50
 	RenderRangeCircle@Supply:
 		FallbackRange: 5c0
 		RangeCircleType: supply
