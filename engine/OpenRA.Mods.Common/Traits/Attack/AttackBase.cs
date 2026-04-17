@@ -54,6 +54,11 @@ namespace OpenRA.Mods.Common.Traits
 			"the body to track moving targets. Use to commit to a launch direction once a missile fires.")]
 		public readonly BooleanExpression FacingLockCondition = null;
 
+		[Desc("If true, when the target becomes invalid (e.g. dies) the Attack activity will keep",
+			"firing at the last known position instead of canceling. Use for fire-and-forget weapons",
+			"like ballistic missile launchers that should commit to all loaded shots.")]
+		public readonly bool PersistsAtLastTargetPosition = false;
+
 		[Desc("Health percentage below which to retarget (e.g., 50 for 50%).")]
 		public readonly int CriticalHealthThreshold = 50;
 

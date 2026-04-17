@@ -127,6 +127,16 @@ namespace OpenRA.Mods.Common.Activities
 
 			useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self);
 
+			// FF: Fire-and-forget weapons (e.g. ballistic missile launchers) commit to all
+			// loaded shots — if the target dies mid-salvo we keep firing at the last known
+			// position instead of canceling. PersistsAtLastTargetPosition opts in.
+			if (useLastVisibleTarget && lastVisibleTarget.IsValidFor(self)
+				&& attackTraits.Any(at => at.Info.PersistsAtLastTargetPosition))
+			{
+				target = lastVisibleTarget;
+				useLastVisibleTarget = false;
+			}
+
 			// If we are ticking again after previously sequencing a MoveWithRange then that move must have completed
 			// Either we are in range and can see the target, or we've lost track of it and should give up
 			if (wasMovingWithinRange && targetIsHiddenActor)
