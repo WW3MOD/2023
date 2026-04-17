@@ -1038,7 +1038,7 @@ HIMARSMissile:
 		Speed: 500 #BM - Maximum horizontal cruise speed in WDist/tick. Caps how fast the rocket can fly during the climb/cruise portion of the arc.
 		Acceleration: 4 #BM - Speed gained per tick (WDist/tick²) while accelerating up to Speed. Higher than Iskander — HIMARS rockets accelerate quickly off the rails. 0 disables acceleration.
 		InitialSpeedPercent: 3 #BM - Starting speed as a percentage of Speed when Acceleration > 0. 40% means rockets start moving fast (no slow lift-off animation — they fire straight from the tube).
-		VisualPitchMultiplier: 40 #BM - How much the rocket sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt, higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
+		VisualPitchMultiplier: 45 #BM - How much the rocket sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt, higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
 		TerminalSpeed: 550 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
 		TerminalAcceleration: 7 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
 	LeavesTrailsCA:

@@ -20,18 +20,22 @@ namespace OpenRA.Mods.Common.Activities
 	public class BallisticMissileFly : Activity
 	{
 		readonly BallisticMissile sbm;
-		readonly WPos spawnPos;
 		readonly WPos targetPos;
 		readonly WAngle horizontalFacing;
 		readonly int launchRiseTicks;
 		readonly float visualPitchMul;
 		readonly int totalArcTicks;
-		readonly int arcPeakHeight;
-		readonly int hDist;
+
+		// Updated at Phase 2 entry to capture the actual erected position so the
+		// parabolic arc flies from where the missile is, not from the original spawn.
+		WPos spawnPos;
+		int arcPeakHeight;
+		int hDist;
 
 		float currentSpeed;
 		float horizontalProgress;
 		int ticks;
+		bool phase2Initialized;
 
 		public BallisticMissileFly(Actor self, Target t, BallisticMissile sbm = null)
 		{
@@ -183,7 +187,19 @@ namespace OpenRA.Mods.Common.Activities
 				return false;
 			}
 
-			// Phase 1 complete — ignite the rocket motor (grants IgnitionCondition).
+			// Phase 1 complete — capture the erected position as the launch origin
+			// so the parabolic arc starts from where the missile actually is
+			// (spawnPos + LaunchRiseErectVisualOffset), not the original spawn.
+			if (!phase2Initialized)
+			{
+				phase2Initialized = true;
+				spawnPos = self.CenterPosition;
+				hDist = (targetPos - spawnPos).HorizontalLength;
+				var tan = sbm.Info.LaunchAngle.Tan();
+				arcPeakHeight = (int)((long)hDist * tan / (4 * 1024));
+			}
+
+			// Ignite the rocket motor (grants IgnitionCondition).
 			sbm.Ignite();
 
 			// Phase 2: Parabolic arc flight — one smooth trajectory from spawn to target

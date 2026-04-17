@@ -951,7 +951,7 @@ IskanderMissile:
 		LaunchRiseErectVisualOffset: -300, 0, 200 #BM - Sprite center offset (forward, lateral, up in WDist) at FULL erection, relative to spawn. Tune visually: negative forward slides the sprite back, positive up lifts it. Interpolated linearly with the rotation. Try (0,0,0) first if your sprite hot-spot is at the missile tail (sprite then rotates in place around its anchor).
 		PostErectionWaitTicks: 25 #BM - Ticks to wait after the erection completes before the missile ignites and flies (25 ≈ 1s). Gives a visible pause between "fully raised" and "rocket motor lights".
 		IgnitionCondition: ignited #BM - Condition granted to the missile when it ignites (used by LeavesTrailsCA below to gate the exhaust trail so it only appears after the rocket lights, not during erection).
-		VisualPitchMultiplier: 45 #BM - How much the missile sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt (sprite stays horizontal), higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
+		VisualPitchMultiplier: 50 #BM - How much the missile sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt (sprite stays horizontal), higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
 		TerminalSpeed: 600 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
 		TerminalAcceleration: 10 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
 	LeavesTrailsCA:
