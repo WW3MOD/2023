@@ -61,7 +61,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
-			globalManager = newOwner.PlayerActor.Trait<GrantConditionOnPrerequisiteManager>();
+			var newManager = newOwner.PlayerActor.Trait<GrantConditionOnPrerequisiteManager>();
+
+			// The actor was registered with the previous owner's manager in AddedToWorld.
+			// Move the registration to the new owner's manager so RemovedFromWorld can
+			// unregister cleanly and the new owner's tech tree drives this condition.
+			if (info.Prerequisites.Length > 0 && self.IsInWorld)
+			{
+				globalManager.Unregister(self, this, info.Prerequisites);
+				newManager.Register(self, this, info.Prerequisites);
+			}
+
+			globalManager = newManager;
 		}
 
 		public void PrerequisitesUpdated(Actor self, bool available)
