@@ -90,9 +90,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		static readonly Dictionary<string, string> SectionLabels = new()
 		{
-			{ "Units.Infantry", "── INFANTRY ──" },
-			{ "Units.Vehicles", "── VEHICLES ──" },
-			{ "Units.Aircraft", "── AIRCRAFT ──" },
+			{ "Units.Infantry", "-- INFANTRY --" },
+			{ "Units.Vehicles", "-- VEHICLES --" },
+			{ "Units.Aircraft", "-- AIRCRAFT --" },
 		};
 
 		static string GetCategory(LobbyOption option)
