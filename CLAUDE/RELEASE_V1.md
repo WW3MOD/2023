@@ -47,6 +47,8 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 ### Active bugs
 - [ ] Artillery fires all ammo at once when critically damaged
 - [ ] Aircraft can't spawn if waypoint is blocked
+- [ ] **Ground unit production stuck at 100%** — vehicle queued behind infantry batch reached 100% but never spawned; cancel + rebuild worked. Probably same root cause as the aircraft-spawn-blocked bug. `ProductionFromMapEdge.cs:138–164` returns false silently when path/candidates fail; queue retries but can apparently get stuck. No diagnostic logging. *Reported 260503*
+- [ ] **Bridge pathing — units walk off the bridge** — infantry (and possibly vehicles) move outside the bridge footprint into water/shore cells. Likely cause: locomotor permits the shore/water cells flanking the bridge, OR bridge sprite art is wider than its passable footprint. `engine/OpenRA.Mods.Common/Traits/Buildings/Bridge.cs` + locomotor terrain weights. *Reported 260503, screenshot in conversation*
 - [ ] Helicopter husks on water don't sink
 - [ ] ATGM units can't unload while shooting (attack lock)
 - [ ] Parallel queues build paused units
@@ -115,6 +117,9 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [ ] **Garrison Phase 4** — sidebar icon panel rewrite
 - [ ] **Cargo Phase 3** — template sidebar for pre-loaded transport purchasing
 
+### Performance pass
+- [ ] Pre-release perf pass (see "Pending decisions" → Performance pass for approach)
+
 ---
 
 ## Pending decisions
@@ -123,6 +128,9 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 
 - [decision] **Buildings & line of sight in v1** — keep buildings as LOS blockers (units can hide behind them, micro-intense), or revert to "only trees/static cover block sight"? See "Visibility / fog design decisions for v1" in Phase A.
 - [decision] **Fog richness in v1** — ship just shroud-on/off and fog-on/off lobby toggles, or invest in finer modes (weather fog, sight-range modifiers, per-faction sensor differences)? Probably v1 should be simple, richer modes go to v1.1.
+- [decision] **Infantry self-defense baseline + AT soldier rebalance** — proposal from user 260503: every (or most) infantry should carry a basic firearm so they aren't helpless against other infantry. Specialists keep their specialist weapons but also have the firearm. Specifically: AT soldiers carry a rifle + 2 missiles (down from 3, to balance the firearm addition). Open questions before implementing: which specialists become hybrids vs which stay pure specialist? What's the damage/range gap between "real" riflemen and a hybrid's secondary firearm — is the hybrid's pistol/SMG meaningfully weaker so riflemen still have a role? Do engineers/medics also get a sidearm, or stay defenseless (gameplay risk-vs-realism tradeoff)? Does this change AI compositions?
+- [decision] **Playtest session logging (developer mode)** — current logs are startup warnings only (`debug.log`, `perf.log`, `client.log` total ~10 KB after a session, none of it useful for following gameplay). Proposal: add a "Developer Logging" lobby/settings checkbox that opens a `gameplay.log` channel and instruments key events: player orders (build/move/attack/cancel), production state changes (queued/started/completed/failed/blocked with reason), unit lifecycle (spawn/death/capture), and a per-tick frame budget summary. Lets me read the file post-session and reconstruct what happened. **Decide:** ship in v1 (so I can keep using it through release), or build it, use it during dev, gate it as dev-only and not ship in v1?
+- [decision] **Performance pass before v1** — options: A) you run VS profiler like before (thorough, slow), B) I add a tick-budget log channel (cheap, gives me data to read offline, less detail than profiler), C) `dotnet-trace` + PerfView snapshot during a heavy battle (free, gives flame graphs without VS), D) all three. Recommendation: B + C — B during normal play to spot regressions, C for the deep dive once. VS only if B/C miss something.
 
 ---
 
