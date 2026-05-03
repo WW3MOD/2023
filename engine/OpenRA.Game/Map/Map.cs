@@ -1010,9 +1010,11 @@ namespace OpenRA
 		}
 
 		/// <summary>
+		/// CURRENTLY UNUSED (260503). Dynamic shadow recalc was disabled because it caused
+		/// visible mid-game lag when many buildings changed at once. Kept defined so we can
+		/// revisit if dynamic density / destructible terrain becomes a goal again. The only
+		/// active shadow-build path is SetShadowLayer() at map load.
 		/// Immediately recompute shadow entries for all cell pairs affected by the given cells.
-		/// Prefer QueueShadowUpdate() for gameplay use — this synchronous version is kept for
-		/// tooling and cases where immediate correctness is required.
 		/// </summary>
 		public void UpdateShadowForCells(IEnumerable<CPos> modifiedCells)
 		{
@@ -1029,6 +1031,7 @@ namespace OpenRA
 		}
 
 		/// <summary>
+		/// CURRENTLY UNUSED (260503). Dynamic shadow recalc disabled — see UpdateShadowForCells.
 		/// Queue cells for deferred shadow recomputation. Dirty cells are expanded to
 		/// affected "from" cells and processed in budget-limited chunks each tick.
 		/// </summary>
@@ -1039,9 +1042,9 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// Process queued shadow updates with a per-tick budget. Called once per tick
-		/// from World.Tick(). Spreads expensive recomputation across multiple ticks
-		/// so nuking a forest or destroying many buildings causes zero frame hitches.
+		/// CURRENTLY UNUSED (260503). The World.Tick caller has been commented out — see
+		/// UpdateShadowForCells. Method preserved for potential future re-enable.
+		/// Process queued shadow updates with a per-tick budget.
 		/// </summary>
 		public void FlushPendingShadowUpdates()
 		{
@@ -1135,6 +1138,7 @@ namespace OpenRA
 		}
 
 		/// <summary>
+		/// CURRENTLY UNUSED (260503). Dynamic density mutation disabled — see UpdateShadowForCells.
 		/// Update density layer for a building footprint being added or removed.
 		/// </summary>
 		public void UpdateDensityForBuilding(CPos location, Dictionary<CVec, byte> density, bool add)

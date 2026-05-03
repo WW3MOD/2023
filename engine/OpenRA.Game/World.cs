@@ -468,11 +468,12 @@ namespace OpenRA
 
 				effects.DoTimed(e => e.Tick(this), "Effect");
 
-				// Flush batched shadow recomputations once per tick.
-				// Building additions/removals queue cells during their tick; processing
-				// them here avoids redundant work when many buildings change in one tick
-				// (e.g., player defeat killing all buildings at once).
-				Map.FlushPendingShadowUpdates();
+				// Dynamic shadow recalc disabled 260503: nothing queues shadow updates at
+				// runtime anymore (Building.AddedToWorld/RemovedFromWorld no longer call
+				// QueueShadowUpdate), so this flush would always be a no-op. Kept commented
+				// for symmetry with the disabled enqueue path — re-enable both if dynamic
+				// density work resumes. See Map.QueueShadowUpdate / FlushPendingShadowUpdates.
+				// Map.FlushPendingShadowUpdates();
 			}
 
 			while (frameEndActions.Count != 0)

@@ -369,16 +369,18 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.AddToMaps(self, this);
 			influence.AddInfluence(self, Info.Tiles(self.Location));
 
-			// Update shadow layer for newly placed buildings so they block LOS.
-			// Skip during initial map load (WorldTick == 0) — shadows.bin already has pre-cached data.
-			// Density is updated immediately; shadow recomputation is batched per tick to avoid
-			// freezing when many buildings are placed/destroyed in the same tick (e.g., player defeat).
-			if (Info.Density.Count > 0 && self.World.WorldTick > 0)
-			{
-				var map = self.World.Map;
-				map.UpdateDensityForBuilding(self.Location, Info.Density, add: true);
-				map.QueueShadowUpdate(Info.DensityTiles(self.Location));
-			}
+			// Dynamic shadow recalc disabled 260503: even buildings/decorations with Density
+			// no longer mutate the cached shadow at runtime. Shadows are computed once at map
+			// load (Map.cs SetShadowLayer fallback or shadows.bin) and stay frozen. The recalc
+			// was too expensive to run mid-game (visible lag on building destruction). Kept the
+			// code commented so we can revisit if dynamic density becomes feasible later.
+			// See RELEASE_V1.md → "Buildings & line of sight" and Map.QueueShadowUpdate.
+			// if (Info.Density.Count > 0 && self.World.WorldTick > 0)
+			// {
+			// 	var map = self.World.Map;
+			// 	map.UpdateDensityForBuilding(self.Location, Info.Density, add: true);
+			// 	map.QueueShadowUpdate(Info.DensityTiles(self.Location));
+			// }
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
@@ -386,13 +388,13 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.RemoveFromMaps(self, this);
 			influence.RemoveInfluence(self, Info.Tiles(self.Location));
 
-			// Update shadow layer when buildings are destroyed — batched per tick
-			if (Info.Density.Count > 0 && self.World.WorldTick > 0)
-			{
-				var map = self.World.Map;
-				map.UpdateDensityForBuilding(self.Location, Info.Density, add: false);
-				map.QueueShadowUpdate(Info.DensityTiles(self.Location));
-			}
+			// Dynamic shadow recalc disabled 260503 — see AddedToWorld above.
+			// if (Info.Density.Count > 0 && self.World.WorldTick > 0)
+			// {
+			// 	var map = self.World.Map;
+			// 	map.UpdateDensityForBuilding(self.Location, Info.Density, add: false);
+			// 	map.QueueShadowUpdate(Info.DensityTiles(self.Location));
+			// }
 		}
 
 		void INotifySold.Selling(Actor self)
