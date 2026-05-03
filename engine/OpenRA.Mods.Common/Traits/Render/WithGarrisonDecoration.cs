@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
@@ -36,28 +37,20 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public readonly string FullSequence = "unknown_class";
 
 		[SequenceReference(nameof(StatusImage))]
-		public readonly string HealthFullSequence = "pip-green";
+		[Desc("Reference sequence used to measure status pip dimensions.")]
+		public readonly string StatusSizeReferenceSequence = "pip-empty";
 
 		[SequenceReference(nameof(StatusImage))]
-		public readonly string HealthLightSequence = "pip-yellow";
+		public readonly string DamageLightSequence = "pip-damage-infantry-light";
 
 		[SequenceReference(nameof(StatusImage))]
-		public readonly string HealthMediumSequence = "pip-yellow";
+		public readonly string DamageMediumSequence = "pip-damage-infantry-medium";
 
 		[SequenceReference(nameof(StatusImage))]
-		public readonly string HealthHeavySequence = "pip-red";
+		public readonly string DamageHeavySequence = "pip-damage-infantry-heavy";
 
 		[SequenceReference(nameof(StatusImage))]
-		public readonly string HealthCriticalSequence = "pip-red";
-
-		[SequenceReference(nameof(StatusImage))]
-		public readonly string AmmoFullSequence = "pip-green";
-
-		[SequenceReference(nameof(StatusImage))]
-		public readonly string AmmoLowSequence = "pip-yellow";
-
-		[SequenceReference(nameof(StatusImage))]
-		public readonly string AmmoEmptySequence = "pip-red";
+		public readonly string DamageCriticalSequence = "pip-damage-infantry-critical";
 
 		[PaletteReference]
 		public readonly string Palette = "chrome";
@@ -70,8 +63,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 	public class WithGarrisonDecoration : WithDecorationBase<WithGarrisonDecorationInfo>
 	{
-		// Per-soldier vertical pip stack: class on bottom (preserves original anchor), then health, then ammo on top.
-		const int PipsPerSoldier = 3;
+		// Per-soldier vertical layout: damage pip on top (when damaged), class pip in the middle
+		// (preserves the original anchor Y), ammo row on bottom. Slot height stays 3 rows tall
+		// regardless of damage state so the grid stays aligned.
+		const int SlotRows = 3;
+		const int DamageRow = 0;  // top
+		const int ClassRow = 1;   // middle (was the original single-pip Y)
+		const int AmmoRow = 2;    // bottom
 
 		readonly Animation classPips;
 		readonly Animation statusPips;
@@ -106,7 +104,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 			return count;
 		}
 
-		// Collect all soldiers: deployed at ports + shelter (in cargo)
 		IEnumerable<Actor> AllSoldiers()
 		{
 			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
@@ -129,47 +126,74 @@ namespace OpenRA.Mods.Common.Traits.Render
 			return Info.FullSequence;
 		}
 
-		string GetHealthSequence(Actor soldier)
+		string GetDamageSequence(Actor soldier)
 		{
 			var hp = soldier.TraitOrDefault<IHealth>();
 			if (hp == null)
-				return Info.HealthFullSequence;
+				return null;
 
 			switch (hp.DamageState)
 			{
-				case DamageState.Light: return Info.HealthLightSequence;
-				case DamageState.Medium: return Info.HealthMediumSequence;
-				case DamageState.Heavy: return Info.HealthHeavySequence;
-				case DamageState.Critical: return Info.HealthCriticalSequence;
-				default: return Info.HealthFullSequence;
+				case DamageState.Light: return Info.DamageLightSequence;
+				case DamageState.Medium: return Info.DamageMediumSequence;
+				case DamageState.Heavy: return Info.DamageHeavySequence;
+				case DamageState.Critical: return Info.DamageCriticalSequence;
+				default: return null;
 			}
 		}
 
-		string GetAmmoSequence(Actor soldier)
+		struct AmmoRecipe
 		{
-			var pools = soldier.TraitsImplementing<AmmoPool>().ToArray();
-			if (pools.Length == 0)
-				return null;
-
-			var totalCurrent = 0;
-			var totalMax = 0;
-			foreach (var p in pools)
-			{
-				totalCurrent += p.CurrentAmmoCount;
-				totalMax += p.Info.Ammo;
-			}
-
-			if (totalMax == 0)
-				return null;
-
-			// 3-step thresholds matching the 3-pip ammo bar elsewhere.
-			var ratio = (double)totalCurrent / totalMax;
-			if (ratio > 0.66) return Info.AmmoFullSequence;
-			if (ratio > 0.33) return Info.AmmoLowSequence;
-			return Info.AmmoEmptySequence;
+			public int PipCount;
+			public string FullSeq;
+			public string EmptySeq;
+			public int CurrentAmmo;
+			public int TotalAmmo;
 		}
 
-		// Pips decoration (below actor, screen-space, via WithDecorationBase/IDecoration)
+		// Reads each soldier's own WithAmmoPipsDecoration recipes so the basement view
+		// shows the same pips the soldier displays normally (3 yellow primary, 1 red secondary, etc.).
+		// Disabled traits (RequiresCondition not met — typically out of ammo) are skipped.
+		static IEnumerable<AmmoRecipe> GetAmmoRecipes(Actor soldier)
+		{
+			var allPools = soldier.TraitsImplementing<AmmoPool>().ToArray();
+			foreach (var deco in soldier.TraitsImplementing<WithAmmoPipsDecoration>())
+			{
+				if (deco.IsTraitDisabled)
+					continue;
+
+				var info = deco.Info;
+				var pools = info.AmmoPools.Length > 0
+					? allPools.Where(p => info.AmmoPools.Contains(p.Info.Name)).ToArray()
+					: allPools;
+
+				if (pools.Length == 0)
+					continue;
+
+				var current = 0;
+				var total = 0;
+				foreach (var p in pools)
+				{
+					current += p.CurrentAmmoCount;
+					total += p.Info.Ammo;
+				}
+
+				if (total == 0)
+					continue;
+
+				var pipCount = info.PipCount > 0 ? info.PipCount : total;
+
+				yield return new AmmoRecipe
+				{
+					PipCount = pipCount,
+					FullSeq = info.FullSequence,
+					EmptySeq = info.EmptySequence,
+					CurrentAmmo = current,
+					TotalAmmo = total,
+				};
+			}
+		}
+
 		protected override IEnumerable<IRenderable> RenderDecoration(Actor self, WorldRenderer wr, int2 screenPos)
 		{
 			if (garrisonManager == null)
@@ -188,76 +212,119 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			var palette = wr.Palette(Info.Palette);
 
-			// Prime animations to read sprite sizes.
 			classPips.PlayRepeating(Info.EmptySequence);
-			statusPips.PlayRepeating(Info.HealthFullSequence);
+			statusPips.PlayRepeating(Info.StatusSizeReferenceSequence);
 
 			var classImageSize = classPips.Image.Size;
 			var statusImageSize = statusPips.Image.Size;
 
-			// Slot dimensions track the class pip (the dominant element). Status pips use the same slot
-			// width/height so the column stays uniform and spacing scales with the overall scale factor.
-			var slotPipSize = new int2((int)(classImageSize.X * scale), (int)(classImageSize.Y * scale));
+			var classPipSize = new int2((int)(classImageSize.X * scale), (int)(classImageSize.Y * scale));
 			var statusPipSize = new int2((int)(statusImageSize.X * scale), (int)(statusImageSize.Y * scale));
 
-			var pipStrideX = new int2(slotPipSize.X, 0);
-			var pipStrideY = new int2(0, slotPipSize.Y);
-			var rowStrideY = new int2(0, slotPipSize.Y * PipsPerSoldier);
-
+			// Build the per-soldier ammo recipes once and use them to size the slot.
+			// Slot width must accommodate the widest ammo row across all visible soldiers
+			// so adjacent columns don't collide.
 			var soldiers = AllSoldiers().ToArray();
+			var soldierRecipes = new AmmoRecipe[soldiers.Length][];
+			var maxAmmoPipsInRow = 0;
+			for (var s = 0; s < soldiers.Length; s++)
+			{
+				var recipes = GetAmmoRecipes(soldiers[s]).ToArray();
+				soldierRecipes[s] = recipes;
+				var rowPips = 0;
+				foreach (var r in recipes)
+					rowPips += r.PipCount;
+				if (rowPips > maxAmmoPipsInRow)
+					maxAmmoPipsInRow = rowPips;
+			}
+
+			var ammoRowMaxWidth = maxAmmoPipsInRow * statusPipSize.X;
+			var slotWidth = Math.Max(classPipSize.X, ammoRowMaxWidth);
+			var rowHeight = classPipSize.Y;
+			var slotHeight = SlotRows * rowHeight;
+
+			var slotStrideX = new int2(slotWidth, 0);
+			var slotStrideY = new int2(0, slotHeight);
 
 			var currentRow = 1;
 			var currentRowCount = (currentRow * Info.PerRow) > slotCount ? (slotCount % Info.PerRow) : Info.PerRow;
 
-			screenPos -= slotPipSize / 2;
+			// Anchor the slot center on the original screenPos. The class pip sits at the
+			// middle row (its Y matches the previous single-pip layout); damage row is above,
+			// ammo row below.
+			screenPos -= new int2(slotWidth / 2, classPipSize.Y / 2);
 			var startPos = screenPos;
-			screenPos -= (currentRowCount - 1) * pipStrideX / 2;
-
-			// Center the (smaller) status pip horizontally inside the slot column.
-			var statusOffsetX = (slotPipSize.X - statusPipSize.X) / 2;
+			screenPos -= (currentRowCount - 1) * slotStrideX / 2;
 
 			for (var i = 0; i < slotCount; i++)
 			{
 				var soldier = i < soldiers.Length ? soldiers[i] : null;
+				var slotCenterX = screenPos.X + slotWidth / 2;
 
-				// Class pip — bottom of the slot column (same Y as the previous single-pip layout).
+				var classRowY = screenPos.Y + (ClassRow - ClassRow) * rowHeight;
+				var damageRowY = screenPos.Y + (DamageRow - ClassRow) * rowHeight;
+				var ammoRowY = screenPos.Y + (AmmoRow - ClassRow) * rowHeight;
+
+				// Class pip — middle row, horizontally centered
 				classPips.PlayRepeating(soldier != null ? GetClassSequence(soldier) : Info.EmptySequence);
+				var classX = slotCenterX - classPipSize.X / 2;
 				yield return new UISpriteRenderable(
-					classPips.Image, self.CenterPosition, screenPos, 0, palette, scale, alpha);
+					classPips.Image, self.CenterPosition, new int2(classX, classRowY), 0, palette, scale, alpha);
 
 				if (soldier != null)
 				{
-					// Health pip — one row above class.
-					var healthSeq = GetHealthSequence(soldier);
-					if (healthSeq != null)
+					// Damage pip — top row, only when damaged. Center horizontally and within the row's vertical band.
+					var damageSeq = GetDamageSequence(soldier);
+					if (damageSeq != null)
 					{
-						statusPips.PlayRepeating(healthSeq);
-						var healthPos = new int2(screenPos.X + statusOffsetX, screenPos.Y - slotPipSize.Y);
+						statusPips.PlayRepeating(damageSeq);
+						var damageX = slotCenterX - statusPipSize.X / 2;
+						var damageY = damageRowY + (rowHeight - statusPipSize.Y) / 2;
 						yield return new UISpriteRenderable(
-							statusPips.Image, self.CenterPosition, healthPos, 0, palette, scale, alpha);
+							statusPips.Image, self.CenterPosition, new int2(damageX, damageY), 0, palette, scale, alpha);
 					}
 
-					// Ammo pip — top of the slot column.
-					var ammoSeq = GetAmmoSequence(soldier);
-					if (ammoSeq != null)
+					// Ammo row — bottom row. Concatenate every recipe horizontally and center the whole row.
+					var recipes = soldierRecipes[i];
+					var totalAmmoPips = 0;
+					foreach (var r in recipes)
+						totalAmmoPips += r.PipCount;
+
+					if (totalAmmoPips > 0)
 					{
-						statusPips.PlayRepeating(ammoSeq);
-						var ammoPos = new int2(screenPos.X + statusOffsetX, screenPos.Y - 2 * slotPipSize.Y);
-						yield return new UISpriteRenderable(
-							statusPips.Image, self.CenterPosition, ammoPos, 0, palette, scale, alpha);
+						var rowWidth = totalAmmoPips * statusPipSize.X;
+						var ammoStartX = slotCenterX - rowWidth / 2;
+						var ammoY = ammoRowY + (rowHeight - statusPipSize.Y) / 2;
+
+						var pipIndex = 0;
+						foreach (var recipe in recipes)
+						{
+							for (var p = 0; p < recipe.PipCount; p++)
+							{
+								// Same fill rule as WithAmmoPipsDecoration: pip p is full when
+								// currentAmmo * pipCount > p * totalAmmo.
+								var seq = recipe.CurrentAmmo * recipe.PipCount > p * recipe.TotalAmmo
+									? recipe.FullSeq : recipe.EmptySeq;
+								statusPips.PlayRepeating(seq);
+								var px = ammoStartX + pipIndex * statusPipSize.X;
+								yield return new UISpriteRenderable(
+									statusPips.Image, self.CenterPosition, new int2(px, ammoY), 0, palette, scale, alpha);
+								pipIndex++;
+							}
+						}
 					}
 				}
 
 				if (i + 1 >= currentRow * Info.PerRow)
 				{
-					screenPos = startPos - (rowStrideY * currentRow);
+					screenPos = startPos - (slotStrideY * currentRow);
 					currentRow++;
 					currentRowCount = (currentRow * Info.PerRow) > slotCount ? (slotCount % Info.PerRow) : Info.PerRow;
-					screenPos -= (currentRowCount - 1) * pipStrideX / 2;
+					screenPos -= (currentRowCount - 1) * slotStrideX / 2;
 				}
 				else
 				{
-					screenPos += pipStrideX;
+					screenPos += slotStrideX;
 				}
 			}
 		}
