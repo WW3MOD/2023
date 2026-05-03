@@ -937,127 +937,129 @@ FTUR:
 		Color: FF8000
 		Width: 3
 
-TSLA:
-	Inherits@Type: ^Defense
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
-	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
-	Selectable:
-		Bounds: 1024,1024
-		DecorationBounds: 1024,960,0,-396
-	Buildable:
-		Queue: Defense
-		BuildPaletteOrder: 5
-		Prerequisites: ~disabled
-		Description: Advanced defense. Tesla disrupts vehicles.\n\n - EMP effect on hit\n - Strong vs vehicles
-	Valued:
-		Cost: 2000
-	Tooltip:
-		Name: Tesla Coil
-	Health:
-		HP: 10000
-	Armor:
-		Type: Heavy
-	Targetable:
-		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	ProvidesPrerequisite@BuildingName:
-	Armament:
-		Weapon: TeslaZap
-		LocalOffset: 0,0,896
-	AttackTesla:
-		RequiresCondition: !build-incomplete
-		PauseOnCondition: disabled
-		ChargeAudio: tslachg2.aud
-		MaxCharges: 5
-		ReloadDelay: 30
-	WithTeslaChargeAnimation:
-	Targetable@ChargeTargeting:
-		TargetTypes: Charge
-		RequiresCondition: !TeslaHasCharge
-	GrantCondition@Overcharge:
-		Condition: TeslaHasCharge
-		RequiresCondition: TeslaChargeApplied
-	ExternalCondition@Overcharge:
-		Condition: TeslaChargeApplied
-	WithDecoration@Overcharge:
-		Image: poweroff
-		Sequence: charging
-		Position: BottomRight
-		RequiresCondition: TeslaChargeApplied
-	TimedConditionBar@Charged:
-		Condition: TeslaChargeApplied
-		Color: f4f442
-	GrantCondition@IDISABLE:
-		RequiresCondition: powerdown && !TeslaHasCharge && !empdisable
-		Condition: disabled
-	ToggleConditionOnOrder:
-		DisabledSound: EnablePower
-		EnabledSound: DisablePower
-		Condition: powerdown
-		OrderName: PowerDown
-		RequiresCondition: !TeslaChargeApplied
-	SpawnActorOnDeath:
-		Actor: tsla.husk
-	RenderRangeCircle:
-		RangeCircleType: special
-		Color: FFFFFF
-		Width: 4
+# Tesla Coil — disabled (futuristic defense; not in scope for current release)
+# TSLA:
+# 	Inherits@Type: ^Defense
+# 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
+# 	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
+# 	Selectable:
+# 		Bounds: 1024,1024
+# 		DecorationBounds: 1024,960,0,-396
+# 	Buildable:
+# 		Queue: Defense
+# 		BuildPaletteOrder: 5
+# 		Prerequisites: ~disabled
+# 		Description: Advanced defense. Tesla disrupts vehicles.\n\n - EMP effect on hit\n - Strong vs vehicles
+# 	Valued:
+# 		Cost: 2000
+# 	Tooltip:
+# 		Name: Tesla Coil
+# 	Health:
+# 		HP: 10000
+# 	Armor:
+# 		Type: Heavy
+# 	Targetable:
+# 		TargetTypes: Ground, Structure, Defense, Heavy, C4
+# 	ProvidesPrerequisite@BuildingName:
+# 	Armament:
+# 		Weapon: TeslaZap
+# 		LocalOffset: 0,0,896
+# 	AttackTesla:
+# 		RequiresCondition: !build-incomplete
+# 		PauseOnCondition: disabled
+# 		ChargeAudio: tslachg2.aud
+# 		MaxCharges: 5
+# 		ReloadDelay: 30
+# 	WithTeslaChargeAnimation:
+# 	Targetable@ChargeTargeting:
+# 		TargetTypes: Charge
+# 		RequiresCondition: !TeslaHasCharge
+# 	GrantCondition@Overcharge:
+# 		Condition: TeslaHasCharge
+# 		RequiresCondition: TeslaChargeApplied
+# 	ExternalCondition@Overcharge:
+# 		Condition: TeslaChargeApplied
+# 	WithDecoration@Overcharge:
+# 		Image: poweroff
+# 		Sequence: charging
+# 		Position: BottomRight
+# 		RequiresCondition: TeslaChargeApplied
+# 	TimedConditionBar@Charged:
+# 		Condition: TeslaChargeApplied
+# 		Color: f4f442
+# 	GrantCondition@IDISABLE:
+# 		RequiresCondition: powerdown && !TeslaHasCharge && !empdisable
+# 		Condition: disabled
+# 	ToggleConditionOnOrder:
+# 		DisabledSound: EnablePower
+# 		EnabledSound: DisablePower
+# 		Condition: powerdown
+# 		OrderName: PowerDown
+# 		RequiresCondition: !TeslaChargeApplied
+# 	SpawnActorOnDeath:
+# 		Actor: tsla.husk
+# 	RenderRangeCircle:
+# 		RangeCircleType: special
+# 		Color: FFFFFF
+# 		Width: 4
 
-PRIS:
-	Inherits@Type: ^Defense
-	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
-	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
-	Buildable:
-		Queue: Defense
-		BuildPaletteOrder: 80
-		Prerequisites: ~disabled
-		Description: Experimental high-tech defense system.
-	Valued:
-		Cost: 4000
-	Tooltip:
-		Name: Prism Tower
-	Building:
-	Health:
-		HP: 10000
-	Armor:
-		Type: Heavy
-	Targetable:
-		TargetTypes: Ground, Structure, Defense, Heavy, C4
-	WithSpriteBody:
-		PauseOnCondition: disabled || empdisable
-	WithPrismChargeAnimation:
-	AttackPrismSupported:
-		PauseOnCondition: build-incomplete || disabled || empdisable
-		ChargeAudio: bpripow.aud
-		MaxCharges: 1
-		ReloadDelay: 40
-		SupportArmament: support
-		ReceiverOffset: 0,0,896
-		BuffCondition: prism-stack
-	FirepowerMultiplier@Stack-1:
-		RequiresCondition: prism-stack == 1
-		Modifier: 200
-	FirepowerMultiplier@Stack-2:
-		RequiresCondition: prism-stack == 2
-		Modifier: 300
-	FirepowerMultiplier@Stack-3:
-		RequiresCondition: prism-stack == 3
-		Modifier: 400
-	FirepowerMultiplier@Stack-4:
-		RequiresCondition: prism-stack == 4
-		Modifier: 500
-	Armament:
-		Weapon: PrisLaser
-		LocalOffset: 0,-85,956
-	Armament@Support:
-		Name: support
-		Weapon: PrisLaserSupport
-		LocalOffset: 0,0,1024
-	ProvidesPrerequisite@BuildingName:
-	RenderRangeCircle@Support:
-		Armament: support
-		RangeCircleType: special
-		Color: FFFFFF
-		Width: 4
+# Prism Tower — disabled (futuristic defense; not in scope for current release)
+# PRIS:
+# 	Inherits@Type: ^Defense
+# 	Inherits@AutoTarget: ^AutoTargetGroundAntiTankDefense
+# 	# Inherits@AutoTarget: ^AutoTargetGround # Not working??
+# 	Buildable:
+# 		Queue: Defense
+# 		BuildPaletteOrder: 80
+# 		Prerequisites: ~disabled
+# 		Description: Experimental high-tech defense system.
+# 	Valued:
+# 		Cost: 4000
+# 	Tooltip:
+# 		Name: Prism Tower
+# 	Building:
+# 	Health:
+# 		HP: 10000
+# 	Armor:
+# 		Type: Heavy
+# 	Targetable:
+# 		TargetTypes: Ground, Structure, Defense, Heavy, C4
+# 	WithSpriteBody:
+# 		PauseOnCondition: disabled || empdisable
+# 	WithPrismChargeAnimation:
+# 	AttackPrismSupported:
+# 		PauseOnCondition: build-incomplete || disabled || empdisable
+# 		ChargeAudio: bpripow.aud
+# 		MaxCharges: 1
+# 		ReloadDelay: 40
+# 		SupportArmament: support
+# 		ReceiverOffset: 0,0,896
+# 		BuffCondition: prism-stack
+# 	FirepowerMultiplier@Stack-1:
+# 		RequiresCondition: prism-stack == 1
+# 		Modifier: 200
+# 	FirepowerMultiplier@Stack-2:
+# 		RequiresCondition: prism-stack == 2
+# 		Modifier: 300
+# 	FirepowerMultiplier@Stack-3:
+# 		RequiresCondition: prism-stack == 3
+# 		Modifier: 400
+# 	FirepowerMultiplier@Stack-4:
+# 		RequiresCondition: prism-stack == 4
+# 		Modifier: 500
+# 	Armament:
+# 		Weapon: PrisLaser
+# 		LocalOffset: 0,-85,956
+# 	Armament@Support:
+# 		Name: support
+# 		Weapon: PrisLaserSupport
+# 		LocalOffset: 0,0,1024
+# 	ProvidesPrerequisite@BuildingName:
+# 	RenderRangeCircle@Support:
+# 		Armament: support
+# 		RangeCircleType: special
+# 		Color: FFFFFF
+# 		Width: 4
 
 MSLO:
 	Inherits: ^Building

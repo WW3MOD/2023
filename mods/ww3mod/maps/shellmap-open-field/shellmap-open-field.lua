@@ -52,7 +52,7 @@ Tick = function()
 			RussiaAT_1, RussiaAT_2, RussiaTL_1, RussiaTL_2,
 			RussiaE2_1, RussiaE2_2, RussiaE1_1, RussiaE1_2, RussiaE1_3,
 			RussiaMT, RussiaAA, RussiaSN, RussiaSF, RussiaE4, RussiaE6,
-			RussiaTecn, RussiaDR, RussiaShok, RussiaMedi1, RussiaMedi2 }
+			RussiaTecn, RussiaDR, RussiaMedi1, RussiaMedi2 }
 		for _, unit in ipairs(russiaInf) do
 			if Alive(unit) then
 				unit.AttackMove(CPos.New(58, 30), 2)
@@ -97,7 +97,7 @@ Tick = function()
 			RussiaAT_1, RussiaAT_2, RussiaTL_1, RussiaTL_2,
 			RussiaE2_1, RussiaE2_2, RussiaE1_1, RussiaE1_2, RussiaE1_3,
 			RussiaMT, RussiaAA, RussiaSN, RussiaSF, RussiaE4, RussiaE6,
-			RussiaTecn, RussiaDR, RussiaShok, RussiaMedi1, RussiaMedi2,
+			RussiaTecn, RussiaDR, RussiaMedi1, RussiaMedi2,
 			RussiaMi28, RussiaHind }
 		for _, unit in ipairs(allCombat) do
 			if Alive(unit) then

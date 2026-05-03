@@ -468,10 +468,6 @@ Actors:
 		Owner: Russia
 		Location: 62,30
 		Facing: 256
-	RussiaShok: shok
-		Owner: Russia
-		Location: 62,34
-		Facing: 256
 	RussiaMedi1: medi.russia
 		Owner: Russia
 		Location: 62,38

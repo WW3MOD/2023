@@ -100,7 +100,7 @@ local function ShellmapTick()
 		end
 
 		-- Russia center fire team
-		local russiaCenter = { RussiaE3_3, RussiaAR_2, RussiaTL_2, RussiaE1_2, RussiaSN, RussiaDR, RussiaShok }
+		local russiaCenter = { RussiaE3_3, RussiaAR_2, RussiaTL_2, RussiaE1_2, RussiaSN, RussiaDR }
 		for _, unit in ipairs(russiaCenter) do
 			if Alive(unit) then
 				unit.AttackMove(CPos.New(61, 36), 2)
@@ -191,7 +191,7 @@ local function ShellmapTick()
 			RussiaAT_1, RussiaAT_2, RussiaTL_1, RussiaTL_2,
 			RussiaE2_1, RussiaE2_2, RussiaE1_1, RussiaE1_2, RussiaE1_3,
 			RussiaMT, RussiaAA, RussiaSN, RussiaSF, RussiaE4, RussiaE6,
-			RussiaTecn, RussiaDR, RussiaShok, RussiaMedi1, RussiaMedi2,
+			RussiaTecn, RussiaDR, RussiaMedi1, RussiaMedi2,
 			RussiaMi28, RussiaHind }
 		for _, unit in ipairs(allCombat) do
 			if Alive(unit) then

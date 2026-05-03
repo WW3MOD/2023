@@ -545,10 +545,6 @@ Shellmap:
 			Owner: Russia
 			Location: 72,21
 			Facing: 256
-		RussiaShok: shok
-			Owner: Russia
-			Location: 65,33
-			Facing: 256
 		RussiaMedi1: medi.russia
 			Owner: Russia
 			Location: 75,30
