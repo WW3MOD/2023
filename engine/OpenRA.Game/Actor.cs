@@ -486,10 +486,15 @@ namespace OpenRA
 		/// Safe for stationary actors (buildings) where spatial position doesn't change.
 		/// Avoids expensive INotifyRemovedFromWorld/INotifyAddedToWorld cascade
 		/// (shroud recalc on 10+ Vision traits per player).
+		///
+		/// Pass <paramref name="updateGeneration"/> = false for "soft" claims (e.g. garrison
+		/// ownership flip from Neutral to the entering player) where in-flight orders from
+		/// other allied units should remain valid — Generation bump invalidates Target
+		/// references via Target.Recalculate.
 		/// </summary>
-		public void ChangeOwnerInPlace(Player newOwner)
+		public void ChangeOwnerInPlace(Player newOwner, bool updateGeneration = true)
 		{
-			World.AddFrameEndTask(_ => ChangeOwnerInPlaceSync(newOwner));
+			World.AddFrameEndTask(_ => ChangeOwnerInPlaceSync(newOwner, updateGeneration));
 		}
 
 		/// <summary>
@@ -497,7 +502,7 @@ namespace OpenRA
 		/// from inside an existing FrameEndTask. Skips the World.Remove/Add cycle
 		/// to avoid expensive shroud/vision recalc on every player.
 		/// </summary>
-		public void ChangeOwnerInPlaceSync(Player newOwner)
+		public void ChangeOwnerInPlaceSync(Player newOwner, bool updateGeneration = true)
 		{
 			if (Disposed)
 				return;
@@ -507,7 +512,8 @@ namespace OpenRA
 				return;
 
 			Owner = newOwner;
-			Generation++;
+			if (updateGeneration)
+				Generation++;
 
 			foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
 				t.OnOwnerChanged(this, oldOwner, newOwner);

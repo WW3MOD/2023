@@ -195,12 +195,16 @@ namespace OpenRA.Mods.Common.Traits
 			// New passenger enters → goes to shelter
 			shelterPassengers.Add(passenger);
 
-			// Dynamic ownership: claim building for the entering soldier's owner
+			// Dynamic ownership: claim building for the entering soldier's owner.
+			// updateGeneration: false because this is a soft claim — bumping Generation
+			// invalidates in-flight Enter activities from other allied soldiers (their
+			// Target.Recalculate sees the mismatch and cancels them, leaving them idle
+			// near the building).
 			if (Info.DynamicOwnership && neutralPlayer != null)
 			{
 				var passengerOwner = passenger.Owner;
 				if (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral")
-					self.ChangeOwnerInPlace(passengerOwner);
+					self.ChangeOwnerInPlace(passengerOwner, updateGeneration: false);
 			}
 		}
 
@@ -254,16 +258,18 @@ namespace OpenRA.Mods.Common.Traits
 					remainingOwners.Add(s.Owner);
 			}
 
+			// updateGeneration: false — see OnPassengerEntered. Keeps in-flight enter
+			// orders from other soldiers valid across the soft ownership flip.
 			if (remainingOwners.Count == 0)
 			{
 				// No soldiers left → revert to neutral
 				if (self.Owner != neutralPlayer)
-					self.ChangeOwnerInPlace(neutralPlayer);
+					self.ChangeOwnerInPlace(neutralPlayer, updateGeneration: false);
 			}
 			else if (!remainingOwners.Contains(self.Owner))
 			{
 				// Current owner has no soldiers left, but an ally does → transfer
-				self.ChangeOwnerInPlace(remainingOwners.First());
+				self.ChangeOwnerInPlace(remainingOwners.First(), updateGeneration: false);
 			}
 		}
 
