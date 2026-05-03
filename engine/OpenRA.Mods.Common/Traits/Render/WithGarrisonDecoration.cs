@@ -55,8 +55,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[PaletteReference]
 		public readonly string Palette = "chrome";
 
-		[Desc("Number of pips per row.")]
-		public readonly int PerRow = 8;
+		[Desc("Maximum pips per row. Actual columns are computed dynamically as ceil(capacity/2) clamped to this value, " +
+			"so capacity 4 → 2 cols (2x2), 6 → 3 cols (3x2), 8 → 4 cols (4x2), 12 → 6 cols (6x2).")]
+		public readonly int PerRow = 6;
 
 		public override object Create(ActorInitializer init) { return new WithGarrisonDecoration(init.Self, this); }
 	}
@@ -203,8 +204,14 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (totalCount == 0)
 				yield break;
 
+			// Render only filled slots so the pips visually center on the building
+			// instead of left-aligning with empty placeholders trailing to the right.
+			// Column count derives from capacity (so 2x2 / 3x2 / 4x2 / 6x2 grids stay
+			// stable across builds), capped at Info.PerRow.
 			var maxSlots = cargo.Info.MaxWeight;
-			var slotCount = maxSlots > 0 ? maxSlots : totalCount;
+			var capacity = maxSlots > 0 ? maxSlots : totalCount;
+			var perRow = Math.Max(1, Math.Min(Info.PerRow, (capacity + 1) / 2));
+			var slotCount = totalCount;
 
 			var selected = self.World.Selection.Contains(self);
 			var scale = selected ? 1f : 0.7f;
@@ -247,7 +254,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var slotStrideY = new int2(0, slotHeight);
 
 			var currentRow = 1;
-			var currentRowCount = (currentRow * Info.PerRow) > slotCount ? (slotCount % Info.PerRow) : Info.PerRow;
+			var currentRowCount = (currentRow * perRow) > slotCount ? (slotCount % perRow) : perRow;
 
 			// Anchor the slot center on the original screenPos. The class pip sits at the
 			// middle row (its Y matches the previous single-pip layout); damage row is above,
@@ -315,11 +322,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 					}
 				}
 
-				if (i + 1 >= currentRow * Info.PerRow)
+				if (i + 1 >= currentRow * perRow)
 				{
 					screenPos = startPos - (slotStrideY * currentRow);
 					currentRow++;
-					currentRowCount = (currentRow * Info.PerRow) > slotCount ? (slotCount % Info.PerRow) : Info.PerRow;
+					currentRowCount = (currentRow * perRow) > slotCount ? (slotCount % perRow) : perRow;
 					screenPos -= (currentRowCount - 1) * slotStrideX / 2;
 				}
 				else
