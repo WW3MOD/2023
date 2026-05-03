@@ -107,10 +107,10 @@
 		AmmoConservation: true
 		ReloadSwapping: true
 	GarrisonProtection:
-		BaseProtection: 80
-		CriticalProtection: 30
-		MinPassThrough: 5
-	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
+		BaseProtection: 95
+		CriticalProtection: 70
+		MinPassThrough: 15
+	Inherits@DamageVehiclePips: ^DamageVehiclePips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 		Position: Bottom

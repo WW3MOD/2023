@@ -185,7 +185,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 			}
 		}
 
-		// World-space rendering: empty port indicators and protection % text when selected
+		// World-space rendering: protection % text when selected.
+		// (Empty port pips above the building used to render here too — removed 260503;
+		// they made the building feel cluttered without communicating much. Future plan:
+		// replace with a simpler visual that communicates "this building is garrisonable
+		// and has N free slots" — see RELEASE_V1.md → "Garrison entry flow + visuals".)
 		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
 		{
 			if (garrisonManager == null)
@@ -208,28 +212,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 					: Color.OrangeRed;
 
 				yield return new UITextRenderable(protectionFont, self.CenterPosition, screenPos, 0, textColor, text);
-			}
-
-			var portPalette = wr.Palette(Info.Palette);
-			var coords = self.Trait<BodyOrientation>();
-
-			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
-			{
-				var ps = garrisonManager.PortStates[i];
-
-				// Only show empty port indicators
-				if (ps.DeployedSoldier != null)
-					continue;
-
-				var portWorldOffset = garrisonManager.GetPortWorldOffset(i, coords);
-				var iconOffset = portWorldOffset + new WVec(0, 0, Info.PortIconAltitudeOffset);
-				var iconWorldPos = self.CenterPosition + iconOffset;
-				var zOffset = RenderUtils.ZOffsetFromCenter(self, iconWorldPos, 1024);
-
-				var emptyAnim = new Animation(self.World, Info.PortImage);
-				emptyAnim.PlayRepeating(Info.PortEmptySequence);
-				foreach (var r in emptyAnim.Render(iconWorldPos, WVec.Zero, zOffset, portPalette))
-					yield return r;
 			}
 		}
 

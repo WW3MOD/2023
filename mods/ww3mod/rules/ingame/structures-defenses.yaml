@@ -149,10 +149,10 @@ GTWR:
 		AmmoConservation: true
 		ReloadSwapping: true
 	GarrisonProtection:
-		BaseProtection: 90
-		CriticalProtection: 50
-		MinPassThrough: 5
-	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
+		BaseProtection: 97
+		CriticalProtection: 80
+		MinPassThrough: 15
+	Inherits@DamageVehiclePips: ^DamageVehiclePips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 		Position: Bottom
@@ -232,10 +232,10 @@ PBOX:
 		AmmoConservation: true
 		ReloadSwapping: true
 	GarrisonProtection:
-		BaseProtection: 90
-		CriticalProtection: 50
-		MinPassThrough: 5
-	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
+		BaseProtection: 97
+		CriticalProtection: 80
+		MinPassThrough: 15
+	Inherits@DamageVehiclePips: ^DamageVehiclePips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 		Position: Bottom
@@ -320,10 +320,10 @@ HBOX:
 		AmmoConservation: true
 		ReloadSwapping: true
 	GarrisonProtection:
-		BaseProtection: 85
-		CriticalProtection: 40
-		MinPassThrough: 5
-	Inherits@GarrisonProtectionPips: ^GarrisonProtectionPips
+		BaseProtection: 96
+		CriticalProtection: 75
+		MinPassThrough: 15
+	Inherits@DamageVehiclePips: ^DamageVehiclePips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 		Position: Bottom
