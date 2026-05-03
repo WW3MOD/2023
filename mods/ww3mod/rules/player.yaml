@@ -175,7 +175,7 @@ Player:
 	MapLayers:
 		ExploredMapCheckboxLabel: Explored Map
 		ExploredMapCheckboxDescription: Start with the entire map revealed (no shroud)
-		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxEnabled: true
 		ExploredMapCheckboxDisplayOrder: 50
 		FogCheckboxLabel: Fog of War
 		FogCheckboxDescription: Units only see within their sight range

@@ -137,7 +137,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (cloak != null && cloak.ShouldHide(self, byPlayer))
 				return false;
 
-			return IsVisibleInner(byPlayer);
+			// QUICK FIX 260503: short-circuit to always-visible for buildings to unblock
+			// garrison playtesting. The proper IsVisibleInner path was made strict in
+			// commit 2d7603bf ("Fix buildings visible through fog") but that left
+			// neutral/civilian buildings invisible at game start even with shroud off,
+			// because frozen.Visible defaults to true and state.IsVisible inverts it.
+			// Tracked in RELEASE_V1.md → "Buildings invisible / fog visibility model".
+			return true;
+
+			// return IsVisibleInner(byPlayer);
 		}
 
 		void ITickRender.TickRender(WorldRenderer wr, Actor self)

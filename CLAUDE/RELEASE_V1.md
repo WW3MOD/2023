@@ -33,6 +33,12 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 
 ### Known design issues
 - [ ] **Tank frontal armor stalemate** — sim shows pen 50 vs 700 thickness = 7% dmg per hit. Either rework armor model or rebalance pen values.
+- [~] **Buildings invisible / fog visibility model** — quick-fixed 260503 by short-circuiting `FrozenUnderFog.IsVisible` to `return true` (see TODO in `engine/OpenRA.Mods.Common/Traits/Modifiers/FrozenUnderFog.cs`). Symptom: buildings rendered invisible but still blocked sight; not clickable. Root cause appears to be the strict `IsVisibleInner` path landed in commit `2d7603bf` ("Fix buildings visible through fog") — `frozen.Visible` defaults to `true` and `state.IsVisible = !frozen.Visible` is `false` for all newly-spawned buildings, so they hide on first render before any sight pass. **Proper fix needed:** investigate `FrozenActor.Visible` initial state when shroud is off / map starts revealed; figure out whether buildings should ever go to fogged state at all in WW3MOD.
+- [ ] **Visibility / fog design decisions for v1** — Open questions raised during garrison playtest:
+  - Should buildings block line of sight at all? Old solution: only trees & static cover blocked sight. With buildings now indestructible (1 HP minimum), it might be fair for them to block — but hiding units behind a building is micro-intense and unintuitive, bad gameplay.
+  - Should "fog" be a visibility *modifier* (weather-style, partial reduction) on top of shroud/sight, vs a binary "in fog or not"?
+  - What lobby options ship with v1: just shroud/fog toggles, or richer fine-tuning (sight range modifiers, weather modes)?
+  - **Decision needed before:** Phase A garrison playtest can fully complete; SR contestation depends on visibility working too.
 
 ---
 
@@ -115,7 +121,8 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 
 > Items raised during work that need a "yes / no / defer" call before they're scoped into v1 or sent to backlog.
 
-(none yet)
+- [decision] **Buildings & line of sight in v1** — keep buildings as LOS blockers (units can hide behind them, micro-intense), or revert to "only trees/static cover block sight"? See "Visibility / fog design decisions for v1" in Phase A.
+- [decision] **Fog richness in v1** — ship just shroud-on/off and fog-on/off lobby toggles, or invest in finer modes (weather fog, sight-range modifiers, per-faction sensor differences)? Probably v1 should be simple, richer modes go to v1.1.
 
 ---
 
@@ -139,4 +146,4 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 
 > Items move here as they ship. Keep the most recent ~10; older entries fall off.
 
-(empty — populated as Phase A items resolve)
+- [x] **Shroud OFF by default** (260503) — `ExploredMapCheckboxEnabled: true` in `mods/ww3mod/rules/player.yaml`
