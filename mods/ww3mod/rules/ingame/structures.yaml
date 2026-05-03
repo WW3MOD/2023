@@ -70,7 +70,7 @@
 	Inherits@EMPMechanic: ^BuildingAffectedByEMP
 	Inherits@DamageStates: ^DamageStates
 	OwnerLostAction:
-		Action: Kill
+		Action: ChangeOwner
 	# 	RequiresCondition: !building_cleared
 	# OwnerLostAction@BUILDING_CLEARED:
 	# 	Action: ChangeOwner
