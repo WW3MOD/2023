@@ -18,8 +18,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits.Render
 {
-	[Desc("Renders garrison pips below the building showing all soldiers (shelter + deployed at ports). " +
-		"Also renders empty port indicators and protection % text when the building is selected.")]
+	[Desc("Renders garrison soldier pips below the building (one per occupant + empty slots).")]
 	public class WithGarrisonDecorationInfo : WithDecorationBaseInfo, Requires<GarrisonManagerInfo>, Requires<CargoInfo>
 	{
 		[Desc("Image that defines the pip/icon sequences.")]
@@ -39,52 +38,27 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Number of pips per row.")]
 		public readonly int PerRow = 8;
 
-		[Desc("Image for empty port indicators when selected.")]
-		public readonly string PortImage = "class";
-
-		[SequenceReference(nameof(PortImage))]
-		[Desc("Sequence used for empty port indicators when selected.")]
-		public readonly string PortEmptySequence = "empty_class";
-
-		[Desc("Scale of empty port icons when building is selected.")]
-		public readonly float PortScale = 1.5f;
-
-		[Desc("Additional vertical offset (in world units) above the port position for port icons.")]
-		public readonly int PortIconAltitudeOffset = 512;
-
-		[Desc("If true, shows protection percentage text above the building when selected.")]
-		public readonly bool ShowProtectionText = true;
-
-		[Desc("Font used for the protection percentage text.")]
-		public readonly string ProtectionFont = "TinyBold";
-
 		public override object Create(ActorInitializer init) { return new WithGarrisonDecoration(init.Self, this); }
 	}
 
-	public class WithGarrisonDecoration : WithDecorationBase<WithGarrisonDecorationInfo>, IRender
+	public class WithGarrisonDecoration : WithDecorationBase<WithGarrisonDecorationInfo>
 	{
 		readonly Animation pips;
 		readonly Cargo cargo;
-		readonly SpriteFont protectionFont;
 
 		GarrisonManager garrisonManager;
-		GarrisonProtection garrisonProtection;
 
 		public WithGarrisonDecoration(Actor self, WithGarrisonDecorationInfo info)
 			: base(self, info)
 		{
 			pips = new Animation(self.World, info.Image);
 			cargo = self.Trait<Cargo>();
-
-			if (info.ShowProtectionText && Game.Renderer != null)
-				Game.Renderer.Fonts.TryGetValue(info.ProtectionFont, out protectionFont);
 		}
 
 		protected override void Created(Actor self)
 		{
 			base.Created(self);
 			garrisonManager = self.Trait<GarrisonManager>();
-			garrisonProtection = self.TraitOrDefault<GarrisonProtection>();
 		}
 
 		int TotalSoldierCount()
@@ -183,41 +157,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 					screenPos += pipStrideX;
 				}
 			}
-		}
-
-		// World-space rendering: protection % text when selected.
-		// (Empty port pips above the building used to render here too — removed 260503;
-		// they made the building feel cluttered without communicating much. Future plan:
-		// replace with a simpler visual that communicates "this building is garrisonable
-		// and has N free slots" — see RELEASE_V1.md → "Garrison entry flow + visuals".)
-		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
-		{
-			if (garrisonManager == null)
-				yield break;
-
-			// Only show when building is selected
-			if (!self.World.Selection.Contains(self))
-				yield break;
-
-			// Protection percentage text above the building
-			if (Info.ShowProtectionText && protectionFont != null && garrisonProtection != null && TotalSoldierCount() > 0)
-			{
-				var protection = garrisonProtection.GetCurrentProtection();
-				var text = $"{protection}% Cover";
-				var textSize = protectionFont.Measure(text);
-				var screenPos = wr.ScreenPxPosition(self.CenterPosition) - new int2(textSize.X / 2, textSize.Y + 40);
-
-				var textColor = protection >= 60 ? Color.LimeGreen
-					: protection >= 30 ? Color.Yellow
-					: Color.OrangeRed;
-
-				yield return new UITextRenderable(protectionFont, self.CenterPosition, screenPos, 0, textColor, text);
-			}
-		}
-
-		IEnumerable<Rectangle> IRender.ScreenBounds(Actor self, WorldRenderer wr)
-		{
-			yield break;
 		}
 	}
 }
