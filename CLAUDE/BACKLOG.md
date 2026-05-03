@@ -4,6 +4,7 @@
 > `[ ]` pending | `[x]` done | `[dropped]` irrelevant
 
 ## Deferred Tasks
+- [ ] **Flashing pips honour real-time, not game-speed** — the out-of-ammo pip (and any other flashing decoration) blinks based on game ticks, so on fast-forward they strobe and on slow they crawl. Should drive the flash from wall-clock so the visual rate is constant regardless of game speed. *Reported 260503*
 - [ ] Per-Supply-Route production queues (requires engine changes)
 - [ ] Per-unit rot sprites (bleedout uses generic e1 frames)
 - [ ] Group Scatter polish (mixed unit types, UI feedback)

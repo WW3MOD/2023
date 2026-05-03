@@ -492,6 +492,15 @@ namespace OpenRA
 						}
 					}
 				}
+				else
+				{
+					// No cached shadows.bin — compute fresh from current rules.
+					// This makes the cache truly optional: deleting shadows.bin (e.g. after
+					// a rules change like buildings no longer blocking visibility) forces a
+					// regeneration on next load, without leaving stale density baked in.
+					SetDensityLayer();
+					SetShadowLayer();
+				}
 			}
 
 			LoadScenarios();

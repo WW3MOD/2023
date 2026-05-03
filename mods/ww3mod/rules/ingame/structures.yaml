@@ -32,7 +32,10 @@
 	Building:
 		Dimensions: 1,1
 		Footprint: x
-		Density: 100
+		# Density intentionally omitted: buildings do not block visibility in WW3MOD,
+		# so they don't contribute to DensityLayer and don't trigger shadow recalcs
+		# when added/removed during gameplay. Trees and static decorations still
+		# carry Density (see decoration.yaml). See RELEASE_V1.md → "Buildings & LOS".
 		TerrainTypes: Clear,Road,Beach,Rough
 		RequiresBaseProvider: True
 		BuildSounds: placbldg.aud, build5.aud
