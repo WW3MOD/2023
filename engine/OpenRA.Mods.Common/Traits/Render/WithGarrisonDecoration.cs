@@ -263,32 +263,49 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var startPos = screenPos;
 			screenPos -= (currentRowCount - 1) * slotStrideX / 2;
 
+			// SpriteRenderer renders each sprite at (location + scale * sprite.Offset) with size
+			// (scale * sprite.Size). Different sprite sheets (class icon vs status pip) have
+			// different intrinsic Size and Offset, so a "subtract half the reference size" approach
+			// (the previous one) leaves damage/ammo pips visibly offset from the class pip beneath.
+			// Each render below derives its top-left from the actual sprite's Size+Offset so all
+			// pips share the same visible center.
+			int2 CenteredScreenPos(Sprite s, int targetX, int targetY)
+			{
+				return new int2(
+					targetX - (int)(s.Size.X * scale * 0.5f) - (int)(s.Offset.X * scale),
+					targetY - (int)(s.Size.Y * scale * 0.5f) - (int)(s.Offset.Y * scale));
+			}
+
 			for (var i = 0; i < slotCount; i++)
 			{
 				var soldier = i < soldiers.Length ? soldiers[i] : null;
 				var slotCenterX = screenPos.X + slotWidth / 2;
 
-				var classRowY = screenPos.Y + (ClassRow - ClassRow) * rowHeight;
-				var damageRowY = screenPos.Y + (DamageRow - ClassRow) * rowHeight;
-				var ammoRowY = screenPos.Y + (AmmoRow - ClassRow) * rowHeight;
+				// Y center of each row (each row is one rowHeight tall).
+				var classCenterY = screenPos.Y + (ClassRow - ClassRow) * rowHeight + rowHeight / 2;
+				var damageCenterY = screenPos.Y + (DamageRow - ClassRow) * rowHeight + rowHeight / 2;
+				var ammoCenterY = screenPos.Y + (AmmoRow - ClassRow) * rowHeight + rowHeight / 2;
 
-				// Class pip — middle row, horizontally centered
+				// Class pip — middle row.
 				classPips.PlayRepeating(soldier != null ? GetClassSequence(soldier) : Info.EmptySequence);
-				var classX = slotCenterX - classPipSize.X / 2;
+				var classSprite = classPips.Image;
 				yield return new UISpriteRenderable(
-					classPips.Image, self.CenterPosition, new int2(classX, classRowY), 0, palette, scale, alpha);
+					classSprite, self.CenterPosition,
+					CenteredScreenPos(classSprite, slotCenterX, classCenterY),
+					0, palette, scale, alpha);
 
 				if (soldier != null)
 				{
-					// Damage pip — top row, only when damaged. Center horizontally and within the row's vertical band.
+					// Damage pip — top row, only when damaged.
 					var damageSeq = GetDamageSequence(soldier);
 					if (damageSeq != null)
 					{
 						statusPips.PlayRepeating(damageSeq);
-						var damageX = slotCenterX - statusPipSize.X / 2;
-						var damageY = damageRowY + (rowHeight - statusPipSize.Y) / 2;
+						var damageSprite = statusPips.Image;
 						yield return new UISpriteRenderable(
-							statusPips.Image, self.CenterPosition, new int2(damageX, damageY), 0, palette, scale, alpha);
+							damageSprite, self.CenterPosition,
+							CenteredScreenPos(damageSprite, slotCenterX, damageCenterY),
+							0, palette, scale, alpha);
 					}
 
 					// Ammo row — bottom row. Concatenate every recipe horizontally and center the whole row.
@@ -299,9 +316,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 					if (totalAmmoPips > 0)
 					{
+						// Use the reference pip's stride for layout consistency, but each pip is
+						// centered via its own Size+Offset for precise alignment.
 						var rowWidth = totalAmmoPips * statusPipSize.X;
-						var ammoStartX = slotCenterX - rowWidth / 2;
-						var ammoY = ammoRowY + (rowHeight - statusPipSize.Y) / 2;
+						var ammoStartCenterX = slotCenterX - rowWidth / 2 + statusPipSize.X / 2;
 
 						var pipIndex = 0;
 						foreach (var recipe in recipes)
@@ -313,9 +331,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 								var seq = recipe.CurrentAmmo * recipe.PipCount > p * recipe.TotalAmmo
 									? recipe.FullSeq : recipe.EmptySeq;
 								statusPips.PlayRepeating(seq);
-								var px = ammoStartX + pipIndex * statusPipSize.X;
+								var ammoSprite = statusPips.Image;
+								var ammoCenterX = ammoStartCenterX + pipIndex * statusPipSize.X;
 								yield return new UISpriteRenderable(
-									statusPips.Image, self.CenterPosition, new int2(px, ammoY), 0, palette, scale, alpha);
+									ammoSprite, self.CenterPosition,
+									CenteredScreenPos(ammoSprite, ammoCenterX, ammoCenterY),
+									0, palette, scale, alpha);
 								pipIndex++;
 							}
 						}
