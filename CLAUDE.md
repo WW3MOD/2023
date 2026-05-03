@@ -43,40 +43,136 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 - **ALWAYS commit before ending a session.** Never leave uncommitted changes behind. If you made code changes, commit them — even if you didn't run FINALIZE. This is the #1 most important workflow rule.
 
 ### Communication Format
-- **Occationally insert a seperate line with a red alert (1 or 2) in game unit phrase as if that unit was commenting on what is going on right now** It should connect to what you're about to do or what the user said — not random. No repeats within a session. Occasionally roast the user or go dark-humor.
 
-- Every response MUST end with a standardized footer (helps identify tabs and what happened without scrolling):
-  ```
-  SUMMARY: What was done, what was discarded, what needs input (1-2 sentences)
+End every non-trivial response with a structured **end-of-message block**. Reading is bottom-up: terminal status glyph at the very bottom, supporting detail above. The user reads the terminal glyph first to identify the tab and what's expected of them.
 
-  TASK: What was done since the last user message (3-5 words preferred, more if needed)
+**Skip the block** for trivial responses — one-line factual answers, pure clarification questions, or any reply where the block would be bigger than the answer itself. Mid-turn narration before tool calls ("Reading the file", "Committing now") stays as plain prose; the block rule applies only at end-of-turn.
 
-  PROJECT: The overall project this tab is working on (2-3 words). Only include when working on a multi-prompt project where TASK alone doesn't identify the tab. Omit when redundant with TASK.
+**Format.** Single fenced code block. One **category glyph** at column 0, then the text. Group consecutive same-category lines together; blank line between categories. Optional **face glyph** prefix on the text for nuance.
 
-  STATUS: What is expected of the user right now (e.g. "Review pending rules", "All done", "Need input on X")
-  ```
+```
+<category> [face] <text>
+```
+
+**Categories** (only render sections with content):
+
+| Glyph | Use |
+|:-----:|:----|
+| 📁 | files touched (one path per line) |
+| ⏸ | future work noted, not done this turn |
+| ⚠️ | tradeoffs, risks, limits worth flagging — not blockers, not errors |
+| 🔀 | options for the user to pick (one per line, label A/B/…) |
+| 💡 | unprompted suggestions you think the user might want |
+| 🧪 | build/test issues only — omit if everything passed |
+| ✅ | work completed this turn — list what was done |
+| 👀 | launch the game and try something specific |
+| ❔ | input requested but mostly sure — not blocked |
+| ❓ | input needed, blocked until answered |
+| 📦 | committed; work continues, no specific input needed right now |
+| 🏁 | finished — all done with the request, committed |
+| ⏭️ | phase done; awaiting goahead before next phase |
+
+**Face glyphs** (optional; prefix to the text only, never in the glyph column):
+
+🤔 uncertain · 😬 risky judgment call · 😅 hacky but works · 🤷 had to guess · 🤨 skeptical · 🥳 big win
+
+**Terminal status.** The final line of the block is exactly one of: `📦` · `🏁` · `⏭️` · `❓` · `❔`. Mutually exclusive — pick one. The user reads this first.
+
+**Canonical order** (top → bottom, least → most critical): `📁` → `⏸` → `⚠️` → `🔀` → `💡` → `🧪` → `✅` → `👀` → `❔`/`❓` → `📦`/`🏁`/`⏭️`
+
+**Less is more.** Only include a category when it has something non-trivial to say. Silence means "nothing worth flagging there".
+
+- `🧪` — absence means tests/build passed. Only include on issue.
+- `👀` — only for specific behaviors to watch for. "Go try it" is implicit otherwise.
+- `💡` — only for genuine new ideas, not restatements of agreed work.
+- `⚠️` — only for real tradeoffs, not generic disclaimers.
+
+**Examples**
+
+Triage finished, items added to v1 tracker:
+
+```
+📁 CLAUDE/RELEASE_V1.md
+
+✅ added 4 bugs to Phase B (artillery burst, ATGM lock, drone autotarget, palette)
+✅ moved garrison overhaul to [T] (testing) — 5 specific checks listed
+✅ deferred ammo-cost-money to v1.1
+
+📦
+```
+
+Bug fix shipped, idea floated for later:
+
+```
+📁 engine/OpenRA.Mods.Common/Traits/Air/HeliEmergencyLanding.cs:142
+
+✅ 😬 fixed crashed-heli capture — added foreign-crew check before ownership transfer
+💡 same logic could give us recoverable wrecks for vehicles in v1.1
+
+🏁
+```
+
+Playtest set up, game ready:
+
+```
+📁 CLAUDE/playtests/260503_1530_garrison.md
+
+✅ build clean, focus list written (garrison ports, ownership transfer, suppression duck/recall)
+
+👀 launch a 2v1 on River Zeta, garrison both ports, force-fire from inside, take damage to 60%+ suppression
+
+⏭️
+```
+
+If even one line feels like padding, skip the block entirely.
+
+**No co-author / attribution trailers.** Do not add `Co-Authored-By: Claude …` or any equivalent attribution to commit messages, amends, or PR bodies. This is a global rule — see `~/.claude/CLAUDE.md`.
+
+**STOP AND ASK rule:** Never autonomously ship a change that downgrades quality, capability, or user experience — even when justified by build cleanup or perf. Examples: removing a working feature, capping a value lower than current, reducing visual fidelity. Show the block with `⚠️` lines spelling out the downgrade and end with `❓` for sign-off; wait before writing code.
 
 ### Self-Updating Instructions
 - **Continuously update this CLAUDE.md** when you receive new information that makes current content obsolete.
 - Do this without asking first.
-- After updating, write a condensed summary of what changed at the end of the response (before footer).
+- A `✅` line in the end-of-message block calls out the change so the user can spot what shifted.
 
 ### External Rules
 Apply all confirmed rules from: `C:\Users\fredr\Desktop\ClaudeRules\confirmed\`
 
 ### Session Workflow
 On session start:
-1. Read `CLAUDE/HOTBOARD.md` and scan `CLAUDE/DISCOVERIES.md` for recent entries
+1. Read `CLAUDE/HOTBOARD.md` and `CLAUDE/RELEASE_V1.md`; scan `CLAUDE/DISCOVERIES.md` for recent entries
 2. Glob `CLAUDE/sessions/active_*.md` — if any exist, read them (may be a parallel agent). Note their intended files to avoid conflicts
-3. Write `CLAUDE/sessions/active_<YYMMDD_HHMM>_<topic>.md` before making code changes (task summary, intended files, status: in-progress)
+
+For multi-session or multi-file work:
+- Write `CLAUDE/sessions/active_<YYMMDD_HHMM>_<topic>.md` at the start (task summary, intended files, status: in-progress)
+- Promote to `CLAUDE/sessions/<YYMMDD>_<topic>.md` on FINALIZE
+- Skip for single-shot bug fixes or trivial edits — the commit history is enough record
 
 During session:
 - Unrelated bugs found → append to `CLAUDE/bugs/discovered.md`
 - Non-obvious insights → append to `CLAUDE/DISCOVERIES.md` (dated)
 - Stable patterns that apply broadly → also add to this CLAUDE.md
+- Playtest findings → `CLAUDE/playtests/<YYMMDD_HHMM>_<topic>.md`, then TRIAGE into `RELEASE_V1.md`
 
 ### Completion Bell
 Ring the terminal bell (`printf "\a"`) when a significant task is complete, so the user knows to check back.
+
+## Release Mode (v1)
+
+The single source of truth for v1 scope is `CLAUDE/RELEASE_V1.md`. Anything in v1 must appear there with a status.
+
+**Status legend:** `[ ]` open · `[~]` in-progress · `[T]` testing · `[x]` done · `[v1.1]` deferred · `[cut]` won't-fix v1
+
+**Scope is locked.** No new feature enters v1 without an explicit "yes, add to v1" from the user. Ideas raised during work go to `RELEASE_V1.md` under "Pending decisions" until triaged, or straight to `BACKLOG.md` if clearly v1.1.
+
+**Three phases (rough order, not strict):**
+- **Phase A — Stabilize** — verify everything currently "needs playtesting"
+- **Phase B — Tier-1 fixes** — bugs and gameplay gaps that block release
+- **Phase C — Polish** — sounds, icons, descriptions, polish threads
+
+**Workflow loop:** PLAYTEST → user plays → user reports → TRIAGE → fix → repeat. Use RELEASE for a status snapshot at any time.
+
+Update `RELEASE_V1.md` continuously as items change status — and commit when you do.
 
 ## Commands
 
@@ -94,22 +190,36 @@ Enter planning mode for a new feature or change.
 Mandatory wrap-up routine. Run after completing any feature/fix.
 1. `printf "\a"` — ring the bell
 2. Double-check work against `CLAUDE/DISCOVERIES.md` — ensure nothing was violated
-3. Update `CLAUDE/HOTBOARD.md` — refresh active concerns, recent wins, stats
-4. Promote session file: rename `active_*.md` → `CLAUDE/sessions/<YYMMDD>_<topic>.md`
-5. Update `CLAUDE/BACKLOG.md` — add deferred items, mark completed with `[x]`
-6. Auto-commit all changes (descriptive message)
-7. Review this CLAUDE.md — new pattern? Structural change? Recurring gotcha? Update if yes
+3. Update `CLAUDE/RELEASE_V1.md` — flip statuses for items touched (e.g. `[~]` → `[T]` or `[x]`); move shipped items to "Recently completed"
+4. Update `CLAUDE/HOTBOARD.md` — refresh "Working on" and recent wins
+5. Promote session file (if any): rename `active_*.md` → `CLAUDE/sessions/<YYMMDD>_<topic>.md`
+6. Update `CLAUDE/BACKLOG.md` — add deferred items, mark completed with `[x]`
+7. Auto-commit all changes (descriptive message)
+8. Review this CLAUDE.md — new pattern? Structural change? Recurring gotcha? Update if yes
 
-### TESTING
-Prepare for a playtest session.
-1. Build the project (`./make.ps1 all`)
-2. List what to test — pull from HOTBOARD active concerns and recent changes
-3. Write a testing checklist to `CLAUDE/plans/<YYMMDD>_testing_<topic>.md` with:
-   - What to test, expected behavior, edge cases to try, what to look for
-4. After user reports results, capture findings (bugs → `CLAUDE/bugs/discovered.md`, tuning notes → HOTBOARD)
+### PLAYTEST [topic?]
+Prepare for a focused playtest session.
+1. Build the project (`./make.ps1 all`).
+2. Pick focus: if a topic is given, scope to it; otherwise pull the highest-risk untested items from `CLAUDE/RELEASE_V1.md` Phase A.
+3. Write `CLAUDE/playtests/<YYMMDD_HHMM>_<topic>.md` with: build hash, focus list, what to look for, edge cases to try, expected behavior.
+4. Hand back to the user with a `👀` line listing specific things to try.
+5. After the user reports findings, run TRIAGE.
+
+### TRIAGE [findings]
+Sort raw playtest findings (or any pasted observation list) into the right buckets.
+1. For each item, decide: critical-blocker (Phase A/B), v1-fix (Phase B/C), tuning, defer-v1.1, won't-fix, or pending-decision.
+2. Update `CLAUDE/RELEASE_V1.md` with new entries, status changes, or "Pending decisions" lines.
+3. If clearly off-scope (not v1, not v1.1), file under `CLAUDE/BACKLOG.md`.
+4. Bugs found incidentally during other work → also append to `CLAUDE/bugs/discovered.md`.
+5. Confirm what was added/updated and where in the end-of-message block.
+
+### RELEASE
+Quick view of v1 release status.
+1. Read `CLAUDE/RELEASE_V1.md`, recent git log (10 commits).
+2. Print: current phase, count by status (open / in-progress / testing / done), top blockers, anything drifting (untouched recently, or sitting in `[T]` for too long).
 
 ### STATUS
-Quick orientation on where things stand.
+Quick orientation on where things stand (general, not release-specific).
 1. Read `CLAUDE/HOTBOARD.md`, recent git log (5 commits), and any `active_*.md` sessions
 2. Print a concise summary: what was last worked on, what's active now, what's next
 
@@ -133,21 +243,25 @@ Claude's workspace for session tracking, plans, discoveries, and notes. Primaril
 
 ```
 CLAUDE/
-├── HOTBOARD.md          # Live dashboard (max 40 lines, rotate old items)
+├── RELEASE_V1.md        # Single source of truth for v1 scope and status
+├── HOTBOARD.md          # What's in motion right now (max 40 lines)
 ├── BACKLOG.md           # Deferred tasks & ideas ([ ]/[x]/[dropped])
 ├── DISCOVERIES.md       # Dated gotchas and insights
 ├── plans/               # Plan documents (from PLAN command)
-├── sessions/            # Session logs (active_* = in-progress)
+├── playtests/           # Raw playtest findings (one file per session)
+├── sessions/            # Session logs (active_* = in-progress, multi-session work only)
 └── bugs/
     └── discovered.md    # Bugs found incidentally
 ```
 
 **Rules:**
+- RELEASE_V1.md is the v1 source of truth — nothing enters v1 without showing up here
 - HOTBOARD.md stays under 40 lines — rotate oldest items out
-- Session files: write `active_*` on start, promote to dated file on FINALIZE
+- Session files: only for multi-session/multi-file work. Promote `active_*` → dated file on FINALIZE
 - Never delete another agent's `active_*` file
 - DISCOVERIES.md entries are always dated
 - BACKLOG.md uses `[ ]` pending, `[x]` done, `[dropped]` irrelevant
+- Playtest reports are raw and historical — never edit a past report; triage updates `RELEASE_V1.md`
 - No duplication between CLAUDE/ files and auto-memory (`.claude/projects/`)
 
 ## Build & Run
