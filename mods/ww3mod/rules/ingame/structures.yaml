@@ -123,7 +123,7 @@
 		TargetTypes: NoAutoTarget, C4, DetonateAttack
 	Huntable:
 	Health:
-		HP: 40000
+		HP: 60000
 	Armor:
 		Type: Concrete
 	Tooltip:
@@ -249,7 +249,7 @@ SUPPLYROUTE:
 	Tooltip:
 		Name: Supply Route
 	Health:
-		HP: 50000
+		HP: 75000
 	Targetable:
 		TargetTypes: NoAutoTarget
 	WithRangeCircle@Contestation:
@@ -369,7 +369,7 @@ LOGISTICSCENTER:
 	Valued:
 		Cost: 3500
 	Health:
-		HP: 40000
+		HP: 60000
 	Armor:
 		Type: Concrete
 	RepairsUnits:
@@ -432,7 +432,7 @@ HPAD:
 	Tooltip:
 		Name: Helipad
 	Health:
-		HP: 15000
+		HP: 22500
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure
 	Armor:
@@ -503,7 +503,7 @@ AFLD:
 		Class: afld
 		Bounds: 3072,2048
 	Health:
-		HP: 20000
+		HP: 30000
 	Targetable:
 		TargetTypes: Ground, C4, DetonateAttack, Structure
 	Armor:

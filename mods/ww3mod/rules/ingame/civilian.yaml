@@ -110,7 +110,7 @@
 		BaseProtection: 95
 		CriticalProtection: 70
 		MinPassThrough: 15
-	Inherits@DamageVehiclePips: ^DamageVehiclePips
+	Inherits@GarrisonHealthPips: ^GarrisonHealthPips
 	WithGarrisonDecoration:
 		RequiresSelection: false
 		Position: Bottom
@@ -413,10 +413,9 @@ V19.Husk:
 	-GrantConditionOnDamageState@HeavyDamage:
 	-GrantConditionOnDamageState@HeavyDamageAttained:
 	-GrantConditionOnDamageState@CriticalDamage:
-	-WithDecoration@DamageVehiclePips_Light:
-	-WithDecoration@DamageVehiclePips_Medium:
-	-WithDecoration@DamageVehiclePips_Heavy:
-	-WithDecoration@DamageVehiclePips_Critical:
+	-WithDecoration@GarrisonHealth_Light:
+	-WithDecoration@GarrisonHealth_Medium:
+	-WithDecoration@GarrisonHealth_Heavy:
 	-ChangesHealth@BurnDamage:
 	-ExternalCondition@BurnDamage:
 	-WithDamageOverlay@SmallBurn:

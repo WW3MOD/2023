@@ -108,37 +108,29 @@
 		Margin: 0,0
 		RequiresCondition: critical-damage
 
-^GarrisonProtectionPips:
-	WithDecoration@GarrisonProt_Full:
+# Garrison-specific health pips: same vehicle pip sequences but no critical
+# blinking, since buildings can't be destroyed (no rubble transition yet).
+# Heavy pip covers both heavy-damage AND critical-damage so the red indicator
+# stays visible all the way to the building's lowest protection state.
+^GarrisonHealthPips:
+	WithDecoration@GarrisonHealth_Light:
 		Image: pips
-		Sequence: pip-defense-5
+		Sequence: pip-damage-vehicle-light
 		Position: Top
-		Margin: 0,4
-		RequiresCondition: loaded && !damaged
-	WithDecoration@GarrisonProt_Light:
+		Margin: 0,0
+		RequiresCondition: light-damage
+	WithDecoration@GarrisonHealth_Medium:
 		Image: pips
-		Sequence: pip-defense-4
+		Sequence: pip-damage-vehicle-medium
 		Position: Top
-		Margin: 0,4
-		RequiresCondition: loaded && light-damage
-	WithDecoration@GarrisonProt_Medium:
+		Margin: 0,0
+		RequiresCondition: medium-damage
+	WithDecoration@GarrisonHealth_Heavy:
 		Image: pips
-		Sequence: pip-defense-3
+		Sequence: pip-damage-vehicle-heavy
 		Position: Top
-		Margin: 0,4
-		RequiresCondition: loaded && medium-damage
-	WithDecoration@GarrisonProt_Heavy:
-		Image: pips
-		Sequence: pip-defense-2
-		Position: Top
-		Margin: 0,4
-		RequiresCondition: loaded && heavy-damage
-	WithDecoration@GarrisonProt_Critical:
-		Image: pips
-		Sequence: pip-defense-1
-		Position: Top
-		Margin: 0,4
-		RequiresCondition: loaded && critical-damage
+		Margin: 0,0
+		RequiresCondition: heavy-damage || critical-damage
 
 # ^DetectionProximity:
 # 	VisionModifier@1:
