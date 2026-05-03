@@ -47,6 +47,11 @@ namespace OpenRA.Mods.Common.Activities
 			var sellableInfo = self.Info.TraitInfoOrDefault<SellableInfo>();
 			refundPercent = sellableInfo?.RefundPercent ?? 100;
 			fixedRefund = null;
+
+			// Tick must run every frame so the aircraft early-sell check intercepts the
+			// helicopter mid-flight, before Aircraft.Repulse pushes off-map units back
+			// toward the map center and stalls them at the edge indefinitely.
+			ChildHasPriority = false;
 		}
 
 		/// <summary>
@@ -60,6 +65,8 @@ namespace OpenRA.Mods.Common.Activities
 			isAircraft = self.Info.HasTraitInfo<AircraftInfo>();
 			refundPercent = 100;
 			fixedRefund = refundAmount;
+
+			ChildHasPriority = false;
 		}
 
 		/// <summary>Find the SpawnArea closest to the player's Supply Route building.</summary>
@@ -145,22 +152,24 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			// Aircraft: sell as soon as they leave the map or hit an edge cell.
-			// Uses FlyOffMap which handles direction (toward SpawnArea) and off-map flight.
-			if (isAircraft && movingToEdge)
+			// Aircraft early-sell: as soon as the helicopter enters the edge zone, dispose of it.
+			// This must run every frame (hence ChildHasPriority=false) so we intercept BEFORE
+			// the helicopter actually crosses the map boundary. If we let it cross, Aircraft.Repulse
+			// shoves it back toward map center, fighting any forward-flight activity and leaving the
+			// helicopter oscillating on the edge forever.
+			if (isAircraft && movingToEdge
+				&& (!self.World.Map.Contains(self.Location) || IsOnMapEdge(self)))
 			{
-				if (!self.World.Map.Contains(self.Location) || IsOnMapEdge(self))
-				{
-					DoSell(self);
-					return true;
-				}
-
-				return TickChild(self);
+				DoSell(self);
+				return true;
 			}
 
-			// Wait for child activities to complete
+			// ChildHasPriority is false, so child activities are not auto-ticked — do it manually.
 			if (ChildActivity != null)
+			{
+				TickChild(self);
 				return false;
+			}
 
 			// Queue move to edge if not done yet
 			if (!movingToEdge)
@@ -169,9 +178,10 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (isAircraft)
 				{
-					// Aircraft: FlyOffMap handles flight toward spawn area edge at full speed.
-					// We intercept in Tick above to sell as soon as the aircraft reaches an edge cell.
-					QueueChild(new FlyOffMap(self));
+					// Just Fly to the edge cell — no FlyForward/FlyOffMap. The early-sell check
+					// above will dispose of the helicopter as soon as it enters the edge zone, so
+					// Fly never has to fully complete its decel/snap sequence.
+					QueueChild(new Fly(self, Target.FromCell(self.World, edgeCell.Value)));
 				}
 				else
 				{
