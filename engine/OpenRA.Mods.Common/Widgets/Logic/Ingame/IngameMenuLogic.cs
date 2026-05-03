@@ -229,6 +229,31 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				gameInfoPanel.IsVisible = () => !hideMenu;
 			}
+			else if (world.Type == WorldType.Editor)
+			{
+				// In editor mode the right-side info panel is intentionally not loaded, leaving
+				// the wide COMBINED_PANEL with a large empty area to the right of the buttons.
+				// Shrink the panel to just contain the button column so the editor menu looks
+				// like the narrow ingame menu it visually wants to be.
+				var combined = menu.GetOrNull("COMBINED_PANEL");
+				if (combined != null)
+				{
+					const int HPad = 5;
+					const int VPad = 20;
+					var newWidth = buttonContainer.Bounds.X + buttonContainer.Bounds.Width + HPad;
+					var newHeight = buttonContainer.Bounds.Height + 2 * VPad;
+
+					// Recenter the combined panel for its new dimensions
+					combined.Bounds.X += (combined.Bounds.Width - newWidth) / 2;
+					combined.Bounds.Y += (combined.Bounds.Height - newHeight) / 2;
+					combined.Bounds.Width = newWidth;
+					combined.Bounds.Height = newHeight;
+
+					// Re-center the button column vertically within the now-smaller panel
+					// (its Y was computed against the original 500-tall layout).
+					buttonContainer.Bounds.Y = (newHeight - buttonContainer.Bounds.Height) / 2;
+				}
+			}
 		}
 
 		public static void OnQuit(World world)
