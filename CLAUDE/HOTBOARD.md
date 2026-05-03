@@ -3,7 +3,7 @@
 > What's actively in motion right now. The v1 release tracker (`RELEASE_V1.md`) is the source of truth for scope and status.
 
 ## Working on
-- Release-mode workflow setup (this session) — RELEASE_V1.md created, CLAUDE.md updated, playtests/ added
+- **Garrison overhaul playtest** (260503_1241) — checklist in `CLAUDE/playtests/260503_1241_garrison.md`, awaiting findings
 
 ## Recent Wins (last 5)
 - **Garrison overhaul Phases 1–6** — indestructible buildings, dynamic ownership, directional targeting, suppression integration, visuals
