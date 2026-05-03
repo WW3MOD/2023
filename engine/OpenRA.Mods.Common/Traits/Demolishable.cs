@@ -49,6 +49,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<DemolishAction> actions = new();
 		readonly List<DemolishAction> removeActions = new();
 		IDamageModifier[] damageModifiers;
+		Health health;
 
 		public Demolishable(DemolishableInfo info)
 			: base(info) { }
@@ -57,6 +58,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			damageModifiers = self.TraitsImplementing<IDamageModifier>()
 				.Concat(self.Owner.PlayerActor.TraitsImplementing<IDamageModifier>()).ToArray();
+			health = self.TraitOrDefault<Health>();
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
@@ -88,8 +90,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (a.Delay-- <= 0)
 				{
-					if (Util.ApplyPercentageModifiers(100, damageModifiers.Select(t => t.GetDamageModifier(self, null))) > 0)
-						self.Kill(a.Saboteur, a.DamageTypes);
+					// WW3MOD: route demolition through the damage pipeline (with modifiers)
+					// rather than self.Kill, so indestructible buildings (GarrisonManager) clamp
+					// the damage at 1 HP instead of being annihilated. For normal Demolishables
+					// the modifier chain doesn't clamp and HP-worth of damage still kills them.
+					if (health != null && Util.ApplyPercentageModifiers(100, damageModifiers.Select(t => t.GetDamageModifier(self, null))) > 0)
+						health.InflictDamage(self, a.Saboteur, new Damage(health.HP, a.DamageTypes), false);
 					else if (a.Token != Actor.InvalidConditionToken)
 					{
 						self.RevokeCondition(a.Token);
