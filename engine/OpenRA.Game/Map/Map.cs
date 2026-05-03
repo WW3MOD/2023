@@ -492,20 +492,21 @@ namespace OpenRA
 						}
 					}
 				}
-				else
-				{
-					// No cached shadows.bin — compute fresh from current rules.
-					// This makes the cache truly optional: deleting shadows.bin (e.g. after
-					// a rules change like buildings no longer blocking visibility) forces a
-					// regeneration on next load, without leaving stale density baked in.
-					SetDensityLayer();
-					SetShadowLayer();
-				}
 			}
 
 			LoadScenarios();
 
 			PostInit();
+
+			// Fallback: if no shadows.bin was on disk, compute fresh from current rules.
+			// Deferred until after PostInit so Rules is populated (SetDensityLayer reads
+			// Rules.Actors). Makes the shadows.bin cache truly optional: deleting it after
+			// a rules change forces a one-time regen without leaving stale density baked in.
+			if (ShadowLayer == null || DensityLayer == null)
+			{
+				SetDensityLayer();
+				SetShadowLayer();
+			}
 
 			Uid = ComputeUID(Package, MapFormat);
 		}
