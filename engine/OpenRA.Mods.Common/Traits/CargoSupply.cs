@@ -327,7 +327,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ResupplyTarget()
 		{
-			if (currentTarget == null || currentTarget.IsDead || !currentTarget.IsInWorld)
+			// Note: !IsInWorld is valid here — shelter soldiers in garrison buildings are
+			// intentionally removed from world. SetTarget already skipped move-toward and
+			// condition-grant for them; we just need to deliver ammo. Only bail on null/dead.
+			if (currentTarget == null || currentTarget.IsDead)
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
