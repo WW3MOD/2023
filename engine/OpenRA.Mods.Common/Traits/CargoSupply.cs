@@ -173,21 +173,48 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.RearmRange))
 			{
-				if (!IsValidTarget(a))
-					continue;
-
-				var rearmable = a.Trait<Rearmable>();
-				if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && effectiveSupply >= p.Info.SupplyValue))
-					continue;
-
-				var need = CalculateNeed(a);
-				if (need < Info.MinNeedThreshold)
-					continue;
-
-				if (need > bestNeed)
+				if (IsValidTarget(a))
 				{
-					bestNeed = need;
-					best = a;
+					var rearmable = a.Trait<Rearmable>();
+					if (rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && effectiveSupply >= p.Info.SupplyValue))
+					{
+						var need = CalculateNeed(a);
+						if (need >= Info.MinNeedThreshold && need > bestNeed)
+						{
+							bestNeed = need;
+							best = a;
+						}
+					}
+				}
+
+				// Also consider soldiers sheltering inside a garrison building.
+				// They aren't in the world (removed when entering Cargo), so FindActorsInCircle
+				// misses them. Treat the building's position as the soldier's effective position.
+				var garrison = a.TraitOrDefault<GarrisonManager>();
+				if (garrison != null && Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner)))
+				{
+					foreach (var soldier in garrison.ShelterPassengers)
+					{
+						if (soldier == null || soldier.IsDead)
+							continue;
+
+						var rearmable = soldier.TraitOrDefault<Rearmable>();
+						if (rearmable == null || rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
+							continue;
+
+						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && effectiveSupply >= p.Info.SupplyValue))
+							continue;
+
+						var need = CalculateNeed(soldier);
+						if (need < Info.MinNeedThreshold)
+							continue;
+
+						if (need > bestNeed)
+						{
+							bestNeed = need;
+							best = soldier;
+						}
+					}
 				}
 			}
 
@@ -254,9 +281,14 @@ namespace OpenRA.Mods.Common.Traits
 			RevokeTargetCondition();
 			currentTarget = target;
 
-			// If target out of range (Hunt mode), move toward it
-			if (currentTarget != null)
+			// Shelter passengers in garrison buildings aren't in the world; their
+			// CenterPosition is stale. The building they're inside is, by definition,
+			// already in range — so skip move-toward and skip granting the rearm
+			// condition (invisible anyway, and would leak if the soldier later
+			// deploys to a port before our next ResupplyTarget tick).
+			if (currentTarget != null && currentTarget.IsInWorld)
 			{
+				// If target out of range (Hunt mode), move toward it
 				var dist = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLength;
 				if (dist > Info.RearmRange.Length)
 				{
@@ -267,15 +299,15 @@ namespace OpenRA.Mods.Common.Traits
 						self.QueueActivity(false, move.MoveTo(targetCell, 2));
 					}
 				}
-			}
 
-			// Grant rearm condition to target
-			if (!string.IsNullOrEmpty(Info.RearmCondition) && currentTarget != null)
-			{
-				targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
-				if (targetConditionTrait != null)
-					conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
+				// Grant rearm condition to target
+				if (!string.IsNullOrEmpty(Info.RearmCondition))
+				{
+					targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
+					if (targetConditionTrait != null)
+						conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
+				}
 			}
 
 			rearmTicks = Info.RearmDelay;
@@ -351,7 +383,10 @@ namespace OpenRA.Mods.Common.Traits
 					}
 
 					if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
-						Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
+					{
+						var soundPos = currentTarget.IsInWorld ? currentTarget.CenterPosition : self.CenterPosition;
+						Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, soundPos);
+					}
 				}
 			}
 
