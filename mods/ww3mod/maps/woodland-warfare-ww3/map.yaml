@@ -16,6 +16,8 @@ Visibility: Lobby, Shellmap
 
 Categories: Conquest
 
+ShellmapScenario:
+
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
