@@ -38,7 +38,16 @@ namespace OpenRA.Mods.Common.Activities
 			this.target = target;
 			this.targetLineColor = targetLineColor;
 			ChildHasPriority = false;
-			moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile) { RetryIfDestinationBlocked = true };
+			// Cooldown collapsed to (0, 1) — the visible 0.8-1.2s pause "outside the building"
+			// before entering came from MoveCooldownHelper's default (20, 31) cooldown firing
+			// when the destination cell registered as blocked (the building's own cell).
+			// RetryIfDestinationBlocked stays true so genuine blocks still abort cleanly via
+			// TryStartEnter's Cancel path; just don't make the player wait between retries.
+			moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile)
+			{
+				RetryIfDestinationBlocked = true,
+				Cooldown = (0, 1)
+			};
 		}
 
 		/// <summary>
