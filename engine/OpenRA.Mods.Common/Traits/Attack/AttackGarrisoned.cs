@@ -381,6 +381,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		public override void OnStopOrder(Actor self)
+		{
+			base.OnStopOrder(self);
+
+			if (useGarrisonManager && garrisonManager != null)
+				garrisonManager.OnStopOrder(self);
+		}
+
 		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
 		{
 			var pal = wr.Palette(Info.MuzzlePalette);

@@ -975,6 +975,25 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Called by AttackGarrisoned.OnStopOrder. Mirrors Mobile-unit Stop semantics:
+		// clears player-issued force-attack and current per-port targets, resets ambush.
+		// Auto-target rescans next scan tick per stance — FireAtWill picks new targets,
+		// HoldFire stays quiet, Ambush re-arms.
+		public void OnStopOrder(Actor self)
+		{
+			forceTarget = Target.Invalid;
+			hasForceTarget = false;
+
+			for (var i = 0; i < PortStates.Length; i++)
+			{
+				PortStates[i].CurrentTarget = Target.Invalid;
+				PortStates[i].PlayerOverride = false;
+				PortStates[i].TargetLockTicks = 0;
+			}
+
+			ambushTriggered = false;
+		}
+
 		// Used by AttackGarrisoned to get all armaments from deployed port soldiers
 		public IEnumerable<Armament> GetAllArmaments()
 		{
