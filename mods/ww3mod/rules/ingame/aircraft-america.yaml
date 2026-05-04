@@ -74,13 +74,6 @@ TRAN:
 		AfterUnloadDelay: 40
 		LoadedCondition: loaded
 		EjectOnDeath: false
-	CargoSupply:
-		SupplyPerUnit: 50
-		RearmRange: 4c0
-		RearmDelay: 25
-		RearmCondition: replenish-soldiers
-		CargoHasSupplyCondition: cargo-has-supply
-		CreditValuePerUnit: 40
 	WithCargoPipsDecoration:
 		PipCount: 36
 		Margin: 0, -10
