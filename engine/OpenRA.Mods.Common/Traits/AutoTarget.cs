@@ -48,8 +48,9 @@ namespace OpenRA.Mods.Common.Traits
 		void EngagementStanceChanged(Actor self, AutoTarget autoTarget, EngagementStance oldStance, EngagementStance newStance);
 	}
 
-	[Desc("The actor will automatically engage the enemy when it is in range.")]
-	public class AutoTargetInfo : ConditionalTraitInfo, Requires<AttackBaseInfo>, IEditorActorOptions
+	[Desc("The actor will automatically engage the enemy when it is in range.",
+		"Also hosts stance state (fire/engagement/cohesion/resupply) — may be added to weaponless units (e.g. supply trucks) purely to expose the stance UI.")]
+	public class AutoTargetInfo : ConditionalTraitInfo, IEditorActorOptions
 	{
 		[Desc("It will try to hunt down the enemy if engagement stance is set to Hunt.")]
 		public readonly bool AllowMovement = true;
