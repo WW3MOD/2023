@@ -109,6 +109,7 @@
 	GarrisonProtection:
 		BaseProtection: 95
 		CriticalProtection: 70
+		RubbleProtection: 30
 		MinPassThrough: 15
 	Inherits@GarrisonHealthPips: ^GarrisonHealthPips
 	WithGarrisonDecoration:

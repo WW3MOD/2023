@@ -24,6 +24,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Percentage of damage absorbed at critical damage state (0-100).")]
 		public readonly int CriticalProtection = 30;
 
+		[Desc("Percentage of damage absorbed when building is at minimum HP (rubble state, " +
+			"clamped to 1HP by GarrisonManager.Indestructible). Lower than CriticalProtection — " +
+			"represents reduced cover from heavy damage. Default 30 means soldiers take 70% of incoming damage.")]
+		public readonly int RubbleProtection = 30;
+
 		[Desc("Minimum damage per hit to pass through to occupants. Hits below this deal zero to occupants.")]
 		public readonly int MinPassThrough = 5;
 
@@ -51,13 +56,17 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Returns the current shelter protection percentage (0-100), interpolated between
-		/// BaseProtection (at full HP) and CriticalProtection (at 0 HP).
+		/// Returns the current shelter protection percentage (0-100). Uses RubbleProtection
+		/// when the building is clamped to 1HP (Indestructible rubble), otherwise interpolates
+		/// between BaseProtection (at full HP) and CriticalProtection (at 0 HP).
 		/// </summary>
 		public int GetCurrentProtection()
 		{
 			if (health == null || health.IsDead)
 				return 0;
+
+			if (health.HP <= 1)
+				return info.RubbleProtection.Clamp(0, 100);
 
 			var hpPct = (float)health.HP / health.MaxHP;
 			var protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
@@ -77,9 +86,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (shelterSoldiers.Length == 0)
 				return;
 
-			// Interpolate protection based on building HP percentage
-			var hpPct = (float)health.HP / health.MaxHP;
-			var protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
+			// Pick protection: RubbleProtection at 1HP rubble, otherwise interpolate by HP%.
+			int protection;
+			if (health.HP <= 1)
+			{
+				protection = info.RubbleProtection;
+			}
+			else
+			{
+				var hpPct = (float)health.HP / health.MaxHP;
+				protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
+			}
+
 			protection = protection.Clamp(0, 100);
 
 			var incomingDamage = e.Damage.Value;
