@@ -114,9 +114,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 					yield return soldier;
 			}
 
-			foreach (var soldier in garrisonManager.ShelterPassengers)
-				if (soldier != null && !soldier.IsDead)
-					yield return soldier;
+			// Sort shelter by ActorID (spawn order) so pip positions stay stable when soldiers
+			// cycle through ports — internal Add/Remove churn would otherwise visually swap pips.
+			foreach (var soldier in garrisonManager.ShelterPassengers
+				.Where(s => s != null && !s.IsDead)
+				.OrderBy(s => s.ActorID))
+				yield return soldier;
 		}
 
 		string GetClassSequence(Actor soldier)
