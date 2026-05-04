@@ -68,10 +68,10 @@ namespace OpenRA.Mods.Common.Widgets
 			if (selectionHash == world.Selection.Hash)
 				return;
 
-			// Only show for units that have ammo pools
+			// Only show for units that have ammo pools or carry supply (e.g. supply trucks)
 			actorStances = world.Selection.Actors
 				.Where(a => a.Owner == world.LocalPlayer && a.IsInWorld
-					&& a.TraitsImplementing<AmmoPool>().Any())
+					&& (a.TraitsImplementing<AmmoPool>().Any() || a.TraitsImplementing<CargoSupply>().Any()))
 				.SelectMany(a => a.TraitsImplementing<AutoTarget>()
 					.Where(at => at.Info.EnableStances)
 					.Select(at => new TraitPair<AutoTarget>(a, at)))
