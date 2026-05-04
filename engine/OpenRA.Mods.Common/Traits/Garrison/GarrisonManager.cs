@@ -254,6 +254,10 @@ namespace OpenRA.Mods.Common.Traits
 					PortStates[i].CurrentTarget = Target.Invalid;
 					PortStates[i].TargetLockTicks = 0;
 					PortStates[i].PlayerOverride = false;
+					PortStates[i].RedeployBlackoutRemaining = Info.RedeployBlackoutTicks;
+					PortStates[i].StickyTargetRemaining = 0;
+					PortStates[i].PendingDeployTarget = Target.Invalid;
+					PortStates[i].PendingDeployTicks = 0;
 					CheckOwnershipAfterExit();
 					return;
 				}
@@ -354,6 +358,7 @@ namespace OpenRA.Mods.Common.Traits
 			PortStates[portIndex].StickyTargetRemaining = 0;
 			PortStates[portIndex].PendingDeployTarget = Target.Invalid;
 			PortStates[portIndex].PendingDeployTicks = 0;
+			PortStates[portIndex].RedeployBlackoutRemaining = 0;
 		}
 
 		// Recall a deployed soldier from port to shelter (port → shelter)
