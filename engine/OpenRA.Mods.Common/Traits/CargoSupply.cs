@@ -64,10 +64,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor shown when right-clicking a friendly Logistics Center (or any actor with AbsorbsSupplyCache) to deliver supply.")]
 		public readonly string DeliverCursor = "enter";
 
+		[CursorReference]
+		[Desc("Cursor shown on the deploy command when supply can be dropped as a SUPPLYCACHE.")]
+		public readonly string DropCacheCursor = "deploy";
+
+		[CursorReference]
+		[Desc("Cursor shown on the deploy command when supply cannot be dropped (no supply, or cell blocked).")]
+		public readonly string DropCacheBlockedCursor = "deploy-blocked";
+
+		[VoiceReference]
+		[Desc("Voice to play when ordered to drop supply as a SUPPLYCACHE.")]
+		public readonly string DropCacheVoice = "Action";
+
 		public override object Create(ActorInitializer init) { return new CargoSupply(init, this); }
 	}
 
-	public class CargoSupply : ITick, INotifyCreated, INotifyBecomingIdle, ISelectionBar, ITransformActorInitModifier, IResolveOrder, IIssueOrder
+	public class CargoSupply : ITick, INotifyCreated, INotifyBecomingIdle, ISelectionBar, ITransformActorInitModifier, IResolveOrder, IIssueOrder, IIssueDeployOrder, IOrderVoice
 	{
 		public readonly CargoSupplyInfo Info;
 		readonly Actor self;
@@ -527,15 +539,51 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IOrderTargeter> IIssueOrder.Orders
 		{
-			get { yield return new DeliverSupplyOrderTargeter(Info); }
+			get
+			{
+				yield return new DeliverSupplyOrderTargeter(Info);
+				yield return new DeployOrderTargeter("DropCargoSupply", 5,
+					() => CanDropCache() ? Info.DropCacheCursor : Info.DropCacheBlockedCursor);
+			}
 		}
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{
-			if (order.OrderID != "DeliverSupply")
-				return null;
+			if (order.OrderID == "DeliverSupply")
+				return new Order(order.OrderID, self, target, queued);
 
-			return new Order(order.OrderID, self, target, queued);
+			if (order.OrderID == "DropCargoSupply")
+				return new Order("UnloadCargoSupply", self, queued) { ExtraData = (uint)supplyCount };
+
+			return null;
+		}
+
+		bool CanDropCache()
+		{
+			if (supplyCount <= 0)
+				return false;
+
+			// Allow deploy on an empty cell or one already holding a SUPPLYCACHE (which we'll merge into).
+			return self.World.ActorMap.GetActorsAt(self.Location)
+				.All(a => a == self || (!a.IsDead && a.Info.Name == Info.SupplyCacheActor));
+		}
+
+		Order IIssueDeployOrder.IssueDeployOrder(Actor self, bool queued)
+		{
+			return new Order("UnloadCargoSupply", self, queued) { ExtraData = (uint)supplyCount };
+		}
+
+		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued)
+		{
+			return CanDropCache();
+		}
+
+		string IOrderVoice.VoicePhraseForOrder(Actor self, Order order)
+		{
+			if (order.OrderString == "UnloadCargoSupply")
+				return Info.DropCacheVoice;
+
+			return null;
 		}
 
 		sealed class DeliverSupplyOrderTargeter : UnitOrderTargeter
