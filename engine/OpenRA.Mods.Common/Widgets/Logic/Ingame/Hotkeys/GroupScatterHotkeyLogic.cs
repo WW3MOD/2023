@@ -156,10 +156,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					IsActorTarget = false
 				};
 
-			// Attack activity (force-attack on an actor or ground)
-			if (activity is Attack)
+			// AttackFrontal returns Attack; AttackFollow/AttackOmni return nested classes that don't inherit it.
+			if (activity is Attack || activity is AttackFollow.AttackActivity || activity is AttackOmni.SetTarget)
 			{
+				// Nested AttackFollow/AttackOmni activities only expose target via TargetLineNodes.
 				var targets = activity.GetTargets(actor);
+				if (!targets.Any())
+					targets = activity.TargetLineNodes(actor).Select(n => n.Target);
+
 				foreach (var t in targets)
 				{
 					if (t.Type == TargetType.Actor && t.Actor != null && !t.Actor.IsDead)

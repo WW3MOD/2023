@@ -223,7 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		class AttackActivity : Activity, IActivityNotifyStanceChanged
+		internal class AttackActivity : Activity, IActivityNotifyStanceChanged
 		{
 			readonly AttackFollow attack;
 			readonly Vision[] vision;
