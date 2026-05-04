@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -166,7 +167,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class GarrisonManager : INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
-		ITick, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
+		ITick, IIssueOrder, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
 	{
 		public readonly GarrisonManagerInfo Info;
 		readonly Actor self;
@@ -1172,6 +1173,53 @@ namespace OpenRA.Mods.Common.Traits
 
 		public IEnumerable<Actor> ShelterPassengers => shelterPassengers;
 		public int PortCount => PortStates.Length;
+
+		// True if any soldier is currently inside this garrison — either deployed at a
+		// port (in-world but logically "inside") or in shelter (Cargo passenger list).
+		// Used by the Unload UI gates so the player can evacuate at 1HP rubble even when
+		// every soldier happens to be deployed at a port (cargo.IsEmpty() == true).
+		public bool HasAnyOccupants
+		{
+			get
+			{
+				if (cargo != null && !cargo.IsEmpty())
+					return true;
+
+				for (var i = 0; i < PortStates.Length; i++)
+				{
+					var s = PortStates[i].DeployedSoldier;
+					if (s != null && !s.IsDead)
+						return true;
+				}
+
+				return false;
+			}
+		}
+
+		// Emit an Unload deploy targeter when soldiers exist only at ports (cargo empty).
+		// Cargo's own IIssueOrder still handles the "shelter has passengers" case; this
+		// fills the gap so Unload is reachable when every soldier is deployed in-world.
+		IEnumerable<IOrderTargeter> IIssueOrder.Orders
+		{
+			get
+			{
+				if (cargo == null || !cargo.IsEmpty())
+					yield break;
+
+				if (!HasAnyOccupants)
+					yield break;
+
+				yield return new DeployOrderTargeter("Unload", 10, () => "deploy");
+			}
+		}
+
+		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
+		{
+			if (order.OrderID == "Unload")
+				return new Order(order.OrderID, self, queued);
+
+			return null;
+		}
 
 		public WVec GetPortWorldOffset(int portIndex, BodyOrientation coords)
 		{

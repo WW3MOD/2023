@@ -38,16 +38,20 @@ namespace OpenRA.Mods.Common.Widgets
 			this.world = world;
 			panel = widget;
 
-			// Eject All button
+			// Eject All button — issue Unload when ANY occupants remain (port + shelter),
+			// not just when cargo (shelter) is non-empty. At 1HP rubble all soldiers can be
+			// deployed at ports → cargo.IsEmpty() is true but the player still needs to
+			// evacuate them. GarrisonManager.HasAnyOccupants covers both cases.
 			var ejectAllButton = panel.GetOrNull<ButtonWidget>("EJECT_ALL");
 			if (ejectAllButton != null)
 			{
 				ejectAllButton.OnClick = () =>
 				{
-					if (selectedGarrison != null && cargo != null && !cargo.IsEmpty())
+					if (selectedGarrison != null && garrisonManager != null && garrisonManager.HasAnyOccupants)
 						world.IssueOrder(new Order("Unload", selectedGarrison, false));
 				};
-				ejectAllButton.IsDisabled = () => selectedGarrison == null || cargo == null || cargo.IsEmpty();
+				ejectAllButton.IsDisabled = () =>
+					selectedGarrison == null || garrisonManager == null || !garrisonManager.HasAnyOccupants;
 			}
 
 			// Port info labels (PORT_LABEL_0 through PORT_LABEL_7)
