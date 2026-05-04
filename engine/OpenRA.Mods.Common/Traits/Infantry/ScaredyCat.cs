@@ -11,6 +11,8 @@
 
 using System;
 using System.Collections.Generic;
+using OpenRA.Activities;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -45,6 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Mobile mobile;
 		readonly Actor self;
 		readonly Func<CPos, bool> avoidTerrainFilter;
+		readonly List<(Target Target, string OrderString)> stashedOrders = new();
 
 		[Sync]
 		int panicStartedTick;
@@ -66,9 +69,56 @@ namespace OpenRA.Mods.Common.Traits
 		public void Panic()
 		{
 			if (!Panicking)
+			{
+				StashPendingTaskOrders();
 				self.CancelActivity();
+			}
 
 			panicStartedTick = self.World.WorldTick;
+		}
+
+		// Snapshot Enter-derived "go to X and act" intents so we can re-issue them after panic.
+		void StashPendingTaskOrders()
+		{
+			stashedOrders.Clear();
+			var activity = self.CurrentActivity;
+			while (activity != null)
+			{
+				var orderString = OrderStringFor(activity);
+				if (orderString != null)
+				{
+					foreach (var node in activity.TargetLineNodes(self))
+					{
+						if (node.Target.Type == TargetType.Actor && node.Target.Actor != null && !node.Target.Actor.IsDead)
+						{
+							stashedOrders.Add((node.Target, orderString));
+							break;
+						}
+					}
+				}
+
+				activity = activity.NextActivity;
+			}
+		}
+
+		static string OrderStringFor(Activity activity)
+		{
+			if (activity is CaptureActor) return "CaptureActor";
+			if (activity is Demolish) return "C4";
+			if (activity is RideTransport) return "EnterTransport";
+			if (activity is EnterAsCrew) return "EnterAsCrewMember";
+			return null;
+		}
+
+		void ResumeStashedOrders()
+		{
+			foreach (var (target, orderString) in stashedOrders)
+			{
+				if (target.Actor != null && !target.Actor.IsDead && target.Actor.IsInWorld)
+					self.World.IssueOrder(new Order(orderString, self, target, true));
+			}
+
+			stashedOrders.Clear();
 		}
 
 		void ITick.Tick(Actor self)
@@ -80,6 +130,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				self.CancelActivity();
 				panicStartedTick = 0;
+				ResumeStashedOrders();
 			}
 		}
 
