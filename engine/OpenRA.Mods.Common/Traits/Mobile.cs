@@ -732,6 +732,15 @@ namespace OpenRA.Mods.Common.Traits
 			return WrapMove(new MoveAdjacentTo(self, target, initialTargetPosition, targetLineColor));
 		}
 
+		public Activity MoveToTargetRaw(Actor self, in Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null)
+		{
+			if (target.Type == TargetType.Invalid)
+				return null;
+
+			return new MoveAdjacentTo(self, target, initialTargetPosition, targetLineColor);
+		}
+
 		public Activity MoveIntoTarget(Actor self, in Target target)
 		{
 			if (target.Type == TargetType.Invalid)
@@ -740,6 +749,14 @@ namespace OpenRA.Mods.Common.Traits
 			// Activity cancels if the target moves by more than half a cell
 			// to avoid problems with the cell grid
 			return WrapMove(new LocalMoveIntoTarget(self, target, new WDist(512)));
+		}
+
+		public Activity MoveIntoTargetRaw(Actor self, in Target target)
+		{
+			if (target.Type == TargetType.Invalid)
+				return null;
+
+			return new LocalMoveIntoTarget(self, target, new WDist(512));
 		}
 
 		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset, WAngle? facing, Color? targetLineColor = null)

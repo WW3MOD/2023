@@ -292,9 +292,22 @@ namespace OpenRA.Mods.Common.Traits
 			return new BallisticMissileFly(self, target, this);
 		}
 
+		public Activity MoveToTargetRaw(Actor self, in Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null)
+		{
+			// BallisticMissile does not implement IWrapMove; raw == regular.
+			return MoveToTarget(self, target, initialTargetPosition, targetLineColor);
+		}
+
 		public Activity MoveIntoTarget(Actor self, in Target target)
 		{
 			return new BallisticMissileFly(self, target, this);
+		}
+
+		public Activity MoveIntoTargetRaw(Actor self, in Target target)
+		{
+			// BallisticMissile does not implement IWrapMove; raw == regular.
+			return MoveIntoTarget(self, target);
 		}
 
 		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset,

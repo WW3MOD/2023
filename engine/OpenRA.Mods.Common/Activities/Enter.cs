@@ -114,7 +114,7 @@ namespace OpenRA.Mods.Common.Activities
 						// Target lines are managed by this trait, so we do not pass targetLineColor
 						moveCooldownHelper.NotifyMoveQueued();
 						var initialTargetPosition = (useLastVisibleTarget ? lastVisibleTarget : target).CenterPosition;
-						QueueChild(move.MoveToTarget(self, target, initialTargetPosition));
+						QueueChild(move.MoveToTargetRaw(self, target, initialTargetPosition));
 						return false;
 					}
 
@@ -128,7 +128,7 @@ namespace OpenRA.Mods.Common.Activities
 					{
 						moveCooldownHelper.NotifyMoveQueued();
 						lastState = EnterState.Entering;
-						QueueChild(move.MoveIntoTarget(self, target));
+						QueueChild(move.MoveIntoTargetRaw(self, target));
 						return false;
 					}
 

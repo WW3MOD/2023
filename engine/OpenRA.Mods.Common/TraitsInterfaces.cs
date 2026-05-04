@@ -603,6 +603,21 @@ namespace OpenRA.Mods.Common.Traits
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity ReturnToCell(Actor self);
 		Activity MoveIntoTarget(Actor self, in Target target);
+
+		/// <summary>
+		/// Like <see cref="MoveToTarget"/> but bypasses any <see cref="IWrapMove"/> wrappers
+		/// (e.g. SmartMove). Use when the caller — Enter and its subclasses — needs the
+		/// unit to focus on reaching the target without being interrupted by SmartMove's
+		/// fire-while-moving behavior.
+		/// </summary>
+		Activity MoveToTargetRaw(Actor self, in Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+
+		/// <summary>
+		/// Like <see cref="MoveIntoTarget"/> but bypasses any <see cref="IWrapMove"/> wrappers.
+		/// </summary>
+		Activity MoveIntoTargetRaw(Actor self, in Target target);
+
 		Activity MoveOntoTarget(Actor self, in Target target, in WVec offset,
 			WAngle? facing, Color? targetLineColor = null);
 		Activity LocalMove(Actor self, WPos fromPos, WPos toPos);

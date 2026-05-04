@@ -1090,9 +1090,22 @@ namespace OpenRA.Mods.Common.Traits
 			return new Fly(self, target, initialTargetPosition, targetLineColor);
 		}
 
+		public Activity MoveToTargetRaw(Actor self, in Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null)
+		{
+			// Aircraft does not implement IWrapMove; raw == regular.
+			return MoveToTarget(self, target, initialTargetPosition, targetLineColor);
+		}
+
 		public Activity MoveIntoTarget(Actor self, in Target target)
 		{
 			return new Land(self, target);
+		}
+
+		public Activity MoveIntoTargetRaw(Actor self, in Target target)
+		{
+			// Aircraft does not implement IWrapMove; raw == regular.
+			return MoveIntoTarget(self, target);
 		}
 
 		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset, WAngle? facing, Color? targetLineColor = null)

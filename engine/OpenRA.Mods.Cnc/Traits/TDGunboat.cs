@@ -212,10 +212,14 @@ namespace OpenRA.Mods.Cnc.Traits
 		public Activity MoveToTarget(Actor self, in Target target,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
 		{ return null; }
+		public Activity MoveToTargetRaw(Actor self, in Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null)
+		{ return null; }
 		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset,
 			WAngle? facing, Color? targetLineColor = null)
 		{ return null; }
 		public Activity MoveIntoTarget(Actor self, in Target target) { return null; }
+		public Activity MoveIntoTargetRaw(Actor self, in Target target) { return null; }
 		public Activity LocalMove(Actor self, WPos fromPos, WPos toPos) { return null; }
 
 		public int EstimatedMoveDuration(Actor self, WPos fromPos, WPos toPos)
