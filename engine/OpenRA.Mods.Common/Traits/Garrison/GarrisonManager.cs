@@ -62,7 +62,22 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string GarrisonedCondition = "garrisoned-at-port";
 
 		[Desc("Ticks a deployed soldier must be idle (no valid target) before being recalled to shelter. 0 disables.")]
-		public readonly int IdleRecallTicks = 125;
+		public readonly int IdleRecallTicks = 250;
+
+		[Desc("Minimum ticks a soldier must remain at a port after deploying, regardless of target loss. " +
+			"Prevents instant-recall flapping when targets churn briefly.")]
+		public readonly int MinDeployTicks = 75;
+
+		[Desc("After a recall, ticks before the same port can redeploy. Per-port cooldown.")]
+		public readonly int RedeployBlackoutTicks = 30;
+
+		[Desc("A new target must be visible from an empty port for this many ticks before deployment fires. " +
+			"Prevents flicker-targets from triggering deploys.")]
+		public readonly int TargetConfirmTicks = 10;
+
+		[Desc("After a deployed port loses its current target's arc/LOS, ticks the port stays committed " +
+			"to that target before clearing and rescanning. Smooths over brief LOS gaps.")]
+		public readonly int StickyTargetTicks = 50;
 
 		[Desc("If true, building cannot be destroyed — HP is clamped to 1 minimum. " +
 			"At 1 HP the building shows its damaged sprite and provides minimal cover.")]
@@ -129,10 +144,24 @@ namespace OpenRA.Mods.Common.Traits
 		// True if soldier is currently "ducking" due to medium suppression (still deployed but fire-impaired)
 		public bool IsDucking;
 
+		// Tick when this port's current soldier deployed; used to gate recall via MinDeployTicks.
+		public int DeployedAtTick;
+
+		// Ticks remaining before this port can redeploy after a recall.
+		public int RedeployBlackoutRemaining;
+
+		// Empty port has seen this target — needs to be confirmed across TargetConfirmTicks before deploying.
+		public Target PendingDeployTarget;
+		public int PendingDeployTicks;
+
+		// Deployed port has lost its current target's arc/LOS but is staying committed for this long.
+		public int StickyTargetRemaining;
+
 		public PortState(GarrisonPortInfo port)
 		{
 			Port = port;
 			CurrentTarget = Target.Invalid;
+			PendingDeployTarget = Target.Invalid;
 		}
 	}
 
@@ -321,6 +350,10 @@ namespace OpenRA.Mods.Common.Traits
 			PortStates[portIndex].TargetLockTicks = 0;
 			PortStates[portIndex].PlayerOverride = false;
 			PortStates[portIndex].IdleTicks = 0;
+			PortStates[portIndex].DeployedAtTick = (int)self.World.WorldTick;
+			PortStates[portIndex].StickyTargetRemaining = 0;
+			PortStates[portIndex].PendingDeployTarget = Target.Invalid;
+			PortStates[portIndex].PendingDeployTicks = 0;
 		}
 
 		// Recall a deployed soldier from port to shelter (port → shelter)
@@ -329,6 +362,11 @@ namespace OpenRA.Mods.Common.Traits
 			var soldier = PortStates[portIndex].DeployedSoldier;
 			if (soldier == null || soldier.IsDead)
 				return;
+
+			PortStates[portIndex].RedeployBlackoutRemaining = Info.RedeployBlackoutTicks;
+			PortStates[portIndex].StickyTargetRemaining = 0;
+			PortStates[portIndex].PendingDeployTarget = Target.Invalid;
+			PortStates[portIndex].PendingDeployTicks = 0;
 
 			// Clear port assignment
 			var soldierRef = soldier;
@@ -474,6 +512,21 @@ namespace OpenRA.Mods.Common.Traits
 			return "General";
 		}
 
+		// Check if two Targets refer to the same actor (ignoring transient Target.Position state).
+		// Used by the deploy-confirm window to detect "same target seen N ticks in a row".
+		static bool TargetsMatch(in Target a, in Target b)
+		{
+			if (a.Type != b.Type)
+				return false;
+
+			if (a.Type == TargetType.Actor)
+				return a.Actor == b.Actor;
+
+			// For non-actor targets (terrain, frozen actors), be conservative: don't match.
+			// Empty-port deploy only cares about actor targets in practice.
+			return false;
+		}
+
 		void ITick.Tick(Actor self)
 		{
 			tickOffset++;
@@ -488,6 +541,10 @@ namespace OpenRA.Mods.Common.Traits
 					PortStates[i].SwapCooldownRemaining--;
 				if (PortStates[i].SuppressionLockoutRemaining > 0)
 					PortStates[i].SuppressionLockoutRemaining--;
+				if (PortStates[i].RedeployBlackoutRemaining > 0)
+					PortStates[i].RedeployBlackoutRemaining--;
+				if (PortStates[i].StickyTargetRemaining > 0)
+					PortStates[i].StickyTargetRemaining--;
 			}
 
 			// Per-port management: deploy/recall/target
@@ -567,7 +624,9 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// No valid target — increment idle timer and recall if threshold reached
 						ps.IdleTicks += Info.TargetScanInterval;
-						if (Info.IdleRecallTicks > 0 && ps.IdleTicks >= Info.IdleRecallTicks)
+						var deployedFor = (int)self.World.WorldTick - ps.DeployedAtTick;
+						if (Info.IdleRecallTicks > 0 && ps.IdleTicks >= Info.IdleRecallTicks
+							&& deployedFor >= Info.MinDeployTicks)
 						{
 							RecallToShelter(i);
 							continue;
@@ -599,8 +658,8 @@ namespace OpenRA.Mods.Common.Traits
 				}
 				else
 				{
-					// Port is empty — skip if locked out by suppression
-					if (ps.SuppressionLockoutRemaining > 0)
+					// Port is empty — skip if locked out by suppression OR redeploy-blackout
+					if (ps.SuppressionLockoutRemaining > 0 || ps.RedeployBlackoutRemaining > 0)
 						continue;
 
 					// Respect fire discipline stance before auto-deploying
@@ -614,13 +673,37 @@ namespace OpenRA.Mods.Common.Traits
 					var target = ScanForTarget(i);
 					if (target.IsValidFor(self))
 					{
-						var soldier = FindBestShelterSoldier(i, target);
-						if (soldier != null)
+						// Confirm the target across TargetConfirmTicks before deploying.
+						// Stops a target that's only briefly visible (LOS flicker) from triggering deploys.
+						if (TargetsMatch(ps.PendingDeployTarget, target))
 						{
-							DeployToPort(i, soldier);
-							ps.CurrentTarget = target;
-							ps.TargetLockTicks = Info.TargetScanInterval * 2;
+							ps.PendingDeployTicks += Info.TargetScanInterval;
 						}
+						else
+						{
+							ps.PendingDeployTarget = target;
+							ps.PendingDeployTicks = Info.TargetScanInterval;
+						}
+
+						if (ps.PendingDeployTicks >= Info.TargetConfirmTicks)
+						{
+							var soldier = FindBestShelterSoldier(i, target);
+							if (soldier != null)
+							{
+								DeployToPort(i, soldier);
+								ps.CurrentTarget = target;
+								ps.TargetLockTicks = Info.TargetScanInterval * 2;
+							}
+
+							ps.PendingDeployTarget = Target.Invalid;
+							ps.PendingDeployTicks = 0;
+						}
+					}
+					else
+					{
+						// No target — clear pending deploy state
+						ps.PendingDeployTarget = Target.Invalid;
+						ps.PendingDeployTicks = 0;
 					}
 				}
 			}
@@ -690,6 +773,7 @@ namespace OpenRA.Mods.Common.Traits
 					ps.CurrentTarget = forceTarget;
 					ps.TargetLockTicks = Info.TargetScanInterval;
 					ps.PlayerOverride = true;
+					ps.StickyTargetRemaining = 0;
 					return;
 				}
 			}
@@ -698,9 +782,31 @@ namespace OpenRA.Mods.Common.Traits
 			if (ps.TargetLockTicks > 0 && ps.CurrentTarget.IsValidFor(self))
 				return;
 
+			// Sticky-target: when the existing CurrentTarget is alive but currently outside
+			// the port's arc, stay committed for StickyTargetTicks before rescanning. This
+			// stops port↔shelter flapping when a target briefly steps out of view.
+			if (ps.CurrentTarget.IsValidFor(self) && !IsTargetInPortArc(portIndex, ps.CurrentTarget))
+			{
+				if (ps.StickyTargetRemaining <= 0)
+					ps.StickyTargetRemaining = Info.StickyTargetTicks;
+
+				// Sticky timer drains in the per-port decrement loop in Tick.
+				// While > 0, keep CurrentTarget — don't rescan.
+				if (ps.StickyTargetRemaining > 0)
+				{
+					ps.TargetLockTicks = Info.TargetScanInterval;
+					return;
+				}
+			}
+
+			// Target re-entered arc: reset sticky timer
+			if (ps.CurrentTarget.IsValidFor(self) && IsTargetInPortArc(portIndex, ps.CurrentTarget))
+				ps.StickyTargetRemaining = Info.StickyTargetTicks;
+
 			// Scan for best target
 			ps.CurrentTarget = ScanForTarget(portIndex);
 			ps.TargetLockTicks = Info.TargetScanInterval;
+			ps.StickyTargetRemaining = ps.CurrentTarget.IsValidFor(self) ? Info.StickyTargetTicks : 0;
 		}
 
 		// Scan for best target visible from a port. Uses deployed soldier's armaments if present,
