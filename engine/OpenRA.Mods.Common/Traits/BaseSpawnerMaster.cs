@@ -205,6 +205,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
+			// During world disposal the actor graph is being torn down in
+			// non-deterministic order; firing slave.Kill here cascades into
+			// INotifyKilled handlers (e.g. UpdatesPlayerStatistics) that query
+			// other actors' traits and can throw on already-disposed PlayerActors.
+			// The world is going away, so slaves don't need explicit cleanup.
+			if (self.World.Disposing)
+				return;
+
 			foreach (var slaveEntry in SlaveEntries)
 			{
 				if (slaveEntry.IsValid)
