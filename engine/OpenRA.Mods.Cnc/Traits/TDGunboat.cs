@@ -214,12 +214,19 @@ namespace OpenRA.Mods.Cnc.Traits
 		{ return null; }
 		public Activity MoveToTargetRaw(Actor self, in Target target,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null)
-		{ return null; }
+		{
+			// TDGunboat does not implement IWrapMove; raw == regular.
+			return MoveToTarget(self, target, initialTargetPosition, targetLineColor);
+		}
 		public Activity MoveOntoTarget(Actor self, in Target target, in WVec offset,
 			WAngle? facing, Color? targetLineColor = null)
 		{ return null; }
 		public Activity MoveIntoTarget(Actor self, in Target target) { return null; }
-		public Activity MoveIntoTargetRaw(Actor self, in Target target) { return null; }
+		public Activity MoveIntoTargetRaw(Actor self, in Target target)
+		{
+			// TDGunboat does not implement IWrapMove; raw == regular.
+			return MoveIntoTarget(self, target);
+		}
 		public Activity LocalMove(Actor self, WPos fromPos, WPos toPos) { return null; }
 
 		public int EstimatedMoveDuration(Actor self, WPos fromPos, WPos toPos)

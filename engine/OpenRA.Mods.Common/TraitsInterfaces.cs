@@ -599,9 +599,20 @@ namespace OpenRA.Mods.Common.Traits
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity MoveFollow(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+		/// <summary>
+		/// Move adjacent to a target actor. May be wrapped by <see cref="IWrapMove"/> traits
+		/// (e.g. SmartMove pauses the unit to fire at intervening enemies). For movement that
+		/// must complete uninterrupted — e.g. entering a transport, capturing, demolishing —
+		/// use <see cref="MoveToTargetRaw"/> instead.
+		/// </summary>
 		Activity MoveToTarget(Actor self, in Target target,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity ReturnToCell(Actor self);
+
+		/// <summary>
+		/// Move into the target actor's cell. May be wrapped by <see cref="IWrapMove"/> traits.
+		/// For uninterrupted movement, use <see cref="MoveIntoTargetRaw"/>.
+		/// </summary>
 		Activity MoveIntoTarget(Actor self, in Target target);
 
 		/// <summary>
