@@ -3,14 +3,14 @@
 > What's actively in motion right now. The v1 release tracker (`RELEASE_V1.md`) is the source of truth for scope and status.
 
 ## Working on
-- **Garrison overhaul playtest** (260503_1241) — checklist in `CLAUDE/playtests/260503_1241_garrison.md`, awaiting findings
+- **Garrison stabilization Round 1 (260504)** — items 3, 4, 5A, 5B, 6 shipped; awaiting playtest verification. Spec: `CLAUDE/plans/260504_garrison_stabilization_design.md`. Plan: `CLAUDE/plans/260504_garrison_stabilization_plan.md`
 
 ## Recent Wins (last 5)
+- **Garrison stabilization Round 1** — Stop order, raw IMove, pre-entry pause, skip-ahead, hysteresis+sticky-targets (5 commits)
 - **Garrison overhaul Phases 1–6** — indestructible buildings, dynamic ownership, directional targeting, suppression integration, visuals
 - **Cargo system Phases 2A–E** — CargoSupply, TRUK→pure transport, cargo panel, mark+unload
 - **Helicopter crash + crew overhaul** — VehicleCrew on all helis, two-tier emergency landing, capture-by-pilot
 - **Stance rework Phases 1–4** — modifiers, tooltips, resupply, cohesion, patrol
-- **AI overhaul Tiers 0–3.1** — 5 new C# bot modules, multi-axis attacks
 
 ## Quick Stats
 - Engine files modified: 280+
