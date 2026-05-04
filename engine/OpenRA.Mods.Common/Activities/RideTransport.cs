@@ -29,6 +29,23 @@ namespace OpenRA.Mods.Common.Activities
 			passenger = self.Trait<Passenger>();
 		}
 
+		protected override void TickInner(Actor self, in Target target, bool targetIsDeadOrHiddenActor)
+		{
+			// Skip-ahead: if the target building is already full while we're approaching,
+			// cancel this Enter so the next queued Enter (next building in chain) can take
+			// over. Soldiers shift-queued across multiple buildings then redistribute
+			// themselves across capacity automatically.
+			//
+			// Cargo.HasSpace already accounts for reservedWeight so racing soldiers don't
+			// double-count an empty slot.
+			if (targetIsDeadOrHiddenActor || target.Type != TargetType.Actor)
+				return;
+
+			var cargo = target.Actor.TraitOrDefault<Cargo>();
+			if (cargo != null && !cargo.HasSpace(passenger.Info.Weight))
+				Cancel(self, true);
+		}
+
 		protected override bool TryStartEnter(Actor self, Actor targetActor)
 		{
 			enterActor = targetActor;
