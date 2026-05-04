@@ -97,20 +97,23 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (garrisonManager == null)
 				return 0;
 
-			var count = 0;
-			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
-				if (garrisonManager.PortStates[i].DeployedSoldier != null && !garrisonManager.PortStates[i].DeployedSoldier.IsDead)
-					count++;
-			count += garrisonManager.ShelterPassengers.Count(s => s != null && !s.IsDead);
-			return count;
+			// AllSoldiers() already deduplicates port and shelter sets; counting from it
+			// matches the rendered pip count exactly.
+			return AllSoldiers().Count();
 		}
 
 		IEnumerable<Actor> AllSoldiers()
 		{
+			// Defensive: a soldier should be in exactly one of {PortStates[*].DeployedSoldier,
+			// ShelterPassengers} at any time. If state ever drifts (e.g. a path adds the same
+			// actor to both lists during a recall/deploy frame), we still render each soldier
+			// exactly once instead of producing duplicate pips. Port placement wins.
+			var rendered = new HashSet<Actor>();
+
 			for (var i = 0; i < garrisonManager.PortStates.Length; i++)
 			{
 				var soldier = garrisonManager.PortStates[i].DeployedSoldier;
-				if (soldier != null && !soldier.IsDead)
+				if (soldier != null && !soldier.IsDead && rendered.Add(soldier))
 					yield return soldier;
 			}
 
@@ -119,7 +122,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 			foreach (var soldier in garrisonManager.ShelterPassengers
 				.Where(s => s != null && !s.IsDead)
 				.OrderBy(s => s.ActorID))
-				yield return soldier;
+			{
+				if (rendered.Add(soldier))
+					yield return soldier;
+			}
 		}
 
 		string GetClassSequence(Actor soldier)

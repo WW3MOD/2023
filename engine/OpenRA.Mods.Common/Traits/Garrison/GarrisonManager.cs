@@ -222,6 +222,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (suppressNotifications)
 				return;
 
+			// Invariant: a soldier is in exactly one of {PortStates[*].DeployedSoldier,
+			// shelterPassengers}. If they're already deployed at a port, ignore the
+			// notification — never let the same actor end up in both lists (would render
+			// twice in WithGarrisonDecoration). Likewise if already in shelter, don't
+			// double-add: List<>.Add allows duplicates and would produce ghost pips.
+			for (var i = 0; i < PortStates.Length; i++)
+			{
+				if (PortStates[i].DeployedSoldier == passenger)
+					return;
+			}
+
+			if (shelterPassengers.Contains(passenger))
+				return;
+
 			// New passenger enters → goes to shelter
 			shelterPassengers.Add(passenger);
 
