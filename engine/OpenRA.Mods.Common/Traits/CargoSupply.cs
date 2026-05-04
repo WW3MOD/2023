@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -60,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CargoSupply(init, this); }
 	}
 
-	public class CargoSupply : ITick, INotifyCreated, ISelectionBar, ITransformActorInitModifier, IResolveOrder
+	public class CargoSupply : ITick, INotifyCreated, INotifyBecomingIdle, ISelectionBar, ITransformActorInitModifier, IResolveOrder
 	{
 		public readonly CargoSupplyInfo Info;
 		readonly Actor self;
@@ -385,6 +386,9 @@ namespace OpenRA.Mods.Common.Traits
 						UpdateSupplyCondition();
 					}
 
+					if (supplyCount <= 0)
+						AutoRefillIfEmpty(self);
+
 					if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
 					{
 						var soundPos = currentTarget.IsInWorld ? currentTarget.CenterPosition : self.CenterPosition;
@@ -524,6 +528,65 @@ namespace OpenRA.Mods.Common.Traits
 					new SupplyInit(supplyProviderInfo, supplyAmount),
 				});
 			});
+		}
+
+		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
+		{
+			AutoRefillIfEmpty(self);
+		}
+
+		/// <summary>
+		/// When the supply pool is empty, dispatch the configured ResupplyBehavior:
+		/// Hold = no-op, Auto = drive to nearest friendly Logistics Center with supply
+		/// (falling through to Evacuate if none available), Evacuate = RotateToEdge.
+		/// </summary>
+		public void AutoRefillIfEmpty(Actor self)
+		{
+			if (supplyCount > 0 || effectiveSupply > 0)
+				return;
+
+			var autoTarget = self.TraitOrDefault<AutoTarget>();
+			var behavior = autoTarget?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
+
+			switch (behavior)
+			{
+				case ResupplyBehavior.Hold:
+					// Sit. No-op.
+					return;
+
+				case ResupplyBehavior.Auto:
+					if (TryQueueMoveToLogisticsCenter(self))
+						return;
+					// No LC available — fall through to Evacuate.
+					goto case ResupplyBehavior.Evacuate;
+
+				case ResupplyBehavior.Evacuate:
+					var amount = self.GetSellValue();
+					self.QueueActivity(false, new RotateToEdge(self, true, amount));
+					self.ShowTargetLines();
+					return;
+			}
+		}
+
+		bool TryQueueMoveToLogisticsCenter(Actor self)
+		{
+			var move = self.TraitOrDefault<IMove>();
+			if (move == null)
+				return false;
+
+			var targetLC = self.World.ActorsHavingTrait<SupplyProvider>()
+				.Where(a => !a.IsDead && a.IsInWorld
+					&& Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner))
+					&& a.Trait<SupplyProvider>().CurrentSupply > 0)
+				.ClosestToIgnoringPath(self);
+
+			if (targetLC == null)
+				return false;
+
+			var targetCell = self.World.Map.CellContaining(targetLC.CenterPosition);
+			self.QueueActivity(false, move.MoveTo(targetCell, 3));
+			self.ShowTargetLines();
+			return true;
 		}
 	}
 
