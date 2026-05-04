@@ -282,6 +282,9 @@ namespace OpenRA.Mods.Common.Traits
 		(CPos, SubCell)[] landingCells = Array.Empty<(CPos, SubCell)>();
 		public bool RequireForceMove;
 
+		// Set by RotateToEdge during evacuation so off-map repulsion doesn't fight the exit flight.
+		public bool EvacuatingOffMap;
+
 		readonly int creationActivityDelay;
 		readonly bool creationByMap;
 		readonly CPos[] creationRallyPoint;
@@ -655,8 +658,9 @@ namespace OpenRA.Mods.Common.Traits
 				repulsionForce += GetRepulsionForce(actor);
 			}
 
-			// Actors outside the map bounds receive an extra nudge towards the center of the map
-			if (!self.World.Map.Contains(self.Location))
+			// Actors outside the map bounds receive an extra nudge towards the center of the map.
+			// Skipped during evacuation so the helicopter can fly clear off-map for missiles to follow.
+			if (!self.World.Map.Contains(self.Location) && !EvacuatingOffMap)
 			{
 				// The map bounds are in projected coordinates, which is technically wrong for this,
 				// but we avoid the issues in practice by guessing the middle of the map instead of the edge

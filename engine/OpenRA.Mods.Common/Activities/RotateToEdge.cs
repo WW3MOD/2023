@@ -30,9 +30,13 @@ namespace OpenRA.Mods.Common.Activities
 		readonly int? fixedRefund;
 		readonly bool isAircraft;
 		CPos? edgeCell;
+		WPos? aircraftDespawnPos;
 		bool movingToEdge;
 		int edgeRetries;
 		int evacuatingToken = Actor.InvalidConditionToken;
+
+		// Anti-cheese: helicopter must clear this many cells past the boundary before despawn so in-flight missiles can land.
+		const int AircraftOffMapCells = 5;
 
 		/// <summary>
 		/// Constructor for Sellable trait (existing behavior).
@@ -48,9 +52,7 @@ namespace OpenRA.Mods.Common.Activities
 			refundPercent = sellableInfo?.RefundPercent ?? 100;
 			fixedRefund = null;
 
-			// Tick must run every frame so the aircraft early-sell check intercepts the
-			// helicopter mid-flight, before Aircraft.Repulse pushes off-map units back
-			// toward the map center and stalls them at the edge indefinitely.
+			// Tick every frame so the aircraft off-map despawn check fires while Fly is still running.
 			ChildHasPriority = false;
 		}
 
@@ -115,6 +117,12 @@ namespace OpenRA.Mods.Common.Activities
 					edgeCell = candidates.OrderBy(c => (self.Location - c).LengthSquared).First();
 				else
 					edgeCell = self.World.Map.ChooseClosestEdgeCell(searchOrigin);
+
+				// Push the destination past the boundary; EvacuatingOffMap stops repulsion from snapping us back.
+				aircraftDespawnPos = ComputePastEdgePos(self, edgeCell.Value, AircraftOffMapCells);
+				var aircraft = self.TraitOrDefault<Aircraft>();
+				if (aircraft != null)
+					aircraft.EvacuatingOffMap = true;
 			}
 			else if (mobileInfo != null)
 			{
@@ -152,13 +160,8 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			// Aircraft early-sell: as soon as the helicopter enters the edge zone, dispose of it.
-			// This must run every frame (hence ChildHasPriority=false) so we intercept BEFORE
-			// the helicopter actually crosses the map boundary. If we let it cross, Aircraft.Repulse
-			// shoves it back toward map center, fighting any forward-flight activity and leaving the
-			// helicopter oscillating on the edge forever.
-			if (isAircraft && movingToEdge
-				&& (!self.World.Map.Contains(self.Location) || IsOnMapEdge(self)))
+			// Despawn only once genuinely past the boundary so missiles aren't whooshed at empty air.
+			if (isAircraft && movingToEdge && IsClearOfMapEdge(self, AircraftOffMapCells))
 			{
 				DoSell(self);
 				return true;
@@ -178,10 +181,10 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (isAircraft)
 				{
-					// Just Fly to the edge cell — no FlyForward/FlyOffMap. The early-sell check
-					// above will dispose of the helicopter as soon as it enters the edge zone, so
-					// Fly never has to fully complete its decel/snap sequence.
-					QueueChild(new Fly(self, Target.FromCell(self.World, edgeCell.Value)));
+					var target = aircraftDespawnPos.HasValue
+						? Target.FromPos(aircraftDespawnPos.Value)
+						: Target.FromCell(self.World, edgeCell.Value);
+					QueueChild(new Fly(self, target));
 				}
 				else
 				{
@@ -214,11 +217,6 @@ namespace OpenRA.Mods.Common.Activities
 			return false;
 		}
 
-		static bool IsOnMapEdge(Actor self)
-		{
-			return IsNearMapEdge(self, 2);
-		}
-
 		static bool IsNearMapEdge(Actor self, int margin)
 		{
 			var map = self.World.Map;
@@ -227,10 +225,40 @@ namespace OpenRA.Mods.Common.Activities
 				|| mpos.V <= map.Bounds.Top + margin - 1 || mpos.V >= map.Bounds.Bottom - margin;
 		}
 
+		// True when the actor is at least `cellsPast` cells outside the map boundary on any side.
+		static bool IsClearOfMapEdge(Actor self, int cellsPast)
+		{
+			var map = self.World.Map;
+			var mpos = self.Location.ToMPos(map);
+			return mpos.U + cellsPast <= map.Bounds.Left || mpos.U >= map.Bounds.Right + cellsPast
+				|| mpos.V + cellsPast <= map.Bounds.Top || mpos.V >= map.Bounds.Bottom + cellsPast;
+		}
+
+		// World position that's `cellsPast` cells past the edge cell, in the direction the actor is heading.
+		static WPos ComputePastEdgePos(Actor self, CPos edgeCell, int cellsPast)
+		{
+			var edgePos = self.World.Map.CenterOfCell(edgeCell);
+			var diff = edgePos - self.CenterPosition;
+			var dist = diff.HorizontalLength;
+			if (dist <= 0)
+				return edgePos;
+
+			var extLen = cellsPast * 1024;
+			var ext = new WVec((int)((long)diff.X * extLen / dist), (int)((long)diff.Y * extLen / dist), 0);
+			return edgePos + ext;
+		}
+
 		void RevokeEvacuating(Actor self)
 		{
 			if (evacuatingToken != Actor.InvalidConditionToken)
 				evacuatingToken = self.RevokeCondition(evacuatingToken);
+
+			if (isAircraft)
+			{
+				var aircraft = self.TraitOrDefault<Aircraft>();
+				if (aircraft != null)
+					aircraft.EvacuatingOffMap = false;
+			}
 		}
 
 		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
