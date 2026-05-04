@@ -213,6 +213,9 @@ namespace OpenRA.Mods.Common.Traits
 			autoTarget = self.TraitOrDefault<AutoTarget>();
 			cachedBodyOrientation = self.Trait<BodyOrientation>();
 
+			// Stagger so two garrison buildings created on the same tick don't scan in lockstep.
+			tickOffset = self.World.SharedRandom.Next(0, Info.TargetScanInterval);
+
 			if (Info.DynamicOwnership)
 				neutralPlayer = self.World.Players.FirstOrDefault(p => p.InternalName == "Neutral");
 		}

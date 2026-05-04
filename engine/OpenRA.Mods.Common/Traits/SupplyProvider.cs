@@ -97,6 +97,9 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			base.Created(self);
+
+			// Stagger so multiple Logistics Centers / supply providers don't all scan on the same tick.
+			scanTicks = self.World.SharedRandom.Next(0, Info.ScanInterval);
 			UpdateSupplyConditions();
 		}
 

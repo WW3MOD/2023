@@ -203,7 +203,10 @@ namespace OpenRA.Mods.Common.Traits
 			var count = 0; // move
 			var worldTick = self.World.WorldTick;
 
-			if (Info.ReduceTicks > 0 && worldTick % Info.ReduceTicks == 0)
+			// Stagger decay ticks across actors via ActorID — without this, every actor with
+			// timed/permanent conditions runs this loop on the same world ticks, producing a
+			// periodic spike that synchronises across the whole map.
+			if (Info.ReduceTicks > 0 && worldTick % Info.ReduceTicks == (int)(self.ActorID % (uint)Info.ReduceTicks))
 			{
 				// Reduce the permanent tokens
 				foreach (var kvp in permanentTokens)

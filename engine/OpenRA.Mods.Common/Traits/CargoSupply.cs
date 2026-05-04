@@ -119,6 +119,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCreated.Created(Actor self)
 		{
+			// Stagger so multiple supply trucks don't all scan on the same tick.
+			scanTicks = self.World.SharedRandom.Next(0, Info.ScanInterval);
 			UpdateSupplyCondition();
 		}
 

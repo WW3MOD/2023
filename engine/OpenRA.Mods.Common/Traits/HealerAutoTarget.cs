@@ -51,6 +51,9 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			attackBases = self.TraitsImplementing<AttackBase>().ToArray();
+
+			// Stagger so multiple medics don't all rescan on the same tick.
+			scanTick = self.World.SharedRandom.Next(0, info.ScanInterval);
 		}
 
 		void EnsureClaimLayer(Actor self)

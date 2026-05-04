@@ -127,6 +127,9 @@ namespace OpenRA.Mods.Common.Traits
 			radarPings = self.World.WorldActor.TraitOrDefault<MiniMapPings>();
 			proximityTrigger = self.World.ActorMap.AddProximityTrigger(
 				self.CenterPosition, info.Range, WDist.Zero, ActorEntered, ActorLeft);
+
+			// Stagger so multiple Supply Routes don't recompute force values on the same tick.
+			scanTick = self.World.SharedRandom.Next(0, info.ScanInterval);
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
