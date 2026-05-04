@@ -275,7 +275,14 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				paxFacing[ps.DeployedSoldier].Facing = targetYaw;
-				paxPos[ps.DeployedSoldier].SetCenterPosition(ps.DeployedSoldier, pos + portOffset);
+
+				// Z must match GarrisonManager.Tick's per-tick position update (clamped to terrainZ).
+				// Without this, soldier blinks between portOffset.Z (when firing) and terrainZ (when not)
+				// each time the target dips in/out of arc.
+				var terrainZ = self.World.Map.CenterOfCell(self.Location).Z;
+				var portWorldPos = pos + portOffset;
+				portWorldPos = new WPos(portWorldPos.X, portWorldPos.Y, terrainZ);
+				paxPos[ps.DeployedSoldier].SetCenterPosition(ps.DeployedSoldier, portWorldPos);
 
 				// Fire each of the occupant's armaments
 				foreach (var a in ps.DeployedSoldier.TraitsImplementing<Armament>())
