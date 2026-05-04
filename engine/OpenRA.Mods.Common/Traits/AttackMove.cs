@@ -167,7 +167,9 @@ namespace OpenRA.Mods.Common.Traits
 			var modifiers = mi.Modifiers;
 			if (mi.Button == Game.Settings.Game.AttackMoveButton && modifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) && !modifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
 			{
-				world.CancelInputMode();
+				// Keep this generator active while Alt is held so the attack-move cursor
+				// stays visible and subsequent clicks (with or without Shift) continue to
+				// issue attack-move orders. CommandBarLogic cancels the mode on Alt KeyUp.
 
 				var queued = modifiers.HasModifier(Modifiers.Shift);
 				var orderName = "AttackMove"; // WW3MOD: AssaultMove disabled
