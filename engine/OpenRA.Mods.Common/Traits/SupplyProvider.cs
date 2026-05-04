@@ -207,24 +207,49 @@ namespace OpenRA.Mods.Common.Traits
 				if (!IsValidTarget(a))
 					continue;
 
-				// Check if we can afford any of this target's non-full ammo pools
-				var rearmable = a.Trait<Rearmable>();
-				if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+				// Ammo target path
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
 				{
-					hasUnaffordableTargets = true;
+					// Check if we can afford any of this target's non-full ammo pools
+					if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+					{
+						hasUnaffordableTargets = true;
+						continue;
+					}
+
+					var need = CalculateNeed(a);
+
+					// Skip units that are nearly full (e.g., 499/500 ammo)
+					if (need < Info.MinNeedThreshold)
+						continue;
+
+					if (need > bestNeed)
+					{
+						bestNeed = need;
+						best = a;
+					}
+
 					continue;
 				}
 
-				var need = CalculateNeed(a);
-
-				// Skip units that are nearly full (e.g., 499/500 ammo)
-				if (need < Info.MinNeedThreshold)
-					continue;
-
-				if (need > bestNeed)
+				// CargoSupply target path (supply truck refilling at LC)
+				var cargoSupply = a.TraitOrDefault<CargoSupply>();
+				if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
 				{
-					bestNeed = need;
-					best = a;
+					// Need = fraction of capacity missing.
+					var capacity = cargoSupply.Info.MaxSupply;
+					var missing = capacity - cargoSupply.SupplyCount;
+					var need = (float)missing / capacity;
+
+					if (need < Info.MinNeedThreshold)
+						continue;
+
+					if (need > bestNeed)
+					{
+						bestNeed = need;
+						best = a;
+					}
 				}
 			}
 
@@ -262,28 +287,32 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner)))
 				return false;
 
-			var rearmable = a.TraitOrDefault<Rearmable>();
-			if (rearmable == null)
-				return false;
-
-			if (rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
-				return false;
-
-			// Must have ExternalCondition for the rearm condition
-			if (!string.IsNullOrEmpty(Info.RearmCondition))
-			{
-				var ec = a.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
-				if (ec == null)
-					return false;
-			}
-
 			// Must be in range
 			var dist = (a.CenterPosition - self.CenterPosition).HorizontalLength;
 			if (dist > Info.Range.Length)
 				return false;
 
-			return true;
+			// Ammo target: Rearmable with at least one non-full pool.
+			var rearmable = a.TraitOrDefault<Rearmable>();
+			if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+			{
+				if (!string.IsNullOrEmpty(Info.RearmCondition))
+				{
+					var ec = a.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
+					if (ec == null)
+						return false;
+				}
+
+				return true;
+			}
+
+			// Supply truck target: CargoSupply with free capacity.
+			var cargoSupply = a.TraitOrDefault<CargoSupply>();
+			if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
+				return true;
+
+			return false;
 		}
 
 		void SetTarget(Actor target)
@@ -339,6 +368,29 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
+				return;
+			}
+
+			// CargoSupply target (supply truck refilling at LC): transfer one supply unit per cycle.
+			var cargoSupply = currentTarget.TraitOrDefault<CargoSupply>();
+			if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
+			{
+				// Cost of one truck-pip in LC supply units.
+				var costPerUnit = cargoSupply.Info.SupplyPerUnit;
+				if (currentSupply >= costPerUnit)
+				{
+					var added = cargoSupply.AddSupply(1);
+					if (added > 0)
+					{
+						currentSupply -= costPerUnit;
+						UpdateSupplyConditions();
+					}
+				}
+
+				// Drop target to re-evaluate on next scan.
+				RevokeTargetCondition();
+				currentTarget = null;
+				rearmTicks = Info.RearmDelay;
 				return;
 			}
 
