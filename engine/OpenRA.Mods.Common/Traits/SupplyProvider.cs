@@ -307,10 +307,17 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			// Supply truck target: CargoSupply with free capacity.
+			// Supply truck target: CargoSupply with free capacity. Truck must be standing still —
+			// receiving supply while moving feels wrong (no time to dock and load).
 			var cargoSupply = a.TraitOrDefault<CargoSupply>();
 			if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
+			{
+				var mobile = a.TraitOrDefault<Mobile>();
+				if (mobile != null && mobile.CurrentMovementTypes.HasFlag(MovementType.Horizontal))
+					return false;
+
 				return true;
+			}
 
 			return false;
 		}

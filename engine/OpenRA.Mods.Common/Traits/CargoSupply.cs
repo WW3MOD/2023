@@ -11,7 +11,9 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Activities;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -58,10 +60,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor to create when supply is unloaded onto the ground.")]
 		public readonly string SupplyCacheActor = "supplycache";
 
+		[CursorReference]
+		[Desc("Cursor shown when right-clicking a friendly Logistics Center (or any actor with AbsorbsSupplyCache) to deliver supply.")]
+		public readonly string DeliverCursor = "enter";
+
 		public override object Create(ActorInitializer init) { return new CargoSupply(init, this); }
 	}
 
-	public class CargoSupply : ITick, INotifyCreated, INotifyBecomingIdle, ISelectionBar, ITransformActorInitModifier, IResolveOrder
+	public class CargoSupply : ITick, INotifyCreated, INotifyBecomingIdle, ISelectionBar, ITransformActorInitModifier, IResolveOrder, IIssueOrder
 	{
 		public readonly CargoSupplyInfo Info;
 		readonly Actor self;
@@ -479,15 +485,87 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
-			if (order.OrderString != "UnloadCargoSupply")
-				return;
+			if (order.OrderString == "UnloadCargoSupply")
+			{
+				var amount = (int)order.ExtraData;
+				if (amount <= 0 || supplyCount <= 0)
+					return;
 
-			var amount = (int)order.ExtraData;
-			if (amount <= 0 || supplyCount <= 0)
+				amount = System.Math.Min(amount, supplyCount);
+				DropSupplyCache(amount);
 				return;
+			}
 
-			amount = System.Math.Min(amount, supplyCount);
-			DropSupplyCache(amount);
+			if (order.OrderString == "DeliverSupply")
+			{
+				if (order.Target.Type != TargetType.Actor)
+					return;
+
+				var targetActor = order.Target.Actor;
+				if (targetActor == null || targetActor.IsDead || !targetActor.IsInWorld)
+					return;
+
+				if (targetActor.TraitOrDefault<AbsorbsSupplyCache>() == null)
+					return;
+
+				var move = self.TraitOrDefault<IMove>();
+				if (move == null)
+					return;
+
+				var targetCell = self.World.Map.CellContaining(targetActor.CenterPosition);
+				self.QueueActivity(order.Queued, move.MoveTo(targetCell, 2));
+				self.QueueActivity(true, new CallFunc(() =>
+				{
+					if (supplyCount <= 0)
+						return;
+
+					DropSupplyCache(supplyCount);
+				}));
+				self.ShowTargetLines();
+			}
+		}
+
+		IEnumerable<IOrderTargeter> IIssueOrder.Orders
+		{
+			get { yield return new DeliverSupplyOrderTargeter(Info); }
+		}
+
+		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
+		{
+			if (order.OrderID != "DeliverSupply")
+				return null;
+
+			return new Order(order.OrderID, self, target, queued);
+		}
+
+		sealed class DeliverSupplyOrderTargeter : UnitOrderTargeter
+		{
+			public DeliverSupplyOrderTargeter(CargoSupplyInfo info)
+				: base("DeliverSupply", 6, info.DeliverCursor, false, true) { }
+
+			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
+			{
+				if (target.TraitOrDefault<AbsorbsSupplyCache>() == null)
+					return false;
+
+				if (!self.Owner.IsAlliedWith(target.Owner))
+					return false;
+
+				var supply = self.TraitOrDefault<CargoSupply>();
+				if (supply == null || supply.SupplyCount <= 0)
+					return false;
+
+				var sp = target.TraitOrDefault<SupplyProvider>();
+				if (sp != null && sp.CurrentSupply >= sp.Info.TotalSupply)
+					return false;
+
+				return true;
+			}
+
+			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
+			{
+				return false;
+			}
 		}
 
 		/// <summary>Drop supply units as a SUPPLYCACHE at the transport's current location.</summary>
