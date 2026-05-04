@@ -54,7 +54,8 @@ namespace OpenRA.Mods.Common.Widgets
 			var candidates = world.ScreenMap.ActorsAtMouse(a)
 				.Where(x => x.Actor.Info.HasTraitInfo<ISelectableInfo>()
 					&& (controlAll || x.Actor.Owner.IsAlliedWith(world.RenderPlayer)
-						|| (!world.FogObscures(x.Actor) && !world.FogObscures(x.Actor.CenterPosition))));
+						|| (!world.FogObscures(x.Actor)
+							&& (x.Actor.Info.HasTraitInfo<FrozenUnderFogInfo>() || !world.FogObscures(x.Actor.CenterPosition)))));
 
 			Actor selected;
 			if (controlAll)
@@ -118,7 +119,8 @@ namespace OpenRA.Mods.Common.Widgets
 				.Select(x => x.Actor)
 				.Where(x => x.Info.HasTraitInfo<ISelectableInfo>()
 					&& (controlAll || x.Owner.IsAlliedWith(world.RenderPlayer)
-						|| (!world.FogObscures(x) && !world.FogObscures(x.CenterPosition))));
+						|| (!world.FogObscures(x)
+							&& (x.Info.HasTraitInfo<FrozenUnderFogInfo>() || !world.FogObscures(x.CenterPosition)))));
 
 			if (controlAll)
 			{
