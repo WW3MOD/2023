@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using OpenRA.Activities;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -33,13 +34,17 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Some 3rd-party mods rely on this being public
-		public class SetTarget : Activity, IActivityNotifyStanceChanged
+		public class SetTarget : Activity, IActivityNotifyStanceChanged, IAttackActivity
 		{
 			readonly AttackOmni attack;
 			readonly bool allowMove;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
 			Target target;
+
+			Target IAttackActivity.Target => target;
+			bool IAttackActivity.ForceAttack => forceAttack;
+
 
 			public SetTarget(AttackOmni attack, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 			{

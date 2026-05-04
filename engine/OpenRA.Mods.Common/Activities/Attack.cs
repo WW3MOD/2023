@@ -20,8 +20,11 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Activities
 {
 	/* non-turreted attack */
-	public class Attack : Activity, IActivityNotifyStanceChanged, IActivityNotifyEngagementStanceChanged
+	public class Attack : Activity, IActivityNotifyStanceChanged, IActivityNotifyEngagementStanceChanged, IAttackActivity
 	{
+		Target IAttackActivity.Target => target;
+		bool IAttackActivity.ForceAttack => forceAttack;
+
 		[Flags]
 		protected enum AttackStatus { UnableToAttack, NeedsToTurn, NeedsToMove, Attacking }
 

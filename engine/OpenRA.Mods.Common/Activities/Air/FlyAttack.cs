@@ -18,7 +18,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
-	public class FlyAttack : Activity, IActivityNotifyStanceChanged
+	public class FlyAttack : Activity, IActivityNotifyStanceChanged, IAttackActivity
 	{
 		readonly Aircraft aircraft;
 		readonly AttackAircraft attackAircraft;
@@ -29,6 +29,10 @@ namespace OpenRA.Mods.Common.Activities
 		readonly WDist strafeDistance;
 
 		Target target;
+
+		Target IAttackActivity.Target => target;
+		bool IAttackActivity.ForceAttack => forceAttack;
+
 		Target lastVisibleTarget;
 		WDist lastVisibleMaximumRange;
 		BitSet<TargetableType> lastVisibleTargetTypes;

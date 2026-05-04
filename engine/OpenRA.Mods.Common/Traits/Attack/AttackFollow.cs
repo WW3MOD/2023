@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -223,7 +224,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		internal class AttackActivity : Activity, IActivityNotifyStanceChanged
+		internal class AttackActivity : Activity, IActivityNotifyStanceChanged, IAttackActivity
 		{
 			readonly AttackFollow attack;
 			readonly Vision[] vision;
@@ -232,6 +233,10 @@ namespace OpenRA.Mods.Common.Traits
 			readonly Color? targetLineColor;
 
 			Target target;
+
+			Target IAttackActivity.Target => target;
+			bool IAttackActivity.ForceAttack => forceAttack;
+
 			Target lastVisibleTarget;
 			bool useLastVisibleTarget;
 			WDist lastVisibleMaximumRange;

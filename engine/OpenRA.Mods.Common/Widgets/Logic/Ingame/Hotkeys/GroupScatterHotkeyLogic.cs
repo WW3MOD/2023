@@ -156,34 +156,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					IsActorTarget = false
 				};
 
-			// AttackFrontal returns Attack; AttackFollow/AttackOmni return nested classes that don't inherit it.
-			if (activity is Attack || activity is AttackFollow.AttackActivity || activity is AttackOmni.SetTarget)
+			// Covers Attack (AttackFrontal), AttackFollow.AttackActivity, AttackOmni.SetTarget, FlyAttack (AttackAircraft).
+			if (activity is IAttackActivity attackActivity)
 			{
-				// Nested AttackFollow/AttackOmni activities only expose target via TargetLineNodes.
-				var targets = activity.GetTargets(actor);
-				if (!targets.Any())
-					targets = activity.TargetLineNodes(actor).Select(n => n.Target);
+				var t = attackActivity.Target;
+				var orderName = attackActivity.ForceAttack ? "ForceAttack" : "Attack";
 
-				foreach (var t in targets)
-				{
-					if (t.Type == TargetType.Actor && t.Actor != null && !t.Actor.IsDead)
-						return new Waypoint
-						{
-							Cell = t.Actor.Location,
-							Target = t,
-							OrderType = "ForceAttack",
-							IsActorTarget = true
-						};
+				if (t.Type == TargetType.Actor && t.Actor != null && !t.Actor.IsDead)
+					return new Waypoint
+					{
+						Cell = t.Actor.Location,
+						Target = t,
+						OrderType = orderName,
+						IsActorTarget = true
+					};
 
-					if (t.Type == TargetType.Terrain)
-						return new Waypoint
-						{
-							Cell = world.Map.CellContaining(t.CenterPosition),
-							Target = t,
-							OrderType = "ForceAttack",
-							IsActorTarget = false
-						};
-				}
+				if (t.Type == TargetType.Terrain)
+					return new Waypoint
+					{
+						Cell = world.Map.CellContaining(t.CenterPosition),
+						Target = t,
+						OrderType = orderName,
+						IsActorTarget = false
+					};
 			}
 
 			// Fly activity (aircraft move)
