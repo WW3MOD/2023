@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Primitives;
@@ -192,7 +193,11 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class AutoTarget : ConditionalTrait<AutoTargetInfo>, INotifyIdle, INotifyDamage, ITick, IResolveOrder, ISync, INotifyOwnerChanged
 	{
-		public readonly IEnumerable<AttackBase> ActiveAttackBases;
+		// Populated in Created() rather than the constructor so it doesn't depend on AutoTarget being
+		// constructed AFTER AttackBase. AutoTargetInfo no longer declares Requires<AttackBaseInfo>
+		// (so weaponless units can host stance state), which means construction order is no longer
+		// guaranteed — a constructor-time TraitsImplementing<AttackBase>() snapshot would be empty.
+		public IEnumerable<AttackBase> ActiveAttackBases { get; private set; } = Array.Empty<AttackBase>();
 
 		readonly bool allowMovement;
 
@@ -316,7 +321,6 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			var self = init.Self;
-			ActiveAttackBases = self.TraitsImplementing<AttackBase>().ToArray().Where(t => !t.IsTraitDisabled);
 
 			stance = init.GetValue<StanceInit, UnitStance>(self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
 			engagementStance = init.GetValue<EngagementStanceInit, EngagementStance>(
@@ -367,6 +371,11 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 			}
+
+			// Snapshot AttackBase traits now that all traits have been constructed. The .Where filter
+			// stays deferred so IsTraitDisabled is re-evaluated at each enumeration.
+			var attackBaseSnapshot = self.TraitsImplementing<AttackBase>().ToArray();
+			ActiveAttackBases = attackBaseSnapshot.Where(t => !t.IsTraitDisabled);
 
 			// AutoTargetPriority and their Priorities are fixed - so we can safely cache them with ToArray.
 			// IsTraitEnabled can change over time, so we filter at use time via GetActivePriorities().
