@@ -373,15 +373,17 @@ namespace OpenRA.Mods.Common.Traits
 			PortStates[portIndex].PendingDeployTarget = Target.Invalid;
 			PortStates[portIndex].PendingDeployTicks = 0;
 
-			// Clear port assignment
+			// Revoke garrisoned condition BEFORE nullifying DeployedSoldier — RevokePortCondition
+			// reads the field and silently no-ops if it's null, leaking the granted token.
+			// All other call sites (OnPassengerExited, Killed, EjectGarrisonPassenger, Unload)
+			// follow this order; RecallToShelter is the one that drifted.
 			var soldierRef = soldier;
+			RevokePortCondition(portIndex);
+
 			PortStates[portIndex].DeployedSoldier = null;
 			PortStates[portIndex].CurrentTarget = Target.Invalid;
 			PortStates[portIndex].TargetLockTicks = 0;
 			PortStates[portIndex].PlayerOverride = false;
-
-			// Revoke garrisoned condition
-			RevokePortCondition(portIndex);
 
 			// Remove from world and add back to Cargo
 			self.World.AddFrameEndTask(w =>
