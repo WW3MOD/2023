@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Diagnostics;
 
 namespace OpenRA.Support
@@ -19,6 +20,13 @@ namespace OpenRA.Support
 
 		static float durationThresholdMs = Game.Settings.Debug.LongTickThresholdMs;
 		static long durationThresholdTicks = PerfTimer.MillisToTicks(Game.Settings.Debug.LongTickThresholdMs);
+
+		// GC counts captured at the start of the currently-measured trait/activity tick. Single-threaded
+		// (sim ticks run on one thread) so plain statics are sufficient. Used to detect whether a GC fired
+		// during a long-tick — long ticks attributed to trivial code (e.g. Mobile.Tick) are usually GC pauses.
+		static int startGen0;
+		static int startGen1;
+		static int startGen2;
 
 		/// <summary>Retrieve the current timestamp.</summary>
 		/// <returns>TimestampDisabled if performance logging is disabled.</returns>
@@ -35,6 +43,9 @@ namespace OpenRA.Support
 				durationThresholdTicks = PerfTimer.MillisToTicks(durationThresholdMs);
 			}
 
+			startGen0 = GC.CollectionCount(0);
+			startGen1 = GC.CollectionCount(1);
+			startGen2 = GC.CollectionCount(2);
 			return Stopwatch.GetTimestamp();
 		}
 
@@ -46,9 +57,17 @@ namespace OpenRA.Support
 				return TimestampDisabled;
 
 			var currentTimetamp = Stopwatch.GetTimestamp();
-			if (currentTimetamp - startTimestamp > durationThresholdTicks)
-				PerfTimer.LogLongTick(startTimestamp, currentTimetamp, name, item);
+			var endGen0 = GC.CollectionCount(0);
+			var endGen1 = GC.CollectionCount(1);
+			var endGen2 = GC.CollectionCount(2);
 
+			if (currentTimetamp - startTimestamp > durationThresholdTicks)
+				PerfTimer.LogLongTick(startTimestamp, currentTimetamp, name, item,
+					endGen0 - startGen0, endGen1 - startGen1, endGen2 - startGen2);
+
+			startGen0 = endGen0;
+			startGen1 = endGen1;
+			startGen2 = endGen2;
 			return currentTimetamp;
 		}
 	}

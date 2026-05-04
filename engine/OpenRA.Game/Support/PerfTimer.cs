@@ -81,15 +81,16 @@ namespace OpenRA.Support
 
 		float ElapsedMs => 1000f * ticks / Stopwatch.Frequency;
 
-		public static void LogLongTick(long startStopwatchTicks, long endStopwatchTicks, string name, object item)
+		public static void LogLongTick(long startStopwatchTicks, long endStopwatchTicks, string name, object item, int gen0 = 0, int gen1 = 0, int gen2 = 0)
 		{
 			var type = item.GetType();
 			var label = type == typeof(string) || type.IsGenericType ? item.ToString() : type.Name;
+			var gcMarker = (gen0 | gen1 | gen2) != 0 ? " [GC " + gen0 + "/" + gen1 + "/" + gen2 + "]" : "";
 			Log.Write("perf", FormatStringLongTick.FormatInvariant(
 				1000f * (endStopwatchTicks - startStopwatchTicks) / Stopwatch.Frequency,
 				Game.LocalTick,
 				name,
-				label));
+				label) + gcMarker);
 		}
 
 		#region Formatting helpers
