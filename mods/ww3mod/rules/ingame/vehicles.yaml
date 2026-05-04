@@ -417,6 +417,10 @@ MNLY:
 TRUK:
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Selection: ^SelectableSupportUnit
+	Inherits@AutoTarget: ^AutoTarget
+	AutoTarget:
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
