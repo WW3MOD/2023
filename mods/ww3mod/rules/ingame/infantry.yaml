@@ -282,9 +282,7 @@
 			ExplosionDeath: 1
 			FireDeath: 2
 			ElectricityDeath: 2
-	Targetable@InWater:
-		TargetTypes: Water
-		RequiresCondition: inwater
+	# Swimmers stay Infantry/Ground only. Adding Water here lets ATGM/RPG lock onto people.
 ^CivInfantry:
 	Inherits: ^Infantry
 	Inherits@Rotting: ^RottingInfantry
