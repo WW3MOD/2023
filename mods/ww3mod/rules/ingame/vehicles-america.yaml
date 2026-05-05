@@ -654,11 +654,14 @@ m270:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
+		# Lifetime ammo cap — empty magazine triggers evacuation (credit refund) instead of seeking rearm.
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - Devastating area damage\n - Armor: Light
+		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - One-shot magazine, evacuates after firing\n - Devastating area damage\n - Armor: Light
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -730,9 +733,6 @@ m270:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false

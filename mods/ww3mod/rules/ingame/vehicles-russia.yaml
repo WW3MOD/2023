@@ -483,11 +483,14 @@ grad:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
+		# Lifetime ammo cap — empty magazine triggers evacuation (credit refund) instead of seeking rearm.
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - Devastating area damage\n - Armor: Light
+		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - One-shot magazine, evacuates after firing\n - Devastating area damage\n - Armor: Light
 	Valued:
 		Cost: 1500
 	Tooltip:
@@ -562,9 +565,6 @@ grad:
 	WithSpriteTurret@firing:
 		RequiresCondition: firing
 		Sequence: turret
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
 	Selectable:
 		Class: MLRS
 	SpawnActorOnDeath:
@@ -591,11 +591,14 @@ tos:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
+		# Lifetime ammo cap — empty magazine triggers evacuation (credit refund) instead of seeking rearm.
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - Less effective vs heavy armor\n - Armor: Medium
+		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - One-shot magazine, evacuates after firing\n - Less effective vs heavy armor\n - Armor: Medium
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -672,9 +675,6 @@ tos:
 	WithSpriteTurret@firing:
 		RequiresCondition: firing
 		Sequence: turret
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
 	SpawnActorOnDeath:
 		Actor: tos.husk
 
