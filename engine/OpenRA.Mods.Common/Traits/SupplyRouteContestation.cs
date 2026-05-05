@@ -349,38 +349,61 @@ namespace OpenRA.Mods.Common.Traits
 			if (isPassive || self.Owner.WinState != WinState.Undefined)
 				return;
 
-			// Check if player has living allies
-			var hasAllies = self.World.Players.Any(p =>
-				p != self.Owner &&
-				!p.NonCombatant &&
-				p.Playable &&
-				p.IsAlliedWith(self.Owner) &&
-				p.WinState != WinState.Lost);
+			// Become passive immediately — production halts and the bar drives notifications.
+			isPassive = true;
+			TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + " has lost their Supply Route! Production and income frozen.");
 
-			if (hasAllies)
+			var localPlayer = self.World.LocalPlayer;
+			if (localPlayer != null && !localPlayer.Spectating &&
+				(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
 			{
-				// Become passive — production stays at 0, allies can reinstate
-				isPassive = true;
-				TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + " has lost their Supply Route! Production and income frozen.");
-
-				var localPlayer = self.World.LocalPlayer;
-				if (localPlayer != null && !localPlayer.Spectating &&
-					(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
-				{
-					TextNotificationsManager.AddTransientLine(self.Owner, info.PassiveTextNotification);
-				}
+				TextNotificationsManager.AddTransientLine(self.Owner, info.PassiveTextNotification);
 			}
-			else
+
+			// If any allied player still has a non-passive Supply Route, the team is still in play —
+			// stay passive and wait for either reinstatement or the last team SR to fall.
+			// Otherwise (no remaining active team SRs, or no allies at all) the entire team is defeated.
+			if (!HasActiveTeamSupplyRoute())
+				DefeatTeam();
+		}
+
+		bool HasActiveTeamSupplyRoute()
+		{
+			foreach (var actor in self.World.ActorsHavingTrait<SupplyRouteContestation>())
 			{
-				// No allies — player is defeated
-				var mo = self.Owner.PlayerActor.TraitOrDefault<MissionObjectives>();
-				if (mo != null)
-				{
-					// Find the conquest objective and mark it failed
-					// This triggers the standard defeat flow (WinState.Lost, notifications, etc.)
-					var objectiveId = mo.Add(self.Owner, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
-					mo.MarkFailed(self.Owner, objectiveId);
-				}
+				if (actor == self || actor.Disposed || !actor.IsInWorld)
+					continue;
+
+				var owner = actor.Owner;
+				if (owner.NonCombatant || !owner.Playable || owner.WinState != WinState.Undefined)
+					continue;
+
+				if (!owner.IsAlliedWith(self.Owner))
+					continue;
+
+				if (!actor.Trait<SupplyRouteContestation>().isPassive)
+					return true;
+			}
+
+			return false;
+		}
+
+		void DefeatTeam()
+		{
+			foreach (var p in self.World.Players)
+			{
+				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
+					continue;
+
+				if (p != self.Owner && !p.IsAlliedWith(self.Owner))
+					continue;
+
+				var mo = p.PlayerActor.TraitOrDefault<MissionObjectives>();
+				if (mo == null)
+					continue;
+
+				var objectiveId = mo.Add(p, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
+				mo.MarkFailed(p, objectiveId);
 			}
 		}
 
