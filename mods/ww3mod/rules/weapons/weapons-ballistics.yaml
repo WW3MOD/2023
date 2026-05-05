@@ -698,7 +698,12 @@ GradRockets:
 	Inherits@HitEffects: ^MediumExplosionEffects
 	Range: 40c0
 	MinRange: 12c0
-	BurstWait: 4
+	# One full magazine = one locked-aim volley. Per-shot cadence preserved via BurstDelays.
+	# BurstWait after the 40-rocket burst is gameplay-irrelevant (unit is out of ammo until rearm).
+	Burst: 40
+	BurstDelays: 4
+	BurstWait: 100
+	LockAimPerBurst: True
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	TopAttack: true
@@ -727,7 +732,11 @@ TosRockets:
 	Inherits@HitEffects: ^LargeThermobaricEffects
 	Range: 28c0
 	MinRange: 5c0
-	BurstWait: 10
+	# Full 24-rocket magazine fires as one locked-aim volley.
+	Burst: 24
+	BurstDelays: 10
+	BurstWait: 200
+	LockAimPerBurst: True
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	TopAttack: true
@@ -757,7 +766,11 @@ M270Rockets:
 	Inherits@HitEffects: ^LargeExplosionEffects
 	Range: 40c0
 	MinRange: 12c0
-	BurstWait: 10
+	# Full 12-rocket magazine fires as one locked-aim volley.
+	Burst: 12
+	BurstDelays: 10
+	BurstWait: 200
+	LockAimPerBurst: True
 	ValidTargets: Ground, Trees, Water
 	Report: katyrocket1.aud, katyrocket2.aud, katyrocket3.aud
 	TopAttack: true
