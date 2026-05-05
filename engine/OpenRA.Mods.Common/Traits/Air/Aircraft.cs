@@ -1029,9 +1029,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void AddInfluence((CPos, SubCell)[] landingCells)
 		{
+			// Tolerate stale influence from a prior Land/dock that wasn't cleaned up
+			// (e.g., a queued TakeOff cancelled before its OnFirstRun by an Unload order).
 			if (HasInfluence())
-				throw new InvalidOperationException(
-					$"Cannot {nameof(AddInfluence)} until previous influence is removed with {nameof(RemoveInfluence)}");
+				RemoveInfluence();
 
 			this.landingCells = landingCells;
 			if (self.IsInWorld)

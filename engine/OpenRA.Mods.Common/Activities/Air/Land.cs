@@ -109,6 +109,10 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
+			// Already grounded at the destination — Land is a no-op.
+			if (!landingInitiated && aircraft.HasInfluence() && aircraft.AtLandAltitude && self.Location == landingCell)
+				return true;
+
 			if (aircraft.Info.VTOL)
 			{
 				var delta = targetPosition - pos;
