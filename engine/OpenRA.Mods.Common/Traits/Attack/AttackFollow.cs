@@ -357,7 +357,7 @@ namespace OpenRA.Mods.Common.Traits
 				var losThreshold = FiringLOS.GetBestThreshold(self, checkTarget);
 				if (checkTarget.IsInRange(pos, maxRange) && !checkTarget.IsInRange(pos, minRange)
 					&& checkTarget.Type != TargetType.Invalid
-					&& FiringLOS.HasClearLOS(self, checkTarget.CenterPosition, losThreshold))
+					&& FiringLOS.HasClearLOS(self, checkTarget, losThreshold))
 				{
 					if (useLastVisibleTarget)
 						return true;

@@ -33,6 +33,18 @@ namespace OpenRA.Mods.Common.Traits
 		/// <returns>True if the unit can fire at the target.</returns>
 		public static bool HasClearLOS(Actor self, WPos targetPos, byte threshold)
 		{
+			return HasClearLOS(self, Target.FromPos(targetPos), threshold);
+		}
+
+		/// <summary>
+		/// Check if a unit has clear enough line of sight to fire at a target.
+		/// Uses the pre-computed ShadowLayer for fast O(1) lookups.
+		/// When firer is on the ground but the target is airborne, the lookup is swapped
+		/// (ShadowLayer[target][firer].airborneShadow) so the precomputed shadow weights
+		/// near the firer end of the line — matching what the AA shooter actually sees.
+		/// </summary>
+		public static bool HasClearLOS(Actor self, in Target target, byte threshold)
+		{
 			// IndirectFire units always have clear LOS (artillery, mortars)
 			var indirectFire = self.TraitOrDefault<IndirectFire>();
 			if (indirectFire != null && !indirectFire.IsTraitDisabled)
@@ -43,6 +55,8 @@ namespace OpenRA.Mods.Common.Traits
 			// No shadow data available — allow targeting
 			if (map.ShadowLayer == null)
 				return true;
+
+			var targetPos = target.CenterPosition;
 
 			var fromCell = map.CellContaining(self.CenterPosition);
 			var toCell = map.CellContaining(targetPos);
@@ -67,22 +81,36 @@ namespace OpenRA.Mods.Common.Traits
 			if (distSq > 1024) // 32*32
 				return !BlocksProjectiles.AnyBlockingActorsBetween(self, targetPos, new WDist(1), out _);
 
+			var firerAirborne = self.TraitsImplementing<IAirborneVisibility>()
+				.Any(t => t.IsAirborne);
+
+			var targetAirborne = target.Actor != null && target.Actor.TraitsImplementing<IAirborneVisibility>()
+				.Any(t => t.IsAirborne);
+
+			// Decide which end is the "high" end. The precomputed airborneShadow assumes
+			// the FROM cell is at altitude 2048 and the TO cell is at ground; the obstacle
+			// weighting is biased toward the low end of the line. So when the firer is
+			// the ground unit and the target is airborne, swap the lookup direction.
+			var swap = !firerAirborne && targetAirborne;
+			var lookupFrom = swap ? toMPos : fromMPos;
+			var lookupTo = swap ? fromMPos : toMPos;
+
 			// Bounds check — ensure cells are within map
-			var shadowFromCell = map.ShadowLayer[fromMPos];
+			var shadowFromCell = map.ShadowLayer[lookupFrom];
 			if (shadowFromCell == null)
 				return true;
 
-			if (!shadowFromCell.Contains(toMPos))
+			if (!shadowFromCell.Contains(lookupTo))
 				return true;
 
 			// Look up pre-computed shadow value
-			var (groundShadow, airborneShadow) = shadowFromCell[toMPos];
+			var (groundShadow, airborneShadow) = shadowFromCell[lookupTo];
 
-			// Aircraft use airborne shadow channel (accounts for altitude, much lower values)
-			var isAirborne = self.TraitsImplementing<IAirborneVisibility>()
-				.Any(t => t.IsAirborne);
+			// Aircraft use airborne shadow channel (accounts for altitude, much lower values).
+			// Either end being airborne means the LOS is the slanted high-low line.
+			var useAirborne = firerAirborne || targetAirborne;
 
-			var shadow = isAirborne ? airborneShadow : groundShadow;
+			var shadow = useAirborne ? airborneShadow : groundShadow;
 
 			return shadow <= threshold;
 		}

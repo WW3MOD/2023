@@ -234,7 +234,7 @@ namespace OpenRA.Mods.Common.Activities
 			var cantInteract = move is Mobile mobile && !mobile.CanInteractWithGroundLayer(self);
 			var losThreshold = FiringLOS.GetBestThreshold(self, checkTarget);
 			var losBlocked = checkTarget.Type != TargetType.Invalid
-				&& !FiringLOS.HasClearLOS(self, checkTarget.CenterPosition, losThreshold);
+				&& !FiringLOS.HasClearLOS(self, checkTarget, losThreshold);
 
 			var needsToMove = outOfRange || tooClose || cantInteract || losBlocked;
 

@@ -745,7 +745,7 @@ namespace OpenRA.Mods.Common.Traits
 						if (arm.Weapon.ClearSightThreshold > bestThreshold)
 							bestThreshold = arm.Weapon.ClearSightThreshold;
 
-					if (!FiringLOS.HasClearLOS(self, target.CenterPosition, bestThreshold))
+					if (!FiringLOS.HasClearLOS(self, target, bestThreshold))
 						continue;
 				}
 

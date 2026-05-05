@@ -167,7 +167,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Per-unit LOS check using ShadowLayer
 			var losThreshold = FiringLOS.GetBestThreshold(self, target);
-			if (!FiringLOS.HasClearLOS(self, target.CenterPosition, losThreshold))
+			if (!FiringLOS.HasClearLOS(self, target, losThreshold))
 				return false;
 
 			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw, facingTolerance);
