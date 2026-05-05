@@ -40,7 +40,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly ConquestVictoryConditionsInfo info;
 		readonly MissionObjectives mo;
-		readonly bool shortGame;
 		Player[] otherPlayers;
 		int objectiveID = -1;
 
@@ -48,7 +47,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			info = cvcInfo;
 			mo = self.Trait<MissionObjectives>();
-			shortGame = self.Owner.World.WorldActor.Trait<MapOptions>().ShortGame;
 		}
 
 		void ITick.Tick(Actor self)
@@ -59,7 +57,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (objectiveID < 0)
 				objectiveID = mo.Add(self.Owner, info.Objective, "Primary", inhibitAnnouncement: true);
 
-			if (!self.Owner.NonCombatant && self.Owner.HasNoRequiredUnits(shortGame))
+			// WW3MOD: defeat is team-aware and tied to Supply Routes (BaseBuilding trait), not generic
+			// MustBeDestroyed actors. A player is only marked failed when no allied player (including
+			// themselves) still owns a Supply Route — losing your own SR makes you production-blocked
+			// but you keep playing as long as a teammate still has one.
+			if (TeamHasNoBaseBuildings(self.Owner))
 				mo.MarkFailed(self.Owner, objectiveID);
 
 			// Players, NonCombatants, and IsAlliedWith are all fixed once the game starts, so we can cache the result.
@@ -73,6 +75,21 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 
 			mo.MarkCompleted(self.Owner, objectiveID);
+		}
+
+		static bool TeamHasNoBaseBuildings(Player player)
+		{
+			foreach (var actor in player.World.ActorsHavingTrait<BaseBuilding>())
+			{
+				if (!actor.IsInWorld || actor.IsDead)
+					continue;
+				if (actor.Owner.NonCombatant)
+					continue;
+				if (actor.Owner == player || actor.Owner.IsAlliedWith(player))
+					return false;
+			}
+
+			return true;
 		}
 
 		void INotifyTimeLimit.NotifyTimerExpired(Actor self)
