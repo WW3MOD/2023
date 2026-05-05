@@ -3,6 +3,11 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenRA</AssemblyName>
     <IsPublishable Condition="'$(CopyGenericLauncher)' == 'False'">false</IsPublishable>
+    <!-- Server GC + concurrent: shorter Gen-2 pause times. Workstation GC defaults gave us
+         ~250-450ms stop-the-world pauses (visible as freeze spikes); Server GC parallelises
+         the collection across cores. Slightly higher baseline memory in exchange. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RunConfiguration)' == 'Red Alert'">
