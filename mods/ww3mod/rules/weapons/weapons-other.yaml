@@ -6,6 +6,7 @@ Flamespray:
 	Burst: 6
 	BurstDelays: 1
 	BurstWait: 30
+	LockAimPerBurst: True
 	FirstBurstTargetOffset: 0,-300,0
 	FollowingBurstTargetOffset: 0,100,0
 	Report: flamer2.aud
@@ -77,6 +78,7 @@ Flamespray.heavy:
 	Burst: 10
 	BurstDelays: 1
 	BurstWait: 30
+	LockAimPerBurst: True
 	FirstBurstTargetOffset: 0,-600,0
 	FollowingBurstTargetOffset: 0,120,0
 	Report: flamer2.aud

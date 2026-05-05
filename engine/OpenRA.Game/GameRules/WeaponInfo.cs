@@ -82,6 +82,12 @@ namespace OpenRA.GameRules
 		[Desc("Each burst after the first lands by this offset away from the previous burst.")]
 		public readonly WVec FollowingBurstTargetOffset = WVec.Zero;
 
+		[Desc("Lock the lead-corrected impact point at the first shot of a burst; subsequent shots in the same burst aim at that same point. " +
+			"FirstBurst/FollowingBurstTargetOffset and projectile inaccuracy still apply per shot. " +
+			"Use for MLRS / flamethrowers where a turning target should not redirect every projectile in the volley. " +
+			"Only meaningful for Bullet projectiles with Burst > 1.")]
+		public readonly bool LockAimPerBurst = false;
+
 		[Desc("The sound played each time the weapon is fired.")]
 		public readonly string[] Report = null;
 

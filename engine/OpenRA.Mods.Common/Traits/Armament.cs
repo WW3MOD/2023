@@ -173,6 +173,11 @@ namespace OpenRA.Mods.Common.Traits
 		Target? oldTarget = null;
 		int lastFiredTick = -1;
 
+		// LockAimPerBurst: lead-corrected impact point captured by the first shot's
+		// delayed action and reused by every subsequent shot in the same burst.
+		// Cleared at the start of each new burst, on target change, and when aiming stops.
+		WPos? lockedAimCenter;
+
 		public Armament(Actor self, ArmamentInfo info)
 			: base(info)
 		{
@@ -207,6 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Game.Debug("StoppedAiming -- {0}", self.Info.Name);
 			AimInitialTargetPosition.Clear();
+			lockedAimCenter = null;
 		}
 
 		// void INotifyNewTarget.Acquired(Actor self)
@@ -334,6 +340,7 @@ namespace OpenRA.Mods.Common.Traits
 				AimingDelay = Info.AimingDelay;
 				delayedActions.Clear();
 				AimInitialTargetPosition.Clear();
+				lockedAimCenter = null;
 			}
 
 			if (!CanFire(self, target))
@@ -361,11 +368,23 @@ namespace OpenRA.Mods.Common.Traits
 		protected virtual void FireBarrel(Actor self, IFacing facing, in Target target, Barrel barrel)
 		{
 			Target = target;
+			var previousLastFiredTick = lastFiredTick;
 			lastFiredTick = self.World.WorldTick;
 
 			if (target.Type != TargetType.Invalid)
 			{
 				AimInitialTargetPosition.Add(target.CenterPosition);
+			}
+
+			if (Weapon.LockAimPerBurst)
+			{
+				// Detect the first shot of a fresh burst so the upcoming delayed action recomputes the locked impact point.
+				// Burst counts down per shot and is reset to the modifier-adjusted starting value when the previous burst completes,
+				// so equality with that starting value (and the no-prior-fire / long-idle cases) marks a new burst.
+				var effectiveBurstStart = Util.ApplyPercentageModifiers(Weapon.Burst, burstModifiers);
+				var idleLongerThanBurstWait = previousLastFiredTick != -1 && lastFiredTick - previousLastFiredTick > Weapon.BurstWait;
+				if (Burst == effectiveBurstStart || previousLastFiredTick == -1 || idleLongerThanBurstWait)
+					lockedAimCenter = null;
 			}
 
 			foreach (var na in notifyAttacks)
@@ -424,28 +443,45 @@ namespace OpenRA.Mods.Common.Traits
 					// If projectile is bullet (not missile), lead (aim in front of) target
 					if (Weapon.Projectile is BulletInfo bullet && Target.Value.Type != TargetType.Invalid)
 					{
-						var initialPosition = AimInitialTargetPosition.FirstOrDefault();
-
-						if (!initialPosition.Equals(default))
+						if (Weapon.LockAimPerBurst && lockedAimCenter.HasValue)
 						{
-							var targetPosition = Target.Value.CenterPosition;
-							var leadTarget = WVec.CalculateLeadTarget(self.CenterPosition, initialPosition, targetPosition, Info.FireDelay, bullet.Speed.First().Length);
-							var distanceToTarget = WPos.PositionDiff(targetPosition, self.CenterPosition).HorizontalLength;
-
+							// Subsequent shot in a burst — reuse the locked impact point so the volley doesn't snake with target turns.
+							// The per-shot FirstBurst/FollowingBurstTargetOffset spread is already in args.TargetingVector.
 							if (AimInitialTargetPosition.Count > 0)
 								AimInitialTargetPosition.RemoveAt(0);
+							args.PassiveTarget = lockedAimCenter.Value + args.TargetingVector;
+						}
+						else
+						{
+							var initialPosition = AimInitialTargetPosition.FirstOrDefault();
 
-							args.PassiveTarget = targetPosition + leadTarget + args.TargetingVector;
-
-							// Add inaccuracy for moving targets
-							var targetMobile = delayedTarget.Actor?.TraitOrDefault<Mobile>();
-							if (targetMobile != null)
+							if (!initialPosition.Equals(default))
 							{
-								var maxInaccuracy = (int)((float)bullet.Inaccuracy.Length * Info.MovementInaccuracy / 100 * targetMobile.CurrentSpeed / targetMobile.Info.Speed * distanceToTarget / args.Weapon.Range.Length);
+								var targetPosition = Target.Value.CenterPosition;
+								var leadTarget = WVec.CalculateLeadTarget(self.CenterPosition, initialPosition, targetPosition, Info.FireDelay, bullet.Speed.First().Length);
+								var distanceToTarget = WPos.PositionDiff(targetPosition, self.CenterPosition).HorizontalLength;
 
-								// movementInaccuracy goes infront of or behind actors direction
-								var wVec = new WVec(0, self.World.SharedRandom.Next(-maxInaccuracy, maxInaccuracy), 0).Rotate(WRot.FromYaw(leadTarget.Yaw));
-								args.PassiveTarget += wVec;
+								if (AimInitialTargetPosition.Count > 0)
+									AimInitialTargetPosition.RemoveAt(0);
+
+								var aimCenter = targetPosition + leadTarget;
+
+								// Add inaccuracy for moving targets — applied once when the lock is established;
+								// reused locked shots get the same wobble.
+								var targetMobile = delayedTarget.Actor?.TraitOrDefault<Mobile>();
+								if (targetMobile != null)
+								{
+									var maxInaccuracy = (int)((float)bullet.Inaccuracy.Length * Info.MovementInaccuracy / 100 * targetMobile.CurrentSpeed / targetMobile.Info.Speed * distanceToTarget / args.Weapon.Range.Length);
+
+									// movementInaccuracy goes infront of or behind actors direction
+									var wVec = new WVec(0, self.World.SharedRandom.Next(-maxInaccuracy, maxInaccuracy), 0).Rotate(WRot.FromYaw(leadTarget.Yaw));
+									aimCenter += wVec;
+								}
+
+								if (Weapon.LockAimPerBurst)
+									lockedAimCenter = aimCenter;
+
+								args.PassiveTarget = aimCenter + args.TargetingVector;
 							}
 						}
 					}
