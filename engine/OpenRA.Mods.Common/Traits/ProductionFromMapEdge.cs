@@ -29,7 +29,6 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly ProductionFromMapEdgeInfo edgeInfo;
 		readonly CPos? spawnLocation;
-		readonly IPathFinder pathFinder;
 		RallyPoint rp;
 
 		// Round-robin index for distributing spawns across candidate cells
@@ -39,7 +38,6 @@ namespace OpenRA.Mods.Common.Traits
 			: base(init, info)
 		{
 			edgeInfo = (ProductionFromMapEdgeInfo)info;
-			pathFinder = init.Self.World.WorldActor.Trait<IPathFinder>();
 
 			var spawnLocationInit = init.GetOrDefault<ProductionSpawnLocationInit>(info);
 			if (spawnLocationInit != null)
@@ -115,9 +113,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Uses round-robin across candidate cells for fast, distributed spawning.
 				if (mobileInfo != null)
 				{
-					var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
 					var spawnAreaHint = FindClosestSpawnArea(self);
-					var firstDest = hasRallyPoint ? rp.Path[0] : self.Location;
 					var searchOrigin = spawnAreaHint ?? self.Location;
 
 					CPos[] candidates;
@@ -125,9 +121,10 @@ namespace OpenRA.Mods.Common.Traits
 						candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, edgeInfo.SpawnCandidateCount);
 					else
 					{
-						// No SpawnArea: legacy behavior, find closest matching edge cell (any edge)
+						// No SpawnArea: legacy behavior, find closest matching edge cell (any edge).
+						// Don't gate on path-to-rally — see comment below.
 						var legacyCell = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
-							c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, firstDest));
+							c => mobileInfo.CanEnterCell(self.World, null, c));
 						if (legacyCell != default)
 							location = legacyCell;
 						candidates = null;
@@ -135,32 +132,26 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (candidates != null && candidates.Length > 0)
 					{
-						// Verify path exists from center cell to destination (terrain check, done once)
-						var centerCell = candidates[0];
-						if (!pathFinder.PathExistsForLocomotor(locomotor, centerCell, firstDest))
+						// Round-robin: start from the next candidate index and wrap around.
+						// This distributes spawns evenly across all candidate cells instead of
+						// always piling onto center and waiting for it to clear.
+						// Rally-point reachability is intentionally NOT checked here: a bad rally
+						// (in water, walled in, etc.) must not block production. The unit will
+						// spawn and MoveTo with evaluateNearestMovableCell:true picks the closest
+						// reachable cell to the destination — same behaviour as a manual move.
+						location = null;
+						for (var attempt = 0; attempt < candidates.Length; attempt++)
 						{
-							// If center cell can't path to destination, none of the adjacent cells will either
-							location = null;
-						}
-						else
-						{
-							// Round-robin: start from the next candidate index and wrap around.
-							// This distributes spawns evenly across all candidate cells instead of
-							// always piling onto center and waiting for it to clear.
-							location = null;
-							for (var attempt = 0; attempt < candidates.Length; attempt++)
+							var idx = (nextCandidateIndex + attempt) % candidates.Length;
+							if (mobileInfo.CanEnterCell(self.World, null, candidates[idx]))
 							{
-								var idx = (nextCandidateIndex + attempt) % candidates.Length;
-								if (mobileInfo.CanEnterCell(self.World, null, candidates[idx]))
-								{
-									location = candidates[idx];
-									nextCandidateIndex = (idx + 1) % candidates.Length;
-									break;
-								}
+								location = candidates[idx];
+								nextCandidateIndex = (idx + 1) % candidates.Length;
+								break;
 							}
-
-							// All candidates blocked — will retry next tick
 						}
+
+						// All candidates blocked — will retry next tick
 					}
 				}
 			}
