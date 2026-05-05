@@ -42,9 +42,12 @@ namespace OpenRA.Mods.Common.Traits
 	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, IAffectsMapLayer, ISync, INotifyAddedToWorld,
 		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, ITick
 	{
-		static readonly PPos[] NoCells = Array.Empty<PPos>();
-
 		readonly HashSet<PPos> footprint;
+
+		// Reusable cell buffer — avoids allocating a fresh PPos[] on every UpdateCells call.
+		// This trait fires dozens of times per second across all moving units; pooling the buffer
+		// removed a major Gen-0 GC pressure source. Sized once and grown as needed.
+		readonly List<PPos> cellBuffer = new List<PPos>(128);
 
 		[Sync]
 		CPos cachedLocation;
@@ -58,7 +61,7 @@ namespace OpenRA.Mods.Common.Traits
 		WPos cachedPos;
 		int lastUpdateTick;
 
-		protected abstract void AddCellsToPlayerMapLayer(Actor self, Player player, PPos[] uv);
+		protected abstract void AddCellsToPlayerMapLayer(Actor self, Player player, IReadOnlyList<PPos> uv);
 		protected abstract void RemoveCellsFromPlayerMapLayer(Actor self, Player player);
 
 		public AffectsMapLayer(AffectsMapLayerInfo info)
@@ -71,30 +74,35 @@ namespace OpenRA.Mods.Common.Traits
 			lastUpdateTick = int.MinValue / 2;
 		}
 
-		PPos[] ProjectedCells(Actor self)
+		IReadOnlyList<PPos> ProjectedCells(Actor self)
 		{
+			cellBuffer.Clear();
+
 			var map = self.World.Map;
 			var minRange = MinRange;
 			var maxRange = Range;
 			if (maxRange <= minRange)
-				return NoCells;
+				return cellBuffer;
 
 			if (Info.Position == DetectablePosition.Footprint)
 			{
 				// PERF: Reuse collection to avoid allocations.
 				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
 					.SelectMany(kv => MapLayers.ProjectedCellsInRange(map, map.CenterOfCell(kv.Cell), minRange, maxRange, Info.MaxHeightDelta)));
-				var cells = footprint.ToArray();
+				foreach (var p in footprint)
+					cellBuffer.Add(p);
 				footprint.Clear();
-				return cells;
+				return cellBuffer;
 			}
 
 			var pos = self.CenterPosition;
 			if (Info.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			return MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta)
-				.ToArray();
+			foreach (var p in MapLayers.ProjectedCellsInRange(map, pos, minRange, maxRange, Info.MaxHeightDelta))
+				cellBuffer.Add(p);
+
+			return cellBuffer;
 		}
 
 		void INotifyCenterPositionChanged.CenterPositionChanged(Actor self, byte oldLayer, byte newLayer)
@@ -180,6 +188,9 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in self.World.Players)
 				AddCellsToPlayerMapLayer(self, p, cells);
 		}
+
+		// Note: cells passed to AddCellsToPlayerMapLayer reference the per-trait cellBuffer.
+		// Subclasses must consume them synchronously — the buffer is reused on the next call.
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{

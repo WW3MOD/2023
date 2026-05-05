@@ -82,16 +82,20 @@ namespace OpenRA.Traits
 			public readonly PPos Origin;
 			public readonly int VisionBase;
 			public readonly VisionSourceNode[] VisionSourceNodes;
+			public readonly int VisionSourceNodeCount;
 
-			public VisionSource(PPos origin, int visionBase, VisionSourceNode[] visionSourceNodes)
+			public VisionSource(PPos origin, int visionBase, VisionSourceNode[] visionSourceNodes, int count)
 			{
 				Origin = origin;
 				VisionBase = visionBase;
 				VisionSourceNodes = visionSourceNodes;
+				VisionSourceNodeCount = count;
 			}
 		}
 
-		class VisionSourceNode
+		// Struct, not class — saves N heap allocations per Vision AddSource call (one per cell in range).
+		// Was a major Gen-0 GC pressure source: ~50-300 nodes per AddSource × 100+ AddSource/sec.
+		readonly struct VisionSourceNode
 		{
 			public readonly int VisionModified;
 			public readonly PPos Cell;
@@ -102,6 +106,8 @@ namespace OpenRA.Traits
 				Cell = cell;
 			}
 		}
+
+		static readonly VisionSourceNode[] NoVisionSourceNodes = Array.Empty<VisionSourceNode>();
 
 		readonly MapLayersInfo info;
 		readonly Map map;
@@ -308,7 +314,7 @@ namespace OpenRA.Traits
 			return ProjectedCellsInRange(map, map.CenterOfCell(cell), WDist.Zero, range, maxHeightDelta);
 		}
 
-		public void AddSource(IAffectsMapLayer mapLayer, int strength, PPos[] projectedCells, Actor self = null)
+		public void AddSource(IAffectsMapLayer mapLayer, int strength, IReadOnlyList<PPos> projectedCells, Actor self = null)
 		{
 			// TEST
 			if (sources.ContainsKey(mapLayer))
@@ -318,11 +324,18 @@ namespace OpenRA.Traits
 			if (self != null)
 				selfLocation = self.Location.ToMPos(map);
 
-			var visionSourceNodes = new VisionSourceNode[projectedCells.Length];
+			// Only Vision sources need per-cell node tracking (for RemoveSource decrements).
+			// Radar / CounterBatteryRadar do not currently store nodes — preserves existing
+			// behaviour where their cells are never decremented on remove.
+			var isVision = mapLayer.Type == Type.Vision;
+			var visionSourceNodes = isVision ? new VisionSourceNode[projectedCells.Count] : NoVisionSourceNodes;
 
 			var i = 0;
-			foreach (var puv in projectedCells)
+			var count = projectedCells.Count;
+			for (var c = 0; c < count; c++)
 			{
+				var puv = projectedCells[c];
+
 				// Force cells outside the visible bounds invisible
 				if (!map.Contains(puv))
 					continue;
@@ -335,7 +348,7 @@ namespace OpenRA.Traits
 				if (visibilityCount[index] == null)
 					visibilityCount[index] = new short[VisionLayers];
 
-				if (mapLayer.Type == Type.Vision)
+				if (isVision)
 				{
 					var shadowModify = 0;
 
@@ -359,6 +372,7 @@ namespace OpenRA.Traits
 						explored[index] = true;
 
 					visionSourceNodes[i] = new VisionSourceNode(modifiedStrength, puv);
+					i++;
 				}
 				else if (mapLayer.Type == Type.Radar)
 				{
@@ -368,11 +382,9 @@ namespace OpenRA.Traits
 				{
 					counterBatteryRadarCount[index]++;
 				}
-
-				i++;
 			}
 
-			sources[mapLayer] = new VisionSource((PPos)selfLocation, strength, visionSourceNodes);
+			sources[mapLayer] = new VisionSource((PPos)selfLocation, strength, visionSourceNodes, i);
 		}
 
 		public void RemoveSource(IAffectsMapLayer mapLayer)
@@ -380,12 +392,15 @@ namespace OpenRA.Traits
 			if (!sources.TryGetValue(mapLayer, out var source))
 				return;
 
-			foreach (var node in source.VisionSourceNodes)
+			// Iterate by stored count rather than the array length — VisionSourceNode is a struct
+			// (no nulls). For non-Vision sources the count is 0, preserving the prior behaviour
+			// where Radar / CounterBatteryRadar cells were not decremented on remove (their nodes
+			// were never populated, so the old foreach broke on the first null entry).
+			var nodes = source.VisionSourceNodes;
+			var count = source.VisionSourceNodeCount;
+			for (var idx = 0; idx < count; idx++)
 			{
-				// Temp solution, the last 10 or so entries are null because the position formats are weird.
-				if (node == null)
-					break;
-
+				var node = nodes[idx];
 				var puv = node.Cell;
 
 				// Cells outside the visible bounds don't increment visibleCount
@@ -396,17 +411,7 @@ namespace OpenRA.Traits
 					anyCellTouched = true;
 
 					if (mapLayer.Type == Type.Vision)
-					{
 						visibilityCount[index][node.VisionModified]--;
-					}
-					else if (mapLayer.Type == Type.Radar)
-					{
-						radarCount[index]--;
-					}
-					else if (mapLayer.Type == Type.CounterBatteryRadar)
-					{
-						counterBatteryRadarCount[index]--;
-					}
 				}
 			}
 

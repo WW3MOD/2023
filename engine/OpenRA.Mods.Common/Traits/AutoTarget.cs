@@ -765,7 +765,8 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					priorityValue = 0;
 
-					if (target.Actor.GetEnabledTargetTypes().Any(t => t == "CriticalDamage"))
+					// Use the cached targetTypes; avoid re-fetching and avoid LINQ Any (allocates lambda).
+					if (targetTypes.Contains("CriticalDamage"))
 						priorityValue += 50000;
 
 					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()

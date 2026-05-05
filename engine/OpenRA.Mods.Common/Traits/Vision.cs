@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Traits
 			rangeModifiers = self.TraitsImplementing<IVisionModifier>().ToArray().Select(x => x.GetVisionModifier());
 		}
 
-		protected override void AddCellsToPlayerMapLayer(Actor self, Player p, PPos[] uv)
+		protected override void AddCellsToPlayerMapLayer(Actor self, Player p, IReadOnlyList<PPos> uv)
 		{
 			if (!info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(p)))
 				return;
