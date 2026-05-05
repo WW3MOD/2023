@@ -167,7 +167,13 @@ namespace OpenRA.Mods.Common.Traits
 			var projectedPos = centerPosition - new WVec(0, centerPosition.Z, centerPosition.Z);
 			cachedLocation = self.World.Map.CellContaining(projectedPos);
 			cachedPos = centerPosition;
-			lastUpdateTick = self.World.WorldTick;
+
+			// Stagger lastUpdateTick by ActorID so groups of units that enter the world together
+			// (e.g. reinforcements arriving from the map edge in waves) don't all become eligible
+			// for the next throttled recalc on the same world tick.
+			var interval = Info.MoveRecalculationInterval > 0 ? Info.MoveRecalculationInterval : 1;
+			lastUpdateTick = self.World.WorldTick - (int)(self.ActorID % (uint)interval);
+
 			CachedTraitDisabled = IsTraitDisabled;
 			var cells = ProjectedCells(self);
 
