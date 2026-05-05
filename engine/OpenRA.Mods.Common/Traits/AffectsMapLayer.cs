@@ -28,7 +28,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int MaxHeightDelta = -1;
 
 		[Desc("If > 0, force visibility to be recalculated if the unit moves within a cell by more than this distance.")]
-		public readonly WDist MoveRecalculationThreshold = new WDist(256);
+		public readonly WDist MoveRecalculationThreshold = new WDist(1024);
+
+		[Desc("Minimum ticks between vision recalculations triggered by movement.",
+			"Bounds the recalc rate even for fast units. The final position is always recomputed on stop via INotifyMoving.")]
+		public readonly int MoveRecalculationInterval = 5;
 
 		[Desc("Possible values are CenterPosition (measure range from the center) and ",
 			"Footprint (measure range from the footprint)")]
@@ -52,7 +56,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected bool CachedTraitDisabled { get; private set; }
 
 		WPos cachedPos;
-		/* int checkTick = 0; */
+		int lastUpdateTick;
 
 		protected abstract void AddCellsToPlayerMapLayer(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerMapLayer(Actor self, Player player);
@@ -62,6 +66,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Info.Position == DetectablePosition.Footprint)
 				footprint = new HashSet<PPos>();
+
+			// Initialise so the first CenterPositionChanged after AddedToWorld always passes the interval gate.
+			lastUpdateTick = int.MinValue / 2;
 		}
 
 		PPos[] ProjectedCells(Actor self)
@@ -104,15 +111,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (!dirty && cachedLocation == projectedLocation)
 				return;
 
+			// Throttle: this fires on every tick a unit moves more than the threshold (typically every
+			// few ticks during movement). Recomputing the projected cells and updating every player's
+			// map layer is one of the most expensive per-tick operations in the simulation. The final
+			// stop position is always recomputed via INotifyMoving.MovementTypeChanged, so a small
+			// during-movement lag is invisible.
+			var worldTick = self.World.WorldTick;
+			if (Info.MoveRecalculationInterval > 0 && worldTick - lastUpdateTick < Info.MoveRecalculationInterval)
+				return;
+
 			cachedLocation = projectedLocation;
 			cachedPos = pos;
-
-			// CPU improvement - Update shroud every 10 ticks
-			/* if (checkTick-- <= 0)
-			{
-				checkTick = 10;
-				UpdateCells(self);
-			} */
+			lastUpdateTick = worldTick;
 
 			UpdateCells(self);
 		}
@@ -157,6 +167,7 @@ namespace OpenRA.Mods.Common.Traits
 			var projectedPos = centerPosition - new WVec(0, centerPosition.Z, centerPosition.Z);
 			cachedLocation = self.World.Map.CellContaining(projectedPos);
 			cachedPos = centerPosition;
+			lastUpdateTick = self.World.WorldTick;
 			CachedTraitDisabled = IsTraitDisabled;
 			var cells = ProjectedCells(self);
 
@@ -176,7 +187,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
 		{
-			// Recalculate the visibility at our final stop position
+			// Recalculate the visibility at our final stop position. Bypasses the interval throttle
+			// because the player needs accurate vision once the unit has actually stopped.
 			if (type == MovementType.None && self.IsInWorld)
 			{
 				var centerPosition = self.CenterPosition;
@@ -186,6 +198,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				cachedLocation = projectedLocation;
 				cachedPos = pos;
+				lastUpdateTick = self.World.WorldTick;
 
 				UpdateCells(self);
 			}
