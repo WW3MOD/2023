@@ -3,11 +3,13 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenRA</AssemblyName>
     <IsPublishable Condition="'$(CopyGenericLauncher)' == 'False'">false</IsPublishable>
-    <!-- Server GC + concurrent: shorter Gen-2 pause times. Workstation GC defaults gave us
-         ~250-450ms stop-the-world pauses (visible as freeze spikes); Server GC parallelises
-         the collection across cores. Slightly higher baseline memory in exchange. -->
-    <ServerGarbageCollection>true</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <!-- Note: Server GC was tried and reverted. Despite shorter Gen-2 pauses on paper, it
+         introduced 2+ second spikes under load because Server GC stops the WORLD (sim + render
+         threads) for collection-thread coordination, and bad scheduling (background CPU
+         contention, antivirus, etc.) stretched those STW windows badly on the dev's box. The
+         default Workstation GC freezes only the allocating thread, letting the renderer keep
+         running during sim GCs. For OpenRA's mixed sim+render thread layout that turned out
+         to be the better tradeoff. See git log for details. -->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RunConfiguration)' == 'Red Alert'">
