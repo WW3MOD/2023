@@ -447,15 +447,36 @@ IskanderExplosion:
 	Inherits@HitEffects: ^HugeExplosionEffects
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
-		Damage: 18000
+		Damage: 54000
 		DamageAtMaxRange: 100
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread_impact: SpreadDamage
 		Spread: 1024
-		Damage: 8000
+		Damage: 4000
 		Penetration: 2500
 		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 7c0
+		Spread: 1c0
+		Damage: 12000
+		Penetration: 2000
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: 255, 255, 240, 200
+		ShockwaveThickness: 1024
+		ShockwaveOuterAlpha: 25
+		ShockwaveInnerAlpha: 8
+		ShockwaveFadeInTicks: 8
+		ValidTargets: Ground, Water, Trees
 		AffectsParent: true
 		DamageTypes: ExplosionDeath
 
@@ -463,15 +484,36 @@ HIMARSExplosion:
 	Inherits@HitEffects: ^HugeExplosionEffects
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
-		Damage: 12000
+		Damage: 36000
 		DamageAtMaxRange: 80
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread_impact: SpreadDamage
 		Spread: 768
-		Damage: 5000
+		Damage: 2500
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 4c0
+		Spread: 1c0
+		Damage: 7000
+		Penetration: 1500
+		Falloff: 100, 70, 45, 25, 10
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: 255, 255, 240, 200
+		ShockwaveThickness: 768
+		ShockwaveOuterAlpha: 20
+		ShockwaveInnerAlpha: 6
+		ShockwaveFadeInTicks: 6
+		ValidTargets: Ground, Water, Trees
 		AffectsParent: true
 		DamageTypes: ExplosionDeath
 

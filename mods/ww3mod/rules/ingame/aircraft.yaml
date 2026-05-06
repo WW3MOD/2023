@@ -281,6 +281,7 @@ quadcopterdrone:
 		Name: Drone scout
 	Selectable:
 		Bounds: 760,760
+		Priority: 1
 	Aircraft:
 		MaximumPitch: 90
 		Repulsable: true

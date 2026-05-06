@@ -275,22 +275,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (nearestResupplier != null)
 			{
 				// CargoSupply host (TRUK, etc.) — passive rearm model.
-				// Walk within rearm range and idle; CargoSupply pushes ammo each tick.
+				// Use SeekCargoSupply so the unit re-picks if its target runs out of supply
+				// mid-route, and shows a target line for the resupply move.
 				var cargoSupply = nearestResupplier.TraitOrDefault<CargoSupply>();
 				if (cargoSupply != null)
 				{
-					// Already within rearm range? Just idle — CargoSupply will push ammo.
-					var dist = (nearestResupplier.CenterPosition - self.CenterPosition).HorizontalLength;
-					if (dist <= cargoSupply.Info.RearmRange.Length)
-						return;
-
-					var move = self.TraitOrDefault<IMove>();
-					if (move != null)
-					{
-						var target = Target.FromActor(nearestResupplier);
-						self.QueueActivity(false,
-							move.MoveWithinRange(target, cargoSupply.Info.RearmRange));
-					}
+					if (self.TraitOrDefault<IMove>() != null)
+						self.QueueActivity(false, new SeekCargoSupply(self, nearestResupplier));
 
 					return;
 				}

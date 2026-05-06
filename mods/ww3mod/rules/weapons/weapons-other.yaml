@@ -12,7 +12,7 @@ Flamespray:
 	Report: flamer2.aud
 	Projectile: Bullet
 		Speed: 250
-		Inaccuracy: 768
+		Inaccuracy: 384
 		LaunchAngle: 40
 		Image: fb5
 		TrailImage: smokey

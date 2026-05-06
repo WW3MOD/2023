@@ -62,16 +62,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (selectedActors.Count == 0)
 				return false;
 
-			// Try all selected actors and use the one with the most waypoints.
-			// Different actors may be at different points in their order chain
-			// (e.g., a faster unit may have completed its first order already).
-			var waypoints = new List<Waypoint>();
+			// Aggregate waypoints across ALL selected actors. Different actors may be at
+			// different points in their order chain (e.g., a faster unit may have completed
+			// its first order already), so taking the max from a single unit can drop waypoints
+			// that only the slowest units still hold. We dedupe by (Cell, OrderType) and
+			// preserve the order they appeared in the longest chain.
+			var bestChain = new List<Waypoint>();
+			var allChains = new List<List<Waypoint>>();
 			foreach (var actor in selectedActors)
 			{
 				var actorWaypoints = CollectWaypoints(actor);
-				if (actorWaypoints.Count > waypoints.Count)
-					waypoints = actorWaypoints;
+				allChains.Add(actorWaypoints);
+				if (actorWaypoints.Count > bestChain.Count)
+					bestChain = actorWaypoints;
 			}
+
+			var waypoints = new List<Waypoint>(bestChain);
+			var seen = new HashSet<(CPos, string)>(waypoints.Select(w => (w.Cell, w.OrderType)));
+
+			// Append any waypoints that other units still have but the longest chain dropped.
+			foreach (var chain in allChains)
+				foreach (var wp in chain)
+					if (seen.Add((wp.Cell, wp.OrderType)))
+						waypoints.Add(wp);
 
 			if (waypoints.Count < 2)
 			{
