@@ -165,8 +165,6 @@ bmp2:
 		ArmamentNames: secondary
 		Condition: firing-wgm
 		RevokeDelay: 100
-		PreparingRevokeDelay: 50
-		AttackingRevokeDelay: 0
 	SpeedMultiplier@FiringWGM:
 		RequiresCondition: firing-wgm
 		Modifier: 25
@@ -429,6 +427,7 @@ giatsint:
 		MuzzleSequence: muzzle
 		LocalOffset: 800,0,500
 		PauseOnCondition: !ammo-primary || empdisable
+		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -457,7 +456,7 @@ giatsint:
 		FacingTolerance: 0
 		PauseOnCondition: empdisable || unit.docked || !has-gunner
 		HoldFireWhileMoving: True
-		# StopAndWait: 100
+		SetupTicks: 50
 	Selectable:
 		Class: ARTILLERY
 	SpawnActorOnDeath:
@@ -534,6 +533,7 @@ grad:
 		Weapon: GradRockets
 		LocalOffset: 0,0,100
 		PauseOnCondition: !ammo-primary || empdisable
+		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -561,6 +561,7 @@ grad:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		HoldFireWhileMoving: True
+		SetupTicks: 75
 	WithSpriteTurret@idle:
 		RequiresCondition: !firing
 		Sequence: turret-idle
@@ -645,6 +646,7 @@ tos:
 		Weapon: TosRockets
 		LocalOffset: 0,0,100
 		PauseOnCondition: !ammo-primary || empdisable
+		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -672,6 +674,7 @@ tos:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		HoldFireWhileMoving: True
+		SetupTicks: 75
 	WithSpriteTurret@idle:
 		RequiresCondition: !firing
 		Sequence: turret-idle
@@ -888,6 +891,8 @@ iskander:
 		Weapon: IskanderTargeter
 		LocalOffset: -150,120,150, -150,-100,150 #BM - Where each missile spawns when fired (per barrel, in launcher-local coords). X=forward(+)/back(-), Y=right(+)/left(-), Z=up. Two barrels: right tube then left tube. Should match the WithWeaponOverlay positions below so the missile doesn't visually jump on launch.
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+		RequiresForceFire: True
+		AimingDelay: 40
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -914,6 +919,7 @@ iskander:
 		PauseOnCondition: empdisable
 		FacingLockCondition: firing
 		HoldFireWhileMoving: True
+		SetupTicks: 100
 		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all loaded missiles at the original target position.
 	WithFacingSpriteBody:
 		Sequence: empty-idle

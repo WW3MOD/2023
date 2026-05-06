@@ -327,8 +327,6 @@ bradley:
 		ArmamentNames: secondary
 		Condition: firing-wgm
 		RevokeDelay: 100
-		PreparingRevokeDelay: 50
-		AttackingRevokeDelay: 0
 	SpeedMultiplier@FiringWGM:
 		RequiresCondition: firing-wgm
 		Modifier: 25
@@ -595,6 +593,7 @@ m109:
 		MuzzleSequence: muzzle
 		LocalOffset: 950,0,380
 		PauseOnCondition: !ammo-primary || empdisable
+		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -620,7 +619,7 @@ m109:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		HoldFireWhileMoving: True
-		# StopAndWait: 100
+		SetupTicks: 50
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
@@ -707,6 +706,7 @@ m270:
 		# FireDelay: 150
 		LocalOffset: 192,-64,176, 192,64,176
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -735,6 +735,7 @@ m270:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		HoldFireWhileMoving: True
+		SetupTicks: 75
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false
@@ -978,6 +979,8 @@ HIMARS:
 		Weapon: HIMARSTargeter
 		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+		RequiresForceFire: True
+		AimingDelay: 40
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -1007,6 +1010,7 @@ HIMARS:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		HoldFireWhileMoving: True
+		SetupTicks: 100
 		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all loaded missiles at the original target position.
 	Rearmable:
 		RearmActors: logisticscenter

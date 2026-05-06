@@ -85,8 +85,13 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (target.Type != TargetType.Invalid)
 				{
-					var inRange = autoTarget.ActiveAttackBases
-						.Any(ab => target.IsInRange(self.CenterPosition, ab.GetMaximumRange()));
+					// Filter armaments: NoSelfDefenseInterrupt weapons (e.g. drone jammer) can fire
+					// opportunistically when stationary, but must NOT cancel a player Move.
+					var interruptingArmaments = autoTarget.ActiveAttackBases
+						.SelectMany(ab => ab.ChooseArmamentsForTarget(target, false))
+						.Where(a => !a.Info.NoSelfDefenseInterrupt);
+
+					var inRange = interruptingArmaments.Any(a => target.IsInRange(self.CenterPosition, a.MaxRange()));
 
 					if (inRange)
 					{

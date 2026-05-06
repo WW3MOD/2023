@@ -68,6 +68,16 @@ namespace OpenRA.Mods.Common.Traits
 			"this gates firing while a transition is in flight.")]
 		public readonly bool HoldFireWhileMoving = false;
 
+		[Desc("Ticks the unit must spend stationary (not mid-cell) with the current target acquired " +
+			"before any armament can fire. Models artillery 'unpack' / deploy time. " +
+			"Resets on movement or target change. AimingDelay (per-armament) handles aim-settle on top.")]
+		public readonly int SetupTicks = 0;
+
+		[GrantedConditionReference]
+		[Desc("Optional condition granted while the unit is in the SetupTicks countdown (between stopping and being able to aim). " +
+			"Use this to drive a deploy/unpack animation.")]
+		public readonly string SetupCondition = null;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -99,6 +109,14 @@ namespace OpenRA.Mods.Common.Traits
 		bool wasAiming;
 
 		public bool IsFacingLocked { get; private set; }
+
+		// Setup phase state (gated by Info.SetupTicks).
+		// setupRemaining < 0 means setup not yet started (no valid target seen while still).
+		// setupRemaining == 0 means setup complete, free to fire.
+		// setupRemaining > 0 means in countdown.
+		int setupRemaining = -1;
+		Target setupTarget = Target.Invalid;
+		int setupConditionToken = Actor.InvalidConditionToken;
 
 		public AttackBase(Actor self, AttackBaseInfo info)
 			: base(info)
@@ -146,6 +164,55 @@ namespace OpenRA.Mods.Common.Traits
 					n.StoppedAiming(self, this);
 
 			wasAiming = IsAiming;
+
+			// Setup countdown — only ticks while the unit is still and has a target acquired.
+			// CanAttack is responsible for resetting setup on movement / target change.
+			if (Info.SetupTicks > 0 && setupRemaining > 0)
+			{
+				--setupRemaining;
+				if (setupRemaining == 0 && setupConditionToken != Actor.InvalidConditionToken)
+					setupConditionToken = self.RevokeCondition(setupConditionToken);
+			}
+		}
+
+		// Drive the setup state machine. Called from CanAttack so it tracks the actual target
+		// the firing logic is asking about (rather than e.g. AttackFollow.RequestedTarget which
+		// could differ from what an armament chooses for a multi-weapon actor).
+		bool TickSetup(Actor self, in Target target)
+		{
+			if (Info.SetupTicks <= 0)
+				return true;
+
+			// Movement aborts setup — reset and refuse fire.
+			if (positionable is Mobile mobile && mobile.IsMovingBetweenCells)
+			{
+				if (setupRemaining != -1)
+				{
+					setupRemaining = -1;
+					setupTarget = Target.Invalid;
+					if (setupConditionToken != Actor.InvalidConditionToken)
+						setupConditionToken = self.RevokeCondition(setupConditionToken);
+				}
+
+				return false;
+			}
+
+			// Target changed — restart the countdown.
+			// Compare by center position for stability across recalculation.
+			var sameTarget = setupTarget.Type != TargetType.Invalid
+				&& target.Type != TargetType.Invalid
+				&& (setupTarget.CenterPosition - target.CenterPosition).LengthSquared < 1024 * 1024; // within 1 cell
+
+			if (!sameTarget)
+			{
+				setupTarget = target;
+				setupRemaining = Info.SetupTicks;
+				if (Info.SetupCondition != null && setupConditionToken == Actor.InvalidConditionToken)
+					setupConditionToken = self.GrantCondition(Info.SetupCondition);
+				return false;
+			}
+
+			return setupRemaining == 0;
 		}
 
 		protected virtual Func<IEnumerable<Armament>> InitializeGetArmaments(Actor self)
@@ -202,6 +269,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (Info.HoldFireWhileMoving && mobile.IsMovingBetweenCells)
 					return false;
 			}
+
+			// Setup/deploy gate — artillery must be still + target-acquired for SetupTicks before firing.
+			if (!TickSetup(self, target))
+				return false;
 
 			return true;
 		}
@@ -329,6 +400,7 @@ namespace OpenRA.Mods.Common.Traits
 			// FF TODO Check ammo?
 			return Armaments.Where(a =>
 				!a.IsTraitDisabled
+				&& !(a.Info.RequiresForceFire && !forceAttack)
 				&& (owner == null || (forceAttack ? a.Info.ForceTargetRelationships : a.Info.TargetRelationships).HasRelationship(self.Owner.RelationshipWith(owner)))
 				&& a.Weapon.IsValidAgainst(target, self.World, self));
 		}

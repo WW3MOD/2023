@@ -78,6 +78,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If unit has IndirectFire trait this can be disabled for specific armaments.")]
 		public readonly bool AllowIndirectFire = true; // TODO FF, Unimplemented
 
+		[Desc("Hide this armament from AutoTarget — only force-fire / explicit player attack orders use it. " +
+			"Use for deploy/strike weapons (drone targeter, missile launcher, artillery strike) whose " +
+			"ValidTargets accidentally match enemy actors and would auto-trigger.")]
+		public readonly bool RequiresForceFire = false;
+
+		[Desc("Don't let this armament cancel a player Move via SmartMove's self-defense logic. " +
+			"The armament can still fire when the unit is stationary — it just won't pause an in-progress move. " +
+			"Use for low-priority self-defense weapons (e.g. drone jammer) that shouldn't override player intent.")]
+		public readonly bool NoSelfDefenseInterrupt = false;
+
 		public WeaponInfo WeaponInfo { get; private set; }
 		public WDist ModifiedRange { get; private set; }
 

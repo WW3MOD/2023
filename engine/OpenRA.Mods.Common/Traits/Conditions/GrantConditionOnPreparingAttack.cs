@@ -37,15 +37,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Amount of ticks required to pass without firing to revoke an instance.")]
 		public readonly int RevokeDelay = 50;
 
-		[Desc("Amount of ticks required to pass without firing to revoke an instance.")]
-		public readonly int PreparingRevokeDelay = 50;
-
-		[Desc("Amount of ticks required to pass without firing to revoke an instance.")]
-		public readonly int AttackingRevokeDelay = 50;
-
-		[Desc("Should an instance be revoked if the actor changes target?")]
-		public readonly bool RevokeOnNewTarget = false;
-
 		[Desc("Should all instances be revoked instead of only one?")]
 		public readonly bool RevokeAll = false;
 
