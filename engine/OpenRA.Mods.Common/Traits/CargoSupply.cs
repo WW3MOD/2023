@@ -510,6 +510,40 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			if (order.OrderString == "Restock")
+			{
+				if (order.Target.Type != TargetType.Actor)
+					return;
+
+				var targetActor = order.Target.Actor;
+				if (targetActor == null || targetActor.IsDead || !targetActor.IsInWorld)
+					return;
+
+				if (targetActor.TraitOrDefault<SupplyProvider>() == null)
+					return;
+
+				// If damaged and the host accepts our repair, run Resupply first.
+				var health = self.TraitOrDefault<IHealth>();
+				var repairable = self.TraitOrDefault<Repairable>();
+				var canRepairHere = health != null
+					&& health.DamageState > DamageState.Undamaged
+					&& repairable != null
+					&& repairable.Info.RepairActors.Contains(targetActor.Info.Name);
+
+				if (canRepairHere)
+				{
+					self.QueueActivity(order.Queued, new Resupply(self, targetActor, new WDist(512)));
+					self.QueueActivity(true, new RefillFromHost(self, targetActor));
+				}
+				else
+				{
+					self.QueueActivity(order.Queued, new RefillFromHost(self, targetActor));
+				}
+
+				self.ShowTargetLines();
+				return;
+			}
+
 			if (order.OrderString == "DeliverSupply")
 			{
 				if (order.Target.Type != TargetType.Actor)
@@ -543,6 +577,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
+				// Restock has a higher priority than Repairable's "Repair" (5) so a
+				// right-click on a friendly LC routes to Restock — which itself queues
+				// Resupply (for repair) when the truck is damaged.
+				yield return new RestockOrderTargeter(Info);
 				yield return new DeliverSupplyOrderTargeter(Info);
 				yield return new DeployOrderTargeter("DropCargoSupply", 5,
 					() => CanDropCache() ? Info.DropCacheCursor : Info.DropCacheBlockedCursor);
@@ -551,6 +589,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{
+			if (order.OrderID == "Restock")
+				return new Order(order.OrderID, self, target, queued);
+
 			if (order.OrderID == "DeliverSupply")
 				return new Order(order.OrderID, self, target, queued);
 
@@ -586,6 +627,40 @@ namespace OpenRA.Mods.Common.Traits
 				return Info.DropCacheVoice;
 
 			return null;
+		}
+
+		sealed class RestockOrderTargeter : UnitOrderTargeter
+		{
+			public RestockOrderTargeter(CargoSupplyInfo info)
+				: base("Restock", 7, info.DeliverCursor, false, true) { }
+
+			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
+			{
+				if (!self.Owner.IsAlliedWith(target.Owner))
+					return false;
+
+				// Only docking-aware providers (LC), not ground caches.
+				var hostProvider = target.TraitOrDefault<SupplyProvider>();
+				if (hostProvider == null || string.IsNullOrEmpty(hostProvider.Info.DockedCondition))
+					return false;
+
+				var supply = self.TraitOrDefault<CargoSupply>();
+				if (supply == null)
+					return false;
+
+				// Only meaningful if the truck has something to gain: refill or repair.
+				var notFull = supply.SupplyCount < supply.Info.MaxSupply;
+				var damaged = self.TraitOrDefault<IHealth>()?.DamageState > DamageState.Undamaged;
+				if (!notFull && !damaged)
+					return false;
+
+				return true;
+			}
+
+			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
+			{
+				return false;
+			}
 		}
 
 		sealed class DeliverSupplyOrderTargeter : UnitOrderTargeter
