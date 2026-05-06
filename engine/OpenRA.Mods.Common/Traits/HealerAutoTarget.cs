@@ -30,6 +30,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Target types to scan for (must match Targetable trait on patients).")]
 		public readonly BitSet<TargetableType> ValidTargetTypes = default;
 
+		[Desc("Max search range when on Defensive engagement stance. 0 = no defensive cap (use max weapon range).",
+			"Lets medics on Defensive only hunt nearby patients without chasing across the battlefield.")]
+		public readonly WDist DefensiveRange = WDist.Zero;
+
 		public override object Create(ActorInitializer init) { return new HealerAutoTarget(init.Self, this); }
 	}
 
@@ -135,9 +139,24 @@ namespace OpenRA.Mods.Common.Traits
 			return maxRange;
 		}
 
-		Actor FindBestTarget(Actor self)
+		WDist GetEffectiveSearchRange(Actor self)
 		{
 			var maxRange = GetMaxHealRange();
+			if (info.DefensiveRange.Length <= 0)
+				return maxRange;
+
+			// Cap the search range when on Defensive engagement stance so the medic
+			// doesn't chase patients across the battlefield.
+			var autoTarget = self.TraitOrDefault<AutoTarget>();
+			if (autoTarget != null && autoTarget.EngagementStanceValue == EngagementStance.Defensive)
+				return maxRange < info.DefensiveRange ? maxRange : info.DefensiveRange;
+
+			return maxRange;
+		}
+
+		Actor FindBestTarget(Actor self)
+		{
+			var maxRange = GetEffectiveSearchRange(self);
 
 			if (maxRange == WDist.Zero)
 				return null;
@@ -188,7 +207,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		Actor FindCriticalUnclaimed(Actor self)
 		{
-			var maxRange = GetMaxHealRange();
+			var maxRange = GetEffectiveSearchRange(self);
 			if (maxRange == WDist.Zero)
 				return null;
 

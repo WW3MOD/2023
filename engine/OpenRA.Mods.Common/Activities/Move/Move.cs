@@ -487,7 +487,14 @@ namespace OpenRA.Mods.Common.Activities
 				// If we did, we limit the move to any carried-over leftover progress.
 				if (Move.lastMovePartCompletedTick < self.World.WorldTick)
 				{
-					var movementSpeedForCell = mobile.MovementSpeedForCell(mobile.ToCell);
+					// MoveFirstHalf is the "leaving" segment (cell-center → boundary, OR boundary → boundary):
+					//   physically inside FromCell — use FromCell's terrain speed.
+					// MoveSecondHalf is the "entering" segment (boundary → cell-center):
+					//   physically inside ToCell (which equals FromCell after SetLocation in OnComplete) — use ToCell.
+					// Without this split, units slow down from the center of the fast tile (because MoveFirstHalf
+					// peeked at the slow ToCell ahead) and speed up from the center of the slow tile (same reason).
+					var speedCell = SpeedReferenceCell(mobile);
+					var movementSpeedForCell = mobile.MovementSpeedForCell(speedCell);
 
 					// Apply backward speed modifier when reversing
 					if (mobile.MovingBackward)
@@ -575,6 +582,10 @@ namespace OpenRA.Mods.Common.Activities
 
 			protected abstract MovePart OnComplete(Actor self, Mobile mobile, Move parent);
 
+			// Override to determine which cell's terrain speed governs this segment.
+			// MoveFirstHalf is in FromCell (leaving), MoveSecondHalf is in ToCell (entering).
+			protected abstract CPos SpeedReferenceCell(Mobile mobile);
+
 			public override IEnumerable<Target> GetTargets(Actor self)
 			{
 				return Move.GetTargets(self);
@@ -586,6 +597,8 @@ namespace OpenRA.Mods.Common.Activities
 			public MoveFirstHalf(Move move, WPos from, WPos to, WAngle fromFacing, WAngle toFacing,
 				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool movingOnGroundLayer)
 				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, movingOnGroundLayer) { }
+
+			protected override CPos SpeedReferenceCell(Mobile mobile) => mobile.FromCell;
 
 			static bool IsTurn(Mobile mobile, CPos nextCell, Map map)
 			{
@@ -685,6 +698,8 @@ namespace OpenRA.Mods.Common.Activities
 			public MoveSecondHalf(Move move, WPos from, WPos to, WAngle fromFacing, WAngle toFacing,
 				WRot? fromTerrainOrientation, WRot? toTerrainOrientation, int terrainOrientationMargin, int carryoverProgress, bool movingOnGroundLayer)
 				: base(move, from, to, fromFacing, toFacing, fromTerrainOrientation, toTerrainOrientation, terrainOrientationMargin, carryoverProgress, movingOnGroundLayer) { }
+
+			protected override CPos SpeedReferenceCell(Mobile mobile) => mobile.ToCell;
 
 			protected override MovePart OnComplete(Actor self, Mobile mobile, Move parent)
 			{

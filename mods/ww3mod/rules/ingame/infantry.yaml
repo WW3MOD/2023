@@ -2083,6 +2083,7 @@ SF:
 		ClaimTargets: true
 		ScanInterval: 8
 		ValidTargetTypes: Heal
+		DefensiveRange: 5c0
 	Armament@1:
 		Name: primary
 		Weapon: Heal
