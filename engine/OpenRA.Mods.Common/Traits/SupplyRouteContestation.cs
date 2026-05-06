@@ -122,6 +122,14 @@ namespace OpenRA.Mods.Common.Traits
 			lastDefeatNotifyTime = -info.NotifyInterval;
 		}
 
+		// Accessors for AttackSupplyRoute / external queries.
+		public SupplyRouteContestationInfo Info => info;
+		public int ControlBar => controlBar;
+		public int ControlBarFraction => info.BarMax > 0 ? controlBar * 100 / info.BarMax : 0;
+		public int NetEnemySurplus => cachedNetEnemySurplus;
+		public int NetFriendlySurplus => cachedNetFriendlySurplus;
+		public bool IsPassive => isPassive;
+
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
 			radarPings = self.World.WorldActor.TraitOrDefault<MiniMapPings>();

@@ -113,8 +113,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>
 		/// Set when unit is out of ammo and ResupplyBehavior is Hold.
 		/// Supply trucks with Hunt stance should seek out these units.
+		/// Also set externally by activities (e.g. SeekCargoSupply) when no supply
+		/// source is reachable, so a Hunt-stance truck can come to us.
 		/// </summary>
-		public bool NeedsResupply { get; private set; }
+		public bool NeedsResupply { get; set; }
 
 		[Sync]
 		public int RemainingTicks;

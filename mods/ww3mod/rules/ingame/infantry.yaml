@@ -2074,8 +2074,8 @@ SF:
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
-		InitialEngagementStance: Hunt
-		InitialEngagementStanceAI: Hunt
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
 	AutoTargetPriority@Default:
 		ValidTargets: Heal
 	HealerAutoTarget:
@@ -2084,6 +2084,11 @@ SF:
 		ScanInterval: 8
 		ValidTargetTypes: Heal
 		DefensiveRange: 5c0
+	AutoFollowAlly:
+		FollowDistance: 3c0
+		SearchRange: 20c0
+		CheckInterval: 25
+		RequireAttackBase: true
 	Armament@1:
 		Name: primary
 		Weapon: Heal
