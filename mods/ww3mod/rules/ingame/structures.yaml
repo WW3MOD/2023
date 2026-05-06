@@ -386,9 +386,12 @@ LOGISTICSCENTER:
 		TotalSupply: 3000
 		InitialSupply: 3000
 		SupplyCreditValue: 3000
-		Range: 3c0
+		# 2c0 matches ProximityExternalCondition@UNITDOCKED below: clients must be
+		# physically docked at the LC to receive resupply (see Phase 1 of supply spec).
+		Range: 2c0
 		RearmDelay: 25
 		RearmCondition: replenish-vehicles
+		DockedCondition: unit.docked
 	AbsorbsSupplyCache:
 		Range: 2c512
 		TransferRate: 50

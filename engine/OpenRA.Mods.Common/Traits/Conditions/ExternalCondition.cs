@@ -85,6 +85,9 @@ namespace OpenRA.Mods.Common.Traits
 			return count;
 		}
 
+		/// <summary>True when at least one token (permanent or timed) is currently active.</summary>
+		public bool IsGranted => timedTokens.Count > 0 || permanentTokens.Values.Any(t => t.Count > 0);
+
 		public bool CanGrantCondition(object source)
 		{
 			if (source == null)

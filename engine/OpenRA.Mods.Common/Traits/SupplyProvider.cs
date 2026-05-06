@@ -44,6 +44,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition to grant to the unit currently being rearmed.")]
 		public readonly string RearmCondition = "replenish-soldiers";
 
+		[Desc("External condition the target must already have for it to be considered docked",
+			"with this provider. Empty disables the docking gate (any rearmable in range qualifies).",
+			"Logistics Centers should set this to 'unit.docked' so trucks/vehicles must dock to refill;",
+			"ground caches like SUPPLYCACHE should leave it empty for passive proximity refill.")]
+		public readonly string DockedCondition = null;
+
 		[Desc("How often (in ticks) to scan for new targets.")]
 		public readonly int ScanInterval = 7;
 
@@ -295,6 +301,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (dist > Info.Range.Length)
 				return false;
 
+			// If a docking gate is configured (e.g. unit.docked on the LC), the target
+			// must already be holding that external condition. This implies stationary
+			// (the docking trigger only fires inside a tight proximity range).
+			if (!string.IsNullOrEmpty(Info.DockedCondition))
+			{
+				var docked = a.TraitsImplementing<ExternalCondition>()
+					.Any(e => e.Info.Condition == Info.DockedCondition && e.IsGranted);
+				if (!docked)
+					return false;
+			}
+
 			// Ammo target: Rearmable with at least one non-full pool.
 			var rearmable = a.TraitOrDefault<Rearmable>();
 			if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
@@ -310,14 +327,19 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			// Supply truck target: CargoSupply with free capacity. Truck must be standing still —
-			// receiving supply while moving feels wrong (no time to dock and load).
+			// Supply truck target: CargoSupply with free capacity.
+			// Stationarity is enforced by DockedCondition above when a docking gate is
+			// configured; without one, fall back to a movement-type check so passing
+			// trucks don't get topped off by a SUPPLYCACHE.
 			var cargoSupply = a.TraitOrDefault<CargoSupply>();
 			if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
 			{
-				var mobile = a.TraitOrDefault<Mobile>();
-				if (mobile != null && mobile.CurrentMovementTypes.HasFlag(MovementType.Horizontal))
-					return false;
+				if (string.IsNullOrEmpty(Info.DockedCondition))
+				{
+					var mobile = a.TraitOrDefault<Mobile>();
+					if (mobile != null && mobile.CurrentMovementTypes.HasFlag(MovementType.Horizontal))
+						return false;
+				}
 
 				return true;
 			}
