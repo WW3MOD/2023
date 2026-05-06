@@ -10,7 +10,9 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Widgets;
@@ -135,7 +137,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				costLabel.GetColor = () => pr.Cash + pr.Resources >= cost ? Color.White : Color.Red;
 				var costSize = font.Measure(costLabel.Text);
 
-				descLabel.Text = buildable.Description.Replace("\\n", "\n");
+				descLabel.Text = BuildDescriptionWithAutoBlocks(actor, mapRules, buildable);
 				descLabel.Text = WidgetUtils.WrapText(descLabel.Text, MaxTooltipWidth, descFont);
 				var descSize = descFont.Measure(descLabel.Text);
 				descLabel.Bounds.Width = descSize.X;
@@ -175,6 +177,49 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			return a;
+		}
+
+		/// <summary>
+		/// Builds the production tooltip description: the static <c>Buildable.Description</c>
+		/// followed (blank line separator) by any auto-generated content from
+		/// <see cref="IProvideTooltipDescription"/> contributors and a grand-total ammo
+		/// cost line when the actor has 2+ AmmoPools.
+		/// </summary>
+		static string BuildDescriptionWithAutoBlocks(ActorInfo actor, Ruleset rules, BuildableInfo buildable)
+		{
+			var sb = new StringBuilder();
+			var staticDesc = buildable.Description?.Replace("\\n", "\n") ?? string.Empty;
+			sb.Append(staticDesc);
+
+			var lines = new List<(int Priority, string Text)>();
+			foreach (var provider in actor.TraitInfos<IProvideTooltipDescription>())
+			{
+				var text = provider.ProvideTooltipDescription(actor, rules, out var priority);
+				if (!string.IsNullOrEmpty(text))
+					lines.Add((priority, text));
+			}
+
+			// Grand-total across all ammo pools when an actor has 2+ pools.
+			// Lives in the renderer (not on AmmoPoolInfo) so individual pools don't
+			// need to know about each other; the cross-pool sum is intrinsically global.
+			var pools = actor.TraitInfos<AmmoPoolInfo>()
+				.Where(p => p.Ammo > 0 && p.SupplyValue > 0)
+				.ToArray();
+			if (pools.Length >= 2)
+			{
+				var total = pools.Sum(p => p.Ammo * p.SupplyValue);
+				lines.Add((110, $"Total ammo cost: {total}"));
+			}
+
+			if (lines.Count > 0)
+			{
+				if (sb.Length > 0)
+					sb.Append("\n\n");
+
+				sb.Append(string.Join("\n", lines.OrderBy(l => l.Priority).Select(l => l.Text)));
+			}
+
+			return sb.ToString();
 		}
 	}
 }

@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Actor has a limited amount of ammo, after using it all the actor must reload in some way.")]
-	public class AmmoPoolInfo : TraitInfo
+	public class AmmoPoolInfo : TraitInfo, IProvideTooltipDescription
 	{
 		[Desc("Name of this ammo pool, used to link reload traits to this pool.")]
 		public readonly string Name = "primary";
@@ -64,6 +64,44 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string AmmoCondition = null;
 
 		public override object Create(ActorInitializer init) { return new AmmoPool(this); }
+
+		string IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		{
+			priority = 100;
+
+			if (Ammo <= 0 || SupplyValue <= 0)
+				return null;
+
+			// Walk the actor's armaments and pick out the ones that draw from this pool.
+			// Multiple armaments can share one pool (e.g. dual-barrel burst weapons), so
+			// list all the weapon names, joined with '+'. Falls back to the pool name if
+			// no armaments link here (defensive — should not happen in well-formed YAML).
+			var armaments = ai.TraitInfos<ArmamentInfo>()
+				.Where(arm => Armaments.Contains(arm.Name))
+				.ToArray();
+
+			string label;
+			if (armaments.Length == 0)
+				label = FormatWeaponLabel(Name);
+			else
+				label = string.Join(" + ", armaments
+					.Select(arm => FormatWeaponLabel(arm.Weapon))
+					.Distinct());
+
+			var totalCost = Ammo * SupplyValue;
+			return $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {totalCost}";
+		}
+
+		static string FormatWeaponLabel(string raw)
+		{
+			if (string.IsNullOrEmpty(raw))
+				return "Weapon";
+
+			// Strip leading hat (template marker) and convert PascalCase / dashed names
+			// into a human-friendly label without changing the YAML key itself.
+			var trimmed = raw.TrimStart('^').Replace('-', ' ').Replace('_', ' ');
+			return trimmed;
+		}
 	}
 
 	public class AmmoPool : INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync
