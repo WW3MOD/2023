@@ -68,6 +68,8 @@ btr:
 		Ammo: 500
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 5
+		CreditValue: 5
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -182,6 +184,8 @@ bmp2:
 		Ammo: 900
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 15
+		CreditValue: 15
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -208,6 +212,8 @@ bmp2:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
+		SupplyValue: 100
+		CreditValue: 100
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -326,6 +332,8 @@ t90:
 		Ammo: 40
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 80
+		CreditValue: 80
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -434,6 +442,8 @@ giatsint:
 		Ammo: 39
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 80
+		CreditValue: 80
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -540,6 +550,8 @@ grad:
 		Ammo: 40
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 1500
+		CreditValue: 1500
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -653,6 +665,8 @@ tos:
 		Ammo: 24
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 1500
+		CreditValue: 1500
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -778,6 +792,8 @@ tunguska:
 		Ammo: 180
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 15
+		CreditValue: 15
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 6
@@ -804,6 +820,8 @@ tunguska:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
+		SupplyValue: 60
+		CreditValue: 60
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
