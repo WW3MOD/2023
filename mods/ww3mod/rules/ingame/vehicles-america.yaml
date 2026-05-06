@@ -619,6 +619,7 @@ m109:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
+		HoldFireWhileMoving: True
 		# StopAndWait: 100
 	Rearmable:
 		RearmActors: logisticscenter
@@ -733,6 +734,7 @@ m270:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
+		HoldFireWhileMoving: True
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false
@@ -1004,6 +1006,7 @@ HIMARS:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
+		HoldFireWhileMoving: True
 		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all loaded missiles at the original target position.
 	Rearmable:
 		RearmActors: logisticscenter

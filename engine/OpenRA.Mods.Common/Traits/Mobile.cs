@@ -1139,8 +1139,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				var explored = self.Owner.MapLayers.IsExplored(location);
 
-				if (mobile.IsTraitPaused
-					|| !self.World.Map.Contains(location)
+				// IsTraitPaused (e.g. firing/empdisable) does NOT block move orders — the order is
+				// queued in IResolveOrder.ResolveOrder regardless of pause and runs once unpaused.
+				// Showing BlockedCursor for a transient pause is misleading; only flag truly
+				// unreachable destinations.
+				if (!self.World.Map.Contains(location)
 					|| (!explored && !locomotorInfo.MoveIntoShroud)
 					|| (explored && mobile.Locomotor.MovementCostForCell(location) == PathGraph.MovementCostForUnreachableCell))
 					cursor = mobile.Info.BlockedCursor;

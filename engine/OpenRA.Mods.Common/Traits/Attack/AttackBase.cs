@@ -62,6 +62,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Health percentage below which to retarget (e.g., 50 for 50%).")]
 		public readonly int CriticalHealthThreshold = 50;
 
+		[Desc("Hold fire while the unit is mid-cell (still rolling between cells). " +
+			"Enable on artillery / MLRS / units that should require a full stop before firing. " +
+			"Independent of Mobile.PauseOnCondition: firing — that gates STARTING new cell transitions, " +
+			"this gates firing while a transition is in flight.")]
+		public readonly bool HoldFireWhileMoving = false;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -185,8 +191,17 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// PERF: Mobile implements IPositionable, so we can use 'as' to save a trait look-up here.
-			if (positionable is Mobile mobile && !mobile.CanInteractWithGroundLayer(self))
-				return false;
+			if (positionable is Mobile mobile)
+			{
+				if (!mobile.CanInteractWithGroundLayer(self))
+					return false;
+
+				// Artillery / MLRS opt-in: don't fire while still rolling between cells.
+				// AttackFollow.Tick runs every tick on the trait and fires as soon as range/facing
+				// are valid — without this gate, a unit in its final approach cell can fire mid-roll.
+				if (Info.HoldFireWhileMoving && mobile.IsMovingBetweenCells)
+					return false;
+			}
 
 			return true;
 		}

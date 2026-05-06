@@ -456,6 +456,7 @@ giatsint:
 		ForceFireIgnoresActors: True
 		FacingTolerance: 0
 		PauseOnCondition: empdisable || unit.docked || !has-gunner
+		HoldFireWhileMoving: True
 		# StopAndWait: 100
 	Selectable:
 		Class: ARTILLERY
@@ -559,6 +560,7 @@ grad:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
+		HoldFireWhileMoving: True
 	WithSpriteTurret@idle:
 		RequiresCondition: !firing
 		Sequence: turret-idle
@@ -669,6 +671,7 @@ tos:
 		ForceFireIgnoresActors: True
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
+		HoldFireWhileMoving: True
 	WithSpriteTurret@idle:
 		RequiresCondition: !firing
 		Sequence: turret-idle
@@ -910,6 +913,7 @@ iskander:
 		Voice: Attack
 		PauseOnCondition: empdisable
 		FacingLockCondition: firing
+		HoldFireWhileMoving: True
 		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all loaded missiles at the original target position.
 	WithFacingSpriteBody:
 		Sequence: empty-idle
