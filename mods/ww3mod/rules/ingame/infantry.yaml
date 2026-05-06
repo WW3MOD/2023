@@ -1090,6 +1090,8 @@
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
+		CreditValue: 2
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 4, 3
@@ -1156,6 +1158,8 @@ E1R1:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1182,6 +1186,7 @@ E1R1:
 		Ammo: 1
 		AmmoCondition: ammo-secondary
 		SupplyValue: 25
+		CreditValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1265,6 +1270,8 @@ E3R1:
 		Armaments: primary, garrisoned
 		Ammo: 500
 		AmmoCondition: ammo-primary
+		SupplyValue: 3
+		CreditValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1327,6 +1334,7 @@ AR:
 		Ammo: 30
 		AmmoCondition: ammo-primary
 		SupplyValue: 3
+		CreditValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1398,6 +1406,8 @@ E2R1:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
+		SupplyValue: 3
+		CreditValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1420,6 +1430,7 @@ E2R1:
 		Ammo: 6
 		AmmoCondition: ammo-secondary
 		SupplyValue: 10
+		CreditValue: 10
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1483,6 +1494,7 @@ TL:
 		Ammo: 25
 		AmmoCondition: ammo-primary
 		SupplyValue: 5
+		CreditValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1547,6 +1559,7 @@ MT:
 		Ammo: 50
 		AmmoCondition: ammo-primary
 		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1617,7 +1630,8 @@ SN:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
-		SupplyValue: 25
+		SupplyValue: 100
+		CreditValue: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1684,7 +1698,8 @@ AT:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
-		SupplyValue: 25
+		SupplyValue: 60
+		CreditValue: 60
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1765,6 +1780,8 @@ AA:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1791,6 +1808,7 @@ AA:
 		Ammo: 3
 		AmmoCondition: ammo-secondary
 		SupplyValue: 25
+		CreditValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1894,6 +1912,8 @@ E6:
 		Armaments: primary
 		Ammo: 90
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1968,6 +1988,8 @@ E4:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1996,6 +2018,7 @@ E4:
 		Ammo: 3
 		AmmoCondition: ammo-secondary
 		SupplyValue: 25
+		CreditValue: 25
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -2176,6 +2199,7 @@ TECN:
 		Ammo: 1
 		AmmoCondition: ammo-primary
 		SupplyValue: 50
+		CreditValue: 50
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -2257,6 +2281,8 @@ DR:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
+		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Delay: 50
