@@ -126,11 +126,21 @@ The aim-settle phase (step 4) is already covered by `AimingDelay`, which is per-
 
 ## What to do next
 
-**Decisions I need from you before implementing more:**
+**Status (updated 2026-05-06 after follow-up):**
 
-1. Drone-operator stuck — pick option **A**, **B**, **C**, or **D** above (I recommend B).
-2. Setup phase — implement `SetupTicks` as proposed? Defaults for artillery/MLRS?
-3. Should I also bump artillery armament `AimingDelay` from 15 → ~35 as part of the same pass?
-4. Should I touch any of the proactive findings (3a, 3c) now, or file them?
+User clarified the DR "prepare" animation runs even with no enemy drones. Investigation revealed
+**DroneTargeter.ValidTargets: Ground, Water** matches enemy *ground actors* (Ground TargetType is shared between terrain and actors), so AutoTarget was auto-firing the drone deployer at any enemy infantry/vehicle in range. That's the smoking gun for the "never ordered" report. Per user approval, all five fixes shipped:
 
-Once you decide, the engine bits are small (~30 lines for SetupTicks, ~15 lines for the SmartMove gate). YAML pass is mechanical.
+- ✅ **Option B** (per-armament `NoSelfDefenseInterrupt`) — applied to DroneJammer
+- ✅ **NEW: `Armament.RequiresForceFire`** — applied to DroneTargeter, HIMARSTargeter, IskanderTargeter (the real DR fix; B was for the secondary jammer interrupt case)
+- ✅ **`SetupTicks`** mechanic + `SetupCondition` — implemented in AttackBase
+- ✅ **Artillery `AimingDelay` bumped** — Paladin 35, Giatsint 35, Iskander 40, HIMARS 40, Grad/TOS/M270 30
+- ✅ **Proactive 3a** — DISCOVERIES.md WAngle direction corrected
+- ✅ **Proactive 3c** — dead `PreparingRevokeDelay`, `AttackingRevokeDelay`, `RevokeOnNewTarget` fields stripped from `GrantConditionOnPreparingAttack` + YAML usages cleaned up
+
+Defaults for SetupTicks (artillery deploy time, ticks @ 25tps):
+- Paladin / Giatsint: 50 (2.0s)
+- M270 / Grad / TOS: 75 (3.0s) — multi-launch needs more setup
+- HIMARS / Iskander: 100 (4.0s) — strategic strike
+
+**Still open:** the user found vehicle groups dropping moves on long routes / narrow gaps — that's pathfinding, summarized in `260506_pathfinding_friendly_blockers.md` for a fresh chat.

@@ -25,4 +25,5 @@
 - Created CLAUDE/ project folder for session tracking, plans, discoveries, and bug captures.
 
 ## 2026-03-21 — MCP map actor facing
-- Actor `Facing` field in map.yaml must be a WAngle integer (0-1023), not a compass string like "East". The MCP `place_actors` tool passes it through as a string, so use: 0=North, 256=East, 512=South, 768=West. Using "East" crashes on map load with `FieldLoader: Cannot parse 'East' into 'value.OpenRA.WAngle'`.
+- Actor `Facing` field in map.yaml must be a WAngle integer (0-1023), not a compass string like "East". The MCP `place_actors` tool passes it through as a string, so use: **0=North, 256=West, 512=South, 768=East** (counterclockwise — see `~/.claude/projects/.../memory/feedback_facings.md` and CLAUDE.md). Using "East" crashes on map load with `FieldLoader: Cannot parse 'East' into 'value.OpenRA.WAngle'`.
+- (Corrected 2026-05-06 — earlier version of this entry had the directions wrong.)
