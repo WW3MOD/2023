@@ -32,9 +32,10 @@ You are picking up a brainstorming session about reworking how crew (drivers, gu
 - **Side-mission rescue objects.** A surviving crew member is a small reward — bring them home, get cashback. They are not a meaningful combat unit.
 - Limited combat: SMG with ~1/3 the ammo of a regular soldier. Otherwise as effective as any infantryman with an SMG (which is already weaker than rifle infantry).
 - Cashback values:
-  - Driver / Gunner / Copilot = 100
+  - Driver / Gunner = 100
   - Commander = 200
   - Pilot = 300
+  - Copilot = 200
   - Vehicle-agnostic (a tank Commander = an IFV Commander = 200)
 - Default behavior: auto-evacuate via the existing `Evacuate` resupply stance, walk to the map edge biased toward a friendly Supply Route. Player can override with explicit orders.
 
@@ -48,7 +49,7 @@ These are locked. Do not relitigate without the user reopening.
 |---|----------|-----------|
 | Q1 | Extend the existing `VehicleCrew` system; redesign only if structurally needed | User open to redesign but baseline is "extend." Architecture decision below makes this concrete. |
 | Q2 | Live/die for crew is driven by **finishing-shot damage / vehicleMaxHp** | Simple, captures one-shot-kill = crew dies and grind = crew survives |
-| Q3 | **Drop incendiary weapon flag.** Fire is *not* tied to weapon type. | User explicitly walked back the incendiary flag — too complex |
+| Q3 | **Drop incendiary weapon flag.** Fire is *not* tied to weapon type. | User explicitly walked back the incendiary flag |
 | Q4 | Fire and live/die are **independent per crew member**. Crew can be dead inside, alive on fire, alive clean. | Replaces earlier "fire is a separate track that skips live/die" |
 | Q5 | Survival distribution target: **A-baseline harsh** (~60 dead inside / 15 fire-eject / 25 clean per 100 crew) | User wants "much fewer crew" |
 | Q6 | Helicopters: keep `HeliEmergencyLanding` heavy=safe-land (guaranteed eject) and critical=crash; *but* in the critical-crash path apply the new resolver so a rare survivor can crawl from the wreckage on fire | Hybrid (Q6-C). Most crashes still kill all hands. |

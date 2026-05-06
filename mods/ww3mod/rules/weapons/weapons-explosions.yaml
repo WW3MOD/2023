@@ -471,7 +471,7 @@ IskanderExplosion:
 			Medium: 60
 			Heavy: 40
 			Concrete: 25
-		ShockwaveColor: 255, 255, 240, 200
+		ShockwaveColor: FFFFF0C8
 		ShockwaveThickness: 1024
 		ShockwaveOuterAlpha: 25
 		ShockwaveInnerAlpha: 8
@@ -508,7 +508,7 @@ HIMARSExplosion:
 			Medium: 60
 			Heavy: 40
 			Concrete: 25
-		ShockwaveColor: 255, 255, 240, 200
+		ShockwaveColor: FFFFF0C8
 		ShockwaveThickness: 768
 		ShockwaveOuterAlpha: 20
 		ShockwaveInnerAlpha: 6
