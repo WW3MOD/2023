@@ -595,6 +595,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 			{
+				// Default right-click on a Logistics Center is "go dock and refill" via the
+				// standard Repairable / Restock flow. Only Ctrl+click (ForceMove) means
+				// "deliver my supply to this LC".
+				if (!modifiers.HasModifier(TargetModifiers.ForceMove))
+					return false;
+
 				if (target.TraitOrDefault<AbsorbsSupplyCache>() == null)
 					return false;
 
