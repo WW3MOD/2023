@@ -19,6 +19,8 @@
 		Armaments: primary
 		Ammo: 24
 		AmmoCondition: ammo-primary
+		SupplyValue: 1
+		CreditValue: 1
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 4, 3

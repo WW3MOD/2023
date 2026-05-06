@@ -639,6 +639,8 @@ CRAM:
 		Ammo: 24
 		AmmoCondition: ammo
 		ReloadDelay: 6
+		SupplyValue: 15
+		CreditValue: 15
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 4, 3
@@ -712,6 +714,8 @@ AGUN:
 		Ammo: 24
 		AmmoCondition: ammo
 		ReloadDelay: 6
+		SupplyValue: 15
+		CreditValue: 15
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		Margin: 4, 3
@@ -919,6 +923,8 @@ FTUR:
 		Ammo: 10
 		AmmoCondition: ammo
 		ReloadDelay: 40
+		SupplyValue: 2
+		CreditValue: 2
 	AttackTurreted:
 		Armaments: primary, secondary
 		Turrets: ranged-turret, melee-turret
