@@ -455,6 +455,8 @@ TRUK:
 		RearmCondition: replenish-soldiers
 		CargoHasSupplyCondition: cargo-has-supply
 		CreditValuePerUnit: 50
+	Repairable:
+		RepairActors: logisticscenter
 	RenderRangeCircle@Supply:
 		FallbackRange: 5c0
 		RangeCircleType: supply
