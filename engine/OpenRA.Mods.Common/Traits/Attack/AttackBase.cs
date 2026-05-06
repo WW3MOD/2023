@@ -184,7 +184,10 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 
 			// Movement aborts setup — reset and refuse fire.
-			if (positionable is Mobile mobile && mobile.IsMovingBetweenCells)
+			// CurrentMovementTypes covers the entire visible transition; IsMovingBetweenCells
+			// goes false halfway through (after MoveFirstHalf.OnComplete) which would let
+			// setup falsely advance during the second-half visual roll.
+			if (positionable is Mobile mobile && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
 			{
 				if (setupRemaining != -1)
 				{
@@ -263,10 +266,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (!mobile.CanInteractWithGroundLayer(self))
 					return false;
 
-				// Artillery / MLRS opt-in: don't fire while still rolling between cells.
-				// AttackFollow.Tick runs every tick on the trait and fires as soon as range/facing
-				// are valid — without this gate, a unit in its final approach cell can fire mid-roll.
-				if (Info.HoldFireWhileMoving && mobile.IsMovingBetweenCells)
+				// Artillery / MLRS opt-in: don't fire while the unit is still moving horizontally.
+				// We use CurrentMovementTypes (a per-tick position-delta check) rather than
+				// IsMovingBetweenCells (FromCell != ToCell) because MoveFirstHalf.OnComplete
+				// already sets FromCell == ToCell halfway through the visible transition — the
+				// IsMovingBetweenCells flag would let firing happen during the entire MoveSecondHalf.
+				if (Info.HoldFireWhileMoving && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
 					return false;
 			}
 
@@ -276,6 +281,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			return true;
 		}
+
+		// Whether AttackFollow / external aiming logic should consider this trait actively engaging
+		// the target. Exposed so AttackFollow.Tick can gate IsAiming the same way CanAttack gates fire,
+		// preventing the turret from tracking while the unit is mid-roll or in setup countdown.
+		// NOTE: This drives the setup state machine (via CanAttack -> TickSetup), so call once per tick.
+		public bool ReadyToEngage(Actor self, in Target target) => CanAttack(self, target);
 
 		// Evaluate and potentially switch targets
 		protected virtual Target EvaluateTarget(in Target currentTarget, bool forceAttack, bool isManualTarget = false)

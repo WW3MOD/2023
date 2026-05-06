@@ -127,7 +127,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (RequestedTarget.IsValidFor(self))
 			{
-				IsAiming = CanAimAtTarget(self, RequestedTarget, requestedForceAttack);
+				// Gate IsAiming on the same checks as fire (HoldFireWhileMoving, SetupTicks).
+				// Without this, the turret keeps tracking the target while the unit is rolling
+				// to its destination cell or in setup countdown — visually contradicting the
+				// "stop, deploy, then aim, then fire" sequence.
+				IsAiming = CanAimAtTarget(self, RequestedTarget, requestedForceAttack)
+					&& ReadyToEngage(self, RequestedTarget);
 				if (IsAiming)
 					DoAttack(self, RequestedTarget, isManualTarget: true);
 			}
@@ -136,7 +141,8 @@ namespace OpenRA.Mods.Common.Traits
 				IsAiming = false;
 
 				if (OpportunityTarget.IsValidFor(self))
-					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack);
+					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack)
+						&& ReadyToEngage(self, OpportunityTarget);
 
 				if (!IsAiming && Info.OpportunityFire && autoTarget != null &&
 				    !autoTarget.IsTraitDisabled && autoTarget.Stance >= UnitStance.FireAtWill)
@@ -146,7 +152,8 @@ namespace OpenRA.Mods.Common.Traits
 					opportunityTargetIsPersistentTarget = false;
 
 					if (OpportunityTarget.IsValidFor(self))
-						IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack);
+						IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack)
+							&& ReadyToEngage(self, OpportunityTarget);
 				}
 
 				if (IsAiming)
