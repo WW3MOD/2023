@@ -17,3 +17,4 @@
 
 - The Flame troopers burst should be less scattered, so the shots in the burst lands closer together, make it half of the current scatter/spread but the same accuracy otherwise
 
+- HIMARS and Iskander should one-shot any unit, I think the damage needs to be 3x at the impact point, but maybe even less in the area around as they have a wide spread of their damage. We have a shockwave animation for the nuke, I would like to reuse it here as well but smaller radius obviously. What else can we do along thees lines? Fix the things i mentioned and then give me some suggestions to make them properly balanced and cooler.

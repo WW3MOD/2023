@@ -779,21 +779,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool TryQueueMoveToLogisticsCenter(Actor self)
 		{
-			var move = self.TraitOrDefault<IMove>();
-			if (move == null)
+			if (self.TraitOrDefault<IMove>() == null)
 				return false;
 
+			// Only target docking-aware providers (LC), so an empty truck doesn't try
+			// to "dock" at a ground SUPPLYCACHE. Picks the nearest LC with supply left.
 			var targetLC = self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner))
-					&& a.Trait<SupplyProvider>().CurrentSupply > 0)
+					&& a.Trait<SupplyProvider>().CurrentSupply > 0
+					&& !string.IsNullOrEmpty(a.Trait<SupplyProvider>().Info.DockedCondition))
 				.ClosestToIgnoringPath(self);
 
 			if (targetLC == null)
 				return false;
 
-			var targetCell = self.World.Map.CellContaining(targetLC.CenterPosition);
-			self.QueueActivity(false, move.MoveTo(targetCell, 3));
+			// Drive in and dock; the Restock activity handles the per-pip transfer
+			// once the truck is in the LC's UNITDOCKED proximity range.
+			self.QueueActivity(false, new RefillFromHost(self, targetLC));
 			self.ShowTargetLines();
 			return true;
 		}
