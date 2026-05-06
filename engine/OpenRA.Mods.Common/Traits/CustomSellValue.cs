@@ -39,10 +39,19 @@ namespace OpenRA.Mods.Common.Traits
 					missingAmmoValue += (pool.Info.Ammo - pool.CurrentAmmoCount) * pool.Info.CreditValue;
 			}
 
-			// Deduct value of missing supply (for supply trucks)
+			// Deduct value of missing supply on a SupplyProvider host (e.g. Logistics Center).
 			var supplyProvider = a.TraitOrDefault<SupplyProvider>();
 			if (supplyProvider != null)
 				missingAmmoValue += supplyProvider.MissingSupplyValue;
+
+			// Deduct value of missing CargoSupply pool (supply trucks).
+			// Without this, an empty truck refunds full cost on evacuate.
+			var cargoSupply = a.TraitOrDefault<CargoSupply>();
+			if (cargoSupply != null)
+			{
+				var missingUnits = cargoSupply.Info.MaxSupply - cargoSupply.SupplyCount;
+				missingAmmoValue += missingUnits * cargoSupply.Info.CreditValuePerUnit;
+			}
 
 			return System.Math.Max(0, baseValue - missingAmmoValue);
 		}
