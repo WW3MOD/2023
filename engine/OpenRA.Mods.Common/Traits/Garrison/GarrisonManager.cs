@@ -97,6 +97,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Suppression level at which a port soldier is forced to recall to shelter. 0 disables.")]
 		public readonly int SuppressionRecallThreshold = 60;
 
+		[Desc("Maximum suppression level for a shelter soldier to be eligible for redeployment. " +
+			"After a suppression recall, the soldier must decay below this threshold before being " +
+			"redeployed at any port. Provides per-soldier hysteresis that survives port switches " +
+			"(same building's other ports have their own lockouts, but those don't see soldier state). " +
+			"Set to 0 to disable.")]
+		public readonly int SuppressionRedeployThreshold = 30;
+
 		[Desc("Ticks a port stays locked after a suppression recall, preventing immediate redeployment.")]
 		public readonly int SuppressionLockoutTicks = 50;
 
@@ -448,6 +455,17 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var soldier in shelterPassengers)
 			{
 				if (soldier.IsDead)
+					continue;
+
+				// Suppression hysteresis: a soldier recalled at suppression ≥ SuppressionRecallThreshold
+				// (default 60) only decays ~10 stacks during SuppressionLockoutTicks (default 50, decay
+				// rate 1 per 5 ticks for infantry). Without this gate they get redeployed at a different
+				// port — port-level lockouts are per-port, not per-soldier — at suppression ~50, eat one
+				// more hit, climb back over 60, get recalled again. Cycle ≈40–60 ticks visible as
+				// shelter↔port flicker. Requiring the soldier itself to be below the redeploy threshold
+				// adds 100+ decay ticks before they're eligible anywhere, which is what stops the loop.
+				if (Info.SuppressionRedeployThreshold > 0
+					&& soldier.GetConditionCount(Info.SuppressionCondition) >= Info.SuppressionRedeployThreshold)
 					continue;
 
 				// Must have weapons
