@@ -73,6 +73,8 @@ humvee:
 		Ammo: 300
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 3
+		CreditValue: 3
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -224,6 +226,8 @@ m113:
 		AmmoCondition: ammo-primary
 		ReloadCount: 20
 		RearmSound: minelay1.aud
+		SupplyValue: 5
+		CreditValue: 5
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -347,6 +351,8 @@ bradley:
 		Ammo: 900
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 15
+		CreditValue: 15
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -368,6 +374,8 @@ bradley:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
+		SupplyValue: 100
+		CreditValue: 100
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -493,6 +501,8 @@ abrams:
 		Ammo: 40
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 80
+		CreditValue: 80
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -600,6 +610,8 @@ m109:
 		Ammo: 39
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 80
+		CreditValue: 80
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -713,6 +725,8 @@ m270:
 		Ammo: 12
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 1500
+		CreditValue: 1500
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -826,6 +840,8 @@ strykershorad:
 		Ammo: 400
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
+		SupplyValue: 15
+		CreditValue: 15
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -850,6 +866,8 @@ strykershorad:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
+		SupplyValue: 60
+		CreditValue: 60
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -879,6 +897,8 @@ strykershorad:
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
 		RearmSound: minelay1.aud
+		SupplyValue: 200
+		CreditValue: 200
 	WithAmmoPipsDecoration@3:
 		Position: Bottom
 		Margin: -8, 3

@@ -382,6 +382,8 @@ MNLY:
 		Ammo: 10
 		AmmoCondition: ammo-mines
 		RearmSound: minelay1.aud
+		SupplyValue: 25
+		CreditValue: 25
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 7,3
