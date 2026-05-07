@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color TargetLineColor = Color.OrangeRed;
 
 		[VoiceReference]
-		public readonly string Voice = "Attack";
+		public readonly string Voice = "Action";
 
 		public override object Create(ActorInitializer init) { return new AttacksSupplyRoutes(this); }
 	}
