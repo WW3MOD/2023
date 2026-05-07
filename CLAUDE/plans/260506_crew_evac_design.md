@@ -38,11 +38,11 @@ Rework crew (drivers, gunners, commanders, pilots, copilots) and passenger evacu
 | D11 | Helicopter state machine: **Heavy = nothing** (just keeps flying with damage-state penalties). **Critical = controlled descent** (existing `HeliAutorotate` activity, kept as-is). After landing: sits and burns until destroyed via existing critical DOT; `VehicleCrew` and `Cargo` run their staged sequences naturally once the heli is stationary at <50% HP. |
 | D12 | Mid-glide death rules:<br>• `SpinsOnCrash: false` (Chinook/HALO) → always falls, no spin, `rotor-destroyed` granted.<br>• `SpinsOnCrash: true` AND killing shot ≥ `RotorDestroyDamageThresholdPct` × MaxHP (default 50%) → falls, no spin, `rotor-destroyed` granted (sprite hidden).<br>• Otherwise → existing `HeliCrashLand` spinning crash. |
 | D13 | Re-entry feature **removed entirely**. Delete `CrewMember.cs`, `EnterAsCrew.cs`, `AllowForeignCrew` plumbing on `VehicleCrew`, capture-by-pilot path on `HeliEmergencyLanding`, any cursor/UI plumbing. Crew/passengers are pure infantry post-eject. |
-| D14 | Critical state is a one-way trip to destruction. **Engineers cannot save a burning vehicle.** Existing `Repairable*` traits get gated on `RequiresCondition: !is-burning` (or equivalent existing critical condition). The "repaired out of critical → cancel ejecting" branch in current `VehicleCrew.DamageStateChanged` is removed. |
+| D14 | Critical state is a one-way trip to destruction. **Engineers cannot save a burning vehicle.** Existing `Repairable*` traits get gated on `RequiresCondition: !critical-damage` (the existing condition from `GrantConditionOnDamageState`). The "repaired out of critical → cancel ejecting" branch in current `VehicleCrew.DamageStateChanged` is removed. |
 | D15 | `EjectionSurvivalRate` removed. Replaced by ±100% damage variance — natural lethality without a coin flip. |
 | D16 | Crew survivor selectability: lower `Selectable: Priority` than infantry + distinct `Selectable: Class: CrewSurvivor`. Box-select still grabs them; per-class filters separate them. **Passengers keep their original selection priority** — a regular rifleman who happened to be in a transport shouldn't suddenly be deprioritized like a technician. |
 | D17 | Crew survivor combat: SMG + ~1/3 of regular SMG infantry's ammo (per handoff Q8b). |
-| D18 | Crew survivor cashback: Driver / Gunner = 100, Commander = 200, Pilot = 300, Copilot = 200 (per handoff Q8a). **Open** — confirm Copilot value at review time (handoff flagged this; could be 100 or 200). |
+| D18 | Crew survivor cashback: Driver / Gunner = 100, Commander = 200, Pilot = 300, Copilot = 200. |
 | D19 | Crew survivor default stance: Resupply = Evacuate, Engagement = Defensive, Fire = FireAtWill. Walks toward map edge biased toward friendly Supply Route, refunds cashback on arrival via the existing rotate-to-edge path. |
 
 ---
@@ -113,7 +113,7 @@ Rework crew (drivers, gunners, commanders, pilots, copilots) and passenger evacu
 - Any cursor / order-string plumbing that referenced re-entry orders.
 
 **Modified (YAML):**
-- `mods/ww3mod/rules/ingame/defaults.yaml` — add `OnFireFromHealth`, `ExternalCondition@onfire`, `WithIdleOverlay@Burn_1..5` to `^Vehicle` and `^Aircraft` templates. Gate `Repairable*` on `!is-burning` (or existing critical condition).
+- `mods/ww3mod/rules/ingame/defaults.yaml` — add `OnFireFromHealth`, `ExternalCondition@onfire`, `WithIdleOverlay@Burn_1..5` to `^Vehicle` and `^Aircraft` templates. Gate `Repairable*` on `!critical-damage` (or existing critical condition).
 - `mods/ww3mod/rules/ingame/vehicles-america.yaml`, `vehicles-russia.yaml` — tune per-vehicle `VehicleCrew` knobs (drop obsolete fields, add `CrewFireTransferPct: 100`, `StoppedTicksRequired: 8`).
 - `mods/ww3mod/rules/ingame/aircraft.yaml` (`^Helicopter` template) — `CrewFireTransferPct: 0`, removed re-entry plumbing, new `RotorDestroyDamageThresholdPct`, `RotorDestroyedCondition`.
 - `mods/ww3mod/rules/ingame/aircraft-america.yaml`, `aircraft-russia.yaml` — same per-heli tuning. Confirm `SpinsOnCrash: false` on Chinook/HALO.
@@ -305,16 +305,12 @@ INotifyKilled while State == Crashing (still airborne):
         Image: vehicle-burn-5
         ...
 
-    # Gate engineer repair below 50% HP — burning vehicles are unrecoverable
+    # Gate engineer repair below 50% HP — burning vehicles are unrecoverable.
+    # Reuses the existing `critical-damage` condition from GrantConditionOnDamageState.
     Repairable:
-        RequiresCondition: !is-burning   # or whatever the existing critical condition is named
+        RequiresCondition: !critical-damage
     RepairableNear:
-        RequiresCondition: !is-burning
-
-    # Grant is-burning when entering critical state
-    GrantConditionOnDamageState@is-burning:
-        Condition: is-burning
-        ValidDamageStates: Critical
+        RequiresCondition: !critical-damage
 ```
 
 (`^Aircraft` follows the same pattern.)
@@ -426,17 +422,13 @@ crew.commander.america:     Inherits: ^CrewMember
 crew.pilot.america:         Inherits: ^CrewMember
                             Valued: { Cost: 300 }
 crew.copilot.america:       Inherits: ^CrewMember
-                            Valued: { Cost: 200 }           # OPEN — handoff Q8 follow-up; could be 100
+                            Valued: { Cost: 200 }
 # (Russia faction variants follow the same pattern)
 ```
 
-### Optional `EvacRules` world trait (skip if no global knob is needed)
+### `EvacRules` world trait — **skipped for v1**
 
-```yaml
-World:
-    EvacRules:
-        CrewLethalityScale: 100   # percent; multiplied into finishingFraction. 100 = baseline.
-```
+`CrewLethalityScale` lives as a const in `EvacResolver` for v1 (default 100). Promote to a world trait only if playtest tuning needs frequent changes.
 
 ---
 
@@ -473,22 +465,27 @@ World:
 - Chinook killed mid-glide: always falls (SpinsOnCrash: false).
 - Crew survivor box-selected with mixed army: still selected, but per-class filter keyboard-shortcut separates them.
 - Crew survivor on default stances: walks toward map edge biased toward friendly SR; refunds cashback (100/200/300/200) on arrival.
-- Critically-damaged tank cannot be repaired by engineer (Repairable gated on `!is-burning`).
+- Critically-damaged tank cannot be repaired by engineer (Repairable gated on `!critical-damage`).
 - No re-entry: clicking on a critical/disabled vehicle with crew survivor selected shows no enter cursor; ordering "enter" via legacy hotkey is rejected.
 - Vehicle burn overlay visible at appropriate stack tiers (1–2: light smoke, 9–10: engulfed).
 
 ---
 
-## 8. Open items (resolve at review or during implementation)
+## 8. Open items (resolved at review; remaining items checked during implementation)
 
-1. **Copilot cashback value.** Spec'd as 200; could be 100 to match Driver/Gunner. Confirm at review.
-2. **Helicopter unsafe-terrain landing damage.** Spec'd as "apply some damage on touchdown then proceed as suitable" — exact amount TBD. Default placeholder during implementation: 30% of remaining HP. Will revisit during playtest.
-3. **`EvacRules` world trait — needed?** Single `CrewLethalityScale` knob may not justify a whole new world trait. Could live as a const in `EvacResolver` for v1; promote to YAML if tuning becomes needed.
-4. **Existing critical condition name.** Spec uses `is-burning` as a placeholder; likely the existing `critical-damage` condition (or `GrantConditionOnDamageState`'s output) can be reused. Confirm during implementation; don't add a new one if equivalent exists.
-5. **Vehicle-burn sprites.** First pass tries reusing `infantry-burn-1..5`. If scale/positioning is wrong on tanks/helis, file a sprite-work follow-up under `BACKLOG.md`.
-6. **Cargo `LoadingBlocked` plumbing.** Today `HeliEmergencyLanding.OnSafeLanding` sets `cargo.LoadingBlocked = true` to prevent infantry from entering the disabled heli. With re-entry removed and capture path gone, this may be obsolete — confirm and clean up.
-7. **`AllowForeignCrew` on `VehicleCrew`.** All references being removed (capture-by-pilot is gone). Check no other code paths depend on it.
-8. **Helicopter `EjectAllCrew()` + `EjectAllPassengers()` methods.** Becomes dead code with the new model (crew/passengers handled via critical-state staged path). Delete or repurpose.
+**Resolved at review (2026-05-07):**
+
+- **Copilot cashback** = 200 (locked).
+- **Helicopter unsafe-terrain landing damage** = 30% of remaining HP on touchdown (placeholder; revisit during playtest).
+- **`EvacRules` world trait skipped for v1.** `CrewLethalityScale` lives as a const in `EvacResolver`. Promote to YAML world trait only if tuning needs it.
+- **Critical-state condition** — reuse existing `critical-damage` (granted by `GrantConditionOnDamageState`). Don't add a new `is-burning`.
+
+**Verify during implementation:**
+
+1. **Vehicle-burn sprites.** First pass tries reusing `infantry-burn-1..5`. If scale/positioning is wrong on tanks/helis, file a sprite-work follow-up under `BACKLOG.md`.
+2. **`Cargo.LoadingBlocked` plumbing.** Today `HeliEmergencyLanding.OnSafeLanding` sets `cargo.LoadingBlocked = true` to prevent infantry from entering the disabled heli. With re-entry removed and capture path gone, this may be obsolete — confirm and clean up.
+3. **`AllowForeignCrew` on `VehicleCrew`.** All references being removed (capture-by-pilot is gone). Check no other code paths depend on it.
+4. **Helicopter `EjectAllCrew()` + `EjectAllPassengers()` methods.** Becomes dead code with the new model (crew/passengers handled via critical-state staged path). Delete or repurpose.
 
 ---
 
