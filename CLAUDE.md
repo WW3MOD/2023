@@ -301,9 +301,11 @@ Tick-by-tick combat simulator for balance analysis. Models damage (penetration, 
 
 ### Developer Test Harness
 ```bash
-./tools/test/run-test.sh <test-folder>                  # Auto-position windowed
+./tools/test/list-tests.sh                              # List available tests
+./tools/test/run-test.sh <test-folder>                  # Run one test
+./tools/test/run-batch.sh <t1> <t2> ...                 # Run several
+./tools/test/run-batch.sh --all                         # Run every test-* folder
 ./tools/test/run-test.sh --position=left <test>         # Force left half
-./tools/test/run-test.sh --position=right <test>        # Force right half (saved per-TTY)
 ./tools/test/run-test.sh --fullscreen <test>            # Skip sizing/positioning
 ./tools/test/run-test.sh --help                         # Flag list
 ```
@@ -317,7 +319,16 @@ Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/`
 
 **Reusable Lua helpers** (`mods/ww3mod/scripts/test-helpers.lua`):
 - `TestHarness.FocusBetween(actor1, actor2, ...)` — center camera on the midpoint of N actors.
-- `TestHarness.Select(actor)` — pre-select unit-under-test on world load (saves a click). Wraps the new `UserInterface.Select(actor)` Lua global.
+- `TestHarness.Select(actor)` — pre-select unit-under-test on world load (saves a click). Wraps `UserInterface.Select(actor)`.
+- `TestHarness.AssertWithin(seconds, predicate, failReason)` — poll a predicate every tick; `Test.Pass()` when it returns `true`, `Test.Fail(reason)` on timeout. Predicate may also return a `"fail: <reason>"` string to fail immediately. Tests built on this need no human verdict.
+- `TestHarness.AssertAfter(seconds, predicate, failReason)` — wait `seconds`, then assert the predicate is true.
+
+**Auto-asserting Lua globals** (`Test.*`, all no-op outside test mode):
+- `Test.Pass()` — write `pass` verdict and exit.
+- `Test.Fail(reason)` — write `fail` verdict + reason and exit.
+- `Test.Skip(reason)` — write `skip` verdict + reason and exit.
+
+A test that uses `AssertWithin` runs unattended — the script exit code (0/1/2/3) tells the runner the verdict. Pair with `run-batch.sh --all` for a hands-off regression sweep.
 
 **Adding a test:**
 1. Copy an existing test folder under `mods/ww3mod/maps/test-<name>/` (e.g. `cp -r mods/ww3mod/maps/test-artillery-turret mods/ww3mod/maps/test-<name>`).
@@ -329,7 +340,9 @@ Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/`
 7. **`<test>.lua`:** `WorldLoaded = function() TestHarness.FocusBetween(a, b); TestHarness.Select(a) end` — staging only, no UI text.
 8. Run with `./tools/test/run-test.sh test-<name>`.
 
-Tier 2 (auto-asserting Lua: `Test.Pass()`, `Test.Fail(reason)`, `Test.AssertWithin(seconds, fn)`) is **not yet** built — every test still needs a human verdict.
+**Test types:**
+- *Manual* — Lua only stages (camera, selection); the human watches and types in chat. Example: `test-artillery-turret`.
+- *Auto-asserting* — Lua uses `TestHarness.AssertWithin(...)` to verdict itself. The runner exits with the test's pass/fail status, no human input needed. Example: `test-paladin-fires` (asserts the Paladin's primary ammo drops below max within 8 s of world-load).
 
 ## Project Architecture
 

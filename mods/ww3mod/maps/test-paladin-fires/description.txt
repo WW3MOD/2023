@@ -1,0 +1,1 @@
+Auto: Paladin must fire on the t90 within 8 seconds (ammo drops below max).
