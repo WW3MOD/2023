@@ -12,12 +12,12 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Paladin, Target)
 	TestHarness.Select(Paladin)
 
-	local startingAmmo = Paladin.AmmoCount("primary")
+	local startingAmmo = Paladin.AmmoCount("primary-ammo")
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
 		if Paladin.IsDead then
 			return "fail: Paladin died before firing"
 		end
-		return Paladin.AmmoCount("primary") < startingAmmo
+		return Paladin.AmmoCount("primary-ammo") < startingAmmo
 	end, "Paladin did not fire within " .. DeadlineSeconds .. "s")
 end
