@@ -418,17 +418,12 @@ World:
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
-	PowersLobbyOptions:
-		AirstrikeCheckboxDisplayOrder: 81
-		AirstrikeCooldownDisplayOrder: 82
-		# Airstrikes disabled for v1 — powers are kept defined in player.yaml but locked off
-		# via the airstrikes-disabled condition (PauseOnCondition). Re-enable post-v1 by flipping
-		# Enabled: true and Visible: true. See CLAUDE/RELEASE_V1.md (Deferred to v1.1).
-		AirstrikeCheckboxEnabled: false
-		AirstrikeCheckboxLocked: true
-		AirstrikeCheckboxVisible: false
-		AirstrikeCooldownLocked: true
-		AirstrikeCooldownVisible: false
+	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this trait
+	# AND the AirstrikePower@America/@Russia + GrantConditionOnLobbyOption@airstrikes
+	# blocks in player.yaml. See CLAUDE/RELEASE_V1.md (Deferred to v1.1).
+	# PowersLobbyOptions:
+	# 	AirstrikeCheckboxDisplayOrder: 81
+	# 	AirstrikeCooldownDisplayOrder: 82
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle

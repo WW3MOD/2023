@@ -103,52 +103,56 @@ Player:
 		NewOptionsTextNotification: New construction options.
 		CannotPlaceTextNotification: Cannot deploy here.
 	SupportPowerManager:
-	GrantConditionOnLobbyOption@airstrikes:
-		Option: airstrikes
-		Condition: airstrikes-disabled
-		GrantWhenOptionDisabled: true
-	AirstrikePower@America:
-		PauseOnCondition: airstrikes-disabled
-		OrderName: AmericaAirstrike
-		Prerequisites: player.america
-		Icon: icon
-		IconImage: a10
-		ChargeInterval: 6000
-		LobbyChargeIntervalId: airstrike-cooldown
-		SquadSize: 1
-		Name: A-10 Airstrike
-		Description: Call in an A-10 Warthog for a\nstrafing run on the target area.
-		SelectTargetSpeechNotification: SelectTarget
-		UnitType: a10.airstrike
-		CameraActor: camera.paradrop
-		CameraRemoveDelay: 250
-		DisplayBeacon: true
-		ArrowSequence: arrow
-		ClockSequence: clock
-		CircleSequence: circles
-		Cursor: ability
-		SupportPowerPaletteOrder: 1
-	AirstrikePower@Russia:
-		PauseOnCondition: airstrikes-disabled
-		OrderName: RussiaAirstrike
-		Prerequisites: player.russia
-		Icon: icon
-		IconImage: frog
-		ChargeInterval: 6000
-		LobbyChargeIntervalId: airstrike-cooldown
-		SquadSize: 1
-		Name: Su-25 Airstrike
-		Description: Call in a Su-25 Frogfoot for a\nrocket attack on the target area.
-		SelectTargetSpeechNotification: SelectTarget
-		UnitType: frog.airstrike
-		CameraActor: camera.paradrop
-		CameraRemoveDelay: 250
-		DisplayBeacon: true
-		ArrowSequence: arrow
-		ClockSequence: clock
-		CircleSequence: circles
-		Cursor: ability
-		SupportPowerPaletteOrder: 1
+	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this whole block
+	# AND the PowersLobbyOptions trait in world.yaml. The A10.Airstrike / FROG.Airstrike
+	# unit defs are still in aircraft-america.yaml / aircraft-russia.yaml (orphan, harmless
+	# without the powers below). See CLAUDE/RELEASE_V1.md (Deferred to v1.1).
+	# GrantConditionOnLobbyOption@airstrikes:
+	# 	Option: airstrikes
+	# 	Condition: airstrikes-disabled
+	# 	GrantWhenOptionDisabled: true
+	# AirstrikePower@America:
+	# 	PauseOnCondition: airstrikes-disabled
+	# 	OrderName: AmericaAirstrike
+	# 	Prerequisites: player.america
+	# 	Icon: icon
+	# 	IconImage: a10
+	# 	ChargeInterval: 6000
+	# 	LobbyChargeIntervalId: airstrike-cooldown
+	# 	SquadSize: 1
+	# 	Name: A-10 Airstrike
+	# 	Description: Call in an A-10 Warthog for a\nstrafing run on the target area.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	UnitType: a10.airstrike
+	# 	CameraActor: camera.paradrop
+	# 	CameraRemoveDelay: 250
+	# 	DisplayBeacon: true
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: ability
+	# 	SupportPowerPaletteOrder: 1
+	# AirstrikePower@Russia:
+	# 	PauseOnCondition: airstrikes-disabled
+	# 	OrderName: RussiaAirstrike
+	# 	Prerequisites: player.russia
+	# 	Icon: icon
+	# 	IconImage: frog
+	# 	ChargeInterval: 6000
+	# 	LobbyChargeIntervalId: airstrike-cooldown
+	# 	SquadSize: 1
+	# 	Name: Su-25 Airstrike
+	# 	Description: Call in a Su-25 Frogfoot for a\nrocket attack on the target area.
+	# 	SelectTargetSpeechNotification: SelectTarget
+	# 	UnitType: frog.airstrike
+	# 	CameraActor: camera.paradrop
+	# 	CameraRemoveDelay: 250
+	# 	DisplayBeacon: true
+	# 	ArrowSequence: arrow
+	# 	ClockSequence: clock
+	# 	CircleSequence: circles
+	# 	Cursor: ability
+	# 	SupportPowerPaletteOrder: 1
 	ScriptTriggers:
 	MissionObjectives:
 		WinNotification: Win
