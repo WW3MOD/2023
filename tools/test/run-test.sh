@@ -115,9 +115,12 @@ echo "==> Mode: ${GRAPHICS_MODE} (${POSITION})"
 echo "==> Result file: ${RESULT_FILE}"
 echo
 
-# SDL2 reads SDL_VIDEO_WINDOW_POS at window creation. Export inline so it
-# applies only to this launch.
-[ -n "${WINDOW_POS_ENV}" ] && export SDL_VIDEO_WINDOW_POS="${WINDOW_POS_ENV}"
+# OpenRA's SDL platform reads OPENRA_WINDOW_X/Y at window creation (engine
+# patch). Falls back to SDL_WINDOWPOS_CENTERED_DISPLAY when unset.
+if [ -n "${WINDOW_POS_ENV}" ]; then
+	export OPENRA_WINDOW_X="${WINDOW_POS_ENV%,*}"
+	export OPENRA_WINDOW_Y="${WINDOW_POS_ENV#*,}"
+fi
 
 ./launch-game.sh \
 	"Launch.Map=${TEST_NAME}" \

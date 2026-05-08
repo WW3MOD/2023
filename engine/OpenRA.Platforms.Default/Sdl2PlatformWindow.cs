@@ -230,7 +230,14 @@ namespace OpenRA.Platforms.Default
 				if (Platform.CurrentPlatform == PlatformType.OSX && windowMode == WindowMode.Fullscreen)
 					SDL.SDL_SetHint(SDL.SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
 
-				window = SDL.SDL_CreateWindow("OpenRA", SDL.SDL_WINDOWPOS_CENTERED_DISPLAY(videoDisplay), SDL.SDL_WINDOWPOS_CENTERED_DISPLAY(videoDisplay),
+				// WW3MOD test harness: allow position override via env vars (used by tools/test/run-test.sh).
+				// Unset → SDL_WINDOWPOS_CENTERED_DISPLAY (default OpenRA behavior).
+				var posXEnv = Environment.GetEnvironmentVariable("OPENRA_WINDOW_X");
+				var posYEnv = Environment.GetEnvironmentVariable("OPENRA_WINDOW_Y");
+				var initialX = !string.IsNullOrEmpty(posXEnv) && int.TryParse(posXEnv, out var px) ? px : SDL.SDL_WINDOWPOS_CENTERED_DISPLAY(videoDisplay);
+				var initialY = !string.IsNullOrEmpty(posYEnv) && int.TryParse(posYEnv, out var py) ? py : SDL.SDL_WINDOWPOS_CENTERED_DISPLAY(videoDisplay);
+
+				window = SDL.SDL_CreateWindow("OpenRA", initialX, initialY,
 					windowSize.Width, windowSize.Height, WindowFlags);
 
 				if (Platform.CurrentPlatform == PlatformType.Linux)
