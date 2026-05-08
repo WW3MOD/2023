@@ -5,10 +5,15 @@
 #
 # Flags (must come before the test name):
 #   --position=<auto|right|left|full>  Where to put the windowed game.
-#                                 Default: auto (places it opposite the calling
-#                                 terminal's frontmost window via osascript;
-#                                 needs accessibility permission once).
-#                                 Falls back to right if detection fails.
+#                                 First-run default: auto (osascript-based
+#                                 detection of the AXMain Ghostty/Terminal
+#                                 window — works for single-window setups,
+#                                 unreliable when several windows exist).
+#                                 Run --position=<left|right> once from a
+#                                 terminal to save it per-TTY; subsequent
+#                                 runs from that same terminal reuse the
+#                                 saved choice without needing the flag.
+#                                 Saved at ~/.ww3mod-tests/position-prefs/.
 #                                 full skips sizing/positioning entirely.
 #   --fullscreen                  Same as --position=full + Mode=PseudoFullscreen
 #   --windowed                    Force windowed (default; redundant unless
@@ -27,19 +32,22 @@
 set -e
 
 GRAPHICS_MODE="Windowed"
-POSITION="auto"
+POSITION=""        # explicit --position value (empty = no override)
+EXPLICIT_POS=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--fullscreen)
 			GRAPHICS_MODE="PseudoFullscreen"
 			POSITION="full"
+			EXPLICIT_POS=1
 			shift ;;
 		--windowed)
 			GRAPHICS_MODE="Windowed"
 			shift ;;
 		--position=*)
 			POSITION="${1#*=}"
+			EXPLICIT_POS=1
 			shift ;;
 		--help|-h)
 			sed -n '2,22p' "$0" | sed 's/^# \?//'
@@ -51,6 +59,24 @@ while [ $# -gt 0 ]; do
 			break ;;
 	esac
 done
+
+# Per-terminal saved preference: keyed by TTY device. First explicit
+# --position from a given terminal is saved; subsequent runs from the
+# same terminal reuse it without needing the flag.
+TTY_KEY=$(tty 2>/dev/null | tr / _ | tr -d ' ' || echo unknown)
+PREF_DIR="${HOME}/.ww3mod-tests/position-prefs"
+PREF_FILE="${PREF_DIR}/${TTY_KEY}"
+
+if [ "${EXPLICIT_POS}" = "1" ] && [ -n "${POSITION}" ]; then
+	mkdir -p "${PREF_DIR}"
+	echo "${POSITION}" > "${PREF_FILE}"
+	echo "==> saved '${POSITION}' as preference for this terminal (${TTY_KEY})"
+elif [ -z "${POSITION}" ] && [ -f "${PREF_FILE}" ]; then
+	POSITION=$(cat "${PREF_FILE}")
+	echo "==> using saved position '${POSITION}' for this terminal"
+elif [ -z "${POSITION}" ]; then
+	POSITION="auto"
+fi
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
