@@ -1,8 +1,8 @@
 Container@TEST_MODE_PANEL:
 	Logic: TestModeLogic
-	X: WINDOW_WIDTH / 2 - WIDTH / 2
+	X: 8
 	Y: 4
-	Width: 540
+	Width: WINDOW_WIDTH - 16
 	Height: 50
 	Children:
 		Button@RESTART_BUTTON:
@@ -13,24 +13,19 @@ Container@TEST_MODE_PANEL:
 			Font: Bold
 			Text: RESTART
 			Key: end
-		Background@TEXT_BOX:
-			X: 92
-			Y: 0
-			Width: 448
-			Height: PARENT_HEIGHT
-			Background: dialog2
-			Children:
-				Label@TEST_NAME:
-					X: 10
-					Y: 4
-					Width: PARENT_WIDTH - 20
-					Height: 18
-					Align: Left
-					Font: Bold
-				Label@TEST_DESCRIPTION:
-					X: 10
-					Y: 22
-					Width: PARENT_WIDTH - 20
-					Height: 22
-					Align: Left
-					Font: Regular
+		Label@TEST_NAME:
+			X: 100
+			Y: 4
+			Width: PARENT_WIDTH - 110
+			Height: 18
+			Align: Left
+			Font: Bold
+			Contrast: true
+		Label@TEST_DESCRIPTION:
+			X: 100
+			Y: 22
+			Width: PARENT_WIDTH - 110
+			Height: 18
+			Align: Left
+			Font: Regular
+			Contrast: true
