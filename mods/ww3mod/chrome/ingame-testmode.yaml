@@ -7,7 +7,7 @@ Container@TEST_MODE_PANEL:
 	Children:
 		Button@RESTART_BUTTON:
 			X: 0
-			Y: 2
+			Y: 3
 			Width: 88
 			Height: 42
 			Text:

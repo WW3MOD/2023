@@ -301,29 +301,35 @@ Tick-by-tick combat simulator for balance analysis. Models damage (penetration, 
 
 ### Developer Test Harness
 ```bash
-./tools/test/run-test.sh <test-folder>                # Default: windowed, right half
-./tools/test/run-test.sh --position=left <test>       # Windowed, left half
-./tools/test/run-test.sh --fullscreen <test>          # Skip sizing/positioning
-./tools/test/run-test.sh --help                       # Flag list
+./tools/test/run-test.sh <test-folder>                  # Auto-position windowed
+./tools/test/run-test.sh --position=left <test>         # Force left half
+./tools/test/run-test.sh --position=right <test>        # Force right half (saved per-TTY)
+./tools/test/run-test.sh --fullscreen <test>            # Skip sizing/positioning
+./tools/test/run-test.sh --help                         # Flag list
 ```
-Single-test launcher. Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/` with a `TEST MODE` panel: **F1=PASS · F2=FAIL · F3=SKIP · F4=RESTART**. On verdict the game writes JSON to `~/.ww3mod-tests/result.json` and exits; the script exit codes back (0/1/2/3) so I can read the result.
+Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/` with a slim title-bar UI: **End** key restarts the scenario; the rest is just title + description text. Verdict happens in chat; the script exits when the game window closes.
 
-**Window placement (windowed only):** auto-detects screen size via `osascript` on macOS (falls back to 1920×1080), splits half-and-half and positions via `SDL_VIDEO_WINDOW_POS`. Default is right half so the typical "terminal on left, game on right" layout works without manual window juggling.
+**Window placement (windowed only).** Default is `--position=auto` — the script reads the frontmost window via System Events (one-time accessibility grant required, falls back gracefully). Most reliable path is to run `--position=left` or `--position=right` once per terminal; the choice is saved at `~/.ww3mod-tests/position-prefs/<tty-key>` and reused automatically. Window position passes through `OPENRA_WINDOW_X/Y` env vars (engine-side patch in `Sdl2PlatformWindow.cs`).
 
-**Edge-pan disabled** in test+windowed mode (engine-gated on `TestMode.IsActive && Graphics.Mode == Windowed` in `ViewportControllerWidget`). Stops the camera running away when the cursor crosses the window border into the terminal.
+**Edge-pan disabled** in test+windowed mode (engine-gated on `TestMode.IsActive && Graphics.Mode == Windowed` in `ViewportControllerWidget`). Cursor crossing the window border into the terminal no longer scrolls the camera.
 
-**Gating:** activated only by `Test.Mode=true` launch arg. Without it, every part of the harness is dormant — no widget, no panel, no file writes. Normal launches are unaffected.
+**Gating.** Activated only by `Test.Mode=true` launch arg. Without it, every part of the harness is dormant — no widget, no panel, no file writes, no engine-side overrides. Normal launches are completely unaffected.
+
+**Reusable Lua helpers** (`mods/ww3mod/scripts/test-helpers.lua`):
+- `TestHarness.FocusBetween(actor1, actor2, ...)` — center camera on the midpoint of N actors.
+- `TestHarness.Select(actor)` — pre-select unit-under-test on world load (saves a click). Wraps the new `UserInterface.Select(actor)` Lua global.
 
 **Adding a test:**
-1. Copy an existing test folder under `mods/ww3mod/maps/test-<name>/` (or copy `arena-tank-duel/` and prune it).
-2. In `map.yaml`: set `Visibility: MissionSelector` and `Categories: Test` so it stays out of the lobby map list. Place actors lowercase (e.g. `e1.russia`, not `E1.russia`).
-3. **Only ONE `Playable: True` PlayerReference** — the human slot. All other factions must be `Playable: False`. `Launch.Map` only creates Player objects for slots that have a client; an unclaimed `Playable: True` slot results in its actors falling back to Neutral, which breaks targeting (no attack cursor, no auto-engage). Mission-style: human is the only playable slot, enemies are non-playable factions.
-4. **Lock colors and factions on every PlayerReference** (`LockColor: True`, `LockFaction: True`) so the visual cue is consistent across runs — human=blue, enemies=red, allies=green — regardless of the dev's personal `settings.yaml` color preference.
-5. In `rules.yaml`: point `LuaScript: Scripts:` at your `.lua`.
-6. Lua handles camera, briefing, optional force-orders. The `TEST MODE` panel mounts itself.
-7. Run with `./tools/test/run-test.sh test-<name>`.
+1. Copy an existing test folder under `mods/ww3mod/maps/test-<name>/` (e.g. `cp -r mods/ww3mod/maps/test-artillery-turret mods/ww3mod/maps/test-<name>`).
+2. **`map.yaml`:** set `Visibility: MissionSelector` and `Categories: Test` so it stays out of the lobby map list. Use lowercase actor names (`e1.russia`, not `E1.russia`).
+3. **Only ONE `Playable: True` PlayerReference** — the human slot. All other factions must be `Playable: False`. `Launch.Map` only creates Player objects for slots with a client; an unclaimed `Playable: True` slot drops its actors to Neutral and breaks targeting (no attack cursor, no auto-engage).
+4. **Lock colors and factions** on every PlayerReference (`LockColor: True`, `LockFaction: True`) so the visual cue is consistent across runs — human=blue, enemies=red, allies=green — regardless of the dev's personal `settings.yaml`.
+5. **`description.txt`** (optional, recommended): one-line description shown in the panel. The runner reads `<map-folder>/description.txt`, first non-empty line wins.
+6. **`rules.yaml`:** `LuaScript: Scripts: test-helpers.lua, <test>.lua` (helpers first).
+7. **`<test>.lua`:** `WorldLoaded = function() TestHarness.FocusBetween(a, b); TestHarness.Select(a) end` — staging only, no UI text.
+8. Run with `./tools/test/run-test.sh test-<name>`.
 
-Tier 2 (auto-asserting Lua: turret-facing checks, fired-at-tick assertions) is **not yet** built — every test still needs a human verdict for now.
+Tier 2 (auto-asserting Lua: `Test.Pass()`, `Test.Fail(reason)`, `Test.AssertWithin(seconds, fn)`) is **not yet** built — every test still needs a human verdict.
 
 ## Project Architecture
 
