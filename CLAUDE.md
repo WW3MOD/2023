@@ -299,6 +299,25 @@ node build/index.js stats <unitId>                # Unit details
 ```
 Tick-by-tick combat simulator for balance analysis. Models damage (penetration, directional armor, range falloff, AoE), weapon firing cycles, suppression (infantry 10-tier/vehicle 5-tier), and formations. Phase 1 uses hardcoded stats; Phase 2 will auto-load from YAML. Phase 5 will export scenarios as playable maps via MCP.
 
+### Developer Test Harness
+```bash
+./tools/test/run-test.sh <test-folder>            # Default: windowed, dev visibility
+./tools/test/run-test.sh --fullscreen <test>      # Force fullscreen
+./tools/test/run-test.sh --help                   # Flag list
+```
+Single-test launcher. Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/` with a `TEST MODE` panel: **F1=PASS · F2=FAIL · F3=SKIP · F4=RESTART**. On verdict the game writes JSON to `~/.ww3mod-tests/result.json` and exits; the script exit codes back (0/1/2/3) so I can read the result.
+
+**Gating:** activated only by `Test.Mode=true` launch arg. Without it, every part of the harness is dormant — no widget, no panel, no file writes. Normal launches are unaffected.
+
+**Adding a test:**
+1. Copy an existing test folder under `mods/ww3mod/maps/test-<name>/` (or copy `arena-tank-duel/` and prune it).
+2. In `map.yaml`: set `Visibility: MissionSelector` and `Categories: Test` so it stays out of the lobby map list. Place actors lowercase (e.g. `e1.russia`, not `E1.russia`).
+3. In `rules.yaml`: point `LuaScript: Scripts:` at your `.lua`.
+4. Lua handles camera, briefing, optional force-orders. The `TEST MODE` panel mounts itself.
+5. Run with `./tools/test/run-test.sh test-<name>`.
+
+Tier 2 (auto-asserting Lua: turret-facing checks, fired-at-tick assertions) is **not yet** built — every test still needs a human verdict for now.
+
 ## Project Architecture
 
 ```

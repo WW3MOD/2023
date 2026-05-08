@@ -1,18 +1,47 @@
 #!/bin/sh
 # WW3MOD developer test harness — single-test runner
 #
-# Usage:  ./tools/test/run-test.sh <test-folder-name>
+# Usage:  ./tools/test/run-test.sh [flags] <test-folder-name>
+#
+# Flags (must come before the test name):
+#   --fullscreen   Launch fullscreen (default: windowed for dev visibility)
+#   --windowed     Launch windowed (the default; redundant unless overriding a
+#                  user-config that forces fullscreen)
+#   --help         Show this message
+#
 # Example: ./tools/test/run-test.sh test-artillery-turret
+#          ./tools/test/run-test.sh --fullscreen test-artillery-turret
 #
 # Launches the game with Test.Mode=true + Launch.Map=<folder>, waits for the
-# player to press F1/F2/F3 (or click PASS/FAIL/SKIP), reads the result JSON,
-# and prints a summary. Exit code: 0=pass, 1=fail, 2=skip, 3=error.
+# player to press F1/F2/F3/F4, reads the result JSON, and prints a summary.
+# Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
 set -e
 
+GRAPHICS_MODE="Windowed"
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--fullscreen)
+			GRAPHICS_MODE="PseudoFullscreen"
+			shift ;;
+		--windowed)
+			GRAPHICS_MODE="Windowed"
+			shift ;;
+		--help|-h)
+			sed -n '2,17p' "$0" | sed 's/^# \?//'
+			exit 0 ;;
+		--*)
+			echo "Unknown flag: $1"
+			exit 3 ;;
+		*)
+			break ;;
+	esac
+done
+
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 <test-folder-name>"
+	echo "Usage: $0 [--fullscreen|--windowed] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -34,6 +63,7 @@ RESULT_FILE="${RESULT_DIR}/result.json"
 rm -f "${RESULT_FILE}"
 
 echo "==> Test: ${TEST_NAME}"
+echo "==> Mode: ${GRAPHICS_MODE}"
 echo "==> Result file: ${RESULT_FILE}"
 echo "==> Launching game (close it manually if it doesn't auto-exit on PASS/FAIL/SKIP)"
 echo
@@ -44,6 +74,7 @@ echo
 	"Test.Mode=true" \
 	"Test.Name=${TEST_NAME}" \
 	"Test.ResultPath=${RESULT_FILE}" \
+	"Graphics.Mode=${GRAPHICS_MODE}" \
 	|| true
 
 echo
