@@ -594,7 +594,10 @@ m109:
 	IndirectFire:
 	Turreted:
 		Offset: -200,0,0
-		TurnSpeed: 15
+		# Real M109 Paladin turret traverses 360° in roughly 30-60 seconds.
+		# At 60ms ticks: TurnSpeed=5 ≈ 12s for 360° — slower than tanks
+		# (TurnSpeed 20-25 ≈ 2-3s) without being painfully slow in skirmish.
+		TurnSpeed: 5
 	Armament@1:
 		Weapon: ArtilleryRound.Paladin
 		# FireDelay: 100

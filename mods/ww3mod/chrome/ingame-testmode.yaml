@@ -5,30 +5,32 @@ Container@TEST_MODE_PANEL:
 	Width: 540
 	Height: 50
 	Children:
-		Background@BG:
-			Width: PARENT_WIDTH
+		Background@TEXT_BOX:
+			X: 0
+			Y: 0
+			Width: 440
 			Height: PARENT_HEIGHT
 			Background: dialog2
 			Children:
 				Label@TEST_NAME:
 					X: 10
 					Y: 4
-					Width: PARENT_WIDTH - 100
+					Width: PARENT_WIDTH - 20
 					Height: 18
 					Align: Left
 					Font: Bold
 				Label@TEST_DESCRIPTION:
 					X: 10
 					Y: 22
-					Width: PARENT_WIDTH - 100
+					Width: PARENT_WIDTH - 20
 					Height: 22
 					Align: Left
 					Font: Regular
-				Button@RESTART_BUTTON:
-					X: PARENT_WIDTH - 84
-					Y: 14
-					Width: 76
-					Height: 22
-					Font: Bold
-					Text: ↻ F4
-					Key: F4
+		Button@RESTART_BUTTON:
+			X: 452
+			Y: 14
+			Width: 88
+			Height: 22
+			Font: Bold
+			Text: ↻ F4
+			Key: F4
