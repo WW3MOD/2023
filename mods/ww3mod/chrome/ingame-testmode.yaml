@@ -7,7 +7,7 @@ Container@TEST_MODE_PANEL:
 	Children:
 		Button@RESTART_BUTTON:
 			X: 0
-			Y: 4
+			Y: 2
 			Width: 88
 			Height: 42
 			Text:
@@ -29,7 +29,7 @@ Container@TEST_MODE_PANEL:
 					Text: (end)
 		Label@TEST_NAME:
 			X: 100
-			Y: 4
+			Y: 6
 			Width: PARENT_WIDTH - 110
 			Height: 18
 			Align: Left
@@ -37,7 +37,7 @@ Container@TEST_MODE_PANEL:
 			Contrast: true
 		Label@TEST_DESCRIPTION:
 			X: 100
-			Y: 22
+			Y: 24
 			Width: PARENT_WIDTH - 110
 			Height: 18
 			Align: Left
