@@ -7,12 +7,26 @@ Container@TEST_MODE_PANEL:
 	Children:
 		Button@RESTART_BUTTON:
 			X: 0
-			Y: 14
+			Y: 4
 			Width: 88
-			Height: 22
-			Font: Bold
-			Text: RESTART
+			Height: 42
+			Text:
 			Key: end
+			Children:
+				Label@LABEL:
+					Y: 4
+					Width: PARENT_WIDTH
+					Height: 16
+					Align: Center
+					Font: Bold
+					Text: RESTART
+				Label@HOTKEY:
+					Y: 22
+					Width: PARENT_WIDTH
+					Height: 14
+					Align: Center
+					Font: Regular
+					Text: (end)
 		Label@TEST_NAME:
 			X: 100
 			Y: 4
