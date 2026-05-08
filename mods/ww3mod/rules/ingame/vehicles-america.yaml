@@ -631,7 +631,7 @@ m109:
 		PersistentTargeting: False
 		PauseOnCondition: empdisable || unit.docked
 		HoldFireWhileMoving: True
-		SetupTicks: 50
+		SetupTicks: 25
 	Rearmable:
 		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
