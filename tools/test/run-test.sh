@@ -4,32 +4,42 @@
 # Usage:  ./tools/test/run-test.sh [flags] <test-folder-name>
 #
 # Flags (must come before the test name):
-#   --fullscreen   Launch fullscreen (default: windowed for dev visibility)
-#   --windowed     Launch windowed (the default; redundant unless overriding a
-#                  user-config that forces fullscreen)
-#   --help         Show this message
+#   --position=<right|left|full>  Where to put the windowed game (default: right)
+#                                 Auto-detects screen size on macOS; full skips
+#                                 sizing/positioning entirely.
+#   --fullscreen                  Same as --position=full + Mode=PseudoFullscreen
+#   --windowed                    Force windowed (default; redundant unless
+#                                 overriding a user-config that forces fullscreen)
+#   --help                        Show this message
+#
+# Defaults: windowed, right half, edge-pan disabled (engine-side, gated on
+# Test.Mode + Mode=Windowed).
 #
 # Example: ./tools/test/run-test.sh test-artillery-turret
+#          ./tools/test/run-test.sh --position=left test-artillery-turret
 #          ./tools/test/run-test.sh --fullscreen test-artillery-turret
 #
-# Launches the game with Test.Mode=true + Launch.Map=<folder>, waits for the
-# player to press F1/F2/F3/F4, reads the result JSON, and prints a summary.
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
 set -e
 
 GRAPHICS_MODE="Windowed"
+POSITION="right"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--fullscreen)
 			GRAPHICS_MODE="PseudoFullscreen"
+			POSITION="full"
 			shift ;;
 		--windowed)
 			GRAPHICS_MODE="Windowed"
 			shift ;;
+		--position=*)
+			POSITION="${1#*=}"
+			shift ;;
 		--help|-h)
-			sed -n '2,17p' "$0" | sed 's/^# \?//'
+			sed -n '2,22p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -41,7 +51,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [--fullscreen|--windowed] <test-folder-name>"
+	echo "Usage: $0 [--position=right|left|full] [--fullscreen|--windowed] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -55,6 +65,43 @@ if [ ! -d "${MAP_DIR}" ]; then
 	exit 3
 fi
 
+# Detect screen size on macOS for window positioning. Falls back to 1920x1080.
+SCREEN_W=1920
+SCREEN_H=1080
+if command -v osascript >/dev/null 2>&1; then
+	BOUNDS=$(osascript -e 'tell application "Finder" to get bounds of window of desktop' 2>/dev/null || true)
+	if [ -n "${BOUNDS}" ]; then
+		DETECTED_W=$(echo "${BOUNDS}" | awk -F', *' '{print $3}')
+		DETECTED_H=$(echo "${BOUNDS}" | awk -F', *' '{print $4}')
+		[ -n "${DETECTED_W}" ] && SCREEN_W=${DETECTED_W}
+		[ -n "${DETECTED_H}" ] && SCREEN_H=${DETECTED_H}
+	fi
+fi
+
+# Build size + position based on POSITION choice.
+WINDOW_ARGS=""
+WINDOW_POS_ENV=""
+case "${POSITION}" in
+	right)
+		HALF_W=$((SCREEN_W / 2))
+		USABLE_H=$((SCREEN_H - 40))
+		WINDOW_ARGS="Graphics.WindowedSize=${HALF_W},${USABLE_H}"
+		WINDOW_POS_ENV="${HALF_W},32"
+		;;
+	left)
+		HALF_W=$((SCREEN_W / 2))
+		USABLE_H=$((SCREEN_H - 40))
+		WINDOW_ARGS="Graphics.WindowedSize=${HALF_W},${USABLE_H}"
+		WINDOW_POS_ENV="0,32"
+		;;
+	full)
+		# Don't set size or position; let the user's settings.yaml decide.
+		;;
+	*)
+		echo "Unknown --position value: ${POSITION} (expected: right, left, full)"
+		exit 3 ;;
+esac
+
 # Pick a result path under the user's HOME so the engine can write to it
 # regardless of where Platform.SupportDir lands.
 RESULT_DIR="${HOME}/.ww3mod-tests"
@@ -63,18 +110,22 @@ RESULT_FILE="${RESULT_DIR}/result.json"
 rm -f "${RESULT_FILE}"
 
 echo "==> Test: ${TEST_NAME}"
-echo "==> Mode: ${GRAPHICS_MODE}"
+echo "==> Mode: ${GRAPHICS_MODE} (${POSITION})"
+[ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 echo "==> Result file: ${RESULT_FILE}"
-echo "==> Launching game (close it manually if it doesn't auto-exit on PASS/FAIL/SKIP)"
 echo
 
-# Reuse the existing launcher, append our test args.
+# SDL2 reads SDL_VIDEO_WINDOW_POS at window creation. Export inline so it
+# applies only to this launch.
+[ -n "${WINDOW_POS_ENV}" ] && export SDL_VIDEO_WINDOW_POS="${WINDOW_POS_ENV}"
+
 ./launch-game.sh \
 	"Launch.Map=${TEST_NAME}" \
 	"Test.Mode=true" \
 	"Test.Name=${TEST_NAME}" \
 	"Test.ResultPath=${RESULT_FILE}" \
 	"Graphics.Mode=${GRAPHICS_MODE}" \
+	${WINDOW_ARGS} \
 	|| true
 
 echo

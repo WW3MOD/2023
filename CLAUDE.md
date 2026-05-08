@@ -301,11 +301,16 @@ Tick-by-tick combat simulator for balance analysis. Models damage (penetration, 
 
 ### Developer Test Harness
 ```bash
-./tools/test/run-test.sh <test-folder>            # Default: windowed, dev visibility
-./tools/test/run-test.sh --fullscreen <test>      # Force fullscreen
-./tools/test/run-test.sh --help                   # Flag list
+./tools/test/run-test.sh <test-folder>                # Default: windowed, right half
+./tools/test/run-test.sh --position=left <test>       # Windowed, left half
+./tools/test/run-test.sh --fullscreen <test>          # Skip sizing/positioning
+./tools/test/run-test.sh --help                       # Flag list
 ```
 Single-test launcher. Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/` with a `TEST MODE` panel: **F1=PASS · F2=FAIL · F3=SKIP · F4=RESTART**. On verdict the game writes JSON to `~/.ww3mod-tests/result.json` and exits; the script exit codes back (0/1/2/3) so I can read the result.
+
+**Window placement (windowed only):** auto-detects screen size via `osascript` on macOS (falls back to 1920×1080), splits half-and-half and positions via `SDL_VIDEO_WINDOW_POS`. Default is right half so the typical "terminal on left, game on right" layout works without manual window juggling.
+
+**Edge-pan disabled** in test+windowed mode (engine-gated on `TestMode.IsActive && Graphics.Mode == Windowed` in `ViewportControllerWidget`). Stops the camera running away when the cursor crosses the window border into the terminal.
 
 **Gating:** activated only by `Test.Mode=true` launch arg. Without it, every part of the harness is dormant — no widget, no panel, no file writes. Normal launches are unaffected.
 

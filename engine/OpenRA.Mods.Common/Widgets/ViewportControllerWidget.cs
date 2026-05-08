@@ -195,7 +195,8 @@ namespace OpenRA.Mods.Common.Widgets
 			else if (!isStandardScrolling)
 			{
 				edgeDirections = ScrollDirection.None;
-				if (Game.Settings.Game.ViewportEdgeScroll && Game.Renderer.WindowHasInputFocus)
+				var devWindowedNoEdgePan = TestMode.IsActive && Game.Settings.Graphics.Mode == WindowMode.Windowed;
+				if (Game.Settings.Game.ViewportEdgeScroll && Game.Renderer.WindowHasInputFocus && !devWindowedNoEdgePan)
 					edgeDirections = CheckForDirections();
 
 				if (Ui.KeyboardFocusWidget != null)
