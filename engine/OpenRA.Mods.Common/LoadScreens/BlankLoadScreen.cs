@@ -48,6 +48,7 @@ namespace OpenRA.Mods.Common.LoadScreens
 		public virtual void StartGame(Arguments args)
 		{
 			Launch = new LaunchArguments(args);
+			TestMode.Initialize(args);
 			Ui.ResetAll();
 			Game.Settings.Save();
 

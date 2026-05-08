@@ -56,6 +56,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Game.LoadWidget(world, "DEBUG_WIDGETS", worldRoot, new WidgetArgs());
 			Game.LoadWidget(world, "TRANSIENTS_PANEL", worldRoot, new WidgetArgs());
 
+			if (TestMode.IsActive)
+				Game.LoadWidget(world, "TEST_MODE_PANEL", worldRoot, new WidgetArgs());
+
 			world.GameOver += () =>
 			{
 				Ui.CloseWindow();

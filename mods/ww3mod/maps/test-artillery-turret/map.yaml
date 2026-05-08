@@ -1,0 +1,53 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Artillery Turret Rotation
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Paladin: m109
+		Owner: USA
+		Location: 33,17
+		Facing: 768
+	Target: E1.russia
+		Owner: Russia
+		Location: 33,24
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,24
+
+Rules: rules.yaml

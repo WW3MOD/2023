@@ -168,6 +168,7 @@ ChromeLayout:
 	ww3mod|chrome/ingame-player.yaml
 	common|chrome/ingame-perf.yaml
 	ww3mod|chrome/ingame-debug.yaml
+	ww3mod|chrome/ingame-testmode.yaml
 	common|chrome/ingame-debug-hpf.yaml
 	common|chrome/ingame-debuginfo.yaml
 	common|chrome/ingame-infochat.yaml

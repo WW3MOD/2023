@@ -1,0 +1,51 @@
+Container@TEST_MODE_PANEL:
+	Logic: TestModeLogic
+	X: WINDOW_WIDTH / 2 - WIDTH / 2
+	Y: 4
+	Width: 600
+	Height: 56
+	Children:
+		Background@BG:
+			Width: PARENT_WIDTH
+			Height: PARENT_HEIGHT
+			Background: dialog2
+			Children:
+				Label@TITLE:
+					X: 0
+					Y: 4
+					Width: PARENT_WIDTH
+					Height: 18
+					Align: Center
+					Font: Bold
+					Text: TEST MODE
+				Label@TEST_NAME:
+					X: 0
+					Y: 22
+					Width: PARENT_WIDTH
+					Height: 14
+					Align: Center
+					Font: Regular
+				Button@PASS_BUTTON:
+					X: 12
+					Y: 38
+					Width: 120
+					Height: 14
+					Font: Bold
+					Text: PASS (F1)
+					Key: F1
+				Button@FAIL_BUTTON:
+					X: PARENT_WIDTH / 2 - 60
+					Y: 38
+					Width: 120
+					Height: 14
+					Font: Bold
+					Text: FAIL (F2)
+					Key: F2
+				Button@SKIP_BUTTON:
+					X: PARENT_WIDTH - 132
+					Y: 38
+					Width: 120
+					Height: 14
+					Font: Regular
+					Text: SKIP (F3)
+					Key: F3
