@@ -27,6 +27,6 @@ end
 -- Usage: TestHarness.Select(Paladin)
 function TestHarness.Select(actor)
 	if actor and not actor.IsDead then
-		actor.Select()
+		UserInterface.Select(actor)
 	end
 end

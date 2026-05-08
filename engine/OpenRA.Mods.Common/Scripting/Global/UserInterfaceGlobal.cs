@@ -33,6 +33,15 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			luaLabel.GetColor = () => c;
 		}
 
+		[Desc("Replace the local player's selection with the given actor.")]
+		public void Select(Actor actor)
+		{
+			if (actor == null || !actor.IsInWorld || actor.IsDead)
+				return;
+
+			actor.World.Selection.Combine(actor.World, new[] { actor }, false, true);
+		}
+
 		[Desc("Formats a language string for a given string key defined in the language files (*.ftl). " +
 			"Args can be passed to be substituted into the resulting message.")]
 		public string GetFluentMessage(string key, [ScriptEmmyTypeOverride("{ string: any }")] LuaTable args = null)
