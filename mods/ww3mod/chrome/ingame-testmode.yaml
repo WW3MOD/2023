@@ -2,7 +2,7 @@ Container@TEST_MODE_PANEL:
 	Logic: TestModeLogic
 	X: WINDOW_WIDTH / 2 - WIDTH / 2
 	Y: 4
-	Width: 600
+	Width: 720
 	Height: 56
 	Children:
 		Background@BG:
@@ -25,26 +25,34 @@ Container@TEST_MODE_PANEL:
 					Height: 14
 					Align: Center
 					Font: Regular
-				Button@PASS_BUTTON:
-					X: 12
+				Button@RESTART_BUTTON:
+					X: 8
 					Y: 38
-					Width: 120
+					Width: 168
+					Height: 14
+					Font: Regular
+					Text: RESTART (F4)
+					Key: F4
+				Button@PASS_BUTTON:
+					X: 184
+					Y: 38
+					Width: 168
 					Height: 14
 					Font: Bold
 					Text: PASS (F1)
 					Key: F1
 				Button@FAIL_BUTTON:
-					X: PARENT_WIDTH / 2 - 60
+					X: 360
 					Y: 38
-					Width: 120
+					Width: 168
 					Height: 14
 					Font: Bold
 					Text: FAIL (F2)
 					Key: F2
 				Button@SKIP_BUTTON:
-					X: PARENT_WIDTH - 132
+					X: 536
 					Y: 38
-					Width: 120
+					Width: 168
 					Height: 14
 					Font: Regular
 					Text: SKIP (F3)

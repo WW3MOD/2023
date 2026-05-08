@@ -45,6 +45,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				TestMode.WriteResult("skip", "");
 				Game.Exit();
 			};
+
+			var restart = widget.GetOrNull<ButtonWidget>("RESTART_BUTTON");
+			if (restart != null)
+				restart.OnClick = Game.RestartGame;
 		}
 	}
 }
