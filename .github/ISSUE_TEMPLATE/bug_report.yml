@@ -1,0 +1,71 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly in-game
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more detail you can give, the faster we can fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      description: Version shown on the main menu, or commit hash if you built from source.
+      placeholder: "v0.x.x or abae5e14"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: What were you doing when this happened?
+      placeholder: |
+        1. Start a skirmish on River Zeta
+        2. Build a Supply Route
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log file
+      description: |
+        Drag-and-drop the latest log from your support directory:
+        - Windows: `%APPDATA%\OpenRA\Logs`
+        - macOS: `~/Library/Application Support/OpenRA/Logs`
+        - Linux: `~/.config/openra/Logs` or `~/.openra/Logs`
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Screenshots, replays, or anything else that would help.

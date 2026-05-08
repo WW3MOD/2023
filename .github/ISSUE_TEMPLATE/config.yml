@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+# When a Discord or GitHub Discussions space exists, add contact_links here. Example:
+# contact_links:
+#   - name: Discord
+#     url: https://discord.gg/...
+#     about: Chat with the team and other players.
