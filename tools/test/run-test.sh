@@ -4,9 +4,12 @@
 # Usage:  ./tools/test/run-test.sh [flags] <test-folder-name>
 #
 # Flags (must come before the test name):
-#   --position=<right|left|full>  Where to put the windowed game (default: right)
-#                                 Auto-detects screen size on macOS; full skips
-#                                 sizing/positioning entirely.
+#   --position=<auto|right|left|full>  Where to put the windowed game.
+#                                 Default: auto (places it opposite the calling
+#                                 terminal's frontmost window via osascript;
+#                                 needs accessibility permission once).
+#                                 Falls back to right if detection fails.
+#                                 full skips sizing/positioning entirely.
 #   --fullscreen                  Same as --position=full + Mode=PseudoFullscreen
 #   --windowed                    Force windowed (default; redundant unless
 #                                 overriding a user-config that forces fullscreen)
@@ -24,7 +27,7 @@
 set -e
 
 GRAPHICS_MODE="Windowed"
-POSITION="right"
+POSITION="auto"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -75,6 +78,35 @@ if command -v osascript >/dev/null 2>&1; then
 		DETECTED_H=$(echo "${BOUNDS}" | awk -F', *' '{print $4}')
 		[ -n "${DETECTED_W}" ] && SCREEN_W=${DETECTED_W}
 		[ -n "${DETECTED_H}" ] && SCREEN_H=${DETECTED_H}
+	fi
+fi
+
+# Auto-detect: place game on the half opposite the calling terminal's
+# frontmost window. Requires accessibility permission for the calling
+# terminal in System Settings → Privacy & Security → Accessibility.
+# Falls back to right if detection fails.
+if [ "${POSITION}" = "auto" ]; then
+	DETECTED_CENTER=$(osascript -e '
+		tell application "System Events"
+			try
+				set frontProc to first application process whose frontmost is true
+				set winPos to position of window 1 of frontProc
+				set winSize to size of window 1 of frontProc
+				return ((item 1 of winPos) + (item 1 of winSize) / 2) as integer
+			on error
+				return -1
+			end try
+		end tell' 2>/dev/null || echo -1)
+	if [ "${DETECTED_CENTER}" = "-1" ] || [ -z "${DETECTED_CENTER}" ]; then
+		echo "==> auto-detect failed (accessibility permission needed?) — defaulting to right"
+		echo "==> grant: System Settings → Privacy & Security → Accessibility → ${TERM_PROGRAM:-your terminal}"
+		POSITION="right"
+	elif [ "${DETECTED_CENTER}" -lt "$((SCREEN_W / 2))" ]; then
+		POSITION="right"
+		echo "==> auto: terminal on left (center=${DETECTED_CENTER}), placing game on right"
+	else
+		POSITION="left"
+		echo "==> auto: terminal on right (center=${DETECTED_CENTER}), placing game on left"
 	fi
 fi
 
