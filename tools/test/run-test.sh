@@ -167,9 +167,17 @@ mkdir -p "${RESULT_DIR}"
 RESULT_FILE="${RESULT_DIR}/result.json"
 rm -f "${RESULT_FILE}"
 
+# Optional one-line description shown in the TEST MODE panel.
+# Read from <map-folder>/description.txt; first non-empty line wins.
+TEST_DESCRIPTION=""
+if [ -f "${MAP_DIR}/description.txt" ]; then
+	TEST_DESCRIPTION=$(awk 'NF { print; exit }' "${MAP_DIR}/description.txt" | tr -d '\r')
+fi
+
 echo "==> Test: ${TEST_NAME}"
 echo "==> Mode: ${GRAPHICS_MODE} (${POSITION})"
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
+[ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Result file: ${RESULT_FILE}"
 echo
 
@@ -184,6 +192,7 @@ fi
 	"Launch.Map=${TEST_NAME}" \
 	"Test.Mode=true" \
 	"Test.Name=${TEST_NAME}" \
+	"Test.Description=${TEST_DESCRIPTION}" \
 	"Test.ResultPath=${RESULT_FILE}" \
 	"Graphics.Mode=${GRAPHICS_MODE}" \
 	${WINDOW_ARGS} \

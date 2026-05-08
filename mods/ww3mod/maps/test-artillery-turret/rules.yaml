@@ -12,7 +12,7 @@ World:
 	MusicPlaylist:
 		DisableWorldSounds: false
 	LuaScript:
-		Scripts: test-artillery-turret.lua
+		Scripts: test-helpers.lua, test-artillery-turret.lua
 
 ^Combatant:
 	AutoTarget:

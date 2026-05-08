@@ -317,9 +317,11 @@ Single-test launcher. Drops the game straight into a named map under `mods/ww3mo
 **Adding a test:**
 1. Copy an existing test folder under `mods/ww3mod/maps/test-<name>/` (or copy `arena-tank-duel/` and prune it).
 2. In `map.yaml`: set `Visibility: MissionSelector` and `Categories: Test` so it stays out of the lobby map list. Place actors lowercase (e.g. `e1.russia`, not `E1.russia`).
-3. In `rules.yaml`: point `LuaScript: Scripts:` at your `.lua`.
-4. Lua handles camera, briefing, optional force-orders. The `TEST MODE` panel mounts itself.
-5. Run with `./tools/test/run-test.sh test-<name>`.
+3. **Only ONE `Playable: True` PlayerReference** — the human slot. All other factions must be `Playable: False`. `Launch.Map` only creates Player objects for slots that have a client; an unclaimed `Playable: True` slot results in its actors falling back to Neutral, which breaks targeting (no attack cursor, no auto-engage). Mission-style: human is the only playable slot, enemies are non-playable factions.
+4. **Lock colors and factions on every PlayerReference** (`LockColor: True`, `LockFaction: True`) so the visual cue is consistent across runs — human=blue, enemies=red, allies=green — regardless of the dev's personal `settings.yaml` color preference.
+5. In `rules.yaml`: point `LuaScript: Scripts:` at your `.lua`.
+6. Lua handles camera, briefing, optional force-orders. The `TEST MODE` panel mounts itself.
+7. Run with `./tools/test/run-test.sh test-<name>`.
 
 Tier 2 (auto-asserting Lua: turret-facing checks, fired-at-tick assertions) is **not yet** built — every test still needs a human verdict for now.
 

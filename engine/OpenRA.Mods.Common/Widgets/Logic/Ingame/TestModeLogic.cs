@@ -25,26 +25,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (nameLabel != null)
 				nameLabel.GetText = () => TestMode.Name;
 
-			var pass = widget.Get<ButtonWidget>("PASS_BUTTON");
-			pass.OnClick = () =>
-			{
-				TestMode.WriteResult("pass", "");
-				Game.Exit();
-			};
-
-			var fail = widget.Get<ButtonWidget>("FAIL_BUTTON");
-			fail.OnClick = () =>
-			{
-				TestMode.WriteResult("fail", "");
-				Game.Exit();
-			};
-
-			var skip = widget.Get<ButtonWidget>("SKIP_BUTTON");
-			skip.OnClick = () =>
-			{
-				TestMode.WriteResult("skip", "");
-				Game.Exit();
-			};
+			var descLabel = widget.GetOrNull<LabelWidget>("TEST_DESCRIPTION");
+			if (descLabel != null)
+				descLabel.GetText = () => TestMode.Description ?? "";
 
 			var restart = widget.GetOrNull<ButtonWidget>("RESTART_BUTTON");
 			if (restart != null)

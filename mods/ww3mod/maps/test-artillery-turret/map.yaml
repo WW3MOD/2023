@@ -25,12 +25,15 @@ Players:
 	PlayerReference@USA:
 		Name: USA
 		Playable: True
+		LockFaction: True
+		LockColor: True
 		Faction: america
 		Color: 4488FF
 		Enemies: Russia
 	PlayerReference@Russia:
 		Name: Russia
-		Playable: True
+		LockFaction: True
+		LockColor: True
 		Faction: russia
 		Color: FF4444
 		Enemies: USA
@@ -38,16 +41,16 @@ Players:
 Actors:
 	Paladin: m109
 		Owner: USA
-		Location: 33,17
+		Location: 33,14
 		Facing: 768
-	Target: E1.russia
+	Target: t90
 		Owner: Russia
-		Location: 33,24
+		Location: 33,26
 	SpawnUSA: mpspawn
 		Owner: Neutral
-		Location: 33,17
+		Location: 33,14
 	SpawnRussia: mpspawn
 		Owner: Neutral
-		Location: 33,24
+		Location: 33,26
 
 Rules: rules.yaml

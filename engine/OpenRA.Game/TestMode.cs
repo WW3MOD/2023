@@ -15,6 +15,7 @@ namespace OpenRA
 	{
 		public static bool IsActive { get; private set; }
 		public static string Name { get; private set; }
+		public static string Description { get; set; }
 		public static string ResultPath { get; private set; }
 
 		public static void Initialize(Arguments args)
@@ -25,6 +26,7 @@ namespace OpenRA
 
 			IsActive = true;
 			Name = args.GetValue("Test.Name", "unnamed");
+			Description = args.GetValue("Test.Description", "");
 			ResultPath = args.GetValue("Test.ResultPath",
 				Path.Combine(Platform.SupportDir, "ww3mod-test-result.json"));
 
