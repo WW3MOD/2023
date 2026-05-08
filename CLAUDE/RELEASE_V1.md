@@ -199,6 +199,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [v1.1] Unit description overhaul & auto-generated stats
 - [v1.1] Rename tech levels to "DEFCON"
 - [v1.1] Move widgets to edges, free up UI space
+- [v1.1] Airstrike support powers (A-10, Su-25) — disabled for v1 via locked-off lobby checkbox in `world.yaml`. `AirstrikePower@America/@Russia` blocks remain in `player.yaml`, paused by `airstrikes-disabled` condition. Re-enable post-v1 by flipping `AirstrikeCheckboxEnabled: true` + `Visible: true` in `world.yaml`. Needs balance pass (cooldown, damage, beacon, AI usage) before unlock.
 
 ---
 
