@@ -72,6 +72,9 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [T] **Helicopters evacuated near map edge bypass missile fire** — *Fixed 260504 (commit 98742d4e)*: aircraft RotateToEdge now targets a WPos `AircraftOffMapCells = 5` past the boundary instead of the edge cell. New `Aircraft.EvacuatingOffMap` flag suppresses the off-map "nudge to center" repulsion in GetRepulsionForce so Fly can carry the heli across the boundary without oscillating. Despawn fires only when truly past the edge (IsClearOfMapEdge). Removed obsolete IsOnMapEdge helper.
 - [T] **Shift+G on attack-ground orders converts them to move orders** — *Round 2 fix 260504 (commit dd6cc18f)*: Round 1 (539d5ea3) caught Attack/AttackFollow.AttackActivity/AttackOmni.SetTarget but missed FlyAttack (returned by AttackAircraft.GetAttackActivity for helis/planes), and relied on a fragile TargetLineNodes fallback. Round 2 introduces `IAttackActivity { Target Target; bool ForceAttack }` marker interface implemented on all 4 attack activity classes via explicit interface members. GroupScatterHotkeyLogic checks `is IAttackActivity`, reads target directly, preserves ForceAttack vs Attack distinction. Future attack activity classes are auto-covered by implementing the interface.
 - [ ] Artillery fires all ammo at once when critically damaged
+- [ ] **Artillery turret doesn't turn after stop** — *Reported 260508*: Recent change forced artillery to stop before turning the turret toward the enemy and firing. Not working correctly — Paladin observed firing with turret locked in forward position when it should have turned. Likely affects other artillery too. Investigate the stop-then-turn handoff in attack activity / FacingRequiresStop logic.
+- [ ] **Some enemy soldiers untargetable (mutual)** — *Reported 260508*: Player couldn't target some enemy soldiers, and they couldn't target the player either. Likely a Targetable / TargetTypes mismatch or condition-gated targetability bug (possibly garrison-port directional, suppression-related, or a stale ITargetable state). Needs repro details — which unit type, what stance, were they near a garrison port?
+- [ ] **Crew still ejects on vehicle death** — *Reported 260508*: User thought we shipped a fix to gate crew ejection on vehicle destruction, but crew is still ejecting. Check git history for the relevant commit (VehicleCrew / EjectOnHusk / suppress-eject condition) — may have been planned but not implemented, or implemented but regressed. Confirm before fixing.
 - [T] **Aircraft can't spawn if waypoint is blocked** — *partially fixed 260505 alongside ground-unit fix below; aircraft branch never had the rally-path gate (lines 96-110), so this bug may have a separate cause. Worth re-testing now that ground production no longer stuck — if aircraft still get blocked, investigate candidate-cell occupancy / aircraft repulsion.*
 - [T] **Ground unit production stuck at 100% / blocked until rally moved** — *Fixed 260505*: `ProductionFromMapEdge.Produce` was gating spawn on `pathFinder.PathExistsForLocomotor(centerCell, firstDest)`. If the rally-point waypoint was unreachable (water, walled, etc.) the candidate was discarded → `location = null` → `Produce` returned false → queue retried forever at 100%. User confirmed: changing rally point to a reachable cell unblocked production immediately. Removed the path-existence check from both the SpawnArea path and the legacy fallback. `move.MoveTo(..., evaluateNearestMovableCell: true)` (line 191) already handles unreachable destinations by routing to the nearest reachable cell — same behaviour as a manual move order. Bad rally points no longer block spawn; the unit just spawns and pathes as close as it can. *Reported 260503, again 260505*
 - [ ] **Bridge pathing — units walk off the bridge** — infantry (and possibly vehicles) move outside the bridge footprint into water/shore cells. Likely cause: locomotor permits the shore/water cells flanking the bridge, OR bridge sprite art is wider than its passable footprint. `engine/OpenRA.Mods.Common/Traits/Buildings/Bridge.cs` + locomotor terrain weights. *Reported 260503, screenshot in conversation*
@@ -106,19 +109,24 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [ ] Helicopter landing refinement (slow before landing, faster turn to avoid overshoot)
 - [ ] Apache shouldn't shoot guns at structures
 - [ ] Ballistic missile tilt fix — Iskander/HIMARS missiles don't pitch properly on arc
+- [ ] **Iskander/HIMARS shockwave radius too large** — *Reported 260508*: explosion shockwave is oversized for the warhead. Tune `ShockwaveDamageWarhead` Range / Falloff in the Iskander and HIMARS weapon definitions.
 
 ### Combat / suppression / bypass
 - [ ] Suppression tuning — playtest vehicle values, per-weapon fine-tuning
 - [ ] Bypass system refinement (ATGM tree handling, range-based hit chance)
 - [ ] Flametrooper effective vs unarmored
 - [ ] Units out of ammo reject attack orders (don't freeze aiming)
+- [ ] **No-ammo units must reject attack-move + go idle if ammo runs out mid-attack-move** — *Reported 260508*: A unit with no ammo should not accept an attack-move order at all. If it's already executing attack-move and runs out of ammo, it should drop to idle (or seek resupply per Resupply stance) rather than continue charging into combat. Needs design pass — interaction with Resupply stances (Auto seek / Hold flag / Evacuate), whether the unit completes the move portion or stops in place, and how this propagates to mixed-unit groups (one unit dry shouldn't strand the rest).
 - [ ] Shoot at last known location for stationary targets
 - [ ] WGM should not fire if it won't hit
+- [ ] **WGM (Bradley/BMP) loses track during normal flight** — *Reported 260508*: Wire-guided missiles often miss by multiple tiles, halfway to target, looking like the shooter died mid-flight — but it happens with the shooter alive and well, normal circumstances. Different from "shouldn't fire if it won't hit" — this is mid-flight tracking failure. Investigate `Missile.cs` guidance update path and whether `FlyStraightIfMiss` or target-loss logic is firing incorrectly. May be related to the helicopter→helicopter missile bug.
 - [ ] Ballistics deprioritize targets if hit chance too low
 
 ### Supply Route
 - [ ] Captured SR handling — what spawns link, neutral SRs between players
 - [ ] Primary SR selection UI
+- [ ] **Right-click own SR = Evacuate (regression)** — *Reported 260508*: After enabling click-to-attack-enemy-SR / click-to-defend-allied-SR, right-click on the player's own SR now reads as "defend our own flag" instead of "evacuate". Should restore the previous behavior: right-click own SR = evacuate order, with the "enter" mouse cursor. Likely an order-priority / cursor-resolution issue in SR-related order generators.
+- [ ] **SR rally point should accept any order type (move / attack-move / force-attack / etc.)** — *Reported 260508*: Currently the SR waypoints work as plain move orders. We should be able to queue any order on the SR — defend, attack-move, force-attack, etc. — and have those orders transferred to the produced units when they spawn. Ideally the SR accepts any order a unit would accept, and acts as a proxy that re-issues the order to each new reinforcement. Touches: ProductionFromMapEdge spawn handoff, rally-point UI / order parsing, and how queued orders are stored/applied per unit.
 
 ### AI
 - [ ] AI builds Logistics Centers, rearms
@@ -151,6 +159,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 
 ### Performance pass
 - [ ] Pre-release perf pass (see "Pending decisions" → Performance pass for approach)
+- [ ] **6-player skirmish slow on MacBook** — *Reported 260508*: User tried a 6-player skirmish on macbook, ran very slowly. Bigger investigation — we've already done some perf work, so **first step: read git history for prior perf changes (shadow-cache freeze, density layer, AI tick budgets, etc.) so we don't go in circles**. Then add logging/profiling to find current bottlenecks. Aligns with the "Performance pass before v1" pending decision (B + C: tick-budget log channel + dotnet-trace flame graph).
 
 ---
 
