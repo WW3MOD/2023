@@ -52,4 +52,9 @@ else
 fi
 
 cd "${ENGINE_DIRECTORY}"
-${RUNTIME_LAUNCHER} bin/OpenRA.dll Game.Mod="${MOD_ID}" Engine.EngineDir=".." Engine.LaunchPath="${TEMPLATE_LAUNCHER}" Engine.ModSearchPaths="${MOD_SEARCH_PATHS}" "$@"
+# Force fullscreen by default for normal launches. Last-wins arg semantics mean
+# any later "$@" override (e.g. AUTOTEST/DEMO passing Graphics.Mode=Windowed,
+# or a manual user override) still takes precedence. This guards against
+# settings.yaml getting polluted with Windowed/WindowedSize when the engine
+# auto-saves after a test run.
+${RUNTIME_LAUNCHER} bin/OpenRA.dll Game.Mod="${MOD_ID}" Engine.EngineDir=".." Engine.LaunchPath="${TEMPLATE_LAUNCHER}" Engine.ModSearchPaths="${MOD_SEARCH_PATHS}" Graphics.Mode=PseudoFullscreen "$@"

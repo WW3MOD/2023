@@ -18,7 +18,9 @@ if not exist %ENGINE_DIRECTORY%\bin\OpenRA.exe goto noengine
 >nul find %ENGINE_VERSION% %ENGINE_DIRECTORY%\VERSION || goto noengine
 cd %ENGINE_DIRECTORY%
 
-bin\OpenRA.exe Game.Mod=%MOD_ID% Engine.EngineDir=".." Engine.LaunchPath="%TEMPLATE_LAUNCHER%" Engine.ModSearchPaths="%MOD_SEARCH_PATHS%"  "%*"
+rem Force fullscreen by default; later args (AUTOTEST/DEMO Graphics.Mode=Windowed
+rem or manual user override) still win via last-wins arg parsing.
+bin\OpenRA.exe Game.Mod=%MOD_ID% Engine.EngineDir=".." Engine.LaunchPath="%TEMPLATE_LAUNCHER%" Engine.ModSearchPaths="%MOD_SEARCH_PATHS%" Graphics.Mode=PseudoFullscreen  "%*"
 set ERROR=%errorlevel%
 cd %TEMPLATE_DIR%
 
