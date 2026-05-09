@@ -51,8 +51,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Damage state that triggers crew ejection.")]
 		public readonly DamageState EjectionDamageState = DamageState.Critical;
 
-		[Desc("Percent chance each crew member survives ejection on vehicle death.")]
-		public readonly int EjectionSurvivalRate = 90;
+		// EjectionSurvivalRate removed — vehicle death is now total loss for
+		// anyone still inside (crew has to evac during the bleed-out window
+		// or stay with the wreck). Existing per-actor YAML overrides can be
+		// kept harmlessly; loader ignores unknown fields under TraitInfo.
 
 		[Desc("Whether ejected crew inherit the vehicle's veterancy rank.")]
 		public readonly bool TransferVeterancy = true;
@@ -210,7 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Eject current crew member
 			var slotName = ejectionOrder[nextEjectionIndex];
-			EjectCrewMember(slotName, false);
+			EjectCrewMember(slotName);
 
 			// Advance to next
 			nextEjectionIndex++;
@@ -224,34 +226,23 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-			// If ejection is suppressed (e.g., critical helicopter crash), crew dies with the vehicle
-			if (SuppressEjection)
-			{
-				ejecting = false;
-				return;
-			}
-
-			// If we never reached critical state (vehicle instant-killed), capture the killing
-			// blow's damage so EjectCrewMember can apply the same damage-scaling formula used for
-			// staged ejections. Without this, instant kills fell back to the legacy 90% survival
-			// rate and crew nearly always walked away from huge hits.
-			if (finishingDamage == 0)
-				finishingDamage = e.Damage?.Value ?? 0;
-
-			// Eject all remaining crew instantly on death
-			foreach (var slotName in ejectionOrder)
-			{
-				if (!slotIndexByName.TryGetValue(slotName, out var idx))
-					continue;
-
-				if (slotOccupied[idx])
-					EjectCrewMember(slotName, true);
-			}
-
+			// Death = total loss for anyone still inside. The eject window is
+			// the bleed-out time between Critical state and HP=0; crew that
+			// didn't make it out by then is consumed by the wreck. This trait
+			// runs the staged ejection during Critical state — once Killed
+			// fires, we just clean up the remaining slot bookkeeping. No
+			// post-death actor spawn, no second-chance survival roll.
 			ejecting = false;
+			for (var i = 0; i < info.CrewSlots.Length; i++)
+			{
+				slotOccupied[i] = false;
+				slotReserved[i] = false;
+				if (conditionTokens[i] != Actor.InvalidConditionToken)
+					conditionTokens[i] = self.RevokeCondition(conditionTokens[i]);
+			}
 		}
 
-		void EjectCrewMember(string slotName, bool onDeath)
+		void EjectCrewMember(string slotName)
 		{
 			if (!slotIndexByName.TryGetValue(slotName, out var idx))
 				return;
@@ -267,9 +258,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!info.CrewActors.TryGetValue(slotName, out var actorType))
 				return;
 
-			// Damage inherited from the finishing shot. Applies to both staged critical-state
-			// ejections and onDeath instant-kills (Killed handler captures e.Damage when no
-			// staged transition happened first). Big hits → crew dies inside the vehicle.
+			// Damage inherited from the finishing shot. The crew that
+			// triggered Critical state takes a fraction of that damage on
+			// the way out — big hits leave them either dead inside (skip
+			// spawn) or stumbling out at low HP (prone-slow afterwards).
 			var crewDamage = 0;
 			if (finishingDamage > 0)
 			{
@@ -287,10 +279,6 @@ namespace OpenRA.Mods.Common.Traits
 						return;
 				}
 			}
-
-			// Coarse "did they actually get out?" roll on top of the damage gate (only on death).
-			if (onDeath && self.World.SharedRandom.Next(100) >= info.EjectionSurvivalRate)
-				return;
 
 			var td = new TypeDictionary
 			{

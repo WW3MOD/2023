@@ -13,3 +13,11 @@ World:
 		DisableWorldSounds: false
 	LuaScript:
 		Scripts: test-helpers.lua, test-evac-suite.lua
+
+# Disable the auto-bleed at Critical state for this test — production config
+# has vehicles ticking down -1% MaxHP per 5 ticks once below 50%, which makes
+# Phase 2's staged-ejection window non-deterministic (the vehicle can die
+# mid-eject before the test snapshot). Removing it means Critical-state
+# vehicles stay at the HP we set them to until explicitly killed.
+^EffectsWhenDamagedVehicles:
+	-ChangesHealth@CriticalDamage:

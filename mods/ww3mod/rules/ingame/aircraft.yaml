@@ -179,10 +179,21 @@
 		EjectPassengersOnSafeLanding: true
 		EjectPassengersOnCrash: false
 		CrashExplosion: UnitExplode
-		TransferToNeutralOnSafeLanding: true
+		# Don't transfer to Neutral on safe-land — the airframe stays on its
+		# original team (visible team-coloured wreck), burns out via the
+		# ChangesHealth@CrashBurn below, and finally explodes when HP hits 0
+		# (uses the existing Explodes: !airborne entry from ^NeutralAirborne).
+		TransferToNeutralOnSafeLanding: false
 	VehicleCrew:
 		EjectionDamageState: Dead
 		EjectionSurvivalRate: 100
+	# Burn after safe-autorotation: bleed -2% MaxHP every 5 ticks once the
+	# heli is sitting crash-disabled. ~12-13 seconds from full HP to 0.
+	# Cookoff fires via Explodes: !airborne when the bleed kills it.
+	ChangesHealth@CrashBurn:
+		PercentageStep: -2
+		Delay: 5
+		RequiresCondition: crash-disabled
 	SpeedMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
@@ -207,14 +218,9 @@
 	FirepowerMultiplier@EmergencyDescent:
 		Modifier: 0
 		RequiresCondition: autorotation || crash-landing
-	RepairableBuilding@CrashDisabled:
-		RequiresCondition: crash-disabled
-		RepairStep: 400
-		RepairInterval: 20
-		ValidRelationships: Ally, Neutral, Enemy
-	Targetable@VehicleRepair:
-		RequiresCondition: crash-disabled && damaged
-		TargetTypes: VehicleRepair
+	# RepairableBuilding@CrashDisabled and Targetable@VehicleRepair removed
+	# 260509: the crash-disabled-then-repair-and-fly-again concept was scrapped.
+	# Safe-landed helis simply burn out and explode (ChangesHealth@CrashBurn above).
 
 ^Drone:
 	Inherits: ^Airborne
