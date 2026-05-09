@@ -20,6 +20,10 @@ humvee:
 		# Light unarmored — penetrating hits kill crew often.
 		CrewDamageThresholdPercent: 20
 		EjectionSurvivalRate: 70
+	# Humvee = unarmored fuel fire on death, not a catastrophic ammo cookoff.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoffTiny
+		EmptyWeapon: VehicleCookoffTiny
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill && !assault-move
 	RenderSprites:
@@ -175,6 +179,10 @@ m113:
 		# APC — moderate armor, decent crew survival on penetrating hits.
 		CrewDamageThresholdPercent: 26
 		EjectionSurvivalRate: 80
+	# Light APC — small fuel cookoff, not catastrophic.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoffTiny
+		EmptyWeapon: VehicleCookoffTiny
 	Tooltip:
 		Name: M113 APC
 		GenericName: Armoured Personnel Carrier
@@ -672,6 +680,10 @@ m270:
 		# MLRS rocket pod — catastrophic when hit, low crew survival.
 		CrewDamageThresholdPercent: 14
 		EjectionSurvivalRate: 50
+	# MLRS rocket pod cookoff — catastrophic ammo detonation, biggest cookoff tier.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoffLarge
+		EmptyWeapon: VehicleCookoffLarge
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill

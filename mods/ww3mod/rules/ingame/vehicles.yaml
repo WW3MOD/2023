@@ -157,42 +157,43 @@
 		RequiresCondition: critical-damage
 		Image: smoke_mtd
 		Palette: temptd
-	# Staged burning. ExternalCondition registers `onfire` so it can stack;
-	# GrantStackingConditionOnHealthFraction maps the HP fraction (50%→1%)
-	# to stack count (1→10), and three overlays light up progressively as
-	# the wreck burns harder. Half-of-MaxHP gives a smooth ~50% HP ramp:
-	#   50% → 1 stack (small smoulder)
-	#   25% → ~5 stacks (Heavy state's small/medium fire)
-	#    1% → 10 stacks (full inferno)
-	# No RequiresCondition — fire is HP-fraction-driven so a tank doesn't need
-	# to be in Critical state to start smouldering at half HP.
+	# Staged burning — the V1 ramp picked from test-burn-compare on 260509.
+	# StartFraction=50, EndFraction=0 means smoke ignites the moment HP drops
+	# below 50% and stack 10 (full inferno) only locks in at HP=0. Slowest
+	# possible visible ramp; the bleed-out itself is what advances stages.
+	#
+	# Stage map (stack count → visible overlay):
+	#   1-2  → smoke_mtd (proper start→loop animation, smaller-feel smoke)
+	#   3-4  → infantry-burn-1 (smouldering)
+	#   5-6  → infantry-burn-3 (skip burn-2 — burn-3 reads as a clearer
+	#          step up; burn-2 is too similar to burn-1)
+	#   7-8  → infantry-burn-4 (big fire)
+	#   ≥7   → infantry-burn-5 LAYERED on top for stages 7+, so the burn-5
+	#          sprite ramps in over multiple stages instead of popping at 9
+	#   9-10 → infantry-burn-5 (its own tier so the layered + tier overlap
+	#          adds visual density at max stacks)
+	#   ≥9   → husk-style big fire (Image: fire, Sequence: 1) for the
+	#          inferno stage. Reserved for the final stages so the
+	#          burn-5 ↔ big-fire transition isn't an abrupt pop.
 	ExternalCondition@OnFire:
 		Condition: onfire
 		TotalCap: 10
 	GrantStackingConditionOnHealthFraction@OnFire:
 		Condition: onfire
 		StartFraction: 50
-		EndFraction: 1
+		EndFraction: 0
 		MaxStacks: 10
 		Interval: 15
-	# 5-tier visual ramp matching the infantry burn sprites, plus a big-fire
-	# inferno layer that only kicks in at the catastrophic stages.
-	#   stacks 1-2  → light smoulder / smoke (infantry-burn-1)
-	#   stacks 3-4  → growing smoke         (infantry-burn-2)
-	#   stacks 5-6  → small fire            (infantry-burn-3)
-	#   stacks 7-8  → bigger fire           (infantry-burn-4)
-	#   stacks 9-10 → max infantry burn     (infantry-burn-5)
-	#   stacks 9-10 → ALSO the husk-style big fire on top for the inferno
 	WithIdleOverlay@Burn_1:
 		RequiresCondition: onfire == 1 || onfire == 2
-		Image: infantry-burn-1
+		Image: smoke_mtd
 		StartSequence: start
 		Sequence: loop
-		Palette: effect
+		Palette: temptd
 		IsDecoration: true
 	WithIdleOverlay@Burn_2:
 		RequiresCondition: onfire == 3 || onfire == 4
-		Image: infantry-burn-2
+		Image: infantry-burn-1
 		StartSequence: start
 		Sequence: loop
 		Palette: effect
@@ -207,6 +208,13 @@
 	WithIdleOverlay@Burn_4:
 		RequiresCondition: onfire == 7 || onfire == 8
 		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Burn_4Layer:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
 		StartSequence: start
 		Sequence: loop
 		Palette: effect

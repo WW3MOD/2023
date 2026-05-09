@@ -19,6 +19,10 @@ btr:
 		# Wheeled APC — thinner armor than M113, lower crew survival.
 		CrewDamageThresholdPercent: 22
 		EjectionSurvivalRate: 70
+	# Light wheeled APC — small fuel cookoff.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoffTiny
+		EmptyWeapon: VehicleCookoffTiny
 	Tooltip:
 		Name: BTR-80
 		GenericName: Armoured Personnel Carrier
@@ -496,6 +500,10 @@ grad:
 		# Truck-mounted MLRS — soft skin + 40 rocket pod = catastrophic kill.
 		CrewDamageThresholdPercent: 14
 		EjectionSurvivalRate: 50
+	# Catastrophic rocket-pod cookoff.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoffLarge
+		EmptyWeapon: VehicleCookoffLarge
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
@@ -610,6 +618,10 @@ tos:
 		# Thermobaric rocket pod — extreme catastrophic kill, fire engulfs everything.
 		CrewDamageThresholdPercent: 12
 		EjectionSurvivalRate: 40
+	# Thermobaric MLRS — biggest cookoff.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoffLarge
+		EmptyWeapon: VehicleCookoffLarge
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill

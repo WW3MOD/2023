@@ -199,27 +199,28 @@
 	# pilot is in trouble well before they actually start autorotating. Once
 	# crash-disabled the existing ChangesHealth@CrashBurn keeps draining HP
 	# and the fire keeps climbing until the wreck explodes.
+	# V1 ramp from test-burn-compare 260509 — see ^EffectsWhenDamagedVehicles
+	# for the full mapping. Same overlay structure as ground vehicles so the
+	# burn pipeline reads identically across the roster.
 	ExternalCondition@OnFire:
 		Condition: onfire
 		TotalCap: 10
 	GrantStackingConditionOnHealthFraction@OnFire:
 		Condition: onfire
 		StartFraction: 50
-		EndFraction: 1
+		EndFraction: 0
 		MaxStacks: 10
 		Interval: 15
-	# Same 5-tier visual ramp as ^EffectsWhenDamagedVehicles. Reads the same
-	# at every HP fraction so the player learns one ramp for everything.
 	WithIdleOverlay@Burn_1:
 		RequiresCondition: onfire == 1 || onfire == 2
-		Image: infantry-burn-1
+		Image: smoke_mtd
 		StartSequence: start
 		Sequence: loop
-		Palette: effect
+		Palette: temptd
 		IsDecoration: true
 	WithIdleOverlay@Burn_2:
 		RequiresCondition: onfire == 3 || onfire == 4
-		Image: infantry-burn-2
+		Image: infantry-burn-1
 		StartSequence: start
 		Sequence: loop
 		Palette: effect
@@ -234,6 +235,13 @@
 	WithIdleOverlay@Burn_4:
 		RequiresCondition: onfire == 7 || onfire == 8
 		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Burn_4Layer:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
 		StartSequence: start
 		Sequence: loop
 		Palette: effect

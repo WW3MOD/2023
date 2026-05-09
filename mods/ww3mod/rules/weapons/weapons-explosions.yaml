@@ -29,6 +29,50 @@ VehicleCookoff:
 		Explosions: splash_small
 		ValidTargets: Water, Underwater
 
+# Tiny variant for light unarmored / light APC vehicles (humvee, m113, btr).
+# Tighter radius, less damage, smaller visual — fuel fire, not catastrophic
+# ammo cookoff.
+VehicleCookoffTiny:
+	Inherits: VehicleCookoff
+	Warhead@Damage: SpreadDamage
+		Range: 0, 0c96
+		Falloff: 100, 0
+		Damage: 1500
+		ValidTargets: Infantry
+		DamageTypes: FireDeath
+		AffectsParent: true
+	Warhead@Fire: GrantExternalCondition
+		Range: 0c96
+		Duration: 25
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Effect: CreateEffect
+		Explosions: piff
+		ImpactSounds: gun27.aud
+		ValidTargets: Ground, Trees
+
+# Large variant for MLRS-class catastrophic kills (m270, grad, tos —
+# rocket pods cooking off). Tighter than a real explosion (still single
+# tile by intent) but heavier damage and a bigger visual.
+VehicleCookoffLarge:
+	Inherits: VehicleCookoff
+	Warhead@Damage: SpreadDamage
+		Range: 0, 0c768
+		Falloff: 100, 0
+		Damage: 14000
+		ValidTargets: Infantry
+		DamageTypes: FireDeath
+		AffectsParent: true
+	Warhead@Fire: GrantExternalCondition
+		Range: 0c768
+		Duration: 150
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_medium
+		ImpactSounds: kaboom30.aud
+		ValidTargets: Ground, Trees
+
 FlamethrowerExplosion:
 	ValidTargets: Ground, Water, Trees
 	Warhead@Spread: SpreadDamage
