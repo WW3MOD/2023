@@ -11,6 +11,7 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 | [`BACKLOG.md`](BACKLOG.md) | Deferred ideas (`[ ]`/`[x]`/`[dropped]`). |
 | [`DISCOVERIES.md`](DISCOVERIES.md) | Dated gotchas and insights from past sessions. |
 | `bugs/discovered.md` | Bugs found incidentally during other work. |
+| [`autotester_improvements.md`](autotester_improvements.md) | AUTOTEST harness friction backlog — consume in a focused improvement session. |
 | `plans/` | In-progress plans (auto-archived on FINALIZE when their work ships). |
 | `playtests/` | Raw playtest reports — historical, never edited after the session. |
 | `archive/` | Historical: shipped plans, old session logs, old playtests. Periodically cleanable. |
