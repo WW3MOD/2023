@@ -208,22 +208,47 @@
 		EndFraction: 1
 		MaxStacks: 10
 		Interval: 15
-	WithIdleOverlay@Fire1:
-		RequiresCondition: onfire >= 1
+	# Same 5-tier visual ramp as ^EffectsWhenDamagedVehicles. Reads the same
+	# at every HP fraction so the player learns one ramp for everything.
+	WithIdleOverlay@Burn_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Burn_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-2
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Burn_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Burn_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Burn_5:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@Inferno:
+		RequiresCondition: onfire >= 9
 		Image: fire
 		Sequence: 1
-		IsDecoration: true
-	WithIdleOverlay@Fire2:
-		RequiresCondition: onfire >= 4
-		Image: fire
-		Sequence: 4
-		Offset: 256, 0, 0
-		IsDecoration: true
-	WithIdleOverlay@Fire3:
-		RequiresCondition: onfire >= 8
-		Image: fire
-		Sequence: 7
-		Offset: -256, 0, 0
 		IsDecoration: true
 	SpeedMultiplier@CrashDisabled:
 		Modifier: 0

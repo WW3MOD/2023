@@ -1,0 +1,1 @@
+DEMO arena. Top half: one of every vehicle, scripted bleed from full HP to 0 over ~10s. Bottom half: 4v4 USA vs Russia, default stances, no Lua intervention.
