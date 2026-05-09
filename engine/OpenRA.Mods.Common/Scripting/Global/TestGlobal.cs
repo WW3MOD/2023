@@ -7,7 +7,9 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Scripting;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Scripting.Global
 {
@@ -48,6 +50,34 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			TestMode.WriteResult("skip", reason ?? "");
 			Game.Exit();
+		}
+
+		[Desc("Resolve the right-click OrderID that `unit` would issue when targeting `target`. " +
+			"Walks the same IIssueOrder/IOrderTargeter pipeline as the UI cursor resolver, so " +
+			"this catches order-priority and CanTargetActor regressions that direct unit.Attack/Move " +
+			"calls bypass. Returns the OrderID string of the highest-priority matching targeter, " +
+			"or null if nothing matches. Test mode only.")]
+		public string GetTargetOrder(Actor unit, Actor target)
+		{
+			if (!TestMode.IsActive || unit == null || target == null)
+				return null;
+
+			var t = Target.FromActor(target);
+			var xy = target.Location;
+			var actorsAt = unit.World.ActorMap.GetActorsAt(xy).ToList();
+
+			var orders = unit.TraitsImplementing<IIssueOrder>()
+				.SelectMany(trait => trait.Orders)
+				.OrderByDescending(o => o.OrderPriority);
+
+			foreach (var o in orders)
+			{
+				string cursor = null;
+				if (o.CanTarget(unit, t, actorsAt, xy, TargetModifiers.None, ref cursor))
+					return o.OrderID;
+			}
+
+			return null;
 		}
 	}
 }
