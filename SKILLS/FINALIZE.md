@@ -14,10 +14,14 @@
 2. **Double-check against `CLAUDE/DISCOVERIES.md`** — ensure nothing was violated. Add a new entry if the session uncovered a gotcha worth remembering.
 3. **Update `CLAUDE/RELEASE_V1.md`** — flip statuses for items touched (e.g. `[~]` → `[T]` or `[x]`); move shipped items to "Recently completed".
 4. **Update `CLAUDE/HOTBOARD.md`** — refresh "Working on" and recent wins. Keep under 40 lines (rotate oldest items out).
-5. **Promote session file** (if any): rename `CLAUDE/sessions/active_*.md` → `CLAUDE/sessions/<YYMMDD>_<topic>.md`.
-6. **Update `CLAUDE/BACKLOG.md`** — add deferred items, mark completed with `[x]`.
-7. **Auto-commit** all changes with a descriptive message (no separate FINALIZE-only commit if everything is already committed).
-8. **Review CLAUDE.md** — new pattern worth documenting? Structural change? Recurring gotcha? Update if yes.
+5. **Archive completed plans** — for each `CLAUDE/plans/*.md` whose work this session shipped:
+   - If the corresponding tracker item is now `[x]` or `[T]`, `git mv` the plan to `CLAUDE/archive/plans/`.
+   - If the plan was a brainstorm-handoff that's been resolved, archive it too.
+   - Tracker entries can keep referencing the archive path; don't break links.
+6. **Promote session file** (if any): rename `CLAUDE/sessions/active_*.md` → `CLAUDE/archive/sessions/<YYMMDD>_<topic>.md` (sessions live in archive directly — they're historical records, not active state).
+7. **Update `CLAUDE/BACKLOG.md`** — add deferred items, mark completed with `[x]`.
+8. **Auto-commit** all changes with a descriptive message (no separate FINALIZE-only commit if everything is already committed).
+9. **Review CLAUDE.md** — new pattern worth documenting? Structural change? Recurring gotcha? Update if yes. New skill emerged? Add to `SKILLS/`.
 
 ## Tips
 
