@@ -383,7 +383,23 @@ namespace OpenRA.Mods.Common.Traits
 
 			protected override void OnLastRun(Actor self)
 			{
-				// Cancel the requested target, but keep firing on it while in range
+				// Cancel the requested target, but keep firing on it while in range.
+				//
+				// IMPORTANT: when a new attack activity has been queued behind us
+				// (e.g. the player issued a force-attack-ground while our setup-aim
+				// countdown was running and we ended naturally before they fired),
+				// OnResolveAttackOrder has already set RequestedTarget to the new
+				// target. Clearing here would silently eat the player's order — the
+				// classic symptom is artillery showing the red attack waypoint but
+				// never firing on the new ground point.
+				//
+				// IsCanceling is unreliable here: by the time OnLastRun runs the
+				// state has already moved to Done, so IsCanceling is always false.
+				// Use NextActivity instead — if there's an AttackActivity queued
+				// after us, the firing pipeline already has its new target.
+				if (NextActivity is AttackActivity)
+					return;
+
 				attack.ClearRequestedTarget();
 			}
 

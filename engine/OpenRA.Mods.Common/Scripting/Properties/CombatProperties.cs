@@ -101,6 +101,14 @@ namespace OpenRA.Mods.Common.Scripting
 				attack.AttackTarget(target, AttackSource.Default, true, allowMove, forceAttack);
 		}
 
+		[Desc("Force-attack a ground cell location. Equivalent to Ctrl+click on terrain.")]
+		public void AttackGround(CPos cell, bool allowMove = true, bool queued = false)
+		{
+			var target = Target.FromCell(Self.World, cell);
+			foreach (var attack in attackBases)
+				attack.AttackTarget(target, AttackSource.Default, queued, allowMove, true);
+		}
+
 		[Desc("Checks if the targeted actor is a valid target for this actor.")]
 		public bool CanTarget(Actor targetActor)
 		{

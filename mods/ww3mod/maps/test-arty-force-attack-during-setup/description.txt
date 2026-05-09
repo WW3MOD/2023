@@ -1,0 +1,1 @@
+Repro: force-attack-ground during Paladin's setup-ticks must still fire on the new ground point (not get eaten by activity replacement).
