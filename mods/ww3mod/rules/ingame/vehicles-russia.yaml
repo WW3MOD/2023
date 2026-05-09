@@ -581,6 +581,8 @@ grad:
 	Turreted:
 		Offset: -220,0,140
 		TurnSpeed: 20
+		# Stowed pod: locks forward while driving.
+		RealignWhileMoving: True
 	AttackTurreted:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True
@@ -701,6 +703,8 @@ tos:
 	Turreted:
 		TurnSpeed: 20
 		Offset: -100,0,180
+		# Stowed pod: locks forward while driving.
+		RealignWhileMoving: True
 	AttackTurreted:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True

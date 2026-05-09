@@ -30,6 +30,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Number of ticks before turret is realigned. (-1 turns off realignment)")]
 		public readonly int RealignDelay = 40;
 
+		[Desc("If true, lock turret to InitialFacing while the actor is moving horizontally.",
+			"Targets cannot be tracked while moving — turret stays stowed forward, fire is suppressed.",
+			"Useful for artillery that travels with the gun pointed forward.")]
+		public readonly bool RealignWhileMoving = false;
+
 		[Desc("Muzzle position relative to turret or body. (forward, right, up) triples")]
 		public readonly WVec Offset = WVec.Zero;
 
@@ -132,7 +137,13 @@ namespace OpenRA.Mods.Common.Traits
 		AttackTurreted attack;
 		IFacing facing;
 		BodyOrientation body;
+		Mobile mobile;
 		IEnumerable<int> turretTurnSpeedModifiers;
+
+		// True when the body is moving horizontally and Info.RealignWhileMoving is set.
+		// Used to lock the turret to InitialFacing and refuse FaceTarget tracking.
+		bool LockedByMovement => Info.RealignWhileMoving && mobile != null
+			&& mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal);
 
 		[Sync]
 		public int QuantizedFacings = 0;
@@ -176,6 +187,7 @@ namespace OpenRA.Mods.Common.Traits
 			facing = self.TraitOrDefault<IFacing>();
 			turretTurnSpeedModifiers = self.TraitsImplementing<ITurretTurnSpeedModifier>().ToArray().Select(m => m.GetTurretTurnSpeedModifier());
 			body = self.Trait<BodyOrientation>();
+			mobile = self.TraitOrDefault<Mobile>();
 		}
 
 		void ITick.Tick(Actor self)
@@ -187,6 +199,19 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (IsTraitDisabled)
 				return;
+
+			// Lock to InitialFacing while the body is moving (artillery-stowed behavior).
+			// Drop any current target direction and force immediate realign — bypasses
+			// the RealignDelay countdown so the turret starts swinging back the moment
+			// the unit starts driving.
+			if (LockedByMovement)
+			{
+				desiredDirection = WVec.Zero;
+				realignDesired = true;
+				realignTick = 0;
+				MoveTurret();
+				return;
+			}
 
 			// NOTE: FaceTarget is called in AttackTurreted.CanAttack if the turret has a target.
 			if (attack != null)
@@ -271,6 +296,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (IsTraitDisabled || IsTraitPaused || attack == null || attack.IsTraitDisabled || attack.IsTraitPaused)
 				return false;
+
+			// Refuse to track targets while the body is moving — turret stays at InitialFacing
+			// (Tick handles the actual realign). Returning false prevents the turret from being
+			// considered "ready" so AttackTurreted.CanAttack also fails — no firing while moving.
+			if (LockedByMovement)
+			{
+				desiredDirection = WVec.Zero;
+				return false;
+			}
 
 			if (target.Type == TargetType.Invalid)
 			{

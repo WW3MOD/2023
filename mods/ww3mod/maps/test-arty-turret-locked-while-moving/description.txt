@@ -1,0 +1,1 @@
+Auto: Paladin's turret must stay forward (LocalFacing near 0) while driving past an enemy.
