@@ -37,19 +37,21 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string[] EjectionOrder = null;
 
 		[Desc("Base ticks between each crew ejection.")]
-		public readonly int EjectionDelay = 25;
+		public readonly int EjectionDelay = 15;
 
 		[Desc("Random ± variance added to ejection delay.")]
-		public readonly int EjectionDelayVariance = 10;
+		public readonly int EjectionDelayVariance = 5;
 
 		[Desc("Additional delay (ticks) after the vehicle comes to a full stop before the first crew member ejects.")]
-		public readonly int PostStopDelay = 40;
+		public readonly int PostStopDelay = 20;
 
 		[Desc("Maximum ticks to wait for the vehicle to stop after entering critical. Eject anyway after this.")]
-		public readonly int StopTimeout = 150;
+		public readonly int StopTimeout = 25;
 
-		[Desc("Damage state that triggers crew ejection.")]
-		public readonly DamageState EjectionDamageState = DamageState.Critical;
+		[Desc("Damage state that triggers crew ejection. Heavy = HP <50% (crew bails when severely " +
+			"damaged); Critical = HP <25% (only when nearly dead). Heavy gets crew out fast enough that " +
+			"the ChangesHealth bleed during Heavy isn't a long staring window.")]
+		public readonly DamageState EjectionDamageState = DamageState.Heavy;
 
 		// EjectionSurvivalRate removed — vehicle death is now total loss for
 		// anyone still inside (crew has to evac during the bleed-out window
@@ -64,6 +66,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Random variance on crew damage, as a fraction of crew MaxHP (1/N). Set to 0 to disable.")]
 		public readonly int CrewDamageVarianceDivisor = 5;
+
+		[Desc("Offset applied to the wreck's onfire stack count when crew inherits its burn intensity. " +
+			"Negative values mean the crew burns less than the wreck (typical: a tank at stack 8 with " +
+			"offset -3 spawns crew at stack 5). Clamped to 0 minimum.")]
+		public readonly int CrewFireStackOffset = -3;
 
 		public override object Create(ActorInitializer init) { return new VehicleCrew(init.Self, this); }
 	}
@@ -303,9 +310,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Compute the vehicle's current fire intensity (onfire stacks). Crew
-			// emerging from a wreck inherits the same number of stacks so they
-			// step out already burning — the realistic 'crew was inside a vehicle
-			// that's been on fire' outcome. Pure HP-fraction math; no need to
+			// emerging from a wreck inherits the wreck's stack count plus
+			// CrewFireStackOffset (default -3 — crew burns less than the
+			// vehicle they came out of). Pure HP-fraction math; no need to
 			// poke the trait's internal state.
 			var fireStacks = 0;
 			string fireCondition = null;
@@ -313,8 +320,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (fireInfo != null && fireInfo.MaxStacks > 0 && health.MaxHP > 0)
 			{
 				var percent = (health.HP * 100) / health.MaxHP;
-				fireStacks = GrantStackingConditionOnHealthFraction.CalculateStacks(
+				var raw = GrantStackingConditionOnHealthFraction.CalculateStacks(
 					percent, fireInfo.StartFraction, fireInfo.EndFraction, fireInfo.MaxStacks);
+				fireStacks = Math.Max(0, raw + info.CrewFireStackOffset);
 				fireCondition = fireInfo.Condition;
 			}
 
