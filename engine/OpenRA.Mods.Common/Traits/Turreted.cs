@@ -191,14 +191,25 @@ namespace OpenRA.Mods.Common.Traits
 			// NOTE: FaceTarget is called in AttackTurreted.CanAttack if the turret has a target.
 			if (attack != null)
 			{
-				// Only realign while not attacking anything
+				// Currently aiming (firing window) — Attack drives motion; skip
+				// to avoid double-advance this tick.
 				if (attack.IsAiming)
 				{
 					realignTick = 0;
 					return;
 				}
 
-				if (realignTick < Info.RealignDelay)
+				// Mid-rotation toward a target: FaceTarget has set desiredDirection
+				// (cleared back to Zero only on alignment-achieved). Don't start
+				// the realign-to-InitialFacing countdown while we're still trying
+				// to face something — the realign path would clear desiredDirection
+				// and turn the turret away from the user's order, producing the
+				// "rotates one tiny step then stops" symptom.
+				if (desiredDirection != WVec.Zero)
+				{
+					realignTick = 0;
+				}
+				else if (realignTick < Info.RealignDelay)
 					realignTick++;
 				else if (Info.RealignDelay > -1)
 				{
