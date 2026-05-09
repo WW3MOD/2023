@@ -2,11 +2,11 @@
 
 > Single source of truth for v1 scope. Update continuously as items are tested, fixed, deferred, or cut.
 >
-> **Status legend:** `[ ]` open · `[~]` in-progress · `[T]` testing · `! [T]` urgent + testing · `[v1.1]` deferred · `[cut]` won't-fix v1
+> **Status legend:** `[ ]` open · `[~]` in-progress · `[T]` testing · `[T:trusted]` code-verified spot-check (fix is in the tree, no contradicting later commit; not yet AUTOTEST-confirmed) · `! [T]` urgent + testing · `[v1.1]` deferred · `[cut]` won't-fix v1
 >
 > **Scope is locked.** New features need explicit "yes, add to v1" from the user. Otherwise → `BACKLOG.md` or `Pending decisions` below.
 >
-> **Items pass `[T]` → removed entirely.** Commit history is the archive. No `[x]` graveyard, no "Recently completed" section.
+> **Items pass AUTOTEST or playtest → removed entirely.** Commit history is the archive. No `[x]` graveyard, no "Recently completed" section.
 
 ## Phase
 
@@ -45,25 +45,26 @@
   - **P2:** new `IProvideTooltipDescription` interface; `AmmoPoolInfo` adds weapon block + grand-total to production tooltip
   - **P3:** ~63 AmmoPools across 9 YAMLs given explicit `SupplyValue`/`CreditValue` per tier table (T0=1 → T9=1500)
   - **Verify:** empty TRUK refund = 250; cannot refill within 3c0 unless docked at 2c0; right-click LC behaviour; multi-pool tooltip; tier-cost feel
-- [T] **Supply truck resupply bar + LC refill** (260504) — TRUK gets 3-stance resupply bar (default Evacuate). Auto seeks LC, refills via `SupplyProvider`
+- [T:trusted] **Supply truck resupply bar + LC refill** (260504, commit 179aba43) — TRUK gets 3-stance resupply bar (default Evacuate). Auto seeks LC, refills via `SupplyProvider`. `AutoRefillIfEmpty` Hold/Auto/Evacuate dispatch verified at `CargoSupply.cs:749-766`
 - [ ] **Verify unit sell value at different ammo levels** — broader than the TRUK refund check above. Spent ammo should be deducted from cashback at evac for ALL units (tanks, infantry with reload). Sweep
 
 ### Active items in flight
-- ! [T] **Supply truck deploy → drop cache** — fixed 260504 (`CargoSupply` gets `IIssueDeployOrder`; CargoSupply scope locked to TRUK only).
-  - It drops, but the supply cache should act as a real supply actor with its own supply bar under it. Right now it doesn't — and I think it's indestructible? It should be very destructible, causing a large explosion when destroyed (size could vary based on remaining supplies). I also think we should be able to target it with supply trucks to replenish the same pile over and over, or something like that — even open to automatic replenishment by selecting the cache and using stances on it. Needs discussion first.
+- ! [T:trusted] **Supply truck deploy → drop cache** — fixed 260504 (commit b3699b63; `CargoSupply` `IIssueDeployOrder` + `DropCargoSupply` `DeployOrderTargeter` verified at `CargoSupply.cs:82,585,598`). Scope locked to TRUK only.
+  - **Open design discussion (urgent flag is here):** dropped supply cache should act as a real supply actor with its own supply bar under it. Right now it doesn't — and I think it's indestructible? It should be very destructible, causing a large explosion when destroyed (size could vary based on remaining supplies). I also think we should be able to target it with supply trucks to replenish the same pile over and over, or something like that — even open to automatic replenishment by selecting the cache and using stances on it. Needs discussion first.
 - [ ] **Supply truck → building = transfer supplies** *(new feature, not started)* — building gains supply bar; soldiers inside/nearby drain it
-- [T] **Helicopters evacuated near map edge bypass missile fire** — fixed 260504 (commit 98742d4e, `AircraftOffMapCells=5`, `EvacuatingOffMap` flag). Helicopters should now fly a bit outside the map bounds before being sold; same should apply to vehicles (shorter distance). Past the boundary they remain targetable but unselectable — this is a delay so we can't camp the border and evac quick enough to dodge incoming fire, plus it looks better than vanishing at the edge. Verify the heli case + design vehicle extension
+- [T:trusted] **Helicopters evacuated near map edge bypass missile fire** — fixed 260504 (commit 98742d4e). `EvacuatingOffMap` field + `IsClearOfMapEdge` despawn gate verified present in `Aircraft.cs:286,663`. Vehicle extension is a separate design item (below)
+- [ ] **Vehicle off-map evac flight (extension of heli fix)** — same off-map-fly-before-sold treatment for vehicles, shorter distance. Past the boundary: targetable but unselectable. Goal: prevent border-camp evac that dodges incoming fire, plus better visuals than vanishing at edge tile
 - [ ] **Littlebird rotor still spins after safe landing** — needs investigation (sweep all helis)
-- [T] **TECN capture order lost when shot at + panicking** — fixed 260504 (commit be46cde9, `ScaredyCat.Panic` snapshots+restores Enter-derived intents)
-- [T] **Shift+G on attack-ground orders converts them to move orders** — fixed 260504 (commit dd6cc18f, new `IAttackActivity` marker interface on all 4 attack-activity classes)
-- [T] **Crew still ejects on vehicle death** — fixed 260509 (commit f1fdafea, damage scaling now applies on instant-kill path too)
-- [T] **Aircraft can't spawn if waypoint blocked** — partial fix; aircraft branch may have separate cause from ground-unit fix. Re-test
-- [T] **Ground unit production stuck at 100% until rally moved** — fixed 260505 (`ProductionFromMapEdge.Produce` no longer gates on `PathExistsForLocomotor`)
-- [T] **Garrison: only first soldier of a batch enters** — mitigation in `GarrisonManager.cs:198-208,261-273`. Verify
-- [T] **Stop order doesn't cancel garrisoned firing** — fixed 260504 (`AttackGarrisoned.OnStopOrder`)
-- [T] **Soldiers under fire abandon Enter-building order** — fixed 260504 (raw move bypass on IMove)
-- [T] **Right-click own SR = Evacuate (regression)** — fixed 260509 (commit 48d762cc, `SupplyRouteOrderTargeter.CanTargetActor` early-returns on own-owner)
-- [T] **Iskander/HIMARS shockwave radius too large** — tuned 260509 (commit 9578557c): Iskander 7c0→4c0, HIMARS 4c0→2c512
+- [T:trusted] **TECN capture order lost when shot at + panicking** — fixed 260504 (commit be46cde9). Code verified intact; ScaredyCat.cs untouched since
+- [T:trusted] **Shift+G on attack-ground orders converts them to move orders** — fixed 260504 (commit dd6cc18f). `IAttackActivity` interface still implemented in all 4 attack-activity classes; GroupScatterHotkeyLogic still consumes it
+- [T:trusted] **Crew still ejects on vehicle death** — fixed 260509 (commit f1fdafea), then strengthened by 94c88683: vehicle death is now **total loss** for anyone still inside (`INotifyKilled.Killed` no longer spawns a crew actor at all). Eject window is the bleed-out time during Critical state. The other agent's `test-evac-suite` actively covers this
+- [T] **Aircraft can't spawn if waypoint blocked** — partial fix; aircraft branch may have separate cause from ground-unit fix. Re-test (no commit verified yet)
+- [T:trusted] **Ground unit production stuck at 100% until rally moved** — fixed 260505 (commit 7090749a). `PathExistsForLocomotor` removed; `evaluateNearestMovableCell:true` in use at `ProductionFromMapEdge.cs:191`
+- [T:trusted] **Garrison: only first soldier of a batch enters** — mitigation 260503 (commit bf63eef4, `ChangeOwnerInPlace(updateGeneration:false)` at `GarrisonManager.cs:261,325,330`). Keeps in-flight Enter activities valid through ownership flip
+- [T:trusted] **Stop order doesn't cancel garrisoned firing** — fixed (commit 97e192cc). `AttackGarrisoned.OnStopOrder` → `GarrisonManager.OnStopOrder` clears forceTarget, port targets, ambushTriggered. Verified at `AttackGarrisoned.cs:391-396`, `GarrisonManager.cs:1131-1143`
+- [T:trusted] **Soldiers under fire abandon Enter-building order** — fixed 260504 (commit fdfaffb1). New `MoveToTargetRaw`/`MoveIntoTargetRaw` on `IMove` bypass WrapMove; Enter uses raw variants at `Enter.cs:117,131`. Capture/Demolish/Ride/Infiltrate also benefit
+- [T:trusted] **Right-click own SR = Evacuate (regression)** — fixed 260509 (commit 48d762cc). `target.Owner == self.Owner` early-return verified at `AttacksSupplyRoutes.cs:101,127` (both `CanTargetActor` and `CanTargetFrozenActor`)
+- [T:trusted] **Iskander/HIMARS shockwave radius too large** — tuned 260509 (commit 9578557c). `MaxRadius` values verified in `weapons-explosions.yaml`: Iskander 4c0 (line 495), HIMARS 2c512 (line 532). Feel needs human eye in next playtest
 
 ### Known design issues
 - [ ] **Tank frontal armor stalemate** — sim shows pen 50 vs 700 thickness = 7% dmg per hit. Either rework armor model or rebalance pen values
@@ -80,8 +81,7 @@
 
 ### Active bugs
 - [ ] Artillery fires all ammo at once when critically damaged
-- [T] **Artillery turret doesn't turn after stop** — verified 260508 (test-paladin-fires PASS); tuned `m109.AttackTurreted.SetupTicks` 50→25
-- [~] **Artillery force-attack blocked during setup countdown** — Layer 1 fixed 260509 (commit 51db91f7). Layer 2 OPEN: turret stalls mid-rotation; `Turreted.Tick` realign path likely fighting `FaceTarget`. Repro: `test-arty-force-attack-during-setup` (currently RED). Touches: `Turreted.cs:191-216`, `AttackTurreted.cs:36-48`
+- [~] **Artillery force-attack blocked during setup countdown** — Layer 1 fixed 260509 (commit 51db91f7), `NextActivity is AttackActivity` skip-clear verified at `AttackFollow.cs:400-401`. Layer 2 OPEN: turret stalls mid-rotation; `Turreted.Tick` realign path likely fighting `FaceTarget`. Repro: `test-arty-force-attack-during-setup` (currently RED). Touches: `Turreted.cs:191-216`, `AttackTurreted.cs:36-48`
 - [ ] **Heavy artillery deliberately ignores infantry** *(noted 260508)* — by design via `^AutoTargetArtillery`. Decision: add low-priority Infantry, or keep heavy-only?
 - [ ] **Some enemy soldiers untargetable (mutual)** *(reported 260508)* — needs repro: unit type, stance, near garrison port?
 - [ ] **Bridge pathing — units walk off the bridge** — likely locomotor permits flanking shore/water cells, or bridge art wider than passable footprint. Touches: `Bridge.cs` + locomotor terrain weights
