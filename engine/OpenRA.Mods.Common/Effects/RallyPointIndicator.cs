@@ -14,18 +14,26 @@ using System.Linq;
 using OpenRA.Effects;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.Effects
 {
 	public class RallyPointIndicator : IEffect, IEffectAboveShroud, IEffectAnnotation
 	{
+		// Visual cue per waypoint type so the player can see at a glance which segments
+		// are plain Move vs AttackMove vs ForceMove. Matches the colors used by the
+		// equivalent unit orders (Move=player color, AttackMove=OrangeRed, ForceMove=Cyan-ish).
+		static readonly Color AttackMoveLineColor = Color.OrangeRed;
+		static readonly Color ForceMoveLineColor = Color.DeepSkyBlue;
+
 		readonly Actor building;
 		readonly RallyPoint rp;
 		readonly Animation flag;
 		readonly Animation circles;
 
 		readonly List<WPos> targetLineNodes = new();
-		List<CPos> cachedLocations;
+		readonly List<RallyOrderType> targetLineSegmentTypes = new();
+		List<RallyPointWaypoint> cachedWaypoints;
 
 		public RallyPointIndicator(Actor building, RallyPoint rp)
 		{
@@ -56,7 +64,7 @@ namespace OpenRA.Mods.Common.Effects
 
 			circles?.Tick();
 
-			if (cachedLocations == null || !cachedLocations.SequenceEqual(rp.Path))
+			if (cachedWaypoints == null || !cachedWaypoints.SequenceEqual(rp.Path))
 			{
 				UpdateTargetLineNodes(world);
 
@@ -69,10 +77,14 @@ namespace OpenRA.Mods.Common.Effects
 
 		void UpdateTargetLineNodes(World world)
 		{
-			cachedLocations = new List<CPos>(rp.Path);
+			cachedWaypoints = new List<RallyPointWaypoint>(rp.Path);
 			targetLineNodes.Clear();
-			foreach (var c in cachedLocations)
-				targetLineNodes.Add(world.Map.CenterOfCell(c));
+			targetLineSegmentTypes.Clear();
+			foreach (var wp in cachedWaypoints)
+			{
+				targetLineNodes.Add(world.Map.CenterOfCell(wp.Cell));
+				targetLineSegmentTypes.Add(wp.OrderType);
+			}
 
 			if (targetLineNodes.Count == 0)
 				return;
@@ -125,11 +137,28 @@ namespace OpenRA.Mods.Common.Effects
 		IEnumerable<IRenderable> RenderInner()
 		{
 			var prev = targetLineNodes[0];
-			foreach (var pos in targetLineNodes.Skip(1))
+			// targetLineSegmentTypes[i] is the order type for the segment that ENDS at
+			// targetLineNodes[i + 1] (the i-th waypoint). The segment from the building
+			// to the first waypoint adopts the first waypoint's color.
+			for (var i = 1; i < targetLineNodes.Count; i++)
 			{
+				var pos = targetLineNodes[i];
+				var orderType = targetLineSegmentTypes[i - 1];
+				var color = ColorForOrder(orderType, building.OwnerColor());
 				var targetLine = new[] { prev, pos };
 				prev = pos;
-				yield return new TargetLineRenderable(targetLine, building.OwnerColor(), rp.Info.LineWidth, 1);
+				yield return new TargetLineRenderable(targetLine, color, rp.Info.LineWidth, 1);
+			}
+		}
+
+		static Color ColorForOrder(RallyOrderType orderType, Color playerColor)
+		{
+			switch (orderType)
+			{
+				case RallyOrderType.AttackMove: return AttackMoveLineColor;
+				case RallyOrderType.ForceMove: return ForceMoveLineColor;
+				case RallyOrderType.Move:
+				default: return playerColor;
 			}
 		}
 	}

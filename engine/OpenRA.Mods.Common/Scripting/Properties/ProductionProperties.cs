@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Scripting
 			get
 			{
 				if (rp.Path.Count > 0)
-					return rp.Path.Last();
+					return rp.Path[rp.Path.Count - 1].Cell;
 
 				var exit = Self.NearestExitOrDefault(Self.CenterPosition);
 				if (exit != null)
@@ -92,7 +92,16 @@ namespace OpenRA.Mods.Common.Scripting
 
 				return Self.Location;
 			}
-			set => rp.Path = new List<CPos> { value };
+			set => rp.Path = new List<RallyPointWaypoint> { new(value, RallyOrderType.Move) };
+		}
+
+		[Desc("Set a single rally waypoint with an explicit order type ('Move', 'AttackMove', 'ForceMove'). Replaces any existing path.")]
+		public void SetRallyWaypoint(CPos cell, string orderType = "Move")
+		{
+			if (!Enum.TryParse<RallyOrderType>(orderType, true, out var ot))
+				throw new LuaException($"Invalid rally order type '{orderType}' (expected Move/AttackMove/ForceMove).");
+
+			rp.Path = new List<RallyPointWaypoint> { new(cell, ot) };
 		}
 	}
 

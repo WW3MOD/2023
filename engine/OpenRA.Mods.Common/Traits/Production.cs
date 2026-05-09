@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -78,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					initialFacing = exitinfo.Facing.Value;
 
-				exitLocations = rp != null && rp.Path.Count > 0 ? rp.Path : new List<CPos> { exit };
+				exitLocations = rp != null && rp.Path.Count > 0 ? rp.Cells.ToList() : new List<CPos> { exit };
 
 				td.Add(new LocationInit(exit));
 				td.Add(new CenterPositionInit(spawn));
@@ -108,7 +109,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (rp == null || rp.Path.Count == 0)
 				return self.RandomExitOrDefault(self.World, productionType, p);
 
-			return self.NearestExitOrDefault(self.World.Map.CenterOfCell(rp.Path[0]), productionType, p);
+			return self.NearestExitOrDefault(self.World.Map.CenterOfCell(rp.Path[0].Cell), productionType, p);
 		}
 
 		protected Exit SelectExit(Actor self, ActorInfo producee, string productionType)

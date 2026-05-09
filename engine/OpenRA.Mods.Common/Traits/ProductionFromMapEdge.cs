@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -166,12 +167,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (aircraftInfo != null)
 				pos += new WVec(0, 0, aircraftInfo.CruiseAltitude.Length);
 
-			// Build the movement destination list:
-			// - Rally point set: go directly to rally point waypoints
-			// - No rally point: go to supply route building
-			var destinations = hasRallyPoint ? rp.Path : new List<CPos> { self.Location };
+			// Build the per-waypoint plan:
+			// - Rally point set: replay each waypoint with its order type (Move / AttackMove / ForceMove)
+			// - No rally point: drive to the supply route building as a plain Move
+			var waypoints = hasRallyPoint
+				? rp.Path
+				: new List<RallyPointWaypoint> { new(self.Location, RallyOrderType.Move) };
 
-			var initialFacing = self.World.Map.FacingBetween(location.Value, destinations[0], WAngle.Zero);
+			var initialFacing = self.World.Map.FacingBetween(location.Value, waypoints[0].Cell, WAngle.Zero);
 
 			self.World.AddFrameEndTask(w =>
 			{
@@ -187,12 +190,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				var move = newUnit.TraitOrDefault<IMove>();
 				if (move != null)
-					foreach (var cell in destinations)
-						newUnit.QueueActivity(move.MoveTo(cell, 2, evaluateNearestMovableCell: true));
+				{
+					foreach (var wp in waypoints)
+						newUnit.QueueActivity(BuildWaypointActivity(newUnit, move, wp));
+				}
 
 				if (!self.IsDead)
 					foreach (var t in self.TraitsImplementing<INotifyProduction>())
-						t.UnitProduced(self, newUnit, destinations[0]);
+						t.UnitProduced(self, newUnit, waypoints[0].Cell);
 
 				var notifyOthers = self.World.ActorsWithTrait<INotifyOtherProduction>();
 				foreach (var notify in notifyOthers)
@@ -200,6 +205,25 @@ namespace OpenRA.Mods.Common.Traits
 			});
 
 			return true;
+		}
+
+		// Replay a rally-point waypoint as the matching unit-side activity. Aircraft
+		// don't have a meaningful AttackMove path, so they fall back to plain Move
+		// regardless of the waypoint type — keeps existing helicopter/plane flight
+		// behavior intact when SR rallies get modifier-tagged.
+		static OpenRA.Activities.Activity BuildWaypointActivity(Actor self, IMove move, RallyPointWaypoint wp)
+		{
+			switch (wp.OrderType)
+			{
+				case RallyOrderType.AttackMove when move is Mobile:
+					return new AttackMoveActivity(self,
+						() => move.MoveTo(wp.Cell, 1, evaluateNearestMovableCell: true, targetLineColor: Color.OrangeRed));
+
+				case RallyOrderType.ForceMove:
+				case RallyOrderType.Move:
+				default:
+					return move.MoveTo(wp.Cell, 2, evaluateNearestMovableCell: true);
+			}
 		}
 	}
 

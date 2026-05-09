@@ -512,7 +512,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Follow rally point if the restock target has one
 				var rp = restockTarget.TraitOrDefault<RallyPoint>();
 				if (rp != null && rp.Path.Count > 0)
-					foreach (var cell in rp.Path)
+					foreach (var cell in rp.Cells)
 						self.QueueActivity(move.MoveTo(cell, 1));
 			}
 		}

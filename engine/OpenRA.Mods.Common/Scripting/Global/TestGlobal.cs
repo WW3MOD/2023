@@ -53,6 +53,49 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			Game.Exit();
 		}
 
+		[Desc("Resolve the rally-point order type a click on `cell` from `producer` (with optional " +
+			"modifier keys) would produce. `modifiers` is a space-separated list, any of " +
+			"'Alt' (= attack-move), 'Ctrl' (= force-move), 'Shift' (= queue), 'CtrlAlt' (= force-attack/SR override). " +
+			"Returns 'Move', 'AttackMove', 'ForceMove' (or null if the click is rejected). Test mode only.")]
+		public string GetRallyOrderTypeForClick(Actor producer, CPos cell, string modifiers = "")
+		{
+			if (!TestMode.IsActive || producer == null)
+				return null;
+
+			var mods = TargetModifiers.None;
+			if (modifiers.Contains("Alt") && !modifiers.Contains("CtrlAlt"))
+				mods |= TargetModifiers.AttackMove;
+			if (modifiers.Contains("Ctrl") && !modifiers.Contains("CtrlAlt"))
+				mods |= TargetModifiers.ForceMove;
+			if (modifiers.Contains("CtrlAlt"))
+				mods |= TargetModifiers.ForceAttack;
+			if (modifiers.Contains("Shift"))
+				mods |= TargetModifiers.ForceQueue;
+
+			var target = Target.FromCell(producer.World, cell);
+			var actorsAt = producer.World.ActorMap.GetActorsAt(cell).ToList();
+
+			foreach (var trait in producer.TraitsImplementing<IIssueOrder>())
+			{
+				foreach (var o in trait.Orders)
+				{
+					string cursor = null;
+					if (o.OrderID != "SetRallyPoint" || !o.CanTarget(producer, target, actorsAt, cell, mods, ref cursor))
+						continue;
+
+					var order = trait.IssueOrder(producer, o, target, false);
+					if (order == null || order.OrderString != "SetRallyPoint")
+						continue;
+
+					// Decode OrderType from bits 1..3 of ExtraData (must match RallyPoint encoding).
+					var ot = (RallyOrderType)((order.ExtraData >> 1) & 7);
+					return ot.ToString();
+				}
+			}
+
+			return null;
+		}
+
 		[Desc("Resolve the right-click OrderID that `unit` would issue when targeting `target`. " +
 			"Walks the same IIssueOrder/IOrderTargeter pipeline as the UI cursor resolver, so " +
 			"this catches order-priority and CanTargetActor regressions that direct unit.Attack/Move " +
