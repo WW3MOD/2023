@@ -35,23 +35,23 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 
 ## Modes and Skills
 
-I operate in one **mode** at a time and follow documented **skills** when triggered. All defined in `SKILLS/` — each entry is a single .md with the trigger phrase up top and the procedure below. Index: [`SKILLS/README.md`](SKILLS/README.md).
+I operate in one **mode** at a time and follow documented **skills** when triggered. All defined in `DOCS/skills/` — each entry is a single .md with the trigger phrase up top and the procedure below. Index: [`DOCS/skills/README.md`](DOCS/skills/README.md).
 
 **Default mode is RELEASE** — assume v1-release methodology unless the user has explicitly switched to EXPERIMENTAL.
 
 | Trigger | Doc | Purpose |
 |---|---|---|
-| `RELEASE` | [SKILLS/RELEASE.md](SKILLS/RELEASE.md) | **Mode (default).** v1 methodology — scope-locked, phase-driven, every commit moves a tracker status |
-| `EXPERIMENTAL` | [SKILLS/EXPERIMENTAL.md](SKILLS/EXPERIMENTAL.md) | **Mode.** Free exploration outside v1 scope — looser, idea-friendly |
-| `PLAN <topic>` | [SKILLS/PLAN.md](SKILLS/PLAN.md) | Design before coding — research, ask, plan doc, await approval |
-| `PLAYTEST [topic]` | [SKILLS/PLAYTEST.md](SKILLS/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
-| `TRIAGE [findings]` | [SKILLS/TRIAGE.md](SKILLS/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
-| `AUTOTEST <bug>` | [SKILLS/AUTOTEST.md](SKILLS/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. User walks away |
-| `REVIEW [N]` | [SKILLS/REVIEW.md](SKILLS/REVIEW.md) | Quality pass on last N commits |
-| `FINALIZE` | [SKILLS/FINALIZE.md](SKILLS/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
-| `CONTEXT <area>` | [SKILLS/CONTEXT.md](SKILLS/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
-| `BALANCE <a> <b>` | [SKILLS/BALANCE.md](SKILLS/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
-| `TELEMETRY <events>` | [SKILLS/TELEMETRY.md](SKILLS/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
+| `RELEASE` | [DOCS/skills/RELEASE.md](DOCS/skills/RELEASE.md) | **Mode (default).** v1 methodology — scope-locked, phase-driven, every commit moves a tracker status |
+| `EXPERIMENTAL` | [DOCS/skills/EXPERIMENTAL.md](DOCS/skills/EXPERIMENTAL.md) | **Mode.** Free exploration outside v1 scope — looser, idea-friendly |
+| `PLAN <topic>` | [DOCS/skills/PLAN.md](DOCS/skills/PLAN.md) | Design before coding — research, ask, plan doc, await approval |
+| `PLAYTEST [topic]` | [DOCS/skills/PLAYTEST.md](DOCS/skills/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
+| `TRIAGE [findings]` | [DOCS/skills/TRIAGE.md](DOCS/skills/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
+| `AUTOTEST <bug>` | [DOCS/skills/AUTOTEST.md](DOCS/skills/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. User walks away |
+| `REVIEW [N]` | [DOCS/skills/REVIEW.md](DOCS/skills/REVIEW.md) | Quality pass on last N commits |
+| `FINALIZE` | [DOCS/skills/FINALIZE.md](DOCS/skills/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
+| `CONTEXT <area>` | [DOCS/skills/CONTEXT.md](DOCS/skills/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
+| `BALANCE <a> <b>` | [DOCS/skills/BALANCE.md](DOCS/skills/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
+| `TELEMETRY <events>` | [DOCS/skills/TELEMETRY.md](DOCS/skills/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
 
 If a workflow becomes a recurring pattern, factor it into a skill rather than re-explaining it each session.
 
@@ -114,7 +114,7 @@ End every non-trivial response with a structured **end-of-message block**. Readi
 Triage finished, items added to v1 tracker:
 
 ```
-📁 CLAUDE/RELEASE_V1.md
+📁 WORKSPACE/RELEASE_V1.md
 
 ✅ added 4 bugs to Phase B (artillery burst, ATGM lock, drone autotarget, palette)
 ✅ moved garrison overhaul to [T] (testing) — 5 specific checks listed
@@ -137,7 +137,7 @@ Bug fix shipped, idea floated for later:
 Playtest set up, game ready:
 
 ```
-📁 CLAUDE/playtests/260503_1530_garrison.md
+📁 WORKSPACE/playtests/260503_1530_garrison.md
 
 ✅ build clean, focus list written (garrison ports, ownership transfer, suppression duck/recall)
 
@@ -162,49 +162,40 @@ Apply all confirmed rules from: `C:\Users\fredr\Desktop\ClaudeRules\confirmed\`
 
 ### Session Workflow
 On session start:
-1. Read `CLAUDE/HOTBOARD.md` and `CLAUDE/RELEASE_V1.md`; scan `CLAUDE/DISCOVERIES.md` for recent entries
-2. Glob `CLAUDE/sessions/active_*.md` — if any exist, read them (may be a parallel agent). Note their intended files to avoid conflicts
+1. Read `WORKSPACE/HOTBOARD.md` and `WORKSPACE/RELEASE_V1.md`; scan `WORKSPACE/DISCOVERIES.md` for recent entries
+2. Glob `WORKSPACE/archive/sessions/active_*.md` — if any exist, read them (may be a parallel agent). Note their intended files to avoid conflicts
 
 For multi-session or multi-file work:
-- Write `CLAUDE/sessions/active_<YYMMDD_HHMM>_<topic>.md` at the start (task summary, intended files, status: in-progress)
-- Promote to `CLAUDE/sessions/<YYMMDD>_<topic>.md` on FINALIZE
+- Write `WORKSPACE/archive/sessions/active_<YYMMDD_HHMM>_<topic>.md` at the start (task summary, intended files, status: in-progress)
+- Promote to `WORKSPACE/archive/sessions/<YYMMDD>_<topic>.md` on FINALIZE
 - Skip for single-shot bug fixes or trivial edits — the commit history is enough record
 
 During session:
-- Unrelated bugs found → append to `CLAUDE/bugs/discovered.md`
-- Non-obvious insights → append to `CLAUDE/DISCOVERIES.md` (dated)
+- Unrelated bugs found → append to `WORKSPACE/bugs/discovered.md`
+- Non-obvious insights → append to `WORKSPACE/DISCOVERIES.md` (dated)
 - Stable patterns that apply broadly → also add to this CLAUDE.md
-- Playtest findings → `CLAUDE/playtests/<YYMMDD_HHMM>_<topic>.md`, then TRIAGE into `RELEASE_V1.md`
+- Playtest findings → `WORKSPACE/playtests/<YYMMDD_HHMM>_<topic>.md`, then TRIAGE into `RELEASE_V1.md`
 
 ### Completion Bell
 Ring the terminal bell (`printf "\a"`) when a significant task is complete, so the user knows to check back.
 
-## CLAUDE/ Folder
+## Folders
 
-Claude's workspace for session tracking, plans, discoveries, and notes. Primarily for Claude's use across sessions, secondarily for user reference.
+Two top-level documentation folders:
 
-```
-CLAUDE/
-├── RELEASE_V1.md        # Single source of truth for v1 scope and status
-├── HOTBOARD.md          # What's in motion right now (max 40 lines)
-├── BACKLOG.md           # Deferred tasks & ideas ([ ]/[x]/[dropped])
-├── DISCOVERIES.md       # Dated gotchas and insights
-├── plans/               # Plan documents (from PLAN skill)
-├── playtests/           # Raw playtest findings (one file per session)
-├── sessions/            # Session logs (active_* = in-progress, multi-session work only)
-└── bugs/
-    └── discovered.md    # Bugs found incidentally
-```
+- **`WORKSPACE/`** — living state. Tracker, hotboard, backlog, plans, archive. Mutable, frequently edited. See [`WORKSPACE/README.md`](WORKSPACE/README.md).
+- **`DOCS/`** — static reference. Skills (workflow triggers) and system reference. See [`DOCS/README.md`](DOCS/README.md).
 
-**Rules:**
-- RELEASE_V1.md is the v1 source of truth — nothing enters v1 without showing up here
-- HOTBOARD.md stays under 40 lines — rotate oldest items out
-- Session files: only for multi-session/multi-file work. Promote `active_*` → dated file on FINALIZE
-- Never delete another agent's `active_*` file
-- DISCOVERIES.md entries are always dated
-- BACKLOG.md uses `[ ]` pending, `[x]` done, `[dropped]` irrelevant
-- Playtest reports are raw and historical — never edit a past report; triage updates `RELEASE_V1.md`
-- No duplication between CLAUDE/ files and auto-memory (`.claude/projects/`)
+Plus this file (`CLAUDE.md`) at the repo root as the agent entry point.
+
+**Workspace conventions:**
+- `RELEASE_V1.md` is the v1 source of truth — nothing enters v1 without showing up here
+- `HOTBOARD.md` stays under 40 lines — rotate oldest items out
+- `DISCOVERIES.md` entries are always dated
+- `BACKLOG.md` uses `[ ]` pending, `[x]` done, `[dropped]` irrelevant
+- Playtest reports under `playtests/` are raw and historical — never edit a past report; TRIAGE updates `RELEASE_V1.md`
+- Session logs go to `archive/sessions/` directly on FINALIZE — sessions are historical the moment they finish
+- No duplication between WORKSPACE/ files and auto-memory (`.claude/projects/`)
 
 ## Build & Run
 
@@ -241,21 +232,21 @@ node build/index.js stats <unitId>                # Unit details
 ```
 Tick-by-tick combat simulator for balance analysis. Models damage (penetration, directional armor, range falloff, AoE), weapon firing cycles, suppression (infantry 10-tier/vehicle 5-tier), and formations. Phase 1 uses hardcoded stats; Phase 2 will auto-load from YAML. Phase 5 will export scenarios as playable maps via MCP.
 
-### Developer Test Harness — see `SKILLS/AUTOTEST.md`
+### Developer Test Harness — see `DOCS/skills/AUTOTEST.md`
 Trigger phrase: `AUTOTEST <bug or feature>`. Quick reference:
 ```bash
 ./tools/test/list-tests.sh                          # what's available
 ./tools/test/run-test.sh <test-folder>              # run one
 ./tools/test/run-batch.sh --all                     # regression sweep
 ```
-Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`SKILLS/AUTOTEST.md`](SKILLS/AUTOTEST.md).
+Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/skills/AUTOTEST.md`](DOCS/skills/AUTOTEST.md).
 
 ## Architecture & system reference
 
-Project layout, scenario system, custom traits, aircraft movement, suppression, AI configuration — all in [`DOCS/ARCHITECTURE.md`](DOCS/ARCHITECTURE.md). Read on demand when working on a specific system.
+Project layout, scenario system, custom traits, aircraft movement, suppression, AI configuration — all in [`DOCS/reference/architecture.md`](DOCS/reference/architecture.md). Read on demand when working on a specific system.
 
 <!-- Scenario System, Key Engine Modifications, Custom Traits, Heavily Modified Systems
-     all moved to DOCS/ARCHITECTURE.md -->
+     all moved to DOCS/reference/architecture.md -->
 
 ## WDist Notation
 
@@ -315,7 +306,7 @@ Each unit type has a base template file and two faction files:
 
 ## Current state
 
-Live status — read `CLAUDE/RELEASE_V1.md` (source of truth), `CLAUDE/HOTBOARD.md` (in-flight), `CLAUDE/BACKLOG.md` (deferred). For an overview, run `git log --oneline -20`. Engine-upgrade consideration: see `DOCS/PROJECT_ASSESSMENT.md` Section 5.
+Live status — read `WORKSPACE/RELEASE_V1.md` (source of truth), `WORKSPACE/HOTBOARD.md` (in-flight), `WORKSPACE/BACKLOG.md` (deferred). For an overview, run `git log --oneline -20`. Engine-upgrade consideration: see `DOCS/reference/project-assessment.md` Section 5.
 
 ## Testing
 

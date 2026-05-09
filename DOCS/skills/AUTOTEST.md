@@ -37,7 +37,7 @@ Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
 7. **Strip diagnostics**: remove any temporary trace lines I added.
 8. **Commit**: test scenario + fix + tracker update in a single commit. Test stays committed so the bug can't silently regress.
 
-If the bug has multiple layers, fix what I can, leave the test RED for the unfixed parts, and document in `CLAUDE/RELEASE_V1.md` what's left. The red test becomes the next session's gateway.
+If the bug has multiple layers, fix what I can, leave the test RED for the unfixed parts, and document in `WORKSPACE/RELEASE_V1.md` what's left. The red test becomes the next session's gateway.
 
 ## Writing a test scenario
 

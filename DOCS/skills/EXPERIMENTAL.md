@@ -11,7 +11,7 @@
 ## What's different from RELEASE
 
 - Ideas don't need to fit v1 scope.
-- Don't update `CLAUDE/RELEASE_V1.md` unless something genuinely lands and graduates back into release work.
+- Don't update `WORKSPACE/RELEASE_V1.md` unless something genuinely lands and graduates back into release work.
 - Free to break things temporarily — but still: never commit broken code that blocks the user's next launch.
 - `TRIAGE` and `PLAYTEST` are optional, not the default loop.
 - `AUTOTEST` is still recommended for behavioral verification — works the same in any mode.

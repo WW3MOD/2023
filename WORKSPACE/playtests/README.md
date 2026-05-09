@@ -33,9 +33,9 @@ Don't polish these. Bullet fragments, half-thoughts, "feels off" — all welcome
 
 Run **TRIAGE** to process the report. Every item gets sorted into:
 
-- `CLAUDE/RELEASE_V1.md` (Phase A/B/C, or Pending decisions)
-- `CLAUDE/BACKLOG.md` (clearly off-scope ideas)
-- `CLAUDE/bugs/discovered.md` (incidental bugs)
+- `WORKSPACE/RELEASE_V1.md` (Phase A/B/C, or Pending decisions)
+- `WORKSPACE/BACKLOG.md` (clearly off-scope ideas)
+- `WORKSPACE/bugs/discovered.md` (incidental bugs)
 - `[cut]` (won't fix)
 
 The playtest file stays put as the historical record.

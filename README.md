@@ -47,7 +47,7 @@ The solution file is `WW3MOD.sln`. The OpenRA engine lives in-repo under `engine
 
 ## Roadmap
 
-Active v1 scope and status are tracked in [`CLAUDE/RELEASE_V1.md`](CLAUDE/RELEASE_V1.md). Backlog and design notes live in [`DOCS/`](DOCS/).
+Active v1 scope and status are tracked in [`WORKSPACE/RELEASE_V1.md`](WORKSPACE/RELEASE_V1.md). Backlog and design notes live in [`DOCS/`](DOCS/).
 
 ## Contributing
 

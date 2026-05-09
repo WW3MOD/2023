@@ -97,7 +97,7 @@ The aim-settle phase (step 4) is already covered by `AimingDelay`, which is per-
 ## Issue 3 — Proactive: other things found while looking
 
 ### 3a. ⚠️ `WAngle` convention contradiction in DISCOVERIES.md vs memory
-- `CLAUDE/DISCOVERIES.md:28` says `0=North, 256=East, 512=South, 768=West` (clockwise).
+- `WORKSPACE/DISCOVERIES.md:28` says `0=North, 256=East, 512=South, 768=West` (clockwise).
 - `CLAUDE.md` and `memory/feedback_facings.md` say WAngle is counterclockwise — `256=West, 768=East`.
 - Engine code (`WAngle.Yaw`, drone's `targetingVector`) uses counterclockwise. The MCP tool entry in DISCOVERIES is wrong — leftover from an early misunderstanding.
 - 💡 Suggest fixing DISCOVERIES.md or marking that entry deprecated. Not done in this turn — wanted to flag first.

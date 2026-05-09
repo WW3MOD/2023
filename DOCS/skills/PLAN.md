@@ -12,7 +12,7 @@
 
 1. **Ask clarifying questions** — keep asking until the user says the plan is sufficient. Better to over-ask than to write a plan against the wrong assumptions.
 2. **Research** — read relevant code, grep for patterns, check existing systems and prior art. Use Explore agents for broad surveys when the surface area is large.
-3. **Write the plan** to `CLAUDE/plans/<YYMMDD>_<topic>.md`:
+3. **Write the plan** to `WORKSPACE/plans/<YYMMDD>_<topic>.md`:
    - **Goal** — one paragraph
    - **Constraints** — what must not break, what's locked
    - **Affected files** — list with brief role

@@ -39,16 +39,16 @@ WW3MOD/
 │   └── mod.yaml                    # Mod manifest
 ├── DOCS/                           # Curated reference docs (this file lives here)
 │   ├── ARCHITECTURE.md             # This file
-│   ├── BALANCE_REVIEW.md           # Balance reference, linked from SKILLS/BALANCE.md
+│   ├── BALANCE_REVIEW.md           # Balance reference, linked from DOCS/skills/BALANCE.md
 │   ├── PROJECT_ASSESSMENT.md       # Comprehensive project assessment (March 2026)
 │   ├── SHADOW_LOS_PLAN.md          # Plan for distance-based shadow falloff (in v1)
 │   └── archive/                    # Historical: old design docs, superseded TODOs, etc.
-├── SKILLS/                         # Workflow triggers — see SKILLS/README.md
-├── CLAUDE/                         # Working state (RELEASE_V1, HOTBOARD, BACKLOG, plans, …)
+├── DOCS/skills/                         # Workflow triggers — see DOCS/skills/README.md
+├── WORKSPACE/                         # Working state (RELEASE_V1, HOTBOARD, BACKLOG, plans, …)
 ├── tools/                          # Development tools
 │   ├── map-mcp/                    # MCP Map Creation Server (TypeScript/Node.js)
-│   ├── combat-sim/                 # Tick-by-tick combat simulator (used by SKILLS/BALANCE.md)
-│   └── test/                       # Developer test harness (used by SKILLS/AUTOTEST.md)
+│   ├── combat-sim/                 # Tick-by-tick combat simulator (used by DOCS/skills/BALANCE.md)
+│   └── test/                       # Developer test harness (used by DOCS/skills/AUTOTEST.md)
 ├── .mcp.json                       # MCP server configuration
 ├── CLAUDE.md                       # Agent instructions
 ├── WW3MOD.sln                      # Visual Studio solution
@@ -244,7 +244,7 @@ Aircraft:
 - HoldPosition, Defensive (default), Hunt
 - Separate from fire stances — two independent UI bars (3 buttons each)
 - Hunt: chase targets aggressively, even out of range
-- Defensive: fire from current position, reposition only if LOS blocked (Phase 2: cover-seeking via ShadowLayer — see `DOCS/SHADOW_LOS_PLAN.md`)
+- Defensive: fire from current position, reposition only if LOS blocked (Phase 2: cover-seeking via ShadowLayer — see `DOCS/reference/shadow-los-plan.md`)
 - HoldPosition: never auto-reposition, only fire from current cell
 - Hotkeys: Alt+A/G/F (fire), Ctrl+Alt+A/D/F (engagement)
 - Engagement stance drives `allowMove` in AutoTarget scanning and movement decisions in Attack activity

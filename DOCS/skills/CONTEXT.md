@@ -10,11 +10,11 @@
 
 ## What I do
 
-1. **Search `CLAUDE/RELEASE_V1.md`** for items touching the area — `[T]`, `[~]`, `[ ]` related to it.
+1. **Search `WORKSPACE/RELEASE_V1.md`** for items touching the area — `[T]`, `[~]`, `[ ]` related to it.
 2. **`git log --oneline --since="4 weeks ago" -- <relevant-paths>`** — recent activity on the files.
-3. **Search `CLAUDE/DISCOVERIES.md`** for dated entries on the topic.
-4. **Search `CLAUDE/plans/`** for any plan docs touching the area.
-5. **Check `CLAUDE/sessions/active_*.md`** — anything in flight by another agent on this area.
+3. **Search `WORKSPACE/DISCOVERIES.md`** for dated entries on the topic.
+4. **Search `WORKSPACE/plans/`** for any plan docs touching the area.
+5. **Check `WORKSPACE/archive/sessions/active_*.md`** — anything in flight by another agent on this area.
 6. **Print a tight summary**:
    - **Current state** — what's working, what's pending playtest, what's broken
    - **Recent activity** — last 3–5 commits, what changed

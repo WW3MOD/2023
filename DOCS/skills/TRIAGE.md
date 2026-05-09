@@ -16,13 +16,13 @@ For each finding:
    - **Critical blocker** → `RELEASE_V1.md` Phase A or B
    - **v1 fix** → `RELEASE_V1.md` Phase B or C
    - **Tuning** → `RELEASE_V1.md` (with concrete value if known)
-   - **Defer to v1.1** → `RELEASE_V1.md` "Deferred" or `CLAUDE/BACKLOG.md`
+   - **Defer to v1.1** → `RELEASE_V1.md` "Deferred" or `WORKSPACE/BACKLOG.md`
    - **Won't-fix** → `RELEASE_V1.md` `[cut]` with reason
    - **Pending decision** → `RELEASE_V1.md` "Pending decisions"
 2. **Route**:
    - In-scope items → `RELEASE_V1.md` (new entry, status update, or "Pending decisions")
-   - Off-scope (not v1, not v1.1) → `CLAUDE/BACKLOG.md`
-   - Bugs found incidentally during other work → also append to `CLAUDE/bugs/discovered.md`
+   - Off-scope (not v1, not v1.1) → `WORKSPACE/BACKLOG.md`
+   - Bugs found incidentally during other work → also append to `WORKSPACE/bugs/discovered.md`
 3. **Confirm** what was added/updated and where, in the end-of-message block.
 
 ## Tips

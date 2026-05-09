@@ -10,13 +10,13 @@
 
 ## Source of truth
 
-`CLAUDE/RELEASE_V1.md` — every v1 item with a status. Update continuously as items change state. Nothing enters v1 without showing up here.
+`WORKSPACE/RELEASE_V1.md` — every v1 item with a status. Update continuously as items change state. Nothing enters v1 without showing up here.
 
 ## Scope is locked
 
 New features need an explicit "yes, add to v1" from the user. Ideas raised during work go to:
 - `RELEASE_V1.md` → "Pending decisions" — until triaged
-- `CLAUDE/BACKLOG.md` — if clearly v1.1 or later
+- `WORKSPACE/BACKLOG.md` — if clearly v1.1 or later
 
 ## Phases (rough order, not strict)
 
@@ -35,7 +35,7 @@ New features need an explicit "yes, add to v1" from the user. Ideas raised durin
 ## Status snapshot (when asked)
 
 When the user wants a quick read on release health:
-1. Read `CLAUDE/RELEASE_V1.md`, last ~10 commits.
+1. Read `WORKSPACE/RELEASE_V1.md`, last ~10 commits.
 2. Print: current phase, count by status (open / in-progress / testing / done), top blockers, anything drifting (untouched recently, or sitting in `[T]` for too long).
 
 ## Commit cadence

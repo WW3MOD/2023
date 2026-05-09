@@ -37,6 +37,6 @@ Operating context. Default is **RELEASE**.
 
 ## Adding a new skill
 
-1. Create `SKILLS/<NAME>.md` following the format of an existing skill.
+1. Create `DOCS/skills/<NAME>.md` following the format of an existing skill.
 2. Add a row to the table above.
 3. Mention in `CLAUDE.md` under "Skills" if the user should know about it.
