@@ -46,7 +46,7 @@ I operate in one **mode** at a time and follow documented **skills** when trigge
 | `PLAN <topic>` | [DOCS/skills/PLAN.md](DOCS/skills/PLAN.md) | Design before coding — research, ask, plan doc, await approval |
 | `PLAYTEST [topic]` | [DOCS/skills/PLAYTEST.md](DOCS/skills/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
 | `TRIAGE [findings]` | [DOCS/skills/TRIAGE.md](DOCS/skills/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
-| `AUTOTEST <bug>` | [DOCS/skills/AUTOTEST.md](DOCS/skills/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. User walks away |
+| `AUTOTEST <bug>` | [DOCS/skills/AUTOTEST.md](DOCS/skills/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. **Default for behavioral fixes in RELEASE mode** even without the trigger; once stated, the stance applies to the whole batch. |
 | `REVIEW [N]` | [DOCS/skills/REVIEW.md](DOCS/skills/REVIEW.md) | Quality pass on last N commits |
 | `FINALIZE` | [DOCS/skills/FINALIZE.md](DOCS/skills/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
 | `CONTEXT <area>` | [DOCS/skills/CONTEXT.md](DOCS/skills/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |

@@ -41,6 +41,7 @@ When the user wants a quick read on release health:
 ## Commit cadence
 
 - Frequent small commits over batched changes — descriptive messages.
+- **Behavioral fixes ship with their auto-asserting test** (RED → GREEN proof). The test scenario lives in `mods/ww3mod/maps/test-*/` and gets committed alongside the fix. See `DOCS/skills/AUTOTEST.md` for the loop and the "default-to-AUTOTEST" checklist.
 - Test scenario + fix + tracker update belong in one commit (so a fix can't ship without its regression test).
 - Always commit before ending a session. Never leave uncommitted changes behind.
 - Never push to remote — the user pushes manually.

@@ -1,10 +1,18 @@
 # AUTOTEST — Automated test-driven debug loop
 
-**Trigger:** type `AUTOTEST <bug or feature description>` (or `AUTOTEST <existing-test-name>` to extend an existing scenario). I run the loop below without you having to watch the game.
+**Trigger:** the word `AUTOTEST` in a user message — explicit (`AUTOTEST <bug>`), batch (`AUTOTEST after I decide`, `AUTOTEST these items`), or simply naming the workflow. **The trigger establishes a stance for the whole batch of fixes that follows, not just the first one.** Each item runs the full RED → fix → GREEN cycle; the trigger word doesn't need to be repeated.
 
-**Gives you:** I write a deterministic test, run it before the fix to confirm RED, apply the fix, run it again to confirm GREEN, regression-check other tests, and commit. You can walk away — verdict comes back as a JSON exit code I can read.
+**Apply automatically (no trigger required) when** the work fits the loop. Quick checklist before declaring a behavioral fix done:
 
-**When *not* to use it:** visual / "feels off" / tuning bugs. Your eyes are faster than my trace dumps for those — use **PLAYTEST** instead.
+1. Did this change behavior that could be observed in-game (firing, moving, ammo, conditions, kills, …)?
+2. Could a deterministic Lua predicate verify it (`AssertWithin`, ammo-drop, `IsDead`, etc.)?
+3. Is the change non-trivial (more than a typo / single-value tweak / removed dead code)?
+
+**Yes / yes / yes → write the test BEFORE the fix.** RED → fix → GREEN → commit together. This is the default for behavioral fixes in RELEASE mode.
+
+**Gives you:** a deterministic test, RED-then-GREEN proof of the fix, regression coverage going forward, and a commit you can read days later and trust. You can walk away while it runs — the verdict comes back as a JSON exit code.
+
+**When *not* to use it:** visual / "feels off" / tuning bugs (your eyes are faster than my trace dumps — use **PLAYTEST**), trivial code (one-line typo, value tweak), or no-code-change work (docs, refactor without behavior change).
 
 ---
 
