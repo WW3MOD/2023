@@ -8,6 +8,7 @@
 #endregion
 
 using System.Linq;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Scripting;
 using OpenRA.Traits;
 
@@ -78,6 +79,70 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			}
 
 			return null;
+		}
+
+		ProductionQueue FindQueueForActor(Player player, string actorType)
+		{
+			if (!player.World.Map.Rules.Actors.TryGetValue(actorType, out var ai))
+				return null;
+
+			var bi = ai.TraitInfoOrDefault<BuildableInfo>();
+			if (bi == null)
+				return null;
+
+			foreach (var q in player.PlayerActor.TraitsImplementing<ProductionQueue>())
+				if (q.Enabled && bi.Queue.Contains(q.Info.Type))
+					return q;
+
+			return null;
+		}
+
+		[Desc("Enqueue `count` of `actorType` on `player`'s production queue. Routes through " +
+			"the StartProduction order so it exercises the real queue pipeline. Test mode only.")]
+		public void QueueProduction(Player player, string actorType, int count = 1)
+		{
+			if (!TestMode.IsActive || player == null)
+				return;
+
+			var queue = FindQueueForActor(player, actorType);
+			if (queue == null)
+				return;
+
+			queue.ResolveOrder(player.PlayerActor, Order.StartProduction(player.PlayerActor, actorType, count));
+		}
+
+		[Desc("Pause or resume production of `actorType` on `player`'s queue. Routes through the " +
+			"PauseProduction order. Test mode only.")]
+		public void PauseProduction(Player player, string actorType, bool paused)
+		{
+			if (!TestMode.IsActive || player == null)
+				return;
+
+			var queue = FindQueueForActor(player, actorType);
+			if (queue == null)
+				return;
+
+			var order = new Order("PauseProduction", player.PlayerActor, false)
+			{
+				TargetString = actorType,
+				ExtraData = paused ? 1u : 0u,
+			};
+			queue.ResolveOrder(player.PlayerActor, order);
+		}
+
+		[Desc("Returns the RemainingTime (in ticks) of the first queued item of `actorType` on " +
+			"`player`'s queue, or -1 if no such item is queued. Test mode only.")]
+		public int GetQueueRemainingTime(Player player, string actorType)
+		{
+			if (!TestMode.IsActive || player == null)
+				return -1;
+
+			var queue = FindQueueForActor(player, actorType);
+			if (queue == null)
+				return -1;
+
+			var item = queue.AllQueued().FirstOrDefault(i => i.Item == actorType);
+			return item?.RemainingTime ?? -1;
 		}
 	}
 }

@@ -1,0 +1,1 @@
+Paused unit doesn't build; unpaused unit does. Verifies parallel queue pause integrity.
