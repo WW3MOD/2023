@@ -1,56 +1,56 @@
 #!/bin/sh
 # WW3MOD developer test harness — single-test runner
 #
-# Usage:  ./tools/test/run-test.sh [flags] <test-folder-name>
+# Usage:  ./tools/test/run-test.sh [position] [flags] <test-folder-name>
 #
-# Flags (must come before the test name):
-#   --position=<auto|right|left|full>  Where to put the windowed game.
-#                                 First-run default: auto (osascript-based
-#                                 detection of the AXMain Ghostty/Terminal
-#                                 window — works for single-window setups,
-#                                 unreliable when several windows exist).
-#                                 Run --position=<left|right> once from a
-#                                 terminal to save it per-TTY; subsequent
-#                                 runs from that same terminal reuse the
-#                                 saved choice without needing the flag.
-#                                 Saved at ~/.ww3mod-tests/position-prefs/.
-#                                 full skips sizing/positioning entirely.
-#   --fullscreen                  Same as --position=full + Mode=PseudoFullscreen
-#   --windowed                    Force windowed (default; redundant unless
-#                                 overriding a user-config that forces fullscreen)
-#   --help                        Show this message
+# Position shorthand (positional, before the test name; case-insensitive):
+#   L | -L | --left      Left half of the screen
+#   R | -R | --right     Right half of the screen
+#   F | -F | --full      PseudoFullscreen
+#                        (no shorthand → centered, ~90% × ~85%, default)
 #
-# Defaults: windowed, right half, edge-pan disabled (engine-side, gated on
-# Test.Mode + Mode=Windowed).
+# Flags:
+#   --position=<centered|left|right|full>  Long form of the above.
+#   --fullscreen           Same as F + Mode=PseudoFullscreen.
+#   --windowed             Force windowed (default; only useful when overriding
+#                          a user settings.yaml that forces fullscreen).
+#   --minimized            Open the window minimized (default for AUTOTEST).
+#   --no-minimize          Open the window normally (default for DEMO).
+#   --help                 Show this message.
 #
-# Example: ./tools/test/run-test.sh test-artillery-turret
-#          ./tools/test/run-test.sh --position=left test-artillery-turret
-#          ./tools/test/run-test.sh --fullscreen test-artillery-turret
+# Defaults: windowed, centered (large but not full), minimized, edge-pan
+# disabled (engine-side, gated on Test.Mode + Mode=Windowed).
+#
+# Examples:
+#   ./tools/test/run-test.sh test-paladin-fires           # centered, minimized
+#   ./tools/test/run-test.sh L test-paladin-fires         # left half
+#   ./tools/test/run-test.sh R --no-minimize test-foo     # right, visible
+#   ./tools/test/run-test.sh F test-foo                   # fullscreen
 #
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
 set -e
 
 GRAPHICS_MODE="Windowed"
-POSITION=""        # explicit --position value (empty = no override)
-EXPLICIT_POS=0
+POSITION="centered"
+MINIMIZE=1
 
 while [ $# -gt 0 ]; do
 	case "$1" in
+		L|l|-L|-l|--left)       POSITION="left"; shift ;;
+		R|r|-R|-r|--right)      POSITION="right"; shift ;;
+		F|f|-F|-f|--full)       POSITION="full"; shift ;;
+		C|c|-C|-c|--centered)   POSITION="centered"; shift ;;
 		--fullscreen)
 			GRAPHICS_MODE="PseudoFullscreen"
 			POSITION="full"
-			EXPLICIT_POS=1
 			shift ;;
-		--windowed)
-			GRAPHICS_MODE="Windowed"
-			shift ;;
-		--position=*)
-			POSITION="${1#*=}"
-			EXPLICIT_POS=1
-			shift ;;
+		--windowed)             GRAPHICS_MODE="Windowed"; shift ;;
+		--position=*)           POSITION="${1#*=}"; shift ;;
+		--minimized)            MINIMIZE=1; shift ;;
+		--no-minimize)          MINIMIZE=0; shift ;;
 		--help|-h)
-			sed -n '2,22p' "$0" | sed 's/^# \?//'
+			sed -n '2,30p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -60,27 +60,9 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-# Per-terminal saved preference: keyed by TTY device. First explicit
-# --position from a given terminal is saved; subsequent runs from the
-# same terminal reuse it without needing the flag.
-TTY_KEY=$(tty 2>/dev/null | tr / _ | tr -d ' ' || echo unknown)
-PREF_DIR="${HOME}/.ww3mod-tests/position-prefs"
-PREF_FILE="${PREF_DIR}/${TTY_KEY}"
-
-if [ "${EXPLICIT_POS}" = "1" ] && [ -n "${POSITION}" ]; then
-	mkdir -p "${PREF_DIR}"
-	echo "${POSITION}" > "${PREF_FILE}"
-	echo "==> saved '${POSITION}' as preference for this terminal (${TTY_KEY})"
-elif [ -z "${POSITION}" ] && [ -f "${PREF_FILE}" ]; then
-	POSITION=$(cat "${PREF_FILE}")
-	echo "==> using saved position '${POSITION}' for this terminal"
-elif [ -z "${POSITION}" ]; then
-	POSITION="auto"
-fi
-
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [--position=right|left|full] [--fullscreen|--windowed] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--no-minimize] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -107,39 +89,21 @@ if command -v osascript >/dev/null 2>&1; then
 	fi
 fi
 
-# Auto-detect: place game on the half opposite the calling terminal's
-# frontmost window. Requires accessibility permission for the calling
-# terminal in System Settings → Privacy & Security → Accessibility.
-# Falls back to right if detection fails.
-if [ "${POSITION}" = "auto" ]; then
-	DETECTED_CENTER=$(osascript -e '
-		tell application "System Events"
-			try
-				set frontProc to first application process whose frontmost is true
-				set winPos to position of window 1 of frontProc
-				set winSize to size of window 1 of frontProc
-				return ((item 1 of winPos) + (item 1 of winSize) / 2) as integer
-			on error
-				return -1
-			end try
-		end tell' 2>/dev/null || echo -1)
-	if [ "${DETECTED_CENTER}" = "-1" ] || [ -z "${DETECTED_CENTER}" ]; then
-		echo "==> auto-detect failed (accessibility permission needed?) — defaulting to right"
-		echo "==> grant: System Settings → Privacy & Security → Accessibility → ${TERM_PROGRAM:-your terminal}"
-		POSITION="right"
-	elif [ "${DETECTED_CENTER}" -lt "$((SCREEN_W / 2))" ]; then
-		POSITION="right"
-		echo "==> auto: terminal on left (center=${DETECTED_CENTER}), placing game on right"
-	else
-		POSITION="left"
-		echo "==> auto: terminal on right (center=${DETECTED_CENTER}), placing game on left"
-	fi
-fi
-
 # Build size + position based on POSITION choice.
 WINDOW_ARGS=""
 WINDOW_POS_ENV=""
 case "${POSITION}" in
+	centered)
+		# Wide but with a visible margin all around — leaves the menu bar/dock free.
+		W=$((SCREEN_W * 90 / 100))
+		H=$((SCREEN_H * 85 / 100))
+		X=$(((SCREEN_W - W) / 2))
+		Y=$(((SCREEN_H - H) / 2))
+		# Bias slightly downward so the macOS menu bar stays clear.
+		[ ${Y} -lt 32 ] && Y=32
+		WINDOW_ARGS="Graphics.WindowedSize=${W},${H}"
+		WINDOW_POS_ENV="${X},${Y}"
+		;;
 	right)
 		HALF_W=$((SCREEN_W / 2))
 		USABLE_H=$((SCREEN_H - 40))
@@ -156,7 +120,7 @@ case "${POSITION}" in
 		# Don't set size or position; let the user's settings.yaml decide.
 		;;
 	*)
-		echo "Unknown --position value: ${POSITION} (expected: right, left, full)"
+		echo "Unknown position: ${POSITION} (expected: centered, left, right, full)"
 		exit 3 ;;
 esac
 
@@ -174,8 +138,11 @@ if [ -f "${MAP_DIR}/description.txt" ]; then
 	TEST_DESCRIPTION=$(awk 'NF { print; exit }' "${MAP_DIR}/description.txt" | tr -d '\r')
 fi
 
+MIN_LABEL="visible"
+[ "${MINIMIZE}" = "1" ] && MIN_LABEL="minimized"
+
 echo "==> Test: ${TEST_NAME}"
-echo "==> Mode: ${GRAPHICS_MODE} (${POSITION})"
+echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${MIN_LABEL})"
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Result file: ${RESULT_FILE}"
@@ -186,6 +153,12 @@ echo
 if [ -n "${WINDOW_POS_ENV}" ]; then
 	export OPENRA_WINDOW_X="${WINDOW_POS_ENV%,*}"
 	export OPENRA_WINDOW_Y="${WINDOW_POS_ENV#*,}"
+fi
+
+# Engine reads OPENRA_WINDOW_MINIMIZED=1 and calls SDL_MinimizeWindow after
+# window creation (windowed mode only).
+if [ "${MINIMIZE}" = "1" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
+	export OPENRA_WINDOW_MINIMIZED=1
 fi
 
 ./launch-game.sh \

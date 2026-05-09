@@ -67,11 +67,11 @@ If the demo needs scripted enemy behavior to show off a feature (e.g., enemy att
 
 ```bash
 ./tools/test/list-demos.sh                # discovery
-./tools/test/run-demo.sh demo-<name>      # launch
-./tools/test/run-demo.sh --position=left demo-<name>
+./tools/test/run-demo.sh demo-<name>      # launch (centered, visible)
+./tools/test/run-demo.sh L demo-<name>    # left half (also R, F, C)
 ```
 
-Same flags as `run-test.sh`. Exit code is `0` whether the user closes cleanly or just clicks the X — the runner doesn't check for a result file.
+Same flags as `run-test.sh`, but the demo runner injects `--no-minimize` so the window stays visible. If the user includes `L`, `R`, or `F` in the trigger ("DEMO L", "DEMO <topic> R"), pass that letter through as the first positional arg. Exit code is `0` whether the user closes cleanly or just clicks the X — the runner doesn't check for a result file.
 
 ## Conventions
 

@@ -342,6 +342,12 @@ namespace OpenRA.Platforms.Default
 					}
 				}
 
+				// WW3MOD test harness: honor OPENRA_WINDOW_MINIMIZED=1 (windowed mode only).
+				// Used by AUTOTEST so the game window doesn't disrupt the user during a run.
+				if (windowMode == WindowMode.Windowed
+					&& Environment.GetEnvironmentVariable("OPENRA_WINDOW_MINIMIZED") == "1")
+					SDL.SDL_MinimizeWindow(window);
+
 				Console.WriteLine($"Using window scale {windowScale:F2}");
 			}
 
