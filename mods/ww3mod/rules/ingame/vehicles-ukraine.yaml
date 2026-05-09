@@ -49,7 +49,7 @@ t72:
 		RecoilRecovery: 70
 		LocalOffset: 1300,0,45
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary

@@ -315,32 +315,45 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var damageToApply = crewDamage;
+			var spawnLocation = self.Location;
 			self.World.AddFrameEndTask(w =>
 			{
-				var crew = w.CreateActor(actorType, td);
+				// Build the actor un-added so we can probe a valid cell for it.
+				// Adding then killing left a "rotting body" husk at the husk cell —
+				// invisible-but-targetable phantom that confused players and made
+				// allied infantry shoot at empty space.
+				var crew = w.CreateActor(false, actorType, td);
 				var positionable = crew.TraitOrDefault<IPositionable>();
+
+				CPos? placement = null;
 				if (positionable != null)
 				{
-					positionable.SetPosition(crew, self.Location);
-
-					if (!positionable.CanEnterCell(self.Location, crew, BlockedByActor.None))
+					if (positionable.CanEnterCell(spawnLocation, crew, BlockedByActor.None))
+						placement = spawnLocation;
+					else
 					{
-						// Try adjacent cells
-						var placed = false;
-						foreach (var cell in w.Map.FindTilesInAnnulus(self.Location, 1, 2))
+						foreach (var cell in w.Map.FindTilesInAnnulus(spawnLocation, 1, 3))
 						{
 							if (positionable.CanEnterCell(cell, crew, BlockedByActor.None))
 							{
-								positionable.SetPosition(crew, cell);
-								placed = true;
+								placement = cell;
 								break;
 							}
 						}
-
-						if (!placed)
-							crew.Kill(crew);
 					}
 				}
+
+				if (placement == null)
+				{
+					// No room to deploy — crew dies inside the wreck. Dispose so we
+					// don't leak a phantom actor. Add() never called, so it never
+					// joined the world.
+					crew.Dispose();
+					return;
+				}
+
+				positionable.SetPosition(crew, placement.Value);
+				w.Add(crew);
 
 				// Nudge out of the way
 				var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
@@ -348,7 +361,7 @@ namespace OpenRA.Mods.Common.Traits
 					nbm.OnNotifyBlockingMove(crew, crew);
 
 				// Apply finishing-shot damage to the ejecting crew member.
-				// Attacker is the vehicle itself — see plan: avoids holding a cross-tick
+				// Attacker is the vehicle itself — avoids holding a cross-tick
 				// reference to the original shooter which may have died/disposed.
 				if (damageToApply > 0 && !crew.IsDead)
 					crew.InflictDamage(self, new Damage(damageToApply));
@@ -499,31 +512,40 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
+				var spawnLocation = self.Location;
 				self.World.AddFrameEndTask(w =>
 				{
-					var crew = w.CreateActor(actorType, td);
+					// Same probe-then-add pattern as EjectCrewMember — never add a
+					// crew that has nowhere to stand.
+					var crew = w.CreateActor(false, actorType, td);
 					var positionable = crew.TraitOrDefault<IPositionable>();
+
+					CPos? placement = null;
 					if (positionable != null)
 					{
-						positionable.SetPosition(crew, self.Location);
-
-						if (!positionable.CanEnterCell(self.Location, crew, BlockedByActor.None))
+						if (positionable.CanEnterCell(spawnLocation, crew, BlockedByActor.None))
+							placement = spawnLocation;
+						else
 						{
-							var placed = false;
-							foreach (var cell in w.Map.FindTilesInAnnulus(self.Location, 1, 2))
+							foreach (var cell in w.Map.FindTilesInAnnulus(spawnLocation, 1, 3))
 							{
 								if (positionable.CanEnterCell(cell, crew, BlockedByActor.None))
 								{
-									positionable.SetPosition(crew, cell);
-									placed = true;
+									placement = cell;
 									break;
 								}
 							}
-
-							if (!placed)
-								crew.Kill(crew);
 						}
 					}
+
+					if (placement == null)
+					{
+						crew.Dispose();
+						return;
+					}
+
+					positionable.SetPosition(crew, placement.Value);
+					w.Add(crew);
 
 					var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
 					foreach (var nbm in nbms)

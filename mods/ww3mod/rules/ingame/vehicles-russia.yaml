@@ -16,8 +16,9 @@ btr:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 20
 		EjectionDelayVariance: 8
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Wheeled APC — thinner armor than M113, lower crew survival.
+		CrewDamageThresholdPercent: 22
+		EjectionSurvivalRate: 70
 	Tooltip:
 		Name: BTR-80
 		GenericName: Armoured Personnel Carrier
@@ -61,7 +62,7 @@ btr:
 		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -127,8 +128,9 @@ bmp2:
 		EjectionOrder: Commander, Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# IFV with autoloader and stowed ammo — frequent total loss.
+		CrewDamageThresholdPercent: 12
+		EjectionSurvivalRate: 45
 	Tooltip:
 		Name: BPM-2
 		GenericName: IFV Troop Carrier
@@ -177,7 +179,7 @@ bmp2:
 		RecoilRecovery: 25
 		LocalOffset: 500,0,100
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -205,7 +207,7 @@ bmp2:
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100
 		Recoil: 10
-		PauseOnCondition: !ammo-secondary || empdisable
+		PauseOnCondition: !ammo-secondary || empdisable || critical-damage
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -275,8 +277,10 @@ t90:
 		EjectionOrder: Commander, Gunner, Driver
 		EjectionDelay: 30
 		EjectionDelayVariance: 15
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Soviet autoloader carousel at crew level — catastrophic kill near-universal.
+		# Ukraine-war footage: T-72/90 hulls routinely jack-in-the-box, total crew loss.
+		CrewDamageThresholdPercent: 8
+		EjectionSurvivalRate: 30
 	Tooltip:
 		Name: T-90
 		GenericName: MBT
@@ -325,7 +329,7 @@ t90:
 		RecoilRecovery: 30
 		LocalOffset: 1300,0,45
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -377,8 +381,9 @@ giatsint:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Open-top howitzer — exposed crew, on-board ammo.
+		CrewDamageThresholdPercent: 20
+		EjectionSurvivalRate: 65
 	RenderSprites:
 		Image: giatsint
 		Scale: 1.25
@@ -434,7 +439,7 @@ giatsint:
 		RecoilRecovery: 70
 		MuzzleSequence: muzzle
 		LocalOffset: 800,0,500
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
@@ -488,8 +493,9 @@ grad:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Truck-mounted MLRS — soft skin + 40 rocket pod = catastrophic kill.
+		CrewDamageThresholdPercent: 14
+		EjectionSurvivalRate: 50
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
@@ -542,7 +548,7 @@ grad:
 	Armament@1:
 		Weapon: GradRockets
 		LocalOffset: 0,0,100
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
@@ -601,8 +607,9 @@ tos:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Thermobaric rocket pod — extreme catastrophic kill, fire engulfs everything.
+		CrewDamageThresholdPercent: 12
+		EjectionSurvivalRate: 40
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
@@ -657,7 +664,7 @@ tos:
 	Armament@1:
 		Weapon: TosRockets
 		LocalOffset: 0,0,100
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
@@ -716,8 +723,9 @@ tunguska:
 		EjectionOrder: Commander, Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Mobile AA — armored crew compartment, missiles + autocannons exposed.
+		CrewDamageThresholdPercent: 22
+		EjectionSurvivalRate: 70
 	Tooltip:
 		Name: 2K22 Tunguska
 		GenericName: Mobile AA
@@ -773,7 +781,7 @@ tunguska:
 		RecoilRecovery: 30
 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	Armament@1_Air:
 		Name: primary-air
 		Weapon: 30mm.Tunguska.AA
@@ -782,7 +790,7 @@ tunguska:
 		LocalOffset: 750,200,180, 750,-200,180, 750,200,280, 750,-200,280
 		LocalYaw: 0, 100
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	GrantConditionOnPreparingAttack@1:
 		ArmamentNames: primary
 		Condition: firing-primary
@@ -810,7 +818,7 @@ tunguska:
 		Name: secondary
 		Weapon: 9M311
 		LocalOffset: 500,240,120, 500,-240,120
-		PauseOnCondition: !ammo-secondary || firing-primary || empdisable
+		PauseOnCondition: !ammo-secondary || firing-primary || empdisable || critical-damage
 	GrantConditionOnPreparingAttack@2:
 		ArmamentNames: secondary
 		Condition: firing-secondary
@@ -908,7 +916,7 @@ iskander:
 	Armament@1:
 		Weapon: IskanderTargeter
 		LocalOffset: -150,120,150, -150,-100,150 #BM - Where each missile spawns when fired (per barrel, in launcher-local coords). X=forward(+)/back(-), Y=right(+)/left(-), Z=up. Two barrels: right tube then left tube. Should match the WithWeaponOverlay positions below so the missile doesn't visually jump on launch.
-		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked || critical-damage
 		RequiresForceFire: True
 		AimingDelay: 40
 	AmmoPool@1:

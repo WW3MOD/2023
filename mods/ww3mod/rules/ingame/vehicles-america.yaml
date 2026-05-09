@@ -17,8 +17,9 @@ humvee:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 15
 		EjectionDelayVariance: 5
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Light unarmored — penetrating hits kill crew often.
+		CrewDamageThresholdPercent: 20
+		EjectionSurvivalRate: 70
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill && !assault-move
 	RenderSprites:
@@ -66,7 +67,7 @@ humvee:
 		Name: primary
 		Weapon: 7.62mm.MG
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -171,8 +172,9 @@ m113:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 20
 		EjectionDelayVariance: 8
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# APC — moderate armor, decent crew survival on penetrating hits.
+		CrewDamageThresholdPercent: 26
+		EjectionSurvivalRate: 80
 	Tooltip:
 		Name: M113 APC
 		GenericName: Armoured Personnel Carrier
@@ -218,7 +220,7 @@ m113:
 		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -286,8 +288,9 @@ bradley:
 		EjectionOrder: Commander, Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# IFV with ammo separation — better than BMP-2 but still vulnerable.
+		CrewDamageThresholdPercent: 30
+		EjectionSurvivalRate: 85
 	Tooltip:
 		Name: Bradley
 		GenericName: IFV Troop Carrier
@@ -344,7 +347,7 @@ bradley:
 		RecoilRecovery: 5
 		LocalOffset: 820,0,105
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -367,7 +370,7 @@ bradley:
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100
 		Recoil: 10
-		PauseOnCondition: !ammo-secondary || empdisable
+		PauseOnCondition: !ammo-secondary || empdisable || critical-damage
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -440,8 +443,9 @@ abrams:
 		EjectionOrder: Commander, Gunner, Driver
 		EjectionDelay: 30
 		EjectionDelayVariance: 15
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Modern Western MBT — blow-out panels, ammo separation, best crew survivability.
+		CrewDamageThresholdPercent: 38
+		EjectionSurvivalRate: 95
 	Tooltip:
 		Name: Abrams M1A2
 		GenericName: Abrams
@@ -494,7 +498,7 @@ abrams:
 		RecoilRecovery: 30
 		LocalOffset: 1200,0,80
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -546,8 +550,9 @@ m109:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Closed-top SPG — armored crew compartment but ammo on board.
+		CrewDamageThresholdPercent: 24
+		EjectionSurvivalRate: 75
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
@@ -605,7 +610,7 @@ m109:
 		RecoilRecovery: 70
 		MuzzleSequence: muzzle
 		LocalOffset: 950,0,380
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
@@ -664,8 +669,9 @@ m270:
 		EjectionOrder: Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# MLRS rocket pod — catastrophic when hit, low crew survival.
+		CrewDamageThresholdPercent: 14
+		EjectionSurvivalRate: 50
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
@@ -720,7 +726,7 @@ m270:
 		Weapon: M270Rockets
 		# FireDelay: 150
 		LocalOffset: 192,-64,176, 192,64,176
-		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked || critical-damage
 		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
@@ -781,8 +787,9 @@ strykershorad:
 		EjectionOrder: Commander, Gunner, Driver
 		EjectionDelay: 25
 		EjectionDelayVariance: 10
-	-SpeedMultiplier@CriticalDamage:
-	-TurretTurnSpeedMultiplier@CriticalDamage:
+		# Stryker family — wheeled IFV, decent crew protection.
+		CrewDamageThresholdPercent: 24
+		EjectionSurvivalRate: 78
 	Tooltip:
 		Name: Stryker SHORAD
 		GenericName: Stryker Short Range Air Defense
@@ -836,7 +843,7 @@ strykershorad:
 		RecoilRecovery: 25
 		LocalOffset: 768,0,90
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable
+		PauseOnCondition: !ammo-primary || empdisable || critical-damage
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -862,7 +869,7 @@ strykershorad:
 		Weapon: Stinger.quad
 		LocalOffset: 100,90,90
 		LocalYaw: -100, 100
-		PauseOnCondition: !ammo-secondary || empdisable
+		PauseOnCondition: !ammo-secondary || empdisable || critical-damage
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -893,7 +900,7 @@ strykershorad:
 		# FireDelay: 25
 		LocalOffset: 100,-90,90
 		LocalYaw: -70, 100
-		PauseOnCondition: !ammo-tertiary || empdisable
+		PauseOnCondition: !ammo-tertiary || empdisable || critical-damage
 	AmmoPool@3:
 		Name: tertiary-ammo
 		Armaments: tertiary
@@ -1001,7 +1008,7 @@ HIMARS:
 	Armament@1:
 		Weapon: HIMARSTargeter
 		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
-		PauseOnCondition: !ammo-primary || empdisable || unit.docked
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked || critical-damage
 		RequiresForceFire: True
 		AimingDelay: 40
 	AmmoPool@1:
