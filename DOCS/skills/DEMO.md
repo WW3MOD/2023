@@ -2,7 +2,7 @@
 
 **Trigger:** the word `DEMO` in a user message — `DEMO <topic>`, or any phrasing where the user asks to "set up a scene", "show me X in game", "load this so I can see", etc. If the request is "I want to look at it myself," it's a DEMO, not an AUTOTEST.
 
-**Gives you:** a staged scenario the user can launch and explore — units pre-placed, camera framed, optional pre-selection — without the agent looping on it. No `AssertWithin`, no JSON verdict, no autonomous re-runs. The agent builds the folder, hands off the run command, and stops.
+**Gives you:** a staged scenario the agent launches for the user to explore — units pre-placed, camera framed, optional pre-selection. No `AssertWithin`, no JSON verdict, no autonomous re-runs. The agent builds the folder **and runs it** (run-demo.sh in the background); the user looks around and closes the window when done.
 
 **When *not* to use it:**
 - Behavioral fix you want verified — that's **AUTOTEST**.
@@ -20,7 +20,7 @@ Same harness plumbing (`Test.Mode=true`, in-game panel, RESTART button, edge-pan
 | Folder prefix | `test-*` | `demo-*` |
 | Lua calls `AssertWithin` / `Test.Pass` | yes | **no** |
 | Writes `result.json` | yes | no |
-| Agent runs it | yes, until verdict | **no — user runs it** |
+| Agent runs it | yes, until verdict | **yes — agent launches in background; user closes the window when done** |
 | Picked up by `run-batch.sh --all` | yes | no |
 | Discovery script | `list-tests.sh` | `list-demos.sh` |
 | Runner | `run-test.sh` | `run-demo.sh` |
@@ -31,8 +31,11 @@ If a question with a yes/no answer is buried in there ("does the turret rotate?"
 
 1. **Confirm scope.** What units / changes / situations should be staged? If the user said "show me all changes lately," look at recent commits and propose a list before building.
 2. **Build the demo folder** under `mods/ww3mod/maps/demo-<name>/`.
-3. **Hand off.** Print the run command (`./tools/test/run-demo.sh demo-<name>`) and stop. Do not launch yourself — launching is foreground and the user wants to drive.
-4. **Commit** the demo folder.
+3. **Smoke-verify.** Inject a temporary `Trigger.AfterDelay(25, function() Test.Pass() end)` in `WorldLoaded`, run via `./tools/test/run-test.sh demo-<name>` (the test runner accepts any folder), confirm the verdict is `pass`, then strip the trailer. Catches rules.yaml typos, missing actors, broken Lua bindings before the user sees a black screen.
+4. **Launch for the user.** Call `./tools/test/run-demo.sh demo-<name>` in the **background** (`run_in_background: true`). The window opens visible (run-demo.sh forces `--no-minimize`); the user explores; when they close the window the background task completes and you get a notification. If staging multiple demos, queue the next one only after the previous one finishes — running two game instances at once is jarring.
+5. **Commit** the demo folder. Smoke-test trailer must be stripped before committing.
+
+If the user explicitly says "don't launch — just give me the command" (rare, e.g. they want to run on a different machine), respect that and print the command instead.
 
 ## Folder layout
 
