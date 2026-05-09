@@ -261,6 +261,16 @@ namespace OpenRA.Scripting
 
 			FatalErrorOccurred = true;
 
+			// In Test mode a Lua error must surface as a verdict + exit so the
+			// runner doesn't sit on a hung window waiting for result.json. The
+			// usual EndGame path keeps the process alive (returns to menu).
+			if (TestMode.IsActive)
+			{
+				TestMode.WriteResult("fail", "Fatal Lua Error: " + e.Message);
+				World.AddFrameEndTask(_ => Game.Exit());
+				return;
+			}
+
 			World.AddFrameEndTask(w => World.EndGame());
 		}
 
@@ -275,6 +285,13 @@ namespace OpenRA.Scripting
 			Log.Write("lua", stacktrace);
 
 			FatalErrorOccurred = true;
+
+			if (TestMode.IsActive)
+			{
+				TestMode.WriteResult("fail", "Fatal Lua Error: " + message);
+				World.AddFrameEndTask(_ => Game.Exit());
+				return;
+			}
 
 			World.AddFrameEndTask(w => World.EndGame());
 		}
