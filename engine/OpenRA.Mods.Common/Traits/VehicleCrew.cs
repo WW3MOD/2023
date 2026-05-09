@@ -231,6 +231,13 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			// If we never reached critical state (vehicle instant-killed), capture the killing
+			// blow's damage so EjectCrewMember can apply the same damage-scaling formula used for
+			// staged ejections. Without this, instant kills fell back to the legacy 90% survival
+			// rate and crew nearly always walked away from huge hits.
+			if (finishingDamage == 0)
+				finishingDamage = e.Damage?.Value ?? 0;
+
 			// Eject all remaining crew instantly on death
 			foreach (var slotName in ejectionOrder)
 			{
@@ -257,17 +264,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (conditionTokens[idx] != Actor.InvalidConditionToken)
 				conditionTokens[idx] = self.RevokeCondition(conditionTokens[idx]);
 
-			// Check survival on death
-			if (onDeath && self.World.SharedRandom.Next(100) >= info.EjectionSurvivalRate)
-				return;
-
 			if (!info.CrewActors.TryGetValue(slotName, out var actorType))
 				return;
 
-			// Damage inherited from the finishing shot. Only applies to staged critical-state
-			// ejections, not onDeath (which keeps the legacy EjectionSurvivalRate behaviour).
+			// Damage inherited from the finishing shot. Applies to both staged critical-state
+			// ejections and onDeath instant-kills (Killed handler captures e.Damage when no
+			// staged transition happened first). Big hits → crew dies inside the vehicle.
 			var crewDamage = 0;
-			if (!onDeath && finishingDamage > 0)
+			if (finishingDamage > 0)
 			{
 				var vehicleMaxHP = health.MaxHP;
 				var threshold = vehicleMaxHP * info.CrewDamageThresholdPercent / 100;
@@ -283,6 +287,10 @@ namespace OpenRA.Mods.Common.Traits
 						return;
 				}
 			}
+
+			// Coarse "did they actually get out?" roll on top of the damage gate (only on death).
+			if (onDeath && self.World.SharedRandom.Next(100) >= info.EjectionSurvivalRate)
+				return;
 
 			var td = new TypeDictionary
 			{
