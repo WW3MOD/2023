@@ -1,0 +1,1 @@
+Auto: SR with AttackMove-rally produces an abrams that engages a t90 on its rally path.

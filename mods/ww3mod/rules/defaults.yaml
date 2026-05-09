@@ -288,6 +288,10 @@
 	AutoTargetPriority@FireAtWill:
 		Priority: 1
 	AttacksSupplyRoutes:
+	# AttackMove is required for AttackMoveActivity to actually scan and engage —
+	# without it, an attack-move order falls back to a plain Move (only opportunity
+	# fire compensates, and it's too slow to engage units passing through range).
+	AttackMove:
 
 ^AutoTargetMBT:
 	Inherits: ^AutoTarget

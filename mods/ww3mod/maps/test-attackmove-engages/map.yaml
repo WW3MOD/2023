@@ -1,0 +1,56 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AttackMove Engages Enemy On Path (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Hunter: abrams
+		Owner: USA
+		Location: 12,16
+		Facing: 768
+	Target: t90
+		Owner: Russia
+		Location: 22,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 22,16
+
+Rules: rules.yaml

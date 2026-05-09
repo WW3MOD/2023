@@ -1,0 +1,27 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	PlayerResources:
+		DefaultCash: 10000
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-sr-attackmove-rally-engages.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32

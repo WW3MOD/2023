@@ -1,0 +1,1 @@
+Auto: Abrams on attack-move toward a cell past a t90 must fire on the t90 within deadline.
