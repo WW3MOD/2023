@@ -12,7 +12,7 @@
 
 **Gives you:** a deterministic test, RED-then-GREEN proof of the fix, regression coverage going forward, and a commit you can read days later and trust. You can walk away while it runs — the verdict comes back as a JSON exit code.
 
-**When *not* to use it:** visual / "feels off" / tuning bugs (your eyes are faster than my trace dumps — use **PLAYTEST**), trivial code (one-line typo, value tweak), or no-code-change work (docs, refactor without behavior change).
+**When *not* to use it:** visual / "feels off" / tuning bugs (your eyes are faster than my trace dumps — use **PLAYTEST**), trivial code (one-line typo, value tweak), no-code-change work (docs, refactor without behavior change), or **"show me X in game" requests where you want to look around yourself** — that's **DEMO**, not AUTOTEST. AUTOTEST loops to a verdict; DEMO stages and stops.
 
 ---
 
@@ -99,7 +99,7 @@ end
 
 ## Test types
 
-- **Manual** — Lua only stages (camera, selection); user watches and types verdict in chat. Example: `test-artillery-turret` (the original "did the turret rotate?" test). Best when the bug is visual or hard to assert numerically.
+- **Manual** — Lua only stages (camera, selection); user watches and types verdict in chat. Example: `test-artillery-turret` (the original "did the turret rotate?" test). Best when the bug is visual or hard to assert numerically. *If there is no verdict question at all and the user just wants to look, that's a **DEMO**, not a manual test — see [`DEMO.md`](DEMO.md).*
 - **Auto-asserting** — Lua uses `TestHarness.AssertWithin(...)` to verdict itself. Game writes JSON and exits; runner exit-codes back. Example: `test-paladin-fires`. Pair with `--all` for unattended regression sweeps.
 
 ## Lua API

@@ -21,6 +21,7 @@ Operating context. Default is **RELEASE**.
 | [`PLAYTEST [topic]`](PLAYTEST.md) | PLAYTEST | Build, write a focus brief, hand back to user with eye-list. Pair with TRIAGE after |
 | [`TRIAGE [findings]`](TRIAGE.md) | TRIAGE | Sort raw findings into v1 buckets, route to RELEASE_V1.md / BACKLOG / discovered.md |
 | [`AUTOTEST <bug>`](AUTOTEST.md) | AUTOTEST | Test-driven debug loop — failing test → fix → green → regression-check → commit. User walks away |
+| [`DEMO <topic>`](DEMO.md) | DEMO | Stage a scenario for the human to look at. Same harness as AUTOTEST, but no verdict, no autonomous loop |
 | [`REVIEW [N]`](REVIEW.md) | REVIEW | Quality pass on last N commits — pitfalls, leftover traces, over-engineering |
 | [`FINALIZE`](FINALIZE.md) | FINALIZE | Session wrap-up — bell, tracker, hotboard, session promote, commit |
 | [`CONTEXT <area>`](CONTEXT.md) | CONTEXT | Quick orientation on an area — recent commits, open work, file pointers |

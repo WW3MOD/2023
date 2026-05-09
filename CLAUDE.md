@@ -47,6 +47,7 @@ I operate in one **mode** at a time and follow documented **skills** when trigge
 | `PLAYTEST [topic]` | [DOCS/skills/PLAYTEST.md](DOCS/skills/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
 | `TRIAGE [findings]` | [DOCS/skills/TRIAGE.md](DOCS/skills/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
 | `AUTOTEST <bug>` | [DOCS/skills/AUTOTEST.md](DOCS/skills/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. **Default for behavioral fixes in RELEASE mode** even without the trigger; once stated, the stance applies to the whole batch. |
+| `DEMO <topic>` | [DOCS/skills/DEMO.md](DOCS/skills/DEMO.md) | Stage a scenario for the user to look at — same harness as AUTOTEST, but **no verdict, no autonomous loop**. Use whenever the user says "show me" / "set this up so I can see". |
 | `REVIEW [N]` | [DOCS/skills/REVIEW.md](DOCS/skills/REVIEW.md) | Quality pass on last N commits |
 | `FINALIZE` | [DOCS/skills/FINALIZE.md](DOCS/skills/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
 | `CONTEXT <area>` | [DOCS/skills/CONTEXT.md](DOCS/skills/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
@@ -240,6 +241,14 @@ Trigger phrase: `AUTOTEST <bug or feature>`. Quick reference:
 ./tools/test/run-batch.sh --all                     # regression sweep
 ```
 Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/skills/AUTOTEST.md`](DOCS/skills/AUTOTEST.md).
+
+### Demo scenarios — see `DOCS/skills/DEMO.md`
+Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" request). Same harness as AUTOTEST, different stance — agent stages, user runs and explores, no verdict expected.
+```bash
+./tools/test/list-demos.sh                          # what's available
+./tools/test/run-demo.sh demo-<name>                # launch one
+```
+Demo scenarios live in `mods/ww3mod/maps/demo-*/`. **Never put a `Test.Pass`/`Fail` call in a demo** — if it has a verdict, it's a test; move it to `test-*` and use AUTOTEST.
 
 ## Architecture & system reference
 
