@@ -57,13 +57,10 @@
 - [ ] **Littlebird rotor still spins after safe landing** — needs investigation (sweep all helis)
 - [T:trusted] **TECN capture order lost when shot at + panicking** — fixed 260504 (commit be46cde9). Code verified intact; ScaredyCat.cs untouched since
 - [T:trusted] **Shift+G on attack-ground orders converts them to move orders** — fixed 260504 (commit dd6cc18f). `IAttackActivity` interface still implemented in all 4 attack-activity classes; GroupScatterHotkeyLogic still consumes it
-- [T:trusted] **Crew still ejects on vehicle death** — fixed 260509 (commit f1fdafea), then strengthened by 94c88683: vehicle death is now **total loss** for anyone still inside (`INotifyKilled.Killed` no longer spawns a crew actor at all). Eject window is the bleed-out time during Critical state. The other agent's `test-evac-suite` actively covers this
 - [T] **Aircraft can't spawn if waypoint blocked** — partial fix; aircraft branch may have separate cause from ground-unit fix. Re-test (no commit verified yet)
-- [T:trusted] **Ground unit production stuck at 100% until rally moved** — fixed 260505 (commit 7090749a). `PathExistsForLocomotor` removed; `evaluateNearestMovableCell:true` in use at `ProductionFromMapEdge.cs:191`
 - [T:trusted] **Garrison: only first soldier of a batch enters** — mitigation 260503 (commit bf63eef4, `ChangeOwnerInPlace(updateGeneration:false)` at `GarrisonManager.cs:261,325,330`). Keeps in-flight Enter activities valid through ownership flip
 - [T:trusted] **Stop order doesn't cancel garrisoned firing** — fixed (commit 97e192cc). `AttackGarrisoned.OnStopOrder` → `GarrisonManager.OnStopOrder` clears forceTarget, port targets, ambushTriggered. Verified at `AttackGarrisoned.cs:391-396`, `GarrisonManager.cs:1131-1143`
 - [T:trusted] **Soldiers under fire abandon Enter-building order** — fixed 260504 (commit fdfaffb1). New `MoveToTargetRaw`/`MoveIntoTargetRaw` on `IMove` bypass WrapMove; Enter uses raw variants at `Enter.cs:117,131`. Capture/Demolish/Ride/Infiltrate also benefit
-- [T:trusted] **Right-click own SR = Evacuate (regression)** — fixed 260509 (commit 48d762cc). `target.Owner == self.Owner` early-return verified at `AttacksSupplyRoutes.cs:101,127` (both `CanTargetActor` and `CanTargetFrozenActor`)
 - [T:trusted] **Iskander/HIMARS shockwave radius too large** — tuned 260509 (commit 9578557c). `MaxRadius` values verified in `weapons-explosions.yaml`: Iskander 4c0 (line 495), HIMARS 2c512 (line 532). Feel needs human eye in next playtest
 
 ### Known design issues

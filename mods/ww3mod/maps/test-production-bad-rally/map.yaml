@@ -1,0 +1,56 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Production with unreachable rally still spawns (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Tank: abrams
+		Owner: USA
+		Location: 28,16
+		Facing: 768
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 33,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 28,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,30
+
+Rules: rules.yaml

@@ -1,0 +1,1 @@
+Auto: Supply Route with rally point on unreachable cell must still spawn the queued unit (regression: production stuck at 100% when rally was bad).
