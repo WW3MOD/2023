@@ -45,8 +45,26 @@
   watchdog. If no `Trigger.AfterDelay` fires for N seconds and we're past
   WorldLoaded, assume the script is stuck and exit-fail.
 
+## Open (more recent)
+
+- **Multi-phase test snapshot drift.** Phase 5 of `test-evac-suite` measures
+  a `before/after` crew delta, but earlier phases leave dozens of crew bodies
+  on the map that die off during Phase 5's 18-second wait (cookoff residuals,
+  far-edge SpreadDamage). Net delta becomes meaningless. Workaround in place:
+  use husk-count as the primary assertion. Better fix: per-phase cleanup
+  (kill all non-current-phase actors) or per-phase Player slots so each
+  phase's crew is isolatable.
+
 ## Done
 
 - **Fatal Lua errors now auto-fail in test mode** (260509). `ScriptContext.FatalError`
   checks `TestMode.IsActive`; if so, writes `fail` verdict + `Game.Exit()` instead of
   the usual EndGame-to-menu path. Window closes immediately, runner sees the fail.
+
+- **Helicopters now refuse to safe-land on a blocked cell** (260509).
+  `HeliEmergencyLanding.IsSuitableTerrain` previously only checked the terrain
+  type; a heli could autorotate down right on top of a husk, tree, or
+  structure with no consequences. It now scans `ActorMap.GetActorsAt(cell)`
+  and treats the touchdown as unsafe (→ `OnUnsafeLanding`, fireball, total
+  loss) if any non-self, non-aircraft actor is on the cell. Aircraft sharing
+  the cell at altitude don't block — only ground-pinned obstacles do.

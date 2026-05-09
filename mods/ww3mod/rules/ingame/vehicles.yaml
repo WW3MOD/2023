@@ -179,6 +179,12 @@
 	TurretTurnSpeedMultiplier@NoGunner:
 		Modifier: 0
 		RequiresCondition: !has-gunner
+	# Death cookoff — punishes crew that didn't clear the husk cell in time.
+	# Single-tile damage radius (0c512) so adjacent units take nothing.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoff
+		EmptyWeapon: VehicleCookoff
+		Chance: 100
 
 ^CrewedVehicle3:
 	# No driver AND no commander = can't move at all
@@ -205,6 +211,11 @@
 	InaccuracyMultiplier@NoCommander:
 		Modifier: 150
 		RequiresCondition: !has-commander
+	# Death cookoff — same rationale as ^CrewedVehicle2 above.
+	Explodes@CrewCookoff:
+		Weapon: VehicleCookoff
+		EmptyWeapon: VehicleCookoff
+		Chance: 100
 
 ^EffectsWhenMovingVehicles:
 	InaccuracyMultiplier@Moving:

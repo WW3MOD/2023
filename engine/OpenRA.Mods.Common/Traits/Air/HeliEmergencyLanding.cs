@@ -287,7 +287,27 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			var terrainType = self.World.Map.GetTerrainInfo(cell).Type;
-			return suitableTerrains.Contains(terrainType);
+			if (!suitableTerrains.Contains(terrainType))
+				return false;
+
+			// Don't safe-land on top of a husk, tree, structure, or any other
+			// ground-occupying actor. If the cell is blocked, the heli treats
+			// it as an unsafe landing — same outcome as touching down on water:
+			// fireball + total loss.
+			foreach (var other in self.World.ActorMap.GetActorsAt(cell))
+			{
+				if (other == self || other.IsDead)
+					continue;
+
+				// Aircraft sharing the cell at altitude don't count — only
+				// ground-pinned actors block the touchdown.
+				if (other.Info.HasTraitInfo<AircraftInfo>())
+					continue;
+
+				return false;
+			}
+
+			return true;
 		}
 
 		public void OnSafeLanding(Actor self)

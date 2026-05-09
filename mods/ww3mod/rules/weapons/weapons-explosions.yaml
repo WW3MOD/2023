@@ -1,3 +1,34 @@
+# Single-tile cookoff fired by ^CrewedVehicleN.Explodes when a crewed vehicle dies.
+# Punishes crew that didn't get clear of the husk in time. Damage is restricted to
+# Infantry within half a cell of the husk's centre — adjacent friendlies, the husk
+# itself, and other vehicles are untouched. A short on-fire condition burns any
+# crew caught on the cell so they bleed out walking away even if the initial hit
+# isn't lethal.
+VehicleCookoff:
+	ValidTargets: Ground, Infantry
+	InvalidTargets: Air
+	Warhead@Damage: SpreadDamage
+		Range: 0, 0c512
+		Falloff: 100, 0
+		Damage: 8000
+		ValidTargets: Infantry
+		# FireDeath only — fuel/ammo cookoff is a fire event, not concussion.
+		# Triggers the burn-out death sequence on infantry caught in the cell.
+		DamageTypes: FireDeath
+		AffectsParent: true
+	Warhead@Fire: GrantExternalCondition
+		Range: 0c512
+		Duration: 100
+		Condition: onfire
+		ValidTargets: Infantry
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom25.aud
+		ValidTargets: Ground, Trees
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_small
+		ValidTargets: Water, Underwater
+
 FlamethrowerExplosion:
 	ValidTargets: Ground, Water, Trees
 	Warhead@Spread: SpreadDamage
