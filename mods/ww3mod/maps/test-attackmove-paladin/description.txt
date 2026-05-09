@@ -1,0 +1,1 @@
+Auto: Paladin attack-moving past a t90 must stop, set up, and fire within deadline.
