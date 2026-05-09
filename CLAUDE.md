@@ -33,6 +33,16 @@ Units don't appear at the production building — they enter from the map edge n
 ### Engine code still has old RA patterns
 Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUnitReloadBuildings` checking for 1 airpad per aircraft). When you encounter these patterns, understand they may not apply. Always check how WW3MOD actually uses the system before assuming the old logic is correct. The `SkipRearmBuildingCheck` YAML property on `UnitBuilderBotModule` was added specifically to bypass one such legacy check.
 
+## Skills (trigger workflows)
+
+I follow documented skill workflows when the user types the trigger phrase. Each skill lives in `SKILLS/<NAME>.md` with usage and details. Index: `SKILLS/README.md`.
+
+| Trigger | Skill | One-liner |
+|---|---|---|
+| `AUTOTEST <bug>` | [AUTOTEST](SKILLS/AUTOTEST.md) | Write failing auto-test → fix → verify green → regression-check → commit. User walks away. Best for behavioral bugs. Not for visual / "feels off" — use PLAYTEST. |
+
+If a workflow becomes a recurring pattern, factor it into a skill rather than re-explaining it each session.
+
 ## Workflow Rules
 
 ### Git & Commits
@@ -237,6 +247,16 @@ Review recent changes for quality.
 2. Check for: common pitfalls (see below), leftover debug code, YAML formatting issues, missing condition wiring
 3. Report findings, fix issues with user approval
 
+### AUTOTEST <bug or feature>
+Test-driven debug loop. Full details in `SKILLS/AUTOTEST.md`. Trigger drops me into:
+1. Write a deterministic auto-asserting test (Lua + map under `mods/ww3mod/maps/test-<name>/`).
+2. Run pre-fix → confirm RED with the expected failure mode.
+3. Investigate + fix.
+4. Run post-fix → confirm GREEN.
+5. Regression-check (`./tools/test/run-batch.sh --all` or relevant subset).
+6. Strip diagnostics, commit (test + fix + tracker update).
+You can walk away — the harness writes a JSON verdict and exit code I can read. Best for behavioral / deterministic bugs; for visual or tuning bugs use PLAYTEST.
+
 ## CLAUDE/ Folder
 
 Claude's workspace for session tracking, plans, discoveries, and notes. Primarily for Claude's use across sessions, secondarily for user reference.
@@ -299,50 +319,14 @@ node build/index.js stats <unitId>                # Unit details
 ```
 Tick-by-tick combat simulator for balance analysis. Models damage (penetration, directional armor, range falloff, AoE), weapon firing cycles, suppression (infantry 10-tier/vehicle 5-tier), and formations. Phase 1 uses hardcoded stats; Phase 2 will auto-load from YAML. Phase 5 will export scenarios as playable maps via MCP.
 
-### Developer Test Harness
+### Developer Test Harness — see `SKILLS/AUTOTEST.md`
+Trigger phrase: `AUTOTEST <bug or feature>`. Quick reference:
 ```bash
-./tools/test/list-tests.sh                              # List available tests
-./tools/test/run-test.sh <test-folder>                  # Run one test
-./tools/test/run-batch.sh <t1> <t2> ...                 # Run several
-./tools/test/run-batch.sh --all                         # Run every test-* folder
-./tools/test/run-test.sh --position=left <test>         # Force left half
-./tools/test/run-test.sh --fullscreen <test>            # Skip sizing/positioning
-./tools/test/run-test.sh --help                         # Flag list
+./tools/test/list-tests.sh                          # what's available
+./tools/test/run-test.sh <test-folder>              # run one
+./tools/test/run-batch.sh --all                     # regression sweep
 ```
-Drops the game straight into a named map under `mods/ww3mod/maps/<test-folder>/` with a slim title-bar UI: **End** key restarts the scenario; the rest is just title + description text. Verdict happens in chat; the script exits when the game window closes.
-
-**Window placement (windowed only).** Default is `--position=auto` — the script reads the frontmost window via System Events (one-time accessibility grant required, falls back gracefully). Most reliable path is to run `--position=left` or `--position=right` once per terminal; the choice is saved at `~/.ww3mod-tests/position-prefs/<tty-key>` and reused automatically. Window position passes through `OPENRA_WINDOW_X/Y` env vars (engine-side patch in `Sdl2PlatformWindow.cs`).
-
-**Edge-pan disabled** in test+windowed mode (engine-gated on `TestMode.IsActive && Graphics.Mode == Windowed` in `ViewportControllerWidget`). Cursor crossing the window border into the terminal no longer scrolls the camera.
-
-**Gating.** Activated only by `Test.Mode=true` launch arg. Without it, every part of the harness is dormant — no widget, no panel, no file writes, no engine-side overrides. Normal launches are completely unaffected.
-
-**Reusable Lua helpers** (`mods/ww3mod/scripts/test-helpers.lua`):
-- `TestHarness.FocusBetween(actor1, actor2, ...)` — center camera on the midpoint of N actors.
-- `TestHarness.Select(actor)` — pre-select unit-under-test on world load (saves a click). Wraps `UserInterface.Select(actor)`.
-- `TestHarness.AssertWithin(seconds, predicate, failReason)` — poll a predicate every tick; `Test.Pass()` when it returns `true`, `Test.Fail(reason)` on timeout. Predicate may also return a `"fail: <reason>"` string to fail immediately. Tests built on this need no human verdict.
-- `TestHarness.AssertAfter(seconds, predicate, failReason)` — wait `seconds`, then assert the predicate is true.
-
-**Auto-asserting Lua globals** (`Test.*`, all no-op outside test mode):
-- `Test.Pass()` — write `pass` verdict and exit.
-- `Test.Fail(reason)` — write `fail` verdict + reason and exit.
-- `Test.Skip(reason)` — write `skip` verdict + reason and exit.
-
-A test that uses `AssertWithin` runs unattended — the script exit code (0/1/2/3) tells the runner the verdict. Pair with `run-batch.sh --all` for a hands-off regression sweep.
-
-**Adding a test:**
-1. Copy an existing test folder under `mods/ww3mod/maps/test-<name>/` (e.g. `cp -r mods/ww3mod/maps/test-artillery-turret mods/ww3mod/maps/test-<name>`).
-2. **`map.yaml`:** set `Visibility: MissionSelector` and `Categories: Test` so it stays out of the lobby map list. Use lowercase actor names (`e1.russia`, not `E1.russia`).
-3. **Only ONE `Playable: True` PlayerReference** — the human slot. All other factions must be `Playable: False`. `Launch.Map` only creates Player objects for slots with a client; an unclaimed `Playable: True` slot drops its actors to Neutral and breaks targeting (no attack cursor, no auto-engage).
-4. **Lock colors and factions** on every PlayerReference (`LockColor: True`, `LockFaction: True`) so the visual cue is consistent across runs — human=blue, enemies=red, allies=green — regardless of the dev's personal `settings.yaml`.
-5. **`description.txt`** (optional, recommended): one-line description shown in the panel. The runner reads `<map-folder>/description.txt`, first non-empty line wins.
-6. **`rules.yaml`:** `LuaScript: Scripts: test-helpers.lua, <test>.lua` (helpers first).
-7. **`<test>.lua`:** `WorldLoaded = function() TestHarness.FocusBetween(a, b); TestHarness.Select(a) end` — staging only, no UI text.
-8. Run with `./tools/test/run-test.sh test-<name>`.
-
-**Test types:**
-- *Manual* — Lua only stages (camera, selection); the human watches and types in chat. Example: `test-artillery-turret`.
-- *Auto-asserting* — Lua uses `TestHarness.AssertWithin(...)` to verdict itself. The runner exits with the test's pass/fail status, no human input needed. Example: `test-paladin-fires` (asserts the Paladin's primary ammo drops below max within 8 s of world-load).
+Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`SKILLS/AUTOTEST.md`](SKILLS/AUTOTEST.md).
 
 ## Project Architecture
 
