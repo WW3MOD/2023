@@ -1,0 +1,1404 @@
+# Test scenario rules — generated for burn-variant comparison.
+
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-burn-compare.lua
+
+# === V1 max stacks only at HP=0 (slowest possible — death-only inferno) ===
+^Burn_V1:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 0
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V1_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V1_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V1_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V1_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V1_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V1_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V1_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V2 ===
+^Burn_V2:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 1
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V2_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V2_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V2_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V2_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V2_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V2_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V2_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V3 (same as V2 — End can't go lower than 0; slow side is space-limited) ===
+^Burn_V3:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 1
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V3_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V3_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V3_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V3_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V3_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V3_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V3_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V4 = old baseline ===
+^Burn_V4:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 2
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V4_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V4_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V4_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V4_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V4_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V4_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V4_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V5 ===
+^Burn_V5:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 2
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V5_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V5_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V5_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V5_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V5_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V5_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V5_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V6 (CENTRE — the previously-chosen baseline) ===
+^Burn_V6:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 2
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V6_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V6_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V6_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V6_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V6_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V6_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V6_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V7 slightly faster ===
+^Burn_V7:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 4
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V7_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V7_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V7_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V7_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V7_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V7_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V7_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V8 ===
+^Burn_V8:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 8
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V8_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V8_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V8_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V8_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V8_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V8_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V8_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V9 ===
+^Burn_V9:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 14
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V9_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V9_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V9_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V9_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V9_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V9_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V9_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V10 ===
+^Burn_V10:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 22
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V10_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V10_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V10_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V10_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V10_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V10_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V10_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+# === V11 fastest — max stacks already at 35% HP ===
+^Burn_V11:
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 50
+		EndFraction: 35
+		MaxStacks: 10
+		Interval: 15
+	WithIdleOverlay@V11_1:
+		RequiresCondition: onfire == 1 || onfire == 2
+		Image: smoke_mtd
+		StartSequence: start
+		Sequence: loop
+		Palette: temptd
+		IsDecoration: true
+	WithIdleOverlay@V11_2:
+		RequiresCondition: onfire == 3 || onfire == 4
+		Image: infantry-burn-1
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V11_3:
+		RequiresCondition: onfire == 5 || onfire == 6
+		Image: infantry-burn-3
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V11_4:
+		RequiresCondition: onfire == 7 || onfire == 8
+		Image: infantry-burn-4
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V11_5:
+		RequiresCondition: onfire >= 7
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V11_6:
+		RequiresCondition: onfire == 9 || onfire == 10
+		Image: infantry-burn-5
+		StartSequence: start
+		Sequence: loop
+		Palette: effect
+		IsDecoration: true
+	WithIdleOverlay@V11_7:
+		RequiresCondition: onfire >= 9
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+
+humvee.v1:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V1
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v2:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V2
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v3:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V3
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v4:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V4
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v5:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V5
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v6:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V6
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v7:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V7
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v8:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V8
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v9:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V9
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v10:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V10
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+humvee.v11:
+	Inherits: humvee
+	Inherits@Burn: ^Burn_V11
+	RenderSprites:
+		Image: humvee
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v1:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V1
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v2:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V2
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v3:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V3
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v4:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V4
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v5:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V5
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v6:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V6
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v7:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V7
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v8:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V8
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v9:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V9
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v10:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V10
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m113.v11:
+	Inherits: m113
+	Inherits@Burn: ^Burn_V11
+	RenderSprites:
+		Image: m113
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v1:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V1
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v2:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V2
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v3:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V3
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v4:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V4
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v5:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V5
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v6:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V6
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v7:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V7
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v8:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V8
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v9:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V9
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v10:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V10
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+abrams.v11:
+	Inherits: abrams
+	Inherits@Burn: ^Burn_V11
+	RenderSprites:
+		Image: abrams
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v1:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V1
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v2:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V2
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v3:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V3
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v4:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V4
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v5:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V5
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v6:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V6
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v7:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V7
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v8:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V8
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v9:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V9
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v10:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V10
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+bradley.v11:
+	Inherits: bradley
+	Inherits@Burn: ^Burn_V11
+	RenderSprites:
+		Image: bradley
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v1:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V1
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v2:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V2
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v3:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V3
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v4:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V4
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v5:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V5
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v6:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V6
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v7:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V7
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v8:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V8
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v9:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V9
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v10:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V10
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+
+m270.v11:
+	Inherits: m270
+	Inherits@Burn: ^Burn_V11
+	RenderSprites:
+		Image: m270
+	-WithIdleOverlay@Burn_1:
+	-WithIdleOverlay@Burn_2:
+	-WithIdleOverlay@Burn_3:
+	-WithIdleOverlay@Burn_4:
+	-WithIdleOverlay@Burn_5:
+	-WithIdleOverlay@Inferno:
+	-Buildable:
+	-MapEditorData:
+

@@ -79,3 +79,44 @@ Same flags as `run-test.sh`, but the demo runner injects `--no-minimize` so the 
 - **No `Test.Pass`/`Fail`/`Skip` calls.** If you find yourself writing one, the thing is a test — move it to `test-*` and use AUTOTEST.
 - **Commit demo folders.** They double as a record of "what we showed the user when X landed" and stay useful for the next time someone wants to look at the same area.
 - **Demo names should describe the *subject*, not the question** — `demo-changed-vehicles-260509`, not `demo-do-vehicles-look-right`.
+
+## Multi-variation comparison (the "pick one" pattern)
+
+Use this when the user says "show me N versions side-by-side and tell me which looks best." See `mods/ww3mod/maps/test-burn-compare/` for the worked example (11-variant burn-ramp comparison that produced the production V1 settings on 260509).
+
+**Shape:**
+- N variant *templates* (`^Variant_VN`) with the same trait set, varying one or two parameters between them. Templates ONLY contain new traits — never `-Trait:` removals (see Gotcha #1 below).
+- M base actor types (humvee, m113, …). For each base × each variant, generate a derived actor (`humvee.v1`, `humvee.v2`, …) inheriting from both. Trait removals live on the actor, not the template.
+- Lua spawns the M×N grid in N columns × M rows so the user can read variants left-to-right and base actors top-to-bottom.
+- Same scripted damage applied to all so the only variable is the variant config.
+- No `Test.Pass` — runs until the user closes (or temporarily add `Test.Pass()` for verifier mode while iterating, then strip it before handing to the user).
+
+**Generator:** keep the variant table in a Python script that prints the rules.yaml. With N×M ≈ 50 actor entries, hand-writing is brittle; a generator makes it cheap to add a 12th variant or swap a sprite. See `/tmp/burn-compare-gen.py` from session 260509 for a template.
+
+**Verifying without burning the user's eyes:** add a temporary `Test.Pass()` trailer in the Lua so each iteration writes a JSON verdict. Confirm it passes (catches bad variant YAML, missing sprites, conditions that error). Then strip the `Test.Pass` and hand the live demo to the user. Saves dozens of "did it crash?" round-trips.
+
+### Gotchas (every one of these bit during the burn-compare iteration)
+
+1. **`-Trait:` removals can't sit inside a template.** Templates have no traits to remove yet. Engine errors with `rules.yaml:NN: There are no elements with key X to remove`. Put removals on the *actor entry* where the inherited parent has the trait, not in `^Variant_VN`.
+2. **New actor types need `RenderSprites: Image:` pinned.** Default `Image` is the actor name (`humvee.v1`), which isn't a valid sprite key. Override:
+   ```yaml
+   humvee.v1:
+       Inherits: humvee
+       RenderSprites:
+           Image: humvee
+   ```
+3. **`-Trait:` at actor level removes BOTH the inherited and the variant template's version** if both have the same `@suffix`. Don't remove a trait you also want to override — let inheritance order (later wins) handle the merge instead.
+4. **`smoke_mtd` + `WithIdleOverlay`:** use `StartSequence: start, Sequence: loop` for proper animation. `Sequence: idle` plays a static-looking single frame on some sprites and reads as janky.
+5. **`Image: fire, Sequence: 5`** (the small-fire-bridge attempt) renders with an opaque black background — palette/alpha mismatch. Stick to `Sequence: 1` for the husk-style big fire; bridge the gap by *layering* the prior tier's overlay (e.g. `infantry-burn-5` on `onfire >= 7` overlapping with `infantry-burn-4` at 7-8).
+6. **Cargo loading from Lua:** create the passenger with `addToWorld=false`, then `vehicle.LoadPassenger(soldier)`. With `addToWorld=true`, on death the vehicle's `UnloadCargo` activity calls `World.Add` for an actor already in the world → `ArgumentException: An item with the same key has already been added`.
+7. **`StartingUnits@*` spawns an SR even with `-SpawnStartingUnits:`** in some configurations. Easier to give the player a token actor in a corner so the trait is satisfied silently than to enumerate every `-StartingUnits@<class>:`.
+8. **`ConquestVictoryConditions` triggers "Mission accomplished" instantly if no enemy player has units.** Either `-ConquestVictoryConditions:` in the test rules.yaml, or place a token enemy actor far enough away that scan range can't see them.
+9. **`-Trait:` of a non-existent trait** silently breaks the entire rules.yaml. If you see symptoms like "test rules ignored" (Lua doesn't run, default smoke shows, SR auto-spawns), check that every `-Trait:` matches an inherited trait that actually exists.
+
+### Diagnostic discipline
+
+When variant rules.yaml looks dead but the game still launches, the failure path is:
+1. Read `~/Library/Application Support/OpenRA/Logs/debug.log` and grep for `rules.yaml`, `to remove`, `InvalidOperation`, `Image \``.
+2. Read `~/Library/Application Support/OpenRA/Logs/exception-*.log` (most recent) for crashes after WorldLoaded.
+3. Add a smoke-test Lua announce at the top of `WorldLoaded` to confirm the test rules and Lua are even being loaded — if you don't see your `[LUA]` line in chat, the rules block is wrong.
+4. Strip the rules.yaml back to a single trivial variant (one `humvee.v1: Inherits: humvee`) and re-add complexity until it breaks.

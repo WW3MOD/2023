@@ -1,0 +1,40 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Burn variants comparison
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Single playable observer + Neutral owner for the demo vehicles. No Russia,
+# no Demo player — eliminates any path to ConquestVictoryConditions firing.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+
+Rules: rules.yaml
