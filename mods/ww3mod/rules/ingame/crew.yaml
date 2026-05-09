@@ -3,9 +3,14 @@
 # These are non-buildable infantry with pistols and the vehicle's rank
 
 ^CrewMember:
-	Inherits@Soldier: ^Soldier
+	# Inherit from ^CamoSoldier (not just ^Soldier) so crew gets the same
+	# behaviors as every other infantry: InfantryStates (prone on idle /
+	# suppressed / critical / deployed), ^Combatant (stance), ^Rotting on
+	# death. Without this they stood upright while idle, never took cover
+	# from suppression, and didn't lay down at critical HP — felt
+	# completely different from other soldiers.
+	Inherits@Soldier: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetLMG
-	Inherits@Rotting: ^RottingInfantry
 	Valued:
 		Cost: 100
 	Armor:

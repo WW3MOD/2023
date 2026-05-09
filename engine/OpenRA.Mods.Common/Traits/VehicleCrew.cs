@@ -318,53 +318,52 @@ namespace OpenRA.Mods.Common.Traits
 			var spawnLocation = self.Location;
 			self.World.AddFrameEndTask(w =>
 			{
-				// Build the actor un-added so we can probe a valid cell for it.
-				// Adding then killing left a "rotting body" husk at the husk cell —
-				// invisible-but-targetable phantom that confused players and made
-				// allied infantry shoot at empty space.
+				// Spawn at the husk's centre cell — visually the crew emerges
+				// from the vehicle's hatch — then queue a Nudge so they
+				// immediately walk to an adjacent cell. SetPosition bypasses
+				// CanEnterCell so the cell-occupancy check in the husk doesn't
+				// block placement. If there's truly no adjacent free cell the
+				// Nudge no-ops and the crew stays on the husk; that's the
+				// realistic "couldn't get clear" outcome for a wrecked vehicle
+				// boxed in by other husks.
 				var crew = w.CreateActor(false, actorType, td);
 				var positionable = crew.TraitOrDefault<IPositionable>();
-
-				CPos? placement = null;
-				if (positionable != null)
+				if (positionable == null)
 				{
-					if (positionable.CanEnterCell(spawnLocation, crew, BlockedByActor.None))
-						placement = spawnLocation;
-					else
-					{
-						foreach (var cell in w.Map.FindTilesInAnnulus(spawnLocation, 1, 3))
-						{
-							if (positionable.CanEnterCell(cell, crew, BlockedByActor.None))
-							{
-								placement = cell;
-								break;
-							}
-						}
-					}
-				}
-
-				if (placement == null)
-				{
-					// No room to deploy — crew dies inside the wreck. Dispose so we
-					// don't leak a phantom actor. Add() never called, so it never
-					// joined the world.
 					crew.Dispose();
 					return;
 				}
 
-				positionable.SetPosition(crew, placement.Value);
+				positionable.SetPosition(crew, spawnLocation);
 				w.Add(crew);
 
-				// Nudge out of the way
+				// Apply finishing-shot damage BEFORE we queue movement so the
+				// crew's HP fraction reflects the kill blast — if damage is
+				// lethal, Killed fires now and we skip queuing a move on a
+				// corpse. If they survive but go critical, InfantryStates.
+				// ProneCondition kicks in and the move resolves at prone-speed
+				// (≈60%) — naturally fulfils the user's "damaged crew evacuates
+				// slower" request without bespoke wiring.
+				if (damageToApply > 0)
+					crew.InflictDamage(self, new Damage(damageToApply));
+
+				// Walk 2–3 cells in a random direction so crew clears the
+				// husk's cookoff radius (0c512 = ½ cell). evaluateNearestMovableCell
+				// falls back if the chosen path is blocked by other husks.
+				var mobile = crew.TraitOrDefault<Mobile>();
+				if (mobile != null && !crew.IsDead)
+				{
+					var dir = w.SharedRandom.Next(8);
+					var dx = new[] { 0, 1, 1, 1, 0, -1, -1, -1 }[dir];
+					var dy = new[] { -1, -1, 0, 1, 1, 1, 0, -1 }[dir];
+					var dist = 2 + w.SharedRandom.Next(2);
+					var target = spawnLocation + new CVec(dx * dist, dy * dist);
+					crew.QueueActivity(false, mobile.MoveTo(target, 0, null, true));
+				}
+
 				var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
 				foreach (var nbm in nbms)
 					nbm.OnNotifyBlockingMove(crew, crew);
-
-				// Apply finishing-shot damage to the ejecting crew member.
-				// Attacker is the vehicle itself — avoids holding a cross-tick
-				// reference to the original shooter which may have died/disposed.
-				if (damageToApply > 0 && !crew.IsDead)
-					crew.InflictDamage(self, new Damage(damageToApply));
 			});
 		}
 
@@ -515,37 +514,33 @@ namespace OpenRA.Mods.Common.Traits
 				var spawnLocation = self.Location;
 				self.World.AddFrameEndTask(w =>
 				{
-					// Same probe-then-add pattern as EjectCrewMember — never add a
-					// crew that has nowhere to stand.
+					// Same hatch-emerge model as EjectCrewMember: spawn at the
+					// airframe's cell, then Nudge to an adjacent cell.
 					var crew = w.CreateActor(false, actorType, td);
 					var positionable = crew.TraitOrDefault<IPositionable>();
-
-					CPos? placement = null;
-					if (positionable != null)
-					{
-						if (positionable.CanEnterCell(spawnLocation, crew, BlockedByActor.None))
-							placement = spawnLocation;
-						else
-						{
-							foreach (var cell in w.Map.FindTilesInAnnulus(spawnLocation, 1, 3))
-							{
-								if (positionable.CanEnterCell(cell, crew, BlockedByActor.None))
-								{
-									placement = cell;
-									break;
-								}
-							}
-						}
-					}
-
-					if (placement == null)
+					if (positionable == null)
 					{
 						crew.Dispose();
 						return;
 					}
 
-					positionable.SetPosition(crew, placement.Value);
+					positionable.SetPosition(crew, spawnLocation);
 					w.Add(crew);
+
+					// Same evacuation as EjectCrewMember — clear the airframe
+					// by 2-3 cells. (Heli-safe-landing doesn't have a cookoff,
+					// but the visual still reads better when crew walks away
+					// rather than huddling on top of the husk.)
+					var mobile = crew.TraitOrDefault<Mobile>();
+					if (mobile != null)
+					{
+						var dir = w.SharedRandom.Next(8);
+						var dx = new[] { 0, 1, 1, 1, 0, -1, -1, -1 }[dir];
+						var dy = new[] { -1, -1, 0, 1, 1, 1, 0, -1 }[dir];
+						var dist = 2 + w.SharedRandom.Next(2);
+						var target = spawnLocation + new CVec(dx * dist, dy * dist);
+						crew.QueueActivity(false, mobile.MoveTo(target, 0, null, true));
+					}
 
 					var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
 					foreach (var nbm in nbms)
