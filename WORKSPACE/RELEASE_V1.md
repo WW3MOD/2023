@@ -116,7 +116,6 @@
 ### Supply Route
 - [ ] Captured SR handling — what spawns link, neutral SRs between players
 - [ ] Primary SR selection UI
-- [ ] **SR rally accepts any order type** *(reported 260508)* — SR should proxy attack-move/force-attack/etc. to spawned reinforcements, not just plain move. Touches: `ProductionFromMapEdge` spawn handoff, rally UI, per-unit order persistence
 
 ### AI
 - [ ] AI builds Logistics Centers, rearms
