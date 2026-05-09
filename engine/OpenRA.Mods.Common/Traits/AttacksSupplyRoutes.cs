@@ -96,6 +96,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (!target.Info.HasTraitInfo<SupplyRouteContestationInfo>())
 					return false;
 
+				// Don't intercept clicks on the player's own SR — let the Enter/Evacuate
+				// handler (Cargo on the SR) take over so right-click = evacuate, with the enter cursor.
+				if (target.Owner == self.Owner)
+					return false;
+
 				var rel = self.Owner.RelationshipWith(target.Owner);
 				if (rel == PlayerRelationship.Enemy)
 				{
@@ -103,7 +108,7 @@ namespace OpenRA.Mods.Common.Traits
 					return true;
 				}
 
-				if (rel == PlayerRelationship.Ally || target.Owner == self.Owner)
+				if (rel == PlayerRelationship.Ally)
 				{
 					cursor = info.AllyCursor;
 					return true;
@@ -119,8 +124,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (!target.Info.HasTraitInfo<SupplyRouteContestationInfo>())
 					return false;
 
+				if (target.Owner == self.Owner)
+					return false;
+
 				var rel = self.Owner.RelationshipWith(target.Owner);
-				cursor = (rel == PlayerRelationship.Ally || target.Owner == self.Owner) ? info.AllyCursor : info.EnemyCursor;
+				cursor = rel == PlayerRelationship.Ally ? info.AllyCursor : info.EnemyCursor;
 				return true;
 			}
 		}
