@@ -10,6 +10,12 @@
 		Cost: 100
 	Armor:
 		Type: None
+	# Borrow the e1 (conscript) firing sequence — ^Soldier doesn't set
+	# DefaultAttackSequence so without this override crew render frozen
+	# while firing. e1 sprites already ship the shoot/prone-shoot frames.
+	WithInfantryBody:
+		IdleSequences: idle1
+		DefaultAttackSequence: shoot
 	Armament@1:
 		Name: primary
 		Weapon: Pistol

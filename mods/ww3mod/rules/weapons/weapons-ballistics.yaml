@@ -28,8 +28,11 @@ Pistol:
 		DamageTypes: BulletDeath
 	Warhead@Effect: CreateEffect
 		Explosions: piff
+		ValidTargets: Ground, Ship, Air, Trees
 	Warhead@EffectWater: CreateEffect
 		Explosions: water_piff
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
 SilencedPPK:
 	BurstWait: 30
 	Range: 6c0
