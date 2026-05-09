@@ -81,7 +81,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
   - **Repro**: `./tools/test/run-test.sh test-arty-force-attack-during-setup` — currently fails with timeout.
 - [ ] **Heavy artillery (Paladin) deliberately ignores infantry** — *Noted 260508*: by design via `^AutoTargetArtillery` (Heavy/Medium priorities only, no Infantry). Crew evacuating a destroyed vehicle is not auto-targeted. Decision needed: keep as-is (heavy shells shouldn't waste on lone soldiers), or add a low-priority Infantry entry so it picks them up when no vehicle target exists?
 - [ ] **Some enemy soldiers untargetable (mutual)** — *Reported 260508*: Player couldn't target some enemy soldiers, and they couldn't target the player either. Likely a Targetable / TargetTypes mismatch or condition-gated targetability bug (possibly garrison-port directional, suppression-related, or a stale ITargetable state). Needs repro details — which unit type, what stance, were they near a garrison port?
-- [ ] **Crew still ejects on vehicle death** — *Reported 260508*: User thought we shipped a fix to gate crew ejection on vehicle destruction, but crew is still ejecting. Check git history for the relevant commit (VehicleCrew / EjectOnHusk / suppress-eject condition) — may have been planned but not implemented, or implemented but regressed. Confirm before fixing.
+- [T] **Crew still ejects on vehicle death** — *Fixed 260509*: the `commit 6246ca05` damage-scaling fix (260406) only applied to staged critical-state ejections; instant kills (vehicle goes from healthy/heavy directly to dead) bypassed the gate and used the legacy 90% `EjectionSurvivalRate`, so big hits almost always spawned a crew. `INotifyKilled.Killed` now captures `e.Damage?.Value` into `finishingDamage` when no staged transition fired, and `EjectCrewMember` applies the same `crewDamage = crewMaxHP * (finishingDamage - threshold) / vehicleMaxHP + variance` formula on the onDeath path. The 90% survival roll stays as a coarse "did they actually get out?" check on top, only firing if damage scaling didn't already kill them. Net effect: huge hits → crew dies inside; medium hits → some survive (damage may injure them on exit); tiny hits / repaired-then-killed → most survive. Tune `EjectionSurvivalRate` / `CrewDamageThresholdPercent` per-vehicle if needed.
 - [T] **Aircraft can't spawn if waypoint is blocked** — *partially fixed 260505 alongside ground-unit fix below; aircraft branch never had the rally-path gate (lines 96-110), so this bug may have a separate cause. Worth re-testing now that ground production no longer stuck — if aircraft still get blocked, investigate candidate-cell occupancy / aircraft repulsion.*
 - [T] **Ground unit production stuck at 100% / blocked until rally moved** — *Fixed 260505*: `ProductionFromMapEdge.Produce` was gating spawn on `pathFinder.PathExistsForLocomotor(centerCell, firstDest)`. If the rally-point waypoint was unreachable (water, walled, etc.) the candidate was discarded → `location = null` → `Produce` returned false → queue retried forever at 100%. User confirmed: changing rally point to a reachable cell unblocked production immediately. Removed the path-existence check from both the SpawnArea path and the legacy fallback. `move.MoveTo(..., evaluateNearestMovableCell: true)` (line 191) already handles unreachable destinations by routing to the nearest reachable cell — same behaviour as a manual move order. Bad rally points no longer block spawn; the unit just spawns and pathes as close as it can. *Reported 260503, again 260505*
 - [ ] **Bridge pathing — units walk off the bridge** — infantry (and possibly vehicles) move outside the bridge footprint into water/shore cells. Likely cause: locomotor permits the shore/water cells flanking the bridge, OR bridge sprite art is wider than its passable footprint. `engine/OpenRA.Mods.Common/Traits/Buildings/Bridge.cs` + locomotor terrain weights. *Reported 260503, screenshot in conversation*
@@ -93,7 +93,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [x] **C4 destroyed indestructible buildings** — fixed 260503 in `engine/OpenRA.Mods.Common/Traits/Demolishable.cs`. Root cause: `Demolishable.Tick` called `self.Kill` directly, bypassing `IDamageModifier`. Replaced with `health.InflictDamage(self, attacker, new Damage(health.HP, ...), false)` so GarrisonManager's clamp leaves indestructible buildings at 1 HP (rubble / damaged sprite). Normal Demolishables still die from HP-worth of damage. Side effect: avoids one trigger of the expensive shadow recalc.
 - [ ] Helicopter husks on water don't sink
 - [ ] ATGM units can't unload while shooting (attack lock)
-- [ ] Parallel queues build paused units
+- [ ] **Parallel queues build paused units** — *Static-checked 260509, no repro found*: traced `ClassicParallelProductionQueue.TickInner` (filters via `Queue.FirstOrDefault(i => !i.Paused)`), `ProductionItem.Tick` (returns early on `Paused`), and `PauseProduction` (sets `Paused` correctly across same-type items). All three layers honor pause. Possibly stale entry from before commit 19e19078 (category-pause) or fixed in passing. Need concrete repro: which queue type, how many items of which kinds, where pause is clicked, what gets built anyway. Until then, parking.
 - [ ] Walking sequence speed mismatches locomotor on different terrains
 - [ ] Aircraft returns to base prematurely (with ammo remaining)
 - [ ] Helicopter rearm blocked when helipad occupied
@@ -116,7 +116,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [ ] Helicopter landing refinement (slow before landing, faster turn to avoid overshoot)
 - [ ] Apache shouldn't shoot guns at structures
 - [ ] Ballistic missile tilt fix — Iskander/HIMARS missiles don't pitch properly on arc
-- [ ] **Iskander/HIMARS shockwave radius too large** — *Reported 260508*: explosion shockwave is oversized for the warhead. Tune `ShockwaveDamageWarhead` Range / Falloff in the Iskander and HIMARS weapon definitions.
+- [T] **Iskander/HIMARS shockwave radius too large** — *Tuned 260509*: Iskander `Warhead@Shockwave.MaxRadius` 7c0 → 4c0; HIMARS 4c0 → 2c512 (~40% reduction). Damage / Spread / Falloff curves unchanged — only the outer radius shrinks. Verify in playtest; fall further if still too generous.
 
 ### Combat / suppression / bypass
 - [ ] Suppression tuning — playtest vehicle values, per-weapon fine-tuning
@@ -132,7 +132,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 ### Supply Route
 - [ ] Captured SR handling — what spawns link, neutral SRs between players
 - [ ] Primary SR selection UI
-- [ ] **Right-click own SR = Evacuate (regression)** — *Reported 260508*: After enabling click-to-attack-enemy-SR / click-to-defend-allied-SR, right-click on the player's own SR now reads as "defend our own flag" instead of "evacuate". Should restore the previous behavior: right-click own SR = evacuate order, with the "enter" mouse cursor. Likely an order-priority / cursor-resolution issue in SR-related order generators.
+- [T] **Right-click own SR = Evacuate (regression)** — *Fixed 260509*: `SupplyRouteOrderTargeter.CanTargetActor` (and `CanTargetFrozenActor`) in `AttacksSupplyRoutes.cs` was matching `target.Owner == self.Owner` alongside the allied case, intercepting clicks on the player's own SR with the "guard" cursor before the lower-priority Enter/Cargo handler could run. Added an early `if (target.Owner == self.Owner) return false;` so own-SR clicks fall through to the SR's Cargo/Enter order — restoring the "enter" cursor + Evacuate semantics. Allied SR defense (the new feature) is unaffected.
 - [ ] **SR rally point should accept any order type (move / attack-move / force-attack / etc.)** — *Reported 260508*: Currently the SR waypoints work as plain move orders. We should be able to queue any order on the SR — defend, attack-move, force-attack, etc. — and have those orders transferred to the produced units when they spawn. Ideally the SR accepts any order a unit would accept, and acts as a proxy that re-issues the order to each new reinforcement. Touches: ProductionFromMapEdge spawn handoff, rally-point UI / order parsing, and how queued orders are stored/applied per unit.
 
 ### AI
@@ -143,7 +143,7 @@ Systems built but not verified end-to-end. Each needs a focused playtest pass to
 - [ ] AI uses attack-move for aircraft
 
 ### Misc gameplay
-- [ ] Disable Tesla Trooper & futuristic units (small task)
+- [x] Disable Tesla Trooper & futuristic units — *Verified 260509*: `SHOK` (Tesla Trooper), `TTNK` (Tesla Tank), `TSLA` (Tesla Coil), `PRIS` (Prism Tower) all already commented out with `~disabled` prerequisites. No buildable entries found. Done.
 - [ ] Helicopter force-land tuning + crew bloat fix + crew vehicle re-entry testing
 
 ---
