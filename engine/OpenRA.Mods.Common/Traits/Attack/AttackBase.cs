@@ -186,8 +186,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Movement aborts setup — reset and refuse fire.
 			// CurrentMovementTypes covers the entire visible transition; IsMovingBetweenCells
 			// goes false halfway through (after MoveFirstHalf.OnComplete) which would let
-			// setup falsely advance during the second-half visual roll.
-			if (positionable is Mobile mobile && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
+			// setup falsely advance during the second-half visual roll. Also require no Turn
+			// — a unit pivoting to face a new heading is "still" only by the horizontal-axis
+			// metric, but visually it's still moving and the deploy/setup animation should
+			// not start until the body is fully settled.
+			if (positionable is Mobile mobile
+				&& (mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal)
+					|| mobile.CurrentMovementTypes.HasMovementType(MovementType.Turn)))
 			{
 				if (setupRemaining != -1)
 				{
@@ -266,12 +271,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (!mobile.CanInteractWithGroundLayer(self))
 					return false;
 
-				// Artillery / MLRS opt-in: don't fire while the unit is still moving horizontally.
-				// We use CurrentMovementTypes (a per-tick position-delta check) rather than
-				// IsMovingBetweenCells (FromCell != ToCell) because MoveFirstHalf.OnComplete
-				// already sets FromCell == ToCell halfway through the visible transition — the
-				// IsMovingBetweenCells flag would let firing happen during the entire MoveSecondHalf.
-				if (Info.HoldFireWhileMoving && mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal))
+				// Artillery / MLRS opt-in: don't fire while the unit is still moving horizontally
+				// or rotating in place. We use CurrentMovementTypes (a per-tick position-delta
+				// check) rather than IsMovingBetweenCells (FromCell != ToCell) because
+				// MoveFirstHalf.OnComplete already sets FromCell == ToCell halfway through the
+				// visible transition — the IsMovingBetweenCells flag would let firing happen
+				// during the entire MoveSecondHalf. Also gate on Turn so a body pivoting to face
+				// a new heading is treated as "still moving" for fire-suppression purposes.
+				if (Info.HoldFireWhileMoving
+					&& (mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal)
+						|| mobile.CurrentMovementTypes.HasMovementType(MovementType.Turn)))
 					return false;
 			}
 

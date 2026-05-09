@@ -210,7 +210,10 @@ namespace OpenRA.Mods.Common.Traits
 		// Replay a rally-point waypoint as the matching unit-side activity. Aircraft
 		// don't have a meaningful AttackMove path, so they fall back to plain Move
 		// regardless of the waypoint type — keeps existing helicopter/plane flight
-		// behavior intact when SR rallies get modifier-tagged.
+		// behavior intact when SR rallies get modifier-tagged. The target-line color
+		// passed here is what the produced unit shows when it is selected — matches
+		// the convention for player-issued orders (Move = Green, AttackMove = OrangeRed,
+		// ForceMove = DeepSkyBlue).
 		static OpenRA.Activities.Activity BuildWaypointActivity(Actor self, IMove move, RallyPointWaypoint wp)
 		{
 			switch (wp.OrderType)
@@ -220,9 +223,11 @@ namespace OpenRA.Mods.Common.Traits
 						() => move.MoveTo(wp.Cell, 1, evaluateNearestMovableCell: true, targetLineColor: Color.OrangeRed));
 
 				case RallyOrderType.ForceMove:
+					return move.MoveTo(wp.Cell, 2, evaluateNearestMovableCell: true, targetLineColor: Color.DeepSkyBlue);
+
 				case RallyOrderType.Move:
 				default:
-					return move.MoveTo(wp.Cell, 2, evaluateNearestMovableCell: true);
+					return move.MoveTo(wp.Cell, 2, evaluateNearestMovableCell: true, targetLineColor: Color.Green);
 			}
 		}
 	}

@@ -1,0 +1,1 @@
+Auto: Paladin's turret must stay forward while the BODY is rotating in place (no horizontal motion).

@@ -140,10 +140,15 @@ namespace OpenRA.Mods.Common.Traits
 		Mobile mobile;
 		IEnumerable<int> turretTurnSpeedModifiers;
 
-		// True when the body is moving horizontally and Info.RealignWhileMoving is set.
-		// Used to lock the turret to InitialFacing and refuse FaceTarget tracking.
+		// True when the body is moving horizontally OR rotating in place and
+		// Info.RealignWhileMoving is set. Used to lock the turret to InitialFacing
+		// and refuse FaceTarget tracking. Including Turn means a stationary unit
+		// pivoting to face a new heading (e.g. just before driving the next leg)
+		// also keeps its turret stowed — without this the turret unlocks the moment
+		// horizontal motion stops, even though the body is still rotating.
 		bool LockedByMovement => Info.RealignWhileMoving && mobile != null
-			&& mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal);
+			&& (mobile.CurrentMovementTypes.HasMovementType(MovementType.Horizontal)
+				|| mobile.CurrentMovementTypes.HasMovementType(MovementType.Turn));
 
 		[Sync]
 		public int QuantizedFacings = 0;

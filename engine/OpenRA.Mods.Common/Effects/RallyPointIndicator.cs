@@ -22,7 +22,8 @@ namespace OpenRA.Mods.Common.Effects
 	{
 		// Visual cue per waypoint type so the player can see at a glance which segments
 		// are plain Move vs AttackMove vs ForceMove. Matches the colors used by the
-		// equivalent unit orders (Move=player color, AttackMove=OrangeRed, ForceMove=Cyan-ish).
+		// equivalent unit orders (Move=Green, AttackMove=OrangeRed, ForceMove=DeepSkyBlue).
+		static readonly Color MoveLineColor = Color.Green;
 		static readonly Color AttackMoveLineColor = Color.OrangeRed;
 		static readonly Color ForceMoveLineColor = Color.DeepSkyBlue;
 
@@ -144,21 +145,21 @@ namespace OpenRA.Mods.Common.Effects
 			{
 				var pos = targetLineNodes[i];
 				var orderType = targetLineSegmentTypes[i - 1];
-				var color = ColorForOrder(orderType, building.OwnerColor());
+				var color = ColorForOrder(orderType);
 				var targetLine = new[] { prev, pos };
 				prev = pos;
 				yield return new TargetLineRenderable(targetLine, color, rp.Info.LineWidth, 1);
 			}
 		}
 
-		static Color ColorForOrder(RallyOrderType orderType, Color playerColor)
+		static Color ColorForOrder(RallyOrderType orderType)
 		{
 			switch (orderType)
 			{
 				case RallyOrderType.AttackMove: return AttackMoveLineColor;
 				case RallyOrderType.ForceMove: return ForceMoveLineColor;
 				case RallyOrderType.Move:
-				default: return playerColor;
+				default: return MoveLineColor;
 			}
 		}
 	}
