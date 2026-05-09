@@ -33,13 +33,25 @@ Units don't appear at the production building — they enter from the map edge n
 ### Engine code still has old RA patterns
 Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUnitReloadBuildings` checking for 1 airpad per aircraft). When you encounter these patterns, understand they may not apply. Always check how WW3MOD actually uses the system before assuming the old logic is correct. The `SkipRearmBuildingCheck` YAML property on `UnitBuilderBotModule` was added specifically to bypass one such legacy check.
 
-## Skills (trigger workflows)
+## Modes and Skills
 
-I follow documented skill workflows when the user types the trigger phrase. Each skill lives in `SKILLS/<NAME>.md` with usage and details. Index: `SKILLS/README.md`.
+I operate in one **mode** at a time and follow documented **skills** when triggered. All defined in `SKILLS/` — each entry is a single .md with the trigger phrase up top and the procedure below. Index: [`SKILLS/README.md`](SKILLS/README.md).
 
-| Trigger | Skill | One-liner |
+**Default mode is RELEASE** — assume v1-release methodology unless the user has explicitly switched to EXPERIMENTAL.
+
+| Trigger | Doc | Purpose |
 |---|---|---|
-| `AUTOTEST <bug>` | [AUTOTEST](SKILLS/AUTOTEST.md) | Write failing auto-test → fix → verify green → regression-check → commit. User walks away. Best for behavioral bugs. Not for visual / "feels off" — use PLAYTEST. |
+| `RELEASE` | [SKILLS/RELEASE.md](SKILLS/RELEASE.md) | **Mode (default).** v1 methodology — scope-locked, phase-driven, every commit moves a tracker status |
+| `EXPERIMENTAL` | [SKILLS/EXPERIMENTAL.md](SKILLS/EXPERIMENTAL.md) | **Mode.** Free exploration outside v1 scope — looser, idea-friendly |
+| `PLAN <topic>` | [SKILLS/PLAN.md](SKILLS/PLAN.md) | Design before coding — research, ask, plan doc, await approval |
+| `PLAYTEST [topic]` | [SKILLS/PLAYTEST.md](SKILLS/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
+| `TRIAGE [findings]` | [SKILLS/TRIAGE.md](SKILLS/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
+| `AUTOTEST <bug>` | [SKILLS/AUTOTEST.md](SKILLS/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. User walks away |
+| `REVIEW [N]` | [SKILLS/REVIEW.md](SKILLS/REVIEW.md) | Quality pass on last N commits |
+| `FINALIZE` | [SKILLS/FINALIZE.md](SKILLS/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
+| `CONTEXT <area>` | [SKILLS/CONTEXT.md](SKILLS/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
+| `BALANCE <a> <b>` | [SKILLS/BALANCE.md](SKILLS/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
+| `TELEMETRY <events>` | [SKILLS/TELEMETRY.md](SKILLS/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
 
 If a workflow becomes a recurring pattern, factor it into a skill rather than re-explaining it each session.
 
@@ -167,96 +179,6 @@ During session:
 ### Completion Bell
 Ring the terminal bell (`printf "\a"`) when a significant task is complete, so the user knows to check back.
 
-## Release Mode (v1)
-
-The single source of truth for v1 scope is `CLAUDE/RELEASE_V1.md`. Anything in v1 must appear there with a status.
-
-**Status legend:** `[ ]` open · `[~]` in-progress · `[T]` testing · `[x]` done · `[v1.1]` deferred · `[cut]` won't-fix v1
-
-**Scope is locked.** No new feature enters v1 without an explicit "yes, add to v1" from the user. Ideas raised during work go to `RELEASE_V1.md` under "Pending decisions" until triaged, or straight to `BACKLOG.md` if clearly v1.1.
-
-**Three phases (rough order, not strict):**
-- **Phase A — Stabilize** — verify everything currently "needs playtesting"
-- **Phase B — Tier-1 fixes** — bugs and gameplay gaps that block release
-- **Phase C — Polish** — sounds, icons, descriptions, polish threads
-
-**Workflow loop:** PLAYTEST → user plays → user reports → TRIAGE → fix → repeat. Use RELEASE for a status snapshot at any time.
-
-Update `RELEASE_V1.md` continuously as items change status — and commit when you do.
-
-## Commands
-
-User can type these keywords to trigger specific workflows. Commands are **uppercase** for clarity.
-
-### PLAN
-Enter planning mode for a new feature or change.
-1. Ask the user clarifying questions — keep asking until the user says the plan is sufficient
-2. During planning, research relevant code (read files, grep for patterns, check existing systems)
-3. Write the final plan to `CLAUDE/plans/<YYMMDD>_<topic>.md` with:
-   - Goal, constraints, affected files, step-by-step implementation, risks/open questions
-4. Summarize the plan in chat and wait for approval before implementing
-
-### FINALIZE
-Mandatory wrap-up routine. Run after completing any feature/fix.
-1. `printf "\a"` — ring the bell
-2. Double-check work against `CLAUDE/DISCOVERIES.md` — ensure nothing was violated
-3. Update `CLAUDE/RELEASE_V1.md` — flip statuses for items touched (e.g. `[~]` → `[T]` or `[x]`); move shipped items to "Recently completed"
-4. Update `CLAUDE/HOTBOARD.md` — refresh "Working on" and recent wins
-5. Promote session file (if any): rename `active_*.md` → `CLAUDE/sessions/<YYMMDD>_<topic>.md`
-6. Update `CLAUDE/BACKLOG.md` — add deferred items, mark completed with `[x]`
-7. Auto-commit all changes (descriptive message)
-8. Review this CLAUDE.md — new pattern? Structural change? Recurring gotcha? Update if yes
-
-### PLAYTEST [topic?]
-Prepare for a focused playtest session.
-1. Build the project (`./make.ps1 all`).
-2. Pick focus: if a topic is given, scope to it; otherwise pull the highest-risk untested items from `CLAUDE/RELEASE_V1.md` Phase A.
-3. Write `CLAUDE/playtests/<YYMMDD_HHMM>_<topic>.md` with: build hash, focus list, what to look for, edge cases to try, expected behavior.
-4. Hand back to the user with a `👀` line listing specific things to try.
-5. After the user reports findings, run TRIAGE.
-
-### TRIAGE [findings]
-Sort raw playtest findings (or any pasted observation list) into the right buckets.
-1. For each item, decide: critical-blocker (Phase A/B), v1-fix (Phase B/C), tuning, defer-v1.1, won't-fix, or pending-decision.
-2. Update `CLAUDE/RELEASE_V1.md` with new entries, status changes, or "Pending decisions" lines.
-3. If clearly off-scope (not v1, not v1.1), file under `CLAUDE/BACKLOG.md`.
-4. Bugs found incidentally during other work → also append to `CLAUDE/bugs/discovered.md`.
-5. Confirm what was added/updated and where in the end-of-message block.
-
-### RELEASE
-Quick view of v1 release status.
-1. Read `CLAUDE/RELEASE_V1.md`, recent git log (10 commits).
-2. Print: current phase, count by status (open / in-progress / testing / done), top blockers, anything drifting (untouched recently, or sitting in `[T]` for too long).
-
-### STATUS
-Quick orientation on where things stand (general, not release-specific).
-1. Read `CLAUDE/HOTBOARD.md`, recent git log (5 commits), and any `active_*.md` sessions
-2. Print a concise summary: what was last worked on, what's active now, what's next
-
-### BUGFIX <description>
-Structured bug investigation.
-1. Reproduce understanding — ask user for repro steps if not provided
-2. Research: grep for relevant code, read related files, check DISCOVERIES.md for known patterns
-3. Form hypothesis, implement fix
-4. Add to `CLAUDE/bugs/discovered.md` if found while working on something else
-5. If the bug reveals a new gotcha, add to DISCOVERIES.md and consider adding to Common Pitfalls in CLAUDE.md
-
-### REVIEW
-Review recent changes for quality.
-1. `git diff HEAD~N` (ask user for range, default last commit)
-2. Check for: common pitfalls (see below), leftover debug code, YAML formatting issues, missing condition wiring
-3. Report findings, fix issues with user approval
-
-### AUTOTEST <bug or feature>
-Test-driven debug loop. Full details in `SKILLS/AUTOTEST.md`. Trigger drops me into:
-1. Write a deterministic auto-asserting test (Lua + map under `mods/ww3mod/maps/test-<name>/`).
-2. Run pre-fix → confirm RED with the expected failure mode.
-3. Investigate + fix.
-4. Run post-fix → confirm GREEN.
-5. Regression-check (`./tools/test/run-batch.sh --all` or relevant subset).
-6. Strip diagnostics, commit (test + fix + tracker update).
-You can walk away — the harness writes a JSON verdict and exit code I can read. Best for behavioral / deterministic bugs; for visual or tuning bugs use PLAYTEST.
-
 ## CLAUDE/ Folder
 
 Claude's workspace for session tracking, plans, discoveries, and notes. Primarily for Claude's use across sessions, secondarily for user reference.
@@ -267,7 +189,7 @@ CLAUDE/
 ├── HOTBOARD.md          # What's in motion right now (max 40 lines)
 ├── BACKLOG.md           # Deferred tasks & ideas ([ ]/[x]/[dropped])
 ├── DISCOVERIES.md       # Dated gotchas and insights
-├── plans/               # Plan documents (from PLAN command)
+├── plans/               # Plan documents (from PLAN skill)
 ├── playtests/           # Raw playtest findings (one file per session)
 ├── sessions/            # Session logs (active_* = in-progress, multi-session work only)
 └── bugs/
