@@ -302,6 +302,22 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			// Compute the vehicle's current fire intensity (onfire stacks). Crew
+			// emerging from a wreck inherits the same number of stacks so they
+			// step out already burning — the realistic 'crew was inside a vehicle
+			// that's been on fire' outcome. Pure HP-fraction math; no need to
+			// poke the trait's internal state.
+			var fireStacks = 0;
+			string fireCondition = null;
+			var fireInfo = self.Info.TraitInfoOrDefault<GrantStackingConditionOnHealthFractionInfo>();
+			if (fireInfo != null && fireInfo.MaxStacks > 0 && health.MaxHP > 0)
+			{
+				var percent = (health.HP * 100) / health.MaxHP;
+				fireStacks = GrantStackingConditionOnHealthFraction.CalculateStacks(
+					percent, fireInfo.StartFraction, fireInfo.EndFraction, fireInfo.MaxStacks);
+				fireCondition = fireInfo.Condition;
+			}
+
 			var damageToApply = crewDamage;
 			var spawnLocation = self.Location;
 			self.World.AddFrameEndTask(w =>
@@ -324,6 +340,18 @@ namespace OpenRA.Mods.Common.Traits
 
 				positionable.SetPosition(crew, spawnLocation);
 				w.Add(crew);
+
+				// Inherit the wreck's burn intensity. ^Infantry already includes
+				// ^InfantryAffectedByFire which registers the `onfire` external
+				// condition (TotalCap 10) plus visual overlays + per-stack bleed,
+				// so granting N tokens here lights up the crew at the same fire
+				// stage the vehicle was emitting and starts them bleeding at the
+				// matching rate.
+				if (fireStacks > 0 && fireCondition != null)
+				{
+					for (var i = 0; i < fireStacks; i++)
+						crew.GrantCondition(fireCondition);
+				}
 
 				// Apply finishing-shot damage BEFORE we queue movement so the
 				// crew's HP fraction reflects the kill blast — if damage is
