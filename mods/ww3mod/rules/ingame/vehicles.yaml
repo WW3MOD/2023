@@ -157,14 +157,36 @@
 		RequiresCondition: critical-damage
 		Image: smoke_mtd
 		Palette: temptd
-	# Fire overlay on top of the smoke once the vehicle is in Critical state.
-	# Same pattern husks.yaml uses for burning structures (Image: fire, Sequence: 1).
-	# Multi-stage fire intensity (1..10 as HP → 0) is logged as polish — would
-	# need a per-HP-bucket condition system or a custom trait.
-	WithIdleOverlay@CriticalFire:
+	# Staged burning. ExternalCondition registers `onfire` so it can stack;
+	# GrantStackingConditionOnHealthFraction maps the HP fraction inside
+	# Critical (25%→1%) to stack count (1→10), and three overlays light up
+	# progressively as the wreck burns harder.
+	ExternalCondition@OnFire:
+		Condition: onfire
+		TotalCap: 10
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 25
+		EndFraction: 1
+		MaxStacks: 10
+		Interval: 15
 		RequiresCondition: critical-damage
+	WithIdleOverlay@Fire1:
+		RequiresCondition: onfire >= 1
 		Image: fire
 		Sequence: 1
+		IsDecoration: true
+	WithIdleOverlay@Fire2:
+		RequiresCondition: onfire >= 4
+		Image: fire
+		Sequence: 4
+		Offset: 256, 0, 0
+		IsDecoration: true
+	WithIdleOverlay@Fire3:
+		RequiresCondition: onfire >= 8
+		Image: fire
+		Sequence: 7
+		Offset: -256, 0, 0
 		IsDecoration: true
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0

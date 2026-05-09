@@ -194,6 +194,37 @@
 		PercentageStep: -2
 		Delay: 5
 		RequiresCondition: crash-disabled
+	# Staged burning while crash-disabled. Maps the heli's HP fraction
+	# (100% → 1%) to onfire stacks (1 → 10). Only ticks while sitting
+	# crash-disabled so a heli mid-flight at low HP doesn't render with
+	# a fire overlay glued to its sprite.
+	ExternalCondition@OnFire:
+		Condition: onfire
+		TotalCap: 10
+	GrantStackingConditionOnHealthFraction@OnFire:
+		Condition: onfire
+		StartFraction: 100
+		EndFraction: 1
+		MaxStacks: 10
+		Interval: 15
+		RequiresCondition: crash-disabled
+	WithIdleOverlay@Fire1:
+		RequiresCondition: onfire >= 1
+		Image: fire
+		Sequence: 1
+		IsDecoration: true
+	WithIdleOverlay@Fire2:
+		RequiresCondition: onfire >= 4
+		Image: fire
+		Sequence: 4
+		Offset: 256, 0, 0
+		IsDecoration: true
+	WithIdleOverlay@Fire3:
+		RequiresCondition: onfire >= 8
+		Image: fire
+		Sequence: 7
+		Offset: -256, 0, 0
+		IsDecoration: true
 	SpeedMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
