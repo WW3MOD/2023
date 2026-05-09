@@ -158,19 +158,23 @@
 		Image: smoke_mtd
 		Palette: temptd
 	# Staged burning. ExternalCondition registers `onfire` so it can stack;
-	# GrantStackingConditionOnHealthFraction maps the HP fraction inside
-	# Critical (25%→1%) to stack count (1→10), and three overlays light up
-	# progressively as the wreck burns harder.
+	# GrantStackingConditionOnHealthFraction maps the HP fraction (50%→1%)
+	# to stack count (1→10), and three overlays light up progressively as
+	# the wreck burns harder. Half-of-MaxHP gives a smooth ~50% HP ramp:
+	#   50% → 1 stack (small smoulder)
+	#   25% → ~5 stacks (Heavy state's small/medium fire)
+	#    1% → 10 stacks (full inferno)
+	# No RequiresCondition — fire is HP-fraction-driven so a tank doesn't need
+	# to be in Critical state to start smouldering at half HP.
 	ExternalCondition@OnFire:
 		Condition: onfire
 		TotalCap: 10
 	GrantStackingConditionOnHealthFraction@OnFire:
 		Condition: onfire
-		StartFraction: 25
+		StartFraction: 50
 		EndFraction: 1
 		MaxStacks: 10
 		Interval: 15
-		RequiresCondition: critical-damage
 	WithIdleOverlay@Fire1:
 		RequiresCondition: onfire >= 1
 		Image: fire

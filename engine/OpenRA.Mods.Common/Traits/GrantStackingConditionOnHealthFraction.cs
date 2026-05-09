@@ -75,23 +75,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			var maxHP = Math.Max(1, health.MaxHP);
 			var percent = (health.HP * 100) / maxHP;
+			ReleaseTo(self, CalculateStacks(percent, Info.StartFraction, Info.EndFraction, Info.MaxStacks));
+		}
 
-			int desired;
-			if (percent > Info.StartFraction)
-				desired = 0;
-			else if (percent <= Info.EndFraction)
-				desired = Info.MaxStacks;
-			else
-			{
-				var span = Math.Max(1, Info.StartFraction - Info.EndFraction);
-				var below = Info.StartFraction - percent;
-				// +1 so reaching StartFraction grants stack 1, not 0.
-				desired = 1 + ((below - 1) * (Info.MaxStacks - 1) + span / 2) / span;
-				if (desired < 1) desired = 1;
-				if (desired > Info.MaxStacks) desired = Info.MaxStacks;
-			}
+		// Extracted for unit testing — pure math, no Actor / World needed.
+		// percent: current HP as percent of MaxHP (0-100).
+		// Returns: number of stacks the actor should currently hold.
+		public static int CalculateStacks(int percent, int startFraction, int endFraction, int maxStacks)
+		{
+			if (maxStacks <= 0) return 0;
+			if (percent > startFraction) return 0;
+			if (percent <= endFraction) return maxStacks;
 
-			ReleaseTo(self, desired);
+			var span = Math.Max(1, startFraction - endFraction);
+			var below = startFraction - percent;
+			// +1 so reaching StartFraction grants stack 1, not 0.
+			var desired = 1 + ((below - 1) * (maxStacks - 1) + span / 2) / span;
+			if (desired < 1) desired = 1;
+			if (desired > maxStacks) desired = maxStacks;
+			return desired;
 		}
 
 		void ReleaseTo(Actor self, int desired)
