@@ -628,8 +628,11 @@ m109:
 		Ammo: 39
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 80
-		CreditValue: 80
+		# Per-round ammo value. 39 × 12 = 468 ≈ 26% of unit cost (1800),
+		# matching the artillery target band (~25%) — a fully empty Paladin
+		# evacuates back roughly 74% of its build cost.
+		SupplyValue: 12
+		CreditValue: 12
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -748,8 +751,12 @@ m270:
 		Ammo: 12
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 1500
-		CreditValue: 1500
+		# Per-rocket ammo value. 12 × 70 = 840 ≈ 47% of unit cost (1800),
+		# matching the MLRS target band (~45%) — a fully empty M270 evacuates
+		# back roughly 53% of its build cost. Higher than artillery shells to
+		# reflect rocket-pod expense and one-shot magazine doctrine.
+		SupplyValue: 70
+		CreditValue: 70
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3

@@ -451,8 +451,10 @@ giatsint:
 		Ammo: 39
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 80
-		CreditValue: 80
+		# Per-shell ammo value. 39 × 12 = 468 ≈ 26% of unit cost (1800),
+		# matching the artillery target band (~25%). Mirrors the Paladin.
+		SupplyValue: 12
+		CreditValue: 12
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -564,8 +566,11 @@ grad:
 		Ammo: 40
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 1500
-		CreditValue: 1500
+		# Per-rocket ammo value. 40 × 17 = 680 ≈ 45% of unit cost (1500),
+		# matching the MLRS target band. Cheaper per rocket than M270 / TOS
+		# because Grad's 122 mm tube is the budget end of the MLRS class.
+		SupplyValue: 17
+		CreditValue: 17
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -686,8 +691,11 @@ tos:
 		Ammo: 24
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 1500
-		CreditValue: 1500
+		# Per-rocket ammo value. 24 × 40 = 960 ≈ 48% of unit cost (2000), a
+		# touch above the MLRS target to reflect the thermobaric warhead
+		# premium over conventional 220 mm rockets.
+		SupplyValue: 40
+		CreditValue: 40
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
