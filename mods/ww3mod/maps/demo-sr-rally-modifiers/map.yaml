@@ -1,0 +1,69 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: SR Rally Modifiers
+
+Author: WW3MOD demo harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 12,16
+	# Decoy enemies along the most natural rally paths so you can see whether
+	# a produced unit engages or walks past. Pinned HoldFire so they don't
+	# shoot first and skew the demo.
+	DecoyEast: t90
+		Owner: Russia
+		Location: 36,16
+	DecoyNorth: t90
+		Owner: Russia
+		Location: 28,8
+	DecoySouth: t90
+		Owner: Russia
+		Location: 28,24
+	# A pre-existing tank for comparing modifier behavior on regular unit orders.
+	OwnTank: abrams
+		Owner: USA
+		Location: 14,20
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 36,16
+
+Rules: rules.yaml

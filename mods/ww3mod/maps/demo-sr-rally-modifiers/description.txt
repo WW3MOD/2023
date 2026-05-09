@@ -1,0 +1,1 @@
+DEMO: select the SR, then click rally — default=Move (player color), Alt=AttackMove (orange), Ctrl=ForceMove (cyan).

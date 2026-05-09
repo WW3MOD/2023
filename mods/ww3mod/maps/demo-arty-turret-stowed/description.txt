@@ -1,0 +1,1 @@
+DEMO: drive Paladin/M270/Grad/TOS — turret stays forward while moving, only rotates when stopped.

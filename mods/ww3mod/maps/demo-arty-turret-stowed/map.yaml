@@ -1,0 +1,74 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Artillery Turret Stowed While Moving
+
+Author: WW3MOD demo harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Paladin: m109
+		Owner: USA
+		Location: 6,10
+		Facing: 768
+	Mlrs: m270
+		Owner: USA
+		Location: 6,14
+		Facing: 768
+	Grad: grad
+		Owner: USA
+		Location: 6,18
+		Facing: 768
+	Tos: tos
+		Owner: USA
+		Location: 6,22
+		Facing: 768
+	Decoy1: t90
+		Owner: Russia
+		Location: 40,8
+	Decoy2: t90
+		Owner: Russia
+		Location: 40,16
+	Decoy3: t90
+		Owner: Russia
+		Location: 40,24
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 40,16
+
+Rules: rules.yaml
