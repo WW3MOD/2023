@@ -324,11 +324,15 @@ namespace OpenRA.Traits
 			if (self != null)
 				selfLocation = self.Location.ToMPos(map);
 
-			// Only Vision sources need per-cell node tracking (for RemoveSource decrements).
-			// Radar / CounterBatteryRadar do not currently store nodes — preserves existing
-			// behaviour where their cells are never decremented on remove.
+			// Track per-cell nodes for every source type so RemoveSource can decrement
+			// the correct counter. PITFALL (2026-05): pre-fix, non-Vision sources used a
+			// shared empty array — radar/CounterBatteryRadar cells were incremented on add
+			// but never decremented on remove, so coverage from a destroyed/undeployed MSAR
+			// persisted forever (test-counterbattery-radar-removed).
+			var sourceNodes = projectedCells.Count > 0
+				? new VisionSourceNode[projectedCells.Count]
+				: NoVisionSourceNodes;
 			var isVision = mapLayer.Type == Type.Vision;
-			var visionSourceNodes = isVision ? new VisionSourceNode[projectedCells.Count] : NoVisionSourceNodes;
 
 			var i = 0;
 			var count = projectedCells.Count;
@@ -371,20 +375,21 @@ namespace OpenRA.Traits
 					if (strength > 0)
 						explored[index] = true;
 
-					visionSourceNodes[i] = new VisionSourceNode(modifiedStrength, puv);
-					i++;
+					sourceNodes[i++] = new VisionSourceNode(modifiedStrength, puv);
 				}
 				else if (mapLayer.Type == Type.Radar)
 				{
 					radarCount[index]++;
+					sourceNodes[i++] = new VisionSourceNode(0, puv);
 				}
 				else if (mapLayer.Type == Type.CounterBatteryRadar)
 				{
 					counterBatteryRadarCount[index]++;
+					sourceNodes[i++] = new VisionSourceNode(0, puv);
 				}
 			}
 
-			sources[mapLayer] = new VisionSource((PPos)selfLocation, strength, visionSourceNodes, i);
+			sources[mapLayer] = new VisionSource((PPos)selfLocation, strength, sourceNodes, i);
 		}
 
 		public void RemoveSource(IAffectsMapLayer mapLayer)
@@ -393,9 +398,8 @@ namespace OpenRA.Traits
 				return;
 
 			// Iterate by stored count rather than the array length — VisionSourceNode is a struct
-			// (no nulls). For non-Vision sources the count is 0, preserving the prior behaviour
-			// where Radar / CounterBatteryRadar cells were not decremented on remove (their nodes
-			// were never populated, so the old foreach broke on the first null entry).
+			// (no nulls). All source types now populate nodes (see AddSource), so the matching
+			// per-cell counter is decremented for Vision, Radar and CounterBatteryRadar alike.
 			var nodes = source.VisionSourceNodes;
 			var count = source.VisionSourceNodeCount;
 			for (var idx = 0; idx < count; idx++)
@@ -412,6 +416,10 @@ namespace OpenRA.Traits
 
 					if (mapLayer.Type == Type.Vision)
 						visibilityCount[index][node.VisionModified]--;
+					else if (mapLayer.Type == Type.Radar)
+						radarCount[index]--;
+					else if (mapLayer.Type == Type.CounterBatteryRadar)
+						counterBatteryRadarCount[index]--;
 				}
 			}
 

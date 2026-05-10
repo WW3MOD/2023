@@ -230,5 +230,26 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			var item = queue.AllQueued().FirstOrDefault(i => i.Item == actorType);
 			return item?.RemainingTime ?? -1;
 		}
+
+		[Desc("Returns true if `player` has counter-battery radar coverage at `cell`. " +
+			"Used by tests to verify CBR coverage is properly added/removed as the source actor " +
+			"moves, deploys/undeploys, or dies. Test mode only.")]
+		public bool HasCounterBatteryRadarCover(Player player, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return false;
+
+			return player.MapLayers.CounterBatteryRadarCover(cell);
+		}
+
+		[Desc("Returns true if `player` has radar coverage at `cell`. " +
+			"Test mode only.")]
+		public bool HasRadarCover(Player player, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return false;
+
+			return player.MapLayers.RadarCover(cell);
+		}
 	}
 }

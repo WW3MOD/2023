@@ -1,0 +1,1 @@
+Auto: CBR coverage at a probe cell must be present while MSAR is alive and removed within 1s after MSAR dies. Repros the MapLayers.RemoveSource bug that left non-Vision sources permanent.
