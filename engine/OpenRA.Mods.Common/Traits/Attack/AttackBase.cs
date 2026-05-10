@@ -390,6 +390,14 @@ namespace OpenRA.Mods.Common.Traits
 			// Manual targets (player-ordered) are never overridden by auto-retargeting
 			var evaluatedTarget = EvaluateTarget(target, false, isManualTarget);
 
+			// Auto-retarget swapped the actor (current was Critical, picked a healthier
+			// one). The CanAttack above aimed turrets at `target` via AttackTurreted's
+			// FaceTarget override — re-prep on `evaluatedTarget` so the turret points
+			// at what we're actually firing at, instead of staying locked on the
+			// abandoned wreck.
+			if (evaluatedTarget != target && !CanAttack(self, evaluatedTarget))
+				return;
+
 			foreach (var a in Armaments)
 			{
 				if (a.Info.AllowIndirectFire) // TODO FF, Unimplemented
