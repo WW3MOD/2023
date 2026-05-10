@@ -1,7 +1,5 @@
 # WW3MOD Economy & Supply System
 
-**Last revised:** 2026-05-10 (initial — formalizes the supply chain rules; some described behavior is the **target state**, not yet fully implemented in code. Items marked "Target" are pending engine changes.)
-
 This doc is the source of truth for how money, ammo, and supply move through a match. It's written from a gameplay perspective with technical detail where it matters.
 
 If anything here disagrees with code, the doc is right and the code needs to change — file a fix, don't quietly drift.
@@ -9,9 +7,10 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 ## Core principles
 
 1. **Nothing is free.** Every unit, every magazine, every supply box has a cost. Cash spent buys ammo + body together. Selling/evacuating only refunds what's left.
-2. **Supply is finite, not regenerating.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained = drained. Players keep the supply chain alive by deploying more LCs and trucks (which themselves cost cash).
-3. **Same trait for every supply source.** Trucks, the Logistics Center, and dropped supply caches all use one trait (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
-4. **One field controls rearm pacing.** Per-pool `ReloadCount` is the canonical batch size for self-reload, dock-rearm, and supply-economy rearm. The same number used by an Apache reloading at an HPAD also controls how trucks and the LC dispense rounds.
+2. **Supply has a constant value.** A unit of supply is worth a fixed amount of cash, both when it sits in an LC/truck/cache and when a player gets it back on evac. There's no depreciation, no `RefundPercent` discount on supply. What you load is what you get back.
+3. **Supply is finite, not regenerating.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained = drained. Players keep the supply chain alive by deploying more LCs and trucks (which themselves cost cash).
+4. **Same trait for every supply source.** Trucks, the Logistics Center, and dropped supply caches all use one trait (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
+5. **One property controls rearm pacing.** Per-pool `ReloadCount` is the canonical batch size for self-reload, dock-rearm, and supply-economy rearm. Whether an Apache is topping up at an HPAD, a Bradley docks at the LC, or a soldier waits next to a truck, the same per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs.
 
 ## What rearms what
 
@@ -26,54 +25,58 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 ## Ammo pools, batches, and per-round cost
 
-### Fields
+### Properties
 
 ```yaml
 AmmoPool@1:
     Ammo: 900           # Maximum rounds in the pool.
-    ReloadCount: 100    # Batch size — rounds delivered per rearm tick.
-                        # Default 1 (per-round semantics, backward compat).
+    ReloadCount: 100    # Batch size — rounds delivered per rearm cycle.
+                        # Default 1 (per-round semantics).
     ReloadDelay: 50     # Ticks between rearm batches when self-reloading.
-    SupplyValue: 5      # Supply cost per BATCH (not per round).
-    CreditValue: 5      # Cash deducted per missing BATCH on evac/sell.
-                        # MUST equal SupplyValue.
+    SupplyValue: 5      # Cost per BATCH (not per round). Used for both:
+                        #   - rearm: supply spent per batch delivered
+                        #   - evac/sell: cash deducted per missing batch
 ```
 
 Pool budget = `(Ammo / ReloadCount) × SupplyValue`. For Bradley 25mm above: `(900 / 100) × 5 = 45`.
 
 ### Why batches
 
-Per-round costs hit an integer floor at 1. A unit with 900 rounds couldn't have ammo cheaper than `1 supply × 900 = 900` per pool — way too expensive for bulk MG/autocannon ammo on a 1500-cost IFV. Batches let us express fractional per-round cost cleanly: `ReloadCount: 100, SupplyValue: 5` ≈ 0.05 effective per round.
+Per-round costs hit an integer floor at 1. A unit with 900 rounds couldn't have ammo cheaper than `1 × 900 = 900` per pool — way too expensive for bulk MG/autocannon ammo on a 1500-cost IFV. Batches let us express fractional per-round cost cleanly: `ReloadCount: 100, SupplyValue: 5` ≈ 0.05 effective per round, while keeping the integer math honest.
 
-### SV/CV must stay synced
+### One property, two uses
 
-`SupplyValue` (rearm cost) and `CreditValue` (evac/sell deduction) **must be equal**. They represent the same real-world ammo cost from two angles. Drifting them apart creates exploits (cheap to refill but valuable to sell empty, or vice versa).
+`SupplyValue` is the single cost-per-batch property. The same number is charged when a supply provider hands over a batch (rearm) and when a unit evacuates with that batch missing (evac/sell deduction). Because they're the same property, they can never drift apart — there's no exploit where it's cheap to refill but valuable to dump empty (or vice versa).
 
-> **Editor's note:** earlier sweeps had SV ≠ CV (e.g., bulk pools at SV=1, CV=0). That model is **deprecated**. Bring all pools to SV = CV at the next pass.
+### Tooltip format
 
-### Tooltip format (Target)
+The pool tooltip renders the batch math directly:
 
-Render: `Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)`. Players see the batch math, not just an opaque per-round number.
+```
+Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)
+```
+
+Players see what one cycle costs and how many cycles fill the pool, not an opaque per-round number.
 
 ## The supply chain
 
 ### Logistics Center (LC)
 
 Cost ~3500. Spawns with `SupplyProvider.TotalSupply: 3000`. This pool **does not regenerate**. Drains as:
-- Vehicles dock and rearm directly (`SV × batches given`).
-- Trucks drive in to restock (truck pulls supply from LC; LC drops by the amount taken). **Target — not yet implemented**, see Bugs below.
+- Vehicles dock and rearm directly (`SupplyValue × batches given`).
+- Trucks drive in to restock (truck pulls supply from LC; LC drops by exactly the amount taken).
 
-When the LC's pool hits zero, it stops servicing rearm requests. Player must build another LC, or rely on trucks that haven't drained yet.
+When the LC's pool hits zero it stops servicing rearm requests. The player must build another LC, or rely on trucks that haven't drained yet.
 
 ### Supply Truck (TRUK)
 
-Cost 1000. Spawns with `SupplyProvider.TotalSupply: 750` (after the planned refactor — see "CargoSupply removal" below).
+Cost 1000. Spawns with `SupplyProvider.TotalSupply: 750`.
 
 Truck behavior:
 - Drives near friendly **infantry** that need rearm. Delivers `ReloadCount` rounds per cycle, charges `SupplyValue` per batch from its own pool.
 - Cannot deliver to vehicles (per-vehicle `Rearmable.RearmActors` excludes `truk`).
 - When low (`currentSupply < RestockThreshold`), drives back to nearest LC and refills.
-- Refill cost: drains LC's `currentSupply` by the amount taken (so a truck that needs 600 supply takes 600 from the LC, leaving the LC with 2400).
+- Refill cost: drains LC's `currentSupply` by the amount taken. A truck that needs 600 supply takes 600 from the LC, leaving the LC with 2400. If the LC has less than the truck wants, the truck takes what's there and leaves partially full.
 - Can drop its remaining supply as a SUPPLYCACHE box (deploy command) — see below.
 
 ### SUPPLYCACHE (dropped supply box)
@@ -83,10 +86,8 @@ Spawned when a truck unloads its supply on the ground. Functionally a stationary
 - **Range circle** showing rearm reach (4 cells).
 - **Selection bar** showing remaining supply.
 - Sprite tier (Full/Mid/Low) reflects the supply remaining.
-- Capturable by enemies (`ProximityCapturable`).
-- Sellable for 50% of remaining supply value.
-
-The cache supports the same delivery loop as a parked truck: nearby infantry get rearmed, drains over time, eventually empty and useless.
+- Capturable by enemies (`ProximityCapturable`) — if the enemy gets there first, the supply changes hands at full value.
+- **Not sellable.** Once deployed, the cache sits there until drained, captured, or destroyed. The player recovers the cache's remaining supply only by absorbing it into a friendly LC (via the LC's `AbsorbsSupplyCache` trait), or by spending it through nearby infantry rearming off it.
 
 ### Cash flow recap
 
@@ -95,16 +96,17 @@ The cache supports the same delivery loop as a parked truck: nearby infantry get
 | Call in unit (any) | `−Cost` (cash drops by full unit cost; ammo is bundled in) |
 | Unit destroyed in combat | Permanent loss of `Cost` |
 | Unit rotated to map edge with full ammo | `+Cost` returned |
-| Unit rotated to map edge with empty ammo | `+(Cost − sum_pools(missing_batches × CreditValue))` |
-| Sell building (LC, defense) | `+RefundPercent% × Cost − missing_supply_credit` |
-| Truck drops cache and dies before pickup | `0` — supply lost |
-| Capture an enemy SUPPLYCACHE | Free supply (war booty) |
+| Unit rotated to map edge with empty ammo | `+(Cost − sum_pools(missing_batches × SupplyValue))` |
+| Sell building with supply (LC) | `+max(0, Cost − missing_supply_value)` — supply refunds at constant rate, body refunds in full |
+| Truck drops cache, drains in field | Spent supply is gone; remaining supply still recoverable via absorb/capture |
+| Capture an enemy SUPPLYCACHE | Free supply at full value (war booty) |
+| LC absorbs nearby friendly SUPPLYCACHE | Supply transfers from cache to LC at full value |
 
-Sell formula (engine: `CustomSellValue.GetSellValue`):
+Sell formula (engine, single path through `CustomSellValue.GetSellValue`):
 ```
-refund = max(0, baseValue
-              - sum_pools(floor(missing_rounds / ReloadCount) × CreditValue)
-              - missing_supply_value)        // for buildings/trucks/caches
+refund = max(0, Cost
+              − sum_pools(floor(missing_rounds / ReloadCount) × SupplyValue)
+              − missing_supply_value)        // for actors with SupplyProvider/CargoSupply
 ```
 
 ## Per-platform ammo budget targets
@@ -113,28 +115,28 @@ These are guideline ratios (`pool budget / unit Cost`). Specific values live in 
 
 | Class | Total pool budget | Reason |
 |---|---|---|
-| Bulk MG / autocannon / SMG / rifle (high Ammo, cheap rounds) | 0–5% | High Ammo + small ReloadCount × small SV; fits in one truck pass. |
-| Tank main gun (40 shells) | ~10% | Per "5% of tank value" guidance; cheap relative to platform. |
-| Infantry RPG / ATGM / MANPADS (1–3 missiles) | ~30–65% | Missile-tier ammo — significant deduction without zeroing the soldier's body. |
-| IFV ATGM (Bradley TOW, BMP-2 WGM) | ~40% | Real-world ratio. |
-| Helicopter / aircraft Hellfire | ~13–27% | Universal Hellfire rate (CV=200) regardless of platform. |
-| Mobile artillery (155mm/152mm) | ~25% | Shell pool sized to artillery doctrine. |
-| MLRS one-shot magazine | ~45–50% | Rocket pod *is* the platform's value. |
-| Long-range missile platform (HIMARS, Iskander) | ~50% | Two missiles per launcher; the missiles are expensive and the launcher is mostly the missiles. |
+| Bulk MG / autocannon / SMG / rifle (high Ammo, cheap rounds) | ~3–10% | Bullets cost something — even cheap rounds drain truck supply, so a unit can't sustain indefinitely. Batch-cost lets us keep individual rounds nearly free while the pool total still bites. |
+| Tank main gun (40 shells) | ~10% | Ammo is cheap relative to a tank. Empty tank evac refunds ~90% of cost. |
+| Infantry RPG / ATGM / MANPADS (1–3 missiles) | ~30–65% | Missile-tier ammo — significant deduction, but the soldier's body still has value. |
+| IFV ATGM (Bradley TOW, BMP-2 WGM) | ~40% | Real-world ratio. The missile load is the IFV's main combat value above the autocannon. |
+| Helicopter / aircraft Hellfire | ~13–27% | Universal Hellfire rate per missile regardless of platform. |
+| Mobile artillery (155mm / 152mm) | ~25% | Shell pool sized to artillery doctrine. |
+| MLRS one-shot magazine | ~45–50% | The rocket pod *is* the platform's value. |
+| Long-range missile platform (HIMARS, Iskander) | ~50% | Two missiles per launcher; the launcher is mostly the missiles. |
 
 ### Munition consistency rule
 
 The same munition costs the same supply across every platform:
-- **Hellfire**: SV/CV per missile = 200 (Apache, MI-28, A-10, Stryker SHORAD, Littlebird).
-- **ATGM** (TOW / Konkurs): per missile = 65–75 (Bradley, BMP-2, AT specialist).
-- **MANPAD / short-range SAM**: per missile = 65 (Stryker Stinger, Tunguska 9M311, AA specialist).
-- **Air-to-air missile**: per missile = 100 (F-16, MIG).
+- **Hellfire**: per-missile SupplyValue 200 (Apache, MI-28, A-10, Stryker SHORAD, Littlebird).
+- **ATGM** (TOW / Konkurs): per-missile 65–75 (Bradley 75, BMP-2 65, AT specialist 65).
+- **MANPAD / short-range SAM**: per-missile 65 (Stryker Stinger, Tunguska 9M311, AA specialist).
+- **Air-to-air missile**: per-missile 100 (F-16, MIG).
 
 If a platform's missile rate changes, change every other platform that fires the same munition.
 
 ### Infantry empty-evac base
 
-Most line-infantry classes train similarly. The cost above body+training baseline is the ammunition load. So when a soldier evacuates with all ammo expended, they should refund roughly the same baseline:
+Most line-infantry classes train similarly. The cost above body+training baseline is the ammunition load. So when a soldier evacuates with all ammo expended, they refund roughly the same baseline:
 
 | Tier | Empty evac refund | Examples |
 |---|---|---|
@@ -144,27 +146,25 @@ Most line-infantry classes train similarly. The cost above body+training baselin
 | Premium specialist | ~200 | SN (sniper) |
 | Elite | ~500 | SF (special forces), PILOT (and ranks) |
 
-`CreditValue` (and `SupplyValue` synced) per pool = `(Cost − base) / (Ammo / ReloadCount)`.
+Per pool: `SupplyValue = (Cost − base) / batches`, where `batches = Ammo / ReloadCount`.
 
-## Engine architecture (Target state)
+## Engine architecture
 
 ### Single trait: `SupplyProvider`
 
-Trucks, LCs, and SUPPLYCACHEs all use `SupplyProvider`. Differs only in YAML config (`TotalSupply`, `RestockActors`, sprite tiers).
+Trucks, LCs, and SUPPLYCACHEs all use `SupplyProvider`. They differ only in YAML config:
 
 | Source | TotalSupply | RestockActors | Notes |
 |---|---|---|---|
-| `logisticscenter` | 3000 | (none — doesn't restock anywhere) | Mounts at base; drains until empty. |
+| `logisticscenter` | 3000 | (none) | Mounts at base; drains until empty. Has `AbsorbsSupplyCache` to recover dropped boxes. |
 | `truk` | 750 | `[logisticscenter]` | Mobile; drives to LC when low; can drop a SUPPLYCACHE. |
-| `supplycache` | 500 | (none) | Stationary; drained to zero, then despawn or capture. |
+| `supplycache` | 500 | (none) | Stationary; drained to zero, then despawn or capture. Not sellable. |
 
-### Removed: `CargoSupply` trait class
+There is no separate trait for trucks. The old `MaxSupply × SupplyPerUnit` framing and the dropped "any-cargo-vehicle-can-hold-supply" feature are gone — trucks use `SupplyProvider` directly with a single `TotalSupply` property.
 
-The old `MaxSupply × SupplyPerUnit` model and the dropped "any-cargo-vehicle-can-hold-supply" feature are gone. `CargoSupply.cs` is deleted; trucks use `SupplyProvider` directly. (~700 LOC removed.)
+### Rearm cost math
 
-### Rearm cost math (target)
-
-In `SupplyProvider` rearm path:
+In the `SupplyProvider` rearm path (LC, truck, or cache):
 ```csharp
 var roundsPerBatch = bestPool.Info.ReloadCount;       // canonical batch size
 var batchesAvailable = currentSupply / bestPool.Info.SupplyValue;
@@ -180,15 +180,15 @@ In `CustomSellValue`:
 ```csharp
 foreach (var pool in a.TraitsImplementing<AmmoPool>())
 {
-    if (pool.Info.CreditValue > 0)
+    if (pool.Info.SupplyValue > 0)
     {
         var missingBatches = (pool.Info.Ammo - pool.CurrentAmmoCount) / pool.Info.ReloadCount;
-        missingAmmoValue += missingBatches * pool.Info.CreditValue;
+        missingAmmoValue += missingBatches * pool.Info.SupplyValue;
     }
 }
 ```
 
-### LC restock drain (target)
+### LC restock drain
 
 In `SupplyProvider.TryRestock` (called on the truck), when the truck arrives at the LC:
 ```csharp
@@ -196,20 +196,13 @@ var taken = Math.Min(Info.TotalSupply - currentSupply, lcSupplyProvider.CurrentS
 lcSupplyProvider.RemoveSupply(taken);
 currentSupply += taken;
 ```
-No more "currentSupply = TotalSupply" without deduction. The LC pool drops, the truck takes only what's available, the truck might leave partially full.
 
-## Known bugs / target-state items (not yet implemented)
-
-1. **Free LC restock for trucks.** `SupplyProvider.cs:507` sets the truck's pool to `TotalSupply` without deducting from the LC. Fix per the math above.
-2. **`CargoSupply` trait still in use on TRUKs.** Refactor target: remove the trait, port TRUK YAML to `SupplyProvider`. Audit `Cargo.cs` for the supply-weight reservation hook (lines 388, 394) and remove if unused after the port.
-3. **Tooltip per-round, not per-batch.** Update `AmmoPool.ProvideTooltipDescription` to render the batch math.
-4. **SV / CV drift.** Some pools have `CV: 0` (rifle, MG, autocannon, etc.). Bring every pool to `SV == CV` on the YAML pass after the engine batch refactor.
-5. **SUPPLYCACHE UI verification.** `RenderRangeCircle@Supply` is in the YAML, `SupplyProvider` implements `ISelectionBar`. Both *should* render. Verify in-game on next launch; if missing, find the gap (selection-only display? wrong child actor? trait disabled?).
+The LC pool drops by exactly what the truck took. Truck might leave partially full if the LC didn't have enough.
 
 ## When tuning further
 
-- **Don't drift SV from CV.** They're synced — change both together.
-- **Munition consistency**: a Hellfire is a Hellfire. If you change Apache's per-batch CV, change every Hellfire-firing platform.
+- **Don't split SupplyValue into separate rearm/evac costs.** They're the same property by design.
+- **Munition consistency**: a Hellfire is a Hellfire. If you change Apache's per-batch SupplyValue, change every Hellfire-firing platform.
 - **Per-tier infantry baseline**: protect the empty-evac refund. If you raise a soldier's `Cost`, raise the ammo budget rather than the empty-evac refund — otherwise tier identity drifts.
 - **Bulk-ammo cap rule of thumb**: a single pool's full budget shouldn't exceed roughly one truck-load (~750). If it does, the pool's combat economics are wrong.
-- **Pool budget ceiling**: any single pool's `(Ammo / ReloadCount) × CreditValue` must not exceed `Cost − minimum-empty-refund`. Otherwise an empty unit refunds 0 and players treat it as a write-off rather than salvage.
+- **Pool budget ceiling**: any single pool's `(Ammo / ReloadCount) × SupplyValue` must not exceed `Cost − minimum-empty-refund`. Otherwise an empty unit refunds 0 and players treat it as a write-off rather than salvage.
