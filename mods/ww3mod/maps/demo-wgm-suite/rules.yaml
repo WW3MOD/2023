@@ -12,7 +12,7 @@ World:
 	MusicPlaylist:
 		DisableWorldSounds: false
 	LuaScript:
-		Scripts: test-helpers.lua, demo-wgm-tree-gate-and-accuracy.lua
+		Scripts: test-helpers.lua, demo-wgm-suite.lua
 
 ^Combatant:
 	AutoTarget:
@@ -23,3 +23,19 @@ World:
 		InitialEngagementStanceAI: Defensive
 		MinimumScanTimeInterval: 16
 		MaximumScanTimeInterval: 32
+
+# Sponge t90 / bmp2 — the controlled lanes use respawning so we'd rather
+# they survive a few hits each. Skirmish-zone units inherit the same and
+# the respawn logic still applies.
+t90:
+	Health:
+		HP: 60000
+bmp2:
+	Health:
+		HP: 50000
+bradley:
+	Health:
+		HP: 60000
+abrams:
+	Health:
+		HP: 80000

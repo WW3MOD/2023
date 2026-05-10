@@ -1,0 +1,209 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: WGM suite — tree gate, range inaccuracy, retargeting, skirmish
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# === LANE 1 (row 3): 0 trees — baseline accuracy at range ===
+	B0: bradley
+		Owner: USA
+		Location: 3,3
+		Facing: 768
+	T0: t90
+		Owner: Russia
+		Location: 24,3
+
+	# === LANE 2 (row 6): 1 tree — free under FreeLineDensity ===
+	B1: bradley
+		Owner: USA
+		Location: 3,6
+		Facing: 768
+	T1: t90
+		Owner: Russia
+		Location: 24,6
+	L2t1: t01
+		Owner: Neutral
+		Location: 13,5
+
+	# === LANE 3 (row 9): 2 trees — small miss chance ===
+	B2: bradley
+		Owner: USA
+		Location: 3,9
+		Facing: 768
+	T2: t90
+		Owner: Russia
+		Location: 24,9
+	L3t1: t01
+		Owner: Neutral
+		Location: 10,8
+	L3t2: t01
+		Owner: Neutral
+		Location: 16,8
+
+	# === LANE 4 (row 12): 3 trees — meaningful miss chance ===
+	B3: bradley
+		Owner: USA
+		Location: 3,12
+		Facing: 768
+	T3: t90
+		Owner: Russia
+		Location: 24,12
+	L4t1: t01
+		Owner: Neutral
+		Location: 8,11
+	L4t2: t01
+		Owner: Neutral
+		Location: 13,11
+	L4t3: t01
+		Owner: Neutral
+		Location: 18,11
+
+	# === LANE 5 (row 15): tight tree wall, target patrols behind it ===
+	B4: bradley
+		Owner: USA
+		Location: 3,15
+		Facing: 768
+	T4: t90
+		Owner: Russia
+		Location: 24,15
+	L5t1: t01
+		Owner: Neutral
+		Location: 14,14
+	L5t2: t01
+		Owner: Neutral
+		Location: 16,14
+	L5t3: t01
+		Owner: Neutral
+		Location: 18,14
+	L5t4: t01
+		Owner: Neutral
+		Location: 20,14
+
+	# === LANE 6 (row 18): operator retargeting — primary t90 dies, missile swings to nearby ===
+	B5: bradley
+		Owner: USA
+		Location: 3,18
+		Facing: 768
+	T5a: t90
+		Owner: Russia
+		Location: 24,18
+	T5b: t90
+		Owner: Russia
+		Location: 26,17
+	T5c: t90
+		Owner: Russia
+		Location: 26,19
+
+	# === SKIRMISH ZONE (rows 22-32, all cols): ongoing 6v6 mixed combat ===
+	# USA side, anchored on the left
+	SkB1: bradley
+		Owner: USA
+		Location: 4,24
+		Facing: 768
+	SkB2: bradley
+		Owner: USA
+		Location: 4,28
+		Facing: 768
+	SkB3: bradley
+		Owner: USA
+		Location: 8,26
+		Facing: 768
+	SkA1: abrams
+		Owner: USA
+		Location: 4,30
+		Facing: 768
+	SkH1: m113
+		Owner: USA
+		Location: 8,30
+		Facing: 768
+	SkH2: m113
+		Owner: USA
+		Location: 8,22
+		Facing: 768
+
+	# Russia side, anchored on the right
+	SkT1: t90
+		Owner: Russia
+		Location: 60,24
+		Facing: 256
+	SkT2: t90
+		Owner: Russia
+		Location: 60,28
+		Facing: 256
+	SkT3: t90
+		Owner: Russia
+		Location: 56,26
+		Facing: 256
+	SkB4: bmp2
+		Owner: Russia
+		Location: 60,30
+		Facing: 256
+	SkB5: bmp2
+		Owner: Russia
+		Location: 56,30
+		Facing: 256
+	SkB6: bmp2
+		Owner: Russia
+		Location: 56,22
+		Facing: 256
+
+	# Some scattered trees in the skirmish zone for visual richness
+	Sk_t1: t01
+		Owner: Neutral
+		Location: 22,25
+	Sk_t2: t02
+		Owner: Neutral
+		Location: 30,27
+	Sk_t3: t03
+		Owner: Neutral
+		Location: 38,23
+	Sk_t4: t04
+		Owner: Neutral
+		Location: 44,29
+	Sk_t5: t05
+		Owner: Neutral
+		Location: 32,30
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,15
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 24,15
+
+Rules: rules.yaml

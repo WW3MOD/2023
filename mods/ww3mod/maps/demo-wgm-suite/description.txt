@@ -1,0 +1,1 @@
+DEMO: WGM tree-gate, range-inaccuracy, operator retargeting, all on one map. Continuous respawns.

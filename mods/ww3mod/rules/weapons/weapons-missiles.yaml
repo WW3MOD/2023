@@ -52,8 +52,12 @@ WGM:
 		# shots fly straight at target. HorizontalRateOfTurn 30 (was 10) lets
 		# the missile correct on moving targets. ManualGuidance kept true
 		# (loses guidance if Bradley dies) — matches the wire-guided fiction.
-		Inaccuracy: 128
-		LockOnInaccuracy: 0
+		# Range-scaled inaccuracy: per-cell increment so misses grow with
+		# distance. At 22-cell range that gives ~22*32 = 704 wdist max
+		# offset (PDF-distributed, so most shots land much closer to centre).
+		# Close shots stay near-perfect; long shots scatter realistically.
+		Inaccuracy: 16
+		InaccuracyType: PerCellIncrement
 		RangeLimit: 25c0
 		Speed: 300
 		Acceleration: 30
@@ -62,6 +66,10 @@ WGM:
 		RetargetTicks: 2
 		Arm: 2
 		ManualGuidance: true
+		# Operator retargeting: if the target dies in flight the operator
+		# tries to swing onto a new enemy. Veterancy reduces the reaction
+		# delay (rookie = full 50 ticks ≈ 2 s, max veteran = instant).
+		OperatorRetargetTicks: 50
 		# Terrain-aware homing keeps the missile above ground during the descent
 		# from CruiseAltitude — without it the dive into target overshoots ground
 		# 1.7 cells short of target, and the missile detonates as a "ground hit".
@@ -105,12 +113,15 @@ Hellfire:
 		Speed: 500
 		MaximumLaunchSpeed: 100
 		Acceleration: 30
-		Inaccuracy: 128
-		LockOnInaccuracy: 0
+		# Range-scaled inaccuracy — see WGM.
+		Inaccuracy: 16
+		InaccuracyType: PerCellIncrement
 		HorizontalRateOfTurn: 60
 		RetargetTicks: 2
 		# See WGM — prevents the descent-into-ground "fall short" bug.
 		TerrainHeightAware: true
+		# Operator retargeting (heli pilot) — see WGM.
+		OperatorRetargetTicks: 50
 		RangeLimit: 27c0
 		ContrailLength: 10
 		Image: dragon

@@ -83,6 +83,61 @@ Same flags as `run-test.sh`, but the demo runner injects `--no-minimize` so the 
 - **Commit demo folders.** They double as a record of "what we showed the user when X landed" and stay useful for the next time someone wants to look at the same area.
 - **Demo names should describe the *subject*, not the question** — `demo-changed-vehicles-260509`, not `demo-do-vehicles-look-right`.
 
+## Pack the map: many scenarios, ongoing context
+
+User preference (260510): when the demo subject can be illustrated in
+several variations or angles, **don't pick one — pack them all into a
+single map**. The user has pause / fast-forward / restart and would
+rather see more at once than chase the agent back-and-forth between
+small focused demos.
+
+What "pack" means in practice:
+
+- **Multiple lanes / rows** showing the same mechanic across parameter
+  axes (e.g., 0/1/2/3 trees on the firing line, or
+  rookie-vs-veteran-vs-elite, or stationary-vs-moving target). Each
+  lane is its own self-contained mini-scenario.
+- **Continuous loop on each lane.** When a target dies, respawn it in
+  place via `Trigger.OnKilled` so the user sees the mechanic exercised
+  many times, not just once. Same for ammo — re-arm or trickle ammo
+  back periodically.
+- **Background skirmish.** Reserve a slice of the map (often the
+  bottom or one side) for a 4v4 ongoing fight with mixed unit types
+  using the same change. Spawn replacements as units die. Lets the
+  user sanity-check "does this still feel right inside a real game,
+  not just in a controlled lane?"
+- **Don't compete with the focused lanes.** The skirmish is for
+  context, not for measurement. Keep it visually separated and don't
+  let it bleed into the controlled rows (own player slot if needed,
+  pathing barriers, distance).
+- **Messy is fine.** The user uses pause/speed/restart to make sense
+  of overlap. Don't strip back to be tidy — strip back only when
+  something actively obscures the answer (e.g. effects covering the
+  controlled rows).
+
+Lua patterns for the above:
+
+```lua
+-- Respawn a downed actor in place
+local function respawn(slot, actorType, owner, location, facing)
+    Trigger.OnKilled(slot, function()
+        Trigger.AfterDelay(50, function()       -- 2s respawn delay
+            local fresh = Actor.Create(actorType, true,
+                { Owner = owner, Location = location, Facing = facing })
+            respawn(fresh, actorType, owner, location, facing)
+        end)
+    end)
+end
+
+-- Background skirmish: spawn an even mix of units on each side,
+-- target nearest enemy, respawn on death.
+```
+
+Spell out the **layout map** at the top of the Lua file as a comment so
+future-you (or another agent) can pattern-match without re-reading the
+map.yaml — e.g. "rows 4..28 are tree-density lanes 0..6; rows 30..32
+are the moving-target sub-scenario; bottom half is the 4v4 skirmish."
+
 ## Multi-variation comparison (the "pick one" pattern)
 
 Use this when the user says "show me N versions side-by-side and tell me which looks best." See `mods/ww3mod/maps/test-burn-compare/` for the worked example (11-variant burn-ramp comparison that produced the production V1 settings on 260509).

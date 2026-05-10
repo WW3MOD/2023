@@ -110,6 +110,12 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Loses guidance if shooter dies.")]
 		public readonly bool ManualGuidance = false;
 
+		[Desc("If the target dies mid-flight, an operator can re-acquire a new enemy.",
+			"This is the rookie reaction-time in ticks (default 25 ticks = 1 second).",
+			"Scaled down by veterancy: max-level shooters react instantly, rookies wait the full delay.",
+			"0 disables operator retargeting (missile flies straight when target dies).")]
+		public readonly int OperatorRetargetTicks = 0;
+
 		[Desc("Explode when running out of fuel.")]
 		public readonly bool ExplodeWhenEmpty = true;
 
@@ -232,6 +238,10 @@ namespace OpenRA.Mods.Common.Projectiles
 		States state;
 		readonly bool lockOn;
 		bool allowPassBy; // TODO: use this also with high minimum launch angle settings
+
+		// Operator retargeting state. -1 = target still valid (no countdown started),
+		// >=0 = countdown ticks until the operator picks up a new target.
+		int retargetCountdown = -1;
 
 		WPos targetPosition;
 		WVec offset;
@@ -902,6 +912,39 @@ namespace OpenRA.Mods.Common.Projectiles
 					.Rotate(new WRot(WAngle.Zero, WAngle.Zero, WAngle.FromFacing(hFacing)));
 			}
 
+			// Operator retargeting: when the missile loses its target mid-flight (target
+			// died or became invalid) and the shooter is still alive, the human operator
+			// behind the wire-guide can swing onto a different enemy. Veterancy reduces
+			// the reaction delay — a max-level crew re-acquires instantly, rookies need
+			// the full configured window. Disabled (default 0) for non-wire-guided missiles.
+			if (info.OperatorRetargetTicks > 0 && !args.SourceActor.IsDead)
+			{
+				var targetValid = args.GuidedTarget.IsValidFor(args.SourceActor);
+				if (!targetValid && retargetCountdown < 0)
+				{
+					// Just lost the target this tick — start the countdown, scaled by veterancy.
+					var experience = args.SourceActor.TraitOrDefault<GainsExperience>();
+					var veterancyScalePct = 100;
+					if (experience != null && experience.MaxLevel > 0)
+						veterancyScalePct = 100 - (100 * experience.Level / experience.MaxLevel);
+					retargetCountdown = info.OperatorRetargetTicks * veterancyScalePct / 100;
+				}
+
+				if (!targetValid && retargetCountdown == 0)
+				{
+					var newGuided = FindRetargetCandidate();
+					if (newGuided != null)
+					{
+						args.GuidedTarget = OpenRA.Traits.Target.FromActor(newGuided);
+						retargetCountdown = -1; // reset; if the new one dies we'll countdown again
+					}
+					else
+						retargetCountdown = 25; // try again in 1 s if nothing in range yet
+				}
+				else if (retargetCountdown > 0)
+					retargetCountdown--;
+			}
+
 			// Check if target position should be updated (actor visible & locked on)
 			var newTarPos = targetPosition;
 			if (args.GuidedTarget.IsValidFor(args.SourceActor) && lockOn)
@@ -981,6 +1024,40 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (shouldExplode)
 				Explode(world);
+		}
+
+		Actor FindRetargetCandidate()
+		{
+			var world = args.SourceActor.World;
+			var remainingRange = rangeLimit - distanceCovered;
+			if (remainingRange <= WDist.Zero)
+				return null;
+
+			var ownerPlayer = args.SourceActor.Owner;
+			Actor best = null;
+			var bestDistSq = long.MaxValue;
+			foreach (var a in world.FindActorsInCircle(pos, remainingRange))
+			{
+				if (a == args.SourceActor || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (a.Owner.RelationshipWith(ownerPlayer) != PlayerRelationship.Enemy)
+					continue;
+
+				var t = OpenRA.Traits.Target.FromActor(a);
+				if (!args.Weapon.IsValidAgainst(t, world, args.SourceActor))
+					continue;
+
+				var d = a.CenterPosition - pos;
+				var distSq = (long)d.X * d.X + (long)d.Y * d.Y + (long)d.Z * d.Z;
+				if (distSq < bestDistSq)
+				{
+					bestDistSq = distSq;
+					best = a;
+				}
+			}
+
+			return best;
 		}
 
 		void Explode(World world)

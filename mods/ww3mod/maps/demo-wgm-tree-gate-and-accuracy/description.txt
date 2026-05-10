@@ -1,1 +1,0 @@
-DEMO: WGM tree-density gate + accuracy. 7 rows of Bradley vs t90, 0..6 trees on each line. Watch which Bradleys fire and which hold.

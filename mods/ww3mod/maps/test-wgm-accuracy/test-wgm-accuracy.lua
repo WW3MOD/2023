@@ -19,7 +19,10 @@ local TargetDmgPerHit = 10000
 local Shots = 8 -- 4 bradleys × 2 missiles
 local MaxDmg = Shots * TargetDmgPerHit
 -- Threshold expressed as integer percent to avoid float comparisons.
-local HitThresholdPct = 70
+-- 60% — range-scaled inaccuracy now adds real scatter at 22 cells; this
+-- threshold catches a hard regression without locking in the previous
+-- "everything dead-center" behaviour.
+local HitThresholdPct = 60
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(B0, Target)
