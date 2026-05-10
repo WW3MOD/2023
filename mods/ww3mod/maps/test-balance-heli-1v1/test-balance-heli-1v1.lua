@@ -34,11 +34,11 @@ WorldLoaded = function()
 
 	local teamA = { Apache }
 	local teamB = { Havoc }
-	-- Issue Mi-28's attack order FIRST — first run had USA-first ordering
-	-- and Mi-28 won 100%/0% deterministically. If swapping produces an
-	-- Apache shutout, we've identified an actor-processing-order test
-	-- artifact, not a real balance asymmetry.
-	BalanceHarness.ForceEngage(teamB, teamA, false)
+	-- allowMove=false: keep helis hovering in place. The heli duel is also
+	-- harness-deterministic (whoever Attack()s first wins 100%-0% — confirmed
+	-- by swap-order rerun on 260510); real game has autotarget jitter that
+	-- breaks this artifact. See WORKSPACE/balancing/260510_balance_recommendations.md §C.8.
 	BalanceHarness.ForceEngage(teamA, teamB, false)
+	BalanceHarness.ForceEngage(teamB, teamA, false)
 	BalanceHarness.RunDuel("Apache", teamA, "Mi-28", teamB, 60)
 end
