@@ -57,7 +57,9 @@ namespace OpenRA.Graphics
 			if (!waypoints.Any())
 				return;
 
-			var lineColor = Color.FromArgb(50, color);
+			// Dashed lines deliberately use a much higher alpha than solid ones so the
+			// dashes read as dashes instead of blurring into a faint solid bar.
+			var lineColor = dashed ? Color.FromArgb(200, color) : Color.FromArgb(50, color);
 			var first = wr.Viewport.WorldToViewPx(wr.Screen3DPosition(waypoints.First()));
 			var a = first;
 			foreach (var b in waypoints.Skip(1).Select(pos => wr.Viewport.WorldToViewPx(wr.Screen3DPosition(pos))))
@@ -82,10 +84,10 @@ namespace OpenRA.Graphics
 				return;
 
 			var length = Math.Sqrt(lenSq);
-			// Dash pattern in screen pixels — scales gap with width so wider lines
-			// still read as dashed rather than as a solid bar with seams.
-			var dashLen = 10.0;
-			var gapLen = 6.0 + width;
+			// Dash pattern in screen pixels. Both dash and gap scale with width so a
+			// thick line still reads as dashed rather than as a solid bar with seams.
+			var dashLen = 12.0 + width * 2.0;
+			var gapLen = 10.0 + width * 2.0;
 			var ux = dx / length;
 			var uy = dy / length;
 

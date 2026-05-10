@@ -101,7 +101,9 @@ namespace OpenRA.Mods.Common.Effects
 			if (!building.IsInWorld || !building.Owner.IsAlliedWith(building.World.LocalPlayer))
 				return SpriteRenderable.None;
 
-			if (!building.World.Selection.Contains(building))
+			// Show the destination flag/circles when the building is selected, or when
+			// the player is holding the show-all-orders key (mirrors target-line gating).
+			if (!wr.ShowAllOrders && !building.World.Selection.Contains(building))
 				return SpriteRenderable.None;
 
 			var renderables = SpriteRenderable.None;
@@ -126,7 +128,10 @@ namespace OpenRA.Mods.Common.Effects
 			if (!building.IsInWorld || !building.Owner.IsAlliedWith(building.World.LocalPlayer))
 				return SpriteRenderable.None;
 
-			if (!building.World.Selection.Contains(building))
+			// Mirror DrawLineToTarget — show the rally line when selected OR when the
+			// player is holding the show-all-orders key, so SR routes appear in the
+			// fleet-wide overlay alongside unit move orders.
+			if (!wr.ShowAllOrders && !building.World.Selection.Contains(building))
 				return SpriteRenderable.None;
 
 			if (targetLineNodes.Count == 0)
