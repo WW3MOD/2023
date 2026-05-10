@@ -34,7 +34,11 @@ WorldLoaded = function()
 
 	local teamA = { Apache }
 	local teamB = { Havoc }
-	BalanceHarness.ForceEngage(teamA, teamB)
-	BalanceHarness.ForceEngage(teamB, teamA)
+	-- Issue Mi-28's attack order FIRST — first run had USA-first ordering
+	-- and Mi-28 won 100%/0% deterministically. If swapping produces an
+	-- Apache shutout, we've identified an actor-processing-order test
+	-- artifact, not a real balance asymmetry.
+	BalanceHarness.ForceEngage(teamB, teamA, false)
+	BalanceHarness.ForceEngage(teamA, teamB, false)
 	BalanceHarness.RunDuel("Apache", teamA, "Mi-28", teamB, 60)
 end

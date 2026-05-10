@@ -96,13 +96,14 @@ end
 -- Issue a force-attack from each unit in `attackers` against the nearest live
 -- unit in `targets`. Useful when both sides should be actively engaging from
 -- t=0 instead of waiting for autotarget scan intervals.
-function BalanceHarness.ForceEngage(attackers, targets)
+function BalanceHarness.ForceEngage(attackers, targets, allowMove)
+	if allowMove == nil then allowMove = true end
 	for _, a in ipairs(attackers) do
 		if a and not a.IsDead then
 			-- Pick first live target — for symmetric duels, near enough.
 			for _, t in ipairs(targets) do
 				if t and not t.IsDead then
-					a.Attack(t, true, true)
+					a.Attack(t, allowMove, true)
 					break
 				end
 			end
