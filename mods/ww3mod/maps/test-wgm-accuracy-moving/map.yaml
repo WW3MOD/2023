@@ -1,0 +1,71 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: WGM accuracy (moving target) (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# 4 Bradleys force-attack a moving t90. T90 starts at (15,17) and is
+	# scripted to drive North. Bradleys are at the South edge so the t90
+	# moves perpendicular — worst case for missile tracking.
+	B0: bradley
+		Owner: USA
+		Location: 5,28
+		Facing: 0
+	B1: bradley
+		Owner: USA
+		Location: 7,28
+		Facing: 0
+	B2: bradley
+		Owner: USA
+		Location: 9,28
+		Facing: 0
+	B3: bradley
+		Owner: USA
+		Location: 11,28
+		Facing: 0
+	Target: t90
+		Owner: Russia
+		Location: 8,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 8,17
+
+Rules: rules.yaml

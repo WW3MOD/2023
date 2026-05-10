@@ -22,13 +22,14 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			: base(context) { }
 
 		[Desc("Mark the current test as passed and exit the game. " +
-			"No-op outside test mode.")]
-		public void Pass()
+			"Optional note is surfaced in the verdict (useful for logging metrics " +
+			"like hit rate while still passing). No-op outside test mode.")]
+		public void Pass(string note = "")
 		{
 			if (!TestMode.IsActive)
 				return;
 
-			TestMode.WriteResult("pass", "");
+			TestMode.WriteResult("pass", note ?? "");
 			Game.Exit();
 		}
 

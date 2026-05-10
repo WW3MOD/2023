@@ -48,12 +48,18 @@ WGM:
 	Report: vhumwe2a.wav, vhumwe2b.wav, vhumwe2c.wav, vhumwe2d.wav
 	Projectile: Missile
 		Blockable: false
-		Inaccuracy: 768
+		# Accuracy (260510): tight Inaccuracy + LockOnInaccuracy 0 so locked
+		# shots fly straight at target. HorizontalRateOfTurn 30 (was 10) lets
+		# the missile correct on moving targets. ManualGuidance kept true
+		# (loses guidance if Bradley dies) — matches the wire-guided fiction.
+		Inaccuracy: 128
+		LockOnInaccuracy: 0
 		RangeLimit: 25c0
 		Speed: 300
 		Acceleration: 30
 		MaximumLaunchSpeed: 50
-		HorizontalRateOfTurn: 10
+		HorizontalRateOfTurn: 60
+		RetargetTicks: 2
 		Arm: 2
 		ManualGuidance: true
 		CruiseAltitude: 100
@@ -90,11 +96,15 @@ Hellfire:
 	Report: missile6.aud
 	Projectile: Missile
 		Blockable: false
+		# Accuracy (260510): same direction as WGM — tight inaccuracy, faster
+		# turn, frequent retarget for moving targets.
 		Speed: 500
 		MaximumLaunchSpeed: 100
 		Acceleration: 30
-		Inaccuracy: 512
-		HorizontalRateOfTurn: 30
+		Inaccuracy: 128
+		LockOnInaccuracy: 0
+		HorizontalRateOfTurn: 60
+		RetargetTicks: 2
 		RangeLimit: 27c0
 		ContrailLength: 10
 		Image: dragon
