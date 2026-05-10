@@ -362,11 +362,11 @@ HELI:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		# Per-Hellfire value. 8 × 150 = 1200 = 20% of unit cost (6000). Apache
-		# full Hellfire load is the main combat asset; ratio matches mirror
-		# (Mi-28).
-		SupplyValue: 150
-		CreditValue: 150
+		# Per-Hellfire value. 8 × 200 = 1600 ≈ 27% of unit cost (6000). Apache
+		# full Hellfire load is the main combat asset — keep it expensive so
+		# emptying the missile racks is a real budget commitment.
+		SupplyValue: 200
+		CreditValue: 200
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -482,10 +482,10 @@ A10:
 		Ammo: 4
 		AmmoCondition: ammo-secondary
 		Armaments: secondary
-		# Per-Hellfire value. 4 × 150 = 600 = 10% of unit cost (6000). The A-10's
-		# main combat asset is the gun, so missiles run lighter than the Apache.
-		SupplyValue: 150
-		CreditValue: 150
+		# Per-Hellfire value. 4 × 200 = 800 ≈ 13% of unit cost (6000). Hellfire
+		# is Hellfire regardless of platform — mirrors Apache/Littlebird.
+		SupplyValue: 200
+		CreditValue: 200
 	ReloadAmmoPool@1:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

@@ -1189,10 +1189,11 @@ E1R1:
 		Armaments: secondary
 		Ammo: 1
 		AmmoCondition: ammo-secondary
-		# Per-RPG value. 1 × 25 = 25 = 25% of unit cost (100). One-shot
-		# disposable AT round, value sits at the infantry-AT target band.
-		SupplyValue: 25
-		CreditValue: 25
+		# Per-RPG value. 1 × 50 = 50 = 50% of unit cost (100). The empty-evac
+		# baseline for line infantry is ~50 (rifleman body+training); Cost above
+		# that is the disposable AT round. Empty rifleman evac ≈ 50.
+		SupplyValue: 50
+		CreditValue: 50
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1341,11 +1342,11 @@ AR:
 		Armaments: primary
 		Ammo: 30
 		AmmoCondition: ammo-primary
-		# Per-grenade value. 30 × 1 = 30 = 30% of unit cost (100). 40mm grenades
-		# are the grenadier's whole reason for existing — keep some bite on
-		# evac, but not so much that an empty E2 evacs back nothing.
-		SupplyValue: 3
-		CreditValue: 1
+		# Per-grenade value. 30 × 2 = 60 = 60% of unit cost (100). The empty-
+		# evac baseline for line infantry is ~50 (grenadier body+training);
+		# Cost above that is the grenade load. Empty grenadier evac ≈ 40.
+		SupplyValue: 2
+		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1508,10 +1509,11 @@ TL:
 		Armaments: primary
 		Ammo: 25
 		AmmoCondition: ammo-primary
-		# Per-shell value. 25 × 3 = 75 = 25% of unit cost (300). 60mm mortar
-		# rounds at the indirect-fire infantry target band.
-		SupplyValue: 5
-		CreditValue: 3
+		# Per-shell value. 25 × 8 = 200 = 67% of unit cost (300). The empty-
+		# evac baseline for line infantry is ~100; everything above that is
+		# the mortar shell load. Empty mortar specialist evac ≈ 100.
+		SupplyValue: 8
+		CreditValue: 8
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1575,11 +1577,11 @@ MT:
 		Armaments: primary
 		Ammo: 50
 		AmmoCondition: ammo-primary
-		# Per-round value. 50 × 2 = 100 = 25% of unit cost (400). Match-grade
-		# 7.62 sniper rounds — pricier per shot than rifle ammo, but the magazine
-		# is small so the totals stay sensible.
+		# Per-round value. 50 × 4 = 200 = 50% of unit cost (400). Sniper is a
+		# specialist tier (extra training premium), base ~200; ammo budget 200
+		# matches that. Empty sniper evac ≈ 200.
 		SupplyValue: 4
-		CreditValue: 2
+		CreditValue: 4
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1650,11 +1652,12 @@ SN:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
-		# Per-ATGM value. 3 × 30 = 90 = 30% of unit cost (300). Top-attack ATGMs
-		# (Javelin-class) are the AT specialist's whole reason for existing —
-		# fired-out specialist evacs back ~70% of cost.
-		SupplyValue: 30
-		CreditValue: 30
+		# Per-ATGM value. 3 × 65 = 195 = 65% of unit cost (300). Empty-evac
+		# baseline for line infantry is ~100 (Javelin operator's training is
+		# similar to LMG operator's); everything above that is the missile
+		# load. Real Javelin ~$175K is most of the kit's value.
+		SupplyValue: 65
+		CreditValue: 65
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1721,10 +1724,11 @@ AT:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
-		# Per-MANPAD value. 3 × 30 = 90 = 30% of unit cost (300). Stinger-class
-		# missile, mirrors the AT specialist's per-missile rate.
-		SupplyValue: 30
-		CreditValue: 30
+		# Per-MANPAD value. 3 × 65 = 195 = 65% of unit cost (300). Mirrors the
+		# AT specialist — empty-evac baseline ~100, missile load is the bulk
+		# of the kit's value.
+		SupplyValue: 65
+		CreditValue: 65
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1834,11 +1838,11 @@ AA:
 		Armaments: secondary
 		Ammo: 3
 		AmmoCondition: ammo-secondary
-		# Per-C4/mine value. 3 × 20 = 60 = 24% of unit cost (250). Demolition
-		# charge / AT mine — significant per-use deduction without zeroing
-		# evac refund.
-		SupplyValue: 20
-		CreditValue: 20
+		# Per-C4/mine value. 3 × 50 = 150 = 60% of unit cost (250). Engineer
+		# is a specialist — base ~100 (similar to line infantry), C4/mine load
+		# is the rest. Empty engineer evac ≈ 100.
+		SupplyValue: 50
+		CreditValue: 50
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -2051,11 +2055,11 @@ E4:
 		Armaments: c4
 		Ammo: 3
 		AmmoCondition: ammo-secondary
-		# Per-C4 value. 3 × 30 = 90 = 15% of unit cost (600). Special-forces
-		# breaching charges — meaningful but the unit's value is mostly the
-		# operator's training, not the explosives.
-		SupplyValue: 30
-		CreditValue: 30
+		# Per-C4 value. 3 × 33 = 99 ≈ 17% of unit cost (600). SF is the elite
+		# tier — base ~500 (operator training is the bulk of the kit's value);
+		# C4 load is a small premium. Empty SF evac ≈ 500.
+		SupplyValue: 33
+		CreditValue: 33
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

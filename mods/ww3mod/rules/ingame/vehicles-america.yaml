@@ -391,11 +391,12 @@ bradley:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		# Per-TOW value. 8 × 22 = 176 ≈ 12% of unit cost (1500). Real-world
-		# Bradley TOW load is ~$700K vs $1.8M platform (~40%); we run lighter
-		# in-game so a fired-out Bradley still evacs back most of its budget.
-		SupplyValue: 22
-		CreditValue: 22
+		# Per-TOW value. 8 × 75 = 600 = 40% of unit cost (1500). Matches the
+		# real-world Bradley ATGM-load ratio (8 × ~$87K = $700K vs $1.8M
+		# platform). Empty Bradley evac ≈ 900 — the IFV body is still worth
+		# pulling out, but firing all your TOWs is a real budget commitment.
+		SupplyValue: 75
+		CreditValue: 75
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -913,11 +914,11 @@ strykershorad:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		# Per-Stinger value. 8 × 25 = 200 ≈ 8% of unit cost (2500). Cheaper
-		# than Hellfire (real Stinger ~$120K vs Hellfire ~$150K) so per-missile
-		# rate is a touch lower.
-		SupplyValue: 25
-		CreditValue: 25
+		# Per-Stinger value. 8 × 65 = 520 ≈ 21% of unit cost (2500). Mirrors
+		# the infantry MANPAD per-missile rate — Stinger is Stinger regardless
+		# of platform.
+		SupplyValue: 65
+		CreditValue: 65
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -947,11 +948,12 @@ strykershorad:
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
 		RearmSound: minelay1.aud
-		# Per-Hellfire value. 4 × 80 = 320 ≈ 13% of unit cost (2500).
-		# Combined Stryker (200 + 320 = 520) ≈ 21% — middle of the IFV target
-		# band, given this platform's mixed AA/AGM payload.
-		SupplyValue: 80
-		CreditValue: 80
+		# Per-Hellfire value. 4 × 200 = 800 = 32% of unit cost (2500). Hellfire
+		# is Hellfire regardless of platform — mirrors Apache/A-10/Littlebird.
+		# Combined Stryker (520 + 800 = 1320) ≈ 53%, dominated by missile
+		# loadouts as expected for a SHORAD platform.
+		SupplyValue: 200
+		CreditValue: 200
 	WithAmmoPipsDecoration@3:
 		Position: Bottom
 		Margin: -8, 3

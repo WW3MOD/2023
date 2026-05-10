@@ -356,10 +356,11 @@ MI28:
 		Armaments: secondary, secondary-air
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		# Per-Hellfire-class missile value. 8 × 150 = 1200 = 20% of unit cost
-		# (6000). Mirrors the Apache (HELI) secondary pool.
-		SupplyValue: 150
-		CreditValue: 150
+		# Per-Hellfire-class missile value. 8 × 200 = 1600 ≈ 27% of unit cost
+		# (6000). Mirrors the Apache (HELI) secondary pool — emptying the rack
+		# is a real budget commitment.
+		SupplyValue: 200
+		CreditValue: 200
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
