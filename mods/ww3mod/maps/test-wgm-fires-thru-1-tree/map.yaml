@@ -1,0 +1,63 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: WGM fires through 1 tree (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Bradley<->t90 distance: 22 cells. WGM range 25c, 25mm Bradley range 20c.
+	Bradley: bradley
+		Owner: USA
+		Location: 12,17
+		Facing: 768
+	Target: t90
+		Owner: Russia
+		Location: 34,17
+	# Single tree on the firing line, ~12 cells from Bradley (well outside the
+	# 4-cell proximity bypass). T01 footprint puts the trunk at offset (0,1)
+	# from Location, so Location 24,16 → trunk at cell 24,17.
+	Tree1: t01
+		Owner: Neutral
+		Location: 24,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 34,17
+
+Rules: rules.yaml

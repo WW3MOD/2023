@@ -116,6 +116,47 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Read the precomputed ground-shadow density between firer and target. Returns 0
+		/// when shadow data is unavailable or out of range; the caller should treat that as
+		/// "no obstacles known" rather than as a refusal.
+		/// </summary>
+		public static byte GetGroundShadowDensity(Actor self, in Target target)
+		{
+			var map = self.World.Map;
+			if (map.ShadowLayer == null)
+				return 0;
+
+			var fromCell = map.CellContaining(self.CenterPosition);
+			var toCell = map.CellContaining(target.CenterPosition);
+			if (fromCell == toCell)
+				return 0;
+
+			var fromMPos = fromCell.ToMPos(map);
+			var toMPos = toCell.ToMPos(map);
+
+			var dx = fromMPos.U - toMPos.U;
+			var dy = fromMPos.V - toMPos.V;
+			var distSq = dx * dx + dy * dy;
+			if (distSq < 4 || distSq > 1024)
+				return 0;
+
+			var firerAirborne = self.TraitsImplementing<IAirborneVisibility>()
+				.Any(t => t.IsAirborne);
+			var targetAirborne = target.Actor != null && target.Actor.TraitsImplementing<IAirborneVisibility>()
+				.Any(t => t.IsAirborne);
+			var swap = !firerAirborne && targetAirborne;
+			var lookupFrom = swap ? toMPos : fromMPos;
+			var lookupTo = swap ? fromMPos : toMPos;
+
+			var shadowFromCell = map.ShadowLayer[lookupFrom];
+			if (shadowFromCell == null || !shadowFromCell.Contains(lookupTo))
+				return 0;
+
+			var (groundShadow, airborneShadow) = shadowFromCell[lookupTo];
+			return (firerAirborne || targetAirborne) ? airborneShadow : groundShadow;
+		}
+
+		/// <summary>
 		/// Get the best (lowest) ClearSightThreshold from a unit's active armaments that can fire at the target.
 		/// </summary>
 		public static byte GetBestThreshold(Actor self, in Target target)

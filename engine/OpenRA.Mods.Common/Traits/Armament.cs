@@ -356,6 +356,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (!CanFire(self, target))
 				return null;
 
+			// Per-weapon LOS gate. The unit-level gate in AttackBase / AutoTarget uses the
+			// most permissive threshold across all armaments (so units don't refuse to fire
+			// at all just because one weapon is strict). Refine here per weapon so a strict
+			// weapon (e.g. WGM through trees) declines while a looser one on the same unit
+			// (e.g. 25mm chaingun) can still fire.
+			if (!FiringLOS.HasClearLOS(self, target, Weapon.ClearSightThreshold))
+				return null;
+
 			if (lastFiredTick != -1 && self.World.WorldTick - lastFiredTick > Weapon.BurstWait)
 			{
 				// Reset burst if idle time exceeds Weapon.BurstWait
@@ -492,6 +500,41 @@ namespace OpenRA.Mods.Common.Traits
 									lockedAimCenter = aimCenter;
 
 								args.PassiveTarget = aimCenter + args.TargetingVector;
+							}
+						}
+					}
+
+					// Density-based miss roll for foliage-sensitive weapons (wire-guided ATGMs, helicopter
+					// missiles). At fire time we know the same shadow density the LOS gate already used.
+					// On miss, redirect the projectile to a tree on the line so it visibly clips foliage
+					// instead of magically hitting through the canopy.
+					if (args.Weapon.MissChancePerDensity > 0 && delayedTarget.Type != TargetType.Invalid)
+					{
+						var density = FiringLOS.GetGroundShadowDensity(self, delayedTarget);
+						var excess = Math.Max(0, density - args.Weapon.FreeLineDensity);
+						if (excess > 0)
+						{
+							var missPct = Math.Min(95, excess * args.Weapon.MissChancePerDensity);
+							if (missPct > 0 && self.World.SharedRandom.Next(100) < missPct)
+							{
+								var muzzlePos = MuzzlePosition();
+								var lineEnd = delayedTarget.CenterPosition;
+								var treeOnLine = self.World.FindActorsOnLine(muzzlePos, lineEnd, new WDist(512))
+									.Where(a => a != self && !a.Disposed && a.IsInWorld)
+									.Where(a =>
+									{
+										var targetable = a.TraitsImplementing<ITargetable>()
+											.FirstOrDefault(Exts.IsTraitEnabled);
+										return targetable != null && targetable.TargetTypes.Contains("Trees");
+									})
+									.OrderBy(a => (a.CenterPosition - muzzlePos).LengthSquared)
+									.FirstOrDefault();
+
+								if (treeOnLine != null)
+								{
+									args.PassiveTarget = treeOnLine.CenterPosition;
+									args.GuidedTarget = OpenRA.Traits.Target.Invalid;
+								}
 							}
 						}
 					}

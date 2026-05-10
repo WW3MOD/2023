@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: WGM denied by 5 trees (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Bradley<->t90 distance: 22 cells. 5 trees evenly along the line.
+	# Total density on the line = 5 (one per tree); WGM ClearSightThreshold = 4.
+	# Pre-fix this value was 5 (default) so the gate let the shot through and
+	# the missile detonated mid-flight; post-fix density 5 > threshold 4 denies.
+	Bradley: bradley
+		Owner: USA
+		Location: 12,17
+		Facing: 768
+	Target: t90
+		Owner: Russia
+		Location: 34,17
+	Tree1: t01
+		Owner: Neutral
+		Location: 18,16
+	Tree2: t02
+		Owner: Neutral
+		Location: 22,16
+	Tree3: t03
+		Owner: Neutral
+		Location: 26,16
+	Tree4: t04
+		Owner: Neutral
+		Location: 30,16
+	Tree5: t05
+		Owner: Neutral
+		Location: 32,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 34,17
+
+Rules: rules.yaml

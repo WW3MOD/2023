@@ -145,6 +145,16 @@ namespace OpenRA.GameRules
 			"Units with IndirectFire trait ignore this check entirely.")]
 		public readonly byte ClearSightThreshold = 5;
 
+		[Desc("Shadow density on the firing line that is ignored by the per-shot miss roll.",
+			"Used together with MissChancePerDensity to model wire-guided weapons clipping foliage:",
+			"a single small tree should be a free pass. Default 0 = first unit of density already counts.")]
+		public readonly byte FreeLineDensity = 0;
+
+		[Desc("Per-shot miss chance (percent) per unit of shadow density on the firing line beyond FreeLineDensity.",
+			"Rolled once at fire time. On miss, projectile is redirected to a tree on the line so it visibly clips it.",
+			"Default 0 = feature disabled. Capped at 95% per shot.")]
+		public readonly int MissChancePerDensity = 0;
+
 		[Desc("Does this weapon aim at the target's center regardless of other targetable offsets?")]
 		public readonly bool TargetActorCenter = false;
 

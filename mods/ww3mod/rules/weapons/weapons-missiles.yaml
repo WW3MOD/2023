@@ -33,12 +33,21 @@ ATGM:
 
 WGM:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	# Tree gating (260510): wire-guided ATGM is sensitive to foliage. ClearSightThreshold caps
+	# total shadow density on the firing line; FreeLineDensity makes the first ~1 unit (one
+	# small tree) a clean shot; MissChancePerDensity rolls a per-shot miss for each excess
+	# unit, redirecting the missile to clip a tree on the line. Projectile.Blockable=false
+	# disables the in-flight RNG roulette so the fire-time roll is the sole arbiter.
+	ClearSightThreshold: 4
+	FreeLineDensity: 1
+	MissChancePerDensity: 15
 	ValidTargets: Vehicle, Defense
 	Range: 25c0
 	MinRange: 3c0
 	BurstWait: 500
 	Report: vhumwe2a.wav, vhumwe2b.wav, vhumwe2c.wav, vhumwe2d.wav
 	Projectile: Missile
+		Blockable: false
 		Inaccuracy: 768
 		RangeLimit: 25c0
 		Speed: 300
@@ -70,13 +79,17 @@ WGM.bradley:
 
 Hellfire:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
-	ClearSightThreshold: 3
+	# Tree gating (260510): same numbers as WGM. See WGM for explanation.
+	ClearSightThreshold: 4
+	FreeLineDensity: 1
+	MissChancePerDensity: 15
 	ValidTargets: Vehicle, Air, Defense
 	Range: 25c0
 	MinRange: 5c0
 	BurstWait: 60
 	Report: missile6.aud
 	Projectile: Missile
+		Blockable: false
 		Speed: 500
 		MaximumLaunchSpeed: 100
 		Acceleration: 30

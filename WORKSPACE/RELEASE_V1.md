@@ -104,12 +104,12 @@
 
 ### Combat / suppression / bypass
 - [ ] Suppression tuning — playtest vehicle values, per-weapon fine-tuning
-- [ ] Bypass system refinement (ATGM tree handling, range-based hit chance)
+- [T] Bypass system refinement (ATGM tree handling) — *260510* density-based fire-time gate on WGM/Hellfire (`FreeLineDensity`, `MissChancePerDensity`); per-weapon `ClearSightThreshold` now applies in `Armament.CheckFire` instead of being washed out by coarmaments. Tests: `test-wgm-fires-clean`, `test-wgm-fires-thru-1-tree`, `test-wgm-deny-thru-5-trees`. *Range-based hit chance still pending.*
 - [ ] Flametrooper effective vs unarmored
 - [ ] Units out of ammo reject attack orders (don't freeze aiming)
 - [ ] **No-ammo units must reject attack-move + go idle if ammo runs out mid-attack-move** *(reported 260508)* — needs design pass: interaction with Resupply stances, whether to complete move or stop in place, mixed-group handling
 - [ ] Shoot at last known location for stationary targets
-- [ ] WGM should not fire if it won't hit
+- [T] WGM should not fire if it won't hit — *260510* same change as the Bypass system row; `ClearSightThreshold: 4` + `FreeLineDensity: 1` + `MissChancePerDensity: 15` on WGM/WGM.bradley/Hellfire, plus `Blockable: false` on the projectile so the fire-time roll is the sole arbiter.
 - [ ] **WGM (Bradley/BMP) loses track during normal flight** *(reported 260508)* — missiles miss by tiles mid-flight with shooter alive. Investigate `Missile.cs` guidance update / `FlyStraightIfMiss`. Possibly same root as heli→heli missile bug
 - [ ] Ballistics deprioritize targets if hit chance too low
 
