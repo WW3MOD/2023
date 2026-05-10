@@ -118,7 +118,15 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly WorldRenderer worldRenderer;
 
 		SpriteFont overlayFont, symbolFont;
-		float2 iconOffset, holdOffset, readyOffset, timeOffset, queuedOffset, infiniteOffset;
+		float2 iconOffset, holdOffset, readyOffset, timeOffset, queuedOffset, infiniteOffset, nextUpOffset;
+		float countRightAnchor;
+
+		// Visual states for the queue count badge
+		public readonly Color CountActiveColor = Color.White;
+		public readonly Color CountWaitingColor = Color.Gold;
+		public readonly Color InfiniteSymbolColor = Color.LimeGreen;
+		public readonly Color NextUpColor = Color.LightSkyBlue;
+		public readonly string NextUpText = "▶";
 
 		Player cachedQueueOwner;
 		IProductionIconOverlay[] pios;
@@ -171,14 +179,20 @@ namespace OpenRA.Mods.Common.Widgets
 			Game.Renderer.Fonts.TryGetValue(SymbolsFont, out symbolFont);
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
-			queuedOffset = new float2(4, 2);
+
+			// ∞ symbol lives in the TOP-LEFT corner so "this is on auto-build" is obvious at a glance.
+			infiniteOffset = new float2(3, 1);
+
+			// Queue count "N" is right-aligned in the TOP-RIGHT corner. We keep an x-anchor here
+			// and subtract the measured text width at draw time to handle 1- vs 2-digit counts.
+			countRightAnchor = IconSize.X - 3;
+			queuedOffset = new float2(countRightAnchor, 1);
+
+			// "▶ next up" indicator in the BOTTOM-LEFT corner.
+			nextUpOffset = new float2(3, IconSize.Y - overlayFont.Measure(NextUpText).Y - 1);
+
 			holdOffset = iconOffset - overlayFont.Measure(HoldText) / 2;
 			readyOffset = iconOffset - overlayFont.Measure(ReadyText) / 2;
-
-			if (ChromeMetrics.TryGet("InfiniteOffset", out infiniteOffset))
-				infiniteOffset += queuedOffset;
-			else
-				infiniteOffset = queuedOffset;
 		}
 
 		public void ScrollDown()
@@ -373,7 +387,10 @@ namespace OpenRA.Mods.Common.Widgets
 
 			Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
 
-			if (CurrentQueue.Info.DisallowPaused || item.Paused || item.Done || item.TotalCost == item.RemainingCost)
+			// If the item is on auto-build, route through the cancel path so the first right-click
+			// just turns off auto-build (the queue handler keeps the in-flight item). A second
+			// right-click then falls through to normal cancel/pause behavior.
+			if (item.Infinite || CurrentQueue.Info.DisallowPaused || item.Paused || item.Done || item.TotalCost == item.RemainingCost)
 			{
 				// Instantly cancel items that haven't started, have finished, or if the queue doesn't support pausing
 				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Speech", CurrentQueue.Info.CancelledAudio, World.LocalPlayer.Faction.InternalName);
@@ -414,10 +431,16 @@ namespace OpenRA.Mods.Common.Widgets
 
 			// PERF: avoid an unnecessary enumeration by casting back to its known type
 			var cancelCount = modifiers.HasModifier(Modifiers.Ctrl) ? ((List<ProductionItem>)CurrentQueue.AllQueued()).Count : startCount;
+
+			// Middle-click is the "nuke this icon" gesture: cancel every queued copy of this type,
+			// and also flip off auto-build if it's on. The +1 covers the infinite case — the first
+			// CancelProductionInner iteration just clears the Infinite flag, the next actually cancels.
+			var middleCancelCount = icon.Queued.Count + 1;
+
 			var item = icon.Queued.FirstOrDefault();
 			var handled = btn == MouseButton.Left ? HandleLeftClick(item, icon, startCount, modifiers)
 				: btn == MouseButton.Right ? HandleRightClick(item, icon, cancelCount)
-				: btn == MouseButton.Middle && HandleMiddleClick(item, icon, cancelCount);
+				: btn == MouseButton.Middle && HandleMiddleClick(item, icon, middleCancelCount);
 
 			if (!handled)
 				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickDisabledSound, null);
@@ -536,6 +559,14 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var buildableItems = CurrentQueue.BuildableItems();
 
+			// Identify the type that comes up next after the currently-producing item, so we can flag
+			// its icon. We skip the flag when the next item is the same type as the current one — the
+			// queue count already conveys "more of these incoming".
+			var allQueued = (IList<ProductionItem>)CurrentQueue.AllQueued();
+			string nextUpName = null;
+			if (allQueued.Count >= 2 && allQueued[0].Item != allQueued[1].Item)
+				nextUpName = allQueued[1].Item;
+
 			// Icons
 			Game.Renderer.EnableAntialiasingFilter();
 			foreach (var icon in icons.Values)
@@ -546,16 +577,22 @@ namespace OpenRA.Mods.Common.Widgets
 				foreach (var pio in pios.Where(p => p.IsOverlayActive(icon.Actor)))
 					WidgetUtils.DrawSpriteCentered(pio.Sprite, worldRenderer.Palette(pio.Palette), icon.Pos + iconOffset + pio.Offset(IconSize));
 
-				// Build progress
+				// Build progress — only show the clock on the icon that's actually being produced.
+				// Showing empty clocks on every queued icon was misleading; the count badge now
+				// signals "queued, waiting" instead.
 				if (icon.Queued.Count > 0)
 				{
 					var first = icon.Queued[0];
-					clock.PlayFetchIndex(ClockSequence,
-						() => (first.TotalTime - first.RemainingTime)
-							* (clock.CurrentSequence.Length - 1) / first.TotalTime);
-					clock.Tick();
+					var isActive = CurrentQueue.IsProducing(first);
+					if (isActive)
+					{
+						clock.PlayFetchIndex(ClockSequence,
+							() => (first.TotalTime - first.RemainingTime)
+								* (clock.CurrentSequence.Length - 1) / first.TotalTime);
+						clock.Tick();
 
-					WidgetUtils.DrawSpriteCentered(clock.Image, icon.IconClockPalette, icon.Pos + iconOffset);
+						WidgetUtils.DrawSpriteCentered(clock.Image, icon.IconClockPalette, icon.Pos + iconOffset);
+					}
 				}
 				else if (!buildableItems.Any(a => a.Name == icon.Name))
 					WidgetUtils.DrawSpriteCentered(cantBuild.Image, icon.IconDarkenPalette, icon.Pos + iconOffset);
@@ -564,6 +601,7 @@ namespace OpenRA.Mods.Common.Widgets
 			Game.Renderer.DisableAntialiasingFilter();
 
 			// Overlays
+			var symbolOrFallback = symbolFont ?? overlayFont;
 			foreach (var icon in icons.Values)
 			{
 				var total = icon.Queued.Count;
@@ -587,14 +625,31 @@ namespace OpenRA.Mods.Common.Widgets
 							icon.Pos + timeOffset,
 							Color.White, Color.Black, 1);
 
-					if (first.Infinite && symbolFont != null)
-						symbolFont.DrawTextWithContrast(InfiniteSymbol,
+					// ∞ in TOP-LEFT corner — auto-build mode. Falls back to the overlay font if no Symbols
+					// font is configured (FreeSansBold has the ∞ glyph, so this still draws cleanly).
+					if (first.Infinite)
+						symbolOrFallback.DrawTextWithContrast(InfiniteSymbol,
 							icon.Pos + infiniteOffset,
-							Color.White, Color.Black, 1);
-					else if (total > 1 || waiting)
-						overlayFont.DrawTextWithContrast(total.ToString(),
-							icon.Pos + queuedOffset,
-							Color.White, Color.Black, 1);
+							InfiniteSymbolColor, Color.Black, 1);
+
+					// Count "N" in TOP-RIGHT corner, right-aligned. Yellow when waiting in queue,
+					// white when this is the active item with multiple copies stacked.
+					if (total > 1 || waiting)
+					{
+						var countText = total.ToString();
+						var countWidth = overlayFont.Measure(countText).X;
+						var countPos = new float2(icon.Pos.X + countRightAnchor - countWidth, icon.Pos.Y + queuedOffset.Y);
+						overlayFont.DrawTextWithContrast(countText,
+							countPos,
+							waiting ? CountWaitingColor : CountActiveColor, Color.Black, 1);
+					}
+
+					// "▶" next-up marker in BOTTOM-LEFT corner — only on the icon for the type that
+					// will start producing next when the active type finishes.
+					if (waiting && icon.Name == nextUpName && icon.Queued.Any(q => q == allQueued[1]))
+						symbolOrFallback.DrawTextWithContrast(NextUpText,
+							icon.Pos + nextUpOffset,
+							NextUpColor, Color.Black, 1);
 				}
 			}
 		}

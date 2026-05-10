@@ -20,6 +20,7 @@ namespace OpenRA.Mods.Common.Widgets
 	{
 		public readonly string ProductionGroup;
 		public readonly string RepeatSymbolsFont = "Symbols";
+		public readonly string RepeatSymbolsFallbackFont = "TinyBold";
 
 		public new Action OnRightClick = () => { };
 		public Action OnMiddleClick = () => { };
@@ -31,7 +32,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public ProductionTypeButtonWidget(ModData modData, World world)
 			: base(modData, world)
 		{
-			Game.Renderer.Fonts.TryGetValue(RepeatSymbolsFont, out symbolFont);
+			if (!Game.Renderer.Fonts.TryGetValue(RepeatSymbolsFont, out symbolFont))
+				Game.Renderer.Fonts.TryGetValue(RepeatSymbolsFallbackFont, out symbolFont);
 		}
 
 		protected ProductionTypeButtonWidget(ProductionTypeButtonWidget other)

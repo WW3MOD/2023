@@ -608,9 +608,9 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (item.Infinite)
 				{
+					// Right-click on auto-build = exit auto-build mode.
+					// Leave the in-flight item to finish; do NOT spawn 98 extra copies.
 					item.Infinite = false;
-					for (var i = 1; i < Info.InfiniteBuildLimit; i++)
-						Queue.Add(new ProductionItem(this, item.Item, item.TotalCost, playerPower, item.OnComplete));
 				}
 				else
 				{
