@@ -67,6 +67,7 @@ mods/ww3mod/maps/test-<name>/
 2. Actor names lowercase: `e1.russia`, `t90`, `m109`. (The engine lowercases internally; `E1.russia` will throw `KeyNotFoundException`.)
 3. **Only ONE `Playable: True`** — the human slot. Every enemy/garrison faction must be `Playable: False`. `Launch.Map` only creates Player objects for slots with a connected client; an unclaimed `Playable: True` slot drops its actors to Neutral, which silently breaks targeting (no attack cursor, no auto-engage). Diagnosed the hard way; see commit history.
 4. `LockColor: True` and `LockFaction: True` on every PlayerReference, so visual cues stay consistent across machines (human=blue, enemies=red, allies=green) regardless of the dev's `settings.yaml`.
+5. **One `supplyroute` per active faction.** Always include a Supply Route per side (e.g. `OwnSR: supplyroute / OpponentSR: supplyroute`), even if the test's units never interact with it. Reasons: (a) WW3MOD's gameplay model is "every player has an SR"; tests should reflect that. (b) Faction elimination triggers a Mission-Accomplished overlay that ends the game before the Lua poller writes a verdict — the runner reports "no result file written". A single SR keeps the faction alive when all its actors die. (c) `supplyroute` has `Targetable.TargetTypes: NoAutoTarget`, so it won't be picked up by AutoTarget scans or operator-retarget hunts — safe to drop anywhere on the map.
 
 ### `rules.yaml`
 

@@ -41,12 +41,19 @@ Players:
 Actors:
 	# Bradley<->t90 distance: 22 cells. WGM range 25c, 25mm Bradley range 20c.
 	# So only WGM is in range — isolates the WGM behaviour.
-	# Filler Russian conscript at the far edge keeps the Russian faction
-	# alive (so the game doesn't auto-end on t90 death and trigger Mission
-	# Accomplished) but is far out of WGM operator-retarget range, AND is
-	# infantry which WGM's `ValidTargets: Vehicle, Defense` excludes — so
-	# the missile cannot retarget onto it. Stance HoldFire so it doesn't
-	# wander or shoot back.
+	#
+	# One Supply Route per side: required so the Russian faction doesn't
+	# get eliminated when we instakill the t90 (otherwise the game ends
+	# in Mission Accomplished and the Lua poller never gets a verdict).
+	# SR has Targetable.TargetTypes=NoAutoTarget so WGM's operator-retarget
+	# can't accidentally redirect onto it. Always include one SR per
+	# active faction in test maps — see DOCS/skills/AUTOTEST.md.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
 	Bradley: bradley
 		Owner: USA
 		Location: 12,17
@@ -54,9 +61,6 @@ Actors:
 	Target: t90
 		Owner: Russia
 		Location: 34,17
-	Filler: e1.russia
-		Owner: Russia
-		Location: 60,30
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 12,17

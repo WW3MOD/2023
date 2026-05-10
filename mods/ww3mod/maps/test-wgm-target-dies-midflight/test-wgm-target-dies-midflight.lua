@@ -27,10 +27,6 @@ WorldLoaded = function()
 	TestHarness.Select(Bradley)
 
 	Target.Stance = "HoldFire"
-	-- Filler conscript far away keeps the Russian faction alive after we
-	-- kill the t90 (so the game doesn't trigger Mission Accomplished).
-	-- Force HoldFire so it doesn't try to engage anything.
-	Filler.Stance = "HoldFire"
 	Bradley.Attack(Target, false, false)
 
 	local startingAmmo = Bradley.AmmoCount("secondary-ammo")
