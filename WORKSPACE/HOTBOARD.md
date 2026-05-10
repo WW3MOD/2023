@@ -8,7 +8,7 @@
 - **Pathfinding friendly-blocker scope (260506)** — vehicle groups drop moves on long routes / narrow gaps. Briefing: `WORKSPACE/plans/260506_pathfinding_friendly_blockers.md`. Not started
 
 ## Recent Wins (last 5)
-- **WGM/Hellfire tree gating (260510)** — density-based fire-time miss roll + per-weapon `ClearSightThreshold` in `Armament.CheckFire` so strict weapons aren't washed out by coarmaments. 1 tree free, 2-3 small risk, 4+ no fire. 3 autotests
+- **WGM/Hellfire accuracy + tree gating (260510)** — full pass on the wire-guided ATGM bug: density-based fire-time gate (1 tree free, 2-3 small risk, 4+ deny), per-weapon `ClearSightThreshold` so strict weapons aren't washed out, Inaccuracy 768→128, LockOnInaccuracy 0, faster turn rate. 6 autotests including 0..6-tree ladder. Experimental package (uncommitted) in `WORKSPACE/EXPERIMENTAL_NOTES.md`
 - **Artillery turret stowed while driving (260509)** — Paladin/GRAD/TOS/M270 lock turret to InitialFacing under `Turreted.RealignWhileMoving`; new `TurretFacing` Lua bind + auto test
 - **SR rally per-waypoint order types (260509)** — default/Alt/Ctrl modifiers map to Move/AttackMove/ForceMove; per-segment line color; auto test exercises encoding pipeline
 - **Crew = real soldiers** — hatch-emerge animation, walk away, prone when wounded, cookoff = FireDeath, blocked-cell heli land = unsafe (5 commits)
