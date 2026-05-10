@@ -1,0 +1,139 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Pathfinder respects Passable on long-range moves (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	Infantry: e1.america
+		Owner: USA
+		Location: 10,16
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	Wall01: t09
+		Owner: Neutral
+		Location: 30,1
+	Wall02: t09
+		Owner: Neutral
+		Location: 30,2
+	Wall03: t09
+		Owner: Neutral
+		Location: 30,3
+	Wall04: t09
+		Owner: Neutral
+		Location: 30,4
+	Wall05: t09
+		Owner: Neutral
+		Location: 30,5
+	Wall06: t09
+		Owner: Neutral
+		Location: 30,6
+	Wall07: t09
+		Owner: Neutral
+		Location: 30,7
+	Wall08: t09
+		Owner: Neutral
+		Location: 30,8
+	Wall09: t09
+		Owner: Neutral
+		Location: 30,9
+	Wall10: t09
+		Owner: Neutral
+		Location: 30,10
+	Wall11: t09
+		Owner: Neutral
+		Location: 30,11
+	Wall12: t09
+		Owner: Neutral
+		Location: 30,12
+	Wall13: t09
+		Owner: Neutral
+		Location: 30,13
+	Wall14: t09
+		Owner: Neutral
+		Location: 30,14
+	Wall15: t09
+		Owner: Neutral
+		Location: 30,15
+	Wall16: t09
+		Owner: Neutral
+		Location: 30,16
+	Wall17: t09
+		Owner: Neutral
+		Location: 30,17
+	Wall18: t09
+		Owner: Neutral
+		Location: 30,18
+	Wall19: t09
+		Owner: Neutral
+		Location: 30,19
+	Wall20: t09
+		Owner: Neutral
+		Location: 30,20
+	Wall21: t09
+		Owner: Neutral
+		Location: 30,21
+	Wall22: t09
+		Owner: Neutral
+		Location: 30,22
+	Wall23: t09
+		Owner: Neutral
+		Location: 30,23
+	Wall24: t09
+		Owner: Neutral
+		Location: 30,24
+	Wall25: t09
+		Owner: Neutral
+		Location: 30,25
+	Wall26: t09
+		Owner: Neutral
+		Location: 30,26
+	Wall27: t09
+		Owner: Neutral
+		Location: 30,27
+	Wall28: t09
+		Owner: Neutral
+		Location: 30,28
+	Wall29: t09
+		Owner: Neutral
+		Location: 30,29
+	Wall30: t09
+		Owner: Neutral
+		Location: 30,30
+	Wall31: t09
+		Owner: Neutral
+		Location: 30,31
+	Wall32: t09
+		Owner: Neutral
+		Location: 30,32
+
+Rules: rules.yaml
+

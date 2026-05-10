@@ -56,6 +56,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.Owner.WinState != WinState.Undefined || self.Owner.NonCombatant)
 				return;
 
+			// In TestMode, never auto-mark win/loss. AUTOTEST scenarios routinely run with
+			// uneven force compositions (one side empty, ally-only setups, etc.) — the test
+			// harness owns the verdict, so victory tracking would only race the test's own
+			// assertions and pop a stray "Mission Accomplished".
+			if (TestMode.IsActive)
+				return;
+
 			if (objectiveID < 0)
 				objectiveID = mo.Add(self.Owner, info.Objective, "Primary", inhibitAnnouncement: true);
 

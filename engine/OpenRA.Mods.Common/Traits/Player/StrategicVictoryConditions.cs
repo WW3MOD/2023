@@ -83,6 +83,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (player.WinState != WinState.Undefined || player.NonCombatant)
 				return;
 
+			// See ConquestVictoryConditions.Tick — same rationale: AUTOTEST owns the verdict.
+			if (TestMode.IsActive)
+				return;
+
 			if (objectiveID < 0)
 				objectiveID = mo.Add(player, info.Objective, "Primary", inhibitAnnouncement: true);
 

@@ -1,0 +1,1 @@
+Auto: Infantry must walk through a tree wall to reach a goal east of the wall (HPF must respect Passable).

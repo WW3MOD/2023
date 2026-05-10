@@ -657,8 +657,11 @@ namespace OpenRA.Mods.Common.Pathfinder
 			if (isTemporaryBlocker)
 				return false;
 
+			// Mirror Locomotor.UpdateCellBlocking: PassableClasses (Passes ∪ Crushes), not just Crushes.
+			// The Crushes-only check was a merge regression (release-20250330 upstream) that forced
+			// FOOT units to detour around tree/sandbag/fence cells in the abstract graph.
 			foreach (var passable in actor.TraitsImplementing<IPassable>())
-				if (world.NoPlayersMask != passable.PassableBy(actor, locomotor.Info.Crushes))
+				if (world.NoPlayersMask != passable.PassableBy(actor, locomotor.Info.PassableClasses))
 					return false;
 
 			return true;

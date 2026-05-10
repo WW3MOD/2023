@@ -163,6 +163,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		void CheckIfGameIsOver(Player player)
 		{
+			// In TestMode, the harness owns game lifecycle: Test.Pass/Fail/Skip writes a verdict
+			// and exits. Auto-ending the world here would race the verdict, surface a stray
+			// "Mission Accomplished" overlay, and skew test runtime. The skip is permanent for
+			// every AUTOTEST session — individual test maps no longer need to defensively strip
+			// or stub victory traits to suppress the popup.
+			if (TestMode.IsActive)
+				return;
+
 			var gameOver = player.World.Players.All(p => p.NonCombatant || p.WinState != WinState.Undefined || !p.HasObjectives);
 			if (gameOver)
 			{
