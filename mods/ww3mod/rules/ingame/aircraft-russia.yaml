@@ -168,8 +168,10 @@ HIND:
 		Ammo: 150
 		ReloadDelay: 6
 		AmmoCondition: ammo-primary
-		SupplyValue: 5
-		CreditValue: 5
+		# 12.7mm chin-gun ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round × 150 rounds would dwarf the rocket pool's contribution).
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -198,8 +200,10 @@ HIND:
 		Ammo: 80
 		ReloadDelay: 16
 		AmmoCondition: ammo-secondary
-		SupplyValue: 25
-		CreditValue: 25
+		# Per-rocket value. 80 × 8 = 640 = 16% of unit cost (4000). Unguided
+		# 80mm S-8 rockets, cheap each but the pod is the Hind's main payload.
+		SupplyValue: 8
+		CreditValue: 8
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -320,8 +324,10 @@ MI28:
 		Armaments: primary
 		Ammo: 200
 		AmmoCondition: ammo-primary
-		SupplyValue: 15
-		CreditValue: 15
+		# 30mm chain-gun ammo bulk-cheap; CreditValue: 0 keeps full evac refund.
+		# Mirrors the Apache (HELI) primary pool.
+		SupplyValue: 3
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -349,8 +355,10 @@ MI28:
 		Armaments: secondary, secondary-air
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		SupplyValue: 200
-		CreditValue: 200
+		# Per-Hellfire-class missile value. 8 × 150 = 1200 = 20% of unit cost
+		# (6000). Mirrors the Apache (HELI) secondary pool.
+		SupplyValue: 150
+		CreditValue: 150
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -446,8 +454,10 @@ FROG:
 		Ammo: 60
 		ReloadDelay: 25
 		AmmoCondition: ammo-primary
-		SupplyValue: 25
-		CreditValue: 25
+		# Per-rocket value. 60 × 15 = 900 = 15% of unit cost (6000). Su-25
+		# rocket-pod payload at the strike-aircraft target band.
+		SupplyValue: 15
+		CreditValue: 15
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -556,8 +566,10 @@ MIG:
 		Armaments: primary
 		Ammo: 6
 		ReloadDelay: 100
-		SupplyValue: 60
-		CreditValue: 60
+		# Per-AAM value. 6 × 100 = 600 = 10% of unit cost (6000).
+		# Mirrors the F-16 AAM rate.
+		SupplyValue: 100
+		CreditValue: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -581,8 +593,10 @@ MIG:
 		Armaments: secondary
 		Ammo: 150
 		ReloadDelay: 100
-		SupplyValue: 15
-		CreditValue: 15
+		# 20mm cannon ammo bulk-cheap; CreditValue: 0 keeps full evac refund.
+		# Mirrors the F-16 secondary pool.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

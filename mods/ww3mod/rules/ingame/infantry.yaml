@@ -1090,8 +1090,10 @@
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
-		CreditValue: 2
+		# 5.56mm rifle ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (^E1 templates / E1, E1R1). Per-round × 100 would dwarf the 50 cost.
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 4, 3
@@ -1158,8 +1160,10 @@ E1R1:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
-		CreditValue: 2
+		# 5.56mm rifle ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (^E3 / E3, E3R1). The RPG pool is what matters for evac math.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1185,6 +1189,8 @@ E1R1:
 		Armaments: secondary
 		Ammo: 1
 		AmmoCondition: ammo-secondary
+		# Per-RPG value. 1 × 25 = 25 = 25% of unit cost (100). One-shot
+		# disposable AT round, value sits at the infantry-AT target band.
 		SupplyValue: 25
 		CreditValue: 25
 	ReloadAmmoPool@2:
@@ -1270,8 +1276,10 @@ E3R1:
 		Armaments: primary, garrisoned
 		Ammo: 500
 		AmmoCondition: ammo-primary
-		SupplyValue: 3
-		CreditValue: 3
+		# 5.56mm LMG belts bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (^AR / AR). Per-round × 500 would be 15× the 100 cost.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1333,8 +1341,11 @@ AR:
 		Armaments: primary
 		Ammo: 30
 		AmmoCondition: ammo-primary
+		# Per-grenade value. 30 × 1 = 30 = 30% of unit cost (100). 40mm grenades
+		# are the grenadier's whole reason for existing — keep some bite on
+		# evac, but not so much that an empty E2 evacs back nothing.
 		SupplyValue: 3
-		CreditValue: 3
+		CreditValue: 1
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1406,8 +1417,10 @@ E2R1:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
-		SupplyValue: 3
-		CreditValue: 3
+		# 7.62mm DMR ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (^TL / TL). Grenades are what matter for evac math.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1429,8 +1442,10 @@ E2R1:
 		Armaments: secondary
 		Ammo: 6
 		AmmoCondition: ammo-secondary
-		SupplyValue: 10
-		CreditValue: 10
+		# Per-grenade value. 6 × 8 = 48 = 24% of unit cost (200). 40mm grenade
+		# rounds at the team-leader target band.
+		SupplyValue: 8
+		CreditValue: 8
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1493,8 +1508,10 @@ TL:
 		Armaments: primary
 		Ammo: 25
 		AmmoCondition: ammo-primary
+		# Per-shell value. 25 × 3 = 75 = 25% of unit cost (300). 60mm mortar
+		# rounds at the indirect-fire infantry target band.
 		SupplyValue: 5
-		CreditValue: 5
+		CreditValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1558,7 +1575,10 @@ MT:
 		Armaments: primary
 		Ammo: 50
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
+		# Per-round value. 50 × 2 = 100 = 25% of unit cost (400). Match-grade
+		# 7.62 sniper rounds — pricier per shot than rifle ammo, but the magazine
+		# is small so the totals stay sensible.
+		SupplyValue: 4
 		CreditValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
@@ -1630,8 +1650,11 @@ SN:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
-		SupplyValue: 100
-		CreditValue: 100
+		# Per-ATGM value. 3 × 30 = 90 = 30% of unit cost (300). Top-attack ATGMs
+		# (Javelin-class) are the AT specialist's whole reason for existing —
+		# fired-out specialist evacs back ~70% of cost.
+		SupplyValue: 30
+		CreditValue: 30
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1698,8 +1721,10 @@ AT:
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
-		SupplyValue: 60
-		CreditValue: 60
+		# Per-MANPAD value. 3 × 30 = 90 = 30% of unit cost (300). Stinger-class
+		# missile, mirrors the AT specialist's per-missile rate.
+		SupplyValue: 30
+		CreditValue: 30
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1780,8 +1805,10 @@ AA:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
-		CreditValue: 2
+		# 9mm SMG ammo bulk-cheap; CreditValue: 0 keeps full evac refund (^E6).
+		# C4/mines are what matter for evac math.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1807,8 +1834,11 @@ AA:
 		Armaments: secondary
 		Ammo: 3
 		AmmoCondition: ammo-secondary
-		SupplyValue: 25
-		CreditValue: 25
+		# Per-C4/mine value. 3 × 20 = 60 = 24% of unit cost (250). Demolition
+		# charge / AT mine — significant per-use deduction without zeroing
+		# evac refund.
+		SupplyValue: 20
+		CreditValue: 20
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1912,8 +1942,10 @@ E6:
 		Armaments: primary
 		Ammo: 90
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
-		CreditValue: 2
+		# Flame-fuel bulk-cheap; CreditValue: 0 keeps full evac refund (^E4).
+		# Per-tick × 90 ticks would dwarf the 100 cost.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -1988,8 +2020,10 @@ E4:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
-		CreditValue: 2
+		# 5.56mm suppressed-rifle ammo bulk-cheap; CreditValue: 0 keeps full evac
+		# refund (^SF). C4 charges are what matter for evac math.
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -2017,8 +2051,11 @@ E4:
 		Armaments: c4
 		Ammo: 3
 		AmmoCondition: ammo-secondary
-		SupplyValue: 25
-		CreditValue: 25
+		# Per-C4 value. 3 × 30 = 90 = 15% of unit cost (600). Special-forces
+		# breaching charges — meaningful but the unit's value is mostly the
+		# operator's training, not the explosives.
+		SupplyValue: 30
+		CreditValue: 30
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -2204,8 +2241,11 @@ TECN:
 		Armaments: primary
 		Ammo: 1
 		AmmoCondition: ammo-primary
-		SupplyValue: 50
-		CreditValue: 50
+		# Per-drone value. 1 × 25 = 25 = 17% of unit cost (150). Disposable
+		# quadcopter — sits below the missile/rocket band since the drone is
+		# cheap relative to a guided munition.
+		SupplyValue: 25
+		CreditValue: 25
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -2287,8 +2327,9 @@ DR:
 		Armaments: primary
 		Ammo: 100
 		AmmoCondition: ammo-primary
-		SupplyValue: 2
-		CreditValue: 2
+		# 9mm SMG ammo bulk-cheap; CreditValue: 0 keeps full evac refund (^PILOT).
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Delay: 50

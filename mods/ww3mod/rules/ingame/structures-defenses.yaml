@@ -639,8 +639,11 @@ CRAM:
 		Ammo: 24
 		AmmoCondition: ammo
 		ReloadDelay: 6
-		SupplyValue: 15
-		CreditValue: 15
+		# Per-shell value. 24 × 5 = 120 = 12% of unit cost (1000). Static AA
+		# defense — pool reloads after each volley, so this is the per-volley
+		# evac/sell deduction.
+		SupplyValue: 5
+		CreditValue: 5
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 4, 3
@@ -714,8 +717,9 @@ AGUN:
 		Ammo: 24
 		AmmoCondition: ammo
 		ReloadDelay: 6
-		SupplyValue: 15
-		CreditValue: 15
+		# Per-shell value. 24 × 5 = 120 = 15% of unit cost (800). Mirrors CRAM.
+		SupplyValue: 5
+		CreditValue: 5
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		Margin: 4, 3
@@ -923,8 +927,10 @@ FTUR:
 		Ammo: 10
 		AmmoCondition: ammo
 		ReloadDelay: 40
+		# Flame-fuel is bulk-cheap; CreditValue: 0 keeps full evac refund. The
+		# turret's value is the structure, not its tank of fuel.
 		SupplyValue: 2
-		CreditValue: 2
+		CreditValue: 0
 	AttackTurreted:
 		Armaments: primary, secondary
 		Turrets: ranged-turret, melee-turret

@@ -165,8 +165,10 @@ littlebird:
 		Armaments: primary, primary-air
 		Ammo: 160
 		AmmoCondition: ammo-primary
-		SupplyValue: 3
-		CreditValue: 3
+		# 7.62mm minigun ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round × 160 would dwarf the Hellfire pool's contribution).
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -194,6 +196,9 @@ littlebird:
 		Armaments: secondary
 		Ammo: 2
 		AmmoCondition: ammo-secondary
+		# Per-Hellfire value. 2 × 200 = 400 ≈ 13% of unit cost (3000). The
+		# Hellfire pair is the Littlebird's main reason for existing — high
+		# per-missile value reflects that.
 		SupplyValue: 200
 		CreditValue: 200
 	ReloadAmmoPool@2:
@@ -326,8 +331,10 @@ HELI:
 		Armaments: primary
 		Ammo: 200
 		AmmoCondition: ammo-primary
-		SupplyValue: 15
-		CreditValue: 15
+		# 30mm chain-gun ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round × 200 rounds would dwarf the Hellfire pool's contribution).
+		SupplyValue: 3
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -354,8 +361,11 @@ HELI:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		SupplyValue: 200
-		CreditValue: 200
+		# Per-Hellfire value. 8 × 150 = 1200 = 20% of unit cost (6000). Apache
+		# full Hellfire load is the main combat asset; ratio matches mirror
+		# (Mi-28).
+		SupplyValue: 150
+		CreditValue: 150
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -440,8 +450,10 @@ A10:
 		Ammo: 100
 		AmmoCondition: ammo-primary
 		Armaments: primary
-		SupplyValue: 15
-		CreditValue: 15
+		# 30mm GAU-8 ammo bulk-cheap; CreditValue: 0 keeps full evac refund.
+		# (Per-round × 100 rounds would still dwarf the Hellfire pool.)
+		SupplyValue: 3
+		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -469,8 +481,10 @@ A10:
 		Ammo: 4
 		AmmoCondition: ammo-secondary
 		Armaments: secondary
-		SupplyValue: 200
-		CreditValue: 200
+		# Per-Hellfire value. 4 × 150 = 600 = 10% of unit cost (6000). The A-10's
+		# main combat asset is the gun, so missiles run lighter than the Apache.
+		SupplyValue: 150
+		CreditValue: 150
 	ReloadAmmoPool@1:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -558,8 +572,11 @@ F16:
 		Armaments: primary
 		Ammo: 6
 		ReloadDelay: 100
-		SupplyValue: 60
-		CreditValue: 60
+		# Per-AAM value. 6 × 100 = 600 = 10% of unit cost (6000). Real AIM-9X
+		# ~$400K vs F-16 ~$30M (~8%); we run a touch above to make AAMs feel
+		# like a deliberate spend, not a freebie.
+		SupplyValue: 100
+		CreditValue: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -583,8 +600,10 @@ F16:
 		Armaments: secondary
 		Ammo: 150
 		ReloadDelay: 100
-		SupplyValue: 15
-		CreditValue: 15
+		# 20mm M61 cannon ammo bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round × 150 rounds would dwarf the AAM pool's contribution).
+		SupplyValue: 1
+		CreditValue: 0
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

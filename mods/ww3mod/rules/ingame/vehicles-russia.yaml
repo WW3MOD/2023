@@ -73,8 +73,10 @@ btr:
 		Ammo: 500
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 5
-		CreditValue: 5
+		# 14.5mm HMG belts are bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round deduction × 500 rounds would dwarf the 600 unit cost).
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -190,8 +192,10 @@ bmp2:
 		Ammo: 900
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 15
-		CreditValue: 15
+		# 30mm autocannon ammo is bulk-cheap; CreditValue: 0 prevents 900-round
+		# magazine from over-deducting on evac/sell (was 13500 vs Cost 1300).
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -218,8 +222,10 @@ bmp2:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		SupplyValue: 100
-		CreditValue: 100
+		# Per-WGM (Konkurs/Kornet-class) value. 8 × 20 = 160 ≈ 12% of unit cost
+		# (1300). Mirrors the Bradley TOW pricing.
+		SupplyValue: 20
+		CreditValue: 20
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -340,8 +346,11 @@ t90:
 		Ammo: 40
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 80
-		CreditValue: 80
+		# Per-shell value. 40 × 6 = 240 = 10% of unit cost (2400). Mirrors the
+		# Abrams pricing — modern MBT main-gun ammunition is cheap relative to
+		# the platform regardless of generation.
+		SupplyValue: 6
+		CreditValue: 6
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -824,8 +833,10 @@ tunguska:
 		Ammo: 180
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 15
-		CreditValue: 15
+		# 30mm AA autocannon ammo bulk-cheap; CreditValue: 0 prevents 180-round
+		# magazine from over-deducting on evac (was 2700 vs Cost 1700).
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 6
@@ -852,8 +863,10 @@ tunguska:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		SupplyValue: 60
-		CreditValue: 60
+		# Per-9M311 SAM value. 8 × 30 = 240 ≈ 14% of unit cost (1700).
+		# Mirrors the Stryker SHORAD's per-Stinger rate.
+		SupplyValue: 30
+		CreditValue: 30
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF

@@ -78,8 +78,10 @@ humvee:
 		Ammo: 300
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 3
-		CreditValue: 3
+		# 7.62mm MG ammo is bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round deduction × 300 rounds would dwarf the 450 unit cost).
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -236,8 +238,10 @@ m113:
 		AmmoCondition: ammo-primary
 		ReloadCount: 20
 		RearmSound: minelay1.aud
-		SupplyValue: 5
-		CreditValue: 5
+		# 12.7mm HMG belts are bulk-cheap; CreditValue: 0 keeps full evac refund
+		# (per-round deduction × 500 rounds would dwarf the 700 unit cost).
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -362,8 +366,10 @@ bradley:
 		Ammo: 900
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 15
-		CreditValue: 15
+		# 25mm Bushmaster ammo is bulk-cheap relative to per-round cost;
+		# CreditValue: 0 prevents 900-round magazine from over-deducting.
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -385,8 +391,11 @@ bradley:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		SupplyValue: 100
-		CreditValue: 100
+		# Per-TOW value. 8 × 22 = 176 ≈ 12% of unit cost (1500). Real-world
+		# Bradley TOW load is ~$700K vs $1.8M platform (~40%); we run lighter
+		# in-game so a fired-out Bradley still evacs back most of its budget.
+		SupplyValue: 22
+		CreditValue: 22
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -513,8 +522,11 @@ abrams:
 		Ammo: 40
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 80
-		CreditValue: 80
+		# Per-shell value. 40 × 6 = 240 ≈ 9.6% of unit cost (2500). Real-world
+		# Abrams ~$10M, full M829A4 load ~$400K (~4%); we sit a touch higher
+		# so a tank firing out still evacs back ~90% of its budget.
+		SupplyValue: 6
+		CreditValue: 6
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -873,8 +885,10 @@ strykershorad:
 		Ammo: 400
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		SupplyValue: 15
-		CreditValue: 15
+		# 25mm autocannon ammo is bulk-cheap; CreditValue: 0 keeps full evac
+		# refund. Per-shot deduction × 400 rounds would dwarf the 2500 cost.
+		SupplyValue: 1
+		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -899,8 +913,11 @@ strykershorad:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		SupplyValue: 60
-		CreditValue: 60
+		# Per-Stinger value. 8 × 25 = 200 ≈ 8% of unit cost (2500). Cheaper
+		# than Hellfire (real Stinger ~$120K vs Hellfire ~$150K) so per-missile
+		# rate is a touch lower.
+		SupplyValue: 25
+		CreditValue: 25
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -930,8 +947,11 @@ strykershorad:
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
 		RearmSound: minelay1.aud
-		SupplyValue: 200
-		CreditValue: 200
+		# Per-Hellfire value. 4 × 80 = 320 ≈ 13% of unit cost (2500).
+		# Combined Stryker (200 + 320 = 520) ≈ 21% — middle of the IFV target
+		# band, given this platform's mixed AA/AGM payload.
+		SupplyValue: 80
+		CreditValue: 80
 	WithAmmoPipsDecoration@3:
 		Position: Bottom
 		Margin: -8, 3
