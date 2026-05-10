@@ -8,7 +8,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Provides access to the attack-move command, which will make the actor automatically engage viable targets while moving to the destination.")]
-	sealed class AttackMoveInfo : TraitInfo, Requires<IMoveInfo>
+	sealed class AttackMoveInfo : TraitInfo
 	{
 		[VoiceReference]
 		public readonly string Voice = "Action";
@@ -51,7 +51,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public AttackMove(Actor self, AttackMoveInfo info)
 		{
-			move = self.Trait<IMove>();
+			// Tolerant of missing IMove — defenses and other non-mobile actors that
+			// inherit AutoTarget (and thus AttackMove via ^AutoTarget) can carry the
+			// trait as a harmless no-op. The targeter and resolver below also guard
+			// against move == null.
+			move = self.TraitOrDefault<IMove>();
 			Info = info;
 		}
 
@@ -90,6 +94,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (order.OrderString == "AttackMove")
 			{
+				if (move == null)
+					return;
+
 				if (!order.Target.IsValidFor(self))
 					return;
 
