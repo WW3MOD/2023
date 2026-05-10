@@ -6,11 +6,11 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 ## Core principles
 
-1. **Nothing is free.** Every unit, every magazine, every supply box has a cost. Cash spent buys ammo + body together. Selling/evacuating only refunds what's left.
-2. **Supply has a constant value.** A unit of supply is worth a fixed amount of cash, both when it sits in an LC/truck/cache and when a player gets it back on evac. There's no depreciation, no `RefundPercent` discount on supply. What you load is what you get back.
-3. **Supply is finite, not regenerating.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained = drained. Players keep the supply chain alive by deploying more LCs and trucks (which themselves cost cash).
-4. **Same trait for every supply source.** Trucks, the Logistics Center, and dropped supply caches all use one trait (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
-5. **One property controls rearm pacing.** Per-pool `ReloadCount` is the canonical batch size for self-reload, dock-rearm, and supply-economy rearm. Whether an Apache is topping up at an HPAD, a Bradley docks at the LC, or a soldier waits next to a truck, the same per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs.
+1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.
+2. **A unit of supply is worth a fixed amount of cash** wherever it sits — in an LC, a truck, a cache. When the player gets it back on evac, capture, or absorb, it returns at face value.
+3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player builds more LCs or calls in more trucks.
+4. **Trucks, LCs, and dropped supply caches share one trait** (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
+5. **`ReloadCount` is the canonical batch size for rearm.** Whether an Apache is topping up at an HPAD, a Bradley docks at the LC, or a soldier waits next to a truck, the per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs.
 
 ## What rearms what
 
@@ -21,7 +21,7 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 | Aircraft | HPAD (helicopter pad), AFLD (airfield) |
 | Static defenses (CRAM, AGUN) | Self-reload via `ReloadAmmoPool` (no external supply consumed) |
 
-**Trucks DO NOT rearm vehicles.** This is deliberate — vehicles are budgeted around dock-at-LC logistics. Adding `truk` to `Rearmable.RearmActors` on a vehicle is a balance change, not a default.
+Vehicles are budgeted around dock-at-LC logistics. Adding `truk` to `Rearmable.RearmActors` on a vehicle is a balance change.
 
 ## Ammo pools, batches, and per-round cost
 
@@ -42,11 +42,11 @@ Pool budget = `(Ammo / ReloadCount) × SupplyValue`. For Bradley 25mm above: `(9
 
 ### Why batches
 
-Per-round costs hit an integer floor at 1. A unit with 900 rounds couldn't have ammo cheaper than `1 × 900 = 900` per pool — way too expensive for bulk MG/autocannon ammo on a 1500-cost IFV. Batches let us express fractional per-round cost cleanly: `ReloadCount: 100, SupplyValue: 5` ≈ 0.05 effective per round, while keeping the integer math honest.
+Batching keeps integer math honest while letting us express low per-round cost. `ReloadCount: 100, SupplyValue: 5` is ~0.05 effective per round — affordable for a 900-round bulk autocannon on a 1500-cost IFV, with whole-number bookkeeping.
 
 ### One property, two uses
 
-`SupplyValue` is the single cost-per-batch property. The same number is charged when a supply provider hands over a batch (rearm) and when a unit evacuates with that batch missing (evac/sell deduction). Because they're the same property, they can never drift apart — there's no exploit where it's cheap to refill but valuable to dump empty (or vice versa).
+`SupplyValue` is the single cost-per-batch property. It's charged when a supply provider hands over a batch (rearm) and deducted when a unit evacuates with that batch missing (evac/sell).
 
 ### Tooltip format
 
@@ -62,11 +62,11 @@ Players see what one cycle costs and how many cycles fill the pool, not an opaqu
 
 ### Logistics Center (LC)
 
-Cost ~3500. Spawns with `SupplyProvider.TotalSupply: 3000`. This pool **does not regenerate**. Drains as:
+Cost ~3500. Spawns with `SupplyProvider.TotalSupply: 3000`. The pool drains as:
 - Vehicles dock and rearm directly (`SupplyValue × batches given`).
 - Trucks drive in to restock (truck pulls supply from LC; LC drops by exactly the amount taken).
 
-When the LC's pool hits zero it stops servicing rearm requests. The player must build another LC, or rely on trucks that haven't drained yet.
+When the LC's pool hits zero it stops servicing rearm requests. The player builds another LC, or relies on trucks that still have supply.
 
 ### Supply Truck (TRUK)
 
@@ -74,9 +74,9 @@ Cost 1000. Spawns with `SupplyProvider.TotalSupply: 750`.
 
 Truck behavior:
 - Drives near friendly **infantry** that need rearm. Delivers `ReloadCount` rounds per cycle, charges `SupplyValue` per batch from its own pool.
-- Cannot deliver to vehicles (per-vehicle `Rearmable.RearmActors` excludes `truk`).
+- Serves units whose `Rearmable.RearmActors` lists `truk` (infantry).
 - When low (`currentSupply < RestockThreshold`), drives back to nearest LC and refills.
-- Refill cost: drains LC's `currentSupply` by the amount taken. A truck that needs 600 supply takes 600 from the LC, leaving the LC with 2400. If the LC has less than the truck wants, the truck takes what's there and leaves partially full.
+- Refill drains the LC's `currentSupply` by the amount taken. A truck that needs 600 supply takes 600 from the LC, leaving the LC with 2400. If the LC has less than the truck wants, the truck takes what's there and leaves partially full.
 - Can drop its remaining supply as a SUPPLYCACHE box (deploy command) — see below.
 
 ### SUPPLYCACHE (dropped supply box)
@@ -86,8 +86,8 @@ Spawned when a truck unloads its supply on the ground. Functionally a stationary
 - **Range circle** showing rearm reach (4 cells).
 - **Selection bar** showing remaining supply.
 - Sprite tier (Full/Mid/Low) reflects the supply remaining.
-- Capturable by enemies (`ProximityCapturable`) — if the enemy gets there first, the supply changes hands at full value.
-- **Not sellable.** Once deployed, the cache sits there until drained, captured, or destroyed. The player recovers the cache's remaining supply only by absorbing it into a friendly LC (via the LC's `AbsorbsSupplyCache` trait), or by spending it through nearby infantry rearming off it.
+- Capturable by enemies (`ProximityCapturable`) — if the enemy reaches it first, the supply changes hands at full value.
+- Sits in place until drained, captured, or destroyed. The player recovers a cache's remaining supply by absorbing it into a friendly LC (the LC's `AbsorbsSupplyCache` trait pulls in any nearby cache) or by spending it through infantry rearming off it.
 
 ### Cash flow recap
 
@@ -156,11 +156,9 @@ Trucks, LCs, and SUPPLYCACHEs all use `SupplyProvider`. They differ only in YAML
 
 | Source | TotalSupply | RestockActors | Notes |
 |---|---|---|---|
-| `logisticscenter` | 3000 | (none) | Mounts at base; drains until empty. Has `AbsorbsSupplyCache` to recover dropped boxes. |
+| `logisticscenter` | 3000 | (none) | Mounts at base; drains until empty. `AbsorbsSupplyCache` recovers dropped boxes. |
 | `truk` | 750 | `[logisticscenter]` | Mobile; drives to LC when low; can drop a SUPPLYCACHE. |
-| `supplycache` | 500 | (none) | Stationary; drained to zero, then despawn or capture. Not sellable. |
-
-There is no separate trait for trucks. The old `MaxSupply × SupplyPerUnit` framing and the dropped "any-cargo-vehicle-can-hold-supply" feature are gone — trucks use `SupplyProvider` directly with a single `TotalSupply` property.
+| `supplycache` | 500 | (none) | Stationary; drained to zero, then despawns or is captured. |
 
 ### Rearm cost math
 
@@ -201,8 +199,7 @@ The LC pool drops by exactly what the truck took. Truck might leave partially fu
 
 ## When tuning further
 
-- **Don't split SupplyValue into separate rearm/evac costs.** They're the same property by design.
-- **Munition consistency**: a Hellfire is a Hellfire. If you change Apache's per-batch SupplyValue, change every Hellfire-firing platform.
-- **Per-tier infantry baseline**: protect the empty-evac refund. If you raise a soldier's `Cost`, raise the ammo budget rather than the empty-evac refund — otherwise tier identity drifts.
-- **Bulk-ammo cap rule of thumb**: a single pool's full budget shouldn't exceed roughly one truck-load (~750). If it does, the pool's combat economics are wrong.
-- **Pool budget ceiling**: any single pool's `(Ammo / ReloadCount) × SupplyValue` must not exceed `Cost − minimum-empty-refund`. Otherwise an empty unit refunds 0 and players treat it as a write-off rather than salvage.
+- **Munition consistency**: a Hellfire is a Hellfire. Changing Apache's per-batch SupplyValue means changing every Hellfire-firing platform to match.
+- **Per-tier infantry baseline**: when raising a soldier's `Cost`, the extra goes into the ammo budget so the empty-evac refund stays at the tier baseline.
+- **Bulk-ammo cap**: a pool's full budget fits inside one truck-load (~750). Above that, combat economics break down.
+- **Pool budget ceiling**: a pool's `(Ammo / ReloadCount) × SupplyValue` is at most `Cost − minimum-empty-refund`, so an empty unit always retains some salvage value.
