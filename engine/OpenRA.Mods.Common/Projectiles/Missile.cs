@@ -917,9 +917,19 @@ namespace OpenRA.Mods.Common.Projectiles
 			// behind the wire-guide can swing onto a different enemy. Veterancy reduces
 			// the reaction delay — a max-level crew re-acquires instantly, rookies need
 			// the full configured window. Disabled (default 0) for non-wire-guided missiles.
+			//
+			// A target in Critical damage state also counts as "dead" for retargeting:
+			// no point spending the warhead on a wreck that's about to die anyway.
 			if (info.OperatorRetargetTicks > 0 && !args.SourceActor.IsDead)
 			{
 				var targetValid = args.GuidedTarget.IsValidFor(args.SourceActor);
+				if (targetValid && args.GuidedTarget.Actor != null)
+				{
+					var ds = args.GuidedTarget.Actor.GetDamageState();
+					if (ds == DamageState.Critical || ds == DamageState.Dead)
+						targetValid = false;
+				}
+
 				if (!targetValid && retargetCountdown < 0)
 				{
 					// Just lost the target this tick — start the countdown, scaled by veterancy.
@@ -1042,6 +1052,12 @@ namespace OpenRA.Mods.Common.Projectiles
 					continue;
 
 				if (a.Owner.RelationshipWith(ownerPlayer) != PlayerRelationship.Enemy)
+					continue;
+
+				// Don't pick up another about-to-die wreck — the operator wants
+				// to spend the missile on something with fight left in it.
+				var ds = a.GetDamageState();
+				if (ds == DamageState.Critical || ds == DamageState.Dead)
 					continue;
 
 				var t = OpenRA.Traits.Target.FromActor(a);
