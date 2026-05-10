@@ -1,0 +1,58 @@
+<Project>
+  <!--
+    Atomic-replace shim for engine/bin/ output on Unix.
+
+    Problem: macOS/Linux let you overwrite files that another process has open.
+    .NET mmaps assembly DLLs into the running game's address space, so an
+    in-place rewrite of engine/bin/*.dll while the game is running corrupts
+    those mapped pages and crashes the game (signature: "Cannot print
+    exception string because Exception.ToString() failed" + Abort trap 6).
+
+    Fix: unlink each output file before MSBuild's Copy task runs. unlink(2)
+    removes the directory entry but keeps the inode alive as long as any
+    process holds a reference (mmap, fd, etc.). The running game keeps
+    reading its old inode; the next Copy creates a brand-new inode at the
+    same path for future launches. No torn writes, no crash.
+
+    No-op on Windows: the OS already locks loaded DLLs at the kernel level,
+    so the build fails fast there if the game is running. The Condition
+    below skips this target entirely on Windows, leaving that behavior
+    untouched.
+  -->
+  <!--
+    Two hooks needed: CopyFilesToOutputDirectory copies via DependsOnTargets,
+    one of which (_CopyFilesMarkedCopyLocal) copies third-party deps BEFORE
+    a BeforeTargets="CopyFilesToOutputDirectory" hook fires. Hooking the
+    sub-target directly catches dep copies; hooking the parent catches the
+    project's own assembly + pdb.
+  -->
+  <Target Name="UnlinkReferenceCopiesForMmapSafety"
+          BeforeTargets="_CopyFilesMarkedCopyLocal"
+          Condition="'$(OS)' != 'Windows_NT'">
+    <!--
+      Skip items whose source path equals the destination path: projects that
+      share $(OutDir) (OpenRA.Launcher/Utility referencing OpenRA.Game) end up
+      with same-path "copies" that MSBuild treats as no-ops. Deleting those
+      would remove the file before the no-op runs, breaking the build.
+    -->
+    <ItemGroup>
+      <_MmapSafetyCandidate Include="@(ReferenceCopyLocalPaths)">
+        <SourcePath>%(ReferenceCopyLocalPaths.FullPath)</SourcePath>
+        <DestPath>$([System.IO.Path]::GetFullPath('$(OutDir)%(ReferenceCopyLocalPaths.DestinationSubDirectory)%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)'))</DestPath>
+      </_MmapSafetyCandidate>
+      <_MmapSafetyDeps Include="%(_MmapSafetyCandidate.DestPath)"
+                       Condition="'%(_MmapSafetyCandidate.SourcePath)' != '%(_MmapSafetyCandidate.DestPath)'" />
+    </ItemGroup>
+    <Delete Files="@(_MmapSafetyDeps)" TreatErrorsAsWarnings="true" />
+  </Target>
+
+  <Target Name="UnlinkProjectOutputForMmapSafety"
+          BeforeTargets="CopyFilesToOutputDirectory"
+          Condition="'$(OS)' != 'Windows_NT'">
+    <ItemGroup>
+      <_MmapSafetyOwn Include="$(TargetDir)$(TargetFileName)" />
+      <_MmapSafetyOwn Include="$(TargetDir)$(TargetName).pdb" />
+    </ItemGroup>
+    <Delete Files="@(_MmapSafetyOwn)" TreatErrorsAsWarnings="true" />
+  </Target>
+</Project>

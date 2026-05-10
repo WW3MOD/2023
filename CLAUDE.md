@@ -331,7 +331,9 @@ dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release
 
 **Dev helper script:** `./ww3-dev.ps1` — build, run, test, pre-flight checks, debug log cleanup
 
-**Note:** Build fails if the game is running (DLLs locked). This is normal — the user often playtests while agents work. If a build fails for this reason, just move on to other work or wait quietly. Do not speculate, alarm, or ask the user to close the game. `launch-game` auto-builds before launching, so the user will get a fresh build on next playtest.
+**Building while the game is running.** Safe on both platforms, by different mechanisms:
+- **macOS/Linux:** `engine/Directory.Build.targets` unlinks each output before MSBuild's Copy. unlink(2) leaves the running game's mmap'd inode alive while the next build creates a fresh inode at the same path. Build succeeds, game keeps running, next launch picks up the new DLLs. (Without this shim, an in-place overwrite corrupts the mmap and crashes the game with "Cannot print exception string..." + Abort trap 6 — never disable the targets file.)
+- **Windows:** the OS locks loaded DLLs at the kernel level, so the build fails fast if the game is running. Just move on to other work or wait quietly — do not speculate, alarm, or ask the user to close the game. `launch-game` auto-builds before launching.
 
 ## Common Pitfalls
 
