@@ -519,7 +519,8 @@ namespace OpenRA.Mods.Common.Traits
 							{
 								var muzzlePos = MuzzlePosition();
 								var lineEnd = delayedTarget.CenterPosition;
-								var treeOnLine = self.World.FindActorsOnLine(muzzlePos, lineEnd, new WDist(512))
+								const int LineWidth = 512;
+								var candidates = self.World.FindActorsOnLine(muzzlePos, lineEnd, new WDist(LineWidth))
 									.Where(a => a != self && !a.Disposed && a.IsInWorld)
 									.Where(a =>
 									{
@@ -527,13 +528,42 @@ namespace OpenRA.Mods.Common.Traits
 											.FirstOrDefault(Exts.IsTraitEnabled);
 										return targetable != null && targetable.TargetTypes.Contains("Trees");
 									})
-									.OrderBy(a => (a.CenterPosition - muzzlePos).LengthSquared)
-									.FirstOrDefault();
+									.ToList();
 
-								if (treeOnLine != null)
+								if (candidates.Count > 0)
 								{
-									args.PassiveTarget = treeOnLine.CenterPosition;
-									args.GuidedTarget = OpenRA.Traits.Target.Invalid;
+									// Weighted-random selection: trees closer to the firing line are more likely
+									// to be the one clipped. Avoids the "the first tree always gets hit" bias of
+									// a closest-to-muzzle pick and the unphysical "missile swerves to a far-off
+									// tree" of a uniform-random pick.
+									var weights = new int[candidates.Count];
+									var totalWeight = 0;
+									for (var i = 0; i < candidates.Count; i++)
+									{
+										var hitPos = WorldExtensions.MinimumPointLineProjection(muzzlePos, lineEnd, candidates[i].CenterPosition);
+										var perpDist = (candidates[i].CenterPosition - hitPos).Length;
+										weights[i] = Math.Max(1, LineWidth - perpDist);
+										totalWeight += weights[i];
+									}
+
+									var roll = self.World.SharedRandom.Next(totalWeight);
+									Actor treeOnLine = null;
+									var cumulative = 0;
+									for (var i = 0; i < candidates.Count; i++)
+									{
+										cumulative += weights[i];
+										if (roll < cumulative)
+										{
+											treeOnLine = candidates[i];
+											break;
+										}
+									}
+
+									if (treeOnLine != null)
+									{
+										args.PassiveTarget = treeOnLine.CenterPosition;
+										args.GuidedTarget = OpenRA.Traits.Target.Invalid;
+									}
 								}
 							}
 						}
