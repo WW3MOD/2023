@@ -24,15 +24,16 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 
 ```bash
 ./tools/test/list-tests.sh                          # what's available
-./tools/test/run-test.sh <test-folder>              # run one (centered, minimized)
+./tools/test/run-test.sh <test-folder>              # run one (centered, background, muted)
 ./tools/test/run-batch.sh <t1> <t2> ...             # run several
 ./tools/test/run-batch.sh --all                     # run every test-* folder
 ./tools/test/run-test.sh L <test>                   # left half (also R, F, C)
-./tools/test/run-test.sh --no-minimize <test>       # keep the window visible
+./tools/test/run-test.sh --visible <test>           # foreground (alias: --no-minimize)
+./tools/test/run-test.sh --audio <test>             # keep sound on
 ./tools/test/run-test.sh --help                     # flag list
 ```
 
-**Window placement:** the runner defaults to **centered, ~90% × ~85%, minimized**, so an autotest run won't disrupt other work. If the user includes `L`, `R`, or `F` in the trigger ("AUTOTEST L", "AUTOTEST <bug> R"), pass that letter through as the first positional arg to `run-test.sh`. `L`=left half, `R`=right half, `F`=fullscreen.
+**Window placement & focus.** Default: **centered, ~90% × ~85%, background, muted**. "Background" means the window is visible at full size but immediately defocused so your terminal/editor keeps focus. Cmd+Tab to OpenRA brings the window forward when you want to look at it. After the game exits, focus is restored to whatever app was frontmost at launch — no random focus shuffle. If the user includes `L`, `R`, or `F` in the trigger ("AUTOTEST L", "AUTOTEST <bug> R"), pass that letter through as the first positional arg to `run-test.sh`. `L`=left half, `R`=right half, `F`=fullscreen. Pass `--minimized` to opt back into the old SDL miniaturize behavior.
 
 Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
 
@@ -143,7 +144,7 @@ These bit during development. Documenting so they don't bite again.
 1. **Build cache lies**. `make` reports success without picking up edits to a single file occasionally. If a trace doesn't fire, `touch <file>.cs && make` to force rebuild.
 2. **`AttackTurreted` overrides `CanAttack`** — short-circuits on `turretReady = FaceTarget()` *before* calling `base.CanAttack`. If you trace `AttackBase.CanAttack` and see no fires, your override is gating earlier.
 3. **`Activity.IsCanceling` is false in `OnLastRun`**. The framework sets `State = Done` *before* calling OnLastRun, so the cancel flag is already cleared. To detect "ended because something replaced me", check `NextActivity is X` instead.
-4. **Window placement**: default is centered + minimized. If you want it side-docked instead, use the L/R/F shorthand each call (`./tools/test/run-test.sh L <test>`). The old per-TTY `~/.ww3mod-tests/position-prefs/` save was removed once the shorthand made it cheap to type per call.
+4. **Window placement**: default is centered + background (visible but defocused) + muted. Use the L/R/F shorthand for side-docked layouts (`./tools/test/run-test.sh L <test>`). `--visible` keeps it foreground; `--audio` keeps sound on; `--minimized` opts back into the old SDL miniaturize behavior (which on macOS can only be restored via the dock icon next to Trash, not Cmd+Tab).
 5. **Lua force-attack vs UI force-attack** are *not* always equivalent paths. `Paladin.Attack(t90, ..., forceAttack=false)` hard-codes `queued: true` (existing OpenRA API quirk); `Paladin.AttackGround(...)` defaults `queued: false` to mimic Ctrl+click replace.
 6. **`Result.json` is sticky**. Always `rm -f $HOME/.ww3mod-tests/result.json` before a run, or wait for the runner to do it. Otherwise an old verdict can be misread.
 

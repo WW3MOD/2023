@@ -9,22 +9,38 @@
 #   F | -F | --full      PseudoFullscreen
 #                        (no shorthand → centered, ~90% × ~85%, default)
 #
-# Flags:
-#   --position=<centered|left|right|full>  Long form of the above.
+# Window-behavior flags (windowed mode only):
+#   --background           (default) Visible, but pushed behind your other
+#                          windows immediately after launch via osascript so
+#                          your terminal keeps focus. Cmd+Tab to OpenRA brings
+#                          it forward.
+#   --minimized            Old behavior: SDL_MinimizeWindow into the dock.
+#                          Restore by clicking the small icon next to Trash.
+#   --visible              Stay foreground. (Alias: --no-minimize.)
+#
+# Audio flags:
+#   --audio                Keep sound on. (run-demo.sh injects this.)
+#   --mute                 Force mute. (Default for tests.)
+#
+# Misc:
+#   --position=<centered|left|right|full>  Long form of L/R/F.
 #   --fullscreen           Same as F + Mode=PseudoFullscreen.
 #   --windowed             Force windowed (default; only useful when overriding
 #                          a user settings.yaml that forces fullscreen).
-#   --minimized            Open the window minimized (default for AUTOTEST).
-#   --no-minimize          Open the window normally (default for DEMO).
 #   --help                 Show this message.
 #
-# Defaults: windowed, centered (large but not full), minimized, edge-pan
+# Defaults: windowed, centered (large but not full), background, muted, edge-pan
 # disabled (engine-side, gated on Test.Mode + Mode=Windowed).
 #
+# macOS focus handling: PREV_APP is captured before launch and re-activated
+# after the game exits, so the close-time focus shuffle doesn't yank you out
+# of the terminal/editor you were typing in.
+#
 # Examples:
-#   ./tools/test/run-test.sh test-paladin-fires           # centered, minimized
-#   ./tools/test/run-test.sh L test-paladin-fires         # left half
-#   ./tools/test/run-test.sh R --no-minimize test-foo     # right, visible
+#   ./tools/test/run-test.sh test-paladin-fires           # background, muted
+#   ./tools/test/run-test.sh L test-paladin-fires         # left half, background
+#   ./tools/test/run-test.sh --visible --audio test-foo   # foreground, sound on
+#   ./tools/test/run-test.sh --minimized test-foo         # old miniaturize behavior
 #   ./tools/test/run-test.sh F test-foo                   # fullscreen
 #
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
@@ -33,7 +49,8 @@ set -e
 
 GRAPHICS_MODE="Windowed"
 POSITION="centered"
-MINIMIZE=1
+WINDOW_BEHAVIOR="background"
+AUDIO_MUTE=1
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -47,10 +64,14 @@ while [ $# -gt 0 ]; do
 			shift ;;
 		--windowed)             GRAPHICS_MODE="Windowed"; shift ;;
 		--position=*)           POSITION="${1#*=}"; shift ;;
-		--minimized)            MINIMIZE=1; shift ;;
-		--no-minimize)          MINIMIZE=0; shift ;;
+		--background)           WINDOW_BEHAVIOR="background"; shift ;;
+		--minimized)            WINDOW_BEHAVIOR="minimized"; shift ;;
+		--visible|--no-minimize|--foreground)
+		                        WINDOW_BEHAVIOR="visible"; shift ;;
+		--audio)                AUDIO_MUTE=0; shift ;;
+		--mute)                 AUDIO_MUTE=1; shift ;;
 		--help|-h)
-			sed -n '2,30p' "$0" | sed 's/^# \?//'
+			sed -n '2,46p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -62,7 +83,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--no-minimize] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -138,11 +159,11 @@ if [ -f "${MAP_DIR}/description.txt" ]; then
 	TEST_DESCRIPTION=$(awk 'NF { print; exit }' "${MAP_DIR}/description.txt" | tr -d '\r')
 fi
 
-MIN_LABEL="visible"
-[ "${MINIMIZE}" = "1" ] && MIN_LABEL="minimized"
+AUDIO_LABEL="muted"
+[ "${AUDIO_MUTE}" = "0" ] && AUDIO_LABEL="audio"
 
 echo "==> Test: ${TEST_NAME}"
-echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${MIN_LABEL})"
+echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${WINDOW_BEHAVIOR}, ${AUDIO_LABEL})"
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Result file: ${RESULT_FILE}"
@@ -156,9 +177,66 @@ if [ -n "${WINDOW_POS_ENV}" ]; then
 fi
 
 # Engine reads OPENRA_WINDOW_MINIMIZED=1 and calls SDL_MinimizeWindow after
-# window creation (windowed mode only).
-if [ "${MINIMIZE}" = "1" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
+# window creation. Only set when the user explicitly opts back in via
+# --minimized, since miniaturized SDL windows are awkward to restore on macOS
+# (Cmd+Tab can't unminiaturize — only the small dock icon next to Trash does).
+if [ "${WINDOW_BEHAVIOR}" = "minimized" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
 	export OPENRA_WINDOW_MINIMIZED=1
+fi
+
+# Audio mute via the Sound.Mute toggle (not by zeroing volumes — that would
+# risk polluting the saved volume levels if the engine auto-saves settings).
+# Sound.Mute is the same flag the in-game mute hotkey toggles.
+AUDIO_ARGS=""
+if [ "${AUDIO_MUTE}" = "1" ]; then
+	AUDIO_ARGS="Sound.Mute=true"
+fi
+
+# macOS focus handling. Capture the currently-frontmost app so we can:
+#   1. Bounce focus back to it after the game window appears (background mode).
+#   2. Restore focus after the game exits (defends against the close-time
+#      focus shuffle that picks a random next-frontmost app).
+PREV_APP=""
+RESTORE_PID=""
+if [ "$(uname)" = "Darwin" ] && command -v osascript >/dev/null 2>&1; then
+	PREV_APP=$(osascript -e 'tell application "System Events" to name of first application process whose frontmost is true' 2>/dev/null || true)
+fi
+
+# Background-mode watchdog: poll for ~5s; once frontmost flips away from
+# PREV_APP (i.e. OpenRA grabbed focus), bounce back to PREV_APP.
+if [ "${WINDOW_BEHAVIOR}" = "background" ] \
+	&& [ "${GRAPHICS_MODE}" = "Windowed" ] \
+	&& [ -n "${PREV_APP}" ]; then
+	(
+		i=0
+		while [ ${i} -lt 20 ]; do
+			CURRENT=$(osascript -e 'tell application "System Events" to name of first application process whose frontmost is true' 2>/dev/null || echo "")
+			if [ -n "${CURRENT}" ] && [ "${CURRENT}" != "${PREV_APP}" ]; then
+				# Give the game a brief moment to settle, then defocus it.
+				sleep 0.4
+				osascript -e "tell application \"${PREV_APP}\" to activate" 2>/dev/null || true
+				exit 0
+			fi
+			sleep 0.25
+			i=$((i + 1))
+		done
+	) &
+	RESTORE_PID=$!
+fi
+
+# Back up settings.yaml around the launch. The engine sometimes auto-saves
+# settings during normal flow (the launch-game.sh comment about Graphics.Mode
+# pollution alludes to this), and a saved Sound.Mute=true would carry over to
+# normal launches. Restoring the file post-run sidesteps the risk entirely.
+SETTINGS_FILE=""
+SETTINGS_BACKUP=""
+case "$(uname)" in
+	Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
+	Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
+esac
+if [ -n "${SETTINGS_FILE}" ] && [ -f "${SETTINGS_FILE}" ]; then
+	SETTINGS_BACKUP="${RESULT_DIR}/settings.yaml.bak"
+	cp "${SETTINGS_FILE}" "${SETTINGS_BACKUP}"
 fi
 
 ./launch-game.sh \
@@ -169,7 +247,24 @@ fi
 	"Test.ResultPath=${RESULT_FILE}" \
 	"Graphics.Mode=${GRAPHICS_MODE}" \
 	${WINDOW_ARGS} \
+	${AUDIO_ARGS} \
 	|| true
+
+if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
+	mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"
+fi
+
+# Reap the watchdog if it's still alive (game exited before window appeared).
+if [ -n "${RESTORE_PID}" ]; then
+	kill "${RESTORE_PID}" 2>/dev/null || true
+	wait "${RESTORE_PID}" 2>/dev/null || true
+fi
+
+# Restore focus after the game exits — this is the fix for the close-time
+# focus theft. macOS otherwise picks an arbitrary next-frontmost app.
+if [ -n "${PREV_APP}" ]; then
+	osascript -e "tell application \"${PREV_APP}\" to activate" 2>/dev/null || true
+fi
 
 echo
 

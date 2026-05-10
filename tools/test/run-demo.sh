@@ -43,11 +43,12 @@ if [ ! -d "mods/ww3mod/maps/${NAME}" ]; then
 	exit 3
 fi
 
-# Delegate to run-test.sh with --no-minimize injected — same launch plumbing,
-# same window-positioning logic, but the window stays visible. Demos won't
-# write result.json, so run-test.sh exits 3 ("no result"); we treat that as
-# success here because verdict-less is the demo's whole point.
-./tools/test/run-test.sh --no-minimize "$@"
+# Delegate to run-test.sh with --visible and --audio injected — same launch
+# plumbing, same window-positioning logic, but the window stays foreground
+# and sound is on (demos are interactive). Demos won't write result.json, so
+# run-test.sh exits 3 ("no result"); we treat that as success here because
+# verdict-less is the demo's whole point.
+./tools/test/run-test.sh --visible --audio "$@"
 rc=$?
 
 if [ ${rc} -eq 3 ]; then
