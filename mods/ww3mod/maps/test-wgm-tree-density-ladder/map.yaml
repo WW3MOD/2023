@@ -1,0 +1,167 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: WGM tree-density ladder (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# 7 rows, 4 cells apart vertically. Each row: a Bradley (col 5) shoots
+	# WGM at a t90 (col 27) — 22 cells, in WGM range (25c0), out of 25mm
+	# range (20c0). Each row has 0..6 trees on the line. Tree T01 footprint
+	# `__ x_` Density `0,0, 10,0` puts density 10 at offset (0,1) from
+	# Location, so Loc (X,Y-1) → trunk on row Y at column X. Loc spacing of
+	# 2 columns avoids 2x2 footprint overlap.
+	B0: bradley
+		Owner: USA
+		Location: 5,4
+		Facing: 768
+	T0: t90
+		Owner: Russia
+		Location: 27,4
+	B1: bradley
+		Owner: USA
+		Location: 5,8
+		Facing: 768
+	T1: t90
+		Owner: Russia
+		Location: 27,8
+	R8t1: t01
+		Owner: Neutral
+		Location: 14,7
+	B2: bradley
+		Owner: USA
+		Location: 5,12
+		Facing: 768
+	T2: t90
+		Owner: Russia
+		Location: 27,12
+	R12t1: t01
+		Owner: Neutral
+		Location: 12,11
+	R12t2: t01
+		Owner: Neutral
+		Location: 16,11
+	B3: bradley
+		Owner: USA
+		Location: 5,16
+		Facing: 768
+	T3: t90
+		Owner: Russia
+		Location: 27,16
+	R16t1: t01
+		Owner: Neutral
+		Location: 10,15
+	R16t2: t01
+		Owner: Neutral
+		Location: 14,15
+	R16t3: t01
+		Owner: Neutral
+		Location: 18,15
+	B4: bradley
+		Owner: USA
+		Location: 5,20
+		Facing: 768
+	T4: t90
+		Owner: Russia
+		Location: 27,20
+	R20t1: t01
+		Owner: Neutral
+		Location: 10,19
+	R20t2: t01
+		Owner: Neutral
+		Location: 12,19
+	R20t3: t01
+		Owner: Neutral
+		Location: 14,19
+	R20t4: t01
+		Owner: Neutral
+		Location: 16,19
+	B5: bradley
+		Owner: USA
+		Location: 5,24
+		Facing: 768
+	T5: t90
+		Owner: Russia
+		Location: 27,24
+	R24t1: t01
+		Owner: Neutral
+		Location: 10,23
+	R24t2: t01
+		Owner: Neutral
+		Location: 12,23
+	R24t3: t01
+		Owner: Neutral
+		Location: 14,23
+	R24t4: t01
+		Owner: Neutral
+		Location: 16,23
+	R24t5: t01
+		Owner: Neutral
+		Location: 18,23
+	B6: bradley
+		Owner: USA
+		Location: 5,28
+		Facing: 768
+	T6: t90
+		Owner: Russia
+		Location: 27,28
+	R28t1: t01
+		Owner: Neutral
+		Location: 10,27
+	R28t2: t01
+		Owner: Neutral
+		Location: 12,27
+	R28t3: t01
+		Owner: Neutral
+		Location: 14,27
+	R28t4: t01
+		Owner: Neutral
+		Location: 16,27
+	R28t5: t01
+		Owner: Neutral
+		Location: 18,27
+	R28t6: t01
+		Owner: Neutral
+		Location: 20,27
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 27,16
+
+Rules: rules.yaml

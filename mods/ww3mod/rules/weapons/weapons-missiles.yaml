@@ -38,7 +38,7 @@ WGM:
 	# small tree) a clean shot; MissChancePerDensity rolls a per-shot miss for each excess
 	# unit, redirecting the missile to clip a tree on the line. Projectile.Blockable=false
 	# disables the in-flight RNG roulette so the fire-time roll is the sole arbiter.
-	ClearSightThreshold: 4
+	ClearSightThreshold: 3
 	FreeLineDensity: 1
 	MissChancePerDensity: 15
 	ValidTargets: Vehicle, Defense
@@ -80,7 +80,7 @@ WGM.bradley:
 Hellfire:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	# Tree gating (260510): same numbers as WGM. See WGM for explanation.
-	ClearSightThreshold: 4
+	ClearSightThreshold: 3
 	FreeLineDensity: 1
 	MissChancePerDensity: 15
 	ValidTargets: Vehicle, Air, Defense
