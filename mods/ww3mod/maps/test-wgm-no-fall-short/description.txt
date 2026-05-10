@@ -1,0 +1,1 @@
+Auto: WGM missile must hit a stationary t90 on a horizontal shot — not fall short into the ground.
