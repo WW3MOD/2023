@@ -22,6 +22,7 @@
 7. **Update `WORKSPACE/BACKLOG.md`** — add deferred items, mark completed with `[x]`.
 8. **Auto-commit** all changes with a descriptive message (no separate FINALIZE-only commit if everything is already committed).
 9. **Review CLAUDE.md** — new pattern worth documenting? Structural change? Recurring gotcha? Update if yes. New skill emerged? Add to `DOCS/skills/`.
+10. **PITFALL anchors check** — did I add any `// PITFALL:` (or `# PITFALL:`) comments this session? `git grep PITFALL` against touched files, sanity-check placement and wording, mention them in the wrap so the user can review. An outdated or wrong PITFALL is worse than none.
 
 ## Tips
 

@@ -369,6 +369,16 @@ Placing a PITFALL where the broken *code* lives (rather than where the *temptati
 
 **Pruning:** when changing code near a `PITFALL`, re-read it. Outdated → remove or update. A wrong PITFALL is worse than no PITFALL because I'll trust it.
 
+**How the system grows.** New PITFALLs are added *during bug fixes*, not via mass passes. AUTOTEST step 8 prompts for one after every green; RELEASE bug-fix flow does the same; FINALIZE checks for them in the wrap. The compounding happens at the moment of fix when context is freshest — that's the only phase that scales.
+
+**Backfill (occasional, high-precision only):**
+
+```bash
+git log --grep='regression\|came back\|still broken\|again\b' --oneline -- '*.cs' '*.yaml'
+```
+
+Bug fixes that explicitly note recurrence are real PITFALL candidates. One-shot bugs usually aren't — adding anchors for them creates noise that erodes the signal of the real ones. Avoid exhaustive "walk every file" passes; they over-comment and the bar slips.
+
 ### Engine code rules (universal anti-patterns)
 
 These can't be anchored at a single trap site — they apply across the engine. Enforced by `tools/git-hooks/pre-commit` where possible.

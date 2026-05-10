@@ -42,6 +42,7 @@ When the user wants a quick read on release health:
 
 - Frequent small commits over batched changes — descriptive messages.
 - **Behavioral fixes ship with their auto-asserting test** (RED → GREEN proof). The test scenario lives in `mods/ww3mod/maps/test-*/` and gets committed alongside the fix. See `DOCS/skills/AUTOTEST.md` for the loop and the "default-to-AUTOTEST" checklist.
+- **Recurring traps get a `// PITFALL:` anchor.** If the bug's root cause is a non-obvious foot-gun a future reader would also hit, leave a one-line PITFALL at the temptation site. Same commit as the fix. See CLAUDE.md "PITFALL Comments".
 - Test scenario + fix + tracker update belong in one commit (so a fix can't ship without its regression test).
 - Always commit before ending a session. Never leave uncommitted changes behind.
 - Never push to remote — the user pushes manually.

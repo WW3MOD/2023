@@ -46,7 +46,8 @@ Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
 5. **Verify GREEN**: re-run the new test. Must pass within reasonable time.
 6. **Regression check**: `./tools/test/run-batch.sh --all` or at least the closest existing tests, to make sure the fix didn't break anything.
 7. **Strip diagnostics**: remove any temporary trace lines I added.
-8. **Commit**: test scenario + fix + tracker update in a single commit. Test stays committed so the bug can't silently regress.
+8. **PITFALL check**: was the root cause a non-obvious trap a future reader would also fall into? If yes, drop a one-line `// PITFALL:` (or `# PITFALL:` in YAML) at the *temptation site* — the line a careless reader is actually looking at when at risk, not where the broken code lives. See CLAUDE.md "PITFALL Comments". Same commit as the fix. Skip for one-shot bugs that won't recur.
+9. **Commit**: test scenario + fix + tracker update + any PITFALL anchor in a single commit. Test stays committed so the bug can't silently regress.
 
 If the bug has multiple layers, fix what I can, leave the test RED for the unfixed parts, and document in `WORKSPACE/RELEASE_V1.md` what's left. The red test becomes the next session's gateway.
 
