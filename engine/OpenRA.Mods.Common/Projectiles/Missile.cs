@@ -849,6 +849,15 @@ namespace OpenRA.Mods.Common.Projectiles
 				? vFacing
 				: HomingInnerTick(predClfDist, diffClfMslHgt, relTarHorDist, lastHtChg, lastHt, relTarHgt, vFacing, false);
 
+			// Even when flying straight (target missed/lost), keep accelerating up to
+			// maxSpeed. Without this, a missile that decelerated approaching the target
+			// (Hitting-state speed control or terrain-aware climbing) latched in the
+			// slow speed when flyStraight skipped HomingInnerTick — and crawled the
+			// rest of the way to fuel-out, sometimes for tens of seconds. Real ATGMs
+			// keep their motor burn until exhaustion regardless of guidance state.
+			if (flyStraight && state != States.Freefall)
+				ChangeSpeed();
+
 			var jammingActor = world.ActorsWithTrait<JamsMissiles>().FirstOrDefault(JammedBy);
 			var jammed = info.Jammable && jammingActor.Actor != null;
 			if (jammed)
@@ -861,10 +870,15 @@ namespace OpenRA.Mods.Common.Projectiles
 					desiredVFacing = vFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
 				}
 			}
-			else if (!args.GuidedTarget.IsValidFor(args.SourceActor))
-			{
-				desiredHFacing = hFacing;
-			}
+
+			// Note: when args.GuidedTarget becomes invalid mid-flight (target died,
+			// fog, etc.) we used to override desiredHFacing = hFacing here, freezing
+			// the missile's heading. Removed because targetPosition is preserved at
+			// the last valid update (line ~960 only refreshes it when the target is
+			// still valid), so velVec already aims at the last-known position via
+			// tarDistVec. Letting velVec drive desiredHFacing means the missile keeps
+			// homing on last-known instead of locking in whatever heading it had at
+			// the moment the target disappeared.
 
 			// In the Hitting state, boost turn rate as the missile closes on the target
 			// to prevent wide orbits. Scales from 1x at 3*loopRadius to 3x at point-blank,
@@ -947,6 +961,14 @@ namespace OpenRA.Mods.Common.Projectiles
 					{
 						args.GuidedTarget = OpenRA.Traits.Target.FromActor(newGuided);
 						retargetCountdown = -1; // reset; if the new one dies we'll countdown again
+
+						// Reset homing state for the new target. Otherwise a missile that
+						// already overshot its first target had `flyStraight=true` and
+						// `minDistanceToTarget≈0` baked in — the retarget would update
+						// args.GuidedTarget but the missile would keep flying straight
+						// past the new target without ever turning toward it.
+						flyStraight = false;
+						minDistanceToTarget = WDist.FromCells(10000);
 					}
 					else
 						retargetCountdown = 25; // try again in 1 s if nothing in range yet

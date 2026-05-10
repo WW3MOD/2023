@@ -8,6 +8,7 @@
 #endregion
 
 using System.Linq;
+using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets.Logic.Ingame;
 using OpenRA.Scripting;
@@ -202,6 +203,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				return;
 
 			GroupScatterHotkeyLogic.PerformGroupScatter(alive[0].World, alive);
+		}
+
+		[Desc("Returns the number of in-flight Missile projectiles currently in the world. " +
+			"Useful for asserting that a missile reached its target / fuel-out and detonated " +
+			"within a deadline. Test mode only.")]
+		public int GetActiveMissileCount()
+		{
+			if (!TestMode.IsActive)
+				return 0;
+
+			return Context.World.Effects.OfType<Missile>().Count();
 		}
 
 		[Desc("Returns the RemainingTime (in ticks) of the first queued item of `actorType` on " +

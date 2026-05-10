@@ -1,0 +1,1 @@
+Auto: Bradley fires WGM, target dies mid-flight — missile must detonate within 8s (not crawl in straight line forever).

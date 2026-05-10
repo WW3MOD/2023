@@ -1,0 +1,6 @@
+# Burst 1 keeps the test deterministic — one missile in the air. The
+# experimental Burst 3 on WGM.bradley would have 80-tick gaps between
+# missiles and bloat the deadline; the accuracy test already covers
+# the Burst-3 behaviour.
+WGM.bradley:
+	Burst: 1

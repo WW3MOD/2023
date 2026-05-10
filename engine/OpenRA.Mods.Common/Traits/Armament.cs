@@ -455,6 +455,24 @@ namespace OpenRA.Mods.Common.Traits
 			var delayedTarget = target;
 			ScheduleDelayedAction(Info.FireDelay, Burst, (burst) =>
 			{
+				// Re-validate the captured target. With FireDelay > 0 the target can
+				// die / leave the world / drop targetable status during the gap
+				// between aim-and-pull and the actual barrel-fire. Without this check
+				// a wire-guided ATGM would launch a tracker missile aimed at a stale
+				// position; the missile would home on last-known and either fuel-out
+				// or re-target via the operator system. Cheaper and more honest to
+				// just abort the shot — the operator wouldn't pull the trigger if
+				// the lock broke between aim and squeeze. Ammo is already accounted
+				// for, this is just suppressing the projectile spawn.
+				//
+				// Skip when the target was already invalidated INSIDE FireBarrel
+				// (e.g. the tree-clip path below sets GuidedTarget=Invalid by design
+				// after capture). delayedTarget is the captured original — if the
+				// caller passed an invalid target (force-fire on terrain), Type is
+				// Invalid here and we treat that as "no actor to validate".
+				if (delayedTarget.Type == TargetType.Actor && !delayedTarget.IsValidFor(self))
+					return;
+
 				// Lead/aim in front of moving target
 				if (args.Weapon.Projectile != null)
 				{
