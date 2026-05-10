@@ -118,15 +118,22 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly WorldRenderer worldRenderer;
 
 		SpriteFont overlayFont, symbolFont;
-		float2 iconOffset, holdOffset, readyOffset, timeOffset, queuedOffset, infiniteOffset, nextUpOffset;
+		float2 iconOffset, holdOffset, readyOffset, timeOffset;
 		float countRightAnchor;
+		float countTopY;
+		float countBottomY;
 
-		// Visual states for the queue count badge
-		public readonly Color CountActiveColor = Color.White;
-		public readonly Color CountWaitingColor = Color.Gold;
-		public readonly Color InfiniteSymbolColor = Color.LimeGreen;
-		public readonly Color NextUpColor = Color.LightSkyBlue;
-		public readonly string NextUpText = "▶";
+		// Visual states for the two-number queue badge
+		public readonly Color CountNowColor = Color.White;          // top: "now" — items in a row at the head
+		public readonly Color CountTotalActiveColor = Color.White;  // bottom when no gap and no auto
+		public readonly Color CountTotalWaitingColor = Color.Gold;  // bottom when this type isn't at the head
+		public readonly Color CountTotalAutoColor = Color.LimeGreen; // bottom when any copies are infinite
+
+		// Lime stripe down the LEFT edge of the icon when any item of this type is in auto-build mode.
+		// Drawn with the primitive renderer to avoid font-glyph problems (FreeSansBold doesn't carry
+		// the ∞ glyph at TinyBold size — it rendered as a missing-glyph box).
+		public readonly Color AutoStripeColor = Color.LimeGreen;
+		public readonly int AutoStripeWidth = 3;
 
 		Player cachedQueueOwner;
 		IProductionIconOverlay[] pios;
@@ -180,16 +187,13 @@ namespace OpenRA.Mods.Common.Widgets
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
 
-			// ∞ symbol lives in the TOP-LEFT corner so "this is on auto-build" is obvious at a glance.
-			infiniteOffset = new float2(3, 1);
-
-			// Queue count "N" is right-aligned in the TOP-RIGHT corner. We keep an x-anchor here
-			// and subtract the measured text width at draw time to handle 1- vs 2-digit counts.
+			// Two-number queue badge in the TOP-RIGHT corner, stacked vertically. Top row = "now"
+			// (items in a row at queue head); bottom row = total of this type. Right-aligned, so we
+			// keep an x-anchor here and subtract measured text width per draw.
 			countRightAnchor = IconSize.X - 3;
-			queuedOffset = new float2(countRightAnchor, 1);
-
-			// "▶ next up" indicator in the BOTTOM-LEFT corner.
-			nextUpOffset = new float2(3, IconSize.Y - overlayFont.Measure(NextUpText).Y - 1);
+			var lineHeight = overlayFont.Measure("0").Y;
+			countTopY = 1;
+			countBottomY = countTopY + lineHeight - 1;
 
 			holdOffset = iconOffset - overlayFont.Measure(HoldText) / 2;
 			readyOffset = iconOffset - overlayFont.Measure(ReadyText) / 2;
@@ -372,7 +376,8 @@ namespace OpenRA.Mods.Common.Widgets
 				if (canQueue)
 				{
 					var queued = !modifiers.HasModifier(Modifiers.Ctrl);
-					World.IssueOrder(Order.StartProduction(CurrentQueue.Actor, icon.Name, handleCount, queued));
+					var auto = modifiers.HasModifier(Modifiers.Alt);
+					World.IssueOrder(Order.StartProduction(CurrentQueue.Actor, icon.Name, handleCount, queued, auto));
 					return true;
 				}
 			}
@@ -387,10 +392,12 @@ namespace OpenRA.Mods.Common.Widgets
 
 			Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
 
-			// If the item is on auto-build, route through the cancel path so the first right-click
-			// just turns off auto-build (the queue handler keeps the in-flight item). A second
-			// right-click then falls through to normal cancel/pause behavior.
-			if (item.Infinite || CurrentQueue.Info.DisallowPaused || item.Paused || item.Done || item.TotalCost == item.RemainingCost)
+			// If ANY copy of this type is on auto-build, route through the cancel path. The queue
+			// handler exits auto-mode atomically (strips Infinite from all of them, refunds queued
+			// copies, leaves the in-flight one to finish). Shift gives handleCount=5 so the next
+			// iteration also cancels the in-flight item.
+			var anyInfinite = icon.Queued.Any(q => q.Infinite);
+			if (anyInfinite || CurrentQueue.Info.DisallowPaused || item.Paused || item.Done || item.TotalCost == item.RemainingCost)
 			{
 				// Instantly cancel items that haven't started, have finished, or if the queue doesn't support pausing
 				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Speech", CurrentQueue.Info.CancelledAudio, World.LocalPlayer.Faction.InternalName);
@@ -427,14 +434,17 @@ namespace OpenRA.Mods.Common.Widgets
 
 		bool HandleEvent(ProductionIcon icon, MouseButton btn, Modifiers modifiers)
 		{
-			var startCount = modifiers.HasModifier(Modifiers.Shift) ? 5 : modifiers.HasModifier(Modifiers.Alt) ? 100 : 1;
+			// Click = 1, Shift+click = 5. Alt is now the "auto-build" flag (Order.StartProductionAutoFlag),
+			// not a count multiplier — Alt+click queues 1 auto, Shift+Alt+click queues 5 auto.
+			var startCount = modifiers.HasModifier(Modifiers.Shift) ? 5 : 1;
 
 			// PERF: avoid an unnecessary enumeration by casting back to its known type
 			var cancelCount = modifiers.HasModifier(Modifiers.Ctrl) ? ((List<ProductionItem>)CurrentQueue.AllQueued()).Count : startCount;
 
 			// Middle-click is the "nuke this icon" gesture: cancel every queued copy of this type,
-			// and also flip off auto-build if it's on. The +1 covers the infinite case — the first
-			// CancelProductionInner iteration just clears the Infinite flag, the next actually cancels.
+			// including any in-flight item. The +1 covers the auto-mode case — the first
+			// CancelProductionInner iteration exits auto and clears queued copies (leaving in-flight),
+			// the next iteration cancels the in-flight one.
 			var middleCancelCount = icon.Queued.Count + 1;
 
 			var item = icon.Queued.FirstOrDefault();
@@ -559,13 +569,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var buildableItems = CurrentQueue.BuildableItems();
 
-			// Identify the type that comes up next after the currently-producing item, so we can flag
-			// its icon. We skip the flag when the next item is the same type as the current one — the
-			// queue count already conveys "more of these incoming".
+			// Walk the global queue once to get a positional view we can use to compute "now" counts.
 			var allQueued = (IList<ProductionItem>)CurrentQueue.AllQueued();
-			string nextUpName = null;
-			if (allQueued.Count >= 2 && allQueued[0].Item != allQueued[1].Item)
-				nextUpName = allQueued[1].Item;
 
 			// Icons
 			Game.Renderer.EnableAntialiasingFilter();
@@ -601,55 +606,91 @@ namespace OpenRA.Mods.Common.Widgets
 			Game.Renderer.DisableAntialiasingFilter();
 
 			// Overlays
-			var symbolOrFallback = symbolFont ?? overlayFont;
 			foreach (var icon in icons.Values)
 			{
 				var total = icon.Queued.Count;
-				if (total > 0)
+				if (total == 0)
+					continue;
+
+				var first = icon.Queued[0];
+				var anyInfinite = false;
+				for (var i = 0; i < icon.Queued.Count; i++)
 				{
-					var first = icon.Queued[0];
-					var waiting = !CurrentQueue.IsProducing(first) && !first.Done;
-					if (first.Done)
+					if (icon.Queued[i].Infinite)
 					{
-						if (ReadyTextStyle == ReadyTextStyleOptions.Solid || orderManager.LocalFrameNumber * worldRenderer.World.Timestep / 360 % 2 == 0)
-							overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, Color.White, Color.Black, 1);
-						else if (ReadyTextStyle == ReadyTextStyleOptions.AlternatingColor)
-							overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, ReadyTextAltColor, Color.Black, 1);
+						anyInfinite = true;
+						break;
 					}
-					else if (first.Paused)
-						overlayFont.DrawTextWithContrast(HoldText,
-							icon.Pos + holdOffset,
-							Color.White, Color.Black, 1);
-					else if (!waiting && DrawTime)
-						overlayFont.DrawTextWithContrast(WidgetUtils.FormatTime(first.Queue.RemainingTimeActual(first), World.Timestep),
-							icon.Pos + timeOffset,
-							Color.White, Color.Black, 1);
+				}
 
-					// ∞ in TOP-LEFT corner — auto-build mode. Falls back to the overlay font if no Symbols
-					// font is configured (FreeSansBold has the ∞ glyph, so this still draws cleanly).
-					if (first.Infinite)
-						symbolOrFallback.DrawTextWithContrast(InfiniteSymbol,
-							icon.Pos + infiniteOffset,
-							InfiniteSymbolColor, Color.Black, 1);
+				var waiting = !CurrentQueue.IsProducing(first) && !first.Done;
 
-					// Count "N" in TOP-RIGHT corner, right-aligned. Yellow when waiting in queue,
-					// white when this is the active item with multiple copies stacked.
-					if (total > 1 || waiting)
-					{
-						var countText = total.ToString();
-						var countWidth = overlayFont.Measure(countText).X;
-						var countPos = new float2(icon.Pos.X + countRightAnchor - countWidth, icon.Pos.Y + queuedOffset.Y);
-						overlayFont.DrawTextWithContrast(countText,
-							countPos,
-							waiting ? CountWaitingColor : CountActiveColor, Color.Black, 1);
-					}
+				// "Now" count = number of consecutive items of this type starting at the global
+				// queue head. Reads as "how many of these will produce in a row right now".
+				// Only meaningful (non-zero) for the icon whose type is at queue[0].
+				var nowCount = 0;
+				for (var i = 0; i < allQueued.Count; i++)
+				{
+					if (allQueued[i].Item == icon.Name)
+						nowCount++;
+					else
+						break;
+				}
 
-					// "▶" next-up marker in BOTTOM-LEFT corner — only on the icon for the type that
-					// will start producing next when the active type finishes.
-					if (waiting && icon.Name == nextUpName && icon.Queued.Any(q => q == allQueued[1]))
-						symbolOrFallback.DrawTextWithContrast(NextUpText,
-							icon.Pos + nextUpOffset,
-							NextUpColor, Color.Black, 1);
+				// Lime stripe down the left edge: this type has at least one auto-build copy. Drawn
+				// as a primitive so it never depends on a missing font glyph.
+				if (anyInfinite)
+				{
+					var stripe = new Rectangle(
+						(int)icon.Pos.X,
+						(int)icon.Pos.Y,
+						AutoStripeWidth,
+						IconSize.Y);
+					WidgetUtils.FillRectWithColor(stripe, AutoStripeColor);
+				}
+
+				// Center text — READY / ON HOLD / time — unchanged.
+				if (first.Done)
+				{
+					if (ReadyTextStyle == ReadyTextStyleOptions.Solid || orderManager.LocalFrameNumber * worldRenderer.World.Timestep / 360 % 2 == 0)
+						overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, Color.White, Color.Black, 1);
+					else if (ReadyTextStyle == ReadyTextStyleOptions.AlternatingColor)
+						overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, ReadyTextAltColor, Color.Black, 1);
+				}
+				else if (first.Paused)
+					overlayFont.DrawTextWithContrast(HoldText,
+						icon.Pos + holdOffset,
+						Color.White, Color.Black, 1);
+				else if (!waiting && DrawTime)
+					overlayFont.DrawTextWithContrast(WidgetUtils.FormatTime(first.Queue.RemainingTimeActual(first), World.Timestep),
+						icon.Pos + timeOffset,
+						Color.White, Color.Black, 1);
+
+				// Two-number badge in the TOP-RIGHT corner, right-aligned.
+				// Top row "now" only when there's a gap (now < total) AND this type is at the head.
+				// Bottom row "total" when total > 1 OR the type is waiting (so a lone queued copy
+				// still gets a "1" indicator).
+				var showTop = nowCount > 0 && nowCount < total;
+				var showBottom = total > 1 || waiting;
+
+				if (showTop)
+				{
+					var nowText = nowCount.ToString();
+					var nowWidth = overlayFont.Measure(nowText).X;
+					var nowPos = new float2(icon.Pos.X + countRightAnchor - nowWidth, icon.Pos.Y + countTopY);
+					overlayFont.DrawTextWithContrast(nowText, nowPos, CountNowColor, Color.Black, 1);
+				}
+
+				if (showBottom)
+				{
+					var totalText = total.ToString();
+					var totalWidth = overlayFont.Measure(totalText).X;
+					var totalY = showTop ? countBottomY : countTopY;
+					var totalPos = new float2(icon.Pos.X + countRightAnchor - totalWidth, icon.Pos.Y + totalY);
+					var totalColor = anyInfinite ? CountTotalAutoColor
+						: waiting ? CountTotalWaitingColor
+						: CountTotalActiveColor;
+					overlayFont.DrawTextWithContrast(totalText, totalPos, totalColor, Color.Black, 1);
 				}
 			}
 		}

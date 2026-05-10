@@ -293,9 +293,18 @@ namespace OpenRA
 			return new Order("Command", null, false) { IsImmediate = true, TargetString = text };
 		}
 
-		public static Order StartProduction(Actor subject, string item, int count, bool queued = true)
+		// High bit of ExtraData carries the "auto-build" flag — set when the user wants the
+		// queued copies to keep respawning (alt-click). Count occupies the low 31 bits, which
+		// is far more than the InfiniteBuildLimit cap, so no real loss of range.
+		public const uint StartProductionAutoFlag = 0x80000000u;
+		public const uint StartProductionCountMask = 0x7FFFFFFFu;
+
+		public static Order StartProduction(Actor subject, string item, int count, bool queued = true, bool auto = false)
 		{
-			return new Order("StartProduction", subject, queued) { ExtraData = (uint)count, TargetString = item };
+			var data = (uint)count & StartProductionCountMask;
+			if (auto)
+				data |= StartProductionAutoFlag;
+			return new Order("StartProduction", subject, queued) { ExtraData = data, TargetString = item };
 		}
 
 		public static Order PauseProduction(Actor subject, string item, bool pause)

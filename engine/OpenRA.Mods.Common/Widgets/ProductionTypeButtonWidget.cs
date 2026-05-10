@@ -69,13 +69,13 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			base.Draw();
 
-			if (symbolFont != null && RepeatModeActive())
+			if (RepeatModeActive())
 			{
+				// Lime stripe down the LEFT edge of the tab — this category has queue-wide auto-build
+				// engaged. Drawn as a primitive so it never depends on a missing font glyph.
 				var rb = RenderBounds;
-				var symbol = "\u221E"; // ∞
-				var size = symbolFont.Measure(symbol);
-				var pos = new float2(rb.X + (rb.Width - size.X) / 2, rb.Y + (rb.Height - size.Y) / 2);
-				symbolFont.DrawTextWithContrast(symbol, pos, Color.LimeGreen, Color.Black, 1);
+				var stripe = new Rectangle(rb.X, rb.Y, 3, rb.Height);
+				WidgetUtils.FillRectWithColor(stripe, Color.LimeGreen);
 			}
 		}
 

@@ -473,11 +473,13 @@ namespace OpenRA.Mods.Common.Traits
 
 					var cost = GetProductionCost(unit);
 					var time = GetBuildTime(unit, bi);
-					var amountToBuild = Math.Min(fromLimit, order.ExtraData);
+					var auto = (order.ExtraData & Order.StartProductionAutoFlag) != 0;
+					var rawCount = (int)(order.ExtraData & Order.StartProductionCountMask);
+					var amountToBuild = Math.Min(fromLimit, rawCount);
 					for (var n = 0; n < amountToBuild; n++)
 					{
 						var hasPlayedSound = false;
-						BeginProduction(new ProductionItem(this, order.TargetString, cost, playerPower, () => self.World.AddFrameEndTask(_ =>
+						var newItem = new ProductionItem(this, order.TargetString, cost, playerPower, () => self.World.AddFrameEndTask(_ =>
 						{
 							// Make sure the item hasn't been invalidated between the ProductionItem ticking and this FrameEndTask running
 							if (!Queue.Any(i => i.Done && i.Item == unit.Name))
@@ -502,7 +504,12 @@ namespace OpenRA.Mods.Common.Traits
 									TextNotificationsManager.AddTransientLine(self.Owner, Info.BlockedTextNotification);
 								}
 							}
-						})), !order.Queued);
+						}));
+
+						if (auto)
+							newItem.Infinite = true;
+
+						BeginProduction(newItem, !order.Queued);
 					}
 
 					break;
@@ -526,19 +533,10 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						RepeatMode = !RepeatMode;
 
-						// When enabling, mark the currently building item as infinite
-						if (RepeatMode)
-						{
-							var current = Queue.FirstOrDefault();
-							if (current != null && !current.Infinite)
-								current.Infinite = true;
-						}
-						else
-						{
-							// When disabling, clear infinite on all items so they finish normally
-							foreach (var item in Queue)
-								item.Infinite = false;
-						}
+						// On enable: every existing queued item joins the cycle. On disable: strip the
+						// flag from everything so what's queued finishes normally and stops respawning.
+						foreach (var item in Queue)
+							item.Infinite = RepeatMode;
 					}
 
 					break;
@@ -602,27 +600,41 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool CancelProductionInner(string itemName)
 		{
-			var item = Queue.LastOrDefault(a => a.Item == itemName);
+			var matching = Queue.Where(a => a.Item == itemName).ToList();
+			if (matching.Count == 0)
+				return false;
 
-			if (item != null)
+			// If any copy of this type is on auto-build, the first cancel exits the auto-mode
+			// atomically: strip Infinite from every copy, refund and remove the queued (not-yet-
+			// started) ones, leave only the in-flight one to finish. Subsequent cancels (e.g. shift
+			// for handleCount=5, or middle-click) fall into the normal branch below and clean up
+			// the in-flight item too.
+			if (matching.Any(m => m.Infinite))
 			{
-				if (item.Infinite)
+				var inFlight = Queue.FirstOrDefault();
+				var inFlightIsThis = inFlight != null && inFlight.Item == itemName;
+
+				foreach (var qi in matching)
+					qi.Infinite = false;
+
+				foreach (var qi in matching)
 				{
-					// Right-click on auto-build = exit auto-build mode.
-					// Leave the in-flight item to finish; do NOT spawn 98 extra copies.
-					item.Infinite = false;
-				}
-				else
-				{
-					// Refund what has been paid
-					playerResources.GiveCash(item.TotalCost - item.RemainingCost);
-					EndProduction(item);
+					if (inFlightIsThis && qi == inFlight)
+						continue;
+
+					playerResources.GiveCash(qi.TotalCost - qi.RemainingCost);
+					EndProduction(qi);
 				}
 
 				return true;
 			}
 
-			return false;
+			// Normal queue: peel the most recently added copy (last in queue order). Refund partial
+			// cost and remove from queue.
+			var item = matching[matching.Count - 1];
+			playerResources.GiveCash(item.TotalCost - item.RemainingCost);
+			EndProduction(item);
+			return true;
 		}
 
 		public void EndProduction(ProductionItem item)
@@ -635,10 +647,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void BeginProduction(ProductionItem item, bool hasPriority)
 		{
-			if (Queue.Any(i => i.Item == item.Item && i.Infinite))
-				return;
-
-			// Auto-set infinite when repeat mode is active
+			// Queue-level RepeatMode (toggled via the production tab's Alt+click) makes every new item
+			// auto-respawning. Per-icon Alt+click sets Infinite directly via the order, so this OR is
+			// the union of both pathways.
 			if (RepeatMode)
 				item.Infinite = true;
 
@@ -647,21 +658,18 @@ namespace OpenRA.Mods.Common.Traits
 			else
 				Queue.Add(item);
 
-			if (Info.InfiniteBuildLimit < 0)
-				return;
-
-			var queued = Queue.FindAll(i => i.Item == item.Item);
-
-			if (queued.Count <= Info.InfiniteBuildLimit)
-				return;
-
-			queued[0].Infinite = true;
-
-			for (var i = 1; i < queued.Count; i++)
+			// Hard cap per type — refuse rather than silently auto-convert. The user controls cycle
+			// size explicitly through Alt+click; we only enforce the InfiniteBuildLimit ceiling.
+			if (Info.InfiniteBuildLimit > 0)
 			{
-				// Refund what has been paid
-				playerResources.GiveCash(queued[i].TotalCost - queued[i].RemainingCost);
-				EndProduction(queued[i]);
+				var queued = Queue.FindAll(i => i.Item == item.Item);
+				while (queued.Count > Info.InfiniteBuildLimit)
+				{
+					var excess = queued[queued.Count - 1];
+					playerResources.GiveCash(excess.TotalCost - excess.RemainingCost);
+					EndProduction(excess);
+					queued.RemoveAt(queued.Count - 1);
+				}
 			}
 		}
 
