@@ -45,22 +45,13 @@
   - **P2:** new `IProvideTooltipDescription` interface; `AmmoPoolInfo` adds weapon block + grand-total to production tooltip
   - **P3:** ~63 AmmoPools across 9 YAMLs given explicit `SupplyValue`/`CreditValue` per tier table (T0=1 → T9=1500)
   - **Verify:** empty TRUK refund = 250; cannot refill within 3c0 unless docked at 2c0; right-click LC behaviour; multi-pool tooltip; tier-cost feel
-- [T:trusted] **Supply truck resupply bar + LC refill** (260504, commit 179aba43) — TRUK gets 3-stance resupply bar (default Evacuate). Auto seeks LC, refills via `SupplyProvider`. `AutoRefillIfEmpty` Hold/Auto/Evacuate dispatch verified at `CargoSupply.cs:749-766`
 - [ ] **Verify unit sell value at different ammo levels** — broader than the TRUK refund check above. Spent ammo should be deducted from cashback at evac for ALL units (tanks, infantry with reload). Sweep
 
 ### Active items in flight
-- ! [T:trusted] **Supply truck deploy → drop cache** — fixed 260504 (commit b3699b63; `CargoSupply` `IIssueDeployOrder` + `DropCargoSupply` `DeployOrderTargeter` verified at `CargoSupply.cs:82,585,598`). Scope locked to TRUK only.
-  - **Open design discussion (urgent flag is here):** dropped supply cache should act as a real supply actor with its own supply bar under it. Right now it doesn't — and I think it's indestructible? It should be very destructible, causing a large explosion when destroyed (size could vary based on remaining supplies). I also think we should be able to target it with supply trucks to replenish the same pile over and over, or something like that — even open to automatic replenishment by selecting the cache and using stances on it. Needs discussion first.
+- ! [ ] **Dropped supply cache: real supply actor + destructible** — current cache from TRUK deploy doesn't act as a supply actor with its own bar, and may be indestructible. Should be very destructible (large explosion on death, size scaling with remaining supplies), targetable by other supply trucks to replenish, possibly auto-replenish via stance on the cache. Needs design discussion before code. (Underlying TRUK deploy → drop cache shipped 260504, commit b3699b63.)
 - [ ] **Supply truck → building = transfer supplies** *(new feature, not started)* — building gains supply bar; soldiers inside/nearby drain it
-- [T:trusted] **Helicopters evacuated near map edge bypass missile fire** — fixed 260504 (commit 98742d4e). `EvacuatingOffMap` field + `IsClearOfMapEdge` despawn gate verified present in `Aircraft.cs:286,663`. Vehicle extension is a separate design item (below)
 - [ ] **Vehicle off-map evac flight (extension of heli fix)** — same off-map-fly-before-sold treatment for vehicles, shorter distance. Past the boundary: targetable but unselectable. Goal: prevent border-camp evac that dodges incoming fire, plus better visuals than vanishing at edge tile
 - [ ] **Littlebird rotor still spins after safe landing** — needs investigation (sweep all helis)
-- [T:trusted] **TECN capture order lost when shot at + panicking** — fixed 260504 (commit be46cde9). Code verified intact; ScaredyCat.cs untouched since
-- [T:trusted] **Shift+G on attack-ground orders converts them to move orders** — fixed 260504 (commit dd6cc18f). `IAttackActivity` interface still implemented in all 4 attack-activity classes; GroupScatterHotkeyLogic still consumes it
-- [T] **Aircraft can't spawn if waypoint blocked** — partial fix; aircraft branch may have separate cause from ground-unit fix. Re-test (no commit verified yet)
-- [T:trusted] **Garrison: only first soldier of a batch enters** — mitigation 260503 (commit bf63eef4, `ChangeOwnerInPlace(updateGeneration:false)` at `GarrisonManager.cs:261,325,330`). Keeps in-flight Enter activities valid through ownership flip
-- [T:trusted] **Stop order doesn't cancel garrisoned firing** — fixed (commit 97e192cc). `AttackGarrisoned.OnStopOrder` → `GarrisonManager.OnStopOrder` clears forceTarget, port targets, ambushTriggered. Verified at `AttackGarrisoned.cs:391-396`, `GarrisonManager.cs:1131-1143`
-- [T:trusted] **Soldiers under fire abandon Enter-building order** — fixed 260504 (commit fdfaffb1). New `MoveToTargetRaw`/`MoveIntoTargetRaw` on `IMove` bypass WrapMove; Enter uses raw variants at `Enter.cs:117,131`. Capture/Demolish/Ride/Infiltrate also benefit
 - [T:trusted] **Iskander/HIMARS shockwave radius too large** — tuned 260509 (commit 9578557c). `MaxRadius` values verified in `weapons-explosions.yaml`: Iskander 4c0 (line 495), HIMARS 2c512 (line 532). Feel needs human eye in next playtest
 
 ### Known design issues
@@ -78,7 +69,6 @@
 
 ### Active bugs
 - [ ] Artillery fires all ammo at once when critically damaged
-- [~] **Artillery force-attack blocked during setup countdown** — Layer 1 fixed 260509 (commit 51db91f7), `NextActivity is AttackActivity` skip-clear verified at `AttackFollow.cs:400-401`. Layer 2 OPEN: turret stalls mid-rotation; `Turreted.Tick` realign path likely fighting `FaceTarget`. Repro: `test-arty-force-attack-during-setup` (currently RED). Touches: `Turreted.cs:191-216`, `AttackTurreted.cs:36-48`
 - [ ] **Heavy artillery deliberately ignores infantry** *(noted 260508)* — by design via `^AutoTargetArtillery`. Decision: add low-priority Infantry, or keep heavy-only?
 - [ ] **Some enemy soldiers untargetable (mutual)** *(reported 260508)* — needs repro: unit type, stance, near garrison port?
 - [ ] **Bridge pathing — units walk off the bridge** — *Investigated 260509 (read-only):* `Bridge.cs:158,322` correctly overrides `Map.CustomTerrain[c]` for footprint cells, so the bridge cells DO get `Bridge` terrain type. But the `foot` locomotor (`world.yaml:28-42`) permits `Beach: 80`, `RiverShallow: 40`, `Shallow: 30` — so infantry can legally walk along the shore *next* to a bridge. Pathfinder cost is inverse of speed, and `Beach: 80` vs `Bridge: 100` is a ~25% penalty per cell — small enough that even a 1-2 cell shortcut along the beach can beat going across the bridge. Likely fixes: (a) reduce `Beach`/`Shallow` passability for `foot` (breaks beach landings), (b) widen bridge footprint to cover the shore approach cells, (c) add a per-bridge guide cell that pulls paths onto the deck. Vehicles may have the same issue; check `wheeled`/`tracked` locomotor speeds for shore terrains
@@ -104,13 +94,10 @@
 
 ### Combat / suppression / bypass
 - [ ] Suppression tuning — playtest vehicle values, per-weapon fine-tuning
-- [T] Bypass system refinement (ATGM tree handling) — *260510* density-based fire-time gate on WGM/Hellfire (`FreeLineDensity`, `MissChancePerDensity`); per-weapon `ClearSightThreshold` now applies in `Armament.CheckFire` instead of being washed out by coarmaments. Tests: `test-wgm-fires-clean`, `test-wgm-fires-thru-1-tree`, `test-wgm-deny-thru-5-trees`. *Range-based hit chance still pending.*
 - [ ] Flametrooper effective vs unarmored
 - [ ] Units out of ammo reject attack orders (don't freeze aiming)
 - [ ] **No-ammo units must reject attack-move + go idle if ammo runs out mid-attack-move** *(reported 260508)* — needs design pass: interaction with Resupply stances, whether to complete move or stop in place, mixed-group handling
 - [ ] Shoot at last known location for stationary targets
-- [T] WGM should not fire if it won't hit — *260510* same change as the Bypass system row; `ClearSightThreshold: 4` + `FreeLineDensity: 1` + `MissChancePerDensity: 15` on WGM/WGM.bradley/Hellfire, plus `Blockable: false` on the projectile so the fire-time roll is the sole arbiter.
-- [T] **WGM (Bradley/BMP) loses track during normal flight** *(reported 260508, fixed 260510)* — root cause: when `flyStraight` latched (missile overshot target or target invalidated), `HomingInnerTick` was skipped — and that's the only place `ChangeSpeed` is called. A missile that decelerated approaching the target locked in the slow speed and crawled the rest of the way to fuel-out. Fix in `Missile.HomingTick`: always `ChangeSpeed()` while flying-straight (motor stays burning), drop the redundant target-invalid hFacing freeze (let velVec drive homing toward the preserved last-known `targetPosition`), and reset `flyStraight`/`minDistanceToTarget` when operator retargets so the new target is actually homed on. Plus `Armament.FireBarrel` re-validates the captured target across the FireDelay gap — no more launching at a target that died between aim and pull. Test `test-wgm-target-dies-midflight` covers the post-target-death path; `test-wgm-accuracy-moving` jumped 63%→92% as side effect
 - [ ] Ballistics deprioritize targets if hit chance too low
 
 ### Supply Route
