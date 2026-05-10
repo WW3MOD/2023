@@ -55,6 +55,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Width (in pixels) of the rallypoint line.")]
 		public readonly int LineWidth = 1;
 
+		[Desc("Render the rallypoint line as a dashed line instead of a solid line.")]
+		public readonly bool Dashed = false;
+
 		[SequenceReference(nameof(Image), allowNullImage: true)]
 		public readonly string FlagSequence = "flag";
 

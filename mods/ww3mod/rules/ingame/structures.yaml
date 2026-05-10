@@ -270,6 +270,8 @@ SUPPLYROUTE:
 	Armor:
 		Type: Indestructable
 	RallyPoint:
+		LineWidth: 3
+		Dashed: true
 	Exit@Infantry_1:
 		ExitCell: 0,0
 		ProductionTypes: Soldier, Infantry

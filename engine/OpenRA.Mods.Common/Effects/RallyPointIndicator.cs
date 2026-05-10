@@ -148,7 +148,7 @@ namespace OpenRA.Mods.Common.Effects
 				var color = ColorForOrder(orderType);
 				var targetLine = new[] { prev, pos };
 				prev = pos;
-				yield return new TargetLineRenderable(targetLine, color, rp.Info.LineWidth, 1);
+				yield return new TargetLineRenderable(targetLine, color, rp.Info.LineWidth, 1, rp.Info.Dashed);
 			}
 		}
 
