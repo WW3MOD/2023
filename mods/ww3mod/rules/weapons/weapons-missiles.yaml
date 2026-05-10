@@ -85,7 +85,8 @@ WGM:
 		Penetration: 800
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
-		Spread: 64
+		# EXPERIMENT 260510: 3x splash radius — near-misses still hurt.
+		Spread: 192
 		Damage: 2000
 		DamageTypes: ExplosionDeath
 
@@ -131,9 +132,21 @@ Hellfire:
 		Penetration: 800
 		DamageTypes: ExplosionDeath
 	Warhead@Spread: SpreadDamage
+		# EXPERIMENT 260510: 3x splash radius (matches WGM tweak).
 		ValidTargets: Ground, Water, Air
-		Spread: 64
+		Spread: 192
 		Damage: 2000
+		# Penetration 20: heli→heli silent-vanish fix (260510). Heli HitShapes
+		# are tiny (Circle Radius 32) — at PerCellIncrement Inaccuracy 16 the
+		# missile lands ~100 wdist from a heli target on average, well outside
+		# TargetDamage's tight default 1-wdist Spread. The fall-back is this
+		# SpreadDamage warhead. With default Penetration 1 vs Heavy heli
+		# Thickness 20 the falloff damage gets /20, leaving 5-50 damage per
+		# missile — perceived as "missile silently vanished". Setting Pen 20
+		# matches Heavy heli thickness so near-misses do meaningful damage
+		# (~500-1000) without significantly buffing splash vs Heavy tanks
+		# (Thickness 280-700, still ~7% effective).
+		Penetration: 20
 		DamageTypes: ExplosionDeath
 
 Hellfire.strykershorad:

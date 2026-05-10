@@ -1,0 +1,1 @@
+Auto: Apache vs Mi-28 in air. Hellfire must actually damage the target (not silently vanish on impact).

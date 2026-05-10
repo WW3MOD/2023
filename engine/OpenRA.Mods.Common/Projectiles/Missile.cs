@@ -1052,7 +1052,45 @@ namespace OpenRA.Mods.Common.Projectiles
 				|| (info.ExplodeWhenEmpty && rangeLimit >= WDist.Zero && distanceCovered > rangeLimit) // Ran out of fuel
 				|| !world.Map.Contains(cell) // This also avoids an IndexOutOfRangeException in GetTerrainInfo below.
 				|| (!string.IsNullOrEmpty(info.BoundToTerrainType) && world.Map.GetTerrainInfo(cell).Type != info.BoundToTerrainType) // Hit incompatible terrain
-				|| (height.Length < info.AirburstAltitude.Length && relTarHorDist < info.CloseEnough.Length); // Airburst
+				// Airburst: ground-relative low-altitude proximity fuse. Gated on !flyStraight —
+				// once the missile has overshot and committed to a straight line, the target
+				// (especially an airborne one) has likely moved away, and a horizontal-only
+				// proximity match below the target wastes the warhead at empty space / ground.
+				|| (!flyStraight && height.Length < info.AirburstAltitude.Length && relTarHorDist < info.CloseEnough.Length);
+
+			// PITFALL: when missile Speed > CloseEnough, the per-tick relTarDist sample can
+			// straddle the proximity sphere — missile is at 400 wdist away, then 600 wdist past,
+			// neither under CloseEnough=298, so it flies past without detonating. Heli→heli
+			// Hellfire (Speed 500, CloseEnough 298) hits this; missile then over-flies and
+			// detonates at fuel-out far from target.
+			// Fix: check segment-to-aim-point closest approach for the move-this-tick. We use
+			// `targetPosition + leadTarget` (matches the missile's actual aim, where a moving
+			// target will be at intercept), not bare `targetPosition` — otherwise lead-shots on
+			// movers detonate at the target's stale current position and miss.
+			if (!shouldExplode && state != States.Freefall)
+			{
+				var segVec = pos - lastPos;
+				var segLenSq = (long)segVec.X * segVec.X + (long)segVec.Y * segVec.Y + (long)segVec.Z * segVec.Z;
+				if (segLenSq > 0)
+				{
+					var aimPos = targetPosition + leadTarget;
+					var toTar = aimPos - lastPos;
+					var dot = (long)toTar.X * segVec.X + (long)toTar.Y * segVec.Y + (long)toTar.Z * segVec.Z;
+					var t = System.Math.Max(0L, System.Math.Min(1024L, dot * 1024 / segLenSq));
+					var closestPos = lastPos + new WVec(
+						(int)((long)segVec.X * t / 1024),
+						(int)((long)segVec.Y * t / 1024),
+						(int)((long)segVec.Z * t / 1024));
+					var ce = (long)info.CloseEnough.Length;
+					var dPos = aimPos - closestPos;
+					var minDistSq = (long)dPos.X * dPos.X + (long)dPos.Y * dPos.Y + (long)dPos.Z * dPos.Z;
+					if (minDistSq < ce * ce)
+					{
+						pos = closestPos;
+						shouldExplode = true;
+					}
+				}
+			}
 
 			if (shouldExplode)
 				Explode(world);
