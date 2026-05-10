@@ -122,6 +122,8 @@ end
 | `Test.Pass()` | Write `pass` verdict, `Game.Exit()` |
 | `Test.Fail(reason)` | Write `fail` verdict + reason, exit |
 | `Test.Skip(reason)` | Write `skip` verdict + reason, exit |
+| `Test.IssueEnterTransport(passenger, transport, queued?)` | Issue a real EnterTransport order through Passenger.ResolveOrder. Use this rather than `unit.EnterTransport(t)` when the test needs the resulting RideTransport activity to be visible to target-line scans (e.g. spread / Shift-G logic). |
+| `Test.GroupScatter({actors})` | Run the Group Scatter (Shift-G) spread on the given actors. Mimics the hotkey path without needing a key press / live selection. |
 
 ### Useful actor methods (existing OpenRA Lua API + WW3MOD additions)
 

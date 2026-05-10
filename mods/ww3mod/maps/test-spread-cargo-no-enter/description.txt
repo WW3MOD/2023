@@ -1,0 +1,1 @@
+Auto: Spread (Shift-G) must NOT broadcast a single EnterTransport waypoint to every selected unit. With BMP + 3 infantry selected (one infantry pre-queued to enter the BMP), spread should only redistribute Move waypoints — no infantry should end up loaded into the BMP.

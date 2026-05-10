@@ -9,6 +9,7 @@
 
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Widgets.Logic.Ingame;
 using OpenRA.Scripting;
 using OpenRA.Traits;
 
@@ -171,6 +172,35 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				ExtraData = paused ? 1u : 0u,
 			};
 			queue.ResolveOrder(player.PlayerActor, order);
+		}
+
+		[Desc("Issue a real EnterTransport order on `passenger` targeting `transport`. Goes through " +
+			"Passenger.ResolveOrder so the resulting RideTransport activity has its target-line " +
+			"color set, matching player right-click orders (the activity-direct Lua " +
+			"`unit.EnterTransport` API passes null color, which makes the activity invisible to " +
+			"target-line scans). Test mode only.")]
+		public void IssueEnterTransport(Actor passenger, Actor transport, bool queued = true)
+		{
+			if (!TestMode.IsActive || passenger == null || transport == null)
+				return;
+
+			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
+		}
+
+		[Desc("Run the Group Scatter (Shift-G) spread on the given actors as if the user had " +
+			"selected them and pressed the hotkey. Useful for verifying that the spread doesn't " +
+			"redistribute unit-specific waypoints (e.g. EnterTransport) across the rest of the " +
+			"selection. Test mode only.")]
+		public void GroupScatter(Actor[] actors)
+		{
+			if (!TestMode.IsActive || actors == null || actors.Length == 0)
+				return;
+
+			var alive = actors.Where(a => a != null && a.IsInWorld && !a.IsDead).ToList();
+			if (alive.Count == 0)
+				return;
+
+			GroupScatterHotkeyLogic.PerformGroupScatter(alive[0].World, alive);
 		}
 
 		[Desc("Returns the RemainingTime (in ticks) of the first queued item of `actorType` on " +

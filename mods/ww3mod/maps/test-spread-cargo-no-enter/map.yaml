@@ -1,0 +1,57 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Spread doesn't broadcast EnterTransport (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	# Cargo vehicle in the middle. Infantry adjacent on the west side, queued
+	# move waypoints to the further west. One infantry is pre-queued to enter
+	# the BMP after its moves — this is the "stale RideTransport" condition.
+	Bmp: m113
+		Owner: USA
+		Location: 33,16
+		Facing: 768
+	Inf1: e1.america
+		Owner: USA
+		Location: 32,15
+		Facing: 768
+	Inf2: e1.america
+		Owner: USA
+		Location: 32,16
+		Facing: 768
+	Inf3: e1.america
+		Owner: USA
+		Location: 32,17
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,16
+
+Rules: rules.yaml

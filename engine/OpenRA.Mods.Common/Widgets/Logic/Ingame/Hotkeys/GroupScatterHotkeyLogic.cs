@@ -59,6 +59,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				.Where(a => a.Owner == world.LocalPlayer && a.IsInWorld && !a.IsDead)
 				.ToList();
 
+			return PerformGroupScatter(world, selectedActors);
+		}
+
+		// Public for the test harness (Test.GroupScatter Lua binding) so the spread
+		// can be exercised in headless tests without a key press / live selection.
+		public static bool PerformGroupScatter(World world, IList<Actor> selectedActors)
+		{
 			if (selectedActors.Count == 0)
 				return false;
 
@@ -71,7 +78,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			var allChains = new List<List<Waypoint>>();
 			foreach (var actor in selectedActors)
 			{
-				var actorWaypoints = CollectWaypoints(actor);
+				var actorWaypoints = CollectWaypoints(world, actor);
 				allChains.Add(actorWaypoints);
 				if (actorWaypoints.Count > bestChain.Count)
 					bestChain = actorWaypoints;
@@ -101,21 +108,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 			// Process each segment in order, always queuing (Stop already cleared activities)
 			foreach (var segment in segments)
-				DistributeSegment(selectedActors, segment);
+				DistributeSegment(world, selectedActors, segment);
 
 			var segmentDesc = string.Join(" → ", segments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
 			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units: {segmentDesc}");
 			return true;
 		}
 
-		List<Waypoint> CollectWaypoints(Actor actor)
+		static List<Waypoint> CollectWaypoints(World world, Actor actor)
 		{
 			var waypoints = new List<Waypoint>();
 			var activity = actor.CurrentActivity;
 
 			while (activity != null)
 			{
-				var wp = ExtractWaypoint(activity, actor);
+				var wp = ExtractWaypoint(world, activity, actor);
 				if (wp.HasValue)
 					waypoints.Add(wp.Value);
 
@@ -125,7 +132,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			return waypoints;
 		}
 
-		Waypoint? ExtractWaypoint(Activity activity, Actor actor)
+		static Waypoint? ExtractWaypoint(World world, Activity activity, Actor actor)
 		{
 			// AttackMoveActivity — use cached OriginalDestination (most reliable)
 			if (activity is AttackMoveActivity attackMove)
@@ -140,7 +147,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					};
 
 				// Fallback: TargetLineNodes (shouldn't be needed but just in case)
-				return ExtractFromTargetLineNodes(activity, actor, "AttackMove");
+				return ExtractFromTargetLineNodes(world, activity, actor, "AttackMove");
 			}
 
 			// SmartMoveActivity wraps Move via IWrapMove (SmartMove trait)
@@ -156,7 +163,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 						IsActorTarget = false
 					};
 
-				return ExtractFromTargetLineNodes(activity, actor, "Move");
+				return ExtractFromTargetLineNodes(world, activity, actor, "Move");
 			}
 
 			// Direct Move activity
@@ -211,59 +218,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				}
 			}
 
-			// CaptureActor (extends Enter) — capture/infiltrate orders
-			if (activity is CaptureActor)
-				return ExtractActorTargetFromActivity(activity, actor, "CaptureActor");
-
-			// Generic Enter-derived activities (RideTransport, EnterAsCrew, etc.)
-			// Try to infer the order type from the activity class
-			if (activity is RideTransport)
-				return ExtractActorTargetFromActivity(activity, actor, "EnterTransport");
-
-			if (activity is EnterAsCrew)
-				return ExtractActorTargetFromActivity(activity, actor, "EnterAsCrewMember");
-
-			// Any other Enter-derived activity — extract target but skip re-issuance
-			// (we can't reliably infer the order string for unknown Enter subclasses)
+			// Enter-derived activities (RideTransport, EnterAsCrew, CaptureActor, Repairable, …)
+			// are unit-specific — a unit chose to enter THIS transport / capture THIS actor.
+			// Re-distributing them across the rest of the selection forces units who never
+			// intended to enter/capture to do so. Observed bugs:
+			//   • BMP (cargo) + outside infantry + Shift-G → all infantry march into the BMP
+			//   • Garrisoned soldiers selectable via portholes → outside soldiers march into
+			//     the building
+			// The single waypoint vs. N-units distributor branch broadcasts to everyone, which
+			// is correct for terrain Move but wrong for Enter. Drop them from the spread pool.
 			if (activity is Enter)
-				return ExtractActorTargetFromActivity(activity, actor, null);
+				return null;
 
 			// General fallback: try TargetLineNodes for any unrecognized activities
-			return ExtractFromTargetLineNodes(activity, actor, "Move");
+			return ExtractFromTargetLineNodes(world, activity, actor, "Move");
 		}
 
-		Waypoint? ExtractActorTargetFromActivity(Activity activity, Actor actor, string orderType)
-		{
-			// Try TargetLineNodes first (Enter.TargetLineNodes returns the target actor)
-			foreach (var node in activity.TargetLineNodes(actor))
-			{
-				if (node.Target.Type == TargetType.Actor && node.Target.Actor != null && !node.Target.Actor.IsDead)
-					return new Waypoint
-					{
-						Cell = node.Target.Actor.Location,
-						Target = node.Target,
-						OrderType = orderType,
-						IsActorTarget = true
-					};
-			}
-
-			// Try GetTargets as fallback
-			foreach (var t in activity.GetTargets(actor))
-			{
-				if (t.Type == TargetType.Actor && t.Actor != null && !t.Actor.IsDead)
-					return new Waypoint
-					{
-						Cell = t.Actor.Location,
-						Target = t,
-						OrderType = orderType,
-						IsActorTarget = true
-					};
-			}
-
-			return null;
-		}
-
-		Waypoint? ExtractFromTargetLineNodes(Activity activity, Actor actor, string orderType)
+		static Waypoint? ExtractFromTargetLineNodes(World world, Activity activity, Actor actor, string orderType)
 		{
 			foreach (var node in activity.TargetLineNodes(actor))
 			{
@@ -280,7 +251,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			return null;
 		}
 
-		List<Segment> BuildSegments(List<Waypoint> waypoints)
+		static List<Segment> BuildSegments(List<Waypoint> waypoints)
 		{
 			var segments = new List<Segment>();
 
@@ -314,7 +285,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 		}
 
 		// Distribute waypoints among units — works for both terrain and actor targets
-		void DistributeSegment(List<Actor> units, Segment segment)
+		static void DistributeSegment(World world, IList<Actor> units, Segment segment)
 		{
 			var waypoints = segment.Waypoints;
 
