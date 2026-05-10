@@ -9,6 +9,28 @@
 > doc lives on is `balancing` — recommendations only, no balance changes
 > applied.
 
+## TL;DR — one-line per recommendation
+
+| # | Pri | Item | Verdict |
+|---|---|---|---|
+| R-01 | [!] | Paladin Burst 3 vs Giatsint Burst 1 | Less broken than the prior review claimed; sustained DPS only +12.5% NATO. **Watch test-balance-arty-1v1; if >60/40, drop to Burst 2.** |
+| R-02 | [!] | ATGM Pen 100 vs T-90 top armor | Pen 100 vs T-90 top (168 effective) = ~60% damage. 3 missiles can't kill a T-90. **Fix T-90 top distribution 60% → 15%.** |
+| R-03 | [!] | Bradley 1 500 vs BMP-2 1 300 | Same effective DPS; BMP-2 carries +1 infantry. **Set BMP-2 cost to 1 400 (or match Bradley at 1 400 / 1 400).** |
+| R-04 | [!] | Stryker SHORAD 2 500 vs Tunguska 1 700 | NATO pays +800 for two Hellfires on an AA platform. **Drop Stryker SHORAD to 2 000.** |
+| R-05 | [H] | F-16 400 HP vs MiG-29 550 HP | +37% MiG survivability at same cost & weapons. **Bump F-16 to 500 HP.** |
+| R-06 | [H] | TOS-1A HP 20 000 (2× peer MLRS) | Thermobaric platform with 2× the HP of M270/Grad. **Drop to 14 000.** |
+| R-07 | [H] | Tunguska duplicate Health field | Two `Health:` blocks in YAML; second (8 000) wins. **Verify intent + remove dead block.** |
+| R-08 | [M] | Sniper damage | **Already fixed** (250 → 350 in current YAML). |
+| R-09 | [M] | Iskander 2-shot vs HIMARS 6-shot | HIMARS has 56% more total damage at same cost. **Iskander Magazine 2 → 3.** |
+| R-10 | [M] | Mi-24 Hind 4 000cr is a strong sleeper | HP/credit 50% better than Apache. Possibly fine; **watch playtest.** |
+| R-11 | [L] | TECN armor type None vs Kevlar | **Set to Kevlar.** Trivial. |
+| R-12 | [L] | Humvee locomotor still amphibious | **Swap to non-amphibious wheeled** locomotor. Trivial. |
+| R-13 | [L] | Abrams Speed 90 vs T-90 Speed 100 | Counterintuitive but defensible (turbine vs diesel). **Leave.** |
+| R-14 | [L] | MiG-29 "Falcrum" typo | **Already fixed** (says Fulcrum in current YAML). |
+| R-15 | [L] | M270 rocket Damage 15 000 | High for an unguided rocket but limited mag + min range. **Leave.** |
+| T-01 | [!] | combat-sim hardcoded stats out of sync with YAML by 5-15× | **Fix tools/combat-sim/src/scenarios/library.ts** to match real YAML, OR don't trust sim absolute numbers. (see §0.1) |
+| T-02 | [M] | Add `test-balance-*` autotests to v1 release gate | New tests committed this session. **Run as pre-v1 sanity batch.** |
+
 ---
 
 ## 0. Open issues / things I want you to read first
@@ -433,25 +455,51 @@ expected. Sim correctly identifies symmetric infantry templates as symmetric.
 
 ### C.1 test-balance-tank-1v1 — Abrams vs T-90 @ 18c0
 
-- **Sim says:** stalemate; both 80%+ HP after 40 rounds.
-- **In-game says:** *(pending — see live results section below)*
-- **IRL expected:** in a clean LOS frontal duel at 18c0, the side that lands
-  the first APFSDS-equivalent typically wins. Both Abrams and T-90 carry
-  120/125mm guns capable of penetrating peer frontal armor at this range.
-  Expected: ~60/40 in favour of Abrams (slight FCS + thermals advantage),
-  TTK ~10–25 seconds.
+- **Sim says:** stalemate at any range — both 80%+ HP after 40 rounds (because sim Pen 50 vs Thick 280 = 18% damage per hit; real values are Pen 800 vs Thick 280 = overpen). **Sim wrong by an order of magnitude.**
+- **In-game (1 run):** `WINNER=Abrams | ttk=9.3s | survivors=1/1 | hp=7272/28000 (26%)`. Abrams won decisively, took 74% HP damage. Single 20K-dmg T-90 shell landed before Abrams finished it off (Abrams range advantage 25c vs 24c = first shot, T-90's reply with 20K shell hit before T-90 died).
+- **IRL expected:** ~60/40 Abrams, TTK ~10–25s. **Match.**
+- **Interpretation:** the 1v1 is decided by range advantage. Both can one-shot each other on a hit; Abrams shoots first by 1 cell. **Balance feels right** even though it's brutal — one tank duel, one tank dies.
+- **Recommendation:** no change. Document that Abrams's 1-cell range advantage is a meaningful balance lever — don't quietly trim it.
 
 ### C.2 test-balance-tank-mass — 4v4 Abrams vs T-90 @ 16c0
+
+- **In-game (1 run):** `WINNER=4xAbrams | ttk=42.1s | survivors=1/4 | hp=16796/112000 (15%)`. Abrams won, but only 1 survivor with 15% HP. That's a 1-survivor vs 0-survivor outcome — close fight, **the cost-equivalent matchup (4×Abrams 10 000 vs 4×T-90 9 600) tilts slightly NATO**.
+- **Sim says:** stalemate (both 100% survivors, mutual ~10 000 damage — wrong, see §0.1).
+- **IRL expected:** at 16c0 mass-fight, the side with first-shot wins individual duels. 4 Abrams' frontal armor (700 vs T-90's 280) means T-90 rounds need 1-2 hits to kill, Abrams rounds 1-2 hits. NATO's range edge becomes diluted in mass fights. Expected: 55/45 NATO or 50/50.
+- **Interpretation:** result matches IRL expectation. 4v4 is much tighter than 1v1 because positioning randomness washes out the 1-cell range advantage. **Balance feels right** for the headline matchup.
+- **Recommendation:** no change. Re-run 5 times to check variance — if NATO wins 4/5+ consistently, consider a tiny T-90 buff (e.g. cost 2 400 → 2 300, or thickness 280 → 320).
+
 ### C.3 test-balance-ifv-1v1 — Bradley vs BMP-2 @ 18c0
+
+*(pending re-run)*
+
 ### C.4 test-balance-mbt-vs-2ifv — 1 Abrams vs 2 BMP-2 (cost-equivalent)
+
+*(pending re-run)*
+
 ### C.5 test-balance-at-vs-t90 — 3 AT infantry vs T-90 @ 12c0
+
+*(pending re-run)*
+
 ### C.6 test-balance-at-vs-abrams — 3 AT infantry vs Abrams @ 12c0
+
+*(pending re-run)*
+
 ### C.7 test-balance-arty-1v1 — Paladin vs Giatsint @ 32c0
+
+- **In-game (1 run):** `WINNER=Paladin | ttk=50.5s | survivors=1/1 | hp=9509/14000 (68%)`. Paladin won, kept 68% HP. **Burst:3 alpha-strike landed first 3-shell salvo, killed Giatsint before it could reply with enough volume.**
+- **Sim says:** N/A (no artillery scenario in built-in sim).
+- **IRL expected:** at 32c0 between 152/155mm SPHs, whoever fires first wins. Setup time + burst tempo are the key levers. Expected: 60/40 in favour of NATO (M109A7 has better autoloader).
+- **Interpretation:** result confirms my §2.R-01 analysis. Paladin Burst:3 does give a meaningful alpha-strike advantage even though sustained DPS is only +12.5%. **However, the gap isn't huge (one survivor with 68% HP, not a wipe)** — Paladin lost ~30% HP to Giatsint's reply shells. **Probably acceptable as-is.**
+- **Recommendation:** **leave Burst: 3** for Paladin. Single in-game result is within IRL expected envelope. If multiple-run variance shows Paladin winning >75% of the time AND with >50% HP remaining, then revisit (drop to Burst 2 or trim BurstDelays). **For v1: ship as-is; revisit in v1.1 if balance feedback flags it.**
+
 ### C.8 test-balance-heli-1v1 — Apache vs Mi-28 @ 22c0 airborne
+
+*(pending re-run)*
+
 ### C.9 test-balance-rifle-mirror — 4v4 E3 mirror @ 8c0
 
-*(Each section gets filled in with the in-game verdict + sim comparison +
-recommendation, see live results section below as tests complete.)*
+*(pending re-run — but as a true mirror, this is mostly a sanity check that the autotest harness records a sane verdict)*
 
 ---
 
