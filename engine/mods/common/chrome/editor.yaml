@@ -444,11 +444,14 @@ Container@EDITOR_WORLD_ROOT:
 									Width: 29
 									IgnoreChildMouseOver: true
 									Children:
-										Image@TILE_ERASE:
-											X: 6
-											Y: 6
-											Width: 26
-											Height: 26
+										Label@TILE_ERASE:
+											X: 0
+											Y: 0
+											Width: 29
+											Height: 29
+											Align: Center
+											Font: Bold
+											Text: X
 						Button@CLEAR_CURRENT_BUTTON:
 							X: 6
 							Y: 42
@@ -785,6 +788,8 @@ Container@EDITOR_WORLD_ROOT:
 					X: 0
 					Width: 49
 					Height: 25
+					Text: Sel
+					Font: Bold
 					Key: EditorSelectTab
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-select-tooltip
@@ -793,6 +798,8 @@ Container@EDITOR_WORLD_ROOT:
 					X: 49
 					Width: 49
 					Height: 25
+					Text: Tiles
+					Font: Bold
 					Key: EditorTilesTab
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-tiles-tooltip
@@ -801,6 +808,8 @@ Container@EDITOR_WORLD_ROOT:
 					X: 98
 					Width: 49
 					Height: 25
+					Text: Layer
+					Font: Bold
 					Key: EditorOverlaysTab
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-overlays-tooltip
@@ -809,6 +818,8 @@ Container@EDITOR_WORLD_ROOT:
 					X: 147
 					Width: 48
 					Height: 25
+					Text: Actor
+					Font: Bold
 					Key: EditorActorsTab
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-actors-tooltip
@@ -817,6 +828,8 @@ Container@EDITOR_WORLD_ROOT:
 					X: 195
 					Width: 48
 					Height: 25
+					Text: Tools
+					Font: Bold
 					Key: EditorToolsTab
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-tools-tooltip
@@ -825,6 +838,8 @@ Container@EDITOR_WORLD_ROOT:
 					X: 243
 					Width: 49
 					Height: 25
+					Text: Hist
+					Font: Bold
 					Key: EditorHistoryTab
 					TooltipTemplate: BUTTON_TOOLTIP
 					TooltipText: button-map-editor-tab-container-history-tooltip
