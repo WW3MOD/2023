@@ -1,0 +1,55 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: BALANCE: Heli 1v1 (Apache vs Mi-28)
+
+Author: WW3MOD balance harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 34,17
+
+Rules: rules.yaml

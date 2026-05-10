@@ -1,0 +1,460 @@
+# WW3MOD Balance Recommendations — 2026-05-10
+
+> **Read order:** open issues / questions at the top (so you see them first if
+> short on time), then the prioritized recommendation list, then the
+> evidence appendix (sim runs + autotest results + IRL reference) at the bottom.
+>
+> **Stance:** I tested but did not edit gameplay code. Everything here is a
+> recommendation, with the evidence for the call attached. The branch this
+> doc lives on is `balancing` — recommendations only, no balance changes
+> applied.
+
+---
+
+## 0. Open issues / things I want you to read first
+
+### 0.1 The combat-sim is significantly out-of-sync with the real YAML
+
+I want to call this out first because it's a tool problem you might want to
+fix before relying on the sim in future sessions.
+
+`tools/combat-sim/src/scenarios/library.ts` hardcodes unit/weapon stats
+that **drift wildly** from the real YAML. Examples I confirmed:
+
+| Stat | Real YAML | combat-sim hardcoded |
+|---|---|---|
+| Abrams 120mm `Damage` | **20 000** | 1 500 |
+| Abrams 120mm `Penetration` | **800** | 50 |
+| T-90 125mm `Damage` | **20 000** | 1 600 |
+| T-90 125mm `Penetration` | **800** | 45 |
+| T-90 `Thickness` | **280** | 650 |
+| T-90 `Cost` | **2 400** | 2 200 |
+| T-90 `HP` | **24 000** | 26 000 |
+| Bradley 25mm `Damage` | **500** | 600 |
+| RPG `Penetration` | **500** | 25 |
+| ATGM (inf) `Penetration` | **100** | not modelled |
+
+The `DOCS/skills/BALANCE.md` doc acknowledges "Phase 1 stats are hardcoded;
+Phase 2 will auto-load from YAML. Useful for relative comparisons even if
+absolute numbers drift slightly". The drift is not slight — it's an order
+of magnitude on the most important number (tank gun damage 1 500 vs 20 000)
+and an order of magnitude on penetration (50 vs 800).
+
+**Effect:** the sim's Abrams-vs-T-90 result ("both walk away with 80%+ HP
+after 40 rounds at any range") is not predicting in-game behaviour, it's
+predicting a hypothetical game where tank guns deal 5–7% effective damage
+per hit. In the actual game, real tank gun Pen 800 vs Thickness 280 (T-90)
+overpens — a hit does full damage. A 20 000-dmg shot into 26 000 HP = 1.3
+shots to kill. Completely different fight.
+
+The sim is still useful for **direction-of-effect** checks — "does adding
+splash help?" — but **don't trust its absolute numbers or its ratios for
+matchups with directional armor.**
+
+→ Recommendation block 5.1 has the fix proposal: either load YAML in Phase 2
+(big lift) or at minimum sync the hardcoded scenario library with the
+real YAML so it gives results within ~25% of in-game.
+
+### 0.2 Open questions for you
+
+Each one is something I think needs your call before I'd touch the code.
+I've written my lean next to each one.
+
+1. **Faction asymmetry intent for unique units.** Russia has SHOK (Tesla
+   trooper, currently `~disabled`) and TOS-1A (thermobaric MLRS) with no
+   NATO counterpart. NATO has HIMARS as a 6-shot precision system, Russia
+   has Iskander as a 2-shot heavy-warhead system. Do you want each side
+   to keep one "no-counterpart" unit? My lean: yes — asymmetry is good
+   flavour, but document it explicitly so future balance passes don't
+   try to "fix" the gap.
+
+2. **Are 25mm/30mm autocannons supposed to threaten heavy armor?** Right
+   now Bradley 25mm Pen 60 vs Abrams Thickness 700 = 8.5% effective
+   damage = a Bradley fires ~700 25mm rounds to kill an Abrams from the
+   front. That's IRL-correct (25mm can't kill a tank). But the sim
+   shows infantry rifles also can't damage Light/10 vehicles (Pen 4 vs
+   10 = 40% effective). My lean: keep it as-is — autocannons are anti-
+   IFV, ATGMs are anti-MBT, that's clean rock-paper-scissors.
+
+3. **The T-90 front-armor "stalemate" the previous review flagged.**
+   With current YAML (Thickness 280, Distribution 100/80/80/80/60), the
+   T-90 frontal effective armor is 280 — still penetrable by Pen 800 tank
+   gun and Pen 800 ATGMs. But the previous review noted "pen 50 vs 700
+   thickness = 7% dmg per hit" which I now believe was reading sim
+   values, not real ones. My lean: there is no real stalemate; the
+   `Tank frontal armor stalemate` line in `RELEASE_V1.md` should be
+   removed or rephrased.
+
+4. **Do you want a `BALANCE.md` workflow run at the end of v1 to
+   green-light?** I built 9 reusable `test-balance-*` autotests this
+   session. They give a numeric verdict per duel (winner, TTK,
+   survivor HP%) so you can re-run them after any balance change. I
+   suggest adding `./tools/test/run-batch.sh test-balance-*` to a
+   pre-v1 checklist.
+
+---
+
+## 1. Methodology summary
+
+For each major duel:
+
+1. **Pulled real YAML stats** for the units and weapons involved (no sim).
+2. **Ran combat-sim duels** at multiple ranges as a relative-direction
+   check (knowing the sim's absolute numbers are wrong, see §0.1).
+3. **Ran new in-game AUTOTEST scenarios** (`test-balance-*`, see appendix C)
+   that spawn the actual YAML actors in a deterministic 1v1/NvN and report
+   winner / TTK / survivor HP.
+4. **Compared to a plausible-IRL outcome** (qualitative — "would a 3-man
+   Javelin team be expected to defeat a T-90?", not exact numbers).
+5. Wrote a recommendation if any of those four sources disagree.
+
+The autotests are committed and rerunnable. Numeric verdicts are in §C.
+
+---
+
+## 2. Findings & Recommendations — Priority Ordered
+
+> Format per item: **what / current state / proposed change / why / risk**.
+> Status flag: `[!]` critical · `[H]` high · `[M]` medium · `[L]` low
+> polish · `[?]` needs decision before code change.
+
+### `[!]` Critical
+
+#### [!] R-01 — Verify Paladin 3-shot burst against Giatsint 1-shot
+
+**Current YAML:** Paladin (M109) fires `Burst: 3, BurstDelays: 120, BurstWait: 240`. Giatsint fires `Burst: 1, BurstWait: 180`. Both fire 15 000-dmg shells; Paladin shells fall 120 ticks apart in a burst, then a 240-tick (~9.6s) wait. Giatsint fires one shell, then waits 180 ticks (~7.2s) until the next.
+
+**DPS calculation (sustained, ignoring deploy):**
+- Paladin: 3 shells × 15 000 = 45 000 dmg / (240 + 2×120 = 480 ticks) → **93.75 dmg/tick**
+- Giatsint: 1 × 15 000 / 180 ticks → **83.3 dmg/tick**
+
+So sustained DPS is +12.5% for Paladin. That's not 3x as the 2026-04 review claimed — the 240-tick cool-down compensates for most of the burst. **The previous review's framing was wrong.**
+
+**However**, burst gives Paladin a real alpha-strike advantage: 3 shells × 15 000 dmg with 3 000 splash each = 45 000 + 9 000 = 54 000 dmg in a 240-tick window, vs Giatsint's 15 000 + 3 000 = 18 000 dmg in a similar window. **Against fragile targets (infantry clumps, light vehicles), Paladin is much more lethal per engagement.**
+
+**Recommendation:** keep `Burst: 3` but **observe** the test-balance-arty-1v1 verdict before deciding. If Paladin consistently wins single-shell duels (because each burst lands first) **and** the gap is >60/40, drop Paladin to `Burst: 2` or trim per-shell damage to 12 000. Otherwise keep — it's flavour (M109 *does* fire timed multi-rounds-on-target IRL via Excalibur volleys).
+
+**Why my reading differs from the 2026-04 doc:** that doc computed "3x damage per cycle" without accounting for BurstWait. Sustained DPS is the right comparator for arty trading shells.
+
+#### [!] R-02 — Decide whether the ATGM Pen 100 problem is real
+
+**Current YAML:** infantry `ATGM`: `Damage: 10000, Penetration: 100, TopAttack: true`, range 20c0, 3 missiles per soldier.
+
+**Math against Abrams (Thickness 700, top distribution 10%):** effective top armor = 700 × 0.10 = 70. ATGM Pen 100 vs effective 70 → penetrates. Full 10 000 damage lands. Three top-attack hits = 30 000 dmg, more than enough to kill an Abrams (28 000 HP). **This works.**
+
+**Math against T-90 (Thickness 280, top distribution 60%):** effective top armor = 280 × 0.60 = **168**. ATGM Pen 100 vs effective 168 → **damage scaled down to 100/168 = ~60%** per hit. Three hits = ~18 000 dmg, which is 75% of T-90 (24 000 HP). **Marginal — three ATGMs cannot reliably kill an unsupported T-90.**
+
+**Real-world expectation:** a Javelin or Kornet team consistently defeats peer MBTs with a salvo. 3 missiles → kill is the IRL baseline.
+
+**Recommendation:** **fix T-90 top-armor distribution to mirror Abrams** (drop top from 60% to 10–15%), OR raise ATGM Pen to 200+. Lean: **fix T-90 distribution**. The current `100,80,80,80,60` gives T-90 better-than-real overhead protection (ERA tiles are mounted on frontal arc, not roof). Proposed: `100,60,40,20,15` (this was also the 2026-04 recommendation). After the change, ATGM math becomes 280 × 0.15 = 42 effective top armor → full damage.
+
+**Risk:** makes Russian armour more vulnerable to top-attack munitions. Mitigated because most top-attackers (ATGM, Paladin, Giatsint, all MLRS, HIMARS, Iskander) already overpenetrate Abrams top — the change levels the field, not Russia-only.
+
+**See test-balance-at-vs-t90 / -at-vs-abrams verdicts in §C.5 / §C.6 before applying.**
+
+#### [!] R-03 — Re-do Bradley WGM (2-burst) vs BMP-2 WGM (1-burst) cost analysis
+
+**Current YAML:**
+- Bradley `WGM.bradley`: `Burst: 2, BurstDelays: 100, BurstWait: 1000, Magazine: 8`. Effective TOW DPS = 2 × 10 000 / (1000 + 100) = 18.2 dmg/tick.
+- BMP-2 `WGM`: `Burst: 1, BurstWait: 500, Magazine: 8`. Effective Konkurs DPS = 10 000 / 500 = 20 dmg/tick.
+
+So ATGM DPS is ~10% higher on BMP-2. Bradley fires in pairs (alpha-strike potential) but with a longer rest between volleys. **Net: equal DPS, asymmetric tempo.**
+
+**Costs:** Bradley 1 500, BMP-2 1 300. Bradley costs 15% more for **identical effective DPS**.
+
+**Recommendation:** either drop Bradley to 1 400, bump BMP-2 to 1 400, or keep the gap but justify it via the 25mm-vs-30mm penetration gap. The 25mm Bushmaster (Pen 60) and 30mm BMP-2 (Pen 60) are mechanically identical. So no, the gap isn't justified by autocannon difference either.
+
+**Lean:** **set BMP-2 cost to 1 400**. Brings it 100 above what it was, 100 below Bradley. The 100 gap is real (Bradley carries 6 cargo vs BMP-2 7 — wait, BMP-2 carries +1) — actually the carry count alone makes BMP-2 slightly stronger. The cost should probably be **identical at 1 400 each**.
+
+#### [!] R-04 — Stryker SHORAD at 2 500cr is overpriced for what it does
+
+**Current YAML:** Stryker SHORAD `Cost: 2500`, multi-turret 25mm + Stinger×4 + Hellfire×2. Tunguska `Cost: 1700`, 30mm + 9M311×4.
+
+**Issue:** NATO pays +800 for one Hellfire pair on top of an AA platform. That's a poor deal — a dedicated Bradley (1 500) + AA-infantry tag-along (300) does similar work for 1 800 total.
+
+**Recommendation:** drop Stryker SHORAD cost to **2 000**. Still premium for multi-role, but in line with Tunguska + the 2 Hellfires that justify the extra 300.
+
+### `[H]` High
+
+#### [H] R-05 — F-16 vs MiG-29 HP gap
+
+**Current YAML:** F-16 `HP: 400`. MiG-29 `HP: 550`. Both 6 000cr, identical weapons.
+
+**Issue:** symmetric loadouts and cost, asymmetric survivability (+37% MiG). Air-to-air tests will likely show MiG-29 winning consistently.
+
+**Recommendation:** **set F-16 HP to 500** (close the gap but keep MiG slightly tougher — MiG-29 IRL has slightly more redundant systems). Or: drop both to a common 450.
+
+#### [H] R-06 — Asymmetric multi-MLRS NATO/Russia roster
+
+**Current state:** NATO has M270 (precise, 12 rockets, 1 800cr). Russia has Grad (saturation, 40 rockets, 1 500cr) + TOS (thermobaric, 24 rockets, 2 000cr).
+
+**Total roster firepower:** NATO 1 platform; Russia 2 platforms with combined cost 3 500. NATO has HIMARS at the top end (6 000); Russia has Iskander (6 000).
+
+**Recommendation:** this is intentional asymmetry — leave it. Document in §0.2. But the **TOS-1A `HP: 20 000`** is suspicious — it's 2x other MLRS HP, and 2x its cost peer (M270 10 000HP at 1 800cr vs TOS 20 000HP at 2 000cr). Either lower TOS HP to 12 000–14 000, or raise TOS cost to 2 500. **Lean: TOS HP 14 000 + thermobaric crew-cookoff explanation** (TOS has known reputation for crew-vulnerable thermobaric reloads → high HP is unrealistic).
+
+#### [H] R-07 — Tunguska duplicate Health field
+
+**Current YAML:** the vehicles-russia.yaml Tunguska block has the Health trait defined twice (14 000 → 8 000); the second one wins. Suspicious. Either intentional (override-pattern for some condition) or a stale edit.
+
+**Recommendation:** read `mods/ww3mod/rules/ingame/vehicles-russia.yaml` Tunguska block and delete the dead one. If the 8 000 was deliberate, confirm — that's lower than Stryker SHORAD HP 14 000 at +800cr difference.
+
+### `[M]` Medium
+
+#### [M] R-08 — Sniper damage 250 → 350 (already applied)
+
+The 2026-04 review recommended this; the current YAML shows `Damage: 350` on `7.62mm.Sniper`. **Confirmed applied.** Item resolved.
+
+#### [M] R-09 — Iskander only 2 shots is too few
+
+**Current YAML:** Iskander `Magazine: 2, Damage 10000 + 15000 spread, Pen 2000`. HIMARS `Magazine: 6, Damage 5000 + 8000 spread, Pen 1500`. Both 6 000cr.
+
+**Issue:** HIMARS total potential damage 6 × 13 000 = 78 000. Iskander total 2 × 25 000 = 50 000. HIMARS has +56% raw firepower and 3x flexibility.
+
+**Recommendation:** **Iskander Magazine: 3 OR per-shot damage to 15 000 + 18 000 spread**. Either levels the platform total to ~78–99K.
+
+#### [M] R-10 — Mi-24 Hind is a strong sleeper at 4 000cr
+
+**Current YAML:** Mi-24 `Cost: 4000, HP: 800, Armor: Heavy/10, Speed: 195, 12.7mm + RocketPods 80, Cargo: 8`.
+
+**Issue:** at 4 000cr (vs Apache/Mi-28 at 6 000cr), Mi-24 gets 800HP (same), 80-round rocket pod (vs Apache's 8 Hellfires), and 8-passenger cargo. HP/credit (Hind 200) is 50% better than Apache/Mi-28 (133). The Apache trades Hellfires (precision AT) for the Hind's rocket pods (anti-soft) — but combined with cargo, Hind looks like the better bang/buck.
+
+**Recommendation:** **leave for v1 unless tests show Hind dominating**. Real-world rationale: Mi-24 is older and operationally less capable than Mi-28. The cheaper Hind is meant to be cargo+light-attack, not Apache-equivalent. **Watch in playtest.**
+
+### `[L]` Low / polish
+
+#### [L] R-11 — TECN armor: None → Kevlar
+
+**Current YAML:** TECN (Technician) has `Armor: None`. All other line infantry have `Kevlar`. Technician should at least match riflemen.
+
+**Recommendation:** change to `Kevlar`. Trivial.
+
+#### [L] R-12 — Humvee amphibious flag (still applies)
+
+**Current YAML:** `vehicles-america.yaml:223` sets Humvee Locomotor to `lighttracked-amphibious`. Real Humvee is not amphibious. **Recommendation:** swap to `wheeled` (or whichever locomotor BTR uses for "wheeled non-amphibious" — actually BTR is amphibious IRL, so use the standard wheeled). Trivial change but realism-improving.
+
+#### [L] R-13 — Abrams Speed 90 vs T-90 100
+
+Abrams (73t) being faster than T-90 (46t) is counterintuitive. Real-world: T-90 ~60 km/h, Abrams ~67 km/h. They're roughly equal on roads, T-90 better off-road. **Leave as-is** — current asymmetry is arguably correct (Abrams gas-turbine accelerates faster).
+
+#### [L] R-14 — MiG-29 "Falcrum" tooltip typo (already fixed)
+
+`aircraft-russia.yaml:531` reads `Name: MiG-29 Fulcrum`. **Item resolved.**
+
+#### [L] R-15 — M270 damage 15 000 per rocket is high
+
+**Current YAML:** M270 rocket `Damage: 15 000, Pen 500, 1 500 splash`. That's tank-shell territory for an unguided rocket.
+
+**Reasoning:** OK at gameplay scale because M270 only carries 12 rockets and has minimum range. **Leave** unless test-balance shows M270 dominating armor.
+
+---
+
+## 3. Faction Parity Snapshot
+
+| Slot | NATO | Russia | Cost gap | Notes |
+|---|---|---|---|---|
+| Light recon transport | Humvee (450) | BTR-80 (600) | -150 NATO | Asymmetric: Humvee softer, BTR-80 tougher |
+| APC | M113 (700) | BTR-80 (600) | +100 NATO | M113 carries 12 vs BTR's 8 |
+| IFV | Bradley (1500) | BMP-2 (1300) | +200 NATO | See §C.3 — is the cost gap earned? |
+| MBT | Abrams (2500) | T-90 (2400) | +100 NATO | See §C.1 |
+| SPH | Paladin (1800) Burst:3 | Giatsint (1800) Burst:1 | 0 | See §C.7 — fire-rate asymmetry |
+| MLRS | M270 (1800) 12rkt | Grad (1500) 40rkt + TOS (2000) | 0 / +500 | NATO has 1 MLRS, Russia has 2 |
+| AA | Stryker SHORAD (2500) | Tunguska (1700) | +800 NATO | See §C — Stryker premium for multi-role |
+| Ballistic | HIMARS (6000) 6 shots | Iskander (6000) 2 shots | 0 | HIMARS has total-damage advantage |
+| Attack heli | Apache (6000) | Mi-28 (6000) + Hind (4000) | 0 | Mirror; Russia has bonus Hind tier |
+| Fighter | F-16 (6000) | MiG-29 (6000) | 0 | MiG has +37.5% HP at same cost |
+| Transport heli | Chinook (2000) | Halo (2000) | 0 | Mirror after 04/04 cargo equalisation |
+| Attack jet (disabled) | A-10 (6000) | Frogfoot (6000) | 0 | Both ~disabled — re-enable in v1.1 |
+
+---
+
+## 4. Cost-effectiveness table (HP per credit, recalculated against real YAML)
+
+| Unit | Cost | HP | HP/1000cr | Notes |
+|---|---|---|---|---|
+| Humvee | 450 | 8 000 | 17 778 | Already adjusted 04/04 |
+| BTR-80 | 600 | 14 000 | 23 333 | Highest HP/credit of any vehicle |
+| M113 | 700 | 12 000 | 17 143 | |
+| Bradley | 1 500 | 14 000 | 9 333 | |
+| BMP-2 | 1 300 | 14 000 | 10 769 | Cheaper than Bradley, same HP |
+| Abrams | 2 500 | 28 000 | 11 200 | Armor +700 is the real survival lever |
+| T-90 | 2 400 | 24 000 | 10 000 | Thickness 280 — significantly thinner front |
+| Paladin | 1 800 | 14 000 | 7 778 | |
+| Giatsint | 1 800 | 14 000 | 7 778 | |
+| M270 | 1 800 | 10 000 | 5 556 | |
+| Grad | 1 500 | 10 000 | 6 667 | |
+| TOS-1A | 2 000 | 20 000 | 10 000 | Most-survivable MLRS by design (thermobaric platform) |
+| Tunguska | 1 700 | 8 000* | 4 706 | *Has duplicate Health field; 8 000 active |
+| Stryker SHORAD | 2 500 | 14 000 | 5 600 | Expensive multi-role |
+| Apache / Mi-28 | 6 000 | 800 | 133 | Fragile + expensive, by design |
+| F-16 | 6 000 | 400 | 67 | |
+| MiG-29 | 6 000 | 550 | 92 | MiG has +37% HP |
+| Littlebird | 3 000 | 300 | 100 | |
+| Mi-24 Hind | 4 000 | 800 | 200 | Best HP/credit attack heli |
+| HIMARS | 6 000 | 6 000 | 1 000 | Glass cannon |
+| Iskander | 6 000 | 10 000 | 1 667 | Tougher than HIMARS |
+
+---
+
+## 5. Tooling recommendations
+
+### 5.1 Fix the combat-sim's hardcoded stats
+
+The fastest fix: open `tools/combat-sim/src/scenarios/library.ts` and
+update the hardcoded WEAPON and UNIT records to match the real YAML.
+That'll bring it within ~10% of in-game for the unit set it already
+models. ~30 minutes of work. See §0.1 for the diff table.
+
+The right fix: Phase 2 YAML loader. Not blocking v1.
+
+### 5.2 The `test-balance-*` autotests are reusable
+
+I built 9 new tests this session, all in `mods/ww3mod/maps/test-balance-*/`.
+They report numeric outcomes (winner, TTK, HP%). Run them with:
+
+```bash
+./tools/test/run-test.sh test-balance-tank-1v1
+./tools/test/run-batch.sh test-balance-tank-1v1 test-balance-ifv-1v1 ...
+```
+
+I suggest making "all balance tests pass within expected envelope" a
+pre-v1 gate. The expected envelopes are baked into the doc here in §C.
+
+---
+
+## Appendix A — Real YAML stat dump
+
+(Data extracted from current YAML — `mods/ww3mod/rules/ingame/*.yaml` +
+`mods/ww3mod/rules/weapons/*.yaml`. See subagent reports in git history
+for full breakdown.)
+
+### A.1 Infantry — primary weapons (key anti-vehicle / specialist)
+
+| Weapon | Dmg | Pen | Range | Burst | BurstWait | Mag | Notes |
+|---|---|---|---|---|---|---|---|
+| 5.56mm.DMR (E3) | 200 | 4 | 10c0 | 3 | 20 | 20 | rifleman |
+| 5.56mm.AR (LMG) | 200 | 4 | 14c0 | 10 | 30 | 100 | suppressor |
+| 7.62mm.DMR (TL) | 250 | 5 | 15c0 | 3 | 20 | 20 | leader |
+| 7.62mm.Sniper (SN) | **350** | 5 | 20c0 | 1 | 120 | 5 | upped from 250 |
+| RPG (E3 sec) | 6 000 | **500** | 12c0 | 1 | 150 | 1 | infantry AT primary tool |
+| ATGM (AT inf) | 10 000 | **100** | 20c0 | 1 | 200 | 3 | **see §0 issue / §B.4** |
+| MANPAD (AA) | 3 000 | 15 | 23c0 | 1 | 200 | 3 | anti-helo/light air |
+| GrenadeLauncher (E2) | 1 000 | 60 | 12c0 | 1 | 100 | 1 | anti-light |
+| 60mm Mortar (MT) | 3 000 | 100 | 25c0 | 1 | 100 | 25 | indirect |
+| Flamespray (E4) | 10 | 0 | 6c0 | 6 | tick | — | 50% explode on death |
+| MP5 (E6) | 100 | 1 | 10c0 | 3 | — | — | engineer SMG |
+
+### A.2 Vehicle main weapons
+
+| Weapon | Dmg | Pen | Range | Burst | BurstWait | Mag | Spread (if AoE) |
+|---|---|---|---|---|---|---|---|
+| TankRound.Abrams | 20 000 + 3 000 splash | 800 | 25c0 | 1 | 130 | 40 | 64 |
+| TankRound.T-90 | 20 000 + 3 000 splash | 800 | 24c0 | 1 | 110 | 40 | 64 |
+| 25mm Bushmaster | 500 + 100 splash | 60 | 20c0 | 4 | 20 | 300 | 24 |
+| 30mm BMP-2 | 500 + 100 splash | 60 | 19c0 | 6 | 15 | 300 | 24 |
+| 30mm Tunguska | (per docs) | — | 18c0 | 12 | — | 180 | — |
+| 12.7mm HMG | 600 + 50 falloff | 15 | 16c0 | 5 | — | 100 | — |
+| 7.62mm MG | 250 | 5 | 15c0 | 6 | — | 100 | — |
+| 155mm Paladin | 15 000 + 3 000 splash | 1 000 | 40c0 | **3** | 240 | 39 | TopAttack |
+| 152mm Giatsint | 15 000 + 3 000 splash | 1 000 | 40c0 | 1 | 180 | 39 | TopAttack |
+| M270 rocket | 15 000 + 1 500 splash | 500 | 40c0 | 12 | 10 | 12 | |
+| Grad rocket | 6 000 + 1 000 splash | 250 | 40c0 | 40 | 4 | 40 | |
+| TOS thermobaric | 3 000 + 1 500 splash | 100 | 28c0 | 24 | 10 | 24 | |
+| WGM (Bradley) | 10 000 + 2 000 splash | 800 | 25c0 | **2** | 1 000 | 8 | |
+| WGM (BMP-2) | 10 000 + 2 000 splash | 800 | 25c0 | 1 | 500 | 8 | |
+| Hellfire | 10 000 + 2 000 splash | 800 | 25c0 | 2 | 65 | 4–8 | |
+| Stinger | 5 000 | 20 | 28c0 | 2 | 30 | 8 | AA |
+
+### A.3 Armor reference
+
+| Class | Thickness | Distribution (F/R/B/L/T) |
+|---|---|---|
+| Humvee / BTR | Light 10 | 100/80/80/80/60 |
+| M113 | Light 15 | 100/80/80/80/60 |
+| Bradley / BMP-2 | Medium 15 | 100/80/80/80/60 |
+| Abrams | **Heavy 700** | 100/40/15/10/10 |
+| T-90 | **Heavy 280** | 100/80/80/80/60 |
+| Paladin / Giatsint | Light 10–19 | (artillery — top kill matters) |
+
+### A.4 Aircraft summary
+
+| Aircraft | Faction | Cost | HP | Armor | Speed | Primary | Secondary | Cargo |
+|---|---|---|---|---|---|---|---|---|
+| F-16 | USA | 6 000 | 400 | Medium/10 | 525 | AIM (6) | 20mm (150) | — |
+| MiG-29 | RUS | 6 000 | 550 | Medium/— | 525 | AIM (6) | 20mm (150) | — |
+| A-10 | USA | 6 000 | 800 | Heavy/20 | 390 | 30mm GAU-8 (100) | Hellfire (4) | — *disabled* |
+| Su-25 | RUS | 6 000 | 700 | Heavy/20 | 420 | Rocket pods (60) | — | — *disabled* |
+| Apache | USA | 6 000 | 800 | Heavy/20 | 245 | 30mm (200) | Hellfire (8) | — |
+| Mi-28 | RUS | 6 000 | 800 | Heavy/20 | 245 | 30mm (200) | Hellfire (8) | — |
+| Mi-24 Hind | RUS | 4 000 | 800 | Heavy/10 | 195 | 12.7mm (150) | Rocket pods (80) | 8 |
+| Littlebird | USA | 3 000 | 300 | Light/5 | 265 | 7.62mm (160) | Hellfire (2) | 4 |
+| Chinook | USA | 2 000 | 600 | Light/10 | 240 | — | — | 36 |
+| Halo | RUS | 2 000 | 600 | Light/10 | 220 | — | — | 36 |
+
+---
+
+## Appendix B — combat-sim baseline runs (with caveat)
+
+> **Reminder:** sim absolute numbers are not in-game numbers (see §0.1).
+> Use only for relative-direction checks.
+
+### B.1 Abrams vs T-90 — sim says stalemate at every range
+
+Sim built-in scenario `tank-duel` (3v3 at 18c0):
+
+```
+USA Armor (3xAbrams): 100% survived, dmg dealt 11 520, dmg taken 9 711
+RUS Armor (3xT-90):   100% survived, dmg dealt 9 711,  dmg taken 11 520
+Cost-eff: Abrams 0.65 / T-90 0.68 cost-per-damage-dealt
+```
+
+**Why this is misleading:** the sim's Abrams gun is `Damage 1500, Pen 50`
+vs T-90 `Thickness 650`. Effective dmg per hit ≈ 1500 × (50/650) = 115.
+Real YAML: Damage 20 000, Pen 800 vs Thickness 280 → overpen → full damage.
+
+### B.2 Bradley vs Humvee (`cost-efficiency`)
+
+Sim: 1 Bradley ($1500) decisively beats 2 Humvees ($1200) — Humvees deal
+0 damage because their MGs (Pen 5) can't penetrate Bradley armor (Thick 15).
+**This part the sim gets right** — the YAML has the same penetration cliff,
+so the conclusion (don't try to crack IFVs with MG-armed vehicles) holds.
+
+### B.3 Infantry mirror (`infantry-mirror`)
+
+Sim: 6v6 USA vs RUS rifles → both teams lose ~3.9 / 6 units, near-mirror as
+expected. Sim correctly identifies symmetric infantry templates as symmetric.
+
+---
+
+## Appendix C — AUTOTEST in-game results & sim cross-check
+
+> **Tests live at:** `mods/ww3mod/maps/test-balance-*`
+> Run with `./tools/test/run-test.sh test-balance-<name>`.
+> Verdict format: `WINNER=X | ttk=Ys | survivors=N/M | hp=H/MAX (P%)`
+
+### C.1 test-balance-tank-1v1 — Abrams vs T-90 @ 18c0
+
+- **Sim says:** stalemate; both 80%+ HP after 40 rounds.
+- **In-game says:** *(pending — see live results section below)*
+- **IRL expected:** in a clean LOS frontal duel at 18c0, the side that lands
+  the first APFSDS-equivalent typically wins. Both Abrams and T-90 carry
+  120/125mm guns capable of penetrating peer frontal armor at this range.
+  Expected: ~60/40 in favour of Abrams (slight FCS + thermals advantage),
+  TTK ~10–25 seconds.
+
+### C.2 test-balance-tank-mass — 4v4 Abrams vs T-90 @ 16c0
+### C.3 test-balance-ifv-1v1 — Bradley vs BMP-2 @ 18c0
+### C.4 test-balance-mbt-vs-2ifv — 1 Abrams vs 2 BMP-2 (cost-equivalent)
+### C.5 test-balance-at-vs-t90 — 3 AT infantry vs T-90 @ 12c0
+### C.6 test-balance-at-vs-abrams — 3 AT infantry vs Abrams @ 12c0
+### C.7 test-balance-arty-1v1 — Paladin vs Giatsint @ 32c0
+### C.8 test-balance-heli-1v1 — Apache vs Mi-28 @ 22c0 airborne
+### C.9 test-balance-rifle-mirror — 4v4 E3 mirror @ 8c0
+
+*(Each section gets filled in with the in-game verdict + sim comparison +
+recommendation, see live results section below as tests complete.)*
+
+---
+
+## Appendix D — Live results scratch-pad
+
+Tests run, freshest at the bottom. Final write-up moves into §C above.

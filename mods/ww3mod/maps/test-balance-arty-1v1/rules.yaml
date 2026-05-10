@@ -1,0 +1,25 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, balance-helpers.lua, test-balance-arty-1v1.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 40
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32

@@ -1,0 +1,87 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: BALANCE: Rifle 4v4 mirror
+
+Author: WW3MOD balance harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	A1: e3.america
+		Owner: USA
+		Location: 18,15
+		Facing: 768
+	A2: e3.america
+		Owner: USA
+		Location: 18,16
+		Facing: 768
+	A3: e3.america
+		Owner: USA
+		Location: 18,17
+		Facing: 768
+	A4: e3.america
+		Owner: USA
+		Location: 18,18
+		Facing: 768
+	B1: e3.russia
+		Owner: Russia
+		Location: 26,15
+		Facing: 256
+	B2: e3.russia
+		Owner: Russia
+		Location: 26,16
+		Facing: 256
+	B3: e3.russia
+		Owner: Russia
+		Location: 26,17
+		Facing: 256
+	B4: e3.russia
+		Owner: Russia
+		Location: 26,18
+		Facing: 256
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 26,17
+
+Rules: rules.yaml

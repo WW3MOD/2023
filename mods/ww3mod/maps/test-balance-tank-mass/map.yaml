@@ -1,0 +1,87 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: BALANCE: Tank Mass 4v4 (Abrams vs T-90)
+
+Author: WW3MOD balance harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	A1: abrams
+		Owner: USA
+		Location: 12,11
+		Facing: 768
+	A2: abrams
+		Owner: USA
+		Location: 12,14
+		Facing: 768
+	A3: abrams
+		Owner: USA
+		Location: 12,17
+		Facing: 768
+	A4: abrams
+		Owner: USA
+		Location: 12,20
+		Facing: 768
+	B1: t90
+		Owner: Russia
+		Location: 28,11
+		Facing: 256
+	B2: t90
+		Owner: Russia
+		Location: 28,14
+		Facing: 256
+	B3: t90
+		Owner: Russia
+		Location: 28,17
+		Facing: 256
+	B4: t90
+		Owner: Russia
+		Location: 28,20
+		Facing: 256
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 28,16
+
+Rules: rules.yaml
