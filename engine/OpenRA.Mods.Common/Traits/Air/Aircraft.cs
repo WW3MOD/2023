@@ -104,6 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool CanHover = false;
 
 		[Desc("Can the actor immediately change direction without turning first (doesn't need to fly in a curve)?")]
+		// PITFALL: switches the entire movement codepath. CanSlide → velocity-based in Aircraft.Tick. Non-CanSlide → step-based via Fly.FlyTick. Mixing them double-moves.
 		public readonly bool CanSlide = false;
 
 		[Desc("Does the actor land and take off vertically?")]

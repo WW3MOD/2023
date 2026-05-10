@@ -313,6 +313,9 @@ Each unit type has a base template file and two faction files:
 - `infantry.yaml` → `infantry-america.yaml` + `infantry-russia.yaml`
 - `vehicles-america.yaml` + `vehicles-russia.yaml`
 
+### Blank lines are significant
+Templates and top-level entries must be separated by a blank line. The MiniYaml parser silently merges adjacent ones, producing confusing override behavior — not a parse error. If a template "isn't taking effect," check the blank lines first.
+
 ## Current state
 
 Live status — read `WORKSPACE/RELEASE_V1.md` (source of truth), `WORKSPACE/HOTBOARD.md` (in-flight), `WORKSPACE/BACKLOG.md` (deferred). For an overview, run `git log --oneline -20`. Engine-upgrade consideration: see `DOCS/reference/project-assessment.md` Section 5.
@@ -335,12 +338,44 @@ dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release
 - **macOS/Linux:** `engine/Directory.Build.targets` unlinks each output before MSBuild's Copy. unlink(2) leaves the running game's mmap'd inode alive while the next build creates a fresh inode at the same path. Build succeeds, game keeps running, next launch picks up the new DLLs. (Without this shim, an in-place overwrite corrupts the mmap and crashes the game with "Cannot print exception string..." + Abort trap 6 — never disable the targets file.)
 - **Windows:** the OS locks loaded DLLs at the kernel level, so the build fails fast if the game is running. Just move on to other work or wait quietly — do not speculate, alarm, or ask the user to close the game. `launch-game` auto-builds before launching.
 
-## Common Pitfalls
+## PITFALL Comments
 
-1. **Don't leave Console.WriteLine in engine code** — fires every tick, causes massive log spam
-2. **Aircraft Cost: 1** — test values left in YAML. Always verify costs after air branch changes
-3. **CanSlide vs non-CanSlide** — Fly.Tick has fully separate code paths. CanSlide sets RequestedAcceleration only (Aircraft.Tick moves via CurrentVelocity). Fixed-wing uses FlyTick (step-based). NEVER use FlyTick for CanSlide without zeroing CurrentVelocity first — causes double movement
-4. **SeedsResource on maps without IResourceLayer** — causes crashes. Disable or remove SeedsResource actors
-5. **FrozenActor.Actor can be null** — always null-check before accessing after superweapons
-6. **YAML blank lines matter** — templates must be separated by blank lines
-7. **Engine changes are in-repo** — no submodule, no separate DLL. Every C# edit touches OpenRA source directly
+Recurring traps get a one-line `// PITFALL:` (or `# PITFALL:` in YAML) comment **at the temptation site** in the code — the line a careless reader would actually be looking at when about to fall in. To list every known trap: `git grep PITFALL`.
+
+**The temptation-site rule.** An anchor only helps if the reader's eyes are on it when at risk. So:
+- ✅ trap = the file/line I'm editing → anchor at that line
+- ⚠️ trap = an API I call from elsewhere → anchor at the API definition (partially works via grep)
+- ❌ trap = a universal habit ("don't do X anywhere") → no anchor location helps. Use a hook or a one-liner in this file.
+
+Placing a PITFALL where the broken *code* lives (rather than where the *temptation* arises) is dead weight — see commit history for the Log.cs case where this went wrong.
+
+**Format:**
+- Literal tag `PITFALL` (greppable). One line, WHY only — what breaks if you ignore it.
+- Link out for longer context: `// PITFALL: facing is counterclockwise — see DOCS/reference/architecture.md#wangle`.
+- At the temptation line, not in a function header. Cap ~3 per file — more is a refactor signal.
+- Date when tied to an incident: `// PITFALL (2026-03): Cost: 1 shipped to main, broke balance`.
+
+**When to write one:**
+- Bug fix where the root cause would surprise a reader.
+- Non-local invariant enforced elsewhere ("don't reorder these two lines").
+- A trap Claude or the user has hit more than once.
+- An OpenRA quirk that bites only WW3MOD's modified usage.
+
+**Don't write one for:**
+- "What" descriptions — well-named code is enough.
+- Generic best-practice (null checks, input validation) absent a specific incident.
+- One-shot fixes — comments are for *recurring* traps.
+- **Universal anti-patterns** (don't use X anywhere) — the temptation arises in arbitrary files. Use a pre-commit hook (see `tools/git-hooks/`) or a line under "Engine code rules" below.
+
+**Pruning:** when changing code near a `PITFALL`, re-read it. Outdated → remove or update. A wrong PITFALL is worse than no PITFALL because I'll trust it.
+
+### Engine code rules (universal anti-patterns)
+
+These can't be anchored at a single trap site — they apply across the engine. Enforced by `tools/git-hooks/pre-commit` where possible.
+
+- **No `Console.Write`/`WriteLine` in tick-path code.** Use `Log.Write(channel, ...)`. Console output fires every tick and floods stdout. Allowlisted directories: `UtilityCommands/`, `UpdateRules/`, `/Lint/`, `OpenRA.Server/`, `OpenRA.Test/`, `OpenRA.Utility/`, `tools/`.
+
+**Hook install (one-time, per clone):**
+```bash
+ln -sf ../../tools/git-hooks/pre-commit .git/hooks/pre-commit
+```

@@ -1,0 +1,54 @@
+#!/bin/bash
+# WW3MOD pre-commit hook.
+#
+# Checks staged C# files for newly added Console.Write / Console.WriteLine — these flood
+# stdout when called from tick-path traits/activities. Use Log.Write(channel, ...) instead.
+#
+# An allowlist below covers files where Console output is legitimate (utility commands,
+# linters, the standalone server, tests). To extend the allowlist, append a regex
+# fragment to ALLOWLIST_PATTERNS.
+#
+# Install:  ln -sf ../../tools/git-hooks/pre-commit .git/hooks/pre-commit
+
+set -e
+
+ALLOWLIST_PATTERNS=(
+    'UtilityCommands/'
+    'UpdateRules/'
+    '/Lint/'
+    'OpenRA\.Server/'
+    'OpenRA\.Test/'
+    'OpenRA\.Utility/'
+    'tools/'
+)
+
+ALLOW_REGEX=$(IFS='|'; echo "${ALLOWLIST_PATTERNS[*]}")
+
+violations=$(git diff --cached --diff-filter=AM -U0 -- '*.cs' | awk -v allow="$ALLOW_REGEX" '
+    /^diff --git/ { in_block = 0 }
+    /^\+\+\+ b\// {
+        path = substr($0, 7)
+        allowed = (path ~ allow) ? 1 : 0
+        in_block = 1
+        next
+    }
+    in_block && !allowed && /^\+[^+].*Console\.Write/ {
+        line = substr($0, 2)
+        sub(/^[ \t]+/, "", line)
+        print path ":   " line
+    }
+')
+
+if [ -n "$violations" ]; then
+    echo ""
+    echo "PITFALL: new Console.Write in tick-path engine code (causes log spam every tick):"
+    echo ""
+    echo "$violations" | sed 's/^/  /'
+    echo ""
+    echo "Use Log.Write(channel, ...) for runtime logging."
+    echo "For legit utility/CLI code, add a path fragment to ALLOWLIST_PATTERNS in tools/git-hooks/pre-commit."
+    echo ""
+    exit 1
+fi
+
+exit 0

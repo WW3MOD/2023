@@ -49,6 +49,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.minRange = minRange;
 		}
 
+		// PITFALL: step-based movement. CanSlide aircraft move via CurrentVelocity in Aircraft.Tick — calling FlyTick on them double-moves unless CurrentVelocity is zeroed first.
 		public static void FlyTick(Actor self, Aircraft aircraft, WAngle desiredFacing, WDist desiredAltitude, in WVec moveOverride, bool idleTurn = false)
 		{
 			var dat = self.World.Map.DistanceAboveTerrain(aircraft.CenterPosition);

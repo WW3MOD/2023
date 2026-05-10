@@ -116,6 +116,7 @@ namespace OpenRA.Traits
 		public uint ID => BackingActor.ActorID; // Updated from 'Actor'
 		public bool IsValid => Owner != null;
 		public ActorInfo Info => BackingActor.Info; // Updated from 'Actor'
+		// PITFALL: returns null when BackingActor is dead (commonly seen post-superweapon). Always null-check at call sites — `target.FrozenActor.Actor.Owner` will NRE.
 		public Actor Actor => !BackingActor.IsDead ? BackingActor : null; // Updated from 'Actor'
 
 		public void RefreshState()

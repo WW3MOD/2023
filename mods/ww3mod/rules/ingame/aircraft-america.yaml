@@ -1,3 +1,4 @@
+# PITFALL: Cost values are real budget allocations, not test placeholders. Test values (Cost: 1) have shipped to main before — verify every Cost: line after any change to this file.
 
 TRAN:
 	Inherits@Type: ^Helicopter

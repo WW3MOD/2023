@@ -33,6 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			this.info = info;
+			// PITFALL: NRE crash on maps without IResourceLayer. Disable or remove SeedsResource actors on resource-less maps.
 			resourceLayer = self.World.WorldActor.Trait<IResourceLayer>();
 		}
 
