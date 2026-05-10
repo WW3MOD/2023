@@ -24,6 +24,7 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		Target IAttackActivity.Target => target;
 		bool IAttackActivity.ForceAttack => forceAttack;
+		AttackSource IAttackActivity.Source => source;
 
 		[Flags]
 		protected enum AttackStatus { UnableToAttack, NeedsToTurn, NeedsToMove, Attacking }
@@ -33,6 +34,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IMove move;
 		readonly IFacing facing;
 		readonly IPositionable positionable;
+		readonly AttackSource source;
 		readonly bool forceAttack;
 		readonly bool callerAllowedMove;
 		readonly Color? targetLineColor;
@@ -54,7 +56,11 @@ namespace OpenRA.Mods.Common.Activities
 		Target? oldTarget = null; */
 
 		public Attack(Actor self, in Target target, bool allowMovement, bool forceAttack, Color? targetLineColor = null)
+			: this(self, AttackSource.Default, target, allowMovement, forceAttack, targetLineColor) { }
+
+		public Attack(Actor self, AttackSource source, in Target target, bool allowMovement, bool forceAttack, Color? targetLineColor = null)
 		{
+			this.source = source;
 			this.target = target;
 			this.targetLineColor = targetLineColor;
 			this.forceAttack = forceAttack;

@@ -30,13 +30,14 @@ namespace OpenRA.Mods.Common.Traits
 		public override Activity GetAttackActivity(
 			Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 		{
-			return new SetTarget(this, newTarget, allowMove, forceAttack, targetLineColor);
+			return new SetTarget(this, source, newTarget, allowMove, forceAttack, targetLineColor);
 		}
 
 		// Some 3rd-party mods rely on this being public
 		public class SetTarget : Activity, IActivityNotifyStanceChanged, IAttackActivity
 		{
 			readonly AttackOmni attack;
+			readonly AttackSource source;
 			readonly bool allowMove;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
@@ -44,10 +45,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			Target IAttackActivity.Target => target;
 			bool IAttackActivity.ForceAttack => forceAttack;
+			AttackSource IAttackActivity.Source => source;
 
 
 			public SetTarget(AttackOmni attack, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
+				: this(attack, AttackSource.Default, target, allowMove, forceAttack, targetLineColor) { }
+
+			public SetTarget(AttackOmni attack, AttackSource source, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 			{
+				this.source = source;
 				this.target = target;
 				this.targetLineColor = targetLineColor;
 				this.attack = attack;

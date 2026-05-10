@@ -1,0 +1,1 @@
+Auto: Spread (Shift-G) must NOT redistribute waypoints to a unit whose only "order" is an autotarget engagement. With InfA autotargeting an enemy + InfB carrying two human-queued moves, spread should only move InfB across the two waypoints — InfA stays put (autotarget is not a human order).

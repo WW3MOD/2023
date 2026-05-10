@@ -32,6 +32,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		Target IAttackActivity.Target => target;
 		bool IAttackActivity.ForceAttack => forceAttack;
+		AttackSource IAttackActivity.Source => source;
 
 		Target lastVisibleTarget;
 		WDist lastVisibleMaximumRange;

@@ -74,12 +74,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			// its first order already), so taking the max from a single unit can drop waypoints
 			// that only the slowest units still hold. We dedupe by (Cell, OrderType) and
 			// preserve the order they appeared in the longest chain.
+			//
+			// Only units that contributed at least one waypoint participate in the redistribution.
+			// CollectWaypoints filters out automatic activities (autotargeting, nudges, …), so a
+			// unit whose chain holds only auto-behaviours yields an empty list and is excluded —
+			// Shift-G is for redistributing human-given orders, not for press-ganging idlers.
 			var bestChain = new List<Waypoint>();
 			var allChains = new List<List<Waypoint>>();
+			var participants = new List<Actor>();
 			foreach (var actor in selectedActors)
 			{
 				var actorWaypoints = CollectWaypoints(world, actor);
+				if (actorWaypoints.Count == 0)
+					continue;
+
 				allChains.Add(actorWaypoints);
+				participants.Add(actor);
 				if (actorWaypoints.Count > bestChain.Count)
 					bestChain = actorWaypoints;
 			}
@@ -93,7 +103,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					if (seen.Add((wp.Cell, wp.OrderType)))
 						waypoints.Add(wp);
 
-			if (waypoints.Count < 2)
+			if (waypoints.Count < 2 || participants.Count == 0)
 			{
 				TextNotificationsManager.AddFeedbackLine($"Group Scatter requires at least 2 queued waypoints (found {waypoints.Count}).");
 				return true;
@@ -102,16 +112,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			// Split waypoints into segments of consecutive same-type orders
 			var segments = BuildSegments(waypoints);
 
-			// Stop all units first — clears all existing activities
-			foreach (var unit in selectedActors)
+			// Stop only the participating units — units excluded for lack of human-given
+			// orders keep doing whatever they were doing (autotarget, nudge response, …).
+			foreach (var unit in participants)
 				world.IssueOrder(new Order("Stop", unit, false));
 
 			// Process each segment in order, always queuing (Stop already cleared activities)
 			foreach (var segment in segments)
-				DistributeSegment(world, selectedActors, segment);
+				DistributeSegment(world, participants, segment);
 
 			var segmentDesc = string.Join(" → ", segments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
-			TextNotificationsManager.AddFeedbackLine($"Scattered {selectedActors.Count} units: {segmentDesc}");
+			TextNotificationsManager.AddFeedbackLine($"Scattered {participants.Count} units: {segmentDesc}");
 			return true;
 		}
 
@@ -177,7 +188,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				};
 
 			// Covers Attack (AttackFrontal), AttackFollow.AttackActivity, AttackOmni.SetTarget, FlyAttack (AttackAircraft).
-			if (activity is IAttackActivity attackActivity)
+			// Only AttackSource.Default came from a human order — AutoTarget engagements and
+			// AttackMove opportunity fire are auto-behaviours that must NOT be redistributed.
+			if (activity is IAttackActivity attackActivity && attackActivity.Source == AttackSource.Default)
 			{
 				var t = attackActivity.Target;
 				var orderName = attackActivity.ForceAttack ? "ForceAttack" : "Attack";
@@ -230,8 +243,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (activity is Enter)
 				return null;
 
-			// General fallback: try TargetLineNodes for any unrecognized activities
-			return ExtractFromTargetLineNodes(world, activity, actor, "Move");
+			// Anything else is presumed automatic (Nudge from being shoved, ScaredyCat panic,
+			// HeliEmergencyLanding, scripted drags, …). Shift-G only redistributes orders the
+			// human explicitly issued — unrecognised activities don't qualify.
+			return null;
 		}
 
 		static Waypoint? ExtractFromTargetLineNodes(World world, Activity activity, Actor actor, string orderType)

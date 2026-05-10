@@ -9,16 +9,19 @@
  */
 #endregion
 
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
 	// Marker for attack activities so order-restoring logic (e.g. GroupScatterHotkeyLogic) can read
 	// the target without depending on TargetLineNodes/GetTargets, which the activity classes don't
-	// reliably override.
+	// reliably override. Source distinguishes user-issued attacks (Default) from automatic
+	// engagements (AutoTarget, AttackMove) so spread/redistribute logic can ignore the latter.
 	public interface IAttackActivity
 	{
 		Target Target { get; }
 		bool ForceAttack { get; }
+		AttackSource Source { get; }
 	}
 }

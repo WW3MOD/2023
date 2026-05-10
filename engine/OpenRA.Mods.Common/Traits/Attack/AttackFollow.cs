@@ -169,7 +169,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (opportunityTargetIsPersistentTarget && opportunityForceAttack && newTarget == OpportunityTarget)
 				forceAttack = true;
 
-			return new AttackActivity(self, newTarget, allowMove, forceAttack, targetLineColor);
+			return new AttackActivity(self, source, newTarget, allowMove, forceAttack, targetLineColor);
 		}
 
 		public override void OnResolveAttackOrder(Actor self, Activity activity, in Target target, bool queued, bool forceAttack)
@@ -236,6 +236,7 @@ namespace OpenRA.Mods.Common.Traits
 			readonly AttackFollow attack;
 			readonly Vision[] vision;
 			readonly IMove move;
+			readonly AttackSource source;
 			readonly bool forceAttack;
 			readonly Color? targetLineColor;
 
@@ -243,6 +244,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			Target IAttackActivity.Target => target;
 			bool IAttackActivity.ForceAttack => forceAttack;
+			AttackSource IAttackActivity.Source => source;
 
 			Target lastVisibleTarget;
 			bool useLastVisibleTarget;
@@ -254,11 +256,15 @@ namespace OpenRA.Mods.Common.Traits
 			bool hasTicked;
 
 			public AttackActivity(Actor self, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
+				: this(self, AttackSource.Default, target, allowMove, forceAttack, targetLineColor) { }
+
+			public AttackActivity(Actor self, AttackSource source, in Target target, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 			{
 				attack = self.Trait<AttackFollow>();
 				move = allowMove ? self.TraitOrDefault<IMove>() : null;
 				vision = self.TraitsImplementing<Vision>().ToArray();
 
+				this.source = source;
 				this.target = target;
 				this.forceAttack = forceAttack;
 				this.targetLineColor = targetLineColor;

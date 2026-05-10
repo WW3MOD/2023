@@ -1,0 +1,63 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Spread doesn't redistribute autotarget-only units (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# InfA sits on the west side with a Russian enemy in autotarget range.
+	# It has no human-issued orders — only its autotargeting engagement.
+	InfA: e1.america
+		Owner: USA
+		Location: 10,16
+		Facing: 768
+	Foe: e1.russia
+		Owner: Russia
+		Location: 14,16
+		Facing: 256
+		Stance: HoldFire
+	# InfB has two human-queued moves to the east — these waypoints are
+	# what spread should redistribute. InfA must NOT receive any of them.
+	InfB: e1.america
+		Owner: USA
+		Location: 10,18
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+
+Rules: rules.yaml

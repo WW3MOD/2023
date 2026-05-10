@@ -42,7 +42,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override Activity GetAttackActivity(
 			Actor self, AttackSource source, in Target newTarget, bool allowMove, bool forceAttack, Color? targetLineColor = null)
 		{
-			return new Activities.Attack(self, newTarget, allowMove, forceAttack, targetLineColor);
+			return new Activities.Attack(self, source, newTarget, allowMove, forceAttack, targetLineColor);
 		}
 	}
 }
