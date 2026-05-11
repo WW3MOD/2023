@@ -53,12 +53,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"bounty",
 		};
 
-		static readonly Color IncreasedFill = Color.FromArgb(0xb2, 0xf2, 0xbb);
-		static readonly Color IncreasedText = Color.FromArgb(0x0e, 0x5e, 0x2d);
-		static readonly Color DecreasedFill = Color.FromArgb(0xff, 0xc9, 0xc9);
-		static readonly Color DecreasedText = Color.FromArgb(0x7f, 0x1d, 0x1d);
-		static readonly Color WarningFill = Color.FromArgb(0xff, 0xd8, 0xa8);
-		static readonly Color WarningText = Color.FromArgb(0x92, 0x40, 0x0e);
+		// Pass-2 polish: chips use a single neutral dark fill so they blend with the
+		// dark UI; the leading +/-/! glyph carries the classification color. Was
+		// previously pastel pink/green/amber backgrounds — read like sticky notes
+		// against the dark theme.
+		static readonly Color ChipFill = Color.FromArgb(0x2a, 0x2a, 0x2a);
+		static readonly Color IncreasedText = Color.FromArgb(0x6e, 0xd6, 0x8a);
+		static readonly Color DecreasedText = Color.FromArgb(0xe7, 0x7d, 0x7d);
+		static readonly Color WarningText = Color.FromArgb(0xf0, 0xb0, 0x60);
 
 		enum Classification { Increased, Decreased, Warning }
 
@@ -144,16 +146,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					lbl.Bounds.Width = chipWidth;
 				}
 
-				Color fill, ink;
+				Color ink;
 				switch (klass)
 				{
-					case Classification.Increased: fill = IncreasedFill; ink = IncreasedText; break;
-					case Classification.Decreased: fill = DecreasedFill; ink = DecreasedText; break;
-					default: fill = WarningFill; ink = WarningText; break;
+					case Classification.Increased: ink = IncreasedText; break;
+					case Classification.Decreased: ink = DecreasedText; break;
+					default: ink = WarningText; break;
 				}
 
 				if (bg != null)
-					bg.GetColor = () => fill;
+					bg.GetColor = () => ChipFill;
 				if (lbl != null)
 				{
 					var captured = text;

@@ -635,6 +635,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			chatTextField.IsDisabled = () => !chatEnabled;
 			chatTextField.MaxLength = UnitOrders.ChatMessageMaxLength;
 
+			// In skirmish there's only one chat channel (you + bots), so the All/Team
+			// toggle is meaningless visual noise. Hide it and reclaim the 55px the
+			// textfield was offset by.
+			if (skirmishMode)
+			{
+				chatMode.Visible = false;
+				chatTextField.Bounds.X = 0;
+				chatTextField.Bounds.Width = chatTextField.Parent.Bounds.Width;
+			}
+
 			chatTextField.OnEnterKey = _ =>
 			{
 				if (chatTextField.Text.Length == 0)

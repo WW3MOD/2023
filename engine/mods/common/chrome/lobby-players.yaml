@@ -176,19 +176,14 @@ Container@LOBBY_PLAYER_BIN:
 					Height: 24
 					Font: Bold
 					Text: Reset
-		Label@COMMON_OPTIONS_HEADER:
-			Y: 322
-			X: 5
-			Width: PARENT_WIDTH - 10
-			Height: 24
-			Font: MediumBold
-			Align: Left
-			Text: COMMON OPTIONS
+		# COMMON_OPTIONS_HEADER deleted — the Economy/Match/World subsection headers
+		# (added in phase 4) name the groups individually, making the parent header
+		# redundant. The 28px reclaimed goes to the option grid below.
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 350
+			Y: 322
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 350
+			Height: PARENT_HEIGHT - 322
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
