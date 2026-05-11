@@ -503,8 +503,69 @@ ScrollPanel@FACTION_DROPDOWN_TEMPLATE:
 					X: 40
 					Width: 70
 					Height: 25
+		Container@LOBBY_ACTIVE_CHANGES:
+			Logic: LobbyActiveChangesLogic
+			Y: 226
+			Width: PARENT_WIDTH
+			Height: 32
+			Children:
+				Label@EMPTY_HINT:
+					X: 5
+					Y: 6
+					Width: PARENT_WIDTH - 10
+					Height: 20
+					Font: Tiny
+					Align: Left
+					Text: All settings at default.
+				Container@CHIP_TEMPLATE:
+					Width: 180
+					Height: 26
+					Visible: False
+					Children:
+						ColorBlock@BG:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+						Label@CHIP_LABEL:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+							Align: Center
+							Font: TinyBold
+		Container@LOBBY_PRESET_BAR:
+			Logic: LobbyPresetLogic
+			Y: 264
+			Width: PARENT_WIDTH
+			Height: 28
+			Children:
+				Label@PRESET_LABEL:
+					X: 5
+					Y: 4
+					Width: 60
+					Height: 20
+					Text: Preset:
+					Font: Bold
+				DropDownButton@PRESET_DROPDOWN:
+					X: 70
+					Y: 0
+					Width: 220
+					Height: 24
+					Font: Bold
+					Text: Default
+				Button@SAVE_PRESET_BUTTON:
+					X: 300
+					Y: 0
+					Width: 100
+					Height: 24
+					Font: Bold
+					Text: Save As...
+				Button@RESET_PRESET_BUTTON:
+					X: 410
+					Y: 0
+					Width: 80
+					Height: 24
+					Font: Bold
+					Text: Reset
 		Label@COMMON_OPTIONS_HEADER:
-			Y: 230
+			Y: 302
 			X: 5
 			Width: PARENT_WIDTH - 10
 			Height: 18
@@ -513,9 +574,9 @@ ScrollPanel@FACTION_DROPDOWN_TEMPLATE:
 			Text: Common Options
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 252
+			Y: 324
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 252
+			Height: PARENT_HEIGHT - 324
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
