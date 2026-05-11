@@ -200,7 +200,7 @@ namespace OpenRA.Test
 			Assert.That(pool.HasFullAmmo, Is.False);
 		}
 
-		// --- SupplyValue ---
+		// --- SupplyValue (cost per batch) ---
 
 		[Test]
 		public void SupplyValueStoredCorrectly()
@@ -214,6 +214,38 @@ namespace OpenRA.Test
 		{
 			var pool = CreatePool(ammo: 10);
 			Assert.That(pool.Info.SupplyValue, Is.EqualTo(1));
+		}
+
+		// --- ReloadCount as canonical batch size ---
+
+		[Test]
+		public void ReloadCountDefaultIsOne()
+		{
+			var pool = CreatePool(ammo: 10);
+			Assert.That(pool.Info.ReloadCount, Is.EqualTo(1));
+		}
+
+		[Test]
+		public void ReloadCountBatchMathTotalsExpected()
+		{
+			// Bradley 25mm: 900 ammo, ReloadCount 100, SupplyValue 5
+			// → 9 batches × 5 supply = 45 total pool budget.
+			var pool = CreatePool(ammo: 900, reloadCount: 100, supplyValue: 5);
+			var batches = (pool.Info.Ammo + pool.Info.ReloadCount - 1) / pool.Info.ReloadCount;
+			var total = batches * pool.Info.SupplyValue;
+			Assert.That(batches, Is.EqualTo(9));
+			Assert.That(total, Is.EqualTo(45));
+		}
+
+		[Test]
+		public void ReloadCountBatchMathHandlesNonMultiple()
+		{
+			// Paladin 155mm: 39 ammo, ReloadCount 5, SupplyValue 60
+			// → ceil(39/5) = 8 batches × 60 = 480 total. Last batch covers 4 rounds.
+			var pool = CreatePool(ammo: 39, reloadCount: 5, supplyValue: 60);
+			var batches = (pool.Info.Ammo + pool.Info.ReloadCount - 1) / pool.Info.ReloadCount;
+			Assert.That(batches, Is.EqualTo(8));
+			Assert.That(batches * pool.Info.SupplyValue, Is.EqualTo(480));
 		}
 
 		// --- FullReloadTicks math ---

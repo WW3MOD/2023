@@ -83,8 +83,8 @@ Truck behavior:
 
 Spawned when a truck unloads its supply on the ground. Functionally a stationary truck — same `SupplyProvider` trait, same UI:
 
-- **Range circle** showing rearm reach (4 cells).
-- **Selection bar** showing remaining supply.
+- **Range circle** showing rearm reach (4 cells). *(Pending visual verification in-game.)*
+- **Selection bar** showing remaining supply. *(Pending visual verification in-game.)*
 - Sprite tier (Full/Mid/Low) reflects the supply remaining.
 - Capturable by enemies (`ProximityCapturable`) — if the enemy reaches it first, the supply changes hands at full value.
 - Sits in place until drained, captured, or destroyed. The player recovers a cache's remaining supply by absorbing it into a friendly LC (the LC's `AbsorbsSupplyCache` trait pulls in any nearby cache) or by spending it through infantry rearming off it.
@@ -196,6 +196,14 @@ currentSupply += taken;
 ```
 
 The LC pool drops by exactly what the truck took. Truck might leave partially full if the LC didn't have enough.
+
+## Where the live values live
+
+This doc describes the rules. The current per-pool numbers are in YAML and shift more often than this doc updates. To list every pool's batch math:
+
+```
+git grep -nE 'AmmoPool|ReloadCount|SupplyValue' mods/ww3mod/rules/
+```
 
 ## When tuning further
 
