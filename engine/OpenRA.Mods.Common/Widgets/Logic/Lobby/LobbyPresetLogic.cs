@@ -39,6 +39,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// once the bot's client index appears in LobbyInfo.
 		public static Action<string, string> EnqueueBotFaction;
 
+		// Lobby Setup row binds the "Replay last" button to this hook. Null when no Last
+		// game snapshot has ever been saved — the button stays disabled until then.
+		public static Action ApplyLastGame;
+
 		readonly OrderManager orderManager;
 		readonly Func<MapPreview> getMap;
 		readonly Func<bool> configurationDisabled;
@@ -122,6 +126,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			resetButton.OnClick = ResetToDefault;
 
 			SnapshotLastGame = () => SnapshotAs(LastGamePresetName);
+			ApplyLastGame = () =>
+			{
+				if (presets.ContainsKey(LastGamePresetName))
+					ApplyPreset(LastGamePresetName);
+			};
 			EnqueueBotFaction = (slotKey, faction) =>
 			{
 				pendingBotApplies.Add(new PendingBotApply

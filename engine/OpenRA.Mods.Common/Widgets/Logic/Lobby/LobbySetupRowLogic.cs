@@ -39,6 +39,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var addBots = widget.Get<ButtonWidget>("ADD_BOTS_BUTTON");
 			var removeBots = widget.Get<ButtonWidget>("REMOVE_BOTS_BUTTON");
 			var autoTeam = widget.Get<DropDownButtonWidget>("AUTO_TEAM_BUTTON");
+			var replay = widget.Get<ButtonWidget>("REPLAY_LAST_BUTTON");
 
 			addBots.IsDisabled = () => configurationDisabled() || !AnySlotAllowsBots();
 			addBots.OnClick = FillEmptySlotsWithBots;
@@ -48,6 +49,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			autoTeam.IsDisabled = () => configurationDisabled() || MaxTeamCount() < 2;
 			autoTeam.OnMouseDown = _ => ShowAutoTeamDropdown(autoTeam);
+
+			// "Replay last" — applies the Last game preset.
+			// Enabled only when a Last game snapshot exists (someone has played at least one
+			// match since opening the lobby; the snapshot survives across launches via YAML).
+			replay.IsDisabled = () => configurationDisabled() || LobbyPresetLogic.ApplyLastGame == null;
+			replay.OnClick = () => LobbyPresetLogic.ApplyLastGame?.Invoke();
 		}
 
 		bool AnySlotAllowsBots() => orderManager.LobbyInfo.Slots.Values.Any(s => s.AllowBots);

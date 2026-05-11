@@ -83,6 +83,13 @@ Container@LOBBY_PLAYER_BIN:
 					Height: 24
 					Font: Bold
 					Text: Auto-Team v
+				Button@REPLAY_LAST_BUTTON:
+					X: 395
+					Y: 1
+					Width: 140
+					Height: 24
+					Font: Bold
+					Text: ▸ Replay last
 		Container@LOBBY_ACTIVE_CHANGES:
 			Logic: LobbyActiveChangesLogic
 			Y: 226
