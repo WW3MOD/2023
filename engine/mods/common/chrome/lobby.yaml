@@ -19,11 +19,20 @@ Background@SERVER_LOBBY:
 			Height: PARENT_HEIGHT - 8
 			Background: dialog-lobby-fill
 		Label@SERVER_NAME:
-			Y: 16
+			Y: 14
 			Align: Center
 			Width: PARENT_WIDTH
-			Height: 25
-			Font: Bold
+			Height: 28
+			Font: BigBold
+		# Vertical separator between the main content (left ~70%) and the right
+		# rail (map + scenario + change-map). Subtle dark line tied to the top of
+		# the tab strip and the top of the chat area.
+		ColorBlock@RAIL_SEPARATOR:
+			X: PARENT_WIDTH - 234
+			Y: 60
+			Width: 1
+			Height: 370
+			Color: 18181820
 		Container@MAP_PREVIEW_ROOT:
 			X: PARENT_WIDTH - 20 - WIDTH
 			Y: 67
@@ -58,7 +67,7 @@ Background@SERVER_LOBBY:
 			X: 20
 			Y: 132
 			Width: 675
-			Height: PARENT_HEIGHT - 411
+			Height: PARENT_HEIGHT - 293
 		Container@SKIRMISH_TABS:
 			X: 20
 			Width: 360
@@ -85,6 +94,28 @@ Background@SERVER_LOBBY:
 					Height: 31
 					Font: Bold
 					Text: label-music-title
+				# Active-tab accent indicators — visibility bound in LobbyLogic so only
+				# the indicator under the active panel renders. Pure chrome trick: the
+				# button-highlighted sprite variant is too similar to the regular
+				# button sprite to read at a glance.
+				ColorBlock@PLAYERS_TAB_INDICATOR:
+					X: 0
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
+				ColorBlock@OPTIONS_TAB_INDICATOR:
+					X: 110
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
+				ColorBlock@MUSIC_TAB_INDICATOR:
+					X: 220
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
 		Container@MULTIPLAYER_TABS:
 			X: 20
 			Width: 460
@@ -118,6 +149,30 @@ Background@SERVER_LOBBY:
 					Height: 31
 					Font: Bold
 					Text: button-multiplayer-tabs-servers-tab
+				ColorBlock@PLAYERS_TAB_INDICATOR:
+					X: 0
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
+				ColorBlock@OPTIONS_TAB_INDICATOR:
+					X: 110
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
+				ColorBlock@MUSIC_TAB_INDICATOR:
+					X: 220
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
+				ColorBlock@SERVERS_TAB_INDICATOR:
+					X: 330
+					Y: 95
+					Width: 110
+					Height: 3
+					Color: 60D080FF
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
 			Y: 349
@@ -132,17 +187,17 @@ Background@SERVER_LOBBY:
 			X: 20
 			Y: PARENT_HEIGHT - HEIGHT - 75
 			Width: PARENT_WIDTH - 40
-			Height: 204
+			Height: 86
 			Children:
 				ScrollPanel@CHAT_DISPLAY:
 					Width: PARENT_WIDTH
-					Height: PARENT_HEIGHT - 30
+					Height: PARENT_HEIGHT - 32
 					TopBottomSpacing: 2
 					ItemSpacing: 2
 				Button@CHAT_MODE:
 					Y: PARENT_HEIGHT - HEIGHT
 					Width: 50
-					Height: 25
+					Height: 30
 					Text: button-lobbychat-chat-mode.label
 					Font: Bold
 					Key: ToggleChatMode
@@ -152,7 +207,7 @@ Background@SERVER_LOBBY:
 					X: 55
 					Y: PARENT_HEIGHT - HEIGHT
 					Width: PARENT_WIDTH - 55
-					Height: 25
+					Height: 30
 		Button@START_GAME_BUTTON:
 			X: 20
 			Y: PARENT_HEIGHT - HEIGHT - 15

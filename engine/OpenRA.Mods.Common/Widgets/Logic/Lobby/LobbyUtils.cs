@@ -544,7 +544,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			join.IsDisabled = ConfigBusy;
 			join.OnClick = () => orderManager.IssueOrder(Order.Command("slot " + slotKey));
 
-			closedLabel.IsVisible = () => !isHost && slot.Closed;
+			// Always show "Closed" on closed slots — gives the host a clear status
+			// indicator alongside the small Open toggle on the right edge instead
+			// of just a floating Open button on an otherwise-blank row.
+			closedLabel.IsVisible = () => slot.Closed;
 		}
 
 		static void AddBotToSlot(Session.Slot slot, string slotKey, OrderManager orderManager, MapPreview map, string preferredFaction)

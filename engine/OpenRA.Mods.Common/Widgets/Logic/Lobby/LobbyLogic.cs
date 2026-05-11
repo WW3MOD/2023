@@ -535,6 +535,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			musicTab.IsDisabled = () => panel == PanelType.Kick || panel == PanelType.ForceStart;
 			musicTab.OnClick = () => panel = PanelType.Music;
 
+			// WW3MOD: render an accent strip under whichever tab is active. The
+			// engine button-highlighted sprite variant is too similar to the
+			// regular button to read at a glance, so we draw the indicator
+			// ourselves. See SKIRMISH_TABS / MULTIPLAYER_TABS in lobby.yaml.
+			var playersIndicator = tabContainer.GetOrNull("PLAYERS_TAB_INDICATOR");
+			if (playersIndicator != null)
+				playersIndicator.IsVisible = () => panel == PanelType.Players;
+			var optionsIndicator = tabContainer.GetOrNull("OPTIONS_TAB_INDICATOR");
+			if (optionsIndicator != null)
+				optionsIndicator.IsVisible = () => panel == PanelType.Options;
+			var musicIndicator = tabContainer.GetOrNull("MUSIC_TAB_INDICATOR");
+			if (musicIndicator != null)
+				musicIndicator.IsVisible = () => panel == PanelType.Music;
+
 			var serversTab = tabContainer.GetOrNull<ButtonWidget>("SERVERS_TAB");
 			if (serversTab != null)
 			{
@@ -549,6 +563,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					panel = PanelType.Servers;
 				};
 			}
+
+			var serversIndicator = tabContainer.GetOrNull("SERVERS_TAB_INDICATOR");
+			if (serversIndicator != null)
+				serversIndicator.IsVisible = () => panel == PanelType.Servers;
 
 			// Force start panel
 			void StartGame()

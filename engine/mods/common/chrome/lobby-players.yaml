@@ -509,30 +509,30 @@ Container@LOBBY_PLAYER_BIN:
 							Visible: false
 						Button@PLAY:
 							X: 15
-							Y: 2
-							Width: 32
-							Height: 21
+							Y: 1
+							Width: 80
+							Height: 23
 							Font: Bold
-							Text: ▸
+							Text: ▸ Play
 							TooltipText: Play in this slot
 							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
 						Button@ADD_AI:
-							X: 51
-							Y: 2
-							Width: 32
-							Height: 21
+							X: 100
+							Y: 1
+							Width: 110
+							Height: 23
 							Font: Bold
-							Text: +
-							TooltipText: Add bot (faction can be picked on the row)
+							Text: + Add bot
+							TooltipText: Add bot (faction can be picked on the row after)
 							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
 						Button@TOGGLE_CLOSED:
-							X: 87
-							Y: 2
+							X: 420
+							Y: 1
 							Width: 60
-							Height: 21
-							Font: Tiny
+							Height: 23
+							Font: Bold
 							Text: Close
 							Visible: false
 						Button@JOIN:
@@ -541,12 +541,11 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 470
 						Label@CLOSED_LABEL:
 							X: 15
-							Width: 450
+							Width: 400
 							Height: 25
-							Align: Center
-							Text: Slot closed
+							Align: Left
+							Text: Closed
 							Visible: false
-							Height: 25
 				Container@TEMPLATE_EDITABLE_SPECTATOR:
 					X: 5
 					Width: 475
