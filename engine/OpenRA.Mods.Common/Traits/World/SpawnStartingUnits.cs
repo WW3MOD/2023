@@ -100,11 +100,35 @@ namespace OpenRA.Mods.Common.Traits
 
 			var supportSpawnCells = w.Map.FindTilesInAnnulus(p.HomeLocation, unitGroup.InnerSupportRadius + 1, unitGroup.OuterSupportRadius);
 
+			// PITFALL (2026-05): a starting unit must spawn on a cell with at least one passable
+			// neighbor, otherwise it can land on a clear tile pocketed inside impassable terrain
+			// (e.g. one open cell deep in a forest) and be stuck for the entire match. CanEnterCell
+			// alone is not enough — it only validates the cell itself, not whether the unit can move out.
+			bool HasPassableNeighbor(IPositionableInfo posInfo, CPos cell)
+			{
+				for (var dy = -1; dy <= 1; dy++)
+					for (var dx = -1; dx <= 1; dx++)
+					{
+						if (dx == 0 && dy == 0)
+							continue;
+						var n = cell + new CVec(dx, dy);
+						if (w.Map.Contains(n) && posInfo.CanEnterCell(w, null, n))
+							return true;
+					}
+
+				return false;
+			}
+
 			foreach (var s in unitGroup.SupportActors)
 			{
 				var actorRules = w.Map.Rules.Actors[s.ToLowerInvariant()];
 				var ip = actorRules.TraitInfo<IPositionableInfo>();
-				var validCell = supportSpawnCells.Shuffle(w.SharedRandom).FirstOrDefault(c => ip.CanEnterCell(w, null, c));
+				var candidates = supportSpawnCells.Shuffle(w.SharedRandom).ToList();
+				var validCell = candidates.FirstOrDefault(c => ip.CanEnterCell(w, null, c) && HasPassableNeighbor(ip, c));
+
+				// Fallback for very tight maps: accept any enterable cell rather than dropping the unit.
+				if (validCell == CPos.Zero)
+					validCell = candidates.FirstOrDefault(c => ip.CanEnterCell(w, null, c));
 
 				if (validCell == CPos.Zero)
 				{
