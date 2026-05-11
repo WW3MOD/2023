@@ -49,18 +49,35 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// the entry at activePresetName and re-keys it to nameField.Text.
 		string activePresetName = DefaultPresetName;
 
-		// One preset → its options snapshot (option-id → value) AND its bot snapshot
-		// (slot-key → bot type). Bot faction/team are intentionally not captured yet:
-		// re-applying them requires knowing the bot's client index after slot_bot
-		// finishes server-side, which we can't predict without a deferred-order helper.
-		// Add when user demand outweighs the implementation cost.
+		sealed class BotConfig
+		{
+			public string Type;
+			public string Faction;
+			public int Team;
+		}
+
 		sealed class Preset
 		{
 			public Dictionary<string, string> Options { get; } = new();
-			public Dictionary<string, string> Bots { get; } = new();
+			public Dictionary<string, BotConfig> Bots { get; } = new();
 		}
 
 		readonly Dictionary<string, Preset> presets = new();
+
+		// Faction/team orders need the bot's client index, which we don't have at the moment
+		// we issue slot_bot. Queue them here and apply once the bot actually shows up in
+		// LobbyInfo. The TicksLeft counter discards stale entries (e.g. invalid bot types)
+		// so the queue can't grow forever. 90 ticks ≈ 3 seconds at default tick rate.
+		sealed class PendingBotApply
+		{
+			public string SlotKey;
+			public string Faction;
+			public int Team;
+			public int TicksLeft;
+		}
+
+		readonly List<PendingBotApply> pendingBotApplies = new();
+		const int PendingBotApplyTtlTicks = 90;
 
 		[ObjectCreator.UseCtor]
 		internal LobbyPresetLogic(Widget widget, OrderManager orderManager, Func<MapPreview> getMap, Func<bool> configurationDisabled)
@@ -152,8 +169,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 					var botsNode = entry.Value.Nodes.FirstOrDefault(n => n.Key == "Bots");
 					if (botsNode != null)
+					{
 						foreach (var kv in botsNode.Value.Nodes)
-							preset.Bots[kv.Key] = kv.Value.Value ?? string.Empty;
+						{
+							var cfg = new BotConfig();
+							// Backwards-compatible shape: a scalar value is treated as Type-only.
+							// e.g. "Multi1: hardbot" still works alongside the new sub-node form.
+							if (kv.Value.Nodes.Length == 0)
+								cfg.Type = kv.Value.Value ?? string.Empty;
+							else
+							{
+								foreach (var sub in kv.Value.Nodes)
+								{
+									var v = sub.Value.Value ?? string.Empty;
+									if (sub.Key == "Type") cfg.Type = v;
+									else if (sub.Key == "Faction") cfg.Faction = v;
+									else if (sub.Key == "Team" && int.TryParse(v, out var t)) cfg.Team = t;
+								}
+							}
+
+							if (!string.IsNullOrEmpty(cfg.Type))
+								preset.Bots[kv.Key] = cfg;
+						}
+					}
 
 					presets[entry.Key] = preset;
 				}
@@ -180,7 +218,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{
 						lines.Add("\t\tBots:");
 						foreach (var bot in preset.Value.Bots.OrderBy(b => b.Key))
-							lines.Add($"\t\t\t{bot.Key}: {bot.Value}");
+						{
+							lines.Add($"\t\t\t{bot.Key}:");
+							lines.Add($"\t\t\t\tType: {bot.Value.Type}");
+							if (!string.IsNullOrEmpty(bot.Value.Faction))
+								lines.Add($"\t\t\t\tFaction: {bot.Value.Faction}");
+							if (bot.Value.Team > 0)
+								lines.Add($"\t\t\t\tTeam: {bot.Value.Team}");
+						}
 					}
 				}
 
@@ -264,7 +309,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return;
 
 			// Defaults = no bots and all options at their declared default.
-			ApplyBots(new Dictionary<string, string>());
+			ApplyBots(new Dictionary<string, BotConfig>());
 
 			var allOptions = map.PlayerActorInfo.TraitInfos<ILobbyOptions>()
 				.Concat(map.WorldActorInfo.TraitInfos<ILobbyOptions>())
@@ -280,12 +325,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		// Reconciles the lobby's bot slots against `target` (slot-key → bot-type).
-		// Issues slot_open for any bot in a slot not present in target, then slot_bot
-		// for any target slot that isn't already running the requested bot type.
-		// Faction/team/color are intentionally not restored here — those need a
-		// deferred-order helper that knows the bot's client index post-creation.
-		void ApplyBots(IReadOnlyDictionary<string, string> target)
+		// Reconciles the lobby's bot slots against `target` (slot-key → BotConfig).
+		// Issues slot_open for any bot in a slot not present in target, slot_bot for any
+		// target slot that isn't already running the requested bot type, then queues
+		// faction/team orders to be issued once the bot's client index appears in
+		// LobbyInfo (the order doesn't return that index, we have to look it up).
+		void ApplyBots(IReadOnlyDictionary<string, BotConfig> target)
 		{
 			var botController = orderManager.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin);
 			if (botController == null)
@@ -294,17 +339,55 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			foreach (var slot in orderManager.LobbyInfo.Slots)
 			{
 				var current = orderManager.LobbyInfo.ClientInSlot(slot.Key);
-				var wantBot = target.TryGetValue(slot.Key, out var wantedType) ? wantedType : null;
+				var wantBot = target.TryGetValue(slot.Key, out var cfg) ? cfg : null;
 				var hasBot = current?.Bot != null;
 
 				if (hasBot && wantBot == null)
 				{
 					orderManager.IssueOrder(Order.Command("slot_open " + slot.Value.PlayerReference));
 				}
-				else if (wantBot != null && slot.Value.AllowBots && (!hasBot || current.Bot != wantBot))
+				else if (wantBot != null && slot.Value.AllowBots && (!hasBot || current.Bot != wantBot.Type))
 				{
-					orderManager.IssueOrder(Order.Command($"slot_bot {slot.Key} {botController.Index} {wantBot}"));
+					orderManager.IssueOrder(Order.Command($"slot_bot {slot.Key} {botController.Index} {wantBot.Type}"));
 				}
+
+				if (wantBot != null && (!string.IsNullOrEmpty(wantBot.Faction) || wantBot.Team > 0))
+				{
+					// Defer faction/team — bot may not exist yet locally even if we already
+					// issued slot_bot a moment ago. Tick() will retry every frame for up to TTL.
+					pendingBotApplies.Add(new PendingBotApply
+					{
+						SlotKey = slot.Key,
+						Faction = wantBot.Faction,
+						Team = wantBot.Team,
+						TicksLeft = PendingBotApplyTtlTicks,
+					});
+				}
+			}
+		}
+
+		public override void Tick()
+		{
+			if (pendingBotApplies.Count == 0)
+				return;
+
+			for (var i = pendingBotApplies.Count - 1; i >= 0; i--)
+			{
+				var pending = pendingBotApplies[i];
+				var client = orderManager.LobbyInfo.ClientInSlot(pending.SlotKey);
+				if (client?.Bot != null)
+				{
+					if (!string.IsNullOrEmpty(pending.Faction))
+						orderManager.IssueOrder(Order.Command($"faction {client.Index} {pending.Faction}"));
+					if (pending.Team > 0)
+						orderManager.IssueOrder(Order.Command($"team {client.Index} {pending.Team}"));
+					pendingBotApplies.RemoveAt(i);
+					continue;
+				}
+
+				pending.TicksLeft--;
+				if (pending.TicksLeft <= 0)
+					pendingBotApplies.RemoveAt(i);
 			}
 		}
 
@@ -340,7 +423,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				var c = orderManager.LobbyInfo.ClientInSlot(slot.Key);
 				if (c?.Bot != null)
-					preset.Bots[slot.Key] = c.Bot;
+				{
+					preset.Bots[slot.Key] = new BotConfig
+					{
+						Type = c.Bot,
+						Faction = c.Faction,
+						Team = c.Team,
+					};
+				}
 			}
 
 			presets[name] = preset;
