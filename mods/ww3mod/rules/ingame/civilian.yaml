@@ -160,7 +160,9 @@
 		Categories: Decoration
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
-	# PITFALL: do NOT add Scale > 1 to ^CivField. Fields tile adjacent cells; any scale-up makes neighbours overlap and the double-rendered anti-aliased edges produce dark vertical seams. Buildings use Scale 1.2 safely because they aren't tiled.
+	RenderSprites:
+		# PITFALL: Scale > 1 overlaps adjacent fields; anti-aliased edges double-render dark vertical seams. Scale < 1 leaves visible gaps between cells. 1.05 is the sweet spot.
+		Scale: 1.05
 
 	# Inherits: ^CivBuilding
 	# -HitShape:
