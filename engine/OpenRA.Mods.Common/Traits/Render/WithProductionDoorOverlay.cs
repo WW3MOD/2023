@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			var bi = init.Actor.TraitInfo<BuildingInfo>();
 			var offset = bi.CenterOffset(init.World).Y + 512; // Additional 512 units move from center -> top of cell
-			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => offset, p);
+			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => offset, p, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 		}
 
 		public override object Create(ActorInitializer init) { return new WithProductionDoorOverlay(init.Self, this); }

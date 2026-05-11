@@ -68,7 +68,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			else if (Palette != null)
 				p = init.WorldRenderer.Palette(Palette);
 
-			yield return new SpriteActorPreview(anim, Offset, ZOffset, p);
+			yield return new SpriteActorPreview(anim, Offset, ZOffset, p, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 		}
 	}
 

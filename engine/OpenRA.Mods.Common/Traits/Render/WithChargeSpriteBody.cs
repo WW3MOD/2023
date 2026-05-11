@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var anim = new Animation(init.World, image);
 			anim.PlayFetchIndex(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), Sequence), () => 0);
 
-			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, p);
+			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, p, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 		}
 	}
 

@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var sequence = init.World.Type == WorldType.Editor ? EditorSequence : Sequence;
 			var palette = init.World.Type == WorldType.Editor ? init.WorldRenderer.Palette(EditorPalette) : p;
 			anim.PlayFetchIndex(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), sequence), () => 0);
-			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, palette);
+			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, palette, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 		}
 	}
 

@@ -69,7 +69,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 				// Z-order is one set to the top of the footprint
 				var offset = map.CenterOfCell(cell) - map.CenterOfCell(location) - centerOffset;
-				yield return new SpriteActorPreview(anim, () => offset, () => -(offset.Y + centerOffset.Y + 512), p);
+				yield return new SpriteActorPreview(anim, () => offset, () => -(offset.Y + centerOffset.Y + 512), p, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 			}
 		}
 

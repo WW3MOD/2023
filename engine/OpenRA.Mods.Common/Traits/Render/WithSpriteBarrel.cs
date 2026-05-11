@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				return -(tmpOffset.Y + tmpOffset.Z) + 1;
 			}
 
-			yield return new SpriteActorPreview(anim, TurretOffset, ZOffset, p);
+			yield return new SpriteActorPreview(anim, TurretOffset, ZOffset, p, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 		}
 	}
 

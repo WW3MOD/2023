@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Cnc.Traits.Render
 			var anim = new Animation(init.World, image, t.WorldFacingFromInit(init));
 			anim.PlayRepeating(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), wsb.Sequence));
 
-			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, p);
+			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, p, init.Actor.TraitInfoOrDefault<RenderSpritesInfo>()?.Scale ?? 1f);
 		}
 	}
 

@@ -98,9 +98,9 @@ namespace OpenRA.Graphics
 			return new IRenderable[] { imageRenderable };
 		}
 
-		public Rectangle ScreenBounds(WorldRenderer wr, WPos pos, in WVec offset)
+		public Rectangle ScreenBounds(WorldRenderer wr, WPos pos, in WVec offset, float scale = 1f)
 		{
-			var scale = CurrentSequence.Scale;
+			scale *= CurrentSequence.Scale;
 			var xy = wr.ScreenPxPosition(pos) + wr.ScreenPxOffset(offset);
 			var cb = CurrentSequence.Bounds;
 			return Rectangle.FromLTRB(
