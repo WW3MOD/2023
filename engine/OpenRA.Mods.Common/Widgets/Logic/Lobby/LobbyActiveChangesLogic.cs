@@ -112,7 +112,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.ToArray();
 
 			// Chips start to the right of EMPTY_HINT so the count label always has room.
-			var x = 150;
+			var x = 215;
 			const int spacing = 6;
 			var count = 0;
 
@@ -169,7 +169,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (emptyHint != null)
 			{
 				emptyHint.IsVisible = () => true;
-				var hintText = count == 0 ? "All settings at default." : $"Active Changes ({count}):";
+				var hintText = count == 0 ? "All settings at default" : $"ACTIVE CHANGES ({count})";
 				emptyHint.GetText = () => hintText;
 			}
 		}

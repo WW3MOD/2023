@@ -99,11 +99,11 @@ Container@LOBBY_PLAYER_BIN:
 				Label@EMPTY_HINT:
 					X: 5
 					Y: 6
-					Width: 140
+					Width: 200
 					Height: 20
-					Font: TinyBold
+					Font: Bold
 					Align: Left
-					Text: All settings at default.
+					Text: All settings at default
 				Container@CHIP_TEMPLATE:
 					Width: 180
 					Height: 26
@@ -177,18 +177,18 @@ Container@LOBBY_PLAYER_BIN:
 					Font: Bold
 					Text: Reset
 		Label@COMMON_OPTIONS_HEADER:
-			Y: 302
+			Y: 308
 			X: 5
 			Width: PARENT_WIDTH - 10
-			Height: 18
-			Font: Bold
+			Height: 24
+			Font: MediumBold
 			Align: Left
-			Text: Common Options
+			Text: COMMON OPTIONS
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 324
+			Y: 336
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 324
+			Height: PARENT_HEIGHT - 336
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
@@ -511,33 +511,42 @@ Container@LOBBY_PLAYER_BIN:
 							Visible: false
 						Button@PLAY:
 							X: 15
-							Width: 60
-							Height: 25
+							Y: 2
+							Width: 55
+							Height: 21
 							Font: Bold
 							Text: ▸ Play
 							Visible: false
 						Button@ADD_AI:
-							X: 80
-							Width: 75
-							Height: 25
+							X: 75
+							Y: 2
+							Width: 70
+							Height: 21
+							Font: Tiny
 							Text: + Any AI
 							Visible: false
 						Button@ADD_NATO:
-							X: 160
-							Width: 95
-							Height: 25
+							X: 150
+							Y: 2
+							Width: 90
+							Height: 21
+							Font: Tiny
 							Text: + NATO AI
 							Visible: false
 						Button@ADD_RUSSIA:
-							X: 260
-							Width: 105
-							Height: 25
+							X: 245
+							Y: 2
+							Width: 95
+							Height: 21
+							Font: Tiny
 							Text: + Russia AI
 							Visible: false
 						Button@TOGGLE_CLOSED:
-							X: 370
-							Width: 95
-							Height: 25
+							X: 345
+							Y: 2
+							Width: 80
+							Height: 21
+							Font: Tiny
 							Text: Close
 							Visible: false
 						Button@JOIN:
