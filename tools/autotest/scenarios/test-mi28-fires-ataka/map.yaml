@@ -1,0 +1,64 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Mi-28 fires Ataka (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+
+Actors:
+	# Mi-28 airborne ~15 cells from a stationary t90 — comfortably inside Ataka
+	# Range 22c and outside MinRange 3c. Mi-28 spawned via Lua at altitude 1280.
+	# Map placement here is the spawn anchor only — the script replaces it.
+	#
+	# One Supply Route per side: required so a faction can't be eliminated
+	# mid-test (mission-end short-circuits the Lua poller).
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 60,30
+	Target: t90
+		Owner: USA
+		Location: 30,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 12,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,17
+
+Rules: rules.yaml

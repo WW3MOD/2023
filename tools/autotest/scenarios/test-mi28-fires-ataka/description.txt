@@ -1,0 +1,1 @@
+Auto: Mi-28 fires Ataka (SACLOS, range-scaled scatter) at a t90 within 15s and inflicts >=2000 damage (single tandem-HEAT hit).

@@ -96,6 +96,59 @@ WGM.bradley:
 	BurstDelays: 100
 	BurstWait: 1000
 
+# Ataka (9M120, AT-9 Spiral-2) — Mi-28's primary ATGM in real life. SACLOS guided:
+# the gunner keeps the crosshairs on target until impact, so it shares WGM's
+# range-scaled scatter (operator-guided fiction). Subsonic, tandem HEAT warhead
+# (Pen 900 vs Hellfire's 800) — Russia's anti-armor specialty. Effective range
+# ~6 km in real life (22c here). Faster fire cycle than WGM (BurstWait 60) since
+# helis can volley Atakas — but Burst 1 to stay true to operator-guidance.
+Ataka:
+	Inherits@ExplosionEffects: ^MediumExplosionEffects
+	# Tree gating: same numbers as WGM. See WGM for explanation.
+	ClearSightThreshold: 3
+	FreeLineDensity: 1
+	MissChancePerDensity: 15
+	ValidTargets: Vehicle, Defense
+	Range: 22c0
+	MinRange: 3c0
+	BurstWait: 60
+	Report: missile6.aud
+	Projectile: Missile
+		Blockable: false
+		# SACLOS — range-scaled scatter like WGM (PerCellIncrement 22 × 22c max
+		# = ~0c484 max). Tighter than WGM per-cell because heli optics are
+		# steadier than a Bradley turret operator.
+		Inaccuracy: 22
+		InaccuracyType: PerCellIncrement
+		Speed: 400
+		Acceleration: 30
+		MaximumLaunchSpeed: 80
+		HorizontalRateOfTurn: 20
+		RetargetTicks: 2
+		ManualGuidance: true
+		OperatorRetargetTicks: 50
+		TerrainHeightAware: true
+		Arm: 2
+		CruiseAltitude: 100
+		RangeLimit: 22c0
+		ContrailLength: 100
+		ContrailStartWidth: 8
+		Image: dragon
+		TrailImage: smokey
+		TrailScalePercent: 75
+	Warhead@Target: TargetDamage
+		Damage: 10000
+		# Tandem HEAT: 900 pen vs Hellfire's 800. Russia's anti-reactive-armor edge.
+		Penetration: 900
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		Spread: 192
+		Damage: 2000
+		# Pen 20 matches the Heli Heavy Thickness — same heli→heli silent-vanish
+		# fix as Hellfire. Operator-guided Ataka can be aimed at helis too.
+		Penetration: 20
+		DamageTypes: ExplosionDeath
+
 Hellfire:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	# Tree gating (260510): same numbers as WGM. See WGM for explanation.

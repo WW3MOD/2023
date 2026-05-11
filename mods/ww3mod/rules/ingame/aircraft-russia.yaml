@@ -313,6 +313,18 @@ MI28:
 		PersistentTargeting: false
 		AttackType: Hover
 		OpportunityFire: True
+	# Ataka is SACLOS (operator-guided) — gunner must keep crosshairs on target
+	# until impact, so the Mi-28 commits to a firing position and can't dash
+	# through. Mirrors the Bradley/WGM pattern. RevokeDelay 100t (~4s) covers
+	# the missile flight + brief settle. Modifier 50 (vs Bradley's 25) — helis
+	# are more fragile than IFVs; a deeper slowdown would make them AA bait.
+	GrantConditionOnPreparingAttack:
+		ArmamentNames: secondary, secondary-air
+		Condition: firing-ataka
+		RevokeDelay: 100
+	SpeedMultiplier@FiringAtaka:
+		RequiresCondition: firing-ataka
+		Modifier: 50
 	Armament@1:
 		Name: primary
 		Weapon: 30mm.Heli
@@ -347,7 +359,7 @@ MI28:
 	WithMuzzleOverlay:
 	Armament@2:
 		Name: secondary
-		Weapon: Hellfire
+		Weapon: Ataka
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
 	AmmoPool@2:
@@ -355,9 +367,11 @@ MI28:
 		Armaments: secondary, secondary-air
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		# Hellfire-class missile: 8 batches × 1 missile × 200 supply = 1600
-		# (~27% of cost 6000). Universal Hellfire rate. Mirrors Apache.
-		SupplyValue: 200
+		# Ataka 9M120: 8 batches × 1 missile × 150 supply = 1200 (~20% of cost
+		# 6000). Cheaper per-shot than Hellfire (~$70k vs ~$150k real-world);
+		# pairs with the SACLOS slowdown as Russia's "cheap-but-committed"
+		# missile profile vs Apache's "expensive fire-and-forget".
+		SupplyValue: 150
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
