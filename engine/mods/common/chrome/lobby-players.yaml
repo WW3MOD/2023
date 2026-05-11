@@ -512,41 +512,61 @@ Container@LOBBY_PLAYER_BIN:
 						Button@PLAY:
 							X: 15
 							Y: 2
-							Width: 55
+							Width: 32
 							Height: 21
 							Font: Bold
-							Text: ▸ Play
+							Text: ▸
+							TooltipText: Play in this slot
+							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
 						Button@ADD_AI:
-							X: 75
+							X: 51
 							Y: 2
-							Width: 70
+							Width: 32
 							Height: 21
-							Font: Tiny
-							Text: + Any AI
+							Font: Bold
+							Text: +
+							TooltipText: Add any AI
+							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
 						Button@ADD_NATO:
-							X: 150
+							X: 87
 							Y: 2
-							Width: 90
+							Width: 46
 							Height: 21
-							Font: Tiny
-							Text: + NATO AI
-							TextColor: 6FB1FF
+							Text: ""
+							TooltipText: Add NATO AI
+							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
+							Children:
+								Image@FLAG:
+									X: 9
+									Y: 4
+									Width: 28
+									Height: 13
+									ImageCollection: flags
+									ImageName: america
 						Button@ADD_RUSSIA:
-							X: 245
+							X: 137
 							Y: 2
-							Width: 95
+							Width: 46
 							Height: 21
-							Font: Tiny
-							Text: + Russia AI
-							TextColor: FF7B7B
+							Text: ""
+							TooltipText: Add Russia AI
+							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
+							Children:
+								Image@FLAG:
+									X: 9
+									Y: 4
+									Width: 28
+									Height: 13
+									ImageCollection: flags
+									ImageName: russia
 						Button@TOGGLE_CLOSED:
-							X: 345
+							X: 187
 							Y: 2
-							Width: 80
+							Width: 60
 							Height: 21
 							Font: Tiny
 							Text: Close
