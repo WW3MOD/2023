@@ -163,10 +163,38 @@ def stats(xs):
         "max": max(xs),
     }
 
+# Winrate analysis. With deterministic seeding (Test.RandomSeed) and
+# legacy-vs-legacy bots, winrate should land in the 40-60% noise band per
+# side. Skews outside that suggest map / faction / scenario bias.
+total_with_verdict = len(matches) - fail_count
+side_winrate_pct = {}
+if winner_names and total_with_verdict > 0:
+    for name, count in winner_names.items():
+        side_winrate_pct[name] = round(100.0 * count / total_with_verdict, 1)
+
+# Score-gap distribution (winner_score / loser_score) — a sanity check on
+# whether matches are decisive (>1.5×) or close. Lots of close matches = the
+# benchmark is sensitive; lots of decisive ones = bias or AI-vs-bystander.
+score_ratios = []
+for m in matches:
+    v = m["verdict"]
+    if not v:
+        continue
+    players = v.get("players", [])
+    if len(players) < 2:
+        continue
+    s1 = players[0].get("score_total", 0)
+    s2 = players[1].get("score_total", 0)
+    hi = max(s1, s2)
+    lo = max(min(s1, s2), 1)  # avoid div-by-zero
+    score_ratios.append(hi / lo)
+
 summary = {
     "total_matches": len(matches),
-    "verdict_count": len(matches) - fail_count,
+    "verdict_count": total_with_verdict,
     "fail_count": fail_count,
+    "side_winrate_pct": side_winrate_pct,
+    "score_ratio_stats": stats(score_ratios),
     "sr_capture_count": sr_cap_count,
     "time_limit_count": time_limit_count,
     "decisive_count": decisive_count,
