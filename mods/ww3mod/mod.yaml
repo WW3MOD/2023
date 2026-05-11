@@ -91,7 +91,9 @@ MapFolders:
 	# Autotest/demo scenarios. Class=Unknown hides them from every UI tab
 	# (lobby, missions, main-menu chooser) while still letting the engine
 	# resolve them by folder name via Launch.Map=test-foo / demo-foo.
-	^EngineDir|tools/autotest/scenarios: Unknown
+	# Note: ^EngineDir resolves to the engine/ subdir (BinDir + ".."),
+	# so we need one more "../" to reach the WW3MOD repo root.
+	^EngineDir|../tools/autotest/scenarios: Unknown
 
 Rules:
 	ww3mod|rules/misc.yaml
