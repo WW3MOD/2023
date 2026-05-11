@@ -217,6 +217,47 @@ edit → `ls -la <source> <dll>` → if source-newer, `make all` again.)
 
 ---
 
+## 13. `option gamespeed <key>` silently falls back to default on bad keys
+
+**Bit:** while wiring `Test.GameSpeed=<key>` for the tournament harness, an
+invalid key (typo, or one not in the mod's GameSpeeds dictionary) didn't
+throw — it just used `default` speed silently.
+
+**Why:** the lobby's gamespeed option is a dropdown with a fixed key set
+(loaded from `engine/mods/ra/mod.yaml`'s `GameSpeeds`). The `option gamespeed
+<key>` setup order is validated against the keys; mismatched ones produce no
+error log and no behavior change.
+
+**Fix:** the only valid WW3MOD GameSpeed keys are:
+`slowest, slower, default, fast, faster, fastest`. Always use one of these.
+If a tournament run is suspiciously slow despite `GameSpeed: fastest`, suspect
+a typo or capitalization issue first.
+
+**Speed values** (Timestep ms/tick → real-time multiplier vs default 40):
+- slowest 80 (0.5×), slower 50 (0.8×), default 40 (1×), fast 35 (1.14×),
+  faster 30 (1.33×), fastest 20 (2×).
+
+The 2× cap is intrinsic to the mod's GameSpeeds config. Headless rendering
+won't go faster than this — Phase 2 of the tournament plan needs to also raise
+the Timestep ceiling (or skip-rendering frame-by-frame) for big speed-ups.
+
+**Empirical:** smoke test of a 30-sec match dropped from 57s → 42s wall-clock
+(~26% reduction). For a 12-min match, expect ~50% reduction (most overhead
+is engine init at ~30s, which doesn't scale with game speed).
+
+---
+
+## 14. `PlayerStatistics.Income` is a 60-second rolling window, not cumulative
+
+**Bit:** when wiring score components, used `PlayerStatistics.Income` for
+"income earned" — got values that fluctuated up and down instead of monotonic
+accumulation. Income field is actually `resources.Earned - lastEarned_60s_ago`.
+
+**Fix:** for cumulative earnings, use `PlayerResources.Earned` directly —
+that's the lifetime total. Scoring component "capture_income" reads that.
+
+---
+
 ## 9. Sound.Mute must be passed via launch arg, NOT toggled persistently
 
 Already covered in `run-test.sh` comments but worth reinforcing for the

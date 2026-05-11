@@ -1134,9 +1134,18 @@ namespace OpenRA
 
 		public static void LoadMap(string launchMap)
 		{
+			// PITFALL: the gamespeed string here MUST match a key in the mod's
+			// GameSpeeds dictionary (mod.yaml). Invalid keys silently fall back to
+			// default with no error message — discovered while wiring the tournament
+			// harness's Test.GameSpeed=fastest. Available WW3MOD speeds:
+			// slowest|slower|default|fast|faster|fastest (engine/mods/ra/mod.yaml).
+			var gameSpeed = !string.IsNullOrEmpty(TestMode.GameSpeedOverride)
+				? TestMode.GameSpeedOverride
+				: "default";
+
 			var orders = new List<Order>
 			{
-				Order.Command("option gamespeed default"),
+				Order.Command($"option gamespeed {gameSpeed}"),
 				Order.Command($"state {Session.ClientState.Ready}")
 			};
 

@@ -1,12 +1,16 @@
 # Short-time-limit variant for smoke testing the harness end-to-end.
 # Identical to tournament.yaml except TimeLimitSeconds is short enough that we
-# can run one match in under a minute without waiting for full-length play.
+# can run one match in under a minute without waiting for full-length play, and
+# the game runs at fastest game speed (2× simulation pace).
 
 Matchup:
 	P1Bot: normal
 	P2Bot: normal
 
 TimeLimitSeconds: 30
+
+# fastest = 20 ms/tick = 2× normal pace. See ra/mod.yaml GameSpeeds.
+GameSpeed: fastest
 
 Scorer: weighted_components
 WinRule: score_or_sr_capture

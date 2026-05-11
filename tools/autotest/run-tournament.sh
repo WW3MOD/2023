@@ -97,14 +97,25 @@ if [ ! -f "${CONFIG}" ]; then
 	exit 3
 fi
 
-# Compute default max-wall-secs from TimeLimitSeconds × 4 (windowed at 1× takes
-# ~real-time; at 6× ~1/6; we leave headroom for boot/teardown).
+# Compute default max-wall-secs from TimeLimitSeconds × 4 / speed-multiplier.
+# Speed multipliers approximate the mod's GameSpeeds Timestep ratios (ra/mod.yaml):
+#   default = 40 ms/tick → 1×
+#   fastest = 20 ms/tick → 2× (caps the engine simulation pace)
+# Headless rendering would let the engine SATURATE the timestep — same multiplier.
 if [ -z "${MAX_WALL_SECS}" ]; then
 	TIME_LIMIT_SECS=$(awk '/^TimeLimitSeconds:/ { gsub(",",""); print $2; exit }' "${CONFIG}")
+	GAME_SPEED=$(awk '/^GameSpeed:/ { gsub(",",""); print $2; exit }' "${CONFIG}")
+	SPEED_DIV=1
+	case "${GAME_SPEED}" in
+		fastest) SPEED_DIV=2 ;;
+		faster)  SPEED_DIV=2 ;;
+		fast)    SPEED_DIV=1 ;;
+	esac
 	if [ -z "${TIME_LIMIT_SECS}" ]; then
 		MAX_WALL_SECS=600
 	else
-		MAX_WALL_SECS=$((TIME_LIMIT_SECS * 4))
+		MAX_WALL_SECS=$((TIME_LIMIT_SECS * 4 / SPEED_DIV))
+		[ ${MAX_WALL_SECS} -lt 30 ] && MAX_WALL_SECS=30
 	fi
 fi
 
@@ -142,6 +153,12 @@ echo
 # Hand the engine the absolute config path so it can find it regardless of cwd.
 CONFIG_ABS=$(cd "$(dirname "${CONFIG}")" && pwd)/$(basename "${CONFIG}")
 
+# Extract the GameSpeed from the config (default to "default") so we can pass
+# it as a Test.GameSpeed launch arg. The engine applies it to the initial
+# "option gamespeed" setup order in Game.LoadMap.
+GAME_SPEED=$(awk '/^GameSpeed:/ { gsub(",",""); print $2; exit }' "${CONFIG}")
+[ -z "${GAME_SPEED}" ] && GAME_SPEED="default"
+
 OK=0
 FAIL=0
 
@@ -178,6 +195,7 @@ for i in $(seq 1 ${SEEDS}); do
 			"Test.Name=${SCENARIO}-match${i}" \
 			"Test.ResultPath=${MATCH_RESULT_FILE}" \
 			"Test.TournamentConfig=${CONFIG_ABS}" \
+			"Test.GameSpeed=${GAME_SPEED}" \
 			"Graphics.Mode=Windowed" \
 			"Sound.Mute=true" \
 			> "${MATCH_LOG}" 2>&1 || true

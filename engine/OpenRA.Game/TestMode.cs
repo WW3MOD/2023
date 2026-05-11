@@ -24,6 +24,13 @@ namespace OpenRA
 		//   WORKSPACE/plans/260511_ai_tournament_harness.md
 		public static string TournamentConfigPath { get; private set; }
 
+		// Override for the initial gamespeed setup order in Game.LoadMap. When set,
+		// replaces the hardcoded "default" speed. Valid values are the keys in the
+		// mod's GameSpeeds dictionary (slowest, slower, default, fast, faster, fastest).
+		// Used by the tournament harness to crank speed without bothering with
+		// settings.yaml. Null = use mod default.
+		public static string GameSpeedOverride { get; private set; }
+
 		public static void Initialize(Arguments args)
 		{
 			var modeArg = args.GetValue("Test.Mode", null);
@@ -36,10 +43,13 @@ namespace OpenRA
 			ResultPath = args.GetValue("Test.ResultPath",
 				Path.Combine(Platform.SupportDir, "ww3mod-test-result.json"));
 			TournamentConfigPath = args.GetValue("Test.TournamentConfig", null);
+			GameSpeedOverride = args.GetValue("Test.GameSpeed", null);
 
 			Console.WriteLine($"[TestMode] active — name={Name} result={ResultPath}");
 			if (!string.IsNullOrEmpty(TournamentConfigPath))
 				Log.Write("debug", $"[TestMode] tournament config: {TournamentConfigPath}");
+			if (!string.IsNullOrEmpty(GameSpeedOverride))
+				Log.Write("debug", $"[TestMode] gamespeed override: {GameSpeedOverride}");
 		}
 
 		public static void WriteResult(string status, string notes)

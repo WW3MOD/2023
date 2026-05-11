@@ -44,6 +44,12 @@ namespace OpenRA.Mods.Common.Tournament
 		public ScoreConfig Score = new ScoreConfig();
 		public float ScoreMarginForDecisive = 0.20f;
 
+		// Game speed key (e.g. "default", "fastest"). Must match a key in the
+		// mod's GameSpeeds dictionary (engine/mods/ra/mod.yaml). The launcher
+		// passes this via Test.GameSpeed; Game.LoadMap applies it to the
+		// initial "option gamespeed" setup order.
+		public string GameSpeed = "default";
+
 		public static TournamentConfig LoadFromFile(string path)
 		{
 			var yaml = MiniYaml.FromFile(path);
@@ -70,6 +76,9 @@ namespace OpenRA.Mods.Common.Tournament
 						break;
 					case "ScoreMarginForDecisive":
 						config.ScoreMarginForDecisive = FieldLoader.GetValue<float>("ScoreMarginForDecisive", node.Value.Value);
+						break;
+					case "GameSpeed":
+						config.GameSpeed = node.Value.Value;
 						break;
 				}
 			}
