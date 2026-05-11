@@ -34,6 +34,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// that ever changes we'll need a List<Action> here instead.
 		public static Action SnapshotLastGame;
 
+		// Static hook callable from outside (e.g. LobbyUtils.SetupEmptySlotButtons).
+		// Enqueues a faction order for a slot's bot that will be drained by Tick()
+		// once the bot's client index appears in LobbyInfo.
+		public static Action<string, string> EnqueueBotFaction;
+
 		readonly OrderManager orderManager;
 		readonly Func<MapPreview> getMap;
 		readonly Func<bool> configurationDisabled;
@@ -117,6 +122,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			resetButton.OnClick = ResetToDefault;
 
 			SnapshotLastGame = () => SnapshotAs(LastGamePresetName);
+			EnqueueBotFaction = (slotKey, faction) =>
+			{
+				pendingBotApplies.Add(new PendingBotApply
+				{
+					SlotKey = slotKey,
+					Faction = faction,
+					Team = 0,
+					TicksLeft = PendingBotApplyTtlTicks,
+				});
+			};
 		}
 
 		bool IsReserved(string name) => name == DefaultPresetName || name == LastGamePresetName;

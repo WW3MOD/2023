@@ -778,15 +778,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (template == null || template.Id != emptySlotTemplate.Id)
 						template = emptySlotTemplate.Clone();
 
-					if (isHost)
-						LobbyUtils.SetupEditableSlotWidget(template, slot, client, orderManager, map, modData);
-					else
-						LobbyUtils.SetupSlotWidget(template, modData, slot, client);
-
-					var join = template.Get<ButtonWidget>("JOIN");
-					join.IsVisible = () => !slot.Closed;
-					join.IsDisabled = () => orderManager.LocalClient.IsReady;
-					join.OnClick = () => orderManager.IssueOrder(Order.Command("slot " + key));
+					// WW3MOD: host gets a strip of inline quick-action buttons
+					// (Play / + Any AI / + NATO AI / + Russia AI / Close|Open) instead of the
+					// classic dropdown. Non-host falls back to the wide JOIN button.
+					LobbyUtils.SetupEmptySlotButtons(template, slot, orderManager, map, isHost, key);
 				}
 				else if ((client.Index == orderManager.LocalClient.Index) ||
 						 (client.Bot != null && isHost))

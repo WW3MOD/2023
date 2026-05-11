@@ -497,6 +497,81 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			HideChildWidget(parent, "SLOT_OPTIONS");
 		}
 
+		// WW3MOD: inline-button replacement for the empty-slot dropdown.
+		// Host sees Play / + Any AI / + NATO AI / + Russia AI / Close-Open as visible buttons.
+		// Non-host sees the wide Join button when the slot is open, a Closed label otherwise.
+		// Faction-specific add buttons issue slot_bot eagerly and post a deferred faction order
+		// via LobbyPresetLogic.EnqueueBotFaction so the faction lands once the bot is in LobbyInfo.
+		public static void SetupEmptySlotButtons(Widget parent, Session.Slot slot, OrderManager orderManager,
+			MapPreview map, bool isHost, string slotKey)
+		{
+			// Hide the legacy fields — we render dedicated buttons in their place.
+			HideChildWidget(parent, "NAME");
+			HideChildWidget(parent, "SLOT_OPTIONS");
+
+			var play = parent.Get<ButtonWidget>("PLAY");
+			var addAi = parent.Get<ButtonWidget>("ADD_AI");
+			var addNato = parent.Get<ButtonWidget>("ADD_NATO");
+			var addRussia = parent.Get<ButtonWidget>("ADD_RUSSIA");
+			var toggleClosed = parent.Get<ButtonWidget>("TOGGLE_CLOSED");
+			var join = parent.Get<ButtonWidget>("JOIN");
+			var closedLabel = parent.Get<LabelWidget>("CLOSED_LABEL");
+
+			bool ConfigBusy() => orderManager.LocalClient.IsReady;
+
+			// Open-slot host strip — present when the host can still configure the slot.
+			play.IsVisible = () => isHost && !slot.Closed;
+			play.IsDisabled = ConfigBusy;
+			play.OnClick = () => orderManager.IssueOrder(Order.Command("slot " + slotKey));
+
+			addAi.IsVisible = () => isHost && !slot.Closed && slot.AllowBots;
+			addAi.IsDisabled = ConfigBusy;
+			addAi.OnClick = () => AddBotToSlot(slot, slotKey, orderManager, map, null);
+
+			addNato.IsVisible = () => isHost && !slot.Closed && slot.AllowBots;
+			addNato.IsDisabled = ConfigBusy;
+			addNato.OnClick = () => AddBotToSlot(slot, slotKey, orderManager, map, "america");
+
+			addRussia.IsVisible = () => isHost && !slot.Closed && slot.AllowBots;
+			addRussia.IsDisabled = ConfigBusy;
+			addRussia.OnClick = () => AddBotToSlot(slot, slotKey, orderManager, map, "russia");
+
+			toggleClosed.IsVisible = () => isHost;
+			toggleClosed.IsDisabled = ConfigBusy;
+			toggleClosed.GetText = () => slot.Closed ? "Open" : "Close";
+			toggleClosed.OnClick = () =>
+			{
+				var cmd = slot.Closed ? "slot_open " : "slot_close ";
+				orderManager.IssueOrder(Order.Command(cmd + slot.PlayerReference));
+			};
+
+			// Non-host fallbacks: wide Join when open, label when closed.
+			join.IsVisible = () => !isHost && !slot.Closed;
+			join.IsDisabled = ConfigBusy;
+			join.OnClick = () => orderManager.IssueOrder(Order.Command("slot " + slotKey));
+
+			closedLabel.IsVisible = () => !isHost && slot.Closed;
+		}
+
+		static void AddBotToSlot(Session.Slot slot, string slotKey, OrderManager orderManager, MapPreview map, string preferredFaction)
+		{
+			var botTypes = map.PlayerActorInfo.TraitInfos<IBotInfo>().Select(b => b.Type).ToArray();
+			if (botTypes.Length == 0)
+				return;
+			var botController = orderManager.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin);
+			if (botController == null)
+				return;
+
+			var botType = botTypes[Game.CosmeticRandom.Next(botTypes.Length)];
+			orderManager.IssueOrder(Order.Command($"slot_bot {slotKey} {botController.Index} {botType}"));
+
+			// Schedule the faction order to fire once the bot exists in LobbyInfo.
+			// The static hook is owned by LobbyPresetLogic since that's where the
+			// drain Tick lives — keeps the queue logic in one place.
+			if (!string.IsNullOrEmpty(preferredFaction))
+				LobbyPresetLogic.EnqueueBotFaction?.Invoke(slotKey, preferredFaction);
+		}
+
 		public static void SetupPlayerActionWidget(Widget parent, Session.Client c, OrderManager orderManager,
 			WorldRenderer worldRenderer, Widget lobby, Action before, Action after)
 		{

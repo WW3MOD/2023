@@ -495,16 +495,55 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 25
 							X: 20
 							Text: label-lobby-players-name
+							Visible: false
 						DropDownButton@SLOT_OPTIONS:
 							X: 15
 							Width: 165
 							Height: 25
 							Text: label-lobby-players-name
 							Visible: false
+						Button@PLAY:
+							X: 15
+							Width: 60
+							Height: 25
+							Font: Bold
+							Text: ▸ Play
+							Visible: false
+						Button@ADD_AI:
+							X: 80
+							Width: 75
+							Height: 25
+							Text: + Any AI
+							Visible: false
+						Button@ADD_NATO:
+							X: 160
+							Width: 95
+							Height: 25
+							Text: + NATO AI
+							Visible: false
+						Button@ADD_RUSSIA:
+							X: 260
+							Width: 105
+							Height: 25
+							Text: + Russia AI
+							Visible: false
+						Button@TOGGLE_CLOSED:
+							X: 370
+							Width: 95
+							Height: 25
+							Text: Close
+							Visible: false
 						Button@JOIN:
 							X: 190
 							Text: button-lobby-players-join
 							Width: 418
+						Label@CLOSED_LABEL:
+							X: 15
+							Width: 450
+							Height: 25
+							Align: Center
+							Text: Slot closed
+							Visible: false
 							Height: 25
 				Container@TEMPLATE_EDITABLE_SPECTATOR:
 					X: 5
