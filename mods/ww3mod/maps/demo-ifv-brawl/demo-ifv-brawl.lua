@@ -40,7 +40,7 @@ local function spawnReplacement(actorType, owner, location, facing, delaySec, on
 		local fresh = Actor.Create(actorType, true, {
 			Owner = owner,
 			Location = location,
-			Facing = WAngle.New(facing or 0),
+			Facing = Angle.New(facing or 0),
 		})
 		if onSpawn then onSpawn(fresh) end
 	end)
