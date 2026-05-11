@@ -48,14 +48,11 @@ WGM:
 	Report: vhumwe2a.wav, vhumwe2b.wav, vhumwe2c.wav, vhumwe2d.wav
 	Projectile: Missile
 		Blockable: false
-		# Accuracy (260510): tight Inaccuracy + LockOnInaccuracy 0 so locked
-		# shots fly straight at target. ManualGuidance kept true (loses
-		# guidance if Bradley dies) — matches the wire-guided fiction.
-		# Range-scaled inaccuracy: per-cell increment so misses grow with
-		# distance. At 22-cell range that gives ~22*32 = 704 wdist max
-		# offset (PDF-distributed, so most shots land much closer to centre).
-		# Close shots stay near-perfect; long shots scatter realistically.
-		Inaccuracy: 16
+		# Accuracy (260511): range-scaled — wire-guided by a human operator, so close
+		# shots are near-perfect and long shots scatter realistically. PerCellIncrement 20
+		# × 25c max range = 500 wd ≈ half a cell at maximum range. ManualGuidance kept
+		# true (loses guidance if launcher dies) — matches the wire-guided fiction.
+		Inaccuracy: 20
 		InaccuracyType: PerCellIncrement
 		RangeLimit: 25c0
 		Speed: 300

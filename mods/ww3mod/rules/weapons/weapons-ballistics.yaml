@@ -582,7 +582,7 @@ AACannon:
 	Projectile: Bullet
 		Speed: 1200
 		LaunchAngle: 0,20
-		Inaccuracy: 0c768
+		Inaccuracy: 0c512
 		Image: tankround
 		ContrailLength: 4
 		ContrailStartWidth: 32
