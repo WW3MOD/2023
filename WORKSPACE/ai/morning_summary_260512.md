@@ -78,3 +78,37 @@ Example target file at `tools/autotest/example-target.yaml`.
 
 Phase 4 v2 (a future session) wires in the metric-comparison logic to
 actually stop on goal-met and to bell-the-user on milestone hits.
+
+### Round 5 — Deterministic seeding + REAL game-speed (8×)
+*Status: complete.* Big win.
+
+**Discovery** (mid-Round 3): `option gamespeed fastest` only delivers 2× —
+that's the cap in WW3MOD's GameSpeeds.Timestep config. The in-game
+`SpeedControlButton` (cheat-mode button) goes up to 8× by setting
+`world.Timestep` directly.
+
+**Fix:** new `Test.SpeedMultiplier` launch arg honored by
+`BotVsBotMatchWatcher.WorldLoaded`. Same mechanism as the cheat button.
+Range 1..16; 8× recommended (caps at the SpeedControlButton's range).
+
+**Empirical:** 30-sec match wall-clock 57s → 19s at 8× = **3× practical
+speedup**. The renderer is the bottleneck even with 8× sim target, so real
+gains are 3-4× not 8×. Headless rendering (Phase 2) would push this further.
+
+**Also:** `Test.RandomSeed=<int>` arg honored by Server.cs. Each match's
+seed = `index × 1000 + 17`. Same seed + same code + same map → reproducible
+match. Debug-an-outlier-match path now exists.
+
+### Round 6 — 20-seed sanity batch
+*Status: running in background.*
+
+20 seeds of legacy-vs-legacy on tournament-arena-skirmish-2p, 3-min matches
+at 8×. Expected wall-clock ≈ 20 min. Findings doc TBW once it completes.
+
+Key sub-question: **the very first match showed USA=12150 vs Russia=550** at
+the prior (default-speed) run — extreme bias. Either this map has positional
+bias OR the AI's faction differs significantly. The 20-seed batch will tell
+us if this is a recurring pattern across seeds.
+
+If consistent bias persists, the right fix is mirror-matching: each seed
+runs twice with sides swapped, then aggregate.

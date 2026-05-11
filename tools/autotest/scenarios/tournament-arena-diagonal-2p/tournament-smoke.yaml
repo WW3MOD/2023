@@ -1,0 +1,29 @@
+# Short-time-limit variant for smoke testing the harness end-to-end.
+# Identical to tournament.yaml except TimeLimitSeconds is short enough that we
+# can run one match in under a minute without waiting for full-length play, and
+# the game runs at fastest game speed (2× simulation pace).
+
+Matchup:
+	P1Bot: normal
+	P2Bot: normal
+
+TimeLimitSeconds: 30
+
+# SpeedMultiplier 8× via world.Timestep override (in-game SpeedControlButton
+# uses the same mechanism). MUCH more effective than GameSpeed (capped at 2×
+# by the mod's GameSpeeds.Timestep config) — see PITFALLS §13/§16.
+SpeedMultiplier: 8
+
+# Kept for completeness; multiplier dominates.
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20

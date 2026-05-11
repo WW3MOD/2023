@@ -1,0 +1,1 @@
+TOURNAMENT: Arena skirmish 2-player, DIAGONAL layout. Identical map.bin to tournament-arena-skirmish-2p but SRs placed at opposite corners (NW and SE) instead of mid-row. Tests bot behavior on diagonal reinforcement lanes. Second map in the tournament pool; cross-map AI comparison should run on both before reporting AI improvement.
