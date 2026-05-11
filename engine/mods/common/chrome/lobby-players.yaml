@@ -217,6 +217,12 @@ Container@LOBBY_PLAYER_BIN:
 									Height: 22
 									Font: MediumBold
 									Align: Left
+								ColorBlock@SEPARATOR:
+									X: 4
+									Y: 38
+									Width: PARENT_WIDTH - 8
+									Height: 1
+									Color: 5050503C
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH
 							Height: 30
