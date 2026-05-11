@@ -47,7 +47,7 @@ Actors:
 	# in Mission Accomplished and the Lua poller never gets a verdict).
 	# SR has Targetable.TargetTypes=NoAutoTarget so WGM's operator-retarget
 	# can't accidentally redirect onto it. Always include one SR per
-	# active faction in test maps — see DOCS/skills/AUTOTEST.md.
+	# active faction in test maps — see DOCS/recipes/AUTOTEST.md.
 	OwnSR: supplyroute
 		Owner: USA
 		Location: 4,4

@@ -1,21 +1,12 @@
-# SKILLS
+# RECIPES
 
-Workflows and modes I (Claude) follow when triggered. Each entry has its own `<NAME>.md` with the trigger phrase, when to use it, and the procedure.
+Workflows I (Claude) follow when triggered. Each entry has its own `<NAME>.md` with the trigger phrase, when to use it, and the procedure.
 
 The point: instead of re-explaining a workflow each session, the user types the trigger word and I follow the documented steps. Humans skim this index to remember what's available.
 
-## Modes
+> **Note for the agent.** These are project-convention docs, **not** harness-registered Skills. When the user says the trigger word (with or without a `/`), READ the relevant `.md` here and follow the procedure. Never call the `Skill` tool for these — that's a different system and the call will fail.
 
-Operating context. Default is **RELEASE**.
-
-| Trigger | Mode | One-liner |
-|---|---|---|
-| [`RELEASE`](RELEASE.md) | Release mode (default) | v1 methodology — scope-locked, phase-driven, every commit moves a status |
-| [`EXPERIMENTAL`](EXPERIMENTAL.md) | Free exploration | Outside v1 scope — looser, idea-friendly |
-
-## Skills
-
-| Trigger | Skill | One-liner |
+| Trigger | Recipe | One-liner |
 |---|---|---|
 | [`PLAN <topic>`](PLAN.md) | PLAN | Design a feature or change before coding — ask, research, write a plan doc, wait for approval |
 | [`PLAYTEST [topic]`](PLAYTEST.md) | PLAYTEST | Build, write a focus brief, hand back to user with eye-list. Pair with TRIAGE after |
@@ -28,16 +19,18 @@ Operating context. Default is **RELEASE**.
 | [`BALANCE <a> <b>`](BALANCE.md) | BALANCE | Wrap combat-sim for data-driven tuning — duel matrices, tier consistency |
 | [`TELEMETRY <events>`](TELEMETRY.md) | TELEMETRY | Per-tick JSON-line gameplay log channel for post-mortem analysis (not built yet — first invocation builds) |
 
+For operating modes (RELEASE, EXPERIMENTAL) see [`../modes/`](../modes/README.md).
+
 ## Conventions
 
-- One file per skill, named `<NAME>.md` (UPPERCASE, matches the trigger).
+- One file per recipe, named `<NAME>.md` (UPPERCASE, matches the trigger).
 - First section: trigger phrase + one-paragraph "gives you" + one-paragraph "when *not* to use it".
-- Skills shorter is better — focused workflow, not exhaustive reference.
-- Add new entries to the table above as skills land.
-- If a workflow is one-shot or trivial, it doesn't need a skill doc — just do it.
+- Shorter is better — focused workflow, not exhaustive reference.
+- Add new entries to the table above as recipes land.
+- If a workflow is one-shot or trivial, it doesn't need a recipe doc — just do it.
 
-## Adding a new skill
+## Adding a new recipe
 
-1. Create `DOCS/skills/<NAME>.md` following the format of an existing skill.
+1. Create `DOCS/recipes/<NAME>.md` following the format of an existing recipe.
 2. Add a row to the table above.
-3. Mention in `CLAUDE.md` under "Skills" if the user should know about it.
+3. Mention in `CLAUDE.md` under the trigger table if the user should know about it.

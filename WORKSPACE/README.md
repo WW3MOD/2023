@@ -20,5 +20,5 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 
 - Update `RELEASE_V1.md` whenever a status changes — and commit when you do.
 - `HOTBOARD.md` reflects "what I'm working on now". Stale items get rotated out.
-- Session logs are not kept here — once finished, they go straight to `archive/sessions/` (see `DOCS/skills/FINALIZE.md`).
-- See `DOCS/skills/RELEASE.md` for the methodology.
+- Session logs are not kept here — once finished, they go straight to `archive/sessions/` (see `DOCS/recipes/FINALIZE.md`).
+- See `DOCS/modes/RELEASE.md` for the methodology.

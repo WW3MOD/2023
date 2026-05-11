@@ -25,7 +25,7 @@ The channel is the **"Developer Logging" pending decision** in `WORKSPACE/RELEAS
    - More as needed
 3. **Lua API** — `DevLog.Mark("note", payload)` so test scripts can drop landmarks into the log.
 4. **Gating** — channel is fully off unless explicitly enabled at launch (`DevLog.Channels=orders,fires`). No perf or disk cost in normal play.
-5. **Document in `DOCS/skills/AUTOTEST.md`** — auto-tests can tail the log for richer assertions.
+5. **Document in `DOCS/recipes/AUTOTEST.md`** — auto-tests can tail the log for richer assertions.
 
 ## What I do (subsequent invocations)
 

@@ -33,28 +33,30 @@ Units don't appear at the production building — they enter from the map edge n
 ### Engine code still has old RA patterns
 Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUnitReloadBuildings` checking for 1 airpad per aircraft). When you encounter these patterns, understand they may not apply. Always check how WW3MOD actually uses the system before assuming the old logic is correct. The `SkipRearmBuildingCheck` YAML property on `UnitBuilderBotModule` was added specifically to bypass one such legacy check.
 
-## Modes and Skills
+## Modes and Recipes
 
-I operate in one **mode** at a time and follow documented **skills** when triggered. All defined in `DOCS/skills/` — each entry is a single .md with the trigger phrase up top and the procedure below. Index: [`DOCS/skills/README.md`](DOCS/skills/README.md).
+I operate in one **mode** at a time and follow documented **recipes** when triggered. Modes live in [`DOCS/modes/`](DOCS/modes/README.md); recipes live in [`DOCS/recipes/`](DOCS/recipes/README.md). Each entry is a single `.md` with the trigger phrase up top and the procedure below.
 
 **Default mode is RELEASE** — assume v1-release methodology unless the user has explicitly switched to EXPERIMENTAL.
 
+> **These are docs to READ, not harness-registered Skills.** When the user says a trigger word (e.g., "DEMO this", "demo this", or "show me ..."), READ the relevant `.md` and follow the procedure. Do **not** call the `Skill` tool — that's Claude Code's separate system and will fail with `Unknown skill`. The leading slash is optional; recognize the trigger from natural language too.
+
 | Trigger | Doc | Purpose |
 |---|---|---|
-| `RELEASE` | [DOCS/skills/RELEASE.md](DOCS/skills/RELEASE.md) | **Mode (default).** v1 methodology — scope-locked, phase-driven, every commit moves a tracker status |
-| `EXPERIMENTAL` | [DOCS/skills/EXPERIMENTAL.md](DOCS/skills/EXPERIMENTAL.md) | **Mode.** Free exploration outside v1 scope — looser, idea-friendly |
-| `PLAN <topic>` | [DOCS/skills/PLAN.md](DOCS/skills/PLAN.md) | Design before coding — research, ask, plan doc, await approval |
-| `PLAYTEST [topic]` | [DOCS/skills/PLAYTEST.md](DOCS/skills/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
-| `TRIAGE [findings]` | [DOCS/skills/TRIAGE.md](DOCS/skills/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
-| `AUTOTEST <bug>` | [DOCS/skills/AUTOTEST.md](DOCS/skills/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. **Default for behavioral fixes in RELEASE mode** even without the trigger; once stated, the stance applies to the whole batch. |
-| `DEMO <topic>` | [DOCS/skills/DEMO.md](DOCS/skills/DEMO.md) | Stage a scenario for the user to look at — same harness as AUTOTEST, but **no verdict, no autonomous loop**. Use whenever the user says "show me" / "set this up so I can see". |
-| `REVIEW [N]` | [DOCS/skills/REVIEW.md](DOCS/skills/REVIEW.md) | Quality pass on last N commits |
-| `FINALIZE` | [DOCS/skills/FINALIZE.md](DOCS/skills/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
-| `CONTEXT <area>` | [DOCS/skills/CONTEXT.md](DOCS/skills/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
-| `BALANCE <a> <b>` | [DOCS/skills/BALANCE.md](DOCS/skills/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
-| `TELEMETRY <events>` | [DOCS/skills/TELEMETRY.md](DOCS/skills/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
+| `RELEASE` | [DOCS/modes/RELEASE.md](DOCS/modes/RELEASE.md) | **Mode (default).** v1 methodology — scope-locked, phase-driven, every commit moves a tracker status |
+| `EXPERIMENTAL` | [DOCS/modes/EXPERIMENTAL.md](DOCS/modes/EXPERIMENTAL.md) | **Mode.** Free exploration outside v1 scope — looser, idea-friendly |
+| `PLAN <topic>` | [DOCS/recipes/PLAN.md](DOCS/recipes/PLAN.md) | Design before coding — research, ask, plan doc, await approval |
+| `PLAYTEST [topic]` | [DOCS/recipes/PLAYTEST.md](DOCS/recipes/PLAYTEST.md) | Build, write a focus brief, hand back with eye-list |
+| `TRIAGE [findings]` | [DOCS/recipes/TRIAGE.md](DOCS/recipes/TRIAGE.md) | Sort findings into v1 buckets — RELEASE_V1, BACKLOG, discovered |
+| `AUTOTEST <bug>` | [DOCS/recipes/AUTOTEST.md](DOCS/recipes/AUTOTEST.md) | Test-driven loop — failing test → fix → green → regression-check → commit. **Default for behavioral fixes in RELEASE mode** even without the trigger; once stated, the stance applies to the whole batch. |
+| `DEMO <topic>` | [DOCS/recipes/DEMO.md](DOCS/recipes/DEMO.md) | Stage a scenario for the user to look at — same harness as AUTOTEST, but **no verdict, no autonomous loop**. Use whenever the user says "show me" / "set this up so I can see". |
+| `REVIEW [N]` | [DOCS/recipes/REVIEW.md](DOCS/recipes/REVIEW.md) | Quality pass on last N commits |
+| `FINALIZE` | [DOCS/recipes/FINALIZE.md](DOCS/recipes/FINALIZE.md) | Session wrap-up — bell, tracker, hotboard, commit |
+| `CONTEXT <area>` | [DOCS/recipes/CONTEXT.md](DOCS/recipes/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
+| `BALANCE <a> <b>` | [DOCS/recipes/BALANCE.md](DOCS/recipes/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
+| `TELEMETRY <events>` | [DOCS/recipes/TELEMETRY.md](DOCS/recipes/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
 
-If a workflow becomes a recurring pattern, factor it into a skill rather than re-explaining it each session.
+If a workflow becomes a recurring pattern, factor it into a recipe rather than re-explaining it each session.
 
 ## Workflow Rules
 
@@ -233,16 +235,16 @@ node build/index.js stats <unitId>                # Unit details
 ```
 Tick-by-tick combat simulator for balance analysis. Models damage (penetration, directional armor, range falloff, AoE), weapon firing cycles, suppression (infantry 10-tier/vehicle 5-tier), and formations. Phase 1 uses hardcoded stats; Phase 2 will auto-load from YAML. Phase 5 will export scenarios as playable maps via MCP.
 
-### Developer Test Harness — see `DOCS/skills/AUTOTEST.md`
+### Developer Test Harness — see `DOCS/recipes/AUTOTEST.md`
 Trigger phrase: `AUTOTEST <bug or feature>`. Quick reference:
 ```bash
 ./tools/test/list-tests.sh                          # what's available
 ./tools/test/run-test.sh <test-folder>              # run one
 ./tools/test/run-batch.sh --all                     # regression sweep
 ```
-Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/skills/AUTOTEST.md`](DOCS/skills/AUTOTEST.md).
+Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/recipes/AUTOTEST.md`](DOCS/recipes/AUTOTEST.md).
 
-### Demo scenarios — see `DOCS/skills/DEMO.md`
+### Demo scenarios — see `DOCS/recipes/DEMO.md`
 Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" request). Same harness as AUTOTEST, different stance — agent stages, user runs and explores, no verdict expected.
 ```bash
 ./tools/test/list-demos.sh                          # what's available
