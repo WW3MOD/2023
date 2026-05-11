@@ -1,5 +1,6 @@
 
 btr:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Crew: ^CrewedVehicle2
 	Inherits@CargoPips: ^CargoPips
@@ -116,6 +117,7 @@ btr:
 		Actor: btr.husk
 
 bmp2:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Crew: ^CrewedVehicle3
 	Inherits@CargoPips: ^CargoPips
@@ -271,6 +273,7 @@ bmp2:
 		Actor: bmp2.husk
 
 t90:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Crew: ^CrewedVehicle3
 	Inherits@GainsExperience: ^GainsExperience
@@ -380,6 +383,7 @@ t90:
 		Actor: t90.husk
 
 giatsint:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
@@ -494,6 +498,7 @@ giatsint:
 		Actor: giatsint.husk
 
 grad:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
 	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
@@ -617,6 +622,7 @@ grad:
 		Actor: grad.husk
 
 tos:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Crew: ^CrewedVehicle2
 	Inherits@GainsExperience: ^GainsExperience
@@ -740,6 +746,7 @@ tos:
 		Actor: tos.husk
 
 tunguska:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^TrackedVehicle
 	Inherits@Crew: ^CrewedVehicle3
 	Inherits@GainsExperience: ^GainsExperience
@@ -897,6 +904,7 @@ tunguska:
 		Actor: tunguska.husk
 
 iskander:
+	Inherits@Combatant: ^Combatant
 	Inherits@Type: ^WheeledVehicle
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetGroundAssaultMove
