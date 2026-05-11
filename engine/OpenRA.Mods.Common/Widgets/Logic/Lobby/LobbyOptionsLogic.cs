@@ -98,6 +98,35 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SectionDeveloper,
 		};
 
+		// Subsections within the MATCH tab. Same machinery as Advanced sections but
+		// always expanded (the user is here to read them, not collapse them).
+		const string SectionEconomy = "Economy";
+		const string SectionMatch = "Match";
+		const string SectionWorld = "World";
+
+		static readonly string[] CommonSectionOrder =
+		{
+			SectionEconomy,
+			SectionMatch,
+			SectionWorld,
+		};
+
+		static readonly Dictionary<string, string> CommonOptionSection = new()
+		{
+			{ "startingcash", SectionEconomy },
+			{ "passiveincome", SectionEconomy },
+			{ "incomemodifier", SectionEconomy },
+			{ "bounty", SectionEconomy },
+
+			{ "gamespeed", SectionMatch },
+			{ "timelimit", SectionMatch },
+			{ "startingunits", SectionMatch },
+
+			{ "explored", SectionWorld },
+			{ "fog", SectionWorld },
+			{ "separateteamspawns", SectionWorld },
+		};
+
 		static readonly Dictionary<string, string> OptionSection = new()
 		{
 			// Unit Availability — every "unit-*" option from LobbyDummyOptions
@@ -276,12 +305,33 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (category == CategoryAdvanced)
 				RenderAdvancedSections(filteredOptions);
 			else
-				RenderFlatOptions(filteredOptions);
+				RenderCommonSections(filteredOptions);
 
 			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
 			optionsContainer.Bounds.Y = yMargin;
 
 			panel.ScrollToTop();
+		}
+
+		void RenderCommonSections(LobbyOption[] options)
+		{
+			foreach (var section in CommonSectionOrder)
+			{
+				var sectionOptions = options
+					.Where(o => CommonOptionSection.TryGetValue(o.Id, out var s) && s == section)
+					.ToArray();
+				if (sectionOptions.Length == 0)
+					continue;
+
+				AddSectionHeader(section);
+				RenderFlatOptions(sectionOptions);
+			}
+
+			// Anything in Common that didn't get a section assignment falls through
+			// to the bottom so it's still visible — better than silently dropping.
+			var unsectioned = options.Where(o => !CommonOptionSection.ContainsKey(o.Id)).ToArray();
+			if (unsectioned.Length > 0)
+				RenderFlatOptions(unsectioned);
 		}
 
 		void RenderAdvancedSections(LobbyOption[] options)
