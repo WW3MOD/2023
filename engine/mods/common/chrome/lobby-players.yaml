@@ -58,7 +58,7 @@ Container@LOBBY_PLAYER_BIN:
 					Font: Bold
 		ScrollPanel@LOBBY_PLAYERS:
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT
+			Height: 220
 			TopBottomSpacing: 5
 			ItemSpacing: 5
 			Children:
@@ -503,3 +503,82 @@ ScrollPanel@FACTION_DROPDOWN_TEMPLATE:
 					X: 40
 					Width: 70
 					Height: 25
+		Label@COMMON_OPTIONS_HEADER:
+			Y: 230
+			X: 5
+			Width: PARENT_WIDTH - 10
+			Height: 18
+			Font: Bold
+			Align: Left
+			Text: Common Options
+		ScrollPanel@COMMON_OPTIONS_PANEL:
+			Logic: LobbyOptionsLogic
+			Y: 252
+			Width: PARENT_WIDTH
+			Height: PARENT_HEIGHT - 252
+			Children:
+				Label@CATEGORY_FILTER:
+					Visible: False
+					Text: Common
+				Container@LOBBY_OPTIONS:
+					Y: 5
+					Width: PARENT_WIDTH - 24
+					Children:
+						Container@SECTION_HEADER_TEMPLATE:
+							Width: PARENT_WIDTH
+							Height: 26
+							Visible: False
+							Children:
+								Label@HEADER_LABEL:
+									X: 4
+									Y: 4
+									Width: PARENT_WIDTH - 8
+									Height: 20
+									Font: TinyBold
+									Align: Left
+						Container@CHECKBOX_ROW_TEMPLATE:
+							Width: PARENT_WIDTH
+							Height: 30
+							Children:
+								Checkbox@A:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+								Checkbox@B:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+						Container@DROPDOWN_ROW_TEMPLATE:
+							Height: 55
+							Width: PARENT_WIDTH
+							Children:
+								LabelForInput@A_DESC:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									For: A
+								DropDownButton@A:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Y: 22
+									Height: 25
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+								LabelForInput@B_DESC:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									For: B
+								DropDownButton@B:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Y: 22
+									Height: 25
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER

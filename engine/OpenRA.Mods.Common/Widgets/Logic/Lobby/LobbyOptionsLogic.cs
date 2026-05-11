@@ -46,10 +46,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<bool> configurationDisabled;
 		MapPreview mapPreview;
 
-		// Tab support
-		string activeTab = "";
-		readonly Dictionary<string, ButtonWidget> tabButtons = new();
-		readonly LabelWidget summaryLabel;
+		// Each instance of this logic is bound to one category — Common or Advanced —
+		// declared via a hidden Label@CATEGORY_FILTER inside the panel widget.
+		// Defaults to Advanced if no marker is found, so existing callers keep working.
+		readonly string category;
 
 		// WW3MOD: options are split into two top-level groups.
 		// Common — frequently-changed, fully-working options. (Step 3 will move these onto the PLAYERS panel.)
@@ -184,38 +184,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			dropdownRowTemplate = optionsContainer.Get("DROPDOWN_ROW_TEMPLATE");
 			sectionHeaderTemplate = optionsContainer.GetOrNull("SECTION_HEADER_TEMPLATE");
 
-			// Look for tab buttons in parent hierarchy
-			var lobbyBin = panel.Parent;
-			summaryLabel = lobbyBin?.GetOrNull<LabelWidget>("SUMMARY");
-
-			var tabContainer = lobbyBin?.GetOrNull("TAB_BUTTONS");
-			if (tabContainer != null)
-			{
-				var tabNames = new[] { "COMMON", "ADVANCED" };
-				foreach (var name in tabNames)
-				{
-					var btn = tabContainer.GetOrNull<ButtonWidget>("TAB_" + name);
-					if (btn != null)
-					{
-						var tabName = name.Substring(0, 1) + name.Substring(1).ToLowerInvariant();
-						tabButtons[tabName] = btn;
-						var captured = tabName;
-						btn.OnClick = () => SwitchTab(captured);
-						btn.IsHighlighted = () => activeTab == captured;
-					}
-				}
-
-				if (tabButtons.Count > 0)
-					activeTab = CategoryCommon;
-			}
+			// Read this panel's category from the hidden CATEGORY_FILTER label.
+			// PLAYERS panel embeds one with "Common", Options-Bin uses "Advanced".
+			var categoryLabel = widget.GetOrNull<LabelWidget>("CATEGORY_FILTER");
+			category = categoryLabel?.Text ?? CategoryAdvanced;
 
 			mapPreview = getMap();
-			RebuildOptions();
-		}
-
-		void SwitchTab(string tab)
-		{
-			activeTab = tab;
 			RebuildOptions();
 		}
 
@@ -268,18 +242,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.OrderBy(o => o.DisplayOrder)
 					.ToArray();
 
-			var filteredOptions = allOptions;
-			if (!string.IsNullOrEmpty(activeTab))
-			{
-				filteredOptions = allOptions
-					.Where(o => !HiddenOptionIds.Contains(o.Id))
-					.Where(o => GetCategory(o) == activeTab)
-					.ToArray();
-			}
+			var filteredOptions = allOptions
+				.Where(o => !HiddenOptionIds.Contains(o.Id))
+				.Where(o => GetCategory(o) == category)
+				.ToArray();
 
-			UpdateSummary(allOptions);
-
-			if (activeTab == CategoryAdvanced)
+			if (category == CategoryAdvanced)
 				RenderAdvancedSections(filteredOptions);
 			else
 				RenderFlatOptions(filteredOptions);
@@ -434,49 +402,5 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		void UpdateSummary(LobbyOption[] allOptions)
-		{
-			if (summaryLabel == null)
-				return;
-
-			var nonDefaults = new List<string>();
-			foreach (var option in allOptions)
-			{
-				if (HiddenOptionIds.Contains(option.Id))
-					continue;
-
-				if (!orderManager.LobbyInfo.GlobalSettings.LobbyOptions.TryGetValue(option.Id, out var state))
-					continue;
-
-				if (state.Value != option.DefaultValue)
-				{
-					var name = option.Name;
-					if (FluentProvider.TryGetMessage(option.Name, out var fluentName))
-						name = fluentName;
-
-					if (option is LobbyBooleanOption)
-					{
-						var enabled = state.Value == "True";
-						nonDefaults.Add($"{name} {(enabled ? "ON" : "OFF")}");
-					}
-					else if (option.Values.TryGetValue(state.Value, out var valueLabel))
-					{
-						if (FluentProvider.TryGetMessage(valueLabel, out var fluentValue))
-							valueLabel = fluentValue;
-						nonDefaults.Add($"{name} {valueLabel}");
-					}
-					else
-						nonDefaults.Add($"{name} {state.Value}");
-				}
-			}
-
-			if (nonDefaults.Count == 0)
-				summaryLabel.GetText = () => "Settings: All default";
-			else
-			{
-				var summary = string.Join(" · ", nonDefaults);
-				summaryLabel.GetText = () => summary;
-			}
-		}
 	}
 }

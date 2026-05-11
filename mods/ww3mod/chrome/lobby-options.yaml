@@ -8,30 +8,16 @@ Container@LOBBY_OPTIONS_BIN:
 			Height: 25
 			Font: Bold
 			Align: Center
-			Text: Game Settings
-		Container@TAB_BUTTONS:
-			Y: 0
-			Width: PARENT_WIDTH
-			Height: 30
-			Children:
-				Button@TAB_COMMON:
-					X: 2
-					Width: PARENT_WIDTH / 2 - 4
-					Height: 28
-					Font: Bold
-					Text: COMMON
-				Button@TAB_ADVANCED:
-					X: PARENT_WIDTH / 2 + 2
-					Width: PARENT_WIDTH / 2 - 4
-					Height: 28
-					Font: Bold
-					Text: ADVANCED
+			Text: Advanced Settings
 		ScrollPanel@OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 34
+			Y: 0
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 34
+			Height: PARENT_HEIGHT
 			Children:
+				Label@CATEGORY_FILTER:
+					Visible: False
+					Text: Advanced
 				Container@LOBBY_OPTIONS:
 					Y: 5
 					Width: PARENT_WIDTH - 24
