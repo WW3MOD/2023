@@ -371,6 +371,7 @@ SUPPLYCACHE:
 	Inherits: ^SpriteActor
 	Selectable:
 		Bounds: 1024, 1024
+	SelectionDecorations:
 	Tooltip:
 		Name: Supply Cache
 	Building:
