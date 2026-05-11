@@ -117,14 +117,17 @@ end
 | `Select(actor)` | Pre-select unit-under-test (no manual click needed) |
 | `AssertWithin(seconds, predicate, failReason)` | Poll predicate every tick. `true`→Pass, `"fail: <reason>"`→Fail immediately, timeout→Fail with reason. |
 | `AssertAfter(seconds, predicate, failReason)` | Wait `seconds`, then assert once |
+| `Screenshot(label, note?)` | Capture a PNG now. Wrapper around `Test.Screenshot`. See [`SCREENSHOT.md`](SCREENSHOT.md). |
+| `ScreenshotAfter(seconds, label, note?)` | Schedule a screenshot N game-seconds from now |
 
 ### `Test.*` (engine global, gated on TestMode.IsActive)
 
 | Function | Effect |
 |---|---|
-| `Test.Pass()` | Write `pass` verdict, `Game.Exit()` |
+| `Test.Pass()` | Write `pass` verdict, `Game.Exit()` (deferred until pending screenshots are flushed to disk) |
 | `Test.Fail(reason)` | Write `fail` verdict + reason, exit |
 | `Test.Skip(reason)` | Write `skip` verdict + reason, exit |
+| `Test.Screenshot(label, note?)` | Capture a PNG tagged `label`. Path is emitted into the verdict JSON's `screenshots[]` array; agent reads + evaluates. See [`SCREENSHOT.md`](SCREENSHOT.md). |
 | `Test.IssueEnterTransport(passenger, transport, queued?)` | Issue a real EnterTransport order through Passenger.ResolveOrder. Use this rather than `unit.EnterTransport(t)` when the test needs the resulting RideTransport activity to be visible to target-line scans (e.g. spread / Shift-G logic). |
 | `Test.GroupScatter({actors})` | Run the Group Scatter (Shift-G) spread on the given actors. Mimics the hotkey path without needing a key press / live selection. |
 

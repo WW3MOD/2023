@@ -57,6 +57,7 @@ I operate in one **mode** at a time and follow documented **recipes** when trigg
 | `CONTEXT <area>` | [DOCS/recipes/CONTEXT.md](DOCS/recipes/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
 | `BALANCE <a> <b>` | [DOCS/recipes/BALANCE.md](DOCS/recipes/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
 | `TELEMETRY <events>` | [DOCS/recipes/TELEMETRY.md](DOCS/recipes/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
+| `SCREENSHOT <topic>` | [DOCS/recipes/SCREENSHOT.md](DOCS/recipes/SCREENSHOT.md) | Capture PNGs (in-test or menu/lobby) and evaluate visually via multimodal `Read` |
 
 If a workflow becomes a recurring pattern, factor it into a recipe rather than re-explaining it each session.
 
@@ -253,6 +254,18 @@ Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" requ
 ./tools/autotest/run-demo.sh demo-<name>            # launch one
 ```
 Demo scenarios live in `tools/autotest/scenarios/demo-*/`. **Never put a `Test.Pass`/`Fail` call in a demo** — if it has a verdict, it's a test; move it to `test-*` and use AUTOTEST.
+
+### Screenshot evaluation — see `DOCS/recipes/SCREENSHOT.md`
+Trigger phrase: `SCREENSHOT <topic>`. The agent has eyes: PNGs land on disk, the multimodal `Read` tool ingests them, semantic judgments come back. Two modes:
+```bash
+# In-test (Lua-driven): add to any autotest scenario
+TestHarness.Screenshot("label", "expects: muzzle flash, T-90 in frame")
+
+# External (menu/lobby/arbitrary state): two terminals
+./tools/autotest/start-screenshot-mode.sh                          # terminal 1
+./tools/autotest/screenshot.sh lobby-system-chat-tone --wait       # terminal 2 — prints PNG path
+```
+Captures land in `~/.ww3mod-tests/screenshots/<run-id>/`. Verdict JSON gets a `screenshots[]` array; manual mode emits `manifest.json`. Coarse semantic checks only (UI tone, presence of effects, formation shape) — pixel-perfect alignment is NOT reliable. Use game-state queries for those.
 
 ### Regenerating shadows.bin
 

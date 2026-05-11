@@ -18,6 +18,7 @@ The point: instead of re-explaining a workflow each session, the user types the 
 | [`CONTEXT <area>`](CONTEXT.md) | CONTEXT | Quick orientation on an area — recent commits, open work, file pointers |
 | [`BALANCE <a> <b>`](BALANCE.md) | BALANCE | Wrap combat-sim for data-driven tuning — duel matrices, tier consistency |
 | [`TELEMETRY <events>`](TELEMETRY.md) | TELEMETRY | Per-tick JSON-line gameplay log channel for post-mortem analysis (not built yet — first invocation builds) |
+| [`SCREENSHOT <topic>`](SCREENSHOT.md) | SCREENSHOT | Capture game state as PNGs (in-test or menu/lobby) and evaluate visually via the multimodal Read tool |
 
 For operating modes (RELEASE, EXPERIMENTAL) see [`../modes/`](../modes/README.md).
 
