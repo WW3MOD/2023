@@ -82,14 +82,14 @@ Container@LOBBY_PLAYER_BIN:
 					Width: 130
 					Height: 24
 					Font: Bold
-					Text: Auto-Team v
+					Text: Auto-Team
 				Button@REPLAY_LAST_BUTTON:
 					X: 395
 					Y: 1
 					Width: 140
 					Height: 24
 					Font: Bold
-					Text: ▸ Replay last
+					Text: Replay last
 		Container@LOBBY_ACTIVE_CHANGES:
 			Logic: LobbyActiveChangesLogic
 			Y: 244
@@ -147,7 +147,7 @@ Container@LOBBY_PLAYER_BIN:
 					Width: 56
 					Height: 24
 					Font: Bold
-					Text: Load v
+					Text: Load
 				Button@SAVE_PRESET_BUTTON:
 					X: 342
 					Y: 2
