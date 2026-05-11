@@ -153,3 +153,77 @@ much-bigger future investment.
 
 Both immediately visible in `summary.json` without rummaging through
 match_*.json files.
+
+### Round 10 — Parallel-batches bug discovery
+*Status: caught and corrected.*
+
+**Bit:** my `pkill -KILL -f 'run-tournament|dotnet bin/OpenRA'` between
+batch restarts didn't reliably kill the parent shell scripts. **Three
+batches accumulated** running in parallel, competing for CPU. That's why
+matches were so slow — 14 ticks/sec wall-clock when 8× speed should
+deliver 100-200+. Once cleaned up (single batch), CPU per process climbed
+to 100%+ and matches finished much faster.
+
+**Lesson:** before restarting a batch, run
+```bash
+pgrep -fl 'run-tournament|dotnet bin/OpenRA'
+```
+and confirm only the expected processes remain. Documented in
+PITFALLS.md addition (not yet committed).
+
+### Round 11 — Quick batch with single-process CPU
+*Status: running with cleaned state. Findings in `sanity_findings_260512.md`.*
+
+10 seeds, 60-sim-second matches at 8× speed, framerate cap on. Started
+fresh in `260512_0024_*` after killing all parallel batches. Wall-clock
+per match should drop substantially compared to the 3-batch parallel
+state.
+
+## Files in this session (overnight 260511→260512)
+
+### Engine changes
+- `engine/OpenRA.Mods.Common/Tournament/*` — match harness module (10 files)
+- `engine/OpenRA.Mods.Common/Traits/World/BotVsBotMatchWatcher.cs` — world trait
+- `engine/OpenRA.Game/TestMode.cs` — `Test.{TournamentConfig,GameSpeed,RandomSeed,SpeedMultiplier}` launch args
+- `engine/OpenRA.Game/Game.cs` — `Test.GameSpeed` honored in `LoadMap`
+- `engine/OpenRA.Game/Server/Server.cs` — `Test.RandomSeed` overrides DateTime-based seed
+
+### YAML
+- `mods/ww3mod/rules/ai/ai.yaml` — `ModularBot@v2` + swap conditions
+- `mods/ww3mod/rules/world.yaml` — `BotVsBotMatchWatcher` registration
+
+### Shell harness
+- `tools/autotest/run-tournament.sh` — batch runner
+- `tools/autotest/aggregate-tournament.sh` — CSV + summary stats
+- `tools/autotest/loop-tournament.sh` — autonomous-loop scaffold (Phase 4)
+
+### Scenarios
+- `tools/autotest/scenarios/tournament-arena-skirmish-2p/` — first scenario
+  (map.yaml, rules.yaml, tournament.yaml, tournament-smoke.yaml,
+   tournament-sanity.yaml, tournament-quick.yaml)
+- `tools/autotest/scenarios/tournament-arena-diagonal-2p/` — second scenario
+  (clone with diagonal SR placement)
+
+### Docs
+- `WORKSPACE/ai/foundation_260511.md` — basics doc (Phase 1 day)
+- `WORKSPACE/ai/tournament_swap_guide.md` — how to swap every piece
+- `WORKSPACE/ai/PITFALLS.md` — 17 traps already hit (and growing)
+- `WORKSPACE/ai/phase1_status_260511.md` — Phase 1 snapshot
+- `WORKSPACE/ai/morning_summary_260512.md` — this doc
+- `WORKSPACE/ai/WAKEUP_CHECKLIST_260512.md` — read-on-wake guide
+- `WORKSPACE/ai/sanity_findings_260512.md` — batch findings (filled when complete)
+- `WORKSPACE/plans/260511_ai_tournament_harness.md` — full plan
+- `DOCS/reference/supply-route.md` — SR mental model (corrected per user)
+- `WORKSPACE/HOTBOARD.md` — entry pointing here
+- Cross-session memory: `~/.claude/.../feedback_supply_route_model.md`
+
+## Recommendation for what to try first when you wake up
+
+See `WORKSPACE/ai/WAKEUP_CHECKLIST_260512.md`. TL;DR:
+
+1. `git log --oneline -25` — see the commit chain
+2. Read `WORKSPACE/ai/morning_summary_260512.md` (this doc)
+3. Check `tools/autotest/tournament-results/<latest>/summary.json`
+4. Decide whether to keep or revert any rounds (most are isolated)
+5. If sanity batch passes (40-60% winrate per side), the harness is ready
+   for the actual AI overhaul work (Phase 2 of `foundation_260511.md`).

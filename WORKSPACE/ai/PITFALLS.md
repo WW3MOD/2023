@@ -330,6 +330,34 @@ run-tournament.sh in Round 8 of the autonomous-overnight run.
 
 ---
 
+## 18. `pkill -f run-tournament` doesn't always kill the parent zsh shell
+
+**Bit:** between batch restarts overnight, `pkill -KILL -f 'run-tournament|dotnet bin/OpenRA'`
+appeared to work (no immediate output) but actually left the zsh parent shells
+alive. Result: 3 batches piled up running in parallel, each fighting for CPU.
+Wall-clock per match was 3-5× worse than it should have been. Looked like the
+speedup wasn't working; was actually CPU contention.
+
+**Fix:** before restarting any batch, run:
+```bash
+pgrep -fl 'run-tournament|dotnet bin/OpenRA'
+```
+If anything's still listed, target the specific PIDs:
+```bash
+pkill -KILL -f 'tee /tmp/sanity'  # kill the tee in the pipeline
+pkill -KILL -f 'run-tournament'   # then the script
+pkill -KILL -f 'dotnet bin/OpenRA' # then the engine
+sleep 3
+pgrep -fl 'run-tournament|OpenRA' || echo "all clean"
+```
+Triple-check `pgrep` returns nothing before starting the new batch.
+
+**Root cause:** `tee` + `bash -c '...'` wrapper leaves a process tree where the
+top-level `eval` shell doesn't match `run-tournament` directly. Multiple
+pattern kills are needed.
+
+---
+
 ## 9. Sound.Mute must be passed via launch arg, NOT toggled persistently
 
 Already covered in `run-test.sh` comments but worth reinforcing for the
