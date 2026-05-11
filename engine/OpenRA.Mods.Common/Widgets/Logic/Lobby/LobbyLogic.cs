@@ -1010,14 +1010,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 
 		// Auto-expand the roster ScrollPanel so it never scrolls internally.
-		// Each visible row is 25h with 5px ItemSpacing, plus 5px TopBottomSpacing each side.
+		// Each visible row is 25h + 7px ItemSpacing = 32px stride, plus 8px
+		// TopBottomSpacing on each side. PITFALL: keep this in sync with the
+		// LOBBY_PLAYERS ScrollPanel widget's spacing values in lobby-players.yaml.
 		void ResizeRosterToFit(int rowCount)
 		{
 			if (rosterFlexOriginalPlayersHeight == 0)
 				return;
 
-			var rowStride = 30;
-			var newHeight = Math.Max(rowCount * rowStride + 5, rowStride);
+			var rowStride = 32;
+			var newHeight = Math.Max(rowCount * rowStride + 8, rowStride);
 			var delta = newHeight - rosterFlexOriginalPlayersHeight;
 
 			players.Bounds.Height = newHeight;

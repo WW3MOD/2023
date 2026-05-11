@@ -114,10 +114,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
-			// Chips start past the count label (215px) plus a 16px breathing gap, then
-			// flow horizontally with 10px between each. Was 6px — too tight to read
-			// the chips as discrete entities.
-			var x = 231;
+			// Counter label sits on its own row at Y=0; chips flow on the row below
+			// at Y=22 starting from x=5 (no horizontal sharing with the counter
+			// anymore, so the chips get the full row width).
+			var x = 5;
 			const int spacing = 10;
 			var count = 0;
 
@@ -132,7 +132,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var chip = chipTemplate.Clone();
 				chip.IsVisible = () => true;
 				chip.Bounds.X = x;
-				chip.Bounds.Y = 3;
+				chip.Bounds.Y = 22;
 
 				var bg = chip.GetOrNull<ColorBlockWidget>("BG");
 				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");

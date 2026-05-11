@@ -98,14 +98,14 @@ Container@LOBBY_PLAYER_BIN:
 			Logic: LobbyActiveChangesLogic
 			Y: 262
 			Width: PARENT_WIDTH
-			Height: 36
+			Height: 56
 			Children:
 				Label@EMPTY_HINT:
 					X: 5
-					Y: 8
-					Width: 200
+					Y: 0
+					Width: 300
 					Height: 20
-					Font: Bold
+					Font: TinyBold
 					Align: Left
 					Text: All settings at default
 				Container@CHIP_TEMPLATE:
@@ -127,7 +127,7 @@ Container@LOBBY_PLAYER_BIN:
 							Background: ""
 		Container@LOBBY_PRESET_BAR:
 			Logic: LobbyPresetLogic
-			Y: 314
+			Y: 334
 			Width: PARENT_WIDTH
 			Height: 30
 			Children:
@@ -184,9 +184,9 @@ Container@LOBBY_PLAYER_BIN:
 		# (phase 4) name the groups individually, parent was redundant.
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 360
+			Y: 380
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 360
+			Height: PARENT_HEIGHT - 380
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
@@ -257,8 +257,8 @@ Container@LOBBY_PLAYER_BIN:
 			Y: 0
 			Width: PARENT_WIDTH
 			Height: 200
-			TopBottomSpacing: 5
-			ItemSpacing: 5
+			TopBottomSpacing: 8
+			ItemSpacing: 7
 			Children:
 				Container@TEMPLATE_EDITABLE_PLAYER:
 					X: 5
@@ -318,9 +318,9 @@ Container@LOBBY_PLAYER_BIN:
 							Children:
 								ColorBlock@COLORBLOCK:
 									X: 5
-									Y: 6
-									Width: PARENT_WIDTH - 35
-									Height: PARENT_HEIGHT - 12
+									Y: 4
+									Width: PARENT_WIDTH - 26
+									Height: PARENT_HEIGHT - 8
 						DropDownButton@FACTION:
 							X: 270
 							Width: 140
@@ -431,9 +431,9 @@ Container@LOBBY_PLAYER_BIN:
 									Template: ANONYMOUS_PLAYER_TOOLTIP
 						ColorBlock@COLORBLOCK:
 							X: 195
-							Y: 6
-							Width: 35
-							Height: 13
+							Y: 4
+							Width: 60
+							Height: 17
 						Container@FACTION:
 							X: 270
 							Width: 160
