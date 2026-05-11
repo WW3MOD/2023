@@ -28,12 +28,16 @@ Background@SERVER_LOBBY:
 			X: PARENT_WIDTH - 20 - WIDTH
 			Y: 67
 			Width: 200
-			Height: 230
+			Height: 270
+		# Right-rail order (top → bottom): preview, title, type, author (all in
+		# the preview widget's MAP_LARGE/MAP_AVAILABLE overlays), then scenario
+		# picker (the variation knob for the current map), then Change Map (the
+		# heavy action that resets the whole rail).
 		Button@CHANGEMAP_BUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 302
+			Y: 387
 			Width: 200
-			Height: 25
+			Height: 30
 			Text: button-server-lobby-changemap
 			Font: Bold
 		DropDownButton@SLOTS_DROPDOWNBUTTON:
@@ -116,21 +120,14 @@ Background@SERVER_LOBBY:
 					Text: button-multiplayer-tabs-servers-tab
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 335
+			Y: 349
 			Width: 200
-			Height: 25
+			Height: 30
 			Font: Bold
-		# SCENARIO_DESCRIPTION removed — the dropdown's selected value is descriptive
-		# enough on its own; the static "Standard skirmish" caption was just floating
-		# noise next to the active-changes chips with no visual relationship to the
-		# scenario picker above it.
-		Label@SCENARIO_DESCRIPTION:
-			X: 0
-			Y: 0
-			Width: 0
-			Height: 0
-			Visible: False
-			Text: ""
+		# SCENARIO_DESCRIPTION widget deleted entirely. LobbyLogic uses GetOrNull
+		# so its dynamic GetText handler is skipped when the widget doesn't exist.
+		# Previous attempt to hide it via Visible:false didn't work because the
+		# engine's IsVisible binding overrode the YAML flag.
 		Container@LOBBYCHAT:
 			X: 20
 			Y: PARENT_HEIGHT - HEIGHT - 75

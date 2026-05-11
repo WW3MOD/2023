@@ -54,16 +54,16 @@ Container@MAP_PREVIEW:
 			Height: PARENT_HEIGHT
 			Children:
 				Label@MAP_TYPE:
-					Y: 214
+					Y: 226
 					Width: PARENT_WIDTH
-					Height: 25
+					Height: 18
 					Font: TinyBold
 					Align: Center
 					IgnoreMouseOver: true
 				Label@MAP_AUTHOR:
-					Y: 227
+					Y: 244
 					Width: PARENT_WIDTH
-					Height: 25
+					Height: 18
 					Font: Tiny
 					Align: Center
 		Container@MAP_INCOMPATIBLE:

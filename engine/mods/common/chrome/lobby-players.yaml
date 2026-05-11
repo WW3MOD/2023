@@ -56,49 +56,53 @@ Container@LOBBY_PLAYER_BIN:
 					Text: label-lobby-players-ready
 					Align: Left
 					Font: Bold
+		# Vertical rhythm — 16px gap between sections, 30px button heights for proper
+		# internal padding (text gets ~7px above/below the baseline). The Y values
+		# below are the canonical "no extra slots" layout; LobbyLogic captures them
+		# at load and shifts them by delta as the roster auto-expands.
 		Container@LOBBY_SETUP_ROW:
 			Logic: LobbySetupRowLogic
-			Y: 208
+			Y: 216
 			Width: PARENT_WIDTH
-			Height: 26
+			Height: 30
 			Children:
 				Button@ADD_BOTS_BUTTON:
 					X: 5
-					Y: 1
+					Y: 0
 					Width: 110
-					Height: 24
+					Height: 30
 					Font: Bold
 					Text: + Add Bots
 				Button@REMOVE_BOTS_BUTTON:
-					X: 120
-					Y: 1
+					X: 125
+					Y: 0
 					Width: 130
-					Height: 24
+					Height: 30
 					Font: Bold
 					Text: - Remove Bots
 				DropDownButton@AUTO_TEAM_BUTTON:
-					X: 255
-					Y: 1
+					X: 265
+					Y: 0
 					Width: 130
-					Height: 24
+					Height: 30
 					Font: Bold
 					Text: Auto-Team
 				Button@REPLAY_LAST_BUTTON:
-					X: 395
-					Y: 1
+					X: 405
+					Y: 0
 					Width: 140
-					Height: 24
+					Height: 30
 					Font: Bold
 					Text: Replay last
 		Container@LOBBY_ACTIVE_CHANGES:
 			Logic: LobbyActiveChangesLogic
-			Y: 244
+			Y: 262
 			Width: PARENT_WIDTH
-			Height: 32
+			Height: 36
 			Children:
 				Label@EMPTY_HINT:
 					X: 5
-					Y: 6
+					Y: 8
 					Width: 200
 					Height: 20
 					Font: Bold
@@ -106,7 +110,7 @@ Container@LOBBY_PLAYER_BIN:
 					Text: All settings at default
 				Container@CHIP_TEMPLATE:
 					Width: 180
-					Height: 26
+					Height: 30
 					Visible: False
 					Children:
 						ColorBlock@BG:
@@ -116,74 +120,73 @@ Container@LOBBY_PLAYER_BIN:
 							Width: PARENT_WIDTH
 							Height: PARENT_HEIGHT
 							Align: Center
-							Font: TinyBold
+							Font: Bold
 						Button@HIT:
 							Width: PARENT_WIDTH
 							Height: PARENT_HEIGHT
 							Background: ""
 		Container@LOBBY_PRESET_BAR:
 			Logic: LobbyPresetLogic
-			Y: 282
+			Y: 314
 			Width: PARENT_WIDTH
-			Height: 28
+			Height: 30
 			Children:
 				Label@PRESET_LABEL:
 					X: 5
-					Y: 4
+					Y: 6
 					Width: 55
 					Height: 20
 					Text: Preset:
 					Font: Bold
 				TextField@PRESET_NAME:
 					X: 60
-					Y: 2
-					Width: 160
-					Height: 24
+					Y: 0
+					Width: 170
+					Height: 30
 					MaxLength: 32
 					Text: Default
 				DropDownButton@PRESET_DROPDOWN:
-					X: 224
-					Y: 2
-					Width: 64
-					Height: 24
+					X: 240
+					Y: 0
+					Width: 70
+					Height: 30
 					Font: Bold
 					Text: Load
 				Button@SAVE_PRESET_BUTTON:
-					X: 292
-					Y: 2
-					Width: 60
-					Height: 24
+					X: 320
+					Y: 0
+					Width: 70
+					Height: 30
 					Font: Bold
 					Text: Save
 				Button@RENAME_PRESET_BUTTON:
-					X: 356
-					Y: 2
-					Width: 70
-					Height: 24
+					X: 400
+					Y: 0
+					Width: 80
+					Height: 30
 					Font: Bold
 					Text: Rename
 				Button@DELETE_PRESET_BUTTON:
-					X: 430
-					Y: 2
-					Width: 60
-					Height: 24
+					X: 490
+					Y: 0
+					Width: 70
+					Height: 30
 					Font: Bold
 					Text: Delete
 				Button@RESET_PRESET_BUTTON:
-					X: 494
-					Y: 2
-					Width: 60
-					Height: 24
+					X: 570
+					Y: 0
+					Width: 70
+					Height: 30
 					Font: Bold
 					Text: Reset
-		# COMMON_OPTIONS_HEADER deleted — the Economy/Match/World subsection headers
-		# (added in phase 4) name the groups individually, making the parent header
-		# redundant. The 28px reclaimed goes to the option grid below.
+		# COMMON_OPTIONS_HEADER deleted — Economy/Match/World subsection headers
+		# (phase 4) name the groups individually, parent was redundant.
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 322
+			Y: 360
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 322
+			Height: PARENT_HEIGHT - 360
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
@@ -194,15 +197,15 @@ Container@LOBBY_PLAYER_BIN:
 					Children:
 						Container@SECTION_HEADER_TEMPLATE:
 							Width: PARENT_WIDTH
-							Height: 26
+							Height: 40
 							Visible: False
 							Children:
 								Label@HEADER_LABEL:
 									X: 4
-									Y: 4
+									Y: 14
 									Width: PARENT_WIDTH - 8
-									Height: 20
-									Font: TinyBold
+									Height: 22
+									Font: MediumBold
 									Align: Left
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH

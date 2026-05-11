@@ -18,19 +18,19 @@ Container@LOBBY_OPTIONS_BIN:
 					Children:
 						Container@SECTION_HEADER_TEMPLATE:
 							Width: PARENT_WIDTH
-							Height: 26
+							Height: 40
 							Visible: False
 							Children:
 								Button@TOGGLE:
 									Width: PARENT_WIDTH
-									Height: 26
+									Height: 40
 									Background: ""
 								Label@HEADER_LABEL:
 									X: 4
-									Y: 4
+									Y: 14
 									Width: PARENT_WIDTH - 8
-									Height: 20
-									Font: TinyBold
+									Height: 22
+									Font: MediumBold
 									Align: Left
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH

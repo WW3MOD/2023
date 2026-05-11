@@ -114,9 +114,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
-			// Chips start to the right of EMPTY_HINT so the count label always has room.
-			var x = 215;
-			const int spacing = 6;
+			// Chips start past the count label (215px) plus a 16px breathing gap, then
+			// flow horizontally with 10px between each. Was 6px — too tight to read
+			// the chips as discrete entities.
+			var x = 231;
+			const int spacing = 10;
 			var count = 0;
 
 			foreach (var opt in options)
@@ -136,12 +138,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");
 
 				// Size each chip to its text rather than the template's fixed 180px.
-				// Saves horizontal room so more chips fit on one row.
+				// 24px total internal padding (12 left + 12 right) so the label
+				// doesn't kiss the chip edges.
 				if (lbl != null)
 				{
 					var font = Game.Renderer.Fonts[lbl.Font];
 					var textWidth = font.Measure(text).X;
-					var chipWidth = Math.Min(textWidth + 16, 240);
+					var chipWidth = Math.Min(textWidth + 24, 260);
 					chip.Bounds.Width = chipWidth;
 					lbl.Bounds.Width = chipWidth;
 				}
