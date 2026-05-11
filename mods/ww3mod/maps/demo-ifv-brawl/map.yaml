@@ -1,0 +1,178 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: IFV brawl — 14v14 Bradleys vs BMPs (WGM retarget swing)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Hidden SRs (one per side) so neither faction is eliminated by attrition;
+	# NoAutoTarget so WGM retargets don't drift onto them. See AUTOTEST.md.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+	# === USA: 14 Bradleys, 2 cols (22, 26) × 7 rows ===
+	# Gap to nearest BMP col (38) is 12 cells; farthest (42) is 20 cells.
+	# All pairs comfortably inside WGM range (25c0).
+	U1: bradley
+		Owner: USA
+		Location: 22,4
+		Facing: 768
+	U2: bradley
+		Owner: USA
+		Location: 22,8
+		Facing: 768
+	U3: bradley
+		Owner: USA
+		Location: 22,12
+		Facing: 768
+	U4: bradley
+		Owner: USA
+		Location: 22,16
+		Facing: 768
+	U5: bradley
+		Owner: USA
+		Location: 22,20
+		Facing: 768
+	U6: bradley
+		Owner: USA
+		Location: 22,24
+		Facing: 768
+	U7: bradley
+		Owner: USA
+		Location: 22,28
+		Facing: 768
+	U8: bradley
+		Owner: USA
+		Location: 26,4
+		Facing: 768
+	U9: bradley
+		Owner: USA
+		Location: 26,8
+		Facing: 768
+	U10: bradley
+		Owner: USA
+		Location: 26,12
+		Facing: 768
+	U11: bradley
+		Owner: USA
+		Location: 26,16
+		Facing: 768
+	U12: bradley
+		Owner: USA
+		Location: 26,20
+		Facing: 768
+	U13: bradley
+		Owner: USA
+		Location: 26,24
+		Facing: 768
+	U14: bradley
+		Owner: USA
+		Location: 26,28
+		Facing: 768
+
+	# === Russia: 14 BMPs, 2 cols (38, 42) × 7 rows ===
+	R1: bmp2
+		Owner: Russia
+		Location: 38,4
+		Facing: 256
+	R2: bmp2
+		Owner: Russia
+		Location: 38,8
+		Facing: 256
+	R3: bmp2
+		Owner: Russia
+		Location: 38,12
+		Facing: 256
+	R4: bmp2
+		Owner: Russia
+		Location: 38,16
+		Facing: 256
+	R5: bmp2
+		Owner: Russia
+		Location: 38,20
+		Facing: 256
+	R6: bmp2
+		Owner: Russia
+		Location: 38,24
+		Facing: 256
+	R7: bmp2
+		Owner: Russia
+		Location: 38,28
+		Facing: 256
+	R8: bmp2
+		Owner: Russia
+		Location: 42,4
+		Facing: 256
+	R9: bmp2
+		Owner: Russia
+		Location: 42,8
+		Facing: 256
+	R10: bmp2
+		Owner: Russia
+		Location: 42,12
+		Facing: 256
+	R11: bmp2
+		Owner: Russia
+		Location: 42,16
+		Facing: 256
+	R12: bmp2
+		Owner: Russia
+		Location: 42,20
+		Facing: 256
+	R13: bmp2
+		Owner: Russia
+		Location: 42,24
+		Facing: 256
+	R14: bmp2
+		Owner: Russia
+		Location: 42,28
+		Facing: 256
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 40,16
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

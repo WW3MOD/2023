@@ -1,0 +1,8 @@
+# Demo-only: shorten BurstWait so missiles are continuously in the air,
+# making retarget swings frequent and easy to spot. Production values are
+# 1000 (Bradley) / 500 (WGM) — too sparse for a viewing demo.
+WGM:
+	BurstWait: 200
+
+WGM.bradley:
+	BurstWait: 200
