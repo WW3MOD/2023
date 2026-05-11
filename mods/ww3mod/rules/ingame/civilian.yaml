@@ -141,11 +141,13 @@
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
-		# PITFALL (2026-05): negative ZOffset is what keeps units/shadows on top of fields. The X tiebreaker
-		# from XRenderOrder lives in a *secondary* sort (see WorldRenderer.cs ThenBy) and can't override this,
-		# so -256 is sufficient — fields stay below everything regardless of map width or column. Trees use
-		# -512; fields are flatter, so a smaller push-down is enough.
-		ZOffset: -256
+		# PITFALL (2026-05): -8192 (8 cells) — not "a small push-down". Y is part of the primary sort, so a
+		# field with ZOffset -N only renders below a unit while it's within N WDist south of that unit.
+		# Earlier values like -256 (1/4 cell) silently let any field more than a quarter cell south of a unit
+		# clip on top of the unit's southern sprite edge. We want fields to *always* read as background under
+		# regular units; 8 cells of headroom covers any realistic sprite overlap (tank/heli sprites are ~1–2
+		# cells) without going absurd. Don't lower this without checking unit-vs-field overlap on full maps.
+		ZOffset: -8192
 	Building:
 		Footprint: x
 		Dimensions: 1,1
