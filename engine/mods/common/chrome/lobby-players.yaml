@@ -526,45 +526,11 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 21
 							Font: Bold
 							Text: +
-							TooltipText: Add any AI
+							TooltipText: Add bot (faction can be picked on the row)
 							TooltipContainer: TOOLTIP_CONTAINER
 							Visible: false
-						Button@ADD_NATO:
-							X: 87
-							Y: 2
-							Width: 46
-							Height: 21
-							Text: ""
-							TooltipText: Add NATO AI
-							TooltipContainer: TOOLTIP_CONTAINER
-							Visible: false
-							Children:
-								Image@FLAG:
-									X: 9
-									Y: 4
-									Width: 28
-									Height: 13
-									ImageCollection: flags
-									ImageName: america
-						Button@ADD_RUSSIA:
-							X: 137
-							Y: 2
-							Width: 46
-							Height: 21
-							Text: ""
-							TooltipText: Add Russia AI
-							TooltipContainer: TOOLTIP_CONTAINER
-							Visible: false
-							Children:
-								Image@FLAG:
-									X: 9
-									Y: 4
-									Width: 28
-									Height: 13
-									ImageCollection: flags
-									ImageName: russia
 						Button@TOGGLE_CLOSED:
-							X: 187
+							X: 87
 							Y: 2
 							Width: 60
 							Height: 21

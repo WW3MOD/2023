@@ -511,8 +511,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var play = parent.Get<ButtonWidget>("PLAY");
 			var addAi = parent.Get<ButtonWidget>("ADD_AI");
-			var addNato = parent.Get<ButtonWidget>("ADD_NATO");
-			var addRussia = parent.Get<ButtonWidget>("ADD_RUSSIA");
 			var toggleClosed = parent.Get<ButtonWidget>("TOGGLE_CLOSED");
 			var join = parent.Get<ButtonWidget>("JOIN");
 			var closedLabel = parent.Get<LabelWidget>("CLOSED_LABEL");
@@ -524,17 +522,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			play.IsDisabled = ConfigBusy;
 			play.OnClick = () => orderManager.IssueOrder(Order.Command("slot " + slotKey));
 
+			// Single "+ Add bot" button; faction is chosen via the per-slot faction
+			// dropdown after the bot is in the slot. Removed the per-row NATO/Russia
+			// shortcut buttons in Phase 2 of the lobby redesign — they cluttered every
+			// empty slot row with three buttons doing almost the same thing.
 			addAi.IsVisible = () => isHost && !slot.Closed && slot.AllowBots;
 			addAi.IsDisabled = ConfigBusy;
 			addAi.OnClick = () => AddBotToSlot(slot, slotKey, orderManager, map, null);
-
-			addNato.IsVisible = () => isHost && !slot.Closed && slot.AllowBots;
-			addNato.IsDisabled = ConfigBusy;
-			addNato.OnClick = () => AddBotToSlot(slot, slotKey, orderManager, map, "america");
-
-			addRussia.IsVisible = () => isHost && !slot.Closed && slot.AllowBots;
-			addRussia.IsDisabled = ConfigBusy;
-			addRussia.OnClick = () => AddBotToSlot(slot, slotKey, orderManager, map, "russia");
 
 			toggleClosed.IsVisible = () => isHost;
 			toggleClosed.IsDisabled = ConfigBusy;
