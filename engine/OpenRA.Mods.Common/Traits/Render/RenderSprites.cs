@@ -26,19 +26,17 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 	public enum RenderXOrder
 	{
-		// Engine default: west sprite draws on top of east sprite at the same Y (matches the -X/16
-		// term in WorldRenderer.RenderableZPositionComparisonKey). Right for the vast majority of actors.
+		// Default: west sprite draws on top of east sprite at equal Y. Used by almost every actor.
+		// Implemented as XSortBias = 0 on each yielded renderable; WorldRenderer's secondary sort
+		// then orders ties by -Pos.X (east first, west drawn over it).
 		WestOnTop,
 
-		// Flip: east sprite draws on top of west. Use for sprites with a baked-in shadow on the right
-		// edge (e.g. fields) so the east neighbour covers the previous tile's shadow and dense rows
-		// blend seamlessly. Adds +Pos.X / 8 to each renderable's ZOffset — twice the engine's -X / 16
-		// bias, so the net X contribution is +X / 16.
+		// Flip: east sprite draws on top of west sprite at equal Y. Use for sprites with a baked-in
+		// shadow on the right edge (fields etc.) so the east neighbour covers the previous tile's
+		// shadow. Implemented as XSortBias != 0 on each yielded renderable; WorldRenderer flips the
+		// secondary key to +Pos.X. Because this only affects sort *ties*, it can never override a
+		// real Y or ZOffset difference — safe regardless of map width.
 		EastOnTop,
-
-		// Cancel the engine X bias entirely — sort purely by Y + ZOffset, ties broken by list order
-		// (matches pre-2026-05 engine behaviour). Rarely needed; mainly a compatibility escape hatch.
-		Neutral,
 	}
 
 	[Desc("Render trait fundament that won't work without additional With* render traits.")]
@@ -64,10 +62,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("If true, scaling can be disabled via the ScaleInfantry game setting (for infantry).")]
 		public readonly bool ScaleControlledBySettings = false;
 
-		[Desc("Per-actor override for the engine's west-on-top X tiebreaker. ",
-			"WestOnTop (default) matches the engine sort. ",
-			"EastOnTop flips it — use for sprites with a baked-in shadow on the right edge (fields). ",
-			"Neutral cancels the X bias entirely.")]
+		[Desc("Per-actor override for the world sort's X tiebreaker. ",
+			"WestOnTop (default) — west sprite draws over east sprite at equal Y. ",
+			"EastOnTop — east sprite draws over west; use for sprites with a baked-in shadow on the right edge (fields).")]
 		public readonly RenderXOrder XRenderOrder = RenderXOrder.WestOnTop;
 
 		public override object Create(ActorInitializer init) { return new RenderSprites(init, this); }
@@ -211,7 +208,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (Info.ScaleControlledBySettings && !Game.Settings.Game.ScaleInfantry)
 				scale = 1f;
 
-			var xOrder = Info.XRenderOrder;
+			var xSortBias = Info.XRenderOrder == RenderXOrder.EastOnTop ? 1 : 0;
 
 			foreach (var a in anims)
 			{
@@ -225,14 +222,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				}
 
 				foreach (var r in a.Animation.Render(self, a.PaletteReference, scale))
-				{
-					if (xOrder == RenderXOrder.WestOnTop)
-						yield return r;
-					else if (xOrder == RenderXOrder.EastOnTop)
-						yield return r.WithZOffset(r.ZOffset + r.Pos.X / 8);
-					else // Neutral — cancel the engine's -X / 16 bias
-						yield return r.WithZOffset(r.ZOffset + r.Pos.X / 16);
-				}
+					yield return xSortBias == 0 ? r : r.WithXSortBias(xSortBias);
 			}
 		}
 

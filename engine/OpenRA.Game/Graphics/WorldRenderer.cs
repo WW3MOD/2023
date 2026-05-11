@@ -20,14 +20,13 @@ namespace OpenRA.Graphics
 {
 	public sealed class WorldRenderer : IDisposable
 	{
-		// PITFALL (2026-05): -Pos.X / 16 is the X tiebreaker — gives every renderable a small "west-on-top" bias
-		// at equal Y, so a row of sprites with baked-in right-edge shadows can't render east-of-west and reveal
-		// the seam. One cell of X = 64 sort units, one cell of Y = 1024, so south-on-top still wins overall.
-		// Actors that need east-on-top (e.g. fields whose baked shadow is on the right) flip this via
-		// RenderSprites.XRenderOrder. Removing this term resurrects non-deterministic dark-seam bugs in dense
-		// field/tree groups after copy-paste in the map editor.
+		// PITFALL (2026-05): primary sort is Y + Z + ZOffset *only*. Do not fold X into this key — any X
+		// contribution scales linearly with map width (X = column * 1024) and silently dominates ZOffset
+		// push-downs and even small Y differences once a renderable is far enough east. The X tiebreaker for
+		// sprites with baked-in directional shadows (fields etc.) lives in the ThenBy below, where it can
+		// only reorder primary-key ties — never override a real Y delta.
 		public static readonly Func<IRenderable, int> RenderableZPositionComparisonKey =
-			r => r.Pos.Y + r.Pos.Z + r.ZOffset - r.Pos.X / 16;
+			r => r.Pos.Y + r.Pos.Z + r.ZOffset;
 
 		/// <summary>When true, renders order lines for all friendly units, not just selected ones.</summary>
 		public bool ShowAllOrders { get; set; }
@@ -165,8 +164,15 @@ namespace OpenRA.Graphics
 			foreach (var e in World.ScreenMap.RenderableEffectsInBox(Viewport.TopLeft, Viewport.BottomRight))
 				renderablesBuffer.AddRange(e.Render(this));
 
-			// Renderables must be ordered using a stable sorting algorithm to avoid flickering artefacts
-			foreach (var renderable in renderablesBuffer.OrderBy(RenderableZPositionComparisonKey))
+			// Renderables must be ordered using a stable sorting algorithm to avoid flickering artefacts.
+			// Primary key: Y + Z + ZOffset (south + above on top). Secondary key: X-axis tiebreaker that
+			// only takes effect when primary keys are equal. Default direction is west-on-top (east X
+			// drawn first, west X drawn over it); renderables with XSortBias != 0 (e.g. fields with a
+			// baked-in shadow on their right edge) flip to east-on-top. Because this is a *secondary*
+			// sort it can never override a real Y or ZOffset difference, regardless of map width.
+			foreach (var renderable in renderablesBuffer
+				.OrderBy(RenderableZPositionComparisonKey)
+				.ThenBy(r => r.XSortBias == 0 ? -r.Pos.X : r.Pos.X))
 				preparedRenderables.Add(renderable.PrepareRender(this));
 
 			// PERF: Reuse collection to avoid allocations.

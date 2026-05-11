@@ -20,9 +20,16 @@ namespace OpenRA.Graphics
 		int ZOffset { get; }
 		bool IsDecoration { get; }
 
+		// Tiebreaker for the world sort when Y + Z + ZOffset is equal between two renderables.
+		// 0 (default) = west-on-top; non-zero = east-on-top. See WorldRenderer.cs and the
+		// XRenderOrder knob on RenderSprites — used by sprites with a baked-in directional shadow
+		// (fields, etc.) so dense rows blend seamlessly regardless of insertion order.
+		int XSortBias => 0;
+
 		IRenderable WithZOffset(int newOffset);
 		IRenderable OffsetBy(in WVec offset);
 		IRenderable AsDecoration();
+		IRenderable WithXSortBias(int newBias) => this;
 
 		IFinalizedRenderable PrepareRender(WorldRenderer wr);
 	}

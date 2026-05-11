@@ -25,7 +25,7 @@ namespace OpenRA.Graphics
 		readonly WAngle rotation = WAngle.Zero;
 
 		public SpriteRenderable(Sprite sprite, WPos pos, WVec offset, int zOffset, PaletteReference palette, float scale, float alpha,
-			float3 tint, TintModifiers tintModifiers, bool isDecoration, WAngle rotation)
+			float3 tint, TintModifiers tintModifiers, bool isDecoration, WAngle rotation, int xSortBias)
 		{
 			this.sprite = sprite;
 			this.pos = pos;
@@ -38,6 +38,7 @@ namespace OpenRA.Graphics
 			IsDecoration = isDecoration;
 			TintModifiers = tintModifiers;
 			Alpha = alpha;
+			XSortBias = xSortBias;
 
 			// PERF: Remove useless palette assignments for RGBA sprites
 			// HACK: This is working around the fact that palettes are defined on traits rather than sequences
@@ -47,14 +48,19 @@ namespace OpenRA.Graphics
 		}
 
 		public SpriteRenderable(Sprite sprite, WPos pos, WVec offset, int zOffset, PaletteReference palette, float scale, float alpha,
+			float3 tint, TintModifiers tintModifiers, bool isDecoration, WAngle rotation)
+			: this(sprite, pos, offset, zOffset, palette, scale, alpha, tint, tintModifiers, isDecoration, rotation, 0) { }
+
+		public SpriteRenderable(Sprite sprite, WPos pos, WVec offset, int zOffset, PaletteReference palette, float scale, float alpha,
 			float3 tint, TintModifiers tintModifiers, bool isDecoration)
-			: this(sprite, pos, offset, zOffset, palette, scale, alpha, tint, tintModifiers, isDecoration, WAngle.Zero) { }
+			: this(sprite, pos, offset, zOffset, palette, scale, alpha, tint, tintModifiers, isDecoration, WAngle.Zero, 0) { }
 
 		public WPos Pos => pos + Offset;
 		public WVec Offset { get; }
 		public PaletteReference Palette { get; }
 		public int ZOffset { get; }
 		public bool IsDecoration { get; }
+		public int XSortBias { get; }
 
 		public float Alpha { get; }
 		public float3 Tint { get; }
@@ -62,32 +68,37 @@ namespace OpenRA.Graphics
 
 		public IPalettedRenderable WithPalette(PaletteReference newPalette)
 		{
-			return new SpriteRenderable(sprite, pos, Offset, ZOffset, newPalette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation);
+			return new SpriteRenderable(sprite, pos, Offset, ZOffset, newPalette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation, XSortBias);
 		}
 
 		public IRenderable WithZOffset(int newOffset)
 		{
-			return new SpriteRenderable(sprite, pos, Offset, newOffset, Palette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation);
+			return new SpriteRenderable(sprite, pos, Offset, newOffset, Palette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation, XSortBias);
 		}
 
 		public IRenderable OffsetBy(in WVec vec)
 		{
-			return new SpriteRenderable(sprite, pos + vec, Offset, ZOffset, Palette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation);
+			return new SpriteRenderable(sprite, pos + vec, Offset, ZOffset, Palette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation, XSortBias);
 		}
 
 		public IRenderable AsDecoration()
 		{
-			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, Alpha, Tint, TintModifiers, true, rotation);
+			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, Alpha, Tint, TintModifiers, true, rotation, XSortBias);
+		}
+
+		public IRenderable WithXSortBias(int newBias)
+		{
+			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, Alpha, Tint, TintModifiers, IsDecoration, rotation, newBias);
 		}
 
 		public IModifyableRenderable WithAlpha(float newAlpha)
 		{
-			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, newAlpha, Tint, TintModifiers, IsDecoration, rotation);
+			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, newAlpha, Tint, TintModifiers, IsDecoration, rotation, XSortBias);
 		}
 
 		public IModifyableRenderable WithTint(in float3 newTint, TintModifiers newTintModifiers)
 		{
-			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, Alpha, newTint, newTintModifiers, IsDecoration, rotation);
+			return new SpriteRenderable(sprite, pos, Offset, ZOffset, Palette, scale, Alpha, newTint, newTintModifiers, IsDecoration, rotation, XSortBias);
 		}
 
 		float3 ScreenPosition(WorldRenderer wr)

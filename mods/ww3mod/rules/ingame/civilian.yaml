@@ -141,9 +141,10 @@
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
-		# PITFALL (2026-05): negative ZOffset keeps fields under units/buildings — without it, infantry walking
-		# through a field can render behind the field sprite. Trees use -512 (see decoration.yaml). Fields use a
-		# smaller magnitude because they're flatter and we don't want them sinking behind smudges/overlays.
+		# PITFALL (2026-05): negative ZOffset is what keeps units/shadows on top of fields. The X tiebreaker
+		# from XRenderOrder lives in a *secondary* sort (see WorldRenderer.cs ThenBy) and can't override this,
+		# so -256 is sufficient — fields stay below everything regardless of map width or column. Trees use
+		# -512; fields are flatter, so a smaller push-down is enough.
 		ZOffset: -256
 	Building:
 		Footprint: x
@@ -168,9 +169,10 @@
 		# PITFALL: Scale > 1 overlaps adjacent fields; anti-aliased edges double-render dark vertical seams. Scale < 1 leaves visible gaps between cells. 1.15 is the sweet spot — 1.05 left gaps, 1.20 had dark seams.
 		Scale: 1.15
 		# PITFALL (2026-05): EastOnTop is essential — the field sprite has a baked-in shadow on its right edge.
-		# Without this flip, the engine's default west-on-top sort can leave the shadow visible *inside* a
-		# group of fields (random dark vertical lines after copy-paste in the map editor). EastOnTop makes the
-		# east neighbour draw over the previous tile's shadow, hiding the seam. See WorldRenderer.cs:23.
+		# Without this flip, the world sort's default west-on-top tiebreaker can leave the shadow visible
+		# *inside* a group of fields (random dark vertical lines after copy-paste in the map editor). EastOnTop
+		# flags every yielded renderable with XSortBias=1; WorldRenderer's ThenBy then flips the secondary key
+		# to +Pos.X so the east neighbour draws over the previous tile's shadow. See WorldRenderer.cs ThenBy.
 		XRenderOrder: EastOnTop
 
 	# Inherits: ^CivBuilding
