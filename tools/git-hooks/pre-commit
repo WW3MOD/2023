@@ -25,6 +25,10 @@ ALLOWLIST_PATTERNS=(
     # in tick path. Adding allowlist entry so future edits to surrounding code
     # don't trip the hook.
     'OpenRA\.Game/TestMode\.cs'
+    # TestModeScreenshots.cs is the screenshot capture coordinator — same
+    # one-shot pattern (Initialize once, capture once per Test.Screenshot call,
+    # not on every tick).
+    'OpenRA\.Game/TestModeScreenshots\.cs'
 )
 
 ALLOW_REGEX=$(IFS='|'; echo "${ALLOWLIST_PATTERNS[*]}")
