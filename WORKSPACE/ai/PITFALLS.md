@@ -308,6 +308,28 @@ rendering enabled, expect 4-6× practical speed-up not the theoretical 8×.
 
 ---
 
+## 17. Render-framerate cap is a cheaper "headless lite" than a Null renderer
+
+**Discovery (Round 8 investigation):** building a true headless renderer
+requires replacing `IPlatform` + `IGraphicsContext` with no-op stubs — days of
+work, with real risk of breaking simulation determinism. NOT worth it for a
+one-shot batch acceleration.
+
+**Cheaper alternative:** `Graphics.CapFramerate=true` + `Graphics.MaxFramerate=5`
+launch args. The engine still renders, but at 5 FPS instead of 60 FPS. That's
+12× less render-side CPU; combined with `Test.SpeedMultiplier=8` the
+simulation can hit higher tick rates without rendering being the bottleneck.
+
+**Trade-off:** the game window looks janky during a tournament run (jumps
+multiple sim seconds per render frame). For automated batches that's fine —
+nobody's watching. For inspecting a specific match, drop the cap or remove
+the flag.
+
+**Engineering effort:** zero (no new code). Just launch args. Landed in
+run-tournament.sh in Round 8 of the autonomous-overnight run.
+
+---
+
 ## 9. Sound.Mute must be passed via launch arg, NOT toggled persistently
 
 Already covered in `run-test.sh` comments but worth reinforcing for the

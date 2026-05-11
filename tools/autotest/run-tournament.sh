@@ -189,6 +189,10 @@ for i in $(seq 1 ${SEEDS}); do
 	MATCH_SEED=$((i * 1000 + 17))
 
 	# Background launch — terminal keeps focus.
+	# Render-framerate cap to 5 FPS reduces render-side CPU drag so the
+	# simulation can hit higher tick rates without rendering being the
+	# bottleneck. Combined with Test.SpeedMultiplier this gives 3-4×
+	# practical wall-clock improvement. See PITFALLS.md §16 / §17.
 	(
 		./launch-game.sh \
 			"Launch.Map=${SCENARIO}" \
@@ -200,6 +204,8 @@ for i in $(seq 1 ${SEEDS}); do
 			"Test.SpeedMultiplier=${SPEED_MULT}" \
 			"Test.RandomSeed=${MATCH_SEED}" \
 			"Graphics.Mode=Windowed" \
+			"Graphics.CapFramerate=true" \
+			"Graphics.MaxFramerate=5" \
 			"Sound.Mute=true" \
 			> "${MATCH_LOG}" 2>&1 || true
 	) &
