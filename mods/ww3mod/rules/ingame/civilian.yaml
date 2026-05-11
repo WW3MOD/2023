@@ -161,8 +161,8 @@
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
 	RenderSprites:
-		# PITFALL: Scale > 1 overlaps adjacent fields; anti-aliased edges double-render dark vertical seams. Scale < 1 leaves visible gaps between cells. 1.05 is the sweet spot.
-		Scale: 1.05
+		# PITFALL: Scale > 1 overlaps adjacent fields; anti-aliased edges double-render dark vertical seams. Scale < 1 leaves visible gaps between cells. 1.15 is the sweet spot — 1.05 left gaps, 1.20 had dark seams.
+		Scale: 1.15
 
 	# Inherits: ^CivBuilding
 	# -HitShape:
