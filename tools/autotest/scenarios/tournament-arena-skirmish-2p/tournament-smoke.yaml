@@ -1,0 +1,20 @@
+# Short-time-limit variant for smoke testing the harness end-to-end.
+# Identical to tournament.yaml except TimeLimitSeconds is short enough that we
+# can run one match in under a minute without waiting for full-length play.
+
+Matchup:
+	P1Bot: normal
+	P2Bot: normal
+
+TimeLimitSeconds: 30
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20

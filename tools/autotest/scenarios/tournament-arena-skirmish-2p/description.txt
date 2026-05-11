@@ -1,0 +1,1 @@
+TOURNAMENT: Arena skirmish 2-player baseline. Bot vs bot on a small symmetric arena map. Win: SR capture (instant) or higher score at time limit. Used as the Phase 1 sanity-check for the AI tournament harness — legacy vs legacy should land in the 40–60% winrate noise band over 20 seeds.

@@ -1,0 +1,76 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: Arena Skirmish 2P
+
+Author: WW3MOD tournament harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Player layout — Phase 1 uses non-playable map players with Bot: assigned
+# directly. This bypasses lobby slot assignment, which would otherwise require
+# the local human to occupy one of the two bot slots.
+#
+# Observer is the spectator slot the local launch occupies. The two combatants
+# (USA-bot, Russia-bot) are non-playable map players whose BotType comes from
+# pr.Bot (engine/OpenRA.Game/Player.cs:198). If they prove not to bot-tick
+# properly because they aren't in lobby slots, fall back to modifying
+# SkirmishLogic to fill both slots with bots and force-spectator the local
+# client — see WORKSPACE/ai/tournament_swap_guide.md.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: normal
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+# Each combatant gets a single Supply Route. The SRs sit near opposite map
+# edges per WW3MOD canon (DOCS/reference/supply-route.md) — never mid-map.
+# Bots will reinforce from the closest map edge to their SR.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	# mpspawn actors are required even with non-playable combatants:
+	# MapStartingLocations.AssignSpawnPoint iterates them for any client
+	# (including the local human in the Observer slot) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml

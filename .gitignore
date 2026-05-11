@@ -38,6 +38,10 @@ _ReSharper.*/
 
 # NUnit
 /TestResult.xml
+
+# AI tournament harness — per-match results are local runtime artifacts.
+# Plans/configs are committed; results aren't.
+/tools/autotest/tournament-results/
 /lib/
 
 # Support directory
