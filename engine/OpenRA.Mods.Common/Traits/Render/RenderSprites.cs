@@ -24,6 +24,23 @@ namespace OpenRA.Mods.Common.Traits.Render
 		IEnumerable<IActorPreview> RenderPreviewSprites(ActorPreviewInitializer init, string image, int facings, PaletteReference p);
 	}
 
+	public enum RenderXOrder
+	{
+		// Engine default: west sprite draws on top of east sprite at the same Y (matches the -X/16
+		// term in WorldRenderer.RenderableZPositionComparisonKey). Right for the vast majority of actors.
+		WestOnTop,
+
+		// Flip: east sprite draws on top of west. Use for sprites with a baked-in shadow on the right
+		// edge (e.g. fields) so the east neighbour covers the previous tile's shadow and dense rows
+		// blend seamlessly. Adds +Pos.X / 8 to each renderable's ZOffset — twice the engine's -X / 16
+		// bias, so the net X contribution is +X / 16.
+		EastOnTop,
+
+		// Cancel the engine X bias entirely — sort purely by Y + ZOffset, ties broken by list order
+		// (matches pre-2026-05 engine behaviour). Rarely needed; mainly a compatibility escape hatch.
+		Neutral,
+	}
+
 	[Desc("Render trait fundament that won't work without additional With* render traits.")]
 	public class RenderSpritesInfo : TraitInfo, IRenderActorPreviewInfo
 	{
@@ -46,6 +63,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		[Desc("If true, scaling can be disabled via the ScaleInfantry game setting (for infantry).")]
 		public readonly bool ScaleControlledBySettings = false;
+
+		[Desc("Per-actor override for the engine's west-on-top X tiebreaker. ",
+			"WestOnTop (default) matches the engine sort. ",
+			"EastOnTop flips it — use for sprites with a baked-in shadow on the right edge (fields). ",
+			"Neutral cancels the X bias entirely.")]
+		public readonly RenderXOrder XRenderOrder = RenderXOrder.WestOnTop;
 
 		public override object Create(ActorInitializer init) { return new RenderSprites(init, this); }
 
@@ -188,6 +211,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (Info.ScaleControlledBySettings && !Game.Settings.Game.ScaleInfantry)
 				scale = 1f;
 
+			var xOrder = Info.XRenderOrder;
+
 			foreach (var a in anims)
 			{
 				if (!a.IsVisible)
@@ -200,7 +225,14 @@ namespace OpenRA.Mods.Common.Traits.Render
 				}
 
 				foreach (var r in a.Animation.Render(self, a.PaletteReference, scale))
-					yield return r;
+				{
+					if (xOrder == RenderXOrder.WestOnTop)
+						yield return r;
+					else if (xOrder == RenderXOrder.EastOnTop)
+						yield return r.WithZOffset(r.ZOffset + r.Pos.X / 8);
+					else // Neutral — cancel the engine's -X / 16 bias
+						yield return r.WithZOffset(r.ZOffset + r.Pos.X / 16);
+				}
 			}
 		}
 

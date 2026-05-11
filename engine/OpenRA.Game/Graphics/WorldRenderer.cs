@@ -20,8 +20,14 @@ namespace OpenRA.Graphics
 {
 	public sealed class WorldRenderer : IDisposable
 	{
+		// PITFALL (2026-05): -Pos.X / 16 is the X tiebreaker — gives every renderable a small "west-on-top" bias
+		// at equal Y, so a row of sprites with baked-in right-edge shadows can't render east-of-west and reveal
+		// the seam. One cell of X = 64 sort units, one cell of Y = 1024, so south-on-top still wins overall.
+		// Actors that need east-on-top (e.g. fields whose baked shadow is on the right) flip this via
+		// RenderSprites.XRenderOrder. Removing this term resurrects non-deterministic dark-seam bugs in dense
+		// field/tree groups after copy-paste in the map editor.
 		public static readonly Func<IRenderable, int> RenderableZPositionComparisonKey =
-			r => r.Pos.Y + r.Pos.Z + r.ZOffset;
+			r => r.Pos.Y + r.Pos.Z + r.ZOffset - r.Pos.X / 16;
 
 		/// <summary>When true, renders order lines for all friendly units, not just selected ones.</summary>
 		public bool ShowAllOrders { get; set; }
