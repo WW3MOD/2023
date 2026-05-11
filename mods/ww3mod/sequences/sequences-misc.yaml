@@ -31,7 +31,6 @@ icon:
 	precicon: precicon
 	healcrate: healcrateicon
 	overcharge: overchargeicon
-	parashok: parashokicon
 	paragren: paragrenicon
 	parajeep: parajeepicon
 	paramines: paramnlyicon
@@ -76,9 +75,6 @@ beacon:
 		Length: *
 		Offset: 0,-42
 	healcrate: healcratebcon
-		Length: *
-		Offset: 0,-42
-	parashok: shokbcon
 		Length: *
 		Offset: 0,-42
 	paragren: grenbcon

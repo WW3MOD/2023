@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-05-11T05:31:16.2902740Z",
+    "generated_at": "2026-05-11T06:07:16.5299080Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -15060,56 +15060,6 @@
         {
           "type": "SpreadDamageWarhead",
           "damage": 3000,
-          "penetration": 1,
-          "damage_at_max_range": 100,
-          "damage_percent": 0,
-          "random_damage_addition": 0,
-          "random_damage_subtraction": 0,
-          "spread": 43,
-          "falloff": [
-            100,
-            37,
-            14,
-            5,
-            0
-          ],
-          "versus": {},
-          "valid_targets": [
-            "Ground",
-            "Water"
-          ],
-          "invalid_targets": []
-        }
-      ]
-    },
-    "portatesla": {
-      "range": 20480,
-      "min_range": 0,
-      "burst": 1,
-      "burst_delays": [
-        5
-      ],
-      "burst_wait": 100,
-      "magazine": 1,
-      "reload_delay": 0,
-      "top_attack": false,
-      "bottom_attack": false,
-      "clear_sight_threshold": 5,
-      "free_line_density": 0,
-      "miss_chance_per_density": 0,
-      "valid_targets": [
-        "Ground",
-        "Water"
-      ],
-      "invalid_targets": [],
-      "projectile_kind": "TeslaZapInfo",
-      "projectile_speed": null,
-      "inaccuracy": null,
-      "inaccuracy_type": null,
-      "warheads": [
-        {
-          "type": "SpreadDamageWarhead",
-          "damage": 150,
           "penetration": 1,
           "damage_at_max_range": 100,
           "damage_percent": 0,

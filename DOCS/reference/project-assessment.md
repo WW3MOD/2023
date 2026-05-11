@@ -116,12 +116,11 @@ These are the most critical custom engine changes, ranked by scope and importanc
 
 ### P3: Nice to Have / Future Content
 1. Ukraine as third faction (partially started)
-2. Futuristic tech tier (Tesla troopers exist, more planned)
-3. Nuclear armageddon end-game mode
-4. Control group hierarchy with leader units
-5. Fire-on-the-move for infantry
-6. Kamikaze drones
-7. Naval unit scaling and cruise missiles
+2. Nuclear armageddon end-game mode
+3. Control group hierarchy with leader units
+4. Fire-on-the-move for infantry
+5. Kamikaze drones
+6. Naval unit scaling and cruise missiles
 
 ---
 

@@ -123,16 +123,6 @@ EinsteinVoice:
 		Burned: dedman10
 		Zapped: dedman6
 
-ShokVoice:
-	Voices:
-		Select: jjuice1,jjump1,jyes1
-		Action: jdance1,jchrge1,jpower1
-		Move: jdance1,jchrge1,jpower1
-		Attack: jburn1,jcrisp1,jshock1,jlight1
-		Die: dedman1,dedman2,dedman3,dedman4,dedman5,dedman7,dedman8
-		Burned: dedman10
-		Zapped: dedman6
-
 AntVoice:
 	Voices:
 		Select: antbite

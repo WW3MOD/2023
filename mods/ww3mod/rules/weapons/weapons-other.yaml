@@ -311,20 +311,6 @@ TTankZapMaxFirepower:
 		ValidTargets: Vehicle, Ship, Submarine
 		InvalidTargets: EMPInvalid
 
-PortaTesla:
-	Inherits: ^TeslaWeapon
-	BurstWait: 100
-	Range: 20c0
-	Warhead@Spread: SpreadDamage
-		Damage: 150
-		DamageTypes: ElectricityDeath
-	Warhead@EmpDisable: GrantExternalCondition
-		Range: 0c256
-		Duration: 50
-		Condition: empdisable
-		ValidTargets: Vehicle, Ship, Submarine
-		InvalidTargets: EMPInvalid
-
 DogJaw:
 	ValidTargets: Infantry
 	BurstWait: 7

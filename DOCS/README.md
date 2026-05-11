@@ -13,7 +13,7 @@ Static project documentation. Two kinds:
 |---|---|
 | What workflow runs when I type `AUTOTEST`? | `skills/AUTOTEST.md` |
 | How does the engine layout / scenario / suppression / aircraft system work? | `reference/architecture.md` |
-| Balance values and tuning rationale? | `reference/balance-review.md` |
+| Balance dashboard + autotest harness workflow | `skills/BALANCE.md` |
 | Big-picture project state | `reference/project-assessment.md` |
 | Shadow / firing-LOS roadmap | `reference/shadow-los-plan.md` |
 | Live tracker / current focus / backlog | `WORKSPACE/` (separate top-level folder) |

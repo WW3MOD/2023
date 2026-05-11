@@ -55,7 +55,6 @@
 - [T:trusted] **Iskander/HIMARS shockwave radius too large** — tuned 260509 (commit 9578557c). `MaxRadius` values verified in `weapons-explosions.yaml`: Iskander 4c0 (line 495), HIMARS 2c512 (line 532). Feel needs human eye in next playtest
 
 ### Known design issues
-- [ ] **Tank frontal armor stalemate** — sim shows pen 50 vs 700 thickness = 7% dmg per hit. Either rework armor model or rebalance pen values
 - [~] **Buildings invisible / fog visibility model** — quick-fix 260503: `FrozenUnderFog.IsVisible` short-circuits to `return true`. Proper fix: investigate `FrozenActor.Visible` initial state and whether buildings should fog at all in WW3MOD
 - [ ] **Visibility / fog design decisions for v1** — open questions raised during garrison playtest:
   - Should buildings block line of sight at all? Old solution: only trees & static cover. Hiding behind a building is micro-intense and unintuitive — bad gameplay
