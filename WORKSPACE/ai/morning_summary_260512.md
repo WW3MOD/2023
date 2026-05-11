@@ -100,15 +100,56 @@ seed = `index × 1000 + 17`. Same seed + same code + same map → reproducible
 match. Debug-an-outlier-match path now exists.
 
 ### Round 6 — 20-seed sanity batch
-*Status: running in background.*
+*Status: running (restarted with framerate cap, --max-wall-secs 200).*
 
 20 seeds of legacy-vs-legacy on tournament-arena-skirmish-2p, 3-min matches
-at 8×. Expected wall-clock ≈ 20 min. Findings doc TBW once it completes.
+at 8× SpeedMultiplier + framerate cap. Expected wall-clock ≈ 30-50 min.
 
-Key sub-question: **the very first match showed USA=12150 vs Russia=550** at
-the prior (default-speed) run — extreme bias. Either this map has positional
-bias OR the AI's faction differs significantly. The 20-seed batch will tell
-us if this is a recurring pattern across seeds.
+Key sub-question: **the very first match (default speed) showed USA=12150 vs
+Russia=550** — extreme bias. Either this map has positional bias OR the AI's
+faction differs significantly. The 20-seed batch tells us.
+
+The first attempt (8× speed only, no framerate cap, --max-wall-secs 90) hit
+the wall-clock kill on match 2 — the simulation was getting bottlenecked by
+the 60-FPS renderer. Restarted with the new framerate cap + 200s budget.
 
 If consistent bias persists, the right fix is mirror-matching: each seed
 runs twice with sides swapped, then aggregate.
+
+### Round 7 — second tournament map (diagonal layout)
+*Status: complete.*
+
+`tournament-arena-diagonal-2p` — clone of arena-skirmish-2p with SRs at NW
+(6,4) and SE (58,28) corners instead of mid-rows. Same terrain
+(map.bin reused), different SR placement. Useful for cross-map AI
+validation once Phase 2+ AI work starts.
+
+### Round 8 — render-framerate cap ("headless lite")
+*Status: complete; NOT yet empirically validated.*
+
+Realisation during Round 6's wall-clock-kill failure: the renderer is the
+practical bottleneck. A full headless renderer is days of work; the
+**cheap 90% solution** is just to cap render FPS:
+
+  Graphics.CapFramerate=true Graphics.MaxFramerate=5
+
+These launch args are now baked into every run-tournament.sh launch. 5 FPS
+instead of 60 = 12× less render-side CPU drag. Tournament-mode game windows
+look janky during run (multi-second sim jumps per frame), which is fine for
+batches and trivially reverted by dropping the args when inspecting a
+specific match.
+
+True headless (no rendering at all) is documented in PITFALLS §17 as a
+much-bigger future investment.
+
+### Round 9 — aggregator: side winrate + score-ratio distribution
+*Status: complete.*
+
+`aggregate-tournament.sh` now writes:
+- `side_winrate_pct`: per-player-name winrate across the batch.
+  Should be 40-60% per side under legacy-vs-legacy for a fair map.
+- `score_ratio_stats`: distribution of winner_score / loser_score.
+  High mean + low variance = decisive matches (bias suspected).
+
+Both immediately visible in `summary.json` without rummaging through
+match_*.json files.
