@@ -27,6 +27,10 @@ Container@LOBBY_OPTIONS_BIN:
 							Height: 26
 							Visible: False
 							Children:
+								Button@TOGGLE:
+									Width: PARENT_WIDTH
+									Height: 26
+									Background: ""
 								Label@HEADER_LABEL:
 									X: 4
 									Y: 4

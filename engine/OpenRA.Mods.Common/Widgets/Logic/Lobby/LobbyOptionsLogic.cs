@@ -51,6 +51,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Defaults to Advanced if no marker is found, so existing callers keep working.
 		readonly string category;
 
+		// Accordion state per section name. Initialised so the two big placeholder sections
+		// default to collapsed — the user only opens them when they want to look at the soup.
+		readonly Dictionary<string, bool> collapsedSections = new()
+		{
+			{ SectionUnitAvailability, true },
+			{ SectionCombatTuning, true },
+		};
+
 		// WW3MOD: options are split into two top-level groups.
 		// Common — frequently-changed, fully-working options. (Step 3 will move these onto the PLAYERS panel.)
 		// Advanced — everything else. Mostly placeholder dummies plus developer toggles.
@@ -206,7 +214,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
-		void AddSectionHeader(string text, bool allPlaceholder = false)
+		void AddSectionHeader(string text, bool allPlaceholder = false, string section = null)
 		{
 			if (sectionHeaderTemplate == null)
 				return;
@@ -219,10 +227,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var label = header.GetOrNull<LabelWidget>("HEADER_LABEL");
 			if (label != null)
 			{
-				var displayText = allPlaceholder ? text.ToUpperInvariant() + PlaceholderSectionSuffix : text.ToUpperInvariant();
+				var collapsed = section != null && collapsedSections.TryGetValue(section, out var c) && c;
+				var glyph = section != null ? (collapsed ? "[+] " : "[-] ") : string.Empty;
+				var displayText = glyph + (allPlaceholder ? text.ToUpperInvariant() + PlaceholderSectionSuffix : text.ToUpperInvariant());
 				label.GetText = () => displayText;
 				if (allPlaceholder)
 					label.GetColor = () => PlaceholderSectionColor;
+			}
+
+			// Toggle button overlay — invisible background, full-width click target.
+			// Clicking re-runs RebuildOptions which re-evaluates collapsedSections.
+			if (section != null)
+			{
+				var toggle = header.GetOrNull<ButtonWidget>("TOGGLE");
+				if (toggle != null)
+				{
+					var captured = section;
+					toggle.OnClick = () =>
+					{
+						collapsedSections[captured] = !(collapsedSections.TryGetValue(captured, out var was) && was);
+						RebuildOptions();
+					};
+				}
 			}
 
 			optionsContainer.AddChild(header);
@@ -266,7 +292,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (sectionOptions.Length == 0)
 					continue;
 
-				AddSectionHeader(section, sectionOptions.All(o => o.Placeholder));
+				AddSectionHeader(section, sectionOptions.All(o => o.Placeholder), section);
+				if (collapsedSections.TryGetValue(section, out var collapsed) && collapsed)
+					continue;
 				RenderFlatOptions(sectionOptions);
 			}
 
@@ -275,8 +303,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var unsectioned = options.Where(o => !declared.Contains(GetSection(o))).ToArray();
 			if (unsectioned.Length > 0)
 			{
-				AddSectionHeader("Other", unsectioned.All(o => o.Placeholder));
-				RenderFlatOptions(unsectioned);
+				const string other = "Other";
+				AddSectionHeader(other, unsectioned.All(o => o.Placeholder), other);
+				if (!(collapsedSections.TryGetValue(other, out var oc) && oc))
+					RenderFlatOptions(unsectioned);
 			}
 		}
 
