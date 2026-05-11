@@ -4,8 +4,8 @@
 > Cap ~15 lines. Rotate stale entries out — once shipped or `[T]`, the tracker tells the story.
 
 ## Working on
-- **AI overhaul foundation (260511)** — survey + 3-layer architecture (Perception/Strategy/Tactics) + 5-phase plan written. Home: `WORKSPACE/ai/`. Awaiting user pass on open questions in `foundation_260511.md §7`
-- **AI tournament harness (260511)** — dual `ModularBot@legacy`/`@v2` + headless+parallel match runner + autonomous milestone-driven loop. Lands before any new-brain code so every change is measurable. Plan: `WORKSPACE/plans/260511_ai_tournament_harness.md`. Not started
+- **AI tournament harness — Phase 1 + Rounds 2-9 LANDED (260511→260512, overnight autonomous)** — dual `ModularBot@normal/@v2`, BotVsBotMatchWatcher with pluggable IMatchScorer/IWinRuleEvaluator, full score formula (army+income+kills via PlayerStatistics), deterministic seeding, 8× SpeedMultiplier, framerate cap, 2nd tournament map, aggregator stats. ~9 commits prefixed `ai: tournament`. **READ FIRST:** `WORKSPACE/ai/WAKEUP_CHECKLIST_260512.md`. Sanity batch in progress / partial results.
+- **AI overhaul foundation (260511)** — survey + 3-layer architecture + 5-phase plan. Phase 2+ (the actual brain) unstarted. Awaiting user pass on `foundation_260511.md §7` open questions.
 - **Crew evacuation overhaul (260509)** — staged: hatch-emerge → walk-away → prone-when-wounded; cookoff = FireDeath; helis refuse safe-land on blocked cells. Awaiting playtest. Plan: `WORKSPACE/archive/plans/260507_crew_evac_plan.md`
 - **Pathfinding friendly-blocker scope (260506)** — vehicle groups drop moves on long routes / narrow gaps. Briefing: `WORKSPACE/plans/260506_pathfinding_friendly_blockers.md`. Not started
 
