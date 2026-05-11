@@ -109,14 +109,14 @@ Hellfire:
 	Report: missile6.aud
 	Projectile: Missile
 		Blockable: false
-		# Accuracy (260510): same direction as WGM — tight inaccuracy, faster
-		# turn, frequent retarget for moving targets.
+		# Accuracy (260511): flat scatter — Hellfire is laser-guided (heli paints,
+		# missile rides the laser), so accuracy doesn't degrade with distance the way
+		# wire-guided WGM does. Tighter than infantry ATGM (0c512) — helis stay the
+		# premium ATGM tier thanks to optics and time-on-target.
 		Speed: 500
 		MaximumLaunchSpeed: 100
 		Acceleration: 30
-		# Range-scaled inaccuracy — see WGM.
-		Inaccuracy: 16
-		InaccuracyType: PerCellIncrement
+		Inaccuracy: 0c256
 		HorizontalRateOfTurn: 60
 		RetargetTicks: 2
 		# See WGM — prevents the descent-into-ground "fall short" bug.
@@ -136,13 +136,13 @@ Hellfire:
 		ValidTargets: Ground, Water, Air
 		Spread: 192
 		Damage: 2000
-		# Penetration 20: heli→heli silent-vanish fix (260510). Heli HitShapes
-		# are tiny (Circle Radius 32) — at PerCellIncrement Inaccuracy 16 the
-		# missile lands ~100 wdist from a heli target on average, well outside
-		# TargetDamage's tight default 1-wdist Spread. The fall-back is this
-		# SpreadDamage warhead. With default Penetration 1 vs Heavy heli
-		# Thickness 20 the falloff damage gets /20, leaving 5-50 damage per
-		# missile — perceived as "missile silently vanished". Setting Pen 20
+		# Penetration 20: heli→heli silent-vanish fix (260510, updated 260511).
+		# Heli HitShapes are tiny (Circle Radius 32) — at flat Inaccuracy 0c256 the
+		# missile lands ~150-200 wdist from a heli target on average (PDF-weighted),
+		# well outside TargetDamage's tight default 1-wdist Spread. The fall-back is
+		# this SpreadDamage warhead (Spread 192). With default Penetration 1 vs
+		# Heavy heli Thickness 20 the falloff damage gets /20, leaving 5-50 damage
+		# per missile — perceived as "missile silently vanished". Setting Pen 20
 		# matches Heavy heli thickness so near-misses do meaningful damage
 		# (~500-1000) without significantly buffing splash vs Heavy tanks
 		# (Thickness 280-700, still ~7% effective).
