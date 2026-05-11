@@ -53,6 +53,17 @@ Container@OBSERVER_WIDGETS:
 					Y: 7
 					Children:
 						LogicKeyListener@OBSERVER_KEY_LISTENER:
+						Button@SPEED_BUTTON:
+							Logic: SpeedControlButtonLogic
+							X: 162
+							Width: 28
+							Height: 28
+							Background: sidebar-button-observer
+							TooltipText: Game Speed
+							TooltipContainer: TOOLTIP_CONTAINER
+							Font: TinyBold
+							Contrast: true
+							VisualHeight: 0
 						MenuButton@OPTIONS_BUTTON:
 							Key: escape
 							X: 192
