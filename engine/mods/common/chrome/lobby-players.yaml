@@ -137,40 +137,40 @@ Container@LOBBY_PLAYER_BIN:
 				TextField@PRESET_NAME:
 					X: 60
 					Y: 2
-					Width: 220
+					Width: 160
 					Height: 24
 					MaxLength: 32
 					Text: Default
 				DropDownButton@PRESET_DROPDOWN:
-					X: 282
+					X: 224
 					Y: 2
-					Width: 56
+					Width: 64
 					Height: 24
 					Font: Bold
 					Text: Load
 				Button@SAVE_PRESET_BUTTON:
-					X: 342
+					X: 292
 					Y: 2
 					Width: 60
 					Height: 24
 					Font: Bold
 					Text: Save
 				Button@RENAME_PRESET_BUTTON:
-					X: 406
+					X: 356
 					Y: 2
 					Width: 70
 					Height: 24
 					Font: Bold
 					Text: Rename
 				Button@DELETE_PRESET_BUTTON:
-					X: 480
+					X: 430
 					Y: 2
 					Width: 60
 					Height: 24
 					Font: Bold
 					Text: Delete
 				Button@RESET_PRESET_BUTTON:
-					X: 544
+					X: 494
 					Y: 2
 					Width: 60
 					Height: 24
@@ -535,7 +535,7 @@ Container@LOBBY_PLAYER_BIN:
 						Button@JOIN:
 							X: 190
 							Text: button-lobby-players-join
-							Width: 418
+							Width: 470
 						Label@CLOSED_LABEL:
 							X: 15
 							Width: 450
@@ -588,7 +588,7 @@ Container@LOBBY_PLAYER_BIN:
 									Template: ANONYMOUS_PLAYER_TOOLTIP
 						Label@SPECTATOR:
 							X: 190
-							Width: 418
+							Width: 470
 							Height: 25
 							Text: label-lobby-players-spectator
 							Align: Center
@@ -669,7 +669,7 @@ Container@LOBBY_PLAYER_BIN:
 									Template: ANONYMOUS_PLAYER_TOOLTIP
 						Label@SPECTATOR:
 							X: 190
-							Width: 418
+							Width: 470
 							Height: 25
 							Text: label-lobby-players-spectator
 							Align: Center
@@ -696,7 +696,7 @@ Container@LOBBY_PLAYER_BIN:
 							Text: checkbox-lobby-players-new-spectator-toggle
 						Button@SPECTATE:
 							X: 190
-							Width: 418
+							Width: 470
 							Height: 25
 							Text: button-lobby-players-spectate
 							Font: Regular
