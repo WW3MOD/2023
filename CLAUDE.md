@@ -252,6 +252,17 @@ Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" requ
 ```
 Demo scenarios live in `tools/autotest/scenarios/demo-*/`. **Never put a `Test.Pass`/`Fail` call in a demo** — if it has a verdict, it's a test; move it to `test-*` and use AUTOTEST.
 
+### Regenerating shadows.bin
+
+Each map keeps a precomputed `shadows.bin` LOS cache. Changes to the shadow compute pipeline (e.g. `CellLayer.IsValidCoordinate`, `RecomputeShadowFrom`, density formulas) invalidate every cached file — the bug stays baked in until the cache is rebuilt. Two ways to refresh:
+
+```bash
+./utility.sh --regen-shadows ../mods/ww3mod/maps/<name>   # narrow: only rewrites shadows.bin
+./utility.sh --refresh-map ../mods/ww3mod/maps/<name>     # wide: also rewrites map.yaml and map.png
+```
+
+Note the `../` — `utility.sh` cd's into `engine/` before running. Saving a map in the in-game editor also triggers a regen. After a shadow-compute fix, refresh every map under `mods/ww3mod/maps/` that has a `shadows.bin` (currently: `river-zeta-ww3`, `woodland-warfare-ww3`).
+
 ## Architecture & system reference
 
 Project layout, scenario system, custom traits, aircraft movement, suppression, AI configuration — all in [`DOCS/reference/architecture.md`](DOCS/reference/architecture.md). Read on demand when working on a specific system.
