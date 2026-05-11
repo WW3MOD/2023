@@ -823,6 +823,10 @@ namespace OpenRA
 		{
 			PerformDelayedActions();
 
+			// Phase 2 screenshot command-file watcher. No-op when TestMode is
+			// inactive or Test.ScreenshotCmdFile is unset — see TestModeScreenshots.
+			TestModeScreenshots.PollCommands();
+
 			if (OrderManager.Connection is NetworkConnection nc && nc.ConnectionState != lastConnectionState)
 			{
 				lastConnectionState = nc.ConnectionState;
