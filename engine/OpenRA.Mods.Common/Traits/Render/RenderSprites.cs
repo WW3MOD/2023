@@ -67,6 +67,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 			"EastOnTop — east sprite draws over west; use for sprites with a baked-in shadow on the right edge (fields).")]
 		public readonly RenderXOrder XRenderOrder = RenderXOrder.WestOnTop;
 
+		[Desc("Alpha (0–1) of the always-on-top X-ray ghost copy drawn for this actor. ",
+			"0 (default) disables the overlay; ~0.15–0.25 is typical for ground units. ",
+			"The ghost re-renders the actor's current sprite at a very high ZOffset so the unit stays visible ",
+			"when occluded by buildings, trees, or other tall sprites. Multiplied with the original alpha, so ",
+			"cloaked/disabled units stay correspondingly subtle in the overlay too.")]
+		public readonly float XRayOverlayAlpha = 0f;
+
+		[Desc("ZOffset added to the X-ray ghost renderable on top of the sprite's own ZOffset. ",
+			"Must be large enough to clear any plausible primary-sort key on the map — ",
+			"131072 = 128 cells, which is past any actual OpenRA map's south edge.")]
+		public readonly int XRayOverlayZOffset = 131072;
+
 		public override object Create(ActorInitializer init) { return new RenderSprites(init, this); }
 
 		public IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init)
@@ -209,6 +221,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 				scale = 1f;
 
 			var xSortBias = Info.XRenderOrder == RenderXOrder.EastOnTop ? 1 : 0;
+			var xrayAlpha = Info.XRayOverlayAlpha;
+			var xrayZ = Info.XRayOverlayZOffset;
 
 			foreach (var a in anims)
 			{
@@ -222,7 +236,19 @@ namespace OpenRA.Mods.Common.Traits.Render
 				}
 
 				foreach (var r in a.Animation.Render(self, a.PaletteReference, scale))
-					yield return xSortBias == 0 ? r : r.WithXSortBias(xSortBias);
+				{
+					var normal = xSortBias == 0 ? r : r.WithXSortBias(xSortBias);
+					yield return normal;
+
+					// X-ray ghost: re-yield the sprite at a very high ZOffset and reduced alpha so the unit
+					// stays visible behind occluders. Skipping decorations (shadows etc.) keeps the count down
+					// and avoids re-drawing the shadow on top of everything.
+					if (xrayAlpha > 0f && !normal.IsDecoration && normal is IModifyableRenderable mr)
+					{
+						var ghost = mr.WithAlpha(mr.Alpha * xrayAlpha);
+						yield return ((IRenderable)ghost).WithZOffset(normal.ZOffset + xrayZ);
+					}
+				}
 			}
 		}
 

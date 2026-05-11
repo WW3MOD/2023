@@ -12,6 +12,11 @@
 	Inherits@Vision: ^StandardVision
 	Inherits@DamagePips: ^DamageVehiclePips
 	Inherits@VehicleSuppression: ^VehicleSuppressionEffects
+	RenderSprites:
+		# X-ray ghost so vehicles stay visible behind trees/buildings/fields. 0.2 = subtle in the open,
+		# enough to track an obscured unit. Tune up if occluded units feel too hard to see; tune down if
+		# the open-shimmer is distracting.
+		XRayOverlayAlpha: 0.2
 	Health:
 		HP: 10000
 	Armor:

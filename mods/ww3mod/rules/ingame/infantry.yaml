@@ -5,6 +5,10 @@
 	Inherits@SpriteActor: ^SpriteActor
 	RenderSprites:
 		ScaleControlledBySettings: true
+		# X-ray ghost so infantry stay visible behind trees/buildings/fields. 0.2 = subtle in the open,
+		# enough to track an obscured unit. Tune up if occluded units feel too hard to see; tune down if
+		# the open-shimmer is distracting.
+		XRayOverlayAlpha: 0.2
 	Inherits@Bounty: ^GlobalBounty
 	Inherits@Selection: ^SelectableCombatUnit
 	Inherits@Slowdown: ^EffectsWhenDamagedInfantry
