@@ -19,7 +19,11 @@
 	RenderSprites:
 		Palette: terrain
 	WithSpriteBody:
-		ZOffset: -512
+		# PITFALL (2026-05): no ZOffset bias here. With it set to -512, the unit-vs-tree sort flip
+		# happened at the *north* edge of the tree's cell (tree.Y - 512), so units popped in front
+		# the instant they entered the cell — well before reaching the trunk visually. ZOffset 0 lets
+		# the natural Y sort handle it: flip occurs at the tree's visual middle (cell centre), which
+		# matches where a viewer expects "behind → in front" to swap for a centre-trunk sprite.
 	Building:
 		Footprint: x
 		Dimensions: 1,1
