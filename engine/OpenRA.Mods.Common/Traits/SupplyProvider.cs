@@ -452,22 +452,24 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (bestPool != null)
 			{
-				// Scale ammo per cycle by pool capacity — large pools get more per tick
-				// Targets ~50 cycles to fill from empty (e.g., 500-pool gets 10 per cycle)
+				// Batch math: deliver one batch of ReloadCount rounds per cycle for
+				// SupplyValue cost per batch. Falls back to 1 round per cycle when
+				// the pool has the default ReloadCount: 1.
+				var batchSize = System.Math.Max(1, bestPool.Info.ReloadCount);
 				var missing = bestPool.Info.Ammo - bestPool.CurrentAmmoCount;
-				var giveAmount = System.Math.Max(1, bestPool.Info.Ammo / 50);
+				var canAfford = currentSupply >= bestPool.Info.SupplyValue;
 
-				// Don't give more than what's missing or what we can afford
-				giveAmount = System.Math.Min(giveAmount, missing);
-				giveAmount = System.Math.Min(giveAmount, currentSupply / System.Math.Max(1, bestPool.Info.SupplyValue));
-
-				if (giveAmount > 0 && bestPool.GiveAmmo(currentTarget, giveAmount))
+				if (canAfford && missing > 0)
 				{
-					currentSupply -= bestPool.Info.SupplyValue * giveAmount;
-					UpdateSupplyConditions();
+					var roundsToGive = System.Math.Min(batchSize, missing);
+					if (bestPool.GiveAmmo(currentTarget, roundsToGive))
+					{
+						currentSupply -= bestPool.Info.SupplyValue;
+						UpdateSupplyConditions();
 
-					if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
-						Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
+						if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
+							Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
+					}
 				}
 			}
 

@@ -167,12 +167,11 @@ HIND:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 150
+		ReloadCount: 30
 		ReloadDelay: 6
 		AmmoCondition: ammo-primary
-		# 12.7mm chin-gun ammo bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round × 150 rounds would dwarf the rocket pool's contribution).
+		# 12.7mm chin gun: 5 batches × 30 rounds × 1 supply = 5 (~0.13% of cost 4000).
 		SupplyValue: 1
-		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -199,12 +198,12 @@ HIND:
 		Name: secondary-ammo
 		Armaments: secondary
 		Ammo: 80
+		ReloadCount: 10
 		ReloadDelay: 16
 		AmmoCondition: ammo-secondary
-		# Per-rocket value. 80 × 8 = 640 = 16% of unit cost (4000). Unguided
-		# 80mm S-8 rockets, cheap each but the pod is the Hind's main payload.
-		SupplyValue: 8
-		CreditValue: 8
+		# S-8 rocket pod: 8 batches × 10 rockets × 80 supply = 640 (~16% of cost
+		# 4000). Unguided 80mm rockets — pod is the Hind's main payload.
+		SupplyValue: 80
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -324,11 +323,11 @@ MI28:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 200
+		ReloadCount: 40
 		AmmoCondition: ammo-primary
-		# 30mm chain-gun ammo bulk-cheap; CreditValue: 0 keeps full evac refund.
-		# Mirrors the Apache (HELI) primary pool.
-		SupplyValue: 3
-		CreditValue: 0
+		# 30mm chain gun: 5 batches × 40 rounds × 5 supply = 25 (~0.4% of cost 6000).
+		# Mirrors Apache.
+		SupplyValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -356,11 +355,9 @@ MI28:
 		Armaments: secondary, secondary-air
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		# Per-Hellfire-class missile value. 8 × 200 = 1600 ≈ 27% of unit cost
-		# (6000). Mirrors the Apache (HELI) secondary pool — emptying the rack
-		# is a real budget commitment.
+		# Hellfire-class missile: 8 batches × 1 missile × 200 supply = 1600
+		# (~27% of cost 6000). Universal Hellfire rate. Mirrors Apache.
 		SupplyValue: 200
-		CreditValue: 200
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -454,12 +451,12 @@ FROG:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 60
+		ReloadCount: 5
 		ReloadDelay: 25
 		AmmoCondition: ammo-primary
-		# Per-rocket value. 60 × 15 = 900 = 15% of unit cost (6000). Su-25
-		# rocket-pod payload at the strike-aircraft target band.
-		SupplyValue: 15
-		CreditValue: 15
+		# Su-25 rocket pod: 12 batches × 5 rockets × 75 supply = 900 (~15% of
+		# cost 6000). Strike-aircraft rocket payload.
+		SupplyValue: 75
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -568,10 +565,9 @@ MIG:
 		Armaments: primary
 		Ammo: 6
 		ReloadDelay: 100
-		# Per-AAM value. 6 × 100 = 600 = 10% of unit cost (6000).
-		# Mirrors the F-16 AAM rate.
+		# AAM: 6 batches × 1 missile × 100 supply = 600 (~10% of cost 6000).
+		# Universal AAM rate. Mirrors F-16.
 		SupplyValue: 100
-		CreditValue: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -594,11 +590,11 @@ MIG:
 		AmmoCondition: ammo-secondary
 		Armaments: secondary
 		Ammo: 150
+		ReloadCount: 30
 		ReloadDelay: 100
-		# 20mm cannon ammo bulk-cheap; CreditValue: 0 keeps full evac refund.
-		# Mirrors the F-16 secondary pool.
+		# 20mm cannon: 5 batches × 30 rounds × 1 supply = 5 (~0.08% of cost 6000).
+		# Mirrors F-16.
 		SupplyValue: 1
-		CreditValue: 0
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

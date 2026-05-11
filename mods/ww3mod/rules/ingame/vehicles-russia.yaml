@@ -72,12 +72,11 @@ btr:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 500
+		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 14.5mm HMG belts are bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round deduction × 500 rounds would dwarf the 600 unit cost).
+		# 14.5mm HMG: 10 batches × 50 rounds × 1 supply = 10 (~1.7% of cost 600).
 		SupplyValue: 1
-		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -192,12 +191,11 @@ bmp2:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 900
+		ReloadCount: 100
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 30mm autocannon ammo is bulk-cheap; CreditValue: 0 prevents 900-round
-		# magazine from over-deducting on evac/sell (was 13500 vs Cost 1300).
-		SupplyValue: 1
-		CreditValue: 0
+		# 30mm: 9 batches × 100 rounds × 5 supply = 45 (~3.5% of cost 1300).
+		SupplyValue: 5
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -224,11 +222,10 @@ bmp2:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		# Per-WGM (Konkurs/Kornet-class) value. 8 × 65 = 520 = 40% of unit cost
-		# (1300). Matches the Bradley TOW ratio — guided ATGMs are the IFV's
-		# primary anti-armor asset and worth a real budget chunk.
+		# WGM (Konkurs/Kornet-class): 8 batches × 1 missile × 65 supply = 520
+		# (40% of cost 1300). Matches the Bradley TOW ratio — guided ATGMs are
+		# the IFV's primary anti-armor asset.
 		SupplyValue: 65
-		CreditValue: 65
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -348,13 +345,13 @@ t90:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 40
+		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-shell value. 40 × 6 = 240 = 10% of unit cost (2400). Mirrors the
-		# Abrams pricing — modern MBT main-gun ammunition is cheap relative to
+		# 125mm: 8 batches × 5 shells × 30 supply = 240 (10% of cost 2400).
+		# Mirrors Abrams — modern MBT main-gun ammo is cheap relative to
 		# the platform regardless of generation.
-		SupplyValue: 6
-		CreditValue: 6
+		SupplyValue: 30
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -463,12 +460,12 @@ giatsint:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 39
+		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-shell ammo value. 39 × 12 = 468 ≈ 26% of unit cost (1800),
-		# matching the artillery target band (~25%). Mirrors the Paladin.
-		SupplyValue: 12
-		CreditValue: 12
+		# 152mm: 7 batches × 5 shells × 60 supply = 420 (~23% of cost 1800).
+		# Mirrors Paladin — artillery target band.
+		SupplyValue: 60
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -579,13 +576,12 @@ grad:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 40
+		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-rocket ammo value. 40 × 17 = 680 ≈ 45% of unit cost (1500),
-		# matching the MLRS target band. Cheaper per rocket than M270 / TOS
-		# because Grad's 122 mm tube is the budget end of the MLRS class.
-		SupplyValue: 17
-		CreditValue: 17
+		# 122mm rocket: 8 batches × 5 rockets × 85 supply = 680 (~45% of cost 1500).
+		# Budget MLRS — cheaper per rocket than M270/TOS.
+		SupplyValue: 85
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -705,13 +701,12 @@ tos:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 24
+		ReloadCount: 3
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-rocket ammo value. 24 × 40 = 960 ≈ 48% of unit cost (2000), a
-		# touch above the MLRS target to reflect the thermobaric warhead
-		# premium over conventional 220 mm rockets.
-		SupplyValue: 40
-		CreditValue: 40
+		# 220mm thermobaric: 8 batches × 3 rockets × 120 supply = 960 (~48% of
+		# cost 2000). Slight premium over conventional MLRS for the warhead.
+		SupplyValue: 120
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -839,12 +834,11 @@ tunguska:
 		Name: primary-ammo
 		Armaments: primary, tertiary
 		Ammo: 180
+		ReloadCount: 30
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 30mm AA autocannon ammo bulk-cheap; CreditValue: 0 prevents 180-round
-		# magazine from over-deducting on evac (was 2700 vs Cost 1700).
+		# 30mm AA: 6 batches × 30 rounds × 1 supply = 6 (~0.4% of cost 1700).
 		SupplyValue: 1
-		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 6
@@ -871,11 +865,9 @@ tunguska:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		# Per-9M311 SAM value. 8 × 65 = 520 ≈ 31% of unit cost (1700). Mirrors
-		# the Stryker Stinger / infantry MANPAD rate — short-range SAMs are
-		# similarly priced regardless of platform.
+		# 9M311 SAM: 8 batches × 1 missile × 65 supply = 520 (~31% of cost 1700).
+		# Universal MANPAD/short-range-SAM rate.
 		SupplyValue: 65
-		CreditValue: 65
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -973,7 +965,6 @@ iskander:
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 		SupplyValue: 1500
-		CreditValue: 1500
 	RenderRangeCircle@1:
 		Armament: primary
 		RangeCircleType: explosive

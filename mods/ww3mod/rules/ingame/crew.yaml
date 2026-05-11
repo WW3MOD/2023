@@ -29,9 +29,11 @@
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 24
+		ReloadCount: 8
 		AmmoCondition: ammo-primary
+		# Pistol: 3 batches × 8 rounds × 1 supply = 3 (~3% of cost 100). Crew
+		# aren't usually evac/sold; token cost so sell math stays consistent.
 		SupplyValue: 1
-		CreditValue: 1
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 4, 3

@@ -31,12 +31,18 @@ namespace OpenRA.Mods.Common.Traits
 			var baseValue = csv != null ? csv.Value
 				: a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
 
-			// Deduct value of missing ammo
+			// Deduct value of missing ammo, accounted in batches of ReloadCount
+			// rounds at SupplyValue per batch.
 			var missingAmmoValue = 0;
 			foreach (var pool in a.TraitsImplementing<AmmoPool>())
 			{
-				if (pool.Info.CreditValue > 0)
-					missingAmmoValue += (pool.Info.Ammo - pool.CurrentAmmoCount) * pool.Info.CreditValue;
+				if (pool.Info.SupplyValue <= 0)
+					continue;
+
+				var batchSize = System.Math.Max(1, pool.Info.ReloadCount);
+				var missingRounds = pool.Info.Ammo - pool.CurrentAmmoCount;
+				var missingBatches = missingRounds / batchSize;
+				missingAmmoValue += missingBatches * pool.Info.SupplyValue;
 			}
 
 			// Deduct value of missing supply on a SupplyProvider host (e.g. Logistics Center).

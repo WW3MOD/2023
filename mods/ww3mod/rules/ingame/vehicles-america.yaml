@@ -76,12 +76,11 @@ humvee:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 300
+		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 7.62mm MG ammo is bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round deduction × 300 rounds would dwarf the 450 unit cost).
+		# 7.62mm MG: 6 batches × 50 rounds × 1 supply = 6 (~1% of unit cost 450).
 		SupplyValue: 1
-		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -235,13 +234,11 @@ m113:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 500
+		ReloadCount: 50
 		AmmoCondition: ammo-primary
-		ReloadCount: 20
 		RearmSound: minelay1.aud
-		# 12.7mm HMG belts are bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round deduction × 500 rounds would dwarf the 700 unit cost).
+		# 12.7mm HMG: 10 batches × 50 rounds × 1 supply = 10 (~1.4% of cost 700).
 		SupplyValue: 1
-		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -364,12 +361,11 @@ bradley:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 900
+		ReloadCount: 100
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 25mm Bushmaster ammo is bulk-cheap relative to per-round cost;
-		# CreditValue: 0 prevents 900-round magazine from over-deducting.
-		SupplyValue: 1
-		CreditValue: 0
+		# 25mm Bushmaster: 9 batches × 100 rounds × 5 supply = 45 (3% of cost 1500).
+		SupplyValue: 5
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -391,12 +387,9 @@ bradley:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		# Per-TOW value. 8 × 75 = 600 = 40% of unit cost (1500). Matches the
-		# real-world Bradley ATGM-load ratio (8 × ~$87K = $700K vs $1.8M
-		# platform). Empty Bradley evac ≈ 900 — the IFV body is still worth
-		# pulling out, but firing all your TOWs is a real budget commitment.
+		# TOW: 8 batches × 1 missile × 75 supply = 600 (40% of cost 1500).
+		# Matches the real-world Bradley ATGM-load ratio.
 		SupplyValue: 75
-		CreditValue: 75
 	WithAmmoPipsDecoration@2:
 		Position: Bottom
 		Margin: 8, 6
@@ -521,13 +514,12 @@ abrams:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 40
+		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-shell value. 40 × 6 = 240 ≈ 9.6% of unit cost (2500). Real-world
-		# Abrams ~$10M, full M829A4 load ~$400K (~4%); we sit a touch higher
-		# so a tank firing out still evacs back ~90% of its budget.
-		SupplyValue: 6
-		CreditValue: 6
+		# 120mm: 8 batches × 5 shells × 30 supply = 240 (9.6% of cost 2500).
+		# Tank ammo is cheap relative to the platform; empty tank evacs ~90%.
+		SupplyValue: 30
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -639,13 +631,12 @@ m109:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 39
+		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-round ammo value. 39 × 12 = 468 ≈ 26% of unit cost (1800),
-		# matching the artillery target band (~25%) — a fully empty Paladin
-		# evacuates back roughly 74% of its build cost.
-		SupplyValue: 12
-		CreditValue: 12
+		# 155mm: 7 batches × 5 shells × 60 supply = 420 (~23% of cost 1800).
+		# Artillery target band; empty Paladin evacs ~77% of build cost.
+		SupplyValue: 60
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -764,12 +755,9 @@ m270:
 		Ammo: 12
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-rocket ammo value. 12 × 70 = 840 ≈ 47% of unit cost (1800),
-		# matching the MLRS target band (~45%) — a fully empty M270 evacuates
-		# back roughly 53% of its build cost. Higher than artillery shells to
-		# reflect rocket-pod expense and one-shot magazine doctrine.
+		# 227mm rocket: 12 batches × 1 rocket × 70 supply = 840 (47% of cost 1800).
+		# MLRS one-shot magazine doctrine — the pod is the platform's value.
 		SupplyValue: 70
-		CreditValue: 70
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -884,12 +872,11 @@ strykershorad:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 400
+		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 25mm autocannon ammo is bulk-cheap; CreditValue: 0 keeps full evac
-		# refund. Per-shot deduction × 400 rounds would dwarf the 2500 cost.
+		# 25mm: 8 batches × 50 rounds × 1 supply = 8 (~0.3% of cost 2500).
 		SupplyValue: 1
-		CreditValue: 0
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -914,11 +901,10 @@ strykershorad:
 		Ammo: 8
 		AmmoCondition: ammo-secondary
 		RearmSound: minelay1.aud
-		# Per-Stinger value. 8 × 65 = 520 ≈ 21% of unit cost (2500). Mirrors
-		# the infantry MANPAD per-missile rate — Stinger is Stinger regardless
+		# Stinger: 8 batches × 1 missile × 65 supply = 520 (~21% of cost 2500).
+		# Mirrors the universal MANPAD rate — Stinger is Stinger regardless
 		# of platform.
 		SupplyValue: 65
-		CreditValue: 65
 	NextBurstBar@2:
 		Armaments: secondary
 		Color: 66B2FF
@@ -948,12 +934,10 @@ strykershorad:
 		Ammo: 4
 		AmmoCondition: ammo-tertiary
 		RearmSound: minelay1.aud
-		# Per-Hellfire value. 4 × 200 = 800 = 32% of unit cost (2500). Hellfire
-		# is Hellfire regardless of platform — mirrors Apache/A-10/Littlebird.
-		# Combined Stryker (520 + 800 = 1320) ≈ 53%, dominated by missile
-		# loadouts as expected for a SHORAD platform.
+		# Hellfire: 4 batches × 1 missile × 200 supply = 800 (32% of cost 2500).
+		# Universal Hellfire rate. Combined Stryker (8 + 520 + 800 = 1328)
+		# is ~53%, dominated by missile loadouts as expected for SHORAD.
 		SupplyValue: 200
-		CreditValue: 200
 	WithAmmoPipsDecoration@3:
 		Position: Bottom
 		Margin: -8, 3
@@ -1063,7 +1047,6 @@ HIMARS:
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 		SupplyValue: 1500
-		CreditValue: 1500
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3

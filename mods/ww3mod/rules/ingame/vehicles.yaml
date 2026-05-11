@@ -467,8 +467,9 @@ MNLY:
 		Ammo: 10
 		AmmoCondition: ammo-mines
 		RearmSound: minelay1.aud
+		# AT mine: 10 batches × 1 mine × 25 supply = 250 (~42% of cost 600).
+		# Mines are the unit's whole payload.
 		SupplyValue: 25
-		CreditValue: 25
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 7,3

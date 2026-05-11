@@ -384,14 +384,17 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (bestPool != null)
 			{
+				// Batch math: deliver one batch of ReloadCount rounds per cycle for
+				// SupplyValue cost per batch. See SupplyProvider.ResupplyTarget for
+				// the mirrored logic.
+				var batchSize = System.Math.Max(1, bestPool.Info.ReloadCount);
 				var missing = bestPool.Info.Ammo - bestPool.CurrentAmmoCount;
-				var giveAmount = System.Math.Max(1, bestPool.Info.Ammo / 50);
-				giveAmount = System.Math.Min(giveAmount, missing);
-				giveAmount = System.Math.Min(giveAmount, effectiveSupply / System.Math.Max(1, bestPool.Info.SupplyValue));
+				var canAfford = effectiveSupply >= bestPool.Info.SupplyValue;
+				var giveAmount = canAfford && missing > 0 ? System.Math.Min(batchSize, missing) : 0;
 
 				if (giveAmount > 0 && bestPool.GiveAmmo(currentTarget, giveAmount))
 				{
-					effectiveSupply -= bestPool.Info.SupplyValue * giveAmount;
+					effectiveSupply -= bestPool.Info.SupplyValue;
 					if (effectiveSupply < 0)
 						effectiveSupply = 0;
 

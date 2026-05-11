@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
+ * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,14 +14,16 @@ using NUnit.Framework;
 namespace OpenRA.Test
 {
 	/// <summary>
-	/// Tests the pure math behind SupplyProvider's distance-based delay calculation.
-	/// The actual SupplyProvider trait requires a full World/Actor setup, so we test
-	/// the formula in isolation.
+	/// Mirrors the supply-economy math defined in DOCS/reference/economy.md.
+	/// AmmoPool rearm and evac/sell deductions are charged per BATCH of
+	/// ReloadCount rounds, at SupplyValue cost per batch. The actual trait
+	/// needs a full World/Actor setup; the formulas are reproduced here so
+	/// regressions break a unit test instead of a playtest.
 	/// </summary>
 	[TestFixture]
 	public class SupplyProviderMathTest
 	{
-		// Mirrors SupplyProvider.CalculateDelay() logic
+		// Mirrors SupplyProvider.CalculateDelay() logic.
 		static int CalculateDelay(int distance, int minRange, int baseDelay, int maxDelayMultiplier)
 		{
 			if (minRange <= 0)
@@ -34,10 +36,22 @@ namespace OpenRA.Test
 			return (int)(baseDelay * multiplier);
 		}
 
-		// Mirrors SupplyProvider supply deduction logic
-		static int CalculateSupplyAfterRearm(int currentSupply, int ammoToGive, int supplyValuePerAmmo)
+		// Mirrors SupplyProvider rearm cost: one batch delivered per cycle,
+		// SupplyValue charged per batch (regardless of how many rounds the
+		// batch actually contains — partial last batches still cost full price).
+		static int SupplyAfterBatchDelivered(int currentSupply, int supplyValuePerBatch)
 		{
-			return currentSupply - (ammoToGive * supplyValuePerAmmo);
+			return currentSupply - supplyValuePerBatch;
+		}
+
+		// Mirrors CustomSellValue per-pool deduction: floor(missing / ReloadCount)
+		// full batches missing × SupplyValue per batch.
+		static int PoolMissingValue(int maxAmmo, int currentAmmo, int reloadCount, int supplyValue)
+		{
+			var batchSize = reloadCount < 1 ? 1 : reloadCount;
+			var missing = maxAmmo - currentAmmo;
+			var missingBatches = missing / batchSize;
+			return missingBatches * supplyValue;
 		}
 
 		// --- Distance-based delay ---
@@ -45,7 +59,6 @@ namespace OpenRA.Test
 		[Test]
 		public void DelayAtMinRangeIsBaseDelay()
 		{
-			// At minRange distance, multiplier = 1.0, so delay = baseDelay
 			var delay = CalculateDelay(distance: 1024, minRange: 1024, baseDelay: 15, maxDelayMultiplier: 4);
 			Assert.That(delay, Is.EqualTo(15));
 		}
@@ -53,7 +66,6 @@ namespace OpenRA.Test
 		[Test]
 		public void DelayCloserThanMinRangeIsClamped()
 		{
-			// Closer than minRange still uses multiplier 1.0 (clamped)
 			var delay = CalculateDelay(distance: 512, minRange: 1024, baseDelay: 15, maxDelayMultiplier: 4);
 			Assert.That(delay, Is.EqualTo(15));
 		}
@@ -68,7 +80,6 @@ namespace OpenRA.Test
 		[Test]
 		public void DelayAtMaxRangeIsCapped()
 		{
-			// Very far away: multiplier capped at maxDelayMultiplier
 			var delay = CalculateDelay(distance: 100000, minRange: 1024, baseDelay: 15, maxDelayMultiplier: 4);
 			Assert.That(delay, Is.EqualTo(60)); // 15 * 4
 		}
@@ -76,7 +87,6 @@ namespace OpenRA.Test
 		[Test]
 		public void DelayScalesLinearly()
 		{
-			// At 3x minRange: delay = 15 * 3 = 45
 			var delay = CalculateDelay(distance: 3072, minRange: 1024, baseDelay: 15, maxDelayMultiplier: 4);
 			Assert.That(delay, Is.EqualTo(45));
 		}
@@ -84,39 +94,83 @@ namespace OpenRA.Test
 		[Test]
 		public void DelayWithZeroMinRangeDoesNotDivideByZero()
 		{
-			// minRange = 0 should be treated as 1 to avoid division by zero
 			var delay = CalculateDelay(distance: 1024, minRange: 0, baseDelay: 15, maxDelayMultiplier: 4);
-			// distance/1 = 1024, capped at 4 → 15 * 4 = 60
 			Assert.That(delay, Is.EqualTo(60));
 		}
 
-		// --- Supply deduction ---
+		// --- Per-batch rearm cost ---
 
 		[Test]
-		public void SupplyDeductedBySupplyValue()
+		public void OneBatchCostsOneSupplyValue()
 		{
-			// Give 1 ammo with SupplyValue=5, costs 5 supply
-			var remaining = CalculateSupplyAfterRearm(currentSupply: 500, ammoToGive: 1, supplyValuePerAmmo: 5);
+			// Bradley 25mm: ReloadCount 100, SV 5. One batch of 100 rounds costs 5.
+			var remaining = SupplyAfterBatchDelivered(currentSupply: 500, supplyValuePerBatch: 5);
 			Assert.That(remaining, Is.EqualTo(495));
 		}
 
 		[Test]
-		public void ExpensiveAmmoDepletesSupplyFaster()
+		public void MissilePoolCostsMoreThanAutocannonBatch()
 		{
-			// AT missiles cost 10 supply each, MG rounds cost 1
-			var supplyAfterMissile = CalculateSupplyAfterRearm(500, 1, 10);
-			var supplyAfterMG = CalculateSupplyAfterRearm(500, 1, 1);
-			Assert.That(supplyAfterMissile, Is.EqualTo(490));
-			Assert.That(supplyAfterMG, Is.EqualTo(499));
+			// TOW: ReloadCount 1, SV 75. Autocannon: ReloadCount 100, SV 5.
+			// Same pool budget shape, different per-batch cost.
+			var afterTow = SupplyAfterBatchDelivered(500, 75);
+			var afterAutocannon = SupplyAfterBatchDelivered(500, 5);
+			Assert.That(afterTow, Is.EqualTo(425));
+			Assert.That(afterAutocannon, Is.EqualTo(495));
 		}
 
 		[Test]
-		public void SupplyCanGoNegative()
+		public void FullBradleyAutocannonRefillCost()
 		{
-			// If we don't check before deducting, supply goes negative
-			// (The real code checks currentSupply < supplyNeeded before calling)
-			var remaining = CalculateSupplyAfterRearm(3, 1, 5);
-			Assert.That(remaining, Is.EqualTo(-2));
+			// 9 batches × 5 supply = 45 supply for a full 900-round refill.
+			var supply = 500;
+			for (var i = 0; i < 9; i++)
+				supply = SupplyAfterBatchDelivered(supply, 5);
+			Assert.That(supply, Is.EqualTo(500 - 45));
+		}
+
+		// --- Per-batch evac/sell deduction (CustomSellValue) ---
+
+		[Test]
+		public void FullPoolHasNoDeduction()
+		{
+			// Bradley autocannon at max: Ammo=900, current=900 → 0 missing.
+			var missing = PoolMissingValue(maxAmmo: 900, currentAmmo: 900, reloadCount: 100, supplyValue: 5);
+			Assert.That(missing, Is.EqualTo(0));
+		}
+
+		[Test]
+		public void EmptyPoolDeductsFullBudget()
+		{
+			// Bradley autocannon fully empty: 9 batches × 5 = 45.
+			var missing = PoolMissingValue(maxAmmo: 900, currentAmmo: 0, reloadCount: 100, supplyValue: 5);
+			Assert.That(missing, Is.EqualTo(45));
+		}
+
+		[Test]
+		public void PartialBatchDoesNotCount()
+		{
+			// 99/100 rounds missing in a 100-round batch = 0 full batches missing.
+			// Spec: "missingBatches = floor(missing / ReloadCount)".
+			var missing = PoolMissingValue(maxAmmo: 100, currentAmmo: 1, reloadCount: 100, supplyValue: 5);
+			Assert.That(missing, Is.EqualTo(0));
+		}
+
+		[Test]
+		public void TowMissileDeductsImmediately()
+		{
+			// TOW: ReloadCount 1, SV 75. Each fired missile = 1 missing batch = 75 deduction.
+			var missing = PoolMissingValue(maxAmmo: 8, currentAmmo: 5, reloadCount: 1, supplyValue: 75);
+			Assert.That(missing, Is.EqualTo(3 * 75));
+		}
+
+		[Test]
+		public void TankShellDeductsByBatch()
+		{
+			// Abrams 120mm: Ammo=40, ReloadCount=5, SV=30.
+			// Firing 13 shells = 13 missing → 2 full batches (10 rounds) = 60.
+			var missing = PoolMissingValue(maxAmmo: 40, currentAmmo: 27, reloadCount: 5, supplyValue: 30);
+			Assert.That(missing, Is.EqualTo(2 * 30));
 		}
 
 		// --- Selection bar ---
@@ -124,7 +178,6 @@ namespace OpenRA.Test
 		[Test]
 		public void SelectionBarValue()
 		{
-			// Mirrors ISelectionBar.GetValue: currentSupply / totalSupply
 			var totalSupply = 500;
 
 			Assert.That((float)500 / totalSupply, Is.EqualTo(1.0f));

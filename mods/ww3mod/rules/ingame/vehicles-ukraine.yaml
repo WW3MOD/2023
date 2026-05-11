@@ -54,12 +54,12 @@ t72:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 40
+		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# Per-shell value. 40 × 4 = 160 ≈ 9.4% of unit cost (1700). Mirrors
-		# the Abrams/T-90 ratio — older-gen tank, slightly cheaper rounds.
-		SupplyValue: 4
-		CreditValue: 4
+		# 125mm: 8 batches × 5 shells × 20 supply = 160 (~9.4% of cost 1700).
+		# Mirrors Abrams/T-90 — older-gen tank, slightly cheaper rounds.
+		SupplyValue: 20
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3

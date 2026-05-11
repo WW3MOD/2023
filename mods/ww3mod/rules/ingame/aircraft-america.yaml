@@ -165,11 +165,10 @@ littlebird:
 		Name: primary-ammo
 		Armaments: primary, primary-air
 		Ammo: 160
+		ReloadCount: 40
 		AmmoCondition: ammo-primary
-		# 7.62mm minigun ammo bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round × 160 would dwarf the Hellfire pool's contribution).
+		# 7.62mm minigun: 4 batches × 40 rounds × 1 supply = 4 (~0.1% of cost 3000).
 		SupplyValue: 1
-		CreditValue: 0
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -197,11 +196,9 @@ littlebird:
 		Armaments: secondary
 		Ammo: 2
 		AmmoCondition: ammo-secondary
-		# Per-Hellfire value. 2 × 200 = 400 ≈ 13% of unit cost (3000). The
-		# Hellfire pair is the Littlebird's main reason for existing — high
-		# per-missile value reflects that.
+		# Hellfire: 2 batches × 1 missile × 200 supply = 400 (~13% of cost 3000).
+		# Universal Hellfire rate.
 		SupplyValue: 200
-		CreditValue: 200
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -331,11 +328,10 @@ HELI:
 		Name: primary-ammo
 		Armaments: primary
 		Ammo: 200
+		ReloadCount: 40
 		AmmoCondition: ammo-primary
-		# 30mm chain-gun ammo bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round × 200 rounds would dwarf the Hellfire pool's contribution).
-		SupplyValue: 3
-		CreditValue: 0
+		# 30mm chain gun: 5 batches × 40 rounds × 5 supply = 25 (~0.4% of cost 6000).
+		SupplyValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -362,11 +358,9 @@ HELI:
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
-		# Per-Hellfire value. 8 × 200 = 1600 ≈ 27% of unit cost (6000). Apache
-		# full Hellfire load is the main combat asset — keep it expensive so
-		# emptying the missile racks is a real budget commitment.
+		# Hellfire: 8 batches × 1 missile × 200 supply = 1600 (~27% of cost 6000).
+		# Universal Hellfire rate. Apache's full rack is a real budget commitment.
 		SupplyValue: 200
-		CreditValue: 200
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -449,12 +443,11 @@ A10:
 	AmmoPool@1:
 		Name: primary-ammo
 		Ammo: 100
+		ReloadCount: 25
 		AmmoCondition: ammo-primary
 		Armaments: primary
-		# 30mm GAU-8 ammo bulk-cheap; CreditValue: 0 keeps full evac refund.
-		# (Per-round × 100 rounds would still dwarf the Hellfire pool.)
-		SupplyValue: 3
-		CreditValue: 0
+		# 30mm GAU-8: 4 batches × 25 rounds × 5 supply = 20 (~0.3% of cost 6000).
+		SupplyValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -482,10 +475,9 @@ A10:
 		Ammo: 4
 		AmmoCondition: ammo-secondary
 		Armaments: secondary
-		# Per-Hellfire value. 4 × 200 = 800 ≈ 13% of unit cost (6000). Hellfire
-		# is Hellfire regardless of platform — mirrors Apache/Littlebird.
+		# Hellfire: 4 batches × 1 missile × 200 supply = 800 (~13% of cost 6000).
+		# Universal Hellfire rate.
 		SupplyValue: 200
-		CreditValue: 200
 	ReloadAmmoPool@1:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -573,11 +565,9 @@ F16:
 		Armaments: primary
 		Ammo: 6
 		ReloadDelay: 100
-		# Per-AAM value. 6 × 100 = 600 = 10% of unit cost (6000). Real AIM-9X
-		# ~$400K vs F-16 ~$30M (~8%); we run a touch above to make AAMs feel
-		# like a deliberate spend, not a freebie.
+		# AAM (AIM-9X-class): 6 batches × 1 missile × 100 supply = 600 (~10% of
+		# cost 6000). Universal AAM rate.
 		SupplyValue: 100
-		CreditValue: 100
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -600,11 +590,10 @@ F16:
 		AmmoCondition: ammo-secondary
 		Armaments: secondary
 		Ammo: 150
+		ReloadCount: 30
 		ReloadDelay: 100
-		# 20mm M61 cannon ammo bulk-cheap; CreditValue: 0 keeps full evac refund
-		# (per-round × 150 rounds would dwarf the AAM pool's contribution).
+		# 20mm M61 cannon: 5 batches × 30 rounds × 1 supply = 5 (~0.08% of cost 6000).
 		SupplyValue: 1
-		CreditValue: 0
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

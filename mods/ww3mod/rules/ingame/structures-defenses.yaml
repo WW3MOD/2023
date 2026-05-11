@@ -637,13 +637,13 @@ CRAM:
 	AmmoPool:
 		Armaments: primary
 		Ammo: 24
+		ReloadCount: 4
 		AmmoCondition: ammo
 		ReloadDelay: 6
-		# Per-shell value. 24 × 5 = 120 = 12% of unit cost (1000). Static AA
-		# defense — pool reloads after each volley, so this is the per-volley
-		# evac/sell deduction.
-		SupplyValue: 5
-		CreditValue: 5
+		# 20mm CRAM: 6 batches × 4 rounds × 20 supply = 120 (~12% of cost 1000).
+		# Pool self-reloads via ReloadAmmoPool below — supply is only spent on
+		# initial loadout deductions for evac/sell math.
+		SupplyValue: 20
 	WithAmmoPipsDecoration:
 		Position: Bottom
 		Margin: 4, 3
@@ -715,11 +715,12 @@ AGUN:
 	AmmoPool:
 		Armaments: primary
 		Ammo: 24
+		ReloadCount: 4
 		AmmoCondition: ammo
 		ReloadDelay: 6
-		# Per-shell value. 24 × 5 = 120 = 15% of unit cost (800). Mirrors CRAM.
-		SupplyValue: 5
-		CreditValue: 5
+		# Dual cannon: 6 batches × 4 rounds × 20 supply = 120 (~15% of cost 800).
+		# Mirrors CRAM.
+		SupplyValue: 20
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		Margin: 4, 3
@@ -925,12 +926,12 @@ FTUR:
 	AmmoPool:
 		Armaments: primary, secondary
 		Ammo: 10
+		ReloadCount: 5
 		AmmoCondition: ammo
 		ReloadDelay: 40
-		# Flame-fuel is bulk-cheap; CreditValue: 0 keeps full evac refund. The
-		# turret's value is the structure, not its tank of fuel.
-		SupplyValue: 2
-		CreditValue: 0
+		# Flame fuel: 2 batches × 5 ticks × 1 supply = 2 (~0.2% of cost 1000).
+		# The turret's value is the structure, not the tank of fuel.
+		SupplyValue: 1
 	AttackTurreted:
 		Armaments: primary, secondary
 		Turrets: ranged-turret, melee-turret

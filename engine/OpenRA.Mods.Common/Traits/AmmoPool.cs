@@ -50,11 +50,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Should actor automatically move to rearm when out of ammo.")]
 		public readonly string AutoRearmCondition = null;
 
-		[Desc("Supply cost per ammo unit when rearmed by a SupplyProvider.")]
+		[Desc("Cost per batch of ReloadCount rounds. Charged when a SupplyProvider rearms",
+			"this pool, and deducted from sell/evac refund per missing batch.")]
 		public readonly int SupplyValue = 1;
-
-		[Desc("Credit value per ammo unit. Missing ammo reduces sell/rotation value.")]
-		public readonly int CreditValue = 0;
 
 		[Desc("Sound to play for each reloaded ammo magazine.")]
 		public readonly string RearmSound = null;
@@ -88,8 +86,14 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
 					.Distinct());
 
-			var totalCost = Ammo * SupplyValue;
-			return $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {totalCost}";
+			// Batch math: ammo is dispensed in chunks of ReloadCount rounds, each
+			// chunk costs SupplyValue. Total pool budget = batches × SupplyValue.
+			var batchSize = System.Math.Max(1, ReloadCount);
+			var batches = (Ammo + batchSize - 1) / batchSize;
+			var totalCost = batches * SupplyValue;
+			return batchSize == 1
+				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {totalCost}"
+				: $"{label}\n  Ammo: {Ammo} ({batches} batches × {batchSize} rounds × {SupplyValue} supply = {totalCost})";
 		}
 
 		static string FormatWeaponLabel(string raw)
