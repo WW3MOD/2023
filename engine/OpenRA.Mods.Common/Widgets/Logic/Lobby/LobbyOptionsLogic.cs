@@ -29,6 +29,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static readonly Color PlaceholderTextColor = Color.FromArgb(0xad, 0xb5, 0xbd);
 		const string PlaceholderTooltipSuffix = "Not yet implemented — visual placeholder for a future feature.";
 
+		// Amber accent for ADVANCED section headers whose options are all placeholder.
+		// Tells the user "this whole group does nothing yet" once, instead of cluttering every row.
+		static readonly Color PlaceholderSectionColor = Color.FromArgb(0xc2, 0x41, 0x0c);
+		const string PlaceholderSectionSuffix = "  —  placeholders, not yet wired";
+
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
 		readonly Widget checkboxRowTemplate;
@@ -46,81 +51,100 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Dictionary<string, ButtonWidget> tabButtons = new();
 		readonly LabelWidget summaryLabel;
 
-		// Category assignments for options that don't set their own Category
-		static readonly Dictionary<string, string> CategoryOverrides = new()
+		// WW3MOD: options are split into two top-level groups.
+		// Common — frequently-changed, fully-working options. (Step 3 will move these onto the PLAYERS panel.)
+		// Advanced — everything else. Mostly placeholder dummies plus developer toggles.
+		const string CategoryCommon = "Common";
+		const string CategoryAdvanced = "Advanced";
+
+		static readonly HashSet<string> CommonOptionIds = new()
 		{
-			// Economy
-			{ "startingcash", "Economy" },
-			{ "passiveincome", "Economy" },
-			{ "incomemodifier", "Economy" },
-
-			// Map
-			{ "explored", "Map" },
-			{ "fog", "Map" },
-			{ "separateteamspawns", "Map" },
-
-			// Rules
-			{ "gamespeed", "Rules" },
-			{ "timelimit", "Rules" },
-			{ "startingunits", "Rules" },
-
-			// Rules (player-level options)
-			{ "bounty", "Rules" },
-
-			// Advanced
-			{ "cheats", "Advanced" },
-			{ "sync", "Advanced" },
+			// Economy basics
+			"startingcash", "passiveincome", "incomemodifier",
+			// Map visibility
+			"explored", "fog", "separateteamspawns",
+			// Rule basics
+			"gamespeed", "timelimit", "startingunits",
+			// Player-level
+			"bounty",
 		};
 
-		// Hidden options (removed from WW3MOD)
+		// Options never shown in the lobby (deliberately removed from WW3MOD).
 		static readonly HashSet<string> HiddenOptionIds = new()
 		{
 			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
 		};
 
-		// Map sub-categories to top-level tabs
-		static readonly Dictionary<string, string> CategoryAliases = new()
+		// Section grouping within the ADVANCED tab. Sections render in the declared order.
+		// Any option not listed here ends up in the implicit "Other" section at the bottom.
+		const string SectionUnitAvailability = "Unit Availability";
+		const string SectionCombatTuning = "Combat Tuning";
+		const string SectionGameRules = "Game Rules";
+		const string SectionDeveloper = "Developer";
+
+		static readonly string[] AdvancedSectionOrder =
 		{
-			{ "Powers", "Rules" },
-			{ "Units.Infantry", "Units" },
-			{ "Units.Vehicles", "Units" },
-			{ "Units.Aircraft", "Units" },
+			SectionUnitAvailability,
+			SectionCombatTuning,
+			SectionGameRules,
+			SectionDeveloper,
 		};
 
-		// Section headers to insert for sub-categories within a tab
-		static readonly Dictionary<string, string[]> TabSections = new()
+		static readonly Dictionary<string, string> OptionSection = new()
 		{
-			{ "Units", new[] { "Units.Infantry", "Units.Vehicles", "Units.Aircraft" } },
-		};
+			// Unit Availability — every "unit-*" option from LobbyDummyOptions
+			{ "unit-conscripts", SectionUnitAvailability },
+			{ "unit-riflemen", SectionUnitAvailability },
+			{ "unit-grenadiers", SectionUnitAvailability },
+			{ "unit-snipers", SectionUnitAvailability },
+			{ "unit-antitank", SectionUnitAvailability },
+			{ "unit-manpads", SectionUnitAvailability },
+			{ "unit-specops", SectionUnitAvailability },
+			{ "unit-flamethrower", SectionUnitAvailability },
+			{ "unit-support-inf", SectionUnitAvailability },
+			{ "unit-drone-ops", SectionUnitAvailability },
+			{ "unit-light-vehicles", SectionUnitAvailability },
+			{ "unit-apcs", SectionUnitAvailability },
+			{ "unit-ifvs", SectionUnitAvailability },
+			{ "unit-mbts", SectionUnitAvailability },
+			{ "unit-artillery", SectionUnitAvailability },
+			{ "unit-mlrs", SectionUnitAvailability },
+			{ "unit-shorad", SectionUnitAvailability },
+			{ "unit-tactical-missiles", SectionUnitAvailability },
+			{ "unit-thermobaric", SectionUnitAvailability },
+			{ "unit-transport-heli", SectionUnitAvailability },
+			{ "unit-scout-heli", SectionUnitAvailability },
+			{ "unit-attack-heli", SectionUnitAvailability },
+			{ "unit-ground-attack", SectionUnitAvailability },
+			{ "unit-fighters", SectionUnitAvailability },
 
-		static readonly Dictionary<string, string> SectionLabels = new()
-		{
-			{ "Units.Infantry", "INFANTRY" },
-			{ "Units.Vehicles", "VEHICLES" },
-			{ "Units.Aircraft", "AIRCRAFT" },
+			// Combat Tuning — all dummy global tuning knobs
+			{ "weapon-range", SectionCombatTuning },
+			{ "damage-scale", SectionCombatTuning },
+			{ "suppression", SectionCombatTuning },
+			{ "veterancy-rate", SectionCombatTuning },
+			{ "build-speed", SectionCombatTuning },
+			{ "supply-capacity", SectionCombatTuning },
+			{ "sight-range", SectionCombatTuning },
+
+			// Game Rules
+			{ "friendly-fire", SectionGameRules },
+			{ "bounty-percent", SectionGameRules },
+			{ "powers-enabled", SectionGameRules },
+
+			// Developer
+			{ "cheats", SectionDeveloper },
+			{ "sync", SectionDeveloper },
 		};
 
 		static string GetCategory(LobbyOption option)
 		{
-			string cat;
-			if (CategoryOverrides.TryGetValue(option.Id, out cat))
-				return CategoryAliases.TryGetValue(cat, out var alias) ? alias : cat;
-
-			if (!string.IsNullOrEmpty(option.Category))
-			{
-				cat = option.Category;
-				return CategoryAliases.TryGetValue(cat, out var alias) ? alias : cat;
-			}
-
-			return "Rules";
+			return CommonOptionIds.Contains(option.Id) ? CategoryCommon : CategoryAdvanced;
 		}
 
-		static string GetSubCategory(LobbyOption option)
+		static string GetSection(LobbyOption option)
 		{
-			if (!string.IsNullOrEmpty(option.Category))
-				return option.Category;
-
-			return "";
+			return OptionSection.TryGetValue(option.Id, out var section) ? section : "Other";
 		}
 
 		static (string Title, string Desc) ResolveTooltip(LobbyOption option)
@@ -167,7 +191,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var tabContainer = lobbyBin?.GetOrNull("TAB_BUTTONS");
 			if (tabContainer != null)
 			{
-				var tabNames = new[] { "COMBAT", "ECONOMY", "UNITS", "MAP", "RULES", "ADVANCED" };
+				var tabNames = new[] { "COMMON", "ADVANCED" };
 				foreach (var name in tabNames)
 				{
 					var btn = tabContainer.GetOrNull<ButtonWidget>("TAB_" + name);
@@ -182,7 +206,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 
 				if (tabButtons.Count > 0)
-					activeTab = "Combat";
+					activeTab = CategoryCommon;
 			}
 
 			mapPreview = getMap();
@@ -208,7 +232,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
-		void AddSectionHeader(string text)
+		void AddSectionHeader(string text, bool allPlaceholder = false)
 		{
 			if (sectionHeaderTemplate == null)
 				return;
@@ -220,7 +244,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var label = header.GetOrNull<LabelWidget>("HEADER_LABEL");
 			if (label != null)
-				label.GetText = () => text;
+			{
+				var displayText = allPlaceholder ? text.ToUpperInvariant() + PlaceholderSectionSuffix : text.ToUpperInvariant();
+				label.GetText = () => displayText;
+				if (allPlaceholder)
+					label.GetColor = () => PlaceholderSectionColor;
+			}
 
 			optionsContainer.AddChild(header);
 		}
@@ -239,7 +268,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.OrderBy(o => o.DisplayOrder)
 					.ToArray();
 
-			// Filter by active tab if tabs are enabled
 			var filteredOptions = allOptions;
 			if (!string.IsNullOrEmpty(activeTab))
 			{
@@ -249,12 +277,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.ToArray();
 			}
 
-			// Update summary label
 			UpdateSummary(allOptions);
 
-			// Check if this tab has sections
-			if (TabSections.TryGetValue(activeTab, out var sections))
-				RenderSectionedOptions(filteredOptions, sections);
+			if (activeTab == CategoryAdvanced)
+				RenderAdvancedSections(filteredOptions);
 			else
 				RenderFlatOptions(filteredOptions);
 
@@ -264,25 +290,26 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			panel.ScrollToTop();
 		}
 
-		void RenderSectionedOptions(LobbyOption[] options, string[] sections)
+		void RenderAdvancedSections(LobbyOption[] options)
 		{
-			foreach (var section in sections)
+			foreach (var section in AdvancedSectionOrder)
 			{
-				var sectionOptions = options.Where(o => GetSubCategory(o) == section).ToArray();
+				var sectionOptions = options.Where(o => GetSection(o) == section).ToArray();
 				if (sectionOptions.Length == 0)
 					continue;
 
-				if (SectionLabels.TryGetValue(section, out var label))
-					AddSectionHeader(label);
-
+				AddSectionHeader(section, sectionOptions.All(o => o.Placeholder));
 				RenderFlatOptions(sectionOptions);
 			}
 
-			// Render any options that don't belong to a section
-			var sectionSet = new HashSet<string>(sections);
-			var unsectioned = options.Where(o => !sectionSet.Contains(GetSubCategory(o))).ToArray();
+			// Any options that didn't map to a known section render under "Other".
+			var declared = new HashSet<string>(AdvancedSectionOrder);
+			var unsectioned = options.Where(o => !declared.Contains(GetSection(o))).ToArray();
 			if (unsectioned.Length > 0)
+			{
+				AddSectionHeader("Other", unsectioned.All(o => o.Placeholder));
 				RenderFlatOptions(unsectioned);
+			}
 		}
 
 		void RenderFlatOptions(LobbyOption[] options)
