@@ -257,6 +257,10 @@
 
 World:
 	Inherits: ^BaseWorld
+	# AI tournament harness — silently no-op unless launched with both
+	# Test.Mode=true AND Test.TournamentConfig=<path>. See
+	# WORKSPACE/plans/260511_ai_tournament_harness.md
+	BotVsBotMatchWatcher:
 	ScenarioLobbyDropdown:
 	HealerClaimLayer:
 	UnitDefaultsManager:

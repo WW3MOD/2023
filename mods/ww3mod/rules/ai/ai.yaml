@@ -1,5 +1,32 @@
 Player:
 	# ===== Bot Types =====
+	#
+	# Condition map — when adding a new bot type or wiring a new module,
+	# pick the right condition:
+	#
+	#   enable-ai-any           granted to: normal, rush, turtle, v2
+	#                           use for:    truly universal modules (intel, repair, scout)
+	#
+	#   enable-ai-player        granted to: normal, v2
+	#                           use for:    the "normal baseline" — modules that the
+	#                                       default Normal AI uses and that v2 inherits
+	#                                       as its starting point. Misleadingly named:
+	#                                       it does NOT mean "any AI player". Kept for
+	#                                       backwards compatibility with existing wiring.
+	#                           PITFALL: this is not a synonym for "any AI". Rush and
+	#                                    turtle do NOT get this condition.
+	#
+	#   enable-ai-rush          granted to: rush
+	#   enable-ai-turtle        granted to: turtle
+	#   enable-ai-v2            granted to: v2     — use for NEW v2-only modules
+	#   enable-ai-legacy-only   granted to: normal, rush, turtle (everyone except v2)
+	#                           use for:    modules that v2 replaces — keep the legacy
+	#                                       module around for tournament baselines.
+	#
+	# Tournament harness uses these conditions to A/B test v2 against the legacy
+	# Normal AI without rebuilding the binary. See:
+	#   WORKSPACE/plans/260511_ai_tournament_harness.md
+	#   WORKSPACE/ai/tournament_swap_guide.md
 	ModularBot@normal:
 		Name: Normal AI
 		Type: normal
@@ -9,20 +36,36 @@ Player:
 	ModularBot@turtle:
 		Name: Turtle AI
 		Type: turtle
+	ModularBot@v2:
+		Name: V2 AI (experimental)
+		Type: v2
 
+	# Bots list expanded to include v2 so v2 inherits the normal-tier modules
+	# as its baseline. New v2-only modules use `enable-ai-v2` instead.
 	GrantConditionOnBotOwner@normal:
 		Condition: enable-ai-player
-		Bots: normal
+		Bots: normal, v2
 	GrantConditionOnBotOwner@rush:
 		Condition: enable-ai-rush
 		Bots: rush
 	GrantConditionOnBotOwner@turtle:
 		Condition: enable-ai-turtle
 		Bots: turtle
+	GrantConditionOnBotOwner@v2:
+		Condition: enable-ai-v2
+		Bots: v2
 
 	# Unified condition for any AI type (used by shared modules)
 	GrantConditionOnBotOwner@anyai:
 		Condition: enable-ai-any
+		Bots: normal, rush, turtle, v2
+
+	# Inverse of @v2 — "any legacy AI but not v2". Reserved for future use when
+	# v2 replaces a module: the old module moves to enable-ai-legacy-only, the
+	# new v2 module gets enable-ai-v2. Currently unused — every existing module
+	# is shared between normal-tier and v2 baseline.
+	GrantConditionOnBotOwner@legacyonly:
+		Condition: enable-ai-legacy-only
 		Bots: normal, rush, turtle
 
 	# Shared blackboard for inter-module coordination
