@@ -88,6 +88,10 @@ MapFolders:
 	ww3mod|maps: System
 	~^SupportDir|maps/ww3mod: User
 	# ~^SupportDir|maps/ra/release-20230225: User
+	# Autotest/demo scenarios. Class=Unknown hides them from every UI tab
+	# (lobby, missions, main-menu chooser) while still letting the engine
+	# resolve them by folder name via Launch.Map=test-foo / demo-foo.
+	^EngineDir|tools/autotest/scenarios: Unknown
 
 Rules:
 	ww3mod|rules/misc.yaml
