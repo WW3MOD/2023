@@ -496,22 +496,34 @@ namespace OpenRA.Mods.Common.Traits
 				restocking = true;
 				var move = self.Trait<IMove>();
 
-				// Drive to the logistics center
+				// Drive to the host (e.g., logistics center).
 				var targetCell = self.World.Map.CellContaining(restockTarget.CenterPosition);
 				self.QueueActivity(false, move.MoveTo(targetCell, ignoreActor: restockTarget));
 
-				// Wait briefly to simulate restocking
+				// Wait briefly to simulate restocking.
 				self.QueueActivity(new Wait(25));
 
-				// Refill supply
+				// Drain supply from the host into self. No free refills — the
+				// host's pool drops by exactly the amount transferred, capped at
+				// what the host has on hand.
 				self.QueueActivity(new CallFunc(() =>
 				{
-					currentSupply = Info.TotalSupply;
+					var hostProvider = restockTarget.TraitOrDefault<SupplyProvider>();
+					if (hostProvider != null)
+					{
+						var needed = Info.TotalSupply - currentSupply;
+						var taken = System.Math.Min(needed, hostProvider.CurrentSupply);
+						if (taken > 0 && hostProvider.DeductSupply(taken))
+						{
+							currentSupply += taken;
+							UpdateSupplyConditions();
+						}
+					}
+
 					restocking = false;
-					UpdateSupplyConditions();
 				}));
 
-				// Follow rally point if the restock target has one
+				// Follow rally point if the restock target has one.
 				var rp = restockTarget.TraitOrDefault<RallyPoint>();
 				if (rp != null && rp.Path.Count > 0)
 					foreach (var cell in rp.Cells)
