@@ -41,9 +41,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"friendly-fire",
 		};
 
-		// Options that live on the Players panel (Common). Anything not in this set
-		// is treated as Advanced for click-to-jump routing. Must stay in sync with
-		// LobbyOptionsLogic.CommonOptionIds.
+		// PITFALL: this set must stay in sync with LobbyOptionsLogic.CommonOptionIds.
+		// If they drift, a chip's click-to-jump will land on the wrong tab and the
+		// option won't appear there because the option-list filter disagrees. Keep
+		// them as one list mentally; the duplication is just to avoid a public API.
 		static readonly HashSet<string> CommonOptionIds = new()
 		{
 			"startingcash", "passiveincome", "incomemodifier",
@@ -131,6 +132,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				var bg = chip.GetOrNull<ColorBlockWidget>("BG");
 				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");
+
+				// Size each chip to its text rather than the template's fixed 180px.
+				// Saves horizontal room so more chips fit on one row.
+				if (lbl != null)
+				{
+					var font = Game.Renderer.Fonts[lbl.Font];
+					var textWidth = font.Measure(text).X;
+					var chipWidth = Math.Min(textWidth + 16, 240);
+					chip.Bounds.Width = chipWidth;
+					lbl.Bounds.Width = chipWidth;
+				}
 
 				Color fill, ink;
 				switch (klass)
