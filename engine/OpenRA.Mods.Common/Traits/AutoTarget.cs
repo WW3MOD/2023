@@ -672,7 +672,7 @@ namespace OpenRA.Mods.Common.Traits
 			var chosenTargetRange = 0;
 			var chosenTargetAverageDamagePercent = 0;
 			var chosenTargetSuppression = 0;
-			var chosenTargetValue = int.MaxValue;
+			var chosenTargetValue = long.MaxValue;
 
 			foreach (var target in targetsInRange)
 			{
@@ -758,7 +758,25 @@ namespace OpenRA.Mods.Common.Traits
 
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 
-				var priorityValue = 0;
+				// PITFALL: priority MUST be categorical — a tank should always shoot a tank
+				// before a crewman, regardless of how close the crewman is. The pre-260511
+				// formula was `range / Priority`, which made an Infantry-priority target at
+				// ~40% the range of a Heavy-priority target win. That made tanks pivot to
+				// freshly-ejected crew next to them and lose the duel against the surviving
+				// enemy MBT. See balance autotest test-balance-tank-mass for the original
+				// repro.
+				//
+				// New encoding (lower priorityValue = better):
+				//   - Effective Priority bucket dominates: subtract Priority * BucketSize.
+				//   - Within a bucket, range tiebreaks (closer wins).
+				//   - CriticalDamage and damage% remain soft anti-overkill nudges; they sit
+				//     well within one bucket so they never cross priority classes.
+				//   - ConditionalPriority is now interpreted as "promote this priority by 1
+				//     when the condition is granted" (e.g. suppressed infantry get a Sniper's
+				//     elevated bucket). Only fires when both ConditionalPriority>0 AND the
+				//     ExternalCondition is actually granted (>0) on the target.
+				const long PriorityBucketSize = 1L << 24;  // 16 777 216 — far above any plausible map range
+				long priorityValue;
 
 				// Evaluate whether we want to target this actor
 				foreach (var ati in reusableValidPriorities)
@@ -772,21 +790,22 @@ namespace OpenRA.Mods.Common.Traits
 					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
 						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
 
-					// Shorter range has higher priority
+					// Shorter range has higher priority (within a bucket)
 					priorityValue += targetRange;
 
 					// Deprioritize targets with significant incoming damage (soft penalty before hard skip)
 					if (target.Actor.AverageDamagePercent > 50)
 						priorityValue += targetRange * target.Actor.AverageDamagePercent / 50;
 
-					// Optionally: Prioritize targets with the priorityCondition
-					if (ati.ConditionalPriority > 0)
-						priorityValue /= ati.ConditionalPriority * ((priorityCondition ?? 0) + 1);
+					// Categorical bucket: highest Priority always wins. ConditionalPriority
+					// promotes the bucket by 1 when its named condition is actually granted.
+					var effectivePriority = ati.Priority;
+					if (ati.ConditionalPriority > 0 && (priorityCondition ?? 0) > 0)
+						effectivePriority += 1;
 
-					// Divide by the original Priority value, lower Priority is more prioritized
-					priorityValue /= ati.Priority;
+					priorityValue -= (long)effectivePriority * PriorityBucketSize;
 
-					// Reversed from original OpenRA, lower value is higher priority. If we have no chosen target this is the first and should be added directly.
+					// Lower value = higher priority. Skip if we already have a strictly better one.
 					if (priorityValue >= chosenTargetValue && chosenTarget.Type != TargetType.Invalid)
 						continue;
 
