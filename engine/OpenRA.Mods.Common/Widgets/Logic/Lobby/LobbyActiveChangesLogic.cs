@@ -41,6 +41,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"friendly-fire",
 		};
 
+		// Options that live on the Players panel (Common). Anything not in this set
+		// is treated as Advanced for click-to-jump routing. Must stay in sync with
+		// LobbyOptionsLogic.CommonOptionIds.
+		static readonly HashSet<string> CommonOptionIds = new()
+		{
+			"startingcash", "passiveincome", "incomemodifier",
+			"explored", "fog", "separateteamspawns",
+			"gamespeed", "timelimit", "startingunits",
+			"bounty",
+		};
+
 		static readonly Color IncreasedFill = Color.FromArgb(0xb2, 0xf2, 0xbb);
 		static readonly Color IncreasedText = Color.FromArgb(0x0e, 0x5e, 0x2d);
 		static readonly Color DecreasedFill = Color.FromArgb(0xff, 0xc9, 0xc9);
@@ -136,6 +147,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var captured = text;
 					lbl.GetText = () => captured;
 					lbl.GetColor = () => ink;
+				}
+
+				// Clicking the chip jumps to the panel that owns this option.
+				var hit = chip.GetOrNull<ButtonWidget>("HIT");
+				if (hit != null)
+				{
+					var optId = opt.Id;
+					hit.OnClick = () =>
+					{
+						var target = CommonOptionIds.Contains(optId) ? "Players" : "Options";
+						LobbyLogic.SwitchPanel?.Invoke(target);
+					};
 				}
 
 				container.AddChild(chip);
