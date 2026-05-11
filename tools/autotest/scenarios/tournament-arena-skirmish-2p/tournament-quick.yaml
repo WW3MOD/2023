@@ -1,0 +1,25 @@
+# Quick sanity-check variant: 60-sim-second matches at 8× speed.
+#
+# Shorter than tournament-sanity.yaml so wall-clock per match stays in the
+# ~80-120s window even with rendering bottleneck. Trades statistical depth
+# for batch tractability — 20 seeds in ~30 min instead of 60 min.
+
+Matchup:
+	P1Bot: normal
+	P2Bot: normal
+
+TimeLimitSeconds: 60
+
+SpeedMultiplier: 8
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20
