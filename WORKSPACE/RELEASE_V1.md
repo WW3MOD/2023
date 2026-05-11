@@ -33,7 +33,7 @@
 - [ ] **Cargo system** (Phases 2A–E) — TRUK auto-rearm, mark+unload, rally points, supply drop, merge
 - [ ] **Helicopter crash + crew overhaul** — critical=total loss, safe land=neutral+repairable, capture-by-pilot-entry
 - [ ] **Stance rework** (4 phases) — modifiers (Click/Ctrl/Ctrl+Alt/Alt), resupply behavior, cohesion, patrol
-- [ ] **AI overhaul** (Tiers 0–3.1) — bot modules, multi-axis attacks
+- [~] **AI overhaul** — foundation doc 260511 (`WORKSPACE/ai/foundation_260511.md`) — 3-layer brain (Perception/Strategy/Tactics), 5 phases. Tiers 0–3.1 from 260321 stay as executors. Phase 1 next: map analyzer + debug overlay
 - [ ] **Supply Route contestation** — graduated control bar, production slowdown, notifications
 - [ ] **Three-mode move system** — Move/Attack-Move/Force-Move, SmartMove wrapping
 - [ ] **Vehicle crew system** — slot ejection, re-entry, commander substitution
