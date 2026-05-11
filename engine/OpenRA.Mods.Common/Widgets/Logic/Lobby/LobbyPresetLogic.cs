@@ -36,7 +36,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly ButtonWidget deleteButton;
 		readonly ButtonWidget resetButton;
 
-		readonly Dictionary<string, Dictionary<string, string>> presets = new();
+		// One preset → its options snapshot (option-id → value) AND its bot snapshot
+		// (slot-key → bot type). Bot faction/team are intentionally not captured yet:
+		// re-applying them requires knowing the bot's client index after slot_bot
+		// finishes server-side, which we can't predict without a deferred-order helper.
+		// Add when user demand outweighs the implementation cost.
+		sealed class Preset
+		{
+			public Dictionary<string, string> Options { get; } = new();
+			public Dictionary<string, string> Bots { get; } = new();
+		}
+
+		readonly Dictionary<string, Preset> presets = new();
 
 		[ObjectCreator.UseCtor]
 		internal LobbyPresetLogic(Widget widget, OrderManager orderManager, Func<MapPreview> getMap, Func<bool> configurationDisabled)
@@ -89,13 +100,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				foreach (var entry in presetsNode.Value.Nodes)
 				{
+					var preset = new Preset();
+
 					var optionsNode = entry.Value.Nodes.FirstOrDefault(n => n.Key == "Options");
-					if (optionsNode == null)
-						continue;
-					var opts = new Dictionary<string, string>();
-					foreach (var kv in optionsNode.Value.Nodes)
-						opts[kv.Key] = kv.Value.Value ?? string.Empty;
-					presets[entry.Key] = opts;
+					if (optionsNode != null)
+						foreach (var kv in optionsNode.Value.Nodes)
+							preset.Options[kv.Key] = kv.Value.Value ?? string.Empty;
+
+					var botsNode = entry.Value.Nodes.FirstOrDefault(n => n.Key == "Bots");
+					if (botsNode != null)
+						foreach (var kv in botsNode.Value.Nodes)
+							preset.Bots[kv.Key] = kv.Value.Value ?? string.Empty;
+
+					presets[entry.Key] = preset;
 				}
 			}
 			catch (Exception e)
@@ -114,8 +131,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					lines.Add($"\t{preset.Key}:");
 					lines.Add($"\t\tCreated: {DateTime.UtcNow:yyyy-MM-dd}");
 					lines.Add("\t\tOptions:");
-					foreach (var opt in preset.Value.OrderBy(o => o.Key))
+					foreach (var opt in preset.Value.Options.OrderBy(o => o.Key))
 						lines.Add($"\t\t\t{opt.Key}: {opt.Value}");
+					if (preset.Value.Bots.Count > 0)
+					{
+						lines.Add("\t\tBots:");
+						foreach (var bot in preset.Value.Bots.OrderBy(b => b.Key))
+							lines.Add($"\t\t\t{bot.Key}: {bot.Value}");
+					}
 				}
 
 				Directory.CreateDirectory(Platform.SupportDir);
@@ -154,8 +177,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return;
 			}
 
-			if (!presets.TryGetValue(name, out var opts))
+			if (!presets.TryGetValue(name, out var preset))
 				return;
+
+			ApplyBots(preset.Bots);
+
+			var opts = preset.Options;
 
 			var map = getMap();
 			if (map == null || map.WorldActorInfo == null)
@@ -188,6 +215,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (map == null || map.WorldActorInfo == null)
 				return;
 
+			// Defaults = no bots and all options at their declared default.
+			ApplyBots(new Dictionary<string, string>());
+
 			var allOptions = map.PlayerActorInfo.TraitInfos<ILobbyOptions>()
 				.Concat(map.WorldActorInfo.TraitInfos<ILobbyOptions>())
 				.SelectMany(t => t.LobbyOptions(map));
@@ -202,6 +232,34 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
+		// Reconciles the lobby's bot slots against `target` (slot-key → bot-type).
+		// Issues slot_open for any bot in a slot not present in target, then slot_bot
+		// for any target slot that isn't already running the requested bot type.
+		// Faction/team/color are intentionally not restored here — those need a
+		// deferred-order helper that knows the bot's client index post-creation.
+		void ApplyBots(IReadOnlyDictionary<string, string> target)
+		{
+			var botController = orderManager.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin);
+			if (botController == null)
+				return;
+
+			foreach (var slot in orderManager.LobbyInfo.Slots)
+			{
+				var current = orderManager.LobbyInfo.ClientInSlot(slot.Key);
+				var wantBot = target.TryGetValue(slot.Key, out var wantedType) ? wantedType : null;
+				var hasBot = current?.Bot != null;
+
+				if (hasBot && wantBot == null)
+				{
+					orderManager.IssueOrder(Order.Command("slot_open " + slot.Value.PlayerReference));
+				}
+				else if (wantBot != null && slot.Value.AllowBots && (!hasBot || current.Bot != wantBot))
+				{
+					orderManager.IssueOrder(Order.Command($"slot_bot {slot.Key} {botController.Index} {wantBot}"));
+				}
+			}
+		}
+
 		void SaveCurrent()
 		{
 			var name = (nameField.Text ?? string.Empty).Trim();
@@ -212,7 +270,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (map == null || map.WorldActorInfo == null)
 				return;
 
-			var snapshot = new Dictionary<string, string>();
+			var preset = new Preset();
 			var allOptions = map.PlayerActorInfo.TraitInfos<ILobbyOptions>()
 				.Concat(map.WorldActorInfo.TraitInfos<ILobbyOptions>())
 				.SelectMany(t => t.LobbyOptions(map));
@@ -222,10 +280,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (!orderManager.LobbyInfo.GlobalSettings.LobbyOptions.TryGetValue(opt.Id, out var state))
 					continue;
 				if (state.Value != opt.DefaultValue)
-					snapshot[opt.Id] = state.Value;
+					preset.Options[opt.Id] = state.Value;
 			}
 
-			presets[name] = snapshot;
+			foreach (var slot in orderManager.LobbyInfo.Slots)
+			{
+				var c = orderManager.LobbyInfo.ClientInSlot(slot.Key);
+				if (c?.Bot != null)
+					preset.Bots[slot.Key] = c.Bot;
+			}
+
+			presets[name] = preset;
 			WritePresets();
 		}
 
