@@ -140,6 +140,83 @@ config canonical and run a smoke variant. See
 
 ---
 
+## 10. `Log.Write` is buffered with a 5-second timer and lost on `Game.Exit()`
+
+**Bit:** the watcher trait's `Log.Write("debug", ...)` calls in `WorldLoaded`
+appeared in `debug.log` on long-running test runs but **disappeared** when
+`Game.Exit()` was called soon after. OpenRA's `Log` class uses
+`AutoFlush=false` plus a 5-second background flush timer
+(`engine/OpenRA.Game/Support/Log.cs:50`). When `Game.Exit()` fires before that
+timer ticks, buffered writes are abandoned.
+
+Additionally, every game launch *truncates* `debug.log` via `File.CreateText`
+(line 153) — so unwritten data from the previous launch is double-lost when the
+next launch starts.
+
+**Fix:** for diagnostic output that must survive a fast `Game.Exit()`, write
+directly to a sibling file with `File.AppendAllText` (which flushes per call).
+The watcher trait does this — see the `diag` lambda in
+`BotVsBotMatchWatcher.cs`. Writes go to `<result>.watcher.log` next to the
+verdict file. The Log.Write call is kept as a courtesy duplicate.
+
+**Don't trust `Log.Write` alone for end-of-match diagnostics.**
+
+---
+
+## 11. `IWorldLoaded` fires BEFORE `SpawnMapActors` instantiates map actors
+
+**Bit:** the watcher's WorldLoaded ran while `world.Actors` was still empty of
+map-defined actors. My SR-discovery loop found 0 SRs. Diagnostic dump confirmed
+`world has 6 actors total` (just the world/player actors) while map.yaml has
+two SRs.
+
+**Why:** `SpawnMapActors` is itself an `IWorldLoaded` trait
+(`engine/.../World/SpawnMapActors.cs:23`). OpenRA's WorldLoaded ordering isn't
+guaranteed alphabetically or by trait dependency — map actors may not exist
+yet when another world trait's WorldLoaded fires.
+
+**Fix:** defer "discover map actors" logic to the FIRST `ITick.Tick(self)` call,
+which is guaranteed to run after all WorldLoaded handlers have completed. The
+watcher's `srDiscoveryDone` flag gates this. Pattern:
+
+```csharp
+void ITick.Tick(Actor self)
+{
+    if (!srDiscoveryDone)
+        DiscoverSrsOnFirstTick(self.World);
+    ...
+}
+```
+
+This applies to **any** trait that needs to enumerate map-spawned actors. If
+your trait reads `world.Actors` in WorldLoaded and gets fewer than expected,
+this is why.
+
+---
+
+## 12. Rebuild race: `make all` finishing before pending file saves are flushed
+
+**Bit:** ran `make all && ./run-tournament.sh ...` immediately after a series
+of `Edit` tool calls. The build completed in ~5s but my latest edits arrived
+on disk AFTER the build started — the resulting DLL didn't contain the new
+code, and the diagnostic output reflected the previous version.
+
+**Why:** the harness writes files synchronously but C#'s `dotnet build` reads
+sources at the start of its job. A fast-following invocation can race.
+
+**Fix:** before kicking off a build that depends on a fresh edit, **always
+verify** that the source file mtime is older than the DLL mtime before running:
+
+```bash
+ls -la engine/OpenRA.Mods.Common/Traits/World/MyTrait.cs \
+       engine/bin/OpenRA.Mods.Common.dll
+```
+
+If source is newer than DLL after the build, rebuild. (Pattern that worked:
+edit → `ls -la <source> <dll>` → if source-newer, `make all` again.)
+
+---
+
 ## 9. Sound.Mute must be passed via launch arg, NOT toggled persistently
 
 Already covered in `run-test.sh` comments but worth reinforcing for the

@@ -40,6 +40,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using OpenRA.Mods.Common.Tournament;
@@ -73,6 +74,11 @@ namespace OpenRA.Mods.Common.Traits
 		bool finished;
 		int countdown;
 
+		// SR discovery is deferred to first tick because IWorldLoaded fires
+		// BEFORE SpawnMapActors creates the actor instances. See PITFALLS.md §11.
+		bool srDiscoveryDone;
+		Action<string> diag;
+
 		public BotVsBotMatchWatcher(BotVsBotMatchWatcherInfo info)
 		{
 			this.info = info;
@@ -83,6 +89,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (!TestMode.IsActive || string.IsNullOrEmpty(TestMode.TournamentConfigPath))
 				return;
 
+			// Diagnostic log next to the verdict file. Explicit flush — Log.Write is
+			// buffered with a 5s timer that doesn't reliably fire before Game.Exit.
+			var diagPath = !string.IsNullOrEmpty(TestMode.ResultPath)
+				? Path.ChangeExtension(TestMode.ResultPath, ".watcher.log")
+				: null;
+
+			diag = msg =>
+			{
+				try
+				{
+					if (diagPath != null)
+						File.AppendAllText(diagPath, msg + "\n");
+				}
+				catch { /* best-effort */ }
+				Log.Write("debug", "[Tournament] " + msg);
+			};
+
 			try
 			{
 				config = TournamentConfig.LoadFromFile(TestMode.TournamentConfigPath);
@@ -90,37 +113,68 @@ namespace OpenRA.Mods.Common.Traits
 				winRule = MatchHarness.CreateWinRule(config.WinRule, config);
 				state = new MatchTrackingState();
 
-				// Snapshot starting SR ownership for every playable, non-spectator,
-				// non-neutral player. The win rule checks these references against the
-				// current owner each tick.
-				foreach (var player in world.Players.Where(p => p.Playable && !p.NonCombatant && !p.Spectating))
-				{
-					var srActor = world.Actors.FirstOrDefault(a =>
-						a.Owner == player
-						&& a.Info.Name == info.SupplyRouteActorType
-						&& !a.IsDead
-						&& a.IsInWorld);
+				// Light load-time logging only. SR discovery is deferred to first
+				// Tick because IWorldLoaded fires BEFORE SpawnMapActors instantiates
+				// the actors — at this point world.Actors doesn't yet include them.
+				diag($"WorldLoaded: scorer={config.Scorer} winrule={config.WinRule} timeLimit={config.TimeLimitTicks} ticks ({config.TimeLimitSeconds}s)");
+				diag($"WorldLoaded: world has {world.Players.Length} players, {world.Actors.Count()} actors (pre-SpawnMapActors)");
 
-					if (srActor != null)
-						state.OriginalSrOwner[player] = srActor;
-				}
-
-				active = state.OriginalSrOwner.Count >= 2;
-				if (!active)
-				{
-					Log.Write("debug", $"[Tournament] Skipping — found {state.OriginalSrOwner.Count} eligible players with SRs (need 2+).");
-					TestMode.WriteResult("skip", "tournament: fewer than 2 SR-owning players found");
-					return;
-				}
-
+				active = true;
 				countdown = info.EvaluationInterval;
-				Log.Write("debug", $"[Tournament] active — scorer={config.Scorer} winrule={config.WinRule} timeLimit={config.TimeLimitTicks} ticks ({config.TimeLimitSeconds}s) players={state.OriginalSrOwner.Count}");
 			}
 			catch (Exception e)
 			{
-				Log.Write("debug", $"[Tournament] init failed: {e.Message}");
+				diag?.Invoke($"init failed: {e.Message}");
 				TestMode.WriteResult("fail", $"tournament init failed: {e.Message}");
 				active = false;
+			}
+		}
+
+		void DiscoverSrsOnFirstTick(World world)
+		{
+			srDiscoveryDone = true;
+
+			diag($"FirstTick: world has {world.Actors.Count()} actors total");
+			foreach (var a in world.Actors.Where(a => a.Info.Name == info.SupplyRouteActorType))
+				diag($"  {info.SupplyRouteActorType} #{a.ActorID} owned by {a.Owner?.InternalName ?? "<null>"} at {a.Location} (IsInWorld={a.IsInWorld} IsDead={a.IsDead})");
+
+			// Filter to actual bot combatants. The Observer player (local human's
+			// spectator slot) is Playable but spectating in intent — its PlayerReference
+			// has Spectating: True but the lobby-slot path in Player.cs ignores that
+			// for playable slots, so the runtime Spectating flag stays false. Use
+			// IsBot as the discriminator: tournament scenarios place bot combatants
+			// only, never humans.
+			foreach (var player in world.Players.Where(p => !p.NonCombatant && p.IsBot))
+			{
+				var srActor = world.Actors.FirstOrDefault(a =>
+					a.Owner == player
+					&& a.Info.Name == info.SupplyRouteActorType
+					&& !a.IsDead
+					&& a.IsInWorld);
+
+				if (srActor != null)
+				{
+					state.OriginalSrOwner[player] = srActor;
+					diag($"  → {player.InternalName} owns SR at {srActor.Location}");
+				}
+				else
+				{
+					var owned = string.Join(", ", world.Actors.Where(a => a.Owner == player).Select(a => a.Info.Name));
+					diag($"  → {player.InternalName} has NO {info.SupplyRouteActorType} (their actors: {owned})");
+				}
+			}
+
+			if (state.OriginalSrOwner.Count < 2)
+			{
+				diag($"Skipping — found {state.OriginalSrOwner.Count} eligible players with SRs (need 2+).");
+				TestMode.WriteResult("skip", "tournament: fewer than 2 SR-owning players found");
+				active = false;
+				finished = true;
+				Game.Exit();
+			}
+			else
+			{
+				diag($"Match active with {state.OriginalSrOwner.Count} SR-owning players");
 			}
 		}
 
@@ -128,6 +182,13 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!active || finished)
 				return;
+
+			if (!srDiscoveryDone)
+			{
+				DiscoverSrsOnFirstTick(self.World);
+				if (!active || finished)
+					return;
+			}
 
 			if (--countdown > 0)
 				return;
@@ -139,6 +200,13 @@ namespace OpenRA.Mods.Common.Traits
 			var scores = new Dictionary<Player, MatchScoreSnapshot>();
 			foreach (var p in state.OriginalSrOwner.Keys)
 				scores[p] = scorer.ComputeScore(p, world, state);
+
+			// Periodic diagnostic — every 5 evaluations (5 sec real-time at 25/s).
+			if (world.WorldTick % (info.EvaluationInterval * 5) < info.EvaluationInterval)
+			{
+				var scoreStr = string.Join(" / ", scores.Select(s => $"{s.Key.InternalName}={s.Value.Total}"));
+				diag?.Invoke($"tick={world.WorldTick} scores: {scoreStr}");
+			}
 
 			// Evaluate win rule.
 			var verdict = winRule.EvaluateEndState(world, state, scores, world.WorldTick, config.TimeLimitTicks);
