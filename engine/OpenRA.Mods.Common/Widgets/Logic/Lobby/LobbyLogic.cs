@@ -516,6 +516,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				startGameButton.OnClick = () =>
 				{
+					// WW3MOD: snapshot the current lobby state as the "Last game" preset
+					// so it can be one-click-restored from the preset dropdown next time.
+					LobbyPresetLogic.SnapshotLastGame?.Invoke();
+
 					// Bots and admins don't count
 					if (orderManager.LobbyInfo.Clients.Any(c => c.Slot != null && !c.IsAdmin && c.Bot == null && !c.IsReady))
 						panel = PanelType.ForceStart;
@@ -528,7 +532,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			forceStartBin.IsVisible = () => panel == PanelType.ForceStart;
 			forceStartBin.Get("KICK_WARNING").IsVisible = () => orderManager.LobbyInfo.Clients.Any(c => c.IsInvalid);
 			var forceStartButton = forceStartBin.Get<ButtonWidget>("OK_BUTTON");
-			forceStartButton.OnClick = StartGame;
+			forceStartButton.OnClick = () =>
+			{
+				LobbyPresetLogic.SnapshotLastGame?.Invoke();
+				StartGame();
+			};
 			forceStartButton.IsDisabled = StartDisabled;
 
 			forceStartBin.Get<ButtonWidget>("CANCEL_BUTTON").OnClick = () => panel = PanelType.Players;

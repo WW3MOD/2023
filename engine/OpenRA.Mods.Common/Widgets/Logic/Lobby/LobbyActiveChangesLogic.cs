@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly OrderManager orderManager;
 		readonly Func<MapPreview> getMap;
 		readonly Widget chipTemplate;
-		readonly Widget emptyHint;
+		readonly LabelWidget emptyHint;
 		string lastSnapshot = "<uninitialised>";
 
 		// Options that always render with the amber Warning treatment when set,
@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.orderManager = orderManager;
 			this.getMap = getMap;
 			chipTemplate = widget.Get("CHIP_TEMPLATE");
-			emptyHint = widget.GetOrNull("EMPTY_HINT");
+			emptyHint = widget.GetOrNull<LabelWidget>("EMPTY_HINT");
 		}
 
 		public override void Tick()
@@ -100,9 +100,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
-			var x = 5;
+			// Chips start to the right of EMPTY_HINT so the count label always has room.
+			var x = 150;
 			const int spacing = 6;
-			var any = false;
+			var count = 0;
 
 			foreach (var opt in options)
 			{
@@ -139,11 +140,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				container.AddChild(chip);
 				x += chip.Bounds.Width + spacing;
-				any = true;
+				count++;
 			}
 
 			if (emptyHint != null)
-				emptyHint.IsVisible = () => !any;
+			{
+				emptyHint.IsVisible = () => true;
+				var hintText = count == 0 ? "All settings at default." : $"Active Changes ({count}):";
+				emptyHint.GetText = () => hintText;
+			}
 		}
 
 		static (string Label, Classification Class) Classify(LobbyOption opt, string currentValue)

@@ -26,6 +26,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	{
 		const string PresetsFileName = "lobby-presets.yaml";
 		const string DefaultPresetName = "Default";
+		const string LastGamePresetName = "Last game";
+
+		// Static hook so LobbyLogic can snapshot the current state into "Last game" right
+		// before a match starts, without holding a direct reference to this logic instance.
+		// PITFALL: the chrome layer creates exactly one preset bar instance per lobby; if
+		// that ever changes we'll need a List<Action> here instead.
+		public static Action SnapshotLastGame;
 
 		readonly OrderManager orderManager;
 		readonly Func<MapPreview> getMap;
@@ -33,8 +40,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly TextFieldWidget nameField;
 		readonly DropDownButtonWidget dropdown;
 		readonly ButtonWidget saveButton;
+		readonly ButtonWidget renameButton;
 		readonly ButtonWidget deleteButton;
 		readonly ButtonWidget resetButton;
+
+		// Tracks which preset name was most recently *applied* — that's what Rename targets.
+		// Save updates a preset under nameField.Text without changing this; Rename takes
+		// the entry at activePresetName and re-keys it to nameField.Text.
+		string activePresetName = DefaultPresetName;
 
 		// One preset → its options snapshot (option-id → value) AND its bot snapshot
 		// (slot-key → bot type). Bot faction/team are intentionally not captured yet:
@@ -59,6 +72,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			nameField = widget.Get<TextFieldWidget>("PRESET_NAME");
 			dropdown = widget.Get<DropDownButtonWidget>("PRESET_DROPDOWN");
 			saveButton = widget.Get<ButtonWidget>("SAVE_PRESET_BUTTON");
+			renameButton = widget.Get<ButtonWidget>("RENAME_PRESET_BUTTON");
 			deleteButton = widget.Get<ButtonWidget>("DELETE_PRESET_BUTTON");
 			resetButton = widget.Get<ButtonWidget>("RESET_PRESET_BUTTON");
 
@@ -72,15 +86,44 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			dropdown.IsDisabled = () => configurationDisabled();
 			dropdown.OnMouseDown = _ => ShowDropdown();
 
-			saveButton.IsDisabled = () => configurationDisabled() || string.IsNullOrWhiteSpace(nameField.Text);
+			saveButton.IsDisabled = SaveDisabled;
 			saveButton.OnClick = SaveCurrent;
 
-			// Delete only enables when the typed name matches a saved preset (not Default).
-			deleteButton.IsDisabled = () => configurationDisabled() || !presets.ContainsKey((nameField.Text ?? string.Empty).Trim());
+			renameButton.IsDisabled = RenameDisabled;
+			renameButton.OnClick = RenameActive;
+
+			// Delete only enables when the typed name matches a saved preset (reserved names excluded).
+			deleteButton.IsDisabled = DeleteDisabled;
 			deleteButton.OnClick = DeleteCurrent;
 
 			resetButton.IsDisabled = () => configurationDisabled();
 			resetButton.OnClick = ResetToDefault;
+
+			SnapshotLastGame = () => SnapshotAs(LastGamePresetName);
+		}
+
+		bool IsReserved(string name) => name == DefaultPresetName || name == LastGamePresetName;
+
+		bool SaveDisabled()
+		{
+			if (configurationDisabled()) return true;
+			var n = (nameField.Text ?? string.Empty).Trim();
+			return string.IsNullOrEmpty(n) || IsReserved(n);
+		}
+
+		bool DeleteDisabled()
+		{
+			if (configurationDisabled()) return true;
+			var n = (nameField.Text ?? string.Empty).Trim();
+			return string.IsNullOrEmpty(n) || IsReserved(n) || !presets.ContainsKey(n);
+		}
+
+		bool RenameDisabled()
+		{
+			if (configurationDisabled()) return true;
+			if (IsReserved(activePresetName)) return true;
+			var n = (nameField.Text ?? string.Empty).Trim();
+			return string.IsNullOrEmpty(n) || IsReserved(n) || n == activePresetName || !presets.ContainsKey(activePresetName);
 		}
 
 		static string PresetsPath => Path.Combine(Platform.SupportDir, PresetsFileName);
@@ -152,12 +195,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void ShowDropdown()
 		{
+			// Built-ins on top, then saved presets alphabetically.
 			var entries = new List<string> { DefaultPresetName };
-			entries.AddRange(presets.Keys.OrderBy(k => k));
+			if (presets.ContainsKey(LastGamePresetName))
+				entries.Add(LastGamePresetName);
+			entries.AddRange(presets.Keys.Where(k => k != LastGamePresetName).OrderBy(k => k));
 
 			ScrollItemWidget Setup(string name, ScrollItemWidget template)
 			{
-				bool IsSelected() => (nameField.Text ?? string.Empty).Trim() == name;
+				bool IsSelected() => activePresetName == name;
 				void OnClick() => ApplyPreset(name);
 				var item = ScrollItemWidget.Setup(template, IsSelected, OnClick);
 				var label = item.Get<LabelWidget>("LABEL");
@@ -171,6 +217,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void ApplyPreset(string name)
 		{
 			nameField.Text = name;
+			activePresetName = name;
 			if (name == DefaultPresetName)
 			{
 				ResetToDefault();
@@ -211,6 +258,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void ResetToDefault()
 		{
 			nameField.Text = DefaultPresetName;
+			activePresetName = DefaultPresetName;
 			var map = getMap();
 			if (map == null || map.WorldActorInfo == null)
 				return;
@@ -263,9 +311,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void SaveCurrent()
 		{
 			var name = (nameField.Text ?? string.Empty).Trim();
-			if (string.IsNullOrEmpty(name) || name == DefaultPresetName)
+			if (string.IsNullOrEmpty(name) || IsReserved(name))
 				return;
+			SnapshotAs(name);
+			activePresetName = name;
+		}
 
+		void SnapshotAs(string name)
+		{
 			var map = getMap();
 			if (map == null || map.WorldActorInfo == null)
 				return;
@@ -297,12 +350,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void DeleteCurrent()
 		{
 			var name = (nameField.Text ?? string.Empty).Trim();
-			if (string.IsNullOrEmpty(name) || name == DefaultPresetName)
+			if (string.IsNullOrEmpty(name) || IsReserved(name))
 				return;
 			if (!presets.Remove(name))
 				return;
 			WritePresets();
+			if (activePresetName == name)
+				activePresetName = DefaultPresetName;
 			nameField.Text = DefaultPresetName;
+		}
+
+		void RenameActive()
+		{
+			var newName = (nameField.Text ?? string.Empty).Trim();
+			if (string.IsNullOrEmpty(newName) || IsReserved(newName) || newName == activePresetName)
+				return;
+			if (IsReserved(activePresetName)) return;
+			if (!presets.TryGetValue(activePresetName, out var preset)) return;
+			if (presets.ContainsKey(newName)) return; // would clobber
+
+			presets.Remove(activePresetName);
+			presets[newName] = preset;
+			activePresetName = newName;
+			WritePresets();
 		}
 	}
 }

@@ -92,9 +92,9 @@ Container@LOBBY_PLAYER_BIN:
 				Label@EMPTY_HINT:
 					X: 5
 					Y: 6
-					Width: PARENT_WIDTH - 10
+					Width: 140
 					Height: 20
-					Font: Tiny
+					Font: TinyBold
 					Align: Left
 					Text: All settings at default.
 				Container@CHIP_TEMPLATE:
@@ -140,21 +140,28 @@ Container@LOBBY_PLAYER_BIN:
 				Button@SAVE_PRESET_BUTTON:
 					X: 342
 					Y: 2
-					Width: 70
+					Width: 60
 					Height: 24
 					Font: Bold
 					Text: Save
-				Button@DELETE_PRESET_BUTTON:
-					X: 416
+				Button@RENAME_PRESET_BUTTON:
+					X: 406
 					Y: 2
 					Width: 70
+					Height: 24
+					Font: Bold
+					Text: Rename
+				Button@DELETE_PRESET_BUTTON:
+					X: 480
+					Y: 2
+					Width: 60
 					Height: 24
 					Font: Bold
 					Text: Delete
 				Button@RESET_PRESET_BUTTON:
-					X: 490
+					X: 544
 					Y: 2
-					Width: 70
+					Width: 60
 					Height: 24
 					Font: Bold
 					Text: Reset
