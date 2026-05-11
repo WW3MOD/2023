@@ -92,6 +92,22 @@ namespace OpenRA
 			}
 		}
 
+		// True when every captured screenshot's path exists on disk. Used by
+		// TestGlobal.Pass/Fail/Skip to defer Game.Exit until pending ThreadPool
+		// PNG-writes have completed — otherwise process termination kills the
+		// background workers and the files never appear.
+		public static bool AllCapturesFlushed()
+		{
+			if (captured.Count == 0)
+				return true;
+
+			foreach (var c in captured)
+				if (!File.Exists(c.Path))
+					return false;
+
+			return true;
+		}
+
 		// Lowercase, alnum + dash + underscore only. Spaces become dashes. Anything
 		// else dropped. Keeps filenames safe across Windows/macOS/Linux and
 		// predictable for the agent that later reads the verdict JSON.

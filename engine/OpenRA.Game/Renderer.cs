@@ -533,6 +533,23 @@ namespace OpenRA
 			var destWidth = screenSprite.Bounds.Width;
 			var destHeight = -screenSprite.Bounds.Height;
 
+			// PITFALL (2026-05): in test mode, the test process exits very shortly
+			// after the last screenshot (Test.Pass → Game.Exit). Background
+			// ThreadPool workers are killed at process termination, so async
+			// encodes mid-flush silently lose the PNG on disk. Synchronous saves
+			// are slower (~100-300ms per shot at 2k+ resolutions) but guarantee
+			// the file lands before the next Lua callback / Test.Pass can run.
+			// Tests run rarely; the determinism win is worth the latency hit.
+			if (OpenRA.TestMode.IsActive)
+			{
+				var dest = new byte[4 * destWidth * destHeight];
+				for (var y = 0; y < destHeight; y++)
+					Array.Copy(src, 4 * y * srcWidth, dest, 4 * y * destWidth, 4 * destWidth);
+
+				new Png(dest, SpriteFrameType.Bgra32, destWidth, destHeight).Save(path);
+				return;
+			}
+
 			ThreadPool.QueueUserWorkItem(_ =>
 			{
 				// Extract the screen rect from the (larger) backing surface

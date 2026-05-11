@@ -30,8 +30,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!TestMode.IsActive)
 				return;
 
-			TestMode.WriteResult("pass", note ?? "");
-			Game.Exit();
+			ExitWhenCapturesFlushed("pass", note ?? "");
 		}
 
 		[Desc("Mark the current test as failed (with a reason) and exit the game. " +
@@ -41,8 +40,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!TestMode.IsActive)
 				return;
 
-			TestMode.WriteResult("fail", reason ?? "");
-			Game.Exit();
+			ExitWhenCapturesFlushed("fail", reason ?? "");
 		}
 
 		[Desc("Mark the current test as skipped (with a reason) and exit the game. " +
@@ -52,8 +50,33 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!TestMode.IsActive)
 				return;
 
-			TestMode.WriteResult("skip", reason ?? "");
-			Game.Exit();
+			ExitWhenCapturesFlushed("skip", reason ?? "");
+		}
+
+		// PITFALL: Renderer.SaveScreenshot dispatches PNG encoding via
+		// ThreadPool.QueueUserWorkItem. If Game.Exit() runs while those workers
+		// are mid-flush, the process termination kills them and the files never
+		// appear on disk. So instead of writing the verdict and exiting
+		// immediately, poll AllCapturesFlushed() every 100ms (giving the render
+		// loop + ThreadPool time to actually run) until either every captured
+		// screenshot is on disk or we hit a 5s timeout — only then write the
+		// verdict and exit. 5s ceiling covers slow PNG encodes at high
+		// resolutions and multiple captures queued back-to-back. Tests with no
+		// captures fall through immediately.
+		static void ExitWhenCapturesFlushed(string status, string notes, int attempts = 0)
+		{
+			const int MaxAttempts = 50;     // 50 × 100ms = 5s ceiling
+			const int PollDelayMs = 100;
+
+			if (TestModeScreenshots.AllCapturesFlushed() || attempts >= MaxAttempts)
+			{
+				TestMode.WriteResult(status, notes);
+				Game.Exit();
+				return;
+			}
+
+			Game.RunAfterDelay(PollDelayMs, () =>
+				ExitWhenCapturesFlushed(status, notes, attempts + 1));
 		}
 
 		[Desc("Capture a screenshot tagged with `label`. The PNG lands in the per-run " +

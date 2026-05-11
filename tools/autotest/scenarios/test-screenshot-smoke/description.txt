@@ -1,0 +1,1 @@
+Auto: Capture 3 screenshots at staged beats and pass. Proves the pipeline end-to-end.
