@@ -4,6 +4,8 @@ This doc is the source of truth for how money, ammo, and supply move through a m
 
 If anything here disagrees with code, the doc is right and the code needs to change — file a fix, don't quietly drift.
 
+> **Related:** [`supply-route.md`](supply-route.md) covers the Supply Route (the sector beachhead — fixed at spawn, not a factory). This doc is about the cash/ammo/supply pipeline; that doc is about the building those flow through.
+
 ## Core principles
 
 1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.

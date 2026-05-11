@@ -113,12 +113,23 @@ Look at enemy comp, tempo, buildings → classify as rush / boom / tech / turtle
 
 These aren't optional — they're load-bearing. Any AI that ignores them will be obvious-bot.
 
-### Supply Routes are the only economic decision
+### Supply Routes are the sector beachhead — not a buildable expansion
 
-No factories means **where you place Supply Routes determines the entire game**. Two SRs by the edge = fast reinforcements but vulnerable. One SR mid-map = slow but harder to hit. The AI needs to:
-- Score every candidate SR location: edge distance, defendability, frontline distance, road access
-- Decide *when* to expand (build a second SR) based on income vs. risk
-- Defend SRs as the #1 priority — losing one cripples production
+**Read [`DOCS/reference/supply-route.md`](../../DOCS/reference/supply-route.md) first.** The SR is a starting flag near each player's spawn edge, not a Red Alert-style Construction Yard. You don't build it, you don't place it, you can't build a second one — every player spawns with exactly one, fixed, near the map edge.
+
+What the AI should reason about:
+- **Defending the home SR** is existential. It's indestructible (no damage kills it) but can be captured by engineers/technicians, and is slowed by `SupplyRouteContestation` (graduated production slowdown when enemies stand inside the 10-cell circle).
+- **Pressuring the enemy SR** is the highest-value spatial objective. A unit inside the enemy contestation circle slows their entire production.
+- **Capturing neutral SRs**, when the map has them, is the only "expand" decision. Worth more than a capturable income building only if the new SR's reinforcement edge gives a better angle than the home SR.
+- **Rally point management** is the only positioning decision an AI makes about its own SR. Move the rally as the front shifts.
+- **Reinforcement-lane awareness** — units walk a path from map edge → SR. That path is ambushable in both directions.
+
+What the AI must never assume (recurring trap):
+- "Build a second SR to expand." → Not buildable.
+- "Place the SR closer to the front." → No placement choice.
+- "Destroy the enemy SR." → Indestructible; capture and contestation only.
+
+The AI YAML currently lists `supplyroute` as `ConstructionYardTypes` / `VehiclesFactoryTypes` / `BarracksTypes` — that's an OpenRA-trait integration so production queues wire up, **not** a statement that the SR is a factory. The strategic layer must look past it.
 
 ### Capturables drive income — but only if the lobby says so
 
