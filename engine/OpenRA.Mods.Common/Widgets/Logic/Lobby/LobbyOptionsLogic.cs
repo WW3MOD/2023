@@ -24,6 +24,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference]
 		const string NotAvailable = "label-not-available";
 
+		// Visual treatment for placeholder options (LobbyOption.Placeholder=true).
+		// Matches the neutral gray used elsewhere in the dim/disabled UI palette.
+		static readonly Color PlaceholderTextColor = Color.FromArgb(0xad, 0xb5, 0xbd);
+		const string PlaceholderTooltipSuffix = "Not yet implemented — visual placeholder for a future feature.";
+
+		// Amber accent for ADVANCED section headers whose options are all placeholder.
+		// Tells the user "this whole group does nothing yet" once, instead of cluttering every row.
+		static readonly Color PlaceholderSectionColor = Color.FromArgb(0xc2, 0x41, 0x0c);
+		const string PlaceholderSectionSuffix = "  —  placeholders, not yet wired";
+
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
 		readonly Widget checkboxRowTemplate;
@@ -36,86 +46,128 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<bool> configurationDisabled;
 		MapPreview mapPreview;
 
-		// Tab support
-		string activeTab = "";
-		readonly Dictionary<string, ButtonWidget> tabButtons = new();
-		readonly LabelWidget summaryLabel;
+		// Each instance of this logic is bound to one category — Common or Advanced —
+		// declared via a hidden Label@CATEGORY_FILTER inside the panel widget.
+		// Defaults to Advanced if no marker is found, so existing callers keep working.
+		readonly string category;
 
-		// Category assignments for options that don't set their own Category
-		static readonly Dictionary<string, string> CategoryOverrides = new()
+		// WW3MOD: options are split into two top-level groups.
+		// Common — frequently-changed, fully-working options. (Step 3 will move these onto the PLAYERS panel.)
+		// Advanced — everything else. Mostly placeholder dummies plus developer toggles.
+		const string CategoryCommon = "Common";
+		const string CategoryAdvanced = "Advanced";
+
+		static readonly HashSet<string> CommonOptionIds = new()
 		{
-			// Economy
-			{ "startingcash", "Economy" },
-			{ "passiveincome", "Economy" },
-			{ "incomemodifier", "Economy" },
-
-			// Map
-			{ "explored", "Map" },
-			{ "fog", "Map" },
-			{ "separateteamspawns", "Map" },
-
-			// Rules
-			{ "gamespeed", "Rules" },
-			{ "timelimit", "Rules" },
-			{ "startingunits", "Rules" },
-
-			// Rules (player-level options)
-			{ "bounty", "Rules" },
-
-			// Advanced
-			{ "cheats", "Advanced" },
-			{ "sync", "Advanced" },
+			// Economy basics
+			"startingcash", "passiveincome", "incomemodifier",
+			// Map visibility
+			"explored", "fog", "separateteamspawns",
+			// Rule basics
+			"gamespeed", "timelimit", "startingunits",
+			// Player-level
+			"bounty",
 		};
 
-		// Hidden options (removed from WW3MOD)
+		// Options never shown in the lobby (deliberately removed from WW3MOD).
 		static readonly HashSet<string> HiddenOptionIds = new()
 		{
 			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
 		};
 
-		// Map sub-categories to top-level tabs
-		static readonly Dictionary<string, string> CategoryAliases = new()
+		// Section grouping within the ADVANCED tab. Sections render in the declared order.
+		// Any option not listed here ends up in the implicit "Other" section at the bottom.
+		const string SectionUnitAvailability = "Unit Availability";
+		const string SectionCombatTuning = "Combat Tuning";
+		const string SectionGameRules = "Game Rules";
+		const string SectionDeveloper = "Developer";
+
+		static readonly string[] AdvancedSectionOrder =
 		{
-			{ "Powers", "Rules" },
-			{ "Units.Infantry", "Units" },
-			{ "Units.Vehicles", "Units" },
-			{ "Units.Aircraft", "Units" },
+			SectionUnitAvailability,
+			SectionCombatTuning,
+			SectionGameRules,
+			SectionDeveloper,
 		};
 
-		// Section headers to insert for sub-categories within a tab
-		static readonly Dictionary<string, string[]> TabSections = new()
+		static readonly Dictionary<string, string> OptionSection = new()
 		{
-			{ "Units", new[] { "Units.Infantry", "Units.Vehicles", "Units.Aircraft" } },
-		};
+			// Unit Availability — every "unit-*" option from LobbyDummyOptions
+			{ "unit-conscripts", SectionUnitAvailability },
+			{ "unit-riflemen", SectionUnitAvailability },
+			{ "unit-grenadiers", SectionUnitAvailability },
+			{ "unit-snipers", SectionUnitAvailability },
+			{ "unit-antitank", SectionUnitAvailability },
+			{ "unit-manpads", SectionUnitAvailability },
+			{ "unit-specops", SectionUnitAvailability },
+			{ "unit-flamethrower", SectionUnitAvailability },
+			{ "unit-support-inf", SectionUnitAvailability },
+			{ "unit-drone-ops", SectionUnitAvailability },
+			{ "unit-light-vehicles", SectionUnitAvailability },
+			{ "unit-apcs", SectionUnitAvailability },
+			{ "unit-ifvs", SectionUnitAvailability },
+			{ "unit-mbts", SectionUnitAvailability },
+			{ "unit-artillery", SectionUnitAvailability },
+			{ "unit-mlrs", SectionUnitAvailability },
+			{ "unit-shorad", SectionUnitAvailability },
+			{ "unit-tactical-missiles", SectionUnitAvailability },
+			{ "unit-thermobaric", SectionUnitAvailability },
+			{ "unit-transport-heli", SectionUnitAvailability },
+			{ "unit-scout-heli", SectionUnitAvailability },
+			{ "unit-attack-heli", SectionUnitAvailability },
+			{ "unit-ground-attack", SectionUnitAvailability },
+			{ "unit-fighters", SectionUnitAvailability },
 
-		static readonly Dictionary<string, string> SectionLabels = new()
-		{
-			{ "Units.Infantry", "INFANTRY" },
-			{ "Units.Vehicles", "VEHICLES" },
-			{ "Units.Aircraft", "AIRCRAFT" },
+			// Combat Tuning — all dummy global tuning knobs
+			{ "weapon-range", SectionCombatTuning },
+			{ "damage-scale", SectionCombatTuning },
+			{ "suppression", SectionCombatTuning },
+			{ "veterancy-rate", SectionCombatTuning },
+			{ "build-speed", SectionCombatTuning },
+			{ "supply-capacity", SectionCombatTuning },
+			{ "sight-range", SectionCombatTuning },
+
+			// Game Rules
+			{ "friendly-fire", SectionGameRules },
+			{ "bounty-percent", SectionGameRules },
+			{ "powers-enabled", SectionGameRules },
+
+			// Developer
+			{ "cheats", SectionDeveloper },
+			{ "sync", SectionDeveloper },
 		};
 
 		static string GetCategory(LobbyOption option)
 		{
-			string cat;
-			if (CategoryOverrides.TryGetValue(option.Id, out cat))
-				return CategoryAliases.TryGetValue(cat, out var alias) ? alias : cat;
-
-			if (!string.IsNullOrEmpty(option.Category))
-			{
-				cat = option.Category;
-				return CategoryAliases.TryGetValue(cat, out var alias) ? alias : cat;
-			}
-
-			return "Rules";
+			return CommonOptionIds.Contains(option.Id) ? CategoryCommon : CategoryAdvanced;
 		}
 
-		static string GetSubCategory(LobbyOption option)
+		static string GetSection(LobbyOption option)
 		{
-			if (!string.IsNullOrEmpty(option.Category))
-				return option.Category;
+			return OptionSection.TryGetValue(option.Id, out var section) ? section : "Other";
+		}
 
-			return "";
+		static (string Title, string Desc) ResolveTooltip(LobbyOption option)
+		{
+			var title = string.Empty;
+			var desc = string.Empty;
+
+			if (option.Description != null)
+			{
+				var d = option.Description;
+				if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
+					d = fluentDesc;
+				(title, desc) = LobbyUtils.SplitOnFirstToken(d);
+			}
+
+			if (option.Placeholder)
+			{
+				if (string.IsNullOrEmpty(title))
+					title = option.Name;
+				desc = string.IsNullOrEmpty(desc) ? PlaceholderTooltipSuffix : desc + "\n\n" + PlaceholderTooltipSuffix;
+			}
+
+			return (title, desc);
 		}
 
 		[ObjectCreator.UseCtor]
@@ -132,38 +184,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			dropdownRowTemplate = optionsContainer.Get("DROPDOWN_ROW_TEMPLATE");
 			sectionHeaderTemplate = optionsContainer.GetOrNull("SECTION_HEADER_TEMPLATE");
 
-			// Look for tab buttons in parent hierarchy
-			var lobbyBin = panel.Parent;
-			summaryLabel = lobbyBin?.GetOrNull<LabelWidget>("SUMMARY");
-
-			var tabContainer = lobbyBin?.GetOrNull("TAB_BUTTONS");
-			if (tabContainer != null)
-			{
-				var tabNames = new[] { "COMBAT", "ECONOMY", "UNITS", "MAP", "RULES", "ADVANCED" };
-				foreach (var name in tabNames)
-				{
-					var btn = tabContainer.GetOrNull<ButtonWidget>("TAB_" + name);
-					if (btn != null)
-					{
-						var tabName = name.Substring(0, 1) + name.Substring(1).ToLowerInvariant();
-						tabButtons[tabName] = btn;
-						var captured = tabName;
-						btn.OnClick = () => SwitchTab(captured);
-						btn.IsHighlighted = () => activeTab == captured;
-					}
-				}
-
-				if (tabButtons.Count > 0)
-					activeTab = "Combat";
-			}
+			// Read this panel's category from the hidden CATEGORY_FILTER label.
+			// PLAYERS panel embeds one with "Common", Options-Bin uses "Advanced".
+			var categoryLabel = widget.GetOrNull<LabelWidget>("CATEGORY_FILTER");
+			category = categoryLabel?.Text ?? CategoryAdvanced;
 
 			mapPreview = getMap();
-			RebuildOptions();
-		}
-
-		void SwitchTab(string tab)
-		{
-			activeTab = tab;
 			RebuildOptions();
 		}
 
@@ -180,7 +206,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
-		void AddSectionHeader(string text)
+		void AddSectionHeader(string text, bool allPlaceholder = false)
 		{
 			if (sectionHeaderTemplate == null)
 				return;
@@ -192,7 +218,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var label = header.GetOrNull<LabelWidget>("HEADER_LABEL");
 			if (label != null)
-				label.GetText = () => text;
+			{
+				var displayText = allPlaceholder ? text.ToUpperInvariant() + PlaceholderSectionSuffix : text.ToUpperInvariant();
+				label.GetText = () => displayText;
+				if (allPlaceholder)
+					label.GetColor = () => PlaceholderSectionColor;
+			}
 
 			optionsContainer.AddChild(header);
 		}
@@ -211,22 +242,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.OrderBy(o => o.DisplayOrder)
 					.ToArray();
 
-			// Filter by active tab if tabs are enabled
-			var filteredOptions = allOptions;
-			if (!string.IsNullOrEmpty(activeTab))
-			{
-				filteredOptions = allOptions
-					.Where(o => !HiddenOptionIds.Contains(o.Id))
-					.Where(o => GetCategory(o) == activeTab)
-					.ToArray();
-			}
+			var filteredOptions = allOptions
+				.Where(o => !HiddenOptionIds.Contains(o.Id))
+				.Where(o => GetCategory(o) == category)
+				.ToArray();
 
-			// Update summary label
-			UpdateSummary(allOptions);
-
-			// Check if this tab has sections
-			if (TabSections.TryGetValue(activeTab, out var sections))
-				RenderSectionedOptions(filteredOptions, sections);
+			if (category == CategoryAdvanced)
+				RenderAdvancedSections(filteredOptions);
 			else
 				RenderFlatOptions(filteredOptions);
 
@@ -236,25 +258,26 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			panel.ScrollToTop();
 		}
 
-		void RenderSectionedOptions(LobbyOption[] options, string[] sections)
+		void RenderAdvancedSections(LobbyOption[] options)
 		{
-			foreach (var section in sections)
+			foreach (var section in AdvancedSectionOrder)
 			{
-				var sectionOptions = options.Where(o => GetSubCategory(o) == section).ToArray();
+				var sectionOptions = options.Where(o => GetSection(o) == section).ToArray();
 				if (sectionOptions.Length == 0)
 					continue;
 
-				if (SectionLabels.TryGetValue(section, out var label))
-					AddSectionHeader(label);
-
+				AddSectionHeader(section, sectionOptions.All(o => o.Placeholder));
 				RenderFlatOptions(sectionOptions);
 			}
 
-			// Render any options that don't belong to a section
-			var sectionSet = new HashSet<string>(sections);
-			var unsectioned = options.Where(o => !sectionSet.Contains(GetSubCategory(o))).ToArray();
+			// Any options that didn't map to a known section render under "Other".
+			var declared = new HashSet<string>(AdvancedSectionOrder);
+			var unsectioned = options.Where(o => !declared.Contains(GetSection(o))).ToArray();
 			if (unsectioned.Length > 0)
+			{
+				AddSectionHeader("Other", unsectioned.All(o => o.Placeholder));
 				RenderFlatOptions(unsectioned);
+			}
 		}
 
 		void RenderFlatOptions(LobbyOption[] options)
@@ -288,15 +311,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (FluentProvider.TryGetMessage(option.Name, out var fluentName))
 					checkboxName = fluentName;
 				checkbox.GetText = () => checkboxName;
-				if (option.Description != null)
-				{
-					var desc = option.Description;
-					if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
-						desc = fluentDesc;
-					var (text, descText) = LobbyUtils.SplitOnFirstToken(desc);
-					checkbox.GetTooltipText = () => text;
-					checkbox.GetTooltipDesc = () => descText;
-				}
+
+				var (cbText, cbDesc) = ResolveTooltip(option);
+				checkbox.GetTooltipText = () => cbText;
+				checkbox.GetTooltipDesc = () => cbDesc;
+
+				if (option.Placeholder)
+					checkbox.GetColor = () => PlaceholderTextColor;
 
 				checkbox.IsVisible = () => true;
 				checkbox.IsChecked = () => optionEnabled.Update(orderManager.LobbyInfo.GlobalSettings);
@@ -339,15 +360,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 
 				dropdown.GetText = () => getOptionLabel.Update(optionValue.Update(orderManager.LobbyInfo.GlobalSettings).Value);
-				if (option.Description != null)
-				{
-					var desc = option.Description;
-					if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
-						desc = fluentDesc;
-					var (text, descText) = LobbyUtils.SplitOnFirstToken(desc);
-					dropdown.GetTooltipText = () => text;
-					dropdown.GetTooltipDesc = () => descText;
-				}
+
+				var (ddText, ddDesc) = ResolveTooltip(option);
+				dropdown.GetTooltipText = () => ddText;
+				dropdown.GetTooltipDesc = () => ddDesc;
+
+				if (option.Placeholder)
+					dropdown.GetColor = () => PlaceholderTextColor;
 
 				dropdown.IsVisible = () => true;
 				dropdown.IsDisabled = () => configurationDisabled() ||
@@ -377,53 +396,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						dropdownName = fluentName;
 					label.GetText = () => dropdownName + ":";
 					label.IsVisible = () => true;
+					if (option.Placeholder)
+						label.GetColor = () => PlaceholderTextColor;
 				}
 			}
 		}
 
-		void UpdateSummary(LobbyOption[] allOptions)
-		{
-			if (summaryLabel == null)
-				return;
-
-			var nonDefaults = new List<string>();
-			foreach (var option in allOptions)
-			{
-				if (HiddenOptionIds.Contains(option.Id))
-					continue;
-
-				if (!orderManager.LobbyInfo.GlobalSettings.LobbyOptions.TryGetValue(option.Id, out var state))
-					continue;
-
-				if (state.Value != option.DefaultValue)
-				{
-					var name = option.Name;
-					if (FluentProvider.TryGetMessage(option.Name, out var fluentName))
-						name = fluentName;
-
-					if (option is LobbyBooleanOption)
-					{
-						var enabled = state.Value == "True";
-						nonDefaults.Add($"{name} {(enabled ? "ON" : "OFF")}");
-					}
-					else if (option.Values.TryGetValue(state.Value, out var valueLabel))
-					{
-						if (FluentProvider.TryGetMessage(valueLabel, out var fluentValue))
-							valueLabel = fluentValue;
-						nonDefaults.Add($"{name} {valueLabel}");
-					}
-					else
-						nonDefaults.Add($"{name} {state.Value}");
-				}
-			}
-
-			if (nonDefaults.Count == 0)
-				summaryLabel.GetText = () => "Settings: All default";
-			else
-			{
-				var summary = string.Join(" · ", nonDefaults);
-				summaryLabel.GetText = () => summary;
-			}
-		}
 	}
 }

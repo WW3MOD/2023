@@ -207,7 +207,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			UpdateCurrentMap();
 
-			var playerBin = Ui.LoadWidget("LOBBY_PLAYER_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs());
+			// WW3MOD: pass option-related args through so the Players panel can embed a
+			// "Common Options" sub-panel that runs LobbyOptionsLogic alongside the player list.
+			// Set up configurationDisabled lazily — the actual delegate is constructed a few
+			// lines down. We pass a stable wrapper that resolves to it once initialised.
+			Func<bool> configurationDisabledRef = null;
+			var playerBin = Ui.LoadWidget("LOBBY_PLAYER_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs()
+			{
+				{ "orderManager", orderManager },
+				{ "getMap", (Func<MapPreview>)(() => map) },
+				{ "configurationDisabled", (Func<bool>)(() => configurationDisabledRef != null && configurationDisabledRef()) }
+			});
 			playerBin.IsVisible = () => panel == PanelType.Players;
 
 			players = playerBin.Get<ScrollPanelWidget>("LOBBY_PLAYERS");
@@ -226,6 +236,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Func<bool> configurationDisabled = () => !Game.IsHost || gameStarting ||
 				panel == PanelType.Kick || panel == PanelType.ForceStart || !MapIsPlayable ||
 				orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
+			configurationDisabledRef = configurationDisabled;
 
 			var mapButton = lobby.GetOrNull<ButtonWidget>("CHANGEMAP_BUTTON");
 			if (mapButton != null)

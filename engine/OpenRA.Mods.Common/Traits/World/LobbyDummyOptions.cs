@@ -29,6 +29,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
+			// PITFALL: every option produced by this trait is a UI-only placeholder.
+			// The wrapper below stamps Placeholder=true on each so the lobby can dim
+			// the rows and surface "not yet implemented" tooltips — see LobbyOption.Placeholder.
+			foreach (var opt in BuildOptions(map))
+			{
+				opt.Placeholder = true;
+				yield return opt;
+			}
+		}
+
+		static IEnumerable<LobbyOption> BuildOptions(MapPreview map)
+		{
 			// ── COMBAT TAB ──
 
 			yield return new LobbyOption(

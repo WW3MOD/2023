@@ -604,6 +604,12 @@ namespace OpenRA.Traits
 		public readonly bool IsVisible;
 		public readonly int DisplayOrder;
 
+		// PITFALL: Set true for options that exist in the UI but do not yet affect gameplay.
+		// The lobby renders these dimmed with a "not yet implemented" tooltip so players
+		// understand the option is decorative. Toggling still syncs over the network — only
+		// the gameplay hook is missing. See LobbyDummyOptions.cs for the canonical set.
+		public bool Placeholder { get; set; }
+
 		public LobbyOption(string id, string name, string description, bool visible, int displayorder,
 			IReadOnlyDictionary<string, string> values, string defaultValue, bool locked, string category = "")
 		{
