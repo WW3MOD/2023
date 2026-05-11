@@ -30,6 +30,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<MapPreview> getMap;
 		readonly Widget chipTemplate;
 		readonly LabelWidget emptyHint;
+		readonly Widget sectionBg;
 		string lastSnapshot = "<uninitialised>";
 
 		// Options that always render with the amber Warning treatment when set,
@@ -72,6 +73,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.getMap = getMap;
 			chipTemplate = widget.Get("CHIP_TEMPLATE");
 			emptyHint = widget.GetOrNull<LabelWidget>("EMPTY_HINT");
+			sectionBg = widget.GetOrNull("SECTION_BG");
 		}
 
 		public override void Tick()
@@ -98,11 +100,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void Rebuild(MapPreview map)
 		{
-			// Drop previous chips (everything except the template + the empty-hint label).
+			// Drop previous chips (everything except the persistent template / hint /
+			// background widgets — those are part of the chrome, not generated chips).
 			for (var i = container.Children.Count - 1; i >= 0; i--)
 			{
 				var c = container.Children[i];
-				if (c == chipTemplate || c == emptyHint)
+				if (c == chipTemplate || c == emptyHint || c == sectionBg)
 					continue;
 				container.RemoveChild(c);
 			}

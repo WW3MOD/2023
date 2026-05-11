@@ -100,9 +100,15 @@ Container@LOBBY_PLAYER_BIN:
 			Width: PARENT_WIDTH
 			Height: 56
 			Children:
+				# Subtle darker fill so the section reads as a card depressed
+				# into the surrounding panel, not as a floating row.
+				ColorBlock@SECTION_BG:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Color: 0000001E
 				Label@EMPTY_HINT:
-					X: 5
-					Y: 0
+					X: 8
+					Y: 4
 					Width: 300
 					Height: 20
 					Font: TinyBold
@@ -131,8 +137,12 @@ Container@LOBBY_PLAYER_BIN:
 			Width: PARENT_WIDTH
 			Height: 30
 			Children:
+				ColorBlock@SECTION_BG:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Color: 0000001E
 				Label@PRESET_LABEL:
-					X: 5
+					X: 8
 					Y: 6
 					Width: 55
 					Height: 20
@@ -356,16 +366,16 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 25
 							Text: label-lobby-players-spawn
 						Checkbox@STATUS_CHECKBOX:
-							X: 617
-							Y: 2
-							Width: 20
-							Height: 20
+							X: 615
+							Y: 0
+							Width: 24
+							Height: 24
 							Visible: false
 						Image@STATUS_IMAGE:
-							X: 619
-							Y: 4
-							Width: 20
-							Height: 20
+							X: 617
+							Y: 2
+							Width: 24
+							Height: 24
 							ImageCollection: checkmark-tick
 							ImageName: checked
 							Visible: false
@@ -482,10 +492,10 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 25
 							Visible: false
 						Image@STATUS_IMAGE:
-							X: 619
-							Y: 4
-							Width: 20
-							Height: 20
+							X: 617
+							Y: 2
+							Width: 24
+							Height: 24
 							ImageCollection: checkmark-tick
 							ImageName: checked
 							Visible: false
@@ -596,16 +606,16 @@ Container@LOBBY_PLAYER_BIN:
 							Align: Center
 							Font: Bold
 						Checkbox@STATUS_CHECKBOX:
-							X: 617
-							Y: 2
-							Width: 20
-							Height: 20
+							X: 615
+							Y: 0
+							Width: 24
+							Height: 24
 							Visible: false
 						Image@STATUS_IMAGE:
-							X: 619
-							Y: 4
-							Width: 20
-							Height: 20
+							X: 617
+							Y: 2
+							Width: 24
+							Height: 24
 							ImageCollection: checkmark-tick
 							ImageName: checked
 							Visible: false
@@ -677,10 +687,10 @@ Container@LOBBY_PLAYER_BIN:
 							Align: Center
 							Font: Bold
 						Image@STATUS_IMAGE:
-							X: 619
-							Y: 4
-							Width: 20
-							Height: 20
+							X: 617
+							Y: 2
+							Width: 24
+							Height: 24
 							ImageCollection: checkmark-tick
 							ImageName: checked
 							Visible: false

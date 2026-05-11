@@ -24,6 +24,14 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH
 			Height: 28
 			Font: BigBold
+		# Header / content separator — thin horizontal divider between the title
+		# bar (Back + title) and the lobby body so the eye knows they're zones.
+		ColorBlock@HEADER_SEPARATOR:
+			X: 20
+			Y: 56
+			Width: PARENT_WIDTH - 40
+			Height: 1
+			Color: 18181840
 		# Vertical separator between the main content (left ~70%) and the right
 		# rail (map + scenario + change-map). Subtle dark line tied to the top of
 		# the tab strip and the top of the chat area.
