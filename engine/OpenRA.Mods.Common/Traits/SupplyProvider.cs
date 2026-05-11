@@ -71,6 +71,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition granted when supply is at or below 33%.")]
 		public readonly string SupplyLowCondition = null;
 
+		[GrantedConditionReference]
+		[Desc("Condition granted to self while any supply is available (currentSupply > 0).")]
+		public readonly string SupplyAnyCondition = null;
+
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
 
@@ -90,6 +94,7 @@ namespace OpenRA.Mods.Common.Traits
 		int supplyHighToken = Actor.InvalidConditionToken;
 		int supplyMediumToken = Actor.InvalidConditionToken;
 		int supplyLowToken = Actor.InvalidConditionToken;
+		int supplyAnyToken = Actor.InvalidConditionToken;
 
 		public int CurrentSupply => currentSupply;
 
@@ -213,51 +218,78 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.Range))
 			{
-				if (!IsValidTarget(a))
-					continue;
-
-				// Ammo target path
-				var rearmable = a.TraitOrDefault<Rearmable>();
-				if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+				if (IsValidTarget(a))
 				{
-					// Check if we can afford any of this target's non-full ammo pools
-					if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+					var rearmable = a.TraitOrDefault<Rearmable>();
+					if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
 					{
-						hasUnaffordableTargets = true;
-						continue;
+						// Check if we can afford any of this target's non-full ammo pools
+						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+						{
+							hasUnaffordableTargets = true;
+						}
+						else
+						{
+							var need = CalculateNeed(a);
+
+							// Skip units that are nearly full (e.g., 499/500 ammo)
+							if (need >= Info.MinNeedThreshold && need > bestNeed)
+							{
+								bestNeed = need;
+								best = a;
+							}
+						}
 					}
 
-					var need = CalculateNeed(a);
-
-					// Skip units that are nearly full (e.g., 499/500 ammo)
-					if (need < Info.MinNeedThreshold)
-						continue;
-
-					if (need > bestNeed)
+					// CargoSupply target path (LC actively pushing supply to a nearby truck).
+					// Trucks-as-SupplyProvider use the truck-side TryRestock pull instead.
+					var cargoSupply = a.TraitOrDefault<CargoSupply>();
+					if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
 					{
-						bestNeed = need;
-						best = a;
-					}
+						var capacity = cargoSupply.Info.MaxSupply;
+						var missing = capacity - cargoSupply.SupplyCount;
+						var need = (float)missing / capacity;
 
-					continue;
+						if (need >= Info.MinNeedThreshold && need > bestNeed)
+						{
+							bestNeed = need;
+							best = a;
+						}
+					}
 				}
 
-				// CargoSupply target path (supply truck refilling at LC)
-				var cargoSupply = a.TraitOrDefault<CargoSupply>();
-				if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
+				// Also consider soldiers sheltering inside a garrison building.
+				// Garrisoned passengers are removed from the world (Cargo holds them),
+				// so FindActorsInCircle misses them. Treat the building's position as
+				// the soldier's effective position — the building is in range, so the
+				// soldier is in range.
+				var garrison = a.TraitOrDefault<GarrisonManager>();
+				if (garrison != null && Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner)))
 				{
-					// Need = fraction of capacity missing.
-					var capacity = cargoSupply.Info.MaxSupply;
-					var missing = capacity - cargoSupply.SupplyCount;
-					var need = (float)missing / capacity;
-
-					if (need < Info.MinNeedThreshold)
-						continue;
-
-					if (need > bestNeed)
+					foreach (var soldier in garrison.ShelterPassengers)
 					{
-						bestNeed = need;
-						best = a;
+						if (soldier == null || soldier.IsDead)
+							continue;
+
+						var rearmable = soldier.TraitOrDefault<Rearmable>();
+						if (rearmable == null || rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
+							continue;
+
+						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+						{
+							hasUnaffordableTargets = true;
+							continue;
+						}
+
+						var need = CalculateNeed(soldier);
+						if (need < Info.MinNeedThreshold)
+							continue;
+
+						if (need > bestNeed)
+						{
+							bestNeed = need;
+							best = soldier;
+						}
 					}
 				}
 			}
@@ -355,9 +387,14 @@ namespace OpenRA.Mods.Common.Traits
 			RevokeTargetCondition();
 			currentTarget = target;
 
-			// If target is out of range (Hunt mode found a distant flagged unit), move toward it
-			if (currentTarget != null)
+			// Sheltered passengers in garrison buildings aren't in the world; their
+			// CenterPosition is stale. The building they're inside is, by definition,
+			// already in range — so skip move-toward and skip granting the rearm
+			// condition (invisible anyway, and would leak if the soldier later
+			// deploys to a port before our next ResupplyTarget tick).
+			if (currentTarget != null && currentTarget.IsInWorld)
 			{
+				// If target is out of range (Hunt mode found a distant flagged unit), move toward it
 				var dist = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLength;
 				if (dist > Info.Range.Length)
 				{
@@ -368,15 +405,15 @@ namespace OpenRA.Mods.Common.Traits
 						self.QueueActivity(false, move.MoveTo(targetCell, 2));
 					}
 				}
-			}
 
-			// Grant condition to new target
-			if (!string.IsNullOrEmpty(Info.RearmCondition) && currentTarget != null)
-			{
-				targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
-					.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
-				if (targetConditionTrait != null)
-					conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
+				// Grant condition to new target
+				if (!string.IsNullOrEmpty(Info.RearmCondition))
+				{
+					targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
+						.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
+					if (targetConditionTrait != null)
+						conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
+				}
 			}
 
 			rearmTicks = Info.RearmDelay;
@@ -396,7 +433,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ResupplyTarget()
 		{
-			if (currentTarget == null || currentTarget.IsDead || !currentTarget.IsInWorld)
+			// Note: !IsInWorld is valid here — shelter soldiers in garrison buildings
+			// are intentionally removed from world. SetTarget already skipped move-toward
+			// and condition-grant for them; we just need to deliver ammo. Only bail on
+			// null/dead.
+			if (currentTarget == null || currentTarget.IsDead)
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
@@ -582,6 +623,14 @@ namespace OpenRA.Mods.Common.Traits
 					supplyLowToken = self.GrantCondition(Info.SupplyLowCondition);
 				else if (ratio > 0.33f && supplyLowToken != Actor.InvalidConditionToken)
 					supplyLowToken = self.RevokeCondition(supplyLowToken);
+			}
+
+			if (!string.IsNullOrEmpty(Info.SupplyAnyCondition))
+			{
+				if (currentSupply > 0 && supplyAnyToken == Actor.InvalidConditionToken)
+					supplyAnyToken = self.GrantCondition(Info.SupplyAnyCondition);
+				else if (currentSupply <= 0 && supplyAnyToken != Actor.InvalidConditionToken)
+					supplyAnyToken = self.RevokeCondition(supplyAnyToken);
 			}
 		}
 
