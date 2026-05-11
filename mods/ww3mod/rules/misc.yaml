@@ -407,9 +407,9 @@ SUPPLYCACHE:
 	SupplyProvider:
 		Range: 4c0
 		RearmDelay: 25
-		TotalSupply: 500
+		TotalSupply: 750
 		RearmCondition: replenish-soldiers
-		SupplyCreditValue: 400
+		SupplyCreditValue: 750
 		SupplyHighCondition: supply-high
 		SupplyMediumCondition: supply-medium
 		SupplyLowCondition: supply-low
@@ -419,5 +419,3 @@ SUPPLYCACHE:
 		Color: C0C0C0
 		Width: 1.5
 		RequireShift: false
-	Sellable:
-		RefundPercent: 50

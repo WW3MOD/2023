@@ -18,11 +18,13 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Activities
 {
 	/// <summary>
-	/// Drives an empty unit toward a CargoSupply host (e.g. supply truck) with supply remaining,
-	/// re-picks the target if it runs out of supply mid-route, and shows a target line.
-	/// Used by AmmoPool.AutoRearm when the picked resupplier is a CargoSupply host.
+	/// Drives an empty unit toward a mobile SupplyProvider host (e.g. supply truck)
+	/// with supply remaining, re-picks the target if it runs out of supply mid-route,
+	/// and shows a target line. Used by AmmoPool.AutoRearm when the picked resupplier
+	/// is a SupplyProvider host without a docking gate (i.e. a truck or ground cache,
+	/// not a Logistics Center).
 	/// </summary>
-	public class SeekCargoSupply : Activity
+	public class SeekSupplyProvider : Activity
 	{
 		readonly IMove move;
 		readonly IMoveInfo moveInfo;
@@ -33,7 +35,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		const int RetargetInterval = 25;
 
-		public SeekCargoSupply(Actor self, Actor initialTarget)
+		public SeekSupplyProvider(Actor self, Actor initialTarget)
 		{
 			move = self.Trait<IMove>();
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
@@ -45,8 +47,8 @@ namespace OpenRA.Mods.Common.Activities
 			if (a == null || a.IsDead || !a.IsInWorld)
 				return false;
 
-			var cs = a.TraitOrDefault<CargoSupply>();
-			return cs != null && cs.EffectiveSupply > 0;
+			var sp = a.TraitOrDefault<SupplyProvider>();
+			return sp != null && sp.CurrentSupply > 0;
 		}
 
 		Actor FindBest(Actor self)
@@ -55,11 +57,11 @@ namespace OpenRA.Mods.Common.Activities
 			if (rearmInfo == null)
 				return null;
 
-			return self.World.ActorsHavingTrait<CargoSupply>()
+			return self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
-					&& a.Trait<CargoSupply>().EffectiveSupply > 0)
+					&& a.Trait<SupplyProvider>().CurrentSupply > 0)
 				.ClosestToIgnoringPath(self);
 		}
 
@@ -83,7 +85,6 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					currentTarget = newTarget;
 
-					// Cancel any in-flight child move so we re-route.
 					if (ChildActivity != null)
 					{
 						ChildActivity.Cancel(self);
@@ -100,13 +101,13 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
-			var cs = currentTarget.Trait<CargoSupply>();
-			var rearmRange = cs.Info.RearmRange;
+			var sp = currentTarget.Trait<SupplyProvider>();
+			var rearmRange = sp.Info.Range;
 			var distSq = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
 
 			if (distSq <= rearmRange.LengthSquared)
 			{
-				// In range — let CargoSupply push ammo. Stay put.
+				// In range — let the SupplyProvider push ammo. Stay put.
 				if (ChildActivity != null && moveQueued)
 				{
 					ChildActivity.Cancel(self);

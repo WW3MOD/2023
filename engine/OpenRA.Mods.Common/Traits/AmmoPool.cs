@@ -117,7 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>
 		/// Set when unit is out of ammo and ResupplyBehavior is Hold.
 		/// Supply trucks with Hunt stance should seek out these units.
-		/// Also set externally by activities (e.g. SeekCargoSupply) when no supply
+		/// Also set externally by activities (e.g. SeekSupplyProvider) when no supply
 		/// source is reachable, so a Hunt-stance truck can come to us.
 		/// </summary>
 		public bool NeedsResupply { get; set; }
@@ -280,14 +280,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (nearestResupplier != null)
 			{
-				// CargoSupply host (TRUK, etc.) — passive rearm model.
-				// Use SeekCargoSupply so the unit re-picks if its target runs out of supply
-				// mid-route, and shows a target line for the resupply move.
-				var cargoSupply = nearestResupplier.TraitOrDefault<CargoSupply>();
-				if (cargoSupply != null)
+				// SupplyProvider host without a docking gate (TRUK, SUPPLYCACHE) —
+				// passive rearm model. Use SeekSupplyProvider so the unit re-picks
+				// if its target runs out of supply mid-route, and shows a target line.
+				var supplyProvider = nearestResupplier.TraitOrDefault<SupplyProvider>();
+				if (supplyProvider != null && string.IsNullOrEmpty(supplyProvider.Info.DockedCondition))
 				{
 					if (self.TraitOrDefault<IMove>() != null)
-						self.QueueActivity(false, new SeekCargoSupply(self, nearestResupplier));
+						self.QueueActivity(false, new SeekSupplyProvider(self, nearestResupplier));
 
 					return;
 				}
@@ -329,14 +329,14 @@ namespace OpenRA.Mods.Common.Traits
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name));
 
-			// CargoSupply hosts (TRUK, etc.) with supply remaining
-			var cargoSupplyActors = self.World.ActorsHavingTrait<CargoSupply>()
+			// SupplyProvider hosts (TRUK, SUPPLYCACHE) with supply remaining
+			var supplyProviderActors = self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
-					&& a.Trait<CargoSupply>().EffectiveSupply > 0);
+					&& a.Trait<SupplyProvider>().CurrentSupply > 0);
 
-			return rearmsUnitsActors.Concat(cargoSupplyActors)
+			return rearmsUnitsActors.Concat(supplyProviderActors)
 				.ClosestToIgnoringPath(self);
 		}
 

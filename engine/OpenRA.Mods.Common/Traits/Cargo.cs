@@ -109,7 +109,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		int totalWeight = 0;
 		int reservedWeight = 0;
-		int supplyReservedWeight = 0;
 		Aircraft aircraft;
 
 		// Pre-queued rally points: passengers will move/interact here on ejection
@@ -379,23 +378,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (!f.CanLoadPassenger(self, null))
 						return false;
 
-			return totalWeight + reservedWeight + supplyReservedWeight + weight <= Info.MaxWeight;
+			return totalWeight + reservedWeight + weight <= Info.MaxWeight;
 		}
 
-		/// <summary>Available cargo weight after passengers, reservations, and supply.</summary>
-		public int AvailableWeight => Info.MaxWeight - totalWeight - reservedWeight - supplyReservedWeight;
-
-		/// <summary>Reserve cargo weight for supply units (called by CargoSupply).</summary>
-		public void ReserveSupplyWeight(int weight)
-		{
-			supplyReservedWeight += weight;
-		}
-
-		/// <summary>Free cargo weight previously reserved for supply (called by CargoSupply).</summary>
-		public void FreeSupplyWeight(int weight)
-		{
-			supplyReservedWeight = System.Math.Max(0, supplyReservedWeight - weight);
-		}
+		/// <summary>Available cargo weight after passengers and reservations.</summary>
+		public int AvailableWeight => Info.MaxWeight - totalWeight - reservedWeight;
 
 		/// <summary>Set a rally point for a passenger to execute on ejection.</summary>
 		public void SetEjectRally(uint passengerActorId, Target target)

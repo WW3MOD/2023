@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Widgets
 		int selectionHash;
 		Actor selectedTransport;
 		Cargo cargo;
-		CargoSupply cargoSupply;
+		SupplyProvider supplyProvider;
 
 		readonly HashSet<uint> markedPassengerIds = new HashSet<uint>();
 
@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Widgets
 						return "";
 
 					var passengerCount = cargo?.PassengerCount ?? 0;
-					var supplyCount = cargoSupply?.SupplyCount ?? 0;
+					var supplyCount = supplyProvider?.CurrentSupply ?? 0;
 					var markedCount = CountValidMarks();
 
 					var markedSuffix = markedCount > 0 ? $" | {markedCount} marked" : "";
@@ -181,12 +181,12 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				supplyLabel.GetText = () =>
 				{
-					if (cargoSupply == null || cargoSupply.SupplyCount <= 0)
+					if (supplyProvider == null || supplyProvider.CurrentSupply <= 0)
 						return "";
 
-					return $"Supply: {cargoSupply.SupplyCount} units ({cargoSupply.EffectiveSupply} ammo)";
+					return $"Supply: {supplyProvider.CurrentSupply} / {supplyProvider.Info.TotalSupply}";
 				};
-				supplyLabel.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
+				supplyLabel.IsVisible = () => supplyProvider != null && supplyProvider.CurrentSupply > 0;
 			}
 
 			// Drop Supply button — unloads all supply as SUPPLYCACHE
@@ -195,27 +195,18 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				dropSupplyButton.OnClick = () =>
 				{
-					if (selectedTransport != null && cargoSupply != null && cargoSupply.SupplyCount > 0)
-						world.IssueOrder(new Order("UnloadCargoSupply", selectedTransport, false)
-							{ ExtraData = (uint)cargoSupply.SupplyCount });
+					if (selectedTransport != null && supplyProvider != null && supplyProvider.CurrentSupply > 0)
+						world.IssueOrder(new Order("DropSupplyCache", selectedTransport, false));
 				};
-				dropSupplyButton.IsDisabled = () => selectedTransport == null || cargoSupply == null || cargoSupply.SupplyCount <= 0;
-				dropSupplyButton.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
+				dropSupplyButton.IsDisabled = () => selectedTransport == null || supplyProvider == null || supplyProvider.CurrentSupply <= 0;
+				dropSupplyButton.IsVisible = () => supplyProvider != null && supplyProvider.CurrentSupply > 0;
 			}
 
-			// Drop 1 Supply button — unloads a single supply unit
+			// "Drop 1 Supply" is a remnant of the SupplyPerUnit model — supply is a single
+			// number now and the unload trait drops all of it, so this button is hidden.
 			var dropOneSupplyButton = panel.GetOrNull<ButtonWidget>("DROP_ONE_SUPPLY");
 			if (dropOneSupplyButton != null)
-			{
-				dropOneSupplyButton.OnClick = () =>
-				{
-					if (selectedTransport != null && cargoSupply != null && cargoSupply.SupplyCount > 0)
-						world.IssueOrder(new Order("UnloadCargoSupply", selectedTransport, false)
-							{ ExtraData = 1 });
-				};
-				dropOneSupplyButton.IsDisabled = () => selectedTransport == null || cargoSupply == null || cargoSupply.SupplyCount <= 0;
-				dropOneSupplyButton.IsVisible = () => cargoSupply != null && cargoSupply.SupplyCount > 0;
-			}
+				dropOneSupplyButton.IsVisible = () => false;
 
 			// Panel visibility — use IsVisible function so it evaluates every frame
 			// (LogicTicker inside a hidden container never ticks, causing chicken-and-egg)
@@ -235,7 +226,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			selectedTransport = null;
 			cargo = null;
-			cargoSupply = null;
+			supplyProvider = null;
 			markedPassengerIds.Clear();
 
 			var selected = world.Selection.Actors
@@ -246,25 +237,30 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			var c = selected[0].TraitOrDefault<Cargo>();
-			var cs = selected[0].TraitOrDefault<CargoSupply>();
+			var sp = selected[0].TraitOrDefault<SupplyProvider>();
 
-			// Nothing to show if neither Cargo nor CargoSupply is present
-			if (c == null && cs == null)
+			// Nothing to show if neither Cargo nor SupplyProvider is present.
+			if (c == null && sp == null)
 				return;
 
-			// Don't show cargo panel for garrison buildings (they have their own panel)
+			// Garrison buildings have their own panel.
 			if (selected[0].TraitOrDefault<GarrisonManager>() != null)
 				return;
 
-			// Only show if transport has passengers or supply
+			// Stationary SupplyProviders (LC, SUPPLYCACHE) have no movement and aren't
+			// "transports" — only show the panel for mobile supply units (trucks).
+			if (sp != null && selected[0].TraitOrDefault<IMove>() == null)
+				sp = null;
+
+			// Only show if transport has passengers or supply.
 			var hasCargoContent = c != null && !c.IsEmpty();
-			var hasSupplyContent = cs != null && cs.SupplyCount > 0;
+			var hasSupplyContent = sp != null && sp.CurrentSupply > 0;
 			if (!hasCargoContent && !hasSupplyContent)
 				return;
 
 			selectedTransport = selected[0];
 			cargo = c;
-			cargoSupply = cs;
+			supplyProvider = sp;
 		}
 
 		int CountValidMarks()

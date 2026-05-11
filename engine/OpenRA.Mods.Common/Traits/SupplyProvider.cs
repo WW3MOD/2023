@@ -241,21 +241,6 @@ namespace OpenRA.Mods.Common.Traits
 						}
 					}
 
-					// CargoSupply target path (LC actively pushing supply to a nearby truck).
-					// Trucks-as-SupplyProvider use the truck-side TryRestock pull instead.
-					var cargoSupply = a.TraitOrDefault<CargoSupply>();
-					if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
-					{
-						var capacity = cargoSupply.Info.MaxSupply;
-						var missing = capacity - cargoSupply.SupplyCount;
-						var need = (float)missing / capacity;
-
-						if (need >= Info.MinNeedThreshold && need > bestNeed)
-						{
-							bestNeed = need;
-							best = a;
-						}
-					}
 				}
 
 				// Also consider soldiers sheltering inside a garrison building.
@@ -359,23 +344,6 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			// Supply truck target: CargoSupply with free capacity.
-			// Stationarity is enforced by DockedCondition above when a docking gate is
-			// configured; without one, fall back to a movement-type check so passing
-			// trucks don't get topped off by a SUPPLYCACHE.
-			var cargoSupply = a.TraitOrDefault<CargoSupply>();
-			if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
-			{
-				if (string.IsNullOrEmpty(Info.DockedCondition))
-				{
-					var mobile = a.TraitOrDefault<Mobile>();
-					if (mobile != null && mobile.CurrentMovementTypes.HasFlag(MovementType.Horizontal))
-						return false;
-				}
-
-				return true;
-			}
-
 			return false;
 		}
 
@@ -441,29 +409,6 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
-				return;
-			}
-
-			// CargoSupply target (supply truck refilling at LC): transfer one supply unit per cycle.
-			var cargoSupply = currentTarget.TraitOrDefault<CargoSupply>();
-			if (cargoSupply != null && cargoSupply.SupplyCount < cargoSupply.Info.MaxSupply)
-			{
-				// Cost of one truck-pip in LC supply units.
-				var costPerUnit = cargoSupply.Info.SupplyPerUnit;
-				if (currentSupply >= costPerUnit)
-				{
-					var added = cargoSupply.AddSupply(1);
-					if (added > 0)
-					{
-						currentSupply -= costPerUnit;
-						UpdateSupplyConditions();
-					}
-				}
-
-				// Drop target to re-evaluate on next scan.
-				RevokeTargetCondition();
-				currentTarget = null;
-				rearmTicks = Info.RearmDelay;
 				return;
 			}
 

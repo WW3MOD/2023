@@ -534,15 +534,16 @@ TRUK:
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
 	Carryable:
 		LocalOffset: 0,0,100
-	CargoSupply:
-		MaxSupply: 15
-		InitialSupply: 15
-		SupplyPerUnit: 50
-		RearmRange: 5c0
+	SupplyProvider:
+		TotalSupply: 750
+		Range: 5c0
 		RearmDelay: 6
 		RearmCondition: replenish-soldiers
-		CargoHasSupplyCondition: cargo-has-supply
-		CreditValuePerUnit: 50
+		SupplyCreditValue: 750
+		RestockActors: logisticscenter
+		RestockThreshold: 50
+	DropsSupplyCache:
+		SupplyCacheActor: supplycache
 	Repairable:
 		RepairActors: logisticscenter
 	RenderRangeCircle@Supply:
