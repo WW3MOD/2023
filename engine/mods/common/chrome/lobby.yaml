@@ -24,18 +24,18 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH
 			Height: 25
 			Font: Bold
+		Container@MAP_PREVIEW_ROOT:
+			X: PARENT_WIDTH - 20 - WIDTH
+			Y: 67
+			Width: 200
+			Height: 230
 		Button@CHANGEMAP_BUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 67
-			Width: 174
+			Y: 302
+			Width: 200
 			Height: 25
 			Text: button-server-lobby-changemap
 			Font: Bold
-		Container@MAP_PREVIEW_ROOT:
-			X: PARENT_WIDTH - 20 - WIDTH
-			Y: 97
-			Width: 174
-			Height: 250
 		DropDownButton@SLOTS_DROPDOWNBUTTON:
 			X: 20
 			Y: PARENT_HEIGHT - 304
@@ -116,14 +116,14 @@ Background@SERVER_LOBBY:
 					Text: button-multiplayer-tabs-servers-tab
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 355
-			Width: 174
+			Y: 335
+			Width: 200
 			Height: 25
 			Font: Bold
 		Label@SCENARIO_DESCRIPTION:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 385
-			Width: 174
+			Y: 365
+			Width: 200
 			Height: 60
 			Font: Tiny
 			Align: Left
