@@ -1,0 +1,77 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Edge-spawn shadow attenuation (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Scout placed AT the bottom-most playable cell (V = 33 = MapSize.Y - 1)
+	# to exercise the shadow-layer lookup at the map boundary. Spawned by
+	# ProductionFromMapEdge would land on the same row.
+	Scout: e1.america
+		Owner: USA
+		Location: 33,33
+		Facing: 0
+	# Tree trunk lands at Location.Y + 1 per the T01 footprint convention
+	# (see test-wgm-fires-thru-1-tree). So Location 33,30 → trunk at 33,31.
+	Tree1: t01
+		Owner: Neutral
+		Location: 33,30
+	# Russia rifleman: 8 cells north of scout, 6 cells north of tree trunk.
+	# At 8c0 from the scout, scout's Vision@8 (7c0-10c0, Strength=8) reveals
+	# this cell. Without shadow → ResolvedVisibility=8. With shadow (tree
+	# between) → strength drops several steps.
+	Target: e1.russia
+		Owner: Russia
+		Location: 33,25
+		Facing: 512
+	# Supply Routes keep each faction alive so the Mission-Accomplished
+	# overlay doesn't end the game before the Lua poller writes a verdict.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 33,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 33,5
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,33
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,5
+
+Rules: rules.yaml

@@ -251,5 +251,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			return player.MapLayers.RadarCover(cell);
 		}
+
+		[Desc("Returns the resolved fog-of-war visibility strength (0-10) for `player` at `cell`. " +
+			"0 = shrouded, 1 = explored-fog or minimum visible, higher values = more vision sources / less shadow attenuation. " +
+			"Used by tests to verify that obstacles (trees, etc.) actually attenuate vision via the ShadowLayer path. " +
+			"Test mode only.")]
+		public int GetVisibility(Player player, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			return player.MapLayers.GetVisibility(player.World.Map.CenterOfCell(cell));
+		}
 	}
 }

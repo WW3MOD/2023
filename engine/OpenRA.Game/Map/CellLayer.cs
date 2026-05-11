@@ -203,9 +203,13 @@ namespace OpenRA
 			}
 		}
 
+		// PITFALL: bounds are half-open — last valid index is Size.Width-1 / Size.Height-1.
+		// An earlier version used `(x + 1) < Size.Width`, which silently rejected the
+		// last row/column; shadow LOS lines starting or ending there returned no tiles,
+		// and units at the map edge briefly saw through trees on spawn (2026-05).
 		public bool IsValidCoordinate(int x, int y)
 		{
-			return x >= 0 && (x + 1) < Size.Width && y >= 0 && (y + 1) < Size.Height;
+			return x >= 0 && x < Size.Width && y >= 0 && y < Size.Height;
 		}
 	}
 

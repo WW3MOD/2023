@@ -1,0 +1,31 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog ENABLED — this test exercises the shadow-layer attenuation in
+		# MapLayers.AddSource, which only runs when FogEnabled is true.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-edge-spawn-shadow.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		# Force HoldFire so the scout doesn't try to engage and the test
+		# isolates the vision/shadow assertion from firing logic.
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32

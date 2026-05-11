@@ -1,0 +1,1 @@
+Auto: USA scout placed AT bottom-edge cell must NOT see Russia rifleman behind a tree (shadow-layer attenuation must apply even at the map boundary).
