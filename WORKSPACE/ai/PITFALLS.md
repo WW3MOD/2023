@@ -258,6 +258,56 @@ that's the lifetime total. Scoring component "capture_income" reads that.
 
 ---
 
+## 15. Server seed defaults to `DateTime.Now.ToBinary()` — same config = different matches
+
+**Bit:** until Round 5 wired it explicitly, running the same tournament scenario
+twice produced different scores. Looking like flakiness; actually the engine seeds
+its `MersenneTwister` from current time, so every launch is its own roll.
+
+**Why:** `engine/OpenRA.Game/Server/Server.cs:307` — `randomSeed =
+(int)DateTime.Now.ToBinary();`. There's no override in stock OpenRA.
+
+**Fix landed in Round 5:** `Test.RandomSeed=<int>` arg honored by Server.cs.
+run-tournament.sh passes `seed_index × 1000 + 17` per match, so seed index N
+always produces the same game given the same code + map. Reproducibility for
+debugging a specific outlier match is now possible.
+
+**Implication for statistical validity:** for batch averages, we want
+*different* seeds across matches (which we have — N × 1000 + 17 varies per N).
+For reproducing an *individual* match for debugging, fix the seed to that
+match's index. The two needs are now both met.
+
+---
+
+## 16. `option gamespeed` caps at 2× in WW3MOD — use `world.Timestep` override for >2×
+
+**Bit:** despite `Test.GameSpeed=fastest`, the actual wall-clock for a 30-sec
+match dropped only 57s → 42s (~26% reduction). Expected closer to 50%.
+Investigation: `fastest` in WW3MOD's GameSpeeds config sets `Timestep: 20` (=
+20 ms/tick = 50 ticks/sec = 2× default). That's the hard cap from the lobby
+option mechanism.
+
+**Real acceleration mechanism:** the in-game cheat `SpeedControlButton`
+(`engine/.../Widgets/Logic/Ingame/SpeedControlButtonLogic.cs`) goes up to 8× by
+*directly setting `world.Timestep`* at runtime — no GameSpeeds lookup involved.
+
+**Fix landed in Round 5 v2:** `Test.SpeedMultiplier=<int>` launch arg honored
+by `BotVsBotMatchWatcher.WorldLoaded`. The watcher sets
+`world.Timestep = max(1, world.Timestep / multiplier)` after the lobby setup
+has applied any GameSpeed. Multiplier stacks on top of GameSpeed
+(fastest × 8 → 20 / 8 = 2.5 → 2 ms/tick = 500 ticks/sec target). Cap 16×.
+
+**Implication:** for tournament batches, set `SpeedMultiplier: 8` in
+tournament.yaml. GameSpeed becomes a no-op once SpeedMultiplier ≥ 2; we keep
+both for completeness and so the override path is explicit at every layer.
+
+**Real-world cap:** the renderer may be the bottleneck — even with the
+Timestep set very low, the engine can't go faster than the render pipeline
+allows. Headless rendering (Phase 2) is the way past that ceiling. With
+rendering enabled, expect 4-6× practical speed-up not the theoretical 8×.
+
+---
+
 ## 9. Sound.Mute must be passed via launch arg, NOT toggled persistently
 
 Already covered in `run-test.sh` comments but worth reinforcing for the

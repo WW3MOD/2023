@@ -20,6 +20,11 @@ ALLOWLIST_PATTERNS=(
     'OpenRA\.Test/'
     'OpenRA\.Utility/'
     'tools/'
+    # TestMode.cs is the test/skirmish-mode entry point — its Console.Write calls
+    # fire at most once per game launch (Initialize) + once per result write, not
+    # in tick path. Adding allowlist entry so future edits to surrounding code
+    # don't trip the hook.
+    'OpenRA\.Game/TestMode\.cs'
 )
 
 ALLOW_REGEX=$(IFS='|'; echo "${ALLOWLIST_PATTERNS[*]}")

@@ -113,6 +113,20 @@ namespace OpenRA.Mods.Common.Traits
 				winRule = MatchHarness.CreateWinRule(config.WinRule, config);
 				state = new MatchTrackingState();
 
+				// Apply speed multiplier by lowering world.Timestep (same mechanism the
+				// in-game SpeedControlButton uses). Caps at 16× via TestMode arg
+				// validation. PITFALL: Test.GameSpeed=fastest is only 2× and applied
+				// via lobby setup order that may race — use Test.SpeedMultiplier
+				// instead for reliable acceleration up to 8×.
+				var effectiveMultiplier = config.SpeedMultiplier > 0 ? config.SpeedMultiplier : TestMode.SpeedMultiplier;
+				if (effectiveMultiplier > 1)
+				{
+					var oldTimestep = world.Timestep;
+					var newTimestep = System.Math.Max(1, oldTimestep / effectiveMultiplier);
+					world.Timestep = newTimestep;
+					diag($"WorldLoaded: speed multiplier {effectiveMultiplier}x — Timestep {oldTimestep} → {newTimestep} ms/tick");
+				}
+
 				// Light load-time logging only. SR discovery is deferred to first
 				// Tick because IWorldLoaded fires BEFORE SpawnMapActors instantiates
 				// the actors — at this point world.Actors doesn't yet include them.

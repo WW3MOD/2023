@@ -9,7 +9,12 @@ Matchup:
 
 TimeLimitSeconds: 30
 
-# fastest = 20 ms/tick = 2× normal pace. See ra/mod.yaml GameSpeeds.
+# SpeedMultiplier 8× via world.Timestep override (in-game SpeedControlButton
+# uses the same mechanism). MUCH more effective than GameSpeed (capped at 2×
+# by the mod's GameSpeeds.Timestep config) — see PITFALLS §13/§16.
+SpeedMultiplier: 8
+
+# Kept for completeness; multiplier dominates.
 GameSpeed: fastest
 
 Scorer: weighted_components

@@ -58,6 +58,7 @@ namespace OpenRA
 		public static LocalPlayerProfile LocalPlayerProfile;
 
 		static bool takeScreenshot = false;
+		static string pendingScreenshotPath = null;
 		static Benchmark benchmark = null;
 
 		public static event Action OnShellmapLoaded = () => { };
@@ -738,12 +739,28 @@ namespace OpenRA
 		{
 			using (new PerfTimer("Renderer.SaveScreenshot"))
 			{
-				var mod = ModData.Manifest.Metadata;
-				var directory = Path.Combine(Platform.SupportDir, "Screenshots", ModData.Manifest.Id, mod.Version);
-				Directory.CreateDirectory(directory);
+				string path;
+				string filename;
 
-				var filename = TimestampedFilename(true);
-				var path = Path.Combine(directory, string.Concat(filename, ".png"));
+				if (!string.IsNullOrEmpty(pendingScreenshotPath))
+				{
+					path = pendingScreenshotPath;
+					pendingScreenshotPath = null;
+					filename = Path.GetFileName(path);
+					var dir = Path.GetDirectoryName(path);
+					if (!string.IsNullOrEmpty(dir))
+						Directory.CreateDirectory(dir);
+				}
+				else
+				{
+					var mod = ModData.Manifest.Metadata;
+					var directory = Path.Combine(Platform.SupportDir, "Screenshots", ModData.Manifest.Id, mod.Version);
+					Directory.CreateDirectory(directory);
+
+					filename = TimestampedFilename(true);
+					path = Path.Combine(directory, string.Concat(filename, ".png"));
+				}
+
 				Log.Write("debug", "Taking screenshot " + path);
 
 				Renderer.SaveScreenshot(path);
@@ -824,6 +841,18 @@ namespace OpenRA
 
 		public static void TakeScreenshot()
 		{
+			takeScreenshot = true;
+		}
+
+		// WW3MOD test harness: capture a screenshot to an explicit path instead
+		// of the default {SupportDir}/Screenshots/{ModId}/{Version}/ directory.
+		// Path's parent directory is created on demand. Used by TestModeScreenshots
+		// so a single test run's captures land in a known, per-run folder that
+		// the verdict JSON points at. Async like the no-arg overload — the file
+		// appears on disk shortly after this call returns.
+		public static void TakeScreenshot(string explicitPath)
+		{
+			pendingScreenshotPath = explicitPath;
 			takeScreenshot = true;
 		}
 

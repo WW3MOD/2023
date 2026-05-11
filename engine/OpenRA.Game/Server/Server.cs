@@ -304,7 +304,10 @@ namespace OpenRA.Server
 
 			playerDatabase = modData.Manifest.Get<PlayerDatabase>();
 
-			randomSeed = (int)DateTime.Now.ToBinary();
+			// Tournament harness reproducibility: Test.RandomSeed=<int> overrides
+			// the DateTime.Now-derived seed. Same seed + same code + same map →
+			// same match (OpenRA simulation is deterministic).
+			randomSeed = TestMode.RandomSeedOverride ?? (int)DateTime.Now.ToBinary();
 
 			if (IsMultiplayer && settings.EnableGeoIP)
 				GeoIP.Initialize();

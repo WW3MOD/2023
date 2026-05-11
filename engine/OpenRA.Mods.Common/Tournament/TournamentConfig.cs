@@ -47,8 +47,16 @@ namespace OpenRA.Mods.Common.Tournament
 		// Game speed key (e.g. "default", "fastest"). Must match a key in the
 		// mod's GameSpeeds dictionary (engine/mods/ra/mod.yaml). The launcher
 		// passes this via Test.GameSpeed; Game.LoadMap applies it to the
-		// initial "option gamespeed" setup order.
+		// initial "option gamespeed" setup order. CAPPED AT 2× by the mod's
+		// GameSpeeds config — for higher speeds use SpeedMultiplier (below).
 		public string GameSpeed = "default";
+
+		// Speed multiplier applied at WorldLoaded by lowering world.Timestep.
+		// Range 1..16; 8× is the limit of the in-game SpeedControlButton.
+		// MUCH more effective than GameSpeed for tournament batches. Set 0 to
+		// fall back to whatever Test.SpeedMultiplier launch arg provides
+		// (default 1× = real-time).
+		public int SpeedMultiplier = 0;
 
 		public static TournamentConfig LoadFromFile(string path)
 		{
@@ -79,6 +87,9 @@ namespace OpenRA.Mods.Common.Tournament
 						break;
 					case "GameSpeed":
 						config.GameSpeed = node.Value.Value;
+						break;
+					case "SpeedMultiplier":
+						config.SpeedMultiplier = FieldLoader.GetValue<int>("SpeedMultiplier", node.Value.Value);
 						break;
 				}
 			}
