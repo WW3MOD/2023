@@ -58,7 +58,7 @@ Container@LOBBY_PLAYER_BIN:
 					Font: Bold
 		Container@LOBBY_SETUP_ROW:
 			Logic: LobbySetupRowLogic
-			Y: 0
+			Y: 208
 			Width: PARENT_WIDTH
 			Height: 26
 			Children:
@@ -92,7 +92,7 @@ Container@LOBBY_PLAYER_BIN:
 					Text: ▸ Replay last
 		Container@LOBBY_ACTIVE_CHANGES:
 			Logic: LobbyActiveChangesLogic
-			Y: 226
+			Y: 244
 			Width: PARENT_WIDTH
 			Height: 32
 			Children:
@@ -123,7 +123,7 @@ Container@LOBBY_PLAYER_BIN:
 							Background: ""
 		Container@LOBBY_PRESET_BAR:
 			Logic: LobbyPresetLogic
-			Y: 264
+			Y: 282
 			Width: PARENT_WIDTH
 			Height: 28
 			Children:
@@ -177,7 +177,7 @@ Container@LOBBY_PLAYER_BIN:
 					Font: Bold
 					Text: Reset
 		Label@COMMON_OPTIONS_HEADER:
-			Y: 308
+			Y: 322
 			X: 5
 			Width: PARENT_WIDTH - 10
 			Height: 24
@@ -186,9 +186,9 @@ Container@LOBBY_PLAYER_BIN:
 			Text: COMMON OPTIONS
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 336
+			Y: 350
 			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 336
+			Height: PARENT_HEIGHT - 350
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
@@ -256,9 +256,9 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: False
 									TooltipContainer: TOOLTIP_CONTAINER
 		ScrollPanel@LOBBY_PLAYERS:
-			Y: 30
+			Y: 0
 			Width: PARENT_WIDTH
-			Height: 190
+			Height: 200
 			TopBottomSpacing: 5
 			ItemSpacing: 5
 			Children:
@@ -532,6 +532,7 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 21
 							Font: Tiny
 							Text: + NATO AI
+							TextColor: 6FB1FF
 							Visible: false
 						Button@ADD_RUSSIA:
 							X: 245
@@ -540,6 +541,7 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 21
 							Font: Tiny
 							Text: + Russia AI
+							TextColor: FF7B7B
 							Visible: false
 						Button@TOGGLE_CLOSED:
 							X: 345
