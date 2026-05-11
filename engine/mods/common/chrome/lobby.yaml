@@ -24,9 +24,16 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH
 			Height: 25
 			Font: Bold
+		Button@CHANGEMAP_BUTTON:
+			X: PARENT_WIDTH - WIDTH - 20
+			Y: 67
+			Width: 174
+			Height: 25
+			Text: button-server-lobby-changemap
+			Font: Bold
 		Container@MAP_PREVIEW_ROOT:
 			X: PARENT_WIDTH - 20 - WIDTH
-			Y: 67
+			Y: 97
 			Width: 174
 			Height: 250
 		DropDownButton@SLOTS_DROPDOWNBUTTON:
@@ -109,17 +116,18 @@ Background@SERVER_LOBBY:
 					Text: button-multiplayer-tabs-servers-tab
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 291
+			Y: 355
 			Width: 174
 			Height: 25
 			Font: Bold
-		Button@CHANGEMAP_BUTTON:
+		Label@SCENARIO_DESCRIPTION:
 			X: PARENT_WIDTH - WIDTH - 20
-			Y: 319
+			Y: 385
 			Width: 174
-			Height: 25
-			Text: button-server-lobby-changemap
-			Font: Bold
+			Height: 60
+			Font: Tiny
+			Align: Left
+			Text: Standard skirmish
 		Container@LOBBYCHAT:
 			X: 20
 			Y: PARENT_HEIGHT - HEIGHT - 20

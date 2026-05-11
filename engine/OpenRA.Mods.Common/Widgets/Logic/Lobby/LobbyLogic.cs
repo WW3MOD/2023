@@ -329,6 +329,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				};
 			}
 
+			// WW3MOD: short blurb under the scenario dropdown describing what's selected.
+			// Uses the map's first Category as a fallback when no scenario is picked.
+			var scenarioDescription = lobby.GetOrNull<LabelWidget>("SCENARIO_DESCRIPTION");
+			if (scenarioDescription != null)
+			{
+				scenarioDescription.IsVisible = () => panel != PanelType.Servers;
+				scenarioDescription.GetText = () =>
+				{
+					var current = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
+					if (current != null && current != "none")
+						return "Scenario: " + current;
+
+					var category = map?.Categories?.FirstOrDefault();
+					return string.IsNullOrEmpty(category) ? "Standard skirmish" : category + " skirmish";
+				};
+			}
+
 			var slotsButton = lobby.GetOrNull<DropDownButtonWidget>("SLOTS_DROPDOWNBUTTON");
 			if (slotsButton != null)
 			{
