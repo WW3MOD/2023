@@ -24,6 +24,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference]
 		const string NotAvailable = "label-not-available";
 
+		// Visual treatment for placeholder options (LobbyOption.Placeholder=true).
+		// Matches the neutral gray used elsewhere in the dim/disabled UI palette.
+		static readonly Color PlaceholderTextColor = Color.FromArgb(0xad, 0xb5, 0xbd);
+		const string PlaceholderTooltipSuffix = "Not yet implemented — visual placeholder for a future feature.";
+
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
 		readonly Widget checkboxRowTemplate;
@@ -116,6 +121,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return option.Category;
 
 			return "";
+		}
+
+		static (string Title, string Desc) ResolveTooltip(LobbyOption option)
+		{
+			var title = string.Empty;
+			var desc = string.Empty;
+
+			if (option.Description != null)
+			{
+				var d = option.Description;
+				if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
+					d = fluentDesc;
+				(title, desc) = LobbyUtils.SplitOnFirstToken(d);
+			}
+
+			if (option.Placeholder)
+			{
+				if (string.IsNullOrEmpty(title))
+					title = option.Name;
+				desc = string.IsNullOrEmpty(desc) ? PlaceholderTooltipSuffix : desc + "\n\n" + PlaceholderTooltipSuffix;
+			}
+
+			return (title, desc);
 		}
 
 		[ObjectCreator.UseCtor]
@@ -288,15 +316,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (FluentProvider.TryGetMessage(option.Name, out var fluentName))
 					checkboxName = fluentName;
 				checkbox.GetText = () => checkboxName;
-				if (option.Description != null)
-				{
-					var desc = option.Description;
-					if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
-						desc = fluentDesc;
-					var (text, descText) = LobbyUtils.SplitOnFirstToken(desc);
-					checkbox.GetTooltipText = () => text;
-					checkbox.GetTooltipDesc = () => descText;
-				}
+
+				var (cbText, cbDesc) = ResolveTooltip(option);
+				checkbox.GetTooltipText = () => cbText;
+				checkbox.GetTooltipDesc = () => cbDesc;
+
+				if (option.Placeholder)
+					checkbox.GetColor = () => PlaceholderTextColor;
 
 				checkbox.IsVisible = () => true;
 				checkbox.IsChecked = () => optionEnabled.Update(orderManager.LobbyInfo.GlobalSettings);
@@ -339,15 +365,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 
 				dropdown.GetText = () => getOptionLabel.Update(optionValue.Update(orderManager.LobbyInfo.GlobalSettings).Value);
-				if (option.Description != null)
-				{
-					var desc = option.Description;
-					if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
-						desc = fluentDesc;
-					var (text, descText) = LobbyUtils.SplitOnFirstToken(desc);
-					dropdown.GetTooltipText = () => text;
-					dropdown.GetTooltipDesc = () => descText;
-				}
+
+				var (ddText, ddDesc) = ResolveTooltip(option);
+				dropdown.GetTooltipText = () => ddText;
+				dropdown.GetTooltipDesc = () => ddDesc;
+
+				if (option.Placeholder)
+					dropdown.GetColor = () => PlaceholderTextColor;
 
 				dropdown.IsVisible = () => true;
 				dropdown.IsDisabled = () => configurationDisabled() ||
@@ -377,6 +401,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						dropdownName = fluentName;
 					label.GetText = () => dropdownName + ":";
 					label.IsVisible = () => true;
+					if (option.Placeholder)
+						label.GetColor = () => PlaceholderTextColor;
 				}
 			}
 		}
