@@ -322,7 +322,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var slotsButton = lobby.GetOrNull<DropDownButtonWidget>("SLOTS_DROPDOWNBUTTON");
 			if (slotsButton != null)
 			{
-				slotsButton.IsVisible = () => panel != PanelType.Servers && panel != PanelType.Options;
+				// WW3MOD: hidden — replaced by the inline LOBBY_SETUP_ROW (Add Bots / Remove Bots /
+				// Auto-Team buttons) on the Players panel. The remaining wiring below is left intact
+				// so the dropdown still works if a future override re-enables it.
+				slotsButton.IsVisible = () => false;
 				slotsButton.IsDisabled = () => configurationDisabled() || panel != PanelType.Players ||
 					(orderManager.LobbyInfo.Slots.Values.All(s => !s.AllowBots) &&
 					!orderManager.LobbyInfo.Slots.Any(s => !s.Value.LockTeam && orderManager.LobbyInfo.ClientInSlot(s.Key) != null));

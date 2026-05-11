@@ -30,12 +30,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly OrderManager orderManager;
 		readonly Func<MapPreview> getMap;
 		readonly Func<bool> configurationDisabled;
+		readonly TextFieldWidget nameField;
 		readonly DropDownButtonWidget dropdown;
 		readonly ButtonWidget saveButton;
+		readonly ButtonWidget deleteButton;
 		readonly ButtonWidget resetButton;
 
 		readonly Dictionary<string, Dictionary<string, string>> presets = new();
-		string activePreset = DefaultPresetName;
 
 		[ObjectCreator.UseCtor]
 		internal LobbyPresetLogic(Widget widget, OrderManager orderManager, Func<MapPreview> getMap, Func<bool> configurationDisabled)
@@ -44,18 +45,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.getMap = getMap;
 			this.configurationDisabled = configurationDisabled;
 
+			nameField = widget.Get<TextFieldWidget>("PRESET_NAME");
 			dropdown = widget.Get<DropDownButtonWidget>("PRESET_DROPDOWN");
 			saveButton = widget.Get<ButtonWidget>("SAVE_PRESET_BUTTON");
+			deleteButton = widget.Get<ButtonWidget>("DELETE_PRESET_BUTTON");
 			resetButton = widget.Get<ButtonWidget>("RESET_PRESET_BUTTON");
 
 			LoadPresets();
 
-			dropdown.GetText = () => activePreset;
+			nameField.Text = DefaultPresetName;
+			nameField.IsDisabled = () => configurationDisabled();
+			// Pressing Enter inside the name field is the same as clicking Save.
+			nameField.OnEnterKey = _ => { SaveCurrent(); return true; };
+
 			dropdown.IsDisabled = () => configurationDisabled();
 			dropdown.OnMouseDown = _ => ShowDropdown();
 
-			saveButton.IsDisabled = () => configurationDisabled();
+			saveButton.IsDisabled = () => configurationDisabled() || string.IsNullOrWhiteSpace(nameField.Text);
 			saveButton.OnClick = SaveCurrent;
+
+			// Delete only enables when the typed name matches a saved preset (not Default).
+			deleteButton.IsDisabled = () => configurationDisabled() || !presets.ContainsKey((nameField.Text ?? string.Empty).Trim());
+			deleteButton.OnClick = DeleteCurrent;
 
 			resetButton.IsDisabled = () => configurationDisabled();
 			resetButton.OnClick = ResetToDefault;
@@ -123,7 +134,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			ScrollItemWidget Setup(string name, ScrollItemWidget template)
 			{
-				bool IsSelected() => activePreset == name;
+				bool IsSelected() => (nameField.Text ?? string.Empty).Trim() == name;
 				void OnClick() => ApplyPreset(name);
 				var item = ScrollItemWidget.Setup(template, IsSelected, OnClick);
 				var label = item.Get<LabelWidget>("LABEL");
@@ -136,7 +147,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void ApplyPreset(string name)
 		{
-			activePreset = name;
+			nameField.Text = name;
 			if (name == DefaultPresetName)
 			{
 				ResetToDefault();
@@ -172,7 +183,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void ResetToDefault()
 		{
-			activePreset = DefaultPresetName;
+			nameField.Text = DefaultPresetName;
 			var map = getMap();
 			if (map == null || map.WorldActorInfo == null)
 				return;
@@ -193,6 +204,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void SaveCurrent()
 		{
+			var name = (nameField.Text ?? string.Empty).Trim();
+			if (string.IsNullOrEmpty(name) || name == DefaultPresetName)
+				return;
+
 			var map = getMap();
 			if (map == null || map.WorldActorInfo == null)
 				return;
@@ -210,14 +225,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					snapshot[opt.Id] = state.Value;
 			}
 
-			// Auto-pick a name. A rename UI is a TODO; for now this just makes save reversible.
-			var n = 1;
-			string name;
-			do { name = $"Preset {n++}"; } while (presets.ContainsKey(name));
-
 			presets[name] = snapshot;
-			activePreset = name;
 			WritePresets();
+		}
+
+		void DeleteCurrent()
+		{
+			var name = (nameField.Text ?? string.Empty).Trim();
+			if (string.IsNullOrEmpty(name) || name == DefaultPresetName)
+				return;
+			if (!presets.Remove(name))
+				return;
+			WritePresets();
+			nameField.Text = DefaultPresetName;
 		}
 	}
 }
