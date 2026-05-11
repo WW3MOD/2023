@@ -5,6 +5,7 @@
 
 ## Working on
 - **AI overhaul foundation (260511)** — survey + 3-layer architecture (Perception/Strategy/Tactics) + 5-phase plan written. Home: `WORKSPACE/ai/`. Awaiting user pass on open questions in `foundation_260511.md §7`
+- **AI tournament harness (260511)** — dual `ModularBot@legacy`/`@v2` + headless+parallel match runner + autonomous milestone-driven loop. Lands before any new-brain code so every change is measurable. Plan: `WORKSPACE/plans/260511_ai_tournament_harness.md`. Not started
 - **Crew evacuation overhaul (260509)** — staged: hatch-emerge → walk-away → prone-when-wounded; cookoff = FireDeath; helis refuse safe-land on blocked cells. Awaiting playtest. Plan: `WORKSPACE/archive/plans/260507_crew_evac_plan.md`
 - **Pathfinding friendly-blocker scope (260506)** — vehicle groups drop moves on long routes / narrow gaps. Briefing: `WORKSPACE/plans/260506_pathfinding_friendly_blockers.md`. Not started
 

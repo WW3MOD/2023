@@ -10,6 +10,12 @@ This folder holds **living docs** for the AI overhaul. The C# lives in
 ## Read first
 
 - [`foundation_260511.md`](foundation_260511.md) — survey of modern RTS AI techniques, WW3MOD-specific constraints, three-layer architecture, phasing. **The basics doc.** Read before any planning.
+- [`../plans/260511_ai_tournament_harness.md`](../plans/260511_ai_tournament_harness.md) — AI-vs-AI tournament harness plan. **Lands before any new-brain code** so we can measure every change. Dual `ModularBot@legacy`/`@v2` in one binary, hybrid score-or-SR-capture win rule, headless + parallel runner, milestone-driven autonomous loop.
+
+## Mandatory references
+
+- [`../../DOCS/reference/supply-route.md`](../../DOCS/reference/supply-route.md) — **Read before writing AI/strategic code that mentions Supply Routes.** SRs are fixed sector beachheads near each player's spawn edge, not buildable factories. Misunderstanding this is the recurring trap.
+- [`../../DOCS/reference/economy.md`](../../DOCS/reference/economy.md) — cash, ammo, supply pipeline.
 
 ## Reference (prior work)
 
