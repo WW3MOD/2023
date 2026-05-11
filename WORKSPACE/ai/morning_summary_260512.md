@@ -1,9 +1,14 @@
 # Morning Summary — Autonomous Overnight Run (260511 → 260512)
 
-> **Read this first.** Live log of what I tried while you slept. Updated after
-> each round.
+> **Read this first.** Live log of what I tried while you slept. 11 commits
+> with `ai: tournament` prefix landed.
 
-**Status:** in progress — round 1 (score formula completion) started.
+**Status:** COMPLETE. Sanity batch ran, findings written to
+`sanity_findings_260512.md`. Headline: USA-bot 67% / Russia-bot 33% over
+6 valid matches (4 of 10 killed by mid-batch engine rebuilds). The
+harness works end-to-end; the 67/33 winrate is a mild-bias signal to
+investigate with a larger sample (recommended n=30) before reporting AI
+changes.
 
 **Starting point:** commit `79d0dff5` (`ai: tournament Phase 1 GREEN`). Phase 1
 end-to-end working. Score formula has only `army_value` populated; capture
