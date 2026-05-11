@@ -246,7 +246,7 @@ Presets:
    - As host change options. Client sees same chips.
    - As client confirm dropdown is read-only, Save/Reset disabled.
    - As host load a preset. Client sees options sync correctly.
-5. **Regression** — `./tools/test/run-batch.sh --all` to confirm no autotests broken.
+5. **Regression** — `./tools/autotest/run-batch.sh --all` to confirm no autotests broken.
 6. **Visual sanity** — open ADVANCED with no presets saved. Confirm placeholder sections are visibly muted, no overlap of map preview with chat, no clipping of long chip text.
 
 ## Out of scope for v1

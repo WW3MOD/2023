@@ -1,11 +1,11 @@
 #!/bin/sh
 # WW3MOD developer test harness — discovery
 #
-# Lists all `test-*` folders under mods/ww3mod/maps/ with the first non-empty
-# line of their description.txt (if present). Read-only; no game launch.
+# Lists all `test-*` folders under tools/autotest/scenarios/ with the first
+# non-empty line of their description.txt (if present). Read-only; no game launch.
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MAPS_DIR="${REPO_ROOT}/mods/ww3mod/maps"
+MAPS_DIR="${REPO_ROOT}/tools/autotest/scenarios"
 
 if ! ls -d "${MAPS_DIR}"/test-*/ >/dev/null 2>&1; then
 	echo "No test-* folders found under ${MAPS_DIR}"
@@ -25,6 +25,6 @@ for d in "${MAPS_DIR}"/test-*/; do
 done
 
 echo
-echo "Run one:    ./tools/test/run-test.sh <name>"
-echo "Run batch:  ./tools/test/run-batch.sh <name1> <name2> ..."
-echo "Run all:    ./tools/test/run-batch.sh --all"
+echo "Run one:    ./tools/autotest/run-test.sh <name>"
+echo "Run batch:  ./tools/autotest/run-batch.sh <name1> <name2> ..."
+echo "Run all:    ./tools/autotest/run-batch.sh --all"

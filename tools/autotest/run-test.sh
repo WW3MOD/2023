@@ -1,7 +1,7 @@
 #!/bin/sh
 # WW3MOD developer test harness — single-test runner
 #
-# Usage:  ./tools/test/run-test.sh [position] [flags] <test-folder-name>
+# Usage:  ./tools/autotest/run-test.sh [position] [flags] <test-folder-name>
 #
 # Position shorthand (positional, before the test name; case-insensitive):
 #   L | -L | --left      Left half of the screen
@@ -37,11 +37,11 @@
 # of the terminal/editor you were typing in.
 #
 # Examples:
-#   ./tools/test/run-test.sh test-paladin-fires           # background, muted
-#   ./tools/test/run-test.sh L test-paladin-fires         # left half, background
-#   ./tools/test/run-test.sh --visible --audio test-foo   # foreground, sound on
-#   ./tools/test/run-test.sh --minimized test-foo         # old miniaturize behavior
-#   ./tools/test/run-test.sh F test-foo                   # fullscreen
+#   ./tools/autotest/run-test.sh test-paladin-fires           # background, muted
+#   ./tools/autotest/run-test.sh L test-paladin-fires         # left half, background
+#   ./tools/autotest/run-test.sh --visible --audio test-foo   # foreground, sound on
+#   ./tools/autotest/run-test.sh --minimized test-foo         # old miniaturize behavior
+#   ./tools/autotest/run-test.sh F test-foo                   # fullscreen
 #
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
@@ -91,7 +91,7 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
-MAP_DIR="mods/ww3mod/maps/${TEST_NAME}"
+MAP_DIR="tools/autotest/scenarios/${TEST_NAME}"
 if [ ! -d "${MAP_DIR}" ]; then
 	echo "Error: test map not found at ${MAP_DIR}"
 	exit 3

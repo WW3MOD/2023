@@ -238,19 +238,19 @@ Tick-by-tick combat simulator for balance analysis. Models damage (penetration, 
 ### Developer Test Harness — see `DOCS/recipes/AUTOTEST.md`
 Trigger phrase: `AUTOTEST <bug or feature>`. Quick reference:
 ```bash
-./tools/test/list-tests.sh                          # what's available
-./tools/test/run-test.sh <test-folder>              # run one
-./tools/test/run-batch.sh --all                     # regression sweep
+./tools/autotest/list-tests.sh                      # what's available
+./tools/autotest/run-test.sh <test-folder>          # run one
+./tools/autotest/run-batch.sh --all                 # regression sweep
 ```
-Drops the game into a deterministic scenario under `mods/ww3mod/maps/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/recipes/AUTOTEST.md`](DOCS/recipes/AUTOTEST.md).
+Drops the game into a deterministic scenario under `tools/autotest/scenarios/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. The scenarios folder is registered in `mod.yaml` under `MapFolders` with class `Unknown` so it stays out of every in-game chooser. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/recipes/AUTOTEST.md`](DOCS/recipes/AUTOTEST.md).
 
 ### Demo scenarios — see `DOCS/recipes/DEMO.md`
 Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" request). Same harness as AUTOTEST, different stance — agent stages, user runs and explores, no verdict expected.
 ```bash
-./tools/test/list-demos.sh                          # what's available
-./tools/test/run-demo.sh demo-<name>                # launch one
+./tools/autotest/list-demos.sh                      # what's available
+./tools/autotest/run-demo.sh demo-<name>            # launch one
 ```
-Demo scenarios live in `mods/ww3mod/maps/demo-*/`. **Never put a `Test.Pass`/`Fail` call in a demo** — if it has a verdict, it's a test; move it to `test-*` and use AUTOTEST.
+Demo scenarios live in `tools/autotest/scenarios/demo-*/`. **Never put a `Test.Pass`/`Fail` call in a demo** — if it has a verdict, it's a test; move it to `test-*` and use AUTOTEST.
 
 ## Architecture & system reference
 

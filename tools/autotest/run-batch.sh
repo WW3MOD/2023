@@ -1,8 +1,8 @@
 #!/bin/sh
 # WW3MOD developer test harness — multi-test runner
 #
-# Usage:  ./tools/test/run-batch.sh <test1> <test2> ...
-#         ./tools/test/run-batch.sh --all
+# Usage:  ./tools/autotest/run-batch.sh <test1> <test2> ...
+#         ./tools/autotest/run-batch.sh --all
 #
 # Runs each named test sequentially via run-test.sh, prints a per-test
 # verdict line and a final summary. Exit code: 0 if all pass; otherwise
@@ -23,9 +23,9 @@ if [ $# -eq 0 ]; then
 fi
 
 if [ "$1" = "--all" ]; then
-	TESTS=$(ls -d mods/ww3mod/maps/test-*/ 2>/dev/null | xargs -n1 basename)
+	TESTS=$(ls -d tools/autotest/scenarios/test-*/ 2>/dev/null | xargs -n1 basename)
 	if [ -z "${TESTS}" ]; then
-		echo "No test-* folders found under mods/ww3mod/maps/"
+		echo "No test-* folders found under tools/autotest/scenarios/"
 		exit 3
 	fi
 else
@@ -41,7 +41,7 @@ for t in ${TESTS}; do
 	echo "  Running: ${t}"
 	echo "============================================================"
 
-	./tools/test/run-test.sh "${t}"
+	./tools/autotest/run-test.sh "${t}"
 	rc=$?
 
 	case ${rc} in

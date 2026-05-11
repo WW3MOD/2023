@@ -23,14 +23,14 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 ## Quick reference
 
 ```bash
-./tools/test/list-tests.sh                          # what's available
-./tools/test/run-test.sh <test-folder>              # run one (centered, background, muted)
-./tools/test/run-batch.sh <t1> <t2> ...             # run several
-./tools/test/run-batch.sh --all                     # run every test-* folder
-./tools/test/run-test.sh L <test>                   # left half (also R, F, C)
-./tools/test/run-test.sh --visible <test>           # foreground (alias: --no-minimize)
-./tools/test/run-test.sh --audio <test>             # keep sound on
-./tools/test/run-test.sh --help                     # flag list
+./tools/autotest/list-tests.sh                          # what's available
+./tools/autotest/run-test.sh <test-folder>              # run one (centered, background, muted)
+./tools/autotest/run-batch.sh <t1> <t2> ...             # run several
+./tools/autotest/run-batch.sh --all                     # run every test-* folder
+./tools/autotest/run-test.sh L <test>                   # left half (also R, F, C)
+./tools/autotest/run-test.sh --visible <test>           # foreground (alias: --no-minimize)
+./tools/autotest/run-test.sh --audio <test>             # keep sound on
+./tools/autotest/run-test.sh --help                     # flag list
 ```
 
 **Window placement & focus.** Default: **centered, ~90% × ~85%, background, muted**. "Background" means the window is visible at full size but immediately defocused so your terminal/editor keeps focus. Cmd+Tab to OpenRA brings the window forward when you want to look at it. After the game exits, focus is restored to whatever app was frontmost at launch — no random focus shuffle. If the user includes `L`, `R`, or `F` in the trigger ("AUTOTEST L", "AUTOTEST <bug> R"), pass that letter through as the first positional arg to `run-test.sh`. `L`=left half, `R`=right half, `F`=fullscreen. Pass `--minimized` to opt back into the old SDL miniaturize behavior.
@@ -44,7 +44,7 @@ Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
 3. **Verify RED**: run the new test pre-fix. Must fail with the expected timeout / failure reason. If it passes accidentally, the test isn't measuring the right thing.
 4. **Investigate + fix**: read code, apply changes. If diagnosis needs more data, add temporary `Console.WriteLine` traces gated on `TestMode.IsActive`.
 5. **Verify GREEN**: re-run the new test. Must pass within reasonable time.
-6. **Regression check**: `./tools/test/run-batch.sh --all` or at least the closest existing tests, to make sure the fix didn't break anything.
+6. **Regression check**: `./tools/autotest/run-batch.sh --all` or at least the closest existing tests, to make sure the fix didn't break anything.
 7. **Strip diagnostics**: remove any temporary trace lines I added.
 8. **PITFALL check**: was the root cause a non-obvious trap a future reader would also fall into? If yes, drop a one-line `// PITFALL:` (or `# PITFALL:` in YAML) at the *temptation site* — the line a careless reader is actually looking at when at risk, not where the broken code lives. See CLAUDE.md "PITFALL Comments". Same commit as the fix. Skip for one-shot bugs that won't recur.
 9. **Commit**: test scenario + fix + tracker update + any PITFALL anchor in a single commit. Test stays committed so the bug can't silently regress.
@@ -54,7 +54,7 @@ If the bug has multiple layers, fix what I can, leave the test RED for the unfix
 ## Writing a test scenario
 
 ```
-mods/ww3mod/maps/test-<name>/
+tools/autotest/scenarios/test-<name>/
 ├── description.txt        # one-line panel description (recommended)
 ├── map.yaml               # actor placement + player slots (gotchas below)
 ├── rules.yaml             # LuaScript: test-helpers.lua, test-<name>.lua
@@ -145,7 +145,7 @@ These bit during development. Documenting so they don't bite again.
 1. **Build cache lies**. `make` reports success without picking up edits to a single file occasionally. If a trace doesn't fire, `touch <file>.cs && make` to force rebuild.
 2. **`AttackTurreted` overrides `CanAttack`** — short-circuits on `turretReady = FaceTarget()` *before* calling `base.CanAttack`. If you trace `AttackBase.CanAttack` and see no fires, your override is gating earlier.
 3. **`Activity.IsCanceling` is false in `OnLastRun`**. The framework sets `State = Done` *before* calling OnLastRun, so the cancel flag is already cleared. To detect "ended because something replaced me", check `NextActivity is X` instead.
-4. **Window placement**: default is centered + background (visible but defocused) + muted. Use the L/R/F shorthand for side-docked layouts (`./tools/test/run-test.sh L <test>`). `--visible` keeps it foreground; `--audio` keeps sound on; `--minimized` opts back into the old SDL miniaturize behavior (which on macOS can only be restored via the dock icon next to Trash, not Cmd+Tab).
+4. **Window placement**: default is centered + background (visible but defocused) + muted. Use the L/R/F shorthand for side-docked layouts (`./tools/autotest/run-test.sh L <test>`). `--visible` keeps it foreground; `--audio` keeps sound on; `--minimized` opts back into the old SDL miniaturize behavior (which on macOS can only be restored via the dock icon next to Trash, not Cmd+Tab).
 5. **Lua force-attack vs UI force-attack** are *not* always equivalent paths. `Paladin.Attack(t90, ..., forceAttack=false)` hard-codes `queued: true` (existing OpenRA API quirk); `Paladin.AttackGround(...)` defaults `queued: false` to mimic Ctrl+click replace.
 6. **`Result.json` is sticky**. Always `rm -f $HOME/.ww3mod-tests/result.json` before a run, or wait for the runner to do it. Otherwise an old verdict can be misread.
 
@@ -164,9 +164,9 @@ For when you need to extend the harness (not just use it):
 | `engine/OpenRA.Platforms.Default/Sdl2PlatformWindow.cs` | Honors `OPENRA_WINDOW_X/Y` env vars for window positioning |
 | `mods/ww3mod/chrome/ingame-testmode.yaml` | Panel layout |
 | `mods/ww3mod/scripts/test-helpers.lua` | Reusable Lua helpers |
-| `tools/test/run-test.sh` | Single-test runner |
-| `tools/test/run-batch.sh` | Batch runner |
-| `tools/test/list-tests.sh` | Discovery |
+| `tools/autotest/run-test.sh` | Single-test runner |
+| `tools/autotest/run-batch.sh` | Batch runner |
+| `tools/autotest/list-tests.sh` | Discovery |
 
 ## Existing tests
 

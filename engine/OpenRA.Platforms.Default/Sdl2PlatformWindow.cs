@@ -230,7 +230,7 @@ namespace OpenRA.Platforms.Default
 				if (Platform.CurrentPlatform == PlatformType.OSX && windowMode == WindowMode.Fullscreen)
 					SDL.SDL_SetHint(SDL.SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
 
-				// WW3MOD test harness: allow position override via env vars (used by tools/test/run-test.sh).
+				// WW3MOD test harness: allow position override via env vars (used by tools/autotest/run-test.sh).
 				// Unset → SDL_WINDOWPOS_CENTERED_DISPLAY (default OpenRA behavior).
 				var posXEnv = Environment.GetEnvironmentVariable("OPENRA_WINDOW_X");
 				var posYEnv = Environment.GetEnvironmentVariable("OPENRA_WINDOW_Y");

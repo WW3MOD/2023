@@ -7,7 +7,7 @@
 | Tool | What it answers | Source of truth |
 |---|---|---|
 | `tools/combat-sim` (dashboard) | "What does this unit/weapon look like? How does it compare?" | live YAML via `--dump-balance-json` |
-| `tools/test/run-test.sh test-balance-*` (AUTOTEST) | "Who wins this fight? At what HP? How fast?" | the engine itself (in-game scenario) |
+| `tools/autotest/run-test.sh test-balance-*` (AUTOTEST) | "Who wins this fight? At what HP? How fast?" | the engine itself (in-game scenario) |
 
 Stat drift between dashboard and game = structurally impossible (the dashboard reads the engine's resolved Ruleset). Combat-outcome drift between dashboard and game = N/A, because the dashboard never simulates combat.
 
@@ -48,9 +48,9 @@ Use these to:
 For "who wins?" / "how fast?" / "what HP%?" use the in-game test harness. It runs the actual engine, so it catches everything the dashboard's static math can't (positioning, autotarget jitter, projectile travel, suppression, AI behavior).
 
 ```bash
-./tools/test/run-test.sh test-balance-tank-1v1
-./tools/test/run-test.sh test-balance-arty-1v1
-./tools/test/run-batch.sh test-balance-tank-1v1 test-balance-ifv-1v1 ...
+./tools/autotest/run-test.sh test-balance-tank-1v1
+./tools/autotest/run-test.sh test-balance-arty-1v1
+./tools/autotest/run-batch.sh test-balance-tank-1v1 test-balance-ifv-1v1 ...
 ```
 
 Each test reports `WINNER=X | ttk=Ys | survivors=N/M | hp=H/MAX (P%)`. Verdicts are deterministic per-seed so re-runs are identical — for variance work, parameterise the scenario or add tests at multiple ranges.

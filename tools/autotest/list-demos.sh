@@ -1,11 +1,11 @@
 #!/bin/sh
 # WW3MOD demo harness — discovery
 #
-# Lists all `demo-*` folders under mods/ww3mod/maps/ with the first non-empty
-# line of their description.txt (if present). Read-only; no game launch.
+# Lists all `demo-*` folders under tools/autotest/scenarios/ with the first
+# non-empty line of their description.txt (if present). Read-only; no game launch.
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MAPS_DIR="${REPO_ROOT}/mods/ww3mod/maps"
+MAPS_DIR="${REPO_ROOT}/tools/autotest/scenarios"
 
 if ! ls -d "${MAPS_DIR}"/demo-*/ >/dev/null 2>&1; then
 	echo "No demo-* folders found under ${MAPS_DIR}"
@@ -25,4 +25,4 @@ for d in "${MAPS_DIR}"/demo-*/; do
 done
 
 echo
-echo "Run one:    ./tools/test/run-demo.sh <name>"
+echo "Run one:    ./tools/autotest/run-demo.sh <name>"

@@ -30,9 +30,9 @@ If a question with a yes/no answer is buried in there ("does the turret rotate?"
 ## The loop
 
 1. **Confirm scope.** What units / changes / situations should be staged? If the user said "show me all changes lately," look at recent commits and propose a list before building.
-2. **Build the demo folder** under `mods/ww3mod/maps/demo-<name>/`.
-3. **Smoke-verify.** Inject a temporary `Trigger.AfterDelay(25, function() Test.Pass() end)` in `WorldLoaded`, run via `./tools/test/run-test.sh demo-<name>` (the test runner accepts any folder), confirm the verdict is `pass`, then strip the trailer. Catches rules.yaml typos, missing actors, broken Lua bindings before the user sees a black screen.
-4. **Launch for the user.** Call `./tools/test/run-demo.sh demo-<name>` in the **background** (`run_in_background: true`). The window opens visible (run-demo.sh forces `--no-minimize`); the user explores; when they close the window the background task completes and you get a notification. If staging multiple demos, queue the next one only after the previous one finishes — running two game instances at once is jarring.
+2. **Build the demo folder** under `tools/autotest/scenarios/demo-<name>/`.
+3. **Smoke-verify.** Inject a temporary `Trigger.AfterDelay(25, function() Test.Pass() end)` in `WorldLoaded`, run via `./tools/autotest/run-test.sh demo-<name>` (the test runner accepts any folder), confirm the verdict is `pass`, then strip the trailer. Catches rules.yaml typos, missing actors, broken Lua bindings before the user sees a black screen.
+4. **Launch for the user.** Call `./tools/autotest/run-demo.sh demo-<name>` in the **background** (`run_in_background: true`). The window opens visible (run-demo.sh forces `--no-minimize`); the user explores; when they close the window the background task completes and you get a notification. If staging multiple demos, queue the next one only after the previous one finishes — running two game instances at once is jarring.
 5. **Commit** the demo folder. Smoke-test trailer must be stripped before committing.
 
 If the user explicitly says "don't launch — just give me the command" (rare, e.g. they want to run on a different machine), respect that and print the command instead.
@@ -40,7 +40,7 @@ If the user explicitly says "don't launch — just give me the command" (rare, e
 ## Folder layout
 
 ```
-mods/ww3mod/maps/demo-<name>/
+tools/autotest/scenarios/demo-<name>/
 ├── description.txt        # one-line panel description (recommended)
 ├── map.yaml               # actor placement + player slots (same gotchas as tests)
 ├── rules.yaml             # LuaScript: test-helpers.lua, demo-<name>.lua
@@ -69,9 +69,9 @@ If the demo needs scripted enemy behavior to show off a feature (e.g., enemy att
 ## Running
 
 ```bash
-./tools/test/list-demos.sh                # discovery
-./tools/test/run-demo.sh demo-<name>      # launch (centered, visible)
-./tools/test/run-demo.sh L demo-<name>    # left half (also R, F, C)
+./tools/autotest/list-demos.sh                # discovery
+./tools/autotest/run-demo.sh demo-<name>      # launch (centered, visible)
+./tools/autotest/run-demo.sh L demo-<name>    # left half (also R, F, C)
 ```
 
 Same flags as `run-test.sh`, but the demo runner injects `--no-minimize` so the window stays visible. If the user includes `L`, `R`, or `F` in the trigger ("DEMO L", "DEMO <topic> R"), pass that letter through as the first positional arg. Exit code is `0` whether the user closes cleanly or just clicks the X — the runner doesn't check for a result file.
@@ -140,7 +140,7 @@ are the moving-target sub-scenario; bottom half is the 4v4 skirmish."
 
 ## Multi-variation comparison (the "pick one" pattern)
 
-Use this when the user says "show me N versions side-by-side and tell me which looks best." See `mods/ww3mod/maps/test-burn-compare/` for the worked example (11-variant burn-ramp comparison that produced the production V1 settings on 260509).
+Use this when the user says "show me N versions side-by-side and tell me which looks best." See `tools/autotest/scenarios/test-burn-compare/` for the worked example (11-variant burn-ramp comparison that produced the production V1 settings on 260509).
 
 **Shape:**
 - N variant *templates* (`^Variant_VN`) with the same trait set, varying one or two parameters between them. Templates ONLY contain new traits — never `-Trait:` removals (see Gotcha #1 below).

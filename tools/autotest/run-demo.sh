@@ -1,10 +1,10 @@
 #!/bin/sh
 # WW3MOD demo harness — load a staged scenario for human viewing.
 #
-# Usage:  ./tools/test/run-demo.sh [position] [flags] <demo-folder-name>
-#         e.g.  ./tools/test/run-demo.sh demo-changed-vehicles
-#               ./tools/test/run-demo.sh L demo-changed-vehicles
-#               ./tools/test/run-demo.sh F demo-changed-vehicles
+# Usage:  ./tools/autotest/run-demo.sh [position] [flags] <demo-folder-name>
+#         e.g.  ./tools/autotest/run-demo.sh demo-changed-vehicles
+#               ./tools/autotest/run-demo.sh L demo-changed-vehicles
+#               ./tools/autotest/run-demo.sh F demo-changed-vehicles
 #
 # Same flags as run-test.sh (L/R/F shortcuts, --position, --fullscreen,
 # --windowed, --help). Demos default to NOT minimized (you want to see them).
@@ -34,12 +34,12 @@ case "${NAME}" in
 	demo-*) ;;
 	*)
 		echo "Demo folders must be named demo-* (got: ${NAME})."
-		echo "If this is a test scenario, use ./tools/test/run-test.sh instead."
+		echo "If this is a test scenario, use ./tools/autotest/run-test.sh instead."
 		exit 3 ;;
 esac
 
-if [ ! -d "mods/ww3mod/maps/${NAME}" ]; then
-	echo "Error: demo folder not found at mods/ww3mod/maps/${NAME}"
+if [ ! -d "tools/autotest/scenarios/${NAME}" ]; then
+	echo "Error: demo folder not found at tools/autotest/scenarios/${NAME}"
 	exit 3
 fi
 
@@ -48,7 +48,7 @@ fi
 # and sound is on (demos are interactive). Demos won't write result.json, so
 # run-test.sh exits 3 ("no result"); we treat that as success here because
 # verdict-less is the demo's whole point.
-./tools/test/run-test.sh --visible --audio "$@"
+./tools/autotest/run-test.sh --visible --audio "$@"
 rc=$?
 
 if [ ${rc} -eq 3 ]; then
