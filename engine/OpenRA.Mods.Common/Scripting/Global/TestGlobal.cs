@@ -56,6 +56,23 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			Game.Exit();
 		}
 
+		[Desc("Capture a screenshot tagged with `label`. The PNG lands in the per-run " +
+			"screenshot directory (Test.ScreenshotDir launch arg or default) under " +
+			"NNN_<sanitized-label>.png, and the path is emitted into the verdict JSON's " +
+			"'screenshots' array. Optional `note` is surfaced alongside (use it for " +
+			"semantic expectations: 'expects: muzzle flash visible'). " +
+			"No-op outside test mode. Capture is async — the file appears on disk " +
+			"shortly after this call returns. Returns the planned path, or null if " +
+			"screenshots are disabled.")]
+		public string Screenshot(string label, string note = "")
+		{
+			if (!TestMode.IsActive)
+				return null;
+
+			var tick = Context.World != null ? Context.World.WorldTick : -1;
+			return TestModeScreenshots.Capture(label, note ?? "", tick);
+		}
+
 		[Desc("Resolve the rally-point order type a click on `cell` from `producer` (with optional " +
 			"modifier keys) would produce. `modifiers` is a space-separated list, any of " +
 			"'Alt' (= attack-move), 'Ctrl' (= force-move), 'Shift' (= queue), 'CtrlAlt' (= force-attack/SR override). " +

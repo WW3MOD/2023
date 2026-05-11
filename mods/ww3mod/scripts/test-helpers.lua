@@ -88,3 +88,25 @@ function TestHarness.AssertAfter(seconds, predicate, failReason)
 		end
 	end)
 end
+
+-- Capture a screenshot tagged with `label`. Thin wrapper around the Test.Screenshot
+-- engine binding; included here so test code calls a consistent TestHarness.* API.
+-- Optional `note` is a semantic expectation surfaced in the verdict JSON, e.g.
+-- "expects: muzzle flash visible, T-90 in frame".
+--
+-- Capture is async — the PNG appears on disk a moment after this returns. Path is
+-- recorded immediately in the verdict's screenshots[] array, so the runner can
+-- print it post-exit. No-op when TestMode is inactive (safe in regular maps).
+function TestHarness.Screenshot(label, note)
+	return Test.Screenshot(label, note or "")
+end
+
+-- Sugar: schedule a screenshot `seconds` from now. Useful for capturing a moment
+-- mid-test ("3 seconds after Paladin starts moving, screenshot to see where it
+-- got to") without manually composing Trigger.AfterDelay.
+function TestHarness.ScreenshotAfter(seconds, label, note)
+	local ticks = math.floor(seconds * TestHarness.TicksPerSecond)
+	Trigger.AfterDelay(ticks, function()
+		Test.Screenshot(label, note or "")
+	end)
+end
