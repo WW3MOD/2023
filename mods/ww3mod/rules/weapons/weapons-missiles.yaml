@@ -49,9 +49,8 @@ WGM:
 	Projectile: Missile
 		Blockable: false
 		# Accuracy (260510): tight Inaccuracy + LockOnInaccuracy 0 so locked
-		# shots fly straight at target. HorizontalRateOfTurn 30 (was 10) lets
-		# the missile correct on moving targets. ManualGuidance kept true
-		# (loses guidance if Bradley dies) — matches the wire-guided fiction.
+		# shots fly straight at target. ManualGuidance kept true (loses
+		# guidance if Bradley dies) — matches the wire-guided fiction.
 		# Range-scaled inaccuracy: per-cell increment so misses grow with
 		# distance. At 22-cell range that gives ~22*32 = 704 wdist max
 		# offset (PDF-distributed, so most shots land much closer to centre).
@@ -62,7 +61,11 @@ WGM:
 		Speed: 300
 		Acceleration: 30
 		MaximumLaunchSpeed: 50
-		HorizontalRateOfTurn: 60
+		# Turn rate (260511): dropped 60 → 8 so the operator-retarget swing
+		# curves visibly over ~9 cells instead of snapping to the new target
+		# at a near-straight angle. Tradeoff: corrections on fast-moving
+		# targets are weaker — acceptable for wire-guided fiction.
+		HorizontalRateOfTurn: 8
 		RetargetTicks: 2
 		Arm: 2
 		ManualGuidance: true
