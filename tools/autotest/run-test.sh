@@ -152,6 +152,19 @@ mkdir -p "${RESULT_DIR}"
 RESULT_FILE="${RESULT_DIR}/result.json"
 rm -f "${RESULT_FILE}"
 
+# Per-run screenshot output dir. Tests can capture via Test.Screenshot(label)
+# in Lua; the PNGs land here with predictable filenames (NNN_<label>.png) and
+# paths are echoed into the verdict JSON's screenshots[] array. Each run gets
+# its own folder so successive runs of the same test don't clobber each other.
+RUN_ID="$(date +%y%m%d_%H%M%S)_${TEST_NAME}"
+SCREENSHOT_DIR="${RESULT_DIR}/screenshots/${RUN_ID}"
+mkdir -p "${SCREENSHOT_DIR}"
+
+# Cleanup: drop screenshot runs older than 7 days so /.ww3mod-tests/screenshots
+# doesn't grow unboundedly. Best-effort — failures (e.g. permissions) ignored.
+find "${RESULT_DIR}/screenshots" -mindepth 1 -maxdepth 1 -type d -mtime +7 \
+	-exec rm -rf {} \; 2>/dev/null || true
+
 # Optional one-line description shown in the TEST MODE panel.
 # Read from <map-folder>/description.txt; first non-empty line wins.
 TEST_DESCRIPTION=""
@@ -167,6 +180,7 @@ echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${WINDOW_BEHAVIOR}, ${AUDIO_LABEL
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Result file: ${RESULT_FILE}"
+echo "==> Screenshots: ${SCREENSHOT_DIR}"
 echo
 
 # OpenRA's SDL platform reads OPENRA_WINDOW_X/Y at window creation (engine
@@ -245,6 +259,7 @@ fi
 	"Test.Name=${TEST_NAME}" \
 	"Test.Description=${TEST_DESCRIPTION}" \
 	"Test.ResultPath=${RESULT_FILE}" \
+	"Test.ScreenshotDir=${SCREENSHOT_DIR}" \
 	"Graphics.Mode=${GRAPHICS_MODE}" \
 	${WINDOW_ARGS} \
 	${AUDIO_ARGS} \
@@ -276,6 +291,28 @@ fi
 echo "==> Result:"
 cat "${RESULT_FILE}"
 echo
+
+# PITFALL: Game.TakeScreenshot is async (ThreadPool via Renderer.SaveScreenshot).
+# When the verdict is written from Test.Pass/Fail, the PNG files referenced in
+# the JSON may still be flushing. A brief settle wait keeps the post-run
+# listing accurate. 250ms is empirically enough for one or two captures.
+sleep 0.25
+
+# Surface any captured screenshots. The verdict JSON paths are authoritative,
+# but a directory listing is the simplest "what's there" view for the runner.
+if [ -d "${SCREENSHOT_DIR}" ]; then
+	SHOT_COUNT=$(find "${SCREENSHOT_DIR}" -maxdepth 1 -name "*.png" -type f 2>/dev/null | wc -l | tr -d ' ')
+	if [ "${SHOT_COUNT}" -gt 0 ]; then
+		echo "==> Screenshots (${SHOT_COUNT}):"
+		find "${SCREENSHOT_DIR}" -maxdepth 1 -name "*.png" -type f 2>/dev/null \
+			| sort | sed 's|^|    |'
+		echo
+	else
+		# Empty per-run dir is just clutter; drop it so the screenshots/ folder
+		# only carries dirs that actually contain captures.
+		rmdir "${SCREENSHOT_DIR}" 2>/dev/null || true
+	fi
+fi
 
 STATUS=$(grep -o '"status":"[^"]*"' "${RESULT_FILE}" | head -1 | sed 's/"status":"\(.*\)"/\1/')
 
