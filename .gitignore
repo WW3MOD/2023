@@ -53,3 +53,4 @@ _ReSharper.*/
 # Claude session files (ephemeral, not for git)
 CLAUDE/sessions/active_*
 garrison_debug.log
+/tools/autotest/tournament-loops/

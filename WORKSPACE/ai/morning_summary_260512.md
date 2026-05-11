@@ -47,7 +47,34 @@ engine init.
 with no error (engine quirk). Documented inline at the LoadMap call site.
 
 ### Round 2 — game-speed validation
-*Status: smoke test in progress*
+*Status: validated.* 30-sec match wall-clock dropped 57s → 42s with
+`GameSpeed: fastest`. ~26% reduction; ~50% expected for 12-min matches once
+engine init (~30s) becomes a smaller fraction. Cap is 2× — that's intrinsic
+to the mod's GameSpeeds Timestep config. Headless rendering (Phase 2) would
+let the engine SATURATE the timestep without slowing for rendering but won't
+break the 2× ceiling.
 
-Validating `Test.GameSpeed=fastest` actually drops wall-clock by ~2× before
-moving on.
+### Round 3 — 20-seed sanity-check batch
+*Status: running in background.*
+
+`tournament-sanity.yaml` config: 3-min matches at fastest game speed; 20 seeds
+legacy-vs-legacy. Expected wall-clock ≈ 40 min. Validates that the map isn't
+positionally biased before any AI work measures against this benchmark.
+
+Output: `tools/autotest/tournament-results/<timestamp>_tournament-arena-skirmish-2p/`
+with `summary.csv` + `summary.json`. Round 3 deliverable: a findings doc that
+reports winrate, decisive %, and recommends whether the map is fit for use.
+
+### Round 4 — Autonomous loop scaffold
+*Status: scaffold landed; condition-evaluation deferred to a future session.*
+
+`tools/autotest/loop-tournament.sh` — orchestrates multi-round runs from a
+target.yaml config. Reads scenario, config, BatchSize, BudgetHours; runs
+rounds in sequence; writes a per-round result dir. Stop-condition and
+milestone-trigger evaluation is documented but not yet implemented (the
+shell scaffold just runs N rounds until budget exhausted).
+
+Example target file at `tools/autotest/example-target.yaml`.
+
+Phase 4 v2 (a future session) wires in the metric-comparison logic to
+actually stop on goal-met and to bell-the-user on milestone hits.

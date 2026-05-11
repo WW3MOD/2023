@@ -1,0 +1,26 @@
+# Example target file for loop-tournament.sh.
+#
+# Used by the autonomous tournament loop to drive long-running tuning sessions.
+# See tools/autotest/loop-tournament.sh for the full schema.
+
+Scenario: tournament-arena-skirmish-2p
+Config:   tools/autotest/scenarios/tournament-arena-skirmish-2p/tournament-sanity.yaml
+BatchSize: 10
+BudgetHours: 1
+
+# Goal — once this is met, the loop stops. The metric names map to the
+# aggregate-tournament.sh summary.json schema.
+StopWhen:
+	Metric: v2_winrate
+	Op:     ">="
+	Value:  0.60
+
+# Per-round triggers. When any of these conditions becomes true, write a
+# milestone marker file and bell the user. (Logic TBD — Phase 4 v2.)
+Milestones:
+	- Name: winrate_flipped_50
+	  Condition: v2_winrate > 0.50
+	- Name: winrate_dropped_30
+	  Condition: v2_winrate < 0.30
+	- Name: perf_below_100
+	  Condition: perf_avg_tickrate < 100
