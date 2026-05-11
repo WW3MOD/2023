@@ -94,6 +94,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		readonly ScrollPanelWidget players;
 
+		// Roster auto-expand state — captured once at lobby load so we can recompute
+		// y-offsets of widgets below the player list each time the slot list rebuilds.
+		Widget rosterFlexSetupRow;
+		Widget rosterFlexActiveChanges;
+		Widget rosterFlexPresetBar;
+		Widget rosterFlexCommonHeader;
+		ScrollPanelWidget rosterFlexCommonPanel;
+		int rosterFlexOriginalPlayersHeight;
+		int rosterFlexOriginalSetupY;
+		int rosterFlexOriginalActiveChangesY;
+		int rosterFlexOriginalPresetY;
+		int rosterFlexOriginalCommonHeaderY;
+		int rosterFlexOriginalCommonPanelY;
+		int rosterFlexOriginalCommonPanelHeight;
+
 		readonly Dictionary<string, LobbyFaction> factions = new();
 
 		readonly IColorPickerManagerInfo colorManager;
@@ -232,6 +247,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			editableSpectatorTemplate = players.Get("TEMPLATE_EDITABLE_SPECTATOR");
 			nonEditableSpectatorTemplate = players.Get("TEMPLATE_NONEDITABLE_SPECTATOR");
 			newSpectatorTemplate = players.Get("TEMPLATE_NEW_SPECTATOR");
+
+			// PITFALL: roster auto-expand depends on these widgets staying as direct
+			// children of LOBBY_PLAYER_BIN with the IDs below. If the layout YAML is
+			// refactored, the GetOrNull lookups will silently noop and the roster
+			// will visually overlap the widgets below it.
+			rosterFlexSetupRow = playerBin.GetOrNull("LOBBY_SETUP_ROW");
+			rosterFlexActiveChanges = playerBin.GetOrNull("LOBBY_ACTIVE_CHANGES");
+			rosterFlexPresetBar = playerBin.GetOrNull("LOBBY_PRESET_BAR");
+			rosterFlexCommonHeader = playerBin.GetOrNull("COMMON_OPTIONS_HEADER");
+			rosterFlexCommonPanel = playerBin.GetOrNull<ScrollPanelWidget>("COMMON_OPTIONS_PANEL");
+			rosterFlexOriginalPlayersHeight = players.Bounds.Height;
+			rosterFlexOriginalSetupY = rosterFlexSetupRow?.Bounds.Y ?? 0;
+			rosterFlexOriginalActiveChangesY = rosterFlexActiveChanges?.Bounds.Y ?? 0;
+			rosterFlexOriginalPresetY = rosterFlexPresetBar?.Bounds.Y ?? 0;
+			rosterFlexOriginalCommonHeaderY = rosterFlexCommonHeader?.Bounds.Y ?? 0;
+			rosterFlexOriginalCommonPanelY = rosterFlexCommonPanel?.Bounds.Y ?? 0;
+			rosterFlexOriginalCommonPanelHeight = rosterFlexCommonPanel?.Bounds.Height ?? 0;
+
 			colorManager = modRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 
 			foreach (var f in modRules.Actors[SystemActors.World].TraitInfos<FactionInfo>())
@@ -943,7 +976,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			while (players.Children.Count > idx)
 				players.RemoveChild(players.Children[idx]);
 
+			ResizeRosterToFit(idx);
+
 			tabCompletion.Names = orderManager.LobbyInfo.Clients.Where(c => !c.IsBot).Select(c => c.Name).Distinct().ToList();
+		}
+
+		// Auto-expand the roster ScrollPanel so it never scrolls internally.
+		// Each visible row is 25h with 5px ItemSpacing, plus 5px TopBottomSpacing each side.
+		void ResizeRosterToFit(int rowCount)
+		{
+			if (rosterFlexOriginalPlayersHeight == 0)
+				return;
+
+			var rowStride = 30;
+			var newHeight = Math.Max(rowCount * rowStride + 5, rowStride);
+			var delta = newHeight - rosterFlexOriginalPlayersHeight;
+
+			players.Bounds.Height = newHeight;
+			if (rosterFlexSetupRow != null) rosterFlexSetupRow.Bounds.Y = rosterFlexOriginalSetupY + delta;
+			if (rosterFlexActiveChanges != null) rosterFlexActiveChanges.Bounds.Y = rosterFlexOriginalActiveChangesY + delta;
+			if (rosterFlexPresetBar != null) rosterFlexPresetBar.Bounds.Y = rosterFlexOriginalPresetY + delta;
+			if (rosterFlexCommonHeader != null) rosterFlexCommonHeader.Bounds.Y = rosterFlexOriginalCommonHeaderY + delta;
+			if (rosterFlexCommonPanel != null)
+			{
+				rosterFlexCommonPanel.Bounds.Y = rosterFlexOriginalCommonPanelY + delta;
+				rosterFlexCommonPanel.Bounds.Height = Math.Max(rosterFlexOriginalCommonPanelHeight - delta, 60);
+			}
 		}
 
 		void UpdateDiscordStatus()

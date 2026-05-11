@@ -328,6 +328,14 @@ humans-vs-bots = Humans vs Bots
 free-for-all = Free for all
 configure-teams = Configure Teams
 
+# WW3MOD lobby tab labels — Phase 1 redesign:
+# the first tab covers more than just players (roster + common options + map),
+# so it's labelled Match; second tab is for rarely-changed knobs.
+button-skirmish-tabs-players-tab = Match
+button-skirmish-tabs-options-tab = Advanced
+button-multiplayer-tabs-players-tab = Match
+button-multiplayer-tabs-options-tab = Advanced
+
 ## LobbyLogic, CommonSelectorLogic, InGameChatLogic
 all = All
 
