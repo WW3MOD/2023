@@ -1,0 +1,50 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Spread preserves per-unit prefix orders (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	# Two abrams (vehicles for speed). Each gets a UNIQUE Move prefix
+	# (post-1st-spread state), then the same two AttackMove waypoints
+	# queued on top (group-order state). Spread must leave the unique
+	# prefixes in place and only split the shared AM suffix between the units.
+	TankA: abrams
+		Owner: USA
+		Location: 10,10
+		Facing: 768
+	TankB: abrams
+		Owner: USA
+		Location: 10,14
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,12
+
+Rules: rules.yaml

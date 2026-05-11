@@ -1,0 +1,2 @@
+Auto: A Paladin at 22% HP (critical damage) must NOT fire when force-attacked.
+Verifies commit 7817b370 — Armament PauseOnCondition includes critical-damage.

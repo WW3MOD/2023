@@ -1,0 +1,1 @@
+Auto: Spread (Shift-G) must preserve per-unit prefix waypoints (e.g. results of an earlier spread) and only redistribute the shared suffix of group orders queued AFTER the prefix. InfA/B each have a unique Move prefix + identical AttackMove suffix; spread should leave the prefixes alone and split the AMs.
