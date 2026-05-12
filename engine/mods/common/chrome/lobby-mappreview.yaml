@@ -61,11 +61,12 @@ Container@MAP_PREVIEW:
 					Align: Center
 					IgnoreMouseOver: true
 				Label@MAP_AUTHOR:
+					X: 4
 					Y: 244
-					Width: PARENT_WIDTH
+					Width: PARENT_WIDTH - 8
 					Height: 18
 					Font: Tiny
-					Align: Center
+					Align: Left
 		Container@MAP_INCOMPATIBLE:
 			Width: PARENT_WIDTH
 			Height: PARENT_HEIGHT

@@ -72,14 +72,14 @@ Container@LOBBY_PLAYER_BIN:
 					Width: 110
 					Height: 30
 					Font: Bold
-					Text: + Add Bots
+					Text: Add Bots
 				Button@REMOVE_BOTS_BUTTON:
 					X: 125
 					Y: 0
 					Width: 130
 					Height: 30
 					Font: Bold
-					Text: - Remove Bots
+					Text: Remove Bots
 				DropDownButton@AUTO_TEAM_BUTTON:
 					X: 265
 					Y: 0
@@ -219,10 +219,10 @@ Container@LOBBY_PLAYER_BIN:
 									Align: Left
 								ColorBlock@SEPARATOR:
 									X: 4
-									Y: 38
+									Y: 36
 									Width: PARENT_WIDTH - 8
 									Height: 1
-									Color: 5050503C
+									Color: 60606080
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH
 							Height: 30
@@ -275,6 +275,10 @@ Container@LOBBY_PLAYER_BIN:
 			Height: 200
 			TopBottomSpacing: 8
 			ItemSpacing: 7
+			# Auto-expand sizes the panel exactly to content, so the scrollbar is
+			# never needed. Hiding it kills the visual collision with the right-rail
+			# map preview that was bleeding past the panel's right edge.
+			ScrollBar: Hidden
 			Children:
 				Container@TEMPLATE_EDITABLE_PLAYER:
 					X: 5

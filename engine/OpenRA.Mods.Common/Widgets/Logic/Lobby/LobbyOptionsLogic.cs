@@ -29,10 +29,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static readonly Color PlaceholderTextColor = Color.FromArgb(0xad, 0xb5, 0xbd);
 		const string PlaceholderTooltipSuffix = "Not yet implemented — visual placeholder for a future feature.";
 
-		// Amber accent for ADVANCED section headers whose options are all placeholder.
+		// Muted amber accent for ADVANCED section headers whose options are all placeholder.
 		// Tells the user "this whole group does nothing yet" once, instead of cluttering every row.
-		static readonly Color PlaceholderSectionColor = Color.FromArgb(0xc2, 0x41, 0x0c);
-		const string PlaceholderSectionSuffix = "  —  placeholders, not yet wired";
+		// Was a saturated orange #c2410c that visually shouted; point is to inform, not alarm.
+		static readonly Color PlaceholderSectionColor = Color.FromArgb(0xb0, 0x80, 0x50);
+		const string PlaceholderSectionSuffix = "   ·  not yet wired";
 
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
@@ -257,7 +258,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (label != null)
 			{
 				var collapsed = section != null && collapsedSections.TryGetValue(section, out var c) && c;
-				var glyph = section != null ? (collapsed ? "[+] " : "[-] ") : string.Empty;
+				// Cleaner expand/collapse glyphs — ▸ collapsed, ▾ expanded — read
+				// as triangles instead of the [+]/[-] ASCII brackets which look
+				// like console output.
+				var glyph = section != null ? (collapsed ? "▸  " : "▾  ") : string.Empty;
 				var displayText = glyph + (allPlaceholder ? text.ToUpperInvariant() + PlaceholderSectionSuffix : text.ToUpperInvariant());
 				label.GetText = () => displayText;
 				if (allPlaceholder)

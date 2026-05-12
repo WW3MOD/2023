@@ -34,10 +34,10 @@ Container@LOBBY_OPTIONS_BIN:
 									Align: Left
 								ColorBlock@SEPARATOR:
 									X: 4
-									Y: 38
+									Y: 36
 									Width: PARENT_WIDTH - 8
 									Height: 1
-									Color: 5050503C
+									Color: 60606080
 						Container@CHECKBOX_ROW_TEMPLATE:
 							Width: PARENT_WIDTH
 							Height: 30
