@@ -1,26 +1,44 @@
 # Example target file for loop-tournament.sh.
 #
 # Used by the autonomous tournament loop to drive long-running tuning sessions.
-# See tools/autotest/loop-tournament.sh for the full schema.
+# See tools/autotest/loop-tournament.sh for the full schema and behavior.
 
-Scenario: tournament-arena-skirmish-2p
-Config:   tools/autotest/scenarios/tournament-arena-skirmish-2p/tournament-sanity.yaml
-BatchSize: 10
-BudgetHours: 1
+# Path to the per-match tournament.yaml (scoring / time limit / speed knobs).
+Config: tools/autotest/scenarios/tournament-arena-skirmish-2p/tournament-quick.yaml
 
-# Goal — once this is met, the loop stops. The metric names map to the
-# aggregate-tournament.sh summary.json schema.
-StopWhen:
-	Metric: v2_winrate
-	Op:     ">="
-	Value:  0.60
+# Matches per round. Verdicts that fail (wall-clock kill / engine error) still
+# count toward the round's batch size; the aggregator just notes them.
+BatchSize: 20
 
-# Per-round triggers. When any of these conditions becomes true, write a
-# milestone marker file and bell the user. (Logic TBD — Phase 4 v2.)
-Milestones:
-	- Name: winrate_flipped_50
-	  Condition: v2_winrate > 0.50
-	- Name: winrate_dropped_30
-	  Condition: v2_winrate < 0.30
-	- Name: perf_below_100
-	  Condition: perf_avg_tickrate < 100
+# Hard wall-clock cap on the entire loop. Loop exits early if exceeded.
+BudgetHours: 4
+
+# Safety cap on round count. 0 = unbounded; otherwise stop after N rounds even
+# if budget and stop condition both allow more.
+MaxRounds: 10
+
+# Per-match wall-clock cap (passed through to run-tournament.sh).
+MaxWallSecs: 120
+
+# Stop condition — when StopWinner's winrate hits StopThreshold, loop exits
+# with success. Both lines must be present to enable the check.
+#
+# StopWinner is the player name from the verdict's side_winrate_pct dict.
+# In legacy scenarios that's USA-bot or Russia-bot. Once faction-tracking
+# lands in the verdict JSON, this can target faction directly.
+StopWinner: USA-bot
+StopThreshold: 0.60
+
+# Optional mirror scenario — if set, run-tournament.sh alternates between the
+# primary scenario (even seeds) and this one (odd seeds). Use a faction-swapped
+# scenario to detect position-vs-faction bias.
+MirrorScenario: ""
+
+# Future schema (not yet honored — Phase 4 v3):
+# Milestones:
+#   - Name: winrate_flipped_50
+#     Condition: stop_winner > 0.50
+#   - Name: winrate_dropped_30
+#     Condition: stop_winner < 0.30
+#   - Name: perf_below_100
+#     Condition: avg_tickrate < 100
