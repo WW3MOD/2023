@@ -1,0 +1,1 @@
+DEMO: v2 AI's CaptureCoordinatorBotModule racing against legacy Normal AI for 4 neutral capturables (BIO, FCOM, 2x OILB). Watch v2 prioritize by income value (BIO > FCOM > OILB), send escort infantry with each engineer, and summon defenders when enemies threaten a captured structure. Normal AI sends engineers alone by sell-value.

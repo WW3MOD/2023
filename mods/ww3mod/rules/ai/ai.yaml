@@ -83,19 +83,78 @@ Player:
 
 	# ===== Shared Modules (all AI types) =====
 
+	# Legacy capture managers — gated to non-v2 AIs. v2 uses
+	# CaptureCoordinatorBotModule below (income-weighted scoring + escort + defense).
 	CaptureManagerBotModule@tecn:
-		RequiresCondition: enable-ai-any
+		RequiresCondition: enable-ai-legacy-only
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
 
 	CaptureManagerBotModule@engineer:
-		RequiresCondition: enable-ai-any
+		RequiresCondition: enable-ai-legacy-only
 		CapturingActorTypes: e6,e6.russia,e6.america
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
+
+	# v2 AI: smart capture + escort + defense of income structures.
+	# Income weights match CashTrickler amounts in structures-neutral.yaml
+	# (OILB=50, FCOM=100, BIO=150). MISS/HOSP have no income so score low.
+	CaptureCoordinatorBotModule@v2.tecn:
+		RequiresCondition: enable-ai-v2
+		CapturingActorTypes: tecn,tecn.russia,tecn.america
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		CheckCaptureTargetsForVisibility: false
+		ScanInterval: 75
+		MaximumCaptureTargetOptions: 12
+		IncomeWeights:
+			oilb: 50
+			fcom: 100
+			bio: 150
+			miss: 10
+			hosp: 20
+		DefaultIncomeWeight: 10
+		DistanceHalfLifeCells: 20
+		SafetyEnemyScanRadiusCells: 6
+		SafetyMultiplierSafe: 100
+		SafetyMultiplierMild: 40
+		SafetyMultiplierHostile: 10
+		EscortSize: 2
+		SupportRecruitRadiusCells: 40
+		DefenseScanInterval: 150
+		DefenseEnemyScanRadiusCells: 12
+		DefenseFriendlyScanRadiusCells: 6
+		DefenseSummonCount: 3
+		DefenseEnemyValueThreshold: 200
+
+	CaptureCoordinatorBotModule@v2.engineer:
+		RequiresCondition: enable-ai-v2
+		CapturingActorTypes: e6,e6.russia,e6.america
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		CheckCaptureTargetsForVisibility: false
+		ScanInterval: 75
+		MaximumCaptureTargetOptions: 12
+		IncomeWeights:
+			oilb: 50
+			fcom: 100
+			bio: 150
+			miss: 10
+			hosp: 20
+		DefaultIncomeWeight: 10
+		DistanceHalfLifeCells: 20
+		SafetyEnemyScanRadiusCells: 6
+		SafetyMultiplierSafe: 100
+		SafetyMultiplierMild: 40
+		SafetyMultiplierHostile: 10
+		EscortSize: 2
+		SupportRecruitRadiusCells: 40
+		DefenseScanInterval: 150
+		DefenseEnemyScanRadiusCells: 12
+		DefenseFriendlyScanRadiusCells: 6
+		DefenseSummonCount: 3
+		DefenseEnemyValueThreshold: 200
 
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-any
