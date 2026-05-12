@@ -1,0 +1,82 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Capture rules — TECN vs soldier vs neutrals/enemy
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Verifies the capture rule fixes (260512):
+#   1. TECN CAN capture neutral OILB
+#   2. TECN CAN capture enemy-owned OILB
+#   3. Rifleman (ar) CANNOT capture neutral OILB     ← post-fix rule
+#   4. Rifleman (ar) CAN capture enemy-owned OILB
+#   5. Engineer (e6) CANNOT capture anything (no Captures trait)
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Capturers — USA-owned
+	Tecn: tecn.america
+		Owner: USA
+		Location: 10,16
+	Soldier: ar.america
+		Owner: USA
+		Location: 10,18
+	Engineer: e6.america
+		Owner: USA
+		Location: 10,20
+
+	# Capture targets
+	NeutralOilb: oilb
+		Owner: Neutral
+		Location: 30,16
+	EnemyOilb: oilb
+		Owner: Russia
+		Location: 50,16
+
+	# SRs so the engine doesn't eliminate either side at map load
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,32
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,32
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,32
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,32
+
+Rules: rules.yaml

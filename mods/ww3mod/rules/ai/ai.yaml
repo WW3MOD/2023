@@ -83,18 +83,13 @@ Player:
 
 	# ===== Shared Modules (all AI types) =====
 
-	# Legacy capture managers — gated to non-v2 AIs. v2 uses
+	# Legacy capture manager — gated to non-v2 AIs. v2 uses
 	# CaptureCoordinatorBotModule below (income-weighted scoring + escort + defense).
+	# Only one entry: TECN is the sole neutral-capture unit (engineers don't
+	# have the Captures trait by design — see DOCS/gameplay/capturing.md).
 	CaptureManagerBotModule@tecn:
 		RequiresCondition: enable-ai-legacy-only
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
-		CapturableActorTypes: oilb,bio,miss,fcom,hosp
-		CheckCaptureTargetsForVisibility: false
-		MaximumCaptureTargetOptions: 15
-
-	CaptureManagerBotModule@engineer:
-		RequiresCondition: enable-ai-legacy-only
-		CapturingActorTypes: e6,e6.russia,e6.america
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
@@ -129,12 +124,9 @@ Player:
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
 
-	# NOTE: No CaptureCoordinatorBotModule@v2.engineer is wired here. Engineers
-	# (^E6) do not have the Captures trait in WW3MOD — see
-	# DOCS/gameplay/capturing.md "Open questions" #1. The legacy
-	# CaptureManagerBotModule@engineer above is dead code for the same reason;
-	# left in place pending the design decision on whether engineers should
-	# regain capture or whether the tooltip should be corrected.
+	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
+	# don't capture in WW3MOD by design. The Captures trait sits on
+	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.
 
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-any

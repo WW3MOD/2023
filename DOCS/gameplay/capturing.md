@@ -2,19 +2,26 @@
 
 > **What it is.** In WW3MOD you don't blow up every building — some you take over. A **Technician** (`tecn`) walks into a neutral or enemy tech building, the building flashes for a moment, and it becomes yours. Captured income buildings pay you cash every second; captured radar gives you map vision; captured logistics centres feed your ammo economy. Capture is a quiet, high-value action that defines economic and tactical position more than any single shot fired.
 
-## Who captures
+## Who captures, and from whom
 
-The **Technician** (`tecn`, with faction variants `tecn.america` and `tecn.russia`) is WW3MOD's dedicated capture unit. He carries a wrench cursor (`goldwrench`), enters a target building, and is consumed by the capture — one Technician per capture. Capture takes **20 ticks** (≈ 0.8 sim-sec at base speed) — fast enough that you can race in and grab a building under contested fire if your timing is right.
+The capture mechanic in WW3MOD has two **roles**, tied to the design idea that a captured tech building always has a Technician "inside" running it:
 
-**Engineers (`e6`) cannot capture in WW3MOD.** Their in-game description still mentions "captures" but the `Captures` trait is not present on the unit. Treat the description as a stale string. The capability sits on the Technician only. *(See **Open questions** below — possibly worth either restoring the trait or correcting the tooltip.)*
+- **Installing a Technician** — the only way to put a building into play. Only a real Technician can do this. The game's neutral tech buildings have no operator until you walk a Technician in.
+- **Taking over by force** — once a building has a Technician inside (i.e. it has an owner), enemy infantry can wrestle it away. The fiction is that they overrun the building and keep the existing Technician operational under their own command. No fresh Technician needs to be brought; you take what's already there.
 
-Conscripts, Riflemen, Team Leaders, AT infantry and Snipers (`e1`, `ar`, `tl`, `at`, `sn`) inherit `^CapturesOccupiedBuildings`, which gives them a **1000-tick (40-sec) capture delay**. In practice this is far too long to be useful in a moving fight — a chest of riflemen is theoretically able to capture an enemy-held FCOM, but they'll all be killed standing in the doorway long before the timer runs down. The capability is a vestige of the trait inheritance, not a real play option. Use Technicians.
+This produces two unit roles:
 
-| Unit | Capture delay | Practical use |
-|---|---|---|
-| Technician (`tecn`) | 20 ticks (~0.8 s) | **The capture unit.** Always send one of these. |
-| Engineer (`e6`) | — | Cannot capture in WW3MOD. (Tooltip says it can; trait is missing.) |
-| Conscript / Rifleman / TL / AT / Sniper | 1000 ticks (~40 s) | Theoretical only. Too slow to use in combat. |
+| Unit | What they can capture | Delay | When you use them |
+|---|---|---|---|
+| **Technician** (`tecn`, `tecn.america`, `tecn.russia`) | Neutral buildings **and** enemy-owned buildings | 20 ticks (~0.8 s) | Early game expansion (claim neutrals); throughout the match as the precision tool |
+| **Conscript / Rifleman / Team Leader / AT / Sniper** (`e1`, `ar`, `tl`, `at`, `sn`) | **Enemy-owned only.** Cannot touch neutrals. | 1000 ticks (~40 s) | Late-game; you've used your Technicians, but you have plenty of soldiers in the area to wrestle a building back |
+| **Engineer** (`e6`) | — | — | Does **not** capture. Engineer is the repair/mine specialist, not a capturer |
+
+The Technician carries a gold wrench cursor (`goldwrench`) on a capture order; soldiers use the default capture cursor and a slower targeting line. The Technician is consumed by the capture (one unit, one capture); soldiers are not consumed (they just stand in the building for 40 sim-seconds and emerge alive on success).
+
+**Why soldiers can't take neutrals.** Neutral buildings are unowned and unoperated. A soldier squad has no Technician of their own, so even after killing all defenders they'd just be standing in an empty building with no way to power it back up. A Technician must do that first walk-in. This makes late-game smoother in two ways: it removes a hack route (running Conscripts into a contested neutral) and it preserves the Technician as a meaningful asset throughout the match — you can't shortcut the choice to build one.
+
+**Why the 40-second soldier delay matters.** Late-game when both sides have soldiers swirling around contested capturables, the 40-sec window is the time you have to either reinforce or break the takeover. In practice you'll lose half the timer to enemies engaging the soldier squad — so soldier capture is a commitment, not a quick swap.
 
 ## What can be captured
 
@@ -102,7 +109,7 @@ Recapture by the enemy is a real risk: their Technician can take the building ba
 
 See [`../../WORKSPACE/ai/v2_experiment_002_capture_coordinator.md`](../../WORKSPACE/ai/v2_experiment_002_capture_coordinator.md) for the v2 design and measurement plan.
 
-There is also a legacy `CaptureManagerBotModule@engineer` (`e6`-based) in `ai.yaml` — this is **dead code**, because Engineers don't have the `Captures` trait. The module loads but never finds a capturer. Either the unit needs the trait back or the module entry needs to go.
+No engineer-targeted capture module exists — engineers don't capture by design. Neither legacy nor v2 has soldier-targeted capture wired in either; soldier capture is a player-driven late-game option, not an AI behaviour for now.
 
 ## Code pointers
 
@@ -117,9 +124,15 @@ For the curious:
 
 ## Open questions / flagged uncertainties
 
-1. **Engineer (`e6`) description claims "captures" but the trait is missing.** Is this an intentional removal that the description never caught up with, or an accidental drop during a refactor? Worth a deliberate decision either way. If intentional: fix the description and clean up `CaptureManagerBotModule@engineer`. If accidental: add `Inherits@Capture: ^CapturesNeutralBuildings` to `^E6`. *(Author flagged this as a real design statement, so leaning toward "intentional, just clean up.")*
-2. **Hospital effect.** The current trait list on `HOSP` doesn't include any healing — no `RallyPointHealthRegen`, no `HealthRegenAura`. The tooltip just says "Hospital". Either an effect is planned or the building is currently purely decorative. *(Marking as [planned] until told otherwise.)*
-3. **Sabotage damage values in WW3MOD.** The `^CapturesNeutralBuildings` template doesn't appear to override sabotage damage. Worth a check on whether Technicians actually trigger the sabotage path on high-HP enemy buildings, or whether the threshold is effectively unreachable.
-4. **Conscript-capture in practice.** Has anyone actually completed a 1000-tick (40 sim-sec) capture in a real match? If not, consider removing `^CapturesOccupiedBuildings` from non-Technician infantry to simplify the rules surface.
+1. **Hospital effect.** The current trait list on `HOSP` doesn't include any healing — no `RallyPointHealthRegen`, no `HealthRegenAura`. The tooltip just says "Hospital". Either an effect is planned or the building is currently purely decorative. *(Marking as [planned] until told otherwise.)*
+2. **Sabotage damage values in WW3MOD.** The `^CapturesNeutralBuildings` template doesn't appear to override sabotage damage. Worth a check on whether Technicians actually trigger the sabotage path on high-HP enemy buildings, or whether the threshold is effectively unreachable.
+3. **40-second soldier capture in practice.** Now that soldiers can only take enemy-owned buildings, the 1000-tick delay frames a real decision: stand around for 40 sim-sec while contested. Open question whether the delay value lands at the right point — too short and Technicians feel obsolete, too long and soldier-capture never happens. Watch playtest data.
 
-If you have answers to any of these, ping me and I'll fold them in.
+## Resolved decisions (260512)
+
+For history: two design questions were resolved when this doc was first written.
+
+- **Engineer (e6) doesn't capture by design.** Tooltip corrected; `^E6.Buildable.Description` no longer mentions "captures". Engineer remains the repair/mine specialist.
+- **Soldiers can only capture enemy-owned buildings.** `^CapturesOccupiedBuildings.Captures@OCCUPIED.ValidRelationships` set to `Enemy` only (previously defaulted to `Neutral | Enemy`). Neutral capture is exclusively Technician's role. The design fiction is the captured building keeps its existing Technician "inside" after the soldier takeover.
+
+If you have answers to any of the remaining open questions, ping me and I'll fold them in.

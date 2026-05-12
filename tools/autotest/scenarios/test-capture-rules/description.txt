@@ -1,0 +1,1 @@
+Capture rules: TECN captures neutrals + enemy-owned; soldiers capture enemy-owned ONLY; engineers don't capture at all.
