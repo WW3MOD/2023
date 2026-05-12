@@ -1,0 +1,13 @@
+AUTOTEST: cohesion bidder actively redirects toward cover
+
+Stronger sibling of test-cohesion-cover-bid. Here the click point is OFF-CENTER
+from the forest cluster — 3 cells west of the nearest trunk column. Pure box
+formation would land every unit in open ground; only the cover-aware bidder
+can pull units to cells adjacent to a trunk.
+
+Setup: 4 e3.america riflemen at (18, 14..17). Forest cluster (6 t01 trees) at
+(25/27, 13/15/17) with trunks at (25/27, 14/16/18). Group-move target (22, 15).
+
+Verdict: pass if all 4 units settle on cells with chebyshev distance ≤ 1 to at
+least one trunk. Box-formation slots around (22, 15) are at column 22 or 21 —
+chebyshev 3+ from the nearest trunk — so this test fails without the bidder.

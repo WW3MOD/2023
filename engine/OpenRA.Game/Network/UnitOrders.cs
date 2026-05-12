@@ -397,8 +397,20 @@ namespace OpenRA.Network
 					if (order.GroupedActors == null)
 						ResolveOrder(order, world, orderManager, clientId);
 					else
+					{
+						// World-level IModifyGroupOrder traits (e.g. CohesionMoveModifier) get a
+						// chance to rewrite each per-subject order before resolution. The grouped
+						// actor array is passed through so modifiers can do collective slot
+						// assignment (cover-aware bidding, formation offsets) deterministically.
+						var modifiers = world.WorldActor.TraitsImplementing<IModifyGroupOrder>().ToArray();
 						foreach (var subject in order.GroupedActors)
-							ResolveOrder(Order.FromGroupedOrder(order, subject), world, orderManager, clientId);
+						{
+							var individual = Order.FromGroupedOrder(order, subject);
+							foreach (var m in modifiers)
+								individual = m.ModifyGroupOrder(individual, subject, order.GroupedActors);
+							ResolveOrder(individual, world, orderManager, clientId);
+						}
+					}
 
 					break;
 				}

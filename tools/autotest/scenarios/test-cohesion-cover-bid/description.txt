@@ -1,0 +1,10 @@
+AUTOTEST: cohesion cover-aware slot bidder
+
+Setup: 4 e3.america riflemen at column (10, 14..17), small dense forest cluster
+(T01 actors) at cells (25-27, 13-17). Group-move order targets (26, 15) — center
+of forest.
+
+Verdict: pass if all 4 units settle adjacent to or within the forest (each unit's
+final cell has CoverScore > 0, i.e. at least one density-bearing neighbor).
+Without the cover-aware bidder, the legacy box formation would scatter units in
+open ground around (26, 15) regardless of where the trees are.

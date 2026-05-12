@@ -229,6 +229,31 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 		}
 
+		[Desc("Issue a grouped Move (or AttackMove) order to a collection of actors as if the " +
+			"player had selected them all and right-clicked `cell`. Goes through the real Order " +
+			"pipeline so IModifyGroupOrder traits (CohesionMoveModifier and friends) fire and " +
+			"redistribute per-unit destinations. Unlike Actor.Move (which queues a Move activity " +
+			"directly and bypasses the order system), this exercises the cover-aware slot bidder. " +
+			"`orderString` defaults to 'Move' — pass 'AttackMove' for the attack variant. " +
+			"Test mode only.")]
+		public void GroupMove(Actor[] actors, CPos cell, string orderString = "Move")
+		{
+			if (!TestMode.IsActive || actors == null || actors.Length == 0)
+				return;
+
+			var alive = actors.Where(a => a != null && a.IsInWorld && !a.IsDead).ToArray();
+			if (alive.Length == 0)
+				return;
+
+			var world = alive[0].World;
+			var target = Target.FromCell(world, cell);
+
+			if (alive.Length == 1)
+				world.IssueOrder(new Order(orderString, alive[0], target, false));
+			else
+				world.IssueOrder(new Order(orderString, null, target, false, null, alive));
+		}
+
 		[Desc("Run the Group Scatter (Shift-G) spread on the given actors as if the user had " +
 			"selected them and pressed the hotkey. Useful for verifying that the spread doesn't " +
 			"redistribute unit-specific waypoints (e.g. EnterTransport) across the rest of the " +

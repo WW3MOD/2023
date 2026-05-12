@@ -1,0 +1,83 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Cohesion Cover Bidder (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	A1: e3.america
+		Owner: USA
+		Location: 18,14
+		Facing: 768
+	A2: e3.america
+		Owner: USA
+		Location: 18,15
+		Facing: 768
+	A3: e3.america
+		Owner: USA
+		Location: 18,16
+		Facing: 768
+	A4: e3.america
+		Owner: USA
+		Location: 18,17
+		Facing: 768
+	Tree01: t01
+		Owner: Neutral
+		Location: 25,13
+	Tree02: t01
+		Owner: Neutral
+		Location: 27,13
+	Tree03: t01
+		Owner: Neutral
+		Location: 25,15
+	Tree04: t01
+		Owner: Neutral
+		Location: 27,15
+	Tree05: t01
+		Owner: Neutral
+		Location: 25,17
+	Tree06: t01
+		Owner: Neutral
+		Location: 27,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,15
+
+Rules: rules.yaml
