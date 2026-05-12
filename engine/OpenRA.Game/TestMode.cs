@@ -28,6 +28,16 @@ namespace OpenRA
 		// path for commands like "screenshot <label>". Null = watcher dormant.
 		public static string ScreenshotCmdFile { get; private set; }
 
+		// When true, MainMenuLogic clicks straight through to the Skirmish lobby
+		// after the menu loads, so external screenshot drivers don't need to
+		// simulate input. Set via Test.OpenSkirmishLobby=true launch arg.
+		public static bool OpenSkirmishLobby { get; private set; }
+
+		// Tab to switch to once the lobby is open. "Match" (default) | "Advanced" | "Music".
+		// LobbyLogic checks this once after constructing the panel. Set via
+		// Test.OpenLobbyTab=Advanced launch arg.
+		public static string OpenLobbyTab { get; private set; }
+
 		// AI tournament harness — path to tournament.yaml. Activates BotVsBotMatchWatcher.
 		// Null/empty when not running a tournament match. See:
 		//   engine/OpenRA.Mods.Common/Traits/World/BotVsBotMatchWatcher.cs
@@ -80,6 +90,8 @@ namespace OpenRA
 
 			ScreenshotDir = args.GetValue("Test.ScreenshotDir", null);
 			ScreenshotCmdFile = args.GetValue("Test.ScreenshotCmdFile", null);
+			OpenSkirmishLobby = args.GetValue("Test.OpenSkirmishLobby", "").ToLowerInvariant() == "true";
+			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
 			TestModeScreenshots.Initialize(ScreenshotDir);
 
 			Console.WriteLine($"[TestMode] active — name={Name} result={ResultPath}");

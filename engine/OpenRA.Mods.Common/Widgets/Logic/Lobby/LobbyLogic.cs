@@ -78,6 +78,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		public static Action<string> SwitchPanel;
 		PanelType panel = PanelType.Players;
 
+		// Test-mode pending tab switch: filled in by the constructor when
+		// Test.OpenLobbyTab is set, applied by Tick() once MapIsPlayable so the
+		// OptionsTabDisabled guard doesn't immediately snap it back.
+		PanelType? pendingTestTab;
+
 		readonly Widget lobby;
 		readonly Widget editablePlayerTemplate;
 		readonly Widget nonEditablePlayerTemplate;
@@ -568,6 +573,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (serversIndicator != null)
 				serversIndicator.IsVisible = () => panel == PanelType.Servers;
 
+			// WW3MOD: allow external test drivers to land on a specific tab on
+			// lobby open. PITFALL: setting panel here gets reverted by the Tick()
+			// guard (OptionsTabDisabled snaps panel back to Players while
+			// MapIsPlayable is false during initial load). Stash the request and
+			// apply it inside Tick once the map is validated.
+			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.OpenLobbyTab))
+			{
+				switch (TestMode.OpenLobbyTab.ToLowerInvariant())
+				{
+					case "advanced": case "options": pendingTestTab = PanelType.Options; break;
+					case "music": pendingTestTab = PanelType.Music; break;
+					case "match": case "players": pendingTestTab = PanelType.Players; break;
+				}
+			}
+
 			// Force start panel
 			void StartGame()
 			{
@@ -747,6 +767,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			if (panel == PanelType.Options && OptionsTabDisabled())
 				panel = PanelType.Players;
+
+			// Apply a pending test-mode tab switch once the map is playable.
+			// This runs at most once per lobby load.
+			if (pendingTestTab.HasValue && MapIsPlayable)
+			{
+				panel = pendingTestTab.Value;
+				pendingTestTab = null;
+			}
 
 			var chatWasEnabled = chatEnabled;
 			chatEnabled =

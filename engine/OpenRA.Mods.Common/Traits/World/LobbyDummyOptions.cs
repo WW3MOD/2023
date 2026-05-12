@@ -224,7 +224,7 @@ namespace OpenRA.Mods.Common.Traits
 				{ "100", "100%" },
 			};
 			yield return new LobbyOption(
-				"bounty-percent", "Bounty %", "Percentage of killed unit's value awarded as bounty",
+				"bounty-percent", "Bounty", "Percentage of killed unit's value awarded as bounty",
 				true, 76,
 				new ReadOnlyDictionary<string, string>(bountyPercentValues),
 				"10", false, "Rules");

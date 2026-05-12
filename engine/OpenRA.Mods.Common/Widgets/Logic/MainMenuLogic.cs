@@ -535,6 +535,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			Game.OnShellmapLoaded += OpenMenuBasedOnLastGame;
 
+			// WW3MOD: when launched with Test.OpenSkirmishLobby=true, click straight
+			// through to the skirmish lobby. Lets external screenshot drivers grab
+			// lobby captures without simulating mouse input.
+			if (TestMode.IsActive && TestMode.OpenSkirmishLobby)
+				Game.RunAfterTick(StartSkirmishGame);
+
 			DiscordService.UpdateStatus(DiscordState.InMenu);
 		}
 
