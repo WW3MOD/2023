@@ -1,0 +1,40 @@
+# AI tournament match config.
+#
+# Read by BotVsBotMatchWatcher (world trait) when launched with
+#   Test.Mode=true Test.TournamentConfig=<path-to-this-file>
+#
+# Schema documented in:
+#   engine/OpenRA.Mods.Common/Tournament/TournamentConfig.cs
+#   WORKSPACE/plans/260511_ai_tournament_harness.md
+#   WORKSPACE/ai/tournament_swap_guide.md
+#
+# Matchup section is informational (the actual bot assignment for Phase 1 lives in
+# map.yaml's PlayerReferences). Future swap-point: a player-bot-override trait that
+# remaps bots from this config so a single map.yaml serves multiple matchups.
+Matchup:
+	P1Bot: normal
+	P2Bot: normal
+
+# Match clock — at this real-time second count, the win rule evaluates final
+# scores and declares a winner regardless of game state. 720s = 12 in-game
+# minutes at standard 1× speed; at 6× game speed roughly 2 wall-clock minutes
+# (windowed) or much less headless.
+TimeLimitSeconds: 720
+
+# Plug-in selection — names match MatchHarness registry keys. To use a different
+# formula or win rule, register an alternative in MatchHarness and put its key here.
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+# Score weights. Phase 1 limitation: only army_value is populated (no event
+# wiring yet for capture income / kills value). The weights below are placeholders
+# tuned roughly — adjust once we have real data from the first batch of 20 seeds.
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+# A match is "decisive" if winner.score >= loser.score × (1 + this margin).
+# Reserved for future use by the aggregator — flagged in the per-match JSON.
+ScoreMarginForDecisive: 0.20

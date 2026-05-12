@@ -1,0 +1,80 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: Arena Skirmish 2P (MIRROR — factions swapped)
+
+Author: WW3MOD tournament harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# MIRROR scenario — same map as tournament-arena-skirmish-2p but the
+# combatants' factions are SWAPPED:
+#   Original:  Left position (6,16)  = USA-bot, faction=america
+#              Right position (58,16) = Russia-bot, faction=russia
+#   This file: Left position (6,16)  = USA-bot, faction=russia   ← swapped
+#              Right position (58,16) = Russia-bot, faction=america  ← swapped
+#
+# **PlayerReference names are kept as USA-bot/Russia-bot for the watcher's
+# IsBot filter to match. The names no longer match factions in this scenario
+# — read the Faction field for the truth.**
+#
+# Used with run-tournament.sh's --mirror flag to alternate between this
+# scenario and the original per-seed-index, attributing winrate skews to
+# faction vs side. See WORKSPACE/ai/tournament_swap_guide.md.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: america
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+# Each combatant gets a single Supply Route. The SRs sit near opposite map
+# edges per WW3MOD canon (DOCS/reference/supply-route.md) — never mid-map.
+# Bots will reinforce from the closest map edge to their SR.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	# mpspawn actors are required even with non-playable combatants:
+	# MapStartingLocations.AssignSpawnPoint iterates them for any client
+	# (including the local human in the Observer slot) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml

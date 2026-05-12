@@ -16,6 +16,11 @@
 #                      tools/autotest/tournament-results/<YYMMDD_HHMM>_<scenario>/
 #   --max-wall-secs N  Per-match wall-clock cap (kills the game if it exceeds N
 #                      seconds). Defaults to 4× the config's TimeLimitSeconds.
+#   --mirror <scen2>   Mirror-matching: alternate between the primary scenario
+#                      and <scen2> per seed index. Even seeds run primary, odd
+#                      seeds run mirror. Use with a faction-swapped scenario
+#                      (e.g. tournament-arena-mirror-2p) to attribute winrate
+#                      skew to faction vs side.
 #   -v|--visible       Pass --visible to run-test.sh (default: --background).
 #
 # Per-match output:
@@ -45,6 +50,7 @@ SEEDS=5
 CONFIG=""
 RESULT_DIR=""
 MAX_WALL_SECS=""
+MIRROR_SCENARIO=""
 RUN_TEST_FLAGS="--background --mute"
 
 while [ $# -gt 0 ]; do
@@ -57,6 +63,8 @@ while [ $# -gt 0 ]; do
 		--result-dir=*)  RESULT_DIR="${1#*=}"; shift ;;
 		--max-wall-secs) MAX_WALL_SECS="$2"; shift 2 ;;
 		--max-wall-secs=*) MAX_WALL_SECS="${1#*=}"; shift ;;
+		--mirror)        MIRROR_SCENARIO="$2"; shift 2 ;;
+		--mirror=*)      MIRROR_SCENARIO="${1#*=}"; shift ;;
 		-v|--visible)    RUN_TEST_FLAGS="--visible --mute"; shift ;;
 		--help|-h)
 			sed -n '2,33p' "$0" | sed 's/^# \?//'
@@ -159,7 +167,16 @@ OK=0
 FAIL=0
 
 for i in $(seq 1 ${SEEDS}); do
-	echo "------- match ${i}/${SEEDS} -------"
+	# Mirror-matching: even seeds run the primary scenario, odd seeds run the
+	# mirror. The watcher writes the same JSON shape; the scenario name in
+	# match_${i}.log (and in this output) lets the aggregator attribute results
+	# correctly.
+	MATCH_SCENARIO="${SCENARIO}"
+	if [ -n "${MIRROR_SCENARIO}" ] && [ $((i % 2)) -eq 1 ]; then
+		MATCH_SCENARIO="${MIRROR_SCENARIO}"
+	fi
+
+	echo "------- match ${i}/${SEEDS} (scenario=${MATCH_SCENARIO}) -------"
 
 	# Engine runs with cwd=engine/, so relative paths land in the wrong place.
 	# Resolve to absolute before handing off.
@@ -195,9 +212,9 @@ for i in $(seq 1 ${SEEDS}); do
 	# practical wall-clock improvement. See PITFALLS.md §16 / §17.
 	(
 		./launch-game.sh \
-			"Launch.Map=${SCENARIO}" \
+			"Launch.Map=${MATCH_SCENARIO}" \
 			"Test.Mode=true" \
-			"Test.Name=${SCENARIO}-match${i}" \
+			"Test.Name=${MATCH_SCENARIO}-match${i}" \
 			"Test.ResultPath=${MATCH_RESULT_FILE}" \
 			"Test.TournamentConfig=${CONFIG_ABS}" \
 			"Test.GameSpeed=${GAME_SPEED}" \

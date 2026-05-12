@@ -1,0 +1,31 @@
+# Sanity-check variant: 3-minute (sim-time) matches at 8× speed.
+#
+# Goal: 20 seeds legacy-vs-legacy on this map should land winrate in the 40-60%
+# noise band. If the map is positionally biased, this fails and we know to fix
+# the map before benchmarking any AI change.
+#
+# Wall-clock per match at 8×: ~22s match + ~30s engine init = ~1 min.
+# 20 seeds ≈ 20 min total wall-clock. (Empirical — adjust based on hardware.)
+
+Matchup:
+	P1Bot: normal
+	P2Bot: normal
+
+TimeLimitSeconds: 180
+
+# 8× via world.Timestep override. Far more effective than GameSpeed (capped 2×).
+SpeedMultiplier: 8
+
+# Kept for completeness but SpeedMultiplier dominates.
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20
