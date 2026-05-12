@@ -9,15 +9,18 @@ This folder holds **living docs** for the AI overhaul. The C# lives in
 
 ## Read first
 
-- [`morning_summary_260512.md`](morning_summary_260512.md) — **READ FIRST IF JUST WAKING UP.** Live log of the autonomous overnight run; what was tried, what worked, what's still rough, recommended next moves.
-- [`phase1_status_260511.md`](phase1_status_260511.md) — Phase 1 status snapshot of the tournament harness (the foundation for measuring AI work).
+- [`WAKEUP_CHECKLIST_260512.md`](WAKEUP_CHECKLIST_260512.md) — **READ FIRST when waking up to fresh commits.** Step-by-step checklist for orienting yourself.
+- [`morning_summary_260512.md`](morning_summary_260512.md) — Live log of the autonomous overnight run; what was tried, what worked.
+- [`sanity_findings_260512.md`](sanity_findings_260512.md) — Statistical findings from the sanity batches (USA 84.2% / Russia 15.8% on this map under legacy-vs-legacy).
 - [`foundation_260511.md`](foundation_260511.md) — survey of modern RTS AI techniques, WW3MOD-specific constraints, three-layer architecture, phasing. **The basics doc.** Read before any planning.
-- [`../plans/260511_ai_tournament_harness.md`](../plans/260511_ai_tournament_harness.md) — AI-vs-AI tournament harness plan. **Lands before any new-brain code** so we can measure every change. Dual `ModularBot@legacy`/`@v2` in one binary, hybrid score-or-SR-capture win rule, headless + parallel runner, milestone-driven autonomous loop.
+- [`../plans/260511_ai_tournament_harness.md`](../plans/260511_ai_tournament_harness.md) — AI-vs-AI tournament harness plan.
 
 ## Operational references
 
-- [`tournament_swap_guide.md`](tournament_swap_guide.md) — how to swap any piece of the tournament harness (scorer, win rule, scenario, runner). Every modular point + the recipe to replace it.
-- [`PITFALLS.md`](PITFALLS.md) — traps already hit during implementation. Read before touching the harness; this saves hours.
+- [`tournament_workflow.md`](tournament_workflow.md) — **Usage cookbook.** "How do I run a smoke test / full batch / mirror-paired benchmark / autonomous loop?" One bash command per recipe.
+- [`tournament_swap_guide.md`](tournament_swap_guide.md) — how to swap any piece of the harness (scorer, win rule, scenario, runner). Every modular point + the recipe to replace it.
+- [`PITFALLS.md`](PITFALLS.md) — 18 traps already hit during implementation. Read before touching the harness; this saves hours.
+- [`phase1_status_260511.md`](phase1_status_260511.md) — Phase 1 status snapshot (slightly stale; morning_summary is the current truth).
 
 ## Mandatory references
 
@@ -32,16 +35,19 @@ This folder holds **living docs** for the AI overhaul. The C# lives in
 
 ## Status
 
-**Tournament harness Phase 1 + Rounds 2-9 complete (260511 + overnight 260512).**
+**Tournament harness Phase 1 + Rounds 2-16 complete (260511 + overnight 260512).**
 
-- Engine plumbing: BotVsBotMatchWatcher + IMatchScorer/IWinRuleEvaluator plug-ins, dual ModularBot@normal/@v2 YAML, Test.* launch args for tournament config / game speed / deterministic seed / speed multiplier.
-- Shell harness: run-tournament.sh, aggregate-tournament.sh, loop-tournament.sh (scaffold).
-- Two tournament scenarios: arena-skirmish-2p (mid-row SRs), arena-diagonal-2p (corner SRs).
-- Score formula: army_value + capture_income + kills_value via PlayerStatistics.
-- Speed: ~3× practical wall-clock improvement (8× SpeedMultiplier + framerate cap).
-- Sanity check: 20-seed legacy-vs-legacy batch running. Findings in morning summary.
+- Engine plumbing: BotVsBotMatchWatcher + IMatchScorer/IWinRuleEvaluator plug-ins, dual ModularBot@normal/@v2 YAML.
+- Test.* launch args: TournamentConfig, GameSpeed, RandomSeed, SpeedMultiplier (Rounds 1, 3, 5, 5).
+- Shell harness: run-tournament.sh, aggregate-tournament.sh, loop-tournament.sh (Phase 4 v2 stop-condition + bell), compare-batches.sh, tournament-report.sh.
+- Three tournament scenarios: arena-skirmish-2p, arena-diagonal-2p, arena-mirror-2p (factions swapped).
+- Score formula: army_value + capture_income (PlayerResources.Earned) + kills_value (PlayerStatistics.KillsCost).
+- Per-player faction in verdict JSON (Round 15) → faction_winrate_pct in summary.json.
+- Speed: ~3× practical wall-clock improvement (8× SpeedMultiplier + Graphics.MaxFramerate=5 cap).
+- Sanity check at n=19 clean-CPU: USA-bot 84.2% / Russia-bot 15.8% — strong bias signal.
+- Mirror-paired batch in progress: separates faction vs position bias.
 
-**Not yet started:** Phase 2 (real headless renderer), Phase 4 (loop's metric-eval / milestone-bell logic), the AI overhaul itself (per `foundation_260511.md`). Phase 4 loop scaffold exists; eval logic is documented TODO.
+**Not yet started:** Phase 2 (real headless renderer — would unlock >3× speedup but days of work), the AI overhaul itself (per `foundation_260511.md`). The harness is functional and ready for measuring real AI changes.
 
 ## Workspace conventions
 
