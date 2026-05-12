@@ -365,6 +365,9 @@ retry-install = Retry Install
 retry-search = Retry Search
 ## also MapChooserLogic
 created-by = Created by { $author }
+# Short form for the constrained map-preview author label — saves ~30px so
+# typical author strings fit the 200px-wide right rail.
+label-created-by = By { $author }
 
 ## SpawnSelectorTooltipLogic
 disabled-spawn = Disabled spawn

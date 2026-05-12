@@ -36,25 +36,25 @@ Container@LOBBY_PLAYER_BIN:
 					Align: Center
 					Font: Bold
 				Label@LABEL_LOBBY_HANDICAP:
-					X: 478
-					Width: 72
+					X: 470
+					Width: 64
 					Height: 25
 					Text: label-lobby-players-handicap
 					Align: Center
 					Font: Bold
 				Label@LABEL_LOBBY_SPAWN:
-					X: 560
+					X: 540
 					Width: 48
 					Height: 25
 					Text: label-lobby-players-spawn
 					Align: Center
 					Font: Bold
 				Label@LABEL_LOBBY_STATUS:
-					X: 617
-					Width: 20 + 24
+					X: 595
+					Width: 44
 					Height: 25
 					Text: label-lobby-players-ready
-					Align: Left
+					Align: Center
 					Font: Bold
 		# Vertical rhythm — 16px gap between sections, 30px button heights for proper
 		# internal padding (text gets ~7px above/below the baseline). The Y values
@@ -365,24 +365,24 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 25
 							Text: label-lobby-players-team
 						DropDownButton@HANDICAP_DROPDOWN:
-							X: 478
-							Width: 72
+							X: 470
+							Width: 64
 							Height: 25
 							TooltipContainer: TOOLTIP_CONTAINER
 							TooltipText: dropdownbutton-lobby-players-handicap-tooltip
 						DropDownButton@SPAWN_DROPDOWN:
-							X: 560
+							X: 540
 							Width: 48
 							Height: 25
 							Text: label-lobby-players-spawn
 						Checkbox@STATUS_CHECKBOX:
-							X: 615
+							X: 605
 							Y: 0
 							Width: 24
 							Height: 24
 							Visible: false
 						Image@STATUS_IMAGE:
-							X: 617
+							X: 607
 							Y: 2
 							Width: 24
 							Height: 24
@@ -481,28 +481,28 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 25
 							Visible: false
 						Label@HANDICAP:
-							X: 478
+							X: 470
 							Width: 47
 							Height: 25
 							Align: Center
 						DropDownButton@HANDICAP_DROPDOWN:
-							X: 478
-							Width: 72
+							X: 470
+							Width: 64
 							Height: 25
 							TooltipContainer: TOOLTIP_CONTAINER
 							TooltipText: dropdownbutton-lobby-players-handicap-tooltip
 						Label@SPAWN:
-							X: 560
+							X: 540
 							Width: 23
 							Height: 25
 							Align: Center
 						DropDownButton@SPAWN_DROPDOWN:
-							X: 560
+							X: 540
 							Width: 48
 							Height: 25
 							Visible: false
 						Image@STATUS_IMAGE:
-							X: 617
+							X: 607
 							Y: 2
 							Width: 24
 							Height: 24
@@ -616,13 +616,13 @@ Container@LOBBY_PLAYER_BIN:
 							Align: Center
 							Font: Bold
 						Checkbox@STATUS_CHECKBOX:
-							X: 615
+							X: 605
 							Y: 0
 							Width: 24
 							Height: 24
 							Visible: false
 						Image@STATUS_IMAGE:
-							X: 617
+							X: 607
 							Y: 2
 							Width: 24
 							Height: 24
@@ -697,7 +697,7 @@ Container@LOBBY_PLAYER_BIN:
 							Align: Center
 							Font: Bold
 						Image@STATUS_IMAGE:
-							X: 617
+							X: 607
 							Y: 2
 							Width: 24
 							Height: 24
