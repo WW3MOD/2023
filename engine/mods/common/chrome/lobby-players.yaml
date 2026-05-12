@@ -2,14 +2,18 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 	Width: PARENT_WIDTH
 	Height: PARENT_HEIGHT
 	Background: ""
-	ScrollBar: Right
+	# Hidden scrollbar — mousewheel scrolling still works, but the always-rendered
+	# scrollbar buttons aren't visually overlapping the right-rail map preview.
+	# Combined with the shrunk TOP_PANELS_ROOT (lobby.yaml W=644 instead of 675),
+	# the left content area fits neatly to the left of the right rail.
+	ScrollBar: Hidden
 	ItemSpacing: 0
 	TopBottomSpacing: 0
 	Children:
 		Container@LABEL_CONTAINER:
 			X: 5
 			Y: 0
-			Width: PARENT_WIDTH - 24
+			Width: PARENT_WIDTH
 			Height: 28
 			Children:
 				Label@LABEL_LOBBY_NAME:
@@ -67,7 +71,7 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 		Container@LOBBY_SETUP_ROW:
 			Logic: LobbySetupRowLogic
 			Y: 244
-			Width: PARENT_WIDTH - 24
+			Width: PARENT_WIDTH
 			Height: 30
 			Children:
 				Button@ADD_BOTS_BUTTON:
@@ -101,7 +105,7 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 		Container@LOBBY_ACTIVE_CHANGES:
 			Logic: LobbyActiveChangesLogic
 			Y: 290
-			Width: PARENT_WIDTH - 24
+			Width: PARENT_WIDTH
 			Height: 56
 			Children:
 				# Subtle darker fill so the section reads as a card depressed
@@ -138,7 +142,7 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 		Container@LOBBY_PRESET_BAR:
 			Logic: LobbyPresetLogic
 			Y: 362
-			Width: PARENT_WIDTH - 24
+			Width: PARENT_WIDTH
 			Height: 30
 			Children:
 				ColorBlock@SECTION_BG:
@@ -199,7 +203,7 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
 			Y: 408
-			Width: PARENT_WIDTH - 24
+			Width: PARENT_WIDTH
 			Height: 300
 			Background: ""
 			ScrollBar: Hidden
@@ -277,7 +281,7 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 		ScrollPanel@LOBBY_PLAYERS:
 			Y: 28
-			Width: PARENT_WIDTH - 24
+			Width: PARENT_WIDTH
 			Height: 200
 			TopBottomSpacing: 8
 			ItemSpacing: 7

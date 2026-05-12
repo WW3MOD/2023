@@ -74,7 +74,7 @@ Background@SERVER_LOBBY:
 		Container@TOP_PANELS_ROOT:
 			X: 20
 			Y: 132
-			Width: 675
+			Width: 644
 			Height: PARENT_HEIGHT - 293
 		Container@SKIRMISH_TABS:
 			X: 20
