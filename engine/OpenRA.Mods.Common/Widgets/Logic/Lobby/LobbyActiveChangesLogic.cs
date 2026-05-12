@@ -117,12 +117,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
-			// Counter label sits on its own row at Y=0; chips flow on the row below
-			// at Y=22 starting from x=5 (no horizontal sharing with the counter
-			// anymore, so the chips get the full row width).
+			// Chips flow horizontally starting at x=5 below the counter row, wrapping
+			// to a new row when the next chip would overflow the container width.
+			// Each row is 38px tall (30 chip + 8 gap).
 			var x = 5;
+			var y = 22;
 			const int spacing = 10;
+			const int rowStride = 38;
 			var count = 0;
+			var containerWidth = container.Bounds.Width;
 
 			foreach (var opt in options)
 			{
@@ -134,8 +137,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var (text, klass) = Classify(opt, state.Value);
 				var chip = chipTemplate.Clone();
 				chip.IsVisible = () => true;
-				chip.Bounds.X = x;
-				chip.Bounds.Y = 22;
 
 				var bg = chip.GetOrNull<ColorBlockWidget>("BG");
 				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");
@@ -143,14 +144,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// Size each chip to its text rather than the template's fixed 180px.
 				// 24px total internal padding (12 left + 12 right) so the label
 				// doesn't kiss the chip edges.
+				var chipWidth = 180;
 				if (lbl != null)
 				{
 					var font = Game.Renderer.Fonts[lbl.Font];
 					var textWidth = font.Measure(text).X;
-					var chipWidth = Math.Min(textWidth + 24, 260);
+					chipWidth = Math.Min(textWidth + 24, 260);
 					chip.Bounds.Width = chipWidth;
 					lbl.Bounds.Width = chipWidth;
 				}
+
+				// Wrap to a new row if the chip won't fit on this row.
+				if (x > 5 && x + chipWidth > containerWidth - 5)
+				{
+					x = 5;
+					y += rowStride;
+				}
+
+				chip.Bounds.X = x;
+				chip.Bounds.Y = y;
 
 				Color ink;
 				switch (klass)

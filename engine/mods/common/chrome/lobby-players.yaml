@@ -1,738 +1,809 @@
-ScrollPanel@LOBBY_PLAYER_BIN:
+Container@LOBBY_PLAYER_BIN:
 	Width: PARENT_WIDTH
 	Height: PARENT_HEIGHT
-	Background: ""
-	# Hidden scrollbar — mousewheel scrolling still works, but the always-rendered
-	# scrollbar buttons aren't visually overlapping the right-rail map preview.
-	# Combined with the shrunk TOP_PANELS_ROOT (lobby.yaml W=644 instead of 675),
-	# the left content area fits neatly to the left of the right rail.
-	ScrollBar: Hidden
-	ItemSpacing: 0
-	TopBottomSpacing: 0
 	Children:
-		Container@LABEL_CONTAINER:
-			X: 5
+		# ┌──────────────┬──────────────┐
+		# │  TL  Map     │  TR  Match   │
+		# │              │      settings│
+		# ├──────────────┼──────────────┤
+		# │  BL  Players │  BR  Changes │
+		# │              │      Preset  │
+		# └──────────────┴──────────────┘
+		# Each cell is PARENT_WIDTH/2 - 8 wide × PARENT_HEIGHT/2 - 8 tall, with
+		# 8px gap on both axes. Cell backgrounds are subtle dark fills so the
+		# grid reads visually. The TL cell is just an anchor — the actual map
+		# preview, scenario picker, and Change Map button are rendered at the
+		# lobby root level (see lobby.yaml) because LobbyLogic loads them before
+		# LOBBY_PLAYER_BIN exists.
+		Container@CELL_TL:
+			X: 0
 			Y: 0
-			Width: PARENT_WIDTH
-			Height: 28
+			Width: PARENT_WIDTH / 2 - 8
+			Height: PARENT_HEIGHT / 2 - 8
 			Children:
-				Label@LABEL_LOBBY_NAME:
-					Width: 180
-					Height: 25
-					Text: label-lobby-players-name
-					Align: Center
-					Font: Bold
-				Label@LABEL_LOBBY_COLOR:
-					X: 190
-					Width: 70
-					Height: 25
-					Text: label-lobby-players-color
-					Align: Center
-					Font: Bold
-				Label@LABEL_LOBBY_FACTION:
-					X: 270
-					Width: 140
-					Height: 25
-					Text: label-lobby-players-faction
-					Align: Center
-					Font: Bold
-				Label@LABEL_LOBBY_TEAM:
-					X: 420
-					Width: 48
-					Height: 25
-					Text: label-lobby-players-team
-					Align: Center
-					Font: Bold
-				Label@LABEL_LOBBY_HANDICAP:
-					X: 470
-					Width: 64
-					Height: 25
-					Text: label-lobby-players-handicap
-					Align: Center
-					Font: Bold
-				Label@LABEL_LOBBY_SPAWN:
-					X: 540
-					Width: 48
-					Height: 25
-					Text: label-lobby-players-spawn
-					Align: Center
-					Font: Bold
-				Label@LABEL_LOBBY_STATUS:
-					X: 595
-					Width: 44
-					Height: 25
-					Text: label-lobby-players-ready
-					Align: Center
-					Font: Bold
-		# Vertical rhythm — 16px gap between sections, 30px button heights for proper
-		# internal padding (text gets ~7px above/below the baseline). The Y values
-		# below are the canonical "no extra slots" layout; LobbyLogic captures them
-		# at load and shifts them by delta as the roster auto-expands.
-		Container@LOBBY_SETUP_ROW:
-			Logic: LobbySetupRowLogic
-			Y: 244
-			Width: PARENT_WIDTH
-			Height: 30
-			Children:
-				Button@ADD_BOTS_BUTTON:
-					X: 5
-					Y: 0
-					Width: 110
-					Height: 30
-					Font: Bold
-					Text: Add Bots
-				Button@REMOVE_BOTS_BUTTON:
-					X: 125
-					Y: 0
-					Width: 130
-					Height: 30
-					Font: Bold
-					Text: Remove Bots
-				DropDownButton@AUTO_TEAM_BUTTON:
-					X: 265
-					Y: 0
-					Width: 130
-					Height: 30
-					Font: Bold
-					Text: Auto-Team
-				Button@REPLAY_LAST_BUTTON:
-					X: 405
-					Y: 0
-					Width: 140
-					Height: 30
-					Font: Bold
-					Text: Replay last
-		Container@LOBBY_ACTIVE_CHANGES:
-			Logic: LobbyActiveChangesLogic
-			Y: 290
-			Width: PARENT_WIDTH
-			Height: 56
-			Children:
-				# Subtle darker fill so the section reads as a card depressed
-				# into the surrounding panel, not as a floating row.
-				ColorBlock@SECTION_BG:
+				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
-					Color: 0000001E
-				Label@EMPTY_HINT:
-					X: 8
-					Y: 4
-					Width: 300
+					Color: 14171C90
+				Label@CELL_LABEL:
+					X: 12
+					Y: 10
+					Width: PARENT_WIDTH - 24
 					Height: 20
 					Font: TinyBold
 					Align: Left
-					Text: All settings at default
-				Container@CHIP_TEMPLATE:
-					Width: 180
-					Height: 30
-					Visible: False
-					Children:
-						ColorBlock@BG:
-							Width: PARENT_WIDTH
-							Height: PARENT_HEIGHT
-						Label@CHIP_LABEL:
-							Width: PARENT_WIDTH
-							Height: PARENT_HEIGHT
-							Align: Center
-							Font: Bold
-						Button@HIT:
-							Width: PARENT_WIDTH
-							Height: PARENT_HEIGHT
-							Background: ""
-		Container@LOBBY_PRESET_BAR:
-			Logic: LobbyPresetLogic
-			Y: 362
-			Width: PARENT_WIDTH
-			Height: 30
+					Text: MAP
+		Container@CELL_TR:
+			X: PARENT_WIDTH / 2 + 8
+			Y: 0
+			Width: PARENT_WIDTH / 2 - 8
+			Height: PARENT_HEIGHT / 2 - 8
 			Children:
-				ColorBlock@SECTION_BG:
+				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
-					Color: 0000001E
-				Label@PRESET_LABEL:
-					X: 8
-					Y: 6
-					Width: 55
+					Color: 14171C90
+				Label@CELL_LABEL:
+					X: 12
+					Y: 10
+					Width: PARENT_WIDTH - 24
 					Height: 20
-					Text: Preset:
-					Font: Bold
-				TextField@PRESET_NAME:
-					X: 60
-					Y: 0
-					Width: 170
-					Height: 30
-					MaxLength: 32
-					Text: Default
-				DropDownButton@PRESET_DROPDOWN:
-					X: 240
-					Y: 0
-					Width: 70
-					Height: 30
-					Font: Bold
-					Text: Load
-				Button@SAVE_PRESET_BUTTON:
-					X: 320
-					Y: 0
-					Width: 70
-					Height: 30
-					Font: Bold
-					Text: Save
-				Button@RENAME_PRESET_BUTTON:
-					X: 400
-					Y: 0
-					Width: 80
-					Height: 30
-					Font: Bold
-					Text: Rename
-				Button@DELETE_PRESET_BUTTON:
-					X: 490
-					Y: 0
-					Width: 70
-					Height: 30
-					Font: Bold
-					Text: Delete
-				Button@RESET_PRESET_BUTTON:
-					X: 570
-					Y: 0
-					Width: 70
-					Height: 30
-					Font: Bold
-					Text: Reset
-		# COMMON_OPTIONS_HEADER deleted — Economy/Match/World subsection headers
-		# (phase 4) name the groups individually, parent was redundant.
-		ScrollPanel@COMMON_OPTIONS_PANEL:
-			Logic: LobbyOptionsLogic
-			Y: 408
-			Width: PARENT_WIDTH
-			Height: 300
-			Background: ""
-			ScrollBar: Hidden
-			Children:
-				Label@CATEGORY_FILTER:
-					Visible: False
-					Text: Common
-				Container@LOBBY_OPTIONS:
-					Y: 5
-					Width: PARENT_WIDTH
+					Font: TinyBold
+					Align: Left
+					Text: MATCH SETTINGS
+				ScrollPanel@COMMON_OPTIONS_PANEL:
+					Logic: LobbyOptionsLogic
+					X: 4
+					Y: 36
+					Width: PARENT_WIDTH - 8
+					Height: PARENT_HEIGHT - 44
+					Background: ""
+					ScrollBar: Right
 					Children:
-						Container@SECTION_HEADER_TEMPLATE:
-							Width: PARENT_WIDTH
-							Height: 40
+						Label@CATEGORY_FILTER:
 							Visible: False
+							Text: Common
+						Container@LOBBY_OPTIONS:
+							Y: 5
+							Width: PARENT_WIDTH - 24
 							Children:
-								Label@HEADER_LABEL:
-									X: 10
-									Y: 14
-									Width: PARENT_WIDTH - 20
-									Height: 22
-									Font: MediumBold
-									Align: Left
-								ColorBlock@SEPARATOR:
-									X: 10
-									Y: 36
-									Width: PARENT_WIDTH - 20
-									Height: 1
-									Color: 60606080
-						Container@CHECKBOX_ROW_TEMPLATE:
-							Width: PARENT_WIDTH
-							Height: 30
-							Children:
-								Checkbox@A:
-									X: 10
-									Width: PARENT_WIDTH / 2 - 20
-									Height: 20
+								Container@SECTION_HEADER_TEMPLATE:
+									Width: PARENT_WIDTH
+									Height: 40
 									Visible: False
-									TooltipContainer: TOOLTIP_CONTAINER
-								Checkbox@B:
-									X: PARENT_WIDTH / 2 + 10
-									Width: PARENT_WIDTH / 2 - 20
-									Height: 20
-									Visible: False
-									TooltipContainer: TOOLTIP_CONTAINER
-						Container@DROPDOWN_ROW_TEMPLATE:
-							Height: 55
-							Width: PARENT_WIDTH
-							Children:
-								LabelForInput@A_DESC:
-									X: 10
-									Width: PARENT_WIDTH / 2 - 20
-									Height: 20
-									Visible: False
-									For: A
-								DropDownButton@A:
-									X: 10
-									Width: PARENT_WIDTH / 2 - 20
-									Y: 22
-									Height: 25
-									Visible: False
-									TooltipContainer: TOOLTIP_CONTAINER
-								LabelForInput@B_DESC:
-									X: PARENT_WIDTH / 2 + 10
-									Width: PARENT_WIDTH / 2 - 20
-									Height: 20
-									Visible: False
-									For: B
-								DropDownButton@B:
-									X: PARENT_WIDTH / 2 + 10
-									Width: PARENT_WIDTH / 2 - 20
-									Y: 22
-									Height: 25
-									Visible: False
-									TooltipContainer: TOOLTIP_CONTAINER
-		ScrollPanel@LOBBY_PLAYERS:
-			Y: 28
-			Width: PARENT_WIDTH
-			Height: 200
-			TopBottomSpacing: 8
-			ItemSpacing: 7
-			Background: ""
-			# Auto-expand sizes the panel exactly to content, so the scrollbar is
-			# never needed. Hiding it kills the visual collision with the right-rail
-			# map preview that was bleeding past the panel's right edge.
-			ScrollBar: Hidden
+									Children:
+										Label@HEADER_LABEL:
+											X: 10
+											Y: 14
+											Width: PARENT_WIDTH - 20
+											Height: 22
+											Font: MediumBold
+											Align: Left
+										ColorBlock@SEPARATOR:
+											X: 10
+											Y: 36
+											Width: PARENT_WIDTH - 20
+											Height: 1
+											Color: 60606080
+								Container@CHECKBOX_ROW_TEMPLATE:
+									Width: PARENT_WIDTH
+									Height: 30
+									Children:
+										Checkbox@A:
+											X: 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										Checkbox@B:
+											X: PARENT_WIDTH / 2 + 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+								Container@DROPDOWN_ROW_TEMPLATE:
+									Height: 55
+									Width: PARENT_WIDTH
+									Children:
+										LabelForInput@A_DESC:
+											X: 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											For: A
+										DropDownButton@A:
+											X: 10
+											Width: PARENT_WIDTH / 2 - 20
+											Y: 22
+											Height: 25
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										LabelForInput@B_DESC:
+											X: PARENT_WIDTH / 2 + 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											For: B
+										DropDownButton@B:
+											X: PARENT_WIDTH / 2 + 10
+											Width: PARENT_WIDTH / 2 - 20
+											Y: 22
+											Height: 25
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+		Container@CELL_BL:
+			X: 0
+			Y: PARENT_HEIGHT / 2 + 8
+			Width: PARENT_WIDTH / 2 - 8
+			Height: PARENT_HEIGHT / 2 - 8
 			Children:
-				Container@TEMPLATE_EDITABLE_PLAYER:
-					X: 5
-					Width: 475
-					Height: 25
-					Visible: false
+				ColorBlock@CELL_BG:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Color: 14171C90
+				Label@CELL_LABEL:
+					X: 12
+					Y: 10
+					Width: PARENT_WIDTH - 24
+					Height: 20
+					Font: TinyBold
+					Align: Left
+					Text: PLAYERS
+				Container@LABEL_CONTAINER:
+					X: 12
+					Y: 36
+					Width: PARENT_WIDTH - 24
+					Height: 24
 					Children:
-						Container@LATENCY:
-							Y: 6
-							Width: 11
-							Height: 14
-							Visible: false
-							Children:
-								ColorBlock@LATENCY_COLOR:
-									X: 2
-									Y: 2
-									Width: PARENT_WIDTH - 4
-									Height: PARENT_HEIGHT - 4
-						ClientTooltipRegion@LATENCY_REGION:
-							Width: 11
-							Height: 25
-							TooltipContainer: TOOLTIP_CONTAINER
-							Template: LATENCY_TOOLTIP
-						TextField@NAME:
-							X: 15
-							Width: 165
-							Height: 25
-							Text: Name
-							LeftMargin: 24
-							MaxLength: 16
-							Visible: false
-							Children:
-								Image@PROFILE:
-									ImageCollection: lobby-bits
-									X: 3
-									Y: 3
-									Visible: false
-								ClientTooltipRegion@PROFILE_TOOLTIP:
-									X: 3
-									Y: 3
-									Width: 16
-									Height: 16
-									TooltipContainer: TOOLTIP_CONTAINER
-									Template: ANONYMOUS_PLAYER_TOOLTIP
-						DropDownButton@SLOT_OPTIONS:
-							X: 15
-							Width: 165
-							Height: 25
+						Label@LABEL_LOBBY_NAME:
+							Width: 180
+							Height: 24
 							Text: label-lobby-players-name
-							Font: Regular
-							Visible: false
-						DropDownButton@COLOR:
+							Align: Center
+							Font: Bold
+						Label@LABEL_LOBBY_COLOR:
 							X: 190
 							Width: 70
-							Height: 25
-							IgnoreChildMouseOver: true
-							Children:
-								ColorBlock@COLORBLOCK:
-									X: 5
-									Y: 4
-									Width: PARENT_WIDTH - 26
-									Height: PARENT_HEIGHT - 8
-						DropDownButton@FACTION:
+							Height: 24
+							Text: label-lobby-players-color
+							Align: Center
+							Font: Bold
+						Label@LABEL_LOBBY_FACTION:
 							X: 270
 							Width: 140
-							Height: 25
-							IgnoreChildMouseOver: true
-							TooltipContainer: TOOLTIP_CONTAINER
-							PanelRoot: FACTION_DROPDOWN_PANEL_ROOT # ensure that tooltips for the options are on top of the dropdown panel
-							Children:
-								Image@FACTIONFLAG:
-									X: 5
-									Y: 5
-									Width: 30
-									Height: 15
-								Label@FACTIONNAME:
-									X: 40
-									Width: 70
-									Height: 25
-									Text: label-lobby-players-faction
-						DropDownButton@TEAM_DROPDOWN:
+							Height: 24
+							Text: label-lobby-players-faction
+							Align: Center
+							Font: Bold
+						Label@LABEL_LOBBY_TEAM:
 							X: 420
 							Width: 48
-							Height: 25
+							Height: 24
 							Text: label-lobby-players-team
-						DropDownButton@HANDICAP_DROPDOWN:
+							Align: Center
+							Font: Bold
+						Label@LABEL_LOBBY_HANDICAP:
 							X: 470
 							Width: 64
-							Height: 25
-							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipText: dropdownbutton-lobby-players-handicap-tooltip
-						DropDownButton@SPAWN_DROPDOWN:
+							Height: 24
+							Text: label-lobby-players-handicap
+							Align: Center
+							Font: Bold
+						Label@LABEL_LOBBY_SPAWN:
 							X: 540
 							Width: 48
-							Height: 25
+							Height: 24
 							Text: label-lobby-players-spawn
-						Checkbox@STATUS_CHECKBOX:
-							X: 605
-							Y: 0
-							Width: 24
+							Align: Center
+							Font: Bold
+						Label@LABEL_LOBBY_STATUS:
+							X: 595
+							Width: 44
 							Height: 24
-							Visible: false
-						Image@STATUS_IMAGE:
-							X: 607
-							Y: 2
-							Width: 24
-							Height: 24
-							ImageCollection: checkmark-tick
-							ImageName: checked
-							Visible: false
-				Container@TEMPLATE_NONEDITABLE_PLAYER:
-					X: 5
-					Width: 475
-					Height: 25
-					Visible: false
+							Text: label-lobby-players-ready
+							Align: Center
+							Font: Bold
+				ScrollPanel@LOBBY_PLAYERS:
+					X: 4
+					Y: 64
+					Width: PARENT_WIDTH - 8
+					Height: PARENT_HEIGHT - 112
+					TopBottomSpacing: 8
+					ItemSpacing: 7
+					Background: ""
+					ScrollBar: Hidden
 					Children:
-						Container@LATENCY:
-							Y: 6
-							Width: 11
-							Height: 14
+						Container@TEMPLATE_EDITABLE_PLAYER:
+							X: 5
+							Width: 475
+							Height: 25
 							Visible: false
 							Children:
-								ColorBlock@LATENCY_COLOR:
-									X: 2
-									Y: 2
-									Width: PARENT_WIDTH - 4
-									Height: PARENT_HEIGHT - 4
-						ClientTooltipRegion@LATENCY_REGION:
-							Width: 11
-							Height: 25
-							TooltipContainer: TOOLTIP_CONTAINER
-							Template: LATENCY_TOOLTIP
-						Image@PROFILE:
-							ImageCollection: lobby-bits
-							X: 18
-							Y: 3
-							Visible: false
-						ClientTooltipRegion@PROFILE_TOOLTIP:
-							X: 18
-							Y: 3
-							Width: 16
-							Height: 16
-							TooltipContainer: TOOLTIP_CONTAINER
-							Template: ANONYMOUS_PLAYER_TOOLTIP
-						Label@NAME:
-							X: 39
-							Width: 146
-							Height: 25
-							Text: label-lobby-players-name
-						DropDownButton@PLAYER_ACTION:
-							X: 15
-							Width: 165
-							Height: 25
-							Font: Regular
-							Visible: false
-							Align: Left
-							LeftMargin: 24
-							Children:
-								Image@PROFILE:
-									ImageCollection: lobby-bits
-									X: 3
-									Y: 3
+								Container@LATENCY:
+									Y: 6
+									Width: 11
+									Height: 14
 									Visible: false
-								ClientTooltipRegion@PROFILE_TOOLTIP:
-									X: 3
-									Y: 3
-									Width: 16
-									Height: 16
+									Children:
+										ColorBlock@LATENCY_COLOR:
+											X: 2
+											Y: 2
+											Width: PARENT_WIDTH - 4
+											Height: PARENT_HEIGHT - 4
+								ClientTooltipRegion@LATENCY_REGION:
+									Width: 11
+									Height: 25
 									TooltipContainer: TOOLTIP_CONTAINER
-									Template: ANONYMOUS_PLAYER_TOOLTIP
-						ColorBlock@COLORBLOCK:
-							X: 195
-							Y: 4
-							Width: 60
-							Height: 17
-						Container@FACTION:
-							X: 270
-							Width: 160
-							Height: 25
-							Children:
-								Image@FACTIONFLAG:
-									X: 5
-									Y: 5
-									Width: 30
-									Height: 15
-								Label@FACTIONNAME:
-									X: 40
+									Template: LATENCY_TOOLTIP
+								TextField@NAME:
+									X: 15
+									Width: 165
+									Height: 25
+									Text: Name
+									LeftMargin: 24
+									MaxLength: 16
+									Visible: false
+									Children:
+										Image@PROFILE:
+											ImageCollection: lobby-bits
+											X: 3
+											Y: 3
+											Visible: false
+										ClientTooltipRegion@PROFILE_TOOLTIP:
+											X: 3
+											Y: 3
+											Width: 16
+											Height: 16
+											TooltipContainer: TOOLTIP_CONTAINER
+											Template: ANONYMOUS_PLAYER_TOOLTIP
+								DropDownButton@SLOT_OPTIONS:
+									X: 15
+									Width: 165
+									Height: 25
+									Text: label-lobby-players-name
+									Font: Regular
+									Visible: false
+								DropDownButton@COLOR:
+									X: 190
 									Width: 70
 									Height: 25
-									Text: label-lobby-players-faction
-						Label@TEAM:
-							X: 410
-							Width: 43
-							Height: 25
-							Text: label-lobby-players-team
-							Align: Center
-						DropDownButton@TEAM_DROPDOWN:
-							X: 420
-							Width: 48
-							Height: 25
-							Visible: false
-						Label@HANDICAP:
-							X: 470
-							Width: 47
-							Height: 25
-							Align: Center
-						DropDownButton@HANDICAP_DROPDOWN:
-							X: 470
-							Width: 64
-							Height: 25
-							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipText: dropdownbutton-lobby-players-handicap-tooltip
-						Label@SPAWN:
-							X: 540
-							Width: 23
-							Height: 25
-							Align: Center
-						DropDownButton@SPAWN_DROPDOWN:
-							X: 540
-							Width: 48
-							Height: 25
-							Visible: false
-						Image@STATUS_IMAGE:
-							X: 607
-							Y: 2
-							Width: 24
-							Height: 24
-							ImageCollection: checkmark-tick
-							ImageName: checked
-							Visible: false
-				Container@TEMPLATE_EMPTY:
-					X: 5
-					Width: 475
-					Height: 25
-					Visible: false
-					Children:
-						Label@NAME:
-							Width: 165
-							Height: 25
-							X: 20
-							Text: label-lobby-players-name
-							Visible: false
-						DropDownButton@SLOT_OPTIONS:
-							X: 15
-							Width: 165
-							Height: 25
-							Text: label-lobby-players-name
-							Visible: false
-						Button@PLAY:
-							X: 15
-							Y: 1
-							Width: 80
-							Height: 23
-							Font: Bold
-							Text: ▸ Play
-							TooltipText: Play in this slot
-							TooltipContainer: TOOLTIP_CONTAINER
-							Visible: false
-						Button@ADD_AI:
-							X: 100
-							Y: 1
-							Width: 110
-							Height: 23
-							Font: Bold
-							Text: + Add bot
-							TooltipText: Add bot (faction can be picked on the row after)
-							TooltipContainer: TOOLTIP_CONTAINER
-							Visible: false
-						Button@TOGGLE_CLOSED:
-							X: 420
-							Y: 1
-							Width: 60
-							Height: 23
-							Font: Bold
-							Text: Close
-							Visible: false
-						Button@JOIN:
-							X: 190
-							Text: button-lobby-players-join
-							Width: 470
-						Label@CLOSED_LABEL:
-							X: 15
-							Width: 400
-							Height: 25
-							Align: Left
-							Text: Closed
-							Visible: false
-				Container@TEMPLATE_EDITABLE_SPECTATOR:
-					X: 5
-					Width: 475
-					Height: 25
-					Visible: false
-					Children:
-						Container@LATENCY:
-							Y: 6
-							Width: 11
-							Height: 14
-							Visible: false
-							Children:
-								ColorBlock@LATENCY_COLOR:
-									X: 2
+									IgnoreChildMouseOver: true
+									Children:
+										ColorBlock@COLORBLOCK:
+											X: 5
+											Y: 4
+											Width: PARENT_WIDTH - 26
+											Height: PARENT_HEIGHT - 8
+								DropDownButton@FACTION:
+									X: 270
+									Width: 140
+									Height: 25
+									IgnoreChildMouseOver: true
+									TooltipContainer: TOOLTIP_CONTAINER
+									PanelRoot: FACTION_DROPDOWN_PANEL_ROOT
+									Children:
+										Image@FACTIONFLAG:
+											X: 5
+											Y: 5
+											Width: 30
+											Height: 15
+										Label@FACTIONNAME:
+											X: 40
+											Width: 70
+											Height: 25
+											Text: label-lobby-players-faction
+								DropDownButton@TEAM_DROPDOWN:
+									X: 420
+									Width: 48
+									Height: 25
+									Text: label-lobby-players-team
+								DropDownButton@HANDICAP_DROPDOWN:
+									X: 470
+									Width: 64
+									Height: 25
+									TooltipContainer: TOOLTIP_CONTAINER
+									TooltipText: dropdownbutton-lobby-players-handicap-tooltip
+								DropDownButton@SPAWN_DROPDOWN:
+									X: 540
+									Width: 48
+									Height: 25
+									Text: label-lobby-players-spawn
+								Checkbox@STATUS_CHECKBOX:
+									X: 605
+									Y: 0
+									Width: 24
+									Height: 24
+									Visible: false
+								Image@STATUS_IMAGE:
+									X: 607
 									Y: 2
-									Width: PARENT_WIDTH - 4
-									Height: PARENT_HEIGHT - 4
-						ClientTooltipRegion@LATENCY_REGION:
-							Width: 11
+									Width: 24
+									Height: 24
+									ImageCollection: checkmark-tick
+									ImageName: checked
+									Visible: false
+						Container@TEMPLATE_NONEDITABLE_PLAYER:
+							X: 5
+							Width: 475
 							Height: 25
-							TooltipContainer: TOOLTIP_CONTAINER
-							Template: LATENCY_TOOLTIP
-						TextField@NAME:
-							X: 15
-							Width: 165
-							Height: 25
-							Text: Name
-							LeftMargin: 24
-							MaxLength: 16
+							Visible: false
 							Children:
+								Container@LATENCY:
+									Y: 6
+									Width: 11
+									Height: 14
+									Visible: false
+									Children:
+										ColorBlock@LATENCY_COLOR:
+											X: 2
+											Y: 2
+											Width: PARENT_WIDTH - 4
+											Height: PARENT_HEIGHT - 4
+								ClientTooltipRegion@LATENCY_REGION:
+									Width: 11
+									Height: 25
+									TooltipContainer: TOOLTIP_CONTAINER
+									Template: LATENCY_TOOLTIP
 								Image@PROFILE:
 									ImageCollection: lobby-bits
-									X: 3
+									X: 18
 									Y: 3
 									Visible: false
 								ClientTooltipRegion@PROFILE_TOOLTIP:
-									X: 3
+									X: 18
 									Y: 3
 									Width: 16
 									Height: 16
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: ANONYMOUS_PLAYER_TOOLTIP
-						Label@SPECTATOR:
-							X: 190
-							Width: 470
+								Label@NAME:
+									X: 39
+									Width: 146
+									Height: 25
+									Text: label-lobby-players-name
+								DropDownButton@PLAYER_ACTION:
+									X: 15
+									Width: 165
+									Height: 25
+									Font: Regular
+									Visible: false
+									Align: Left
+									LeftMargin: 24
+									Children:
+										Image@PROFILE:
+											ImageCollection: lobby-bits
+											X: 3
+											Y: 3
+											Visible: false
+										ClientTooltipRegion@PROFILE_TOOLTIP:
+											X: 3
+											Y: 3
+											Width: 16
+											Height: 16
+											TooltipContainer: TOOLTIP_CONTAINER
+											Template: ANONYMOUS_PLAYER_TOOLTIP
+								ColorBlock@COLORBLOCK:
+									X: 195
+									Y: 4
+									Width: 60
+									Height: 17
+								Container@FACTION:
+									X: 270
+									Width: 160
+									Height: 25
+									Children:
+										Image@FACTIONFLAG:
+											X: 5
+											Y: 5
+											Width: 30
+											Height: 15
+										Label@FACTIONNAME:
+											X: 40
+											Width: 70
+											Height: 25
+											Text: label-lobby-players-faction
+								Label@TEAM:
+									X: 410
+									Width: 43
+									Height: 25
+									Text: label-lobby-players-team
+									Align: Center
+								DropDownButton@TEAM_DROPDOWN:
+									X: 420
+									Width: 48
+									Height: 25
+									Visible: false
+								Label@HANDICAP:
+									X: 470
+									Width: 47
+									Height: 25
+									Align: Center
+								DropDownButton@HANDICAP_DROPDOWN:
+									X: 470
+									Width: 64
+									Height: 25
+									TooltipContainer: TOOLTIP_CONTAINER
+									TooltipText: dropdownbutton-lobby-players-handicap-tooltip
+								Label@SPAWN:
+									X: 540
+									Width: 23
+									Height: 25
+									Align: Center
+								DropDownButton@SPAWN_DROPDOWN:
+									X: 540
+									Width: 48
+									Height: 25
+									Visible: false
+								Image@STATUS_IMAGE:
+									X: 607
+									Y: 2
+									Width: 24
+									Height: 24
+									ImageCollection: checkmark-tick
+									ImageName: checked
+									Visible: false
+						Container@TEMPLATE_EMPTY:
+							X: 5
+							Width: 475
 							Height: 25
-							Text: label-lobby-players-spectator
-							Align: Center
-							Font: Bold
-						Checkbox@STATUS_CHECKBOX:
-							X: 605
+							Visible: false
+							Children:
+								Label@NAME:
+									Width: 165
+									Height: 25
+									X: 20
+									Text: label-lobby-players-name
+									Visible: false
+								DropDownButton@SLOT_OPTIONS:
+									X: 15
+									Width: 165
+									Height: 25
+									Text: label-lobby-players-name
+									Visible: false
+								Button@PLAY:
+									X: 15
+									Y: 1
+									Width: 80
+									Height: 23
+									Font: Bold
+									Text: ▸ Play
+									TooltipText: Play in this slot
+									TooltipContainer: TOOLTIP_CONTAINER
+									Visible: false
+								Button@ADD_AI:
+									X: 100
+									Y: 1
+									Width: 110
+									Height: 23
+									Font: Bold
+									Text: + Add bot
+									TooltipText: Add bot (faction can be picked on the row after)
+									TooltipContainer: TOOLTIP_CONTAINER
+									Visible: false
+								Button@TOGGLE_CLOSED:
+									X: 420
+									Y: 1
+									Width: 60
+									Height: 23
+									Font: Bold
+									Text: Close
+									Visible: false
+								Button@JOIN:
+									X: 190
+									Text: button-lobby-players-join
+									Width: 470
+								Label@CLOSED_LABEL:
+									X: 15
+									Width: 400
+									Height: 25
+									Align: Left
+									Text: Closed
+									Visible: false
+						Container@TEMPLATE_EDITABLE_SPECTATOR:
+							X: 5
+							Width: 475
+							Height: 25
+							Visible: false
+							Children:
+								Container@LATENCY:
+									Y: 6
+									Width: 11
+									Height: 14
+									Visible: false
+									Children:
+										ColorBlock@LATENCY_COLOR:
+											X: 2
+											Y: 2
+											Width: PARENT_WIDTH - 4
+											Height: PARENT_HEIGHT - 4
+								ClientTooltipRegion@LATENCY_REGION:
+									Width: 11
+									Height: 25
+									TooltipContainer: TOOLTIP_CONTAINER
+									Template: LATENCY_TOOLTIP
+								TextField@NAME:
+									X: 15
+									Width: 165
+									Height: 25
+									Text: Name
+									LeftMargin: 24
+									MaxLength: 16
+									Children:
+										Image@PROFILE:
+											ImageCollection: lobby-bits
+											X: 3
+											Y: 3
+											Visible: false
+										ClientTooltipRegion@PROFILE_TOOLTIP:
+											X: 3
+											Y: 3
+											Width: 16
+											Height: 16
+											TooltipContainer: TOOLTIP_CONTAINER
+											Template: ANONYMOUS_PLAYER_TOOLTIP
+								Label@SPECTATOR:
+									X: 190
+									Width: 470
+									Height: 25
+									Text: label-lobby-players-spectator
+									Align: Center
+									Font: Bold
+								Checkbox@STATUS_CHECKBOX:
+									X: 605
+									Y: 0
+									Width: 24
+									Height: 24
+									Visible: false
+								Image@STATUS_IMAGE:
+									X: 607
+									Y: 2
+									Width: 24
+									Height: 24
+									ImageCollection: checkmark-tick
+									ImageName: checked
+									Visible: false
+						Container@TEMPLATE_NONEDITABLE_SPECTATOR:
+							X: 5
+							Width: 475
+							Height: 25
+							Visible: false
+							Children:
+								Container@LATENCY:
+									Y: 6
+									Width: 11
+									Height: 14
+									Visible: false
+									Children:
+										ColorBlock@LATENCY_COLOR:
+											X: 2
+											Y: 2
+											Width: PARENT_WIDTH - 4
+											Height: PARENT_HEIGHT - 4
+								ClientTooltipRegion@LATENCY_REGION:
+									Width: 11
+									Height: 25
+									TooltipContainer: TOOLTIP_CONTAINER
+									Template: LATENCY_TOOLTIP
+								Image@PROFILE:
+									ImageCollection: lobby-bits
+									X: 18
+									Y: 3
+									Visible: false
+								ClientTooltipRegion@PROFILE_TOOLTIP:
+									X: 18
+									Y: 3
+									Width: 16
+									Height: 16
+									TooltipContainer: TOOLTIP_CONTAINER
+									Template: ANONYMOUS_PLAYER_TOOLTIP
+								Label@NAME:
+									X: 39
+									Width: 179
+									Height: 25
+									Text: label-lobby-players-name
+								DropDownButton@PLAYER_ACTION:
+									X: 15
+									Width: 165
+									Height: 25
+									Font: Regular
+									Visible: false
+									Align: Left
+									LeftMargin: 24
+									Children:
+										Image@PROFILE:
+											ImageCollection: lobby-bits
+											X: 3
+											Y: 3
+											Visible: false
+										ClientTooltipRegion@PROFILE_TOOLTIP:
+											X: 3
+											Y: 3
+											Width: 16
+											Height: 16
+											TooltipContainer: TOOLTIP_CONTAINER
+											Template: ANONYMOUS_PLAYER_TOOLTIP
+								Label@SPECTATOR:
+									X: 190
+									Width: 470
+									Height: 25
+									Text: label-lobby-players-spectator
+									Align: Center
+									Font: Bold
+								Image@STATUS_IMAGE:
+									X: 607
+									Y: 2
+									Width: 24
+									Height: 24
+									ImageCollection: checkmark-tick
+									ImageName: checked
+									Visible: false
+						Container@TEMPLATE_NEW_SPECTATOR:
+							X: 5
+							Width: 475
+							Height: 25
+							Visible: false
+							Children:
+								Checkbox@TOGGLE_SPECTATORS:
+									X: 15
+									Width: 165
+									Height: 20
+									Font: Regular
+									Text: checkbox-lobby-players-new-spectator-toggle
+								Button@SPECTATE:
+									X: 190
+									Width: 470
+									Height: 25
+									Text: button-lobby-players-spectate
+									Font: Regular
+				Container@LOBBY_SETUP_ROW:
+					Logic: LobbySetupRowLogic
+					X: 12
+					Y: PARENT_HEIGHT - 42
+					Width: PARENT_WIDTH - 24
+					Height: 32
+					Children:
+						Button@ADD_BOTS_BUTTON:
+							X: 0
 							Y: 0
-							Width: 24
-							Height: 24
-							Visible: false
-						Image@STATUS_IMAGE:
-							X: 607
-							Y: 2
-							Width: 24
-							Height: 24
-							ImageCollection: checkmark-tick
-							ImageName: checked
-							Visible: false
-				Container@TEMPLATE_NONEDITABLE_SPECTATOR:
-					X: 5
-					Width: 475
-					Height: 25
-					Visible: false
-					Children:
-						Container@LATENCY:
-							Y: 6
-							Width: 11
-							Height: 14
-							Visible: false
-							Children:
-								ColorBlock@LATENCY_COLOR:
-									X: 2
-									Y: 2
-									Width: PARENT_WIDTH - 4
-									Height: PARENT_HEIGHT - 4
-						ClientTooltipRegion@LATENCY_REGION:
-							Width: 11
-							Height: 25
-							TooltipContainer: TOOLTIP_CONTAINER
-							Template: LATENCY_TOOLTIP
-						Image@PROFILE:
-							ImageCollection: lobby-bits
-							X: 18
-							Y: 3
-							Visible: false
-						ClientTooltipRegion@PROFILE_TOOLTIP:
-							X: 18
-							Y: 3
-							Width: 16
-							Height: 16
-							TooltipContainer: TOOLTIP_CONTAINER
-							Template: ANONYMOUS_PLAYER_TOOLTIP
-						Label@NAME:
-							X: 39
-							Width: 179
-							Height: 25
-							Text: label-lobby-players-name
-						DropDownButton@PLAYER_ACTION:
-							X: 15
-							Width: 165
-							Height: 25
-							Font: Regular
-							Visible: false
-							Align: Left
-							LeftMargin: 24
-							Children:
-								Image@PROFILE:
-									ImageCollection: lobby-bits
-									X: 3
-									Y: 3
-									Visible: false
-								ClientTooltipRegion@PROFILE_TOOLTIP:
-									X: 3
-									Y: 3
-									Width: 16
-									Height: 16
-									TooltipContainer: TOOLTIP_CONTAINER
-									Template: ANONYMOUS_PLAYER_TOOLTIP
-						Label@SPECTATOR:
-							X: 190
-							Width: 470
-							Height: 25
-							Text: label-lobby-players-spectator
-							Align: Center
+							Width: 110
+							Height: 32
 							Font: Bold
-						Image@STATUS_IMAGE:
-							X: 607
-							Y: 2
-							Width: 24
-							Height: 24
-							ImageCollection: checkmark-tick
-							ImageName: checked
-							Visible: false
-				Container@TEMPLATE_NEW_SPECTATOR:
-					X: 5
-					Width: 475
-					Height: 25
-					Visible: false
+							Text: Add Bots
+						Button@REMOVE_BOTS_BUTTON:
+							X: 120
+							Y: 0
+							Width: 130
+							Height: 32
+							Font: Bold
+							Text: Remove Bots
+						DropDownButton@AUTO_TEAM_BUTTON:
+							X: 260
+							Y: 0
+							Width: 130
+							Height: 32
+							Font: Bold
+							Text: Auto-Team
+						Button@REPLAY_LAST_BUTTON:
+							X: 400
+							Y: 0
+							Width: 140
+							Height: 32
+							Font: Bold
+							Text: Replay last
+		Container@CELL_BR:
+			X: PARENT_WIDTH / 2 + 8
+			Y: PARENT_HEIGHT / 2 + 8
+			Width: PARENT_WIDTH / 2 - 8
+			Height: PARENT_HEIGHT / 2 - 8
+			Children:
+				ColorBlock@CELL_BG:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Color: 14171C90
+				Label@CELL_LABEL:
+					X: 12
+					Y: 10
+					Width: PARENT_WIDTH - 24
+					Height: 20
+					Font: TinyBold
+					Align: Left
+					Text: ACTIVE CHANGES
+				Container@LOBBY_ACTIVE_CHANGES:
+					Logic: LobbyActiveChangesLogic
+					X: 12
+					Y: 36
+					Width: PARENT_WIDTH - 24
+					Height: PARENT_HEIGHT - 92
 					Children:
-						Checkbox@TOGGLE_SPECTATORS:
-							X: 15
-							Width: 165
+						ColorBlock@SECTION_BG:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+							Color: 0000001E
+						Label@EMPTY_HINT:
+							X: 8
+							Y: 4
+							Width: 300
 							Height: 20
-							Font: Regular
-							Text: checkbox-lobby-players-new-spectator-toggle
-						Button@SPECTATE:
-							X: 190
-							Width: 470
-							Height: 25
-							Text: button-lobby-players-spectate
-							Font: Regular
+							Font: TinyBold
+							Align: Left
+							Text: All settings at default
+						Container@CHIP_TEMPLATE:
+							Width: 180
+							Height: 30
+							Visible: False
+							Children:
+								ColorBlock@BG:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+								Label@CHIP_LABEL:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Align: Center
+									Font: Bold
+								Button@HIT:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Background: ""
+				Container@LOBBY_PRESET_BAR:
+					Logic: LobbyPresetLogic
+					X: 12
+					Y: PARENT_HEIGHT - 42
+					Width: PARENT_WIDTH - 24
+					Height: 32
+					Children:
+						ColorBlock@SECTION_BG:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+							Color: 0000001E
+						Label@PRESET_LABEL:
+							X: 8
+							Y: 7
+							Width: 55
+							Height: 20
+							Text: Preset:
+							Font: Bold
+						TextField@PRESET_NAME:
+							X: 60
+							Y: 0
+							Width: 170
+							Height: 32
+							MaxLength: 32
+							Text: Default
+						DropDownButton@PRESET_DROPDOWN:
+							X: 240
+							Y: 0
+							Width: 70
+							Height: 32
+							Font: Bold
+							Text: Load
+						Button@SAVE_PRESET_BUTTON:
+							X: 320
+							Y: 0
+							Width: 70
+							Height: 32
+							Font: Bold
+							Text: Save
+						Button@RENAME_PRESET_BUTTON:
+							X: 400
+							Y: 0
+							Width: 80
+							Height: 32
+							Font: Bold
+							Text: Rename
+						Button@DELETE_PRESET_BUTTON:
+							X: 490
+							Y: 0
+							Width: 70
+							Height: 32
+							Font: Bold
+							Text: Delete
+						Button@RESET_PRESET_BUTTON:
+							X: 570
+							Y: 0
+							Width: 70
+							Height: 32
+							Font: Bold
+							Text: Reset
 
 ScrollPanel@FACTION_DROPDOWN_TEMPLATE:
 	Width: DROPDOWN_WIDTH

@@ -1040,44 +1040,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			tabCompletion.Names = orderManager.LobbyInfo.Clients.Where(c => !c.IsBot).Select(c => c.Name).Distinct().ToList();
 		}
 
-		// Auto-expand the roster ScrollPanel so it never scrolls internally.
-		// Each visible row is 25h + 7px ItemSpacing = 32px stride, plus 8px
-		// TopBottomSpacing on each side. PITFALL: keep this in sync with the
-		// LOBBY_PLAYERS ScrollPanel widget's spacing values in lobby-players.yaml.
+		// Roster auto-resize was useful when sections stacked vertically inside a
+		// single panel — growing the roster shifted everything below. With the
+		// new 2x2 grid layout (pass 12), the roster lives in a fixed-height cell
+		// and uses its own internal scroll for overflow. Other sections live in
+		// their own cells and don't move. So this is now a no-op.
 		void ResizeRosterToFit(int rowCount)
 		{
-			if (rosterFlexOriginalPlayersHeight == 0)
-				return;
-
-			var rowStride = 32;
-			var newHeight = Math.Max(rowCount * rowStride + 8, rowStride);
-			var delta = newHeight - rosterFlexOriginalPlayersHeight;
-
-			players.Bounds.Height = newHeight;
-			if (rosterFlexSetupRow != null) rosterFlexSetupRow.Bounds.Y = rosterFlexOriginalSetupY + delta;
-			if (rosterFlexActiveChanges != null) rosterFlexActiveChanges.Bounds.Y = rosterFlexOriginalActiveChangesY + delta;
-			if (rosterFlexPresetBar != null) rosterFlexPresetBar.Bounds.Y = rosterFlexOriginalPresetY + delta;
-			if (rosterFlexCommonHeader != null) rosterFlexCommonHeader.Bounds.Y = rosterFlexOriginalCommonHeaderY + delta;
-			// Common options panel is sized to its own content by LobbyOptionsLogic
-			// — no longer shrunk here. Just shift its Y so it sits below the roster
-			// at the new bottom.
-			if (rosterFlexCommonPanel != null)
-				rosterFlexCommonPanel.Bounds.Y = rosterFlexOriginalCommonPanelY + delta;
-
-			// Update the outer scroll's ContentHeight so the scrollbar engages
-			// when the stack overflows the panel height. Walk every direct child
-			// to find the bottommost edge.
-			if (rosterFlexOuterScroll != null)
-			{
-				var bottom = 0;
-				foreach (var child in rosterFlexOuterScroll.Children)
-				{
-					var childBottom = child.Bounds.Y + child.Bounds.Height;
-					if (childBottom > bottom)
-						bottom = childBottom;
-				}
-				rosterFlexOuterScroll.ContentHeight = bottom + 12;
-			}
+			_ = rowCount;
 		}
 
 		void UpdateDiscordStatus()
