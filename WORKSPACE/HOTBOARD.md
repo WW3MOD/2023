@@ -4,7 +4,7 @@
 > Cap ~15 lines. Rotate stale entries out — once shipped or `[T]`, the tracker tells the story.
 
 ## Working on
-- **AI overhaul — NEXT** — Phase 1 (tournament harness) shipped overnight 260511→260512 in 18 `ai: tournament` commits. **For a fresh agent picking this up: read `WORKSPACE/ai/NEXT_STEPS.md` FIRST.** Then `foundation_260511.md §7` (6 open design questions for the user) + `sanity_findings_260512.md` (russia 60% / america 40% mild baseline edge at n=20). Phase 2+ (the actual AI brain — Perception/Strategy/Tactics layers per the foundation doc) hasn't started; the harness is ready to measure every change.
+- **AI overhaul — Phase 2 in flight.** Tournament harness shipped 260511→260512. **First v2 experiment landed 260512:** `AdaptiveProductionBotModule@v2` with `EvaluationInterval: 300` (down from 600). n=20 mirror-paired vs `normal`, v2 won 65% (lift +15pp over expected 50% parity). Asymmetric: v2-as-america 80%, v2-as-russia 50% — flagged for follow-up. Findings: `WORKSPACE/ai/v2_experiment_001_adaptiveproduction.md`. Decision rule kept the change. Next: either confirm at n=50, tune another knob, or jump to MapAnalyzer architecture (foundation §4 Phase 1). **For a fresh agent picking this up: read `WORKSPACE/ai/NEXT_STEPS.md` FIRST.**
 - **Crew evacuation overhaul (260509)** — staged: hatch-emerge → walk-away → prone-when-wounded; cookoff = FireDeath; helis refuse safe-land on blocked cells. Awaiting playtest. Plan: `WORKSPACE/archive/plans/260507_crew_evac_plan.md`
 - **Pathfinding friendly-blocker scope (260506)** — vehicle groups drop moves on long routes / narrow gaps. Briefing: `WORKSPACE/plans/260506_pathfinding_friendly_blockers.md`. Not started
 
