@@ -9,9 +9,10 @@ This folder holds **living docs** for the AI overhaul. The C# lives in
 
 ## Read first
 
-- [`WAKEUP_CHECKLIST_260512.md`](WAKEUP_CHECKLIST_260512.md) — **READ FIRST when waking up to fresh commits.** Step-by-step checklist for orienting yourself.
+- [`NEXT_STEPS.md`](NEXT_STEPS.md) — **READ FIRST.** For a fresh agent told "continue working on the bots": this is the entry point. Required reading order + first two concrete steps + standard A/B loop + things not to redo.
+- [`WAKEUP_CHECKLIST_260512.md`](WAKEUP_CHECKLIST_260512.md) — quick orientation for someone who already knows the project context.
 - [`morning_summary_260512.md`](morning_summary_260512.md) — Live log of the autonomous overnight run; what was tried, what worked.
-- [`sanity_findings_260512.md`](sanity_findings_260512.md) — Statistical findings from the sanity batches (USA 84.2% / Russia 15.8% on this map under legacy-vs-legacy).
+- [`sanity_findings_260512.md`](sanity_findings_260512.md) — Statistical findings from the sanity batches. Authoritative baseline: russia 60% / america 40% at n=20 mirror-paired (mild, borderline-significant).
 - [`foundation_260511.md`](foundation_260511.md) — survey of modern RTS AI techniques, WW3MOD-specific constraints, three-layer architecture, phasing. **The basics doc.** Read before any planning.
 - [`../plans/260511_ai_tournament_harness.md`](../plans/260511_ai_tournament_harness.md) — AI-vs-AI tournament harness plan.
 
