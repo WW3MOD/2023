@@ -1,0 +1,1 @@
+TOURNAMENT: v2-vs-normal matchup, MIRROR variant. USA-bot (faction=russia) uses Bot=v2; Russia-bot (faction=america) is Bot=normal. v2 plays russia here vs america in the primary scenario; combined the pair measures v2 winrate across both factions. Player names kept as USA-bot/Russia-bot for the watcher's IsBot filter — read the Faction field for the truth.

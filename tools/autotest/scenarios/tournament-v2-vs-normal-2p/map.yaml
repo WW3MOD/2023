@@ -1,0 +1,76 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: v2 vs Normal 2P
+
+Author: WW3MOD tournament harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# v2-vs-normal MATCHUP — primary variant.
+#   Left position  (6,16)  = USA-bot, faction=america, Bot=v2     ← experimental
+#   Right position (58,16) = Russia-bot, faction=russia, Bot=normal ← baseline
+#
+# Pair with tournament-v2-vs-normal-mirror-2p via run-tournament.sh --mirror
+# to control for faction bias (v2 plays america here, russia in the mirror).
+# Aggregate v2 winrate across the mirror pair tells us whether v2's
+# AdaptiveProductionBotModule@v2 (EvaluationInterval: 300 vs legacy 600)
+# is a real improvement or noise. See WORKSPACE/ai/sanity_findings_260512.md
+# for the baseline that this is measured against.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: v2
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+# Each combatant gets a single Supply Route. The SRs sit near opposite map
+# edges per WW3MOD canon (DOCS/reference/supply-route.md) — never mid-map.
+# Bots will reinforce from the closest map edge to their SR.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	# mpspawn actors are required even with non-playable combatants:
+	# MapStartingLocations.AssignSpawnPoint iterates them for any client
+	# (including the local human in the Observer slot) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml

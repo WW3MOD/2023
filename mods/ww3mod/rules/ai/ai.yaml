@@ -138,8 +138,13 @@ Player:
 		MinNearbyFriendlies: 4
 
 	# Adaptive production — counter enemy composition
+	#
+	# Two parallel definitions: legacy (normal/rush/turtle) keeps the original
+	# EvaluationInterval: 600. v2 halves it to 300 — counter-build twice as
+	# fast against scouted enemy comp. First v2 experiment (260512), measured
+	# via tournament harness mirror-paired batch.
 	AdaptiveProductionBotModule@america:
-		RequiresCondition: enable-ai-any && player.nato
+		RequiresCondition: enable-ai-legacy-only && player.nato
 		EvaluationInterval: 600
 		MaxRequestsPerCycle: 2
 		AntiVehicleUnits: at.america, abrams, bradley
@@ -148,8 +153,26 @@ Player:
 		MinEnemySightings: 3
 
 	AdaptiveProductionBotModule@russia:
-		RequiresCondition: enable-ai-any && player.brics
+		RequiresCondition: enable-ai-legacy-only && player.brics
 		EvaluationInterval: 600
+		MaxRequestsPerCycle: 2
+		AntiVehicleUnits: at.russia, t90, bmp2
+		AntiInfantryUnits: e3.russia, ar.russia, btr
+		AntiAirUnits: aa.russia, tunguska
+		MinEnemySightings: 3
+
+	AdaptiveProductionBotModule@v2.america:
+		RequiresCondition: enable-ai-v2 && player.nato
+		EvaluationInterval: 300
+		MaxRequestsPerCycle: 2
+		AntiVehicleUnits: at.america, abrams, bradley
+		AntiInfantryUnits: e3.america, ar.america, humvee
+		AntiAirUnits: aa.america, strykershorad
+		MinEnemySightings: 3
+
+	AdaptiveProductionBotModule@v2.russia:
+		RequiresCondition: enable-ai-v2 && player.brics
+		EvaluationInterval: 300
 		MaxRequestsPerCycle: 2
 		AntiVehicleUnits: at.russia, t90, bmp2
 		AntiInfantryUnits: e3.russia, ar.russia, btr
