@@ -269,6 +269,13 @@ World:
 		CellSize: 8
 		UpdateInterval: 90
 		SpreadFactor: 0.3
+	# WW3MOD doctrine layer (Stage A.1): denser per-cell influence grid
+	# with frontline derivation. See WORKSPACE/ai/doctrine.md +
+	# WORKSPACE/ai/stage_a_frontline_perception.md.
+	InfluenceMap:
+		CellSize: 2
+		UpdateInterval: 25
+		ContributionRadius: 3
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
