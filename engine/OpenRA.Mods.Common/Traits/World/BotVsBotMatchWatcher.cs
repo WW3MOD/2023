@@ -266,6 +266,7 @@ namespace OpenRA.Mods.Common.Traits
 				sb.Append($"\"name\":\"{Escape(player.PlayerName)}\",");
 				sb.Append($"\"client_index\":{player.ClientIndex},");
 				sb.Append($"\"bot_type\":\"{Escape(player.BotType ?? "")}\",");
+				sb.Append($"\"faction\":\"{Escape(player.Faction?.InternalName ?? "")}\",");
 				sb.Append($"\"score_total\":{snap.Total},");
 				sb.Append("\"score_components\":{");
 

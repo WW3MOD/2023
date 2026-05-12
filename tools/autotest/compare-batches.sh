@@ -78,7 +78,7 @@ print(f"BATCH B: {label(B_meta, os.path.basename(B_path.rstrip('/')))}")
 print("=" * 70)
 print()
 
-print("SIDE WINRATE")
+print("SIDE WINRATE (by player name)")
 print("-" * 70)
 print(f"{'Player':<20} {'Batch A %':>12} {'Batch B %':>12} {'Delta':>10}")
 all_players = set(A.get("side_winrate_pct", {}).keys()) | set(B.get("side_winrate_pct", {}).keys())
@@ -88,6 +88,28 @@ for name in sorted(all_players):
     arrow = " up" if delta > 5 else " dn" if delta < -5 else " ~~"
     print(f"{name:<20} {a:>11.1f}% {b:>11.1f}% {delta:>+9.1f}{arrow}")
 print()
+
+# Faction-keyed winrate (when verdict JSON has the faction field).
+def fpct(d, key):
+    return d.get("faction_winrate_pct", {}).get(key, 0.0)
+
+a_factions = set(A.get("faction_winrate_pct", {}).keys())
+b_factions = set(B.get("faction_winrate_pct", {}).keys())
+all_factions = a_factions | b_factions
+if all_factions:
+    print("FACTION WINRATE")
+    print("-" * 70)
+    print(f"{'Faction':<20} {'Batch A %':>12} {'Batch B %':>12} {'Delta':>10}")
+    for faction in sorted(all_factions):
+        a, b = fpct(A, faction), fpct(B, faction)
+        delta = b - a
+        arrow = " up" if delta > 5 else " dn" if delta < -5 else " ~~"
+        print(f"{faction:<20} {a:>11.1f}% {b:>11.1f}% {delta:>+9.1f}{arrow}")
+    print()
+else:
+    print("FACTION WINRATE: (not available — verdicts lack 'faction' field;")
+    print("                 add it via Round 15 engine change + rebuild)")
+    print()
 
 print("MATCH COUNTS")
 print("-" * 70)

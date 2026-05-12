@@ -123,6 +123,7 @@ time_limit_count = 0
 fail_count = 0
 
 winner_names = {}
+winner_factions = {}  # faction-keyed winner count (when verdict has faction field)
 durations = []
 p1_scores = []
 p2_scores = []
@@ -152,6 +153,16 @@ for m in matches:
     if w:
         winner_names[w] = winner_names.get(w, 0) + 1
 
+    # Faction attribution: map winner_name to that player's faction (when
+    # the verdict has the faction field, added in Round 15).
+    winner_idx = v.get("winner_client_index", -1)
+    for p in players:
+        if p.get("name", "") == w:
+            f = p.get("faction", "")
+            if f:
+                winner_factions[f] = winner_factions.get(f, 0) + 1
+            break
+
 def stats(xs):
     if not xs:
         return None
@@ -171,6 +182,13 @@ side_winrate_pct = {}
 if winner_names and total_with_verdict > 0:
     for name, count in winner_names.items():
         side_winrate_pct[name] = round(100.0 * count / total_with_verdict, 1)
+
+# Faction-keyed winrate when verdict includes faction. Empty when running
+# against pre-Round-15 verdicts (no faction field).
+faction_winrate_pct = {}
+if winner_factions and total_with_verdict > 0:
+    for faction, count in winner_factions.items():
+        faction_winrate_pct[faction] = round(100.0 * count / total_with_verdict, 1)
 
 # Score-gap distribution (winner_score / loser_score) — a sanity check on
 # whether matches are decisive (>1.5×) or close. Lots of close matches = the
@@ -194,6 +212,7 @@ summary = {
     "verdict_count": total_with_verdict,
     "fail_count": fail_count,
     "side_winrate_pct": side_winrate_pct,
+    "faction_winrate_pct": faction_winrate_pct,
     "score_ratio_stats": stats(score_ratios),
     "sr_capture_count": sr_cap_count,
     "time_limit_count": time_limit_count,
