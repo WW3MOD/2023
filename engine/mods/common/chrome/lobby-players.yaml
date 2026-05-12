@@ -213,7 +213,7 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 					Text: Common
 				Container@LOBBY_OPTIONS:
 					Y: 5
-					Width: PARENT_WIDTH - 24
+					Width: PARENT_WIDTH
 					Children:
 						Container@SECTION_HEADER_TEMPLATE:
 							Width: PARENT_WIDTH
@@ -221,16 +221,16 @@ ScrollPanel@LOBBY_PLAYER_BIN:
 							Visible: False
 							Children:
 								Label@HEADER_LABEL:
-									X: 4
+									X: 10
 									Y: 14
-									Width: PARENT_WIDTH - 8
+									Width: PARENT_WIDTH - 20
 									Height: 22
 									Font: MediumBold
 									Align: Left
 								ColorBlock@SEPARATOR:
-									X: 4
+									X: 10
 									Y: 36
-									Width: PARENT_WIDTH - 8
+									Width: PARENT_WIDTH - 20
 									Height: 1
 									Color: 60606080
 						Container@CHECKBOX_ROW_TEMPLATE:
