@@ -4,9 +4,7 @@
 > Cap ~15 lines. Rotate stale entries out — once shipped or `[T]`, the tracker tells the story.
 
 ## Working on
-- **Automation workflow track (260513, plan only)** — `WORKSPACE/automation/README.md` lays out 9 phases: focus-steal fix → test lanes → visual feedback → autonomous queue → overnight orchestrator → notifications → multi-agent status board → flake detection → speculative cloud. Awaiting user pass on Phase 0 strategy choice and open questions in §"Open questions"
-- **AI tournament harness — Phase 1 + Rounds 2-9 LANDED (260511→260512, overnight autonomous)** — dual `ModularBot@normal/@v2`, BotVsBotMatchWatcher with pluggable IMatchScorer/IWinRuleEvaluator, full score formula (army+income+kills via PlayerStatistics), deterministic seeding, 8× SpeedMultiplier, framerate cap, 2nd tournament map, aggregator stats. ~9 commits prefixed `ai: tournament`. **READ FIRST:** `WORKSPACE/ai/WAKEUP_CHECKLIST_260512.md`. Sanity batch in progress / partial results.
-- **AI overhaul foundation (260511)** — survey + 3-layer architecture + 5-phase plan. Phase 2+ (the actual brain) unstarted. Awaiting user pass on `foundation_260511.md §7` open questions.
+- **AI overhaul — NEXT** — Phase 1 (tournament harness) shipped overnight 260511→260512 in 18 `ai: tournament` commits. **For a fresh agent picking this up: read `WORKSPACE/ai/NEXT_STEPS.md` FIRST.** Then `foundation_260511.md §7` (6 open design questions for the user) + `sanity_findings_260512.md` (russia 60% / america 40% mild baseline edge at n=20). Phase 2+ (the actual AI brain — Perception/Strategy/Tactics layers per the foundation doc) hasn't started; the harness is ready to measure every change.
 - **Crew evacuation overhaul (260509)** — staged: hatch-emerge → walk-away → prone-when-wounded; cookoff = FireDeath; helis refuse safe-land on blocked cells. Awaiting playtest. Plan: `WORKSPACE/archive/plans/260507_crew_evac_plan.md`
 - **Pathfinding friendly-blocker scope (260506)** — vehicle groups drop moves on long routes / narrow gaps. Briefing: `WORKSPACE/plans/260506_pathfinding_friendly_blockers.md`. Not started
 
