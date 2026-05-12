@@ -58,6 +58,7 @@ I operate in one **mode** at a time and follow documented **recipes** when trigg
 | `BALANCE <a> <b>` | [DOCS/recipes/BALANCE.md](DOCS/recipes/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
 | `TELEMETRY <events>` | [DOCS/recipes/TELEMETRY.md](DOCS/recipes/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
 | `SCREENSHOT <topic>` | [DOCS/recipes/SCREENSHOT.md](DOCS/recipes/SCREENSHOT.md) | Capture PNGs (in-test or menu/lobby) and evaluate visually via multimodal `Read`. **Apply automatically for visual work** (UI, palette, lobby/menu, animation, sprite, formation) — no trigger required, same stance as AUTOTEST. |
+| `DOCUMENT <topic>` | [DOCS/recipes/DOCUMENT.md](DOCS/recipes/DOCUMENT.md) | Write/update a game-mechanic description in [`DOCS/gameplay/`](DOCS/gameplay/README.md) — player perspective, not technical. **Always-on for discoveries:** when learning a non-obvious gameplay rule during normal work, either add it (if confident) or flag it in the end-of-message block. |
 
 If a workflow becomes a recurring pattern, factor it into a recipe rather than re-explaining it each session.
 
