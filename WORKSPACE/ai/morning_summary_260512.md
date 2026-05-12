@@ -3,12 +3,19 @@
 > **Read this first.** Live log of what I tried while you slept. 11 commits
 > with `ai: tournament` prefix landed.
 
-**Status:** COMPLETE. Sanity batch ran, findings written to
-`sanity_findings_260512.md`. Headline: USA-bot 67% / Russia-bot 33% over
-6 valid matches (4 of 10 killed by mid-batch engine rebuilds). The
-harness works end-to-end; the 67/33 winrate is a mild-bias signal to
-investigate with a larger sample (recommended n=30) before reporting AI
-changes.
+**Status:** COMPLETE. 22+ commits prefixed `ai:` shipped. Three sanity batches ran:
+
+1. n=6 (parallel-CPU contention, polluted): USA 67% / Russia 33%
+2. n=19 (clean CPU, primary-only): USA-bot 84% (misleading — seed bias)
+3. **n=20 (clean CPU, mirror-paired, AUTHORITATIVE):** **america 40% / russia 60%**
+
+Bottom line: **mild factional edge for russia at ~60/40**. Not
+statistically significant at n=20 (p ≈ 0.37). The map is positionally fair.
+**Harness is ready for AI overhaul work** — use deltas (compare-batches.sh),
+always mirror-pair (--mirror flag), aim for n=50+ to detect small effects.
+
+See [`sanity_findings_260512.md`](sanity_findings_260512.md) for the
+detailed analysis of all three batches.
 
 **Starting point:** commit `79d0dff5` (`ai: tournament Phase 1 GREEN`). Phase 1
 end-to-end working. Score formula has only `army_value` populated; capture
