@@ -110,8 +110,28 @@ How I decide whether a screenshot shows what it should:
 ## Practical notes
 
 - **One screenshot per test by default.** Multi-shot is opt-in for tests where intermediate state matters. The agent has to `Read` every PNG, so 30-shot tests get expensive in context.
-- **Reading PNGs costs tokens.** ~50–200 KB per shot at typical resolutions; larger at 2k+ desktop res. Budget accordingly.
-- **Screenshots survive between sessions** under `~/.ww3mod-tests/screenshots/`. `run-test.sh` cleans up runs older than 7 days at the start of each test.
+- **Reading PNGs costs context — *pixels* drive the cost, not file size.** Claude vision is roughly `width × height ÷ 750` tokens. Rough budget per shot:
+
+  | Resolution | Tokens | Use case |
+  |---|---|---|
+  | 2560 × 1440 (desktop fullscreen) | ~4,900 | overkill — only if you need pixel detail |
+  | 1920 × 1080 | ~2,700 | overkill for most checks |
+  | 1280 × 720 | ~1,230 | **sweet spot for semantic checks** |
+  | 800 × 450 | ~480 | fine for "did it render at all" |
+
+- **Downsize at Read time, not save time** (recommended pattern). PNGs land on disk at the game's window resolution — for menu-mode that's the full desktop, 2560×1440 = ~5k tokens each. Before `Read`-ing, shrink to ~1280px wide with one of:
+
+  ```bash
+  # macOS (native, no install)
+  sips -Z 1280 "$SRC" --out /tmp/preview.png
+
+  # ImageMagick if installed
+  magick "$SRC" -resize 1280x /tmp/preview.png
+  ```
+
+  Then `Read /tmp/preview.png`. ~4× context savings on the common case. Skip the downsize only when you actually need pixel detail — UI alignment, small font legibility, etc. Even then, prefer state queries; the agent isn't reliable at pixel work.
+
+- **Screenshots survive between sessions** under `~/.ww3mod-tests/screenshots/`. `run-test.sh` cleans up runs older than 7 days at the start of each test. Manual-mode runs (`manual_*`) are subject to the same cleanup window.
 - **`--minimized` autotest runs may produce blank PNGs.** macOS doesn't redraw minimized windows. Use `--background` (default) or `--visible` if screenshots matter.
 - **Window resolution varies by machine.** Acceptable for semantic evaluation, problematic for any future pixel-diff regression. The current pipeline does *not* support golden-image diffing — that's a deliberate non-goal (see the plan doc).
 
