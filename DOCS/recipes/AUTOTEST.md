@@ -39,7 +39,7 @@ Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
 
 ## The loop (what I run when you trigger AUTOTEST)
 
-1. **Frame the assertion**: "X must happen within N seconds when Y is set up". Confirm with user if ambiguous.
+1. **Frame the assertion**: "X must happen within N seconds when Y is set up". Confirm with user if ambiguous. **If the change is visual** (UI, palette, animation, sprite, formation, lobby/menu work), also plan a `TestHarness.Screenshot(label, "expects: ...")` at the critical beat — see [`SCREENSHOT.md`](SCREENSHOT.md#apply-automatically-no-trigger-required-when). Apply without trigger.
 2. **Write a failing test**: copy a `test-*` folder, set up the actors and a Lua `TestHarness.AssertWithin(...)` predicate. Use the `description.txt` to surface intent in the panel.
 3. **Verify RED**: run the new test pre-fix. Must fail with the expected timeout / failure reason. If it passes accidentally, the test isn't measuring the right thing.
 4. **Investigate + fix**: read code, apply changes. If diagnosis needs more data, add temporary `Console.WriteLine` traces gated on `TestMode.IsActive`.

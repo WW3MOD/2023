@@ -2,6 +2,21 @@
 
 **Trigger:** `SCREENSHOT <topic>` (e.g. `SCREENSHOT lobby tone`). Also fires on natural-language equivalents: "screenshot the lobby and tell me if X", "take a shot of the menu and check Y".
 
+**Apply automatically (no trigger required) when** the work has a visual component. Quick checklist:
+
+1. Is the change/check **visual** — UI, color, palette, sprite, animation, formation shape, layout, lobby/menu/HUD work?
+2. Would a screenshot at the right moment **let me verify** the change is visible — or catch unrelated visual regressions a state-query test would miss?
+3. Is the cost reasonable — **one shot at a critical beat**, not 10 shots spamming the verdict?
+
+Yes / yes / yes → add `TestHarness.Screenshot(label, note)` to the autotest scenario, or take an external shot when iterating on lobby/menu. **Don't wait for the user to say SCREENSHOT.** Same auto-apply stance as AUTOTEST itself.
+
+**Concrete trigger patterns** (any of these → screenshot without asking):
+- Editing a `*.yaml` palette, color, sprite, or chrome file
+- Touching `engine/OpenRA.Mods.Common/Widgets/Logic/Lobby/` or `chrome/lobby.yaml`
+- Bug labeled "looks wrong / visual / palette / animation"
+- Fixing anything in `engine/OpenRA.Mods.Common/Traits/Render/` (sprite/animation traits)
+- User says "show me", "does this look right", "what's the lobby look like now"
+
 **Gives you:** an agent that can *see*. The game writes PNGs to disk; I read them with the multimodal `Read` tool and judge whether what's on screen matches expectations. Works in three modes:
 
 1. **In an AUTOTEST scenario** — Lua calls `Test.Screenshot(label, note)` at named beats. Paths are emitted into the verdict JSON's `screenshots[]` array. I read the PNGs after the run.

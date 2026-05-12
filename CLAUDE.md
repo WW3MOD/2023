@@ -57,7 +57,7 @@ I operate in one **mode** at a time and follow documented **recipes** when trigg
 | `CONTEXT <area>` | [DOCS/recipes/CONTEXT.md](DOCS/recipes/CONTEXT.md) | Quick orientation on an area — recent commits + open work + file pointers |
 | `BALANCE <a> <b>` | [DOCS/recipes/BALANCE.md](DOCS/recipes/BALANCE.md) | combat-sim driven tuning — duels, tier consistency |
 | `TELEMETRY <events>` | [DOCS/recipes/TELEMETRY.md](DOCS/recipes/TELEMETRY.md) | Per-tick gameplay log channel for post-mortem analysis (build-on-first-use) |
-| `SCREENSHOT <topic>` | [DOCS/recipes/SCREENSHOT.md](DOCS/recipes/SCREENSHOT.md) | Capture PNGs (in-test or menu/lobby) and evaluate visually via multimodal `Read` |
+| `SCREENSHOT <topic>` | [DOCS/recipes/SCREENSHOT.md](DOCS/recipes/SCREENSHOT.md) | Capture PNGs (in-test or menu/lobby) and evaluate visually via multimodal `Read`. **Apply automatically for visual work** (UI, palette, lobby/menu, animation, sprite, formation) — no trigger required, same stance as AUTOTEST. |
 
 If a workflow becomes a recurring pattern, factor it into a recipe rather than re-explaining it each session.
 
@@ -256,7 +256,7 @@ Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" requ
 Demo scenarios live in `tools/autotest/scenarios/demo-*/`. **Never put a `Test.Pass`/`Fail` call in a demo** — if it has a verdict, it's a test; move it to `test-*` and use AUTOTEST.
 
 ### Screenshot evaluation — see `DOCS/recipes/SCREENSHOT.md`
-Trigger phrase: `SCREENSHOT <topic>`. The agent has eyes: PNGs land on disk, the multimodal `Read` tool ingests them, semantic judgments come back. Two modes:
+Trigger phrase: `SCREENSHOT <topic>`. **Apply automatically when the work is visual** — UI, palette, lobby/menu changes, sprite or animation work, formation/layout. Don't wait for the trigger word; same auto-apply stance as AUTOTEST. The agent has eyes: PNGs land on disk, the multimodal `Read` tool ingests them, semantic judgments come back. Two modes:
 ```bash
 # In-test (Lua-driven): add to any autotest scenario
 TestHarness.Screenshot("label", "expects: muzzle flash, T-90 in frame")
