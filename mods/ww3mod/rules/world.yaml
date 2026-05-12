@@ -276,6 +276,9 @@ World:
 		CellSize: 2
 		UpdateInterval: 25
 		ContributionRadius: 3
+	# Stage A.3: in-game debug overlay for the InfluenceMap frontline.
+	# Toggled via chat command "/frontline" — hotkey wiring is Stage A.4.
+	FrontlineOverlay:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
