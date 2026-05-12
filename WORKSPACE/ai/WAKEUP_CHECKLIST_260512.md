@@ -67,11 +67,29 @@ In order of payoff:
 - **(a) If sanity batch hit 40-60% winrate** → harness is ready. Start the
   first real AI work: pick something from `foundation_260511.md`'s phasing
   and implement it under `enable-ai-v2` condition. Measure it.
-- **(b) If batch is biased** → fix the map (mirror seeds, swap sides, or
-  tweak SR positions) before doing AI work.
+- **(b) If batch is biased** → use the new **mirror-matching** infrastructure
+  to attribute. Run a mirror batch and compare:
+  ```bash
+  ./tools/autotest/run-tournament.sh tournament-arena-skirmish-2p \
+      --seeds 20 \
+      --config tools/autotest/scenarios/tournament-arena-skirmish-2p/tournament-quick.yaml \
+      --mirror tournament-arena-mirror-2p
+  ./tools/autotest/compare-batches.sh \
+      tools/autotest/tournament-results/<original-batch-dir> \
+      tools/autotest/tournament-results/<mirror-batch-dir>
+  ```
+  If both batches show USA-bot winning, bias is **positional**; if winners
+  flip between batches, bias is **factional**.
 - **(c) If wall-clock per match is still too slow** → either Phase 2
   (real headless renderer) is unavoidable, or the framerate cap needs
   to go lower. Try `Graphics.MaxFramerate=1` first.
+
+### New tooling landed overnight (Rounds 12-14)
+
+- `tools/autotest/scenarios/tournament-arena-mirror-2p/` — faction-swapped clone of arena-skirmish for mirror-matching
+- `tools/autotest/run-tournament.sh --mirror <scenario>` — alternates primary/mirror per seed
+- `tools/autotest/compare-batches.sh <A> <B>` — side-by-side summary diff with mirror-pair detection
+- `tools/autotest/loop-tournament.sh` (Phase 4 v2) — autonomous milestone-driven runner with real stop-condition + bell on winrate shifts. Read schema in `tools/autotest/example-target.yaml`. Useful for "leave it tuning overnight" once you have v2 AI changes.
 
 ## 7. The parallel stream (screenshot evaluation)
 
