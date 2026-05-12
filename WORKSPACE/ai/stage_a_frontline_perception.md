@@ -166,6 +166,34 @@ Once all of the above hold, we move on to Stage B (defensive layer
 placement) — which is where the AI's *behaviour* starts to use this
 data.
 
+## Progress (260512)
+
+- **A.1 — Influence map.** Shipped. `InfluenceMap` world trait with
+  per-player layers, refreshed every 25 ticks, CellSize=2 grid.
+  10 math tests pass (`InfluenceMapMathTest`).
+- **A.2 — Frontline derivation.** Shipped (folded into A.1).
+  `InfluenceMapMath.DeriveFrontline` static helper + math tests.
+- **A.3 — Debug overlay.** Shipped. `FrontlineOverlay` world trait
+  toggled via `/frontline` chat command. Renders filled orange
+  circles at contested grid cells (`CircleAnnotationRenderable`).
+- **A.5 — Per-player perspective.** Shipped alongside A.3 — overlay
+  uses `world.LocalPlayer` POV with fallback to all-perspective for
+  spectators.
+- **A.4 — Hotkey toggle.** Not started. Chat command (`/frontline`)
+  works as the interim toggle. F11 binding is straightforward but
+  hasn't been wired.
+- **A.6 — Demo + docs.** Demo `demo-frontline-overlay` shipped;
+  gameplay doc `DOCS/gameplay/ai-overlay.md` shipped.
+
+**Try it:**
+
+```bash
+./tools/autotest/run-demo.sh demo-frontline-overlay
+```
+
+Then in chat: `/frontline` — the orange band appears between the two
+armies. Move a Bradley forward, the band shifts with it.
+
 ## Out of scope for Stage A
 
 To keep this stage tight:

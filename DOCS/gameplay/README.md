@@ -18,6 +18,7 @@ The workflow for adding/updating docs is in [`../recipes/DOCUMENT.md`](../recipe
 | Topic | Covers |
 |---|---|
 | [`capturing.md`](capturing.md) | What can be captured, who captures (Technician, not Engineer in WW3MOD), capture timing, contestation, defending captured structures |
+| [`ai-overlay.md`](ai-overlay.md) | The `/frontline` debug overlay — what the orange band means, how to toggle, why it exists, what you can read from it as a player |
 
 ## Adjacent docs that are partly gameplay
 

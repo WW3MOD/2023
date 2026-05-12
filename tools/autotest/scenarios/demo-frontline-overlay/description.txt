@@ -1,0 +1,1 @@
+DEMO: Stage A frontline overlay. Two armies face each other; type /frontline in chat to toggle the contested-band visualisation. Foundation for the doctrine-aware AI.
