@@ -301,8 +301,12 @@ namespace OpenRA
 				foreach (var tickIdle in tickIdles)
 					tickIdle.TickIdle(this);
 
-			// Reduce the targeting
-			if (AverageDamagePercent > 0 && World.WorldTick % 20 == 0)
+			// Decay the "incoming attack intent" counter set via MarkForDestruction.
+			// PITFALL (2026-05): old interval was 20 ticks. Tank reload is 130 ticks — between
+			// shots the mark went 71 → 35 → 17 → ... → 0, and other units would re-target the
+			// "free" tank mid-engagement. Slowed to 60 ticks (~1s at 60 TPS) so a single shot's
+			// mark persists across a typical reload cycle.
+			if (AverageDamagePercent > 0 && World.WorldTick % 60 == 0)
 				AverageDamagePercent /= 2;
 
 			// Damage over time

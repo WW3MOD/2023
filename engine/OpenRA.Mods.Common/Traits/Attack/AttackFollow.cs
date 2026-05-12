@@ -152,8 +152,15 @@ namespace OpenRA.Mods.Common.Traits
 					opportunityTargetIsPersistentTarget = false;
 
 					if (OpportunityTarget.IsValidFor(self))
+					{
 						IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack)
 							&& ReadyToEngage(self, OpportunityTarget);
+
+						// Opportunity fire doesn't go through AttackTarget — mark explicitly so
+						// other units' scans see this target as committed.
+						if (IsAiming)
+							AutoTarget.MarkTargetForAttack(self, OpportunityTarget);
+					}
 				}
 
 				if (IsAiming)

@@ -96,16 +96,28 @@ end
 -- Issue a force-attack from each unit in `attackers` against the nearest live
 -- unit in `targets`. Useful when both sides should be actively engaging from
 -- t=0 instead of waiting for autotarget scan intervals.
+--
+-- PITFALL (2026-05): old version picked targets[1] for every attacker, so in
+-- N-vs-N tests the entire team focus-fired the topmost enemy until it died.
+-- Always pair by *nearest* — otherwise mass-engagement tests don't model what
+-- the autotargeter would actually do.
 function BalanceHarness.ForceEngage(attackers, targets, allowMove)
 	if allowMove == nil then allowMove = true end
 	for _, a in ipairs(attackers) do
 		if a and not a.IsDead then
-			-- Pick first live target — for symmetric duels, near enough.
+			local best, bestDistSq
 			for _, t in ipairs(targets) do
 				if t and not t.IsDead then
-					a.Attack(t, allowMove, true)
-					break
+					local dx = a.Location.X - t.Location.X
+					local dy = a.Location.Y - t.Location.Y
+					local d = dx * dx + dy * dy
+					if not bestDistSq or d < bestDistSq then
+						best, bestDistSq = t, d
+					end
 				end
+			end
+			if best then
+				a.Attack(best, allowMove, true)
 			end
 		end
 	end

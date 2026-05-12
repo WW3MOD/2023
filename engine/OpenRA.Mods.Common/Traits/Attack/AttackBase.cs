@@ -636,6 +636,12 @@ namespace OpenRA.Mods.Common.Traits
 			var activity = GetAttackActivity(self, source, target, allowMove, forceAttack, targetLineColor);
 			self.QueueActivity(queued, activity);
 			OnResolveAttackOrder(self, activity, target, queued, forceAttack);
+
+			// PITFALL: any code path that commits a unit to a target must go through here
+			// (or AttackFollow's opportunity-fire pick) for AverageDamagePercent / overkill
+			// prevention to work. AutoTarget.ChooseTarget no longer marks inline — see
+			// AutoTarget.MarkTargetForAttack.
+			AutoTarget.MarkTargetForAttack(self, target);
 		}
 
 		public virtual void OnResolveAttackOrder(Actor self, Activity activity, in Target target, bool queued, bool forceAttack) { }

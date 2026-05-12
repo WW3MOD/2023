@@ -140,6 +140,15 @@ namespace OpenRA.Mods.Common.Traits
 			"Set to -1 to disable overkill prevention.")]
 		public readonly int OverkillThreshold = 100;
 
+		[Desc("AverageDamagePercent above which the soft anti-overkill penalty kicks in.",
+			"Below this threshold the priority bucket / range tiebreaker is used unchanged.")]
+		public readonly int SoftOverkillThreshold = 50;
+
+		[Desc("Divisor for the soft-overkill penalty formula:",
+			"penalty = targetRange * AverageDamagePercent / SoftOverkillScale.",
+			"Lower = stronger penalty (target appears further). Default 50 = penalty doubles range at 100% mark.")]
+		public readonly int SoftOverkillScale = 50;
+
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
 		public override object Create(ActorInitializer init) { return new AutoTarget(init, this); }
@@ -793,9 +802,10 @@ namespace OpenRA.Mods.Common.Traits
 					// Shorter range has higher priority (within a bucket)
 					priorityValue += targetRange;
 
-					// Deprioritize targets with significant incoming damage (soft penalty before hard skip)
-					if (target.Actor.AverageDamagePercent > 50)
-						priorityValue += targetRange * target.Actor.AverageDamagePercent / 50;
+					// Deprioritize targets with significant incoming damage (soft penalty before hard skip).
+					// Knobs surface as SoftOverkillThreshold / SoftOverkillScale on AutoTargetInfo.
+					if (Info.SoftOverkillScale > 0 && target.Actor.AverageDamagePercent > Info.SoftOverkillThreshold)
+						priorityValue += targetRange * target.Actor.AverageDamagePercent / Info.SoftOverkillScale;
 
 					// Categorical bucket: highest Priority always wins. ConditionalPriority
 					// promotes the bucket by 1 when its named condition is actually granted.
@@ -818,30 +828,87 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			if (chosenTarget.Actor != null)
-			{
-				var arms = ab.ChooseArmamentsForTarget(chosenTarget, false);
-
-				var percentDamage = 0;
-				foreach (var arm in arms)
-				{
-					var damageWarheads = arm.Weapon.Warheads.OfType<Warheads.DamageWarhead>();
-					foreach (var warhead in damageWarheads)
-					{
-						var vsArmor = (float)warhead.Penetration / chosenTarget.Actor.Trait<Armor>().Info.Thickness;
-						if (vsArmor > 1)
-							vsArmor = 1;
-
-						var targetHealth = chosenTarget.Actor.TraitOrDefault<Health>()?.HP;
-
-						percentDamage += (int)(vsArmor * warhead.Damage / targetHealth * 100);
-					}
-				}
-
-				chosenTarget.Actor.MarkForDestruction(percentDamage);
-			}
+			// Marking is intentionally not done here — AttackBase.AttackTarget marks once
+			// the order is actually issued, so force-attacks / Lua / AI direct attacks all
+			// contribute to AverageDamagePercent. ChooseTarget used to mark inline, but that
+			// double-counted (mark, then AttackTarget would re-evaluate) and missed every
+			// non-autotarget code path. See MarkTargetForAttack below.
 
 			return chosenTarget;
+		}
+
+		/// <summary>Estimate of one full burst's damage as a % of the target's max HP.
+		/// Uses the warhead's Versus table, penetration vs front-armor thickness, and
+		/// the warhead's Damage value. Front armor only — directional is overkill for
+		/// an intent estimate. Returns 0 if the target has no Health/Armor or no
+		/// matching armament.</summary>
+		public static int EstimatePercentDamage(Actor attacker, in Target target)
+		{
+			if (target.Actor == null)
+				return 0;
+
+			var ab = attacker.TraitOrDefault<AttackBase>();
+			if (ab == null)
+				return 0;
+
+			var health = target.Actor.TraitOrDefault<Health>();
+			if (health == null || health.MaxHP <= 0)
+				return 0;
+
+			var armor = target.Actor.TraitOrDefault<Armor>();
+			var thickness = 0;
+			string armorType = null;
+			if (armor != null)
+			{
+				thickness = armor.Info.Thickness;
+				armorType = armor.Info.Type;
+				if (armor.Info.Distribution != null && armor.Info.Distribution.Length > 0)
+					thickness = thickness * armor.Info.Distribution[0] / 100;
+			}
+
+			var totalDamage = 0;
+			foreach (var arm in ab.ChooseArmamentsForTarget(target, false))
+			{
+				foreach (var warhead in arm.Weapon.Warheads.OfType<Warheads.DamageWarhead>())
+				{
+					var damage = warhead.Damage;
+					if (damage <= 0)
+						continue;
+
+					// Penetration vs thickness — capped at 1.0, same shape as the live
+					// damage path in DamageWarhead.InflictDamage.
+					if (thickness > 0)
+					{
+						var penetration = warhead.Penetration;
+						if (penetration < thickness)
+							damage = damage * penetration / thickness;
+					}
+
+					// Versus table: e.g. an AT round has Versus.Heavy=200, an HE round
+					// targeting infantry has Versus.Heavy=20.
+					if (warhead.Versus.Count > 0 && armorType != null
+						&& warhead.Versus.TryGetValue(armorType, out var vs))
+						damage = damage * vs / 100;
+
+					totalDamage += damage;
+				}
+			}
+
+			return totalDamage * 100 / health.MaxHP;
+		}
+
+		/// <summary>Register intent to attack — bumps the target's AverageDamagePercent
+		/// so other units' autotarget scans see this target as partially-committed.
+		/// Called from every committed attack path: autotarget pick, force-attack,
+		/// Lua Actor.Attack, AI direct AttackTarget, opportunity-fire pick.</summary>
+		public static void MarkTargetForAttack(Actor attacker, in Target target)
+		{
+			if (target.Actor == null || target.Actor.IsDead)
+				return;
+
+			var percentDamage = EstimatePercentDamage(attacker, target);
+			if (percentDamage > 0)
+				target.Actor.MarkForDestruction(percentDamage);
 		}
 
 		static bool PreventsAutoTarget(Actor attacker, Actor target)
