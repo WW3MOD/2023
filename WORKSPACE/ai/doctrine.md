@@ -41,15 +41,20 @@ idea verbatim.
                   │
                   ▼
   ┌──────────────────────────────────┐
-  │ SCREEN          (Layer 1)        │   Light infantry, well-protected:
-  │   treelines, garrisoned buildings│   in cover, in buildings, hidden
-  │   eyes-on, fix the enemy         │   if possible. Cheap to lose.
+  │ SCREEN          (Layer 1)        │   SPARSE & HIDDEN.
+  │   thin tripwire of light infantry│   A few infantry in treelines /
+  │   in treelines & garrisons       │   garrisons. Eyes-on, tripwire,
+  │   eyes-on, force the enemy to    │   provides the visible frontline
+  │   deploy. NOT a fighting force.  │   the AI reasons about.
   └────────────────┬─────────────────┘
                    │
   ┌────────────────▼─────────────────┐
-  │ MAIN LINE       (Layer 2)        │   Heavy combat power:
-  │   tanks, IFVs, TOS, ATGM         │   tanks, BMPs, TOS, ATGM, AA.
-  │   stop attacks, do the killing   │   The line that holds.
+  │ MAIN LINE       (Layer 2)        │   THE ARMY.
+  │   the full combined-arms mix:    │   Everything that fights:
+  │   infantry, tanks, IFVs, ATGM,   │   infantry + tanks + IFVs +
+  │   artillery (TOS/GRAD/Paladin),  │   ATGM/AT teams + artillery +
+  │   AA (Tunguska/HSAM).            │   AA. Overlapping fields of fire
+  │   This is where killing happens. │   covering the screen.
   └────────────────┬─────────────────┘
                    │
   ┌────────────────▼─────────────────┐
@@ -62,18 +67,42 @@ idea verbatim.
               OWN SUPPLY ROUTE
 ```
 
-**Layer 1 — Screen.** Infantry in cover. Sees the enemy first, slows
-them, makes them deploy, dies cheaply. Anchored on terrain — treelines,
-garrisoned tech buildings, hill lines. Its job is *not* to win the
-engagement; its job is to be the trip-wire that makes the main line
-fight on its own terms. In WW3MOD: garrisoned `^OcasusGarrison` buildings,
-prone infantry in treeline cover, ATGM/AT teams in hardpoints.
+**Layer 1 — Screen.** **Deliberately sparse.** A thin distribution of
+light infantry hidden in cover — treelines and garrisoned tech
+buildings, with prone posture where possible. The screen is *not* a
+defensive line in its own right; it's a tripwire and an observation
+post. Three deliberate properties:
 
-**Layer 2 — Main line.** Where the killing happens. Tanks (Abrams,
-T-90), IFVs (Bradley, BMP-2), heavy artillery (Paladin, GRAD, TOS),
-heavy AA (HSAM, Tunguska). Positioned to cover the screen with direct
-fire, and to fire on anything that breaks through. Has overlapping
-fields of fire — no single cell of the screen is uncovered.
+- **Low visibility.** Few units, well-concealed → the enemy can't read
+  our force layout from scouting the front. They see "something there"
+  but not how strong the position behind it is.
+- **Low bombardment yield.** Sparse spacing means area-of-effect
+  weapons (TOS, GRAD, Paladin, missiles, airburst) can't catch
+  multiple screen units in one impact. Even if the entire screen is
+  shelled, the loss is small.
+- **Provides the *visible frontline*.** The screen is what makes the
+  frontline a real position the AI can reason about — contact happens
+  here first, the influence-map registers enemy cells overlapping
+  ours, and the contested band is anchored where the screen sits.
+
+What the screen does *not* do: win firefights, hold ground against a
+push, or absorb sustained attacks. When the enemy presses, the screen
+spots them and the main line does the killing. Surviving screen units
+fall back through Layer 2; lost screen units are cheap (they're light
+infantry, not the army's core).
+
+**Layer 2 — Main line.** **The full army.** This is where the entire
+combined-arms force lives: infantry (e3/ar/at/medi/sn), tanks
+(Abrams, T-90), IFVs (Bradley, BMP-2), heavy artillery (Paladin, GRAD,
+TOS, M270), AA (Tunguska, Strykershorad, SAM, HSAM), and ATGM teams.
+Positioned at standoff range behind the screen, with overlapping
+fields of fire so any cell of the screen is covered by at least two
+firing positions.
+
+The main line *is* the defensive depth. The screen exists to feed it
+information and break attack timing; the main line does the killing.
+Heavy units are *not* held back here — they're in position, ready,
+with their weapons pointed forward.
 
 **Layer 3 — Reserve.** Mobile combat power held back from contact. Its
 sole job is to move along the line to wherever the enemy is pushing
@@ -98,12 +127,17 @@ of the frontline.
 
 ### What this requires the AI to do
 
-- **Maintain the screen.** When Layer 1 is thin in a sector, queue
-  garrison-eligible infantry and ferry them there. When a tree-line is
-  uncovered, fill it.
-- **Maintain the main line.** When a sector of Layer 2 is below threshold
-  army value, queue heavier units and move them in. Veterans stay
-  forward; replacements join the line.
+- **Maintain the screen — sparsely.** When a frontline sector has *zero*
+  Layer 1 presence in cover, place a small handful of light infantry
+  (1–2 per major treeline or garrisonable building) — enough to spot
+  and tripwire, not enough to die en masse to one TOS impact. Don't
+  overstack the screen; an over-thick screen is just a casualty
+  multiplier under bombardment.
+- **Maintain the main line — heavily.** When a sector of Layer 2 is below
+  threshold army value, queue the full combined-arms mix (infantry
+  filler + tanks + IFVs + artillery + AA) and move them into firing
+  position behind the screen. Veterans stay forward; replacements
+  join the line. This is where the army actually lives.
 - **Maintain the reserve.** Always hold N% of total combat power at the
   reserve position. Top it up after using it.
 - **Respond to local pressure.** When enemy force-ratio in a sector
@@ -199,11 +233,15 @@ doctrine says "don't attack":
 The current Rush / Normal / Turtle personalities should not be "build
 different units." Same doctrine; different *weight settings*:
 
-| Personality | Layer 1 weight | Layer 2 weight | Layer 3 weight | Attack threshold |
+Layer 1 stays sparse for everyone — the screen's design intent is
+"thin tripwire, low bombardment yield." Personality differs mainly
+on the *main line* size, *reserve* size, and *attack willingness*.
+
+| Personality | Screen (L1) | Main Line (L2) | Reserve (L3) | Attack threshold |
 |---|---|---|---|---|
-| Rush | low | medium | LOW (use everything) | accepts 2:1; attacks fast |
-| Normal | medium | high | medium | 3:1, waits for concentration |
-| Turtle | HIGH | HIGH | high | 4:1+; rarely attacks; bleeds enemy |
+| Rush | minimal | medium | LOW (commit everything) | accepts 2:1; attacks fast |
+| Normal | thin/standard | high | medium | 3:1, waits for concentration |
+| Turtle | thin/standard | HEAVIEST | high | 4:1+; rarely attacks; bleeds enemy |
 
 A higher difficulty doesn't change the doctrine either — it gets
 faster scout reaction, better intel quality, slightly better tactics
