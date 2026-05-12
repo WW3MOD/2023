@@ -10,10 +10,12 @@ This folder holds **living docs** for the AI overhaul. The C# lives in
 ## Read first
 
 - [`NEXT_STEPS.md`](NEXT_STEPS.md) — **READ FIRST.** For a fresh agent told "continue working on the bots": this is the entry point. Required reading order + first two concrete steps + standard A/B loop + things not to redo.
+- [`doctrine.md`](doctrine.md) — **The destination.** Real-world tactics as the basis: defence in depth, 3:1 concentration of force, honest fog, reserve management. Every AI improvement is evaluated against this. Set 260512.
+- [`stage_a_frontline_perception.md`](stage_a_frontline_perception.md) — **Current stage.** TODOs for the first slice of doctrine work: per-cell influence map + frontline derivation + toggleable debug overlay. Pure perception; no bot decisions change yet.
 - [`WAKEUP_CHECKLIST_260512.md`](WAKEUP_CHECKLIST_260512.md) — quick orientation for someone who already knows the project context.
 - [`morning_summary_260512.md`](morning_summary_260512.md) — Live log of the autonomous overnight run; what was tried, what worked.
 - [`sanity_findings_260512.md`](sanity_findings_260512.md) — Statistical findings from the sanity batches. Authoritative baseline: russia 60% / america 40% at n=20 mirror-paired (mild, borderline-significant).
-- [`foundation_260511.md`](foundation_260511.md) — survey of modern RTS AI techniques, WW3MOD-specific constraints, three-layer architecture, phasing. **The basics doc.** Read before any planning.
+- [`foundation_260511.md`](foundation_260511.md) — survey of modern RTS AI techniques, WW3MOD-specific constraints, three-layer architecture, phasing. **The architecture doc.** Read alongside `doctrine.md`.
 - [`../plans/260511_ai_tournament_harness.md`](../plans/260511_ai_tournament_harness.md) — AI-vs-AI tournament harness plan.
 
 ## Operational references
