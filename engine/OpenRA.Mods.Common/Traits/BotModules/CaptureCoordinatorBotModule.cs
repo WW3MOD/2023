@@ -226,10 +226,14 @@ namespace OpenRA.Mods.Common.Traits
 			var availableCapturers = new List<TraitPair<CaptureManager>>(idleCapturers);
 			var alreadyTargetedThisTick = new HashSet<Actor>();
 
+			// Track escorts already recruited THIS TICK so a second capturer doesn't
+			// re-pick them (their AttackMove order is queued but hasn't applied yet,
+			// so IsIdle is still true for the rest of this tick).
+			var escortsRecruitedThisTick = new HashSet<Actor>();
+
 			while (availableCapturers.Count > 0)
 			{
 				var capturer = availableCapturers[0];
-				var capturerPos = capturer.Actor.CenterPosition;
 
 				Actor bestTarget = null;
 				long bestScore = long.MinValue;
@@ -260,7 +264,7 @@ namespace OpenRA.Mods.Common.Traits
 				alreadyTargetedThisTick.Add(bestTarget);
 
 				// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
-				DispatchEscort(bot, capturer.Actor, bestTarget);
+				DispatchEscort(bot, capturer.Actor, bestTarget, escortsRecruitedThisTick);
 
 				AIUtils.BotDebug("AI ({0}): v2-capture — {1} → {2} (score={3})",
 					player.ClientIndex, capturer.Actor.Info.Name, bestTarget.Info.Name, bestScore);
@@ -305,16 +309,19 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.IncomeWeights.TryGetValue(name, out var v) ? v : Info.DefaultIncomeWeight;
 		}
 
-		void DispatchEscort(IBot bot, Actor capturer, Actor target)
+		void DispatchEscort(IBot bot, Actor capturer, Actor target, HashSet<Actor> alreadyRecruited)
 		{
 			if (Info.EscortSize <= 0)
 				return;
 
-			var recruits = FindIdleSupportersNear(capturer.CenterPosition, Info.EscortSize);
+			var recruits = FindIdleSupportersNear(capturer.CenterPosition, Info.EscortSize, alreadyRecruited);
 			if (recruits.Length == 0)
 				return;
 
 			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target.Location), false, groupedActors: recruits));
+
+			foreach (var r in recruits)
+				alreadyRecruited.Add(r);
 
 			AIUtils.BotDebug("AI ({0}): v2-capture — escort dispatched ({1} units → {2})",
 				player.ClientIndex, recruits.Length, target.Info.Name);
@@ -381,7 +388,7 @@ namespace OpenRA.Mods.Common.Traits
 		// SHARED HELPERS
 		// ============================================================
 
-		Actor[] FindIdleSupportersNear(WPos around, int wantCount)
+		Actor[] FindIdleSupportersNear(WPos around, int wantCount, HashSet<Actor> exclude = null)
 		{
 			if (wantCount <= 0)
 				return Array.Empty<Actor>();
@@ -393,6 +400,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& a.Owner == player
 					&& a.IsIdle
 					&& !defenderBookings.ContainsKey(a)
+					&& (exclude == null || !exclude.Contains(a))
 					&& !Info.CapturingActorTypes.Contains(a.Info.Name)
 					&& a.Info.HasTraitInfo<IPositionableInfo>()
 					&& a.Info.HasTraitInfo<AttackBaseInfo>());

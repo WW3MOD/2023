@@ -129,32 +129,12 @@ Player:
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
 
-	CaptureCoordinatorBotModule@v2.engineer:
-		RequiresCondition: enable-ai-v2
-		CapturingActorTypes: e6,e6.russia,e6.america
-		CapturableActorTypes: oilb,bio,miss,fcom,hosp
-		CheckCaptureTargetsForVisibility: false
-		ScanInterval: 75
-		MaximumCaptureTargetOptions: 12
-		IncomeWeights:
-			oilb: 50
-			fcom: 100
-			bio: 150
-			miss: 10
-			hosp: 20
-		DefaultIncomeWeight: 10
-		DistanceHalfLifeCells: 20
-		SafetyEnemyScanRadiusCells: 6
-		SafetyMultiplierSafe: 100
-		SafetyMultiplierMild: 40
-		SafetyMultiplierHostile: 10
-		EscortSize: 2
-		SupportRecruitRadiusCells: 40
-		DefenseScanInterval: 150
-		DefenseEnemyScanRadiusCells: 12
-		DefenseFriendlyScanRadiusCells: 6
-		DefenseSummonCount: 3
-		DefenseEnemyValueThreshold: 200
+	# NOTE: No CaptureCoordinatorBotModule@v2.engineer is wired here. Engineers
+	# (^E6) do not have the Captures trait in WW3MOD — see
+	# DOCS/gameplay/capturing.md "Open questions" #1. The legacy
+	# CaptureManagerBotModule@engineer above is dead code for the same reason;
+	# left in place pending the design decision on whether engineers should
+	# regain capture or whether the tooltip should be corrected.
 
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-any

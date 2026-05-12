@@ -1,0 +1,81 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: v2 vs Normal 2P MIRROR (capture arena)
+
+Author: WW3MOD tournament harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Capture-arena MATCHUP — MIRROR variant (factions swapped).
+#   Left position  (6,16)  = USA-bot, faction=russia,  Bot=v2     ← experimental, plays russia
+#   Right position (58,16) = Russia-bot, faction=america, Bot=normal ← baseline, plays america
+#
+# Same terrain + capturables as primary; only factions swap. Used with
+# run-tournament.sh --mirror so v2 plays both factions equally.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: russia
+		Bot: v2
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: america
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# Same neutral capturables as primary.
+	NeutralBio: bio
+		Owner: Neutral
+		Location: 32,10
+	NeutralFcom: fcom
+		Owner: Neutral
+		Location: 32,22
+	NeutralOilb1: oilb
+		Owner: Neutral
+		Location: 22,16
+	NeutralOilb2: oilb
+		Owner: Neutral
+		Location: 42,16
+
+Rules: rules.yaml

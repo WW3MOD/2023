@@ -1,0 +1,86 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: v2 vs Normal 2P (capture arena)
+
+Author: WW3MOD tournament harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Capture-arena MATCHUP — primary variant.
+#   Left position  (6,16)  = USA-bot, faction=america, Bot=v2     ← experimental
+#   Right position (58,16) = Russia-bot, faction=russia, Bot=normal ← baseline
+#
+# Same terrain as tournament-v2-vs-normal-2p but with 4 neutral
+# capturable income structures placed across the middle band. v2's
+# CaptureCoordinatorBotModule has something to actually capture and
+# defend here. Pair with -mirror to control for faction bias.
+#
+# Income (per CashTrickler): OILB=50, FCOM=100, BIO=150 per tick.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: v2
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# Neutral income capturables in the contested middle. Symmetric placement
+	# so neither bot has positional advantage.
+	NeutralBio: bio
+		Owner: Neutral
+		Location: 32,10
+	NeutralFcom: fcom
+		Owner: Neutral
+		Location: 32,22
+	NeutralOilb1: oilb
+		Owner: Neutral
+		Location: 22,16
+	NeutralOilb2: oilb
+		Owner: Neutral
+		Location: 42,16
+
+Rules: rules.yaml

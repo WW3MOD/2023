@@ -1,0 +1,1 @@
+TOURNAMENT: v2 vs Normal on a map with 4 neutral capturable income structures (BIO, FCOM, 2x OILB) in the middle band. Same terrain as tournament-v2-vs-normal-2p but actually exercises v2's CaptureCoordinatorBotModule. Pair with tournament-capture-arena-mirror-2p via --mirror for the proper measurement.

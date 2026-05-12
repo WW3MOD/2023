@@ -1,0 +1,1 @@
+TOURNAMENT: capture-arena MIRROR variant. v2 (USA-bot slot, faction=russia) vs Normal (Russia-bot slot, faction=america). 4 neutral capturables in the middle.
