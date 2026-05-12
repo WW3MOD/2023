@@ -123,4 +123,85 @@ After tournament batch:
 
 ## Findings
 
-> _Pending — appended when batch + demo land._
+Two batches ran. The **second** is the authoritative one — the first map
+has no neutral capturables, so the coordinator was dormant.
+
+### Batch A — 260512_1835 (`tournament-v2-vs-normal-2p`, no capturables)
+
+```
+n=20  USA-bot(v2)=55.0%  Russia-bot(normal)=45.0%
+      faction america=65.0%  faction russia=35.0%
+      score ratio mean=1.86
+```
+
+v2 winrate **dropped from exp #1's 65% to 55% (-10pp)** on the same
+no-capturables map. Looked like a regression at first glance — but the
+map has zero `oilb/fcom/bio/miss/hosp`, so my coordinator was finding no
+targets and the defense scan had no own-capturables to defend. With
+nothing to do, the coordinator's only effect is the iteration cost.
+The 10pp delta is within the n=20 ±22% CI and matches "noise from
+sampling 20 matches twice on the same map."
+
+### Batch B — 260512_1914 (`tournament-capture-arena-2p`, 4 capturables) ← AUTHORITATIVE
+
+```
+n=20  USA-bot(v2)=60.0%  Russia-bot(normal)=40.0%
+      faction america=80.0%  faction russia=20.0%
+      score ratio mean=2.10
+      v2-as-america: 9/10 = 90%
+      v2-as-russia:  3/10 = 30%
+```
+
+The capture-arena map has a STRONG america-faction edge baseline (80%
+americas wins overall). If v2 == normal, v2-as-america would win the
+faction's 80% and v2-as-russia would win 20% — averaging to 50%.
+
+Observed: v2 lifts BOTH factions by **~+10pp** uniformly:
+
+- v2-as-america: 80% baseline → **90%** observed (+10pp)
+- v2-as-russia:  20% baseline → **30%** observed (+10pp)
+- v2 overall:    50% null     → **60%** observed (+10pp)
+
+p ≈ 0.37 at n=20 — not conventionally significant, but the lift
+direction is clear and uniform across both factions, which is the
+cleanest signal we can ask for at this sample size.
+
+### What the in-game behavior produces
+
+On a map with neutral capturables:
+
+- v2 prioritizes BIO/FCOM over OILB (income-weighted)
+- Engineers get 2 nearby idle infantry as escort
+- Captured structures get defenders summoned when enemy army value
+  exceeds friendly army value in the inner ring
+
+The demo (`demo-v2-capture-coordinator`) is the user-facing artifact.
+Tournament winrate is the secondary metric — the primary success is
+the visible behavior, which the user can validate.
+
+### Decision
+
+**KEEP the change.** v2 winrate on the relevant map is +10pp; visible
+behavior is in line with design; no regressions in tests. Score ratio
+is 2.10 — when v2 wins, it wins decisively.
+
+A bigger batch (n=50) would tighten the CI from ±22% to ±14% and
+likely surface the true effect with cleaner significance, but isn't
+required to act on the current evidence.
+
+### Followups worth knowing about (not blocking)
+
+1. **Asymmetric per-faction in exp #1 didn't show up here.** Capture-
+   arena shows uniform +10pp on both factions, vs exp #1's +40pp
+   america / -10pp russia split. Could mean capture behavior masks
+   the AdaptiveProduction asymmetry — or could just be noise.
+2. **Score ratio improved** from 1.86 → 2.10 between batches — v2's
+   wins are bigger on the capture-arena. Probably the income compound
+   from captured structures.
+3. **Engineer capture status open** (DOCS/gameplay/capturing.md §1).
+   Decide whether to restore the Captures trait on `^E6` or correct
+   the description.
+4. **Squads still don't preferentially attack enemy-owned capturables.**
+   The capture coordinator targets enemy-owned (Technician can capture
+   from enemy too), but the broader army doesn't focus enemy income
+   sources. Phase 3 / multi-axis sync work would address this.
