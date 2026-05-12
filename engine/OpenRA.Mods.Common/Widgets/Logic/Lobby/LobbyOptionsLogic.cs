@@ -314,6 +314,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
 			optionsContainer.Bounds.Y = yMargin;
 
+			// WW3MOD: when this panel is wrapped in an outer ScrollPanel (the
+			// unified Match-tab scroll), we don't want a nested scroll. Size the
+			// panel to its natural content height so the outer scroll handles
+			// overflow on its own. On the Advanced tab the parent is a plain
+			// Container and we keep the internal scroll.
+			var hasOuterScroll = false;
+			for (var w = panel.Parent; w != null; w = w.Parent)
+			{
+				if (w is ScrollPanelWidget)
+				{
+					hasOuterScroll = true;
+					break;
+				}
+			}
+
+			if (hasOuterScroll)
+				panel.Bounds.Height = panel.ContentHeight;
+
 			panel.ScrollToTop();
 		}
 

@@ -1,12 +1,16 @@
-Container@LOBBY_PLAYER_BIN:
+ScrollPanel@LOBBY_PLAYER_BIN:
 	Width: PARENT_WIDTH
 	Height: PARENT_HEIGHT
+	Background: ""
+	ScrollBar: Right
+	ItemSpacing: 0
+	TopBottomSpacing: 0
 	Children:
 		Container@LABEL_CONTAINER:
 			X: 5
-			Y: 0 - 24
-			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT
+			Y: 0
+			Width: PARENT_WIDTH - 24
+			Height: 28
 			Children:
 				Label@LABEL_LOBBY_NAME:
 					Width: 180
@@ -62,8 +66,8 @@ Container@LOBBY_PLAYER_BIN:
 		# at load and shifts them by delta as the roster auto-expands.
 		Container@LOBBY_SETUP_ROW:
 			Logic: LobbySetupRowLogic
-			Y: 216
-			Width: PARENT_WIDTH
+			Y: 244
+			Width: PARENT_WIDTH - 24
 			Height: 30
 			Children:
 				Button@ADD_BOTS_BUTTON:
@@ -96,8 +100,8 @@ Container@LOBBY_PLAYER_BIN:
 					Text: Replay last
 		Container@LOBBY_ACTIVE_CHANGES:
 			Logic: LobbyActiveChangesLogic
-			Y: 262
-			Width: PARENT_WIDTH
+			Y: 290
+			Width: PARENT_WIDTH - 24
 			Height: 56
 			Children:
 				# Subtle darker fill so the section reads as a card depressed
@@ -133,8 +137,8 @@ Container@LOBBY_PLAYER_BIN:
 							Background: ""
 		Container@LOBBY_PRESET_BAR:
 			Logic: LobbyPresetLogic
-			Y: 334
-			Width: PARENT_WIDTH
+			Y: 362
+			Width: PARENT_WIDTH - 24
 			Height: 30
 			Children:
 				ColorBlock@SECTION_BG:
@@ -194,9 +198,11 @@ Container@LOBBY_PLAYER_BIN:
 		# (phase 4) name the groups individually, parent was redundant.
 		ScrollPanel@COMMON_OPTIONS_PANEL:
 			Logic: LobbyOptionsLogic
-			Y: 380
-			Width: PARENT_WIDTH
-			Height: PARENT_HEIGHT - 380
+			Y: 408
+			Width: PARENT_WIDTH - 24
+			Height: 300
+			Background: ""
+			ScrollBar: Hidden
 			Children:
 				Label@CATEGORY_FILTER:
 					Visible: False
@@ -270,11 +276,12 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: False
 									TooltipContainer: TOOLTIP_CONTAINER
 		ScrollPanel@LOBBY_PLAYERS:
-			Y: 0
-			Width: PARENT_WIDTH
+			Y: 28
+			Width: PARENT_WIDTH - 24
 			Height: 200
 			TopBottomSpacing: 8
 			ItemSpacing: 7
+			Background: ""
 			# Auto-expand sizes the panel exactly to content, so the scrollbar is
 			# never needed. Hiding it kills the visual collision with the right-rail
 			# map preview that was bleeding past the panel's right edge.

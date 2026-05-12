@@ -106,13 +106,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		Widget rosterFlexPresetBar;
 		Widget rosterFlexCommonHeader;
 		ScrollPanelWidget rosterFlexCommonPanel;
+		ScrollPanelWidget rosterFlexOuterScroll;
 		int rosterFlexOriginalPlayersHeight;
 		int rosterFlexOriginalSetupY;
 		int rosterFlexOriginalActiveChangesY;
 		int rosterFlexOriginalPresetY;
 		int rosterFlexOriginalCommonHeaderY;
 		int rosterFlexOriginalCommonPanelY;
-		int rosterFlexOriginalCommonPanelHeight;
 
 		readonly Dictionary<string, LobbyFaction> factions = new();
 
@@ -262,13 +262,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			rosterFlexPresetBar = playerBin.GetOrNull("LOBBY_PRESET_BAR");
 			rosterFlexCommonHeader = playerBin.GetOrNull("COMMON_OPTIONS_HEADER");
 			rosterFlexCommonPanel = playerBin.GetOrNull<ScrollPanelWidget>("COMMON_OPTIONS_PANEL");
+			// LOBBY_PLAYER_BIN itself is now a ScrollPanel (unified left-column scroll).
+			// We update its ContentHeight after every roster resize so the outer scroll
+			// engages when total content exceeds the visible panel height.
+			rosterFlexOuterScroll = playerBin as ScrollPanelWidget;
 			rosterFlexOriginalPlayersHeight = players.Bounds.Height;
 			rosterFlexOriginalSetupY = rosterFlexSetupRow?.Bounds.Y ?? 0;
 			rosterFlexOriginalActiveChangesY = rosterFlexActiveChanges?.Bounds.Y ?? 0;
 			rosterFlexOriginalPresetY = rosterFlexPresetBar?.Bounds.Y ?? 0;
 			rosterFlexOriginalCommonHeaderY = rosterFlexCommonHeader?.Bounds.Y ?? 0;
 			rosterFlexOriginalCommonPanelY = rosterFlexCommonPanel?.Bounds.Y ?? 0;
-			rosterFlexOriginalCommonPanelHeight = rosterFlexCommonPanel?.Bounds.Height ?? 0;
 
 			colorManager = modRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 
@@ -1055,10 +1058,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (rosterFlexActiveChanges != null) rosterFlexActiveChanges.Bounds.Y = rosterFlexOriginalActiveChangesY + delta;
 			if (rosterFlexPresetBar != null) rosterFlexPresetBar.Bounds.Y = rosterFlexOriginalPresetY + delta;
 			if (rosterFlexCommonHeader != null) rosterFlexCommonHeader.Bounds.Y = rosterFlexOriginalCommonHeaderY + delta;
+			// Common options panel is sized to its own content by LobbyOptionsLogic
+			// — no longer shrunk here. Just shift its Y so it sits below the roster
+			// at the new bottom.
 			if (rosterFlexCommonPanel != null)
-			{
 				rosterFlexCommonPanel.Bounds.Y = rosterFlexOriginalCommonPanelY + delta;
-				rosterFlexCommonPanel.Bounds.Height = Math.Max(rosterFlexOriginalCommonPanelHeight - delta, 60);
+
+			// Update the outer scroll's ContentHeight so the scrollbar engages
+			// when the stack overflows the panel height. Walk every direct child
+			// to find the bottommost edge.
+			if (rosterFlexOuterScroll != null)
+			{
+				var bottom = 0;
+				foreach (var child in rosterFlexOuterScroll.Children)
+				{
+					var childBottom = child.Bounds.Y + child.Bounds.Height;
+					if (childBottom > bottom)
+						bottom = childBottom;
+				}
+				rosterFlexOuterScroll.ContentHeight = bottom + 12;
 			}
 		}
 
