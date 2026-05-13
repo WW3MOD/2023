@@ -82,10 +82,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Chebyshev distance threshold (cells) above which a SpreadInside intent is reclassified",
 			"as Approach: the squad is far enough from a cover click that they need to march to it",
-			"first. Approach lays the formation at the cover boundary between group and click, not",
-			"inside the cover, since pathfinding to far-side cells through dense cover usually fails",
-			"and leaves units stalled at the boundary anyway.")]
-		public readonly int ApproachGroupDistanceCells = 4;
+			"first. Approach lays the formation at the cover boundary between group and click — but",
+			"this overrides the cover-cluster behavior, so we want it conservative. Bumped to 12",
+			"so it only triggers for genuinely long marches across the map; medium-range clicks now",
+			"stay in SpreadInside, where the bidder picks top-CoverScore cells near the click.")]
+		public readonly int ApproachGroupDistanceCells = 12;
 
 		[Desc("When true, slot candidates are filtered by Mobile.CanStayInCell on the subject. Cells",
 			"the subject's locomotor can't park on (impassable terrain, building/tree footprints,",
