@@ -303,18 +303,40 @@ tail -50 "$HOME/Library/Application Support/OpenRA/Logs/debug.log" | grep v2-
 ## Status of doctrine roadmap
 
 - Phase A — Frontline perception ✓ shipped
-- Phase B.1 — Layered defence (reserve-driven) ✓ shipped, **but blocked
-  by the IsIdle-carrier issue above for B.4 to work**
+- Phase B.1 — Layered defence (reserve-driven) ✓ shipped
 - Phase B.2 — Cover (treeline) ✓ shipped (visible if maps have trees
   near the front)
 - Phase B.3 — Overlapping fields of fire — not started
-- Phase B.4 — Mounted transport ✓ shipped code; **not visibly working**;
-  diagnostic in flight
+- Phase B.4 — Mounted transport ✓ shipped + **IsIdle-fix shipped
+  2026-05-14**; awaiting playtest confirmation
 - Phase C — Reserve pressure response — not started
 - Phase D — Offensive 3:1 — not started
 - Phase E — Personality differentiation — not started
 - Phase F — Honest fog — not started
 
-You're sitting between "B.4 implemented but not effective in-game"
-and "diagnose the IsIdle issue and ship the real fix." That's where
-to start.
+## IsIdle-fix shipped (2026-05-14)
+
+Root cause was three-fold, not two:
+
+1. **LayeredDefence pulled carriers forward.** Its `ExcludedActorTypes`
+   default didn't include `bradley/bmp2/m113`. Fresh carriers got
+   AttackMove orders → walked to the front → engaged via AutoTarget →
+   `IsIdle = false` forever. Fix: added carriers to the exclusion set.
+2. **MountedTransport required `IsIdle`** — even after fix 1, a carrier
+   sitting at the SR rally could enter Attack against a distant scout
+   in scan range, again failing the candidate filter. Fix: dropped
+   `IsIdle`, added `cargo.IsEmpty()` instead.
+3. **Loading didn't pin the carrier.** Without an order to the carrier
+   itself, AutoTarget kept yanking it into chases — passengers would
+   walk up but the carrier kept moving. Fix: send `Stop` order to the
+   carrier when starting a Loading task. Cancels the Attack activity
+   and parks the carrier so passengers actually catch up to board.
+
+Plus a per-carrier diagnostic in `TryAssignNewTasks` that logs WHY
+each owned carrier is or isn't a candidate — so the next time
+`carriers-candidate=0` reappears, the cause is named in the log.
+
+Next time picking this up: run a v2-vs-v2 skirmish, watch chat for
+`[v2-transport]` lines, tail `debug.log` for per-carrier rows
+showing `→ OK` instead of `→ skip`, then look for infantry actually
+loading into Bradleys/M113s/BMP-2s and getting ferried forward.

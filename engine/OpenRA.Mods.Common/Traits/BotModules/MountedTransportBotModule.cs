@@ -242,19 +242,39 @@ namespace OpenRA.Mods.Common.Traits
 
 		void TryAssignNewTasks(IBot bot, CPos srCell)
 		{
-			// Candidate carriers: bot's idle carriers, currently empty, not already tasked.
-			var candidates = world.Actors
-				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && a.IsIdle
-					&& Info.CarrierTypes.Contains(a.Info.Name.ToLowerInvariant())
-					&& !carrierTasks.ContainsKey(a)
-					&& a.Info.HasTraitInfo<CargoInfo>())
+			// Carrier eligibility: owned, alive, in-world, of a configured type, has Cargo,
+			// is EMPTY, and not already in a task. We DO NOT require IsIdle. Carriers
+			// in the SR rally area still tick AutoTarget and may be in an Attack activity
+			// against distant scouts — making them never-idle. Loading sends them a Stop
+			// order which cancels that activity and parks them while passengers board.
+			//
+			// PITFALL (2026-05): adding `a.IsIdle` back to this filter re-introduces
+			// the `carriers-candidate=0` bug. See WORKSPACE/ai/handoff_260513.md.
+			var owned = world.Actors
+				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
+					&& Info.CarrierTypes.Contains(a.Info.Name.ToLowerInvariant()))
 				.ToList();
 
-			// Diagnostic counts: total carriers owned and how many are idle+empty+free.
-			var totalCarriers = world.Actors.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld
-				&& Info.CarrierTypes.Contains(a.Info.Name.ToLowerInvariant()));
+			var candidates = new List<Actor>();
+			foreach (var a in owned)
+			{
+				var cargo = a.TraitOrDefault<Cargo>();
+				var hasCargo = cargo != null;
+				var isEmpty = hasCargo && cargo.IsEmpty();
+				var inTask = carrierTasks.ContainsKey(a);
+				var ok = hasCargo && isEmpty && !inTask;
+				if (ok)
+					candidates.Add(a);
+
+				// Per-carrier diagnostic — shows why each owned carrier did or didn't qualify.
+				// Activity name is the most useful field for diagnosing "never idle" theories.
+				var activity = a.CurrentActivity?.GetType().Name ?? "<none>";
+				Log.Write("debug",
+					$"[v2-transport] carrier {a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} pax={(hasCargo ? cargo.PassengerCount.ToString() : "no-cargo")} task={inTask} → {(ok ? "OK" : "skip")}");
+			}
+
 			Log.Write("debug",
-				$"[v2-transport] scan player={player.PlayerName} carriers-total={totalCarriers} carriers-candidate={candidates.Count} tasks-active={carrierTasks.Count}");
+				$"[v2-transport] scan player={player.PlayerName} carriers-total={owned.Count} carriers-candidate={candidates.Count} tasks-active={carrierTasks.Count}");
 
 			if (candidates.Count == 0)
 				return;
@@ -312,6 +332,13 @@ namespace OpenRA.Mods.Common.Traits
 					.ToList();
 				if (toLoad.Count < Info.MinPassengersPerLoad)
 					continue;
+
+				// Park the carrier so passengers can board. Without this, AutoTarget can hold the
+				// carrier in an Attack activity against a distant target; passengers walking
+				// up to it never catch a stationary entry frame and Loading times out empty.
+				// Stop clears the current activity (Attack, Move, …); the carrier idles in place
+				// while passengers EnterTransport.
+				bot.QueueOrder(new Order("Stop", carrier, false));
 
 				// Issue EnterTransport order to each. They walk to the carrier and board.
 				foreach (var pax in toLoad)

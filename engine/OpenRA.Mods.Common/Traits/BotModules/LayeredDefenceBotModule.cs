@@ -81,13 +81,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Actor types EXCLUDED from layered defence dispatch. These are owned by other",
 			"modules: tecn (capture coordinator), e6 (repair specialist), truk (supply follower),",
-			"humvee/btr (scouts). Aircraft are handled by their own SquadManagerBotModule.")]
+			"humvee/btr (scouts), bradley/bmp2/m113 (mounted transport — they ferry infantry,",
+			"not stand the line). Aircraft are handled by their own SquadManagerBotModule.")]
+		// PITFALL (2026-05): excluding carriers (bradley/bmp2/m113) is REQUIRED for
+		// MountedTransportBotModule (B.4) to work. If LayeredDefence pulls them forward
+		// they engage at standoff via AutoTarget → !IsIdle → never qualify as transport
+		// candidates → carriers-candidate=0 forever. See WORKSPACE/ai/handoff_260513.md.
 		public readonly HashSet<string> ExcludedActorTypes = new()
 		{
 			"tecn", "tecn.america", "tecn.russia",
 			"e6", "e6.america", "e6.russia",
 			"truk",
-			"humvee", "btr"
+			"humvee", "btr",
+			"bradley", "bmp2", "m113"
 		};
 
 		[Desc("Skip units whose AmmoPool(s) are ALL empty. Out-of-ammo units shouldn't be sent",
