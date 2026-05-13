@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · Q4 locked, tab + map-browse details</title>
+<style>
+:root {
+	--bg-app: #0c0e11;
+	--bg-card: #14171c;
+	--bg-card-2: #1a1e25;
+	--bg-card-3: #21262e;
+	--line: #2a2f37;
+	--line-soft: #1f2329;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-glow: #60d08055;
+	--accent-soft: #2d6240;
+	--accent-bg: rgba(96,208,128,.08);
+	--info: #6ec0e6;
+	--us:    #4a7fc4;
+	--ru:    #c44a4a;
+	--track: #2f343c;
+	font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: var(--bg-app); color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header.top {
+	position: sticky; top: 0; z-index: 20;
+	background: rgba(12,14,17,.94); backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--line);
+	padding: 14px 32px; display: flex; align-items: baseline; gap: 28px; flex-wrap: wrap;
+}
+header.top h1 { margin: 0; font-size: 16px; }
+header.top .sub { color: var(--ink-3); font-size: 12px; }
+header.top nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+header.top nav a { color: var(--ink-2); text-decoration: none; }
+header.top nav a:hover { color: var(--accent); }
+
+.intro {
+	max-width: 1100px; margin: 32px auto 8px; padding: 0 32px;
+	color: var(--ink-2); font-size: 13.5px; line-height: 1.65;
+}
+.intro h2 { color: var(--ink); font-size: 22px; margin: 0 0 12px; }
+.intro p { margin: 0 0 12px; }
+.intro code { background: var(--bg-card); padding: 1px 6px; border-radius: 3px; color: var(--accent); font-size: 12px; }
+.intro .locked {
+	margin-top: 10px; padding: 12px 16px; background: var(--bg-card); border-radius: 6px;
+	border-left: 3px solid var(--accent); font-size: 12.5px; color: var(--ink-2);
+}
+.intro .locked b { color: var(--accent); }
+
+section.variant {
+	margin: 64px auto; max-width: 2700px; padding: 0 32px;
+}
+section.variant header.title { padding: 0 0 18px; }
+section.variant header.title h2 {
+	margin: 0 0 6px; color: var(--ink); font-size: 22px; letter-spacing: 0.2px;
+}
+section.variant header.title h2 .tag {
+	font-size: 12px; color: var(--accent); letter-spacing: 1px; font-weight: 600;
+	margin-right: 12px; vertical-align: 2px;
+}
+section.variant header.title p { margin: 0; color: var(--ink-3); max-width: 1080px; font-size: 13px; }
+section.variant header.title .prop {
+	margin-top: 8px; font-size: 11.5px; color: var(--ink-4);
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.frame {
+	background: var(--bg-app);
+	border: 1px solid var(--line); border-radius: 8px;
+	overflow: hidden;
+	width: 2560px;
+	height: 1440px;
+	position: relative;
+}
+
+.lobby-header {
+	height: 64px; padding: 0 32px;
+	display: grid; grid-template-columns: 160px 1fr 160px;
+	align-items: center;
+	border-bottom: 1px solid var(--line-soft);
+}
+.lobby-header .back-btn {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 8px 16px; color: var(--ink-2); font-size: 13px;
+	width: max-content;
+}
+.lobby-header .title {
+	text-align: center; font-size: 18px; font-weight: 600;
+	letter-spacing: 1px; color: var(--ink);
+}
+.lobby-header .right { color: var(--ink-3); font-size: 12px; text-align: right; }
+
+.cta-bar {
+	height: 96px;
+	display: grid; grid-template-columns: 1fr 360px 1fr;
+	align-items: center; padding: 0 32px;
+	background: linear-gradient(180deg, rgba(96,208,128,0) 0%, rgba(96,208,128,.06) 100%);
+	border-top: 1px solid var(--line);
+}
+.cta-bar .ready-status { color: var(--ink-3); font-size: 13px; }
+.cta-bar .ready-status .ok { color: var(--accent); }
+.cta-bar .start-game {
+	background: linear-gradient(180deg, rgba(96,208,128,.15) 0%, rgba(96,208,128,.05) 100%);
+	border: 1px solid var(--accent-soft); border-radius: 8px;
+	padding: 16px 32px; font-size: 22px; font-weight: 700;
+	color: var(--accent); letter-spacing: 1.5px;
+	text-align: center; box-shadow: 0 0 32px var(--accent-glow);
+}
+.cta-bar .map-context { color: var(--ink-3); font-size: 13px; text-align: right; }
+
+.body {
+	height: calc(1440px - 64px - 96px);
+	padding: 14px 24px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px; box-sizing: border-box;
+}
+.body .col { display: grid; gap: 14px; }
+.body .col > .quad {
+	background: var(--bg-card); border-radius: 6px;
+	position: relative; overflow: hidden;
+}
+
+/* Quadrant header — shared by all panels.
+   Three tab styles toggled per-variant via the .tabstyle-* class on .frame */
+.qhead {
+	padding: 10px 18px 0; height: 48px; box-sizing: border-box;
+	display: flex; align-items: center; gap: 12px;
+	border-bottom: 1px solid var(--line-soft);
+}
+.qhead .accent { width: 24px; height: 2px; background: var(--accent); }
+.qhead .title {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+	text-transform: uppercase;
+}
+.qhead .title .count {
+	background: var(--accent-soft); color: var(--accent); padding: 1px 7px;
+	border-radius: 8px; margin-left: 4px; font-size: 10px; letter-spacing: 0;
+}
+.qhead .spacer { flex: 1; }
+.qhead .actions { display: flex; gap: 16px; }
+.qhead .actions a { font-size: 11px; color: var(--ink-3); cursor: pointer; }
+.qhead .actions a:hover { color: var(--ink); }
+
+/* === Tab style M1: pill === */
+.tabstyle-pill .qtabs {
+	display: flex; gap: 4px; padding: 4px; background: var(--bg-card-2);
+	border-radius: 6px;
+}
+.tabstyle-pill .qtabs .qtab {
+	padding: 5px 14px; font-size: 12px; color: var(--ink-3);
+	border-radius: 4px; font-weight: 600; letter-spacing: 0.5px; cursor: pointer;
+}
+.tabstyle-pill .qtabs .qtab.active {
+	background: var(--accent-bg); color: var(--accent);
+}
+
+/* === Tab style M2: underline === */
+.tabstyle-underline .qhead { padding-bottom: 0; height: 44px; }
+.tabstyle-underline .qtabs {
+	display: flex; gap: 24px;
+}
+.tabstyle-underline .qtabs .qtab {
+	padding: 4px 0 6px; font-size: 11px; color: var(--ink-3);
+	letter-spacing: 2px; font-weight: 600; text-transform: uppercase;
+	border-bottom: 2px solid transparent; cursor: pointer;
+}
+.tabstyle-underline .qtabs .qtab.active {
+	color: var(--accent); border-bottom-color: var(--accent);
+}
+.tabstyle-underline .qhead .accent { display: none; }
+.tabstyle-underline .qhead .title { display: none; }
+
+/* === Tab style M3: segmented === */
+.tabstyle-segmented .qtabs {
+	display: flex; background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 6px; padding: 2px;
+}
+.tabstyle-segmented .qtabs .qtab {
+	padding: 5px 14px; font-size: 11.5px; color: var(--ink-3);
+	letter-spacing: 0.5px; font-weight: 600; cursor: pointer;
+	border-radius: 4px;
+}
+.tabstyle-segmented .qtabs .qtab.active {
+	background: var(--accent-bg); color: var(--accent);
+	box-shadow: 0 1px 2px rgba(0,0,0,.3);
+}
+
+/* === MAP QUADRANT === */
+.map-quad { display: flex; flex-direction: column; min-height: 0; }
+.map-quad .map-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* preview state */
+.map-quad .map-img {
+	flex: 1;
+	background-image: linear-gradient(135deg, #2d4a2a 0%, #3d5a35 30%, #1a2a1c 60%, #2a3a26 100%);
+	position: relative; min-height: 0;
+}
+.map-quad .map-img::before {
+	content: ""; position: absolute; inset: 0;
+	background-image:
+		radial-gradient(ellipse at 30% 40%, rgba(85,115,170,.5) 0%, transparent 14%),
+		radial-gradient(ellipse at 65% 60%, rgba(85,115,170,.5) 0%, transparent 14%),
+		radial-gradient(circle at 50% 30%, rgba(180,180,140,.4) 0%, transparent 10%),
+		radial-gradient(circle at 20% 70%, rgba(180,180,140,.4) 0%, transparent 9%);
+}
+.map-quad .map-img .spawn {
+	position: absolute; width: 32px; height: 32px; border-radius: 50%;
+	background: rgba(0,0,0,.6); border: 2px solid var(--accent);
+	display: flex; align-items: center; justify-content: center;
+	color: var(--accent); font-weight: 700; font-size: 14px;
+}
+.map-quad .map-img .spawn.a { top: 8%;  left: 18%; }
+.map-quad .map-img .spawn.b { top: 78%; left: 78%; border-color: var(--ru); color: var(--ru); }
+.map-quad .map-img .spawn.c { top: 12%; left: 75%; border-color: var(--ru); color: var(--ru); }
+.map-quad .map-img .spawn.d { top: 80%; left: 22%; }
+.map-quad .map-img .spawn.e { top: 48%; left: 20%; }
+.map-quad .map-img .spawn.f { top: 50%; left: 78%; border-color: var(--ru); color: var(--ru); }
+
+.map-quad .map-footer {
+	padding: 12px 22px;
+	display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center;
+	border-top: 1px solid var(--line-soft);
+}
+.map-quad .map-footer .name {
+	font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px;
+}
+.map-quad .map-footer .name .meta {
+	display: block; font-size: 11px; color: var(--ink-3); font-weight: 400;
+	letter-spacing: 0; margin-top: 2px;
+}
+.map-quad .map-footer .scenario {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 8px 14px; font-size: 12px; color: var(--ink-2);
+}
+
+/* browse state — inline map list */
+.map-browse {
+	flex: 1; padding: 16px 18px; overflow-y: auto;
+	background: var(--bg-card);
+}
+.map-browse .browse-bar {
+	display: flex; gap: 10px; margin-bottom: 14px; align-items: center;
+}
+.map-browse .browse-bar input {
+	flex: 1; background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 20px;
+	padding: 8px 16px; color: var(--ink); font-size: 13px;
+}
+.map-browse .browse-bar .filter {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 14px; color: var(--ink-2); font-size: 12px;
+}
+.map-browse .browse-bar .filter.active { color: var(--accent); border-color: var(--accent-soft); }
+
+.map-browse .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.map-browse .mcard {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 6px;
+	overflow: hidden; cursor: pointer;
+}
+.map-browse .mcard:hover { border-color: var(--ink-4); }
+.map-browse .mcard.selected { border-color: var(--accent); box-shadow: 0 0 16px var(--accent-glow); }
+.map-browse .mcard .thumb {
+	width: 100%; aspect-ratio: 16 / 11; position: relative;
+	background-image: linear-gradient(135deg, #2d4a2a 0%, #3d5a35 30%, #1a2a1c 60%, #2a3a26 100%);
+}
+.map-browse .mcard .thumb.urban {
+	background-image: linear-gradient(135deg, #3a3833 0%, #4d4942 30%, #2a2825 60%, #38342f 100%);
+}
+.map-browse .mcard .thumb.desert {
+	background-image: linear-gradient(135deg, #8a7644 0%, #a08a52 30%, #5e5132 60%, #786641 100%);
+}
+.map-browse .mcard .thumb.coastal {
+	background-image: linear-gradient(135deg, #4a6b85 0%, #5a7995 30%, #2e4258 60%, #3e5870 100%);
+}
+.map-browse .mcard .thumb.forest {
+	background-image: linear-gradient(135deg, #1d3520 0%, #2a4a2c 30%, #122518 60%, #1f3422 100%);
+}
+.map-browse .mcard .thumb::before {
+	content: ""; position: absolute; inset: 0;
+	background-image:
+		radial-gradient(circle at 25% 25%, rgba(85,115,170,.45) 0%, transparent 14%),
+		radial-gradient(circle at 75% 75%, rgba(85,115,170,.45) 0%, transparent 14%);
+}
+.map-browse .mcard .thumb .badge {
+	position: absolute; top: 8px; right: 8px;
+	background: rgba(0,0,0,.8); color: var(--ink-2); padding: 2px 8px;
+	border-radius: 10px; font-size: 10px; letter-spacing: 0.5px;
+}
+.map-browse .mcard.selected .thumb .badge {
+	background: var(--accent); color: var(--bg-app); font-weight: 700;
+}
+.map-browse .mcard .info { padding: 10px 12px; }
+.map-browse .mcard .info .mname { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.map-browse .mcard .info .mmeta { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+/* === SETTINGS QUADRANT === */
+.settings-quad { overflow: hidden; }
+.settings-quad .settings-pad {
+	padding: 14px 18px 70px; height: calc(100% - 48px); overflow-y: auto; box-sizing: border-box;
+}
+.settings-quad .grid-settings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.settings-quad .hcard {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 5px;
+	padding: 10px 14px 8px; position: relative; min-height: 76px; box-sizing: border-box;
+}
+.settings-quad .hcard:hover { border-color: var(--ink-4); }
+.settings-quad .hcard.changed { border-color: var(--accent-soft); background: var(--accent-bg); }
+.settings-quad .hcard.changed::before {
+	content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+	width: 3px; background: var(--accent); border-radius: 5px 0 0 5px;
+	box-shadow: 0 0 12px var(--accent-glow);
+}
+.settings-quad .hcard .lab {
+	font-size: 10.5px; color: var(--ink-3); letter-spacing: 1px;
+	text-transform: uppercase; font-weight: 600;
+}
+.settings-quad .hcard .val {
+	font-size: 19px; color: var(--ink); margin-top: 4px; font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.settings-quad .hcard.changed .val { color: var(--accent); text-shadow: 0 0 18px var(--accent-glow); }
+.settings-quad .hcard .trail { font-size: 10.5px; color: var(--ink-4); margin-top: 2px; }
+.settings-quad .hcard .drop {
+	position: absolute; top: 10px; right: 12px; color: var(--ink-3); font-size: 11px;
+}
+.settings-quad .hcard.tog .switch {
+	position: absolute; top: 12px; right: 14px;
+	width: 28px; height: 16px; background: var(--track); border-radius: 9px;
+}
+.settings-quad .hcard.tog .switch::after {
+	content: ""; position: absolute; top: 2px; left: 2px;
+	width: 12px; height: 12px; background: var(--ink-3); border-radius: 50%;
+}
+.settings-quad .hcard.tog.on { border-color: rgba(96,208,128,.4); }
+.settings-quad .hcard.tog.on .switch { background: var(--accent-soft); }
+.settings-quad .hcard.tog.on .switch::after { background: var(--accent); transform: translateX(12px); }
+.settings-quad .hcard.tog.on .val { color: var(--accent); }
+.settings-quad .hcard.spec { border-style: dashed; opacity: 0.86; }
+.settings-quad .hcard.spec::after {
+	content: "speculative"; position: absolute; bottom: 4px; right: 8px;
+	font-size: 9px; color: var(--ink-4); letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+.settings-quad .bottom-strip {
+	position: absolute; left: 0; right: 0; bottom: 0;
+	background: var(--bg-card); border-top: 1px solid var(--line-soft);
+	padding: 8px 18px;
+	display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.settings-quad .bottom-strip .lab {
+	font-size: 10.5px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.settings-quad .bottom-strip .lab .badge {
+	background: var(--accent); color: var(--bg-app); padding: 1px 7px;
+	border-radius: 8px; margin-left: 4px; font-size: 9.5px;
+}
+.settings-quad .bottom-strip .chip {
+	display: inline-flex; gap: 7px; align-items: center;
+	background: var(--bg-card-2); border: 1px solid var(--accent-soft);
+	padding: 4px 9px; border-radius: 4px; font-size: 11.5px;
+}
+.settings-quad .bottom-strip .chip .clab { color: var(--ink-3); }
+.settings-quad .bottom-strip .chip .cval { color: var(--accent); font-weight: 600; }
+.settings-quad .bottom-strip .sep { width: 1px; height: 20px; background: var(--line-soft); margin: 0 4px; }
+.settings-quad .bottom-strip .plab {
+	font-size: 10.5px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.settings-quad .bottom-strip input {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 5px 10px; color: var(--ink); font-size: 12px; width: 140px;
+}
+.settings-quad .bottom-strip .btn {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 5px 12px; color: var(--ink-2); font-size: 11.5px;
+}
+.settings-quad .bottom-strip .btn.primary { color: var(--accent); border-color: var(--accent-soft); }
+.settings-quad .bottom-strip .spacer { flex: 1; }
+
+/* Music view inside settings quadrant */
+.music-pane {
+	padding: 16px 18px; height: calc(100% - 48px); overflow-y: auto; box-sizing: border-box;
+}
+.music-pane .track {
+	display: grid; grid-template-columns: 32px 1fr auto auto; gap: 12px;
+	padding: 10px 12px; border-radius: 4px; align-items: center;
+	background: var(--bg-card-2); margin-bottom: 6px;
+}
+.music-pane .track:hover { background: var(--bg-card-3); }
+.music-pane .track.playing { background: var(--accent-bg); }
+.music-pane .track .play { color: var(--ink-3); font-size: 14px; }
+.music-pane .track.playing .play { color: var(--accent); }
+.music-pane .track .info .tname { font-size: 13px; color: var(--ink); }
+.music-pane .track .info .talbum { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.music-pane .track .duration { font-size: 11.5px; color: var(--ink-4); font-family: ui-monospace, monospace; }
+.music-pane .track .vol { width: 60px; height: 4px; background: var(--bg-card-3); border-radius: 2px; }
+
+/* === PLAYERS QUADRANT === */
+.players-quad { padding: 0; box-sizing: border-box; display: flex; flex-direction: column; }
+.players-quad .players-body { padding: 14px 18px; flex: 1; overflow-y: auto; }
+.players-quad .team-balance {
+	display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center;
+	background: var(--bg-card-2); border: 1px solid var(--line-soft); border-radius: 5px;
+	padding: 8px 14px; margin-bottom: 10px;
+}
+.players-quad .team-balance .side { font-size: 12px; }
+.players-quad .team-balance .side.l { color: var(--us); text-align: right; }
+.players-quad .team-balance .side.r { color: var(--ru); }
+.players-quad .team-balance .vs { font-size: 12px; color: var(--ink-3); }
+
+.players-quad .player-rows { display: grid; gap: 8px; }
+.players-quad .prow {
+	display: grid;
+	grid-template-columns: 36px 1.7fr 1.2fr 0.8fr 0.6fr 0.5fr 0.5fr;
+	gap: 10px; align-items: center;
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 5px;
+	padding: 9px 12px;
+}
+.players-quad .prow:hover { border-color: var(--ink-4); }
+.players-quad .prow .avatar {
+	width: 30px; height: 30px; border-radius: 50%; background: var(--accent);
+	display: flex; align-items: center; justify-content: center;
+	font-weight: 700; color: var(--bg-app); font-size: 13px;
+}
+.players-quad .prow .avatar.bot { background: var(--info); }
+.players-quad .prow .name { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.players-quad .prow .name .tag {
+	display: block; font-size: 10.5px; color: var(--ink-3); font-weight: 400; margin-top: 1px;
+}
+.players-quad .prow .faction-pill {
+	display: inline-flex; align-items: center; gap: 6px;
+	background: var(--bg-card); border: 1px solid var(--line);
+	border-radius: 14px; padding: 4px 10px; font-size: 12px; color: var(--ink-2);
+}
+.players-quad .prow .faction-pill .flag { width: 16px; height: 10px; background: var(--line); }
+.players-quad .prow .faction-pill.us .flag { background: var(--us); }
+.players-quad .prow .faction-pill.ru .flag { background: var(--ru); }
+.players-quad .prow .color-swatch {
+	width: 60px; height: 16px; border-radius: 3px; border: 1px solid var(--line); margin: 0 auto;
+}
+.players-quad .prow .cell {
+	text-align: center; color: var(--ink-2); font-size: 12.5px;
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 4px 8px;
+}
+.players-quad .prow .ready { color: var(--accent); font-size: 15px; text-align: center; }
+.players-quad .prow.empty {
+	background: rgba(28,32,39,.4); border-style: dashed;
+	grid-template-columns: 36px 1fr;
+}
+.players-quad .prow.empty .empty-actions { display: flex; gap: 8px; }
+.players-quad .prow.empty .empty-actions .ba {
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 14px; font-size: 12px; color: var(--ink-2);
+}
+.players-quad .prow.empty .empty-actions .ba.primary { color: var(--accent); border-color: var(--accent-soft); }
+.players-quad .prow.empty .empty-actions .ba.danger { color: var(--ink-4); margin-left: auto; }
+.players-quad .prow.spectator {
+	grid-template-columns: 36px 1fr; background: rgba(28,32,39,.25);
+}
+.players-quad .prow.spectator .name { font-style: italic; color: var(--ink-2); }
+.players-quad .prow.spectator .name .tag { color: var(--ink-3); font-style: normal; }
+
+/* === CHAT QUADRANT === */
+.chat-quad { padding: 0; box-sizing: border-box; display: flex; flex-direction: column; }
+.chat-quad .chat-body {
+	flex: 1; min-height: 0; padding: 14px 20px;
+	display: flex; flex-direction: column;
+}
+.chat-quad .lines {
+	flex: 1; overflow-y: auto; padding: 6px 0;
+	font-size: 13.5px; color: var(--ink-2); line-height: 1.55;
+}
+.chat-quad .lines .line { padding: 3px 0; display: flex; gap: 10px; }
+.chat-quad .lines .ts { color: var(--ink-4); flex: 0 0 50px; font-family: ui-monospace, monospace; font-size: 11.5px; padding-top: 1px; }
+.chat-quad .lines .name { color: var(--accent); font-weight: 600; }
+.chat-quad .lines .system { color: var(--info); font-style: italic; }
+.chat-quad .compose {
+	display: flex; gap: 10px; align-items: center; margin-top: 10px;
+	padding-top: 12px; border-top: 1px solid var(--line-soft);
+}
+.chat-quad .compose .mode {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 8px 12px; font-size: 11.5px; color: var(--ink-3); letter-spacing: 1px;
+}
+.chat-quad .compose input {
+	flex: 1; background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 8px 14px; color: var(--ink); font-size: 13.5px;
+}
+.chat-quad .compose .send {
+	background: var(--accent-bg); border: 1px solid var(--accent-soft); border-radius: 4px;
+	padding: 8px 18px; color: var(--accent); font-size: 12px; font-weight: 600;
+}
+
+/* === Q4-locked row split, player block auto-sized.
+   Player count = 6 slots + 1 spectator → ~520 px including header.
+   Chat fills the rest. Map ~720, settings ~560 below.
+   === */
+.body .col.left  { grid-template-rows: 720px 1fr; }
+.body .col.right { grid-template-rows: 520px 1fr; }
+
+footer.foot {
+	text-align: center; color: var(--ink-4); font-size: 11px;
+	padding: 60px 0 80px;
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+	<h1>Q4 locked · narrowing details</h1>
+	<span class="sub">Layout fixed. Tab style + map browse view vary subtly. Pick the one that reads best.</span>
+	<nav>
+		<a href="#M1">M1 · Pill tabs</a>
+		<a href="#M2">M2 · Underline tabs</a>
+		<a href="#M3">M3 · Segmented control</a>
+		<a href="#M4">M4 · Map browse state</a>
+	</nav>
+</header>
+
+<div class="intro">
+	<h2>Q4 locked — tabs moved into the panels, no more global Map/Music toggle</h2>
+	<p>Layout is now fixed: <strong>map TL, settings BL, players TR, chat BR</strong>. Players list <em>auto-sizes</em> to the slot count + spectator, chat fills the remainder.</p>
+	<div class="locked"><b>What's locked:</b> the quadrant arrangement and the Q4-style "chat eats the slack" sizing.&nbsp; <b>What's moved:</b> the Map / Music switch is gone from the global top bar — Music is now a tab inside the Settings quadrant, and the map area gets its own <code>Map / Change Map</code> tabs that swap the preview for an inline map picker (no modal).&nbsp; <b>What's varying below:</b> just the tab style and the inline map-list density.</p>
+	<p>M1 / M2 / M3 each show the lobby in the normal "Map preview" state with one tab style. M4 takes M1's tab style and shows what happens when you click <code>Change Map</code> — the inline map list opens in place.</p>
+</div>
+
+<!-- ============================================================
+     M1 — Pill tabs
+     ============================================================ -->
+<section class="variant" id="M1">
+	<header class="title">
+		<h2><span class="tag">M1</span>Pill tabs · the default direction</h2>
+		<p>Tabs render as filled-pill buttons grouped in a 4px-padded container. Currently selected pill picks up the accent-bg tint and accent text. Reads as "this segment is alive" without competing with the section title beside it.</p>
+		<p class="prop">map: <b>Map</b> · Change Map &nbsp;|&nbsp; settings: <b>Settings</b> · Music</p>
+	</header>
+	<div class="frame tabstyle-pill">
+		<div class="lobby-header">
+			<button class="back-btn">← Back</button>
+			<div class="title">SKIRMISH GAME · River Zeta WW3</div>
+			<div class="right">2 humans · 4 bots ready</div>
+		</div>
+		<div class="body">
+			<!-- LEFT COLUMN: Map (TL) + Settings (BL) -->
+			<div class="col left">
+				<div class="quad map-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Map</span>
+						<div class="qtabs">
+							<span class="qtab active">Map</span>
+							<span class="qtab">Change Map</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>Open in editor</a></span>
+					</div>
+					<div class="map-body">
+						<div class="map-img">
+							<span class="spawn a">A</span><span class="spawn b">B</span><span class="spawn c">C</span>
+							<span class="spawn d">D</span><span class="spawn e">E</span><span class="spawn f">F</span>
+						</div>
+						<div class="map-footer">
+							<div class="name">River Zeta WW3<span class="meta">CONQUEST · 6 spawns · By Medium Tank, ZxGanon, XavierX</span></div>
+							<div class="scenario">Scenario: None ▾</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad settings-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Settings <span class="count">1 modified</span></span>
+						<div class="qtabs">
+							<span class="qtab active">Settings</span>
+							<span class="qtab">Music</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>↺ reset to defaults</a></span>
+					</div>
+					<div class="settings-pad">
+						<div class="grid-settings">
+							<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+							<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Doomsday</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+							<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Income Mod</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+							<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+							<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+							<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+						</div>
+					</div>
+					<div class="bottom-strip">
+						<span class="lab">Changes <span class="badge">1</span></span>
+						<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+						<div class="sep"></div>
+						<span class="plab">Preset</span>
+						<input value="Default">
+						<button class="btn">Load ▾</button>
+						<button class="btn primary">Save</button>
+						<div class="spacer"></div>
+						<button class="btn">Reset</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- RIGHT COLUMN: Players (TR) auto-sized + Chat (BR) fills rest -->
+			<div class="col right">
+				<div class="quad players-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Players <span class="count">4 / 6</span></span>
+						<span class="spacer"></span>
+						<span class="actions"><a>+ Add bot</a><a>Auto-team</a><a>Replay last</a></span>
+					</div>
+					<div class="players-body">
+						<div class="team-balance">
+							<div class="side l">★★ AMERICA · 2</div>
+							<div class="vs">vs</div>
+							<div class="side r">2 · RUSSIA ★★</div>
+						</div>
+						<div class="player-rows">
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#6ed68a;"></div></div><div class="cell">0%</div><div class="cell">D</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#b878d8;"></div></div><div class="cell">0%</div><div class="cell">B</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#c8c860;"></div></div><div class="cell">0%</div><div class="cell">A</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#a050a0;"></div></div><div class="cell">0%</div><div class="cell">C</div><div class="ready">✓</div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow spectator"><div class="avatar">F</div><div class="name">FreadyFish<span class="tag">spectating · click a slot to take it</span></div></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad chat-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Chat</span>
+						<span class="spacer"></span>
+						<span class="actions"><a>Lobby only</a><a>Whisper…</a><a>Mute all</a></span>
+					</div>
+					<div class="chat-body">
+						<div class="lines">
+							<div class="line"><span class="ts">17:18</span><span><span class="system">FreadyFish has joined the game.</span></span></div>
+							<div class="line"><span class="ts">17:18</span><span><span class="system">Server: River Zeta WW3 loaded. Awaiting 2 more players.</span></span></div>
+							<div class="line"><span class="ts">17:19</span><span><span class="system">All bots ready.</span></span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> we testing the new lobby?</span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> chat fits more than one line now</span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="system">Auto-team applied: 2 vs 2.</span></span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="name">FreadyFish:</span> hey CmdrBambi you joining? V2 AI is doing the work otherwise</span></div>
+							<div class="line"><span class="ts">17:22</span><span><span class="name">FreadyFish:</span> looking sharp, let's roll once you're in</span></div>
+							<div class="line"><span class="ts">17:23</span><span><span class="name">FreadyFish:</span> btw drop feedback on the layout here</span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="system">CmdrBambi has joined the lobby.</span></span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="name">CmdrBambi:</span> finally a real chat window 😅</span></div>
+							<div class="line"><span class="ts">17:25</span><span><span class="name">CmdrBambi:</span> taking the open Russia slot</span></div>
+						</div>
+						<div class="compose">
+							<span class="mode">LOBBY</span>
+							<input placeholder="Press Enter to send · / for commands">
+							<button class="send">SEND ↵</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="cta-bar">
+			<div class="ready-status">All 4 bots <span class="ok">ready</span> · 1 human still picking</div>
+			<button class="start-game">▶  START GAME</button>
+			<div class="map-context">River Zeta WW3 · 2v2 conquest · Real Time</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     M2 — Underline tabs
+     ============================================================ -->
+<section class="variant" id="M2">
+	<header class="title">
+		<h2><span class="tag">M2</span>Underline tabs · quietest treatment</h2>
+		<p>Tabs as uppercase letterspaced text with a 2px accent underline on the active one — same vocabulary as the existing section-header accent rails. The repeated "Section title + tabs" double-up of M1 collapses into one: the tabs <em>are</em> the section header. Quietest read; least competing with content.</p>
+		<p class="prop">map: <b>MAP</b> &nbsp;CHANGE MAP &nbsp;|&nbsp; settings: <b>SETTINGS</b> &nbsp;MUSIC</p>
+	</header>
+	<div class="frame tabstyle-underline">
+		<div class="lobby-header">
+			<button class="back-btn">← Back</button>
+			<div class="title">SKIRMISH GAME · River Zeta WW3</div>
+			<div class="right">2 humans · 4 bots ready</div>
+		</div>
+		<div class="body">
+			<div class="col left">
+				<div class="quad map-quad">
+					<div class="qhead">
+						<div class="qtabs">
+							<span class="qtab active">MAP</span>
+							<span class="qtab">CHANGE MAP</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>Open in editor</a></span>
+					</div>
+					<div class="map-body">
+						<div class="map-img">
+							<span class="spawn a">A</span><span class="spawn b">B</span><span class="spawn c">C</span>
+							<span class="spawn d">D</span><span class="spawn e">E</span><span class="spawn f">F</span>
+						</div>
+						<div class="map-footer">
+							<div class="name">River Zeta WW3<span class="meta">CONQUEST · 6 spawns · By Medium Tank, ZxGanon, XavierX</span></div>
+							<div class="scenario">Scenario: None ▾</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad settings-quad">
+					<div class="qhead">
+						<div class="qtabs">
+							<span class="qtab active">SETTINGS</span>
+							<span class="qtab">MUSIC</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>1 modified</a><a>↺ reset to defaults</a></span>
+					</div>
+					<div class="settings-pad">
+						<div class="grid-settings">
+							<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+							<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Doomsday</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+							<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Income Mod</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+							<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+							<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+							<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+						</div>
+					</div>
+					<div class="bottom-strip">
+						<span class="lab">Changes <span class="badge">1</span></span>
+						<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+						<div class="sep"></div>
+						<span class="plab">Preset</span>
+						<input value="Default">
+						<button class="btn">Load ▾</button>
+						<button class="btn primary">Save</button>
+						<div class="spacer"></div>
+						<button class="btn">Reset</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="col right">
+				<div class="quad players-quad">
+					<div class="qhead">
+						<div class="qtabs">
+							<span class="qtab active">PLAYERS · 4 / 6</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>+ Add bot</a><a>Auto-team</a><a>Replay last</a></span>
+					</div>
+					<div class="players-body">
+						<div class="team-balance">
+							<div class="side l">★★ AMERICA · 2</div>
+							<div class="vs">vs</div>
+							<div class="side r">2 · RUSSIA ★★</div>
+						</div>
+						<div class="player-rows">
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#6ed68a;"></div></div><div class="cell">0%</div><div class="cell">D</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#b878d8;"></div></div><div class="cell">0%</div><div class="cell">B</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#c8c860;"></div></div><div class="cell">0%</div><div class="cell">A</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#a050a0;"></div></div><div class="cell">0%</div><div class="cell">C</div><div class="ready">✓</div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow spectator"><div class="avatar">F</div><div class="name">FreadyFish<span class="tag">spectating · click a slot to take it</span></div></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad chat-quad">
+					<div class="qhead">
+						<div class="qtabs">
+							<span class="qtab active">CHAT</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>Lobby only</a><a>Whisper…</a><a>Mute all</a></span>
+					</div>
+					<div class="chat-body">
+						<div class="lines">
+							<div class="line"><span class="ts">17:18</span><span><span class="system">FreadyFish has joined the game.</span></span></div>
+							<div class="line"><span class="ts">17:18</span><span><span class="system">Server: River Zeta WW3 loaded. Awaiting 2 more players.</span></span></div>
+							<div class="line"><span class="ts">17:19</span><span><span class="system">All bots ready.</span></span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> we testing the new lobby?</span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> chat fits more than one line now</span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="system">Auto-team applied: 2 vs 2.</span></span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="name">FreadyFish:</span> hey CmdrBambi you joining? V2 AI is doing the work otherwise</span></div>
+							<div class="line"><span class="ts">17:22</span><span><span class="name">FreadyFish:</span> looking sharp, let's roll once you're in</span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="system">CmdrBambi has joined the lobby.</span></span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="name">CmdrBambi:</span> finally a real chat window 😅</span></div>
+							<div class="line"><span class="ts">17:25</span><span><span class="name">CmdrBambi:</span> taking the open Russia slot</span></div>
+						</div>
+						<div class="compose">
+							<span class="mode">LOBBY</span>
+							<input placeholder="Press Enter to send · / for commands">
+							<button class="send">SEND ↵</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="cta-bar">
+			<div class="ready-status">All 4 bots <span class="ok">ready</span> · 1 human still picking</div>
+			<button class="start-game">▶  START GAME</button>
+			<div class="map-context">River Zeta WW3 · 2v2 conquest · Real Time</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     M3 — Segmented control
+     ============================================================ -->
+<section class="variant" id="M3">
+	<header class="title">
+		<h2><span class="tag">M3</span>Segmented control · iOS-style</h2>
+		<p>Tabs as a tight segmented control with a bordered shell and a subtle inset shadow on the active pill. Section title sits beside it as a quiet label. Most "modern app" feel — feels familiar from Settings panels on macOS/iOS, Stripe, Linear. The active segment really pops.</p>
+		<p class="prop">map: [<b>Map</b> | Change Map] &nbsp;|&nbsp; settings: [<b>Settings</b> | Music]</p>
+	</header>
+	<div class="frame tabstyle-segmented">
+		<div class="lobby-header">
+			<button class="back-btn">← Back</button>
+			<div class="title">SKIRMISH GAME · River Zeta WW3</div>
+			<div class="right">2 humans · 4 bots ready</div>
+		</div>
+		<div class="body">
+			<div class="col left">
+				<div class="quad map-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Map</span>
+						<div class="qtabs">
+							<span class="qtab active">Map</span>
+							<span class="qtab">Change Map</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>Open in editor</a></span>
+					</div>
+					<div class="map-body">
+						<div class="map-img">
+							<span class="spawn a">A</span><span class="spawn b">B</span><span class="spawn c">C</span>
+							<span class="spawn d">D</span><span class="spawn e">E</span><span class="spawn f">F</span>
+						</div>
+						<div class="map-footer">
+							<div class="name">River Zeta WW3<span class="meta">CONQUEST · 6 spawns · By Medium Tank, ZxGanon, XavierX</span></div>
+							<div class="scenario">Scenario: None ▾</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad settings-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Settings <span class="count">1 modified</span></span>
+						<div class="qtabs">
+							<span class="qtab active">Settings</span>
+							<span class="qtab">Music</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>↺ reset to defaults</a></span>
+					</div>
+					<div class="settings-pad">
+						<div class="grid-settings">
+							<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+							<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Doomsday</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+							<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Income Mod</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+							<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+							<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+							<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+						</div>
+					</div>
+					<div class="bottom-strip">
+						<span class="lab">Changes <span class="badge">1</span></span>
+						<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+						<div class="sep"></div>
+						<span class="plab">Preset</span>
+						<input value="Default">
+						<button class="btn">Load ▾</button>
+						<button class="btn primary">Save</button>
+						<div class="spacer"></div>
+						<button class="btn">Reset</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="col right">
+				<div class="quad players-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Players <span class="count">4 / 6</span></span>
+						<span class="spacer"></span>
+						<span class="actions"><a>+ Add bot</a><a>Auto-team</a><a>Replay last</a></span>
+					</div>
+					<div class="players-body">
+						<div class="team-balance">
+							<div class="side l">★★ AMERICA · 2</div>
+							<div class="vs">vs</div>
+							<div class="side r">2 · RUSSIA ★★</div>
+						</div>
+						<div class="player-rows">
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#6ed68a;"></div></div><div class="cell">0%</div><div class="cell">D</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#b878d8;"></div></div><div class="cell">0%</div><div class="cell">B</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#c8c860;"></div></div><div class="cell">0%</div><div class="cell">A</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#a050a0;"></div></div><div class="cell">0%</div><div class="cell">C</div><div class="ready">✓</div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow spectator"><div class="avatar">F</div><div class="name">FreadyFish<span class="tag">spectating · click a slot to take it</span></div></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad chat-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Chat</span>
+						<span class="spacer"></span>
+						<span class="actions"><a>Lobby only</a><a>Whisper…</a><a>Mute all</a></span>
+					</div>
+					<div class="chat-body">
+						<div class="lines">
+							<div class="line"><span class="ts">17:18</span><span><span class="system">FreadyFish has joined the game.</span></span></div>
+							<div class="line"><span class="ts">17:18</span><span><span class="system">Server: River Zeta WW3 loaded. Awaiting 2 more players.</span></span></div>
+							<div class="line"><span class="ts">17:19</span><span><span class="system">All bots ready.</span></span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> we testing the new lobby?</span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> chat fits more than one line now</span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="system">Auto-team applied: 2 vs 2.</span></span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="name">FreadyFish:</span> hey CmdrBambi you joining? V2 AI is doing the work otherwise</span></div>
+							<div class="line"><span class="ts">17:22</span><span><span class="name">FreadyFish:</span> looking sharp, let's roll once you're in</span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="system">CmdrBambi has joined the lobby.</span></span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="name">CmdrBambi:</span> finally a real chat window 😅</span></div>
+							<div class="line"><span class="ts">17:25</span><span><span class="name">CmdrBambi:</span> taking the open Russia slot</span></div>
+						</div>
+						<div class="compose">
+							<span class="mode">LOBBY</span>
+							<input placeholder="Press Enter to send · / for commands">
+							<button class="send">SEND ↵</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="cta-bar">
+			<div class="ready-status">All 4 bots <span class="ok">ready</span> · 1 human still picking</div>
+			<button class="start-game">▶  START GAME</button>
+			<div class="map-context">River Zeta WW3 · 2v2 conquest · Real Time</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     M4 — Map browse state (M1 tab style + map browse view)
+     ============================================================ -->
+<section class="variant" id="M4">
+	<header class="title">
+		<h2><span class="tag">M4</span>Map browse state · "Change Map" tab opened</h2>
+		<p>Same layout as M1; the user clicked the <code>Change Map</code> tab. The preview swaps in place for an inline map picker — search bar + category filters across the top, then a 3-column grid of map cards. The currently-selected one is outlined in accent with a "Current" badge. Clicking another card swaps the active selection and flips back to the preview tab. <strong>No modal, no page change.</strong></p>
+		<p class="prop">map tab: Map · <b>Change Map</b> &nbsp;|&nbsp; settings: <b>Settings</b> · Music</p>
+	</header>
+	<div class="frame tabstyle-pill">
+		<div class="lobby-header">
+			<button class="back-btn">← Back</button>
+			<div class="title">SKIRMISH GAME · River Zeta WW3</div>
+			<div class="right">2 humans · 4 bots ready</div>
+		</div>
+		<div class="body">
+			<div class="col left">
+				<div class="quad map-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Map</span>
+						<div class="qtabs">
+							<span class="qtab">Map</span>
+							<span class="qtab active">Change Map</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>Sort: Recent ▾</a></span>
+					</div>
+					<div class="map-browse">
+						<div class="browse-bar">
+							<input placeholder="Search maps…">
+							<span class="filter active">All · 13</span>
+							<span class="filter">2-player</span>
+							<span class="filter">4-player</span>
+							<span class="filter">6+</span>
+							<span class="filter">Conquest</span>
+							<span class="filter">Scenarios</span>
+						</div>
+						<div class="grid">
+							<div class="mcard selected">
+								<div class="thumb"><span class="badge">CURRENT</span></div>
+								<div class="info">
+									<div class="mname">River Zeta WW3</div>
+									<div class="mmeta">6 spawns · Conquest · 2 scenarios</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb urban"><span class="badge">4P</span></div>
+								<div class="info">
+									<div class="mname">Woodland Warfare WW3</div>
+									<div class="mmeta">4 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb desert"><span class="badge">8P</span></div>
+								<div class="info">
+									<div class="mname">Desert Crossroads</div>
+									<div class="mmeta">8 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb coastal"><span class="badge">2P</span></div>
+								<div class="info">
+									<div class="mname">Coastal Outpost</div>
+									<div class="mmeta">2 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb forest"><span class="badge">4P</span></div>
+								<div class="info">
+									<div class="mname">Black Forest</div>
+									<div class="mmeta">4 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb"><span class="badge">6P</span></div>
+								<div class="info">
+									<div class="mname">River Zeta Classic</div>
+									<div class="mmeta">6 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb urban"><span class="badge">4P</span></div>
+								<div class="info">
+									<div class="mname">Urban Sprawl</div>
+									<div class="mmeta">4 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb desert"><span class="badge">2P</span></div>
+								<div class="info">
+									<div class="mname">Dust Bowl</div>
+									<div class="mmeta">2 spawns · Conquest</div>
+								</div>
+							</div>
+							<div class="mcard">
+								<div class="thumb forest"><span class="badge">8P</span></div>
+								<div class="info">
+									<div class="mname">Highland Pass</div>
+									<div class="mmeta">8 spawns · Conquest</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad settings-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Settings <span class="count">1 modified</span></span>
+						<div class="qtabs">
+							<span class="qtab active">Settings</span>
+							<span class="qtab">Music</span>
+						</div>
+						<span class="spacer"></span>
+						<span class="actions"><a>↺ reset to defaults</a></span>
+					</div>
+					<div class="settings-pad">
+						<div class="grid-settings">
+							<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+							<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Doomsday</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+							<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Income Mod</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+							<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+							<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+							<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+							<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+							<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+							<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+						</div>
+					</div>
+					<div class="bottom-strip">
+						<span class="lab">Changes <span class="badge">1</span></span>
+						<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+						<div class="sep"></div>
+						<span class="plab">Preset</span>
+						<input value="Default">
+						<button class="btn">Load ▾</button>
+						<button class="btn primary">Save</button>
+						<div class="spacer"></div>
+						<button class="btn">Reset</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="col right">
+				<div class="quad players-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Players <span class="count">4 / 6</span></span>
+						<span class="spacer"></span>
+						<span class="actions"><a>+ Add bot</a><a>Auto-team</a><a>Replay last</a></span>
+					</div>
+					<div class="players-body">
+						<div class="team-balance">
+							<div class="side l">★★ AMERICA · 2</div>
+							<div class="vs">vs</div>
+							<div class="side r">2 · RUSSIA ★★</div>
+						</div>
+						<div class="player-rows">
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#6ed68a;"></div></div><div class="cell">0%</div><div class="cell">D</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">V</div><div class="name">V2 AI<span class="tag">experimental</span></div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#b878d8;"></div></div><div class="cell">0%</div><div class="cell">B</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill us"><span class="flag"></span>America</span></div><div><div class="color-swatch" style="background:#c8c860;"></div></div><div class="cell">0%</div><div class="cell">A</div><div class="ready">✓</div></div>
+							<div class="prow"><div class="avatar bot">N</div><div class="name">Normal AI</div><div><span class="faction-pill ru"><span class="flag"></span>Russia</span></div><div><div class="color-swatch" style="background:#a050a0;"></div></div><div class="cell">0%</div><div class="cell">C</div><div class="ready">✓</div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow empty"><div></div><div class="empty-actions"><span class="ba primary">▸ Play here</span><span class="ba">+ Add bot</span><span class="ba danger">Close slot</span></div></div>
+							<div class="prow spectator"><div class="avatar">F</div><div class="name">FreadyFish<span class="tag">spectating · click a slot to take it</span></div></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="quad chat-quad">
+					<div class="qhead">
+						<span class="accent"></span>
+						<span class="title">Chat</span>
+						<span class="spacer"></span>
+						<span class="actions"><a>Lobby only</a><a>Whisper…</a><a>Mute all</a></span>
+					</div>
+					<div class="chat-body">
+						<div class="lines">
+							<div class="line"><span class="ts">17:18</span><span><span class="system">FreadyFish has joined the game.</span></span></div>
+							<div class="line"><span class="ts">17:19</span><span><span class="system">All bots ready.</span></span></div>
+							<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish:</span> hmm let me browse for a different map</span></div>
+							<div class="line"><span class="ts">17:21</span><span><span class="system">FreadyFish opened the map picker.</span></span></div>
+							<div class="line"><span class="ts">17:22</span><span><span class="name">FreadyFish:</span> looking sharp — picker stays in place, nice</span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="system">CmdrBambi has joined the lobby.</span></span></div>
+							<div class="line"><span class="ts">17:24</span><span><span class="name">CmdrBambi:</span> ready when you've picked one</span></div>
+							<div class="line"><span class="ts">17:25</span><span><span class="name">FreadyFish:</span> sticking with River Zeta for the test</span></div>
+						</div>
+						<div class="compose">
+							<span class="mode">LOBBY</span>
+							<input placeholder="Press Enter to send · / for commands">
+							<button class="send">SEND ↵</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="cta-bar">
+			<div class="ready-status">All 4 bots <span class="ok">ready</span> · 1 human still picking</div>
+			<button class="start-game">▶  START GAME</button>
+			<div class="map-context">River Zeta WW3 · 2v2 conquest · Real Time</div>
+		</div>
+	</div>
+</section>
+
+<footer class="foot">
+	Pick a tab style (M1 / M2 / M3) — and call out anything to tweak about the map browse state (M4). We're narrowing down.
+</footer>
+
+</body>
+</html>
