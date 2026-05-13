@@ -142,31 +142,31 @@ Background@SERVER_LOBBY:
 					Height: 3
 					Color: 60D080FF
 		# Tab content area — fills the screen between the tab strip and the bottom CTA bar.
-		# 2x2 grid inside LOBBY_PLAYER_BIN positions Map / Settings / Players / Changes.
+		# Left column is always visible (map / players / chat); right column swaps via tabs.
 		Container@TOP_PANELS_ROOT:
 			X: 24
 			Y: 116
 			Width: PARENT_WIDTH - 48
 			Height: PARENT_HEIGHT - 196
-		# Map preview, scenario picker, and Change Map button are rendered as roots
-		# at lobby-level (LobbyLogic loads MapPreviewLogic into MAP_PREVIEW_ROOT
-		# before LOBBY_PLAYER_BIN exists). They're positioned to align with the
-		# top-left cell of the 2x2 grid. PITFALL: keep these coords in sync with
-		# the TL cell math in lobby-players.yaml.
+		# Map preview, scenario picker, and Change Map button live at lobby-root
+		# level (LobbyLogic loads MapPreviewLogic into MAP_PREVIEW_ROOT before
+		# LOBBY_PLAYER_BIN exists). They sit at the top of the LEFT column, bigger
+		# than the old 2x2 TL cell. The players list below them uses the same
+		# left-column width (PARENT_WIDTH - 64) / 2.
 		Container@MAP_PREVIEW_ROOT:
 			X: 24
 			Y: 116
 			Width: (PARENT_WIDTH - 64) / 2
-			Height: (PARENT_HEIGHT - 196) / 2 - 80
+			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: 24
-			Y: 116 + (PARENT_HEIGHT - 196) / 2 - 74
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 32
 			Width: ((PARENT_WIDTH - 64) / 2) / 2 - 4
 			Height: 32
 			Font: Bold
 		Button@CHANGEMAP_BUTTON:
 			X: 24 + ((PARENT_WIDTH - 64) / 2) / 2 + 4
-			Y: 116 + (PARENT_HEIGHT - 196) / 2 - 74
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 32
 			Width: ((PARENT_WIDTH - 64) / 2) / 2 - 4
 			Height: 32
 			Text: button-server-lobby-changemap
@@ -188,9 +188,9 @@ Background@SERVER_LOBBY:
 		# Chat — single-line ticker style just above the CTA strip.
 		Container@LOBBYCHAT:
 			X: 24
-			Y: PARENT_HEIGHT - 124
-			Width: PARENT_WIDTH - 48
-			Height: 56
+			Y: PARENT_HEIGHT - 132
+			Width: (PARENT_WIDTH - 64) / 2
+			Height: 64
 			Children:
 				ScrollPanel@CHAT_DISPLAY:
 					Width: PARENT_WIDTH

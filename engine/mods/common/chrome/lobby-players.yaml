@@ -2,140 +2,21 @@ Container@LOBBY_PLAYER_BIN:
 	Width: PARENT_WIDTH
 	Height: PARENT_HEIGHT
 	Children:
-		# ┌──────────────┬──────────────┐
-		# │  TL  Map     │  TR  Match   │
-		# │              │      settings│
-		# ├──────────────┼──────────────┤
-		# │  BL  Players │  BR  Changes │
-		# │              │      Preset  │
-		# └──────────────┴──────────────┘
-		# Each cell is PARENT_WIDTH/2 - 8 wide × PARENT_HEIGHT/2 - 8 tall, with
-		# 8px gap on both axes. Cell backgrounds are subtle dark fills so the
-		# grid reads visually. The TL cell is just an anchor — the actual map
-		# preview, scenario picker, and Change Map button are rendered at the
-		# lobby root level (see lobby.yaml) because LobbyLogic loads them before
-		# LOBBY_PLAYER_BIN exists.
-		Container@CELL_TL:
+		# Two-column layout. Left column is always visible (map + players + chat).
+		# Right column swaps via tabs: Match settings (this file), Advanced (lobby-options),
+		# or Music (lobby-music). Map preview, scenario picker, Change Map button, and
+		# chat are rendered at lobby-root level (see lobby.yaml) because LobbyLogic loads
+		# them before LOBBY_PLAYER_BIN exists. This file owns:
+		#   • LEFT_COLUMN_PLAYERS  — players list, full left-col width (always visible)
+		#   • RIGHT_COLUMN_MATCH   — match settings + active changes + preset (Match tab)
+
+		# LEFT column: players list. Map preview and chat are rendered at lobby-root
+		# level above and below this block.
+		Container@LEFT_COLUMN_PLAYERS:
 			X: 0
-			Y: 0
+			Y: PARENT_HEIGHT * 3 / 5 + 8
 			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT / 2 - 8
-			Children:
-				ColorBlock@CELL_BG:
-					Width: PARENT_WIDTH
-					Height: PARENT_HEIGHT
-					Color: 14171C90
-				Label@CELL_LABEL:
-					X: 12
-					Y: 10
-					Width: PARENT_WIDTH - 24
-					Height: 20
-					Font: TinyBold
-					Align: Left
-					Text: MAP
-		Container@CELL_TR:
-			X: PARENT_WIDTH / 2 + 8
-			Y: 0
-			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT / 2 - 8
-			Children:
-				ColorBlock@CELL_BG:
-					Width: PARENT_WIDTH
-					Height: PARENT_HEIGHT
-					Color: 14171C90
-				Label@CELL_LABEL:
-					X: 12
-					Y: 10
-					Width: PARENT_WIDTH - 24
-					Height: 20
-					Font: TinyBold
-					Align: Left
-					Text: MATCH SETTINGS
-				ScrollPanel@COMMON_OPTIONS_PANEL:
-					Logic: LobbyOptionsLogic
-					X: 4
-					Y: 36
-					Width: PARENT_WIDTH - 8
-					Height: PARENT_HEIGHT - 44
-					Background: ""
-					ScrollBar: Right
-					Children:
-						Label@CATEGORY_FILTER:
-							Visible: False
-							Text: Common
-						Container@LOBBY_OPTIONS:
-							Y: 5
-							Width: PARENT_WIDTH - 24
-							Children:
-								Container@SECTION_HEADER_TEMPLATE:
-									Width: PARENT_WIDTH
-									Height: 40
-									Visible: False
-									Children:
-										Label@HEADER_LABEL:
-											X: 10
-											Y: 14
-											Width: PARENT_WIDTH - 20
-											Height: 22
-											Font: MediumBold
-											Align: Left
-										ColorBlock@SEPARATOR:
-											X: 10
-											Y: 36
-											Width: PARENT_WIDTH - 20
-											Height: 1
-											Color: 60606080
-								Container@CHECKBOX_ROW_TEMPLATE:
-									Width: PARENT_WIDTH
-									Height: 30
-									Children:
-										Checkbox@A:
-											X: 10
-											Width: PARENT_WIDTH / 2 - 20
-											Height: 20
-											Visible: False
-											TooltipContainer: TOOLTIP_CONTAINER
-										Checkbox@B:
-											X: PARENT_WIDTH / 2 + 10
-											Width: PARENT_WIDTH / 2 - 20
-											Height: 20
-											Visible: False
-											TooltipContainer: TOOLTIP_CONTAINER
-								Container@DROPDOWN_ROW_TEMPLATE:
-									Height: 55
-									Width: PARENT_WIDTH
-									Children:
-										LabelForInput@A_DESC:
-											X: 10
-											Width: PARENT_WIDTH / 2 - 20
-											Height: 20
-											Visible: False
-											For: A
-										DropDownButton@A:
-											X: 10
-											Width: PARENT_WIDTH / 2 - 20
-											Y: 22
-											Height: 25
-											Visible: False
-											TooltipContainer: TOOLTIP_CONTAINER
-										LabelForInput@B_DESC:
-											X: PARENT_WIDTH / 2 + 10
-											Width: PARENT_WIDTH / 2 - 20
-											Height: 20
-											Visible: False
-											For: B
-										DropDownButton@B:
-											X: PARENT_WIDTH / 2 + 10
-											Width: PARENT_WIDTH / 2 - 20
-											Y: 22
-											Height: 25
-											Visible: False
-											TooltipContainer: TOOLTIP_CONTAINER
-		Container@CELL_BL:
-			X: 0
-			Y: PARENT_HEIGHT / 2 + 8
-			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT / 2 - 8
+			Height: PARENT_HEIGHT * 2 / 5 - 76
 			Children:
 				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
@@ -690,11 +571,15 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 32
 							Font: Bold
 							Text: Replay last
-		Container@CELL_BR:
+
+		# RIGHT column for the Match tab: settings + active changes + preset bar.
+		# LobbyLogic hides this whole block when the Advanced or Music tab is active —
+		# those tabs overlay LOBBY_OPTIONS_BIN / LOBBY_MUSIC_BIN over this column.
+		Container@RIGHT_COLUMN_MATCH:
 			X: PARENT_WIDTH / 2 + 8
-			Y: PARENT_HEIGHT / 2 + 8
+			Y: 0
 			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT / 2 - 8
+			Height: PARENT_HEIGHT
 			Children:
 				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
@@ -707,13 +592,101 @@ Container@LOBBY_PLAYER_BIN:
 					Height: 20
 					Font: TinyBold
 					Align: Left
+					Text: MATCH SETTINGS
+				ScrollPanel@COMMON_OPTIONS_PANEL:
+					Logic: LobbyOptionsLogic
+					X: 4
+					Y: 36
+					Width: PARENT_WIDTH - 8
+					Height: PARENT_HEIGHT - 256
+					Background: ""
+					ScrollBar: Right
+					Children:
+						Label@CATEGORY_FILTER:
+							Visible: False
+							Text: Common
+						Container@LOBBY_OPTIONS:
+							Y: 5
+							Width: PARENT_WIDTH - 24
+							Children:
+								Container@SECTION_HEADER_TEMPLATE:
+									Width: PARENT_WIDTH
+									Height: 40
+									Visible: False
+									Children:
+										Label@HEADER_LABEL:
+											X: 10
+											Y: 14
+											Width: PARENT_WIDTH - 20
+											Height: 22
+											Font: MediumBold
+											Align: Left
+										ColorBlock@SEPARATOR:
+											X: 10
+											Y: 36
+											Width: PARENT_WIDTH - 20
+											Height: 1
+											Color: 60606080
+								Container@CHECKBOX_ROW_TEMPLATE:
+									Width: PARENT_WIDTH
+									Height: 30
+									Children:
+										Checkbox@A:
+											X: 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										Checkbox@B:
+											X: PARENT_WIDTH / 2 + 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+								Container@DROPDOWN_ROW_TEMPLATE:
+									Height: 55
+									Width: PARENT_WIDTH
+									Children:
+										LabelForInput@A_DESC:
+											X: 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											For: A
+										DropDownButton@A:
+											X: 10
+											Width: PARENT_WIDTH / 2 - 20
+											Y: 22
+											Height: 25
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										LabelForInput@B_DESC:
+											X: PARENT_WIDTH / 2 + 10
+											Width: PARENT_WIDTH / 2 - 20
+											Height: 20
+											Visible: False
+											For: B
+										DropDownButton@B:
+											X: PARENT_WIDTH / 2 + 10
+											Width: PARENT_WIDTH / 2 - 20
+											Y: 22
+											Height: 25
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+				Label@CELL_LABEL_CHANGES:
+					X: 12
+					Y: PARENT_HEIGHT - 212
+					Width: PARENT_WIDTH - 24
+					Height: 20
+					Font: TinyBold
+					Align: Left
 					Text: ACTIVE CHANGES
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: 36
+					Y: PARENT_HEIGHT - 178
 					Width: PARENT_WIDTH - 24
-					Height: PARENT_HEIGHT - 92
+					Height: 132
 					Children:
 						ColorBlock@SECTION_BG:
 							Width: PARENT_WIDTH

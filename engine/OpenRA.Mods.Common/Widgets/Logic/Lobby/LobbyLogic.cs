@@ -243,7 +243,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{ "getMap", (Func<MapPreview>)(() => map) },
 				{ "configurationDisabled", (Func<bool>)(() => configurationDisabledRef != null && configurationDisabledRef()) }
 			});
-			playerBin.IsVisible = () => panel == PanelType.Players;
+			// Left column (map + players + chat) is always visible. The right column
+			// inside the bin (RIGHT_COLUMN_MATCH) hides on Advanced/Music tabs so the
+			// other bins can overlay only the right side.
+			playerBin.IsVisible = () => panel != PanelType.Servers;
+			var rightColumnMatch = playerBin.GetOrNull("RIGHT_COLUMN_MATCH");
+			if (rightColumnMatch != null)
+				rightColumnMatch.IsVisible = () => panel == PanelType.Players;
 
 			players = playerBin.Get<ScrollPanelWidget>("LOBBY_PLAYERS");
 			editablePlayerTemplate = players.Get("TEMPLATE_EDITABLE_PLAYER");
@@ -503,6 +509,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 
 			optionsBin.IsVisible = () => panel == PanelType.Options;
+			ConstrainToRightColumn(optionsBin);
 
 			var musicBin = Ui.LoadWidget("LOBBY_MUSIC_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs
 			{
@@ -510,6 +517,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{ "world", worldRenderer.World }
 			});
 			musicBin.IsVisible = () => panel == PanelType.Music;
+			ConstrainToRightColumn(musicBin);
 
 			ServerListLogic serverListLogic = null;
 			if (!skirmishMode)
@@ -759,6 +767,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			base.Dispose(disposing);
+		}
+
+		static void ConstrainToRightColumn(Widget bin)
+		{
+			// Tabbed bins (Options/Music) fill TOP_PANELS_ROOT by default. Re-bound them
+			// to the right half so the left column (map + players + chat) stays visible.
+			var parentBounds = bin.Parent.Bounds;
+			var halfWidth = parentBounds.Width / 2;
+			bin.Bounds = new WidgetBounds(halfWidth + 8, 0, halfWidth - 8, parentBounds.Height);
 		}
 
 		bool OptionsTabDisabled()
