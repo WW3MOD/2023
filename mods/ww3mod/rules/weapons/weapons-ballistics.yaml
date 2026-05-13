@@ -191,13 +191,13 @@ MP5:
 7.62mm.Minigun:
 	Inherits@Caliber: ^7.62mm
 	Inherits@HitEffects: ^PiffsEffects
-	Range: 15c0
+	Range: 8c0
 	Burst: 20
 	BurstDelays: 1
 	BurstWait: 5
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 0c256
+		Inaccuracy: 0c64
 		InaccuracyPerProjectile: 32,32,0
 		Image: tracer_large
 	Warhead@Spread: SpreadDamage
