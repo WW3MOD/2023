@@ -275,7 +275,13 @@ World:
 	InfluenceMap:
 		CellSize: 2
 		UpdateInterval: 25
-		ContributionRadius: 3
+		# Each unit's influence reaches 5 grid cells (10 map cells) in every direction
+		# with linear falloff. Tuned so a defensive line and an attacker that are still
+		# 15-20 cells apart already register a contested band — that's when the
+		# doctrine considers them "in contact", not when they're shooting at each
+		# other. Larger = more sensitive overlay; smaller = sharper band only when
+		# units are right on top of each other.
+		ContributionRadius: 5
 	# Stage A.3: in-game debug overlay for the InfluenceMap frontline.
 	# Toggled via chat command "/frontline" — hotkey wiring is Stage A.4.
 	FrontlineOverlay:

@@ -28,11 +28,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Chat command to toggle the overlay.")]
 		public readonly string CommandName = "frontline";
 
-		[Desc("Colour of the frontline marker (ARGB).")]
-		public readonly Color Color = Color.FromArgb(160, 255, 140, 0);
-
-		[Desc("Radius (in WDist units, 1024 = 1 cell) of the filled marker per grid cell.")]
-		public readonly int MarkerRadius = 768;
+		[Desc("Colour of the frontline cell fill (ARGB). Alpha lower than 255 lets",
+			"adjacent contested cells merge visually without obscuring units underneath.")]
+		public readonly Color Color = Color.FromArgb(110, 255, 140, 0);
 
 		public override object Create(ActorInitializer init) { return new FrontlineOverlay(this); }
 	}
@@ -80,7 +78,14 @@ namespace OpenRA.Mods.Common.Traits
 			else
 				frontline = influenceMap.GetFrontline(perspective);
 
-			var radius = new WDist(info.MarkerRadius);
+			// One filled quad per contested grid cell. Adjacent cells share edges so
+			// they tile seamlessly into a band — no gaps, no overlap.
+			//
+			// A grid cell footprint is CellSize × CellSize map cells. Map cells are
+			// 1024 WDist on each side. We compute the 4 world corners from the cell
+			// at (x, y)'s top-left map-cell origin.
+			var cellSize = influenceMap.Info.CellSize;
+			var sideWDist = cellSize * 1024;
 			for (var x = 0; x < influenceMap.GridWidth; x++)
 			{
 				for (var y = 0; y < influenceMap.GridHeight; y++)
@@ -88,12 +93,22 @@ namespace OpenRA.Mods.Common.Traits
 					if (!frontline[x, y])
 						continue;
 
-					var centreCell = influenceMap.GridCellToMapCell(x, y);
-					if (!world.Map.Contains(centreCell))
+					// World origin of the cell's top-left corner (map-cell index (x*cellSize, y*cellSize)).
+					var originCell = new CPos(x * cellSize, y * cellSize);
+					if (!world.Map.Contains(originCell))
 						continue;
 
-					var centreWorld = world.Map.CenterOfCell(centreCell);
-					yield return new CircleAnnotationRenderable(centreWorld, radius, 1, info.Color, filled: true);
+					var origin = world.Map.CenterOfCell(originCell) - new WVec(512, 512, 0);
+
+					var corners = new[]
+					{
+						origin,                                            // top-left
+						origin + new WVec(sideWDist, 0, 0),                // top-right
+						origin + new WVec(sideWDist, sideWDist, 0),        // bottom-right
+						origin + new WVec(0, sideWDist, 0),                // bottom-left
+					};
+
+					yield return new FilledQuadAnnotationRenderable(corners, info.Color);
 				}
 			}
 		}
