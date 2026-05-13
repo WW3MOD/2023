@@ -130,6 +130,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
+
+			TextNotificationsManager.AddSystemLine(
+				$"[v2-layered-defence] enabled for {player.PlayerName} ({player.Faction.Name})");
+			Log.Write("debug",
+				$"[v2-layered-defence] TraitEnabled — player={player.PlayerName} screen-types={Info.ScreenUnitTypes.Count} mainline-types={Info.MainLineUnitTypes.Count} excluded-types={Info.ExcludedActorTypes.Count}");
 		}
 
 		void IBotTick.BotTick(IBot bot)

@@ -115,6 +115,13 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
+
+			// Visible confirmation in chat that v2 transport is wired for this player.
+			// Without this, "is the module even active?" is impossible to verify ingame.
+			TextNotificationsManager.AddSystemLine(
+				$"[v2-transport] enabled for {player.PlayerName} ({player.Faction.Name})");
+			Log.Write("debug",
+				$"[v2-transport] TraitEnabled — player={player.PlayerName} carriers={string.Join(",", Info.CarrierTypes)} passengers={Info.PassengerTypes.Count} types");
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -242,6 +249,13 @@ namespace OpenRA.Mods.Common.Traits
 					&& !carrierTasks.ContainsKey(a)
 					&& a.Info.HasTraitInfo<CargoInfo>())
 				.ToList();
+
+			// Diagnostic counts: total carriers owned and how many are idle+empty+free.
+			var totalCarriers = world.Actors.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.CarrierTypes.Contains(a.Info.Name.ToLowerInvariant()));
+			Log.Write("debug",
+				$"[v2-transport] scan player={player.PlayerName} carriers-total={totalCarriers} carriers-candidate={candidates.Count} tasks-active={carrierTasks.Count}");
+
 			if (candidates.Count == 0)
 				return;
 
@@ -266,6 +280,9 @@ namespace OpenRA.Mods.Common.Traits
 					&& a.Info.HasTraitInfo<PassengerInfo>()
 					&& (a.Location - srCell).LengthSquared <= reserveRadiusSq)
 				.ToList();
+
+			Log.Write("debug",
+				$"[v2-transport] passengers-in-reserve={availablePassengers.Count} (radius={Info.ReserveZoneRadiusCells} sr-cell={srCell})");
 
 			if (availablePassengers.Count == 0)
 				return;

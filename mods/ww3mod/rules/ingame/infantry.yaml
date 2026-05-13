@@ -76,6 +76,10 @@
 	Passenger:
 		CargoType: Infantry
 		CargoCondition: disable-experience
+		# Match the capture/evacuation line colour so the player can read
+		# "this unit is boarding a transport" at a glance — same orange-pink
+		# (FFC850B4) used by ^CapturesNeutralBuildings and DeliversCash.
+		TargetLineColor: FFC850B4
 	GainsExperienceMultiplier:
 		Modifier: 0
 		RequiresCondition: disable-experience
