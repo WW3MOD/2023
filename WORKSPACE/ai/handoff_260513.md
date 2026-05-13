@@ -314,6 +314,30 @@ tail -50 "$HOME/Library/Application Support/OpenRA/Logs/debug.log" | grep v2-
 - Phase E — Personality differentiation — not started
 - Phase F — Honest fog — not started
 
+## TECN diagnostic shipped (2026-05-14)
+
+Bug 1 (TECN order-overwriting) is still open. The handoff's AutoTarget
+hypothesis was disproven by reading `AutoTarget.Damaged`
+(`engine/OpenRA.Mods.Common/Traits/AutoTarget.cs:443`) — retaliation
+only fires when `IsIdle`, which CaptureActor blocks. So whatever is
+interrupting TECN is something else (suppression/panic? activity
+internal failure? another module?). Speculation paused; evidence next.
+
+Two diagnostic streams added to `CaptureCoordinatorBotModule`:
+
+1. **Pre-scan snapshot** — every scan logs each owned TECN with
+   `actor@loc idle=… activity=… active=… tick=…`. If TECN flips
+   `CaptureActor` → `<none>` → `CaptureActor` across consecutive scans,
+   the *inner activity* is failing. If it shows a non-Capture activity
+   surfacing, some other order is winning.
+2. **Order-issue log** — every CaptureActor order emitted logs
+   `actor@loc → target@loc score=… tick=…`. Counts + cadence reveal
+   re-issue rate. If the same TECN is issued the same target twice
+   within a few scans, the order is failing.
+
+Next playtest: run v2-vs-v2, grep `[v2-capture]` in debug.log. The
+patterns above name the root cause; *then* we fix.
+
 ## IsIdle-fix shipped (2026-05-14)
 
 Root cause was three-fold, not two:

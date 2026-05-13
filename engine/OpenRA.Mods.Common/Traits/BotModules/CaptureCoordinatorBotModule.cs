@@ -177,6 +177,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.CapturingActorTypes.Count == 0)
 				return;
 
+			// Per-TECN diagnostic: each scan, log every owned capturer's state.
+			// User reports "orders gets overwritten" — this log lets us see the
+			// idle-flip cadence + which activity is running. If we see a TECN
+			// flip from CaptureActor → <none> → CaptureActor between scans, we
+			// know the inner activity is failing; if we see new orders going
+			// out to a TECN that already had one, the issuing logic is the bug.
+			foreach (var a in capturingActors.Actors)
+			{
+				var activity = a.CurrentActivity?.GetType().Name ?? "<none>";
+				var inActive = activeCapturers.Contains(a);
+				Log.Write("debug",
+					$"[v2-capture] pre-scan player={player.PlayerName} actor={a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} active={inActive} tick={world.WorldTick}");
+			}
+
 			activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
 
 			var idleCapturers = capturingActors.Actors
@@ -265,6 +279,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
 				DispatchEscort(bot, capturer.Actor, bestTarget, escortsRecruitedThisTick);
+
+				Log.Write("debug",
+					$"[v2-capture] issue player={player.PlayerName} actor={capturer.Actor.Info.Name}@{capturer.Actor.Location} → {bestTarget.Info.Name}@{bestTarget.Location} score={bestScore} tick={world.WorldTick}");
 
 				AIUtils.BotDebug("AI ({0}): v2-capture — {1} → {2} (score={3})",
 					player.ClientIndex, capturer.Actor.Info.Name, bestTarget.Info.Name, bestScore);
