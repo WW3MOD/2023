@@ -210,11 +210,19 @@ Player:
 		AntiAirUnits: aa.russia, tunguska
 		MinEnemySightings: 3
 
-	# v2 doctrine — Stage B.1: layered defence placement.
-	# Reads InfluenceMap.GetFrontline and assigns idle units to two layers:
+	# v2 doctrine — Stage B.1: layered defence placement, reserve-driven.
+	#
+	# Only RESERVES get re-tasked — units within OnLineRadiusCells of any
+	# contested cell are "on the engagement line" and stay put. Reserves
+	# fill the line by score: prefer slots where our line is thin AND the
+	# enemy is weak. Emergent behaviour:
+	#   - even distribution along the frontline
+	#   - flanking toward enemy weak points (low-enemy-density slots)
+	#
 	#   SCREEN     — light infantry, sit AT the contested edge (sparse).
 	#   MAIN LINE  — heavy infantry + vehicles + ATGM/artillery + AA,
 	#                positioned MainLineStandoffCells behind, toward own SR.
+	#
 	# B.2 will add treeline/garrison preference for the screen;
 	# B.3 will add overlapping-fields-of-fire check for the main line.
 	# See WORKSPACE/ai/stage_b_layered_defence.md.
@@ -222,7 +230,11 @@ Player:
 		RequiresCondition: enable-ai-v2
 		ScanInterval: 75
 		AssignCooldownTicks: 250
-		MainLineStandoffCells: 6
+		MainLineStandoffCells: 8
+		OnLineRadiusCells: 8
+		FriendlyGapWeight: 2
+		EnemyWeaknessWeight: 1
+		MaxAssignsPerScan: 6
 		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
 		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, bradley, bmp2, m113, m109, paladin, grad, tos, m270, strykershorad, tunguska
 

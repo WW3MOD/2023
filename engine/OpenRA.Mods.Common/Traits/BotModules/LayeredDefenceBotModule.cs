@@ -2,17 +2,25 @@
 /*
  * WW3MOD LayeredDefenceBotModule — Stage B.1 of the doctrine roadmap.
  *
- * Reads InfluenceMap.GetFrontline(perspective) every N ticks. For each
- * IDLE unit:
+ * RESERVE-DRIVEN line filling + emergent flanking. Reads
+ * InfluenceMap.GetFrontline(perspective) every N ticks. For each
+ * RESERVE unit (= idle, AND not already on the line):
  *
- *   - SCREEN-eligible (light infantry): move to the nearest contested
- *     cell. The screen sits AT the contested edge; B.2 adds treeline
- *     and garrison preference for cover.
+ *   1. Score every contested cell as a candidate slot. Score favours
+ *      cells where BOTH our line is thin (low friendly influence) AND
+ *      the enemy is weak (low enemy influence). Lowest-density cell
+ *      wins — that's a gap to fill AND a weak point to flank.
  *
- *   - MAIN-LINE-eligible (heavy infantry + vehicles + AA + artillery):
- *     move to a standoff position behind the frontline — frontline cell
- *     shifted by MainLineStandoffCells along the vector from cell ->
- *     own SR.
+ *   2. Send the unit to that slot. SCREEN units (light infantry) go
+ *      to the slot directly. MAIN-LINE units (vehicles + heavy inf +
+ *      artillery + AA) go to a standoff position shifted along the
+ *      vector from slot -> own SR.
+ *
+ * Crucial detail per doctrine: units ALREADY on the engagement line
+ * do NOT get re-tasked. Filling and flanking comes from the reserves
+ * behind them. A unit is "on the line" if it sits within
+ * OnLineRadiusCells of any contested cell. As the front shifts, units
+ * naturally re-enter the reserve pool when they fall behind it.
  *
  * Doctrine: WORKSPACE/ai/doctrine.md. Stage spec:
  * WORKSPACE/ai/stage_b_layered_defence.md.
@@ -49,6 +57,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Standoff distance (cells) from the contested edge for main-line positioning.")]
 		public readonly int MainLineStandoffCells = 6;
+
+		[Desc("Map-cell radius around a contested cell that counts as 'on the line'.",
+			"Units within this radius are NOT re-tasked — only true reserves (further back)",
+			"get reassigned to fill gaps or flank weak enemy points.")]
+		public readonly int OnLineRadiusCells = 8;
+
+		[Desc("Weight applied to friendly influence when scoring candidate slots.",
+			"Higher = stronger preference for cells where OUR line has a gap (spread units evenly).")]
+		public readonly int FriendlyGapWeight = 2;
+
+		[Desc("Weight applied to enemy influence when scoring candidate slots.",
+			"Higher = stronger preference for cells where the ENEMY is weak (flanking).",
+			"With both weights ~equal, units distribute evenly AND naturally avoid enemy concentrations.")]
+		public readonly int EnemyWeaknessWeight = 1;
+
+		[Desc("Maximum number of slot assignments per scan pass. Higher = quicker fill,",
+			"but more orders/tick.")]
+		public readonly int MaxAssignsPerScan = 4;
 
 		[Desc("Actor types of the bot's home Supply Route — used to compute the 'behind' direction.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
@@ -107,12 +133,17 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
 			if (ownSR == null)
 				return;
-
 			var srCell = ownSR.Location;
-			var cooldownExpiresBefore = world.WorldTick - Info.AssignCooldownTicks;
 
-			// Walk idle units. Cheap filter first (player ownership, idle, alive), then
-			// classify into screen / main-line.
+			// Per-perspective influence layers — used for slot scoring.
+			var friendlyInf = influenceMap.GetFriendlyInfluence(player);
+			var enemyInf = influenceMap.GetEnemyInfluence(player);
+
+			// Gather reserve units (idle, eligible, NOT on the line, cooldown elapsed).
+			// On-line units stay put — line-filling and flanking happens from the rear.
+			var onLineRadiusSq = (long)Info.OnLineRadiusCells * Info.OnLineRadiusCells;
+			var cooldownExpiresBefore = world.WorldTick - Info.AssignCooldownTicks;
+			var reserves = new List<(Actor Actor, bool IsScreen)>();
 			foreach (var actor in world.Actors)
 			{
 				if (actor.Owner != player || actor.IsDead || !actor.IsInWorld || !actor.IsIdle)
@@ -124,43 +155,119 @@ namespace OpenRA.Mods.Common.Traits
 				if (!isScreen && !isMainLine)
 					continue;
 
-				// Cooldown gate. Keep the actor entry around so the dictionary tracks history.
 				if (assignedAtTick.TryGetValue(actor, out var lastTick) && lastTick > cooldownExpiresBefore)
 					continue;
-
 				if (!actor.Info.HasTraitInfo<IPositionableInfo>())
 					continue;
 
-				// Nearest contested cell (Manhattan distance in CPos).
+				// On-the-line check: skip if any contested cell is within OnLineRadiusCells.
 				var actorCell = actor.Location;
-				var nearestContested = NearestCell(contestedCells, actorCell);
-
-				CPos targetCell;
-				if (isScreen)
+				var onLine = false;
+				foreach (var c in contestedCells)
 				{
-					// Screen sits AT the contested edge.
-					targetCell = nearestContested;
-				}
-				else
-				{
-					// Main line: shift from contested cell toward own SR by MainLineStandoffCells.
-					targetCell = ShiftToward(nearestContested, srCell, Info.MainLineStandoffCells);
+					var dx = c.X - actorCell.X;
+					var dy = c.Y - actorCell.Y;
+					if ((long)dx * dx + (long)dy * dy <= onLineRadiusSq)
+					{
+						onLine = true;
+						break;
+					}
 				}
 
+				if (onLine)
+					continue;
+
+				reserves.Add((actor, isScreen));
+			}
+
+			if (reserves.Count == 0)
+				return;
+
+			// Score every contested cell as a candidate slot. Lower combined density
+			// (friendly gap + enemy weakness) → higher score. Cells already assigned
+			// this tick get a heavy penalty so we spread across the line.
+			var assignedSlots = new HashSet<CPos>();
+			var assignsThisPass = 0;
+
+			// Send reserves closest to the line first — they arrive faster and feel
+			// more responsive.
+			reserves.Sort((a, b) =>
+			{
+				var da = MinSqDistTo(a.Actor.Location, contestedCells);
+				var db = MinSqDistTo(b.Actor.Location, contestedCells);
+				return da.CompareTo(db);
+			});
+
+			foreach (var (actor, isScreen) in reserves)
+			{
+				if (assignsThisPass >= Info.MaxAssignsPerScan)
+					break;
+
+				CPos bestSlot = default;
+				var bestScore = long.MinValue;
+				var found = false;
+
+				foreach (var c in contestedCells)
+				{
+					if (assignedSlots.Contains(c))
+						continue;
+
+					var (gx, gy) = influenceMap.MapCellToGridCell(c);
+					if (gx < 0 || gx >= friendlyInf.GetLength(0) || gy < 0 || gy >= friendlyInf.GetLength(1))
+						continue;
+
+					// Lower density on BOTH sides = higher score (gap to fill AND weak enemy = flank).
+					// Both weights tunable; with equal weights, units spread evenly along the line
+					// and naturally pull toward enemy weak points.
+					var score = -(long)Info.FriendlyGapWeight * friendlyInf[gx, gy]
+								- (long)Info.EnemyWeaknessWeight * enemyInf[gx, gy];
+
+					if (score > bestScore)
+					{
+						bestScore = score;
+						bestSlot = c;
+						found = true;
+					}
+				}
+
+				if (!found)
+					break;
+
+				// Screen units sit AT the slot. Main-line units shift behind, toward our SR.
+				var targetCell = isScreen
+					? bestSlot
+					: ShiftToward(bestSlot, srCell, Info.MainLineStandoffCells);
 				if (!world.Map.Contains(targetCell))
 					continue;
 
 				bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false));
 				assignedAtTick[actor] = world.WorldTick;
+				assignedSlots.Add(bestSlot);
+				assignsThisPass++;
 
-				AIUtils.BotDebug("AI ({0}): layered-defence — {1} ({2}) → {3} (contested at {4})",
-					player.ClientIndex, name, isScreen ? "SCREEN" : "MAIN", targetCell, nearestContested);
+				AIUtils.BotDebug("AI ({0}): layered-defence — {1} ({2}) → {3} (slot {4} score {5})",
+					player.ClientIndex, actor.Info.Name, isScreen ? "SCREEN" : "MAIN", targetCell, bestSlot, bestScore);
 			}
 
-			// Drop entries for actors that have died, so the dictionary doesn't grow.
+			// Drop dead-actor entries so the dictionary doesn't grow.
 			var deadKeys = assignedAtTick.Keys.Where(a => a.IsDead || !a.IsInWorld).ToList();
 			foreach (var k in deadKeys)
 				assignedAtTick.Remove(k);
+		}
+
+		static long MinSqDistTo(CPos from, List<CPos> cells)
+		{
+			var best = long.MaxValue;
+			foreach (var c in cells)
+			{
+				var dx = c.X - from.X;
+				var dy = c.Y - from.Y;
+				var d = (long)dx * dx + (long)dy * dy;
+				if (d < best)
+					best = d;
+			}
+
+			return best;
 		}
 
 		List<CPos> CollectContestedCells(bool[,] frontline)
@@ -188,23 +295,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return result;
-		}
-
-		static CPos NearestCell(List<CPos> cells, CPos from)
-		{
-			var best = cells[0];
-			var bestDist = (best - from).LengthSquared;
-			for (var i = 1; i < cells.Count; i++)
-			{
-				var d = (cells[i] - from).LengthSquared;
-				if (d < bestDist)
-				{
-					bestDist = d;
-					best = cells[i];
-				}
-			}
-
-			return best;
 		}
 
 		// Shift `from` toward `toward` by `cells` map cells. If the points are
