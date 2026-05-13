@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · hero-metrics variations @ 1440p</title>
+<style>
+:root {
+	--bg-app: #0c0e11;
+	--bg-card: #14171c;
+	--bg-card-2: #1a1e25;
+	--bg-card-3: #21262e;
+	--bg-row: #1c2027;
+	--bg-row-hover: #232831;
+	--line: #2a2f37;
+	--line-soft: #1f2329;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-glow: #60d08055;
+	--accent-soft: #2d6240;
+	--accent-bg: rgba(96,208,128,.08);
+	--warn: #f0b060;
+	--danger: #e77d7d;
+	--us: #4a7fc4;
+	--ru: #c44a4a;
+	--track: #2f343c;
+	font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: var(--bg-app); color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header.top {
+	position: sticky; top: 0; z-index: 10;
+	background: rgba(12,14,17,.92); backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--line);
+	padding: 14px 32px; display: flex; align-items: baseline; gap: 28px; flex-wrap: wrap;
+}
+header.top h1 { margin: 0; font-size: 16px; }
+header.top .sub { color: var(--ink-3); font-size: 12px; }
+header.top nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+header.top nav a { color: var(--ink-2); text-decoration: none; }
+header.top nav a:hover { color: var(--accent); }
+
+.intro {
+	max-width: 980px; margin: 32px auto 8px; padding: 0 32px;
+	color: var(--ink-2); font-size: 13.5px; line-height: 1.6;
+}
+.intro h2 { color: var(--ink); font-size: 22px; margin: 0 0 12px; }
+.intro p { margin: 0 0 12px; }
+.intro code { background: var(--bg-card); padding: 1px 6px; border-radius: 3px; color: var(--accent); font-size: 12px; }
+.intro .dims { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--accent); }
+
+section.variant {
+	margin: 56px auto; max-width: 2640px; padding: 0 32px;
+}
+section.variant header.title { padding: 0 0 18px; }
+section.variant header.title h2 {
+	margin: 0 0 6px; color: var(--ink); font-size: 22px; letter-spacing: 0.2px;
+}
+section.variant header.title h2 .tag {
+	font-size: 12px; color: var(--accent); letter-spacing: 1px; font-weight: 600;
+	margin-right: 12px; vertical-align: 2px;
+}
+section.variant header.title p { margin: 0; color: var(--ink-3); max-width: 980px; font-size: 13px; }
+section.variant header.title p.notes { margin-top: 6px; color: var(--ink-4); font-size: 12px; font-style: italic; }
+
+/* The frame simulates the actual right column at 1440p (2560×1440 display).
+   Right column is roughly window_width/2 − 32 ≈ 1248px wide × 880px tall
+   inside TOP_PANELS_ROOT. We render at native pixel size so widths and
+   spacing match what the in-game chrome will see. Long pages scroll
+   horizontally if the viewport is narrower than 2560 — that's expected. */
+.frame {
+	background: var(--bg-app); border: 1px solid var(--line); border-radius: 8px;
+	overflow: hidden; padding: 0;
+	display: grid; grid-template-columns: 1248px 1248px;
+	gap: 16px; padding: 16px;
+	width: max-content;
+}
+.frame .left-mock {
+	background: linear-gradient(135deg, #14171c 0%, #1a1e25 100%);
+	color: var(--ink-4); font-size: 13px;
+	display: flex; align-items: center; justify-content: center;
+	height: 880px; border-radius: 6px;
+}
+.frame .left-mock .label { letter-spacing: 3px; font-size: 12px; opacity: 0.45; }
+.frame .right-panel {
+	background: var(--bg-card);
+	height: 880px; overflow: hidden; border-radius: 6px;
+	position: relative;
+}
+
+/* ============================================================
+   SHARED HERO METRIC SYSTEM
+   Big-number cards. Variants tweak the layout.
+   ============================================================ */
+.hcard {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 6px;
+	padding: 18px 20px 16px; position: relative; cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+}
+.hcard:hover { border-color: var(--ink-4); background: var(--bg-card-3); }
+.hcard.changed { border-color: var(--accent-soft); background: var(--accent-bg); }
+.hcard.changed::before {
+	content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+	width: 3px; background: var(--accent); border-radius: 6px 0 0 6px;
+	box-shadow: 0 0 12px var(--accent-glow);
+}
+.hcard .lab {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 1px;
+	text-transform: uppercase; font-weight: 600;
+}
+.hcard .val {
+	font-size: 28px; color: var(--ink); margin-top: 6px; font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.hcard.changed .val { color: var(--accent); text-shadow: 0 0 18px var(--accent-glow); }
+.hcard .trail { font-size: 11px; color: var(--ink-4); margin-top: 4px; }
+.hcard .drop {
+	position: absolute; top: 16px; right: 16px; color: var(--ink-3); font-size: 12px;
+}
+
+.h-section-title {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px;
+	font-weight: 600; text-transform: uppercase;
+	display: flex; align-items: baseline; gap: 12px;
+}
+.h-section-title::after {
+	content: ""; flex: 1; height: 1px; background: var(--line-soft);
+}
+.h-section-title .count {
+	background: var(--accent-soft); color: var(--accent); font-size: 10px;
+	padding: 1px 7px; border-radius: 8px; letter-spacing: 0;
+}
+
+.pill {
+	display: inline-flex; align-items: center; gap: 8px;
+	padding: 8px 16px; border-radius: 16px;
+	background: var(--bg-card-2); border: 1px solid var(--line);
+	font-size: 13px; color: var(--ink-3); cursor: pointer;
+	transition: all 0.15s;
+}
+.pill:hover { border-color: var(--ink-4); color: var(--ink); }
+.pill.on {
+	background: var(--accent-bg); border-color: var(--accent-soft);
+	color: var(--accent);
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); }
+.pill.on .dot { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+
+.line-row {
+	display: flex; align-items: center; justify-content: space-between;
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 5px;
+	padding: 12px 16px; cursor: pointer;
+}
+.line-row:hover { border-color: var(--ink-4); }
+.line-row .ll { color: var(--ink-3); font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
+.line-row .lv { color: var(--ink); font-size: 13.5px; font-weight: 500; }
+.line-row .chev { color: var(--ink-4); margin-left: 8px; font-size: 11px; }
+.line-row.changed { border-color: var(--accent-soft); }
+.line-row.changed .lv { color: var(--accent); }
+
+/* ============================================================
+   SHARED bottom strip — Active Changes + Preset
+   Used by all variants, positioned via wrapper
+   ============================================================ */
+.bottom-strip {
+	position: absolute; left: 0; right: 0; bottom: 0;
+	background: var(--bg-card); border-top: 1px solid var(--line);
+}
+.bottom-strip .active {
+	padding: 14px 24px; display: flex; align-items: center; gap: 12px;
+	border-bottom: 1px solid var(--line-soft); flex-wrap: wrap;
+}
+.bottom-strip .active .lab {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.bottom-strip .active .lab .badge {
+	background: var(--accent); color: var(--bg-app); padding: 2px 8px;
+	border-radius: 10px; margin-left: 6px; font-size: 10px;
+}
+.bottom-strip .active .lab.empty {
+	font-weight: 400; letter-spacing: 0; color: var(--ink-4);
+	text-transform: none;
+}
+.bottom-strip .active .chip {
+	display: inline-flex; gap: 8px; align-items: center;
+	background: var(--bg-card-2); border: 1px solid var(--accent-soft);
+	padding: 5px 11px; border-radius: 4px; font-size: 12.5px;
+}
+.bottom-strip .active .chip .clab { color: var(--ink-3); }
+.bottom-strip .active .chip .cval { color: var(--accent); font-weight: 600; }
+.bottom-strip .active .chip .x {
+	color: var(--ink-4); cursor: pointer; font-size: 14px; margin-left: 4px;
+}
+.bottom-strip .active .chip .x:hover { color: var(--ink); }
+.bottom-strip .preset {
+	padding: 12px 24px; display: flex; gap: 10px; align-items: center;
+}
+.bottom-strip .preset .plab {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+	margin-right: 4px;
+}
+.bottom-strip .preset input {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 12px; color: var(--ink); font-size: 13px; width: 220px;
+}
+.bottom-strip .preset .btn {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 16px; color: var(--ink-2); font-size: 12px; cursor: pointer;
+}
+.bottom-strip .preset .btn:hover { color: var(--ink); border-color: var(--ink-3); }
+.bottom-strip .preset .btn.primary {
+	background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent);
+}
+.bottom-strip .preset .spacer { flex: 1; }
+
+/* ============================================================
+   VARIANT D0 — Baseline Wide Hero
+   ============================================================ */
+.d0 { padding: 24px 24px 220px; height: 100%; box-sizing: border-box; overflow-y: auto; }
+.d0 .h-section-title { margin: 0 0 14px; }
+.d0 .h-section-title + .grid { margin-bottom: 26px; }
+.d0 .grid.economy { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.d0 .grid.match   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.d0 .grid.world   { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ============================================================
+   VARIANT D1 — Mixed sizes (Magazine layout)
+   ============================================================ */
+.d1 { padding: 24px 24px 220px; height: 100%; box-sizing: border-box; overflow-y: auto; }
+.d1 .h-section-title { margin: 0 0 14px; }
+.d1 .h-section-title + .grid { margin-bottom: 26px; }
+.d1 .grid.economy {
+	display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 12px;
+}
+.d1 .grid.economy .hcard.feature {
+	padding: 22px 24px 20px; background: linear-gradient(135deg, var(--bg-card-2) 0%, var(--bg-card-3) 100%);
+}
+.d1 .grid.economy .hcard.feature .val { font-size: 36px; }
+.d1 .grid.economy .hcard.feature .lab { font-size: 12px; letter-spacing: 2px; }
+.d1 .grid.match {
+	display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.d1 .grid.world { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ============================================================
+   VARIANT D2 — Two-tier (KPI strip + edit grid)
+   ============================================================ */
+.d2 { padding: 24px 24px 220px; height: 100%; box-sizing: border-box; overflow-y: auto; }
+.d2 .kpi-strip {
+	display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+	background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 8px; padding: 16px; margin-bottom: 24px;
+}
+.d2 .kpi {
+	padding: 8px 14px; border-right: 1px solid var(--line-soft);
+}
+.d2 .kpi:last-child { border-right: none; }
+.d2 .kpi .klab { font-size: 11px; color: var(--ink-3); letter-spacing: 1px; text-transform: uppercase; }
+.d2 .kpi .kval { font-size: 24px; color: var(--ink); margin-top: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.d2 .kpi.changed .kval { color: var(--accent); }
+.d2 .kpi .kpi-actions {
+	margin-top: 6px; font-size: 11px; color: var(--ink-4); cursor: pointer;
+}
+.d2 .kpi .kpi-actions:hover { color: var(--accent); }
+
+.d2 .columns { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.d2 .col h3 {
+	margin: 0 0 12px; font-size: 11px; color: var(--ink-3); letter-spacing: 2px;
+	font-weight: 600; text-transform: uppercase;
+}
+.d2 .col .col-body { display: grid; gap: 10px; }
+.d2 .col.world .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ============================================================
+   VARIANT D3 — Sidebar nav + content
+   ============================================================ */
+.d3 { display: grid; grid-template-columns: 220px 1fr; height: 100%; box-sizing: border-box; }
+.d3 .sidebar {
+	background: var(--bg-card-2); border-right: 1px solid var(--line);
+	padding: 24px 16px;
+}
+.d3 .sidebar h2 {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+	text-transform: uppercase; margin: 0 0 14px;
+}
+.d3 .sidebar a {
+	display: flex; align-items: center; gap: 10px;
+	padding: 10px 14px; color: var(--ink-2); text-decoration: none;
+	border-radius: 4px; font-size: 13.5px; margin-bottom: 4px;
+}
+.d3 .sidebar a:hover { background: var(--bg-card-3); }
+.d3 .sidebar a.active {
+	background: var(--accent-bg); color: var(--accent);
+	border-left: 2px solid var(--accent); padding-left: 12px;
+}
+.d3 .sidebar a .nav-icon { width: 16px; text-align: center; opacity: 0.6; }
+.d3 .sidebar a .nav-count {
+	margin-left: auto; font-size: 11px; color: var(--ink-4);
+}
+.d3 .sidebar a.active .nav-count { color: var(--accent); }
+.d3 .sidebar .summary {
+	margin-top: 24px; padding: 14px; background: var(--bg-card); border-radius: 6px;
+	border: 1px solid var(--line-soft);
+}
+.d3 .sidebar .summary .slabel {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+	text-transform: uppercase; margin-bottom: 8px;
+}
+.d3 .sidebar .summary .schip {
+	display: block; padding: 6px 10px; background: var(--bg-card-2);
+	border-left: 2px solid var(--accent); margin-bottom: 6px;
+	font-size: 12px; color: var(--ink-2);
+}
+.d3 .sidebar .summary .schip .v { color: var(--accent); font-weight: 600; }
+
+.d3 .content { padding: 24px 28px 220px; overflow-y: auto; }
+.d3 .content h3 {
+	margin: 0 0 16px; font-size: 11px; color: var(--ink-3); letter-spacing: 2px;
+	font-weight: 600; text-transform: uppercase;
+}
+.d3 .content h3 + .grid { margin-bottom: 28px; }
+.d3 .grid.economy { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.d3 .grid.match   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.d3 .grid.world   { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ============================================================
+   VARIANT D4 — All hero (every option is a metric card)
+   ============================================================ */
+.d4 { padding: 24px 24px 220px; height: 100%; box-sizing: border-box; overflow-y: auto; }
+.d4 .h-section-title { margin: 26px 0 14px; }
+.d4 .h-section-title:first-child { margin-top: 0; }
+.d4 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.d4 .grid-4 .hcard.tog {
+	cursor: pointer;
+}
+.d4 .grid-4 .hcard.tog .val { font-size: 18px; }
+.d4 .grid-4 .hcard.tog.on .val { color: var(--accent); }
+.d4 .grid-4 .hcard.tog .switch {
+	position: absolute; top: 18px; right: 18px;
+	width: 36px; height: 20px; background: var(--track); border-radius: 11px;
+}
+.d4 .grid-4 .hcard.tog .switch::after {
+	content: ""; position: absolute; top: 2px; left: 2px;
+	width: 16px; height: 16px; background: var(--ink-3); border-radius: 50%;
+	transition: all 0.15s;
+}
+.d4 .grid-4 .hcard.tog.on .switch { background: var(--accent-soft); }
+.d4 .grid-4 .hcard.tog.on .switch::after { background: var(--accent); transform: translateX(16px); }
+
+footer.foot {
+	text-align: center; color: var(--ink-4); font-size: 11px;
+	padding: 60px 0 80px;
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+	<h1>Hero metrics · 1440p variations</h1>
+	<span class="sub">Right column at native size — 1248 × 880 inside a 2560 × 1440 lobby.</span>
+	<nav>
+		<a href="#d0">D0 · Baseline wide</a>
+		<a href="#d1">D1 · Magazine</a>
+		<a href="#d2">D2 · KPI strip + edit grid</a>
+		<a href="#d3">D3 · Sidebar nav</a>
+		<a href="#d4">D4 · All hero</a>
+	</nav>
+</header>
+
+<div class="intro">
+	<h2>Sized for 1440p — the right column is huge</h2>
+	<p>At a 2560 × 1440 fullscreen lobby the right column gets <span class="dims">~1248 × 880 px</span> — roughly 2.6× wider than the cramped 480px preview in the first mockup. That changes what "hero metrics" can be: instead of 2×2 stacks, every economy value can sit in one big horizontal row, and match settings can run inline next to world toggles.</p>
+	<p>All five variants below start from D ("hero metrics"). Each rearranges the same content — Economy → Match → World, then Active Changes and Preset — at full 1440p width. The gray left panel is a placeholder for the map + players column (also 1248 wide).</p>
+	<p style="color:var(--ink-4);font-size:12px;font-style:italic;">If your browser window is narrower than 2560px, scroll horizontally inside each frame to see both columns.</p>
+</div>
+
+<!-- ============================================================
+     D0 — Baseline wide
+     ============================================================ -->
+<section class="variant" id="d0">
+	<header class="title">
+		<h2><span class="tag">D0</span>Baseline · same vocabulary, properly wide</h2>
+		<p>The original "hero metrics" idea, just stretched to the actual column width. <strong>Economy</strong> becomes a 4-up row of big metric cards. <strong>Match</strong> drops below as a 3-up row of compact line rows. <strong>World</strong> spreads its toggles horizontally as pills. Active Changes and Preset live in a sticky footer.</p>
+		<p class="notes">Closest to the original D — easiest to port. The hero-card vocabulary stays the same, just used at proper scale.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="d0">
+				<div class="h-section-title">Economy</div>
+				<div class="grid economy">
+					<div class="hcard">
+						<div class="lab">Starting Cash</div>
+						<div class="val">$20,000</div>
+						<div class="trail">per player</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard changed">
+						<div class="lab">Passive Income</div>
+						<div class="val">$200</div>
+						<div class="trail">per tick · was $0</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Income Modifier</div>
+						<div class="val">100%</div>
+						<div class="trail">scaling factor</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Kill Bounties</div>
+						<div class="val">Off</div>
+						<div class="trail">% of unit cost</div>
+						<div class="drop">▾</div>
+					</div>
+				</div>
+
+				<div class="h-section-title">Match</div>
+				<div class="grid match">
+					<div class="line-row"><span class="ll">Game Speed</span><span class="lv">Real Time<span class="chev">▾</span></span></div>
+					<div class="line-row"><span class="ll">Starting Units</span><span class="lv">None<span class="chev">▾</span></span></div>
+					<div class="line-row"><span class="ll">Doomsday Clock</span><span class="lv">No limit<span class="chev">▾</span></span></div>
+				</div>
+
+				<div class="h-section-title">World</div>
+				<div class="grid world">
+					<span class="pill on"><span class="dot"></span>Explored Map</span>
+					<span class="pill on"><span class="dot"></span>Fog of War</span>
+					<span class="pill on"><span class="dot"></span>Separate Team Spawns</span>
+					<span class="pill on"><span class="dot"></span>Debug Menu</span>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span> <span class="x">×</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<button class="btn">Rename</button>
+					<button class="btn">Delete</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     D1 — Magazine
+     ============================================================ -->
+<section class="variant" id="d1">
+	<header class="title">
+		<h2><span class="tag">D1</span>Magazine · featured + secondary metrics</h2>
+		<p>Visual hierarchy: <strong>Starting Cash</strong> is the most-changed value in skirmish, so it gets a feature card (1.6× width, larger numerals) and the other three economy values sit next to it in normal scale. Match keeps the inline-row treatment; World keeps the pill row. Reads like a dashboard with one "headline" metric per section.</p>
+		<p class="notes">Useful when one value naturally dominates — Starting Cash is probably the most-twiddled setting before launch. Feature card is a CSS gradient + larger font; both translate to in-game with a thicker ColorBlock + a larger Label font.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="d1">
+				<div class="h-section-title">Economy</div>
+				<div class="grid economy">
+					<div class="hcard feature">
+						<div class="lab">Starting Cash</div>
+						<div class="val">$20,000</div>
+						<div class="trail">per player · the foundation of every push</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard changed">
+						<div class="lab">Passive Income</div>
+						<div class="val">$200</div>
+						<div class="trail">per tick · was $0</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Income Modifier</div>
+						<div class="val">100%</div>
+						<div class="trail">scaling factor</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Kill Bounties</div>
+						<div class="val">Off</div>
+						<div class="trail">% of unit cost</div>
+						<div class="drop">▾</div>
+					</div>
+				</div>
+
+				<div class="h-section-title">Match</div>
+				<div class="grid match">
+					<div class="line-row"><span class="ll">Game Speed</span><span class="lv">Real Time<span class="chev">▾</span></span></div>
+					<div class="line-row"><span class="ll">Starting Units</span><span class="lv">None<span class="chev">▾</span></span></div>
+					<div class="line-row"><span class="ll">Doomsday Clock</span><span class="lv">No limit<span class="chev">▾</span></span></div>
+				</div>
+
+				<div class="h-section-title">World</div>
+				<div class="grid world">
+					<span class="pill on"><span class="dot"></span>Explored Map</span>
+					<span class="pill on"><span class="dot"></span>Fog of War</span>
+					<span class="pill on"><span class="dot"></span>Separate Team Spawns</span>
+					<span class="pill on"><span class="dot"></span>Debug Menu</span>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span> <span class="x">×</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<button class="btn">Rename</button>
+					<button class="btn">Delete</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     D2 — KPI strip + edit grid
+     ============================================================ -->
+<section class="variant" id="d2">
+	<header class="title">
+		<h2><span class="tag">D2</span>KPI strip · stats up top, controls below</h2>
+		<p>Two-tier layout. <strong>Top</strong>: a single Economy "KPI strip" — four numeric values in one panel with vertical dividers (looks like a stock-ticker or analytics board). <strong>Bottom</strong>: three side-by-side columns for Match, World, and one spare slot. Active Changes + Preset run as the sticky footer. Cleanest separation of "values you watch" from "controls you set".</p>
+		<p class="notes">The KPI strip emphasises that economy values are read more than edited. Tab once to drill into each. Spare column at the right side could later hold extra match metadata (player count, faction balance, etc).</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="d2">
+				<div class="h-section-title" style="margin-bottom:14px;">Economy <span class="count">1</span></div>
+				<div class="kpi-strip">
+					<div class="kpi">
+						<div class="klab">Starting Cash</div>
+						<div class="kval">$20,000</div>
+						<div class="kpi-actions">edit ▾</div>
+					</div>
+					<div class="kpi changed">
+						<div class="klab">Passive Income</div>
+						<div class="kval">$200</div>
+						<div class="kpi-actions">edit ▾  ·  reset</div>
+					</div>
+					<div class="kpi">
+						<div class="klab">Income Modifier</div>
+						<div class="kval">100%</div>
+						<div class="kpi-actions">edit ▾</div>
+					</div>
+					<div class="kpi">
+						<div class="klab">Kill Bounties</div>
+						<div class="kval">Off</div>
+						<div class="kpi-actions">edit ▾</div>
+					</div>
+				</div>
+
+				<div class="columns">
+					<div class="col">
+						<h3>Match</h3>
+						<div class="col-body">
+							<div class="line-row"><span class="ll">Game Speed</span><span class="lv">Real Time<span class="chev">▾</span></span></div>
+							<div class="line-row"><span class="ll">Starting Units</span><span class="lv">None<span class="chev">▾</span></span></div>
+							<div class="line-row"><span class="ll">Doomsday Clock</span><span class="lv">No limit<span class="chev">▾</span></span></div>
+						</div>
+					</div>
+					<div class="col world">
+						<h3>World</h3>
+						<div class="col-body">
+							<div class="pills">
+								<span class="pill on"><span class="dot"></span>Explored Map</span>
+								<span class="pill on"><span class="dot"></span>Fog of War</span>
+								<span class="pill on"><span class="dot"></span>Separate Team Spawns</span>
+								<span class="pill on"><span class="dot"></span>Debug Menu</span>
+							</div>
+						</div>
+					</div>
+					<div class="col">
+						<h3>Match Snapshot</h3>
+						<div class="col-body">
+							<div class="line-row"><span class="ll">Players</span><span class="lv">2 + 2 bots</span></div>
+							<div class="line-row"><span class="ll">Map</span><span class="lv">River Zeta WW3</span></div>
+							<div class="line-row"><span class="ll">Scenario</span><span class="lv">No scenario</span></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span> <span class="x">×</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<button class="btn">Rename</button>
+					<button class="btn">Delete</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     D3 — Sidebar nav
+     ============================================================ -->
+<section class="variant" id="d3">
+	<header class="title">
+		<h2><span class="tag">D3</span>Sidebar nav · jump-to-section + summary</h2>
+		<p>Skill-tree pattern. Left rail (220px) lists the three sections with item counts and a small badge if anything is changed. Below the nav, a "Live Summary" card surfaces the most relevant active changes so the host can see them while editing a different section. Main area is the same hero-cards-then-lines pattern as D0.</p>
+		<p class="notes">Scales nicely if more sections appear later (just add nav items). The sidebar summary is real: the user always sees their changes without having to scroll to Active Changes.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="d3">
+				<div class="sidebar">
+					<h2>Match Settings</h2>
+					<a href="#" class="active"><span class="nav-icon">$</span><span>Economy</span><span class="nav-count">4</span></a>
+					<a href="#"><span class="nav-icon">⚔</span><span>Match</span><span class="nav-count">3</span></a>
+					<a href="#"><span class="nav-icon">⌬</span><span>World</span><span class="nav-count">4</span></a>
+					<div class="summary">
+						<div class="slabel">Live Summary</div>
+						<div class="schip">Passive Income · <span class="v">$200</span></div>
+					</div>
+				</div>
+				<div class="content">
+					<h3>Economy</h3>
+					<div class="grid economy">
+						<div class="hcard">
+							<div class="lab">Starting Cash</div>
+							<div class="val">$20,000</div>
+							<div class="trail">per player</div>
+							<div class="drop">▾</div>
+						</div>
+						<div class="hcard changed">
+							<div class="lab">Passive Income</div>
+							<div class="val">$200</div>
+							<div class="trail">per tick · was $0</div>
+							<div class="drop">▾</div>
+						</div>
+						<div class="hcard">
+							<div class="lab">Income Modifier</div>
+							<div class="val">100%</div>
+							<div class="trail">scaling factor</div>
+							<div class="drop">▾</div>
+						</div>
+						<div class="hcard">
+							<div class="lab">Kill Bounties</div>
+							<div class="val">Off</div>
+							<div class="trail">% of unit cost</div>
+							<div class="drop">▾</div>
+						</div>
+					</div>
+
+					<h3>Match</h3>
+					<div class="grid match">
+						<div class="line-row"><span class="ll">Game Speed</span><span class="lv">Real Time<span class="chev">▾</span></span></div>
+						<div class="line-row"><span class="ll">Starting Units</span><span class="lv">None<span class="chev">▾</span></span></div>
+						<div class="line-row"><span class="ll">Doomsday Clock</span><span class="lv">No limit<span class="chev">▾</span></span></div>
+					</div>
+
+					<h3>World</h3>
+					<div class="grid world">
+						<span class="pill on"><span class="dot"></span>Explored Map</span>
+						<span class="pill on"><span class="dot"></span>Fog of War</span>
+						<span class="pill on"><span class="dot"></span>Separate Team Spawns</span>
+						<span class="pill on"><span class="dot"></span>Debug Menu</span>
+					</div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span> <span class="x">×</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<button class="btn">Rename</button>
+					<button class="btn">Delete</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     D4 — All hero
+     ============================================================ -->
+<section class="variant" id="d4">
+	<header class="title">
+		<h2><span class="tag">D4</span>All hero · every option is a metric card</h2>
+		<p>Maximum visual consistency. <strong>Every</strong> setting — dropdown, toggle, value — gets the same hero-card treatment in a 4-wide grid. Toggles render as cards with a switch in the top-right corner. The grid auto-flows; sections are just bold dividers between groups of cards. Reads as a "settings dashboard" — every value feels equally weighted and clickable.</p>
+		<p class="notes">Best for at-a-glance review of every setting. Risks visual monotony at scale — could later differentiate sections with subtle bg tints. Strongest "modern app" feel of the five.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="d4">
+				<div class="h-section-title">Economy</div>
+				<div class="grid-4">
+					<div class="hcard">
+						<div class="lab">Starting Cash</div>
+						<div class="val">$20,000</div>
+						<div class="trail">per player</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard changed">
+						<div class="lab">Passive Income</div>
+						<div class="val">$200</div>
+						<div class="trail">per tick</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Income Modifier</div>
+						<div class="val">100%</div>
+						<div class="trail">scaling factor</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Kill Bounties</div>
+						<div class="val">Off</div>
+						<div class="trail">% of unit cost</div>
+						<div class="drop">▾</div>
+					</div>
+				</div>
+
+				<div class="h-section-title">Match</div>
+				<div class="grid-4">
+					<div class="hcard">
+						<div class="lab">Game Speed</div>
+						<div class="val">Real Time</div>
+						<div class="trail">tick rate</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Starting Units</div>
+						<div class="val">None</div>
+						<div class="trail">spawn loadout</div>
+						<div class="drop">▾</div>
+					</div>
+					<div class="hcard">
+						<div class="lab">Doomsday Clock</div>
+						<div class="val">No limit</div>
+						<div class="trail">timed match</div>
+						<div class="drop">▾</div>
+					</div>
+				</div>
+
+				<div class="h-section-title">World</div>
+				<div class="grid-4">
+					<div class="hcard tog on">
+						<div class="lab">Explored Map</div>
+						<div class="val">Enabled</div>
+						<div class="trail">terrain revealed at start</div>
+						<div class="switch"></div>
+					</div>
+					<div class="hcard tog on">
+						<div class="lab">Fog of War</div>
+						<div class="val">Enabled</div>
+						<div class="trail">vision-limited play</div>
+						<div class="switch"></div>
+					</div>
+					<div class="hcard tog on">
+						<div class="lab">Separate Team Spawns</div>
+						<div class="val">Enabled</div>
+						<div class="trail">teams spawn on same side</div>
+						<div class="switch"></div>
+					</div>
+					<div class="hcard tog on">
+						<div class="lab">Debug Menu</div>
+						<div class="val">Enabled</div>
+						<div class="trail">in-game developer overlay</div>
+						<div class="switch"></div>
+					</div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span> <span class="x">×</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<button class="btn">Rename</button>
+					<button class="btn">Delete</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<footer class="foot">
+	Pick a direction (D0 / D1 / D2 / D3 / D4) — or call out specific traits to combine.
+</footer>
+
+</body>
+</html>
