@@ -9,9 +9,13 @@ This folder holds **living docs** for the AI overhaul. The C# lives in
 
 ## Read first
 
-- [`NEXT_STEPS.md`](NEXT_STEPS.md) — **READ FIRST.** For a fresh agent told "continue working on the bots": this is the entry point. Required reading order + first two concrete steps + standard A/B loop + things not to redo.
+- [`handoff_260513.md`](handoff_260513.md) — **READ FIRST.** Mid-session handoff from 2026-05-13. Current state, what's shipped, what's confirmed working (Stage A perception, Stage B.1 reserve-driven layered defence, capture rules), what's broken (Stage B.4 mounted transport — carriers never IsIdle so the module finds zero candidates; debug.log evidence in the doc). Includes the concrete next-debug plan.
+- [`NEXT_STEPS.md`](NEXT_STEPS.md) — Older entry point. Still useful for general orientation.
 - [`doctrine.md`](doctrine.md) — **The destination.** Real-world tactics as the basis: defence in depth, 3:1 concentration of force, honest fog, reserve management. Every AI improvement is evaluated against this. Set 260512.
-- [`stage_a_frontline_perception.md`](stage_a_frontline_perception.md) — **Current stage.** TODOs for the first slice of doctrine work: per-cell influence map + frontline derivation + toggleable debug overlay. Pure perception; no bot decisions change yet.
+- [`stage_a_frontline_perception.md`](stage_a_frontline_perception.md) — Phase A spec (shipped).
+- [`stage_b_layered_defence.md`](stage_b_layered_defence.md) — Phase B.1–B.3 spec.
+- [`stage_b4_mounted_transport.md`](stage_b4_mounted_transport.md) — Phase B.4 spec.
+- [`playtest_260513.md`](playtest_260513.md) — Playtest observations + priorities P1–P7 from 260513.
 - [`WAKEUP_CHECKLIST_260512.md`](WAKEUP_CHECKLIST_260512.md) — quick orientation for someone who already knows the project context.
 - [`morning_summary_260512.md`](morning_summary_260512.md) — Live log of the autonomous overnight run; what was tried, what worked.
 - [`sanity_findings_260512.md`](sanity_findings_260512.md) — Statistical findings from the sanity batches. Authoritative baseline: russia 60% / america 40% at n=20 mirror-paired (mild, borderline-significant).
