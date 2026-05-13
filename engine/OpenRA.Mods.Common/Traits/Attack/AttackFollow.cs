@@ -140,6 +140,15 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				IsAiming = false;
 
+				// Drop a locked opportunity target the moment it acquires the break-off
+				// condition (critical damage in WW3MOD) — except for opportunity force-attacks,
+				// which are persistent player-issued orders that should keep firing.
+				if (OpportunityTarget.Type == TargetType.Actor && !opportunityForceAttack
+					&& autoTarget != null
+					&& !string.IsNullOrEmpty(autoTarget.Info.BreakOffCondition)
+					&& OpportunityTarget.Actor.GetConditionCount(autoTarget.Info.BreakOffCondition) > 0)
+					OpportunityTarget = Target.Invalid;
+
 				if (OpportunityTarget.IsValidFor(self))
 					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack)
 						&& ReadyToEngage(self, OpportunityTarget);

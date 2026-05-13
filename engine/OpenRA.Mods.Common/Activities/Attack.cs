@@ -200,6 +200,13 @@ namespace OpenRA.Mods.Common.Activities
 			if (!target.IsValidFor(self))
 				return AttackStatus.UnableToAttack;
 
+			// Break off if the target has acquired the autotarget break-off condition (critical
+			// damage in WW3MOD). Force-attacks ignore this — the player explicitly asked.
+			if (!forceAttack && target.Type == TargetType.Actor && autoTarget != null
+				&& !string.IsNullOrEmpty(autoTarget.Info.BreakOffCondition)
+				&& target.Actor.GetConditionCount(autoTarget.Info.BreakOffCondition) > 0)
+				return AttackStatus.UnableToAttack;
+
 			if (attack.Info.AttackRequiresEnteringCell && !positionable.CanEnterCell(target.Actor.Location, null, BlockedByActor.None))
 				return AttackStatus.UnableToAttack;
 

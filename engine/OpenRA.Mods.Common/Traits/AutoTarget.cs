@@ -149,6 +149,12 @@ namespace OpenRA.Mods.Common.Traits
 			"Lower = stronger penalty (target appears further). Default 50 = penalty doubles range at 100% mark.")]
 		public readonly int SoftOverkillScale = 50;
 
+		[Desc("If a target has this condition, autotarget treats it as already-finished and skips it.",
+			"In-progress autotarget/opportunity attacks also break off when the current target acquires this condition.",
+			"Only force-attacks (Ctrl+click, Lua Actor.Attack(..., forceAttack=true), AI direct AttackTarget with forceAttack=true) still fire on these targets.",
+			"Set to empty string to disable.")]
+		public readonly string BreakOffCondition = "critical-damage";
+
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
 		public override object Create(ActorInitializer init) { return new AutoTarget(init, this); }
@@ -765,6 +771,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (Info.OverkillThreshold >= 0 && target.Actor.AverageDamagePercent >= Info.OverkillThreshold)
 					continue;
 
+				// Skip targets that are already "good as dead" — critical damage in WW3MOD means
+				// the unit can't fight and will bleed out to 0. Force-attacks bypass this filter
+				// because they go through AttackBase.AttackTarget without consulting ChooseTarget.
+				if (!string.IsNullOrEmpty(Info.BreakOffCondition)
+					&& target.Actor.GetConditionCount(Info.BreakOffCondition) > 0)
+					continue;
+
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 
 				// PITFALL: priority MUST be categorical — a tank should always shoot a tank
@@ -778,12 +791,14 @@ namespace OpenRA.Mods.Common.Traits
 				// New encoding (lower priorityValue = better):
 				//   - Effective Priority bucket dominates: subtract Priority * BucketSize.
 				//   - Within a bucket, range tiebreaks (closer wins).
-				//   - CriticalDamage and damage% remain soft anti-overkill nudges; they sit
-				//     well within one bucket so they never cross priority classes.
+				//   - SoftOverkill (incoming damage %) sits well within one bucket so it
+				//     never crosses priority classes.
 				//   - ConditionalPriority is now interpreted as "promote this priority by 1
 				//     when the condition is granted" (e.g. suppressed infantry get a Sniper's
 				//     elevated bucket). Only fires when both ConditionalPriority>0 AND the
 				//     ExternalCondition is actually granted (>0) on the target.
+				//   - The old CriticalDamage +50000 nudge was removed in 2026-05; critically
+				//     damaged targets are now hard-skipped above via BreakOffCondition.
 				const long PriorityBucketSize = 1L << 24;  // 16 777 216 — far above any plausible map range
 				long priorityValue;
 
@@ -791,10 +806,6 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var ati in reusableValidPriorities)
 				{
 					priorityValue = 0;
-
-					// Use the cached targetTypes; avoid re-fetching and avoid LINQ Any (allocates lambda).
-					if (targetTypes.Contains("CriticalDamage"))
-						priorityValue += 50000;
 
 					var priorityCondition = target.Actor?.TraitsImplementing<ExternalCondition>()
 						.FirstOrDefault(t => t.Info.Condition == ati.PriorityCondition)?.GrantedValue(target.Actor);
