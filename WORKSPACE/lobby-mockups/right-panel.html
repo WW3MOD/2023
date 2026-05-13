@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · right-panel options design</title>
+<style>
+:root {
+	--bg-app: #0c0e11;
+	--bg-card: #14171c;
+	--bg-card-2: #1a1e25;
+	--bg-card-3: #21262e;
+	--bg-row: #1c2027;
+	--bg-row-hover: #232831;
+	--line: #2a2f37;
+	--line-soft: #1f2329;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-glow: #60d08033;
+	--accent-soft: #2d6240;
+	--warn: #f0b060;
+	--danger: #e77d7d;
+	--us: #4a7fc4;
+	--ru: #c44a4a;
+	--track: #2f343c;
+	font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: var(--bg-app); color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header {
+	position: sticky; top: 0; z-index: 10;
+	background: rgba(12,14,17,.92); backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--line);
+	padding: 14px 32px; display: flex; align-items: baseline; gap: 28px; flex-wrap: wrap;
+}
+header h1 { margin: 0; font-size: 16px; }
+header .sub { color: var(--ink-3); font-size: 12px; }
+header nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+header nav a { color: var(--ink-2); text-decoration: none; }
+header nav a:hover { color: var(--accent); }
+
+.intro {
+	max-width: 920px; margin: 32px auto 8px; padding: 0 32px;
+	color: var(--ink-2); font-size: 13.5px; line-height: 1.6;
+}
+.intro h2 { color: var(--ink); font-size: 22px; margin: 0 0 12px; }
+.intro p { margin: 0 0 12px; }
+.intro code { background: var(--bg-card); padding: 1px 6px; border-radius: 3px; color: var(--accent); font-size: 12px; }
+
+section.variant {
+	margin: 56px auto; max-width: 1280px; padding: 0 32px;
+}
+section.variant header.title {
+	position: static; background: transparent; backdrop-filter: none;
+	border: none; padding: 0 0 18px; display: block;
+}
+section.variant header.title h2 {
+	margin: 0 0 6px; color: var(--ink); font-size: 22px; letter-spacing: 0.2px;
+}
+section.variant header.title h2 .tag {
+	font-size: 12px; color: var(--accent); letter-spacing: 1px; font-weight: 600;
+	margin-right: 12px; vertical-align: 2px;
+}
+section.variant header.title p { margin: 0; color: var(--ink-3); max-width: 880px; font-size: 13px; }
+section.variant header.title p.notes { margin-top: 6px; color: var(--ink-4); font-size: 12px; font-style: italic; }
+
+.frame {
+	background: var(--bg-app); border: 1px solid var(--line); border-radius: 8px;
+	overflow: hidden; padding: 0;
+	display: grid; grid-template-columns: 1fr 480px;
+}
+.frame .left-mock {
+	background: linear-gradient(135deg, #14171c 0%, #1a1e25 100%);
+	padding: 24px; color: var(--ink-4); font-size: 12px;
+	display: flex; align-items: center; justify-content: center;
+	min-height: 720px; border-right: 1px solid var(--line);
+}
+.frame .left-mock .left-content {
+	text-align: center; opacity: 0.45;
+}
+.frame .left-mock .left-content .label { letter-spacing: 3px; font-size: 11px; }
+.frame .left-mock .left-content .hint { margin-top: 6px; font-size: 11px; }
+.frame .right-panel {
+	background: var(--bg-card);
+	height: 720px; overflow: hidden;
+	position: relative;
+}
+
+/* ============================================================
+   VARIANT A — "Crisp" (Linear / Vercel inspired)
+   ============================================================ */
+.va {
+	display: flex; flex-direction: column; height: 100%;
+}
+.va .va-header {
+	padding: 18px 22px 16px;
+	border-bottom: 1px solid var(--line-soft);
+}
+.va .va-header .va-title {
+	font-size: 11px; letter-spacing: 2px; color: var(--ink-3); font-weight: 600;
+}
+.va .va-header .va-title::before {
+	content: ""; display: inline-block; width: 6px; height: 6px;
+	background: var(--accent); border-radius: 50%; margin-right: 8px;
+	vertical-align: 1px;
+}
+.va .va-content {
+	flex: 1; overflow-y: auto; padding: 4px 0 4px;
+}
+.va .va-section { padding: 16px 22px 18px; border-bottom: 1px solid var(--line-soft); }
+.va .va-section:last-child { border-bottom: none; }
+.va .va-section h3 {
+	margin: 0 0 14px; font-size: 11px; letter-spacing: 2px; color: var(--ink-3);
+	font-weight: 600;
+}
+.va .va-grid {
+	display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px;
+}
+.va .va-field { display: flex; flex-direction: column; gap: 5px; }
+.va .va-field label { font-size: 11.5px; color: var(--ink-3); }
+.va .va-select {
+	background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 5px; padding: 7px 10px; color: var(--ink); font-size: 13px;
+	display: flex; justify-content: space-between; align-items: center;
+	cursor: pointer; transition: border-color 0.1s;
+}
+.va .va-select:hover { border-color: var(--line); background: var(--bg-card-3); }
+.va .va-select .chev { color: var(--ink-4); font-size: 10px; }
+.va .va-select.is-changed { border-color: var(--accent-soft); }
+.va .va-select.is-changed::before {
+	content: ""; position: relative; left: -10px; top: 0;
+	display: inline-block; width: 4px; height: 4px;
+	background: var(--accent); border-radius: 50%;
+}
+.va .va-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+.va .va-toggle {
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 8px 0;
+}
+.va .va-toggle .va-toggle-label { font-size: 13px; color: var(--ink); }
+.va .switch {
+	width: 30px; height: 18px; background: var(--track); border-radius: 10px;
+	position: relative; cursor: pointer; transition: background 0.15s;
+}
+.va .switch::after {
+	content: ""; position: absolute; top: 2px; left: 2px;
+	width: 14px; height: 14px; background: var(--ink-3); border-radius: 50%;
+	transition: all 0.15s;
+}
+.va .switch.on { background: var(--accent-soft); }
+.va .switch.on::after { background: var(--accent); transform: translateX(12px); }
+
+.va .va-active {
+	padding: 14px 22px;
+	border-top: 1px solid var(--line-soft);
+	background: var(--bg-card-2);
+}
+.va .va-active h3 {
+	margin: 0 0 10px; font-size: 11px; letter-spacing: 2px; color: var(--ink-3);
+	font-weight: 600;
+}
+.va .va-active h3 .count {
+	margin-left: 6px; background: var(--accent-soft); color: var(--accent);
+	padding: 1px 6px; border-radius: 8px; font-size: 10px; letter-spacing: 0;
+}
+.va .va-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.va .va-chip {
+	background: var(--bg-card-3); border: 1px solid var(--accent-soft);
+	color: var(--accent); padding: 4px 10px; border-radius: 12px; font-size: 11.5px;
+	display: inline-flex; align-items: center; gap: 6px;
+}
+.va .va-chip .x { color: var(--ink-4); cursor: pointer; }
+.va .va-chip .x:hover { color: var(--ink); }
+
+.va .va-preset {
+	padding: 12px 22px;
+	background: var(--bg-card);
+	border-top: 1px solid var(--line-soft);
+	display: grid; grid-template-columns: 1fr auto auto auto;
+	gap: 8px; align-items: center;
+}
+.va .va-preset .va-preset-label { font-size: 11px; color: var(--ink-3); letter-spacing: 1px; }
+.va .va-preset input {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 5px 9px; color: var(--ink); font-size: 12px;
+}
+.va .va-btn {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 5px 12px; color: var(--ink-2); font-size: 12px; cursor: pointer;
+}
+.va .va-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+.va .va-btn.primary { border-color: var(--accent-soft); color: var(--accent); }
+.va .va-preset-row {
+	display: flex; align-items: center; gap: 8px;
+	grid-column: 1 / -1;
+}
+.va .va-preset-row > .va-btn:first-child { margin-right: auto; }
+
+/* ============================================================
+   VARIANT B — "Spacious" (Notion / Tailwind UI inspired)
+   ============================================================ */
+.vb { padding: 28px 28px 0; height: 100%; overflow-y: auto; }
+.vb .vb-h1 { font-size: 16px; color: var(--ink); margin: 0 0 4px; font-weight: 600; }
+.vb .vb-sub { color: var(--ink-3); font-size: 12px; margin: 0 0 22px; }
+.vb .vb-section { margin-bottom: 22px; }
+.vb .vb-section-h {
+	font-size: 12px; color: var(--ink-2); font-weight: 600;
+	letter-spacing: 0.5px; margin: 0 0 10px;
+	padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+}
+.vb .vb-row {
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 10px 0; gap: 18px;
+}
+.vb .vb-row + .vb-row { border-top: 1px solid var(--line-soft); }
+.vb .vb-row .vb-label { font-size: 13px; color: var(--ink); }
+.vb .vb-row .vb-desc { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; line-height: 1.4; }
+.vb .vb-row .vb-control { flex: 0 0 auto; }
+.vb .vb-row .vb-select {
+	background: transparent; border: none;
+	color: var(--ink); font-size: 13px; padding: 5px 8px;
+	border: 1px solid transparent; border-radius: 4px; cursor: pointer;
+	text-align: right; min-width: 120px;
+}
+.vb .vb-row .vb-select:hover { background: var(--bg-card-2); border-color: var(--line); }
+.vb .vb-row .vb-select .chev { color: var(--ink-4); margin-left: 8px; font-size: 10px; }
+.vb .vb-row .vb-select.is-changed { color: var(--accent); }
+.vb .vb-row .vb-select.is-changed .chev { color: var(--accent); }
+.vb .vb-row .check-pill {
+	display: inline-flex; align-items: center; gap: 6px;
+	padding: 4px 10px; border-radius: 12px; background: var(--bg-card-2);
+	border: 1px solid var(--line);
+}
+.vb .vb-row .check-pill.on { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+.vb .vb-row .check-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); }
+.vb .vb-row .check-pill.on .dot { background: var(--accent); }
+
+.vb .vb-changes {
+	margin: 18px -28px 0; padding: 16px 28px; background: var(--bg-card-2);
+	border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+}
+.vb .vb-changes h3 {
+	margin: 0 0 8px; font-size: 11px; letter-spacing: 1px; color: var(--ink-3);
+	font-weight: 600; text-transform: uppercase;
+}
+.vb .vb-changes h3 .empty { color: var(--ink-4); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.vb .vb-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.vb .vb-chip {
+	display: inline-flex; align-items: center; gap: 6px;
+	background: var(--bg-card); border: 1px solid var(--accent-soft); color: var(--ink);
+	padding: 4px 8px; border-radius: 4px; font-size: 12px;
+}
+.vb .vb-chip .arrow { color: var(--ink-3); font-size: 10px; }
+.vb .vb-chip .new { color: var(--accent); font-weight: 600; }
+
+.vb .vb-preset {
+	margin: 0 -28px; padding: 14px 28px; display: flex; gap: 8px; align-items: center;
+	background: var(--bg-card);
+}
+.vb .vb-preset .vb-pname {
+	flex: 1; background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 4px; padding: 6px 10px; color: var(--ink); font-size: 12px;
+}
+.vb .vb-preset button {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 12px; color: var(--ink-2); font-size: 12px; cursor: pointer;
+}
+.vb .vb-preset button.primary { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+.vb .vb-preset button:hover { color: var(--ink); border-color: var(--ink-3); }
+
+/* ============================================================
+   VARIANT C — "Cockpit" (Dense pro-tools / Discord)
+   ============================================================ */
+.vc { display: flex; flex-direction: column; height: 100%; }
+.vc .vc-nav {
+	display: flex; gap: 4px; padding: 12px 16px;
+	background: var(--bg-card); border-bottom: 1px solid var(--line-soft);
+}
+.vc .vc-nav a {
+	padding: 6px 10px; color: var(--ink-3); font-size: 11px;
+	text-decoration: none; border-radius: 4px; letter-spacing: 1px;
+	font-weight: 600;
+}
+.vc .vc-nav a.active { background: var(--bg-card-3); color: var(--ink); }
+.vc .vc-nav a:hover { color: var(--ink); }
+
+.vc .vc-content { flex: 1; overflow-y: auto; padding: 0; }
+.vc .vc-section { padding: 0 0 8px; }
+.vc .vc-section .vc-section-h {
+	background: var(--bg-card-2); padding: 6px 16px;
+	font-size: 10px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+	border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+	display: flex; justify-content: space-between; align-items: center;
+}
+.vc .vc-row {
+	display: grid; grid-template-columns: 1fr 130px;
+	padding: 7px 16px; gap: 10px; align-items: center;
+	border-bottom: 1px solid var(--line-soft);
+	position: relative;
+}
+.vc .vc-row:hover { background: var(--bg-row-hover); }
+.vc .vc-row .vc-label { font-size: 12.5px; color: var(--ink-2); }
+.vc .vc-row .vc-control {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 3px;
+	padding: 4px 8px; color: var(--ink); font-size: 12px; text-align: right;
+	display: flex; justify-content: space-between; align-items: center;
+}
+.vc .vc-row .vc-control .chev { color: var(--ink-4); font-size: 9px; margin-left: 6px; }
+.vc .vc-row.is-changed::before {
+	content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+	width: 2px; background: var(--accent);
+}
+.vc .vc-row.is-changed .vc-control { color: var(--accent); }
+.vc .vc-toggle-row {
+	display: grid; grid-template-columns: 1fr 24px; padding: 6px 16px;
+	gap: 12px; align-items: center; border-bottom: 1px solid var(--line-soft);
+}
+.vc .vc-toggle-row:hover { background: var(--bg-row-hover); }
+.vc .vc-toggle-row .vc-label { font-size: 12.5px; color: var(--ink-2); }
+.vc .vc-toggle-row .vc-check {
+	width: 16px; height: 16px; background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 3px; display: inline-block; position: relative; cursor: pointer;
+}
+.vc .vc-toggle-row .vc-check.on { background: var(--accent-soft); border-color: var(--accent); }
+.vc .vc-toggle-row .vc-check.on::after {
+	content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+	border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+	transform: rotate(45deg);
+}
+
+.vc .vc-foot {
+	background: var(--bg-card); border-top: 1px solid var(--line-soft);
+}
+.vc .vc-active {
+	padding: 10px 16px; border-bottom: 1px solid var(--line-soft);
+	display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.vc .vc-active .vc-active-label {
+	font-size: 10px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.vc .vc-active .vc-active-label .count {
+	background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 8px;
+	font-size: 10px; margin-left: 4px;
+}
+.vc .vc-active .vc-chip {
+	font-size: 11px; padding: 2px 8px; border-radius: 3px;
+	background: var(--accent-soft); color: var(--accent);
+}
+.vc .vc-preset {
+	padding: 10px 16px; display: flex; gap: 6px; align-items: center;
+}
+.vc .vc-preset .pname {
+	flex: 1; background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 3px; padding: 5px 8px; font-size: 11.5px; color: var(--ink);
+}
+.vc .vc-preset button {
+	background: transparent; border: 1px solid var(--line); border-radius: 3px;
+	padding: 5px 10px; color: var(--ink-2); font-size: 11px; cursor: pointer;
+}
+.vc .vc-preset button.primary { color: var(--accent); border-color: var(--accent-soft); }
+
+/* ============================================================
+   VARIANT D — "Hero metrics" (Game launcher / dashboard)
+   ============================================================ */
+.vd { padding: 22px 22px 0; height: 100%; overflow-y: auto; }
+.vd h3.vd-section {
+	margin: 0 0 12px; font-size: 11px; color: var(--ink-3); letter-spacing: 2px;
+	font-weight: 600;
+}
+.vd h3.vd-section + h3.vd-section { margin-top: 24px; }
+
+.vd .vd-metrics {
+	display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;
+}
+.vd .vd-metric {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 6px;
+	padding: 14px; position: relative;
+}
+.vd .vd-metric .vd-mlabel { font-size: 11px; color: var(--ink-3); letter-spacing: 1px; text-transform: uppercase; }
+.vd .vd-metric .vd-mval { font-size: 22px; color: var(--ink); margin-top: 4px; font-weight: 600; }
+.vd .vd-metric .vd-mval.changed { color: var(--accent); }
+.vd .vd-metric .vd-mtrail { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+.vd .vd-metric .vd-mdrop {
+	position: absolute; top: 12px; right: 12px; color: var(--ink-3); font-size: 11px;
+	cursor: pointer;
+}
+.vd .vd-metric.changed { border-color: var(--accent-soft); }
+.vd .vd-metric.changed::before {
+	content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+	width: 3px; background: var(--accent); border-radius: 6px 0 0 6px;
+}
+
+.vd .vd-line {
+	display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.vd .vd-line-row {
+	display: flex; justify-content: space-between; align-items: center;
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 5px;
+	padding: 10px 14px; cursor: pointer;
+}
+.vd .vd-line-row:hover { border-color: var(--ink-4); }
+.vd .vd-line-row .ll { color: var(--ink-3); font-size: 11.5px; }
+.vd .vd-line-row .lv { color: var(--ink); font-size: 12.5px; }
+
+.vd .vd-pills {
+	display: flex; flex-wrap: wrap; gap: 8px;
+}
+.vd .vd-pill {
+	display: inline-flex; align-items: center; gap: 8px;
+	padding: 7px 14px; border-radius: 14px;
+	background: var(--bg-card-2); border: 1px solid var(--line);
+	font-size: 12px; color: var(--ink-3); cursor: pointer;
+}
+.vd .vd-pill.on {
+	background: var(--accent-soft); border-color: var(--accent-soft);
+	color: var(--accent);
+}
+.vd .vd-pill .dot {
+	width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4);
+}
+.vd .vd-pill.on .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+
+.vd .vd-changes {
+	margin: 24px -22px 0; padding: 16px 22px; background: var(--bg-card-2);
+	border-top: 1px solid var(--line-soft);
+}
+.vd .vd-changes h3 { margin: 0 0 10px; }
+.vd .vd-changes h3 .badge {
+	margin-left: 8px; background: var(--accent); color: var(--bg-app);
+	padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 600;
+}
+.vd .vd-changes .vd-chip {
+	display: inline-flex; gap: 8px; align-items: center;
+	background: var(--bg-card); border: 1px solid var(--accent-soft);
+	padding: 5px 10px; border-radius: 4px; font-size: 12px;
+}
+.vd .vd-changes .vd-chip .vlab { color: var(--ink-3); }
+.vd .vd-changes .vd-chip .vnow { color: var(--accent); font-weight: 600; }
+
+.vd .vd-preset {
+	margin: 12px -22px 0; padding: 12px 22px; background: var(--bg-card);
+	display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line-soft);
+}
+.vd .vd-preset input {
+	flex: 1; background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 4px; padding: 7px 10px; color: var(--ink); font-size: 12px;
+}
+.vd .vd-preset button {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 12px; color: var(--ink-2); font-size: 11.5px; cursor: pointer;
+}
+.vd .vd-preset button.primary {
+	background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent);
+}
+
+/* ============================================================
+   VARIANT E — "Two-column grouped" (clean form)
+   ============================================================ */
+.ve { padding: 20px 22px 0; height: 100%; overflow-y: auto; }
+.ve .ve-h1 {
+	font-size: 11px; letter-spacing: 3px; color: var(--ink-3);
+	margin: 0 0 18px; font-weight: 600;
+}
+.ve .ve-h1 .accent {
+	display: inline-block; width: 24px; height: 2px; background: var(--accent);
+	vertical-align: 4px; margin-right: 8px;
+}
+.ve .ve-group {
+	background: var(--bg-card-2); border: 1px solid var(--line-soft);
+	border-radius: 6px; padding: 14px 16px; margin-bottom: 12px;
+}
+.ve .ve-group h4 {
+	margin: 0 0 12px; font-size: 12px; color: var(--ink); font-weight: 600;
+	display: flex; align-items: center; justify-content: space-between;
+}
+.ve .ve-group h4 .lab {
+	font-size: 10px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.ve .ve-group h4 .chip-mod {
+	font-size: 10px; color: var(--accent); background: var(--accent-soft);
+	padding: 1px 6px; border-radius: 8px; font-weight: 600; letter-spacing: 0;
+}
+.ve .ve-pairs {
+	display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px;
+}
+.ve .ve-pair {
+	display: flex; flex-direction: column;
+}
+.ve .ve-pair .ve-key {
+	font-size: 11px; color: var(--ink-3); margin-bottom: 4px;
+}
+.ve .ve-pair .ve-val {
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 10px; color: var(--ink); font-size: 13px;
+	display: flex; justify-content: space-between; align-items: center;
+}
+.ve .ve-pair .ve-val .chev { color: var(--ink-4); font-size: 10px; }
+.ve .ve-pair .ve-val.changed { border-color: var(--accent); }
+.ve .ve-pair .ve-val.changed .ve-num { color: var(--accent); font-weight: 600; }
+.ve .ve-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.ve .ve-toggle {
+	display: flex; justify-content: space-between; align-items: center;
+	padding: 6px 0;
+}
+.ve .ve-toggle .switch {
+	width: 32px; height: 18px; background: var(--track); border-radius: 10px;
+	position: relative; cursor: pointer;
+}
+.ve .ve-toggle .switch::after {
+	content: ""; position: absolute; top: 2px; left: 2px;
+	width: 14px; height: 14px; background: var(--ink-3); border-radius: 50%;
+}
+.ve .ve-toggle .switch.on { background: var(--accent-soft); }
+.ve .ve-toggle .switch.on::after { background: var(--accent); left: 16px; }
+.ve .ve-toggle .lab { font-size: 12.5px; color: var(--ink-2); }
+
+.ve .ve-active {
+	border: 1px solid var(--accent-soft); background: rgba(96,208,128,.04);
+	border-radius: 6px; padding: 12px 16px; margin: 16px 0 12px;
+}
+.ve .ve-active h4 {
+	margin: 0 0 8px; font-size: 11px; color: var(--accent); letter-spacing: 1px;
+	font-weight: 600;
+}
+.ve .ve-active .ve-chip {
+	display: inline-flex; gap: 6px; align-items: center;
+	background: var(--bg-card); border-left: 2px solid var(--accent);
+	padding: 5px 10px; border-radius: 3px; font-size: 12px;
+}
+.ve .ve-active .ve-chip .from { color: var(--ink-4); text-decoration: line-through; font-size: 11px; }
+.ve .ve-active .ve-chip .to { color: var(--accent); font-weight: 600; }
+.ve .ve-active .ve-chip .lab { color: var(--ink-2); }
+
+.ve .ve-preset {
+	margin: 12px -22px 0; padding: 14px 22px; background: var(--bg-card);
+	border-top: 1px solid var(--line-soft);
+	display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;
+}
+.ve .ve-preset .input-row {
+	display: flex; gap: 6px; align-items: center;
+}
+.ve .ve-preset .input-row input {
+	flex: 1; background: var(--bg-card-2); border: 1px solid var(--line);
+	border-radius: 4px; padding: 6px 10px; color: var(--ink); font-size: 12px;
+}
+.ve .ve-preset button {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 12px; color: var(--ink-2); font-size: 12px; cursor: pointer;
+}
+.ve .ve-preset button.primary { color: var(--accent); border-color: var(--accent-soft); }
+.ve .ve-preset .button-row { display: flex; gap: 6px; }
+
+footer.foot {
+	text-align: center; color: var(--ink-4); font-size: 11px;
+	padding: 60px 0 80px;
+}
+</style>
+</head>
+<body>
+
+<header>
+	<h1>Right-panel · options pass</h1>
+	<span class="sub">Five visual directions for the OPTIONS + ACTIVE CHANGES + PRESET column. Same content, same order.</span>
+	<nav>
+		<a href="#a">A · Crisp</a>
+		<a href="#b">B · Spacious</a>
+		<a href="#c">C · Cockpit</a>
+		<a href="#d">D · Hero metrics</a>
+		<a href="#e">E · Grouped cards</a>
+	</nav>
+</header>
+
+<div class="intro">
+	<h2>What we're choosing</h2>
+	<p>Pick a <strong>visual direction</strong> for the right-side column of the skirmish lobby. Each variant uses the same content in the same order — <code>OPTIONS</code> (Economy → Match → World), <code>ACTIVE CHANGES</code>, <code>PRESET</code> — but rebuilds the spacing, typography, and component vocabulary from scratch.</p>
+	<p>The left-side mock (gray panel) is a placeholder for the map / players area so you can judge the column in proportion. Once we pick one, we'll port it to the in-game chrome — some details (gradients, rounded corners) won't fully translate, but the layout, hierarchy, and visual language will.</p>
+</div>
+
+<!-- ============================================================
+     VARIANT A — Crisp
+     ============================================================ -->
+<section class="variant" id="a">
+	<header class="title">
+		<h2><span class="tag">A</span>Crisp · Linear / Vercel</h2>
+		<p>Clean cards with thin dividers. Two-column dropdown grid, modern toggle switches. Each value that's been changed from default gets a small green dot next to it; active changes summarize the same info as pill chips at the bottom. Preset bar reads as a footer toolbar.</p>
+		<p class="notes">Translates well to in-game: cards = ColorBlock panels, accent dots = small ColorBlocks. Toggle switches need a custom widget but can be faked with two ColorBlocks + IsChecked logic.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="left-content"><div class="label">MAP + PLAYERS</div><div class="hint">(left column unchanged)</div></div></div>
+		<div class="right-panel">
+			<div class="va">
+				<div class="va-header">
+					<div class="va-title">OPTIONS</div>
+				</div>
+				<div class="va-content">
+					<div class="va-section">
+						<h3>ECONOMY</h3>
+						<div class="va-grid">
+							<div class="va-field"><label>Income Modifier</label><div class="va-select">100%<span class="chev">▾</span></div></div>
+							<div class="va-field"><label>Starting Cash</label><div class="va-select">$20,000<span class="chev">▾</span></div></div>
+							<div class="va-field"><label>Passive Income</label><div class="va-select is-changed">$200<span class="chev">▾</span></div></div>
+							<div class="va-field"><label>Kill Bounties</label><div class="va-select">Off<span class="chev">▾</span></div></div>
+						</div>
+					</div>
+					<div class="va-section">
+						<h3>MATCH</h3>
+						<div class="va-grid">
+							<div class="va-field"><label>Game Speed</label><div class="va-select">Real Time<span class="chev">▾</span></div></div>
+							<div class="va-field"><label>Doomsday Clock</label><div class="va-select">No limit<span class="chev">▾</span></div></div>
+							<div class="va-field"><label>Starting Units</label><div class="va-select">None<span class="chev">▾</span></div></div>
+						</div>
+					</div>
+					<div class="va-section">
+						<h3>WORLD</h3>
+						<div class="va-toggles">
+							<div class="va-toggle"><span class="va-toggle-label">Explored Map</span><div class="switch on"></div></div>
+							<div class="va-toggle"><span class="va-toggle-label">Fog of War</span><div class="switch on"></div></div>
+							<div class="va-toggle"><span class="va-toggle-label">Separate Team Spawns</span><div class="switch on"></div></div>
+							<div class="va-toggle"><span class="va-toggle-label">Debug Menu</span><div class="switch on"></div></div>
+						</div>
+					</div>
+				</div>
+				<div class="va-active">
+					<h3>ACTIVE CHANGES<span class="count">1</span></h3>
+					<div class="va-chips">
+						<span class="va-chip">+ Passive Income · $200<span class="x">×</span></span>
+					</div>
+				</div>
+				<div class="va-preset">
+					<div class="va-preset-row">
+						<input type="text" value="Default" style="width:160px;">
+						<button class="va-btn">Load ▾</button>
+						<button class="va-btn primary">Save</button>
+						<button class="va-btn">Rename</button>
+						<button class="va-btn">Reset</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     VARIANT B — Spacious
+     ============================================================ -->
+<section class="variant" id="b">
+	<header class="title">
+		<h2><span class="tag">B</span>Spacious · Notion / Tailwind UI</h2>
+		<p>Label-value rows with breathing room. Each row gets one option, with the value right-aligned and changed values highlighted in accent. No card boundaries inside the section — relies on horizontal dividers and big section headers. Sub-text under settings adds context without clutter.</p>
+		<p class="notes">Lighter on chrome — easiest to translate to OpenRA, since most of it is just label + dropdown + thin divider line. The right-aligned value style works because OpenRA dropdowns can have a configured text alignment.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="left-content"><div class="label">MAP + PLAYERS</div><div class="hint">(left column unchanged)</div></div></div>
+		<div class="right-panel">
+			<div class="vb">
+				<div class="vb-h1">Match settings</div>
+				<div class="vb-sub">Configure the rules for this skirmish. Change values to override the defaults.</div>
+
+				<div class="vb-section">
+					<div class="vb-section-h">ECONOMY</div>
+					<div class="vb-row"><div><div class="vb-label">Income Modifier</div></div><div class="vb-control"><span class="vb-select">100% <span class="chev">▾</span></span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Starting Cash</div></div><div class="vb-control"><span class="vb-select">$20,000 <span class="chev">▾</span></span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Passive Income</div></div><div class="vb-control"><span class="vb-select is-changed">$200 <span class="chev">▾</span></span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Kill Bounties</div></div><div class="vb-control"><span class="vb-select">Off <span class="chev">▾</span></span></div></div>
+				</div>
+
+				<div class="vb-section">
+					<div class="vb-section-h">MATCH</div>
+					<div class="vb-row"><div><div class="vb-label">Game Speed</div></div><div class="vb-control"><span class="vb-select">Real Time <span class="chev">▾</span></span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Starting Units</div></div><div class="vb-control"><span class="vb-select">None <span class="chev">▾</span></span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Doomsday Clock</div></div><div class="vb-control"><span class="vb-select">No limit <span class="chev">▾</span></span></div></div>
+				</div>
+
+				<div class="vb-section">
+					<div class="vb-section-h">WORLD</div>
+					<div class="vb-row"><div><div class="vb-label">Explored Map</div></div><div class="vb-control"><span class="check-pill on"><span class="dot"></span>On</span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Fog of War</div></div><div class="vb-control"><span class="check-pill on"><span class="dot"></span>On</span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Separate Team Spawns</div></div><div class="vb-control"><span class="check-pill on"><span class="dot"></span>On</span></div></div>
+					<div class="vb-row"><div><div class="vb-label">Debug Menu</div></div><div class="vb-control"><span class="check-pill on"><span class="dot"></span>On</span></div></div>
+				</div>
+
+				<div class="vb-changes">
+					<h3>Active changes</h3>
+					<div class="vb-chip-list">
+						<span class="vb-chip"><span>Passive Income</span><span class="arrow">→</span><span class="new">$200</span></span>
+					</div>
+				</div>
+
+				<div class="vb-preset">
+					<input class="vb-pname" type="text" value="Default">
+					<button>Load ▾</button>
+					<button class="primary">Save</button>
+					<button>Reset</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     VARIANT C — Cockpit
+     ============================================================ -->
+<section class="variant" id="c">
+	<header class="title">
+		<h2><span class="tag">C</span>Cockpit · dense pro-tools</h2>
+		<p>Maximum information density. Jump-link nav at top, full-bleed section headers, tight rows with a 2px accent rail on any changed value. The active changes chip lives inline at the bottom; preset bar runs along the very edge. Best for power users who want to see everything at a glance.</p>
+		<p class="notes">Easiest to translate to in-game — already close to what we have, just tightened up. Accent rails are 2px ColorBlocks; jump nav can be plain buttons.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="left-content"><div class="label">MAP + PLAYERS</div><div class="hint">(left column unchanged)</div></div></div>
+		<div class="right-panel">
+			<div class="vc">
+				<div class="vc-nav">
+					<a href="#" class="active">ECONOMY</a>
+					<a href="#">MATCH</a>
+					<a href="#">WORLD</a>
+				</div>
+				<div class="vc-content">
+					<div class="vc-section">
+						<div class="vc-section-h"><span>ECONOMY</span><span style="font-weight:400;letter-spacing:0;font-size:10px;color:var(--ink-4)">4 options</span></div>
+						<div class="vc-row"><span class="vc-label">Income Modifier</span><span class="vc-control">100%<span class="chev">▾</span></span></div>
+						<div class="vc-row"><span class="vc-label">Starting Cash</span><span class="vc-control">$20,000<span class="chev">▾</span></span></div>
+						<div class="vc-row is-changed"><span class="vc-label">Passive Income</span><span class="vc-control">$200<span class="chev">▾</span></span></div>
+						<div class="vc-row"><span class="vc-label">Kill Bounties</span><span class="vc-control">Off<span class="chev">▾</span></span></div>
+					</div>
+					<div class="vc-section">
+						<div class="vc-section-h"><span>MATCH</span><span style="font-weight:400;letter-spacing:0;font-size:10px;color:var(--ink-4)">3 options</span></div>
+						<div class="vc-row"><span class="vc-label">Game Speed</span><span class="vc-control">Real Time<span class="chev">▾</span></span></div>
+						<div class="vc-row"><span class="vc-label">Starting Units</span><span class="vc-control">None<span class="chev">▾</span></span></div>
+						<div class="vc-row"><span class="vc-label">Doomsday Clock</span><span class="vc-control">No limit<span class="chev">▾</span></span></div>
+					</div>
+					<div class="vc-section">
+						<div class="vc-section-h"><span>WORLD</span><span style="font-weight:400;letter-spacing:0;font-size:10px;color:var(--ink-4)">4 options</span></div>
+						<div class="vc-toggle-row"><span class="vc-label">Explored Map</span><span class="vc-check on"></span></div>
+						<div class="vc-toggle-row"><span class="vc-label">Fog of War</span><span class="vc-check on"></span></div>
+						<div class="vc-toggle-row"><span class="vc-label">Separate Team Spawns</span><span class="vc-check on"></span></div>
+						<div class="vc-toggle-row"><span class="vc-label">Debug Menu</span><span class="vc-check on"></span></div>
+					</div>
+				</div>
+				<div class="vc-foot">
+					<div class="vc-active">
+						<span class="vc-active-label">ACTIVE CHANGES<span class="count">1</span></span>
+						<span class="vc-chip">+ Passive Income $200</span>
+					</div>
+					<div class="vc-preset">
+						<input class="pname" value="Default">
+						<button>Load ▾</button>
+						<button class="primary">Save</button>
+						<button>Reset</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     VARIANT D — Hero metrics
+     ============================================================ -->
+<section class="variant" id="d">
+	<header class="title">
+		<h2><span class="tag">D</span>Hero metrics · game launcher</h2>
+		<p>Top-level economy values shown as big metric cards — the kind of "at-a-glance" display you'd see in a game launcher or fitness dashboard. Match settings collapse into compact rows; world toggles render as pill buttons. Changed values glow. Active changes get a prominent badge.</p>
+		<p class="notes">Most ambitious — large numeric values, pill buttons with glow effects. The big-number metric cards are achievable as plain ColorBlock + Label combinations; the glow effect can be faked with two stacked ColorBlocks.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="left-content"><div class="label">MAP + PLAYERS</div><div class="hint">(left column unchanged)</div></div></div>
+		<div class="right-panel">
+			<div class="vd">
+				<h3 class="vd-section">ECONOMY</h3>
+				<div class="vd-metrics">
+					<div class="vd-metric">
+						<div class="vd-mlabel">Starting Cash</div>
+						<div class="vd-mval">$20,000</div>
+						<div class="vd-mtrail">per player</div>
+						<div class="vd-mdrop">▾</div>
+					</div>
+					<div class="vd-metric changed">
+						<div class="vd-mlabel">Passive Income</div>
+						<div class="vd-mval changed">$200</div>
+						<div class="vd-mtrail">per tick · changed from default</div>
+						<div class="vd-mdrop">▾</div>
+					</div>
+					<div class="vd-metric">
+						<div class="vd-mlabel">Income Modifier</div>
+						<div class="vd-mval">100%</div>
+						<div class="vd-mtrail">scaling factor</div>
+						<div class="vd-mdrop">▾</div>
+					</div>
+					<div class="vd-metric">
+						<div class="vd-mlabel">Kill Bounties</div>
+						<div class="vd-mval">Off</div>
+						<div class="vd-mtrail">% of unit cost</div>
+						<div class="vd-mdrop">▾</div>
+					</div>
+				</div>
+
+				<h3 class="vd-section">MATCH</h3>
+				<div class="vd-line">
+					<div class="vd-line-row"><span class="ll">Game Speed</span><span class="lv">Real Time</span></div>
+					<div class="vd-line-row"><span class="ll">Doomsday Clock</span><span class="lv">No limit</span></div>
+					<div class="vd-line-row"><span class="ll">Starting Units</span><span class="lv">None</span></div>
+				</div>
+
+				<h3 class="vd-section">WORLD</h3>
+				<div class="vd-pills">
+					<span class="vd-pill on"><span class="dot"></span>Explored Map</span>
+					<span class="vd-pill on"><span class="dot"></span>Fog of War</span>
+					<span class="vd-pill on"><span class="dot"></span>Separate Team Spawns</span>
+					<span class="vd-pill on"><span class="dot"></span>Debug Menu</span>
+				</div>
+
+				<div class="vd-changes">
+					<h3 class="vd-section">ACTIVE CHANGES<span class="badge">1</span></h3>
+					<span class="vd-chip"><span class="vlab">Passive Income</span><span>→</span><span class="vnow">$200</span></span>
+				</div>
+
+				<div class="vd-preset">
+					<input value="Default">
+					<button>Load ▾</button>
+					<button class="primary">Save</button>
+					<button>Reset</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     VARIANT E — Grouped cards
+     ============================================================ -->
+<section class="variant" id="e">
+	<header class="title">
+		<h2><span class="tag">E</span>Grouped cards · clean form</h2>
+		<p>Each section lives in its own rounded card with a header strip. Inside, options run as two-column key-value pairs. Active changes get a distinct "diff" treatment — original value struck through, new value in accent. Section header shows a small "1 modified" pill when anything inside is changed.</p>
+		<p class="notes">A middle ground between A and D. The "modified" pill on the section header is information-dense; the strikethrough diff in Active Changes shows what changed and from what value. Both work in OpenRA chrome but the strikethrough needs custom text rendering or two stacked labels.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="left-content"><div class="label">MAP + PLAYERS</div><div class="hint">(left column unchanged)</div></div></div>
+		<div class="right-panel">
+			<div class="ve">
+				<div class="ve-h1"><span class="accent"></span>MATCH SETTINGS</div>
+
+				<div class="ve-group">
+					<h4>ECONOMY <span class="chip-mod">1 modified</span></h4>
+					<div class="ve-pairs">
+						<div class="ve-pair"><div class="ve-key">Income Modifier</div><div class="ve-val"><span class="ve-num">100%</span><span class="chev">▾</span></div></div>
+						<div class="ve-pair"><div class="ve-key">Starting Cash</div><div class="ve-val"><span class="ve-num">$20,000</span><span class="chev">▾</span></div></div>
+						<div class="ve-pair"><div class="ve-key">Passive Income</div><div class="ve-val changed"><span class="ve-num">$200</span><span class="chev">▾</span></div></div>
+						<div class="ve-pair"><div class="ve-key">Kill Bounties</div><div class="ve-val"><span class="ve-num">Off</span><span class="chev">▾</span></div></div>
+					</div>
+				</div>
+
+				<div class="ve-group">
+					<h4>MATCH</h4>
+					<div class="ve-pairs">
+						<div class="ve-pair"><div class="ve-key">Game Speed</div><div class="ve-val"><span class="ve-num">Real Time</span><span class="chev">▾</span></div></div>
+						<div class="ve-pair"><div class="ve-key">Starting Units</div><div class="ve-val"><span class="ve-num">None</span><span class="chev">▾</span></div></div>
+						<div class="ve-pair"><div class="ve-key">Doomsday Clock</div><div class="ve-val"><span class="ve-num">No limit</span><span class="chev">▾</span></div></div>
+					</div>
+				</div>
+
+				<div class="ve-group">
+					<h4>WORLD</h4>
+					<div class="ve-toggles">
+						<div class="ve-toggle"><span class="lab">Explored Map</span><span class="switch on"></span></div>
+						<div class="ve-toggle"><span class="lab">Fog of War</span><span class="switch on"></span></div>
+						<div class="ve-toggle"><span class="lab">Separate Team Spawns</span><span class="switch on"></span></div>
+						<div class="ve-toggle"><span class="lab">Debug Menu</span><span class="switch on"></span></div>
+					</div>
+				</div>
+
+				<div class="ve-active">
+					<h4>ACTIVE CHANGES (1)</h4>
+					<span class="ve-chip"><span class="lab">Passive Income</span><span class="from">$0</span><span>→</span><span class="to">$200</span></span>
+				</div>
+
+				<div class="ve-preset">
+					<div class="input-row">
+						<input value="Default">
+					</div>
+					<button>Load ▾</button>
+					<div class="button-row">
+						<button class="primary">Save</button>
+						<button>Reset</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<footer class="foot">
+	Pick a direction (A–E) and we'll port it to the in-game lobby. Mix and match traits welcome —
+	e.g. "B's spacing with C's accent rails on changed values".
+</footer>
+
+</body>
+</html>
