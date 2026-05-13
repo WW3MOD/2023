@@ -598,6 +598,24 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 			}
 
+			// Temporary diagnostic: log resolved intent on the first per-actor call (idx 0) so the
+			// debug.log gets one line per grouped click instead of N. Restored 260513 to chase a
+			// gameplay feel issue on river-zeta — clicks reportedly look like the legacy box rather
+			// than cover-aware. Strip again once we have an answer.
+			if (idx == 0)
+			{
+				var totalDensityProbe = 0;
+				for (var dy = -info.IntentSampleRadius; dy <= info.IntentSampleRadius; dy++)
+					for (var dx = -info.IntentSampleRadius; dx <= info.IntentSampleRadius; dx++)
+						totalDensityProbe += SafeDensity(map, new CPos(clickCell.X + dx, clickCell.Y + dy));
+
+				var slotsStr = "";
+				for (var i = 0; i < Math.Min(slots.Length, 8); i++)
+					slotsStr += " " + slots[i];
+
+				Log.Write("debug", $"[Cohesion] click={clickCell} intent={intent} n={n} totalDensity={totalDensityProbe} grad=({gradX},{gradY}) groupCentroid={groupCentroid} slots:{slotsStr}");
+			}
+
 			if (idx >= slots.Length)
 				return individualOrder;
 
