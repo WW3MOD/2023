@@ -65,6 +65,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Advanced — everything else. Mostly placeholder dummies plus developer toggles.
 		const string CategoryCommon = "Common";
 		const string CategoryAdvanced = "Advanced";
+		const string CategoryAll = "All";
 
 		static readonly HashSet<string> CommonOptionIds = new()
 		{
@@ -301,15 +302,27 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.OrderBy(o => o.DisplayOrder)
 					.ToArray();
 
-			var filteredOptions = allOptions
+			var visibleOptions = allOptions
 				.Where(o => !HiddenOptionIds.Contains(o.Id))
-				.Where(o => GetCategory(o) == category)
 				.ToArray();
 
-			if (category == CategoryAdvanced)
-				RenderAdvancedSections(filteredOptions);
+			if (category == CategoryAll)
+			{
+				// Single-scroll layout: render Common sections first, then Advanced.
+				RenderCommonSections(visibleOptions.Where(o => GetCategory(o) == CategoryCommon).ToArray());
+				RenderAdvancedSections(visibleOptions.Where(o => GetCategory(o) == CategoryAdvanced).ToArray());
+			}
 			else
-				RenderCommonSections(filteredOptions);
+			{
+				var filteredOptions = visibleOptions
+					.Where(o => GetCategory(o) == category)
+					.ToArray();
+
+				if (category == CategoryAdvanced)
+					RenderAdvancedSections(filteredOptions);
+				else
+					RenderCommonSections(filteredOptions);
+			}
 
 			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
 			optionsContainer.Bounds.Y = yMargin;

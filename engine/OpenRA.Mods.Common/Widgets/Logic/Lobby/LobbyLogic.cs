@@ -243,13 +243,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{ "getMap", (Func<MapPreview>)(() => map) },
 				{ "configurationDisabled", (Func<bool>)(() => configurationDisabledRef != null && configurationDisabledRef()) }
 			});
-			// Left column (map + players + chat) is always visible. The right column
-			// inside the bin (RIGHT_COLUMN_MATCH) hides on Advanced/Music tabs so the
-			// other bins can overlay only the right side.
+			// Single-panel lobby: left column (map/music + players + chat) and right
+			// column (all options + active changes + preset) are always visible.
 			playerBin.IsVisible = () => panel != PanelType.Servers;
-			var rightColumnMatch = playerBin.GetOrNull("RIGHT_COLUMN_MATCH");
-			if (rightColumnMatch != null)
-				rightColumnMatch.IsVisible = () => panel == PanelType.Players;
 
 			players = playerBin.Get<ScrollPanelWidget>("LOBBY_PLAYERS");
 			editablePlayerTemplate = players.Get("TEMPLATE_EDITABLE_PLAYER");
@@ -496,28 +492,26 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var resetOptionsButton = lobby.GetOrNull<ButtonWidget>("RESET_OPTIONS_BUTTON");
 			if (resetOptionsButton != null)
 			{
-				resetOptionsButton.IsVisible = () => panel == PanelType.Options;
+				resetOptionsButton.IsVisible = () => false; // Reset lives in the preset bar now.
 				resetOptionsButton.IsDisabled = () => configurationDisabled() || !resetOptionsButtonEnabled;
 				resetOptionsButton.OnMouseDown = _ => orderManager.IssueOrder(Order.Command("reset_options"));
 			}
 
-			var optionsBin = Ui.LoadWidget("LOBBY_OPTIONS_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs()
-			{
-				{ "orderManager", orderManager },
-				{ "getMap", (Func<MapPreview>)(() => map) },
-				{ "configurationDisabled", configurationDisabled }
-			});
+			// Options live inline in the right column (RIGHT_COLUMN_MATCH's
+			// COMMON_OPTIONS_PANEL runs LobbyOptionsLogic with category=All — Common
+			// then Advanced sections in one scroll). No separate options bin.
 
-			optionsBin.IsVisible = () => panel == PanelType.Options;
-			ConstrainToRightColumn(optionsBin);
-
-			var musicBin = Ui.LoadWidget("LOBBY_MUSIC_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs
+			// Music panel overlays the map preview when the user clicks the Music
+			// view button. Loaded into a left-column root, not TOP_PANELS_ROOT.
+			var musicPanelRoot = lobby.GetOrNull("MUSIC_PANEL_ROOT");
+			if (musicPanelRoot != null)
 			{
-				{ "onExit", DoNothing },
-				{ "world", worldRenderer.World }
-			});
-			musicBin.IsVisible = () => panel == PanelType.Music;
-			ConstrainToRightColumn(musicBin);
+				Ui.LoadWidget("LOBBY_MUSIC_BIN", musicPanelRoot, new WidgetArgs
+				{
+					{ "onExit", DoNothing },
+					{ "world", worldRenderer.World }
+				});
+			}
 
 			ServerListLogic serverListLogic = null;
 			if (!skirmishMode)
@@ -533,56 +527,45 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				serversBin.IsVisible = () => panel == PanelType.Servers;
 			}
 
-			var tabContainer = skirmishMode ? lobby.Get("SKIRMISH_TABS") : lobby.Get("MULTIPLAYER_TABS");
-			tabContainer.IsVisible = () => true;
+			// Old global tab strip (Match / Advanced / Music / Servers) is gone — all
+			// options live inline on the right, music has a local Map/Music toggle in
+			// the top-left. The tab containers stay in the YAML but never become
+			// visible. Servers panel is still reachable for multiplayer mode below.
+			var tabContainer = skirmishMode ? lobby.GetOrNull("SKIRMISH_TABS") : lobby.GetOrNull("MULTIPLAYER_TABS");
+			if (tabContainer != null)
+				tabContainer.IsVisible = () => false;
 
-			var optionsTab = tabContainer.Get<ButtonWidget>("OPTIONS_TAB");
-			optionsTab.IsHighlighted = () => panel == PanelType.Options;
-			optionsTab.IsDisabled = OptionsTabDisabled;
-			optionsTab.OnClick = () => panel = PanelType.Options;
+			// Map/Music local toggle for the top-left panel.
+			var mapPreviewRoot = lobby.GetOrNull("MAP_PREVIEW_ROOT");
+			// Default to map view; Test.OpenLobbyTab=Music drives the toggle for screenshot tests.
+			var showMusic = TestMode.IsActive && string.Equals(TestMode.OpenLobbyTab, "music", StringComparison.OrdinalIgnoreCase);
+			if (mapPreviewRoot != null)
+				mapPreviewRoot.IsVisible = () => !showMusic;
+			if (musicPanelRoot != null)
+				musicPanelRoot.IsVisible = () => showMusic;
 
-			var playersTab = tabContainer.Get<ButtonWidget>("PLAYERS_TAB");
-			playersTab.IsHighlighted = () => panel == PanelType.Players;
-			playersTab.IsDisabled = () => panel == PanelType.Kick || panel == PanelType.ForceStart;
-			playersTab.OnClick = () => panel = PanelType.Players;
-
-			var musicTab = tabContainer.Get<ButtonWidget>("MUSIC_TAB");
-			musicTab.IsHighlighted = () => panel == PanelType.Music;
-			musicTab.IsDisabled = () => panel == PanelType.Kick || panel == PanelType.ForceStart;
-			musicTab.OnClick = () => panel = PanelType.Music;
-
-			// WW3MOD: render an accent strip under whichever tab is active. The
-			// engine button-highlighted sprite variant is too similar to the
-			// regular button to read at a glance, so we draw the indicator
-			// ourselves. See SKIRMISH_TABS / MULTIPLAYER_TABS in lobby.yaml.
-			var playersIndicator = tabContainer.GetOrNull("PLAYERS_TAB_INDICATOR");
-			if (playersIndicator != null)
-				playersIndicator.IsVisible = () => panel == PanelType.Players;
-			var optionsIndicator = tabContainer.GetOrNull("OPTIONS_TAB_INDICATOR");
-			if (optionsIndicator != null)
-				optionsIndicator.IsVisible = () => panel == PanelType.Options;
-			var musicIndicator = tabContainer.GetOrNull("MUSIC_TAB_INDICATOR");
-			if (musicIndicator != null)
-				musicIndicator.IsVisible = () => panel == PanelType.Music;
-
-			var serversTab = tabContainer.GetOrNull<ButtonWidget>("SERVERS_TAB");
-			if (serversTab != null)
+			var mapMusicToggle = lobby.GetOrNull("MAP_MUSIC_TOGGLE");
+			if (mapMusicToggle != null)
 			{
-				serversTab.IsHighlighted = () => panel == PanelType.Servers;
-				serversTab.IsDisabled = () => panel == PanelType.Kick || panel == PanelType.ForceStart;
-				serversTab.OnClick = () =>
+				var mapViewButton = mapMusicToggle.GetOrNull<ButtonWidget>("MAP_VIEW_BUTTON");
+				if (mapViewButton != null)
 				{
-					// Refresh the list when switching to the servers tab
-					if (serverListLogic != null && panel != PanelType.Servers)
-						serverListLogic.RefreshServerList();
-
-					panel = PanelType.Servers;
-				};
+					mapViewButton.IsHighlighted = () => !showMusic;
+					mapViewButton.OnClick = () => showMusic = false;
+				}
+				var musicViewButton = mapMusicToggle.GetOrNull<ButtonWidget>("MUSIC_VIEW_BUTTON");
+				if (musicViewButton != null)
+				{
+					musicViewButton.IsHighlighted = () => showMusic;
+					musicViewButton.OnClick = () => showMusic = true;
+				}
+				var mapIndicator = mapMusicToggle.GetOrNull("MAP_VIEW_INDICATOR");
+				if (mapIndicator != null)
+					mapIndicator.IsVisible = () => !showMusic;
+				var musicIndicator = mapMusicToggle.GetOrNull("MUSIC_VIEW_INDICATOR");
+				if (musicIndicator != null)
+					musicIndicator.IsVisible = () => showMusic;
 			}
-
-			var serversIndicator = tabContainer.GetOrNull("SERVERS_TAB_INDICATOR");
-			if (serversIndicator != null)
-				serversIndicator.IsVisible = () => panel == PanelType.Servers;
 
 			// WW3MOD: allow external test drivers to land on a specific tab on
 			// lobby open. PITFALL: setting panel here gets reverted by the Tick()
@@ -767,15 +750,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			base.Dispose(disposing);
-		}
-
-		static void ConstrainToRightColumn(Widget bin)
-		{
-			// Tabbed bins (Options/Music) fill TOP_PANELS_ROOT by default. Re-bound them
-			// to the right half so the left column (map + players + chat) stays visible.
-			var parentBounds = bin.Parent.Bounds;
-			var halfWidth = parentBounds.Width / 2;
-			bin.Bounds = new WidgetBounds(halfWidth + 8, 0, halfWidth - 8, parentBounds.Height);
 		}
 
 		bool OptionsTabDisabled()

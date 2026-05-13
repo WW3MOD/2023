@@ -39,7 +39,37 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH - 48
 			Height: 1
 			Color: 18181848
-		# Tab strip — sits in the row below the title bar, left-aligned with the content area.
+		# Map/Music toggle — local view switch for the top-left panel. Replaces the
+		# old global tab strip (no more right-side tabs; all options live in one scroll).
+		Container@MAP_MUSIC_TOGGLE:
+			X: 24
+			Y: 72
+			Width: 200
+			Height: 32
+			Children:
+				Button@MAP_VIEW_BUTTON:
+					Width: 90
+					Height: 32
+					Font: Bold
+					Text: Map
+				Button@MUSIC_VIEW_BUTTON:
+					X: 96
+					Width: 90
+					Height: 32
+					Font: Bold
+					Text: Music
+				ColorBlock@MAP_VIEW_INDICATOR:
+					X: 0
+					Y: 30
+					Width: 90
+					Height: 2
+					Color: 60D080FF
+				ColorBlock@MUSIC_VIEW_INDICATOR:
+					X: 96
+					Y: 30
+					Width: 90
+					Height: 2
+					Color: 60D080FF
 		Container@SKIRMISH_TABS:
 			X: 24
 			Width: 360
@@ -158,6 +188,12 @@ Background@SERVER_LOBBY:
 			Y: 116
 			Width: (PARENT_WIDTH - 64) / 2
 			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
+		Container@MUSIC_PANEL_ROOT:
+			X: 24
+			Y: 116
+			Width: (PARENT_WIDTH - 64) / 2
+			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
+			Visible: False
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: 24
 			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 32
