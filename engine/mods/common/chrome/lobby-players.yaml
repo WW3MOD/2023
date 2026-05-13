@@ -24,72 +24,82 @@ Container@LOBBY_PLAYER_BIN:
 					Color: 14171C90
 				Label@CELL_LABEL:
 					X: 12
-					Y: 10
+					Y: 14
 					Width: PARENT_WIDTH - 24
 					Height: 20
 					Font: TinyBold
 					Align: Left
 					Text: PLAYERS
+				ColorBlock@CELL_LABEL_ACCENT:
+					X: 12
+					Y: 38
+					Width: 32
+					Height: 2
+					Color: 60D080FF
+				# WW3MOD: column header labels — switched from Bold to TinyBold and
+				# pulled below the accent line. Bold-large read as content, not
+				# table headers; the Name column especially overlapped the player
+				# dropdown text below it.
 				Container@LABEL_CONTAINER:
 					X: 12
-					Y: 36
+					Y: 48
 					Width: PARENT_WIDTH - 24
-					Height: 24
+					Height: 20
 					Children:
 						Label@LABEL_LOBBY_NAME:
 							X: 15
 							Width: 300
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-name
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 						Label@LABEL_LOBBY_COLOR:
 							X: 325
 							Width: 80
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-color
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 						Label@LABEL_LOBBY_FACTION:
 							X: 415
 							Width: 210
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-faction
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 						Label@LABEL_LOBBY_TEAM:
 							X: 635
 							Width: 60
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-team
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 						Label@LABEL_LOBBY_HANDICAP:
 							X: 705
 							Width: 80
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-handicap
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 						Label@LABEL_LOBBY_SPAWN:
 							X: 795
 							Width: 60
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-spawn
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 						Label@LABEL_LOBBY_STATUS:
 							X: 865
 							Width: 44
-							Height: 24
+							Height: 20
 							Text: label-lobby-players-ready
 							Align: Center
-							Font: Bold
+							Font: TinyBold
 				ScrollPanel@LOBBY_PLAYERS:
 					X: 4
-					Y: 64
+					Y: 76
 					Width: PARENT_WIDTH - 8
-					Height: PARENT_HEIGHT - 112
+					Height: PARENT_HEIGHT - 124
 					TopBottomSpacing: 8
 					ItemSpacing: 7
 					Background: ""
@@ -330,6 +340,13 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 25
 							Visible: false
 							Children:
+								# WW3MOD: dim background tints the row so an empty slot reads
+								# as "available, awaiting decision" rather than a blank gap
+								# between filled rows. Alpha keeps the underlying CELL_BG.
+								ColorBlock@EMPTY_BG:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Color: 1E232A40
 								Label@NAME:
 									Width: 165
 									Height: 25
@@ -586,6 +603,15 @@ Container@LOBBY_PLAYER_BIN:
 		# RIGHT column for the Match tab: settings + active changes + preset bar.
 		# LobbyLogic hides this whole block when the Advanced or Music tab is active —
 		# those tabs overlay LOBBY_OPTIONS_BIN / LOBBY_MUSIC_BIN over this column.
+		#
+		# WW3MOD layout (top to bottom):
+		#   Y 0–48    OPTIONS section header + accent line
+		#   Y 48–516  COMMON_OPTIONS_PANEL (scrolls if content grows; sized to fit
+		#             ECONOMY + MATCH + WORLD comfortably without forcing a scroll)
+		#   Y 524–536 divider strip
+		#   Y 544–832 LOBBY_ACTIVE_CHANGES (label is driven by the logic — "ACTIVE
+		#             CHANGES (N)" when populated, "All settings at default" otherwise)
+		#   Y 842–874 LOBBY_PRESET_BAR (anchored bottom via PARENT_HEIGHT - 42)
 		Container@RIGHT_COLUMN_MATCH:
 			X: PARENT_WIDTH / 2 + 8
 			Y: 0
@@ -598,18 +624,24 @@ Container@LOBBY_PLAYER_BIN:
 					Color: 14171C90
 				Label@CELL_LABEL:
 					X: 12
-					Y: 10
+					Y: 14
 					Width: PARENT_WIDTH - 24
 					Height: 20
 					Font: TinyBold
 					Align: Left
 					Text: OPTIONS
+				ColorBlock@CELL_LABEL_ACCENT:
+					X: 12
+					Y: 38
+					Width: 32
+					Height: 2
+					Color: 60D080FF
 				ScrollPanel@COMMON_OPTIONS_PANEL:
 					Logic: LobbyOptionsLogic
 					X: 4
-					Y: 36
+					Y: 48
 					Width: PARENT_WIDTH - 8
-					Height: PARENT_HEIGHT - 256
+					Height: 468
 					Background: ""
 					ScrollBar: Right
 					Children:
@@ -620,18 +652,28 @@ Container@LOBBY_PLAYER_BIN:
 							Y: 5
 							Width: PARENT_WIDTH - 24
 							Children:
+								# WW3MOD: section headers get a left-aligned 2px accent line in
+								# the lobby green so the row reads as a section divider, not a
+								# floating label. Header height bumped 40 → 42 to make room for
+								# the accent without changing the label baseline.
 								Container@SECTION_HEADER_TEMPLATE:
 									Width: PARENT_WIDTH
-									Height: 40
+									Height: 42
 									Visible: False
 									Children:
 										Label@HEADER_LABEL:
 											X: 10
-											Y: 14
+											Y: 12
 											Width: PARENT_WIDTH - 20
 											Height: 22
 											Font: MediumBold
 											Align: Left
+										ColorBlock@HEADER_ACCENT:
+											X: 10
+											Y: 36
+											Width: 24
+											Height: 2
+											Color: 60D080FF
 								Container@CHECKBOX_ROW_TEMPLATE:
 									Width: PARENT_WIDTH
 									Height: 28
@@ -682,29 +724,44 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 25
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-				# WW3MOD: the outer "ACTIVE CHANGES" header was removed because
-				# LobbyActiveChangesLogic already drives EMPTY_HINT below to
-				# show "All settings at default" / "ACTIVE CHANGES (N)" as the
-				# panel header. Two headers stacked looked like a debug overlay.
+				# 1px divider between OPTIONS and ACTIVE CHANGES cards.
+				ColorBlock@RIGHT_DIVIDER_1:
+					X: 12
+					Y: 526
+					Width: PARENT_WIDTH - 24
+					Height: 1
+					Color: 30343AFF
+				# WW3MOD: outer "ACTIVE CHANGES" header dropped — LobbyActiveChangesLogic
+				# drives EMPTY_HINT to show "ACTIVE CHANGES (N)" when populated or
+				# "All settings at default" when empty. Two headers stacked looked
+				# like a debug overlay. Card now stretches between the divider and
+				# the preset bar so the column reads as three clear stacked panels
+				# instead of a tall options box with a tiny lozenge at the bottom.
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: PARENT_HEIGHT - 200
+					Y: 540
 					Width: PARENT_WIDTH - 24
-					Height: 154
+					Height: PARENT_HEIGHT - 540 - 52
 					Children:
 						ColorBlock@SECTION_BG:
 							Width: PARENT_WIDTH
 							Height: PARENT_HEIGHT
 							Color: 0000001E
 						Label@EMPTY_HINT:
-							X: 8
-							Y: 6
+							X: 10
+							Y: 10
 							Width: 300
 							Height: 20
 							Font: TinyBold
 							Align: Left
 							Text: All settings at default
+						ColorBlock@EMPTY_HINT_ACCENT:
+							X: 10
+							Y: 34
+							Width: 32
+							Height: 2
+							Color: 60D080FF
 						Container@CHIP_TEMPLATE:
 							Width: 180
 							Height: 30

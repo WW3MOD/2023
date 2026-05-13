@@ -117,11 +117,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
-			// Chips flow horizontally starting at x=5 below the counter row, wrapping
-			// to a new row when the next chip would overflow the container width.
-			// Each row is 38px tall (30 chip + 8 gap).
-			var x = 5;
-			var y = 22;
+			// Chips flow horizontally starting at x=10 (matches the EMPTY_HINT and
+			// accent line on the left edge of the panel). First chip sits just below
+			// the header strip (EMPTY_HINT Y:10 H:20 + accent Y:34 H:2 + 8px gap).
+			var x = 10;
+			var y = 46;
 			const int spacing = 10;
 			const int rowStride = 38;
 			var count = 0;
@@ -155,9 +155,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 
 				// Wrap to a new row if the chip won't fit on this row.
-				if (x > 5 && x + chipWidth > containerWidth - 5)
+				if (x > 10 && x + chipWidth > containerWidth - 10)
 				{
-					x = 5;
+					x = 10;
 					y += rowStride;
 				}
 

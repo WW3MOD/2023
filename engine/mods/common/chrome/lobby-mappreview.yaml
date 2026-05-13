@@ -18,8 +18,22 @@ Container@MAP_PREVIEW:
 							Width: PARENT_WIDTH - 2
 							Height: PARENT_HEIGHT - 2
 							TooltipContainer: TOOLTIP_CONTAINER
+				# WW3MOD: card-style footer strip so the title + meta read as a
+				# unified panel attached to the preview, not floating text on the
+				# screen background.
+				ColorBlock@MAP_TITLE_STRIP:
+					Y: PARENT_HEIGHT - 30
+					Width: PARENT_WIDTH
+					Height: 30
+					Color: 14171CD0
+				ColorBlock@MAP_TITLE_ACCENT:
+					X: 0
+					Y: PARENT_HEIGHT - 30
+					Width: 3
+					Height: 30
+					Color: 60D080FF
 				LabelWithTooltip@MAP_TITLE:
-					X: 4
+					X: 12
 					Y: PARENT_HEIGHT - 28
 					Width: PARENT_WIDTH * 11 / 20
 					Height: 28
