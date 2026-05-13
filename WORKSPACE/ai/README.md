@@ -8,12 +8,13 @@ The InfluenceMap, FrontlineOverlay, doctrine docs, capture-rules cleanup, autote
 
 ## Docs
 
-- [`01_default_ai_explained.md`](01_default_ai_explained.md) — how the engine's stock `ModularBot` thinks, every module's responsibilities, all the injection points, and the architectural assumptions worth flagging before we redesign.
+Read in order:
 
-Future docs (planned, not yet written):
-- `02_problem_statement.md` — what we want, what we have, the gap
-- `03_design.md` — the new brain architecture, decision-flow, data model
-- `04_migration_plan.md` — how we ship without breaking the legacy AI
+- [`01_default_ai_explained.md`](01_default_ai_explained.md) — how the engine's stock `ModularBot` thinks, every module's responsibilities, all the injection points, and the architectural assumptions worth flagging before we redesign.
+- [`02_problem_statement.md`](02_problem_statement.md) — eight observable behaviors we want, three layers of what we have today, five root-cause gaps, non-negotiables / non-goals, eight success criteria.
+- [`03_substrate.md`](03_substrate.md) — the plumbing layer. Five tiers (engine → shared perception → per-bot state → observability → brain hook). Shared world traits (`ResourceMap`, `TerrainCache`, `SectorMap`), per-bot stores (`GoalLedger`, `ClaimRegistry`, `SectorBudget`, `ProductionPlan`, `Memory`), and the debug/overlay channels. Speculative — not yet binding. Open questions at the end for pushback.
+
+Suggested next: `04_brain.md` — the decision pipeline (perceive → plan → assign → dispatch → react), goal-to-order translation, replan triggers. See `03_substrate.md` §13 for rationale.
 
 ## Archive
 
