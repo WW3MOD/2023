@@ -17,6 +17,7 @@
 	RenderSprites:
 
 ^Combatant:
+	CohesionSlotMemory:
 
 ^StandardVision:
 	Vision@10:

@@ -600,6 +600,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (idx >= slots.Length)
 				return individualOrder;
 
+			// Remember the assigned slot on the subject so the leash (CohesionSlotMemory) can
+			// walk it back to position if it gets nudged out by a passing unit.
+			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(slots[idx], subject.World.WorldTick);
+
 			return individualOrder.WithTarget(Target.FromCell(subject.World, slots[idx]));
 		}
 	}

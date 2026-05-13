@@ -229,6 +229,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 		}
 
+		[Desc("Return the CPos this actor was last assigned by CohesionMoveModifier (the slot the " +
+			"sticky-cover leash will try to walk back to). Returns CPos.Zero if no slot is set.")]
+		public CPos GetCohesionSlot(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return CPos.Zero;
+
+			var memory = actor.TraitOrDefault<CohesionSlotMemory>();
+			return memory?.AssignedSlot ?? CPos.Zero;
+		}
+
 		[Desc("Read Map.DensityLayer at a cell. Returns the byte value (0-255) summed from all " +
 			"density-bearing actors whose footprint covers this cell. Test mode only.")]
 		public int GetDensity(CPos cell)

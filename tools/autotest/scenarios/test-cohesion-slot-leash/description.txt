@@ -1,0 +1,17 @@
+AUTOTEST: cohesion sticky-slot leash (Phase 4 v1)
+
+Verifies CohesionSlotMemory: a unit nudged off its assigned slot walks
+back when the path is free again.
+
+Setup: 4 e3.america in a vertical column at (20, 14..17). Trees flank
+their north and south to force a passing unit through. A 5th unit
+(Bumper) is ordered to march from west to east across the column.
+
+The grouped move is issued at (20, 15) so the bidder assigns each unit
+a slot equal to its starting position (Open intent, box formation
+centered on click). Then Bumper moves east; one or more of A1..A4 get
+nudged aside; CohesionSlotMemory queues a return Move; after a wait the
+column is reformed.
+
+Verdict: pass if all 4 units end up at their initial (= assigned-slot)
+cells.

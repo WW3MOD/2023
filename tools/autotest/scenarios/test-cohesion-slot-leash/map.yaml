@@ -1,0 +1,69 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Cohesion sticky-slot leash (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	A1: e3.america
+		Owner: USA
+		Location: 20,14
+		Facing: 768
+	A2: e3.america
+		Owner: USA
+		Location: 20,15
+		Facing: 768
+	A3: e3.america
+		Owner: USA
+		Location: 20,16
+		Facing: 768
+	A4: e3.america
+		Owner: USA
+		Location: 20,17
+		Facing: 768
+	Bumper: e3.america
+		Owner: USA
+		Location: 14,15
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,15
+
+Rules: rules.yaml
