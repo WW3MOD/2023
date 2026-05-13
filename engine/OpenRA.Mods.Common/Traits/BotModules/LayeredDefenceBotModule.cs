@@ -79,6 +79,31 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types of the bot's home Supply Route — used to compute the 'behind' direction.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		[Desc("Actor types EXCLUDED from layered defence dispatch. These are owned by other",
+			"modules: tecn (capture coordinator), e6 (repair specialist), truk (supply follower),",
+			"humvee/btr (scouts). Aircraft are handled by their own SquadManagerBotModule.")]
+		public readonly HashSet<string> ExcludedActorTypes = new()
+		{
+			"tecn", "tecn.america", "tecn.russia",
+			"e6", "e6.america", "e6.russia",
+			"truk",
+			"humvee", "btr"
+		};
+
+		[Desc("Skip units whose AmmoPool(s) are ALL empty. Out-of-ammo units shouldn't be sent",
+			"into the spearhead. A future rearm/retreat module will actively route them to",
+			"supply; for now we just don't pull them forward.")]
+		public readonly bool SkipOutOfAmmoUnits = true;
+
+		[Desc("Terrain types that count as COVER for screen units. Screen-eligible reserves",
+			"snap to the nearest cell of one of these types within CoverSearchRadiusCells of",
+			"their assigned slot, so infantry takes treeline/rough-ground cover rather than",
+			"standing in the open.")]
+		public readonly HashSet<string> CoverTerrainTypes = new() { "Tree", "Rough", "Field" };
+
+		[Desc("Search radius (map cells) around an assigned slot for cover. 0 disables cover snap.")]
+		public readonly int CoverSearchRadiusCells = 6;
+
 		public override object Create(ActorInitializer init) { return new LayeredDefenceBotModule(init.Self, this); }
 	}
 
@@ -149,7 +174,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (actor.Owner != player || actor.IsDead || !actor.IsInWorld || !actor.IsIdle)
 					continue;
 
-				var name = actor.Info.Name;
+				var name = actor.Info.Name.ToLowerInvariant();
+
+				// Hard exclusion (owned by other modules: capture/repair/supply/scout).
+				if (Info.ExcludedActorTypes.Contains(name))
+					continue;
+
 				var isScreen = Info.ScreenUnitTypes.Contains(name);
 				var isMainLine = Info.MainLineUnitTypes.Contains(name);
 				if (!isScreen && !isMainLine)
@@ -158,6 +188,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (assignedAtTick.TryGetValue(actor, out var lastTick) && lastTick > cooldownExpiresBefore)
 					continue;
 				if (!actor.Info.HasTraitInfo<IPositionableInfo>())
+					continue;
+
+				// Out-of-ammo guard: don't push empty units forward as cannon fodder.
+				// A future rearm/retreat module will actively route them; for now we just skip.
+				if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(actor))
 					continue;
 
 				// On-the-line check: skip if any contested cell is within OnLineRadiusCells.
@@ -233,10 +268,20 @@ namespace OpenRA.Mods.Common.Traits
 				if (!found)
 					break;
 
-				// Screen units sit AT the slot. Main-line units shift behind, toward our SR.
-				var targetCell = isScreen
-					? bestSlot
-					: ShiftToward(bestSlot, srCell, Info.MainLineStandoffCells);
+				// Screen units sit AT the slot, but prefer nearby treeline/cover.
+				// Main-line units shift behind, toward our SR.
+				CPos targetCell;
+				if (isScreen)
+				{
+					targetCell = Info.CoverSearchRadiusCells > 0
+						? FindCoverNear(bestSlot, Info.CoverSearchRadiusCells) ?? bestSlot
+						: bestSlot;
+				}
+				else
+				{
+					targetCell = ShiftToward(bestSlot, srCell, Info.MainLineStandoffCells);
+				}
+
 				if (!world.Map.Contains(targetCell))
 					continue;
 
@@ -295,6 +340,50 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return result;
+		}
+
+		// Find a nearby cover cell (terrain type ∈ Info.CoverTerrainTypes) within
+		// `radius` map cells of `centre`. Returns the closest one, or null if no
+		// cover is available. Cover snap is what makes the screen DOCTRINE-correct:
+		// hidden in treelines / rough ground, not standing in the open.
+		CPos? FindCoverNear(CPos centre, int radius)
+		{
+			CPos? best = null;
+			var bestDistSq = long.MaxValue;
+
+			for (var dx = -radius; dx <= radius; dx++)
+			{
+				for (var dy = -radius; dy <= radius; dy++)
+				{
+					var cell = new CPos(centre.X + dx, centre.Y + dy);
+					if (!world.Map.Contains(cell))
+						continue;
+
+					var terrain = world.Map.GetTerrainInfo(cell);
+					if (terrain == null || !Info.CoverTerrainTypes.Contains(terrain.Type))
+						continue;
+
+					var distSq = (long)dx * dx + (long)dy * dy;
+					if (distSq < bestDistSq)
+					{
+						bestDistSq = distSq;
+						best = cell;
+					}
+				}
+			}
+
+			return best;
+		}
+
+		// "Out of ammo" = the unit has AmmoPool traits AND every pool is empty.
+		// Units with no AmmoPool (e.g. tanks with infinite shells) always return false.
+		// Partial-ammo units (one pool empty, another full) return false — still useful.
+		static bool IsOutOfAmmo(Actor actor)
+		{
+			var pools = actor.TraitsImplementing<AmmoPool>().ToList();
+			if (pools.Count == 0)
+				return false;
+			return pools.All(p => p.CurrentAmmoCount == 0);
 		}
 
 		// Shift `from` toward `toward` by `cells` map cells. If the points are
