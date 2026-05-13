@@ -52,9 +52,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int OpenDensityThreshold = 15;
 
 		[Desc("Squared centroid offset (in cells) above which the intent is EdgeLine.",
-			"2 = centroid more than ~sqrt(2) ≈ 1.4 cells from click → click is offset from cover.",
-			"Lower values trip EdgeLine more eagerly; higher values prefer SpreadInside.")]
-		public readonly int EdgeOffsetThresholdCellsSq = 2;
+			"9 = centroid more than ~3 cells from click → click is clearly off to one side of cover.",
+			"Clicks within ~3 cells of cover centroid stay SpreadInside (cluster into the trees).",
+			"Lower values trip EdgeLine more eagerly; higher values prefer SpreadInside. Raised from",
+			"2 → 9 on 260513 — SpreadInside delivers the clearer 'take cover in trees' formation,",
+			"while EdgeLine fired too readily for clicks right at the cluster edge and produced",
+			"a perpendicular line that looked indistinguishable from the legacy directional box.")]
+		public readonly int EdgeOffsetThresholdCellsSq = 9;
 
 		[Desc("EdgeLine anchor advance, expressed as a percentage of the gradient magnitude.",
 			"100 = anchor sits at the cover centroid (line passes through cover center).",
@@ -92,6 +96,18 @@ namespace OpenRA.Mods.Common.Traits
 			"the subject's locomotor can't park on (impassable terrain, building/tree footprints,",
 			"narrow obstacles) are skipped. Set false for testing the pre-filter behaviour.")]
 		public readonly bool FilterByPathability = true;
+
+		[Desc("Search radius in cells around each ideal line position when EdgeLine/Approach lay",
+			"their slots. 2 = a 5x5 window — each unit can deviate up to 2 cells from the geometric",
+			"line to find better cover. Larger = more cover-bias but slot positions wander further",
+			"from the line shape.")]
+		public readonly int LineSlotSearchRadius = 2;
+
+		[Desc("Distance penalty (per chebyshev cell from the ideal line position) when ranking",
+			"candidate slots for EdgeLine/Approach. Higher = stick closer to the geometric line.",
+			"Lower = more aggressive snap onto cover even if it bends the line. 5 means a candidate",
+			"2 cells off-line needs CoverScore 10 to beat an on-line candidate with zero cover.")]
+		public readonly int LineSlotDistancePenalty = 5;
 
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
@@ -368,8 +384,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// EdgeLine: place units in a single line perpendicular to the density gradient, anchored
-		// one cell along the gradient direction (i.e. just inside the cover edge). The line is
-		// oriented so units face *out* of the cover toward open ground.
+		// one cell along the gradient direction (i.e. just inside the cover edge). Per-slot
+		// CoverScore-aware bidding via LayCoverAwareLine, so units actually land behind trunks
+		// instead of in a dead-straight geometric line that ignores nearby cover.
 		CPos[] ComputeEdgeLineSlots(Map map, CPos clickCell, int gradXCells, int gradYCells,
 			int n, int colSpacing, Mobile subjectMobile)
 		{
@@ -381,11 +398,6 @@ namespace OpenRA.Mods.Common.Traits
 			var unitX = gradXCells / gradLen;
 			var unitY = gradYCells / gradLen;
 
-			// Perpendicular axis (90° CCW): (-unitY, unitX). Either direction works since the
-			// line is symmetric — pick one consistently.
-			var perpUX = -unitY;
-			var perpUY = unitX;
-
 			// Advance scales with gradient magnitude so the line lands AT the cover, not just one
 			// cell toward it. A click 3 cells from cover with 100% advance puts the anchor 3
 			// cells along the gradient — right at the centroid of nearby density.
@@ -393,22 +405,99 @@ namespace OpenRA.Mods.Common.Traits
 			var anchorX = clickCell.X + (int)Math.Round(unitX * advance);
 			var anchorY = clickCell.Y + (int)Math.Round(unitY * advance);
 
+			return LayCoverAwareLine(map, new CPos(anchorX, anchorY), unitX, unitY, n, colSpacing, subjectMobile);
+		}
+
+		// Lay N slots in a line perpendicular to (forwardX, forwardY), anchored at `anchor`. For
+		// each ideal line position, search a small neighborhood and pick the best-CoverScore
+		// passable cell, with min-spacing against earlier picks. `forward` is the direction toward
+		// cover (away from the squad) — used for the pathability fallback when no neighborhood
+		// pick is viable.
+		CPos[] LayCoverAwareLine(Map map, CPos anchor, double forwardX, double forwardY,
+			int n, int colSpacing, Mobile subjectMobile)
+		{
+			// Perpendicular axis (90° CCW): (-forwardY, forwardX). Symmetric — direction is
+			// arbitrary as long as slot ordering is consistent.
+			var perpUX = -forwardY;
+			var perpUY = forwardX;
+
 			var spacingCells = colSpacing / 1024.0;
+			var minSpacing = Math.Max(1, colSpacing / 1024);
 
 			var slots = new CPos[n];
+			var taken = new List<CPos>(n);
+
 			for (var i = 0; i < n; i++)
 			{
 				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
-				var x = anchorX + (int)Math.Round(perpUX * t);
-				var y = anchorY + (int)Math.Round(perpUY * t);
-				var ideal = map.Clamp(new CPos(x, y));
+				var idealX = anchor.X + (int)Math.Round(perpUX * t);
+				var idealY = anchor.Y + (int)Math.Round(perpUY * t);
+				var ideal = map.Clamp(new CPos(idealX, idealY));
 
-				// Pathability nudge: if the ideal line cell is impassable, walk back along the
-				// gradient toward the click until we find a passable cell or run out of slack.
-				slots[i] = NudgeToPassable(map, ideal, -unitX, -unitY, subjectMobile);
+				slots[i] = PickCoverSlotNear(map, ideal, subjectMobile, taken, minSpacing,
+					-forwardX, -forwardY);
+				taken.Add(slots[i]);
 			}
 
 			return slots;
+		}
+
+		// For an ideal line position, search a 5x5 window and pick the passable cell with the
+		// highest score = CoverScore - chebyshev*LineSlotDistancePenalty, that doesn't violate
+		// min-spacing against already-assigned slots. Falls back to NudgeToPassable (walking back
+		// along the gradient) if no neighborhood cell scores positive — that preserves the
+		// previous "at least find SOME passable cell" guarantee.
+		CPos PickCoverSlotNear(Map map, CPos ideal, Mobile subjectMobile, List<CPos> taken,
+			int minSpacing, double backX, double backY)
+		{
+			var radius = info.LineSlotSearchRadius;
+			var distancePenalty = info.LineSlotDistancePenalty;
+
+			var bestScore = int.MinValue;
+			var bestCell = ideal;
+			var found = false;
+
+			for (var dy = -radius; dy <= radius; dy++)
+			{
+				for (var dx = -radius; dx <= radius; dx++)
+				{
+					var cand = map.Clamp(new CPos(ideal.X + dx, ideal.Y + dy));
+
+					if (info.FilterByPathability && subjectMobile != null && !subjectMobile.CanStayInCell(cand))
+						continue;
+
+					var tooClose = false;
+					foreach (var s in taken)
+					{
+						if (Math.Max(Math.Abs(cand.X - s.X), Math.Abs(cand.Y - s.Y)) < minSpacing)
+						{
+							tooClose = true;
+							break;
+						}
+					}
+
+					if (tooClose)
+						continue;
+
+					var cover = CoverScore(map, cand);
+					var cheb = Math.Max(Math.Abs(dx), Math.Abs(dy));
+					var score = cover - cheb * distancePenalty;
+
+					if (!found || score > bestScore)
+					{
+						bestScore = score;
+						bestCell = cand;
+						found = true;
+					}
+				}
+			}
+
+			if (found)
+				return bestCell;
+
+			// Nothing in the neighborhood was passable (or everything collided with taken slots).
+			// Fall back to walking back along the gradient as before.
+			return NudgeToPassable(map, ideal, backX, backY, subjectMobile);
 		}
 
 		// Walk up to 3 cells in (dx, dy) direction looking for a cell the subject can park on.
@@ -433,11 +522,16 @@ namespace OpenRA.Mods.Common.Traits
 			return start;
 		}
 
-		// Approach: the squad is far from a cover click. Walk from the group's centroid toward
-		// the click along the direction vector; find the first cell where CoverScore transitions
-		// from 0 to positive (the cover boundary). Place units in a line perpendicular to the
-		// approach direction at that boundary cell. This produces a defensive line that the
-		// squad can actually reach in one continuous march — no path through dense cover needed.
+		// Approach: the squad is far from a cover click. Walk BACKWARD from the click toward the
+		// group's centroid; the boundary is the first cell from the click side that has cover.
+		// That cell is the cover patch closest to the destination — i.e. the one the squad is
+		// heading TO. Place units in a line perpendicular to the approach direction there.
+		//
+		// PITFALL (2026-05): the previous implementation walked group→click and stopped at the
+		// first CoverScore>0 cell. When the squad was already adjacent to cover (e.g. spawn-camped
+		// next to a tree cluster), step=1 tripped immediately and slots anchored right next to
+		// the starting position — units never reached far clicks. Walking click→group reverses
+		// that bias and keeps the "approach" intent honest.
 		CPos[] ComputeApproachSlots(Map map, CPos clickCell, CPos groupCentroid, int n, int colSpacing, Mobile subjectMobile)
 		{
 			var dxCells = clickCell.X - groupCentroid.X;
@@ -450,15 +544,16 @@ namespace OpenRA.Mods.Common.Traits
 			var unitX = dxCells / distCells;
 			var unitY = dyCells / distCells;
 
-			// Walk from group toward click; the boundary is the first passable cell where
-			// CoverScore > 0 (i.e. cell has density-bearing neighbors). Step in unit increments
-			// up to the click distance.
+			// Walk back from click toward group. Start at the click itself (step=0) so a click
+			// already in cover anchors at the click. If nothing along the path has cover, the
+			// boundary stays at the click — Approach degenerates to an open line at destination,
+			// which is the right behavior for a long march into open ground.
 			CPos boundary = clickCell;
 			var maxSteps = (int)Math.Ceiling(distCells);
-			for (var step = 1; step <= maxSteps; step++)
+			for (var step = 0; step <= maxSteps; step++)
 			{
-				var sx = groupCentroid.X + (int)Math.Round(unitX * step);
-				var sy = groupCentroid.Y + (int)Math.Round(unitY * step);
+				var sx = clickCell.X - (int)Math.Round(unitX * step);
+				var sy = clickCell.Y - (int)Math.Round(unitY * step);
 				var cand = map.Clamp(new CPos(sx, sy));
 				if (CoverScore(map, cand) > 0)
 				{
@@ -467,24 +562,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Perpendicular (rotate 90° CCW): (-unitY, unitX).
-			var perpUX = -unitY;
-			var perpUY = unitX;
-
-			var spacingCells = colSpacing / 1024.0;
-			var slots = new CPos[n];
-			for (var i = 0; i < n; i++)
-			{
-				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
-				var x = boundary.X + (int)Math.Round(perpUX * t);
-				var y = boundary.Y + (int)Math.Round(perpUY * t);
-				var ideal = map.Clamp(new CPos(x, y));
-
-				// Nudge back toward group if line cell is impassable.
-				slots[i] = NudgeToPassable(map, ideal, -unitX, -unitY, subjectMobile);
-			}
-
-			return slots;
+			return LayCoverAwareLine(map, boundary, unitX, unitY, n, colSpacing, subjectMobile);
 		}
 
 		// Fallback when EdgeLine has no gradient: place a horizontal line through the click.
