@@ -342,10 +342,14 @@ Container@LOBBY_PLAYER_BIN:
 									Height: 25
 									Text: label-lobby-players-name
 									Visible: false
+								# WW3MOD: empty-slot buttons live in the NAME column area so an open
+								# slot reads as a single action zone instead of three buttons scattered
+								# across columns. Close button is flush right under the STATUS column
+								# so the host has a consistent "destructive action on the right" pattern.
 								Button@PLAY:
 									X: 15
 									Y: 1
-									Width: 80
+									Width: 140
 									Height: 23
 									Font: Bold
 									Text: ▸ Play
@@ -353,9 +357,9 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									Visible: false
 								Button@ADD_AI:
-									X: 320
+									X: 160
 									Y: 1
-									Width: 200
+									Width: 155
 									Height: 23
 									Font: Bold
 									Text: + Add bot
@@ -363,9 +367,9 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									Visible: false
 								Button@TOGGLE_CLOSED:
-									X: 705
+									X: 825
 									Y: 1
-									Width: 80
+									Width: 65
 									Height: 23
 									Font: Bold
 									Text: Close
@@ -423,13 +427,16 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 16
 											TooltipContainer: TOOLTIP_CONTAINER
 											Template: ANONYMOUS_PLAYER_TOOLTIP
+								# WW3MOD: spectator label de-emphasised — it's a status indicator,
+								# not an action. Left-aligned next to the name in a regular weight
+								# instead of bold-centered, which read like a column header.
 								Label@SPECTATOR:
 									X: 320
-									Width: 580
+									Width: 300
 									Height: 25
 									Text: label-lobby-players-spectator
-									Align: Center
-									Font: Bold
+									Align: Left
+									Font: Regular
 								Checkbox@STATUS_CHECKBOX:
 									X: 865
 									Y: 0
@@ -504,13 +511,16 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 16
 											TooltipContainer: TOOLTIP_CONTAINER
 											Template: ANONYMOUS_PLAYER_TOOLTIP
+								# WW3MOD: spectator label de-emphasised — it's a status indicator,
+								# not an action. Left-aligned next to the name in a regular weight
+								# instead of bold-centered, which read like a column header.
 								Label@SPECTATOR:
 									X: 320
-									Width: 580
+									Width: 300
 									Height: 25
 									Text: label-lobby-players-spectator
-									Align: Center
-									Font: Bold
+									Align: Left
+									Font: Regular
 								Image@STATUS_IMAGE:
 									X: 867
 									Y: 2
@@ -672,20 +682,16 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 25
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-				Label@CELL_LABEL_CHANGES:
-					X: 12
-					Y: PARENT_HEIGHT - 212
-					Width: PARENT_WIDTH - 24
-					Height: 20
-					Font: TinyBold
-					Align: Left
-					Text: ACTIVE CHANGES
+				# WW3MOD: the outer "ACTIVE CHANGES" header was removed because
+				# LobbyActiveChangesLogic already drives EMPTY_HINT below to
+				# show "All settings at default" / "ACTIVE CHANGES (N)" as the
+				# panel header. Two headers stacked looked like a debug overlay.
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: PARENT_HEIGHT - 178
+					Y: PARENT_HEIGHT - 200
 					Width: PARENT_WIDTH - 24
-					Height: 132
+					Height: 154
 					Children:
 						ColorBlock@SECTION_BG:
 							Width: PARENT_WIDTH
@@ -693,7 +699,7 @@ Container@LOBBY_PLAYER_BIN:
 							Color: 0000001E
 						Label@EMPTY_HINT:
 							X: 8
-							Y: 4
+							Y: 6
 							Width: 300
 							Height: 20
 							Font: TinyBold

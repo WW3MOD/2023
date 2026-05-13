@@ -77,12 +77,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"gamespeed", "timelimit", "startingunits",
 			// Player-level
 			"bounty",
+			// Developer toggle promoted out of its own section — see comment on `sync`
+			// in HiddenOptionIds. Debug Menu is the one developer-flagged option that's
+			// useful to skirmish players, so we surface it in the Match panel directly.
+			"cheats",
 		};
 
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
+		// `sync` is a netcode-debug toggle (off by default; lowers performance when
+		// enabled) — meaningless in skirmish and an attractive-nuisance for players.
 		static readonly HashSet<string> HiddenOptionIds = new()
 		{
-			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
+			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel", "sync"
 		};
 
 		// Section grouping within the ADVANCED tab. Sections render in the declared order.
@@ -90,14 +96,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		const string SectionUnitAvailability = "Unit Availability";
 		const string SectionCombatTuning = "Combat Tuning";
 		const string SectionGameRules = "Game Rules";
-		const string SectionDeveloper = "Developer";
 
 		static readonly string[] AdvancedSectionOrder =
 		{
 			SectionUnitAvailability,
 			SectionCombatTuning,
 			SectionGameRules,
-			SectionDeveloper,
 		};
 
 		// Subsections within the MATCH tab. Same machinery as Advanced sections but
@@ -127,6 +131,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "explored", SectionWorld },
 			{ "fog", SectionWorld },
 			{ "separateteamspawns", SectionWorld },
+			{ "cheats", SectionWorld },
 		};
 
 		static readonly Dictionary<string, string> OptionSection = new()
@@ -169,10 +174,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Game Rules
 			{ "friendly-fire", SectionGameRules },
 			{ "powers-enabled", SectionGameRules },
-
-			// Developer
-			{ "cheats", SectionDeveloper },
-			{ "sync", SectionDeveloper },
 		};
 
 		static string GetCategory(LobbyOption option)
@@ -376,7 +377,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (sectionOptions.Length == 0)
 					continue;
 
-				AddSectionHeader(section, sectionOptions.All(o => o.Placeholder), section);
+				// WW3MOD: a section consisting entirely of placeholder options is just
+				// visual noise — the orange "not yet wired" header shouts louder than
+				// any real option. Hide them outright. When the feature ships, an
+				// individual option's Placeholder=false will pull the section back in.
+				if (sectionOptions.All(o => o.Placeholder))
+					continue;
+
+				AddSectionHeader(section, false, section);
 				if (collapsedSections.TryGetValue(section, out var collapsed) && collapsed)
 					continue;
 				RenderFlatOptions(sectionOptions);
@@ -385,10 +393,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Any options that didn't map to a known section render under "Other".
 			var declared = new HashSet<string>(AdvancedSectionOrder);
 			var unsectioned = options.Where(o => !declared.Contains(GetSection(o))).ToArray();
-			if (unsectioned.Length > 0)
+			if (unsectioned.Length > 0 && !unsectioned.All(o => o.Placeholder))
 			{
 				const string other = "Other";
-				AddSectionHeader(other, unsectioned.All(o => o.Placeholder), other);
+				AddSectionHeader(other, false, other);
 				if (!(collapsedSections.TryGetValue(other, out var oc) && oc))
 					RenderFlatOptions(unsectioned);
 			}
