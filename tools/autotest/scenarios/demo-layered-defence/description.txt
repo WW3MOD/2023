@@ -1,0 +1,1 @@
+DEMO: Stage B.1 — v2 bot uses LayeredDefenceBotModule to put light infantry at the contested edge (screen) and vehicles 6 cells behind (main line). Toggle /frontline to see the contested band; watch the two layers form.
