@@ -40,8 +40,16 @@ Player:
 			strykershorad: 2
 			sn.america: 3
 
+	# Legacy ground squad manager — gated to NON-v2 paths.
+	# v2 owns ground unit positioning via LayeredDefenceBotModule@v2 +
+	# MountedTransportBotModule@v2. Running the legacy squad manager alongside
+	# would (1) yank Bradleys/M113s into squads so MountedTransport can't ever
+	# find an idle carrier, (2) pull main-line infantry into squads instead of
+	# leaving them for LayeredDefence/MountedTransport.
+	# Condition resolves to "normal AI nato" only (legacy AND has the
+	# enable-ai-player condition; among legacy bots only normal has it).
 	SquadManagerBotModule@america.normal:
-		RequiresCondition: enable-ai-player && player.nato
+		RequiresCondition: enable-ai-legacy-only && enable-ai-player && player.nato
 		SquadSize: 6
 		SquadSizeRandomBonus: 14
 		RushInterval: 150

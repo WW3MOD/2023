@@ -41,8 +41,12 @@ Player:
 			tunguska: 2
 			sn.russia: 3
 
+	# Legacy ground squad manager — gated to NON-v2 paths. v2 uses
+	# LayeredDefenceBotModule@v2 + MountedTransportBotModule@v2 for ground
+	# positioning; running the legacy here too would steal carriers and
+	# infantry from those modules. See WORKSPACE/ai/playtest_260513.md.
 	SquadManagerBotModule@russia.normal:
-		RequiresCondition: enable-ai-player && player.brics
+		RequiresCondition: enable-ai-legacy-only && enable-ai-player && player.brics
 		SquadSize: 6
 		SquadSizeRandomBonus: 14
 		RushInterval: 150

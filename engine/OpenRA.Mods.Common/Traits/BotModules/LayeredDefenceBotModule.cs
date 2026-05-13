@@ -166,8 +166,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Gather reserve units (idle, eligible, NOT on the line, cooldown elapsed).
 			// On-line units stay put — line-filling and flanking happens from the rear.
+			// We also defer to MountedTransportBotModule's reservation set so we don't
+			// override an EnterTransport with an AttackMove.
 			var onLineRadiusSq = (long)Info.OnLineRadiusCells * Info.OnLineRadiusCells;
 			var cooldownExpiresBefore = world.WorldTick - Info.AssignCooldownTicks;
+			var transport = player.PlayerActor.TraitOrDefault<MountedTransportBotModule>();
 			var reserves = new List<(Actor Actor, bool IsScreen)>();
 			foreach (var actor in world.Actors)
 			{
@@ -193,6 +196,12 @@ namespace OpenRA.Mods.Common.Traits
 				// Out-of-ammo guard: don't push empty units forward as cannon fodder.
 				// A future rearm/retreat module will actively route them; for now we just skip.
 				if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(actor))
+					continue;
+
+				// Transport reservation: if MountedTransportBotModule has earmarked this
+				// actor as a passenger, leave it alone — overriding with AttackMove here
+				// would cancel its EnterTransport.
+				if (transport != null && transport.IsPassengerReserved(actor))
 					continue;
 
 				// On-the-line check: skip if any contested cell is within OnLineRadiusCells.

@@ -93,6 +93,17 @@ namespace OpenRA.Mods.Common.Traits
 		int scanCountdown;
 		InfluenceMap influenceMap;
 
+		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
+		/// (loading, delivering, unloading, returning). Used by LayeredDefenceBotModule to
+		/// avoid issuing AttackMove orders that would override the EnterTransport.</summary>
+		public bool IsPassengerReserved(Actor actor)
+		{
+			foreach (var task in carrierTasks.Values)
+				if (task.ReservedPassengers.Contains(actor))
+					return true;
+			return false;
+		}
+
 		public MountedTransportBotModule(Actor self, MountedTransportBotModuleInfo info)
 			: base(info)
 		{
@@ -234,14 +245,22 @@ namespace OpenRA.Mods.Common.Traits
 			if (candidates.Count == 0)
 				return;
 
-			// Reserve passengers: idle infantry of an accepted type within the reserve zone.
-			// Also exclude passengers already reserved by another in-flight task.
+			// Passenger pool: infantry of an accepted type within the reserve zone.
+			//
+			// We DELIBERATELY do not require IsIdle. LayeredDefence often grabs fresh
+			// production and orders it forward before we get a tick; if we waited for
+			// idle we'd never see them. EnterTransport with queued=false cancels the
+			// existing AttackMove, so a passenger walking forward 2 cells turns around
+			// to board the carrier — that's the desired flow.
+			//
+			// The reserve-zone radius is the gate: passengers ALREADY on the line
+			// (far from the SR) are excluded. They keep their forward orders.
 			var reservedByOthers = new HashSet<Actor>(
 				carrierTasks.Values.SelectMany(t => t.ReservedPassengers));
 
 			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
 			var availablePassengers = world.Actors
-				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && a.IsIdle
+				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
 					&& Info.PassengerTypes.Contains(a.Info.Name.ToLowerInvariant())
 					&& !reservedByOthers.Contains(a)
 					&& a.Info.HasTraitInfo<PassengerInfo>()

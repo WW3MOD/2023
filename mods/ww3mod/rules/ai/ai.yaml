@@ -100,7 +100,10 @@ Player:
 	CaptureCoordinatorBotModule@v2.tecn:
 		RequiresCondition: enable-ai-v2
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
-		CapturableActorTypes: oilb,bio,miss,fcom,hosp
+		# logisticscenter included so v2 doesn't need the legacy
+		# CaptureManagerBotModule@captureenemystructures (which competes
+		# with this module for TECN — see playtest 260513 O1).
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp,logisticscenter
 		CheckCaptureTargetsForVisibility: false
 		ScanInterval: 75
 		MaximumCaptureTargetOptions: 12
@@ -110,6 +113,7 @@ Player:
 			bio: 150
 			miss: 10
 			hosp: 20
+			logisticscenter: 200
 		DefaultIncomeWeight: 10
 		DistanceHalfLifeCells: 20
 		SafetyEnemyScanRadiusCells: 6
@@ -252,9 +256,13 @@ Player:
 	# Spec: WORKSPACE/ai/stage_b4_mounted_transport.md.
 	MountedTransportBotModule@v2:
 		RequiresCondition: enable-ai-v2
-		ScanInterval: 100
+		# Scan often — passengers spend only a short window idle near the SR
+		# before LayeredDefence sends them forward. The relaxed filter (see
+		# the trait) also grabs non-idle passengers in the reserve zone, but
+		# we still want quick reaction to fresh production.
+		ScanInterval: 50
 		CarrierTypes: bradley, bmp2, m113
-		PassengerTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia, e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia
+		PassengerTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia, e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia
 		MinPassengersPerLoad: 2
 		MaxPassengersPerLoad: 5
 		ReserveZoneRadiusCells: 14
@@ -262,9 +270,12 @@ Player:
 		DropOffArrivalRadius: 3
 		ReturnArrivalRadius: 5
 
-	# Capture enemy logistics centers to deny resupply
+	# Capture enemy logistics centers to deny resupply (LEGACY ONLY).
+	# v2 handles LC capture inside CaptureCoordinatorBotModule@v2.tecn so the
+	# two modules don't both order TECN at the same time. See the playtest
+	# report 260513 (O1) and forensic audit for the TECN re-order bug root cause.
 	CaptureManagerBotModule@captureenemystructures:
-		RequiresCondition: enable-ai-any
+		RequiresCondition: enable-ai-legacy-only
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
 		CapturableActorTypes: logisticscenter
 		CheckCaptureTargetsForVisibility: true
