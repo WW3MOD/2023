@@ -437,8 +437,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var clientName = new CachedTransform<MapStatus, string>(s =>
 			{
 				var name = c.Name;
-				if (c.IsBot && !map.TryGetMessage(c.Name, out name))
-					name = FluentProvider.GetMessage(BotPlayer);
+				if (c.IsBot && map.TryGetMessage(c.Name, out var translated))
+					name = translated;
 
 				return WidgetUtils.TruncateText(name, label.Bounds.Width, font);
 			});
@@ -462,15 +462,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var closed = FluentProvider.GetMessage(Closed);
 			var open = FluentProvider.GetMessage(Open);
 
+			// WW3MOD: bot names (e.g. "Normal AI", "V2 AI (experimental)") come straight
+			// from IBotInfo.Name and aren't fluent keys, so fall back to the raw name
+			// instead of the generic "AI Player" label.
 			var clientName = new CachedTransform<MapStatus, string>(s =>
 			{
-				if (c.IsBot)
-				{
-					if (map.TryGetMessage(c.Name, out var message))
-						return message;
-					else
-						return FluentProvider.GetMessage(BotPlayer);
-				}
+				if (c.IsBot && map.TryGetMessage(c.Name, out var message))
+					return message;
 
 				return c.Name;
 			});

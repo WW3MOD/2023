@@ -19,11 +19,12 @@ Container@MAP_PREVIEW:
 							Height: PARENT_HEIGHT - 2
 							TooltipContainer: TOOLTIP_CONTAINER
 				LabelWithTooltip@MAP_TITLE:
-					Y: PARENT_HEIGHT - 25
-					Width: PARENT_WIDTH
-					Height: 25
+					X: 4
+					Y: PARENT_HEIGHT - 28
+					Width: PARENT_WIDTH * 11 / 20
+					Height: 28
 					Font: Bold
-					Align: Center
+					Align: Left
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: SIMPLE_TOOLTIP
 		Container@MAP_SMALL:
@@ -53,20 +54,25 @@ Container@MAP_PREVIEW:
 			Width: PARENT_WIDTH
 			Height: PARENT_HEIGHT
 			Children:
-				Label@MAP_TYPE:
-					Y: 226
-					Width: PARENT_WIDTH
-					Height: 18
-					Font: TinyBold
-					Align: Center
-					IgnoreMouseOver: true
+				# WW3MOD: pinned to the same 30px bottom strip as MAP_TITLE so the
+				# meta no longer floats over the preview image. Author on top,
+				# type below — both right-aligned next to the bold title on the left.
 				Label@MAP_AUTHOR:
-					X: 4
-					Y: 244
-					Width: PARENT_WIDTH - 8
-					Height: 18
+					X: PARENT_WIDTH * 11 / 20
+					Y: PARENT_HEIGHT - 28
+					Width: PARENT_WIDTH * 9 / 20 - 4
+					Height: 14
 					Font: Tiny
-					Align: Left
+					Align: Right
+					IgnoreMouseOver: true
+				Label@MAP_TYPE:
+					X: PARENT_WIDTH * 11 / 20
+					Y: PARENT_HEIGHT - 15
+					Width: PARENT_WIDTH * 9 / 20 - 4
+					Height: 14
+					Font: TinyBold
+					Align: Right
+					IgnoreMouseOver: true
 		Container@MAP_INCOMPATIBLE:
 			Width: PARENT_WIDTH
 			Height: PARENT_HEIGHT
