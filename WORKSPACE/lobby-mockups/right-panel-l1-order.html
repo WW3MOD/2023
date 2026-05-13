@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · L1 reordering variants</title>
+<style>
+:root {
+	--bg-app: #0c0e11;
+	--bg-card: #14171c;
+	--bg-card-2: #1a1e25;
+	--bg-card-3: #21262e;
+	--line: #2a2f37;
+	--line-soft: #1f2329;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-glow: #60d08055;
+	--accent-soft: #2d6240;
+	--accent-bg: rgba(96,208,128,.08);
+	--info: #6ec0e6;
+	--track: #2f343c;
+	font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: var(--bg-app); color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header.top {
+	position: sticky; top: 0; z-index: 20;
+	background: rgba(12,14,17,.94); backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--line);
+	padding: 14px 32px; display: flex; align-items: baseline; gap: 28px; flex-wrap: wrap;
+}
+header.top h1 { margin: 0; font-size: 16px; }
+header.top .sub { color: var(--ink-3); font-size: 12px; }
+header.top nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+header.top nav a { color: var(--ink-2); text-decoration: none; }
+header.top nav a:hover { color: var(--accent); }
+
+.intro {
+	max-width: 1100px; margin: 32px auto 8px; padding: 0 32px;
+	color: var(--ink-2); font-size: 13.5px; line-height: 1.65;
+}
+.intro h2 { color: var(--ink); font-size: 22px; margin: 0 0 12px; }
+.intro p { margin: 0 0 12px; }
+.intro code { background: var(--bg-card); padding: 1px 6px; border-radius: 3px; color: var(--accent); font-size: 12px; }
+
+section.variant {
+	margin: 64px auto; max-width: 2640px; padding: 0 32px;
+}
+section.variant header.title { padding: 0 0 18px; }
+section.variant header.title h2 {
+	margin: 0 0 6px; color: var(--ink); font-size: 22px; letter-spacing: 0.2px;
+}
+section.variant header.title h2 .tag {
+	font-size: 12px; color: var(--accent); letter-spacing: 1px; font-weight: 600;
+	margin-right: 12px; vertical-align: 2px;
+}
+section.variant header.title p { margin: 0; color: var(--ink-3); max-width: 1080px; font-size: 13px; }
+
+.frame {
+	background: var(--bg-app); border: 1px solid var(--line); border-radius: 8px;
+	overflow: hidden; padding: 16px;
+	display: grid; grid-template-columns: 1248px 1248px;
+	gap: 16px; width: max-content;
+}
+.frame .left-mock {
+	background: linear-gradient(135deg, #14171c 0%, #1a1e25 100%);
+	color: var(--ink-4); font-size: 13px;
+	display: flex; align-items: center; justify-content: center;
+	height: 880px; border-radius: 6px;
+}
+.frame .left-mock .label { letter-spacing: 3px; font-size: 12px; opacity: 0.45; }
+.frame .right-panel {
+	background: var(--bg-card);
+	height: 880px; border-radius: 6px;
+	position: relative; overflow: hidden;
+}
+
+/* ============================================================
+   HERO CARD — uniform L1 size
+   ============================================================ */
+.hcard {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 6px;
+	padding: 14px 16px 12px; position: relative; cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+	min-height: 92px; box-sizing: border-box;
+}
+.hcard:hover { border-color: var(--ink-4); background: var(--bg-card-3); }
+.hcard.changed { border-color: var(--accent-soft); background: var(--accent-bg); }
+.hcard.changed::before {
+	content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+	width: 3px; background: var(--accent); border-radius: 6px 0 0 6px;
+	box-shadow: 0 0 12px var(--accent-glow);
+}
+.hcard .lab {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 1px;
+	text-transform: uppercase; font-weight: 600;
+}
+.hcard .val {
+	font-size: 22px; color: var(--ink); margin-top: 6px; font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.hcard.changed .val { color: var(--accent); text-shadow: 0 0 18px var(--accent-glow); }
+.hcard .trail { font-size: 11px; color: var(--ink-4); margin-top: 4px; }
+.hcard .drop {
+	position: absolute; top: 14px; right: 14px; color: var(--ink-3); font-size: 12px;
+}
+.hcard.tog .switch {
+	position: absolute; top: 16px; right: 16px;
+	width: 32px; height: 18px; background: var(--track); border-radius: 10px;
+}
+.hcard.tog .switch::after {
+	content: ""; position: absolute; top: 2px; left: 2px;
+	width: 14px; height: 14px; background: var(--ink-3); border-radius: 50%;
+}
+.hcard.tog.on { border-color: rgba(96,208,128,.4); }
+.hcard.tog.on .switch { background: var(--accent-soft); }
+.hcard.tog.on .switch::after { background: var(--accent); transform: translateX(14px); }
+.hcard.tog.on .val { color: var(--accent); }
+
+/* Speculative options have a small dotted outline marker — these are
+   illustrative, not implemented yet. Helps reviewer see "this is fake".
+*/
+.hcard.spec { border-style: dashed; opacity: 0.86; }
+.hcard.spec::after {
+	content: "speculative"; position: absolute; bottom: 6px; right: 10px;
+	font-size: 9px; color: var(--ink-4); letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+/* Section header — title + accent rail */
+.section-h {
+	display: flex; align-items: center; gap: 14px; margin: 22px 0 14px;
+}
+.section-h:first-child { margin-top: 0; }
+.section-h .title {
+	font-size: 12px; color: var(--ink-3); letter-spacing: 2px;
+	font-weight: 600; text-transform: uppercase;
+}
+.section-h .title .count {
+	background: var(--accent-soft); color: var(--accent); padding: 1px 7px;
+	border-radius: 8px; margin-left: 6px; font-size: 10px; letter-spacing: 0;
+}
+.section-h .accent-rail { flex: 1; height: 1px; background: var(--line-soft); }
+.section-h .note {
+	font-size: 11px; color: var(--ink-4); letter-spacing: 0; text-transform: none;
+	font-weight: 400; font-style: italic;
+}
+
+/* Bottom strip */
+.bottom-strip {
+	position: absolute; left: 0; right: 0; bottom: 0;
+	background: var(--bg-card); border-top: 1px solid var(--line);
+}
+.bottom-strip .active {
+	padding: 12px 24px; display: flex; align-items: center; gap: 12px;
+	border-bottom: 1px solid var(--line-soft); flex-wrap: wrap;
+}
+.bottom-strip .active .lab {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.bottom-strip .active .lab .badge {
+	background: var(--accent); color: var(--bg-app); padding: 2px 8px;
+	border-radius: 10px; margin-left: 6px; font-size: 10px;
+}
+.bottom-strip .active .chip {
+	display: inline-flex; gap: 8px; align-items: center;
+	background: var(--bg-card-2); border: 1px solid var(--accent-soft);
+	padding: 5px 11px; border-radius: 4px; font-size: 12.5px;
+}
+.bottom-strip .active .chip .clab { color: var(--ink-3); }
+.bottom-strip .active .chip .cval { color: var(--accent); font-weight: 600; }
+.bottom-strip .preset {
+	padding: 12px 24px; display: flex; gap: 10px; align-items: center;
+}
+.bottom-strip .preset .plab {
+	font-size: 11px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.bottom-strip .preset input {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 12px; color: var(--ink); font-size: 13px; width: 220px;
+}
+.bottom-strip .preset .btn {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 16px; color: var(--ink-2); font-size: 12px; cursor: pointer;
+}
+.bottom-strip .preset .btn.primary { color: var(--accent); border-color: var(--accent-soft); }
+.bottom-strip .preset .spacer { flex: 1; }
+
+/* Shared L1 grid */
+.L1-pad { padding: 22px 24px 200px; height: 100%; overflow-y: auto; box-sizing: border-box; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+footer.foot {
+	text-align: center; color: var(--ink-4); font-size: 11px;
+	padding: 60px 0 80px;
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+	<h1>L1 · reordering variants</h1>
+	<span class="sub">Uniform 4-wide grid. Same cards, different orders and groupings. ~14 options shown.</span>
+	<nav>
+		<a href="#o1">O1 · current order</a>
+		<a href="#o2">O2 · gameplay pillars</a>
+		<a href="#o3">O3 · flat, no categories</a>
+		<a href="#o4">O4 · changed first</a>
+		<a href="#o5">O5 · minimal</a>
+	</nav>
+</header>
+
+<div class="intro">
+	<h2>Same layout (L1), different organization</h2>
+	<p>Five different ways to <strong>order and group</strong> the same hero cards. Adds ~6 speculative options (dashed outline marked <code>speculative</code>) so you can see how it scales when the lobby grows past the 11 we have today: Tech Level, Victory Mode, Friendly Fire, Powers, Map Reveal, Damage Scale, Weapon Range, Build Speed, Veterancy, Crates.</p>
+	<p>O5 takes "less is more" seriously — no section headers, no preset chips, no search, just the cards and the bottom strip.</p>
+</div>
+
+<!-- ============================================================
+     O1 — Current order (baseline reference)
+     ============================================================ -->
+<section class="variant" id="o1">
+	<header class="title">
+		<h2><span class="tag">O1</span>Current order — Economy / Match / World</h2>
+		<p>What we have today, expanded with speculative options to fill the grid. Pure category-first organization: every Economy option together, then Match, then World. Predictable but doesn't help the player find what they want to change.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="L1-pad">
+				<div class="section-h"><span class="title">Economy <span class="count">1</span></span><span class="accent-rail"></span></div>
+				<div class="grid4">
+					<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+					<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick · was $0</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Income Modifier</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+				</div>
+
+				<div class="section-h"><span class="title">Match</span><span class="accent-rail"></span></div>
+				<div class="grid4">
+					<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Doomsday Clock</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+					<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+				</div>
+
+				<div class="section-h"><span class="title">World</span><span class="accent-rail"></span></div>
+				<div class="grid4">
+					<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     O2 — Gameplay pillars (re-grouped)
+     ============================================================ -->
+<section class="variant" id="o2">
+	<header class="title">
+		<h2><span class="tag">O2</span>Gameplay pillars — Money / Pace / Visibility / Rules</h2>
+		<p>Re-groups by what the setting actually <em>does</em> to the match, not where it lives in the codebase. <strong>Money</strong> = economy. <strong>Pace</strong> = how fast the game runs (speed, tech, time limit, veterancy). <strong>Visibility</strong> = fog of war, map reveal, separate spawns. <strong>Rules</strong> = victory mode, friendly fire, powers, debug. Mirrors how a host thinks: "what kind of match am I setting up?"</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="L1-pad">
+				<div class="section-h"><span class="title">Money <span class="count">1</span></span><span class="accent-rail"></span><span class="note">how much economy each side starts with</span></div>
+				<div class="grid4">
+					<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+					<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick · was $0</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Income Modifier</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+				</div>
+
+				<div class="section-h"><span class="title">Pace</span><span class="accent-rail"></span><span class="note">how fast units appear and the match ends</span></div>
+				<div class="grid4">
+					<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+					<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Doomsday Clock</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+				</div>
+
+				<div class="section-h"><span class="title">Visibility</span><span class="accent-rail"></span><span class="note">what each side can see at the start</span></div>
+				<div class="grid4">
+					<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+					<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+				</div>
+
+				<div class="section-h"><span class="title">Rules</span><span class="accent-rail"></span><span class="note">what wins, what damages what</span></div>
+				<div class="grid4">
+					<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+					<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     O3 — Flat, no categories
+     ============================================================ -->
+<section class="variant" id="o3">
+	<header class="title">
+		<h2><span class="tag">O3</span>Flat — no categories at all</h2>
+		<p>Drops the section headers entirely. ~16 cards in one continuous 4-wide flow, ordered by <em>how often a host changes them</em> (top row = most-likely-to-touch, bottom row = "you almost never touch this"). The visual rhythm of the grid is the only structure. Best embraces "less is more" — the player just scans.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="L1-pad">
+				<div class="grid4">
+					<!-- Row 1: the four most-touched -->
+					<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+					<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick · was $0</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Doomsday Clock</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+
+					<!-- Row 2 -->
+					<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+					<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Income Modifier</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+
+					<!-- Row 3: toggles bunched together -->
+					<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+
+					<!-- Row 4 -->
+					<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+					<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+					<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     O4 — Changed first
+     ============================================================ -->
+<section class="variant" id="o4">
+	<header class="title">
+		<h2><span class="tag">O4</span>Changed first — pin modified, defaults follow</h2>
+		<p>Anything modified bubbles to the top in a small pinned strip ("MODIFIED · 1"). Everything else lives below as a flat grid with no section labels, defaults-quiet. Reading order matches what matters: "what's different from the standard match?" comes first; the rest is reference. Drops categorisation, keeps a single semantic distinction (changed vs default).</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="L1-pad">
+				<div class="section-h"><span class="title">Modified <span class="count">1</span></span><span class="accent-rail"></span></div>
+				<div class="grid4">
+					<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="trail">per tick · was $0</div><div class="drop">▾</div></div>
+				</div>
+
+				<div class="section-h"><span class="title">All settings</span><span class="accent-rail"></span><span class="note">alphabetical · click to edit</span></div>
+				<div class="grid4">
+					<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="trail">developer overlay</div><div class="switch"></div></div>
+					<div class="hcard"><div class="lab">Doomsday Clock</div><div class="val">No limit</div><div class="trail">match timer</div><div class="drop">▾</div></div>
+					<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="trail">terrain revealed</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="trail">vision-limited</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="trail">team damage</div><div class="switch"></div></div>
+					<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="trail">tick rate</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Income Modifier</div><div class="val">100%</div><div class="trail">scaling factor</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="trail">% of unit cost</div><div class="drop">▾</div></div>
+					<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="trail">full map at start</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="trail">support abilities</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="trail">teams same side</div><div class="switch"></div></div>
+					<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="trail">per player</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="trail">spawn loadout</div><div class="drop">▾</div></div>
+					<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="trail">unlocks at start</div><div class="drop">▾</div></div>
+					<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="trail">last team standing</div><div class="drop">▾</div></div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     O5 — Minimal
+     ============================================================ -->
+<section class="variant" id="o5">
+	<header class="title">
+		<h2><span class="tag">O5</span>Minimal — cards and that's it</h2>
+		<p>"Less is more" pushed all the way. No section headers, no preset chips, no search bar. Just the cards in a single column-flow, grouped by visual rhythm — values in the first half, toggles in the second. Section identity is implicit (you can see "this row is about money", "this row is about visibility") without anyone having to label it. The bottom strip is the only chrome.</p>
+	</header>
+	<div class="frame">
+		<div class="left-mock"><div class="label">MAP + PLAYERS</div></div>
+		<div class="right-panel">
+			<div class="L1-pad" style="padding-top: 32px;">
+				<div class="grid4" style="gap: 12px;">
+					<!-- Values flow first -->
+					<div class="hcard"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="drop">▾</div></div>
+					<div class="hcard changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Income Modifier</div><div class="val">100%</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="drop">▾</div></div>
+
+					<div class="hcard"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Starting Units</div><div class="val">None</div><div class="drop">▾</div></div>
+					<div class="hcard"><div class="lab">Doomsday Clock</div><div class="val">No limit</div><div class="drop">▾</div></div>
+					<div class="hcard spec"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="drop">▾</div></div>
+
+					<div class="hcard spec"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="drop">▾</div></div>
+
+					<!-- Toggles flow second, naturally clustered -->
+					<div class="hcard tog on" style="grid-column: 2;"><div class="lab">Fog of War</div><div class="val">Enabled</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Explored Map</div><div class="val">Enabled</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Separate Spawns</div><div class="val">Enabled</div><div class="switch"></div></div>
+
+					<div class="hcard tog on spec"><div class="lab">Friendly Fire</div><div class="val">Enabled</div><div class="switch"></div></div>
+					<div class="hcard tog on spec"><div class="lab">Powers</div><div class="val">Enabled</div><div class="switch"></div></div>
+					<div class="hcard tog spec"><div class="lab">Map Reveal</div><div class="val">Disabled</div><div class="switch"></div></div>
+					<div class="hcard tog on"><div class="lab">Debug Menu</div><div class="val">Enabled</div><div class="switch"></div></div>
+				</div>
+			</div>
+			<div class="bottom-strip">
+				<div class="active">
+					<span class="lab">Active Changes <span class="badge">1</span></span>
+					<span class="chip"><span class="clab">Passive Income</span> → <span class="cval">$200</span></span>
+				</div>
+				<div class="preset">
+					<span class="plab">Preset</span>
+					<input value="Default">
+					<button class="btn">Load ▾</button>
+					<button class="btn primary">Save</button>
+					<div class="spacer"></div>
+					<button class="btn">Reset to defaults</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<footer class="foot">
+	Pick "Order N" — or call out a custom remix (e.g. "O2 grouping but O5 minimal chrome").
+</footer>
+
+</body>
+</html>
