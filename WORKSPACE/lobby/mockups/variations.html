@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD lobby — 15 variations on tri-pane</title>
+<style>
+:root {
+	--bg: #1a1d22;
+	--bg-2: #21252b;
+	--bg-3: #2a2f37;
+	--bg-4: #353a44;
+	--line: #3b414c;
+	--line-soft: #2f343c;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-soft: #2d6240;
+	--danger: #e77d7d;
+	--warn: #f0b060;
+	--info: #6ed68a;
+	--us: #4a7fc4;
+	--ru: #c44a4a;
+	font-family: -apple-system, "Segoe UI", Inter, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: #0c0e11; color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Segoe UI", Inter, sans-serif; }
+header {
+	position: sticky; top: 0; z-index: 10;
+	background: #0c0e11; border-bottom: 1px solid var(--line);
+	padding: 12px 24px; display: flex; align-items: baseline; gap: 24px; flex-wrap: wrap;
+}
+header h1 { margin: 0; font-size: 16px; }
+header nav { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
+header nav a { color: var(--ink-2); text-decoration: none; }
+header nav a:hover { color: var(--accent); }
+.layout { margin: 32px auto; max-width: 1600px; padding: 0 24px; }
+.layout h2 { margin: 0 0 6px; color: var(--accent); font-size: 18px; letter-spacing: 0.5px; }
+.layout .blurb { color: var(--ink-3); margin: 0 0 16px; font-size: 13px; max-width: 900px; }
+.frame {
+	background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+	overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+	height: 880px;
+}
+.btn {
+	display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+	background: var(--bg-3); border: 1px solid var(--line); color: var(--ink);
+	padding: 8px 14px; border-radius: 3px; font-size: 13px; cursor: pointer;
+}
+.btn.primary { background: linear-gradient(180deg, #2a6c3a, #1d4d2a); color: #d4ffd9; border-color: #1f6b30; font-weight: 600; }
+.btn.ghost { background: transparent; }
+.btn.sm { padding: 4px 10px; font-size: 12px; }
+.chip {
+	display: inline-flex; gap: 6px; align-items: center; padding: 5px 11px;
+	background: var(--bg-3); border: 1px solid var(--line); border-radius: 999px; font-size: 12px;
+}
+.chip.up { color: var(--accent); }
+.chip.down { color: var(--danger); }
+.chip.warn { color: var(--warn); }
+.tag { font-size: 11px; padding: 2px 6px; border-radius: 2px; background: var(--bg-3); color: var(--ink-2); }
+.sep { height: 1px; background: var(--line); margin: 12px 0; }
+.label { font: 11px/1 -apple-system; color: var(--ink-3); letter-spacing: 1.2px; text-transform: uppercase; }
+.kbd { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--ink-3); background: var(--bg-3); padding: 1px 5px; border-radius: 3px; }
+.flag { display: inline-block; width: 22px; height: 14px; border-radius: 2px; vertical-align: middle; }
+.flag.us { background: linear-gradient(180deg, #fff 0 33%, #c44 33% 66%, #fff 66% 100%); border: 1px solid #444; box-shadow: inset 4px 0 0 #4a7fc4; }
+.flag.ru { background: linear-gradient(180deg, #fff 0 33%, #4a7fc4 33% 66%, #c44a4a 66% 100%); border: 1px solid #444; }
+.swatch { display: inline-block; width: 28px; height: 16px; border-radius: 2px; vertical-align: middle; border: 1px solid #1a1a1a; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.dot.ok { background: var(--accent); }
+.dot.warn { background: var(--warn); }
+
+.mapsvg { width: 100%; height: 100%; display: block; background: #1f2f1d; }
+.mapsvg .terrain { fill: #2f4a2a; }
+.mapsvg .terrain-2 { fill: #486432; }
+.mapsvg .terrain-3 { fill: #5a7a3a; }
+.mapsvg .road { stroke: #b0b0a0; stroke-width: 2; fill: none; opacity: .55; }
+.mapsvg .river { fill: #2c4d70; opacity: .7; }
+.mapsvg .spawn { fill: #fff; stroke: #000; stroke-width: 1; }
+.mapsvg .spawn-text { fill: #000; font: 600 11px sans-serif; text-anchor: middle; }
+
+.player-row {
+	display: grid; grid-template-columns: 18px 1fr 70px 90px 32px;
+	gap: 6px; align-items: center; padding: 6px 10px; font-size: 12px;
+}
+.player-row.full { grid-template-columns: 1fr 90px 130px 70px 70px 70px 36px; padding: 9px 12px; font-size: 13px; }
+.player-row.empty { color: var(--ink-3); }
+.player-row.closed { color: var(--ink-4); font-style: italic; }
+.player-row + .player-row { border-top: 1px solid var(--line-soft); }
+
+.pane-h { margin: 0; font-size: 11px; letter-spacing: 1.5px; color: var(--ink-3); text-transform: uppercase; display: flex; justify-content: space-between; align-items: baseline; }
+
+/* Variant base — every variant inherits the .v base */
+.v { display: grid; height: 100%; }
+
+/* V1 baseline — refined original. 1.4 : 1 : 1 columns, square map */
+.v1 { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v1 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v1 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v1 .col:last-of-type { border-right: 0; }
+.v1 .col .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v1 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v1 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+.v1 .cta .start { padding: 10px 36px; }
+
+/* V2 — Map-dominant 1.8:1:1 */
+.v2 { grid-template-columns: 1.8fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v2 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v2 .col { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v2 .col:last-of-type { border-right: 0; }
+.v2 .col.map .mapbox { flex: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v2 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v2 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+.v2 .cta .start { padding: 10px 36px; }
+
+/* V3 — Player-centric 1:1.4:1 */
+.v3 { grid-template-columns: 1fr 1.4fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v3 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v3 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v3 .col:last-of-type { border-right: 0; }
+.v3 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v3 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v3 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V4 — Tight 1:1:1 */
+.v4 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v4 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v4 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v4 .col:last-of-type { border-right: 0; }
+.v4 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v4 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v4 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V5 — Reversed: Settings | Map | Players */
+.v5 { grid-template-columns: 1fr 1.4fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v5 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v5 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v5 .col:last-of-type { border-right: 0; }
+.v5 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v5 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v5 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V6 — Landscape map at top of first column, rest of map col holds metadata */
+.v6 { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v6 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v6 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v6 .col:last-of-type { border-right: 0; }
+.v6 .col.map .mapbox { aspect-ratio: 21/9; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v6 .col.map .map-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px; }
+.v6 .col.map .map-meta .stat .label { font-size: 10px; }
+.v6 .col.map .map-meta .stat .v { font-size: 14px; margin-top: 2px; }
+.v6 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v6 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V7 — Map full height, no top/bottom borders, bleeds */
+.v7 { grid-template-columns: 1.4fr 1fr 1fr; }
+.v7 .map-full { position: relative; }
+.v7 .map-full .mapsvg { height: 100%; }
+.v7 .map-full::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15,16,20,.4), rgba(15,16,20,.85)); pointer-events: none; }
+.v7 .map-overlay { position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 1; }
+.v7 .map-overlay h3 { margin: 0; font-size: 26px; font-weight: 300; }
+.v7 .map-overlay .sub { color: var(--ink-2); margin-top: 4px; font-size: 12px; }
+.v7 .map-overlay .actions { display: flex; gap: 8px; margin-top: 14px; }
+.v7 .rest { display: grid; grid-template-columns: 1fr 1fr; }
+.v7 .rest .col { padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-left: 1px solid var(--line); }
+.v7 .rest .col:first-child { border-left: 0; }
+.v7 .rest .col .top-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--line); margin: -22px -24px 0; }
+.v7 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v7 .cta { grid-column: 2 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; }
+
+/* V8 — Tabbed settings column */
+.v8 { grid-template-columns: 1.4fr 1fr 1.2fr; grid-template-rows: 56px 1fr 56px; }
+.v8 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v8 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v8 .col:last-of-type { border-right: 0; }
+.v8 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v8 .col.settings .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -4px -22px 0; padding: 0 22px; }
+.v8 .col.settings .tabs .tab { padding: 10px 12px; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; font-size: 12px; }
+.v8 .col.settings .tabs .tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.v8 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v8 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V9 — Sectioned cards inside each column */
+.v9 { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v9 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v9 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; }
+.v9 .card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; }
+.v9 .card.flex { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; padding: 0; }
+.v9 .card.flex .head { padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+.v9 .card.flex .body { padding: 0 0 6px; }
+.v9 .col.map .mapbox-card { padding: 6px; }
+.v9 .col.map .mapbox-card .mapbox { aspect-ratio: 1; border-radius: 2px; overflow: hidden; }
+.v9 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V10 — Players as portrait cards (vertical) */
+.v10 { grid-template-columns: 1.4fr 1.1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v10 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v10 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v10 .col:last-of-type { border-right: 0; }
+.v10 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v10 .player-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+.v10 .p-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.v10 .p-card .head { display: flex; align-items: center; gap: 10px; }
+.v10 .p-card .head .av { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-3); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.v10 .p-card .head .name { font-weight: 600; flex: 1; }
+.v10 .p-card .head .ready { color: var(--accent); }
+.v10 .p-card .meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.v10 .p-card .meta .swatch { width: 18px; height: 12px; }
+.v10 .p-card.empty { color: var(--ink-3); justify-content: center; align-items: center; border-style: dashed; }
+.v10 .p-card.closed { color: var(--ink-4); justify-content: center; align-items: center; opacity: .5; }
+.v10 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V11 — Active-changes banner at top */
+.v11 { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 48px 40px 1fr 56px; }
+.v11 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 12px 26px; border-bottom: 1px solid var(--line); }
+.v11 .ticker { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; padding: 6px 26px; border-bottom: 1px solid var(--line); background: rgba(96,208,128,.05); }
+.v11 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v11 .col:last-of-type { border-right: 0; }
+.v11 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v11 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v11 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V12 — Big editorial map title */
+.v12 { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v12 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v12 .col { padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v12 .col:last-of-type { border-right: 0; }
+.v12 .col.map .map-title { margin: 0; font-size: 32px; font-weight: 200; letter-spacing: 1px; line-height: 1.1; }
+.v12 .col.map .map-sub { color: var(--ink-3); font-size: 12px; margin-top: 4px; }
+.v12 .col.map .mapbox { aspect-ratio: 4/3; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v12 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v12 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V13 — Icon sidebar on far left */
+.v13 { grid-template-columns: 56px 1.4fr 1fr 1fr; grid-template-rows: 56px 1fr 56px; }
+.v13 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v13 .icon-rail { background: var(--bg-2); border-right: 1px solid var(--line); padding: 12px 0; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.v13 .icon-rail .icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-3); display: flex; align-items: center; justify-content: center; color: var(--ink-2); cursor: pointer; font-size: 14px; }
+.v13 .icon-rail .icon.active { background: var(--accent-soft); color: var(--accent); }
+.v13 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v13 .col:last-of-type { border-right: 0; }
+.v13 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v13 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v13 .cta { grid-column: 2 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V14 — Chat strip above CTA */
+.v14 { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 56px 1fr 50px 56px; }
+.v14 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v14 .col { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; border-right: 1px solid var(--line); }
+.v14 .col:last-of-type { border-right: 0; }
+.v14 .col.map .mapbox { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.v14 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v14 .chat-strip { grid-column: 1 / -1; padding: 12px 26px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--ink-2); background: var(--bg-2); }
+.v14 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+
+/* V15 — 2x2 grid: Map+Settings top, Players+Changes bottom */
+.v15 { grid-template-columns: 1.4fr 1fr; grid-template-rows: 56px 1fr 1fr 56px; }
+.v15 .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; border-bottom: 1px solid var(--line); }
+.v15 .cell { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; }
+.v15 .cell.tl, .v15 .cell.bl { border-right: 1px solid var(--line); }
+.v15 .cell.tl, .v15 .cell.tr { border-bottom: 1px solid var(--line); }
+.v15 .cell.tl .mapbox { aspect-ratio: 16/9; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; flex: 1; }
+.v15 .roster-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 0; flex: 1; min-height: 0; overflow: hidden; }
+.v15 .cta { grid-column: 1 / -1; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+</style>
+</head>
+<body>
+
+<header>
+	<h1>WW3MOD · 15 variations on the asymmetric tri-pane</h1>
+	<nav>
+		<a href="#a1">A1 · Refined baseline</a>
+		<a href="#a2">A2 · Map-dominant</a>
+		<a href="#a3">A3 · Player-centric</a>
+		<a href="#a4">A4 · Tight 1:1:1</a>
+		<a href="#a5">A5 · Settings first</a>
+		<a href="#a6">A6 · Landscape map</a>
+		<a href="#a7">A7 · Map full bleed</a>
+		<a href="#a8">A8 · Tabbed settings</a>
+		<a href="#a9">A9 · Card-sectioned</a>
+		<a href="#a10">A10 · Player portraits</a>
+		<a href="#a11">A11 · Changes banner</a>
+		<a href="#a12">A12 · Big editorial title</a>
+		<a href="#a13">A13 · Icon sidebar</a>
+		<a href="#a14">A14 · Chat strip</a>
+		<a href="#a15">A15 · 2×2 grid</a>
+	</nav>
+</header>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="map-rzeta" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice">
+	<rect width="500" height="500" class="terrain"/>
+	<polygon points="0,30 80,90 60,180 0,200" class="terrain-2"/>
+	<polygon points="380,0 500,0 500,100 400,160" class="terrain-3"/>
+	<polygon points="0,420 100,440 80,500 0,500" class="terrain-3"/>
+	<polygon points="400,400 500,380 500,500 380,500" class="terrain-2"/>
+	<path d="M250,0 Q255,200 280,250 Q220,330 260,500" stroke="#2c4d70" stroke-width="38" fill="none" opacity=".5"/>
+	<path d="M40,250 L460,250" class="road"/>
+	<path d="M250,40 L250,460" class="road"/>
+	<circle cx="100" cy="100" r="13" class="spawn"/><text x="100" y="104" class="spawn-text">A</text>
+	<circle cx="400" cy="100" r="13" class="spawn"/><text x="400" y="104" class="spawn-text">C</text>
+	<circle cx="80" cy="240" r="13" class="spawn"/><text x="80" y="244" class="spawn-text">E</text>
+	<circle cx="420" cy="240" r="13" class="spawn"/><text x="420" y="244" class="spawn-text">F</text>
+	<circle cx="100" cy="400" r="13" class="spawn"/><text x="100" y="404" class="spawn-text">D</text>
+	<circle cx="400" cy="400" r="13" class="spawn"/><text x="400" y="404" class="spawn-text">B</text>
+</symbol>
+<symbol id="map-landscape" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice">
+	<rect width="1000" height="500" class="terrain"/>
+	<polygon points="0,40 200,120 180,260 0,300" class="terrain-2"/>
+	<polygon points="800,0 1000,0 1000,200 820,280" class="terrain-3"/>
+	<polygon points="0,420 200,460 180,500 0,500" class="terrain-3"/>
+	<polygon points="820,400 1000,380 1000,500 800,500" class="terrain-2"/>
+	<path d="M500,0 Q510,200 540,250 Q470,330 510,500" stroke="#2c4d70" stroke-width="48" fill="none" opacity=".55"/>
+	<path d="M80,250 L920,250" class="road"/>
+	<path d="M500,40 L500,460" class="road"/>
+	<circle cx="200" cy="100" r="15" class="spawn"/><text x="200" y="104" class="spawn-text">A</text>
+	<circle cx="800" cy="100" r="15" class="spawn"/><text x="800" y="104" class="spawn-text">C</text>
+	<circle cx="160" cy="240" r="15" class="spawn"/><text x="160" y="244" class="spawn-text">E</text>
+	<circle cx="840" cy="240" r="15" class="spawn"/><text x="840" y="244" class="spawn-text">F</text>
+	<circle cx="200" cy="400" r="15" class="spawn"/><text x="200" y="404" class="spawn-text">D</text>
+	<circle cx="800" cy="400" r="15" class="spawn"/><text x="800" y="404" class="spawn-text">B</text>
+</symbol>
+</defs></svg>
+
+
+<!-- =================== A1 — REFINED BASELINE =================== -->
+<section class="layout" id="a1">
+	<h2>A1 · Refined baseline (1.4 : 1 : 1)</h2>
+	<p class="blurb">Original tri-pane with small polish: cleaner header typography, alignment fixes, slightly tighter spacing inside columns. The reference everything else varies from.</p>
+	<div class="frame v v1">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · 2 scenarios · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change map</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Add bot</button>
+				<button class="btn sm">Spectate</button>
+				<button class="btn sm" style="margin-left:auto;">Auto-team</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match settings</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+				<div><div class="label">Fog</div><div>✓</div></div>
+				<div><div class="label">Explored</div><div>✓</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+			<button class="btn sm" style="margin-top:auto;">Advanced ▾</button>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A2 — MAP-DOMINANT =================== -->
+<section class="layout" id="a2">
+	<h2>A2 · Map-dominant (1.8 : 1 : 1) — even more map</h2>
+	<p class="blurb">Pump the map column up to 1.8× the others. The map fills the column floor-to-ceiling. The "you are about to fight here" feel is the loudest signal.</p>
+	<div class="frame v v2">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Theater <span style="color:var(--ink); font-weight:400; letter-spacing:0;">River Zeta WW3</span></h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div style="font-size:12px; color:var(--ink-3); display:flex; justify-content: space-between;">
+				<span>Conquest · 2 scenarios</span>
+				<span>By Medium Tank, ZxGanon</span>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change map</button>
+				<button class="btn sm" style="flex:1;">Scenario · None ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> RUS</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> US</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50k</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40m</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A3 — PLAYER-CENTRIC =================== -->
+<section class="layout" id="a3">
+	<h2>A3 · Player-centric (1 : 1.4 : 1) — roster takes centre stage</h2>
+	<p class="blurb">Centre column gets the most width. Roster rows breathe with full faction names and a wider name field. The right column slims down to settings essentials.</p>
+	<div class="frame v v3">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · 2 scenarios</div>
+			</div>
+			<button class="btn sm">Change map</button>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 ready / 8</h4>
+			<div class="roster-card">
+				<div class="player-row full"><div style="display:flex; align-items:center; gap:8px;"><span class="dot ok"></span><strong>FreadyFish</strong></div><span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span class="tag">T1</span><span class="tag">A</span><span class="tag">0%</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row full"><div style="display:flex; align-items:center; gap:8px;"><span class="dot ok"></span><strong>AI Player</strong></div><span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span class="tag">T2</span><span class="tag">F</span><span class="tag">0%</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row full empty"><div>+ Add bot · open</div><span></span><span></span><span></span><span></span><span></span><span></span></div>
+				<div class="player-row full empty"><div>+ Add bot · open</div><span></span><span></span><span></span><span></span><span></span><span></span></div>
+				<div class="player-row full closed"><div>Closed</div><span></span><span></span><span></span><span></span><span></span><span></span></div>
+				<div class="player-row full closed"><div>Closed</div><span></span><span></span><span></span><span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Add bot</button>
+				<button class="btn sm">Remove bots</button>
+				<button class="btn sm">Auto-team</button>
+				<button class="btn sm" style="margin-left:auto;">Spectate</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match · 8 options</h4>
+			<div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+				<div style="display:flex; justify-content: space-between;"><span class="label">Cash</span><span>$50 000</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Income</span><span>100%</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Passive</span><span>$100</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Speed</span><span>Real time</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Doomsday</span><span style="color:var(--warn);">40 min</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Start</span><span>Motorized</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Fog</span><span>✓</span></div>
+				<div style="display:flex; justify-content: space-between;"><span class="label">Explored</span><span>✓</span></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A4 — TIGHT 1:1:1 =================== -->
+<section class="layout" id="a4">
+	<h2>A4 · Balanced 1 : 1 : 1 — equal-weight columns</h2>
+	<p class="blurb">Three columns the same width. Everything gets equal billing. Feels democratic and reads symmetrically — better when settings are voluminous and you don't want to bias the map.</p>
+	<div class="frame v v4">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+				<button class="btn sm" style="margin-left:auto;">Auto-team</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+				<div><div class="label">Fog</div><div>✓</div></div>
+				<div><div class="label">Explored</div><div>✓</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A5 — SETTINGS FIRST =================== -->
+<section class="layout" id="a5">
+	<h2>A5 · Settings first (Settings | Map | Players)</h2>
+	<p class="blurb">Reversed reading order. Settings on the left, map in the middle as the visual anchor, players on the right (closest to the Start button). Reads "what · where · who".</p>
+	<div class="frame v v5">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match settings</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+				<div><div class="label">Fog</div><div>✓</div></div>
+				<div><div class="label">Explored</div><div>✓</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+			<button class="btn sm" style="margin-top:auto;">Advanced ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A6 — LANDSCAPE MAP =================== -->
+<section class="layout" id="a6">
+	<h2>A6 · Landscape map — wide preview at top of column</h2>
+	<p class="blurb">Same tri-pane, but the map column gets a 21:9 landscape preview at top instead of a square. Underneath: large map-stat grid (spawns, teams, doomsday) for a war-room feel.</p>
+	<div class="frame v v6">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice"><use href="#map-landscape"/></svg></div>
+			<div style="font-weight:600; font-size:18px;">River Zeta WW3</div>
+			<div style="color:var(--ink-3); font-size:11px;">Conquest · By Medium Tank, ZxGanon, XavierX</div>
+			<div class="map-meta" style="margin-top: 6px;">
+				<div class="stat"><div class="label">Spawns</div><div class="v">6</div></div>
+				<div class="stat"><div class="label">Teams</div><div class="v">2</div></div>
+				<div class="stat"><div class="label">Map size</div><div class="v">128 × 128</div></div>
+				<div class="stat"><div class="label">Doomsday</div><div class="v" style="color:var(--warn)">40 min</div></div>
+			</div>
+			<div style="display:flex; gap:6px; margin-top: auto;">
+				<button class="btn sm" style="flex:1;">Change map</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50k</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40m</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A7 — MAP FULL BLEED =================== -->
+<section class="layout" id="a7">
+	<h2>A7 · Map full bleed — column spans header to footer</h2>
+	<p class="blurb">Map column has no padding, no header — runs from screen top to bottom with the map title burned in at the bottom-left. Cinematic. Players + settings live in the right pair with their own header strips.</p>
+	<div class="frame v v7">
+		<div class="map-full">
+			<svg class="mapsvg" viewBox="0 0 800 1200" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg>
+			<div class="map-overlay">
+				<div style="font-size: 11px; color: var(--ink-3); letter-spacing: 2px; margin-bottom: 6px;">SKIRMISH · CONQUEST</div>
+				<h3>River Zeta WW3</h3>
+				<div class="sub">By Medium Tank, ZxGanon, XavierX · 2 scenarios · 8-player symmetric</div>
+				<div class="actions">
+					<button class="btn sm">Change map</button>
+					<button class="btn sm">Scenario ▾</button>
+				</div>
+			</div>
+		</div>
+		<div class="rest">
+			<div class="col">
+				<div class="top-row">
+					<button class="btn ghost sm">← Back</button>
+					<button class="btn sm">Preset · Default ▾</button>
+				</div>
+				<h4 class="pane-h">Players · 2 / 8</h4>
+				<div class="roster-card">
+					<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+					<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+					<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+					<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+					<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+					<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				</div>
+				<div style="display:flex; gap:6px;">
+					<button class="btn sm">+ Bot</button>
+					<button class="btn sm">Spectate</button>
+				</div>
+			</div>
+			<div class="col">
+				<div class="top-row">
+					<h4 class="pane-h">Match settings</h4>
+					<button class="btn sm">Advanced ▾</button>
+				</div>
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+					<div><div class="label">Cash</div><div>$50 000</div></div>
+					<div><div class="label">Income</div><div>100%</div></div>
+					<div><div class="label">Passive</div><div>$100</div></div>
+					<div><div class="label">Speed</div><div>Real time</div></div>
+					<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+					<div><div class="label">Start</div><div>Motorized</div></div>
+					<div><div class="label">Fog</div><div>✓</div></div>
+					<div><div class="label">Explored</div><div>✓</div></div>
+				</div>
+				<div class="sep"></div>
+				<h4 class="pane-h">Changes · 3</h4>
+				<div style="display:flex; flex-direction:column; gap:6px;">
+					<span class="chip up">+ Cash $50 000</span>
+					<span class="chip down">− Passive $50</span>
+					<span class="chip warn">! Doomsday 40 min</span>
+				</div>
+			</div>
+			<div class="cta">
+				<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+				<button class="btn primary start">▸ START MATCH</button>
+			</div>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A8 — TABBED SETTINGS =================== -->
+<section class="layout" id="a8">
+	<h2>A8 · Tabbed settings column — Economy / Match / World / Advanced</h2>
+	<p class="blurb">Settings column gets tabs at the top so you can drill into Economy, Match rules, World, or Advanced without scrolling. The column is slightly wider to accommodate the tabs.</p>
+	<div class="frame v v8">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="col settings">
+			<div class="tabs">
+				<div class="tab active">Economy</div>
+				<div class="tab">Match</div>
+				<div class="tab">World</div>
+				<div class="tab">Advanced</div>
+			</div>
+			<div style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;">
+				<div>
+					<div class="label">Starting cash</div>
+					<div style="display:flex; gap:6px; align-items:center; margin-top: 4px;"><span style="flex:1;">$50 000</span><span class="chip up sm">+</span></div>
+				</div>
+				<div>
+					<div class="label">Income modifier</div>
+					<div style="display:flex; gap:6px; align-items:center; margin-top: 4px;"><span style="flex:1;">100%</span></div>
+				</div>
+				<div>
+					<div class="label">Passive income</div>
+					<div style="display:flex; gap:6px; align-items:center; margin-top: 4px;"><span style="flex:1;">$100</span><span class="chip down sm">−</span></div>
+				</div>
+				<div>
+					<div class="label">Bounty %</div>
+					<div style="display:flex; gap:6px; align-items:center; margin-top: 4px;"><span style="flex:1;">10%</span></div>
+				</div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A9 — CARD-SECTIONED =================== -->
+<section class="layout" id="a9">
+	<h2>A9 · Card-sectioned — each subsection is its own card</h2>
+	<p class="blurb">Subsections live in clearly bordered cards instead of flowing within a column. Stronger visual chunking, easier to scan.</p>
+	<div class="frame v v9">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<div class="card mapbox-card">
+				<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			</div>
+			<div class="card">
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon, XavierX</div>
+				<div style="display:flex; gap:6px; margin-top: 12px;">
+					<button class="btn sm" style="flex:1;">Change map</button>
+					<button class="btn sm" style="flex:1;">Scenario ▾</button>
+				</div>
+			</div>
+		</div>
+		<div class="col">
+			<div class="card flex">
+				<div class="head"><h4 class="pane-h">Players · 2 / 8</h4></div>
+				<div class="body">
+					<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+					<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+					<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+					<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+					<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+					<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				</div>
+			</div>
+			<div class="card" style="display:flex; gap:6px;">
+				<button class="btn sm">+ Add bot</button>
+				<button class="btn sm">Spectate</button>
+				<button class="btn sm" style="margin-left:auto;">Auto-team</button>
+			</div>
+		</div>
+		<div class="col">
+			<div class="card">
+				<h4 class="pane-h" style="margin-bottom:8px;">Economy</h4>
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; font-size:12px;">
+					<div><div class="label">Cash</div><div>$50 000</div></div>
+					<div><div class="label">Income</div><div>100%</div></div>
+					<div><div class="label">Passive</div><div>$100</div></div>
+					<div><div class="label">Bounty</div><div>10%</div></div>
+				</div>
+			</div>
+			<div class="card">
+				<h4 class="pane-h" style="margin-bottom:8px;">Match</h4>
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; font-size:12px;">
+					<div><div class="label">Speed</div><div>Real time</div></div>
+					<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+					<div><div class="label">Start</div><div>Motorized</div></div>
+				</div>
+			</div>
+			<div class="card">
+				<h4 class="pane-h" style="margin-bottom:8px;">Active changes · 3</h4>
+				<div style="display:flex; flex-direction:column; gap:6px;">
+					<span class="chip up">+ Cash $50 000</span>
+					<span class="chip down">− Passive $50</span>
+					<span class="chip warn">! Doomsday 40 min</span>
+				</div>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A10 — PLAYER PORTRAITS =================== -->
+<section class="layout" id="a10">
+	<h2>A10 · Player portraits — roster as a 2-col card grid</h2>
+	<p class="blurb">Each player is a portrait card showing avatar, name, color, faction, ready state. More visual, more "team roster" feel than a spreadsheet of rows.</p>
+	<div class="frame v v10">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="player-grid">
+				<div class="p-card">
+					<div class="head"><span class="av" style="background:linear-gradient(45deg,#7f5,#383)">F</span><span class="name">FreadyFish</span><span class="ready">✓</span></div>
+					<div class="meta"><span class="flag ru"></span> Russia · Team 1</div>
+					<div class="meta"><span class="swatch" style="background:#85b956"></span> Spawn A · 0%</div>
+				</div>
+				<div class="p-card">
+					<div class="head"><span class="av" style="background:linear-gradient(45deg,#5af,#338)">AI</span><span class="name">AI Player</span><span class="ready">✓</span></div>
+					<div class="meta"><span class="flag us"></span> America · Team 2</div>
+					<div class="meta"><span class="swatch" style="background:#4a7fc4"></span> Spawn F · 0%</div>
+				</div>
+				<div class="p-card empty">+ Add bot</div>
+				<div class="p-card empty">+ Add bot</div>
+				<div class="p-card closed">Closed</div>
+				<div class="p-card closed">Closed</div>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A11 — CHANGES BANNER =================== -->
+<section class="layout" id="a11">
+	<h2>A11 · Active-changes banner — persistent strip under the title</h2>
+	<p class="blurb">All active deltas live in a thin always-visible strip right under the title. They're never buried in a settings column — they're the first thing you notice once you've seen the map.</p>
+	<div class="frame v v11">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="ticker">
+			<span class="label">3 ACTIVE CHANGES</span>
+			<span class="chip up">+ Starting Cash $50 000</span>
+			<span class="chip down">− Passive Income $50</span>
+			<span class="chip warn">! Doomsday 40 min</span>
+			<button class="btn sm ghost" style="margin-left:auto;">Reset all</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+				<div><div class="label">Fog</div><div>✓</div></div>
+				<div><div class="label">Explored</div><div>✓</div></div>
+			</div>
+			<button class="btn sm" style="margin-top:auto;">Advanced ▾</button>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A12 — BIG EDITORIAL TITLE =================== -->
+<section class="layout" id="a12">
+	<h2>A12 · Big editorial title — oversized map name, hairline meta</h2>
+	<p class="blurb">Map title rendered at 32px thin, like a magazine. The smaller meta follows underneath. The map preview adopts a 4:3 instead of square so it doesn't dominate the column visually.</p>
+	<div class="frame v v12">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<div>
+				<div class="label" style="margin-bottom: 6px;">FEATURED MAP</div>
+				<h3 class="map-title">River Zeta WW3</h3>
+				<div class="map-sub">Conquest · 2 scenarios · 8-player symmetric · By Medium Tank, ZxGanon, XavierX</div>
+			</div>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 1000 750" preserveAspectRatio="xMidYMid slice"><use href="#map-landscape"/></svg></div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change map</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match settings</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A13 — ICON SIDEBAR =================== -->
+<section class="layout" id="a13">
+	<h2>A13 · Icon sidebar — common actions at the left edge</h2>
+	<p class="blurb">Slim icon rail on the far left for quick actions: change map, replay last, presets, advanced, music, chat. Frees the columns from carrying actions in their footers.</p>
+	<div class="frame v v13">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="icon-rail">
+			<div class="icon active" title="Lobby">⌂</div>
+			<div class="icon" title="Map">▣</div>
+			<div class="icon" title="Replay">⟳</div>
+			<div class="icon" title="Presets">★</div>
+			<div class="icon" title="Advanced">⚙</div>
+			<div class="icon" title="Music">♬</div>
+			<div class="icon" title="Chat" style="margin-top:auto;">✉</div>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A14 — CHAT STRIP =================== -->
+<section class="layout" id="a14">
+	<h2>A14 · Chat strip — single-line ticker above the CTA</h2>
+	<p class="blurb">Compromise between "no chat" and "always-visible chat panel". A single-line ticker between the columns and the Start bar. Click to expand inline if needed.</p>
+	<div class="frame v v14">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="col map">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice"><use href="#map-rzeta"/></svg></div>
+			<div>
+				<div style="font-weight:600;">River Zeta WW3</div>
+				<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon</div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1;">Change</button>
+				<button class="btn sm" style="flex:1;">Scenario ▾</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+			</div>
+		</div>
+		<div class="col">
+			<h4 class="pane-h">Match</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start</div><div>Motorized</div></div>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Cash $50 000</span>
+				<span class="chip down">− Passive $50</span>
+				<span class="chip warn">! Doomsday 40 min</span>
+			</div>
+		</div>
+		<div class="chat-strip">
+			<span class="label">CHAT</span>
+			<span><span style="color:var(--warn);">20:08 · Battlefield Control</span> · FreadyFish changed Passive Income to $50.</span>
+			<button class="btn sm ghost" style="margin-left:auto;">Expand ▾</button>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+
+<!-- =================== A15 — 2x2 GRID =================== -->
+<section class="layout" id="a15">
+	<h2>A15 · 2×2 grid — top: Map + Settings · bottom: Players + Changes</h2>
+	<p class="blurb">Two-by-two instead of one-by-three. Map (with a landscape preview filling its cell) and settings on top; players + active changes on the bottom. Better for ultra-wide windows.</p>
+	<div class="frame v v15">
+		<div class="top">
+			<button class="btn ghost sm">← Back</button>
+			<h2 style="margin:0; font-size: 15px; letter-spacing: 4px;">RIVER ZETA WW3 — SKIRMISH</h2>
+			<button class="btn sm">Preset · Default ▾</button>
+		</div>
+		<div class="cell tl">
+			<h4 class="pane-h">Map</h4>
+			<div class="mapbox"><svg class="mapsvg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice"><use href="#map-landscape"/></svg></div>
+			<div style="display:flex; justify-content: space-between; align-items: baseline;">
+				<div>
+					<div style="font-weight:600;">River Zeta WW3</div>
+					<div style="color:var(--ink-3); font-size: 11px; margin-top:2px;">Conquest · By Medium Tank, ZxGanon, XavierX</div>
+				</div>
+				<div style="display:flex; gap:6px;">
+					<button class="btn sm">Change</button>
+					<button class="btn sm">Scenario ▾</button>
+				</div>
+			</div>
+		</div>
+		<div class="cell tr">
+			<h4 class="pane-h">Match settings</h4>
+			<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size:12px;">
+				<div><div class="label">Cash</div><div>$50 000</div></div>
+				<div><div class="label">Income</div><div>100%</div></div>
+				<div><div class="label">Passive</div><div>$100</div></div>
+				<div><div class="label">Speed</div><div>Real time</div></div>
+				<div><div class="label">Doomsday</div><div style="color:var(--warn)">40 min</div></div>
+				<div><div class="label">Start units</div><div>Motorized</div></div>
+				<div><div class="label">Fog</div><div>✓ On</div></div>
+				<div><div class="label">Explored</div><div>✓ On</div></div>
+			</div>
+			<button class="btn sm" style="margin-top:auto;">Advanced ▾</button>
+		</div>
+		<div class="cell bl">
+			<h4 class="pane-h">Players · 2 / 8</h4>
+			<div class="roster-card">
+				<div class="player-row"><span class="dot ok"></span>FreadyFish<span class="swatch" style="background:#85b956"></span><span><span class="flag ru"></span> Russia</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row"><span class="dot ok"></span>AI Player<span class="swatch" style="background:#4a7fc4"></span><span><span class="flag us"></span> America</span><span style="color:var(--accent)">✓</span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row empty"><span></span>+ Add bot<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+				<div class="player-row closed"><span></span>Closed<span></span><span></span><span></span></div>
+			</div>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm">+ Bot</button>
+				<button class="btn sm">Spectate</button>
+				<button class="btn sm" style="margin-left:auto;">Auto-team</button>
+			</div>
+		</div>
+		<div class="cell br">
+			<h4 class="pane-h">Active changes · 3</h4>
+			<div style="display:flex; flex-direction:column; gap:6px;">
+				<span class="chip up">+ Starting Cash $50 000</span>
+				<span class="chip down">− Passive Income $50</span>
+				<span class="chip warn">! Doomsday Clock 40 min</span>
+			</div>
+			<div class="sep"></div>
+			<h4 class="pane-h">Preset</h4>
+			<div style="display:flex; gap:6px;">
+				<button class="btn sm" style="flex:1; text-align:left;">▾ Default</button>
+				<button class="btn sm">Save</button>
+				<button class="btn sm">Reset</button>
+			</div>
+		</div>
+		<div class="cta">
+			<span style="color:var(--ink-3); font-size:12px;">2 / 8 ready</span>
+			<button class="btn primary start">▸ START MATCH</button>
+		</div>
+	</div>
+</section>
+
+<footer style="padding: 40px 24px; color: var(--ink-3); font-size: 12px;">
+	15 variations on the asymmetric tri-pane &middot; WW3MOD lobby exploration
+</footer>
+
+</body>
+</html>
