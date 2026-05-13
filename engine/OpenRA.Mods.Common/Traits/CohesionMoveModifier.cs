@@ -73,6 +73,20 @@ namespace OpenRA.Mods.Common.Traits
 			"click needs CoverScore 15 over a click-adjacent candidate to win.")]
 		public readonly int SpreadDistancePenalty = 5;
 
+		[Desc("Bias toward cells on the group-centroid's side of the click. Multiplied by the",
+			"chebyshev distance from each candidate cell to the group's centroid. When the squad",
+			"is approaching cover from outside, this pulls slot picks toward the near edge so",
+			"units don't get assigned to far-side cells they can't path to through dense cover.",
+			"Set to 0 to disable group-side biasing.")]
+		public readonly int SpreadGroupPenalty = 2;
+
+		[Desc("Chebyshev distance threshold (cells) above which a SpreadInside intent is reclassified",
+			"as Approach: the squad is far enough from a cover click that they need to march to it",
+			"first. Approach lays the formation at the cover boundary between group and click, not",
+			"inside the cover, since pathfinding to far-side cells through dense cover usually fails",
+			"and leaves units stalled at the boundary anyway.")]
+		public readonly int ApproachGroupDistanceCells = 4;
+
 		[Desc("When true, slot candidates are filtered by Mobile.CanStayInCell on the subject. Cells",
 			"the subject's locomotor can't park on (impassable terrain, building/tree footprints,",
 			"narrow obstacles) are skipped. Set false for testing the pre-filter behaviour.")]
@@ -90,7 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		enum Intent { Open, SpreadInside, EdgeLine }
+		enum Intent { Open, SpreadInside, EdgeLine, Approach }
 
 		void GetSpacing(CohesionMode mode, out int colSpacing, out int rowSpacing)
 		{
@@ -266,14 +280,16 @@ namespace OpenRA.Mods.Common.Traits
 			return slots;
 		}
 
-		// SpreadInside: rank passable cover cells in the click neighborhood by CoverScore minus a
-		// chebyshev-distance penalty (so units prefer near cover over far cover with marginally
-		// higher density). Pick top N with a min-spacing constraint. Filtered through Mobile's
-		// pathability check so we don't bid for cells the unit can't park on.
-		CPos[] ComputeSpreadSlots(Map map, CPos clickCell, int n, int minSpacingCells, Mobile subjectMobile)
+		// SpreadInside: rank passable cover cells in the click neighborhood by CoverScore minus
+		// chebyshev penalties to (a) the click and (b) the group's centroid. The group penalty
+		// pulls slot picks toward the squad's side when the click is deep in cover the squad has
+		// to traverse to reach — avoids piling assignments on far-side cells the pathfinder can't
+		// reach through a dense cluster. Filtered through Mobile.CanStayInCell.
+		CPos[] ComputeSpreadSlots(Map map, CPos clickCell, CPos groupCentroid, int n, int minSpacingCells, Mobile subjectMobile)
 		{
 			var radius = info.SpreadSearchRadius;
 			var distancePenalty = info.SpreadDistancePenalty;
+			var groupPenalty = info.SpreadGroupPenalty;
 			var candidates = new List<(int Effective, int RawScore, int Chebyshev, CPos Cell)>();
 
 			for (var dy = -radius; dy <= radius; dy++)
@@ -289,7 +305,8 @@ namespace OpenRA.Mods.Common.Traits
 						continue;
 
 					var cheb = Math.Max(Math.Abs(dx), Math.Abs(dy));
-					var effective = raw - cheb * distancePenalty;
+					var groupCheb = Math.Max(Math.Abs(cell.X - groupCentroid.X), Math.Abs(cell.Y - groupCentroid.Y));
+					var effective = raw - cheb * distancePenalty - groupCheb * groupPenalty;
 					candidates.Add((effective, raw, cheb, cell));
 				}
 			}
@@ -415,6 +432,60 @@ namespace OpenRA.Mods.Common.Traits
 			return start;
 		}
 
+		// Approach: the squad is far from a cover click. Walk from the group's centroid toward
+		// the click along the direction vector; find the first cell where CoverScore transitions
+		// from 0 to positive (the cover boundary). Place units in a line perpendicular to the
+		// approach direction at that boundary cell. This produces a defensive line that the
+		// squad can actually reach in one continuous march — no path through dense cover needed.
+		CPos[] ComputeApproachSlots(Map map, CPos clickCell, CPos groupCentroid, int n, int colSpacing, Mobile subjectMobile)
+		{
+			var dxCells = clickCell.X - groupCentroid.X;
+			var dyCells = clickCell.Y - groupCentroid.Y;
+			var distCells = Math.Sqrt(dxCells * dxCells + dyCells * dyCells);
+
+			if (distCells < 1)
+				return ComputeOpenLine(map, clickCell, n, colSpacing);
+
+			var unitX = dxCells / distCells;
+			var unitY = dyCells / distCells;
+
+			// Walk from group toward click; the boundary is the first passable cell where
+			// CoverScore > 0 (i.e. cell has density-bearing neighbors). Step in unit increments
+			// up to the click distance.
+			CPos boundary = clickCell;
+			var maxSteps = (int)Math.Ceiling(distCells);
+			for (var step = 1; step <= maxSteps; step++)
+			{
+				var sx = groupCentroid.X + (int)Math.Round(unitX * step);
+				var sy = groupCentroid.Y + (int)Math.Round(unitY * step);
+				var cand = map.Clamp(new CPos(sx, sy));
+				if (CoverScore(map, cand) > 0)
+				{
+					boundary = cand;
+					break;
+				}
+			}
+
+			// Perpendicular (rotate 90° CCW): (-unitY, unitX).
+			var perpUX = -unitY;
+			var perpUY = unitX;
+
+			var spacingCells = colSpacing / 1024.0;
+			var slots = new CPos[n];
+			for (var i = 0; i < n; i++)
+			{
+				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
+				var x = boundary.X + (int)Math.Round(perpUX * t);
+				var y = boundary.Y + (int)Math.Round(perpUY * t);
+				var ideal = map.Clamp(new CPos(x, y));
+
+				// Nudge back toward group if line cell is impassable.
+				slots[i] = NudgeToPassable(map, ideal, -unitX, -unitY, subjectMobile);
+			}
+
+			return slots;
+		}
+
 		// Fallback when EdgeLine has no gradient: place a horizontal line through the click.
 		static CPos[] ComputeOpenLine(Map map, CPos clickCell, int n, int colSpacing)
 		{
@@ -479,16 +550,45 @@ namespace OpenRA.Mods.Common.Traits
 			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY);
 			var subjectMobile = subject.TraitOrDefault<Mobile>();
 
+			// Group centroid (used by SpreadInside to bias slot picks toward the squad's side,
+			// and to detect the Approach case where the squad is far from a cover click).
+			long groupCx = 0;
+			long groupCy = 0;
+			for (var i = 0; i < n; i++)
+			{
+				groupCx += validActors[i].CenterPosition.X;
+				groupCy += validActors[i].CenterPosition.Y;
+			}
+
+			var groupCentroid = map.Clamp(map.CellContaining(new WPos(
+				(int)(groupCx / n), (int)(groupCy / n), 0)));
+
+			// Reclassify SpreadInside as Approach when the group is well separated from the
+			// click. Pathfinding through dense cover usually fails, so anchoring the formation at
+			// the boundary between group and click delivers a cleaner result.
+			if (intent == Intent.SpreadInside)
+			{
+				var groupClickCheb = Math.Max(
+					Math.Abs(clickCell.X - groupCentroid.X),
+					Math.Abs(clickCell.Y - groupCentroid.Y));
+				if (groupClickCheb > info.ApproachGroupDistanceCells)
+					intent = Intent.Approach;
+			}
+
 			CPos[] slots;
 			switch (intent)
 			{
 				case Intent.SpreadInside:
 					var minSpacingCells = Math.Max(1, colSpacing / 1024);
-					slots = ComputeSpreadSlots(map, clickCell, n, minSpacingCells, subjectMobile);
+					slots = ComputeSpreadSlots(map, clickCell, groupCentroid, n, minSpacingCells, subjectMobile);
 					break;
 
 				case Intent.EdgeLine:
 					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, n, colSpacing, subjectMobile);
+					break;
+
+				case Intent.Approach:
+					slots = ComputeApproachSlots(map, clickCell, groupCentroid, n, colSpacing, subjectMobile);
 					break;
 
 				case Intent.Open:

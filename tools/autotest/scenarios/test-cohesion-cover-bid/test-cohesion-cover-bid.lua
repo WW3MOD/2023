@@ -82,7 +82,11 @@ WorldLoaded = function()
 			end
 		end
 
-		if #misses == 0 then
+		-- Allow 1 miss: a 4-unit Loose-spacing line (6 cells long) exceeds the
+		-- cluster height (5 trunk-rows), so one unit may legitimately stick out
+		-- past the cover when Approach fires from a distant click. Still catches
+		-- the regression where the bidder leaves everyone in open ground.
+		if #misses <= 1 then
 			return true
 		end
 
