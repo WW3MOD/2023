@@ -229,6 +229,20 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 		}
 
+		[Desc("Read Map.DensityLayer at a cell. Returns the byte value (0-255) summed from all " +
+			"density-bearing actors whose footprint covers this cell. Test mode only.")]
+		public int GetDensity(CPos cell)
+		{
+			if (!TestMode.IsActive)
+				return 0;
+
+			var map = Context.World.Map;
+			if (map.DensityLayer == null || !map.DensityLayer.IsValidCoordinate(cell.X, cell.Y))
+				return 0;
+
+			return map.DensityLayer[cell];
+		}
+
 		[Desc("Issue a grouped Move (or AttackMove) order to a collection of actors as if the " +
 			"player had selected them all and right-clicked `cell`. Goes through the real Order " +
 			"pipeline so IModifyGroupOrder traits (CohesionMoveModifier and friends) fire and " +

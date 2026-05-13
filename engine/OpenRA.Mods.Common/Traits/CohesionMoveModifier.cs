@@ -67,6 +67,17 @@ namespace OpenRA.Mods.Common.Traits
 			"click. 4 = a 9x9 search window.")]
 		public readonly int SpreadSearchRadius = 4;
 
+		[Desc("Distance penalty multiplied by chebyshev cells when ranking SpreadInside candidates.",
+			"Higher = more aggressive preference for cells close to the click; lower = picks high",
+			"CoverScore cells anywhere in the search window. 5 means a candidate 3 cells from",
+			"click needs CoverScore 15 over a click-adjacent candidate to win.")]
+		public readonly int SpreadDistancePenalty = 5;
+
+		[Desc("When true, slot candidates are filtered by Mobile.CanStayInCell on the subject. Cells",
+			"the subject's locomotor can't park on (impassable terrain, building/tree footprints,",
+			"narrow obstacles) are skipped. Set false for testing the pre-filter behaviour.")]
+		public readonly bool FilterByPathability = true;
+
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
 
@@ -255,40 +266,47 @@ namespace OpenRA.Mods.Common.Traits
 			return slots;
 		}
 
-		// SpreadInside: rank passable cover cells in the click neighborhood by CoverScore and
-		// pick the top N with a min-spacing constraint so units don't pile onto the same patch.
-		// Ties broken by distance-to-click ascending, then by (X, Y) lex for determinism.
-		CPos[] ComputeSpreadSlots(Map map, CPos clickCell, int n, int minSpacingCells)
+		// SpreadInside: rank passable cover cells in the click neighborhood by CoverScore minus a
+		// chebyshev-distance penalty (so units prefer near cover over far cover with marginally
+		// higher density). Pick top N with a min-spacing constraint. Filtered through Mobile's
+		// pathability check so we don't bid for cells the unit can't park on.
+		CPos[] ComputeSpreadSlots(Map map, CPos clickCell, int n, int minSpacingCells, Mobile subjectMobile)
 		{
 			var radius = info.SpreadSearchRadius;
-			var candidates = new List<(int Score, int DistSq, CPos Cell)>();
+			var distancePenalty = info.SpreadDistancePenalty;
+			var candidates = new List<(int Effective, int RawScore, int Chebyshev, CPos Cell)>();
 
 			for (var dy = -radius; dy <= radius; dy++)
 			{
 				for (var dx = -radius; dx <= radius; dx++)
 				{
 					var cell = new CPos(clickCell.X + dx, clickCell.Y + dy);
-					var score = CoverScore(map, cell);
-					if (score <= 0)
+					var raw = CoverScore(map, cell);
+					if (raw <= 0)
 						continue;
 
-					candidates.Add((score, dx * dx + dy * dy, cell));
+					if (info.FilterByPathability && subjectMobile != null && !subjectMobile.CanStayInCell(cell))
+						continue;
+
+					var cheb = Math.Max(Math.Abs(dx), Math.Abs(dy));
+					var effective = raw - cheb * distancePenalty;
+					candidates.Add((effective, raw, cheb, cell));
 				}
 			}
 
 			candidates.Sort((a, b) =>
 			{
-				if (b.Score != a.Score)
-					return b.Score.CompareTo(a.Score);
-				if (a.DistSq != b.DistSq)
-					return a.DistSq.CompareTo(b.DistSq);
+				if (b.Effective != a.Effective)
+					return b.Effective.CompareTo(a.Effective);
+				if (a.Chebyshev != b.Chebyshev)
+					return a.Chebyshev.CompareTo(b.Chebyshev);
 				if (a.Cell.X != b.Cell.X)
 					return a.Cell.X.CompareTo(b.Cell.X);
 				return a.Cell.Y.CompareTo(b.Cell.Y);
 			});
 
 			var slots = new List<CPos>(n);
-			foreach (var (_, _, cell) in candidates)
+			foreach (var (_, _, _, cell) in candidates)
 			{
 				if (slots.Count >= n)
 					break;
@@ -312,7 +330,7 @@ namespace OpenRA.Mods.Common.Traits
 			// ground.
 			if (slots.Count < n)
 			{
-				foreach (var (_, _, cell) in candidates)
+				foreach (var (_, _, _, cell) in candidates)
 				{
 					if (slots.Count >= n)
 						break;
@@ -335,7 +353,7 @@ namespace OpenRA.Mods.Common.Traits
 		// one cell along the gradient direction (i.e. just inside the cover edge). The line is
 		// oriented so units face *out* of the cover toward open ground.
 		CPos[] ComputeEdgeLineSlots(Map map, CPos clickCell, int gradXCells, int gradYCells,
-			int n, int colSpacing)
+			int n, int colSpacing, Mobile subjectMobile)
 		{
 			var gradLenSq = gradXCells * gradXCells + gradYCells * gradYCells;
 			if (gradLenSq == 0)
@@ -365,10 +383,36 @@ namespace OpenRA.Mods.Common.Traits
 				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
 				var x = anchorX + (int)Math.Round(perpUX * t);
 				var y = anchorY + (int)Math.Round(perpUY * t);
-				slots[i] = map.Clamp(new CPos(x, y));
+				var ideal = map.Clamp(new CPos(x, y));
+
+				// Pathability nudge: if the ideal line cell is impassable, walk back along the
+				// gradient toward the click until we find a passable cell or run out of slack.
+				slots[i] = NudgeToPassable(map, ideal, -unitX, -unitY, subjectMobile);
 			}
 
 			return slots;
+		}
+
+		// Walk up to 3 cells in (dx, dy) direction looking for a cell the subject can park on.
+		// Returns the original cell if no passable alternative is found within range.
+		static CPos NudgeToPassable(Map map, CPos start, double dx, double dy, Mobile subjectMobile)
+		{
+			if (subjectMobile == null)
+				return start;
+
+			if (subjectMobile.CanStayInCell(start))
+				return start;
+
+			for (var step = 1; step <= 3; step++)
+			{
+				var cand = map.Clamp(new CPos(
+					start.X + (int)Math.Round(dx * step),
+					start.Y + (int)Math.Round(dy * step)));
+				if (subjectMobile.CanStayInCell(cand))
+					return cand;
+			}
+
+			return start;
 		}
 
 		// Fallback when EdgeLine has no gradient: place a horizontal line through the click.
@@ -433,17 +477,18 @@ namespace OpenRA.Mods.Common.Traits
 			GetSpacing(mode, out var colSpacing, out var rowSpacing);
 
 			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY);
+			var subjectMobile = subject.TraitOrDefault<Mobile>();
 
 			CPos[] slots;
 			switch (intent)
 			{
 				case Intent.SpreadInside:
 					var minSpacingCells = Math.Max(1, colSpacing / 1024);
-					slots = ComputeSpreadSlots(map, clickCell, n, minSpacingCells);
+					slots = ComputeSpreadSlots(map, clickCell, n, minSpacingCells, subjectMobile);
 					break;
 
 				case Intent.EdgeLine:
-					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, n, colSpacing);
+					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, n, colSpacing, subjectMobile);
 					break;
 
 				case Intent.Open:

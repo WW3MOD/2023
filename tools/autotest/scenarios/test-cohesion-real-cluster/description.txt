@@ -1,0 +1,13 @@
+DIAGNOSTIC: cohesion classifier on a real river-zeta-style dense forest cluster
+
+39 trees (t10-t15 mix) replicated from the river-zeta dense bucket
+(20-30, 30-39) and shifted to ~(5-15, 5-14) in a fresh test map. Probes
+DensityLayer at a grid of cells around the cluster, then issues two
+grouped moves — one INTO the cluster (expect SpreadInside) and one
+adjacent to it (expect EdgeLine). Logs everything for analysis.
+
+This is a diagnostic test, not a strict pass/fail. It passes if every
+density probe in or near the cluster returns > 0 (i.e. DensityLayer is
+actually populated). Failure means shadows.bin or the density-load path
+is broken on this engine, which would explain why the bidder feels
+random in normal play.

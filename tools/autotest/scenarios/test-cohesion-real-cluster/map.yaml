@@ -1,0 +1,182 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DIAG: Cohesion real-cluster probe (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 30,30
+	A1: e3.america
+		Owner: USA
+		Location: 22,9
+		Facing: 768
+	A2: e3.america
+		Owner: USA
+		Location: 22,10
+		Facing: 768
+	A3: e3.america
+		Owner: USA
+		Location: 22,11
+		Facing: 768
+	A4: e3.america
+		Owner: USA
+		Location: 22,12
+		Facing: 768
+	Tree001: t12
+		Owner: Neutral
+		Location: 7,11
+	Tree002: t11
+		Owner: Neutral
+		Location: 6,12
+	Tree003: t13
+		Owner: Neutral
+		Location: 6,14
+	Tree004: t13
+		Owner: Neutral
+		Location: 6,6
+	Tree005: t14
+		Owner: Neutral
+		Location: 5,7
+	Tree006: t15
+		Owner: Neutral
+		Location: 6,7
+	Tree007: t12
+		Owner: Neutral
+		Location: 6,8
+	Tree008: t11
+		Owner: Neutral
+		Location: 6,9
+	Tree009: t15
+		Owner: Neutral
+		Location: 11,10
+	Tree010: t15
+		Owner: Neutral
+		Location: 10,14
+	Tree011: t15
+		Owner: Neutral
+		Location: 13,8
+	Tree012: t15
+		Owner: Neutral
+		Location: 13,12
+	Tree013: t15
+		Owner: Neutral
+		Location: 9,6
+	Tree014: t11
+		Owner: Neutral
+		Location: 9,8
+	Tree015: t11
+		Owner: Neutral
+		Location: 12,5
+	Tree016: t10
+		Owner: Neutral
+		Location: 11,12
+	Tree017: t10
+		Owner: Neutral
+		Location: 11,7
+	Tree018: t10
+		Owner: Neutral
+		Location: 13,6
+	Tree019: t14
+		Owner: Neutral
+		Location: 13,14
+	Tree020: t14
+		Owner: Neutral
+		Location: 9,12
+	Tree021: t14
+		Owner: Neutral
+		Location: 10,9
+	Tree022: t14
+		Owner: Neutral
+		Location: 11,8
+	Tree023: t13
+		Owner: Neutral
+		Location: 12,13
+	Tree024: t13
+		Owner: Neutral
+		Location: 14,9
+	Tree025: t13
+		Owner: Neutral
+		Location: 12,8
+	Tree026: t13
+		Owner: Neutral
+		Location: 10,5
+	Tree027: t13
+		Owner: Neutral
+		Location: 13,9
+	Tree028: t13
+		Owner: Neutral
+		Location: 15,13
+	Tree029: t13
+		Owner: Neutral
+		Location: 15,7
+	Tree030: t12
+		Owner: Neutral
+		Location: 14,14
+	Tree031: t10
+		Owner: Neutral
+		Location: 9,10
+	Tree032: t13
+		Owner: Neutral
+		Location: 12,9
+	Tree033: t13
+		Owner: Neutral
+		Location: 15,11
+	Tree034: t11
+		Owner: Neutral
+		Location: 15,6
+	Tree035: t15
+		Owner: Neutral
+		Location: 13,7
+	Tree036: t14
+		Owner: Neutral
+		Location: 10,13
+	Tree037: t14
+		Owner: Neutral
+		Location: 12,14
+	Tree038: t11
+		Owner: Neutral
+		Location: 15,14
+	Tree039: t15
+		Owner: Neutral
+		Location: 6,5
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 22,10
+
+Rules: rules.yaml

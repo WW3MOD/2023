@@ -1,0 +1,10 @@
+DIAGNOSTIC: cohesion classifier on the ACTUAL river-zeta-ww3 map
+
+Loads the real river-zeta map.bin + map.yaml (with ~6000 actors including
+all trees), spawns 4 infantry at (17,33) just west of the dense cluster
+at (20-30, 30-39), and probes DensityLayer at known tree positions.
+
+Pass if density at known trunk cells reads > 0 — proves shadows.bin loaded
+the density data correctly. Fail = the production map's density isn't
+populated, which would explain why the cohesion bidder feels broken in
+normal play.
