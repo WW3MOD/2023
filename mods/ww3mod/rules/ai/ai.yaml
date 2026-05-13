@@ -236,7 +236,31 @@ Player:
 		EnemyWeaknessWeight: 1
 		MaxAssignsPerScan: 6
 		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
-		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, bradley, bmp2, m113, m109, paladin, grad, tos, m270, strykershorad, tunguska
+		# bradley / bmp2 / m113 deliberately ABSENT — they're owned by
+		# MountedTransportBotModule@v2 below (Stage B.4).
+		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, m109, paladin, grad, tos, m270, strykershorad, tunguska
+		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
+
+	# v2 doctrine — Stage B.4: mounted infantry transport.
+	#
+	# IFVs/APCs pick up infantry from the reserve zone (near own SR), drive
+	# them to the thinnest spot on the frontline, drop off, return for the
+	# next load. Per-carrier state machine: Loading → Delivering → Unloading
+	# → Returning. Carriers excluded from LayeredDefence above so the two
+	# modules don't fight over the same vehicles.
+	#
+	# Spec: WORKSPACE/ai/stage_b4_mounted_transport.md.
+	MountedTransportBotModule@v2:
+		RequiresCondition: enable-ai-v2
+		ScanInterval: 100
+		CarrierTypes: bradley, bmp2, m113
+		PassengerTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia, e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia
+		MinPassengersPerLoad: 2
+		MaxPassengersPerLoad: 5
+		ReserveZoneRadiusCells: 14
+		LoadingTimeoutTicks: 1500
+		DropOffArrivalRadius: 3
+		ReturnArrivalRadius: 5
 
 	# Capture enemy logistics centers to deny resupply
 	CaptureManagerBotModule@captureenemystructures:
