@@ -248,6 +248,14 @@ Trigger phrase: `AUTOTEST <bug or feature>`. Quick reference:
 ```
 Drops the game into a deterministic scenario under `tools/autotest/scenarios/test-*/`, writes a JSON verdict, exit-codes the result back to the runner. Activated only by `Test.Mode=true` launch arg — normal launches are unaffected. The scenarios folder is registered in `mod.yaml` under `MapFolders` with class `Unknown` so it stays out of every in-game chooser. Full details (writing tests, Lua API, gotchas, engine integration points) in [`DOCS/recipes/AUTOTEST.md`](DOCS/recipes/AUTOTEST.md).
 
+**HARD RULE — no autonomous multi-test runs.** Each autotest takes minutes and the game window steals focus, so an unapproved batch is hugely disruptive. The agent (including spawned subagents and `/loop` iterations) MUST ask before any of these:
+- `run-batch.sh` (any flags) — full or partial regression sweeps
+- `run-tournament.sh` / `loop-tournament.sh` — tournament runs
+- Any compound shell command that invokes `run-test.sh` more than once (chained with `;`, `&&`, `||`, `|`, `&`, backgrounded, or in a loop)
+- Re-running the same `run-test.sh` more than twice in a row without the user weighing in
+
+Running **one** specific `run-test.sh <test>` for the bug at hand is fine — that's the normal AUTOTEST flow. Anything beyond that requires an explicit goahead in the current turn. "I'll run the regression sweep now" is not a goahead from the user — it's the agent narrating its plan and must wait for confirmation before executing.
+
 ### Demo scenarios — see `DOCS/recipes/DEMO.md`
 Trigger phrase: `DEMO <topic>` (or any "show me / set this up so I can see" request). Same harness as AUTOTEST, different stance — agent stages, user runs and explores, no verdict expected.
 ```bash
