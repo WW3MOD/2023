@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · player list variants</title>
+<style>
+:root {
+	--bg-app: #0c0e11;
+	--bg-card: #14171c;
+	--bg-card-2: #1a1e25;
+	--bg-card-3: #21262e;
+	--line: #262b33;
+	--line-soft: #1e2229;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-glow: #60d08055;
+	--accent-soft: #2d6240;
+	--accent-bg: rgba(96,208,128,.08);
+	--info: #6ec0e6;
+	--us:    #4a7fc4;
+	--us-bg: rgba(74,127,196,.06);
+	--ru:    #c44a4a;
+	--ru-bg: rgba(196,74,74,.06);
+	--track: #2f343c;
+	font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: var(--bg-app); color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header.top {
+	position: sticky; top: 0; z-index: 20;
+	background: rgba(12,14,17,.94); backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--line);
+	padding: 14px 32px; display: flex; align-items: baseline; gap: 28px; flex-wrap: wrap;
+}
+header.top h1 { margin: 0; font-size: 16px; }
+header.top .sub { color: var(--ink-3); font-size: 12px; }
+header.top nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+header.top nav a { color: var(--ink-2); text-decoration: none; }
+header.top nav a:hover { color: var(--accent); }
+
+.intro {
+	max-width: 1100px; margin: 32px auto 8px; padding: 0 32px;
+	color: var(--ink-2); font-size: 13.5px; line-height: 1.65;
+}
+.intro h2 { color: var(--ink); font-size: 22px; margin: 0 0 12px; }
+.intro p { margin: 0 0 12px; }
+.intro code { background: var(--bg-card); padding: 1px 6px; border-radius: 3px; color: var(--accent); font-size: 12px; }
+
+section.variant {
+	margin: 56px auto; max-width: 1380px; padding: 0 32px;
+}
+section.variant header.title { padding: 0 0 18px; }
+section.variant header.title h2 {
+	margin: 0 0 6px; color: var(--ink); font-size: 22px; letter-spacing: 0.2px;
+}
+section.variant header.title h2 .tag {
+	font-size: 12px; color: var(--accent); letter-spacing: 1px; font-weight: 600;
+	margin-right: 12px; vertical-align: 2px;
+}
+section.variant header.title p { margin: 0; color: var(--ink-3); max-width: 1080px; font-size: 13px; }
+
+/* The players quadrant rendered at its actual size (1248 × 524) so the
+   typography matches what you'd see in-game at 1440p. The "rest of the
+   lobby" sketch is just a faded silhouette to give context. */
+.context {
+	width: 1280px; height: 600px;
+	background: var(--bg-app); border: 1px solid var(--line); border-radius: 8px;
+	padding: 16px; box-sizing: border-box;
+	display: grid; grid-template-columns: 1248px;
+	gap: 0;
+}
+.players-quad {
+	background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 6px;
+	height: 524px;
+	display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+.qhead {
+	display: flex; align-items: center; height: 44px;
+	padding: 0 22px; border-bottom: 1px solid var(--line-soft);
+}
+.qhead .tabs { display: flex; gap: 24px; height: 100%; }
+.qhead .tabs .tab {
+	display: flex; align-items: center; height: 100%;
+	padding: 0 2px; font-size: 11px; color: var(--ink-3);
+	letter-spacing: 2px; font-weight: 600; text-transform: uppercase;
+	border-bottom: 2px solid transparent;
+}
+.qhead .tabs .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.qhead .tabs .tab .num {
+	margin-left: 8px; background: var(--accent-soft); color: var(--accent);
+	padding: 1px 7px; border-radius: 10px; font-size: 10px; letter-spacing: 0;
+}
+.qhead .right { margin-left: auto; display: flex; gap: 18px; align-items: center; }
+.qhead .right a { font-size: 11px; color: var(--ink-3); cursor: pointer; }
+.qhead .right a:hover { color: var(--ink); }
+.player-list {
+	flex: 1; min-height: 0; overflow-y: auto;
+	padding: 14px 22px;
+}
+
+/* Shared faction / color tokens */
+.faction-text { text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+.faction-text.us { color: var(--us); }
+.faction-text.ru { color: var(--ru); }
+.flag { display: inline-block; }
+.flag.us { background: var(--us); }
+.flag.ru { background: var(--ru); }
+.ready-mark { color: var(--accent); }
+
+/* ============================================================
+   V1 — Boldly named (single big line)
+   ============================================================ */
+.V1 .row {
+	display: grid;
+	grid-template-columns: 1fr 200px 100px 70px 60px;
+	gap: 22px; align-items: center;
+	padding: 14px 18px;
+	border-bottom: 1px solid var(--line-soft);
+	border-radius: 4px;
+}
+.V1 .row:hover { background: var(--bg-card-2); }
+.V1 .row .name {
+	font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: 0.3px;
+}
+.V1 .row .name .tag {
+	font-size: 13px; color: var(--ink-3); font-weight: 400; margin-left: 8px;
+	vertical-align: 3px;
+}
+.V1 .row .faction {
+	display: flex; align-items: center; gap: 10px;
+	font-size: 14px;
+}
+.V1 .row .faction .flag { width: 22px; height: 14px; }
+.V1 .row .color-dot {
+	width: 18px; height: 18px; border-radius: 50%;
+	border: 2px solid var(--bg-card-2);
+	box-shadow: 0 0 0 1px var(--line);
+	margin: 0 auto;
+}
+.V1 .row .spawn { font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; text-align: center; }
+.V1 .row .ready { font-size: 26px; text-align: center; }
+.V1 .row.empty {
+	grid-template-columns: 1fr;
+	background: rgba(28,32,39,.25);
+	border-style: dashed; border: 1px dashed var(--line);
+	margin: 6px 0;
+}
+.V1 .row.empty .actions { display: flex; gap: 10px; align-items: center; }
+.V1 .row.empty .actions .ba {
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 8px 18px; font-size: 13px; color: var(--ink-2);
+}
+.V1 .row.empty .actions .ba.primary { color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+.V1 .row.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
+.V1 .row.spectator {
+	grid-template-columns: 1fr; padding: 10px 18px;
+	color: var(--ink-3);
+}
+.V1 .row.spectator .name {
+	font-size: 16px; font-weight: 500; color: var(--ink-3);
+}
+.V1 .row.spectator .name .tag { font-size: 12px; }
+
+/* ============================================================
+   V2 — Two-line with color edge
+   ============================================================ */
+.V2 .row {
+	position: relative;
+	padding: 12px 22px 12px 24px;
+	border-radius: 4px;
+	margin-bottom: 6px;
+	background: var(--bg-card-2);
+	display: grid; grid-template-columns: 1fr 80px;
+	gap: 18px; align-items: center;
+}
+.V2 .row::before {
+	content: ""; position: absolute; left: 0; top: 4px; bottom: 4px;
+	width: 4px; border-radius: 2px;
+	background: var(--colour, #888);
+}
+.V2 .row .top {
+	font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: 0.3px;
+}
+.V2 .row .top .tag {
+	font-size: 12.5px; color: var(--ink-3); font-weight: 400; margin-left: 8px;
+	vertical-align: 3px;
+}
+.V2 .row .meta {
+	font-size: 12.5px; color: var(--ink-3); letter-spacing: 0.4px;
+	margin-top: 2px;
+	display: flex; gap: 8px; align-items: center;
+}
+.V2 .row .meta .sep { color: var(--ink-4); }
+.V2 .row .right {
+	display: flex; align-items: center; gap: 14px; justify-content: flex-end;
+}
+.V2 .row .right .spawn {
+	font-size: 24px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.V2 .row .right .ready { font-size: 24px; }
+.V2 .row.empty {
+	background: rgba(28,32,39,.3); border: 1px dashed var(--line);
+	grid-template-columns: 1fr;
+	padding: 14px 22px;
+}
+.V2 .row.empty::before { display: none; }
+.V2 .row.empty .actions { display: flex; gap: 10px; align-items: center; }
+.V2 .row.empty .actions .ba {
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 8px 18px; font-size: 13px; color: var(--ink-2);
+}
+.V2 .row.empty .actions .ba.primary { color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+.V2 .row.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
+.V2 .row.spectator {
+	background: transparent; border-top: 1px solid var(--line-soft); border-radius: 0;
+	margin-top: 10px; padding-top: 14px;
+}
+.V2 .row.spectator::before { display: none; }
+.V2 .row.spectator .top { font-size: 15px; font-weight: 500; color: var(--ink-3); }
+.V2 .row.spectator .meta { color: var(--ink-4); }
+
+/* ============================================================
+   V3 — Faction-led with subtle tint
+   ============================================================ */
+.V3 .row {
+	display: grid;
+	grid-template-columns: 60px 1fr 120px 90px 60px;
+	gap: 20px; align-items: center;
+	padding: 14px 18px;
+	border-radius: 5px;
+	margin-bottom: 6px;
+	border: 1px solid var(--line-soft);
+}
+.V3 .row.us { background: var(--us-bg); border-left: 3px solid var(--us); padding-left: 18px; }
+.V3 .row.ru { background: var(--ru-bg); border-left: 3px solid var(--ru); padding-left: 18px; }
+.V3 .row .flag-big {
+	width: 44px; height: 28px;
+	display: flex; align-items: center; justify-content: center;
+	font-size: 14px; font-weight: 700; color: var(--bg-app); letter-spacing: 1px;
+	border-radius: 3px;
+}
+.V3 .row.us .flag-big { background: var(--us); }
+.V3 .row.ru .flag-big { background: var(--ru); }
+.V3 .row .info .name {
+	font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: 0.3px; line-height: 1.1;
+}
+.V3 .row .info .name .tag {
+	font-size: 12.5px; color: var(--ink-3); font-weight: 400; margin-left: 8px;
+}
+.V3 .row .info .faction-name {
+	font-size: 13px; margin-top: 4px;
+	letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
+}
+.V3 .row.us .info .faction-name { color: var(--us); }
+.V3 .row.ru .info .faction-name { color: var(--ru); }
+.V3 .row .color-bar {
+	height: 18px; border-radius: 3px;
+	border: 1px solid rgba(255,255,255,.06);
+	box-shadow: inset 0 0 0 1px rgba(0,0,0,.2);
+}
+.V3 .row .spawn { font-size: 26px; color: var(--ink); font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.V3 .row .ready { font-size: 26px; text-align: center; }
+.V3 .row.empty {
+	display: flex; align-items: center; gap: 12px;
+	background: rgba(28,32,39,.25); border: 1px dashed var(--line); padding: 14px 22px;
+}
+.V3 .row.empty .actions { display: flex; gap: 10px; align-items: center; width: 100%; }
+.V3 .row.empty .actions .ba {
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 9px 20px; font-size: 13.5px; color: var(--ink-2);
+}
+.V3 .row.empty .actions .ba.primary { color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+.V3 .row.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
+.V3 .row.spectator {
+	display: grid; grid-template-columns: 60px 1fr;
+	background: transparent; border: none; border-top: 1px solid var(--line-soft); border-radius: 0;
+	margin-top: 10px; padding-top: 16px;
+	padding-left: 18px;
+}
+.V3 .row.spectator .flag-big {
+	width: 44px; height: 28px; background: var(--bg-card-2);
+	color: var(--ink-3); font-size: 11px; letter-spacing: 1px;
+}
+.V3 .row.spectator .info .name { font-size: 16px; color: var(--ink-3); }
+.V3 .row.spectator .info .faction-name { color: var(--ink-4); letter-spacing: 0.5px; text-transform: none; font-weight: 400; }
+
+/* ============================================================
+   V4 — Justified columns (table-like, BIG)
+   ============================================================ */
+.V4 .row {
+	display: grid;
+	grid-template-columns: 1.6fr 1fr 100px 90px 60px;
+	gap: 28px; align-items: center;
+	padding: 14px 4px;
+	border-bottom: 1px solid var(--line-soft);
+}
+.V4 .row .name { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: 0.3px; }
+.V4 .row .name .tag {
+	display: block; font-size: 11.5px; color: var(--ink-3); font-weight: 400;
+	letter-spacing: 0.8px; text-transform: uppercase; margin-top: 4px;
+}
+.V4 .row .faction { display: flex; align-items: center; gap: 12px; }
+.V4 .row .faction .flag { width: 28px; height: 18px; border-radius: 2px; }
+.V4 .row .faction .faction-text { font-size: 15px; }
+.V4 .row .color {
+	height: 22px; border-radius: 4px; border: 1px solid var(--line);
+	box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+}
+.V4 .row .spawn {
+	font-size: 24px; font-weight: 700; color: var(--ink); text-align: center;
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	background: var(--bg-card-2); border-radius: 4px; padding: 4px 0;
+}
+.V4 .row .ready {
+	font-size: 26px; color: var(--accent); text-align: center;
+}
+.V4 .header-row {
+	display: grid;
+	grid-template-columns: 1.6fr 1fr 100px 90px 60px;
+	gap: 28px; align-items: center;
+	padding: 4px 4px 10px;
+	font-size: 10.5px; letter-spacing: 2px; color: var(--ink-4); font-weight: 600;
+	text-transform: uppercase;
+	border-bottom: 1px solid var(--line);
+	margin-bottom: 8px;
+}
+.V4 .header-row .c { text-align: center; }
+.V4 .header-row .l { text-align: left; }
+.V4 .row.empty {
+	grid-template-columns: 1fr; padding: 14px 4px;
+	border-bottom: 1px solid var(--line-soft);
+}
+.V4 .row.empty .actions { display: flex; gap: 10px; align-items: center; }
+.V4 .row.empty .actions .ba {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 9px 20px; font-size: 13.5px; color: var(--ink-2);
+}
+.V4 .row.empty .actions .ba.primary { color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+.V4 .row.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
+.V4 .row.spectator {
+	grid-template-columns: 1fr;
+	padding-top: 12px; margin-top: 8px;
+	border-top: 1px solid var(--line-soft); border-bottom: none;
+}
+.V4 .row.spectator .name { font-size: 15px; color: var(--ink-3); }
+.V4 .row.spectator .name .tag {
+	display: inline; margin-left: 8px; margin-top: 0;
+	font-size: 12px; color: var(--ink-4); letter-spacing: 0.5px; text-transform: none;
+}
+
+/* ============================================================
+   Side-by-side compact view (all 4 at once for comparison)
+   ============================================================ */
+.compare {
+	margin: 80px auto 32px; max-width: 1380px; padding: 0 32px;
+}
+.compare h2 { color: var(--ink); font-size: 22px; margin: 0 0 8px; }
+.compare p { color: var(--ink-3); font-size: 13px; max-width: 1080px; margin: 0 0 24px; }
+.compare .grid {
+	display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
+}
+.compare .item h3 {
+	margin: 0 0 8px; font-size: 12px; color: var(--accent); letter-spacing: 1px; font-weight: 600;
+}
+.compare .item p { margin: 0 0 10px; font-size: 12px; color: var(--ink-3); }
+.compare .preview {
+	background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 6px;
+	padding: 12px; height: 320px;
+	overflow: hidden;
+	transform: scale(0.5); transform-origin: top left;
+	width: 200%;
+}
+
+footer.foot {
+	text-align: center; color: var(--ink-4); font-size: 11px;
+	padding: 60px 0 80px;
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+	<h1>Player list · variants</h1>
+	<span class="sub">Avatar dropped. Bigger type. Better column rhythm. Same 6-slot + 1-spectator block at 1248px wide.</span>
+	<nav>
+		<a href="#V1">V1 · Bold name</a>
+		<a href="#V2">V2 · Color edge</a>
+		<a href="#V3">V3 · Faction-led</a>
+		<a href="#V4">V4 · Justified columns</a>
+	</nav>
+</header>
+
+<div class="intro">
+	<h2>Player list — drop the avatar, scale up the type</h2>
+	<p>Each variant renders the players quadrant at its actual 1248 × 524 size for a 1440p lobby. Avatar gone, name dominates, everything else right-sized to support it. Four directions:</p>
+	<ul style="margin:0;padding-left:18px;color:var(--ink-3);font-size:13px;line-height:1.7;">
+		<li><b>V1 Bold name</b> — single line per slot, 26px name, faction text + small flag, color dot, spawn letter, ready tick. Lots of horizontal breathing room.</li>
+		<li><b>V2 Color edge</b> — 4px color stripe on the row's left edge as identity. Two-line: 22px name on top, faction · spawn · status as a quiet sub-line.</li>
+		<li><b>V3 Faction-led</b> — subtle faction-tinted background per row + 3px team accent stripe. Big flag plate on the left, name beside, color bar replacing the swatch.</li>
+		<li><b>V4 Justified columns</b> — table feel with explicit column headers ("NAME · FACTION · COLOR · SPAWN · READY"). Big name with the AI tag as a quieter sub-line. Spawn rendered in a mono-tile.</li>
+	</ul>
+	<p style="margin-top:12px;color:var(--ink-4);font-style:italic;">Responsiveness note: at 1440p these all breathe. At 1080p the same rows would compress horizontally — V2 (color edge) and V4 (justified columns) hold up best because the column count is smaller. V1 and V3 lose less if the right-side columns shrink first.</p>
+</div>
+
+<!-- ============================================================
+     V1 — Boldly named
+     ============================================================ -->
+<section class="variant" id="V1">
+	<header class="title">
+		<h2><span class="tag">V1</span>Bold name · single big line</h2>
+		<p>Player name is the hero, everything else lives in service to it. 26px bold for the name, AI variant tag at 13px inline. Faction text + small flag, color as a 18px round dot, spawn letter at 22px mono, ready tick at 26px. The avatar's column-worth of width has all been redistributed into name.</p>
+	</header>
+	<div class="context V1">
+		<div class="players-quad">
+			<div class="qhead">
+				<div class="tabs">
+					<span class="tab active">Players<span class="num">4 / 6</span></span>
+				</div>
+				<div class="right">
+					<a>+ Add bot</a>
+					<a>Auto-team</a>
+				</div>
+			</div>
+			<div class="player-list">
+				<div class="row">
+					<div class="name">V2 AI<span class="tag">experimental</span></div>
+					<div class="faction"><span class="flag us" style="width:22px;height:14px;"></span><span class="faction-text us">America</span></div>
+					<div class="color-dot" style="background:#6ed68a;"></div>
+					<div class="spawn">D</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row">
+					<div class="name">V2 AI<span class="tag">experimental</span></div>
+					<div class="faction"><span class="flag ru" style="width:22px;height:14px;"></span><span class="faction-text ru">Russia</span></div>
+					<div class="color-dot" style="background:#b878d8;"></div>
+					<div class="spawn">B</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row">
+					<div class="name">Normal AI</div>
+					<div class="faction"><span class="flag us" style="width:22px;height:14px;"></span><span class="faction-text us">America</span></div>
+					<div class="color-dot" style="background:#c8c860;"></div>
+					<div class="spawn">A</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row">
+					<div class="name">Normal AI</div>
+					<div class="faction"><span class="flag ru" style="width:22px;height:14px;"></span><span class="faction-text ru">Russia</span></div>
+					<div class="color-dot" style="background:#a050a0;"></div>
+					<div class="spawn">C</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row spectator">
+					<div class="name">FreadyFish<span class="tag">spectating</span></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     V2 — Color edge
+     ============================================================ -->
+<section class="variant" id="V2">
+	<header class="title">
+		<h2><span class="tag">V2</span>Color edge · two-line, accent stripe</h2>
+		<p>Every player row carries a 4px color stripe on its left edge (full row height). Identity-by-color reads instantly without a separate swatch column. Two-line content: 22px name on top, quiet sub-line below ("AMERICA · spawn D · ready"). Spawn letter and ready tick on the right at 24px.</p>
+	</header>
+	<div class="context V2">
+		<div class="players-quad">
+			<div class="qhead">
+				<div class="tabs">
+					<span class="tab active">Players<span class="num">4 / 6</span></span>
+				</div>
+				<div class="right">
+					<a>+ Add bot</a>
+					<a>Auto-team</a>
+				</div>
+			</div>
+			<div class="player-list">
+				<div class="row" style="--colour:#6ed68a;">
+					<div>
+						<div class="top">V2 AI<span class="tag">experimental</span></div>
+						<div class="meta"><span class="faction-text us">AMERICA</span><span class="sep">·</span>spawn D<span class="sep">·</span>ready</div>
+					</div>
+					<div class="right">
+						<div class="spawn">D</div>
+						<div class="ready ready-mark">✓</div>
+					</div>
+				</div>
+				<div class="row" style="--colour:#b878d8;">
+					<div>
+						<div class="top">V2 AI<span class="tag">experimental</span></div>
+						<div class="meta"><span class="faction-text ru">RUSSIA</span><span class="sep">·</span>spawn B<span class="sep">·</span>ready</div>
+					</div>
+					<div class="right">
+						<div class="spawn">B</div>
+						<div class="ready ready-mark">✓</div>
+					</div>
+				</div>
+				<div class="row" style="--colour:#c8c860;">
+					<div>
+						<div class="top">Normal AI</div>
+						<div class="meta"><span class="faction-text us">AMERICA</span><span class="sep">·</span>spawn A<span class="sep">·</span>ready</div>
+					</div>
+					<div class="right">
+						<div class="spawn">A</div>
+						<div class="ready ready-mark">✓</div>
+					</div>
+				</div>
+				<div class="row" style="--colour:#a050a0;">
+					<div>
+						<div class="top">Normal AI</div>
+						<div class="meta"><span class="faction-text ru">RUSSIA</span><span class="sep">·</span>spawn C<span class="sep">·</span>ready</div>
+					</div>
+					<div class="right">
+						<div class="spawn">C</div>
+						<div class="ready ready-mark">✓</div>
+					</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row spectator">
+					<div>
+						<div class="top">FreadyFish</div>
+						<div class="meta">spectating · click a slot to take it</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     V3 — Faction-led
+     ============================================================ -->
+<section class="variant" id="V3">
+	<header class="title">
+		<h2><span class="tag">V3</span>Faction-led · team-colored backgrounds</h2>
+		<p>Subtle team-tinted background on each row (US light blue, RU light red) plus a 3px team-color stripe on the left. Big 44×28 flag plate on the left replaces the avatar. Name + AI tag stacked beside it; small faction caption below. Color sits as a wide bar instead of a small swatch — easier to read.</p>
+	</header>
+	<div class="context V3">
+		<div class="players-quad">
+			<div class="qhead">
+				<div class="tabs">
+					<span class="tab active">Players<span class="num">4 / 6</span></span>
+				</div>
+				<div class="right">
+					<a>+ Add bot</a>
+					<a>Auto-team</a>
+				</div>
+			</div>
+			<div class="player-list">
+				<div class="row us">
+					<div class="flag-big">US</div>
+					<div class="info">
+						<div class="name">V2 AI<span class="tag">experimental</span></div>
+						<div class="faction-name">America</div>
+					</div>
+					<div class="color-bar" style="background:#6ed68a;"></div>
+					<div class="spawn">D</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row ru">
+					<div class="flag-big">RU</div>
+					<div class="info">
+						<div class="name">V2 AI<span class="tag">experimental</span></div>
+						<div class="faction-name">Russia</div>
+					</div>
+					<div class="color-bar" style="background:#b878d8;"></div>
+					<div class="spawn">B</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row us">
+					<div class="flag-big">US</div>
+					<div class="info">
+						<div class="name">Normal AI</div>
+						<div class="faction-name">America</div>
+					</div>
+					<div class="color-bar" style="background:#c8c860;"></div>
+					<div class="spawn">A</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row ru">
+					<div class="flag-big">RU</div>
+					<div class="info">
+						<div class="name">Normal AI</div>
+						<div class="faction-name">Russia</div>
+					</div>
+					<div class="color-bar" style="background:#a050a0;"></div>
+					<div class="spawn">C</div>
+					<div class="ready ready-mark">✓</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row spectator">
+					<div class="flag-big">···</div>
+					<div class="info">
+						<div class="name">FreadyFish</div>
+						<div class="faction-name">spectating</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ============================================================
+     V4 — Justified columns
+     ============================================================ -->
+<section class="variant" id="V4">
+	<header class="title">
+		<h2><span class="tag">V4</span>Justified columns · table with breathing room</h2>
+		<p>Classic spreadsheet rhythm but at big-screen scale. Explicit column headers in tiny-caps act as a key. Name 22px bold with the AI variant tag rendered as an uppercase tracked sub-line. Spawn shown in a mono tile so it reads as data. Best when more columns might come back later (handicap, team-number, latency).</p>
+	</header>
+	<div class="context V4">
+		<div class="players-quad">
+			<div class="qhead">
+				<div class="tabs">
+					<span class="tab active">Players<span class="num">4 / 6</span></span>
+				</div>
+				<div class="right">
+					<a>+ Add bot</a>
+					<a>Auto-team</a>
+				</div>
+			</div>
+			<div class="player-list">
+				<div class="header-row">
+					<div class="l">Name</div>
+					<div class="l">Faction</div>
+					<div class="c">Color</div>
+					<div class="c">Spawn</div>
+					<div class="c">Ready</div>
+				</div>
+				<div class="row">
+					<div class="name">V2 AI<span class="tag">Experimental</span></div>
+					<div class="faction"><span class="flag us"></span><span class="faction-text us">America</span></div>
+					<div class="color" style="background:#6ed68a;"></div>
+					<div class="spawn">D</div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="row">
+					<div class="name">V2 AI<span class="tag">Experimental</span></div>
+					<div class="faction"><span class="flag ru"></span><span class="faction-text ru">Russia</span></div>
+					<div class="color" style="background:#b878d8;"></div>
+					<div class="spawn">B</div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="row">
+					<div class="name">Normal AI</div>
+					<div class="faction"><span class="flag us"></span><span class="faction-text us">America</span></div>
+					<div class="color" style="background:#c8c860;"></div>
+					<div class="spawn">A</div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="row">
+					<div class="name">Normal AI</div>
+					<div class="faction"><span class="flag ru"></span><span class="faction-text ru">Russia</span></div>
+					<div class="color" style="background:#a050a0;"></div>
+					<div class="spawn">C</div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="row spectator">
+					<div class="name">FreadyFish<span class="tag">spectating · click a slot to take it</span></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<footer class="foot">
+	Pick a variant — or call out details to mix ("V1 sizing with V2 color edge", "V4 column rhythm with V1 name treatment").
+</footer>
+
+</body>
+</html>
