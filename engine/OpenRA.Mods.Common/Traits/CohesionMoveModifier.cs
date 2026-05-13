@@ -16,12 +16,13 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	[Desc("Cover-aware formation interpreter for grouped Move/AttackMove orders.",
-		"Each unit gets an ideal box-formation slot from its CohesionMode spacing, then bids",
-		"that slot against nearby high-density cells (trees, buildings, walls) from Map.DensityLayer.",
-		"Passable cells adjacent to dense actors score highest, so squads naturally settle next to",
-		"cover instead of in the geometric center of the click. Open ground falls through to the",
-		"original box formation. Single-unit selections short-circuit to a literal move.")]
+	[Desc("Intent-aware formation interpreter for grouped Move/AttackMove orders.",
+		"Classifies the click point against Map.DensityLayer cover and dispatches to one of three",
+		"formation strategies: Open (no nearby cover → traditional box formation), SpreadInside",
+		"(centered on density-rich area → top-K cover cells with min-spacing), or EdgeLine (click",
+		"is offset from a cover patch → units form a line perpendicular to the density gradient,",
+		"anchored just inside the cover side). All slots are computed once per order from the",
+		"click point itself, then actor i (sorted by ActorID) takes slot i.")]
 	public class CohesionMoveModifierInfo : TraitInfo
 	{
 		[Desc("Column spacing in WDist for Tight mode.")]
@@ -42,17 +43,29 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Row depth in WDist for Spread mode.")]
 		public readonly int SpreadRowSpacing = 2560;
 
-		[Desc("Search radius in cells when scanning for cover cells around each unit's ideal slot.",
-			"Tight uses radius-2, Loose radius-3, Spread radius-4.")]
-		public readonly int TightCoverSearchRadius = 2;
-		public readonly int LooseCoverSearchRadius = 3;
-		public readonly int SpreadCoverSearchRadius = 4;
+		[Desc("Sample radius in cells used by the intent classifier to read density distribution",
+			"around the click. A 4-cell radius means a 9x9 sample window.")]
+		public readonly int IntentSampleRadius = 4;
 
-		[Desc("How strongly a candidate cell's cover score must beat its distance penalty to win.",
-			"Score = CoverScore(cell) - chebyshev(cand, ideal) * DistancePenalty. Higher value = stricter pull.",
-			"Chebyshev (grid king-move) distance is used because the bidder reasons in cells. A single-trunk-adjacent",
-			"cell (CoverScore 10) wins at distance ceil(10/DistancePenalty); penalty 3 gives a 3-cell pull range.")]
-		public readonly int DistancePenalty = 3;
+		[Desc("Total density in the sample window below which the intent is Open (no usable cover).",
+			"A single t01 trunk contributes 10, so 15 = ~1.5 trunks worth of nearby cover.")]
+		public readonly int OpenDensityThreshold = 15;
+
+		[Desc("Squared centroid offset (in cells) above which the intent is EdgeLine.",
+			"2 = centroid more than ~sqrt(2) ≈ 1.4 cells from click → click is offset from cover.",
+			"Lower values trip EdgeLine more eagerly; higher values prefer SpreadInside.")]
+		public readonly int EdgeOffsetThresholdCellsSq = 2;
+
+		[Desc("EdgeLine anchor advance, expressed as a percentage of the gradient magnitude.",
+			"100 = anchor sits at the cover centroid (line passes through cover center).",
+			"75 = three quarters of the way from click toward centroid (line at the inner edge).",
+			"50 = halfway (line at the rough cover boundary). 200 = pushed past centroid.",
+			"For most claims, 100 yields a line that runs through the densest cover row.")]
+		public readonly int EdgeAdvancePercent = 100;
+
+		[Desc("Search radius in cells when SpreadInside collects candidate cover cells around the",
+			"click. 4 = a 9x9 search window.")]
+		public readonly int SpreadSearchRadius = 4;
 
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
@@ -66,42 +79,41 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		void GetSpacing(CohesionMode mode, out int colSpacing, out int rowSpacing, out int coverRadius)
+		enum Intent { Open, SpreadInside, EdgeLine }
+
+		void GetSpacing(CohesionMode mode, out int colSpacing, out int rowSpacing)
 		{
 			switch (mode)
 			{
 				case CohesionMode.Tight:
 					colSpacing = info.TightColSpacing;
 					rowSpacing = info.TightRowSpacing;
-					coverRadius = info.TightCoverSearchRadius;
 					return;
 				case CohesionMode.Spread:
 					colSpacing = info.SpreadColSpacing;
 					rowSpacing = info.SpreadRowSpacing;
-					coverRadius = info.SpreadCoverSearchRadius;
 					return;
 				default:
 					colSpacing = info.LooseColSpacing;
 					rowSpacing = info.LooseRowSpacing;
-					coverRadius = info.LooseCoverSearchRadius;
 					return;
 			}
 		}
 
-		// Cover score for a candidate cell: sum of 8-neighbor densities. Cells with density>0 on
-		// themselves (a tree, a wall, a building tile) score 0 — they're usually impassable, so we
-		// don't want to bid for them. Passable cells adjacent to dense actors get the highest
-		// scores, which produces natural "edge of forest" lines and "in the gap between trees"
-		// clusters without needing pathability queries at bid time.
+		static int SafeDensity(Map map, CPos cell)
+		{
+			if (map.DensityLayer == null || !map.DensityLayer.IsValidCoordinate(cell.X, cell.Y))
+				return 0;
+
+			return map.DensityLayer[cell];
+		}
+
+		// Cover score for a candidate cell: sum of 8-neighbor density. Cells with density>0 on
+		// themselves are excluded — they're usually impassable footprints we don't want to bid
+		// for. Passable cells adjacent to dense actors get the highest scores.
 		static int CoverScore(Map map, CPos cell)
 		{
-			if (map.DensityLayer == null)
-				return 0;
-
-			if (!map.DensityLayer.IsValidCoordinate(cell.X, cell.Y))
-				return 0;
-
-			if (map.DensityLayer[cell] > 0)
+			if (SafeDensity(map, cell) > 0)
 				return 0;
 
 			var sum = 0;
@@ -112,68 +124,86 @@ namespace OpenRA.Mods.Common.Traits
 					if (dx == 0 && dy == 0)
 						continue;
 
-					var n = new CPos(cell.X + dx, cell.Y + dy);
-					if (map.DensityLayer.IsValidCoordinate(n.X, n.Y))
-						sum += map.DensityLayer[n];
+					sum += SafeDensity(map, new CPos(cell.X + dx, cell.Y + dy));
 				}
 			}
 
 			return sum;
 		}
 
-		Order IModifyGroupOrder.ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors)
+		// Classify the click by walking a sample window around it. Returns the centroid offset
+		// in cells (signed) so the EdgeLine branch can use it as the gradient direction.
+		Intent ClassifyIntent(Map map, CPos clickCell, out int centroidDxCells, out int centroidDyCells)
 		{
-			if (subject == null || subject.IsDead || !subject.IsInWorld)
-				return individualOrder;
+			var sampleRadius = info.IntentSampleRadius;
+			var totalDensity = 0;
+			var weightedX = 0;
+			var weightedY = 0;
 
-			var orderString = individualOrder.OrderString;
-			if (orderString != "Move" && orderString != "AttackMove")
-				return individualOrder;
-
-			var n = 0;
-			for (var i = 0; i < allGroupedActors.Length; i++)
+			for (var dy = -sampleRadius; dy <= sampleRadius; dy++)
 			{
-				var a = allGroupedActors[i];
-				if (a != null && !a.IsDead && a.IsInWorld)
-					n++;
+				for (var dx = -sampleRadius; dx <= sampleRadius; dx++)
+				{
+					var d = SafeDensity(map, new CPos(clickCell.X + dx, clickCell.Y + dy));
+					if (d == 0)
+						continue;
+
+					totalDensity += d;
+					weightedX += dx * d;
+					weightedY += dy * d;
+				}
 			}
 
-			// Single-unit short-circuit — preserves exact placement when the player
-			// selects just one unit. Per the intent-aware-movement plan, the bidder
-			// only fires for genuine group orders.
-			if (n <= 1)
-				return individualOrder;
+			centroidDxCells = 0;
+			centroidDyCells = 0;
 
-			var validActors = new Actor[n];
-			var vi = 0;
-			for (var i = 0; i < allGroupedActors.Length; i++)
-			{
-				var a = allGroupedActors[i];
-				if (a != null && !a.IsDead && a.IsInWorld)
-					validActors[vi++] = a;
-			}
+			if (totalDensity < info.OpenDensityThreshold)
+				return Intent.Open;
 
-			Array.Sort(validActors, (a, b) => a.ActorID.CompareTo(b.ActorID));
+			// Integer-round the centroid offset so the gradient is whole-cell stable.
+			centroidDxCells = RoundDiv(weightedX, totalDensity);
+			centroidDyCells = RoundDiv(weightedY, totalDensity);
 
-			var idx = Array.IndexOf(validActors, subject);
-			if (idx < 0)
-				return individualOrder;
+			var offsetMagSq = centroidDxCells * centroidDxCells + centroidDyCells * centroidDyCells;
+			if (offsetMagSq >= info.EdgeOffsetThresholdCellsSq)
+				return Intent.EdgeLine;
 
-			var targetPos = individualOrder.Target.CenterPosition;
+			return Intent.SpreadInside;
+		}
 
-			var centroidX = 0L;
-			var centroidY = 0L;
+		static int RoundDiv(int numerator, int denominator)
+		{
+			if (denominator == 0)
+				return 0;
+
+			var half = denominator / 2;
+			return numerator >= 0
+				? (numerator + half) / denominator
+				: -((-numerator + half) / denominator);
+		}
+
+		// Open / fallback formation: legacy box layout centered on click, oriented along the
+		// centroid→target axis. This is the v0 behavior, preserved for clicks where no cover
+		// signal warrants a smarter strategy.
+		CPos[] ComputeBoxSlots(Map map, CPos clickCell, WPos targetPos, Actor[] sortedActors,
+			int colSpacing, int rowSpacing)
+		{
+			var n = sortedActors.Length;
+
+			// Move direction: centroid → click.
+			long cx = 0;
+			long cy = 0;
 			for (var i = 0; i < n; i++)
 			{
-				centroidX += validActors[i].CenterPosition.X;
-				centroidY += validActors[i].CenterPosition.Y;
+				cx += sortedActors[i].CenterPosition.X;
+				cy += sortedActors[i].CenterPosition.Y;
 			}
 
-			centroidX /= n;
-			centroidY /= n;
+			cx /= n;
+			cy /= n;
 
-			var moveDirX = targetPos.X - (int)centroidX;
-			var moveDirY = targetPos.Y - (int)centroidY;
+			var moveDirX = targetPos.X - (int)cx;
+			var moveDirY = targetPos.Y - (int)cy;
 			var moveLenSq = (long)moveDirX * moveDirX + (long)moveDirY * moveDirY;
 			int moveLen;
 
@@ -187,7 +217,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				moveLen = (int)Exts.ISqrt(moveLenSq);
 				if (moveLen == 0)
-					return individualOrder;
+					moveLen = 1024;
 			}
 
 			var perpX = -moveDirY;
@@ -197,25 +227,8 @@ namespace OpenRA.Mods.Common.Traits
 			cols = Math.Min(cols, n);
 			cols = Math.Max(cols, 2);
 
-			// PITFALL: cohesion mode is read from the SUBJECT, not aggregated over the group.
-			// A heterogeneous group (some Tight, some Loose) will see inconsistent spacing — each
-			// actor uses its own mode and computes its own bid order. v1 ships this way for
-			// simplicity; in practice grouped units almost always share a mode.
-			var autoTarget = subject.TraitOrDefault<AutoTarget>();
-			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
-			GetSpacing(mode, out var colSpacing, out var rowSpacing, out var coverRadius);
-
-			var map = subject.World.Map;
-			var distancePenalty = info.DistancePenalty;
-
-			// Deterministic cover-aware bidding: each actor (called independently per
-			// ModifyGroupOrder) re-runs the assignment from idx 0 up to its own slot. Earlier
-			// actors' claimed cells are excluded from later candidates, so the resulting per-actor
-			// destination is consistent across the parallel calls.
-			var claimed = new HashSet<CPos>();
-			var myCell = new CPos();
-
-			for (var i = 0; i <= idx; i++)
+			var slots = new CPos[n];
+			for (var i = 0; i < n; i++)
 			{
 				var row = i / cols;
 				var col = i % cols;
@@ -235,52 +248,214 @@ namespace OpenRA.Mods.Common.Traits
 					offsetY += (int)((long)depthOffset * moveDirY / moveLen);
 				}
 
-				var idealPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
-				var idealCell = map.Clamp(map.CellContaining(idealPos));
+				var slotPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
+				slots[i] = map.Clamp(map.CellContaining(slotPos));
+			}
 
-				// Bid: start with the ideal cell as baseline, search the radius for a cell that
-				// scores higher after a chebyshev-distance penalty. A single-trunk-adjacent
-				// candidate (CoverScore 10) wins out to chebyshev ceil(10/DistancePenalty); with
-				// the default penalty of 3 that's a 3-cell pull range, matching the Loose
-				// cohesion search radius.
-				var bestCell = idealCell;
-				var bestScore = CoverScore(map, idealCell);
+			return slots;
+		}
 
-				for (var dy = -coverRadius; dy <= coverRadius; dy++)
+		// SpreadInside: rank passable cover cells in the click neighborhood by CoverScore and
+		// pick the top N with a min-spacing constraint so units don't pile onto the same patch.
+		// Ties broken by distance-to-click ascending, then by (X, Y) lex for determinism.
+		CPos[] ComputeSpreadSlots(Map map, CPos clickCell, int n, int minSpacingCells)
+		{
+			var radius = info.SpreadSearchRadius;
+			var candidates = new List<(int Score, int DistSq, CPos Cell)>();
+
+			for (var dy = -radius; dy <= radius; dy++)
+			{
+				for (var dx = -radius; dx <= radius; dx++)
 				{
-					for (var dx = -coverRadius; dx <= coverRadius; dx++)
+					var cell = new CPos(clickCell.X + dx, clickCell.Y + dy);
+					var score = CoverScore(map, cell);
+					if (score <= 0)
+						continue;
+
+					candidates.Add((score, dx * dx + dy * dy, cell));
+				}
+			}
+
+			candidates.Sort((a, b) =>
+			{
+				if (b.Score != a.Score)
+					return b.Score.CompareTo(a.Score);
+				if (a.DistSq != b.DistSq)
+					return a.DistSq.CompareTo(b.DistSq);
+				if (a.Cell.X != b.Cell.X)
+					return a.Cell.X.CompareTo(b.Cell.X);
+				return a.Cell.Y.CompareTo(b.Cell.Y);
+			});
+
+			var slots = new List<CPos>(n);
+			foreach (var (_, _, cell) in candidates)
+			{
+				if (slots.Count >= n)
+					break;
+
+				var ok = true;
+				foreach (var s in slots)
+				{
+					if (Math.Max(Math.Abs(cell.X - s.X), Math.Abs(cell.Y - s.Y)) < minSpacingCells)
 					{
-						if (dx == 0 && dy == 0)
-							continue;
-
-						var cand = new CPos(idealCell.X + dx, idealCell.Y + dy);
-						if (!map.DensityLayer.IsValidCoordinate(cand.X, cand.Y))
-							continue;
-
-						if (claimed.Contains(cand))
-							continue;
-
-						var dist = Math.Max(Math.Abs(dx), Math.Abs(dy));
-						var score = CoverScore(map, cand) - dist * distancePenalty;
-
-						if (score > bestScore)
-						{
-							bestCell = cand;
-							bestScore = score;
-						}
+						ok = false;
+						break;
 					}
 				}
 
-				if (i == idx)
-				{
-					myCell = bestCell;
-					break;
-				}
-
-				claimed.Add(bestCell);
+				if (ok)
+					slots.Add(cell);
 			}
 
-			return individualOrder.WithTarget(Target.FromCell(subject.World, myCell));
+			// Second pass: if we ran out of well-spaced candidates, relax the spacing constraint
+			// and pick more cover cells. Better to bunch up in cover than spread out into open
+			// ground.
+			if (slots.Count < n)
+			{
+				foreach (var (_, _, cell) in candidates)
+				{
+					if (slots.Count >= n)
+						break;
+
+					if (slots.Contains(cell))
+						continue;
+
+					slots.Add(cell);
+				}
+			}
+
+			// Last resort: pad with the click cell itself.
+			while (slots.Count < n)
+				slots.Add(clickCell);
+
+			return slots.ToArray();
+		}
+
+		// EdgeLine: place units in a single line perpendicular to the density gradient, anchored
+		// one cell along the gradient direction (i.e. just inside the cover edge). The line is
+		// oriented so units face *out* of the cover toward open ground.
+		CPos[] ComputeEdgeLineSlots(Map map, CPos clickCell, int gradXCells, int gradYCells,
+			int n, int colSpacing)
+		{
+			var gradLenSq = gradXCells * gradXCells + gradYCells * gradYCells;
+			if (gradLenSq == 0)
+				return ComputeOpenLine(map, clickCell, n, colSpacing);
+
+			var gradLen = Math.Sqrt(gradLenSq);
+			var unitX = gradXCells / gradLen;
+			var unitY = gradYCells / gradLen;
+
+			// Perpendicular axis (90° CCW): (-unitY, unitX). Either direction works since the
+			// line is symmetric — pick one consistently.
+			var perpUX = -unitY;
+			var perpUY = unitX;
+
+			// Advance scales with gradient magnitude so the line lands AT the cover, not just one
+			// cell toward it. A click 3 cells from cover with 100% advance puts the anchor 3
+			// cells along the gradient — right at the centroid of nearby density.
+			var advance = gradLen * info.EdgeAdvancePercent / 100.0;
+			var anchorX = clickCell.X + (int)Math.Round(unitX * advance);
+			var anchorY = clickCell.Y + (int)Math.Round(unitY * advance);
+
+			var spacingCells = colSpacing / 1024.0;
+
+			var slots = new CPos[n];
+			for (var i = 0; i < n; i++)
+			{
+				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
+				var x = anchorX + (int)Math.Round(perpUX * t);
+				var y = anchorY + (int)Math.Round(perpUY * t);
+				slots[i] = map.Clamp(new CPos(x, y));
+			}
+
+			return slots;
+		}
+
+		// Fallback when EdgeLine has no gradient: place a horizontal line through the click.
+		static CPos[] ComputeOpenLine(Map map, CPos clickCell, int n, int colSpacing)
+		{
+			var spacingCells = colSpacing / 1024.0;
+			var slots = new CPos[n];
+			for (var i = 0; i < n; i++)
+			{
+				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
+				var x = clickCell.X + (int)Math.Round(t);
+				slots[i] = map.Clamp(new CPos(x, clickCell.Y));
+			}
+
+			return slots;
+		}
+
+		Order IModifyGroupOrder.ModifyGroupOrder(Order individualOrder, Actor subject, Actor[] allGroupedActors)
+		{
+			if (subject == null || subject.IsDead || !subject.IsInWorld)
+				return individualOrder;
+
+			var orderString = individualOrder.OrderString;
+			if (orderString != "Move" && orderString != "AttackMove")
+				return individualOrder;
+
+			var n = 0;
+			for (var i = 0; i < allGroupedActors.Length; i++)
+			{
+				var a = allGroupedActors[i];
+				if (a != null && !a.IsDead && a.IsInWorld)
+					n++;
+			}
+
+			if (n <= 1)
+				return individualOrder;
+
+			var validActors = new Actor[n];
+			var vi = 0;
+			for (var i = 0; i < allGroupedActors.Length; i++)
+			{
+				var a = allGroupedActors[i];
+				if (a != null && !a.IsDead && a.IsInWorld)
+					validActors[vi++] = a;
+			}
+
+			Array.Sort(validActors, (a, b) => a.ActorID.CompareTo(b.ActorID));
+
+			var idx = Array.IndexOf(validActors, subject);
+			if (idx < 0)
+				return individualOrder;
+
+			var map = subject.World.Map;
+			var targetPos = individualOrder.Target.CenterPosition;
+			var clickCell = map.Clamp(map.CellContaining(targetPos));
+
+			// PITFALL: cohesion mode is read from the SUBJECT not aggregated. Mixed-mode groups
+			// see inconsistent spacing — each actor uses its own mode and recomputes. In practice
+			// grouped units share a mode, so this is acceptable for v1.
+			var autoTarget = subject.TraitOrDefault<AutoTarget>();
+			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
+			GetSpacing(mode, out var colSpacing, out var rowSpacing);
+
+			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY);
+
+			CPos[] slots;
+			switch (intent)
+			{
+				case Intent.SpreadInside:
+					var minSpacingCells = Math.Max(1, colSpacing / 1024);
+					slots = ComputeSpreadSlots(map, clickCell, n, minSpacingCells);
+					break;
+
+				case Intent.EdgeLine:
+					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, n, colSpacing);
+					break;
+
+				case Intent.Open:
+				default:
+					slots = ComputeBoxSlots(map, clickCell, targetPos, validActors, colSpacing, rowSpacing);
+					break;
+			}
+
+			if (idx >= slots.Length)
+				return individualOrder;
+
+			return individualOrder.WithTarget(Target.FromCell(subject.World, slots[idx]));
 		}
 	}
 }
