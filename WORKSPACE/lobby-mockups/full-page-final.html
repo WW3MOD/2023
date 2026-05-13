@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · lobby final</title>
+<style>
+:root {
+	--bg-app: #0c0e11;
+	--bg-card: #14171c;
+	--bg-card-2: #1a1e25;
+	--bg-card-3: #21262e;
+	--line: #262b33;
+	--line-soft: #1e2229;
+	--ink: #e6e9ef;
+	--ink-2: #b8bec8;
+	--ink-3: #7a8090;
+	--ink-4: #4f5460;
+	--accent: #60d080;
+	--accent-glow: #60d08055;
+	--accent-soft: #2d6240;
+	--accent-bg: rgba(96,208,128,.08);
+	--info: #6ec0e6;
+	--us:    #4a7fc4;
+	--ru:    #c44a4a;
+	--track: #2f343c;
+	font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+html, body { margin: 0; padding: 0; background: var(--bg-app); color: var(--ink); }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header.top {
+	position: sticky; top: 0; z-index: 20;
+	background: rgba(12,14,17,.94); backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--line);
+	padding: 14px 32px; display: flex; align-items: baseline; gap: 28px;
+}
+header.top h1 { margin: 0; font-size: 16px; }
+header.top .sub { color: var(--ink-3); font-size: 12px; }
+
+.intro {
+	max-width: 1000px; margin: 32px auto 24px; padding: 0 32px;
+	color: var(--ink-2); font-size: 13.5px; line-height: 1.65;
+}
+.intro h2 { color: var(--ink); font-size: 22px; margin: 0 0 12px; }
+.intro p { margin: 0 0 12px; }
+.intro ul { margin: 0; padding-left: 18px; color: var(--ink-3); }
+.intro ul li { padding: 2px 0; }
+.intro code { background: var(--bg-card); padding: 1px 6px; border-radius: 3px; color: var(--accent); font-size: 12px; }
+
+.outer {
+	margin: 0 auto 64px; padding: 0 32px; max-width: 2700px;
+}
+
+/* ============================================================
+   FRAME — 2560 × 1440 native
+   ============================================================ */
+.frame {
+	background: var(--bg-app);
+	border: 1px solid var(--line); border-radius: 8px;
+	overflow: hidden;
+	width: 2560px;
+	height: 1440px;
+	position: relative;
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.lobby-header {
+	height: 56px; padding: 0 28px;
+	display: grid; grid-template-columns: 120px 1fr 200px;
+	align-items: center;
+	border-bottom: 1px solid var(--line-soft);
+}
+.lobby-header .back {
+	background: transparent; border: none;
+	color: var(--ink-2); font-size: 13px; cursor: pointer;
+	display: flex; align-items: center; gap: 8px;
+}
+.lobby-header .back:hover { color: var(--ink); }
+.lobby-header .back .arrow { color: var(--ink-3); font-size: 16px; }
+.lobby-header .title {
+	text-align: center; font-size: 14px; font-weight: 600;
+	letter-spacing: 3px; color: var(--ink-2); text-transform: uppercase;
+}
+.lobby-header .title b { color: var(--ink); }
+.lobby-header .status { color: var(--ink-4); font-size: 12px; text-align: right; }
+.lobby-header .status .dot {
+	display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+	background: var(--accent); margin-right: 6px;
+	box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ============================================================
+   BODY GRID — Q4-locked, dynamic player block
+   ============================================================ */
+.body {
+	height: calc(1440px - 56px - 88px);
+	padding: 14px 20px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px; box-sizing: border-box;
+}
+.body .col { display: grid; gap: 14px; }
+.body .col.left  { grid-template-rows: 720px 1fr; }
+.body .col.right { grid-template-rows: 524px 1fr; } /* sized to fit 6 slots + spectator */
+.body .col > .quad {
+	background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 6px;
+	position: relative; overflow: hidden;
+}
+
+/* ============================================================
+   QUADRANT HEADER — underline tabs only, nothing else
+   ============================================================ */
+.qhead {
+	display: flex; align-items: center; height: 42px;
+	padding: 0 18px; border-bottom: 1px solid var(--line-soft);
+}
+.qhead .tabs { display: flex; gap: 24px; height: 100%; }
+.qhead .tabs .tab {
+	display: flex; align-items: center; height: 100%;
+	padding: 0 2px; font-size: 11px; color: var(--ink-3);
+	letter-spacing: 2px; font-weight: 600; text-transform: uppercase;
+	border-bottom: 2px solid transparent; cursor: pointer;
+	transition: color 0.15s, border-color 0.15s;
+}
+.qhead .tabs .tab:hover { color: var(--ink-2); }
+.qhead .tabs .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.qhead .tabs .tab .num {
+	margin-left: 6px; background: var(--bg-card-2); color: var(--ink-3);
+	padding: 1px 7px; border-radius: 10px; font-size: 10px; letter-spacing: 0;
+}
+.qhead .tabs .tab.active .num { background: var(--accent-soft); color: var(--accent); }
+.qhead .right { margin-left: auto; display: flex; gap: 18px; align-items: center; }
+.qhead .right a {
+	font-size: 11px; color: var(--ink-3); cursor: pointer; text-decoration: none;
+}
+.qhead .right a:hover { color: var(--ink-2); }
+
+/* ============================================================
+   MAP QUADRANT
+   ============================================================ */
+.map-quad { display: flex; flex-direction: column; min-height: 0; }
+.map-quad .map-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.map-quad .map-img {
+	flex: 1; position: relative; min-height: 0;
+	background-image: linear-gradient(135deg, #2d4a2a 0%, #3d5a35 30%, #1a2a1c 60%, #2a3a26 100%);
+}
+.map-quad .map-img::before {
+	content: ""; position: absolute; inset: 0;
+	background-image:
+		radial-gradient(ellipse at 30% 40%, rgba(85,115,170,.5) 0%, transparent 14%),
+		radial-gradient(ellipse at 65% 60%, rgba(85,115,170,.5) 0%, transparent 14%),
+		radial-gradient(circle at 50% 30%, rgba(180,180,140,.4) 0%, transparent 10%),
+		radial-gradient(circle at 20% 70%, rgba(180,180,140,.4) 0%, transparent 9%);
+}
+.map-quad .map-img .spawn {
+	position: absolute; width: 28px; height: 28px; border-radius: 50%;
+	background: rgba(0,0,0,.6); border: 2px solid var(--accent);
+	display: flex; align-items: center; justify-content: center;
+	color: var(--accent); font-weight: 700; font-size: 13px;
+}
+.map-quad .map-img .spawn.a { top: 8%;  left: 18%; }
+.map-quad .map-img .spawn.b { top: 78%; left: 78%; border-color: var(--ru); color: var(--ru); }
+.map-quad .map-img .spawn.c { top: 12%; left: 75%; border-color: var(--ru); color: var(--ru); }
+.map-quad .map-img .spawn.d { top: 80%; left: 22%; }
+.map-quad .map-img .spawn.e { top: 48%; left: 20%; }
+.map-quad .map-img .spawn.f { top: 50%; left: 78%; border-color: var(--ru); color: var(--ru); }
+
+.map-quad .map-footer {
+	padding: 14px 22px;
+	display: flex; align-items: center; justify-content: space-between;
+	gap: 18px; border-top: 1px solid var(--line-soft);
+}
+.map-quad .map-footer .name {
+	font-size: 20px; font-weight: 700; color: var(--ink);
+}
+.map-quad .map-footer .meta {
+	font-size: 11.5px; color: var(--ink-3); margin-top: 2px;
+}
+.map-quad .map-footer .scenario {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 7px 14px; font-size: 12.5px; color: var(--ink-2); cursor: pointer;
+	display: flex; align-items: center; gap: 8px;
+}
+.map-quad .map-footer .scenario:hover { border-color: var(--ink-4); }
+.map-quad .map-footer .scenario .chev { color: var(--ink-4); font-size: 11px; }
+
+/* ============================================================
+   SETTINGS QUADRANT
+   ============================================================ */
+.settings-quad { display: flex; flex-direction: column; min-height: 0; }
+.settings-quad .settings-body {
+	flex: 1; padding: 16px 18px 64px; overflow-y: auto; box-sizing: border-box;
+	position: relative;
+}
+.settings-quad .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.settings-quad .card {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 5px;
+	padding: 12px 14px 10px; position: relative; min-height: 72px;
+	box-sizing: border-box; cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+}
+.settings-quad .card:hover { border-color: var(--ink-4); background: var(--bg-card-3); }
+.settings-quad .card.changed { border-color: var(--accent-soft); background: var(--accent-bg); }
+.settings-quad .card.changed::before {
+	content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+	width: 2px; background: var(--accent); border-radius: 5px 0 0 5px;
+}
+.settings-quad .card .lab {
+	font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.5px;
+	text-transform: uppercase; font-weight: 600;
+}
+.settings-quad .card .val {
+	font-size: 19px; color: var(--ink); margin-top: 4px; font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.settings-quad .card.changed .val { color: var(--accent); }
+.settings-quad .card .drop {
+	position: absolute; top: 12px; right: 12px; color: var(--ink-4); font-size: 11px;
+}
+.settings-quad .card.tog .switch {
+	position: absolute; top: 14px; right: 14px;
+	width: 28px; height: 16px; background: var(--track); border-radius: 9px;
+	transition: background 0.15s;
+}
+.settings-quad .card.tog .switch::after {
+	content: ""; position: absolute; top: 2px; left: 2px;
+	width: 12px; height: 12px; background: var(--ink-3); border-radius: 50%;
+	transition: all 0.15s;
+}
+.settings-quad .card.tog.on { border-color: rgba(96,208,128,.35); }
+.settings-quad .card.tog.on .switch { background: var(--accent-soft); }
+.settings-quad .card.tog.on .switch::after { background: var(--accent); transform: translateX(12px); }
+.settings-quad .card.tog.on .val { color: var(--accent); }
+
+.settings-quad .footer-strip {
+	position: absolute; left: 0; right: 0; bottom: 0;
+	background: var(--bg-card); border-top: 1px solid var(--line-soft);
+	padding: 10px 18px;
+	display: flex; align-items: center; gap: 12px;
+}
+.settings-quad .footer-strip .chip {
+	display: inline-flex; gap: 7px; align-items: center;
+	background: var(--bg-card-2); border-left: 2px solid var(--accent);
+	padding: 5px 10px; border-radius: 3px; font-size: 12px;
+}
+.settings-quad .footer-strip .chip .k { color: var(--ink-3); }
+.settings-quad .footer-strip .chip .v { color: var(--accent); font-weight: 600; }
+.settings-quad .footer-strip .spacer { flex: 1; }
+.settings-quad .footer-strip .preset {
+	display: flex; align-items: center; gap: 8px;
+}
+.settings-quad .footer-strip .preset .plab {
+	font-size: 10.5px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+}
+.settings-quad .footer-strip input {
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 10px; color: var(--ink); font-size: 12.5px; width: 140px;
+}
+.settings-quad .footer-strip .btn {
+	background: transparent; border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 12px; color: var(--ink-2); font-size: 11.5px; cursor: pointer;
+}
+.settings-quad .footer-strip .btn:hover { color: var(--ink); border-color: var(--ink-4); }
+
+/* ============================================================
+   PLAYERS QUADRANT
+   ============================================================ */
+.players-quad { display: flex; flex-direction: column; min-height: 0; }
+.players-quad .body-pad {
+	flex: 1; min-height: 0; padding: 14px 18px; overflow-y: auto;
+}
+.players-quad .prow {
+	display: grid;
+	grid-template-columns: 32px 1.6fr 1.1fr 70px 64px 40px;
+	gap: 12px; align-items: center;
+	padding: 10px 12px;
+	border-radius: 5px;
+	margin-bottom: 6px;
+	background: var(--bg-card-2); border: 1px solid var(--line-soft);
+	transition: border-color 0.15s;
+}
+.players-quad .prow:hover { border-color: var(--ink-4); }
+.players-quad .prow .avatar {
+	width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+	display: flex; align-items: center; justify-content: center;
+	font-weight: 700; color: var(--bg-app); font-size: 12px;
+}
+.players-quad .prow .avatar.bot { background: var(--info); }
+.players-quad .prow .name { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.players-quad .prow .name .tag {
+	display: block; font-size: 10.5px; color: var(--ink-3); font-weight: 400; margin-top: 1px;
+}
+.players-quad .prow .faction {
+	display: inline-flex; align-items: center; gap: 8px;
+	font-size: 12.5px; color: var(--ink-2);
+}
+.players-quad .prow .faction .flag {
+	width: 16px; height: 10px;
+}
+.players-quad .prow .faction.us .flag { background: var(--us); }
+.players-quad .prow .faction.ru .flag { background: var(--ru); }
+.players-quad .prow .color-swatch {
+	width: 58px; height: 14px; border-radius: 3px; border: 1px solid var(--line-soft);
+	cursor: pointer;
+}
+.players-quad .prow .spawn {
+	text-align: center; color: var(--ink-2); font-size: 13px;
+	background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 4px;
+	padding: 4px 0; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.players-quad .prow .ready {
+	color: var(--accent); font-size: 14px; text-align: center;
+}
+.players-quad .prow.empty {
+	grid-template-columns: 32px 1fr;
+	background: rgba(28,32,39,.25); border-style: dashed;
+}
+.players-quad .prow.empty .actions { display: flex; gap: 8px; }
+.players-quad .prow.empty .actions .ba {
+	background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+	padding: 6px 14px; font-size: 12px; color: var(--ink-2); cursor: pointer;
+}
+.players-quad .prow.empty .actions .ba:hover { color: var(--ink); border-color: var(--ink-4); }
+.players-quad .prow.empty .actions .ba.primary { color: var(--accent); border-color: var(--accent-soft); }
+.players-quad .prow.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
+.players-quad .prow.spectator {
+	grid-template-columns: 32px 1fr;
+	background: rgba(28,32,39,.2); border-color: transparent;
+}
+.players-quad .prow.spectator .name { color: var(--ink-2); }
+.players-quad .prow.spectator .name .tag { color: var(--ink-4); }
+
+/* ============================================================
+   CHAT QUADRANT
+   ============================================================ */
+.chat-quad { display: flex; flex-direction: column; min-height: 0; }
+.chat-quad .lines {
+	flex: 1; min-height: 0; overflow-y: auto;
+	padding: 14px 22px 8px;
+	font-size: 13.5px; color: var(--ink-2); line-height: 1.6;
+}
+.chat-quad .lines .line { padding: 2px 0; display: flex; gap: 12px; }
+.chat-quad .lines .ts {
+	color: var(--ink-4); flex: 0 0 44px; font-family: ui-monospace, monospace;
+	font-size: 11px; padding-top: 2px;
+}
+.chat-quad .lines .name { color: var(--accent); font-weight: 600; margin-right: 4px; }
+.chat-quad .lines .system { color: var(--ink-3); font-style: italic; }
+.chat-quad .compose {
+	display: flex; gap: 0; align-items: stretch; margin: 10px 18px 14px;
+	background: var(--bg-card-2); border: 1px solid var(--line); border-radius: 6px;
+	overflow: hidden;
+}
+.chat-quad .compose .mode {
+	background: var(--bg-card-3); padding: 0 14px;
+	display: flex; align-items: center;
+	font-size: 10.5px; color: var(--ink-3); letter-spacing: 2px; font-weight: 600;
+	border-right: 1px solid var(--line);
+	cursor: pointer;
+}
+.chat-quad .compose .mode:hover { color: var(--ink-2); }
+.chat-quad .compose input {
+	flex: 1; background: transparent; border: none; outline: none;
+	padding: 12px 14px; color: var(--ink); font-size: 13.5px;
+}
+
+/* ============================================================
+   CTA BAR
+   ============================================================ */
+.cta-bar {
+	height: 88px;
+	display: flex; align-items: center; justify-content: center;
+	gap: 28px; padding: 0 32px;
+	background: linear-gradient(180deg, rgba(96,208,128,0) 0%, rgba(96,208,128,.04) 100%);
+	border-top: 1px solid var(--line);
+}
+.cta-bar .left, .cta-bar .right {
+	flex: 1; color: var(--ink-3); font-size: 12.5px;
+}
+.cta-bar .right { text-align: right; }
+.cta-bar .start {
+	background: linear-gradient(180deg, rgba(96,208,128,.16) 0%, rgba(96,208,128,.06) 100%);
+	border: 1px solid var(--accent-soft); border-radius: 6px;
+	padding: 14px 56px; font-size: 19px; font-weight: 700;
+	color: var(--accent); letter-spacing: 2px;
+	cursor: pointer; box-shadow: 0 0 24px var(--accent-glow);
+}
+.cta-bar .start:hover {
+	background: linear-gradient(180deg, rgba(96,208,128,.22) 0%, rgba(96,208,128,.08) 100%);
+}
+
+</style>
+</head>
+<body>
+
+<header class="top">
+	<h1>Lobby · final pass</h1>
+	<span class="sub">Polished single example. Underline tabs, dynamic player block, nothing extra.</span>
+</header>
+
+<div class="intro">
+	<h2>What was cut</h2>
+	<ul>
+		<li>Section titles next to tabs (the tab labels are the title)</li>
+		<li>Triple-redundant status info (CTA right-side text, "1 modified" label, separate "Changes 1" badge)</li>
+		<li>"Open in editor" / "Sort: Recent" / "Replay last" / "Mute all" / "Whisper…" / "Team balance" — all premature or rare</li>
+		<li>Speculative-card dashed outlines (those were prototype filler)</li>
+		<li>Trail text under every hero card (kept only when the value alone is ambiguous)</li>
+		<li>Hover-shadow / glow chrome on cards (subtle border-shift is enough)</li>
+		<li>Map quadrant "Change Map" button — the tab handles it</li>
+		<li>Preset bar's "Rename" / "Delete" — folded into Load menu</li>
+		<li>"Handicap" column on player rows — rarely changed, can move to a row context menu</li>
+	</ul>
+</div>
+
+<div class="outer">
+	<div class="frame">
+		<div class="lobby-header">
+			<button class="back"><span class="arrow">←</span>Back</button>
+			<div class="title"><b>River Zeta WW3</b> · skirmish</div>
+			<div class="status"><span class="dot"></span>4 bots ready · 1 spectating</div>
+		</div>
+
+		<div class="body">
+			<!-- LEFT COLUMN -->
+			<div class="col left">
+				<!-- MAP -->
+				<div class="quad map-quad">
+					<div class="qhead">
+						<div class="tabs">
+							<span class="tab active">Map</span>
+							<span class="tab">Change Map</span>
+						</div>
+					</div>
+					<div class="map-body">
+						<div class="map-img">
+							<span class="spawn a">A</span><span class="spawn b">B</span><span class="spawn c">C</span>
+							<span class="spawn d">D</span><span class="spawn e">E</span><span class="spawn f">F</span>
+						</div>
+						<div class="map-footer">
+							<div>
+								<div class="name">River Zeta WW3</div>
+								<div class="meta">Conquest · 6 spawns · By Medium Tank, ZxGanon, XavierX</div>
+							</div>
+							<div class="scenario">No scenario<span class="chev">▾</span></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- SETTINGS -->
+				<div class="quad settings-quad">
+					<div class="qhead">
+						<div class="tabs">
+							<span class="tab active">Settings<span class="num">1</span></span>
+							<span class="tab">Music</span>
+						</div>
+						<div class="right">
+							<a>↺ reset</a>
+						</div>
+					</div>
+					<div class="settings-body">
+						<div class="grid">
+							<div class="card"><div class="lab">Starting Cash</div><div class="val">$20,000</div><div class="drop">▾</div></div>
+							<div class="card"><div class="lab">Game Speed</div><div class="val">Real Time</div><div class="drop">▾</div></div>
+							<div class="card changed"><div class="lab">Passive Income</div><div class="val">$200</div><div class="drop">▾</div></div>
+							<div class="card"><div class="lab">Doomsday</div><div class="val">No limit</div><div class="drop">▾</div></div>
+
+							<div class="card"><div class="lab">Kill Bounties</div><div class="val">Off</div><div class="drop">▾</div></div>
+							<div class="card"><div class="lab">Tech Level</div><div class="val">Medium</div><div class="drop">▾</div></div>
+							<div class="card"><div class="lab">Income Modifier</div><div class="val">100%</div><div class="drop">▾</div></div>
+							<div class="card"><div class="lab">Starting Units</div><div class="val">None</div><div class="drop">▾</div></div>
+
+							<div class="card tog on"><div class="lab">Fog of War</div><div class="val">On</div><div class="switch"></div></div>
+							<div class="card tog on"><div class="lab">Explored Map</div><div class="val">On</div><div class="switch"></div></div>
+							<div class="card tog on"><div class="lab">Separate Spawns</div><div class="val">On</div><div class="switch"></div></div>
+							<div class="card tog on"><div class="lab">Friendly Fire</div><div class="val">On</div><div class="switch"></div></div>
+
+							<div class="card tog on"><div class="lab">Powers</div><div class="val">On</div><div class="switch"></div></div>
+							<div class="card"><div class="lab">Victory Mode</div><div class="val">Conquest</div><div class="drop">▾</div></div>
+							<div class="card tog"><div class="lab">Map Reveal</div><div class="val">Off</div><div class="switch"></div></div>
+							<div class="card tog on"><div class="lab">Debug Menu</div><div class="val">On</div><div class="switch"></div></div>
+						</div>
+					</div>
+					<div class="footer-strip">
+						<span class="chip"><span class="k">Passive Income</span><span class="v">$200</span></span>
+						<span class="spacer"></span>
+						<div class="preset">
+							<span class="plab">Preset</span>
+							<input value="Default">
+							<button class="btn">Load ▾</button>
+							<button class="btn">Save</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- RIGHT COLUMN -->
+			<div class="col right">
+				<!-- PLAYERS -->
+				<div class="quad players-quad">
+					<div class="qhead">
+						<div class="tabs">
+							<span class="tab active">Players<span class="num">4 / 6</span></span>
+						</div>
+						<div class="right">
+							<a>+ Add bot</a>
+							<a>Auto-team</a>
+						</div>
+					</div>
+					<div class="body-pad">
+						<div class="prow">
+							<div class="avatar bot">V</div>
+							<div class="name">V2 AI<span class="tag">experimental</span></div>
+							<div class="faction us"><span class="flag"></span>America</div>
+							<div class="color-swatch" style="background:#6ed68a;"></div>
+							<div class="spawn">D</div>
+							<div class="ready">✓</div>
+						</div>
+						<div class="prow">
+							<div class="avatar bot">V</div>
+							<div class="name">V2 AI<span class="tag">experimental</span></div>
+							<div class="faction ru"><span class="flag"></span>Russia</div>
+							<div class="color-swatch" style="background:#b878d8;"></div>
+							<div class="spawn">B</div>
+							<div class="ready">✓</div>
+						</div>
+						<div class="prow">
+							<div class="avatar bot">N</div>
+							<div class="name">Normal AI</div>
+							<div class="faction us"><span class="flag"></span>America</div>
+							<div class="color-swatch" style="background:#c8c860;"></div>
+							<div class="spawn">A</div>
+							<div class="ready">✓</div>
+						</div>
+						<div class="prow">
+							<div class="avatar bot">N</div>
+							<div class="name">Normal AI</div>
+							<div class="faction ru"><span class="flag"></span>Russia</div>
+							<div class="color-swatch" style="background:#a050a0;"></div>
+							<div class="spawn">C</div>
+							<div class="ready">✓</div>
+						</div>
+						<div class="prow empty">
+							<div></div>
+							<div class="actions">
+								<span class="ba primary">▸ Play here</span>
+								<span class="ba">+ Add bot</span>
+								<span class="ba danger">Close</span>
+							</div>
+						</div>
+						<div class="prow empty">
+							<div></div>
+							<div class="actions">
+								<span class="ba primary">▸ Play here</span>
+								<span class="ba">+ Add bot</span>
+								<span class="ba danger">Close</span>
+							</div>
+						</div>
+						<div class="prow spectator">
+							<div class="avatar">F</div>
+							<div class="name">FreadyFish<span class="tag">spectating</span></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- CHAT -->
+				<div class="quad chat-quad">
+					<div class="qhead">
+						<div class="tabs">
+							<span class="tab active">Chat</span>
+						</div>
+					</div>
+					<div class="lines">
+						<div class="line"><span class="ts">17:18</span><span><span class="system">FreadyFish has joined the game.</span></span></div>
+						<div class="line"><span class="ts">17:18</span><span><span class="system">River Zeta WW3 loaded. Awaiting 2 more players.</span></span></div>
+						<div class="line"><span class="ts">17:19</span><span><span class="system">All bots ready.</span></span></div>
+						<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish</span>we testing the new lobby?</span></div>
+						<div class="line"><span class="ts">17:20</span><span><span class="name">FreadyFish</span>chat fits more than one line now</span></div>
+						<div class="line"><span class="ts">17:21</span><span><span class="system">Auto-team applied: 2 vs 2.</span></span></div>
+						<div class="line"><span class="ts">17:21</span><span><span class="name">FreadyFish</span>hey CmdrBambi you joining? V2 AI is doing the work otherwise</span></div>
+						<div class="line"><span class="ts">17:22</span><span><span class="name">FreadyFish</span>looking sharp, let's roll once you're in</span></div>
+						<div class="line"><span class="ts">17:24</span><span><span class="system">CmdrBambi has joined the lobby.</span></span></div>
+						<div class="line"><span class="ts">17:24</span><span><span class="name">CmdrBambi</span>finally a real chat window 😅</span></div>
+						<div class="line"><span class="ts">17:25</span><span><span class="name">CmdrBambi</span>taking the open Russia slot</span></div>
+					</div>
+					<div class="compose">
+						<span class="mode">LOBBY</span>
+						<input placeholder="Press Enter to send · / for commands">
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="cta-bar">
+			<div class="left">2v2 conquest · Real Time</div>
+			<button class="start">▶  START GAME</button>
+			<div class="right">Host can start once both teams are full</div>
+		</div>
+	</div>
+</div>
+
+</body>
+</html>
