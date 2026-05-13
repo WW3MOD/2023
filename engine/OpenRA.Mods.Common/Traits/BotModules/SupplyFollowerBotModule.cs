@@ -80,16 +80,21 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = Info.ScanInterval;
 			Initialize();
 
-			// Clean up dead trucks
-			activeTrucks.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
+			// Clean up dead trucks (or low-supply trucks, which we're releasing back to
+			// SupplyProvider's built-in auto-restock).
+			activeTrucks.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld || IsLowOnSupply(a));
 
-			// Find all supply trucks
+			// Find all supply trucks — eligible only if they actually have supplies to give.
+			// SupplyProvider auto-restocks at low/zero supply by queuing a MoveTo(LC)
+			// activity; if we issue a forward Move here it cancels that restock and the
+			// empty truck ends up at the front with nothing to give. Filter them out.
 			var trucks = world.ActorsHavingTrait<Mobile>()
 				.Where(a => a.Owner == player
 					&& !a.IsDead
 					&& a.IsInWorld
 					&& Info.SupplyTruckTypes.Contains(a.Info.Name)
-					&& !IsClaimedByOtherModule(a))
+					&& !IsClaimedByOtherModule(a)
+					&& !IsLowOnSupply(a))
 				.ToList();
 
 			if (trucks.Count == 0)
@@ -224,6 +229,17 @@ namespace OpenRA.Mods.Common.Traits
 
 			var claimant = blackboard.GetUnitClaimant(a);
 			return claimant != null && claimant != "supply-follow";
+		}
+
+		// A truck below its RestockThreshold has effectively no supplies to give. Don't
+		// issue forward orders — SupplyProvider's built-in restock will route it back to
+		// a LogisticsCenter / SR if we leave it alone.
+		static bool IsLowOnSupply(Actor a)
+		{
+			var sp = a.TraitOrDefault<SupplyProvider>();
+			if (sp == null)
+				return false;
+			return sp.CurrentSupply < sp.Info.RestockThreshold;
 		}
 
 		protected override void TraitDisabled(Actor self)
