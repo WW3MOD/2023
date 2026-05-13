@@ -622,55 +622,53 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 22
 											Font: MediumBold
 											Align: Left
-										ColorBlock@SEPARATOR:
-											X: 10
-											Y: 36
-											Width: PARENT_WIDTH - 20
-											Height: 1
-											Color: 60606080
 								Container@CHECKBOX_ROW_TEMPLATE:
 									Width: PARENT_WIDTH
-									Height: 30
+									Height: 28
 									Children:
 										Checkbox@A:
-											X: 10
-											Width: PARENT_WIDTH / 2 - 20
+											X: 30
+											Width: PARENT_WIDTH / 2 - 40
 											Height: 20
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@B:
-											X: PARENT_WIDTH / 2 + 10
-											Width: PARENT_WIDTH / 2 - 20
+											X: PARENT_WIDTH / 2 + 20
+											Width: PARENT_WIDTH / 2 - 40
 											Height: 20
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 								Container@DROPDOWN_ROW_TEMPLATE:
-									Height: 55
+									Height: 32
 									Width: PARENT_WIDTH
 									Children:
 										LabelForInput@A_DESC:
-											X: 10
-											Width: PARENT_WIDTH / 2 - 20
+											X: 30
+											Y: 6
+											Width: PARENT_WIDTH * 18 / 100
 											Height: 20
 											Visible: False
+											Align: Right
 											For: A
 										DropDownButton@A:
-											X: 10
-											Width: PARENT_WIDTH / 2 - 20
-											Y: 22
+											X: PARENT_WIDTH * 20 / 100
+											Y: 3
+											Width: PARENT_WIDTH * 28 / 100
 											Height: 25
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@B_DESC:
-											X: PARENT_WIDTH / 2 + 10
-											Width: PARENT_WIDTH / 2 - 20
+											X: PARENT_WIDTH * 52 / 100
+											Y: 6
+											Width: PARENT_WIDTH * 18 / 100
 											Height: 20
 											Visible: False
+											Align: Right
 											For: B
 										DropDownButton@B:
-											X: PARENT_WIDTH / 2 + 10
-											Width: PARENT_WIDTH / 2 - 20
-											Y: 22
+											X: PARENT_WIDTH * 72 / 100
+											Y: 3
+											Width: PARENT_WIDTH * 26 / 100
 											Height: 25
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER

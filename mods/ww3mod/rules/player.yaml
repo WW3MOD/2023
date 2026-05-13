@@ -184,11 +184,15 @@ Player:
 		FogCheckboxLabel: Fog of War
 		FogCheckboxDescription: Units only see within their sight range
 		FogCheckboxDisplayOrder: 51
-	LobbyPrerequisiteCheckbox@GlobalBounty:
+	LobbyPrerequisiteDropdown@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
-		Description: Players receive cash bonuses when killing enemy units
-		Enabled: False
+		Description: Cash bonus when killing enemy units (as % of unit cost). Off disables bounties entirely.
+		Values: 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+		Default: 0
+		OffValue: 0
+		Format: "{0}%"
+		OffLabel: Off
 		DisplayOrder: 75
 		Prerequisites: global-bounty
 	# Removed: Redeployable MCVs — no MCVs in WW3MOD

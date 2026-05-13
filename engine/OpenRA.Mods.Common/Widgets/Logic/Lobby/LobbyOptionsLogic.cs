@@ -168,7 +168,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// Game Rules
 			{ "friendly-fire", SectionGameRules },
-			{ "bounty-percent", SectionGameRules },
 			{ "powers-enabled", SectionGameRules },
 
 			// Developer

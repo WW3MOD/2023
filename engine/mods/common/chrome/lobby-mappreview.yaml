@@ -9,7 +9,7 @@ Container@MAP_PREVIEW:
 			Children:
 				Background@MAP_BG:
 					Width: PARENT_WIDTH
-					Height: 200
+					Height: PARENT_HEIGHT - 30
 					Background: dialog3
 					Children:
 						MapPreview@MAP_PREVIEW:
@@ -19,7 +19,7 @@ Container@MAP_PREVIEW:
 							Height: PARENT_HEIGHT - 2
 							TooltipContainer: TOOLTIP_CONTAINER
 				LabelWithTooltip@MAP_TITLE:
-					Y: 200
+					Y: PARENT_HEIGHT - 25
 					Width: PARENT_WIDTH
 					Height: 25
 					Font: Bold

@@ -506,11 +506,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var musicPanelRoot = lobby.GetOrNull("MUSIC_PANEL_ROOT");
 			if (musicPanelRoot != null)
 			{
-				Ui.LoadWidget("LOBBY_MUSIC_BIN", musicPanelRoot, new WidgetArgs
+				var musicBin = Ui.LoadWidget("LOBBY_MUSIC_BIN", musicPanelRoot, new WidgetArgs
 				{
 					{ "onExit", DoNothing },
 					{ "world", worldRenderer.World }
 				});
+
+				// The BIN's own "Music" label is redundant with the Map/Music toggle above it.
+				var musicLabel = musicBin.GetOrNull<LabelWidget>("MUSIC");
+				if (musicLabel != null)
+					musicLabel.IsVisible = () => false;
 			}
 
 			ServerListLogic serverListLogic = null;

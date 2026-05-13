@@ -210,24 +210,8 @@ namespace OpenRA.Mods.Common.Traits
 				"friendly-fire", "Friendly Fire", "Your own units can damage each other",
 				true, 74, true, false, "Rules");
 
-			var bountyPercentValues = new Dictionary<string, string>
-			{
-				{ "1", "1%" },
-				{ "2", "2%" },
-				{ "5", "5%" },
-				{ "10", "10%" },
-				{ "15", "15%" },
-				{ "20", "20%" },
-				{ "25", "25%" },
-				{ "50", "50%" },
-				{ "75", "75%" },
-				{ "100", "100%" },
-			};
-			yield return new LobbyOption(
-				"bounty-percent", "Bounty", "Percentage of killed unit's value awarded as bounty",
-				true, 76,
-				new ReadOnlyDictionary<string, string>(bountyPercentValues),
-				"10", false, "Rules");
+			// Bounty percent is now part of "Kill Bounties" in Economy (LobbyPrerequisiteDropdown
+			// in player.yaml — 0% = off, 5–100% = on at that percentage).
 
 			// Powers master toggle
 			yield return new LobbyBooleanOption(
