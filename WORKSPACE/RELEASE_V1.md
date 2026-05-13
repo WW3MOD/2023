@@ -21,7 +21,8 @@
 
 ## Phase 0 — Tooling
 
-- [ ] **Autotester launches focused, interrupting work in another window** — flash on launch steals focus when I'm typing in another window. Want: launch minimized so it doesn't pull focus
+- [ ] **Automation workflow track (260513)** — multi-phase plan in [`WORKSPACE/automation/README.md`](automation/README.md) covering focus-steal fix, test lanes, visual feedback, autonomous queue, overnight orchestrator, notifications, agent status board. Read it first; tracker items below are subsumed
+- [ ] **Autotester launches focused, interrupting work in another window** — flash on launch steals focus when I'm typing in another window. Want: launch minimized so it doesn't pull focus. *(Subsumed by automation Phase 0)*
 - [ ] **Autotester launch position should follow current terminal, not be fixed-left** — earlier attempt landed on "opposite side of focused window" but I'm often jumping between windows when it spawns. Best behaviour TBD: per-session override + default to opposite-of-active-terminal? Discuss before implementing — come with your thoughts
 
 ---
