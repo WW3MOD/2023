@@ -7,6 +7,7 @@ Container@CHAT_LINE_TEMPLATE:
 			Width: 37
 			Height: 16
 			Shadow: True
+			TextColor: 686868
 		Label@PREFIX:
 			X: 5
 			Height: 16
@@ -17,6 +18,11 @@ Container@CHAT_LINE_TEMPLATE:
 			WordWrap: True
 			Shadow: True
 
+# === Phase 7 — system + transient palette swap.
+# Was: amber-yellow (CCB85C) for system, cyan (AFEEEE) for transient.
+# Now: neutral ink-2 (969696) for system, accent (B4B4B4) for transient.
+# Keeps them distinguishable from regular chat (white) without
+# competing with go-state green or ru/us faction colours.
 Container@SYSTEM_LINE_TEMPLATE:
 	Width: PARENT_WIDTH
 	Height: 16
@@ -26,17 +32,18 @@ Container@SYSTEM_LINE_TEMPLATE:
 			Width: 37
 			Height: 16
 			Shadow: True
+			TextColor: 686868
 		Label@PREFIX:
 			X: 5
 			Height: 16
 			Shadow: True
-			TextColor: CCB85C
+			TextColor: 969696
 		Label@TEXT:
 			X: 5
 			Height: 16
 			WordWrap: True
 			Shadow: True
-			TextColor: CCB85C
+			TextColor: 969696
 
 Container@TRANSIENT_LINE_TEMPLATE:
 	Width: PARENT_WIDTH
@@ -47,9 +54,10 @@ Container@TRANSIENT_LINE_TEMPLATE:
 			Width: 37
 			Height: 16
 			Shadow: True
+			TextColor: 686868
 		Label@TEXT:
 			X: 5
 			Height: 16
 			WordWrap: True
 			Shadow: True
-			TextColor: AFEEEE
+			TextColor: B4B4B4
