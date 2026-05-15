@@ -26,6 +26,24 @@ Container@LOBBY_PLAYER_BIN:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
 					Color: 141414FF
+				ColorBlock@CELL_BEVEL_TOP:
+					Width: PARENT_WIDTH
+					Height: 1
+					Color: 3A3A3AFF
+				ColorBlock@CELL_BEVEL_LEFT:
+					Width: 1
+					Height: PARENT_HEIGHT
+					Color: 3A3A3AFF
+				ColorBlock@CELL_BEVEL_RIGHT:
+					X: PARENT_WIDTH - 1
+					Width: 1
+					Height: PARENT_HEIGHT
+					Color: 030303FF
+				ColorBlock@CELL_BEVEL_BOTTOM:
+					Y: PARENT_HEIGHT - 1
+					Width: PARENT_WIDTH
+					Height: 1
+					Color: 030303FF
 				Label@CELL_LABEL:
 					X: 12
 					Y: 14
@@ -627,6 +645,24 @@ Container@LOBBY_PLAYER_BIN:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
 					Color: 141414FF
+				ColorBlock@CELL_BEVEL_TOP:
+					Width: PARENT_WIDTH
+					Height: 1
+					Color: 3A3A3AFF
+				ColorBlock@CELL_BEVEL_LEFT:
+					Width: 1
+					Height: PARENT_HEIGHT
+					Color: 3A3A3AFF
+				ColorBlock@CELL_BEVEL_RIGHT:
+					X: PARENT_WIDTH - 1
+					Width: 1
+					Height: PARENT_HEIGHT
+					Color: 030303FF
+				ColorBlock@CELL_BEVEL_BOTTOM:
+					Y: PARENT_HEIGHT - 1
+					Width: PARENT_WIDTH
+					Height: 1
+					Color: 030303FF
 				Label@CELL_LABEL:
 					X: 12
 					Y: 14
@@ -646,7 +682,7 @@ Container@LOBBY_PLAYER_BIN:
 					X: 4
 					Y: 48
 					Width: PARENT_WIDTH - 8
-					Height: 468
+					Height: PARENT_HEIGHT - 140
 					Background: ""
 					ScrollBar: Right
 					Children:
@@ -777,25 +813,22 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-				# 1px divider between OPTIONS and ACTIVE CHANGES cards.
+				# === Phase 8 — Y positions recomputed for the smaller container.
+				# RIGHT_COLUMN_MATCH used to be full-height (~884px); now it's
+				# bottom-left, ~346px. So divider/active-changes/preset Y values
+				# are anchored to PARENT_HEIGHT instead of hardcoded.
 				ColorBlock@RIGHT_DIVIDER_1:
 					X: 12
-					Y: 526
+					Y: PARENT_HEIGHT - 90
 					Width: PARENT_WIDTH - 24
 					Height: 1
-					Color: 30343AFF
-				# WW3MOD: outer "ACTIVE CHANGES" header dropped — LobbyActiveChangesLogic
-				# drives EMPTY_HINT to show "ACTIVE CHANGES (N)" when populated or
-				# "All settings at default" when empty. Two headers stacked looked
-				# like a debug overlay. Card now stretches between the divider and
-				# the preset bar so the column reads as three clear stacked panels
-				# instead of a tall options box with a tiny lozenge at the bottom.
+					Color: 030303FF
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: 540
+					Y: PARENT_HEIGHT - 84
 					Width: PARENT_WIDTH - 24
-					Height: PARENT_HEIGHT - 540 - 52
+					Height: 38
 					Children:
 						ColorBlock@SECTION_BG:
 							Width: PARENT_WIDTH
