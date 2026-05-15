@@ -83,6 +83,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// OptionsTabDisabled guard doesn't immediately snap it back.
 		PanelType? pendingTestTab;
 
+		// Latches once the Test.LobbyReadyFile marker has been written so the
+		// Tick handler doesn't keep retouching the file every tick.
+		bool lobbyReadyMarkerWritten;
+
 		readonly Widget lobby;
 		readonly Widget editablePlayerTemplate;
 		readonly Widget nonEditablePlayerTemplate;
@@ -796,6 +800,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				panel = pendingTestTab.Value;
 				pendingTestTab = null;
+			}
+
+			// WW3MOD: drop a "lobby is ready" marker for external screenshot
+			// drivers. Fires once per lobby load — wraps the file write in a
+			// try so a filesystem error never spams the tick loop.
+			if (!lobbyReadyMarkerWritten && MapIsPlayable
+				&& TestMode.IsActive && !string.IsNullOrEmpty(TestMode.LobbyReadyFile))
+			{
+				lobbyReadyMarkerWritten = true;
+				try { System.IO.File.WriteAllText(TestMode.LobbyReadyFile, System.DateTime.UtcNow.ToString("o")); }
+				catch (System.Exception e) { Log.Write("debug", $"[TestMode] LobbyReadyFile write failed: {e.Message}"); }
 			}
 
 			var chatWasEnabled = chatEnabled;

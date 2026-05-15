@@ -116,8 +116,14 @@ Container@LOBBY_PLAYER_BIN:
 						# Color 40x40 · Faction 120x40 (flag fills 80, chevron square 40) ·
 						# Spawn 80x40 (letter square 40 + chevron square 40) ·
 						# Name stretches · Status 40x40 square.
-						# Separators: "" removes the DropDownButton vertical line between
-						# content and chevron — reads as two adjacent squares.
+						# PITFALL: empty MiniYaml values must be written as a bare
+						# trailing colon (`Separators:`) — *not* `Separators: ""`, which
+						# parses as the literal 2-char string `""` (FieldLoader.ParseString
+						# returns the raw value). The non-empty literal passes
+						# IsNullOrEmpty in DropDownButtonWidget.Draw and crashes lookup
+						# with `Sprite ""/separator was not found`. Clearing the field
+						# this way removes the DropDownButton vertical line so the row
+						# reads as two adjacent squares.
 						Container@TEMPLATE_EDITABLE_PLAYER:
 							X: 5
 							Width: PARENT_WIDTH - 10
@@ -147,7 +153,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 40
 									Height: 40
 									IgnoreChildMouseOver: true
-									Separators: ""
+									Separators:
 									Children:
 										ColorBlock@COLORBLOCK:
 											X: 4
@@ -159,7 +165,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 120
 									Height: 40
 									IgnoreChildMouseOver: true
-									Separators: ""
+									Separators:
 									TooltipContainer: TOOLTIP_CONTAINER
 									PanelRoot: FACTION_DROPDOWN_PANEL_ROOT
 									Children:
@@ -178,7 +184,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 80
 									Height: 40
 									Font: MediumBold
-									Separators: ""
+									Separators:
 									Text: label-lobby-players-spawn
 								TextField@NAME:
 									X: 256
@@ -210,7 +216,7 @@ Container@LOBBY_PLAYER_BIN:
 									Font: MediumBold
 									Align: Left
 									LeftMargin: 10
-									Separators: ""
+									Separators:
 									Visible: false
 								DropDownButton@TEAM_DROPDOWN:
 									X: -200
@@ -307,7 +313,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 80
 									Height: 40
 									Font: MediumBold
-									Separators: ""
+									Separators:
 									Visible: false
 								Label@NAME:
 									X: 284
@@ -323,7 +329,7 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: false
 									Align: Left
 									LeftMargin: 34
-									Separators: ""
+									Separators:
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits

@@ -44,6 +44,13 @@ namespace OpenRA
 		// drift). Set via Test.LaunchLobbyMap=<map-id> for deterministic captures.
 		public static string LaunchLobbyMap { get; private set; }
 
+		// Path to a marker file LobbyLogic touches once MapIsPlayable. External
+		// drivers (tools/autotest/screenshot-lobby.sh) poll this to know when
+		// it's safe to fire a "screenshot" command — without this signal they
+		// have to blind-sleep and risk capturing the loading state. Set via
+		// Test.LobbyReadyFile=<path> launch arg.
+		public static string LobbyReadyFile { get; private set; }
+
 		// AI tournament harness — path to tournament.yaml. Activates BotVsBotMatchWatcher.
 		// Null/empty when not running a tournament match. See:
 		//   engine/OpenRA.Mods.Common/Traits/World/BotVsBotMatchWatcher.cs
@@ -99,6 +106,7 @@ namespace OpenRA
 			OpenSkirmishLobby = args.GetValue("Test.OpenSkirmishLobby", "").ToLowerInvariant() == "true";
 			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
+			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
 			TestModeScreenshots.Initialize(ScreenshotDir);
 
 			Console.WriteLine($"[TestMode] active — name={Name} result={ResultPath}");
