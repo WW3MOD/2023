@@ -26,11 +26,11 @@ Possibly:
 
 ## Phase progress
 
-- [ ] 0 — Palette doc + bevel convention
-- [ ] 1 — Top bar + CTA bar
-- [ ] 2 — Settings hero grid
-- [ ] 3 — Map panel + brackets
-- [ ] 4 — Left column scroll
+- [x] 0 — Palette doc + bevel convention (commit d46fcfaf)
+- [x] 1 — Top bar + CTA bar (commit 7fe8744d)
+- [x] 2 — Settings hero grid (commit a0633ecf)
+- [x] 3 — Map panel + brackets (commit b2f4997c)
+- [ ] 4 — Left column scroll — **AT CHECKPOINT, awaiting visual review of phases 1-3**
 - [ ] 5 — Players V5 rows
 - [ ] 6 — Inline map browse
 - [ ] 7 — Chat restyle
