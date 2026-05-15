@@ -9,7 +9,7 @@ Container@MAP_PREVIEW:
 			Children:
 				Background@MAP_BG:
 					Width: PARENT_WIDTH
-					Height: PARENT_HEIGHT - 30
+					Height: PARENT_HEIGHT - 50
 					Background: dialog3
 					Children:
 						MapPreview@MAP_PREVIEW:
@@ -18,27 +18,82 @@ Container@MAP_PREVIEW:
 							Width: PARENT_WIDTH - 2
 							Height: PARENT_HEIGHT - 2
 							TooltipContainer: TOOLTIP_CONTAINER
-				# WW3MOD: card-style footer strip so the title + meta read as a
-				# unified panel attached to the preview, not floating text on the
-				# screen background.
+				# === Phase 3 — corner brackets (Westwood touch).
+				# Eight ColorBlocks composing four 12x12 L-marks in the four
+				# preview corners. Replace with a single corner-bracket sprite
+				# in Phase 8 if asset work happens. accent #B4B4B4.
+				ColorBlock@BRACKET_TL_H:
+					X: 8
+					Y: 8
+					Width: 12
+					Height: 2
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_TL_V:
+					X: 8
+					Y: 8
+					Width: 2
+					Height: 12
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_TR_H:
+					X: PARENT_WIDTH - 20
+					Y: 8
+					Width: 12
+					Height: 2
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_TR_V:
+					X: PARENT_WIDTH - 10
+					Y: 8
+					Width: 2
+					Height: 12
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_BL_H:
+					X: 8
+					Y: PARENT_HEIGHT - 60
+					Width: 12
+					Height: 2
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_BL_V:
+					X: 8
+					Y: PARENT_HEIGHT - 70
+					Width: 2
+					Height: 12
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_BR_H:
+					X: PARENT_WIDTH - 20
+					Y: PARENT_HEIGHT - 60
+					Width: 12
+					Height: 2
+					Color: B4B4B4FF
+				ColorBlock@BRACKET_BR_V:
+					X: PARENT_WIDTH - 10
+					Y: PARENT_HEIGHT - 70
+					Width: 2
+					Height: 12
+					Color: B4B4B4FF
+				# === Phase 3 — title strip
+				# Strip grew 30 → 50 to host BigBold 24 map name. Background
+				# colour swapped to bg-banner (#1C1C1C, fully opaque). The
+				# old 3px left accent stripe is repurposed as a 1px bevel-dark
+				# top edge of the strip (matches the panel-head bevel pattern).
 				ColorBlock@MAP_TITLE_STRIP:
-					Y: PARENT_HEIGHT - 30
+					Y: PARENT_HEIGHT - 50
 					Width: PARENT_WIDTH
-					Height: 30
-					Color: 14171CD0
+					Height: 50
+					Color: 1C1C1CFF
 				ColorBlock@MAP_TITLE_ACCENT:
 					X: 0
-					Y: PARENT_HEIGHT - 30
-					Width: 3
-					Height: 30
-					Color: 60D080FF
+					Y: PARENT_HEIGHT - 51
+					Width: PARENT_WIDTH
+					Height: 1
+					Color: 030303FF
 				LabelWithTooltip@MAP_TITLE:
-					X: 12
-					Y: PARENT_HEIGHT - 28
+					X: 14
+					Y: PARENT_HEIGHT - 42
 					Width: PARENT_WIDTH * 11 / 20
-					Height: 28
-					Font: Bold
+					Height: 36
+					Font: BigBold
 					Align: Left
+					TextColor: D4D4D4
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: SIMPLE_TOOLTIP
 		Container@MAP_SMALL:
@@ -68,24 +123,26 @@ Container@MAP_PREVIEW:
 			Width: PARENT_WIDTH
 			Height: PARENT_HEIGHT
 			Children:
-				# WW3MOD: pinned to the same 30px bottom strip as MAP_TITLE so the
-				# meta no longer floats over the preview image. Author on top,
-				# type below — both right-aligned next to the bold title on the left.
+				# WW3MOD: pinned to the bottom title strip (now 50px tall — see
+				# MAP_LARGE.MAP_TITLE_STRIP) so the meta lives alongside the
+				# BigBold map name on the right. Author on top, type below.
 				Label@MAP_AUTHOR:
 					X: PARENT_WIDTH * 11 / 20
-					Y: PARENT_HEIGHT - 28
-					Width: PARENT_WIDTH * 9 / 20 - 4
-					Height: 14
+					Y: PARENT_HEIGHT - 40
+					Width: PARENT_WIDTH * 9 / 20 - 14
+					Height: 16
 					Font: Tiny
 					Align: Right
+					TextColor: 969696
 					IgnoreMouseOver: true
 				Label@MAP_TYPE:
 					X: PARENT_WIDTH * 11 / 20
-					Y: PARENT_HEIGHT - 15
-					Width: PARENT_WIDTH * 9 / 20 - 4
-					Height: 14
+					Y: PARENT_HEIGHT - 22
+					Width: PARENT_WIDTH * 9 / 20 - 14
+					Height: 16
 					Font: TinyBold
 					Align: Right
+					TextColor: 686868
 					IgnoreMouseOver: true
 		Container@MAP_INCOMPATIBLE:
 			Width: PARENT_WIDTH
