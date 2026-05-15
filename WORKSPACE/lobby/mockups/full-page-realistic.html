@@ -101,20 +101,24 @@ header.doc code {
 /* corner brackets — purely cosmetic, drawn with 4 colorblocks per corner.
    In OpenRA these'd be a tiny 12×12 sprite or 4 ColorBlocks per corner. */
 .bracket {
-	position: absolute; width: 14px; height: 14px;
+	position: absolute; width: 12px; height: 12px;
 	pointer-events: none;
 }
 .bracket::before, .bracket::after {
 	content: ""; position: absolute; background: var(--amber);
 }
-.bracket.tl::before { top: 0; left: 0; width: 14px; height: 2px; }
-.bracket.tl::after  { top: 0; left: 0; width: 2px; height: 14px; }
-.bracket.tr::before { top: 0; right: 0; width: 14px; height: 2px; }
-.bracket.tr::after  { top: 0; right: 0; width: 2px; height: 14px; }
-.bracket.bl::before { bottom: 0; left: 0; width: 14px; height: 2px; }
-.bracket.bl::after  { bottom: 0; left: 0; width: 2px; height: 14px; }
-.bracket.br::before { bottom: 0; right: 0; width: 14px; height: 2px; }
-.bracket.br::after  { bottom: 0; right: 0; width: 2px; height: 14px; }
+.bracket.tl { top: 8px; left: 8px; }
+.bracket.tr { top: 8px; right: 8px; }
+.bracket.bl { bottom: 40px; left: 8px; }
+.bracket.br { bottom: 40px; right: 8px; }
+.bracket.tl::before { top: 0; left: 0; width: 12px; height: 2px; }
+.bracket.tl::after  { top: 0; left: 0; width: 2px; height: 12px; }
+.bracket.tr::before { top: 0; right: 0; width: 12px; height: 2px; }
+.bracket.tr::after  { top: 0; right: 0; width: 2px; height: 12px; }
+.bracket.bl::before { bottom: 0; left: 0; width: 12px; height: 2px; }
+.bracket.bl::after  { bottom: 0; left: 0; width: 2px; height: 12px; }
+.bracket.br::before { bottom: 0; right: 0; width: 12px; height: 2px; }
+.bracket.br::after  { bottom: 0; right: 0; width: 2px; height: 12px; }
 
 /* TOP BAR — back · title · status */
 .topbar {
@@ -122,7 +126,8 @@ header.doc code {
 	background: var(--bg-banner);
 	border-bottom: 1px solid var(--bevel-dark);
 	display: flex; align-items: center;
-	padding: 0 24px;
+	padding: 0 16px;
+	gap: 16px;
 }
 .topbar .back {
 	background: var(--bg-button);
@@ -134,11 +139,11 @@ header.doc code {
 	letter-spacing: 1.5px; text-transform: uppercase; font-weight: bold;
 }
 .topbar .title {
-	margin-left: 24px; color: var(--amber); font-size: 14px;
-	letter-spacing: 3px; text-transform: uppercase; font-weight: bold;
+	margin-left: 16px; color: var(--amber); font-size: 14px;
+	letter-spacing: 2.5px; text-transform: uppercase; font-weight: bold;
 	font-family: "ZoodRangmah", "FreeSans", serif;
 }
-.topbar .title .sub { color: var(--ink-3); margin-left: 14px; letter-spacing: 1px; font-weight: normal; }
+.topbar .title .sub { color: var(--ink-3); margin-left: 14px; letter-spacing: 0.8px; font-weight: normal; font-size: 12px; }
 .topbar .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .topbar .right .status {
 	color: var(--ink-2); font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
@@ -158,7 +163,7 @@ header.doc code {
 }
 
 /* BODY — 2x2 quadrant grid, pixel positioned */
-.body { position: absolute; top: 56px; left: 16px; right: 16px; bottom: 80px; }
+.body { position: absolute; top: 52px; left: 16px; right: 16px; bottom: 76px; }
 
 .panel {
 	position: absolute;
@@ -173,7 +178,7 @@ header.doc code {
 	background: var(--bg-banner);
 	border-bottom: 1px solid var(--bevel-dark);
 	display: flex; align-items: center;
-	padding: 0 16px;
+	padding: 0 14px;
 	position: relative;
 }
 .panel > .head .tabs { display: flex; gap: 24px; height: 100%; align-items: center; }
@@ -201,13 +206,13 @@ header.doc code {
 .q-map      { left: 0; top: 0; width: 720px; height: 480px; }
 
 /* BL — Settings */
-.q-settings { left: 0; top: 488px; right: 600px; bottom: 0; }
+.q-settings { left: 0; top: 490px; width: 720px; bottom: 0; }
 
 /* TR — Players (V5 style) */
-.q-players  { left: 728px; top: 0; width: 600px; height: 380px; }
+.q-players  { left: 730px; top: 0; right: 0; height: 380px; }
 
 /* BR — Chat */
-.q-chat     { left: 728px; top: 388px; right: 0; bottom: 0; }
+.q-chat     { left: 730px; top: 390px; right: 0; bottom: 0; }
 
 /* ---------- MAP PANEL ---------- */
 .q-map .body {
@@ -239,22 +244,22 @@ header.doc code {
 .spawn-marker.s-d { left: 540px; top: 370px; background: rgba(200,200,96,0.65); }
 
 .q-map .map-strip {
-	position: absolute; left: 0; right: 0; bottom: 0; height: 30px;
+	position: absolute; left: 0; right: 0; bottom: 0; height: 32px;
 	background: var(--bg-banner);
 	border-top: 1px solid var(--bevel-dark);
 	display: flex; align-items: center;
-	padding: 0 14px;
+	padding: 0 16px;
 }
 .q-map .map-strip .name { color: var(--ink); font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
 .q-map .map-strip .meta { margin-left: auto; color: var(--ink-3); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
 
 /* ---------- PLAYERS PANEL (V5 style — sized to real fonts) ---------- */
-.q-players .body { padding: 8px 0; overflow-y: auto; }
+.q-players .body { padding: 6px 0; overflow-y: auto; }
 .player-row {
 	display: grid;
 	grid-template-columns: 28px 40px 28px 1fr 36px;
-	gap: 16px; align-items: center;
-	padding: 9px 16px;
+	gap: 18px; align-items: center;
+	padding: 11px 18px;
 	border-bottom: 1px solid var(--line-soft);
 }
 .player-row:hover { background: var(--bg-row-hover); }
@@ -293,26 +298,26 @@ header.doc code {
 }
 .player-row.empty {
 	grid-template-columns: 1fr;
-	padding: 8px 16px;
+	padding: 9px 18px;
 }
-.player-row.empty .actions { display: flex; gap: 6px; align-items: center; }
+.player-row.empty .actions { display: flex; gap: 8px; align-items: center; }
 .player-row.empty .actions .ba {
 	background: var(--bg-button);
 	border-top: 1px solid var(--bevel-light);
 	border-left: 1px solid var(--bevel-light);
 	border-right: 1px solid var(--bevel-dark);
 	border-bottom: 1px solid var(--bevel-dark);
-	padding: 4px 12px; color: var(--ink-2); font-size: 11px;
-	letter-spacing: 1px; text-transform: uppercase;
+	padding: 6px 14px; color: var(--ink-2); font-size: 11px;
+	letter-spacing: 1.2px; text-transform: uppercase; font-weight: bold;
 }
 .player-row.empty .actions .ba.primary { color: var(--amber); }
 .player-row.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
 .player-row.spectator {
 	grid-template-columns: 28px 1fr;
-	gap: 16px;
-	border-top: 1px solid var(--line);
+	gap: 18px;
+	border-top: 1px solid var(--line-soft);
 	border-bottom: none;
-	margin-top: 4px; padding-top: 10px;
+	margin-top: 4px; padding-top: 11px;
 	color: var(--ink-3);
 }
 .player-row.spectator .color-block {
@@ -324,11 +329,11 @@ header.doc code {
 .player-row.spectator .name .tag { font-size: 10px; }
 
 /* ---------- SETTINGS PANEL (O3 hero grid, flat) ---------- */
-.q-settings .body { padding: 12px 14px; overflow-y: auto; }
+.q-settings .body { padding: 14px; overflow-y: auto; }
 .opt-grid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
-	gap: 6px;
+	gap: 8px;
 }
 .opt {
 	background: var(--bg-panel-2);
@@ -336,16 +341,16 @@ header.doc code {
 	border-left: 1px solid var(--bevel-light);
 	border-right: 1px solid var(--bevel-dark);
 	border-bottom: 1px solid var(--bevel-dark);
-	padding: 7px 10px;
-	height: 56px;
+	padding: 9px 12px;
+	height: 60px;
 	position: relative;
 }
 .opt .label {
-	font-size: 10px; color: var(--ink-3); letter-spacing: 1.5px;
+	font-size: 10px; color: var(--ink-3); letter-spacing: 1.2px;
 	text-transform: uppercase; font-weight: bold;
 }
 .opt .value {
-	font-size: 16px; color: var(--ink); font-weight: bold; margin-top: 4px;
+	font-size: 16px; color: var(--ink); font-weight: bold; margin-top: 6px;
 	letter-spacing: 0.3px;
 }
 .opt .value.amber { color: var(--amber); }
@@ -368,9 +373,9 @@ header.doc code {
 .q-chat .body { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .q-chat .messages {
 	flex: 1; overflow-y: auto;
-	padding: 10px 14px;
+	padding: 12px 14px;
 	font-size: 13px; color: var(--ink);
-	line-height: 1.55;
+	line-height: 1.6;
 }
 .q-chat .messages .msg { margin: 2px 0; }
 .q-chat .messages .msg .who { font-weight: bold; margin-right: 8px; }
@@ -381,7 +386,7 @@ header.doc code {
 .q-chat .messages .msg .ts { color: var(--ink-4); font-size: 10px; margin-right: 8px; font-family: ui-monospace, Menlo, monospace; }
 
 .q-chat .compose {
-	height: 36px;
+	height: 38px;
 	border-top: 1px solid var(--bevel-dark);
 	background: var(--bg-banner);
 	display: flex; align-items: stretch;
@@ -389,7 +394,7 @@ header.doc code {
 .q-chat .compose .mode {
 	display: flex; align-items: center;
 	padding: 0 14px; color: var(--amber);
-	font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold;
+	font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; font-weight: bold;
 	border-right: 1px solid var(--bevel-dark);
 }
 .q-chat .compose input {
@@ -397,20 +402,22 @@ header.doc code {
 	color: var(--ink); font-size: 13px; padding: 0 14px;
 	font-family: "FreeSans", Arial, sans-serif;
 }
+.q-chat .compose input::placeholder { color: var(--ink-4); }
 
 /* BOTTOM CTA BAR */
 .cta {
-	position: absolute; left: 0; right: 0; bottom: 0; height: 64px;
+	position: absolute; left: 0; right: 0; bottom: 0; height: 60px;
 	background: var(--bg-banner);
 	border-top: 1px solid var(--bevel-dark);
 	display: flex; align-items: center;
-	padding: 0 24px;
+	padding: 0 16px;
+	gap: 16px;
 }
-.cta .left, .cta .right { flex: 1; display: flex; align-items: center; gap: 16px; }
+.cta .left, .cta .right { flex: 1; display: flex; align-items: center; gap: 18px; }
 .cta .left .stat {
-	color: var(--ink-3); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+	color: var(--ink-3); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase;
 }
-.cta .left .stat b { color: var(--ink); margin-right: 4px; }
+.cta .left .stat b { color: var(--ink); margin-right: 5px; }
 .cta .right { justify-content: flex-end; }
 .cta .start {
 	background: var(--go);
@@ -418,9 +425,9 @@ header.doc code {
 	border-left: 1px solid #8eea9e;
 	border-right: 1px solid #2a6c38;
 	border-bottom: 1px solid #2a6c38;
-	color: #08110b; font-size: 16px; font-weight: bold;
-	letter-spacing: 3px; text-transform: uppercase;
-	padding: 12px 56px;
+	color: #08110b; font-size: 15px; font-weight: bold;
+	letter-spacing: 2.5px; text-transform: uppercase;
+	padding: 11px 44px;
 }
 .cta .ready-toggle {
 	background: var(--bg-button);
@@ -429,8 +436,8 @@ header.doc code {
 	border-right: 1px solid var(--bevel-dark);
 	border-bottom: 1px solid var(--bevel-dark);
 	color: var(--ink); font-size: 12px; font-weight: bold;
-	letter-spacing: 2px; text-transform: uppercase;
-	padding: 10px 22px;
+	letter-spacing: 1.8px; text-transform: uppercase;
+	padding: 11px 22px;
 }
 
 footer.foot {

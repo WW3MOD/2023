@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · lobby — color options (neutral)</title>
+<style>
+/*
+   Six palette options for the realistic lobby chrome. All grayscale-leaning
+   per direction. Each palette renders the same fragment (panel head + 3
+   player rows + 4 setting tiles + a CTA) so they can be eyeballed side-by-
+   side. Faction colors are intentionally muted across all options so the
+   chrome doesn't fight them.
+*/
+
+html, body { margin: 0; padding: 0; background: #050608; color: #d8dde4; }
+body { font: 13px/1.45 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+header.doc {
+	max-width: 1320px; margin: 24px auto 12px; padding: 0 32px;
+}
+header.doc h1 { margin: 0 0 4px; font-size: 22px; }
+header.doc p { margin: 6px 0; color: #9aa0aa; font-size: 13px; line-height: 1.6; max-width: 1000px; }
+header.doc code {
+	background: #15181d; padding: 1px 6px; color: #d4a44a;
+	font-size: 12px; font-family: ui-monospace, Menlo, monospace;
+}
+
+.options { max-width: 1320px; margin: 24px auto 60px; padding: 0 32px;
+	display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+}
+
+.opt-card {
+	background: #0a0c0f;
+	border: 1px solid #2a2f38;
+}
+.opt-card .meta {
+	padding: 14px 18px;
+	border-bottom: 1px solid #2a2f38;
+}
+.opt-card .meta h2 {
+	margin: 0 0 4px; font-size: 16px; color: #d8dde4;
+}
+.opt-card .meta h2 .tag {
+	font-size: 11px; color: #d4a44a; letter-spacing: 1.5px; font-weight: 600;
+	margin-right: 10px; vertical-align: 2px; text-transform: uppercase;
+}
+.opt-card .meta p {
+	margin: 0; color: #8a909a; font-size: 12px; line-height: 1.5;
+}
+.opt-card .swatches {
+	display: flex; gap: 4px; padding: 10px 18px 14px;
+}
+.opt-card .swatches .sw {
+	width: 28px; height: 28px;
+	border: 1px solid rgba(255,255,255,0.05);
+	font-size: 8px; color: rgba(255,255,255,0.5);
+	display: flex; align-items: flex-end; justify-content: center;
+	padding-bottom: 1px; font-family: ui-monospace, Menlo, monospace;
+}
+.opt-card .preview {
+	font-family: "FreeSans", "Liberation Sans", Arial, sans-serif;
+	-webkit-font-smoothing: none;
+}
+
+/* ============================================================
+   Shared structure used by each preview (palette overrides via CSS vars)
+   ============================================================ */
+.preview {
+	background: var(--bg-app);
+	padding: 14px;
+}
+.preview .panel {
+	background: var(--bg-panel);
+	border-top: 1px solid var(--bevel-light);
+	border-left: 1px solid var(--bevel-light);
+	border-right: 1px solid var(--bevel-dark);
+	border-bottom: 1px solid var(--bevel-dark);
+	margin-bottom: 12px;
+}
+.preview .panel-head {
+	height: 32px;
+	background: var(--bg-banner);
+	border-bottom: 1px solid var(--bevel-dark);
+	display: flex; align-items: center;
+	padding: 0 12px;
+}
+.preview .panel-head .tab {
+	font-size: 11px; color: var(--ink-3);
+	letter-spacing: 1.8px; text-transform: uppercase; font-weight: bold;
+	height: 100%; display: flex; align-items: center;
+	padding: 0; margin-right: 18px;
+	border-bottom: 2px solid transparent;
+}
+.preview .panel-head .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.preview .panel-head .right { margin-left: auto; font-size: 10px; color: var(--ink-3); letter-spacing: 1.2px; text-transform: uppercase; }
+
+.preview .player-row {
+	display: grid;
+	grid-template-columns: 22px 32px 22px 1fr 26px;
+	gap: 14px; align-items: center;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--line-soft);
+}
+.preview .player-row .cb {
+	width: 22px; height: 22px;
+	border-top: 1px solid rgba(255,255,255,0.1);
+	border-left: 1px solid rgba(255,255,255,0.1);
+	border-right: 1px solid rgba(0,0,0,0.4);
+	border-bottom: 1px solid rgba(0,0,0,0.4);
+}
+.preview .player-row .flag {
+	width: 32px; height: 22px;
+	display: flex; align-items: center; justify-content: center;
+	color: #fff; font-size: 9px; font-weight: bold; letter-spacing: 1px;
+	border-top: 1px solid rgba(255,255,255,0.12);
+	border-left: 1px solid rgba(255,255,255,0.12);
+	border-right: 1px solid rgba(0,0,0,0.4);
+	border-bottom: 1px solid rgba(0,0,0,0.4);
+}
+.preview .player-row .flag.us { background: var(--us); }
+.preview .player-row .flag.ru { background: var(--ru); }
+.preview .player-row .spawn {
+	font-size: 14px; font-weight: bold; color: var(--ink); text-align: center;
+	font-family: ui-monospace, Menlo, monospace;
+}
+.preview .player-row .name {
+	font-size: 14px; font-weight: bold; color: var(--ink);
+}
+.preview .player-row .name .tag {
+	font-size: 10px; color: var(--ink-3); font-weight: normal; margin-left: 6px;
+	letter-spacing: 0.8px; text-transform: uppercase;
+}
+.preview .player-row .ready {
+	font-size: 14px; text-align: center; color: var(--go); font-weight: bold;
+}
+
+.preview .opt-grid {
+	display: grid; grid-template-columns: repeat(4, 1fr);
+	gap: 6px; padding: 10px;
+}
+.preview .opt-tile {
+	background: var(--bg-panel-2);
+	border-top: 1px solid var(--bevel-light);
+	border-left: 1px solid var(--bevel-light);
+	border-right: 1px solid var(--bevel-dark);
+	border-bottom: 1px solid var(--bevel-dark);
+	padding: 7px 9px;
+	height: 44px;
+}
+.preview .opt-tile .l {
+	font-size: 9px; color: var(--ink-3); letter-spacing: 1px;
+	text-transform: uppercase; font-weight: bold;
+}
+.preview .opt-tile .v {
+	font-size: 13px; color: var(--ink); font-weight: bold; margin-top: 4px;
+}
+.preview .opt-tile .v.accent { color: var(--accent); }
+
+.preview .cta {
+	display: flex; align-items: center; gap: 12px;
+	background: var(--bg-banner);
+	border-top: 1px solid var(--bevel-dark);
+	padding: 10px 14px;
+}
+.preview .cta .stat {
+	color: var(--ink-3); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase;
+}
+.preview .cta .stat b { color: var(--ink); margin-right: 4px; }
+.preview .cta .right { margin-left: auto; display: flex; gap: 10px; }
+.preview .cta .ready-btn {
+	background: var(--bg-button);
+	border-top: 1px solid var(--bevel-light);
+	border-left: 1px solid var(--bevel-light);
+	border-right: 1px solid var(--bevel-dark);
+	border-bottom: 1px solid var(--bevel-dark);
+	color: var(--ink); font-size: 10px; letter-spacing: 1.4px;
+	text-transform: uppercase; font-weight: bold;
+	padding: 7px 14px;
+}
+.preview .cta .start-btn {
+	background: var(--go);
+	border-top: 1px solid var(--go-light);
+	border-left: 1px solid var(--go-light);
+	border-right: 1px solid var(--go-dark);
+	border-bottom: 1px solid var(--go-dark);
+	color: var(--go-text); font-size: 12px; font-weight: bold;
+	letter-spacing: 1.8px; text-transform: uppercase;
+	padding: 8px 24px;
+}
+
+/* ============================================================
+   PALETTE A — current (warm slate + amber accents)
+   ============================================================ */
+.palette-A {
+	--bg-app:        #0a0c0f;
+	--bg-panel:      #15181d;
+	--bg-panel-2:    #1a1e25;
+	--bg-banner:     #1c2028;
+	--bg-button:     #1f242c;
+	--bevel-light:   #3a4150;
+	--bevel-dark:    #060709;
+	--line:          #2a2f38;
+	--line-soft:     #1f242b;
+	--accent:        #d4a44a;
+	--ink:           #d8dde4;
+	--ink-2:         #9aa0aa;
+	--ink-3:         #6c7280;
+	--ink-4:         #444a55;
+	--us:            #5687c8;
+	--ru:            #c85656;
+	--go:            #5bc878;
+	--go-light:      #8eea9e;
+	--go-dark:       #2a6c38;
+	--go-text:       #08110b;
+}
+
+/* ============================================================
+   PALETTE B — pure grayscale (no warm/cool bias, neutral gray)
+   ============================================================ */
+.palette-B {
+	--bg-app:        #0c0c0c;
+	--bg-panel:      #1a1a1a;
+	--bg-panel-2:    #1f1f1f;
+	--bg-banner:     #232323;
+	--bg-button:     #262626;
+	--bevel-light:   #4a4a4a;
+	--bevel-dark:    #050505;
+	--line:          #2f2f2f;
+	--line-soft:     #232323;
+	--accent:        #c9c9c9;          /* white as accent — fully neutral */
+	--ink:           #e0e0e0;
+	--ink-2:         #9c9c9c;
+	--ink-3:         #6e6e6e;
+	--ink-4:         #424242;
+	--us:            #6f93b8;
+	--ru:            #b87070;
+	--go:            #7eb88a;
+	--go-light:      #a8d0b2;
+	--go-dark:       #355c3d;
+	--go-text:       #0c1410;
+}
+
+/* ============================================================
+   PALETTE C — cool slate + cool steel accent (no amber, no green warmth)
+   ============================================================ */
+.palette-C {
+	--bg-app:        #0b0d10;
+	--bg-panel:      #161a1f;
+	--bg-panel-2:    #1b2026;
+	--bg-banner:     #1e242c;
+	--bg-button:     #232931;
+	--bevel-light:   #3e4754;
+	--bevel-dark:    #050709;
+	--line:          #282e36;
+	--line-soft:     #1f242b;
+	--accent:        #a8b5c4;          /* steel / cool light blue-gray */
+	--ink:           #d8dde4;
+	--ink-2:         #98a0ac;
+	--ink-3:         #686f7c;
+	--ink-4:         #404754;
+	--us:            #6f93b8;
+	--ru:            #b87070;
+	--go:            #6ec890;
+	--go-light:      #98e0b4;
+	--go-dark:       #2a623a;
+	--go-text:       #0b110d;
+}
+
+/* ============================================================
+   PALETTE D — warm bone (Westwood concrete — beige/khaki neutral)
+   ============================================================ */
+.palette-D {
+	--bg-app:        #0d0c0a;
+	--bg-panel:      #1a1815;
+	--bg-panel-2:    #201d18;
+	--bg-banner:     #25221d;
+	--bg-button:     #292621;
+	--bevel-light:   #4a4538;
+	--bevel-dark:    #060504;
+	--line:          #2c2823;
+	--line-soft:     #221f1a;
+	--accent:        #c5b58a;          /* bone / parchment */
+	--ink:           #e2dfd6;
+	--ink-2:         #a09a8a;
+	--ink-3:         #6e695c;
+	--ink-4:         #443f36;
+	--us:            #6f93b8;
+	--ru:            #b87070;
+	--go:            #7ab880;
+	--go-light:      #a4d4a8;
+	--go-dark:       #2a5a30;
+	--go-text:       #0c1410;
+}
+
+/* ============================================================
+   PALETTE E — dark olive (military neutral, slight green-gray)
+   ============================================================ */
+.palette-E {
+	--bg-app:        #0b0d0b;
+	--bg-panel:      #161a16;
+	--bg-panel-2:    #1b201b;
+	--bg-banner:     #1d231d;
+	--bg-button:     #222822;
+	--bevel-light:   #3e4a3e;
+	--bevel-dark:    #050605;
+	--line:          #282e28;
+	--line-soft:     #1f231f;
+	--accent:        #b8c5a8;          /* dusty olive accent */
+	--ink:           #d8ddd4;
+	--ink-2:         #989c90;
+	--ink-3:         #686f64;
+	--ink-4:         #404640;
+	--us:            #6f93b8;
+	--ru:            #b87070;
+	--go:            #88c890;
+	--go-light:      #b0e0b8;
+	--go-dark:       #2c5e34;
+	--go-text:       #0b110b;
+}
+
+/* ============================================================
+   PALETTE F — paper-on-black (sharp white accent, mostly black)
+   ============================================================ */
+.palette-F {
+	--bg-app:        #050505;
+	--bg-panel:      #111111;
+	--bg-panel-2:    #161616;
+	--bg-banner:     #1c1c1c;
+	--bg-button:     #1f1f1f;
+	--bevel-light:   #404040;
+	--bevel-dark:    #000000;
+	--line:          #262626;
+	--line-soft:     #1a1a1a;
+	--accent:        #f0f0f0;          /* pure white as accent */
+	--ink:           #e8e8e8;
+	--ink-2:         #989898;
+	--ink-3:         #5e5e5e;
+	--ink-4:         #383838;
+	--us:            #6f93b8;
+	--ru:            #b87070;
+	--go:            #6ec880;
+	--go-light:      #98e0a8;
+	--go-dark:       #2a6234;
+	--go-text:       #050a07;
+}
+
+footer.foot {
+	text-align: center; color: #444a55; font-size: 11px;
+	padding: 24px 0 60px;
+}
+</style>
+</head>
+<body>
+
+<header class="doc">
+	<h1>Lobby chrome — color options (all neutral / grayscale-leaning)</h1>
+	<p>Six palettes applied to the same lobby fragment so they can be
+	compared head-to-head. All keep the bevel mechanic, the panel
+	geometry, and the V5 player rows — only the colors change. Faction
+	colors are pulled toward muted versions across every palette so the
+	chrome doesn't compete with team identity.</p>
+	<p>The CTA button stays green in every option (the only "go" signal
+	on the page); ready ticks share that green. Everything else is the
+	palette's neutral.</p>
+</header>
+
+<div class="options">
+
+<!-- ============================================================
+     A — current (warm slate + amber)
+     ============================================================ -->
+<div class="opt-card">
+	<div class="meta">
+		<h2><span class="tag">A</span>Warm slate · amber accent <span style="color:#d4a44a;font-size:11px;">(current)</span></h2>
+		<p>Slate panels with a Westwood-amber accent on tabs, links, and headers. Most "tactical-radio" feel. Amber and green coexist (amber = info, green = go).</p>
+	</div>
+	<div class="swatches">
+		<div class="sw" style="background:#0a0c0f;">bg</div>
+		<div class="sw" style="background:#15181d;">pnl</div>
+		<div class="sw" style="background:#1c2028;">bnr</div>
+		<div class="sw" style="background:#3a4150;">bvl</div>
+		<div class="sw" style="background:#d4a44a;color:#000;">acc</div>
+		<div class="sw" style="background:#5bc878;color:#000;">go</div>
+	</div>
+	<div class="preview palette-A">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="tab active">Players</div>
+				<div class="tab">Allies</div>
+				<div class="right">+ Add bot</div>
+			</div>
+			<div class="player-row"><div class="cb" style="background:#6ed68a"></div><div class="flag us">US</div><div class="spawn">D</div><div class="name">FreadyFish</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#b878d8"></div><div class="flag ru">RU</div><div class="spawn">B</div><div class="name">CmdrBambi</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#c8c860"></div><div class="flag us">US</div><div class="spawn">A</div><div class="name">V2 AI<span class="tag">Experimental</span></div><div class="ready">✓</div></div>
+		</div>
+		<div class="panel">
+			<div class="panel-head"><div class="tab active">Settings</div><div class="tab">Music</div></div>
+			<div class="opt-grid">
+				<div class="opt-tile"><div class="l">Cash</div><div class="v accent">$5,000</div></div>
+				<div class="opt-tile"><div class="l">Tech</div><div class="v">Medium</div></div>
+				<div class="opt-tile"><div class="l">Crates</div><div class="v">Off</div></div>
+				<div class="opt-tile"><div class="l">Fog</div><div class="v">Standard</div></div>
+			</div>
+		</div>
+		<div class="cta">
+			<div class="stat"><b>2/2</b>Ready</div>
+			<div class="stat"><b>2</b>Bots</div>
+			<div class="right">
+				<div class="ready-btn">✓ Ready</div>
+				<div class="start-btn">▶ Start</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================
+     B — pure grayscale
+     ============================================================ -->
+<div class="opt-card">
+	<div class="meta">
+		<h2><span class="tag">B</span>Pure grayscale · white accent</h2>
+		<p>No color bias at all — neutral grays from black to white. Accent is light gray/white. Most minimal; lets faction colors and the green CTA do all the visual work.</p>
+	</div>
+	<div class="swatches">
+		<div class="sw" style="background:#0c0c0c;">bg</div>
+		<div class="sw" style="background:#1a1a1a;">pnl</div>
+		<div class="sw" style="background:#232323;">bnr</div>
+		<div class="sw" style="background:#4a4a4a;">bvl</div>
+		<div class="sw" style="background:#c9c9c9;color:#000;">acc</div>
+		<div class="sw" style="background:#7eb88a;color:#000;">go</div>
+	</div>
+	<div class="preview palette-B">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="tab active">Players</div>
+				<div class="tab">Allies</div>
+				<div class="right">+ Add bot</div>
+			</div>
+			<div class="player-row"><div class="cb" style="background:#6ed68a"></div><div class="flag us">US</div><div class="spawn">D</div><div class="name">FreadyFish</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#b878d8"></div><div class="flag ru">RU</div><div class="spawn">B</div><div class="name">CmdrBambi</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#c8c860"></div><div class="flag us">US</div><div class="spawn">A</div><div class="name">V2 AI<span class="tag">Experimental</span></div><div class="ready">✓</div></div>
+		</div>
+		<div class="panel">
+			<div class="panel-head"><div class="tab active">Settings</div><div class="tab">Music</div></div>
+			<div class="opt-grid">
+				<div class="opt-tile"><div class="l">Cash</div><div class="v accent">$5,000</div></div>
+				<div class="opt-tile"><div class="l">Tech</div><div class="v">Medium</div></div>
+				<div class="opt-tile"><div class="l">Crates</div><div class="v">Off</div></div>
+				<div class="opt-tile"><div class="l">Fog</div><div class="v">Standard</div></div>
+			</div>
+		</div>
+		<div class="cta">
+			<div class="stat"><b>2/2</b>Ready</div>
+			<div class="stat"><b>2</b>Bots</div>
+			<div class="right">
+				<div class="ready-btn">✓ Ready</div>
+				<div class="start-btn">▶ Start</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================
+     C — cool slate + steel
+     ============================================================ -->
+<div class="opt-card">
+	<div class="meta">
+		<h2><span class="tag">C</span>Cool slate · steel accent</h2>
+		<p>Slightly cooler than A — slate-blue panels with a desaturated steel-gray accent. Reads quieter, more "command-center" than "field-radio".</p>
+	</div>
+	<div class="swatches">
+		<div class="sw" style="background:#0b0d10;">bg</div>
+		<div class="sw" style="background:#161a1f;">pnl</div>
+		<div class="sw" style="background:#1e242c;">bnr</div>
+		<div class="sw" style="background:#3e4754;">bvl</div>
+		<div class="sw" style="background:#a8b5c4;color:#000;">acc</div>
+		<div class="sw" style="background:#6ec890;color:#000;">go</div>
+	</div>
+	<div class="preview palette-C">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="tab active">Players</div>
+				<div class="tab">Allies</div>
+				<div class="right">+ Add bot</div>
+			</div>
+			<div class="player-row"><div class="cb" style="background:#6ed68a"></div><div class="flag us">US</div><div class="spawn">D</div><div class="name">FreadyFish</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#b878d8"></div><div class="flag ru">RU</div><div class="spawn">B</div><div class="name">CmdrBambi</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#c8c860"></div><div class="flag us">US</div><div class="spawn">A</div><div class="name">V2 AI<span class="tag">Experimental</span></div><div class="ready">✓</div></div>
+		</div>
+		<div class="panel">
+			<div class="panel-head"><div class="tab active">Settings</div><div class="tab">Music</div></div>
+			<div class="opt-grid">
+				<div class="opt-tile"><div class="l">Cash</div><div class="v accent">$5,000</div></div>
+				<div class="opt-tile"><div class="l">Tech</div><div class="v">Medium</div></div>
+				<div class="opt-tile"><div class="l">Crates</div><div class="v">Off</div></div>
+				<div class="opt-tile"><div class="l">Fog</div><div class="v">Standard</div></div>
+			</div>
+		</div>
+		<div class="cta">
+			<div class="stat"><b>2/2</b>Ready</div>
+			<div class="stat"><b>2</b>Bots</div>
+			<div class="right">
+				<div class="ready-btn">✓ Ready</div>
+				<div class="start-btn">▶ Start</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================
+     D — warm bone
+     ============================================================ -->
+<div class="opt-card">
+	<div class="meta">
+		<h2><span class="tag">D</span>Warm bone · parchment accent</h2>
+		<p>Faintly warm grays with a bone/parchment accent — closer to original Westwood "concrete & paper" UI. Minimal but with a vintage edge.</p>
+	</div>
+	<div class="swatches">
+		<div class="sw" style="background:#0d0c0a;">bg</div>
+		<div class="sw" style="background:#1a1815;">pnl</div>
+		<div class="sw" style="background:#25221d;">bnr</div>
+		<div class="sw" style="background:#4a4538;">bvl</div>
+		<div class="sw" style="background:#c5b58a;color:#000;">acc</div>
+		<div class="sw" style="background:#7ab880;color:#000;">go</div>
+	</div>
+	<div class="preview palette-D">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="tab active">Players</div>
+				<div class="tab">Allies</div>
+				<div class="right">+ Add bot</div>
+			</div>
+			<div class="player-row"><div class="cb" style="background:#6ed68a"></div><div class="flag us">US</div><div class="spawn">D</div><div class="name">FreadyFish</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#b878d8"></div><div class="flag ru">RU</div><div class="spawn">B</div><div class="name">CmdrBambi</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#c8c860"></div><div class="flag us">US</div><div class="spawn">A</div><div class="name">V2 AI<span class="tag">Experimental</span></div><div class="ready">✓</div></div>
+		</div>
+		<div class="panel">
+			<div class="panel-head"><div class="tab active">Settings</div><div class="tab">Music</div></div>
+			<div class="opt-grid">
+				<div class="opt-tile"><div class="l">Cash</div><div class="v accent">$5,000</div></div>
+				<div class="opt-tile"><div class="l">Tech</div><div class="v">Medium</div></div>
+				<div class="opt-tile"><div class="l">Crates</div><div class="v">Off</div></div>
+				<div class="opt-tile"><div class="l">Fog</div><div class="v">Standard</div></div>
+			</div>
+		</div>
+		<div class="cta">
+			<div class="stat"><b>2/2</b>Ready</div>
+			<div class="stat"><b>2</b>Bots</div>
+			<div class="right">
+				<div class="ready-btn">✓ Ready</div>
+				<div class="start-btn">▶ Start</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================
+     E — dark olive
+     ============================================================ -->
+<div class="opt-card">
+	<div class="meta">
+		<h2><span class="tag">E</span>Dark olive · dusty accent</h2>
+		<p>Faint green tint in the grays — military "ammo crate" neutral. Accent is dusty olive. Most explicitly "military" without going hard tactical.</p>
+	</div>
+	<div class="swatches">
+		<div class="sw" style="background:#0b0d0b;">bg</div>
+		<div class="sw" style="background:#161a16;">pnl</div>
+		<div class="sw" style="background:#1d231d;">bnr</div>
+		<div class="sw" style="background:#3e4a3e;">bvl</div>
+		<div class="sw" style="background:#b8c5a8;color:#000;">acc</div>
+		<div class="sw" style="background:#88c890;color:#000;">go</div>
+	</div>
+	<div class="preview palette-E">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="tab active">Players</div>
+				<div class="tab">Allies</div>
+				<div class="right">+ Add bot</div>
+			</div>
+			<div class="player-row"><div class="cb" style="background:#6ed68a"></div><div class="flag us">US</div><div class="spawn">D</div><div class="name">FreadyFish</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#b878d8"></div><div class="flag ru">RU</div><div class="spawn">B</div><div class="name">CmdrBambi</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#c8c860"></div><div class="flag us">US</div><div class="spawn">A</div><div class="name">V2 AI<span class="tag">Experimental</span></div><div class="ready">✓</div></div>
+		</div>
+		<div class="panel">
+			<div class="panel-head"><div class="tab active">Settings</div><div class="tab">Music</div></div>
+			<div class="opt-grid">
+				<div class="opt-tile"><div class="l">Cash</div><div class="v accent">$5,000</div></div>
+				<div class="opt-tile"><div class="l">Tech</div><div class="v">Medium</div></div>
+				<div class="opt-tile"><div class="l">Crates</div><div class="v">Off</div></div>
+				<div class="opt-tile"><div class="l">Fog</div><div class="v">Standard</div></div>
+			</div>
+		</div>
+		<div class="cta">
+			<div class="stat"><b>2/2</b>Ready</div>
+			<div class="stat"><b>2</b>Bots</div>
+			<div class="right">
+				<div class="ready-btn">✓ Ready</div>
+				<div class="start-btn">▶ Start</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================
+     F — paper on black
+     ============================================================ -->
+<div class="opt-card">
+	<div class="meta">
+		<h2><span class="tag">F</span>Paper on black · sharp white</h2>
+		<p>Almost black backgrounds with crisp white accents. Highest contrast, most cinematic. Risks feeling cold but pulls focus to the map and player rows hard.</p>
+	</div>
+	<div class="swatches">
+		<div class="sw" style="background:#050505;">bg</div>
+		<div class="sw" style="background:#111111;">pnl</div>
+		<div class="sw" style="background:#1c1c1c;">bnr</div>
+		<div class="sw" style="background:#404040;">bvl</div>
+		<div class="sw" style="background:#f0f0f0;color:#000;">acc</div>
+		<div class="sw" style="background:#6ec880;color:#000;">go</div>
+	</div>
+	<div class="preview palette-F">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="tab active">Players</div>
+				<div class="tab">Allies</div>
+				<div class="right">+ Add bot</div>
+			</div>
+			<div class="player-row"><div class="cb" style="background:#6ed68a"></div><div class="flag us">US</div><div class="spawn">D</div><div class="name">FreadyFish</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#b878d8"></div><div class="flag ru">RU</div><div class="spawn">B</div><div class="name">CmdrBambi</div><div class="ready">✓</div></div>
+			<div class="player-row"><div class="cb" style="background:#c8c860"></div><div class="flag us">US</div><div class="spawn">A</div><div class="name">V2 AI<span class="tag">Experimental</span></div><div class="ready">✓</div></div>
+		</div>
+		<div class="panel">
+			<div class="panel-head"><div class="tab active">Settings</div><div class="tab">Music</div></div>
+			<div class="opt-grid">
+				<div class="opt-tile"><div class="l">Cash</div><div class="v accent">$5,000</div></div>
+				<div class="opt-tile"><div class="l">Tech</div><div class="v">Medium</div></div>
+				<div class="opt-tile"><div class="l">Crates</div><div class="v">Off</div></div>
+				<div class="opt-tile"><div class="l">Fog</div><div class="v">Standard</div></div>
+			</div>
+		</div>
+		<div class="cta">
+			<div class="stat"><b>2/2</b>Ready</div>
+			<div class="stat"><b>2</b>Bots</div>
+			<div class="right">
+				<div class="ready-btn">✓ Ready</div>
+				<div class="start-btn">▶ Start</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+</div>
+
+<footer class="foot">
+	Pick one (or call out a mix — e.g. "B grays with D's accent", "C with the warmer panel of A"). The full mockup uses palette A right now.
+</footer>
+
+</body>
+</html>
+</content>
+</invoke>
