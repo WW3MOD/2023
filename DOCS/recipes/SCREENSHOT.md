@@ -109,6 +109,48 @@ With `--wait`, the CLI polls `manifest.json` until the new entry appears and pri
 
 ---
 
+## Mode 4 — Direct lobby capture (no human in the loop)
+
+For iterating on the skirmish lobby YAML — palette, layout, dropdowns, etc. — without clicking through Singleplayer → Skirmish each time. The game launches, lands straight in the lobby with a real map loaded, snaps one PNG, and exits cleanly.
+
+```bash
+./tools/autotest/screenshot-lobby.sh <label>
+# Prints: /Users/.../manual_lobby_<run-id>/001_<label>.png
+```
+
+Round trip on a warm cache is ~10–15s; on a cold launch closer to 20s. The captured frame shows the same view a human gets after picking Skirmish: map preview, player rows, options grid, chat, and the green Start Game button.
+
+### Options
+
+| Flag | Meaning |
+|---|---|
+| `--map=<id>` | Override the seed map. Resolves against MapPreview title (`"River Zeta WW3"`), package folder (`river-zeta-ww3`), or Uid. Default: `river-zeta-ww3`. |
+| `--tab=<name>` | Land on a non-default lobby tab. `match` (default), `advanced`, `music`. Wired through to `Test.OpenLobbyTab`. |
+| `--no-quit` | Leave the game running after the capture. Useful while iterating: fire follow-up shots with `tools/autotest/screenshot.sh <next-label> --wait` against the same run dir. |
+| `--timeout=<sec>` | Per-phase timeout (lobby-ready wait, manifest wait, quit wait). Default: 30. |
+
+### How it works
+
+`screenshot-lobby.sh` launches with three lobby-aware test args on top of the existing Mode 2 plumbing:
+
+- `Test.OpenSkirmishLobby=true` — `MainMenuLogic` calls `StartSkirmishGame` straight after the menu loads (no Singleplayer click required).
+- `Test.LaunchLobbyMap=<id>` — `MainMenuLogic.StartSkirmishGame` seeds the lobby with this map instead of whatever the user happens to have last-played. Resolves against `MapPreview.Title`, the package folder name, or the raw Uid.
+- `Test.LobbyReadyFile=<path>` — `LobbyLogic.Tick` touches this file once `MapIsPlayable` becomes true. The wrapper polls for the marker instead of blind-sleeping, so slow machines don't trip the screenshot before the map preview has resolved.
+
+Capture and exit go through the same cmd-file watcher Mode 2 uses; `quit` is a new verb that calls `Game.Exit` via `RunAfterTick`, so the active `LogicTick` unwinds cleanly before teardown.
+
+### What got added
+
+| Path | Role |
+|---|---|
+| `engine/OpenRA.Game/TestMode.cs` | `OpenSkirmishLobby`, `LaunchLobbyMap`, `LobbyReadyFile`, `OpenLobbyTab` launch-arg properties |
+| `engine/OpenRA.Game/TestModeScreenshots.cs` | `quit` command handler in `PollCommands` |
+| `engine/OpenRA.Mods.Common/Widgets/Logic/MainMenuLogic.cs` | Auto-clicks through to skirmish; `ResolveLobbyMapId` lookup |
+| `engine/OpenRA.Mods.Common/Widgets/Logic/Lobby/LobbyLogic.cs` | Writes the `LobbyReadyFile` marker once per lobby load |
+| `tools/autotest/screenshot-lobby.sh` | The wrapper script |
+
+---
+
 ## Evaluation contract
 
 How I decide whether a screenshot shows what it should:
@@ -165,6 +207,7 @@ How I decide whether a screenshot shows what it should:
 | `tools/autotest/run-test.sh` | Passes `Test.ScreenshotDir=...`; lists captured PNGs post-run |
 | `tools/autotest/screenshot.sh` | External CLI — write a command, optionally `--wait` for the path |
 | `tools/autotest/start-screenshot-mode.sh` | Launches the game with no `Launch.Map`, watcher enabled |
+| `tools/autotest/screenshot-lobby.sh` | Mode 4 — one-shot lobby capture, launches → lobby-ready → screenshot → quit |
 
 ---
 
