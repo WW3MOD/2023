@@ -921,8 +921,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 					if (isHost)
 					{
-						LobbyUtils.SetupEditableTeamWidget(template, slot, client, orderManager, map);
-						LobbyUtils.SetupEditableHandicapWidget(template, slot, client, orderManager);
 						LobbyUtils.SetupEditableSpawnWidget(template, slot, client, orderManager, map);
 						LobbyUtils.SetupPlayerActionWidget(template, client, orderManager, worldRenderer,
 							lobby, () => panel = PanelType.Kick, () => panel = PanelType.Players);
@@ -930,10 +928,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					else
 					{
 						LobbyUtils.SetupNameWidget(template, client, orderManager, worldRenderer, map);
-						LobbyUtils.SetupTeamWidget(template, client);
-						LobbyUtils.SetupHandicapWidget(template, client);
 						LobbyUtils.SetupSpawnWidget(template, client);
 					}
+
+					// Phase 5 — V5 row drops Team and Handicap. Widgets stay
+					// in the templates so other Get<>() calls resolve, but
+					// nothing unhides them so they never paint stray text.
+					LobbyUtils.HideChildWidget(template, "TEAM_DROPDOWN");
+					LobbyUtils.HideChildWidget(template, "HANDICAP_DROPDOWN");
+					LobbyUtils.HideChildWidget(template, "TEAM");
+					LobbyUtils.HideChildWidget(template, "HANDICAP");
 
 					LobbyUtils.SetupReadyWidget(template, client);
 				}

@@ -779,7 +779,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			HideChildWidget(parent, "STATUS_IMAGE");
 		}
 
-		static void HideChildWidget(Widget parent, string widgetId)
+		public static void HideChildWidget(Widget parent, string widgetId)
 		{
 			var widget = parent.GetOrNull(widgetId);
 			if (widget != null)
