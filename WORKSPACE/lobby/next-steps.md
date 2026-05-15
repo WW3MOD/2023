@@ -1,4 +1,11 @@
-# Lobby redesign — next steps
+# Lobby redesign — next steps  ⚠️ SUPERSEDED
+
+This doc is kept for historical reference. The current plan lives in
+[`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — phased port with
+risks and test plan. Read that instead.
+
+---
+
 
 What's left to do, in roughly the order it should happen.
 
