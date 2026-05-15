@@ -566,24 +566,30 @@ Container@LOBBY_PLAYER_BIN:
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
+						# === Phase 8 — Spectator row matches V5 column rhythm.
+						# Toggle is a small checkbox on the left in the color/flag/spawn
+						# zone; Spectate button takes the wider name column. Both align
+						# vertically with the player rows above.
 						Container@TEMPLATE_NEW_SPECTATOR:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 25
+							Height: 28
 							Visible: false
 							Children:
 								Checkbox@TOGGLE_SPECTATORS:
-									X: 15
-									Width: 300
-									Height: 20
+									X: 8
+									Y: 4
+									Width: 156
+									Height: 22
 									Font: Regular
 									Text: checkbox-lobby-players-new-spectator-toggle
 								Button@SPECTATE:
-									X: 320
-									Width: 580
-									Height: 25
+									X: 170
+									Y: 0
+									Width: 670
+									Height: 28
 									Text: button-lobby-players-spectate
-									Font: Regular
+									Font: Bold
 				Container@LOBBY_SETUP_ROW:
 					Logic: LobbySetupRowLogic
 					X: 12
@@ -682,7 +688,7 @@ Container@LOBBY_PLAYER_BIN:
 					X: 4
 					Y: 48
 					Width: PARENT_WIDTH - 8
-					Height: PARENT_HEIGHT - 140
+					Height: PARENT_HEIGHT - 170
 					Background: ""
 					ScrollBar: Right
 					Children:
@@ -819,16 +825,16 @@ Container@LOBBY_PLAYER_BIN:
 				# are anchored to PARENT_HEIGHT instead of hardcoded.
 				ColorBlock@RIGHT_DIVIDER_1:
 					X: 12
-					Y: PARENT_HEIGHT - 90
+					Y: PARENT_HEIGHT - 120
 					Width: PARENT_WIDTH - 24
 					Height: 1
 					Color: 030303FF
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: PARENT_HEIGHT - 84
+					Y: PARENT_HEIGHT - 114
 					Width: PARENT_WIDTH - 24
-					Height: 38
+					Height: 68
 					Children:
 						Label@EMPTY_HINT:
 							X: 10

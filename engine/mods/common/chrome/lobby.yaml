@@ -269,40 +269,49 @@ Background@SERVER_LOBBY:
 			Width: (PARENT_WIDTH - 64) / 2
 			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 192
 			Children:
-				# === Phase 8 — chat panel chrome (bg + bevel).
 				ColorBlock@CHAT_BG:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT
 					Color: 141414FF
 				ColorBlock@CHAT_BEVEL_TOP:
-					X: 0
-					Y: 0
 					Width: PARENT_WIDTH
 					Height: 1
 					Color: 3A3A3AFF
 				ColorBlock@CHAT_BEVEL_LEFT:
-					X: 0
-					Y: 0
 					Width: 1
 					Height: PARENT_HEIGHT
 					Color: 3A3A3AFF
 				ColorBlock@CHAT_BEVEL_RIGHT:
 					X: PARENT_WIDTH - 1
-					Y: 0
 					Width: 1
 					Height: PARENT_HEIGHT
 					Color: 030303FF
 				ColorBlock@CHAT_BEVEL_BOTTOM:
-					X: 0
 					Y: PARENT_HEIGHT - 1
 					Width: PARENT_WIDTH
 					Height: 1
 					Color: 030303FF
+				# === Phase 8 — CHAT header to match the OPTIONS / PLAYERS pattern.
+				Label@CHAT_LABEL:
+					X: 12
+					Y: 14
+					Width: PARENT_WIDTH - 24
+					Height: 20
+					Font: TinyBold
+					Align: Left
+					Text: CHAT
+					TextColor: B4B4B4
+				ColorBlock@CHAT_LABEL_ACCENT:
+					X: 12
+					Y: 38
+					Width: 28
+					Height: 2
+					Color: B4B4B4FF
 				ScrollPanel@CHAT_DISPLAY:
 					X: 6
-					Y: 6
+					Y: 48
 					Width: PARENT_WIDTH - 12
-					Height: PARENT_HEIGHT - 44
+					Height: PARENT_HEIGHT - 86
 					TopBottomSpacing: 2
 					ItemSpacing: 2
 				Button@CHAT_MODE:
