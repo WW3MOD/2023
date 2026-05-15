@@ -58,47 +58,48 @@ Container@LOBBY_PLAYER_BIN:
 					Width: 32
 					Height: 2
 					Color: B4B4B4FF
-				# === Phase 5 — V5 column headers
-				# Reordered + reduced: Color | Faction | Spawn | Name | Ready.
-				# Team and Handicap dropped from the header row (widgets in the
-				# data templates are kept for C# compatibility but width-zeroed).
+				# === Phase 9 — full-width V5 column headers.
+				# X positions match row-content X (relative to the row container at
+				# scroll-panel X:4 + row X:5 = absolute 9). LABEL_CONTAINER X:9 with
+				# Width: PARENT_WIDTH - 18 gives identical internal PARENT_WIDTH to
+				# the row template, so Name + Ready stretch to PARENT_WIDTH the same way.
 				Container@LABEL_CONTAINER:
-					X: 12
+					X: 9
 					Y: 48
-					Width: PARENT_WIDTH - 24
+					Width: PARENT_WIDTH - 18
 					Height: 20
 					Children:
 						Label@LABEL_LOBBY_COLOR:
-							X: 8
-							Width: 32
+							X: 4
+							Width: 50
 							Height: 20
 							Text: label-lobby-players-color
 							Align: Center
 							Font: TinyBold
 						Label@LABEL_LOBBY_FACTION:
-							X: 48
-							Width: 50
+							X: 62
+							Width: 84
 							Height: 20
 							Text: label-lobby-players-faction
 							Align: Center
 							Font: TinyBold
 						Label@LABEL_LOBBY_SPAWN:
-							X: 108
-							Width: 50
+							X: 154
+							Width: 64
 							Height: 20
 							Text: label-lobby-players-spawn
 							Align: Center
 							Font: TinyBold
 						Label@LABEL_LOBBY_NAME:
-							X: 170
-							Width: 670
+							X: 226
+							Width: PARENT_WIDTH - 290
 							Height: 20
 							Text: label-lobby-players-name
 							Align: Left
 							Font: TinyBold
 						Label@LABEL_LOBBY_STATUS:
-							X: 850
-							Width: 50
+							X: PARENT_WIDTH - 60
+							Width: 56
 							Height: 20
 							Text: label-lobby-players-ready
 							Align: Center
@@ -113,19 +114,20 @@ Container@LOBBY_PLAYER_BIN:
 					Background: ""
 					ScrollBar: Hidden
 					Children:
-						# === Phase 5 — V5 row (host's editable row).
-						# Columns: Color (X:8) · Faction-flag (X:48) · Spawn (X:108)
-						# · Name (X:170 wide) · Ready (X:850). Team and Handicap
-						# dropdowns kept at width 1 so C# can still address them.
+						# === Phase 9 — full-width V5 row (host's editable row).
+						# Columns: Color (X:4 W:50) · Flag (X:62 W:84) · Spawn (X:154 W:64)
+						# · Name (X:226, stretches to PARENT_WIDTH-64) · Ready (X:PW-60 W:56).
+						# Row height 28 → 40 for breathing room; flag image bumped 40x17 → 64x30.
+						# Team/Handicap dropdowns kept at X:-200 W:1 for C# back-compat.
 						Container@TEMPLATE_EDITABLE_PLAYER:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 28
+							Height: 40
 							Visible: false
 							Children:
 								Container@LATENCY:
 									X: -2
-									Y: 6
+									Y: 12
 									Width: 11
 									Height: 14
 									Visible: false
@@ -138,73 +140,74 @@ Container@LOBBY_PLAYER_BIN:
 								ClientTooltipRegion@LATENCY_REGION:
 									X: -2
 									Width: 11
-									Height: 25
+									Height: 40
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: LATENCY_TOOLTIP
 								DropDownButton@COLOR:
-									X: 8
-									Width: 32
-									Height: 28
+									X: 4
+									Width: 50
+									Height: 40
 									IgnoreChildMouseOver: true
 									Children:
 										ColorBlock@COLORBLOCK:
-											X: 3
-											Y: 3
-											Width: PARENT_WIDTH - 6
-											Height: PARENT_HEIGHT - 6
+											X: 4
+											Y: 4
+											Width: PARENT_WIDTH - 8
+											Height: PARENT_HEIGHT - 8
 								DropDownButton@FACTION:
-									X: 48
-									Width: 50
-									Height: 28
+									X: 62
+									Width: 84
+									Height: 40
 									IgnoreChildMouseOver: true
 									TooltipContainer: TOOLTIP_CONTAINER
 									PanelRoot: FACTION_DROPDOWN_PANEL_ROOT
 									Children:
 										Image@FACTIONFLAG:
-											X: 5
-											Y: 6
-											Width: 40
-											Height: 17
+											X: 10
+											Y: 5
+											Width: 64
+											Height: 30
 										Label@FACTIONNAME:
 											X: -200
 											Width: 1
 											Height: 1
 											Text: label-lobby-players-faction
 								DropDownButton@SPAWN_DROPDOWN:
-									X: 108
-									Width: 50
-									Height: 28
+									X: 154
+									Width: 64
+									Height: 40
+									Font: MediumBold
 									Text: label-lobby-players-spawn
 								TextField@NAME:
-									X: 170
-									Width: 670
-									Height: 28
+									X: 226
+									Width: PARENT_WIDTH - 290
+									Height: 40
 									Text: Name
-									LeftMargin: 8
+									LeftMargin: 10
 									MaxLength: 16
 									Font: MediumBold
 									Visible: false
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
-											X: 3
-											Y: 3
+											X: 4
+											Y: 12
 											Visible: false
 										ClientTooltipRegion@PROFILE_TOOLTIP:
-											X: 3
-											Y: 3
+											X: 4
+											Y: 12
 											Width: 16
 											Height: 16
 											TooltipContainer: TOOLTIP_CONTAINER
 											Template: ANONYMOUS_PLAYER_TOOLTIP
 								DropDownButton@SLOT_OPTIONS:
-									X: 170
-									Width: 670
-									Height: 28
+									X: 226
+									Width: PARENT_WIDTH - 290
+									Height: 40
 									Text: label-lobby-players-name
 									Font: MediumBold
 									Align: Left
-									LeftMargin: 8
+									LeftMargin: 10
 									Visible: false
 								DropDownButton@TEAM_DROPDOWN:
 									X: -200
@@ -218,28 +221,31 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									TooltipText: dropdownbutton-lobby-players-handicap-tooltip
 								Checkbox@STATUS_CHECKBOX:
-									X: 860
-									Y: 2
-									Width: 24
-									Height: 24
+									X: PARENT_WIDTH - 56
+									Y: 4
+									Width: 48
+									Height: 32
 									Visible: false
 								Image@STATUS_IMAGE:
-									X: 862
-									Y: 4
-									Width: 24
-									Height: 24
+									X: PARENT_WIDTH - 50
+									Y: 8
+									Width: 32
+									Height: 32
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
+						# === Phase 9 — full-width non-editable player row.
+						# Mirrors TEMPLATE_EDITABLE_PLAYER column positions exactly so
+						# the visual rhythm is consistent whether a row is host-edited or not.
 						Container@TEMPLATE_NONEDITABLE_PLAYER:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 28
+							Height: 40
 							Visible: false
 							Children:
 								Container@LATENCY:
 									X: -2
-									Y: 6
+									Y: 12
 									Width: 11
 									Height: 14
 									Visible: false
@@ -252,76 +258,76 @@ Container@LOBBY_PLAYER_BIN:
 								ClientTooltipRegion@LATENCY_REGION:
 									X: -2
 									Width: 11
-									Height: 28
+									Height: 40
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: LATENCY_TOOLTIP
 								Image@PROFILE:
 									ImageCollection: lobby-bits
-									X: 178
-									Y: 6
+									X: 234
+									Y: 12
 									Visible: false
 								ClientTooltipRegion@PROFILE_TOOLTIP:
-									X: 178
-									Y: 6
+									X: 234
+									Y: 12
 									Width: 16
 									Height: 16
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: ANONYMOUS_PLAYER_TOOLTIP
 								ColorBlock@COLORBLOCK:
-									X: 8
+									X: 4
 									Y: 0
-									Width: 32
-									Height: 28
-								Container@FACTION:
-									X: 48
 									Width: 50
-									Height: 28
+									Height: 40
+								Container@FACTION:
+									X: 62
+									Width: 84
+									Height: 40
 									Children:
 										Image@FACTIONFLAG:
-											X: 5
-											Y: 6
-											Width: 40
-											Height: 17
+											X: 10
+											Y: 5
+											Width: 64
+											Height: 30
 										Label@FACTIONNAME:
 											X: -200
 											Width: 1
 											Height: 1
 											Text: label-lobby-players-faction
 								Label@SPAWN:
-									X: 108
-									Width: 50
-									Height: 28
+									X: 154
+									Width: 64
+									Height: 40
 									Align: Center
 									Font: MediumBold
 								DropDownButton@SPAWN_DROPDOWN:
-									X: 108
-									Width: 50
-									Height: 28
+									X: 154
+									Width: 64
+									Height: 40
 									Font: MediumBold
 									Visible: false
 								Label@NAME:
-									X: 198
-									Width: 642
-									Height: 28
+									X: 254
+									Width: PARENT_WIDTH - 318
+									Height: 40
 									Font: MediumBold
 									Text: label-lobby-players-name
 								DropDownButton@PLAYER_ACTION:
-									X: 170
-									Width: 670
-									Height: 28
+									X: 226
+									Width: PARENT_WIDTH - 290
+									Height: 40
 									Font: MediumBold
 									Visible: false
 									Align: Left
-									LeftMargin: 28
+									LeftMargin: 34
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
-											X: 3
-											Y: 6
+											X: 5
+											Y: 12
 											Visible: false
 										ClientTooltipRegion@PROFILE_TOOLTIP:
-											X: 3
-											Y: 6
+											X: 5
+											Y: 12
 											Width: 16
 											Height: 16
 											TooltipContainer: TOOLTIP_CONTAINER
@@ -349,20 +355,22 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									TooltipText: dropdownbutton-lobby-players-handicap-tooltip
 								Image@STATUS_IMAGE:
-									X: 862
-									Y: 4
-									Width: 24
-									Height: 24
+									X: PARENT_WIDTH - 50
+									Y: 8
+									Width: 32
+									Height: 32
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
-						# === Phase 5 — V5 empty slot row.
-						# Three action buttons span the full row width (Play | Add bot
-						# | Close), no column structure. JOIN button is full-width too.
+						# === Phase 9 — V5 empty slot row, full-width.
+						# Three action buttons span the row in three even thirds.
+						# Play takes the left third (the primary "take this slot" CTA),
+						# Add bot fills the middle, Close anchors the right edge.
+						# JOIN and SLOT_OPTIONS use full row width when shown alone.
 						Container@TEMPLATE_EMPTY:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 28
+							Height: 40
 							Visible: false
 							Children:
 								ColorBlock@EMPTY_BG:
@@ -370,66 +378,71 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Color: 1A1A1A60
 								Label@NAME:
-									Width: 165
-									Height: 28
+									Width: 200
+									Height: 40
 									X: 20
 									Text: label-lobby-players-name
 									Visible: false
 								DropDownButton@SLOT_OPTIONS:
-									X: 170
-									Width: 670
-									Height: 28
+									X: 4
+									Width: PARENT_WIDTH - 8
+									Height: 36
+									Y: 2
 									Text: label-lobby-players-name
 									Visible: false
 								Button@PLAY:
-									X: 8
+									X: 4
 									Y: 2
-									Width: 160
-									Height: 24
+									Width: PARENT_WIDTH / 3 - 6
+									Height: 36
 									Font: Bold
 									Text: ▸ Play
 									TooltipText: Play in this slot
 									TooltipContainer: TOOLTIP_CONTAINER
 									Visible: false
 								Button@ADD_AI:
-									X: 172
+									X: PARENT_WIDTH / 3 + 2
 									Y: 2
-									Width: 200
-									Height: 24
+									Width: PARENT_WIDTH / 3 - 4
+									Height: 36
 									Font: Bold
 									Text: + Add bot
 									TooltipText: Add bot (faction can be picked on the row after)
 									TooltipContainer: TOOLTIP_CONTAINER
 									Visible: false
 								Button@TOGGLE_CLOSED:
-									X: 820
+									X: PARENT_WIDTH * 2 / 3 + 4
 									Y: 2
-									Width: 80
-									Height: 24
+									Width: PARENT_WIDTH / 3 - 8
+									Height: 36
 									Font: Bold
 									Text: Close
 									Visible: false
 								Button@JOIN:
-									X: 380
-									Width: 430
+									X: 4
+									Width: PARENT_WIDTH - 8
 									Y: 2
-									Height: 24
+									Height: 36
+									Font: Bold
 									Text: button-lobby-players-join
 								Label@CLOSED_LABEL:
 									X: 20
-									Width: 400
-									Height: 28
+									Width: PARENT_WIDTH - 40
+									Height: 40
 									Align: Left
 									Text: Closed
 									Visible: false
+						# === Phase 9 — full-width editable spectator row.
+						# Bigger TextField + status anchored to PARENT_WIDTH so
+						# the spectator slot lines up visually with the player rows above.
 						Container@TEMPLATE_EDITABLE_SPECTATOR:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 25
+							Height: 36
 							Visible: false
 							Children:
 								Container@LATENCY:
-									Y: 6
+									Y: 11
 									Width: 11
 									Height: 14
 									Visible: false
@@ -441,25 +454,26 @@ Container@LOBBY_PLAYER_BIN:
 											Height: PARENT_HEIGHT - 4
 								ClientTooltipRegion@LATENCY_REGION:
 									Width: 11
-									Height: 25
+									Height: 36
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: LATENCY_TOOLTIP
 								TextField@NAME:
 									X: 15
-									Width: 300
-									Height: 25
+									Width: 380
+									Height: 36
 									Text: Name
-									LeftMargin: 24
+									LeftMargin: 28
 									MaxLength: 16
+									Font: MediumBold
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
-											X: 3
-											Y: 3
+											X: 4
+											Y: 10
 											Visible: false
 										ClientTooltipRegion@PROFILE_TOOLTIP:
-											X: 3
-											Y: 3
+											X: 4
+											Y: 10
 											Width: 16
 											Height: 16
 											TooltipContainer: TOOLTIP_CONTAINER
@@ -468,34 +482,37 @@ Container@LOBBY_PLAYER_BIN:
 								# not an action. Left-aligned next to the name in a regular weight
 								# instead of bold-centered, which read like a column header.
 								Label@SPECTATOR:
-									X: 320
-									Width: 300
-									Height: 25
+									X: 405
+									Width: PARENT_WIDTH - 470
+									Height: 36
 									Text: label-lobby-players-spectator
 									Align: Left
 									Font: Regular
 								Checkbox@STATUS_CHECKBOX:
-									X: 865
-									Y: 0
-									Width: 24
-									Height: 24
+									X: PARENT_WIDTH - 56
+									Y: 2
+									Width: 48
+									Height: 32
 									Visible: false
 								Image@STATUS_IMAGE:
-									X: 867
-									Y: 2
-									Width: 24
-									Height: 24
+									X: PARENT_WIDTH - 50
+									Y: 6
+									Width: 32
+									Height: 32
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
+						# === Phase 9 — full-width non-editable spectator row.
+						# Same dimensions as TEMPLATE_EDITABLE_SPECTATOR so the column
+						# rhythm is consistent whether the local player is the host or a remote viewer.
 						Container@TEMPLATE_NONEDITABLE_SPECTATOR:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 25
+							Height: 36
 							Visible: false
 							Children:
 								Container@LATENCY:
-									Y: 6
+									Y: 11
 									Width: 11
 									Height: 14
 									Visible: false
@@ -507,43 +524,44 @@ Container@LOBBY_PLAYER_BIN:
 											Height: PARENT_HEIGHT - 4
 								ClientTooltipRegion@LATENCY_REGION:
 									Width: 11
-									Height: 25
+									Height: 36
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: LATENCY_TOOLTIP
 								Image@PROFILE:
 									ImageCollection: lobby-bits
-									X: 18
-									Y: 3
+									X: 22
+									Y: 10
 									Visible: false
 								ClientTooltipRegion@PROFILE_TOOLTIP:
-									X: 18
-									Y: 3
+									X: 22
+									Y: 10
 									Width: 16
 									Height: 16
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: ANONYMOUS_PLAYER_TOOLTIP
 								Label@NAME:
-									X: 39
-									Width: 281
-									Height: 25
+									X: 43
+									Width: 352
+									Height: 36
+									Font: MediumBold
 									Text: label-lobby-players-name
 								DropDownButton@PLAYER_ACTION:
 									X: 15
-									Width: 300
-									Height: 25
-									Font: Regular
+									Width: 380
+									Height: 36
+									Font: MediumBold
 									Visible: false
 									Align: Left
-									LeftMargin: 24
+									LeftMargin: 28
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
-											X: 3
-											Y: 3
+											X: 4
+											Y: 10
 											Visible: false
 										ClientTooltipRegion@PROFILE_TOOLTIP:
-											X: 3
-											Y: 3
+											X: 4
+											Y: 10
 											Width: 16
 											Height: 16
 											TooltipContainer: TOOLTIP_CONTAINER
@@ -552,42 +570,42 @@ Container@LOBBY_PLAYER_BIN:
 								# not an action. Left-aligned next to the name in a regular weight
 								# instead of bold-centered, which read like a column header.
 								Label@SPECTATOR:
-									X: 320
-									Width: 300
-									Height: 25
+									X: 405
+									Width: PARENT_WIDTH - 470
+									Height: 36
 									Text: label-lobby-players-spectator
 									Align: Left
 									Font: Regular
 								Image@STATUS_IMAGE:
-									X: 867
-									Y: 2
-									Width: 24
-									Height: 24
+									X: PARENT_WIDTH - 50
+									Y: 6
+									Width: 32
+									Height: 32
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
-						# === Phase 8 — Spectator row matches V5 column rhythm.
-						# Toggle is a small checkbox on the left in the color/flag/spawn
-						# zone; Spectate button takes the wider name column. Both align
-						# vertically with the player rows above.
+						# === Phase 9 — Spectator entry row, full width.
+						# Toggle sits in the Color+Flag column zone (X:4 W:214 to
+						# line up under the flag's right edge X:146). Spectate button
+						# stretches from X:226 (matches NAME column start) to PARENT_WIDTH-4.
 						Container@TEMPLATE_NEW_SPECTATOR:
 							X: 5
 							Width: PARENT_WIDTH - 10
-							Height: 28
+							Height: 40
 							Visible: false
 							Children:
 								Checkbox@TOGGLE_SPECTATORS:
-									X: 8
-									Y: 4
-									Width: 156
+									X: 4
+									Y: 9
+									Width: 214
 									Height: 22
 									Font: Regular
 									Text: checkbox-lobby-players-new-spectator-toggle
 								Button@SPECTATE:
-									X: 170
-									Y: 0
-									Width: 670
-									Height: 28
+									X: 226
+									Y: 2
+									Width: PARENT_WIDTH - 230
+									Height: 36
 									Text: button-lobby-players-spectate
 									Font: Bold
 				Container@LOBBY_SETUP_ROW:
