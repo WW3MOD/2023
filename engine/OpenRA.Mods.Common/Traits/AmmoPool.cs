@@ -304,7 +304,11 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				self.QueueActivity(false, new Resupply(self, nearestResupplier, nearestResupplier.Trait<RearmsUnits>().Info.CloseEnough));
+				// PITFALL: LOGISTICSCENTER is a SupplyProvider with DockedCondition (no RearmsUnits) — falls through here.
+				// Trait<RearmsUnits>() would crash; use the trait's CloseEnough if present, else dock-tight WDist.Zero.
+				var rearmsUnits = nearestResupplier.TraitOrDefault<RearmsUnits>();
+				var closeEnough = rearmsUnits != null ? rearmsUnits.Info.CloseEnough : WDist.Zero;
+				self.QueueActivity(false, new Resupply(self, nearestResupplier, closeEnough));
 			}
 			else
 			{
