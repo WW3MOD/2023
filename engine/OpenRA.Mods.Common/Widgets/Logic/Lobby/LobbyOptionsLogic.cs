@@ -358,7 +358,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (sectionOptions.Length == 0)
 					continue;
 
-				AddSectionHeader(section);
+				// Phase 8 — O3 flat: skip section headers in the All-category
+				// panel (the right-side COMMON_OPTIONS_PANEL). The Advanced tab
+				// keeps its headers because there's no other organising signal
+				// for those options.
+				if (category != CategoryAll)
+					AddSectionHeader(section);
 				RenderFlatOptions(sectionOptions);
 			}
 
