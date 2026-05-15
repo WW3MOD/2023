@@ -728,7 +728,7 @@ Container@LOBBY_PLAYER_BIN:
 					X: 4
 					Y: 48
 					Width: PARENT_WIDTH - 8
-					Height: PARENT_HEIGHT - 170
+					Height: 160
 					Background: ""
 					ScrollBar: Right
 					Children:
@@ -870,18 +870,23 @@ Container@LOBBY_PLAYER_BIN:
 				# RIGHT_COLUMN_MATCH used to be full-height (~884px); now it's
 				# bottom-left, ~346px. So divider/active-changes/preset Y values
 				# are anchored to PARENT_HEIGHT instead of hardcoded.
+				# Divider sits right after OPTIONS panel (160 tall, starts Y:48
+				# → ends Y:208). Active changes is sized for the typical 1–3
+				# chips case (40px). Excess vertical room goes between active
+				# changes and the preset bar — panel-bg space, less jarring
+				# than a gap inside one of the cards.
 				ColorBlock@RIGHT_DIVIDER_1:
 					X: 12
-					Y: PARENT_HEIGHT - 120
+					Y: 214
 					Width: PARENT_WIDTH - 24
 					Height: 1
 					Color: 030303FF
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: PARENT_HEIGHT - 114
+					Y: 220
 					Width: PARENT_WIDTH - 24
-					Height: 68
+					Height: 40
 					Children:
 						Label@EMPTY_HINT:
 							X: 10
