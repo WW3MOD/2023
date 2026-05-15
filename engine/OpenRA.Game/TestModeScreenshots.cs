@@ -209,6 +209,15 @@ namespace OpenRA
 					SaveManifest();
 					Log.Write("debug", $"[TestMode] external screenshot: {label} → {path}");
 				}
+				else if (string.Equals(line, "quit", StringComparison.OrdinalIgnoreCase))
+				{
+					// Defer to RunAfterTick so this LogicTick can unwind cleanly
+					// before Game.Exit tears down the world. The wrapper script is
+					// expected to have already waited for any pending screenshots
+					// to flush to disk before sending quit.
+					Log.Write("debug", "[TestMode] external quit");
+					Game.RunAfterTick(Game.Exit);
+				}
 				else
 				{
 					Log.Write("debug", $"[TestMode] unknown cmd: {line}");
