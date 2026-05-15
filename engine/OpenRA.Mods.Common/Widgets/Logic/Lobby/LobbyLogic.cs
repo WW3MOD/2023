@@ -264,14 +264,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				LobbyUtils.SetupKickSpectatorsWidget(spectateArea, orderManager, lobby,
 					() => panel = PanelType.Kick, () => panel = PanelType.Players, skirmishMode);
 
+				// PITFALL: orderManager.LocalClient is null during the early lobby tick
+				// (before the client registers, and again during disconnect teardown).
+				// Every lambda below runs every tick, so it MUST null-check first.
 				var spectateBtn = spectateArea.Get<ButtonWidget>("SPECTATE");
 				spectateBtn.OnClick = () => orderManager.IssueOrder(Order.Command("spectate"));
-				spectateBtn.IsDisabled = () => orderManager.LocalClient.IsReady;
+				spectateBtn.IsDisabled = () => orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
 				spectateBtn.IsVisible = () =>
+					orderManager.LocalClient != null &&
 					orderManager.LocalClient.Slot != null &&
 					(orderManager.LobbyInfo.GlobalSettings.AllowSpectators || orderManager.LocalClient.IsAdmin);
 
-				spectateArea.IsVisible = () => orderManager.LocalClient.Slot != null;
+				spectateArea.IsVisible = () => orderManager.LocalClient != null && orderManager.LocalClient.Slot != null;
 			}
 
 			// PITFALL: roster auto-expand depends on these widgets staying as direct
