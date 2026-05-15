@@ -28,13 +28,14 @@ Possibly:
 
 - [x] 0 — Palette doc + bevel convention (d46fcfaf)
 - [x] 1 — Top bar + CTA bar (7fe8744d)
-- [x] 2 — Settings hero grid (a0633ecf, then ac077dc2 reroute)
+- [x] 2 — Settings hero grid (a0633ecf + ac077dc2 reroute)
 - [x] 3 — Map panel + brackets (b2f4997c)
-- [~] 4 — Left column scroll — **DEFERRED.** Current layout is L=map+players+chat, R=options+changes+preset, not L=map+settings R=players+chat as the mockup. Restructure is high-risk and the existing arrangement works. Revisit if user explicitly wants the swap.
-- [x] 5 — Players V5 rows (e4a14d1d)
-- [ ] 6 — Inline map browse — **DEFERRED.** Existing Change Map button works; inline-swap is a UX nicety not a blocker. Revisit later.
+- [x] 4 — Layout swap — players to right, settings to bottom-left, chat to bottom-right (04baa003)
+- [x] 5 — Players V5 rows (e4a14d1d, 63d9629c team/handicap kill)
+- [ ] 6 — Inline map browse — **DEFERRED.** Existing Change Map button works.
 - [x] 7 — Chat restyle / notification palette (51350dd1)
-- [x] 8 — Polish (partial: O3 flat in 653e10b3; further polish opportunistic)
+- [x] 8 — Polish: O3 flat (653e10b3), Start Game green chrome (c6503e95),
+       opaque panel bg (cb9041c1), chat panel chrome (d17def8e)
 
 ## Notes
 
