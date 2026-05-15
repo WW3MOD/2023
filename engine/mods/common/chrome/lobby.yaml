@@ -258,16 +258,16 @@ Background@SERVER_LOBBY:
 			Height: 25
 			Font: Bold
 			Text: button-server-lobby-reset-options
-		# Chat — fits in the band between the LEFT_COLUMN_PLAYERS bottom edge
-		# (screen_H - 148, see LEFT_COLUMN_PLAYERS height calc in lobby-players)
-		# and the START_GAME bar (screen_H - 60). 80px tall instead of the old
-		# 64 — one extra row of context — without pushing into the players list
-		# or stealing the gap above Start Game.
+		# === Phase 4 — Chat moved from bottom-left to bottom-right.
+		# Sits under the players panel (LEFT_COLUMN_PLAYERS, now on the
+		# right side) and above the CTA bar. Takes the same width as the
+		# right column. Fills the vertical space from end-of-players to
+		# top-of-CTA so chat reads as a substantial pane, not a strip.
 		Container@LOBBYCHAT:
-			X: 24
-			Y: PARENT_HEIGHT - 148
+			X: PARENT_WIDTH / 2 + 32
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 + 8
 			Width: (PARENT_WIDTH - 64) / 2
-			Height: 80
+			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 192
 			Children:
 				ScrollPanel@CHAT_DISPLAY:
 					Width: PARENT_WIDTH

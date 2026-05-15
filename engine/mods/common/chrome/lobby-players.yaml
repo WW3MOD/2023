@@ -10,13 +10,17 @@ Container@LOBBY_PLAYER_BIN:
 		#   • LEFT_COLUMN_PLAYERS  — players list, full left-col width (always visible)
 		#   • RIGHT_COLUMN_MATCH   — match settings + active changes + preset (Match tab)
 
-		# LEFT column: players list. Map preview and chat are rendered at lobby-root
-		# level above and below this block.
+		# === Phase 4 — RIGHT column: players list (top 60% of right side).
+		# Was bottom-left; swapped to top-right per the locked design
+		# (mockups/full-page-realistic.html). Map stays top-left, settings
+		# moves under it, chat sits under players on the right.
+		# Widget ID kept as LEFT_COLUMN_PLAYERS for grep/back-compat —
+		# only the X/Y/H math moved.
 		Container@LEFT_COLUMN_PLAYERS:
-			X: 0
-			Y: PARENT_HEIGHT * 3 / 5 + 8
+			X: PARENT_WIDTH / 2 + 8
+			Y: 0
 			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT * 2 / 5 - 76
+			Height: PARENT_HEIGHT * 3 / 5 - 8
 			Children:
 				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
@@ -610,11 +614,14 @@ Container@LOBBY_PLAYER_BIN:
 		#   Y 544–832 LOBBY_ACTIVE_CHANGES (label is driven by the logic — "ACTIVE
 		#             CHANGES (N)" when populated, "All settings at default" otherwise)
 		#   Y 842–874 LOBBY_PRESET_BAR (anchored bottom via PARENT_HEIGHT - 42)
+		# === Phase 4 — LEFT column bottom: settings (under map preview).
+		# Was full-right; swapped to bottom-left per the locked design.
+		# Widget ID kept as RIGHT_COLUMN_MATCH for grep/back-compat.
 		Container@RIGHT_COLUMN_MATCH:
-			X: PARENT_WIDTH / 2 + 8
-			Y: 0
+			X: 0
+			Y: PARENT_HEIGHT * 3 / 5 + 8
 			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT
+			Height: PARENT_HEIGHT * 2 / 5 - 8
 			Children:
 				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
