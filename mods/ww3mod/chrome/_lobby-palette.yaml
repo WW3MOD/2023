@@ -1,0 +1,105 @@
+# Lobby chrome — canonical palette + conventions
+#
+# This file is documentation, not loaded by the game. It defines the
+# colour and bevel vocabulary used by every lobby widget. Reach for
+# these tokens when editing lobby.yaml / lobby-mappreview.yaml /
+# lobby-players.yaml / lobby-options.yaml. If a value isn't here,
+# check whether you should be using one — adding new ad-hoc colours
+# breaks the grayscale discipline.
+#
+# Source design: WORKSPACE/lobby/mockups/full-page-realistic.html
+# Implementation plan: WORKSPACE/lobby/IMPLEMENTATION_PLAN.md
+#
+# Pure grayscale. No hue. Faction colours and the "go" green are the
+# only chromatic exceptions, and they appear on identifiable elements
+# only (flag fills, ready ticks, Start Game button).
+
+# ===========================================================
+# COLOURS — reference these when editing widget Background /
+# Color / TextColor properties. ARGB hex, alpha first.
+# ===========================================================
+
+# Surfaces (panel/banner/button bodies)
+# bg-app           FF0a0a0a    outer fill behind panels (lobby root)
+# bg-panel         FF141414    panel body (Map / Players / Settings / Chat)
+# bg-panel-2       FF1a1a1a    inner card / option tile / row hover
+# bg-banner        FF1c1c1c    panel head, top bar, CTA bar, map title strip
+# bg-button        FF222222    button / pill / chip
+# bg-row-hover     FF222222    row hover state (same as button on purpose)
+
+# Bevel pair — every panel/button gets these as 1px lines on opposite edges
+# bevel-light      FF3a3a3a    top + left of every panel/button
+# bevel-dark       FF030303    bottom + right of every panel/button
+
+# Dividers
+# line             FF262626    main dividers (between sections)
+# line-soft        FF1d1d1d    row separators inside lists
+
+# Accent — light gray, no hue. Used for tabs (active), hyperlinks,
+# corner brackets, host badge, sys-event chip border.
+# accent           FFb4b4b4
+# accent-dim       FF6e6e6e
+
+# Text (ink scale)
+# ink              FFd4d4d4    primary text
+# ink-2            FF969696    secondary text
+# ink-3            FF686868    inactive tabs, meta labels
+# ink-4            FF404040    placeholders, disabled
+
+# "Go" — reserved for ready ticks and Start Game button only.
+# Never use go-* on regular chrome.
+# go               FF6ec890    fill (Start Game body, ready tick)
+# go-light         FF98e0b4    Start Game top + left bevel
+# go-dark          FF2a623a    Start Game bottom + right bevel
+# go-text          FF0b110d    text on Start Game
+
+# Faction colours — flag fills and faction-text-coloured chat handles
+# us               FF6f93b8
+# us-bg            FF16212c
+# ru               FFb87070
+# ru-bg            FF261616
+
+# ===========================================================
+# BEVEL CONVENTION
+# ===========================================================
+#
+# Every panel and button uses the SAME bevel:
+#   top    edge: 1px ColorBlock at bevel-light  (FF3a3a3a)
+#   left   edge: 1px ColorBlock at bevel-light  (FF3a3a3a)
+#   right  edge: 1px ColorBlock at bevel-dark   (FF030303)
+#   bottom edge: 1px ColorBlock at bevel-dark   (FF030303)
+#
+# Composed as 4 ColorBlocks per panel, sized:
+#   top:    X:0 Y:0      Width:PARENT_WIDTH Height:1
+#   left:   X:0 Y:0      Width:1 Height:PARENT_HEIGHT
+#   right:  X:PARENT_WIDTH-1 Y:0  Width:1 Height:PARENT_HEIGHT
+#   bottom: X:0 Y:PARENT_HEIGHT-1 Width:PARENT_WIDTH Height:1
+#
+# For Start Game and other go-state buttons, swap bevel-light/dark for
+# go-light/go-dark on the same edges.
+
+# ===========================================================
+# FONT USAGE (registered in mods/ww3mod/mod.yaml)
+# ===========================================================
+#
+# Tiny       10  — meta labels (slot count, system tags, status uppercase)
+# TinyBold   10  — option tile labels (uppercase)
+# Small      12  — sub-text under names, chat timestamps
+# Regular    14  — chat body, option dropdown text
+# Bold       14  — back button, top-bar pill, CTA "Ready" toggle
+# MediumBold 18  — player name, spawn letter, ready tick, settings value
+# BigBold    24  — map name in title strip (loudest text on screen)
+# Title          — top bar title (decorative serif "SKIRMISH BRIEFING")
+
+# ===========================================================
+# CORNER BRACKETS
+# ===========================================================
+#
+# Map preview only. Four 12x12 L-marks in accent colour, inset 8px
+# from each corner of the preview area (NOT the title strip).
+#
+# Until a corner-bracket.png sprite ships, compose each corner from
+# 2 ColorBlocks at accent (FFb4b4b4):
+#   horizontal arm: 12 wide x 2 tall
+#   vertical arm:    2 wide x 12 tall
+# Total: 8 ColorBlocks for the four corners.
