@@ -302,9 +302,41 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH
 			Height: 60
 			Color: 1C1C1CFF
-		# Primary CTA — big green bar at the very bottom. Text colour updated
-		# to the new go-state green (#6ec890); button chrome itself still uses
-		# the engine default theme until Phase 8 polish ships a custom skin.
+		# === Phase 8 — Start Game proper green chrome.
+		# Three layers: bevel-light top+left (#98E0B4), green fill (#6EC890),
+		# bevel-dark bottom+right (#2A623A). The Button itself sits on top
+		# with Background: '' to disable its default theme so the layered
+		# fill shows through. Text is dark (#0B110D) for contrast on green.
+		ColorBlock@START_GAME_BEVEL_LIGHT:
+			X: 24
+			Y: PARENT_HEIGHT - 60
+			Width: PARENT_WIDTH - 48
+			Height: 1
+			Color: 98E0B4FF
+		ColorBlock@START_GAME_BEVEL_LEFT:
+			X: 24
+			Y: PARENT_HEIGHT - 60
+			Width: 1
+			Height: 48
+			Color: 98E0B4FF
+		ColorBlock@START_GAME_FILL:
+			X: 25
+			Y: PARENT_HEIGHT - 59
+			Width: PARENT_WIDTH - 50
+			Height: 46
+			Color: 6EC890FF
+		ColorBlock@START_GAME_BEVEL_RIGHT:
+			X: PARENT_WIDTH - 25
+			Y: PARENT_HEIGHT - 60
+			Width: 1
+			Height: 48
+			Color: 2A623AFF
+		ColorBlock@START_GAME_BEVEL_DARK:
+			X: 24
+			Y: PARENT_HEIGHT - 13
+			Width: PARENT_WIDTH - 48
+			Height: 1
+			Color: 2A623AFF
 		Button@START_GAME_BUTTON:
 			X: 24
 			Y: PARENT_HEIGHT - 60
@@ -312,6 +344,7 @@ Background@SERVER_LOBBY:
 			Height: 48
 			Text: button-server-lobby-start-game
 			Font: BigBold
-			TextColor: 6EC890
+			TextColor: 0B110D
+			Background: ""
 		Container@FACTION_DROPDOWN_PANEL_ROOT:
 		TooltipContainer@TOOLTIP_CONTAINER:
