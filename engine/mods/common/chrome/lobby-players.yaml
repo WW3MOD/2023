@@ -35,7 +35,7 @@ Container@LOBBY_PLAYER_BIN:
 					Y: 38
 					Width: 32
 					Height: 2
-					Color: 60D080FF
+					Color: B4B4B4FF
 				# WW3MOD: column header labels — switched from Bold to TinyBold and
 				# pulled below the accent line. Bold-large read as content, not
 				# table headers; the Name column especially overlapped the player
@@ -635,7 +635,7 @@ Container@LOBBY_PLAYER_BIN:
 					Y: 38
 					Width: 32
 					Height: 2
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ScrollPanel@COMMON_OPTIONS_PANEL:
 					Logic: LobbyOptionsLogic
 					X: 4
@@ -652,76 +652,124 @@ Container@LOBBY_PLAYER_BIN:
 							Y: 5
 							Width: PARENT_WIDTH - 24
 							Children:
-								# WW3MOD: section headers get a left-aligned 2px accent line in
-								# the lobby green so the row reads as a section divider, not a
-								# floating label. Header height bumped 40 → 42 to make room for
-								# the accent without changing the label baseline.
+								# === Phase 2 (rerouted) — section header restyled to palette
+								# gray. Accent line swapped from green (B4B4B4FF) to accent
+								# (B4B4B4FF). Header height 42 → 36 (tighter, since the row
+								# template grew taller).
 								Container@SECTION_HEADER_TEMPLATE:
 									Width: PARENT_WIDTH
-									Height: 42
+									Height: 36
 									Visible: False
 									Children:
 										Label@HEADER_LABEL:
-											X: 10
-											Y: 12
-											Width: PARENT_WIDTH - 20
-											Height: 22
-											Font: MediumBold
+											X: 8
+											Y: 10
+											Width: PARENT_WIDTH - 16
+											Height: 18
+											Font: TinyBold
 											Align: Left
+											TextColor: B4B4B4
 										ColorBlock@HEADER_ACCENT:
-											X: 10
-											Y: 36
-											Width: 24
+											X: 8
+											Y: 30
+											Width: 28
 											Height: 2
-											Color: 60D080FF
+											Color: B4B4B4FF
+								# 4-wide checkbox row (was 2-wide).
 								Container@CHECKBOX_ROW_TEMPLATE:
 									Width: PARENT_WIDTH
-									Height: 28
+									Height: 30
 									Children:
 										Checkbox@A:
-											X: 30
-											Width: PARENT_WIDTH / 2 - 40
-											Height: 20
+											X: 8
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 22
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@B:
-											X: PARENT_WIDTH / 2 + 20
-											Width: PARENT_WIDTH / 2 - 40
-											Height: 20
+											X: PARENT_WIDTH / 4 + 8
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 22
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
+										Checkbox@C:
+											X: PARENT_WIDTH * 2 / 4 + 8
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 22
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										Checkbox@D:
+											X: PARENT_WIDTH * 3 / 4 + 8
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 22
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+								# 4-wide dropdown row, label STACKED above the dropdown
+								# (O3 hero-tile layout — was label-left dropdown-right).
+								# Each column: PARENT_WIDTH / 4 wide. Label Y:4 H:14,
+								# dropdown Y:22 H:28. Row total height 56.
 								Container@DROPDOWN_ROW_TEMPLATE:
-									Height: 32
+									Height: 56
 									Width: PARENT_WIDTH
 									Children:
 										LabelForInput@A_DESC:
-											X: 30
-											Y: 6
-											Width: PARENT_WIDTH * 18 / 100
-											Height: 20
+											X: 8
+											Y: 4
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 14
 											Visible: False
-											Align: Right
+											Align: Left
 											For: A
 										DropDownButton@A:
-											X: PARENT_WIDTH * 20 / 100
-											Y: 3
-											Width: PARENT_WIDTH * 28 / 100
-											Height: 25
+											X: 8
+											Y: 22
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@B_DESC:
-											X: PARENT_WIDTH * 52 / 100
-											Y: 6
-											Width: PARENT_WIDTH * 18 / 100
-											Height: 20
+											X: PARENT_WIDTH / 4 + 8
+											Y: 4
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 14
 											Visible: False
-											Align: Right
+											Align: Left
 											For: B
 										DropDownButton@B:
-											X: PARENT_WIDTH * 72 / 100
-											Y: 3
-											Width: PARENT_WIDTH * 26 / 100
-											Height: 25
+											X: PARENT_WIDTH / 4 + 8
+											Y: 22
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 28
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										LabelForInput@C_DESC:
+											X: PARENT_WIDTH * 2 / 4 + 8
+											Y: 4
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 14
+											Visible: False
+											Align: Left
+											For: C
+										DropDownButton@C:
+											X: PARENT_WIDTH * 2 / 4 + 8
+											Y: 22
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 28
+											Visible: False
+											TooltipContainer: TOOLTIP_CONTAINER
+										LabelForInput@D_DESC:
+											X: PARENT_WIDTH * 3 / 4 + 8
+											Y: 4
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 14
+											Visible: False
+											Align: Left
+											For: D
+										DropDownButton@D:
+											X: PARENT_WIDTH * 3 / 4 + 8
+											Y: 22
+											Width: PARENT_WIDTH / 4 - 12
+											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 				# 1px divider between OPTIONS and ACTIVE CHANGES cards.
@@ -761,7 +809,7 @@ Container@LOBBY_PLAYER_BIN:
 							Y: 34
 							Width: 32
 							Height: 2
-							Color: 60D080FF
+							Color: B4B4B4FF
 						Container@CHIP_TEMPLATE:
 							Width: 180
 							Height: 30

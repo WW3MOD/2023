@@ -97,13 +97,13 @@ Background@SERVER_LOBBY:
 					Y: 30
 					Width: 90
 					Height: 2
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ColorBlock@MUSIC_VIEW_INDICATOR:
 					X: 96
 					Y: 30
 					Width: 90
 					Height: 2
-					Color: 60D080FF
+					Color: B4B4B4FF
 		Container@SKIRMISH_TABS:
 			X: 24
 			Width: 360
@@ -135,19 +135,19 @@ Background@SERVER_LOBBY:
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ColorBlock@OPTIONS_TAB_INDICATOR:
 					X: 110
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ColorBlock@MUSIC_TAB_INDICATOR:
 					X: 220
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 		Container@MULTIPLAYER_TABS:
 			X: 24
 			Width: 460
@@ -186,25 +186,25 @@ Background@SERVER_LOBBY:
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ColorBlock@OPTIONS_TAB_INDICATOR:
 					X: 110
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ColorBlock@MUSIC_TAB_INDICATOR:
 					X: 220
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 				ColorBlock@SERVERS_TAB_INDICATOR:
 					X: 330
 					Y: 102
 					Width: 110
 					Height: 3
-					Color: 60D080FF
+					Color: B4B4B4FF
 		# Tab content area — fills the screen between the tab strip and the bottom CTA bar.
 		# Left column is always visible (map / players / chat); right column swaps via tabs.
 		Container@TOP_PANELS_ROOT:
