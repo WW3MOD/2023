@@ -21,36 +21,36 @@
 */
 
 :root {
-	/* Palette C — cool slate + steel accent (locked direction) */
-	--bg-app:           #0b0d10;
-	--bg-panel:         #161a1f;
-	--bg-panel-2:       #1b2026;
-	--bg-banner:        #1e242c;
-	--bg-row-hover:     #232931;
-	--bg-button:        #232931;
+	/* Pure grayscale, slightly darker than palette C */
+	--bg-app:           #0a0a0a;
+	--bg-panel:         #141414;
+	--bg-panel-2:       #1a1a1a;
+	--bg-banner:        #1c1c1c;
+	--bg-row-hover:     #222222;
+	--bg-button:        #222222;
 
 	/* bevel pair — fakes "outset" with two flat 1px lines */
-	--bevel-light:      #3e4754;
-	--bevel-dark:       #050709;
-	--line:             #282e36;
-	--line-soft:        #1f242b;
+	--bevel-light:      #3a3a3a;
+	--bevel-dark:       #030303;
+	--line:             #262626;
+	--line-soft:        #1d1d1d;
 
-	/* Steel accent for tactical highlights (was amber) */
-	--accent:           #a8b5c4;
-	--accent-dim:       #6b7886;
-	--accent-bg:        rgba(168,181,196,0.10);
+	/* Neutral accent — light gray, no hue */
+	--accent:           #b4b4b4;
+	--accent-dim:       #6e6e6e;
+	--accent-bg:        rgba(180,180,180,0.08);
 
 	/* greens reserved for "go" states only (ready, start) */
 	--go:               #6ec890;
 	--go-light:         #98e0b4;
 	--go-dark:          #2a623a;
 	--go-text:          #0b110d;
-	--go-bg:            #1b2c22;
+	--go-bg:            #1c2c22;
 
-	--ink:              #d8dde4;
-	--ink-2:            #98a0ac;
-	--ink-3:            #686f7c;
-	--ink-4:            #404754;
+	--ink:              #d4d4d4;
+	--ink-2:            #969696;
+	--ink-3:            #686868;
+	--ink-4:            #404040;
 
 	--us:               #6f93b8;
 	--us-bg:            #16212c;
@@ -116,8 +116,8 @@ header.doc code {
 }
 .bracket.tl { top: 8px; left: 8px; }
 .bracket.tr { top: 8px; right: 8px; }
-.bracket.bl { bottom: 40px; left: 8px; }
-.bracket.br { bottom: 40px; right: 8px; }
+.bracket.bl { bottom: 58px; left: 8px; }
+.bracket.br { bottom: 58px; right: 8px; }
 .bracket.tl::before { top: 0; left: 0; width: 12px; height: 2px; }
 .bracket.tl::after  { top: 0; left: 0; width: 2px; height: 12px; }
 .bracket.tr::before { top: 0; right: 0; width: 12px; height: 2px; }
@@ -209,11 +209,34 @@ header.doc code {
 }
 .panel > .body { position: absolute; top: 36px; left: 0; right: 0; bottom: 0; }
 
+/* LEFT — one scroll area containing map + settings stacked */
+.left-col {
+	position: absolute;
+	left: 0; top: 0; width: 720px; bottom: 0;
+	overflow-y: auto;
+	background: var(--bg-app);
+	border-top: 1px solid var(--bevel-light);
+	border-left: 1px solid var(--bevel-light);
+	border-right: 1px solid var(--bevel-dark);
+	border-bottom: 1px solid var(--bevel-dark);
+}
+.left-col::-webkit-scrollbar { width: 10px; }
+.left-col::-webkit-scrollbar-track { background: var(--bg-app); }
+.left-col::-webkit-scrollbar-thumb { background: var(--bg-button); border: 1px solid var(--line); }
+.left-col .panel {
+	position: relative; margin: 0;
+	border: 0; border-bottom: 1px solid var(--bevel-dark);
+}
+.left-col .panel:last-child { border-bottom: 0; }
+.left-col .q-settings > .body {
+	position: static; padding: 14px; overflow: visible;
+}
+
 /* TL — Map preview */
-.q-map      { left: 0; top: 0; width: 720px; height: 480px; }
+.q-map      { height: 480px; }
 
 /* BL — Settings */
-.q-settings { left: 0; top: 490px; width: 720px; bottom: 0; }
+.q-settings { /* height grows with content */ }
 
 /* TR — Players (V5 style) */
 .q-players  { left: 730px; top: 0; right: 0; height: 380px; }
@@ -228,7 +251,7 @@ header.doc code {
 	overflow: hidden;
 }
 .q-map .map-img {
-	position: absolute; left: 0; top: 0; right: 0; bottom: 30px;
+	position: absolute; left: 0; top: 0; right: 0; bottom: 50px;
 	background:
 		radial-gradient(circle at 20% 30%, #2a3a25 0 80px, transparent 80px),
 		radial-gradient(circle at 75% 70%, #2c3a30 0 100px, transparent 100px),
@@ -251,14 +274,23 @@ header.doc code {
 .spawn-marker.s-d { left: 540px; top: 370px; background: rgba(200,200,96,0.65); }
 
 .q-map .map-strip {
-	position: absolute; left: 0; right: 0; bottom: 0; height: 32px;
+	position: absolute; left: 0; right: 0; bottom: 0; height: 50px;
 	background: var(--bg-banner);
 	border-top: 1px solid var(--bevel-dark);
 	display: flex; align-items: center;
-	padding: 0 16px;
+	padding: 0 18px;
+	gap: 14px;
 }
-.q-map .map-strip .name { color: var(--ink); font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
-.q-map .map-strip .meta { margin-left: auto; color: var(--ink-3); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.q-map .map-strip .name {
+	color: var(--ink); font-size: 24px; font-weight: bold;
+	letter-spacing: 0.3px;
+	font-family: "ZoodRangmah", "FreeSans", serif;
+}
+.q-map .map-strip .meta {
+	margin-left: auto; color: var(--ink-3); font-size: 11px;
+	letter-spacing: 1.2px; text-transform: uppercase;
+	text-align: right;
+}
 
 /* ---------- PLAYERS PANEL (V5 style — sized to real fonts) ---------- */
 .q-players .body { padding: 6px 0; overflow-y: auto; }
@@ -473,13 +505,14 @@ footer.foot {
 <body>
 
 <header class="doc">
-	<h1>Lobby — implementation target <span style="color:var(--accent);font-size:13px;letter-spacing:2px;margin-left:12px;">PALETTE C · STEEL · LOCKED</span></h1>
-	<p>This is the version we ship. Cool slate panels, steel accent
-	(headers, tabs, brackets, links), green reserved for go-states only
-	(ready ticks, Start Game). All chrome composed from primitives
-	OpenRA can actually render: solid color rects, 1px bevels, bitmap
-	fonts capped at <code>BigBold 24</code>. No rounded corners, no
-	shadows, no gradients. Approve this and we start porting.</p>
+	<h1>Lobby — implementation target <span style="color:var(--accent);font-size:13px;letter-spacing:2px;margin-left:12px;">PURE GRAYSCALE · LOCKED</span></h1>
+	<p>Pure grayscale panels (no hue), neutral light-gray accent, green
+	only for go-states (ready ticks, Start Game). Left side is one
+	scroll area — map + settings flow together. Map name rendered at
+	BigBold 24 (the lobby's loudest type) in the bottom strip. Chrome
+	composed from primitives OpenRA can actually render: solid color
+	rects, 1px bevels, bitmap fonts. No rounded corners, no shadows, no
+	gradients. Approve this and we start porting.</p>
 </header>
 
 <div class="stage">
@@ -497,15 +530,15 @@ footer.foot {
 	<!-- BODY — 2x2 quadrants -->
 	<div class="body">
 
-		<!-- TL · MAP -->
+		<!-- LEFT COLUMN — single scroll area, map stacked on settings -->
+		<div class="left-col">
+
+		<!-- MAP -->
 		<div class="panel q-map">
 			<div class="head">
 				<div class="tabs">
 					<div class="tab active">Map</div>
 					<div class="tab">Change Map</div>
-				</div>
-				<div class="right">
-					<div class="link">i Briefing</div>
 				</div>
 			</div>
 			<div class="body">
@@ -526,68 +559,7 @@ footer.foot {
 			</div>
 		</div>
 
-		<!-- TR · PLAYERS (V5) -->
-		<div class="panel q-players">
-			<div class="head">
-				<div class="tabs">
-					<div class="tab active">Players<span class="num">4 / 6</span></div>
-				</div>
-				<div class="right">
-					<div class="link">+ Add bot</div>
-					<div class="link">Auto-team</div>
-				</div>
-			</div>
-			<div class="body">
-				<div class="player-row">
-					<div class="color-block" style="background:#6ed68a;"></div>
-					<div class="flag-big us">US</div>
-					<div class="spawn">A</div>
-					<div class="name"><span class="text">FreadyFish</span><span class="host">HOST</span></div>
-					<div class="ready">✓</div>
-				</div>
-				<div class="player-row">
-					<div class="color-block" style="background:#c8c860;"></div>
-					<div class="flag-big us">US</div>
-					<div class="spawn">D</div>
-					<div class="name"><span class="text">V2 AI</span><span class="tag">Experimental</span></div>
-					<div class="ready">✓</div>
-				</div>
-				<div class="player-row">
-					<div class="color-block" style="background:#b878d8;"></div>
-					<div class="flag-big ru">RU</div>
-					<div class="spawn">B</div>
-					<div class="name"><span class="text">CmdrBambi</span></div>
-					<div class="ready">✓</div>
-				</div>
-				<div class="player-row">
-					<div class="color-block" style="background:#a050a0;"></div>
-					<div class="flag-big ru">RU</div>
-					<div class="spawn">C</div>
-					<div class="name"><span class="text">Normal AI</span></div>
-					<div class="ready">✓</div>
-				</div>
-				<div class="player-row empty">
-					<div class="actions">
-						<span class="ba primary">▸ Play here</span>
-						<span class="ba">+ Add bot</span>
-						<span class="ba danger">Close</span>
-					</div>
-				</div>
-				<div class="player-row empty">
-					<div class="actions">
-						<span class="ba primary">▸ Play here</span>
-						<span class="ba">+ Add bot</span>
-						<span class="ba danger">Close</span>
-					</div>
-				</div>
-				<div class="player-row spectator">
-					<div class="color-block"></div>
-					<div class="name"><span class="text">Mira</span><span class="tag">Spectating</span></div>
-				</div>
-			</div>
-		</div>
-
-		<!-- BL · SETTINGS -->
+		<!-- BL · SETTINGS (inside left scroll) -->
 		<div class="panel q-settings">
 			<div class="head">
 				<div class="tabs">
@@ -665,6 +637,69 @@ footer.foot {
 			</div>
 		</div>
 
+		</div><!-- /left-col -->
+
+		<!-- TR · PLAYERS (V5) -->
+		<div class="panel q-players">
+			<div class="head">
+				<div class="tabs">
+					<div class="tab active">Players<span class="num">4 / 6</span></div>
+				</div>
+				<div class="right">
+					<div class="link">+ Add bot</div>
+					<div class="link">Auto-team</div>
+				</div>
+			</div>
+			<div class="body">
+				<div class="player-row">
+					<div class="color-block" style="background:#6ed68a;"></div>
+					<div class="flag-big us">US</div>
+					<div class="spawn">A</div>
+					<div class="name"><span class="text">FreadyFish</span><span class="host">HOST</span></div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="player-row">
+					<div class="color-block" style="background:#c8c860;"></div>
+					<div class="flag-big us">US</div>
+					<div class="spawn">D</div>
+					<div class="name"><span class="text">V2 AI</span><span class="tag">Experimental</span></div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="player-row">
+					<div class="color-block" style="background:#b878d8;"></div>
+					<div class="flag-big ru">RU</div>
+					<div class="spawn">B</div>
+					<div class="name"><span class="text">CmdrBambi</span></div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="player-row">
+					<div class="color-block" style="background:#a050a0;"></div>
+					<div class="flag-big ru">RU</div>
+					<div class="spawn">C</div>
+					<div class="name"><span class="text">Normal AI</span></div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="player-row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="player-row empty">
+					<div class="actions">
+						<span class="ba primary">▸ Play here</span>
+						<span class="ba">+ Add bot</span>
+						<span class="ba danger">Close</span>
+					</div>
+				</div>
+				<div class="player-row spectator">
+					<div class="color-block"></div>
+					<div class="name"><span class="text">Mira</span><span class="tag">Spectating</span></div>
+				</div>
+			</div>
+		</div>
+
 		<!-- BR · CHAT -->
 		<div class="panel q-chat">
 			<div class="head">
@@ -713,16 +748,16 @@ footer.foot {
 <div class="notes">
 	<p><b>Implementation spec — what gets ported to OpenRA chrome:</b></p>
 	<ul>
-		<li><b>Layout.</b> 2×2 quadrants. TL Map (720×480), TR Players (rest×380, auto-sized to slot count), BL Settings (720×rest), BR Chat (rest×rest). 10px gutters. 16px outer pad.</li>
-		<li><b>Palette C — cool slate · steel.</b> Panels <code>#161a1f</code>, banners <code>#1e242c</code>, accent <code>#a8b5c4</code>, ink <code>#d8dde4</code>. Green <code>#6ec890</code> only for ready ticks and Start Game.</li>
-		<li><b>Bevels.</b> Every panel and button: 1px <code>#3e4754</code> top+left, 1px <code>#050709</code> bottom+right. Composable from 4 ColorBlockWidgets each.</li>
-		<li><b>Fonts.</b> Sized to WW3MOD's actual stack: Bold 14 (default), MediumBold 18 (player name, spawn, ready, settings value), Tiny/TinyBold 10 (labels, system tags), Small 12 (sub-text).</li>
+		<li><b>Layout.</b> Left column (720px wide) is <em>one scroll area</em> containing the map preview stacked on the settings grid — both scroll together as one. Right column: Players (rest×380, auto-sized to slot count) on top, Chat (rest×rest) below. 10px gutters. 16px outer pad.</li>
+		<li><b>Palette — pure grayscale.</b> Panels <code>#141414</code>, banners <code>#1c1c1c</code>, accent <code>#b4b4b4</code>, ink <code>#d4d4d4</code>. No hue anywhere in the chrome. Green <code>#6ec890</code> only for ready ticks and Start Game.</li>
+		<li><b>Bevels.</b> Every panel and button: 1px <code>#3a3a3a</code> top+left, 1px <code>#030303</code> bottom+right. Composable from 4 ColorBlockWidgets each.</li>
+		<li><b>Fonts.</b> Sized to WW3MOD's actual stack: BigBold 24 (map name only — the loudest text on screen), MediumBold 18 (player name, spawn, ready, settings value), Bold 14 (default), Small 12 (sub-text), Tiny/TinyBold 10 (labels, system tags).</li>
 		<li><b>V5 player rows.</b> 28px color tile · 40×26 flag · 28px spawn · name (with HOST badge / AI tag) · 18px ready tick. <code>HOST</code> badge is a 1px-bordered 11px label in steel on the host's row.</li>
 		<li><b>O3 flat options.</b> 12 hero tiles in a 4-wide grid, ordered by frequency-of-change. Each tile: 60px tall, label (Tiny) over value (MediumBold). Toggle = chunky 26×14 rect, dropdown = ▼ chevron bottom-right.</li>
-		<li><b>Tabs.</b> Underlined uppercase text (TinyBold). Active = steel color + 2px steel under-rail. <code>Map / Change Map</code> in TL, <code>Settings / Music</code> in BL, <code>Players (4/6)</code> in TR, <code>Chat</code> in BR.</li>
+		<li><b>Tabs.</b> Underlined uppercase text (TinyBold). Active = light-gray accent + 2px under-rail. <code>Map / Change Map</code> at the top of the left scroll, <code>Settings / Music</code> further down inside the same scroll, <code>Players (4/6)</code> in TR, <code>Chat</code> in BR.</li>
 		<li><b>Map browse.</b> Clicking <code>Change Map</code> swaps the map panel body in-place — search bar + filter chips + 3-column card grid. No modal.</li>
 		<li><b>CTA bar.</b> Left: stat strip (Slots / Players / Bots / Spectators). Right: chunky <code>✓ Ready</code> toggle + 11×44 green <code>▶ Start Game</code>.</li>
-		<li><b>Corner brackets on map only.</b> 12×12 steel L-marks in each map preview corner. Westwood signature touch; not used elsewhere to keep them rare.</li>
+		<li><b>Corner brackets on map only.</b> 12×12 light-gray L-marks in each map preview corner. Westwood signature touch; not used elsewhere to keep them rare.</li>
 		<li><b>Hover = darker bg, no transition.</b> OpenRA repaints, nothing animates.</li>
 	</ul>
 	<p style="margin-top:14px;"><b>Engine touchpoints (from <code>WORKSPACE/lobby/next-steps.md</code>):</b>
