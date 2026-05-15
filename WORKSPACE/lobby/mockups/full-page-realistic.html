@@ -21,36 +21,43 @@
 */
 
 :root {
-	--bg-app:           #0a0c0f;
-	--bg-panel:         #15181d;
-	--bg-panel-2:       #1a1e25;
-	--bg-banner:        #1c2028;
-	--bg-row-hover:     #1f242c;
-	--bg-button:        #1f242c;
+	/* Palette C — cool slate + steel accent (locked direction) */
+	--bg-app:           #0b0d10;
+	--bg-panel:         #161a1f;
+	--bg-panel-2:       #1b2026;
+	--bg-banner:        #1e242c;
+	--bg-row-hover:     #232931;
+	--bg-button:        #232931;
 
 	/* bevel pair — fakes "outset" with two flat 1px lines */
-	--bevel-light:      #3a4150;
-	--bevel-dark:       #060709;
-	--line:             #2a2f38;
+	--bevel-light:      #3e4754;
+	--bevel-dark:       #050709;
+	--line:             #282e36;
 	--line-soft:        #1f242b;
 
-	/* Westwood amber for tactical accents — replaces "modern green" headers */
-	--amber:            #d4a44a;
-	--amber-dim:        #8b6f30;
+	/* Steel accent for tactical highlights (was amber) */
+	--accent:           #a8b5c4;
+	--accent-dim:       #6b7886;
+	--accent-bg:        rgba(168,181,196,0.10);
 
 	/* greens reserved for "go" states only (ready, start) */
-	--go:               #5bc878;
-	--go-bg:            #1c2c20;
+	--go:               #6ec890;
+	--go-light:         #98e0b4;
+	--go-dark:          #2a623a;
+	--go-text:          #0b110d;
+	--go-bg:            #1b2c22;
 
 	--ink:              #d8dde4;
-	--ink-2:            #9aa0aa;
-	--ink-3:            #6c7280;
-	--ink-4:            #444a55;
+	--ink-2:            #98a0ac;
+	--ink-3:            #686f7c;
+	--ink-4:            #404754;
 
-	--us:               #5687c8;
-	--us-bg:            #15212e;
-	--ru:               #c85656;
-	--ru-bg:            #2a1717;
+	--us:               #6f93b8;
+	--us-bg:            #16212c;
+	--ru:               #b87070;
+	--ru-bg:            #261616;
+
+	--warn:             #d6a85a;
 }
 
 html, body { margin: 0; padding: 0; background: #050608; color: var(--ink); }
@@ -68,7 +75,7 @@ header.doc {
 header.doc h1 { margin: 0 0 4px; font-size: 22px; color: var(--ink); }
 header.doc p { margin: 6px 0; color: var(--ink-2); font-size: 13px; line-height: 1.6; max-width: 1000px; }
 header.doc code {
-	background: var(--bg-panel); padding: 1px 6px; color: var(--amber);
+	background: var(--bg-panel); padding: 1px 6px; color: var(--accent);
 	font-size: 12px; font-family: ui-monospace, Menlo, monospace;
 }
 .notes {
@@ -105,7 +112,7 @@ header.doc code {
 	pointer-events: none;
 }
 .bracket::before, .bracket::after {
-	content: ""; position: absolute; background: var(--amber);
+	content: ""; position: absolute; background: var(--accent);
 }
 .bracket.tl { top: 8px; left: 8px; }
 .bracket.tr { top: 8px; right: 8px; }
@@ -139,7 +146,7 @@ header.doc code {
 	letter-spacing: 1.5px; text-transform: uppercase; font-weight: bold;
 }
 .topbar .title {
-	margin-left: 16px; color: var(--amber); font-size: 14px;
+	margin-left: 16px; color: var(--accent); font-size: 14px;
 	letter-spacing: 2.5px; text-transform: uppercase; font-weight: bold;
 	font-family: "ZoodRangmah", "FreeSans", serif;
 }
@@ -188,11 +195,11 @@ header.doc code {
 	padding: 0; height: 100%; display: flex; align-items: center;
 	border-bottom: 2px solid transparent;
 }
-.panel > .head .tabs .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+.panel > .head .tabs .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .panel > .head .tabs .tab .num {
 	margin-left: 8px; color: var(--ink-3); font-weight: normal; letter-spacing: 0;
 }
-.panel > .head .tabs .tab.active .num { color: var(--amber-dim); }
+.panel > .head .tabs .tab.active .num { color: var(--accent-dim); }
 .panel > .head .right {
 	margin-left: auto; display: flex; gap: 18px; align-items: center;
 }
@@ -288,10 +295,22 @@ header.doc code {
 }
 .player-row .name {
 	font-size: 18px; font-weight: bold; color: var(--ink); letter-spacing: 0.3px;
+	display: flex; align-items: center; gap: 10px; min-width: 0;
 }
+.player-row .name .text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .player-row .name .tag {
-	font-size: 11px; color: var(--ink-3); font-weight: normal; margin-left: 8px;
-	letter-spacing: 1px; text-transform: uppercase; vertical-align: 2px;
+	font-size: 11px; color: var(--ink-3); font-weight: normal;
+	letter-spacing: 1px; text-transform: uppercase;
+}
+.player-row .name .host {
+	color: var(--accent); font-size: 13px; font-weight: bold;
+	letter-spacing: 1.5px; text-transform: uppercase;
+	border: 1px solid var(--accent-dim); padding: 1px 6px;
+	background: var(--accent-bg);
+}
+.player-row .name .you {
+	color: var(--accent); font-size: 11px; font-weight: bold;
+	letter-spacing: 1.4px; text-transform: uppercase;
 }
 .player-row .ready {
 	font-size: 18px; text-align: center; color: var(--go); font-weight: bold;
@@ -310,7 +329,7 @@ header.doc code {
 	padding: 6px 14px; color: var(--ink-2); font-size: 11px;
 	letter-spacing: 1.2px; text-transform: uppercase; font-weight: bold;
 }
-.player-row.empty .actions .ba.primary { color: var(--amber); }
+.player-row.empty .actions .ba.primary { color: var(--accent); }
 .player-row.empty .actions .ba.danger { color: var(--ink-4); margin-left: auto; }
 .player-row.spectator {
 	grid-template-columns: 28px 1fr;
@@ -353,7 +372,7 @@ header.doc code {
 	font-size: 16px; color: var(--ink); font-weight: bold; margin-top: 6px;
 	letter-spacing: 0.3px;
 }
-.opt .value.amber { color: var(--amber); }
+.opt .value.accent { color: var(--accent); }
 .opt .chev {
 	position: absolute; right: 8px; bottom: 6px; color: var(--ink-3); font-size: 10px;
 }
@@ -381,7 +400,11 @@ header.doc code {
 .q-chat .messages .msg .who { font-weight: bold; margin-right: 8px; }
 .q-chat .messages .msg .who.us { color: var(--us); }
 .q-chat .messages .msg .who.ru { color: var(--ru); }
-.q-chat .messages .msg .who.sys { color: var(--amber); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; }
+.q-chat .messages .msg .who.sys {
+	color: var(--accent-dim); letter-spacing: 1.4px; text-transform: uppercase;
+	font-size: 10px; padding: 1px 6px;
+	border: 1px solid var(--line); background: var(--bg-panel-2);
+}
 .q-chat .messages .msg.sys { color: var(--ink-3); font-size: 12px; }
 .q-chat .messages .msg .ts { color: var(--ink-4); font-size: 10px; margin-right: 8px; font-family: ui-monospace, Menlo, monospace; }
 
@@ -393,7 +416,7 @@ header.doc code {
 }
 .q-chat .compose .mode {
 	display: flex; align-items: center;
-	padding: 0 14px; color: var(--amber);
+	padding: 0 14px; color: var(--accent);
 	font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; font-weight: bold;
 	border-right: 1px solid var(--bevel-dark);
 }
@@ -450,15 +473,13 @@ footer.foot {
 <body>
 
 <header class="doc">
-	<h1>Lobby — realistic OpenRA chrome (Westwood-flavored)</h1>
-	<p>What the locked design <em>actually</em> looks like once you strip
-	out the modern-web sugar. No rounded corners. No drop shadows. No
-	gradients except where I'm faking a sprite. Bevels are 1px lighter top/left
-	+ 1px darker bottom/right (composable from <code>ColorBlockWidget</code>).
-	Fonts capped at WW3MOD's actual sizes (max <code>BigBold 24</code>).
-	Headers in tactical amber instead of soft green; thin amber corner brackets
-	on the map for the Westwood feel; subtle blueprint grid in the background
-	picks up the existing <code>uibits/dialog.png</code> motif.</p>
+	<h1>Lobby — implementation target <span style="color:var(--accent);font-size:13px;letter-spacing:2px;margin-left:12px;">PALETTE C · STEEL · LOCKED</span></h1>
+	<p>This is the version we ship. Cool slate panels, steel accent
+	(headers, tabs, brackets, links), green reserved for go-states only
+	(ready ticks, Start Game). All chrome composed from primitives
+	OpenRA can actually render: solid color rects, 1px bevels, bitmap
+	fonts capped at <code>BigBold 24</code>. No rounded corners, no
+	shadows, no gradients. Approve this and we start porting.</p>
 </header>
 
 <div class="stage">
@@ -468,8 +489,8 @@ footer.foot {
 		<div class="back">‹ Back</div>
 		<div class="title">SKIRMISH BRIEFING<span class="sub">River Zeta · 2v2</span></div>
 		<div class="right">
-			<div class="status"><span class="dot"></span>Server Ready</div>
-			<div class="pill">Preset: My 2v2</div>
+			<div class="status"><span class="dot"></span>Lobby Ready</div>
+			<div class="pill">Preset: My 2v2 ▾</div>
 		</div>
 	</div>
 
@@ -520,29 +541,29 @@ footer.foot {
 				<div class="player-row">
 					<div class="color-block" style="background:#6ed68a;"></div>
 					<div class="flag-big us">US</div>
+					<div class="spawn">A</div>
+					<div class="name"><span class="text">FreadyFish</span><span class="host">HOST</span></div>
+					<div class="ready">✓</div>
+				</div>
+				<div class="player-row">
+					<div class="color-block" style="background:#c8c860;"></div>
+					<div class="flag-big us">US</div>
 					<div class="spawn">D</div>
-					<div class="name">V2 AI<span class="tag">Experimental</span></div>
+					<div class="name"><span class="text">V2 AI</span><span class="tag">Experimental</span></div>
 					<div class="ready">✓</div>
 				</div>
 				<div class="player-row">
 					<div class="color-block" style="background:#b878d8;"></div>
 					<div class="flag-big ru">RU</div>
 					<div class="spawn">B</div>
-					<div class="name">V2 AI<span class="tag">Experimental</span></div>
-					<div class="ready">✓</div>
-				</div>
-				<div class="player-row">
-					<div class="color-block" style="background:#c8c860;"></div>
-					<div class="flag-big us">US</div>
-					<div class="spawn">A</div>
-					<div class="name">Normal AI</div>
+					<div class="name"><span class="text">CmdrBambi</span></div>
 					<div class="ready">✓</div>
 				</div>
 				<div class="player-row">
 					<div class="color-block" style="background:#a050a0;"></div>
 					<div class="flag-big ru">RU</div>
 					<div class="spawn">C</div>
-					<div class="name">Normal AI</div>
+					<div class="name"><span class="text">Normal AI</span></div>
 					<div class="ready">✓</div>
 				</div>
 				<div class="player-row empty">
@@ -561,7 +582,7 @@ footer.foot {
 				</div>
 				<div class="player-row spectator">
 					<div class="color-block"></div>
-					<div class="name">FreadyFish<span class="tag">Spectating</span></div>
+					<div class="name"><span class="text">Mira</span><span class="tag">Spectating</span></div>
 				</div>
 			</div>
 		</div>
@@ -582,7 +603,7 @@ footer.foot {
 				<div class="opt-grid">
 					<div class="opt">
 						<div class="label">Starting Cash</div>
-						<div class="value amber">$ 5,000</div>
+						<div class="value accent">$ 5,000</div>
 						<div class="chev">▼</div>
 					</div>
 					<div class="opt">
@@ -656,14 +677,15 @@ footer.foot {
 			</div>
 			<div class="body">
 				<div class="messages">
-					<div class="msg sys"><span class="ts">19:42</span><span class="who sys">— System —</span> Map switched to River Zeta.</div>
-					<div class="msg"><span class="ts">19:42</span><span class="who us">FreadyFish:</span> ok ready when you are</div>
-					<div class="msg"><span class="ts">19:43</span><span class="who ru">CmdrBambi:</span> 1 sec, picking faction</div>
-					<div class="msg sys"><span class="ts">19:43</span><span class="who sys">— System —</span> CmdrBambi changed faction to Russia.</div>
-					<div class="msg"><span class="ts">19:43</span><span class="who ru">CmdrBambi:</span> ready</div>
-					<div class="msg sys"><span class="ts">19:44</span><span class="who sys">— System —</span> Bot V2 AI added to slot 3.</div>
-					<div class="msg sys"><span class="ts">19:44</span><span class="who sys">— System —</span> Bot V2 AI added to slot 4.</div>
-					<div class="msg"><span class="ts">19:44</span><span class="who us">FreadyFish:</span> let's go</div>
+					<div class="msg sys"><span class="ts">19:41</span><span class="who sys">SYSTEM</span> Map switched to River Zeta.</div>
+					<div class="msg sys"><span class="ts">19:41</span><span class="who sys">SYSTEM</span> CmdrBambi joined the lobby.</div>
+					<div class="msg"><span class="ts">19:42</span><span class="who us">FreadyFish:</span> hey, want to do 2v2 vs the V2 bots?</div>
+					<div class="msg"><span class="ts">19:42</span><span class="who ru">CmdrBambi:</span> sure, give me a sec to swap faction</div>
+					<div class="msg sys"><span class="ts">19:43</span><span class="who sys">SYSTEM</span> CmdrBambi changed faction to Russia.</div>
+					<div class="msg sys"><span class="ts">19:43</span><span class="who sys">SYSTEM</span> Bot added — V2 AI (US, slot D).</div>
+					<div class="msg sys"><span class="ts">19:43</span><span class="who sys">SYSTEM</span> Bot added — Normal AI (RU, slot C).</div>
+					<div class="msg"><span class="ts">19:44</span><span class="who ru">CmdrBambi:</span> ready</div>
+					<div class="msg"><span class="ts">19:44</span><span class="who us">FreadyFish:</span> good luck</div>
 				</div>
 				<div class="compose">
 					<div class="mode">All ▾</div>
@@ -676,7 +698,8 @@ footer.foot {
 	<!-- BOTTOM CTA -->
 	<div class="cta">
 		<div class="left">
-			<div class="stat"><b>2/2</b>Players ready</div>
+			<div class="stat"><b>4/4</b>Slots filled</div>
+			<div class="stat"><b>2</b>Players</div>
 			<div class="stat"><b>2</b>Bots</div>
 			<div class="stat"><b>1</b>Spectator</div>
 		</div>
@@ -688,23 +711,32 @@ footer.foot {
 </div>
 
 <div class="notes">
-	<p><b>What changed vs <code>full-page-final.html</code> (the modern-web mockup):</b></p>
+	<p><b>Implementation spec — what gets ported to OpenRA chrome:</b></p>
 	<ul>
-		<li><b>No rounded corners.</b> Every panel, button, swatch is square. OpenRA can't render <code>border-radius</code>.</li>
-		<li><b>Bevels replace shadows.</b> Each panel/button gets a 1px lighter top+left and 1px darker bottom+right line — the only "depth" trick available with <code>ColorBlockWidget</code>.</li>
-		<li><b>Type sized down.</b> Player name dropped 26→18 (BigBold isn't a thing the lobby usually uses for rows; MediumBold 18 is the realistic ceiling without a custom font). Spawn letter dropped to match.</li>
-		<li><b>Amber tactical accents</b> instead of green section headers. Green is reserved for "go" states only — ready tick, Start Game button. Cleaner read.</li>
-		<li><b>Corner brackets on the map</b> — the Westwood touch. Four 14×14 amber L-marks, just sprite overlays in OpenRA.</li>
-		<li><b>Hover = darker fill, no transition.</b> OpenRA toggles the bg color on hover; nothing animates.</li>
-		<li><b>Toggle switch is a chunky 2-state rectangle</b>, not a soft pill. Amber/dark for off, dark-green/green for on.</li>
-		<li><b>Subtle background grid</b> in the stage picks up the blueprint reticles in <code>uibits/dialog.png</code>. In-game it'd be the actual sprite tiled.</li>
+		<li><b>Layout.</b> 2×2 quadrants. TL Map (720×480), TR Players (rest×380, auto-sized to slot count), BL Settings (720×rest), BR Chat (rest×rest). 10px gutters. 16px outer pad.</li>
+		<li><b>Palette C — cool slate · steel.</b> Panels <code>#161a1f</code>, banners <code>#1e242c</code>, accent <code>#a8b5c4</code>, ink <code>#d8dde4</code>. Green <code>#6ec890</code> only for ready ticks and Start Game.</li>
+		<li><b>Bevels.</b> Every panel and button: 1px <code>#3e4754</code> top+left, 1px <code>#050709</code> bottom+right. Composable from 4 ColorBlockWidgets each.</li>
+		<li><b>Fonts.</b> Sized to WW3MOD's actual stack: Bold 14 (default), MediumBold 18 (player name, spawn, ready, settings value), Tiny/TinyBold 10 (labels, system tags), Small 12 (sub-text).</li>
+		<li><b>V5 player rows.</b> 28px color tile · 40×26 flag · 28px spawn · name (with HOST badge / AI tag) · 18px ready tick. <code>HOST</code> badge is a 1px-bordered 11px label in steel on the host's row.</li>
+		<li><b>O3 flat options.</b> 12 hero tiles in a 4-wide grid, ordered by frequency-of-change. Each tile: 60px tall, label (Tiny) over value (MediumBold). Toggle = chunky 26×14 rect, dropdown = ▼ chevron bottom-right.</li>
+		<li><b>Tabs.</b> Underlined uppercase text (TinyBold). Active = steel color + 2px steel under-rail. <code>Map / Change Map</code> in TL, <code>Settings / Music</code> in BL, <code>Players (4/6)</code> in TR, <code>Chat</code> in BR.</li>
+		<li><b>Map browse.</b> Clicking <code>Change Map</code> swaps the map panel body in-place — search bar + filter chips + 3-column card grid. No modal.</li>
+		<li><b>CTA bar.</b> Left: stat strip (Slots / Players / Bots / Spectators). Right: chunky <code>✓ Ready</code> toggle + 11×44 green <code>▶ Start Game</code>.</li>
+		<li><b>Corner brackets on map only.</b> 12×12 steel L-marks in each map preview corner. Westwood signature touch; not used elsewhere to keep them rare.</li>
+		<li><b>Hover = darker bg, no transition.</b> OpenRA repaints, nothing animates.</li>
 	</ul>
-	<p style="margin-top:12px;"><b>What's still here from the locked design:</b> 2×2 quadrant layout, Map+Change-Map / Settings+Music tab pairs, O3 flat option grid (4-wide, no category headers), V5 player rows (color · flag · spawn · name · ready), single green Start Game CTA, dynamic player-block sizing.</p>
-	<p style="margin-top:12px;"><b>Open calls if you like this direction:</b> (1) corner brackets on every panel or just the map? (2) keep the amber section accent or stay green? (3) toggle switch — chunky rectangle or just two text labels with one underlined?</p>
+	<p style="margin-top:14px;"><b>Engine touchpoints (from <code>WORKSPACE/lobby/next-steps.md</code>):</b>
+	<code>engine/mods/common/chrome/lobby.yaml</code>,
+	<code>lobby-mappreview.yaml</code>,
+	<code>lobby-players.yaml</code>,
+	<code>lobby-music.yaml</code>;
+	<code>LobbyLogic.cs</code>, <code>LobbyOptionsLogic.cs</code>,
+	<code>MapPreviewLogic.cs</code>, <code>LobbyUtils.cs</code>.
+	Recommended port order: Settings (easiest, mostly there) → Map (needs inline browse) → Players (V5 row template) → Chat (cosmetic).</p>
 </div>
 
 <footer class="foot">
-	Realistic mockup grounded in OpenRA's <code style="background:transparent;color:#d4a44a;">ColorBlockWidget</code> + bitmap fonts. No CSS feature used here is impossible in-game.
+	Implementation target. Every primitive used here maps to a single <code style="background:transparent;color:#a8b5c4;">ColorBlockWidget</code>, <code style="background:transparent;color:#a8b5c4;">LabelWidget</code>, or <code style="background:transparent;color:#a8b5c4;">ButtonWidget</code> in OpenRA chrome.
 </footer>
 
 </body>
