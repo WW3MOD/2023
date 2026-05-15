@@ -401,6 +401,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: PARENT_WIDTH / 3 - 6
 									Height: 36
 									Font: Bold
+									Background: lobby-button
 									Text: ▸ Play
 									TooltipText: Play in this slot
 									TooltipContainer: TOOLTIP_CONTAINER
@@ -411,6 +412,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: PARENT_WIDTH / 3 - 4
 									Height: 36
 									Font: Bold
+									Background: lobby-button
 									Text: + Add bot
 									TooltipText: Add bot (faction can be picked on the row after)
 									TooltipContainer: TOOLTIP_CONTAINER
@@ -421,6 +423,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: PARENT_WIDTH / 3 - 8
 									Height: 36
 									Font: Bold
+									Background: lobby-button
 									Text: Close
 									Visible: false
 								Button@JOIN:
@@ -429,6 +432,7 @@ Container@LOBBY_PLAYER_BIN:
 									Y: 2
 									Height: 36
 									Font: Bold
+									Background: lobby-button
 									Text: button-lobby-players-join
 								Label@CLOSED_LABEL:
 									X: 20
@@ -606,12 +610,14 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 130
 							Height: 22
 							Font: Regular
+							Background: lobby-checkbox
 							Text: checkbox-lobby-players-new-spectator-toggle
 						Button@SPECTATE:
 							X: 140
 							Y: 0
 							Width: 180
 							Height: 32
+							Background: lobby-button
 							Text: button-lobby-players-spectate
 							Font: Bold
 				Container@LOBBY_SETUP_ROW:
@@ -627,6 +633,7 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 110
 							Height: 32
 							Font: Bold
+							Background: lobby-button
 							Text: Add Bots
 						Button@REMOVE_BOTS_BUTTON:
 							X: 120
@@ -634,6 +641,7 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 130
 							Height: 32
 							Font: Bold
+							Background: lobby-button
 							Text: Remove Bots
 						DropDownButton@AUTO_TEAM_BUTTON:
 							X: 260
@@ -641,6 +649,7 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 130
 							Height: 32
 							Font: Bold
+							Background: lobby-button
 							Text: Auto-Team
 						Button@REPLAY_LAST_BUTTON:
 							X: 400
@@ -648,6 +657,7 @@ Container@LOBBY_PLAYER_BIN:
 							Width: 140
 							Height: 32
 							Font: Bold
+							Background: lobby-button
 							Text: Replay last
 
 		# RIGHT column for the Match tab: settings + active changes + preset bar.

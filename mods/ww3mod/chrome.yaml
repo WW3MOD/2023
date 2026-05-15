@@ -377,6 +377,47 @@ dialog-lobby-fill:
 	PanelRegion: 643, 3, 0, 0, 120, 120, 0, 0
 	PanelSides: Center
 
+# === Phase 10 — flat lobby-button chrome.
+# Reuses the FLAT INTERIOR of the standard button sprites (no edge bevel pixels),
+# giving each lobby button a clean dark surface instead of the bright top/left
+# bevel baked into the default `button` chrome. The state variants change interior
+# tone (idle/hover/pressed/disabled) without painting the harsh light edge.
+# Applied via Background: lobby-button on lobby player rows + action buttons.
+lobby-button:
+	Inherits: ^Dialog
+	PanelRegion: 643, 3, 0, 0, 120, 120, 0, 0
+	PanelSides: Center
+lobby-button-hover:
+	Inherits: ^Dialog
+	PanelRegion: 515, 131, 0, 0, 120, 120, 0, 0
+	PanelSides: Center
+lobby-button-pressed:
+	Inherits: ^Dialog
+	PanelRegion: 643, 131, 0, 0, 120, 120, 0, 0
+	PanelSides: Center
+lobby-button-disabled:
+	Inherits: ^Dialog
+	PanelRegion: 515, 259, 0, 0, 120, 120, 0, 0
+	PanelSides: Center
+
+lobby-textfield:
+	Inherits: lobby-button
+lobby-textfield-hover:
+	Inherits: lobby-button-hover
+lobby-textfield-disabled:
+	Inherits: lobby-button-disabled
+lobby-textfield-focused:
+	Inherits: lobby-button-pressed
+
+lobby-checkbox:
+	Inherits: lobby-button
+lobby-checkbox-hover:
+	Inherits: lobby-button-hover
+lobby-checkbox-pressed:
+	Inherits: lobby-button-pressed
+lobby-checkbox-disabled:
+	Inherits: lobby-button-disabled
+
 lobby-bits:
 	Inherits: ^Glyphs
 	Regions:

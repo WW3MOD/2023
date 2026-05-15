@@ -89,7 +89,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Widget emptySlotTemplate;
 		readonly Widget editableSpectatorTemplate;
 		readonly Widget nonEditableSpectatorTemplate;
-		readonly Widget newSpectatorTemplate;
+		// Phase 10: TEMPLATE_NEW_SPECTATOR removed — SPECTATE_AREA widget now lives
+		// outside the roster scroll panel, wired up once at startup. Field kept off
+		// the class on purpose; if you need a spectator row template again, restore it.
 
 		readonly ScrollPanelWidget lobbyChatPanel;
 		readonly Dictionary<TextNotificationPool, Widget> chatTemplates = new();
@@ -253,7 +255,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			emptySlotTemplate = players.Get("TEMPLATE_EMPTY");
 			editableSpectatorTemplate = players.Get("TEMPLATE_EDITABLE_SPECTATOR");
 			nonEditableSpectatorTemplate = players.Get("TEMPLATE_NONEDITABLE_SPECTATOR");
-			newSpectatorTemplate = players.Get("TEMPLATE_NEW_SPECTATOR");
+			// Phase 10: SPECTATE_AREA — pulled out of the roster scroll panel and
+			// pinned to the bottom-right of the players cell. Wired up once at
+			// startup; visibility tracks whether the local client occupies a slot.
+			var spectateArea = playerBin.GetOrNull("SPECTATE_AREA");
+			if (spectateArea != null)
+			{
+				LobbyUtils.SetupKickSpectatorsWidget(spectateArea, orderManager, lobby,
+					() => panel = PanelType.Kick, () => panel = PanelType.Players, skirmishMode);
+
+				var spectateBtn = spectateArea.Get<ButtonWidget>("SPECTATE");
+				spectateBtn.OnClick = () => orderManager.IssueOrder(Order.Command("spectate"));
+				spectateBtn.IsDisabled = () => orderManager.LocalClient.IsReady;
+				spectateBtn.IsVisible = () =>
+					orderManager.LocalClient.Slot != null &&
+					(orderManager.LobbyInfo.GlobalSettings.AllowSpectators || orderManager.LocalClient.IsAdmin);
+
+				spectateArea.IsVisible = () => orderManager.LocalClient.Slot != null;
+			}
 
 			// PITFALL: roster auto-expand depends on these widgets staying as direct
 			// children of LOBBY_PLAYER_BIN with the IDs below. If the layout YAML is
@@ -1004,33 +1023,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				idx++;
 			}
 
-			// Spectate button
-			if (orderManager.LocalClient.Slot != null)
-			{
-				Widget spec = null;
-				if (idx < players.Children.Count)
-					spec = players.Children[idx];
-				if (spec == null || spec.Id != newSpectatorTemplate.Id)
-					spec = newSpectatorTemplate.Clone();
-
-				LobbyUtils.SetupKickSpectatorsWidget(spec, orderManager, lobby,
-					() => panel = PanelType.Kick, () => panel = PanelType.Players, skirmishMode);
-
-				var btn = spec.Get<ButtonWidget>("SPECTATE");
-				btn.OnClick = () => orderManager.IssueOrder(Order.Command("spectate"));
-				btn.IsDisabled = () => orderManager.LocalClient.IsReady;
-				btn.IsVisible = () => orderManager.LobbyInfo.GlobalSettings.AllowSpectators
-					|| orderManager.LocalClient.IsAdmin;
-
-				spec.IsVisible = () => true;
-
-				if (idx >= players.Children.Count)
-					players.AddChild(spec);
-				else if (players.Children[idx].Id != spec.Id)
-					players.ReplaceChild(players.Children[idx], spec);
-
-				idx++;
-			}
+			// Spectate button is no longer rendered as a scroll-panel row — the
+			// SPECTATE_AREA widget lives outside the roster (see lobby-players.yaml)
+			// and is wired up once at startup further below in this constructor.
 
 			while (players.Children.Count > idx)
 				players.RemoveChild(players.Children[idx]);
